@@ -90,6 +90,9 @@ export default function AssignmentHub({
   nowValue = Date.now(),
   gradingPeriodSettings = null,
   hasGradeRecords = false,
+  // (classId) => Promise<student grade records>. Lets the hub show progress on
+  // the lightweight live screens without sending the teacher to Grades.
+  onLoadClassGrades = null,
   handlers = {},
   busy = {},
   onClose,
@@ -112,6 +115,8 @@ export default function AssignmentHub({
   const [classId, setClassId] = useState(null);
   const [liveKey, setLiveKey] = useState(null);
   const [gradeKey, setGradeKey] = useState(null);
+  // Grade records fetched on request, per class: { students, at, loading, error }.
+  const [loadedGrades, setLoadedGrades] = useState({});
 
   // Reset only when a DIFFERENT assignment or class is asked for. Live data
   // refreshes hand this drawer new object identities every few seconds; keying
@@ -147,7 +152,30 @@ export default function AssignmentHub({
   const roster = classContext ? studentsInClass({ students, classes, classId: classContext.classId }) : [];
   const nameOf = (student) => formatStudentName(student);
   const live = classContext ? classLiveProgress({ assignment, roster, presenceById, nowValue, nameOf }) : null;
-  const grades = classContext ? classGradeProgress({ assignment, roster, hasGradeRecords, nameOf }) : null;
+  const fetched = classContext ? loadedGrades[classContext.classId] || null : null;
+  const grades = !classContext
+    ? null
+    : hasGradeRecords
+      ? classGradeProgress({ assignment, roster, hasGradeRecords, nameOf })
+      : fetched?.students
+        ? classGradeProgress({ assignment, roster: fetched.students, hasGradeRecords: true, nameOf })
+        : null;
+  const loadGrades = async () => {
+    if (!onLoadClassGrades || !classContext) return;
+    const key = classContext.classId;
+    setLoadedGrades((current) => ({ ...current, [key]: { ...current[key], loading: true, error: null } }));
+    try {
+      const students = await onLoadClassGrades(key);
+      setLoadedGrades((current) => ({ ...current, [key]: { students, at: Date.now(), loading: false, error: null } }));
+    } catch (error) {
+      setLoadedGrades((current) => ({ ...current, [key]: { ...current[key], loading: false, error: error?.message || 'Could not load grades.' } }));
+    }
+  };
+  // A lesson whose final deadline has passed is visited for its grades, work
+  // and export; re-opening its Warm-Up or DOL today is the exception, so it
+  // folds below the grades instead of leading the drawer.
+  const pastLesson = lifecycle.isClosed;
+  const clock = (ms) => new Date(ms).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
   const openWork = onOpenStudentWork && classContext ? (studentId) => onOpenStudentWork(classContext.classId, assignment.id, studentId) : null;
 
   const liveItems = live ? [
@@ -225,40 +253,68 @@ export default function AssignmentHub({
             <div className="tw-notice">This is a Library copy — it is not assigned to a class yet, so there are no students, grades or live activity. Use “Dates &amp; classes” to assign it.</div>
           )}
 
-          {classContext && (
-            <section className="tw-stack" style={{ gap: 8 }} aria-labelledby="assignment-hub-now">
-              <h3 id="assignment-hub-now" className="tw-card__title">Right now in {classLabel}</h3>
-              <AssignmentLessonRows lesson={lesson} classContext={classContext} classLabel={classLabel} schedule={classSchedule} nowValue={nowValue} handlers={handlers} busy={busy} />
-            </section>
-          )}
-
-          {live && (
-            <section className="tw-stack" style={{ gap: 8 }} aria-labelledby="assignment-hub-live">
-              <h3 id="assignment-hub-live" className="tw-card__title">Students · live now <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>{live.total} in class</span></h3>
-              <StatGroup items={liveItems} openKey={liveKey} setOpenKey={setLiveKey} label="Live student counts" />
-              {openLive && <div className="tw-card tw-card--muted"><NameList rows={openLive.rows} detail={openLive.detail} onOpenStudent={onOpenStudent} /></div>}
-            </section>
-          )}
-
-          {classContext && (
-            <section className="tw-stack" style={{ gap: 8 }} aria-labelledby="assignment-hub-progress">
-              <h3 id="assignment-hub-progress" className="tw-card__title">
-                Progress &amp; grades
-                {grades?.average !== null && grades?.average !== undefined && <span className="tw-small tw-muted" style={{ fontWeight: 600 }}> · average {grades.average}% for the {grades.averageOf} who finished</span>}
-              </h3>
-              {grades ? (
-                <>
-                  <StatGroup items={gradeItems} openKey={gradeKey} setOpenKey={setGradeKey} label="Assignment progress counts" />
-                  {openGrade && <div className="tw-card tw-card--muted"><NameList rows={openGrade.rows} detail={openGrade.detail} onOpenStudent={onOpenStudent} onOpenStudentWork={openWork} /></div>}
-                </>
-              ) : (
-                <div className="tw-notice">
-                  Completion and scores load with the gradebook, so this live screen stays fast during class.
-                  {onOpenGrades && <> <button type="button" className="tw-link" onClick={() => onOpenGrades(classContext.classId, assignment.id)}>Open grades for {classLabel}</button></>}
+          {(() => {
+            const controls = classContext && (pastLesson ? (
+              <details className="tw-disclosure" aria-label={`Open ${assignment.title} again today`}>
+                <summary>Use it again today <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>open its Warm-Up or DOL for {classLabel}</span></summary>
+                <div className="tw-disclosure__body">
+                  <AssignmentLessonRows lesson={lesson} classContext={classContext} classLabel={classLabel} schedule={classSchedule} nowValue={nowValue} handlers={handlers} busy={busy} />
                 </div>
-              )}
-            </section>
-          )}
+              </details>
+            ) : (
+              <section className="tw-stack" style={{ gap: 8 }} aria-labelledby="assignment-hub-now">
+                <h3 id="assignment-hub-now" className="tw-card__title">Right now in {classLabel}</h3>
+                <AssignmentLessonRows lesson={lesson} classContext={classContext} classLabel={classLabel} schedule={classSchedule} nowValue={nowValue} handlers={handlers} busy={busy} />
+              </section>
+            ));
+
+            const liveSection = live && (!pastLesson || live.workingHere.length > 0) && (
+              <section className="tw-stack" style={{ gap: 8 }} aria-labelledby="assignment-hub-live">
+                <h3 id="assignment-hub-live" className="tw-card__title">Students · live now <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>{live.total} in class</span></h3>
+                <StatGroup items={liveItems} openKey={liveKey} setOpenKey={setLiveKey} label="Live student counts" />
+                {openLive && <div className="tw-card tw-card--muted"><NameList rows={openLive.rows} detail={openLive.detail} onOpenStudent={onOpenStudent} /></div>}
+              </section>
+            );
+
+            const progressSection = classContext && (
+              <section className="tw-stack" style={{ gap: 8 }} aria-labelledby="assignment-hub-progress">
+                <h3 id="assignment-hub-progress" className="tw-card__title">
+                  Progress &amp; grades
+                  {grades?.average !== null && grades?.average !== undefined && <span className="tw-small tw-muted" style={{ fontWeight: 600 }}> · average {grades.average}% for the {grades.averageOf} who finished</span>}
+                </h3>
+                {grades ? (
+                  <>
+                    <StatGroup items={gradeItems} openKey={gradeKey} setOpenKey={setGradeKey} label="Assignment progress counts" />
+                    {openGrade && <div className="tw-card tw-card--muted"><NameList rows={openGrade.rows} detail={openGrade.detail} onOpenStudent={onOpenStudent} onOpenStudentWork={openWork} /></div>}
+                    {!hasGradeRecords && fetched?.at && (
+                      <div className="tw-small tw-muted">
+                        As of {clock(fetched.at)} · <button type="button" className="tw-link" disabled={fetched.loading} onClick={loadGrades}>{fetched.loading ? 'Refreshing…' : 'Refresh'}</button>
+                      </div>
+                    )}
+                  </>
+                ) : onLoadClassGrades ? (
+                  <div className="tw-notice">
+                    <div>This live screen keeps grades out of memory so it stays fast during class. Load them for {classLabel} when you need them.</div>
+                    <div className="tw-row" style={{ marginTop: 8 }}>
+                      <button type="button" className="tw-btn tw-btn--sm tw-btn--primary" disabled={Boolean(fetched?.loading)} onClick={loadGrades}>
+                        {fetched?.loading ? 'Loading…' : `Show progress for ${classLabel}`}
+                      </button>
+                      {fetched?.error && <span className="tw-small" role="alert">Could not load: {fetched.error}</span>}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="tw-notice">
+                    Completion and scores load with the gradebook, so this live screen stays fast during class.
+                    {onOpenGrades && <> <button type="button" className="tw-link" onClick={() => onOpenGrades(classContext.classId, assignment.id)}>Open grades for {classLabel}</button></>}
+                  </div>
+                )}
+              </section>
+            );
+
+            return pastLesson
+              ? <>{progressSection}{liveSection}{controls}</>
+              : <>{controls}{liveSection}{progressSection}</>;
+          })()}
         </div>
       </aside>
     </div>

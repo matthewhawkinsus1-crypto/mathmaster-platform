@@ -545,7 +545,11 @@ export default function GradeTransferCenter({
             <dt>Files</dt><dd>{plan.fileCount} CSV file{plan.fileCount === 1 ? '' : 's'} · {plan.gradeCount} student grade{plan.gradeCount === 1 ? '' : 's'}</dd>
             <dt>Held back</dt><dd>{plan.withheld.length ? `${plan.withheld.length} with an active extension (${plan.withheld.map((row) => row.name).join(', ')})` : 'None'}</dd>
             {plan.excused.length > 0 && <><dt>Excused</dt><dd>{plan.excused.length} (no numeric grade is sent)</dd></>}
-            <dt>In TEAMS</dt><dd>{plan.overwrite ? 'Answer YES to “Overwrite existing grades?” — this replaces grades already sent.' : 'Answer NO to “Overwrite existing grades?” — first export for these files.'}</dd>
+            <dt>In TEAMS</dt><dd>{!plan.overwrite
+              ? 'Answer NO to “Overwrite existing grades?” — first export for these files.'
+              : plan.overwriteFileCount === plan.fileCount
+                ? 'Answer YES to “Overwrite existing grades?” — this replaces grades already sent.'
+                : `Answer YES to “Overwrite existing grades?” for the ${plan.overwriteFileCount} file${plan.overwriteFileCount === 1 ? '' : 's'} sent before and NO for the ${plan.fileCount - plan.overwriteFileCount} new one${plan.fileCount - plan.overwriteFileCount === 1 ? '' : 's'}. MANIFEST.txt in the ZIP says which is which.`}</dd>
             <dt>File name</dt><dd>{gradePackageFileName(plan.packageUnits)}</dd>
           </dl>
           {plan.assignmentTitles.length > 1 && (

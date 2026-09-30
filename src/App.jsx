@@ -144,6 +144,7 @@ import StudentProfileDrawer from './components/teacher/StudentProfileDrawer.jsx'
 import AssignmentHub from './components/teacher/AssignmentHub.jsx';
 import GradebookAssignmentBar from './components/teacher/GradebookAssignmentBar.jsx';
 import { classGradeProgress } from './platform/teacher/assignmentProgress.js';
+import { groupAssignmentList } from './platform/teacher/assignmentListGroups.js';
 import StudentNameLink from './components/common/StudentNameLink.jsx';
 import StudentResponseInspector from './components/teacher/StudentResponseInspector.jsx';
 import AssignmentGradeOverrideControls from './components/teacher/AssignmentGradeOverrideControls.jsx';
@@ -773,6 +774,10 @@ function App() {
   // A hand-off into Live Class on Home: which class and assignment to show.
   const [liveFocus, setLiveFocus] = useState(null);
   const [gradebookProgressFilter, setGradebookProgressFilter] = useState('all');
+  // Which Assignments-tab groups the teacher has opened or closed by hand
+  // (platform/teacher/assignmentListGroups.js). Closed and library groups start
+  // folded; the one holding the card being edited always opens.
+  const [assignmentGroupOpen, setAssignmentGroupOpen] = useState({});
   // The global live dashboard keeps bounded recent data. Opening one student's
   // profile performs a focused query so older history is not silently lost just
   // because this teacher has many students/classes.
@@ -896,6 +901,16 @@ function App() {
   const [libraryNavigation, setLibraryNavigation] = useState(null);
   const [movingFolderAssignmentId, setMovingFolderAssignmentId] = useState(null);
   const [movingFolderValue, setMovingFolderValue] = useState('');
+  // "Dates & classes" can be opened from an assignment's hub on any screen. The
+  // card being edited may be far down the Assignments tab (or in a folded
+  // closed group, which opens for it), so bring it to the teacher.
+  useEffect(() => {
+    if (teacherTab !== 'assignments' || !editingAssignmentId) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      document.querySelector(`[data-assignment-card="${CSS.escape(editingAssignmentId)}"]`)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [teacherTab, editingAssignmentId]);
   const [feedbackReleaseBusyId, setFeedbackReleaseBusyId] = useState(null);
   const [dolUnlockBusyKey, setDolUnlockBusyKey] = useState(null);
   const [dolAttemptGrantBusyKey, setDolAttemptGrantBusyKey] = useState(null);
@@ -7408,6 +7423,22 @@ function App() {
     setAssignmentHubTarget({ assignmentId, classId: classId || activeClass.classId || null });
   };
 
+  /*
+   * Home and the class page run on the lightweight live roster (no grade
+   * records) so they stay fast during class. When a teacher asks an
+   * assignment's hub "who has finished?", read just that class's grade
+   * documents once — the same per-student documents, and the same teacher-of-
+   * record rule, the Gradebook's live query uses — instead of sending them to
+   * the Gradebook. Read-only.
+   */
+  const loadClassGradeRecords = async (classId) => {
+    const roster = studentsInClass({ students: allStudents, classes, classId });
+    const snapshots = await Promise.all(roster.map((student) => getDoc(doc(db, 'grades', student.id))));
+    return snapshots
+      .filter((snapshot) => snapshot.exists())
+      .map((snapshot) => ({ id: snapshot.id, ...snapshot.data(), profile: normalizeStudentProfile(snapshot.data()?.profile || snapshot.data()) }));
+  };
+
   const openGradeExport = ({ classIds = [], assignmentId = null } = {}) => {
     setGradeExportScope({ classIds: (classIds || []).filter(Boolean), assignmentId: assignmentId || null, nonce: Date.now() });
     setAssignmentHubTarget(null);
@@ -10035,6 +10066,9 @@ function App() {
       && matchesSmartView(assignment, libraryNavigation?.smartView, { nowValue: now, classSchedule, classes })
       && titleOrFolderMatches(assignment, assignmentSearch)
     ));
+    // A search or a Library filter narrows the list: it is shown flat, so a
+    // match is never folded inside a closed marking-period group.
+    const assignmentListIsFiltered = Boolean(assignmentSearch.trim() || libraryNavigation?.folder || libraryNavigation?.smartView);
     const visibleAssignmentIds = visibleAssignments.map((assignment) => assignment.id);
     const allVisibleSelected = visibleAssignmentIds.length > 0
       && visibleAssignmentIds.every((id) => selectedAssignmentIds.has(id));
@@ -10258,6 +10292,7 @@ function App() {
           nowValue={now}
           gradingPeriodSettings={gradingPeriodSettings}
           hasGradeRecords={teacherStudentDataMode === 'full'}
+          onLoadClassGrades={loadClassGradeRecords}
           handlers={{
             onToggleWarmup: handleToggleWarmupForClass,
             onToggleSectionAccess: handleToggleSectionAccessForClass,
@@ -10465,7 +10500,7 @@ function App() {
                   <h2 style={{ margin: 0 }}>
                     Assignments
                     <span style={{ marginLeft: '10px', fontSize: '14px', fontWeight: 600, color: 'var(--mm-ink-muted)' }}>
-                      {visibleAssignments.length} shown
+                      {visibleAssignments.length} {assignmentListIsFiltered ? 'shown' : 'total'}
                     </span>
                   </h2>
                   <SearchField
@@ -10512,7 +10547,7 @@ function App() {
                         return next;
                       })}
                     />
-                    Select all {visibleAssignmentIds.length} shown
+                    Select all {visibleAssignmentIds.length}{assignmentListIsFiltered ? ' shown' : ' (including folded groups)'}
                   </label>
                 )}
 
@@ -10534,7 +10569,8 @@ function App() {
                       : null}
                   />
                 )}
-                {visibleAssignments.map((assignment) => {
+                {(() => {
+                const renderAssignmentCard = (assignment) => {
                   const lifecycle = getAssignmentLifecycle(assignment, now);
                   const affectedStudents = teacherStudentDataMode === 'full'
                     ? allStudents.filter((student) => student.gradesByAssignment?.[assignment.id] !== undefined).length
@@ -10555,7 +10591,7 @@ function App() {
                     && contentVersionOf(contentUpgradeTarget) > contentVersionOf(assignment)
                   );
                   return (
-                    <article key={assignment.id} style={{ background: '#f8f9fa', padding: '18px', marginBottom: '12px', borderRadius: '10px', border: `1px solid ${isSelected ? 'var(--mm-primary)' : lifecycle.isLate ? '#f9ab00' : lifecycle.isPracticeOnly ? '#5f6368' : '#e0e3e7'}`, boxShadow: isSelected ? '0 0 0 2px var(--mm-primary-soft)' : 'none' }}>
+                    <article key={assignment.id} data-assignment-card={assignment.id} style={{ scrollMarginTop: '16px', background: '#f8f9fa', padding: '18px', marginBottom: '12px', borderRadius: '10px', border: `1px solid ${isSelected ? 'var(--mm-primary)' : lifecycle.isLate ? '#f9ab00' : lifecycle.isPracticeOnly ? '#5f6368' : '#e0e3e7'}`, boxShadow: isSelected ? '0 0 0 2px var(--mm-primary-soft)' : 'none' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap', alignItems: 'center' }}>
                         <input
                           type="checkbox"
@@ -10665,7 +10701,55 @@ function App() {
                       )}
                     </article>
                   );
-                })}
+                };
+                /*
+                  CURRENT WORK FIRST (platform/teacher/assignmentListGroups.js).
+                  This list used to be every assignment ever made, oldest due
+                  date first. Now: what is open, then what is scheduled; closed
+                  work folds by marking period and library copies fold last.
+                  Nothing is hidden — a search or Library filter shows one flat,
+                  current-first list so a match is never folded away.
+                */
+                const listGroups = groupAssignmentList({
+                  assignments: visibleAssignments,
+                  nowValue: now,
+                  gradingPeriodSettings,
+                  flat: assignmentListIsFiltered,
+                });
+                return listGroups.map((group) => {
+                  const holdsOpenEditor = group.assignments.some((assignment) => assignment.id === editingAssignmentId || assignment.id === movingFolderAssignmentId);
+                  if (!group.folded) {
+                    return (
+                      <section key={group.id} aria-label={group.label} data-assignment-group={group.id} style={{ marginBottom: '8px' }}>
+                        {listGroups.length > 1 && (
+                          <h3 style={{ margin: '4px 0 10px', fontSize: '15px', textAlign: 'left' }}>
+                            {group.label} <span className="tw-pill">{group.assignments.length}</span>
+                            {group.hint && <span className="tw-small tw-muted" style={{ fontWeight: 600, marginLeft: 8 }}>{group.hint}</span>}
+                          </h3>
+                        )}
+                        {group.assignments.map(renderAssignmentCard)}
+                      </section>
+                    );
+                  }
+                  const open = holdsOpenEditor || (assignmentGroupOpen[group.id] ?? false);
+                  return (
+                    <details
+                      key={group.id}
+                      className="tw-disclosure"
+                      data-assignment-group={group.id}
+                      open={open}
+                      onToggle={(event) => {
+                        const next = event.currentTarget.open;
+                        if (next !== open) setAssignmentGroupOpen((current) => ({ ...current, [group.id]: next }));
+                      }}
+                      style={{ marginBottom: '10px' }}
+                    >
+                      <summary>{group.label} <span className="tw-pill">{group.assignments.length}</span>{group.hint && <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>{group.hint}</span>}</summary>
+                      <div className="tw-disclosure__body">{open && group.assignments.map(renderAssignmentCard)}</div>
+                    </details>
+                  );
+                });
+                })()}
               </div>
             )}
 

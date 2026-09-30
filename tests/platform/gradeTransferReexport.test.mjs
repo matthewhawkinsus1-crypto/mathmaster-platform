@@ -4,7 +4,7 @@ import {
   buildTransferUnit, createExportSnapshot, gradePackageFileName, packageManifest, teamsCsv, TRANSFER_STATE, transferSnapshotId,
 } from '../../src/platform/gradeTransfer/gradeTransferModel.js';
 import {
-  buildFullExportUnits, buildSnapshotDownloadUnits, describeUnitExport, EXPORT_STATUS, exportStatusLabel, pendingUploadIds, rowsChangedSinceExport,
+  buildExportPlan, buildFullExportUnits, buildSnapshotDownloadUnits, describeUnitExport, EXPORT_STATUS, exportStatusLabel, pendingUploadIds, rowsChangedSinceExport,
 } from '../../src/platform/gradeTransfer/gradeTransferHistory.js';
 
 /*
@@ -153,8 +153,39 @@ test('nothing is exportable before the final deadline', () => {
 test('ZIP names say which class, which assignment and when — never an opaque package id', () => {
   const unit = unitFor({ students: [student('1500123', 92)] });
   const name = gradePackageFileName([unit], Date.parse('2026-09-22T15:04:00'));
-  assert.match(name, /^MathMaster-grades_P1_LinearCorrelation_2026-09-22_1504\.zip$/);
-  const other = { ...unit, classId: 'c2', classPeriod: 'P2', assignmentId: 'a2', assignmentTitle: 'Other' };
+  // The class NAME a teacher sees everywhere else, readable in Downloads.
+  assert.match(name, /^MathMaster-grades_Algebra-1_Linear-Correlation_2026-09-22_1504\.zip$/);
+  const other = { ...unit, classId: 'c2', classLabel: 'Geometry', classPeriod: 'P2', assignmentId: 'a2', assignmentTitle: 'Other' };
   assert.match(gradePackageFileName([unit, other], Date.parse('2026-09-22T15:04:00')), /_2-classes_2-assignments_/);
   assert.match(gradePackageFileName([{ ...unit, reexport: true }], Date.parse('2026-09-22T15:04:00')), /_REEXPORT\.zip$/);
+});
+
+test('two classes that share a period are two classes, each named by its own name', () => {
+  const unit = unitFor({ students: [student('1500123', 92)] });
+  const main = { ...unit, classId: 'c-p3', classLabel: 'Algebra II — Period 3', classPeriod: 'Period 3' };
+  const lab = { ...unit, classId: 'c-lab', classLabel: 'Algebra II Lab — Period 3', classPeriod: 'Period 3' };
+  const at = Date.parse('2026-09-22T15:04:00');
+  assert.match(gradePackageFileName([lab], at), /^MathMaster-grades_Algebra-II-Lab-Period-3_/);
+  assert.notEqual(gradePackageFileName([main], at), gradePackageFileName([lab], at));
+  assert.match(gradePackageFileName([main, lab], at), /_2-classes_/);
+});
+
+test('"exported N times" counts exports, not the section files inside one export', () => {
+  const sections = ['warmup', 'classwork', 'practice', 'dol'].map((sectionKey) => ({ ...unitFor({ students: [student('1500123', 92)] }), sectionKey }));
+  const lesson = { ...sections[0], sectionKey: null, sectionUnits: sections };
+  const once = sections.map((part) => ({ ...exportSnapshot(part, MONDAY), transferId: `t-${part.sectionKey}`, sectionKey: part.sectionKey, packageId: 'monday' }));
+  assert.equal(describeUnitExport({ unit: lesson, snapshots: once }).exportCount, 1);
+  const again = [...once, { ...once[1], transferId: 't-classwork-2', packageId: 'tuesday', createdAt: new Date(TUESDAY).toISOString() }];
+  assert.equal(describeUnitExport({ unit: lesson, snapshots: again }).exportCount, 2);
+});
+
+test('a package that mixes re-exported and first-time files says how many of each need "overwrite"', () => {
+  const monday = unitFor({ students: [student('1500123', 92)] });
+  const sent = exportSnapshot(monday, MONDAY);
+  const later = unitFor({ students: [student('1500123', 92)], snapshots: [sent], now: TUESDAY });
+  const fresh = { ...unitFor({ students: [student('1500123', 92)] }), classId: 'c2', classLabel: 'Geometry', key: 'c2:a1' };
+  const plan = buildExportPlan({ entries: [{ unit: later, mode: 'full' }, { unit: fresh, mode: 'full' }], snapshots: [sent] });
+  assert.equal(plan.fileCount, 2);
+  assert.equal(plan.overwriteFileCount, 1);
+  assert.equal(plan.overwrite, true);
 });

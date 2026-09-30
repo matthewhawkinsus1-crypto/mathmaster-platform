@@ -276,17 +276,28 @@ const zipStamp = (now) => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}`;
 };
 
+// Words kept apart with hyphens so "Algebra II — Period 3" reads as
+// Algebra-II-Period-3 in a Downloads folder rather than AlgebraIIPeriod3.
+const readableName = (value, max = 48) => text(value)
+  .replace(/[^A-Za-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '')
+  .slice(0, max)
+  .replace(/-+$/, '') || 'GradeExport';
+
 /**
  * A ZIP name a teacher can find again in Downloads: what is in it and when it
- * was made, never an opaque package id. One class names the class; several
- * say how many. The package id stays inside the snapshots for audit.
+ * was made, never an opaque package id. One class names the class — by its
+ * NAME, because two classes can share a period ("Algebra II — Period 3" and
+ * "Algebra II Lab — Period 3"); several say how many. The package id stays
+ * inside the snapshots for audit.
  */
 export const gradePackageFileName = (units = [], now = Date.now()) => {
-  const classLabels = [...new Set((units || []).map((unit) => text(unit.classPeriod || unit.classLabel)).filter(Boolean))];
+  const classKeys = [...new Set((units || []).map((unit) => text(unit.classId || unit.classLabel || unit.classPeriod)).filter(Boolean))];
   const assignmentIds = [...new Set((units || []).map((unit) => text(unit.assignmentId)).filter(Boolean))];
-  const scope = classLabels.length === 1 ? safeName(classLabels[0]) : `${classLabels.length}-classes`;
+  const firstOfClass = (units || []).find((unit) => text(unit.classId || unit.classLabel || unit.classPeriod) === classKeys[0]);
+  const scope = classKeys.length === 1 ? readableName(firstOfClass?.classLabel || firstOfClass?.classPeriod) : `${classKeys.length}-classes`;
   const what = assignmentIds.length === 1
-    ? safeName((units || []).find((unit) => unit.assignmentId === assignmentIds[0])?.assignmentTitle).slice(0, 40)
+    ? readableName((units || []).find((unit) => unit.assignmentId === assignmentIds[0])?.assignmentTitle, 40)
     : `${assignmentIds.length}-assignments`;
   const kind = (units || []).some((unit) => unit.reexport) ? '_REEXPORT' : (units || []).every((unit) => unit.exportKind === 'delta') && units.length ? '_UPDATE' : '';
   return `MathMaster-grades_${scope}_${what}_${zipStamp(now)}${kind}.zip`;

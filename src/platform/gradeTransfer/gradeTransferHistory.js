@@ -134,7 +134,9 @@ export const describeUnitExport = ({ unit, snapshots = [] } = {}) => {
     exported,
     lastExportedAt,
     lastUploadedAt,
-    exportCount: everyHistory.length,
+    // One export writes a snapshot per section file (Warm-Up, Classwork, …),
+    // so "how many times was this exported" counts packages, not files.
+    exportCount: new Set(everyHistory.map((snapshot) => snapshot.packageId || snapshot.transferId || snapshot.id)).size,
     pendingUploads,
     changedCount: changedRows.length,
     fullRowCount,
@@ -244,6 +246,9 @@ export const buildExportPlan = ({ entries = [], snapshots = [], periodFor = null
     withheld: dedupeStudents(units.flatMap((unit) => unit.withheld || [])),
     excused: dedupeStudents(units.flatMap((unit) => unit.excused || [])),
     overwrite: packageUnits.some((unit) => unit.exportKind === 'delta' || unit.reexport),
+    // TEAMS asks "Overwrite existing grades?" per file. A package can mix files
+    // already sent (answer YES) with first-time files (answer NO).
+    overwriteFileCount: packageUnits.filter((unit) => unit.exportKind === 'delta' || unit.reexport).length,
     reexportCount: planned.filter((entry) => entry.packageUnits.some((unit) => unit.reexport)).length,
     empty: packageUnits.length === 0,
   };
