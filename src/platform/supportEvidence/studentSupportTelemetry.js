@@ -103,25 +103,8 @@ export const studentMayRecordSupport = (profile, supportId, { nowValue = Date.no
   return plan.active && planHasSupport(plan, supportId);
 };
 
-/**
- * Which configured modifications actually changed this delivered item.
- * `reduce-complexity` changes supported generators and trims multiple choice;
- * `prefill-first-step` is honoured only by the step-algebra tool. A
- * modification that changed nothing leaves the item — and the work — at grade
- * level, and must not turn it into Modified.
- */
-export const modificationsAppliedToQuestion = (question = {}, configured = []) => {
-  const set = new Set(list(configured));
-  const applied = [];
-  if (set.has('reduce-complexity')) {
-    const kind = question?.generator?.kind;
-    const generatorChanged = ['fraction', 'stepLinearEquation', 'literalLinear'].includes(kind);
-    const choicesTrimmed = Array.isArray(question?.choices) && question.choices.length > 2;
-    if (generatorChanged || choicesTrimmed) applied.push('reduce-complexity');
-  }
-  if (set.has('prefill-first-step') && question?.type === 'stepAlgebra') applied.push('prefill-first-step');
-  return applied;
-};
+// Kept beside the transformation it mirrors (src/studentSupport.js).
+export { modificationsAppliedToQuestion } from '../../studentSupport.js';
 
 /** Session de-duplication key for a "used" record: once per question per minute. */
 export const usedRecordKey = ({ assignmentId, questionIndex, supportId, nowMs = Date.now() }) => (

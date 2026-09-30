@@ -69,6 +69,27 @@ export const getStudentSupportPresentation = (profile) => {
   };
 };
 
+/*
+ * Which configured modifications actually CHANGE this item — kept next to the
+ * transformation below so the two cannot drift. `reduce-complexity` rewrites
+ * the fraction / one-step / literal generators and trims multiple choice;
+ * `prefill-first-step` is honoured only by the step-algebra tool. A
+ * modification that changed nothing leaves the item — and the student's work
+ * on it — at grade level, and must not mark the work Modified.
+ */
+const COMPLEXITY_REDUCED_GENERATORS = new Set(['fraction', 'stepLinearEquation', 'literalLinear']);
+export const modificationsAppliedToQuestion = (question = {}, configured = []) => {
+  const set = new Set(Array.isArray(configured) ? configured : []);
+  const applied = [];
+  if (set.has('reduce-complexity')) {
+    const generatorChanged = COMPLEXITY_REDUCED_GENERATORS.has(question?.generator?.kind);
+    const choicesTrimmed = Array.isArray(question?.choices) && question.choices.length > 2;
+    if (generatorChanged || choicesTrimmed) applied.push('reduce-complexity');
+  }
+  if (set.has('prefill-first-step') && question?.type === 'stepAlgebra') applied.push('prefill-first-step');
+  return applied;
+};
+
 export const applyStudentSupportToQuestion = (question, profile) => {
   const normalized = normalizeStudentProfile(profile);
   // Support-only capabilities are trusted profile data, never authoring data.
@@ -80,7 +101,7 @@ export const applyStudentSupportToQuestion = (question, profile) => {
     supportEntitlements: {},
   };
   if (!normalized.inclusionStatus && !normalized.accommodations.length && !normalized.modifications.length && !normalized.translationLanguage) {
-    return { question: trustedQuestion, usage: { modified: false, accommodations: [], modifications: [] } };
+    return { question: trustedQuestion, usage: { modified: false, accommodations: [], modifications: [], modificationsConfigured: [] } };
   }
   const next = {
     ...trustedQuestion,
@@ -96,11 +117,14 @@ export const applyStudentSupportToQuestion = (question, profile) => {
       next.context = { ...next.context, scenario: translation.scenario };
     }
   }
+  // `accommodations` keeps its long-standing meaning — configured for this
+  // student and presented with the item — which attempt evidence records as
+  // stage "presented". It is NOT a record of use; the support evidence system
+  // records use separately (grades/{id}/supportEvidence).
   const usedAccommodations = [...normalized.accommodations];
-  const usedModifications = [];
+  const appliedModifications = modificationsAppliedToQuestion(question, normalized.modifications);
 
   if (normalized.modifications.includes('reduce-complexity')) {
-    usedModifications.push('reduce-complexity');
     if (next.generator?.kind === 'fraction') {
       next.generator.denominators = [2, 4, 5, 10];
     }
@@ -123,7 +147,6 @@ export const applyStudentSupportToQuestion = (question, profile) => {
       ...(next.supportEntitlements || {}),
       prefillFirstStep: true,
     };
-    usedModifications.push('prefill-first-step');
   }
 
   if (getStudentSupportPresentation(normalized).visualChunking) next.visualChunking = true;
@@ -132,9 +155,11 @@ export const applyStudentSupportToQuestion = (question, profile) => {
   return {
     question: next,
     usage: {
-      modified: usedModifications.length > 0,
+      // Modified only where a modification changed this item (see above).
+      modified: appliedModifications.length > 0,
       accommodations: usedAccommodations,
-      modifications: usedModifications,
+      modifications: appliedModifications,
+      modificationsConfigured: [...normalized.modifications],
     },
   };
 };

@@ -160,7 +160,7 @@ export const saveSupportProfileRevision = async ({
 // --- Evidence events ----------------------------------------------------------------
 
 /** A staff record (one-click action, provider entry, determination). */
-export const recordStaffSupportEvent = async ({ db, event, nowValue = Date.now() } = {}) => {
+export const recordStaffSupportEvidence = async ({ db, event, nowValue = Date.now() } = {}) => {
   const { payload, errors } = buildStaffEvidenceEvent(event);
   if (errors.length) throw new SupportRecordError(errors);
   const ref = doc(collection(db, 'grades', payload.studentId, SUPPORT_EVIDENCE_SUBCOLLECTION));
@@ -176,7 +176,7 @@ export const recordStaffSupportEvent = async ({ db, event, nowValue = Date.now()
  * or second tab cannot duplicate them; the second write is refused by the
  * rules as an update, which is expected and swallowed.
  */
-export const recordStudentSupportEvent = async ({ db, event, deterministic = false } = {}) => {
+export const recordStudentSupportEvidence = async ({ db, event, deterministic = false } = {}) => {
   const { payload, errors } = buildStudentEvidenceEvent(event);
   if (errors.length) throw new SupportRecordError(errors);
   const evidence = collection(db, 'grades', payload.studentId, SUPPORT_EVIDENCE_SUBCOLLECTION);

@@ -9,7 +9,7 @@ Branch: `ai/claude-iep-evidence-20260930` (from `origin/main` @ `1fcd1ea7`, PR #
 
 ## Current state
 
-- **Phase:** 3 — support-use telemetry wiring (QuestionEngine / launch records), then teacher UI (next)
+- **Phase:** 4 — teacher Support/Evidence UI: aggregation model, drawer section, hub layer, one-click, service log (next)
 - **Design:** `docs/IEP_SUPPORT_EVIDENCE_DESIGN.md` (committed with this checkpoint)
 - **PR:** _(not opened yet)_
 
@@ -103,6 +103,8 @@ These are the facts the design is built on. File references are to `origin/main`
 | Phase 2 | `npm run test:platform` | 6719/6721 → 2 moved source contracts fixed per AGENTS.md; both files re-run green |
 | Phase 2 | `npm run build` | pass |
 | Phase 2 | `npx oxlint` (new files) | clean |
+| Phase 3 | `npm run test:platform` | 6734/6734 |
+| Phase 3 | `npm run build` | pass (after renaming a colliding import the suite cannot see) |
 
 ## Phase 1 — done
 
@@ -142,12 +144,26 @@ These are the facts the design is built on. File references are to `origin/main`
   `assessmentRecoveryPolicy` count (ledger call no longer reuses the counted spelling) and
   `stepAlgebraDirectCancellationUI` (Apply shortcut option now asserted via catalog + editor).
 
-## Phase 3 checklist (next)
+## Phase 3 — done
 
-- [ ] `QuestionEngine`: `onSupportUsed` / `onSupportAvailable` (Read aloud, calculator) + applied-modification report
-- [ ] `applyStudentSupportToQuestion`: `modifications` = applied only (+ `modificationsConfigured`)
-- [ ] App.jsx: launch records (`launchSupportRecords`), student recorder with de-dup, `assignedTeacherEmail` on user
-- [ ] tests + mutation checks; full suite; checkpoint
+- `QuestionEngine`: `onSupportEvidence` — Read aloud available/used, calculator available/used (both open paths via
+  `markCalculatorOpened`), and `provided` for a modification only where it changed the item.
+- `applyStudentSupportToQuestion`: `usage.modifications`/`modified` = applied only (`modificationsAppliedToQuestion`
+  lives beside the transformation); `modificationsConfigured` added. Accommodations keep their "presented" meaning.
+- App.jsx: `recordStudentSupportEvidence` (entitlement filter, credit work only, no previews/practice, de-dup:
+  fixed ids for available/provided, once per question per minute for used), launch records via
+  `launchSupportRecords`, `assignedTeacherEmail` loaded verbatim onto the student user for the rules.
+- Build caught a duplicate `recordStudentSupportEvent` import (the live-class writer has that name): evidence
+  writers renamed `recordStaffSupportEvidence` / `recordStudentSupportEvidence`.
+
+## Phase 4 checklist (next)
+
+- [ ] `evidenceAggregation.js` (written, not yet tested/committed) + tests: one row builder for drawer/hub/report
+- [ ] rules + model: staff `voidsEventId` correction; one-time `note` after a one-click (same actor, 15 min)
+- [ ] `StudentSupportEvidencePanel` in the student drawer (profile, one-click actions, recent evidence, minutes,
+      report/service/edit entry points)
+- [ ] `AssignmentSupportLayer` in the hub (supported students, individualized deadlines, condition, one-click)
+- [ ] `ServiceLogDialog`; tests; browser pass in the teacher harness
 
 ## Remaining work / known gaps
 

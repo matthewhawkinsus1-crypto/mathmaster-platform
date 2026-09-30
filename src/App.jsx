@@ -32,6 +32,8 @@ import { readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../func
 import { resolveAuthoritativeClose, resolveWarmupInstructionDateKey } from '../functions/shared/sectionDeadline.mjs';
 import { withStudentSupportDates } from '../functions/shared/supportDeadline.mjs';
 import useEngagementLedger from './platform/supportEvidence/useEngagementLedger.js';
+import { recordStudentSupportEvidence as saveStudentSupportEvidence } from './platform/supportEvidence/supportEvidenceStore.js';
+import { launchSupportRecords, studentMayRecordSupport, usedRecordKey } from './platform/supportEvidence/studentSupportTelemetry.js';
 import { buildDolAttemptGrant, buildDolClose, buildDolDateMove, buildDolExtension, buildDolScheduleRestore, buildDolWindowOpening, scheduledDolDateFor, summarizeStudentRecovery } from './platform/assessment/assessmentRecovery.js';
 import { PRESENCE_FLUSH_MS, applyKeyedChanges, createKeyedUpdateBuffer } from './platform/performance/coalescedKeyedUpdates.js';
 import { teacherAdmin } from './auth/authService';
@@ -2612,6 +2614,9 @@ function App() {
           className: courseContext.className,
           classPeriod: courseContext.classPeriod,
           teacherOfRecord: courseContext.teacherOfRecord,
+          // Verbatim from the roster row: support evidence the student's client
+          // records must name exactly this teacher (firestore.rules).
+          assignedTeacherEmail: studentData.assignedTeacherEmail || null,
           profile: {
             ...studentProfile,
             course: courseContext.courseId,
@@ -2885,6 +2890,52 @@ function App() {
     creditEligible: activeLifecycle.creditEligible && !isPracticeMode,
     lastInteractionRef: lastActivityRef,
   });
+
+  // SUPPORT EVIDENCE FROM THE STUDENT'S OWN CLIENT — platform facts only.
+  //
+  // Only supports this student is entitled to (the rules refuse anything
+  // else), only on credit work (post-deadline practice is invisible to
+  // reports, as with activity time), never in a teacher preview. "Available" and
+  // "provided" records use one fixed id per assignment and profile revision;
+  // "used" is de-duplicated to once per question per minute. A failed write is
+  // dropped: evidence telemetry must never interrupt a student's work.
+  const supportEvidenceSeenRef = useRef(new Set());
+  const recordStudentSupportEvidence = ({ supportId, eventType, questionIndex = null, activityRole = null }) => {
+    if (user?.role !== 'student' || !user.id || !activeAssignmentId || isPracticeMode) return;
+    if (!studentMayRecordSupport(user.profile, supportId)) return;
+    const revisionId = user.profile?.supportRevisionId || 'legacy-unversioned';
+    const deterministic = eventType !== 'used';
+    const key = deterministic
+      ? `${activeAssignmentId}|${revisionId}|${supportId}|${eventType}`
+      : usedRecordKey({ assignmentId: activeAssignmentId, questionIndex, supportId });
+    if (supportEvidenceSeenRef.current.has(key)) return;
+    supportEvidenceSeenRef.current.add(key);
+    saveStudentSupportEvidence({
+      db,
+      deterministic,
+      event: {
+        studentId: user.id,
+        classId: user.classId || null,
+        assignmentId: activeAssignmentId,
+        activityRole,
+        questionIndex,
+        supportId,
+        eventType,
+        profileRevisionId: revisionId,
+        assignedTeacherEmail: user.assignedTeacherEmail,
+      },
+    }).catch(() => { supportEvidenceSeenRef.current.delete(key); });
+  };
+  const launchedSupportKeyRef = useRef('');
+  useEffect(() => {
+    if (!isStudentAssignment || !activeAssignmentData || isPracticeMode) return;
+    const launchKey = `${activeAssignmentId}|${user?.profile?.supportRevisionId || 'legacy'}`;
+    if (launchedSupportKeyRef.current === launchKey) return;
+    launchedSupportKeyRef.current = launchKey;
+    const roles = activeQuestions.map((question) => resolveQuestionActivityRole({ question, assignment: activeAssignmentData }));
+    launchSupportRecords({ profile: user.profile, assignment: activeAssignmentData, roles, questions: activeQuestions })
+      .records.forEach((record) => recordStudentSupportEvidence(record));
+  }, [isStudentAssignment, activeAssignmentId, activeAssignmentData, isPracticeMode, user?.profile?.supportRevisionId]); // eslint-disable-line react-hooks/exhaustive-deps
   const activeDOLState = getDOLState({ assignment: activeAssignmentData, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
   const activeQuestionRole = resolveQuestionActivityRole({
     question: activeQuestions[currentQuestionIndex],
@@ -9955,6 +10006,9 @@ function App() {
               sectionQuestionCount={currentSectionQuestionCount}
               onContinueSection={nextAvailableSectionTarget ? () => changeQuestion(nextAvailableSectionTarget.index) : null}
               continueSectionLabel={nextAvailableSectionMeta?.label || ''}
+              onSupportEvidence={preview || lifecycle.isPracticeOnly
+                ? null
+                : (evidence) => recordStudentSupportEvidence({ ...evidence, questionIndex: currentQuestionIndex, activityRole: runtimeActivityRole })}
             />
             {/* SAVE HEALTH, IN THE STUDENT'S WORDS.
                 A STUDENT IS NEVER TOLD "SUBMITTED" BEFORE THE SERVER HAS IT.
