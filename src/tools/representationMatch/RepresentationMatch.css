@@ -1,19 +1,66 @@
-/* A graph card spans two card columns so its plane is readable: squeezed into
-   one 160px column the axis labels overlapped and the slope was hard to judge.
-   Only where the grid is wide enough to have two columns — a span on a
-   one-column phone grid would create an implicit column and scroll sideways. */
-@container line-cards (min-width: 520px) {
-  .mathmaster-line-card-grid > .mathmaster-line-card[data-card-kind="graph"] {
-    grid-column: span 2;
-  }
-}
+/* A CARD SORT IN BANDS OF LIKE-SIZED CARDS (student UX pass, R-9).
+   One grid of every card made each row as tall as its graph: short equation
+   cards sat above ~250px of empty space and the deck took three screens at
+   1366×768. Each band sizes its own cards:
 
-.mathmaster-line-card-grid {
-  container: line-cards / inline-size;
-}
+     context   sentences — wide enough to read in two or three lines
+     facts     equations, slopes, points — compact, many per row
+     tables    a few x/y rows — compact
+     graphs    wide enough that a graph's axis labels stay apart (a 160px
+               graph overlapped them)
 
-/* A two-column graph card makes its row tall; the one-line cards beside it
-   keep their own height instead of stretching into mostly blank tiles. */
+   `align-items: start` keeps a short card its own height beside a taller one
+   in the same band. */
 .mathmaster-line-card-grid {
+  display: grid;
+  gap: 10px;
   align-items: start;
+}
+
+.mathmaster-line-card-grid-context {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+}
+
+.mathmaster-line-card-grid-facts {
+  /* 140px: two facts side by side on a 390px phone rather than one a row. */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 140px), 1fr));
+}
+
+.mathmaster-line-card-grid-tables {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 140px), 1fr));
+}
+
+.mathmaster-line-card-grid-graphs {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+}
+
+/* The table card: two narrow columns, ruled like the tables in the lessons. */
+.mathmaster-line-card-table {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(44px, max-content));
+  column-gap: 0;
+  font-size: 18px;
+  border: 1px solid #c9d6ea;
+  border-radius: 6px;
+  width: max-content;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.mathmaster-line-card-table > * {
+  padding: 3px 12px;
+  text-align: center;
+  border-top: 1px solid #e3eaf5;
+}
+
+.mathmaster-line-card-table > :nth-child(odd) {
+  border-right: 1px solid #c9d6ea;
+}
+
+.mathmaster-line-card-table-head {
+  border-top: 0 !important;
+  background: #f1f5fb;
+  font-family: serif;
+  font-style: italic;
+  font-weight: 700;
 }

@@ -52,26 +52,145 @@ export const mixedRepresentationCards = (sets = [], mixed = {}, kinds = ['equati
 // whatever surface form the author chose ("y=-2x+5", "y-1=-2(x-2)",
 // "2x+y=5") because canonicalFromEquationText resolves any of them to the
 // same line without needing to know which form it is looking at.
-export const LINEAR_CARD_KINDS = ['slopeIntercept', 'factoredLinear', 'pointSlope', 'standard', 'graph', 'slope', 'point', 'xIntercept', 'yIntercept', 'context'];
+export const LINEAR_CARD_KINDS = ['slopeIntercept', 'factoredLinear', 'pointSlope', 'standard', 'graph', 'slope', 'point', 'xIntercept', 'yIntercept', 'context', 'table'];
+
+/*
+ * A TABLE CARD (student UX pass, R-9).
+ *
+ * A compact, read-only x/y table is the representation a warm-up most wants
+ * and the card sort could not show. It is opt-in: `table` joins the card kinds,
+ * but a set only produces a table card when it authors one, so no existing
+ * assignment changes.
+ *
+ * Authored as rows, in any of the shapes the platform already accepts:
+ *   table: [{ x: 0, y: 3 }, { x: 1, y: 5 }]        Firestore-safe, preferred
+ *   table: [[0, 3], [1, 5]]                          preview / raw JSON
+ *   table: { points: [[0, 3], [1, 5]] }               `points` is repaired to
+ *                                                     {x, y} on import
+ *   table: '(0, 3), (1, 5), (2, 7)'                  text
+ *   table: { xValues: [-1, 0, 1, 2] }                y computed from the
+ *                                                     set's own line
+ * Two to six rows with distinct x. Validated against the set's line like every
+ * other card (inconsistentLinearCardKinds).
+ */
+const MAX_TABLE_ROWS = 6;
+
+const pairOf = (row) => {
+  if (Array.isArray(row) && row.length === 2) return [Number(row[0]), Number(row[1])];
+  if (row && typeof row === 'object' && 'x' in row && 'y' in row) return [Number(row.x), Number(row.y)];
+  if (row && typeof row === 'object' && Array.isArray(row.cells) && row.cells.length === 2) return [Number(row.cells[0]), Number(row.cells[1])];
+  return null;
+};
+
+export const linearTableRows = (value, set = {}) => {
+  if (value == null) return null;
+  let rows = null;
+  if (typeof value === 'string') {
+    rows = [...value.matchAll(/\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)/g)].map((match) => [Number(match[1]), Number(match[2])]);
+  } else if (Array.isArray(value)) {
+    rows = value.map(pairOf);
+  } else if (typeof value === 'object' && Array.isArray(value.points)) {
+    rows = value.points.map(pairOf);
+  } else if (typeof value === 'object' && Array.isArray(value.rows)) {
+    rows = value.rows.map(pairOf);
+  } else if (typeof value === 'object' && Array.isArray(value.xValues)) {
+    // eslint-disable-next-line no-use-before-define -- hoisted function declaration below
+    const line = canonicalLineForSet({ ...set, table: undefined });
+    if (!line || line.vertical) return null;
+    const m = fractionToNumber(slopeOf(line));
+    const b = fractionToNumber(yInterceptOf(line));
+    if (!Number.isFinite(m) || !Number.isFinite(b)) return null;
+    rows = value.xValues.map((x) => [Number(x), round(m * Number(x) + b, 6)]);
+  }
+  if (!rows || rows.length < 2 || rows.length > MAX_TABLE_ROWS) return null;
+  if (rows.some((row) => !row || !row.every(Number.isFinite))) return null;
+  if (new Set(rows.map(([x]) => x)).size !== rows.length) return null;
+  return rows;
+};
 
 const linearCardValue = (set = {}, kind) => {
   if (kind === 'graph') return set.graphSpec ?? null;
+  if (kind === 'table') return linearTableRows(set.table, set);
   return set[kind];
 };
 
-const hasLinearCardValue = (value) => (
-  Array.isArray(value) ? value.length === 2 && value.every((entry) => Number.isFinite(Number(entry)))
-    : typeof value === 'number' ? Number.isFinite(value)
-      : typeof value === 'object' ? Boolean(value)
-        : value != null && String(value).trim() !== ''
+const hasLinearCardValue = (value, kind = null) => (
+  kind === 'table' ? Array.isArray(value) && value.length >= 2
+    : Array.isArray(value) ? value.length === 2 && value.every((entry) => Number.isFinite(Number(entry)))
+      : typeof value === 'number' ? Number.isFinite(value)
+        : typeof value === 'object' ? Boolean(value)
+          : value != null && String(value).trim() !== ''
 );
+
+/*
+ * WHAT THE GROUPS ARE CALLED.
+ *
+ * "Line A / Line B" is right when the task is two lines and wrong when it is
+ * two situations — PR #397's second warm-up asked students to sort cards "into
+ * the situation it describes" under buttons that said Line A and Line B. The
+ * noun follows the authored task: `groupNoun` when the author gives one,
+ * "Situation" when every set carries a context card, "Line" otherwise. A set
+ * may also name its own group (`label`, e.g. "Maya's savings").
+ */
+export const linearGroupNoun = (question = {}, sets = []) => {
+  const authored = String(question.groupNoun || '').trim();
+  if (authored) return authored.charAt(0).toUpperCase() + authored.slice(1);
+  const hasContexts = sets.length > 0 && sets.every((set) => String(set?.context || '').trim());
+  return hasContexts ? 'Situation' : 'Line';
+};
+
+export const linearGroupLabels = (question = {}, sets = []) => {
+  const noun = linearGroupNoun(question, sets);
+  return sets.map((set, index) => {
+    const own = String(set?.label || '').trim();
+    return own || `${noun} ${String.fromCharCode(65 + index)}`;
+  });
+};
+
+const pointText = (value) => (Array.isArray(value) ? `(${value[0]}, ${value[1]})` : String(value ?? ''));
+
+/**
+ * The words a screen reader hears for a card: its kind AND what it says.
+ * The card buttons carried only "Slope-intercept equation card, currently
+ * Unassigned" — every equation sounded identical and the task was impossible
+ * without sight. A graph is described by two lattice points it passes through
+ * inside the authored window, which is what a sighted student reads off it.
+ */
+export const describeLinearCard = (card, { bounds = null } = {}) => {
+  if (!card) return '';
+  if (card.kind === 'graph') {
+    const spec = card.value || {};
+    const xMin = Math.ceil(Number(bounds?.xMin ?? -8));
+    const xMax = Math.floor(Number(bounds?.xMax ?? 8));
+    const yMin = Number(bounds?.yMin ?? -8);
+    const yMax = Number(bounds?.yMax ?? 8);
+    // Nearest the y-axis first: the points a student reads off first.
+    const order = [];
+    for (let step = 0; step <= Math.max(Math.abs(xMin), Math.abs(xMax)); step += 1) order.push(step, -step);
+    const lattice = [];
+    for (const x of order) {
+      if (lattice.length >= 2) break;
+      if (x < xMin || x > xMax) continue;
+      const y = evaluateFunctionSpec(spec, x);
+      const label = `(${x}, ${round(y, 9)})`;
+      if (Number.isFinite(y) && Number.isInteger(round(y, 9)) && y >= yMin && y <= yMax && !lattice.includes(label)) lattice.push(label);
+    }
+    return lattice.length === 2 ? `a line through ${lattice[0]} and ${lattice[1]}` : 'a straight line';
+  }
+  if (card.kind === 'table') {
+    return `x and y values ${(card.value || []).map(([x, y]) => `${x}, ${y}`).join('; ')}`;
+  }
+  if (card.kind === 'slope') return `m = ${card.value}`;
+  if (['point', 'xIntercept', 'yIntercept'].includes(card.kind)) return pointText(card.value);
+  return String(card.value ?? '');
+};
 
 /** The canonical line a linearConnections set describes, preferring whichever
  * explicit field can determine it — an equation string, then slope+point,
  * then a linear graphSpec. Used for authoring validation and for detecting an
  * intentionally mismatched card, never for scoring the plain grouping task
  * (there, the authored set membership itself is the ground truth). */
-export const canonicalLineForSet = (set = {}) => {
+export function canonicalLineForSet(set = {}) {
   if (set.slopeIntercept) { const line = canonicalFromEquationText(set.slopeIntercept); if (line) return line; }
   if (set.factoredLinear) { const line = canonicalFromEquationText(set.factoredLinear); if (line) return line; }
   if (set.standard) { const line = canonicalFromEquationText(set.standard); if (line) return line; }
@@ -86,8 +205,18 @@ export const canonicalLineForSet = (set = {}) => {
     const k = Number(set.graphSpec.k ?? 0);
     if ([a, h, k].every(Number.isFinite)) return canonicalFromSlopeIntercept(a, k - a * h);
   }
+  // Last: two explicit table rows determine the line too. (A computed table,
+  // `{ xValues }`, needs a line from elsewhere and cannot supply one.)
+  if (set.table != null && !Array.isArray(set.table?.xValues)) {
+    const rows = linearTableRows(set.table, set);
+    if (rows && rows[1][0] !== rows[0][0]) {
+      const slope = (rows[1][1] - rows[0][1]) / (rows[1][0] - rows[0][0]);
+      const line = canonicalFromPointSlope(rows[0], slope);
+      if (line) return line;
+    }
+  }
   return null;
-};
+}
 
 /** Validate every mathematical card against a chosen canonical line. */
 export const inconsistentLinearCardKinds = (set = {}, line = canonicalLineForSet(set)) => {
@@ -104,6 +233,10 @@ export const inconsistentLinearCardKinds = (set = {}, line = canonicalLineForSet
   }
   if (hasLinearCardValue(set.slope) && (line.vertical || Math.abs(Number(set.slope) - fractionToNumber(slopeOf(line))) > 1e-6)) inconsistent.push('slope');
   if (hasLinearCardValue(set.point) && !pointOnCanonicalLine(line, set.point)) inconsistent.push('point');
+  if (set.table != null) {
+    const rows = linearTableRows(set.table, set);
+    if (!rows || rows.some((row) => !pointOnCanonicalLine(line, row))) inconsistent.push('table');
+  }
   const checkIntercept = (kind, actual, expected) => {
     if (!hasLinearCardValue(actual)) return;
     const coordinate = Array.isArray(actual) ? Number(actual[kind === 'xIntercept' ? 0 : 1]) : Number(actual);
@@ -121,7 +254,7 @@ export const buildLinearConnectionCards = (sets = [], kinds = LINEAR_CARD_KINDS)
   sets.forEach((set) => {
     kinds.forEach((kind) => {
       const value = linearCardValue(set, kind);
-      if (!hasLinearCardValue(value)) return;
+      if (!hasLinearCardValue(value, kind)) return;
       cards.push({ id: `${set.id}:${kind}`, setId: set.id, kind, value });
     });
   });

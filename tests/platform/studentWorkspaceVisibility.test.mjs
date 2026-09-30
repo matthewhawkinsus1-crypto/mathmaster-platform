@@ -127,17 +127,20 @@ test('registered-tool Work View shows the task once and labels chips in sentence
 
 // Live QA round 2, 1536×900 Work View: twelve line cards in a 540px column with
 // "Check groups" below the fold while reference text took the other half.
-test('line card sets take the full width; graph cards span two columns where there is room', () => {
+test('line card sets take the full width; graph cards are never squeezed below a readable width', () => {
   const source = read('src/tools/representationMatch/RepresentationMatch.jsx');
   assert.match(source, /const cardSetLayout = mode === 'linearConnections';\s*const Layout = cardSetLayout \? CardSetStack : ToolGrid;/);
   assert.match(source, /<Layout min=\{330\}>[\s\S]*<Panel title="Representation reasoning" collapsible>[\s\S]*<\/Layout>/);
   assert.match(source, /const CardSetStack = [\s\S]{0,120}gridTemplateColumns: 'minmax\(0, 1fr\)'/);
   const css = read('src/tools/representationMatch/RepresentationMatch.css');
-  assert.match(css, /@container line-cards \(min-width: 520px\) \{\s*\.mathmaster-line-card-grid > \.mathmaster-line-card\[data-card-kind="graph"\] \{\s*grid-column: span 2;/);
+  // Graphs sit in their own band whose columns are at least 260px (a 160px
+  // graph overlapped its axis labels) — or the full width on a phone.
+  assert.match(source, /\{ id: 'graphs', kinds: \['graph'\] \}/);
+  assert.match(css, /\.mathmaster-line-card-grid-graphs \{\s*grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, 260px\), 1fr\)\);/);
   assert.match(source, /import '\.\/RepresentationMatch\.css';/);
-  // Short cards keep their height beside a tall graph card, and the graph's
+  // Short cards keep their height beside a taller one, and the graph's
   // proportions leave its axis labels apart.
-  assert.match(css, /\.mathmaster-line-card-grid \{\s*align-items: start;/);
+  assert.match(css, /\.mathmaster-line-card-grid \{\s*display: grid;\s*gap: 10px;\s*align-items: start;/);
   assert.match(source, /<CoordinatePlane enlargeable=\{false\} width=\{320\} height=\{240\}/);
 });
 

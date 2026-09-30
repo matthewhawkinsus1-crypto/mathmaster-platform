@@ -1825,7 +1825,7 @@ const compileOne = (q, index, repairs) => {
     }
     case 'representationMatch': {
       const r = q.representations || {};
-      out = copyCommon(q, { type, mode: q.mode || r.mode || (actions.includes('findRepresentationMismatch') ? 'findMismatch' : 'completeSet'), task: q.task || r.task, targetId: q.targetId || r.targetId, sets: q.sets || r.sets, mixedSet: q.mixedSet || r.mixedSet, cardKinds: q.cardKinds || r.cardKinds, mismatchSetId: q.mismatchSetId || r.mismatchSetId, correctionOptions: q.correctionOptions || r.correctionOptions, correctionAnswerId: q.correctionAnswerId || r.correctionAnswerId, function: q.function ? toolFunctionSpec(q.function) : r.function, rows: q.rows || r.rows, graphBounds: q.graphBounds || r.graphBounds });
+      out = copyCommon(q, { type, mode: q.mode || r.mode || (actions.includes('findRepresentationMismatch') ? 'findMismatch' : 'completeSet'), task: q.task || r.task, targetId: q.targetId || r.targetId, sets: q.sets || r.sets, mixedSet: q.mixedSet || r.mixedSet, cardKinds: q.cardKinds || r.cardKinds, groupNoun: q.groupNoun || r.groupNoun, mismatchSetId: q.mismatchSetId || r.mismatchSetId, correctionOptions: q.correctionOptions || r.correctionOptions, correctionAnswerId: q.correctionAnswerId || r.correctionAnswerId, function: q.function ? toolFunctionSpec(q.function) : r.function, rows: q.rows || r.rows, graphBounds: q.graphBounds || r.graphBounds });
       break;
     }
     case 'openSortBoard': {
