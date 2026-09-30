@@ -9,6 +9,7 @@ import MathDisplay from '../../MathDisplay.jsx';
 import MathText from '../../components/common/MathText.jsx';
 import { isSingleLineAnswerTarget } from '../../platform/interaction/answerEntryUx.js';
 import { useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
+import './LinearMultipleRepresentationsBoard.css';
 import { lineFromPoints } from '../graphing2/graphingMath.js';
 import { toFraction } from '../shared/linearEquations.js';
 import {
@@ -1260,9 +1261,11 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   return (
     <ToolShell
       title="Multiple representations"
+      // A board of card columns and three graphs: it may use a wide screen.
+      widthProfile="wide"
       subtitle="Start from the GIVEN representation and build the same line every other way: equations, key features, a table and three graphs. Work in any order."
     >
-      <div onKeyDown={handleBoardKeyDown} style={{ display: 'flex', flexDirection: 'column', gap: 14, textAlign: 'left' }}>
+      <div className="mm-lmr-board" onKeyDown={handleBoardKeyDown} style={{ display: 'flex', flexDirection: 'column', gap: 14, textAlign: 'left' }}>
         <GivenRepresentation description={givenDescription} graphBounds={graphBounds} />
 
         <div
@@ -1303,9 +1306,12 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
         {/* Two columns on a laptop — equations over the table, key features
             beside them — so neither column trails off into empty space. On a
             phone they stack in the same order. */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(340px, 100%), 1fr))', gap: 14, alignItems: 'start' }}>
+        <div className="mm-lmr-card-columns" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(340px, 100%), 1fr))', gap: 14, alignItems: 'start' }}>
           {equationCards.length || tableCard ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
+            // On a wide work view (LinearMultipleRepresentationsBoard.css) this
+            // stack dissolves so Equations, Table and Key features stand as
+            // three columns side by side instead of two long ones.
+            <div className="mm-lmr-card-stack" style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
               {equationCards.length ? (
                 <BoardPanel title="Equations" open={expandedCards.equationForms} onToggle={() => toggle('equationForms')}>
                   {expandedCards.equationForms ? equationCards : collapsedEquations}

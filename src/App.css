@@ -1990,6 +1990,31 @@
   }
 }
 
+/* THE WIDE WORK VIEW (student UX pass, R-13).
+   Opt-in per tool (ToolShell widthProfile="wide"), and only where the screen
+   has the room: a Chromebook at reduced zoom reports 1700-2000 CSS px, and
+   the 1120px shell left a third of it empty while the representation board
+   scrolled. The shell widens for that question alone; the task card and the
+   action bar keep their reading widths, centred as before. */
+@media (min-width: 1400px) {
+  /* The whole app is a 1126px column (#root, index.css) — the actual reason
+     a zoomed-out Chromebook showed a third of the screen empty. Lifted only
+     while a wide-profile tool is on screen; teacher views are untouched. */
+  #root:has(.mathmaster-tool-shell[data-width-profile="wide"]) {
+    width: min(100%, 1560px);
+  }
+
+  .mathmaster-assignment-shell:has(.mathmaster-tool-shell[data-width-profile="wide"]) {
+    max-width: 1480px !important;
+  }
+
+  .mathmaster-assignment-shell:has(.mathmaster-tool-shell[data-width-profile="wide"]) .mathmaster-desktop-question-anchor {
+    max-width: 1120px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
 /* One line of attempt state, not two saying the same thing. */
 .mathmaster-question-attempt-strip {
   display: flex;

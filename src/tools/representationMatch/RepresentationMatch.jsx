@@ -337,7 +337,8 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
   const cardSetLayout = mode === 'linearConnections';
   const Layout = cardSetLayout ? CardSetStack : ToolGrid;
 
-  return <ToolShell title={shellTitle} subtitle="Equations, tables, graphs and contexts are four ways of saying the same thing — make sure they agree." badge="Multiple representations">
+  // A card sort uses a wide screen for more cards per row (widthProfile).
+  return <ToolShell title={shellTitle} widthProfile={cardSetLayout ? 'wide' : 'standard'} subtitle="Equations, tables, graphs and contexts are four ways of saying the same thing — make sure they agree." badge="Multiple representations">
     <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.completeSet} steps={MODE_STEPS[mode] || MODE_STEPS.completeSet} />
     <Layout min={330}>
       <Panel title={

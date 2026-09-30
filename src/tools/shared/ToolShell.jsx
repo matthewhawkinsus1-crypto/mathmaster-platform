@@ -54,7 +54,21 @@ const mayFocusOnOpen = (policy) => (policy
   ? policy.allowed
   : shouldFocusAnswerOnOpen({ narrowViewport: isMobileQuestionViewport(), touchPrimary: isTouchPrimaryPointer() }));
 
-export default function ToolShell({ title, subtitle, badge, children, footer, shellKey = null, workspaceWidth = 'min(100%, 1180px)', focusOnOpen = true }) {
+/*
+ * WIDTH PROFILES.
+ *
+ * 'standard' (every tool): up to 1180px, inside the assignment's 1120px shell.
+ *
+ * 'wide' (opt-in): a tool whose workspace is several columns of cards or
+ * graphs — the representation board, a card sort — may use a wider screen
+ * when there is one (a Chromebook at 67–80% zoom reports 1700–2000 CSS px
+ * and left half the screen empty). App.css widens the assignment shell for
+ * such a question only at ≥1400px; paragraphs keep their own reading widths
+ * and the task card stays at its usual width. Narrower screens are unchanged.
+ */
+const WORKSPACE_WIDTHS = { standard: 'min(100%, 1180px)', wide: 'min(100%, 1480px)' };
+
+export default function ToolShell({ title, subtitle, badge, children, footer, shellKey = null, widthProfile = 'standard', workspaceWidth = WORKSPACE_WIDTHS[widthProfile] || WORKSPACE_WIDTHS.standard, focusOnOpen = true }) {
   useRenderPerformance('ToolShell');
   const shellRef = useRef(null);
   const focusPolicy = useAnswerFocusPolicy();
@@ -87,7 +101,7 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
   };
 
   return (
-    <section ref={shellRef} onKeyDown={handleAnswerEnter} className="mathmaster-tool-shell" style={{
+    <section ref={shellRef} onKeyDown={handleAnswerEnter} className="mathmaster-tool-shell" data-width-profile={widthProfile === 'wide' ? 'wide' : undefined} style={{
       // Takes the room it is given, up to a limit generous enough for a
       // coordinate plane beside its controls. The old fixed 980px capped a
       // graph well below the width available on a school Chromebook.
