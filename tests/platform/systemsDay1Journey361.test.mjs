@@ -101,6 +101,20 @@ test('every elimination — 3×3 pair rounds, standalone 2×2, reduced 2×2 — 
   assert.match(twoByTwo, /\) : \(\s*eliminationBoard\s*\)\}/);
 });
 
+test('a wrong distribution is reported inside its own box, under the button pressed, at every size', () => {
+  const distribution = region(stack, 'export function EliminationDistribution(', 'export function EliminationOperationRail(', 'distribution');
+  assert.match(distribution, /Check my scaled terms<\/button>[\s\S]*?<\/div>\s*\{error \? <p className="mathmaster-systems-substitution-feedback is-error" role="status">\{error\}<\/p> : null\}/);
+  // 3×3: the round board hands the product error to the box it belongs to,
+  // and the panel-wide note leaves it out so it is not shown twice.
+  assert.match(elimination, /const productError = feedbackNote\?\.stage === 'multiplier-products' && note/);
+  assert.match(elimination, /\{note && !productError \? <p/);
+  const board = region(elimination, 'function EliminationRoundBoard(', 'function ReducedEliminationSubsystem(', 'EliminationRoundBoard');
+  assert.match(board, /error=\{productError\?\.roundKey === roundKey && productError\.equationId === id \? productError\.text : null\}/);
+  // 2×2: the same box shows its own product check.
+  const twoByTwoBoard = region(twoByTwo, 'const eliminationBoard = ', 'const methodTitle = ', '2×2 board');
+  assert.match(twoByTwoBoard, /error=\{work\.checked && !work\.valid/);
+});
+
 /* ------------------------------------------------ the reduced 2×2 inside */
 
 test('inside a 3×3 the reduced 2×2 names its equations R₁ and R₂ and has no Verify step of its own', () => {

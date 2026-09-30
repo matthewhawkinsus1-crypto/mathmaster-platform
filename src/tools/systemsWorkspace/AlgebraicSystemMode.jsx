@@ -568,6 +568,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setSecondSolved({ variable: null, value: null, expression: null, ...(value?.secondSolved || {}) });
     setVerification(value?.verification || { 0: emptyVerificationEntry(), 1: emptyVerificationEntry() });
     setMethodEfficiencyReason(value?.methodEfficiencyReason || '');
+    setScaleEditors({ 0: false, 1: false });
   }, [config.method]);
   const undoHistory = useMathUndoHistory({
     persist: true,
@@ -1303,7 +1304,9 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       );
     };
 
-    const opCell = canEdit && multipliersApplied && !anyEditorOpen && !cancellationPending ? (
+    // Live while the terms are marked, as in a 3×3 round: choosing the other
+    // operation clears the marks (handleCombine) and starts the combination over.
+    const opCell = canEdit && multipliersApplied && !anyEditorOpen ? (
       <EliminationOperationRail
         operation={operationChosen ? combination.operation : null}
         onChoose={handleCombine}

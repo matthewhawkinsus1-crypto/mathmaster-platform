@@ -289,6 +289,8 @@ test('an equation with scale factor 1 is ready automatically instead of asking t
   assert.match(board, /if \(!canEdit \|\| !editorOpen\(index\)\) return null;/);
   // The ×1 default is never shown as a badge, as if the student had chosen it.
   assert.match(board, /const factorBadge = \(index\) => \(appliedMultipliers\[index\] && !identityAt\(index\) \? scaleBadgeText\(multipliers\[index\]\) : null\);/);
+  // Undo back to ×1 closes the field too, instead of leaving a "1" in it.
+  assert.match(region(modeSource, 'const restore = useCallback(', '}, [config.method]);', 'restore'), /setScaleEditors\(\{ 0: false, 1: false \}\);/);
   assert.doesNotMatch(executableSource(modeSource), /No scaling needed/);
   assert.doesNotMatch(modeSource, />Use as written</);
   assert.doesNotMatch(modeSource, /⠿ ×/);
@@ -302,8 +304,9 @@ test('the combine step keeps the equations stacked and puts + / − controls bes
   // Standalone these read "Add Equation 2 to Equation 1"; inside a 3×3 they
   // name R₂ and R₁ instead of reusing the originals' names (#361).
   assert.match(board, /firstLabel=\{equationName\(0\)\}\s*secondLabel=\{equationName\(1\)\}/);
-  // It is offered only once both rows are prepared and no factor is being edited.
-  assert.match(board, /const opCell = canEdit && multipliersApplied && !anyEditorOpen && !cancellationPending \? \(/);
+  // It is offered once both rows are prepared and no factor is being edited,
+  // and stays live while the terms are marked, as in a 3×3 round.
+  assert.match(board, /const opCell = canEdit && multipliersApplied && !anyEditorOpen \? \(/);
   assert.match(board, /`\$\{equationName\(0\)\} \$\{combination\.operation === 'subtract' \? '−' : '\+'\} \$\{equationName\(1\)\}`/);
   assert.doesNotMatch(modeSource, /mathmaster-system-combine:/);
   assert.doesNotMatch(modeSource, /Drop Add or Subtract here/);

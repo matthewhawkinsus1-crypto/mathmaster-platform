@@ -334,6 +334,11 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
   }
 
   const note = feedbackText(feedbackNote, system);
+  // A wrong distribution is reported inside its own box, under the button the
+  // student just pressed — the shared board's place for it at every size.
+  const productError = feedbackNote?.stage === 'multiplier-products' && note
+    ? { roundKey: feedbackNote.roundKey, equationId: feedbackNote.equationId, text: note }
+    : null;
   const unsupported = answerKey.type === 'invalid';
 
   return (
@@ -428,6 +433,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
                     variable={variable}
                     elimination={elimination}
                     apply={apply}
+                    productError={productError}
                     readOnly={phase !== 'round1-combine'}
                     revealOnAppear={revealOnAppear}
                   />
@@ -453,6 +459,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
                     variable={variable}
                     elimination={elimination}
                     apply={apply}
+                    productError={productError}
                     readOnly={phase !== 'round2-combine'}
                     revealOnAppear={revealOnAppear}
                   />
@@ -522,7 +529,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
                   />
                 ) : null}
 
-                {note ? <p className="mathmaster-systems-substitution-feedback is-error" role="status">{note}</p> : null}
+                {note && !productError ? <p className="mathmaster-systems-substitution-feedback is-error" role="status">{note}</p> : null}
 
                 {(outcome || phase === 'complete') ? <AlgebraicOutcome
                   key={outcomeIdentity || 'unique'} outcome={outcome} classified={classified}
@@ -617,7 +624,7 @@ function EliminationPairChoice({ label, system, roundKey, elimination, apply }) 
  * EliminationStack.jsx — the same components every 2×2 elimination draws.
  * ------------------------------------------------------------------------ */
 
-function EliminationRoundBoard({ label, system, roundKey, variable, elimination, apply, readOnly = false, revealOnAppear }) {
+function EliminationRoundBoard({ label, system, roundKey, variable, elimination, apply, readOnly = false, revealOnAppear, productError = null }) {
   const round = elimination.rounds[roundKey];
   const [idA, idB] = round.pair;
   const equationA = system.equations.find((equation) => equation.id === idA);
@@ -691,6 +698,7 @@ function EliminationRoundBoard({ label, system, roundKey, variable, elimination,
         onTerm={(key, value) => apply(setEliminationMultiplierProductTerm(elimination, roundKey, id, key, value))}
         onCheck={() => apply(checkEliminationMultiplierProducts(elimination, system, roundKey, id))}
         onKeep={() => apply(keepEliminationEquationAsWritten(elimination, roundKey, id))}
+        error={productError?.roundKey === roundKey && productError.equationId === id ? productError.text : null}
       />
     );
   };
