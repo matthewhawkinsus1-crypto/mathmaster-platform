@@ -8,6 +8,7 @@ import MathInput from '../../MathInput.jsx';
 import MathDisplay from '../../MathDisplay.jsx';
 import MathText from '../../components/common/MathText.jsx';
 import { isSingleLineAnswerTarget } from '../../platform/interaction/answerEntryUx.js';
+import { useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
 import { lineFromPoints } from '../graphing2/graphingMath.js';
 import { toFraction } from '../shared/linearEquations.js';
 import {
@@ -711,10 +712,17 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   // both on the points from the last render.
   const latestPointsRef = useRef(graphPointsByKey);
   latestPointsRef.current = graphPointsByKey;
+  // Which graph each recorded change was on, in order, so the platform Undo
+  // in the action bar can take back the student's LAST graph change wherever
+  // it was. Before, that button was always disabled on this board while each
+  // graph had its own Undo — two Undos, one of which never worked (student UX
+  // pass, R-14). Both now pop the same per-graph history.
+  const editOrderRef = useRef([]);
   const changeGraph = (key, next) => {
     clearFeedback();
     const current = latestPointsRef.current[key] || [];
     historyRef.current[key] = [...historyRef.current[key].slice(-19), current];
+    editOrderRef.current = [...editOrderRef.current.slice(-59), key];
     latestPointsRef.current = { ...latestPointsRef.current, [key]: next };
     setHistoryVersion((value) => value + 1);
     graphSettersByKey[key](next);
@@ -733,6 +741,8 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     if (stack.length) {
       const previous = stack[stack.length - 1];
       historyRef.current[key] = stack.slice(0, -1);
+      const lastEdit = editOrderRef.current.lastIndexOf(key);
+      if (lastEdit >= 0) editOrderRef.current = editOrderRef.current.filter((_, index) => index !== lastEdit);
       latestPointsRef.current = { ...latestPointsRef.current, [key]: previous };
       setHistoryVersion((value) => value + 1);
       graphSettersByKey[key](previous);
@@ -745,6 +755,24 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   const clearGraph = (key) => changeGraph(key, []);
   // historyVersion re-renders the Undo buttons when only the history changed.
   const canUndo = (key) => historyVersion >= 0 && (historyRef.current[key].length > 0 || (graphPointsByKey[key] || []).length > 0);
+
+  // The platform Undo: the most recent graph change that is still undoable.
+  const undoGraphRef = useRef(undoGraph);
+  undoGraphRef.current = undoGraph;
+  const lastUndoableGraph = historyVersion >= 0
+    ? [...editOrderRef.current].reverse().find((key) => historyRef.current[key]?.length > 0) || null
+    : null;
+  const graphTitles = { graph1: 'Graph 1', graph2: 'Graph 2', graph3: 'Graph 3' };
+  const platformUndo = useMemo(() => ({
+    canUndo: Boolean(lastUndoableGraph),
+    onUndo: () => {
+      const key = [...editOrderRef.current].reverse().find((entry) => historyRef.current[entry]?.length > 0);
+      if (key) undoGraphRef.current(key);
+    },
+    label: lastUndoableGraph ? `Undo the last change on ${graphTitles[lastUndoableGraph]}` : 'Undo the last graph change',
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- graphTitles is constant
+  }), [lastUndoableGraph]);
+  useActiveUndoOwner({ id: 'linear-representations-graphs', controller: platformUndo });
 
   const enlargeButtonRefs = { graph1: useRef(null), graph2: useRef(null), graph3: useRef(null) };
   const closeDialog = useCallback(() => setEnlargedGraph(null), []);
