@@ -113,13 +113,17 @@ export default function AssignmentHub({
   const [liveKey, setLiveKey] = useState(null);
   const [gradeKey, setGradeKey] = useState(null);
 
+  // Reset only when a DIFFERENT assignment or class is asked for. Live data
+  // refreshes hand this drawer new object identities every few seconds; keying
+  // on ids keeps the teacher's chosen class and open lists where they are.
+  const assignedClassKey = assignedClasses.map((entry) => entry.classId).join('|');
   useEffect(() => {
     if (!open) return;
     const preferred = assignedClasses.find((entry) => entry.classId === initialClassId) || assignedClasses[0] || null;
     setClassId(preferred?.classId || null);
     setLiveKey(null);
     setGradeKey(null);
-  }, [open, assignment?.id, initialClassId, assignedClasses]);
+  }, [open, assignment?.id, initialClassId, assignedClassKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!open) return undefined;
@@ -156,7 +160,7 @@ export default function AssignmentHub({
     { key: 'notStarted', label: 'Not started', value: grades.notStarted.length, tone: grades.notStarted.length ? 'warning' : undefined, rows: grades.notStarted },
     { key: 'inProgress', label: 'In progress', value: grades.inProgress.length, rows: grades.inProgress, detail: (row) => `${row.attempted}/${row.total} answered` },
     { key: 'complete', label: 'Complete', value: grades.complete.length, tone: 'success', rows: grades.complete, detail: (row) => (row.score === null ? '' : `${row.score}%`) },
-    { key: 'below', label: `Below ${PASSING_DISPLAY_THRESHOLD}%`, value: grades.belowThreshold.length, tone: grades.belowThreshold.length ? 'danger' : undefined, rows: grades.belowThreshold, detail: (row) => `${row.score}%` },
+    { key: 'below', label: `Below ${PASSING_DISPLAY_THRESHOLD}%`, value: grades.belowThreshold.length, tone: grades.belowThreshold.length ? 'danger' : undefined, rows: grades.belowThreshold, detail: (row) => (row.state === 'complete' ? `${row.score}%` : `${row.creditOnAttempted}% on ${row.attempted} answered`) },
   ] : [];
   const openLive = liveItems.find((item) => item.key === liveKey);
   const openGrade = gradeItems.find((item) => item.key === gradeKey);
@@ -240,7 +244,7 @@ export default function AssignmentHub({
             <section className="tw-stack" style={{ gap: 8 }} aria-labelledby="assignment-hub-progress">
               <h3 id="assignment-hub-progress" className="tw-card__title">
                 Progress &amp; grades
-                {grades?.average !== null && grades?.average !== undefined && <span className="tw-small tw-muted" style={{ fontWeight: 600 }}> · class average {grades.average}% of students who started</span>}
+                {grades?.average !== null && grades?.average !== undefined && <span className="tw-small tw-muted" style={{ fontWeight: 600 }}> · average {grades.average}% for the {grades.averageOf} who finished</span>}
               </h3>
               {grades ? (
                 <>

@@ -44,9 +44,23 @@ export const studentAssignmentProgress = ({ student, assignment }) => {
     score: score === undefined ? null : score,
     attempted: split.attempted || 0,
     total: split.total || 0,
+    creditOnAttempted: split.creditOnAttempted ?? null,
     teacherOverride: Boolean(override),
   };
 };
+
+/*
+ * "Below 70%" is about HOW a student is doing, not how far along they are. A
+ * student who has answered one Warm-Up question correctly has a 17% grade only
+ * because five questions are unanswered — that is a completion gap (the "not
+ * finished" count shows it), not a reason to intervene. So a finished student
+ * counts when their grade is below 70%, and a student still working counts
+ * when they are below 70% on the questions they HAVE answered.
+ */
+export const isBelowThreshold = (row) => (
+  (row.state === PROGRESS_STATE.COMPLETE && row.score !== null && row.score < PASSING_DISPLAY_THRESHOLD)
+  || (row.state === PROGRESS_STATE.IN_PROGRESS && row.creditOnAttempted !== null && row.creditOnAttempted < PASSING_DISPLAY_THRESHOLD)
+);
 
 const byName = (left, right) => String(left.name).localeCompare(String(right.name), undefined, { sensitivity: 'base' });
 
@@ -58,15 +72,18 @@ const byName = (left, right) => String(left.name).localeCompare(String(right.nam
 export const classGradeProgress = ({ assignment, roster = [], hasGradeRecords = true, nameOf = (student) => student?.displayName || student?.id }) => {
   if (!assignment || !hasGradeRecords) return null;
   const rows = roster.map((student) => ({ student, id: student.id, name: nameOf(student), ...studentAssignmentProgress({ student, assignment }) }));
-  const scored = rows.filter((row) => row.score !== null && row.state !== PROGRESS_STATE.NOT_STARTED);
+  // The class average is over FINISHED work only; averaging half-done
+  // assignments reports a completion gap as a performance problem.
+  const finished = rows.filter((row) => row.state === PROGRESS_STATE.COMPLETE && row.score !== null);
   const pick = (predicate) => rows.filter(predicate).sort(byName);
   return {
     total: rows.length,
     notStarted: pick((row) => row.state === PROGRESS_STATE.NOT_STARTED),
     inProgress: pick((row) => row.state === PROGRESS_STATE.IN_PROGRESS),
     complete: pick((row) => row.state === PROGRESS_STATE.COMPLETE),
-    belowThreshold: pick((row) => row.score !== null && row.state !== PROGRESS_STATE.NOT_STARTED && row.score < PASSING_DISPLAY_THRESHOLD),
-    average: scored.length ? Math.round(scored.reduce((sum, row) => sum + Number(row.score || 0), 0) / scored.length) : null,
+    belowThreshold: pick(isBelowThreshold),
+    average: finished.length ? Math.round(finished.reduce((sum, row) => sum + Number(row.score || 0), 0) / finished.length) : null,
+    averageOf: finished.length,
     rows,
   };
 };

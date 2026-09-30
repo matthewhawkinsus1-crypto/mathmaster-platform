@@ -9,6 +9,8 @@
  */
 
 .tw-stack { display: grid; gap: 12px; }
+/* The app root centres text; every workspace surface reads left-aligned. */
+.tw-drawer, .tw-card, .tw-control, .tw-review__panel, .tw-class-group, .tw-notice, .tw-disclosure { text-align: left; }
 .tw-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .tw-spacer { flex: 1 1 auto; }
 .tw-muted { color: var(--mm-text-muted); }
@@ -187,8 +189,8 @@ button.tw-stat[aria-pressed='true'] { border-color: var(--mm-focus); box-shadow:
   display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end;
   padding: 12px 14px; border-radius: 12px; border: 1px solid var(--mm-border); background: var(--mm-surface-muted);
 }
-.tw-gradebook-bar label { display: grid; gap: 4px; font-size: 12px; font-weight: 900; color: var(--mm-text-muted); }
-.tw-gradebook-bar select { min-height: 40px; max-width: 100%; }
+.tw-gradebook-bar label { display: grid; gap: 4px; min-width: 0; font-size: 12px; font-weight: 900; color: var(--mm-text-muted); }
+.tw-gradebook-bar select { min-height: 40px; width: 100%; max-width: 100%; text-overflow: ellipsis; }
 
 @media (max-width: 900px) {
   .tw-export-row { grid-template-columns: auto minmax(0, 1fr); }

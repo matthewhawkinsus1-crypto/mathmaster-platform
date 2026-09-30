@@ -185,6 +185,19 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
         {scheduleWindow ? `${formatClock(scheduleWindow.start)} – ${formatClock(scheduleWindow.end)}${scheduleWindow.modified ? ' (modified today)' : ''}` : 'No schedule set for today.'}
       </div>
 
+      <h3 style={{ margin: '0 0 10px' }}>Today&apos;s lessons</h3>
+      <div style={{ marginBottom: 22 }}>
+        <ClassLessonControls
+          lessons={classLessons}
+          classContext={classContext}
+          classLabel={selectedClass.name || selectedPeriod}
+          schedule={classSchedule}
+          nowValue={nowValue}
+          onOpenAssignment={onOpenAssignment}
+          handlers={{ onToggleWarmup, onToggleSectionAccess, onUnlockDOL, onGrantDOLAttempt, onDolControl }}
+          busy={{ warmup: warmupControlBusyKey, section: sectionAccessBusyKey, dolUnlock: dolUnlockBusyKey, dolGrant: dolAttemptGrantBusyKey, dolControl: dolControlBusyKey }}
+        />
+      </div>
       <h3 style={{ margin: '0 0 10px' }}>Current Assignments</h3>
       {currentAssignments.length === 0 ? <p style={{ color: '#80868b', fontSize: '13px' }}>Nothing currently open for {selectedPeriod}.</p> : (
         <div style={{ display: 'grid', gap: '10px', marginBottom: '22px' }}>
@@ -207,7 +220,7 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
       )}
 
       <h3 style={{ margin: '0 0 10px' }}>Upcoming Assignments</h3>
-      {upcomingAssignments.length === 0 ? <p style={{ color: '#80868b', fontSize: '13px' }}>Nothing scheduled yet for {selectedPeriod}.</p> : (
+      {upcomingAssignments.length === 0 ? <p style={{ color: '#80868b', fontSize: '13px', marginBottom: 22 }}>Nothing scheduled yet for {selectedPeriod}.</p> : (
         <div style={{ display: 'grid', gap: '10px', marginBottom: '22px' }}>
           {upcomingAssignments.map((assignment) => (
             <div key={assignment.id} style={{ padding: '12px 14px', borderRadius: '9px', border: '1px solid #e0e3e7' }}>
@@ -220,19 +233,6 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
         </div>
       )}
 
-      <h3 style={{ margin: '0 0 10px' }}>Today&apos;s lessons</h3>
-      <div style={{ marginBottom: 22 }}>
-        <ClassLessonControls
-          lessons={classLessons}
-          classContext={classContext}
-          classLabel={selectedClass.name || selectedPeriod}
-          schedule={classSchedule}
-          nowValue={nowValue}
-          onOpenAssignment={onOpenAssignment}
-          handlers={{ onToggleWarmup, onToggleSectionAccess, onUnlockDOL, onGrantDOLAttempt, onDolControl }}
-          busy={{ warmup: warmupControlBusyKey, section: sectionAccessBusyKey, dolUnlock: dolUnlockBusyKey, dolGrant: dolAttemptGrantBusyKey, dolControl: dolControlBusyKey }}
-        />
-      </div>
       <h3 style={{ margin: '0 0 10px' }}>Roster</h3>
       {periodStudents.length === 0 ? <p style={{ color: '#80868b', fontSize: '13px' }}>No students are assigned to {selectedPeriod} yet.</p> : (
         <div style={{ display: 'grid', gap: '8px' }}>

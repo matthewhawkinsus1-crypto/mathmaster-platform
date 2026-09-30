@@ -138,7 +138,9 @@ test('grade progress uses the canonical grade and never reports a class of zeros
   assert.deepEqual(progress.notStarted.map((row) => row.id), ['none']);
   assert.deepEqual(progress.inProgress.map((row) => row.id), ['half']);
   assert.deepEqual(progress.complete.map((row) => row.id).sort(), ['done', 'low']);
-  assert.deepEqual(progress.belowThreshold.map((row) => row.id).sort(), ['half', 'low']);
+  // "half" answered one question correctly: unfinished, not struggling.
+  assert.deepEqual(progress.belowThreshold.map((row) => row.id).sort(), ['low']);
+  assert.equal(progress.average, 75, 'average over finished work only: (100 + 50) / 2');
   assert.equal(progress.rows.find((row) => row.id === 'done').state, PROGRESS_STATE.COMPLETE);
   assert.equal(progress.rows.find((row) => row.id === 'done').score, 100);
 });

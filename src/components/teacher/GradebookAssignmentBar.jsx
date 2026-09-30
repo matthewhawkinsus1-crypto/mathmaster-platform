@@ -116,7 +116,8 @@ export default function GradebookAssignmentBar({
             ))}
           </div>
           <div className="tw-small tw-muted">
-            {progress.average === null ? 'No scores yet.' : `Average ${progress.average}% for the ${progress.complete.length + progress.inProgress.length} students who have started.`}
+            {progress.average === null ? 'Nobody has finished yet.' : `Average ${progress.average}% for the ${progress.averageOf} student${progress.averageOf === 1 ? '' : 's'} who finished.`}
+            {' '}Below {PASSING_DISPLAY_THRESHOLD}% counts finished work under {PASSING_DISPLAY_THRESHOLD}%, or under {PASSING_DISPLAY_THRESHOLD}% on the questions answered so far.
             {progressFilter !== 'all' && <> Showing {stats.find((stat) => stat.key === progressFilter)?.label.toLowerCase()} only · <button type="button" className="tw-link" onClick={() => onProgressFilter?.('all')}>show everyone</button></>}
           </div>
         </div>
