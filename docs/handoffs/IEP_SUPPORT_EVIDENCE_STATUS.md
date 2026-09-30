@@ -9,7 +9,7 @@ Branch: `ai/claude-iep-evidence-20260930` (from `origin/main` @ `1fcd1ea7`, PR #
 
 ## Current state
 
-- **Phase:** 2 — profile versioning UI/store, runtime resolution, individualized deadlines (next)
+- **Phase:** 3 — support-use telemetry wiring (QuestionEngine / launch records), then teacher UI (next)
 - **Design:** `docs/IEP_SUPPORT_EVIDENCE_DESIGN.md` (committed with this checkpoint)
 - **PR:** _(not opened yet)_
 
@@ -19,7 +19,7 @@ Branch: `ai/claude-iep-evidence-20260930` (from `origin/main` @ `1fcd1ea7`, PR #
 | --- | --- | --- |
 | 0 | Reconnaissance, design doc, status doc, first checkpoint push | ✅ |
 | 1 | Architecture + schemas + Firestore rules + rule tests | ✅ |
-| 2 | Support profile versioning + support resolution / automatic application | ⬜ |
+| 2 | Support profile versioning + support resolution / automatic application | ✅ |
 | 3 | Telemetry + evidence event logging + engagement metric repair | ⬜ |
 | 4 | Teacher Support/Evidence UI (hub + drawer) + one-click events + service log | ⬜ |
 | 5 | Student "Support tools" UI | ⬜ |
@@ -100,6 +100,9 @@ These are the facts the design is built on. File references are to `origin/main`
 | Phase 1 | `npm run test:rules` | 225/225 + 81/81 (64 existing + 17 new) |
 | Phase 1 | `npm run test:platform` | 6705/6705 |
 | Phase 1 | `npm run lint` | exit 0 (450 pre-existing warnings, none in new files) |
+| Phase 2 | `npm run test:platform` | 6719/6721 → 2 moved source contracts fixed per AGENTS.md; both files re-run green |
+| Phase 2 | `npm run build` | pass |
+| Phase 2 | `npx oxlint` (new files) | clean |
 
 ## Phase 1 — done
 
@@ -119,14 +122,32 @@ These are the facts the design is built on. File references are to `origin/main`
   (17 emulator cases, own projectId). Every new assertion mutation-checked (10 rules mutations + 10 model mutations).
 - No new composite indexes needed (all new queries are single-field within one student's subcollection).
 
-## Phase 2 checklist (next)
+## Phase 2 — done
 
-- [ ] `src/platform/supportEvidence/supportEvidenceStore.js` (revision save = revision + projection batch; legacy snapshot)
-- [ ] `src/studentSupport.js` resolves the effective plan (supportPlan windows) for presentation/question support
-- [ ] resolvers honour `supportDueAt` / `supportFinalAt` (client lifecycle, sectionDeadline, index.js studentLateDueAt, export)
-- [ ] inject individualized dates: student client load, ingestion, finalizer + recovery callables, Grade Export
-- [ ] fix engagement counter coupling (`disableIdleTimer` hides the overlay only)
-- [ ] Support profile editor (Students → Supports) replacing the flat checkboxes
+- `src/platform/supportEvidence/supportEvidenceStore.js` — revision + projection in one batch (first save snapshots
+  the pre-versioning profile as revision 0), staff/student evidence writers, service log, engagement ledger, readers.
+- `src/studentSupport.js normalizeStudentProfile` resolves the revision in effect today from `supportPlan` and passes
+  the plan through; legacy flat profiles read exactly as before.
+- Individualized deadlines honoured by all four readers: `getAssignmentDate` ('due' moves for extra time only;
+  'late' = max of class / attendance / support), `sectionDeadline.assignmentFinalCloseAt` + `resolveAuthoritativeClose`
+  (new optional `studentProfile`), Grade Export `resolveStudentFinalDeadlineFromAssignment` (generic reason text).
+  Wired: student client (`assignmentsForViewer` at both assignment loads + checkpoint close hint), ingestion,
+  checkpoint finalizer, 3 recovery callables — all pass the student's pinned `grades.profile`.
+- Engagement root cause fixed: the idle-timer accommodation now suppresses only the idle overlay; the counter runs
+  (idle time still never counts). `useEngagementLedger` records server-timed active minutes.
+- `SupportProfileEditor.jsx` replaces the flat checkbox Supports tab (versioned, effective dates, source, MOD section,
+  service expectations, history). `handleUpdateStudentProfile`/`toggleStudentSupport` removed. Roster "Supports"
+  column counts accommodations/modifications, not only inclusion. `--mm-mod-*` theme tokens (light + dark).
+- Two existing source contracts moved (not regressions), rewritten per AGENTS.md and mutation-checked:
+  `assessmentRecoveryPolicy` count (ledger call no longer reuses the counted spelling) and
+  `stepAlgebraDirectCancellationUI` (Apply shortcut option now asserted via catalog + editor).
+
+## Phase 3 checklist (next)
+
+- [ ] `QuestionEngine`: `onSupportUsed` / `onSupportAvailable` (Read aloud, calculator) + applied-modification report
+- [ ] `applyStudentSupportToQuestion`: `modifications` = applied only (+ `modificationsConfigured`)
+- [ ] App.jsx: launch records (`launchSupportRecords`), student recorder with de-dup, `assignedTeacherEmail` on user
+- [ ] tests + mutation checks; full suite; checkpoint
 
 ## Remaining work / known gaps
 

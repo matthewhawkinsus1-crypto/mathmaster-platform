@@ -1,5 +1,12 @@
+import { supportDatesFromOverride, withStudentSupportDates } from '../../../functions/shared/supportDeadline.mjs';
+
 const clean = (value) => String(value ?? '').trim();
 const list = (value) => (Array.isArray(value) ? value : []);
+const millis = (value) => {
+  if (!value) return null;
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : null;
+};
 
 /**
  * Read the platform's canonical per-student assignment controls without
@@ -19,9 +26,24 @@ export const resolveStudentFinalDeadlineFromAssignment = ({ student, assignment 
     : null;
   const reopened = override?.reopened === true
     || list(assignment?.reopenedStudentIds).map(clean).includes(studentId);
+  const attendanceDeadline = override?.lateDueAt || override?.dueAt || null;
+
+  // An individualized extra-time deadline, derived from the student's pinned
+  // profile (never stored on the assignment). The grade waits for the later
+  // of the two, exactly like an attendance extension — and the withholding
+  // reason stays the generic "individual extension", so nothing in the
+  // export names an accommodation.
+  const support = supportDatesFromOverride(
+    withStudentSupportDates(assignment, studentId, student?.profile)?.studentOverrides?.[studentId],
+  );
+  const supportFinalMs = support?.finalAtMs ?? null;
+  const attendanceMs = millis(attendanceDeadline);
+  const deadline = supportFinalMs === null
+    ? attendanceDeadline
+    : new Date(attendanceMs === null ? supportFinalMs : Math.max(attendanceMs, supportFinalMs)).toISOString();
 
   return {
-    deadline: override?.lateDueAt || override?.dueAt || null,
+    deadline,
     reopened,
   };
 };

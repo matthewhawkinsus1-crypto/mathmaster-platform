@@ -291,7 +291,11 @@ const compareForTimeline = (a, b) => {
   const startA = isDateKey(a?.effectiveStart) ? a.effectiveStart : '';
   const startB = isDateKey(b?.effectiveStart) ? b.effectiveStart : '';
   if (startA !== startB) return startA < startB ? -1 : 1;
-  return (Number(a?.revision) || 0) - (Number(b?.revision) || 0);
+  const byNumber = (Number(a?.revision) || 0) - (Number(b?.revision) || 0);
+  if (byNumber) return byNumber;
+  // Two saves racing from two tabs can share a revision number; the one
+  // recorded later is the later decision.
+  return (recordedAtOf(a) ?? 0) - (recordedAtOf(b) ?? 0);
 };
 
 /** Revisions oldest-effective first (legacy/undated first). */

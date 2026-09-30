@@ -13,6 +13,7 @@
  */
 import { parseInstant, zonedDateKey } from './instructionalCalendar.mjs';
 import { resolvePeriodWindow } from './classSchedule.mjs';
+import { withStudentSupportDates } from './supportDeadline.mjs';
 
 /** The school's wall clock. Warm-Up and DOL windows are defined in it. */
 export const SCHOOL_TIME_ZONE = 'America/Chicago';
@@ -66,8 +67,11 @@ export const resolveDolInstructionDateKey = ({ assignment, classId = null, class
 
 /**
  * The assignment's own final grading cutoff: the late window when there is
- * one, or a per-student attendance extension of it when `studentId` names
- * one (`assignment.studentOverrides[studentId].lateDueAt`).
+ * one, extended by a per-student attendance extension when `studentId` names
+ * one (`assignment.studentOverrides[studentId].lateDueAt`), and by the
+ * student's individualized extra-time deadline when `studentProfile` (the
+ * student's pinned `grades/{id}.profile`) carries one — see
+ * supportDeadline.mjs. The latest of them wins; none can shorten another.
  *
  * MIRRORS src/assignmentLifecycle.js's `getAssignmentDate(assignment, 'late',
  * studentId)` EXACTLY — same fallback order, same field names. Cloud
@@ -77,19 +81,21 @@ export const resolveDolInstructionDateKey = ({ assignment, classId = null, class
  * actually end" the same way. If that resolver's fallback chain changes,
  * change it here too.
  */
-export const assignmentFinalCloseAt = (assignment, timeZone = null, studentId = null) => {
-  const override = studentId ? assignment?.studentOverrides?.[studentId] : null;
-  const classFinalCloseAt = parseInstant(
-    assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate,
-    { endOfDay: true, timeZone },
-  );
-  const studentFinalCloseAt = parseInstant(
-    override?.lateDueAt || override?.dueAt,
-    { endOfDay: true, timeZone },
-  );
-  if (classFinalCloseAt === null) return studentFinalCloseAt;
-  if (studentFinalCloseAt === null) return classFinalCloseAt;
-  return Math.max(classFinalCloseAt, studentFinalCloseAt);
+export const assignmentFinalCloseAt = (assignment, timeZone = null, studentId = null, studentProfile = null) => {
+  const effective = studentId && studentProfile
+    ? withStudentSupportDates(assignment, studentId, studentProfile)
+    : assignment;
+  const override = studentId ? effective?.studentOverrides?.[studentId] : null;
+  const candidates = [
+    parseInstant(
+      assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate,
+      { endOfDay: true, timeZone },
+    ),
+    parseInstant(override?.lateDueAt || override?.dueAt, { endOfDay: true, timeZone }),
+    // An ISO instant written by withStudentSupportDates, never a date key.
+    parseInstant(override?.supportFinalAt, { timeZone }),
+  ].filter((value) => value !== null);
+  return candidates.length ? Math.max(...candidates) : null;
 };
 
 /**
@@ -317,9 +323,12 @@ export const resolveAuthoritativeClose = ({
   nowValue = Date.now(),
   timeZone = SCHOOL_TIME_ZONE,
   studentId = null,
+  // The student's pinned grades/{id}.profile. Only the assignment's own final
+  // cutoff can move for extra time; Warm-Up / DOL class windows cannot.
+  studentProfile = null,
 } = {}) => {
   const role = String(activityRole || '').trim().toLowerCase();
-  const finalCloseAtMs = assignmentFinalCloseAt(assignment, timeZone, studentId);
+  const finalCloseAtMs = assignmentFinalCloseAt(assignment, timeZone, studentId, studentProfile);
   const todayKey = zonedDateKey(nowValue, timeZone);
 
   if (role === 'warmup' || role === 'dol') {

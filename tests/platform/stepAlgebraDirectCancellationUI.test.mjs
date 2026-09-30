@@ -2,10 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { stepAlgebraSource } from './helpers/solverSource.mjs';
+import { supportById } from '../../functions/shared/supportCatalog.mjs';
+import { editorGroups } from '../../src/platform/supportEvidence/supportProfileDraft.js';
 
 const source = stepAlgebraSource();
 const support = await readFile(new URL('../../src/studentSupport.js', import.meta.url), 'utf8');
-const app = await readFile(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 const mathInput = await readFile(new URL('../../src/MathInput.jsx', import.meta.url), 'utf8');
 
 test('operation input starts blank and resets blank', () => {
@@ -29,7 +30,15 @@ test('Apply shortcut is explicitly accommodation-gated', () => {
   assert.match(source, /const allowAutoApply = Boolean\(question\?\.supportPresentation\?\.algebraAutoApply\)/);
   assert.match(source, /\{allowAutoApply && \(/);
   assert.match(support, /algebraAutoApply: normalized\.accommodations\.includes\('algebra-auto-apply'\)/);
-  assert.match(app, /\['algebra-auto-apply', 'Algebra operation Apply shortcut'\]/);
+  // A teacher grants it only as an explicit ACCOMMODATION. The option used to
+  // be a literal in App.jsx's flat checkbox list; it now comes from the shared
+  // support catalog, and the versioned profile editor offers every catalog
+  // accommodation the platform provides.
+  const entry = supportById('algebra-auto-apply');
+  assert.equal(entry?.classification, 'accommodation');
+  assert.equal(entry?.label, 'Algebra operation Apply shortcut');
+  const offered = editorGroups().platformAccommodations.flatMap((group) => group.items.map((item) => item.id));
+  assert.ok(offered.includes('algebra-auto-apply'), 'the profile editor offers the Apply shortcut as an accommodation');
 });
 
 test('literal-equation operation input supports symbolic factors on touch devices', () => {

@@ -30,6 +30,8 @@ import { createWorkspaceDraftSync } from './platform/persistence/workspaceDraftS
 import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
 import { readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
 import { resolveAuthoritativeClose, resolveWarmupInstructionDateKey } from '../functions/shared/sectionDeadline.mjs';
+import { withStudentSupportDates } from '../functions/shared/supportDeadline.mjs';
+import useEngagementLedger from './platform/supportEvidence/useEngagementLedger.js';
 import { buildDolAttemptGrant, buildDolClose, buildDolDateMove, buildDolExtension, buildDolScheduleRestore, buildDolWindowOpening, scheduledDolDateFor, summarizeStudentRecovery } from './platform/assessment/assessmentRecovery.js';
 import { PRESENCE_FLUSH_MS, applyKeyedChanges, createKeyedUpdateBuffer } from './platform/performance/coalescedKeyedUpdates.js';
 import { teacherAdmin } from './auth/authService';
@@ -1533,7 +1535,7 @@ function App() {
         liveAssignments.sort((a, b) =>
           String(a.dueAt || a.dueDate || '').localeCompare(String(b.dueAt || b.dueDate || '')),
         );
-        setAssignments(liveAssignments);
+        setAssignments(assignmentsForViewer(liveAssignments));
         // A teacher DOL unlock is an assignment update. Refresh the logical
         // clock with the snapshot so students do not wait for the next 30s
         // lifecycle tick before seeing an early release.
@@ -1828,6 +1830,15 @@ function App() {
     }
   };
 
+  // A student's own individualized (extra-time) deadlines, derived from their
+  // pinned support profile and injected IN MEMORY into their override entry,
+  // so every lifecycle reader honours them. Students cannot write assignments
+  // and teachers never receive these copies, so nothing here is persisted —
+  // and nothing about one student's supports reaches the shared document.
+  const assignmentsForViewer = (list) => (user?.role === 'student' && user?.id
+    ? list.map((assignment) => withStudentSupportDates(assignment, user.id, user.profile))
+    : list);
+
   const fetchAssignments = async () => {
     const querySnapshot = await getDocs(collection(db, 'assignments'));
     const fetchedAssignments = [];
@@ -1835,7 +1846,7 @@ function App() {
       fetchedAssignments.push({ id: assignmentDoc.id, ...assignmentDoc.data() });
     });
     fetchedAssignments.sort((a, b) => String(a.dueAt || a.dueDate || '').localeCompare(String(b.dueAt || b.dueDate || '')));
-    setAssignments(fetchedAssignments);
+    setAssignments(assignmentsForViewer(fetchedAssignments));
     return fetchedAssignments;
   };
 
@@ -2864,6 +2875,16 @@ function App() {
   const isStudentAssignment = user?.role === 'student' && activeView === 'assignment';
   const isPracticeMode = isStudentAssignment && activeLifecycle.isPracticeOnly;
   const activeSupportPresentation = getStudentSupportPresentation(user?.profile);
+  // Server-timed active minutes for the support evidence report. Post-deadline
+  // practice is not credit work and is never recorded (as with activity time).
+  useEngagementLedger({
+    db,
+    enabled: isStudentAssignment && Boolean(activeAssignmentData),
+    studentId: isStudentAssignment ? user.id : null,
+    assignmentId: activeAssignmentId,
+    creditEligible: activeLifecycle.creditEligible && !isPracticeMode,
+    lastInteractionRef: lastActivityRef,
+  });
   const activeDOLState = getDOLState({ assignment: activeAssignmentData, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
   const activeQuestionRole = resolveQuestionActivityRole({
     question: activeQuestions[currentQuestionIndex],
@@ -4205,10 +4226,19 @@ function App() {
   }, [activeAssignmentId, currentQuestionIndex, activeWorkingTracker]);
 
   useEffect(() => {
-    if (user?.role !== 'student' || activeView !== 'assignment' || activeSupportPresentation.disableIdleTimer) {
+    if (user?.role !== 'student' || activeView !== 'assignment') {
       setIsIdle(false);
       return undefined;
     }
+    // THE ACCOMMODATION HIDES THE PROMPT, NOT THE CLOCK.
+    //
+    // "No idle timer" (inclusion, extra-time, disable-idle-timer) used to
+    // return from this effect before the interval below was created, so the
+    // engagement counter never ran for exactly the students whose support
+    // evidence matters most — the IEP report's "0 min" on scored work. Now the
+    // accommodation only suppresses the "Are you still working?" overlay.
+    // Idle time (no interaction for 2 minutes) still counts for nobody.
+    const suppressIdlePrompt = activeSupportPresentation.disableIdleTimer;
 
     const resetActivity = () => {
       lastActivityRef.current = Date.now();
@@ -4239,7 +4269,7 @@ function App() {
     const interval = window.setInterval(() => {
       if (document.hidden) return;
       if (Date.now() - lastActivityRef.current > 120000) {
-        setIsIdle(true);
+        if (!suppressIdlePrompt) setIsIdle(true);
         return;
       }
       if (!isIdle) {
@@ -5187,6 +5217,10 @@ function App() {
       // The student's Chromebook is in the school's timezone; the server
       // re-resolves this with the school zone regardless.
       timeZone: null,
+      // This student's own final cutoff (attendance extension, individualized
+      // extra time), so the finalize hint is not earlier than the server's.
+      studentId: user.id,
+      studentProfile: user.profile || null,
     });
     try {
       setStudentPersistenceStatus('capturing');
@@ -7740,24 +7774,17 @@ function App() {
     }
   };
 
-  const handleUpdateStudentProfile = async (studentId, patch) => {
-    const student = allStudents.find((entry) => entry.id === studentId);
-    const nextProfile = normalizeStudentProfile({ ...(student?.profile || {}), ...patch });
-    try {
-      await updateDoc(doc(db, 'grades', studentId), { profile: nextProfile });
-      setAllStudents((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile } : entry));
-      setTeacherRosterSummaries((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile } : entry));
-    } catch (error) {
-      console.error(error);
-      toastError('Could not update support profile', error.message);
-    }
-  };
-
-  const toggleStudentSupport = async (student, group, value) => {
-    const currentValues = new Set(student.profile?.[group] || []);
-    if (currentValues.has(value)) currentValues.delete(value);
-    else currentValues.add(value);
-    await handleUpdateStudentProfile(student.id, { [group]: [...currentValues] });
+  // A support profile is saved ONLY as an immutable, dated revision plus its
+  // student-readable projection, in one batch (SupportProfileEditor →
+  // supportEvidenceStore.saveSupportProfileRevision). This keeps the
+  // teacher's in-memory copies in step with what was written. There is no
+  // longer a path that rewrites `grades.profile` from a flat patch: with a
+  // versioned plan that write would be silently overridden, and it would lose
+  // the history the evidence report depends on.
+  const handleSupportProfileSaved = (studentId, projection) => {
+    const nextProfile = normalizeStudentProfile(projection);
+    setAllStudents((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile } : entry));
+    setTeacherRosterSummaries((current) => current.map((entry) => entry.id === studentId ? { ...entry, profile: nextProfile } : entry));
   };
 
   const handleSaveClassSchedule = async () => {
@@ -10080,24 +10107,6 @@ function App() {
     const allVisibleSelected = visibleAssignmentIds.length > 0
       && visibleAssignmentIds.every((id) => selectedAssignmentIds.has(id));
 
-    const supportOptions = {
-      accommodations: [
-        ['text-to-speech', 'Text to speech'],
-        ['extra-time', 'Extra time / no idle timer'],
-        ['visual-chunking', 'One-step reveal'],
-        ['calculator', 'Calculator when the activity/question policy permits an accommodation'],
-        ['calculator-override-computation', 'Calculator accommodation may override computation-skill lock'],
-        ['high-contrast', 'High contrast'],
-        ['large-text', '20% larger text'],
-        ['no-countdown', 'Hide countdown clocks'],
-        ['declutter-ui', 'Declutter interface'],
-        ['algebra-auto-apply', 'Algebra operation Apply shortcut'],
-      ],
-      modifications: [
-        ['reduce-complexity', 'Reduce mathematical complexity'],
-        ['prefill-first-step', 'Prefill first step'],
-      ],
-    };
 
     if (teacherWorkspaceMode === 'administration' && rootAdminUiEligible) {
       return (
@@ -10779,13 +10788,12 @@ function App() {
                 classPeriods={CLASS_PERIODS}
                 courseProfiles={courseProfiles}
                 masteryProfilesByStudentId={teacherMasteryProfilesByStudentId}
-                supportOptions={supportOptions}
                 assignments={assignments}
                 pacingByClass={pacingByClass}
                 skillOverrides={skillOverrides}
                 onChangeClassPeriod={handleChangeClassPeriod}
-                onUpdateStudentProfile={handleUpdateStudentProfile}
-                onToggleStudentSupport={toggleStudentSupport}
+                teacherEmail={user?.email || ''}
+                onSupportProfileSaved={handleSupportProfileSaved}
                 onGenerateIEPReport={openIEPReport}
                 isRootAdmin={rootAdminUiEligible}
                 onOpenAdministration={() => setTeacherWorkspaceMode('administration')}

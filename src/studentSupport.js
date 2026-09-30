@@ -1,9 +1,39 @@
+import { flatSupportIds, resolveEffectiveSupportPlan } from '../functions/shared/supportProfileModel.mjs';
+
 const unique = (values) => [...new Set((Array.isArray(values) ? values : []).map(String))];
 
-export const normalizeStudentProfile = (profile = {}) => {
+const hasSupportPlan = (profile) => Array.isArray(profile?.supportPlan?.windows) && profile.supportPlan.windows.length > 0;
+
+/**
+ * The flat support view every runtime reader uses.
+ *
+ * A versioned profile (`supportPlan`, functions/shared/supportProfileModel.mjs)
+ * is resolved to the revision in effect today, so a future-dated revision
+ * switches on by itself and an inactive one switches supports off. The plan
+ * itself is passed through untouched: individualized deadlines are governed by
+ * the revision in effect on each assignment's due date, not today's.
+ *
+ * This is a READ view. Never write it back to Firestore — the profile is
+ * saved only as a new revision plus its projection
+ * (src/platform/supportEvidence/supportEvidenceStore.js).
+ */
+export const normalizeStudentProfile = (profile = {}, { nowValue = Date.now() } = {}) => {
   const safeProfile = profile && typeof profile === 'object' && !Array.isArray(profile)
     ? profile
     : {};
+
+  if (hasSupportPlan(safeProfile)) {
+    const plan = resolveEffectiveSupportPlan(safeProfile, { nowValue });
+    const ids = flatSupportIds(plan);
+    return {
+      inclusionStatus: plan.inclusionStatus === true,
+      accommodations: unique(ids.accommodations),
+      modifications: unique(ids.modifications),
+      translationLanguage: String(plan.translationLanguage || '').trim().toLowerCase() || null,
+      supportPlan: safeProfile.supportPlan,
+      supportRevisionId: plan.revisionId || null,
+    };
+  }
 
   return {
     inclusionStatus: Boolean(safeProfile.inclusionStatus),

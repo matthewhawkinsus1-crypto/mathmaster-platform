@@ -107,21 +107,34 @@ const studentOverrideDates = (assignment, studentId) => {
   return entry && typeof entry === 'object' ? entry : null;
 };
 
+const latestDate = (...dates) => dates
+  .filter((date) => date instanceof Date && !Number.isNaN(date.getTime()))
+  .reduce((latest, date) => (!latest || date.getTime() > latest.getTime() ? date : latest), null);
+
 export const getAssignmentDate = (assignment, field, studentId = null) => {
   if (!assignment) return null;
   const override = studentId ? studentOverrideDates(assignment, studentId) : null;
-  // Student overrides grant additional credit opportunity; they do not move
-  // the class pacing checkpoint that distinguishes on-time from late work.
-  if (field === 'due') return parseLocalDateTime(assignment.dueAt || assignment.dueDate, true);
-  if (field === 'late') {
-    const classFinal = parseLocalDateTime(
-      assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate,
-      true,
+  if (field === 'due') {
+    // An attendance override grants additional credit opportunity; it does
+    // not move the class pacing checkpoint that distinguishes on-time from
+    // late work. An individualized extra-time due date DOES — that is the
+    // accommodation — and it only ever exists later than the class due
+    // (functions/shared/supportDeadline.mjs, injected by
+    // withStudentSupportDates; never stored on the assignment).
+    return latestDate(
+      parseLocalDateTime(assignment.dueAt || assignment.dueDate, true),
+      parseLocalDateTime(override?.supportDueAt, false),
     );
-    const studentFinal = parseLocalDateTime(override?.lateDueAt || override?.dueAt, true);
-    if (!classFinal) return studentFinal;
-    if (!studentFinal) return classFinal;
-    return studentFinal.getTime() > classFinal.getTime() ? studentFinal : classFinal;
+  }
+  if (field === 'late') {
+    return latestDate(
+      parseLocalDateTime(
+        assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate,
+        true,
+      ),
+      parseLocalDateTime(override?.lateDueAt || override?.dueAt, true),
+      parseLocalDateTime(override?.supportFinalAt, false),
+    );
   }
   if (field === 'release') return parseLocalDateTime(assignment.releaseAt || assignment.releaseDate, false);
   return null;
