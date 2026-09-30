@@ -10,6 +10,7 @@ import { gradeMultiAnswerResponse } from '../functions/shared/ordinaryResponseGr
 import { resolveLabelFormat } from './labelFormat';
 import { inferRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
 import { describeAnswerFormat } from './platform/interaction/answerFormatHints.js';
+import { keypadProfileForResponseField } from './platform/interaction/interactionContract.js';
 import { formatProblemForResponse } from './platform/interaction/answerShapeGuard.js';
 import useUndoHistory from './useUndoHistory';
 import { choiceSeed, prepareFiniteChoiceSet, stableShuffleChoices } from './platform/interaction/choiceOptions.js';
@@ -274,7 +275,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                         ? 'for example 0 ≤ x ≤ 4'
                         : 'Type your answer'}
                   ariaLabel={field.label || field.id}
-                  toolProfile={field.toolProfile || (shouldUseSetInput(field) ? 'set' : shouldUseInequalityInput(field) ? 'inequality' : 'basic')}
+                  toolProfile={field.toolProfile || (shouldUseSetInput(field) ? 'set' : shouldUseInequalityInput(field) ? 'inequality' : keypadProfileForResponseField(field) || 'basic')}
                   answerFormat={field.answerFormat || field.inputContract?.format || field.notation || field.inputMode || (shouldUseInequalityInput(field) ? 'inequality' : '')}
                   requiredSymbols={requiredSymbols}
                   showToolsInitially={shouldUseSetInput(field) || shouldUseInequalityInput(field) || inferredRequiredSymbols.length > 0}

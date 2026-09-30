@@ -10,9 +10,10 @@
  * renders any element that is on screen and still empty. Off-screen elements
  * stay lazy.
  */
-export const mathElementHasRendered = (element) => Boolean(
-  element?.shadowRoot?.querySelector?.('[part="render"]')?.childElementCount,
-);
+import { mathElementHasRendered } from './mathLiveCompat.js';
+
+// The render-part lookup is a MathLive internal; it lives in mathLiveCompat.js.
+export { mathElementHasRendered };
 
 export function ensureMathElementRenders(element, win = typeof window === 'undefined' ? null : window) {
   if (!element || !win) return undefined;

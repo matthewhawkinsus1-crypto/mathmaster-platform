@@ -458,6 +458,35 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
   align-items: start !important;
 }
 
+/* THE PLANE FIRST, THE POINT LIST DIRECTLY UNDER IT, IN ANY PORTRAIT SCREEN.
+   A portrait screen is narrower than it is tall, so side by side is the layout
+   that shrinks the graph. On an 820x1180 iPad the side rail (240px) and a
+   230px point list left the "enlarged" plane 256x182 — smaller than the same
+   plane embedded (502x357). On a 390x664 phone the old sidebar-first rule tied
+   with App.css's graph-first one (both order: -1), DOM order won, and the
+   student who pressed Enlarge got the table, the facts strip and five point
+   cards in the body's 304px with the plane 0% on screen (assignmentMobile.mjs).
+   Stacked with the plane first, workViewReveal.js brings the plane fully into
+   view and the point cards and Check sit immediately below it. Landscape keeps
+   the columns: a short landscape phone's rule below puts the plane in the wide
+   one. */
+[data-open="true"][data-orientation="portrait"] .workflow-focus__active-stage .mathmaster-function-workspace-grid {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+[data-open="true"][data-orientation="portrait"] .workflow-focus__active-stage .mathmaster-function-workspace-graph {
+  order: -1;
+}
+
+/* Never taller than the stage body it scrolls in. At 1366x768 the plane was
+   570px in a 508px body, so its bottom and the point list's Check button were
+   below the fold of the view opened to show it. ~280px is the Work View header,
+   instruction, step heading and Previous/Next footer. Clicks stay exact on the
+   resulting letterboxed plane (responsiveCoordinates.js). */
+[data-open="true"] .workflow-focus__active-stage .mathmaster-function-workspace-graph svg {
+  max-height: max(200px, calc(var(--mm-work-view-height, 100dvh) - 280px));
+}
+
 /* Phones still need both the reference and the current response visible at
    once. Split the bounded workspace vertically rather than returning to an
    unbounded stacked document; each half can scroll internally when a stage is
@@ -479,14 +508,6 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
 
   [data-open="true"] .workflow-focus__active-stage .mathmaster-function-workspace-grid {
     grid-template-columns: minmax(0, 1fr) !important;
-  }
-
-  /* In portrait the plane is the visual reference and the sidebar is the work.
-     Keep the sidebar first so at least one actionable control is immediately
-     reachable; the plane remains directly below in the same bounded scroller. */
-  [data-open="true"][data-layout="mobile"] .workflow-focus__active-stage
-    .mathmaster-function-workspace-sidebar {
-    order: -1;
   }
 
   [data-open="true"][data-layout="mobile"] .workflow-focus__active-stage

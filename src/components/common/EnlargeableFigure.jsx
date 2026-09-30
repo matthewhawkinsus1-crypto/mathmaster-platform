@@ -11,6 +11,7 @@ import {
 } from '../../platform/workView/workViewCapabilities.js';
 import { readWorkViewViewport } from '../../platform/workView/workViewViewport.js';
 import { captureWorkViewScrollHold, restoreWorkViewScrollHold } from '../../platform/workView/workViewScrollHold.js';
+import { revealWorkViewTarget } from '../../platform/workView/workViewReveal.js';
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
 import './WorkViewShell.css';
 
@@ -196,19 +197,16 @@ export default function EnlargeableFigure({
    * header, so bringing that region up shows task and work together. Only
    * scrolls when the region is not already fully visible; tools that mark
    * nothing open exactly as before.
+   *
+   * A plane marked data-work-view-reveal is brought fully into view the same
+   * way, and the scroll goes to whichever element actually scrolls — for a
+   * staged question that is the workflow body, not the surface. See
+   * workViewReveal.js for the 0%-on-screen phone measurement this fixes.
    */
   useEffect(() => {
     if (!enlarged || typeof window === 'undefined') return undefined;
     const frame = window.requestAnimationFrame(() => {
-      const host = hostRef.current;
-      const surface = host?.querySelector?.('.mathmaster-work-view-surface');
-      const targets = surface?.querySelectorAll?.('[data-work-view-focus="true"]');
-      const target = targets?.length ? targets[targets.length - 1] : null;
-      if (!surface || !target) return;
-      const surfaceBox = surface.getBoundingClientRect();
-      const targetBox = target.getBoundingClientRect();
-      if (targetBox.top >= surfaceBox.top && targetBox.bottom <= surfaceBox.bottom) return;
-      surface.scrollTop += targetBox.top - surfaceBox.top - 8;
+      revealWorkViewTarget(hostRef.current?.querySelector?.('.mathmaster-work-view-surface'));
     });
     return () => window.cancelAnimationFrame(frame);
   }, [enlarged]);

@@ -68,13 +68,17 @@ test('reference chips scroll with the page; the Hide task control sits on the ca
 
 // Live QA, Work View at 1536×900: the surface opened at its top and the balance
 // board the student was working on started ~620px down, half below the fold.
-test('Work View opens on the region the tool marks as the student\'s current work', () => {
+test('Work View opens on the region the tool marks as the student\'s current work', async () => {
   const shell = read('src/components/common/EnlargeableFigure.jsx');
   const effect = shell.slice(shell.indexOf('OPEN ON THE STUDENT\'S CURRENT WORK'), shell.indexOf('// Focus goes back where it came from'));
   assert.match(effect, /if \(!enlarged \|\| typeof window === 'undefined'\) return undefined;/);
-  assert.match(effect, /querySelectorAll\?\.\('\[data-work-view-focus="true"\]'\)/);
-  assert.match(effect, /if \(targetBox\.top >= surfaceBox\.top && targetBox\.bottom <= surfaceBox\.bottom\) return;/, 'an already visible region is not moved');
-  assert.match(effect, /surface\.scrollTop \+= targetBox\.top - surfaceBox\.top - 8;/);
+  // The geometry moved to workViewReveal.js (it now scrolls whichever element
+  // actually scrolls; see workViewReveal.test.mjs for the staged phone case).
+  assert.match(effect, /revealWorkViewTarget\(hostRef\.current\?\.querySelector\?\.\('\.mathmaster-work-view-surface'\)\)/);
+  const { workViewRevealDelta } = await import('../../src/platform/workView/workViewReveal.js');
+  const scrollerBox = { top: 0, bottom: 900 };
+  assert.equal(workViewRevealDelta({ targetBox: { top: 100, bottom: 500 }, scrollerBox, align: 'start' }), 0, 'an already visible region is not moved');
+  assert.equal(workViewRevealDelta({ targetBox: { top: 620, bottom: 1100 }, scrollerBox, align: 'start' }), 612, 'live work lands 8px under the top');
   assert.match(shell, /<div\s+ref=\{hostRef\}\s+className=\{`mathmaster-work-view-host/);
 
   const systems = read('src/tools/systemsWorkspace/AlgebraicSystemMode.jsx');
