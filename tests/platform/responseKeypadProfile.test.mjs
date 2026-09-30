@@ -66,3 +66,17 @@ test('the multi-answer grader asks the shared policy before falling back to the 
     /toolProfile=\{field\.toolProfile \|\| \(shouldUseSetInput\(field\) \? 'set' : shouldUseInequalityInput\(field\) \? 'inequality' : keypadProfileForResponseField\(field\) \|\| 'basic'\)\}/,
   );
 });
+
+// Once -2/3 is a number, the expression shape guard no longer covered it:
+// "m = -2/3" would have been graded wrong and spent a try. Number fields get
+// the same guard ("b = 4" in an integer box had the gap already).
+test('a number box refuses "m = …" before it can cost a try, and steps aside for keys with "="', async () => {
+  const { formatProblemForResponse } = await import('../../src/platform/interaction/answerShapeGuard.js');
+  const { gradeMultiAnswerResponse } = await import('../../functions/shared/ordinaryResponseGrading.mjs');
+  const slope = normalizeResponseFieldInteractionContract({ id: 'm', label: 'Slope', answer: '-2/3' });
+  assert.equal(gradeMultiAnswerResponse({ answerFields: [slope] }, { m: 'm=-2/3' }).isCorrect, false, 'the grader would mark it wrong');
+  assert.match(formatProblemForResponse(slope, 'm = -2/3'), /Write only the number, without an equals sign/);
+  assert.match(formatProblemForResponse(normalizeResponseFieldInteractionContract({ id: 'b', answer: '4' }), 'b=4'), /Write only the number/);
+  assert.equal(formatProblemForResponse(slope, '-\\frac{2}{3}'), '');
+  assert.equal(formatProblemForResponse({ answerFormat: 'number', answer: 'x = 3' }, 'x = 3'), '', 'a key that has "=" is never blocked');
+});
