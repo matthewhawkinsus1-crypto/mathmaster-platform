@@ -52,11 +52,16 @@ test('a tool that draws its own curves is handed the clip', () => {
   assert.match(read('src/tools/systemsWorkspace/SystemsWorkspace.jsx'), /\(\{ sx, sy, plotClip \}\) => \(\s*<g clipPath=\{plotClip\}>/);
 });
 
-test('plotting directions: one line, keyboard and zoom folded, once per tool', () => {
+test('plotting directions: one line, keyboard help on keyboard focus, once per tool', () => {
   const help = plane.slice(plane.indexOf('showPlotHelpHere ? ('), plane.indexOf(') : null}\n        </>'));
   assert.match(help, /Press the grid and slide to aim/);
-  assert.match(help, /<QuietDisclosure summary="Keyboard and zoom" storageKey="mm\.plot\.help\.keyboard" defaultOpen=\{false\}/);
-  assert.match(help, /arrow keys move the\s*\n?\s*crosshair/, 'the keyboard gesture is still described');
+  // Not a folded row (a third 44px fold under Sequence Explorer's plane failed
+  // the tool-open audit): the keyboard sentence shows while the plane has
+  // keyboard focus, which is when a sighted keyboard user needs it.
+  assert.match(help, /\{keyboardHelpVisible \? \(\s*<p[^>]*>\s*The arrow keys move the\s*\n?\s*crosshair/, 'the keyboard gesture is still described');
+  assert.doesNotMatch(help, /QuietDisclosure/);
+  assert.match(svg, /onFocus=\{\(event\) => \{[\s\S]*?event\.currentTarget\.matches\(':focus-visible'\)[\s\S]*?setKeyboardHelpVisible\(true\)/);
+  assert.match(svg, /onBlur=\{\(\) => setKeyboardHelpVisible\(false\)\}/);
   assert.match(plane, /const showPlotHelpHere = usePlotHelpSlot\(interactive && showPlotHelp\);/);
   const shell = read('src/tools/shared/ToolShell.jsx');
   assert.match(shell, /<div className="mathmaster-tool-shell-body"[^>]*><PlotHelpScope>\{children\}<\/PlotHelpScope><\/div>/);

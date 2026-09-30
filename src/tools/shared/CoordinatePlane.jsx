@@ -1,5 +1,4 @@
 import React, { useEffect, useId, useMemo, useState } from 'react';
-import QuietDisclosure from '../../components/common/QuietDisclosure.jsx';
 import { usePlotHelpSlot } from './plotHelpScope.js';
 import { clientPointToGraphCoordinate } from '../../utils/responsiveCoordinates.js';
 import { resolvePointFill, resolvePointRadius } from '../../graphSpecUtils';
@@ -170,6 +169,8 @@ export default function CoordinatePlane({
   const [keyboardCursor, setKeyboardCursor] = useState(null);
   const [hoveredPointIndex, setHoveredPointIndex] = useState(null);
   const [keyboardActive, setKeyboardActive] = useState(false);
+  // Keyboard focus on the plane (Tab, not a click): shows the keyboard help.
+  const [keyboardHelpVisible, setKeyboardHelpVisible] = useState(false);
   // Which existing point the finger or mouse currently has hold of, and where it
   // has been dragged to. Null when the gesture is placing a new point instead.
   const [dragIndex, setDragIndex] = useState(null);
@@ -450,6 +451,12 @@ export default function CoordinatePlane({
         onPointerCancel={handlePointerCancel}
         onPointerLeave={handlePointerLeave}
         onKeyDown={handleKeyDown}
+        onFocus={(event) => {
+          let keyboard = false;
+          try { keyboard = event.currentTarget.matches(':focus-visible'); } catch { keyboard = false; }
+          if (keyboard) setKeyboardHelpVisible(true);
+        }}
+        onBlur={() => setKeyboardHelpVisible(false)}
         style={{
           // `maxHeight` is NOT set here. It used to be an inline '100%', which
           // beats every stylesheet rule and so silently defeated the
@@ -680,13 +687,17 @@ export default function CoordinatePlane({
                 Press the grid and slide to aim{minorStep === 1 ? ' at a whole-number point' : ''} — the point lands where you
                 let go{canMovePoints ? '; drag a point to move it' : ''}.
               </p>
-              <QuietDisclosure summary="Keyboard and zoom" storageKey="mm.plot.help.keyboard" defaultOpen={false} style={{ margin: '4px 0 0' }}>
-                <p style={{ margin: 0, fontSize: 12, color: '#5f6b7a' }}>
+              {/* The keyboard sentence appears when the plane has KEYBOARD
+                  focus — when the student who needs it is using it — instead of
+                  sitting under every plane or in one more folded row (a fold
+                  here put a third 44px row in Sequence Explorer). */}
+              {keyboardHelpVisible ? (
+                <p style={{ margin: '3px 0 0' }}>
                   The arrow keys move the
                   crosshair{minorStep === 1 ? ' one unit' : ` by ${tidy(minorStep)}`} (Shift for five); Enter plots it.
-                  {zoomable ? ' Use the +/− buttons below when you intentionally need a closer view.' : ''}
+                  {zoomable ? ' The +/− buttons below zoom in when you need a closer view.' : ''}
                 </p>
-              </QuietDisclosure>
+              ) : null}
             </div>
           ) : null}
         </>
