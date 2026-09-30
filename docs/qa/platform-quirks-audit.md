@@ -9,6 +9,14 @@ student-facing quirks across the whole tool registry. Every finding below was
 classified, and either fixed and re-driven or recorded with the evidence the
 next engineering pass needs.
 
+**Reconciled with `main` after PR #400** (teacher workflow redesign, merged
+while this PR waited for its certification). A normal merge, no rebase or
+force-push: no file is changed on both sides, PR #400's `App.jsx` changes do
+not touch the student assignment wrappers, identity shell or Work View, its CSS
+is namespaced (`.tw-*`), none of its tests read a file this branch changed, and
+this branch's tests read only `App.jsx` from its set. Every gate below was
+re-run on the merged head.
+
 ## Summary
 
 **P0 FOUND 1 · P0 FIXED 1**
@@ -520,6 +528,15 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   plain-string label) and the calculator panel launcher. Names unchanged.
 - **Evidence:** `pq-calculator-icon-after-phone-bar.png`,
   `pq-calculator-icon-after-work-view.png`.
+- **CI follow-up:** the icon is an `<svg>`, and PR #399's `browser-readability`
+  check (`darkModeCertification.mjs`) read "the first svg" under the Graphing 2
+  root as the graph, 300 ms after the root appeared. When the lazily loaded
+  plane was not there yet it found the icon (no `<text>`) and
+  `getComputedStyle(null)` threw; before the icon existed the same race found
+  no svg and **skipped the check silently**. The test now waits for
+  `svg.mathmaster-responsive-canvas`, so the graph-contrast check always runs
+  (an inverted assertion fails, proving it is live). Passes locally on four
+  devices in both themes.
 - **Scope:** tiny.
 
 ---
