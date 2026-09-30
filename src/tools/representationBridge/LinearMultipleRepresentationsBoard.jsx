@@ -72,11 +72,13 @@ const touchButton = {
   fontSize: 14,
 };
 
+// Theme tokens, so the board follows dark mode like the rest of the question
+// (the theme-contract audit flags hard-coded white).
 const primaryButton = {
   ...touchButton,
-  background: '#1a73e8',
-  color: '#fff',
-  border: '1px solid #1557b0',
+  background: 'var(--mm-primary)',
+  color: 'var(--mm-on-primary)',
+  border: '1px solid var(--mm-primary)',
 };
 
 const quietButton = {
@@ -96,7 +98,7 @@ const cellInput = {
   borderRadius: 8,
   fontSize: 17,
   textAlign: 'center',
-  background: '#fff',
+  background: 'var(--mm-surface)',
 };
 
 const selectStyle = {
@@ -107,7 +109,7 @@ const selectStyle = {
   border: '1px solid #b8c7de',
   borderRadius: 8,
   fontSize: 15,
-  background: '#fff',
+  background: 'var(--mm-surface)',
 };
 
 const muted = { fontSize: 13, color: '#5f6b7a', margin: 0, lineHeight: 1.45 };
@@ -132,8 +134,8 @@ const givenBadge = {
   fontSize: 12,
   fontWeight: 900,
   letterSpacing: '0.06em',
-  background: '#1a4fb4',
-  color: '#fff',
+  background: 'var(--mm-primary)',
+  color: 'var(--mm-on-primary)',
 };
 
 const defaultTableRows = [
@@ -260,7 +262,7 @@ function BoardCard({ cardId, title, hint, verdict, canCheck, onCheck, checkLabel
         border: `1px solid ${verdict?.isCorrect ? '#9fd3ad' : '#dbe3ef'}`,
         borderRadius: 12,
         padding: 12,
-        background: '#fff',
+        background: 'var(--mm-surface)',
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
@@ -323,7 +325,7 @@ function GivenRepresentation({ description, graphBounds }) {
     body = (
       <table
         aria-label="Given table of values"
-        style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 280, fontSize: 18, background: '#fff', borderRadius: 8, overflow: 'hidden' }}
+        style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 280, fontSize: 18, background: 'var(--mm-surface)', borderRadius: 8, overflow: 'hidden' }}
       >
         <thead>
           <tr>
@@ -436,7 +438,7 @@ function GraphDialog({ graph, open, onClose, children, returnFocusRef }) {
     >
       <div
         style={{
-          background: '#fff',
+          background: 'var(--mm-surface)',
           borderRadius: 14,
           width: 'min(980px, 100%)',
           maxHeight: '100%',
