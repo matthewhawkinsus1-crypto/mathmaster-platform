@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-09-30T04:12:10.581Z",
-  "origin": "http://127.0.0.1:5211",
+  "generatedAt": "2026-09-30T10:29:03.396Z",
+  "origin": "http://localhost:5211",
   "tools": [
     {
       "toolId": "dataModelingLab",
@@ -81,9 +81,13 @@
     {
       "toolId": "signSolutionAnalyzer",
       "mounted": true,
-      "records": 0,
-      "largestRecordBytes": 0,
-      "persistedFields": []
+      "records": 1,
+      "largestRecordBytes": 20,
+      "persistedFields": [
+        "selected"
+      ],
+      "journey": "targeted",
+      "restoredAfterReload": true
     },
     {
       "toolId": "sequenceExplorer",
@@ -224,9 +228,13 @@
     {
       "toolId": "expressionMeaning",
       "mounted": true,
-      "records": 0,
-      "largestRecordBytes": 0,
-      "persistedFields": []
+      "records": 1,
+      "largestRecordBytes": 331,
+      "persistedFields": [
+        "assignments"
+      ],
+      "journey": "targeted",
+      "restoredAfterReload": true
     },
     {
       "toolId": "representationBridge",

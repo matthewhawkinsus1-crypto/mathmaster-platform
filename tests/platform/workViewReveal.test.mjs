@@ -113,16 +113,33 @@ test('the Work View shell runs the reveal on open, and only the shell reads the 
   assert.doesNotMatch(workspace, /data-work-view-focus/);
 });
 
-test('the phone portrait Work View puts the plane before the point list, and landscape keeps its columns', () => {
+test('a portrait Work View puts the plane before the point list at every width, and landscape keeps its columns', () => {
   const css = read('src/components/common/WorkViewShell.css');
-  const phone = css.slice(css.indexOf('@media (max-width: 700px) {', css.indexOf('QUESTION WORK VIEW IS A WORKFLOW')));
-  const phoneBlock = phone.slice(0, phone.indexOf('@media (orientation: landscape)'));
-  assert.match(phoneBlock, /\[data-open="true"\]\[data-layout="mobile"\]\[data-orientation="portrait"\] \.workflow-focus__active-stage\s+\.mathmaster-function-workspace-graph \{\s*order: -1;/);
+  // Portrait, any width: one column, plane first. The iPad (820x1180) had a
+  // 256x182 plane beside the point list; phones had the plane 0% on screen.
+  assert.match(css, /\[data-open="true"\]\[data-orientation="portrait"\] \.workflow-focus__active-stage \.mathmaster-function-workspace-grid \{\s*grid-template-columns: minmax\(0, 1fr\) !important;/);
+  assert.match(css, /\[data-open="true"\]\[data-orientation="portrait"\] \.workflow-focus__active-stage \.mathmaster-function-workspace-graph \{\s*order: -1;/);
   // The old sidebar-first rule tied with App.css's graph-first rule, so DOM
   // order put the five point cards above the plane.
-  assert.doesNotMatch(phoneBlock, /\.mathmaster-function-workspace-sidebar \{\s*order: -1;/);
+  assert.doesNotMatch(css, /\.mathmaster-function-workspace-sidebar \{\s*order: -1;/);
+  // The plane never outgrows the stage body it scrolls in.
+  assert.match(css, /\.workflow-focus__active-stage \.mathmaster-function-workspace-graph svg \{\s*max-height: max\(200px, calc\(var\(--mm-work-view-height, 100dvh\) - 280px\)\);/);
 
   const app = read('src/App.css');
   const enlarged = app.slice(app.indexOf('ENLARGING A PLOTTING WORKSPACE ON A PHONE'), app.indexOf('Enlarged domain/range analysis'));
   assert.match(enlarged, /@media \(max-width: 700px\) and \(orientation: portrait\) \{/);
+});
+
+test('picking a point card on touch brings the plane back into view', async () => {
+  const { revealInNearestScroller } = await import('../../src/platform/workView/workViewReveal.js');
+  const { body, plane } = stagedPhoneScene();
+  body.scrollTop = 600; // the student scrolled down to the point cards
+  assert.ok(revealInNearestScroller(plane, styleOf) < 0);
+  const planeBox = plane.getBoundingClientRect();
+  const bodyBox = body.getBoundingClientRect();
+  assert.ok(planeBox.top >= bodyBox.top && planeBox.bottom <= bodyBox.bottom);
+
+  const workspace = read('src/InteractiveGraphWorkspace.jsx');
+  assert.match(workspace, /setActiveTaskId\(task\.id\); setKeyboardAnnouncement\([^;]*\); if \(mobileInteraction\.isMobile\) revealPlaneForPlacement\(\);/);
+  assert.match(workspace, /window\.requestAnimationFrame\(\(\) => revealInNearestScroller\(svgRef\.current\)\)/);
 });
