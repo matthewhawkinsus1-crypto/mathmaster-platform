@@ -7176,7 +7176,7 @@ function App() {
     try {
       const writeNow = Date.now();
       const openedAt = new Date(writeNow).toISOString();
-      const dateKey = localDateKey(openedAt);
+      const dateKey = localDateKey(writeNow);
       const currentRegularEndMs = state.regularEndsAt?.getTime?.() || derivedRegularEndMs;
       // Re-evaluate after confirmation. If the regular cutoff passed while the
       // dialog was open, safely convert the action into a recovery window.

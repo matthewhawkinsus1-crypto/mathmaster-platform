@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { localDateKey } from '../../src/assignmentLifecycle.js';
-import { buildDolClose, buildDolDateMove } from '../../src/platform/assessment/assessmentRecovery.js';
+import { buildDolClose, buildDolDateMove, buildDolExtension, buildDolWindowOpening } from '../../src/platform/assessment/assessmentRecovery.js';
 import { describeClassLesson, LESSON_GROUP, nextClassDateKey, projectClassLessons } from '../../src/platform/teacher/classLessonControls.js';
 import { classGradeProgress, classLiveProgress, PROGRESS_STATE } from '../../src/platform/teacher/assignmentProgress.js';
 
@@ -103,6 +103,30 @@ test('a moved DOL shows the teacher override and the original day, and offers th
   assert.match(dol.overrides[0], /^Moved by teacher — originally /);
   assert.ok(dol.actions.some((action) => action.id === 'restore'));
   assert.equal(described.group, LESSON_GROUP.OPEN, 'no longer today\'s lesson');
+});
+
+test('opening the DOL early on its own day is not a move: no "originally", no way "back"', () => {
+  const opened = { ...today, dol: buildDolWindowOpening({ assignment: today, classId: 'class-a', classPeriod: 'Period 1', dateKey: TODAY, now: at(9, 0).getTime() }).dol };
+  assert.equal(opened.dol.scheduledInstructionDatesByClassId, undefined, 'nothing to go back to');
+  const dol = describeClassLesson({ assignment: opened, classContext, schedule, nowValue: at(9, 1) }).rows.find((row) => row.kind === 'dol');
+  assert.equal(dol.status, 'active');
+  assert.ok(!dol.overrides.some((text) => /^Moved by teacher/.test(text)), dol.overrides.join(' | '));
+  assert.ok(dol.overrides.includes('Opened early by teacher'));
+
+  // Opening a reused DOL on a NEW day is a move, and the original is kept.
+  const reused = lesson({ id: 'reused', dolDate: '2026-08-24' });
+  const reopened = { ...reused, dol: buildDolWindowOpening({ assignment: reused, classId: 'class-a', classPeriod: 'Period 1', dateKey: TODAY, now: at(9, 0).getTime() }).dol };
+  assert.equal(reopened.dol.scheduledInstructionDatesByClassId['class-a'].resolvedDateKey, '2026-08-24');
+  const moved = describeClassLesson({ assignment: reopened, classContext, schedule, nowValue: at(9, 1) }).rows.find((row) => row.kind === 'dol');
+  assert.match(moved.overrides[0], /^Moved by teacher — originally /);
+});
+
+test('an extended DOL that the teacher then closes just says it was closed early', () => {
+  const extended = { ...today, dol: buildDolExtension({ assignment: today, classId: 'class-a', dateKey: TODAY, currentEndsAtMs: at(9, 25).getTime(), minutes: 5, now: at(9, 17).getTime() }).dol };
+  const closed = { ...extended, dol: buildDolClose({ assignment: extended, classId: 'class-a', dateKey: TODAY, now: at(9, 20).getTime() }).dol };
+  const dol = describeClassLesson({ assignment: closed, classContext, schedule, nowValue: at(9, 21) }).rows.find((row) => row.kind === 'dol');
+  assert.equal(dol.status, 'ended');
+  assert.deepEqual(dol.overrides, ['Closed early by teacher']);
 });
 
 test('Classwork that starts locked says it is waiting for the teacher', () => {

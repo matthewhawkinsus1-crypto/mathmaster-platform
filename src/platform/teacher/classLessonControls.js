@@ -73,7 +73,9 @@ export const describeDolControl = ({ assignment, state, classId, nowValue = Date
   const todayKey = localDateKey(nowValue);
   const relation = dayRelation(state.instructionDateKey, todayKey);
   const saved = scheduledDolDateFor(assignment, classId);
-  const movedByTeacher = Boolean(saved);
+  // Moved only while the day in force differs from the one that was saved; a
+  // DOL moved away and later moved back by hand is on its original day again.
+  const movedByTeacher = Boolean(saved) && (saved.resolvedDateKey || null) !== (state.instructionDateKey || null);
   const regular = state.regularOpensAt && state.regularEndsAt
     ? `${clock(state.regularOpensAt)}–${clock(state.regularEndsAt)}`
     : '';
@@ -114,7 +116,9 @@ export const describeDolControl = ({ assignment, state, classId, nowValue = Date
       : 'Day set by teacher — no day was scheduled');
   }
   if (state.status === 'active' && state.earlyUnlocked) overrides.push('Opened early by teacher');
-  if (state.teacherRecovery && ['active', 'ended'].includes(state.status)) overrides.push(state.status === 'active' ? 'Teacher-extended or reopened window' : 'Teacher reopen window has ended');
+  if (state.teacherRecovery && state.status === 'active') overrides.push('Teacher-extended or reopened window');
+  // "Closed early" already says why it ended; the window it cut short is not news.
+  if (state.teacherRecovery && state.status === 'ended' && !state.teacherClosed) overrides.push('Teacher reopen window has ended');
   if (state.teacherClosed) overrides.push('Closed early by teacher');
   if (attemptBonus) overrides.push(`+${attemptBonus} extra attempt${attemptBonus === 1 ? '' : 's'} for the class`);
 

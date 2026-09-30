@@ -137,7 +137,7 @@ export const buildDolWindowOpening = ({
   if (!clean(dateKey)) throw new Error('A DOL opening needs its instructional date.');
   const at = iso(now);
   const dol = { ...assignment?.dol, enabled: true };
-  Object.assign(dol, preserveScheduledDolDate({ assignment, classId: id, classPeriod, now }));
+  Object.assign(dol, preserveScheduledDolDate({ assignment, classId: id, classPeriod, toDateKey: dateKey, now }));
   dol.instructionDatesByClassId = { ...assignment?.dol?.instructionDatesByClassId, [id]: dateKey };
 
   let entry;
@@ -170,18 +170,23 @@ export const buildDolWindowOpening = ({
  * `scheduledInstructionDatesByClassId[classId]`, so the teacher can always see
  * "originally scheduled for …" and return to it. Later overrides never replace
  * the saved original; returning to the schedule removes it.
+ *
+ * Opening the DOL early ON its scheduled day is not a move: nothing is saved,
+ * so the class page never claims "moved — originally <the same day>".
  */
-export const preserveScheduledDolDate = ({ assignment = {}, classId, classPeriod = null, now = Date.now() } = {}) => {
+export const preserveScheduledDolDate = ({ assignment = {}, classId, classPeriod = null, toDateKey = null, now = Date.now() } = {}) => {
   const id = clean(classId);
   const saved = assignment?.dol?.scheduledInstructionDatesByClassId || {};
   if (!id || saved[id]) return {};
+  const resolvedDateKey = resolveDolInstructionDateKey({ assignment, classId: id, classPeriod }) || null;
+  if (clean(toDateKey) && clean(toDateKey) === resolvedDateKey) return {};
   const rawEntry = assignment?.dol?.instructionDatesByClassId?.[id];
   return {
     scheduledInstructionDatesByClassId: {
       ...saved,
       [id]: {
         classDateKey: rawEntry ? clean(rawEntry) : null,
-        resolvedDateKey: resolveDolInstructionDateKey({ assignment, classId: id, classPeriod }) || null,
+        resolvedDateKey,
         savedAt: iso(now),
       },
     },
@@ -249,7 +254,7 @@ export const buildDolDateMove = ({
   if (!id) throw new Error('Choose the class whose DOL should move.');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(target)) throw new Error('Choose the day the DOL should move to.');
   const at = iso(now);
-  const dol = { ...assignment?.dol, enabled: true, ...preserveScheduledDolDate({ assignment, classId: id, classPeriod, now }) };
+  const dol = { ...assignment?.dol, enabled: true, ...preserveScheduledDolDate({ assignment, classId: id, classPeriod, toDateKey: target, now }) };
   const previous = resolveDolInstructionDateKey({ assignment, classId: id, classPeriod }) || null;
   dol.instructionDatesByClassId = { ...assignment?.dol?.instructionDatesByClassId, [id]: target };
   // A same-day unlock must not follow the DOL to its new day.

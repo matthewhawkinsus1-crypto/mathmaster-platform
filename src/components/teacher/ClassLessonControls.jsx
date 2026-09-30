@@ -96,7 +96,7 @@ function ControlRow({ row, lesson, classContext, classKey, handlers, busy, sched
             Move DOL
           </button>
           <button type="button" className="tw-btn tw-btn--sm" onClick={() => setMoving(false)}>Cancel</button>
-          <span className="tw-small tw-muted">Only {classLabel || 'this class'} changes. Nothing is closed or graded; the original day is kept so you can move it back.</span>
+          <span className="tw-small tw-muted">Only {classLabel || 'this class'} changes. Nothing is closed or graded; the original day is kept so you can move it back. If the class is ready later today after all, “Open today” stays right here.</span>
         </div>
       )}
     </div>
