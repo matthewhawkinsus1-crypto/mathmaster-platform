@@ -147,6 +147,238 @@ service cloud.firestore {
       ]);
     }
 
+    /*
+     * THE SUPPORT PROFILE IS STAFF-AUTHORED.
+     *
+     * `profile` is the student-readable projection of their support plan
+     * (functions/shared/supportProfileModel.mjs). The student's own runtime
+     * applies it, the server derives entitlements and individualized deadlines
+     * from it, and the support evidence report reads it — so the student it
+     * describes must not be able to grant, remove or backdate their own
+     * supports. The only client writer is the teacher of record (a revision
+     * and this projection in one batch); the Admin SDK bypasses rules.
+     */
+    function supportProfileUnchanged() {
+      return request.resource.data.get('profile', null) == resource.data.get('profile', null);
+    }
+
+    function supportProfileAbsentOnStudentCreate() {
+      return request.resource.data.get('profile', {}) == {};
+    }
+
+    // --- Support evidence helpers (grades/{studentId}/support* subcollections) ---
+    //
+    // Every record is immutable, carries server time (== request.time), names
+    // its author when staff wrote it, and is authorized to the student's
+    // teacher of record at write time. Field lists mirror
+    // functions/shared/supportEvidenceModel.mjs and supportProfileModel.mjs.
+
+    function rosterRow(studentId) {
+      return get(/databases/$(database)/documents/grades/$(studentId)).data;
+    }
+
+    function staffForStudent(studentId) {
+      return rootAdmin() || teachesPresenceStudent(studentId);
+    }
+
+    function optionalString(data, key, maxSize) {
+      return data.get(key, null) == null || (data.get(key, null) is string && data.get(key, '').size() <= maxSize);
+    }
+
+    function isDateKeyString(value) {
+      return value is string && value.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    function staffAuthorship(data, emailKey) {
+      return data.get(emailKey, null) == request.auth.token.email
+        && data.authorizedTeacherEmails == [request.auth.token.email];
+    }
+
+    // A staff record is filed under the student's real class (or none, for the
+    // root administrator resolving an unplaced student).
+    function classMatchesRoster(data, studentId) {
+      return data.get('classId', null) == rosterRow(studentId).get('classId', null)
+        || (rootAdmin() && data.get('classId', null) == null);
+    }
+
+    function supportRevisionValid(studentId) {
+      let d = request.resource.data;
+      return d.keys().hasOnly([
+          'schemaVersion', 'studentId', 'classId', 'revision', 'supersedesRevisionId', 'legacySnapshot',
+          'status', 'effectiveStart', 'effectiveEnd', 'sourceLabel', 'sourceNote', 'inclusionStatus',
+          'accommodations', 'modifications', 'serviceExpectations', 'translationLanguage',
+          'createdByEmail', 'authorizedTeacherEmails', 'createdAt'
+        ])
+        && d.keys().hasAll([
+          'schemaVersion', 'studentId', 'revision', 'status', 'sourceLabel', 'accommodations',
+          'modifications', 'createdByEmail', 'authorizedTeacherEmails', 'createdAt'
+        ])
+        && d.schemaVersion == 1
+        && d.studentId == studentId
+        && d.revision is int && d.revision >= 0 && d.revision < 100000
+        && d.status in ['active', 'inactive']
+        && d.sourceLabel is string && d.sourceLabel.size() > 0 && d.sourceLabel.size() <= 120
+        && optionalString(d, 'sourceNote', 600)
+        && optionalString(d, 'supersedesRevisionId', 160)
+        && optionalString(d, 'translationLanguage', 12)
+        && d.get('inclusionStatus', false) is bool
+        && d.get('legacySnapshot', false) is bool
+        && d.accommodations is list && d.accommodations.size() <= 40
+        && d.modifications is list && d.modifications.size() <= 40
+        && (d.get('serviceExpectations', null) == null
+          || (d.serviceExpectations is list && d.serviceExpectations.size() <= 6))
+        // Only the one-time snapshot of a pre-versioning profile may be undated.
+        && (isDateKeyString(d.get('effectiveStart', null)) || d.get('legacySnapshot', false) == true)
+        && (d.get('effectiveEnd', null) == null || isDateKeyString(d.get('effectiveEnd', null)))
+        && staffAuthorship(d, 'createdByEmail')
+        && d.createdAt == request.time
+        && classMatchesRoster(d, studentId);
+    }
+
+    function supportEvidenceCommonValid(studentId) {
+      let d = request.resource.data;
+      return d.keys().hasOnly([
+          'schemaVersion', 'studentId', 'classId', 'assignmentId', 'activityRole', 'questionIndex',
+          'supportId', 'classification', 'profileRevisionId', 'eventType', 'source', 'actorType',
+          'actorEmail', 'providerRole', 'note', 'durationSeconds', 'authorizedTeacherEmails', 'occurredAt'
+        ])
+        && d.keys().hasAll([
+          'schemaVersion', 'studentId', 'supportId', 'classification', 'eventType', 'source',
+          'actorType', 'authorizedTeacherEmails', 'occurredAt'
+        ])
+        && d.schemaVersion == 1
+        && d.studentId == studentId
+        && d.supportId is string && d.supportId.size() > 0 && d.supportId.size() <= 160
+        && d.classification in ['accommodation', 'modification', 'service']
+        && d.occurredAt == request.time
+        && optionalString(d, 'assignmentId', 160)
+        && optionalString(d, 'profileRevisionId', 160)
+        && (d.get('activityRole', null) == null
+          || d.get('activityRole', null) in ['warmup', 'classwork', 'practice', 'dol', 'quiz', 'test'])
+        && (d.get('questionIndex', null) == null
+          || (d.get('questionIndex', null) is int && d.get('questionIndex', -1) >= 0 && d.get('questionIndex', 1000) < 1000))
+        && (d.get('durationSeconds', null) == null
+          || (d.get('durationSeconds', null) is int && d.get('durationSeconds', 0) > 0 && d.get('durationSeconds', 0) <= 86400));
+    }
+
+    // Staff: one-click classroom actions, provider entries, determinations.
+    function staffSupportEvidenceValid(studentId) {
+      let d = request.resource.data;
+      return staffForStudent(studentId)
+        && d.eventType in ['teacher-documented', 'provider-documented', 'provided', 'declined', 'not-applicable']
+        && d.source in ['teacher-click', 'provider-entry', 'existing-platform-event']
+        && d.actorType in ['teacher', 'provider']
+        && staffAuthorship(d, 'actorEmail')
+        && (d.get('providerRole', null) == null || d.get('providerRole', null) in [
+          'teacher-of-record', 'inclusion-teacher', 'special-education-teacher', 'paraprofessional',
+          'related-service-provider', 'other'
+        ])
+        && (d.actorType != 'provider' || d.get('providerRole', null) != null)
+        && optionalString(d, 'note', 280)
+        && classMatchesRoster(d, studentId);
+    }
+
+    // The student's own client: platform telemetry about supports the student
+    // is actually entitled to — never a staff fact, a note, or another class.
+    function studentSupportEvidenceValid(studentId) {
+      let d = request.resource.data;
+      let roster = rosterRow(studentId);
+      let profile = roster.get('profile', {});
+      return ownsStudent(studentId)
+        && d.eventType in ['available', 'provided', 'activated', 'used']
+        && d.source == 'automatic-telemetry'
+        && d.actorType in ['student', 'system']
+        && d.get('actorEmail', null) == null
+        && d.get('providerRole', null) == null
+        && d.get('note', '') == ''
+        && roster.get('assignedTeacherEmail', null) is string
+        && d.authorizedTeacherEmails == [roster.get('assignedTeacherEmail', null)]
+        && d.get('classId', null) == roster.get('classId', null)
+        && (
+          d.supportId in profile.get('accommodations', [])
+          || d.supportId in profile.get('modifications', [])
+          || d.supportId in profile.get('supportPlan', {}).get('entitledIds', [])
+          || (profile.get('inclusionStatus', false) == true && d.supportId in [
+            'declutter-ui', 'visual-chunking', 'high-contrast', 'large-text', 'no-countdown', 'disable-idle-timer'
+          ])
+        );
+    }
+
+    function serviceLogEntryValid(studentId) {
+      let d = request.resource.data;
+      return staffForStudent(studentId)
+        && d.keys().hasOnly([
+          'schemaVersion', 'studentId', 'classId', 'dateKey', 'startMinute', 'endMinute', 'minutes',
+          'serviceType', 'classification', 'providerRole', 'providerLabel', 'assignmentId', 'topic',
+          'note', 'voidsEntryId', 'createdByEmail', 'authorizedTeacherEmails', 'createdAt'
+        ])
+        && d.keys().hasAll([
+          'schemaVersion', 'studentId', 'dateKey', 'minutes', 'serviceType', 'classification',
+          'providerRole', 'createdByEmail', 'authorizedTeacherEmails', 'createdAt'
+        ])
+        && d.schemaVersion == 1
+        && d.studentId == studentId
+        && isDateKeyString(d.dateKey)
+        && d.minutes is int && d.minutes >= 0 && d.minutes <= 600
+        // Zero minutes only as a correction that voids an earlier entry.
+        && (d.minutes > 0 || d.get('voidsEntryId', null) != null)
+        && d.serviceType in [
+          'inclusion-support', 'co-teaching', 'paraprofessional-support', 'small-group-instruction', 'other-service'
+        ]
+        && d.classification == 'service'
+        && d.providerRole in [
+          'teacher-of-record', 'inclusion-teacher', 'special-education-teacher', 'paraprofessional',
+          'related-service-provider', 'other'
+        ]
+        && (d.get('startMinute', null) == null
+          || (d.get('startMinute', null) is int && d.get('startMinute', -1) >= 0 && d.get('startMinute', 1440) < 1440))
+        && (d.get('endMinute', null) == null
+          || (d.get('endMinute', null) is int && d.get('endMinute', 0) > 0 && d.get('endMinute', 1441) <= 1440))
+        && optionalString(d, 'providerLabel', 80)
+        && optionalString(d, 'assignmentId', 160)
+        && optionalString(d, 'topic', 120)
+        && optionalString(d, 'note', 280)
+        && optionalString(d, 'voidsEntryId', 160)
+        && staffAuthorship(d, 'createdByEmail')
+        && d.createdAt == request.time
+        && classMatchesRoster(d, studentId);
+    }
+
+    // The active-engagement ledger: the only minute a client may add is the
+    // one the server clock is in (or the one before, for latency). A student
+    // cannot backdate, pre-fill or replay minutes, and a second tab adding the
+    // same minute changes nothing.
+    function currentEpochMinute() {
+      return int(request.time.toMillis() / 60000);
+    }
+
+    function engagementCreateValid(studentId, ledgerId) {
+      let d = request.resource.data;
+      let minute = currentEpochMinute();
+      return d.keys().hasOnly(['schemaVersion', 'studentId', 'assignmentId', 'utcDay', 'minutes', 'lastRecordedAt'])
+        && d.keys().hasAll(['schemaVersion', 'studentId', 'assignmentId', 'utcDay', 'minutes', 'lastRecordedAt'])
+        && d.schemaVersion == 1
+        && d.studentId == studentId
+        && d.assignmentId is string && d.assignmentId.size() > 0 && d.assignmentId.size() <= 160
+        && d.utcDay is int
+        && (d.utcDay == int(request.time.toMillis() / 86400000)
+          || d.utcDay == int((request.time.toMillis() - 60000) / 86400000))
+        && ledgerId == d.assignmentId + '__' + string(d.utcDay)
+        && d.lastRecordedAt == request.time
+        && d.minutes is list && d.minutes.size() >= 1 && d.minutes.size() <= 2
+        && d.minutes.toSet().hasOnly([minute, minute - 1]);
+    }
+
+    function engagementUpdateValid() {
+      let d = request.resource.data;
+      let minute = currentEpochMinute();
+      return d.diff(resource.data).affectedKeys().hasOnly(['minutes', 'lastRecordedAt'])
+        && d.lastRecordedAt == request.time
+        && d.minutes is list && d.minutes.size() <= 1440
+        && d.minutes.toSet().hasAll(resource.data.minutes)
+        && d.minutes.toSet().difference(resource.data.minutes.toSet()).hasOnly([minute, minute - 1]);
+    }
+
     // Student work: students read/update only their own document; a teacher
     // only their own students; the root administrator the school. Permanent
     // account deletion is never a client permission — even the root
@@ -154,7 +386,7 @@ service cloud.firestore {
     // student's complete cross-collection footprint.
     match /grades/{studentId} {
       allow read: if rootAdmin() || ownsStudent(studentId) || teachesStudent();
-      allow update: if (rootAdmin() || ownsStudent(studentId) || teachesStudent())
+      allow update: if (rootAdmin() || teachesStudent() || (ownsStudent(studentId) && supportProfileUnchanged()))
         && rosterAuthorizationUnchanged()
         && sisIdentityUnchanged()
         && testCycleGradesUnchanged()
@@ -164,11 +396,49 @@ service cloud.firestore {
       // "No work yet" is enforced, not assumed, for the one field that is
       // server-derived — otherwise the update rule's guarantee lasts only until
       // someone deletes and recreates the row, or creates it for the first time.
-      allow create: if (teacher() || ownsStudent(studentId))
+      allow create: if (teacher() || (ownsStudent(studentId) && supportProfileAbsentOnStudentCreate()))
         && sisIdentityAbsentOnClientCreate()
         && testCycleGradesAbsentOnCreate()
         && teacherGradeOverridesAbsentOnCreate();
       allow delete: if false;
+
+      /*
+       * STUDENT SUPPORT PROFILE HISTORY — privileged and immutable.
+       * Source labels, notes and service expectations live here, never on the
+       * student-readable roster row. A change is a new revision.
+       */
+      match /supportProfileRevisions/{revisionId} {
+        allow read: if rootAdmin() || teachesPresenceStudent(studentId) || authorizedTeacher();
+        allow create: if staffForStudent(studentId) && supportRevisionValid(studentId);
+        allow update, delete: if false;
+      }
+
+      // Support evidence events: staff documentation and the student's own
+      // platform telemetry. Students cannot read them (teacher notes, provider
+      // roles) and nobody can edit or delete one.
+      match /supportEvidence/{eventId} {
+        allow read: if rootAdmin() || teachesPresenceStudent(studentId) || authorizedTeacher();
+        allow create: if supportEvidenceCommonValid(studentId)
+          && (staffSupportEvidenceValid(studentId) || studentSupportEvidenceValid(studentId));
+        allow update, delete: if false;
+      }
+
+      // Service / support minutes. A correction is a new entry that voids an
+      // older one; nothing is edited or deleted.
+      match /supportServiceLog/{entryId} {
+        allow read: if rootAdmin() || teachesPresenceStudent(studentId) || authorizedTeacher();
+        allow create: if serviceLogEntryValid(studentId);
+        allow update, delete: if false;
+      }
+
+      // Server-timed active-engagement minutes, one ledger per assignment per
+      // UTC day. Written only by the student's own client, only ever growing.
+      match /engagementMinutes/{ledgerId} {
+        allow read: if rootAdmin() || teachesPresenceStudent(studentId);
+        allow create: if ownsStudent(studentId) && engagementCreateValid(studentId, ledgerId);
+        allow update: if ownsStudent(studentId) && engagementUpdateValid();
+        allow delete: if false;
+      }
 
       /*
        * Immutable teacher correction audit. The inspector reads it through the
@@ -192,19 +462,18 @@ service cloud.firestore {
         allow delete: if rootAdmin() || authorizedTeacher();
       }
 
-      // Phase 5C evidence is append-only from the student client. Production
-      // My Math Path writes through the Admin SDK and bypasses these rules.
+      // Attempt evidence is written ONLY by the Admin SDK (assignment
+      // ingestion, the checkpoint finalizer, My Math Path, Live Challenge,
+      // modeling labs, secure exams — all server paths that bypass rules).
       //
-      // A student creating evidence must stamp the authorization context their
-      // own roster record carries, so a client cannot mint a record that no
-      // teacher can see — or one that names a teacher who does not teach them.
+      // It used to be creatable from the student client with no schema, and
+      // the mastery trigger (updateMyMathPathMasteryFromEvidence) credits what
+      // it reads here: a student could mint "mastered" evidence, or copy an
+      // arbitrary teacher onto their mastery profile. The only client writer
+      // was dead code and has been removed, so creation is now closed.
       match /evidenceEvents/{eventId} {
         allow read: if rootAdmin() || ownsStudent(studentId) || authorizedTeacher();
-        allow create: if ownsStudent(studentId)
-          && request.resource.data.studentId == studentId
-          && request.resource.data.eventKey == eventId
-          && request.resource.data.authorizedTeacherEmails is list;
-        allow update, delete: if false;
+        allow create, update, delete: if false;
       }
     }
 

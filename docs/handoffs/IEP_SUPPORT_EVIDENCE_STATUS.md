@@ -9,7 +9,7 @@ Branch: `ai/claude-iep-evidence-20260930` (from `origin/main` @ `1fcd1ea7`, PR #
 
 ## Current state
 
-- **Phase:** 1 — schemas, shared domain modules, Firestore rules + rule tests (next)
+- **Phase:** 2 — profile versioning UI/store, runtime resolution, individualized deadlines (next)
 - **Design:** `docs/IEP_SUPPORT_EVIDENCE_DESIGN.md` (committed with this checkpoint)
 - **PR:** _(not opened yet)_
 
@@ -18,7 +18,7 @@ Branch: `ai/claude-iep-evidence-20260930` (from `origin/main` @ `1fcd1ea7`, PR #
 | # | Phase | Status |
 | --- | --- | --- |
 | 0 | Reconnaissance, design doc, status doc, first checkpoint push | ✅ |
-| 1 | Architecture + schemas + Firestore rules + rule tests | ⬜ |
+| 1 | Architecture + schemas + Firestore rules + rule tests | ✅ |
 | 2 | Support profile versioning + support resolution / automatic application | ⬜ |
 | 3 | Telemetry + evidence event logging + engagement metric repair | ⬜ |
 | 4 | Teacher Support/Evidence UI (hub + drawer) + one-click events + service log | ⬜ |
@@ -97,18 +97,39 @@ These are the facts the design is built on. File references are to `origin/main`
 | When | Command | Result |
 | --- | --- | --- |
 | Phase 0, untouched main | `npm run test:rules` | 225/225 rule checks + 64/64 rule suites pass |
+| Phase 1 | `npm run test:rules` | 225/225 + 81/81 (64 existing + 17 new) |
+| Phase 1 | `npm run test:platform` | 6705/6705 |
+| Phase 1 | `npm run lint` | exit 0 (450 pre-existing warnings, none in new files) |
 
-## Phase 1 checklist (next)
+## Phase 1 — done
 
-- [ ] `functions/shared/supportCatalog.mjs` + tests (classification, legacy aliases, neutral student labels)
-- [ ] `functions/shared/supportProfileModel.mjs` + tests (revision normalize, projection, effective-at-time, legacy)
-- [ ] `functions/shared/supportDeadline.mjs` + tests (next-school-day/hours, max with class + attendance, never shortens)
-- [ ] `functions/shared/supportEvidenceModel.mjs` + tests (event builders/validators, provenance levels)
-- [ ] `firestore.rules`: pin `grades.profile` vs students; close client `evidenceEvents` create; 4 new subcollections
-- [ ] `tests/rules/*`: every role × collection × op for the new rules; update tests that asserted the old openings
-- [ ] indexes for new queries (if any need composites)
+- `functions/shared/supportCatalog.mjs` — one classification per support (accommodation / modification / service),
+  automation level, measurable evidence, neutral student labels, the 7 one-click actions, legacy ids kept verbatim.
+- `functions/shared/supportProfileModel.mjs` — revision validation (misfiled modification = error, never moved),
+  pinned projection without privileged fields, effective dating (latest start ≤ date; same start → higher revision),
+  documented-vs-in-platform (backdating), legacy pre-versioning profiles, teacher warnings.
+- `functions/shared/supportDeadline.mjs` — individualized due/final (school days / hours, school time zone),
+  governed by the profile in effect on the class due date, never earlier, in-memory injection only.
+- `functions/shared/supportEvidenceModel.mjs` — event taxonomy, staff/student builders, provenance + legend +
+  limitations text, service-log arithmetic (voids, weeks, expectations without judgement), engagement ledger logic.
+- `firestore.rules` — `grades.profile` pinned against student writes (update + create); client `evidenceEvents`
+  creation closed (dead writer removed from `evidencePersistence.js`); 4 new immutable subcollections under
+  `grades/{sid}`: `supportProfileRevisions`, `supportEvidence`, `supportServiceLog`, `engagementMinutes`.
+- Tests: 4 domain suites + rules/model parity suite (tests/platform), `tests/rules/supportEvidenceRules.test.mjs`
+  (17 emulator cases, own projectId). Every new assertion mutation-checked (10 rules mutations + 10 model mutations).
+- No new composite indexes needed (all new queries are single-field within one student's subcollection).
+
+## Phase 2 checklist (next)
+
+- [ ] `src/platform/supportEvidence/supportEvidenceStore.js` (revision save = revision + projection batch; legacy snapshot)
+- [ ] `src/studentSupport.js` resolves the effective plan (supportPlan windows) for presentation/question support
+- [ ] resolvers honour `supportDueAt` / `supportFinalAt` (client lifecycle, sectionDeadline, index.js studentLateDueAt, export)
+- [ ] inject individualized dates: student client load, ingestion, finalizer + recovery callables, Grade Export
+- [ ] fix engagement counter coupling (`disableIdleTimer` hides the overlay only)
+- [ ] Support profile editor (Students → Supports) replacing the flat checkboxes
 
 ## Remaining work / known gaps
 
 - Phases 2–7 not started. See design §9 for the file plan.
+- Adjacent security fixes made (documented in PR): student-writable profile; client-mintable attempt evidence.
 - Decisions awaiting product-owner confirmation: design §10.
