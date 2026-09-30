@@ -12,7 +12,9 @@ export default function UniversalUndoButton({ controller, disabled = false, styl
       title={controller?.label || 'Undo the most recent response change'}
       style={style}
     >
-      ↶ Undo
+      {/* Icon and word are separate so a phone's one-row bar can show the
+          icon alone; the word stays in the accessible name either way. */}
+      <span aria-hidden="true">↶</span><span className="mathmaster-action-label"> Undo</span>
     </button>
   );
 }

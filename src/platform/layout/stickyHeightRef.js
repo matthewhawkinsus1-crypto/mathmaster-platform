@@ -35,3 +35,7 @@ export const stickyHeightRef = (variableName) => {
 
 export const ASSIGNMENT_NAV_HEIGHT_VAR = '--mm-assignment-nav-height';
 export const STICKY_TASK_HEIGHT_VAR = '--mm-sticky-task-height';
+// The sticky Undo / Reset / Scratchpad / Submit bar at the bottom of a desktop
+// question. Its height is measured (it wraps at narrow widths) so the page's
+// scroll padding keeps a focused answer clear of it — see App.css.
+export const ACTION_BAR_HEIGHT_VAR = '--mm-action-bar-height';

@@ -1204,10 +1204,14 @@ export default function QuestionEngine({
   // submit button at the bottom of the viewport instead.
   const questionWorkBar = (
     <>
-      {!scratchpadOpen ? <UniversalUndoButton className="mm-button-neutral" controller={undoController} disabled={locked} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: undoController?.canUndo && !locked ? 'pointer' : 'not-allowed', opacity: undoController?.canUndo && !locked ? 1 : 0.45 }} /> : null}
+      {/* Every tool in this bar is an icon plus a word in its own span, so a
+          phone whose bar also carries Submit / Next can show the icons alone
+          and keep ONE row (MathToolMobileLayout.css). The word stays in the
+          accessible name. */}
+      {!scratchpadOpen ? <UniversalUndoButton className="mm-button-neutral mathmaster-work-bar-tool" controller={undoController} disabled={locked} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: undoController?.canUndo && !locked ? 'pointer' : 'not-allowed', opacity: undoController?.canUndo && !locked ? 1 : 0.45 }} /> : null}
       {!scratchpadOpen ? (
         <button
-          className="mm-button-neutral"
+          className="mm-button-neutral mathmaster-work-bar-tool"
           type="button"
           onClick={handleResetQuestion}
           disabled={workspaceActions.reset.disabled}
@@ -1216,14 +1220,15 @@ export default function QuestionEngine({
           style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: workspaceActions.reset.disabled ? 'not-allowed' : 'pointer', opacity: workspaceActions.reset.disabled ? 0.45 : 1 }}
         >
           {/* "Question" drops on a phone so the work bar fits one row. */}
-          {resettingQuestion ? 'Resetting…' : <>↺ Reset<span className="mathmaster-action-label-long"> Question</span></>}
+          {resettingQuestion ? 'Resetting…' : <><span aria-hidden="true">↺</span><span className="mathmaster-action-label"> Reset<span className="mathmaster-action-label-long"> Question</span></span></>}
         </button>
       ) : null}
-      <button className="mm-button-neutral" type="button" onClick={openScratchpad} disabled={scratchpadLoading} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}>
-        {scratchpadLoading ? 'Opening…' : locked ? '✎ Scratchpad' : '✎ Scratchpad'}
+      <button className="mm-button-neutral mathmaster-work-bar-tool" type="button" onClick={openScratchpad} disabled={scratchpadLoading} aria-label={scratchpadLoading ? 'Opening scratchpad…' : 'Scratchpad'} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}>
+        {scratchpadLoading ? 'Opening…' : <><span aria-hidden="true">✎</span><span className="mathmaster-action-label"> Scratchpad</span></>}
       </button>
       <button
         type="button"
+        className="mathmaster-work-bar-tool"
         onClick={handleCalculatorControl}
         aria-expanded={calculatorPolicy?.available ? calculatorOpen : false}
         aria-disabled={!calculatorPolicy?.available}
@@ -1241,10 +1246,12 @@ export default function QuestionEngine({
           opacity: calculatorPolicy?.available ? 1 : 0.9,
         }}
       >
-        {calculatorPolicy?.available ? '🧮 Calculator' : '🚫 🧮 Calculator'}
+        {calculatorPolicy?.available
+          ? <><span aria-hidden="true">🧮</span><span className="mathmaster-action-label"> Calculator</span></>
+          : <><span aria-hidden="true">🚫 🧮</span><span className="mathmaster-action-label"> Calculator</span></>}
       </button>
       {supportPresentation.textToSpeech && (
-        <button type="button" onClick={() => speakText(referenceSpeechText)} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}>🔊 Read</button>
+        <button type="button" className="mathmaster-work-bar-tool" aria-label="Read aloud" onClick={() => speakText(referenceSpeechText)} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}><span aria-hidden="true">🔊</span><span className="mathmaster-action-label"> Read</span></button>
       )}
     </>
   );

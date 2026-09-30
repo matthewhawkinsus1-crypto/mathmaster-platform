@@ -699,11 +699,15 @@
    Attempt status and helper controls still scroll away so the sticky area stays
    focused on the mathematics the student needs to answer the question. */
 @media (min-width: 769px) {
+  /* The bottom padding is the sticky action bar's MEASURED height
+     (--mm-action-bar-height, published by MobileViewportContainer) plus room
+     to breathe, so a focused field clears the bar whether it is one row or
+     wraps to two. 72px is the fallback before the first measurement. */
   html:has(.mathmaster-assignment-screen),
   body:has(.mathmaster-assignment-screen) {
     --mm-sticky-task-top: calc(var(--mm-student-identity-stack-offset, 0px) + 6px + var(--mm-assignment-nav-height, 112px) + 4px);
     scroll-padding-top: calc(var(--mm-sticky-task-top, 208px) + 140px);
-    scroll-padding-bottom: 90px;
+    scroll-padding-bottom: calc(var(--mm-action-bar-height, 72px) + 18px);
   }
 
   .mathmaster-assignment-screen {
@@ -712,7 +716,7 @@
        row underneath the navigator. */
     --mm-sticky-task-top: calc(var(--mm-student-identity-stack-offset, 0px) + 6px + var(--mm-assignment-nav-height, 112px) + 4px);
     scroll-padding-top: calc(var(--mm-sticky-task-top, 208px) + 140px);
-    scroll-padding-bottom: 90px;
+    scroll-padding-bottom: calc(var(--mm-action-bar-height, 72px) + 18px);
   }
 
   .mathmaster-desktop-question-content .mathmaster-desktop-question-anchor {
@@ -1949,7 +1953,9 @@
   gap: 10px 16px;
   max-width: 900px;
   margin: 18px auto 0;
-  padding: 10px 14px;
+  /* An iPad in landscape reports a bottom safe area (the home indicator);
+     the bar's buttons stay above it. */
+  padding: 10px 14px max(10px, env(safe-area-inset-bottom));
   border-top: 1px solid #d9e2f1;
   border-radius: 14px 14px 0 0;
   background: rgba(255, 255, 255, 0.97);
@@ -2198,7 +2204,7 @@
   }
 
   .mathmaster-assignment-screen {
-    scroll-padding-bottom: 72px;
+    scroll-padding-bottom: calc(var(--mm-action-bar-height, 56px) + 16px);
   }
 }
 

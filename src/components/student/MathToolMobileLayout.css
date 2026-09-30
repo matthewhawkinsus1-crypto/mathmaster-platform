@@ -274,6 +274,55 @@
     display: none;
   }
 
+  /* STILL ONE ROW WHEN SUBMIT JOINS THE BAR.
+     The four tools plus "Submit Answer" wrapped at 390px: 111px of an 844px
+     screen, Submit alone on a second row (student UX pass, R-1). With a
+     primary action present the tools show their icons only — each keeps its
+     name as its accessible label — and Submit / Next takes the rest of the
+     row: 61px. The icons are the ones the full labels already carried, so the
+     student has seen them paired with the words on every other question. */
+  .mathmaster-question-container.mode-portrait .portrait-action-bar[data-has-primary="true"] {
+    flex-wrap: nowrap;
+  }
+
+  .mathmaster-question-container.mode-portrait .portrait-action-bar[data-has-primary="true"] > .mathmaster-work-bar-tool {
+    flex: 0 0 auto;
+    min-width: 44px;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .mathmaster-question-container.mode-portrait .portrait-action-bar[data-has-primary="true"] .mathmaster-action-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .mathmaster-question-container.mode-portrait .portrait-action-bar[data-has-primary="true"] > .mathmaster-bar-submit,
+  .mathmaster-question-container.mode-portrait .portrait-action-bar[data-has-primary="true"] > .mathmaster-bar-continue {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* THE NUMBER KEYPAD IS OPEN: IT IS THE KEYBOARD, AND THE BAR IS UNDER IT.
+     The keypad is fixed over the bottom of the screen, so the bar beneath it
+     could not be reached anyway; hiding it gives its row back to the work.
+     The workspace pads by the keypad's measured height so the last rows of a
+     table can still scroll up above the keys. Done brings the bar back. */
+  .mathmaster-question-container.mode-portrait.numeric-keypad-open .portrait-action-bar {
+    display: none;
+  }
+
+  .mathmaster-question-container.mode-portrait.numeric-keypad-open .math-tool-workspace {
+    padding-bottom: calc(var(--mm-mobile-keypad, 0px) + 12px);
+  }
+
   .mathmaster-calculator-drawer {
     right: max(8px, env(safe-area-inset-right)) !important;
     bottom: max(8px, env(safe-area-inset-bottom)) !important;
