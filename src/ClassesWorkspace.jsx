@@ -12,6 +12,7 @@ import { studentsInClass } from '../functions/shared/classModel.mjs';
 import ClassOverviewPanel from './components/teacher/ClassOverviewPanel.jsx';
 import ClassLessonControls from './components/teacher/ClassLessonControls.jsx';
 import { projectClassLessons } from './platform/teacher/classLessonControls.js';
+import { groupAssignmentList } from './platform/teacher/assignmentListGroups.js';
 import './components/teacher/teacherWorkspace.css';
 
 const formatClock = (date) => date instanceof Date ? date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
@@ -23,7 +24,7 @@ const formatClock = (date) => date instanceof Date ? date.toLocaleTimeString(und
 // report generation, ...) — "View full gradebook" hands off to the
 // existing Grades tab already wired for that.
 export default function ClassesWorkspace({ classes = [], allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onViewGradebook, onUnlockDOL = null, dolUnlockBusyKey = null, onGrantDOLAttempt = null, dolAttemptGrantBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, onDolControl = null, dolControlBusyKey = null,
-  onOpenAssignment = null, onOpenLive = null, onOpenExport = null, initialPeriod = null, initialClassId = null, onSelectClass = null,
+  onOpenAssignment = null, onOpenLive = null, onOpenExport = null, initialPeriod = null, initialClassId = null, onSelectClass = null, gradingPeriodSettings = null,
   learningProfilesByStudentId = {}, masteryProfilesByStudentId = {}, evidenceByStudentId = {},
   needsAttentionCount = 0, onOpenStudent = null,
   onLoadDeliveredRigor = null, rigorLoading = false, academicDataLoaded = true }) {
@@ -82,7 +83,9 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
   }).slice().sort(compareStudentsByName);
   const periodAssignments = assignments.filter((assignment) => assignmentIsForStudent(assignment, { classId: selectedClass.classId || null, classPeriod: selectedPeriod }));
   const currentAssignments = periodAssignments.filter((assignment) => getAssignmentLifecycle(assignment, nowValue).isOpen);
-  const upcomingAssignments = periodAssignments.filter((assignment) => getAssignmentLifecycle(assignment, nowValue).isScheduled);
+  // Library copies are never "for" a class, so the groups are current,
+  // scheduled and closed-by-marking-period.
+  const assignmentGroups = groupAssignmentList({ assignments: periodAssignments, nowValue, gradingPeriodSettings });
   // Today's Warm-Up/DOL/section controls come from the one shared projection.
   // "Warm-Ups today" and "DOL today" now count only lessons whose Warm-Up or
   // DOL belongs to TODAY — they used to count every lesson the class ever had.
@@ -198,38 +201,60 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
           busy={{ warmup: warmupControlBusyKey, section: sectionAccessBusyKey, dolUnlock: dolUnlockBusyKey, dolGrant: dolAttemptGrantBusyKey, dolControl: dolControlBusyKey }}
         />
       </div>
-      <h3 style={{ margin: '0 0 10px' }}>Current Assignments</h3>
-      {currentAssignments.length === 0 ? <p style={{ color: '#80868b', fontSize: '13px' }}>Nothing currently open for {selectedPeriod}.</p> : (
-        <div style={{ display: 'grid', gap: '10px', marginBottom: '22px' }}>
-          {currentAssignments.map((assignment) => (
-            <div key={assignment.id} style={{ padding: '12px 14px', borderRadius: '9px', border: '1px solid #e0e3e7', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <div>
-                {onOpenAssignment
-                  ? <button type="button" className="tw-link" onClick={() => onOpenAssignment(assignment.id, selectedClass.classId || null)}>{assignment.title}</button>
-                  : <strong>{assignment.title}</strong>}
-                <div style={{ fontSize: '12px', color: '#5f6368' }}>Due {formatDateTime(assignment.dueAt || assignment.dueDate)}</div>
+      {/*
+        THIS CLASS'S ASSIGNMENTS, CURRENT FIRST (the Assignments tab's grouping).
+        Open work due soonest first, then scheduled; this marking period's
+        closed work and earlier periods are folded — reachable for grades and
+        export, never in the way.
+      */}
+      <h3 style={{ margin: '0 0 10px' }}>Assignments</h3>
+      {assignmentGroups.length === 0 ? <p style={{ color: '#80868b', fontSize: '13px', marginBottom: 22 }}>Nothing is assigned to {selectedClass.name || selectedPeriod} yet.</p> : (
+        <div className="tw-stack" style={{ gap: 10, marginBottom: 22 }}>
+          {assignmentGroups.map((group) => {
+            const rows = (
+              <div style={{ display: 'grid', gap: '10px' }}>
+                {group.assignments.map((assignment) => {
+                  const lifecycle = getAssignmentLifecycle(assignment, nowValue);
+                  return (
+                    <div key={assignment.id} style={{ padding: '12px 14px', borderRadius: '9px', border: '1px solid var(--mm-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                      <div>
+                        {onOpenAssignment
+                          ? <button type="button" className="tw-link" onClick={() => onOpenAssignment(assignment.id, selectedClass.classId || null)}>{assignment.title}</button>
+                          : <strong>{assignment.title}</strong>}
+                        <div style={{ fontSize: '12px', color: '#5f6368' }}>
+                          {lifecycle.isScheduled
+                            ? `Opens ${formatDateTime(assignment.releaseAt)}`
+                            : lifecycle.isClosed
+                              ? `Closed ${formatDateTime(assignment.lateDueAt || assignment.dueAt || assignment.dueDate)}`
+                              : lifecycle.isLate
+                                ? `Late window until ${formatDateTime(assignment.lateDueAt)}`
+                                : `Due ${formatDateTime(assignment.dueAt || assignment.dueDate)}`}
+                        </div>
+                      </div>
+                      {!lifecycle.isScheduled && (
+                        <div style={{ fontSize: '12px', color: '#5f6368' }}>
+                          {academicDataLoaded
+                            ? `${startedCount(assignment)}/${periodStudents.length} started`
+                            : lifecycle.isOpen ? `${activeOnAssignmentCount(assignment)}/${periodStudents.length} active now` : ''}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              <div style={{ fontSize: '12px', color: '#5f6368' }}>
-                {academicDataLoaded
-                  ? `${startedCount(assignment)}/${periodStudents.length} started`
-                  : `${activeOnAssignmentCount(assignment)}/${periodStudents.length} active now`}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <h3 style={{ margin: '0 0 10px' }}>Upcoming Assignments</h3>
-      {upcomingAssignments.length === 0 ? <p style={{ color: '#80868b', fontSize: '13px', marginBottom: 22 }}>Nothing scheduled yet for {selectedPeriod}.</p> : (
-        <div style={{ display: 'grid', gap: '10px', marginBottom: '22px' }}>
-          {upcomingAssignments.map((assignment) => (
-            <div key={assignment.id} style={{ padding: '12px 14px', borderRadius: '9px', border: '1px solid #e0e3e7' }}>
-              {onOpenAssignment
-                ? <button type="button" className="tw-link" onClick={() => onOpenAssignment(assignment.id, selectedClass.classId || null)}>{assignment.title}</button>
-                : <strong>{assignment.title}</strong>}
-              <div style={{ fontSize: '12px', color: '#5f6368' }}>Opens {formatDateTime(assignment.releaseAt)}</div>
-            </div>
-          ))}
+            );
+            return group.folded ? (
+              <details key={group.id} className="tw-disclosure">
+                <summary>{group.label} <span className="tw-pill">{group.assignments.length}</span><span className="tw-small tw-muted" style={{ fontWeight: 600 }}>{group.hint}</span></summary>
+                <div className="tw-disclosure__body">{rows}</div>
+              </details>
+            ) : (
+              <section key={group.id} aria-label={`${group.label} assignments`}>
+                <div className="tw-small tw-strong" style={{ marginBottom: 6 }}>{group.label} <span className="tw-pill">{group.assignments.length}</span></div>
+                {rows}
+              </section>
+            );
+          })}
         </div>
       )}
 

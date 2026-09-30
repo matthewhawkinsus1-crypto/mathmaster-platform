@@ -143,6 +143,18 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
   }, [liveFocus?.nonce]);
 
   const timeRange = (window) => (window ? `${formatClock(window.start)} – ${formatClock(window.end)}` : 'Not meeting today');
+  const attentionQueue = (
+    <NeedsAttentionQueue
+      queue={needsAttention}
+      completionCoverage={needsAttentionCompletionCoverage}
+      academicCoverage={needsAttentionAcademicCoverage}
+      onOpenStudent={onOpenStudent}
+      onOpenWeeklyPath={onOpenWeeklyPath}
+      onOpenAdministration={onOpenAdministration}
+    />
+  );
+  // Teaching right now: the class and its live room lead the page.
+  const teachingNow = Boolean(currentClass?.isNow);
 
   return (
     <div style={{ textAlign: 'left' }}>
@@ -179,18 +191,13 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
       )}
 
       {/*
-        FIRST, BEFORE THE COUNTS. A teacher sitting down asks "what needs my
-        attention right now?", not "how many students do I have?". The tiles
-        below are orientation; this is the answer, so it comes first.
+        WHAT NEEDS ATTENTION, BEFORE THE COUNTS. A teacher sitting down asks
+        "what needs my attention right now?", not "how many students do I
+        have?". While a class is IN SESSION the answer is that class — its
+        lesson controls and the live room come first, and this queue follows
+        them (in the light live roster it holds only non-academic alerts).
       */}
-      <NeedsAttentionQueue
-        queue={needsAttention}
-        completionCoverage={needsAttentionCompletionCoverage}
-        academicCoverage={needsAttentionAcademicCoverage}
-        onOpenStudent={onOpenStudent}
-        onOpenWeeklyPath={onOpenWeeklyPath}
-        onOpenAdministration={onOpenAdministration}
-      />
+      {!teachingNow && attentionQueue}
 
       {currentClass ? (
         <section aria-labelledby="home-class-now" className="tw-card" style={{ marginBottom: 16, padding: '14px 16px' }}>
@@ -288,6 +295,8 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
           focusKey={liveFocus?.nonce || null}
         />
       </div>
+
+      {teachingNow && attentionQueue}
 
       {currentClass && (
         <StudentSupportDashboard

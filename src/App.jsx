@@ -10938,6 +10938,7 @@ function App() {
                 onOpenAssignment={openAssignmentHub}
                 onOpenLive={(classContext) => openLiveFor(classContext, null)}
                 onOpenExport={(classId) => openGradeExport({ classIds: [classId] })}
+                gradingPeriodSettings={gradingPeriodSettings}
                 initialPeriod={homeNavigationPeriod}
                 initialClassId={activeClass.classId}
                 onSelectClass={setActiveClass}

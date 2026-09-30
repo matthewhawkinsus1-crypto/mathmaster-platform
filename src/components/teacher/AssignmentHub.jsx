@@ -248,9 +248,11 @@ export default function AssignmentHub({
             {onOpenLive && classContext && <button type="button" className="tw-btn" onClick={() => onOpenLive(classContext, assignment.id)}>Live view</button>}
             {onOpenExport && assignedClasses.length > 0 && <button type="button" className="tw-btn" onClick={() => onOpenExport({ classIds: classContext ? [classContext.classId] : [], assignmentId: assignment.id })}>Export grades</button>}
             {onPreview && <button type="button" className="tw-btn" onClick={() => onPreview(assignment)}>View as student</button>}
-            <details className="tw-row" style={{ position: 'relative' }}>
-              <summary className="tw-btn" style={{ listStyle: 'none' }}>More…</summary>
-              <div className="tw-card" style={{ position: 'absolute', zIndex: 5, marginTop: 6, display: 'grid', gap: 6, minWidth: 220, right: 0 }}>
+            {/* In the flow, not a floating popover: a popover anchored to a
+                button that wraps to the left edge was cut off on tablets. */}
+            <details className="tw-more">
+              <summary className="tw-btn">More…</summary>
+              <div className="tw-more__items">
                 {onEditDates && <button type="button" className="tw-btn tw-btn--sm" onClick={() => onEditDates(assignment)}>Dates &amp; classes</button>}
                 {onPrint && <button type="button" className="tw-btn tw-btn--sm" onClick={() => onPrint(assignment)}>Print / answer key</button>}
                 {onEditSetup && <button type="button" className="tw-btn tw-btn--sm" onClick={() => onEditSetup(assignment)}>Review / edit setup</button>}

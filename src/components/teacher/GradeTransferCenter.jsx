@@ -396,7 +396,7 @@ export default function GradeTransferCenter({
       <details className="tw-disclosure">
         <summary>
           <span className="tw-pill" data-tone="danger">{sisProblems.length}</span>
-          student{sisProblems.length === 1 ? '' : 's'} in this scope need a district student ID before their grades can export
+          student{sisProblems.length === 1 ? ' in this scope needs' : 's in this scope need'} a district student ID before their grades can export
         </summary>
         <div className="tw-disclosure__body tw-stack" style={{ gap: 9 }}>
           <p className="tw-small tw-muted" style={{ margin: 0 }}>
@@ -444,7 +444,7 @@ export default function GradeTransferCenter({
             <span className="tw-small tw-muted">{group.units.length} assignment{group.units.length === 1 ? '' : 's'}</span>
             <span className="tw-spacer" />
             <button type="button" className="tw-btn tw-btn--sm" disabled={!exportable.length || busy} onClick={() => selectAll(exportable)}>
-              Select {exportable.length ? `all ${exportable.length}` : 'none'} exportable
+              {exportable.length ? `Select all ${exportable.length} exportable` : 'Nothing ready to export'}
             </button>
           </div>
           {group.units.map((unit) => {

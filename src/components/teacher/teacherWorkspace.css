@@ -128,6 +128,16 @@ button.tw-stat[aria-pressed='true'] { border-color: var(--mm-focus); box-shadow:
 .tw-drawer__body { flex: 1 1 auto; overflow-y: auto; padding: 14px 18px 22px; display: grid; gap: 14px; align-content: start; }
 .tw-drawer__close { position: sticky; top: 0; }
 
+/* "More…" actions that open in the flow (full width under the other buttons). */
+.tw-more > summary { list-style: none; }
+.tw-more > summary::-webkit-details-marker { display: none; }
+.tw-more[open] { flex: 1 1 100%; }
+.tw-more[open] > summary { margin-bottom: 8px; }
+.tw-more__items {
+  display: flex; flex-wrap: wrap; gap: 6px; padding: 8px;
+  border: 1px solid var(--mm-border); border-radius: 10px; background: var(--mm-surface-muted);
+}
+
 /* ------------------------------------------------------------ Section controls */
 .tw-control {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; align-items: center;

@@ -104,3 +104,12 @@ test('the hub can load one class\'s grades on the live screens, read-only', () =
   assert.doesNotMatch(loader, /updateDoc|setDoc|writeBatch|runTransaction/);
   assert.match(app, /onLoadClassGrades=\{loadClassGradeRecords\}/);
 });
+
+test('the class page lists its assignments with the same current-first grouping', () => {
+  const page = readFileSync(new URL('../../src/ClassesWorkspace.jsx', import.meta.url), 'utf8');
+  assert.match(page, /import \{ groupAssignmentList \} from '\.\/platform\/teacher\/assignmentListGroups\.js';/);
+  assert.match(executableSource(page), /const assignmentGroups = groupAssignmentList\(\{ assignments: periodAssignments, nowValue, gradingPeriodSettings \}\);/);
+  assert.match(executableSource(page), /return group\.folded \? \(\s*<details/);
+  const mount = region(app, '<ClassesWorkspace', '/>', 'ClassesWorkspace mount');
+  assert.match(mount, /gradingPeriodSettings=\{gradingPeriodSettings\}/);
+});
