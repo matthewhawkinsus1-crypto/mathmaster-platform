@@ -306,11 +306,21 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
     );
   };
 
+  // WIDE WHEN IT SAVES A ROW (platform quirks audit). The full lab is six
+  // panels: in the standard 1180px shell that is three rows of two, and at
+  // 1920x1080 or a Chromebook zoomed to ~67% the wide shell makes it two rows
+  // of three — the tool 1715px -> 1313px tall, panels still ~450px wide. With
+  // only two panels wide would just stretch each line to ~700px, so those
+  // modes keep the standard width.
+  const visiblePanelCount = [true, showAssociationPanel, showResidualPanel, showModelComparePanel, showPredictionPanel]
+    .filter(Boolean).length + 1;
+
   return (
     <ToolShell
       title="Data Modeling Lab"
       subtitle="Build a model, inspect residuals, compare functions, and make defensible predictions without confusing association with causation."
       badge="Algebra I / II · Data Modeling"
+      widthProfile={visiblePanelCount >= 3 ? 'wide' : 'standard'}
     >
       <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.full} steps={MODE_STEPS[mode] || MODE_STEPS.full} />
       <ToolGrid min={350}>

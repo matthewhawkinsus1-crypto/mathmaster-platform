@@ -36,6 +36,14 @@ test('the page widens for a wide tool only on a wide screen, and keeps reading w
 test('the multi-column tools opt in; the board becomes three columns only when it has room', () => {
   assert.match(read('src/tools/representationBridge/LinearMultipleRepresentationsBoard.jsx'), /<ToolShell[\s\S]{0,200}widthProfile="wide"/);
   assert.match(read('src/tools/representationMatch/RepresentationMatch.jsx'), /widthProfile=\{cardSetLayout \? 'wide' : 'standard'\}/);
+  // Platform quirks audit, measured at 1920x1080 and 2040x1146 (a 1366x768
+  // Chromebook at ~67% zoom): Data Modeling's six panels go from three rows to
+  // two (tool 1715px -> 1313px). Systems Workspace (a bigger plane, but the
+  // tool grows 660 -> 824px and the graph's bottom leaves the screen) and
+  // Linear Table Workbench (lines 960 -> 1356px) were measured and left out.
+  assert.match(read('src/tools/dataModeling/DataModelingLab.jsx'), /widthProfile=\{visiblePanelCount >= 3 \? 'wide' : 'standard'\}/);
+  assert.doesNotMatch(read('src/tools/systemsWorkspace/SystemsWorkspace.jsx'), /widthProfile="wide"/);
+  assert.doesNotMatch(read('src/tools/linearTableWorkbench/LinearTableWorkbench.jsx'), /widthProfile="wide"/);
   const boardCss = read('src/tools/representationBridge/LinearMultipleRepresentationsBoard.css');
   assert.match(boardCss, /\.mm-lmr-board \{\s*container: lmr-board \/ inline-size;/);
   assert.match(boardCss, /@container lmr-board \(min-width: 1100px\) \{\s*\.mm-lmr-card-stack \{\s*display: contents !important;/);
