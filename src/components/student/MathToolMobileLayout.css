@@ -310,6 +310,31 @@
     white-space: nowrap;
   }
 
+  /* ONE ROW ON A NARROW PHONE TOO. Without Submit the four tools keep their
+     words, and "↶ Undo ↺ Reset ✎ Scratchpad Calculator" fits one row at 390px
+     but wrapped to two below it: 111px of a 375x812 screen (platform quirks
+     audit, measured with the real identity bar above). Below 385px they show
+     the same icons they show beside Submit — each keeps its name as its
+     accessible label — and share the row, so each target grows. */
+  @media (max-width: 384px) {
+    .mathmaster-question-container.mode-portrait .portrait-action-bar {
+      flex-wrap: nowrap;
+    }
+
+    .mathmaster-question-container.mode-portrait .portrait-action-bar > .mathmaster-work-bar-tool {
+      min-width: 44px;
+    }
+
+    .mathmaster-question-container.mode-portrait .portrait-action-bar .mathmaster-action-label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+  }
+
   /* THE NUMBER KEYPAD IS OPEN: IT IS THE KEYBOARD, AND THE BAR IS UNDER IT.
      The keypad is fixed over the bottom of the screen, so the bar beneath it
      could not be reached anyway; hiding it gives its row back to the work.

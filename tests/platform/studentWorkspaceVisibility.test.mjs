@@ -291,10 +291,18 @@ test('with Submit in the phone bar it is still one row: the tools show icons, ke
   // Every tool in the bar: icon hidden from assistive tech, word in a label span.
   const bar = engine.slice(engine.indexOf('const questionWorkBar = ('), engine.indexOf('return (\n    <QuestionLifecycleProvider'));
   assert.equal((bar.match(/mathmaster-work-bar-tool/g) || []).length >= 5, true, 'undo, reset, scratchpad, calculator, read');
-  assert.equal((bar.match(/<span aria-hidden="true">/g) || []).length >= 4, true);
+  // Glyph icons in aria-hidden spans; the calculator is a drawn icon (an
+  // aria-hidden SVG, CalculatorIcon.jsx) since 🧮 is a box without an emoji font.
+  assert.equal((bar.match(/<span aria-hidden="true">|<CalculatorIcon( unavailable)? \/>/g) || []).length >= 4, true);
+  assert.match(read('src/components/common/CalculatorIcon.jsx'), /aria-hidden="true"/);
   assert.match(read('src/components/common/UniversalUndoButton.jsx'), /<span aria-hidden="true">↶<\/span><span className="mathmaster-action-label"> Undo<\/span>/);
   // The number keypad covers the bar: the bar yields its row and the work pads for the keys.
   assert.match(css, /\.numeric-keypad-open \.portrait-action-bar \{\s*display: none;/);
+  // Platform quirks audit: without Submit the labelled tools wrapped to two rows
+  // (111px) below 385px. There the icons show too, names kept as labels.
+  const narrow = css.slice(css.indexOf('@media (max-width: 384px) {'));
+  assert.match(narrow, /\.portrait-action-bar \{\s*flex-wrap: nowrap;/);
+  assert.match(narrow, /\.portrait-action-bar \.mathmaster-action-label \{\s*position: absolute;[\s\S]*?clip: rect\(0 0 0 0\);/);
   assert.match(css, /\.numeric-keypad-open \.math-tool-workspace \{\s*padding-bottom: calc\(var\(--mm-mobile-keypad, 0px\) \+ 12px\);/);
 });
 
