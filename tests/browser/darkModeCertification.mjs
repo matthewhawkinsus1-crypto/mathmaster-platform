@@ -51,8 +51,14 @@ for (const [device, width, height] of devices) {
           .slice(0, 12).map(({ node }) => node.getAttribute('aria-label') || node.textContent?.trim().slice(0, 60) || node.tagName);
       });
       assert.deepEqual(failures, [], `${device}/${theme}/${tool} has low-contrast foreground/background pairs`);
-      const graph = page.locator(`[data-stage4-tool="${tool}"] svg`).first();
-      if (tool === 'graphing2' && await graph.count()) {
+      // The PLANE, not "the first svg": the action bar's calculator icon is an
+      // svg too (CalculatorIcon.jsx), and 300ms after the root appears the
+      // lazily loaded plane may not exist yet. With `svg.first()` this check
+      // either read the icon (no <text>: getComputedStyle(null) threw on PR
+      // #399's CI) or, before the icon existed, found no svg and was skipped.
+      const graph = page.locator(`[data-stage4-tool="${tool}"] svg.mathmaster-responsive-canvas`).first();
+      if (tool === 'graphing2') await graph.waitFor({ state: 'attached', timeout: 30000 });
+      if (tool === 'graphing2') {
         const colors = await graph.evaluate((svg) => ({ bg: getComputedStyle(svg.querySelector('rect')).fill, labels: getComputedStyle(svg.querySelector('text')).fill }));
         assert.notEqual(colors.bg, colors.labels, `${device}/${theme} graph labels must differ from graph background`);
       }
