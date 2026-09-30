@@ -551,6 +551,7 @@ export default function EnlargeableFigure({
               // for "Reset Question"); the full label stays the accessible name.
               aria-label={action.shortLabel && typeof action.label === 'string' ? action.label : undefined}
             >
+              {action.icon ? <>{action.icon}{' '}</> : null}
               {action.shortLabel ? (
                 <>
                   <span className="mathmaster-work-view-action-full">{action.label}</span>

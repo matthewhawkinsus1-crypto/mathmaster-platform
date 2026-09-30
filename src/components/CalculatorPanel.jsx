@@ -5,6 +5,7 @@ import { getCalculatorButtonsForMode, getCalculatorDrawerLabel } from '../platfo
 import { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
 import { clampCalculatorPosition } from './calculatorPanelGeometry.js';
 import { nextDivisionKeypadStep } from './calculatorKeypadFlow.js';
+import CalculatorIcon from './common/CalculatorIcon.jsx';
 
 export { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
 
@@ -217,7 +218,7 @@ export const CalculatorPanel = ({
           ...launcherStyle,
         }}
       >
-        🚫 🧮 Calculator
+        <CalculatorIcon unavailable /> Calculator
       </button>
     );
   }
@@ -385,7 +386,7 @@ export const CalculatorPanel = ({
             ...launcherStyle,
           }}
         >
-          🧮 {policy.source === 'accommodation' ? 'Calculator (Support Plan)' : 'Calculator'}
+          <CalculatorIcon /> {policy.source === 'accommodation' ? 'Calculator (Support Plan)' : 'Calculator'}
         </button>
       ) : null}
       {isOpen && (
