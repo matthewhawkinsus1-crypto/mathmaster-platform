@@ -325,16 +325,26 @@ const makeStatefulEdit = async (page, shell, toolId, toolRoot) => {
 };
 
 for (const device of certificationDevices) {
-  const context = await browser.newContext({
-    viewport: { width: device.viewportWidth, height: device.viewportHeight },
-    isMobile: device.mobile,
-    hasTouch: device.mobile,
-    deviceScaleFactor: device.mobile ? 2 : 1,
-  });
-  const page = await context.newPage();
+  let context = null;
+  let page = null;
   const errors = [];
-  page.on('pageerror', (error) => errors.push(String(error?.message || error)));
-  await openHarness(page);
+  // A crashed renderer (the out-of-memory case on a loaded machine) takes the
+  // page with it. Recorded as that scene's finding; the next scene gets a new
+  // context and page and the cold budget again.
+  const openDevicePage = async () => {
+    await context?.close().catch(() => {});
+    context = await browser.newContext({
+      viewport: { width: device.viewportWidth, height: device.viewportHeight },
+      isMobile: device.mobile,
+      hasTouch: device.mobile,
+      deviceScaleFactor: device.mobile ? 2 : 1,
+    });
+    page = await context.newPage();
+    page.on('pageerror', (error) => errors.push(String(error?.message || error)));
+    page.on('crash', () => errors.push('the page crashed (renderer killed)'));
+    await openHarness(page);
+  };
+  await openDevicePage();
   let firstScene = true;
 
   for (const [toolId, certification] of Object.entries(WORK_VIEW_CERTIFICATION)) {
@@ -577,16 +587,28 @@ for (const device of certificationDevices) {
       // slow first render reported nothing about the other 160 scenes.
       problems.push(`certification step failed: ${shortError(error)}`);
       await page.screenshot({ path: path.join(familyDir, 'failed.png') }).catch(() => {});
-      await openHarness(page).catch((reloadError) => problems.push(`harness did not reload: ${shortError(reloadError)}`));
+      const recover = page.isClosed() ? openDevicePage() : openHarness(page);
+      await recover.catch((reloadError) => problems.push(`harness did not reload: ${shortError(reloadError)}`));
     }
-    firstScene = false;
-    timings.push({ device: device.id, toolId, ms: Date.now() - started, ...(await samplePage(page)) });
+    firstScene = page.isClosed();
+    const timing = { device: device.id, toolId, ms: Date.now() - started, ...(await samplePage(page)) };
+    timings.push(timing);
+    console.log(`         ${(timing.ms / 1000).toFixed(1)} s · heap ${timing.heapMB ?? '—'} MB · dom ${timing.domNodes ?? '—'}`);
 
     if (errors.length) problems.push(`page errors: ${errors.splice(0).join(' | ')}`);
-    if (problems.length) findings.push({ device: device.id, toolId, problems });
-    await page.setViewportSize({ width: device.viewportWidth, height: device.viewportHeight });
+    if (problems.length) {
+      findings.push({ device: device.id, toolId, problems });
+      // Printed as they happen, so a run that dies later still reports them.
+      console.error(`         FINDING ${device.id} · ${toolId}: ${problems.join(' | ')}`);
+    }
+    if (page.isClosed()) {
+      await openDevicePage().catch((error) => findings.push({ device: device.id, toolId, problems: [`could not reopen the harness: ${shortError(error)}`] }));
+      firstScene = true;
+    } else {
+      await page.setViewportSize({ width: device.viewportWidth, height: device.viewportHeight }).catch(() => {});
+    }
   }
-  await context.close();
+  await context?.close().catch(() => {});
 }
 
 await browser.close();
