@@ -204,6 +204,27 @@ export const gradingPeriodAssignmentPatch = (period = null) => {
 };
 
 /**
+ * The stamp a NEWLY assigned lesson gets: the marking period that is current
+ * when it is given to a class.
+ *
+ * Without it, every assignment resolves to whatever period is current *now* —
+ * so the day a teacher moves on to the next marking period, all of last
+ * period's work moves with it into "current" (the gradebook picker, Grade
+ * Export's default scope, the student Grade Center) unless it is filed by
+ * hand. Stamping at creation keeps that from happening to new work. Nothing is
+ * stamped when no period is configured, so a school that never opens the
+ * marking-period screen sees no change, and legacy assignments keep the
+ * documented fallback above.
+ */
+export const currentGradingPeriodStamp = (rawSettings = null) => {
+  const settings = normalizeGradingPeriodSettings(rawSettings || {});
+  const current = settings.currentPeriodId
+    ? settings.periods.find((period) => period.id === settings.currentPeriodId)
+    : null;
+  return current ? gradingPeriodAssignmentPatch(current) : {};
+};
+
+/**
  * Assignments grouped into the periods a student reads them in.
  *
  * Current first and open, everything else after it and collapsed. Archived

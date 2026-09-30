@@ -73,15 +73,22 @@ export default function StudentProfileDrawer({
 }) {
   const closeRef = useRef(null);
 
+  // Keyed on `open` (and the student), not on onClose: the parent passes a new
+  // onClose every render, which during class is about once a second, and each
+  // one pulled focus back to Close.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
   useEffect(() => {
     if (!open) return undefined;
-    const onKey = (event) => { if (event.key === 'Escape') onClose?.(); };
+    const onKey = (event) => { if (event.key === 'Escape') onCloseRef.current?.(); };
     window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
+  useEffect(() => {
     // Focus lands on the close control so a keyboard user is inside the drawer,
     // not still tabbing through the page behind it.
-    closeRef.current?.focus();
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+    if (open) closeRef.current?.focus();
+  }, [open, studentId]);
 
   if (!open) return null;
 

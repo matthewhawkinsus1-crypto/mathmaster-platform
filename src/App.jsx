@@ -293,6 +293,7 @@ import {
 import {
   GRADING_PERIOD_SETTINGS_DOC,
   gradingPeriodAssignmentPatch,
+  currentGradingPeriodStamp,
   normalizeGradingPeriodSettings,
 } from './platform/student/gradingPeriods.js';
 import {
@@ -6191,6 +6192,9 @@ function App() {
         });
         const payload = {
           ...assignmentPayloadBase,
+          // Filed in the marking period that is current when it is assigned,
+          // so moving to the next period does not drag it into "current".
+          ...((destination.classIds || []).length ? currentGradingPeriodStamp(gradingPeriodSettings) : {}),
           assignedClassPeriods: destination.periods,
           assignedClassIds: destination.classIds || [],
           sections: rebuildV5SectionsFromQuestions(reviewedV5, variantQuestions),

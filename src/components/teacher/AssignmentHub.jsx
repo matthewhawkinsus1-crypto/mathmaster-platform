@@ -131,9 +131,17 @@ export default function AssignmentHub({
     setGradeKey(null);
   }, [open, assignment?.id, initialClassId, assignedClassKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Focus moves to the drawer when it OPENS (or shows another assignment) —
+  // not on every parent render, which during class is about once a second and
+  // would pull focus out of a date field or timer menu mid-use.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
+  useEffect(() => {
+    if (open) closeRef.current?.focus();
+  }, [open, assignment?.id]);
+
   useEffect(() => {
     if (!open) return undefined;
-    closeRef.current?.focus();
     // Escape closes only the top layer: a student opened from this hub, or a
     // "Close the DOL now?" confirmation, sits above it and handles its own.
     // (The confirmation handles Escape on `document` — before this listener —
@@ -142,11 +150,11 @@ export default function AssignmentHub({
       if (event.key !== 'Escape' || event.defaultPrevented) return;
       const modals = [...document.querySelectorAll('[aria-modal="true"]')];
       if (modals.length && modals[modals.length - 1] !== panelRef.current) return;
-      onClose?.();
+      onCloseRef.current?.();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open || !assignment) return null;
 
