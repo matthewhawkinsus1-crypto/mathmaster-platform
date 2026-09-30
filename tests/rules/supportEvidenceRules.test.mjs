@@ -326,3 +326,35 @@ test('a student can no longer mint attempt evidence, however well formed', async
   }));
   await assertFails(setDoc(doc(teacherA(), 'grades/S_A/evidenceEvents/forged-t'), { eventKey: 'forged-t', studentId: 'S_A' }));
 });
+
+// --- Corrections and notes added after a one-click action ------------------------------------
+
+test('staff withdraw a mis-click with a correction record; students cannot', async () => {
+  await assertSucceeds(setDoc(doc(teacherA(), 'grades/S_A/supportEvidence/fix-1'), staffEvent({ voidsEventId: 'click-1', note: 'Entered in error' })));
+  await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/fix-s'), studentEvent({ voidsEventId: 'tts-1' })));
+});
+
+test('the author may add a note once, soon after, and nothing else about the record can change', async () => {
+  await assertSucceeds(setDoc(doc(teacherA(), 'grades/S_A/supportEvidence/click-note-later'), staffEvent()));
+  const ref = (db) => doc(db, 'grades/S_A/supportEvidence/click-note-later');
+  // Another teacher, a student, or a changed fact: refused. The root
+  // administrator can reach every student but is not the author, so only the
+  // author check can refuse them.
+  await assertFails(updateDoc(ref(admin()), { note: 'x', noteAddedAt: serverTimestamp() }));
+  await assertFails(updateDoc(ref(teacherB()), { note: 'x', noteAddedAt: serverTimestamp() }));
+  await assertFails(updateDoc(ref(studentA()), { note: 'x', noteAddedAt: serverTimestamp() }));
+  await assertFails(updateDoc(ref(teacherA()), { note: 'x', noteAddedAt: serverTimestamp(), supportId: 'on-task-prompt' }));
+  await assertFails(updateDoc(ref(teacherA()), { note: 'x', noteAddedAt: Timestamp.fromMillis(Date.now() - 60000) }));
+  await assertFails(updateDoc(ref(teacherA()), { note: '', noteAddedAt: serverTimestamp() }));
+  // The author, once.
+  await assertSucceeds(updateDoc(ref(teacherA()), { note: 'Re-read the directions aloud.', noteAddedAt: serverTimestamp() }));
+  await assertFails(updateDoc(ref(teacherA()), { note: 'Changed my mind', noteAddedAt: serverTimestamp() }));
+  // Not a student record, and not after the window.
+  await assertFails(updateDoc(doc(teacherA(), 'grades/S_A/supportEvidence/tts-1'), { note: 'x', noteAddedAt: serverTimestamp() }));
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'grades/S_A/supportEvidence/stale-click'), {
+      ...staffEvent(), occurredAt: Timestamp.fromMillis(Date.now() - 20 * 60000),
+    });
+  });
+  await assertFails(updateDoc(doc(teacherA(), 'grades/S_A/supportEvidence/stale-click'), { note: 'late note', noteAddedAt: serverTimestamp() }));
+});

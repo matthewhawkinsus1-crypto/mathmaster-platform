@@ -25,8 +25,26 @@ export class Timestamp {
 
 const SERVER_TS = Symbol('serverTimestamp');
 const DELETE = Symbol('deleteField');
+const ARRAY_UNION = Symbol('arrayUnion');
+const ARRAY_REMOVE = Symbol('arrayRemove');
 export const serverTimestamp = () => ({ [SERVER_TS]: true });
 export const deleteField = () => ({ [DELETE]: true });
+export const arrayUnion = (...values) => ({ [ARRAY_UNION]: values });
+export const arrayRemove = (...values) => ({ [ARRAY_REMOVE]: values });
+
+// arrayUnion / arrayRemove resolved against the value already stored.
+const resolveArrayTransform = (existing, value) => {
+  const base = Array.isArray(existing) ? existing : [];
+  if (value && value[ARRAY_UNION]) {
+    const out = [...base];
+    value[ARRAY_UNION].forEach((entry) => { if (!out.some((item) => JSON.stringify(item) === JSON.stringify(entry))) out.push(entry); });
+    return out;
+  }
+  if (value && value[ARRAY_REMOVE]) {
+    return base.filter((item) => !value[ARRAY_REMOVE].some((entry) => JSON.stringify(item) === JSON.stringify(entry)));
+  }
+  return undefined;
+};
 
 export class FieldPath { constructor(...segments) { this.segments = segments.map(String); } }
 
@@ -36,6 +54,7 @@ const clone = (value) => {
   if (Array.isArray(value)) return value.map(clone);
   if (isPlain(value)) {
     if (value[SERVER_TS]) return Timestamp.now();
+    if (value[ARRAY_UNION] || value[ARRAY_REMOVE]) return resolveArrayTransform([], value);
     return Object.fromEntries(Object.entries(value).filter(([, v]) => !(v && v[DELETE])).map(([k, v]) => [k, clone(v)]));
   }
   return value;
@@ -191,12 +210,14 @@ const setNested = (target, segments, value) => {
   });
   const last = segments[segments.length - 1];
   if (value && value[DELETE]) delete cursor[last];
+  else if (value && (value[ARRAY_UNION] || value[ARRAY_REMOVE])) cursor[last] = resolveArrayTransform(cursor[last], value);
   else cursor[last] = clone(value);
 };
 const deepMerge = (base, patch) => {
   const out = isPlain(base) ? { ...base } : {};
   Object.entries(patch).forEach(([key, value]) => {
     if (value && value[DELETE]) delete out[key];
+    else if (value && (value[ARRAY_UNION] || value[ARRAY_REMOVE])) out[key] = resolveArrayTransform(out[key], value);
     else if (isPlain(value) && !value[SERVER_TS]) out[key] = deepMerge(out[key], value);
     else out[key] = clone(value);
   });

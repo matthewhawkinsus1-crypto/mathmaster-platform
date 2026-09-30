@@ -146,7 +146,8 @@ const baseEvent = ({
 }) => {
   const entry = supportById(supportId);
   const role = lower(activityRole);
-  const index = Number(questionIndex);
+  // Number(null) is 0: an absent question must stay absent, not become Q1.
+  const index = questionIndex === null || questionIndex === undefined || questionIndex === '' ? Number.NaN : Number(questionIndex);
   return {
     schemaVersion: SUPPORT_EVIDENCE_SCHEMA_VERSION,
     studentId: cleanId(studentId),
@@ -169,6 +170,9 @@ export const buildStaffEvidenceEvent = ({
   eventType = EVIDENCE_EVENT_TYPE.TEACHER_DOCUMENTED,
   actorEmail, actorType = ACTOR_TYPE.TEACHER, providerRole = null,
   note = '', profileRevisionId = null, source = null,
+  // A correction: this record withdraws an earlier staff record (a mis-click).
+  // Both stay in the history; neither is counted (evidenceAggregation.js).
+  voidsEventId = null,
 } = {}) => {
   const errors = [];
   const event = baseEvent({ studentId, classId, assignmentId, activityRole, questionIndex, supportId, profileRevisionId });
@@ -192,10 +196,14 @@ export const buildStaffEvidenceEvent = ({
     providerRole: PROVIDER_ROLES.includes(role) ? role : null,
     note: clean(note).slice(0, EVIDENCE_LIMITS.note),
     durationSeconds: null,
+    voidsEventId: cleanId(voidsEventId) || null,
     authorizedTeacherEmails: [email],
   };
   return { payload, errors };
 };
+
+/** Minutes after a staff record during which its author may add a note once. */
+export const NOTE_AFTER_WINDOW_MINUTES = 15;
 
 /**
  * A record the student's own client makes: a support made available when an
@@ -228,6 +236,7 @@ export const buildStudentEvidenceEvent = ({
     providerRole: null,
     note: '',
     durationSeconds: Number.isFinite(seconds) && seconds > 0 ? Math.min(EVIDENCE_LIMITS.maxDurationSeconds, seconds) : null,
+    voidsEventId: null,
     authorizedTeacherEmails: teacherEmail ? [teacherEmail] : [],
   };
   return { payload, errors };

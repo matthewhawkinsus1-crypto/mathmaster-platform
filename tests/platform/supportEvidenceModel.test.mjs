@@ -25,6 +25,8 @@ test('a one-click staff action records a documented, classified, attributable fa
   assert.equal(payload.actorEmail, 'teacher@example.test');
   assert.deepEqual(payload.authorizedTeacherEmails, ['teacher@example.test']);
   assert.equal(payload.note, '', 'a note is never required');
+  assert.equal(payload.questionIndex, null, 'no question given stays no question (Number(null) is 0)');
+  assert.equal(buildStaffEvidenceEvent({ studentId: 'S1', supportId: 'check-for-understanding', actorEmail: 't@x.test', questionIndex: 0 }).payload.questionIndex, 0);
   assert.equal('occurredAt' in payload, false, 'server time is stamped by the store');
 });
 

@@ -19,12 +19,14 @@ import {
   arrayUnion,
   collection,
   doc,
+  getDoc,
   getDocs,
   limit,
   orderBy,
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where,
   writeBatch,
 } from 'firebase/firestore';
@@ -171,6 +173,41 @@ export const recordStaffSupportEvidence = async ({ db, event, nowValue = Date.no
 };
 
 /**
+ * Withdraw a staff record entered in error. The original is never edited or
+ * deleted: a correction record names it, and both drop out of every count.
+ */
+export const voidStaffSupportEvidence = async ({ db, original, teacherEmail, reason = 'Entered in error' } = {}) => {
+  if (!original?.id) throw new SupportRecordError(['Choose the record to correct.']);
+  return recordStaffSupportEvidence({
+    db,
+    event: {
+      studentId: original.studentId,
+      classId: original.classId,
+      assignmentId: original.assignmentId,
+      activityRole: original.activityRole,
+      supportId: original.supportId,
+      eventType: original.eventType,
+      actorEmail: teacherEmail,
+      actorType: original.actorType === 'provider' ? 'provider' : 'teacher',
+      providerRole: original.providerRole,
+      note: reason,
+      voidsEventId: original.id,
+    },
+  });
+};
+
+/** Fill a staff record's empty note once, shortly after a one-click action. */
+export const addNoteToStaffSupportEvidence = async ({ db, studentId, eventId, note } = {}) => {
+  const text = String(note ?? '').trim().slice(0, 280);
+  if (!text) throw new SupportRecordError(['Type a note first.']);
+  await updateDoc(doc(db, 'grades', clean(studentId), SUPPORT_EVIDENCE_SUBCOLLECTION, clean(eventId)), {
+    note: text,
+    noteAddedAt: serverTimestamp(),
+  });
+  return text;
+};
+
+/**
  * A record from the student's own client. `deterministic` records
  * ("available" for an assignment and revision) use a fixed id so a relaunch
  * or second tab cannot duplicate them; the second write is refused by the
@@ -276,6 +313,18 @@ export const fetchEngagementLedger = async ({ db, studentId, fromMs = null, toMs
   }
   const snapshot = await getDocs(query(collection(db, 'grades', id, ENGAGEMENT_MINUTES_SUBCOLLECTION), ...constraints));
   return snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
+};
+
+/**
+ * One student's full grade record (the teacher of record may read it). Live
+ * screens keep only a light roster in memory; the evidence views load the
+ * record they need, on request.
+ */
+export const fetchStudentGradeRecord = async ({ db, studentId } = {}) => {
+  const id = clean(studentId);
+  if (!db || !id) return null;
+  const snapshot = await getDoc(doc(db, 'grades', id));
+  return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
 };
 
 /** Everything the drawer and the report need for one student, in parallel. */

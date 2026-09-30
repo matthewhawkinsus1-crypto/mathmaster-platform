@@ -360,6 +360,47 @@ export const studentFacingLabel = (id) => supportById(id)?.studentLabel || null;
 /** Human label for teachers/reports; unknown ids are shown verbatim, never hidden. */
 export const supportLabel = (id) => supportById(id)?.label || String(id ?? '').trim() || 'Unknown support';
 
+// Compact teacher wording for chips on busy screens (hub, drawer). The full
+// label stays in the profile editor and the report.
+const SHORT_LABELS = Object.freeze({
+  'text-to-speech': 'Read aloud',
+  calculator: 'Calculator',
+  'calculator-override-computation': 'Calculator (computation override)',
+  'reteach-resources': 'Reteach materials',
+  'study-sheet': 'Study sheet',
+  'graph-paper': 'Graph paper',
+  'extra-time': 'Extra time',
+  'extra-time-written-response': 'Extra time (written)',
+  'visual-chunking': 'Chunked presentation',
+  'declutter-ui': 'Decluttered screen',
+  'no-countdown': 'Countdown hidden',
+  'disable-idle-timer': 'No idle prompt',
+  'word-processor-response': 'Word-processor response',
+  'algebra-auto-apply': 'Algebra Apply shortcut',
+  'reduced-item-count-same-rigor': 'Fewer items, same rigor',
+  'check-for-understanding': 'Check for understanding',
+  'repeat-instructions': 'Repeat directions',
+  'directions-multiple-ways': 'Directions, multiple ways',
+  'frequent-feedback': 'Frequent feedback',
+  'on-task-prompt': 'On-task prompt',
+  'reminder-of-expectations': 'Expectations reminder',
+  'verbalize-steps': 'Verbalize steps',
+  'whisper-read-aloud': 'Whisper read-aloud',
+  'planner-communication': 'Planner communication',
+  'highlighted-materials': 'Highlighted materials',
+  'study-aids-manipulatives': 'Study aids / manipulatives',
+  'adult-reteach': 'Adult reteach',
+  'inclusion-support': 'Inclusion support',
+  'reduce-complexity': 'Reduced complexity',
+  'prefill-first-step': 'First step prefilled',
+  'reduced-coverage': 'Reduced coverage',
+  'modified-assignment': 'Modified assignment',
+  'modified-standard': 'Modified standard',
+  'reduced-dok': 'Reduced DOK',
+});
+
+export const supportShortLabel = (id) => SHORT_LABELS[supportById(id)?.id] || supportLabel(id);
+
 /*
  * What inclusion status has always implied at runtime
  * (src/studentSupport.js getStudentSupportPresentation). Surfaced so the

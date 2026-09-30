@@ -15,6 +15,10 @@
  */
 import { projectGradeTransferUnits } from '../../../src/platform/gradeTransfer/gradeTransferProjection.js';
 import { createExportSnapshot, transferSnapshotId } from '../../../src/platform/gradeTransfer/gradeTransferModel.js';
+import { buildRevisionDocument, buildSupportProjection, normalizeSupportRevisionInput } from '../../../functions/shared/supportProfileModel.mjs';
+import {
+  buildServiceLogEntry, buildStaffEvidenceEvent, buildStudentEvidenceEvent, engagementDocId, epochMinuteOf, utcDayOf,
+} from '../../../functions/shared/supportEvidenceModel.mjs';
 
 export const TEACHER_EMAIL = 'teacher@harness.example';
 
@@ -219,5 +223,83 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp } = {}
   const changed = fixture[`grades/${p3[2].id}`];
   changed.gradesByAssignment['a-lastweek'] = { ...changed.gradesByAssignment['a-lastweek'], 2: correct };
 
+  addSupportEvidence({ fixture, now, Timestamp, supported: p3[1], legacy: p3[4] });
   return fixture;
+};
+
+/*
+ * IEP / STUDENT SUPPORT EVIDENCE — synthetic.
+ *
+ * `supported` has a versioned profile (two dated revisions; extra time up to
+ * the next school day, read aloud, calculator, a teacher check for
+ * understanding, one modification, 100 min/week of inclusion support) and a
+ * little of every kind of evidence: tools made available and used, a teacher
+ * record, a mis-click withdrawn by a correction, server-timed active minutes,
+ * and service minutes. `legacy` has a pre-versioning flat profile and graded
+ * work with no timing — the "0 min" case the old report showed.
+ */
+const addSupportEvidence = ({ fixture, now, Timestamp, supported, legacy }) => {
+  const at = (ms) => Timestamp.fromMillis(ms);
+  const base = `grades/${supported.id}`;
+  const revisionInput = (effectiveStart, withExtraTime) => normalizeSupportRevisionInput({
+    effectiveStart,
+    sourceLabel: withExtraTime ? 'IEP amendment (synthetic)' : 'IEP annual review (synthetic)',
+    sourceNote: 'Synthetic harness record.',
+    inclusionStatus: false,
+    accommodations: [
+      { id: 'text-to-speech' },
+      { id: 'calculator' },
+      { id: 'check-for-understanding' },
+      ...(withExtraTime ? [{ id: 'extra-time', params: { dueDateExtension: { mode: 'school-days', value: 1 } } }] : []),
+    ],
+    modifications: [{ id: 'reduce-complexity' }],
+    serviceExpectations: [{ serviceType: 'inclusion-support', minutesPerWeek: 100 }],
+  }).revision;
+  const r1Recorded = now - 60 * DAY;
+  const r2Recorded = now - 12 * DAY;
+  const r1 = { ...buildRevisionDocument({ revision: revisionInput(dateKey(now - 60 * DAY), false), studentId: supported.id, classId: supported.classId, revisionNumber: 1, createdByEmail: TEACHER_EMAIL }), createdAt: at(r1Recorded) };
+  const r2 = { ...buildRevisionDocument({ revision: revisionInput(dateKey(now - 12 * DAY), true), studentId: supported.id, classId: supported.classId, revisionNumber: 2, supersedesRevisionId: 'rev-1', createdByEmail: TEACHER_EMAIL }), createdAt: at(r2Recorded) };
+  fixture[`${base}/supportProfileRevisions/rev-1`] = r1;
+  fixture[`${base}/supportProfileRevisions/rev-2`] = r2;
+  fixture[base].profile = buildSupportProjection({
+    revisions: [{ ...r1, id: 'rev-1', revisionId: 'rev-1', createdAtMs: r1Recorded }, { ...r2, id: 'rev-2', revisionId: 'rev-2', createdAtMs: r2Recorded }],
+    todayKey: dateKey(now),
+    updatedAt: new Date(r2Recorded).toISOString(),
+  });
+
+  // Last week's lesson: done under revision 2, with the evidence to show it.
+  const lessonDay = now - 8 * DAY;
+  const student = (supportId, eventType, offsetMinutes, extra = {}) => ({
+    ...buildStudentEvidenceEvent({ studentId: supported.id, classId: supported.classId, assignmentId: 'a-lastweek', activityRole: 'classwork', questionIndex: 1, supportId, eventType, profileRevisionId: 'rev-2', assignedTeacherEmail: TEACHER_EMAIL, ...extra }).payload,
+    occurredAt: at(lessonDay + offsetMinutes * 60_000),
+  });
+  const staff = (supportId, offsetMinutes, extra = {}) => ({
+    ...buildStaffEvidenceEvent({ studentId: supported.id, classId: supported.classId, assignmentId: 'a-lastweek', supportId, actorEmail: TEACHER_EMAIL, profileRevisionId: 'rev-2', ...extra }).payload,
+    occurredAt: at(lessonDay + offsetMinutes * 60_000),
+  });
+  fixture[`${base}/supportEvidence/avail__a-lastweek__rev-2__text-to-speech`] = student('text-to-speech', 'available', 1);
+  fixture[`${base}/supportEvidence/avail__a-lastweek__rev-2__calculator`] = student('calculator', 'available', 1);
+  fixture[`${base}/supportEvidence/avail__a-lastweek__rev-2__extra-time`] = student('extra-time', 'provided', 1);
+  fixture[`${base}/supportEvidence/ev-tts-1`] = student('text-to-speech', 'used', 4);
+  fixture[`${base}/supportEvidence/ev-tts-2`] = student('text-to-speech', 'used', 9, { questionIndex: 2 });
+  fixture[`${base}/supportEvidence/ev-calc-1`] = student('calculator', 'used', 12);
+  fixture[`${base}/supportEvidence/ev-check-1`] = { ...staff('check-for-understanding', 15), note: 'Restated the elimination step; student explained it back.', noteAddedAt: at(lessonDay + 17 * 60_000) };
+  fixture[`${base}/supportEvidence/ev-misclick`] = staff('on-task-prompt', 20);
+  fixture[`${base}/supportEvidence/ev-misclick-fix`] = staff('on-task-prompt', 21, { voidsEventId: 'ev-misclick', note: 'Entered in error' });
+  const firstMinute = epochMinuteOf(lessonDay + 2 * 60_000);
+  fixture[`${base}/engagementMinutes/${engagementDocId('a-lastweek', utcDayOf(lessonDay + 2 * 60_000))}`] = {
+    schemaVersion: 1, studentId: supported.id, assignmentId: 'a-lastweek', utcDay: utcDayOf(lessonDay + 2 * 60_000),
+    minutes: Array.from({ length: 26 }, (_, index) => firstMinute + index), lastRecordedAt: at(lessonDay + 30 * 60_000),
+  };
+  const service = (offsetDays, minutes, extra = {}) => ({
+    ...buildServiceLogEntry({ studentId: supported.id, classId: supported.classId, dateKey: dateKey(now - offsetDays * DAY), minutes, serviceType: 'inclusion-support', providerRole: 'inclusion-teacher', providerLabel: 'Inclusion teacher (synthetic)', topic: 'Systems of equations', createdByEmail: TEACHER_EMAIL, ...extra }).payload,
+    createdAt: at(now - offsetDays * DAY),
+  });
+  fixture[`${base}/supportServiceLog/svc-1`] = service(8, 45, { assignmentId: 'a-lastweek' });
+  fixture[`${base}/supportServiceLog/svc-2`] = service(6, 40);
+  fixture[`${base}/supportServiceLog/svc-3`] = service(1, 30);
+
+  // A pre-versioning profile with graded work and no timing recorded.
+  fixture[`grades/${legacy.id}`].profile = { inclusionStatus: true, accommodations: ['text-to-speech', 'extra-time'], modifications: [], translationLanguage: null };
+  fixture[`grades/${legacy.id}`].assignmentActivity = { 'a-lastweek': { totalTimeSeconds: 0, onTimeSeconds: 0, lateSeconds: 0 } };
 };

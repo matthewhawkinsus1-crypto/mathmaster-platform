@@ -19,7 +19,9 @@ harness.calls = [];
 const handlers = {
   resolveSignedInRole: () => ({ role: 'teacher' }),
   listSignInAccess: () => ({
-    students: harnessStore.paths('grades/').map((path) => {
+    // Roster rows only: grades/{id} has subcollections (scratchpads, support
+    // evidence …), and their documents are not students.
+    students: harnessStore.paths('grades/').filter((path) => path.split('/').length === 2).map((path) => {
       const data = harnessStore.get(path);
       return { studentId: path.split('/')[1], ...data, gradesByAssignment: undefined };
     }),

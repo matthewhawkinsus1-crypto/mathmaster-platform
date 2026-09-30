@@ -68,7 +68,10 @@ test('on the live screens the hub loads this class\'s progress on request instea
 
 test('a closed lesson leads with its grades; opening it again today is folded, not removed', () => {
   assert.match(hub, /const pastLesson = lifecycle\.isClosed;/);
-  assert.match(hub, /return pastLesson\s*\?\s*<>\{progressSection\}\{liveSection\}\{controls\}<\/>\s*:\s*<>\{controls\}\{liveSection\}\{progressSection\}<\/>;/);
+  // The three core layers keep their order (a closed lesson leads with its
+  // grades; a current one with today's controls). Layers added after them —
+  // Supports & evidence — do not change what the hub leads with.
+  assert.match(hub, /return pastLesson\s*\?\s*<>\{progressSection\}\{liveSection\}\{controls\}(\{\w+\})*<\/>\s*:\s*<>\{controls\}\{liveSection\}\{progressSection\}(\{\w+\})*<\/>;/);
   const controls = region(hub, 'const controls = classContext && (pastLesson ? (', 'const liveSection', 'hub controls');
   assert.match(controls, /<details className="tw-disclosure"[\s\S]*<AssignmentLessonRows[\s\S]*<\/details>/);
 });

@@ -240,7 +240,8 @@ service cloud.firestore {
       return d.keys().hasOnly([
           'schemaVersion', 'studentId', 'classId', 'assignmentId', 'activityRole', 'questionIndex',
           'supportId', 'classification', 'profileRevisionId', 'eventType', 'source', 'actorType',
-          'actorEmail', 'providerRole', 'note', 'durationSeconds', 'authorizedTeacherEmails', 'occurredAt'
+          'actorEmail', 'providerRole', 'note', 'durationSeconds', 'voidsEventId', 'authorizedTeacherEmails',
+          'occurredAt'
         ])
         && d.keys().hasAll([
           'schemaVersion', 'studentId', 'supportId', 'classification', 'eventType', 'source',
@@ -253,6 +254,7 @@ service cloud.firestore {
         && d.occurredAt == request.time
         && optionalString(d, 'assignmentId', 160)
         && optionalString(d, 'profileRevisionId', 160)
+        && optionalString(d, 'voidsEventId', 160)
         && (d.get('activityRole', null) == null
           || d.get('activityRole', null) in ['warmup', 'classwork', 'practice', 'dol', 'quiz', 'test'])
         && (d.get('questionIndex', null) == null
@@ -291,6 +293,7 @@ service cloud.firestore {
         && d.get('actorEmail', null) == null
         && d.get('providerRole', null) == null
         && d.get('note', '') == ''
+        && d.get('voidsEventId', null) == null
         && roster.get('assignedTeacherEmail', null) is string
         && d.authorizedTeacherEmails == [roster.get('assignedTeacherEmail', null)]
         && d.get('classId', null) == roster.get('classId', null)
@@ -302,6 +305,22 @@ service cloud.firestore {
             'declutter-ui', 'visual-chunking', 'high-contrast', 'large-text', 'no-countdown', 'disable-idle-timer'
           ])
         );
+    }
+
+    // "Optional notes can be added after": the author of a staff record may
+    // fill its EMPTY note once, within 15 minutes, and the time they did so is
+    // recorded. Nothing else about the record — what, when, who — can change.
+    function staffNoteAfterValid(studentId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      return staffForStudent(studentId)
+        && before.get('actorEmail', null) == request.auth.token.email
+        && before.get('actorType', '') in ['teacher', 'provider']
+        && before.get('note', '') == ''
+        && after.diff(before).affectedKeys().hasOnly(['note', 'noteAddedAt'])
+        && after.note is string && after.note.size() > 0 && after.note.size() <= 280
+        && after.noteAddedAt == request.time
+        && request.time < before.occurredAt + duration.value(15, 'm');
     }
 
     function serviceLogEntryValid(studentId) {
@@ -420,7 +439,8 @@ service cloud.firestore {
         allow read: if rootAdmin() || teachesPresenceStudent(studentId) || authorizedTeacher();
         allow create: if supportEvidenceCommonValid(studentId)
           && (staffSupportEvidenceValid(studentId) || studentSupportEvidenceValid(studentId));
-        allow update, delete: if false;
+        allow update: if staffNoteAfterValid(studentId);
+        allow delete: if false;
       }
 
       // Service / support minutes. A correction is a new entry that voids an

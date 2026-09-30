@@ -9,7 +9,7 @@ Branch: `ai/claude-iep-evidence-20260930` (from `origin/main` @ `1fcd1ea7`, PR #
 
 ## Current state
 
-- **Phase:** 4 — teacher Support/Evidence UI: aggregation model, drawer section, hub layer, one-click, service log (next)
+- **Phase:** 5 — student Support tools (resources, graph paper) + Phase 6 report (next)
 - **Design:** `docs/IEP_SUPPORT_EVIDENCE_DESIGN.md` (committed with this checkpoint)
 - **PR:** _(not opened yet)_
 
@@ -21,7 +21,7 @@ Branch: `ai/claude-iep-evidence-20260930` (from `origin/main` @ `1fcd1ea7`, PR #
 | 1 | Architecture + schemas + Firestore rules + rule tests | ✅ |
 | 2 | Support profile versioning + support resolution / automatic application | ✅ |
 | 3 | Telemetry + evidence event logging + engagement metric repair | ⬜ |
-| 4 | Teacher Support/Evidence UI (hub + drawer) + one-click events + service log | ⬜ |
+| 4 | Teacher Support/Evidence UI (hub + drawer) + one-click events + service log | ✅ |
 | 5 | Student "Support tools" UI | ⬜ |
 | 6 | Report model/renderer + grade-impact aggregation + assignment-instance dedup | ⬜ |
 | 7 | Browser QA (fake-school harness) + final hardening + security review + PR | ⬜ |
@@ -105,6 +105,9 @@ These are the facts the design is built on. File references are to `origin/main`
 | Phase 2 | `npx oxlint` (new files) | clean |
 | Phase 3 | `npm run test:platform` | 6734/6734 |
 | Phase 3 | `npm run build` | pass (after renaming a colliding import the suite cannot see) |
+| Phase 4 | `npm run test:rules` | 225/225 + 83/83 |
+| Phase 4 | `npm run test:platform` | 6749/6750 → moved hub-order contract rewritten + mutation-checked |
+| Phase 4 | `npm run build` | pass |
 
 ## Phase 1 — done
 
@@ -156,14 +159,37 @@ These are the facts the design is built on. File references are to `origin/main`
 - Build caught a duplicate `recordStudentSupportEvent` import (the live-class writer has that name): evidence
   writers renamed `recordStaffSupportEvidence` / `recordStudentSupportEvidence`.
 
-## Phase 4 checklist (next)
+## Phase 4 — done
 
-- [ ] `evidenceAggregation.js` (written, not yet tested/committed) + tests: one row builder for drawer/hub/report
-- [ ] rules + model: staff `voidsEventId` correction; one-time `note` after a one-click (same actor, 15 min)
-- [ ] `StudentSupportEvidencePanel` in the student drawer (profile, one-click actions, recent evidence, minutes,
-      report/service/edit entry points)
-- [ ] `AssignmentSupportLayer` in the hub (supported students, individualized deadlines, condition, one-click)
-- [ ] `ServiceLogDialog`; tests; browser pass in the teacher harness
+- `evidenceAggregation.js` — ONE row builder (drawer, hub, report): status from the gradebook's own
+  `studentAssignmentProgress`, section scores via `canonicalPresentedSectionGrade`, governing revision on the class
+  due date (backdated flag), derived individualized due, Standard vs Modified from what was applied (legacy MOD with
+  a caveat), engagement ledger → legacy browser seconds → Not recorded (never "0 min"), gaps phrased as records.
+- Evidence corrections: staff `voidsEventId` records (mis-click withdrawn, both excluded from counts) and a one-time
+  note added after a one-click by its author within 15 minutes (`noteAddedAt` = server time) — rules + tests.
+- Drawer: `StudentSupportEvidencePanel` (profile in effect, MOD separate, extra-time rule, 7 one-click actions with
+  optional note / "entered in error", 90-day counts, service minutes this week, recent records, edit-profile dialog).
+  Drawer Escape now closes only the top layer.
+- Hub: `AssignmentSupportLayer` after Progress — supported students, individual deadlines (extra time AND attendance
+  extensions — backlog H5), on-demand evidence rows, per-student one-click actions filed under the assignment.
+- `ServiceLogDialog` — minutes by role/service/date/times, weekly total vs profile expectation, corrections by void.
+- Student screens show the dates the platform applies (`studentDueDateLines`: "Your due date" / "Your last day to
+  turn in"), fixing both extra time and the pre-existing attendance-extension display gap.
+- Harness: fake Firestore gained `arrayUnion`/`arrayRemove`; fake `listSignInAccess` now lists roster rows only
+  (subcollection docs were being listed as students); fixture seeds a synthetic versioned student and a legacy one.
+- Browser pass (fake school, 1440px): drawer section, one-click write + note-after + correction, service log,
+  hub layer with loaded evidence, no sideways scroll, no console errors from new code. Found + fixed: absent
+  `questionIndex` stored as 0.
+
+## Phase 5/6 checklist (next)
+
+- [ ] Student Support tools: resources (reteach / study sheet) panel with "used" records; graph paper grid on the
+      scratchpad for entitled students (+ used record)
+- [ ] Report model `supportEvidenceReport.js` (+ grade impact, instance selection by class/period, summary, timeline,
+      service, legend, limitations) + tests
+- [ ] Report view (print-first) + CSV/JSON; replace `openIEPReport`/`buildIEPReportHtml`; drawer + gradebook + roster
+      entry points
+- [ ] Journeys file for the harness; existing journeys A–K re-run
 
 ## Remaining work / known gaps
 

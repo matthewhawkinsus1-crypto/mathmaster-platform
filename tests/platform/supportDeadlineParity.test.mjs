@@ -113,3 +113,31 @@ test('the student client injects its own dates wherever assignments are loaded, 
   const fetcher = region(app, 'const fetchAssignments = async () => {', 'return fetchedAssignments;', 'fetchAssignments');
   assert.match(fetcher, /setAssignments\(assignmentsForViewer\(fetchedAssignments\)\)/);
 });
+
+// --- What the student is SHOWN -----------------------------------------------------------------
+
+test('students see the dates the platform applies to them, with no reason named', async () => {
+  const { studentDueDateLines } = await import('../../src/assignmentLifecycle.js');
+  const forStudent = withStudentSupportDates(assignment, 'S1', profileWithExtraTime());
+  const extra = studentDueDateLines(forStudent, getAssignmentLifecycle(forStudent, Date.parse('2026-10-02T17:00:00Z'), { studentId: 'S1' }));
+  assert.equal(extra.dueLabel, 'Your due date');
+  assert.equal(extra.individualizedDue, true);
+  assert.match(extra.dueText, /Oct 2/);
+  const plain = studentDueDateLines(assignment, getAssignmentLifecycle(assignment, Date.parse('2026-10-01T17:00:00Z'), { studentId: 'S2' }));
+  assert.equal(plain.dueLabel, 'Regular due');
+  assert.equal(plain.finalLabel, 'Final late due');
+  const withAttendance = { ...assignment, studentOverrides: { S3: { lateDueAt: '2026-10-07T04:59:59.999Z' } } };
+  const attended = studentDueDateLines(withAttendance, getAssignmentLifecycle(withAttendance, Date.parse('2026-10-01T17:00:00Z'), { studentId: 'S3' }));
+  assert.equal(attended.dueLabel, 'Regular due', 'an attendance extension does not move the on-time date');
+  assert.equal(attended.finalLabel, 'Your last day to turn in');
+  [extra, plain, attended].forEach((lines) => assert.doesNotMatch(JSON.stringify(lines), /extra time|IEP|504|accommodat|absen/i));
+});
+
+test('both student date displays read the student\'s lifecycle, not the class dates', () => {
+  const dashboard = readFileSync(new URL('../../src/components/student/StudentDashboardView.jsx', import.meta.url), 'utf8');
+  assert.match(dashboard, /import \{ formatDateTime, formatRemainingTime, studentDueDateLines \} from '\.\.\/\.\.\/assignmentLifecycle';/);
+  assert.match(dashboard, /const dates = studentDueDateLines\(assignment, lifecycle\);/);
+  assert.match(dashboard, /studentDueDateLines\(resumeAssignment, resumeLifecycle\)\.dueText/);
+  assert.match(app, /const dates = studentDueDateLines\(assignment, lifecycle\); return <>\{dates\.dueLabel\}: \{dates\.dueText\}<br \/>\{dates\.finalLabel\}: \{dates\.finalText\}<\/>;/);
+  assert.match(app, /studentDueDateLines,\n\} from '\.\/assignmentLifecycle';/, 'App.jsx imports what it calls');
+});

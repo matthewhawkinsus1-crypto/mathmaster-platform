@@ -112,6 +112,7 @@ import {
   getIncludedQuestionIndices,
   questionIsIncluded,
   studentAssignmentIndicesWithPracticePass,
+  studentDueDateLines,
 } from './assignmentLifecycle';
 import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './livePresence';
 import {
@@ -9619,7 +9620,7 @@ function App() {
           {lifecycle.isLate && !preview && (
             <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: '#fff4ce', border: '2px solid #f9ab00', color: '#5f4400', textAlign: 'left' }}>
               <strong style={{ display: 'block', fontSize: '20px' }}>Late submission window</strong>
-              <span>The regular deadline passed. You have <strong>{formatRemainingTime(lifecycle.millisecondsRemaining)}</strong> before this assignment closes permanently on {formatLateDueDate(assignment)}.</span>
+              <span>The regular deadline passed. You have <strong>{formatRemainingTime(lifecycle.millisecondsRemaining)}</strong> before this assignment closes permanently on {studentDueDateLines(assignment, lifecycle).finalText}.</span>
             </section>
           )}
 
@@ -9667,7 +9668,7 @@ function App() {
                 <span style={{ padding: '4px 9px', borderRadius: '999px', background: currentSectionVariantMode === 'shared' ? '#e6f4ea' : '#f3e8fd', color: currentSectionVariantMode === 'shared' ? '#137333' : '#681da8', fontSize: '11px', fontWeight: 900 }}>{currentSectionVariantMode === 'shared' ? `${currentSectionMeta.label.toUpperCase()} · SAME VERSION` : `${currentSectionMeta.label.toUpperCase()} · PERSONALIZED VERSIONS`}</span>
               </div>
               <div style={{ color: '#5f6368', fontSize: '13px', marginTop: '7px', lineHeight: 1.5 }}>
-                Regular due: {formatDueDate(assignment)}<br />Final late due: {formatLateDueDate(assignment)}
+                {(() => { const dates = studentDueDateLines(assignment, lifecycle); return <>{dates.dueLabel}: {dates.dueText}<br />{dates.finalLabel}: {dates.finalText}</>; })()}
               </div>
             </div>
 
@@ -10357,6 +10358,7 @@ function App() {
           onEditDates={(assignment) => { setAssignmentHubTarget(null); setTeacherTab('assignments'); beginEditAssignmentDates(assignment); }}
           onEditSetup={(assignment) => { setAssignmentHubTarget(null); beginEditAssignmentSetup(assignment); }}
           onEditQuestions={(assignment) => { setAssignmentHubTarget(null); openQuestionEditor(assignment); }}
+          teacherEmail={user?.email || ''}
         />
 
         {/* After the hub, so a student opened from an assignment's hub stacks
@@ -10392,6 +10394,9 @@ function App() {
           gradingPeriodSettings={gradingPeriodSettings}
           onOpenAssignment={(assignmentId, classId) => { setProfileDrawerStudentId(null); openAssignmentHub(assignmentId, classId); }}
           onOpenStudentWork={(classId, assignmentId, studentId) => { setProfileDrawerStudentId(null); openGradebookFor(classId, assignmentId, studentId); }}
+          teacherEmail={user?.role === 'teacher' ? user.email || '' : ''}
+          studentSupportProfile={profileDrawerStudent?.profile || null}
+          onSupportProfileSaved={handleSupportProfileSaved}
         />
 
         <div className="mm-dashboard-shell" style={{ maxWidth: '1360px', margin: '0 auto', background: 'var(--mm-surface)', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'stretch' }}>

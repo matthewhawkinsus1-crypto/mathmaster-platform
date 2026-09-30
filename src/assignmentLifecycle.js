@@ -183,6 +183,32 @@ export const formatDateTime = (value) => {
   });
 };
 
+/**
+ * The dates a STUDENT is shown: the ones the platform actually applies to them.
+ *
+ * `lifecycle` is getAssignmentLifecycle(assignment, now, { studentId }) on the
+ * student's own copy of the assignment, which already folds in an attendance
+ * extension and an individualized (extra-time) due date. Printing the class
+ * dates instead would tell a student "late" work was due a day before their
+ * real deadline. The wording names no reason.
+ */
+export const studentDueDateLines = (assignment, lifecycle) => {
+  const classDue = getAssignmentDate(assignment, 'due');
+  const classFinal = getAssignmentDate(assignment, 'late');
+  const due = lifecycle?.dueAt || classDue;
+  const final = lifecycle?.lateDueAt || classFinal;
+  const individualizedDue = Boolean(due && classDue && due.getTime() > classDue.getTime());
+  const individualizedFinal = Boolean(final && classFinal && final.getTime() > classFinal.getTime());
+  return {
+    dueLabel: individualizedDue ? 'Your due date' : 'Regular due',
+    dueText: formatDateTime(due),
+    finalLabel: individualizedFinal ? 'Your last day to turn in' : 'Final late due',
+    finalText: formatDateTime(final),
+    individualizedDue,
+    individualizedFinal,
+  };
+};
+
 export const formatRemainingTime = (milliseconds) => {
   if (!Number.isFinite(Number(milliseconds))) return '';
   const totalSeconds = Math.max(0, Math.ceil(Number(milliseconds) / 1000));
