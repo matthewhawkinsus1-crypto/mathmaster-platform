@@ -289,6 +289,9 @@ export default function QuestionEngine({
   // Enter on a multi-part, DOL or one-try question brings this into focus
   // instead of submitting; the student's second Enter presses it.
   const submitButtonRef = useRef(null);
+  // The latest completeness and submit, for an Enter that arrived before the
+  // render following its keystroke (see the Enter handler).
+  const enterFreshRef = useRef(null);
   const [questionResetVersion, setQuestionResetVersion] = useState(0);
   const [resettingQuestion, setResettingQuestion] = useState(false);
   const [solverWorkspaceMode, setSolverWorkspaceMode] = useState('normal');
@@ -673,6 +676,8 @@ export default function QuestionEngine({
     }
     await performSubmit();
   };
+
+  enterFreshRef.current = { isComplete: answerState.isComplete, submitDisabled: !answerState.isComplete || submitting || locked || scaffoldRequired || contextScaffoldRequired, handleSubmit };
 
   const handleMissingToolAction = async (type, payload = {}) => {
     // A hint revealed inside a tool is mathematical help, exactly like a hint
@@ -1354,25 +1359,45 @@ export default function QuestionEngine({
         //                        deliberate Enter presses it
         // Textareas, selects and the calculator keep Enter throughout.
         if (event.target?.closest?.('[data-mm-enter-owner]')) return;
+        const multipart = isComposed || countAnswerControls(questionEngineRef.current) > 1;
+        const deliberate = Boolean(dolMode) || resolvedMaximumAttempts <= 1;
         const intent = resolveQuestionEnterIntent({
           event,
           responseComplete: answerState.isComplete,
           canSubmit: shouldShowSubmit && !locked,
           // Counted, not read off the type: a one-box `multiAnswer` is a
           // single answer and keeps Enter-to-submit.
-          multipart: isComposed || countAnswerControls(questionEngineRef.current) > 1,
-          deliberateSubmit: Boolean(dolMode) || resolvedMaximumAttempts <= 1,
+          multipart,
+          deliberateSubmit: deliberate,
         });
         if (intent === 'none') return;
         if (intent === 'next-field') {
           // A composed question's stages own their Enter; only a plain form of
           // boxes gets "next box".
           if (isComposed) return;
-          const next = nextEmptyAnswerField(questionEngineRef.current, event.target);
-          if (!next) return;
           event.preventDefault();
           event.stopPropagation();
-          focusForEnter(next);
+          const next = nextEmptyAnswerField(questionEngineRef.current, event.target);
+          if (next) {
+            focusForEnter(next);
+            return;
+          }
+          // Every box on the page is filled, but this render has not caught up
+          // with the keystroke just before Enter ("6⏎" typed quickly left the
+          // question looking incomplete and Enter did nothing). Decide once the
+          // answer state has caught up — a few frames — from fresh state.
+          const deadline = performance.now() + 400;
+          const decideWhenCurrent = () => {
+            const fresh = enterFreshRef.current;
+            if (!fresh?.isComplete) {
+              if (performance.now() < deadline) window.requestAnimationFrame(decideWhenCurrent);
+              return;
+            }
+            if (fresh.submitDisabled) return;
+            if (multipart || deliberate) focusForEnter(submitButtonRef.current);
+            else fresh.handleSubmit();
+          };
+          window.requestAnimationFrame(decideWhenCurrent);
           return;
         }
         if (submitDisabled) return;

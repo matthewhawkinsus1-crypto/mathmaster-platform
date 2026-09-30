@@ -149,9 +149,15 @@ test('QuestionEngine counts the boxes and treats a DOL or one-try item as delibe
   const engine = executableSource(read('src/QuestionEngine.jsx'));
   const capture = engine.slice(engine.indexOf('onKeyDownCapture={(event) => {'), engine.indexOf('style={{ position: \'relative\', padding: \'10px\''));
   assert.match(capture, /if \(event\.target\?\.closest\?\.\('\[data-mm-enter-owner\]'\)\) return;/, 'a field that owns Enter keeps it');
-  assert.match(capture, /multipart: isComposed \|\| countAnswerControls\(questionEngineRef\.current\) > 1/);
-  assert.match(capture, /deliberateSubmit: Boolean\(dolMode\) \|\| resolvedMaximumAttempts <= 1/);
+  assert.match(capture, /const multipart = isComposed \|\| countAnswerControls\(questionEngineRef\.current\) > 1;/);
+  assert.match(capture, /const deliberate = Boolean\(dolMode\) \|\| resolvedMaximumAttempts <= 1;/);
+  assert.match(capture, /resolveQuestionEnterIntent\(\{[\s\S]*?multipart,[\s\S]*?deliberateSubmit: deliberate,/);
   assert.match(capture, /intent === 'focus-submit'\) focusForEnter\(submitButtonRef\.current\)/);
+  // "6⏎" typed quickly: every box is filled but the render has not caught up.
+  // Enter is decided a few frames later from fresh state, not dropped.
+  assert.match(capture, /const decideWhenCurrent = \(\) => \{\s*const fresh = enterFreshRef\.current;/);
+  assert.match(capture, /if \(multipart \|\| deliberate\) focusForEnter\(submitButtonRef\.current\);\s*else fresh\.handleSubmit\(\);/);
+  assert.match(engine, /enterFreshRef\.current = \{ isComplete: answerState\.isComplete, submitDisabled: !answerState\.isComplete \|\| submitting \|\| locked \|\| scaffoldRequired \|\| contextScaffoldRequired, handleSubmit \};/, 'the same gates as the Submit button');
   assert.match(engine, /<button ref=\{submitButtonRef\}/);
   const input = executableSource(read('src/MathInput.jsx'));
   assert.match(input, /data-mm-enter-owner=\{onSubmit \? 'field' : undefined\}/);
