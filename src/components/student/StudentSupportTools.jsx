@@ -17,12 +17,12 @@ const WHERE = {
   'graph-paper': 'Open ✎ Scratchpad — it opens on graph paper.',
 };
 
-export default function StudentSupportTools({ profile = null, onResourceOpened = null, nowValue = null }) {
+export default function StudentSupportTools({ profile = null, onResourceOpened = null, nowValue = null, className = '' }) {
   const [open, setOpen] = useState(false);
   const { tools, resources, any } = studentSupportTools(profile, { nowValue: nowValue ?? Date.now() });
   if (!any) return null;
   return (
-    <div className="mathmaster-support-tools" data-student-support-tools style={{ marginTop: 8 }}>
+    <div className={`mathmaster-support-tools${className ? ` ${className}` : ''}`} data-student-support-tools style={{ marginTop: 8 }}>
       <button
         type="button"
         aria-expanded={open}

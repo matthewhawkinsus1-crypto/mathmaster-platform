@@ -65,3 +65,41 @@ test('the panel is for real student work only, and an opened link is a recorded 
   assert.match(panel, /onClick=\{\(\) => onResourceOpened\?\.\(resource\.supportId\)\}/);
   assert.match(panel, /if \(!any\) return null;/);
 });
+
+// Top-level @media blocks of a stylesheet, found by brace matching.
+const mediaBlocks = (css) => {
+  const blocks = [];
+  let at = css.indexOf('@media');
+  while (at !== -1) {
+    const open = css.indexOf('{', at);
+    let depth = 1;
+    let index = open + 1;
+    while (depth > 0 && index < css.length) {
+      if (css[index] === '{') depth += 1;
+      if (css[index] === '}') depth -= 1;
+      index += 1;
+    }
+    blocks.push({ query: css.slice(at, open).trim(), body: css.slice(open + 1, index - 1) });
+    at = css.indexOf('@media', index);
+  }
+  return blocks;
+};
+
+test('where the assignment header is hidden, the same panel is in the expanded navigator instead', () => {
+  const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
+  const nav = region(app, 'className={`mathmaster-assignment-unified-nav', '</nav>', 'assignment navigator');
+  const narrow = region(nav, "{!assignmentNavigationCollapsed && !preview && user?.role === 'student' && (", '/>', 'narrow Support tools mount');
+  assert.match(narrow, /<StudentSupportTools\s+className="mathmaster-narrow-support-tools"/);
+  assert.match(narrow, /onResourceOpened=\{\(supportId\) => recordStudentSupportEvidence\(\{ supportId, eventType: 'used'/);
+  const panel = readFileSync(new URL('../../src/components/student/StudentSupportTools.jsx', import.meta.url), 'utf8');
+  assert.match(panel, /className=\{`mathmaster-support-tools\$\{className \? ` \$\{className\}` : ''\}`\}/);
+
+  const stylesheets = ['../../src/App.css', '../../src/components/student/MathToolMobileLayout.css']
+    .map((file) => readFileSync(new URL(file, import.meta.url), 'utf8'));
+  assert.match(stylesheets[0], /^\.mathmaster-narrow-support-tools \{\n {2}display: none;\n\}/m, 'hidden wherever the header shows');
+  const hidesHeader = /\.mathmaster-assignment-screen \.mathmaster-assignment-header[^{]*\{\s*display: none/;
+  const showsPanel = /\.mathmaster-assignment-screen \.mathmaster-narrow-support-tools \{\s*display: block;/;
+  const headerless = stylesheets.flatMap(mediaBlocks).filter((block) => hidesHeader.test(block.body));
+  assert.ok(headerless.length >= 2, 'phone portrait and short landscape both hide the header');
+  headerless.forEach((block) => assert.match(block.body, showsPanel, `${block.query} hides the header, so it must show the panel`));
+});

@@ -204,7 +204,7 @@ const journeys = {
     const [download] = await Promise.all([page.waitForEvent('download'), report.getByRole('button', { name: 'CSV' }).click()]);
     expect('T6', /^MathMaster-support-evidence_910002_.*\.csv$/.test(download.suggestedFilename()), `CSV named by student and dates (${download.suggestedFilename()})`);
     const csv = readFileSync(await download.path(), 'utf8');
-    expect('T6', /^Assignment,Assignment ID,Class due,Individualized due/.test(csv), 'CSV header');
+    expect('T6', csv.startsWith('Assignment,Assignment ID,Class due,Individualized due'), 'CSV header');
     await report.getByRole('button', { name: 'Expand all' }).click();
     await page.emulateMedia({ media: 'print' });
     await page.waitForTimeout(400);
@@ -230,8 +230,18 @@ const journeys = {
     await page.getByRole('button', { name: 'Read aloud' }).first().waitFor({ timeout: 60000 });
     await page.waitForTimeout(2000);
     const header = await text(page.locator('body'));
-    expect('S1', /Your due date: /.test(header), 'the assignment header shows the individualized due date');
-    const tools = page.locator('[data-student-support-tools]');
+    if (await page.locator('.mathmaster-assignment-header').isVisible()) {
+      expect('S1', /Your due date: /.test(header), 'the assignment header shows the individualized due date');
+    } else {
+      // Phones and portrait tablets hide the assignment header by design (the
+      // dashboard above carries the date); Support tools move to the expanded
+      // navigator, which the student opens with "Show progress".
+      const show = page.getByRole('button', { name: 'Show progress' });
+      if (await show.count()) await show.first().click();
+      await page.waitForTimeout(600);
+    }
+    const tools = page.locator('[data-student-support-tools]:visible');
+    expect('S1', await tools.count() === 1, `exactly one Support tools panel is reachable (${await tools.count()})`);
     await tools.getByRole('button', { name: /Support tools/ }).click();
     const toolText = await text(tools);
     expect('S1', /Read aloud/.test(toolText) && /Calculator/.test(toolText) && !/accommodat|IEP|modif/i.test(toolText), `neutral Support tools (${toolText})`);

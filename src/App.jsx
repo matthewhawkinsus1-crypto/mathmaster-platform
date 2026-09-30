@@ -9856,6 +9856,13 @@ function App() {
               </div>
             </div>
             )}
+            {!assignmentNavigationCollapsed && !preview && user?.role === 'student' && (
+              <StudentSupportTools
+                className="mathmaster-narrow-support-tools"
+                profile={user.profile}
+                onResourceOpened={(supportId) => recordStudentSupportEvidence({ supportId, eventType: 'used', activityRole: runtimeActivityRole })}
+              />
+            )}
             {!preview && dolState.status === 'active' && (
               <div className="mathmaster-unified-nav-alert">DOL open{supportPresentation.hideCountdowns ? '' : ` · ${formatRemainingTime(dolState.millisecondsRemaining)}`}</div>
             )}
