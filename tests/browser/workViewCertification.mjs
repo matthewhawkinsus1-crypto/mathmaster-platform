@@ -356,6 +356,13 @@ for (const device of certificationDevices) {
     mkdirSync(familyDir, { recursive: true });
     const problems = [];
 
+    // A killed browser process (the VM's memory reaper, not the app) cannot be
+    // recovered by a new page. Stop with one clear line rather than turning
+    // every remaining scene into a bogus finding.
+    if (!browser.isConnected()) {
+      console.error(`Stage 4 stopped at ${device.id} · ${toolId}: the browser process exited (killed?). Nothing after this point was certified.`);
+      process.exit(2);
+    }
     const started = Date.now();
     try {
       await page.evaluate((id) => window.__mmStage4(id), toolId);
