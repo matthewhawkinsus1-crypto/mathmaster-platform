@@ -118,16 +118,19 @@ export const buildCaseTimeline = ({
       entries.push(entry({ atMs: row.individualizedDue.dueAtMs, kind: 'individual-due', label: `${assignment.title} individualized due date`, detail: 'From the support profile\'s extra-time rule', provenance: CASE_PROVENANCE.DERIVED, assignmentId: row.assignmentId }));
     }
     const extension = completion?.reopened?.attendanceExtension;
-    if (extension && Number.isFinite(extension.grantedAtMs)) {
+    // Each recorded grant is its own event; an extension from before the
+    // grant history has only its latest grant.
+    const extensionGrants = extension?.grants?.length ? extension.grants : (extension ? [extension] : []);
+    extensionGrants.filter((grant) => Number.isFinite(grant.grantedAtMs)).forEach((grant) => {
       entries.push(entry({
-        atMs: extension.grantedAtMs,
+        atMs: grant.grantedAtMs,
         kind: 'attendance-extension',
         label: `Attendance extension recorded for ${assignment.title}`,
-        detail: [Number.isFinite(extension.finalAtMs) ? `last day to turn in ${dayText(extension.finalAtMs)}` : '', extension.meetingsGranted ? `${extension.meetingsGranted} class meeting${extension.meetingsGranted === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · '),
+        detail: [Number.isFinite(grant.finalAtMs) ? `last day to turn in ${dayText(grant.finalAtMs)}` : '', grant.meetingsGranted ? `${grant.meetingsGranted} class meeting${grant.meetingsGranted === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · '),
         provenance: CASE_PROVENANCE.DIRECT,
         assignmentId: row.assignmentId,
       }));
-    }
+    });
     entries.push(...workDayEntries({ assignment, events, questions }));
     (completion?.sessions?.ledger || []).forEach((session) => {
       entries.push(entry({

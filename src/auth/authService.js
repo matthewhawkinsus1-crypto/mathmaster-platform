@@ -269,6 +269,13 @@ export const teacherAdmin = {
   /** Gives existing evidence/mastery/scratchpads the fields the rules read. */
   backfillRecordAuthorization: (dryRun = false) =>
     callable('backfillRecordAuthorization')({ dryRun }).then((result) => result.data || {}),
+  /** Moves attendance-extension details off shared assignments (dry run unless dryRun is false). */
+  migrateAssignmentPrivacy: (dryRun = true) =>
+    callable('migrateAssignmentPrivacy')({ dryRun }).then((result) => result.data || {}),
+  /** Reads (no argument) or sets class-scoped assignment lists for students. */
+  setAssignmentReadScope: (studentListScoped) =>
+    callable('setAssignmentReadScope')(typeof studentListScoped === 'boolean' ? { studentListScoped } : {})
+      .then((result) => result.data || {}),
   /** Put a student in a class, move them, or take them out (classId: null). */
   setStudentClass: ({ studentId, classId }) =>
     callable('setStudentClass')({ studentId, classId: classId || '' }).then((result) => result.data || {}),

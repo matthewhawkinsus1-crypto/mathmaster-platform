@@ -537,6 +537,18 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
+      // Attendance-extension grants: why a student's deadline moved (absence
+      // dates, meetings, the granting teacher). One immutable record per
+      // grant, written only by `applyStudentAttendanceExtension` and the
+      // privacy migration (Admin SDK). The shared assignment document keeps
+      // only the deadline (functions/shared/assignmentPrivacy.mjs). Staff
+      // only: classmates never could need this, and the student's own screens
+      // read only their deadline.
+      match /attendanceExtensionGrants/{grantId} {
+        allow read: if rootAdmin() || teachesPresenceStudent(studentId) || authorizedTeacher();
+        allow create, update, delete: if false;
+      }
+
       // Server-timed active-engagement minutes, one ledger per assignment per
       // UTC day. Written only by the student's own client, only ever growing.
       match /engagementMinutes/{ledgerId} {
@@ -1008,8 +1020,37 @@ service cloud.firestore {
     // `teacher()` rule has no roster/class scoping at all, so allowing this
     // field through it would let any teacher move any other class's
     // student's deadline.
+    //
+    // READING. Any signed-in user may open one assignment by id. LISTING is
+    // narrower for a student once the transition switch is on: a student's
+    // list must be their own class's assignments (assignedClassIds contains
+    // the class on their roster row), so a device no longer downloads every
+    // class's assignments and every other class's per-student entries.
+    // Old student tabs list the whole collection, and a rule that refused
+    // them would cut off their live assignment updates mid-day, so the
+    // narrowing waits on `platformFlags/assignmentReadScope.studentListScoped`
+    // — set by a root administrator (`setAssignmentReadScope`) once this
+    // release's client has been live for a school day (PR #407 deep dive §8,
+    // "pair a rule that removes access with a client release one release
+    // earlier"; functions/shared/assignmentPrivacy.mjs).
+    function studentAssignmentListScoped() {
+      let flag = /databases/$(database)/documents/platformFlags/assignmentReadScope;
+      return exists(flag) && get(flag).data.get('studentListScoped', false) == true;
+    }
+
+    function studentListsOwnClassAssignments() {
+      return signedIn()
+        && request.auth.token.get('role', '') == 'student'
+        && resource.data.assignedClassIds.hasAny([
+          rosterRow(request.auth.token.get('studentId', '')).get('classId', '')
+        ]);
+    }
+
     match /assignments/{assignmentId} {
-      allow read: if signedIn();
+      allow get: if signedIn();
+      allow list: if teacher()
+        || studentListsOwnClassAssignments()
+        || (signedIn() && !studentAssignmentListScoped());
       allow create: if teacher()
         && !request.resource.data.keys().hasAny(['studentOverrides']);
       allow delete: if teacher();
@@ -1280,6 +1321,14 @@ service cloud.firestore {
     match /settings/{docId} {
       allow read: if signedIn();
       allow create, update, delete: if teacher();
+    }
+
+    // Platform transition switches (shared/assignmentPrivacy.mjs). Every
+    // signed-in client may read them — the rules above read them too — and
+    // only audited root-admin callables (Admin SDK) change them.
+    match /platformFlags/{flagId} {
+      allow read: if signedIn();
+      allow create, update, delete: if false;
     }
 
     // Classes are the authoritative record of who teaches what course to whom,

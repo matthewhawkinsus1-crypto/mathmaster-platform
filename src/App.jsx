@@ -61,6 +61,15 @@ import { generateQuestion, isPersonalizedBlueprint } from './problemGenerator';
 import { buildStudentFamilyContext, readLocalDeliveryPin, writeLocalDeliveryPin } from './platform/generation/familyDelivery.js';
 import { familySlotKey, isFamilyBackedQuestion } from '../functions/shared/questionFamilyInstance.mjs';
 import { normalizeDeliveryPin } from '../functions/shared/questionGenerationIdentity.mjs';
+import { stripAssignmentInstanceState } from '../functions/shared/assignmentPrivacy.mjs';
+import {
+  fetchAssignmentsById,
+  fetchStudentAssignments,
+  mergeStudentAssignments,
+  priorWorkAssignmentIds,
+  subscribeStudentClassAssignments,
+  workedAssignmentKey,
+} from './platform/assignments/studentAssignmentScope.js';
 import {
   GENERATION_SEATS_VERSION,
   generationSeatPlanSignature,
@@ -1688,8 +1697,41 @@ function App() {
     return () => window.clearTimeout(timer);
   }, [user, assignments, classSchedule, now]);
 
+  /*
+   * A STUDENT'S DEVICE LISTENS TO ITS OWN CLASS, NOT THE SCHOOL.
+   *
+   * Students: their class's assignments live, plus — read once, by id — any
+   * assignment they have work on from before a class move
+   * (platform/assignments/studentAssignmentScope.js). Every other class's
+   * assignments, and the per-student entries on them, never reach the device,
+   * and an edit to another class's assignment no longer wakes it.
+   * Teachers keep the whole collection: their screens span classes.
+   */
+  const studentClassAssignmentsRef = useRef([]);
+  const studentPriorWorkAssignmentsRef = useRef([]);
+  const publishStudentAssignments = () => {
+    setAssignments(assignmentsForViewer(mergeStudentAssignments(
+      studentClassAssignmentsRef.current,
+      studentPriorWorkAssignmentsRef.current,
+    )));
+  };
+
   useEffect(() => {
     if (!user) return undefined;
+
+    if (user.role === 'student') {
+      return subscribeStudentClassAssignments({
+        db,
+        classId: user.classId,
+        onChange: (classAssignments) => {
+          studentClassAssignmentsRef.current = classAssignments;
+          publishStudentAssignments();
+          // A teacher DOL unlock is an assignment update; see below.
+          setNow(Date.now());
+        },
+        onError: (error) => console.error('Assignment live update failed:', error),
+      });
+    }
 
     const unsubscribe = onSnapshot(
       collection(db, 'assignments'),
@@ -1712,6 +1754,34 @@ function App() {
 
     return unsubscribe;
   }, [user]);
+
+  // Work a student did under an earlier class: read once per change in the
+  // SET of assignments they have work on (not on every answer), by id.
+  const studentWorkedAssignmentKey = user?.role === 'student' ? workedAssignmentKey(tracker) : '';
+  useEffect(() => {
+    if (user?.role !== 'student' || !studentWorkedAssignmentKey) return undefined;
+    let cancelled = false;
+    const loadedIds = [
+      ...studentClassAssignmentsRef.current,
+      ...studentPriorWorkAssignmentsRef.current,
+    ].map((assignment) => assignment.id);
+    const missing = priorWorkAssignmentIds({
+      gradesByAssignment: Object.fromEntries(studentWorkedAssignmentKey.split('|').map((id) => [id, true])),
+      loadedIds,
+    });
+    if (!missing.length) return undefined;
+    fetchAssignmentsById(db, missing)
+      .then((fetched) => {
+        if (cancelled || !fetched.length) return;
+        studentPriorWorkAssignmentsRef.current = mergeStudentAssignments(studentPriorWorkAssignmentsRef.current, fetched);
+        publishStudentAssignments();
+      })
+      .catch((error) => console.warn('Could not load earlier-class assignments:', error));
+    return () => { cancelled = true; };
+    // publishStudentAssignments reads refs and the current user; the key is
+    // what decides whether there is anything new to read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.role, user?.id, studentWorkedAssignmentKey]);
 
   // Pacing and overrides are advisory: a failure here must not stop a teacher
   // signing in, so it degrades to defaults rather than rejecting the login.
@@ -2756,9 +2826,9 @@ function App() {
       setSessionHydrating(true);
       setSessionHydrationError(null);
       try {
-        const fetchedAssignments = await fetchAssignments();
-        if (cancelled) return;
         if (session.role === 'teacher') {
+          await fetchAssignments();
+          if (cancelled) return;
           // Identity and classes first: the roster fetch is scoped by them, so
           // asking for students before they are known would read the school.
           viewerRef.current = { email: session.email || null, isRootAdmin: session.isRootAdmin === true };
@@ -2795,6 +2865,21 @@ function App() {
         const studentSnapshot = await getDoc(doc(db, 'grades', studentId));
         if (!studentSnapshot.exists()) throw new Error('Your student record is not available. Ask your teacher to add you to the roster.');
         const studentData = studentSnapshot.data() || {};
+        // The student's own class, plus anything they have work on from an
+        // earlier one — never the whole collection (studentAssignmentScope.js).
+        const savedResumeTarget = readResumeAction(studentId);
+        const fetchedAssignments = await fetchStudentAssignments({
+          db,
+          classId: studentData.classId || null,
+          gradesByAssignment: studentData.gradesByAssignment || {},
+          extraIds: savedResumeTarget?.assignmentId ? [savedResumeTarget.assignmentId] : [],
+        });
+        if (cancelled) return;
+        studentClassAssignmentsRef.current = fetchedAssignments
+          .filter((assignment) => Array.isArray(assignment.assignedClassIds) && assignment.assignedClassIds.includes(studentData.classId));
+        studentPriorWorkAssignmentsRef.current = fetchedAssignments
+          .filter((assignment) => !studentClassAssignmentsRef.current.includes(assignment));
+        setAssignments(fetchedAssignments);
         const studentProfile = normalizeStudentProfile(studentData.profile || studentData);
         const loadedCourseProfiles = await fetchCourseProfiles();
         await fetchClassSchedule();
@@ -8238,13 +8323,17 @@ function App() {
         throw new Error(`The copy cannot be created until MathMaster’s assignment checks are clean:\n${model.errors.join('\n')}`);
       }
       const persistence = canonicalV5PersistencePatch(model.assignmentV5);
+      // A copy carries the content, never the source's instance state:
+      // students' overrides (which the create rule refuses anyway, so any
+      // assignment with an extension could not be duplicated) and each
+      // class's DOL/Warm-Up runtime state (shared/assignmentPrivacy.mjs).
       const {
         id: _id,
         archived: _archived,
         contentLineage: _contentLineage,
         contentUpgrade: _contentUpgrade,
         ...rest
-      } = assignment;
+      } = stripAssignmentInstanceState(assignment);
       await addDoc(collection(db, 'assignments'), {
         ...rest,
         ...persistence,

@@ -4,6 +4,14 @@ const crypto = require("crypto");
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
+/*
+ * A content release is a new, unassigned library document built from the
+ * stored one. It must carry the content and none of the source's instance
+ * state — students' overrides and every class's DOL/Warm-Up runtime state
+ * (functions/shared/assignmentPrivacy.mjs). That module is ESM and shared with
+ * the browser, so the caller hands its filter in; a release is refused without
+ * it rather than built with students' records in it.
+ */
 function prepareContentRelease({
   sourceAssignment,
   reviewedAssignment,
@@ -11,7 +19,11 @@ function prepareContentRelease({
   nextVersion,
   actorUid,
   auditId = null,
+  stripInstanceState = null,
 } = {}) {
+  if (typeof stripInstanceState !== "function") {
+    throw new Error("A content release needs the instance-state filter (assignmentPrivacy.stripAssignmentInstanceState).");
+  }
   if (!sourceAssignment?.id) throw new Error("A stored source assignment is required.");
   if (!reviewedAssignment || Number(reviewedAssignment.schemaVersion) !== 5) {
     throw new Error("A reviewed Assignment V5 is required.");
@@ -23,7 +35,7 @@ function prepareContentRelease({
     throw new Error("The successor content version must be at least 2.");
   }
 
-  const release = { ...reviewedAssignment };
+  const release = stripInstanceState({ ...reviewedAssignment });
   delete release.id;
   delete release.archived;
   delete release.createdAt;

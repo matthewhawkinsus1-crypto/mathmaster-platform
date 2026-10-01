@@ -25,6 +25,7 @@ import {
   SIS_SNAPSHOT_SUBCOLLECTION, buildSisSnapshotDocument, snapshotFromDocument,
 } from '../../../functions/shared/sisGradebookSnapshot.mjs';
 import { CASE_EVIDENCE_LIMITS } from '../../../functions/shared/caseReviewEvidence.mjs';
+import { ATTENDANCE_EXTENSION_GRANTS_COLLECTION } from '../../../functions/shared/assignmentPrivacy.mjs';
 import { fetchStudentGradeRecord, loadStudentSupportRecords } from '../supportEvidence/supportEvidenceStore.js';
 import { selectReportAssignments } from '../supportEvidence/supportEvidenceReport.js';
 import { fetchStudentSupportHistory } from '../teacher/studentSupportStore.js';
@@ -75,6 +76,23 @@ export const fetchSavedSisSnapshots = async ({ db, studentId, max = 5 } = {}) =>
   });
 };
 
+/**
+ * The student's attendance-extension grants, newest first: why a deadline
+ * moved, kept privately per student (functions/shared/assignmentPrivacy.mjs).
+ * The teacher of record may read them; the shared assignment keeps only the
+ * deadline.
+ */
+export const fetchAttendanceExtensionGrants = async ({ db, studentId, max = 300 } = {}) => {
+  const id = clean(studentId);
+  if (!db || !id) return [];
+  const snapshot = await getDocs(query(
+    collection(db, 'grades', id, ATTENDANCE_EXTENSION_GRANTS_COLLECTION),
+    orderBy('grantedAtMs', 'desc'),
+    limit(Math.max(1, Math.min(500, Number(max) || 300))),
+  ));
+  return snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() }));
+};
+
 /** Save one student's imported rows with their case file. Read-only analysis; changes no grade. */
 export const saveSisSnapshot = async ({
   db, student, extracted, layout, fileName, confirmedMatches = {}, teacherEmail, nowMs = Date.now(),
@@ -113,13 +131,14 @@ export const loadStudentCaseRecords = async ({
   });
 
   // Optional: each degrades to "not loaded".
-  const [history, transfer, evidence, saved] = await Promise.allSettled([
+  const [history, transfer, evidence, saved, grants] = await Promise.allSettled([
     fetchStudentSupportHistory({ db, teacherEmail, studentId, supportLimit: 300, sessionLimit: 365 }),
     fullStudent.classId ? loadTeacherGradeTransferState({ classIds: [fullStudent.classId] }) : Promise.resolve(null),
     assignmentIds.length && functions
       ? loadCaseEvidence({ functions, studentId, fromMs: window.fromMs, toMs: window.toMs, assignmentIds })
       : Promise.resolve(null),
     fetchSavedSisSnapshots({ db, studentId }),
+    fetchAttendanceExtensionGrants({ db, studentId }),
   ]);
   const historyValue = settledValue(history);
   const transferValue = settledValue(transfer);
@@ -141,6 +160,8 @@ export const loadStudentCaseRecords = async ({
     caseEvidenceError: caseEvidence ? '' : (settledError(evidence) || (assignmentIds.length ? 'not available' : '')),
     savedSnapshots: settledValue(saved) || [],
     savedSnapshotsError: settledError(saved),
+    // undefined = not loaded (the model then falls back to the shared stub).
+    extensionGrants: grants.status === 'fulfilled' ? grants.value : undefined,
     loadedAtMs: nowMs,
   };
 };

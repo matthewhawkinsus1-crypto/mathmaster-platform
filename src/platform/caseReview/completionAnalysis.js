@@ -86,6 +86,7 @@ export const analyzeAssignmentCompletion = ({
   practice = undefined,
   receipts = undefined,
   studentOverride = null,
+  extensionGrants = undefined,
   recovery = null,
   challenge = null,
   nowValue = Date.now(),
@@ -132,7 +133,22 @@ export const analyzeAssignmentCompletion = ({
   const attemptsAfterDue = dueAtMs === null ? 0 : eventTimes.filter((atMs) => atMs > dueAtMs && (finalAtMs === null || atMs <= finalAtMs)).length;
 
   // Reopened: an attendance extension, a Recovery, a teacher DOL grant.
+  //
+  // Why a deadline moved is kept privately, one record per grant
+  // (grades/{student}/attendanceExtensionGrants — shared/assignmentPrivacy.mjs);
+  // the shared assignment keeps only the deadline and a stub. An extension
+  // granted before that, and not yet migrated, still has its details on the
+  // stub, so those are the fallback.
   const extension = studentOverride?.extension || null;
+  const grants = list(extensionGrants)
+    .filter((grant) => clean(grant?.assignmentId) === clean(row?.assignmentId))
+    .map((grant) => ({
+      grantedAtMs: finite(grant.grantedAtMs) ?? millis(grant.grantedAt),
+      meetingsGranted: finite(grant.meetingsGranted),
+      finalAtMs: millis(grant.lateDueAt),
+    }))
+    .sort((a, b) => (a.grantedAtMs ?? 0) - (b.grantedAtMs ?? 0));
+  const latestGrant = grants.length ? grants[grants.length - 1] : null;
   const recoveries = Object.entries(recovery || {})
     .filter(([section, entry]) => ['warmup', 'dol'].includes(section) && entry && typeof entry === 'object')
     .map(([section, entry]) => ({
@@ -143,11 +159,15 @@ export const analyzeAssignmentCompletion = ({
       recordedScore: finite(entry.recordedScoreAtCompletion),
     }));
   const reopened = {
-    attendanceExtension: studentOverride?.lateDueAt || extension
+    attendanceExtension: studentOverride?.lateDueAt || extension || latestGrant
       ? {
         finalAtMs: finite(row?.attendanceFinalAtMs),
-        grantedAtMs: finite(extension?.grantedAt) ?? millis(extension?.grantedAt),
-        meetingsGranted: finite(extension?.meetingsGranted),
+        grantedAtMs: latestGrant?.grantedAtMs ?? finite(extension?.grantedAt) ?? millis(extension?.grantedAt),
+        meetingsGranted: latestGrant?.meetingsGranted ?? finite(extension?.meetingsGranted),
+        // Every recorded grant, oldest first; empty when the history was not
+        // loaded or the extension predates it.
+        grants,
+        source: grants.length ? 'grant-history' : 'assignment-stub',
         provenance: CASE_PROVENANCE.DIRECT,
       }
       : null,

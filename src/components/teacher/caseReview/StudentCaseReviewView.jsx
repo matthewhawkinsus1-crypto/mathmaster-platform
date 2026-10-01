@@ -179,6 +179,7 @@ export default function StudentCaseReviewView({
       practicePassKeys: records.practicePassKeys,
       caseEvidence: records.caseEvidence,
       caseEvidenceError: records.caseEvidenceError,
+      extensionGrants: records.extensionGrants,
       sisSnapshot: sis.snapshot,
       sisConfirmedMatches: sis.confirmedMatches,
       nowValue: records.loadedAtMs,

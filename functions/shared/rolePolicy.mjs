@@ -94,6 +94,9 @@ export const ADMIN_ONLY_OPERATIONS = Object.freeze([
   'setClassStatus',
   'migrateClassesFromPeriods',
   'backfillRecordAuthorization',
+  // Student privacy on shared assignments (shared/assignmentPrivacy.mjs).
+  'migrateAssignmentPrivacy',
+  'setAssignmentReadScope',
   'seedPathQuestionBank',
   'initializeStarterPathQuestionBank',
   'refreshBuiltInCoursePathBank',

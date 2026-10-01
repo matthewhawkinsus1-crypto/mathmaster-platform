@@ -1,9 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { stripAssignmentInstanceState } from '../../functions/shared/assignmentPrivacy.mjs';
 
 const require = createRequire(import.meta.url);
-const { prepareContentRelease } = require('../../functions/lib/assignmentContentVersion.js');
+const { prepareContentRelease: prepareContentReleaseRaw } = require('../../functions/lib/assignmentContentVersion.js');
+// The callable always hands in the instance-state filter (a release must not
+// carry students' overrides — see assignmentPrivacy.test.mjs); these cases are
+// about the release's own shape, so they use the same filter.
+const prepareContentRelease = (args) => prepareContentReleaseRaw({ ...args, stripInstanceState: stripAssignmentInstanceState });
 
 test('creating first successor makes Content V2 while schema remains V5', () => {
   const sourceAssignment = {
