@@ -318,6 +318,16 @@ const SPOILED = {
     notation: '(-∞, -3] U (2, 8)',
   }),
   systemsWorkspace: (work) => ({ ...work, classification: 'none' }),
+  // z read off the wrong row of the RREF.
+  systemsWorkspaceMatrix3: (work) => ({ ...work, z: '2' }),
+  // The marked point is outside the region; calling it a solution is wrong.
+  systemsWorkspaceInequalities: (work) => ({ ...work, testChoice: 'yes' }),
+  // y < -x + 4 drawn with a solid boundary: its points are still on the line,
+  // so only reading the style can tell.
+  systemsWorkspaceInequalityConstruct: (work) => ({
+    ...work,
+    construction: work.construction.map((entry, index) => (index === 1 ? { ...entry, boundaryStyle: 'solid' } : entry)),
+  }),
   dataModelingLab: (work) => ({ ...work, r: 0.25 }),
   regressionCalculator: (work) => ({
     ...work,
@@ -346,4 +356,92 @@ test('every captured tool has a wrong-answer case, so none passes by not being r
   Object.keys(CAPTURED).forEach((key) => {
     assert.ok(SPOILED[key], `${key} is only ever tested with a correct answer`);
   });
+});
+
+// A judgment left unanswered is not an answer (src/tools/shared/judgmentChoices.js).
+// The tools now open every such choice on "Choose…"; on the server, the same
+// blank in the real captured shape must never earn the mark — refused as
+// incomplete or graded wrong, never read as the answer.
+const UNANSWERED = {
+  systemsWorkspace: (work) => ({ ...work, classification: '' }),
+  systemsWorkspaceMatrix3: (work) => ({ ...work, classification: '' }),
+  // A blank used to read as "no", which is this question's answer.
+  systemsWorkspaceInequalities: (work) => ({ ...work, testChoice: '' }),
+  systemsWorkspaceInequalityConstruct: (work) => ({
+    ...work,
+    construction: work.construction.map((entry) => ({ ...entry, boundaryStyle: '', shade: '' })),
+  }),
+  dataModelingLab: (work) => ({ ...work, direction: '', strength: '' }),
+};
+
+test('a judgment the student left unanswered earns nothing on the real shapes', () => {
+  Object.entries(UNANSWERED).forEach(([key, blank]) => {
+    assert.ok(CAPTURED[key], `${key} has no capture to blank`);
+    const result = gradePathResponse({
+      privateGrading: buildPrivateToolGrading(questionFor(key)),
+      raw: blank(CAPTURED[key].rawWork),
+    });
+    assert.equal(result.isCorrect, false, `${key} credited an unanswered choice: ${JSON.stringify(result)}`);
+  });
+});
+
+test('the systems modes with no capture are the ones a Path never issues', () => {
+  // The Path contract grades the linear, 3×3 matrix-technology and inequality
+  // (read the region / graph it) modes, and each has a capture above. Every
+  // other mode is not issued at all — no payload, so no wire format to check.
+  // If one becomes gradable this fails, and it needs a capture like the rest.
+  const xyz = ['x', 'y', 'z'];
+  const notIssued = {
+    'algebraic 3×3 (substitution / elimination)': { type: 'systemsWorkspace', mode: 'algebraic', prompt: 'Solve the system.', equations: ['x + y + z = 6', 'x - y + z = 2', '2x + y - z = 1'], variables: xyz },
+    'algebraic 2×2': { type: 'systemsWorkspace', mode: 'algebraic', prompt: 'Solve the system.', equations: ['x + y = 3', 'x - y = 1'], variables: ['x', 'y'] },
+    'three planes': { type: 'systemsWorkspace', mode: 'spatial', prompt: 'Describe how the planes meet.', equations: ['x + y + z = 6', 'x - y + z = 2', '2x + y - z = 1'], variables: xyz },
+    'linear-quadratic': { type: 'systemsWorkspace', mode: 'linearQuadratic', prompt: 'Solve the system.', linear: { m: 1, b: 1 }, quadratic: { a: 1, b: 0, c: -1 } },
+    '2×2 matrix': { type: 'systemsWorkspace', mode: 'matrix', prompt: 'Solve the system.', matrix: { a11: 1, a12: 1, b1: 3, a21: 1, a22: -1, b2: 1 } },
+    'student-built inequalities': {
+      type: 'systemsWorkspace', mode: 'inequalities', prompt: 'Graph the system.',
+      inequalities: [{ m: 1, b: 0, relation: '>=' }, { m: -1, b: 4, relation: '<' }],
+      studentBuild: { boundary: true, lineStyle: true, shading: true },
+    },
+  };
+  Object.entries(notIssued).forEach(([name, question]) => {
+    assert.equal(isPathEligible(question), false, `${name} is issued on a Path now — capture what it sends`);
+    assert.equal(buildPublicToolPayload(question), null, `${name} must not be issued`);
+  });
+  // Student-built inequality work never reaches a Path student: when such a
+  // question is issued (it carries a test point), its build flags stay on the
+  // server, so the student gets the read-the-region workspace that is captured.
+  const issued = buildPublicToolPayload({ ...notIssued['student-built inequalities'], testPoint: { x: 5, y: 1 } });
+  assert.ok(issued, 'with a test point it is issued');
+  ['studentBuild', 'modeling', 'reasoning'].forEach((flag) => assert.equal(issued.tool[flag], undefined, `${flag} reached the student`));
+  assert.equal(issued.tool.interaction, 'analyze');
+});
+
+test('the 3×3 matrix and inequality captures carry the work the server re-checks', () => {
+  // Technology use is part of the matrix-method answer, and x, y, z arrive as
+  // the strings the student typed.
+  assert.deepEqual(CAPTURED.systemsWorkspaceMatrix3.rawWork, { classification: 'one', x: '1', y: '2', z: '3', technologyUsed: true });
+  assert.equal(gradePathResponse({
+    privateGrading: buildPrivateToolGrading(questionFor('systemsWorkspaceMatrix3')),
+    raw: { ...CAPTURED.systemsWorkspaceMatrix3.rawWork, technologyUsed: false },
+  }).rejected, true, 'the RREF technology is required, as the workspace says');
+  // The constructed boundaries arrive as points, which the server checks lie
+  // on each boundary; the style and shade are the student's choices.
+  assert.deepEqual(CAPTURED.systemsWorkspaceInequalityConstruct.rawWork.construction.map((entry) => [entry.boundaryStyle, entry.shade]), [['solid', 'above'], ['dashed', 'below']]);
+  const parts = gradeCapture('systemsWorkspaceInequalityConstruct').parts.map((part) => part.id);
+  assert.deepEqual(parts, ['boundary-1', 'boundary-style-1', 'shade-1', 'boundary-2', 'boundary-style-2', 'shade-2']);
+  assert.deepEqual(gradeCapture('systemsWorkspaceInequalities').parts.map((part) => part.id), ['test-point', 'candidate-point']);
+
+  // Each choice is read on its own, beyond the one wrong-answer case above.
+  const regrade = (key, work) => gradePathResponse({ privateGrading: buildPrivateToolGrading(questionFor(key)), raw: work });
+  const built = CAPTURED.systemsWorkspaceInequalityConstruct.rawWork;
+  const wrongPart = (key, work) => regrade(key, work).parts.filter((part) => !part.isCorrect).map((part) => part.id);
+  assert.deepEqual(wrongPart('systemsWorkspaceInequalityConstruct', {
+    ...built, construction: built.construction.map((entry, index) => (index === 0 ? { ...entry, shade: 'below' } : entry)),
+  }), ['shade-1'], 'shading the wrong side');
+  assert.deepEqual(wrongPart('systemsWorkspaceInequalityConstruct', {
+    ...built, construction: built.construction.map((entry, index) => (index === 0 ? { ...entry, points: [{ x: 0, y: 1 }, { x: 1, y: 2 }] } : entry)),
+  }), ['boundary-1'], 'a boundary through the wrong points');
+  assert.deepEqual(wrongPart('systemsWorkspaceInequalities', {
+    ...CAPTURED.systemsWorkspaceInequalities.rawWork, candidate: { x: 5, y: 1 },
+  }), ['candidate-point'], 'a "feasible" point outside the region');
 });

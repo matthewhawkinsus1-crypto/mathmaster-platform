@@ -1748,6 +1748,24 @@ isolates. The tool and the grader share one rule for the function question
 (`functions/shared/relationFunctionChoice.mjs`), and a bare yes / no is still
 read. Their true captures are committed.
 
+**Systems Workspace: every mode a Path issues is captured.** The contract
+grades three Systems Workspace modes the one `systemsWorkspace` capture did
+not cover: 3×3 by RREF technology (A2.3B) and inequalities, read from the
+region (A2.3G) or graphed (A.3D, A2.3F). Every such family in the shipped
+bank is issued once its numbers are drawn: the 3×3 matrix family, the 7
+read-the-region families and the 19 graph-it families.
+Each now has a capture, a wrong-answer case and an unanswered case:
+**15 / 15** captures, byte-identical on two runs, all graded correct and none
+refused. The modes with no capture are the ones a Path never issues, and the
+contract test pins that: algebraic 2×2 and 3×3 (the 3×3 interpretation
+`ec2c1fe0` changed), three planes, linear-quadratic, the 2×2 matrix and
+student-built inequalities (B-24). A student-built question that carries a
+test point is issued without its build flags, so the student gets the
+read-the-region workspace. The Data Modeling capture changed only where a
+judgment now opens unanswered: `causation`, `modelChoice` and
+`predictionType` arrive as `""` instead of the lab's old defaults. The
+correlation question asks none of them, so its verdict is unchanged.
+
 ## Tests
 
 All results below are on the **merged head `13ce82c1`** (this branch +

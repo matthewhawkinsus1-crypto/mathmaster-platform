@@ -93,6 +93,45 @@ export const PATH_TOOL_QUESTIONS = {
     system: { m1: 2, b1: 1, m2: -1, b2: 7 },
   },
 
+  // The Systems Workspace's other Path modes, each as the shipped bank authors
+  // it (A2.3B matrix technology; A2.3G read the region; A.3D / A2.3F graph the
+  // system). The server re-solves each from the public question.
+  //
+  // 3×3 by RREF technology: x = 1, y = 2, z = 3. The workspace makes the
+  // student run the RREF before the work counts (requireTechnology).
+  systemsWorkspaceMatrix3: {
+    type: 'systemsWorkspace',
+    prompt: 'Use matrix technology to compute the RREF of this augmented matrix, then classify the system and report x, y and z.',
+    mode: 'matrix3',
+    requireTechnology: true,
+    matrix: { rows: [[1, 1, 1, 6], [2, -1, 1, 3], [1, 2, -1, 2]] },
+  },
+
+  // Read the region: the marked point (5, 1) is outside y ≥ x, so the answer
+  // is "no" — the answer a blank choice used to be read as.
+  systemsWorkspaceInequalities: {
+    type: 'systemsWorkspace',
+    prompt: 'Use the solution region for y ≥ x and y < -x + 4. Decide whether the marked point is a solution, then enter a feasible ordered pair.',
+    mode: 'inequalities',
+    interaction: 'analyze',
+    ask: ['testPoint', 'candidate'],
+    inequalities: [{ m: 1, b: 0, relation: '>=' }, { m: -1, b: 4, relation: '<' }],
+    testPoint: { x: 5, y: 1 },
+    graph: { xMin: -6, xMax: 8, yMin: -4, yMax: 10 },
+  },
+
+  // Graph the system: two points on each boundary, solid or dashed, and the
+  // side to shade, for both inequalities.
+  systemsWorkspaceInequalityConstruct: {
+    type: 'systemsWorkspace',
+    prompt: 'Graph the system y ≥ x and y < -x + 4: construct each boundary and shade the side that solves it.',
+    mode: 'inequalities',
+    interaction: 'construct',
+    ask: ['construction'],
+    inequalities: [{ m: 1, b: 0, relation: '>=' }, { m: -1, b: 4, relation: '<' }],
+    graph: { xMin: -6, xMax: 8, yMin: -4, yMax: 10 },
+  },
+
   dataModelingLab: {
     type: 'dataModelingLab',
     prompt: 'Calculate and interpret the correlation coefficient.',

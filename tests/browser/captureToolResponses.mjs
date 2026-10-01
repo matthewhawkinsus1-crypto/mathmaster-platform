@@ -196,6 +196,44 @@ const SCRIPTS = {
     await btn(page, 'Check system').click();
   },
 
+  // x = 1, y = 2, z = 3. The RREF technology first (the work does not count
+  // without it), then the classification, then x, y and z read off the RREF.
+  systemsWorkspaceMatrix3: async (page) => {
+    await btn(page, 'Use matrix technology · Compute RREF').click();
+    await page.getByRole('combobox', { name: 'How many solutions does this system have?' })
+      .selectOption({ label: 'Exactly one solution' });
+    for (const [name, value] of [['x', 1], ['y', 2], ['z', 3]]) {
+      await page.getByRole('spinbutton', { name, exact: true }).fill(String(value));
+    }
+    await btn(page, 'Check matrix solution').click();
+  },
+
+  // (5, 1) is not in the region; (0, 2) is.
+  systemsWorkspaceInequalities: async (page) => {
+    await page.getByRole('combobox', { name: 'Is the purple point (5, 1) in the feasible region?' })
+      .selectOption({ label: 'No' });
+    await page.getByRole('spinbutton', { name: 'Your own feasible x', exact: true }).fill('0');
+    await page.getByRole('spinbutton', { name: 'Your own feasible y', exact: true }).fill('2');
+    await btn(page, 'Check feasible region').click();
+  },
+
+  // y ≥ x through (0, 0) and (1, 1), solid, shaded above; y < -x + 4 through
+  // (0, 4) and (1, 3), dashed, shaded below.
+  systemsWorkspaceInequalityConstruct: async (page) => {
+    const boundaries = [
+      { points: [[0, 0], [1, 1]], style: 'Solid', shade: 'Above the boundary' },
+      { points: [[0, 4], [1, 3]], style: 'Dashed', shade: 'Below the boundary' },
+    ];
+    for (const [index, { points: [[x1, y1], [x2, y2]], style, shade }] of boundaries.entries()) {
+      for (const [name, value] of [['Boundary point 1: x', x1], ['Boundary point 1: y', y1], ['Boundary point 2: x', x2], ['Boundary point 2: y', y2]]) {
+        await page.getByRole('spinbutton', { name, exact: true }).nth(index).fill(String(value));
+      }
+      await page.getByRole('combobox', { name: 'Boundary style', exact: true }).nth(index).selectOption({ label: style });
+      await page.getByRole('combobox', { name: 'Shade', exact: true }).nth(index).selectOption({ label: shade });
+    }
+    await btn(page, 'Check inequality graph').click();
+  },
+
   // y = 2x + 1 through (0, 1) and (2, 5), plotted from the keyboard: the
   // crosshair starts at the origin, an arrow key moves it one unit, Enter plots.
   graphing2: async (page) => {

@@ -157,11 +157,11 @@
       "r": 1,
       "direction": "positive",
       "strength": "strong",
-      "causation": "association",
-      "modelChoice": "linear",
+      "causation": "",
+      "modelChoice": "",
       "predictionX": 5,
       "predictionY": 0,
-      "predictionType": "interpolation"
+      "predictionType": ""
     }
   },
   "graphing2": {
@@ -311,6 +311,91 @@
         {
           "type": "interpretationSelected",
           "kind": "strength"
+        }
+      ]
+    }
+  },
+  "systemsWorkspaceMatrix3": {
+    "pathToolId": "systemsWorkspace",
+    "rawWork": {
+      "classification": "one",
+      "x": "1",
+      "y": "2",
+      "z": "3",
+      "technologyUsed": true
+    }
+  },
+  "systemsWorkspaceInequalities": {
+    "pathToolId": "systemsWorkspace",
+    "rawWork": {
+      "construction": [
+        {
+          "points": [
+            {
+              "x": null,
+              "y": null
+            },
+            {
+              "x": null,
+              "y": null
+            }
+          ],
+          "boundaryStyle": "",
+          "shade": ""
+        },
+        {
+          "points": [
+            {
+              "x": null,
+              "y": null
+            },
+            {
+              "x": null,
+              "y": null
+            }
+          ],
+          "boundaryStyle": "",
+          "shade": ""
+        }
+      ],
+      "testChoice": "no",
+      "candidate": {
+        "x": 0,
+        "y": 2
+      }
+    }
+  },
+  "systemsWorkspaceInequalityConstruct": {
+    "pathToolId": "systemsWorkspace",
+    "rawWork": {
+      "construction": [
+        {
+          "points": [
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": 1,
+              "y": 1
+            }
+          ],
+          "boundaryStyle": "solid",
+          "shade": "above"
+        },
+        {
+          "points": [
+            {
+              "x": 0,
+              "y": 4
+            },
+            {
+              "x": 1,
+              "y": 3
+            }
+          ],
+          "boundaryStyle": "dashed",
+          "shade": "below"
         }
       ]
     }
