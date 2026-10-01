@@ -289,7 +289,6 @@ import { preflightTestCycleCandidate } from './services/testCycleService.js';
 import { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
 import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
 import SectionRecoveryPanel from './components/student/SectionRecoveryPanel.jsx';
-import SectionRecoveryRunner from './components/student/SectionRecoveryRunner.jsx';
 import SectionRecoveryAuditTrail from './components/teacher/SectionRecoveryAuditTrail.jsx';
 import { completedRecoverySections, warmupChallengeCounts } from './platform/recovery/teacherRecoveryAudit.js';
 import { buildStudentRecoverySummary } from './platform/recovery/studentRecoveryModel.js';
@@ -450,6 +449,9 @@ const LiveChallengeStudent = lazy(() => import('./components/liveChallenge/LiveC
 // exam player, the calculator and all of MathLive with it — about 1 MB that a
 // static import put in front of every sign-in.
 const TestCycleCard = lazy(() => import('./components/student/TestCycleCard.jsx'));
+// The Recovery runner mounts QuestionEngine, and with it MathLive (~780 KB):
+// a student who opens a Recovery fetches it then, not every student at sign-in.
+const SectionRecoveryRunner = lazy(() => import('./components/student/SectionRecoveryRunner.jsx'));
 
 
 
@@ -11797,16 +11799,18 @@ function App() {
       : null;
     if (recoveryAssignment && openRecoveryEntry) {
       return renderStudentIdentityShell(
-        <SectionRecoveryRunner
-          mode={recoverySession.mode}
-          assignment={recoveryAssignment}
-          entry={openRecoveryEntry}
-          studentId={user.id}
-          studentProfile={user.profile}
-          onExit={() => setRecoverySession(null)}
-          onRecord={(section, record) => mergeSectionRecoveryRecord(recoveryAssignment.id, section, record)}
-          onStartAssessment={(section) => startStudentRecovery(recoveryAssignment.id, section)}
-        />,
+        <Suspense fallback={<p role="status" style={{ padding: 24, margin: 0 }}>Opening Recovery…</p>}>
+          <SectionRecoveryRunner
+            mode={recoverySession.mode}
+            assignment={recoveryAssignment}
+            entry={openRecoveryEntry}
+            studentId={user.id}
+            studentProfile={user.profile}
+            onExit={() => setRecoverySession(null)}
+            onRecord={(section, record) => mergeSectionRecoveryRecord(recoveryAssignment.id, section, record)}
+            onStartAssessment={(section) => startStudentRecovery(recoveryAssignment.id, section)}
+          />
+        </Suspense>,
       );
     }
     return renderStudentIdentityShell(
