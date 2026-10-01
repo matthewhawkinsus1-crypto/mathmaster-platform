@@ -1,19 +1,20 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import usePersistentToolState, { TOOL_DRAFT_COALESCE_MS, flushToolDrafts } from '../shared/usePersistentToolState.js';
-import { evaluate } from 'mathjs';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { figureDismissalKey, shouldOpenFigureEnlarged } from '../../platform/student/figurePresentation.js';
 import useViewportWidth from '../../platform/mobile/useViewportWidth.js';
 import MathInput from '../../MathInput';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import intervalNumberLineGrader from '../../../functions/shared/serverGrading/tools/intervalNumberLine.mjs';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import {
-  INTERVAL_ASK_STAGES,
-  intervalsToInequality,
   intervalsToNotation,
   normalizeIntervals,
-  sameIntervals,
+  parseExactNumberLineValue,
+  resolveIntervalAsk,
 } from './intervalMath';
 
 const INF = Number.POSITIVE_INFINITY;
@@ -64,159 +65,6 @@ const rationalLabel = (value, maxDenominator = 16) => {
   }
 
   return String(Number(rounded.toFixed(4))).replace('-', '−');
-};
-
-const readBraceGroup = (source, startIndex) => {
-  if (source[startIndex] !== '{') return null;
-  let depth = 0;
-  for (let index = startIndex; index < source.length; index += 1) {
-    if (source[index] === '{') depth += 1;
-    if (source[index] === '}') {
-      depth -= 1;
-      if (depth === 0) {
-        return {
-          content: source.slice(startIndex + 1, index),
-          endIndex: index,
-        };
-      }
-    }
-  }
-  return null;
-};
-
-const replaceLatexFractions = (raw) => {
-  let source = String(raw || '');
-  const command = /\\(?:dfrac|tfrac|frac)/;
-
-  for (let guard = 0; guard < 20; guard += 1) {
-    const match = command.exec(source);
-    if (!match) break;
-
-    const commandStart = match.index;
-    let cursor = commandStart + match[0].length;
-    while (/\s/.test(source[cursor] || '')) cursor += 1;
-
-    const numerator = readBraceGroup(source, cursor);
-    if (!numerator) break;
-
-    cursor = numerator.endIndex + 1;
-    while (/\s/.test(source[cursor] || '')) cursor += 1;
-
-    const denominator = readBraceGroup(source, cursor);
-    if (!denominator) break;
-
-    const replacement = `((${replaceLatexFractions(numerator.content)})/(${replaceLatexFractions(denominator.content)}))`;
-    source = `${source.slice(0, commandStart)}${replacement}${source.slice(denominator.endIndex + 1)}`;
-  }
-
-  return source;
-};
-
-const replaceLatexRoots = (raw) => {
-  let source = String(raw || '');
-
-  for (let guard = 0; guard < 20; guard += 1) {
-    const index = source.indexOf('\\sqrt');
-    if (index < 0) break;
-
-    let cursor = index + '\\sqrt'.length;
-    while (/\s/.test(source[cursor] || '')) cursor += 1;
-
-    const group = readBraceGroup(source, cursor);
-    if (!group) break;
-
-    source = `${source.slice(0, index)}sqrt(${replaceLatexRoots(group.content)})${source.slice(group.endIndex + 1)}`;
-  }
-
-  return source;
-};
-
-export const parseExactNumberLineValue = (raw) => {
-  const source = replaceLatexRoots(replaceLatexFractions(
-    String(raw ?? '')
-      .replace(/[−–—]/g, '-')
-      .replace(/\\left|\\right/g, '')
-      .replace(/\\,/g, '')
-      .replace(/\\cdot|\\times/g, '*')
-      .replace(/\\div/g, '/')
-      .replace(/\\pi/g, 'pi')
-      .trim(),
-  ));
-
-  if (!source) return null;
-
-  // Endpoint entry is intentionally numeric only. This whitelist allows
-  // arithmetic, pi/e and sqrt while rejecting arbitrary function names.
-  const identifiers = source.match(/[A-Za-z]+/g) || [];
-  if (identifiers.some((name) => !['sqrt', 'pi', 'e'].includes(name))) return null;
-  if (!/^[0-9A-Za-z+\-*/().^\s]+$/.test(source)) return null;
-
-  try {
-    const value = Number(evaluate(source));
-    return Number.isFinite(value) ? tidyNumber(value) : null;
-  } catch {
-    return null;
-  }
-};
-
-const parseFlexibleIntervalNotation = (text) => {
-  const source = String(text || '')
-    .replace(/[−–—]/g, '-')
-    .replace(/\\left|\\right/g, '')
-    .replace(/\\lbrack/g, '[')
-    .replace(/\\rbrack/g, ']')
-    .replace(/\\infty/g, '∞')
-    .replace(/\\cup/g, '∪')
-    .replace(/\\(?:,|;|!|quad|qquad)/g, '')
-    .replace(/infinity|infty|inf/gi, '∞')
-    .replace(/\bU\b/g, '∪')
-    .trim();
-
-  if (!source) return null;
-  const pieces = source.split('∪').map((piece) => piece.trim()).filter(Boolean);
-  const intervals = [];
-
-  for (const piece of pieces) {
-    const open = piece[0];
-    const close = piece[piece.length - 1];
-    if (!['(', '['].includes(open) || ![')', ']'].includes(close)) return null;
-
-    const inside = piece.slice(1, -1);
-    const commaIndex = inside.indexOf(',');
-    if (commaIndex < 0) return null;
-
-    const lowerText = inside.slice(0, commaIndex).trim();
-    const upperText = inside.slice(commaIndex + 1).trim();
-
-    const endpoint = (value, side) => {
-      const normalized = value.replace(/\s+/g, '');
-      if (normalized === '∞' || normalized === '+∞') return INF;
-      if (normalized === '-∞') return -INF;
-      const parsed = parseExactNumberLineValue(value);
-      if (parsed == null) return null;
-      if (side === 'lower' && parsed === INF) return null;
-      if (side === 'upper' && parsed === -INF) return null;
-      return parsed;
-    };
-
-    const min = endpoint(lowerText, 'lower');
-    const max = endpoint(upperText, 'upper');
-    if (min == null || max == null || min > max) return null;
-
-    intervals.push({
-      min,
-      max,
-      minClosed: Number.isFinite(min) && open === '[',
-      maxClosed: Number.isFinite(max) && close === ']',
-    });
-  }
-
-  return normalizeIntervals(intervals);
-};
-
-const notationMatchesFlexible = (text, expected) => {
-  const parsed = parseFlexibleIntervalNotation(text);
-  return parsed ? sameIntervals(parsed, expected) : false;
 };
 
 const niceTickStep = (span, targetIntervals = 6) => {
@@ -288,6 +136,13 @@ const deriveInitialViewport = (questionData, expected, snapStep) => {
   return max > min ? { min, max } : { min: low - 2, max: high + 2 };
 };
 
+// Only the number line that IS the question reports its live work. Embedded
+// copies (a workflow stage, the Step Algebra representation check — which can
+// sit inside another registry tool) must not overwrite their host's work.
+const isIntervalNumberLineQuestion = (questionData) => (
+  questionData?.toolId === 'intervalNumberLine' || questionData?.type === 'intervalNumberLine'
+);
+
 export default function IntervalNumberLine({ questionData = {}, onAction }) {
   const viewportWidth = useViewportWidth();
   const variable = questionData.variable || 'x';
@@ -310,12 +165,8 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
   const max = viewport.max;
   const span = max - min || 1;
 
-  const ask = useMemo(() => {
-    const requested = Array.isArray(questionData.ask)
-      ? questionData.ask.filter((stage) => INTERVAL_ASK_STAGES.includes(stage))
-      : [];
-    return requested.length ? requested : ['graph', 'interval'];
-  }, [questionData.ask]);
+  // The same stage resolution the shared grader marks against.
+  const ask = useMemo(() => resolveIntervalAsk(questionData.ask), [questionData.ask]);
   const asksInterval = ask.includes('interval');
   const asksInequality = ask.includes('inequality');
   const asksNotation = asksInterval || asksInequality;
@@ -379,6 +230,15 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
   const suppressEndpointClickRef = useRef(false);
 
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
+
+  /*
+   * THE STUDENT'S WORK — what Check submits and what a deadline can carry.
+   * Exactly the response this tool has always sent (My Math Path's contract
+   * reads the same three fields). The pending, unpaired endpoint is not part
+   * of any answer and is not graded.
+   */
+  const work = useMemo(() => ({ intervals: built, notation, inequality }), [built, notation, inequality]);
+  useReportToolWork(work, { enabled: isIntervalNumberLineQuestion(questionData) });
 
   const sx = (value) => PAD + ((Math.max(min, Math.min(max, value)) - min) / span) * (WIDTH - PAD * 2);
 
@@ -572,27 +432,13 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
   };
 
   const check = () => {
-    const checks = {};
-
-    if (ask.includes('graph')) checks.graph = sameIntervals(built, expected);
-    if (asksInterval) checks.interval = notationMatchesFlexible(notation, expected);
-
-    if (asksInequality) {
-      const tidy = (text) => String(text || '')
-        .replace(/\s+/g, '')
-        .replace(/[−–—]/g, '-')
-        .toLowerCase();
-
-      checks.inequality = tidy(inequality) === tidy(intervalsToInequality(expected, variable));
-    }
-
-    const values = Object.values(checks);
-    const score = values.length ? values.filter(Boolean).length / values.length : 0;
-
+    // The verdict is the shared grader's — the one the server runs — over the
+    // same bounded bytes the server will read.
+    const result = gradeToolCheck(intervalNumberLineGrader, questionData, work);
     submit(
-      { isCorrect: values.every(Boolean), score },
-      { intervals: built, notation, inequality },
-      { checks, expected },
+      { isCorrect: result.isCorrect, score: result.score },
+      work,
+      { mode: 'numberLine', ask, parts: result.parts },
     );
   };
 
@@ -602,17 +448,19 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
       return 'Correct — the graph and the notation agree.';
     }
 
-    const checks = feedback.metadata?.checks || {};
-    if (checks.graph === false && built.length === 0) {
+    // One part per asked stage, from the shared grader.
+    const parts = Array.isArray(feedback.metadata?.parts) ? feedback.metadata.parts : [];
+    const stageMissed = (id) => parts.some((part) => part.id === id && part.isCorrect !== true);
+    if (stageMissed('graph') && built.length === 0) {
       return 'Nothing is graphed yet. Click the line or type an exact endpoint, then place the other endpoint or choose a ray.';
     }
-    if (checks.graph === false) {
+    if (stageMissed('graph')) {
       return 'The graph is not right yet. Check each endpoint, whether it is open or closed, and which region is shaded.';
     }
-    if (checks.interval === false) {
+    if (stageMissed('interval')) {
       return 'The graph is right but the interval notation is not. Fractions are allowed; square brackets include endpoints and round brackets exclude them.';
     }
-    if (checks.inequality === false) {
+    if (stageMissed('inequality')) {
       return 'The graph is right but the inequality is not. Read the graph from left to right.';
     }
     return 'Not quite. Compare each endpoint on your graph against the values in the question.';
