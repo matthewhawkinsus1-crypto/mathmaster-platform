@@ -11,8 +11,9 @@ Branch: `claude/sharp-wozniak-8x3enm` (the session's designated branch; dedicate
 
 ## Current state
 
-- **Phase:** 6 (browser journeys) — model, callable, rules, UI and wiring are committed and pushed.
-- **PR:** not opened yet.
+- **Phase:** 7 — everything is built, verified and pushed; the PR is opened from this branch (not deployed,
+  not merged).
+- **PR:** see the branch `claude/sharp-wozniak-8x3enm` on GitHub.
 
 ## Phases
 
@@ -24,8 +25,8 @@ Branch: `claude/sharp-wozniak-8x3enm` (the session's designated branch; dedicate
 | 3 | SIS import + reconciliation, optional saved snapshot (rules + emulator tests) | ✅ |
 | 4 | Timeline, narrative facts, needs-attention, case model, CSV/JSON export | ✅ |
 | 5 | Callable `loadStudentCaseEvidence` (+ pure projection), client store, UI (one component per tab), drawer entry, print | ✅ |
-| 6 | Harness fixture + fake callable, browser journeys (1440 / 1366 / 1024 / 768), PR #400/#401 regression journeys | ◐ case review journeys running; regressions next |
-| 7 | Full gate, mutation checks, docs final, PR (not deployed, not merged) | ☐ |
+| 6 | Harness fixture + fake callable, browser journeys (1440 / 1366 / 1024 / 768), PR #400/#401 regression journeys | ✅ |
+| 7 | Full gate, mutation checks, docs final, PR (not deployed, not merged) | ✅ |
 
 ## Environment notes (this container)
 
@@ -40,6 +41,14 @@ Branch: `claude/sharp-wozniak-8x3enm` (the session's designated branch; dedicate
 - PR #401's warnings hold: don't edit `src/` while a journey runs (Vite reloads the page); don't run a second
   Vite server from this checkout at the same time; CI runs in UTC — run date tests with `TZ=UTC` and
   `TZ=America/Chicago`.
+- Start the harness server as a long-lived background job (a 30-minute background limit stopped it mid-run
+  once; later runs then fail with `ERR_CONNECTION_REFUSED`, which is not an app failure).
+- Journeys: `node tests/browser/teacherWorkflow/caseReviewJourneys.mjs` (C1–C6, default viewports
+  1440x900, 1366x768, 1024x768, 768x1024; `ONLY=` / `VIEWPORTS=` to narrow), then the regressions
+  `supportEvidenceJourneys.mjs` (PR #401) and `journeys.mjs` (PR #400). Screenshots land in the git-ignored
+  `tests/browser/artifacts/`.
+- Never `git stash` during an unfinished merge: it drops `MERGE_HEAD`. (It happened once here; the merge was
+  redone from the last commit with the identical conflict resolution.)
 
 ## Audit findings that shaped the design (verified on `a7a3b4e`)
 
@@ -70,6 +79,18 @@ Full tables: design doc §1. The ones that changed the plan:
 | --- | --- | --- |
 | Phase 0, untouched main | `npm run test:platform` | 6983/6985 → the 2 failures are missing `functions/node_modules`; 6985/6985 after `npm ci` in `functions/` |
 | Phase 1–3 | `node --test tests/platform/caseReview*.test.mjs` · `npx oxlint src/platform/caseReview/` | 49/49 · clean |
+| Phase 5 (before merging main) | `npm run test:platform` | 7105/7105 |
+| Phase 5 | Mutation checks: 22 wiring/privacy/source-contract mutations, 6 grade-state / DOL / abbreviation mutations, 5 rules mutations (M1–M5) | every mutation turned the intended test red (one weak assertion strengthened, then red) |
+| Phase 6, first journey run | `caseReviewJourneys.mjs` at 1440/1366/1024/768 | 21/24 — C2 at the three 768-high viewports: the test recorded the scroll before Playwright scrolled the row into view; the app restored the true position. Test fixed to record where the teacher actually was |
+| Phase 6 fixes found by the browser | an untaken DOL listed as "DOL 0%"; open, unanswered sections shown as 0; badge overflow in tiles; tabs hidden behind a scroll | fixed: grade-item states (`Not started` / `No answers`), lowest DOLs need an answer, wrapping tabs, folded selection |
+| After merging `origin/main` (#405, #406) @ `06c16b4` | `npm run test:platform` (UTC) · (`TZ=America/Chicago`) | 7144/7144 · 7144/7144 |
+| same | `npm run test:rules` | 225/225 + 96/96 (7 case-review emulator tests) |
+| same | `npm run test:authoring-v5` · `node --test tests/tools/*.test.mjs` | 686/686 · 253/253 |
+| same | `npm run lint` · `npm run build` · `npm run build:firebase` · `npm run audit:theme-colors` | 428 warnings on main and on this branch, none new · ✓ · ✓ · ✓ |
+| same | `supportEvidenceJourneys.mjs` (PR #401: T1–T6, S1 at 1440 and 1024) | 14/14 |
+| same | `journeys.mjs` (PR #400: A–K + retry at 1440 and 1024) | 24/24 |
+| same | `caseReviewJourneys.mjs` second run | 22/24 — C2 at 1440x900 and 768x1024: with the selection folded, the Grades tab fits the screen, so the test had nothing to scroll. The test now opens the contribution details first (and checks they are still open after Back) |
+| final | `caseReviewJourneys.mjs` C1–C6 at 1440x900, 1366x768, 1024x768, 768x1024 | **24/24** |
 
 ## Decisions (for the PR)
 

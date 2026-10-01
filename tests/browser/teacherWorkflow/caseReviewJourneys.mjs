@@ -174,8 +174,11 @@ const journeys = {
     const review = await openCaseReview(page);
     await build(page, review);
     await tab(page, review, 'Grades');
-    // Scroll so the row sits just below the top edge: the teacher is part-way
-    // down the tab, and the click itself needs no further scrolling.
+    // Open every contribution detail (the tab is then longer than any screen),
+    // then scroll so the row sits just below the top edge: the teacher is
+    // part-way down the tab, and the click itself needs no further scrolling.
+    const details = panel(review, 'grades').locator('details[data-case-grade-detail]');
+    for (let index = 0; index < await details.count(); index += 1) await details.nth(index).locator('summary').click();
     const body = review.locator('.cr-body');
     await body.evaluate((element) => {
       const row = element.querySelector('[data-case-assignment="a-lastweek"]');
@@ -218,6 +221,7 @@ const journeys = {
     await panel(review, 'grades').waitFor({ timeout: 5000 });
     const restored = await body.evaluate((element) => element.scrollTop);
     expect('C2', Math.abs(restored - scrolled) <= 2, `Back returns to the Grades tab where the teacher left it (scroll ${restored}, was ${scrolled})`);
+    expect('C2', await details.evaluateAll((elements) => elements.every((element) => element.open)), 'the details the teacher opened are still open');
     await review.locator('[data-case-back]').click();
     await page.waitForTimeout(300);
     expect('C2', await panel(review, 'summary').isVisible(), 'Back walks the trail to the summary');
