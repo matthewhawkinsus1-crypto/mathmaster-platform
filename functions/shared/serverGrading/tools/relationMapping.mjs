@@ -15,6 +15,11 @@
  *     way the lab's `checks` object deduplicated them);
  *   - score = checks passed / checks asked; correct = every check passed.
  *
+ * One deliberate difference from the old inline check: an authored pair listed
+ * twice is one arrow (see `sameArrows`). The old check wanted two identical
+ * arrows, which the lab cannot draw, so that mapping could never be marked
+ * right.
+ *
  * The relation helpers below are the ONLY definition: the lab imports them to
  * draw its diagram and build its work, so what it draws and what is graded
  * cannot drift apart.
@@ -118,10 +123,20 @@ export const samePairSet = (studentPairs, expectedPairs) => {
 
 const arrowKey = (arrow) => (Array.isArray(arrow) ? `${arrow[0]}->${arrow[1]}` : UNREADABLE);
 
-/** One arrow per ordered pair of the relation, no more and no fewer. */
+/**
+ * One arrow per ordered pair of the relation, no more and no fewer.
+ *
+ * A relation is a SET of ordered pairs, so a pair the author listed twice
+ * (`[1, 2]` and `{ x: '1', y: '2' }`) is one arrow. The lab cannot draw an
+ * arrow twice — a second click removes it — so counting the repeat made the
+ * mapping impossible to get right. (The composed-workflow mapping stage,
+ * toolMath/workflow/workflowGrading.mjs gradePairs, already compares sets.)
+ * The drawn arrows are NOT de-duplicated: a response carrying the same arrow
+ * twice is not one the lab can produce.
+ */
 export const sameArrows = (arrows, pairs) => {
   const drawn = list(arrows).map(arrowKey).sort();
-  const wanted = list(pairs).map(arrowKey).sort();
+  const wanted = [...new Set(list(pairs).map(arrowKey))].sort();
   return drawn.length === wanted.length && drawn.every((value, index) => value === wanted[index]);
 };
 

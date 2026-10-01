@@ -204,6 +204,49 @@ test('plotted points are graded as a set, in any order', () => {
   assert.equal(partVerdicts(swapped).plot, false, '(1, 0) is not (0, 1)');
 });
 
+test('plotted points match to eight decimal places; a half-unit or 1e-6 miss is a different point', () => {
+  const question = { type: 'relationMapping', pairs: [[0.5, 1], [2, -1.25]], ask: ['plot'] };
+  const grade = (plottedPoints) => bothPaths(question, labWork(question, { plottedPoints })).browser.isCorrect;
+  assert.equal(grade([[2, -1.25], [0.5, 1]]), true);
+  // The lab snaps with toFixed(8); float noise below that is the same point.
+  assert.equal(grade([[0.5 + 1e-10, 1], [2, -1.25 - 1e-10]]), true);
+  assert.equal(grade([[1, 1], [2, -1.25]]), false, '(1, 1) is not (0.5, 1)');
+  assert.equal(grade([[0.5, 1], [2, -1]]), false, '(2, -1) is not (2, -1.25)');
+  assert.equal(grade([[0.5 + 1e-6, 1], [2, -1.25]]), false, 'a millionth off is a different point');
+});
+
+test('typed domain and range compare within 1e-9, and tokens that are not numbers are dropped', () => {
+  // 0.1 + 0.2 is how a generated or computed relation stores 0.3.
+  const question = { type: 'relationMapping', pairs: [{ x: 0.1 + 0.2, y: 2 }, { x: -1, y: 0.5 }], ask: ['domain', 'range'] };
+  const grade = (domainAnswer, rangeAnswer = '2, 0.5') => partVerdicts(bothPaths(question, labWork(question, { domainAnswer, rangeAnswer })).browser);
+  assert.deepEqual(grade('0.3, -1'), { domain: true, range: true });
+  assert.deepEqual(grade('-1, 0.3005'), { domain: false, range: true }, 'a typed value 5e-4 away is wrong');
+  assert.deepEqual(grade('-1, 0.3, abc', '2, .5, ?'), { domain: true, range: true }, 'the lab ignores a token that is not a number');
+  assert.deepEqual(grade('-1'), { domain: false, range: true });
+});
+
+test('functionhood tolerates float noise between outputs but not a genuine second output', () => {
+  const noise = { type: 'relationMapping', pairs: [[1, 2], [1, 2 + 1e-12], [3, 4]], ask: ['isFunction'] };
+  assert.equal(bothPaths(noise, labWork(noise, { functionAnswer: FUNCTION_STATUS_CHOICES.YES_DEFINITION })).browser.isCorrect, true);
+  // 2 and 2.001 are two outputs, however close.
+  const close = { type: 'relationMapping', pairs: [[1, 2], [1, 2.001], [3, 4]], ask: ['isFunction'] };
+  assert.equal(bothPaths(close, labWork(close, { functionAnswer: FUNCTION_STATUS_CHOICES.NO_INPUT_REPEAT })).browser.isCorrect, true);
+  assert.equal(bothPaths(close, labWork(close, { functionAnswer: FUNCTION_STATUS_CHOICES.YES_DEFINITION })).browser.isCorrect, false);
+});
+
+test('a pair the author listed twice is one arrow (behaviour change: it used to be unreachable)', () => {
+  // Before: the check wanted two identical arrows, which the lab cannot draw (a
+  // second click removes the first), so this mapping could never be right.
+  const question = { type: 'relationMapping', pairs: [{ x: 1, y: 2 }, { x: '1', y: '2' }, [3, 4]], ask: ['mapping', 'plot'] };
+  const right = bothPaths(question, labWork(question, { arrows: [[3, 4], [1, 2]], plottedPoints: [[1, 2], [3, 4]] })).browser;
+  assert.deepEqual(partVerdicts(right), { plot: true, mapping: true });
+  assert.equal(right.isCorrect, true);
+  // A response that repeats an arrow is not one the lab produces, and is wrong.
+  assert.equal(partVerdicts(bothPaths(question, labWork(question, { arrows: [[1, 2], [1, 2], [3, 4]] })).browser).mapping, false);
+  // Missing the arrow for the repeated pair is still wrong.
+  assert.equal(partVerdicts(bothPaths(question, labWork(question, { arrows: [[3, 4]] })).browser).mapping, false);
+});
+
 test('authored analysis fields are graded by their answer key, not by the order or count of choices', () => {
   const answers = { kind: 'discrete', inputs: '{3, -2, 1}', feedback: '3' };
   const work = labWork(FIELDS_Q, { arrows: FIELDS_ARROWS, fieldAnswers: answers });
@@ -270,6 +313,22 @@ test('partially complete work is graded (blank parts are incorrect) and reported
   const allButOne = bothPaths(FUNCTION_Q, labWork(FUNCTION_Q, { ...FUNCTION_CORRECT, functionAnswer: '' })).browser;
   assert.equal(allButOne.isComplete, false);
   assert.equal(allButOne.score, 0.75);
+
+  // Each part answers for itself: no point, no arrow, a blank or whitespace-only
+  // box, no choice and an empty field are all "not yet answered".
+  const everything = { ...PLOT_Q, ask: ['plot', 'mapping', 'domain', 'range', 'isFunction'], answerFields: [FIELDS_Q.answerFields[1]] };
+  const completeness = (state) => Object.fromEntries(
+    bothPaths(everything, labWork(everything, state)).browser.parts.map((part) => [part.id, part.isComplete]),
+  );
+  assert.deepEqual(completeness({ domainAnswer: '   ', rangeAnswer: '\t' }), {
+    plot: false, mapping: false, domain: false, range: false, isFunction: false, 'field:inputs': false,
+  });
+  assert.deepEqual(completeness({
+    plottedPoints: [[5, 5]], arrows: [[0, 1]], domainAnswer: '9', rangeAnswer: '9',
+    functionAnswer: FUNCTION_STATUS_CHOICES.NO_OUTPUT_REPEAT, fieldAnswers: { inputs: 'no idea' },
+  }), {
+    plot: true, mapping: true, domain: true, range: true, isFunction: true, 'field:inputs': true,
+  }, 'complete means answered, not right');
 
   const missingArrow = bothPaths(FUNCTION_Q, labWork(FUNCTION_Q, { ...FUNCTION_CORRECT, arrows: [[-2, 3], [1, 2]] })).browser;
   assert.equal(missingArrow.isComplete, true);
@@ -386,6 +445,34 @@ test('wrong types and junk entries are graded as wrong, never thrown and never m
   assert.equal(bothPaths(origin, { plottedPoints: [[0, 0], [1, 2]] }).browser.isCorrect, true);
   assert.equal(bothPaths(origin, { plottedPoints: [[null, null], [1, 2]] }).browser.isCorrect, false);
   assert.equal(bothPaths(origin, { plottedPoints: [[0, 0], [1, 2], 'garbage'] }).browser.isCorrect, false);
+
+  // A field answer is a string the student typed or chose; a number or an
+  // array in its place is not read as that answer.
+  const fieldsOnly = { ...FIELDS_Q, ask: [] };
+  const typedFields = (value) => partVerdicts(bothPaths(fieldsOnly, {
+    fields: [{ id: 'kind', value: 'discrete' }, { id: 'inputs', value: '{-2, 1, 3}' }, { id: 'feedback', value }],
+  }).browser)['field:feedback'];
+  assert.equal(typedFields('3'), true);
+  assert.equal(typedFields(3), false);
+  assert.equal(typedFields(['3']), false);
+});
+
+test('the grader reads nothing a student support can change', () => {
+  // A support may translate the prompt or title, trim `choices`, or set
+  // presentation flags; the server never sees those. Planted as getters that
+  // record a read, on a question that reaches every part of the grader.
+  const reads = new Set();
+  const question = { ...FIELDS_Q, ask: ['plot', 'mapping', 'domain', 'range', 'isFunction'] };
+  for (const key of ['prompt', 'title', 'choices', 'translations', 'supportPresentation', 'supportEntitlements', 'prefillFirstStep', 'visualChunking']) {
+    Object.defineProperty(question, key, { enumerable: false, configurable: true, get() { reads.add(key); return undefined; } });
+  }
+  const result = relationMappingGrader.grade(question, labWork(FIELDS_Q, {
+    plottedPoints: [[-2, 3]], arrows: FIELDS_ARROWS, domainAnswer: '1', rangeAnswer: '2',
+    functionAnswer: FUNCTION_STATUS_CHOICES.YES_DEFINITION, fieldAnswers: { kind: 'discrete', inputs: '{1}', feedback: '3' },
+  }));
+  assert.equal(result.graded, true);
+  assert.equal(result.parts.length, 8);
+  assert.deepEqual([...reads], []);
 });
 
 test('non-object and oversize work is not gradable on either path', () => {
@@ -502,16 +589,44 @@ test('the work the lab submits is the work it reports live, and it keeps the key
   const workObject = region(executable, 'const work = {', '};', 'the work object');
   // WorkflowRunner reads `response.arrows`; the Path contract reads arrows,
   // domain, range and isFunction; the shared grader reads the rest.
-  for (const key of ['plottedPoints', 'arrows', 'domainText', 'rangeText', 'domain', 'range', 'isFunction', 'fields']) {
-    assert.match(workObject, new RegExp(`\\b${key}\\b`), key);
+  // Every key carries the student's state as it is — the grader reads the
+  // typed boxes and the chosen value unaltered, so an edited value here (a
+  // trim, a slice, a default) would grade something the student did not enter.
+  for (const entry of [
+    /^\s*plottedPoints,$/m,
+    /^\s*arrows,$/m,
+    /^\s*domainText: domainAnswer,$/m,
+    /^\s*rangeText: rangeAnswer,$/m,
+    /^\s*domain: parseList\(domainAnswer\),$/m,
+    /^\s*range: parseList\(rangeAnswer\),$/m,
+    /^\s*isFunction: functionAnswer,$/m,
+    /^\s*fields: relationFieldWork\(analysisFields, fieldAnswers\),$/m,
+  ]) {
+    assert.match(workObject, entry);
   }
-  assert.match(workObject, /fields: relationFieldWork\(analysisFields, fieldAnswers\)/);
-  assert.match(workObject, /domainText: domainAnswer/);
-  assert.match(workObject, /domain: parseList\(domainAnswer\)/);
   assert.match(executable, /useReportToolWork\(work, \{ enabled: pairs\.length > 0 \}\)/);
   // Reported at render scope, before the empty-relation early return (hooks
   // must run on every render).
   assert.ok(executable.indexOf('useReportToolWork(work') < executable.indexOf('if (!pairs.length)'));
+});
+
+test('the lab shows exactly the parts the grader grades, and offers only choices the grader knows', () => {
+  const executable = executableSource(COMPONENT);
+  // The relation, the asked parts and the analysis fields come from the
+  // grader's own readers, so a panel can never appear that is not graded (or
+  // be graded without appearing).
+  assert.match(executable, /const pairs = useMemo\(\(\) => relationPairsOf\(questionData\.pairs\), \[questionData\.pairs\]\);/);
+  assert.match(executable, /const ask = useMemo\(\(\) => relationAskOf\(questionData\.ask\), \[questionData\.ask\]\);/);
+  assert.match(executable, /const analysisFields = useMemo\(\(\) => relationAnalysisFieldsOf\(questionData\.answerFields\), \[questionData\.answerFields\]\);/);
+
+  // The four "Is it a function?" buttons submit the grader's values — a
+  // literal here could never match the key.
+  const choices = region(executable, 'const functionChoiceOptions = useMemo(', 'choiceSeed(', 'the function-status choices');
+  const values = [...choices.matchAll(/value: ([^,}]+),/g)].map((match) => match[1].trim());
+  assert.deepEqual(
+    values.sort(),
+    Object.keys(FUNCTION_STATUS_CHOICES).map((key) => `FUNCTION_STATUS_CHOICES.${key}`).sort(),
+  );
 });
 
 test('the lab\'s feedback message reads the grader\'s parts by the ids the grader emits', () => {
