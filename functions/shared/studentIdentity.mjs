@@ -177,41 +177,61 @@ export const acceptStudentName = (candidate, record = {}) => {
  * ('Williams, Jordan') is read as "Last, First". This is presentation only —
  * the backfill uses confidentStudentNameSplit, which refuses ambiguous names.
  */
+// Generational and credential suffixes: 'Jordan Williams, Jr.' is a name plus
+// a suffix, not "Last, First".
+const NAME_SUFFIXES = new Set(['jr', 'sr', 'ii', 'iii', 'iv', 'v', 'vi']);
+const isNameSuffix = (text) => NAME_SUFFIXES.has(String(text || '').replace(/\./g, '').trim().toLowerCase());
+
+// "Last, First" only when the part after the single comma is not a suffix.
+const commaNameParts = (text) => {
+  const commaParts = text.split(',');
+  if (commaParts.length !== 2) return null;
+  const lastName = cleanStudentNameText(commaParts[0]);
+  const firstName = cleanStudentNameText(commaParts[1]);
+  if (!lastName || !firstName || isNameSuffix(firstName)) return null;
+  return { firstName, lastName };
+};
+
+/**
+ * Display-time split of a single full-name string into parts, so legacy and
+ * Google names sort and render "Last, First" like structured ones. A comma form
+ * ('Williams, Jordan') is read as "Last, First"; a trailing suffix
+ * ('Jordan Williams, Jr.') stays with the name. This is presentation only —
+ * the backfill uses confidentStudentNameSplit, which refuses ambiguous names.
+ */
 export const splitStudentDisplayName = (displayName = '') => {
   const text = cleanStudentNameText(displayName);
   if (!text) return { firstName: '', lastName: '' };
-  const commaParts = text.split(',');
-  if (commaParts.length === 2) {
-    const lastName = cleanStudentNameText(commaParts[0]);
-    const firstName = cleanStudentNameText(commaParts[1]);
-    if (lastName && firstName) return { firstName, lastName };
-  }
-  const parts = text.split(' ').filter(Boolean);
-  if (parts.length === 1) return { firstName: parts[0], lastName: '' };
-  return { firstName: parts.slice(0, -1).join(' '), lastName: parts.at(-1) };
+  const comma = commaNameParts(text);
+  if (comma) return comma;
+  const words = text.split(',')[0].split(' ').filter(Boolean);
+  if (!words.length) return { firstName: text, lastName: '' };
+  if (words.length === 1) return { firstName: words[0], lastName: '' };
+  return { firstName: words.slice(0, -1).join(' '), lastName: words.at(-1) };
 };
 
 /**
  * A split the identity backfill may write permanently: only when the full name
- * can be read one way. "Last, First" (exactly one comma) or exactly two words.
- * "Mary Ann Smith" could be first "Mary Ann" or last "Ann Smith" — that is a
- * guess, so it returns null and the record keeps displayName only.
+ * can be read one way. "Last, First" with one word on each side, or exactly two
+ * words. "Mary Ann Smith" could be first "Mary Ann" or last "Ann Smith", and
+ * "Jordan Williams, Jr." carries a suffix — those are guesses, so it returns
+ * null and the record keeps displayName only.
  */
 export const confidentStudentNameSplit = (displayName = '') => {
   const text = cleanStudentNameText(displayName);
   if (!text) return null;
-  const commaParts = text.split(',');
-  if (commaParts.length === 2) {
-    const lastName = cleanStudentNameText(commaParts[0]);
-    const firstName = cleanStudentNameText(commaParts[1]);
-    if (lastName && firstName && LETTER.test(lastName) && LETTER.test(firstName)) {
-      return { firstName, lastName, method: 'commaName' };
+  const commaCount = text.split(',').length - 1;
+  if (commaCount === 1) {
+    const comma = commaNameParts(text);
+    const oneWord = (part) => part && !part.includes(' ') && LETTER.test(part);
+    if (comma && oneWord(comma.lastName) && oneWord(comma.firstName)) {
+      return { firstName: comma.firstName, lastName: comma.lastName, method: 'commaName' };
     }
     return null;
   }
-  if (commaParts.length > 2) return null;
+  if (commaCount > 1) return null;
   const parts = text.split(' ').filter(Boolean);
-  if (parts.length !== 2 || !parts.every((part) => LETTER.test(part))) return null;
+  if (parts.length !== 2 || !parts.every((part) => LETTER.test(part)) || parts.some(isNameSuffix)) return null;
   return { firstName: parts[0], lastName: parts[1], method: 'twoPartName' };
 };
 
@@ -301,17 +321,26 @@ export const studentNamePartsFromIdentity = (identity) => {
   return splitStudentDisplayName(identity.displayName);
 };
 
+/** "First Last" for a resolved identity, keeping any suffix; '' when no name. */
+export const naturalStudentName = (identity) => {
+  if (!identity?.hasName) return '';
+  if (identity.nameSource === 'structured') {
+    return [identity.firstName, identity.lastName].filter(Boolean).join(' ') || identity.displayName;
+  }
+  // A stored "Last, First" reads naturally as "First Last"; any other single
+  // string (including one with a suffix) is already in natural order.
+  const comma = commaNameParts(identity.displayName);
+  return comma ? `${comma.firstName} ${comma.lastName}` : identity.displayName;
+};
+
 /**
  * The name to keep on a derived record (an event, a session summary, a recovery
  * row) for readers that cannot join the roster: the natural "First Last", or
  * null. Never the id — readers resolve null by studentId at display time.
  */
-export const studentNameForStorage = (record = {}) => {
-  const identity = resolveStudentIdentity(record);
-  if (!identity.hasName) return null;
-  const { firstName, lastName } = studentNamePartsFromIdentity(identity);
-  return [firstName, lastName].filter(Boolean).join(' ') || identity.displayName || null;
-};
+export const studentNameForStorage = (record = {}) => (
+  naturalStudentName(resolveStudentIdentity(record)) || null
+);
 
 /**
  * Server-side validation for a name a person typed (account creation, a name
@@ -387,8 +416,8 @@ export const compareStudentIdentities = (a = {}, b = {}) => {
 export const studentNameComparisonKey = (text = '') => {
   const clean = cleanStudentNameText(text);
   if (!clean) return '';
-  const commaParts = clean.split(',');
-  const ordered = commaParts.length === 2 ? `${commaParts[1]} ${commaParts[0]}` : clean;
+  const comma = commaNameParts(clean);
+  const ordered = comma ? `${comma.firstName} ${comma.lastName}` : clean;
   return ordered
     .normalize('NFKD')
     .replace(/\p{M}/gu, '')
@@ -417,6 +446,10 @@ export const studentNameComparisonKey = (text = '') => {
 // ---------------------------------------------------------------------------
 
 export const IDENTITY_BACKFILL_VERSION = 1;
+
+// Sources that exist only because a teacher matched a Google Classroom
+// student to this record — revocable, so never enough on their own.
+const CLASSROOM_LINK_SOURCES = new Set(['googleName', 'classroomRosterLink']);
 
 /** Sources a backfill may take a name from, most trusted first. */
 export const IDENTITY_RECOVERY_SOURCES = Object.freeze([
@@ -553,6 +586,7 @@ export const planStudentIdentityRepair = (inputs = {}) => {
       noUsableHumanName: 0,
       idLikeStoredName: 0,
       recoverableElsewhere: 0,
+      classroomNameAwaitingConfirmation: 0,
       notRecoverableAutomatically: 0,
     },
     plannedUpdates: 0,
@@ -604,7 +638,12 @@ export const planStudentIdentityRepair = (inputs = {}) => {
       };
     } else {
       const candidates = recoveryCandidates(studentId, current.record, index);
-      if (current.displayName) {
+      if (current.displayName && (current.firstName || current.lastName)) {
+        // A lone stored first or last name beside a displayName: splitting
+        // the displayName could contradict the stored part. A person confirms.
+        tally('displayNameWithoutStructuredName');
+        needsStructuredName.push({ studentId, reason: 'partialStructuredName' });
+      } else if (current.displayName) {
         tally('displayNameWithoutStructuredName');
         const key = studentNameComparisonKey(current.displayName);
         const structuredMatch = candidates.find((candidate) => (
@@ -638,9 +677,21 @@ export const planStudentIdentityRepair = (inputs = {}) => {
           tally('notRecoverableAutomatically');
           conflicts.push({ studentId, sources: [...new Set(candidates.map((candidate) => candidate.source))] });
           unresolved.push({ studentId, reason: 'conflictingSources' });
+        } else if (candidates.every((candidate) => CLASSROOM_LINK_SOURCES.has(candidate.source))) {
+          // Only a teacher's Classroom match vouches for this name, and a
+          // match can be corrected later (linkClassroomRosterBatch removes
+          // googleName from a student who loses the link). Making it
+          // canonical would keep the wrong child's name after that
+          // correction. Screens already show it (the roster projection reads
+          // googleName); a person confirms it in Sign-in Access to make it
+          // permanent.
+          tally('recoverableElsewhere');
+          tally('classroomNameAwaitingConfirmation');
+          needsStructuredName.push({ studentId, reason: 'classroomOnlySource' });
         } else {
-          // Every source agrees. Take the most trusted text; prefer a source
-          // that already knows first from last.
+          // Every source agrees, and at least one is independent of the
+          // Classroom match. Take the most trusted text; prefer a source that
+          // already knows first from last.
           const structuredSource = candidates.find((candidate) => candidate.parts);
           const best = structuredSource || candidates[0];
           const split = structuredSource ? null : confidentStudentNameSplit(best.text);

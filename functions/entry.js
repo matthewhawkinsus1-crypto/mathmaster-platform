@@ -108,7 +108,13 @@ exports.configureLiveChallengeExperience = onCall(async (request) => {
     return {
       privateRef: playerDoc.ref,
       codeAlias,
-      alias: rules.displayAliasForStudent({ student, mode: playerDisplayMode, codeAlias }),
+      alias: rules.displayAliasForStudent({
+        // With its id, so a name field holding the student's own id is never
+        // used as the public alias.
+        student: { ...student, studentId },
+        mode: playerDisplayMode,
+        codeAlias,
+      }),
       inviteRef: inviteSnapshot?.exists && String(inviteSnapshot.data()?.roomId || '') === roomId ? inviteSnapshot.ref : null,
       publicRef: publicSnapshot?.exists ? publicSnapshot.ref : null,
     };

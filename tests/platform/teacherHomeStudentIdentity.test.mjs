@@ -374,10 +374,13 @@ test('Live View never asks for an id as a name, and never shows one to the class
   assert.doesNotMatch(executableSource(read('src/livePresence.js')), /fallbackToId/);
   const monitor = read('src/components/teacher/LiveClassMonitor.jsx');
   const tile = region(monitor, 'function StudentTile(', 'function withClassworkStates(', 'Live tile');
-  // The id line is the teacher's, and the room view (which may be projected)
-  // never gets it.
+  // The id line is the teacher's; large room tiles (what goes on the
+  // projector) never get it, nor does the class-points panel beside them.
   assert.match(tile, /\{row\.nameMissing && showStudentId && row\.idLabel && \(/);
-  assert.match(monitor, /showStudentId=\{mode !== 'room'\}/);
+  assert.match(monitor, /const projecting = mode === 'room' && roomMode;/);
+  assert.match(monitor, /showStudentId=\{!projecting\}/);
+  assert.doesNotMatch(monitor, /showStudentId=\{true\}|showStudentId=\{mode/);
+  assert.match(monitor, /<ClassPointsHistoryPanel [^>]*showStudentId=\{!projecting\}/);
   assert.match(tile, /aria-label=\{`\$\{tileLabel\}: \$\{row\.headline\}`\}/);
   assert.match(tile, /const tileLabel = formatStudentLabel\(/);
   // A public Spotlight label comes from the roster record, never the live row.

@@ -282,12 +282,14 @@ test('the history panel resolves a roster display name for the primary label; it
   const rowSource = region(historyPanelSource, 'transactions.map((transaction) =>', 'export default function ClassPointsHistoryPanel', 'history row');
   assertCapability(executableSource(rowSource), [
     /const studentName = resolveRosterStudentName\(\{ studentId: transaction\.studentId, students: roster \}\)/,
-    /const studentName = rosterStudentLabel\(transaction\.studentId, roster\)/,
+    /const studentName = rosterStudentLabel\(transaction\.studentId, roster(?:, '', showStudentId)?\)/,
   ], 'each history row must name its student from the roster by studentId');
   if (/rosterStudentLabel\(/.test(historyPanelSource)) {
     const helper = region(historyPanelSource, 'const rosterStudentLabel', '\n};', 'roster label helper');
     assert.match(helper, /resolveRosterStudentName\(\{ studentId, students/);
-    assert.match(helper, /name === STUDENT_NAME_UNAVAILABLE \? formatStudentLabel\(/, 'a missing name reads "Name unavailable · ID x", never the bare id');
+    // A missing name reads "Name unavailable · ID x" (only "Name unavailable"
+    // while the room tiles are projected) — never the bare id.
+    assert.match(helper, /if \(name !== STUDENT_NAME_UNAVAILABLE \|\| !showStudentId\) return name;\s*return formatStudentLabel\(/, 'a missing name reads "Name unavailable · ID x", never the bare id');
     assert.match(historyPanelSource, /import \{[^}]*\bformatStudentLabel\b[^}]*\bresolveRosterStudentName\b[^}]*\} from '\.\.\/\.\.\/platform\/studentName\.js'/);
   }
   assert.match(historyPanelSource, /<strong[^>]*>\{studentName\}<\/strong>/);

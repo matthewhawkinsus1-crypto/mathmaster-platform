@@ -25,6 +25,7 @@ import {
   cleanStudentNameText,
   compareStudentIdentities,
   isIdentifierLikeName,
+  naturalStudentName,
   resolveStudentIdentity,
   splitStudentDisplayName,
   studentIdLabel,
@@ -70,7 +71,7 @@ export const formatStudentName = (student = {}, {
   if (!identity.hasName) return fallbackToNeutral ? neutralLabel : '';
   const { firstName, lastName } = studentNamePartsFromIdentity(identity);
   if (lastFirst && lastName) return firstName ? `${lastName}, ${firstName}` : lastName;
-  return [firstName, lastName].filter(Boolean).join(' ') || identity.displayName;
+  return naturalStudentName(identity);
 };
 
 /**

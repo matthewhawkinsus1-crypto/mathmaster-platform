@@ -15,9 +15,11 @@ import {
 
 // The roster name, or "Name unavailable · ID x" so two nameless students stay
 // distinguishable — never the bare id standing in for a name.
-const rosterStudentLabel = (studentId, students, historicalName = '') => {
+// While the room tiles are projected (showStudentId false) no id is shown.
+const rosterStudentLabel = (studentId, students, historicalName = '', showStudentId = true) => {
   const name = resolveRosterStudentName({ studentId, students, historicalName });
-  return name === STUDENT_NAME_UNAVAILABLE ? formatStudentLabel(String(studentId ?? '')) : name;
+  if (name !== STUDENT_NAME_UNAVAILABLE || !showStudentId) return name;
+  return formatStudentLabel(String(studentId ?? ''));
 };
 
 // Compact, bounded recent-activity panel for the active class. It reads only
@@ -100,7 +102,7 @@ function ReversalControl({ transaction }) {
   );
 }
 
-export default function ClassPointsHistoryPanel({ classId, teacherEmail, roster = [] }) {
+export default function ClassPointsHistoryPanel({ classId, teacherEmail, roster = [], showStudentId = true }) {
   const [transactions, setTransactions] = useState([]);
   const [unavailable, setUnavailable] = useState(false);
 
@@ -132,7 +134,7 @@ export default function ClassPointsHistoryPanel({ classId, teacherEmail, roster 
       ) : (
         <div style={{ display: 'grid', gap: 7 }}>
           {transactions.map((transaction) => {
-            const studentName = rosterStudentLabel(transaction.studentId, roster);
+            const studentName = rosterStudentLabel(transaction.studentId, roster, '', showStudentId);
             const amount = Number(transaction.amount) || 0;
             return (
               <div key={transaction.id} style={rowStyle}>

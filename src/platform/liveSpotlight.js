@@ -176,6 +176,10 @@ export const createSpotlightPublisher = ({ publish, delayMs = SPOTLIGHT_FRAME_DE
 export const publicStudentLabel = (student = {}) => {
   const identity = resolveStudentIdentity(student && typeof student === 'object' ? student : {});
   if (!identity.hasName) return STUDENT_SELF_NEUTRAL_LABEL;
+  // A lone stored surname is never shown to the class in full.
+  if (identity.nameSource === 'structured' && !identity.firstName) {
+    return `${STUDENT_SELF_NEUTRAL_LABEL} ${identity.lastName.charAt(0).toUpperCase()}.`;
+  }
   const parts = studentNamePartsFromIdentity(identity);
   const first = cleanText(parts.firstName || identity.displayName, 40);
   const last = cleanText(parts.lastName, 40);

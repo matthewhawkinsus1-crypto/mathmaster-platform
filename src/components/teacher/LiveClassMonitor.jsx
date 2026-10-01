@@ -549,6 +549,10 @@ export default function LiveClassMonitor({
   }, [focusKey, focusAssignmentId]);
   const [mode, setMode] = useState('room');
   const [roomMode, setRoomMode] = useState(false);
+  // Large room tiles are what a teacher puts on the projector: no student id
+  // is shown there. The ordinary Room view is the teacher's own screen, so a
+  // nameless student keeps the labelled 'ID x' line that tells them apart.
+  const projecting = mode === 'room' && roomMode;
   const [teacherQuestionIndex, setTeacherQuestionIndex] = useState(0);
   const [walkthroughFilter, setWalkthroughFilter] = useState('needsCheck');
   const [checkedStudentIds, setCheckedStudentIds] = useState([]);
@@ -958,7 +962,7 @@ export default function LiveClassMonitor({
       id: studentRow.id,
       name: studentRow.nameMissing ? null : studentRow.name,
       // The award dialog opened from the room view may be on the projector.
-      showStudentId: mode !== 'room',
+      showStudentId: !projecting,
     }),
   } : null);
 
@@ -1062,7 +1066,7 @@ export default function LiveClassMonitor({
         onCheckInAll={handleCheckInAllReturns}
         onOpenStudent={onOpenStudent}
         busyKey={returnCheckInBusyKey}
-        showStudentId={mode !== 'room'}
+        showStudentId={!projecting}
       />
 
       {showAttendance && (
@@ -1075,7 +1079,7 @@ export default function LiveClassMonitor({
       )}
 
       {showClassPoints && activeClassId && (
-        <ClassPointsHistoryPanel classId={activeClassId} teacherEmail={teacherEmail} roster={roster} />
+        <ClassPointsHistoryPanel classId={activeClassId} teacherEmail={teacherEmail} roster={roster} showStudentId={!projecting} />
       )}
 
       {activeSectionTimers.length > 0 && (
@@ -1175,7 +1179,7 @@ export default function LiveClassMonitor({
               profile={learningProfilesByStudentId[row.id] || null}
               suggestion={suggestions[row.id] || null}
               roomMode={roomMode && mode === 'room'}
-              showStudentId={mode !== 'room'}
+              showStudentId={!projecting}
               integritySignal={integrityByStudentId[row.id] || null}
               onSupportAction={(kind, stage, signal, extra) => handleSupportAction(row, kind, stage, signal, extra)}
               onRecommendPath={onRecommendPersonalPath ? (teksCode) => onRecommendPersonalPath({ studentId: row.id, studentName: row.nameMissing ? null : row.name, teksCode, classId: activeClassId || row.live?.classId || null, classPeriod: row.classPeriod || row.live?.classPeriod || null, assignmentId: row.live?.assignmentId || null, assignmentTitle: row.live?.assignmentTitle || null }) : null}

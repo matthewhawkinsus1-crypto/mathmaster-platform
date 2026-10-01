@@ -1420,7 +1420,8 @@ function App() {
     if (!activeId) return [];
     return studentsInClass({ students: allStudents, classes, classId: activeId })
       .map((student) => ({ ...student, name: formatStudentName(student) }))
-      .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      // Named students by last, first, id; students with no name on file last.
+      .sort(compareStudentsByName);
   }, [allStudents, classes, activeClass.classId, teacherTab]);
 
   const teacherWeeklyGoalsByStudent = useMemo(() => {
