@@ -221,6 +221,18 @@ const compileEquationSides = (equation) => {
 
 const residualTolerance = (scale) => 1e-9 + 1e-7 * scale;
 const isBalancedAt = (value) => value !== null && Math.abs(value.residual) <= residualTolerance(value.scale);
+/*
+ * Off the line, only floating-point noise counts as "balanced there". A
+ * legitimate step can shrink how much the equation changes off the line far
+ * below 1e-7 of its sides' size while keeping the line — every committed
+ * "multiply both sides by x" scales the change by |x| at x = −0.577, and an
+ * added term (+ 2y on both sides) inflates the sides without adding to the
+ * change — so the on-line tolerance above would call such an equation an
+ * identity. An identity reached in the workspace (0 = 0, (x − x)·… = 0)
+ * changes by exactly nothing.
+ */
+const OFF_SET_RELATIVE_NOISE = 1e-12;
+const isSolutionOffSet = (value) => value !== null && Math.abs(value.residual) <= OFF_SET_RELATIVE_NOISE * value.scale;
 
 /**
  * Points on the solution set of an equation in x and y, found by fixing one
@@ -265,7 +277,7 @@ export const equationKeepsZeroSet = (equation, reference) => {
     return OFF_SET_OFFSETS.every((offset) => {
       const shifted = reference.axis === 'y' ? evaluate(point.x, point.y + offset) : evaluate(point.x + offset, point.y);
       // Undefined off the line is still "not a solution there".
-      return shifted === null || !isBalancedAt(shifted);
+      return !isSolutionOffSet(shifted);
     });
   });
 };

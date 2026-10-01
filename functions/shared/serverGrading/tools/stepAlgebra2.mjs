@@ -36,6 +36,7 @@
 import declaration from '../declarations/stepAlgebra2.mjs';
 import { bindToolGrader } from '../toolGraderDefinition.mjs';
 import { gradedResult, ungradedResult } from '../gradingResult.mjs';
+import { TOOL_RESPONSE_LIMITS } from '../toolResponseContract.mjs';
 import { exactFractionText, nearlyEqual } from '../../toolMath/shared/toolMath.mjs';
 import {
   buildInitialEquationState,
@@ -130,6 +131,13 @@ export const resolveRewriteTargetForm = (question = {}) => (question?.targetForm
 
 // The embedded Step Algebra keeps at most this many committed steps.
 const REWRITE_WORK_STEP_LIMIT = 80;
+// Characters of step equations the work keeps, newest first. Every balanced
+// move with a variable operand wraps both sides in another layer, so 80 long
+// steps can pass the response contract's 24,000-character cap — and an
+// oversize response is refused whole, finished equation included. The step
+// log only ever earns the "made a step" credit, which one verified step
+// decides, so the oldest steps are the ones left out.
+const REWRITE_WORK_STEP_BUDGET = 16_000;
 
 const readEquation = (value) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -140,15 +148,29 @@ const readEquation = (value) => {
 
 /**
  * The rewrite screen's work: the equation it shows and the equation after each
- * committed step of the embedded Step Algebra's log.
+ * committed step of the embedded Step Algebra's log (the latest 80 that fit
+ * REWRITE_WORK_STEP_BUDGET, in order). A step with a side longer than the
+ * response contract keeps is left out rather than cut into a different
+ * expression.
  */
-export const rewriteLinearFormWork = (equationState = null, history = []) => ({
-  equation: { left: equationState?.left ?? '', right: equationState?.right ?? '' },
-  steps: (Array.isArray(history) ? history : []).slice(-REWRITE_WORK_STEP_LIMIT).map((step) => ({
-    left: step?.after?.left ?? '',
-    right: step?.after?.right ?? '',
-  })),
-});
+export const rewriteLinearFormWork = (equationState = null, history = []) => {
+  const log = Array.isArray(history) ? history : [];
+  const kept = [];
+  let budget = REWRITE_WORK_STEP_BUDGET;
+  for (let index = log.length - 1; index >= 0 && kept.length < REWRITE_WORK_STEP_LIMIT; index -= 1) {
+    const step = { left: log[index]?.after?.left ?? '', right: log[index]?.after?.right ?? '' };
+    if (String(step.left).length > TOOL_RESPONSE_LIMITS.maxStringLength
+      || String(step.right).length > TOOL_RESPONSE_LIMITS.maxStringLength) continue;
+    const cost = JSON.stringify(step).length + 1;
+    if (cost > budget) break;
+    budget -= cost;
+    kept.push(step);
+  }
+  return {
+    equation: { left: equationState?.left ?? '', right: equationState?.right ?? '' },
+    steps: kept.reverse(),
+  };
+};
 
 const rewriteLinearForm = (question, work) => {
   const targetForm = resolveRewriteTargetForm(question);
@@ -188,7 +210,8 @@ const rewriteLinearForm = (question, work) => {
   const noVariableOnRight = leftIsolated && gap !== 'variableOnBothSides';
   // Every committed step is re-checked against the question's own line; the
   // "made a step" credit needs at least one that really is.
-  const steps = Array.isArray(work.steps) ? work.steps.map(readEquation).filter(Boolean) : [];
+  // At most the 80 a screen sends: a tampered list is not evaluated further.
+  const steps = Array.isArray(work.steps) ? work.steps.slice(-REWRITE_WORK_STEP_LIMIT).map(readEquation).filter(Boolean) : [];
   const madeProgress = steps.some((step) => equationKeepsZeroSet(step, reference));
   const correct = complete && keepsOriginal;
   const score = !keepsOriginal

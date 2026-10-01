@@ -573,3 +573,63 @@ test('rewrite: realistic maximal work fits the response contract', () => {
   assert.deepEqual(boundToolWork(work).dropped, []);
   assert.equal(grade({ ...FACTORED, equation: '2y = 10x - 40' }, work).graded, true);
 });
+
+test('rewrite: a long log of long equations is never refused as oversize — the newest steps are kept', () => {
+  // A long session of long equations (each step adds and removes terms the
+  // student chose) outgrows the response contract's 24,000 characters, and
+  // an oversize response is refused whole, finished equation included.
+  const question = { ...FACTORED, equation: '2y = 10x - 40' };
+  const padding = '(y - y) + '.repeat(20);
+  const history = [];
+  let equation = { left: '2y', right: '10x - 40' };
+  for (let index = 1; index <= 79; index += 1) {
+    const next = { left: `(2y) + ${padding}${index} - ${index}`, right: `(10x - 40) + ${padding}${index} - ${index}` };
+    history.push(coreStep(equation, next, `Added and removed ${index}`));
+    equation = next;
+  }
+  // The student then rewrites both sides back (the workspace's "Rewrite" box).
+  const rewritten = { left: '2y', right: '10x - 40' };
+  history.push(coreStep(equation, rewritten, 'Rewrote both sides'));
+  assert.ok(JSON.stringify(history.map((step) => step.after)).length > TOOL_RESPONSE_LIMITS.maxJsonLength, 'the full log alone is over the cap');
+  // A step whose side the contract would cut short is left out, not cut.
+  const overlong = { left: `(2y) + ${'(y - y) + '.repeat(120)}0`, right: '10x - 40' };
+  assert.ok(overlong.left.length > TOOL_RESPONSE_LIMITS.maxStringLength);
+  const log = [...history.slice(0, -1), coreStep(equation, overlong), history.at(-1)];
+  const work = rewriteLinearFormWork(rewritten, log);
+  assert.ok(work.steps.length > 1 && work.steps.length < 80, `${work.steps.length} steps kept`);
+  const kept = history.slice(-work.steps.length).map((step) => step.after);
+  assert.deepEqual(work.steps, kept, 'the newest steps that fit, in order, with only the overlong one left out');
+  assert.ok(canonicalToolWorkJson(work).length <= TOOL_RESPONSE_LIMITS.maxJsonLength);
+  assert.equal(boundToolWork(work).truncated, false);
+  const result = grade(question, work);
+  assert.equal(result.graded, true);
+  assert.equal(result.score, 0.15, 'not isolated, with real steps: the screen’s step credit');
+  assert.equal(result.parts[0].isCorrect, true, 'still the original line');
+});
+
+test('rewrite: a step that barely changes off the line is still the original line, not an identity', () => {
+  // y = 12x + 8, then ÷(−y), ÷(5x), ÷40 and + 2y on both sides — every move the
+  // workspace's own engine makes. Off the line the equation now changes by
+  // under 1e-7 of its sides' size (the + 2y dominates), yet it is the same line.
+  const question = { ...FACTORED, equation: 'y = 12x + 8' };
+  const start = factoredStart('y = 12x + 8');
+  const moves = [['divide', '-y'], ['divide', '5x'], ['divide', '40'], ['add', '2y']];
+  const history = [];
+  let equation = start;
+  for (const [operation, operand] of moves) {
+    const next = balancedMove(equation, operation, operand);
+    history.push(coreStep(equation, next));
+    equation = next;
+  }
+  const result = grade(question, rewriteLinearFormWork(equation, history));
+  assert.equal(result.parts[0].id, 'same-line');
+  assert.equal(result.parts[0].isCorrect, true);
+  assert.equal(result.score, 0.15, 'the screen gave the step credit for this work');
+  // Thirty multiplications by x shrink the change off the line at x = −0.577
+  // below 1e-7 of the sides, too; it is still the line, and 0 = 0 still is not.
+  const power = 'x^30';
+  const shrunk = { left: `${power} * (2y) + 2y`, right: `${power} * (10x - 40) + 2y` };
+  const twoY = { ...FACTORED, equation: '2y = 10x - 40' };
+  assert.equal(grade(twoY, rewriteLinearFormWork(shrunk, [coreStep(factoredStart('2y = 10x - 40'), shrunk)])).score, 0.15);
+  assert.equal(grade(twoY, rewriteLinearFormWork({ left: `0 * ${power} * (2y)`, right: `0 * ${power} * (10x - 40)` }, [])).score, 0);
+});
