@@ -5,7 +5,9 @@ import { readFileSync } from 'node:fs';
 const source = readFileSync(new URL('../../src/components/CalculatorPanel.jsx', import.meta.url), 'utf8');
 
 test('calculator uses a MathLive field and offers a stacked-fraction key', () => {
-  assert.match(source, /import ['"]mathlive['"]/);
+  // MathLive is loaded through the platform's one editor module, which also
+  // brings its fonts (tests/platform/mathliveFonts.test.mjs).
+  assert.match(source, /^import ['"](?:\.\.\/)+platform\/math\/mathliveRuntime\.js['"];$/m);
   assert.match(source, /<math-field/);
   assert.match(source, /\\\\frac\{#0\}\{#\?\}/);
   assert.match(source, /getValue\?\.\(['"]ascii-math['"]\)/);
