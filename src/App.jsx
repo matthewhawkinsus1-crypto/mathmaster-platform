@@ -275,7 +275,6 @@ import { adaptLegacyMasteryToPhase5 } from './platform/profile/legacyMasteryAdap
 import StudentDashboardView from './components/student/StudentDashboardView.jsx';
 import StudentGradeCenter from './components/student/StudentGradeCenter.jsx';
 import StudentAssignmentsCenter from './components/student/StudentAssignmentsCenter.jsx';
-import TestCycleCard from './components/student/TestCycleCard.jsx';
 import { isTestCycleAssignment } from './platform/assessment/testCycle.js';
 import { preflightTestCycleCandidate } from './services/testCycleService.js';
 import { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
@@ -320,9 +319,9 @@ import PathCoverageAudit from './components/teacher/PathCoverageAudit.jsx';
 import {
   blobToBase64,
   generateLessonNotesPdfBlob,
-} from './platform/resources/lessonNotesPdf.js';
+} from './platform/resources/pdfLoaders.js';
 import { buildAssignmentWorksheetModel, PRINT_OUTPUT_MODES } from './platform/resources/assignmentWorksheetPdfModel.js';
-import { downloadAssignmentWorksheetPdf } from './platform/resources/assignmentWorksheetPdf.js';
+import { downloadAssignmentWorksheetPdf } from './platform/resources/pdfLoaders.js';
 import { defaultAssignmentDateInputs } from './platform/assignments/assignmentDateDefaults.js';
 import {
   buildSafeLibraryContentRepair,
@@ -432,6 +431,10 @@ const MarkingPeriodSettings = lazy(() => import('./components/teacher/MarkingPer
 const WarmupChallengeGate = lazy(() => import('./components/liveChallenge/WarmupChallengeGate.jsx'));
 const LiveChallengeTeacher = lazy(() => import('./components/liveChallenge/LiveChallengeTeacher.jsx'));
 const LiveChallengeStudent = lazy(() => import('./components/liveChallenge/LiveChallengeStudent.jsx'));
+// Only a student opening a Test Cycle needs this, and it brings the secure
+// exam player, the calculator and all of MathLive with it — about 1 MB that a
+// static import put in front of every sign-in.
+const TestCycleCard = lazy(() => import('./components/student/TestCycleCard.jsx'));
 
 
 
@@ -11450,14 +11453,16 @@ function App() {
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
           <main style={{ padding: '24px 16px', maxWidth: 880, margin: '0 auto', boxSizing: 'border-box' }}>
-            <TestCycleCard
-              assignmentId={activeTestCycleAssignmentId}
-              studentProfile={user.profile}
-              // Review is ordinary MathMaster instruction, so it opens the
-              // ordinary runtime — restricted to the review questions.
-              onOpenReview={(assignmentId) => startAssignment(assignmentId, 0, { cycleStage: 'review' })}
-              onExit={openStudentAssignmentsCenter}
-            />
+            <Suspense fallback={<p role="status" style={{ margin: 0 }}>Opening your test…</p>}>
+              <TestCycleCard
+                assignmentId={activeTestCycleAssignmentId}
+                studentProfile={user.profile}
+                // Review is ordinary MathMaster instruction, so it opens the
+                // ordinary runtime — restricted to the review questions.
+                onOpenReview={(assignmentId) => startAssignment(assignmentId, 0, { cycleStage: 'review' })}
+                onExit={openStudentAssignmentsCenter}
+              />
+            </Suspense>
           </main>
         </>,
       );
