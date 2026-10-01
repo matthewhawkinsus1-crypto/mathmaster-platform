@@ -292,7 +292,7 @@ import StudentAssignmentResult from './components/student/StudentAssignmentResul
 import SectionRecoveryPanel from './components/student/SectionRecoveryPanel.jsx';
 import SectionRecoveryRunner from './components/student/SectionRecoveryRunner.jsx';
 import SectionRecoveryAuditTrail from './components/teacher/SectionRecoveryAuditTrail.jsx';
-import { completedRecoverySections } from './platform/recovery/teacherRecoveryAudit.js';
+import { completedRecoverySections, warmupChallengeCounts } from './platform/recovery/teacherRecoveryAudit.js';
 import { buildStudentRecoverySummary } from './platform/recovery/studentRecoveryModel.js';
 import { recoveryErrorCode, startSectionRecovery } from './services/sectionRecoveryService.js';
 import StudentIdentityBar, { STUDENT_IDENTITY_STACK_OFFSET } from './components/student/StudentIdentityBar.jsx';
@@ -925,6 +925,9 @@ function App() {
   // it holds what the grades snapshot says, plus the record the server
   // returned from its last action until that snapshot arrives.
   const [sectionRecoveryByAssignment, setSectionRecoveryByAssignment] = useState({});
+  // The student's Live Challenge Warm-Up results (server-written when a match
+  // finishes). A result is the Warm-Up grade, so the Grade Center reads it.
+  const [warmupChallengeByAssignment, setWarmupChallengeByAssignment] = useState({});
   // The Recovery the student has open ({ assignmentId, section, mode }), and
   // the section whose Start is waiting on the server.
   const [recoverySession, setRecoverySession] = useState(null);
@@ -1113,15 +1116,17 @@ function App() {
     });
   }, [user, tracker, supportUsageByAssignment, assignments]);
 
-  // Overrides, then any completed Practice-based Recovery — the same order
-  // every teacher surface, Grade Transfer and Classroom passback use.
+  // Overrides, then a Live Challenge Warm-Up result, then any completed
+  // Practice-based Recovery — the same order every teacher surface, Grade
+  // Transfer and Classroom passback use.
   const gradeDisplayTracker = useMemo(
     () => projectSectionRecoveriesForDisplay(
       projectTeacherOverridesForDisplay(tracker, teacherGradeOverridesByAssignment),
       sectionRecoveryByAssignment,
       Object.fromEntries(assignments.map((assignment) => [assignment.id, assignment])),
+      warmupChallengeByAssignment,
     ),
-    [tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, assignments],
+    [tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, assignments, warmupChallengeByAssignment],
   );
 
   // Recovery for the assignment whose result is open. The original section is
@@ -2760,6 +2765,7 @@ function App() {
         setTracker(repairedStudentGrades.gradesByAssignment || {});
         setTeacherGradeOverridesByAssignment(studentData.teacherGradeOverridesByAssignment || {});
         setSectionRecoveryByAssignment(studentData.sectionRecoveryByAssignment || {});
+        setWarmupChallengeByAssignment(studentData.warmupChallengeByAssignment || {});
         setAssignmentActivity(studentData.assignmentActivity || {});
         setDolGradesByAssignment(studentData.dolGradesByAssignment || {});
         setClassworkGradesByAssignment(studentData.classworkGradesByAssignment || {});
@@ -4121,6 +4127,7 @@ function App() {
       setTestCycleGrades({});
       setTeacherGradeOverridesByAssignment({});
       setSectionRecoveryByAssignment({});
+      setWarmupChallengeByAssignment({});
       setDolGradesByAssignment({});
       setClassworkGradesByAssignment({});
       classroomSyncNoticeRef.current = {};
@@ -4140,6 +4147,7 @@ function App() {
         // A Recovery the server just recorded must reach the student's grade
         // and Recovery panel without a reload.
         setSectionRecoveryByAssignment(snapshot.data()?.sectionRecoveryByAssignment || {});
+        setWarmupChallengeByAssignment(snapshot.data()?.warmupChallengeByAssignment || {});
         setDolGradesByAssignment(snapshot.data()?.dolGradesByAssignment || {});
         setClassworkGradesByAssignment(snapshot.data()?.classworkGradesByAssignment || {});
 
@@ -5034,11 +5042,14 @@ function App() {
       if (result?.record) mergeSectionRecoveryRecord(assignmentId, section, result.record);
       setRecoverySession({ assignmentId, section, mode: 'assessment' });
     } catch (error) {
+      const code = recoveryErrorCode(error);
       toastWarning(
         'Recovery not started',
-        recoveryErrorCode(error) === 'recovery-locked'
+        code === 'recovery-locked'
           ? 'More Practice is needed before this Recovery unlocks.'
-          : 'A fresh Recovery could not be prepared right now. Try again in a moment.',
+          : code === 'recovery-window-ended'
+            ? 'The final submission date has passed, so Recovery is closed.'
+            : 'A fresh Recovery could not be prepared right now. Try again in a moment.',
       );
     } finally {
       setRecoveryBusySection(null);
@@ -11380,7 +11391,7 @@ function App() {
                 )}
 
                 {selectedGradebookPeriod && selectedAssignment && !gradebookFilter.student && (
-                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ padding: '12px' }}>Student</th><th>Overall</th><th>Warm-Up</th><th>Classwork</th><th>Practice</th><th>DOL</th><th>Instructional condition</th><th>Activity</th><th></th></tr></thead><tbody>{gradebookVisibleStudents.map((student) => { const grades = projectedAssignmentTrackerFor({ student, assignment: selectedAssignment }) || undefined; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const score = assignmentOverride ? assignmentOverride.score : grades ? calculateGrade(grades, selectedAssignment) : null; const sectionGrades = splitGradesBySection({ tracker: grades, assignment: selectedAssignment }); const recoveredSections = completedRecoverySections(student, selectedAssignment.id); const recoveredMark = (section) => (recoveredSections.has(section) ? <span data-recovered-section={section} title="Includes a completed Practice-based Recovery. Open Details for Original, Recovery and Final." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>R</span> : null); const gradeSplit = splitGrade({ tracker: grades, assignment: selectedAssignment }); const gradeExplanation = grades ? explainGrade(gradeSplit) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <tr key={student.id} style={{ borderBottom: '1px solid #e8eaed' }}><td style={{ padding: '12px' }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} profile={teacherLearningProfiles[student.id]} onOpen={setProfileDrawerStudentId} showBadge /><div style={{ marginTop: 3, color: '#5f6368', fontSize: 11 }}>ID {student.id}</div></td><td><strong style={{ color: modified ? '#6f2da8' : score >= 70 ? '#188038' : '#202124' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: '#efe4ff', color: '#6f2da8', fontWeight: 900, fontSize: '11px' }}>MOD</span>}
+                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ padding: '12px' }}>Student</th><th>Overall</th><th>Warm-Up</th><th>Classwork</th><th>Practice</th><th>DOL</th><th>Instructional condition</th><th>Activity</th><th></th></tr></thead><tbody>{gradebookVisibleStudents.map((student) => { const grades = projectedAssignmentTrackerFor({ student, assignment: selectedAssignment }) || undefined; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const score = assignmentOverride ? assignmentOverride.score : grades ? calculateGrade(grades, selectedAssignment) : null; const sectionGrades = splitGradesBySection({ tracker: grades, assignment: selectedAssignment }); const recoveredSections = completedRecoverySections(student, selectedAssignment.id); const challengeWarmup = warmupChallengeCounts(student, selectedAssignment.id); const recoveredMark = (section) => (<>{section === 'warmup' && challengeWarmup ? <span data-warmup-challenge-mark="true" title="The Warm-Up grade is this student's Live Challenge result. Open Details for the rounds." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>LC</span> : null}{recoveredSections.has(section) ? <span data-recovered-section={section} title="Includes a completed Practice-based Recovery. Open Details for Original, Recovery and Final." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>R</span> : null}</>); const gradeSplit = splitGrade({ tracker: grades, assignment: selectedAssignment }); const gradeExplanation = grades ? explainGrade(gradeSplit) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <tr key={student.id} style={{ borderBottom: '1px solid #e8eaed' }}><td style={{ padding: '12px' }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} profile={teacherLearningProfiles[student.id]} onOpen={setProfileDrawerStudentId} showBadge /><div style={{ marginTop: 3, color: '#5f6368', fontSize: 11 }}>ID {student.id}</div></td><td><strong style={{ color: modified ? '#6f2da8' : score >= 70 ? '#188038' : '#202124' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: '#efe4ff', color: '#6f2da8', fontWeight: 900, fontSize: '11px' }}>MOD</span>}
                     {/*
                       COMPLETION AND PERFORMANCE, VISUALLY APART.
                       The grade above is unchanged. These two lines are what a

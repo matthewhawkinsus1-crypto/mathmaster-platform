@@ -169,6 +169,14 @@ Policy defaults:
 * DOL Recovery: counted up to 90%.
 * An excused make-up still requires mastery by default (configurable).
 * One automatic opportunity.
+* **Open until the assignment's final submission date.** The Recovery end date
+  is the same per-student cutoff after which no work earns credit, including
+  an attendance extension or individualized extra time. The panel says "Open
+  until …". After the end date a Recovery never started stops being offered.
+  One started but not submitted is closed, and the original score stands.
+  A Recovery submitted in time keeps its result. Every change after the end
+  date is refused (`recovery-window-ended`). An assignment with no final date
+  has no end date.
 
 **Flow.**
 
@@ -197,13 +205,13 @@ question, and it is never a free skip.
 * There is no separate gradebook. The recovered section's questions are
   credited at the recorded score at read time, so weights, denominators and
   other sections are unchanged.
-* Precedence: assignment-level override > Recovery > per-question overrides.
-  Per-question overrides shape the original that the Recovery is compared
-  against.
+* Precedence: assignment-level override > Recovery > Live Challenge Warm-Up
+  result > per-question overrides. Per-question overrides shape the original
+  that the Recovery is compared against.
 * The same projection drives the student Grade Center, the teacher gradebook,
   Grade Transfer (TEAMS export), parent contact summaries and both Classroom
-  passback triggers. The triggers wake only when a completed Recovery
-  changes.
+  passback triggers. The triggers wake only when a completed Recovery or a
+  Live Challenge result changes.
 
 **Data and security.**
 
@@ -217,10 +225,23 @@ question, and it is never a free skip.
 
 **Live Challenge.**
 
+* **The Live Challenge result is the Warm-Up grade**
+  (`warmupChallengeGrade.mjs`).
+  * The score is rounds correct out of the rounds the student could play. A
+    late arrival is measured only on rounds they were there for. Challenge
+    points, speed and rewards never count.
+  * It credits the Warm-Up questions through the same projection as a
+    Recovery. The recorded score is the higher of it and any authored
+    Warm-Up work.
+  * A student who played but has no tracker yet still gets the grade.
+  * A student who never joined has no result: like any missed Warm-Up, the
+    teacher reconciles the absence.
+  * The teacher gradebook marks these Warm-Up cells "LC" and shows the rounds
+    in the student detail.
 * A Warm-Up delivered by Live Challenge (or a pending teacher choice) never
   produces a Warm-Up Recovery.
-* An empty authored Warm-Up score is not treated as missing.
-* Gameplay, scoring and rewards are untouched.
+* Gameplay, scoring and rewards are untouched. The result is written only by
+  the server's match finalization (`writeWarmupCreditFromResult`).
 
 ## 7. Compatibility and what remains legacy
 

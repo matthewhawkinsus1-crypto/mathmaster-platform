@@ -141,10 +141,10 @@ test('too few distinct versions for the class is a warning that names the class 
   assert.ok(!shared.warnings.some((warning) => /fewer than/.test(warning)), 'a shared section needs only one question');
 });
 
-test('a Live Challenge Warm-Up is reported as such — never as a Warm-Up students will miss', () => {
+test('a Live Challenge Warm-Up is reported as such: its result is the Warm-Up grade, and no Recovery is generated', () => {
   const model = buildAssignmentV5PreflightModel(assignmentWith(familyDol, { warmup: { liveChallenge: { enabled: true } } }), { classSize: 20 });
   assert.equal(model.questionGeneration.recovery.warmup.status, 'liveChallenge');
-  assert.ok(model.questionGeneration.notes.some((note) => /Warm-Up is delivered by Live Challenge: MathMaster will not generate a Warm-Up Recovery, and students who played are not treated as missing/.test(note)));
+  assert.ok(model.questionGeneration.notes.some((note) => /Warm-Up is delivered by Live Challenge: each student's result \(rounds correct out of the rounds they could play\) is their Warm-Up grade, and MathMaster will not generate a Warm-Up Recovery/.test(note)));
   assert.ok(!model.warnings.some((warning) => /Warm-Up/.test(warning)));
 });
 

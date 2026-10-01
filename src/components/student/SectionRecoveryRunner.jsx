@@ -238,6 +238,9 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
       if (code === 'practice-response-ungradable') {
         return { blocked: true, message: 'MathMaster could not read that answer. Check it and press Submit again.' };
       }
+      if (code === 'recovery-window-ended') {
+        return { blocked: true, message: 'The final submission date has passed, so Recovery is closed.' };
+      }
       return { blocked: true, message: 'Your answer could not be checked right now. Try Submit again.' };
     }
   }, [assignment.id, entry.section, item, maximumAttempts, recordOutcome, stepRecords]);
@@ -428,7 +431,9 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
       const code = recoveryErrorCode(submitError);
       setError(code === 'recovery-not-in-progress'
         ? 'This Recovery was already submitted.'
-        : 'Your Recovery could not be submitted right now. Your answers are saved here — try again.');
+        : code === 'recovery-window-ended'
+          ? 'The final submission date has passed, so this Recovery can no longer be submitted. Your original score stands.'
+          : 'Your Recovery could not be submitted right now. Your answers are saved here — try again.');
     } finally {
       setSubmitting(false);
     }
@@ -447,6 +452,18 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
               <div><dt style={{ color: 'var(--mm-text-muted)' }}>Final</dt><dd style={{ margin: 0, fontWeight: 900, fontSize: 18 }}>{entry.result.final}</dd></div>
             </dl>
           )}
+          <div><button type="button" onClick={onExit} style={actionButton(true)}>Done</button></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (entry.state === 'closed') {
+    return (
+      <div style={shellStyle} data-recovery-runner="closed" data-recovery-section={entry.section}>
+        <RecoveryHeader label={entry.label} subtitle="Recovery closed." onExit={onExit} />
+        <div style={{ ...panelStyle, display: 'grid', gap: 10 }}>
+          <p style={{ margin: 0 }}>{entry.message}</p>
           <div><button type="button" onClick={onExit} style={actionButton(true)}>Done</button></div>
         </div>
       </div>

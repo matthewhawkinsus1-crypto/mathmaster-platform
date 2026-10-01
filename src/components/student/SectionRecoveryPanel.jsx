@@ -72,8 +72,13 @@ export default function SectionRecoveryPanel({ summary = [], busySection = null,
               <strong style={{ fontSize: 16, color: 'var(--mm-text-strong)' }}>{entry.label}</strong>
               <span style={badgeStyle(entry.state)}>{entry.badge}</span>
             </div>
-            {entry.state !== 'completed' && entry.state !== 'inProgress' && <RecoveryMasteryMeter percent={entry.masteryPercent} />}
+            {(entry.state === 'locked' || entry.state === 'unlocked') && <RecoveryMasteryMeter percent={entry.masteryPercent} />}
             <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.5 }}>{entry.message}</p>
+            {entry.endsAtLabel && (
+              <p data-recovery-ends-at="true" style={{ margin: 0, fontSize: 12.5, fontWeight: 700, color: 'var(--mm-text-strong)' }}>
+                Open until {entry.endsAtLabel}
+              </p>
+            )}
             {entry.state === 'locked' && entry.practiceRemaining > 0 && (
               <p style={{ margin: 0, fontSize: 12.5, color: 'var(--mm-text-muted)' }}>
                 {entry.practiceRemaining} more practice question{entry.practiceRemaining === 1 ? '' : 's'} to go.

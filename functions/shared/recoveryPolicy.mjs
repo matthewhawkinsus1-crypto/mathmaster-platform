@@ -46,13 +46,14 @@ export const RECOVERY_TYPE = Object.freeze({
  *   one automatic recovery per original Warm-Up/DOL
  *     — Practice stays available afterwards; another graded attempt is a
  *     teacher decision, not a loop.
+ *   open until the assignment's final submission date
+ *     — the Recovery end date is the same per-student cutoff after which no
+ *     work earns credit (sectionRecoveryEligibility.mjs), so a Recovery can
+ *     never change a grade after the assignment's grade is final.
  */
 const DEFAULTS = Object.freeze({
   enabled: true,
   automaticOpportunities: 1,
-  // When true, recovery waits for the whole assignment's grading cutoff, not
-  // just the section's own window.
-  waitForAssignmentClose: false,
   mastery: Object.freeze({
     windowSize: 8,
     requiredCorrect: 7,
@@ -115,7 +116,6 @@ export const normalizeRecoveryPolicy = (assignmentOrPolicy = null) => {
     version: RECOVERY_POLICY_VERSION,
     enabled: authored.enabled !== false,
     automaticOpportunities: clampInt(authored.automaticOpportunities, 0, 3, DEFAULTS.automaticOpportunities),
-    waitForAssignmentClose: authored.waitForAssignmentClose === true,
     mastery: Object.freeze({
       windowSize,
       requiredCorrect,

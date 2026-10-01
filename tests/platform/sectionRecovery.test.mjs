@@ -34,19 +34,25 @@ import {
   runSectionRecoveryAction,
 } from '../../functions/shared/sectionRecoveryService.mjs';
 import { resolveWarmupDelivery } from '../../functions/shared/warmupDelivery.mjs';
+import { warmupChallengeScore, warmupChallengeSignature } from '../../functions/shared/warmupChallengeGrade.mjs';
 import { assessSectionRecoveryReadiness } from '../../functions/shared/sectionRecoveryReadiness.mjs';
 import { reproduceFamilyQuestionFromPin, resolveFamilyQuestionInstance } from '../../functions/shared/questionFamilyInstance.mjs';
 import { planSeatAdditions, resolveGenerationAllocation, resolveLearnerSeat } from '../../functions/shared/questionGenerationIdentity.mjs';
 import { getStoredAssignmentQuestions } from '../../src/platform/contract/storedAssignmentV5.js';
 import { splitGradesBySection } from '../../src/platform/teacher/gradeEvidence.js';
 import { buildStudentRecoverySummary } from '../../src/platform/recovery/studentRecoveryModel.js';
-import { buildTeacherRecoveryAudit, completedRecoverySections } from '../../src/platform/recovery/teacherRecoveryAudit.js';
+import {
+  buildTeacherRecoveryAudit,
+  buildTeacherWarmupChallengeAudit,
+  completedRecoverySections,
+  warmupChallengeCounts,
+} from '../../src/platform/recovery/teacherRecoveryAudit.js';
 import { projectSectionRecoveryForAssignment } from '../../src/platform/grading/sectionRecoveryGrades.js';
 import { canonicalPresentedAssignmentGrade } from '../../src/platform/grading/canonicalGradeProjection.js';
 import { componentSource, region } from './helpers/sourceContract.mjs';
 
 const require = createRequire(import.meta.url);
-const { projectRecoveredGradeInputs, recoveryChangedAssignmentIds } = require('../../functions/lib/sectionRecoveryGrades.js');
+const { projectRecoveredGradeInputs, recoveryChangedAssignmentIds, warmupChallengeCreditSignature } = require('../../functions/lib/sectionRecoveryGrades.js');
 const { assignmentGradeProgress } = require('../../functions/lib/classroomGradeRuntime.js');
 
 const NOW = Date.parse('2026-10-01T15:00:00Z');
@@ -61,7 +67,9 @@ const buildAssignment = (overrides = {}) => {
     title: 'Two-step equations and zeros',
     assignedClassIds: [CLASS],
     dueAt: '2026-09-01T20:00:00Z',
-    lateDueAt: '2026-09-03T23:00:00Z',
+    // The final submission date — and so the Recovery end date — is still
+    // ahead of NOW; the DOL's own day (Sep 1) is long past.
+    lateDueAt: '2026-10-10T23:00:00Z',
     warmup: { instructionDate: '2026-09-01' },
     dol: { instructionDate: '2026-09-01' },
     sections: [
@@ -250,39 +258,91 @@ test('nothing is shown while the original is still available — Recovery is nev
   assert.equal(context.eligibility.state, RECOVERY_STATE.HIDDEN);
   assert.equal(context.eligibility.studentVisible, false);
   assert.deepEqual(buildStudentRecoverySummary({ assignment, tracker: ORIGINAL_TRACKER, studentId: STUDENT, classId: CLASS, classPeriod: '1', nowValue: NOW }), []);
-  const waiting = resolveOriginalOpportunity({ assignment: buildAssignment({ lateDueAt: '2026-12-01T23:00:00Z', gradingPolicy: { recovery: { waitForAssignmentClose: true } } }), section: 'dol', classId: CLASS, nowValue: NOW, policy: normalizeRecoveryPolicy({ waitForAssignmentClose: true }) });
-  assert.equal(waiting.status, ORIGINAL_OPPORTUNITY.OPEN);
 });
 
-test('a closed original always reports its instructional day, so an excused absence can be found', () => {
-  const opportunity = resolveOriginalOpportunity({ assignment: buildAssignment(), section: 'dol', classId: CLASS, nowValue: NOW });
-  assert.equal(opportunity.status, ORIGINAL_OPPORTUNITY.CLOSED);
-  assert.equal(opportunity.reason, 'assignment-final-deadline');
-  assert.equal(opportunity.instructionDateKey, '2026-09-01');
+test('a closed original always reports its instructional day and the Recovery end date', () => {
+  const dayPassed = resolveOriginalOpportunity({ assignment: buildAssignment(), section: 'dol', classId: CLASS, nowValue: NOW });
+  assert.equal(dayPassed.status, ORIGINAL_OPPORTUNITY.CLOSED);
+  assert.equal(dayPassed.reason, 'instruction-day-passed');
+  assert.equal(dayPassed.instructionDateKey, '2026-09-01', 'the excused-absence hook reads this day');
+  assert.ok(dayPassed.recoveryEndsAtMs > NOW);
+  assert.equal(dayPassed.recoveryWindowEnded, false);
+  const finalPassed = resolveOriginalOpportunity({ assignment: buildAssignment({ lateDueAt: '2026-09-03T23:00:00Z' }), section: 'dol', classId: CLASS, nowValue: NOW });
+  assert.equal(finalPassed.reason, 'assignment-final-deadline');
+  assert.equal(finalPassed.instructionDateKey, '2026-09-01');
+  assert.equal(finalPassed.recoveryWindowEnded, true);
 });
 
-test('individualized extra time moves the final cutoff Recovery waits for — never the DOL\'s own class window', () => {
+test('the final submission date is the Recovery end date: open until then, refused after it', () => {
+  const assignment = buildAssignment();
+  const open = contextFor({ assignment });
+  assert.equal(open.eligibility.state, RECOVERY_STATE.LOCKED);
+  assert.equal(open.eligibility.endsAtMs, open.opportunity.recoveryEndsAtMs);
+  const [dolEntry] = buildStudentRecoverySummary({ assignment, tracker: ORIGINAL_TRACKER, studentId: STUDENT, classId: CLASS, classPeriod: '1', nowValue: NOW }).filter((entry) => entry.section === 'dol');
+  assert.ok(dolEntry.endsAtLabel, 'the panel says when Recovery closes');
+  assert.equal(dolEntry.endsAtMs, open.opportunity.recoveryEndsAtMs);
+
+  // Practice until unlocked and start, all before the end date.
+  const { record: unlocked } = practiceUntilUnlocked({ assignment });
+  const started = runSectionRecoveryAction({ context: contextFor({ assignment, record: unlocked }), action: RECOVERY_ACTION.START, at: NOW + 1 }).record;
+  const responses = Object.fromEntries(started.plan.items.map((item) => [item.itemId, correctResponse(reproduce(assignment, item))]));
+  const afterEnd = Date.parse('2026-10-12T15:00:00Z');
+
+  // Started but not submitted: closed, and the original stands.
+  const closed = contextFor({ assignment, record: started, nowValue: afterEnd });
+  assert.equal(closed.eligibility.state, RECOVERY_STATE.CLOSED);
+  assert.equal(closed.eligibility.studentVisible, true);
+  assert.throws(
+    () => runSectionRecoveryAction({ context: closed, action: RECOVERY_ACTION.SUBMIT, payload: { responses }, at: afterEnd }),
+    (error) => error.code === 'recovery-window-ended',
+  );
+  const closedSummary = buildStudentRecoverySummary({ assignment, tracker: ORIGINAL_TRACKER, recoveryForAssignment: { dol: started }, studentId: STUDENT, classId: CLASS, classPeriod: '1', nowValue: afterEnd })
+    .find((entry) => entry.section === 'dol');
+  assert.equal(closedSummary.state, 'closed');
+  assert.match(closedSummary.message, /original score stands/);
+  assert.equal(closedSummary.canContinue, false);
+  assert.equal(closedSummary.endsAtLabel, null);
+
+  // Never started: simply no longer offered, and nothing is accepted.
+  const neverStarted = contextFor({ assignment, nowValue: afterEnd });
+  assert.equal(neverStarted.eligibility.state, RECOVERY_STATE.HIDDEN);
+  assert.equal(neverStarted.eligibility.reason, 'recovery-window-ended');
+  const item = nextRecoveryPracticeItem(open);
+  assert.throws(
+    () => runSectionRecoveryAction({ context: neverStarted, action: RECOVERY_ACTION.PRACTICE, payload: { pin: item.pin, response: correctResponse(reproduce(assignment, item)) }, at: afterEnd }),
+    (error) => error.code === 'recovery-window-ended',
+  );
+  assert.throws(() => runSectionRecoveryAction({ context: neverStarted, action: RECOVERY_ACTION.START, at: afterEnd }), (error) => error.code === 'recovery-window-ended');
+
+  // A Recovery submitted in time keeps its result after the end date.
+  const submitted = runSectionRecoveryAction({ context: contextFor({ assignment, record: started }), action: RECOVERY_ACTION.SUBMIT, payload: { responses }, at: NOW + 2 }).record;
+  assert.equal(contextFor({ assignment, record: submitted, nowValue: afterEnd }).eligibility.state, RECOVERY_STATE.COMPLETED);
+
+  // The teacher sees the closed one for what it is.
+  const student = { id: STUDENT, gradesByAssignment: { [assignment.id]: ORIGINAL_TRACKER }, sectionRecoveryByAssignment: { [assignment.id]: { dol: started } } };
+  const [auditRow] = buildTeacherRecoveryAudit({ student, assignment, nowValue: afterEnd });
+  assert.equal(auditRow.status, 'closed');
+  assert.match(auditRow.statusLabel, /not submitted by the final submission date/);
+});
+
+test('individualized extra time extends the Recovery end date — and never moves the DOL\'s own class window', () => {
   const extraTime = {
     supportPlan: { windows: [{ effectiveStart: '2026-08-01', status: 'active', revision: 1, accommodations: [
       { id: 'extra-time', params: { dueDateExtension: { mode: 'hours', value: 72 } } },
     ] }] },
   };
-  const assignment = buildAssignment({ dueAt: '2026-09-30T20:00:00Z', lateDueAt: '2026-09-30T21:00:00Z', dol: { instructionDate: '2026-09-30' } });
-  const waiting = normalizeRecoveryPolicy({ waitForAssignmentClose: true });
-  const withoutProfile = resolveOriginalOpportunity({ assignment, section: 'dol', classId: CLASS, studentId: STUDENT, nowValue: NOW, policy: waiting });
-  assert.equal(withoutProfile.status, ORIGINAL_OPPORTUNITY.CLOSED);
-  const withProfile = resolveOriginalOpportunity({ assignment, section: 'dol', classId: CLASS, studentId: STUDENT, nowValue: NOW, policy: waiting, studentProfile: extraTime });
-  assert.equal(withProfile.status, ORIGINAL_OPPORTUNITY.OPEN, 'a student whose work is still open under extra time is not offered Recovery yet');
-  assert.equal(withProfile.reason, 'waiting-for-assignment-close');
-  // Without waiting for the assignment, the DOL window decides — extra time
-  // does not move a Warm-Up/DOL class window.
-  const classWindow = resolveOriginalOpportunity({ assignment, section: 'dol', classId: CLASS, studentId: STUDENT, nowValue: NOW, studentProfile: extraTime });
-  assert.equal(classWindow.status, ORIGINAL_OPPORTUNITY.CLOSED);
-  assert.equal(classWindow.reason, 'instruction-day-passed');
-  // The browser summary and the server context read the same profile.
-  const waitingAssignment = { ...assignment, gradingPolicy: { recovery: { waitForAssignmentClose: true } } };
-  assert.deepEqual(buildStudentRecoverySummary({ assignment: waitingAssignment, tracker: ORIGINAL_TRACKER, studentId: STUDENT, classId: CLASS, classPeriod: '1', studentProfile: extraTime, nowValue: NOW }), []);
-  assert.ok(buildStudentRecoverySummary({ assignment: waitingAssignment, tracker: ORIGINAL_TRACKER, studentId: STUDENT, classId: CLASS, classPeriod: '1', nowValue: NOW }).length > 0);
+  // The class's final submission date was yesterday; this student has 72 more hours.
+  const assignment = buildAssignment({ dueAt: '2026-09-30T20:00:00Z', lateDueAt: '2026-09-30T21:00:00Z', dol: { instructionDate: '2026-09-29' } });
+  const withoutProfile = resolveOriginalOpportunity({ assignment, section: 'dol', classId: CLASS, studentId: STUDENT, nowValue: NOW });
+  assert.equal(withoutProfile.recoveryWindowEnded, true);
+  const withProfile = resolveOriginalOpportunity({ assignment, section: 'dol', classId: CLASS, studentId: STUDENT, nowValue: NOW, studentProfile: extraTime });
+  assert.equal(withProfile.recoveryWindowEnded, false, 'their Recovery stays open as long as their own final submission date');
+  assert.equal(withProfile.status, ORIGINAL_OPPORTUNITY.CLOSED);
+  assert.equal(withProfile.reason, 'instruction-day-passed', 'extra time does not reopen the DOL itself');
+  // The browser summary (and the server context) read the same profile.
+  assert.deepEqual(buildStudentRecoverySummary({ assignment, tracker: ORIGINAL_TRACKER, studentId: STUDENT, classId: CLASS, classPeriod: '1', nowValue: NOW }), []);
+  const extended = buildStudentRecoverySummary({ assignment, tracker: ORIGINAL_TRACKER, studentId: STUDENT, classId: CLASS, classPeriod: '1', studentProfile: extraTime, nowValue: NOW });
+  assert.ok(extended.some((entry) => entry.section === 'dol' && entry.state === 'locked'));
 });
 
 test('a DOL with no generator-backed question cannot recover — it says why instead of reusing a static question', () => {
@@ -297,7 +357,7 @@ test('a DOL with no generator-backed question cannot recover — it says why ins
   assert.equal(readiness.blockers[0].message, 'DOL Q1 does not reference a generator-backed Question Family.');
 });
 
-test('a Live Challenge Warm-Up is left alone: no Recovery, no "missing", whatever the Warm-Up score says', () => {
+test('a Live Challenge Warm-Up never produces a Warm-Up Recovery, whatever the authored Warm-Up score says', () => {
   const assignment = buildAssignment({ warmup: { instructionDate: '2026-09-01', liveChallenge: { enabled: true } } });
   const delivery = resolveWarmupDelivery({ assignment, hasAuthoredWarmup: true });
   assert.equal(delivery.mode, 'liveChallenge');
@@ -546,6 +606,114 @@ test('a Warm-Up Recovery asks 2-3 fresh questions and caps at 85', () => {
 });
 
 /* ---------------------------------------------------------------------------
+ * A Live Challenge Warm-Up result is the Warm-Up grade.
+ * ------------------------------------------------------------------------- */
+
+const LC_ASSIGNMENT = () => buildAssignment({ warmup: { instructionDate: '2026-09-01', liveChallenge: { enabled: true } } });
+// Shaped exactly as writeWarmupCreditFromResult (functions/index.js) stores it.
+const credit = (correct, roundsAvailable, answered = roundsAvailable) => ({
+  answered,
+  correct,
+  roundsAvailable,
+  participationPercent: roundsAvailable ? Math.round((answered / roundsAvailable) * 100) : null,
+  accuracyPercent: answered ? Math.round((correct / answered) * 100) : null,
+  roomId: 'room-1',
+  status: 'finished',
+  roundCount: 5,
+  roundsPlayed: 5,
+  recordedAt: { seconds: 1 },
+});
+
+test('the challenge score is rounds correct out of the rounds the student could play — never challenge points', () => {
+  assert.equal(warmupChallengeScore(credit(4, 5)), 80);
+  assert.equal(warmupChallengeScore(credit(3, 3, 3)), 100, 'a late arrival is measured only on the rounds they were there for');
+  assert.equal(warmupChallengeScore(credit(0, 5, 2)), 0, 'present and answering nothing correctly is 0');
+  assert.equal(warmupChallengeScore(credit(0, 0, 0)), null, 'a game that offered no rounds measured nothing');
+  assert.equal(warmupChallengeScore({ correct: 9, roundsAvailable: 5 }), 100, 'never more than every round');
+  assert.equal(warmupChallengeScore(null), null);
+});
+
+test('the Live Challenge result becomes the Warm-Up grade in the same calculation — nothing else moves', () => {
+  const assignment = LC_ASSIGNMENT();
+  const challengeByAssignment = { [assignment.id]: credit(4, 5) };
+  const before = splitGradesBySection({ tracker: ORIGINAL_TRACKER, assignment });
+  const projected = projectSectionRecoveryForAssignment({ tracker: ORIGINAL_TRACKER, assignment, challengeByAssignment });
+  const after = splitGradesBySection({ tracker: projected.tracker, assignment });
+  assert.equal(after.warmup.score, 80);
+  assert.equal(after.warmup.total, before.warmup.total, 'the Warm-Up keeps its questions and weights');
+  assert.deepEqual(after.dol, before.dol);
+  assert.deepEqual(after.classwork, before.classwork);
+  assert.equal(projected.challenge.source, 'challenge');
+  assert.deepEqual(projected.tracker[0].warmupChallengeDisplay, { challengeScore: 80, correct: 4, roundsAvailable: 5, recordedScore: 80, originalScore: 0 });
+
+  // A student whose only work was the game still gets their Warm-Up grade.
+  const gameOnly = projectSectionRecoveryForAssignment({ tracker: null, assignment, challengeByAssignment });
+  assert.equal(splitGradesBySection({ tracker: gameOnly.tracker, assignment }).warmup.score, 80);
+
+  // Authored Warm-Up work that scored higher is kept.
+  const strongAuthored = { ...ORIGINAL_TRACKER, 0: { status: 'correct', attemptCount: 1, totalAttempts: 1 } };
+  const kept = projectSectionRecoveryForAssignment({ tracker: strongAuthored, assignment, challengeByAssignment: { [assignment.id]: credit(3, 5) } });
+  assert.equal(kept.challenge.source, 'original');
+  assert.equal(splitGradesBySection({ tracker: kept.tracker, assignment }).warmup.score, 100);
+
+  // No measurable result: the very same tracker.
+  assert.equal(projectSectionRecoveryForAssignment({ tracker: ORIGINAL_TRACKER, assignment, challengeByAssignment: { [assignment.id]: credit(0, 0, 0) } }).tracker, ORIGINAL_TRACKER);
+});
+
+test('every grade surface reads the challenge result; an assignment-level override still wins', () => {
+  const assignment = LC_ASSIGNMENT();
+  const student = {
+    id: STUDENT,
+    gradesByAssignment: { [assignment.id]: ORIGINAL_TRACKER },
+    warmupChallengeByAssignment: { [assignment.id]: credit(5, 5) },
+    teacherGradeOverridesByAssignment: {},
+  };
+  const withChallenge = canonicalPresentedAssignmentGrade({ student, assignment });
+  const without = canonicalPresentedAssignmentGrade({ student: { ...student, warmupChallengeByAssignment: {} }, assignment });
+  assert.ok(withChallenge > without, 'the effective (exported) grade includes the Warm-Up challenge');
+  const gameOnly = canonicalPresentedAssignmentGrade({ student: { ...student, gradesByAssignment: {} }, assignment });
+  assert.ok(gameOnly > 0, 'a game-only student has a grade, not a blank');
+  const overridden = { ...student, teacherGradeOverridesByAssignment: { [assignment.id]: { __assignment: { active: true, score: 55 } } } };
+  assert.equal(canonicalPresentedAssignmentGrade({ student: overridden, assignment }), 55);
+  // The teacher sees where the Warm-Up grade came from.
+  const audit = buildTeacherWarmupChallengeAudit({ student, assignment });
+  assert.equal(audit.challenge, '5 of 5 rounds correct (100%)');
+  assert.equal(audit.final, '100%');
+  assert.match(audit.reason, /Challenge points are not part of the grade/);
+  assert.equal(warmupChallengeCounts(student, assignment.id), true);
+  assert.equal(buildTeacherWarmupChallengeAudit({ student: { ...student, warmupChallengeByAssignment: {} }, assignment }), null);
+});
+
+test('Classroom passback applies the same challenge result and wakes only when the result itself changes', async () => {
+  const assignment = LC_ASSIGNMENT();
+  const questions = getStoredAssignmentQuestions(assignment);
+  const result = credit(4, 5);
+  // A teacher per-question override on the authored Warm-Up shaped only the
+  // original; once the challenge result wins it no longer applies there.
+  const server = await projectRecoveredGradeInputs({
+    assignment,
+    tracker: ORIGINAL_TRACKER,
+    questions,
+    overrides: { 0: { active: true, score: 100 }, 2: { active: true, score: 100 } },
+    recoveryForAssignment: null,
+    challengeCredit: result,
+    gradeProgress: assignmentGradeProgress,
+  });
+  const browser = projectSectionRecoveryForAssignment({ tracker: ORIGINAL_TRACKER, assignment, challengeByAssignment: { [assignment.id]: result } });
+  assert.deepEqual(server.tracker[0].warmupChallengeDisplay, browser.tracker[0].warmupChallengeDisplay);
+  assert.deepEqual(Object.keys(server.overrides), ['2'], 'only the DOL override survives');
+
+  const before = { warmupChallengeByAssignment: {} };
+  assert.deepEqual(recoveryChangedAssignmentIds({ warmupChallengeByAssignment: { [assignment.id]: result } }, before), [assignment.id]);
+  const rewritten = { ...result, recordedAt: { seconds: 999 }, roomId: 'room-1' };
+  assert.deepEqual(recoveryChangedAssignmentIds({ warmupChallengeByAssignment: { [assignment.id]: rewritten } }, { warmupChallengeByAssignment: { [assignment.id]: result } }), [], 'rewriting the same result does not re-send a grade');
+  // The synchronous trigger signature and the shared one agree.
+  [credit(4, 5), credit(0, 3, 1), credit(0, 0, 0), null].forEach((entry) => {
+    assert.equal(warmupChallengeCreditSignature(entry), warmupChallengeSignature(entry));
+  });
+});
+
+/* ---------------------------------------------------------------------------
  * One grade on every surface.
  * ------------------------------------------------------------------------- */
 
@@ -675,10 +843,26 @@ test('the assignment result screen shows the Recovery panel and runner, each imp
   assert.match(startHandler, /recoveryErrorCode\(error\)/);
 });
 
+test('the Live Challenge Warm-Up grade reaches the student Grade Center and both Classroom passback triggers', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const app = componentSource('src/App.jsx');
+  const display = region(app, 'const gradeDisplayTracker = useMemo(', '\n  );', 'student grade display memo');
+  assert.match(display, /projectSectionRecoveriesForDisplay\([\s\S]*warmupChallengeByAssignment,\s*\)/);
+  assert.match(display, /\[tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, assignments, warmupChallengeByAssignment\]/);
+  assert.match(app, /setWarmupChallengeByAssignment\(snapshot\.data\(\)\?\.warmupChallengeByAssignment \|\| \{\}\);/, 'a finished match reaches the Grade Center without a reload');
+  const index = await readFile(new URL('../../functions/index.js', import.meta.url), 'utf8');
+  const sync = region(index, 'exports.syncGradeToClassroom', 'exports.queueReleasedAssessmentGrades', 'whole-assignment passback');
+  assert.match(sync, /challengeCredit: afterData\.warmupChallengeByAssignment\?\.\[assignmentId\] \|\| null,/);
+  assert.match(sync, /sectionRecoveryGrades\.recoveryChangedAssignmentIds\(afterData, beforeData\)/);
+  const sectionEntry = await readFile(new URL('../../functions/classroomSectionEntry.js', import.meta.url), 'utf8');
+  assert.match(sectionEntry, /challengeCredit: afterData\.warmupChallengeByAssignment\?\.\[assignmentId\] \|\| null,/);
+});
+
 test('the gradebook detail renders the Recovery audit trail and the section marker, each imported', () => {
   const app = componentSource('src/App.jsx');
   assert.match(app, /^import SectionRecoveryAuditTrail from '\.\/components\/teacher\/SectionRecoveryAuditTrail\.jsx';$/m);
-  assert.match(app, /^import \{ completedRecoverySections \} from '\.\/platform\/recovery\/teacherRecoveryAudit\.js';$/m);
+  assert.match(app, /^import \{ completedRecoverySections, warmupChallengeCounts \} from '\.\/platform\/recovery\/teacherRecoveryAudit\.js';$/m);
+  assert.match(app, /const challengeWarmup = warmupChallengeCounts\(student, selectedAssignment\.id\);/);
   assert.match(app, /<SectionRecoveryAuditTrail student=\{student\} assignment=\{selectedAssignment\} \/>/);
   assert.match(app, /const recoveredSections = completedRecoverySections\(student, selectedAssignment\.id\);/);
   assert.match(app, /\{recoveredMark\('dol'\)\}/);

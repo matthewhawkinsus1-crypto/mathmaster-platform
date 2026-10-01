@@ -619,6 +619,8 @@ const syncSectionGradeToClassroom = onDocumentWritten(
         questions,
         overrides: {},
         recoveryForAssignment: afterData.sectionRecoveryByAssignment?.[assignmentId] || null,
+        // A Live Challenge Warm-Up result is the Warm-Up grade.
+        challengeCredit: afterData.warmupChallengeByAssignment?.[assignmentId] || null,
         gradeProgress: (gradeTracker, indices, gradeQuestions) => assignmentGradeProgress(gradeTracker, indices, gradeQuestions),
       });
       const releaseSignal = signaledSet.has(assignmentId) ? afterSignals[assignmentId] : null;

@@ -1,7 +1,8 @@
 "use strict";
 
 /*
- * A COMPLETED PRACTICE-BASED RECOVERY, AS THE CLASSROOM TRIGGERS SEE IT.
+ * A COMPLETED PRACTICE-BASED RECOVERY — AND A LIVE CHALLENGE WARM-UP RESULT —
+ * AS THE CLASSROOM TRIGGERS SEE THEM.
  *
  * Both Google Classroom passback triggers (the whole-assignment one in
  * index.js and the section one in classroomSectionEntry.js) compute grades
@@ -28,6 +29,17 @@ async function sectionRecoveryProjection() {
   return projectionModule;
 }
 
+// The grade-deciding part of a Live Challenge Warm-Up credit. Mirrors
+// warmupChallengeSignature in functions/shared/warmupChallengeGrade.mjs (a test
+// holds the two together); synchronous here because the triggers decide
+// whether to wake before loading anything.
+function warmupChallengeCreditSignature(credit) {
+  const available = Number(credit?.roundsAvailable);
+  const correct = Number(credit?.correct);
+  if (!Number.isFinite(available) || available <= 0 || !Number.isFinite(correct)) return null;
+  return `${Math.round(correct)}/${Math.round(available)}`;
+}
+
 function completedRecoverySignature(entry) {
   return JSON.stringify(RECOVERY_SECTIONS.map((section) => {
     const record = entry?.[section];
@@ -45,9 +57,17 @@ function completedRecoverySignature(entry) {
 function recoveryChangedAssignmentIds(afterData = {}, beforeData = {}) {
   const after = afterData?.sectionRecoveryByAssignment || {};
   const before = beforeData?.sectionRecoveryByAssignment || {};
-  return [...new Set([...Object.keys(after), ...Object.keys(before)])].filter(
+  const recoveryChanged = [...new Set([...Object.keys(after), ...Object.keys(before)])].filter(
     (assignmentId) => completedRecoverySignature(after[assignmentId]) !== completedRecoverySignature(before[assignmentId])
   );
+  // A Live Challenge Warm-Up result is the Warm-Up grade, so a new or changed
+  // result wakes the passback too. A rewrite of the same result does not.
+  const challengeAfter = afterData?.warmupChallengeByAssignment || {};
+  const challengeBefore = beforeData?.warmupChallengeByAssignment || {};
+  const challengeChanged = [...new Set([...Object.keys(challengeAfter), ...Object.keys(challengeBefore)])].filter(
+    (assignmentId) => warmupChallengeCreditSignature(challengeAfter[assignmentId]) !== warmupChallengeCreditSignature(challengeBefore[assignmentId])
+  );
+  return [...new Set([...recoveryChanged, ...challengeChanged])];
 }
 
 /**
@@ -65,17 +85,19 @@ async function projectRecoveredGradeInputs({
   questions = [],
   overrides = {},
   recoveryForAssignment = null,
+  challengeCredit = null,
   gradeProgress,
 } = {}) {
-  if (!recoveryForAssignment || typeof gradeProgress !== "function") return { tracker, overrides, states: {} };
+  const hasChallenge = warmupChallengeCreditSignature(challengeCredit) !== null;
+  if ((!recoveryForAssignment && !hasChallenge) || typeof gradeProgress !== "function") return { tracker, overrides, states: {} };
   const projection = await sectionRecoveryProjection();
   const recoveries = projection.completedSectionRecoveries(recoveryForAssignment);
   const sections = Object.keys(recoveries);
-  if (!sections.length) return { tracker, overrides, states: {} };
+  if (!sections.length && !hasChallenge) return { tracker, overrides, states: {} };
 
   const sectionIndices = {};
   const sectionOriginals = {};
-  sections.forEach((section) => {
+  [...new Set([...sections, ...(hasChallenge ? ["warmup"] : [])])].forEach((section) => {
     const indices = runtimeIncludedQuestionIndicesForSection(assignment, section);
     sectionIndices[section] = indices;
     const progress = gradeProgress(tracker, indices, questions, overrides || {});
@@ -87,18 +109,26 @@ async function projectRecoveredGradeInputs({
     sectionOriginals,
     recoveries,
     assignment,
+    challengeCredit: hasChallenge ? challengeCredit : null,
   });
+  // Per-question overrides shaped the original a Recovery or a winning
+  // challenge result replaced, so inside those sections they are dropped.
+  const replacedSections = [
+    ...Object.keys(applied.states),
+    ...(applied.challenge?.source === "challenge" ? ["warmup"] : []),
+  ];
   const recoveredIndices = new Set(
-    Object.keys(applied.states).flatMap((section) => sectionIndices[section] || []).map((index) => String(index))
+    replacedSections.flatMap((section) => sectionIndices[section] || []).map((index) => String(index))
   );
   const remainingOverrides = Object.fromEntries(
     Object.entries(overrides || {}).filter(([key]) => !recoveredIndices.has(String(key)))
   );
-  return { tracker: applied.tracker, overrides: remainingOverrides, states: applied.states };
+  return { tracker: applied.tracker, overrides: remainingOverrides, states: applied.states, challenge: applied.challenge || null };
 }
 
 module.exports = {
   RECOVERY_SECTIONS,
   projectRecoveredGradeInputs,
   recoveryChangedAssignmentIds,
+  warmupChallengeCreditSignature,
 };

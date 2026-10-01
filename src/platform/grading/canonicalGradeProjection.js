@@ -50,8 +50,9 @@ export const projectTeacherOverridesForDisplay = (gradesByAssignment = {}, overr
  * ONE STUDENT, ONE ASSIGNMENT: THE TRACKER EVERY GRADE IS COMPUTED FROM.
  *
  * Teacher per-question overrides first (they correct the original evidence),
- * then any completed Practice-based Recovery (it rescores its Warm-Up/DOL
- * section from that corrected original). The assignment-level override is
+ * then a Live Challenge Warm-Up result (it is the Warm-Up grade), then any
+ * completed Practice-based Recovery (it rescores its Warm-Up/DOL section from
+ * that corrected original). The assignment-level override is
  * applied by the caller, after, because it replaces the whole grade. Every
  * surface that shows a student's assignment grade reads through this, so none
  * of them can show a Recovery that another surface ignores.
@@ -65,6 +66,7 @@ export const projectedAssignmentTrackerFor = ({ student = null, assignment = nul
     tracker: projected?.[assignment?.id] || null,
     assignment,
     recoveryByAssignment: student?.sectionRecoveryByAssignment || null,
+    challengeByAssignment: student?.warmupChallengeByAssignment || null,
   }).tracker;
 };
 

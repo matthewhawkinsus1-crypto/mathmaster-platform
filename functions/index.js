@@ -8267,8 +8267,9 @@ exports.syncGradeToClassroom = onDocumentWritten(
         JSON.stringify(beforeReleaseSignals[assignmentId])
     );
     const releaseSignalSet = new Set(releaseSignaledAssignmentIds);
-    // A completed Practice-based Recovery rescores its Warm-Up/DOL section in
-    // this same grade, so its completion has to wake this trigger too.
+    // A completed Practice-based Recovery, or a Live Challenge Warm-Up result,
+    // rescores its section in this same grade, so it has to wake this trigger
+    // too.
     const recoveryChangedIds = sectionRecoveryGrades.recoveryChangedAssignmentIds(afterData, beforeData);
     const changedAssignmentIds = [...new Set([
       ...gradeChangedAssignmentIds,
@@ -8363,6 +8364,8 @@ exports.syncGradeToClassroom = onDocumentWritten(
           questions,
           overrides: authoritativeOverrides,
           recoveryForAssignment: afterData.sectionRecoveryByAssignment?.[assignmentId] || null,
+          // A Live Challenge Warm-Up result is the Warm-Up grade.
+          challengeCredit: afterData.warmupChallengeByAssignment?.[assignmentId] || null,
           gradeProgress: assignmentGradeProgress,
         });
       let progress = isTestCycleAssignment

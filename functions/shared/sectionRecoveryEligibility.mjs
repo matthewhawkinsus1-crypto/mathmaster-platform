@@ -20,6 +20,9 @@
  *   unlocked      mastery shown; the student may start
  *   inProgress    started, not submitted
  *   completed     the one automatic opportunity has been used
+ *   closed        started but not submitted before the Recovery end date —
+ *                 the assignment's final submission date for this student.
+ *                 After that date a Recovery never started is simply hidden.
  *
  * Pure: no Firestore. `nowValue` is a parameter.
  */
@@ -56,6 +59,9 @@ export const RECOVERY_STATE = Object.freeze({
   UNLOCKED: 'unlocked',
   IN_PROGRESS: 'inProgress',
   COMPLETED: 'completed',
+  // Started, but not submitted before the assignment's final submission date
+  // (the Recovery end date). The original score stands.
+  CLOSED: 'closed',
 });
 
 const STUDENT_VISIBLE = new Set([
@@ -63,6 +69,7 @@ const STUDENT_VISIBLE = new Set([
   RECOVERY_STATE.UNLOCKED,
   RECOVERY_STATE.IN_PROGRESS,
   RECOVERY_STATE.COMPLETED,
+  RECOVERY_STATE.CLOSED,
 ]);
 
 /**
@@ -82,7 +89,6 @@ export const resolveOriginalOpportunity = ({
   studentId = null,
   nowValue = Date.now(),
   timeZone = SCHOOL_TIME_ZONE,
-  policy = null,
   // The student's pinned grades/{id}.profile. Individualized extra time moves
   // only the assignment's own final cutoff (supportDeadline.mjs) — never a
   // Warm-Up/DOL class window — and it moves it here exactly as it does for the
@@ -96,26 +102,30 @@ export const resolveOriginalOpportunity = ({
   const instructionDateKey = (section === 'warmup'
     ? resolveWarmupInstructionDateKey({ assignment, classId, classPeriod, timeZone })
     : resolveDolInstructionDateKey({ assignment, classId, classPeriod, timeZone })) || null;
+  // THE RECOVERY END DATE is the assignment's final submission date for this
+  // student — their attendance extension or individualized extra time
+  // included — the same cutoff after which no work earns credit. Every answer
+  // carries it, so the panel can say "open until" and the server can refuse
+  // anything after it. No final date means no end date.
   const finalCloseAtMs = assignmentFinalCloseAt(assignment, timeZone, studentId, studentProfile);
-  const assignmentClosed = finalCloseAtMs !== null && now > finalCloseAtMs;
-  if (assignmentClosed) {
-    return { status: ORIGINAL_OPPORTUNITY.CLOSED, reason: 'assignment-final-deadline', closedAtMs: finalCloseAtMs, instructionDateKey };
+  const recoveryWindow = {
+    instructionDateKey,
+    recoveryEndsAtMs: finalCloseAtMs,
+    recoveryWindowEnded: finalCloseAtMs !== null && now > finalCloseAtMs,
+  };
+  if (recoveryWindow.recoveryWindowEnded) {
+    return { status: ORIGINAL_OPPORTUNITY.CLOSED, reason: 'assignment-final-deadline', closedAtMs: finalCloseAtMs, ...recoveryWindow };
   }
-  if (policy?.waitForAssignmentClose) {
-    return finalCloseAtMs === null
-      ? { status: ORIGINAL_OPPORTUNITY.UNSCHEDULED, reason: 'no-assignment-deadline', instructionDateKey }
-      : { status: ORIGINAL_OPPORTUNITY.OPEN, reason: 'waiting-for-assignment-close', closesAtMs: finalCloseAtMs, instructionDateKey };
-  }
-  if (!instructionDateKey) return { status: ORIGINAL_OPPORTUNITY.UNSCHEDULED, reason: 'no-instruction-date', instructionDateKey };
+  if (!instructionDateKey) return { status: ORIGINAL_OPPORTUNITY.UNSCHEDULED, reason: 'no-instruction-date', ...recoveryWindow };
   const todayKey = zonedDateKey(now, timeZone);
   if (instructionDateKey > todayKey) {
-    return { status: ORIGINAL_OPPORTUNITY.UPCOMING, reason: 'instruction-day-ahead', instructionDateKey };
+    return { status: ORIGINAL_OPPORTUNITY.UPCOMING, reason: 'instruction-day-ahead', ...recoveryWindow };
   }
   if (instructionDateKey < todayKey) {
     if (section === 'dol' && dolTeacherRecoveryActiveAt({ assignment, classId, at: now, timeZone })) {
-      return { status: ORIGINAL_OPPORTUNITY.OPEN, reason: 'teacher-dol-reopen-window', instructionDateKey };
+      return { status: ORIGINAL_OPPORTUNITY.OPEN, reason: 'teacher-dol-reopen-window', ...recoveryWindow };
     }
-    return { status: ORIGINAL_OPPORTUNITY.CLOSED, reason: 'instruction-day-passed', instructionDateKey };
+    return { status: ORIGINAL_OPPORTUNITY.CLOSED, reason: 'instruction-day-passed', ...recoveryWindow };
   }
   const close = resolveAuthoritativeClose({
     assignment,
@@ -129,9 +139,9 @@ export const resolveOriginalOpportunity = ({
     studentProfile,
   });
   if (close.closesAtMs !== null && close.closesAtMs !== undefined && now >= close.closesAtMs) {
-    return { status: ORIGINAL_OPPORTUNITY.CLOSED, reason: close.reason, closedAtMs: close.closesAtMs, instructionDateKey };
+    return { status: ORIGINAL_OPPORTUNITY.CLOSED, reason: close.reason, closedAtMs: close.closesAtMs, ...recoveryWindow };
   }
-  return { status: ORIGINAL_OPPORTUNITY.OPEN, reason: close.reason || 'section-open', closesAtMs: close.closesAtMs ?? null, instructionDateKey };
+  return { status: ORIGINAL_OPPORTUNITY.OPEN, reason: close.reason || 'section-open', closesAtMs: close.closesAtMs ?? null, ...recoveryWindow };
 };
 
 const result = (state, reason, extra = {}) => ({
@@ -168,7 +178,7 @@ export const evaluateSectionRecoveryEligibility = ({
   const sectionPolicy = normalizedPolicy[section];
   const type = attendance?.excused ? RECOVERY_TYPE.EXCUSED_MAKE_UP : RECOVERY_TYPE.RECOVERY;
   const cap = recoveryCapFor(normalizedPolicy, section, type);
-  const base = { section, type, cap, mastery };
+  const base = { section, type, cap, mastery, endsAtMs: opportunity?.recoveryEndsAtMs ?? null };
 
   if (!RECOVERY_SECTIONS.includes(section)) return result(RECOVERY_STATE.HIDDEN, 'not-a-recovery-section', base);
   if (!Number(original?.total)) return result(RECOVERY_STATE.HIDDEN, 'no-section', base);
@@ -178,8 +188,16 @@ export const evaluateSectionRecoveryEligibility = ({
     return result(RECOVERY_STATE.HIDDEN, 'warmup-delivered-by-live-challenge', base);
   }
 
-  // A recovery already begun or finished is reported whatever else changed.
+  // A finished Recovery is reported whatever else changed.
   if (record?.status === 'completed') return result(RECOVERY_STATE.COMPLETED, 'recovery-completed', base);
+  // The final submission date is the Recovery end date. One started and not
+  // submitted is closed (the original stands); one never started simply
+  // stops being offered.
+  if (opportunity?.recoveryWindowEnded) {
+    return record?.status === 'inProgress'
+      ? result(RECOVERY_STATE.CLOSED, 'recovery-window-ended', base)
+      : result(RECOVERY_STATE.HIDDEN, 'recovery-window-ended', base);
+  }
   if (record?.status === 'inProgress') return result(RECOVERY_STATE.IN_PROGRESS, 'recovery-in-progress', base);
 
   if (!normalizedPolicy.enabled || !sectionPolicy?.enabled || normalizedPolicy.automaticOpportunities < 1) {

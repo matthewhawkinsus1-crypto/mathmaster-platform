@@ -23,12 +23,17 @@
  * original score) and the assignment-level override AFTER it (it replaces the
  * whole grade).
  *
+ * A Live Challenge Warm-Up result enters the same way (warmupChallengeGrade.mjs):
+ * the Warm-Up questions are credited at the challenge score — the higher of it
+ * and any authored Warm-Up work — before any Recovery is considered.
+ *
  * Pure: no Firestore.
  */
 
 import { normalizeRecoveryPolicy } from './recoveryPolicy.mjs';
 import { buildSectionRecoveryGradeState } from './sectionRecoveryGrade.mjs';
 import { RECOVERY_RECORD_STATUS, normalizeRecoveryRecord } from './sectionRecoveryRecord.mjs';
+import { WARMUP_GRADE_SOURCE, buildWarmupChallengeGradeState } from './warmupChallengeGrade.mjs';
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
@@ -45,8 +50,8 @@ export const completedSectionRecoveries = (recoveriesForAssignment = null) => {
   return found;
 };
 
-const projectedRecord = (record, state) => {
-  const recorded = Number(state.recordedScore);
+const creditedRecord = (record, recordedScore) => {
+  const recorded = Number(recordedScore);
   const base = isObject(record) ? record : {};
   return {
     ...base,
@@ -55,6 +60,23 @@ const projectedRecord = (record, state) => {
     bestPartialCredit: recorded,
     // Step credit would otherwise be re-derived on top of the recorded score.
     stepGrades: [],
+  };
+};
+
+const challengeRecord = (record, state) => ({
+  ...creditedRecord(record, state.recordedScore),
+  warmupChallengeDisplay: {
+    challengeScore: state.challengeScore,
+    correct: state.correct,
+    roundsAvailable: state.roundsAvailable,
+    recordedScore: state.recordedScore,
+    originalScore: state.originalScore,
+  },
+});
+
+const projectedRecord = (record, state) => {
+  return {
+    ...creditedRecord(record, state.recordedScore),
     sectionRecoveryDisplay: {
       section: state.section,
       type: state.type,
@@ -67,17 +89,19 @@ const projectedRecord = (record, state) => {
 };
 
 /**
- * Apply completed Recoveries to one assignment's (already override-projected)
- * tracker.
+ * Apply a Live Challenge Warm-Up result and completed Recoveries to one
+ * assignment's (already override-projected) tracker.
  *
  *   sectionIndices    { warmup: [storage indices], dol: [...] } — current content
  *   sectionOriginals  { warmup: { score, attempted }, dol: {...} } — the live
  *                     section split of `tracker`, computed by the caller with
  *                     its own (identical) weighting
  *   recoveries        completedSectionRecoveries(...)
+ *   challengeCredit   the Live Challenge Warm-Up credit, if any
  *
- * Returns the projected tracker and the grade state of each recovered section.
- * With no completed Recovery it returns the tracker unchanged (same identity).
+ * Returns the projected tracker, the grade state of each recovered section,
+ * and the Warm-Up challenge state. With neither it returns the tracker
+ * unchanged (same identity).
  */
 export const applySectionRecoveriesToTracker = ({
   tracker = null,
@@ -85,17 +109,36 @@ export const applySectionRecoveriesToTracker = ({
   sectionOriginals = {},
   recoveries = {},
   assignment = null,
+  // The student's `warmupChallengeByAssignment[assignmentId]` credit, when the
+  // Warm-Up was played as a Live Challenge (warmupChallengeGrade.mjs).
+  challengeCredit = null,
 } = {}) => {
   const sections = Object.keys(recoveries || {});
-  if (!sections.length || !tracker) return { tracker, states: {} };
+  const warmupIndices = Array.isArray(sectionIndices?.warmup) ? sectionIndices.warmup : [];
+  const challenge = warmupIndices.length
+    ? buildWarmupChallengeGradeState({ credit: challengeCredit, originalScore: sectionOriginals?.warmup?.score ?? null })
+    : null;
+  if ((!sections.length && !challenge) || !tracker) return { tracker, states: {}, challenge: null };
   const policy = normalizeRecoveryPolicy(assignment || {});
   let next = tracker;
   const states = {};
+  const originals = { ...sectionOriginals };
+  // The Live Challenge result is the Warm-Up grade: it credits the Warm-Up
+  // questions first, and anything else about the Warm-Up compares against it.
+  if (challenge) {
+    if (challenge.source === WARMUP_GRADE_SOURCE.CHALLENGE) {
+      next = { ...next };
+      warmupIndices.forEach((index) => {
+        next[index] = challengeRecord(next[index], challenge);
+      });
+    }
+    originals.warmup = { ...originals.warmup, score: challenge.recordedScore, attempted: 1 };
+  }
   sections.forEach((section) => {
     const record = recoveries[section];
     const indices = Array.isArray(sectionIndices?.[section]) ? sectionIndices[section] : [];
     if (!indices.length) return;
-    const original = sectionOriginals?.[section] || {};
+    const original = originals?.[section] || {};
     const state = buildSectionRecoveryGradeState({
       section,
       originalScore: original.score ?? null,
@@ -112,5 +155,5 @@ export const applySectionRecoveriesToTracker = ({
       next[index] = projectedRecord(next[index], state);
     });
   });
-  return { tracker: next, states };
+  return { tracker: next, states, challenge };
 };

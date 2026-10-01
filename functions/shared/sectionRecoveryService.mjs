@@ -129,7 +129,7 @@ export const buildSectionRecoveryContext = ({
 } = {}) => {
   const policy = normalizeRecoveryPolicy(assignment || {});
   const normalizedRecord = normalizeRecoveryRecord(record, section);
-  const opportunity = resolveOriginalOpportunity({ assignment, section, schedule, classId, classPeriod, studentId, nowValue, policy, studentProfile });
+  const opportunity = resolveOriginalOpportunity({ assignment, section, schedule, classId, classPeriod, studentId, nowValue, studentProfile });
   const readiness = assessSectionRecoveryReadiness({ assignmentId: assignment?.id || '', section, entries: sectionEntries });
   const warmupDelivery = section === 'warmup'
     ? resolveWarmupDelivery({ assignment, hasAuthoredWarmup: list(sectionEntries).length > 0, challengeCredit })
@@ -214,6 +214,12 @@ export const runSectionRecoveryAction = ({ context, action, payload = {}, at = D
 
   if (action === RECOVERY_ACTION.STATUS) {
     return { record: context.record, changed: false, gradeChanged: false, response: { eligibility, mastery: context.mastery, nextPracticeItem: nextRecoveryPracticeItem(context) } };
+  }
+
+  // The assignment's final submission date is the Recovery end date: nothing
+  // that could change a Recovery — or the grade it feeds — is accepted after it.
+  if (eligibility.reason === 'recovery-window-ended') {
+    refuse('recovery-window-ended', 'The final submission date for this assignment has passed, so Recovery is closed.');
   }
 
   if (action === RECOVERY_ACTION.PRACTICE) {

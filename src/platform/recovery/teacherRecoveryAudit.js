@@ -17,6 +17,8 @@ import { RECOVERY_TYPE } from '../../../functions/shared/recoveryPolicy.mjs';
 import { projectTeacherOverridesForDisplay } from '../grading/canonicalGradeProjection.js';
 import { projectSectionRecoveryForAssignment } from '../grading/sectionRecoveryGrades.js';
 import { splitGradesBySection } from '../teacher/gradeEvidence.js';
+import { SCHOOL_TIME_ZONE, assignmentFinalCloseAt } from '../../../functions/shared/sectionDeadline.mjs';
+import { buildWarmupChallengeGradeState, warmupChallengeScore } from '../../../functions/shared/warmupChallengeGrade.mjs';
 
 export const SECTION_RECOVERY_AUDIT_LABEL = Object.freeze({ warmup: 'Warm-Up', dol: 'DOL' });
 
@@ -41,9 +43,12 @@ const formatWhen = (value) => {
  * The audit rows for one student and one assignment ([] when there is no
  * Recovery record at all).
  */
-export const buildTeacherRecoveryAudit = ({ student = null, assignment = null } = {}) => {
+export const buildTeacherRecoveryAudit = ({ student = null, assignment = null, nowValue = Date.now() } = {}) => {
   const records = student?.sectionRecoveryByAssignment?.[assignment?.id];
   if (!assignment?.id || !records || typeof records !== 'object') return [];
+  // The Recovery end date: this student's final submission date.
+  const endsAtMs = assignmentFinalCloseAt(assignment, SCHOOL_TIME_ZONE, student?.id || null, student?.profile || null);
+  const windowEnded = endsAtMs !== null && Number(nowValue) > endsAtMs;
   const correctedTracker = projectTeacherOverridesForDisplay(
     student?.gradesByAssignment || {},
     student?.teacherGradeOverridesByAssignment || {},
@@ -53,6 +58,7 @@ export const buildTeacherRecoveryAudit = ({ student = null, assignment = null } 
     tracker: correctedTracker,
     assignment,
     recoveryByAssignment: student.sectionRecoveryByAssignment,
+    challengeByAssignment: student.warmupChallengeByAssignment || null,
   });
   return ['warmup', 'dol'].map((section) => {
     const record = normalizeRecoveryRecord(records[section], section);
@@ -64,8 +70,10 @@ export const buildTeacherRecoveryAudit = ({ student = null, assignment = null } 
     return {
       section,
       label: `${SECTION_RECOVERY_AUDIT_LABEL[section]} Recovery`,
-      status: record.status,
-      statusLabel: STATUS_LABEL[record.status] || record.status,
+      status: record.status === 'inProgress' && windowEnded ? 'closed' : record.status,
+      statusLabel: record.status === 'inProgress' && windowEnded
+        ? 'Closed — not submitted by the final submission date (original stands)'
+        : STATUS_LABEL[record.status] || record.status,
       typeLabel: record.type === RECOVERY_TYPE.EXCUSED_MAKE_UP ? 'Excused make-up (full credit available)' : record.type ? `Recovery (counts up to ${record.cap ?? '—'}%)` : null,
       original: original.attempted ? percent(original.score) : 'Missing',
       recovery: record.status === 'completed' ? percent(record.rawScore) : '—',
@@ -89,3 +97,35 @@ export const completedRecoverySections = (student = null, assignmentId = null) =
   if (!records || typeof records !== 'object') return new Set();
   return new Set(['warmup', 'dol'].filter((section) => normalizeRecoveryRecord(records[section], section)?.status === 'completed'));
 };
+
+/**
+ * The Live Challenge Warm-Up result, as the teacher audits it: the rounds the
+ * student got right out of the rounds they could play, and what the Warm-Up
+ * records (the higher of that and any authored Warm-Up work). Null without a
+ * measurable result.
+ */
+export const buildTeacherWarmupChallengeAudit = ({ student = null, assignment = null } = {}) => {
+  const credit = student?.warmupChallengeByAssignment?.[assignment?.id];
+  if (!assignment?.id || !credit) return null;
+  const correctedTracker = projectTeacherOverridesForDisplay(
+    student?.gradesByAssignment || {},
+    student?.teacherGradeOverridesByAssignment || {},
+  )?.[assignment.id] || {};
+  const authored = splitGradesBySection({ tracker: correctedTracker, assignment }).warmup || {};
+  const state = buildWarmupChallengeGradeState({ credit, originalScore: authored.attempted ? authored.score : null });
+  if (!state) return null;
+  return {
+    label: 'Warm-Up · Live Challenge',
+    challenge: `${state.correct} of ${state.roundsAvailable} rounds correct (${state.challengeScore}%)`,
+    authored: authored.attempted ? percent(authored.score) : '—',
+    final: percent(state.recordedScore),
+    reason: state.source === 'challenge'
+      ? 'The Live Challenge result is the Warm-Up grade. Challenge points are not part of the grade.'
+      : 'The authored Warm-Up work scored higher than the Live Challenge result, so it is kept.',
+  };
+};
+
+/** Does this student's Warm-Up grade come from a Live Challenge result? */
+export const warmupChallengeCounts = (student = null, assignmentId = null) => (
+  warmupChallengeScore(student?.warmupChallengeByAssignment?.[assignmentId]) !== null
+);

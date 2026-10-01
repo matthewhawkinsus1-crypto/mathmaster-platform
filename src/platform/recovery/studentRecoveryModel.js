@@ -42,7 +42,20 @@ const STATE_COPY = Object.freeze({
     badge: 'Complete',
     message: 'Your Recovery is finished. Practice stays open whenever you want more.',
   },
+  [RECOVERY_STATE.CLOSED]: {
+    badge: 'Closed',
+    message: 'The final submission date passed before this Recovery was submitted, so your original score stands.',
+  },
 });
+
+/** "Fri, Oct 3, 11:59 PM" in the viewer's own time, or null. */
+export const formatRecoveryEndsAt = (endsAtMs) => {
+  const value = Number(endsAtMs);
+  if (!Number.isFinite(value) || endsAtMs === null) return null;
+  return new Date(value).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+};
+
+const OPEN_STATES = new Set([RECOVERY_STATE.LOCKED, RECOVERY_STATE.UNLOCKED, RECOVERY_STATE.IN_PROGRESS]);
 
 /**
  * The student's Recovery summary for one assignment: one entry per Warm-Up/DOL
@@ -112,6 +125,9 @@ export const buildStudentRecoverySummary = ({
       masteryWindow: mastery.windowSize,
       masteryRequired: mastery.requiredCorrect,
       practiceRemaining: mastery.remainingItems,
+      // The Recovery end date: the assignment's final submission date.
+      endsAtMs: eligibility.endsAtMs ?? null,
+      endsAtLabel: OPEN_STATES.has(eligibility.state) ? formatRecoveryEndsAt(eligibility.endsAtMs) : null,
       canPractice: [RECOVERY_STATE.LOCKED, RECOVERY_STATE.UNLOCKED].includes(eligibility.state),
       canStart: eligibility.state === RECOVERY_STATE.UNLOCKED,
       canContinue: eligibility.state === RECOVERY_STATE.IN_PROGRESS,

@@ -190,10 +190,7 @@ export default function StudentAssignmentResult({
 
         {entry.frozen && (
           <p style={{ margin: '14px 0 0', fontSize: 13, lineHeight: 1.55, color: '#5f6368' }}>
-            {recoveryPanel
-              ? 'This assignment is past its final deadline. Recovery above is the only way this grade can still change. '
-              : 'This assignment is past its final deadline, so the grade above can no longer change. '}
-            Opening it again gives you every question with full solutions — your recorded answers are not replayed, and the scores above are the record. Nothing you do there changes this grade, your evidence, your mastery, or your Google Classroom score.
+            This assignment is past its final deadline, so the grade above can no longer change. Opening it again gives you every question with full solutions — your recorded answers are not replayed, and the scores above are the record. Nothing you do there changes this grade, your evidence, your mastery, or your Google Classroom score.
           </p>
         )}
 

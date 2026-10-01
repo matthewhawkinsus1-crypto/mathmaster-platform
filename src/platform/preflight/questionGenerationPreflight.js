@@ -239,7 +239,7 @@ export const auditAssignmentQuestionGeneration = (assignment = {}, questions = [
       const delivery = resolveWarmupDelivery({ assignment, hasAuthoredWarmup: true });
       if (warmupIsNotAssignmentDelivered(delivery)) {
         recovery[section] = { status: 'liveChallenge' };
-        notes.push('Warm-Up is delivered by Live Challenge: MathMaster will not generate a Warm-Up Recovery, and students who played are not treated as missing the authored Warm-Up.');
+        notes.push('Warm-Up is delivered by Live Challenge: each student\'s result (rounds correct out of the rounds they could play) is their Warm-Up grade, and MathMaster will not generate a Warm-Up Recovery.');
         return;
       }
     }
@@ -271,8 +271,8 @@ export const auditAssignmentQuestionGeneration = (assignment = {}, questions = [
     };
     if (readiness.ready) {
       notes.push(section === 'dol'
-        ? `${label} ready: each of the ${entries.length} DOL question${entries.length === 1 ? '' : 's'} can generate fresh, server-graded versions (unlocks after ${policy.mastery.requiredCorrect} of the last ${policy.mastery.windowSize} Practice questions correct; counts up to ${policy.dol.maxRecordedScore}%).`
-        : `${label} ready: ${policy.warmup.questionCount} fresh questions from ${readiness.readySlots.length} Warm-Up question${readiness.readySlots.length === 1 ? '' : 's'} (counts up to ${policy.warmup.maxRecordedScore}%).`);
+        ? `${label} ready: each of the ${entries.length} DOL question${entries.length === 1 ? '' : 's'} can generate fresh, server-graded versions (unlocks after ${policy.mastery.requiredCorrect} of the last ${policy.mastery.windowSize} Practice questions correct; counts up to ${policy.dol.maxRecordedScore}%; open until the final submission date).`
+        : `${label} ready: ${policy.warmup.questionCount} fresh questions from ${readiness.readySlots.length} Warm-Up question${readiness.readySlots.length === 1 ? '' : 's'} (counts up to ${policy.warmup.maxRecordedScore}%; open until the final submission date).`);
     }
   });
 
