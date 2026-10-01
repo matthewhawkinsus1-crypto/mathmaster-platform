@@ -256,6 +256,9 @@ const outcomeStyle = (tone) => ({
   fontSize: 14,
   fontWeight: 800,
   lineHeight: 1.45,
+  // `nearest` would otherwise stop with the box's edge on the scroller's edge,
+  // a few pixels under a phone's action bar.
+  scrollMarginBottom: 12,
 });
 
 export const AttemptOutcome = ({ inline = false }) => {
@@ -283,7 +286,7 @@ export const AttemptOutcome = ({ inline = false }) => {
   if (!attemptOutcomeSlots) return null;
   if (inline) {
     return outcome ? (
-      <span ref={regionRef} className="mathmaster-tool-attempt-outcome" data-attempt-outcome="shown">
+      <span ref={regionRef} className="mathmaster-tool-attempt-outcome" data-attempt-outcome="shown" style={{ scrollMarginBottom: 12 }}>
         {' '}{outcome.text}{outcome.detail ? ` ${outcome.detail}` : ''}
       </span>
     ) : null;
