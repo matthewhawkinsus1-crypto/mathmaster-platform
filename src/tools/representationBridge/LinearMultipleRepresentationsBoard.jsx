@@ -8,8 +8,16 @@ import MathInput from '../../MathInput.jsx';
 import MathDisplay from '../../MathDisplay.jsx';
 import MathText from '../../components/common/MathText.jsx';
 import { isSingleLineAnswerTarget } from '../../platform/interaction/answerEntryUx.js';
-import { useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
+import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import './LinearMultipleRepresentationsBoard.css';
+import {
+  boardUndoChanges,
+  boardUndoState,
+  boardUndoTitle,
+  changedBoardFields,
+  describeBoardUndo,
+  graphUndoField,
+} from './linearMultipleRepresentationsUndo.js';
 import { lineFromPoints } from '../graphing2/graphingMath.js';
 import { toFraction } from '../shared/linearEquations.js';
 import {
@@ -181,6 +189,16 @@ const GRAPHS = [
   },
 ];
 
+// The answer field each one-box card writes.
+const ONE_FIELD_CARDS = Object.freeze({
+  standardForm: 'standardFormEquation',
+  slopeIntercept: 'slopeInterceptEquation',
+  pointSlope: 'pointSlopeEquation',
+  slope: 'featureSlope',
+  xIntercept: 'featureXIntercept',
+  yIntercept: 'featureYIntercept',
+});
+
 const CONTEXT_FIELDS = [
   { field: 'contextIndependent', key: 'independentQuantity', label: 'Independent quantity (x)', placeholder: 'e.g. time in hours', prompt: 'Choose the quantity…' },
   { field: 'contextDependent', key: 'dependentQuantity', label: 'Dependent quantity (y)', placeholder: 'e.g. height in inches', prompt: 'Choose the quantity…' },
@@ -253,11 +271,35 @@ function BoardPanel({ title, open = true, onToggle = null, toggleLabel = '', chi
   );
 }
 
-function BoardCard({ cardId, title, hint, verdict, canCheck, onCheck, checkLabel, children, extraControls = null, headerActions = null }) {
+// Whether an element is on screen and nothing — the sticky task card, the
+// action bar, a dialog — sits over its top or its bottom. Already visible means
+// an Undo leaves the page where it is: pressing Undo while looking at a card
+// must not jump it.
+const uncoveredOnScreen = (element) => {
+  const box = element?.getBoundingClientRect?.();
+  if (!box || !box.width || !box.height || typeof document === 'undefined') return false;
+  const x = box.left + box.width / 2;
+  const inset = Math.min(12, box.height / 2);
+  return [box.top + inset, box.bottom - inset].every((y) => {
+    if (x < 0 || y < 0 || x >= window.innerWidth || y >= window.innerHeight) return false;
+    const hit = document.elementFromPoint(x, y);
+    return Boolean(hit) && element.contains(hit);
+  });
+};
+
+// The card the last Undo changed carries the Undo's id, which restarts its
+// outline (LinearMultipleRepresentationsBoard.css) on every Undo, even two in a
+// row on the same card.
+const undoneProps = (undone) => (undone
+  ? { 'data-lmr-undone': undone.id, className: `mm-lmr-undone mm-lmr-undone--${undone.id % 2 ? 'odd' : 'even'}` }
+  : {});
+
+function BoardCard({ cardId, title, hint, verdict, canCheck, onCheck, checkLabel, children, extraControls = null, headerActions = null, undone = null }) {
   const errorId = useId();
   return (
     <div
       data-lmr-card={cardId}
+      {...undoneProps(undone)}
       style={{
         border: `1px solid ${verdict?.isCorrect ? '#9fd3ad' : '#dbe3ef'}`,
         borderRadius: 12,
@@ -510,10 +552,15 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   const [storedExpanded, setExpandedCards] = usePersistentToolState('expandedCards', DEFAULT_EXPANDED);
   const expandedCards = { ...DEFAULT_EXPANDED, ...storedExpanded };
 
-  // Presentation only.
-  const [notice, setNotice] = useState('');
+  // Presentation only. The notice is what the polite live region says; each
+  // one has its own id so the same sentence twice (two Undos on one card) is
+  // still announced twice.
+  const [notice, setNotice] = useState({ id: 0, text: '' });
+  const announce = useCallback((text) => setNotice((previous) => ({ id: previous.id + 1, text })), []);
   const [enlargedGraph, setEnlargedGraph] = useState(null);
   const [confirmSubmit, setConfirmSubmit] = useState(false);
+  // The card the last Undo changed: opened, brought into view, outlined.
+  const [undoReveal, setUndoReveal] = useState(null);
 
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
 
@@ -641,7 +688,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     const verdict = judge(cardId, response);
     setCheckedCards((prev) => ({ ...prev, [cardId]: cardResponseKey(cardId, response) }));
     const label = PART_LABELS[CARD_PART_KEYS[cardId]] || cardId;
-    setNotice(`${label}: ${verdict.isCorrect ? 'correct.' : verdict.error}`);
+    announce(`${label}: ${verdict.isCorrect ? 'correct.' : verdict.error}`);
   };
   runCheckRef.current = runCheck;
 
@@ -671,7 +718,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     const results = judgeContext(response);
     const wrong = contextFields.filter(({ field }) => !results[field]).length;
     setCheckedCards((prev) => ({ ...prev, context: contextKeyFor(response) }));
-    setNotice(wrong === 0 ? 'Meanings: all correct.' : `Meanings: ${wrong} to take another look at.`);
+    announce(wrong === 0 ? 'Meanings: all correct.' : `Meanings: ${wrong} to take another look at.`);
   };
   const contextVerdict = canCheck && checkedCards?.context && checkedCards.context === contextKeyFor(currentResponse)
     ? { results: judgeContext(currentResponse) }
@@ -705,29 +752,16 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   });
 
   // ----------------------------------------------------------------- graphs
-  // Undo history lives in memory only: histories are never draft-backed
-  // (they would count against the workspace sync cap). After a reload Undo
-  // falls back to removing the last point.
-  const historyRef = useRef({ graph1: [], graph2: [], graph3: [] });
-  const [historyVersion, setHistoryVersion] = useState(0);
   // The latest points, updated the moment a change is made. Two taps that land
   // before React re-renders (a slow Chromebook) must build on each other, not
   // both on the points from the last render.
   const latestPointsRef = useRef(graphPointsByKey);
   latestPointsRef.current = graphPointsByKey;
-  // Which graph each recorded change was on, in order, so the platform Undo
-  // in the action bar can take back the student's LAST graph change wherever
-  // it was. Before, that button was always disabled on this board while each
-  // graph had its own Undo — two Undos, one of which never worked (student UX
-  // pass, R-14). Both now pop the same per-graph history.
-  const editOrderRef = useRef([]);
+  // Every change — a point, a drag, Start over — is a change to the board's
+  // mathematics, so the board's one Undo history records it (below).
   const changeGraph = (key, next) => {
     clearFeedback();
-    const current = latestPointsRef.current[key] || [];
-    historyRef.current[key] = [...historyRef.current[key].slice(-19), current];
-    editOrderRef.current = [...editOrderRef.current.slice(-59), key];
     latestPointsRef.current = { ...latestPointsRef.current, [key]: next };
-    setHistoryVersion((value) => value + 1);
     graphSettersByKey[key](next);
   };
   const plotPoint = (key, point) => {
@@ -738,44 +772,107 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     changeGraph(key, current.length >= 2 ? [current[0], point] : [...current, point]);
   };
   const movePoint = (key, index, point) => changeGraph(key, (latestPointsRef.current[key] || []).map((existing, i) => (i === index ? point : existing)));
-  const undoGraph = (key) => {
-    clearFeedback();
-    const stack = historyRef.current[key];
-    if (stack.length) {
-      const previous = stack[stack.length - 1];
-      historyRef.current[key] = stack.slice(0, -1);
-      const lastEdit = editOrderRef.current.lastIndexOf(key);
-      if (lastEdit >= 0) editOrderRef.current = editOrderRef.current.filter((_, index) => index !== lastEdit);
-      latestPointsRef.current = { ...latestPointsRef.current, [key]: previous };
-      setHistoryVersion((value) => value + 1);
-      graphSettersByKey[key](previous);
-      return;
-    }
-    const fallback = (latestPointsRef.current[key] || []).slice(0, -1);
-    latestPointsRef.current = { ...latestPointsRef.current, [key]: fallback };
-    graphSettersByKey[key](fallback);
-  };
   const clearGraph = (key) => changeGraph(key, []);
-  // historyVersion re-renders the Undo buttons when only the history changed.
-  const canUndo = (key) => historyVersion >= 0 && (historyRef.current[key].length > 0 || (graphPointsByKey[key] || []).length > 0);
 
-  // The platform Undo: the most recent graph change that is still undoable.
-  const undoGraphRef = useRef(undoGraph);
-  undoGraphRef.current = undoGraph;
-  const lastUndoableGraph = historyVersion >= 0
-    ? [...editOrderRef.current].reverse().find((key) => historyRef.current[key]?.length > 0) || null
-    : null;
-  const graphTitles = { graph1: 'Graph 1', graph2: 'Graph 2', graph3: 'Graph 3' };
-  const platformUndo = useMemo(() => ({
-    canUndo: Boolean(lastUndoableGraph),
-    onUndo: () => {
-      const key = [...editOrderRef.current].reverse().find((entry) => historyRef.current[entry]?.length > 0);
-      if (key) undoGraphRef.current(key);
-    },
-    label: lastUndoableGraph ? `Undo the last change on ${graphTitles[lastUndoableGraph]}` : 'Undo the last graph change',
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- graphTitles is constant
-  }), [lastUndoableGraph]);
-  useActiveUndoOwner({ id: 'linear-representations-graphs', controller: platformUndo });
+  // ------------------------------------------------------------------ undo
+  // ONE UNDO FOR THE WHOLE BOARD (PQ-009). The platform Undo takes back the
+  // student's last edit anywhere on the board — a typed equation, a table cell,
+  // a meaning, a point — one step at a time, through one history: a run of
+  // typing in one field is one step (mathUndoStack.js), and each graph's own
+  // Undo is the same history filtered to that graph, so the two can never
+  // disagree or replay each other.
+  //
+  // The history holds the board's mathematics and nothing else
+  // (linearMultipleRepresentationsUndo.js): `checkedCards` and every verdict
+  // stay out, so an Undo can neither un-check a card nor bring back a verdict
+  // for work that was never checked — a card shows its verdict whenever it
+  // holds exactly the work that was checked, as it does after a reload. Undo is
+  // not an answer either: it leaves the board's submission result where it is.
+  //
+  // It survives a reload (`persist`, device-local and size-capped, never in the
+  // synced work record), and a stack recorded for different work is dropped
+  // rather than replayed, so an Undo after a reload takes back one step of the
+  // restored work and never empties it.
+  const fieldSetters = {
+    standardFormEquation: setStandardFormEquation,
+    slopeInterceptEquation: setSlopeInterceptEquation,
+    pointSlopeEquation: setPointSlopeEquation,
+    featureSlope: setFeatureSlope,
+    featureXIntercept: setFeatureXIntercept,
+    featureYIntercept: setFeatureYIntercept,
+    featurePoint1: setFeaturePoint1,
+    featurePoint2: setFeaturePoint2,
+    tableRows: setTableRows,
+    ...Object.fromEntries(GRAPHS.map((graph) => [graphUndoField(graph.key), graphSettersByKey[graph.key]])),
+    ...contextSetters,
+  };
+  const undoState = useMemo(() => boardUndoState(currentResponse), [currentResponse]);
+  // Which graph's own Undo button is restoring right now (null: the platform Undo).
+  const graphUndoSourceRef = useRef(null);
+  const restoreBoard = (restored) => {
+    const current = responseRef.current;
+    // Only what differs is written back: every write is a draft write, and a
+    // MathLive field that is rewritten starts its own Ctrl+Z history there.
+    changedBoardFields(current, restored).forEach((field) => {
+      const graph = GRAPHS.find((entry) => graphUndoField(entry.key) === field);
+      if (graph) latestPointsRef.current = { ...latestPointsRef.current, [graph.key]: restored[field] };
+      fieldSetters[field](restored[field]);
+    });
+    // Show what changed: open the card, bring it into view, outline it, and say
+    // where it was in the polite live region.
+    const changes = boardUndoChanges(current, restored);
+    if (!changes.length) return;
+    const closed = [...new Set(changes.map((change) => change.expandKey))].filter((key) => !expandedCards[key]);
+    if (closed.length) {
+      setExpandedCards((prev) => ({ ...DEFAULT_EXPANDED, ...prev, ...Object.fromEntries(closed.map((key) => [key, true])) }));
+    }
+    announce(describeBoardUndo(changes));
+    // Read now: an updater runs at the next render, after the ref is cleared.
+    const fromGraph = graphUndoSourceRef.current;
+    setUndoReveal((previous) => ({ id: (previous?.id || 0) + 1, cardId: changes[0].cardId, field: changes[0].field, fromGraph }));
+  };
+  const undoHistory = useMathUndoHistory({
+    label: (nextRestore, state) => boardUndoTitle(boardUndoChanges(state, nextRestore)),
+    state: undoState,
+    onRestore: restoreBoard,
+    resetKey: questionUndoResetKey(questionData),
+    ownerId: 'lmr-board',
+    persist: true,
+  });
+  // A graph's own Undo: the latest change on THAT graph, from the same history.
+  const undoGraph = (key) => {
+    graphUndoSourceRef.current = key;
+    try {
+      return undoHistory.undoChangeTo([graphUndoField(key)]);
+    } finally {
+      graphUndoSourceRef.current = null;
+    }
+  };
+  const canUndo = (key) => undoHistory.canUndoChangeTo([graphUndoField(key)]);
+
+  // Bring what the Undo changed into view — the field, the table or the plane,
+  // not the whole card, which can be taller than a laptop screen — in the
+  // enlarged graph when that is where the student is working. Keyboard focus
+  // stays on the Undo button, so pressing it again keeps working; the live
+  // region says where the change was.
+  const boardRef = useRef(null);
+  useEffect(() => {
+    if (!undoReveal) return;
+    const shell = boardRef.current?.closest?.('.mathmaster-tool-shell') || boardRef.current;
+    const card = shell?.querySelector(`[data-lmr-dialog] [data-lmr-card="${undoReveal.cardId}"]`)
+      || boardRef.current?.querySelector(`[data-lmr-card="${undoReveal.cardId}"]`);
+    if (!card) return;
+    const target = card.querySelector(`[data-lmr-field="${undoReveal.field}"]`) || card;
+    if (!uncoveredOnScreen(target)) target.scrollIntoView?.({ block: 'center', inline: 'nearest' });
+    // A graph's Undo that took back that graph's last step disables itself, and
+    // a disabled button drops keyboard focus to the page — out of the enlarged
+    // graph's dialog altogether. Focus goes to the graph's plane instead, where
+    // the next point is placed.
+    const active = document.activeElement;
+    if (undoReveal.fromGraph && (!active || active === document.body || active.matches?.(':disabled'))) {
+      target.querySelector?.('svg[role="application"]')?.focus?.({ preventScroll: true });
+    }
+  }, [undoReveal]);
 
   const enlargeButtonRefs = { graph1: useRef(null), graph2: useRef(null), graph3: useRef(null) };
   const closeDialog = useCallback(() => setEnlargedGraph(null), []);
@@ -813,6 +910,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
       // driver can aim like a student does, by position, not by injected state.
       <div
         data-lmr-plane={graph.key}
+        data-lmr-field={graphUndoField(graph.key)}
         data-bounds={[bounds.xMin, bounds.xMax, bounds.yMin, bounds.yMax].join(',')}
         data-snap={snapFor(graph.key)}
       >
@@ -909,6 +1007,10 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   };
 
   // ------------------------------------------------------------ card bodies
+  // Each answer control sits in an element named for its field
+  // (`data-lmr-field`): that is what an Undo there brings into view.
+  const undoneFor = (cardId) => (undoReveal?.cardId === cardId ? undoReveal : null);
+
   const equationCard = (cardId, title, value, setValue, placeholder, hint) => {
     const verdict = verdictFor(cardId);
     return (
@@ -921,19 +1023,22 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
         canCheck={canCheck}
         onCheck={() => runCheck(cardId)}
         checkLabel={`Check ${title}`}
+        undone={undoneFor(cardId)}
       >
-        <MathInput
-          toolProfile="equation"
-          placeholder={placeholder}
-          ariaLabel={title}
-          value={value}
-          inputStatus={verdict ? (verdict.isCorrect ? 'correct' : 'incorrect') : 'neutral'}
-          onChange={(next) => {
-            clearFeedback();
-            setValue(next);
-          }}
-          onSubmit={canCheck ? enterHandlers[cardId] : null}
-        />
+        <div data-lmr-field={ONE_FIELD_CARDS[cardId]} style={{ minWidth: 0 }}>
+          <MathInput
+            toolProfile="equation"
+            placeholder={placeholder}
+            ariaLabel={title}
+            value={value}
+            inputStatus={verdict ? (verdict.isCorrect ? 'correct' : 'incorrect') : 'neutral'}
+            onChange={(next) => {
+              clearFeedback();
+              setValue(next);
+            }}
+            onSubmit={canCheck ? enterHandlers[cardId] : null}
+          />
+        </div>
       </BoardCard>
     );
   };
@@ -950,20 +1055,23 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
         canCheck={canCheck}
         onCheck={() => runCheck(cardId)}
         checkLabel={`Check ${title}`}
+        undone={undoneFor(cardId)}
       >
-        <MathInput
-          toolProfile={toolProfile}
-          placeholder={placeholder}
-          ariaLabel={title}
-          value={value}
-          compact
-          inputStatus={verdict ? (verdict.isCorrect ? 'correct' : 'incorrect') : 'neutral'}
-          onChange={(next) => {
-            clearFeedback();
-            setValue(next);
-          }}
-          onSubmit={canCheck ? enterHandlers[cardId] : null}
-        />
+        <div data-lmr-field={ONE_FIELD_CARDS[cardId]} style={{ minWidth: 0 }}>
+          <MathInput
+            toolProfile={toolProfile}
+            placeholder={placeholder}
+            ariaLabel={title}
+            value={value}
+            compact
+            inputStatus={verdict ? (verdict.isCorrect ? 'correct' : 'incorrect') : 'neutral'}
+            onChange={(next) => {
+              clearFeedback();
+              setValue(next);
+            }}
+            onSubmit={canCheck ? enterHandlers[cardId] : null}
+          />
+        </div>
       </BoardCard>
     );
   };
@@ -991,23 +1099,25 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
       canCheck={canCheck}
       onCheck={() => runCheck('twoPoints')}
       checkLabel="Check two points on the line"
+      undone={undoneFor('twoPoints')}
     >
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 8 }}>
-        {[[featurePoint1, setFeaturePoint1, 'First point'], [featurePoint2, setFeaturePoint2, 'Second point']].map(([value, setValue, label]) => (
-          <MathInput
-            key={label}
-            toolProfile="orderedPair"
-            placeholder="(x, y)"
-            ariaLabel={label}
-            value={value}
-            compact
-            inputStatus={twoPointsVerdict ? (twoPointsVerdict.isCorrect ? 'correct' : 'incorrect') : 'neutral'}
-            onChange={(next) => {
-              clearFeedback();
-              setValue(next);
-            }}
-            onSubmit={canCheck ? enterHandlers.twoPoints : null}
-          />
+        {[[featurePoint1, setFeaturePoint1, 'First point', 'featurePoint1'], [featurePoint2, setFeaturePoint2, 'Second point', 'featurePoint2']].map(([value, setValue, label, field]) => (
+          <div key={label} data-lmr-field={field} style={{ minWidth: 0 }}>
+            <MathInput
+              toolProfile="orderedPair"
+              placeholder="(x, y)"
+              ariaLabel={label}
+              value={value}
+              compact
+              inputStatus={twoPointsVerdict ? (twoPointsVerdict.isCorrect ? 'correct' : 'incorrect') : 'neutral'}
+              onChange={(next) => {
+                clearFeedback();
+                setValue(next);
+              }}
+              onSubmit={canCheck ? enterHandlers.twoPoints : null}
+            />
+          </div>
         ))}
       </div>
     </BoardCard>
@@ -1024,6 +1134,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
       canCheck={canCheck}
       onCheck={() => runCheck('table')}
       checkLabel="Check table of values"
+      undone={undoneFor('table')}
       extraControls={(
         <button
           type="button"
@@ -1037,7 +1148,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
         </button>
       )}
     >
-      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+      <table data-lmr-field="tableRows" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <thead>
           <tr>
             <th scope="col" style={{ padding: '4px 6px', fontStyle: 'italic', fontFamily: 'serif', fontSize: 19, color: '#24324a' }}>x</th>
@@ -1108,6 +1219,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
         canCheck={canCheck && open}
         onCheck={() => runCheck(graph.cardId)}
         checkLabel={`Check ${graph.title}`}
+        undone={undoneFor(graph.cardId)}
         extraControls={open ? graphControls(graph) : null}
         headerActions={(
           <>
@@ -1147,7 +1259,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     const choices = contextChoices[key];
     const result = contextVerdict?.results?.[field];
     return (
-      <label key={field} style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+      <label key={field} data-lmr-field={field} style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
         <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <strong style={{ fontSize: 14, color: '#172033' }}>{label}</strong>
           {contextVerdict ? (
@@ -1198,7 +1310,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
 
   const contextPanel = contextFields.length ? (
     <BoardPanel title="What the numbers mean" open={expandedCards.context} onToggle={() => toggle('context')} toggleLabel="meanings">
-      <div data-lmr-card="context" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div data-lmr-card="context" {...undoneProps(undoneFor('context'))} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {expandedCards.context ? (
           <>
             {/* Wide tracks: a meaning is a sentence, and a narrow dropdown cuts
@@ -1267,7 +1379,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
       widthProfile="wide"
       subtitle="Start from the GIVEN representation and build the same line every other way: equations, key features, a table and three graphs. Work in any order."
     >
-      <div className="mm-lmr-board" onKeyDown={handleBoardKeyDown} style={{ display: 'flex', flexDirection: 'column', gap: 14, textAlign: 'left' }}>
+      <div ref={boardRef} className="mm-lmr-board" onKeyDown={handleBoardKeyDown} style={{ display: 'flex', flexDirection: 'column', gap: 14, textAlign: 'left' }}>
         <GivenRepresentation description={givenDescription} graphBounds={graphBounds} />
 
         <div
@@ -1301,7 +1413,10 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
           </span>
         </div>
 
-        <p aria-live="polite" className="mm-sr-only">{notice}</p>
+        {/* One polite region for the board: a Check's verdict, or where an
+            Undo changed the board. A new span per notice, so a repeated
+            sentence is announced again. */}
+        <p aria-live="polite" className="mm-sr-only" data-lmr-announcer="true"><span key={notice.id}>{notice.text}</span></p>
 
         {isScenario ? contextPanel : null}
 
@@ -1475,7 +1590,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
             {/* Beside the plane on a laptop, under it on a phone: the task, the
                 points so far and Check stay on screen with the grid, so nothing
                 needs scrolling to finish the graph. */}
-            <div data-lmr-card={graph.cardId} style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'flex-start' }}>
+            <div data-lmr-card={graph.cardId} {...undoneProps(undoneFor(graph.cardId))} style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'flex-start' }}>
               <div style={{ flex: '1 1 380px', maxWidth: `min(640px, ${enlargedPlaneMaxWidth(graph)}px)`, minWidth: 'min(240px, 100%)', margin: '0 auto' }}>
                 {renderPlane(graph, 640, { showPlotHelp: false })}
               </div>

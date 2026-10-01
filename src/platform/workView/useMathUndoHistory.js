@@ -4,9 +4,11 @@ import { persistedUndoKey, readPersistedUndo, writePersistedUndo } from './persi
 import {
   EMPTY_MATH_UNDO_STACK,
   MATH_UNDO_LIMIT,
+  latestMathUndoChangeIndex,
   mathUndoDepth,
   mathematicalSnapshot,
   recordMathUndoEntry,
+  undoMathUndoChange,
   undoMathUndoEntry,
 } from './mathUndoStack.js';
 
@@ -103,6 +105,10 @@ export function useActiveUndoOwner({ id, active = true, priority = 0, controller
  * `mathematicalSnapshot` before two states are compared, so opening Work View,
  * rotating the phone, or pressing Fit records nothing and Undo still takes back
  * the last real edit.
+ *
+ * `label` may be a function `(nextRestore, state) => string`, so the Undo
+ * button's title can name what the next press will change ("Undo your last
+ * change to Graph 2"); `nextRestore` is undefined when there is nothing to undo.
  */
 export default function useMathUndoHistory({
   label = 'Undo the last change',
@@ -186,6 +192,21 @@ export default function useMathUndoHistory({
     return true;
   }, [save]);
 
+  // The latest change to these top-level keys alone (mathUndoStack.js, "UNDO ON
+  // GRAPH 2"). Read against the last state this hook recorded, which is the
+  // state on screen whenever a student can press anything.
+  const undoChangeTo = useCallback((keys) => {
+    if (!enabled) return false;
+    const { stack, restored, changed } = undoMathUndoChange(stackRef.current, previousRef.current, keys);
+    if (!changed) return false;
+    stackRef.current = stack;
+    restoringSnapshotRef.current = mathematicalSnapshot(restored);
+    setDepth(mathUndoDepth(stack));
+    save(stack, restored);
+    restoreRef.current?.(restored);
+    return true;
+  }, [enabled, save]);
+
   const clear = useCallback(() => {
     stackRef.current = EMPTY_MATH_UNDO_STACK;
     setDepth(0);
@@ -193,19 +214,25 @@ export default function useMathUndoHistory({
   }, [save]);
 
   const canUndo = enabled && depth > 0;
+  // Read during render: the stack only changes in this hook's own effects and
+  // handlers, and each of those re-renders through `depth` or the restore.
+  const canUndoChangeTo = (keys) => enabled && latestMathUndoChangeIndex(stackRef.current, state, keys) >= 0;
+  const entries = stackRef.current?.entries || [];
+  const nextRestore = canUndo && entries.length ? entries[entries.length - 1] : undefined;
+  const title = typeof label === 'function' ? (label(nextRestore, state) || 'Undo the last change') : label;
 
   useEffect(() => {
     if (!register) return undefined;
-    return register({ canUndo, onUndo: undo, label, depth }, { id: ownerId, priority });
-  }, [register, canUndo, undo, label, depth, ownerId, priority]);
+    return register({ canUndo, onUndo: undo, label: title, depth }, { id: ownerId, priority });
+  }, [register, canUndo, undo, title, depth, ownerId, priority]);
 
   // The shell renders whichever Undo descriptor reaches it. Handing back a ready
   // capability keeps the tool call sites from each inventing a label and a
   // disabled rule for the same control.
   const capability = useMemo(
-    () => ({ label: '↶ Undo', title: label, onAction: undo, disabled: !canUndo, studentState: true }),
-    [label, undo, canUndo],
+    () => ({ label: '↶ Undo', title, onAction: undo, disabled: !canUndo, studentState: true }),
+    [title, undo, canUndo],
   );
 
-  return { canUndo, undo, clear, depth, capability };
+  return { canUndo, undo, clear, depth, capability, undoChangeTo, canUndoChangeTo };
 }

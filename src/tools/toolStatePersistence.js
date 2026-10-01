@@ -148,7 +148,7 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
     redoDepth: 'Mirror of the redo stack depth, for enabling a button.',
     enlargedGraph: 'Which graph is currently open in modal enlarged view.',
     confirmSubmit: 'Whether the "some parts are still empty" confirmation is showing. A prompt, not work.',
-    historyVersion: 'Counter that re-renders the graph Undo buttons; the Undo history itself is in-memory only.',
+    undoReveal: 'Which card the last Undo changed, so the board can bring it into view and outline it. Presentation of a change the shared Undo history already made; the history itself is useMathUndoHistory\'s.',
   }),
 });
 

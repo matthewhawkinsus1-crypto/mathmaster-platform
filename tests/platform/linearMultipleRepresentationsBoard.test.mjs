@@ -216,9 +216,15 @@ test('a third tap moves the newest point instead of wiping the construction; Sta
   const plot = region(source, 'const plotPoint = (key, point) => {', '};', 'plotPoint');
   assert.match(plot, /current\.length >= 2 \? \[current\[0\], point\] : \[\.\.\.current, point\]/);
   const clear = region(source, 'const clearGraph = (key) =>', ';', 'clearGraph');
-  assert.match(clear, /changeGraph\(key, \[\]\)/, 'Start over goes through the undo history');
-  const change = region(source, 'const changeGraph = (key, next) => {', '};', 'changeGraph');
-  assert.match(change, /historyRef\.current\[key\] = \[\.\.\.historyRef\.current\[key\]\.slice\(-19\), current\]/);
+  assert.match(clear, /changeGraph\(key, \[\]\)/, 'Start over is an ordinary graph change');
+  // Every graph change lands in the graph's draft-backed points, which are
+  // part of the board's one Undo history (PQ-009) — so Start over, like a
+  // point or a drag, is a step the student can take back.
+  const change = region(source, 'const changeGraph = (key, next) => {', '\n  };', 'changeGraph');
+  assert.match(change, /graphSettersByKey\[key\]\(next\);/);
+  const response = region(source, 'const currentResponse = useMemo(() => ({', '}), [', 'the board response');
+  for (const key of ['graph1Points', 'graph2Points', 'graph3Points']) assert.match(response, new RegExp(`\\b${key},`));
+  assert.match(source, /const undoState = useMemo\(\(\) => boardUndoState\(currentResponse\), \[currentResponse\]\);/);
 });
 
 test('the enlarged graph keeps its task, the Graph 3 anchor, and its own Check', () => {

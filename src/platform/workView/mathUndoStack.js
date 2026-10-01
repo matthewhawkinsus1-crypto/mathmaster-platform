@@ -94,12 +94,30 @@ export const MATH_UNDO_TYPING_IDLE_MS = 1000;
 
 const TEXT_DIFF_LIMIT = 2;
 
+/*
+ * A FRACTION BAR IS A KEYSTROKE TOO.
+ *
+ * A math field reports LaTeX, and not every key a student types lands in it as
+ * an insertion. "/" turns `y=1` into `y=\frac{1}{\placeholder{}}`, the next "2"
+ * makes it `y=\frac12`, and "(" adds `\left(\right)` around the caret. Compared
+ * character by character neither is one contiguous edit, so typing
+ * y = 1/2x − 3 into one field was three Undo steps, and the middle one handed
+ * back a fraction with an empty box in it (PQ-009, the representations board).
+ *
+ * So contiguity is judged on the text with MathLive's structure taken out —
+ * braces, backslashes and empty placeholders. Selecting a whole answer and
+ * typing over it (`y=\frac12x` → `5`) is still a different act, as is a
+ * swapped choice.
+ */
+const EMPTY_PLACEHOLDER = /\\placeholder(?:\[[^\]]*\])?\{\}/g;
+export const typingText = (value) => String(value ?? '').replace(EMPTY_PLACEHOLDER, '').replace(/[{}\\]/g, '');
+
 // One insertion or one deletion in one place — what a keystroke, a Backspace or
 // a paste at the caret does. Swapping "yes" for "no", or selecting a whole
 // answer and typing over it, is a different act and keeps its own Undo.
 const isContiguousTextEdit = (before, after) => {
-  const a = String(before ?? '');
-  const b = String(after ?? '');
+  const a = typingText(before);
+  const b = typingText(after);
   let prefix = 0;
   while (prefix < a.length && prefix < b.length && a[prefix] === b[prefix]) prefix += 1;
   let suffix = 0;
@@ -165,6 +183,12 @@ export function recordMathUndoEntry(stack, previousState, nextState, options = {
   const idleMs = Number.isFinite(Number(options.typingIdleMs)) ? Number(options.typingIdleMs) : MATH_UNDO_TYPING_IDLE_MS;
   const last = current.typing;
   if (textPath !== null && last && last.path === textPath && at - last.at <= idleMs && current.entries.length) {
+    // Typed and rubbed out again: the run is back where it began, and its entry
+    // would be an Undo that changes nothing — a press the student sees do
+    // nothing. The step before it is the next Undo instead.
+    if (mathematicalSnapshot(nextState) === mathematicalSnapshot(current.entries[current.entries.length - 1])) {
+      return { entries: current.entries.slice(0, -1) };
+    }
     // Same field, still typing: the entry already holds the state from before
     // the run began, which is where one Undo should go back to.
     return { entries: current.entries, typing: { path: textPath, at } };
@@ -188,4 +212,73 @@ export function undoMathUndoEntry(stack) {
     restored: current.entries[current.entries.length - 1],
     changed: true,
   };
+}
+
+/*
+ * "UNDO ON GRAPH 2" IS THE SAME HISTORY, FILTERED.
+ *
+ * A tool with several workspaces in one answer — the representations board has
+ * three graphs beside its equations and table — keeps an Undo on each
+ * workspace: the student who plotted on Graph 2, typed a slope, then saw the
+ * graph was wrong reaches for the graph's own Undo, not for the one that would
+ * take the slope first. Two separate histories disagreed (the platform Undo
+ * replayed what the graph's Undo had removed), so this is ONE history read
+ * through a filter: take back the most recent change to these keys and only
+ * that, keep every later change to anything else, and rewrite the entries after
+ * it as if the step had never been made — the platform Undo can never replay it.
+ *
+ * Keys are top-level fields of a plain-object state. `current` is the live
+ * state: the stack holds only the states before each change.
+ */
+const plainRecord = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+const filterKeys = (keys) => (Array.isArray(keys) ? keys : [keys]).filter((key) => typeof key === 'string' && key);
+
+const keyChanged = (before, after, key) => before?.[key] !== after?.[key]
+  && mathematicalSnapshot(before?.[key]) !== mathematicalSnapshot(after?.[key]);
+
+/** The index of the entry the latest change to `keys` started from, or -1. */
+export function latestMathUndoChangeIndex(stack, current, keys) {
+  const wanted = filterKeys(keys);
+  const entries = stack?.entries || [];
+  if (!wanted.length || !plainRecord(current)) return -1;
+  let after = current;
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const before = entries[index];
+    if (!plainRecord(before)) return -1;
+    if (wanted.some((key) => keyChanged(before, after, key))) return index;
+    after = before;
+  }
+  return -1;
+}
+
+/**
+ * Take back the latest change to `keys` alone. Same result shape as
+ * `undoMathUndoEntry`; `restored` is the live state with those keys put back.
+ */
+export function undoMathUndoChange(stack, current, keys) {
+  const base = stack?.entries ? stack : EMPTY_MATH_UNDO_STACK;
+  const index = latestMathUndoChangeIndex(base, current, keys);
+  if (index < 0) return { stack: base, restored: undefined, changed: false };
+  const wanted = filterKeys(keys);
+  const from = base.entries[index];
+  const putBack = (state) => {
+    const next = { ...state };
+    wanted.forEach((key) => {
+      if (Object.prototype.hasOwnProperty.call(from, key)) next[key] = from[key];
+      else delete next[key];
+    });
+    return next;
+  };
+  const restored = putBack(current);
+  // Nothing after `index` changed these keys, so every later entry held them at
+  // the value this step produced. Put back there too, the step is gone from the
+  // history; the entry it leaves identical to its neighbour goes with it.
+  const rewritten = [...base.entries.slice(0, index + 1), ...base.entries.slice(index + 1).map(putBack)];
+  const entries = rewritten.filter((entry, position) => (
+    position === 0 || mathematicalSnapshot(entry) !== mathematicalSnapshot(rewritten[position - 1])
+  ));
+  // An entry equal to where the student now is would be an Undo that changes nothing.
+  if (entries.length && mathematicalSnapshot(entries[entries.length - 1]) === mathematicalSnapshot(restored)) entries.pop();
+  return { stack: { entries }, restored, changed: true };
 }

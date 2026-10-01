@@ -293,9 +293,10 @@ uses locators.
 
 ## 11. Student experience opportunities
 
-- Finish whole-board Undo for the representations board (PQ-009 items 3 and
+- ~~Finish whole-board Undo for the representations board (PQ-009 items 3 and
   4): exclude verdict fields, then announce and reveal the card each Undo
-  changed. The platform pieces it needed are in.
+  changed. The platform pieces it needed are in.~~ Done: see PQ-009 in
+  `platform-quirks-audit.md`.
 - PQ-022: after a tool's Check, the attempt outcome is off-screen. Bring it
   into the tool's result area.
 - PQ-020/021: landscape phone Work View gives the stage 120–150 px; the

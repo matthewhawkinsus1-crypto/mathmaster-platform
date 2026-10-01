@@ -57,7 +57,7 @@ audit first recorded them; each entry's status line is current.)
 | PQ-017 | P2 | FIXED | The attempt outcome is not announced to screen readers |
 | PQ-018 | P2 | FIXED | Data Modeling: "Your model" disagrees with the steppers |
 | PQ-038 | P2 | FIXED | "b = 4" in a number box is graded wrong and spends a try |
-| PQ-009 | P2 | PARTLY FIXED | Whole-board Undo |
+| PQ-009 | P2 | FIXED | Whole-board Undo |
 | PQ-020 | P2 | DEFERRED | Landscape phone Work View gives the stage 120–150px |
 | PQ-021 | P2 | DEFERRED | Phone identity bar is 67–86px and always pinned |
 | PQ-022 | P2 | DEFERRED | After a tool's Check, the attempt outcome is off-screen |
@@ -414,7 +414,50 @@ updated record back); that is a harness limitation, not a product finding.
   nothing, which is safe.
 - **Scope:** small.
 
-### PQ-009 · Whole-board Undo — **P2 · PARTLY FIXED (blockers 1 and 2)**
+### PQ-009 · Whole-board Undo — **P2 · FIXED (all four blockers)**
+
+- **Update 2026-10-01, items 3 and 4 — fixed.** The board's platform Undo
+  takes back the student's last edit anywhere on the board, one step at a
+  time, newest first. That covers a typed equation or feature, a table cell, a
+  meaning chosen from a list, a point, a drag and Start over. It runs through
+  one `useMathUndoHistory` history (`ownerId: 'lmr-board'`, `persist: true`).
+  - **3. Verdicts.** The history records `boardUndoState`, which is the
+    board's 18 answer fields and nothing else
+    (`linearMultipleRepresentationsUndo.js`). `checkedCards` and
+    `expandedCards` are not in it. So a Check is not a step. Undo never
+    un-checks a card, and never puts back a verdict for work that was not
+    checked. A card shows its verdict whenever it holds exactly the work that
+    was checked, the same rule a reload follows. Undo does not clear the
+    board's submission result, and it neither spends nor returns an attempt.
+  - **4. Invisible edits.** Each Undo opens the card it changed if that card
+    was folded. It scrolls the changed field, table or plane into view only
+    when it is not already uncovered on screen, and outlines the card for
+    about 2 s. The board's one polite live region says it once, for example
+    "Undid your last change to Graph 2 (slope-intercept)." Keyboard focus
+    stays on Undo, so pressing it again keeps working. The Undo button's
+    title names what the next press will change.
+  - **Each graph's own Undo** reads the same history, filtered to that graph
+    (`undoChangeTo` in `useMathUndoHistory`, `undoMathUndoChange` in
+    `mathUndoStack.js`). It takes back that graph's latest change even when
+    the student typed somewhere else after it. The step is removed from the
+    shared history, so the platform Undo can never replay it.
+  - **A fraction bar or a bracket no longer splits a typing run.** MathLive
+    turns "/" into `\frac{1}{\placeholder{}}`, which is not a contiguous
+    character edit. Before this change, y = 1/2x − 3 typed into one field
+    took three Undo steps, and one of them handed back a fraction with an
+    empty box. Contiguity is now judged with MathLive's braces, backslashes
+    and empty placeholders stripped (`typingText`). Select-all-and-overwrite
+    and a swapped choice are still separate steps.
+  - **Reload.** The history stays on the device, capped at 12 KB (about 6–10
+    board steps), and never goes in the synced work record. It is dropped if
+    it was recorded for different work. An Undo after a reload takes back
+    one step of the restored work, and Ctrl+Z in a restored math field does
+    not empty it.
+  - **Gates.** `tests/browser/linearMultipleRepresentations.mjs` journeys
+    `undo` (1366×768) and `undo-phone` (390×844, touch), with additions to
+    `dol` and `complete`. Node tests: `mathUndoFilteredChange.test.mjs`,
+    `mathUndoTyping.test.mjs`, `boardPlatformUndo.test.mjs` and
+    `tests/tools/linearMultipleRepresentationsUndo.test.mjs`.
 
 - **Update 2026-10-01:** blockers 1 and 2 below are fixed platform-wide. A run of typing in one field is one Undo step (`mathUndoStack.js`), and a math field's own Ctrl+Z no longer replays what a platform Undo removed (`MathInput` `resetUndo()`). Gate: `tests/browser/undoTyping.mjs`. Wiring the whole board (3, 4) is still open; see `platform-engineering-deep-dive-2026-10-01.md`.
 

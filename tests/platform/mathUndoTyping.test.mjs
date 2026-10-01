@@ -86,6 +86,36 @@ test('Backspace and a paste at the caret group with typing; a swapped choice and
   assert.equal(singleTextEditPath({ a: '1', view: { zoom: 1 } }, { a: '12', view: { zoom: 2 } }), '/a', 'the camera is never part of an edit');
 });
 
+// What a math field actually reports while a student types y = 1/2x − 3 on a
+// keyboard (MathLive 0.110, read from the representations board in Chromium).
+const MATHLIVE_SLOPE_INTERCEPT = ['y', 'y=', 'y=1', 'y=\\frac{1}{\\placeholder{}}', 'y=\\frac12', 'y=\\frac12x', 'y=\\frac12x-', 'y=\\frac12x-3'];
+
+test('a fraction bar or a bracket typed into a math field does not split the run (PQ-009)', () => {
+  // "/" turns y=1 into \frac{1}{\placeholder{}}; character by character that
+  // is not one contiguous edit, and the run used to break there twice, so one
+  // Undo handed back a fraction with an empty box in it.
+  const states = [{ eq: '' }, ...MATHLIVE_SLOPE_INTERCEPT.map((eq) => ({ eq }))];
+  assert.deepEqual(undoAll(play(states)), [{ eq: '' }], 'typing y = 1/2x − 3 is one step');
+  assert.equal(singleTextEditPath({ a: 'y+2=2' }, { a: 'y+2=2\\left(\\right)' }), '/a', 'a bracket pair');
+  assert.equal(singleTextEditPath({ a: 'y+2=2\\left(\\right)' }, { a: 'y+2=2\\left(x\\right)' }), '/a', 'typing inside it');
+  assert.equal(singleTextEditPath({ a: 'y=\\frac12' }, { a: 'y=\\frac{1}{23}' }), '/a', 'a compact fraction growing a second digit');
+  assert.equal(singleTextEditPath({ a: '-\\frac{2}{3x}' }, { a: '-\\frac23x' }), '/a', 'the typed-fraction rule moving x out of the denominator');
+  // Still different acts:
+  assert.equal(singleTextEditPath({ a: 'y=\\frac12x-3' }, { a: '5' }), null, 'select-all and type over an equation');
+  assert.equal(singleTextEditPath({ a: 'x\\le5' }, { a: 'x\\ge5' }), null, 'a swapped relation');
+});
+
+test('typing a character and rubbing it out leaves no Undo that does nothing', () => {
+  // The run's entry would restore exactly what is on screen: a press that
+  // visibly does nothing. The step before it is the next Undo instead.
+  const states = [{ a: '', points: [] }, { a: '', points: [[0, 1]] }, { a: '7', points: [[0, 1]] }, { a: '', points: [[0, 1]] }];
+  const stack = play(states);
+  assert.deepEqual(undoAll(stack), [{ a: '', points: [] }], 'the point is the next Undo');
+  // Typing again after it is a new step.
+  const again = recordMathUndoEntry(stack, { a: '', points: [[0, 1]] }, { a: '8', points: [[0, 1]] }, { now: 1_500 });
+  assert.deepEqual(undoAll(again), [{ a: '', points: [[0, 1]] }, { a: '', points: [] }]);
+});
+
 test('a swapped choice made quickly is still two steps', () => {
   const states = [{ isFunction: '' }, { isFunction: 'yes' }, { isFunction: 'no' }];
   assert.deepEqual(undoAll(play(states)), [{ isFunction: 'yes' }, { isFunction: '' }]);
