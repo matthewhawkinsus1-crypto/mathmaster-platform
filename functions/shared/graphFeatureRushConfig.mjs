@@ -12,10 +12,12 @@
  * vertex questions need parabolas or absolute value graphs — at creation,
  * not by a class staring at an impossible game.
  *
- * Pure and light (no generator): the teacher's setup screen imports it.
+ * Pure and light — no generator, and the families only through their static
+ * catalog (graphFeatureCatalog.mjs) — so the mode registry and the teacher's
+ * setup screen carry it without the graph builders.
  */
 
-import { familySupportsFeature, familyVariants, getGraphFamily, GRAPH_FAMILY_IDS } from './graphFeatureFamilies.mjs';
+import { catalogSupportsFeature, graphFamilyLabel, GRAPH_FAMILY_CATALOG_IDS as GRAPH_FAMILY_IDS } from './graphFeatureCatalog.mjs';
 import { getGraphFeature, GRAPH_FEATURE, GRAPH_FEATURE_IDS, QUESTION_TIER, QUESTION_TIER_ORDER } from './graphFeatureRegistry.mjs';
 
 export class GraphFeatureRushConfigError extends Error {
@@ -135,7 +137,7 @@ const joinNames = (names) => (names.length <= 1
   ? names.join('')
   : `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`);
 
-const familyNames = (ids) => ids.map((id) => (getGraphFamily(id)?.label || id).toLowerCase());
+const familyNames = (ids) => ids.map((id) => (graphFamilyLabel(id) || id).toLowerCase());
 
 /**
  * Which selected features the selected families cannot ask at this
@@ -145,11 +147,11 @@ export const unsupportedRushFeatures = ({ families = [], features = [], difficul
   const tiers = difficultyTiers(difficulty);
   const hardest = tiers[tiers.length - 1];
   return features.flatMap((feature) => {
-    const supported = families.some((family) => tiers.some((tier) => familyVariants(family, feature, tier).some((entry) => entry.exists)));
+    const supported = families.some((family) => tiers.some((tier) => catalogSupportsFeature(family, feature, tier)));
     if (supported) return [];
     const label = getGraphFeature(feature)?.shortLabel || feature;
-    const anywhere = GRAPH_FAMILY_IDS.filter((family) => familySupportsFeature(family, feature, hardest));
-    const atAll = GRAPH_FAMILY_IDS.filter((family) => familySupportsFeature(family, feature, QUESTION_TIER.CHALLENGE));
+    const anywhere = GRAPH_FAMILY_IDS.filter((family) => catalogSupportsFeature(family, feature, hardest));
+    const atAll = GRAPH_FAMILY_IDS.filter((family) => catalogSupportsFeature(family, feature, QUESTION_TIER.CHALLENGE));
     const message = anywhere.length
       ? `${label[0].toUpperCase()}${label.slice(1)} questions at this difficulty need ${joinNames(familyNames(anywhere))} graphs.`
       : `${label[0].toUpperCase()}${label.slice(1)} questions need ${joinNames(familyNames(atAll))} graphs at a harder difficulty.`;
@@ -171,11 +173,12 @@ export const normalizeGraphFeatureRushConfig = (raw = {}) => {
   if (!features.length) throw new GraphFeatureRushConfigError('Choose at least one feature for students to find.');
   const unsupported = unsupportedRushFeatures({ families, features, difficulty });
   if (unsupported.length) throw new GraphFeatureRushConfigError(unsupported.map((entry) => entry.message).join(' '));
-  // The preset is remembered only while the settings still match it.
+  // The preset is remembered only while the settings still match it — in
+  // canonical order on both sides, so a preset listed in any order matches.
   const matchesPreset = preset
     && preset.difficulty === difficulty
-    && preset.families.join() === families.join()
-    && preset.features.join() === features.join();
+    && listOf(preset.families, GRAPH_FAMILY_IDS).join() === families.join()
+    && listOf(preset.features, GRAPH_FEATURE_IDS).join() === features.join();
   return Object.freeze({
     presetId: matchesPreset ? preset.id : 'custom',
     families: Object.freeze(families),

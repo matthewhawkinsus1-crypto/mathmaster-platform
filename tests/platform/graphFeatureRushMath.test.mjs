@@ -12,10 +12,17 @@ import {
 import {
   FEATURE_STATUS,
   GRAPH_FAMILY_IDS,
+  familySupportsFeature,
   familyVariants,
   getGraphFamily,
   listGraphFamilies,
 } from '../../functions/shared/graphFeatureFamilies.mjs';
+import {
+  GRAPH_FAMILY_CATALOG,
+  GRAPH_FAMILY_CATALOG_IDS,
+  catalogSupportsFeature,
+  graphFamilyLabel,
+} from '../../functions/shared/graphFeatureCatalog.mjs';
 import {
   GRAPH_FEATURE,
   GRAPH_FEATURE_IDS,
@@ -221,6 +228,27 @@ test('every supported family is in the catalog, and each can ask an existing fea
   for (const feature of GRAPH_FEATURE_IDS) {
     assert.ok(ALL_SLOTS.some((slot) => slot.feature === feature && slot.exists), `${feature} is askable`);
   }
+});
+
+test('the light family catalog says exactly what the families do', () => {
+  // The setup screen and the mode registry validate with the catalog; the
+  // generator builds with the families. Every cell must agree, or a teacher
+  // could create a game the generator cannot fill (or be refused one it can).
+  assert.deepEqual([...GRAPH_FAMILY_CATALOG_IDS], [...GRAPH_FAMILY_IDS], 'same families, same order');
+  for (const entry of GRAPH_FAMILY_CATALOG) {
+    assert.equal(graphFamilyLabel(entry.id), getGraphFamily(entry.id).label);
+    for (const feature of GRAPH_FEATURE_IDS) {
+      for (const tier of QUESTION_TIER_ORDER) {
+        assert.equal(
+          catalogSupportsFeature(entry.id, feature, tier),
+          familySupportsFeature(entry.id, feature, tier),
+          `${entry.id} · ${feature} · ${tier}`,
+        );
+      }
+    }
+  }
+  assert.equal(catalogSupportsFeature('nonsense', 'vertex'), false);
+  assert.equal(graphFamilyLabel('nonsense'), null);
 });
 
 test('special cases come out exactly as the mathematics says', () => {
