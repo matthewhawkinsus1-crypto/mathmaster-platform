@@ -1,0 +1,645 @@
+// ON A DOL, QUIZ OR TEST NOTHING A STUDENT CAN OPERATE BEFORE SUBMITTING SAYS
+// WHETHER THE WORK IS RIGHT — AND THE SUBMISSION IS STILL GRADED, RIGHT AND WRONG.
+//
+//   npx vite --host 127.0.0.1 --port 5199 --strictPort &
+//   AUDIT_ORIGIN=http://127.0.0.1:5199 node tests/browser/assessmentLeakGates.mjs [surface ...]
+//
+//   (PLAYWRIGHT_MODULE=<path to playwright/index.mjs> and CHROMIUM_PATH=<chrome>
+//    when the defaults below are not installed.)
+//
+// Every surface the assessment-integrity audit fixed, mounted in the real
+// QuestionEngine by assessmentLeakGatesMain.jsx under the activity role in the
+// URL and driven only through rendered controls. For each one:
+//
+//   practice  the verdicts are still there, exactly as before;
+//   dol/test  a check records the work and says nothing about it, the next
+//             step opens regardless, and the student can submit;
+//   dol       a WRONG submission is graded wrong (and says which part) and a
+//             RIGHT one is graded right.
+//
+// Surfaces:
+//   systems-3x3        "Check my classification" / "Check the plane relationships"
+//                      after a 3×3 elimination earns 0 = −3 (Day 2 PR2), and the
+//                      caption under the 3D model opened from that result
+//   systems-2x2        a 2×2 that eliminates to 0 = −2: true/false, solutions,
+//                      classification
+//   inequality-build   student-built inequalities: Check boundary / line style /
+//                      shading, the step chips, the overlap lock, the region check,
+//                      and the boundary questions under the student's own test
+//                      point (which must follow the student's own lines, not the
+//                      true ones, once a wrong line can reach the overlap)
+//   intercepts         "Check x-intercept" / "Check y-intercept" and their step credit
+//   relation           the relation solver's graph-your-solution number line
+//   constraint-builder the Constraint-Based Function Builder's live checklist
+//   composed-algebra   "Need a strategic hint?" in a composed question's algebra step
+//   three-plane-reveal the three-plane model's author-allowed "Reveal" button
+//
+// (The modeling lab's result after submission comes from a Cloud Function, so
+// it is held in node by tests/platform/solverRuntimeOutcomePolicy.test.mjs.)
+//
+// Exits non-zero on any failure.
+
+import { mkdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+import { chooseVariable, choosePair, combineRound, scaleEquation } from './day2NonuniqueDriver.mjs';
+import { setMathField, settle } from './stepAlgebraDriver.mjs';
+
+const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
+// Screenshots of any journey that could not be completed.
+const ARTIFACTS = path.join(path.dirname(fileURLToPath(import.meta.url)), 'artifacts/assessmentLeakGates');
+const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
+const launch = { args: ['--no-sandbox'] };
+if (process.env.CHROMIUM_PATH) launch.executablePath = process.env.CHROMIUM_PATH;
+const browser = await chromium.launch(launch);
+const context = await browser.newContext({ viewport: { width: 1366, height: 900 } });
+
+const failures = [];
+const tally = {};
+let surface = '';
+const check = (ok, label, detail = '') => {
+  tally[surface] = tally[surface] || { ok: 0, fail: 0 };
+  tally[surface][ok ? 'ok' : 'fail'] += 1;
+  console.log(`${ok ? 'ok  ' : 'FAIL'} ${label}${detail ? ` — ${detail}` : ''}`);
+  if (!ok) failures.push(`${label}${detail ? `: ${detail}` : ''}`);
+};
+
+const run = Date.now();
+let pageCount = 0;
+const pages = [];
+const open = async (role, q, extra = '') => {
+  pageCount += 1;
+  const page = await context.newPage();
+  pages.push(page);
+  // A control that never appears is a finding, not a 30-second wait.
+  page.setDefaultTimeout(8000);
+  page.on('pageerror', (error) => check(false, `${role} ${q}: page error`, error.message));
+  await page.goto(`${ORIGIN}/tests/browser/assessmentLeakGates.html?role=${role}&q=${q}&run=${run}-${pageCount}${extra}`, { waitUntil: 'networkidle' });
+  await page.locator('[data-leak-fixture]').waitFor();
+  await settle(page, 900);
+  return page;
+};
+const bodyText = (page) => page.evaluate(() => document.body.innerText);
+const lastGrade = async (page) => (await page.evaluate(() => window.__mmGraded)).at(-1) || null;
+const stepGrades = (page) => page.evaluate(() => window.__mmStepGrades);
+const button = (page, name) => page.getByRole('button', { name, exact: true }).first();
+const hasButton = async (page, name) => (await page.getByRole('button', { name, exact: true }).count()) > 0;
+const partsOf = (grade) => Object.fromEntries((grade?.parts || []).map((part) => [part.id, part.isCorrect]));
+const brief = (grade) => JSON.stringify(grade && { isCorrect: grade.isCorrect, parts: partsOf(grade), partial: grade.partialCreditPercent });
+const firstMatch = (text, pattern) => (text.match(pattern) || [''])[0];
+
+/** One scenario: never let a missing control stop the rest of the gate. */
+const scenario = async (label, body) => {
+  try {
+    await body();
+  } catch (error) {
+    // The first line says what failed; Playwright's call log names the control
+    // (between terminal colour codes, which are dropped).
+    const waitedFor = (error.message.match(/waiting for (.*)/) || [])[1];
+    const plain = (text) => text.split(String.fromCharCode(27)).map((piece) => piece.replace(/^\[\d+m/, '')).join('');
+    check(false, `${label}: the journey could not be completed`, `${error.message.split('\n')[0]}${waitedFor ? ` (waiting for ${plain(waitedFor)})` : ''}`);
+    mkdirSync(ARTIFACTS, { recursive: true });
+    await pages.at(-1)?.screenshot({ path: path.join(ARTIFACTS, `FAILED-${label.replace(/[^a-z0-9]+/gi, '-')}.png`), fullPage: true }).catch(() => {});
+  } finally {
+    while (pages.length) await pages.pop().close().catch(() => {});
+  }
+};
+
+/* ------------------------------------------------------------ systems-3x3 */
+
+// Every line that would judge a reading of 0 = −3 or a plane relationship.
+const SYSTEMS_VERDICT = /Evaluate both sides|does not fix any coordinate|Can any ordered triple|An identity (is true|places no condition)|compare the coefficient ratio|Are the x-, y- and z-coefficients|Check the ratios of the x-|Your contradiction means|Your identity means/;
+const reachContradiction = async (page) => {
+  await page.getByRole('heading', { name: '3×3 elimination workflow' }).waitFor();
+  await chooseVariable(page, 'x');
+  await choosePair(page, 'Equation 1 and Equation 2');
+  await scaleEquation(page, 'round1', 'Equation 1', '2', { x: '6', y: '-2', z: '-4', constant: '8' }, 'leak-gates');
+  await combineRound(page, 'round1', 'subtract', ['Equation 1', 'Equation 2'], 'x', { y: '0', z: '0', constant: '-3' }, 'leak-gates');
+};
+const outcomePanel = (page) => page.locator('.mathmaster-algebraic-outcome');
+const classify = async (page, kind, meaning) => {
+  const panel = outcomePanel(page);
+  await panel.getByLabel('What kind of statement is your result').selectOption(kind);
+  await panel.getByLabel('Classify your algebraic result').selectOption(meaning);
+  await panel.getByRole('button', { name: 'Check my classification', exact: true }).click();
+  await settle(page, 500);
+};
+const planeStage = (page) => page.locator('[data-stage="plane-relationships"]');
+const statePlanes = async (page, answers) => {
+  for (const [pair, value] of Object.entries(answers)) {
+    const [a, b] = pair.split('-');
+    await planeStage(page).getByLabel(`How Planes ${a} and ${b} meet`).selectOption(value);
+    await settle(page, 120);
+  }
+  await planeStage(page).getByRole('button', { name: 'Check the plane relationships', exact: true }).click();
+  await settle(page, 500);
+};
+const openModelCaption = async (page) => {
+  await button(page, 'Connect my result to 3D').click();
+  await page.getByRole('img', { name: 'Interactive 3D view of the three planes. Drag to rotate.' }).waitFor();
+  await settle(page, 400);
+  return page.locator('.mathmaster-threeplane-viewport').innerText();
+};
+const WRONG_PLANES = { '1-2': 'coincident', '1-3': 'coincident', '2-3': 'parallel' };
+const RIGHT_PLANES = { '1-2': 'parallel', '1-3': 'coincident', '2-3': 'parallel' };
+
+const systems3x3 = async () => {
+  await scenario('practice systems-3x3', async () => {
+    const page = await open('practice', 'systems-3x3');
+    await reachContradiction(page);
+    await classify(page, 'identity', 'none');
+    let text = await bodyText(page);
+    check(/Evaluate both sides/.test(text), 'practice systems-3x3: a wrong reading of 0 = −3 still gets its nudge');
+    check(await planeStage(page).count() === 0, 'practice systems-3x3: and the plane relationships stay locked behind it');
+    await classify(page, 'contradiction', 'none');
+    check(/Your contradiction means/.test(await openModelCaption(page)), 'practice systems-3x3: the earned model still reads the student\'s contradiction back');
+    await statePlanes(page, WRONG_PLANES);
+    text = await bodyText(page);
+    check(/compare the coefficient ratio/.test(text) && !(await hasButton(page, 'Check my work')), 'practice systems-3x3: wrong plane relationships still get their nudge and hold Submit');
+    await statePlanes(page, RIGHT_PLANES);
+    await button(page, 'Check my work').click();
+    await settle(page, 800);
+    const grade = await lastGrade(page);
+    check(grade?.isCorrect === true, 'practice systems-3x3: the right interpretation is submitted correct', brief(grade));
+  });
+
+  for (const role of ['dol', 'test']) {
+    await scenario(`${role} systems-3x3 wrong`, async () => {
+      const page = await open(role, 'systems-3x3');
+      await reachContradiction(page);
+      await classify(page, 'identity', 'none');
+      let text = await bodyText(page);
+      check(!SYSTEMS_VERDICT.test(text), `${role} systems-3x3: "Check my classification" says nothing about a wrong reading`, firstMatch(text, SYSTEMS_VERDICT));
+      check(/Your classification: Identity \(always true\); No solution — inconsistent\. It is graded when you submit\./.test(text), `${role} systems-3x3: the student's own answers are recorded back to them`);
+      check(await planeStage(page).count() === 1, `${role} systems-3x3: the plane relationships open whatever the classification`);
+      const caption = await openModelCaption(page);
+      check(!SYSTEMS_VERDICT.test(caption) && /how the three planes meet/.test(caption), `${role} systems-3x3: the model's caption names no outcome`, caption.replace(/\s+/g, ' ').slice(0, 160));
+      await statePlanes(page, WRONG_PLANES);
+      text = await bodyText(page);
+      check(!SYSTEMS_VERDICT.test(text), `${role} systems-3x3: "Check the plane relationships" says nothing about wrong relationships`, firstMatch(text, SYSTEMS_VERDICT));
+      check(/Your plane relationships: .*They are graded when you submit\./.test(text), `${role} systems-3x3: the stated relationships are recorded`);
+      check(await hasButton(page, 'Check my work'), `${role} systems-3x3: the student can submit`);
+      if (role !== 'dol') return;
+      await button(page, 'Check my work').click();
+      await settle(page, 800);
+      const grade = await lastGrade(page);
+      const parts = partsOf(grade);
+      check(grade?.isCorrect === false && parts.classification === false && parts.planes === false && grade.partialCreditPercent === 0,
+        'dol systems-3x3: the wrong interpretation is graded wrong, part by part', brief(grade));
+      check(/"kind":"identity"/.test(grade?.responseKey || '') && /"classification":"none"/.test(grade?.responseKey || ''), 'dol systems-3x3: the response is what the student chose', grade?.responseKey);
+    });
+  }
+
+  await scenario('dol systems-3x3 right', async () => {
+    const page = await open('dol', 'systems-3x3');
+    await reachContradiction(page);
+    await classify(page, 'contradiction', 'none');
+    const text = await bodyText(page);
+    check(!SYSTEMS_VERDICT.test(text) && /It is graded when you submit\./.test(text), 'dol systems-3x3: a right reading gets the same recorded line, no verdict');
+    await statePlanes(page, RIGHT_PLANES);
+    await button(page, 'Check my work').click();
+    await settle(page, 800);
+    const grade = await lastGrade(page);
+    check(grade?.isCorrect === true && grade.partialCreditPercent === 100, 'dol systems-3x3: the right interpretation is graded right', brief(grade));
+  });
+};
+
+/* ------------------------------------------------------------ systems-2x2 */
+
+const SPECIAL_VERDICT = /Correct interpretation|check that statement again|0 = 0 is a true statement|Infinitely many solutions · consistent|No solution · inconsistent/;
+const reachSpecialCase = async (page) => {
+  await button(page, 'Eliminate x').click();
+  await settle(page, 500);
+  await page.locator('button[aria-label="Subtract Equation 2 from Equation 1"]:visible').first().click();
+  await settle(page, 500);
+  for (let index = 0; index < 2; index += 1) {
+    await page.locator('button[aria-label^="Mark the "][aria-pressed="false"]:visible').first().click();
+    await settle(page, 250);
+  }
+  await setMathField(page, page.locator('math-field[aria-label="Combined y term"]:visible').first(), '0');
+  await setMathField(page, page.locator('math-field[aria-label="Combined right side"]:visible').first(), '-2');
+  await button(page, 'Check my combination').click();
+  await settle(page, 800);
+  await page.getByLabel('Is this statement true or false?').waitFor();
+};
+const interpret = async (page, [truth, solutions, classification]) => {
+  await page.getByLabel('Is this statement true or false?').selectOption(truth);
+  await page.getByLabel('What does that mean for the system?').selectOption(solutions);
+  await page.getByLabel('How would you classify this system?').selectOption(classification);
+  await settle(page, 400);
+};
+const WRONG_SPECIAL = ['true', 'infinite', 'consistent-dependent'];
+const RIGHT_SPECIAL = ['false', 'none', 'inconsistent'];
+
+const systems2x2 = async () => {
+  await scenario('practice systems-2x2', async () => {
+    const page = await open('practice', 'systems-2x2');
+    await reachSpecialCase(page);
+    await interpret(page, WRONG_SPECIAL);
+    check(/check that statement again/.test(await bodyText(page)), 'practice systems-2x2: a wrong interpretation is still called out at once');
+    await interpret(page, RIGHT_SPECIAL);
+    check(/Correct interpretation\./.test(await bodyText(page)), 'practice systems-2x2: a right one is still confirmed');
+  });
+  for (const role of ['dol', 'test']) {
+    await scenario(`${role} systems-2x2 wrong`, async () => {
+      const page = await open(role, 'systems-2x2');
+      await reachSpecialCase(page);
+      await interpret(page, WRONG_SPECIAL);
+      const text = await bodyText(page);
+      check(!SPECIAL_VERDICT.test(text), `${role} systems-2x2: the three answers are not judged before Submit`, firstMatch(text, SPECIAL_VERDICT));
+      check(/Your interpretation is recorded\. It is graded when you submit\./.test(text), `${role} systems-2x2: they are recorded`);
+      check(await hasButton(page, 'Check my work'), `${role} systems-2x2: the student can submit`);
+      if (role !== 'dol') return;
+      await button(page, 'Check my work').click();
+      await settle(page, 800);
+      const grade = await lastGrade(page);
+      check(grade?.isCorrect === false, 'dol systems-2x2: the wrong interpretation is graded wrong', brief(grade));
+    });
+  }
+  await scenario('dol systems-2x2 right', async () => {
+    const page = await open('dol', 'systems-2x2');
+    await reachSpecialCase(page);
+    await interpret(page, RIGHT_SPECIAL);
+    const text = await bodyText(page);
+    check(!SPECIAL_VERDICT.test(text) && /Your interpretation is recorded\./.test(text), 'dol systems-2x2: a right interpretation gets the same recorded line');
+    await button(page, 'Check my work').click();
+    await settle(page, 800);
+    const grade = await lastGrade(page);
+    check(grade?.isCorrect === true, 'dol systems-2x2: the right interpretation is graded right', brief(grade));
+  });
+};
+
+/* ------------------------------------------------------- inequality-build */
+
+const BUILD_VERDICT = /Correct boundary\.|Correct line style\.|Correct shading\.|Check whether points on the boundary|Check whether the points you used|Use a test point or compare|Every constraint checks out|Locked until every constraint above is correct|Correct classification\.|Look at whether the shaded overlap/;
+// The graph's own mapping (CoordinatePlane: 560×380 viewBox, 42 padding) for
+// this fixture's −6..8 × −4..10 window.
+const tapGraph = async (page, x, y) => {
+  const at = await page.evaluate(([gx, gy]) => {
+    const svg = document.querySelector('svg[aria-label^="Student-constructed graph of the inequality system"]');
+    // A control far down the panel may have scrolled the graph out of view.
+    svg.scrollIntoView({ block: 'center' });
+    const point = svg.createSVGPoint();
+    point.x = 42 + ((gx + 6) / 14) * (560 - 84);
+    point.y = 380 - 42 - ((gy + 4) / 14) * (380 - 84);
+    const screen = point.matrixTransform(svg.getScreenCTM());
+    return [screen.x, screen.y];
+  }, [x, y]);
+  await page.mouse.move(at[0], at[1]);
+  await page.mouse.down();
+  await page.mouse.up();
+  await settle(page, 300);
+};
+// Found by its text: the "Solid" button sits first inside the label "Is this
+// boundary solid or dashed?", which therefore names it.
+const styleButton = (page, style) => page.locator('button:visible').filter({ hasText: new RegExp(`^${style}$`) }).first();
+const buildConstraint = async (page, { method, field, value, style, shadeAt }) => {
+  await page.getByLabel('How will you build this boundary?').selectOption(method);
+  await page.getByRole('spinbutton', { name: field }).fill(value);
+  await button(page, 'Check boundary').click();
+  await styleButton(page, style).click();
+  await button(page, 'Check line style').click();
+  await button(page, 'Tap the side of the graph to shade').click();
+  await tapGraph(page, ...shadeAt);
+  await button(page, 'Check shading').click();
+  await settle(page, 300);
+};
+// x ≥ 1 is SOLID; `firstStyle` 'Dashed' is the wrong answer, and so is any
+// `firstBoundary` but 1. Returns what constraint 1's panel said before it
+// collapsed for constraint 2.
+const buildSystem = async (page, firstStyle, firstBoundary = '1') => {
+  await buildConstraint(page, { method: 'vertical', field: 'x =', value: firstBoundary, style: firstStyle, shadeAt: [5, 0] });
+  const firstPanel = await bodyText(page);
+  await page.getByRole('button', { name: /Constraint 2: y < 3/ }).click();
+  await settle(page, 300);
+  await buildConstraint(page, { method: 'horizontal', field: 'y =', value: '3', style: 'Dashed', shadeAt: [0, -2] });
+  return firstPanel;
+};
+// Each constraint's step chips, read as the student reads them ("Boundary ✓",
+// "Line style …", "Region done").
+const chips = async (page) => (await bodyText(page)).match(/(Boundary|Line style|Region) (✓|…|done)/g) || [];
+const combineAndClassify = async (page) => {
+  await button(page, 'Find overlap / Combine regions').click();
+  await settle(page, 300);
+  await page.getByLabel('How would you classify the combined solution region?').selectOption('unbounded');
+  await button(page, 'Check classification').click();
+  await settle(page, 300);
+};
+
+const inequalityBuild = async () => {
+  await scenario('practice inequality-build', async () => {
+    const page = await open('practice', 'inequality-build');
+    const firstPanel = await buildSystem(page, 'Dashed');
+    check(/Correct boundary\./.test(firstPanel) && /Check whether points on the boundary are included\./.test(firstPanel), 'practice inequality-build: each step is still judged — a right boundary confirmed, a wrong line style called out');
+    const text = await bodyText(page);
+    const marks = await chips(page);
+    check(marks.join('|') === 'Boundary ✓|Line style …|Region ✓|Boundary ✓|Line style ✓|Region ✓', 'practice inequality-build: the chips still tick only the steps that are right', marks.join(' | '));
+    check(/Locked until every constraint above is correct\./.test(text) && await button(page, 'Find overlap / Combine regions').isDisabled(), 'practice inequality-build: the overlap still waits for every constraint to be right');
+    await page.getByRole('button', { name: /Constraint 1: x ≥ 1/ }).click();
+    await settle(page, 300);
+    await styleButton(page, 'Solid').click();
+    await button(page, 'Check line style').click();
+    await settle(page, 300);
+    check(/Correct line style\./.test(await bodyText(page)) && !(await button(page, 'Find overlap / Combine regions').isDisabled()), 'practice inequality-build: the right style is confirmed and opens the overlap');
+  });
+  for (const role of ['dol', 'test']) {
+    await scenario(`${role} inequality-build wrong`, async () => {
+      const page = await open(role, 'inequality-build');
+      const firstPanel = await buildSystem(page, 'Dashed');
+      const text = await bodyText(page);
+      check(!BUILD_VERDICT.test(firstPanel) && !BUILD_VERDICT.test(text), `${role} inequality-build: no check says whether a step is right`, firstMatch(`${firstPanel}\n${text}`, BUILD_VERDICT));
+      check(/Line style recorded\. It is graded when you submit\./.test(firstPanel), `${role} inequality-build: the wrong style is recorded like any other`);
+      const marks = await chips(page);
+      check(marks.length === 6 && marks.every((mark) => mark.endsWith('done')), `${role} inequality-build: every finished step reads "done" — none ticks ✓ for being right`, marks.join(' | '));
+      check(!(await button(page, 'Find overlap / Combine regions').isDisabled()), `${role} inequality-build: the overlap opens on finished work`);
+      await combineAndClassify(page);
+      const after = await bodyText(page);
+      check(!BUILD_VERDICT.test(after) && /Recorded\. It is graded when you submit\./.test(after), `${role} inequality-build: the region check records the answer only`, firstMatch(after, BUILD_VERDICT));
+      if (role !== 'dol') return;
+      await button(page, 'Check my work').click();
+      await settle(page, 800);
+      const grade = await lastGrade(page);
+      check(grade?.isCorrect === false && grade.partialCreditPercent > 0 && grade.partialCreditPercent < 100,
+        'dol inequality-build: one wrong line style is graded wrong, the rest earns credit', brief(grade));
+    });
+  }
+  await scenario('dol inequality-build right', async () => {
+    const page = await open('dol', 'inequality-build');
+    const firstPanel = await buildSystem(page, 'Solid');
+    check(!BUILD_VERDICT.test(firstPanel) && /Line style recorded\./.test(firstPanel), 'dol inequality-build: right work gets the same recorded lines');
+    await combineAndClassify(page);
+    await button(page, 'Check my work').click();
+    await settle(page, 800);
+    const grade = await lastGrade(page);
+    check(grade?.isCorrect === true && grade.partialCreditPercent === 100, 'dol inequality-build: right work is graded right without a single verdict', brief(grade));
+  });
+
+  // The student's own test point and its boundary questions, which appear only
+  // when the point is on a boundary. If that boundary is the TRUE one, tapping
+  // along a line you built tells you whether the line is right.
+  const PROBE = /Does this point lie exactly on one of the boundary lines\?/;
+  const placeOwnPoint = async (page, x, y) => {
+    await button(page, 'Pick your own test point').click();
+    await tapGraph(page, x, y);
+    await settle(page, 300);
+    // The point really landed there, so what follows is about this point.
+    await page.getByText(`Your point: (${x}, ${y})`).waitFor();
+  };
+  const answerPoint = async (page, labels) => {
+    for (const [label, value] of labels) await page.getByLabel(label).selectOption(value);
+    await button(page, 'Check this point').click();
+    await settle(page, 300);
+  };
+  await scenario('practice inequality-probe', async () => {
+    const page = await open('practice', 'inequality-probe');
+    await buildSystem(page, 'Solid');
+    await button(page, 'Find overlap / Combine regions').click();
+    await settle(page, 300);
+    await placeOwnPoint(page, 1, 0);
+    check(PROBE.test(await bodyText(page)), 'practice inequality-probe: a point on a boundary still gets the boundary questions');
+    await placeOwnPoint(page, 2, 0);
+    check(!PROBE.test(await bodyText(page)), 'practice inequality-probe: a point off every boundary still gets none');
+  });
+  for (const role of ['dol', 'test']) {
+    await scenario(`${role} inequality-probe`, async () => {
+      const page = await open(role, 'inequality-probe');
+      // The student's first boundary is x = 2; the true one is x = 1.
+      await buildSystem(page, 'Solid', '2');
+      await button(page, 'Find overlap / Combine regions').click();
+      await settle(page, 300);
+      await placeOwnPoint(page, 1, 0);
+      check(!PROBE.test(await bodyText(page)), `${role} inequality-probe: a point on the true boundary, off the student's own line, gets no boundary questions`);
+      await placeOwnPoint(page, 2, 0);
+      check(PROBE.test(await bodyText(page)), `${role} inequality-probe: a point on the student's own line gets them`);
+      await answerPoint(page, [[/Does the point satisfy inequality 1\?/, 'yes'], [/Does the point satisfy inequality 2\?/, 'yes'], ['Is the point a solution to the entire system?', 'yes']]);
+      check(/Not finished yet — answer every part above\./.test(await bodyText(page)), `${role} inequality-probe: the check asks for the boundary answers on screen`);
+      await answerPoint(page, [['Does this point lie exactly on one of the boundary lines?', 'yes'], ['Since it is on that boundary, is it included in the solution region?', 'yes']]);
+      const text = await bodyText(page);
+      check(/Recorded\. It is graded when you submit\./.test(text) && !/Correct —|misjudged|Re-examine|Not quite/.test(text), `${role} inequality-probe: then records the point without judging it`);
+    });
+  }
+};
+
+/* ------------------------------------------------------------- intercepts */
+
+const INTERCEPT_VERDICT = /does not match this equation|its y-coordinate is 0|its x-coordinate is 0|Both intercepts found|✓ x-intercept|✓ y-intercept/;
+const interceptCreditReports = async (page) => (await stepGrades(page)).filter((report) => report?.stepGrade?.kind === 'linear-intercept');
+const substitute = async (page, kind) => {
+  const zeroOn = kind === 'x' ? 'y' : 'x';
+  await page.locator('button:visible', { hasText: new RegExp(`^${zeroOn} = 0$`) }).first().click();
+  await settle(page, 250);
+  await page.locator('button[aria-label="Pick up zero for substitution"]:visible').first().click();
+  await page.locator(`[aria-label="${zeroOn} variable substitution target"]:visible`).first().click();
+  await settle(page, 200);
+  await button(page, 'Substitute and solve').click();
+  await settle(page, 1200);
+};
+const writeIntercept = async (page, kind, point) => {
+  await setMathField(page, page.locator(`math-field[aria-label="${kind}-intercept as an ordered pair"]:visible`).first(), point);
+  await button(page, `Check ${kind}-intercept`).click();
+  await settle(page, 700);
+};
+const submitEngine = async (page) => {
+  await page.getByRole('button', { name: /^Submit/ }).last().click();
+  await settle(page, 900);
+};
+
+const intercepts = async () => {
+  await scenario('practice intercepts', async () => {
+    const page = await open('practice', 'intercepts');
+    await substitute(page, 'x');
+    await writeIntercept(page, 'x', '(4, 0)');
+    check(/does not match this equation/.test(await bodyText(page)) && await hasButton(page, 'Check x-intercept'), 'practice intercepts: a wrong x-intercept is still called out and stays open');
+    check((await interceptCreditReports(page)).length === 0, 'practice intercepts: and earns no step credit');
+    await writeIntercept(page, 'x', '(5, 0)');
+    check((await interceptCreditReports(page)).length === 1, 'practice intercepts: the right one still earns its step credit at once');
+    await substitute(page, 'y');
+    await writeIntercept(page, 'y', '(0, 5)');
+    check(/Both intercepts found\./.test(await bodyText(page)), 'practice intercepts: both found is still announced');
+    await submitEngine(page);
+    const grade = await lastGrade(page);
+    check(grade?.isCorrect === true, 'practice intercepts: submitted correct', brief(grade));
+  });
+  for (const role of ['dol', 'test']) {
+    await scenario(`${role} intercepts wrong`, async () => {
+      const page = await open(role, 'intercepts');
+      await substitute(page, 'x');
+      await writeIntercept(page, 'x', '(4, 0)');
+      let text = await bodyText(page);
+      check(!INTERCEPT_VERDICT.test(text), `${role} intercepts: "Check x-intercept" says nothing about a wrong point`, firstMatch(text, INTERCEPT_VERDICT));
+      check(/x-intercept recorded/.test(text), `${role} intercepts: the point is recorded and the y-intercept opens`);
+      check((await interceptCreditReports(page)).length === 0, `${role} intercepts: no step credit before Submit`);
+      await substitute(page, 'y');
+      await writeIntercept(page, 'y', '(0, 5)');
+      text = await bodyText(page);
+      check(!INTERCEPT_VERDICT.test(text) && /Both intercepts recorded\./.test(text), `${role} intercepts: both are recorded, neither judged`, firstMatch(text, INTERCEPT_VERDICT));
+      check((await interceptCreditReports(page)).length === 0, `${role} intercepts: still no step credit — a right point earns none either`);
+      check(await page.getByRole('button', { name: /^Submit/ }).count() > 0, `${role} intercepts: the student can submit`);
+      if (role !== 'dol') return;
+      await submitEngine(page);
+      const grade = await lastGrade(page);
+      const parts = partsOf(grade);
+      check(grade?.isCorrect === false && parts['x-intercept'] === false && parts['y-intercept'] === true,
+        'dol intercepts: graded wrong, with the wrong intercept attempted-and-wrong and the right one right', brief(grade));
+    });
+  }
+  await scenario('dol intercepts change before submit', async () => {
+    const page = await open('dol', 'intercepts');
+    await substitute(page, 'x');
+    await writeIntercept(page, 'x', '(4, 0)');
+    await substitute(page, 'y');
+    await writeIntercept(page, 'y', '(0, 5)');
+    await button(page, 'Change x-intercept').click();
+    await settle(page, 600);
+    check(await page.getByRole('button', { name: /^Submit/ }).count() === 0, 'dol intercepts: a reopened intercept holds Submit until it is recorded again');
+    await writeIntercept(page, 'x', '(5, 0)');
+    check(/Both intercepts recorded\./.test(await bodyText(page)), 'dol intercepts: the changed point is recorded');
+    await submitEngine(page);
+    const grade = await lastGrade(page);
+    check(grade?.isCorrect === true && partsOf(grade)['x-intercept'] === true, 'dol intercepts: the right intercepts are graded right', brief(grade));
+  });
+};
+
+/* --------------------------------------------------------------- relation */
+
+const NUMBER_LINE_VERDICT = /Not yet|\bCorrect\b|The graph is not right yet|Stuck\? Show a hint/;
+const graphRay = async (page, endpoint) => {
+  await page.locator('button:visible', { hasText: endpoint === 'open' ? 'Open' : 'Closed' }).first().click();
+  await page.getByLabel('Exact endpoint value').fill('4');
+  await page.locator('button:visible', { hasText: 'Place endpoint' }).first().click();
+  await settle(page, 250);
+  await page.locator('button:visible', { hasText: 'Shade right' }).first().click();
+  await settle(page, 250);
+  await button(page, 'Check').click();
+  await settle(page, 700);
+};
+const RELATION = '&ineq=x%20%3E%204';
+
+const relation = async () => {
+  await scenario('practice relation', async () => {
+    const page = await open('practice', 'relation', RELATION);
+    check(await hasButton(page, 'Stuck? Show a hint'), 'practice relation: the number line still offers its hint');
+    await graphRay(page, 'closed');
+    check(/Not yet/.test(await bodyText(page)), 'practice relation: a wrong graph is still called out');
+    check(await page.getByRole('button', { name: /^Submit/ }).count() === 0, 'practice relation: and Submit still waits for a right graph');
+  });
+  for (const role of ['dol', 'test']) {
+    await scenario(`${role} relation wrong`, async () => {
+      const page = await open(role, 'relation', RELATION);
+      await graphRay(page, 'closed');
+      const text = await bodyText(page);
+      check(!NUMBER_LINE_VERDICT.test(text), `${role} relation: the number line neither judges the graph nor offers a hint`, firstMatch(text, NUMBER_LINE_VERDICT));
+      check(/Your graph is recorded\. It is graded when you submit/.test(text), `${role} relation: the graph is recorded`);
+      check(await page.getByRole('button', { name: /^Submit/ }).count() > 0, `${role} relation: the student can submit a graph nobody judged`);
+      if (role !== 'dol') return;
+      await submitEngine(page);
+      const grade = await lastGrade(page);
+      check(grade?.isCorrect === false && partsOf(grade)['solution-representations'] === false, 'dol relation: the wrong graph is graded wrong', brief(grade));
+    });
+  }
+  await scenario('dol relation right', async () => {
+    const page = await open('dol', 'relation', RELATION);
+    await graphRay(page, 'open');
+    check(!NUMBER_LINE_VERDICT.test(await bodyText(page)), 'dol relation: a right graph gets the same recorded line');
+    await submitEngine(page);
+    const grade = await lastGrade(page);
+    check(grade?.isCorrect === true, 'dol relation: the right graph is graded right', brief(grade));
+  });
+};
+
+/* ----------------------------------------------------- constraint-builder */
+
+// The checklist rows as the student sees them: "✓ Increasing", "• Increasing".
+const checklist = (page) => page.locator('strong', { hasText: 'Constraint checklist' }).locator('xpath=following-sibling::div[1]/div').allInnerTexts();
+const setParameter = async (page, label, value) => {
+  await page.getByLabel(label).fill(String(value));
+  await settle(page, 250);
+};
+
+const constraintBuilder = async () => {
+  await scenario('practice constraint-builder', async () => {
+    const page = await open('practice', 'constraint-builder');
+    await setParameter(page, 'Slope m', 1);
+    const rows = await checklist(page);
+    check(rows.join('|') === '✓ Linear function|✓ Increasing|○ y-intercept 2', 'practice constraint-builder: the checklist still ticks live', rows.join(' | '));
+  });
+  for (const role of ['dol', 'test']) {
+    await scenario(`${role} constraint-builder wrong`, async () => {
+      const page = await open(role, 'constraint-builder');
+      await setParameter(page, 'Slope m', 1);
+      const rows = await checklist(page);
+      check(rows.length === 3 && rows.every((row) => row.startsWith('•')), `${role} constraint-builder: no constraint ticks while the model is built`, rows.join(' | '));
+      if (role !== 'dol') return;
+      await button(page, 'Submit this model').click();
+      await settle(page, 800);
+      const grade = await lastGrade(page);
+      check(grade?.isCorrect === false && partsOf(grade)['y-intercept'] === false && grade.partialCreditPercent === 67, 'dol constraint-builder: the model is graded at submission, part by part', brief(grade));
+    });
+  }
+  await scenario('dol constraint-builder right', async () => {
+    const page = await open('dol', 'constraint-builder');
+    await setParameter(page, 'Slope m', 1);
+    await setParameter(page, 'y-intercept b', 2);
+    const rows = await checklist(page);
+    check(rows.length === 3 && rows.every((row) => row.startsWith('•')), 'dol constraint-builder: a right model looks the same', rows.join(' | '));
+    await button(page, 'Submit this model').click();
+    await settle(page, 800);
+    const grade = await lastGrade(page);
+    check(grade?.isCorrect === true, 'dol constraint-builder: the right model is graded right', brief(grade));
+  });
+};
+
+/* -------------------------------------------------- composed + 3D reveal */
+
+const composedAlgebra = async () => {
+  for (const role of ['practice', 'dol', 'test']) {
+    await scenario(`${role} composed-algebra`, async () => {
+      const page = await open(role, 'composed-algebra');
+      await page.locator('[data-math-state]').first().waitFor();
+      const offered = /Need a strategic hint\?/.test(await bodyText(page));
+      if (role === 'practice') check(offered, 'practice composed-algebra: the algebra step still offers its strategic hint');
+      else check(!offered, `${role} composed-algebra: the algebra step offers no hint`);
+    });
+  }
+};
+
+const threePlaneReveal = async () => {
+  for (const role of ['practice', 'dol', 'test']) {
+    await scenario(`${role} three-plane-reveal`, async () => {
+      const page = await open(role, 'three-plane-reveal');
+      await page.getByRole('img', { name: 'Interactive 3D view of the three planes. Drag to rotate.' }).waitFor();
+      const offered = await page.getByRole('button', { name: /^Reveal / }).count() > 0;
+      if (role === 'practice') check(offered, 'practice three-plane-reveal: the author-allowed reveal is still offered');
+      else check(!offered, `${role} three-plane-reveal: no reveal before Submit`);
+    });
+  }
+};
+
+/* ----------------------------------------------------------------- runner */
+
+const SURFACES = {
+  'systems-3x3': systems3x3,
+  'systems-2x2': systems2x2,
+  'inequality-build': inequalityBuild,
+  intercepts,
+  relation,
+  'constraint-builder': constraintBuilder,
+  'composed-algebra': composedAlgebra,
+  'three-plane-reveal': threePlaneReveal,
+};
+const selected = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(SURFACES);
+for (const name of selected) {
+  surface = name;
+  console.log(`\n== ${name}`);
+  if (!SURFACES[name]) { check(false, `unknown surface ${name}`); continue; }
+  await SURFACES[name]();
+}
+
+await browser.close();
+console.log('\nsurface              ok  fail');
+for (const [name, counts] of Object.entries(tally)) console.log(`${name.padEnd(20)} ${String(counts.ok).padStart(3)} ${String(counts.fail).padStart(5)}`);
+if (failures.length) {
+  console.log(`\n${failures.length} failure(s).`);
+  process.exit(1);
+}
+console.log('\nEvery surface: practice keeps its verdicts; DOL and test say nothing before Submit; DOL grades right and wrong.');
