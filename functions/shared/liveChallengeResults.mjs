@@ -143,6 +143,17 @@ export const publicRoundSummary = (roundResult = {}) => Object.freeze({
 });
 
 /**
+ * Where a round placed a player: their rank, but only WITH credit. When nobody
+ * earns anything every player ties for first, and a round with no credit
+ * places no one — counting it as a win would hand a championship tiebreak to
+ * everyone who sat through it.
+ */
+export const roundPlacementRank = (standing = {}) => (
+  Number(standing?.metrics?.performance) > 0 ? (standing.rank ?? null) : null
+);
+export const roundWon = (standing = {}) => roundPlacementRank(standing) === 1;
+
+/**
  * What a closed round changes on one player's record. Strategies that score
  * per response already banked their points at submit time, so only a
  * per-round strategy (placement) changes the match total here.
@@ -158,10 +169,15 @@ export const playerTotalsAfterRound = ({
   const alreadyApplied = Object.prototype.hasOwnProperty.call(placements, roundKey);
   const awarded = nonNegativeInt(standing.matchPointsAwarded);
   if (!alreadyApplied) {
-    placements[roundKey] = { rank: standing.rank, tied: standing.tied === true, matchPoints: awarded };
+    placements[roundKey] = {
+      rank: standing.rank,
+      tied: standing.tied === true,
+      matchPoints: awarded,
+      won: roundWon(standing),
+    };
   }
   const matchPoints = Object.values(placements).reduce((sum, entry) => sum + nonNegativeInt(entry?.matchPoints), 0);
-  const roundWins = Object.values(placements).filter((entry) => Number(entry?.rank) === 1).length;
+  const roundWins = Object.values(placements).filter((entry) => entry?.won === true).length;
   const perRound = strategy.accumulation === SCORE_ACCUMULATION.PER_ROUND;
   return Object.freeze({
     alreadyApplied,
@@ -297,3 +313,22 @@ export const buildMatchResult = ({
 export const matchResultStanding = (matchResult = {}, studentId) => (
   (matchResult.standings || []).find((standing) => standing.studentId === String(studentId || '')) || null
 );
+
+/*
+ * FINALIZATION EFFECTS. A match result records each downstream effect — the
+ * report, invites, Warm-Up credit, evidence, rewards, and last the private
+ * state's cleanup — as "pending", "done", "failed" or "notApplicable".
+ */
+export const finalizationEffectSettled = (value) => value === 'done' || value === 'notApplicable';
+
+/**
+ * Where one run of the effects leaves a match. While anything is unsettled
+ * the sweep runs it again; from the last attempt on, whatever still fails —
+ * the private-state cleanup included — is given up (and logged by the
+ * caller), so one broken match cannot hold one of the sweep's slots forever.
+ */
+export const finalizationEffectsState = ({ effects = {}, attempts = 0, maxAttempts } = {}) => {
+  const unsettled = Object.values(effects || {}).some((value) => !finalizationEffectSettled(value));
+  const abandoned = unsettled && Number(attempts) >= Number(maxAttempts);
+  return Object.freeze({ pending: unsettled && !abandoned, abandoned });
+};

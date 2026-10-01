@@ -9930,7 +9930,8 @@ function applyLiveChallengeRoundClose(transaction, {
         score: patch.score,
         matchPoints: patch.matchPoints,
         roundWins: patch.roundWins,
-        lastRoundRank: standing.rank,
+        // Null when the round earned them nothing: no credit, no placement.
+        lastRoundRank: engine.results.roundPlacementRank(standing),
         lastRoundMatchPoints: standing.matchPointsAwarded,
         updatedAt: FieldValue.serverTimestamp(),
       }, { merge: true });
@@ -10207,12 +10208,13 @@ const LIVE_CHALLENGE_EFFECT_ORDER = Object.freeze(["report", "invites", "warmupC
  * has run.
  */
 async function runLiveChallengeFinalizationEffects(db, roomId) {
+  const { results } = await liveChallengeEngine();
   const resultRef = db.collection(LIVE_CHALLENGE_MATCH_RESULTS).doc(roomId);
   const snapshot = await resultRef.get();
   if (!snapshot.exists) return { effectsPending: false, missing: true };
   const result = snapshot.data() || {};
   const recorded = result.effects || {};
-  const settled = (value) => value === "done" || value === "notApplicable";
+  const settled = results.finalizationEffectSettled;
   const tasks = {
     report: () => writeLiveChallengeReportFromResult(db, result),
     invites: () => updateLiveChallengeInvitesForRoom(db, {
@@ -10239,9 +10241,11 @@ async function runLiveChallengeFinalizationEffects(db, roomId) {
   }
 
   const attempts = Math.max(0, Number(result.effectsAttempts) || 0) + 1;
+  const lastAttempt = attempts >= LIVE_CHALLENGE_EFFECT_MAX_ATTEMPTS;
   const othersSettled = LIVE_CHALLENGE_EFFECT_ORDER.every((name) => settled(outcomes[name] ?? recorded[name]));
-  const abandoning = !othersSettled && attempts >= LIVE_CHALLENGE_EFFECT_MAX_ATTEMPTS;
-  if ((othersSettled || abandoning) && !settled(recorded.privateCleanup)) {
+  // Private state goes once nothing could still want it — or on the last
+  // attempt, when the effects still failing are about to be given up.
+  if ((othersSettled || lastAttempt) && !settled(recorded.privateCleanup)) {
     try {
       await db.recursiveDelete(db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId));
       outcomes.privateCleanup = "done";
@@ -10253,23 +10257,25 @@ async function runLiveChallengeFinalizationEffects(db, roomId) {
 
   return db.runTransaction(async (transaction) => {
     const latest = await transaction.get(resultRef);
+    // Removed while the effects ran: never write back a partial result.
+    if (!latest.exists) return { effectsPending: false, missing: true };
     const merged = { ...latest.data()?.effects };
     // "done" always wins: a slower runner can never mark a finished effect as failed.
     Object.entries(outcomes).forEach(([name, outcome]) => {
       if (merged[name] !== "done") merged[name] = outcome;
     });
-    const pending = Object.values(merged).some((value) => !settled(value));
-    if (pending && abandoning) {
+    const state = results.finalizationEffectsState({ effects: merged, attempts, maxAttempts: LIVE_CHALLENGE_EFFECT_MAX_ATTEMPTS });
+    if (state.abandoned) {
       logger.error("liveChallenge.finalization.abandoned", { roomId, effects: merged, attempts });
     }
     transaction.set(resultRef, {
       effects: merged,
-      effectsPending: pending && !abandoning,
-      effectsAbandoned: pending && abandoning,
+      effectsPending: state.pending,
+      effectsAbandoned: state.abandoned,
       effectsAttempts: attempts,
       effectsUpdatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
-    return { effects: merged, effectsPending: pending && !abandoning };
+    return { effects: merged, effectsPending: state.pending };
   });
 }
 

@@ -168,10 +168,15 @@ test('evidence is written before the private state it reads is deleted', () => {
   const effectLoop = effects.indexOf('for (const name of LIVE_CHALLENGE_EFFECT_ORDER)');
   const cleanup = effects.indexOf('recursiveDelete(db.collection(LIVE_CHALLENGE_PRIVATE)');
   assert.ok(effectLoop > 0 && cleanup > effectLoop, 'private state is deleted after the effects that could want it');
-  // …and only once every one of them has settled, or the sweep has given up.
+  // …and only once every one of them has settled, or on the last attempt,
+  // when the sweep gives up on whatever still fails.
   assert.match(effects, /const othersSettled = LIVE_CHALLENGE_EFFECT_ORDER\.every\(\(name\) => settled\(outcomes\[name\] \?\? recorded\[name\]\)\)/);
-  const gate = effects.indexOf('if ((othersSettled || abandoning) && !settled(recorded.privateCleanup)) {');
+  assert.match(effects, /const lastAttempt = attempts >= LIVE_CHALLENGE_EFFECT_MAX_ATTEMPTS;/);
+  const gate = effects.indexOf('if ((othersSettled || lastAttempt) && !settled(recorded.privateCleanup)) {');
   assert.ok(gate > effectLoop && gate < cleanup, 'private state is deleted only behind the settled gate');
+  // What is still pending, and what is given up, is the results module's rule.
+  assert.match(effects, /const state = results\.finalizationEffectsState\(\{ effects: merged, attempts, maxAttempts: LIVE_CHALLENGE_EFFECT_MAX_ATTEMPTS \}\);/);
+  assert.match(effects, /effectsPending: state\.pending,\s*effectsAbandoned: state\.abandoned,/);
 });
 
 test('a failed evidence write cannot strand a room', () => {

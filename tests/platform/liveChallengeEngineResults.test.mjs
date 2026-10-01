@@ -4,9 +4,12 @@ import assert from 'node:assert/strict';
 import {
   buildMatchResult,
   buildRoundResult,
+  finalizationEffectSettled,
+  finalizationEffectsState,
   matchResultStanding,
   playerTotalsAfterRound,
   publicRoundSummary,
+  roundPlacementRank,
   standingFromPlayer,
 } from '../../functions/shared/liveChallengeResults.mjs';
 
@@ -93,6 +96,70 @@ test('applying a round to a player twice changes nothing the second time', () =>
   assert.equal(perResponse.score, undefined, 'a per-response score was banked at submit and is not overwritten');
   assert.equal(playerTotalsAfterRound({ player: {}, standing: null, roundIndex: 0 }), null);
   assert.equal(playerTotalsAfterRound({ player: {}, standing: first, roundIndex: -1 }), null);
+});
+
+test('a round with no credit places no one, so it cannot decide a championship', () => {
+  // A answers round 0 wrong and B arrives for round 1. A wins round 1, B wins
+  // round 2: 15 points each. Alone at the top of a round nobody scored in, A
+  // must not collect a round win that breaks the tie.
+  const wrong = (roundIndex) => response(roundIndex, { isCorrect: false, scorePercent: 0, pointsAwarded: 0 });
+  const receipts = {
+    A: { a0: wrong(0), a1: response(1), a2: wrong(2) },
+    B: { b1: wrong(1), b2: response(2) },
+  };
+  const joinedFrom = { A: 0, B: 1 };
+  const records = { A: {}, B: {} };
+  for (const roundIndex of [0, 1, 2]) {
+    const round = buildRoundResult({
+      roomId: 'gp',
+      roundIndex,
+      scoringStrategyId: 'grandPrix',
+      players: ['A', 'B'].map((id) => player(id, receipts[id], { joined: joinedFrom[id] <= roundIndex })),
+    });
+    if (roundIndex === 0) {
+      assert.deepEqual(round.standings.map((row) => [row.studentId, row.rank]), [['A', 1]]);
+      assert.equal(roundPlacementRank(round.standings[0]), null, 'first in a round nobody scored in is no placement');
+    }
+    for (const standing of round.standings) {
+      const totals = playerTotalsAfterRound({ player: records[standing.studentId], standing, roundIndex, scoringStrategyId: 'grandPrix' });
+      records[standing.studentId] = { ...records[standing.studentId], ...totals };
+    }
+  }
+  assert.deepEqual([records.A.matchPoints, records.A.roundWins], [15, 1], 'round 0 is not a win');
+  assert.deepEqual([records.B.matchPoints, records.B.roundWins], [15, 1]);
+  assert.equal(records.A.roundPlacements[0].won, false);
+  assert.equal(records.A.roundPlacements[1].won, true);
+  const result = buildMatchResult({
+    roomId: 'gp',
+    status: 'finished',
+    room: { scoringStrategyId: 'grandPrix', currentRound: 2 },
+    players: ['A', 'B'].map((id) => player(id, receipts[id], { ...records[id], joinedAtRound: joinedFrom[id] })),
+  });
+  assert.deepEqual(result.standings.map((row) => [row.studentId, row.rank]), [['A', 1], ['B', 1]], 'equal points, wins and raw score: a tie');
+
+  // Everyone in a round nobody scored in ties for first; none of them won it.
+  const dead = buildRoundResult({ roomId: 'gp', roundIndex: 0, scoringStrategyId: 'grandPrix', players: [player('x', { x: wrong(0) }), player('y', {})] });
+  assert.deepEqual(dead.standings.map((row) => row.rank), [1, 1]);
+  for (const standing of dead.standings) {
+    assert.equal(playerTotalsAfterRound({ player: {}, standing, roundIndex: 0, scoringStrategyId: 'grandPrix' }).roundWins, 0);
+  }
+});
+
+test('the finalization sweep gives up on the last attempt, whichever effect still fails', () => {
+  const delivered = { report: 'done', invites: 'done', warmupCredit: 'notApplicable', evidence: 'done', rewards: 'done' };
+  // Everything was delivered; only deleting the private state keeps failing.
+  const cleanupFailing = { ...delivered, privateCleanup: 'failed' };
+  assert.deepEqual(finalizationEffectsState({ effects: cleanupFailing, attempts: 9, maxAttempts: 10 }), { pending: true, abandoned: false });
+  assert.deepEqual(
+    finalizationEffectsState({ effects: cleanupFailing, attempts: 10, maxAttempts: 10 }),
+    { pending: false, abandoned: true },
+    'a cleanup that never succeeds must not hold a sweep slot forever',
+  );
+  assert.deepEqual(finalizationEffectsState({ effects: { ...delivered, rewards: 'failed', privateCleanup: 'done' }, attempts: 10, maxAttempts: 10 }), { pending: false, abandoned: true });
+  assert.deepEqual(finalizationEffectsState({ effects: { ...delivered, privateCleanup: 'done' }, attempts: 10, maxAttempts: 10 }), { pending: false, abandoned: false }, 'a settled match is complete, not abandoned');
+  assert.deepEqual(finalizationEffectsState({ effects: { ...delivered, privateCleanup: 'pending' }, attempts: 1, maxAttempts: 10 }), { pending: true, abandoned: false });
+  assert.equal(finalizationEffectSettled('notApplicable'), true);
+  assert.equal(finalizationEffectSettled('failed'), false);
 });
 
 test('a standing reads outcomes from responses only, never from milestone receipts', () => {

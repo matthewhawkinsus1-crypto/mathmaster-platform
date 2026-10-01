@@ -274,7 +274,9 @@ returns before touching it.
 A **per-round** strategy changes the match total only when a round closes:
 `playerTotalsAfterRound` records the placement under `roundPlacements[round]`,
 so a retried close cannot pay a round twice, and the displayed `score` becomes
-the championship total. Leaderboards use `leaderboardOptionsFor(strategy)`:
+the championship total. A **round win** is first place *with credit*
+(`roundWon`): when nobody earns anything every player ties for first, and that
+round is no one's win and no one's placement (`lastRoundRank: null`). Leaderboards use `leaderboardOptionsFor(strategy)`:
 in-progress provisional points appear only on per-response boards.
 
 ---
@@ -343,6 +345,11 @@ where `done` always wins. A failure is logged and left for the scheduled sweep
 (`retryLiveChallengeAchievementJobs`, every 15 minutes), which re-runs pending
 effects for results more than two minutes old. A crash between the terminal
 transaction and the effects therefore loses nothing.
+
+The sweep gives up after `LIVE_CHALLENGE_EFFECT_MAX_ATTEMPTS` (10) runs
+(`finalizationEffectsState`): whatever is still unsettled, the private-state
+cleanup included, is recorded as `effectsAbandoned` and logged, so one broken
+match cannot hold one of the sweep's slots forever.
 
 ---
 

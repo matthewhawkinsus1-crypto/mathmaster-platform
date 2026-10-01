@@ -361,6 +361,13 @@ test('Grand Prix: round placement becomes bounded championship points', async ()
   const points = Object.fromEntries(result.standings.map((row) => [row.studentId, row.matchPoints]));
   assert.deepEqual(points, { [S1]: 15, [S2]: 15, [S3]: 0 });
   assert.equal(result.standings.find((row) => row.studentId === S3).rank, 3);
+  // Everyone tied for first in the round nobody got right. That is no one's
+  // win — a win is a championship tiebreak — and no one's placement.
+  const wins = Object.fromEntries(result.standings.map((row) => [row.studentId, row.roundWins]));
+  assert.deepEqual(wins, { [S1]: 1, [S2]: 1, [S3]: 0 });
+  const rows = (await publicPlayers(R2)).filter((row) => row.joined === true);
+  assert.equal(rows.length, 3);
+  assert.deepEqual(rows.map((row) => row.lastRoundRank), [null, null, null]);
 });
 
 /* ================= a round the host closes early ================= */
