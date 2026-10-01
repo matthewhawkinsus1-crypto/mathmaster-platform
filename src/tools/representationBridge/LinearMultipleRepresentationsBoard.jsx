@@ -1571,8 +1571,9 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                   : `Not yet — ${Math.round((Number(feedback.score) || 0) * 100)}% of the board is correct.`}
                 {/* What the attempt cost, beside the verdict rather than below
                     the whole board (PQ-022); inside this live region, so it
-                    is announced once. */}
-                <AttemptOutcome inline />
+                    is announced once. The parts to revisit are listed below
+                    already ("Take another look at"), so not twice. */}
+                <AttemptOutcome inline showDetail={false} />
               </strong>
               {partsToRevisit.length ? (
                 <p style={{ margin: 0, fontSize: 14 }}>Take another look at: {partsToRevisit.join(', ')}.</p>

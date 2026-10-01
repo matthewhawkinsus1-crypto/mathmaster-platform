@@ -19,6 +19,13 @@ const DEFAULT_G = { type:'linear', a:-1, h:0, k:4 };
 const inputStyle = { width:'100%', boxSizing:'border-box', padding:'9px 10px', border:'1px solid #cfd8e6', borderRadius:8, background:'#fff' };
 const Field = ({ label, children }) => <label style={{ display:'block', fontSize:13, fontWeight:700, color:'#465267' }}>{label}<div style={{marginTop:5}}>{children}</div></label>;
 
+const INVERSE_COMPOSITION_PART_LABELS = Object.freeze({
+  fog: '(f ∘ g)(x)',
+  gof: '(g ∘ f)(x)',
+  inverse: 'f⁻¹(f(x))',
+  restriction: 'Domain restriction',
+});
+
 export default function InverseCompositionLab({ questionData = {}, onAction }) {
   const f = questionData.f || DEFAULT_F;
   const g = questionData.g || DEFAULT_G;
@@ -66,7 +73,9 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
     submit(
       { isCorrect: score === 1, score },
       { x:Number(x), fog:Number(fogAnswer), gof:Number(gofAnswer), inverse:Number(inverseAnswer), restrictionChoice },
-      { mode, parts:results, expected:{ fog, gof, inverseAtFx, expectedRestriction } },
+      // Every part is checked, but only the ones this mode asks are recorded,
+      // under names a student and teacher can read (toolSubmissionParts.js).
+      { mode, parts:results, requiredParts, partLabels: INVERSE_COMPOSITION_PART_LABELS, expected:{ fog, gof, inverseAtFx, expectedRestriction } },
     );
   };
 

@@ -289,7 +289,9 @@ const outcomeStyle = (tone) => ({
   scrollMarginBottom: 12,
 });
 
-export const AttemptOutcome = ({ inline = false }) => {
+// `showDetail={false}` for a tool whose verdict already lists the parts to
+// revisit (the representations board), so the "Focus on" line is not said twice.
+export const AttemptOutcome = ({ inline = false, showDetail = true }) => {
   const { attemptOutcome, attemptOutcomeSlots } = useToolRuntimeContext();
   const [slot, setSlot] = useState(null);
   const regionRef = useRef(null);
@@ -315,7 +317,7 @@ export const AttemptOutcome = ({ inline = false }) => {
   if (inline) {
     return outcome ? (
       <span ref={regionRef} className="mathmaster-tool-attempt-outcome" data-attempt-outcome="shown" style={{ scrollMarginBottom: 12 }}>
-        {' '}{outcome.text}{outcome.detail ? ` ${outcome.detail}` : ''}
+        {' '}{outcome.text}{showDetail && outcome.detail ? ` ${outcome.detail}` : ''}
       </span>
     ) : null;
   }
@@ -330,7 +332,7 @@ export const AttemptOutcome = ({ inline = false }) => {
       {outcome ? (
         <>
           {outcome.text}
-          {outcome.detail ? <span style={{ display: 'block', marginTop: 4, fontWeight: 700 }}>{outcome.detail}</span> : null}
+          {showDetail && outcome.detail ? <span style={{ display: 'block', marginTop: 4, fontWeight: 700 }}>{outcome.detail}</span> : null}
         </>
       ) : null}
     </div>

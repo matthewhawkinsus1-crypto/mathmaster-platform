@@ -67,6 +67,7 @@ import { WorkViewCapabilityProvider } from './platform/workView/workViewCapabili
 import { WorkViewUndoProvider } from './platform/workView/useMathUndoHistory.js';
 import { QuestionLifecycleProvider } from './platform/question/QuestionLifecycleContext.jsx';
 import UniversalUndoButton from './components/common/UniversalUndoButton.jsx';
+import { toolSubmissionParts } from './tools/shared/toolSubmissionParts.js';
 import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 import CalculatorIcon from './components/common/CalculatorIcon.jsx';
 import { startPerformanceSpan } from './platform/performance/performanceTelemetry.js';
@@ -817,22 +818,8 @@ export default function QuestionEngine({
     }
     setSubmitting(true);
     try {
-      const rawParts = payload?.metadata?.parts;
-      const parts = Array.isArray(rawParts)
-        ? rawParts.map((part, index) => ({
-            id: part?.id || `part-${index + 1}`,
-            label: part?.label || `Part ${index + 1}`,
-            isComplete: part?.isComplete !== false,
-            isCorrect: Boolean(part?.isCorrect),
-            response: part?.response ?? '',
-            // A structured misconception code the tool put on this part goes
-            // on to the attempt record; the attempt policy keeps catalog ids
-            // only (functions/shared/misconceptionCodes.mjs).
-            ...(part?.misconceptionCode ? { misconceptionCode: part.misconceptionCode } : {}),
-          }))
-        : rawParts && typeof rawParts === 'object'
-          ? Object.entries(rawParts).map(([id, value]) => ({ id, label: id, isComplete: true, isCorrect: Boolean(value), response: '' }))
-          : [];
+      // Only the parts this question asked, under their names (toolSubmissionParts).
+      const parts = toolSubmissionParts(payload?.metadata);
       const score = Number(payload?.score);
       const partialCreditPercent = Number.isFinite(score)
         ? Math.max(0, Math.min(100, Math.round((score <= 1 ? score * 100 : score))))

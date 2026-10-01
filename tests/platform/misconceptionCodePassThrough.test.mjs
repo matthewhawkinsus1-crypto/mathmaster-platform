@@ -27,6 +27,7 @@ import { analyzeAssignmentQuestions } from '../../src/platform/caseReview/attemp
 import {
   ERROR_PATTERN_NOT_DETERMINABLE, analyzeErrorPatterns, errorPatternForQuestion,
 } from '../../src/platform/caseReview/errorPatterns.js';
+import { toolSubmissionParts } from '../../src/tools/shared/toolSubmissionParts.js';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const STUDENT_ID = 'S930001'; // synthetic
@@ -171,11 +172,14 @@ test('only catalog ids are stored, one per part and at most the catalog cap per 
 });
 
 test('the QuestionEngine forwarder copies a tool part\'s code onto the part it hands the attempt recorder', () => {
+  // The mapping (src/tools/shared/toolSubmissionParts.js) carries the code read
+  // from the tool's own part…
+  assert.deepEqual(toolSubmissionParts({ parts: [{ id: 'slope', label: 'Slope', isCorrect: false, response: '-2', misconceptionCode: 'slope-direction' }] }),
+    [{ id: 'slope', label: 'Slope', isComplete: true, isCorrect: false, response: '-2', misconceptionCode: 'slope-direction' }]);
+  assert.equal('misconceptionCode' in toolSubmissionParts({ parts: [{ id: 'slope', isCorrect: true }] })[0], false, 'no code, no field');
+  // …and what it returns is what the attempt recorder receives.
   const engine = readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
-  const handler = region(engine, 'const handleMissingToolAction = async', 'const handleModelingLabGrade', 'registry tool forwarder');
-  const mapping = executableSource(region(handler, 'const rawParts = payload?.metadata?.parts;', 'const score = Number(payload?.score);', 'tool part mapping'));
-  // The mapped part carries the code read from the tool's own part…
-  assert.match(mapping, /rawParts\.map\(\(part, index\) => \(\{[\s\S]*misconceptionCode: part\??\.misconceptionCode[\s\S]*\}\)\)/);
-  // …and those mapped parts are what the attempt recorder receives.
+  const handler = executableSource(region(engine, 'const handleMissingToolAction = async', 'const handleModelingLabGrade', 'registry tool forwarder'));
+  assert.match(handler, /const parts = toolSubmissionParts\(payload\?\.metadata\);/);
   assert.match(handler, /await onGrade\?\.\(\s*Boolean\(payload\?\.isCorrect\),\s*details,\s*parts,/);
 });

@@ -95,6 +95,15 @@ function ResidualPlot({ rows, xMin, xMax }) {
   );
 }
 
+const DATA_MODELING_PART_LABELS = Object.freeze({
+  fit: 'Model',
+  prediction: 'Prediction',
+  association: 'Association or causation',
+  correlation: 'Correlation coefficient r',
+  correlationInterpretation: 'Direction and strength',
+  modelChoice: 'Model choice',
+});
+
 export default function DataModelingLab({ questionData = {}, onAction }) {
   const points = (questionData.points || DEFAULT_POINTS).map((pair) => (
     Array.isArray(pair) ? pair : [Number(pair?.x), Number(pair?.y)]
@@ -298,6 +307,11 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
       {
         mode,
         parts: results,
+        // Only the parts this mode asks are recorded, under readable names
+        // (toolSubmissionParts.js); the rest are still checked for the
+        // feedback below.
+        requiredParts,
+        partLabels: DATA_MODELING_PART_LABELS,
         expectedModel: expectedModelId,
         regression: { m:regression.m, b:regression.b, r },
         expectedPrediction,

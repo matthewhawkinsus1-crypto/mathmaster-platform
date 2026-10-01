@@ -151,6 +151,10 @@ for (const device of ['chromebook', 'phone']) {
     check(state.inTool, `${device} practice inverse, wrong attempt ${attempt}: the outcome is in the tool's result area`, `in tool: ${state.inTool}`);
     check(state.onScreen && state.belowCheck !== null && state.belowCheck <= 260, `${device} practice inverse, wrong attempt ${attempt}: on screen, close below Check`, `${state.belowCheck}px below Check, top ${state.top}, visible to ${state.visibleBottom}`);
     check(state.count === 1 && state.liveRegions === 1, `${device} practice inverse, wrong attempt ${attempt}: shown once, announced once`, `${state.count} shown, ${state.liveRegions} live`);
+    // The tool knows four parts but this question asks two: only those are
+    // named, and by names a student reads (toolSubmissionParts.js).
+    check(/Focus on: [^.]*Domain restriction/.test(state.text) && !/\b(fog|gof)\b|∘/.test(state.text),
+      `${device} practice inverse, wrong attempt ${attempt}: "Focus on" names only the asked parts, readably`, state.text);
   }
   await attemptWrong(page, 'inverse');
   await waitForOutcome(page);
@@ -171,6 +175,7 @@ for (const tool of ['investigation', 'regression', 'board']) {
     check(state.text.includes('Not quite. You have 2 attempts remaining on this version') && state.inTool && state.onScreen,
       `${device} practice ${tool}: the outcome is in the tool, on screen`, `${state.text} — in tool ${state.inTool}, ${state.belowCheck}px below Check, top ${state.top}/${state.visibleBottom}`);
     check(state.count === 1 && state.liveRegions === 1, `${device} practice ${tool}: shown once, announced once`, `${state.count} shown, ${state.liveRegions} live`);
+    if (tool === 'board') check(!/Focus on/.test(state.text), `${device} practice board: the parts to revisit are not listed twice`, state.text);
     await context.close();
   }
 }
