@@ -117,10 +117,11 @@ service cloud.firestore {
      * who could write it could raise their own DOL. Only the
      * `advanceSectionRecovery` callable (Admin SDK, rules bypassed) writes it.
      *
-     * `warmupChallengeByAssignment` is the Live Challenge Warm-Up credit
-     * written by finishLiveChallengeRoom. Recovery reads it to recognise a
-     * Warm-Up delivered as a Live Challenge, so it is pinned the same way;
-     * no client has ever written it.
+     * `warmupChallengeByAssignment` is the Live Challenge Warm-Up credit,
+     * written only by the server's match finalization effects
+     * (writeWarmupCreditFromResult, Admin SDK). Recovery reads it to
+     * recognise a Warm-Up delivered as a Live Challenge, so it is pinned the
+     * same way; no client has ever written it.
      */
     function serverRecoveryFieldsUnchanged() {
       return request.resource.data.get('sectionRecoveryByAssignment', {})
