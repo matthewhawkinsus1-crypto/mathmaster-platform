@@ -11,6 +11,7 @@ import {
   transformationGraphScore,
   transformationParameterScore,
 } from '../../src/tools/transformations/transformationsMath.js';
+import transformationsGrader from '../../functions/shared/serverGrading/tools/transformationsLab.mjs';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 import { validateQuestionsSemantics } from '../../src/platform/contract/semanticValidation.js';
 import { validateToolQuestion } from '../../src/tools/toolSchemas.js';
@@ -200,10 +201,23 @@ test('absolute-value match grading uses the displayed family instead of silently
   const target = normalizeTransformationSpec({ type: 'absolute', a: 1, b: 2, h: 0, k: -4 }, 'absolute');
   const student = normalizeTransformationSpec({ type: 'absolute', a: 1, b: 2, h: 0, k: -4 }, 'absolute');
   assert.equal(transformationGraphScore(student, target).isCorrect, true);
+  // The same parameters read as a quadratic miss the V-shaped target — the
+  // failure this test exists to prevent.
+  const asQuadratic = normalizeTransformationSpec({ type: 'quadratic', a: 1, b: 2, h: 0, k: -4 }, 'quadratic');
+  assert.equal(transformationGraphScore(asQuadratic, target).isCorrect, false);
+
+  // The lab's Check is marked by the shared grader (the server runs the same
+  // one), so the family the student's graph is built in is the grader's: the
+  // displayed family's exact parameters must be marked correct.
+  const question = { type: 'transformationsLab', mode: 'match', family: 'absolute', target: { a: 1, b: 2, h: 0, k: -4 } };
+  const result = transformationsGrader.grade(question, { a: '1', b: '2', h: '0', k: '-4' });
+  assert.equal(result.mode, 'match');
+  assert.equal(result.isCorrect, true);
+  assert.equal(result.score, 1);
 
   const component = fs.readFileSync('src/tools/transformations/TransformationsLab.jsx', 'utf8');
-  assert.match(component, /transformationGraphScore\(studentSpec, expected/);
-  assert.doesNotMatch(component, /transformationGraphScore\(student, expected/);
+  assert.match(component, /import transformationsGrader from '\.\.\/\.\.\/\.\.\/functions\/shared\/serverGrading\/tools\/transformationsLab\.mjs';/);
+  assert.match(component, /const result = gradeToolCheck\(transformationsGrader, questionData, work\);/);
 });
 
 test('the audited Lesson 1 SAT template is instantiated before student delivery', () => {

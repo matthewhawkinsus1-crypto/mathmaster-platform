@@ -124,3 +124,61 @@ export const mappedPointIsCorrect = (studentPoint, parentPoint, spec, tolerance 
   if (!expected || !Array.isArray(studentPoint) || studentPoint.length !== 2) return false;
   return nearlyEqual(studentPoint[0], expected[0], tolerance) && nearlyEqual(studentPoint[1], expected[1], tolerance);
 };
+
+/** Every source point carried through the transformation, in source order (unmappable points dropped). */
+export const transformedSourcePoints = (sourcePoints, spec) => (Array.isArray(sourcePoints) ? sourcePoints : [])
+  .map((point) => mapParentPoint(point, spec))
+  .filter(Boolean);
+
+/*
+ * HOW THE TRANSFORMATIONS LAB READS ITS QUESTION — ONE DEFINITION.
+ *
+ * TransformationsLab.jsx draws from this and the shared grader
+ * (serverGrading/tools/transformationsLab.mjs) marks from it, so the graph a
+ * student matches, the function they read and the point they map are, by
+ * construction, the ones the server grades against:
+ *
+ *   family             `family`, else `function.type`, else `type`, when it
+ *                      names a supported family; otherwise quadratic
+ *   targetSpec         the match target: { type: family, ...target }
+ *   investigationSpec  every other mode: { type: family, ...(function || target) }
+ *   graphBounds        the drawn window (and match mode's sampling window)
+ *   showB              whether the lab shows a `b` box at all
+ *   startingValues     the parameter boxes' starting text (`initial`, else 1, 1, 0, 0)
+ *   anchor / parentPoint / sourcePoints   the pointMap, anchor and plotTransform givens
+ */
+export const resolveTransformationsQuestion = (question = {}) => {
+  const source = question && typeof question === 'object' ? question : {};
+  const requestedFamily = source.family || source.function?.type || source.type;
+  const family = TRANSFORMATION_FAMILIES.includes(requestedFamily) ? requestedFamily : 'quadratic';
+  const targetSpec = normalizeTransformationSpec({ type: family, ...source.target }, family);
+  const investigationSpec = normalizeTransformationSpec({ type: family, ...(source.function || source.target) }, family);
+  const anchor = transformedAnchor(investigationSpec);
+  return {
+    family,
+    targetSpec,
+    investigationSpec,
+    graphBounds: source.graphBounds || { xMin: -7, xMax: 7, yMin: -7, yMax: 9 },
+    showB: source.includeHorizontalScale === true
+      || source.target?.b != null
+      || source.function?.b != null
+      || source.initial?.b != null,
+    startingValues: {
+      a: String(source.initial?.a ?? 1),
+      b: String(source.initial?.b ?? 1),
+      h: String(source.initial?.h ?? 0),
+      k: String(source.initial?.k ?? 0),
+    },
+    anchor,
+    parentPoint: source.parentPoint || anchor.parentPoint,
+    sourcePoints: Array.isArray(source.sourcePoints) ? source.sourcePoints : [],
+  };
+};
+
+/**
+ * The graph a student's parameter boxes draw (and match mode grades): the
+ * lab's family, the target's base, and the boxes' text read with Number().
+ */
+export const studentTransformationSpec = ({ family, base }, { a, b, h, k } = {}) => (
+  normalizeTransformationSpec({ type: family, a, b, h, k, base }, family)
+);
