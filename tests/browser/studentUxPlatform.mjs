@@ -46,6 +46,10 @@
 //                 (PQ-020), and turns back with the work intact.
 //   sticky-reveal 1366×768: Enter walks to a blank below a tall task card and
 //                 the blank lands below the card, not under it (PQ-031).
+//   keypad-short  390×664 and 375×667: typing in a staged Work View with the
+//                 number keypad up folds the chrome so the step keeps ≥140px
+//                 and the box being typed into is wholly on screen; Done
+//                 unfolds it; at 390×844 the chrome does not fold.
 //
 // Exit code 1 on any finding. Screenshots: tests/browser/artifacts/studentUxPlatform/.
 
@@ -733,6 +737,62 @@ const JOURNEYS = {
       check(after.under <= 0, `card ${placed}px: the blank Enter walked to is ${after.under}px under the task card`);
     }
     await shot(page, 'sticky-reveal-tall-card');
+  },
+
+  async 'keypad-short'(browser) {
+    // A small phone typing into a staged Work View: with MathMaster's number
+    // keypad up the step has the height above the keys, so the chrome folds as
+    // it does on a phone held sideways. At 390×664 the regular chrome left the
+    // step 28px and the box being typed into 16px on screen (PQ-037). A taller
+    // phone keeps the regular chrome with the keypad up.
+    for (const [width, height, folds] of [[390, 664, true], [375, 667, true], [390, 844, false]]) {
+      const where = `${width}×${height}`;
+      const context = await browser.newContext({ viewport: { width, height }, hasTouch: true, isMobile: true });
+      const page = await context.newPage();
+      await page.goto(`${ORIGIN}/tests/browser/studentUxPlatform.html?q=ux-staged-table&identity=1&staged=1&run=keypad-${width}x${height}-${Date.now()}`, { timeout: 120000 });
+      await page.waitForFunction(() => window.__ux && document.querySelector('[data-question-id="ux-staged-table"] .workflow-focus'), null, { timeout: 120000 });
+      await settle(page, 2000);
+      await page.locator('.mathmaster-work-view-host[data-open="false"] > .mathmaster-work-view-body > .mathmaster-work-view-surface > button', { hasText: /Enlarge/ }).first().tap();
+      await page.waitForSelector('.mathmaster-work-view-host[data-open="true"]');
+      await settle(page, 700);
+      const view = () => page.evaluate(() => {
+        const host = document.querySelector('.mathmaster-work-view-host[data-open="true"]');
+        const body = host.querySelector('.workflow-focus__workspace-body').getBoundingClientRect();
+        const keys = document.querySelector('.mathmaster-mobile-numeric-keypad')?.getBoundingClientRect();
+        const box = document.activeElement?.matches?.('input') ? document.activeElement.getBoundingClientRect() : null;
+        const hit = box ? document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2) : null;
+        return {
+          height: host.dataset.height,
+          body: Math.round(body.height),
+          box: box ? `${Math.round(box.top)}-${Math.round(box.bottom)}` : null,
+          boxShown: Boolean(box && box.top >= body.top - 1 && box.bottom <= body.bottom + 1
+            && (!keys || box.bottom <= keys.top + 1) && hit && (hit === document.activeElement || document.activeElement.contains(hit))),
+        };
+      });
+      const closed = await view();
+      check(closed.height === 'regular', `${where}: keypad down, the Work View is ${closed.height}, not regular`);
+      const cells = page.locator('.mathmaster-work-view-host[data-open="true"] input[aria-label^="Row "]');
+      const last = cells.nth((await cells.count()) - 1);
+      await last.evaluate((element) => element.scrollIntoView({ block: 'end' }));
+      await settle(page, 150);
+      await last.tap();
+      await page.waitForSelector('.mathmaster-mobile-numeric-keypad', { timeout: 10000 });
+      await settle(page, 700);
+      const typing = await view();
+      if (folds) {
+        check(typing.height === 'short', `${where}: keypad up, the chrome did not fold (${typing.height})`);
+        check(typing.body >= 140, `${where}: keypad up, the step gets ${typing.body}px (want ≥ 140)`);
+      } else {
+        check(typing.height === 'regular', `${where}: keypad up, the chrome folded although ${height - 274}px are left above the keys`);
+      }
+      check(typing.boxShown, `${where}: the box being typed into is not wholly on screen (${typing.box}, step ${typing.body}px)`);
+      if (width === 390 && height === 664) await shot(page, 'keypad-short-390x664');
+      await page.locator('.mathmaster-keypad-done').tap();
+      await settle(page, 500);
+      const after = await view();
+      check(after.height === 'regular' && after.body >= closed.body - 1, `${where}: after Done the Work View stayed ${after.height} with ${after.body}px (was ${closed.body}px)`);
+      await context.close();
+    }
   },
 };
 

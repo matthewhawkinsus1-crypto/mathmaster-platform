@@ -12,7 +12,7 @@ export const WORK_VIEW_SHORT_MAX = 460;
 // moves, and well under the third-to-half a keyboard actually takes.
 const KEYBOARD_SHARE = 0.25;
 
-export function resolveWorkViewLayout({ width, height, visualHeight = height, offsetTop = 0 }) {
+export function resolveWorkViewLayout({ width, height, visualHeight = height, offsetTop = 0, keypadHeight = 0 }) {
   const safeWidth = Math.max(0, Number(width) || 0);
   const layoutHeight = Math.max(0, Number(height) || 0);
   const safeHeight = Math.max(0, Number(visualHeight) || layoutHeight);
@@ -41,9 +41,21 @@ export function resolveWorkViewLayout({ width, height, visualHeight = height, of
    * instruction, the step heading and the Previous/Next row each kept a row of
    * their own (PQ-020). At this height the instruction joins the header and
    * the step heading joins the Previous/Next row. The LAYOUT height again, so
-   * a keyboard opening never refolds the view under the student.
+   * the software keyboard opening never refolds the view under the student.
+   *
+   * MathMaster's own number keypad is different: it is part of the page,
+   * docked to the bottom, and the shell gives it its height (WorkViewShell.css
+   * reserves it under the body). With it up, the step has only the height
+   * ABOVE it — 390px of a 390×664 phone — and the regular chrome (a four-line
+   * task, the instruction, the step heading, the Previous/Next row, two rows
+   * of actions) left the step 28px: a table row was 16px on screen while the
+   * student typed into it (PQ-037). So the keypad's height counts. Only while
+   * it is docked to the bottom; a short landscape phone docks it to the right,
+   * and that screen is short already.
    */
-  const shortHeight = layoutHeight > 0 && layoutHeight <= WORK_VIEW_SHORT_MAX;
+  const keypad = Math.max(0, Number(keypadHeight) || 0);
+  const shortHeight = layoutHeight > 0
+    && (layoutHeight <= WORK_VIEW_SHORT_MAX || (keypad > 0 && layoutHeight - keypad <= WORK_VIEW_SHORT_MAX));
   return {
     mode: compact ? 'mobile' : 'desktop',
     orientation: landscape ? 'landscape' : 'portrait',
@@ -60,6 +72,22 @@ export function resolveWorkViewLayout({ width, height, visualHeight = height, of
   };
 }
 
+// The height of MathMaster's number keypad while it is up and docked to the
+// bottom of the screen. MobileViewportContainer publishes it on the document
+// element (data-mobile-keypad-open, --mm-mobile-keypad) for the shell's CSS;
+// the layout reads the same two values, so the two cannot disagree.
+export function readBottomKeypadHeight(windowObject = typeof window !== 'undefined' ? window : null) {
+  const root = windowObject?.document?.documentElement;
+  if (!root || root.dataset?.mobileKeypadOpen !== 'true') return 0;
+  const width = Number(windowObject.innerWidth) || 0;
+  const height = Number(windowObject.innerHeight) || 0;
+  // Docked right, not under the work (MathToolMobileLayout.css).
+  if (width > height && height <= 500) return 0;
+  const value = root.style?.getPropertyValue?.('--mm-mobile-keypad') || '';
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
 export function readWorkViewViewport(windowObject = typeof window !== 'undefined' ? window : null) {
   if (!windowObject) return resolveWorkViewLayout({ width: 1024, height: 768 });
   const viewport = readStableViewportBox(windowObject);
@@ -71,5 +99,6 @@ export function readWorkViewViewport(windowObject = typeof window !== 'undefined
     // repeatedly shrinking/repositioning fixed boundaries into the zoomed area.
     visualHeight: viewport.height || windowObject.innerHeight,
     offsetTop: viewport.offsetTop || 0,
+    keypadHeight: readBottomKeypadHeight(windowObject),
   });
 }

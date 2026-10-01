@@ -14,7 +14,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
-import { resolveWorkViewLayout } from '../../src/platform/workView/workViewViewport.js';
+import { readBottomKeypadHeight, readWorkViewViewport, resolveWorkViewLayout } from '../../src/platform/workView/workViewViewport.js';
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const figure = componentSource('src/components/common/EnlargeableFigure.jsx');
@@ -166,3 +166,48 @@ test('the Enlarge button says how big it is, and the rows it floats over leave i
   assert.match(read('src/MultiAnswerGrader.jsx'), /<h2 className="mathmaster-multipart-heading"/);
   assert.match(read('src/StepByStepAlgebraCore.jsx'), /className=\{embedded \? 'algebra-embedded-toolbar' : 'algebra-toolbar'\}/);
 });
+
+/* ------------------------------------------------- PQ-037: with the keypad */
+
+test('MathMaster\'s number keypad makes a phone Work View short; the software keyboard still does not', () => {
+  // 390×664 with the keypad up left the step 28px under the regular chrome:
+  // the box being typed into was 16px on screen. The keypad is the page's own
+  // and docked to the bottom, so the step's height is what is left above it.
+  const keypadUp = resolveWorkViewLayout({ width: 390, height: 664, keypadHeight: 274 });
+  assert.equal(keypadUp.shortHeight, true);
+  assert.equal(keypadUp.controlsPlacement, 'bottom', 'the action row stays where it was; only the chrome folds');
+  assert.equal(resolveWorkViewLayout({ width: 375, height: 667, keypadHeight: 274 }).shortHeight, true);
+  assert.equal(resolveWorkViewLayout({ width: 390, height: 664 }).shortHeight, false, 'keypad down: the regular chrome');
+  assert.equal(resolveWorkViewLayout({ width: 390, height: 844, keypadHeight: 274 }).shortHeight, false, '570px above the keys is not short');
+  assert.equal(resolveWorkViewLayout({ width: 390, height: 664, visualHeight: 300 }).shortHeight, false, 'the software keyboard never refolds the view');
+});
+
+const keypadWindow = ({ width, height, open = true, keypad = '274px' }) => ({
+  innerWidth: width,
+  innerHeight: height,
+  document: { documentElement: {
+    dataset: open ? { mobileKeypadOpen: 'true' } : {},
+    style: { getPropertyValue: (name) => (name === '--mm-mobile-keypad' ? keypad : '') },
+  } },
+});
+
+test('the keypad height is the one MobileViewportContainer publishes, counted only while docked to the bottom', () => {
+  assert.equal(readBottomKeypadHeight(keypadWindow({ width: 390, height: 664 })), 274);
+  assert.equal(readBottomKeypadHeight(keypadWindow({ width: 390, height: 664, open: false })), 0);
+  assert.equal(readBottomKeypadHeight(keypadWindow({ width: 844, height: 390 })), 0, 'a short landscape keypad docks to the right');
+  assert.equal(readWorkViewViewport(keypadWindow({ width: 390, height: 664 })).shortHeight, true);
+  assert.equal(readWorkViewViewport(keypadWindow({ width: 390, height: 664, open: false })).shortHeight, false);
+  // The two ends agree on what is published.
+  const container = executableSource(read('src/components/student/MobileViewportContainer.jsx'));
+  assert.match(container, /root\.dataset\.mobileKeypadOpen = 'true';/);
+  assert.match(container, /root\.style\.setProperty\('--mm-mobile-keypad', `\$\{Math\.round\(height\)\}px`\);/);
+});
+
+test('Work View refolds when the keypad comes up or goes down', () => {
+  const effect = region(figure, 'const next = readWorkViewViewport(window);', '}, [enlarged]);', 'the viewport listener');
+  assert.match(effect, /current\.shortHeight === next\.shortHeight/, 'a change of short alone is a new layout');
+  assert.match(effect, /new MutationObserver\(update\)/);
+  assert.match(effect, /observe\(document\.documentElement, \{ attributes: true, attributeFilter: \['data-mobile-keypad-open'\] \}\)/);
+  assert.match(effect, /keypad\?\.disconnect\(\);/);
+});
+

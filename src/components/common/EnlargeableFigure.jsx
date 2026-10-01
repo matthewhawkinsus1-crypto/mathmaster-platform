@@ -300,6 +300,7 @@ export default function EnlargeableFigure({
         && current.offsetTop === next.offsetTop
         && current.keyboardOpen === next.keyboardOpen
         && current.controlsPlacement === next.controlsPlacement
+        && current.shortHeight === next.shortHeight
           ? current
           : next
       ));
@@ -314,11 +315,17 @@ export default function EnlargeableFigure({
     // student typing a coordinate in Work View loses the header and the close
     // control above the fold.
     window.visualViewport?.addEventListener?.('scroll', update);
+    // MathMaster's number keypad changes no window size: it says it is up on
+    // the document element, and the chrome folds to the height above it
+    // (workViewViewport.js).
+    const keypad = typeof MutationObserver === 'function' ? new MutationObserver(update) : null;
+    keypad?.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mobile-keypad-open'] });
     return () => {
       window.removeEventListener('resize', update);
       window.removeEventListener('orientationchange', update);
       window.visualViewport?.removeEventListener?.('resize', update);
       window.visualViewport?.removeEventListener?.('scroll', update);
+      keypad?.disconnect();
     };
   }, [enlarged]);
 
