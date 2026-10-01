@@ -47,6 +47,8 @@ import {
   roughSketchMatchesGraph,
   sampleVisibleFunctionPaths,
   getSignAcceptedAnswers,
+  taskStatesX,
+  withStatedTaskX,
 } from './interactiveGraphEngine';
 
 // Matched to CoordinatePlane's zoom buttons so the two planes a student meets
@@ -804,7 +806,9 @@ export default function InteractiveGraphWorkspace({
   const eventToTaskPlacement = (event, taskId) => {
     const screen = eventToScreenPoint(event);
     if (!screen || screen[0] < PADDING || screen[0] > WIDTH - PADDING || screen[1] < PADDING || screen[1] > HEIGHT - PADDING) return null;
-    const latticePoint = [snapValue(fromScreenX(screen[0]), xSnapStep), snapValue(fromScreenY(screen[1]), ySnapStep)];
+    // A card that states its x places at that x, so the guide shows it too.
+    const task = tasks.find((item) => item.id === taskId);
+    const latticePoint = withStatedTaskX(task, [snapValue(fromScreenX(screen[0]), xSnapStep), snapValue(fromScreenY(screen[1]), ySnapStep)]);
     if (!taskId || !magneticSnapTargets.length) return { point: latticePoint, magnetic: null };
     const rectangle = svgRef.current?.getBoundingClientRect?.();
     const magnetic = findMagneticSnapTarget({
@@ -816,7 +820,7 @@ export default function InteractiveGraphWorkspace({
       cssScaleY: viewBoxRenderScale({ rect: rectangle, viewBoxWidth: WIDTH, viewBoxHeight: HEIGHT }),
       radiusPixels: MAGNETIC_POINT_SNAP_PIXELS,
     });
-    return { point: magnetic?.point || latticePoint, magnetic };
+    return { point: withStatedTaskX(task, magnetic?.point || latticePoint), magnetic };
   };
 
   // KEYBOARD ACCESS TO THE PLANE.
@@ -853,13 +857,16 @@ export default function InteractiveGraphWorkspace({
     Math.min(viewWindow.yMax, Math.max(viewWindow.yMin, y)),
   ];
 
-  const placeTask = (taskId, point, options = {}) => {
-    if (!taskId || !point || pointsLocked) return;
+  const placeTask = (taskId, rawPoint, options = {}) => {
+    if (!taskId || !rawPoint || pointsLocked) return;
+    // Every route — click, drag, keyboard, typed coordinate — arrives here, so
+    // this is where a card that states its x is held to it (PQ-024).
+    const task = tasks.find((item) => item.id === taskId);
+    const point = withStatedTaskX(task, rawPoint);
     // A verdict about a point the student has since moved is worse than no
     // verdict: it reads as the platform disagreeing with what is on screen.
     setSelfCheckReport(null);
     constructionHistory.setValue((current) => ({ ...current, placements: { ...current.placements, [taskId]: point } }));
-    const task = tasks.find((item) => item.id === taskId);
     setActiveTaskId(null);
     setDraggingTaskId(null);
     setDropCandidate(null);
@@ -968,7 +975,7 @@ export default function InteractiveGraphWorkspace({
     if (!pointsLocked && activeTaskId) {
       const task = tasks.find((item) => item.id === activeTaskId);
       placeTask(activeTaskId, target);
-      setKeyboardAnnouncement(`Placed ${task?.label || 'point'} at ${pointLabel(target)}.`);
+      setKeyboardAnnouncement(`Placed ${task?.label || 'point'} at ${pointLabel(withStatedTaskX(task, target))}.`);
       return true;
     }
     setKeyboardAnnouncement('Choose which point you are placing first, then press Enter on the grid.');
@@ -1349,7 +1356,7 @@ export default function InteractiveGraphWorkspace({
                           The aria-label above deliberately keeps the plain string —
                           a screen reader should hear the source, not markup — but
                           the visible label is mathematics and renders as such. */}
-                      <strong style={{ color: 'var(--mm-text-strong)' }}><MathText>{task.label}</MathText>{!['center', 'key'].includes(task.role) && task.x !== null ? `: x = ${task.x}` : ''}</strong>
+                      <strong style={{ color: 'var(--mm-text-strong)' }}><MathText>{task.label}</MathText>{taskStatesX(task) ? `: x = ${task.x}` : ''}</strong>
                       <span style={{ display: 'block', color: placement ? '#174ea6' : '#5f6368', fontSize: '12px', marginTop: '3px' }}>{taskPlacementLabel(placement)}</span>
                     </button>
                     {task.studentChoosesX && <label style={{ display: 'block', marginTop: '7px', fontSize: '12px', fontWeight: 'bold', color: '#5f6368' }}>Choose x<input type="number" step={xSnapStep} value={xValue} onChange={(event) => constructionHistory.setValue((current) => ({ ...current, chosenXValues: { ...current.chosenXValues, [task.id]: event.target.value }, placements: { ...current.placements, [task.id]: undefined } }))} style={{ width: '100%', marginTop: '4px', padding: '7px', boxSizing: 'border-box', borderRadius: '6px', border: '1px solid #9fb8dd' }} /></label>}

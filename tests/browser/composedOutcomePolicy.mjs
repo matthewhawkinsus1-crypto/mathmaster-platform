@@ -152,6 +152,30 @@ const throughTable = (thirdY) => (x) => (x <= 1 ? 1 + 2 * x : 3 + (thirdY - 3) *
   await page.close();
 }
 
+// PQ-024: a card that says "P1: x = 1" places at x = 1 — a fingertip off by
+// half a square is not a wrong point. A key point keeps its x for the student.
+{
+  const page = await open('dol', 'model');
+  await fillTable(page, [1, 3, 5]);
+  await nextStep(page);
+  await plot(page, 'P1: x = 1', 1.5, 3);
+  // (The grid snaps x to whole numbers here, so "not held" is x = 1, not 0.)
+  await plot(page, 'Center / Key Point', 1, 1);
+  // This page's graph draft: the newest one (earlier pages left theirs).
+  const placements = await page.evaluate(() => {
+    const drafts = Object.entries(localStorage)
+      .filter(([key]) => key.endsWith(':graph-construction'))
+      .map(([, value]) => JSON.parse(value))
+      .sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+    return drafts[0]?.value?.placements || null;
+  });
+  const p1 = Object.entries(placements || {}).find(([id]) => id === 'point-1')?.[1];
+  const key = Object.entries(placements || {}).find(([id]) => id === 'point-key')?.[1];
+  check(Array.isArray(p1) && p1[0] === 1 && p1[1] === 3, 'P1 is held to the x its card states', JSON.stringify(p1));
+  check(Array.isArray(key) && key[0] === 1 && key[1] === 1, 'the key point stays where the student put it', JSON.stringify(key));
+  await page.close();
+}
+
 // A REGISTRY TOOL AS A STEP: the mapping diagram's own Check.
 for (const role of ['dol', 'quiz', 'practice']) {
   const page = await open(role, 'mapping');

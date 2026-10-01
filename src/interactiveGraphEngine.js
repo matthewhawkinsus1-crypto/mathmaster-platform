@@ -84,6 +84,31 @@ export const buildInteractiveGraphWindow = (spec, tasks, graph = {}) => {
   return { ...buildGraphWindow(spec, points.length ? points : getSuggestedGraphPoints(spec)), ...graph };
 };
 
+/*
+ * A POINT CARD THAT STATES ITS x ASKS ONLY FOR THE HEIGHT (PQ-024).
+ *
+ * The card says "P1: x = −1" (InteractiveGraphWorkspace prints the x of every
+ * task that is not a centre or key point), but the plane accepted any x: a
+ * fingertip a little off x = −1 placed (−1.5, y), and the student lost the
+ * point for a slip rather than for the mathematics. Some builders even marked
+ * those tasks `lockedX`, and nothing read the flag. The rule now follows the
+ * card: a task whose x is printed on it places at that x. A task whose x is
+ * NOT on its card — a centre or key point the student has to find, or an x
+ * the student chooses — is never held: that would place the answer for them.
+ */
+export const taskStatesX = (task) => Boolean(task)
+  && !['center', 'key'].includes(task.role)
+  && !task.studentChoosesX
+  && task.x !== null && task.x !== undefined && String(task.x).trim() !== ''
+  && Number.isFinite(Number(task.x));
+
+/** The point as the student placed it, with a stated x held to its card. */
+export const withStatedTaskX = (task, point) => (
+  taskStatesX(task) && Array.isArray(point) && point.length >= 2
+    ? [Number(task.x), point[1]]
+    : point
+);
+
 export const resolveTaskExpected = (task, spec, chosenXValues = {}) => {
   if (task.expected === 'undefined') return 'undefined';
   if (Array.isArray(task.expected)) return task.expected;

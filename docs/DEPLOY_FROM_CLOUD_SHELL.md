@@ -256,7 +256,7 @@ first — `node scripts/release-firebase.mjs` does that for you.
 
 This is the common one, and it usually means nothing is wrong with the code.
 
-The project ships **about 160 Cloud Functions from one codebase** (163 on 2026-10-01; `node scripts/lib/functionsInventory.mjs | wc -l` prints today's number). `firebase deploy`
+The project ships **about 160 Cloud Functions from one codebase** (165 on 2026-10-01; `node scripts/lib/functionsInventory.mjs | wc -l` prints today's number). `firebase deploy`
 pushes them in big parallel batches, and Google rate-limits how many function
 updates a project may make per minute. Past that ceiling the extra ones come
 back as failures. Hosting and Firestore rules still went out fine; only some
