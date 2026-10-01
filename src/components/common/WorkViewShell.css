@@ -188,6 +188,29 @@ html[data-mobile-keypad-open="true"] [data-open="true"][data-controls="bottom"] 
 }
 
 /*
+ * SEVEN ACTIONS, NONE BELOW THE EDGE.
+ *
+ * At 740×360 that gutter was not enough: under a 53px header the rail had
+ * 307px, and seven 44px actions with 6px of padding and 2px gutters need 332,
+ * so Graphing 2's "Start over" and Transformations Lab's "Clear" began at
+ * y 335 on a 360px screen and were reached by scrolling the rail (667×375 was
+ * 10px short as well). With seven or more, the rail drops its padding and its
+ * gutters and the header gives up 2px of its padding on each side: 308px of
+ * actions in a 311px rail. Every target is still 44px tall; their borders
+ * meet. Fewer actions keep the roomier rail above.
+ */
+[data-open="true"][data-layout="mobile"][data-controls="side"][data-height="short"]:has(> .mathmaster-work-view-body > .mathmaster-work-view-actions > button:nth-of-type(7)) > .mathmaster-work-view-header {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+[data-open="true"][data-layout="mobile"][data-controls="side"][data-height="short"] .mathmaster-work-view-actions:has(> button:nth-of-type(7)) {
+  gap: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/*
  * A LANDSCAPE KEYPAD DOCKS TO THE RIGHT, WHICH IS WHERE THE RAIL IS.
  *
  * On a phone held sideways the keypad is not a bottom bar — it is a right-hand

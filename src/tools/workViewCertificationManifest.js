@@ -10,6 +10,10 @@ export const WORK_VIEW_CERTIFICATION_DEVICES = Object.freeze([
   { id: 'iphone-portrait', viewportWidth: 390, viewportHeight: 844, mobile: true },
   { id: 'iphone-landscape', viewportWidth: 844, viewportHeight: 390, mobile: true },
   { id: 'android-narrow', viewportWidth: 360, viewportHeight: 800, mobile: true },
+  // The shortest phone on its side: 360px of height for the header, a
+  // seven-action rail and the work. It is where a seventh action used to fall
+  // off the bottom of the rail (Graphing 2, Transformations Lab).
+  { id: 'android-landscape', viewportWidth: 740, viewportHeight: 360, mobile: true },
 ]);
 
 const BASE_BEHAVIORS = ['opensWorkView', 'coversViewport', 'taskReachable', 'helpReachable', 'noOverflow', 'stateSurvivesPresentation'];

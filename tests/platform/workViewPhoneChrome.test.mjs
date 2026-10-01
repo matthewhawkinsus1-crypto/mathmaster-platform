@@ -211,3 +211,20 @@ test('Work View refolds when the keypad comes up or goes down', () => {
   assert.match(effect, /keypad\?\.disconnect\(\);/);
 });
 
+/* -------------------------------- the seven-action rail of a short phone */
+
+test('seven actions fit a 740×360 rail at full size', () => {
+  // Graphing 2 and Transformations Lab register seven. At 740×360 the rail had
+  // 307px under a 53px header and needed 332, so the seventh was off the
+  // bottom edge. The budget, from the rules themselves:
+  const css = executableSource(shellCss);
+  const has7 = ':has(> .mathmaster-work-view-body > .mathmaster-work-view-actions > button:nth-of-type(7)) > .mathmaster-work-view-header {';
+  const header = region(css, `[data-open="true"][data-layout="mobile"][data-controls="side"][data-height="short"]${has7}`, '}', 'the header with a seven-action rail');
+  const rail = region(css, '[data-open="true"][data-layout="mobile"][data-controls="side"][data-height="short"] .mathmaster-work-view-actions:has(> button:nth-of-type(7)) {', '}', 'the seven-action rail');
+  const px = (block, property) => Number((block.match(new RegExp(`${property}:\\s*(\\d+)(?:px)?;`)) || [])[1]);
+  const buttonHeight = Number(css.match(/\.mathmaster-work-view-actions button \{[^}]*min-height: (\d+)px/)[1]);
+  assert.equal(buttonHeight, 44, 'the targets stay 44px');
+  const headerHeight = buttonHeight + px(header, 'padding-top') + px(header, 'padding-bottom') + 1;
+  const railNeeds = 7 * buttonHeight + 6 * px(rail, 'gap') + px(rail, 'padding-top') + px(rail, 'padding-bottom');
+  assert.ok(railNeeds <= 360 - headerHeight, `seven actions need ${railNeeds}px; the rail has ${360 - headerHeight}px`);
+});
