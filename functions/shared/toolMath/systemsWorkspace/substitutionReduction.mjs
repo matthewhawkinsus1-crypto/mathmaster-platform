@@ -28,7 +28,6 @@
  * `feedback` is transient interaction text for the student (a neutral
  * rejection), never mathematics, and never persisted.
  */
-import { evaluate } from 'mathjs';
 import { expressionsEquivalent, isLinearStandardFormEquation, latexToExpression } from '../../algebra/algebraAstEngine.mjs';
 import {
   classifyLinearSystem,
@@ -39,6 +38,7 @@ import {
   isolatedExpressionFor,
   linearEquationForm,
   linearFormsEquivalent,
+  parseNumericEntry,
   presentableExpression,
   repairPersistedIsolation,
   substituteIntoEquation,
@@ -401,15 +401,6 @@ export const recordBackSolve = (state, value, text) => {
 
 /* --------------------------------------------------------------- verify */
 
-const parseNumericEntry = (value) => {
-  try {
-    const numeric = Number(evaluate(latexToExpression(value)));
-    return Number.isFinite(numeric) ? numeric : NaN;
-  } catch {
-    return NaN;
-  }
-};
-
 /** Variables an original equation actually contains — the only ones a student can place in it. */
 export const verificationVariables = (system, equationId) => {
   const equation = equationById(system, equationId);
@@ -479,6 +470,17 @@ export const checkVerification = (state, system, solution, equationId) => {
 export const allOriginalsVerified = (state, system) => system.equations
   .every((equation) => state.verification?.[equation.id]?.checked && state.verification?.[equation.id]?.valid);
 
+/**
+ * Re-judge one original equation's verification from the sides the student
+ * TYPED — never from a stored `checked` / `valid` flag, which a draft keeps
+ * and a client could write. The same checkVerification the screen runs, so
+ * the shared grader and "Check equation n" cannot disagree.
+ */
+export const verificationEntryValid = (system, solution, equationId, { leftAnswer = '', rightAnswer = '' } = {}) => {
+  const state = { verification: { [equationId]: { ...emptyVerificationEntry(), leftAnswer: String(leftAnswer ?? ''), rightAnswer: String(rightAnswer ?? '') } } };
+  return checkVerification(state, system, solution, equationId).state.verification?.[equationId]?.valid === true;
+};
+
 /* ---------------------------------------------------------------- phase */
 
 /** Every value the student has found so far: the reduced system's, then the isolated variable's. */
@@ -512,11 +514,19 @@ export const reductionAnswerKey = (system) => classifyLinearSystem(
   system.variables,
 );
 
+/**
+ * One solved value of a 3×3 against the key: within 1e-6, relative to the
+ * key's size. (The 2×2 workspace keeps its own 0.05 absolute rule.)
+ */
+export const reductionValueMatches = (value, expected) => (
+  Number.isFinite(value) && Math.abs(value - expected) <= 1e-6 * Math.max(1, Math.abs(expected))
+);
+
 export const gradeReduction = (state, system, reducedSolution, { requireVerification = true } = {}) => {
   const key = reductionAnswerKey(system);
   const solution = state.back?.solved ? knownSolution(state, reducedSolution) : null;
   const valuesCorrect = Boolean(solution && key.type === 'unique'
-    && system.variables.every((name) => Number.isFinite(solution[name]) && Math.abs(solution[name] - key.solution[name]) <= 1e-6 * Math.max(1, Math.abs(key.solution[name]))));
+    && system.variables.every((name) => reductionValueMatches(solution[name], key.solution[name])));
   const verified = !requireVerification || allOriginalsVerified(state, system);
   return { isCorrect: valuesCorrect && verified, valuesCorrect, verified, solution, expected: key };
 };

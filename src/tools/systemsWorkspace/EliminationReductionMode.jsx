@@ -27,6 +27,11 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { WorkViewUndoProvider, questionUndoResetKey, useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
 import { Panel, ResultPill, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
+import { solvedValuesWork, verificationSidesWork } from '../../../functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs';
+import { planePairs } from './spatialFeedback.js';
 import MathDisplay from '../../MathDisplay';
 import AlgebraicSystemMode, {
   EmbeddedStepAlgebra,
@@ -272,28 +277,42 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
     if (value != null) apply(recordEliminationBackSolve(elimination, value, text));
   }, [apply, elimination, variable]);
 
+  /*
+   * THE STUDENT'S WORK, AS THE SHARED GRADER READS IT
+   * (functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs):
+   * every value found so far and the sides typed in each original-equation
+   * check; or, once the algebra reaches a statement with no variable, that
+   * checked statement, the classification the student RECORDED for it (never
+   * the outcome type the rows imply) and how they say each pair of planes
+   * meets. Never the key, never a checked/valid flag. Reported live so a
+   * deadline can finalize it; Check submits this same object.
+   */
+  const recordedClassification = !outcome ? ''
+    : directOutcome
+      ? (elimination.classification?.statement === outcome.statement ? elimination.classification?.choice || '' : '')
+      : (subsystemClassification?.identity === outcomeIdentity ? subsystemClassification?.choice || '' : '');
+  const work = {
+    dimension: config.dimension,
+    method: 'elimination',
+    values: solvedValuesWork(solution),
+    verification: verificationSidesWork(elimination.verification),
+    outcome: outcome ? {
+      statement: outcome.statement,
+      classificationChoice: recordedClassification,
+      planes: Object.fromEntries(planePairs(3).map(({ id }) => [id, planeWork?.answers?.[id] || ''])),
+    } : null,
+  };
+  useReportToolWork(work);
+
   const readyToSubmit = phase === 'complete' || (phase === 'classified' && planesEarned);
   const check = () => {
-    const key = answerKey;
-    const interpreted = classified && planesEarned;
-    const valuesCorrect = interpreted || Boolean(fullSolution && key.type === 'unique'
-      && system.variables.every((name) => Number.isFinite(fullSolution[name]) && Math.abs(fullSolution[name] - key.solution[name]) <= 1e-6 * Math.max(1, Math.abs(key.solution[name]))));
-    const verified = interpreted || !config.requireVerification || allVerified;
-    submit({ isCorrect: valuesCorrect && verified, score: (valuesCorrect && verified) ? 1 : 0 }, outcome ? { classification: outcome.type, statement: outcome.statement, planes: planeWork?.answers || {} } : fullSolution, {
+    const result = gradeToolCheck(systemsWorkspaceGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, {
       mode: 'algebraic',
       dimension: config.dimension,
       method: 'elimination',
-      elimination: {
-        variable,
-        round1: elimination.rounds.round1,
-        round2: elimination.rounds.round2,
-      },
-      reducedSystem: reduced ? { variables: reduced.variables, equations: reduced.equations.map((equation) => equation.text) } : null,
-      subsystem: subsystemState?.detail || null,
-      backSubstitution: { ...elimination.back, equation: backEquation },
-      verification: elimination.verification,
-      solution: fullSolution,
-      expected: key,
+      eliminatedVariable: variable,
+      parts: result.parts,
     });
   };
 

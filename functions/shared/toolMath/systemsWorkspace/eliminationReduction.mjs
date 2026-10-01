@@ -50,6 +50,7 @@ import {
   formEliminatesVariable,
   linearEquationForm,
   multiplierProductValue,
+  noVariableStatementType,
   substituteIntoEquation,
 } from './algebraicSystemsEngine.mjs';
 
@@ -418,11 +419,13 @@ export const eliminationReducedSystem = (state, system) => {
 export const eliminationOutcome = (state, system) => {
   const rows = ['round1', 'round2'].map((key) => state.rounds[key])
     .filter((row) => row?.combinedText && row.combinationWork?.valid);
-  const statements = rows.map((row) => ({ text: row.combinedText, form: linearEquationForm(row.combinedText, system.variables) }));
-  const zeroRows = statements.filter(({ form }) => form && system.variables.every((v) => Math.abs(form.coefficients[v]) < EPS));
-  const contradiction = zeroRows.find(({ form }) => Math.abs(form.constant) > EPS);
+  // noVariableStatementType is the one reading of such a row; the shared
+  // grader judges the statement a student submits with the same function.
+  const statements = rows.map((row) => ({ text: row.combinedText, type: noVariableStatementType(row.combinedText, system.variables) }));
+  const contradiction = statements.find(({ type }) => type === 'none');
   if (contradiction) return { type: 'none', statement: contradiction.text };
-  if (rows.length === 2 && zeroRows.length) return { type: 'infinite', statement: zeroRows[0].text };
+  const identity = statements.find(({ type }) => type === 'infinite');
+  if (rows.length === 2 && identity) return { type: 'infinite', statement: identity.text };
   return null;
 };
 

@@ -533,6 +533,80 @@ export const evaluateEquationSides = (equationText, values) => {
   return { left: Number(evaluate(left, values)), right: Number(evaluate(right, values)) };
 };
 
+/*
+ * PLAIN ARITHMETIC ONLY.
+ *
+ * What a student types here (and, on the server, a statement a client sends)
+ * is evaluated by mathjs, whose full library also builds matrices and ranges:
+ * `sum(ones(20000, 20000))` is a perfectly valid "number" that exhausts a
+ * server's memory. Every value this workspace asks for is arithmetic on
+ * numbers, so nothing else is evaluated: numbers, + − × ÷, powers and
+ * factorials, grouping, the root and absolute-value functions, π, and — for
+ * an equation — the system's own variables.
+ */
+const ARITHMETIC_OPERATORS = new Set(['add', 'subtract', 'multiply', 'divide', 'unaryMinus', 'unaryPlus', 'pow', 'factorial']);
+const ARITHMETIC_FUNCTIONS = new Set(['sqrt', 'cbrt', 'nthRoot', 'abs']);
+const ARITHMETIC_CONSTANTS = Object.freeze(['pi']);
+
+export const isPlainArithmetic = (expression, variables = []) => {
+  let tree;
+  try {
+    tree = parse(String(expression ?? ''));
+  } catch {
+    return false;
+  }
+  const symbols = new Set([...ARITHMETIC_FUNCTIONS, ...ARITHMETIC_CONSTANTS, ...variables.map(String)]);
+  let plain = true;
+  tree.traverse((node) => {
+    if (!plain) return;
+    if (node.isConstantNode) plain = typeof node.value === 'number';
+    else if (node.isOperatorNode) plain = ARITHMETIC_OPERATORS.has(node.fn);
+    else if (node.isParenthesisNode) plain = true;
+    else if (node.isFunctionNode) plain = Boolean(node.fn?.isSymbolNode) && ARITHMETIC_FUNCTIONS.has(node.fn.name);
+    else if (node.isSymbolNode) plain = symbols.has(node.name);
+    else plain = false;
+  });
+  return plain;
+};
+
+/**
+ * A value the student typed for one side of an equation ("7", "7/3",
+ * "\frac{7}{3}", "2(3) + 1") as a number, or NaN when it is not one.
+ *
+ * MathInput hands back LaTeX, so the entry is read through latexToExpression
+ * first — that is what keeps exact stacked-fraction entries usable — and is
+ * evaluated only when it is plain arithmetic. The one reader for every
+ * verification check: the 2×2 workspace, the 3×3 original-equation check, and
+ * the shared grader that re-judges both.
+ */
+export const parseNumericEntry = (value) => {
+  try {
+    const expression = latexToExpression(value);
+    if (!isPlainArithmetic(expression)) return NaN;
+    const numeric = Number(evaluate(expression));
+    return Number.isFinite(numeric) ? numeric : NaN;
+  } catch {
+    return NaN;
+  }
+};
+
+/**
+ * The 2×2 verification rule, judged from what the student typed: each side
+ * they evaluated is within 0.05 of that side's true value at their ordered
+ * pair, and the two true sides agree. Used by the workspace's "Check equation
+ * n" and by the shared grader, so the two can never disagree. Throws, as the
+ * inline check always did, when the equation itself cannot be evaluated.
+ */
+export const twoByTwoVerificationValid = (equationText, values, leftAnswer, rightAnswer) => {
+  const actual = evaluateEquationSides(equationText, values);
+  const leftValue = parseNumericEntry(leftAnswer);
+  const rightValue = parseNumericEntry(rightAnswer);
+  const leftOk = Number.isFinite(leftValue) && Math.abs(leftValue - actual.left) <= 0.05;
+  const rightOk = Number.isFinite(rightValue) && Math.abs(rightValue - actual.right) <= 0.05;
+  const equalityHolds = Math.abs(actual.left - actual.right) < 1e-6;
+  return leftOk && rightOk && equalityHolds;
+};
+
 
 /* ==========================================================================
  * N-VARIABLE LINEAR SYSTEMS (#341)
@@ -679,6 +753,19 @@ export const combineForms = (formA, formB, operation, variables) => {
 
 /** Does this form have a zero coefficient for `variable` — i.e. did a combination eliminate it? */
 export const formEliminatesVariable = (form, variable) => Math.abs(form?.coefficients?.[variable] ?? 0) < 1e-6;
+
+/**
+ * What an n-variable statement with NO variable left says about its system:
+ * `infinite` for an identity (0 = 0, 27 = 27), `none` for a contradiction
+ * (0 = 5), or null while a variable survives or the text is not a linear
+ * equation in `variables`. The one reading of a checked elimination row
+ * (eliminationOutcome) and of the statement a 3×3 interpretation is graded on.
+ */
+export const noVariableStatementType = (text, variables) => {
+  const form = linearEquationForm(String(text ?? ''), variables);
+  if (!form || !variables.every((name) => Math.abs(form.coefficients[name]) < EPS)) return null;
+  return Math.abs(form.constant) > EPS ? 'none' : 'infinite';
+};
 
 /** The variables a linear equation actually depends on (nonzero coefficient), in list order. */
 export const variablesWithNonzeroCoefficient = (text, variables) => {
