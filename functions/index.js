@@ -10567,6 +10567,7 @@ async function writeLiveChallengeReportFromResult(db, result) {
   const report = reportRules.buildChallengeReport({
     room: result,
     scheduledRoundCount: Number(result.scheduledRoundCount) || 0,
+    playedRoundCount: typeof result.playedRoundCount === "number" ? result.playedRoundCount : null,
     roundMisses: derivedTallies.roundMisses,
     roundStandards: result.roundStandards || {},
     answeredCounts: derivedTallies.roundAnswers,
@@ -10826,8 +10827,12 @@ async function finalizeLiveChallengeMatch(db, { roomRef, room, command, status }
     const nowMs = Date.now();
     const privateState = privateSnapshot.data() || {};
     let players = playersFromSnapshot(playersSnapshot);
-    // Ending mid-round still counts the round for everyone who answered it.
-    if (plan.closeCurrentRound && status === lifecycle.SESSION_STATUS.FINISHED) {
+    // Ending mid-round still counts the round for everyone who answered it —
+    // but a round still in its 3-2-1 countdown (Next Round, then End Game) was
+    // never answerable: it is not ranked, and the match result does not count
+    // it as played (results.playedRoundCountAt).
+    if (plan.closeCurrentRound && status === lifecycle.SESSION_STATUS.FINISHED
+      && engine.results.openRoundStartedAt(currentRoom, nowMs)) {
       players = applyLiveChallengeRoundClose(transaction, {
         engine, roomRef, privateRef, room: currentRoom, privateState, players, roundIndex: plan.roundIndex, nowMs,
       }).players;

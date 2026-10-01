@@ -113,7 +113,13 @@ function ChallengeReport({ report }) {
       <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 14, color: '#3c4043', marginBottom: 14 }}>
         <span><strong>{report.playedCount}</strong> of {report.eligibleCount} played</span>
         <span>Class accuracy <strong>{pct(report.classAccuracyPercent)}</strong></span>
-        <span><strong>{report.scheduledRoundCount}</strong> rounds{report.secondChanceRoundCount ? ` + ${report.secondChanceRoundCount} second chance` : ''}</span>
+        <span>
+          {/* A game ended early says so: "3 of 10 rounds played", never "10 rounds". */}
+          {Number.isInteger(report.playedRoundCount) && report.playedRoundCount < report.scheduledRoundCount
+            ? <><strong>{report.playedRoundCount}</strong> of {report.scheduledRoundCount} rounds played</>
+            : <><strong>{report.scheduledRoundCount}</strong> rounds</>}
+          {report.secondChanceRoundCount ? ` + ${report.secondChanceRoundCount} second chance` : ''}
+        </span>
       </div>
       {report.standards?.length > 0 && (
         <div style={{ marginBottom: 14 }}>

@@ -24,7 +24,9 @@
  */
 
 import { authoritativeReceiptTotal } from './liveChallenge.mjs';
+import { ROUND_STATE, roomRoundState } from './liveChallengeLifecycle.mjs';
 import { rankEntries } from './liveChallengeRanking.mjs';
+import { timerFromRoom } from './liveChallengeTimer.mjs';
 import {
   COMPLETION_RULE,
   RECEIPT_KIND,
@@ -406,6 +408,34 @@ export const matchStandingsAfterRound = ({ players = [], modeId = null, scoringS
 };
 
 /**
+ * Whether the room's open round has started at `atMs`: false only for a round
+ * the host opened that is still in its 3-2-1 countdown (`startsAt` ahead), which
+ * nobody could answer — the server refuses every arrival before `startsAt`.
+ * A room with no clock to read, or no instant to read it at, is taken as
+ * started, which is what every reader assumed before this existed.
+ */
+export const openRoundStartedAt = (room = {}, atMs = null) => {
+  if (roomRoundState(room) !== ROUND_STATE.OPEN) return true;
+  const { startsAtMs } = timerFromRoom(room);
+  const at = Number(atMs);
+  if (!startsAtMs || atMs === null || atMs === undefined || !Number.isFinite(at)) return true;
+  return at >= startsAtMs;
+};
+
+/**
+ * How many rounds the match actually PLAYED when it ended at `atMs`: every
+ * round it opened, less an open round still in its countdown. "End Game"
+ * pressed during a 3-2-1 (Next Round, then the bell) used to count that round
+ * as played, so every student was measured against a round no one could
+ * answer — the Warm-Up credit's denominator grew and the Finisher reward,
+ * which asks for most of the rounds a student could play, was denied.
+ */
+export const playedRoundCountAt = (room = {}, atMs = null) => {
+  const opened = Math.max(0, integerOr(room?.currentRound, -1) + 1);
+  return opened > 0 && !openRoundStartedAt(room, atMs) ? opened - 1 : opened;
+};
+
+/**
  * The final result of a match, built inside the finishing transaction from the
  * private state it read. `status` is finished or cancelled.
  */
@@ -464,7 +494,8 @@ export const buildMatchResult = ({
     // denominator has always been this number.
     roomRoundCount: nonNegativeInt(room.roundCount),
     scheduledRoundCount,
-    playedRoundCount: Math.max(0, integerOr(room.currentRound, -1) + 1),
+    // Rounds that started, so never one ended during its countdown.
+    playedRoundCount: playedRoundCountAt(room, finalizedAtMs),
     questionIds,
     roundStandards: privateState.roundStandards && typeof privateState.roundStandards === 'object' ? privateState.roundStandards : {},
     secondChanceOf,
