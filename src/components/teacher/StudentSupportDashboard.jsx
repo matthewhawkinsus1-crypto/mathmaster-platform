@@ -55,6 +55,20 @@ export default function StudentSupportDashboard({
   onRecordEvent = null,
 }) {
   const [noteStudentId, setNoteStudentId] = useState('');
+  // The note picker labels each student by name; two students who share a
+  // name (or have none) also show their labelled ID so a note reaches the
+  // right one.
+  const notePickerStudents = useMemo(() => {
+    const sorted = [...students].sort(compareStudentsByName);
+    const labels = sorted.map((student) => formatStudentLabel(student, { lastFirst: false }));
+    const counts = labels.reduce((map, label) => map.set(label, (map.get(label) || 0) + 1), new Map());
+    return sorted.map((student, index) => ({
+      student,
+      label: counts.get(labels[index]) > 1
+        ? formatStudentLabel(student, { lastFirst: false, includeId: true })
+        : labels[index],
+    }));
+  }, [students]);
   const [noteKind, setNoteKind] = useState(SUPPORT_EVENT_KIND.TEACHER_INTERVENTION);
   const [noteText, setNoteText] = useState('');
   const [noteSaving, setNoteSaving] = useState(false);
@@ -430,8 +444,8 @@ export default function StudentSupportDashboard({
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1fr) minmax(180px, 1fr)', gap: 8 }}>
             <select value={noteStudentId} onChange={(event) => setNoteStudentId(event.target.value)} style={{ minHeight: 38, padding: '7px 8px', border: '1px solid #c9ced6', borderRadius: 7, background: 'var(--mm-surface)' }}>
               <option value="">Choose student…</option>
-              {[...students].sort(compareStudentsByName).map((student) => (
-                <option key={student.id} value={student.id}>{formatStudentLabel(student, { lastFirst: false })}</option>
+              {notePickerStudents.map(({ student, label }) => (
+                <option key={student.id} value={student.id}>{label}</option>
               ))}
             </select>
             <select value={noteKind} onChange={(event) => setNoteKind(event.target.value)} style={{ minHeight: 38, padding: '7px 8px', border: '1px solid #c9ced6', borderRadius: 7, background: 'var(--mm-surface)' }}>

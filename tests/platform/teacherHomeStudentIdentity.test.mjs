@@ -424,3 +424,13 @@ test('screens that receive a stored or server name resolve it by studentId and s
   assert.match(queue, /\{studentAlertLabel\(alert\.studentName, alert\.studentId\)\}/);
   assert.match(queue, /\{studentAlertLabel\(entry\.studentName, entry\.studentId\)\}/);
 });
+
+test('the support-note picker tells two students with the same name apart by labelled ID', () => {
+  // Test D on the one picker that writes a note against a student: two
+  // students named alike must not be two identical options.
+  const source = readFileSync(new URL('../../src/components/teacher/StudentSupportDashboard.jsx', import.meta.url), 'utf8');
+  const picker = source.slice(source.indexOf('const notePickerStudents = useMemo('), source.indexOf('}, [students]);'));
+  assert.match(picker, /counts\.get\(labels\[index\]\) > 1/);
+  assert.match(picker, /formatStudentLabel\(student, \{ lastFirst: false, includeId: true \}\)/);
+  assert.match(source, /notePickerStudents\.map\(\(\{ student, label \}\) =>/);
+});
