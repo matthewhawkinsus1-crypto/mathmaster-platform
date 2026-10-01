@@ -704,11 +704,18 @@
   /* The bottom padding is the sticky action bar's MEASURED height
      (--mm-action-bar-height, published by MobileViewportContainer) plus room
      to breathe, so a focused field clears the bar whether it is one row or
-     wraps to two. 72px is the fallback before the first measurement. */
+     wraps to two. 72px is the fallback before the first measurement.
+
+     The top padding is the sticky task card's MEASURED height
+     (--mm-sticky-task-height, stickyHeightRef) plus 56px for the field's label,
+     the same allowance the field's own scroll-margin makes below. It used to be
+     a flat 140px: right for an 84px card, short for a taller one — with a
+     184px task card, Enter walked to the next blank and left it 30px under
+     the card (PQ-031). Unmeasured, it is still 84 + 56 = the old 140px. */
   html:has(.mathmaster-assignment-screen),
   body:has(.mathmaster-assignment-screen) {
     --mm-sticky-task-top: calc(var(--mm-student-identity-stack-offset, 0px) + 6px + var(--mm-assignment-nav-height, 112px) + 4px);
-    scroll-padding-top: calc(var(--mm-sticky-task-top, 208px) + 140px);
+    scroll-padding-top: calc(var(--mm-sticky-task-top, 208px) + var(--mm-sticky-task-height, 84px) + 56px);
     scroll-padding-bottom: calc(var(--mm-action-bar-height, 72px) + 18px);
   }
 
@@ -717,7 +724,7 @@
        published by stickyHeightRef). A fixed 118px put the task card's first
        row underneath the navigator. */
     --mm-sticky-task-top: calc(var(--mm-student-identity-stack-offset, 0px) + 6px + var(--mm-assignment-nav-height, 112px) + 4px);
-    scroll-padding-top: calc(var(--mm-sticky-task-top, 208px) + 140px);
+    scroll-padding-top: calc(var(--mm-sticky-task-top, 208px) + var(--mm-sticky-task-height, 84px) + 56px);
     scroll-padding-bottom: calc(var(--mm-action-bar-height, 72px) + 18px);
   }
 
