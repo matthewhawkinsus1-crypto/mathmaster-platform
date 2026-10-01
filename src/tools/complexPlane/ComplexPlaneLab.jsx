@@ -6,6 +6,7 @@ import { round } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
 import { useRevealAnswers } from '../shared/ToolRuntimeContext';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import useReportToolWork from '../shared/useReportToolWork.js';
 import complexPlaneGrader from '../../../functions/shared/serverGrading/tools/complexPlaneLab.mjs';
 import {
   complexAdd,
@@ -72,8 +73,9 @@ function Features({ questionData, feedback, submit, onAction }) {
   const [magnitudeAnswer, setMagnitudeAnswer] = usePersistentToolState('magnitudeAnswer', '');
   const [conjugateRe, setConjugateRe] = usePersistentToolState('conjugateRe', '');
   const [conjugateIm, setConjugateIm] = usePersistentToolState('conjugateIm', '');
+  const work = { magnitudeAnswer, conjugateRe, conjugateIm };
+  useReportToolWork(work);
   const check = () => {
-    const work = { magnitudeAnswer, conjugateRe, conjugateIm };
     const result = gradeToolCheck(complexPlaneGrader, questionData, work);
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'features', parts: result.parts });
   };
@@ -102,8 +104,9 @@ function Operations({ questionData, feedback, submit, onAction }) {
   const symbol = operation === 'add' ? '+' : operation === 'subtract' ? '−' : '×';
   const [real, setReal] = usePersistentToolState('real', '');
   const [imaginary, setImaginary] = usePersistentToolState('imaginary', '');
+  const work = { real, imaginary };
+  useReportToolWork(work);
   const check = () => {
-    const work = { real, imaginary };
     const result = gradeToolCheck(complexPlaneGrader, questionData, work);
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'operations', operation, parts: result.parts });
   };
@@ -131,8 +134,9 @@ function Division({ questionData, feedback, submit, onAction }) {
   const [conjugateIm, setConjugateIm] = usePersistentToolState('conjugateIm', '');
   const [real, setReal] = usePersistentToolState('real', '');
   const [imaginary, setImaginary] = usePersistentToolState('imaginary', '');
+  const work = { conjugateRe, conjugateIm, real, imaginary };
+  useReportToolWork(work);
   const check = () => {
-    const work = { conjugateRe, conjugateIm, real, imaginary };
     const result = gradeToolCheck(complexPlaneGrader, questionData, work);
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'division', parts: result.parts });
   };
@@ -159,8 +163,9 @@ function Powers({ questionData, feedback, submit, onAction }) {
   const [real, setReal] = usePersistentToolState('real', '');
   const [imaginary, setImaginary] = usePersistentToolState('imaginary', '');
   const [magnitude, setMagnitude] = usePersistentToolState('magnitude', '');
+  const work = { real, imaginary, magnitude };
+  useReportToolWork(work);
   const check = () => {
-    const work = { real, imaginary, magnitude };
     const result = gradeToolCheck(complexPlaneGrader, questionData, work);
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'powers', exponent, parts: result.parts });
   };
@@ -188,8 +193,9 @@ function Rotation({ questionData, feedback, submit, onAction }) {
   const [real, setReal] = usePersistentToolState('real', '');
   const [imaginary, setImaginary] = usePersistentToolState('imaginary', '');
   const [rotation, setRotation] = usePersistentToolState('rotation', '');
+  const work = { real, imaginary, rotation };
+  useReportToolWork(work);
   const check = () => {
-    const work = { real, imaginary, rotation };
     const result = gradeToolCheck(complexPlaneGrader, questionData, work);
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'rotation', quarterTurns, parts: result.parts });
   };
@@ -215,8 +221,9 @@ function QuadraticRoots({ questionData, feedback, submit, onAction }) {
   const roots = quadraticRootsComplex(quadratic);
   const [r1Re, setR1Re] = usePersistentToolState('r1Re', ''); const [r1Im, setR1Im] = usePersistentToolState('r1Im', '');
   const [r2Re, setR2Re] = usePersistentToolState('r2Re', ''); const [r2Im, setR2Im] = usePersistentToolState('r2Im', '');
+  const work = { r1Re, r1Im, r2Re, r2Im };
+  useReportToolWork(work);
   const check = () => {
-    const work = { r1Re, r1Im, r2Re, r2Im };
     const result = gradeToolCheck(complexPlaneGrader, questionData, work);
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'quadraticRoots', parts: result.parts });
   };
