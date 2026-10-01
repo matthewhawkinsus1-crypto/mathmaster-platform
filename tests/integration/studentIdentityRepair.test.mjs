@@ -40,6 +40,11 @@ const require = createRequire(import.meta.url);
 
 const EMULATOR = process.env.FIRESTORE_EMULATOR_HOST || '';
 const PROJECT_ID = 'mathmaster-identity-repair';
+// CI runs every integration suite in parallel against ONE emulator project
+// (tests/browser/emulator/firebase.json has singleProjectMode). This suite
+// scans whole collections and wipes its data, so it works in its own named
+// database: it can never see, write or delete another suite's documents.
+const DATABASE_ID = 'student-identity-repair';
 const SKIP = EMULATOR
   ? false
   : 'FIRESTORE_EMULATOR_HOST is not set — this suite needs the Firestore emulator. Run: '
@@ -148,7 +153,7 @@ const fakeAuth = {
 
 const clearProject = async () => {
   const response = await fetch(
-    `http://${EMULATOR}/emulator/v1/projects/${PROJECT_ID}/databases/(default)/documents`,
+    `http://${EMULATOR}/emulator/v1/projects/${app.options.projectId}/databases/${DATABASE_ID}/documents`,
     { method: 'DELETE' },
   );
   assert.ok(response.ok, `could not clear the emulator project (${response.status})`);
@@ -187,10 +192,11 @@ before(async () => {
   if (SKIP) return;
   const resolveFromFunctions = (specifier) => require(require.resolve(specifier, { paths: [path.join(repo, 'functions')] }));
   const admin = resolveFromFunctions('firebase-admin');
-  ({ Timestamp, FieldValue } = resolveFromFunctions('firebase-admin/firestore'));
+  const firestoreModule = resolveFromFunctions('firebase-admin/firestore');
+  ({ Timestamp, FieldValue } = firestoreModule);
   // A named app: other suites in the same process tree own the default one.
   app = admin.initializeApp({ projectId: PROJECT_ID }, 'student-identity-repair-integration');
-  db = app.firestore();
+  db = firestoreModule.getFirestore(app, DATABASE_ID);
   repair = await import(path.join(repo, 'scripts/student-identity-repair.mjs'));
   await clearProject();
   await seed();
