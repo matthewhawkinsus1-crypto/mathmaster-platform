@@ -1480,6 +1480,8 @@ No production data, Firestore rules, Functions or the draft sanitizer changed.
 
 ## 4. Deferred architecture work
 
+*All seven were done in the 2026-10-01 cleanup (PQ-023 steps 1–2; step 3 waits on a pedagogy check). The list below is kept as it was written; the summary table at the top and the cleanup sections give each one's fix.*
+
 - **PQ-009 Whole-board Undo** — coalescing in `useMathUndoHistory`, MathLive
   `resetUndo()` on restore, verdict exclusion, announce-and-reveal. Medium.
 - **PQ-023 Tool chrome / help placement** — one merged disclosure, label-size
