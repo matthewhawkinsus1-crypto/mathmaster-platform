@@ -562,9 +562,14 @@ export default function InteractiveGraphWorkspace({
     if (!draftKey) setStage(mode === 'analysis' ? 'analysis' : 'construct');
   }, [questionSemanticKey, draftKey]);
 
+  // Move on by itself only after a construction the student confirmed (a
+  // passed check, a snapped curve). A submit-only point plot is ready the
+  // moment its last point lands, and jumping away then would pull the student
+  // off points they may still be adjusting; step 2 is enabled instead.
+  const constructionConfirmed = constructionReadyForAnalysis && construction.pointsValidated;
   useEffect(() => {
-    if (mode === 'investigate' && analysisEnabled && constructionReadyForAnalysis) setStage('analysis');
-  }, [mode, analysisEnabled, constructionReadyForAnalysis]);
+    if (mode === 'investigate' && analysisEnabled && constructionConfirmed) setStage('analysis');
+  }, [mode, analysisEnabled, constructionConfirmed]);
 
   useEffect(() => {
     const history = stage === 'analysis' ? analysisHistory : constructionHistory;
@@ -631,7 +636,10 @@ export default function InteractiveGraphWorkspace({
     }
     if (!inversePointsCorrect) {
       analysisHistory.setValue((current) => ({ ...current, inversePointsValidated: false, inverseStrokes: [], inverseSnapped: false }));
-      setDrawFeedback('At least one reflected point needs revision. Reflection across y=x swaps the coordinates.');
+      // The rule is help; on a DOL, quiz or test the check only gates the sketch.
+      setDrawFeedback(revealPointCorrectness
+        ? 'At least one reflected point needs revision. Reflection across y=x swaps the coordinates.'
+        : 'Not every reflected point is in place yet.');
       return;
     }
     analysisHistory.setValue((current) => ({ ...current, inversePointsValidated: true, inverseStrokes: [], inverseSnapped: false }));
@@ -1245,6 +1253,7 @@ export default function InteractiveGraphWorkspace({
                   {!construction.pointsValidated && !revealPointCorrectness && pointOnly && (
                     <p data-points-graded-on-submit style={{ margin: '12px 0 0', fontSize: '12px', lineHeight: 1.45, color: '#5f6368' }}>
                       Your points are graded when you submit. You can move any of them until then.
+                      {analysisEnabled && ` When they are all placed, go on to ${inverseReflectionEnabled ? '2. Build Inverse' : '2. Analyze Function'}.`}
                     </p>
                   )}
                   {!construction.pointsValidated && !(pointOnly && !revealPointCorrectness) && <button type="button" onClick={checkPoints} disabled={Object.keys(construction.placements).length < tasks.length} style={{ width: '100%', marginTop: '12px', padding: '10px', border: 'none', borderRadius: '8px', background: Object.keys(construction.placements).length >= tasks.length ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Check Point Placements</button>}
@@ -1260,7 +1269,7 @@ export default function InteractiveGraphWorkspace({
           ) : (
             <>
               <h3 className="mathmaster-analysis-title" style={{ margin: '0 0 8px', fontSize: '16px', color: '#174ea6' }}>{inverseReflectionEnabled ? 'Build the Inverse' : 'Analysis Parts'}</h3>
-              {inverseReflectionEnabled && <p style={{ margin: '0 0 10px', color: '#5f6368', fontSize: '12px', lineHeight: 1.5 }}>Reflect both validated points across <strong>y=x</strong>. After both reflected points are correct, draw the inverse through them and write <strong>f⁻¹(x)</strong>.</p>}
+              {inverseReflectionEnabled && <p style={{ margin: '0 0 10px', color: '#5f6368', fontSize: '12px', lineHeight: 1.5 }}>Reflect both {revealPointCorrectness ? 'validated' : 'plotted'} points across <strong>y=x</strong>. {revealPointCorrectness ? 'After both reflected points are correct, draw' : 'Then draw'} the inverse through them and write <strong>f⁻¹(x)</strong>.</p>}
               {analysisParts.map((part) => {
                 if (inverseReflectionEnabled && part.id === inverseReflection?.equationPartId && !analysis.inverseSnapped) return null;
                 const grade = feedback?.partGrades?.find((item) => item.id === part.id);

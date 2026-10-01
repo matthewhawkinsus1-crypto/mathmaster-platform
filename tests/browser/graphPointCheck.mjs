@@ -13,7 +13,10 @@
 //   practice  a wrong point is still named (immediate feedback is the point);
 //   DOL curve the check says only that not every point is on the graph;
 //   DOL plot  there is no check at all: placed points are the answer, they stay
-//             movable, and the submission grades them as placed.
+//             movable, and the submission grades them as placed;
+//   inverse   on a DOL the plot does not jump to step 2 under the student's
+//             cursor, and the reflected-point check does not teach the rule
+//             ("swaps the coordinates") that practice still shows.
 // Exits non-zero on any failure.
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -34,7 +37,8 @@ const run = Date.now();
 const open = async (role, plot = '') => {
   const page = await context.newPage();
   page.on('pageerror', (error) => failures.push(`${role}${plot}: page error ${error.message}`));
-  await page.goto(`${ORIGIN}/tests/browser/graphPointCheck.html?role=${role}${plot ? `&plot=${plot}` : ''}&run=${run}`, { waitUntil: 'networkidle' });
+  const variant = plot === 'inverse' ? '&inverse=1' : plot ? `&plot=${plot}` : '';
+  await page.goto(`${ORIGIN}/tests/browser/graphPointCheck.html?role=${role}${variant}&run=${run}`, { waitUntil: 'networkidle' });
   await page.locator('button', { hasText: 'Plot the point where x = 0' }).first().waitFor();
   return page;
 };
@@ -111,6 +115,38 @@ for (const role of ['dol', 'test']) {
   const p1 = graded?.parts?.find((part) => part.id === 'p1');
   check(graded?.isCorrect === false, `${role} plot: the submission is graded as placed (not correct)`, JSON.stringify(graded?.isCorrect));
   check(p1?.isCorrect === true && p2?.isCorrect === false && p2?.response === '(2, 3)', `${role} plot: each point is graded where it was last put`, JSON.stringify([p1, p2]));
+  await page.close();
+}
+
+// INVERSE: reflect the plotted points across y = x.
+for (const role of ['practice', 'dol']) {
+  const page = await open(role, 'inverse');
+  await plot(page, 'Plot the point where x = 0', 0, 1);
+  await plot(page, 'Plot the point where x = 2', 2, 5);
+  const buildInverse = page.getByRole('button', { name: '2. Build Inverse' });
+  if (role === 'practice') {
+    await checkButton(page).click();
+    await page.waitForTimeout(400);
+  } else {
+    check(await page.locator('button', { hasText: 'Plot the point where x = 0' }).first().isVisible(), 'DOL inverse: placing the last point does not jump to step 2');
+    check(await buildInverse.isEnabled(), 'DOL inverse: step 2 is open once every point is placed');
+    await buildInverse.click();
+    await page.waitForTimeout(400);
+  }
+  const reflect = page.getByRole('button', { name: 'Check Reflected Points' });
+  check(await reflect.isVisible(), `${role} inverse: the student reaches the reflection step`);
+  // (0, 1) reflects to (1, 0); put it at (2, 0). (2, 5) -> (5, 2) is right.
+  await plot(page, 'Reflect the point at x = 0', 2, 0);
+  await plot(page, 'Reflect the point at x = 2', 5, 2);
+  await reflect.click();
+  await page.waitForTimeout(250);
+  const text = await bodyText(page);
+  if (role === 'practice') {
+    check(/swaps the coordinates/.test(text), 'practice inverse: the check explains the reflection');
+  } else {
+    check(!/swaps the coordinates/.test(text), 'DOL inverse: the check does not teach the rule');
+    check(/Not every reflected point is in place yet/.test(text), 'DOL inverse: it says only that the reflection is not right yet');
+  }
   await page.close();
 }
 
