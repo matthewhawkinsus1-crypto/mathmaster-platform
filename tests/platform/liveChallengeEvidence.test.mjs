@@ -141,14 +141,48 @@ test('a timed round is weighted below untimed practice', () => {
   assert.ok(Number(match[1]) < 1, 'a timed single attempt is noisier evidence than practice');
 });
 
+/*
+ * Evidence used to be built from the private player records inside the finish,
+ * so it had to run before those records were deleted. It is now built from the
+ * durable match result, which the finishing transaction writes together with
+ * the terminal room status — and the private state is deleted only after every
+ * other finalization effect has settled.
+ */
+const between = (source, startNeedle, endNeedle) => {
+  const start = source.indexOf(startNeedle);
+  assert.notEqual(start, -1, `could not find ${startNeedle}`);
+  const end = source.indexOf(endNeedle, start + startNeedle.length);
+  assert.notEqual(end, -1, `could not find ${endNeedle}`);
+  return source.slice(start, end);
+};
+
 test('evidence is written before the private state it reads is deleted', () => {
-  const body = code.slice(code.indexOf('async function finishLiveChallengeRoom'), code.indexOf('exports.advanceLiveChallenge'));
-  assert.ok(body.indexOf('buildChallengeEvidenceEvents') < body.indexOf('deletePrivateChallengeState'));
+  const writer = between(code, 'async function writeChallengeEvidenceFromResult', 'async function deliverLiveChallengeRewardsFromResult');
+  assert.match(writer, /buildChallengeEvidenceEvents\(\{[\s\S]*players: result\.standings/, 'evidence reads the durable match result');
+  assert.doesNotMatch(writer, /LIVE_CHALLENGE_PRIVATE|loadPrivateChallengePlayers/, 'evidence never reads private state');
+
+  const effects = between(code, 'async function runLiveChallengeFinalizationEffects', 'async function finalizeLiveChallengeMatch');
+  const effectOrder = between(code, 'const LIVE_CHALLENGE_EFFECT_ORDER', ';');
+  assert.match(effectOrder, /"evidence"/);
+  assert.doesNotMatch(effectOrder, /privateCleanup/, 'private cleanup is not an ordinary effect');
+  const effectLoop = effects.indexOf('for (const name of LIVE_CHALLENGE_EFFECT_ORDER)');
+  const cleanup = effects.indexOf('recursiveDelete(db.collection(LIVE_CHALLENGE_PRIVATE)');
+  assert.ok(effectLoop > 0 && cleanup > effectLoop, 'private state is deleted after the effects that could want it');
+  // …and only once every one of them has settled, or the sweep has given up.
+  assert.match(effects, /const othersSettled = LIVE_CHALLENGE_EFFECT_ORDER\.every\(\(name\) => settled\(outcomes\[name\] \?\? recorded\[name\]\)\)/);
+  const gate = effects.indexOf('if ((othersSettled || abandoning) && !settled(recorded.privateCleanup)) {');
+  assert.ok(gate > effectLoop && gate < cleanup, 'private state is deleted only behind the settled gate');
 });
 
 test('a failed evidence write cannot strand a room', () => {
-  const body = code.slice(code.indexOf('async function finishLiveChallengeRoom'), code.indexOf('exports.advanceLiveChallenge'));
-  assert.match(body, /liveChallenge\.evidence\.failed/);
+  // The room is already terminal (the transaction committed) before any effect
+  // runs; a failing effect is logged and left for the sweep, never thrown.
+  const effects = between(code, 'async function runLiveChallengeFinalizationEffects', 'async function finalizeLiveChallengeMatch');
+  assert.match(effects, /catch \(error\) \{\s*outcomes\[name\] = "failed";\s*logger\.error\("liveChallenge\.finalization\.effect\.failed"/);
+  const finalize = between(code, 'async function finalizeLiveChallengeMatch', 'exports.joinLiveChallenge');
+  const transaction = finalize.indexOf('db.runTransaction');
+  const runner = finalize.indexOf('await runLiveChallengeFinalizationEffects(db, roomId).catch(');
+  assert.ok(transaction > 0 && runner > transaction, 'effects run after the terminal transaction and never throw to the teacher');
 });
 
 test('answered rounds are recorded in the write that already happens', () => {

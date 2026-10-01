@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { SUBMISSION_ARRIVAL_GRACE_MS } from '../../functions/shared/liveChallengeParity.mjs';
+import { buildRoundTimer, timerAcceptsArrival, timerFromRoom } from '../../functions/shared/liveChallengeTimer.mjs';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 const student = read('../../src/components/liveChallenge/LiveChallengeStudent.jsx');
@@ -32,10 +34,21 @@ test('deadline finalization shares the manual secure submit path and has a synch
 
 test('auto-finalized work gets deadline timing while retaining the bounded arrival policy', () => {
   const submitStart = server.indexOf('exports.submitLiveChallengeResponse');
-  const submit = server.slice(submitStart);
+  const submit = server.slice(submitStart, server.indexOf('// Phase 5D', submitStart));
   assert.match(submit, /const activeRoundMs = challenge\.normalizeRoundSeconds\([\s\S]*activeRoundSeconds/);
   assert.match(submit, /autoFinalizedAtRoundEnd === true[\s\S]*\? activeRoundMs/);
-  assert.match(submit, /submissionArrivalDecision\(\{ arrivedAtMs: requestArrivedAt/);
-  assert.match(submit, /scoreChallengeRound\(\{[\s\S]*gradeScore: grading\?\.score/);
+  // Arrival is judged inside the transaction by the room's own timer…
+  assert.match(submit, /const latestTimer = roundTimer\.timerFromRoom\(latestRoom\);/);
+  assert.match(submit, /const arrival = roundTimer\.timerAcceptsArrival\(latestTimer, requestArrivedAt\);\s*if \(!arrival\.accepted\) throw/);
+  // …which keeps the parity module's bounded transport grace, and no more.
+  const timer = buildRoundTimer({ nowMs: 100_000, syncLeadMs: 0, durationMs: 30_000 });
+  assert.equal(timerAcceptsArrival(timer, 130_000 + SUBMISSION_ARRIVAL_GRACE_MS).accepted, true);
+  assert.equal(timerAcceptsArrival(timer, 130_000 + SUBMISSION_ARRIVAL_GRACE_MS + 1).accepted, false);
+  // Only a Pace Race round is open-ended. A timed round that lost its deadline
+  // is a broken timeline and must not accept answers indefinitely.
+  assert.equal(timerAcceptsArrival(timerFromRoom({ startsAt: 100_000, timingMode: 'pace' }), 900_000).accepted, true);
+  assert.equal(timerAcceptsArrival(timerFromRoom({ startsAt: 100_000, timingMode: 'timed' }), 900_000).accepted, false);
+  // The server's grade, never a display-only working score, is what is scored.
+  assert.match(submit, /finalScore = strategy\.scoreResponse\(\{\s*gradeScore: grading\?\.score/);
   assert.doesNotMatch(submit, /gradeScore:\s*(?:request\.data\.)?(?:workingPoints|provisionalPoints)/);
 });

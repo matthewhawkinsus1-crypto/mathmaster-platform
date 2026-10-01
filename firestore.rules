@@ -344,6 +344,17 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Item rewards a student holds — a Practice Pass, a badge — each its own
+    // document with its own available/redeemed/expired/revoked history (see
+    // functions/shared/rewardGrants.mjs). Issued only by the server from a
+    // finished match's reward rules. A student reads their own; teachers read
+    // through the same authorizedTeacherEmails field the ledger uses. No client
+    // may issue, spend, revoke or erase one.
+    match /rewardGrants/{grantId} {
+      allow read: if rootAdmin() || ownsStudent(resource.data.studentId) || authorizedTeacher();
+      allow create, update, delete: if false;
+    }
+
     // Live class monitoring. Ephemeral by design: a student's client writes
     // its own document on a heartbeat and deletes it on leaving, and nothing
     // reads it outside the teacher's live grid. It carries no response text —
@@ -533,6 +544,18 @@ service cloud.firestore {
         allow create, update, delete: if false;
       }
 
+      // Anonymous round results — alias, rank, round points, placement points —
+      // written once when a round closes. Readable by exactly the audience of
+      // the standings above; they carry no student id.
+      match /rounds/{roundIndex} {
+        allow read: if rootAdmin()
+          || (teacher() && get(/databases/$(database)/documents/liveChallengeRooms/$(roomId)).data.teacherEmail == request.auth.token.email)
+          || (signedIn()
+            && request.auth.token.role == 'student'
+            && get(/databases/$(database)/documents/liveChallengeInvites/$(request.auth.token.studentId)).data.roomId == roomId);
+        allow create, update, delete: if false;
+      }
+
       // Per-device health is visible to the room owner only. Students may read
       // standings, but never another student's network/device diagnostics.
       match /diagnostics/{playerKey} {
@@ -566,6 +589,14 @@ service cloud.firestore {
     // which decides what to send.
     match /liveChallengeDryRuns/{dryRunId} {
       allow read, create, update, delete: if false;
+    }
+
+    // The durable final result of a finished match: named standings, the
+    // reward policy it was played under, and the bookkeeping of its
+    // finalization effects. Teachers see it through the report; nothing but
+    // the server reads or writes it.
+    match /liveChallengeMatchResults/{roomId} {
+      allow read, write: if false;
     }
 
     // Question IDs, roster membership, per-student scores before public

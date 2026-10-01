@@ -5439,6 +5439,44 @@ async function deleteStudentClassPointsFootprint(db, studentId, deleted) {
   if (redemptionsDeleted) deleted.classPointRewardRedemptions = redemptionsDeleted;
 }
 
+/*
+ * A deleted student's Live Challenge footprint beyond Class Points: their item
+ * rewards (Practice Passes, badges) and their standing inside finished match
+ * results and teacher reports. Results and reports keep the rest of the class
+ * — they are the class's record — and lose only this student's row. Both carry
+ * a `studentIds` query key for exactly this purpose; reports written before
+ * that key existed are not reachable by query and are recorded as a known gap
+ * in docs/architecture/live-challenge-engine.md.
+ */
+async function deleteStudentLiveChallengeFootprint(db, studentId, deleted) {
+  const grantsSnapshot = await db.collection("rewardGrants").where("studentId", "==", studentId).get();
+  for (const grantDoc of grantsSnapshot.docs) {
+    // eslint-disable-next-line no-await-in-loop
+    await grantDoc.ref.delete();
+  }
+  if (grantsSnapshot.size) deleted.rewardGrants = grantsSnapshot.size;
+
+  const scrub = async (collectionName, rowFields) => {
+    const snapshot = await db.collection(collectionName).where("studentIds", "array-contains", studentId).get();
+    for (const recordDoc of snapshot.docs) {
+      const data = recordDoc.data() || {};
+      const patch = {
+        studentIds: (Array.isArray(data.studentIds) ? data.studentIds : []).filter((id) => id !== studentId),
+      };
+      rowFields.forEach((field) => {
+        if (Array.isArray(data[field])) patch[field] = data[field].filter((row) => row?.studentId !== studentId);
+      });
+      // eslint-disable-next-line no-await-in-loop
+      await recordDoc.ref.set(patch, { merge: true });
+    }
+    return snapshot.size;
+  };
+  const resultsScrubbed = await scrub(LIVE_CHALLENGE_MATCH_RESULTS, ["standings"]);
+  if (resultsScrubbed) deleted.liveChallengeMatchResultsScrubbed = resultsScrubbed;
+  const reportsScrubbed = await scrub(LIVE_CHALLENGE_REPORTS, ["players", "neverJoined"]);
+  if (reportsScrubbed) deleted.liveChallengeReportsScrubbed = reportsScrubbed;
+}
+
 /**
  * Root-admin-only permanent student erasure.
  *
@@ -5495,6 +5533,7 @@ exports.permanentlyDeleteStudent = onCall(async (request) => {
   if (Number(challengeCleanup?.jobsDeleted) > 0) {
     deleted.liveChallengeAchievementJobsDeleted = Number(challengeCleanup.jobsDeleted);
   }
+  await deleteStudentLiveChallengeFootprint(db, studentId, deleted);
 
   // Resolve every Firebase Auth identity attached to this MathMaster student.
   // A teacher/root identity is never deleted even if bad legacy data linked it
@@ -8818,6 +8857,27 @@ async function liveChallengeEvidenceRules() {
   return liveChallengeEvidenceModule;
 }
 
+// THE ENGINE CONTRACTS every Live Challenge callable runs through. They are
+// pure modules shared with the browser; see docs/architecture/
+// live-challenge-engine.md for what each owns.
+let liveChallengeEngineModules = null;
+async function liveChallengeEngine() {
+  if (!liveChallengeEngineModules) {
+    const [lifecycle, timer, modes, scoring, responses, results, rewardRules, experience] = await Promise.all([
+      import("./shared/liveChallengeLifecycle.mjs"),
+      import("./shared/liveChallengeTimer.mjs"),
+      import("./shared/liveChallengeModes.mjs"),
+      import("./shared/liveChallengeScoring.mjs"),
+      import("./shared/liveChallengeResponses.mjs"),
+      import("./shared/liveChallengeResults.mjs"),
+      import("./shared/liveChallengeRewardRules.mjs"),
+      import("./shared/liveChallengeExperience.mjs"),
+    ]);
+    liveChallengeEngineModules = { lifecycle, timer, modes, scoring, responses, results, rewardRules, experience };
+  }
+  return liveChallengeEngineModules;
+}
+
 // How many questions are pulled before the issuability gate runs. Every one of
 // these is instantiated and planned, so the page size is a cost, not a free
 // upper bound — the fix for narrow variety was where the window starts, not
@@ -8831,6 +8891,11 @@ const LIVE_CHALLENGE_REPORTS = "liveChallengeReports";
 const LIVE_CHALLENGE_PRIVATE = "liveChallengePrivate";
 const LIVE_CHALLENGE_INVITES = "liveChallengeInvites";
 const LIVE_CHALLENGE_TEACHER_ACTIVE = "liveChallengeTeacherActive";
+// The durable final result of a finished or cancelled match. Server-only: it
+// names students. Reports, Warm-Up credit, evidence and rewards are all
+// derived from it, so each can be re-run safely after a crash.
+const LIVE_CHALLENGE_MATCH_RESULTS = "liveChallengeMatchResults";
+const LIVE_CHALLENGE_EXPERIENCE = "liveChallengeExperience";
 
 function challengeCourseId(value) {
   const token = String(value || "").trim().toLowerCase();
@@ -8938,6 +9003,100 @@ function selectChallengeQuestions(entries, requestedCount) {
   return [...firstByFamily, ...repeats].slice(0, requestedCount);
 }
 
+/*
+ * QUESTION PLANNERS, KEYED BY A MODE'S questionSource.
+ *
+ * A game mode declares where its questions come from; this is the only place
+ * that knows how to build them. `plan` returns the selected entries plus any
+ * server-only authored questions and seed. `swap` replaces one dry-run round.
+ * A new mode with a new source adds a planner here — it does not add a branch
+ * to createLiveChallenge.
+ */
+const LIVE_CHALLENGE_QUESTION_PLANNERS = Object.freeze({
+  secureBank: Object.freeze({
+    async plan({ db, courseId, standardCode, modeConfig, roundCount }) {
+      const candidates = await loadChallengeCandidates(db, { courseId, standardCode, questionStyle: modeConfig.questionStyle });
+      return {
+        candidateCount: candidates.length,
+        selected: selectChallengeQuestions(candidates, roundCount),
+        roundQuestions: null,
+        seed: null,
+      };
+    },
+    async swap({ db, dryRun, questionIds }) {
+      // A fresh draw, then the first candidate this dry run is not already using.
+      // Swapping a question for one already in the set would look like the button
+      // did nothing.
+      const candidates = await loadChallengeCandidates(db, {
+        courseId: dryRun.courseId,
+        standardCode: dryRun.standardCode,
+        // A swap that ignored the style would quietly hand back the kind of
+        // question the teacher chose not to have.
+        questionStyle: dryRun.questionStyle,
+      });
+      const inUse = new Set(questionIds);
+      const replacement = selectChallengeQuestions(candidates, candidates.length)
+        .map((entry) => entry.question.id)
+        .find((id) => !inUse.has(id));
+      if (!replacement) throw new HttpsError("failed-precondition", "There are no other questions available for this selection.");
+      return { questionId: replacement, authoredQuestion: null };
+    },
+  }),
+  solverRaceGenerator: Object.freeze({
+    async plan({ modeConfig, roundCount }) {
+      const solverRace = await solverRaceRules();
+      // Never derive answer-bearing draws in the browser. This nonce is retained
+      // only in the private room record alongside the instantiated questions.
+      const seed = crypto.randomUUID();
+      const questions = solverRace.planSolverRace({
+        roundCount, focus: modeConfig.solverRaceFocus, difficulty: modeConfig.solverRaceDifficulty, seed,
+      });
+      const planned = await securelyPlanSolverRace(questions);
+      return {
+        candidateCount: planned.length,
+        selected: planned,
+        roundQuestions: planned.map((entry) => entry.question),
+        seed,
+      };
+    },
+    async swap({ dryRun, roundIndex }) {
+      const solverRace = await solverRaceRules();
+      const roundQuestions = Array.isArray(dryRun.roundQuestions) ? [...dryRun.roundQuestions] : [];
+      const current = roundQuestions[roundIndex];
+      const stageStructures = solverRace.SOLVER_RACE_CATALOG.filter((entry) => (
+        entry.challengeFamily === current?.challengeFamily
+        && entry.difficultyBand === current?.difficultyBand
+      ));
+      const alternatives = stageStructures.filter((entry) => entry.id !== current?.familyId);
+      const pool = alternatives.length ? alternatives : stageStructures;
+      const alternate = pool[solverRace.seededSolverRaceIndex(
+        `${dryRun.solverRaceSeed}|swap-structure|${roundIndex}|${current?.solverRaceSwap || 0}`,
+        pool.length,
+      )];
+      if (!alternate) throw new HttpsError("failed-precondition", "There is no other Solver Race structure for this stage.");
+      const swapNumber = Math.max(1, Number(current?.solverRaceSwap) + 1 || 1);
+      const generated = solverRace.generateSolverRaceQuestion(
+        alternate,
+        `${dryRun.solverRaceSeed}|swap|${roundIndex}|${swapNumber}`,
+      );
+      const replacementQuestion = {
+        ...generated,
+        id: `${alternate.id}_r${roundIndex + 1}_swap${swapNumber}`,
+        solverRaceRound: roundIndex,
+        solverRaceStage: current?.solverRaceStage,
+        solverRaceSwap: swapNumber,
+      };
+      return { questionId: replacementQuestion.id, authoredQuestion: replacementQuestion };
+    },
+  }),
+});
+
+function liveChallengeQuestionPlanner(mode) {
+  const planner = LIVE_CHALLENGE_QUESTION_PLANNERS[mode?.questionSource];
+  if (!planner) throw new HttpsError("failed-precondition", `The ${mode?.label || "selected"} game has no question source on this server.`);
+  return planner;
+}
+
 async function buildLiveChallengePublicQuestion(db, { roomId, roundIndex, questionId, authoredQuestion = null }) {
   const snapshot = authoredQuestion ? null : await db.collection("pathQuestionBank").doc(questionId).get();
   if (!authoredQuestion && !snapshot.exists) throw new HttpsError("failed-precondition", "A Live Challenge question is no longer in the secure bank.");
@@ -8968,18 +9127,6 @@ async function buildLiveChallengePublicQuestion(db, { roomId, roundIndex, questi
     teksCode: displayStandard,
     challengeRound: roundIndex,
   };
-}
-
-async function updateLiveChallengeInvites(db, playerIds, fields) {
-  if (!playerIds.length) return;
-  for (let start = 0; start < playerIds.length; start += 450) {
-    const batch = db.batch();
-    playerIds.slice(start, start + 450).forEach((studentId) => {
-      batch.set(db.collection(LIVE_CHALLENGE_INVITES).doc(studentId), fields, { merge: true });
-    });
-    // eslint-disable-next-line no-await-in-loop
-    await batch.commit();
-  }
 }
 
 async function updateLiveChallengeInvitesByRoom(db, { roomId, teacherEmail, fields }) {
@@ -9145,6 +9292,26 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   const defaultTitle = `${className || classPeriod || "Class"} Live Challenge`;
   const title = String(request.data?.title || defaultTitle).trim().slice(0, 120) || defaultTitle;
 
+  // THE MODE, ITS SCORING AND ITS REWARDS are resolved through the engine
+  // registries, before any roster or bank work, so a bad request fails fast.
+  // An unknown mode is the standard game, which is what it always was.
+  const engine = await liveChallengeEngine();
+  const mode = engine.modes.getChallengeMode(request.data?.challengeMode);
+  const modeConfig = engine.modes.normalizeModeConfig(mode, request.data || {});
+  const { questionStyle, solverRaceFocus, solverRaceDifficulty } = modeConfig;
+  const scoringStrategyId = engine.modes.resolveModeScoringStrategy(mode, request.data?.scoringStrategyId);
+  const scoringConfig = engine.scoring.getScoringStrategy(scoringStrategyId).normalizeConfig(request.data?.scoringConfig || {});
+  let rewardPolicy;
+  try {
+    rewardPolicy = engine.rewardRules.normalizeRewardPolicy(request.data?.rewardPolicy);
+  } catch (error) {
+    if (error?.name === "RewardPolicyError") throw new HttpsError("invalid-argument", error.message);
+    throw error;
+  }
+  // Speed influence is part of scoring, so it is stored on the room the scorer
+  // reads. configureLiveChallengeExperience may still change it in the lobby.
+  const speedInfluencePercent = engine.experience.normalizeSpeedInfluencePercent(request.data?.speedInfluencePercent);
+
   // One active room per teacher. A tiny pointer keeps refresh recovery O(1) and
   // avoids reading completed challenge history every time the teacher opens
   // the dashboard.
@@ -9161,29 +9328,18 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   const roster = await loadChallengeRoster(db, teacherEmail, { classId, classPeriod });
   if (!roster.length) throw new HttpsError("failed-precondition", `No students assigned to you were found in ${className || classPeriod}.`);
 
-  const solverRace = await solverRaceRules();
-  const challengeMode = solverRace.canonicalChallengeMode(request.data?.challengeMode);
-  const solverRaceFocus = solverRace.canonicalSolverRaceFocus(request.data?.solverRaceFocus);
-  const solverRaceDifficulty = solverRace.canonicalSolverRaceDifficulty(request.data?.solverRaceDifficulty);
-  const questionStyle = challengeMode === "solverRace" ? "tools" : challenge.canonicalQuestionStyle(request.data?.questionStyle);
-  // Never derive answer-bearing draws in the browser. This nonce is retained
-  // only in the private room record alongside the instantiated questions.
-  const solverRaceSeed = challengeMode === "solverRace" ? crypto.randomUUID() : null;
-  const solverQuestions = challengeMode === "solverRace"
-    ? solverRace.planSolverRace({ roundCount: requestedRoundCount, focus: solverRaceFocus, difficulty: solverRaceDifficulty, seed: solverRaceSeed })
-    : null;
-  const candidates = solverQuestions
-    ? await securelyPlanSolverRace(solverQuestions)
-    : await loadChallengeCandidates(db, { courseId, standardCode, questionStyle });
-  if (candidates.length < challenge.MIN_ROUND_COUNT) {
+  const planned = await liveChallengeQuestionPlanner(mode).plan({
+    db, courseId, standardCode, modeConfig, roundCount: requestedRoundCount,
+  });
+  if (planned.candidateCount < challenge.MIN_ROUND_COUNT) {
     throw new HttpsError(
       "failed-precondition",
       standardCode === "mixed"
         ? `The secure ${courseId === "algebra2" ? "Algebra II" : "Algebra I"} bank needs at least ${challenge.MIN_ROUND_COUNT} usable questions before a Live Challenge can start.`
-        : `${standardCode} has only ${candidates.length} securely gradeable challenge question${candidates.length === 1 ? "" : "s"}${questionStyleLabel(questionStyle)}. At least ${challenge.MIN_ROUND_COUNT} are required.`,
+        : `${standardCode} has only ${planned.candidateCount} securely gradeable challenge question${planned.candidateCount === 1 ? "" : "s"}${questionStyleLabel(questionStyle)}. At least ${challenge.MIN_ROUND_COUNT} are required.`,
     );
   }
-  const selected = solverQuestions ? candidates : selectChallengeQuestions(candidates, requestedRoundCount);
+  const selected = planned.selected;
   const actualRoundCount = selected.length;
 
   const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc();
@@ -9216,9 +9372,9 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
     courseId,
     standardCode,
     questionStyle,
-    challengeMode,
-    solverRaceFocus: challengeMode === "solverRace" ? solverRaceFocus : null,
-    solverRaceDifficulty: challengeMode === "solverRace" ? solverRaceDifficulty : null,
+    challengeMode: mode.id,
+    solverRaceFocus,
+    solverRaceDifficulty,
     status: challenge.LIVE_CHALLENGE_STATUS.LOBBY,
     roundCount: actualRoundCount,
     requestedRoundCount,
@@ -9229,6 +9385,9 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
     currentRound: -1,
     roundVersion: 0,
     roundToken: null,
+    // The round lifecycle (liveChallengeLifecycle.mjs): null until a round
+    // opens, then open -> closed per round.
+    roundState: null,
     phase: "lobby",
     currentQuestion: null,
     startsAt: null,
@@ -9236,7 +9395,12 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
     roundStartedAt: null,
     roundEndsAt: null,
     eligibleCount: sortedRoster.length,
-    scoringMode: "accuracyFirst",
+    engineVersion: 1,
+    modeVersion: mode.version,
+    scoringStrategyId,
+    // Kept for readers that predate scoringStrategyId.
+    scoringMode: scoringStrategyId,
+    speedInfluencePercent,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -9244,11 +9408,16 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
     schemaVersion: 2,
     roomId: roomRef.id,
     teacherEmail,
-    solverRaceSeed,
+    solverRaceSeed: planned.seed,
     questionIds: selected.map((entry) => entry.question.id),
     // Generated solver definitions stay in the server-only challenge document.
     // Public room payloads are produced by the normal Path sanitizer below.
-    roundQuestions: challengeMode === "solverRace" ? selected.map((entry) => entry.question) : null,
+    roundQuestions: planned.roundQuestions,
+    scoringStrategyId,
+    scoringConfig,
+    // Validated when the room was created; read by the reward pipeline from
+    // the match result when the match finishes.
+    rewardPolicy,
     // The standard each round is about, captured now. The report is assembled
     // after the room closes, and re-reading the bank then would give whatever
     // the question says today rather than what the class actually answered.
@@ -9401,27 +9570,24 @@ exports.createChallengeDryRun = onCall(async (request) => {
   const roundSeconds = challenge.normalizeRoundSeconds(request.data?.roundSeconds);
   const timingMode = challenge.normalizeChallengeTimingMode(request.data?.timingMode);
 
-  const solverRace = await solverRaceRules();
-  const challengeMode = solverRace.canonicalChallengeMode(request.data?.challengeMode);
-  const solverRaceFocus = solverRace.canonicalSolverRaceFocus(request.data?.solverRaceFocus);
-  const solverRaceDifficulty = solverRace.canonicalSolverRaceDifficulty(request.data?.solverRaceDifficulty);
-  const questionStyle = challengeMode === "solverRace" ? "tools" : challenge.canonicalQuestionStyle(request.data?.questionStyle);
-  const solverRaceSeed = challengeMode === "solverRace" ? crypto.randomUUID() : null;
-  const solverQuestions = challengeMode === "solverRace"
-    ? solverRace.planSolverRace({ roundCount: requestedRoundCount, focus: solverRaceFocus, difficulty: solverRaceDifficulty, seed: solverRaceSeed })
-    : null;
-  const candidates = solverQuestions
-    ? await securelyPlanSolverRace(solverQuestions)
-    : await loadChallengeCandidates(db, { courseId, standardCode, questionStyle });
-  if (candidates.length < challenge.MIN_ROUND_COUNT) {
+  // The same mode registry and question planners as a real room, so a dry run
+  // rehearses exactly what students would receive.
+  const engine = await liveChallengeEngine();
+  const mode = engine.modes.getChallengeMode(request.data?.challengeMode);
+  const modeConfig = engine.modes.normalizeModeConfig(mode, request.data || {});
+  const { questionStyle, solverRaceFocus, solverRaceDifficulty } = modeConfig;
+  const planned = await liveChallengeQuestionPlanner(mode).plan({
+    db, courseId, standardCode, modeConfig, roundCount: requestedRoundCount,
+  });
+  if (planned.candidateCount < challenge.MIN_ROUND_COUNT) {
     throw new HttpsError(
       "failed-precondition",
       // "Only 2 questions" is baffling on a bank of 800. "Only 2 that use an
       // interactive tool" is the actual situation the teacher has to act on.
-      `That selection has only ${candidates.length} securely gradeable questions${questionStyleLabel(questionStyle)}. At least ${challenge.MIN_ROUND_COUNT} are required.`,
+      `That selection has only ${planned.candidateCount} securely gradeable questions${questionStyleLabel(questionStyle)}. At least ${challenge.MIN_ROUND_COUNT} are required.`,
     );
   }
-  const selected = solverQuestions ? candidates : selectChallengeQuestions(candidates, requestedRoundCount);
+  const selected = planned.selected;
   const questionIds = selected.map((entry) => entry.question.id);
 
   const ref = db.collection(LIVE_CHALLENGE_DRY_RUNS).doc();
@@ -9431,11 +9597,11 @@ exports.createChallengeDryRun = onCall(async (request) => {
     courseId,
     standardCode,
     questionStyle,
-    challengeMode,
-    solverRaceFocus: challengeMode === "solverRace" ? solverRaceFocus : null,
-    solverRaceDifficulty: challengeMode === "solverRace" ? solverRaceDifficulty : null,
-    solverRaceSeed,
-    roundQuestions: challengeMode === "solverRace" ? selected.map((entry) => entry.question) : null,
+    challengeMode: mode.id,
+    solverRaceFocus,
+    solverRaceDifficulty,
+    solverRaceSeed: planned.seed,
+    roundQuestions: planned.roundQuestions,
     roundSeconds,
     timingMode,
     questionIds,
@@ -9446,11 +9612,11 @@ exports.createChallengeDryRun = onCall(async (request) => {
   const rounds = await Promise.all(questionIds.map(async (questionId, roundIndex) => ({
     roundIndex,
     question: await buildLiveChallengePublicQuestion(db, {
-      roomId: ref.id, roundIndex, questionId, authoredQuestion: solverQuestions?.[roundIndex] || null,
+      roomId: ref.id, roundIndex, questionId, authoredQuestion: planned.roundQuestions?.[roundIndex] || null,
     }),
   })));
 
-  return { dryRunId: ref.id, courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, solverRaceDifficulty, roundSeconds, timingMode, roundCount: rounds.length, rounds };
+  return { dryRunId: ref.id, courseId, standardCode, questionStyle, challengeMode: mode.id, solverRaceFocus, solverRaceDifficulty, roundSeconds, timingMode, roundCount: rounds.length, rounds };
 });
 
 exports.swapChallengeDryRunRound = onCall(async (request) => {
@@ -9462,66 +9628,23 @@ exports.swapChallengeDryRunRound = onCall(async (request) => {
   const questionIds = Array.isArray(dryRun.questionIds) ? [...dryRun.questionIds] : [];
   if (roundIndex >= questionIds.length) throw new HttpsError("invalid-argument", "That round is not part of this dry run.");
 
-  if (dryRun.challengeMode === "solverRace") {
-    const solverRace = await solverRaceRules();
+  const engine = await liveChallengeEngine();
+  const mode = engine.modes.getChallengeMode(dryRun.challengeMode);
+  const swapped = await liveChallengeQuestionPlanner(mode).swap({ db, dryRun, roundIndex, questionIds });
+  questionIds[roundIndex] = swapped.questionId;
+  const patch = { questionIds, updatedAt: FieldValue.serverTimestamp() };
+  if (swapped.authoredQuestion) {
     const roundQuestions = Array.isArray(dryRun.roundQuestions) ? [...dryRun.roundQuestions] : [];
-    const current = roundQuestions[roundIndex];
-    const stageStructures = solverRace.SOLVER_RACE_CATALOG.filter((entry) => (
-      entry.challengeFamily === current?.challengeFamily
-      && entry.difficultyBand === current?.difficultyBand
-    ));
-    const alternatives = stageStructures.filter((entry) => entry.id !== current?.familyId);
-    const pool = alternatives.length ? alternatives : stageStructures;
-    const alternate = pool[solverRace.seededSolverRaceIndex(
-      `${dryRun.solverRaceSeed}|swap-structure|${roundIndex}|${current?.solverRaceSwap || 0}`,
-      pool.length,
-    )];
-    if (!alternate) throw new HttpsError("failed-precondition", "There is no other Solver Race structure for this stage.");
-    const swapNumber = Math.max(1, Number(current?.solverRaceSwap) + 1 || 1);
-    const generated = solverRace.generateSolverRaceQuestion(
-      alternate,
-      `${dryRun.solverRaceSeed}|swap|${roundIndex}|${swapNumber}`,
-    );
-    const replacementQuestion = {
-      ...generated,
-      id: `${alternate.id}_r${roundIndex + 1}_swap${swapNumber}`,
-      solverRaceRound: roundIndex,
-      solverRaceStage: current?.solverRaceStage,
-      solverRaceSwap: swapNumber,
-    };
-    questionIds[roundIndex] = replacementQuestion.id;
-    roundQuestions[roundIndex] = replacementQuestion;
-    await ref.set({ questionIds, roundQuestions, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-    return {
-      roundIndex,
-      question: await buildLiveChallengePublicQuestion(db, {
-        roomId: ref.id, roundIndex, questionId: replacementQuestion.id, authoredQuestion: replacementQuestion,
-      }),
-    };
+    roundQuestions[roundIndex] = swapped.authoredQuestion;
+    patch.roundQuestions = roundQuestions;
   }
-
-  // A fresh draw, then the first candidate this dry run is not already using.
-  // Swapping a question for one already in the set would look like the button
-  // did nothing.
-  const candidates = await loadChallengeCandidates(db, {
-    courseId: dryRun.courseId,
-    standardCode: dryRun.standardCode,
-    // A swap that ignored the style would quietly hand back the kind of
-    // question the teacher chose not to have.
-    questionStyle: dryRun.questionStyle,
-  });
-  const inUse = new Set(questionIds);
-  const replacement = selectChallengeQuestions(candidates, candidates.length)
-    .map((entry) => entry.question.id)
-    .find((id) => !inUse.has(id));
-  if (!replacement) throw new HttpsError("failed-precondition", "There are no other questions available for this selection.");
-
-  questionIds[roundIndex] = replacement;
-  await ref.set({ questionIds, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  await ref.set(patch, { merge: true });
 
   return {
     roundIndex,
-    question: await buildLiveChallengePublicQuestion(db, { roomId: ref.id, roundIndex, questionId: replacement }),
+    question: await buildLiveChallengePublicQuestion(db, {
+      roomId: ref.id, roundIndex, questionId: swapped.questionId, authoredQuestion: swapped.authoredQuestion || null,
+    }),
   };
 });
 
@@ -9583,10 +9706,669 @@ exports.discardChallengeDryRun = onCall(async (request) => {
   return { discarded: true };
 });
 
+// ---------------------------------------------------------------------------
+// THE LIVE CHALLENGE LIFECYCLE ON THE SERVER.
+//
+// Every command that changes a match — start, close a round, advance, finish,
+// cancel — has one shape:
+//
+//   1. read the room outside any transaction and answer the cheap cases
+//      ("already done", "not allowed") before building anything;
+//   2. do slow preparation that reads other documents — the next round's
+//      question — OUTSIDE the transaction, so no player document is locked
+//      while the bank is read;
+//   3. in ONE transaction, re-read the room, the private state and the
+//      players, ask liveChallengeLifecycle.planLifecycleCommand what the
+//      command does to THAT state, and apply it — or report it already done.
+//
+// Two teacher tabs pressing Next Round at once, a double click, a projector
+// and a laptop both reacting to the buzzer: one transaction applies, the others
+// find their work already done. Nothing here relies on a disabled button.
+//
+// Finishing writes the durable match result in the same transaction that
+// makes the room terminal. Everything downstream — report, invites, Warm-Up
+// credit, evidence, rewards, private cleanup — is a replayable effect of that
+// result (runLiveChallengeFinalizationEffects), so a crash between steps is
+// finished by the next caller or the scheduled sweep, never lost and never
+// doubled.
+// ---------------------------------------------------------------------------
+
+function lifecycleHttpsError(plan) {
+  return new HttpsError(
+    "failed-precondition",
+    plan?.message || "That Live Challenge action is not available right now.",
+    { lifecycle: plan?.code || null },
+  );
+}
+
+function playersFromSnapshot(snapshot) {
+  return snapshot.docs.map((playerDoc) => ({ studentId: playerDoc.id, ...playerDoc.data() }));
+}
+
+/**
+ * The round a host command acted on. A client that sends none is acting on the
+ * round this request just read, so a concurrent advance that lands first is
+ * recognised as the same command already applied.
+ */
+function expectedRoundFromRequest(data = {}, room = {}) {
+  const supplied = (value) => value !== undefined && value !== null && value !== "";
+  if (!supplied(data?.expectedRoundIndex)) {
+    return {
+      roundIndex: Number.isInteger(Number(room.currentRound)) ? Number(room.currentRound) : -1,
+      roundVersion: Math.max(0, Number(room.roundVersion) || 0),
+    };
+  }
+  const roundIndex = Number(data.expectedRoundIndex);
+  if (!Number.isInteger(roundIndex)) throw new HttpsError("invalid-argument", "expectedRoundIndex must be a round number.");
+  if (!supplied(data?.expectedRoundVersion)) return { roundIndex, roundVersion: null };
+  const roundVersion = Number(data.expectedRoundVersion);
+  if (!Number.isInteger(roundVersion)) throw new HttpsError("invalid-argument", "expectedRoundVersion must be a whole number.");
+  return { roundIndex, roundVersion };
+}
+
+function liveChallengeRoundResponse(roomId, room = {}, extra = {}) {
+  const startsAt = toDate(room.startsAt || room.roundStartedAt);
+  const endsAt = toDate(room.endsAt || room.roundEndsAt);
+  return {
+    roomId,
+    status: room.status || null,
+    roundIndex: Number.isInteger(Number(room.currentRound)) ? Number(room.currentRound) : -1,
+    roundVersion: Math.max(0, Number(room.roundVersion) || 0),
+    roundToken: room.roundToken || null,
+    roundState: room.roundState || null,
+    phase: room.phase || null,
+    startsAt: startsAt ? startsAt.toISOString() : null,
+    endsAt: endsAt ? endsAt.toISOString() : null,
+    ...extra,
+  };
+}
+
+/**
+ * Joined players, and how many of them have finished the current round — the
+ * inputs to the close guard. "Finished" is the mode's completion rule applied
+ * to the receipt log, with the legacy answeredRound marker as a fallback.
+ */
+function liveChallengeRoundCompletion(engine, room, players) {
+  const mode = engine.modes.getChallengeMode(room.challengeMode);
+  const roundIndex = Number(room.currentRound);
+  const questionSpecs = engine.modes.roundQuestionSpecsFor(mode);
+  let joinedCount = 0;
+  let completedCount = 0;
+  players.forEach((player) => {
+    if (player.joined !== true) return;
+    joinedCount += 1;
+    const finished = Number(player.answeredRound) === roundIndex
+      || engine.responses.summarizeRoundProgress({ receipts: player.submissionReceipts, roundIndex, questionSpecs }).finished;
+    if (finished) completedCount += 1;
+  });
+  return { joinedCount, completedCount };
+}
+
+/** The next round's public question and duration. Deterministic for a given room/round/question. */
+async function prepareLiveChallengeRoundOpening(db, { roomId, room, privateState, roundIndex }) {
+  const challenge = await liveChallengeRules();
+  const questionId = privateState.questionIds?.[roundIndex];
+  if (!questionId) throw new HttpsError("failed-precondition", "That Live Challenge round has no question.");
+  const authoredQuestion = privateState.roundQuestions?.[roundIndex] || null;
+  const currentQuestion = await buildLiveChallengePublicQuestion(db, { roomId, roundIndex, questionId, authoredQuestion });
+  const roundSeconds = challenge.complexityAdjustedRoundSeconds({
+    baselineSeconds: room.roundSeconds,
+    question: authoredQuestion || currentQuestion,
+  });
+  return { roundIndex, questionId, currentQuestion, roundSeconds };
+}
+
+/** Open a round inside a transaction. Room and private state move together. */
+function applyLiveChallengeRoundOpening(transaction, {
+  engine, challenge, roomRef, privateRef, room, privateState, privatePatch = null, opening, nowMs,
+}) {
+  const { lifecycle } = engine;
+  const timingMode = challenge.normalizeChallengeTimingMode(room.timingMode);
+  const timer = engine.timer.buildRoundTimer({
+    nowMs,
+    durationMs: timingMode === "pace" ? null : opening.roundSeconds * 1000,
+  });
+  const roundIndex = opening.roundIndex;
+  const roundVersion = Math.max(Number(room.roundVersion) || 0, roundIndex) + 1;
+  const roundToken = crypto.randomUUID();
+  const startsAt = new Date(timer.startsAtMs);
+  const endsAt = timer.endsAtMs ? new Date(timer.endsAtMs) : null;
+  const secondChanceOf = privateState.secondChanceOf || {};
+  const scheduledRoundCount = Number(privateState.scheduledRoundCount) || Number(room.roundCount) || 0;
+  const isReplay = Object.prototype.hasOwnProperty.call(secondChanceOf, String(roundIndex));
+
+  transaction.set(privateRef, {
+    ...privatePatch,
+    status: lifecycle.SESSION_STATUS.RUNNING,
+    roundState: lifecycle.ROUND_STATE.OPEN,
+    currentRound: roundIndex,
+    roundVersion,
+    roundToken,
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  transaction.set(roomRef, {
+    status: lifecycle.SESSION_STATUS.RUNNING,
+    roundState: lifecycle.ROUND_STATE.OPEN,
+    currentRound: roundIndex,
+    roundVersion,
+    roundToken,
+    phase: "countdown",
+    currentQuestion: opening.currentQuestion,
+    scheduledRoundCount,
+    secondChanceOf: isReplay ? Number(secondChanceOf[String(roundIndex)]) : null,
+    finalRoundNumber: isReplay ? roundIndex - scheduledRoundCount + 1 : null,
+    hasAdditionalReplay: Object.prototype.hasOwnProperty.call(secondChanceOf, String(roundIndex + 1)),
+    startsAt,
+    endsAt,
+    roundStartedAt: startsAt,
+    roundEndsAt: endsAt,
+    activeRoundSeconds: opening.roundSeconds,
+    closingStartedAt: null,
+    roundClosedAt: null,
+    pausedAt: null,
+    pausedRemainingMs: null,
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  return {
+    currentQuestion: opening.currentQuestion,
+    roundIndex,
+    roundVersion,
+    roundToken,
+    phase: "countdown",
+    startsAt: startsAt.toISOString(),
+    endsAt: endsAt ? endsAt.toISOString() : null,
+  };
+}
+
+/**
+ * Close a round inside a transaction: rank it, persist the private and the
+ * anonymous public round result, and — for a placement strategy — add each
+ * player's placement points to their match total. Returns the players as they
+ * stand after the round, for a finalization in the same transaction.
+ */
+function applyLiveChallengeRoundClose(transaction, {
+  engine, roomRef, privateRef, room, privateState, players, roundIndex, nowMs,
+}) {
+  const scoringStrategyId = engine.scoring.roomScoringStrategyId(room);
+  const strategy = engine.scoring.getScoringStrategy(scoringStrategyId);
+  const roundResult = engine.results.buildRoundResult({
+    roomId: roomRef.id,
+    roundIndex,
+    roundVersion: room.roundVersion,
+    modeId: room.challengeMode,
+    scoringStrategyId,
+    scoringConfig: privateState.scoringConfig || null,
+    players,
+    secondChanceOf: privateState.secondChanceOf || {},
+    closedAtMs: nowMs,
+  });
+  transaction.set(privateRef.collection("rounds").doc(String(roundIndex)), {
+    ...roundResult,
+    closedAt: FieldValue.serverTimestamp(),
+  });
+  transaction.set(roomRef.collection("rounds").doc(String(roundIndex)), {
+    ...engine.results.publicRoundSummary(roundResult),
+    closedAt: FieldValue.serverTimestamp(),
+  });
+
+  if (strategy.accumulation !== engine.scoring.SCORE_ACCUMULATION.PER_ROUND) {
+    return { roundResult, players };
+  }
+  const standingByStudent = new Map(roundResult.standings.map((standing) => [standing.studentId, standing]));
+  const updatedPlayers = players.map((player) => {
+    const standing = standingByStudent.get(player.studentId);
+    const totals = engine.results.playerTotalsAfterRound({ player, standing, roundIndex, scoringStrategyId });
+    if (!totals || totals.alreadyApplied) return player;
+    const { alreadyApplied: _alreadyApplied, ...patch } = totals;
+    transaction.set(privateRef.collection("players").doc(player.studentId), {
+      ...patch,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    if (player.joined === true && player.playerKey) {
+      transaction.set(roomRef.collection("players").doc(String(player.playerKey)), {
+        score: patch.score,
+        matchPoints: patch.matchPoints,
+        roundWins: patch.roundWins,
+        lastRoundRank: standing.rank,
+        lastRoundMatchPoints: standing.matchPointsAwarded,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+    return { ...player, ...patch };
+  });
+  return { roundResult, players: updatedPlayers };
+}
+
+/**
+ * What follows the round that just ended: the next scheduled round, the
+ * second-chance replays (planned exactly once), or the end of the match.
+ */
+function planNextLiveChallengeRound({ challenge, engine, room, privateState, players, roundIndex }) {
+  const nextRound = Number(roundIndex) + 1;
+  const questionIds = Array.isArray(privateState.questionIds) ? privateState.questionIds : [];
+  if (nextRound < questionIds.length) {
+    return { finish: false, roundIndex: nextRound, questionId: questionIds[nextRound], privateState, privatePatch: null };
+  }
+
+  // SECOND CHANCE. Before the game ends, the questions the room got wrong
+  // most come back once. Getting one right now earns most of its points
+  // back, which turns a miss from a loss into a target and makes the last
+  // rounds the ones the class most needs to see again.
+  //
+  // Appended only once — `secondChancePlanned` stops a replay of a replay,
+  // which would otherwise let a game run on as long as students kept missing.
+  const mode = engine.modes.getChallengeMode(room.challengeMode);
+  if (privateState.secondChancePlanned || room.secondChanceMode === "off" || !mode.capabilities.secondChance) {
+    return { finish: true };
+  }
+  const scheduled = Number(privateState.scheduledRoundCount) || questionIds.length;
+  // Same derivation as the report, from the same player records. This runs
+  // after the last scheduled round, when every record is final for it.
+  const replays = challenge.planSecondChanceRounds({
+    roundMisses: challenge.deriveRoundTallies({
+      players,
+      secondChanceOf: privateState.secondChanceOf || {},
+      storedRoundMisses: privateState.roundMisses || null,
+    }).roundMisses,
+    scheduledRoundCount: scheduled,
+  });
+  if (!replays.length) return { finish: true };
+
+  const nextQuestionIds = [...questionIds];
+  const roundQuestions = Array.isArray(privateState.roundQuestions) ? [...privateState.roundQuestions] : null;
+  const secondChanceOf = { ...privateState.secondChanceOf };
+  replays.forEach((originalRound) => {
+    secondChanceOf[String(nextQuestionIds.length)] = originalRound;
+    nextQuestionIds.push(questionIds[originalRound]);
+    if (roundQuestions) roundQuestions.push(privateState.roundQuestions[originalRound]);
+  });
+  const privatePatch = {
+    questionIds: nextQuestionIds,
+    ...(roundQuestions ? { roundQuestions } : {}),
+    secondChanceOf,
+    scheduledRoundCount: scheduled,
+    secondChancePlanned: true,
+  };
+  return {
+    finish: false,
+    roundIndex: nextRound,
+    questionId: nextQuestionIds[nextRound],
+    privateState: { ...privateState, ...privatePatch },
+    privatePatch,
+  };
+}
+
+// Which finalization effects a match needs. Cancelled matches earn no rewards.
+function liveChallengeFinalizationEffects(room = {}, status) {
+  const challengeFinished = status === "finished";
+  return {
+    report: "pending",
+    invites: "pending",
+    warmupCredit: room.assignmentId ? "pending" : "notApplicable",
+    evidence: "pending",
+    rewards: challengeFinished ? "pending" : "notApplicable",
+    privateCleanup: "pending",
+  };
+}
+
+/**
+ * Make a match terminal inside a transaction and persist its final result in
+ * the same commit. The room can never be terminal without a result, and a
+ * result can never exist for a room that is still running.
+ */
+function applyLiveChallengeMatchFinalization(transaction, {
+  engine, db, roomRef, privateRef, pointerRef, pointsHere, room, privateState, players, status, nowMs,
+}) {
+  const { lifecycle } = engine;
+  const finalizationId = crypto.randomUUID();
+  const matchResult = engine.results.buildMatchResult({
+    roomId: roomRef.id, room, privateState, players, status, finalizedAtMs: nowMs, finalizationId,
+  });
+  transaction.set(db.collection(LIVE_CHALLENGE_MATCH_RESULTS).doc(roomRef.id), {
+    ...matchResult,
+    // Lets permanent student deletion find this document.
+    studentIds: matchResult.standings.map((standing) => standing.studentId),
+    rewardPolicy: privateState.rewardPolicy || null,
+    scoringConfig: privateState.scoringConfig || null,
+    effects: liveChallengeFinalizationEffects(room, status),
+    effectsPending: true,
+    effectsAttempts: 0,
+    finalizedAt: FieldValue.serverTimestamp(),
+  });
+  const hadRound = Number.isInteger(Number(room.currentRound)) && Number(room.currentRound) >= 0;
+  const terminal = {
+    status,
+    roundState: hadRound ? lifecycle.ROUND_STATE.CLOSED : null,
+    finalizationId,
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+  transaction.set(roomRef, {
+    ...terminal,
+    phase: "finished",
+    currentQuestion: null,
+    endsAt: null,
+    roundEndsAt: null,
+    pausedAt: null,
+    finishedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  transaction.set(privateRef, terminal, { merge: true });
+  if (pointsHere) transaction.delete(pointerRef);
+  return matchResult;
+}
+
+/**
+ * Update invites for one room — but only invites that STILL point at it. A
+ * newer game may already have re-invited the student; overwriting that
+ * invite's status would hide the new game from them.
+ */
+async function updateLiveChallengeInvitesForRoom(db, { roomId, studentIds = [], fields }) {
+  const ids = [...new Set(studentIds.map((id) => String(id || "").trim()).filter(Boolean))];
+  for (let start = 0; start < ids.length; start += 100) {
+    const refs = ids.slice(start, start + 100).map((id) => db.collection(LIVE_CHALLENGE_INVITES).doc(id));
+    // eslint-disable-next-line no-await-in-loop
+    await db.runTransaction(async (transaction) => {
+      const snapshots = await transaction.getAll(...refs);
+      snapshots.forEach((snapshot) => {
+        if (snapshot.exists && snapshot.data()?.roomId === roomId) transaction.set(snapshot.ref, fields, { merge: true });
+      });
+    });
+  }
+}
+
+/*
+ * THE REPORT, THE WARM-UP CREDIT AND THE MASTERY EVIDENCE are written from the
+ * durable match result — never from private state — so each can be re-run.
+ * CHALLENGE POINTS NEVER REACH THE ASSIGNMENT: the Warm-Up records what the
+ * student did (how much they answered, how much was right), because those are
+ * facts about the mathematics and the score is partly a fact about reaction
+ * time.
+ */
+async function writeLiveChallengeReportFromResult(db, result) {
+  const reportRules = await liveChallengeReportRules();
+  const challengeRules = await liveChallengeRules();
+  const players = Array.isArray(result.standings) ? result.standings : [];
+  const secondChanceOf = result.secondChanceOf || {};
+  // Counted from the player records rather than read off a shared counter.
+  const derivedTallies = challengeRules.deriveRoundTallies({
+    players,
+    secondChanceOf,
+    storedRoundAnswers: result.legacyRoundAnswers || null,
+    storedRoundMisses: result.legacyRoundMisses || null,
+  });
+  const report = reportRules.buildChallengeReport({
+    room: result,
+    scheduledRoundCount: Number(result.scheduledRoundCount) || 0,
+    roundMisses: derivedTallies.roundMisses,
+    roundStandards: result.roundStandards || {},
+    answeredCounts: derivedTallies.roundAnswers,
+    secondChanceOf,
+    questionIds: Array.isArray(result.questionIds) ? result.questionIds : [],
+    players,
+  });
+  const finishedAt = Number(result.finalizedAtMs) ? new Date(Number(result.finalizedAtMs)) : FieldValue.serverTimestamp();
+  await db.collection(LIVE_CHALLENGE_REPORTS).doc(result.roomId).set({
+    ...report,
+    roomId: result.roomId,
+    teacherEmail: result.teacherEmail,
+    classId: result.classId || null,
+    status: result.status,
+    modeId: result.modeId || null,
+    scoringStrategyId: result.scoringStrategyId || null,
+    // Lets permanent student deletion find this document.
+    studentIds: players.map((player) => player.studentId).filter(Boolean),
+    finishedAt,
+    createdAt: finishedAt,
+  });
+}
+
+async function writeWarmupCreditFromResult(db, result) {
+  if (!result.assignmentId) return;
+  const warmup = await warmupChallengeRules();
+  const scheduledRounds = Math.max(0, Number(result.roomRoundCount) || Number(result.scheduledRoundCount) || 0);
+  // The rounds the match actually reached. A game ended after three of ten
+  // rounds — or a lobby cancelled before round one — must not measure
+  // students against rounds that never ran.
+  const totalRounds = Math.min(scheduledRounds, Math.max(0, Number(result.playedRoundCount) || 0));
+  // Only students who actually joined. A student who never appeared is an
+  // attendance question, which the teacher reconciles; writing them a 0% here
+  // would make an absence indistinguishable from a student who sat through
+  // the game and answered nothing.
+  const joinedPlayers = (result.standings || []).filter((player) => player.joined === true && player.studentId);
+  for (let start = 0; start < joinedPlayers.length; start += 450) {
+    const batch = db.batch();
+    joinedPlayers.slice(start, start + 450).forEach((player) => {
+      const credit = warmup.warmupChallengeCredit({
+        roundsAnswered: player.roundsAnswered,
+        correctCount: player.correctCount,
+        roundsAvailable: warmup.roundsAvailableToStudent({
+          totalRounds,
+          joinedAtRound: player.joinedAtRound,
+        }),
+      });
+      batch.set(db.collection("grades").doc(player.studentId), {
+        warmupChallengeByAssignment: {
+          [result.assignmentId]: {
+            ...credit,
+            roomId: result.roomId,
+            status: result.status,
+            roundCount: scheduledRounds,
+            roundsPlayed: totalRounds,
+            recordedAt: FieldValue.serverTimestamp(),
+          },
+        },
+      }, { merge: true });
+    });
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+  }
+}
+
+async function writeChallengeEvidenceFromResult(db, result) {
+  // Aggregated per standard rather than per round, because a single timed
+  // question is close to a coin flip and a proportion is what the estimate can
+  // use. Replays are excluded so one question cannot enter a record twice.
+  const evidenceRules = await liveChallengeEvidenceRules();
+  const events = evidenceRules.buildChallengeEvidenceEvents({
+    roomId: result.roomId,
+    players: result.standings || [],
+    roundStandards: result.roundStandards || {},
+    secondChanceOf: result.secondChanceOf || {},
+    occurredAt: Number(result.finalizedAtMs) || Date.now(),
+  });
+  for (let start = 0; start < events.length; start += 450) {
+    const batch = db.batch();
+    events.slice(start, start + 450).forEach((evidenceEvent) => {
+      const ref = db.collection("grades").doc(evidenceEvent.studentId)
+        .collection("evidenceEvents").doc(mathPath.opaqueId("challengeEvidence", evidenceEvent.eventKey));
+      batch.set(ref, evidenceEvent);
+    });
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+  }
+}
+
+async function deliverLiveChallengeRewardsFromResult(db, result) {
+  if (result.status !== "finished") return;
+  const rewards = await liveChallengeClassPoints();
+  await rewards.processLiveChallengeMatchRewards(db, { matchResult: result, policy: result.rewardPolicy || null });
+}
+
+// After this many runs an effect that still fails stops being retried by the
+// sweep (and is logged), so one broken match cannot occupy the sweep forever.
+const LIVE_CHALLENGE_EFFECT_MAX_ATTEMPTS = 10;
+const LIVE_CHALLENGE_EFFECT_ORDER = Object.freeze(["report", "invites", "warmupCredit", "evidence", "rewards"]);
+
+/**
+ * Run every outstanding finalization effect of a match, idempotently. Safe to
+ * call repeatedly and concurrently — from the finishing callable, from a
+ * retried finish, and from the scheduled sweep. An effect once "done" is never
+ * run again; private state is deleted last, once everything that could want it
+ * has run.
+ */
+async function runLiveChallengeFinalizationEffects(db, roomId) {
+  const resultRef = db.collection(LIVE_CHALLENGE_MATCH_RESULTS).doc(roomId);
+  const snapshot = await resultRef.get();
+  if (!snapshot.exists) return { effectsPending: false, missing: true };
+  const result = snapshot.data() || {};
+  const recorded = result.effects || {};
+  const settled = (value) => value === "done" || value === "notApplicable";
+  const tasks = {
+    report: () => writeLiveChallengeReportFromResult(db, result),
+    invites: () => updateLiveChallengeInvitesForRoom(db, {
+      roomId,
+      studentIds: (result.standings || []).map((standing) => standing.studentId),
+      fields: { status: result.status, updatedAt: FieldValue.serverTimestamp() },
+    }),
+    warmupCredit: () => writeWarmupCreditFromResult(db, result),
+    evidence: () => writeChallengeEvidenceFromResult(db, result),
+    rewards: () => deliverLiveChallengeRewardsFromResult(db, result),
+  };
+
+  const outcomes = {};
+  for (const name of LIVE_CHALLENGE_EFFECT_ORDER) {
+    if (settled(recorded[name])) continue;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await tasks[name]();
+      outcomes[name] = "done";
+    } catch (error) {
+      outcomes[name] = "failed";
+      logger.error("liveChallenge.finalization.effect.failed", { roomId, effect: name, message: error?.message || String(error) });
+    }
+  }
+
+  const attempts = Math.max(0, Number(result.effectsAttempts) || 0) + 1;
+  const othersSettled = LIVE_CHALLENGE_EFFECT_ORDER.every((name) => settled(outcomes[name] ?? recorded[name]));
+  const abandoning = !othersSettled && attempts >= LIVE_CHALLENGE_EFFECT_MAX_ATTEMPTS;
+  if ((othersSettled || abandoning) && !settled(recorded.privateCleanup)) {
+    try {
+      await db.recursiveDelete(db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId));
+      outcomes.privateCleanup = "done";
+    } catch (error) {
+      outcomes.privateCleanup = "failed";
+      logger.warn("liveChallenge.finalization.privateCleanup.failed", { roomId, message: error?.message || String(error) });
+    }
+  }
+
+  return db.runTransaction(async (transaction) => {
+    const latest = await transaction.get(resultRef);
+    const merged = { ...latest.data()?.effects };
+    // "done" always wins: a slower runner can never mark a finished effect as failed.
+    Object.entries(outcomes).forEach(([name, outcome]) => {
+      if (merged[name] !== "done") merged[name] = outcome;
+    });
+    const pending = Object.values(merged).some((value) => !settled(value));
+    if (pending && abandoning) {
+      logger.error("liveChallenge.finalization.abandoned", { roomId, effects: merged, attempts });
+    }
+    transaction.set(resultRef, {
+      effects: merged,
+      effectsPending: pending && !abandoning,
+      effectsAbandoned: pending && abandoning,
+      effectsAttempts: attempts,
+      effectsUpdatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return { effects: merged, effectsPending: pending && !abandoning };
+  });
+}
+
+/**
+ * Finish or cancel a match. Idempotent: the first call makes the room terminal
+ * and writes its result; any later or concurrent call finds it terminal and
+ * only resumes outstanding effects.
+ */
+async function finalizeLiveChallengeMatch(db, { roomRef, room, command, status }) {
+  const engine = await liveChallengeEngine();
+  const { lifecycle } = engine;
+  const roomId = roomRef.id;
+  const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
+  const teacherKey = String(room.teacherEmail || "").trim().toLowerCase();
+  const pointerRef = teacherKey ? db.collection(LIVE_CHALLENGE_TEACHER_ACTIVE).doc(teacherKey) : null;
+
+  const outcome = await db.runTransaction(async (transaction) => {
+    const [roomSnapshot, privateSnapshot, playersSnapshot, pointerSnapshot] = await Promise.all([
+      transaction.get(roomRef),
+      transaction.get(privateRef),
+      transaction.get(privateRef.collection("players")),
+      pointerRef ? transaction.get(pointerRef) : Promise.resolve(null),
+    ]);
+    if (!roomSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge no longer exists.");
+    const currentRoom = roomSnapshot.data() || {};
+    if (currentRoom.teacherEmail !== room.teacherEmail) {
+      throw new HttpsError("permission-denied", "Only the teacher who launched this challenge can control it.");
+    }
+    const plan = lifecycle.planLifecycleCommand({ command, room: currentRoom });
+    if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.ALREADY_APPLIED) return { alreadyApplied: true, room: currentRoom };
+    if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.REJECT) throw lifecycleHttpsError(plan);
+    const pointsHere = Boolean(pointerSnapshot?.exists && pointerSnapshot.data()?.roomId === roomId);
+    const hadRound = Number.isInteger(Number(currentRoom.currentRound)) && Number(currentRoom.currentRound) >= 0;
+
+    if (!privateSnapshot.exists) {
+      if (command !== lifecycle.LIFECYCLE_COMMAND.CANCEL) {
+        throw new HttpsError("not-found", "The private challenge state is missing.");
+      }
+      // A room whose private state is gone cannot produce a result. Retire it
+      // the way stale-session recovery does, releasing only its own pointer.
+      transaction.set(roomRef, {
+        status: lifecycle.SESSION_STATUS.CANCELLED,
+        phase: "finished",
+        roundState: hadRound ? lifecycle.ROUND_STATE.CLOSED : null,
+        staleSession: true,
+        currentQuestion: null,
+        startsAt: null,
+        endsAt: null,
+        roundStartedAt: null,
+        roundEndsAt: null,
+        roundToken: null,
+        finishedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      if (pointsHere) transaction.delete(pointerRef);
+      return { staleCancelled: true };
+    }
+
+    const nowMs = Date.now();
+    const privateState = privateSnapshot.data() || {};
+    let players = playersFromSnapshot(playersSnapshot);
+    // Ending mid-round still counts the round for everyone who answered it.
+    if (plan.closeCurrentRound && status === lifecycle.SESSION_STATUS.FINISHED) {
+      players = applyLiveChallengeRoundClose(transaction, {
+        engine, roomRef, privateRef, room: currentRoom, privateState, players, roundIndex: plan.roundIndex, nowMs,
+      }).players;
+    }
+    applyLiveChallengeMatchFinalization(transaction, {
+      engine, db, roomRef, privateRef, pointerRef, pointsHere, room: currentRoom, privateState, players, status, nowMs,
+    });
+    return { finalized: true };
+  });
+
+  if (outcome.staleCancelled) {
+    await updateLiveChallengeInvitesByRoom(db, {
+      roomId,
+      teacherEmail: room.teacherEmail,
+      fields: { status: lifecycle.SESSION_STATUS.CANCELLED, staleSession: true, updatedAt: FieldValue.serverTimestamp() },
+    }).catch((error) => logger.error("liveChallenge.cancelInvites.failed", { roomId, message: error?.message }));
+    return { roomId, status: lifecycle.SESSION_STATUS.CANCELLED };
+  }
+
+  // A retried or concurrent finish also resumes whatever a crashed first
+  // attempt left undone. Effects never throw into the caller: the match is
+  // already durably finished and the sweep retries anything that failed.
+  await runLiveChallengeFinalizationEffects(db, roomId).catch((error) => logger.error(
+    "liveChallenge.finalization.effects.failed",
+    { roomId, message: error?.message || String(error) },
+  ));
+  if (outcome.alreadyApplied) {
+    return { roomId, status: outcome.room.status, roundCount: Number(outcome.room.roundCount) || 0, alreadyApplied: true };
+  }
+  return { roomId, status, roundCount: Number(room.roundCount) || 0 };
+}
+
 exports.joinLiveChallenge = onCall(async (request) => {
   const { studentId } = requireStudent(request);
   const db = getFirestore();
-  const challenge = await liveChallengeRules();
+  const { lifecycle } = await liveChallengeEngine();
   const roomId = String(request.data?.roomId || "").trim();
   if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
 
@@ -9595,14 +10377,14 @@ exports.joinLiveChallenge = onCall(async (request) => {
   const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
   const privatePlayerRef = privateRef.collection("players").doc(studentId);
 
-  await db.runTransaction(async (transaction) => {
+  const joined = await db.runTransaction(async (transaction) => {
     const [inviteSnapshot, roomSnapshot, playerSnapshot] = await Promise.all([
       transaction.get(inviteRef), transaction.get(roomRef), transaction.get(privatePlayerRef),
     ]);
     if (!inviteSnapshot.exists || inviteSnapshot.data()?.roomId !== roomId) throw new HttpsError("permission-denied", "This Live Challenge was not assigned to you.");
     if (!roomSnapshot.exists || !playerSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge is no longer available.");
     const room = roomSnapshot.data() || {};
-    if (![challenge.LIVE_CHALLENGE_STATUS.LOBBY, challenge.LIVE_CHALLENGE_STATUS.RUNNING].includes(room.status)) {
+    if (lifecycle.planLifecycleCommand({ command: lifecycle.LIFECYCLE_COMMAND.JOIN, room }).outcome !== lifecycle.LIFECYCLE_OUTCOME.APPLY) {
       throw new HttpsError("failed-precondition", "That Live Challenge is no longer accepting players.");
     }
     const player = playerSnapshot.data() || {};
@@ -9622,6 +10404,8 @@ exports.joinLiveChallenge = onCall(async (request) => {
       : Math.max(0, Number.isInteger(Number(room.currentRound)) ? Number(room.currentRound) : 0);
     const joinedPlayer = { ...player, joined: true, joinedAtRound, updatedAt: FieldValue.serverTimestamp() };
     const publicPlayerRef = roomRef.collection("players").doc(player.playerKey);
+    // The same identity every time: the player key and alias were fixed when
+    // the room was created, so a reconnect can never mint a second player.
     transaction.set(privatePlayerRef, joinedPlayer, { merge: true });
     transaction.set(publicPlayerRef, {
       playerKey: player.playerKey,
@@ -9635,71 +10419,14 @@ exports.joinLiveChallenge = onCall(async (request) => {
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
     transaction.set(inviteRef, {
-      status: room.status === challenge.LIVE_CHALLENGE_STATUS.RUNNING ? "running" : "joined",
+      status: room.status === lifecycle.SESSION_STATUS.RUNNING ? "running" : "joined",
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
+    return { playerKey: player.playerKey, rejoined: player.joined === true };
   });
 
-  return { roomId, joined: true };
+  return { roomId, joined: true, playerKey: joined.playerKey, rejoined: joined.rejoined };
 });
-
-async function openLiveChallengeRound({ db, roomRef, privateRef, room, privateState, roundIndex }) {
-  const challenge = await liveChallengeRules();
-  const parity = await import("./shared/liveChallengeParity.mjs");
-  const questionId = privateState.questionIds?.[roundIndex];
-  if (!questionId) throw new HttpsError("failed-precondition", "That Live Challenge round has no question.");
-  const currentQuestion = await buildLiveChallengePublicQuestion(db, {
-    roomId: roomRef.id,
-    roundIndex,
-    questionId,
-    authoredQuestion: privateState.roundQuestions?.[roundIndex] || null,
-  });
-  const nowMs = Date.now();
-  const timingMode = challenge.normalizeChallengeTimingMode(room.timingMode);
-  const roundSeconds = challenge.complexityAdjustedRoundSeconds({
-    baselineSeconds: room.roundSeconds,
-    question: privateState.roundQuestions?.[roundIndex] || currentQuestion,
-  });
-  const roundVersion = Math.max(Number(room.roundVersion) || 0, roundIndex) + 1;
-  const roundToken = crypto.randomUUID();
-  const startsAt = new Date(nowMs + parity.ROUND_SYNC_LEAD_MS);
-  const endsAt = timingMode === "pace" ? null : new Date(startsAt.getTime() + roundSeconds * 1000);
-
-  await Promise.all([
-    privateRef.set({
-      status: challenge.LIVE_CHALLENGE_STATUS.RUNNING,
-      currentRound: roundIndex,
-      roundVersion,
-      roundToken,
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true }),
-    roomRef.set({
-      status: challenge.LIVE_CHALLENGE_STATUS.RUNNING,
-      currentRound: roundIndex,
-      roundVersion,
-      roundToken,
-      phase: "countdown",
-      currentQuestion,
-      scheduledRoundCount: Number(privateState.scheduledRoundCount) || Number(room.roundCount) || 0,
-      secondChanceOf: Object.prototype.hasOwnProperty.call(privateState.secondChanceOf || {}, String(roundIndex))
-        ? Number(privateState.secondChanceOf[String(roundIndex)])
-        : null,
-      finalRoundNumber: Object.prototype.hasOwnProperty.call(privateState.secondChanceOf || {}, String(roundIndex))
-        ? roundIndex - (Number(privateState.scheduledRoundCount) || Number(room.roundCount) || 0) + 1
-        : null,
-      hasAdditionalReplay: Object.prototype.hasOwnProperty.call(privateState.secondChanceOf || {}, String(roundIndex + 1)),
-      startsAt,
-      endsAt,
-      roundStartedAt: startsAt,
-      roundEndsAt: endsAt,
-      activeRoundSeconds: roundSeconds,
-      closingStartedAt: null,
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true }),
-  ]);
-
-  return { currentQuestion, roundIndex, roundVersion, roundToken, phase: "countdown", startsAt: startsAt.toISOString(), endsAt: endsAt ? endsAt.toISOString() : null };
-}
 
 // A deliberately tiny calibration endpoint. Calling it several times lets the
 // browser estimate offset/RTT without granting it any scoring authority.
@@ -9729,361 +10456,271 @@ exports.startLiveChallenge = onCall(async (request) => {
   if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
   const db = getFirestore();
   const challenge = await liveChallengeRules();
+  const engine = await liveChallengeEngine();
+  const { lifecycle } = engine;
   const { roomRef, room } = await requireOwnedChallenge(db, request, roomId);
-  if (room.status !== challenge.LIVE_CHALLENGE_STATUS.LOBBY) throw new HttpsError("failed-precondition", "This challenge has already started.");
+
+  const precheck = lifecycle.planLifecycleCommand({ command: lifecycle.LIFECYCLE_COMMAND.START, room });
+  if (precheck.outcome === lifecycle.LIFECYCLE_OUTCOME.ALREADY_APPLIED) return liveChallengeRoundResponse(roomId, room, { alreadyApplied: true });
+  if (precheck.outcome === lifecycle.LIFECYCLE_OUTCOME.REJECT) throw lifecycleHttpsError(precheck);
   const joinedSnapshot = await roomRef.collection("players").limit(1).get();
   if (joinedSnapshot.empty) throw new HttpsError("failed-precondition", "At least one student must join before the challenge starts.");
   const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
   const privateSnapshot = await privateRef.get();
   if (!privateSnapshot.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
-  const result = await openLiveChallengeRound({ db, roomRef, privateRef, room, privateState: privateSnapshot.data() || {}, roundIndex: 0 });
-  const players = await loadPrivateChallengePlayers(privateRef);
-  await updateLiveChallengeInvites(db, players.map((player) => player.studentId), {
-    status: "running",
-    updatedAt: FieldValue.serverTimestamp(),
+  const opening = await prepareLiveChallengeRoundOpening(db, {
+    roomId, room, privateState: privateSnapshot.data() || {}, roundIndex: 0,
   });
-  return result;
+
+  const outcome = await db.runTransaction(async (transaction) => {
+    const [roomSnapshot, latestPrivate, latestJoined] = await Promise.all([
+      transaction.get(roomRef),
+      transaction.get(privateRef),
+      transaction.get(roomRef.collection("players").limit(1)),
+    ]);
+    if (!roomSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge no longer exists.");
+    if (!latestPrivate.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
+    const currentRoom = roomSnapshot.data() || {};
+    const plan = lifecycle.planLifecycleCommand({
+      command: lifecycle.LIFECYCLE_COMMAND.START, room: currentRoom, joinedCount: latestJoined.size,
+    });
+    if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.ALREADY_APPLIED) return { alreadyApplied: true, room: currentRoom };
+    if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.REJECT) throw lifecycleHttpsError(plan);
+    return {
+      opened: applyLiveChallengeRoundOpening(transaction, {
+        engine, challenge, roomRef, privateRef, room: currentRoom, privateState: latestPrivate.data() || {}, opening, nowMs: Date.now(),
+      }),
+    };
+  });
+  if (outcome.alreadyApplied) return liveChallengeRoundResponse(roomId, outcome.room, { alreadyApplied: true });
+
+  const players = await loadPrivateChallengePlayers(privateRef);
+  await updateLiveChallengeInvitesForRoom(db, {
+    roomId,
+    studentIds: players.map((player) => player.studentId),
+    fields: { status: "running", updatedAt: FieldValue.serverTimestamp() },
+  });
+  return outcome.opened;
 });
 
-async function finishLiveChallengeRoom({ db, roomRef, privateRef, room, status }) {
-  const players = await loadPrivateChallengePlayers(privateRef);
+/*
+ * CLOSE THE CURRENT ROUND WITHOUT OPENING THE NEXT ONE.
+ *
+ * The explicit roundActive -> roundResults transition: rank the round, persist
+ * its private and anonymous public result and, under a placement strategy,
+ * award its placement points. Safe to call from several host devices when the
+ * buzzer sounds: the first closes it, the rest find it closed. The standard
+ * Next Round button does close-and-open in one step through advance; this is
+ * the seam a host that shows round results between rounds uses.
+ */
+exports.closeLiveChallengeRound = onCall(async (request) => {
+  const roomId = String(request.data?.roomId || "").trim();
+  if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
+  const db = getFirestore();
+  const engine = await liveChallengeEngine();
+  const { lifecycle } = engine;
+  const { roomRef, room } = await requireOwnedChallenge(db, request, roomId);
+  const expected = expectedRoundFromRequest(request.data, room);
+  const force = request.data?.force === true;
+  const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
 
-  // WRITTEN BEFORE THE STATE IT READS IS DELETED. Everything the report needs —
-  // which rounds were missed, how many answered each one, what standard each
-  // round was about — lives in private state, and deletePrivateChallengeState
-  // below removes it. Assembling the report afterwards would produce an empty
-  // one, which is how a report quietly becomes useless rather than obviously
-  // broken.
-  try {
-    const privateSnapshot = await privateRef.get();
-    const privateState = privateSnapshot.exists ? (privateSnapshot.data() || {}) : {};
-    const reportRules = await liveChallengeReportRules();
-    const challengeRules = await liveChallengeRules();
-    // Counted from the player documents rather than read off a shared counter.
-    // `players` is already loaded above, so this costs no extra read.
-    const derivedTallies = challengeRules.deriveRoundTallies({
-      players,
-      secondChanceOf: privateState.secondChanceOf || {},
-      storedRoundAnswers: privateState.roundAnswers || null,
-      storedRoundMisses: privateState.roundMisses || null,
+  const outcome = await db.runTransaction(async (transaction) => {
+    const [roomSnapshot, latestPrivate, latestPlayers] = await Promise.all([
+      transaction.get(roomRef),
+      transaction.get(privateRef),
+      transaction.get(privateRef.collection("players")),
+    ]);
+    if (!roomSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge no longer exists.");
+    if (!latestPrivate.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
+    const currentRoom = roomSnapshot.data() || {};
+    const privateState = latestPrivate.data() || {};
+    const players = playersFromSnapshot(latestPlayers);
+    const counts = liveChallengeRoundCompletion(engine, currentRoom, players);
+    const nowMs = Date.now();
+    const plan = lifecycle.planLifecycleCommand({
+      command: lifecycle.LIFECYCLE_COMMAND.CLOSE_ROUND,
+      room: currentRoom,
+      expected,
+      joinedCount: counts.joinedCount,
+      completedCount: counts.completedCount,
+      nowMs,
+      force,
     });
-    const report = reportRules.buildChallengeReport({
-      room,
-      scheduledRoundCount: Number(privateState.scheduledRoundCount) || Number(room.roundCount) || 0,
-      roundMisses: derivedTallies.roundMisses,
-      roundStandards: privateState.roundStandards || {},
-      roundAnswers: derivedTallies.roundAnswers,
-      answeredCounts: derivedTallies.roundAnswers,
-      secondChanceOf: privateState.secondChanceOf || {},
-      questionIds: Array.isArray(privateState.questionIds) ? privateState.questionIds : [],
-      players,
+    if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.ALREADY_APPLIED) return { alreadyApplied: true, room: currentRoom };
+    if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.REJECT) throw lifecycleHttpsError(plan);
+    const { roundResult } = applyLiveChallengeRoundClose(transaction, {
+      engine, roomRef, privateRef, room: currentRoom, privateState, players, roundIndex: plan.roundIndex, nowMs,
     });
-    await db.collection(LIVE_CHALLENGE_REPORTS).doc(roomRef.id).set({
-      ...report,
-      roomId: roomRef.id,
-      teacherEmail: room.teacherEmail,
-      classId: room.classId || null,
-      status,
-      finishedAt: FieldValue.serverTimestamp(),
-      createdAt: FieldValue.serverTimestamp(),
-    });
-  } catch (error) {
-    // A report that cannot be written must never strand a room in a running
-    // state that the teacher can no longer end.
-    logger.error("liveChallenge.report.failed", { roomId: roomRef.id, message: error?.message });
-  }
-
-  await Promise.all([
-    roomRef.set({
-      status,
-      phase: "finished",
-      currentQuestion: null,
-      endsAt: null,
-      roundEndsAt: null,
-      finishedAt: FieldValue.serverTimestamp(),
+    transaction.set(roomRef, {
+      roundState: lifecycle.ROUND_STATE.CLOSED,
+      phase: "results",
+      roundClosedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true }),
-    privateRef.set({ status, updatedAt: FieldValue.serverTimestamp() }, { merge: true }),
-  ]);
-  await db.collection(LIVE_CHALLENGE_TEACHER_ACTIVE).doc(room.teacherEmail).delete().catch(() => {});
-  await updateLiveChallengeInvites(db, players.map((player) => player.studentId), {
-    status,
-    updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    transaction.set(privateRef, {
+      roundState: lifecycle.ROUND_STATE.CLOSED,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return { roundResult: engine.results.publicRoundSummary(roundResult) };
   });
-  // THE ASSIGNMENT'S SHARE OF THE GAME, WRITTEN BEFORE THE COUNTERS VANISH.
-  // roundsAnswered and correctCount live on the private player documents that
-  // deletePrivateChallengeState removes immediately below, so this cannot move
-  // later without silently recording zeroes for a whole class.
-  //
-  // CHALLENGE POINTS ARE NOT WRITTEN. A round is scored out of roughly 1150
-  // with speed and streak inside it. What reaches the assignment is what the
-  // student did — how much they answered and how much of it was right — because
-  // those are facts about the mathematics and the score is partly a fact about
-  // their reaction time.
-  if (room.assignmentId) {
-    try {
-      const warmup = await warmupChallengeRules();
-      const totalRounds = Math.max(0, Number(room.roundCount) || 0);
-      // Only students who actually joined. A student who never appeared is an
-      // attendance question, which the teacher reconciles; writing them a 0%
-      // here would make an absence indistinguishable from a student who sat
-      // through the game and answered nothing.
-      const joinedPlayers = players.filter((player) => player.joined === true);
-      for (let start = 0; start < joinedPlayers.length; start += 450) {
-        const batch = db.batch();
-        joinedPlayers.slice(start, start + 450).forEach((player) => {
-          const credit = warmup.warmupChallengeCredit({
-            roundsAnswered: player.roundsAnswered,
-            correctCount: player.correctCount,
-            roundsAvailable: warmup.roundsAvailableToStudent({
-              totalRounds,
-              joinedAtRound: player.joinedAtRound,
-            }),
-          });
-          batch.set(db.collection("grades").doc(player.studentId), {
-            warmupChallengeByAssignment: {
-              [room.assignmentId]: {
-                ...credit,
-                roomId: roomRef.id,
-                status,
-                roundCount: totalRounds,
-                recordedAt: FieldValue.serverTimestamp(),
-              },
-            },
-          }, { merge: true });
-        });
-        // eslint-disable-next-line no-await-in-loop
-        await batch.commit();
-      }
-    } catch (error) {
-      // Same rule as the report: a credit write that fails must never leave a
-      // room the teacher cannot end.
-      logger.error("warmupChallenge.credit.failed", { roomId: roomRef.id, message: error?.message });
-    }
-  }
-
-  // MASTERY EVIDENCE. Aggregated per standard rather than per round, because a
-  // single timed question is close to a coin flip and a proportion is what the
-  // estimate can use. Replays are excluded so one question cannot enter a
-  // student's record twice, the second time being the easier time.
-  //
-  // Above the delete for the same reason as everything else here: answeredRounds
-  // and missedRounds live on the private player documents.
-  try {
-    const privateSnapshot = await privateRef.get();
-    const privateState = privateSnapshot.exists ? (privateSnapshot.data() || {}) : {};
-    const evidenceRules = await liveChallengeEvidenceRules();
-    const events = evidenceRules.buildChallengeEvidenceEvents({
-      roomId: roomRef.id,
-      players,
-      roundStandards: privateState.roundStandards || {},
-      secondChanceOf: privateState.secondChanceOf || {},
-      occurredAt: Date.now(),
-    });
-    for (let start = 0; start < events.length; start += 450) {
-      const batch = db.batch();
-      events.slice(start, start + 450).forEach((evidenceEvent) => {
-        const ref = db.collection("grades").doc(evidenceEvent.studentId)
-          .collection("evidenceEvents").doc(mathPath.opaqueId("challengeEvidence", evidenceEvent.eventKey));
-        batch.set(ref, evidenceEvent);
-      });
-      // eslint-disable-next-line no-await-in-loop
-      await batch.commit();
-    }
-  } catch (error) {
-    logger.error("liveChallenge.evidence.failed", { roomId: roomRef.id, message: error?.message });
-  }
-
-  // CLASS POINTS ACHIEVEMENTS ARE DERIVED WHILE PRIVATE CHALLENGE STATE STILL EXISTS.
-  // A durable job is staged before private cleanup. If staging itself fails,
-  // preserve the private state and flag the finished room for automatic retry.
-  let classPointsPlanDurable = true;
-  try {
-    const challengeRules = await liveChallengeRules();
-    if (status === challengeRules.LIVE_CHALLENGE_STATUS.FINISHED) {
-      const privateSnapshot = await privateRef.get();
-      const privateState = privateSnapshot.exists ? (privateSnapshot.data() || {}) : {};
-      const rewards = await liveChallengeClassPoints();
-      await rewards.processLiveChallengeClassPoints(
-        db,
-        roomRef.id,
-        room,
-        players,
-        privateState,
-        status,
-      );
-      await roomRef.set({
-        classPointsRecoveryPending: false,
-        updatedAt: FieldValue.serverTimestamp(),
-      }, { merge: true });
-    }
-  } catch (error) {
-    classPointsPlanDurable = false;
-    logger.error("liveChallenge.classPoints.stage.failed", {
-      roomId: roomRef.id,
-      message: error?.message || String(error),
-    });
-    await roomRef.set({
-      classPointsRecoveryPending: true,
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true }).catch((markError) => {
-      logger.error("liveChallenge.classPoints.recoveryFlag.failed", {
-        roomId: roomRef.id,
-        message: markError?.message || String(markError),
-      });
-    });
-  }
-
-  if (classPointsPlanDurable) {
-    await deletePrivateChallengeState(db, privateRef, players);
-  } else {
-    logger.warn("liveChallenge.classPoints.privateStatePreserved", {
-      roomId: roomRef.id,
-      reason: "achievement-plan-not-durable",
-    });
-  }
-  return { roomId: roomRef.id, status, roundCount: room.roundCount || 0 };
-}
+  if (outcome.alreadyApplied) return liveChallengeRoundResponse(roomId, outcome.room, { alreadyApplied: true });
+  return { roomId, roundIndex: outcome.roundResult.roundIndex, roundState: lifecycle.ROUND_STATE.CLOSED, roundResult: outcome.roundResult };
+});
 
 exports.advanceLiveChallenge = onCall(async (request) => {
   const roomId = String(request.data?.roomId || "").trim();
   if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
   const db = getFirestore();
   const challenge = await liveChallengeRules();
+  const engine = await liveChallengeEngine();
+  const { lifecycle } = engine;
   const { roomRef, room } = await requireOwnedChallenge(db, request, roomId);
-  if (room.status !== challenge.LIVE_CHALLENGE_STATUS.RUNNING) throw new HttpsError("failed-precondition", "The challenge is not running.");
-
-  // Advancing is authoritative on the server. In Pace Race, a null deadline means
-  // the round is still open; it must never be treated like an expired timestamp.
-  const [joinedAggregate, answeredAggregate] = await Promise.all([
-    roomRef.collection("players").where("joined", "==", true).count().get(),
-    roomRef.collection("players").where("joined", "==", true)
-      .where("answeredRound", "==", Number(room.currentRound)).count().get(),
-  ]);
-  const joinedCount = Number(joinedAggregate.data()?.count) || 0;
-  const answeredCount = Number(answeredAggregate.data()?.count) || 0;
-  const roundEndsAtMs = toDate(room.roundEndsAt || room.endsAt)?.getTime() || 0;
-  if (!challenge.challengeCanAdvance({ joinedCount, answeredCount, roundEndsAtMs, nowMs: Date.now() })) {
-    throw new HttpsError("failed-precondition", "This round is still in progress.");
-  }
-
+  const expected = expectedRoundFromRequest(request.data, room);
   const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
-  const privateSnapshot = await privateRef.get();
+
+  // Cheap answers first: a stale double click, or a match that already ended.
+  // The round's readiness is decided in the transaction with exact counts.
+  const precheck = lifecycle.planLifecycleCommand({
+    command: lifecycle.LIFECYCLE_COMMAND.ADVANCE, room, expected, force: true,
+  });
+  if (precheck.outcome === lifecycle.LIFECYCLE_OUTCOME.ALREADY_APPLIED) return liveChallengeRoundResponse(roomId, room, { alreadyApplied: true });
+  if (precheck.outcome === lifecycle.LIFECYCLE_OUTCOME.REJECT) throw lifecycleHttpsError(precheck);
+
+  // Plan the next round from an ordinary read and build its question here, so
+  // the transaction below holds its locks only for the decision and the write.
+  const [privateSnapshot, playersSnapshot] = await Promise.all([
+    privateRef.get(),
+    privateRef.collection("players").get(),
+  ]);
   if (!privateSnapshot.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
-  const privateState = privateSnapshot.data() || {};
-  const nextRound = Number(room.currentRound) + 1;
-  if (nextRound >= (privateState.questionIds?.length || 0)) {
-    // SECOND CHANCE. Before the game ends, the questions the room got wrong
-    // most come back once. Getting one right now earns most of its points
-    // back, which turns a miss from a loss into a target and makes the last
-    // rounds the ones the class most needs to see again.
-    //
-    // Appended only once — `secondChancePlanned` stops a replay of a replay,
-    // which would otherwise let a game run on as long as students kept missing.
-    const scheduled = Number(privateState.scheduledRoundCount) || (privateState.questionIds?.length || 0);
-    // Same derivation as the report, from the same player documents. This is
-    // the one consumer that runs mid-game, and it runs exactly once — after the
-    // last scheduled round — so reading the roster here is cheap and happens
-    // when every player document is already final for the scheduled rounds.
-    const planningPlayers = privateState.secondChancePlanned ? [] : await loadPrivateChallengePlayers(privateRef);
-    const replays = privateState.secondChancePlanned || room.secondChanceMode === "off"
-      ? []
-      : challenge.planSecondChanceRounds({
-        roundMisses: challenge.deriveRoundTallies({
-          players: planningPlayers,
-          secondChanceOf: privateState.secondChanceOf || {},
-          storedRoundMisses: privateState.roundMisses || null,
-        }).roundMisses,
-        scheduledRoundCount: scheduled,
-      });
+  const draft = planNextLiveChallengeRound({
+    challenge, engine, room, privateState: privateSnapshot.data() || {}, players: playersFromSnapshot(playersSnapshot), roundIndex: expected.roundIndex,
+  });
+  const draftOpening = draft.finish ? null : await prepareLiveChallengeRoundOpening(db, {
+    roomId, room, privateState: draft.privateState, roundIndex: draft.roundIndex,
+  });
 
-    if (!replays.length) {
-      return finishLiveChallengeRoom({ db, roomRef, privateRef, room, status: challenge.LIVE_CHALLENGE_STATUS.FINISHED });
+  const teacherKey = String(room.teacherEmail || "").trim().toLowerCase();
+  const pointerRef = teacherKey ? db.collection(LIVE_CHALLENGE_TEACHER_ACTIVE).doc(teacherKey) : null;
+  const outcome = await db.runTransaction(async (transaction) => {
+    const [roomSnapshot, latestPrivate, latestPlayers, pointerSnapshot] = await Promise.all([
+      transaction.get(roomRef),
+      transaction.get(privateRef),
+      transaction.get(privateRef.collection("players")),
+      pointerRef ? transaction.get(pointerRef) : Promise.resolve(null),
+    ]);
+    if (!roomSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge no longer exists.");
+    if (!latestPrivate.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
+    const currentRoom = roomSnapshot.data() || {};
+    const privateState = latestPrivate.data() || {};
+    const players = playersFromSnapshot(latestPlayers);
+    const counts = liveChallengeRoundCompletion(engine, currentRoom, players);
+    const nowMs = Date.now();
+    // Everyone who joined has answered, or the authoritative deadline passed.
+    const plan = lifecycle.planLifecycleCommand({
+      command: lifecycle.LIFECYCLE_COMMAND.ADVANCE,
+      room: currentRoom,
+      expected,
+      joinedCount: counts.joinedCount,
+      completedCount: counts.completedCount,
+      nowMs,
+    });
+    if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.ALREADY_APPLIED) return { alreadyApplied: true, room: currentRoom };
+    if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.REJECT) throw lifecycleHttpsError(plan);
+
+    let roundPlayers = players;
+    if (plan.closeCurrentRound) {
+      roundPlayers = applyLiveChallengeRoundClose(transaction, {
+        engine, roomRef, privateRef, room: currentRoom, privateState, players, roundIndex: plan.roundIndex, nowMs,
+      }).players;
     }
-
-    const questionIds = [...(privateState.questionIds || [])];
-    const roundQuestions = Array.isArray(privateState.roundQuestions) ? [...privateState.roundQuestions] : null;
-    const secondChanceOf = { ...privateState.secondChanceOf };
-    replays.forEach((originalRound) => {
-      secondChanceOf[String(questionIds.length)] = originalRound;
-      questionIds.push(privateState.questionIds[originalRound]);
-      if (roundQuestions) roundQuestions.push(privateState.roundQuestions[originalRound]);
+    const next = planNextLiveChallengeRound({
+      challenge, engine, room: currentRoom, privateState, players: roundPlayers, roundIndex: plan.roundIndex,
     });
+    if (next.finish) {
+      applyLiveChallengeMatchFinalization(transaction, {
+        engine,
+        db,
+        roomRef,
+        privateRef,
+        pointerRef,
+        pointsHere: Boolean(pointerSnapshot?.exists && pointerSnapshot.data()?.roomId === roomId),
+        room: currentRoom,
+        privateState,
+        players: roundPlayers,
+        status: lifecycle.SESSION_STATUS.FINISHED,
+        nowMs,
+      });
+      return { finished: true };
+    }
+    // The drafted question is reused unless the transaction saw a different
+    // next round (a late answer changed which question the class missed most).
+    const opening = draftOpening && draftOpening.roundIndex === next.roundIndex && draftOpening.questionId === next.questionId
+      ? draftOpening
+      : await prepareLiveChallengeRoundOpening(db, { roomId, room: currentRoom, privateState: next.privateState, roundIndex: next.roundIndex });
+    return {
+      opened: applyLiveChallengeRoundOpening(transaction, {
+        engine,
+        challenge,
+        roomRef,
+        privateRef,
+        room: currentRoom,
+        privateState: next.privateState,
+        privatePatch: next.privatePatch,
+        opening,
+        nowMs,
+      }),
+    };
+  });
 
-    await privateRef.set({
-      questionIds,
-      ...(roundQuestions ? { roundQuestions } : {}),
-      secondChanceOf,
-      scheduledRoundCount: scheduled,
-      secondChancePlanned: true,
-    }, { merge: true });
-
-    return openLiveChallengeRound({
-      db,
-      roomRef,
-      privateRef,
-      room,
-      privateState: { ...privateState, questionIds, ...(roundQuestions ? { roundQuestions } : {}), secondChanceOf, scheduledRoundCount: scheduled, secondChancePlanned: true },
-      roundIndex: nextRound,
-    });
+  if (outcome.alreadyApplied) return liveChallengeRoundResponse(roomId, outcome.room, { alreadyApplied: true });
+  if (outcome.finished) {
+    await runLiveChallengeFinalizationEffects(db, roomId).catch((error) => logger.error(
+      "liveChallenge.finalization.effects.failed",
+      { roomId, message: error?.message || String(error) },
+    ));
+    return { roomId, status: lifecycle.SESSION_STATUS.FINISHED, roundCount: Number(room.roundCount) || 0 };
   }
-  return openLiveChallengeRound({ db, roomRef, privateRef, room, privateState, roundIndex: nextRound });
+  return outcome.opened;
 });
 
 exports.finishLiveChallenge = onCall(async (request) => {
   const roomId = String(request.data?.roomId || "").trim();
   if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
   const db = getFirestore();
-  const challenge = await liveChallengeRules();
+  const { lifecycle } = await liveChallengeEngine();
   const { roomRef, room } = await requireOwnedChallenge(db, request, roomId);
-  const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
-  const privateSnapshot = await privateRef.get();
-  if (!privateSnapshot.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
-  return finishLiveChallengeRoom({ db, roomRef, privateRef, room, status: challenge.LIVE_CHALLENGE_STATUS.FINISHED });
+  return finalizeLiveChallengeMatch(db, {
+    roomRef, room, command: lifecycle.LIFECYCLE_COMMAND.FINISH, status: lifecycle.SESSION_STATUS.FINISHED,
+  });
 });
 
 exports.cancelLiveChallenge = onCall(async (request) => {
   const roomId = String(request.data?.roomId || "").trim();
   if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
   const db = getFirestore();
-  const challenge = await liveChallengeRules();
+  const { lifecycle } = await liveChallengeEngine();
   const { roomRef, room } = await requireOwnedChallenge(db, request, roomId);
-  const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
-  const privateSnapshot = await privateRef.get();
-  if (!privateSnapshot.exists) {
-    const activePointerRef = db.collection(LIVE_CHALLENGE_TEACHER_ACTIVE).doc(room.teacherEmail);
-    await db.runTransaction(async (transaction) => {
-      const [currentRoom, activePointer] = await Promise.all([
-        transaction.get(roomRef),
-        transaction.get(activePointerRef),
-      ]);
-      if (!currentRoom.exists || currentRoom.data()?.teacherEmail !== room.teacherEmail) {
-        throw new HttpsError("permission-denied", "Only the teacher who launched this challenge can control it.");
-      }
-      transaction.set(roomRef, {
-        status: challenge.LIVE_CHALLENGE_STATUS.CANCELLED,
-        phase: "finished",
-        staleSession: true,
-        currentQuestion: null,
-        startsAt: null,
-        endsAt: null,
-        roundStartedAt: null,
-        roundEndsAt: null,
-        roundToken: null,
-        finishedAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      }, { merge: true });
-      if (activePointer.data()?.roomId === roomId) transaction.delete(activePointerRef);
-    });
-    await updateLiveChallengeInvitesByRoom(db, {
-      roomId,
-      teacherEmail: room.teacherEmail,
-      fields: { status: challenge.LIVE_CHALLENGE_STATUS.CANCELLED, staleSession: true, updatedAt: FieldValue.serverTimestamp() },
-    }).catch((error) => logger.error("liveChallenge.cancelInvites.failed", { roomId, message: error?.message }));
-    return { roomId, status: challenge.LIVE_CHALLENGE_STATUS.CANCELLED };
-  }
-  return finishLiveChallengeRoom({ db, roomRef, privateRef, room, status: challenge.LIVE_CHALLENGE_STATUS.CANCELLED });
+  return finalizeLiveChallengeMatch(db, {
+    roomRef, room, command: lifecycle.LIFECYCLE_COMMAND.CANCEL, status: lifecycle.SESSION_STATUS.CANCELLED,
+  });
 });
+
+/**
+ * The room's speed setting, which the scoring strategy applies natively.
+ *
+ * Rooms created before the setting lived on the room read the experience
+ * document instead, and fall back to the platform default when the teacher
+ * never changed it — exactly what the former post-hoc submit wrapper applied,
+ * so no room scores differently across this change.
+ */
+async function liveChallengeSpeedInfluence(db, engine, roomId, room = {}) {
+  if (room.speedInfluencePercent !== undefined && room.speedInfluencePercent !== null) {
+    return engine.experience.normalizeSpeedInfluencePercent(room.speedInfluencePercent);
+  }
+  const snapshot = await db.collection(LIVE_CHALLENGE_EXPERIENCE).doc(roomId).get();
+  return engine.experience.normalizeSpeedInfluencePercent(snapshot.exists ? snapshot.data()?.speedInfluencePercent : undefined);
+}
 
 /*
  * A PLAYER SAYING HOW FAR THEY HAVE GOT, MID-ROUND.
@@ -10104,6 +10741,7 @@ exports.reportLiveChallengeProgress = onCall(async (request) => {
   const { studentId } = requireStudent(request);
   const db = getFirestore();
   const challenge = await liveChallengeRules();
+  const engine = await liveChallengeEngine();
   const roomId = String(request.data?.roomId || "").trim();
   const roundIndex = Number(request.data?.roundIndex);
   if (!roomId || !Number.isInteger(roundIndex) || roundIndex < 0) {
@@ -10128,6 +10766,7 @@ exports.reportLiveChallengeProgress = onCall(async (request) => {
   const requestedToken = String(request.data?.roundToken || "").trim();
   if (
     room.status !== challenge.LIVE_CHALLENGE_STATUS.RUNNING
+    || engine.lifecycle.roomRoundState(room) !== engine.lifecycle.ROUND_STATE.OPEN
     || Number(room.currentRound) !== roundIndex
     || !Number.isInteger(requestedVersion)
     || Number(room.roundVersion || 0) !== requestedVersion
@@ -10149,7 +10788,13 @@ exports.reportLiveChallengeProgress = onCall(async (request) => {
   const rawProgress = request.data?.responsePayload?.raw;
   let secureMilestone = null;
   const secondChance = Object.prototype.hasOwnProperty.call(privateState.secondChanceOf || {}, String(roundIndex));
-  if (rawProgress && room.challengeMode === "solverRace" && !secondChance) {
+  const mode = engine.modes.getChallengeMode(room.challengeMode);
+  const perRoundScoring = engine.scoring.getScoringStrategy(engine.scoring.roomScoringStrategyId(room)).accumulation
+    === engine.scoring.SCORE_ACCUMULATION.PER_ROUND;
+  let speedInfluencePercent = null;
+  // Only a mode that declares productive milestones banks speed mid-round.
+  if (rawProgress && mode.capabilities.progressMilestones && !secondChance) {
+    speedInfluencePercent = await liveChallengeSpeedInfluence(db, engine, roomId, room);
     const questionId = privateState.questionIds?.[roundIndex];
     const privateAuthored = privateState.roundQuestions?.[roundIndex] || null;
     const questionSnapshot = !privateAuthored && questionId ? await db.collection("pathQuestionBank").doc(questionId).get() : null;
@@ -10194,6 +10839,7 @@ exports.reportLiveChallengeProgress = onCall(async (request) => {
     const latestPlayer = latestPlayerSnapshot.data() || {};
     if (
       latestRoom.status !== challenge.LIVE_CHALLENGE_STATUS.RUNNING
+      || engine.lifecycle.roomRoundState(latestRoom) !== engine.lifecycle.ROUND_STATE.OPEN
       || Number(latestRoom.currentRound) !== roundIndex
       || Number(latestRoom.roundVersion || 0) !== requestedVersion
       || String(latestRoom.roundToken || "") !== requestedToken
@@ -10206,20 +10852,28 @@ exports.reportLiveChallengeProgress = onCall(async (request) => {
       roundVersion: requestedVersion,
       secureMilestone,
       secondChance,
+      // Milestone speed is speed: it honours the room's setting like the final answer does.
+      speedInfluencePercent,
     });
+    // Banked milestone points are raw round performance. Under a placement
+    // strategy they rank the round; only the round's placement changes the
+    // championship score.
+    const scoreFields = milestone.accepted
+      ? (perRoundScoring ? { rawScore: milestone.totalScore } : { score: milestone.totalScore, rawScore: milestone.totalScore })
+      : {};
 
     transaction.set(privatePlayerRef, {
       ...(milestone.accepted ? {
         challengeMilestoneProgress: milestone.challengeMilestoneProgress,
         submissionReceipts: milestone.submissionReceipts,
-        score: milestone.totalScore,
+        ...scoreFields,
       } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
     transaction.set(publicPlayerRef, {
       provisionalPoints,
       provisionalRound: roundIndex,
-      ...(milestone.accepted ? { score: milestone.totalScore } : {}),
+      ...scoreFields,
       provisionalAt: FieldValue.serverTimestamp(),
     }, { merge: true });
     return {
@@ -10228,7 +10882,7 @@ exports.reportLiveChallengeProgress = onCall(async (request) => {
       milestoneAccepted: milestone.accepted,
       milestoneSpeedPoints: milestone.speedPoints,
       productiveDepth: milestone.productiveDepth || 0,
-      totalScore: milestone.accepted ? milestone.totalScore : Math.max(0, Number(latestPlayer.score) || 0),
+      totalScore: milestone.accepted && !perRoundScoring ? milestone.totalScore : Math.max(0, Number(latestPlayer.score) || 0),
       duplicate: milestone.duplicate,
     };
   });
@@ -10262,6 +10916,8 @@ async function maybeCompressLiveChallengeRoundAfterThreshold(db, { roomRef, roun
     const latestRoom = latestRoomSnapshot.data() || {};
     if (
       latestRoom.status !== "running"
+      // A closed round's clock is over; nothing is left to compress.
+      || latestRoom.roundState === "closed"
       || Number(latestRoom.currentRound) !== Number(roundIndex)
       || Number(latestRoom.roundVersion || 0) !== Number(roundVersion || 0)
     ) return;
@@ -10311,6 +10967,8 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   const db = getFirestore();
   const challenge = await liveChallengeRules();
   const parity = await import("./shared/liveChallengeParity.mjs");
+  const engine = await liveChallengeEngine();
+  const { lifecycle, responses, timer: roundTimer } = engine;
   const roomId = String(request.data?.roomId || "").trim();
   const submittedRound = Number(request.data?.roundIndex);
   // Omission remains accepted during the rolling Hosting/Functions deploy;
@@ -10334,24 +10992,30 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   const room = roomSnapshot.data() || {};
   const submittedVersion = requestedVersion ?? Number(room.roundVersion || 0);
   const submittedToken = requestedToken ?? String(room.roundToken || "");
+  const expectedRound = { roundIndex: submittedRound, roundVersion: submittedVersion, roundToken: submittedToken };
   const privateState = privateSnapshot.data() || {};
   const currentPlayer = playerSnapshot.data() || {};
   const priorReceipt = currentPlayer.submissionReceipts?.[submissionId];
   if (priorReceipt) return { ...priorReceipt, duplicate: true };
-  if (room.status !== challenge.LIVE_CHALLENGE_STATUS.RUNNING || Number(room.currentRound) !== submittedRound) {
-    throw new HttpsError("failed-precondition", "That Live Challenge round is no longer active.");
-  }
-  if (Number(room.roundVersion || 0) !== submittedVersion || String(room.roundToken || "") !== submittedToken) {
-    throw new HttpsError("failed-precondition", "That submission belongs to a stale round version.");
-  }
-  const endsAtMs = toDate(room.endsAt || room.roundEndsAt)?.getTime() || 0;
-  const startsAtMs = toDate(room.startsAt || room.roundStartedAt)?.getTime() || 0;
-  const initialArrival = challenge.normalizeChallengeTimingMode(room.timingMode) === "pace" && !endsAtMs
-    ? { accepted: requestArrivedAt >= startsAtMs, inGrace: false }
-    : parity.submissionArrivalDecision({ arrivedAtMs: requestArrivedAt, startsAtMs, endsAtMs });
+  // The session is running, this is its current round and version, and the
+  // round is still open.
+  const submitPlan = lifecycle.planLifecycleCommand({ command: lifecycle.LIFECYCLE_COMMAND.SUBMIT, room, expected: expectedRound });
+  if (submitPlan.outcome !== lifecycle.LIFECYCLE_OUTCOME.APPLY) throw new HttpsError("failed-precondition", submitPlan.message);
+  const initialArrival = roundTimer.timerAcceptsArrival(roundTimer.timerFromRoom(room), requestArrivedAt);
   if (!initialArrival.accepted) throw new HttpsError("deadline-exceeded", "The bounded delivery window for this round has ended.");
   if (!currentPlayer.joined) throw new HttpsError("failed-precondition", "Join the Live Challenge before answering.");
-  if (Number(currentPlayer.answeredRound) === submittedRound) throw new HttpsError("already-exists", "You already answered this round.");
+  // The response model decides whether this question can take another
+  // attempt. A classic round is one question completed by one response:
+  // "you already answered this round".
+  const mode = engine.modes.getChallengeMode(room.challengeMode);
+  const questionSpec = engine.modes.roundQuestionSpecsFor(mode)[0];
+  const attemptPlanFor = (player) => responses.planAttempt({
+    receipts: player.submissionReceipts || {}, roundIndex: submittedRound, questionIndex: 0, spec: questionSpec, attemptId: submissionId,
+  });
+  if (Number(currentPlayer.answeredRound) === submittedRound || attemptPlanFor(currentPlayer).decision === responses.ATTEMPT_DECISION.REJECT) {
+    throw new HttpsError("already-exists", "You already answered this round.");
+  }
+  const speedInfluencePercent = await liveChallengeSpeedInfluence(db, engine, roomId, room);
 
   const questionId = privateState.questionIds?.[submittedRound];
   const privateAuthored = privateState.roundQuestions?.[submittedRound] || null;
@@ -10369,6 +11033,7 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   let finalPlayer = null;
   let finalScore = null;
   let duplicateReceipt = null;
+  let scoringStrategyId = null;
   await db.runTransaction(async (transaction) => {
     const [latestRoomSnapshot, latestPlayerSnapshot] = await Promise.all([
       transaction.get(roomRef), transaction.get(privatePlayerRef),
@@ -10380,21 +11045,18 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
       duplicateReceipt = player.submissionReceipts[submissionId];
       return;
     }
-    if (latestRoom.status !== challenge.LIVE_CHALLENGE_STATUS.RUNNING || Number(latestRoom.currentRound) !== submittedRound) {
-      throw new HttpsError("failed-precondition", "That Live Challenge round is no longer active.");
-    }
-    if (Number(latestRoom.roundVersion || 0) !== submittedVersion || String(latestRoom.roundToken || "") !== submittedToken) {
-      throw new HttpsError("failed-precondition", "That submission belongs to a stale round version.");
-    }
-    const latestEndsAtMs = toDate(latestRoom.endsAt || latestRoom.roundEndsAt)?.getTime() || 0;
-    const latestStartsAtMs = toDate(latestRoom.startsAt || latestRoom.roundStartedAt)?.getTime() || 0;
+    const latestPlan = lifecycle.planLifecycleCommand({ command: lifecycle.LIFECYCLE_COMMAND.SUBMIT, room: latestRoom, expected: expectedRound });
+    if (latestPlan.outcome !== lifecycle.LIFECYCLE_OUTCOME.APPLY) throw new HttpsError("failed-precondition", latestPlan.message);
+    const latestTimer = roundTimer.timerFromRoom(latestRoom);
+    const latestEndsAtMs = latestTimer.endsAtMs || 0;
+    const latestStartsAtMs = latestTimer.startsAtMs || 0;
     const nowMs = Date.now();
-    const arrival = challenge.normalizeChallengeTimingMode(latestRoom.timingMode) === "pace" && !latestEndsAtMs
-      ? { accepted: requestArrivedAt >= latestStartsAtMs, inGrace: false }
-      : parity.submissionArrivalDecision({ arrivedAtMs: requestArrivedAt, startsAtMs: latestStartsAtMs, endsAtMs: latestEndsAtMs });
+    const arrival = roundTimer.timerAcceptsArrival(latestTimer, requestArrivedAt);
     if (!arrival.accepted) throw new HttpsError("deadline-exceeded", "The bounded delivery window for this round has ended.");
     if (!player.joined) throw new HttpsError("failed-precondition", "Join the Live Challenge before answering.");
-    if (Number(player.answeredRound) === submittedRound) throw new HttpsError("already-exists", "You already answered this round.");
+    if (Number(player.answeredRound) === submittedRound || attemptPlanFor(player).decision === responses.ATTEMPT_DECISION.REJECT) {
+      throw new HttpsError("already-exists", "You already answered this round.");
+    }
     if (!player.playerKey) throw new HttpsError("failed-precondition", "Your Live Challenge player record is incomplete.");
 
     // Which original round this one replays, if any. Held privately so the
@@ -10416,7 +11078,13 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
       startsAtMs: latestStartsAtMs,
       totalMs: activeRoundMs,
       });
-    finalScore = challenge.scoreChallengeRound({
+    // THE ROOM'S SCORING STRATEGY scores the response. Speed influence is
+    // applied here, natively, and milestone speed a Solver Race student already
+    // banked this round (on the mature 100-point scale) is subtracted so the
+    // same speed is never paid twice.
+    scoringStrategyId = engine.scoring.roomScoringStrategyId(latestRoom);
+    const strategy = engine.scoring.getScoringStrategy(scoringStrategyId);
+    finalScore = strategy.scoreResponse({
       gradeScore: grading?.score ?? (grading?.isCorrect ? 1 : 0),
       isCorrect: grading?.isCorrect === true,
       remainingMs: latestEndsAtMs ? Math.max(0, latestEndsAtMs - nowMs) : 0,
@@ -10428,25 +11096,30 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
       previousRoundMissed: player.lastAnswerCorrect === false,
       secondChance: isSecondChance,
       missedOriginally,
+      speedInfluencePercent,
+      bankedLegacyMilestoneSpeed: isSecondChance ? 0 : challenge.legacyMilestoneSpeedTotalForRound(
+        player.submissionReceipts || {}, submittedRound, submittedVersion,
+      ),
     });
-    const bankedMilestoneSpeed = isSecondChance ? 0 : challenge.milestoneSpeedTotalForRound(
-      player.submissionReceipts || {}, submittedRound, submittedVersion,
-    );
-    if (!isSecondChance && bankedMilestoneSpeed > 0 && finalScore.speedBonus > 0) {
-      const adjustedSpeedBonus = Math.max(0, finalScore.speedBonus - bankedMilestoneSpeed);
-      finalScore = {
-        ...finalScore,
-        speedBonus: adjustedSpeedBonus,
-        pointsAwarded: finalScore.pointsAwarded - (finalScore.speedBonus - adjustedSpeedBonus),
-      };
-    }
+    const perRoundScoring = strategy.accumulation === engine.scoring.SCORE_ACCUMULATION.PER_ROUND;
     const answeredCorrectly = grading?.isCorrect === true;
+    const attemptSequence = Math.max(0, Math.round(Number(player.attemptSequence) || 0)) + 1;
     const receipt = {
-      isCorrect: grading?.isCorrect === true,
+      // The attempt: what was answered, when it arrived, how it graded.
+      receiptKind: responses.RECEIPT_KIND.RESPONSE,
+      questionIndex: 0,
+      sequence: attemptSequence,
+      arrivedAtMs: requestArrivedAt,
+      elapsedMs: officialElapsedMs,
+      isCorrect: answeredCorrectly,
       scorePercent: Math.round(Math.max(0, Math.min(1, Number(grading?.score) || 0)) * 100),
+      // The score the strategy gave it.
+      scoringStrategyId,
+      speedInfluencePercent,
       pointsAwarded: finalScore.pointsAwarded,
       basePoints: finalScore.basePoints,
       speedBonus: finalScore.speedBonus,
+      legacySpeedBonus: finalScore.legacySpeedBonus,
       speedTier: finalScore.speedTier,
       streakBonus: finalScore.streakBonus,
       comebackBonus: finalScore.comebackBonus,
@@ -10460,12 +11133,18 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
       serverConfirmed: true,
     };
     const submissionReceipts = { ...(player.submissionReceipts || {}), [submissionId]: receipt };
-    const reconciledScore = challenge.authoritativeReceiptTotal(submissionReceipts);
+    // Every confirmed receipt, summed: the raw performance total.
+    const rawScore = challenge.authoritativeReceiptTotal(submissionReceipts);
+    // The match total is that sum for a per-response strategy. A placement
+    // strategy's match total changes only when a round closes.
+    const reconciledScore = perRoundScoring ? Math.max(0, Math.round(Number(player.score) || 0)) : rawScore;
     submissionReceipts[submissionId] = { ...receipt, totalScore: reconciledScore };
     finalPlayer = {
       ...player,
       joined: true,
       score: reconciledScore,
+      rawScore,
+      attemptSequence,
       correctCount: Math.max(0, Math.round(Number(player.correctCount) || 0)) + (answeredCorrectly ? 1 : 0),
       roundsAnswered: Math.max(0, Math.round(Number(player.roundsAnswered) || 0)) + 1,
       streak: finalScore.newStreak,
@@ -10492,6 +11171,11 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
         submittedRound,
       ])].slice(0, 60),
       submissionReceipts,
+      // Speed influence was applied natively above, so the legacy experience
+      // trigger (functions/entry.js) must find nothing left to adjust for this
+      // round — and never reverse-engineer this strategy's arithmetic.
+      experienceSpeedAdjustedRound: submittedRound,
+      experienceSpeedAdjustment: 0,
       lastSubmissionAudit: {
         roomId, roundIndex: submittedRound, roundVersion: submittedVersion, submissionId,
         capturedElapsedMs: Math.max(0, Number(request.data?.humanElapsedMs) || 0),
@@ -10519,6 +11203,7 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
       alias: player.alias,
       joined: true,
       score: finalPlayer.score,
+      rawScore,
       correctCount: finalPlayer.correctCount,
       roundsAnswered: finalPlayer.roundsAnswered,
       streak: finalPlayer.streak,
@@ -10557,6 +11242,8 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
     recoveryPoints: finalScore?.recoveryPoints || 0,
     secondChance: finalScore?.secondChance === true,
     totalScore: finalPlayer?.score || 0,
+    rawScore: finalPlayer?.rawScore || 0,
+    scoringStrategyId,
     streak: finalPlayer?.streak || 0,
     rank: null,
     submissionId,
@@ -10564,6 +11251,7 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
     duplicate: false,
   };
 });
+
 
 // Phase 5D: secure My Math Path production seam
 // ---------------------------------------------------------------------------
@@ -17732,6 +18420,29 @@ exports.retryLiveChallengeAchievementJobs = onSchedule({
   const db = getFirestore();
   const rewards = await liveChallengeClassPoints();
 
+  // Finished matches whose finalization effects did not all complete — the
+  // finishing request crashed, timed out, or one effect failed. Each effect is
+  // idempotent, so resuming them here can never double a report, a credit, an
+  // evidence event or a reward. Very recent results are left to the request
+  // that is still finishing them.
+  try {
+    const pendingResults = await db.collection(LIVE_CHALLENGE_MATCH_RESULTS)
+      .where("effectsPending", "==", true)
+      .limit(20)
+      .get();
+    for (const resultDoc of pendingResults.docs) {
+      const finalizedAtMs = Number(resultDoc.data()?.finalizedAtMs) || 0;
+      if (finalizedAtMs && Date.now() - finalizedAtMs < 2 * 60 * 1000) continue;
+      // eslint-disable-next-line no-await-in-loop
+      await runLiveChallengeFinalizationEffects(db, resultDoc.id).catch((error) => logger.error(
+        "liveChallenge.finalization.sweep.failed",
+        { roomId: resultDoc.id, message: error?.message || String(error) },
+      ));
+    }
+  } catch (error) {
+    logger.error("liveChallenge.finalization.sweep.queryFailed", { message: error?.message || String(error) });
+  }
+
   try {
     await rewards.retryPendingLiveChallengeAchievementJobs(db);
   } catch (error) {
@@ -17740,6 +18451,9 @@ exports.retryLiveChallengeAchievementJobs = onSchedule({
     });
   }
 
+  // ROOMS FINISHED BEFORE MATCH RESULTS EXISTED. The earlier finish flagged a
+  // room when its achievement plan could not be staged and kept its private
+  // state; this recovers those from that private state.
   const challengeRules = await liveChallengeRules();
   const recoveryRooms = await db.collection(LIVE_CHALLENGE_ROOMS)
     .where("classPointsRecoveryPending", "==", true)

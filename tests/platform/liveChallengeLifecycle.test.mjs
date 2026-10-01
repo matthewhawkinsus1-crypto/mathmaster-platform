@@ -41,14 +41,20 @@ test('a recovered teacher has explicit resume and escape controls', () => {
 });
 
 test('missing-private cancellation clears timers and only clears its own current pointer', () => {
+  // Cancel and finish share one finalization path. A room whose private state
+  // is gone cannot produce a match result, so a cancel retires it the way the
+  // stale-session recovery does — inside the same lifecycle transaction.
   const code = executableSource(serverSource);
-  const start = code.indexOf('exports.cancelLiveChallenge');
-  const end = code.indexOf('exports.', start + 30);
-  const cancel = code.slice(start, end);
-  assert.match(cancel, /if\s*\(!privateSnapshot\.exists\)/);
-  assert.match(cancel, /currentQuestion:\s*null/);
-  assert.match(cancel, /roundEndsAt:\s*null/);
-  assert.match(cancel, /activePointer\.data\(\)\?\.roomId === roomId/);
-  assert.match(cancel, /transaction\.delete\(activePointerRef\)/);
-  assert.match(cancel, /return \{ roomId, status: challenge\.LIVE_CHALLENGE_STATUS\.CANCELLED \}/);
+  const cancelStart = code.indexOf('exports.cancelLiveChallenge');
+  const cancel = code.slice(cancelStart, code.indexOf('});', cancelStart));
+  assert.match(cancel, /finalizeLiveChallengeMatch\(db, \{[\s\S]*command: lifecycle\.LIFECYCLE_COMMAND\.CANCEL/);
+  const start = code.indexOf('async function finalizeLiveChallengeMatch');
+  const finalize = code.slice(start, code.indexOf('exports.joinLiveChallenge', start));
+  const stale = finalize.slice(finalize.indexOf('if (!privateSnapshot.exists)'), finalize.indexOf('return { staleCancelled: true }'));
+  assert.match(stale, /if \(command !== lifecycle\.LIFECYCLE_COMMAND\.CANCEL\)/);
+  assert.match(stale, /currentQuestion:\s*null/);
+  assert.match(stale, /roundEndsAt:\s*null/);
+  assert.match(stale, /if \(pointsHere\) transaction\.delete\(pointerRef\)/);
+  assert.match(finalize, /const pointsHere = Boolean\(pointerSnapshot\?\.exists && pointerSnapshot\.data\(\)\?\.roomId === roomId\)/);
+  assert.match(finalize, /return \{ roomId, status: lifecycle\.SESSION_STATUS\.CANCELLED \}/);
 });

@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { challengeCanAdvance } from '../../functions/shared/liveChallenge.mjs';
+import { planLifecycleCommand } from '../../functions/shared/liveChallengeLifecycle.mjs';
+import { buildRoundTimer } from '../../functions/shared/liveChallengeTimer.mjs';
 
 const student = readFileSync(new URL('../../src/components/liveChallenge/LiveChallengeStudent.jsx', import.meta.url), 'utf8');
 const server = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
@@ -79,9 +81,13 @@ test('Pace Race can advance after its authoritative closing deadline expires', (
 });
 
 test('server Pace Race open-round response safely serializes a null deadline', () => {
-  const start = server.indexOf('async function openLiveChallengeRound');
-  const end = server.indexOf('exports.calibrateLiveChallengeClock', start);
-  const block = server.slice(start, end);
+  const start = server.indexOf('function applyLiveChallengeRoundOpening(');
+  assert.ok(start > 0, 'the round-opening step must be locatable');
+  const block = server.slice(start, server.indexOf('\n}\n', start));
+  // Pace Race opens with no deadline at all…
+  assert.match(block, /durationMs: timingMode === "pace" \? null : opening\.roundSeconds \* 1000/);
+  assert.equal(buildRoundTimer({ nowMs: 1_000_000, durationMs: null }).endsAtMs, null);
+  // …and the response must say so rather than throw on a null date.
   assert.match(block, /endsAt: endsAt \? endsAt\.toISOString\(\) : null/);
   assert.doesNotMatch(block, /endsAt: endsAt\.toISOString\(\)/);
 });
@@ -90,8 +96,22 @@ test('advanceLiveChallenge has an authoritative readiness guard', () => {
   const start = server.indexOf('exports.advanceLiveChallenge = onCall');
   const end = server.indexOf('exports.finishLiveChallenge', start);
   const block = server.slice(start, end);
-  assert.match(block, /challenge\.challengeCanAdvance\(\{ joinedCount, answeredCount, roundEndsAtMs, nowMs: Date\.now\(\) \}\)/);
-  assert.match(block, /throw new HttpsError\("failed-precondition", "This round is still in progress\."\)/);
+  // Readiness is decided inside the transaction, from the players it read.
+  const transaction = block.slice(block.indexOf('db.runTransaction'));
+  assert.match(transaction, /const counts = liveChallengeRoundCompletion\(engine, currentRoom, players\)/);
+  assert.match(transaction, /planLifecycleCommand\(\{\s*command: lifecycle\.LIFECYCLE_COMMAND\.ADVANCE,[\s\S]{0,120}joinedCount: counts\.joinedCount,\s*completedCount: counts\.completedCount,\s*nowMs,\s*\}\)/);
+  assert.match(transaction, /if \(plan\.outcome === lifecycle\.LIFECYCLE_OUTCOME\.REJECT\) throw lifecycleHttpsError\(plan\)/);
+  // Only the cheap early check outside the transaction skips readiness.
+  assert.equal((block.match(/force: true/g) || []).length, 1);
+  assert.ok(block.indexOf('force: true') < block.indexOf('db.runTransaction'));
+
+  // And the rule itself: everyone answered, or the deadline passed.
+  const room = { status: 'running', currentRound: 2, roundVersion: 3, roundState: 'open', startsAt: 1_000, endsAt: 0 };
+  const waiting = planLifecycleCommand({ command: 'advance', room, joinedCount: 20, completedCount: 12, nowMs: 50_000 });
+  assert.equal(waiting.outcome, 'reject');
+  assert.equal(waiting.message, 'This round is still in progress.');
+  assert.equal(planLifecycleCommand({ command: 'advance', room, joinedCount: 20, completedCount: 20, nowMs: 50_000 }).outcome, 'apply');
+  assert.equal(planLifecycleCommand({ command: 'advance', room: { ...room, endsAt: 40_000 }, joinedCount: 20, completedCount: 12, nowMs: 50_000 }).outcome, 'apply');
 });
 
 test('final speed scoring uses activeRoundSeconds rather than the teacher baseline', () => {

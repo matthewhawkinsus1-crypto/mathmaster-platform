@@ -9,6 +9,7 @@ import {
   matchesQuestionStyle,
   pathToolIdOf,
 } from '../../functions/shared/liveChallenge.mjs';
+import { getChallengeMode, normalizeModeConfig } from '../../functions/shared/liveChallengeModes.mjs';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const functionsIndex = read('../../functions/index.js');
@@ -64,6 +65,11 @@ test('the style filters candidates on the server, not in the browser', () => {
 test('every callable that draws questions honours the style', () => {
   // A swap that ignored it would hand back exactly the kind of question the
   // teacher just chose not to have.
+  //
+  // Every draw goes through a game mode's question planner. The two creates
+  // read the style through the mode's own config normalizer and hand that
+  // config to the planner; the swap hands the planner the dry run that stored
+  // it.
   const draws = ['exports.createLiveChallenge', 'exports.createChallengeDryRun', 'exports.swapChallengeDryRunRound'];
   draws.forEach((name) => {
     const start = functionsIndex.indexOf(name);
@@ -73,16 +79,29 @@ test('every callable that draws questions honours the style', () => {
     // short of the draw would pass by never reaching the code it checks.
     const nextExport = functionsIndex.indexOf('\nexports.', start + name.length);
     const block = functionsIndex.slice(start, nextExport > start ? nextExport : functionsIndex.length);
-    assert.match(block, /loadChallengeCandidates\(/, `${name} must be a question draw`);
+    if (name === 'exports.swapChallengeDryRunRound') {
+      assert.match(block, /liveChallengeQuestionPlanner\(mode\)\.swap\(\{ db, dryRun,/, `${name} must draw with the stored dry run`);
+      return;
+    }
     // The VALUE matters, not the key name. A hardcoded "any" here would still
-    // mention questionStyle while silently ignoring the teacher's choice, so
-    // assert each callable reads it from the place that actually holds it.
-    const source = name === 'exports.swapChallengeDryRunRound'
-      ? /questionStyle: dryRun\.questionStyle/
-      : /const questionStyle = challengeMode === "solverRace" \? "tools" : challenge\.canonicalQuestionStyle\(request\.data\?\.questionStyle\)/;
-    assert.match(block, source, `${name} must read the real question style`);
-    assert.match(block, /loadChallengeCandidates\(db, \{[\s\S]{0,200}questionStyle/, `${name} must pass it to the draw`);
+    // mention questionStyle while silently ignoring the teacher's choice.
+    assert.match(block, /const modeConfig = engine\.modes\.normalizeModeConfig\(mode, request\.data \|\| \{\}\)/, `${name} must read the request's style`);
+    assert.match(block, /liveChallengeQuestionPlanner\(mode\)\.plan\(\{[\s\S]{0,120}modeConfig/, `${name} must pass it to the draw`);
   });
+
+  // The planner that draws from the bank applies it to every draw.
+  const planners = region(functionsIndex, 'const LIVE_CHALLENGE_QUESTION_PLANNERS', 'function liveChallengeQuestionPlanner(', 'question planners');
+  assert.match(planners, /loadChallengeCandidates\(db, \{ courseId, standardCode, questionStyle: modeConfig\.questionStyle \}\)/);
+  // Inside the swap's own argument object, not merely somewhere after it.
+  assert.match(planners, /loadChallengeCandidates\(db, \{[^}]*questionStyle: dryRun\.questionStyle,[^}]*\}\)/);
+
+  // And the mode normalizer keeps the teacher's choice — or forces tools for
+  // Solver Race, every round of which is an algebra workspace.
+  for (const style of CHALLENGE_QUESTION_STYLES) {
+    assert.equal(normalizeModeConfig(getChallengeMode('standard'), { questionStyle: style }).questionStyle, style);
+  }
+  assert.equal(normalizeModeConfig(getChallengeMode('standard'), { questionStyle: 'TOOLS' }).questionStyle, 'any');
+  assert.equal(normalizeModeConfig(getChallengeMode('solverRace'), { questionStyle: 'noTools' }).questionStyle, 'tools');
 });
 
 test('a game that cannot be filled says which style emptied it', () => {
@@ -95,9 +114,12 @@ test('the choice is remembered on the room and on the dry run', () => {
   // Difficulty is durable room configuration beside focus; keep this assertion
   // anchored to the room write rather than assuming the old frozen shape.
   const roomWrite = functionsIndex.slice(functionsIndex.indexOf('rootBatch.set(roomRef'), functionsIndex.indexOf('rootBatch.set(privateRef'));
-  assert.match(roomWrite, /standardCode,\n    questionStyle,\n    challengeMode,/);
-  assert.match(roomWrite, /solverRaceFocus: challengeMode === "solverRace"/);
-  assert.match(roomWrite, /solverRaceDifficulty: challengeMode === "solverRace"/);
+  assert.match(roomWrite, /standardCode,\n    questionStyle,\n    challengeMode: mode\.id,/);
+  // Solver Race focus/difficulty come from the mode's normalizer, which
+  // returns null for them in every other mode.
+  assert.match(roomWrite, /solverRaceFocus,\n    solverRaceDifficulty,/);
+  assert.equal(normalizeModeConfig(getChallengeMode('standard'), { solverRaceFocus: 'linearEquation' }).solverRaceFocus, null);
+  assert.equal(normalizeModeConfig(getChallengeMode('solverRace'), { solverRaceFocus: 'linearEquation' }).solverRaceFocus, 'linearEquation');
   const dryRunWrite = functionsIndex.slice(functionsIndex.indexOf('const ref = db.collection(LIVE_CHALLENGE_DRY_RUNS)'), functionsIndex.indexOf('const rounds = await Promise.all', functionsIndex.indexOf('const ref = db.collection(LIVE_CHALLENGE_DRY_RUNS)')));
   assert.match(dryRunWrite, /standardCode,\n    questionStyle,/);
   assert.match(dryRunWrite, /roundSeconds,\n    timingMode,\n    questionIds,/);
