@@ -6,7 +6,10 @@
 //   - graphing2/constructionPolicy.js + graphingMath.js
 //   - linearTableWorkbench/linearTableWorkbenchMath.js
 
-import { parse } from 'mathjs';
+// Student-typed equations are parsed (and constant parts evaluated) on the
+// server too, so they go through the hardened instance: an answer cannot
+// create units, change mathjs's config or allocate a matrix it names.
+import { parse } from '../../algebra/safeMath.mjs';
 import {
   fitTableLine,
   isCollinear,
@@ -1574,6 +1577,58 @@ export const checkCrossRepresentationConsistency = (studentRepresentations = {},
   };
 };
 
+/*
+ * The cards whose work describes a whole line, so they can be compared with
+ * one another. Slope and the intercepts are numbers or single points: they are
+ * graded on their own, never as a line.
+ */
+export const LINE_BEARING_CARD_IDS = Object.freeze([
+  'standardForm',
+  'slopeIntercept',
+  'pointSlope',
+  'twoPoints',
+  'table',
+  'graphIntercepts',
+  'graphSlopeIntercept',
+  'graphPointSlope',
+]);
+
+/**
+ * Cross-representation consistency of the work THIS board shows.
+ *
+ * Only the representations the board renders take part: the required cards,
+ * plus the GIVEN two points (a given line the student builds from). A field
+ * the board never showed — a stale draft value, or one a tampered response
+ * adds — cannot vote.
+ *
+ *   comparable   how many representations the board can put side by side
+ *   consistency  checkCrossRepresentationConsistency's report on them
+ */
+export const crossRepresentationConsistencyFor = (question = {}, response = {}, canonicalFacts = deriveLinearMultipleRepresentations(question)) => {
+  const required = new Set(resolveRequiredCards(question));
+  const shown = (cardId, field) => (required.has(cardId) ? response?.[field] : undefined);
+  const givenTwoPoints = question.source?.kind === 'twoPoints' && canonicalFacts?.twoPoints
+    ? [canonicalFacts.twoPoints.point1, canonicalFacts.twoPoints.point2]
+    : undefined;
+  const consistency = checkCrossRepresentationConsistency(
+    {
+      standardFormEquation: shown('standardForm', 'standardFormEquation'),
+      slopeInterceptEquation: shown('slopeIntercept', 'slopeInterceptEquation'),
+      pointSlopeEquation: shown('pointSlope', 'pointSlopeEquation'),
+      tableRows: shown('table', 'tableRows'),
+      twoPoints: givenTwoPoints,
+      featurePoint1: shown('twoPoints', 'featurePoint1'),
+      featurePoint2: shown('twoPoints', 'featurePoint2'),
+      graph1Points: shown('graphIntercepts', 'graph1Points'),
+      graph2Points: shown('graphSlopeIntercept', 'graph2Points'),
+      graph3Points: shown('graphPointSlope', 'graph3Points'),
+    },
+    canonicalFacts,
+  );
+  const comparable = LINE_BEARING_CARD_IDS.filter((cardId) => required.has(cardId)).length + (givenTwoPoints ? 1 : 0);
+  return { comparable, consistency };
+};
+
 export const scoreLinearMultipleRepresentations = (question = {}, response = {}) => {
   const canonicalFacts = deriveLinearMultipleRepresentations(question);
   if (!canonicalFacts.isValid) {
@@ -1600,9 +1655,7 @@ export const scoreLinearMultipleRepresentations = (question = {}, response = {})
   if (required.has('slope')) record('slope', validateSlopeEntry(response.featureSlope, canonicalFacts));
   if (required.has('xIntercept')) record('xIntercept', validateXInterceptEntry(response.featureXIntercept, canonicalFacts));
   if (required.has('yIntercept')) record('yIntercept', validateYInterceptEntry(response.featureYIntercept, canonicalFacts));
-  const ptsRes = required.has('twoPoints')
-    ? record('twoPoints', validateTwoPointsEntry(response.featurePoint1, response.featurePoint2, canonicalFacts))
-    : null;
+  if (required.has('twoPoints')) record('twoPoints', validateTwoPointsEntry(response.featurePoint1, response.featurePoint2, canonicalFacts));
   if (required.has('table')) record('table', validateTableEntry(response.tableRows, canonicalFacts, 4));
 
   // Three independent constructions.
@@ -1641,39 +1694,32 @@ export const scoreLinearMultipleRepresentations = (question = {}, response = {})
     evidence.contextXInterceptMeaning = { isCorrect: res.valid, message: res.message };
   }
   if (ctx.domain != null || question.domain != null) {
-    const expectedDomain = question.domain || ctx.domain;
-    const domainRes = validateDomainField(response.contextDomain, expectedDomain);
+    const domainRes = validateDomainField(response.contextDomain, resolveExpectedDomain(question));
     parts.contextDomain = domainRes.isCorrect;
     evidence.contextDomain = domainRes;
   }
 
-  const effectiveTwoPoints = (givenKind === 'twoPoints' && canonicalFacts.twoPoints)
-    ? [canonicalFacts.twoPoints.point1, canonicalFacts.twoPoints.point2]
-    : ptsRes?.points;
-
-  // Cross-Representation Consistency
-  const consistency = checkCrossRepresentationConsistency(
-    {
-      standardFormEquation: response.standardFormEquation,
-      slopeInterceptEquation: response.slopeInterceptEquation,
-      pointSlopeEquation: response.pointSlopeEquation,
-      tableRows: response.tableRows,
-      twoPoints: effectiveTwoPoints,
-      featurePoint1: response.featurePoint1,
-      featurePoint2: response.featurePoint2,
-      graph1Points: response.graph1Points,
-      graph2Points: response.graph2Points,
-      graph3Points: response.graph3Points,
-    },
-    canonicalFacts,
-  );
-  parts.crossRepresentationConsistency = consistency.isConsistent;
+  /*
+   * Cross-representation consistency: do the student's representations all
+   * describe ONE line?
+   *
+   * It is a claim about two or more representations, so it is credited only
+   * when at least two are actually present and agree. Before, it was credited
+   * vacuously whenever fewer than two lines existed — a blank board earned it
+   * (1/11 of the full board for no work at all). A board that cannot show two
+   * representations at all (a requiredCards subset such as the key features
+   * alone) has nothing to compare, so the part is not graded there.
+   */
+  const { comparable, consistency } = crossRepresentationConsistencyFor(question, response, canonicalFacts);
+  if (comparable >= 2) {
+    parts.crossRepresentationConsistency = consistency.isConsistent && consistency.completedLineCount >= 2;
+  }
   evidence.crossRepresentationConsistency = consistency;
 
   const requiredParts = Object.values(parts);
   const correctCount = requiredParts.filter(Boolean).length;
   const score = requiredParts.length ? correctCount / requiredParts.length : 0;
-  const isCorrect = requiredParts.every(Boolean);
+  const isCorrect = requiredParts.length > 0 && requiredParts.every(Boolean);
 
   return {
     isCorrect,
@@ -1683,6 +1729,16 @@ export const scoreLinearMultipleRepresentations = (question = {}, response = {})
     canonicalFacts,
     givenKind,
   };
+};
+
+/**
+ * The reasonable domain the board grades against: the question's own domain
+ * when it has one, otherwise the context's. One rule for the score and for
+ * the board's Check of the meanings, so a Check never disagrees with Submit.
+ */
+export const resolveExpectedDomain = (question = {}) => {
+  const context = question.source?.context || question.context || {};
+  return question.domain || context.domain;
 };
 
 export const resolveGraphTolerance = (question = {}) => {
@@ -1851,7 +1907,7 @@ export const describeGivenRepresentation = (question = {}, canonicalFacts = deri
 // Card responses: which fields a card's verdict depends on
 // -----------------------------------------------------------------------------
 
-const CARD_RESPONSE_FIELDS = Object.freeze({
+export const CARD_RESPONSE_FIELDS = Object.freeze({
   standardForm: ['standardFormEquation'],
   slopeIntercept: ['slopeInterceptEquation'],
   pointSlope: ['pointSlopeEquation'],
@@ -1891,3 +1947,36 @@ export const cardHasWork = (cardId, response = {}) => {
     default: return (CARD_RESPONSE_FIELDS[cardId] || []).every((field) => hasText(response[field]));
   }
 };
+
+/*
+ * The context parts this question grades, in board order. A meaning is graded
+ * exactly when the author wrote one (source.context wins over a top-level
+ * context, as everywhere on this board); the domain when either the context or
+ * the question itself supplies one.
+ */
+export const CONTEXT_PART_FIELDS = Object.freeze([
+  Object.freeze({ field: 'contextIndependent', key: 'independentQuantity' }),
+  Object.freeze({ field: 'contextDependent', key: 'dependentQuantity' }),
+  Object.freeze({ field: 'contextSlopeMeaning', key: 'slopeMeaning' }),
+  Object.freeze({ field: 'contextYInterceptMeaning', key: 'yInterceptMeaning' }),
+  Object.freeze({ field: 'contextXInterceptMeaning', key: 'xInterceptMeaning' }),
+  Object.freeze({ field: 'contextDomain', key: 'domain' }),
+]);
+
+export const gradedContextFields = (question = {}) => {
+  const context = question.source?.context || question.context || {};
+  return CONTEXT_PART_FIELDS.filter(({ key }) => (
+    key === 'domain' ? (context.domain != null || question.domain != null) : context[key] != null
+  ));
+};
+
+/**
+ * The graded parts with nothing in them yet, by part id: every required card
+ * without work, then every graded context field left blank. Empty means the
+ * board is complete. The board asks before submitting an unfinished board,
+ * and a deadline auto-submits only a complete one — the same rule in both.
+ */
+export const unfinishedLinearMultipleRepresentationsParts = (question = {}, response = {}) => [
+  ...resolveRequiredCards(question).filter((cardId) => !cardHasWork(cardId, response)).map((cardId) => CARD_PART_KEYS[cardId]),
+  ...gradedContextFields(question).filter(({ field }) => !hasText(response?.[field])).map(({ field }) => field),
+];

@@ -2,7 +2,10 @@ import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import { useToolRuntimeContext } from '../shared/ToolRuntimeContext';
+import representationBridgeGrader from '../../../functions/shared/serverGrading/tools/representationBridge.mjs';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import MathInput from '../../MathInput.jsx';
 import MathDisplay from '../../MathDisplay.jsx';
@@ -17,6 +20,7 @@ import {
   PART_LABELS,
   cardHasWork,
   cardResponseKey,
+  crossRepresentationConsistencyFor,
   deriveLinearMultipleRepresentations,
   describeGivenRepresentation,
   describeSnapStep,
@@ -27,12 +31,13 @@ import {
   fractionLatex,
   graphFeedbackMessage,
   refineSnapStep,
+  resolveExpectedDomain,
   resolveGraph3Anchor,
   resolveGraphSnapSteps,
   resolveGraphTolerance,
   resolveLinearMultipleRepresentationsGraphBounds,
   resolveRequiredCards,
-  scoreLinearMultipleRepresentations,
+  unfinishedLinearMultipleRepresentationsParts,
   validateContextField,
   validateDomainField,
   validatePointSlopeEntry,
@@ -555,6 +560,9 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   // the latest work from here rather than from a closure one render behind.
   const responseRef = useRef(currentResponse);
   responseRef.current = currentResponse;
+  // The live board, reported as it changes, so a deadline can mark exactly
+  // what Submit would have sent — the same object Submit grades.
+  useReportToolWork(currentResponse);
 
   // Graph 3 starts from the given point, or the student's own VALID point.
   const graph3Anchor = useMemo(
@@ -587,7 +595,8 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
       Array.isArray(banks[key]) ? banks[key] : Array.isArray(contextData[key]?.choices) ? contextData[key].choices : null,
     ]));
   }, [contextData]);
-  const expectedDomain = questionData.domain ?? contextData.domain;
+  // The score's own rule, so Check and Submit judge the domain against the same key.
+  const expectedDomain = resolveExpectedDomain(questionData);
 
   // ---------------------------------------------------------------- checks
   const graphPointsByKey = { graph1: graph1Points, graph2: graph2Points, graph3: graph3Points };
@@ -694,10 +703,9 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   ];
   const partsTotal = progressGroups.reduce((sum, group) => sum + group.total, 0);
   const partsDone = progressGroups.reduce((sum, group) => sum + group.done, 0);
-  const emptyParts = [
-    ...required.filter((cardId) => !cardHasWork(cardId, currentResponse)).map((cardId) => PART_LABELS[CARD_PART_KEYS[cardId]]),
-    ...contextFields.filter(({ field }) => String(currentResponse[field] ?? '').trim() === '').map(({ field }) => PART_LABELS[field]),
-  ];
+  // The shared grader's own completeness rule: a required card with no work,
+  // or a graded meaning left blank. Empty here is exactly isComplete there.
+  const emptyParts = unfinishedLinearMultipleRepresentationsParts(questionData, currentResponse).map((partId) => PART_LABELS[partId] || partId);
 
   const toggle = (key) => setExpandedCards((prev) => {
     const current = { ...DEFAULT_EXPANDED, ...prev };
@@ -860,23 +868,20 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   // ---------------------------------------------------------------- submit
   // Graded when submitted, not on every keystroke: scoring every card parses
   // every equation, and doing that per key is typing latency on a Chromebook.
+  //
+  // The verdict is the shared grader's — the function the server runs as the
+  // authority, through the bytes the server will read — so what the student
+  // sees after Submit is what the gradebook records. Parts are labelled
+  // ("Graph 3 (point-slope)", not "graph3") and carry no answer key: nothing
+  // derived from the line travels with the attempt.
   const doSubmit = () => {
     setConfirmSubmit(false);
-    const response = responseRef.current;
-    const result = scoreLinearMultipleRepresentations(questionData, response);
-    // Parts go to the host as labelled entries, so the attempt a teacher
-    // reads says "Graph 3 (point-slope)", not "graph3".
-    const parts = Object.entries(result.parts).map(([id, ok]) => ({
-      id,
-      label: PART_LABELS[id] || id,
-      isComplete: true,
-      isCorrect: Boolean(ok),
-      response: '',
-    }));
+    const work = responseRef.current;
+    const result = gradeToolCheck(representationBridgeGrader, questionData, work);
     submit(
       { isCorrect: result.isCorrect, score: result.score },
-      response,
-      { parts, evidence: result.evidence, canonicalFacts: result.canonicalFacts },
+      work,
+      { mode: 'linearMultipleRepresentations', parts: result.parts },
     );
   };
   const handleSubmit = () => {
@@ -892,7 +897,13 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   const partsToRevisit = submittedParts
     .filter((part) => !part.isCorrect && part.id !== 'crossRepresentationConsistency')
     .map((part) => part.label);
-  const outliers = feedback?.metadata?.evidence?.crossRepresentationConsistency?.outliers || [];
+  // Which submitted representations disagree with the rest of the student's
+  // own work. Named from the submitted work alone — it says nothing about the
+  // answer — so it is recomputed here rather than shipped with the attempt.
+  const outliers = useMemo(() => {
+    if (!feedback?.response || !canonicalFacts.isValid) return [];
+    return crossRepresentationConsistencyFor(questionData, feedback.response, canonicalFacts).consistency.outliers || [];
+  }, [feedback, questionData, canonicalFacts]);
 
   const allGraphsRequired = GRAPHS.every((graph) => needs(graph.cardId));
   const allGraphsVerified = allGraphsRequired && GRAPHS.every((graph) => verdictFor(graph.cardId)?.isCorrect);
