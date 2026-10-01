@@ -136,6 +136,19 @@ test('destructive host actions are confirmed once; harmless ones never ask', () 
   assert.doesNotMatch(primary, /setConfirming/, 'Start and Next Round never ask');
 });
 
+test('a confirmation keeps keyboard focus where the teacher put it, and Tab inside it', () => {
+  const dialog = region(parts, 'export function ConfirmDialog(', '\nconst CONFETTI_COLORS', 'confirm dialog');
+  // The console hands a new onCancel every time a student's progress arrives:
+  // read through a ref, it can never re-run the focus effect (which put focus
+  // back on "Keep playing" under a teacher tabbing to the red button).
+  assert.match(dialog, /const onCancelRef = useLatest\(onCancel\);/);
+  assert.match(dialog, /\}, \[open, onCancelRef\]\);/);
+  assert.doesNotMatch(dialog, /\[open, onCancel\]/);
+  // aria-modal is kept: Tab and Shift+Tab wrap inside the dialog.
+  assert.match(dialog, /if \(event\.key !== 'Tab'\) return;/);
+  assert.match(dialog, /\(event\.shiftKey \? last : first\)\.focus\(\);/);
+});
+
 test('Play Again is a fresh match with the same settings; its name settings are secured or it is cancelled', () => {
   const replay = region(teacher, 'const playAgain = async () => {', '\n  };', 'play again');
   assert.match(replay, /const request = replayRequestFromRoom\(room, \{ rewardPolicy: buildChallengeRewardPolicy\(rewardChoice\) \}\);/);

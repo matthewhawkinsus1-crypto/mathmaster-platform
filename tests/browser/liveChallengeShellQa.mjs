@@ -1008,9 +1008,25 @@ await run('adversarial', async (S) => {
   await shot(teacher, 'X00-console-round-in-play');
   note(S, 'console text in play', (await textOf(teacher)).slice(0, 600));
   await teacher.page.getByRole('button', { name: 'End Round Now' }).click({ timeout: 8_000 });
-  await dismissDialog(teacher);
+  // The keyboard stays where the teacher puts it while the console updates
+  // underneath (a student answers), and Tab never leaves the dialog.
+  const dialog = teacher.page.getByRole('alertdialog');
+  await dialog.waitFor({ timeout: 5_000 });
+  const focused = () => teacher.page.evaluate(() => (document.activeElement?.textContent || '').trim());
+  check(S, (await focused()) === 'Keep playing', `the dialog opened with focus on "${await focused()}"`);
+  await teacher.page.keyboard.press('Tab');
+  check(S, (await focused()) === 'End Round Now', `Tab moved focus to "${await focused()}"`);
+  await botAnswer(roomId, ids[2], { correct: true }).catch(() => {});
+  await wait(2_500);
+  check(S, (await focused()) === 'End Round Now', `focus moved to "${await focused()}" while the console updated`);
+  await teacher.page.keyboard.press('Tab');
+  check(S, (await focused()) === 'Keep playing', `Tab left the dialog for "${await focused()}"`);
+  await teacher.page.keyboard.press('Shift+Tab');
+  check(S, (await focused()) === 'End Round Now', `Shift+Tab left the dialog for "${await focused()}"`);
+  await teacher.page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'detached', timeout: 5_000 });
   await wait(600);
-  check(S, (await roomOf(roomId)).roundState === 'open', '"Keep playing" ended the round');
+  check(S, (await roomOf(roomId)).roundState === 'open', '"Keep playing" (Escape) ended the round');
   await teacher.page.getByRole('button', { name: 'End Round Now' }).click();
   await confirmDialog(teacher, 'End Round Now');
   check(S, await waitForRoom(roomId, (room) => room.roundState === 'closed', 10_000), 'End Round Now did not end the round');

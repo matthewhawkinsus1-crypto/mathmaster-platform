@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { challengeClock, formatChallengeClock, stageHasOpenRound } from '../../platform/liveChallenge/challengeShellModel.js';
-import { usePrefersReducedMotion, useTicker } from '../../platform/liveChallenge/challengeHooks.js';
+import { useLatest, usePrefersReducedMotion, useTicker } from '../../platform/liveChallenge/challengeHooks.js';
 import { formatPoints, standingsWindow } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import { SHELL_CSS } from './challengeShellCss.js';
 
@@ -280,23 +280,47 @@ export function RoundResultsTable({ view, presentation, look = 'console', limit 
  * that opened it. Harmless controls never ask.
  */
 export function ConfirmDialog({ open, title, body, confirmLabel = 'Confirm', cancelLabel = 'Keep playing', onConfirm, onCancel, busy = false }) {
+  const dialogRef = useRef(null);
   const cancelRef = useRef(null);
   const openerRef = useRef(null);
+  // Read through a ref: the console re-renders with a new onCancel every time
+  // a student's progress arrives, and re-running the effect on each one would
+  // pull focus back to "Keep playing" from under a teacher's keyboard.
+  const onCancelRef = useLatest(onCancel);
   useEffect(() => {
     if (!open) return undefined;
     openerRef.current = document.activeElement;
     cancelRef.current?.focus();
-    const onKey = (event) => { if (event.key === 'Escape') onCancel?.(); };
+    const onKey = (event) => {
+      if (event.key === 'Escape') {
+        onCancelRef.current?.();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      // A modal dialog keeps Tab inside it.
+      const buttons = [...(dialogRef.current?.querySelectorAll('button:not([disabled])') || [])];
+      if (!buttons.length) return;
+      const first = buttons[0];
+      const last = buttons[buttons.length - 1];
+      const inside = dialogRef.current.contains(document.activeElement);
+      if (!inside || (event.shiftKey && document.activeElement === first)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
     window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('keydown', onKey);
       openerRef.current?.focus?.();
     };
-  }, [open, onCancel]);
+  }, [open, onCancelRef]);
   if (!open) return null;
   return (
     <div className="mm-shell-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel?.(); }}>
-      <div role="alertdialog" aria-modal="true" aria-labelledby="mm-shell-dialog-title" aria-describedby="mm-shell-dialog-body" className="mm-shell-dialog">
+      <div ref={dialogRef} role="alertdialog" aria-modal="true" aria-labelledby="mm-shell-dialog-title" aria-describedby="mm-shell-dialog-body" className="mm-shell-dialog">
         <div id="mm-shell-dialog-title" style={{ fontSize: 20, fontWeight: 900, marginBottom: 8 }}>{title}</div>
         <div id="mm-shell-dialog-body" style={{ color: 'var(--mm-text)', lineHeight: 1.5 }}>{body}</div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: 18 }}>
