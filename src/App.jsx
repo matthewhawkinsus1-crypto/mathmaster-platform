@@ -46,6 +46,12 @@ import {
   scratchpadPageDocId,
 } from './platform/student/scratchpadPages.js';
 import {
+  EMPTY_SCRATCHPAD_CACHE,
+  readCachedScratchpadPage,
+  storeCachedScratchpad,
+  touchCachedScratchpad,
+} from './platform/student/practiceScratchpadCache.js';
+import {
   getAssignmentByLaunchId,
   listClassroomCourseMappings,
   publishAssignmentToClassrooms,
@@ -922,9 +928,12 @@ function App() {
   const workspaceDraftSyncRef = useRef(null);
   const trackerRef = useRef({});
   const [practiceTracker, setPracticeTracker] = useState({});
-  const [practiceScratchpads, setPracticeScratchpads] = useState({});
+  // Practice Mode and "View as Student" scratchpads never reach Firestore, so
+  // they live here — in budgeted, least-recently-used stores, because a page is
+  // an image of up to ~700KB and a day of practice used to keep every one.
+  const [practiceScratchpads, setPracticeScratchpads] = useState(EMPTY_SCRATCHPAD_CACHE);
   const [previewTracker, setPreviewTracker] = useState({});
-  const [previewScratchpads, setPreviewScratchpads] = useState({});
+  const [previewScratchpads, setPreviewScratchpads] = useState(EMPTY_SCRATCHPAD_CACHE);
   const [previewSessionId, setPreviewSessionId] = useState(0);
   const [teacherScratchpadDialog, setTeacherScratchpadDialog] = useState(null);
   const [teacherScratchpadLoading, setTeacherScratchpadLoading] = useState(false);
@@ -2801,7 +2810,7 @@ function App() {
     setAssignmentResultRoute(null);
     setActiveView('dashboard');
     setPracticeTracker({});
-    setPracticeScratchpads({});
+    setPracticeScratchpads(EMPTY_SCRATCHPAD_CACHE);
     setPreviewTracker({});
   };
 
@@ -3006,9 +3015,9 @@ function App() {
     setAssignmentResultRoute(null);
     setPendingClassroomLaunch(null);
     setPracticeTracker({});
-    setPracticeScratchpads({});
+    setPracticeScratchpads(EMPTY_SCRATCHPAD_CACHE);
     setPreviewTracker({});
-    setPreviewScratchpads({});
+    setPreviewScratchpads(EMPTY_SCRATCHPAD_CACHE);
     setTeacherScratchpadDialog(null);
     setResumeAction(null);
     setAssignmentActivity({});
@@ -3256,6 +3265,17 @@ function App() {
       activityRole: activeQuestionRole,
     }));
   }, [isTeacherPreview, liveTeachingSession?.active, liveTeachingSession?.assignmentId, activeAssignmentId, activeAssignmentData, currentQuestionIndex, activeQuestionRole]);
+
+  // "View as Student" scratchpads are wanted only while the preview is on
+  // screen, or while a Live Teaching session can resume into it
+  // (resumeLiveTeaching keeps them on purpose). Once neither holds — the
+  // teacher left a plain preview, or ended Live Teaching away from it — nothing
+  // is meant to bring them back (a new preview starts empty), so the pages are
+  // released instead of held until sign-out.
+  const previewScratchpadsReachable = isTeacherPreview || Boolean(liveTeachingSession?.active);
+  useEffect(() => {
+    if (!previewScratchpadsReachable) setPreviewScratchpads(EMPTY_SCRATCHPAD_CACHE);
+  }, [previewScratchpadsReachable]);
 
   // All teacher tabs observe the deterministic session document. Writes occur
   // only for commands/navigation; timer seconds are derived from startedAt.
@@ -5252,7 +5272,7 @@ function App() {
     setAssignmentNavigationCollapsed(false);
     setAssignmentOverviewExpanded(false);
     setPreviewTracker(createEmptyAssignmentTracker(assignmentQuestions));
-    setPreviewScratchpads({});
+    setPreviewScratchpads(EMPTY_SCRATCHPAD_CACHE);
     setActiveView('teacherPreview');
   };
 
@@ -5419,14 +5439,18 @@ function App() {
       (assignment) => assignment.id === activeAssignmentId,
     );
 
+    // Opening a kept scratchpad is a use of it: it moves to the back of the
+    // eviction queue, so the work a student just looked at is not the next to go.
     if (isTeacherPreview) {
-      return loadScratchpadRecord(async (id) => previewScratchpads[id] || null, scratchpadId);
+      setPreviewScratchpads((current) => touchCachedScratchpad(current, scratchpadId));
+      return loadScratchpadRecord(async (id) => readCachedScratchpadPage(previewScratchpads, scratchpadId, id), scratchpadId);
     }
 
     if (getAssignmentLifecycle(scratchpadAssignment, Date.now(), {
       studentId: user?.role === 'student' ? user.id : undefined,
     }).isPracticeOnly) {
-      return loadScratchpadRecord(async (id) => practiceScratchpads[id] || null, scratchpadId);
+      setPracticeScratchpads((current) => touchCachedScratchpad(current, scratchpadId));
+      return loadScratchpadRecord(async (id) => readCachedScratchpadPage(practiceScratchpads, scratchpadId, id), scratchpadId);
     }
 
     if (user?.role !== 'student') return null;
@@ -5485,7 +5509,9 @@ function App() {
     const previousPageCount = Math.max(
       Number(loadedScratchpadPageCounts.current[scratchpadId]) || 0,
       scratchpadPageCount(
-        isTeacherPreview ? previewScratchpads[scratchpadId] : practiceOnly ? practiceScratchpads[scratchpadId] : null,
+        isTeacherPreview
+          ? readCachedScratchpadPage(previewScratchpads, scratchpadId)
+          : practiceOnly ? readCachedScratchpadPage(practiceScratchpads, scratchpadId) : null,
       ),
     );
     const { writes, deletes } = buildScratchpadWrites({
@@ -5496,23 +5522,15 @@ function App() {
     });
     loadedScratchpadPageCounts.current[scratchpadId] = pageList.length;
 
+    // In memory only, and within budget: the least recently used scratchpads
+    // beyond it are dropped whole, never this one — it is the question on screen.
     if (isTeacherPreview) {
-      setPreviewScratchpads((current) => {
-        const next = { ...current };
-        deletes.forEach((id) => { delete next[id]; });
-        writes.forEach((entry) => { next[entry.docId] = entry.data; });
-        return next;
-      });
+      setPreviewScratchpads((current) => storeCachedScratchpad(current, { baseId: scratchpadId, writes, deletes }));
       return;
     }
 
     if (practiceOnly) {
-      setPracticeScratchpads((current) => {
-        const next = { ...current };
-        deletes.forEach((id) => { delete next[id]; });
-        writes.forEach((entry) => { next[entry.docId] = entry.data; });
-        return next;
-      });
+      setPracticeScratchpads((current) => storeCachedScratchpad(current, { baseId: scratchpadId, writes, deletes }));
       return;
     }
 
