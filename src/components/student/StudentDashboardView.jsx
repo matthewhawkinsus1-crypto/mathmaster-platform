@@ -10,8 +10,8 @@ import { BUCKET_LABEL, BUCKET_OPEN_BY_DEFAULT, BUCKET_ORDER } from '../../studen
 import DOLCountdown from './DOLCountdown.jsx';
 import { formatDateTime, formatRemainingTime, studentDueDateLines } from '../../assignmentLifecycle';
 import { describeClassroomReceipt } from '../../platform/classroom/classroomReceiptPresentation.js';
-import ClassPointsWallet from './ClassPointsWallet.jsx';
 import ClassPointsCelebrations from './ClassPointsCelebrations.jsx';
+import RewardsSummaryCard from './rewards/RewardsSummaryCard.jsx';
 
 // The student's assignment dashboard, as a component.
 //
@@ -57,11 +57,11 @@ export default function StudentDashboardView({
   // Everything Recommended for You needs, passed through rather than rebuilt.
   recommended = {},
   classPoints = null,
-  // Practice Pass (Phase 5A): a best-effort UX list this screen never computes
-  // itself, and the one handler that may ask the server to spend points.
-  practicePassEligibleAssignments = [],
-  onRedeemPracticePass = null,
-  redeemingPracticePass = false,
+  // The reward wallet (rewardWallet.js), summarized here; everything else
+  // about rewards — using a Practice Pass included — lives on My Rewards.
+  rewardWallet = null,
+  hasNewRewards = false,
+  onOpenRewards = null,
 }) {
   const {
     visibleAssignments, resumeAssignment, resumeQuestionIndex, resumeLifecycle,
@@ -172,15 +172,8 @@ export default function StudentDashboardView({
           />
         </header>
 
-        {classPoints && (
-          <ClassPointsWallet
-            account={classPoints.account}
-            transactions={classPoints.transactions}
-            unavailable={classPoints.unavailable}
-            eligibleAssignments={practicePassEligibleAssignments}
-            onRedeemPracticePass={onRedeemPracticePass}
-            redeeming={redeemingPracticePass}
-          />
+        {rewardWallet && onOpenRewards && (
+          <RewardsSummaryCard wallet={rewardWallet} hasNew={hasNewRewards} onOpen={onOpenRewards} />
         )}
         {classPoints && <ClassPointsCelebrations announcements={classPoints.announcements} />}
 

@@ -3,9 +3,11 @@ import { functions } from '../../firebase.js';
 
 const callable = (name) => httpsCallable(functions, name);
 
-export const loadTeacherGradeTransferState = async ({ classIds = [] } = {}) => {
+export const loadTeacherGradeTransferState = async ({ classIds = [], practicePassesOnly = false } = {}) => {
   const response = await callable('listGradeTransferState')({
     classIds: [...new Set((classIds || []).filter(Boolean))],
+    // The gradebook asks for Practice Pass waivers only, not every snapshot.
+    ...(practicePassesOnly ? { practicePassesOnly: true } : {}),
   });
   const data = response.data || {};
   return {

@@ -298,12 +298,21 @@ import { ASSIGNMENT_NAV_HEIGHT_VAR, stickyHeightRef } from './platform/layout/st
 import { shouldCompactAssignmentNavigation } from './platform/layout/assignmentNavigationChrome.js';
 import {
   emptyClassPointAccount,
-  redeemPracticePass as redeemPracticePassCallable,
   subscribeToClassPointAnnouncements,
   subscribeToPracticePassRedemptions,
   subscribeToStudentClassPoints,
 } from './platform/classPointsClient.js';
 import { practicePassEligibleAssignments } from './platform/rewards/practicePassClientEligibility.js';
+import {
+  loadStudentRewardHistory,
+  subscribeToStudentRewardInventory,
+  usePracticePass as usePracticePassCallable,
+} from './platform/rewards/rewardsClient.js';
+import { buildRewardWallet } from './platform/rewards/rewardWallet.js';
+import { useRewardCelebrations } from './platform/rewards/useRewardCelebrations.js';
+import { useClassPracticePasses } from './platform/rewards/useClassPracticePasses.js';
+import StudentRewardsCenter from './components/student/rewards/StudentRewardsCenter.jsx';
+import ChallengeRewardsEarned from './components/student/rewards/ChallengeRewardsEarned.jsx';
 
 import {
   buildStudentGradeCenter,
@@ -622,10 +631,22 @@ function App() {
   const { toastSuccess, toastError, toastInfo, toastWarning, confirm: confirmAction } = useToast();
   const [user, setUser] = useState(null);
   const emptyStudentClassPoints = () => ({
-    account: emptyClassPointAccount(), transactions: [], announcements: [], redemptionsByAssignment: {}, unavailable: true,
+    account: emptyClassPointAccount(),
+    transactions: [],
+    announcements: [],
+    // Live waivers only, by assignment: what grading and completion read.
+    redemptionsByAssignment: {},
+    // Every Practice Pass use, undone ones included: what reward history reads.
+    redemptions: [],
+    // The student's usable rewards (rewardGrants with status available);
+    // null until the first snapshot, so "what they already had" is never
+    // mistaken for "just earned".
+    grants: null,
+    inventoryUnavailable: false,
+    unavailable: true,
   });
   const [studentClassPoints, setStudentClassPoints] = useState(emptyStudentClassPoints());
-  const [redeemingPracticePass, setRedeemingPracticePass] = useState(false);
+
   const [sessionHydrating, setSessionHydrating] = useState(false);
   const [sessionHydrationError, setSessionHydrationError] = useState(null);
 
@@ -664,20 +685,41 @@ function App() {
       db,
       studentId: user.id,
       classId: user.classId,
-      onRedemptions: (redemptionsByAssignment) => setStudentClassPoints((current) => ({ ...current, redemptionsByAssignment })),
+      onRedemptions: (redemptionsByAssignment, redemptions = []) => setStudentClassPoints((current) => ({ ...current, redemptionsByAssignment, redemptions })),
       onError: (error) => console.warn('Practice Pass redemptions are temporarily unavailable:', error),
     });
-    return () => { unsubscribeWallet(); unsubscribeAnnouncements(); unsubscribeRedemptions(); };
+    // The student's usable rewards. A failure here hides nothing else.
+    const unsubscribeInventory = subscribeToStudentRewardInventory({
+      db,
+      studentId: user.id,
+      classId: user.classId,
+      onGrants: (grants) => setStudentClassPoints((current) => ({ ...current, grants, inventoryUnavailable: false })),
+      onError: (error) => {
+        console.warn('Rewards are temporarily unavailable:', error);
+        setStudentClassPoints((current) => ({ ...current, inventoryUnavailable: true }));
+      },
+    });
+    return () => { unsubscribeWallet(); unsubscribeAnnouncements(); unsubscribeRedemptions(); unsubscribeInventory(); };
   }, [user?.role, user?.id, user?.classId]);
 
-  const handleRedeemPracticePass = async (assignmentId) => {
-    setRedeemingPracticePass(true);
-    try {
-      await redeemPracticePassCallable({ assignmentId });
-    } finally {
-      setRedeemingPracticePass(false);
-    }
-  };
+  // A new reward gets one toast and a "New" mark (useRewardCelebrations).
+  const celebratingStudentId = user?.role === 'student' ? user.id : null;
+  const { newIds: newRewardIds, clearNew: clearNewRewards } = useRewardCelebrations({
+    studentId: celebratingStudentId,
+    grants: studentClassPoints.grants,
+    onCelebrate: (message) => toastSuccess(message),
+  });
+
+  /*
+   * THE ONE DOOR A STUDENT USES TO SPEND A REWARD.
+   *
+   * `redeemPracticePass` (functions/index.js → rewardActionStore.mjs) checks
+   * everything again and writes the waiver and the payment in one
+   * transaction. Nothing here changes a count: the listeners above do, once
+   * the server has committed.
+   */
+  const handleUsePracticePass = ({ assignmentId, payWith, grantId }) => usePracticePassCallable({ assignmentId, payWith, grantId });
+  const handleLoadRewardHistory = () => loadStudentRewardHistory({ db, studentId: user?.id, classId: user?.classId });
 
   /*
    * THE ONE PLACE THE STUDENT RUNTIME ASKS "IS PRACTICE EXCUSED HERE?"
@@ -1241,6 +1283,20 @@ function App() {
       : []
   ), [user, assignments, gradeDisplayTracker, studentClassPoints.redemptionsByAssignment, now]);
 
+  const studentRewardWallet = useMemo(() => buildRewardWallet({
+    grants: studentClassPoints.grants,
+    redemptions: studentClassPoints.redemptions,
+    account: studentClassPoints.unavailable ? null : studentClassPoints.account,
+    nowMs: now,
+  }), [studentClassPoints.grants, studentClassPoints.redemptions, studentClassPoints.account, studentClassPoints.unavailable, now]);
+
+  // "New" lasts for one visit to My Rewards: leaving it clears the marks.
+  const previousStudentModeRef = useRef(null);
+  useEffect(() => {
+    if (previousStudentModeRef.current === 'rewards' && studentDashboardMode !== 'rewards') clearNewRewards();
+    previousStudentModeRef.current = studentDashboardMode;
+  }, [studentDashboardMode]);
+
   // The signed-in student's own Student Learning Profile, built from the same
   // evidence their teacher's roster reads. Assignment adaptation needs the DOK
   // and stable-band picture, which the legacy mastery profile does not carry.
@@ -1518,6 +1574,13 @@ function App() {
     assignmentId: null,
     student: null,
   });
+
+  // The gradebook shows Practice excused where a student used a Practice
+  // Pass, exactly as the student's Grade Center and Google Classroom already
+  // do; without this the same student read "Practice 0%" here.
+  const gradebookHasPracticePass = useClassPracticePasses(
+    user?.role === 'teacher' && teacherTab === 'grades' ? gradebookFilter.classId || null : null,
+  );
 
   const [exportJsonAssignment, setExportJsonAssignment] = useState(null);
   const [exportJsonCopied, setExportJsonCopied] = useState(false);
@@ -2887,9 +2950,9 @@ function App() {
       : `${remainingSeconds}s`;
   };
 
-  const calculateGrade = (assignmentTracker, assignmentData) => {
+  const calculateGrade = (assignmentTracker, assignmentData, { practicePassRedeemed = false } = {}) => {
     if (!assignmentTracker || !getStoredAssignmentQuestions(assignmentData).length) return 0;
-    return splitGrade({ tracker: assignmentTracker, assignment: assignmentData }).score ?? 0;
+    return splitGrade({ tracker: assignmentTracker, assignment: assignmentData, practicePassRedeemed }).score ?? 0;
   };
 
   const calculatePracticeProgress = (assignmentTracker, assignmentData, { hasPracticePass = false } = {}) => {
@@ -5032,6 +5095,7 @@ function App() {
   const navigateStudent = (destination) => {
     if (destination === STUDENT_DESTINATION.ASSIGNMENTS) return openStudentAssignmentsCenter();
     if (destination === STUDENT_DESTINATION.GRADES) return openStudentGradeCenter();
+    if (destination === STUDENT_DESTINATION.REWARDS) return openStudentDashboardMode('rewards');
     if (destination === STUDENT_DESTINATION.MATH_PATH) return openStudentDashboardMode('mathPath');
     if (destination === STUDENT_DESTINATION.SECURE_EXAMS) return openStudentDashboardMode('secureExams');
     return openStudentDashboardMode('assignments');
@@ -10390,7 +10454,7 @@ function App() {
     // The class summary above the gradebook table, from the same canonical
     // grade projection the table rows use. It is also the table filter.
     const gradebookProgress = teacherTab === 'grades' && selectedAssignment
-      ? classGradeProgress({ assignment: selectedAssignment, roster: selectedClassStudents, hasGradeRecords: teacherStudentDataMode === 'full', nameOf: (student) => formatStudentName(student) })
+      ? classGradeProgress({ assignment: selectedAssignment, roster: selectedClassStudents, hasGradeRecords: teacherStudentDataMode === 'full', nameOf: (student) => formatStudentName(student), hasPracticePass: gradebookHasPracticePass })
       : null;
     const gradebookFilterIds = gradebookProgress && gradebookProgressFilter !== 'all'
       ? new Set(({ complete: gradebookProgress.complete, inProgress: gradebookProgress.inProgress, notStarted: gradebookProgress.notStarted, below: gradebookProgress.belowThreshold }[gradebookProgressFilter] || []).map((row) => row.id))
@@ -11418,7 +11482,7 @@ function App() {
                 )}
 
                 {selectedGradebookPeriod && selectedAssignment && !gradebookFilter.student && (
-                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ padding: '12px' }}>Student</th><th>Overall</th><th>Warm-Up</th><th>Classwork</th><th>Practice</th><th>DOL</th><th>Instructional condition</th><th>Activity</th><th></th></tr></thead><tbody>{gradebookVisibleStudents.map((student) => { const grades = projectedAssignmentTrackerFor({ student, assignment: selectedAssignment }) || undefined; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const score = assignmentOverride ? assignmentOverride.score : grades ? calculateGrade(grades, selectedAssignment) : null; const sectionGrades = splitGradesBySection({ tracker: grades, assignment: selectedAssignment }); const recoveredSections = completedRecoverySections(student, selectedAssignment.id); const challengeWarmup = warmupChallengeCounts(student, selectedAssignment.id); const recoveredMark = (section) => (<>{section === 'warmup' && challengeWarmup ? <span data-warmup-challenge-mark="true" title="The Warm-Up grade is this student's Live Challenge result. Open Details for the rounds." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>LC</span> : null}{recoveredSections.has(section) ? <span data-recovered-section={section} title="Includes a completed Practice-based Recovery. Open Details for Original, Recovery and Final." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>R</span> : null}</>); const gradeSplit = splitGrade({ tracker: grades, assignment: selectedAssignment }); const gradeExplanation = grades ? explainGrade(gradeSplit) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <tr key={student.id} style={{ borderBottom: '1px solid #e8eaed' }}><td style={{ padding: '12px' }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} profile={teacherLearningProfiles[student.id]} onOpen={setProfileDrawerStudentId} showBadge /><div style={{ marginTop: 3, color: '#5f6368', fontSize: 11 }}>ID {student.id}</div></td><td><strong style={{ color: modified ? '#6f2da8' : score >= 70 ? '#188038' : '#202124' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: '#efe4ff', color: '#6f2da8', fontWeight: 900, fontSize: '11px' }}>MOD</span>}
+                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ padding: '12px' }}>Student</th><th>Overall</th><th>Warm-Up</th><th>Classwork</th><th>Practice</th><th>DOL</th><th>Instructional condition</th><th>Activity</th><th></th></tr></thead><tbody>{gradebookVisibleStudents.map((student) => { const grades = projectedAssignmentTrackerFor({ student, assignment: selectedAssignment }) || undefined; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const practicePassRedeemed = gradebookHasPracticePass(student, selectedAssignment); const score = assignmentOverride ? assignmentOverride.score : grades ? calculateGrade(grades, selectedAssignment, { practicePassRedeemed }) : null; const sectionGrades = splitGradesBySection({ tracker: grades, assignment: selectedAssignment, practicePassRedeemed }); const recoveredSections = completedRecoverySections(student, selectedAssignment.id); const challengeWarmup = warmupChallengeCounts(student, selectedAssignment.id); const recoveredMark = (section) => (<>{section === 'warmup' && challengeWarmup ? <span data-warmup-challenge-mark="true" title="The Warm-Up grade is this student's Live Challenge result. Open Details for the rounds." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>LC</span> : null}{recoveredSections.has(section) ? <span data-recovered-section={section} title="Includes a completed Practice-based Recovery. Open Details for Original, Recovery and Final." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>R</span> : null}</>); const gradeSplit = splitGrade({ tracker: grades, assignment: selectedAssignment, practicePassRedeemed }); const gradeExplanation = grades ? explainGrade(gradeSplit) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <tr key={student.id} style={{ borderBottom: '1px solid #e8eaed' }}><td style={{ padding: '12px' }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} profile={teacherLearningProfiles[student.id]} onOpen={setProfileDrawerStudentId} showBadge /><div style={{ marginTop: 3, color: '#5f6368', fontSize: 11 }}>ID {student.id}</div></td><td><strong style={{ color: modified ? '#6f2da8' : score >= 70 ? '#188038' : '#202124' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: '#efe4ff', color: '#6f2da8', fontWeight: 900, fontSize: '11px' }}>MOD</span>}
                     {/*
                       COMPLETION AND PERFORMANCE, VISUALLY APART.
                       The grade above is unchanged. These two lines are what a
@@ -11440,7 +11504,7 @@ function App() {
                         )}
                       </div>
                     )}
-                    {gradeExplanation && <div style={{ marginTop: 4, fontSize: 11, color: '#5f6368', lineHeight: 1.4, maxWidth: 280 }}>{gradeExplanation}</div>}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.warmup.attempted ? `${sectionGrades.warmup.score}%` : '—'}{recoveredMark('warmup')}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.classwork.attempted ? `${sectionGrades.classwork.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.practice.attempted ? `${sectionGrades.practice.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.dol.attempted ? `${sectionGrades.dol.score}%` : '—'}{recoveredMark('dol')}</td><td style={{ fontSize: '12px' }}>{modified ? `Modified: ${(usage.modifications || []).join(', ')}` : (usage.accommodations || []).length ? `Accommodated: ${usage.accommodations.join(', ')}` : 'Standard'}</td><td style={{ fontSize: '12px', lineHeight: 1.45 }}>{activity.totalTimeSeconds ? <>Total {formatTime(activity.totalTimeSeconds)}<br />On time {formatTime(activity.onTimeSeconds || 0)} · Late {formatTime(activity.lateSeconds || 0)}</> : 'Time not recorded'}<br />Last on-time: {formatTimeStamp(activity.lastActiveBeforeDue)}<br />Last late: {formatTimeStamp(activity.lastActiveLate)}</td><td><button onClick={() => setGradebookFilter((current) => ({ ...current, student }))} style={{ padding: '8px 12px', border: 0, borderRadius: '6px', background: '#1a73e8', color: '#fff', fontWeight: 'bold' }}>Details</button></td></tr>; })}</tbody></table></div>
+                    {gradeExplanation && <div style={{ marginTop: 4, fontSize: 11, color: '#5f6368', lineHeight: 1.4, maxWidth: 280 }}>{gradeExplanation}</div>}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.warmup.attempted ? `${sectionGrades.warmup.score}%` : '—'}{recoveredMark('warmup')}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.classwork.attempted ? `${sectionGrades.classwork.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.practice?.excused ? <span title="The student used a Practice Pass: Practice is excused — not scored and not required." style={{ color: '#6a1b9a' }}>Excused (Pass)</span> : sectionGrades.practice.attempted ? `${sectionGrades.practice.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.dol.attempted ? `${sectionGrades.dol.score}%` : '—'}{recoveredMark('dol')}</td><td style={{ fontSize: '12px' }}>{modified ? `Modified: ${(usage.modifications || []).join(', ')}` : (usage.accommodations || []).length ? `Accommodated: ${usage.accommodations.join(', ')}` : 'Standard'}</td><td style={{ fontSize: '12px', lineHeight: 1.45 }}>{activity.totalTimeSeconds ? <>Total {formatTime(activity.totalTimeSeconds)}<br />On time {formatTime(activity.onTimeSeconds || 0)} · Late {formatTime(activity.lateSeconds || 0)}</> : 'Time not recorded'}<br />Last on-time: {formatTimeStamp(activity.lastActiveBeforeDue)}<br />Last late: {formatTimeStamp(activity.lastActiveLate)}</td><td><button onClick={() => setGradebookFilter((current) => ({ ...current, student }))} style={{ padding: '8px 12px', border: 0, borderRadius: '6px', background: '#1a73e8', color: '#fff', fontWeight: 'bold' }}>Details</button></td></tr>; })}</tbody></table></div>
                 )}
 
                 {gradebookFilter.student && selectedAssignment && (() => { const student = allStudents.find((entry) => entry.id === gradebookFilter.student.id) || gradebookFilter.student; const studentGrades = projectedAssignmentTrackerFor({ student, assignment: selectedAssignment }) || {}; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const displayedAssignmentScore = assignmentOverride ? assignmentOverride.score : Object.keys(studentGrades).length ? calculateGrade(studentGrades, selectedAssignment) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{displayedAssignmentScore === null ? '—' : `${displayedAssignmentScore}%`}</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>{activity.totalTimeSeconds ? `Total engagement ${formatTime(activity.totalTimeSeconds)} · Late engagement ${formatTime(activity.lateSeconds || 0)}` : 'Engagement time not recorded (see the support evidence report for server-timed minutes)'}</div><AssignmentGradeOverrideControls student={student} assignment={selectedAssignment} onChanged={() => setGradebookFilter((current) => ({ ...current, student: null }))} /><SectionRecoveryAuditTrail student={student} assignment={selectedAssignment} />{selectedAssignment?.dol?.enabled && (() => { const recovery = summarizeStudentRecovery({ assignment: selectedAssignment, classId: student.classId || activeClass?.classId || null, studentId: student.id }); const busy = dolAttemptGrantBusyKey === `${selectedAssignment.id}:students:${student.id}`; return <div data-dol-student-recovery={student.id} style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, fontSize: 12.5, color: '#3c4043' }}><span>Teacher-granted DOL attempts: <strong>{recovery.extraAttempts}</strong>{recovery.studentExtraAttempts ? ` (${recovery.studentExtraAttempts} for this student)` : ''}</span><button type="button" disabled={busy} onClick={() => handleGrantDOLAttemptForStudents(selectedAssignment, [student])} style={{ padding: '6px 10px', border: '1px solid #1a73e8', borderRadius: 6, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, cursor: busy ? 'wait' : 'pointer' }}>{busy ? 'Granting…' : 'Grant +1 DOL attempt'}</button></div>; })()}{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid #d8dde6' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: 'var(--mm-text-strong)' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 900 }}>Support evidence report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{getStoredAssignmentQuestions(selectedAssignment).map((question, index) => { if (!questionIsIncluded(question)) return null; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type} · Grade ×{normalizeQuestionWeight(question)}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.teacherGradeOverrideDisplay?.active ? (credit >= 100 ? 'Teacher assigned · Correct ✓' : `Teacher assigned · ${credit}%`) : record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button>{studentGrades[index] && <button type="button" onClick={() => setResponseInspectorTarget({ studentId: student.id, assignmentId: selectedAssignment.id, questionIndex: index })} style={{ marginTop: '8px', marginLeft: '8px', padding: '8px 11px', border: '1px solid #1a73e8', borderRadius: '6px', background: '#e8f0fe', color: '#174ea6', fontWeight: 'bold' }}>Inspect Response / Override Grade</button>}</article>; })}</div></div>; })()}
@@ -11636,6 +11700,16 @@ function App() {
             invite={liveChallengeInvite}
             studentProfile={user.profile}
             onExit={() => setStudentDashboardMode('assignments')}
+            // What the finished match put in the wallet, shown apart from
+            // placement and game points.
+            renderMatchRewards={(roomId) => (
+              <ChallengeRewardsEarned
+                roomId={roomId}
+                grants={studentClassPoints.grants}
+                transactions={studentClassPoints.transactions}
+                onOpenRewards={() => openStudentDashboardMode('rewards')}
+              />
+            )}
           />
           </Suspense>
         </>,
@@ -11677,6 +11751,29 @@ function App() {
             onContinue={(assignmentId) => startAssignment(assignmentId)}
             onOpenResult={(assignmentId) => openStudentAssignmentResult(assignmentId, { origin: 'assignments' })}
             onPractice={(assignmentId) => startAssignment(assignmentId)}
+          />
+        </>,
+      );
+    }
+    if (studentDashboardMode === 'rewards') {
+      return renderStudentIdentityShell(
+        <>
+          {renderStudentPackUpBanner()}
+          {renderStudentWarmupBanner()}
+          <StudentRewardsCenter
+            student={{ ...studentRecord, ...user }}
+            wallet={studentRewardWallet}
+            classPoints={studentClassPoints}
+            inventoryUnavailable={studentClassPoints.inventoryUnavailable}
+            redemptions={studentClassPoints.redemptions}
+            eligibleAssignments={studentPracticePassEligibleAssignments}
+            onUsePracticePass={handleUsePracticePass}
+            loadHistory={handleLoadRewardHistory}
+            newGrantIds={newRewardIds}
+            supportPresentation={getStudentSupportPresentation(user.profile)}
+            onNavigate={navigateStudent}
+            onLogout={handleLogout}
+            nowMs={now}
           />
         </>,
       );
@@ -11766,9 +11863,9 @@ function App() {
         onOpenLiveChallenge={() => setStudentDashboardMode('liveChallenge')}
         onLogout={handleLogout}
         classPoints={studentClassPoints}
-        practicePassEligibleAssignments={studentPracticePassEligibleAssignments}
-        onRedeemPracticePass={handleRedeemPracticePass}
-        redeemingPracticePass={redeemingPracticePass}
+        rewardWallet={studentRewardWallet}
+        hasNewRewards={newRewardIds.size > 0}
+        onOpenRewards={() => openStudentDashboardMode('rewards')}
         recommended={{
           student: studentRecord,
           assignments: studentPathAssignments,

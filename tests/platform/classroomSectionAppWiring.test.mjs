@@ -18,7 +18,8 @@ test('teacher gradebook exposes Overall, Warm-Up, Classwork, Practice, and DOL a
   for (const label of ['Overall', 'Warm-Up', 'Classwork', 'Practice', 'DOL']) {
     assert.match(source, new RegExp(`>${label}<`));
   }
-  assert.match(source, /splitGradesBySection\(\{\s*tracker:\s*grades,\s*assignment:\s*selectedAssignment\s*\}\)/);
+  // The Practice column also honours a Practice Pass (Excused, not 0%).
+  assert.match(source, /splitGradesBySection\(\{\s*tracker:\s*grades,\s*assignment:\s*selectedAssignment(,\s*practicePassRedeemed)?\s*\}\)/);
 });
 
 test('student workspace shows the active section score instead of only the whole-assignment score', () => {

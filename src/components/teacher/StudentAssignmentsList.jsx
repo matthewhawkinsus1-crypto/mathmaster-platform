@@ -33,6 +33,8 @@ export default function StudentAssignmentsList({
   onOpenAssignment = null,
   onOpenStudentWork = null,
   emptyText = 'No assignments are assigned to this student’s class yet.',
+  // Assignments where this student used a Practice Pass (Practice excused).
+  excusedAssignmentIds = null,
 }) {
   if (!student) return null;
   if (!assignments.length) return <p className="tw-small tw-muted" style={{ margin: 0 }}>{emptyText}</p>;
@@ -47,7 +49,9 @@ export default function StudentAssignmentsList({
         const list = (
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
             {ordered.map((assignment) => {
-              const progress = gradesKnown ? studentAssignmentProgress({ student, assignment }) : null;
+              const progress = gradesKnown
+                ? studentAssignmentProgress({ student, assignment, practicePassRedeemed: Boolean(excusedAssignmentIds?.has(assignment.id)) })
+                : null;
               const status = progress ? statusOf(progress) : { label: 'Loading…', tone: 'neutral' };
               const lifecycle = getAssignmentLifecycle(assignment, nowValue);
               return (
@@ -62,6 +66,7 @@ export default function StudentAssignmentsList({
                   </span>
                   <span className="tw-row" style={{ gap: 6 }}>
                     <span className="tw-pill" data-tone={status.tone}>{status.label}</span>
+                    {progress?.practicePassExcused && <span className="tw-pill" data-tone="neutral" title="The student used a Practice Pass. Practice is excused: not scored, not required.">Practice excused · Pass</span>}
                     {onOpenStudentWork && (!progress || progress.state !== PROGRESS_STATE.NOT_STARTED) && (
                       <button type="button" className="tw-btn tw-btn--sm" onClick={() => onOpenStudentWork(classId, assignment.id, student.id)}>Work</button>
                     )}

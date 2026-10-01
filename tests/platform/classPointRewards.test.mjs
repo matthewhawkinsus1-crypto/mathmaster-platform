@@ -288,8 +288,13 @@ test('a redemption record is the authoritative waiver projection, and carries no
   assert.equal(redemption.rewardCode, PRACTICE_PASS_REWARD_CODE);
   assert.equal(redemption.cost, 100);
   assert.equal(redemption.status, 'redeemed');
+  // paidWith/grantId say how the pass was paid for (points or a pass the
+  // student held); reversedAt/reversal/previousRedemptions let a teacher undo
+  // a use without erasing it. None of them carries response text.
+  assert.equal(redemption.paidWith, 'classPoints');
   assert.deepEqual(Object.keys(redemption).sort(), [
-    'assignmentId', 'assignmentTitle', 'classId', 'cost', 'redeemedAt', 'redemptionId',
+    'assignmentId', 'assignmentTitle', 'classId', 'cost', 'grantId', 'paidWith', 'previousRedemptions',
+    'redeemedAt', 'redemptionId', 'reversal', 'reversedAt',
     'rewardCode', 'schemaVersion', 'status', 'studentId', 'transactionId',
   ].sort());
 });

@@ -63,32 +63,79 @@ export const GRANT_OUTCOME = Object.freeze({
 /*
  * The catalog. `grantable` means a reward rule may issue it as an item grant;
  * Class Points are never an item — they go through their ledger.
+ *
+ * The copy here is the ONE description of each reward, shared by the student
+ * wallet, the teacher's reward guide and the docs, so a reward cannot mean one
+ * thing on one screen and another elsewhere. Student copy is written for a
+ * ninth grader: what it is, what it does, what it does not do.
+ *
+ *   studentDescription  one sentence, shown on the wallet card
+ *   studentHowToUse     how a student uses it (null when it is not used)
+ *   teacherDescription  what a teacher needs to know, including grade effect
+ *   gradeEffect         the exact effect on grades and completion, or null
+ *   teacherAwardable    a teacher may hand one out directly
  */
 export const REWARD_DEFINITIONS = Object.freeze({
   classPoints: Object.freeze({
     rewardCode: 'classPoints',
     category: REWARD_CATEGORY.CURRENCY,
     label: 'Class Points',
+    icon: '⭐',
     grantable: false,
     redeemable: false,
+    teacherAwardable: false,
+    studentDescription: 'Points your teacher gives for great classwork, explaining, and helping. Save 100 to trade for a Practice Pass.',
+    studentHowToUse: null,
+    teacherDescription: 'A participation currency. Awarding or spending points never changes a grade or mastery.',
+    gradeEffect: null,
   }),
   practicePass: Object.freeze({
     rewardCode: 'practicePass',
     category: REWARD_CATEGORY.PASS,
     label: 'Practice Pass',
+    icon: '🎟️',
     grantable: true,
     redeemable: true,
+    teacherAwardable: true,
     // What a redemption must name. Mirrors the Practice Pass waiver that
     // classPointRewards.mjs already grants when points are spent.
     redeemsAgainst: 'assignmentPracticeSection',
+    studentDescription: 'Skip the Practice (homework) section of one assignment you have not started yet.',
+    studentHowToUse: 'Pick an assignment. Its Practice section is marked Excused. Warm-Up, Classwork, and DOL still count.',
+    teacherDescription: 'Excuses the Practice section of one eligible assignment for one student.',
+    gradeEffect: 'Practice is excused, not scored: it is removed from the assignment grade and from completion, '
+      + 'sent to Google Classroom without Practice, and shown as Excused (Practice Pass) in Grade Transfer. '
+      + 'Warm-Up, Classwork and DOL are unchanged. It is never counted as a correct answer or as mastery.',
   }),
   badge: Object.freeze({
     rewardCode: 'badge',
     category: REWARD_CATEGORY.BADGE,
     label: 'Badge',
+    icon: '🏅',
     grantable: true,
     redeemable: false,
+    teacherAwardable: true,
+    studentDescription: 'A badge to keep. It shows what you achieved.',
+    studentHowToUse: null,
+    teacherDescription: 'Recognition only. A badge is kept, never spent.',
+    gradeEffect: null,
   }),
+});
+
+/*
+ * Where a grant came from. Stored on `source.type`. A grant's source is fixed
+ * when it is issued and is never rewritten.
+ *
+ *   liveChallenge  a reward rule consuming a finished match result
+ *   teacher        a teacher handed it out directly (awardRewardGrant)
+ *   restored       a teacher undid a redemption; this grant gives the pass back
+ *                  (the original grant stays redeemed — terminal states never
+ *                  change — and this one points at it)
+ */
+export const REWARD_SOURCE = Object.freeze({
+  LIVE_CHALLENGE: 'liveChallenge',
+  TEACHER: 'teacher',
+  RESTORED: 'restored',
 });
 
 export const getRewardDefinition = (rewardCode) => REWARD_DEFINITIONS[String(rewardCode || '')] || null;
@@ -133,6 +180,12 @@ export const buildRewardGrant = ({
   expiresAt = null,
   originTeacherEmail = null,
   authorizedTeacherEmails = [],
+  // Who issued it, for the first history entry. A rule-issued grant is the
+  // system's; a teacher's award names the teacher.
+  actor = null,
+  // A teacher's short reason ("Helped a classmate all period"), shown to the
+  // student with the reward. Rule-issued grants carry the rule's label instead.
+  note = null,
 } = {}) => {
   const definition = getRewardDefinition(rewardCode);
   if (!definition?.grantable) throw new TypeError(`"${rewardCode}" is not an item reward that can be granted.`);
@@ -155,7 +208,10 @@ export const buildRewardGrant = ({
       ruleId: cleanText(source.ruleId, 60) || null,
       ruleVersion: Number.isInteger(Number(source.ruleVersion)) ? Number(source.ruleVersion) : null,
       identity: cleanText(source.identity, 400) || null,
+      // Only on a pass a teacher gave back by undoing a use: the grant it replaces.
+      ...(cleanText(source.restoresGrantId, 200) ? { restoresGrantId: cleanText(source.restoresGrantId, 200) } : {}),
     },
+    note: cleanText(note, 140) || null,
     awardedAt: at,
     expiresAt: expiresAt || null,
     redeemedAt: null,
@@ -163,7 +219,13 @@ export const buildRewardGrant = ({
     revokedAt: null,
     revocation: null,
     expiredAt: null,
-    history: [{ status: REWARD_GRANT_STATUS.AVAILABLE, at, actorType: 'system', reason: 'awarded' }],
+    history: [{
+      status: REWARD_GRANT_STATUS.AVAILABLE,
+      at,
+      actorType: cleanText(actor?.type, 20) || 'system',
+      ...(cleanText(actor?.email, 200) ? { actorEmail: cleanText(actor.email, 200) } : {}),
+      reason: cleanText(source.type, 40) === REWARD_SOURCE.RESTORED ? 'restored' : 'awarded',
+    }],
     originTeacherEmail: originTeacherEmail || null,
     authorizedTeacherEmails: Array.isArray(authorizedTeacherEmails) ? [...authorizedTeacherEmails] : [],
   };
@@ -247,4 +309,23 @@ export const planGrantTransition = (grant, { to, at = null, actor = {}, reason =
   }
 
   return reject('unknown_transition', `Unknown reward transition "${String(to)}".`);
+};
+
+/**
+ * Which of a student's passes to spend: the usable one that expires soonest,
+ * so nothing is wasted. A pass that never expires is spent last. Ties go to
+ * the oldest award, then the id, so two screens always agree on the choice.
+ */
+export const pickGrantToSpend = (grants = [], rewardCode, nowMs = Date.now()) => {
+  const usable = (Array.isArray(grants) ? grants : []).filter((grant) => grant
+    && grant.rewardCode === rewardCode
+    && effectiveGrantStatus(grant, nowMs) === REWARD_GRANT_STATUS.AVAILABLE);
+  const expiry = (grant) => {
+    const value = toMillis(grant.expiresAt);
+    return value === null ? Number.POSITIVE_INFINITY : value;
+  };
+  usable.sort((a, b) => (expiry(a) - expiry(b))
+    || ((toMillis(a.awardedAt) ?? 0) - (toMillis(b.awardedAt) ?? 0))
+    || (String(a.grantId) < String(b.grantId) ? -1 : String(a.grantId) > String(b.grantId) ? 1 : 0));
+  return usable[0] || null;
 };
