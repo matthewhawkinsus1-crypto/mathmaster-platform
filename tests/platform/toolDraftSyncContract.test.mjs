@@ -133,7 +133,7 @@ test('the student is never shown the diagnostic', () => {
 test('the write path and the sync are both wired to the reporter', () => {
   const storage = executableSource(read('src/questionDraftStorage.js'));
   const writer = storage.slice(storage.indexOf('export const writeQuestionDraft'), storage.indexOf('export const questionDraftSavedAt'));
-  assert.match(writer, /auditDraftWrite\(key, value\);[\s\S]*notifyDraftWritten\(key, value, savedAt, isEdit\)/,
+  assert.match(writer, /auditDraftWrite\(key, value\);[\s\S]*notifyDraftWritten\(key, value, savedAt, isEdit\b[^)]*\)/,
     'writeQuestionDraft must audit every draft before it is offered to the sync');
   assert.match(storage, /import \{ auditDraftWrite \} from '\.\/platform\/persistence\/draftSyncDiagnostics\.js'/);
   const sync = executableSource(read('src/platform/persistence/workspaceDraftSync.js'));

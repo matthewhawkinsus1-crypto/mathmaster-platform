@@ -42,10 +42,10 @@ export const subscribeToQuestionDrafts = (listener) => {
   return () => draftSubscribers.delete(listener);
 };
 
-const notifyDraftWritten = (key, value, savedAt, edit) => {
+const notifyDraftWritten = (key, value, savedAt, edit, savedAtIsEdit) => {
   draftSubscribers.forEach((listener) => {
     try {
-      listener({ key, value, savedAt, edit });
+      listener({ key, value, savedAt, edit, savedAtIsEdit });
     } catch (error) {
       // A failing sync listener must never cost the student their keystroke.
       console.warn('MathMaster could not queue a draft for background save:', error);
@@ -77,6 +77,13 @@ const notifyDraftWritten = (key, value, savedAt, edit) => {
  *
  * The VALUE is stored either way, so a reload, a question change or a reopened
  * browser on this device restores exactly what it always did.
+ *
+ * A copy whose time is an edit's says so: `savedAtIsEdit` in the envelope, set
+ * by an edit here and by a restore of a server entry that carried the same
+ * marker, kept by every write that is not an edit. It goes with the copy to
+ * the server (workspaceDraftSchema.mjs, "the edit-time marker"). A copy an
+ * older build wrote has no marker — its time may be an opening's — and neither
+ * does one restored from such an entry.
  *
  * Who decides: a writer that knows passes `{ edit }` (the draft hooks do; see
  * useLocalDraftState, useUndoHistory, usePersistentToolState). Otherwise it is
@@ -211,14 +218,17 @@ export const readQuestionDraft = (key, fallback = null) => {
   return parsed.value ?? fallback;
 };
 
-const storedSavedAt = (key) => {
-  if (!key || !storageAvailable()) return 0;
+const storedEnvelope = (key) => {
+  if (!key || !storageAvailable()) return null;
   try {
-    return Number(safeParse(window.localStorage.getItem(key))?.savedAt) || 0;
+    const parsed = safeParse(window.localStorage.getItem(key));
+    return parsed && typeof parsed === 'object' ? parsed : null;
   } catch {
-    return 0;
+    return null;
   }
 };
+
+const storedSavedAt = (key) => Number(storedEnvelope(key)?.savedAt) || 0;
 
 /**
  * Store a draft and offer it to the background save.
@@ -233,15 +243,18 @@ export const writeQuestionDraft = (key, value, { edit } = {}) => {
   const isEdit = typeof edit === 'boolean' ? edit : studentInputSince(seen ? seen.input : 0);
   const now = Date.now();
   let savedAt = now;
+  let savedAtIsEdit = true;
   if (!isEdit) {
-    const stored = storedSavedAt(key);
+    const stored = storedEnvelope(key);
+    const storedAt = Number(stored?.savedAt) || 0;
     // Something else wrote this draft after this page last saw it — a newer
     // copy restored from the server, this student's edit in another tab. The
     // page's own copy is the older one, and a write that is not an edit must
     // not put it back. (The page catches up when it next reads: a restore
     // remounts the question.)
-    if (seen && stored !== seen.savedAt) return false;
-    savedAt = stored;
+    if (seen && storedAt !== seen.savedAt) return false;
+    savedAt = storedAt;
+    savedAtIsEdit = storedAt > 0 && stored?.savedAtIsEdit === true;
   }
   pageView.set(key, { savedAt, input: seen ? seen.input : 0 });
   // Development only: name the field that would stop the server backup at the
@@ -251,10 +264,12 @@ export const writeQuestionDraft = (key, value, { edit } = {}) => {
   // The background save is offered even when local storage is unavailable —
   // a district policy that blocks site data is exactly the case where the
   // server copy is the only copy the student will get back.
-  notifyDraftWritten(key, value, savedAt, isEdit);
+  notifyDraftWritten(key, value, savedAt, isEdit, savedAtIsEdit);
   if (!storageAvailable()) return false;
   try {
-    window.localStorage.setItem(key, JSON.stringify({ version: 2, savedAt, value, touchedAt: now }));
+    window.localStorage.setItem(key, JSON.stringify({
+      version: 2, savedAt, value, touchedAt: now, ...(savedAtIsEdit ? { savedAtIsEdit: true } : {}),
+    }));
     return true;
   } catch (error) {
     console.warn('MathMaster could not save local question work:', error);
@@ -295,7 +310,10 @@ export const restoreQuestionDrafts = (entries = []) => {
     const savedAt = Number(entry?.savedAt) || 0;
     if (!key || !savedAt || savedAt <= questionDraftSavedAt(key)) return;
     try {
-      window.localStorage.setItem(key, JSON.stringify({ version: 2, savedAt, value: entry.value }));
+      // The server entry's edit-time marker comes with it (see writeQuestionDraft).
+      window.localStorage.setItem(key, JSON.stringify({
+        version: 2, savedAt, value: entry.value, ...(entry.savedAtIsEdit === true ? { savedAtIsEdit: true } : {}),
+      }));
       restored += 1;
     } catch {
       // Out of quota: the student keeps whatever this device already had.

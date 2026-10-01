@@ -153,7 +153,7 @@ export const createWorkspaceDraftSync = ({
   }
 
   /** Called synchronously from the draft write. Must stay cheap. */
-  const record = ({ key, value, savedAt, edit } = {}) => {
+  const record = ({ key, value, savedAt, edit, savedAtIsEdit } = {}) => {
     if (stopped) return false;
     const identity = parseQuestionDraftKey(key);
     if (!identity || !['student', 'practice'].includes(identity.sessionBucket)) { stats.skipped += 1; return false; }
@@ -171,10 +171,14 @@ export const createWorkspaceDraftSync = ({
      * overwrite the work it was derived from.
      */
     let stamp = Number(savedAt) || 0;
+    // The edit-time marker (workspaceDraftSchema.mjs): an edit's time is one;
+    // a copy offered again carries whatever its envelope says — a copy an
+    // older build dated may carry an opening's time, and goes unmarked.
+    const marked = edit === false ? savedAtIsEdit === true : true;
     if (edit === false) {
       if (stamp <= 0) { stats.unedited += 1; return false; }
       if ((pending.get(key)?.savedAt ?? 0) >= stamp) return false;
-      if (!serverKnown) { held.set(key, { key, value, savedAt: stamp }); return false; }
+      if (!serverKnown) { held.set(key, { key, value, savedAt: stamp, savedAtIsEdit: marked }); return false; }
       if (stamp <= (serverSavedAt.get(key) || 0)) return false;
     } else {
       held.delete(key);
@@ -202,6 +206,7 @@ export const createWorkspaceDraftSync = ({
       savedAt: stamp,
       questionIndex: identity.questionIndex,
       variantIndex: identity.variantIndex,
+      ...(marked ? { savedAtIsEdit: true } : {}),
     });
     stats.recorded += 1;
     dirtySinceFlush = true;

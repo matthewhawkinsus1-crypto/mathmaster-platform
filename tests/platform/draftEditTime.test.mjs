@@ -23,6 +23,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import {
+  buildWorkspaceDraftPatch,
   mergeWorkspaceDraftDocument,
   readWorkspaceDraftEntries,
   selectRestorableDraftEntries,
@@ -93,7 +94,8 @@ test('opening a question — read, then written back with no input between — i
   assert.equal(stored.savedAt, 0, 'never edited: no edit time at all');
   assert.deepEqual(stored.value, {}, 'the value is stored all the same');
   assert.ok(stored.touchedAt > 0, 'and the device knows when it last wrote it');
-  assert.deepEqual(p.events.at(-1), { key: KEY, value: {}, savedAt: 0, edit: false });
+  // Offered as what it is: not an edit, and carrying no edit's time.
+  assert.deepEqual(p.events.at(-1), { key: KEY, value: {}, savedAt: 0, edit: false, savedAtIsEdit: false });
   assert.equal(p.questionDraftSavedAt(KEY), 0);
 });
 
@@ -243,8 +245,9 @@ test('this device\'s own newer edit is never replaced; an older one is, however 
     p.writeQuestionDraft(KEY, { m: '7' });
   }
   assert.equal(p.questionDraftSavedAt(KEY), at(5), 'opening it three times did not make it newer');
-  assert.deepEqual(restorable(p, [{ key: KEY, savedAt: at(4), value: { m: 'older' } }]), []);
-  assert.equal(restorable(p, [{ key: KEY, savedAt: at(6), value: { m: 'B edited it' } }]).length, 1);
+  // Entries this build saved: their times are edits' (the edit-time marker).
+  assert.deepEqual(restorable(p, [{ key: KEY, savedAt: at(4), value: { m: 'older' }, savedAtIsEdit: true }]), []);
+  assert.equal(restorable(p, [{ key: KEY, savedAt: at(6), value: { m: 'B edited it' }, savedAtIsEdit: true }]).length, 1);
 });
 
 test('canonical attempts still beat drafts', async () => {
@@ -389,6 +392,201 @@ test('A works, B opens and edits, A comes back: the newest edit wins and opening
   assert.deepEqual(back.open(), { m: '-2/3', b: '4' }, 'A sees B\'s newer edit, not its own older copy');
   await save(back.sync, back.scheduler);
   assert.deepEqual(serverValue(), afterB, 'coming back changed nothing on the server');
+});
+
+/* ------------------------------------------------- the edit-time marker */
+
+/*
+ * Server copies an older build saved carry the time of the last write of any
+ * kind — opening a question included — and nothing in them says which. This
+ * build marks every entry whose time is an edit's (`savedAtIsEdit`), and a
+ * restore lets an unmarked entry replace only a device with nothing dated of
+ * its own (workspaceDraftSchema.mjs). An older build's copy, here or there,
+ * is simulated as what it wrote: an envelope or an entry without the marker.
+ */
+const olderBuildEnvelope = (savedAt, value) => JSON.stringify({ version: 2, savedAt, value });
+const THIRD = `mathmaster:draft:v2::${STUDENT}:${ASSIGNMENT}:4:0:student:graph`;
+
+test('a copy says whether its time is an edit\'s: an edit\'s is, and a write that is not an edit keeps what the copy said', async () => {
+  const p = await page();
+  p.readQuestionDraft(KEY, {});
+  p.writeQuestionDraft(KEY, {});
+  assert.equal(Object.hasOwn(p.envelope(KEY), 'savedAtIsEdit'), false, 'never edited: nothing to mark');
+  p.input();
+  p.writeQuestionDraft(KEY, { m: '-2/3' });
+  assert.equal(p.envelope(KEY).savedAtIsEdit, true);
+  assert.equal(p.events.at(-1).savedAtIsEdit, true);
+  // Opened again: written back, not an edit, and still the edit's time.
+  p.readQuestionDraft(KEY, {});
+  p.writeQuestionDraft(KEY, { m: '-2/3' });
+  assert.equal(p.envelope(KEY).savedAtIsEdit, true);
+  assert.deepEqual([p.events.at(-1).edit, p.events.at(-1).savedAtIsEdit], [false, true]);
+  // A copy an older build dated may carry an opening's time: it stays unmarked.
+  p.storage.setItem(OTHER, olderBuildEnvelope(at(2), { a: 1 }));
+  p.readQuestionDraft(OTHER, {});
+  p.writeQuestionDraft(OTHER, { a: 1 });
+  assert.equal(p.envelope(OTHER).savedAt, at(2));
+  assert.equal(Object.hasOwn(p.envelope(OTHER), 'savedAtIsEdit'), false);
+  assert.deepEqual([p.events.at(-1).savedAt, p.events.at(-1).savedAtIsEdit], [at(2), false]);
+  // Until the student edits it here.
+  p.input();
+  p.writeQuestionDraft(OTHER, { a: 2 });
+  assert.equal(p.envelope(OTHER).savedAtIsEdit, true);
+});
+
+test('a restored copy carries the server entry\'s marker, or its lack of one', async () => {
+  const p = await page();
+  assert.equal(p.restoreQuestionDrafts([
+    { key: KEY, savedAt: at(3), value: { m: '1' }, savedAtIsEdit: true },
+    { key: OTHER, savedAt: at(3), value: { a: 1 }, savedAtIsEdit: false },
+  ]), 2);
+  assert.equal(p.envelope(KEY).savedAtIsEdit, true);
+  assert.equal(Object.hasOwn(p.envelope(OTHER), 'savedAtIsEdit'), false);
+  p.readQuestionDraft(KEY, {});
+  p.writeQuestionDraft(KEY, { m: '1' });
+  p.readQuestionDraft(OTHER, {});
+  p.writeQuestionDraft(OTHER, { a: 1 });
+  assert.deepEqual(p.events.map((event) => [event.key, event.savedAtIsEdit]), [[KEY, true], [OTHER, false]]);
+});
+
+test('the background save sends each entry with its marker: an edit\'s, and an offered copy\'s own', () => {
+  const marks = (sync) => Object.fromEntries(sync.snapshotPatch().entries.map((entry) => [entry.key, entry.savedAtIsEdit === true]));
+  const { sync } = syncFor();
+  sync.record({ key: KEY, value: { m: '1' }, savedAt: 3_000, edit: true });
+  sync.record({ key: OTHER, value: { a: 1 }, savedAt: 1_000, edit: false, savedAtIsEdit: true });
+  sync.record({ key: THIRD, value: { p: [] }, savedAt: 2_000, edit: false, savedAtIsEdit: false });
+  sync.noteServerCopy([]);
+  assert.deepEqual(marks(sync), { [KEY]: true, [OTHER]: true, [THIRD]: false },
+    'an edit; an edit made offline, offered once the server is known; a copy an older build dated');
+  const callers = syncFor();
+  callers.sync.record({ key: KEY, value: { m: '1' }, savedAt: 7 });
+  assert.deepEqual(marks(callers.sync), { [KEY]: true }, 'a caller that says nothing about edits is an edit, as before');
+});
+
+test('the server copy keeps each entry\'s marker: stored, merged and read back with it', () => {
+  const patch = (entries) => buildWorkspaceDraftPatch({ studentId: STUDENT, assignmentId: ASSIGNMENT, entries });
+  const marks = (document) => Object.fromEntries(readWorkspaceDraftEntries(document).map((entry) => [entry.key, [entry.savedAt, entry.savedAtIsEdit]]));
+  let server = mergeWorkspaceDraftDocument({ existing: null, patch: patch([
+    { key: KEY, value: { m: '1' }, savedAt: 2_000, savedAtIsEdit: true },
+    { key: OTHER, value: { a: 1 }, savedAt: 2_000 },
+  ]) });
+  assert.deepEqual(marks(server), { [KEY]: [2_000, true], [OTHER]: [2_000, false] });
+  assert.equal(Object.hasOwn(server.entries.find((entry) => entry.key === OTHER), 'savedAtIsEdit'), false,
+    'an unmarked entry is stored exactly as an older build stores one');
+  // A save of another question leaves both as they were.
+  server = mergeWorkspaceDraftDocument({ existing: server, patch: patch([{ key: THIRD, value: { p: [] }, savedAt: 2_500, savedAtIsEdit: true }]) });
+  assert.deepEqual(marks(server), { [KEY]: [2_000, true], [OTHER]: [2_000, false], [THIRD]: [2_500, true] });
+  // The copy that wins brings its marker — or its lack of one — with it.
+  server = mergeWorkspaceDraftDocument({ existing: server, patch: patch([
+    { key: KEY, value: { m: '2' }, savedAt: 3_000 },
+    { key: OTHER, value: { a: 2 }, savedAt: 3_000, savedAtIsEdit: true },
+    { key: THIRD, value: { p: [1] }, savedAt: 1_000 },
+  ]) });
+  assert.deepEqual(marks(server), { [KEY]: [3_000, false], [OTHER]: [3_000, true], [THIRD]: [2_500, true] });
+  // An older build saving to the same document rewrites its entries with the
+  // fields it knows: every marker goes, and every entry reads as legacy.
+  const olderBuildSave = {
+    ...server,
+    entries: server.entries.map(({ key, valueJson, savedAt, questionIndex, variantIndex }) => ({ key, valueJson, savedAt, questionIndex, variantIndex })),
+  };
+  assert.ok(readWorkspaceDraftEntries(olderBuildSave).every((entry) => entry.savedAtIsEdit === false));
+});
+
+test('an entry an older build saved replaces only a device with nothing dated of its own', async () => {
+  // An older build opened the question on another Chromebook: empty boxes,
+  // dated after the work (after the edit below, too).
+  const openedLater = Date.now() + 60_000;
+  const legacy = { key: KEY, savedAt: openedLater, value: {} };
+  // A fresh Chromebook — before and after the question opened there — has nothing else.
+  const fresh = await page();
+  assert.equal(restorable(fresh, [legacy]).length, 1);
+  fresh.readQuestionDraft(KEY, {});
+  fresh.writeQuestionDraft(KEY, {});
+  assert.equal(restorable(fresh, [legacy]).length, 1);
+  assert.deepEqual(restorable(fresh, [legacy], openedLater + 1_000), [], 'a newer submission still beats it');
+  // This device's own edit is kept...
+  const own = await page();
+  own.readQuestionDraft(KEY, {});
+  own.input();
+  own.writeQuestionDraft(KEY, { m: '-2/3' });
+  assert.deepEqual(restorable(own, [legacy]), []);
+  // ...unless the newer entry is an edit: the student cleared it elsewhere, later.
+  assert.equal(restorable(own, [{ ...legacy, savedAtIsEdit: true }]).length, 1);
+  // A copy an older build wrote here, and one restored from the server, are
+  // kept too: an older build kept every copy a device had.
+  const older = await page();
+  older.storage.setItem(KEY, olderBuildEnvelope(at(1), { m: '-2/3' }));
+  assert.deepEqual(restorable(older, [legacy]), []);
+  const restored = await page();
+  restored.restoreQuestionDrafts([{ key: KEY, savedAt: at(2), value: { m: '-2/3' }, savedAtIsEdit: true }]);
+  assert.deepEqual(restorable(restored, [legacy]), []);
+  assert.equal(restorable(restored, [{ ...legacy, savedAtIsEdit: true }]).length, 1);
+});
+
+test('an older build opens the question after A worked: A keeps its work, a fresh device gets what was saved, and A\'s next edit wins everywhere', async () => {
+  let server = null;
+  const save = async (scheduler) => {
+    scheduler.runAll();
+    await new Promise((resolve) => setImmediate(resolve));
+  };
+  const device = async (storage) => {
+    const p = await page(storage ? { storage } : {});
+    const scheduler = manualScheduler();
+    const sync = createWorkspaceDraftSync({
+      studentId: STUDENT, assignmentId: ASSIGNMENT, scheduler,
+      flush: async ({ document }) => { server = mergeWorkspaceDraftDocument({ existing: server, patch: document }); },
+    });
+    p.subscribeToQuestionDrafts((event) => sync.record(event));
+    const open = () => {
+      globalThis.window = { localStorage: p.storage };
+      const shown = p.readQuestionDraft(KEY, {});
+      p.writeQuestionDraft(KEY, shown);
+      const entries = readWorkspaceDraftEntries(server);
+      const restored = p.restoreQuestionDrafts(restorable(p, entries));
+      sync.noteServerCopy(entries);
+      return restored ? p.readQuestionDraft(KEY, {}) : shown;
+    };
+    return { p, scheduler, open };
+  };
+  const serverEntry = () => readWorkspaceDraftEntries(server).find((entry) => entry.key === KEY);
+
+  const a = await device();
+  a.open();
+  a.p.input();
+  a.p.writeQuestionDraft(KEY, { m: '-2/3' });
+  await save(a.scheduler);
+  assert.deepEqual([serverEntry().value, serverEntry().savedAtIsEdit], [{ m: '-2/3' }, true]);
+
+  // The older build merely opens it: its write-back, dated now, over A's
+  // work, saved with the fields that build knows.
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  const openedAt = Date.now();
+  server = {
+    ...server,
+    entries: server.entries.map((entry) => (entry.key === KEY
+      ? { key: KEY, valueJson: '{}', savedAt: openedAt, questionIndex: 2, variantIndex: 0 }
+      : { key: entry.key, valueJson: entry.valueJson, savedAt: entry.savedAt, questionIndex: entry.questionIndex, variantIndex: entry.variantIndex })),
+  };
+  const legacy = serverEntry();
+
+  // A comes back: its own work, and nothing sent over what the server holds.
+  const back = await device(a.p.storage);
+  assert.deepEqual(back.open(), { m: '-2/3' }, 'A keeps the work it typed');
+  await save(back.scheduler);
+  assert.deepEqual(serverEntry(), legacy, 'coming back sends nothing: its copy is older than what the server holds');
+
+  // A fresh Chromebook gets what the server holds, as an older build would.
+  const fresh = await device();
+  assert.deepEqual(fresh.open(), {});
+
+  // A's next edit is the newest, and marked: it wins on the server and on the
+  // fresh device when it reads again.
+  globalThis.window = { localStorage: back.p.storage };
+  back.p.input();
+  back.p.writeQuestionDraft(KEY, { m: '-1/2' });
+  await save(back.scheduler);
+  assert.deepEqual([serverEntry().value, serverEntry().savedAtIsEdit], [{ m: '-1/2' }, true]);
+  assert.deepEqual(fresh.open(), { m: '-1/2' });
 });
 
 /* ---------------------------------- the wiring that hands each rule its answer */

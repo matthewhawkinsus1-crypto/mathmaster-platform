@@ -3337,7 +3337,9 @@ function App() {
    *   1. canonical grades — already hydrated at sign-in;
    *   2. the durable outbox — already reconciled/overlaid above;
    *   3. this server draft, applied only where it is newer than BOTH this
-   *      device's copy and the question's last canonical attempt;
+   *      device's copy and the question's last canonical attempt (and an
+   *      entry an older build saved, whose time may be an opening's, only
+   *      where this device has no dated copy — see selectRestorableDraftEntries);
    *   4. Practice Mode state, kept in its own structure so it can never reach
    *      a grade;
    *   5. the resume position.

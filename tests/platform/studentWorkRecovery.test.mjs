@@ -240,9 +240,16 @@ test('an older draft cannot overwrite newer submitted work', () => {
 });
 
 test('a draft this device already has a newer copy of is left alone', () => {
-  const entries = [{ key: draftKey(0, 'literal'), value: 'stale', savedAt: 1_000, questionIndex: 0 }];
+  // Saved by this build: its time is an edit's (the edit-time marker, PQ-044),
+  // so it replaces an older copy here.
+  const entries = [{ key: draftKey(0, 'literal'), value: 'stale', savedAt: 1_000, questionIndex: 0, savedAtIsEdit: true }];
   assert.equal(selectRestorableDraftEntries({ entries, localSavedAt: () => 4_000, canonicalSavedAt: () => 0 }).length, 0);
   assert.equal(selectRestorableDraftEntries({ entries, localSavedAt: () => 100, canonicalSavedAt: () => 0 }).length, 1);
+  // Saved by an older build, whose time may be an opening's: it goes only
+  // where this device has nothing dated of its own.
+  const legacy = [{ key: draftKey(0, 'literal'), value: 'stale', savedAt: 1_000, questionIndex: 0 }];
+  assert.equal(selectRestorableDraftEntries({ entries: legacy, localSavedAt: () => 100, canonicalSavedAt: () => 0 }).length, 0);
+  assert.equal(selectRestorableDraftEntries({ entries: legacy, localSavedAt: () => 0, canonicalSavedAt: () => 0 }).length, 1);
 });
 
 test('the latest incomplete draft restores without becoming an attempt', () => {
@@ -356,10 +363,11 @@ test('the local draft write is synchronous and only then offers a background sav
   const start = draftStorageSource.indexOf('export const writeQuestionDraft');
   const block = draftStorageSource.slice(start, draftStorageSource.indexOf('export const questionDraftSavedAt'));
   assert.doesNotMatch(block, /await|async/);
-  // Offered with its time and whether it was the student's edit (PQ-044).
-  assert.match(block, /notifyDraftWritten\(key, value, savedAt, isEdit\);[\s\S]*window\.localStorage\.setItem/);
+  // Offered with its time and whether it was the student's edit (PQ-044) —
+  // and whether that time is an edit's (the edit-time marker).
+  assert.match(block, /notifyDraftWritten\(key, value, savedAt, isEdit\b[^)]*\);[\s\S]*window\.localStorage\.setItem/);
   // Subscribers cannot break the keystroke.
-  assert.match(draftStorageSource, /try \{\s*\n\s*listener\(\{ key, value, savedAt, edit \}\);\s*\n\s*\} catch/);
+  assert.match(draftStorageSource, /try \{\s*\n\s*listener\(\{ key, value, savedAt, edit\b[^}]*\}\);\s*\n\s*\} catch/);
 });
 
 test('temporary network loss leaves the work locally durable and retries later', async () => {
