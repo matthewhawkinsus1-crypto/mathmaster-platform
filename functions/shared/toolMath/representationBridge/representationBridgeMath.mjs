@@ -187,6 +187,8 @@ const canonicalFromStudentGraphPoints = (points = []) => {
  * two individually-plausible-looking answers that are not the same line, and
  * that mismatch must cost credit even though neither panel is "blank."
  */
+const LINE_BEARING_STAGES = Object.freeze(['generalForm', 'factoredForm', 'graph']);
+
 export const scoreRepresentationBridge = (question = {}, response = {}) => {
   if (question.mode === 'linearMultipleRepresentations') {
     return scoreLinearMultipleRepresentations(question, response);
@@ -275,11 +277,20 @@ export const scoreRepresentationBridge = (question = {}, response = {}) => {
     evidence.meaning = meaningResult;
   }
 
-  const canonicalLines = [generalCanonical, factoredCanonical, graphCanonical].filter(Boolean);
-  const crossRepresentationConsistency = canonicalLines.length < 2
-    || canonicalLines.every((line) => linesEquivalent(line, canonicalLines[0]));
-  parts.crossRepresentationConsistency = crossRepresentationConsistency;
-  evidence.crossRepresentationConsistency = crossRepresentationConsistency;
+  // Agreement between representations is something the student shows, so it
+  // is credited only when at least two of their own lines exist and agree. It
+  // used to be granted whenever fewer than two lines parsed, which paid a
+  // blank board 1/(stages + 1) and a wrong single-line answer half credit. A
+  // question that asks for fewer than two line-bearing stages has nothing to
+  // compare, and the part is not scored at all.
+  const lineStageCount = requiredStages.filter((stage) => LINE_BEARING_STAGES.includes(stage)).length;
+  if (lineStageCount >= 2) {
+    const canonicalLines = [generalCanonical, factoredCanonical, graphCanonical].filter(Boolean);
+    const crossRepresentationConsistency = canonicalLines.length >= 2
+      && canonicalLines.every((line) => linesEquivalent(line, canonicalLines[0]));
+    parts.crossRepresentationConsistency = crossRepresentationConsistency;
+    evidence.crossRepresentationConsistency = crossRepresentationConsistency;
+  }
 
   const requiredParts = Object.values(parts);
   const score = requiredParts.length ? requiredParts.filter(Boolean).length / requiredParts.length : 0;
