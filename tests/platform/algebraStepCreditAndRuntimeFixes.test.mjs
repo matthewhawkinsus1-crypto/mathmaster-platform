@@ -25,6 +25,8 @@ import {
 import { resolveEquationAfterMove } from '../../src/algebraSupportLevels.js';
 import { buildCancellationModel } from '../../src/algebraCancellationModel.js';
 
+import { projectedAssignmentTrackerFor } from '../../src/platform/grading/canonicalGradeProjection.js';
+
 const read = (path) => fs.readFileSync(path, 'utf8');
 
 test('MathLive compact one-half fractions are valid operation operands', () => {
@@ -246,12 +248,30 @@ test('closed DOL gradebook display recalculates from saved question records inst
   const row = gradebookStudentRow(read('src/App.jsx'));
 
   // The section scores come from the canonical tracker split, so they re-derive
-  // from saved question records every render.
+  // from saved question records every render. The row reads the one shared
+  // projection (canonicalGradeProjection.js) — saved records, still-valid
+  // server-owned teacher overrides on top, then any completed Practice-based
+  // Recovery — so the gradebook cannot disagree with Grade Transfer or the
+  // student's Grade Center.
   assert.match(
     row,
-    /const grades = projectTeacherOverridesForDisplay\(student\.gradesByAssignment \|\| \{\}, student\.teacherGradeOverridesByAssignment \|\| \{\}\)\?\.\[selectedAssignment\.id\]/,
+    /const grades = projectedAssignmentTrackerFor\(\{ student, assignment: selectedAssignment \}\)/,
     'the teacher row should recalculate from saved question records with any still-valid server-owned teacher override projected on top',
   );
+  // ...and that projection really is built from the saved records with the
+  // override applied, never from a stored snapshot.
+  const assignment = { id: 'asg-row', schemaVersion: 5, sections: [{ id: 'dol', role: 'dol', questions: [{ questionId: 'q1', type: 'multiAnswer', prompt: 'x', answerFields: [{ id: 'a', answer: '1' }] }] }] };
+  const saved = { status: 'expired', attemptCount: 1, totalAttempts: 1, variantIndex: 0, lastSubmissionId: 'sub-1' };
+  const projected = projectedAssignmentTrackerFor({
+    student: {
+      gradesByAssignment: { 'asg-row': { 0: saved } },
+      teacherGradeOverridesByAssignment: { 'asg-row': { 0: { active: true, score: 100, totalAttempts: 1, variantIndex: 0, submissionId: 'sub-1' } } },
+      dolGradesByAssignment: { 'asg-row': { '2026-09-01': { finalized: true, score: 0 } } },
+    },
+    assignment,
+  });
+  assert.equal(projected[0].status, 'correct', 'the teacher override is projected onto the saved record');
+  assert.equal(projected[0].partialCredit, 100);
   assert.match(row, /splitGradesBySection\(\{\s*tracker:\s*grades,\s*assignment:\s*selectedAssignment\s*\}\)/);
   assert.match(row, /sectionGrades\.dol\.score/);
 

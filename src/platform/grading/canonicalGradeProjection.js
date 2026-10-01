@@ -1,5 +1,6 @@
 import { buildTestCycleGradeState, isTestCycleAssignment } from '../assessment/testCycle.js';
 import { splitGrade, splitGradesBySection } from '../teacher/gradeEvidence.js';
+import { projectSectionRecoveryForAssignment } from './sectionRecoveryGrades.js';
 
 export const ASSIGNMENT_GRADE_OVERRIDE_KEY = '__assignment';
 
@@ -46,6 +47,28 @@ export const projectTeacherOverridesForDisplay = (gradesByAssignment = {}, overr
 );
 
 /**
+ * ONE STUDENT, ONE ASSIGNMENT: THE TRACKER EVERY GRADE IS COMPUTED FROM.
+ *
+ * Teacher per-question overrides first (they correct the original evidence),
+ * then any completed Practice-based Recovery (it rescores its Warm-Up/DOL
+ * section from that corrected original). The assignment-level override is
+ * applied by the caller, after, because it replaces the whole grade. Every
+ * surface that shows a student's assignment grade reads through this, so none
+ * of them can show a Recovery that another surface ignores.
+ */
+export const projectedAssignmentTrackerFor = ({ student = null, assignment = null } = {}) => {
+  const projected = projectTeacherOverridesForDisplay(
+    student?.gradesByAssignment || {},
+    student?.teacherGradeOverridesByAssignment || {},
+  );
+  return projectSectionRecoveryForAssignment({
+    tracker: projected?.[assignment?.id] || null,
+    assignment,
+    recoveryByAssignment: student?.sectionRecoveryByAssignment || null,
+  }).tracker;
+};
+
+/**
  * Canonical grade presentation shared by the teacher gradebook and TEAMS.
  * Test Cycles read their released secure scores from testCycleGrades; ordinary
  * assignments use the same teacher-override and Practice Pass projection as
@@ -65,11 +88,8 @@ export const canonicalPresentedAssignmentGrade = ({ student, assignment, practic
     }).recordedGrade;
   }
 
-  const projected = projectTeacherOverridesForDisplay(
-    student?.gradesByAssignment || {},
-    student?.teacherGradeOverridesByAssignment || {},
-  );
-  const tracker = projected?.[assignment?.id];
+  // Overrides, then any completed Practice-based Recovery.
+  const tracker = projectedAssignmentTrackerFor({ student, assignment });
   if (!tracker) return null;
   return splitGrade({ tracker, assignment, practicePassRedeemed }).score ?? null;
 };
@@ -90,11 +110,7 @@ export const canonicalPresentedSectionGrade = ({
 }) => {
   if (isTestCycleAssignment(assignment)) return null;
 
-  const projected = projectTeacherOverridesForDisplay(
-    student?.gradesByAssignment || {},
-    student?.teacherGradeOverridesByAssignment || {},
-  );
-  const tracker = projected?.[assignment?.id] || null;
+  const tracker = projectedAssignmentTrackerFor({ student, assignment });
   const section = splitGradesBySection({
     tracker,
     assignment,

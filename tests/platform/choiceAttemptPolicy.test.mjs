@@ -98,7 +98,14 @@ test('static choice questions cannot reset the same choices as a fake replacemen
   }), true);
 });
 
-test('constructed-response questions keep section replacement behavior', () => {
+/*
+ * Superseded rule, deliberately changed (question family PR): a STATIC
+ * constructed-response question used to keep replacement, which handed the
+ * student the identical question with fresh attempts right after the solution
+ * was shown. Replacement now requires a question that can actually vary, for
+ * every question type; a generated constructed-response question keeps it.
+ */
+test('constructed-response questions are replaced only when a genuinely different question exists', () => {
   const question = {
     type: 'multiAnswer',
     answerFields: [
@@ -110,7 +117,19 @@ test('constructed-response questions keep section replacement behavior', () => {
     question,
     activityPolicy: { allowReplacement: true },
     canGenerateFresh: false,
-  }), true);
+  }), false, 'a static question has no different question to replace itself with');
+
+  assert.equal(resolveQuestionReplacementAllowed({
+    question,
+    activityPolicy: { allowReplacement: true },
+    canGenerateFresh: true,
+  }), true, 'a generated constructed-response question keeps section replacement behavior');
+
+  assert.equal(resolveQuestionReplacementAllowed({
+    question,
+    activityPolicy: { allowReplacement: false },
+    canGenerateFresh: true,
+  }), false, 'the role policy still decides whether replacement exists at all');
 });
 
 test('legacy choose-a-number-line questions are also one attempt', () => {

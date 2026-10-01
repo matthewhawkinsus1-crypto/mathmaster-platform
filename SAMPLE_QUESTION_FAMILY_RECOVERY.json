@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Sample: Question Families with Practice-Based Recovery",
+    "courseId": "algebra1",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork"
+  },
+  "variantPolicy": {
+    "mode": "personalized",
+    "sectionModes": { "warmup": "personalized", "classwork": "personalized", "practice": "personalized", "dol": "personalized" }
+  },
+  "gradingPolicy": {
+    "recovery": {
+      "enabled": true,
+      "automaticOpportunities": 1,
+      "mastery": { "windowSize": 8, "requiredCorrect": 7 },
+      "warmup": { "questionCount": 3, "maxRecordedScore": 85 },
+      "dol": { "maxRecordedScore": 90 }
+    }
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up",
+      "questions": [
+        {
+          "questionId": "warmup-intercepts",
+          "type": "multiAnswer",
+          "prompt": "Find the $x$-intercept and the $y$-intercept of {{equation}}. Write each as an ordered pair.",
+          "questionFamily": { "id": "functions.identifyIntercepts", "version": 1 },
+          "alignments": [{ "framework": "teks", "code": "A.3C", "role": "primary", "evidenceLevel": "assessed" }]
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork",
+      "questions": [
+        {
+          "questionId": "classwork-two-step",
+          "type": "stepAlgebra",
+          "prompt": "Solve {{equation}} for $x$. Show each balanced step.",
+          "questionFamily": { "id": "linear.twoStepEquation", "version": 1, "constraints": { "solutionRange": [-8, 8] } },
+          "alignments": [{ "framework": "teks", "code": "A.5A", "role": "primary", "evidenceLevel": "assessed" }]
+        },
+        {
+          "questionId": "classwork-slope",
+          "type": "multiAnswer",
+          "prompt": "Find the slope of the line through {{points}}.",
+          "questionFamily": { "id": "linear.slopeFromPoints", "version": 1 },
+          "alignments": [{ "framework": "teks", "code": "A.3A", "role": "primary", "evidenceLevel": "assessed" }]
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice",
+      "questions": [
+        {
+          "questionId": "practice-multi-step",
+          "type": "stepAlgebra",
+          "prompt": "Solve {{equation}} for $x$.",
+          "questionFamily": { "id": "linear.multiStepEquation", "version": 1 },
+          "alignments": [{ "framework": "teks", "code": "A.5A", "role": "primary", "evidenceLevel": "assessed" }]
+        },
+        {
+          "questionId": "practice-garden",
+          "type": "multiAnswer",
+          "prompt": "A rectangular garden is {{w}} m wide and {{l}} m long. A path runs all the way around the outside of the garden and is 1 m wide. What is the area of the path, in square meters?",
+          "generator": {
+            "parameters": { "w": { "type": "int", "min": 3, "max": 12 }, "l": { "type": "int", "min": 4, "max": 15 } },
+            "derived": { "area": "(w+2)*(l+2)-w*l" },
+            "constraints": ["w!=l"]
+          },
+          "answerFields": [{ "id": "area", "label": "Path area (square meters)", "inputProfile": "number", "answer": "{{area}}" }],
+          "questionFamily": { "scope": "assignment" },
+          "alignments": [{ "framework": "teks", "code": "A.10A", "role": "primary", "evidenceLevel": "practiced" }]
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL",
+      "questions": [
+        {
+          "questionId": "dol-two-step",
+          "type": "stepAlgebra",
+          "prompt": "Solve {{equation}} for $x$.",
+          "questionFamily": { "id": "linear.twoStepEquation", "version": 1 },
+          "alignments": [{ "framework": "teks", "code": "A.5A", "role": "primary", "evidenceLevel": "assessed" }]
+        },
+        {
+          "questionId": "dol-system",
+          "type": "system",
+          "prompt": "Solve the system of equations. Enter the solution as an ordered pair.",
+          "questionFamily": { "id": "systems.elimination", "version": 1 },
+          "alignments": [{ "framework": "teks", "code": "A.5C", "role": "primary", "evidenceLevel": "assessed" }]
+        }
+      ]
+    }
+  ]
+}

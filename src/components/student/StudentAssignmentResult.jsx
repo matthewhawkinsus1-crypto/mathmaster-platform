@@ -66,6 +66,9 @@ export default function StudentAssignmentResult({
    * wrong for half of the students who arrive.
    */
   origin = LEVEL.ASSIGNMENTS,
+  // Practice-based Recovery for a closed Warm-Up/DOL, when the student has
+  // one (SectionRecoveryPanel). Null for everyone else.
+  recoveryPanel = null,
 }) {
   const cameFromGrades = origin === LEVEL.GRADES;
   // The label comes from the navigation model, which owns the rule that a Back
@@ -166,6 +169,7 @@ export default function StudentAssignmentResult({
 
         <GradeSectionBreakdown sections={entry.sections} />
         <TestCycleGradeBreakdown entry={entry} />
+        {recoveryPanel}
 
         {/* Feedback/release state, said plainly, because "no number yet" and
             "you scored nothing" are opposite messages. */}
@@ -186,7 +190,10 @@ export default function StudentAssignmentResult({
 
         {entry.frozen && (
           <p style={{ margin: '14px 0 0', fontSize: 13, lineHeight: 1.55, color: '#5f6368' }}>
-            This assignment is past its final deadline, so the grade above can no longer change. Opening it again gives you every question with full solutions — your recorded answers are not replayed, and the scores above are the record. Nothing you do there changes this grade, your evidence, your mastery, or your Google Classroom score.
+            {recoveryPanel
+              ? 'This assignment is past its final deadline. Recovery above is the only way this grade can still change. '
+              : 'This assignment is past its final deadline, so the grade above can no longer change. '}
+            Opening it again gives you every question with full solutions — your recorded answers are not replayed, and the scores above are the record. Nothing you do there changes this grade, your evidence, your mastery, or your Google Classroom score.
           </p>
         )}
 

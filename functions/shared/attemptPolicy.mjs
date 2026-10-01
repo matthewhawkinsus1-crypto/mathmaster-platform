@@ -98,13 +98,26 @@ export const resolveQuestionMaximumAttempts = ({
   return base + teacherBonus;
 };
 
+/*
+ * A REPLACEMENT MUST BE A DIFFERENT QUESTION.
+ *
+ * "Request New Question" appears after every attempt is used and the solution
+ * has been shown. For a question that cannot vary, the "new" question was the
+ * identical one with a fresh attempt budget — so the student could type in the
+ * solution they had just been shown and receive full credit. Choice-only
+ * questions were already protected from this; constructed-response questions
+ * were not, and the static case is the commonest content on the platform.
+ *
+ * So every question type now follows the same rule: a replacement is offered
+ * only when the question can actually produce a different instance
+ * (`canGenerateFresh`, from functions/shared/questionVariability.mjs). The
+ * role policy still decides whether replacement exists at all.
+ */
 export const resolveQuestionReplacementAllowed = ({
-  question = {},
   activityPolicy = null,
   canGenerateFresh = false,
 } = {}) => {
   if (activityPolicy?.allowReplacement !== true) return false;
-  if (!isChoiceOnlyQuestion(question)) return true;
   return Boolean(canGenerateFresh);
 };
 
@@ -537,6 +550,9 @@ export const requestReplacementQuestion = (record, options = {}) => {
     stepGrades: options.clearHistory === true ? [] : current.stepGrades,
     algebraState: null,
     partGrades: [],
+    // A new variant is a new question: the old instance's delivery pin no
+    // longer describes it (only present on question-family records).
+    ...(current.familyDelivery ? { familyDelivery: null } : {}),
   };
 };
 

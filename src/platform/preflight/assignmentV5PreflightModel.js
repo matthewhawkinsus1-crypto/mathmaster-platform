@@ -8,6 +8,7 @@ import { validateAssignmentInteractionContracts } from '../interaction/interacti
 import { auditAssignmentToolContracts } from '../contract/questionToolContract.js';
 import { auditAssignmentWorksheetPrintability } from './worksheetPrintPreflight.js';
 import { auditAssignmentSupportDifferentiation } from './supportDifferentiationPreflight.js';
+import { auditAssignmentQuestionGeneration } from './questionGenerationPreflight.js';
 import { buildPreflightDiagnostics } from './preflightDiagnostics.js';
 import { deriveAssignmentAuthoringState } from './assignmentAuthoringState.js';
 import { analyzeClassworkPlannedTime } from '../teacher/classworkPacing.js';
@@ -70,7 +71,7 @@ const withRuntimeSectionMetadata = (section, index) => ({
   })),
 });
 
-export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = null, teacherReviewContext = null } = {}) => {
+export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = null, teacherReviewContext = null, classSize = null } = {}) => {
   const normalizedSource = normalizeAssignmentV5({
     ...input,
     assignment: {
@@ -113,6 +114,9 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   const worksheetPrint = auditAssignmentWorksheetPrintability({ ...runtimeSource, sections }, questions);
   const supportDifferentiation = auditAssignmentSupportDifferentiation({ ...runtimeSource, sections }, questions);
   const classworkPacing = analyzeClassworkPlannedTime({ ...runtimeSource, sections });
+  // Question families, per-student uniqueness and Recovery readiness, judged
+  // on the runtime view students will actually be given.
+  const questionGeneration = auditAssignmentQuestionGeneration({ ...runtimeSource, sections }, questions, { classSize });
   // Question ↔ tool contract: judged on the LITERAL record, because it also
   // reports records that only work because a runtime repair rescues them and
   // offers the safe repair that makes the saved assignment match.
@@ -153,6 +157,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     { source: 'classworkPacing', severity: 'blocking', messages: asMessages(classworkPacing.errors) },
     { source: 'alignment', severity: 'blocking', messages: alignmentErrors },
     { source: 'toolContract', severity: 'blocking', messages: toolContract.errors },
+    { source: 'questionGeneration', severity: 'blocking', messages: questionGeneration.errors },
     { source: 'persistence', severity: 'warning', messages: persistenceWarnings },
     { source: 'structural', severity: 'warning', messages: asMessages(structural.warnings) },
     { source: 'semantic', severity: 'warning', messages: asMessages(semantic.warnings) },
@@ -163,6 +168,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     { source: 'alignmentProvenance', severity: 'warning', messages: alignmentProvenanceWarnings },
     { source: 'alignmentSpecificity', severity: 'warning', messages: alignmentSpecificityWarnings },
     { source: 'toolContract', severity: 'warning', messages: toolContract.warnings },
+    { source: 'questionGeneration', severity: 'warning', messages: questionGeneration.warnings },
   ];
 
   const errors = diagnosticGroups
@@ -194,6 +200,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     runtimeRepair,
     classworkPacing,
     toolContract,
+    questionGeneration,
     errors: uniqueErrors,
     warnings: uniqueWarnings,
     diagnostics,

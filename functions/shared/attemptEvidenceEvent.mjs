@@ -96,6 +96,12 @@ export const buildAttemptEvidenceEvent = ({
       questionId,
       familyId: String(question?.familyId || question?.toolId || question?.type || 'question'),
       familyVersion: Number(question?.familyVersion) || 1,
+      // The normalized identity of the exact question answered, present only
+      // for question-family instances. Recovery's mastery gate counts UNIQUE
+      // questions with it, so answering the same instance twice is one item.
+      ...(question?.familyInstance?.fingerprint
+        ? { instanceFingerprint: String(question.familyInstance.fingerprint).slice(0, 400) }
+        : {}),
       questionType: String(question?.questionType || question?.type || question?.toolId || 'question'),
       difficultyBand: Number.isFinite(Number(delivered?.difficultyBand))
         ? Number(delivered.difficultyBand)

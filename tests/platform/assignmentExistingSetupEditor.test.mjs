@@ -19,7 +19,9 @@ test('existing setup review reuses the same reviewed Assignment V5 model interna
   assert.match(app, /reviewMode=\{assignmentPreflight\.mode \|\| 'create'\}/);
   assert.match(modal, /reviewMode = 'create'/);
   assert.match(modal, /buildPreflightReviewedAssignmentV5/);
-  assert.match(modal, /buildAssignmentV5PreflightModel\(reviewedAssignmentV5\)/);
+  // The reviewed V5 object is the model's input (first argument); an options
+  // bag may follow (it carries the class size for Pre-Flight's uniqueness check).
+  assert.match(modal, /buildAssignmentV5PreflightModel\(reviewedAssignmentV5[,)]/);
 });
 
 test('update mode uses teacher-facing save language', () => {
