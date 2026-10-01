@@ -41,7 +41,7 @@ needs an assessment-policy decision; it is first in the recommended next PRs.
 | PQ-002 | P1 | FIXED | iPad portrait: the "enlarged" plane is smaller than the embedded one |
 | PQ-014 | P1 | FIXED | A tap on a letterboxed plane lands on the wrong coordinate |
 | PQ-015 | P1 | FIXED | Phone in landscape: the tool starts below the fold behind a blank column |
-| PQ-036 | P1 | DEFERRED | In a DOL, the plotting workspace tells the student which points are wrong |
+| PQ-036 | P1 | PARTLY FIXED | In a DOL, the plotting workspace tells the student which points are wrong |
 | PQ-003 | P2 | FIXED | Phone: tap a point card, and the plane is scrolled away |
 | PQ-004 | P2 | FIXED | 1366×768 Work View: the plane is taller than the stage body |
 | PQ-005 | P2 | FIXED | `workViewCertification.mjs` "times out" |
@@ -55,15 +55,15 @@ needs an assessment-policy decision; it is first in the recommended next PRs.
 | PQ-017 | P2 | FIXED | The attempt outcome is not announced to screen readers |
 | PQ-018 | P2 | FIXED | Data Modeling: "Your model" disagrees with the steppers |
 | PQ-038 | P2 | FIXED | "b = 4" in a number box is graded wrong and spends a try |
-| PQ-009 | P2 | DEFERRED | Whole-board Undo |
+| PQ-009 | P2 | PARTLY FIXED | Whole-board Undo |
 | PQ-020 | P2 | DEFERRED | Landscape phone Work View gives the stage 120–150px |
 | PQ-021 | P2 | DEFERRED | Phone identity bar is 67–86px and always pinned |
 | PQ-022 | P2 | DEFERRED | After a tool's Check, the attempt outcome is off-screen |
 | PQ-023 | P2 | DEFERRED | Tool chrome and folded help sit between the task and the mathematics |
 | PQ-024 | P2 | DEFERRED | Point cards say "P1: x = −1" but x is not locked |
 | PQ-035 | P2 | NOT REPRODUCED | Memory growth over a long session |
-| PQ-039 | P2 | DEFERRED | Typing latency in the student harness |
-| PQ-040 | P2 | DEFERRED | Typing "−2/3x + 4" on a keyboard makes −2 over (3x + 4) |
+| PQ-039 | P2 | NOT A PRODUCTION ISSUE | Typing latency in the student harness |
+| PQ-040 | P2 | FIXED | Typing "−2/3x + 4" on a keyboard makes −2 over (3x + 4) |
 | PQ-019 | P3 | FIXED | Inverse & Composition writes "1(x − 2)²" and "−1x" |
 | PQ-025 | P3 | DEFERRED | "Enlarge question" sits on top of content on phones |
 | PQ-026 | P3 | DEFERRED | Work View header says "Question Work View" and clips the task |
@@ -412,7 +412,9 @@ updated record back); that is a harness limitation, not a product finding.
   nothing, which is safe.
 - **Scope:** small.
 
-### PQ-009 · Whole-board Undo — **P2 · DEFERRED (architecture proposal)**
+### PQ-009 · Whole-board Undo — **P2 · PARTLY FIXED (blockers 1 and 2)**
+
+- **Update 2026-10-01:** blockers 1 and 2 below are fixed platform-wide. A run of typing in one field is one Undo step (`mathUndoStack.js`), and a math field's own Ctrl+Z no longer replays what a platform Undo removed (`MathInput` `resetUndo()`). Gate: `tests/browser/undoTyping.mjs`. Wiring the whole board (3, 4) is still open; see `platform-engineering-deep-dive-2026-10-01.md`.
 
 - **Now:** the Multiple Representations board's platform Undo covers its three
   graphs (PR #398, R-14); typed fields keep MathLive's in-field Ctrl+Z; table
@@ -716,7 +718,14 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   leak symptom to chase. See §5.
 - **Scope:** —
 
-### PQ-036 · In a DOL, the plotting workspace tells the student which points are wrong — **P1 · DEFERRED (assessment-policy decision)**
+### PQ-036 · In a DOL, the plotting workspace tells the student which points are wrong — **P1 · PARTLY FIXED**
+
+- **Update 2026-10-01:** wherever outcomes are not shown immediately (DOL, quiz, test):
+  - A point-only plot has no check. Its points are graded as placed and stay movable until submission.
+  - The curve and reflection checks still gate drawing, but they name no point and teach no rule.
+  - Workflow grading never read `pointsValidated`. Point parts are graded from the placements.
+  - **Still open:** a curve's check is a yes/no that a student can repeat. Counting it as an attempt is the assessment owner's decision.
+  - Gate: `tests/browser/graphPointCheck.mjs`.
 
 - **Surface:** `InteractiveGraphWorkspace` point tasks (staged `coordinatePlot`
   / `functionGraph` stages, graph-analysis questions) inside a submit-only
@@ -754,7 +763,9 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   journey that opens a staged question's typed stage in phone Work View and
   types with the keypad open; add the selector if it fails. **Scope:** tiny.
 
-### PQ-039 · Typing latency in the student harness — **P2 · DEFERRED (re-measure on a production build first)**
+### PQ-039 · Typing latency in the student harness — **P2 · NOT A PRODUCTION ISSUE**
+
+- **Update 2026-10-01:** re-measured on production builds of the same harness (`tests/browser/harnessProduction.config.mjs`). p90 per key is 57–70 ms at 4× CPU and 95 ms on the board at 6×. The numbers below were the development build.
 
 - **Reproduction** (studentUxPlatform, 1366×768, real stack; time from a key
   to two animation frames later; long tasks from `PerformanceObserver`):
@@ -778,7 +789,9 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   QuestionEngine re-rendering the whole question on every `onChange`.
 - **Scope:** small to investigate.
 
-### PQ-040 · Typing "−2/3x + 4" on a keyboard makes −2 over (3x + 4) — **P2 · DEFERRED**
+### PQ-040 · Typing "−2/3x + 4" on a keyboard makes −2 over (3x + 4) — **P2 · FIXED**
+
+- **Update 2026-10-01:** fixed in `MathInput` and the calculator by `src/platform/math/typedFractionEntry.js`. Gate: `tests/browser/mathEntryContract.mjs`.
 
 - **Reproduction:** in any math field, type `y=-2/3x+4` on a physical
   keyboard → `y=-\frac{2}{3x+4}`. MathLive's `/` opens a fraction and keeps
