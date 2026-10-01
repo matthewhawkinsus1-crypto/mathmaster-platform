@@ -638,6 +638,202 @@ test('anchor: the transformed defining feature of each family', () => {
 });
 
 /* ------------------------------------------------------------------ */
+/* the question is read exactly as the old lab read it                 */
+/* ------------------------------------------------------------------ */
+
+// The component and the grader share resolveTransformationsQuestion, so a
+// wrong reading there would move the screen and the server together and no
+// browser-vs-server check could see it. These pin each reading against the
+// old lab's own (legacyCheck transcribes it independently).
+test('question reading: match grades the target (not the function), drawn in the target\'s base', () => {
+  // Both specs authored: match draws and grades the dashed TARGET.
+  const both = q({ mode: 'match', family: 'quadratic', function: { a: 1, h: 0, k: 0 }, target: { a: 2, h: 1, k: -3 } });
+  assert.equal(assertLegacyParity(both, { a: '2', h: '1', k: '-3' }).isCorrect, true, 'the target\'s parameters');
+  assert.equal(assertLegacyParity(both, { a: '1', h: '0', k: '0' }).isCorrect, false, 'not the function\'s');
+  // Every other mode reads the FUNCTION when both are authored.
+  const identifyBoth = q({ mode: 'identify', family: 'quadratic', function: { a: 2, h: 1, k: 0 }, target: { a: -1, h: 3, k: 2 } });
+  assert.equal(assertLegacyParity(identifyBoth, { a: '2', h: '1', k: '0' }).isCorrect, true);
+  assert.equal(assertLegacyParity(identifyBoth, { a: '-1', h: '3', k: '2' }).isCorrect, false);
+  // The student's exponential is drawn in the TARGET's base (3), not the function's (2).
+  const bases = q({ mode: 'match', family: 'exponential', function: { a: 2, h: 1, k: -1, base: 2 }, target: { a: 2, h: 1, k: -1, base: 3 } });
+  assert.equal(assertLegacyParity(bases, { a: '2', h: '1', k: '-1' }).isCorrect, true);
+});
+
+test('question reading: family precedence, an authored target type, and every trigger of the b box', () => {
+  // `family` wins over function.type: |2x| is 2|x| (absolute), but (2x)² is
+  // not 2x² (quadratic), so the family decides the verdict here.
+  const familyFirst = q({ mode: 'match', family: 'absolute', includeHorizontalScale: true, function: { type: 'quadratic' }, target: { a: 1, b: 2, h: 0, k: 0 } });
+  assert.equal(assertLegacyParity(familyFirst, { a: '2', b: '1', h: '0', k: '0' }).isCorrect, true);
+  // Without `family`, function.type names it.
+  const typeOnly = q({ mode: 'match', includeHorizontalScale: true, function: { type: 'quadratic' }, target: { a: 1, b: 2, h: 0, k: 0 } });
+  assert.equal(assertLegacyParity(typeOnly, { a: '2', b: '1', h: '0', k: '0' }).isCorrect, false);
+  // An authored target.type changes the dashed graph only; the student's
+  // graph stays in the lab's family, so x² − 1 never lies on |x| − 1.
+  const typedTarget = q({ mode: 'match', family: 'quadratic', target: { type: 'absolute', a: 1, h: 0, k: -1 } });
+  assert.equal(assertLegacyParity(typedTarget, { a: '1', h: '0', k: '-1' }).isCorrect, false);
+
+  // The b box appears for each authoring trigger, and its value is graded.
+  // The answer's b is 1 in every case below.
+  for (const [trigger, question] of [
+    ['includeHorizontalScale', q({ mode: 'identify', family: 'quadratic', includeHorizontalScale: true, function: { a: 1, h: 2, k: 0 } })],
+    ['function.b', q({ mode: 'identify', family: 'quadratic', function: { a: 1, b: 1, h: 2, k: 0 } })],
+    ['target.b', q({ mode: 'identify', family: 'quadratic', function: { a: 1, h: 2, k: 0 }, target: { b: 3 } })],
+    ['initial.b', q({ mode: 'identify', family: 'quadratic', function: { a: 1, h: 2, k: 0 }, initial: { b: 2 } })],
+  ]) {
+    const right = assertLegacyParity(question, { a: '1', b: '1', h: '2', k: '0' });
+    assert.equal(right.isCorrect, true, `${trigger}: shown b graded`);
+    assert.equal(right.parts[1].response, '1', `${trigger}: the typed b is the response`);
+    assert.deepEqual(failedIds(assertLegacyParity(question, { a: '1', b: '4', h: '2', k: '0' })), ['b'], `${trigger}: a wrong b fails`);
+  }
+});
+
+// A seeded sweep over the question fields the lab reads and the states its
+// inputs can hold (box text is '' or number text, as a type="number" box
+// gives; selects hold an option value; plotted points are numeric pairs).
+const mulberry32 = (seed) => () => {
+  let t = (seed += 0x6D2B79F5);
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+
+test('a seeded sweep of questions and on-screen states matches the old Check, except the pinned blank-box fix', () => {
+  const random = mulberry32(20261001);
+  const pick = (list) => list[Math.floor(random() * list.length)];
+  const chance = (p) => random() < p;
+  const value = () => pick([0, 1, -1, 2, -2, 0.5, -0.5, 3, -3, 1.5, 0.25, 4, 1 / 3]);
+  const spec = () => {
+    const out = {};
+    if (chance(0.8)) out.a = value();
+    if (chance(0.4)) out.b = pick([1, 2, -2, 0.5, -1, 0, 3]);
+    if (chance(0.05)) out.inputScale = pick([2, 0.5]);
+    if (chance(0.8)) out.h = value();
+    if (chance(0.8)) out.k = value();
+    if (chance(0.2)) out.base = pick([2, 3, 10, 0.5]);
+    if (chance(0.1)) out.type = pick([...TRANSFORMATION_FAMILIES, 'sinusoid']);
+    return out;
+  };
+  // About a quarter of the screens are answered exactly (every box, select
+  // and point right), so the sweep reaches the correct verdicts too.
+  let exact = false;
+  const near = (x) => (exact ? x : x + pick([0, 0, 0, 0.005, -0.009, 0.011, 0.02, -0.03, 1]));
+  const text = (x) => (Number.isFinite(x) ? pick([String(x), String(Math.round(x * 1000) / 1000), x.toFixed(2)]) : '');
+  const typed = (expected) => {
+    if (exact && Number.isFinite(expected)) return text(expected);
+    const roll = random();
+    if (roll < 0.5 && Number.isFinite(expected)) return text(near(expected));
+    if (roll < 0.6) return '';
+    if (roll < 0.63) return pick(['1/2', '−3', ' 4 ', '3/0']);
+    return text(value());
+  };
+  const finitePair = (point) => Array.isArray(point) && point.slice(0, 2).every((c) => typeof c === 'number' && Number.isFinite(c));
+  const parsed = (entry) => parseNumericAnswer(entry) != null;
+
+  const tally = { total: 0, same: 0, blankBox: 0, correct: 0 };
+  for (let i = 0; i < 1500; i += 1) {
+    const question = q();
+    exact = chance(0.25);
+    const roll = random();
+    if (roll < 0.85) question.mode = pick(TRANSFORMATIONS_LAB_MODES);
+    else if (roll < 0.92) question.mode = pick(['Match', ' anchor', 'unknownView', '']);
+    if (chance(0.8)) question.family = pick([...TRANSFORMATION_FAMILIES, 'sinusoid']);
+    if (chance(0.6)) question.target = spec();
+    if (chance(0.7)) question.function = spec();
+    if (chance(0.2)) question.includeHorizontalScale = pick([true, false, 'true']);
+    if (chance(0.3)) question.initial = Object.fromEntries(['a', 'b', 'h', 'k'].filter(() => chance(0.5)).map((key) => [key, value()]));
+    if (chance(0.3)) question.graphBounds = pick([{ xMin: -10, xMax: 10, yMin: -10, yMax: 10 }, { xMin: 0, xMax: 7 }, { yMin: -2, yMax: 9 }]);
+    if (chance(0.5)) question.parentPoint = pick([[2, 4], [1, 1], [-1, 1], { x: 3, y: 9 }, ['2', '4'], [1, 'x']]);
+    if (chance(0.6)) question.sourcePoints = Array.from({ length: pick([0, 1, 2, 3, 4]) }, () => (chance(0.05) ? ['a', 1] : [value(), value()]));
+
+    // The old lab's own reading of the question (transcribed, not shared).
+    const mode = question.mode || 'match';
+    const known = TRANSFORMATIONS_LAB_MODES.includes(mode) ? mode : 'anchor';
+    const requestedFamily = question.family || question.function?.type || question.type;
+    const family = TRANSFORMATION_FAMILIES.includes(requestedFamily) ? requestedFamily : 'quadratic';
+    const targetSpec = normalizeTransformationSpec({ type: family, ...question.target }, family);
+    const investigationSpec = normalizeTransformationSpec({ type: family, ...(question.function || question.target) }, family);
+    const showB = question.includeHorizontalScale === true || question.target?.b != null || question.function?.b != null || question.initial?.b != null;
+    const start = { a: String(question.initial?.a ?? 1), b: String(question.initial?.b ?? 1), h: String(question.initial?.h ?? 0), k: String(question.initial?.k ?? 0) };
+    const anchor = transformedAnchor(investigationSpec);
+    const images = (Array.isArray(question.sourcePoints) ? question.sourcePoints : []).map((point) => mapParentPoint(point, investigationSpec)).filter(Boolean);
+
+    // What the component would submit for this screen.
+    let work;
+    if (known === 'match' || known === 'identify') {
+      const key = known === 'match' ? targetSpec : investigationSpec;
+      const boxes = showB ? ['a', 'b', 'h', 'k'] : ['a', 'h', 'k'];
+      work = Object.fromEntries(boxes.map((box) => {
+        const r = random();
+        return [box, exact || r < 0.4 ? text(near(key[box])) : r < 0.5 ? '' : r < 0.65 ? start[box] : text(value())];
+      }));
+    } else if (known === 'pointMap') {
+      const expected = mapParentPoint(question.parentPoint || anchor.parentPoint, investigationSpec);
+      work = { mappedX: typed(expected?.[0]), mappedY: typed(expected?.[1]) };
+    } else if (known === 'plotTransform') {
+      const count = exact || chance(0.75) ? images.length : Math.max(0, images.length + pick([-1, 1]));
+      work = { plottedPoints: Array.from({ length: count }, (_, index) => (images[index] && (exact || chance(0.7)) ? [near(images[index][0]), near(images[index][1])] : [value(), value()])) };
+    } else if (known === 'describe') {
+      const d = transformationDescriptor(investigationSpec);
+      const select = (right, options) => (exact || chance(0.6) ? right : pick(['', ...options]));
+      work = {
+        reflection: select(d.reflection ? 'yes' : 'no', ['yes', 'no']),
+        scaleKind: select(d.verticalScaleKind, ['stretch', 'compression', 'unchanged']),
+        scaleFactor: typed(d.verticalScale),
+        horizontalReflection: select(d.horizontalReflection ? 'yes' : 'no', ['yes', 'no']),
+        horizontalScaleKind: select(d.horizontalScaleKind, ['stretch', 'compression', 'unchanged']),
+        horizontalScaleFactor: typed(d.horizontalScale),
+        horizontalDirection: select(d.horizontalDirection, ['left', 'right', 'none']),
+        horizontalDistance: typed(d.horizontalDistance),
+        verticalDirection: select(d.verticalDirection, ['up', 'down', 'none']),
+        verticalDistance: typed(d.verticalDistance),
+      };
+    } else {
+      work = { anchorX: typed(anchor.point[0]), anchorY: typed(anchor.point[1]) };
+    }
+
+    const label = `#${i} ${JSON.stringify(question)} ${JSON.stringify(work)}`;
+    const result = grade(question, work); // asserts browser and server agree exactly
+    assert.equal(result.graded, true, label);
+    assert.equal(result.mode, known, `${label}: mode`);
+    const legacy = legacyCheck(question, work);
+    const legacyScore = legacy.isCorrect ? 1 : legacy.score;
+    tally.total += 1;
+    if (result.isCorrect) tally.correct += 1;
+
+    // Completeness, specified independently of the grader.
+    let complete;
+    let blankBox = false;
+    if (known === 'match' || known === 'identify') {
+      const boxes = Object.keys(work);
+      blankBox = boxes.some((box) => work[box].trim() === '' || !Number.isFinite(Number(work[box])));
+      complete = !blankBox && !boxes.every((box) => work[box] === start[box]);
+    } else if (known === 'pointMap') complete = parsed(work.mappedX) && parsed(work.mappedY);
+    else if (known === 'plotTransform') complete = images.length > 0 && work.plottedPoints.length === images.length && work.plottedPoints.every(finitePair);
+    else if (known === 'describe') {
+      complete = ['reflection', 'scaleKind', 'horizontalReflection', 'horizontalScaleKind', 'horizontalDirection', 'verticalDirection'].every((field) => work[field] !== '')
+        && ['scaleFactor', 'horizontalScaleFactor', 'horizontalDistance', 'verticalDistance'].every((field) => parsed(work[field]));
+    } else complete = parsed(work.anchorX) && parsed(work.anchorY);
+    assert.equal(result.isComplete, complete, `${label}: isComplete`);
+
+    if (blankBox) {
+      // The pinned fix: a blank parameter box is never correct. Match keeps
+      // the drawn graph's score; identify loses only the blank boxes' credit.
+      tally.blankBox += 1;
+      assert.equal(result.isCorrect, false, `${label}: a blank box is not correct`);
+      if (known === 'match') assert.equal(result.score, legacy.score, `${label}: match score unchanged`);
+      else assert.ok(result.score <= legacyScore, `${label}: identify credit only ever drops`);
+      continue;
+    }
+    assert.equal(result.isCorrect, legacy.isCorrect, `${label}: isCorrect`);
+    assert.equal(result.score, legacyScore, `${label}: score`);
+    tally.same += 1;
+  }
+  // The sweep reaches real verdicts, not only failures and blanks.
+  assert.ok(tally.correct > 300, `correct verdicts reached: ${JSON.stringify(tally)}`);
+  assert.ok(tally.blankBox > 60 && tally.same > 1250, JSON.stringify(tally));
+});
+
+/* ------------------------------------------------------------------ */
 /* malformed, tampered, oversize                                       */
 /* ------------------------------------------------------------------ */
 

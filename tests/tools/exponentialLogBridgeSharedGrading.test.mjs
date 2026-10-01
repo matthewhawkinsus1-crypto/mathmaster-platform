@@ -354,3 +354,76 @@ test('correct work fails against a question whose key was altered', () => {
     assert.equal(result.isCorrect, false, `${question.mode || 'equivalentForms'} against an altered key`);
   }
 });
+
+/* ------------------------------------------------------------------ */
+/* tolerance ceiling and which authored field wins                     */
+/* ------------------------------------------------------------------ */
+
+test('the 0.01 tolerance is a ceiling: 0.015 off is wrong, as it was on screen', () => {
+  // 5⁻² = 0.04. 0.0499 is inside 0.01; 0.055 is 0.015 off and must fail.
+  const question = q({ base: 5, exponent: -2 });
+  assert.equal(assertLegacyParity(question, { logAnswer: '-2', expAnswer: '0.0499' }, 'inside').isCorrect, true);
+  const outside = assertLegacyParity(question, { logAnswer: '-2', expAnswer: '0.055' }, 'outside');
+  assert.deepEqual(failedIds(outside), ['power']);
+  // log₃(81) = 4 → x = 1.5; 1.515 is 0.015 off.
+  const solve = q({ mode: 'solveExponential', equation: { base: 3, m: 2, c: 1, rhs: 81 } });
+  assert.deepEqual(failedIds(assertLegacyParity(solve, { xAnswer: '1.515', exponentAnswer: '4' }, 'x outside')), ['x']);
+  assert.deepEqual(failedIds(assertLegacyParity(solve, { xAnswer: '1.5', exponentAnswer: '3.985' }, 'exponent outside')), ['exponent']);
+});
+
+test('an authored equation base wins over a flat base, and `function` wins over `exponential` and the flat fields', () => {
+  // equation.base 2 (not the flat 10): 2^x = 8 → exponent 3, x 3.
+  const solve = q({ mode: 'solveExponential', base: 10, equation: { base: 2, m: 1, c: 0, rhs: 8 } });
+  assert.equal(assertLegacyParity(solve, { xAnswer: '3', exponentAnswer: '3' }, 'equation base').isCorrect, true);
+  assert.equal(grade(solve, { xAnswer: '0.903', exponentAnswer: '0.903' }).score, 0, 'the flat base is not the equation');
+  const solveLog = q({ mode: 'solveLogarithmic', base: 10, equation: { base: 2, m: 1, c: 0, result: 3 } });
+  assert.equal(assertLegacyParity(solveLog, { argumentAnswer: '8', xAnswer: '8' }, 'log equation base').isCorrect, true);
+
+  // f = −2·3^(x−1) + 4 from `function`; `exponential` and flat fields are ignored.
+  const both = { function: { a: -2, base: 3, h: 1, k: 4 }, exponential: { a: 1, base: 2, h: 0, k: 0 }, a: 1, base: 2, h: 0, k: -3 };
+  const inverse = q({ mode: 'inverse', ...both, x: 3 });
+  assert.equal(assertLegacyParity(inverse, { inverseAnswer: '3', asymptote: '4', domainSide: 'less' }, 'function wins').isCorrect, true);
+  assert.deepEqual(failedIds(grade(inverse, { inverseAnswer: '3', asymptote: '0', domainSide: 'greater' })), ['asymptote', 'domain-side']);
+  // `exponential` wins over the flat fields when there is no `function`.
+  const exponentialOnly = q({ mode: 'inverse', exponential: { a: 1, base: 2, h: 0, k: 0 }, a: -2, base: 3, h: 1, k: 4, x: 3 });
+  assert.equal(assertLegacyParity(exponentialOnly, { inverseAnswer: '3', asymptote: '0', domainSide: 'greater' }, 'exponential wins').isCorrect, true);
+  // Composition reads the same spec: f(x) = 2·2^x + 3 from `function`, y = 7.
+  const composition = q({ mode: 'composition', function: { a: 2, base: 2, h: 0, k: 3 }, exponential: { a: 1, base: 2, h: 0, k: 0 }, x: 1, y: 7 });
+  assert.equal(assertLegacyParity(composition, { inverseAfterForward: '1', forwardAfterInverse: '7' }, 'composition spec').isCorrect, true);
+  assert.equal(grade(q({ mode: 'composition', function: { a: 2, base: 2, h: 0, k: 3 }, exponential: { a: 1, base: 2, h: 0, k: 0 }, x: 1, y: 2 }), { inverseAfterForward: '1', forwardAfterInverse: '2' }).score, 0.5, 'y = 2 is outside this inverse\'s domain (y > 3)');
+});
+
+/* ------------------------------------------------------------------ */
+/* the submitted work holds every input the verdict depends on         */
+/* ------------------------------------------------------------------ */
+
+// The server can only reproduce the screen's verdict if the work each view
+// submits carries every input that verdict reads. So: each view's `work` is
+// exactly its own input state, and the grader needs every one of those fields
+// (drop any one from correct work and the verdict, and completeness, are lost).
+test('each view submits exactly its on-screen inputs, and the grader needs every one of them', () => {
+  const correct = {
+    equivalentForms: [q({ base: 5, exponent: -2 }), { logAnswer: '-2', expAnswer: '0.04' }],
+    solveExponential: [q({ mode: 'solveExponential', equation: { base: 3, m: 2, c: 1, rhs: 81 } }), { xAnswer: '1.5', exponentAnswer: '4' }],
+    solveLogarithmic: [q({ mode: 'solveLogarithmic', equation: { base: 2, m: 3, c: -1, result: 3 } }), { argumentAnswer: '8', xAnswer: '3' }],
+    inverse: [q({ mode: 'inverse', function: { a: -2, base: 3, h: 1, k: 4 }, x: 3 }), { inverseAnswer: '3', asymptote: '4', domainSide: 'less' }],
+    composition: [q({ mode: 'composition', function: { a: 2, base: 2, h: 0, k: 3 }, x: 1, y: 7 }), { inverseAfterForward: '1', forwardAfterInverse: '7' }],
+  };
+  for (const [mode, name] of Object.entries(VIEWS)) {
+    const body = region(code, `function ${name}(`, '\nfunction ', name);
+    const fields = body.match(/const work = \{ ([^}]+) \};/)[1].split(',').map((field) => field.trim());
+    const [question, work] = correct[mode];
+    assert.deepEqual([...fields].sort(), Object.keys(work).sort(), `${name} submits exactly the fields its grader reads`);
+    for (const field of fields) {
+      assert.match(body, new RegExp(`const \\[${field}, set\\w+\\] = usePersistentToolState\\('${field}',`), `${name}: ${field} is the student's own input state`);
+    }
+    assert.equal(grade(question, work).isCorrect, true, `${mode} control`);
+    for (const field of fields) {
+      const rest = { ...work };
+      delete rest[field];
+      const without = grade(question, rest);
+      assert.equal(without.isCorrect, false, `${mode}: the verdict depends on ${field}`);
+      assert.equal(without.isComplete, false, `${mode}: ${field} is required for completeness`);
+    }
+  }
+});

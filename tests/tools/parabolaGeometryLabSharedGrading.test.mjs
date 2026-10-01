@@ -383,3 +383,37 @@ test('correct work fails against a question whose key was altered', () => {
     assert.equal(result.isCorrect, false, `${question.mode || 'features'} against an altered key`);
   }
 });
+
+/* ------------------------------------------------------------------ */
+/* the submitted work holds every input the verdict depends on         */
+/* ------------------------------------------------------------------ */
+
+// The server can only reproduce the screen's verdict if the work each view
+// submits carries every input that verdict reads. So: each view's `work` is
+// exactly its own input state, and the grader needs every one of those fields
+// (drop any one from correct work and the verdict, and completeness, are lost).
+test('each view submits exactly its on-screen inputs, and the grader needs every one of them', () => {
+  const correct = {
+    features: [FEATURES, FEATURES_KEY],
+    equidistance: [q({ mode: 'equidistance', h: 0, k: 0, p: 1, point: [3, 4] }), { focusDistance: '4.243', directrixDistance: '5', onCurve: 'no' }],
+    fromGeometry: [q({ mode: 'fromGeometry', focus: [1, 5], directrix: { kind: 'horizontal', value: 1 } }), { h: '1', k: '3', p: '2' }],
+    equation: [q({ mode: 'equation', h: 1, k: 0, p: -0.75, orientation: 'horizontal' }), { coefficient: '-3', opening: 'left' }],
+  };
+  for (const [mode, name] of Object.entries(VIEWS)) {
+    const body = region(code, `function ${name}(`, '\nfunction ', name);
+    const fields = body.match(/const work=\{([^}]+)\};/)[1].split(',').map((field) => field.trim());
+    const [question, work] = correct[mode];
+    assert.deepEqual([...fields].sort(), Object.keys(work).sort(), `${name} submits exactly the fields its grader reads`);
+    for (const field of fields) {
+      assert.match(body, new RegExp(`const \\[${field}, set\\w+\\] = usePersistentToolState\\('${field}',`), `${name}: ${field} is the student's own input state`);
+    }
+    assert.equal(grade(question, work).isCorrect, true, `${mode} control`);
+    for (const field of fields) {
+      const rest = { ...work };
+      delete rest[field];
+      const without = grade(question, rest);
+      assert.equal(without.isCorrect, false, `${mode}: the verdict depends on ${field}`);
+      assert.equal(without.isComplete, false, `${mode}: ${field} is required for completeness`);
+    }
+  }
+});

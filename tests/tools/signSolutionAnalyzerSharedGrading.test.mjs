@@ -175,8 +175,13 @@ test('polynomial: exactly the qualifying intervals, in any order; one part, all 
     assert.equal(wrong.isCorrect, false);
     assert.equal(wrong.score, 0);
   }
-  // numeratorFactors is read before factors.
-  assert.equal(grade(q({ numeratorFactors: [{ root: 0 }], factors: [{ root: 5 }], relation: '>' }), { selected: [1] }).isCorrect, true);
+  // numeratorFactors is read before factors: x(x − 2) > 0 → (−∞, 0) ∪ (2, ∞).
+  // Read the other way, (x − 5) > 0 has two intervals and [0, 2] is wrong.
+  const both = q({ numeratorFactors: [{ root: 0 }, { root: 2 }], factors: [{ root: 5 }], relation: '>' });
+  const numeratorFirst = assertLegacyParity(both, { selected: [0, 2] }, 'numeratorFactors first');
+  assert.equal(numeratorFirst.isCorrect, true);
+  assert.equal(numeratorFirst.parts[0].response, '(−∞, 0) ∪ (2, ∞)');
+  assert.equal(assertLegacyParity(both, { selected: [1] }, 'factors ignored').isCorrect, false);
 });
 
 test('polynomial: endpoint inclusion is not student input, so ≥ grades like > (as on screen)', () => {
@@ -202,7 +207,14 @@ test('rational: denominator zeros split the line too; authored or default denomi
   assert.equal(inferredResult.mode, 'rational');
   assert.equal(inferredResult.isCorrect, true);
   // mode 'rational' with no denominator uses the demo (x − 1): (x + 2)(x − 3)/(x − 1) > 0 → (−2, 1) ∪ (3, ∞).
-  assert.equal(assertLegacyParity(q({ mode: 'rational' }), { selected: [1, 3] }, 'default denominator').isCorrect, true);
+  const demoDenominator = assertLegacyParity(q({ mode: 'rational' }), { selected: [1, 3] }, 'default denominator');
+  assert.equal(demoDenominator.isCorrect, true);
+  assert.equal(demoDenominator.parts[0].response, '(-2, 1) ∪ (3, ∞)', 'the chart splits at the demo denominator zero x = 1');
+  // (x − 1.5)²/(x − 1) > 0 → (1, 1.5) ∪ (1.5, ∞): the demo denominator's zero
+  // at 1 decides which intervals exist (a zero at 2 would give only (2, ∞)).
+  const evenOverDemo = q({ mode: 'rational', numeratorFactors: [{ root: 1.5, multiplicity: 2 }], relation: '>' });
+  assert.equal(assertLegacyParity(evenOverDemo, { selected: [2, 1] }, 'even numerator over the demo denominator').isCorrect, true);
+  assert.equal(assertLegacyParity(evenOverDemo, { selected: [2] }, 'only the right tail').isCorrect, false);
 });
 
 test('an empty selection is graded — right when nothing qualifies — but never complete', () => {
