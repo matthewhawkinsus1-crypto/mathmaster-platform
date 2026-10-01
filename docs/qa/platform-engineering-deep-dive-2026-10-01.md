@@ -75,10 +75,19 @@ a full period on one device, garbage collected, measured at the same screen.
 | student | 50.0 → 50.5 MB | 669 → 677 | 228 flat | 10 flat |
 | teacher | 52.5 → 53.2 MB | 1477 flat | 324 flat | 32 flat |
 
-No growth keeps going after round 2. The heap delta is lazy chunks and one
-last-unmounted screen, which is bounded. The detached-DOM "leak" first seen
-in this run was a test artifact: Playwright `ElementHandle`s from
-`waitForSelector` pinned the old trees, and the driver now uses locators.
+Final run on the merged head: student heap 51.6 → 52.1 MB, teacher heap
+54.2 → 55.0 MB. Listeners are flat in both, and every run since the fixes
+reports 0 fan-out.
+
+The page itself does not grow: the attached DOM was identical every round
+(117 elements, 112 text nodes at the resting screen). The student's CDP node
+count, which also counts detached nodes still in memory, rises by about 2
+per round after round 2 (642 → 650). That is roughly a kilobyte per lesson
+round with a flat heap. It is recorded rather than chased.
+
+An earlier, much larger detached-DOM "leak" was a test artifact: Playwright
+`ElementHandle`s from `waitForSelector` pinned the old trees. The driver now
+uses locators.
 
 ---
 
