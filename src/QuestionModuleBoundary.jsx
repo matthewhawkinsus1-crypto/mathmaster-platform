@@ -1,4 +1,7 @@
 import { Component } from 'react';
+import RecoveryPanel from './components/common/RecoveryPanel.jsx';
+import { isChunkLoadError, recentlyReloadedForChunk, reloadForCurrentBuild } from './platform/runtime/chunkLoadRecovery.js';
+import { recordClientDiagnostic } from './platform/runtime/clientDiagnostics.js';
 
 /*
  * Last line of defence around a single question's response module.
@@ -25,6 +28,11 @@ export default class QuestionModuleBoundary extends Component {
 
   componentDidCatch(error, info) {
     console.error('Question module crashed:', this.props.questionType, error, info);
+    recordClientDiagnostic({
+      kind: isChunkLoadError(error) ? 'chunk-load' : 'question-module-error',
+      message: `${this.props.questionType || 'unknown type'}: ${error?.message || error}`,
+      source: 'question',
+    });
   }
 
   componentDidUpdate(previousProps) {
@@ -39,6 +47,31 @@ export default class QuestionModuleBoundary extends Component {
   render() {
     if (!this.state.error) {
       return this.props.children;
+    }
+
+    // A tool's code that could not be fetched is not a broken question: the
+    // tab outlived a deploy (chunkLoadRecovery.js). Telling the student the
+    // question was set up wrong, and to tell their teacher, sent teachers
+    // hunting for a content error that did not exist.
+    if (isChunkLoadError(this.state.error)) {
+      const again = recentlyReloadedForChunk();
+      return (
+        <RecoveryPanel
+          compact
+          tone={again ? 'offline' : 'updated'}
+          title={again ? 'This tool could not load' : 'MathMaster was just updated'}
+          primaryLabel={again ? 'Try again' : 'Load the new version'}
+          onPrimary={() => reloadForCurrentBuild()}
+          offerReport={again}
+          technicalMessage={again ? String(this.state.error?.message || this.state.error) : ''}
+        >
+          <p style={{ margin: 0 }}>
+            {again
+              ? 'Check that this device is connected to the internet, then try again. Your work on this question is saved.'
+              : 'This tool changed after this tab was opened. Your work on this question is saved — loading the new version brings you right back to it.'}
+          </p>
+        </RecoveryPanel>
+      );
     }
 
     return (
