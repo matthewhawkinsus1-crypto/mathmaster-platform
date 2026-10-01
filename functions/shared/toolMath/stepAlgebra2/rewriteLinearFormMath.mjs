@@ -179,3 +179,93 @@ export const isRewriteComplete = (equationState) => describeRewriteGap(equationS
 
 export const formatEquationLatex = (equationState) => equationToLatex(equationState);
 export const formatSideLatex = (expression) => expressionToLatex(expression);
+
+/*
+ * DOES A REWRITTEN EQUATION STILL DESCRIBE THE ORIGINAL LINE?
+ *
+ * The rewrite workspace only lets a student commit equivalence-preserving
+ * steps, so on the device the current equation is always the original line in
+ * a new form. A grader that is handed the equation as raw work cannot assume
+ * that, so it checks it: the points that satisfy the ORIGINAL equation must
+ * satisfy the rewritten one, and points just off it must not.
+ *
+ * Sampled, not symbolic, so every legitimate intermediate form passes — a
+ * product with a variable factor (x(5x + 2y) = 6x), a quotient (6 − 5x)/2, a
+ * factored right side — while a different line, or an identity such as 0 = 0
+ * (which every point satisfies), fails. The sample coordinates are irrational
+ * looking on purpose: a legitimate step can only add or remove solutions on a
+ * special set (x = 0 after multiplying by x), and these never land on one.
+ */
+const ZERO_SET_COORDINATES = Object.freeze([-2.718, -0.577, 1.414, 3.142, 5.25]);
+const ZERO_SET_PROBES = Object.freeze([-1.234, 2.345]);
+const OFF_SET_OFFSETS = Object.freeze([0.618, -1.732]);
+
+const compileEquationSides = (equation) => {
+  try {
+    const left = parse(latexToExpression(String(equation?.left ?? ''))).compile();
+    const right = parse(latexToExpression(String(equation?.right ?? ''))).compile();
+    return (x, y) => {
+      try {
+        const leftValue = Number(left.evaluate({ x, y }));
+        const rightValue = Number(right.evaluate({ x, y }));
+        if (!Number.isFinite(leftValue) || !Number.isFinite(rightValue)) return null;
+        return { residual: leftValue - rightValue, scale: Math.max(Math.abs(leftValue), Math.abs(rightValue)) };
+      } catch {
+        return null;
+      }
+    };
+  } catch {
+    return null;
+  }
+};
+
+const residualTolerance = (scale) => 1e-9 + 1e-7 * scale;
+const isBalancedAt = (value) => value !== null && Math.abs(value.residual) <= residualTolerance(value.scale);
+
+/**
+ * Points on the solution set of an equation in x and y, found by fixing one
+ * coordinate and solving for the other (the equation must be linear in that
+ * other coordinate — every line is). Tries "solve for y" first, then "solve for
+ * x" for a vertical line. Returns `{ axis, points }` or null when the equation
+ * has no such sampleable solution set.
+ */
+export const sampleEquationZeroSet = (equation) => {
+  const evaluate = compileEquationSides(equation);
+  if (!evaluate) return null;
+  const solveFor = (axis) => {
+    const points = [];
+    for (const fixed of ZERO_SET_COORDINATES) {
+      const at = (free) => (axis === 'y' ? evaluate(fixed, free) : evaluate(free, fixed));
+      const [low, high] = ZERO_SET_PROBES;
+      const lowValue = at(low);
+      const highValue = at(high);
+      if (!lowValue || !highValue) return null;
+      const change = highValue.residual - lowValue.residual;
+      if (Math.abs(change) <= residualTolerance(Math.max(lowValue.scale, highValue.scale))) return null;
+      const root = low - (lowValue.residual * (high - low)) / change;
+      const point = axis === 'y' ? { x: fixed, y: root } : { x: root, y: fixed };
+      if (!Number.isFinite(root) || !isBalancedAt(evaluate(point.x, point.y))) return null;
+      points.push(point);
+    }
+    return { axis, points };
+  };
+  return solveFor('y') || solveFor('x');
+};
+
+/**
+ * True when `equation` holds at every sampled point of `reference` (from
+ * sampleEquationZeroSet) and fails just off it — the same solution set.
+ */
+export const equationKeepsZeroSet = (equation, reference) => {
+  if (!reference || !Array.isArray(reference.points) || !reference.points.length) return false;
+  const evaluate = compileEquationSides(equation);
+  if (!evaluate) return false;
+  return reference.points.every((point) => {
+    if (!isBalancedAt(evaluate(point.x, point.y))) return false;
+    return OFF_SET_OFFSETS.every((offset) => {
+      const shifted = reference.axis === 'y' ? evaluate(point.x, point.y + offset) : evaluate(point.x + offset, point.y);
+      // Undefined off the line is still "not a solution there".
+      return shifted === null || !isBalancedAt(shifted);
+    });
+  });
+};

@@ -4,6 +4,12 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure';
 import { useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import stepAlgebra2Grader, {
+  resolveRewriteTargetForm,
+  rewriteLinearFormWork,
+} from '../../../functions/shared/serverGrading/tools/stepAlgebra2.mjs';
 import StepByStepAlgebraCore from '../../StepByStepAlgebraCore';
 import AlgebraWorkSteps from '../../AlgebraWorkSteps';
 import {
@@ -44,7 +50,7 @@ const stepsAreUsable = (steps) => (Array.isArray(steps) ? steps : []).filter((st
 ));
 
 export default function RewriteLinearForm({ questionData = {}, onAction, draftKey = null }) {
-  const targetForm = questionData.targetForm === 'factoredLinear' ? 'factoredLinear' : 'slopeIntercept';
+  const targetForm = resolveRewriteTargetForm(questionData);
   const factoredTarget = targetForm === 'factoredLinear';
   const initialEquationState = useMemo(() => buildInitialEquationState(questionData), [questionData]);
   // Mirrors of the core's committed equation and step log (see above).
@@ -115,14 +121,22 @@ export default function RewriteLinearForm({ questionData = {}, onAction, draftKe
     controller: coreUndo,
   });
 
+  // Goal chips and the feedback message read the live form; the verdict comes
+  // only from the shared grader, which also re-checks that this equation is
+  // still the question's line.
   const gap = describeRewriteGap({ ...equationState, objective });
   const complete = gap === null;
   const leftIsolated = gap !== 'isolateVariable';
   const noVariableOnRight = leftIsolated && gap !== 'variableOnBothSides';
 
+  // The equation on screen and the equation after each committed step — what
+  // Check submits and what a deadline finalizes.
+  const work = useMemo(() => rewriteLinearFormWork(equationState, history), [equationState, history]);
+  useReportToolWork(work);
+
   const check = () => {
-    const score = complete ? 1 : ['needsSimplification', 'needsFactoring'].includes(gap) ? 0.75 : gap === 'variableOnBothSides' ? 0.4 : history.length ? 0.15 : 0;
-    submit({ isCorrect: complete, score }, { equationState, history }, { mode: 'rewriteLinearForm', gap });
+    const result = gradeToolCheck(stepAlgebra2Grader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'rewriteLinearForm', gap, parts: result.parts });
   };
 
   const feedbackMessage = () => {
