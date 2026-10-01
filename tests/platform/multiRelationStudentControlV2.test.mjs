@@ -94,7 +94,10 @@ test('workspace asks student for relation symbols and absolute split structure',
 
 test('pending relation-symbol work is persisted in the question draft', () => {
   const src = multiRelationSource();
-  assert.match(src, /pendingRelationFlip,[\s\S]{0,160}candidateChecks,[\s\S]{0,80}\}\);/);
+  // Saved as what the student did, without the symbols the open step expects
+  // (relationPendingFlipDraft.js; its round trip is tested in
+  // relationPendingFlipDraft.test.mjs).
+  assert.match(src, /pendingRelationFlip: persistablePendingFlip\(pendingRelationFlip\),[\s\S]{0,160}candidateChecks,[\s\S]{0,80}\}\);/);
   assert.match(src, /initialPendingRelationFlipFor/);
 });
 
