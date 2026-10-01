@@ -28,6 +28,13 @@ name: Student Runtime Browser Gates
 #                       round for same-x cards; a DOL plot has no check
 #   mathFontsProduction a PRODUCTION build serves the fonts its math fields
 #                       draw with (the dev server hid that they were missing)
+#   toolAttemptOutcome  after a tool's Check the attempt outcome is beside its
+#                       verdict, on screen, announced once; none on a DOL (PQ-022)
+#   assessmentLeakGates nothing before Submit says whether work is right on a
+#                       DOL, quiz or test (systems, inequalities, intercepts,
+#                       relation solver, constraint builder); practice unchanged
+#   clickMapLetterbox   number line, relation plot and story sketch place a tap
+#                       where it lands on a letterboxed plane (PQ-034)
 
 on:
   pull_request:
@@ -44,6 +51,9 @@ on:
       - "tests/browser/toolPolicyGates*"
       - "tests/browser/relationPlotGrading*"
       - "tests/browser/mathFontsProduction.mjs"
+      - "tests/browser/toolAttemptOutcome*"
+      - "tests/browser/assessmentLeakGates*"
+      - "tests/browser/clickMapLetterbox*"
       - "tests/browser/harnessProduction.config.mjs"
       - "scripts/serve-static-spa.mjs"
       - "tests/browser/studentUxPlatform*"
@@ -63,7 +73,7 @@ concurrency:
 jobs:
   student-runtime:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -129,6 +139,24 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/relationPlotGrading.mjs
+      - name: A tool's attempt outcome is shown beside its verdict
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/toolAttemptOutcome.mjs
+      - name: Nothing before Submit reveals correctness on a DOL, quiz or test
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/assessmentLeakGates.mjs
+      - name: Taps land where they are made on a letterboxed plane
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/clickMapLetterbox.mjs
       - name: A production build serves the math fonts
         if: always()
         env:
