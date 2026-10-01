@@ -28,7 +28,6 @@ import useMathUndoHistory, { WorkViewUndoProvider, questionUndoResetKey, useActi
 import { Panel, ResultPill, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import MathDisplay from '../../MathDisplay';
-import MathInput from '../../MathInput';
 import AlgebraicSystemMode, {
   EmbeddedStepAlgebra,
   MathDragToken,
@@ -77,14 +76,24 @@ import { allOriginalsVerified } from './substitutionReduction.js';
 import AlgebraicOutcome from './AlgebraicOutcome.jsx';
 import { planeWorkEarned } from './algebraicOutcomeModel.js';
 import OriginalEquationsVerification from './OriginalEquationsVerification.jsx';
+import {
+  EliminationCombinationEntry,
+  EliminationDistribution,
+  EliminationOperationRail,
+  EliminationOperationSymbol,
+  EliminationScaleButton,
+  EliminationScaleEditor,
+  EliminationStackRow,
+  eliminationActionStyle as actionStyle,
+  eliminationDirection,
+  eliminationSecondaryButtonStyle as secondaryButtonStyle,
+  eliminationSmallActionStyle,
+} from './EliminationStack.jsx';
 import './AlgebraicSystemMode.css';
 
 const SUBSCRIPTS = ['₀', '₁', '₂', '₃', '₄', '₅', '₆', '₇', '₈', '₉'];
 const lineageName = (id) => String(id || '').replace(/\d/g, (digit) => SUBSCRIPTS[Number(digit)]);
 
-const actionStyle = { marginTop: 16, padding: '11px 18px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer', minHeight: 44 };
-const secondaryButtonStyle = { ...actionStyle, marginTop: 0, padding: '9px 14px', fontSize: 13, background: '#eef4ff', color: '#174ea6' };
-const smallActionStyle = { ...actionStyle, marginTop: 8, padding: '9px 14px', fontSize: 13 };
 
 const hashText = (value) => {
   const text = String(value || '');
@@ -325,6 +334,11 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
   }
 
   const note = feedbackText(feedbackNote, system);
+  // A wrong distribution is reported inside its own box, under the button the
+  // student just pressed — the shared board's place for it at every size.
+  const productError = feedbackNote?.stage === 'multiplier-products' && note
+    ? { roundKey: feedbackNote.roundKey, equationId: feedbackNote.equationId, text: note }
+    : null;
   const unsupported = answerKey.type === 'invalid';
 
   return (
@@ -419,6 +433,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
                     variable={variable}
                     elimination={elimination}
                     apply={apply}
+                    productError={productError}
                     readOnly={phase !== 'round1-combine'}
                     revealOnAppear={revealOnAppear}
                   />
@@ -444,6 +459,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
                     variable={variable}
                     elimination={elimination}
                     apply={apply}
+                    productError={productError}
                     readOnly={phase !== 'round2-combine'}
                     revealOnAppear={revealOnAppear}
                   />
@@ -513,7 +529,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
                   />
                 ) : null}
 
-                {note ? <p className="mathmaster-systems-substitution-feedback is-error" role="status">{note}</p> : null}
+                {note && !productError ? <p className="mathmaster-systems-substitution-feedback is-error" role="status">{note}</p> : null}
 
                 {(outcome || phase === 'complete') ? <AlgebraicOutcome
                   key={outcomeIdentity || 'unique'} outcome={outcome} classified={classified}
@@ -603,89 +619,12 @@ function EliminationPairChoice({ label, system, roundKey, elimination, apply }) 
  * computed or previewed before they submit it. A finished round STAYS on the
  * page as read-only work, so the reduced 2×2 is visibly built from the rounds
  * above it instead of appearing from a summary chip.
+ *
+ * The rows, scale editor, distribution, rail and entry line come from
+ * EliminationStack.jsx — the same components every 2×2 elimination draws.
  * ------------------------------------------------------------------------ */
 
-const MINUS = '−';
-
-/** One signed column entry: "2x", "− y", "+ 2z"; blank for a zero coefficient. */
-const columnTermText = (coefficient, variable, leading) => {
-  const value = Number(coefficient);
-  if (!Number.isFinite(value) || Math.abs(value) < 1e-9) return '';
-  const magnitude = Math.abs(value);
-  const digits = Math.abs(magnitude - 1) < 1e-9 ? '' : exactNumberText(magnitude);
-  const body = `${digits}${variable}`;
-  if (leading) return value < 0 ? `${MINUS}${body}` : body;
-  return `${value < 0 ? MINUS : '+'} ${body}`;
-};
-
-const constantText = (value) => {
-  const text = exactNumberText(value);
-  return text.startsWith('-') ? `${MINUS}${text.slice(1)}` : text;
-};
-
-/** Whether each column is the first non-zero term of its row (no leading "+"). */
-const leadingFlags = (form, variables) => {
-  let seen = false;
-  return variables.map((name) => {
-    const nonzero = Math.abs(Number(form?.coefficients?.[name] || 0)) > 1e-9;
-    const leading = nonzero && !seen;
-    if (nonzero) seen = true;
-    return leading;
-  });
-};
-
-function EliminationStackRow({
-  variables,
-  target,
-  form,
-  label,
-  badge = null,
-  opCell = null,
-  cancelled = false,
-  onToggleCancel = null,
-  labelAction = null,
-  rowId,
-}) {
-  const leading = leadingFlags(form, variables);
-  const allZero = form && variables.every((name) => Math.abs(Number(form?.coefficients?.[name] || 0)) < 1e-9);
-  return (
-    <div className="mathmaster-elim-row" data-row-id={rowId}>
-      <div className="mathmaster-elim-op">{opCell}</div>
-      <div className="mathmaster-elim-label">
-        <span>{label}</span>
-        {badge ? <span className="mathmaster-elim-badge">{badge}</span> : null}
-        {labelAction}
-      </div>
-      {variables.map((name, index) => {
-        const text = allZero && index === variables.length - 1 ? '0' : columnTermText(form?.coefficients?.[name], name, leading[index]);
-        const isTarget = name === target;
-        if (isTarget && onToggleCancel && text) {
-          return (
-            <button
-              key={name}
-              type="button"
-              className={`mathmaster-elim-term is-target is-markable${cancelled ? ' is-cancelled' : ''}`}
-              onClick={onToggleCancel}
-              aria-pressed={cancelled}
-              aria-label={`${cancelled ? 'Unmark' : 'Mark'} the ${name} term ${text.replace(/\s+/g, '')} in ${label} as cancelling`}
-            >
-              {text}
-            </button>
-          );
-        }
-        return (
-          <span key={name} className={`mathmaster-elim-term${isTarget ? ' is-target' : ''}${isTarget && cancelled ? ' is-cancelled' : ''}`}>
-            {text}
-          </span>
-        );
-      })}
-      <span className="mathmaster-elim-equals">=</span>
-      <span className="mathmaster-elim-constant">{form ? constantText(form.constant) : ''}</span>
-    </div>
-  );
-}
-
-function EliminationRoundBoard({ label, system, roundKey, variable, elimination, apply, readOnly = false, revealOnAppear }) {
+function EliminationRoundBoard({ label, system, roundKey, variable, elimination, apply, readOnly = false, revealOnAppear, productError = null }) {
   const round = elimination.rounds[roundKey];
   const [idA, idB] = round.pair;
   const equationA = system.equations.find((equation) => equation.id === idA);
@@ -723,16 +662,12 @@ function EliminationRoundBoard({ label, system, roundKey, variable, elimination,
     // Offered until the student commits to cancelling; after that the scale
     // is part of the work they are combining (Undo still reaches it).
     if (!canEditRows || editorOpen(id) || cancellationOpen) return null;
-    const scaled = Boolean(factorBadge(id));
     return (
-      <button
-        type="button"
-        className="mathmaster-elim-scale-button"
-        onClick={() => apply(openEliminationScaleEditor(elimination, roundKey, id))}
-        aria-label={scaled ? `Change the scale factor for ${equation.label}` : `Scale ${equation.label}`}
-      >
-        {scaled ? 'Change' : 'Scale'}
-      </button>
+      <EliminationScaleButton
+        equationLabel={equation.label}
+        scaled={Boolean(factorBadge(id))}
+        onOpen={() => apply(openEliminationScaleEditor(elimination, roundKey, id))}
+      />
     );
   };
 
@@ -742,92 +677,49 @@ function EliminationRoundBoard({ label, system, roundKey, variable, elimination,
     if (!editorOpen(id)) return null;
     if (!work) {
       return (
-        <div className="mathmaster-elim-row-tools" data-scale-editor={id}>
-          <label className="mathmaster-reduction-field mathmaster-elim-factor-field">
-            Scale {equation.label} by
-            <MathInput
-              value={round.multiplierDrafts?.[id] || ''}
-              onChange={(value) => apply(setEliminationMultiplierDraft(elimination, roundKey, id, value))}
-              onSubmit={() => apply(applyEliminationMultiplier(elimination, system, roundKey, id))}
-              placeholder="factor"
-              ariaLabel={`Scale factor for ${equation.label}`}
-              toolProfile="algebra-operation"
-              compact
-              maxWidth={150}
-            />
-          </label>
-          <button type="button" onClick={() => apply(applyEliminationMultiplier(elimination, system, roundKey, id))} style={smallActionStyle}>Apply this factor</button>
-          <button type="button" onClick={() => apply(keepEliminationEquationAsWritten(elimination, roundKey, id))} style={{ ...secondaryButtonStyle, marginTop: 8 }}>Keep as written</button>
-        </div>
+        <EliminationScaleEditor
+          editorId={id}
+          equationLabel={equation.label}
+          value={round.multiplierDrafts?.[id] || ''}
+          onChange={(value) => apply(setEliminationMultiplierDraft(elimination, roundKey, id, value))}
+          onApply={() => apply(applyEliminationMultiplier(elimination, system, roundKey, id))}
+          onKeep={() => apply(keepEliminationEquationAsWritten(elimination, roundKey, id))}
+        />
       );
     }
-    const factorText = round.multiplierDrafts?.[id] || '';
     return (
-      <div ref={revealOnAppear} className="mathmaster-elim-distribution" data-distribution={id}>
-        <p className="mathmaster-elim-hint">
-          Multiply every term of {equation.label} by {factorText}, including the right side. Write each new term under the term it came from.
-        </p>
-        <div className="mathmaster-elim-row mathmaster-elim-entry-row">
-          <div className="mathmaster-elim-op" />
-          <div className="mathmaster-elim-label"><span>· {factorText}</span></div>
-          {[...system.variables, 'constant'].map((key) => (
-            <React.Fragment key={key}>
-              {key === 'constant' ? <span className="mathmaster-elim-equals">=</span> : null}
-              <div className={key === 'constant' ? 'mathmaster-elim-constant' : 'mathmaster-elim-term'}>
-                <span className="mathmaster-elim-entry-label" aria-hidden="true">{key === 'constant' ? 'Right side' : `${key} term`}</span>
-                <MathInput
-                  value={work[key] || ''}
-                  onChange={(value) => apply(setEliminationMultiplierProductTerm(elimination, roundKey, id, key, value))}
-                  onSubmit={() => apply(checkEliminationMultiplierProducts(elimination, system, roundKey, id))}
-                  placeholder={key === 'constant' ? 'value' : 'term'}
-                  ariaLabel={`Scaled ${key === 'constant' ? 'right side' : `${key} term`} for ${equation.label}`}
-                  toolProfile="algebra-operation"
-                  compact
-                  hideToolsToggle
-                />
-              </div>
-            </React.Fragment>
-          ))}
-        </div>
-        <div className="mathmaster-elim-actions">
-          <button type="button" onClick={() => apply(checkEliminationMultiplierProducts(elimination, system, roundKey, id))} style={smallActionStyle}>Check my scaled terms</button>
-          <button type="button" onClick={() => apply(keepEliminationEquationAsWritten(elimination, roundKey, id))} style={{ ...secondaryButtonStyle, marginTop: 8 }}>Keep as written</button>
-        </div>
-      </div>
+      <EliminationDistribution
+        revealRef={revealOnAppear}
+        distributionId={id}
+        equationLabel={equation.label}
+        factorText={round.multiplierDrafts?.[id] || ''}
+        entries={[...system.variables.map((name) => ({ key: name, variable: name })), { key: 'constant', variable: null }]}
+        values={work}
+        onTerm={(key, value) => apply(setEliminationMultiplierProductTerm(elimination, roundKey, id, key, value))}
+        onCheck={() => apply(checkEliminationMultiplierProducts(elimination, system, roundKey, id))}
+        onKeep={() => apply(keepEliminationEquationAsWritten(elimination, roundKey, id))}
+        error={productError?.roundKey === roundKey && productError.equationId === id ? productError.text : null}
+      />
     );
   };
 
   const opRail = canEditRows && bothConfirmed && !anyEditorOpen ? (
-    <div className="mathmaster-systems-operation-rail mathmaster-elim-rail" role="group" aria-label={`Add or subtract ${equationB.label} and ${equationA.label}`}>
-      <button
-        type="button"
-        className={round.operation === 'add' ? 'is-selected' : ''}
-        aria-pressed={round.operation === 'add'}
-        onClick={() => apply(setEliminationOperation(elimination, roundKey, 'add'))}
-        aria-label={`Add ${equationA.label} and ${equationB.label}`}
-      >
-        +
-      </button>
-      <button
-        type="button"
-        className={round.operation === 'subtract' ? 'is-selected' : ''}
-        aria-pressed={round.operation === 'subtract'}
-        onClick={() => apply(setEliminationOperation(elimination, roundKey, 'subtract'))}
-        aria-label={`Subtract ${equationB.label} from ${equationA.label}`}
-      >
-        −
-      </button>
-    </div>
-  ) : (round.operation ? <span className="mathmaster-systems-operation-symbol" aria-label={round.operation === 'subtract' ? 'minus' : 'plus'}>{round.operation === 'subtract' ? '−' : '+'}</span> : null);
+    <EliminationOperationRail
+      operation={round.operation}
+      onChoose={(operation) => apply(setEliminationOperation(elimination, roundKey, operation))}
+      firstLabel={equationA.label}
+      secondLabel={equationB.label}
+    />
+  ) : <EliminationOperationSymbol operation={round.operation} />;
 
-  const direction = (() => {
-    if (!canEditRows) return null;
-    if (anyEditorOpen) return 'Type the factor, apply it, then multiply every term. Or keep the equation as written.';
-    if (!operationChosen) return `Scale an equation only if its ${variable} term needs it. Then choose + or − beside the second equation.`;
-    if (eliminates === false) return null;
-    if (!round.combinationWork) return `Mark the ${variable} term in each equation that cancels · ${markedCount} of 2 marked.`;
-    return 'Now combine what remains, column by column, on the line under the equations.';
-  })();
+  const direction = canEditRows ? eliminationDirection({
+    variable,
+    anyEditorOpen,
+    operationChosen,
+    eliminates,
+    combinationOpen: Boolean(round.combinationWork),
+    markedCount,
+  }) : null;
 
   return (
     <section
@@ -882,41 +774,16 @@ function EliminationRoundBoard({ label, system, roundKey, variable, elimination,
         ) : null}
 
         {!done && canEditRows && round.combinationWork ? (
-          <div ref={revealOnAppear} className="mathmaster-elim-row mathmaster-elim-entry-row mathmaster-elim-result-entry" data-combination-entry={roundKey}>
-            <div className="mathmaster-elim-op" />
-            <div className="mathmaster-elim-label"><span>{reducedName}</span></div>
-            {system.variables.map((name) => (name === variable ? (
-              <span key={name} className="mathmaster-elim-term is-eliminated" aria-label={`${name} eliminated`}>—</span>
-            ) : (
-              <div key={name} className="mathmaster-elim-term">
-                <span className="mathmaster-elim-entry-label" aria-hidden="true">{name} term</span>
-                <MathInput
-                  value={round.combinationWork[name] || ''}
-                  onChange={(value) => apply(setEliminationCombinationTerm(elimination, roundKey, name, value))}
-                  onSubmit={() => apply(checkEliminationCombination(elimination, system, roundKey))}
-                  placeholder="term"
-                  ariaLabel={`Combined ${name} term`}
-                  toolProfile="algebra-operation"
-                  compact
-                  hideToolsToggle
-                />
-              </div>
-            )))}
-            <span className="mathmaster-elim-equals">=</span>
-            <div className="mathmaster-elim-constant">
-              <span className="mathmaster-elim-entry-label" aria-hidden="true">Right side</span>
-              <MathInput
-                value={round.combinationWork.constant || ''}
-                onChange={(value) => apply(setEliminationCombinationTerm(elimination, roundKey, 'constant', value))}
-                onSubmit={() => apply(checkEliminationCombination(elimination, system, roundKey))}
-                placeholder="value"
-                ariaLabel="Combined constant"
-                toolProfile="algebra-operation"
-                compact
-                hideToolsToggle
-              />
-            </div>
-          </div>
+          <EliminationCombinationEntry
+            revealRef={revealOnAppear}
+            entryId={roundKey}
+            variables={system.variables}
+            target={variable}
+            label={reducedName}
+            values={round.combinationWork}
+            onTerm={(key, value) => apply(setEliminationCombinationTerm(elimination, roundKey, key, value))}
+            onCheck={() => apply(checkEliminationCombination(elimination, system, roundKey))}
+          />
         ) : null}
       </div>
 
@@ -927,7 +794,7 @@ function EliminationRoundBoard({ label, system, roundKey, variable, elimination,
       ) : null}
 
       {!done && canEditRows && round.combinationWork ? (
-        <button type="button" onClick={() => apply(checkEliminationCombination(elimination, system, roundKey))} style={{ ...smallActionStyle, justifySelf: 'start' }}>Check my combination</button>
+        <button type="button" onClick={() => apply(checkEliminationCombination(elimination, system, roundKey))} style={{ ...eliminationSmallActionStyle, justifySelf: 'start' }}>Check my combination</button>
       ) : null}
     </section>
   );

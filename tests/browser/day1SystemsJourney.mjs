@@ -158,7 +158,7 @@ const scaleEquation = async (page, roundKey, equationLabel, factor, products, jo
 /** Choose + or −, mark both target terms, type the combined row, check. */
 const combineRound = async (page, roundKey, operation, [labelA, labelB], variable, terms, journey) => {
   const round = board(page, roundKey);
-  const operationLabel = operation === 'add' ? `Add ${labelA} and ${labelB}` : `Subtract ${labelB} from ${labelA}`;
+  const operationLabel = operation === 'add' ? `Add ${labelB} to ${labelA}` : `Subtract ${labelB} from ${labelA}`;
   await round.locator(`button[aria-label="${operationLabel}"]`).click();
   await settle(page, 400);
   const marks = round.locator(`button[aria-label^="Mark the ${variable} term"]`);
@@ -168,7 +168,7 @@ const combineRound = async (page, roundKey, operation, [labelA, labelB], variabl
   await round.locator(`button[aria-label^="Mark the ${variable} term"]`).first().click();
   await settle(page, 500);
   for (const [key, value] of Object.entries(terms)) {
-    const label = key === 'constant' ? 'Combined constant' : `Combined ${key} term`;
+    const label = key === 'constant' ? 'Combined right side' : `Combined ${key} term`;
     await setMathField(page, round.locator(`math-field[aria-label="${label}"]`), value);
   }
   await round.getByRole('button', { name: 'Check my combination' }).click();
@@ -191,17 +191,16 @@ const subsystemElimination = async (page, variable, journey) => {
   expect(journey, !/Verify/.test(trail), `reduced 2×2 still shows its own Verify step: ${trail.replace(/\s+/g, ' ')}`);
 };
 
+// The reduced 2×2 is drawn with the same board as a 3×3 pair round: "Scale"
+// under the row's label, the factor field and its distribution under that
+// row, + / − beside the second row, both cancelling terms marked in place,
+// and what remains typed on the line under the rule (no Confirm press).
 const subsystemScale = async (page, rName, factor, products, journey) => {
   const sub = subsystem(page);
-  const index = rName === 'R₁' ? 0 : 1;
-  await sub.getByRole('button', { name: 'Scale equation' }).nth(index).click().catch(async () => {
-    await sub.getByRole('button', { name: 'Scale equation' }).first().click();
-  });
+  await sub.locator(`button[aria-label="Scale ${rName}"]`).click();
   await settle(page, 300);
   await setMathField(page, sub.locator(`math-field[aria-label="Scale factor for ${rName}"]`), factor);
-  await sub.locator(`button[aria-label="Pick up scale factor ${factor} for ${rName}"]`).click();
-  await settle(page, 200);
-  await sub.locator(`[aria-label="Place scale factor on ${rName}"]`).click();
+  await sub.getByRole('button', { name: 'Apply this factor' }).click();
   await settle(page, 500);
   for (const [key, value] of Object.entries(products)) {
     const label = key === 'constant' ? `Scaled right side for ${rName}` : `Scaled ${key} term for ${rName}`;
@@ -210,26 +209,23 @@ const subsystemScale = async (page, rName, factor, products, journey) => {
     expect(journey, !placeholder.includes(value), `2×2: the placeholder of ${label} is the answer itself (${placeholder})`);
     await setMathField(page, field, value);
   }
-  await sub.getByRole('button', { name: 'Check scaled equation' }).click();
+  await sub.getByRole('button', { name: 'Check my scaled terms' }).click();
   await settle(page, 500);
+  expect(journey, (await sub.locator('.mathmaster-elim-badge').allInnerTexts()).some((text) => text.includes(factor)),
+    `2×2: ${rName} does not show its ·${factor} after the products were checked`);
 };
 
 const subsystemCombine = async (page, operation, variable, coefficient, rightSide) => {
   const sub = subsystem(page);
   await sub.locator(`button[aria-label="${operation === 'add' ? 'Add R₂ to R₁' : 'Subtract R₂ from R₁'}"]`).click();
   await settle(page, 500);
-  const marks = sub.locator('button[aria-label$="for elimination cancellation"][aria-pressed="false"]');
-  await marks.first().click();
+  await sub.locator('button[aria-label^="Mark the "][aria-pressed="false"]').first().click();
   await settle(page, 200);
-  await sub.locator('button[aria-label$="for elimination cancellation"][aria-pressed="false"]').first().click();
-  // #390 (N4): the reduced 2×2 now marks cancellation exactly like the 3×3
-  // rounds above it — marking both terms opens the combination, with no
-  // separate "Confirm marked cancellation" step. The fields below only exist
-  // once both marks are in.
+  await sub.locator('button[aria-label^="Mark the "][aria-pressed="false"]').first().click();
   await settle(page, 500);
-  await setMathField(page, sub.locator(`math-field[aria-label="Combined coefficient of ${variable}"]`), coefficient);
+  await setMathField(page, sub.locator(`math-field[aria-label="Combined ${variable} term"]`), coefficient);
   await setMathField(page, sub.locator('math-field[aria-label="Combined right side"]'), rightSide);
-  await sub.getByRole('button', { name: 'Check combined equation' }).click();
+  await sub.getByRole('button', { name: 'Check my combination' }).click();
   await settle(page, 900);
 };
 
@@ -346,7 +342,7 @@ async function classworkElimination(context) {
   });
   await step(page, journey, 'round 2 part-way, then a reload', async () => {
     await choosePair(page, 'Equation 2 and Equation 3');
-    await board(page, 'round2').locator('button[aria-label="Add Equation 2 and Equation 3"]').click();
+    await board(page, 'round2').locator('button[aria-label="Add Equation 3 to Equation 2"]').click();
     await settle(page, 400);
     await board(page, 'round2').locator('button[aria-label^="Mark the y term"]').first().click();
     await settle(page, 1500);
@@ -356,7 +352,7 @@ async function classworkElimination(context) {
     expect(journey, await board(page, 'round1').evaluate((element) => element.classList.contains('is-complete')), 'after a reload round 1 is not shown as finished work');
     await board(page, 'round2').locator('button[aria-label^="Mark the y term"]').first().click();
     await settle(page, 400);
-    for (const [label, value] of [['Combined x term', '2x'], ['Combined z term', '3z'], ['Combined constant', '21']]) {
+    for (const [label, value] of [['Combined x term', '2x'], ['Combined z term', '3z'], ['Combined right side', '21']]) {
       await setMathField(page, board(page, 'round2').locator(`math-field[aria-label="${label}"]`), value);
     }
     await board(page, 'round2').getByRole('button', { name: 'Check my combination' }).click();
@@ -422,7 +418,7 @@ async function practiceScaling(context) {
   await step(page, journey, 'round 1: 2·E1 + E2 eliminates z', async () => {
     await chooseVariable(page, 'z');
     await choosePair(page, 'Equation 1 and Equation 2');
-    await board(page, 'round1').locator('button[aria-label="Add Equation 1 and Equation 2"]').click();
+    await board(page, 'round1').locator('button[aria-label="Add Equation 2 to Equation 1"]').click();
     await settle(page, 300);
     const error = await board(page, 'round1').locator('.mathmaster-systems-substitution-feedback.is-error').innerText().catch(() => '');
     expect(journey, /still has a z term/.test(error), `adding unscaled equations should say the z term remains: "${error}"`);

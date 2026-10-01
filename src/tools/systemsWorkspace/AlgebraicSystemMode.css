@@ -386,278 +386,6 @@
   margin-top: 12px;
 }
 
-.mathmaster-systems-elimination-board {
-  display: grid;
-  gap: 14px;
-  padding: 14px 16px;
-  border: 1px solid #d9e4f3;
-  border-radius: 16px;
-  background: var(--mm-surface);
-  box-shadow: 0 8px 24px rgba(31, 73, 125, .07);
-}
-
-.mathmaster-systems-elimination-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.mathmaster-systems-elimination-heading strong {
-  display: block;
-  color: #172033;
-}
-
-.mathmaster-systems-elimination-heading span {
-  display: block;
-  margin-top: 3px;
-  color: #5f6b7a;
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.mathmaster-systems-elimination-heading button {
-  min-height: 38px;
-  padding: 7px 11px;
-  border: 1px solid #b8c8e3;
-  border-radius: 9px;
-  background: var(--mm-surface);
-  color: #174ea6;
-  font-weight: 800;
-}
-
-.mathmaster-systems-elimination-equations {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.mathmaster-systems-elimination-equation-card {
-  min-width: 0;
-  display: grid;
-  gap: 10px;
-  padding: 10px 8px 12px;
-  border: 0;
-  border-radius: 12px;
-  background: transparent;
-  box-shadow: inset 0 -1px 0 #e7edf6;
-}
-
-.mathmaster-systems-elimination-equation-card.is-prepared {
-  background: linear-gradient(180deg, rgba(230, 244, 234, .42), rgba(255, 255, 255, 0));
-}
-
-.mathmaster-systems-aligned-equation-row {
-  min-width: 0;
-  display: grid;
-  gap: 6px;
-}
-
-.mathmaster-systems-equation-row-label {
-  color: #5f6b7a;
-  font-size: 11px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: .04em;
-}
-
-.mathmaster-systems-applied-multiplier {
-  width: fit-content;
-  padding: 3px 7px;
-  border-radius: 999px;
-  background: #e8f0fe;
-  color: #174ea6;
-  font-size: 11px;
-  font-weight: 900;
-}
-
-.mathmaster-systems-equation-columns {
-  display: grid;
-  grid-template-columns: minmax(70px, 1fr) minmax(70px, 1fr) 26px minmax(50px, .72fr);
-  align-items: center;
-  gap: 6px;
-  font-family: "Cambria Math", "STIX Two Math", Georgia, serif;
-  font-size: 23px;
-}
-
-.mathmaster-systems-equation-term,
-.mathmaster-systems-equation-equals,
-.mathmaster-systems-equation-constant {
-  min-height: 42px;
-  display: flex;
-  align-items: center;
-}
-
-.mathmaster-systems-equation-term.is-target-column {
-  border-radius: 8px;
-  background: rgba(26, 115, 232, .06);
-  box-shadow: inset 0 0 0 1px rgba(26, 115, 232, .16);
-}
-
-.mathmaster-systems-equation-term.is-cancelled {
-  position: relative;
-  opacity: .55;
-}
-
-.mathmaster-systems-equation-term.is-cancelled::after {
-  content: "";
-  position: absolute;
-  left: 5%;
-  right: 5%;
-  top: 50%;
-  height: 3px;
-  border-radius: 999px;
-  background: #c5221f;
-  transform: rotate(-7deg);
-}
-
-.mathmaster-systems-multiplier-composer {
-  display: grid;
-  grid-template-columns: auto minmax(90px, 150px) auto;
-  gap: 8px;
-  align-items: center;
-}
-
-.mathmaster-systems-multiplier-composer > span {
-  color: #5f6b7a;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.mathmaster-systems-multiplier-token {
-  min-height: 42px;
-  padding: 7px 11px;
-  border: 2px solid #8ab4f8;
-  border-radius: 10px;
-  background: var(--mm-surface);
-  color: #174ea6;
-  font-weight: 900;
-  cursor: grab;
-}
-
-.mathmaster-systems-multiplier-token:active {
-  cursor: grabbing;
-}
-
-.mathmaster-systems-multiplier-token.is-armed {
-  border-color: #174ea6;
-  background: #e8f0fe;
-  box-shadow: 0 0 0 2px rgba(26, 115, 232, .10);
-}
-
-.mathmaster-systems-scale-not-needed {
-  min-height: 36px;
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 10px;
-  border: 0;
-  border-radius: 999px;
-  background: #eaf6ee;
-  color: #137333 !important;
-  font-size: 11px !important;
-  font-weight: 900;
-}
-
-.mathmaster-systems-identity-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.mathmaster-systems-scale-edit {
-  min-height: 36px;
-  padding: 6px 10px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: #174ea6;
-  font-weight: 850;
-  cursor: pointer;
-}
-
-.mathmaster-systems-scale-edit:hover,
-.mathmaster-systems-scale-edit:focus-visible {
-  background: #eef4ff;
-  outline: none;
-}
-
-.mathmaster-systems-equation-multiplier-target {
-  min-width: 0;
-  padding: 8px 10px;
-  border: 2px solid transparent;
-  border-radius: 11px;
-  background: transparent;
-  transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
-}
-
-.mathmaster-systems-equation-multiplier-target.is-armed {
-  border-color: #6f96d6;
-  background: #f4f8ff;
-  box-shadow: 0 0 0 3px rgba(26, 115, 232, .08);
-  cursor: pointer;
-}
-
-.mathmaster-systems-equation-multiplier-target.is-prepared {
-  border-color: transparent;
-  background: transparent;
-}
-
-.mathmaster-systems-multiplier-products {
-  width: 100%;
-  display: grid;
-  gap: 8px;
-  padding-top: 9px;
-  border-top: 1px solid #dbe3ef;
-  color: var(--mm-text-strong);
-  text-align: left;
-}
-
-.mathmaster-systems-multiplier-products-heading strong,
-.mathmaster-systems-multiplier-products-heading span {
-  display: block;
-}
-
-.mathmaster-systems-multiplier-products-heading span {
-  margin-top: 2px;
-  color: #5f6b7a;
-  font-size: 11px;
-  line-height: 1.35;
-}
-
-.mathmaster-systems-product-operation-row,
-.mathmaster-systems-product-entry-row {
-  display: grid;
-  grid-template-columns: minmax(82px, 1fr) minmax(82px, 1fr) 22px minmax(72px, .8fr);
-  align-items: center;
-  gap: 6px;
-}
-
-.mathmaster-systems-product-operation {
-  min-width: 0;
-  color: #465267;
-  font-family: "Cambria Math", "STIX Two Math", Georgia, serif;
-  font-size: 15px;
-  font-weight: 800;
-  text-align: center;
-  overflow-wrap: anywhere;
-}
-
-.mathmaster-systems-product-equals {
-  color: #465267;
-  font-family: "Cambria Math", "STIX Two Math", Georgia, serif;
-  font-size: 18px;
-  font-weight: 800;
-  text-align: center;
-}
-
-.mathmaster-systems-product-entry-row > * {
-  min-width: 0;
-}
-
-.mathmaster-systems-check-products,
-.mathmaster-systems-confirm-cancellation,
 .mathmaster-systems-check-combination {
   min-height: 40px;
   width: fit-content;
@@ -670,49 +398,10 @@
   cursor: pointer;
 }
 
-.mathmaster-systems-confirm-cancellation:disabled,
 .mathmaster-systems-check-combination:disabled {
   background: #d7dde7;
   color: #7b8493;
   cursor: not-allowed;
-}
-
-.mathmaster-systems-cancellation-target {
-  width: 100%;
-  border: 1px solid rgba(26, 115, 232, .18);
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.mathmaster-systems-cancellation-target:hover,
-.mathmaster-systems-cancellation-target:focus-visible {
-  background: rgba(26, 115, 232, .12);
-  outline: 2px solid rgba(26, 115, 232, .28);
-  outline-offset: 1px;
-}
-
-.mathmaster-systems-cancellation-stage {
-  display: grid;
-  gap: 10px;
-  padding: 11px;
-  border: 1px solid #f3c66a;
-  border-radius: 12px;
-  background: #fffaf0;
-}
-
-.mathmaster-systems-cancellation-heading strong,
-.mathmaster-systems-cancellation-heading span {
-  display: block;
-}
-
-.mathmaster-systems-cancellation-heading span,
-.mathmaster-systems-cancellation-progress {
-  margin-top: 3px;
-  color: #6b5b35;
-  font-size: 12px;
-  line-height: 1.35;
 }
 
 .mathmaster-systems-student-combination {
@@ -749,7 +438,6 @@
   font-family: "Cambria Math", "STIX Two Math", Georgia, serif;
 }
 
-.mathmaster-systems-student-combination-variable,
 .mathmaster-systems-student-combination-equals {
   color: #172033;
   font-size: 25px;
@@ -765,44 +453,6 @@
 
 .mathmaster-systems-combination-feedback.is-error {
   color: #a02020;
-}
-
-
-.mathmaster-systems-combine-stage {
-  display: grid;
-  gap: 10px;
-  padding-top: 4px;
-}
-
-.mathmaster-systems-combine-stage > p {
-  margin: 0;
-  color: #3c4756;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.mathmaster-systems-combine-stack {
-  display: grid;
-  gap: 7px;
-  padding: 6px 2px 10px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-.mathmaster-systems-combine-stack.is-complete {
-  background: linear-gradient(180deg, rgba(230, 244, 234, .34), rgba(255, 255, 255, 0));
-}
-
-.mathmaster-systems-combine-row {
-  display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-}
-
-.mathmaster-systems-operation-spacer {
-  width: 58px;
 }
 
 .mathmaster-systems-operation-rail {
@@ -841,36 +491,6 @@
   font-family: "Cambria Math", "STIX Two Math", Georgia, serif;
   font-size: 25px;
   font-weight: 900;
-}
-
-.mathmaster-systems-combine-result-line {
-  height: 3px;
-  margin-left: 66px;
-  border-radius: 999px;
-  background: #6d7f99;
-}
-
-.mathmaster-systems-elimination-result {
-  display: grid;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid #b7dfc2;
-  border-radius: 12px;
-  background: #f6fcf7;
-}
-
-.mathmaster-systems-combined-equation {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.mathmaster-systems-combined-equation > span {
-  color: #5f6b7a;
-  font-size: 12px;
-  font-weight: 800;
 }
 
 /* --- Verification ------------------------------------------------------- */
@@ -985,7 +605,6 @@
 
 @media (max-width: 980px) {
   .mathmaster-systems-substitution-equation-choices,
-  .mathmaster-systems-elimination-equations,
   .mathmaster-systems-verification-equations {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1033,57 +652,12 @@
     padding: 3px 7px;
   }
 
-  .mathmaster-systems-equation-columns {
-    grid-template-columns: minmax(62px, 1fr) minmax(62px, 1fr) 22px minmax(44px, .7fr);
-    gap: 3px;
-    font-size: 20px;
-  }
-
-  .mathmaster-systems-multiplier-composer {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .mathmaster-systems-check-products,
-  .mathmaster-systems-confirm-cancellation,
   .mathmaster-systems-check-combination {
     width: 100%;
   }
 
   .mathmaster-systems-student-combination-equation {
     grid-template-columns: minmax(0, 1fr) auto auto minmax(0, 1fr);
-  }
-
-  .mathmaster-systems-multiplier-composer > span {
-    display: none;
-  }
-
-  .mathmaster-systems-multiplier-token,
-  .mathmaster-systems-scale-not-needed {
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .mathmaster-systems-product-operation-row,
-  .mathmaster-systems-product-entry-row {
-    grid-template-columns: minmax(62px, 1fr) minmax(62px, 1fr) 18px minmax(56px, .8fr);
-    gap: 3px;
-  }
-
-  .mathmaster-systems-product-operation {
-    font-size: 12px;
-  }
-
-  .mathmaster-systems-combine-row {
-    grid-template-columns: 50px minmax(0, 1fr);
-    gap: 5px;
-  }
-
-  .mathmaster-systems-operation-spacer {
-    width: 50px;
-  }
-
-  .mathmaster-systems-combine-result-line {
-    margin-left: 55px;
   }
 
   .mathmaster-systems-verification-arithmetic {
@@ -1491,8 +1065,8 @@
 
 /* Revealed as they appear (revealStageOnAppear): clear the sticky action bar
    so the stage's own Check button is not left under it. */
-.mathmaster-systems-multiplier-products,
-.mathmaster-systems-cancellation-stage,
+.mathmaster-elim-distribution,
+.mathmaster-elim-result-entry,
 .mathmaster-systems-student-combination {
   scroll-margin-bottom: 96px;
 }

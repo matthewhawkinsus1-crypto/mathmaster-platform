@@ -235,28 +235,38 @@ test('verification requires both original equations to be checked independently,
 // Elimination workflow (#8-14)
 // ---------------------------------------------------------------------------
 
-test('a multiplier is entered and placed directly on the equation before the student calculates every changed term', () => {
-  // Named by the equation's own reference: "equation 2" standalone, "R₂" in a 3×3 subsystem (#361).
-  assert.match(modeSource, /const equationRef = \(index\) => subsystem\?\.equationLabels\?\.\[index\] \|\| `equation \$\{index \+ 1\}`;/);
-  assert.match(modeSource, /ariaLabel=\{`Scale factor for \$\{equationRef\(index\)\}`\}/);
-  assert.match(modeSource, />\s*Scale equation\s*</);
-  assert.match(modeSource, /mathmaster-system-multiplier:/);
-  assert.match(modeSource, /draggable/);
-  assert.match(modeSource, /dropMultiplier\(/);
-  assert.match(modeSource, /mathmaster-systems-equation-multiplier-target/);
-  assert.match(modeSource, /Complete the scaled equation/);
-  assert.match(modeSource, /You may type a full term such as 3x or just its coefficient/);
+// The 2×2 elimination is drawn with the same stacked board as a 3×3 pair
+// round (EliminationStack.jsx). Before that it had its own "Prepare the
+// equations" cards, a drag-the-factor chip, a "Complete the scaled equation"
+// grid and a separate Confirm press, and it changed under the student halfway
+// through a 3×3 problem. `board` is the one expression that draws it.
+const eliminationBoardSource = () => region(modeSource, 'const eliminationBoard = ', "const methodTitle = ", '2×2 elimination board');
+
+test('a scale factor is typed under the row it scales, and the student writes every changed term', () => {
+  // Named by the equation's own name: "Equation 2" standalone, "R₂" in a 3×3 subsystem (#361).
+  assert.match(modeSource, /const equationName = \(index\) => subsystem\?\.equationLabels\?\.\[index\] \|\| `Equation \$\{index \+ 1\}`;/);
+  const board = eliminationBoardSource();
+  assert.match(board, /<EliminationScaleEditor\s*editorId=\{index\}\s*equationLabel=\{equationName\(index\)\}/);
+  // Each row's scale tools open directly beneath that row, inside the stack.
+  assert.match(board, /\{row\(0\)\}\s*\{scaleTools\(0\)\}\s*\{row\(1\)\}\s*\{scaleTools\(1\)\}\s*<div className="mathmaster-elim-rule"/);
+  // "Scale" under the row's label opens the factor field; Apply is the student's own press.
+  assert.match(board, /<EliminationScaleButton[^>]*onOpen=\{\(\) => openScaleEditor\(index\)\}/);
+  const tools = region(board, 'const scaleTools = ', 'const opCell = ', 'scale tools');
+  assert.match(tools, /<EliminationScaleEditor[\s\S]*?onApply=\{\(\) => applyMultiplier\(index\)\}[\s\S]*?onKeep=\{\(\) => keepEquationAsWritten\(index\)\}/);
+  // A nontrivial factor opens term-by-term distribution, checked, never computed for them.
+  assert.match(tools, /<EliminationDistribution[\s\S]*?entries=\{\[\{ key: 'a', variable: variables\[0\] \}, \{ key: 'b', variable: variables\[1\] \}, \{ key: 'c', variable: null \}\]\}[\s\S]*?onCheck=\{\(\) => checkMultiplierProducts\(index\)\}/);
   assert.match(modeSource, /multiplierProductValue\(work\.a, variables\[0\], variables\)/);
   assert.match(modeSource, /multiplierProductValue\(work\.b, variables\[1\], variables\)/);
   assert.match(modeSource, /multiplierProductValue\(work\.c, null, variables\)/);
-  assert.match(modeSource, /Check scaled equation/);
-  assert.doesNotMatch(modeSource, /mathmaster-systems-equation-multiplier-drop/);
+  // The drag-the-factor chip and the separate grid are gone.
+  assert.doesNotMatch(modeSource, /mathmaster-system-multiplier:|dropMultiplier|armMultiplier|Pick up scale factor/);
+  assert.doesNotMatch(modeSource, /Complete the scaled equation|Prepare the equations/);
   assert.doesNotMatch(modeSource, /Apply ×/);
   assert.doesNotMatch(modeSource, /bestMultiplier|autoChooseMultiplier|optimalMultiplier/i);
 });
 
 test('a nontrivial multiplier is not accepted until the student supplies the transformed coefficients', () => {
-  const apply = region(modeSource, 'const applyMultiplier = ', 'const armMultiplier', 'applyMultiplier');
+  const apply = region(modeSource, 'const applyMultiplier = ', 'const openScaleEditor', 'applyMultiplier');
   assert.match(apply, /Math\.abs\(numericMultiplier - 1\)/);
   const trivialBranchEnd = apply.indexOf("return;", apply.indexOf("Math.abs(numericMultiplier - 1)"));
   const nontrivialBranch = apply.slice(trivialBranchEnd + "return;".length);
@@ -264,33 +274,40 @@ test('a nontrivial multiplier is not accepted until the student supplies the tra
   assert.match(nontrivialBranch, /setMultiplierWork/);
   assert.match(nontrivialBranch, /active: true/);
   assert.doesNotMatch(nontrivialBranch, /\[index\]: true/);
+  // A blank factor is "no scaling" — the row is kept as written, as in a 3×3 round.
+  assert.match(apply.slice(0, apply.indexOf('const parsed')), /if \(!String\(multipliers\[index\] \?\? ''\)\.trim\(\)\) \{\s*keepEquationAsWritten\(index\);\s*return;/);
 });
 
 test('an equation with scale factor 1 is ready automatically instead of asking the student to multiply by 1', () => {
   assert.match(modeSource, /const multiplierIsIdentity = useCallback/);
   assert.match(modeSource, /appliedMultipliers\[index\] \|\| multiplierIsIdentity\(index\)/);
   assert.match(modeSource, /const multipliersApplied = multiplierRowReady\(0\) && multiplierRowReady\(1\)/);
-  // The identity row is described neutrally: the default ×1 is not a claim
-  // that the equation needs no factor (#361 — it said "No scaling needed" on
-  // a row that did).
-  assert.match(modeSource, /mathmaster-systems-scale-not-needed">Used as written — no scale factor</);
+  // A row at ×1 shows only its "Scale" link: the factor field opens when the
+  // student chooses to scale, or while a factor other than 1 is unapplied.
+  const board = eliminationBoardSource();
+  assert.match(board, /const editorOpen = \(index\) => !appliedMultipliers\[index\] && \(Boolean\(scaleEditors\[index\]\) \|\| !identityAt\(index\)\);/);
+  assert.match(board, /if \(!canEdit \|\| !editorOpen\(index\)\) return null;/);
+  // The ×1 default is never shown as a badge, as if the student had chosen it.
+  assert.match(board, /const factorBadge = \(index\) => \(appliedMultipliers\[index\] && !identityAt\(index\) \? scaleBadgeText\(multipliers\[index\]\) : null\);/);
+  // Undo back to ×1 closes the field too, instead of leaving a "1" in it.
+  assert.match(region(modeSource, 'const restore = useCallback(', '}, [config.method]);', 'restore'), /setScaleEditors\(\{ 0: false, 1: false \}\);/);
   assert.doesNotMatch(executableSource(modeSource), /No scaling needed/);
-  assert.match(modeSource, /scaleEditorOpen = Boolean\(scaleEditors\[index\]\) \|\| !identityMultiplier/);
-  assert.match(modeSource, /scaleEditorOpen \? \(/);
   assert.doesNotMatch(modeSource, />Use as written</);
   assert.doesNotMatch(modeSource, /⠿ ×/);
 });
 
 test('the combine step keeps the equations stacked and puts + / − controls beside equation 2', () => {
-  assert.match(modeSource, /mathmaster-systems-combine-stack/);
-  assert.match(modeSource, /mathmaster-systems-operation-rail/);
-  assert.match(modeSource, /handleCombine\('add'\)/);
-  assert.match(modeSource, /handleCombine\('subtract'\)/);
-  // Standalone these read "Add equation 2 to equation 1"; inside a 3×3 they
+  const board = eliminationBoardSource();
+  assert.match(board, /<EliminationOperationRail[\s\S]*?onChoose=\{handleCombine\}/);
+  // The rail sits in the second row's operation cell only.
+  assert.match(board, /opCell=\{index === 1 \? opCell : null\}/);
+  // Standalone these read "Add Equation 2 to Equation 1"; inside a 3×3 they
   // name R₂ and R₁ instead of reusing the originals' names (#361).
-  assert.match(modeSource, /aria-label=\{`Add \$\{equationRef\(1\)\} to \$\{equationRef\(0\)\}`\}/);
-  assert.match(modeSource, /aria-label=\{`Subtract \$\{equationRef\(1\)\} from \$\{equationRef\(0\)\}`\}/);
-  assert.match(modeSource, /`\$\{equationName\(0\)\} \$\{combination\.operation === 'subtract' \? '−' : '\+'\} \$\{equationName\(1\)\}`/);
+  assert.match(board, /firstLabel=\{equationName\(0\)\}\s*secondLabel=\{equationName\(1\)\}/);
+  // It is offered once both rows are prepared and no factor is being edited,
+  // and stays live while the terms are marked, as in a 3×3 round.
+  assert.match(board, /const opCell = canEdit && multipliersApplied && !anyEditorOpen \? \(/);
+  assert.match(board, /`\$\{equationName\(0\)\} \$\{combination\.operation === 'subtract' \? '−' : '\+'\} \$\{equationName\(1\)\}`/);
   assert.doesNotMatch(modeSource, /mathmaster-system-combine:/);
   assert.doesNotMatch(modeSource, /Drop Add or Subtract here/);
 });
@@ -305,32 +322,34 @@ test('a correct combine operation opens student cancellation instead of immediat
 });
 
 test('students must mark both cancelling terms and calculate the remaining arithmetic themselves', () => {
-  assert.match(modeSource, /toggleCancellationRow\(0\)/);
-  assert.match(modeSource, /toggleCancellationRow\(1\)/);
-  assert.match(modeSource, /MathMaster will not cross them out for you/);
-  assert.match(modeSource, /disabled=\{!cancellationComplete\}/);
+  const board = eliminationBoardSource();
+  // The target term is marked in its own row.
+  assert.match(board, /onToggleCancel=\{canEdit && cancellationPending \? \(\) => toggleCancellationRow\(index\) : null\}/);
+  // Marking is one decision per row and never performs the arithmetic; the
+  // entry line opens once both are marked — no separate Confirm press, as in
+  // a 3×3 pair round.
+  const toggle = region(modeSource, 'const toggleCancellationRow = ', 'const setEliminationCombinationAnswer', 'toggleCancellationRow');
+  assert.match(toggle, /const bothMarked = Boolean\(cancelledRows\[0\] && cancelledRows\[1\]\);/);
+  assert.match(toggle, /cancellationConfirmed: bothMarked,/);
+  assert.doesNotMatch(toggle, /formatLinearEquation|coefficients:/);
+  assert.match(board, /const combinationOpen = cancellationPending && cancellationComplete;/);
+  assert.match(board, /\{canEdit && combinationOpen \? \(\s*<EliminationCombinationEntry/);
+  assert.doesNotMatch(modeSource, /Confirm marked cancellation|confirmEliminationCancellation|Confirm cancellation and combine/);
 
-  const confirm = region(modeSource, 'const confirmEliminationCancellation = ', 'const handleReduceSolved', 'elimination completion flow');
-  assert.match(confirm, /cancellationConfirmed: true/);
-  assert.doesNotMatch(confirm.slice(0, confirm.indexOf('const checkEliminationCombination')), /text: formatLinearEquation/);
-
-  assert.match(confirm, /const checkEliminationCombination =/);
-  assert.match(confirm, /coefficientAnswer/);
-  assert.match(confirm, /constantAnswer/);
-  assert.match(confirm, /coefficientCorrect/);
-  assert.match(confirm, /constantCorrect/);
-  assert.match(confirm, /text: formatLinearEquation\(combined, variables\)/);
-
-  assert.match(modeSource, /Now combine what remains/);
-  assert.match(modeSource, /Combined coefficient of/);
-  assert.match(modeSource, /Combined right side/);
-  assert.match(modeSource, /Check combined equation/);
-  assert.doesNotMatch(modeSource, /Confirm cancellation and combine/);
+  // The student's own column entries are what is checked.
+  const check = region(modeSource, 'const checkEliminationCombination = ', 'const handleReduceSolved', 'checkEliminationCombination');
+  assert.match(check, /if \(!cancellationPending \|\| !cancellationComplete\) return;/);
+  assert.match(check, /multiplierProductValue\(combination\.coefficientAnswer, survivingVariable, variables\)/);
+  assert.match(check, /multiplierProductValue\(combination\.constantAnswer, null, variables\)/);
+  assert.match(check, /coefficientCorrect/);
+  assert.match(check, /constantCorrect/);
+  assert.match(check, /text: formatLinearEquation\(combined, variables\)/);
+  assert.match(board, /onCheck=\{checkEliminationCombination\}/);
 });
 
 test('a failed combination attempt keeps the board intact and redirects attention to signs or multipliers', () => {
-  assert.match(modeSource, /That operation does not eliminate the variable you chose/);
-  assert.match(modeSource, /change a multiplier/);
+  const board = eliminationBoardSource();
+  assert.match(board, /\{operationChosen && eliminates === false && canEdit \? \(\s*<p[^>]*>\s*That operation does not eliminate \{target\}\. Recheck the signs or change a multiplier\./);
 });
 
 test('the reduced one-variable equation after elimination is handed to Step Algebra, never solved by this engine', () => {
@@ -468,11 +487,15 @@ test('the systems work trail compresses completed mathematical decisions instead
   assert.match(modeSource, /const equationName = \(index\) => subsystem\?\.equationLabels\?\.\[index\] \|\| `Equation \$\{index \+ 1\}`;/);
 });
 
-test('elimination visually aligns equations and crosses the student-selected target column only after a successful combination', () => {
-  assert.match(modeSource, /function AlignedEquationRow/);
-  assert.match(modeSource, /is-target-column/);
-  assert.match(modeSource, /is-cancelled/);
-  assert.match(modeSource, /combinationLocked && !firstSolvedDone/);
+test('elimination aligns both equations in one column stack and keeps the accepted combination under the rule', () => {
+  const board = eliminationBoardSource();
+  assert.match(board, /<EliminationStackRow\s*rowId=\{index\}\s*variables=\{variables\}\s*target=\{target\}/);
+  // Target terms are shown cancelled once the combination is accepted.
+  assert.match(board, /cancelled=\{Boolean\(combination\.cancelledRows\?\.\[index\]\) \|\| combinationLocked\}/);
+  // The combined equation is a row of the same stack, under the rule, and the
+  // board stays on the page as the written record.
+  assert.match(board, /<div className="mathmaster-elim-rule" aria-hidden="true" \/>\s*\{combinationLocked \? \(\s*<EliminationStackRow rowId="combined"/);
+  assert.doesNotMatch(modeSource, /combinationLocked && !firstSolvedDone/);
 });
 
 

@@ -541,36 +541,41 @@ report.push({ journey: 'preview-inline-ui', ...inlineObserved });
   await openFresh(page, { scope: 'teacherPreview', questionIndex: 3 });
   await page.locator('button', { hasText: 'Eliminate y' }).click();
 
-  const board = page.locator('.mathmaster-systems-elimination-board');
+  // The standalone 2×2 is drawn with the same stacked board as a 3×3 pair
+  // round: one column per variable, "Scale" under each row's label.
+  const board = page.locator('.mathmaster-systems-elimination-stage .mathmaster-elim-round');
   await board.waitFor({ timeout: 10000 });
 
-  // Identity rows are genuinely automatic: no visible "1" field or
-  // multiply-by-one action until the student explicitly chooses to scale.
-  const initialIdentityText = await board.locator('.mathmaster-systems-identity-row').allInnerTexts();
-  if (initialIdentityText.length !== 2) {
-    note(journey, `expected both equations to begin as automatic identity rows, saw ${initialIdentityText.length}`);
+  // Rows start as written: no visible "1" field or multiply-by-one action
+  // until the student explicitly chooses to scale.
+  if (await board.locator('math-field[aria-label^="Scale factor for Equation"]').count()) {
+    note(journey, 'rows exposed scale-factor inputs before the student chose to scale');
   }
-  if (await board.locator('math-field[aria-label^="Scale factor for equation"]').count()) {
-    note(journey, 'identity rows exposed scale-factor inputs before the student chose to scale');
+  if (await board.locator('.mathmaster-elim-row[data-row-id]').count() !== 2) {
+    note(journey, `expected both equations as rows of one stack, saw ${await board.locator('.mathmaster-elim-row[data-row-id]').count()}`);
   }
 
-  await board.locator('.mathmaster-systems-identity-row').nth(0).getByRole('button', { name: 'Scale equation' }).click();
-  const scaleField = board.locator('math-field[aria-label="Scale factor for equation 1"]');
+  await board.locator('button[aria-label="Scale Equation 1"]').click();
+  const scaleField = board.locator('math-field[aria-label="Scale factor for Equation 1"]');
   await scaleField.waitFor();
+  // The factor field opens directly under the row it scales.
+  const editorFollowsRow = await board.evaluate((element) => {
+    const editor = element.querySelector('[data-scale-editor="0"]');
+    return Boolean(editor && editor.previousElementSibling?.getAttribute('data-row-id') === '0');
+  });
+  if (!editorFollowsRow) note(journey, 'the scale factor field did not open under Equation 1');
   await scaleField.evaluate((field) => {
     field.setValue('3');
     field.dispatchEvent(new Event('input', { bubbles: true }));
   });
   await page.waitForTimeout(250);
 
-  if (await board.locator('.mathmaster-systems-combine-stack').count()) {
+  if (await board.locator('.mathmaster-elim-rail').count()) {
     note(journey, 'combine controls stayed open before the nontrivial scale step was completed');
   }
 
-  const scaleToken = board.locator('button[aria-label="Pick up scale factor 3 for equation 1"]');
-  await scaleToken.click();
-  await board.locator('.mathmaster-systems-equation-multiplier-target').nth(0).click();
-  await board.locator('text=Complete the scaled equation').waitFor({ timeout: 5000 });
+  await board.getByRole('button', { name: 'Apply this factor' }).click();
+  await board.locator('[data-distribution="0"]').waitFor({ timeout: 5000 });
 
   const enterMath = async (ariaLabel, value) => {
     const field = board.locator(`math-field[aria-label="${ariaLabel}"]`);
@@ -580,10 +585,20 @@ report.push({ journey: 'preview-inline-ui', ...inlineObserved });
       element.dispatchEvent(new Event('input', { bubbles: true }));
     }, value);
   };
-  await enterMath('Scaled x term for equation 1', '3x');
-  await enterMath('Scaled y term for equation 1', '3y');
-  await enterMath('Scaled right side for equation 1', '6');
-  await board.locator('button', { hasText: 'Check scaled equation' }).click();
+  // Each scaled term sits in the column of the term it came from.
+  const columnsAlign = await board.evaluate((element) => {
+    const row = element.querySelector('.mathmaster-elim-row[data-row-id="0"]');
+    const entry = element.querySelector('[data-distribution="0"] .mathmaster-elim-entry-row');
+    const lefts = (node) => [...node.children].filter((child) => /mathmaster-elim-(term|constant)/.test(child.className)).map((child) => Math.round(child.getBoundingClientRect().left));
+    const a = lefts(row);
+    const b = lefts(entry);
+    return a.length === b.length && a.every((left, index) => Math.abs(left - b[index]) <= 2);
+  });
+  if (!columnsAlign) note(journey, 'the scaled-term entries are not under the terms they came from');
+  await enterMath('Scaled x term for Equation 1', '3x');
+  await enterMath('Scaled y term for Equation 1', '3y');
+  await enterMath('Scaled right side for Equation 1', '6');
+  await board.locator('button', { hasText: 'Check my scaled terms' }).click();
   await page.waitForTimeout(450);
 
   const productErrors = await board.locator('.mathmaster-systems-substitution-feedback.is-error').allInnerTexts();
@@ -591,54 +606,53 @@ report.push({ journey: 'preview-inline-ui', ...inlineObserved });
     note(journey, `correct 3x, 3y, 6 scaling was rejected: ${productErrors.join(' | ')}`);
   }
 
-  const firstPrepared = (await board.locator('.mathmaster-systems-equation-multiplier-target').nth(0).innerText()).replace(/\s+/g, ' ');
-  if (!/3x/.test(firstPrepared) || !/3y/.test(firstPrepared) || !/=\s*6/.test(firstPrepared)) {
-    note(journey, `Equation 1 did not become 3x + 3y = 6: ${firstPrepared}`);
+  const firstPrepared = (await board.locator('.mathmaster-elim-row[data-row-id="0"]').innerText()).replace(/\s+/g, ' ');
+  if (!/3x/.test(firstPrepared) || !/3y/.test(firstPrepared) || !/=\s*6/.test(firstPrepared) || !/· 3/.test(firstPrepared)) {
+    note(journey, `Equation 1 did not become · 3: 3x + 3y = 6: ${firstPrepared}`);
   }
 
   const boardText = await board.innerText();
   if (boardText.includes('×')) note(journey, 'student-facing elimination UI still uses the multiplication × glyph');
-  if (boardText.includes('Use as written')) note(journey, 'identity Equation 2 still requires a multiply-by-one confirmation');
-  if (!boardText.includes('Used as written — no scale factor')) note(journey, 'identity Equation 2 is not recognized as already prepared');
-  if (await board.locator('math-field[aria-label="Scale factor for equation 2"]').count()) {
-    note(journey, 'identity Equation 2 still exposes a multiply-by-one input');
+  if (boardText.includes('Use as written')) note(journey, 'Equation 2 still requires a multiply-by-one confirmation');
+  if (await board.locator('math-field[aria-label="Scale factor for Equation 2"]').count()) {
+    note(journey, 'Equation 2 still exposes a multiply-by-one input');
   }
 
-  const combineStack = board.locator('.mathmaster-systems-combine-stack');
-  await combineStack.waitFor({ timeout: 5000 });
-  const operationRail = board.locator('.mathmaster-systems-operation-rail');
-  if (await operationRail.count() !== 1) note(journey, 'the + / − operation rail is not attached beside the equation stack');
-  await board.locator('button[aria-label="Add equation 2 to equation 1"]').click();
+  const operationRail = board.locator('.mathmaster-elim-row[data-row-id="1"] .mathmaster-elim-rail');
+  await operationRail.waitFor({ timeout: 5000 });
+  await board.locator('button[aria-label="Add Equation 2 to Equation 1"]').click();
   await page.waitForTimeout(300);
 
-  const cancelTargets = board.locator('.mathmaster-systems-cancellation-target');
+  const cancelTargets = board.locator('button[aria-label^="Mark the y term"]');
   if (await cancelTargets.count() !== 2) {
     note(journey, `expected 2 student cancellation targets, saw ${await cancelTargets.count()}`);
   } else {
     await cancelTargets.nth(0).click();
-    await cancelTargets.nth(1).click();
-    await board.locator('button', { hasText: 'Confirm marked cancellation' }).click();
+    await page.waitForTimeout(200);
+    // One mark is not a decision about the pair: nothing to combine yet.
+    if (await board.locator('[data-combination-entry]').count()) note(journey, 'the combination opened after only one cancelling term was marked');
+    await board.locator('button[aria-label^="Mark the y term"]').first().click();
     await page.waitForTimeout(250);
 
-    // Cancelling the x terms must NOT calculate the remaining equation.
+    // Cancelling the y terms must NOT calculate the remaining equation.
     const beforeArithmeticDrafts = await page.evaluate(() => window.__mmHandoff.drafts());
     const beforeArithmetic = beforeArithmeticDrafts[':work:tool']?.combination || {};
     if (beforeArithmetic.text) {
       note(journey, `cancellation auto-calculated the reduced equation before student arithmetic: ${beforeArithmetic.text}`);
     }
-    if (!(await board.locator('text=Now combine what remains').count())) {
-      note(journey, 'student combination arithmetic did not open after cancellation');
+    if (!(await board.locator('[data-combination-entry]').count())) {
+      note(journey, 'student combination arithmetic did not open after both cancelling terms were marked');
     }
 
-    await enterMath('Combined coefficient of x', '4');
+    // A full term is accepted in its column, not only a bare coefficient.
+    await enterMath('Combined x term', '4x');
     await enterMath('Combined right side', '0');
-    await board.locator('button', { hasText: 'Check combined equation' }).click();
+    await board.locator('button', { hasText: 'Check my combination' }).click();
     await page.waitForTimeout(500);
   }
 
-  const combined = page.locator('.mathmaster-systems-combined-equation');
-  if (!(await combined.count())) {
-    note(journey, 'combined equation did not appear after student cancellation');
+  if (!(await page.locator('.mathmaster-elim-round.is-complete .mathmaster-elim-row[data-row-id="combined"]').count())) {
+    note(journey, 'combined equation did not appear under the rule after student cancellation');
   }
   // MathDisplay's visible equation is not plain innerText in every browser.
   // Assert the persisted mathematical state instead of coupling this browser
