@@ -17,7 +17,7 @@ const source = fs.readFileSync('functions/index.js', 'utf8');
 
 const ingestBody = executableSource(region(
   source,
-  'async function ingestOneSubmission({ db, studentId, envelope, now }) {',
+  'async function ingestOneSubmission({ db, studentId, envelope, now',
   'exports.ingestStudentSubmissions = onCall(async (request) => {',
   'ingestOneSubmission',
 ));
