@@ -209,6 +209,24 @@ export const studentDueDateLines = (assignment, lifecycle) => {
   };
 };
 
+/**
+ * The same dates as values a student-facing model stores on a row or card:
+ * ISO strings of the instants `lifecycle` applies to this student. Every
+ * screen that prints `formatDateTime(row.dueAt)` then shows the date the
+ * platform enforces, and a list sorted by `dueAt` orders by the student's own
+ * deadline. With no lifecycle (or a date it could not read) the class fields
+ * pass through unchanged — what every row held before.
+ */
+export const studentDueDates = (assignment, lifecycle) => {
+  const instant = (date) => (date instanceof Date && !Number.isNaN(date.getTime()) ? date.toISOString() : null);
+  const classDue = assignment?.dueAt || assignment?.dueDate || null;
+  const classFinal = assignment?.lateDueAt || assignment?.lateDueDate || classDue;
+  return {
+    dueAt: instant(lifecycle?.dueAt) || classDue,
+    lateDueAt: instant(lifecycle?.lateDueAt) || classFinal,
+  };
+};
+
 export const formatRemainingTime = (milliseconds) => {
   if (!Number.isFinite(Number(milliseconds))) return '';
   const totalSeconds = Math.max(0, Math.ceil(Number(milliseconds) / 1000));

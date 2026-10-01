@@ -24,7 +24,8 @@
 //   T4  the assignment hub's Supports layer: individual deadlines + evidence
 //   T5  a new profile revision is saved without editing the old one
 //   T6  the report: real assignments only, never "0 min", CSV, print
-//   S1  the student sees their own due date and Support tools; use is recorded
+//   S1  the student sees their own due date (Home "Do this next", Resume,
+//       Assignments, Grades, result, header) and Support tools; use is recorded
 //
 // Exit code 1 on any finding. Screenshots in
 // tests/browser/artifacts/supportEvidence/ (git-ignored).
@@ -225,6 +226,41 @@ const journeys = {
     const home = await text(page.locator('body'));
     expect('S1', home.includes('Your due date'), 'the dashboard shows the student their own due date');
     expect('S1', !/\b(IEP|504|modification|accommodation|inclusion)\b/i.test(home), 'nothing on the student\'s screen names a program or classification');
+
+    // Every screen that names this student's due date names the SAME one: the
+    // individualized date, never the class date a day earlier. The fixture's
+    // next action is resuming Lesson 3 ('a-today'). Dates are compared as the
+    // page prints them, so this holds in any browser time zone.
+    const LESSON_3 = 'Systems of Equations — Lesson 3: Elimination';
+    const DUE = /\bDue (\w{3} \d{1,2}, \d{4}, \d{1,2}:\d{2}\s?[AP]M)/;
+    const nextCard = await text(page.locator('section[aria-labelledby="what-now-heading"]'));
+    const nextDue = nextCard.match(DUE)?.[1] || null;
+    const resumeDue = (await text(page.locator('[aria-label="Resume assignment"]').first())).match(DUE)?.[1] || null;
+    const classDue = await page.evaluate((iso) => new Date(iso).toLocaleString(undefined, {
+      month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+    }), (await db(page))['assignments/a-today']?.dueAt);
+    expect('S1', nextCard.includes(LESSON_3) && Boolean(nextDue), `"Do this next" names Lesson 3 and a due date (${nextCard.slice(0, 160)})`);
+    expect('S1', nextDue === resumeDue, `"Do this next" shows the student's own due date (${nextDue}; Resume card ${resumeDue})`);
+    expect('S1', nextDue !== classDue, `"Do this next" does not show the class due date (${classDue})`);
+    for (const tab of ['Assignments', 'Grades']) {
+      await page.getByRole('button', { name: new RegExp(`^${tab}$`) }).first().click();
+      await page.waitForTimeout(1200);
+      const row = page.locator('article').filter({ hasText: LESSON_3 }).first();
+      const rowDue = (await text(row)).match(DUE)?.[1] || null;
+      expect('S1', rowDue === nextDue, `${tab} tab shows the student's own due date (${rowDue}; expected ${nextDue})`);
+      if (tab === 'Grades') {
+        await row.getByRole('button', { name: 'View Results' }).click();
+        await page.waitForTimeout(1200);
+        const resultDue = (await text(page.locator('main').first())).match(DUE)?.[1] || null;
+        expect('S1', resultDue === nextDue, `the assignment result shows the student's own due date (${resultDue}; expected ${nextDue})`);
+        await page.getByRole('button', { name: /Back to My grades/ }).first().click();
+        await page.waitForTimeout(800);
+      }
+    }
+    await page.getByRole('button', { name: /^Home$/ }).first().click();
+    await page.locator('section[aria-labelledby="what-now-heading"]').waitFor({ timeout: 20000 });
+    await page.waitForTimeout(1200);
+
     const before = Object.keys(await db(page)).filter((key) => key.startsWith('grades/910002/supportEvidence/') || key.startsWith('grades/910002/engagementMinutes/'));
     await page.getByRole('button', { name: /Continue|Resume|Open|Start/ }).first().click();
     await page.getByRole('button', { name: 'Read aloud' }).first().waitFor({ timeout: 60000 });
@@ -232,6 +268,10 @@ const journeys = {
     const header = await text(page.locator('body'));
     if (await page.locator('.mathmaster-assignment-header').isVisible()) {
       expect('S1', /Your due date: /.test(header), 'the assignment header shows the individualized due date');
+      if (header.includes(LESSON_3)) {
+        const headerDue = header.match(/Your due date: (\w{3} \d{1,2}, \d{4}, \d{1,2}:\d{2}\s?[AP]M)/)?.[1] || null;
+        expect('S1', headerDue === nextDue, `the header and "Do this next" name the same date (${headerDue}; ${nextDue})`);
+      }
     } else {
       // Phones and portrait tablets hide the assignment header by design (the
       // dashboard above carries the date); Support tools move to the expanded

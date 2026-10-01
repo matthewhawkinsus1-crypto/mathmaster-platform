@@ -3,6 +3,7 @@ import {
   getStoredAssignmentTypeProjection,
 } from './platform/contract/storedAssignmentV5.js';
 import { resolveQuestionActivityRole } from './platform/policies/activityPolicies.js';
+import { studentDueDates } from './assignmentLifecycle.js';
 
 // What a student's assignment dashboard actually contains, computed once.
 //
@@ -409,6 +410,10 @@ export const buildStudentDashboardModel = ({
  */
 export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => {
   const first = (bucket) => (dashboard?.groups?.[bucket] || [])[0] || null;
+  // The card prints a due date under the decision, and it has to be this
+  // student's: an individualized (extra-time) due date lives on the lifecycle
+  // each candidate was bucketed with, not on the assignment's class fields.
+  const dueFor = (assignment, lifecycle) => studentDueDates(assignment, lifecycle).dueAt;
 
   const activeDol = (dashboard?.activeDols || [])[0];
   if (activeDol) {
@@ -422,6 +427,7 @@ export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => 
     return {
       kind: 'dol',
       assignment: activeDol.assignment,
+      dueAt: dueFor(activeDol.assignment, activeDol.lifecycle),
       questionIndex: firstUnattempted ?? dolIndices[0],
       headline: 'Your exit ticket is open',
       detail: 'It is timed, so do this one first.',
@@ -435,6 +441,7 @@ export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => 
     return {
       kind: 'warmup',
       assignment: activeWarmup.assignment,
+      dueAt: dueFor(activeWarmup.assignment, activeWarmup.lifecycle),
       questionIndex: activeWarmup.questionIndices?.[0] ?? 0,
       headline: 'Warm-Up is open now',
       detail: 'Start with the Warm-Up while its class timer is running.',
@@ -447,6 +454,7 @@ export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => 
     return {
       kind: 'resume',
       assignment: dashboard.resumeAssignment,
+      dueAt: dueFor(dashboard.resumeAssignment, dashboard.resumeLifecycle),
       questionIndex: dashboard.resumeQuestionIndex,
       headline: 'Pick up where you left off',
       detail: dashboard.resumeAssignment.title,
@@ -460,6 +468,7 @@ export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => 
     return {
       kind: 'inProgress',
       assignment: inProgress.assignment,
+      dueAt: dueFor(inProgress.assignment, inProgress.lifecycle),
       headline: 'Finish what you started',
       detail: `${inProgress.assignment.title} — ${inProgress.questionsDone} of ${inProgress.questionsTotal} done`,
       actionLabel: 'Continue',
@@ -472,6 +481,7 @@ export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => 
     return {
       kind: 'pastDue',
       assignment: pastDue.assignment,
+      dueAt: dueFor(pastDue.assignment, pastDue.lifecycle),
       headline: 'This one is past due',
       // Late, not lost. A student who believes it no longer counts stops.
       detail: `${pastDue.assignment.title} — late work is still open and still counts.`,
@@ -485,6 +495,7 @@ export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => 
     return {
       kind: 'dueToday',
       assignment: dueToday.assignment,
+      dueAt: dueFor(dueToday.assignment, dueToday.lifecycle),
       headline: 'Due today',
       detail: dueToday.assignment.title,
       actionLabel: 'Start it',
@@ -501,6 +512,7 @@ export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => 
     return {
       kind: 'assignedLater',
       assignment: assignedLater.assignment,
+      dueAt: dueFor(assignedLater.assignment, assignedLater.lifecycle),
       headline: 'Assigned work is ready',
       detail: assignedLater.assignment.title,
       actionLabel: assignedLater.isAttempted ? 'Continue' : 'Start assignment',
