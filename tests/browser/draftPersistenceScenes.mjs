@@ -180,7 +180,9 @@ export const DRAFT_SCENES = [
       system: { m1: 2, b1: 1, m2: -1, b2: 7 },
       graph: { xMin: -6, xMax: 8, yMin: -6, yMax: 12 },
     },
-    edit: [fill(0, '2'), fill(1, '5')],
+    // The classification opens unanswered, and x and y appear once "Exactly
+    // one solution" is chosen — so it is chosen first, and must come back too.
+    edit: [choose(0, 'one'), fill(0, '2'), fill(1, '5')],
   },
   {
     id: 'transformations',

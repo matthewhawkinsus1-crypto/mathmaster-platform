@@ -12,6 +12,7 @@ import {
   predictionKind,
 } from './dataModelingMath';
 import useToolSubmission from '../shared/useToolSubmission';
+import { UNANSWERED } from '../shared/judgmentChoices.js';
 import { lineFitNamesPrediction, lineFitUsesRegressionTechnology, numberVisiblePanels } from './dataModelingPlan.js';
 import { fitAdjustmentPlan, fitDataBounds, interactionIncrements, residualScale, stepFitControl } from '../../platform/graph/graphScaleService.js';
 
@@ -149,16 +150,19 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const [b, setB] = usePersistentToolState('b', startingModel.b ?? (exploratoryLineFit ? fitControls.intercept.start : (forcedModelId === 'linear' ? 0 : round(regression.b + 1, 2))));
   const slopeIncrements = interactionIncrements(regression.m);
   const interceptIncrements = interactionIncrements(Math.max(Math.abs(regression.b), yMax - yMin));
-  const [direction, setDirection] = usePersistentToolState('direction', 'positive');
-  const [strength, setStrength] = usePersistentToolState('strength', 'moderate');
-  const [causation, setCausation] = usePersistentToolState('causation', 'association');
-  const [modelChoice, setModelChoice] = usePersistentToolState('modelChoice', 'linear');
+  // Every judgment starts unanswered ("Choose…", judgmentChoices.js). They
+  // opened on "positive", "moderate", "association" and "linear", which credited
+  // a student who never chose whenever the question's answer was the default.
+  const [direction, setDirection] = usePersistentToolState('direction', UNANSWERED);
+  const [strength, setStrength] = usePersistentToolState('strength', UNANSWERED);
+  const [causation, setCausation] = usePersistentToolState('causation', UNANSWERED);
+  const [modelChoice, setModelChoice] = usePersistentToolState('modelChoice', UNANSWERED);
   // Keep the default prediction target tied to the observed data, not to display/camera bounds.
   // Work View and graph fitting are presentation concerns and must not change submitted math state.
   const defaultPredictionX = Math.ceil(Math.max(...xs, 1) + 1);
   const [predictionX, setPredictionX] = usePersistentToolState('predictionX', questionData.predictionX ?? defaultPredictionX);
   const [predictionY, setPredictionY] = usePersistentToolState('predictionY', '');
-  const [predictionType, setPredictionType] = usePersistentToolState('predictionType', FIT_PREDICTION_MODELS[mode] ? '' : 'interpolation');
+  const [predictionType, setPredictionType] = usePersistentToolState('predictionType', UNANSWERED);
   const [correlationEntry, setCorrelationEntry] = usePersistentToolState('correlationEntry', '');
   // Technology starts closed. The regression coefficients are not visible until
   // the student deliberately runs regression, preserving the estimate-first
@@ -486,12 +490,13 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
             <p style={{ marginTop:0, color:'#4b5563' }}>Correlation coefficient: <strong>r ≈ {formatCorrelation(r)}</strong></p>
           )}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-            <Field label="Direction"><select value={direction} onChange={(e)=>setDirection(e.target.value)} style={inputStyle}>{mode === 'correlation' ? <option value="">Choose…</option> : null}<option value="positive">Positive</option><option value="negative">Negative</option><option value="none">No clear direction</option></select></Field>
-            <Field label="Strength"><select value={strength} onChange={(e)=>setStrength(e.target.value)} style={inputStyle}>{mode === 'correlation' ? <option value="">Choose…</option> : null}<option value="strong">Strong</option><option value="moderate">Moderate</option><option value="weak">Weak</option><option value="none">None</option></select></Field>
+            <Field label="Direction"><select value={direction} onChange={(e)=>setDirection(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="positive">Positive</option><option value="negative">Negative</option><option value="none">No clear direction</option></select></Field>
+            <Field label="Strength"><select value={strength} onChange={(e)=>setStrength(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="strong">Strong</option><option value="moderate">Moderate</option><option value="weak">Weak</option><option value="none">None</option></select></Field>
           </div>
           {mode !== 'correlation' ? (
             <Field label="What can this observational data justify?">
               <select value={causation} onChange={(e)=>setCausation(e.target.value)} style={inputStyle}>
+                <option value={UNANSWERED}>Choose…</option>
                 <option value="association">An association / relationship</option>
                 <option value="causation">A cause-and-effect conclusion</option>
               </select>
@@ -538,7 +543,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
             <Field label="Predict at x ="><input type="number" value={predictionX} readOnly={fixedPredictionTarget} aria-readonly={fixedPredictionTarget} onChange={(e)=>{if (!fixedPredictionTarget) setPredictionX(e.target.value);}} style={{...inputStyle, background:fixedPredictionTarget?'#f1f3f4':'#fff'}}/></Field>
             <Field label="Predicted y"><input type="number" step="0.1" value={predictionY} onChange={(e)=>setPredictionY(e.target.value)} style={inputStyle}/></Field>
           </div>
-          {asksPredictionType ? <Field label="This prediction is..."><select value={predictionType} onChange={(e)=>setPredictionType(e.target.value)} style={inputStyle}>{FIT_PREDICTION_MODELS[mode] ? <option value="">Choose…</option> : null}<option value="interpolation">Interpolation</option><option value="extrapolation">Extrapolation</option></select></Field> : null}
+          {asksPredictionType ? <Field label="This prediction is..."><select value={predictionType} onChange={(e)=>setPredictionType(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="interpolation">Interpolation</option><option value="extrapolation">Extrapolation</option></select></Field> : null}
           {asksPredictionType ? <div style={{ marginTop:12, padding:11, borderRadius:10, background:'#f8fbff', color:'#4b5563', fontSize:13 }}>
             Interpolation predicts inside the observed x-range. Extrapolation goes beyond the data and should be treated more cautiously.
           </div> : null}

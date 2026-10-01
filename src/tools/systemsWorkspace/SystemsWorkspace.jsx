@@ -36,6 +36,7 @@ import {
   sideOfBoundaryLine,
 } from './inequalityBuilderAdapter';
 import useToolSubmission from '../shared/useToolSubmission';
+import { UNANSWERED, isAnswered, yesNoAnswerMatches } from '../shared/judgmentChoices.js';
 import EmbeddedInequalityRewrite from './EmbeddedInequalityRewrite.jsx';
 import { formatSlopeInterceptInequality } from './linearInequalityEngine.js';
 import AlgebraicSystemMode from './AlgebraicSystemMode.jsx';
@@ -111,13 +112,20 @@ function LinearMode({ questionData, onAction }) {
   const revealAnswers = useRevealAnswers();
   const [x, setX] = usePersistentToolState('x', '');
   const [y, setY] = usePersistentToolState('y', '');
-  const [classification, setClassification] = usePersistentToolState('classification', 'one');
+  // Unanswered until the student classifies (judgmentChoices.js): it opened on
+  // "Exactly one solution", the right answer for most systems.
+  const [classification, setClassification] = usePersistentToolState('classification', UNANSWERED);
   const { feedback, submit } = useToolSubmission(onAction);
   const mathState = useMemo(() => ({ x, y, classification }), [x, y, classification]);
-  const restore = useCallback((value) => { setX(value?.x || ''); setY(value?.y || ''); setClassification(value?.classification || 'one'); }, []);
+  const restore = useCallback((value) => { setX(value?.x || ''); setY(value?.y || ''); setClassification(value?.classification || UNANSWERED); }, []);
   const undoHistory = useMathUndoHistory({ label: 'Undo the last system answer edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
+  const classified = isAnswered(classification);
 
   const check = () => {
+    // Not an answer yet: the classification decides what else is asked (x and
+    // y only for exactly one solution), and the server grader refuses a
+    // systems response without one. Nothing is sent until it is chosen.
+    if (!classified) return;
     const classCorrect = classification === solution.type;
     const coordinateCorrect = solution.type !== 'one' || (matchesNumericAnswer(x, solution.x, 0.05) && matchesNumericAnswer(y, solution.y, 0.05));
     const parts = solution.type === 'one' ? [classCorrect, coordinateCorrect] : [classCorrect];
@@ -138,7 +146,7 @@ function LinearMode({ questionData, onAction }) {
     equationInput: { label: 'Both equations', studentState: true },
     numericControls: { label: 'Solution and classification', studentState: true },
     instruction: { text: 'Classify the system, then solve where the equations meet.' },
-    primaryActions: [{ id: 'check-system', label: 'Check system', onAction: check }],
+    primaryActions: [{ id: 'check-system', label: 'Check system', onAction: check, disabled: !classified }],
   }}><ToolSplit>
     <Panel title="Both equations on one grid">
       <CoordinatePlane xMin={questionData.graph?.xMin ?? -6} xMax={questionData.graph?.xMax ?? 8} yMin={questionData.graph?.yMin ?? -6} yMax={questionData.graph?.yMax ?? 12}
@@ -153,9 +161,10 @@ function LinearMode({ questionData, onAction }) {
       ]} />
     </Panel>
     <Panel title="Classify and solve">
-      <Field label="How many solutions does this system have?"><select value={classification} onChange={(e)=>setClassification(e.target.value)} style={inputStyle}><option value="one">Exactly one solution</option><option value="none">No solution</option><option value="infinite">Infinitely many solutions</option></select></Field>
+      <Field label="How many solutions does this system have?"><select value={classification} onChange={(e)=>setClassification(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="one">Exactly one solution</option><option value="none">No solution</option><option value="infinite">Infinitely many solutions</option></select></Field>
       {classification === 'one' ? <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:12}}><Field label="x"><input type="number" inputMode="decimal" value={x} onChange={(e)=>setX(e.target.value)} style={inputStyle}/></Field><Field label="y"><input type="number" inputMode="decimal" value={y} onChange={(e)=>setY(e.target.value)} style={inputStyle}/></Field></div> : null}
-      <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check system</button>
+      <button data-mm-enter-action="submit" type="button" onClick={check} disabled={!classified} style={{...actionStyle,opacity:classified?1:0.5}}>Check system</button>
+      {!classified ? <p style={{margin:'8px 0 0',color:'#5f6368',fontSize:13}}>Choose how many solutions the system has first.</p> : null}
       {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'#3c4756',lineHeight:1.55}}>{message()}</p></div> : null}
       <HintPanel
         hints={[
@@ -263,7 +272,16 @@ function ClassicInequalityMode({ questionData, onAction }) {
     }) : []),
   ];
 
+  // The choices this question asks must be made before the work is an answer:
+  // the server grader refuses a response missing any of them, so the tool does
+  // not send one either.
+  const constructionChoicesMade = !requiresConstruction
+    || construction.every((entry) => isAnswered(entry?.boundaryStyle) && isAnswered(entry?.shade));
+  const testChoiceMade = !ask.includes('testPoint') || isAnswered(testChoice);
+  const choicesMade = constructionChoicesMade && testChoiceMade;
+
   const check = () => {
+    if (!choicesMade) return;
     const parts = [];
     const responseConstruction = construction.map((entry) => ({
       points: [
@@ -291,7 +309,9 @@ function ClassicInequalityMode({ questionData, onAction }) {
 
     const candidate = { x:parseNumericAnswer(x), y:parseNumericAnswer(y) };
     const candidateFeasible = candidate.x != null && candidate.y != null && inequalities.every((ineq)=>satisfiesLinearInequality(ineq,candidate.x,candidate.y));
-    const testCorrect = (testChoice === 'yes') === expectedTestPoint;
+    // Unanswered is not "no": `(testChoice === 'yes') === expected` credited a
+    // blank choice whenever the marked point was outside the region.
+    const testCorrect = yesNoAnswerMatches(testChoice, expectedTestPoint);
     if (ask.includes('testPoint')) parts.push(testCorrect);
     if (ask.includes('candidate')) parts.push(candidateFeasible);
 
@@ -330,7 +350,7 @@ function ClassicInequalityMode({ questionData, onAction }) {
     numericControls: { label: requiresConstruction ? 'Boundary and shading controls' : 'Solution controls', studentState: true },
     pointEditing: requiresConstruction ? { label: 'Boundary points', studentState: true } : null,
     instruction: { text: requiresConstruction ? 'Construct every boundary and shade their overlap.' : 'Test points against both inequalities.' },
-    primaryActions: [{ id: 'check-inequalities', label: requiresConstruction ? 'Check inequality graph' : 'Check feasible region', onAction: check }],
+    primaryActions: [{ id: 'check-inequalities', label: requiresConstruction ? 'Check inequality graph' : 'Check feasible region', onAction: check, disabled: !choicesMade }],
   }}><ToolSplit>
     <Panel title={requiresConstruction ? 'Your inequality graph' : 'Feasible region'}>
       <CoordinatePlane
@@ -415,7 +435,11 @@ function ClassicInequalityMode({ questionData, onAction }) {
         </div>
       ) : null}
 
-      <button type="button" onClick={check} style={actionStyle}>{requiresConstruction ? 'Check inequality graph' : 'Check feasible region'}</button>
+      <button type="button" onClick={check} disabled={!choicesMade} style={{...actionStyle,opacity:choicesMade?1:0.5}}>{requiresConstruction ? 'Check inequality graph' : 'Check feasible region'}</button>
+      {!choicesMade ? <p style={{margin:'8px 0 0',color:'#5f6368',fontSize:13}}>{[
+        constructionChoicesMade ? null : 'Choose a boundary style and a side to shade for every inequality.',
+        testChoiceMade ? null : 'Decide whether the purple point is in the feasible region.',
+      ].filter(Boolean).join(' ')}</p> : null}
       {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'#3c4756',lineHeight:1.55}}>{message()}</p></div> : null}
       <HintPanel
         hints={requiresConstruction ? [
@@ -460,14 +484,15 @@ const emptyBuildEntry = () => ({
 
 const emptyRewriteEntry = (source = '') => ({ source, steps: [], committedText:source, draft:source, pendingFlip:null, verifiedText:'', verifiedConstraint:null });
 
-const emptyModelingEntry = () => ({ coeffA: '', coeffB: '', relation: '>=', constant: '' });
+// The relation is the student's choice of symbol, so it starts unanswered: it
+// opened on ≥, which was already right for every "at least" constraint.
+const emptyModelingEntry = () => ({ coeffA: '', coeffB: '', relation: UNANSWERED, constant: '' });
 
 const emptyTestPointResponse = (count) => ({
   overall: '', perInequality: Array.from({ length: count }, () => ''), onBoundary: '', boundaryIncluded: '',
 });
-const explicitBooleanAnswerMatches = (answer, expected) => (
-  (answer === 'yes' || answer === 'no') && (answer === 'yes') === Boolean(expected)
-);
+// The shared rule (judgmentChoices.js): unanswered is never "no".
+const explicitBooleanAnswerMatches = yesNoAnswerMatches;
 
 // A student's constructed BOUNDARY LINE (ignoring style/shade), from whichever
 // of the several valid construction methods they used. Any of these that
@@ -1156,6 +1181,7 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
                     <Field label={`Coefficient of ${variables[1].symbol}`}><input type="number" inputMode="decimal" value={entry.coeffB} onChange={(e)=>updateModelingEntry(index,'coeffB',e.target.value)} style={inputStyle}/></Field>
                     <Field label="Relation">
                       <select value={entry.relation} onChange={(e)=>updateModelingEntry(index,'relation',e.target.value)} style={inputStyle}>
+                        <option value={UNANSWERED}>Choose…</option>
                         <option value=">=">≥</option><option value=">">&gt;</option><option value="<=">≤</option><option value="<">&lt;</option>
                       </select>
                     </Field>
@@ -1441,14 +1467,16 @@ function MatrixMode({ questionData, onAction }) {
     [isMatrix3, matrix],
   );
   const revealAnswers = useRevealAnswers();
-  const [classification, setClassification] = usePersistentToolState('classification', 'one');
+  // Unanswered until the student classifies, as in LinearMode.
+  const [classification, setClassification] = usePersistentToolState('classification', UNANSWERED);
   const [x, setX] = usePersistentToolState('x', '');
   const [y, setY] = usePersistentToolState('y', '');
   const [z, setZ] = usePersistentToolState('z', '');
   const [technologyUsed, setTechnologyUsed] = usePersistentToolState('technologyUsed', false);
   const { feedback, submit } = useToolSubmission(onAction);
   const mathState = useMemo(() => ({ classification, x, y, z, technologyUsed }), [classification, x, y, z, technologyUsed]);
-  const restore = useCallback((value) => { setClassification(value?.classification || 'one'); setX(value?.x || ''); setY(value?.y || ''); setZ(value?.z || ''); setTechnologyUsed(Boolean(value?.technologyUsed)); }, []);
+  const restore = useCallback((value) => { setClassification(value?.classification || UNANSWERED); setX(value?.x || ''); setY(value?.y || ''); setZ(value?.z || ''); setTechnologyUsed(Boolean(value?.technologyUsed)); }, []);
+  const classified = isAnswered(classification);
   const undoHistory = useMathUndoHistory({ label: 'Undo the last matrix-system edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
 
   const matrixRows = isMatrix3 ? (matrix3x4Rows(matrix) || []) : [
@@ -1457,7 +1485,9 @@ function MatrixMode({ questionData, onAction }) {
   ];
 
   const check = () => {
-    if (isMatrix3 && !technologyUsed) return;
+    // The server refuses a matrix response with no classification or (3×3)
+    // without the RREF technology, so neither is sent as an answer.
+    if (!classified || (isMatrix3 && !technologyUsed)) return;
     const classCorrect = classification === solution.type;
     const coordsCorrect = solution.type !== 'one' || (
       matchesNumericAnswer(x,solution.x,0.05)
@@ -1495,7 +1525,7 @@ function MatrixMode({ questionData, onAction }) {
 
   const showRref = isMatrix3 && (technologyUsed || revealAnswers);
 
-  return <EnlargeableFigure label="Matrix system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, equationInput: { label: isMatrix3 ? 'Three equations and RREF' : 'Both equations and augmented matrix' }, numericControls: { label: 'Row reduction and solution controls', studentState: true }, instruction: { text: isMatrix3 ? 'Compute and interpret the RREF.' : 'Classify and solve the augmented system.' }, primaryActions: [{ id: 'check-matrix', label: 'Check matrix solution', onAction: check, disabled: isMatrix3 && !technologyUsed }] }}><ToolSplit>
+  return <EnlargeableFigure label="Matrix system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, equationInput: { label: isMatrix3 ? 'Three equations and RREF' : 'Both equations and augmented matrix' }, numericControls: { label: 'Row reduction and solution controls', studentState: true }, instruction: { text: isMatrix3 ? 'Compute and interpret the RREF.' : 'Classify and solve the augmented system.' }, primaryActions: [{ id: 'check-matrix', label: 'Check matrix solution', onAction: check, disabled: !classified || (isMatrix3 && !technologyUsed) }] }}><ToolSplit>
     <Panel title={isMatrix3 ? "3×3 augmented matrix" : "Augmented matrix"}>
       <div style={{
         display:'grid',
@@ -1558,6 +1588,7 @@ function MatrixMode({ questionData, onAction }) {
     <Panel title={isMatrix3 ? "Interpret the RREF" : "Row-reduction outcome"}>
       <Field label="How many solutions does this system have?">
         <select value={classification} onChange={(e)=>setClassification(e.target.value)} style={inputStyle}>
+          <option value={UNANSWERED}>Choose…</option>
           <option value="one">Exactly one solution</option>
           <option value="none">No solution</option>
           <option value="infinite">Infinitely many solutions</option>
@@ -1571,11 +1602,12 @@ function MatrixMode({ questionData, onAction }) {
       <button
         type="button"
         onClick={check}
-        disabled={isMatrix3 && !technologyUsed}
-        style={{...actionStyle,opacity:isMatrix3&&!technologyUsed?0.5:1}}
+        disabled={!classified || (isMatrix3 && !technologyUsed)}
+        style={{...actionStyle,opacity:!classified || (isMatrix3&&!technologyUsed)?0.5:1}}
       >
         {isMatrix3 && !technologyUsed ? 'Use RREF technology first' : 'Check matrix solution'}
       </button>
+      {!classified && !(isMatrix3 && !technologyUsed) ? <p style={{margin:'8px 0 0',color:'#5f6368',fontSize:13}}>Choose how many solutions the system has first.</p> : null}
       {feedback?<div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'#3c4756',lineHeight:1.55}}>{message()}</p></div>:null}
       <HintPanel
         hints={isMatrix3 ? [

@@ -13,6 +13,7 @@ import {
 } from './inverseCompositionMath';
 import useToolSubmission from '../shared/useToolSubmission';
 import { useRevealAnswers } from '../shared/ToolRuntimeContext';
+import { UNANSWERED } from '../shared/judgmentChoices.js';
 
 const DEFAULT_F = { type:'linear', a:2, h:0, k:3 };
 const DEFAULT_G = { type:'linear', a:-1, h:0, k:4 };
@@ -37,7 +38,10 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
   const [fogAnswer, setFogAnswer] = usePersistentToolState('fogAnswer', '');
   const [gofAnswer, setGofAnswer] = usePersistentToolState('gofAnswer', '');
   const [inverseAnswer, setInverseAnswer] = usePersistentToolState('inverseAnswer', '');
-  const [restrictionChoice, setRestrictionChoice] = usePersistentToolState('restrictionChoice', 'none');
+  // Unanswered until chosen (judgmentChoices.js). It opened on "No restriction
+  // needed", which was the right answer for every function that is not a
+  // quadratic.
+  const [restrictionChoice, setRestrictionChoice] = usePersistentToolState('restrictionChoice', UNANSWERED);
   const { feedback, submit } = useToolSubmission(onAction);
   const revealAnswers = useRevealAnswers();
 
@@ -216,7 +220,11 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
             <Field label={`f⁻¹(${round(fx,3)}) =`}><input type="number" step="0.1" value={inverseAnswer} onChange={(e)=>setInverseAnswer(e.target.value)} style={inputStyle}/></Field>
           </> : <div style={{padding:12,borderRadius:10,background:'#fce8e6',color:'#8a1c13'}}>On its full domain this function is not one-to-one, so it has no inverse function. Your teacher needs to restrict its domain before an inverse can be found.</div>}
 
-          {f.type === 'quadratic' ? <div style={{marginTop:14}}><Field label="Which restriction makes the quadratic one-to-one?"><select value={restrictionChoice} onChange={(e)=>setRestrictionChoice(e.target.value)} style={inputStyle}><option value="none">No restriction needed</option><option value="left">Use the left branch (x ≤ vertex x)</option><option value="right">Use the right branch (x ≥ vertex x)</option><option value="required">A restriction is required, but branch is not specified</option></select></Field></div> : null}
+          {/* Also shown whenever the question asks it. It used to need a
+              quadratic, so a "restriction" question about any other function
+              asked a part the student had no control for, which only the old
+              "No restriction needed" default answered. */}
+          {f.type === 'quadratic' || requiredParts.includes('restriction') ? <div style={{marginTop:14}}><Field label={f.type === 'quadratic' ? 'Which restriction makes the quadratic one-to-one?' : 'Does f need a restricted domain to have an inverse?'}><select value={restrictionChoice} onChange={(e)=>setRestrictionChoice(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="none">No restriction needed</option><option value="left">Use the left branch (x ≤ vertex x)</option><option value="right">Use the right branch (x ≥ vertex x)</option><option value="required">A restriction is required, but branch is not specified</option></select></Field></div> : null}
 
           <button data-mm-enter-action="submit" type="button" onClick={check} style={{marginTop:16,padding:'10px 16px',background:'#1a73e8',color:'#fff',border:0,borderRadius:8,fontWeight:800}}>Check function reasoning</button>
           {feedbackBlock}

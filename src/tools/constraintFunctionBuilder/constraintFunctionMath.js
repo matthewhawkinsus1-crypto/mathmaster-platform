@@ -1,6 +1,11 @@
 import { evaluateFunctionSpec, nearlyEqual } from '../shared/toolMath.js';
+import { UNANSWERED } from '../shared/judgmentChoices.js';
 
 export const BUILDER_FAMILIES = Object.freeze(['linear', 'quadratic', 'exponential', 'absolute', 'verticalLine']);
+
+/** The question asks "continuous or discrete?", so the graph type is the student's judgment. */
+export const builderAsksGraphType = (constraints = []) => (Array.isArray(constraints) ? constraints : [])
+  .some((constraint) => ['continuity', 'domainMode'].includes(constraint?.kind));
 
 export const normalizeBuilderModel = (model = {}) => ({
   family: BUILDER_FAMILIES.includes(model.family) ? model.family : 'linear',
@@ -8,7 +13,10 @@ export const normalizeBuilderModel = (model = {}) => ({
   h: Number.isFinite(Number(model.h)) ? Number(model.h) : 0,
   k: Number.isFinite(Number(model.k)) ? Number(model.k) : 0,
   base: Number.isFinite(Number(model.base)) && Number(model.base) > 0 && !nearlyEqual(Number(model.base), 1) ? Number(model.base) : 2,
-  domainMode: model.domainMode === 'discrete' ? 'discrete' : 'continuous',
+  // An unanswered graph type stays unanswered, so a continuity constraint is
+  // not met before the student chooses. Anything else that is not "discrete"
+  // (an older model with no graph type) reads as continuous, as before.
+  domainMode: model.domainMode === 'discrete' ? 'discrete' : model.domainMode === UNANSWERED ? UNANSWERED : 'continuous',
   domainMin: Number.isFinite(Number(model.domainMin)) ? Number(model.domainMin) : -4,
   domainMax: Number.isFinite(Number(model.domainMax)) ? Number(model.domainMax) : 4,
   verticalX: Number.isFinite(Number(model.verticalX)) ? Number(model.verticalX) : 0,

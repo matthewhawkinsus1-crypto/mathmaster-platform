@@ -8,12 +8,14 @@ import useToolSubmission from '../shared/useToolSubmission';
 import { useHintsAllowed, useToolRuntimeContext } from '../shared/ToolRuntimeContext';
 import {
   BUILDER_FAMILIES,
+  builderAsksGraphType,
   builderEquation,
   constraintChecklistView,
   evaluateBuilderModel,
   normalizeBuilderModel,
   scoreConstraintModel,
 } from './constraintFunctionMath';
+import { UNANSWERED } from '../shared/judgmentChoices.js';
 
 const inputStyle = { width: '100%', minHeight: 42, boxSizing: 'border-box', padding: 9, border: '1px solid #c9d6e8', borderRadius: 8, fontSize: 15, background: 'var(--mm-surface)' };
 const primary = { minHeight: 46, padding: '10px 17px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' };
@@ -34,8 +36,13 @@ const numericField = (label, value, setter, step = 1) => (
 export default function ConstraintFunctionBuilder({ questionData = {}, onAction }) {
   const allowedFamilies = (questionData.allowedFamilies || BUILDER_FAMILIES).filter((family) => BUILDER_FAMILIES.includes(family));
   const hasAuthoredInitialModel = questionData.initialModel && typeof questionData.initialModel === 'object';
+  // Where a constraint asks "continuous or discrete?", the graph type is the
+  // student's judgment and starts unanswered (judgmentChoices.js), not on
+  // "Continuous", which met every continuity constraint before any choice.
+  const asksGraphType = builderAsksGraphType(questionData.constraints);
   const initial = normalizeBuilderModel({
     family: allowedFamilies[0] || 'linear',
+    ...(asksGraphType ? { domainMode: UNANSWERED } : {}),
     // An open-construction question must not open on a fully valid answer.
     // A zero leading coefficient intentionally collapses linear/quadratic/
     // absolute/exponential defaults until the student actually constructs one.
@@ -168,11 +175,12 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
           />
           <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: '#f4f8ff', color: '#174ea6', fontWeight: 900, overflowWrap: 'anywhere' }}>{builderEquation(model)}</div>
           {model.domainMode === 'discrete' && <div style={{ marginTop: 7, fontSize: 12, color: '#5f6b7a' }}>Discrete integer domain shown from {Math.min(model.domainMin, model.domainMax)} through {Math.max(model.domainMin, model.domainMax)}.</div>}
+          {model.domainMode === UNANSWERED && model.family !== 'verticalLine' && <div style={{ marginTop: 7, fontSize: 12, color: '#5f6b7a' }}>Choose a graph type to draw your relation.</div>}
         </Panel>
 
         <Panel title="Build the relation">
           <label style={{ display: 'block', marginBottom: 11, fontSize: 13, fontWeight: 800, color: '#3c4756' }}>Family<select value={model.family} onChange={(event) => set({ family: event.target.value })} style={inputStyle}>{allowedFamilies.map((family) => <option value={family} key={family}>{FAMILY_LABELS[family]}</option>)}</select></label>
-          <label style={{ display: 'block', marginBottom: 11, fontSize: 13, fontWeight: 800, color: '#3c4756' }}>Graph type<select value={model.domainMode} onChange={(event) => set({ domainMode: event.target.value })} style={inputStyle}><option value="continuous">Continuous</option><option value="discrete">Discrete</option></select></label>
+          <label style={{ display: 'block', marginBottom: 11, fontSize: 13, fontWeight: 800, color: '#3c4756' }}>Graph type<select value={model.domainMode} onChange={(event) => set({ domainMode: event.target.value })} style={inputStyle}>{asksGraphType || model.domainMode === UNANSWERED ? <option value={UNANSWERED}>Choose…</option> : null}<option value="continuous">Continuous</option><option value="discrete">Discrete</option></select></label>
 
           {model.family === 'linear' && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>{numericField('Slope m', model.a, (a) => set({ a }), 0.5)}{numericField('y-intercept b', model.k, (k) => set({ k }), 0.5)}</div>}
           {['quadratic', 'absolute'].includes(model.family) && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>{numericField('a', model.a, (a) => set({ a }), 0.5)}{numericField('h', model.h, (h) => set({ h }), 0.5)}{numericField('k', model.k, (k) => set({ k }), 0.5)}</div>}
