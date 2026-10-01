@@ -9,8 +9,8 @@ Branch: `ai/claude-iep-evidence-20260930` (from `origin/main` @ `1fcd1ea7`, PR #
 
 ## Current state
 
-- **Phase:** 7, final stretch. Handed off to a cloud session on 2026-09-30. See **Handoff: what remains, in order** at the end of this file.
-- PR #401 is still a draft. It is **not merged and not deployed**, and must stay that way. The near-final description is already the PR body.
+- **Phase:** complete. A cloud session finished the handoff on 2026-10-01; see **Handoff — completed** at the end of this file.
+- PR #401 is ready for review. It is **not merged and not deployed**, and must stay that way until the deploy steps in the PR have been read. The PR body is final.
 - **Design:** `docs/IEP_SUPPORT_EVIDENCE_DESIGN.md`, with the as-built differences in §9.
 - **QA:** `docs/qa/iep-support-evidence.md`. The screenshots come from the fake-school harness only.
 
@@ -25,7 +25,7 @@ Branch: `ai/claude-iep-evidence-20260930` (from `origin/main` @ `1fcd1ea7`, PR #
 | 4 | Teacher Support/Evidence UI (hub + drawer) + one-click events + service log | ✅ |
 | 5 | Student "Support tools" UI | ✅ |
 | 6 | Report model/renderer + grade-impact aggregation + assignment-instance dedup | ✅ |
-| 7 | Browser QA (fake-school harness) + final hardening + security review + PR | ◐ finishing — see **Handoff** |
+| 7 | Browser QA (fake-school harness) + final hardening + security review + PR | ✅ |
 
 ## Environment notes (this machine)
 
@@ -40,6 +40,10 @@ Branch: `ai/claude-iep-evidence-20260930` (from `origin/main` @ `1fcd1ea7`, PR #
   re-optimization makes the harness page fully reload. Run the two one after the other.
 - **CI runs in UTC.** Tests of student-facing dates must not assume a Chicago process. Run new date tests with
   `TZ=UTC` as well.
+- **Cloud sessions** (claude.ai/code containers) run in UTC: run `TZ=America/Chicago npm run test:platform` for the
+  school's zone. Playwright (`/opt/node22/lib/node_modules/playwright`) and Chromium (`/opt/pw-browsers/chromium`)
+  are the journeys' defaults there. The Firestore emulator jar is not cached; `npx firebase setup:emulators:firestore`
+  fetches it before the first `npm run test:rules`.
 
 ## Reconnaissance findings (verified against the code on this branch)
 
@@ -118,6 +122,14 @@ These are the facts the design is built on. File references are to `origin/main`
 | Phase 4 | `npm run build` | pass |
 | Phase 6 | `npm run test:platform` | 6771/6771 |
 | Phase 6 | `npm run build` | pass |
+| Phase 7 final (`4341b42a`, cloud, 2026-10-01) | `npm run test:platform` | 6782/6782 in UTC (the container's zone) and with `TZ=America/Chicago` |
+| Phase 7 final | `node --test tests/platform/studentIndividualizedDueDates.test.mjs` | 9/9 under UTC, America/Chicago, America/Los_Angeles, Pacific/Auckland, Pacific/Kiritimati; 11 mutations all red in UTC and in America/Chicago |
+| Phase 7 final | `npm run test:rules` | 225/225 + 83/83 |
+| Phase 7 final | `npm run test:authoring-v5` · `node --test tests/tools/*.test.mjs` | 684/684 · 252/252 |
+| Phase 7 final | `npm run lint` · `npm run audit:theme-colors` | exit 0, no warnings in new or changed files · pass |
+| Phase 7 final | `npm run build` · `npm run build:firebase` | pass · pass |
+| Phase 7 final | `supportEvidenceJourneys.mjs` (1440, 1024, 768×1024, 390×844) + S1 at 844×390 | 28/28 + 1/1; S1's new date checks red under each of their 3 mutations |
+| Phase 7 final | `journeys.mjs` A–K + retry (1440, 1024, 768) | 36/36 |
 
 ## Phase 1 — done
 
@@ -217,7 +229,7 @@ These are the facts the design is built on. File references are to `origin/main`
 - Found (pre-existing, confirmed on untouched main in an A/B worktree): the student assignment view logs React
   "Maximum update depth exceeded" in the harness. Not caused by this branch; backlog.
 
-## Phase 7 — done so far
+## Phase 7 — done
 
 **Browser gate committed.** `tests/browser/teacherWorkflow/supportEvidenceJourneys.mjs` covers:
 - T1 drawer section;
@@ -241,57 +253,81 @@ The existing PR #400 journeys A–K and retry run against the updated fixture.
 - Two deadline assertions assumed a Chicago process; CI runs in UTC. The suite now passes in five zones, and the rewritten assertions were mutation-checked in two.
 - The report's print-only black-on-white is recorded in the theme baseline.
 
-**Interactive Capability Certification** failed twice in CI at `teacherPreview-3x3`: the token drop onto R₂ landed under the floating work bar, so the solver never appeared.
-- It is not caused by this branch. The screenshot just before the drag is byte-identical to the green run's, no file the 3×3 page loads changed between the green and red commits, and the journey passes locally (exit 0) on this branch.
-- This certification also fails intermittently on `main` (4 of its last 18 runs).
+**Every student date is the student's own** (commit `4341b42a`). Four surfaces still printed the class due date:
+- Home "Do this next";
+- the Assignments tab;
+- the Grades tab;
+- the assignment result.
 
-## Handoff: what remains, in order
+How it was fixed:
+- `studentDueDates(assignment, lifecycle)` sits beside `studentDueDateLines` in `src/assignmentLifecycle.js`. It turns the student-bound lifecycle into the ISO dates a model row stores.
+- With no lifecycle, the class fields pass through unchanged.
+- The Grade Center entries and the Assignments Center rows use it.
+- `resolveNextAction` attaches `dueAt` from the lifecycle each candidate was chosen with: DOL, Warm-Up, resume, in progress, past due, due today, assigned later.
+- `WhatShouldIDoNow` prints only that.
 
-Everything above is committed and pushed. Resume on `ai/claude-iep-evidence-20260930` (PR #401).
+The same change makes late and closed rows name an attendance extension's final day.
 
-**1. Fix: four student surfaces show the class due date instead of the student's own.**
-Found in the browser with the fake student 910002: the class due is Oct 1 and their individualized due is Oct 2. The assignment header and the dashboard assignment card correctly say "Your due date: Oct 2". These four still print "Due Oct 1":
-- `src/components/student/WhatShouldIDoNow.jsx:77-79` (Home "Do this next"). It formats `nextAction.assignment.dueAt` directly.
-- `src/platform/student/studentAssignmentsCenterModel.js:167-168` (Assignments tab). Rendered at `StudentAssignmentsCenter.jsx:74-76`.
-- `src/platform/student/studentGradeCenterModel.js:399-400` (Grades tab and assignment result). Rendered at `StudentGradeCenter.jsx:119-120` and `StudentAssignmentResult.jsx:106-109`.
+How it is tested:
+- `tests/platform/studentIndividualizedDueDates.test.mjs`: 9 cases, and 11 mutations, each red.
+- S1 compares Home "Do this next", the Resume card, the Assignments and Grades rows, the result screen and the header, and rejects the class date.
 
-Each of those models already holds the student-bound lifecycle:
-- grade center: `getAssignmentLifecycle(assignment, nowValue, { studentId })` at line 320;
-- assignments center: `entry.lifecycle` from the dashboard model, whose provider is bound to the student at `App.jsx` ~11356;
-- dashboard output: `dashboard.allEntries[].lifecycle` and `dashboard.resumeLifecycle` for the next-action card.
+**Interactive Capability Certification.** The red `certify` runs on this PR are a flaky step in the 3×3 browser test. This branch does not cause them; this was investigated on 2026-10-01.
 
-Planned fix:
-- In both models, take `dueAt` / `lateDueAt` from `lifecycle.dueAt` / `lifecycle.lateDueAt` (Dates → ISO strings). Fall back to the class fields when there is no lifecycle.
-- For the next-action card, have `resolveNextAction` attach the student's `dueAt`: from `resumeLifecycle` for `resume`, and otherwise from the matching `allEntries` entry. The card then prints that.
-- Keep the labels as they are.
+**What fails.** `tests/browser/algebraicSystems3x3.mjs:239-241` drags the substitution token onto R₂'s z and waits for the Step Algebra solver. The solver never opens.
 
-Tests:
-- Each model gives an individualized date and the class date for another student.
-- The next-action card's due comes from the student's lifecycle.
-- Mutation-check each assertion.
-- Run the new tests under `TZ=UTC` as well, because CI runs in UTC.
-- Extend browser journey S1 to assert the "Do this next" card shows the individualized date ("Oct 2" for the fixture).
+| Result | Commits |
+| --- | --- |
+| Failed | `07af5f40`, `f667d11b` (teacherPreview-3x3); `d3cd7ed7` (both 3×3 journeys) |
+| Passed | `5c90fd9e`, `70ff9700` and the final head `25e5cc2e` |
 
-This also fixes the same pre-existing gap for attendance extensions.
+`70ff9700` → `d3cd7ed7` changed docs only, so the same code both passed and failed.
 
-**2. Full verification after the fix:**
-- `npm run test:platform`, plus `TZ=UTC npm run test:platform`.
-- `npm run test:rules` (needs Java).
-- `npm run lint`, `npm run audit:theme-colors`, `npm run build`, `npm run build:firebase`.
-- Browser journeys, if Chrome and Playwright are available:
-  - `supportEvidenceJourneys.mjs` with `VIEWPORTS=1440x900,1024x768,768x1024,390x844`;
-  - `journeys.mjs` (A–K).
-  - Run them one at a time, with nothing else editing `src/` or running a second Vite server (see Environment notes).
+**Mechanism, reproduced on untouched `main`:**
+- After the isolation solver unmounts, the page scroll settles at a position that depends on timing (smooth `scrollIntoView`, `AlgebraicSystemMode.jsx` ~393).
+- When it settles near the top, R₂'s z sits under the sticky `.mathmaster-desktop-action-bar` (`position: sticky; bottom: 0; z-index: 70`).
+- Playwright then scrolls to get clear of the bar while the mouse button is held. No dragstart or drop fires, and the mouseup becomes a plain click.
 
-**3. CI on PR #401.** At `70ff9700`, all checks were green except two:
-- **Interactive Capability Certification:** red twice at `teacherPreview-3x3` (a token drop under the floating work bar; analysed above as a CI flake). Re-run the failed job once; if it fails again, investigate. The journey passes locally.
-- **Work View Browser Matrix:** still pending at handoff.
+**The same failure happens without this PR.** The identical finding (`:241:14`) appears:
+- on `main`: 2 of 17 runs since the test last changed (`7bd8c47e`);
+- on unrelated PR branches.
 
-**4. Finalize the PR body.** Update the test counts, the browser results and the CI note. Edit with `gh api -X PATCH repos/matthewhawkinsus1-crypto/mathmaster-platform/pulls/401 -F body=@file`; `gh pr edit` silently does nothing on this repo. Then `gh pr ready 401`.
-- **Do not merge.**
-- **Do not deploy.**
+That is about 9% of runs outside this PR.
 
-**5. Mark this file complete** and add the final verification results to the log.
+**Nothing this PR changes reaches that page's layout:**
+- The test page mounts `QuestionEngine` directly. It does not render App.jsx, the header, the navigator or Support tools.
+- The new CSS targets only `.mathmaster-narrow-support-tools`, or adds `--mm-mod-*` variables.
+- The `onSupportEvidence` hooks do nothing without a callback.
+- Positions at the drop measure pixel-identical on `main` and on this branch.
+
+**Corrections to the earlier note:**
+- Nine files the page loads do change on this branch, although none affects its layout.
+- "4 of 18" on `main` counted two Work View failures, which are a different failure.
+
+**Proposed test-only fix.** It is not in this PR, which does not touch the test. Scroll R₂'s z to the centre before that one drag:
+```js
+const r2z = sub.locator('[aria-label^="R₂: choose where"] [data-variable="z"]');
+await r2z.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
+await settle(page, 150);
+await dragTokenOnto(page, token, r2z);
+```
+- With the scroll forced into the failing position, the current test fails exactly as in CI and the patched one passes.
+- Keep the change scoped to this drag. Moving the pre-scroll into the shared `dragTokenOnto` hung an earlier step.
+
+## Handoff — completed 2026-10-01
+
+A cloud session picked this up from the handoff below and finished it on `ai/claude-iep-evidence-20260930`.
+
+1. **Four student surfaces showed the class due date.** Fixed in `4341b42a`, as planned:
+   - Home "Do this next" — `resolveNextAction` attaches the date and `WhatShouldIDoNow` prints it;
+   - the Assignments tab — `studentAssignmentsCenterModel.js`;
+   - the Grades tab and the assignment result — `studentGradeCenterModel.js`.
+
+   All three read the dates through `studentDueDates`. See **Phase 7 — done** for the tests.
+2. **Full verification** passed; see the **Verification log**, "Phase 7 final" rows.
+3. **CI on PR #401** is green on the final head `25e5cc2e`, including `certify` and Work View. The earlier red `certify` runs are the flaky 3×3 step described above. It is not caused by this PR, and a test-only fix is proposed there.
+4. **PR body finalized and the PR marked ready for review.** It is not merged and not deployed.
+5. **This file** is marked complete, with the final results in the log.
 
 ## Remaining work / known gaps
 
