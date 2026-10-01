@@ -4,8 +4,10 @@
  * What the teacher's setup holds, how a preset fills it in, and what
  * createLiveChallenge receives. Light on purpose — presets and limits only
  * (graphFeatureRushConfig.mjs) — so the teacher console carries it for every
- * game type, while the setup panel itself and the reward rules load only when
- * a rush is chosen. Pure: tested in node.
+ * game type, while the setup panel itself loads only when a rush is chosen.
+ * Rewards are not here: a rush uses the same Rewards choice as every Live
+ * Challenge (ChallengeRewardSettings, challengeRewardPolicy.js). Pure: tested
+ * in node.
  */
 
 import { DEFAULT_FIELD_PLACEMENT, fieldPlacementPoints } from '../../../functions/shared/liveChallengeRanking.mjs';
@@ -17,12 +19,6 @@ export const RUSH_SCORING_OPTIONS = Object.freeze([
   Object.freeze({ id: 'correctCount', label: 'Correct Count', description: 'One point for every graph completed. Simple and cumulative; accuracy breaks ties.' }),
 ]);
 
-export const RUSH_REWARD_OPTIONS = Object.freeze([
-  Object.freeze({ id: 'standard', label: 'Standard Class Points', description: 'The usual Live Challenge achievements: Finisher and Strong Accuracy.' }),
-  Object.freeze({ id: 'podium', label: 'Standard + podium bonus', description: 'Also +2 Class Points for the top three finishers (ties share a place).' }),
-  Object.freeze({ id: 'off', label: 'No Class Points', description: 'Play for the leaderboard only.' }),
-]);
-
 /** A full setup from a preset. */
 export const rushSetupFromPreset = (preset) => ({
   presetId: preset.id,
@@ -32,7 +28,6 @@ export const rushSetupFromPreset = (preset) => ({
   roundCount: preset.roundCount,
   roundSeconds: preset.roundSeconds,
   scoringStrategyId: preset.scoringStrategyId,
-  rewards: 'standard',
 });
 
 /** The setup a class of this course starts from. */
@@ -56,8 +51,8 @@ export const changeRushSetup = (setup, patch) => {
 };
 
 /**
- * What createLiveChallenge receives. `rewardPolicy` is the policy the reward
- * choice resolves to (rushRewardPolicy.js); absent means the default rules.
+ * What createLiveChallenge receives. `rewardPolicy` is the teacher's Rewards
+ * choice as a policy (buildChallengeRewardPolicy); null means the default.
  */
 export const rushCreateRequest = (setup, { rewardPolicy = null } = {}) => ({
   challengeMode: RUSH_MODE_ID,

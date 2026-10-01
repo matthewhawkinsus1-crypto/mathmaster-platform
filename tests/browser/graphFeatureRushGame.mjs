@@ -344,7 +344,7 @@ const selectInLabel = async (handle, labelStart, value) => {
   await select.selectOption(String(value));
 };
 
-const createRush = async (teacher, { classKey, preset = null, rounds = 3, seconds = 30, scoring = 'grandPrix', rewards = 'standard' }) => {
+const createRush = async (teacher, { classKey, preset = null, rounds = 3, seconds = 30, scoring = 'grandPrix', passPlaces = 0 }) => {
   await teacher.page.waitForSelector('text=Create a challenge', { timeout: 20_000 });
   await selectInLabel(teacher, 'Class', CLASSES[classKey].classId);
   await selectInLabel(teacher, 'Game type', 'graphFeatureRush');
@@ -353,7 +353,8 @@ const createRush = async (teacher, { classKey, preset = null, rounds = 3, second
   await selectInLabel(teacher, 'Rounds', rounds);
   await selectInLabel(teacher, 'Time per round', seconds);
   await selectInLabel(teacher, 'Scoring', scoring);
-  await selectInLabel(teacher, 'Class Points', rewards);
+  // The shared Rewards choice, as on every Live Challenge.
+  await teacher.page.getByLabel('Practice Pass for').selectOption(String(passPlaces));
   await teacher.page.getByRole('button', { name: 'Create Lobby' }).click();
   try {
     await teacher.page.waitForSelector('text=Players in lobby', { timeout: 20_000 });
@@ -426,7 +427,7 @@ await run('two-player-grand-prix', async () => {
   const teacher = await openTeacher('chromebook');
   const a = await openStudent(idA, 'chromebook');
   const b = await openStudent(idB, 'phone');
-  const roomId = await createRush(teacher, { classKey: 'pair', preset: 'Quick Algebra I', rounds: 3, seconds: 30, scoring: 'grandPrix', rewards: 'podium' });
+  const roomId = await createRush(teacher, { classKey: 'pair', preset: 'Quick Algebra I', rounds: 3, seconds: 30, scoring: 'grandPrix', passPlaces: 1 });
   check(S, roomId, 'no room was created');
   for (const student of [a, b]) check(S, await waitForText(student, 'You are in as'), `${student.studentId} never reached the lobby`);
   await shot(a, 'gp-lobby-chromebook');
@@ -610,6 +611,17 @@ await run('two-player-grand-prix', async () => {
   check(S, (await roomOf(roomId)).status === 'finished', 'the game did not finish');
   for (const student of [a, b]) check(S, await waitForText(student, 'Challenge complete', 15_000), `${student.studentId}: no final standings`);
   check(S, /championship points · \d+ graphs/.test(await textOf(a)), 'A: the final summary does not read in championship points and graphs');
+  // Rewards through the shared Rewards choice: 1st place holds a Practice Pass.
+  const standings = (await db.collection('liveChallengeMatchResults').doc(roomId).get()).data()?.standings || [];
+  const firsts = standings.filter((row) => row.rank === 1).map((row) => row.studentId).sort();
+  let passes = [];
+  for (let tries = 0; tries < 30; tries += 1) {
+    passes = (await db.collection('rewardGrants').where('source.id', '==', roomId).get()).docs
+      .map((doc) => doc.data()).filter((grant) => grant.rewardCode === 'practicePass');
+    if (passes.length >= firsts.length) break;
+    await wait(500);
+  }
+  check(S, firsts.length >= 1 && JSON.stringify(passes.map((grant) => grant.studentId).sort()) === JSON.stringify(firsts), `Practice Passes went to ${JSON.stringify(passes.map((grant) => grant.studentId))}, 1st place was ${JSON.stringify(firsts)}`);
   await shot(a, 'gp-final-chromebook');
   await shot(b, 'gp-final-phone');
   await shot(teacher, 'gp-final-projector');
@@ -631,7 +643,7 @@ await run('correct-count-devices', async () => {
     openStudent(ids[2], 'smallPhone', { colorScheme: 'dark' }),
     openStudent(ids[3], 'ipadLandscape', { reducedMotion: 'reduce' }),
   ]);
-  const roomId = await createRush(teacher, { classKey: 'class', preset: 'Algebra II Mixed', rounds: 1, seconds: 30, scoring: 'correctCount', rewards: 'standard' });
+  const roomId = await createRush(teacher, { classKey: 'class', preset: 'Algebra II Mixed', rounds: 1, seconds: 30, scoring: 'correctCount' });
   for (const student of students) check(S, await waitForText(student, 'You are in as'), `${student.studentId}: no lobby`);
   await startGame(teacher);
   const room = await waitForRoundOpen(roomId, 0);

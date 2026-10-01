@@ -277,7 +277,7 @@ export default function LiveChallengeTeacher({
   }, [classId, classPeriod, selectedClass, courseProfiles]);
   useEffect(() => { setDryRunOpen(false); }, [classId, courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, solverRaceDifficulty, roundCount, roundSeconds, timingMode, speedInfluencePercent, playerDisplayMode]);
   // A different course starts from that course's rush preset.
-  useEffect(() => { setRushSetup((current) => ({ ...defaultRushSetup(courseId), rewards: current.rewards })); }, [courseId]);
+  useEffect(() => { setRushSetup(defaultRushSetup(courseId)); }, [courseId]);
   useEffect(() => {
     const selected = assignments.find((assignment) => String(assignment.id) === String(warmupAssignmentId));
     const configured = selected?.warmup?.liveChallenge?.deliveryMode;
@@ -422,14 +422,14 @@ export default function LiveChallengeTeacher({
         // Graph Feature Rush: no Warm-Up link, no bank question style, no
         // speed setting — the mode's own settings, validated again by the server.
         if (rushProblem) throw new Error(rushProblem);
-        const { rushRewardPolicy } = await import('../../platform/liveChallenge/rushRewardPolicy.js');
         let created;
         try {
           created = await createLiveChallenge({
             classId,
             classPeriod,
             courseId,
-            ...rushCreateRequest(rushSetup, { rewardPolicy: rushRewardPolicy(rushSetup.rewards) }),
+            // The same Rewards choice as every Live Challenge.
+            ...rushCreateRequest(rushSetup, { rewardPolicy: buildChallengeRewardPolicy(rewardChoice) }),
             title: title.trim() || `${selectedClass?.name || classPeriod || 'Class'} Graph Feature Rush`,
           });
         } catch (error) {

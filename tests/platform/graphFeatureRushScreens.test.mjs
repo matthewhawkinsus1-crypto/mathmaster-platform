@@ -4,12 +4,12 @@ import { readFileSync } from 'node:fs';
 
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { getChallengeMode, modeScoringConfig, normalizeModeConfig, normalizeModeRoundCount, normalizeModeRoundSeconds, resolveModeScoringStrategy } from '../../functions/shared/liveChallengeModes.mjs';
-import { evaluateRewardPolicy, normalizeRewardPolicy } from '../../functions/shared/liveChallengeRewardRules.mjs';
+import { evaluateRewardPolicy } from '../../functions/shared/liveChallengeRewardRules.mjs';
 import { GRAPH_FEATURE_RUSH_PRESETS } from '../../functions/shared/graphFeatureRushConfig.mjs';
 import { RUSH_MODE_ID } from '../../functions/shared/graphFeatureRushRules.mjs';
 import { rushPlayingCount, rushRaceRows, rushRoundFacts, rushRoundResultRows, rushScoreUnit } from '../../src/platform/liveChallenge/rushStandingsModel.js';
 import { changeRushSetup, defaultRushSetup, grandPrixLadder, rushCreateRequest, rushSetupFromPreset } from '../../src/platform/liveChallenge/rushSetupModel.js';
-import { RUSH_PODIUM_RULE, rushRewardPolicy } from '../../src/platform/liveChallenge/rushRewardPolicy.js';
+import { PASS_RULE_ID, buildChallengeRewardPolicy } from '../../src/platform/rewards/challengeRewardPolicy.js';
 
 /*
  * GRAPH FEATURE RUSH ON EVERY SCREEN.
@@ -74,7 +74,7 @@ test('every preset becomes a request the server accepts unchanged', () => {
     assert.equal(normalizeModeRoundCount(mode, request.roundCount), preset.roundCount);
     assert.equal(normalizeModeRoundSeconds(mode, request.roundSeconds), preset.roundSeconds);
     assert.equal(resolveModeScoringStrategy(mode, request.scoringStrategyId), preset.scoringStrategyId);
-    assert.ok(!('rewardPolicy' in request), 'standard rewards send no policy: the default rules apply');
+    assert.ok(!('rewardPolicy' in request), 'no reward choice sends no policy: the default rules apply');
   }
   // Grand Prix in a rush scales to the class.
   assert.equal(modeScoringConfig(getChallengeMode(RUSH_MODE_ID), 'grandPrix', {}).placementCurve, 'field');
@@ -89,14 +89,10 @@ test('the Grand Prix ladder a teacher reads is the field curve the server pays',
   assert.equal(class24.at(-1).points, 3);
 });
 
-test('reward choices are policies for the existing reward rules', () => {
-  assert.equal(rushRewardPolicy('standard'), null, 'standard: the platform default');
-  assert.deepEqual(rushRewardPolicy('off').rules, []);
-  const podium = rushRewardPolicy('podium');
-  assert.deepEqual(normalizeRewardPolicy(podium), podium, 'already in the server\'s normal form');
-  assert.equal(podium.rules.length, 4);
-  assert.equal(podium.rules.at(-1).ruleId, RUSH_PODIUM_RULE.ruleId);
-  // Placement rewards the top three — ties share — and nobody who never played.
+test('a rush offers the same Rewards choice as every Live Challenge', () => {
+  // The shared Rewards choice (Practice Pass for the top places) reads the
+  // rush's final ranking like any match's: placement, ties sharing a place.
+  const podium = buildChallengeRewardPolicy({ passPlaces: 3, passExpiryDays: 14, championBadge: false });
   const standings = [
     { studentId: 's1', joined: true, rank: 1, roundsAnswered: 3, answeredRounds: [0, 1, 2] },
     { studentId: 's2', joined: true, rank: 2, roundsAnswered: 3, answeredRounds: [0, 1, 2] },
@@ -105,9 +101,10 @@ test('reward choices are policies for the existing reward rules', () => {
     { studentId: 's5', joined: true, rank: 3, roundsAnswered: 0, answeredRounds: [] },
   ];
   const awards = evaluateRewardPolicy({ matchResult: { roomId: 'r', scheduledRoundCount: 3, standings }, policy: podium });
-  assert.deepEqual(awards.filter((award) => award.ruleId === RUSH_PODIUM_RULE.ruleId).map((award) => award.studentId), ['s1', 's2', 's3']);
+  assert.deepEqual(awards.filter((award) => award.ruleId === PASS_RULE_ID).map((award) => award.studentId), ['s1', 's2', 's3']);
   const create = rushCreateRequest(defaultRushSetup('algebra1'), { rewardPolicy: podium });
   assert.equal(create.rewardPolicy, podium);
+  assert.ok(!('rewardPolicy' in rushCreateRequest(defaultRushSetup('algebra1'), { rewardPolicy: buildChallengeRewardPolicy({}) })), 'no choice, no policy');
 });
 
 /* --------------------------- the student's screen -------------------------- */
@@ -164,7 +161,9 @@ test('the teacher console offers the rush and creates it with its own settings',
   assert.match(teacher, /const GraphFeatureRushSetup = lazy\(\(\) => import\('\.\/GraphFeatureRushSetup\.jsx'\)\);/);
   const create = region(teacher, 'if (rushMode) {', 'if (warmupAssignmentId && warmupDeliveryMode', 'rush create');
   assert.match(create, /if \(rushProblem\) throw new Error\(rushProblem\);/, 'an impossible game is not sent');
-  assert.match(create, /rushCreateRequest\(rushSetup, \{ rewardPolicy: rushRewardPolicy\(rushSetup\.rewards\) \}\)/);
+  assert.match(create, /rushCreateRequest\(rushSetup, \{ rewardPolicy: buildChallengeRewardPolicy\(rewardChoice\) \}\)/);
+  // The Rewards choice is shown for every game type, the rush included.
+  assert.match(teacher, /\{!rushMode && <ScoringCompetitionCard [^\n]*\n\s*<ChallengeRewardSettings choice=\{rewardChoice\} onChange=\{setRewardChoice\} \/>/);
   assert.doesNotMatch(executableSource(create), /assignmentId/, 'a rush is never linked to a Warm-Up');
   assert.match(teacher, /\{!rushMode && <label style=\{\{ fontWeight: 800 \}\}>Run as a Warm-Up/);
 });

@@ -9,7 +9,6 @@ import {
   rushConfigProblem,
 } from '../../../functions/shared/graphFeatureRushConfig.mjs';
 import {
-  RUSH_REWARD_OPTIONS,
   RUSH_SCORING_OPTIONS,
   changeRushSetup,
   grandPrixLadder,
@@ -56,7 +55,7 @@ export default function GraphFeatureRushSetup({ setup, onChange, classSize = 0, 
         <legend style={{ fontWeight: 900, marginBottom: 8 }}>Start from a preset</legend>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {GRAPH_FEATURE_RUSH_PRESETS.map((preset) => (
-            <button key={preset.id} type="button" aria-pressed={setup.presetId === preset.id} title={preset.description} onClick={() => onChange({ ...rushSetupFromPreset(preset), rewards: setup.rewards })} style={chip(setup.presetId === preset.id)}>
+            <button key={preset.id} type="button" aria-pressed={setup.presetId === preset.id} title={preset.description} onClick={() => onChange(rushSetupFromPreset(preset))} style={chip(setup.presetId === preset.id)}>
               {preset.label}
             </button>
           ))}
@@ -113,12 +112,6 @@ export default function GraphFeatureRushSetup({ setup, onChange, classSize = 0, 
             {RUSH_SCORING_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
           </select>
           <span style={hint}>{RUSH_SCORING_OPTIONS.find((option) => option.id === setup.scoringStrategyId)?.description}</span>
-        </label>
-        <label style={{ fontWeight: 800 }}>Class Points
-          <select value={setup.rewards} onChange={(event) => onChange({ ...setup, rewards: event.target.value })} style={field}>
-            {RUSH_REWARD_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-          </select>
-          <span style={hint}>{RUSH_REWARD_OPTIONS.find((option) => option.id === setup.rewards)?.description}</span>
         </label>
       </div>
 

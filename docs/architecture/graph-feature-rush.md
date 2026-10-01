@@ -46,7 +46,7 @@ questions, and screens.
 | `graphFeatureRush.mjs` | the submit transaction's body (`applyRushAttempts`), round state from receipts, player totals, the report | server, practice, tests |
 | `src/platform/liveChallenge/rushGraphModel.js` | the drawing in unit space, screen↔graph, keyboard cursor | browser, tests |
 | `src/platform/liveChallenge/rushSession.js` | a student's round on the device: local grading, queue, reconciliation | browser, tests |
-| `rushStandingsModel.js`, `rushSetupModel.js`, `rushRewardPolicy.js` | round results and the live race from public rows; the setup as data; reward choices as policies | browser, tests |
+| `rushStandingsModel.js`, `rushSetupModel.js` | round results and the live race from public rows; the setup as data | browser, tests |
 
 Screens: `GraphFeatureRushRound.jsx` (student round), `GraphFeatureRushGraph.jsx`
 (the SVG), `GraphFeatureRushSetup.jsx`, `GraphFeatureRushPractice.jsx`,
@@ -283,9 +283,11 @@ round — graphs, accuracy, place, points, championship total and standing.
 
 **Teacher.** Graph Feature Rush is a game type in the existing Create a
 challenge panel: presets as starting points, then families, features,
-difficulty, rounds, time, scoring (with the ladder for the class size) and
-Class Points (standard, plus a podium bonus, or none — policies for the
-existing reward rules). An impossible combination is explained before
+difficulty, rounds, time and scoring (with the ladder for the class size).
+Rewards use the same choice as every Live Challenge (`ChallengeRewardSettings`:
+the standard Class Points achievements, plus a Practice Pass for the top
+places and a Champion badge if the teacher wants them); placement comes from
+the rush's final ranking. An impossible combination is explained before
 anything is created. "Try it yourself first" plays server-generated sample
 graphs on the student's screen, graded locally, recording nothing.
 
@@ -323,8 +325,8 @@ and dark; reduced motion turns the pops and fades off.
   invite only; the teacher and projector listen to the players.
 - **Bundles**: the student round is its own lazily loaded chunk (≈38 kB,
   13 kB gzip) fetched while the lobby waits; the generator and families never
-  ship to a browser; the teacher's setup panel, practice and reward policy load
-  only when a rush is chosen.
+  ship to a browser; the teacher's setup panel and practice load only when a
+  rush is chosen.
 - **Known cost**: the legacy `adjustLiveChallengeExperienceScore` trigger
   (`functions/entry.js`) fires on every private-player write and returns at
   once for a rush; deleting it in a deployment that removes it explicitly
@@ -347,8 +349,8 @@ and dark; reduced motion turns the pops and fades off.
 - `graphFeatureRushDevice.test.mjs` — the drawing, coordinates, keyboard
   cursor, the device session, and device–server agreement over thousands of
   random taps.
-- `graphFeatureRushScreens.test.mjs` — setup, results and reward models, and
-  source contracts for every screen's wiring.
+- `graphFeatureRushScreens.test.mjs` — the setup and results models, the
+  shared Rewards choice, and source contracts for every screen's wiring.
 - `tests/integration/graphFeatureRush.test.mjs` (emulator) — full games
   through the callables: replays, refresh, stale tokens, deadlines, the
   eighth-miss skip, closes and results, finish, the next game, 10 and 35
