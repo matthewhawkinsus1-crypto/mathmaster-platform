@@ -51,9 +51,10 @@ real Chromium pages, or through the real pure modules.
 | Docs | the rush doc's Correct Count tiebreak said "rounds played ↓" (the code ranks fewer rounds first) | corrected | — |
 
 Every behavior test above was run against the code before its fix and failed
-(mutation-checked). Four existing source-text tests pinned a spelling the fixes
-changed; each was rewritten against the behavior and mutation-checked
-(AGENTS.md).
+(mutation-checked). Six existing source-text assertions pinned a spelling the
+fixes changed (the closing threshold twice, the roster effect, the room
+listener, the degraded-clock notice, the rewards slot); each was rewritten
+against the behavior and mutation-checked (AGENTS.md).
 
 ---
 
@@ -358,7 +359,7 @@ What a new mode would hit:
 | `npm run lint` | 0 errors | 0 errors (warnings pre-existing) |
 | `npm run build`, `npm run build:firebase` | ok | ok |
 | shell QA, every scenario (real browsers) | 7 scenarios | 8 scenarios, 0 findings |
-| rush game / rewards QA / game stub (real browsers) | pass | pass (rewards 28 / 28) |
+| rush game / rewards QA / game stubs (real browsers) | pass | pass (rush 5 / 5, rewards 28 / 28, repeated matches 18 / 18) |
 
 Bundle cost: the student screen +0.5 kB gzip (22.95 kB), the console +0.8
 kB gzip (40.34 kB), the rush round +0.05 kB.
