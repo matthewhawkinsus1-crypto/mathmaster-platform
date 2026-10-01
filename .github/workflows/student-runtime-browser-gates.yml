@@ -15,6 +15,8 @@ name: Student Runtime Browser Gates
 #                       boundaries: recoverable screens, no reload loop
 #   duplicateTabs       the same question in two tabs of one browser: the older
 #                       tab pauses, and the newest work is the work kept
+#   graphPointCheck     on a DOL, quiz or test the graph's point check never
+#                       names a wrong point; a point plot is graded as placed
 
 on:
   pull_request:
@@ -25,6 +27,7 @@ on:
       - "tests/browser/renderStability*"
       - "tests/browser/errorRecovery*"
       - "tests/browser/duplicateTabs.mjs"
+      - "tests/browser/graphPointCheck*"
       - "tests/browser/studentUxPlatform*"
       - "tests/browser/stepAlgebraDriver.mjs"
       - "package.json"
@@ -78,3 +81,9 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/duplicateTabs.mjs
+      - name: Graph point check follows the feedback policy
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/graphPointCheck.mjs

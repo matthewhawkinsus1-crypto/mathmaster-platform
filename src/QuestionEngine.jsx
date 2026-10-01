@@ -959,6 +959,9 @@ export default function QuestionEngine({
     // Reported exactly like a revealed hint, which is what discounts the
     // mastery weight through isMathematicallyIndependent.
     onSelfCheck: () => setHintUsed(true),
+    // The point check may name wrong points only where outcomes are shown at
+    // once; on a DOL, quiz or test the submission is the check.
+    revealPointCorrectness: showOutcomeFeedback,
   };
 
   const commonModuleProps = {
