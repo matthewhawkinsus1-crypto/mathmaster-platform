@@ -207,6 +207,18 @@ test('the projector shows one view per stage, from the room\'s own clock', () =>
   assert.match(component, /aria-pressed=\{audioMuted\} onClick=\{onToggleMute\}/, 'sound can always be muted');
 });
 
+test('the final standings under the podium show only rows that fit whole, and the note under them', () => {
+  // The viewport's row budget asked for five rows at 1366×768 where three
+  // fit; the rest, and "Everyone sees their own final place", were cut off.
+  const finale = region(projector, 'function FinalPodium(', '\nfunction LobbyView(', 'final podium');
+  assert.match(finale, /useRowsThatFit\(boardRef, Math\.min\(remaining\.length, Math\.max\(0, rows - 1\)\)\)/);
+  assert.match(finale, /<div ref=\{boardRef\} style=\{\{ minHeight: 0, overflow: 'hidden'/);
+  const fit = region(projector, 'function useRowsThatFit(', '\nfunction FinalPodium(', 'row fit');
+  assert.match(fit, /Math\.floor\(\(box\.clientHeight - chrome - FINAL_NOTE_PX \+ 6\) \/ rowHeight\)/);
+  assert.match(fit, /new ResizeObserver\(measure\)/);
+  assert.match(fit, /return \(\) => observer\.disconnect\(\);/);
+});
+
 test('the podium handles ties and shows what placement earns', () => {
   const podium = region(projector, 'function PodiumPlace(', '\nfunction LobbyView(', 'podium');
   assert.match(podium, /const rank = Math\.max\(1, Math\.min\(3, Number\(row\.rank\) \|\| place\)\);/, 'the medal is the rank tied players share');

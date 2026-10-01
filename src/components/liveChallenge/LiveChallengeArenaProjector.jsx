@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import MathText from '../common/MathText.jsx';
 import { RushRaceBoard, rushSettingsLine } from './GraphFeatureRushHost.jsx';
 import {
@@ -240,10 +240,43 @@ function PodiumPlace({ row, place, height, revealDelay, presentation, rewards = 
   );
 }
 
+/*
+ * How many standings rows fit WHOLE in the box `ref` points at (a box that
+ * fills the space it is given), up to `wanted`, with room left for a one-line
+ * note under them. The viewport's row budget cannot know how tall the podium
+ * above came out — at 1366×768 it asked for five rows where three fit, and
+ * the last ones, with "Everyone sees their own final place", were cut off.
+ */
+const FINAL_NOTE_PX = 30;
+function useRowsThatFit(ref, wanted) {
+  const [fit, setFit] = useState(wanted);
+  useLayoutEffect(() => {
+    const box = ref.current;
+    if (!box) return undefined;
+    const measure = () => {
+      const panel = box.firstElementChild;
+      if (!panel) return;
+      const styles = window.getComputedStyle(panel);
+      const chrome = ['paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth']
+        .reduce((sum, key) => sum + (parseFloat(styles[key]) || 0), 0);
+      const row = panel.querySelector('li');
+      const rowHeight = (row ? row.getBoundingClientRect().height : 56) + 6;
+      setFit(Math.max(0, Math.min(wanted, Math.floor((box.clientHeight - chrome - FINAL_NOTE_PX + 6) / rowHeight))));
+    };
+    measure();
+    if (typeof ResizeObserver !== 'function') return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(box);
+    return () => observer.disconnect();
+  }, [ref, wanted]);
+  return Math.min(fit, wanted);
+}
+
 function FinalPodium({ leaderboard = [], presentation, rewardsByKey = null, rewardSummary = null, rows = 6 }) {
   const podium = podiumRows(leaderboard);
   const remaining = belowPodiumRows(leaderboard).slice(0, 9);
-  const shownBelow = remaining.slice(0, Math.max(0, rows - 1));
+  const boardRef = useRef(null);
+  const shownBelow = remaining.slice(0, useRowsThatFit(boardRef, Math.min(remaining.length, Math.max(0, rows - 1))));
   const lines = rewardSummaryLines(rewardSummary);
   return (
     <div className="mm-arena-finish" style={{ display: 'grid', gridTemplateRows: 'auto auto minmax(0,1fr)', gap: 'clamp(10px, 1.8vh, 20px)', minHeight: 0, height: '100%' }}>
@@ -260,13 +293,17 @@ function FinalPodium({ leaderboard = [], presentation, rewardsByKey = null, rewa
         <PodiumPlace row={podium.first} place={1} height="clamp(70px, 12vh, 112px)" revealDelay={620} presentation={presentation} rewards={rewardsByKey?.get(podium.first?.playerKey) || null} />
         <PodiumPlace row={podium.third} place={3} height="clamp(32px, 6vh, 52px)" revealDelay={350} presentation={presentation} rewards={rewardsByKey?.get(podium.third?.playerKey) || null} />
       </div>
-      {shownBelow.length > 0 && (
-        <section style={{ ...glassPanel, padding: 'clamp(10px, 1.6vh, 16px)', maxWidth: 860, width: '100%', margin: '0 auto', overflow: 'hidden' }}>
-          <StandingsBoard rows={standingsRows(shownBelow)} presentation={presentation} look="projector" limit={shownBelow.length} showMovement={false} rewardsByKey={rewardsByKey} label="Final standings" />
-          {belowPodiumRows(leaderboard).length > shownBelow.length && (
-            <div style={{ marginTop: 6, color: 'rgba(236,241,255,.7)', fontWeight: 800 }}>Everyone sees their own final place on their device.</div>
-          )}
-        </section>
+      {remaining.length > 0 && (
+        <div ref={boardRef} style={{ minHeight: 0, overflow: 'hidden', display: 'grid', alignContent: 'start' }}>
+          <section data-mm-final-board={shownBelow.length} style={{ ...glassPanel, padding: 'clamp(10px, 1.6vh, 16px)', maxWidth: 860, width: '100%', margin: '0 auto', overflow: 'hidden', boxSizing: 'border-box' }}>
+            {shownBelow.length > 0 && (
+              <StandingsBoard rows={standingsRows(shownBelow)} presentation={presentation} look="projector" limit={shownBelow.length} showMovement={false} rewardsByKey={rewardsByKey} label="Final standings" />
+            )}
+            {belowPodiumRows(leaderboard).length > shownBelow.length && (
+              <div data-mm-final-more="1" style={{ marginTop: shownBelow.length ? 6 : 0, color: 'rgba(236,241,255,.7)', fontWeight: 800 }}>Everyone sees their own final place on their device.</div>
+            )}
+          </section>
+        </div>
       )}
     </div>
   );
