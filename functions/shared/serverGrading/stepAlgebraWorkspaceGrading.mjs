@@ -467,6 +467,22 @@ const workspaceMode = (question, { literal = false } = {}) => {
   return literal && mode === STEP_ALGEBRA_MODES.LINEAR_INTERCEPTS ? STEP_ALGEBRA_MODES.EQUATION : mode;
 };
 
+/*
+ * The readers above, for the server's per-step credit
+ * (stepAlgebraStepVerification.mjs): the step verifier opens exactly the
+ * equation and relation this grader opens, through the same functions, so a
+ * step and the final answer are judged against one question. (An intercept
+ * step reads the line as the orchestrator does — resolveStandardCoefficients —
+ * because the orchestrator, unlike this grader, also opens a vertical or
+ * horizontal line.)
+ */
+export {
+  finalRelation as relationStateFromWork,
+  pristineEquation as workspacePristineEquation,
+  workspaceMode as stepAlgebraWorkspaceMode,
+};
+export const workspacePristineRelation = (question = {}) => pristineRelation(withPromptRelationSource(question));
+
 const gradeInMode = (question, work, { literal = false } = {}) => {
   const mode = workspaceMode(question, { literal });
   if (!isObject(work)) return ungradedResult('empty-response', { mode });

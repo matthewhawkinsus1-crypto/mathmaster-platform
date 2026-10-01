@@ -42,6 +42,15 @@ import { RelationDistributionPanel, RelationLikeTermsPanel } from './RelationStr
 import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
 import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
 import { relationWorkspaceWork, workGraderForQuestion } from '../functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs';
+// A relation step's credit and its raw work: one definition, shared with the
+// server, which derives the same credit from that work.
+import {
+  STEP_ACTIONS,
+  relationStatePatch,
+  relationStepGrade,
+  relationStepWork,
+  stepActionCountsAttempt,
+} from '../functions/shared/serverGrading/stepAlgebraStepVerification.mjs';
 import { relationDistributionCandidates, relationLikeTermCandidates } from './algebraRelationStructureModel.js';
 
 const BASIC_OPERATIONS = [
@@ -876,25 +885,16 @@ export default function MultiRelationAlgebra({
     rewriteValue,
   ]);
 
-  const persistStep = async (before, after, label, kind = 'relation-step') => {
+  // `transition` is the validation context the step was checked with
+  // (validateRelationTransition): it travels in the step's raw work so the
+  // server re-runs the same check and derives the same credit.
+  const persistStep = async (before, after, label, kind = 'relation-step', transition = { kind: 'equivalentRewrite' }) => {
     if (!onStepGrade) return;
     await onStepGrade({
-      stepGrade: {
-        kind,
-        label,
-        productive: true,
-        accepted: true,
-        earned: 1,
-        possible: 1,
-        equationBefore: relationStateToLatex(before),
-        equationAfter: relationStateToLatex(after),
-        expectedTotalPoints: Number(question.expectedStepPoints || 8),
-      },
-      countsAttempt: false,
-      statePatch: {
-        algebraState: { relationState: after },
-        questionDetails: `Current relation: ${relationStateToText(after)}`,
-      },
+      stepGrade: relationStepGrade({ kind, label, before, after, question }),
+      countsAttempt: stepActionCountsAttempt(STEP_ACTIONS.RELATION_STEP),
+      statePatch: relationStatePatch(after),
+      stepWork: relationStepWork({ kind, label, before, after, transition }),
     });
   };
 
@@ -922,7 +922,7 @@ export default function MultiRelationAlgebra({
     setRelationPicker(null);
     setPlacementByKey({});
     setActiveBranch((current) => Math.min(current, Math.max(0, (next.branches?.length || 1) - 1)));
-    await persistStep(before, next, label, kind);
+    await persistStep(before, next, label, kind, validationContext);
     return true;
   };
 
@@ -1328,7 +1328,13 @@ export default function MultiRelationAlgebra({
         activeBranch,
       }]);
       setPendingRelationFlip(null);
-      await persistStep(pending.before, next, pending.label, 'student-relation-direction');
+      await persistStep(
+        pending.before,
+        next,
+        pending.label,
+        'student-relation-direction',
+        pending.validationContext || { kind: 'equivalentRewrite' },
+      );
       setMessage({
         tone: 'success',
         text: flipResults.length > 1

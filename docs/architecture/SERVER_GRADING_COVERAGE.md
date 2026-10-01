@@ -326,6 +326,28 @@ an earlier session was checkpointed when it was made. Data Modeling,
 Transformations, the Constraint Function Builder and the Polynomial Workshop
 also treat their untouched starting state as incomplete in the grader itself.
 
+**Step Algebra step credit is derived on the server.** Every committed balance
+move, rewrite, distribution, cancellation, relation step and intercept check
+now travels with its raw work (`stepWork`: the state before and after, and the
+operation; never a verdict). Ingestion verifies it with the workspace's own
+engine (`serverGrading/stepAlgebraStepVerification.mjs`): the step must start
+from a state this variant has really been in (the authoritative question, the
+family instance rebuilt from its pin, or a recorded state) and be what its
+operation produces; the credit is then recomputed and applied to the canonical
+record by the same `recordQuestionStep` the browser applied. The client's
+record is not read. A step that fails is an `unverified-step` that earns
+nothing. Randomized honest solves (about 22,000 steps across equations,
+relations and intercepts) give the browser's record exactly. Two cases keep the
+sanitized path (credit capped at 90%, never a correct status): a step queued by
+a client built before step work existed, and a step whose composed expressions
+exceed the server's complexity budget (about 0.5–1% of long relation steps;
+recording it as unverified would strand every later step). The first is the
+forged-envelope path that remains; a teacher-writable switch,
+`settings/serverGrading.requireStepWork`, retires it once old offline queues
+have drained (off by default). Ingestion also stops starting new envelopes 40
+seconds into a call and returns the rest as retryable, so a batch of crafted
+steps cannot time out honest work queued beside it.
+
 **Work the server will not mark spends no attempt.** When a server-graded
 surface's shared grader declines the work in the browser (unreadable,
 oversize, a newer contract, or, for a composed question, text the server will
@@ -937,8 +959,9 @@ surfaces, always with a stated reason, and keep the bounded client record:
   `acceptedAnswers` (`mode-not-server-gradable:answerBox`);
 * a response captured by a client built before this change, still in an
   offline queue (`legacy-unstructured-response`);
-* Step Algebra per-step process credit (`stepSubmission`) from a client that
-  does not send the step's raw work (see §7).
+* Step Algebra per-step process credit from a client that does not send the
+  step's raw work, or a step beyond the server's complexity budget (§7); the
+  first retires with `settings/serverGrading.requireStepWork`.
 
 Specialized subsystems keep their own engines, unchanged: Secure Test Cycle,
 My Math Path and Live Challenge.

@@ -25,6 +25,9 @@
  *     Question Family instance rebuilt from its delivery pin — the student's
  *     RAW RESPONSE is re-graded here and the browser's verdict is discarded.
  *     That is strictly more secure than the path it replaces.
+ *   - a Step Algebra step that carries its raw work (`stepWork`) earns the
+ *     step credit the server derives from that work, applied to the
+ *     server's own record; the browser's step record is not read.
  *   - for everything else the envelope's record is accepted, but sanitized
  *     through the shared attempt policy and bounded by the attempt count the
  *     server itself read. A browser cannot mint attempts, jump attempt counts,
@@ -51,9 +54,11 @@ import {
   getQuestionCredit,
   normalizeQuestionRecord,
   recordQuestionAttempt,
+  recordQuestionStep,
   resolveQuestionMaximumAttempts,
   resolveTeacherGrantedExtraAttempts,
 } from './attemptPolicy.mjs';
+import { stepCreditContext, unverifiedStep, verifyStepAlgebraStep } from './serverGrading/stepAlgebraStepVerification.mjs';
 import { getEffectiveActivityPolicy } from './activityPolicies.mjs';
 import { buildAttemptEvidenceEvent } from './attemptEvidenceEvent.mjs';
 import {
@@ -354,8 +359,9 @@ export const sanitizeClientAttemptRecord = ({
  * Can the server mark this submission itself?
  *
  * When it can, the browser's verdict is not consulted at all. A step submission
- * is excluded: its credit comes from the multi-step algebra contract, which has
- * no server-side grader, so its record is sanitized rather than re-derived.
+ * is not a final answer and is never re-graded here: a Step Algebra step that
+ * carries its raw work is credited by verifyStepAlgebraStep in
+ * buildIngestedAttempt, and any other step record is sanitized.
  */
 export const serverCanRegradeEnvelope = ({ envelope, question }) => {
   if (envelope?.kind !== 'ordinarySubmission') return { regrade: false, reason: `kind:${envelope?.kind || 'unknown'}` };
@@ -405,6 +411,10 @@ export const buildIngestedAttempt = ({
   // names (modelingLabGrading.mjs selectModelingLabMarker), read by the
   // caller inside the same transaction. Never anything the browser sent.
   modelingLabMarker = null,
+  // settings/serverGrading.requireStepWork (functions/index.js): once queues
+  // from clients built before step work existed have drained, the platform
+  // retires the legacy step path below. Off unless the setting says so.
+  requireStepWork = false,
 } = {}) => {
   const canonical = stripNonCanonicalInspectionFields(normalizeQuestionRecord(canonicalRecord));
   const academicAt = occurredAt === null || occurredAt === undefined
@@ -480,7 +490,65 @@ export const buildIngestedAttempt = ({
       regrade = { regrade: false, reason: regradeGrading.reason };
     }
   }
-  if (modelingLab) {
+  /*
+   * A STEP ALGEBRA STEP THAT CARRIES ITS RAW WORK IS CREDITED BY THE SERVER.
+   *
+   * The step's credit is derived here from `stepWork`, against the question
+   * the student was shown (a family instance rebuilt from its pin), by the
+   * same functions the workspace used (serverGrading/
+   * stepAlgebraStepVerification.mjs), and applied to the CANONICAL record
+   * through the same recordQuestionStep the browser applied — the client's
+   * record, its stepGrades and its partial credit are not read at all. A
+   * step that does not follow from a state this variant has been in, or is
+   * not what its operation produces, is recorded as an `unverified-step`
+   * that earns nothing; an attempt it spends (a rejected or inefficient
+   * move) is still spent. recordQuestionStep never completes a question.
+   *
+   * A step without stepWork — queued by a client built before step work
+   * existed — keeps the sanitized path below, unchanged. So does a step whose
+   * states are plain algebra but beyond the server's complexity budget
+   * (STEP_BEYOND_SERVER_BUDGET): an honest student can outgrow it, and
+   * recording that step as unverified would strand every later step. That is
+   * no more open than leaving stepWork out; the two retire together.
+   *
+   * RETIRING THE LEGACY PATH. Leaving stepWork out is how a forged step
+   * envelope still reaches the sanitized path (up to 90%). With
+   * `requireStepWork` on, a step without stepWork, on a question whose steps
+   * the server can verify, is recorded as an unverified step that earns
+   * nothing and spends no attempt.
+   */
+  const stepQuestionVerifiable = envelope.kind === 'stepSubmission' && !(family.familyBacked && !family.question);
+  const legacyStepRefused = requireStepWork === true
+    && stepQuestionVerifiable
+    && !envelope.stepWork
+    && stepCreditContext(gradingQuestion).supported;
+  const stepVerification = stepQuestionVerifiable && envelope.stepWork
+    ? verifyStepAlgebraStep({ question: gradingQuestion, record: canonical, stepWork: envelope.stepWork })
+    : legacyStepRefused
+      ? unverifiedStep(null, 'step-work-required')
+      : null;
+  const serverStep = stepVerification?.eligible === true ? stepVerification : null;
+  if (serverStep) {
+    const outcome = recordQuestionStep({
+      record: canonical,
+      stepGrade: serverStep.stepGrade,
+      countsAttempt: serverStep.countsAttempt,
+      statePatch: serverStep.statePatch,
+      supportUsage: envelope.supportUsage,
+      maximumAttempts,
+      occurredAt: academicAt,
+    });
+    record = outcome.record;
+    result = {
+      isCorrect: record.status === 'correct',
+      status: record.status,
+      attemptCount: record.attemptCount,
+      remainingAttempts: outcome.result.remainingAttempts,
+      expired: outcome.result.expired === true,
+      partialCredit: record.partialCredit,
+    };
+    gradedBy = 'server';
+  } else if (modelingLab) {
     const grading = gradeModelingLabEvaluation(modelingLabMarker.result.evaluation);
     serverGrading = { ...grading, graderVersion: 'modeling-lab-server-evaluation-v1' };
     const attemptInputs = attemptInputsFromGrading(grading);
@@ -567,7 +635,14 @@ export const buildIngestedAttempt = ({
     lastSubmissionId: envelope.actionId,
     submissionOrigin: 'server-ingestion',
     gradedBy,
-    serverGradingReason: regrade.regrade || modelingLab ? null : regrade.reason,
+    // A server-credited step names why it earned nothing, when it did not; a
+    // step whose work the server could not credit (a question it does not
+    // hold as delivered) names why it was sanitized instead.
+    serverGradingReason: serverStep
+      ? (serverStep.verified ? null : serverStep.reason)
+      : stepVerification
+        ? stepVerification.reason
+        : regrade.regrade || modelingLab ? null : regrade.reason,
     ...(modelingLab ? { modelingLabSubmissionId: text(modelingLabMarker.submissionId) || null } : {}),
     // The audit trail for a delayed recovery: the record reads as the day the
     // student worked, and says separately when it actually arrived.

@@ -188,6 +188,7 @@ import {
   INGESTIBLE_KINDS,
   buildSubmissionEnvelope,
   captureSectionAccessProof,
+  normalizeStepWork,
 } from '../functions/shared/submissionEnvelope.mjs';
 import {
   SUBMISSION_DISPOSITION,
@@ -2461,6 +2462,8 @@ function App() {
       // Which instance of a family-backed slot this work answers. Absent for
       // every other question.
       familyDelivery: payload.familyDelivery || null,
+      // A step submission's raw step, from which the server derives its credit.
+      stepWork: payload.stepWork || null,
       supportUsage: payload.record?.supportUsage || null,
       assignmentSupportUsage: payload.supportUsage || null,
       hasClassworkGrade: payload.hasClassworkGrade === true,
@@ -5767,7 +5770,12 @@ function App() {
     return outcome.result;
   };
 
-  const handleStepGrade = async ({ stepGrade, countsAttempt, statePatch, supportUsage: providedSupportUsage = null }) => {
+  // `stepWork` is the step's raw work (Step Algebra: the states before and
+  // after, the operation, the support level — never a verdict). It travels in
+  // the durable step submission so the server derives the step's credit from
+  // the work itself (functions/shared/serverGrading/
+  // stepAlgebraStepVerification.mjs) instead of trusting this record.
+  const handleStepGrade = async ({ stepGrade, countsAttempt, statePatch, supportUsage: providedSupportUsage = null, stepWork = null }) => {
     if (!activeAssignmentId) return null;
     const supportUsage = providedSupportUsage || buildSupportUsage(user?.profile, activeQuestions[currentQuestionIndex]);
     const localAssignment = assignments.find((item) => item.id === activeAssignmentId);
@@ -5777,7 +5785,9 @@ function App() {
       classId: user?.classId || null,
       studentId: user?.role === 'student' ? user.id : null,
     });
-    const applyStep = (record) =>
+    // `occurredAt` is the step's capture time on the durable path, so this
+    // record and the one the server derives carry the same timestamps.
+    const applyStep = (record, occurredAt = null) =>
       recordQuestionStep({
         record,
         stepGrade,
@@ -5790,6 +5800,7 @@ function App() {
           activityPolicy: activeActivityPolicy,
           teacherGrantedExtraAttempts,
         }),
+        occurredAt,
       });
 
     if (isTeacherPreview) {
@@ -5830,7 +5841,7 @@ function App() {
     const assignment = localAssignment;
     const currentAssignmentGrades = tracker[activeAssignmentId] || {};
     const priorRecord = normalizeQuestionRecord(currentAssignmentGrades[currentQuestionIndex]);
-    const outcome = applyStep(priorRecord);
+    const outcome = applyStep(priorRecord, stepCapturedAt);
     const updatedTracker = { ...tracker, [activeAssignmentId]: { ...currentAssignmentGrades, [currentQuestionIndex]: outcome.record } };
     const previousSupport = supportUsageByAssignment[activeAssignmentId] || { modified: false, accommodations: [], modifications: [] };
     const assignmentSupportUsage = {
@@ -5869,6 +5880,10 @@ function App() {
           familyDelivery: familyDeliveryForQuestion(assignment, currentQuestionIndex, priorRecord)?.pin || null,
           timeSpentSeconds: activeTimeRef.current,
           record: outcome.record,
+          // The step's raw work, bounded (null when the surface reports none,
+          // or when it cannot be read whole): with it the server derives this
+          // step's credit itself; without it the record above is sanitized.
+          stepWork: normalizeStepWork(stepWork),
           supportUsage: assignmentSupportUsage,
           hasClassworkGrade: false,
           classworkGrade: null,

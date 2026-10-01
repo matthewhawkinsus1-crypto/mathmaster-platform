@@ -620,7 +620,7 @@ function authoritativeStudentClassId(gradeData) {
  * together — so a teacher never sees a grade without its evidence, and a
  * deadline can never turn one response into two attempts.
  */
-async function ingestOneSubmission({ db, studentId, envelope, now }) {
+async function ingestOneSubmission({ db, studentId, envelope, now, serverGradingSettings = {} }) {
   const ingestion = await submissionIngestion();
   const dispositions = await submissionDisposition();
   const { assignmentFinalCloseAt } = await import("./shared/sectionDeadline.mjs");
@@ -830,6 +830,7 @@ async function ingestOneSubmission({ db, studentId, envelope, now }) {
       classworkIndices,
       dolIndices,
       modelingLabMarker,
+      requireStepWork: serverGradingSettings.requireStepWork === true,
       // `now` is when the SERVER heard about this, which is the receipt's
       // business. The academic time is resolved from the capture, bounded by
       // the assignment's release and by this moment.
@@ -957,6 +958,11 @@ async function ingestOneSubmission({ db, studentId, envelope, now }) {
   });
 }
 
+// Ingestion stops starting new envelopes after this long, well inside the
+// callable's 60-second limit (the slowest single step verification measured
+// about 3 seconds).
+const INGESTION_CALL_BUDGET_MS = 40_000;
+
 exports.ingestStudentSubmissions = onCall(async (request) => {
   const { studentId } = requireStudent(request);
   const ingestion = await submissionIngestion();
@@ -970,8 +976,23 @@ exports.ingestStudentSubmissions = onCall(async (request) => {
 
   const db = getFirestore();
   const now = Date.now();
+  // Platform switches for server grading (settings/serverGrading), read once
+  // per call. `requireStepWork` retires the legacy Step Algebra step path once
+  // queues from clients built before step work existed have drained.
+  const serverGradingSettings = (await db.collection("settings").doc("serverGrading").get()).data() || {};
   const receipts = [];
   for (const raw of incoming) {
+    // A wall-clock budget for the whole call: verifying a crafted step can
+    // cost seconds, and a batch of them must not time out the honest work
+    // queued beside it. Whatever is not reached is retried on the next call.
+    if (Date.now() - now > INGESTION_CALL_BUDGET_MS) {
+      receipts.push({
+        actionId: String(raw?.actionId || "").slice(0, 200) || null,
+        disposition: dispositions.SUBMISSION_DISPOSITION.RETRYABLE,
+        reason: "ingestion-call-time-budget",
+      });
+      continue;
+    }
     const envelope = ingestion.normalizeSubmissionEnvelope(raw);
     if (!envelope) {
       // Unreadable is not "discard": the device keeps its copy and the teacher
@@ -986,7 +1007,7 @@ exports.ingestStudentSubmissions = onCall(async (request) => {
     // The envelope never gets to say whose work it is.
     envelope.studentId = studentId;
     try {
-      receipts.push(await ingestOneSubmission({ db, studentId, envelope, now }));
+      receipts.push(await ingestOneSubmission({ db, studentId, envelope, now, serverGradingSettings }));
     } catch (error) {
       logger.error("Could not ingest a student submission", {
         studentId, actionId: envelope.actionId, message: error.message,

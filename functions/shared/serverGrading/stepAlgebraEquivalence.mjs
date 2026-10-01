@@ -286,19 +286,25 @@ const substitute = (node, variable, replacement) => node.transform((child, path,
 });
 
 /**
- * Are two expressions equal for every value of every letter in them? Sampled
- * at fixed irregular points; a sample where either side is undefined (a zero
- * denominator) is skipped, and too few defined samples is "not shown equal".
+ * The sampled comparison behind identicallyEqual, keeping apart the two ways
+ * it can fail to show equality: 'different' (a defined sample disagrees —
+ * the expressions are not equal) and 'unknown' (too few defined samples, or
+ * an expression that cannot be evaluated). Exported for the server's step
+ * verification (stepAlgebraStepVerification.mjs), which only needs a slower
+ * check when the answer is 'unknown'.
  */
-export const identicallyEqual = (leftNode, rightNode) => {
+export const IDENTITY = Object.freeze({ EQUAL: 'equal', DIFFERENT: 'different', UNKNOWN: 'unknown' });
+
+export const compareIdentically = (leftNode, rightNode) => {
   const left = compiled(leftNode);
   const right = compiled(rightNode);
-  if (!left || !right) return false;
+  if (!left || !right) return IDENTITY.UNKNOWN;
   const symbols = [...new Set([...freeSymbols(leftNode), ...freeSymbols(rightNode)])];
   if (!symbols.length) {
     const a = valueAt(left, {});
     const b = valueAt(right, {});
-    return a !== null && b !== null && relativelyClose(a, b);
+    if (a === null || b === null) return IDENTITY.UNKNOWN;
+    return relativelyClose(a, b) ? IDENTITY.EQUAL : IDENTITY.DIFFERENT;
   }
   let valid = 0;
   for (let sample = 0; sample < SAMPLE_VALUES.length; sample += 1) {
@@ -306,11 +312,18 @@ export const identicallyEqual = (leftNode, rightNode) => {
     const a = valueAt(left, scope);
     const b = valueAt(right, scope);
     if (a === null || b === null) continue;
-    if (!relativelyClose(a, b)) return false;
+    if (!relativelyClose(a, b)) return IDENTITY.DIFFERENT;
     valid += 1;
   }
-  return valid >= MINIMUM_VALID_SAMPLES;
+  return valid >= MINIMUM_VALID_SAMPLES ? IDENTITY.EQUAL : IDENTITY.UNKNOWN;
 };
+
+/**
+ * Are two expressions equal for every value of every letter in them? Sampled
+ * at fixed irregular points; a sample where either side is undefined (a zero
+ * denominator) is skipped, and too few defined samples is "not shown equal".
+ */
+export const identicallyEqual = (leftNode, rightNode) => compareIdentically(leftNode, rightNode) === IDENTITY.EQUAL;
 
 // --- Equations ----------------------------------------------------------------------
 

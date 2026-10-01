@@ -19,6 +19,7 @@ import {
 } from '../../functions/shared/toolMath/algebra-relations/algebraRelationFoundation.mjs';
 import { expectedInterceptPoint, resolveStandardCoefficients } from '../../functions/shared/toolMath/stepAlgebra2/linearInterceptsMath.mjs';
 import { resolveFamilyQuestionInstance } from '../../functions/shared/questionFamilyInstance.mjs';
+import { interceptSubEquationQuestion } from '../../functions/shared/serverGrading/stepAlgebraStepVerification.mjs';
 import {
   checkLinearIntercept,
   equationWorkspaceWork,
@@ -1041,9 +1042,16 @@ test('LinearInterceptsOrchestrator checks each point and reports completion thro
   // Each one-variable sub-solve is marked by the shared grader against the
   // sub-equation it opened — so it must not inherit the PARENT's generated
   // answer, which would mark a correct sub-solve (and so the stage) unsolved.
-  const subQuestion = region(orchestrator, 'const subEquationQuestion = useMemo(() => {', '}, [stage.committed', 'sub-equation question');
-  assert.match(subQuestion, /\.\.\.question,/);
-  assert.match(subQuestion, /generatedAnswer: undefined,/);
+  // The orchestrator builds that question with the shared
+  // interceptSubEquationQuestion (the one the server checks the sub-solve's
+  // steps against), which keeps the parent's other fields and drops the key.
+  const subQuestion = region(orchestrator, 'const subEquationQuestion = useMemo(', '[stage.committed', 'sub-equation question');
+  assert.match(subQuestion, /interceptSubEquationQuestion\(question, standard, stage\.placedZeroVariable\)/);
+  const built = interceptSubEquationQuestion({ ...INTERCEPTS, generatedAnswer: 4, expectedStepPoints: 5 }, { A: 2, B: 3, C: 12 }, 'y');
+  assert.equal(built.generatedAnswer, undefined, 'the parent key is dropped');
+  assert.equal(built.expectedStepPoints, 5, 'the parent question is otherwise kept');
+  assert.equal(built.equation, '2x = 12');
+  assert.equal(built.solveFor, 'x');
   const subSolve = { type: 'stepAlgebra', mode: undefined, equation: '2 * x = 12', solveFor: 'x', variable: 'x' };
   const solved = equationWork({ left: 'x', right: '6' });
   assert.equal(stepAlgebraWorkGrader.grade(subSolve, solved).isCorrect, true);

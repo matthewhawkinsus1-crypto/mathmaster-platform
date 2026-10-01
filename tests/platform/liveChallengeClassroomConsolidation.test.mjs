@@ -9,6 +9,7 @@ import {
   recordValidatedSpeedMilestone,
   roundClosingDecision,
 } from '../../functions/shared/liveChallenge.mjs';
+import { STEP_ACTIONS, stepActionCountsAttempt } from '../../functions/shared/serverGrading/stepAlgebraStepVerification.mjs';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 
@@ -59,7 +60,14 @@ test('Live Challenge opts rich tools into a real no-expiration policy only in th
   assert.match(student, /<QuestionEngine[\s\S]*attemptsDoNotExpire/);
   assert.doesNotMatch(student, /maximumAttempts=\{1\}/);
   assert.match(engine, /attemptsDoNotExpire=\{attemptsDoNotExpire\}/);
-  assert.match(algebra, /countsAttempt: !attemptsDoNotExpire/);
+  // An inefficient move's attempt honours the host's no-expiration policy:
+  // the workspace reports it as INEFFICIENT_MOVE and asks the shared attempt
+  // rule with the host's flag, and that rule spends nothing when attempts do
+  // not expire (and one when they do).
+  assert.match(algebra, /saveStep\(\{ move, action: STEP_ACTIONS\.INEFFICIENT_MOVE \}\)/);
+  assert.match(algebra, /countsAttempt:\s*stepActionCountsAttempt\(action, \{ attemptsDoNotExpire \}\)/);
+  assert.equal(stepActionCountsAttempt(STEP_ACTIONS.INEFFICIENT_MOVE, { attemptsDoNotExpire: true }), false);
+  assert.equal(stepActionCountsAttempt(STEP_ACTIONS.INEFFICIENT_MOVE, { attemptsDoNotExpire: false }), true);
   assert.match(algebra, /Live Challenge work does not expire from intermediate moves/);
   assert.match(ordinary, /maximumAttempts=\{questionInstance\.attemptsAllowed\}/,
     'ordinary assignment attempt limits remain unchanged');

@@ -12,13 +12,18 @@ import {
   linearInterceptsWork,
   stepAlgebraWorkGrader,
 } from '../functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs';
-import { round } from './tools/shared/toolMath.js';
+// The intercept check's credit, its raw work, and the sub-equation each
+// substitution opens: one definition, shared with the server, which derives
+// the same step credit from that work.
+import {
+  interceptStepGrade,
+  interceptStepWork,
+  interceptSubEquationQuestion,
+} from '../functions/shared/serverGrading/stepAlgebraStepVerification.mjs';
 import { InteractiveStandardEquation } from './tools/stepAlgebra2/linearInterceptsConceptualUi.jsx';
 import {
   INTERCEPT_FEEDBACK_TIMINGS,
-  buildSubstitutionState,
   conceptualRedirect,
-  formatStandardEquation,
   formatSubstitutionEquation,
   resolveStandardCoefficients,
   shouldShowConceptRedirect,
@@ -64,17 +69,6 @@ const initialStage = () => ({
 });
 
 const initialWork = () => ({ activeKind: 'x', x: initialStage(), y: initialStage() });
-
-// The one-variable equation StepByStepAlgebraCore solves after substitution.
-// buildSubstitutionState always leaves `constant` at 0 (see
-// linearInterceptsMath.js), so this is exactly `coefficient * variable = right`.
-const substitutionEquationText = (state) => {
-  const coefficient = round(Number(state.coefficient), 8);
-  const right = round(Number(state.right), 8);
-  if (Math.abs(coefficient - 1) < 1e-9) return `${state.variable} = ${right}`;
-  if (Math.abs(coefficient + 1) < 1e-9) return `-${state.variable} = ${right}`;
-  return `${coefficient}${state.variable} = ${right}`;
-};
 
 export default function LinearInterceptsOrchestrator({
   question = {},
@@ -263,33 +257,17 @@ export default function LinearInterceptsOrchestrator({
     }));
   };
 
-  const solverState = stage.committed ? buildSubstitutionState(standard, stage.placedZeroVariable) : null;
-  const subEquationQuestion = useMemo(() => {
-    if (!solverState) return null;
-    return {
-      ...question,
-      mode: undefined,
-      standard: undefined,
-      equationText: undefined,
-      feedbackTiming: undefined,
-      targetForm: undefined,
-      requireSimplifiedFinalForm: false,
-      objective: undefined,
-      equation: substitutionEquationText(solverState),
-      equationLatex: undefined,
-      leftExpression: undefined,
-      rightExpression: undefined,
-      solveFor: solverState.variable,
-      variable: solverState.variable,
-      prompt: `Solve for ${solverState.variable}.`,
-      // The parent's generated answer (a Question Family instance) is the
-      // answer to the PARENT question. The shared grader marks a sub-solve
-      // against the sub-equation it opened, never against that key.
-      generatedAnswer: undefined,
-    };
+  // The one-variable equation StepByStepAlgebraCore solves after substitution
+  // — built by the shared interceptSubEquationQuestion, the same question the
+  // server checks this sub-solve's steps against.
+  const subEquationQuestion = useMemo(
+    () => (stage.committed ? interceptSubEquationQuestion(question, standard, stage.placedZeroVariable) : null),
     // Rebuild only when the committed substitution itself changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage.committed, stage.placedZeroVariable, kind]);
+    [stage.committed, stage.placedZeroVariable, kind],
+  );
+  // Which equation the sub-solve opened, so its steps' raw work names it.
+  const subSolveStepWorkContext = stage.committed ? { zeroVariable: stage.placedZeroVariable } : null;
 
   const handleSubEquationStateChange = (payload) => {
     const update = solvedStageUpdate(stage, payload);
@@ -319,18 +297,11 @@ export default function LinearInterceptsOrchestrator({
 
     setMessage('');
     onStepGrade?.({
-      stepGrade: {
-        kind: 'linear-intercept',
-        label: `Found the ${stageLabel(kind)}`,
-        productive: true,
-        accepted: true,
-        earned: 1,
-        possible: 1,
-        equationBefore: formatStandardEquation(standard),
-        equationAfter: `${stageLabel(kind)} = ${stage.point}`,
-        expectedTotalPoints: 2,
-      },
+      stepGrade: interceptStepGrade({ standard, intercept: kind, point: stage.point }),
       countsAttempt: false,
+      // The raw work: which intercept and the pair as typed. The server
+      // re-checks it against the line and derives the same credit.
+      stepWork: interceptStepWork({ intercept: kind, point: stage.point }),
     });
 
     if (kind === 'x') {
@@ -454,6 +425,7 @@ export default function LinearInterceptsOrchestrator({
           questionRecord={solverQuestionRecord}
           onStateChange={handleSubEquationStateChange}
           onStepGrade={onStepGrade}
+          stepWorkContext={subSolveStepWorkContext}
           onUndoStateChange={onUndoStateChange}
           maximumAttempts={maximumAttempts}
           attemptsDoNotExpire={attemptsDoNotExpire}
