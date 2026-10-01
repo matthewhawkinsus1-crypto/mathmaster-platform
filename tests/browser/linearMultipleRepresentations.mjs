@@ -39,8 +39,9 @@
 //                  is not a step. Graph 3's own Undo is the same history filtered
 //                  to Graph 3. After a reload one Undo takes back one step; after a
 //                  submission the attempt and its result stay.
-//   undo-phone     PQ-009 at 390×844 by touch: three edits, three Undos from the
-//                  portrait bar, each revealed and announced; no sideways scroll.
+//   undo-phone     PQ-009 at 390×844 by touch: four edits on three cards, four Undos
+//                  from the portrait bar, each revealed and announced — two in a
+//                  row on one card both heard; no sideways scroll.
 //
 // Exit code 1 on any finding. Screenshots: tests/browser/artifacts/linearMultipleRepresentations/.
 
@@ -219,7 +220,7 @@ const watchAnnouncements = (page) => page.evaluate(() => {
 });
 const takeAnnouncements = (page) => page.evaluate(() => window.__announced.splice(0));
 /** Whether an element is on screen with nothing over its middle: what the student can see. */
-const uncovered = (locator) => locator.evaluate((element) => {
+const uncovered = async (locator) => (await locator.count()) > 0 && locator.evaluate((element) => {
   const box = element.getBoundingClientRect();
   const x = box.left + box.width / 2;
   const y = box.top + Math.min(box.height / 2, 30);
@@ -233,6 +234,8 @@ const uncovered = (locator) => locator.evaluate((element) => {
  */
 const pressUndo = async (page, button = platformUndo(page), { touch = false } = {}) => {
   await takeAnnouncements(page);
+  // An Undo that is off is a finding, not a 30-second wait on a dead button.
+  if (!(await button.isEnabled())) return { pressed: false, marked: [], announced: [], focusOnUndo: false };
   if (touch) await button.tap();
   else await button.click();
   await settle(page, 350);
@@ -942,7 +945,8 @@ journeys.undo = async (browser) => {
   states.push(await boardMath(page, id));
   await typeCell(1, 'x', '3');
   states.push(await boardMath(page, id));
-  await typeMath(page, mathField(page, 'pointSlope'), 'y-10=-2(x-4)');
+  // With a fraction bar and brackets in it, typed in one go: one step.
+  await typeMath(page, mathField(page, 'pointSlope'), 'y-10=-4/2 (x-4)');
   states.push(await boardMath(page, id));
   await plot(page, page, 'graph2', [0, 18]);
   states.push(await boardMath(page, id));
@@ -965,10 +969,17 @@ journeys.undo = async (browser) => {
     ['context', 'contextIndependent', 'Independent quantity'],
   ];
   for (const [step, [cardId, field, label]] of expected.entries()) {
-    // Start each Undo from the other end of the page from the change.
-    await page.evaluate((top) => window.scrollTo(0, top ? 0 : document.documentElement.scrollHeight), step % 2 === 1);
+    // Start each Undo from the other end of the page from the change — except
+    // once, with the change already in front of the student, where an Undo
+    // must leave the page exactly where it is.
+    const inView = step === 2;
+    // In view but not centred, so an Undo that re-centred anyway would show.
+    if (inView) await fieldOnBoard(page, field).evaluate((element) => window.scrollBy(0, element.getBoundingClientRect().top - window.innerHeight * 0.25));
+    else await page.evaluate((top) => window.scrollTo(0, top ? 0 : document.documentElement.scrollHeight), step % 2 === 1);
     await settle(page, 150);
+    const scrolledFrom = await page.evaluate(() => window.scrollY);
     const result = await pressUndo(page);
+    if (inView) check((await page.evaluate(() => window.scrollY)) === scrolledFrom, `Undo ${step + 1} does not move a page that already shows the change`);
     const after = await boardMath(page, id);
     check(after === states[4 - step], `Undo ${step + 1} takes back exactly the ${label} edit (${after === states[5 - step] ? 'nothing changed' : 'something else changed'})`);
     check(samePoints(result.marked, [cardId]), `Undo ${step + 1} marks the card it changed (${JSON.stringify(result.marked)}, expected ${cardId})`);
@@ -1061,13 +1072,14 @@ journeys.undo = async (browser) => {
   await settle(page, 300);
   await page.getByRole('button', { name: 'Submit anyway' }).click();
   await settle(page, 1500);
-  const result = await page.locator('[data-lmr-submit] [role="status"]').innerText();
+  const resultPanel = () => page.locator('[data-lmr-submit] [role="status"]').innerText({ timeout: 3000 }).catch(() => '(no result shown)');
+  const result = await resultPanel();
   check(/Not yet/.test(result), `the incomplete board is graded (${result.slice(0, 60)})`);
   const submitted = (await grades(page)).filter((grade) => grade.questionId === id).length;
   check(submitted === attempts + 1, 'one attempt was spent');
   const afterSubmit = await pressUndo(page);
   check((await work(page, id)).featureYIntercept === '', 'Undo after a submission takes back the last edit');
-  check((await page.locator('[data-lmr-submit] [role="status"]').innerText()) === result, 'and leaves the submission result where it was');
+  check((await resultPanel()) === result, `and leaves the submission result where it was (${(await resultPanel()).slice(0, 40)})`);
   check((await grades(page)).filter((grade) => grade.questionId === id).length === submitted, 'and neither spends nor gives back an attempt');
   check(afterSubmit.announced.length === 1 && afterSubmit.announced[0].board, `one announcement, the Undo's (${JSON.stringify(afterSubmit.announced)})`);
   await shot(page, 'undo-02-after-submission');
@@ -1088,24 +1100,29 @@ journeys['undo-phone'] = async (browser) => {
   states.push(await boardMath(page, id));
   await plot(page, page, 'graph2', [0, 18], { touch: true });
   states.push(await boardMath(page, id));
-  const xCell = card(page, 'table').locator('input[aria-label="Row 2 x"]');
-  await xCell.scrollIntoViewIfNeeded();
-  await xCell.tap();
-  await page.keyboard.type('6', { delay: 40 });
-  await settle(page, 300);
-  states.push(await boardMath(page, id));
-  check(new Set(states).size === 4, 'three edits on three cards');
+  // Two cells of one row: two edits on one card, so two Undos in a row say the
+  // same sentence — and both must be heard.
+  for (const field of ['x', 'y']) {
+    const input = card(page, 'table').locator(`input[aria-label="Row 2 ${field}"]`);
+    await input.scrollIntoViewIfNeeded();
+    await input.tap();
+    await page.keyboard.type('6', { delay: 40 });
+    await settle(page, 300);
+    states.push(await boardMath(page, id));
+  }
+  check(new Set(states).size === 5, 'four edits on three cards');
   for (const [step, [cardId, field, label]] of [
+    ['table', 'tableRows', 'Table of values'],
     ['table', 'tableRows', 'Table of values'],
     ['graphSlopeIntercept', 'graph2Points', 'Graph 2 (slope-intercept)'],
     ['context', 'contextSlopeMeaning', 'Meaning of the slope'],
   ].entries()) {
     const result = await pressUndo(page, platformUndo(page), { touch: true });
-    check((await boardMath(page, id)) === states[2 - step], `phone Undo ${step + 1} takes back exactly the ${label} edit`);
+    check((await boardMath(page, id)) === states[3 - step], `phone Undo ${step + 1} takes back exactly the ${label} edit`);
     check(samePoints(result.marked, [cardId]), `phone Undo ${step + 1} marks ${cardId} (${JSON.stringify(result.marked)})`);
     check(await uncovered(fieldOnBoard(page, field)), `phone Undo ${step + 1} brings ${label} into view, uncovered`);
     check(result.announced.length === 1 && result.announced[0].text === `Undid your last change to ${label}.`, `phone Undo ${step + 1} is announced once (${JSON.stringify(result.announced)})`);
-    if (step === 1) await shot(page, 'undo-phone-graph2');
+    if (step === 2) await shot(page, 'undo-phone-graph2');
   }
   check(!(await platformUndo(page).isEnabled()), 'nothing left to undo');
   const layout = await overflow(page);

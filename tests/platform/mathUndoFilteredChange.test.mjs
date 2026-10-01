@@ -32,16 +32,19 @@ const session = (states) => {
   }
   return { stack, current: states.at(-1) };
 };
-// Every state the platform Undo walks back through, newest first.
+// Every state the platform Undo walks back through, newest first. Bounded: a
+// history that never runs out is itself the failure.
+const MAX_PRESSES = 100;
 const platformUndoAll = (stack) => {
   const seen = [];
   let rest = stack;
-  for (;;) {
+  for (let press = 0; press < MAX_PRESSES; press += 1) {
     const { stack: next, restored, changed } = undoMathUndoEntry(rest);
     if (!changed) return seen;
     seen.push(restored);
     rest = next;
   }
+  throw new Error(`Undo never ran out after ${MAX_PRESSES} presses`);
 };
 
 test('the graph\'s Undo takes back its own latest change and keeps the typing that came after it', () => {
@@ -71,14 +74,14 @@ test('repeated graph Undos walk back that graph alone, then stop', () => {
     { g2: [C, B], slope: '-2' }, // a drag
   ]);
   const seen = [];
-  for (;;) {
+  for (let press = 0; press < MAX_PRESSES; press += 1) {
     const result = undoMathUndoChange(stack, current, 'g2');
     if (!result.changed) break;
     ({ stack } = result);
     current = result.restored;
     seen.push(current.g2);
   }
-  assert.deepEqual(seen, [[A, B], [A], []], 'the drag, the second point, the first point');
+  assert.deepEqual(seen, [[A, B], [A], []], 'the drag, the second point, the first point — then nothing left');
   assert.equal(current.slope, '-2', 'the slope typed between them is untouched');
   assert.deepEqual(platformUndoAll(stack), [{ g2: [], slope: '' }], 'only the slope step is left');
 });
