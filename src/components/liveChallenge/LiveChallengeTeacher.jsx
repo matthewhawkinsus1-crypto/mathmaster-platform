@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import ChallengeDryRun from './ChallengeDryRun.jsx';
 import ChallengeQuestionLibrary from './ChallengeQuestionLibrary.jsx';
+import { RushHostStatus, RushRaceBoard, RushReport, RushRoundResultsBoard, rushSettingsLine } from './GraphFeatureRushHost.jsx';
 import LiveChallengeArenaProjector from './LiveChallengeArenaProjector.jsx';
 import MathText from '../common/MathText.jsx';
 import { fetchPathCoverage } from '../../platform/path/pathCoverageService.js';
@@ -10,11 +11,15 @@ import { buildChallengeExport, challengeExportFileName } from '../../../function
 import { buildChallengeScoringPreview } from '../../../functions/shared/liveChallengeExperience.mjs';
 import { acceptChallengeSnapshot, calibrateChallengeClock } from '../../../functions/shared/liveChallengeParity.mjs';
 import { leaderboardOptionsFor } from '../../../functions/shared/liveChallengeScoring.mjs';
+import { rushConfigProblem } from '../../../functions/shared/graphFeatureRushConfig.mjs';
+import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { LiveChallengeAudioDirector } from '../../platform/liveChallenge/liveChallengeAudio.js';
+import { defaultRushSetup, rushCreateRequest } from '../../platform/liveChallenge/rushSetupModel.js';
 import {
   advanceLiveChallenge,
   cancelLiveChallenge,
   calibrateLiveChallengeClock,
+  closeLiveChallengeRound,
   configureLiveChallengeExperience,
   createLiveChallenge,
   finishLiveChallenge,
@@ -52,6 +57,16 @@ const formatClock = (milliseconds) => {
 };
 
 const courseLabel = (courseId) => courseId === 'algebra2' ? 'Algebra II' : 'Algebra I';
+
+// Graph Feature Rush's setup panel and practice round load only when a
+// teacher chooses the rush; a classic game's console carries neither.
+const GraphFeatureRushSetup = lazy(() => import('./GraphFeatureRushSetup.jsx'));
+const GraphFeatureRushPractice = lazy(() => import('./GraphFeatureRushPractice.jsx'));
+
+// A rush round closes itself this long after its deadline — past the arrival
+// grace a last batch of taps is allowed — so students see their round results
+// without the teacher reaching for a button.
+export const RUSH_AUTO_CLOSE_DELAY_MS = 1_500;
 const speedPreset = (value) => [0, 10, 20, 35].includes(Number(value)) ? String(Number(value)) : 'custom';
 
 function ChallengeReport({ report }) {
@@ -98,6 +113,7 @@ function ChallengeReport({ report }) {
           <span style={{ display: 'block', marginTop: 5, fontSize: 12, color: '#5f6368' }}>{roundSet.roundCount} questions. Run the same set with another period — no student names or scores are in the file.</span>
         </div>
       )}
+      {report.graphFeatureRush && <RushReport report={report} />}
       {report.neverJoined?.length > 0 && (
         <div style={{ padding: '10px 13px', borderRadius: 9, background: '#f1f3f4', fontSize: 13.5, color: '#3c4043' }}>
           <strong>Did not join:</strong> {report.neverJoined.length} student{report.neverJoined.length === 1 ? '' : 's'}. A student can be absent, on paper, or have lost their connection — this is a roster fact, not a finding.
@@ -215,6 +231,7 @@ export default function LiveChallengeTeacher({
   const [timingMode, setTimingMode] = useState('timed');
   const [roundClosingThreshold, setRoundClosingThreshold] = useState(70);
   const [secondChanceMode, setSecondChanceMode] = useState('off');
+  const [rushSetup, setRushSetup] = useState(() => defaultRushSetup(courseId));
   const [title, setTitle] = useState('');
   const [speedInfluencePercent, setSpeedInfluencePercent] = useState(20);
   const [playerDisplayMode, setPlayerDisplayMode] = useState('codeName');
@@ -247,6 +264,8 @@ export default function LiveChallengeTeacher({
     setStandardCode('mixed');
   }, [classId, classPeriod, selectedClass, courseProfiles]);
   useEffect(() => { setDryRunOpen(false); }, [classId, courseId, standardCode, questionStyle, challengeMode, solverRaceFocus, solverRaceDifficulty, roundCount, roundSeconds, timingMode, speedInfluencePercent, playerDisplayMode]);
+  // A different course starts from that course's rush preset.
+  useEffect(() => { setRushSetup((current) => ({ ...defaultRushSetup(courseId), rewards: current.rewards })); }, [courseId]);
   useEffect(() => {
     const selected = assignments.find((assignment) => String(assignment.id) === String(warmupAssignmentId));
     const configured = selected?.warmup?.liveChallenge?.deliveryMode;
@@ -309,9 +328,14 @@ export default function LiveChallengeTeacher({
   const hasRoundDeadline = roundEndsAtMs > 0;
   const elapsedMs = Math.max(0, serverNow - roundStartsAtMs);
   const remainingMs = hasRoundDeadline ? Math.max(0, roundEndsAtMs - serverNow) : 0;
+  const rushMode = challengeMode === RUSH_MODE_ID;
+  const rushProblem = rushMode ? rushConfigProblem(rushSetup) : null;
+  // A rush room moves on only from a closed round: its results are what the
+  // class sees between rounds.
+  const rushRoom = room?.challengeMode === RUSH_MODE_ID;
   // A round the server has already closed can always move on.
   const canAdvance = room?.roundState === 'closed'
-    || challengeCanAdvance({ joinedCount, answeredCount, roundEndsAtMs, nowMs: serverNow });
+    || (!rushRoom && challengeCanAdvance({ joinedCount, answeredCount, roundEndsAtMs, nowMs: serverNow }));
   const controlBusy = LIFECYCLE_CONTROLS.includes(busy);
   const connectionSummary = ['synchronized', 'delayed', 'reconnecting', 'degraded'].map((status) => ({
     status,
@@ -382,6 +406,38 @@ export default function LiveChallengeTeacher({
   const create = async () => {
     audioDirectorRef.current.prime().then(() => setAudioReady(true)).catch(() => {});
     const result = await run('create', async () => {
+      if (rushMode) {
+        // Graph Feature Rush: no Warm-Up link, no bank question style, no
+        // speed setting — the mode's own settings, validated again by the server.
+        if (rushProblem) throw new Error(rushProblem);
+        const { rushRewardPolicy } = await import('../../platform/liveChallenge/rushRewardPolicy.js');
+        let created;
+        try {
+          created = await createLiveChallenge({
+            classId,
+            classPeriod,
+            courseId,
+            ...rushCreateRequest(rushSetup, { rewardPolicy: rushRewardPolicy(rushSetup.rewards) }),
+            title: title.trim() || `${selectedClass?.name || classPeriod || 'Class'} Graph Feature Rush`,
+          });
+        } catch (error) {
+          const activeRoomId = error?.details?.roomId;
+          if (String(error?.code || '').endsWith('failed-precondition') && activeRoomId) {
+            setRoomId(activeRoomId);
+            setMessage('You already have an active Live Challenge. It has been reopened.');
+            return { roomId: activeRoomId, resumed: true };
+          }
+          throw error;
+        }
+        if (!created?.roomId || created.resumed) return created;
+        try {
+          await configureLiveChallengeExperience({ roomId: created.roomId, speedInfluencePercent: 0, playerDisplayMode });
+        } catch (configurationError) {
+          await cancelLiveChallenge({ roomId: created.roomId }).catch(() => {});
+          throw new Error(`The lobby was cancelled because its name settings could not be secured. ${configurationError?.message || ''}`.trim());
+        }
+        return created;
+      }
       if (warmupAssignmentId && warmupDeliveryMode === 'standard') {
         throw new Error('This assignment is set to Standard Warm-Up. Use “Use Standard Warm-Up” below, or change the delivery mode before creating a lobby.');
       }
@@ -454,7 +510,37 @@ export default function LiveChallengeTeacher({
     return control('start', startLiveChallenge);
   };
 
+  // RUSH ROUNDS CLOSE ON TIME. Shortly after the deadline the host closes the
+  // round (an ordinary close command: idempotent, round-scoped), so placement
+  // is decided and every student sees their results. A failed close is tried
+  // again a few seconds later; the teacher can also close it by hand.
+  const autoClosedRef = useRef('');
+  useEffect(() => {
+    if (!rushRoom || room?.status !== 'running' || room?.roundState === 'closed' || !hasRoundDeadline) return;
+    if (serverNow < roundEndsAtMs + RUSH_AUTO_CLOSE_DELAY_MS) return;
+    const key = `${room.roomId || roomId}-${room.currentRound}-${room.roundVersion || 0}`;
+    if (autoClosedRef.current === key) return;
+    autoClosedRef.current = key;
+    control('close', closeLiveChallengeRound).then((result) => {
+      if (result) return;
+      window.setTimeout(() => { if (autoClosedRef.current === key) autoClosedRef.current = ''; }, 3_000);
+    });
+    // `control` reads the room it closes from the latest render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rushRoom, room?.status, room?.roundState, room?.currentRound, room?.roundVersion, hasRoundDeadline, roundEndsAtMs, serverNow]);
+
   if (!roomId || !room) {
+    if (dryRunOpen && rushMode) {
+      return (
+        <Suspense fallback={<p style={{ padding: 20 }}>Loading practice…</p>}>
+          <GraphFeatureRushPractice
+            config={rushCreateRequest(rushSetup).graphFeatureRush}
+            roundSeconds={rushSetup.roundSeconds}
+            onClose={() => setDryRunOpen(false)}
+          />
+        </Suspense>
+      );
+    }
     if (dryRunOpen) {
       return (
         <div style={{ display: 'grid', gap: 18 }}>
@@ -498,7 +584,7 @@ export default function LiveChallengeTeacher({
                   {classOptions.map((entry) => <option key={entry.classId} value={entry.classId}>{entry.name || entry.period || entry.classId}{entry.period ? ` · ${entry.period}` : ''}</option>)}
                 </select>
               </label>
-              <label style={{ fontWeight: 800 }}>Run as a Warm-Up
+              {!rushMode && <label style={{ fontWeight: 800 }}>Run as a Warm-Up
                 <select value={warmupAssignmentId} onChange={(event) => setWarmupAssignmentId(event.target.value)} style={field}>
                   <option value="">No — students join from their dashboard</option>
                   {warmupAssignmentOptions.map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.title || assignment.id}</option>)}
@@ -514,8 +600,8 @@ export default function LiveChallengeTeacher({
                   game — no invite to spot and no code to type. Their participation and accuracy are
                   recorded on the assignment; the challenge score is not.
                 </span>
-              </label>
-              {warmupAssignmentId && (
+              </label>}
+              {!rushMode && warmupAssignmentId && (
                 <label style={{ fontWeight: 800 }}>Warm-Up delivery
                   <select value={warmupDeliveryMode} disabled={busy === 'saveWarmupDelivery'} onChange={(event) => changeWarmupDeliveryMode(event.target.value)} style={field}>
                     <option value="liveChallenge">Live Challenge — use game as Warm-Up</option>
@@ -530,7 +616,9 @@ export default function LiveChallengeTeacher({
                 <select value={challengeMode} onChange={(event) => setChallengeMode(event.target.value)} style={field}>
                   <option value="standard">Standard Challenge</option>
                   <option value="solverRace">Solver Race</option>
+                  <option value={RUSH_MODE_ID}>Graph Feature Rush</option>
                 </select>
+                {rushMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: '#5f6368' }}>Every student gets their own graphs and races the clock to tap intercepts, vertices, maximums and minimums.</span>}
               </label>
               {challengeMode === 'solverRace' && <label style={{ fontWeight: 800 }}>Race focus
                 <select value={solverRaceFocus} onChange={(event) => setSolverRaceFocus(event.target.value)} style={field}>
@@ -567,6 +655,12 @@ export default function LiveChallengeTeacher({
                   <option value="noTools">Typed and chosen answers only</option>
                 </select>
               </label>}
+              {rushMode && (
+                <Suspense fallback={<p style={{ gridColumn: '1 / -1', color: '#5f6368' }}>Loading Graph Feature Rush settings…</p>}>
+                  <GraphFeatureRushSetup setup={rushSetup} onChange={setRushSetup} classSize={allStudents.filter((student) => student?.classId === classId).length} onPractice={() => { setMessage(''); setDryRunOpen(true); }} />
+                </Suspense>
+              )}
+              {!rushMode && <>
               <label style={{ fontWeight: 800 }}>Rounds<select value={roundCount} onChange={(event) => setRoundCount(Number(event.target.value))} style={field}>{[5, 8, 10, 12, 15, 20].map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
               <label style={{ fontWeight: 800, opacity: timingMode === 'pace' ? 0.55 : 1 }}>Time per round
                 <select
@@ -597,6 +691,7 @@ export default function LiveChallengeTeacher({
                 </select>
                 <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: '#5f6368' }}>Automatic may add up to 3 replay Final Rounds based on the questions the class misses most.</span>
               </label>
+              </>}
               <label style={{ fontWeight: 800 }}>Player display
                 <select value={playerDisplayMode} onChange={(event) => setPlayerDisplayMode(event.target.value)} style={field}>
                   <option value="codeName">Code Names (default)</option>
@@ -606,7 +701,7 @@ export default function LiveChallengeTeacher({
                 </select>
                 <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: '#5f6368' }}>Only the selected display name is sent to the public leaderboard.</span>
               </label>
-              <label style={{ fontWeight: 800 }}>Speed influence
+              {!rushMode && <label style={{ fontWeight: 800 }}>Speed influence
                 <select value={speedPreset(speedInfluencePercent)} onChange={(event) => {
                   const value = event.target.value;
                   if (value !== 'custom') setSpeedInfluencePercent(Number(value));
@@ -619,18 +714,26 @@ export default function LiveChallengeTeacher({
                   <option value="custom">Custom</option>
                 </select>
                 {speedPreset(speedInfluencePercent) === 'custom' && <input type="number" min="0" max="50" value={speedInfluencePercent} onChange={(event) => setSpeedInfluencePercent(Math.max(0, Math.min(50, Number(event.target.value) || 0)))} style={field} />}
-              </label>
-              <label style={{ fontWeight: 800, gridColumn: '1 / -1' }}>Challenge title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={`${selectedClass?.name || classPeriod || 'Class'} Live Challenge`} style={field} /></label>
+              </label>}
+              <label style={{ fontWeight: 800, gridColumn: '1 / -1' }}>Challenge title<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={`${selectedClass?.name || classPeriod || 'Class'} ${rushMode ? 'Graph Feature Rush' : 'Live Challenge'}`} style={field} /></label>
             </div>
           )}
-          <ScoringCompetitionCard roundSeconds={roundSeconds} speedInfluencePercent={speedInfluencePercent} />
-          <ChallengeQuestionLibrary assignments={assignments} onImported={() => fetchPathCoverage(courseId).then(setCoverage)} />
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
-            <button type="button" disabled={!classId || busy === 'create' || (warmupAssignmentId && warmupDeliveryMode === 'standard')} onClick={create} style={{ ...primary, opacity: !classId || busy === 'create' || (warmupAssignmentId && warmupDeliveryMode === 'standard') ? .55 : 1 }}>{busy === 'create' ? 'Building secure rounds…' : 'Create Lobby'}</button>
-            <button type="button" onClick={() => { setMessage(''); setDryRunOpen(true); }} style={secondary}>Try it yourself first</button>
-            {warmupAssignmentId && (warmupDeliveryMode === 'teacherChoice' || warmupDeliveryMode === 'standard') && <button type="button" disabled={busy === 'standardWarmup'} onClick={useStandardWarmup} style={{ ...secondary, color: '#137333' }}>{busy === 'standardWarmup' ? 'Releasing Warm-Up…' : 'Use Standard Warm-Up'}</button>}
-          </div>
-          <p style={{ margin: '8px 0 0', color: '#5f6368', fontSize: 13, lineHeight: 1.5 }}>A dry run uses the real bank, timer and grader without inviting students or writing game results. Creating a Teacher Choice lobby is the class decision to use the challenge.</p>
+          {!rushMode && <ScoringCompetitionCard roundSeconds={roundSeconds} speedInfluencePercent={speedInfluencePercent} />}
+          {!rushMode && <ChallengeQuestionLibrary assignments={assignments} onImported={() => fetchPathCoverage(courseId).then(setCoverage)} />}
+          {rushMode ? (
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
+              <button type="button" disabled={!classId || busy === 'create' || Boolean(rushProblem)} onClick={create} style={{ ...primary, opacity: !classId || busy === 'create' || rushProblem ? .55 : 1 }}>{busy === 'create' ? 'Creating lobby…' : 'Create Lobby'}</button>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
+                <button type="button" disabled={!classId || busy === 'create' || (warmupAssignmentId && warmupDeliveryMode === 'standard')} onClick={create} style={{ ...primary, opacity: !classId || busy === 'create' || (warmupAssignmentId && warmupDeliveryMode === 'standard') ? .55 : 1 }}>{busy === 'create' ? 'Building secure rounds…' : 'Create Lobby'}</button>
+                <button type="button" onClick={() => { setMessage(''); setDryRunOpen(true); }} style={secondary}>Try it yourself first</button>
+                {warmupAssignmentId && (warmupDeliveryMode === 'teacherChoice' || warmupDeliveryMode === 'standard') && <button type="button" disabled={busy === 'standardWarmup'} onClick={useStandardWarmup} style={{ ...secondary, color: '#137333' }}>{busy === 'standardWarmup' ? 'Releasing Warm-Up…' : 'Use Standard Warm-Up'}</button>}
+              </div>
+              <p style={{ margin: '8px 0 0', color: '#5f6368', fontSize: 13, lineHeight: 1.5 }}>A dry run uses the real bank, timer and grader without inviting students or writing game results. Creating a Teacher Choice lobby is the class decision to use the challenge.</p>
+            </>
+          )}
         </section>
         <AudioMixer director={audioDirectorRef.current} mix={audioMix} onMixChange={updateAudioMix} onEnable={enableAudio} audioReady={audioReady} />
         {message && <div role="alert" style={{ padding: 12, borderRadius: 9, background: '#fff4ce', color: '#7a4f00' }}>{message}</div>}
@@ -642,6 +745,7 @@ export default function LiveChallengeTeacher({
     return <ChallengeProjector
       room={room}
       leaderboard={leaderboard}
+      players={players}
       joinedCount={joinedCount}
       remainingMs={remainingMs}
       canAdvance={canAdvance}
@@ -660,7 +764,7 @@ export default function LiveChallengeTeacher({
   return (
     <div style={{ display: 'grid', gap: 18 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-        <div><h2 style={{ margin: 0 }}>{room.title}</h2><p style={{ margin: '6px 0 0', color: '#5f6368' }}>{room.classPeriod} · {courseLabel(room.courseId)} · {room.standardCode === 'mixed' ? 'Mixed review' : room.standardCode}</p></div>
+        <div><h2 style={{ margin: 0 }}>{room.title}</h2><p style={{ margin: '6px 0 0', color: '#5f6368' }}>{room.classPeriod} · {courseLabel(room.courseId)} · {rushRoom ? 'Graph Feature Rush' : room.standardCode === 'mixed' ? 'Mixed review' : room.standardCode}</p></div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button type="button" onClick={() => setProjector(true)} style={primary}>Resume Session</button>
           <button type="button" onClick={() => setProjector(true)} style={secondary}>Projector View</button>
@@ -668,7 +772,8 @@ export default function LiveChallengeTeacher({
       </div>
       <AudioMixer director={audioDirectorRef.current} mix={audioMix} onMixChange={updateAudioMix} onEnable={enableAudio} audioReady={audioReady} />
       {message && <div role="alert" style={{ padding: 12, borderRadius: 9, background: '#fff4ce', color: '#7a4f00' }}>{message}</div>}
-      {['lobby', 'running'].includes(room.status) && <section style={{ ...panel, padding: 12, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+      {rushRoom && ['lobby', 'running'].includes(room.status) && <section style={{ ...panel, padding: 12 }}><strong>Graph Feature Rush · {rushSettingsLine(room)}</strong></section>}
+      {!rushRoom && ['lobby', 'running'].includes(room.status) && <section style={{ ...panel, padding: 12, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
         <strong>{room.roundCount} scheduled rounds · {room.timingMode === 'pace' ? 'Pace Race' : 'Timed Race'} · Closing {room.roundClosingThreshold == null ? 'Off' : `at ${room.roundClosingThreshold}%`} · Second Chance {room.secondChanceMode === 'off' ? 'Off' : 'Automatic'}{room.solverRaceDifficulty === 'ramp' ? ' · Ramp difficulty' : ''}</strong>
         <label style={{ marginLeft: 'auto', fontWeight: 800 }}>Round closing threshold
           <select value={room.roundClosingThreshold ?? 'off'} disabled={busy === 'threshold'} onChange={(event) => changeClosingThreshold(event.target.value)} style={{ ...field, width: 'auto', display: 'inline-block', margin: '0 0 0 8px' }}>
@@ -696,7 +801,34 @@ export default function LiveChallengeTeacher({
         </>
       )}
 
-      {room.status === 'running' && (
+      {room.status === 'running' && rushRoom && (
+        <>
+          <section aria-label="Connection status" style={{ ...panel, padding: 12 }}>
+            <strong>Class connection: </strong>
+            {connectionSummary.map(({ status, count }) => <span key={status} style={{ marginRight: 14 }}>{count} {status === 'delayed' ? 'connection delay / unstable' : status}</span>)}
+          </section>
+          <RushHostStatus room={room} players={players} remainingMs={remainingMs} joinedCount={joinedCount} closing={busy === 'close'} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18 }}>
+            <section style={panel}>
+              <h3 style={{ marginTop: 0 }}>{room.roundState === 'closed' ? `Round ${(room.currentRound || 0) + 1} results` : 'Live race · graphs this round'}</h3>
+              {room.roundState === 'closed'
+                ? <RushRoundResultsBoard players={players} roundIndex={Number(room.currentRound) || 0} scoringStrategyId={room.scoringStrategyId} />
+                : <RushRaceBoard players={players} roundIndex={Number(room.currentRound) || 0} />}
+            </section>
+            <section style={panel}><h3 style={{ marginTop: 0 }}>{room.scoringStrategyId === 'grandPrix' ? 'Championship' : 'Standings'}</h3><Leaderboard rows={leaderboard} /></section>
+          </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button type="button" disabled={!canAdvance || controlBusy} onClick={() => control('advance', advanceLiveChallenge)} style={{ ...primary, opacity: !canAdvance || controlBusy ? .55 : 1 }}>{busy === 'advance' ? 'Loading next round…' : (room.currentRound + 1 >= room.roundCount ? 'Finish & Show Final Standings' : 'Next Round')}</button>
+            {room.roundState !== 'closed' && hasRoundDeadline && remainingMs <= 0 && (
+              <button type="button" disabled={controlBusy} onClick={() => control('close', closeLiveChallengeRound)} style={secondary}>{busy === 'close' ? 'Closing round…' : 'Close Round Now'}</button>
+            )}
+            <button type="button" disabled={controlBusy} onClick={() => control('finish', finishLiveChallenge)} style={{ ...secondary, color: '#a50e0e' }}>End Session</button>
+          </div>
+          {!canAdvance && <p style={{ margin: 0, color: '#5f6368', fontSize: 13 }}>The round closes on its own when time runs out; then the results show and Next Round unlocks.</p>}
+        </>
+      )}
+
+      {room.status === 'running' && !rushRoom && (
         <>
           <section aria-label="Connection status" style={{ ...panel, padding: 12 }}>
             <strong>Class connection: </strong>
