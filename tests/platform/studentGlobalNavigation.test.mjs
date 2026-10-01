@@ -22,13 +22,16 @@ const gradeCenter = read('../../src/components/student/StudentGradeCenter.jsx');
 const assignmentsCenter = read('../../src/components/student/StudentAssignmentsCenter.jsx');
 const resultScreen = read('../../src/components/student/StudentAssignmentResult.jsx');
 
-/* 1. ONE NAVIGATION, FIVE DESTINATIONS, REACHABLE FROM HOME. */
+/* 1. ONE NAVIGATION, SIX DESTINATIONS, REACHABLE FROM HOME. */
 
-test('the shared student navigation offers Home, Assignments, Grades, My Math Path and Tests & Exams', () => {
+test('the shared student navigation offers Home, Assignments, Grades, My Rewards, My Math Path and Tests & Exams', () => {
+  // My Rewards joined the shared row so a student can find their Practice
+  // Passes and badges from any screen, not only from the top of Home.
   assert.deepEqual(STUDENT_DESTINATION_ORDER, [
     STUDENT_DESTINATION.HOME,
     STUDENT_DESTINATION.ASSIGNMENTS,
     STUDENT_DESTINATION.GRADES,
+    STUDENT_DESTINATION.REWARDS,
     STUDENT_DESTINATION.MATH_PATH,
     STUDENT_DESTINATION.SECURE_EXAMS,
   ]);
@@ -37,7 +40,7 @@ test('the shared student navigation offers Home, Assignments, Grades, My Math Pa
     // The fifth destination holds BOTH the student's own secure course Tests
     // and the college/career simulations, so it is named for what is behind it
     // rather than for how it is delivered.
-    ['Home', 'Assignments', 'Grades', 'My Math Path', 'Tests & Exams'],
+    ['Home', 'Assignments', 'Grades', 'My Rewards', 'My Math Path', 'Tests & Exams'],
   );
   // Where am I? has to be answerable without pressing anything.
   assert.match(nav, /aria-current=\{active \? 'page' : undefined\}/);
@@ -62,6 +65,7 @@ test('every student surface routes through one navigate handler', () => {
   for (const [destination, opener] of [
     ['ASSIGNMENTS', 'openStudentAssignmentsCenter'],
     ['GRADES', 'openStudentGradeCenter'],
+    ['REWARDS', "openStudentDashboardMode\\('rewards'\\)"],
     ['MATH_PATH', "openStudentDashboardMode\\('mathPath'\\)"],
     ['SECURE_EXAMS', "openStudentDashboardMode\\('secureExams'\\)"],
   ]) {

@@ -6,6 +6,8 @@ import { courseLabel, courseLevelLabel } from '../../../functions/shared/classMo
 import { SUPPORT_EVENT_LABEL, SUPPORT_STAGE_LABEL } from '../../platform/teacher/studentSupportSignals.js';
 import StudentAssignmentsList from './StudentAssignmentsList.jsx';
 import StudentSupportEvidencePanel from './StudentSupportEvidencePanel.jsx';
+import StudentRewardsPanel, { useStudentRewards } from './rewards/StudentRewardsPanel.jsx';
+import { buildTeacherRewardsView } from '../../platform/rewards/teacherRewardsModel.js';
 
 /*
  * ONE STUDENT, ONE ANSWER, FROM ANYWHERE.
@@ -85,6 +87,11 @@ export default function StudentProfileDrawer({
 }) {
   const closeRef = useRef(null);
   const panelRef = useRef(null);
+  // One authorized read of this student's rewards per opening: it feeds the
+  // Rewards section and tells the Assignments list where Practice is excused.
+  const rewardsClassId = studentRecord?.classId || classRecord?.classId || null;
+  const rewards = useStudentRewards({ studentId, classId: rewardsClassId, enabled: Boolean(open && teacherEmail && studentId && rewardsClassId) });
+  const excusedAssignmentIds = rewards.data ? buildTeacherRewardsView(rewards.data).excusedAssignmentIds : null;
 
   // Keyed on `open` (and the student), not on onClose: the parent passes a new
   // onClose every render, which during class is about once a second, and each
@@ -171,6 +178,7 @@ export default function StudentProfileDrawer({
                   gradingPeriodSettings={gradingPeriodSettings}
                   onOpenAssignment={onOpenAssignment}
                   onOpenStudentWork={onOpenStudentWork}
+                  excusedAssignmentIds={excusedAssignmentIds}
                 />
               </div>
             </details>
@@ -192,6 +200,15 @@ export default function StudentProfileDrawer({
                 <button type="button" className="tw-btn tw-btn--sm" onClick={() => onOpenCaseReview(studentId)}>Open case review</button>
               </div>
             </section>
+          )}
+
+          {teacherEmail && studentId && rewardsClassId && (
+            <details className="tw-disclosure" style={{ marginBottom: 20 }}>
+              <summary>Rewards <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>passes, badges, Class Points · what was used and why</span></summary>
+              <div className="tw-disclosure__body">
+                <StudentRewardsPanel studentId={studentId} classId={rewardsClassId} studentName={studentName || 'This student'} rewards={rewards} />
+              </div>
+            </details>
           )}
 
           {teacherEmail && studentId && (

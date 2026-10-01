@@ -379,6 +379,14 @@
         { "fieldPath": "authorizedTeacherEmails", "arrayConfig": "CONTAINS" },
         { "fieldPath": "occurredAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "liveChallengeMatchResults",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "studentIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "finalizedAtMs", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

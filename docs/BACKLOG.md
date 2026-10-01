@@ -143,11 +143,27 @@ See `docs/architecture/live-challenge-engine.md`.
 - **Teacher choice of scoring** — the server accepts `scoringStrategyId`
   (Accuracy First, Grand Prix, Correct Count); the create panel does not offer
   it yet, and Grand Prix needs its round-results screen on the projector.
-- **Reward policy editor** — the server validates and stores a per-room
-  `rewardPolicy`; teachers cannot author one yet, so every room uses the default
-  (the original +2/+3/+2 achievements).
-- **Rewards wallet, teacher take-back, expiry sweep** — all call
-  `transitionRewardGrant`; none has a screen yet.
+- ~~**Reward policy editor**~~ — teachers now choose Practice Passes for
+  1st / top 2 / top 3 and a Champion badge when creating a Challenge; a
+  free-form rule editor remains open.
+- ~~**Rewards wallet, teacher take-back**~~ — shipped (My Rewards, teacher
+  Rewards in the student drawer; see `docs/architecture/rewards.md`). The
+  **expiry sweep** remains open (cosmetic: expiry is already read correctly).
+
+### Rewards follow-ups
+**Status:** open
+
+- **Expiry sweep** — persist `expired` on grants past `expiresAt` (they already
+  read as expired everywhere). Housekeeping only.
+- **Practice Pass in Parent Contact and the support evidence report** —
+  `parentContactCenter.js` and `supportEvidenceReport.js` still compute
+  assignment grades without the waiver; they need the class's waiver keys
+  passed in the way the gradebook now does.
+- **Per-assignment "allow Practice Passes" switch in the editor** — the rule
+  (`assignment.rewardPolicy.practicePassEligible`) is enforced; no authoring
+  control writes it.
+- **Class-wide rewards overview** — a teacher sees one student's rewards in the
+  drawer; a class list of passes held / used is not built.
 - **Host pause/resume and automatic round close** — modelled in the timer and
   the lifecycle, not wired to controls.
 - **Graph Feature Rush** — multi-target, question-set rounds; the mode

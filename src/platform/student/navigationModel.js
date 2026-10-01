@@ -37,6 +37,9 @@ export const LEVEL = Object.freeze({
   // Grades branch
   GRADES: 'grades',
 
+  // Rewards: Practice Passes, badges and Class Points, and their history.
+  REWARDS: 'rewards',
+
   // My Math Path branch
   MATH_PATH: 'mathPath',
   PATH_SKILL: 'pathSkill',
@@ -68,6 +71,7 @@ const PARENT = Object.freeze({
   // who reached it from Grades gets Grades back — see resolveBack's origin.
   [LEVEL.ASSIGNMENT_RESULT]: LEVEL.ASSIGNMENTS,
   [LEVEL.GRADES]: LEVEL.HOME,
+  [LEVEL.REWARDS]: LEVEL.HOME,
 
   [LEVEL.MATH_PATH]: LEVEL.HOME,
   [LEVEL.PATH_SKILL]: LEVEL.MATH_PATH,
@@ -95,6 +99,7 @@ export const LEVEL_LABEL = Object.freeze({
   [LEVEL.HOME]: 'Home',
   [LEVEL.ASSIGNMENTS]: 'My assignments',
   [LEVEL.GRADES]: 'My grades',
+  [LEVEL.REWARDS]: 'My rewards',
   [LEVEL.ASSIGNMENT_RESULT]: 'this result',
   [LEVEL.ASSIGNMENT]: 'this assignment',
   [LEVEL.ASSIGNMENT_QUESTION]: 'this question',
@@ -122,6 +127,7 @@ export const STUDENT_DESTINATION = Object.freeze({
   HOME: LEVEL.HOME,
   ASSIGNMENTS: LEVEL.ASSIGNMENTS,
   GRADES: LEVEL.GRADES,
+  REWARDS: LEVEL.REWARDS,
   MATH_PATH: LEVEL.MATH_PATH,
   SECURE_EXAMS: LEVEL.SECURE_EXAMS,
 });
@@ -130,6 +136,7 @@ export const STUDENT_DESTINATION_ORDER = Object.freeze([
   STUDENT_DESTINATION.HOME,
   STUDENT_DESTINATION.ASSIGNMENTS,
   STUDENT_DESTINATION.GRADES,
+  STUDENT_DESTINATION.REWARDS,
   STUDENT_DESTINATION.MATH_PATH,
   STUDENT_DESTINATION.SECURE_EXAMS,
 ]);
@@ -147,6 +154,9 @@ export const STUDENT_DESTINATION_LABEL = Object.freeze({
   [STUDENT_DESTINATION.HOME]: 'Home',
   [STUDENT_DESTINATION.ASSIGNMENTS]: 'Assignments',
   [STUDENT_DESTINATION.GRADES]: 'Grades',
+  // What do I have, and how do I use it? Practice Passes, badges and Class
+  // Points used to sit at the top of Home with no way to find them elsewhere.
+  [STUDENT_DESTINATION.REWARDS]: 'My Rewards',
   [STUDENT_DESTINATION.MATH_PATH]: 'My Math Path',
   /*
    * "Tests & Exams", not "Secure Exams".

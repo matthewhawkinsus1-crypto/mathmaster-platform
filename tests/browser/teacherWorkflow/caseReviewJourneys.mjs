@@ -187,7 +187,7 @@ const journeys = {
     await review.locator('[data-case-assignment="a-lastweek"]').getByRole('button', { name: 'Linear Functions — Review' }).click();
     const assignment = review.locator('[data-case-assignment-detail="a-lastweek"]');
     await assignment.waitFor({ timeout: 10000 });
-    expect('C2', /Garza, Oakley › Case review › Questions & attempts › Linear Functions — Review$/.test(await crumbs(review)), `breadcrumb at the assignment (${await crumbs(review)})`);
+    expect('C2', (await crumbs(review)).endsWith('Garza, Oakley › Case review › Questions & attempts › Linear Functions — Review'), `breadcrumb at the assignment (${await crumbs(review)})`);
     await assignment.locator('[data-case-question="2"]').getByRole('button').first().click();
     const question = review.locator('[data-case-question-detail="2"]');
     await question.waitFor({ timeout: 10000 });
@@ -197,7 +197,7 @@ const journeys = {
     expect('C2', /A\.5C/.test(detail), 'the question\'s own standard');
     expect('C2', /Error pattern not determinable from stored evidence\./.test(detail), 'no error pattern is invented');
     expect('C2', !/Solve the system|What is y\?/.test(detail), 'the question text and its answer are not on the main report');
-    expect('C2', /› Linear Functions — Review › Classwork Q2$/.test(await crumbs(review)), `breadcrumb at the question (${await crumbs(review)})`);
+    expect('C2', (await crumbs(review)).endsWith('› Linear Functions — Review › Classwork Q2'), `breadcrumb at the question (${await crumbs(review)})`);
     await shot(page, 'question-detail');
 
     // The Response Inspector opens above; Escape there leaves the case review alone.
