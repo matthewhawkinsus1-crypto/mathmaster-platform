@@ -121,6 +121,35 @@ before the leaderboard reloads — harmless, because the call is idempotent.
 
 ## Live Challenge
 
+### ~~Live Challenge host, projector, scoreboard, pacing and reconnect~~ — shipped
+**Status:** shipped · follow-ups open below
+
+Every mode now runs inside one shell whose screens render from the match's
+derived stage at a calibrated server time: a lobby by name, a 3-2-1-GO in step
+on every screen, rounds the host closes once (deadline + arrival grace, or
+everyone answered), a results moment read from one document written when the
+round closed (the round, the standings it left, real movement), teacher-paced
+Next Round, a podium with ties and placement rewards, and Play Again as a fresh
+match the class follows. Root causes fixed: count-up scoreboards that stalled
+at zero, phantom working points after the buzzer, a rush results board from
+before the round, the whole console re-rendering four times a second, and
+audio elements created and never released while muted. The console names its
+roster (joined, no signal, reconnected, two devices).
+
+See `docs/architecture/live-challenge-shell.md`.
+
+**Open follow-ups**
+
+- A **pause** control (modelled; deliberately not offered until every device
+  can honour it).
+- A **server-side close** for a round whose deadline passed with no host screen
+  open (students wait on "Time's up" until one is).
+- **Choosing a scoring strategy for the classic modes** in the console (every
+  results screen already presents Grand Prix and Correct Count).
+- **Removing a student** from a running game, and re-inviting a student added
+  to the class mid-game.
+- **Countdown sound** tied to `startsAt` (cues are tied to the deadline today).
+
 ### ~~Live Challenge engine and rewards foundation~~ — shipped
 **Status:** shipped · follow-ups open below
 

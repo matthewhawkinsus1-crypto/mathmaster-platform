@@ -253,8 +253,10 @@ arrival order.
   zero; a request arriving after the deadline's bounded grace is refused.
 - **The host closes each round** about 1.5 s after its deadline (past the
   arrival grace), with the ordinary idempotent close command — from the
-  teacher's console or projector, whichever is open. Next Round unlocks only
-  from a closed round, so every class sees its results.
+  teacher's console or projector, whichever is open. A rush round is never
+  closed early (every student plays against the clock), and Next Round is the
+  teacher's, from a closed round, so every class sees its results. Every mode
+  now paces its rounds this way (`live-challenge-shell.md` §4).
 - **The device's queue** is written to `localStorage` before anything is sent,
   sent one request at a time (gathered for ~0.7 s), retried with backoff and
   on `online`, flushed at the buzzer and when the page is hidden. After a
@@ -279,8 +281,12 @@ stacks them; landscape puts the controls beside the graph. Feedback: a found
 point draws a mark with its coordinates; a miss draws a fading cross and
 names the feature it was not; the cooldown dims the graph and shows a draining
 bar. The standings listener pauses during an open rush round, so a class's
-taps do not wake every screen; between rounds the student sees their own
-round — graphs, accuracy, place, points, championship total and standing.
+taps do not wake every screen. The "Get ready" card counts 3 · 2 · 1 off the
+round's start. Between rounds the student sees the shell's results card, read
+from the round's own result document (never from the paused listener's rows):
+graphs, accuracy, place, the championship points it earned, and their
+championship total and standing — or, if they never completed a graph, that
+they earned no championship points.
 
 **Teacher.** Graph Feature Rush is a game type in the existing Create a
 challenge panel: presets as starting points, then families, features,
@@ -292,9 +298,11 @@ the rush's final ranking. An impossible combination is explained before
 anything is created. "Try it yourself first" plays server-generated sample
 graphs on the student's screen, graded locally, recording nothing.
 
-**Host and projector.** The live race (graphs completed this round), then the
-round's results with the points each place earned, then the championship.
-Never a graph, an answer or a coordinate.
+**Host and projector.** The countdown, the live race (graphs completed this
+round), then the round's results with the points each place earned and the
+championship it left (movement included), then the podium. Never a graph, an
+answer or a coordinate. The lobby, results, final standings, confirmations and
+Play Again are the shell's (`live-challenge-shell.md`).
 
 **Accessibility.** Keyboard play with a visible cursor (shown only to keyboard
 users) and spoken coordinates; a polite live region for prompts, feedback and
@@ -368,8 +376,9 @@ and dark; reduced motion turns the pops and fades off.
 
 ## 12. Deferred
 
-- **A server-side close** for an expired rush round when no host screen is
-  open (today the console or projector closes it; students wait on "Time!").
+- **A server-side close** for an expired round when no host screen is open
+  (today the console or projector closes it; students wait on "Time!"). This
+  now applies to every mode (`live-challenge-shell.md` §14).
 - **Misconception analytics**: receipts already record where wrong taps land
   (e.g. the y-intercept tapped for "zeros"); the report does not yet group them.
 - **More features** (axis of symmetry, holes, relative extrema, inflection
