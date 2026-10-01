@@ -37,7 +37,6 @@ const math = create(all);
 // created with, so locking the expression namespace does not affect it.
 const rawParse = math.parse;
 const rawEvaluate = math.evaluate;
-const rawCompile = math.compile;
 const rawSimplify = math.simplify;
 const fraction = math.fraction;
 const format = math.format;

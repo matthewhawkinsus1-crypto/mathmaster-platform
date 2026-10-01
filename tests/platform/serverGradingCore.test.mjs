@@ -23,7 +23,6 @@ import {
 } from '../../functions/shared/serverGrading/toolResponseContract.mjs';
 import { attemptInputsFromGrading, gradedResult } from '../../functions/shared/serverGrading/gradingResult.mjs';
 import { SHARED, bindToolGrader, clientGraded, declareTool } from '../../functions/shared/serverGrading/toolGraderDefinition.mjs';
-import { GRADING_AUTHORITY } from '../../functions/shared/serverGrading/gradingAuthority.mjs';
 import {
   gradeServerResponse,
   gradeToolWork,

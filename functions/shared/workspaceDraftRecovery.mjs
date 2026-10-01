@@ -37,7 +37,6 @@ import { buildLiteralWorkspaceQuestion } from './toolMath/algebra-literal/litera
 import { normalizeQuestionRecord } from './attemptPolicy.mjs';
 
 const text = (value) => String(value ?? '');
-const trimmed = (value) => text(value).trim();
 
 /**
  * Did the surface that renders this question write a draft of this type? A
