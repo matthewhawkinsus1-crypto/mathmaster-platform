@@ -284,6 +284,9 @@ const analysisAnswerShape = (part) => describeAnswerFormat({
   answerFormat: analysisAnswerFormatFor(part) || analysisKeypadProfile(part),
 });
 
+const NO_FUNCTION_SPEC = Object.freeze({});
+const NO_GRAPH = Object.freeze({});
+
 export default function InteractiveGraphWorkspace({
   question,
   onStateChange,
@@ -332,8 +335,11 @@ export default function InteractiveGraphWorkspace({
     };
   }, []);
 
-  const functionSpec = question.functionSpec || {};
-  const graph = question.graph || {};
+  // Stable fallbacks: a fresh `{}` per render for a question without these
+  // fields changed every memo below it on every render, and the state report
+  // that depends on them looped with the engine.
+  const functionSpec = question.functionSpec || NO_FUNCTION_SPEC;
+  const graph = question.graph || NO_GRAPH;
   const requestedShowCoordinates = question.showCoordinates ?? graph.showCoordinates ?? true;
   const studentChoosesX = Boolean(question.studentChoosesX || question.chooseXValues);
   const pointOnly = Boolean(question.pointOnly || question.plotMode === 'points');

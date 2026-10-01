@@ -86,6 +86,18 @@ const EMPTY_ANSWER_STATE = {
   parts: [],
 };
 
+// Answer states are small plain objects (flags, a response key, a details
+// sentence, a parts list), so a serialized comparison is cheap and exact.
+const sameAnswerState = (left, right) => {
+  if (left === right) return true;
+  if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
+  }
+};
+
 const MULTIPART_TYPES = new Set([
   'functionGraph',
   'functionInvestigation',
@@ -276,6 +288,18 @@ export default function QuestionEngine({
    */
   const canonicalAnswerSavedAt = Date.parse(record.lastAttemptAt || '') || 0;
   const [answerState, setAnswerState] = useState(EMPTY_ANSWER_STATE);
+  // WHAT EVERY RESPONSE MODULE REPORTS INTO.
+  //
+  // Modules report their answer state from effects, and most rebuild the object
+  // on every render. Stored as-is, an unchanged report still re-rendered this
+  // engine, which re-rendered the module, whose effect reported again. Any
+  // module whose effect also depended on a value rebuilt per render — a `|| {}`
+  // or `= []` fallback for a field an imported question lacks — then looped
+  // without end. Keeping the previous object for structurally equal work lets
+  // React bail out, so that whole class of loop cannot start here.
+  const reportAnswerState = useCallback((next) => {
+    setAnswerState((current) => (sameAnswerState(current, next) ? current : next));
+  }, []);
 
   useEffect(() => {
     onSpotlightFrame?.({ question: processedQuestion, answerState });
@@ -573,13 +597,28 @@ export default function QuestionEngine({
   // (for example, at a synchronized round deadline). Publish only the same
   // canonical raw payload manual Submit uses; no browser verdict or step score
   // is included in this seam.
+  //
+  // PUBLISHED WHEN THE WORK CHANGES, NOT WHEN THE HOST RE-RENDERS. A host
+  // passes `serverGrading` and `onResponseStateChange` inline, and the Live
+  // Challenge round stores what it receives in state. With both in the
+  // dependency list every report re-rendered the host, which handed over new
+  // props, which re-ran this: an endless loop for the whole of every Warm-Up
+  // challenge round ("Maximum update depth exceeded" in development; a pinned
+  // CPU on every Chromebook in production). The callback is read through a
+  // ref, and a payload identical to the last one published is not sent again.
+  const onResponseStateChangeRef = useRef(onResponseStateChange);
+  onResponseStateChangeRef.current = onResponseStateChange;
+  const lastPublishedResponseRef = useRef(null);
+  const serverGradingToolId = serverGrading?.pathToolId ?? null;
+  const publishesResponseState = Boolean(serverGrading && onResponseStateChange);
   useEffect(() => {
-    if (!serverGrading || !onResponseStateChange) return;
-    onResponseStateChange(buildRawPathResponse({
-      pathToolId: serverGrading.pathToolId,
-      answerState,
-    }));
-  }, [answerState, onResponseStateChange, serverGrading]);
+    if (!publishesResponseState) return;
+    const rawWork = buildRawPathResponse({ pathToolId: serverGradingToolId, answerState });
+    const signature = stableStringify(rawWork ?? null);
+    if (signature === lastPublishedResponseRef.current) return;
+    lastPublishedResponseRef.current = signature;
+    onResponseStateChangeRef.current?.(rawWork);
+  }, [answerState, publishesResponseState, serverGradingToolId]);
 
   // The one place a server-graded attempt is sent. Returns the server's
   // feedback, or a refusal — never a locally computed verdict.
@@ -884,7 +923,7 @@ export default function QuestionEngine({
 
   const commonModuleProps = {
     question: presentationQuestion,
-    onStateChange: setAnswerState,
+    onStateChange: reportAnswerState,
     onUndoStateChange: registerUndo,
     workspaceMode: solverWorkspaceMode,
     onWorkspaceModeChange: setSolverWorkspaceMode,

@@ -8,11 +8,15 @@ import QuestionVisual from './QuestionVisual';
 import { gradeSystemResponse } from '../functions/shared/ordinaryResponseGrading.mjs';
 import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 
+// One empty list for every system without authored equations: a fresh `[]`
+// per render is a new dependency for the report effect below on every render.
+const NO_EQUATIONS = Object.freeze([]);
+
 export default function SystemGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const { prompt, solution, showEquations = true, showGraph = true, graph } = question;
   // Same null-vs-undefined trap as TableGrader: `= []` does not catch an
   // explicit null, and this value is used via `.length` further down.
-  const equationsLatex = Array.isArray(question.equationsLatex) ? question.equationsLatex : [];
+  const equationsLatex = Array.isArray(question.equationsLatex) ? question.equationsLatex : NO_EQUATIONS;
   const [answer, setAnswer] = useLocalDraftState(draftKey ? `${draftKey}:system` : null, '');
   // Correctness comes from the shared grading contract so every caller of it —
   // this screen, the deadline finalizer, the tests — marks alike.
