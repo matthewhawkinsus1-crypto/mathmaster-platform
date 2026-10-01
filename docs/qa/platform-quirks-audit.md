@@ -68,7 +68,7 @@ audit first recorded them; each entry's status line is current.)
 | PQ-039 | P2 | NOT A PRODUCTION ISSUE | Typing latency in the student harness |
 | PQ-040 | P2 | FIXED | Typing "−2/3x + 4" on a keyboard makes −2 over (3x + 4) |
 | PQ-042 | P2 | FIXED (2026-10-01 follow-up) | On a phone, "Next step" can open the next step out of view |
-| PQ-043 | P2 | OPEN (persistence owner) | A composed question with a plotting step is never backed up to the server |
+| PQ-043 | P2 | FIXED (2026-10-01 follow-up) | A composed question with a plotting step is never backed up to the server |
 | PQ-019 | P3 | FIXED | Inverse & Composition writes "1(x − 2)²" and "−1x" |
 | PQ-025 | P3 | FIXED (2026-10-01 cleanup) | "Enlarge question" sits on top of content on phones |
 | PQ-026 | P3 | FIXED (2026-10-01 cleanup) | Work View header says "Question Work View" and clips the task |
@@ -1434,21 +1434,98 @@ student screen with its identity bar and navigator; see Tests).
   `stageNavigationPhoneReveal.test.mjs` (eight cases). Evidence:
   `pq042-before-390x664.png` / `pq042-after-390x664.png`.
 
-### PQ-043 · A composed question with a plotting step is never backed up to the server — **P2 · OPEN (persistence; outside this change)**
+### PQ-043 · A composed question with a plotting step is never backed up to the server — **P2 · FIXED (2026-10-01 follow-up)**
 
 - **Found** while placing the staged question's five points through the plot
-  step's own controls: the moment Check Point Placements completes the step,
-  the development audit reports `[MathMaster draft sync] The server backup will
-  NOT store "…:workflow-responses": forbidden-key at plot.isCorrect`.
-  WorkflowRunner's `graphArtifact` (coordinatePlot and functionGraph stages)
-  keeps `isCorrect` in the step's response, and `sanitizeWorkspaceDraftValue`
-  refuses any record with `isCorrect` anywhere in it (rightly: it is the guard
-  that keeps answers out of student-readable documents). So from the first
-  checked graph on, a composed question's answers stay on the device only —
-  the PR #397 board failure (`cardChecks.isCorrect`) again, in a different
-  record. **Next:** keep correctness out of the stored artifact and derive it
-  where the workflow is graded — a grading/persistence change for that owner
-  (`gradeWorkflow` reads the artifact's `isCorrect` today). Not changed here.
+  step's own controls: the development audit reports `[MathMaster draft sync]
+  The server backup will NOT store "…:workflow-responses": forbidden-key at
+  plot.isCorrect`.
+- **Reproduction:** a composed question with a graph step in the real
+  QuestionEngine, with the real background sync merging into a copy of the
+  server document and App.jsx's restore on open
+  (`tests/browser/composedDraftRestore.html`). The record is refused from the
+  moment the graph step's workspace first reports — when the step OPENS, with
+  `isCorrect: false` — not only after Check Point Placements: 30 refusals over
+  one table → graph → domain → range question. The server copy of the answers
+  stays at the last version before the graph step: `{ table }` there, and
+  nothing at all for the function-characteristics question, whose plot is step
+  1. A second Chromebook with only the server copy got back 1 of 4 steps, and
+  0 of 4.
+- **Root cause:** WorkflowRunner keeps every step's answer in one draft, and a
+  graph step's answer is the plotting workspace's report, `{ isComplete,
+  isCorrect, responseKey, parts }`, every part with its own `isCorrect`. That
+  verdict is what grades the step (`useStageVerdict`; `gradePlottedPairs` when
+  no point can be read) and is finer than anything the grader could rebuild,
+  so the device has to keep it — and `sanitizeWorkspaceDraftValue`, rightly,
+  will not let a student-readable document hold it (on a DOL, quiz or test it
+  would say whether the graph is right before release). One record was serving
+  both, so the guard took the whole record off the server: the PR #397 board
+  failure (`cardChecks.isCorrect`) in another record.
+- **Fixed:** the server copy is a PROJECTION of the device's copy
+  (`serverDraftProjection.js`, `workflowDraftProjection.js`). A graph step
+  travels without its verdict: no `isCorrect`, no part verdicts, no
+  `responseKey` (it repeats the workspace's construction, raw strokes included,
+  which travels in its own `…:graph-construction` draft) — only each part's
+  plain id, label, completeness and response, marked `rederiveOnOpen` with
+  `isComplete: false`. Every other step goes as it is. The sync runs the
+  unchanged guard over exactly what it sends, and the development audit judges
+  the same value. The device's copy is never touched, so the device that did
+  the work grades it exactly as before; and the existing precedence (a server
+  entry is restored only where it is newer than the device's own copy and than
+  the last attempt) means that device never takes the verdict-less copy over
+  its own.
+  On another device the step comes back as a step to finish. It is not an
+  answer (`hasStageResponse`), so it is never graded — `gradeStage` reports it
+  ungraded and incomplete, not wrong — the question cannot be submitted around
+  it, and no later step can close it: the function-characteristics plot closes
+  once the intercept step is in reach, and a closed step never mounts its
+  workspace again. Opening it mounts the workspace, which reports from the
+  student's restored construction: the same artifact, verdict included, byte
+  for byte. In focus mode a calm notice names the steps to open ("Your graph
+  came back from another device. … Open Step 2: Build the graph"); stacked, the
+  step is open with the page and re-derives at once. Getting the verdict back
+  re-baselines the workflow's Undo instead of becoming an entry Undo could
+  never get past. A device still on an older build reads the projected step as
+  unfinished (`isComplete: false`): a step to open, never one to mark wrong.
+- **After:** nothing refused; the server copy holds every step's answer and no
+  verdict-like key anywhere. On a second device the other steps' answers and
+  the workspace's construction come back, Submit is off and the graph step is
+  ungraded until it is opened; then the graph answer is the first device's
+  exactly and the submission grades identically — parts, partial credit and
+  response key — on Practice and on a DOL. The same device opened again keeps
+  its own copy and grades identically. On the code before the fix the same
+  journeys fail at every one of those checks.
+  Gates: `composedDraftRestore.mjs` (the model and function-characteristics
+  questions on Practice and a DOL, a relation graded by its plotted pairs; in
+  CI with the student runtime gates), `workflowDraftProjection.test.mjs` (15),
+  `toolDraftSyncContract.test.mjs` (its wiring assertion rewritten to the
+  capability: the guard judges exactly the value that is queued). Mutation
+  checks, each undone in turn, all red: the sync guarding and queueing the
+  device's copy (4 unit, 22 browser), the projection keeping the step's verdict
+  or the parts' verdicts (10 unit each) or its completeness (1), a passthrough
+  projection (8), a verdict-less answer counted (1) or graded (4 unit, 2
+  browser), only a marked answer waiting (1), Undo not re-baselined (1, 2), no
+  notice (1, 2), a notice reaching past the navigator (1), the audit judging the
+  device's copy (1, 4).
+- **Found on the way, not changed here:**
+  - *A finished composed question opened again cannot be submitted until an
+    answer changes.* QuestionEngine clears its answer state in a mount effect,
+    which React runs after the children's, so WorkflowRunner's first report is
+    wiped, and WorkflowRunner reports again only when a response changes. Same
+    on the code before this change; the gate's same-device journey retypes the
+    answer on screen, which leaves the work identical.
+  - *Verdict-like fields the guard does not name* reach the server copy in
+    other records, unchanged by this fix: a table step's `sourceConsistent` /
+    `sourceChecked` (checked against the AUTHORED function when the question
+    has no equation step, so on a DOL it says whether the table is right), and
+    the graph construction's `markerPlacements.*.locationCorrect` (whether a
+    marker is at the true graph end, on a DOL too). Both are in the device's
+    own storage as well.
+  - The whole tool draft sweep finds no other refused record: every registry
+    tool's records pass, and the QuestionEngine families of the draft
+    certification, driven with their scenes' edits and every Check, pass too
+    (Step Algebra's `pendingMove.analysisBefore.solution`, fixed separately,
+    is not reached by those edits).
 
 ---
 
@@ -1927,9 +2004,9 @@ bar case of the phone reveal.
   x-axis is below the fold. Fitting it to the measured chrome would make it
   ~250px tall on that screen — a product decision; the audit notes it on every
   run.
-- **PQ-043:** a composed question with a plotting step is not backed up to the
-  server once the graph is checked (`plot.isCorrect` in its draft). Grading /
-  persistence.
+- **PQ-043:** fixed since (see its entry): the server copy of a composed
+  question's answers carries a graph step without its verdict, and the step
+  works it out again where it is opened.
 
 ## Evidence
 

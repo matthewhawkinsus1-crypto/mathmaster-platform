@@ -45,6 +45,10 @@ name: Student Runtime Browser Gates
 #                       answer control on screen together, a plane big enough
 #                       to mark, zoom offered, no coordinates printed where a
 #                       later step asks for them
+#   composedDraftRestore a composed question with a graph step reaches the
+#                       server backup with no verdict in it, comes back on
+#                       another device (the graph step re-derived when opened)
+#                       and grades exactly as on the first (PQ-043)
 
 on:
   pull_request:
@@ -67,6 +71,7 @@ on:
       - "tests/browser/stagedQuestion*"
       - "tests/browser/unansweredChoiceGates*"
       - "tests/browser/graphKeyboardRoute*"
+      - "tests/browser/composedDraftRestore*"
       - "tests/browser/harnessProduction.config.mjs"
       - "scripts/serve-static-spa.mjs"
       - "tests/browser/studentUxPlatform*"
@@ -188,6 +193,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/graphKeyboardRoute.mjs
+      - name: A composed question with a graph step survives a Chromebook swap
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/composedDraftRestore.mjs
       - name: A production build serves the math fonts
         if: always()
         env:
