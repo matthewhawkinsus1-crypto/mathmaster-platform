@@ -292,7 +292,7 @@ defineScoringStrategy({
 | Strategy | Accumulation | Match total |
 | --- | --- | --- |
 | `accuracyFirst` (default) | per response | the sum of response points: 1,000 for correctness, bounded speed, streak and comeback bonuses, second-chance recovery shares. Unchanged arithmetic. |
-| `grandPrix` | per round | round performance → round rank → placement points → championship total. `placementCurve: 'table'` (default): `[15, 12, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]`, 1 beyond the table. `'field'` (Graph Feature Rush): sized to the class — 1st 12, last 3, a straight line between (`fieldPlacementPoints`). Either way 0 for no credit, and ties share a place's points. No streak/comeback carry-over between rounds. Ranked by match points, then round wins, then raw score. |
+| `grandPrix` | per round | round performance → round rank → placement points → championship total. `placementCurve: 'table'` (default): `[15, 12, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]`, 1 beyond the table. `'field'` (Graph Feature Rush): sized to the class — a straight line from 11 at the top down to 3 for last, plus a one-point winner's bonus that makes 1st worth 12 (`fieldPlacementPoints`). Either way 0 for no credit, and ties share a place's points. No streak/comeback carry-over between rounds. Ranked by match points, then round wins, then raw score. |
 | `correctCount` | per response | one point per fully correct response (or completed multi-target question, via the `scoreTargetAttempt` hook); ties by match accuracy, then rounds answered |
 
 **Speed influence is native.** The teacher's speed setting (0–50%) is applied by

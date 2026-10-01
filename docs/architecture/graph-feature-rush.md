@@ -217,9 +217,10 @@ played.
 
 Each round ranks the field by work score, then accuracy, then the earliest
 last correct completion. Placement earns championship points on a curve sized
-to the class: 1st earns 12, last earns 3, everyone between on a straight line
-(rounded half up), ties share the place's points, and a player who completed
-nothing earns nothing.
+to the class: a straight line from 11 at the top of the field down to 3 for
+last (rounded half up), with a one-point winner's bonus that makes 1st worth
+12. Ties share the place's points, and a player who completed nothing earns
+nothing.
 
 | Players | Points by place |
 | --- | --- |
@@ -317,16 +318,21 @@ and dark; reduced motion turns the pops and fades off.
 ## 10. Performance
 
 - **Feedback**: tap to the next frame after the mark appears — median 18 ms,
-  p95 27 ms, on a Chromebook profile with the CPU slowed 4× (browser harness).
+  p95 28 ms, on a Chromebook profile with the CPU slowed 4× (browser harness).
 - **Requests**: a fast player sends about one request a second (taps are
   gathered); each is one transaction reading the room and the private player
-  and writing both player rows. Local emulator: median 63 ms, p95 181 ms.
+  and writing both player rows. Local emulator: median 77 ms, p95 169 ms.
 - **Listeners**: during a rush round a student listens to the room and their
   invite only; the teacher and projector listen to the players.
 - **Bundles**: the student round is its own lazily loaded chunk (≈38 kB,
   13 kB gzip) fetched while the lobby waits; the generator and families never
   ship to a browser; the teacher's setup panel and practice load only when a
-  rush is chosen.
+  rush is chosen. Classic games carry the rush's branches: measured against
+  the build before this mode, a classic student's Live Challenge code grew by
+  13 kB (≈6 kB gzip) and the teacher console by 51 kB (≈18 kB gzip: the host
+  race view, the projector's rush branches, the setup model). Loading the host
+  view and the setup model only for a rush would recover ≈17 kB of those
+  51 kB.
 - **Known cost**: the legacy `adjustLiveChallengeExperienceScore` trigger
   (`functions/entry.js`) fires on every private-player write and returns at
   once for a rush; deleting it in a deployment that removes it explicitly
