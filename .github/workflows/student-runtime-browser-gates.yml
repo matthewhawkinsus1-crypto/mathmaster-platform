@@ -19,6 +19,15 @@ name: Student Runtime Browser Gates
 #                       names a wrong point; a point plot is graded as placed
 #   undoTyping          one platform Undo takes back a run of typing, not one
 #                       character; a math field's own Ctrl+Z agrees with it
+#   composedOutcomePolicy  a multi-step question on a DOL, quiz or test reveals
+#                       nothing in any step (registry-tool steps, table->graph,
+#                       "Your graph"), while practice keeps its feedback
+#   toolPolicyGates     registry tools: no stage verdict and no hint where the
+#                       activity withholds them; hints reveal and record
+#   relationPlotGrading a correct relation plot is graded correct, either way
+#                       round for same-x cards; a DOL plot has no check
+#   mathFontsProduction a PRODUCTION build serves the fonts its math fields
+#                       draw with (the dev server hid that they were missing)
 
 on:
   pull_request:
@@ -31,6 +40,12 @@ on:
       - "tests/browser/duplicateTabs.mjs"
       - "tests/browser/graphPointCheck*"
       - "tests/browser/undoTyping*"
+      - "tests/browser/composedOutcomePolicy*"
+      - "tests/browser/toolPolicyGates*"
+      - "tests/browser/relationPlotGrading*"
+      - "tests/browser/mathFontsProduction.mjs"
+      - "tests/browser/harnessProduction.config.mjs"
+      - "scripts/serve-static-spa.mjs"
       - "tests/browser/studentUxPlatform*"
       - "tests/browser/stepAlgebraDriver.mjs"
       - "package.json"
@@ -48,7 +63,7 @@ concurrency:
 jobs:
   student-runtime:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -96,3 +111,26 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/undoTyping.mjs
+      - name: A composed question follows the feedback policy in every step
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/composedOutcomePolicy.mjs
+      - name: Registry tools follow the feedback and hint policy
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/toolPolicyGates.mjs
+      - name: Relation plots are graded by their points
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/relationPlotGrading.mjs
+      - name: A production build serves the math fonts
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/mathFontsProduction.mjs

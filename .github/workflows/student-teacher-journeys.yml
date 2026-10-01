@@ -1,0 +1,104 @@
+name: Student and Teacher Journeys
+
+# The end-to-end journeys that used to run only by hand (deep dive 2026-10-01
+# §13): the real App.jsx and the real student runtime, driven in Chromium, with
+# every `firebase/*` import replaced by in-memory fakes or a harness — nothing
+# can reach a Firebase project, and every school is synthetic.
+#
+#   teacher journeys       tests/browser/teacherWorkflow/journeys.mjs
+#                          (today's lesson -> progress -> grades -> Live view,
+#                          DOL fire drill, moving classwork, exports)
+#   support evidence       tests/browser/teacherWorkflow/supportEvidenceJourneys.mjs
+#   case review            tests/browser/teacherWorkflow/caseReviewJourneys.mjs
+#   student UX platform    tests/browser/studentUxPlatform.mjs
+#   representations board  tests/browser/linearMultipleRepresentations.mjs
+#   endurance (nightly)    tests/browser/teacherWorkflow/enduranceJourneys.mjs
+#
+# Pull requests that touch the app run the journeys; the long endurance run is
+# nightly and on demand. Read-only: this workflow writes nothing back.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "functions/shared/**"
+      - "tests/browser/teacherWorkflow/**"
+      - "tests/browser/studentUxPlatform*"
+      - "tests/browser/linearMultipleRepresentations*"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/student-teacher-journeys.yml"
+  schedule:
+    - cron: "17 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: student-teacher-journeys-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  teacher:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false playwright@1.55.0
+      - run: npx playwright install --with-deps chromium
+      - name: Start the teacher harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/teacher-harness.log; exit 1
+      - name: Teacher workflow journeys
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/journeys.mjs
+      - name: Support evidence journeys
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/supportEvidenceJourneys.mjs
+      - name: Case review journeys
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/caseReviewJourneys.mjs
+      - name: Endurance (nightly and on demand)
+        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/enduranceJourneys.mjs
+
+  student:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false playwright@1.55.0
+      - run: npx playwright install --with-deps chromium
+      - name: Start the student harness server
+        run: |
+          npx vite --host 127.0.0.1 --port 5199 --strictPort >/tmp/student-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5199/tests/browser/studentUxPlatform.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/student-harness.log; exit 1
+      - name: Student UX platform journeys
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/studentUxPlatform.mjs
+      - name: Representations board journeys
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/linearMultipleRepresentations.mjs
