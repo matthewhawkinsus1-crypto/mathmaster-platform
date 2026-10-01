@@ -20,7 +20,7 @@
 // The second half drives scripts/student-identity-repair.mjs against a small
 // in-memory Firestore stand-in, so the suite proves the dry run writes nothing,
 // every read is projected, writes are update()-only and the report is redacted
-// without needing the emulator. tests/integration/studentIdentityRepair.test.mjs
+// without needing the emulator. tests/integration/studentIdentity/studentIdentityRepair.test.mjs
 // runs the same tool against the real Firestore emulator.
 //
 // Every name and id in this file is invented for the test.

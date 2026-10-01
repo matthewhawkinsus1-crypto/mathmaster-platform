@@ -290,16 +290,17 @@ Sources, most trusted first: `storedStructured`, `storedDisplayName`,
 - `tests/platform/studentIdentityContract.test.mjs` (Test B) runs the tool's
   writer and the roster end to end, including a Classroom-only student that
   stays named on screen until a teacher confirms it with `setStudentName`.
-- `tests/integration/studentIdentityRepair.test.mjs` covers the same tool
+- `tests/integration/studentIdentity/studentIdentityRepair.test.mjs` covers the same tool
   against the Firestore emulator, in its own project:
 
   ```bash
   npx firebase emulators:exec --only firestore --project mathmaster-identity-repair \
     --config tests/browser/emulator/firebase.json \
-    "node --test tests/integration/studentIdentityRepair.test.mjs"
+    "node --test tests/integration/studentIdentity/studentIdentityRepair.test.mjs"
   ```
 
-  It also runs inside `npm run test:challenge-finish`. Without
-  `FIRESTORE_EMULATOR_HOST` it skips and says why.
+  or `npm run test:identity-repair:emulator`, which CI runs as its own step
+  (kept out of the parallel `test:challenge-finish` run so its load never
+  races another suite). Without `FIRESTORE_EMULATOR_HOST` it skips and says why.
 
 Every name in this runbook and in those tests is invented.

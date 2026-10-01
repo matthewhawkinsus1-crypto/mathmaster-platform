@@ -3,9 +3,13 @@
 // HOW TO RUN:
 //   npx firebase emulators:exec --only firestore --project mathmaster-identity-repair \
 //     --config tests/browser/emulator/firebase.json \
-//     "node --test tests/integration/studentIdentityRepair.test.mjs"
-// It also runs inside `npm run test:challenge-finish` (every tests/integration
-// suite), and SKIPS — rather than fails — when FIRESTORE_EMULATOR_HOST is unset.
+//     "node --test tests/integration/studentIdentity/*.test.mjs"
+// or `npm run test:identity-repair:emulator`, which CI runs as its own step.
+// It deliberately lives OUTSIDE the tests/integration/*.test.mjs glob that
+// `npm run test:challenge-finish` runs in parallel: its extra transaction load
+// tripped the emulator's "Transaction is invalid or closed" on rewardActions'
+// deliberate concurrent-undo race (about 1 run in 6). It SKIPS — rather than
+// fails — when FIRESTORE_EMULATOR_HOST is unset.
 //
 // WHY. tests/platform/studentIdentityRepairPlan.test.mjs proves the planner and
 // drives the tool against an in-memory stand-in. Neither can prove what a real
@@ -35,7 +39,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const repo = path.resolve(here, '../..');
+const repo = path.resolve(here, '../../..');
 const require = createRequire(import.meta.url);
 
 const EMULATOR = process.env.FIRESTORE_EMULATOR_HOST || '';
@@ -49,7 +53,7 @@ const SKIP = EMULATOR
   ? false
   : 'FIRESTORE_EMULATOR_HOST is not set — this suite needs the Firestore emulator. Run: '
     + `npx firebase emulators:exec --only firestore --project ${PROJECT_ID} --config tests/browser/emulator/firebase.json `
-    + '"node --test tests/integration/studentIdentityRepair.test.mjs"';
+    + '"node --test tests/integration/studentIdentity/*.test.mjs"';
 
 const ACTOR = 'operator@example.test';
 const FIXTURE_NAMES = [
