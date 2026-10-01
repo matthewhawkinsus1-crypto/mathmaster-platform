@@ -346,7 +346,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
           ? 'A correlation value has not been produced.'
           : !feedback.metadata.parts.interpretation
             ? 'Check the direction/strength interpretation.'
-            : 'Workflow complete.'
+            : 'Regression complete.'
   );
 
   return (
@@ -694,8 +694,10 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
       </div>
 
       <div className="regression-submit-row">
+        {/* The student's words, not the platform's: "workflow" is our
+            vocabulary for a sequence of steps, not theirs (PQ-029). */}
         <button className="regression-submit" data-primary-answer-action="true" type="button" onClick={check}>
-          Submit workflow
+          Submit my regression
         </button>
         {feedbackText ? <p role="status">{feedbackText}</p> : null}
       </div>

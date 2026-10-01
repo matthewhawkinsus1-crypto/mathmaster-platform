@@ -989,9 +989,28 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   by design, so a student mid-way through row 3 comes back to row 1. **Next:**
   open on the first incomplete row. **Scope:** tiny.
 
-### PQ-029 · Regression Calculator's button says "Submit workflow" — **P3 · DEFERRED**
+### PQ-029 · Regression Calculator's button says "Submit workflow" — **P3 · FIXED (Systems Workspace titles left to its owner)**
 
 - "workflow" is platform vocabulary. **Next:** "Submit my regression". **Scope:** tiny.
+- **Reproduced:** the button read "Submit workflow" and a fully correct
+  submission answered "Workflow complete.". A scan of every rendered string in
+  `src/tools/**` and `src/platform/workflow/**` found three more: a composed
+  question's Undo tooltip and accessible label, "Undo the last workflow
+  response", and three Systems Workspace panel titles ("3×3 substitution
+  workflow", "3×3 elimination workflow", "<method> workflow").
+- **Fixed:** "Submit my regression", "Regression complete.", and "Undo the
+  last answer in these steps". The Systems Workspace titles are **not**
+  changed here: that directory is being edited for the assessment checks in
+  parallel, so they are left to that work (listed as tolerated, not required,
+  in the test). The regression drivers (`regressionCalculatorPhone.mjs`,
+  `captureToolResponses.mjs`) press the new label and now honour
+  `AUDIT_ORIGIN`; the Enter survey fixture was regenerated (only the label and
+  timestamp changed); the captured submission payload is byte-identical.
+- **Tests:** `tests/platform/toolStudentWording.test.mjs` — no rendered string
+  in a registry tool or composed-question stage uses "workflow" as a word (class
+  names such as `workflow-stage` are not words), and the regression button and
+  verdict use the student's words. Five mutations, all red (each old string
+  restored, the tolerated list emptied, a new "Check my workflow" label).
 
 ### PQ-030 · The identity bar's ⭐ is an emoji too — **P3 · DEFERRED**
 

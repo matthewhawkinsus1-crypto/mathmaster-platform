@@ -147,7 +147,7 @@ const SCRIPTS = {
 
     await page.locator('label', { hasText: 'Direction' }).locator('select').selectOption('positive');
     await page.locator('label', { hasText: 'Strength' }).locator('select').selectOption('strong');
-    await btn(page, 'Submit workflow').click();
+    await btn(page, 'Submit my regression').click();
   },
 
   systemsWorkspace: async (page) => {
@@ -264,7 +264,7 @@ for (const toolId of Object.keys(SCRIPTS)) {
   const page = await browser.newPage({ viewport: { width: 1200, height: 1500 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto(`http://localhost:5199/tests/browser/captureToolResponses.html?tool=${toolId}`, { waitUntil: 'networkidle' });
+  await page.goto(`${process.env.AUDIT_ORIGIN || 'http://localhost:5199'}/tests/browser/captureToolResponses.html?tool=${toolId}`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(900);
   let scriptError = null;
   try {

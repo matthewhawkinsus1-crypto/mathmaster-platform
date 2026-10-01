@@ -1,11 +1,12 @@
 // Real 390px acceptance flow for Issue #202. Run with Vite on port 5199.
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
+const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5199';
 const launchOptions = { args: ['--no-sandbox'] };
 if (process.env.CHROMIUM_PATH) launchOptions.executablePath = process.env.CHROMIUM_PATH;
 else if (!process.env.PLAYWRIGHT_MODULE) launchOptions.executablePath = '/opt/pw-browsers/chromium';
 const browser = await chromium.launch(launchOptions);
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
-await page.goto('http://localhost:5199/tests/browser/captureToolResponses.html?tool=regressionCalculator', { waitUntil: 'networkidle' });
+await page.goto(`${ORIGIN}/tests/browser/captureToolResponses.html?tool=regressionCalculator`, { waitUntil: 'networkidle' });
 
 const sourceGraph = page.locator('[data-regression-source-graph]');
 if (await sourceGraph.count() !== 1) throw new Error('Scatterplot source mode did not render its source graph');
@@ -72,11 +73,11 @@ await page.getByText(/r = 0\.9812/).waitFor();
 if (await page.locator('[data-regression-graph] line[stroke="#1a73e8"]').count() !== 1) throw new Error('Fitted line is not visible');
 await page.getByLabel('Direction').selectOption('positive');
 await page.getByLabel('Strength').selectOption('strong');
-await page.getByRole('button', { name: 'Submit workflow' }).click();
+await page.getByRole('button', { name: 'Submit my regression' }).click();
 // This harness intentionally runs QuestionEngine in server-grading mode.
 // Local tool feedback is suppressed there, so a correct submission is proven
 // by the real wire payload reaching the server-grading adapter rather than by
-// waiting for the tool's standalone "Workflow complete." message.
+// waiting for the tool's standalone "Regression complete." message.
 await page.waitForFunction(() => window.__mmCaptured?.rawWork?.regressionRun?.operation === 'linearRegression');
 const captured = await page.evaluate(() => window.__mmCaptured);
 if (!captured?.rawWork || captured.rawWork.table?.length !== 4) throw new Error('Regression workflow did not submit its table and run evidence');
@@ -115,7 +116,7 @@ await page.screenshot({ path: 'tests/browser/artifacts/regression-calculator-390
 // Chromebook acceptance: the same workflow is presented as an editor/graph
 // split rather than the phone's vertical calculator.
 const desktop = await browser.newPage({ viewport: { width: 1280, height: 800 } });
-await desktop.goto('http://localhost:5199/tests/browser/captureToolResponses.html?tool=regressionCalculator', { waitUntil: 'networkidle' });
+await desktop.goto(`${ORIGIN}/tests/browser/captureToolResponses.html?tool=regressionCalculator`, { waitUntil: 'networkidle' });
 const layout = await desktop.locator('.regression-calculator').evaluate((node) => ({ display:getComputedStyle(node).display, columns:getComputedStyle(node).gridTemplateColumns }));
 if (layout.display !== 'grid' || layout.columns.split(' ').length < 2) throw new Error(`Desktop calculator is not split-pane: ${JSON.stringify(layout)}`);
 

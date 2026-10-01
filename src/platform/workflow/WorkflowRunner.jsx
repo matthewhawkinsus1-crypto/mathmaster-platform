@@ -1166,7 +1166,7 @@ export default function WorkflowRunner({
   // when they do, their native mathematical history wins while the parent
   // workflow history remains intact underneath it.
   useMathUndoHistory({
-    label: 'Undo the last workflow response',
+    label: 'Undo the last answer in these steps',
     state: responses,
     onRestore: setResponses,
     resetKey: questionUndoResetKey(question),
