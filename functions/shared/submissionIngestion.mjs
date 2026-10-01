@@ -62,6 +62,8 @@ import {
   captureAutomaticGradingEvidence,
   responseInspectionEvidenceDocumentId,
 } from './responseInspector.mjs';
+import { resolveFamilyQuestionForGrading } from './questionFamilyGrading.mjs';
+import { normalizeDeliveryPin } from './questionGenerationIdentity.mjs';
 
 export const SUBMISSION_ENVELOPE_SCHEMA_VERSION = 1;
 
@@ -204,6 +206,10 @@ export const buildSubmissionEnvelope = ({
   // The server's escalation from `retryable` to `needs-review` reads it, and
   // without it a week-old submission retries forever and is never surfaced.
   deliveryAttempts = 0,
+  // Which instance of a question-family slot this work answers (a delivery
+  // pin: allocation index, seat basis, family version, fingerprint). It names
+  // the question the student saw; it is not an answer and holds no key.
+  familyDelivery = null,
 } = {}) => {
   if (!INGESTIBLE_KINDS.includes(kind)) throw new Error('Only grade-bearing student actions are ingested.');
   if (!trimmed(actionId)) throw new Error('A submission envelope requires its durable action id.');
@@ -233,6 +239,7 @@ export const buildSubmissionEnvelope = ({
     checkpointDocumentId: trimmed(checkpointDocumentId) || null,
     timeSpentSeconds: Math.max(0, Math.min(86_400, finite(timeSpentSeconds, 0))),
     deliveryAttempts: Math.max(0, Math.min(100_000, finite(deliveryAttempts, 0))),
+    familyDelivery: normalizeDeliveryPin(familyDelivery),
   };
   assertEnvelopeCarriesNoSecureData(envelope);
   return envelope;
@@ -269,6 +276,8 @@ export const normalizeSubmissionEnvelope = (raw) => {
     // Bounded: it only ever moves an unprovable retry to `needs-review`, and a
     // device inflating it can only ask for its own work to be looked at.
     deliveryAttempts: Math.max(0, Math.min(100_000, finite(raw.deliveryAttempts, 0))),
+    // Malformed pins are dropped, never half-trusted.
+    familyDelivery: normalizeDeliveryPin(raw.familyDelivery),
   };
 };
 
@@ -530,26 +539,43 @@ export const buildIngestedAttempt = ({
     classId: gradeDocument?.classId || null,
     studentId: envelope?.studentId || null,
   });
+  // A question-family slot is graded against the instance the student was
+  // shown, rebuilt from its delivery pin. Every other question is untouched.
+  const family = envelope.kind === 'questionReplacement'
+    ? { familyBacked: false, question, pin: null, reason: null }
+    : resolveFamilyQuestionForGrading({
+      assignment,
+      question,
+      questionIndex: envelope.questionIndex,
+      variantIndex: canonical.variantIndex,
+      canonicalRecord: canonical,
+      claimedDelivery: envelope.familyDelivery,
+      studentId: envelope?.studentId || null,
+      classId: gradeDocument?.classId || null,
+    });
+  const gradingQuestion = family.familyBacked && family.question ? family.question : question;
   const maximumAttempts = resolveQuestionMaximumAttempts({
-    question,
+    question: gradingQuestion,
     maximumAttempts: activityPolicy.attempts,
     activityPolicy,
     teacherGrantedExtraAttempts,
   });
-  const regrade = serverCanRegradeEnvelope({ envelope, question });
+  const regrade = family.familyBacked && !family.question
+    ? { regrade: false, reason: family.reason }
+    : serverCanRegradeEnvelope({ envelope, question: gradingQuestion });
 
   let record;
   let result;
   let gradedBy;
   if (regrade.regrade) {
-    const grading = gradeOrdinaryResponse({ question, response: envelope.response });
+    const grading = gradeOrdinaryResponse({ question: gradingQuestion, response: envelope.response });
     if (!grading.graded) {
       return { blocked: true, reason: grading.reason || 'server-grading-failed' };
     }
     const outcome = recordQuestionAttempt({
       record: canonical,
       isCorrect: grading.isCorrect,
-      questionDetails: text(question?.prompt).slice(0, 400),
+      questionDetails: text(gradingQuestion?.prompt).slice(0, 400),
       timeSpent: envelope.timeSpentSeconds,
       parts: grading.parts,
       supportUsage: envelope.supportUsage,
@@ -582,7 +608,7 @@ export const buildIngestedAttempt = ({
     ? captureAutomaticGradingEvidence({
       response: envelope.response,
       grading: { ...result, isCorrect: cleanRecord.status === 'correct', parts: cleanRecord.partGrades },
-      question,
+      question: gradingQuestion,
       submittedAt: new Date(academicAt).toISOString(),
       source: envelope.kind,
       gradingAuthority: gradedBy === 'server' ? 'server' : 'client-record-sanitized',
@@ -602,6 +628,16 @@ export const buildIngestedAttempt = ({
     academicOccurredAt: new Date(academicAt).toISOString(),
     ingestedAt: new Date(finite(ingestedAt, Date.now())).toISOString(),
     recoveredLate: finite(ingestedAt, Date.now()) - academicAt > 60_000 ? true : null,
+    // THE CANONICAL DELIVERY PIN. Once written, every device renders this
+    // instance for this variant and the server re-grades against it. A
+    // replacement starts a new variant, so it clears the old pin. Records of
+    // questions that are not family-backed keep their exact shape.
+    ...(family.familyBacked || canonical.familyDelivery ? {
+      familyDelivery: envelope.kind === 'questionReplacement'
+        ? null
+        : family.pin || normalizeDeliveryPin(canonical.familyDelivery),
+      familyDeliveryVerification: family.familyBacked && family.pin ? (family.verification || null) : null,
+    } : {}),
   };
 
   const assignmentId = trimmed(envelope.assignmentId);
@@ -654,7 +690,9 @@ export const buildIngestedAttempt = ({
   const evidenceEvent = question?.type === 'modelingLab' ? null : buildAttemptEvidenceEvent({
     studentId: trimmed(envelope.studentId),
     assignment,
-    question,
+    // The delivered instance, so the event names the family and the exact
+    // question (its fingerprint) the student answered.
+    question: gradingQuestion,
     questionIndex: Number(envelope.questionIndex),
     activityRole: envelope.activityRole,
     attemptRecord: stamped,

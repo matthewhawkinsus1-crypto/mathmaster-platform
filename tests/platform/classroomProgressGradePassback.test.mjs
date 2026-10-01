@@ -37,9 +37,18 @@ test('Classroom sync no longer waits for total assignment completion', () => {
 
   assert.match(sync, /runtimeIncludedQuestionIndices\(assignment\)/);
   assert.match(sync, /runtimeQuestionsFromAssignment\(assignment\)/);
+  // Progress is graded over the included indices, with the canonical tracker
+  // and the authoritative overrides. Both now pass through the Practice-based
+  // Recovery projection first (a completed Recovery rescores its section in
+  // this same grade), so the assertion binds the call to the projection's
+  // outputs AND binds the projection to the canonical inputs.
   assert.match(
     sync,
-    /assignmentGradeProgress\([\s\S]*assignmentTracker,[\s\S]*questionIndices,[\s\S]*questions,[\s\S]*authoritativeOverrides,[\s\S]*\)/,
+    /assignmentGradeProgress\(\s*recoveredInputs\.tracker,\s*questionIndices,\s*questions,\s*recoveredInputs\.overrides,?\s*\)/,
+  );
+  assert.match(
+    sync,
+    /projectRecoveredGradeInputs\(\{[\s\S]*?tracker: assignmentTracker,[\s\S]*?overrides: authoritativeOverrides,[\s\S]*?\}\)/,
   );
   assert.match(
     src,

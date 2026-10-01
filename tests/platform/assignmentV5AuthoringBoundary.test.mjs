@@ -18,7 +18,9 @@ test('new authoring enters through Assignment V5 and reviewed Preflight', () => 
   assert.match(app, /const reviewedV5 = finalPreflight\.assignmentV5/);
   assert.match(app, /flattenV5Sections\(reviewedV5\)/);
   assert.match(modal, /buildPreflightReviewedAssignmentV5/);
-  assert.match(modal, /buildAssignmentV5PreflightModel\(reviewedAssignmentV5\)/);
+  // The reviewed V5 object is the model's input (first argument); an options
+  // bag may follow (it carries the class size for Pre-Flight's uniqueness check).
+  assert.match(modal, /buildAssignmentV5PreflightModel\(reviewedAssignmentV5[,)]/);
 });
 
 test('question editing cannot write content before native V5 Preflight succeeds', () => {

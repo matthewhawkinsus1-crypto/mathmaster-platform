@@ -12,6 +12,7 @@ import { resolveDeliveredQuestionMetadata } from '../assignments/assignmentAdapt
 import { normalizeContextualQuestion } from '../context/wordProblemLayer.js';
 import { projectCurrentAssignmentContent } from '../assignments/currentContentProjection.js';
 import { buildAssignmentWorksheetModel, PRINT_OUTPUT_MODES } from './assignmentWorksheetPdfModel.js';
+import { buildStudentFamilyContext } from '../generation/familyDelivery.js';
 
 const activityTitleForRole = (role) => ({
   warmup: 'Warm-Up',
@@ -104,6 +105,19 @@ export const buildTeacherAssignmentWorksheetModel = ({
       generationKey,
       resolvedProfile,
       adaptation,
+      // A family-backed question prints the instance this student was shown:
+      // their canonical pin when they have answered, else their seat. This
+      // device's own pins are never read — they belong to whoever uses it.
+      buildStudentFamilyContext({
+        assignment: runtimeAssignment,
+        question,
+        storageIndex: index,
+        studentId: student?.id || null,
+        classId: student?.classId || null,
+        sectionMode: sectionVariantMode,
+        record: assignmentTracker?.[index],
+        store: null,
+      }),
     ));
 
     printableEntries.push({
