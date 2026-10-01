@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import { acceptStudentName, resolveStudentIdentity, splitStudentDisplayName } from './studentIdentity.mjs';
+import { acceptStudentNamePart, resolveStudentIdentity, splitStudentDisplayName } from './studentIdentity.mjs';
 
 // Class Points: a classroom participation reward currency, scoped to
 // studentId + classId. This is deliberately NOT assignment credit, mastery,
@@ -494,8 +494,8 @@ export const publicStudentLabel = (student = {}) => {
   const record = student && typeof student === 'object' && !Array.isArray(student) ? student : {};
   // Every candidate must read as a name for THIS student: an id, an email or a
   // placeholder never reaches the class display.
-  const first = cleanText(acceptStudentName(record.firstName, record), 60);
-  const lastInitial = cleanText(acceptStudentName(record.lastName, record), 60).slice(0, 1);
+  const first = cleanText(acceptStudentNamePart(record.firstName, record), 60);
+  const lastInitial = cleanText(acceptStudentNamePart(record.lastName, record), 60).slice(0, 1);
   if (first && lastInitial) return `${first} ${lastInitial}.`;
   if (first) return first;
 

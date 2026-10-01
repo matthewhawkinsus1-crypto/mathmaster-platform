@@ -145,13 +145,16 @@ const identifiersOf = (record = {}) => {
  * identifiers, id labels ('Student 101410', 'ID S123'), and the placeholders
  * this platform writes when a name is missing.
  */
-export const isIdentifierLikeName = (candidate, record = {}) => {
+export const isIdentifierLikeName = (candidate, record = {}, { namePart = false } = {}) => {
   const text = cleanStudentNameText(candidate);
   if (!text) return true;
   if (!LETTER.test(text)) return true;
   if (text.includes('@')) return true;
   const lower = text.toLowerCase();
-  if (PLACEHOLDER_NAMES.has(lower)) return true;
+  // The placeholder words are what this platform wrote where a WHOLE name was
+  // missing. A single structured part is a person's real first or last name,
+  // and any word can be a surname ('Student', 'Unknown'), so parts skip it.
+  if (!namePart && PLACEHOLDER_NAMES.has(lower)) return true;
   // A one-line label this platform prints ('Name unavailable · ID 101410',
   // 'Jordan Williams · ID 101410') is presentation, never a stored name.
   if (lower.startsWith(`${STUDENT_NAME_UNAVAILABLE.toLowerCase()} `) || / · id \S/.test(lower)) return true;
@@ -169,6 +172,12 @@ export const isIdentifierLikeName = (candidate, record = {}) => {
 export const acceptStudentName = (candidate, record = {}) => {
   const text = cleanStudentNameText(candidate);
   return text && !isIdentifierLikeName(text, record) ? text : '';
+};
+
+/** The same, for one structured part (a first or a last name). */
+export const acceptStudentNamePart = (candidate, record = {}) => {
+  const text = cleanStudentNameText(candidate);
+  return text && !isIdentifierLikeName(text, record, { namePart: true }) ? text : '';
 };
 
 /**
@@ -258,8 +267,8 @@ const FULL_NAME_SOURCES = Object.freeze([
 export const resolveStudentIdentity = (record = {}) => {
   const value = asRecord(record);
   const studentId = studentIdOf(value);
-  const firstName = acceptStudentName(value.firstName, value);
-  const lastName = acceptStudentName(value.lastName, value);
+  const firstName = acceptStudentNamePart(value.firstName, value);
+  const lastName = acceptStudentNamePart(value.lastName, value);
   const storedDisplayName = acceptStudentName(value.displayName, value);
 
   if (firstName && lastName) {
@@ -353,7 +362,7 @@ export const validateStudentNameInput = ({ firstName, lastName } = {}, { student
   if (!first || !last) {
     return { ok: false, error: "Enter both the student's first name and last name." };
   }
-  if (isIdentifierLikeName(first, record) || isIdentifierLikeName(last, record)) {
+  if (isIdentifierLikeName(first, record, { namePart: true }) || isIdentifierLikeName(last, record, { namePart: true })) {
     return {
       ok: false,
       error: "Enter the student's name, not an ID, email address or placeholder.",
@@ -475,11 +484,13 @@ const groupBy = (items, keyOf) => {
 
 const storedNameState = (studentId, data) => {
   const record = { ...asRecord(data), studentId };
-  const firstName = acceptStudentName(record.firstName, record);
-  const lastName = acceptStudentName(record.lastName, record);
+  const firstName = acceptStudentNamePart(record.firstName, record);
+  const lastName = acceptStudentNamePart(record.lastName, record);
   const displayName = acceptStudentName(record.displayName, record);
   const idLikeStored = ['firstName', 'lastName', 'displayName'].some((field) => (
-    cleanStudentNameText(record[field]) && !acceptStudentName(record[field], record)
+    cleanStudentNameText(record[field]) && !(field === 'displayName'
+      ? acceptStudentName(record[field], record)
+      : acceptStudentNamePart(record[field], record))
   ));
   return { record, firstName, lastName, displayName, idLikeStored };
 };
@@ -492,8 +503,8 @@ const recoveryCandidates = (studentId, record, inputs) => {
     if (accepted) candidates.push({ source, text: accepted, parts });
   };
   (inputs.creationAuditsByStudent.get(studentId) || []).forEach((audit) => {
-    const first = acceptStudentName(audit.firstName, record);
-    const last = acceptStudentName(audit.lastName, record);
+    const first = acceptStudentNamePart(audit.firstName, record);
+    const last = acceptStudentNamePart(audit.lastName, record);
     if (first && last) {
       candidates.push({ source: 'accountCreationAudit', text: `${first} ${last}`, parts: { firstName: first, lastName: last } });
     } else {
@@ -699,7 +710,7 @@ export const planStudentIdentityRepair = (inputs = {}) => {
           chosen = {
             source: best.source,
             displayName: parts ? `${parts.firstName} ${parts.lastName}` : best.text,
-            ...(parts || {}),
+            ...parts,
             split: split?.method || null,
           };
           if (!parts) needsStructuredName.push({ studentId, reason: 'recoveredNameNotSplittable' });

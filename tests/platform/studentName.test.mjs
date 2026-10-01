@@ -137,3 +137,12 @@ test('persisted student ids resolve through the current roster before historical
   const index = new Map([['S123', { id: 'S123', firstName: 'Indexed', lastName: 'Fixture' }]]);
   assert.equal(resolveRosterStudentName({ studentId: 'S123', students: [], index }), 'Indexed Fixture');
 });
+
+test('a structured first or last name is a real name even when it is a common word', () => {
+  // The placeholder list rejects stored WHOLE-name copies such as 'Student';
+  // a single part is a person's real name, and any word can be a surname.
+  assert.equal(formatStudentName({ id: '5', firstName: 'Shell', lastName: 'Student' }, { lastFirst: false }), 'Shell Student');
+  assert.equal(formatStudentName({ id: '6', displayName: 'Student' }), STUDENT_NAME_UNAVAILABLE);
+  // An id in a part is still never a name.
+  assert.equal(formatStudentName({ id: '101410', firstName: '101410', lastName: 'Student' }, { lastFirst: false }), 'Student');
+});

@@ -4,7 +4,7 @@
 // React previews and tests can all use the same arithmetic and naming contract
 // without creating a second scorer or a second interpretation of a roster name.
 
-import { acceptStudentName, resolveStudentIdentity, splitStudentDisplayName } from './studentIdentity.mjs';
+import { acceptStudentNamePart, resolveStudentIdentity, splitStudentDisplayName } from './studentIdentity.mjs';
 
 export const DEFAULT_SPEED_INFLUENCE_PERCENT = 20;
 export const MAX_SPEED_INFLUENCE_PERCENT = 50;
@@ -48,8 +48,8 @@ export const normalizePlayerDisplayMode = (value) => {
 // player's public alias.
 const studentNameParts = (student = {}) => {
   const record = student && typeof student === 'object' && !Array.isArray(student) ? student : {};
-  const firstName = acceptStudentName(record.firstName, record);
-  const lastName = acceptStudentName(record.lastName, record);
+  const firstName = acceptStudentNamePart(record.firstName, record);
+  const lastName = acceptStudentNamePart(record.lastName, record);
   if (firstName || lastName) return { firstName, lastName };
 
   const identity = resolveStudentIdentity(record);
