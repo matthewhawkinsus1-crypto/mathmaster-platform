@@ -18,6 +18,14 @@
 
 .mathmaster-question-engine-has-anchor .mathmaster-tool-task-card > .mathmaster-quiet-disclosure {
   margin: 0 !important;
+  /* With the prompt hidden the fold is the card's only visible child, so it
+     takes the row, as it does on a laptop. The phone rule that shares the row
+     with the prompt capped it at 46%: "How to do this (3 steps)" wrapped to
+     two lines (60px), and opened, the steps read in a column under half the
+     screen wide (PQ-023). `min-width: 0` lets the opened text wrap. */
+  max-width: none !important;
+  flex: 1 1 auto !important;
+  min-width: 0;
 }
 
 .mathmaster-question-container {
@@ -175,8 +183,30 @@
   padding: 12px !important;
 }
 
+/* THE TOOL'S NAME IS A LABEL ON A PHONE (PQ-023).
+   At 16–21px beside the absolutely placed "⤢ Enlarge question" the name wrapped
+   to two lines in a header 98–117px tall, above any mathematics. At label size
+   it shares the opener's row: the header is as tall as the opener's row and the
+   name sits level with it, two lines at most. */
 .mathmaster-question-container .mathmaster-tool-shell-header h2 {
-  font-size: clamp(1rem, 3vw, 1.3rem) !important;
+  font-size: 13px !important;
+  line-height: 1.25;
+  text-align: left;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+/* The opener floats 8px from the top of the question's figure and is 44px
+   tall; WorkViewShell.css already keeps its width clear of the header. */
+.mathmaster-question-container.mode-portrait .mathmaster-work-view-surface[data-enlarged="false"] .mathmaster-tool-shell-header {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 58px;
+  padding-top: 7px !important;
+  padding-bottom: 7px !important;
 }
 
 .mathmaster-question-container .mathmaster-tool-grid {

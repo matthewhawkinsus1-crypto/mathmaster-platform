@@ -970,7 +970,7 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   because under a withheld policy no tool renders a verdict and so no slot
   exists — the node contract kills it.
 
-### PQ-023 · Tool chrome and folded help sit between the task and the mathematics — **P2 · DEFERRED**
+### PQ-023 · Tool chrome and folded help sit between the task and the mathematics — **P2 · FIXED (steps 1–2; step 3 not taken)**
 
 - **Reproduction (phone 390×844, real stack):** identity 67 → navigator ~110 →
   task ~95 → tries ~50 → **tool header** (two-line title beside "Enlarge
@@ -992,6 +992,50 @@ Measured inside the real wrappers with the identity bar, standard vs wide
 - **Evidence:** `pq023-phone-first-screen-inverse-composition.png` (390×844,
   real identity bar and a realistic navigator).
 - **Scope:** medium (ToolShell + TaskCard; every tool).
+- **Reproduced** (studentUxPlatform `?identity=1&tools=1`): the same numbers
+  as above — on the phone the tool header was **98–117px** (a 16px name over
+  two lines beside "Enlarge question", "About this tool" on its own row) and
+  "How to do this (3 steps)" was a **60px** two-line pill: a phone rule capped
+  it at 46% of a row it shares with the task prompt, which the assignment
+  hides. At 1366×768 the header was 63px.
+- **Fixed:**
+  1. **One disclosure.** The TaskCard's "How to do this (N steps)" now opens
+     with the tool's one-line description (and, on a phone, its badge), then the
+     directions and the steps. The header's "About this tool" goes once a
+     TaskCard has taken the description; it stays for a tool with no TaskCard
+     (Solution Review, the representations board) and in Work View, which hides
+     the task card. A card with no steps is labelled "About this tool".
+  2. **On a phone the name is a label on the Enlarge row:** 13px, left, at most
+     two lines, in a 58px header level with the 44px opener.
+  3. **The fold takes its row** when the prompt is hidden: one 44px line, and
+     opened, the steps use the full width instead of 46% of it.
+- **First answer control (y, px), before → after:**
+
+  | Tool | 390×844 | 1366×768 |
+  | --- | --- | --- |
+  | Inverse Composition | 1359 → **1284** (−75) | 1008 → **1000** (−8) |
+  | Complex Plane | 1042 → **986** (−56) | 571 → **563** (−8) |
+  | Graphing 2 (the plane) | 634 → **578** (−56) | 553 → **545** (−8) |
+  | Function Investigation | 1038 → **963** (−75) | 534 → **526** (−8) |
+  | Parabola Geometry | 920 → **845** (−75) | 493 → **485** (−8) |
+
+  Phone header 98–117 → 58px; the fold 60 → 44px. The Chromebook header is
+  63 → 55px: its height is now set by the badge, and the opener already fits
+  inside it.
+- **The steps stay discoverable:** same label and step count, same place (the
+  first row under the tool's name), still folded, and still remembered by the
+  same key, so a student who had opened them finds them open. The
+  description is in the same fold, first.
+- **Not done:** step 3 (the fold after the first panel's title, or a "?" in the
+  header). It moves the steps away from where students have learned to find
+  them, which is the pedagogy check this entry asks for; it is what the
+  Chromebook would need for a larger gain.
+- **Tests:** two new contracts in `toolShellChrome.test.mjs` (the description
+  opens the fold and the header offers it only where nothing else does; the
+  phone label, row and fold width); three source pins rewritten against their
+  behaviour (the fold's summary moved into a variable); eleven mutations, all
+  red. `toolOpenAudit.mjs` (four devices) and `workViewMatrix.mjs` re-run, see
+  *Tests*.
 
 ### PQ-024 · Point cards say "P1: x = −1" but x is not locked — **P2 · FIXED (2026-10-01 cleanup)**
 

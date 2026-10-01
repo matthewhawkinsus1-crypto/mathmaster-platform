@@ -60,10 +60,12 @@ test('the steps fold and start folded, so the tool is what opens', () => {
   // directions and repeated steps fold together so a phone does not spend most
   // of its viewport on a second copy of how to operate the tool.
   const source = codeOf('src/tools/shared/ToolShell.jsx');
-  const steps = source.slice(source.indexOf('How to do this'));
-  assert.match(steps.slice(0, 500), /defaultOpen=\{false\}/);
+  // The TaskCard's fold (its summary is worked out above it since PQ-023).
+  const taskCard = source.slice(source.indexOf('export const TaskCard'), source.indexOf('export const HintPanel'));
+  const fold = taskCard.slice(taskCard.indexOf('<QuietDisclosure'), taskCard.indexOf('</QuietDisclosure>'));
+  assert.match(fold.slice(0, 300), /summary=\{summary\}[\s\S]*defaultOpen=\{false\}/);
   // The count is named, so a student who has not opened them knows what is inside.
-  assert.match(source, /How to do this \(\$\{steps\.length\} step/);
+  assert.match(taskCard, /const summary = steps\.length\s*\?\s*`How to do this \(\$\{steps\.length\} step/);
 });
 
 test('a fold is remembered per block of text, not per tool', () => {
@@ -110,11 +112,51 @@ test('changing surface picks up that surface own fold state', () => {
 
 test('tool directions themselves are folded with the repeated steps', () => {
   const source = codeOf('src/tools/shared/ToolShell.jsx');
-  const disclosure = source.slice(source.indexOf('summary={steps.length'));
+  const taskCard = source.slice(source.indexOf('export const TaskCard'), source.indexOf('export const HintPanel'));
+  const disclosure = taskCard.slice(taskCard.indexOf('<QuietDisclosure'));
   const direction = disclosure.indexOf('mathmaster-tool-task-directions');
   const close = disclosure.indexOf('</QuietDisclosure>');
   assert.ok(direction > 0 && direction < close, 'tool directions belong inside the folded support block');
-  assert.match(disclosure.slice(0, 600), /defaultOpen=\{false\}/);
+  assert.match(disclosure.slice(0, 300), /defaultOpen=\{false\}/);
+});
+
+// PLATFORM QUIRKS AUDIT PQ-023: ONE FOLD FOR THE TOOL'S HELP, NOT TWO.
+// "About this tool" (header) and "How to do this" (task card) were two rows
+// between the task and the mathematics; on a 390px phone the header alone was
+// 98–117px and the first answer box sat at 634–1359px.
+test('the tool description opens the steps fold, and the header offers it only where nothing else does', () => {
+  const source = codeOf('src/tools/shared/ToolShell.jsx');
+  // The shell hands its description to the TaskCards in its body.
+  const shell = source.slice(source.indexOf('export default function ToolShell'), source.indexOf('export const ToolGrid'));
+  assert.match(shell, /const shellContext = useMemo\(\(\) => \(\{\s*description: subtitle \|\| null,/);
+  assert.match(shell, /<ToolShellContext\.Provider value=\{shellContext\}><PlotHelpScope>\{children\}<\/PlotHelpScope><\/ToolShellContext\.Provider>/);
+  // A TaskCard says it took it, and opens its fold with it, ahead of the steps.
+  const taskCard = source.slice(source.indexOf('export const TaskCard'), source.indexOf('export const HintPanel'));
+  assert.match(taskCard, /useLayoutEffect\(\(\) => \(registerTaskCard \? registerTaskCard\(\) : undefined\), \[registerTaskCard\]\);/);
+  assert.match(taskCard, /const hasSupport = Boolean\(description \|\|/);
+  const fold = taskCard.slice(taskCard.indexOf('<QuietDisclosure'), taskCard.indexOf('</QuietDisclosure>'));
+  const about = fold.indexOf('mathmaster-tool-task-about');
+  assert.ok(about > 0 && about < fold.indexOf('mathmaster-tool-task-directions') && about < fold.indexOf('steps.map'), 'the description is the fold\'s first line');
+  // The header's own fold is marked merged once a TaskCard took the description...
+  assert.match(shell, /<div className="mathmaster-tool-shell-about" data-merged=\{taskCards > 0 \? 'true' : undefined\}/);
+  // ...and is then hidden, except in Work View, which hides the task card.
+  const css = codeOf('src/App.css');
+  assert.match(css, /\.mathmaster-tool-shell-about\[data-merged="true"\]\s*\{\s*display:\s*none !important;/);
+  assert.match(css, /html\[data-work-view-open="true"\] \.mathmaster-tool-shell-about\[data-merged="true"\]\s*\{\s*display:\s*contents !important;/);
+});
+
+test('on a phone the tool name is a label on the Enlarge row, and the steps fold takes its row', () => {
+  const css = codeOf('src/components/student/MathToolMobileLayout.css');
+  const title = css.slice(css.indexOf('.mathmaster-question-container .mathmaster-tool-shell-header h2 {'));
+  assert.match(title.slice(0, 260), /font-size:\s*13px !important;[\s\S]*-webkit-line-clamp:\s*2;/);
+  assert.doesNotMatch(css, /tool-shell-header h2\s*\{\s*font-size:\s*clamp\(/, 'the 16–21px headline is the defect');
+  // As tall as the opener's row, level with it — portrait only: a phone held
+  // sideways hides the name and keeps its 6px header.
+  const row = css.slice(css.indexOf('.mathmaster-question-container.mode-portrait .mathmaster-work-view-surface[data-enlarged="false"] .mathmaster-tool-shell-header {'));
+  assert.match(row.slice(0, 260), /align-items:\s*center;[\s\S]*min-height:\s*58px;/);
+  // With the prompt hidden, the fold is not squeezed into the prompt's 46% row.
+  const fold = css.slice(css.indexOf('.mathmaster-question-engine-has-anchor .mathmaster-tool-task-card > .mathmaster-quiet-disclosure {'));
+  assert.match(fold.slice(0, 600), /max-width:\s*none !important;[\s\S]*flex:\s*1 1 auto !important;[\s\S]*min-width:\s*0;/);
 });
 
 
