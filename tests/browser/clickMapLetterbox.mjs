@@ -1,7 +1,7 @@
 // A TAP LANDS ON THE VALUE DRAWN UNDER IT — ON EVERY CLICK SURFACE, LETTERBOXED OR NOT.
 //
-//   npx vite --port 5441 --strictPort &
-//   AUDIT_ORIGIN=http://localhost:5441 node tests/browser/clickMapLetterbox.mjs
+//   npx vite --port 5199 --strictPort &
+//   node tests/browser/clickMapLetterbox.mjs
 //
 // Every MathMaster plane draws with preserveAspectRatio "xMidYMid meet": capped
 // to a shorter box, the drawing is scaled uniformly and centred, so a straight
@@ -19,7 +19,7 @@
 //
 // Exits non-zero on any failure.
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
-const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5441';
+const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5199';
 
 const launch = { args: ['--no-sandbox'] };
 if (process.env.CHROMIUM_PATH) launch.executablePath = process.env.CHROMIUM_PATH;
