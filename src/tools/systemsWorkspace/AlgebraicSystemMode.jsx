@@ -5,6 +5,7 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey, useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
 import { Panel, ResultPill, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
+import { useHintsAllowed } from '../shared/ToolRuntimeContext';
 import { matchesNumericAnswer } from '../shared/toolMath';
 import MathDisplay from '../../MathDisplay';
 import MathInput from '../../MathInput';
@@ -315,6 +316,11 @@ export function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, dra
   // Keyed by VALUE: a caller writing `objective={{ ... }}` inline must not hand
   // Step Algebra a new question on every render, which restarts its setup.
   const objectiveKey = objective ? JSON.stringify(objective) : '';
+  // Step Algebra's "Need a strategic hint?" names the next move. It is a hint
+  // like any other, so where the activity withholds hints (a DOL, quiz or
+  // test) the embedded solver does not offer it, whatever the caller asked.
+  const hintsAllowed = useHintsAllowed();
+  const offerHint = showHint && hintsAllowed;
   const question = useMemo(() => ({
     equation: normalizedEquationText,
     solveFor,
@@ -322,8 +328,8 @@ export function EmbeddedStepAlgebra({ label, prompt, equationText, solveFor, dra
     workspaceDifficulty,
     ...(objectiveKey ? { objective: JSON.parse(objectiveKey) } : {}),
     ...(requireSimplifiedFinalForm ? { requireSimplifiedFinalForm: true } : {}),
-    ...(showHint ? {} : { showHint: false }),
-  }), [normalizedEquationText, solveFor, prompt, workspaceDifficulty, objectiveKey, requireSimplifiedFinalForm, showHint]);
+    ...(offerHint ? {} : { showHint: false }),
+  }), [normalizedEquationText, solveFor, prompt, workspaceDifficulty, objectiveKey, requireSimplifiedFinalForm, offerHint]);
   const hostRef = useRef(null);
   const lastReportedRef = useRef(null);
   const embeddedEquationIdentity = useMemo(

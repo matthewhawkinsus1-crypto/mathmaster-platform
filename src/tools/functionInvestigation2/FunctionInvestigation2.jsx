@@ -6,6 +6,7 @@ import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '..
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { evaluateFunctionSpec, nearlyEqual } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
+import { useHintsAllowed } from '../shared/ToolRuntimeContext';
 import {
   FUNCTION_FAMILY_LABELS,
   behaviorForSpec,
@@ -95,6 +96,7 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
   const [behavior, setBehavior] = usePersistentToolState('behavior', '');
   const [comparison, setComparison] = usePersistentToolState('comparison', '');
   const { feedback, submit } = useToolSubmission(onAction);
+  const hintsAllowed = useHintsAllowed();
 
   /*
    * UNIVERSAL UNDO, ON A TOOL THAT HAD NO UNDO AT ALL.
@@ -212,14 +214,16 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
       : { label: 'Analysis choices', studentState: true },
     instruction: { text: (MODE_STEPS[mode] || MODE_STEPS.features)[0] },
     task: { text: questionData.prompt || MODE_TASKS[mode] || MODE_TASKS.features },
-    help: {
+    // The hints ARE this Help: published only where the activity allows them,
+    // so a DOL does not show a Help button over an empty drawer.
+    help: hintsAllowed ? {
       content: (
         <HintPanel
           hints={hintsForMode(mode, spec, features, domainRange, intercepts, compareX)}
           onHintUsed={() => onAction?.('HINT_USED')}
         />
       ),
-    },
+    } : null,
     primaryActions: [primaryAction],
   };
 

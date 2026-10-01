@@ -14,6 +14,7 @@ import { isMobileQuestionViewport } from '../../components/student/MobileViewpor
 import QuietDisclosure from '../../components/common/QuietDisclosure.jsx';
 import { useRenderPerformance } from '../../platform/performance/useRenderPerformance.js';
 import { PlotHelpScope } from './plotHelpScope.js';
+import { useHintsAllowed } from './ToolRuntimeContext';
 
 // A stable key for "this exact block of text", so a student's decision to fold
 // the steps away is remembered per tool without every one of the eighteen tools
@@ -279,9 +280,19 @@ export const TaskCard = ({ task, steps = [], note = null, question = null, steps
 // Progressive hints: a nudge, then the strategy, then the worked step. Each
 // reveal is reported so attempt scoring can discount mathematical help the same
 // way it does everywhere else in the platform.
+//
+// AND ONLY WHERE THE ACTIVITY ALLOWS HELP. A DOL, quiz or test withholds hints
+// (`hintsAllowed: false`, read from ToolRuntimeContext), and there the panel
+// renders nothing at all — not a disabled button, not a note. That is how the
+// platform's other policy-gated help already behaves: the guided coach renders
+// nothing when it is not enabled, and the graph self-check is simply absent on
+// a DOL. A line saying "hints are not available" on every question of an exit
+// ticket would be noise the student reads instead of the problem, and the
+// activity already states its own rules.
 export const HintPanel = ({ hints = [], onHintUsed }) => {
   const [revealed, setRevealed] = useState(0);
-  if (!hints.length) return null;
+  const hintsAllowed = useHintsAllowed();
+  if (!hintsAllowed || !hints.length) return null;
   const revealNext = () => {
     setRevealed((current) => {
       const next = Math.min(hints.length, current + 1);

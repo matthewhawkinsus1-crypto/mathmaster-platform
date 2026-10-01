@@ -5,6 +5,7 @@ import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workVie
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useToolSubmission from '../shared/useToolSubmission';
+import { useHintsAllowed } from '../shared/ToolRuntimeContext';
 import {
   BUILDER_FAMILIES,
   builderEquation,
@@ -42,6 +43,7 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
   const [model, setModel] = usePersistentToolState('model', initial);
   const [hasEdited, setHasEdited] = usePersistentToolState('hasEdited', false);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
+  const hintsAllowed = useHintsAllowed();
   const effectiveConstraints = useMemo(() => {
     const prompt = String(questionData.prompt || '');
     const match = prompt.match(/\bquadrant\s*(iv|iii|ii|i|4|3|2|1)\b/i);
@@ -117,11 +119,13 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
     equationInput: { label: builderEquation(model), studentState: true },
     instruction: { text: 'Adjust the family and its parameters until every constraint in the checklist is satisfied.' },
     task: { text: questionData.prompt || 'Build any relation that satisfies every stated characteristic.' },
-    help: {
+    // The hints ARE this Help: published only where the activity allows them,
+    // so a DOL does not show a Help button over an empty drawer.
+    help: hintsAllowed ? {
       content: (
         <HintPanel hints={questionData.hints || DEFAULT_HINTS} onHintUsed={() => onAction?.('HINT_USED')} />
       ),
-    },
+    } : null,
     primaryActions: [{ id: 'submit-model', label: 'Submit this model', onAction: check, disabled: !hasEdited }],
   };
 

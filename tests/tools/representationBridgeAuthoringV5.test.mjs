@@ -12,6 +12,10 @@ import {
   deriveLinearMultipleRepresentations,
   scoreLinearMultipleRepresentations,
 } from '../../src/tools/representationBridge/linearMultipleRepresentationsMath.js';
+import {
+  REPRESENTATION_BRIDGE_STAGES,
+  resolveRepresentationBridgeStageGate,
+} from '../../src/tools/representationBridge/representationBridgeMath.js';
 
 const source = (path) => readFileSync(path, 'utf8');
 
@@ -115,15 +119,39 @@ test('validateToolQuestion rejects an unsupported source kind rather than faking
 
 
 test('checkpoint mode truly gates later stages and submitOnly does not reveal live correctness', () => {
+  // The controls are bound to the lock...
   const componentSource = source('src/tools/representationBridge/RepresentationBridge.jsx');
   assert.match(componentSource, /disabled=\{stageBlocked\('generalForm'\)\}/);
   assert.match(componentSource, /disabled=\{stageBlocked\('factoredForm'\)\}/);
   assert.match(componentSource, /onPlot=\{stageBlocked\('graph'\) \? undefined : plotPoint\}/);
   assert.match(componentSource, /disabled=\{stageBlocked\('meaning'\)\}/);
-  assert.match(componentSource, /if \(feedbackTiming === 'checkpoint'\) return stageChecks\[stage\] === true;/);
-  assert.match(componentSource, /return Boolean\(feedback\);/);
-  assert.match(componentSource, /stageChecks\[entry\] !== true \|\| liveResult\.parts\[entry\] !== true/);
-  assert.match(componentSource, /stageChecks\[stage\] === true && liveResult\.parts\[stage\] === true/);
+  // ...and the lock, Submit's readiness and the highlight reveal are the stage
+  // gate's (the rules moved out of the component so they can run here; the
+  // wiring and the withheld-outcome rules are pinned in
+  // tests/platform/representationBridgeOutcomePolicy.test.mjs).
+  assert.match(componentSource, /const stageBlocked = \(stage\) => stageGate\.stageBlocked\(stage\);/);
+  assert.match(componentSource, /const readyToSubmit = stageGate\.readyToSubmit;/);
+  assert.match(componentSource, /const stageRevealAllowed = stageGate\.revealAllowed;/);
+
+  // The behaviour, run: a practice checkpoint (outcomes shown).
+  const gate = (stageChecks, parts, extra = {}) => resolveRepresentationBridgeStageGate({
+    feedbackTiming: 'checkpoint', showImmediateFeedback: true, requiredStages: REPRESENTATION_BRIDGE_STAGES,
+    stageChecks, parts, completion: {}, ...extra,
+  });
+  const allRight = Object.fromEntries(REPRESENTATION_BRIDGE_STAGES.map((stage) => [stage, true]));
+  // A later stage waits for every earlier stage to be checked AND still right.
+  assert.equal(gate({}, allRight).stageBlocked('generalForm'), true);
+  assert.equal(gate({ rateEvidence: true }, allRight).stageBlocked('generalForm'), false);
+  assert.equal(gate({ rateEvidence: true }, { ...allRight, rateEvidence: false }).stageBlocked('generalForm'), true, 'a stale check re-locks');
+  // Submit waits for every required stage to be checked and still right.
+  assert.equal(gate(allRight, allRight).readyToSubmit, true);
+  assert.equal(gate(allRight, { ...allRight, graph: false }).readyToSubmit, false);
+  // A checkpoint reveals a highlight only for a checked stage.
+  assert.equal(gate({ generalForm: true }, allRight).revealAllowed('generalForm'), true);
+  assert.equal(gate({}, allRight).revealAllowed('generalForm'), false);
+  // submitOnly reveals nothing until submission feedback exists.
+  assert.equal(gate({}, allRight, { feedbackTiming: 'submitOnly' }).revealAllowed('generalForm'), false);
+  assert.equal(gate({}, allRight, { feedbackTiming: 'submitOnly', submissionFeedbackShown: true }).revealAllowed('generalForm'), true);
 });
 
 // -------------------------------------------------------------- platform wiring

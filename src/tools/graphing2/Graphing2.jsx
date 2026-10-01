@@ -7,6 +7,7 @@ import useViewportWidth from '../../platform/mobile/useViewportWidth.js';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useToolSubmission from '../shared/useToolSubmission';
+import { useHintsAllowed } from '../shared/ToolRuntimeContext';
 import { formatLine, lineFromPoints, targetLineFromQuestion } from './graphingMath';
 import { evaluateConstruction, resolveConstructionPolicy } from './constructionPolicy';
 import { toFraction, formatFraction } from '../shared/linearEquations.js';
@@ -171,6 +172,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
   const requiredPointCount = policy.strategy === 'formAware' ? policy.minimumPoints : 2;
   const [points, setPoints] = usePersistentToolState('points', []);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
+  const hintsAllowed = useHintsAllowed();
   const studentLine = useMemo(() => points.length >= 2 ? lineFromPoints(points[0], points[1]) : null, [points]);
   const bounds = questionData.graphBounds || { xMin: -7, xMax: 7, yMin: -7, yMax: 7 };
   // pointSlope's encoded point is given only in the prompt/equation, never
@@ -301,7 +303,10 @@ export default function Graphing2({ questionData = {}, onAction }) {
     equationInput: { label: studentLine ? `Your line: ${formatLine(studentLine)}` : 'Your line', studentState: true },
     instruction: { text: nextInstruction(points.length, requiredPointCount) },
     task: { text: targetPrompt(normalizedQuestion, target) },
-    help: { content: <HintPanel hints={hints} onHintUsed={() => onAction?.('HINT_USED')} /> },
+    // The hints ARE this Help. Where the activity withholds them the panel
+    // renders nothing, so publishing it would leave a Help button over an
+    // empty drawer; the platform's own directions stand in instead.
+    help: hintsAllowed ? { content: <HintPanel hints={hints} onHintUsed={() => onAction?.('HINT_USED')} /> } : null,
     primaryActions: [{ id: 'check-construction', label: 'Check construction', onAction: check, disabled: constructionIncomplete }],
     secondaryActions: [{ id: 'start-over', label: 'Start over', onAction: clear, disabled: !points.length }],
   };

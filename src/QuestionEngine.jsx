@@ -972,6 +972,10 @@ export default function QuestionEngine({
   // field means an author cannot switch it on for an exit ticket, and a bank
   // question carried into a DOL loses it automatically.
   const selfCheckAllowed = resolvedActivityPolicy?.hintsAllowed !== false && !locked;
+  // The same permission, handed to every registry tool through
+  // ToolRuntimeContext: their hint panels (and any other hint affordance) are
+  // absent where the activity withholds help, not merely recorded.
+  const toolHintsAllowed = resolvedActivityPolicy?.hintsAllowed !== false;
 
   const graphModuleProps = {
     selfCheckAllowed,
@@ -1004,13 +1008,16 @@ export default function QuestionEngine({
     // the same runtime.
     if (isComposed) {
       return (
-        // A composed question's steps are the same tools the registry mounts
-        // (the mapping diagram, the number line) and the same graph workspace,
-        // so they answer to the same policy. Without this provider they read
-        // the context's default, which shows verdicts: "Correct" / "Not yet" on
-        // a mapping step of a DOL, before the question was submitted.
+        // A composed question's steps are the same tools the registry mounts —
+        // the mapping-diagram stage is RelationMapping, the number-line stage
+        // IntervalNumberLine — and the same graph workspace, so they answer to
+        // the same policy. Without this provider they read the context's
+        // defaults, verdicts on and hints on: "Correct" / "Not yet" and a hint
+        // panel on a mapping step of a DOL, before the question was submitted.
+        // They get exactly what a standalone registry tool gets below.
         <ToolRuntimeProvider
           showImmediateFeedback={showOutcomeFeedback && !serverGrading}
+          hintsAllowed={toolHintsAllowed}
           questionTerminal={locked}
         >
           <WorkflowRunner
@@ -1040,6 +1047,7 @@ export default function QuestionEngine({
         // for correct work. The server's result is shown below instead.
         <ToolRuntimeProvider
           showImmediateFeedback={showOutcomeFeedback && !serverGrading}
+          hintsAllowed={toolHintsAllowed}
           questionTerminal={locked}
         >
           {/* THE REGISTRY TOOLS REACH THE PLATFORM UNDO BUTTON THROUGH HERE.

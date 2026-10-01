@@ -495,6 +495,126 @@ export const gradeFeaturePoints = (response, rule) => {
   };
 };
 
+/*
+ * A GRAPH WORKSPACE'S OWN VERDICT, read the one way every caller reads it: its
+ * partial credit where it reports one, otherwise all or nothing on isCorrect.
+ */
+const stageVerdictCredit = (artifact) => (
+  Number.isFinite(Number(artifact?.partialCreditPercent))
+    ? Math.max(0, Math.min(1, Number(artifact.partialCreditPercent) / 100))
+    : (artifact?.isCorrect === true ? 1 : 0)
+);
+
+/*
+ * A PLOT IS MARKED BY THE POINTS IT HOLDS.
+ *
+ * A coordinate-plot stage does not answer with a list of pairs. It answers with
+ * the graph workspace's artifact — `{ isComplete, isCorrect, responseKey,
+ * parts }` — and `gradePairs` read that object as a list, found nothing in it,
+ * and marked every plot keyed `{ pairs }` wrong with the mapping diagram's
+ * message, however right it was. That was relationRepresentations' `plot`
+ * stage on every submission: a correct relation plot scored 0 and capped the
+ * question below full credit.
+ *
+ * The plotted pairs are in the artifact. `responseKey` is the workspace's own
+ * record, and `construction.placements` holds each point where the student
+ * left it; only when that cannot be read are the "(x, y)" its point parts
+ * report used instead. Either way they are compared with the key as a SET, as
+ * the mapping arrows are: a relation is a set of ordered pairs, and which
+ * labelled point (P1, P2, …) carried which pair is the plotting surface's
+ * bookkeeping, not mathematics. That matters for the relations this recipe
+ * exists to teach. (1, 2) and (1, 5) are two point tasks at the same locked x,
+ * and a student who plots them the other way round has plotted the relation.
+ *
+ * A placement counts within PLOTTED_POINT_TOLERANCE of a key pair — the floor
+ * at which the plotting surface itself accepts a placement (it uses
+ * max(0.22, snap × 0.48)). Points snap to a grid on which every key point is
+ * reachable, so a correct point lands on its pair and a wrong one at least one
+ * grid step away; at that floor this agrees with the surface's own
+ * point-by-point marking on every grid. An author may set `tolerance`.
+ *
+ * An artifact with no readable point at all is marked by the workspace's own
+ * verdict, exactly as a `useStageVerdict` rule reads it — never as an empty
+ * list, which is what made a correct plot wrong.
+ */
+export const PLOTTED_POINT_TOLERANCE = 0.22;
+const SAME_PLACEMENT = 1e-9;
+
+const parseJsonObject = (text) => {
+  if (typeof text !== 'string' || !text.trim().startsWith('{')) return null;
+  try {
+    const parsed = JSON.parse(text);
+    return isObject(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+/** Every point a graph artifact holds, as [x, y]: its placements, else its parts. */
+export const graphArtifactPoints = (artifact) => {
+  if (!isWorkflowArtifact(artifact, 'graph')) return [];
+  const placements = parseJsonObject(artifact.responseKey)?.construction?.placements;
+  const placed = isObject(placements)
+    ? Object.values(placements).map(normalizeFeaturePoint).filter(Boolean)
+    : [];
+  if (placed.length) return placed;
+  return list(artifact.parts)
+    .map((part) => (typeof part?.response === 'string' ? parseOrderedPair(part.response) : null))
+    .map(normalizeFeaturePoint)
+    .filter(Boolean);
+};
+
+const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+const distinctPoints = (points, within) => points.reduce(
+  (kept, point) => (kept.some((other) => distance(other, point) <= within) ? kept : [...kept, point]),
+  [],
+);
+
+export const gradePlottedPairs = (artifact, rule = {}) => {
+  const plotted = graphArtifactPoints(artifact);
+  if (!plotted.length) {
+    const isCorrect = artifact?.isCorrect === true;
+    return {
+      graded: true,
+      isCorrect,
+      credit: stageVerdictCredit(artifact),
+      detail: isCorrect ? 'Every ordered pair is plotted.' : 'Some points are not where the ordered pairs put them.',
+    };
+  }
+  const tolerance = Number.isFinite(Number(rule?.tolerance)) && Number(rule.tolerance) >= 0
+    ? Number(rule.tolerance)
+    : PLOTTED_POINT_TOLERANCE;
+  // A pair listed twice is one pair, and two placements on one spot are one
+  // point: the relation is a set, on both sides.
+  const wanted = distinctPoints(list(rule?.pairs).map(normalizeFeaturePoint).filter(Boolean), SAME_PLACEMENT);
+  const points = distinctPoints(plotted, SAME_PLACEMENT);
+  // Each key pair is claimed once, by the nearest unclaimed point within reach,
+  // so one point can never stand for two pairs.
+  const claimed = new Set();
+  wanted.forEach((pair) => {
+    let nearest = -1;
+    points.forEach((point, index) => {
+      if (claimed.has(index) || distance(point, pair) > tolerance) return;
+      if (nearest < 0 || distance(point, pair) < distance(points[nearest], pair)) nearest = index;
+    });
+    if (nearest >= 0) claimed.add(nearest);
+  });
+  const matched = claimed.size;
+  const stray = points.length - matched;
+  const isCorrect = wanted.length > 0 && matched === wanted.length && stray === 0;
+  return {
+    graded: true,
+    isCorrect,
+    // The mapping arrows' rule: shared pairs over the larger of the two sets.
+    credit: matched / Math.max(wanted.length, points.length, 1),
+    // Which pairs are missing is deliberately not named, as for figure
+    // matching: naming them would turn a second attempt into elimination.
+    detail: isCorrect
+      ? 'Every ordered pair is plotted.'
+      : `${matched} of ${wanted.length} ordered pairs are plotted${stray ? `, with ${stray} point${stray === 1 ? '' : 's'} that ${stray === 1 ? 'is' : 'are'} not in the relation` : ''}.`,
+  };
+};
+
 export const gradeStage = ({ stage, rule, responses = {}, stages = [] }) => {
   const response = responses[stage.id];
   const answered = hasStageResponse(response);
@@ -519,14 +639,11 @@ export const gradeStage = ({ stage, rule, responses = {}, stages = [] }) => {
   // from an AUTHORED list of pairs has no upstream stage to be consistent with,
   // but its verdict is just as good.
   if (isObject(rule) && rule.useStageVerdict && !rule.consistentWith && isWorkflowArtifact(response, 'graph')) {
-    const credit = Number.isFinite(Number(response.partialCreditPercent))
-      ? Math.max(0, Math.min(1, Number(response.partialCreditPercent) / 100))
-      : (response.isCorrect === true ? 1 : 0);
     return {
       ...base,
       graded: true,
       isCorrect: response.isCorrect === true,
-      credit,
+      credit: stageVerdictCredit(response),
       detail: response.isCorrect ? 'Every point is plotted correctly.' : 'Some points are not where the table puts them.',
     };
   }
@@ -536,14 +653,11 @@ export const gradeStage = ({ stage, rule, responses = {}, stages = [] }) => {
     // graph workspace against the STUDENT-DERIVED function and points. Preserve
     // that verdict instead of comparing it with the authored answer key.
     if (rule.useStageVerdict && isWorkflowArtifact(response, 'graph')) {
-      const graphCredit = Number.isFinite(Number(response.partialCreditPercent))
-        ? Math.max(0, Math.min(1, Number(response.partialCreditPercent) / 100))
-        : (response.isCorrect === true ? 1 : 0);
       return {
         ...base,
         graded: true,
         isCorrect: response.isCorrect === true,
-        credit: graphCredit,
+        credit: stageVerdictCredit(response),
         detail: response.isCorrect
           ? 'Your graph matches the model and table you built.'
           : 'Revise the graph so it matches the model and table you built.',
@@ -581,7 +695,14 @@ export const gradeStage = ({ stage, rule, responses = {}, stages = [] }) => {
   if (stage.kind === 'figureMatch' && isObject(rule) && isObject(rule.match)) {
     return { ...base, ...gradeFigureMatch(stage, response, rule.match) };
   }
-  if (isObject(rule) && Array.isArray(rule.pairs)) return { ...base, ...gradePairs(response, rule.pairs) };
+  // The same key marks two kinds of answer: a mapping diagram's arrows (a list
+  // of pairs) and a plot (a graph artifact, which is not a list).
+  if (isObject(rule) && Array.isArray(rule.pairs)) {
+    return {
+      ...base,
+      ...(isWorkflowArtifact(response, 'graph') ? gradePlottedPairs(response, rule) : gradePairs(response, rule.pairs)),
+    };
+  }
   if (isObject(rule) && Array.isArray(rule.set)) return { ...base, ...gradeSet(response, rule.set) };
   if (isObject(rule) && rule.values) return { ...base, ...gradeTableValues(responsePayload(response), rule.values) };
   if (stage.kind === 'quantityRoles' && isObject(rule)) return { ...base, ...gradeRoles(response, rule) };
@@ -596,6 +717,33 @@ export const gradeStage = ({ stage, rule, responses = {}, stages = [] }) => {
     || (['domainInput', 'rangeInput'].includes(stage.kind)
       && matchesWithShownVariable(stage, response, expected, studentModelNames(responses[equationStage?.id])));
   return { ...base, graded: true, isCorrect, credit: isCorrect ? 1 : 0, detail: isCorrect ? 'Correct.' : 'Not correct yet.' };
+};
+
+/**
+ * What a set of marked stages adds up to. The one rule for it: gradeWorkflow
+ * reports it, and a stored record re-marked later (liveQuestionCorrection) is
+ * summed the same way, so the two can never disagree about what full credit is.
+ */
+export const summarizeWorkflowParts = (parts = []) => {
+  const all = list(parts);
+  const graded = all.filter((part) => part?.graded);
+  const correct = graded.filter((part) => part.isCorrect);
+  const isComplete = all.length > 0 && all.every((part) => part?.isComplete);
+  const isCorrect = isComplete && graded.length > 0 && correct.length === graded.length;
+  const totalWeight = graded.reduce((total, part) => total + (Number(part.weight) || 1), 0);
+  const earnedWeight = graded.reduce(
+    (total, part) => total + (Math.max(0, Math.min(1, Number(part.credit) || 0)) * (Number(part.weight) || 1)),
+    0,
+  );
+  const weightedPartial = totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100) : null;
+  return {
+    isComplete,
+    // Full correctness still requires every graded stage. Partial work may
+    // earn substantial credit, but never impersonates a complete correct task.
+    isCorrect,
+    partialCreditPercent: isCorrect ? 100 : (weightedPartial === null ? null : Math.min(90, weightedPartial)),
+    gradedCount: graded.length,
+  };
 };
 
 /**
@@ -618,25 +766,9 @@ export const gradeWorkflow = ({ stages = [], responses = {}, grading = null } = 
   const asked = stages.filter((stage) => active.has(stage.id));
   const parts = asked.map((stage) => gradeStage({ stage, rule: rules[stage.id], responses, stages: asked }));
 
-  const graded = parts.filter((part) => part.graded);
-  const correct = graded.filter((part) => part.isCorrect);
-  const isComplete = parts.length > 0 && parts.every((part) => part.isComplete);
-  const isCorrect = isComplete && graded.length > 0 && correct.length === graded.length;
-  const totalWeight = graded.reduce((total, part) => total + (Number(part.weight) || 1), 0);
-  const earnedWeight = graded.reduce(
-    (total, part) => total + (Math.max(0, Math.min(1, Number(part.credit) || 0)) * (Number(part.weight) || 1)),
-    0,
-  );
-  const weightedPartial = totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100) : null;
-
   return {
     parts,
-    isComplete,
-    // Full correctness still requires every graded stage. Partial work may
-    // earn substantial credit, but never impersonates a complete correct task.
-    isCorrect,
-    partialCreditPercent: isCorrect ? 100 : (weightedPartial === null ? null : Math.min(90, weightedPartial)),
-    gradedCount: graded.length,
+    ...summarizeWorkflowParts(parts),
     responseKey: JSON.stringify(responses),
     questionDetails: asked
       .map((stage, index) => `Step ${index + 1} (${stage.kind}): ${JSON.stringify(responses[stage.id] ?? null)}`)
