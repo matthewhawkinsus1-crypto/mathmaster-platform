@@ -45,6 +45,7 @@ import { buildRawPathResponse } from './platform/path/pathToolResponses';
 import { ToolRuntimeProvider } from './tools/shared/ToolRuntimeContext';
 import { gradeRegistryToolWork } from './platform/grading/registryToolGrading.js';
 import { attemptInputsFromGrading } from '../functions/shared/serverGrading/gradingResult.mjs';
+import { buildModelingLabResponse, gradeModelingLabEvaluation } from '../functions/shared/serverGrading/modelingLabGrading.mjs';
 import { ToolDraftScopeProvider, forgetToolDrafts, stampToolDraftSubmission } from './tools/shared/usePersistentToolState.js';
 import InteractiveModelingLabPlayer from './components/labs/InteractiveModelingLabPlayer.jsx';
 import { useToast } from './ui/Toast';
@@ -880,22 +881,27 @@ export default function QuestionEngine({
     }
   };
 
-  const handleModelingLabGrade = async (evaluation) => {
+  const handleModelingLabGrade = async (evaluation, serverResult = null) => {
     if (submitting || locked) return null;
     setSubmitting(true);
     try {
+      // The lab was graded by the server (submitModelingLab). The attempt
+      // queued here carries only a REFERENCE to that evaluation — the lab and
+      // submission ids — and ingestion records it from the server-written
+      // marker. Parts and partial credit come from the same shared mapping
+      // the server applies, so the student sees what the gradebook keeps.
+      const grading = gradeModelingLabEvaluation(evaluation);
+      const attemptInputs = attemptInputsFromGrading(grading);
       const partialCreditPercent = Math.max(0, Math.min(100, Math.round(Number(evaluation?.compositeScore || 0) * 100)));
+      const labId = processedQuestion?.labDefinition?.labId;
+      const toolResponse = buildModelingLabResponse({ question: processedQuestion, labId, submissionId: serverResult?.submissionId });
       const result = await onGrade?.(
-        Boolean(evaluation?.isMastered),
+        attemptInputs.isCorrect,
         `Server-graded modeling lab · ${partialCreditPercent}% composite.`,
-        [
-          { id: 'modelAccuracy', label: 'Model accuracy', isComplete: true, isCorrect: Number(evaluation?.rubricBreakdown?.modelAccuracy || 0) >= 85 },
-          { id: 'hypothesis', label: 'Hypothesis / experimental process', isComplete: true, isCorrect: Number(evaluation?.rubricBreakdown?.hypothesisCompleteness || 0) >= 85 },
-          { id: 'justification', label: 'Written justification completion', isComplete: true, isCorrect: Number(evaluation?.rubricBreakdown?.writtenJustificationCompleteness || 0) >= 85 },
-        ],
+        attemptInputs.parts,
         attemptSupportUsage(),
-        `lab:${processedQuestion?.labDefinition?.labId}:${partialCreditPercent}`,
-        { partialCreditPercent },
+        toolResponse.value || `lab:${labId}:${partialCreditPercent}`,
+        { partialCreditPercent: attemptInputs.partialCreditPercent, toolResponse },
       );
       setFeedback(result || {
         isCorrect: Boolean(evaluation?.isMastered),

@@ -48,9 +48,14 @@ export default Object.freeze({
   algebra: stepAlgebraFinalAnswer,
   functionCharacteristics: PENDING('functionCharacteristics'),
   composedWorkflow: PENDING('composedWorkflow'),
+  // Graded by the submitModelingLab callable (functions/lib/labEvaluation.js),
+  // which writes the evaluation to a server-owned marker. Ingestion records
+  // the gradebook attempt from THAT marker (serverGrading/
+  // modelingLabGrading.mjs), never from the browser's relay; an attempt with
+  // no evaluation is held for teacher review.
   modelingLab: declareSubsystem({
     subsystem: 'modeling-lab-server-evaluation',
-    note: 'PENDING: confirm the Modeling Lab server evaluator owns the verdict.',
+    note: 'Evaluated by the submitModelingLab callable; the gradebook attempt is recorded from its server-written modelingLabSubmissions marker.',
   }),
   platformQuestionError: declareNonGraded({
     reason: 'A placeholder shown when MathMaster could not prepare a question; the student cannot answer it and no attempt is recorded.',

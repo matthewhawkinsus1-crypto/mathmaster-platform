@@ -782,6 +782,43 @@ async function ingestOneSubmission({ db, studentId, envelope, now }) {
       }
     }
 
+    /*
+     * A MODELING LAB ATTEMPT IS RECORDED FROM THE SERVER'S OWN EVALUATION.
+     *
+     * Read here, inside the transaction and before any write, from the marker
+     * `submitModelingLab` wrote — by the exact submission the attempt names,
+     * or (for an attempt queued by an older client that named none) the
+     * newest evaluation of this lab for this student. Identities are checked
+     * against the authoritative question, never the envelope.
+     */
+    let modelingLabMarker = null;
+    if (question?.type === "modelingLab") {
+      const labGrading = await import("./shared/serverGrading/modelingLabGrading.mjs");
+      const labId = labGrading.modelingLabIdFor(question);
+      const reference = labGrading.modelingLabSubmissionReference(envelope.response);
+      let markers = [];
+      if (labId && reference?.submissionId) {
+        const markerSnapshot = await transaction.get(db.collection("modelingLabSubmissions").doc(
+          mathPath.opaqueId("labsub", studentId, envelope.assignmentId, labId, reference.submissionId),
+        ));
+        markers = markerSnapshot.exists ? [markerSnapshot.data()] : [];
+      } else if (labId) {
+        const markerQuery = await transaction.get(db.collection("modelingLabSubmissions")
+          .where("studentId", "==", studentId)
+          .where("assignmentId", "==", envelope.assignmentId)
+          .where("labId", "==", labId)
+          .limit(50));
+        markers = markerQuery.docs.map((doc) => doc.data());
+      }
+      modelingLabMarker = labGrading.selectModelingLabMarker({
+        markers,
+        studentId,
+        assignmentId: envelope.assignmentId,
+        question,
+        reference,
+      });
+    }
+
     const classworkIndices = runtimeIncludedQuestionIndicesForSection(assignment, "classwork");
     const dolIndices = runtimeIncludedQuestionIndicesForSection(assignment, "dol");
     const built = ingestion.buildIngestedAttempt({
@@ -792,6 +829,7 @@ async function ingestOneSubmission({ db, studentId, envelope, now }) {
       gradeDocument: gradeData,
       classworkIndices,
       dolIndices,
+      modelingLabMarker,
       // `now` is when the SERVER heard about this, which is the receipt's
       // business. The academic time is resolved from the capture, bounded by
       // the assignment's release and by this moment.

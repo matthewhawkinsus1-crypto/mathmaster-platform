@@ -44,6 +44,7 @@ import {
 } from './serverGrading/serverResponseGrading.mjs';
 import { isToolResponse } from './serverGrading/toolResponseContract.mjs';
 import { attemptInputsFromGrading } from './serverGrading/gradingResult.mjs';
+import { gradeModelingLabEvaluation } from './serverGrading/modelingLabGrading.mjs';
 import {
   getQuestionCredit,
   normalizeQuestionRecord,
@@ -350,6 +351,10 @@ export const buildIngestedAttempt = ({
   occurredAt = null,
   ingestedAt = Date.now(),
   timeZone = SCHOOL_TIME_ZONE,
+  // For a Modeling Lab question: the server-written evaluation this attempt
+  // names (modelingLabGrading.mjs selectModelingLabMarker), read by the
+  // caller inside the same transaction. Never anything the browser sent.
+  modelingLabMarker = null,
 } = {}) => {
   const canonical = stripNonCanonicalInspectionFields(normalizeQuestionRecord(canonicalRecord));
   const academicAt = occurredAt === null || occurredAt === undefined
@@ -392,7 +397,38 @@ export const buildIngestedAttempt = ({
   let result;
   let gradedBy;
   let serverGrading = null;
-  if (regrade.regrade) {
+  /*
+   * A MODELING LAB IS GRADED BY ITS OWN SERVER SUBSYSTEM.
+   *
+   * The attempt is recorded from the evaluation the `submitModelingLab`
+   * callable wrote, never from the record or verdict the browser relayed. No
+   * evaluation means no verified result to record, so the work is kept for a
+   * teacher rather than credited on the browser's word.
+   */
+  const modelingLab = text(gradingQuestion?.type) === 'modelingLab' && envelope.kind === 'ordinarySubmission';
+  if (modelingLab && !modelingLabMarker?.result?.evaluation) {
+    return { blocked: true, reason: 'modeling-lab-evaluation-missing' };
+  }
+  if (modelingLab) {
+    const grading = gradeModelingLabEvaluation(modelingLabMarker.result.evaluation);
+    serverGrading = { ...grading, graderVersion: 'modeling-lab-server-evaluation-v1' };
+    const attemptInputs = attemptInputsFromGrading(grading);
+    const outcome = recordQuestionAttempt({
+      record: canonical,
+      isCorrect: attemptInputs.isCorrect,
+      questionDetails: `Server-graded modeling lab · ${Math.round(grading.score * 100)}% composite.`,
+      timeSpent: envelope.timeSpentSeconds,
+      parts: attemptInputs.parts,
+      supportUsage: envelope.supportUsage,
+      responseKey: text(envelope.response?.value),
+      partialCreditPercent: attemptInputs.partialCreditPercent,
+      maximumAttempts,
+      occurredAt: academicAt,
+    });
+    record = outcome.record;
+    result = outcome.result;
+    gradedBy = 'server';
+  } else if (regrade.regrade) {
     const grading = gradeServerResponse({ question: gradingQuestion, response: envelope.response });
     if (!grading.graded) {
       return { blocked: true, reason: grading.reason || 'server-grading-failed' };
@@ -451,7 +487,8 @@ export const buildIngestedAttempt = ({
     lastSubmissionId: envelope.actionId,
     submissionOrigin: 'server-ingestion',
     gradedBy,
-    serverGradingReason: regrade.regrade ? null : regrade.reason,
+    serverGradingReason: regrade.regrade || modelingLab ? null : regrade.reason,
+    ...(modelingLab ? { modelingLabSubmissionId: text(modelingLabMarker.submissionId) || null } : {}),
     // The audit trail for a delayed recovery: the record reads as the day the
     // student worked, and says separately when it actually arrived.
     academicOccurredAt: new Date(academicAt).toISOString(),
