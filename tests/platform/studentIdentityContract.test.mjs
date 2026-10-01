@@ -364,6 +364,13 @@ test('Test A: a teacher sees the human name — server projection, client roster
 
 // ---------------------------------------------------------------------------
 // Test B — a legacy student repaired by the backfill tool.
+//
+// A Classroom link (googleName, a classroomRosterLinks entry) is a teacher's
+// revocable match, so the tool writes a name only when a source independent of
+// that link agrees (the creation audit, the student's own Google profile, a
+// legacy field). A name vouched for only by the link stays on screen through
+// the roster projection and waits for the teacher to confirm it with
+// setStudentName (Sign-in Access, "Add name" / "Edit name").
 // ---------------------------------------------------------------------------
 
 const projectForRepair = (db) => [...db.docsOf(GRADES_COLLECTION).entries()]
@@ -378,14 +385,24 @@ test('Test B: the repair tool names legacy students on the teacher roster, and a
       730203: legacy({ ...history('e') }), // named only by the account-creation audit
       730204: enrolled({ displayName: 'Indigo Fakerly', ...history('f') }), // display name, no parts
       730205: enrolled({ firstName: 'Tamsin', lastName: 'Proofwell', displayName: 'Tamsin Proofwell' }),
+      // Named ONLY by the Classroom link: shown, never copied by the tool.
+      730206: legacy({ googleName: 'Calla Linkwright', ...history('i') }),
     },
     classes: CLASSES,
   });
   const inputs = {
     students: projectForRepair(db),
     creationAudits: [{ studentId: '730203', firstName: 'Bram', lastName: 'Prototypo', displayName: 'Bram Prototypo' }],
-    rosterLinks: [{ studentId: '730202', name: 'Ember Draftwell', googleUserId: '119900330044', courseId: 'course-1' }],
-    googleProfiles: [],
+    rosterLinks: [
+      { studentId: '730202', name: 'Ember Draftwell', googleUserId: '119900330044', courseId: 'course-1' },
+      { studentId: '730206', name: 'Calla Linkwright', googleUserId: '119900330066', courseId: 'course-1' },
+    ],
+    // The Auth profile of each student's own linked Google account: the source
+    // independent of the Classroom match, agreeing with it.
+    googleProfiles: [
+      { studentId: '730201', displayName: 'Cass Mockingworth' },
+      { studentId: '730202', displayName: 'Ember Draftwell' },
+    ],
     aliases: [],
     directory: [],
     credentialKeys: [],
@@ -403,6 +420,11 @@ test('Test B: the repair tool names legacy students on the teacher roster, and a
   assert.equal(planned['730202'].source, 'classroomRosterLink');
   assert.equal(planned['730203'].source, 'accountCreationAudit');
   assert.equal(planned['730204'].source, 'storedDisplayName');
+  // The Classroom-only student: no write, awaiting a person, and counted.
+  assert.equal(planned['730206'], undefined, 'a Classroom-only name is never made canonical');
+  assert.deepEqual(plan.needsStructuredName, [{ studentId: '730206', reason: 'classroomOnlySource' }]);
+  assert.equal(plan.counts.active.classroomNameAwaitingConfirmation, 1);
+  assert.equal(plan.counts.active.recoverableElsewhere, 4, '730201-730203 written, 730206 awaiting confirmation');
   plan.updates.forEach((update) => {
     Object.keys(update.set).forEach((field) => assert.ok(['firstName', 'lastName', 'displayName'].includes(field)));
   });
@@ -438,10 +460,35 @@ test('Test B: the repair tool names legacy students on the teacher roster, and a
     assert.equal('identityBackfill' in byId(response.students, id), false, 'the provenance stamp is not roster data');
   });
 
+  // The Classroom-only student is untouched by the tool, yet still named on
+  // every screen: the roster projection resolves googleName at read time.
+  assert.deepEqual(
+    project(db.data(GRADES_COLLECTION, '730206'), ['firstName', 'lastName', 'displayName', 'identityBackfill']),
+    { firstName: null, lastName: null, displayName: null },
+  );
+  const awaiting = byId(roster, '730206');
+  assert.deepEqual([awaiting.displayName, awaiting.nameSource, awaiting.nameMissing, awaiting.firstName], ['Calla Linkwright', 'googleName', false, null]);
+  assert.equal(formatStudentName(awaiting), 'Linkwright, Calla');
+  assert.equal(classifyLiveStudent({ ...awaiting, liveStatus: liveStatus() }, { nowValue: NOW }).name, 'Calla Linkwright');
+
   // Idempotent: re-planning the repaired records changes nothing.
   const replan = planIdentityRepair({ ...inputs, students: projectForRepair(db) });
   assert.deepEqual(replan.updates, []);
   assert.equal(replan.counts.active.completeCanonicalNames, 5);
+  assert.deepEqual(replan.needsStructuredName, [{ studentId: '730206', reason: 'classroomOnlySource' }]);
+
+  // The teacher confirms the name (setStudentName); then it is canonical and
+  // the planner has nothing left to ask about.
+  await runServerCallable('setStudentName', {
+    db, request: teacherRequest(TEACHER, { studentId: '730206', firstName: 'Calla', lastName: 'Linkwright' }),
+  });
+  const confirmed = byId((await loadTeacherRoster(db)).roster, '730206');
+  assert.deepEqual([confirmed.firstName, confirmed.lastName, confirmed.nameSource], ['Calla', 'Linkwright', 'structured']);
+  const afterConfirm = planIdentityRepair({ ...inputs, students: projectForRepair(db) });
+  assert.deepEqual(afterConfirm.updates, []);
+  assert.deepEqual(afterConfirm.needsStructuredName, []);
+  assert.equal(afterConfirm.counts.active.classroomNameAwaitingConfirmation, 0);
+  assert.equal(afterConfirm.counts.active.completeCanonicalNames, 6);
 });
 
 // ---------------------------------------------------------------------------
@@ -565,11 +612,25 @@ test('Test D: two students with the same name stay two students on every layer; 
     twins.filter((other) => other !== id).forEach((other) => assert.ok(!studentSearchText(byId(roster, other)).includes(id)));
   });
 
-  // The planner reports the duplicate and touches only the legacy record's own fields.
-  const plan = planIdentityRepair({ students: projectForRepair(db), studentIdKey: safeStudentIdKey });
+  // The planner reports the duplicate and touches only the legacy record's own
+  // fields. 730403's own Google profile agrees with its googleName, so the name
+  // has a source independent of the Classroom link and may be written.
+  const plan = planIdentityRepair({
+    students: projectForRepair(db),
+    googleProfiles: [{ studentId: '730403', displayName: 'Lark Testington' }],
+    studentIdKey: safeStudentIdKey,
+  });
   assert.deepEqual(plan.counts.duplicateHumanNames, { groups: 1, students: 3 });
   assert.deepEqual(plan.updates.map((update) => update.studentId), ['730403']);
   assert.deepEqual(plan.updates[0].set, { displayName: 'Lark Testington', firstName: 'Lark', lastName: 'Testington' });
+
+  // With only the Classroom link vouching for it, the same record is not
+  // written — it waits for the teacher — and the twins are still never merged.
+  const classroomOnly = planIdentityRepair({ students: projectForRepair(db), studentIdKey: safeStudentIdKey });
+  assert.deepEqual(classroomOnly.updates, []);
+  assert.deepEqual(classroomOnly.needsStructuredName, [{ studentId: '730403', reason: 'classroomOnlySource' }]);
+  assert.equal(classroomOnly.counts.active.classroomNameAwaitingConfirmation, 1);
+  assert.equal(classroomOnly.counts.totalStudents, 3);
 });
 
 // ---------------------------------------------------------------------------

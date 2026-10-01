@@ -19,6 +19,13 @@
 // its own project id: the emulator keeps each project's data apart, and this
 // suite neither sees nor writes theirs.
 //
+// SOURCES. A Classroom link (googleName, classroomRosterLinks) is a teacher's
+// revocable match, so the tool writes a name only when a source independent of
+// it agrees. Here that is the creation audit (in Firestore) or the profile of
+// the student's own directory-linked Google account, read through a small
+// Auth stand-in (fakeAuth): this suite runs only the Firestore emulator.
+// IR-LINKONLY is named by the Classroom link alone and must never be written.
+//
 // Every name and id here is invented for the test.
 
 import test, { after, before } from 'node:test';
@@ -43,7 +50,7 @@ const ACTOR = 'operator@example.test';
 const FIXTURE_NAMES = [
   'Rowan', 'Exampleton', 'Quinn', 'Samplewood', 'Samplecourt', 'Avery', 'Fixtureton', 'Marlo', 'Sampleby',
   'Harper', 'Testwell', 'Sawyer', 'Mockridge', 'Ellis', 'Placeholt', 'Indigo', 'Vanishby', 'Wren', 'Draftly',
-  'Finalby', 'Tatum', 'Retiredson',
+  'Finalby', 'Tatum', 'Retiredson', 'Linden', 'Classlinkby',
 ];
 const namesIn = (value) => {
   const text = JSON.stringify(value).toLowerCase();
@@ -95,10 +102,12 @@ const SEED = {
     'IR-GONE': nameless({ googleName: 'Indigo Vanishby' }),
     'IR-WREN': nameless({ googleName: 'Wren Draftly' }),
     'IR-DISABLED': nameless({ status: 'disabled', googleName: 'Tatum Retiredson' }),
+    'IR-LINKONLY': nameless({ googleName: 'Linden Classlinkby' }),
   },
   classroomRosterLinks: {
     'course-ir__IR-QUINN': { studentId: 'IR-QUINN', name: 'Quinn Samplewood', googleUserId: 'g-quinn', courseId: 'course-ir', classId: 'class-ir' },
     'course-ir__IR-HARPER': { studentId: 'IR-HARPER', name: 'Sawyer Mockridge', googleUserId: 'g-harper', courseId: 'course-ir', classId: 'class-ir' },
+    'course-ir__IR-LINKONLY': { studentId: 'IR-LINKONLY', name: 'Linden Classlinkby', googleUserId: 'g-linkonly', courseId: 'course-ir', classId: 'class-ir' },
   },
   adminAuditLog: {
     'seed-created-avery': {
@@ -111,10 +120,31 @@ const SEED = {
     'seed-unrelated': { action: 'class_created', target: 'class-ir', details: {} },
   },
   studentAliases: { 'IR-ROWAN': { key: 'IR-ROWAN', studentId: 'IR-ROWAN' } },
-  studentDirectory: { 'rowan@example.test': { email: 'rowan@example.test', studentId: 'IR-ROWAN', uid: 'uid-rowan' } },
+  // Each student's own linked Google account. IR-LINKONLY has none.
+  studentDirectory: Object.fromEntries(['rowan', 'quinn', 'marlo', 'gone', 'wren', 'disabled'].map((who) => [
+    `${who}@example.test`,
+    { email: `${who}@example.test`, studentId: `IR-${who.toUpperCase()}`, uid: `uid-${who}` },
+  ])),
   studentCredentials: { 'IR-ROWAN': { hash: 'not-a-real-hash', resetRequired: false } },
 };
 const COLLECTIONS = Object.keys(SEED);
+
+// The Auth profiles of those accounts — each agrees with its student's
+// Classroom name, which is what lets the tool write it.
+const GOOGLE_PROFILES = {
+  'uid-rowan': 'Rowan Exampleton',
+  'uid-quinn': 'Quinn Samplewood',
+  'uid-marlo': 'Marlo Jean Sampleby',
+  'uid-gone': 'Indigo Vanishby',
+  'uid-wren': 'Wren Draftly',
+  'uid-disabled': 'Tatum Retiredson',
+};
+const fakeAuth = {
+  getUsers: async (identifiers) => ({
+    users: identifiers.filter(({ uid }) => GOOGLE_PROFILES[uid]).map(({ uid }) => ({ uid, displayName: GOOGLE_PROFILES[uid] })),
+    notFound: identifiers.filter(({ uid }) => !GOOGLE_PROFILES[uid]),
+  }),
+};
 
 const clearProject = async () => {
   const response = await fetch(
@@ -173,28 +203,41 @@ after(async () => {
 
 test('the dry run reads everything it needs and writes nothing', { skip: SKIP }, async () => {
   const before = await snapshotAll();
-  const report = await repair.runStudentIdentityRepair({ db, mode: 'audit', actor: ACTOR });
+  const report = await repair.runStudentIdentityRepair({ db, auth: fakeAuth, mode: 'audit', actor: ACTOR });
+  const withoutProfiles = await repair.runStudentIdentityRepair({ db, mode: 'audit', actor: ACTOR });
   const after = await snapshotAll();
   assert.deepEqual([...after.entries()], [...before.entries()], 'a dry run must not change a single document');
 
   assert.equal(report.dryRun, true);
   assert.equal(report.runId, null);
-  assert.equal(report.sources.students, 10);
+  assert.equal(report.sources.students, 11);
   assert.equal(report.sources.accountCreationAudits, 1);
+  assert.deepEqual(report.sources.googleProfiles, { linkedAccounts: 6, withDisplayName: 6, accountsNotFound: 0 });
   assert.equal(report.counts.plannedUpdates, 7);
   assert.equal(report.counts.plannedUpdatesBySource.googleName, 5);
   assert.equal(report.counts.plannedUpdatesBySource.classroomRosterLink, 1);
   assert.equal(report.counts.plannedUpdatesBySource.accountCreationAudit, 1);
   assert.deepEqual(report.counts.unresolved, { total: 2, noAuthoritativeSource: 1, conflictingSources: 1 });
-  assert.equal(report.counts.needsStructuredNameConfirmation, 1);
+  // IR-MARLO (three words) and IR-LINKONLY (Classroom link only).
+  assert.equal(report.counts.needsStructuredNameConfirmation, 2);
+  assert.equal(report.counts.active.classroomNameAwaitingConfirmation, 1);
   assert.equal(report.counts.disabledStudents, 1);
   assert.deepEqual(namesIn(report), [], 'the default report holds counts only');
+
+  // Without the Google profiles, every googleName/roster-link student is
+  // Classroom-only: only the creation-audit student is planned.
+  assert.equal(withoutProfiles.sources.googleProfiles, 'skipped');
+  assert.equal(withoutProfiles.counts.plannedUpdates, 1);
+  assert.equal(withoutProfiles.counts.plannedUpdatesBySource.accountCreationAudit, 1);
+  // ROWAN, QUINN, MARLO, GONE, WREN, LINKONLY (the disabled one is not tallied as active).
+  assert.equal(withoutProfiles.counts.active.classroomNameAwaitingConfirmation, 6);
 });
 
 test('execute fills the missing names, stamps them, leaves history untouched, and respects changes made after planning', { skip: SKIP }, async () => {
   const before = await snapshotAll();
   const report = await repair.runStudentIdentityRepair({
     db,
+    auth: fakeAuth,
     mode: 'execute',
     actor: ACTOR,
     now: new Date('2026-10-01T12:00:00Z'),
@@ -244,9 +287,13 @@ test('execute fills the missing names, stamps them, leaves history untouched, an
   assert.deepEqual(marlo.identityBackfill.filledFields, ['displayName']);
 
   const after = await snapshotAll();
-  for (const untouched of ['grades/IR-ELLIS', 'grades/IR-HARPER', 'grades/555001', 'classroomRosterLinks/course-ir__IR-QUINN', 'adminAuditLog/seed-created-avery']) {
+  for (const untouched of ['grades/IR-ELLIS', 'grades/IR-HARPER', 'grades/555001', 'grades/IR-LINKONLY', 'classroomRosterLinks/course-ir__IR-QUINN', 'adminAuditLog/seed-created-avery']) {
     assert.deepEqual(after.get(untouched), before.get(untouched), `${untouched} must not be written`);
   }
+  const linkOnly = await student('IR-LINKONLY');
+  assert.deepEqual([linkOnly.firstName, linkOnly.lastName, linkOnly.displayName], [null, null, null],
+    'a Classroom-only name is never made canonical');
+  assert.equal(linkOnly.googleName, 'Linden Classlinkby');
 
   const audits = await db.collection('adminAuditLog').where('action', '==', repair.BACKFILL_AUDIT_ACTION).get();
   assert.equal(audits.size, 1);
@@ -260,7 +307,7 @@ test('execute fills the missing names, stamps them, leaves history untouched, an
 
 test('running execute again changes nothing', { skip: SKIP }, async () => {
   const before = await snapshotAll();
-  const report = await repair.runStudentIdentityRepair({ db, mode: 'execute', actor: ACTOR, now: new Date('2026-10-01T13:00:00Z') });
+  const report = await repair.runStudentIdentityRepair({ db, auth: fakeAuth, mode: 'execute', actor: ACTOR, now: new Date('2026-10-01T13:00:00Z') });
   assert.equal(report.execution.attempted, 0);
   assert.equal(report.execution.applied, 0);
   const after = await snapshotAll();
@@ -299,7 +346,7 @@ test('rollback removes exactly what the run filled; a teacher\'s later correctio
   assert.equal(await student('IR-GONE'), null);
 
   const after = await snapshotAll();
-  for (const untouched of ['grades/IR-QUINN', 'grades/IR-WREN', 'grades/IR-ELLIS', 'grades/IR-HARPER', 'grades/555001']) {
+  for (const untouched of ['grades/IR-QUINN', 'grades/IR-WREN', 'grades/IR-ELLIS', 'grades/IR-HARPER', 'grades/555001', 'grades/IR-LINKONLY']) {
     assert.deepEqual(after.get(untouched), before.get(untouched), `${untouched} must not be written by the rollback`);
   }
   const audits = await db.collection('adminAuditLog').where('action', '==', repair.ROLLBACK_AUDIT_ACTION).get();

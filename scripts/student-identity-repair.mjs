@@ -5,10 +5,13 @@
  * Some legacy roster records (grades/{studentId}) were created with no name:
  * by sign-in before roster creation was locked down, by browser-side creation,
  * or by createStudentAccount when names were optional. For many of them the
- * name is on file elsewhere, tied to the SAME studentId — the Google Classroom
- * copy (googleName), the Classroom roster link, the account-creation audit, the
- * linked Google account's profile. This tool finds those students and, only
- * when asked, copies that name onto the canonical record.
+ * name is on file elsewhere, tied to the SAME studentId — the account-creation
+ * audit, the student's own linked Google account profile, a legacy name field,
+ * or a Google Classroom match (googleName / the roster link). This tool finds
+ * those students and, only when asked, copies that name onto the canonical
+ * record. A name vouched for ONLY by a Classroom match is never written: a
+ * match can be corrected later, so it is counted as awaiting confirmation and a
+ * teacher confirms it in Sign-in Access (setStudentName).
  *
  *   node scripts/student-identity-repair.mjs --project <id>                 # audit (DRY RUN, the default)
  *   node scripts/student-identity-repair.mjs --project <id> --execute --actor <email>
@@ -618,6 +621,7 @@ const printCounts = (report) => {
     add('active with no usable name on file', counts.active.noUsableHumanName);
     add('active with an id-like stored name', counts.active.idLikeStoredName);
     add('active recoverable from another source', counts.active.recoverableElsewhere);
+    add('  of which Classroom-only (awaiting a teacher)', counts.active.classroomNameAwaitingConfirmation);
     add('active NOT recoverable automatically', counts.active.notRecoverableAutomatically);
     add('planned updates', counts.plannedUpdates);
     Object.entries(counts.plannedUpdatesBySource).forEach(([source, value]) => {

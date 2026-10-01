@@ -2,12 +2,19 @@
 // the tool around it reads and writes.
 //
 // WHY. Classroom-linked legacy students were created with no name on the
-// canonical roster record; their only name lived in googleName, a Classroom
-// roster link or the account-creation audit. The repair copies that name onto
-// grades/{studentId} — and must never guess, never take an id/email/
-// placeholder as a name, never overwrite a stored name, never merge two
-// students, never print a name in its counts, and be safe to re-run and to
-// roll back.
+// canonical roster record; their name lived in googleName, a Classroom roster
+// link, the account-creation audit or the linked Google account's profile. The
+// repair copies that name onto grades/{studentId} — and must never guess, never
+// take an id/email/placeholder as a name, never overwrite a stored name, never
+// merge two students, never print a name in its counts, and be safe to re-run
+// and to roll back.
+//
+// A Classroom link (googleName, classroomRosterLink) is a teacher's REVOCABLE
+// match: linkClassroomRosterBatch deletes googleName from a student who loses
+// the link. A canonical copy would keep the wrong child's name after that
+// correction, so a name vouched for ONLY by the link is never written. It needs
+// an agreeing independent source (the creation audit, the student's own Google
+// profile, a legacy field) or a person's confirmation (setStudentName).
 //
 // The first half drives the pure planner (functions/shared/studentIdentity.mjs).
 // The second half drives scripts/student-identity-repair.mjs against a small
@@ -22,9 +29,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildTeacherRosterSummaryRow,
+  confidentStudentNameSplit,
+  naturalStudentName,
   planStudentIdentityRepair,
   planStudentIdentityRollback,
+  resolveStudentIdentity,
+  splitStudentDisplayName,
+  studentNameForStorage,
 } from '../../functions/shared/studentIdentity.mjs';
+import { publicStudentLabel } from '../../functions/shared/classPoints.mjs';
 import {
   BACKFILL_AUDIT_ACTION,
   ROLLBACK_AUDIT_ACTION,
@@ -39,6 +52,7 @@ const FIXTURE_NAMES = [
   'Rowan', 'Exampleton', 'Quinn', 'Samplewood', 'Avery', 'Fixtureton', 'Harper', 'Testwell',
   'Sawyer', 'Mockridge', 'Morgan', 'Duplicaton', 'Marlo', 'Sampleby', 'Ellis', 'Placeholt',
   'Robin', 'Mockford', 'Sage', 'Testfield', 'Tatum', 'Retiredson', 'Different', 'Learner',
+  'Linden', 'Classlinkby',
 ];
 const containsAnyFixtureName = (value) => {
   const text = JSON.stringify(value).toLowerCase();
@@ -67,7 +81,7 @@ const applyPlanInMemory = (students, updates) => {
 /* The planner                                                               */
 /* ------------------------------------------------------------------------- */
 
-test('Test B: a nameless record recovers its name from googleName, the roster link or the creation audit — and re-planning writes nothing', () => {
+test('Test B: a nameless record recovers its name when an independent source agrees with the Classroom link, or from the creation audit — and re-planning writes nothing', () => {
   const students = [
     { studentId: 'S-101', data: nameless({ googleName: 'Rowan Exampleton' }) },
     { studentId: 'S-102', data: nameless() },
@@ -77,6 +91,12 @@ test('Test B: a nameless record recovers its name from googleName, the roster li
     students,
     rosterLinks: [{ studentId: 'S-102', name: 'Quinn Samplewood', googleUserId: 'g-102', courseId: 'course-1' }],
     creationAudits: [{ studentId: 'S-103', firstName: 'Avery', lastName: 'Fixtureton', displayName: 'Avery Fixtureton' }],
+    // The Auth profile of each student's OWN directory-linked Google account:
+    // independent of any teacher's Classroom match, and agreeing with it.
+    googleProfiles: [
+      { studentId: 'S-101', displayName: 'Rowan Exampleton' },
+      { studentId: 'S-102', displayName: 'Quinn Samplewood' },
+    ],
   };
 
   // Before: the roster link and audit names reach no teacher screen at all.
@@ -103,6 +123,7 @@ test('Test B: a nameless record recovers its name from googleName, the roster li
   assert.equal(plan.counts.plannedUpdatesBySource.classroomRosterLink, 1);
   assert.equal(plan.counts.plannedUpdatesBySource.accountCreationAudit, 1);
   assert.equal(plan.counts.active.recoverableElsewhere, 3);
+  assert.equal(plan.counts.active.classroomNameAwaitingConfirmation, 0);
   assert.equal(plan.counts.unresolved.total, 0);
 
   const repaired = applyPlanInMemory(students, plan.updates);
@@ -116,6 +137,67 @@ test('Test B: a nameless record recovers its name from googleName, the roster li
   assert.equal(row.lastName, 'Samplewood');
   assert.equal(row.displayName, 'Quinn Samplewood');
   assert.equal(row.nameSource, 'structured');
+});
+
+test('Test B: a name vouched for ONLY by the Classroom link is never written — it waits for a person to confirm it', () => {
+  // googleName alone, a roster link alone, and both agreeing: every source is
+  // the same revocable teacher match, so none of them is independent.
+  const students = [
+    { studentId: 'S-111', data: nameless({ googleName: 'Linden Classlinkby' }) },
+    { studentId: 'S-112', data: nameless() },
+    { studentId: 'S-113', data: nameless({ googleName: 'Classlinkby, Linden' }) },
+  ];
+  const inputs = {
+    students,
+    rosterLinks: [
+      { studentId: 'S-112', name: 'Linden Classlinkby', googleUserId: 'g-112', courseId: 'course-1' },
+      { studentId: 'S-113', name: 'linden classlinkby', googleUserId: 'g-113', courseId: 'course-1' },
+    ],
+  };
+  const plan = planStudentIdentityRepair(inputs);
+  assert.deepEqual(plan.updates, [], 'no canonical copy of a Classroom-only name');
+  assert.deepEqual(plan.needsStructuredName, [
+    { studentId: 'S-111', reason: 'classroomOnlySource' },
+    { studentId: 'S-112', reason: 'classroomOnlySource' },
+    { studentId: 'S-113', reason: 'classroomOnlySource' },
+  ]);
+  assert.equal(plan.counts.active.classroomNameAwaitingConfirmation, 3);
+  assert.equal(plan.counts.active.recoverableElsewhere, 3, 'still counted as recoverable: a person can confirm it');
+  assert.equal(plan.counts.needsStructuredNameConfirmation, 3);
+  assert.equal(plan.counts.plannedUpdates, 0);
+  assert.deepEqual(plan.unresolved, [], 'agreeing Classroom sources are not a conflict, and not "no source"');
+  assert.deepEqual(plan.conflicts, []);
+
+  // Screens still show the googleName (the roster projection resolves it at
+  // read time); only the canonical copy waits.
+  const row = buildTeacherRosterSummaryRow('S-111', students[0].data);
+  assert.deepEqual([row.displayName, row.nameSource, row.nameMissing, row.firstName], ['Linden Classlinkby', 'googleName', false, null]);
+
+  // Re-planning is stable: still nothing written, still awaiting a person.
+  const again = planStudentIdentityRepair(inputs);
+  assert.deepEqual(again.updates, []);
+  assert.equal(again.counts.active.classroomNameAwaitingConfirmation, 3);
+
+  // The reason it is not copied: correcting the link (linkClassroomRosterBatch
+  // deletes googleName) must leave no name behind on the canonical record.
+  const unlinked = { ...students[0].data };
+  delete unlinked.googleName;
+  assert.equal(buildTeacherRosterSummaryRow('S-111', unlinked).nameMissing, true);
+
+  // An independent agreeing source makes it writable.
+  const withProfile = planStudentIdentityRepair({ ...inputs, googleProfiles: [{ studentId: 'S-111', displayName: 'Linden Classlinkby' }] });
+  assert.deepEqual(withProfile.updates.map((update) => update.studentId), ['S-111']);
+  assert.equal(withProfile.counts.active.classroomNameAwaitingConfirmation, 2);
+  // So does a legacy name field on the record itself.
+  const withLegacy = planStudentIdentityRepair({
+    students: [{ studentId: 'S-111', data: nameless({ googleName: 'Linden Classlinkby', name: 'Linden Classlinkby' }) }],
+  });
+  assert.equal(withLegacy.updates.length, 1);
+  assert.equal(withLegacy.counts.active.classroomNameAwaitingConfirmation, 0);
+  // A disagreeing independent source is a conflict, not a write.
+  const disagreeing = planStudentIdentityRepair({ ...inputs, googleProfiles: [{ studentId: 'S-111', displayName: 'Rowan Exampleton' }] });
+  assert.deepEqual(disagreeing.updates, []);
+  assert.deepEqual(disagreeing.unresolved, [{ studentId: 'S-111', reason: 'conflictingSources' }]);
 });
 
 test('Test C: no trustworthy source means no write — ids, emails, id labels and placeholders are not sources', () => {
@@ -163,6 +245,9 @@ test('conflicting sources are reported and left alone; agreeing sources in diffe
       { studentId: 'S-301', name: 'Sawyer Mockridge', googleUserId: 'g-301', courseId: 'course-1' },
       { studentId: 'S-302', name: 'harper testwell', googleUserId: 'g-302', courseId: 'course-1' },
     ],
+    // Three forms of one name; the profile is the source independent of the
+    // Classroom link that lets it be written.
+    googleProfiles: [{ studentId: 'S-302', displayName: 'Harper TESTWELL' }],
   });
   assert.deepEqual(plan.conflicts, [{ studentId: 'S-301', sources: ['googleName', 'classroomRosterLink'] }]);
   assert.deepEqual(plan.unresolved, [{ studentId: 'S-301', reason: 'conflictingSources' }]);
@@ -179,6 +264,11 @@ test('Test D: two students with the same name stay two students — counted, nev
       { studentId: 'S-402', data: nameless({ googleName: 'Morgan Duplicaton' }) },
       { studentId: 'S-403', data: { firstName: 'Ellis', lastName: 'Placeholt', displayName: 'Ellis Placeholt', status: 'active' } },
     ],
+    // Each student's own Google profile agrees with its own Classroom name.
+    googleProfiles: [
+      { studentId: 'S-401', displayName: 'Morgan Duplicaton' },
+      { studentId: 'S-402', displayName: 'Morgan Duplicaton' },
+    ],
   });
   assert.deepEqual(plan.updates.map((update) => update.studentId), ['S-401', 'S-402']);
   for (const update of plan.updates) {
@@ -191,7 +281,8 @@ test('Test D: two students with the same name stay two students — counted, nev
 
 test('a three-word name fills displayName only and asks a person to confirm first/last', () => {
   const students = [{ studentId: 'S-501', data: nameless({ googleName: 'Marlo Jean Sampleby' }) }];
-  const plan = planStudentIdentityRepair({ students });
+  const googleProfiles = [{ studentId: 'S-501', displayName: 'Marlo Jean Sampleby' }];
+  const plan = planStudentIdentityRepair({ students, googleProfiles });
   assert.equal(plan.updates.length, 1);
   assert.deepEqual(plan.updates[0].set, { displayName: 'Marlo Jean Sampleby' });
   assert.deepEqual(plan.updates[0].filledFields, ['displayName']);
@@ -200,7 +291,7 @@ test('a three-word name fills displayName only and asks a person to confirm firs
   assert.equal(plan.counts.needsStructuredNameConfirmation, 1);
   assert.deepEqual(plan.counts.plannedFirstLastSplits, { twoPartName: 0, commaName: 0 });
 
-  const again = planStudentIdentityRepair({ students: applyPlanInMemory(students, plan.updates) });
+  const again = planStudentIdentityRepair({ students: applyPlanInMemory(students, plan.updates), googleProfiles });
   assert.deepEqual(again.updates, [], 'the guess is never made on a later run either');
   assert.deepEqual(again.needsStructuredName, [{ studentId: 'S-501', reason: 'displayNameNotSplittable' }]);
 });
@@ -211,6 +302,7 @@ test('"Last, First" splits as last-then-first, from a source and from a stored d
       { studentId: 'S-601', data: nameless({ googleName: 'Exampleton, Rowan' }) },
       { studentId: 'S-602', data: nameless({ displayName: 'Samplewood, Quinn' }) },
     ],
+    googleProfiles: [{ studentId: 'S-601', displayName: 'Rowan Exampleton' }],
   });
   const byId = Object.fromEntries(plan.updates.map((update) => [update.studentId, update]));
   assert.equal(byId['S-601'].split, 'commaName');
@@ -244,6 +336,86 @@ test('a valid stored name is never overwritten by another source', () => {
   assert.equal(byId['S-704'], undefined);
   assert.deepEqual(plan.needsStructuredName, [{ studentId: 'S-704', reason: 'partialStructuredName' }]);
   assert.deepEqual(containsAnyFixtureName(plan.updates.map((update) => update.set)).filter((name) => ['Different', 'Learner'].includes(name)), []);
+});
+
+test('a generational suffix is not "Last, First": "Jordan Williams, Jr." is never split into stored parts', () => {
+  const suffixed = 'Jordan Williams, Jr.';
+  // The confident split refuses it, and every comma form with more than one
+  // word on a side.
+  assert.equal(confidentStudentNameSplit(suffixed), null);
+  assert.equal(confidentStudentNameSplit('Jordan Williams, III'), null);
+  assert.equal(confidentStudentNameSplit('Williams Smith, Jordan'), null);
+  assert.equal(confidentStudentNameSplit('Williams, Jordan Lee'), null);
+  // ...while a true one-word-each "Last, First" still splits.
+  assert.deepEqual(confidentStudentNameSplit('Williams, Jordan'), { firstName: 'Jordan', lastName: 'Williams', method: 'commaName' });
+
+  // Display parts keep the person's own first and last name; the suffix is
+  // never read as a first name.
+  assert.deepEqual(splitStudentDisplayName(suffixed), { firstName: 'Jordan', lastName: 'Williams' });
+  assert.equal(naturalStudentName(resolveStudentIdentity({ studentId: 'S-1001', displayName: suffixed })), suffixed);
+  assert.equal(studentNameForStorage({ studentId: 'S-1001', displayName: suffixed }), suffixed, 'the stored copy keeps the suffix');
+  assert.equal(studentNameForStorage({ studentId: 'S-1001', googleName: suffixed }), suffixed);
+
+  const students = [
+    // A stored displayName with the suffix and no parts.
+    { studentId: 'S-1001', data: nameless({ displayName: suffixed }) },
+    // A nameless record whose agreeing sources carry the suffix.
+    { studentId: 'S-1002', data: nameless({ googleName: suffixed }) },
+  ];
+  const googleProfiles = [{ studentId: 'S-1002', displayName: suffixed }];
+  const plan = planStudentIdentityRepair({ students, googleProfiles });
+  const byId = Object.fromEntries(plan.updates.map((update) => [update.studentId, update]));
+  assert.equal(byId['S-1001'], undefined, 'nothing to add: a stored displayName that cannot be split confidently');
+  assert.deepEqual(byId['S-1002'].set, { displayName: suffixed }, 'displayName only — no first/last guessed');
+  assert.deepEqual(byId['S-1002'].filledFields, ['displayName']);
+  assert.equal(byId['S-1002'].split, null);
+  plan.updates.forEach((update) => {
+    assert.ok(!('firstName' in update.set) && !('lastName' in update.set), `${update.studentId}: no stored parts`);
+  });
+  assert.deepEqual(plan.needsStructuredName, [
+    { studentId: 'S-1001', reason: 'displayNameNotSplittable' },
+    { studentId: 'S-1002', reason: 'recoveredNameNotSplittable' },
+  ]);
+  assert.deepEqual(plan.counts.plannedFirstLastSplits, { twoPartName: 0, commaName: 0 });
+
+  // The public Class Points label, before and after the plan is applied, is
+  // the person's first name and surname initial — never 'Jr'.
+  const repaired = applyPlanInMemory(students, plan.updates);
+  for (const { studentId, data } of [...students, ...repaired]) {
+    const label = publicStudentLabel({ ...data, studentId });
+    assert.equal(label, 'Jordan W.', `${studentId}: ${label}`);
+    assert.doesNotMatch(label, /^jr\b/i);
+  }
+  // Even a record that a past bug split as "Last, First" ('Jr.' as firstName)
+  // is exactly what this refusal prevents the backfill from creating.
+  assert.match(publicStudentLabel({ firstName: 'Jr.', lastName: 'Jordan Williams' }), /^Jr/,
+    'control: a wrong split WOULD put Jr first, which is why it is never written');
+  const again = planStudentIdentityRepair({ students: repaired, googleProfiles });
+  assert.deepEqual(again.updates, [], 'no later run guesses the split either');
+});
+
+test('a stored displayName beside a lone stored first or last name is left for a person', () => {
+  const students = [
+    { studentId: 'S-1101', data: nameless({ displayName: 'Robin Mockford', firstName: 'Robin' }) },
+    { studentId: 'S-1102', data: nameless({ displayName: 'Robin Mockford', lastName: 'Mockford' }) },
+    // The stored part disagrees with the displayName: splitting would contradict it.
+    { studentId: 'S-1103', data: nameless({ displayName: 'Robin Mockford', firstName: 'Sage' }) },
+  ];
+  const plan = planStudentIdentityRepair({
+    students,
+    // Even a structured, agreeing creation audit does not fill the other part.
+    creationAudits: [{ studentId: 'S-1101', firstName: 'Robin', lastName: 'Mockford', displayName: 'Robin Mockford' }],
+    googleProfiles: [{ studentId: 'S-1102', displayName: 'Robin Mockford' }],
+  });
+  assert.deepEqual(plan.updates, [], 'never written');
+  assert.deepEqual(plan.needsStructuredName, [
+    { studentId: 'S-1101', reason: 'partialStructuredName' },
+    { studentId: 'S-1102', reason: 'partialStructuredName' },
+    { studentId: 'S-1103', reason: 'partialStructuredName' },
+  ]);
+  assert.equal(plan.counts.active.displayNameWithoutStructuredName, 3);
+  assert.equal(plan.counts.plannedUpdates, 0);
+  assert.equal(plan.counts.needsStructuredNameConfirmation, 3);
 });
 
 test('disabled students are counted separately from active ones', () => {
@@ -311,8 +483,14 @@ test('counts hold numbers only: no student name and no student id', () => {
     students,
     rosterLinks: [{ studentId: 'S-301', name: 'Sawyer Mockridge', googleUserId: 'g-1', courseId: 'course-1' }],
     creationAudits: [{ studentId: 'S-101', firstName: 'Rowan', lastName: 'Exampleton', displayName: null }],
+    googleProfiles: [
+      { studentId: 'S-401', displayName: 'Morgan Duplicaton' },
+      { studentId: 'S-501', displayName: 'Marlo Jean Sampleby' },
+    ],
   });
   assert.ok(plan.updates.length >= 4, 'the fixture exercises real updates');
+  // S-402 has only its googleName: the Classroom-only path is exercised too.
+  assert.equal(plan.counts.active.classroomNameAwaitingConfirmation, 1);
   assert.deepEqual(containsAnyFixtureName(plan.counts), []);
   const countsText = JSON.stringify(plan.counts);
   for (const { studentId } of students) assert.ok(!countsText.includes(`"${studentId}"`), `counts must not name ${studentId}`);
@@ -456,6 +634,9 @@ const legacySeed = () => ({
     'S-101': nameless({ googleName: 'Rowan Exampleton', gradesByAssignment: bigHistory() }),
     'S-102': nameless({ gradesByAssignment: bigHistory() }),
     'S-103': nameless(),
+    // Named only by the Classroom link (googleName and an agreeing roster link):
+    // never written by the tool.
+    'S-104': nameless({ googleName: 'Linden Classlinkby' }),
     'S-301': nameless({ googleName: 'Harper Testwell' }),
     'S-501': nameless({ googleName: 'Marlo Jean Sampleby' }),
     'S-701': { firstName: 'Ellis', lastName: 'Placeholt', displayName: 'Ellis Placeholt', status: 'active', gradesByAssignment: bigHistory() },
@@ -464,6 +645,7 @@ const legacySeed = () => ({
   classroomRosterLinks: {
     'course-1__S-102': { studentId: 'S-102', name: 'Quinn Samplewood', googleUserId: 'g-102', courseId: 'course-1', email: 'quinn@example.test' },
     'course-1__S-301': { studentId: 'S-301', name: 'Sawyer Mockridge', googleUserId: 'g-301', courseId: 'course-1' },
+    'course-1__S-104': { studentId: 'S-104', name: 'Linden Classlinkby', googleUserId: 'g-104', courseId: 'course-1' },
   },
   adminAuditLog: {
     'audit-1': {
@@ -475,21 +657,55 @@ const legacySeed = () => ({
     'audit-2': { action: 'student_name_set', target: 'S-701', details: { next: { displayName: 'Robin Mockford' } } },
   },
   studentAliases: { 'S-101': { key: 'S-101', studentId: 'S-101' } },
-  studentDirectory: { 'linked@example.test': { studentId: 'S-101', uid: 'uid-101', email: 'linked@example.test' } },
+  // Each student's own linked Google account (read through fakeAuth below).
+  studentDirectory: {
+    'linked@example.test': { studentId: 'S-101', uid: 'uid-101', email: 'linked@example.test' },
+    'linked-102@example.test': { studentId: 'S-102', uid: 'uid-102', email: 'linked-102@example.test' },
+    'linked-501@example.test': { studentId: 'S-501', uid: 'uid-501', email: 'linked-501@example.test' },
+  },
   studentCredentials: { 'S-101': { hash: 'not-a-real-hash', resetRequired: false } },
 });
+
+/**
+ * Just enough of Admin Auth for readGoogleProfiles: getUsers by uid. These
+ * profiles are the source INDEPENDENT of the Classroom link that lets S-101,
+ * S-102 and S-501 be written; S-104 has no linked account.
+ */
+const fakeAuth = () => {
+  const users = new Map([
+    ['uid-101', 'Rowan Exampleton'],
+    ['uid-102', 'Quinn Samplewood'],
+    ['uid-501', 'Marlo Jean Sampleby'],
+  ]);
+  return {
+    getUsers: async (identifiers) => ({
+      users: identifiers.filter(({ uid }) => users.has(uid)).map(({ uid }) => ({ uid, displayName: users.get(uid) })),
+      notFound: identifiers.filter(({ uid }) => !users.has(uid)),
+    }),
+  };
+};
 
 const NOW = new Date('2026-10-01T12:00:00Z');
 
 test('the dry run reads only projected fields and writes nothing; the default report holds no names and no ids', async () => {
   const fake = createFakeFirestore(legacySeed());
-  const report = await runStudentIdentityRepair({ db: fake.db, mode: 'audit', now: NOW, FieldValue: FakeFieldValue });
+  const report = await runStudentIdentityRepair({ db: fake.db, auth: fakeAuth(), mode: 'audit', now: NOW, FieldValue: FakeFieldValue });
   assert.deepEqual(fake.writes, [], 'a dry run performs zero writes');
   assert.equal(report.dryRun, true);
   assert.equal(report.counts.plannedUpdates, 4);
   assert.equal(report.counts.unresolved.conflictingSources, 1);
   assert.equal(report.counts.unresolved.noAuthoritativeSource, 1);
-  assert.equal(report.sources.googleProfiles, 'skipped');
+  assert.equal(report.counts.active.classroomNameAwaitingConfirmation, 1, 'S-104: Classroom-only');
+  assert.deepEqual(report.sources.googleProfiles, { linkedAccounts: 3, withDisplayName: 3, accountsNotFound: 0 });
+
+  // Without the Auth profiles, the googleName/roster-link students have no
+  // independent source: only the creation-audit student is planned.
+  const withoutProfiles = await runStudentIdentityRepair({ db: fake.db, mode: 'audit', now: NOW, FieldValue: FakeFieldValue });
+  assert.equal(withoutProfiles.sources.googleProfiles, 'skipped');
+  assert.equal(withoutProfiles.counts.plannedUpdates, 1);
+  assert.equal(withoutProfiles.counts.plannedUpdatesBySource.accountCreationAudit, 1);
+  assert.equal(withoutProfiles.counts.active.classroomNameAwaitingConfirmation, 4);
+  assert.deepEqual(fake.writes, []);
 
   // Performance contract: every collection read is projected, and the roster
   // read never asks for a history map.
@@ -502,7 +718,7 @@ test('the dry run reads only projected fields and writes nothing; the default re
 
   assert.deepEqual(containsAnyFixtureName(report), []);
   const text = JSON.stringify(report);
-  for (const id of ['S-101', 'S-102', 'S-103', 'S-301', 'S-501', 'S-701', '555001']) {
+  for (const id of ['S-101', 'S-102', 'S-103', 'S-104', 'S-301', 'S-501', 'S-701', '555001']) {
     assert.ok(!text.includes(id), `the default report must not list ${id}`);
   }
   assert.equal(report.containsStudentIds, false);
@@ -510,22 +726,27 @@ test('the dry run reads only projected fields and writes nothing; the default re
 });
 
 test('--list-ids adds ids but no names; --include-names is the only way a name reaches the report', async () => {
-  const withIds = await runStudentIdentityRepair({ db: createFakeFirestore(legacySeed()).db, mode: 'audit', now: NOW, includeStudentIds: true });
+  const withIds = await runStudentIdentityRepair({ db: createFakeFirestore(legacySeed()).db, auth: fakeAuth(), mode: 'audit', now: NOW, includeStudentIds: true });
   assert.deepEqual(withIds.studentIds.unresolved.map((entry) => entry.studentId).sort(), ['555001', 'S-301']);
   assert.deepEqual(withIds.studentIds.conflicts.map((entry) => entry.studentId), ['S-301']);
-  assert.deepEqual(withIds.studentIds.needsStructuredNameConfirmation.map((entry) => entry.studentId), ['S-501']);
+  assert.deepEqual(withIds.studentIds.needsStructuredNameConfirmation, [
+    { studentId: 'S-104', reason: 'classroomOnlySource' },
+    { studentId: 'S-501', reason: 'recoveredNameNotSplittable' },
+  ]);
+  assert.ok(!withIds.studentIds.plannedUpdates.some((entry) => entry.studentId === 'S-104'));
   assert.deepEqual(containsAnyFixtureName(withIds), [], '--list-ids never adds a name');
 
-  const withNames = await runStudentIdentityRepair({ db: createFakeFirestore(legacySeed()).db, mode: 'audit', now: NOW, includeNames: true });
+  const withNames = await runStudentIdentityRepair({ db: createFakeFirestore(legacySeed()).db, auth: fakeAuth(), mode: 'audit', now: NOW, includeNames: true });
   assert.equal(withNames.containsStudentNames, true);
   assert.ok(containsAnyFixtureName(withNames.proposedNames).includes('Exampleton'));
+  assert.ok(!containsAnyFixtureName(withNames.proposedNames).includes('Classlinkby'), 'a Classroom-only name is never proposed');
 });
 
 test('execute writes only the missing name fields and the stamp, with update(); a second run writes nothing', async () => {
   const fake = createFakeFirestore(legacySeed());
   const historyBefore = JSON.stringify(fake.doc('grades', 'S-101').gradesByAssignment);
   const report = await runStudentIdentityRepair({
-    db: fake.db, mode: 'execute', now: NOW, actor: 'operator@example.test', FieldValue: FakeFieldValue,
+    db: fake.db, auth: fakeAuth(), mode: 'execute', now: NOW, actor: 'operator@example.test', FieldValue: FakeFieldValue,
   });
   assert.equal(report.runId, defaultRunId(NOW));
   assert.equal(report.runId, 'identity-20261001T120000Z');
@@ -537,7 +758,11 @@ test('execute writes only the missing name fields and the stamp, with update(); 
   for (const write of gradeWrites) {
     assert.ok(write.keys.every((key) => ['firstName', 'lastName', 'displayName', 'identityBackfill'].includes(key)), write.keys.join());
   }
-  assert.ok(!gradeWrites.some((write) => ['grades/S-701', 'grades/S-301', 'grades/555001'].includes(write.path)));
+  assert.ok(!gradeWrites.some((write) => ['grades/S-701', 'grades/S-301', 'grades/555001', 'grades/S-104'].includes(write.path)));
+  const classroomOnly = fake.doc('grades', 'S-104');
+  assert.deepEqual([classroomOnly.displayName, classroomOnly.firstName, classroomOnly.lastName], [null, null, null],
+    'a Classroom-only name is not made canonical');
+  assert.equal(classroomOnly.identityBackfill, undefined);
 
   const repaired = fake.doc('grades', 'S-101');
   assert.equal(repaired.displayName, 'Rowan Exampleton');
@@ -566,7 +791,7 @@ test('execute writes only the missing name fields and the stamp, with update(); 
 
   const writesBefore = fake.writes.length;
   const second = await runStudentIdentityRepair({
-    db: fake.db, mode: 'execute', now: new Date('2026-10-01T13:00:00Z'), actor: 'operator@example.test', FieldValue: FakeFieldValue,
+    db: fake.db, auth: fakeAuth(), mode: 'execute', now: new Date('2026-10-01T13:00:00Z'), actor: 'operator@example.test', FieldValue: FakeFieldValue,
   });
   assert.equal(second.execution.applied, 0, 'idempotent');
   assert.deepEqual(fake.writes.slice(writesBefore).map((write) => write.type), ['add'], 'only the run\'s own audit entry');
@@ -576,6 +801,7 @@ test('execute re-checks inside the transaction: a deleted student is not recreat
   const fake = createFakeFirestore(legacySeed());
   const report = await runStudentIdentityRepair({
     db: fake.db,
+    auth: fakeAuth(),
     mode: 'execute',
     now: NOW,
     actor: 'operator@example.test',
@@ -604,11 +830,12 @@ test('execute re-checks inside the transaction: a deleted student is not recreat
 
 test('a runId is used once, so one rollback can never undo two runs', async () => {
   const fake = createFakeFirestore(legacySeed());
-  const first = await runStudentIdentityRepair({ db: fake.db, mode: 'execute', now: NOW, actor: 'operator@example.test', FieldValue: FakeFieldValue });
+  const first = await runStudentIdentityRepair({ db: fake.db, auth: fakeAuth(), mode: 'execute', now: NOW, actor: 'operator@example.test', FieldValue: FakeFieldValue });
+  assert.ok(first.execution.applied > 0);
   fake.put('grades', 'S-900', nameless({ googleName: 'Tatum Retiredson' }));
   const writesBefore = fake.writes.length;
   await assert.rejects(
-    runStudentIdentityRepair({ db: fake.db, mode: 'execute', runId: first.runId, now: NOW, actor: 'operator@example.test', FieldValue: FakeFieldValue }),
+    runStudentIdentityRepair({ db: fake.db, auth: fakeAuth(), mode: 'execute', runId: first.runId, now: NOW, actor: 'operator@example.test', FieldValue: FakeFieldValue }),
     /already stamped/,
   );
   assert.equal(fake.writes.length, writesBefore, 'refused before any write');
@@ -625,7 +852,7 @@ test('a declined confirmation writes nothing', async () => {
 
 test('rollback removes exactly what the run filled and leaves a teacher\'s later correction alone', async () => {
   const fake = createFakeFirestore(legacySeed());
-  const run = await runStudentIdentityRepair({ db: fake.db, mode: 'execute', now: NOW, actor: 'operator@example.test', FieldValue: FakeFieldValue });
+  const run = await runStudentIdentityRepair({ db: fake.db, auth: fakeAuth(), mode: 'execute', now: NOW, actor: 'operator@example.test', FieldValue: FakeFieldValue });
   // setStudentName after the backfill: new name, stamp deleted.
   const corrected = fake.doc('grades', 'S-102');
   delete corrected.identityBackfill;

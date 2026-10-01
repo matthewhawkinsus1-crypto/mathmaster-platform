@@ -3,7 +3,8 @@
 `scripts/student-identity-repair.mjs` audits every student's name on the
 canonical roster record (`grades/{studentId}`) and, only when asked, fills in a
 name that is missing there but already on file elsewhere **for the same
-studentId**.
+studentId** — and vouched for by at least one source that does not depend on a
+teacher's Google Classroom match (see [Which sources can write a name](#which-sources-can-write-a-name)).
 
 ## Why this exists
 
@@ -32,10 +33,58 @@ Every read is projected. No attempt history is ever loaded.
 | `studentAliases` | `key`, `studentId` | mismatch counts only |
 | `studentDirectory` | `studentId`, `uid` | mismatch counts; which Google account is linked |
 | `studentCredentials` | document ids only | mismatch counts only |
-| Firebase Auth `getUsers` (batches of 100) | `displayName` of the linked Google account | a lower-trust source; skip with `--skip-google-profiles` |
+| Firebase Auth `getUsers` (batches of 100) | `displayName` of the student's own directory-linked Google account | an **independent** source (`googleProfile`); skip with `--skip-google-profiles` |
 
 The planner never takes an identifier, an email address, an id label
 ("Student 101410") or a placeholder ("Student", "Name unavailable") as a name.
+
+## Which sources can write a name
+
+A name is written only when **every** candidate source for that student agrees
+(case, accents, punctuation and "Last, First" order do not matter) **and at
+least one of them is independent of the Classroom link**:
+
+| Source | Where it comes from | Independent? |
+| --- | --- | --- |
+| `accountCreationAudit` | `adminAuditLog` `student_account_created` → `details` (the name typed when the account was created) | yes |
+| `googleProfile` | Firebase Auth `displayName` of the student's **own** Google account, linked through `studentDirectory` | yes |
+| `legacyField` | `name`, `studentName`, `profile.displayName` / `.name` / `.googleName` on the record itself | yes |
+| `googleName` | the Google Classroom copy on `grades/{studentId}` | **no** — Classroom link |
+| `classroomRosterLink` | `classroomRosterLinks` `name` | **no** — Classroom link |
+
+### Classroom-only names are not written
+
+A Classroom link is a teacher's **revocable** match of a Classroom student to a
+MathMaster record. When a teacher corrects a wrong match,
+`linkClassroomRosterBatch` deletes `googleName` from the student who loses the
+link. If the backfill had copied that name into `firstName`/`lastName`/
+`displayName`, the record would keep the **wrong child's name** after the
+correction. So a student whose only sources are `googleName` and/or
+`classroomRosterLink` is **never written**, even when those two agree. Instead
+the student is:
+
+- counted in `active.recoverableElsewhere` **and** in
+  `active.classroomNameAwaitingConfirmation`;
+- listed under `needsStructuredNameConfirmation` with reason
+  `classroomOnlySource` (visible with `--list-ids`).
+
+Nothing is lost on screen: the roster projection resolves `googleName` at read
+time, so teachers still see the Classroom name. A person makes it permanent by
+confirming it in **Sign-in Access** (see [Unresolved and awaiting students](#unresolved-and-awaiting-students)).
+
+`plannedUpdatesBySource` still reports `googleName` or `classroomRosterLink`
+when that was the most trusted agreeing text; the write happened only because
+an independent source agreed with it.
+
+### Names with a suffix
+
+"Jordan Williams, Jr." is a name plus a generational suffix (`Jr`, `Sr`, `II`,
+`III`, `IV`, `V`, `VI`), **not** "Last, First". The backfill never splits it:
+it gets `displayName` only (when `displayName` is missing) and is listed for a
+person to confirm first/last. The same holds for any comma form with more than
+one word on either side ("Williams Smith, Jordan"). On screen the display parts
+are first "Jordan", last "Williams" (so the class display shows "Jordan W.",
+never "Jr…"), and stored copies keep the full "Jordan Williams, Jr.".
 
 ## What it changes, and what it never changes
 
@@ -48,9 +97,15 @@ The planner never takes an identifier, an email address, an id label
 **It never:**
 
 - overwrites a valid stored name (a stored `displayName` or stored first/last always win);
+- writes a name whose only sources are the Classroom link (`googleName`,
+  `classroomRosterLink`) — see above;
 - writes first/last from a guess. A split is written only for exactly two words
-  or exactly one comma ("Last, First"). "Marlo Jean Sampleby" gets `displayName`
-  only, and is counted under *needs a person to confirm first/last*;
+  (neither a suffix) or "Last, First" with exactly one word on each side.
+  "Marlo Jean Sampleby" and "Jordan Williams, Jr." get `displayName` only, and
+  are counted under *needs a person to confirm first/last*;
+- fills anything on a record that has a stored `displayName` **and** a lone
+  stored `firstName` or `lastName` (reason `partialStructuredName`): splitting
+  the display name could contradict the stored part, so a person confirms it;
 - writes anything when two sources disagree (counted as *conflicting*);
 - touches academic data: `gradesByAssignment`, `assignmentActivity`, evidence,
   attempts and the rest are never read or written;
@@ -79,7 +134,10 @@ with counts only.
 
 - Without Auth read access the run stops and says so. It does not quietly plan
   without that source, because a missing source can hide a conflict. Re-run with
-  `--skip-google-profiles` if you choose to plan without it.
+  `--skip-google-profiles` if you choose to plan without it. Expect fewer
+  planned updates then: a student whose only independent source was the Google
+  profile becomes Classroom-only and waits for a person. (Against the Firestore
+  emulator with no Auth emulator, profiles are skipped automatically.)
 - `npm --prefix functions ci` must have been run, because the tool loads
   `firebase-admin` from `functions/node_modules`.
 - `--project` is required and there is no default. `--execute` and `--rollback`
@@ -99,6 +157,9 @@ Read it before you go further. Check that:
 
 - `planned updates` matches what you expect;
 - `unresolved (no source / conflicting)` is plausible;
+- `counts.active.classroomNameAwaitingConfirmation` in the JSON report (standard
+  output includes these students in *need a person to confirm first/last*) —
+  these students will **not** be written and need a teacher;
 - the `mismatch:` lines show no surprises.
 
 To see **which** students are unresolved, add `--list-ids`. The report then
@@ -155,16 +216,26 @@ What that means in practice:
   the display resolver still shows `googleName` where one exists.
 - A second rollback of the same run finds nothing and changes nothing.
 
-## Unresolved students
+## Unresolved and awaiting students
 
-The tool never invents a name. Students counted as *unresolved* or *needs a
-person to confirm first/last* are fixed by a person:
+The tool never invents a name, and never makes a Classroom-only name canonical.
+Students counted as *unresolved*, as *awaiting confirmation of a Classroom
+name* (`classroomNameAwaitingConfirmation`), or as *needs a person to confirm
+first/last* are fixed by a person:
 
-1. Get their ids with `--list-ids`. The report holds ids only.
+1. Get their ids with `--list-ids`. The report holds ids only;
+   `studentIds.needsStructuredNameConfirmation[].reason` says why:
+   `classroomOnlySource`, `recoveredNameNotSplittable`,
+   `displayNameNotSplittable` or `partialStructuredName`.
 2. A teacher of record or an administrator opens **Sign-in Access**, finds the
-   student (search works by id), and uses **Add name**, which calls
-   `setStudentName`. It validates first and last name on the server, writes only
-   the name fields, and records `student_name_set` in `adminAuditLog`.
+   student (search works by id), and uses **Add name** (no name on file) or
+   **Edit name** (a name is shown — for a Classroom-only student, check the
+   shown Classroom name is the right child and confirm it). Both call
+   `setStudentName`, which validates first and last name on the server, writes
+   only the name fields, removes any backfill stamp, and records
+   `student_name_set` in `adminAuditLog`.
+
+A confirmed student is complete; the next dry run no longer lists it.
 
 ## Counts glossary
 
@@ -179,11 +250,12 @@ All counts are numbers only. Under `active.*`, disabled students are left out.
 | `active.displayNameWithoutStructuredName` | a displayName is stored without first/last |
 | `active.missingAllNameFields` / `noUsableHumanName` | no valid canonical name field at all |
 | `active.idLikeStoredName` | a stored name field holds an id, email or placeholder (ignored, never copied) |
-| `active.recoverableElsewhere` | the name was found in another source, and every source agrees |
+| `active.recoverableElsewhere` | the name was found in another source, and every source agrees (includes Classroom-only students, which are not written) |
+| `active.classroomNameAwaitingConfirmation` | every source agrees but all of them are the Classroom link (`googleName` / `classroomRosterLink`): **not written**; a teacher confirms the name in Sign-in Access |
 | `active.notRecoverableAutomatically` | no source, or sources that disagree |
 | `plannedUpdates`, `plannedUpdatesBySource.*` | students the run would write, by the source of the name |
 | `plannedFirstLastSplits.twoPartName` / `.commaName` | first/last taken from "First Last" / "Last, First" |
-| `needsStructuredNameConfirmation` | a person must confirm first/last: ambiguous split, or a lone stored first or last name |
+| `needsStructuredNameConfirmation` | a person must confirm the name or its first/last: Classroom-only source, ambiguous split (three words, a suffix), or a lone stored first or last name |
 | `unresolved.noAuthoritativeSource` / `.conflictingSources` | no write; a person adds the name |
 | `duplicateHumanNames` | groups of different students with the same name. Reported, never merged |
 | `duplicateSisIds` | groups of roster records sharing one SIS id |
@@ -193,7 +265,9 @@ All counts are numbers only. Under `active.*`, disabled students are left out.
 
 Sources, most trusted first: `storedStructured`, `storedDisplayName`,
 `accountCreationAudit`, `googleName`, `classroomRosterLink`, `googleProfile`,
-`legacyField` (`name`, `studentName`, `profile.*`).
+`legacyField` (`name`, `studentName`, `profile.*`). `googleName` and
+`classroomRosterLink` never suffice on their own; see
+[Which sources can write a name](#which-sources-can-write-a-name).
 
 ## Reports and student privacy
 
@@ -210,7 +284,12 @@ Sources, most trusted first: `storedStructured`, `storedDisplayName`,
 - `tests/platform/studentIdentityRepairPlan.test.mjs` covers the planner and the
   tool against an in-memory Firestore stand-in. It checks that the dry run
   writes nothing, that reads are projected, that writes use `update()` only, that
-  re-runs are idempotent, that reports are redacted, and the rollback.
+  re-runs are idempotent, that reports are redacted, and the rollback; that a
+  Classroom-only name is never written, suffixes are never split, and a lone
+  stored part beside a displayName is left for a person.
+- `tests/platform/studentIdentityContract.test.mjs` (Test B) runs the tool's
+  writer and the roster end to end, including a Classroom-only student that
+  stays named on screen until a teacher confirms it with `setStudentName`.
 - `tests/integration/studentIdentityRepair.test.mjs` covers the same tool
   against the Firestore emulator, in its own project:
 
