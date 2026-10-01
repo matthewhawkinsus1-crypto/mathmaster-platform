@@ -21,6 +21,14 @@ export const calibrateLiveChallengeClock = call('calibrateLiveChallengeClock');
 export const reportLiveChallengeProgress = call('reportLiveChallengeProgress');
 export const updateLiveChallengePacing = call('updateLiveChallengePacing');
 
+// Graph Feature Rush. A student's place in the round and their next graphs,
+// and a batch of their taps, "Does Not Exist" presses and skips — graded
+// again on the server, which alone decides what counts. The preview shows a
+// teacher sample graphs for their settings and writes nothing.
+export const getGraphFeatureRushRound = call('getGraphFeatureRushRound');
+export const submitGraphFeatureRushAttempts = call('submitGraphFeatureRushAttempts');
+export const previewGraphFeatureRush = call('previewGraphFeatureRush');
+
 // Option B room experience. These remain server-authoritative: the browser
 // chooses a policy, but the server owns public aliases and speed-score scaling.
 export const configureLiveChallengeExperience = call('configureLiveChallengeExperience');
