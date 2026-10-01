@@ -11,6 +11,7 @@ import { CASE_PROVENANCE } from '../../src/platform/caseReview/caseProvenance.js
 import { QUESTION_OUTCOME } from '../../src/platform/caseReview/attemptAnalysis.js';
 import { RECONCILIATION_STATUS } from '../../src/platform/caseReview/sisReconciliation.js';
 import { NOW, caseInputs, studentB } from './helpers/caseReviewFixture.mjs';
+import { caseAssignmentsCsv, gradeItemLabel } from '../../src/platform/caseReview/caseReviewExport.js';
 
 const model = buildStudentCaseReview(caseInputs());
 const entry = (id) => model.assignments.find((row) => row.assignmentId === id);
@@ -148,6 +149,25 @@ test('what needs attention: ordered, recoverable work named, and no diagnosis', 
   assert.match(attention.addressFirst[0].basis, /^DOL \d+% vs Classwork \+ Practice \d+%/);
   assert.ok(attention.skillsBreakingDown.some((row) => row.code === 'A.3C'));
   JSON.stringify(attention.addressFirst).split('"').forEach((text) => assert.doesNotMatch(text, /struggl|lazy|effort|motivat|disabilit/i));
+});
+
+test('an unanswered section is never shown as a score: not started while open, no answers once closed', () => {
+  const item = (id, key) => entry(id).gradeItems.find((row) => row.key === key);
+  // L5 is still open for this student (attendance extension): one Classwork answer so far.
+  assert.equal(item('L5', 'warmup').state, 'not-started');
+  assert.equal(item('L5', 'classwork').state, 'partial-open');
+  assert.equal(gradeItemLabel(item('L5', 'dol')), 'Not started');
+  assert.match(gradeItemLabel(item('L5', 'classwork')), /^\d+ so far$/);
+  // L6 closed with no answers: MathMaster has no contribution for it, and says why.
+  assert.equal(item('L6', 'dol').state, 'no-answers-closed');
+  assert.equal(item('L6', 'dol').grade, null);
+  assert.equal(gradeItemLabel(item('L6', 'dol')), 'No answers');
+  assert.equal(item('L4', 'dol').state, 'graded');
+  const l5Row = caseAssignmentsCsv(model).split('\r\n').find((line) => line.startsWith('Lesson 5'));
+  assert.match(l5Row, /,Not started,/, 'the CSV says Not started, not 0');
+  // A DOL the student has not answered is never a "lowest DOL".
+  assert.ok(model.attention.lowestDols.every((row) => row.answered > 0));
+  assert.ok(!model.attention.lowestDols.some((row) => ['L5', 'L6'].includes(row.assignmentId)));
 });
 
 test('a student with little evidence: absent support, unloaded attempts — said plainly, never zeroed', () => {

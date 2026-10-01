@@ -19,7 +19,7 @@ const OPEN_RECOVERY = new Set(['practicing', 'unlocked', 'inProgress']);
 export const ATTENTION_RULES = Object.freeze({
   incomplete: 'Missing first, then closed incomplete, then still open; within each, earliest final cutoff first.',
   skills: 'Grade-level standards with persistent errors first (most questions not correct at the end), then those below 70% final accuracy.',
-  lowestDols: 'DOL section grades (MathMaster grade contributions), lowest first; at most five.',
+  lowestDols: 'DOL section grades (MathMaster grade contributions) on DOLs the student answered, lowest first; at most five.',
   exhausted: 'Questions not correct after all available attempts, most recent assignment first.',
   recoverable: 'Work whose final cutoff for this student has not passed, questions with attempts remaining, and Recovery in progress.',
   addressFirst: 'Standards ranked by: DOL at least 15 points below instruction on the same standard; then most questions not correct at the end; then lowest final accuracy. A ranking of recorded results, not a diagnosis.',
@@ -52,7 +52,8 @@ export const buildAttentionSummary = (model, { nowValue = Date.now() } = {}) => 
 
   const lowestDols = assignments
     .map((entry) => ({ entry, dol: list(entry.sections).find((section) => section.key === 'dol') }))
-    .filter(({ dol }) => dol && Number.isFinite(dol.score) && !dol.excused)
+    // A DOL the student has not answered is not a low DOL: missing is not 0.
+    .filter(({ dol }) => dol && Number.isFinite(dol.score) && !dol.excused && (dol.attempted || 0) > 0)
     .sort((a, b) => a.dol.score - b.dol.score)
     .slice(0, 5)
     .map(({ entry, dol }) => ({ assignmentId: entry.assignmentId, title: entry.title, score: dol.score, answered: dol.attempted, total: dol.total }));

@@ -37,17 +37,28 @@ export const PRINT_SECTIONS = Object.freeze([
 
 export const TEACHER_AUTHORED_LABEL = 'Teacher-authored — written by the teacher, not generated evidence.';
 
+/**
+ * A grade contribution as text. An unanswered section reads as what it is —
+ * "Not started" while it is open, "0 (no answers)" once it has closed — and
+ * never as a bare 0 that looks like wrong answers.
+ */
+export const gradeItemLabel = (item) => {
+  if (!item) return '';
+  if (item.excused || item.state === 'excused') return 'Excused';
+  if (item.state === 'not-started') return 'Not started';
+  if (item.state === 'no-answers-closed') return item.grade === null ? 'No answers' : `${item.grade} (no answers)`;
+  if (item.grade === null) return '';
+  if (item.state === 'partial-open') return `${item.grade} so far`;
+  return String(item.grade);
+};
+
 export const caseAssignmentsCsv = (model) => {
   const header = [
     'Assignment', 'Assignment ID', 'Type', 'Category / weight', 'Assigned', 'Class due', 'Individualized due', 'Final cutoff for this student',
     'Completed on (last answer)', 'Status', 'Completed after due', 'Condition', 'MathMaster grade contribution', 'Warm-Up', 'Classwork', 'Practice', 'DOL',
     'Points (question weight)', 'Attempts', 'Export status', 'Changed since export', 'Practice Pass', 'Teacher overrides',
   ];
-  const sectionGrade = (row, key) => {
-    const item = list(row.gradeItems).find((entry) => entry.key === key);
-    if (!item) return '';
-    return item.excused ? 'Excused' : (item.grade ?? '');
-  };
+  const sectionGrade = (row, key) => gradeItemLabel(list(row.gradeItems).find((entry) => entry.key === key));
   return csv(header, list(model?.assignments).map((row) => [
     row.title, row.instanceId, row.type, row.category, iso(row.releaseAtMs), iso(row.classDueAtMs), iso(row.individualizedDueAtMs), iso(row.finalAtMs),
     iso(row.completedAtMs), row.statusLabel, row.completedLate ? 'yes' : '', row.condition?.value === 'modified' ? 'Modified' : 'Standard',

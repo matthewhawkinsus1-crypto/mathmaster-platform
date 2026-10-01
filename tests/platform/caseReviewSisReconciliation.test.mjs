@@ -47,6 +47,11 @@ test('items match MathMaster parts by title and section words; ambiguous or fore
   const longTitles = [part('a7', 'Lesson 7 — Systems (synthetic)', 'dol', 'DOL', 60, notExported), part('a8', 'Lesson 8 — Systems (synthetic)', 'dol', 'DOL', 60, notExported)];
   assert.equal(matchSisItems({ items: [item('Lesson 7 DOL', 60)], parts: longTitles })[0].match.assignmentId, 'a7');
   assert.equal(matchSisItems({ items: [item('Systems DOL', 60)], parts: longTitles })[0].match, null);
+  // Gradebook abbreviations name the section: WU / W/U is the Warm-Up, CW / C/W the Classwork.
+  const lesson9 = [part('a9', 'Lesson 9 — Review', 'warmup', 'Warm-Up', 100, notExported), part('a9', 'Lesson 9 — Review', 'classwork', 'Classwork', 50, notExported)];
+  assert.equal(matchSisItems({ items: [item('Lesson 9 Review WU', 100)], parts: lesson9 })[0].match.sectionKey, 'warmup');
+  assert.equal(matchSisItems({ items: [item('Lesson 9 Review W/U', 100)], parts: lesson9 })[0].match.sectionKey, 'warmup');
+  assert.equal(matchSisItems({ items: [item('Lesson 9 Review C/W', 50)], parts: lesson9 })[0].match.sectionKey, 'classwork');
   // A teacher's choice wins over the automatic one, and can say "no match".
   const confirmed = matchSisItems({ items: snapshot.items, parts, confirmedMatches: { 'Quiz 2': { assignmentId: 'a6', sectionKey: 'classwork' }, 'Lesson 4 DOL': { none: true } } });
   assert.equal(confirmed.find((entry) => entry.itemName === 'Quiz 2').match.method, 'teacher-confirmed');

@@ -179,7 +179,7 @@ export default function StudentProfileDrawer({
           {onOpenCaseReview && studentId && (
             <section
               data-case-review-entry={studentId}
-              style={{ marginBottom: 20, padding: '12px 14px', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-surface-raised, var(--mm-surface))' }}
+              style={{ marginBottom: 20, padding: '12px 14px', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-surface-raised, var(--mm-surface))', textAlign: 'left' }}
             >
               <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
                 <div style={{ minWidth: 0, flex: '1 1 260px' }}>

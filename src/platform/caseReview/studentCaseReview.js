@@ -87,24 +87,51 @@ export const trendOf = (points = [], { threshold = 10 } = {}) => {
 
 const practicePassKeySet = (keys) => (keys instanceof Set ? keys : new Set(list(keys)));
 
-const gradeItemsFor = ({ row, assignment, student, classId, snapshots, practicePassRedeemed }) => {
+/*
+ * What a grade contribution IS, so an unanswered section is never shown as a
+ * score: 'not-started' (no answers, still open for this student),
+ * 'no-answers-closed' (no answers, final cutoff passed — the contribution is
+ * 0 because nothing was answered), 'partial-open' (some answers, still open),
+ * 'graded', or 'excused'.
+ */
+export const GRADE_ITEM_STATE = Object.freeze({
+  EXCUSED: 'excused', NOT_STARTED: 'not-started', NO_ANSWERS_CLOSED: 'no-answers-closed', PARTIAL_OPEN: 'partial-open', GRADED: 'graded',
+});
+const gradeItemState = ({ excused, answered, questions, closed, graded }) => {
+  if (excused) return GRADE_ITEM_STATE.EXCUSED;
+  if (graded) return GRADE_ITEM_STATE.GRADED;
+  if (!answered) return closed ? GRADE_ITEM_STATE.NO_ANSWERS_CLOSED : GRADE_ITEM_STATE.NOT_STARTED;
+  if (answered < questions && !closed) return GRADE_ITEM_STATE.PARTIAL_OPEN;
+  return GRADE_ITEM_STATE.GRADED;
+};
+
+const gradeItemsFor = ({ row, assignment, student, classId, snapshots, practicePassRedeemed, closed, isTestCycle }) => {
   const sections = list(row.sections);
   if (!sections.length) {
     const grade = canonicalPresentedAssignmentGrade({ student, assignment, practicePassRedeemed });
     const rounded = Number.isFinite(grade) ? Math.max(0, Math.min(100, Math.round(grade))) : null;
+    const answered = row.progress?.attempted ?? 0;
+    const questions = row.progress?.total ?? 0;
     return [{
-      key: 'assignment', label: 'Whole assignment', grade: rounded, excused: false,
+      key: 'assignment', label: 'Whole assignment', grade: rounded, excused: false, answered, questions,
+      // A secure test's grade comes from the Test Cycle, not from question records.
+      state: gradeItemState({ excused: false, answered, questions, closed, graded: isTestCycle && rounded !== null }),
       exportStatus: exportStatusFor({ classId, assignmentId: row.assignmentId, sectionKey: '', studentId: student.id, currentGrade: grade, snapshots }),
     }];
   }
   return sections.map((section) => {
     const excused = section.excused === true || (practicePassRedeemed && section.key === 'practice');
     const grade = excused ? null : canonicalPresentedSectionGrade({ student, assignment, sectionKey: section.key, practicePassRedeemed });
+    const answered = section.attempted ?? 0;
+    const questions = section.total ?? 0;
     return {
       key: section.key,
       label: section.label,
       grade: Number.isFinite(grade) ? Math.max(0, Math.min(100, Math.round(grade))) : null,
       excused,
+      answered,
+      questions,
+      state: gradeItemState({ excused, answered, questions, closed, graded: false }),
       exportStatus: exportStatusFor({ classId, assignmentId: row.assignmentId, sectionKey: section.key, studentId: student.id, currentGrade: excused ? null : grade, snapshots }),
     };
   });
@@ -171,7 +198,7 @@ export const buildStudentCaseReview = ({
       : analyzeAssignmentQuestions({ assignment, student, attemptEvents: events, supportEvidence: evidence, closedForStudent });
     const questions = analysis.questions.map((question) => ({ ...question, condition: row.condition.value, title: row.title }));
     const practicePassRedeemed = passes.has(`${student?.id}__${classId}__${row.assignmentId}`);
-    const gradeItems = gradeItemsFor({ row, assignment, student, classId, snapshots: exportSnapshots, practicePassRedeemed });
+    const gradeItems = gradeItemsFor({ row, assignment, student, classId, snapshots: exportSnapshots, practicePassRedeemed, closed: closedForStudent, isTestCycle });
     const score = isTestCycle
       ? canonicalPresentedAssignmentGrade({ student, assignment })
       : canonicalPresentedAssignmentGrade({ student, assignment, practicePassRedeemed });

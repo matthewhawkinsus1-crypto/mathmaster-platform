@@ -35,8 +35,8 @@ function Overview({ model, onDrill }) {
     <>
       <section className="cr-section" aria-labelledby="cr-attempts-summary">
         <h2 id="cr-attempts-summary">Attempts and retries</h2>
-        <p style={{ margin: 0 }}><strong>Grade-level work:</strong> {model.attemptSummaryText.standard}</p>
-        {model.attemptSummaryText.modified && <p style={{ margin: 0 }}><strong>Modified work:</strong> {model.attemptSummaryText.modified}</p>}
+        <p className="cr-lead"><strong>Grade-level work:</strong> {model.attemptSummaryText.standard}</p>
+        {model.attemptSummaryText.modified && <p className="cr-lead"><strong>Modified work:</strong> {model.attemptSummaryText.modified}</p>}
         <ul className="cr-lines">
           <li>Average attempts per finished question: {model.attemptSummaryByCondition.standard.averageAttemptsPerFinishedQuestion ?? '—'} (grade-level)</li>
           <li>First-attempt correct {pct(model.attemptSummaryByCondition.standard.firstAttemptAccuracy)} → correct by the final attempt {pct(model.attemptSummaryByCondition.standard.finalCorrectRate)} (grade-level)</li>
@@ -72,7 +72,7 @@ function Overview({ model, onDrill }) {
       </section>
       <section className="cr-section" aria-labelledby="cr-error-patterns">
         <h2 id="cr-error-patterns">Error patterns</h2>
-        <p style={{ margin: 0 }}><strong>{errorPatterns.statement}</strong> {errorPatterns.determinable ? <Prov level={CASE_PROVENANCE.DIRECT} /> : <Prov level={CASE_PROVENANCE.NOT_RECORDED} />}</p>
+        <p className="cr-lead"><strong>{errorPatterns.statement}</strong> {errorPatterns.determinable ? <Prov level={CASE_PROVENANCE.DIRECT} /> : <Prov level={CASE_PROVENANCE.NOT_RECORDED} />}</p>
         {errorPatterns.codes.length > 0 && <ul className="cr-lines">{errorPatterns.codes.map((entry) => <li key={entry.code}>{entry.label}: {entry.questions} question{entry.questions === 1 ? '' : 's'}</li>)}</ul>}
         {errorPatterns.notCorrectParts.length > 0 && (
           <>
@@ -167,7 +167,7 @@ function QuestionDetail({ entry, question, studentId, onInspectResponse }) {
         Last answer time: {question.lastAttemptAtMs ? `${when(question.lastAttemptAtMs)} (${CASE_PROVENANCE_LABEL[question.lastAttemptTimeProvenance]})` : 'not recorded'}.
       </p>
       <h3>Error pattern</h3>
-      <p style={{ margin: 0 }}>{pattern.determinable ? pattern.codes.map((code) => code.label).join(', ') : pattern.statement}</p>
+      <p className="cr-lead">{pattern.determinable ? pattern.codes.map((code) => code.label).join(', ') : pattern.statement}</p>
       {namedParts.length > 0 && (
         <p className="cr-note">Latest attempt, as the grader recorded it: {namedParts.map((part) => `${part.label} ${part.isCorrect ? 'correct' : 'not correct'}`).join(' · ')}. A recorded result, not a diagnosis.</p>
       )}

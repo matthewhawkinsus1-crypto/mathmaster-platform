@@ -214,8 +214,8 @@ motive/effort, disability attribution, counterfactuals, proof claims. Absences a
 not contain a record …".
 
 ### 3.9 What needs attention (`attentionSummary.js`)
-Deterministic lists: incomplete / missing assignments, skills that repeatedly break down, lowest DOLs,
-exhausted questions, work still open for this student (before the student's final cutoff, or an open
+Deterministic lists: incomplete / missing assignments, skills that repeatedly break down, lowest DOLs (only
+DOLs the student answered — an untaken DOL is not a low DOL), exhausted questions, work still open for this student (before the student's final cutoff, or an open
 Recovery), support evidence present, evidence missing, and a suggested instructional starting point ranked by
 fixed rules (concern standard with the most not-correct items and DOL below instruction first). Never a
 diagnosis.
@@ -227,9 +227,15 @@ support evidence and timeline) and layers the analyses above. Output sections: m
 grade contribution rows · question evidence · attempt summary · skills · section comparison · error patterns ·
 completion · support evidence (PR #401 rows/summary) · timeline · SIS reconciliation · narrative facts ·
 attention · evidence gaps · data sources & coverage · legend · limitations. CSV exports: assignment
-contribution rows and question rows (formula-neutralised cells); JSON: the whole model. Print: the 12 sections
-the brief lists, teacher-entered next steps labelled "Teacher-authored — not generated evidence" (kept in the
-page only; not saved).
+contribution rows, question rows and narrative facts (formula-neutralised cells, PR #401's `csvCell`); JSON:
+the whole model. Print: the 12 sections the brief lists, teacher-entered next steps labelled
+"Teacher-authored — written by the teacher, not generated evidence." (kept in the page only; not saved).
+
+Every grade contribution carries a **state** so an unanswered section is never shown as a score:
+`not-started` (no answers, still open for this student → "Not started"), `no-answers-closed` (final cutoff
+passed with no answers → "No answers", or "0 (no answers)" where MathMaster computes a 0), `partial-open`
+("40 so far"), `graded`, `excused`. The Grades tab, the print view and the CSV use the same label
+(`gradeItemLabel`).
 
 ## 5. Loading, security and privacy
 
@@ -244,8 +250,9 @@ verified email who is the class teacher of record of the student's current class
 `grades/{sid}`. Returns, projected by the pure `functions/shared/caseReviewEvidence.mjs`: assignment attempt
 events in range (scores, attempt numbers, times, standards, support flags — no responses, no answer keys),
 receipt counts by assignment and disposition, Practice Mode summaries (counts and times only), and grade
-override audits for those assignments. Capped (4 000 events, 3 000 receipts, 500 audits) and reported as
-truncated. If the callable is unavailable the case review still renders, with attempt sequences derived and
+override audits for those assignments. Capped (4 000 events, 500 receipts per 30 assignments, 500 audits)
+and reported as truncated. The caller's email must be verified (`callerEmail`), and authorization runs before
+any evidence read; the function writes nothing. If the callable is unavailable the case review still renders, with attempt sequences derived and
 the sources marked "not loaded".
 
 Why a callable: these records are deliberately not client-readable (assignment events lack the per-record
@@ -254,10 +261,12 @@ tested security decision; a teacher-of-record callable is the established patter
 Grade Transfer).
 
 ### 5.3 New collection `grades/{sid}/sisGradebookSnapshots/{id}` (optional save)
-Created only when the teacher chooses "Save with this student's case file". Teacher of record (or root)
-create and read; students cannot read; immutable (no update/delete); `importedByEmail == token email`,
-`authorizedTeacherEmails == [token email]`, `createdAt == request.time`, classId matches the roster, key
-allow-list and size caps (≤ 300 items). Holds only the selected student's items, categories, official
+Created only when the teacher chooses "Compare and save with this case file". The student's roster teacher
+(`assignedTeacherEmail`) or root admin may create; they and the teacher named in the document may read;
+students cannot read; immutable (no update/delete); `importedByEmail == token email`,
+`authorizedTeacherEmails == [token email]` (`staffAuthorship`), `importedAt == request.time`, classId matches
+the roster, `matchedBy` is an id match or a teacher-confirmed row, key allow-list and size caps (≤ 300 items,
+≤ 30 categories). Holds only the selected student's items, categories, official
 average, the file name and layout — never another student's row. Erased with the student (recursive delete of
 `grades/{sid}`). Rules + emulator tests in `tests/rules/caseReviewRules.test.mjs`.
 
@@ -270,25 +279,37 @@ Nothing loads until the teacher presses **Build case review**; the view is a laz
 drawer gains one button and no reads. Reads are one student and the selected window; assignment selection runs
 over the already-loaded assignment list (no library query). Question rows are summarized first and paginated in
 the drill-in. Derived analysis is memoized on its inputs; nothing is cached across students. No new composite
-indexes: callable queries use single-field ranges (Admin SDK), client reads reuse PR #401's queries.
+indexes: the callable's event query is a single-field `in` on `source.assignmentId`, its receipt query uses the
+existing (`studentId`, `assignmentId`) index, client reads reuse PR #401's queries. The case review is its own
+build chunk (`StudentCaseReviewView-*.js`, ~56 KB gzip); the journeys assert that opening the drawer requests
+none of it and a student session never loads it.
 
 ## 7. UI
 
-Drawer → **Academic evidence deep dive** → overlay with a selection bar (class, marking period, dates,
-assignments) and tabs: Summary · Grades · Questions · Skills · Completion · DOL vs instruction · Supports ·
-Timeline · Official gradebook · Narrative facts · Needs attention · Print. A breadcrumb keeps Student → Case
-review → Assignment → Question; Back returns to the previous level with tab and scroll position kept. Close
-returns to the drawer. Every important fact shows a provenance badge that opens its sources. Components are
-one per tab (no giant component); CSS prefix `cr-`, semantic tokens only.
+Drawer → **Academic evidence deep dive** → overlay (stacked above the drawer, below the Support Evidence
+Report it can open) with a selection bar (marking period, optional dates, optional assignments — the class is
+the student's own) and tabs that wrap so all twelve stay visible: Summary · Grades · Questions & attempts ·
+Skills · DOL vs instruction · Completion · Supports · Timeline · Official gradebook · Narrative facts · What
+needs attention? · Print & export. A breadcrumb keeps Student › Case review › Tab › Assignment › Question;
+Back walks the trail in reverse (tab, drill level and scroll position restored) and, at its start, returns to
+the student. Visited tabs stay mounted, so their pages and filters survive. Escape closes the case review only
+when it is the top layer and nothing above handled the key (the Response Inspector and the Support Evidence
+Report sit above it). Print renders a portal copy on `<body>` only while printing, so the app is out of the
+layout and a report printed from above prints alone. Every important fact shows a provenance badge; narrative
+facts open to their sources. Components are one per tab (no giant component); CSS prefix `cr-`, semantic
+tokens only (the print-only black-on-white exception is recorded in `scripts/theme-color-baseline.json`).
 
 ## 8. File plan
 
 New: `src/platform/caseReview/{caseProvenance,narrativeGuard,attemptAnalysis,skillAnalysis,sectionComparison,completionAnalysis,errorPatterns,caseTimeline,sisGradebookImport,sisReconciliation,narrativeFacts,attentionSummary,studentCaseReview,caseReviewExport,caseReviewStore}.js`,
-`functions/shared/{caseReviewEvidence,misconceptionCodes}.mjs`, `src/components/teacher/caseReview/*.jsx` +
-`caseReview.css`, tests `tests/platform/caseReview*.test.mjs`, `tests/rules/caseReviewRules.test.mjs`, browser
-journeys `tests/browser/teacherWorkflow/caseReviewJourneys.mjs`.
+`functions/shared/{caseReviewEvidence,misconceptionCodes,sisGradebookSnapshot}.mjs`,
+`src/components/teacher/caseReview/{StudentCaseReviewView,CaseReviewParts,CaseSummaryTab,CaseGradesTab,CaseQuestionsTab,CaseSkillsTab,CaseDolTab,CaseCompletionTab,CaseSupportTab,CaseTimelineTab,CaseGradebookTab,CaseNarrativeTab,CaseAttentionTab,CasePrintView}.jsx`
++ `caseReview.css`, tests `tests/platform/caseReview*.test.mjs` (+ `helpers/caseReviewFixture.mjs`),
+`tests/rules/caseReviewRules.test.mjs`, browser journeys `tests/browser/teacherWorkflow/caseReviewJourneys.mjs`.
 Changed: `src/App.jsx` (lazy import, state, mount, drawer prop), `StudentProfileDrawer.jsx` (entry),
-`functions/index.js` (callable), `firestore.rules` (snapshot subcollection), harness fakes + fixture.
+`functions/index.js` (callable), `firestore.rules` (snapshot subcollection), PR #401's `csvCell` exported,
+`scripts/theme-color-baseline.json` (print exception), harness fakes (`loadStudentCaseEvidence`,
+`inspectStudentResponse`) and fixture (question standards; synthetic attempt history for one student).
 
 ## 9. Deploy (not done by this PR)
 

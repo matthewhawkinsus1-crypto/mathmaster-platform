@@ -47,8 +47,8 @@ const close = (a, b) => a !== null && b !== null && Math.abs(a - b) <= TOLERANCE
 // --- Matching -------------------------------------------------------------------------------
 
 const SECTION_WORDS = Object.freeze([
-  ['warmup', ['warm up', 'warmup', 'bell ringer', 'bellringer', 'do now']],
-  ['classwork', ['classwork', 'class work', 'cw', 'notes', 'guided notes']],
+  ['warmup', ['warm up', 'warmup', 'wu', 'w u', 'bell ringer', 'bellringer', 'bell work', 'bellwork', 'do now']],
+  ['classwork', ['classwork', 'class work', 'cw', 'c w', 'notes', 'guided notes']],
   ['practice', ['independent practice', 'practice', 'ip', 'homework', 'hw']],
   ['dol', ['dol', 'exit ticket', 'exit slip', 'demonstration of learning']],
 ]);

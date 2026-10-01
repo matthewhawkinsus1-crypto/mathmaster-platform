@@ -1,5 +1,6 @@
 import { ConditionTag, Prov, day, pct } from './CaseReviewParts.jsx';
 import { CASE_PROVENANCE } from '../../../platform/caseReview/caseProvenance.js';
+import { gradeItemLabel } from '../../../platform/caseReview/caseReviewExport.js';
 
 /*
  * GRADE & ASSIGNMENT EVIDENCE — every real assigned instance and exactly what
@@ -16,11 +17,14 @@ const statusTag = (row) => {
   return <span className="cr-tag">{row.statusLabel}</span>;
 };
 
+// "Not started" / "No answers" instead of a bare 0: an unanswered section is not a score.
 const section = (row, key) => {
   const item = row.gradeItems.find((entry) => entry.key === key);
   if (!item) return '—';
-  if (item.excused) return 'Excused';
-  return item.grade === null ? '—' : `${item.grade}${item.exportStatus?.state === 'changed-since-export' ? '*' : ''}`;
+  const label = gradeItemLabel(item) || '—';
+  return item.state === 'not-started' || item.state === 'no-answers-closed'
+    ? <span className="cr-note">{label}</span>
+    : `${label}${item.exportStatus?.state === 'changed-since-export' ? '*' : ''}`;
 };
 
 export default function CaseGradesTab({ model, onOpenAssignment }) {
@@ -87,7 +91,7 @@ export default function CaseGradesTab({ model, onOpenAssignment }) {
                 <thead><tr><th>Gradebook item</th><th>MathMaster grade contribution</th><th>Export status</th></tr></thead>
                 <tbody>
                   {row.gradeItems.map((item) => (
-                    <tr key={item.key}><td>{item.label}</td><td>{item.excused ? 'Excused' : (item.grade ?? '—')}</td><td>{item.exportStatus?.label || '—'}</td></tr>
+                    <tr key={item.key}><td>{item.label}</td><td>{gradeItemLabel(item) || '—'}<span className="cr-note"> · {item.answered} of {item.questions} answered</span></td><td>{item.exportStatus?.label || '—'}</td></tr>
                   ))}
                 </tbody>
               </table>

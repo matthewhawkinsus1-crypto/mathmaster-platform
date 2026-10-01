@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  PRINT_SECTIONS, TEACHER_AUTHORED_LABEL, caseAssignmentsCsv, caseFactsCsv, caseQuestionsCsv, caseReviewFileName, caseReviewJson,
+  PRINT_SECTIONS, TEACHER_AUTHORED_LABEL, caseAssignmentsCsv, caseFactsCsv, caseQuestionsCsv, caseReviewFileName, caseReviewJson, gradeItemLabel,
 } from '../../src/platform/caseReview/caseReviewExport.js';
 import { buildStudentCaseReview } from '../../src/platform/caseReview/studentCaseReview.js';
 import { assignments, caseInputs } from './helpers/caseReviewFixture.mjs';
@@ -49,4 +49,13 @@ test('facts export with how each is known; next steps are labelled teacher-autho
   assert.equal(json.teacherEnteredNextSteps.label, TEACHER_AUTHORED_LABEL);
   assert.equal(JSON.parse(caseReviewJson(model)).teacherEnteredNextSteps, null);
   assert.equal(caseReviewFileName(model, 'questions', 'csv').startsWith('MathMaster-case-review_S920001_'), true);
+});
+
+test('a grade contribution reads as what it is', () => {
+  assert.equal(gradeItemLabel({ state: 'graded', grade: 85 }), '85');
+  assert.equal(gradeItemLabel({ state: 'partial-open', grade: 40 }), '40 so far');
+  assert.equal(gradeItemLabel({ state: 'not-started', grade: 0 }), 'Not started', 'an open, unanswered section is not a 0');
+  assert.equal(gradeItemLabel({ state: 'no-answers-closed', grade: 0 }), '0 (no answers)', 'a closed one says why it is 0');
+  assert.equal(gradeItemLabel({ state: 'no-answers-closed', grade: null }), 'No answers');
+  assert.equal(gradeItemLabel({ state: 'excused', excused: true, grade: null }), 'Excused');
 });

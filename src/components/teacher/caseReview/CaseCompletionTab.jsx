@@ -47,8 +47,8 @@ export default function CaseCompletionTab({ model }) {
           <table className="cr-table">
             <thead>
               <tr>
-                <th>Assignment</th><th>Opened</th><th>Status</th><th>Completed on</th><th>Late</th><th>Resumed</th><th>Reopened</th>
-                <th>Active time</th><th>Elapsed</th><th>Window</th><th>Practice Mode</th><th>Sessions</th>
+                <th>Assignment</th><th>Opened</th><th>Status</th><th>Completed on</th><th>After due</th><th>Resumed</th><th>Reopened</th>
+                <th>Active time</th><th>Elapsed · window</th><th>Practice Mode</th>
               </tr>
             </thead>
             <tbody>
@@ -58,14 +58,19 @@ export default function CaseCompletionTab({ model }) {
                   <td>{row.opened.recorded ? <>{row.opened.firstAtMs ? day(row.opened.firstAtMs) : 'Yes'} <Prov level={row.opened.provenance} /></> : <>No open record <Prov level={CASE_PROVENANCE.NOT_RECORDED} /></>}</td>
                   <td>{row.statusLabel}</td>
                   <td>{row.completedAt ? <>{when(row.completedAt.atMs)} <Prov level={row.completedAt.provenance} /></> : '—'}</td>
-                  <td>{row.late ? 'Yes' : '—'}{row.afterDeadline.notCountedAfterClose ? ` · ${row.afterDeadline.notCountedAfterClose} not counted after close` : ''}</td>
+                  <td>
+                    {row.late ? 'Completed after due' : 'No'}
+                    {row.afterDeadline.notCountedAfterClose ? <div className="cr-note">{row.afterDeadline.notCountedAfterClose} answer{row.afterDeadline.notCountedAfterClose === 1 ? '' : 's'} not counted (after the final cutoff)</div> : null}
+                  </td>
                   <td>{yes(row.resumed)}{row.workDays.length > 1 ? ` (${row.workDays.length} days)` : ''}</td>
                   <td>{[row.reopened.attendanceExtension ? 'Attendance extension' : '', ...row.reopened.recoveries.map((recovery) => `${recovery.section === 'dol' ? 'DOL' : 'Warm-Up'} Recovery (${recovery.status})`)].filter(Boolean).join(' · ') || '—'}</td>
-                  <td>{row.time.activeMinutes !== null ? `${row.time.activeMinutes} min` : 'Not recorded'} <Prov level={row.time.activeProvenance} /></td>
-                  <td>{row.time.elapsedMinutes !== null ? `${row.time.elapsedMinutes} min` : '—'}</td>
-                  <td>{row.time.windowDays !== null ? `${row.time.windowDays} days` : '—'}</td>
+                  <td>
+                    {row.time.activeMinutes !== null ? `${row.time.activeMinutes} min` : 'Not recorded'} <Prov level={row.time.activeProvenance} />
+                    {row.sessions.ledger.length ? <div className="cr-note">{row.sessions.ledger.length} server-timed session{row.sessions.ledger.length === 1 ? '' : 's'}</div>
+                      : row.sessions.summaries.length ? <div className="cr-note">{row.sessions.summaries.length} browser session summar{row.sessions.summaries.length === 1 ? 'y' : 'ies'}</div> : null}
+                  </td>
+                  <td>{row.time.elapsedMinutes !== null ? `${row.time.elapsedMinutes} min` : '—'} · {row.time.windowDays !== null ? `${row.time.windowDays} days` : '—'}</td>
                   <td>{row.practiceMode.loaded === false ? 'Not loaded' : row.practiceMode.recorded ? <>{row.practiceMode.questionsPracticed} q · {row.practiceMode.correct} correct <Prov level={CASE_PROVENANCE.LEGACY} /></> : 'None recorded'}</td>
-                  <td>{row.sessions.ledger.length || (row.sessions.summaries.length ? `${row.sessions.summaries.length} browser` : '—')}</td>
                 </tr>
               ))}
             </tbody>

@@ -11,7 +11,7 @@ Branch: `claude/sharp-wozniak-8x3enm` (the session's designated branch; dedicate
 
 ## Current state
 
-- **Phase:** 1–4 (pure modules) in progress. Audit, design and first modules pushed.
+- **Phase:** 6 (browser journeys) — model, callable, rules, UI and wiring are committed and pushed.
 - **PR:** not opened yet.
 
 ## Phases
@@ -20,11 +20,11 @@ Branch: `claude/sharp-wozniak-8x3enm` (the session's designated branch; dedicate
 | --- | --- | --- |
 | 0 | Forensic audit (4 parallel read-only audits), brief, design doc, status doc, checkpoint push | ✅ |
 | 1 | Provenance model, narrative guard | ✅ |
-| 2 | Attempt analysis, skill/TEKS analysis, DOL vs instruction, error-pattern architecture, completion analysis | ◐ attempt / skill / section done; error patterns + completion next |
-| 3 | SIS import + reconciliation (pure) | ✅ pure modules; persistence (rules + emulator tests) pending |
-| 4 | Timeline, narrative facts, needs-attention, case model, CSV/JSON export | ☐ |
-| 5 | Callable `loadStudentCaseEvidence` (+ pure projection), client store, UI (one component per tab), drawer entry, print | ☐ |
-| 6 | Harness fixture + fake callable, browser journeys (1440 / 1366 / 1024 / 768), PR #400/#401 regression journeys | ☐ |
+| 2 | Attempt analysis, skill/TEKS analysis, DOL vs instruction, error-pattern architecture, completion analysis | ✅ |
+| 3 | SIS import + reconciliation, optional saved snapshot (rules + emulator tests) | ✅ |
+| 4 | Timeline, narrative facts, needs-attention, case model, CSV/JSON export | ✅ |
+| 5 | Callable `loadStudentCaseEvidence` (+ pure projection), client store, UI (one component per tab), drawer entry, print | ✅ |
+| 6 | Harness fixture + fake callable, browser journeys (1440 / 1366 / 1024 / 768), PR #400/#401 regression journeys | ◐ case review journeys running; regressions next |
 | 7 | Full gate, mutation checks, docs final, PR (not deployed, not merged) | ☐ |
 
 ## Environment notes (this container)

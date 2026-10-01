@@ -45,17 +45,17 @@ import './caseReview.css';
 
 const TABS = [
   { key: 'summary', label: 'Summary' },
-  { key: 'grades', label: 'Grades & contributions' },
+  { key: 'grades', label: 'Grades' },
   { key: 'questions', label: 'Questions & attempts' },
-  { key: 'skills', label: 'Skills & standards' },
+  { key: 'skills', label: 'Skills' },
   { key: 'dol', label: 'DOL vs instruction' },
   { key: 'completion', label: 'Completion' },
-  { key: 'supports', label: 'Support evidence' },
+  { key: 'supports', label: 'Supports' },
   { key: 'timeline', label: 'Timeline' },
   { key: 'gradebook', label: 'Official gradebook' },
   { key: 'facts', label: 'Narrative facts' },
   { key: 'attention', label: 'What needs attention?' },
-  { key: 'print', label: 'Print / export' },
+  { key: 'print', label: 'Print & export' },
 ];
 const TAB_LABEL = Object.fromEntries(TABS.map((tab) => [tab.key, tab.label]));
 const EMPTY_SELECTION = { gradingPeriodId: '', fromDateKey: '', toDateKey: '', assignmentIds: [] };
@@ -100,6 +100,9 @@ export default function StudentCaseReviewView({
   const [saving, setSaving] = useState({ busy: false, error: '' });
   const [nextSteps, setNextSteps] = useState('');
   const [printing, setPrinting] = useState(false);
+  // The selection folds away once a case review is built, so the evidence
+  // gets the height on a 768-pixel screen; "Change selection" brings it back.
+  const [selectionOpen, setSelectionOpen] = useState(true);
   const [notice, setNotice] = useState('');
   const shellRef = useRef(null);
   const bodyRef = useRef(null);
@@ -120,6 +123,7 @@ export default function StudentCaseReviewView({
     setSis({ snapshot: null, confirmedMatches: {} });
     setSavedSnapshots([]);
     setNextSteps('');
+    setSelectionOpen(true);
     scrollByTab.current = {};
     closeRef.current?.focus();
   }, [open, student?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -238,6 +242,7 @@ export default function StudentCaseReviewView({
       setTrail([]);
       setQuestionsDrill({});
       setVisited(new Set(['summary']));
+      setSelectionOpen(false);
       scrollByTab.current = {};
     } catch (error) {
       setLoad((current) => ({ ...current, loading: false, error: error?.message || 'The case review could not be built.' }));
@@ -350,11 +355,16 @@ export default function StudentCaseReviewView({
               {model && <div className="cr-header__meta">Built {when(model.generatedAtMs)} · a factual summary of MathMaster records — not a compliance determination and not a diagnosis.</div>}
             </div>
             <div className="tw-row" style={{ gap: 8 }}>
+              {model && (
+                <button type="button" className="tw-btn tw-btn--sm tw-btn--quiet" aria-expanded={selectionOpen} aria-controls="cr-selection" onClick={() => setSelectionOpen((current) => !current)}>
+                  {selectionOpen ? 'Hide selection' : 'Change selection'}
+                </button>
+              )}
               <button type="button" className="tw-btn tw-btn--sm" onClick={goBack} data-case-back>{trail.length ? 'Back' : 'Back to student'}</button>
               <button ref={closeRef} type="button" className="tw-btn tw-btn--sm" onClick={() => onCloseRef.current?.()}>Close</button>
             </div>
           </div>
-          <div className="cr-controls">
+          <div className="cr-controls" id="cr-selection" hidden={Boolean(model) && !selectionOpen}>
             <label className="cr-field">
               <span>Marking period</span>
               <select className="tw-select" value={selection.gradingPeriodId} onChange={(event) => setSelection((current) => ({ ...current, gradingPeriodId: event.target.value, assignmentIds: [] }))}>

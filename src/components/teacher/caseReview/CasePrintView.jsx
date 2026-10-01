@@ -1,4 +1,4 @@
-import { PRINT_SECTIONS, TEACHER_AUTHORED_LABEL } from '../../../platform/caseReview/caseReviewExport.js';
+import { PRINT_SECTIONS, TEACHER_AUTHORED_LABEL, gradeItemLabel } from '../../../platform/caseReview/caseReviewExport.js';
 import { CASE_PROVENANCE_LABEL } from '../../../platform/caseReview/caseProvenance.js';
 import { day, pct, when } from './CaseReviewParts.jsx';
 
@@ -100,7 +100,7 @@ export default function CasePrintView({ model, nextSteps = '' }) {
                 <td>{entry.statusLabel}{entry.completedLate ? ' (after due)' : ''}</td>
                 <td>{entry.completedAtMs ? `${when(entry.completedAtMs)} (${label(entry.completedAtProvenance)})` : '—'}</td>
                 <td>
-                  {entry.gradeItems.map((item) => `${item.label}: ${item.excused ? 'Excused' : item.grade ?? '—'}`).join(' · ')}
+                  {entry.gradeItems.map((item) => `${item.label}: ${gradeItemLabel(item) || '—'}`).join(' · ')}
                   {entry.credits.practicePass ? ' · Practice Pass' : ''}
                   {entry.credits.assignmentOverride || entry.credits.questionOverrides ? ' · teacher override' : ''}
                 </td>

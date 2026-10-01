@@ -13,8 +13,11 @@ const FILTERS = [
   { key: 'support', label: 'Support records' },
 ];
 
+const OPEN_DAYS_LIMIT = 20;
+
 export default function CaseTimelineTab({ model }) {
   const [filter, setFilter] = useState('all');
+  const [expandAll, setExpandAll] = useState(false);
   const entries = useMemo(
     () => model.timeline.entries.filter((entry) => filter === 'all' || entry.group === filter),
     [model.timeline.entries, filter],
@@ -34,10 +37,13 @@ export default function CaseTimelineTab({ model }) {
         {FILTERS.map((entry) => (
           <button key={entry.key} type="button" className="tw-chip" aria-pressed={filter === entry.key} onClick={() => setFilter(entry.key)}>{entry.label}</button>
         ))}
+        {days.length > OPEN_DAYS_LIMIT && (
+          <button type="button" className="tw-btn tw-btn--sm tw-btn--quiet" onClick={() => setExpandAll((current) => !current)}>{expandAll ? 'Collapse days' : 'Expand every day'}</button>
+        )}
       </div>
       {model.timeline.truncated && <p className="cr-note">Only the most recent events are shown; the JSON export has them all.</p>}
       {days.length ? days.map(([dateKey, dayEntries]) => (
-        <details key={dateKey} className="tw-disclosure" open={days.length <= 12 || undefined}>
+        <details key={`${dateKey}-${expandAll}`} className="tw-disclosure" open={expandAll || days.length <= OPEN_DAYS_LIMIT || undefined}>
           <summary>{day(dayEntries[0].atMs)} <span className="cr-note">· {dayEntries.length} event{dayEntries.length === 1 ? '' : 's'}</span></summary>
           <div className="tw-disclosure__body">
             <ul className="cr-facts">
