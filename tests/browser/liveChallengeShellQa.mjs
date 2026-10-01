@@ -6,6 +6,10 @@
 //   node tests/browser/liveChallengeShellQa.mjs
 //   SHELL_QA_SCENARIOS=classic,adversarial node tests/browser/liveChallengeShellQa.mjs
 //   SHELL_QA_SHOTS=/some/dir node tests/browser/liveChallengeShellQa.mjs   # where screenshots go
+//   SHELL_QA_ENDURANCE_GAMES=2 …            # a shorter endurance run
+//   SHELL_QA_HEAP_SNAPSHOT=1 …              # endurance: save the console's heap after
+//                                           # each game (detached trees tagged
+//                                           # DetachedTreeTag; open in DevTools)
 //
 // WHAT IS REAL. The teacher's console and projector, the students' screens,
 // the snapshot watchers, the Firestore emulator and every callable: each page
@@ -30,6 +34,11 @@
 //                  phone and tablet layouts, reduced motion
 //   F repeat       four games in a row (incl. a mode switch and a rush) with
 //                  the same open screens: clean every time, nothing piling up
+//   G endurance    five whole games in a row on the same screens — Standard,
+//                  Rush (Correct Count), Rush (Grand Prix), Solver Race, Rush —
+//                  with students solving in the browser: open listeners per
+//                  page, heap/listeners/DOM after a forced GC, names, board
+//                  against the stored result, rewards delivered exactly once
 //   adversarial    double Start, two host tabs, End Round Now / End Game /
 //                  Cancel confirmations, End Game during the countdown, an
 //                  answer during the countdown, a refresh mid-countdown
@@ -127,6 +136,10 @@ const challenge = await import(path.join(repo, 'functions/shared/liveChallenge.m
 const { PRESENCE_FRESH_MS } = await import(path.join(repo, 'functions/shared/liveChallengePresence.mjs'));
 // What a results screen should say, from the same model the screens use.
 const { roundPlacementSentence, roundResultsView } = await import(path.join(repo, 'src/platform/liveChallenge/challengeStandingsModel.js'));
+const { leaderboardOptionsFor } = await import(path.join(repo, 'functions/shared/liveChallengeScoring.mjs'));
+const { generateRushQuestion } = await import(path.join(repo, 'functions/shared/graphFeatureGenerator.mjs'));
+const { rushLockoutMs } = await import(path.join(repo, 'functions/shared/graphFeatureRushRules.mjs'));
+const { unitX, unitY } = await import(path.join(repo, 'src/platform/liveChallenge/rushGraphModel.js'));
 
 const authFor = (identity = {}) => (identity.as === 'teacher'
   ? { uid: `${identity.email}-uid`, token: { role: 'teacher', email: identity.email, email_verified: true } }
@@ -273,6 +286,23 @@ const botAnswer = async (roomId, studentId, { correct = true, humanElapsedMs = 2
     responsePayload: { responses: Object.fromEntries(fields.map((field) => [field.id, correct ? field.expected : '__not-an-answer__'])) },
   });
 };
+// Any one-question round: a bank question by its expected choice, a Solver
+// Race workspace by its final relation.
+const botAnswerAny = async (roomId, studentId, { correct = true, humanElapsedMs = 2_000 } = {}) => {
+  const room = await roomOf(roomId);
+  const state = (await db.collection('liveChallengePrivate').doc(roomId).get()).data();
+  const questionId = state.questionIds[room.currentRound];
+  const authored = state.roundQuestions?.[room.currentRound] || (await db.collection('pathQuestionBank').doc(questionId).get()).data();
+  const instantiated = await mathPath.instantiateQuestion(authored, `challenge|${roomId}|${room.currentRound}|${questionId}`);
+  const grading = (await mathPath.buildIssuePlan(instantiated.question)).privateGrading;
+  const relation = grading?.definition?.expectedFinalRelation;
+  const responsePayload = relation
+    ? { raw: { finalRelation: correct ? relation : `${relation}+1` } }
+    : { responses: Object.fromEntries((grading.fields || []).map((field) => [field.id, correct ? field.expected : '__not-an-answer__'])) };
+  return botCall('submitLiveChallengeResponse', studentId, {
+    roomId, roundIndex: room.currentRound, roundVersion: room.roundVersion, roundToken: room.roundToken, submissionId: randomUUID(), humanElapsedMs, responsePayload,
+  });
+};
 const teacherCall = (name, data) => functionsIndex[name].run({ auth: authFor({ as: 'teacher', email: TEACHER }), data, rawRequest: { headers: {} } });
 
 /* -------------------------------- browsers -------------------------------- */
@@ -282,6 +312,11 @@ const DEVICES = Object.freeze({
   projector: { viewport: { width: 1366, height: 768 } },
   zoom125: { viewport: { width: 1093, height: 614 } },
   zoom150: { viewport: { width: 911, height: 512 } },
+  // A 1366×768 screen at reduced browser zoom shows more CSS pixels.
+  zoom80: { viewport: { width: 1708, height: 960 } },
+  zoom67: { viewport: { width: 2039, height: 1146 } },
+  tabletLandscape: { viewport: { width: 1180, height: 820 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 },
+  phoneLandscape: { viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true, deviceScaleFactor: 3 },
   desktop: { viewport: { width: 1920, height: 1080 } },
   ipad: { viewport: { width: 820, height: 1180 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 },
   phone: { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 3 },
@@ -380,8 +415,12 @@ const closeAll = (...handles) => Promise.all(handles.flat().filter(Boolean).map(
 
 /* ------------------------------ teacher actions ------------------------------ */
 
+// Waits use locators, never page.waitForSelector: the element handle that
+// returns is held by the DevTools protocol until disposed, so each wait kept
+// a whole setup panel alive and the endurance run measured the harness's leak
+// instead of the console's.
 const createClassic = async (teacher, { classKey = 'p3', rounds = 5, seconds = 20, passPlaces = 0 } = {}) => {
-  await teacher.page.waitForSelector('text=Create a challenge', { timeout: 30_000 });
+  await teacher.page.locator('text=Create a challenge').first().waitFor({ timeout: 30_000 });
   await selectInLabel(teacher, 'Class', CLASSES[classKey].classId);
   await selectInLabel(teacher, 'Game type', 'standard');
   await selectInLabel(teacher, 'Rounds', rounds);
@@ -394,17 +433,30 @@ const createClassic = async (teacher, { classKey = 'p3', rounds = 5, seconds = 2
   }
   return activeRoomId();
 };
-const createRush = async (teacher, { classKey = 'p4', preset = 'Quick Algebra I', rounds = 1, seconds = 30, scoring = 'correctCount' } = {}) => {
-  await teacher.page.waitForSelector('text=Create a challenge', { timeout: 30_000 });
+const createRush = async (teacher, { classKey = 'p4', preset = 'Quick Algebra I', rounds = 1, seconds = 30, scoring = 'correctCount', passPlaces = null } = {}) => {
+  await teacher.page.locator('text=Create a challenge').first().waitFor({ timeout: 30_000 });
   await selectInLabel(teacher, 'Class', CLASSES[classKey].classId);
   await selectInLabel(teacher, 'Game type', 'graphFeatureRush');
-  await teacher.page.waitForSelector('text=Start from a preset', { timeout: 15_000 });
+  await teacher.page.locator('text=Start from a preset').first().waitFor({ timeout: 15_000 });
   if (preset) await teacher.page.getByRole('button', { name: preset, exact: true }).click();
   await selectInLabel(teacher, 'Rounds', rounds);
   await selectInLabel(teacher, 'Time per round', seconds);
   await selectInLabel(teacher, 'Scoring', scoring);
+  if (passPlaces !== null) await teacher.page.getByLabel('Practice Pass for').selectOption(String(passPlaces));
   await teacher.page.getByRole('button', { name: 'Create Lobby' }).click();
   if (!await waitForConsole(teacher, 'lobby', 30_000)) throw new Error('no rush lobby');
+  return activeRoomId();
+};
+const createSolverRace = async (teacher, { classKey = 'p4', rounds = 5, seconds = 30, passPlaces = 0 } = {}) => {
+  await teacher.page.locator('text=Create a challenge').first().waitFor({ timeout: 30_000 });
+  await selectInLabel(teacher, 'Class', CLASSES[classKey].classId);
+  await selectInLabel(teacher, 'Game type', 'solverRace');
+  await selectInLabel(teacher, 'Race focus', 'linearEquation');
+  await selectInLabel(teacher, 'Rounds', rounds);
+  await selectInLabel(teacher, 'Time per round', seconds);
+  await teacher.page.getByLabel('Practice Pass for').selectOption(String(passPlaces));
+  await teacher.page.getByRole('button', { name: 'Create Lobby' }).click();
+  if (!await waitForConsole(teacher, 'lobby', 30_000)) throw new Error('no Solver Race lobby');
   return activeRoomId();
 };
 const primary = (handle, command) => handle.page.locator(`[data-mm-primary-action="${command}"]`).first();
@@ -420,11 +472,11 @@ const dismissDialog = async (handle) => {
 };
 const toProjector = async (teacher) => {
   await teacher.page.getByRole('button', { name: 'Projector View' }).click();
-  await teacher.page.waitForSelector('[data-mm-arena-stage]', { timeout: 10_000 });
+  await teacher.page.locator('[data-mm-arena-stage]').first().waitFor({ timeout: 10_000 });
 };
 const toConsole = async (teacher) => {
   await teacher.page.getByRole('button', { name: 'Exit Projector View' }).click();
-  await teacher.page.waitForSelector('[data-mm-host-console]', { timeout: 10_000 });
+  await teacher.page.locator('[data-mm-host-console]').first().waitFor({ timeout: 10_000 });
 };
 
 /* ------------------------------ student actions ------------------------------ */
@@ -440,6 +492,127 @@ const answerInBrowser = async (handle, roomId, { correct = true } = {}) => {
   await handle.page.locator('[data-mm-game] [role="radio"]').nth(Math.max(0, index)).click({ timeout: 5_000 });
   await handle.page.getByRole('button', { name: 'Lock In Answer' }).click({ timeout: 5_000 });
 };
+
+// A rush graph is solved the way a student does it: tap each target where it
+// is drawn (or press "Does Not Exist"). The question is regenerated from the
+// room's secret, exactly as the server grades it.
+const rushQuestionOnScreen = async (handle, roomId) => {
+  const attribute = await handle.page.locator('.mm-rush-graph-frame').getAttribute('data-question-index', { timeout: 1_500 }).catch(() => '');
+  if (attribute === '' || attribute == null) return null;
+  const secret = (await db.collection('liveChallengePrivate').doc(roomId).get()).data()?.graphFeatureRush;
+  const room = await roomOf(roomId);
+  if (!secret) return null;
+  return generateRushQuestion({ seed: secret.seed, studentKey: handle.studentId, roundIndex: room.currentRound, questionIndex: Number(attribute), config: secret.config });
+};
+const tapRushGraph = async (handle, view, point) => {
+  const box = await handle.page.locator('svg.mm-rush-graph').boundingBox();
+  const x = box.x + unitX(view, point.x) * box.width;
+  const y = box.y + unitY(view, point.y) * box.height;
+  if (DEVICES[handle.device]?.hasTouch) await handle.page.touchscreen.tap(x, y);
+  else await handle.page.mouse.click(x, y);
+};
+const solveRushUntil = async (handle, roomId, untilMs, { missEvery = 0 } = {}) => {
+  let solved = 0;
+  while (Date.now() < untilMs) {
+    const question = await rushQuestionOnScreen(handle, roomId);
+    if (!question) { await wait(250); continue; }
+    if (missEvery && solved % missEvery === missEvery - 1) {
+      await tapRushGraph(handle, question.view, { x: question.view.xMin + 0.02 * (question.view.xMax - question.view.xMin), y: question.view.yMax - 0.02 * (question.view.yMax - question.view.yMin) });
+      await wait(rushLockoutMs(1) + 120);
+    }
+    if (!question.targets.length) await handle.page.getByRole('button', { name: 'Does Not Exist' }).click().catch(() => {});
+    else for (const target of question.targets) { await tapRushGraph(handle, question.view, target); await wait(90); }
+    try {
+      await handle.page.waitForFunction((from) => document.querySelector('.mm-rush-graph-frame')?.getAttribute('data-question-index') !== String(from), question.questionIndex, { timeout: 3_000 });
+      solved += 1;
+    } catch { break; }
+  }
+  return solved;
+};
+// What a page's DOM is made of: elements counted by tag and class, so growth
+// between two samples names what is piling up rather than a total.
+const domCensus = (handle) => handle.page.evaluate(() => {
+  const counts = {};
+  for (const element of document.body.getElementsByTagName('*')) {
+    const className = typeof element.className === 'string' ? element.className.split(/\s+/).filter(Boolean).slice(0, 2).join('.') : '';
+    const key = `${element.tagName.toLowerCase()}${className ? `.${className}` : ''}`;
+    counts[key] = (counts[key] || 0) + 1;
+  }
+  return counts;
+});
+// DOM nodes no longer on the page but still held by something (after a
+// forced GC), grouped by the detached subtree's root: a leak names itself.
+const detachedCensus = async (handle) => {
+  const session = await handle.context.newCDPSession(handle.page);
+  try {
+    await session.send('HeapProfiler.collectGarbage').catch(() => {});
+    const { result: prototype } = await session.send('Runtime.evaluate', { expression: 'Node.prototype' });
+    const { objects } = await session.send('Runtime.queryObjects', { prototypeObjectId: prototype.objectId });
+    const { result } = await session.send('Runtime.callFunctionOn', {
+      objectId: objects.objectId,
+      returnByValue: true,
+      functionDeclaration: `function () {
+        // Only nodes JavaScript has touched are listed, but that includes the
+        // root of every detached tree something still holds.
+        const roots = new Set();
+        for (const node of this) {
+          let connected = true;
+          try { connected = node.isConnected; } catch { continue; }
+          if (connected) continue;
+          let root = node;
+          while (root.parentNode) root = root.parentNode;
+          if (root.nodeType === 9) continue;
+          roots.add(root);
+        }
+        const sizeOf = (root) => {
+          let count = 1;
+          const walker = document.createTreeWalker(root, NodeFilter.SHOW_ALL);
+          while (walker.nextNode()) count += 1;
+          return count;
+        };
+        const describe = (root) => {
+          if (root.nodeType !== 1) return root.nodeName + ' "' + String(root.textContent || '').replace(/\\s+/g, ' ').slice(0, 50) + '"';
+          const attrs = [...root.attributes].filter((a) => a.name.startsWith('data-') || a.name === 'role' || a.name === 'aria-label' || a.name === 'class').map((a) => a.name + '=' + a.value.slice(0, 30)).join(' ');
+          return root.tagName.toLowerCase() + (attrs ? '[' + attrs + ']' : '') + ' "' + String(root.textContent || '').replace(/\\s+/g, ' ').slice(0, 60) + '"';
+        };
+        const groups = {};
+        let detached = 0;
+        const touched = new Map();
+        for (const node of this) {
+          let connected = true;
+          try { connected = node.isConnected; } catch { continue; }
+          if (connected || node.nodeType !== 1) continue;
+          let root = node;
+          while (root.parentNode) root = root.parentNode;
+          const list = touched.get(root) || [];
+          if (list.length < 12) list.push(node.tagName.toLowerCase() + (node.getAttribute('type') ? '[type=' + node.getAttribute('type') + ']' : '') + ' "' + String(node.textContent || node.getAttribute('aria-label') || '').replace(/\\s+/g, ' ').slice(0, 30) + '"');
+          touched.set(root, list);
+        }
+        for (const root of roots) {
+          const size = sizeOf(root);
+          detached += size;
+          const key = describe(root);
+          groups[key] = groups[key] || { trees: 0, nodes: 0, touched: touched.get(root) || [] };
+          groups[key].trees += 1;
+          groups[key].nodes += size;
+        }
+        return { detached, top: Object.entries(groups).sort((a, b) => b[1].nodes - a[1].nodes).slice(0, 8) };
+      }`,
+    });
+    await session.send('Runtime.releaseObject', { objectId: objects.objectId }).catch(() => {});
+    return result.value;
+  } finally {
+    await session.detach().catch(() => {});
+  }
+};
+const censusGrowth = (before = {}, after = {}) => Object.entries(after)
+  .map(([key, count]) => [key, count - (before[key] || 0)])
+  .filter(([, grown]) => grown > 0)
+  .sort((left, right) => right[1] - left[1])
+  .slice(0, 8);
+// The Live Challenge listeners a page has open right now, by kind.
+const watchersOf = (handle) => handle.page.evaluate(() => Object.fromEntries(Object.entries(window.__mmWatchers?.open || {}).filter(([, count]) => count > 0)));
+const watcherTotal = (open) => Object.values(open).reduce((sum, count) => sum + count, 0);
 
 /* ------------------------------ run a scenario ------------------------------ */
 
@@ -833,6 +1006,26 @@ await run('reconnect', async (S) => {
   await shot(late, 'D04-student-late-join');
   check(S, (await privatePlayer(roomId, ids[4])).joinedAtRound === 1, 'the server did not record the round the late joiner walked in on');
 
+  // A BACKGROUNDED TAB: the browser freezes s1 mid-round, and the round ends
+  // while it sleeps. A HOST REFRESH mid-round: the console comes back to the
+  // same round with the server's time left, and still closes it on time. A
+  // STUDENT REFRESH AT THE BUZZER lands on the results.
+  const freezer = await s1.context.newCDPSession(s1.page);
+  await freezer.send('Page.setWebLifecycleState', { state: 'frozen' });
+  await teacher.page.reload({ waitUntil: 'domcontentloaded' });
+  check(S, await waitForConsole(teacher, 'roundActive', 20_000), 'a console refreshed mid-round lost the round in play');
+  const shownLeft = Number(String(await attr(teacher, '[data-mm-host-console] [role="timer"]', 'aria-label') || '').match(/(\d+) seconds left/)?.[1]);
+  const serverLeft = Math.ceil((ms(r1.endsAt || r1.roundEndsAt) - Date.now()) / 1000);
+  check(S, Number.isFinite(shownLeft) && Math.abs(shownLeft - serverLeft) <= 2, `the refreshed console shows ${shownLeft} s left; the server's deadline is ${serverLeft} s away`);
+  await wait(Math.max(0, ms(r1.endsAt || r1.roundEndsAt) - Date.now() - 400));
+  await s2.page.reload({ waitUntil: 'domcontentloaded' });
+  check(S, await waitForRoom(roomId, (room) => Number(room.currentRound) === 1 && room.roundState === 'closed', 20_000), 'the refreshed console did not close the round at its deadline');
+  check(S, await waitForStudentStage(s2, 'roundResults', 20_000), 'a student who refreshed at the buzzer did not land on the results');
+  await freezer.send('Page.setWebLifecycleState', { state: 'active' });
+  check(S, await waitForStudentStage(s1, 'roundResults', 15_000), 'a frozen tab did not catch up to the results when it woke');
+  check(S, !/seconds left/.test(String(await attr(s1, '[role="timer"]', 'aria-label') || '')), 'the woken tab still shows a running clock');
+  await freezer.detach().catch(() => {});
+
   // THE PODIUM SURVIVES A TEACHER REFRESH.
   await teacher.page.getByRole('button', { name: 'End Game' }).click();
   await confirmDialog(teacher, 'End Game');
@@ -873,7 +1066,7 @@ await run('big-class', async (S) => {
   await waitForRoom(roomId, (room) => room.roundState === 'closed', 20_000);
   check(S, await waitForArena(teacher, 'roundResults', 10_000), 'no projector results for 32');
   check(S, await waitForText(teacher, 'more players', 5_000), 'a 32-player board does not say how many more are playing');
-  for (const device of ['projector', 'zoom125', 'zoom150']) {
+  for (const device of ['projector', 'zoom125', 'zoom150', 'zoom80', 'zoom67']) {
     await teacher.page.setViewportSize(DEVICES[device].viewport);
     await wait(500);
     check(S, (await overflowX(teacher)) <= 0, `the projector results scroll sideways at ${device}`);
@@ -891,11 +1084,45 @@ await run('big-class', async (S) => {
     check(S, (await overflowX(student)) <= 0, `${student.device}: the results scroll sideways`);
     await shot(student, `E03-student-results-${student.device}`);
   }
+  // The same screens turned sideways, and a Chromebook at reduced zoom.
+  for (const [student, device] of [[phone, 'phoneLandscape'], [tablet, 'tabletLandscape'], [tablet, 'zoom80'], [tablet, 'zoom67']]) {
+    await student.page.setViewportSize(DEVICES[device].viewport);
+    await wait(400);
+    check(S, (await overflowX(student)) <= 0, `${device}: the results scroll sideways`);
+    await shot(student, `E03-student-results-${device}`);
+  }
+  await phone.page.setViewportSize(DEVICES.smallPhone.viewport);
+  await tablet.page.setViewportSize(DEVICES.ipad.viewport);
   await teacher.page.getByRole('button', { name: 'End Game' }).click();
   await confirmDialog(teacher, 'End Game');
   await waitForRoom(roomId, (room) => room.status === 'finished', 30_000);
   check(S, await waitForArena(teacher, 'completed', 10_000), 'no podium');
   await shot(teacher, 'E04-projector-podium-32');
+  // Under the podium only whole rows, and the note when anyone is left out —
+  // at every projector size and zoom.
+  for (const device of ['projector', 'zoom125', 'zoom150', 'zoom80', 'zoom67']) {
+    await teacher.page.setViewportSize(DEVICES[device].viewport);
+    await wait(600);
+    const board = await teacher.page.evaluate(() => {
+      const panel = document.querySelector('[data-mm-final-board]');
+      const box = panel?.getBoundingClientRect();
+      const rows = [...document.querySelectorAll('[aria-label="Final standings"] [data-mm-standing]')].map((row) => row.getBoundingClientRect());
+      const inside = (rect) => Boolean(rect && box && rect.top >= box.top - 1 && rect.bottom <= box.bottom + 1 && rect.bottom <= window.innerHeight + 1);
+      // The note sits under the rows, or — with no room under the podium —
+      // in the podium's own heading.
+      const noteNode = document.querySelector('[data-mm-final-more]');
+      const noteRect = noteNode?.getBoundingClientRect() || null;
+      const note = !noteNode ? null : noteNode.getAttribute('data-mm-final-more') === 'header'
+        ? noteRect.top >= 0 && noteRect.bottom <= window.innerHeight + 1
+        : inside(noteRect);
+      return { rows: rows.length, whole: rows.filter(inside).length, note, where: noteNode?.getAttribute('data-mm-final-more') || null };
+    });
+    note(S, `final standings under the podium at ${device}`, board);
+    check(S, board.whole === board.rows, `${device}: ${board.rows - board.whole} final standings row(s) cut off under the podium`);
+    check(S, board.note === true, `${device}: "Everyone sees their own final place" is ${board.note === null ? 'missing' : 'cut off'}`);
+    await shot(teacher, `E04-projector-podium-32-${device}`);
+  }
+  await teacher.page.setViewportSize(DEVICES.projector.viewport);
   check(S, await waitForStudentStage(phone, 'completed', 10_000), 'no final screen on the phone');
   const confetti = await phone.page.evaluate(() => {
     const node = document.querySelector('.mm-shell-confetti');
@@ -962,6 +1189,152 @@ await run('repeat', async (S) => {
   check(S, new Set([first, second, third, fourth]).size === 4, 'a game reused a room');
   consoleErrors(S, [teacher, s1]);
   await closeAll(teacher, s1);
+});
+
+// G — ENDURANCE: FIVE WHOLE GAMES IN A ROW ON THE SAME SCREENS.
+await run('endurance', async (S) => {
+  const ids = studentsOf('p4');
+  const teacher = await openTeacher('chromebook');
+  const s1 = await openStudent(ids[0], 'chromebook');
+  const s2 = await openStudent(ids[1], 'phone');
+  const bots = ids.slice(2);
+  const pages = [['teacher', teacher], ['s1', s1], ['s2', s2]];
+  const samples = [];
+  const sample = async (label) => {
+    const row = { label };
+    for (const [name, handle] of pages) row[name] = { ...(await metrics(handle)), watchers: await watchersOf(handle) };
+    row.teacherCensus = await domCensus(teacher);
+    row.teacherDetached = await detachedCensus(teacher);
+    samples.push(row);
+  };
+  const games = [
+    { label: 'game 1 · Standard', create: () => createClassic(teacher, { classKey: 'p4', rounds: 5, seconds: 20, passPlaces: 1 }) },
+    { label: 'game 2 · Rush, Correct Count', create: () => createRush(teacher, { classKey: 'p4', rounds: 1, seconds: 30, scoring: 'correctCount', passPlaces: 1 }) },
+    { label: 'game 3 · Rush, Grand Prix', create: () => createRush(teacher, { classKey: 'p4', rounds: 2, seconds: 30, scoring: 'grandPrix', passPlaces: 1 }) },
+    { label: 'game 4 · Solver Race', create: () => createSolverRace(teacher, { classKey: 'p4', rounds: 5, seconds: 30, passPlaces: 1 }) },
+    { label: 'game 5 · Rush again', create: () => createRush(teacher, { classKey: 'p4', rounds: 1, seconds: 30, scoring: 'grandPrix', passPlaces: 1 }) },
+  ];
+  const rooms = [];
+  // SHELL_QA_ENDURANCE_GAMES=2 runs the first two, for a quick look.
+  games.splice(Math.max(2, Number(process.env.SHELL_QA_ENDURANCE_GAMES) || games.length));
+  for (const [index, game] of games.entries()) {
+    if (index > 0) await teacher.page.getByRole('button', { name: 'New Challenge', exact: true }).click();
+    const roomId = await game.create();
+    rooms.push(roomId);
+    for (const id of bots) await botJoin(roomId, id);
+    for (const student of [s1, s2]) check(S, await waitForStudentStage(student, 'lobby', 20_000), `${game.label}: ${student.studentId} is not in the new lobby`);
+    check(S, (await s1.page.locator('[data-mm-student-score]').count()) === 0, `${game.label}: the lobby shows a score from the last game`);
+    if (index === 0) await sample('first lobby');
+    await primary(teacher, 'start').click();
+    let room = await waitForRoom(roomId, (value) => value.status === 'running');
+    const rush = room.challengeMode === 'graphFeatureRush';
+    const rounds = Number(room.roundCount) || 1;
+    for (let roundIndex = 0; roundIndex < rounds; roundIndex += 1) {
+      room = await waitForRoom(roomId, (value) => value.status === 'running' && Number(value.currentRound) === roundIndex && value.roundState !== 'closed', 20_000);
+      if (!check(S, room, `${game.label}: round ${roundIndex + 1} never opened`)) break;
+      await wait(Math.max(0, ms(room.startsAt) - Date.now()) + 300);
+      if (rush) {
+        const until = ms(room.endsAt || room.roundEndsAt) - 2_500;
+        const solved = await Promise.all([solveRushUntil(s1, roomId, until), solveRushUntil(s2, roomId, until, { missEvery: 3 })]);
+        note(S, `${game.label}: round ${roundIndex + 1} graphs solved in the browser (chromebook, phone)`, solved);
+        check(S, solved[0] > 0 && solved[1] > 0, `${game.label}: a student could not solve a graph in round ${roundIndex + 1}`);
+      } else {
+        if (room.challengeMode === 'standard') {
+          await answerInBrowser(s1, roomId, { correct: true });
+          await answerInBrowser(s2, roomId, { correct: roundIndex % 2 === 0 });
+        } else {
+          await botAnswerAny(roomId, s1.studentId, { correct: true });
+          await botAnswerAny(roomId, s2.studentId, { correct: roundIndex % 2 === 0 });
+        }
+        await Promise.all(bots.map((id, bot) => botAnswerAny(roomId, id, { correct: (bot + roundIndex) % 2 === 0 })));
+      }
+      await waitForRoom(roomId, (value) => value.roundState === 'closed' || value.status !== 'running', 60_000);
+      for (const student of [s1, s2]) check(S, await waitForStudentStage(student, ['roundResults', 'completed'], 15_000), `${game.label}: ${student.studentId} has no results for round ${roundIndex + 1}`);
+      if (index === 0 && roundIndex === 0) await sample('first round results');
+      await primary(teacher, 'advance').click();
+    }
+    room = await waitForRoom(roomId, (value) => value.status === 'finished', 30_000);
+    check(S, room, `${game.label}: the game did not finish`);
+    for (const student of [s1, s2]) check(S, await waitForStudentStage(student, 'completed', 15_000), `${game.label}: ${student.studentId} has no final screen`);
+    // The board every screen ranks from agrees with the stored result, ties included.
+    let result = null;
+    for (let tries = 0; tries < 30 && !result?.standings; tries += 1) { result = (await db.collection('liveChallengeMatchResults').doc(roomId).get()).data(); if (!result?.standings) await wait(300); }
+    const board = challenge.publicLeaderboard((await publicPlayers(roomId)).filter((row) => row.joined), leaderboardOptionsFor(room?.scoringStrategyId));
+    const stored = Object.fromEntries((result?.standings || []).filter((row) => row.playerKey).map((row) => [row.playerKey, row.rank]));
+    check(S, board.length === ids.length && board.every((row) => stored[row.playerKey] === row.rank), `${game.label}: the board ${JSON.stringify(board.map((row) => [row.alias, row.rank]))} disagrees with the stored result ${JSON.stringify(result?.standings?.map((row) => [row.alias, row.rank]))}`);
+    // Names on the teacher's console, on request; never a student id anywhere.
+    const namesSwitch = teacher.page.locator('[data-mm-final-names]');
+    if (check(S, await namesSwitch.waitFor({ timeout: 10_000 }).then(() => true, () => false), `${game.label}: the console offers no names for the final standings`)) {
+      await namesSwitch.check();
+      check(S, await waitForText(teacher, nameOf(ids[0]), 5_000), `${game.label}: the final standings do not name ${nameOf(ids[0])}`);
+      await namesSwitch.uncheck();
+    }
+    for (const [name, handle] of pages) check(S, !(await textOf(handle)).includes(CLASSES.p4.classId), `${game.label}: ${name} shows a student id`);
+    // Rewards: the Practice Pass for 1st reached exactly the winners, once.
+    let grants = [];
+    for (let tries = 0; tries < 30; tries += 1) {
+      grants = (await db.collection('rewardGrants').where('source.id', '==', roomId).get()).docs.map((doc) => doc.data()).filter((grant) => grant.rewardCode === 'practicePass');
+      if (grants.length) break;
+      await wait(400);
+    }
+    const winners = (result?.standings || []).filter((row) => row.rank === 1 && row.roundsAnswered >= 1).map((row) => row.studentId).sort();
+    check(S, JSON.stringify(grants.map((grant) => grant.studentId).sort()) === JSON.stringify(winners), `${game.label}: Practice Passes went to ${JSON.stringify(grants.map((grant) => grant.studentId))}, the winners were ${JSON.stringify(winners)}`);
+    await wait(1_500);
+    await sample(`after ${game.label}`);
+    if (process.env.SHELL_QA_HEAP_SNAPSHOT) {
+      // A heap snapshot of the console, for retainer paths (DevTools can open it).
+      const session = await teacher.context.newCDPSession(teacher.page);
+      const chunks = [];
+      session.on('HeapProfiler.addHeapSnapshotChunk', ({ chunk }) => chunks.push(chunk));
+      await session.send('HeapProfiler.collectGarbage');
+      // Tag every detached tree's root with an object of a findable class.
+      const { result: prototype } = await session.send('Runtime.evaluate', { expression: 'Node.prototype' });
+      const { objects } = await session.send('Runtime.queryObjects', { prototypeObjectId: prototype.objectId });
+      await session.send('Runtime.callFunctionOn', {
+        objectId: objects.objectId,
+        functionDeclaration: `function () {
+          class DetachedTreeTag {}
+          for (const node of this) {
+            let connected = true;
+            try { connected = node.isConnected; } catch { continue; }
+            if (connected) continue;
+            let root = node;
+            while (root.parentNode) root = root.parentNode;
+            if (root.nodeType !== 9 && !root.__detachedTreeTag) root.__detachedTreeTag = new DetachedTreeTag();
+          }
+        }`,
+      });
+      await session.send('Runtime.releaseObject', { objectId: objects.objectId }).catch(() => {});
+      await session.send('HeapProfiler.takeHeapSnapshot', { reportProgress: false });
+      writeFileSync(path.join(SHOTS, `teacher-after-game-${index + 1}.heapsnapshot`), chunks.join(''));
+      await session.detach().catch(() => {});
+    }
+  }
+  // Leaving the game: the student goes back to the dashboard.
+  for (const student of [s1, s2]) await student.page.getByRole('button', { name: 'Back to Dashboard' }).last().click().catch(() => {});
+  await wait(1_000);
+  await sample('students left the final screen');
+  const gamesDone = samples.filter((row) => row.label.startsWith('after game'));
+  note(S, 'teacher console: what each game added to the DOM', gamesDone.slice(1).map((row, index) => ({ label: row.label, grew: censusGrowth(gamesDone[index].teacherCensus, row.teacherCensus) })));
+  note(S, 'teacher console: DOM held after it left the page', gamesDone.map((row) => ({ label: row.label, ...row.teacherDetached })));
+  samples.forEach((row) => { delete row.teacherCensus; delete row.teacherDetached; });
+  note(S, 'page metrics and open Live Challenge listeners (after a forced GC)', samples);
+  const after = samples.filter((row) => row.label.startsWith('after game'));
+  for (const [name] of pages) {
+    const open = after.map((row) => watcherTotal(row[name].watchers));
+    check(S, open.every((count) => count === open[0]), `${name}: open listeners changed across games: ${JSON.stringify(open)}`);
+    const [first, last] = [after[0][name], after[after.length - 1][name]];
+    check(S, last.listeners <= first.listeners + 60, `${name}: event listeners grew from ${first.listeners} to ${last.listeners} over five games`);
+    check(S, last.nodes <= first.nodes * 1.25 + 300, `${name}: DOM nodes grew from ${first.nodes} to ${last.nodes} over five games`);
+    check(S, last.heapMb <= first.heapMb * 1.5 + 8, `${name}: the heap grew from ${first.heapMb} MB to ${last.heapMb} MB over five games`);
+  }
+  const left = samples[samples.length - 1];
+  for (const name of ['s1', 's2']) check(S, watcherTotal(left[name].watchers) <= 1, `${name}: still listening after leaving the game: ${JSON.stringify(left[name].watchers)}`);
+  check(S, new Set(rooms).size === games.length, 'a game reused a room');
+  const stale = (await db.collection('liveChallengeRooms').where('teacherEmail', '==', TEACHER).get()).docs.filter((doc) => rooms.includes(doc.id) && !['finished', 'cancelled'].includes(doc.data().status));
+  check(S, stale.length === 0, `games left open: ${stale.map((doc) => doc.id).join(', ')}`);
+  consoleErrors(S, [teacher, s1, s2]);
+  await closeAll(teacher, s1, s2);
 });
 
 // ADVERSARIAL — DOUBLE PRESSES, TWO HOST TABS, CONFIRMATIONS, EARLY ANSWERS.
