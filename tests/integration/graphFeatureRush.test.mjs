@@ -229,19 +229,23 @@ test('one graph completes once: replays, found-again taps and racing taps change
 
 test('a refresh mid-graph resumes on the same graph with its found targets', async () => {
   const identity = await identityOf(G1);
-  // Find a multi-target graph for B and tap only its first target.
+  // Find a multi-target graph for B and tap only its first target. About one
+  // graph in nine has several targets under this preset, so B looks eight
+  // graphs ahead at a time and finishes the ones before it in one batch.
   let resumed = null;
-  for (let attempt = 0; attempt < 12 && !resumed; attempt += 1) {
+  for (let looked = 0; looked < 120 && !resumed;) {
     // eslint-disable-next-line no-await-in-loop
-    const { questions: [question] } = await call('getGraphFeatureRushRound', student(B, { ...identity, count: 1 }));
-    if (question.targets.length >= 2) {
+    const { questions } = await call('getGraphFeatureRushRound', student(B, { ...identity, count: 8 }));
+    const multi = questions.find((question) => question.targets.length >= 2);
+    const before = multi ? questions.filter((question) => question.questionIndex < multi.questionIndex) : questions;
+    const attempts = before.flatMap(answerAttempts);
+    if (multi) attempts.push(tapAt(multi, multi.targets[0]));
+    for (let start = 0; start < attempts.length; start += 12) {
       // eslint-disable-next-line no-await-in-loop
-      await call('submitGraphFeatureRushAttempts', student(B, { ...identity, attempts: [tapAt(question, question.targets[0])] }));
-      resumed = question;
-    } else {
-      // eslint-disable-next-line no-await-in-loop
-      await call('submitGraphFeatureRushAttempts', student(B, { ...identity, attempts: answerAttempts(question) }));
+      await call('submitGraphFeatureRushAttempts', student(B, { ...identity, attempts: attempts.slice(start, start + 12) }));
     }
+    resumed = multi || null;
+    looked += questions.length;
   }
   assert.ok(resumed, 'a multi-target graph came up');
   // The device reloads: it knows nothing; the server knows where B is.
@@ -288,7 +292,11 @@ test('a stale round token, a classic answer and a pacing change are refused or i
 });
 
 test('round 1 closes into ranked results: placement points for a field of two, and each player\'s own facts', async () => {
-  await play(G1, A, { graphs: 3 });
+  // How many graphs B has finished depends on the room's random seed (the
+  // refresh test plays until a multi-target graph comes up), so A plays to a
+  // clear lead rather than a fixed count.
+  const done = async (studentId) => Number((await privatePlayer(G1, studentId)).correctCount) || 0;
+  await play(G1, A, { graphs: Math.max(3, (await done(B)) - (await done(A)) + 2) });
   const early = await failureOf(advance(G1));
   assert.equal(early?.code, 'failed-precondition', 'a timed rush round is not over until its clock is');
   await closeRound(G1);
