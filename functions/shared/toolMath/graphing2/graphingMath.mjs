@@ -42,6 +42,27 @@ export const targetLineFromQuestion = (question = {}) => {
   return Number.isFinite(Number(line.m)) && Number.isFinite(Number(line.b)) ? { kind: 'slopeIntercept', m: Number(line.m), b: Number(line.b) } : null;
 };
 
+/*
+ * THE LINE A GRAPHING2 QUESTION ASKS FOR, AS THE TOOL ITSELF READS IT.
+ *
+ * Graphing2.jsx renders `question.mode || 'slopeIntercept'`, and a
+ * slope-intercept question with no authored `line` shows (and grades) the
+ * default y = 1.5x - 2. The browser tool and the shared server grader both
+ * read the target through these helpers, so they can never disagree about
+ * which line a student was asked to construct.
+ */
+export const DEFAULT_SLOPE_INTERCEPT_LINE = Object.freeze({ m: 1.5, b: -2 });
+
+export const graphingModeOf = (question = {}) => question?.mode || 'slopeIntercept';
+
+export const withDefaultTargetLine = (question = {}) => (
+  graphingModeOf(question) === 'slopeIntercept' && !question?.line
+    ? { ...question, line: { ...DEFAULT_SLOPE_INTERCEPT_LINE } }
+    : question
+);
+
+export const graphingTargetLine = (question = {}) => targetLineFromQuestion(withDefaultTargetLine(question));
+
 export const linesEquivalent = (left, right, tolerance = 0.08) => {
   if (!left || !right || left.kind !== right.kind) return false;
   if (left.kind === 'vertical') return nearlyEqual(left.x, right.x, tolerance);
@@ -56,9 +77,15 @@ export const pointOnLine = (line, point, tolerance = 0.12) => {
   return nearlyEqual(y, Number(line.m) * x + Number(line.b), tolerance);
 };
 
-export const constructionEvidence = (points = [], target, tolerance = 0.12) => {
+/**
+ * constructionEvidence plus the facts its score is made of, for the shared
+ * grader's per-part report. `evidence` is exactly what constructionEvidence
+ * returns; `coincident` says the first two points are the same spot (the
+ * CRIT-01 case, where one on-line point earns a quarter, not a half).
+ */
+export const constructionEvidenceDetail = (points = [], target, tolerance = 0.12) => {
   if (!points || points.length < 2) {
-    return { studentLine: null, pointChecks: [false, false], score: 0, isCorrect: false };
+    return { evidence: { studentLine: null, pointChecks: [false, false], score: 0, isCorrect: false }, coincident: false };
   }
 
   // CRIT-01: two coincident points do not define a line. Without this guard
@@ -67,15 +94,20 @@ export const constructionEvidence = (points = [], target, tolerance = 0.12) => {
   const [p1, p2] = points;
   if (nearlyEqual(p1[0], p2[0], 1e-4) && nearlyEqual(p1[1], p2[1], 1e-4)) {
     const singlePointOnLine = pointOnLine(target, p1, tolerance);
-    return { studentLine: null, pointChecks: [singlePointOnLine, false], score: singlePointOnLine ? 0.25 : 0, isCorrect: false };
+    return {
+      evidence: { studentLine: null, pointChecks: [singlePointOnLine, false], score: singlePointOnLine ? 0.25 : 0, isCorrect: false },
+      coincident: true,
+    };
   }
 
   const studentLine = lineFromPoints(p1, p2);
   const pointChecks = points.slice(0, 2).map((point) => pointOnLine(target, point, tolerance));
   const isCorrect = studentLine !== null && linesEquivalent(studentLine, target, tolerance);
   // Partial-credit scale intentionally unchanged; see the batch D test.
-  return { studentLine, pointChecks, score: isCorrect ? 1 : pointChecks.filter(Boolean).length / 2, isCorrect };
+  return { evidence: { studentLine, pointChecks, score: isCorrect ? 1 : pointChecks.filter(Boolean).length / 2, isCorrect }, coincident: false };
 };
+
+export const constructionEvidence = (points = [], target, tolerance = 0.12) => constructionEvidenceDetail(points, target, tolerance).evidence;
 
 export const formatLine = (line) => {
   if (!line) return 'invalid line';

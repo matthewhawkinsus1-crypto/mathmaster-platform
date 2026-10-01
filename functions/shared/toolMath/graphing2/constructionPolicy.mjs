@@ -11,7 +11,7 @@
 // This module never changes constructionEvidence/targetLineFromQuestion — it
 // only adds new, additive grading on top of them.
 import { nearlyEqual } from '../shared/toolMath.mjs';
-import { constructionEvidence, lineFromPoints, linesEquivalent, pointOnLine } from './graphingMath.mjs';
+import { constructionEvidenceDetail, lineFromPoints, linesEquivalent, pointOnLine } from './graphingMath.mjs';
 
 export const resolveConstructionPolicy = (question = {}) => {
   const policy = question.constructionPolicy || {};
@@ -73,12 +73,21 @@ const dedupePoints = (points) => {
 };
 
 /**
- * Grades graphing2 construction work under the question's constructionPolicy.
- * Returns the same { studentLine, pointChecks, score, isCorrect } shape as
- * constructionEvidence() plus form-aware fields (null when strategy is
- * 'equivalentLine', or for modes where form-aware evidence does not apply).
+ * evaluateConstruction plus the facts its verdict and score are made of, for
+ * the shared grader's per-part report (functions/shared/serverGrading/tools/
+ * graphing2.mjs). `evidence` is EXACTLY what evaluateConstruction returns —
+ * evaluateConstruction is this function's `evidence` — so the grader and every
+ * other caller (Representation Bridge, the Linear Multiple Representations
+ * board) share one definition of a correct construction.
+ *
+ *   legacy             the question is graded by constructionEvidence
+ *   coincident         (legacy) the first two points are the same spot
+ *   anchorPointIndex   (form-aware) per anchor, the plotted point used for it
+ *   requiredAdditional (form-aware) points needed beyond the anchors
+ *   lineCorrect        (form-aware) the plotted points determine the target
+ *   hasMinimumPoints   (form-aware) at least policy.minimumPoints were plotted
  */
-export const evaluateConstruction = (points = [], question = {}, target, tolerance = 0.12) => {
+export const evaluateConstructionDetail = (points = [], question = {}, target, tolerance = 0.12) => {
   const mode = question.mode || 'slopeIntercept';
   const policy = resolveConstructionPolicy(question);
 
@@ -87,15 +96,19 @@ export const evaluateConstruction = (points = [], question = {}, target, toleran
   // two points sharing the constant coordinate); form-aware adds nothing new
   // for either, so both strategies fall back to the legacy grader unchanged.
   if (policy.strategy !== 'formAware' || mode === 'throughPoints' || mode === 'verticalHorizontal') {
-    const legacy = constructionEvidence(points, target, tolerance);
+    const { evidence: legacy, coincident } = constructionEvidenceDetail(points, target, tolerance);
     return {
-      ...legacy,
-      strategy: policy.strategy,
-      requiredAnchor: policy.requiredAnchor,
-      anchorSatisfied: null,
-      slopeEvidenceSatisfied: null,
-      interceptEvidence: null,
-      category: legacy.isCorrect ? 'correct' : legacy.studentLine ? 'incorrectLine' : 'duplicatePoint',
+      legacy: true,
+      coincident,
+      evidence: {
+        ...legacy,
+        strategy: policy.strategy,
+        requiredAnchor: policy.requiredAnchor,
+        anchorSatisfied: null,
+        slopeEvidenceSatisfied: null,
+        interceptEvidence: null,
+        category: legacy.isCorrect ? 'correct' : legacy.studentLine ? 'incorrectLine' : 'duplicatePoint',
+      },
     };
   }
 
@@ -110,10 +123,11 @@ export const evaluateConstruction = (points = [], question = {}, target, toleran
   const anchorSatisfied = anchorMatches.length > 0 && anchorMatches.every((anchor) => anchor.satisfied);
 
   const usedAsAnchor = new Set();
-  anchorMatches.forEach((anchor) => {
-    if (!anchor.satisfied) return;
+  const anchorPointIndex = anchorMatches.map((anchor) => {
+    if (!anchor.satisfied) return -1;
     const index = cleanPoints.findIndex((point, pointIndex) => !usedAsAnchor.has(pointIndex) && pointsMatch(point, anchor.point, tolerance));
     if (index >= 0) usedAsAnchor.add(index);
+    return index;
   });
   const remainingPoints = cleanPoints.filter((_, index) => !usedAsAnchor.has(index));
 
@@ -154,18 +168,60 @@ export const evaluateConstruction = (points = [], question = {}, target, toleran
     : null;
 
   return {
-    strategy: 'formAware',
-    requiredAnchor: policy.requiredAnchor,
-    minimumPoints: policy.minimumPoints,
-    anchorSatisfied,
-    slopeEvidenceSatisfied,
-    interceptEvidence,
-    anchors: anchorMatches,
-    pointChecks: cleanPoints.map((point) => pointOnLine(target, point, tolerance)),
-    studentLine,
-    duplicateFound,
-    isCorrect,
-    score,
-    category,
+    legacy: false,
+    cleanPoints,
+    anchorPointIndex,
+    requiredAdditional,
+    lineCorrect,
+    hasMinimumPoints,
+    evidence: {
+      strategy: 'formAware',
+      requiredAnchor: policy.requiredAnchor,
+      minimumPoints: policy.minimumPoints,
+      anchorSatisfied,
+      slopeEvidenceSatisfied,
+      interceptEvidence,
+      anchors: anchorMatches,
+      pointChecks: cleanPoints.map((point) => pointOnLine(target, point, tolerance)),
+      studentLine,
+      duplicateFound,
+      isCorrect,
+      score,
+      category,
+    },
   };
+};
+
+/**
+ * Grades graphing2 construction work under the question's constructionPolicy.
+ * Returns the same { studentLine, pointChecks, score, isCorrect } shape as
+ * constructionEvidence() plus form-aware fields (null when strategy is
+ * 'equivalentLine', or for modes where form-aware evidence does not apply).
+ */
+export const evaluateConstruction = (points = [], question = {}, target, tolerance = 0.12) => (
+  evaluateConstructionDetail(points, question, target, tolerance).evidence
+);
+
+/*
+ * WHAT GRAPHING2 ITSELF ASKS OF A CONSTRUCTION BEFORE IT CAN BE CHECKED.
+ *
+ * Graphing2.jsx enables "Check construction" only when the student holds the
+ * required number of points and the first two determine a line. The shared
+ * grader calls the same rule its `isComplete`, so a deadline auto-submits
+ * exactly the work the student could have checked themselves.
+ */
+export const DEFAULT_CONSTRUCTION_TOLERANCE = 0.12;
+
+export const constructionToleranceFor = (question = {}) => Number(question?.tolerance ?? DEFAULT_CONSTRUCTION_TOLERANCE);
+
+export const requiredConstructionPointCount = (question = {}) => {
+  const policy = resolveConstructionPolicy(question || {});
+  return policy.strategy === 'formAware' ? policy.minimumPoints : 2;
+};
+
+export const constructionReadyToCheck = (points = [], question = {}) => {
+  const list = Array.isArray(points) ? points : [];
+  return list.length >= requiredConstructionPointCount(question)
+    && list.length >= 2
+    && lineFromPoints(list[0], list[1]) !== null;
 };
