@@ -406,6 +406,40 @@ test('end to end: a V5 fractionAnswer question is delivered and graded as author
   assert.equal(correct(deliveredDrill, `\\frac{${deliveredDrill.ansNum}}{${deliveredDrill.ansDen}}`), true);
 });
 
+test('end to end: a V5 fractionAnswer keeps the other forms, the math line and the sum its author wrote', () => {
+  // The V5 compiler used to keep only `answer` and `generator`, so these three
+  // authored questions reached the student as something else: 6/8 graded
+  // wrong, the line under the prompt gone, and the author's sum replaced by a
+  // random drill.
+  const payload = {
+    schemaVersion: 5,
+    assignment: { title: 'Fraction answers', courseId: 'algebra1' },
+    sections: [{
+      role: 'practice',
+      title: 'Practice',
+      questions: [
+        { standard: 'A.3C', prompt: 'Write the part shaded.', studentActions: ['fractionAnswer'], answer: '3/4', acceptedAnswers: ['6/8'] },
+        { standard: 'A.3C', prompt: 'Simplify.', studentActions: ['fractionAnswer'], answer: '3/4', expressionLatex: '\\frac{6}{8} =' },
+        { standard: 'A.3C', prompt: 'Add.', studentActions: ['fractionAnswer'], n1: 1, d1: 2, n2: 1, d2: 3 },
+      ],
+    }],
+  };
+  const parsed = parseAssignmentBlueprintText(JSON.stringify(payload));
+  validateAssignmentQuestions(parsed.questions);
+  const [forms, line, sum] = parsed.questions.map((question) => generateQuestion(question, KEY));
+
+  assert.deepEqual(forms.acceptedAnswers, ['6/8']);
+  assert.equal(correct(forms, '6/8'), true, 'a form the author listed is correct');
+  assert.equal(correct(forms, '3/4'), true);
+
+  assert.equal(fractionQuestionDisplay(line).expressionLatex, '\\frac{6}{8} =');
+
+  assert.equal(fractionQuestionShape(sum), FRACTION_QUESTION_SHAPES.OPERANDS, 'the author\'s sum, not a drill');
+  assert.deepEqual([sum.n1, sum.d1, sum.n2, sum.d2], [1, 2, 1, 3]);
+  assert.equal(fractionQuestionDisplay(sum).expressionLatex, '\\frac{1}{2} + \\frac{1}{3} =');
+  assert.equal(correct(sum, '5/6'), true);
+});
+
 /* ---------------------------------------------------------------------------
  * What the student sees.
  * ------------------------------------------------------------------------- */
