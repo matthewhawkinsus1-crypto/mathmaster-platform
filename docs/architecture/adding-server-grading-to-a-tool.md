@@ -60,9 +60,17 @@ structured response, like the graph workspace) or `declarations/questionTypes.mj
 
 Pure tool mathematics lives in `functions/shared/toolMath/<tool>/`. It must not
 import React, the DOM, Firestore, `window`, the clock or anything under `src/`.
-`mathjs` is allowed (Cloud Functions depend on the same version). If the
-mathematics is in `src/tools/<tool>/<tool>Math.js` today, move it and leave the
-old file as a re-export so component imports keep working:
+Never import `mathjs` there: import `parse`, `evaluate`, `compile` and
+`simplify` from `functions/shared/algebra/safeMath.mjs`, the hardened instance
+that refuses what a student's text must not do on a shared server (ranges,
+matrix allocation, `createUnit`, re-entrant parsing, constant towers, ...).
+`tests/platform/safeMath.test.mjs` fails if any shared module imports
+`mathjs` directly. If you evaluate free-form student text, also screen it with
+a narrow whitelist of node types for your tool, and keep any module-level
+cache bounded: on the server the module lives as long as a warm instance and
+sees every student's text. If the mathematics is in
+`src/tools/<tool>/<tool>Math.js` today, move it and leave the old file as a
+re-export so component imports keep working:
 
 ```js
 export * from '../../../functions/shared/toolMath/<tool>/<tool>Math.mjs';
@@ -105,6 +113,25 @@ Rules a grader follows:
 * **Blank is incomplete, not a valid answer.** `Number('')` is `0`; an untouched
   select may default to a valid option. Decide explicitly and mark the part
   `isComplete: false`.
+* **An untouched tool is not finished work.** If the tool opens with every
+  graded input already holding a value (pre-selected radios, a starting line),
+  report work identical to that starting state as `isComplete: false` (an
+  explicit Check still grades it normally); keep the starting values in one
+  shared definition the component reads. QuestionEngine also never checkpoints
+  a response the student did not change, but the grader's own rule is what a
+  reviewer can test.
+* **Never read a field a student support changes.** A translation replaces
+  `prompt` (and `title`) in the browser; reduce-complexity trims `choices`.
+  The server grades the authored question, so a grader that needs wording
+  reads `authoredPrompt ?? prompt`, and grades a choice against the key, not
+  its position in the list (`tests/platform/gradersIgnoreStudentSupports.test.mjs`
+  checks every grader).
+* **Ungradable work spends no attempt.** If the grader cannot mark the work
+  (unreadable, oversize, a question it cannot compute), return
+  `ungradedResult(reason)`; QuestionEngine then records nothing and tells the
+  student, and ingestion holds the same envelope for review. Use a
+  `mode-not-server-gradable:<mode>` reason only when the student was really
+  shown a device-graded surface.
 * **Parts carry the evidence.** One part per graded thing, with `id`, `label`,
   `isComplete`, `isCorrect`, and the student's `response` (bounded). Use
   `weight` and `credit` for legitimate partial credit. `gradedResult` derives

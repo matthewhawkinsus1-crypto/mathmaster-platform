@@ -51,10 +51,11 @@ Sixteen independent tracers each took one group of tools, types or subsystems
 and read the real code: the renderer, the tool's `submit()`, QuestionEngine's
 hand-off, the durable envelope, ingestion, the deadline finalizer, Recovery,
 My Math Path, Secure Test Cycle and Live Challenge. Where a claim depended on a
-value they ran the real modules in Node. The result is 217 entries, one per
+value they ran the real modules in Node. The result is 223 entries, one per
 tool, type, or meaningful mode, each answering the eleven questions of the
-brief. A completeness critic and adversarial verifiers then re-checked the
-high-impact findings. The frozen result is
+brief. A completeness critic added the surfaces the tracers had not owned, and
+eight adversarial verifiers each tried to refute one high-impact finding; none
+was refuted (`verifications` in the JSON). The frozen result is
 [`server-grading-audit.json`](server-grading-audit.json); line numbers in it
 refer to `a7a3b4e`.
 
@@ -85,7 +86,9 @@ graders on the same work and found divergent verdicts for all six.
 | Registry tools never reported live work, so **no deadline checkpoint** could ever be written for one; family-backed slots of every type were excluded from deadline finalization. | `QuestionEngine.jsx`, `responseCheckpoint.js`, `responseCheckpointFinalizer.mjs` | Tools report work through `ToolRuntimeContext.reportWork`; checkpoints carry the structured response; the finalizer rebuilds family instances (§7). |
 | Several tools award credit for **blank work**: the Representation Bridge consistency part is vacuously true with fewer than two lines; unanswered selects default to valid answers; `Number('')` is `0`. | per-tool | Each shared grader decides this explicitly; the per-tool decisions are recorded in the grader modules and their parity suites. |
 | Answer-key material rides in tool **submit metadata** (`expected`, `canonicalFacts`, `target`, regression lines). It was dropped before persistence only by accident of what QuestionEngine read. | many tools | The tool response contract strips answer-key and verdict keys at every depth, on the device and again on the server (§4). |
-| My Math Path's `relationMapping` contract cannot read the component's `isFunction` vocabulary; Path's `systemsWorkspace` treats every mode other than inequalities and matrix3 as `linear`; Path data-modeling and graph contracts diverge from the browser. | `pathToolContracts.mjs` | Recorded, not changed (§12): Path is its own subsystem. |
+| My Math Path's `relationMapping` contract cannot read the component's `isFunction` vocabulary (`'yes-function'`, `'no-function'`), so every correct Path and Live Challenge relation answer was marked wrong. | `pathToolContracts.mjs` | **Fixed**: the contract reads the component's own values (and still accepts booleans and `yes`/`true`); a blank choice is never correct. |
+| Path's `systemsWorkspace` treats every mode other than inequalities and matrix3 as `linear`; Path data-modeling and graph contracts diverge from the browser. | `pathToolContracts.mjs` | Recorded, not changed (§12): Path is its own subsystem, and changing these contracts changes live Path scores. |
+| The content-upgrade tracker regrade marked a Data Modeling question that also asked for a prediction (`linearFitPrediction`, or a line fit with `predictionX`) correct on the fit alone, crediting wrong predictions in full. | `assignmentContentTrackerMigration.js` | **Fixed**: such a question is not regraded by the upgrade; the record stays as it was and the teacher can correct it from the Inspector. |
 | Students can update their own `grades/{studentId}` document, including `gradesByAssignment`. | `firestore.rules` | Recorded as the main remaining trust-boundary limitation (§12). |
 
 The complete list, with evidence, is `crossCuttingFindings` and `baselineClaims`
@@ -170,6 +173,47 @@ problem. If one ever shipped anyway, only that tool would refuse to grade
 path; nothing throws at import, so one tool can never take every other
 surface's server grading down with it.
 
+### 3.5 Grading changes a student or teacher can see
+
+Moving each verdict into a shared grader was done check-for-check, and each
+tool's parity suite (and a differential fuzz against the merge-base code)
+shows honest work marked exactly as before. Where the old browser check was
+plainly wrong, the shared grader fixes it on both sides; each fix is pinned by
+a before/after test. Fully answered correct work is marked as before, with two
+deliberate edge cases noted under the table; these are the changes:
+
+| Surface | Before | After |
+| --- | --- | --- |
+| Literal on the balance workspace | A correct solve re-graded on the server as a typed literal: **wrong** | Correct |
+| Relation plot in a composed question (`relationRepresentations` with `plot`) | A correct plot was always marked wrong (the question capped at 90%) | Marked by the rebuilt graph |
+| Graphing items from a single displayed line (catalog, V5) | Could never be correct (no key) | Gradable |
+| relationshipModel derived origin units; radicalCheck candidates authored as text; rationalFeatures at a non-root | Unwinnable | Winnable |
+| Relation mapping listing a pair twice | Could never be marked right | The distinct arrows are right |
+| Representation Bridge (linear and Multiple Representations) | A blank board earned the "representations agree" part (1/6, 1/11; a wrong single-line answer 50%) | Agreement is credited only between two or more of the student's own lines |
+| Representation Match linear-connections grouping | A blank board scored its pair score (0.53) | Scaled by the share of cards placed (0) |
+| Function Investigation, Transformations, Function Ops, Polynomial Workshop, Linear Table, Systems (test point) | A blank box or unchosen select counted as 0, "none", "no", or Row 1 | Blank is incomplete and incorrect; typing 0 or choosing "none" still works |
+| Systems Workspace legacy construct with ≥ / ≤ | The correct solid boundary marked wrong | Correct |
+| Step Algebra 2 rewrite | A finished form of any line scored 1 | It must still be the question's line |
+| Step Algebra equation and relation | Any structurally solved state was correct (a forged `x = 6`) | It must have the original's solutions |
+| Inverse Lab derivation | `x = y` passed for every f | Must be this f's inverse |
+| Data Modeling | A non-numeric default prediction x was graded at x = 0 | Never accepted, as on screen |
+| Interval Number Line with no intervals key | An empty graph graded correct | Ungraded |
+| Sequence Explorer full bridge | An empty or short table passed | Every row on screen is read |
+| Content-upgrade regrade of a Data Modeling prediction | Credited on the fit alone | Left as recorded |
+| Composed questions | A table or figure match claiming "complete" with blanks counted as finished | Completeness re-derived from the work |
+| Translated questions | The Constraint Builder's quadrant rewrite read the translated prompt | Reads the authored prompt |
+
+Two edge cases where an answer the old check accepted is now incorrect: a
+Transformations *match* with a box cleared where the target's value is 0 (the
+drawn graph overlaps, but a blank box is not an answer; its score is unchanged,
+the verdict is not), and a Polynomial Workshop coefficient list whose trailing
+empty pieces used to be read as zeros (`1,,` for x² + 0x + 0).
+
+Non-grading behaviour that changed: a deadline no longer submits a question the
+student only opened (§7); work the server will not mark spends no attempt and
+says so (§7); submit metadata no longer carries answer-key material; attempts
+from tools now record per-part grades.
+
 ## 4. Raw response contracts
 
 A rich tool's work crosses the durable boundary as a **tool response**
@@ -217,13 +261,25 @@ For a family-backed slot the server:
 1. reproduces the delivered instance from the pin (`reproduceFamilyQuestionFromPin`),
    preferring the pin this attempt carries (it names what this device showed)
    and falling back to the canonical record's pin for the same variant;
-2. validates the pin: it must name this slot, this variant and the family's id
-   and version, and the rebuilt instance's fingerprint must equal the pinned
-   one;
+2. validates the pin (`deliveryPinAllocationProblem`): it must name this
+   slot, this variant and the family's id and version, and the rebuilt
+   instance's fingerprint must equal the pinned one. It must also be a pin the
+   allocator could have issued **to this student**: a `seated` pin's seat must
+   be the seat the assignment's `generationSeats` holds for this student's
+   learner token; a `shared` pin is accepted only in a section whose V5
+   variant policy is `shared`; `preview` and `anonymous` pins are never a
+   student's delivery; and the pin's index must be the allocator's index for
+   its seat, variant and stride. A classmate's pin, an unallocated index or a
+   teacher-preview pin is refused;
 3. grades the raw response with the same shared grader, through the same
    registry, as a static question of that surface;
 4. stores the authoritative result through the attempt policy;
 5. stamps the canonical pin and its seat verification on the record.
+
+When a pin is offered and none can be trusted, the server does **not** fall
+back to the browser's verdict: the attempt is held (`NEEDS_REVIEW`, work kept)
+for the teacher, and no attempt is consumed. When no pin exists at all (a
+client built before pins), the bounded legacy path applies as before.
 
 A family template is never graded against its own fields (`family-template`).
 Because readiness is answered by the registry (`familyInstanceServerGradable`
@@ -257,6 +313,29 @@ the teacher still enables it.
 `tests/platform/serverGradingDurablePaths.test.mjs` pushes one raw response
 through ingestion, the finalizer and Recovery and asserts one verdict.
 
+**A deadline never submits a question the student only opened.** Before this
+change only the five ordinary types were checkpoint-eligible; now every
+server-gradable surface is, and many open with every graded input already
+holding a value (a pre-selected radio, a starting line, default selects).
+QuestionEngine therefore writes the first checkpoint only for a complete
+response the student *changed* after interacting with the question in this
+session (`studentChangedResponse` in `src/platform/performance/responseCheckpoint.js`;
+`tests/platform/checkpointRequiresStudentChange.test.mjs`). Opening, tapping or
+enlarging without changing anything writes nothing, and a draft restored from
+an earlier session was checkpointed when it was made. Data Modeling,
+Transformations, the Constraint Function Builder and the Polynomial Workshop
+also treat their untouched starting state as incomplete in the grader itself.
+
+**Work the server will not mark spends no attempt.** When a server-graded
+surface's shared grader declines the work in the browser (unreadable,
+oversize, a newer contract, or, for a composed question, text the server will
+not evaluate), QuestionEngine records nothing and tells the student the work
+was saved but could not be checked; ingestion would hold the same envelope for
+review. A grader that discovers only while grading that the student saw a
+device-graded surface (a balance literal whose workspace could not be built,
+shown as a typed box with no key) reports `mode-not-server-gradable:*`, and
+ingestion keeps the sanitized client record instead of holding it.
+
 ## 8. Security model
 
 * **Client verdicts are never trusted where the server can grade.** On a
@@ -269,8 +348,15 @@ through ingestion, the finalizer and Recovery and asserts one verdict.
   unchanged and still runs.
 * **No secure internals in client-writable records.** The server stores the
   bounded work, the grading result and the pin, never the instance's key.
-* **Pins are validated.** A pin must reproduce an instance of this slot's family
-  with the pinned fingerprint; a pin for another variant is never used.
+* **Pins are validated, and belong to the student.** A pin must reproduce an
+  instance of this slot's family with the pinned fingerprint, must be one the
+  allocator issued to this student's seat (§5), and a pin for another variant
+  is never used. Ingestion stamps the authenticated `studentId` on the envelope
+  before validation, so a student cannot name someone else's seat. A refused
+  pin holds the work for review; it never falls back to the browser's verdict.
+  `tests/platform/serverGradingCore.test.mjs` covers a classmate's pin,
+  another slot's pin, an unallocated index, a preview pin and a shared pin
+  outside a shared section.
 * **Attempt and terminal protections.** Server-graded attempts go through the
   existing attempt policy. Client-graded records go through a sanitizer that now
   holds what it promised:
@@ -282,9 +368,52 @@ through ingestion, the finalizer and Recovery and asserts one verdict.
     is recorded as expired;
   - partial credit is capped at 90% unless correct and never falls below what
     is recorded;
-  - an authorized DOL replacement still resets history.
+  - an authorized DOL replacement still resets history;
+  - a claimed `correct` is refused outright on the two paths where the server
+    *should* have been able to grade: a Step Algebra step submission, and a
+    surface with a shared grader whose envelope carried no raw response (an
+    old or tampered client cannot strip the work to fall back to its own
+    verdict).
   `tests/platform/clientRecordSanitizerBounds.test.mjs` pins each rule, and each
   was mutation-checked.
+* **A shared verdict the browser could not reach does not cost an attempt.**
+  When the in-browser shared grader cannot mark the work for a reason other
+  than "this mode is device-graded" (a malformed board, a newer contract), the
+  tool's Check does not submit, says so, and keeps the work
+  (`sharedVerdictWithholdsAttempt`, `tests/platform/ungradableSharedWorkRecordsNoAttempt.test.mjs`).
+* **Student supports cannot change a verdict.** The server grades the authored
+  question; the browser grades the supported one (translation,
+  reduce-complexity, prefill, chunking). No shared grader reads a field a
+  support can change; one that needs the wording reads `authoredPrompt`,
+  which a translation preserves
+  (`tests/platform/gradersIgnoreStudentSupports.test.mjs` plants tripwire
+  getters on every such field for every grader, and compares real supported
+  and authored verdicts).
+* **Student text is evaluated by a hardened mathjs.** Every module under
+  `functions/shared` that parses or evaluates text imports
+  `functions/shared/algebra/safeMath.mjs` instead of `mathjs`. Refused at parse
+  time (and, for functions, overridden in the namespace): `import`,
+  `createUnit`, `config`, `typed`, re-entrant `evaluate`/`parse`/`compile`/
+  `simplify`/`derivative`/`resolve`, ranges and matrix constructors (`zeros`,
+  `ones`, `identity`, `resize`, `concat`, ...), `random`, the functional
+  iterators, number-theory and combinatorics functions that run for seconds
+  (`isPrime`, `combinations`, `permutations`, `stirlingS2`, ...), assignment
+  into a matrix index (`x[3000,3000] = 1` resizes x), calls through anything
+  but a plain function name (`{a: det}["a"](...)`), object literals, and
+  constant scalar powers past ~1e308 (exact simplification of `9^9^9` would
+  build a number with hundreds of millions of digits). Expressions over 4,000
+  characters are refused. Ordinary algebra (including `y = 2x + 1` and
+  `f(x) = x^2`) parses, evaluates and simplifies exactly as on stock mathjs
+  (`tests/platform/safeMath.test.mjs`, which also fails if any shared module
+  imports `mathjs` directly). Several graders add their own, narrower
+  whitelist on top (Step Algebra, systems, sequences, the linear table,
+  composed workflows).
+* **Replay and draft recovery use the same grader.** The Student Response
+  Inspector's Replay / Apply Corrected Grade, and workspace-draft recovery,
+  now go through `gradeServerResponse` against the question
+  `resolveServerGradingQuestion` rebuilds, with the same pin validation, so a
+  teacher's replay reaches the verdict ingestion would
+  (`tests/platform/responseInspectorSharedReplay.test.mjs`).
 * **Authorization and subsystems untouched.** Server authorization checks,
   Secure Test Cycle, My Math Path and Live Challenge keep their own engines and
   rules; this change does not route them through the new registry.
@@ -620,6 +749,19 @@ are in the audit JSON.
 
 ## 10. Coverage after (generated from the manifest)
 
+**Before → after, by surface/mode row** (the rows below; the frozen audit in §9
+traces the same surfaces):
+
+| Authority | `main` @ `a7a3b4e` | This change |
+| --- | ---: | ---: |
+| Graded on the server from raw work | 5 (literal, multiAnswer, orderedPair, system, table) | 124 |
+| Specialized server subsystem | 0 (the Modeling Lab attempt was the browser's relayed claim) | 1 (Modeling Lab) |
+| Graded on the device (sanitized client record) | 123 | 3, each with a written blocker |
+| Non-graded / read-only | 6 | 6 |
+
+On `main` the Step Algebra family final-answer path also existed, but only
+Section Recovery and Pre-Flight called it (§2).
+
 <!-- grading-coverage:after:start (generated: node scripts/report-server-grading-coverage.mjs --write) -->
 49 surfaces, 134 surface/mode rows.
 
@@ -637,15 +779,15 @@ are in the audit JSON.
 | `orderedPair` | ordinary | — | shared server grader |  |
 | `system` | ordinary | — | shared server grader |  |
 | `table` | ordinary | — | shared server grader |  |
-| `fraction` | clientGraded | — | client-graded (documented blocker) | Each student's fraction sum is generated in their browser from a seed the server does not have, so the server cannot know which sum was asked. Every stored `fraction` question is regenerated per student before it renders: problemGenerator.generateQuestionFromKey runs generateFraction for type 'fraction' unconditionally (no `generator` object needed), drawing n1/d1/n2/d2 and the key ansNum/ansDen from createRandom(`${generationKey}\|v${generatorVersion}`), where generationKey is assignmentId\|student key\|question index\|variant and the denominators may be narrowed by the student's reduce-complexity support. The server holds only the overwritten stored numbers and none of those inputs, so it cannot know which sum the student was asked; the browser verdict (gradeFractionResponse) is kept, bounded by ingestion. Migrate such items to a Question Family template (rebuilt from its delivery pin) to make them server-graded. |
-| `numberLine` | clientGraded | — | client-graded (documented blocker) | Each student's target point is generated in their browser from a seed the server does not have, so the server cannot know which point was asked. Every stored `numberLine` question is regenerated per student before it renders: problemGenerator.generateQuestionFromKey runs generateNumberLine for type 'numberLine' unconditionally (no `generator` object needed), drawing the key `target` and the offered `choices` from createRandom(`${generationKey}\|v${generatorVersion}`), where generationKey is assignmentId\|student key\|question index\|variant. The server holds only the overwritten stored target and none of those inputs, so it cannot know which point the student was asked to find; the browser verdict (gradeNumberLineResponse) is kept, bounded by ingestion. Migrate such items to a Question Family template (rebuilt from its delivery pin) to make them server-graded. |
+| `fraction` | clientGraded | — | client-graded (documented blocker) | Each student's fraction sum is drawn in their browser from a per-student seed, so the stored question does not say which sum was asked. Every stored `fraction` question is regenerated before it renders: problemGenerator.generateQuestionFromKey runs generateFraction for type 'fraction' unconditionally (no `generator` object needed, so the generated-question exclusion never applies), replacing n1/d1/n2/d2 and the key ansNum/ansDen with draws from createRandom(`${generationKey}\|v${generatorVersion}`). generationKey is `assignmentId\|student key\|question index\|variant:N`, where the student key is the student's uid or a shared-version key chosen by the section's variant mode, and a replacement variant is re-rolled until it differs from the previous one. None of that is part of the authoritative question a shared grader receives (it grades (question, work) only), so the server cannot know the delivered sum; the browser verdict (gradeFractionResponse) is kept, bounded by ingestion. To make such an item server-graded, re-author it as a Question Family slot (the server rebuilds its instance from the delivery pin) whose instances are a server-graded type such as `literal`. |
+| `numberLine` | clientGraded | — | client-graded (documented blocker) | Each student's target point is drawn in their browser from a per-student seed, so the stored question does not say which point was asked. Every stored `numberLine` question is regenerated before it renders: problemGenerator.generateQuestionFromKey runs generateNumberLine for type 'numberLine' unconditionally (no `generator` object needed, so the generated-question exclusion never applies), replacing the key `target` and the offered `choices` with draws from createRandom(`${generationKey}\|v${generatorVersion}`). generationKey is `assignmentId\|student key\|question index\|variant:N`, where the student key is the student's uid or a shared-version key chosen by the section's variant mode, and a replacement variant is re-rolled until it differs from the previous one. None of that is part of the authoritative question a shared grader receives (it grades (question, work) only), so the server cannot know the delivered target; the browser verdict (gradeNumberLineResponse) is kept, bounded by ingestion. To make such an item server-graded, re-author it as a Question Family slot (the server rebuilds its instance from the delivery pin) whose instances are a server-graded type. |
 | `stepAlgebra` | question | — | shared server grader | A Step Algebra question with no equation the workspace can read (equation, equationAscii, initialEquation, equationLatex or leftExpression/rightExpression; a relation source; or an intercept line) opens "This question could not be loaded" on every device. It produces no work, so there is nothing to grade. |
 | `algebra` | question | — | shared server grader | A Step Algebra question with no equation the workspace can read (equation, equationAscii, initialEquation, equationLatex or leftExpression/rightExpression; a relation source; or an intercept line) opens "This question could not be loaded" on every device. It produces no work, so there is nothing to grade. |
 | `literalWorkspace` | question | — | shared server grader | A literal question that asked for the balance but whose formula or `solveFor` cannot be read is shown in the typed LiteralGrader instead; that answer is graded by the ordinary literal grader, which compares it with `acceptedAnswers`. With no `acceptedAnswers` the server has no key for the typed answer, so the device verdict is kept (sanitized and attempt-bounded). |
 | `functionCharacteristics` | nonGraded | — | non-graded / read-only | A bare `functionCharacteristics` question (no `recipe` and no `workflow`) is not composed, is not a registry tool and has no QuestionEngine case, so it renders the "could not be displayed" panel: its answer state never completes, Submit stays disabled and no attempt is recorded. With a recipe or workflow it is graded as the composedWorkflow surface. |
 | `figureMatch` | nonGraded | — | non-graded / read-only | A bare `figureMatch` question (no `recipe` and no `workflow`) is not composed, is not a registry tool and has no QuestionEngine case, so it renders the "could not be displayed" panel: its answer state never completes, Submit stays disabled and no attempt is recorded. With a recipe or workflow it is graded as the composedWorkflow surface. |
 | `graphChoicePreview` | nonGraded | — | non-graded / read-only | A bare `graphChoicePreview` question (no `recipe` and no `workflow`) is not composed, is not a registry tool and has no QuestionEngine case, so it renders the "could not be displayed" panel: its answer state never completes, Submit stays disabled and no attempt is recorded. With a recipe or workflow it is graded as the composedWorkflow surface. |
-| `composedWorkflow` | question | — | shared server grader | Its graph-building step is marked by the graph workspace in the student's browser, which the server cannot repeat. A composed workflow with a graph-construction stage (coordinatePlot or functionGraph) is graded on the device: that stage is built and marked inside InteractiveGraphWorkspace.jsx (a React component) from point placements, snapping and zoom state the workflow response does not carry, and the workflow keeps only that component's own isCorrect / partialCreditPercent / isComplete claim (gradeStage's useStageVerdict branch). The response contract strips the claimed verdict, so the server can neither reproduce the stage mark nor confirm the graph was finished until the graph-workspace grading is a pure shared module. |
+| `composedWorkflow` | question | — | shared server grader | One of its step, figure or table-cell names is a word the grading contract reserves, so that work cannot reach the server intact. A stage id, figure id or table-cell key in this composed workflow is one the tool-response contract strips or bounds (a verdict or answer-key name such as `score` or `solution`, a prototype key, a key longer than 80 characters, or more than 120 of them), so that stage's work could not reach the server intact; the question stays graded on the device. |
 | `modelingLab` | subsystem | — | specialized server subsystem | Evaluated by the submitModelingLab callable; the gradebook attempt is recorded from its server-written modelingLabSubmissions marker. |
 | `platformQuestionError` | nonGraded | — | non-graded / read-only | A placeholder shown when MathMaster could not prepare a question; the student cannot answer it and no attempt is recorded. |
 | `graphing` | tool | `lineFeatures` | shared server grader |  |
@@ -770,18 +912,36 @@ are in the audit JSON.
 
 ## 11. What is still graded on the device, and why
 
-Every `client-graded (documented blocker)` row in §10 carries its reason, in
-the declaration itself. They fall into a few kinds:
+Every `client-graded (documented blocker)` row in §10 carries its reason in the
+declaration itself:
 
-* **The work is not reproducible from what the student did.** Freehand sketches
-  are judged in screen space against the student's zoom, so the same strokes
-  can pass on one screen and fail on another.
-* **The delivered question cannot be rebuilt.** Legacy seeded generators,
-  variant pools and adaptive band profiles generate in the browser from a seed
-  the server does not re-run. These questions are excluded on every surface;
-  moving the content to Question Families makes them server-gradable.
-* **The verdict depends on state the tool does not submit**, or on a client
-  verdict carried inside the work.
+* **`fraction` and `numberLine`.** Every stored question of these types is
+  regenerated per student in the browser (`problemGenerator`) from a seed built
+  from the assignment, the student, the question index and the variant, which
+  the server does not reconstruct. The browser's verdict is kept, sanitized and
+  attempt-bounded. Moving such items into a Question Family (rebuilt from its
+  delivery pin) makes them server-graded.
+* **`stepAlgebra2` / `linearIntercepts`.** Never actually rendered by the
+  registry tool: the runtime repair rewrites every such stored question to the
+  Step Algebra intercepts route, which *is* server-graded. Declared so the
+  gate has an honest row for the mode name.
+
+Some questions are declined **per question** on otherwise server-graded
+surfaces, always with a stated reason, and keep the bounded client record:
+
+* questions whose delivered form the server cannot rebuild — legacy seeded
+  generators, variant pools and adaptive band profiles (§3.3);
+* a composed question whose stage, figure or table-cell id is a key the
+  response contract strips (`work-key-not-contract-safe`);
+* a balance literal whose workspace cannot be built and whose typed box has no
+  `acceptedAnswers` (`mode-not-server-gradable:answerBox`);
+* a response captured by a client built before this change, still in an
+  offline queue (`legacy-unstructured-response`);
+* Step Algebra per-step process credit (`stepSubmission`) from a client that
+  does not send the step's raw work (see §7).
+
+Specialized subsystems keep their own engines, unchanged: Secure Test Cycle,
+My Math Path and Live Challenge.
 
 ## 12. Known limitations outside this change
 
@@ -792,15 +952,47 @@ the declaration itself. They fall into a few kinds:
   makes the server's record correct; it cannot stop a hostile client from
   overwriting it. Closing that needs every gradebook write to move behind the
   server, which is a separate project with offline-first consequences.
-* **My Math Path and Live Challenge contracts diverge from the tools.** The
-  audit's divergences (relationMapping `isFunction`, systemsWorkspace mode
-  dispatch, data-modeling prediction, graph tolerances, all-or-nothing scoring)
-  are recorded in the audit JSON. Path is its own server-authoritative
-  subsystem; migrating its contracts to the shared graders changes live Path
-  scores and is left to a dedicated change.
+* **My Math Path and Live Challenge contracts diverge from the tools.** Path
+  is its own server-authoritative subsystem, and migrating its contracts to
+  the shared graders would change live Path scores, so it is left to a
+  dedicated change. Fixed here: the relation-mapping functionhood vocabulary
+  (every correct answer was marked wrong). Still divergent, from the audit and
+  the tool reviews: relation mapping (`yes-output-rule` accepted, domain and
+  range compared as multisets, a 1e-6 tolerance, plot and analysis fields
+  ignored); systems workspace (every mode but inequalities and matrix3 treated
+  as `linear`); data modeling (causation, intercept default, a line fit with a
+  prediction graded on the fit alone); Step Algebra (form objectives,
+  candidate checks and representations ignored). Path's `algebra` contract
+  cannot read the balance workspace's answer, but the Path question bank holds
+  no `algebra` items. The shared graders export the helpers Path can adopt.
 * **Secure Test Cycle issuability.** The audit found the issuability gate accepts
   any Path tool-contract family while the secure runtime grades with the legacy
   field grader. Recorded for the Test Cycle owners; unchanged here.
+* **Provisional pins are only partly verifiable.** A student the class has not
+  seated yet gets a provisional seat derived from their learner token and the
+  class size at that moment. The server checks that a provisional pin's index
+  is the allocator's index for its seat and that the instance matches its
+  fingerprint, but it cannot recompute the class size the browser saw, so it
+  cannot prove which provisional seat was this student's. A student who forges
+  a provisional pin can choose *which* instance of the family to answer — never
+  credit for an instance they did not answer correctly. Seating the class
+  (which every roster sync does) closes it for that assignment.
+* **A pin's support modification is the browser's claim.** A family can narrow
+  its parameters for a student support (`supportConstraints`), and the pin
+  names the support it was built under. The server rebuilds and grades that
+  instance faithfully but does not cross-check the support against the
+  student's profile at delivery time. As above, this can choose an instance; it
+  cannot turn a wrong answer into credit.
+* **Other content-upgrade regrades.** The content-upgrade migration's own
+  regrades for safe response controls and systems-workspace upgrades keep their
+  existing logic; only the Data Modeling prediction case (§2) was corrected.
+* **Small, documented edges kept for parity.** A points-only graph with no
+  point tasks is vacuously complete; free text past 3,000 characters in one
+  scenario textarea is graded on its first 3,000; a hand-authored workflow with
+  two maximal sketches and every answer at its cap is oversize (refused, no
+  attempt spent); Step Algebra's relation scan can miss a touching root far
+  outside ±50 that is off its grid. Each is pinned or described in its test
+  file.
 * **The envelope guard scans keys to depth 6.** Tool work has its own stronger
   guarantee (every depth, both sides), so the gap applies only to legacy
   envelope fields.
