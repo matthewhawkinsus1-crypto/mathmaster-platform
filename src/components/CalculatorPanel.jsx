@@ -9,6 +9,11 @@ import CalculatorIcon from './common/CalculatorIcon.jsx';
 
 export { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
 
+// Work View is an application-modal layer at z-index 2147483000. The calculator
+// is a platform affordance launched from inside that modal, so its fixed panel
+// must sit above the Work View shell or the click succeeds invisibly behind it.
+const CALCULATOR_LAYER_Z_INDEX = 2147483200;
+
 const buttonSpec = (raw) => {
   const value = String(raw ?? '');
   if (value === 'C') return { label: 'C', action: 'clear' };
@@ -366,7 +371,7 @@ export const CalculatorPanel = ({
     };
 
   return (
-    <div className={`mathmaster-calculator-drawer ${isOpen ? 'is-open' : ''}`} style={{ position: showLauncher ? 'relative' : 'static', zIndex: isOpen ? 9000 : 'auto' }}>
+    <div className={`mathmaster-calculator-drawer ${isOpen ? 'is-open' : ''}`} style={{ position: showLauncher ? 'relative' : 'static', zIndex: isOpen ? CALCULATOR_LAYER_Z_INDEX : 'auto' }}>
       {showLauncher ? (
         <button
           className="mathmaster-calculator-toggle"
@@ -405,7 +410,7 @@ export const CalculatorPanel = ({
             border: '1px solid #dadce0',
             padding: '16px',
             boxSizing: 'border-box',
-            zIndex: 9001,
+            zIndex: CALCULATOR_LAYER_Z_INDEX + 1,
             ...panelStyle,
           }}
         >
