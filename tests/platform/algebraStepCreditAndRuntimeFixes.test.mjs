@@ -252,7 +252,8 @@ test('closed DOL gradebook display recalculates from saved question records inst
     /const grades = projectTeacherOverridesForDisplay\(student\.gradesByAssignment \|\| \{\}, student\.teacherGradeOverridesByAssignment \|\| \{\}\)\?\.\[selectedAssignment\.id\]/,
     'the teacher row should recalculate from saved question records with any still-valid server-owned teacher override projected on top',
   );
-  assert.match(row, /splitGradesBySection\(\{\s*tracker:\s*grades,\s*assignment:\s*selectedAssignment\s*\}\)/);
+  // (practicePassRedeemed: a student who used a Practice Pass has Practice excused.)
+  assert.match(row, /splitGradesBySection\(\{\s*tracker:\s*grades,\s*assignment:\s*selectedAssignment(,\s*practicePassRedeemed)?\s*\}\)/);
   assert.match(row, /sectionGrades\.dol\.score/);
 
   // The frozen snapshot must not be what the teacher is shown.

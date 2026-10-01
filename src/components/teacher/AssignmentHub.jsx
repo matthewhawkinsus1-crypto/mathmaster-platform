@@ -8,6 +8,7 @@ import { describeClassLesson } from '../../platform/teacher/classLessonControls.
 import { classGradeProgress, classLiveProgress, PASSING_DISPLAY_THRESHOLD } from '../../platform/teacher/assignmentProgress.js';
 import { AssignmentLessonRows } from './ClassLessonControls.jsx';
 import AssignmentSupportLayer from './AssignmentSupportLayer.jsx';
+import { useClassPracticePasses } from '../../platform/rewards/useClassPracticePasses.js';
 import './teacherWorkspace.css';
 
 /*
@@ -163,6 +164,10 @@ export default function AssignmentHub({
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
 
+  // A student excused from Practice by a Practice Pass is not "not finished".
+  // Called before the early return below: hooks run on every render.
+  const hasPracticePass = useClassPracticePasses(open && assignment ? classId : null);
+
   if (!open || !assignment) return null;
 
   const classRecord = assignedClasses.find((entry) => entry.classId === classId) || null;
@@ -181,9 +186,9 @@ export default function AssignmentHub({
   const grades = !classContext
     ? null
     : hasGradeRecords
-      ? classGradeProgress({ assignment, roster, hasGradeRecords, nameOf })
+      ? classGradeProgress({ assignment, roster, hasGradeRecords, nameOf, hasPracticePass })
       : fetched?.students
-        ? classGradeProgress({ assignment, roster: fetched.students, hasGradeRecords: true, nameOf })
+        ? classGradeProgress({ assignment, roster: fetched.students, hasGradeRecords: true, nameOf, hasPracticePass })
         : null;
   const loadGrades = async () => {
     if (!onLoadClassGrades || !classContext) return;

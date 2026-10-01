@@ -91,14 +91,17 @@
   margin: 0;
   font-size: 14px;
   font-weight: 800;
-  color: var(--mm-ink);
+  /* The theme-aware text tokens (index.css), not --mm-ink, which has no dark
+     value: on the dark toast surface the title was near-invisible. Same
+     colors as before in light mode. */
+  color: var(--mm-text-strong, var(--mm-ink));
 }
 
 .mm-toast__message {
   margin: 4px 0 0;
   font-size: 13px;
   line-height: 1.5;
-  color: var(--mm-ink-muted);
+  color: var(--mm-text-muted, var(--mm-ink-muted));
   /* Long assignment titles and error strings must not blow out the toast. */
   overflow-wrap: anywhere;
   white-space: pre-line;

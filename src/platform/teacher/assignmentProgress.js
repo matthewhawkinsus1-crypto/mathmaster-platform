@@ -27,15 +27,23 @@ export const PROGRESS_STATE = Object.freeze({
 
 export const PASSING_DISPLAY_THRESHOLD = 70;
 
-/** One student's standing on one assignment, from their full grade record. */
-export const studentAssignmentProgress = ({ student, assignment }) => {
+/**
+ * One student's standing on one assignment, from their full grade record.
+ *
+ * `practicePassRedeemed`: this student used a Practice Pass here, so Practice
+ * is excused — removed from the grade and from completion exactly as the
+ * student's Grade Center and the Classroom passback already remove it. The
+ * teacher's view must not call that student incomplete for work they were
+ * excused from.
+ */
+export const studentAssignmentProgress = ({ student, assignment, practicePassRedeemed = false }) => {
   const override = assignmentGradeOverrideFor(student, assignment?.id);
   const tracker = projectTeacherOverridesForDisplay(
     student?.gradesByAssignment || {},
     student?.teacherGradeOverridesByAssignment || {},
   )?.[assignment?.id] || null;
-  const split = splitGrade({ tracker, assignment });
-  const score = canonicalPresentedAssignmentGrade({ student, assignment });
+  const split = splitGrade({ tracker, assignment, practicePassRedeemed });
+  const score = canonicalPresentedAssignmentGrade({ student, assignment, practicePassRedeemed });
   let state = PROGRESS_STATE.IN_PROGRESS;
   if (override || split.shape === GRADE_SHAPE.COMPLETE || split.shape === GRADE_SHAPE.EXCUSED) state = PROGRESS_STATE.COMPLETE;
   else if (!tracker || split.shape === GRADE_SHAPE.NOT_STARTED) state = PROGRESS_STATE.NOT_STARTED;
@@ -46,6 +54,7 @@ export const studentAssignmentProgress = ({ student, assignment }) => {
     total: split.total || 0,
     creditOnAttempted: split.creditOnAttempted ?? null,
     teacherOverride: Boolean(override),
+    practicePassExcused: Boolean(practicePassRedeemed),
   };
 };
 
@@ -69,9 +78,22 @@ const byName = (left, right) => String(left.name).localeCompare(String(right.nam
  * grade records (the lightweight live roster carries no grades), so callers can
  * say "open Grades for scores" instead of reporting a class of zeros.
  */
-export const classGradeProgress = ({ assignment, roster = [], hasGradeRecords = true, nameOf = (student) => student?.displayName || student?.id }) => {
+export const classGradeProgress = ({
+  assignment,
+  roster = [],
+  hasGradeRecords = true,
+  nameOf = (student) => student?.displayName || student?.id,
+  // (student, assignment) => whether that student has Practice excused by a
+  // Practice Pass here. Absent → nobody does (the screen has not loaded it).
+  hasPracticePass = () => false,
+}) => {
   if (!assignment || !hasGradeRecords) return null;
-  const rows = roster.map((student) => ({ student, id: student.id, name: nameOf(student), ...studentAssignmentProgress({ student, assignment }) }));
+  const rows = roster.map((student) => ({
+    student,
+    id: student.id,
+    name: nameOf(student),
+    ...studentAssignmentProgress({ student, assignment, practicePassRedeemed: hasPracticePass(student, assignment) === true }),
+  }));
   // The class average is over FINISHED work only; averaging half-done
   // assignments reports a completion gap as a performance problem.
   const finished = rows.filter((row) => row.state === PROGRESS_STATE.COMPLETE && row.score !== null);
