@@ -27,6 +27,7 @@ import {
   explainWorkspaceDraftRejection,
   isSyncableDraftKey,
 } from '../../../functions/shared/workspaceDraftSchema.mjs';
+import { projectDraftForServer } from './serverDraftProjection.js';
 
 const MAX_REMEMBERED = 40;
 const remembered = new Map();
@@ -91,11 +92,14 @@ export const reportDraftSyncRejection = ({ key, explanation, source = 'sync' } =
  * Called from `writeQuestionDraft` for every syncable key. In production it
  * returns immediately — the sync reports what it refuses — so a student's
  * keystroke pays nothing for it.
+ *
+ * It judges what the server would be SENT, which is the draft or its server
+ * projection (serverDraftProjection.js) — the same value the sync checks.
  */
 export const auditDraftWrite = (key, value) => {
   if (!developmentBuild()) return null;
   if (!key || !isSyncableDraftKey(key)) return null;
-  const explanation = explainWorkspaceDraftRejection(value);
+  const explanation = explainWorkspaceDraftRejection(projectDraftForServer(key, value));
   if (explanation.ok) return null;
   return reportDraftSyncRejection({ key, explanation, source: 'write' });
 };

@@ -27,6 +27,7 @@ import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../int
 import { checkedGraphIsPointOnly, graphWindowOnly, studentPlottedPoints, workflowEndpointMarkers, workflowGraphDomainRestriction, workflowRequiresEndpointMarkers } from './workflowGraphVisuals.js';
 import { resolveWorkflowTaskPrompt, selectPersistentWorkflowGraph } from './workflowPresentation.js';
 import { buildWorkflowReviewState, firstIncorrectWorkflowIndex } from './workflowReviewState.js';
+import { graphArtifactAwaitsVerdict, stagesAwaitingVerdict } from './workflowDraftProjection.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../workView/useMathUndoHistory.js';
 import { useWorkViewPresentation } from '../workView/workViewPresentation.js';
 import { ToolDraftScopeProvider } from '../../tools/shared/usePersistentToolState.js';
@@ -1163,6 +1164,14 @@ export default function WorkflowRunner({
     0,
   );
 
+  // Graph steps that came back from the server copy without their verdict
+  // (workflowDraftProjection.js), by id. Always empty on the device that did
+  // the work.
+  const restoredGraphStepIds = Object.entries(isObject(responses) ? responses : {})
+    .filter(([, value]) => graphArtifactAwaitsVerdict(value))
+    .map(([stageId]) => stageId)
+    .join(',');
+
   // Composed questions own mathematical state at the workflow level for simple
   // stages such as domain/range/classification. Register that state with
   // Universal Undo so Work View does not show a permanently disabled Undo.
@@ -1173,7 +1182,15 @@ export default function WorkflowRunner({
     label: 'Undo the last answer in these steps',
     state: responses,
     onRestore: setResponses,
-    resetKey: questionUndoResetKey(question),
+    // A restored graph step getting its verdict back is its workspace
+    // reporting work the student already did, not an edit, so Undo starts
+    // again from there. Recorded as an edit, one Undo would put the
+    // verdict-less step back, the open workspace would report again, and Undo
+    // could never get past that entry. Where nothing was restored — every
+    // device that did its own work — the key is the question's, as before.
+    resetKey: restoredGraphStepIds
+      ? `${questionUndoResetKey(question)}|restored:${restoredGraphStepIds}`
+      : questionUndoResetKey(question),
     ownerId: 'workflow-responses',
     priority: -1,
   });
@@ -1569,6 +1586,15 @@ export default function WorkflowRunner({
 
   const activeFamily = stageFamily(activeStage?.kind);
   const activeReviewStatus = reviewByStageId.get(activeStage?.id)?.status || (activeAnswered ? 'draft' : 'unanswered');
+  // Graph steps restored without their verdict, other than the one on screen
+  // (that one's workspace is open and is already working it out). Opening a
+  // step mounts its workspace, which reports again from the student's own
+  // construction; until then the question cannot be submitted. Only steps the
+  // navigator would open: one after an unfinished step waits its turn, as any
+  // unanswered step does.
+  const restoredGraphSteps = stagesAwaitingVerdict(workflow, responses)
+    .map((stage) => ({ stage, index: workflow.indexOf(stage) }))
+    .filter(({ stage, index }) => stage.id !== activeStage?.id && index <= furthestReachableIndex);
   // Answered steps rather than position, so the rail measures work done, not
   // how far the student has clicked.
   const railPercent = workflow.length
@@ -1669,6 +1695,39 @@ export default function WorkflowRunner({
                 </button>
               );
             })}
+          </div>
+        </section>
+      ) : null}
+
+      {/* WORK THAT CAME BACK FROM ANOTHER DEVICE, WAITING TO BE OPENED.
+          The server copy of a graph step carries no verdict, so the step is
+          not an answer until its workspace has been opened here. Saying so,
+          with the way there, beats a Submit button that is simply off. */}
+      {restoredGraphSteps.length ? (
+        <section className="workflow-focus__restored-notice" role="status" aria-label="Work brought back from another device">
+          <div>
+            <strong>
+              {restoredGraphSteps.length === 1
+                ? 'Your graph came back from another device.'
+                : 'Your graphs came back from another device.'}
+            </strong>
+            <span>
+              {restoredGraphSteps.length === 1
+                ? ' Open its step to finish bringing it back, then you can submit.'
+                : ' Open each of their steps to finish bringing them back, then you can submit.'}
+            </span>
+          </div>
+          <div className="workflow-focus__review-links">
+            {restoredGraphSteps.map(({ stage, index }) => (
+              <button
+                key={stage.id}
+                type="button"
+                className="workflow-focus__restored-link"
+                onClick={() => goToStage(index)}
+              >
+                Open Step {index + 1}: {getStage(stage.kind)?.label || stage.kind}
+              </button>
+            ))}
           </div>
         </section>
       ) : null}

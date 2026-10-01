@@ -19,6 +19,7 @@ import {
 } from '../../../functions/shared/workspaceDraftSchema.mjs';
 import { parseQuestionDraftKey } from '../../questionDraftStorage.js';
 import { reportDraftSyncRejection } from './draftSyncDiagnostics.js';
+import { projectDraftForServer } from './serverDraftProjection.js';
 
 export const WORKSPACE_DRAFT_DEBOUNCE_MS = 2500;
 
@@ -134,12 +135,17 @@ export const createWorkspaceDraftSync = ({
       if (!identity || !['student', 'practice'].includes(identity.sessionBucket)) { stats.skipped += 1; return false; }
       if (identity.studentId !== String(studentId) || identity.assignmentId !== String(assignmentId)) { stats.skipped += 1; return false; }
       if (!isSyncableDraftKey(key)) { stats.skipped += 1; return false; }
-      if (!sanitizeWorkspaceDraftValue(value).ok) {
+      // What the server may hold of this draft (serverDraftProjection.js):
+      // the draft itself, except where the device's copy keeps a verdict the
+      // student-readable server copy must not. The guard below judges exactly
+      // what would be sent.
+      const serverValue = projectDraftForServer(key, value);
+      if (!sanitizeWorkspaceDraftValue(serverValue).ok) {
         // Refused by the guard, which stays exactly as strict. What changes is
         // that someone hears about it: the path and reason go to the console
         // once (see draftSyncDiagnostics.js). The student is told nothing —
         // their local draft is still durable.
-        const explanation = explainWorkspaceDraftRejection(value);
+        const explanation = explainWorkspaceDraftRejection(serverValue);
         stats.skipped += 1;
         stats.rejected[explanation.reason] = (stats.rejected[explanation.reason] || 0) + 1;
         reportDraftSyncRejection({ key, explanation, source: 'sync' });
@@ -147,7 +153,7 @@ export const createWorkspaceDraftSync = ({
       }
       pending.set(key, {
         key,
-        value,
+        value: serverValue,
         savedAt: Number(savedAt) || now(),
         questionIndex: identity.questionIndex,
         variantIndex: identity.variantIndex,

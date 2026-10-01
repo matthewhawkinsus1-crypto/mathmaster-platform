@@ -21,6 +21,7 @@ import { compareMathAnswer, looksLikeFiniteSetNotation, normalizeMathAnswer, par
 import { sameIntervalNotation } from '../../../functions/shared/answerEquivalence.mjs';
 import { isAlgebraicallyEquivalent } from '../../grading/equivalence.js';
 import { activeStageIds, hasStageResponse } from './questionWorkflow.js';
+import { graphArtifactAwaitsVerdict } from './workflowDraftProjection.js';
 import { matchItems, readFigureMatch } from './figureMatch.js';
 import { canonicalizeFunctionExpression, evaluateModelAt, evaluateNumericValue, parseFunctionModel, toEvaluableExpression } from './modelExpression.js';
 export { evaluateModelAt, evaluateNumericValue, toEvaluableExpression } from './modelExpression.js';
@@ -622,6 +623,26 @@ export const gradeStage = ({ stage, rule, responses = {}, stages = [] }) => {
     ? Math.min(20, Number(stage.scoreWeight))
     : 1;
   const base = { id: stage.id, label: stage.prompt || stage.kind, isComplete: answered, weight };
+
+  // A GRAPH STEP WITHOUT ITS VERDICT IS NOT MARKED AT ALL.
+  //
+  // It came back from the server copy, which never holds a verdict
+  // (workflowDraftProjection.js), and its verdict is the plotting workspace's
+  // own — finer than anything rebuildable here. Read as `isCorrect: false` it
+  // would mark a right graph wrong without anyone having checked it. So it is
+  // not graded and not complete: the question waits until the step is opened
+  // and its workspace has worked the verdict out again from the student's
+  // construction.
+  if (graphArtifactAwaitsVerdict(response)) {
+    return {
+      ...base,
+      isComplete: false,
+      graded: false,
+      isCorrect: false,
+      credit: 0,
+      detail: 'Open this step so your graph can be brought back.',
+    };
+  }
 
   if (rule === undefined || rule === null) {
     return { ...base, graded: false, isCorrect: false, credit: 0, detail: 'Reviewed by your teacher.' };

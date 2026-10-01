@@ -19,6 +19,7 @@ import { expandRecipe } from './questionRecipes.js';
 import { choicePreviewProblems } from './choicePreview.js';
 import { figureMatchKeyProblems, figureMatchProblems } from './figureMatch.js';
 import { repairQuestionForCurrentRuntime } from '../assignments/assignmentRuntimeRepair.js';
+import { graphArtifactAwaitsVerdict } from './workflowDraftProjection.js';
 
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
 
@@ -41,7 +42,12 @@ export const hasStageResponse = (value) => {
     // finished the stage. Downstream work must wait for the artifact itself
     // to say it is complete; otherwise a graph could unlock after only one
     // table cell was entered.
-    if (value.__mathmasterWorkflowArtifact) return value.isComplete === true;
+    //
+    // A graph step that came back from the server copy has no verdict
+    // (workflowDraftProjection.js). It is not an answer until its workspace
+    // has been opened and has worked the verdict out again: never graded,
+    // never submitted around, and never closed by a later step.
+    if (value.__mathmasterWorkflowArtifact) return value.isComplete === true && !graphArtifactAwaitsVerdict(value);
     return Object.values(value).some((entry) => hasStageResponse(entry));
   }
   return true;
