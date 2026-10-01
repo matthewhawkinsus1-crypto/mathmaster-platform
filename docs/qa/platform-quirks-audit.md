@@ -467,7 +467,7 @@ updated record back); that is a harness limitation, not a product finding.
     `mathUndoTyping.test.mjs`, `boardPlatformUndo.test.mjs` and
     `tests/tools/linearMultipleRepresentationsUndo.test.mjs`.
 
-- **Update 2026-10-01:** blockers 1 and 2 below are fixed platform-wide. A run of typing in one field is one Undo step (`mathUndoStack.js`), and a math field's own Ctrl+Z no longer replays what a platform Undo removed (`MathInput` `resetUndo()`). Gate: `tests/browser/undoTyping.mjs`. Wiring the whole board (3, 4) is still open; see `platform-engineering-deep-dive-2026-10-01.md`.
+- **Update 2026-10-01:** blockers 1 and 2 below are fixed platform-wide. A run of typing in one field is one Undo step (`mathUndoStack.js`), and a math field's own Ctrl+Z no longer replays what a platform Undo removed (`MathInput` `resetUndo()`). Gate: `tests/browser/undoTyping.mjs`. Wiring the whole board (3, 4) was still open when this note was written; it is fixed since ("items 3 and 4 — fixed", above).
 
 - **Now:** the Multiple Representations board's platform Undo covers its three
   graphs (PR #398, R-14); typed fields keep MathLive's in-field Ctrl+Z; table
@@ -794,7 +794,7 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   - A point-only plot has no check. Its points are graded as placed and stay movable until submission.
   - The curve and reflection checks still gate drawing, but they name no point and teach no rule.
   - Workflow grading never read `pointsValidated`. Point parts are graded from the placements.
-  - **Still open:** a curve's check is a yes/no that a student can repeat. Counting it as an attempt is the assessment owner's decision.
+  - **Still open when this note was written:** a curve's check was a yes/no that a student could repeat. Fixed since ("Fixed (cleanup of PRs #407/#408)", above): where outcomes are withheld there is no check to repeat, and the curve is graded at submission.
   - Gate: `tests/browser/graphPointCheck.mjs`.
 
 - **Surface:** `InteractiveGraphWorkspace` point tasks (staged `coordinatePlot`
