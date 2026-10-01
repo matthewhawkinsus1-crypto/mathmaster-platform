@@ -115,3 +115,59 @@ test('the box being typed into is scrolled above the number keypad, not left und
   scrollFocusedControlVertically(target, { root: null, margin: 12, windowObject: { visualViewport: { scale: 1 } }, documentObject: { querySelector: () => null } });
   assert.equal(calls.length, 0);
 });
+
+// A small DOM: each element knows its classes, its computed overflow and its
+// parent, and `closest` honours the selector list like a browser does.
+const element = (className, { overflowY = 'visible', rect = null, parent = null } = {}) => {
+  const node = {
+    className,
+    parentElement: parent,
+    style: { overflowY },
+    scrollLeft: 0,
+    scrolled: [],
+    getBoundingClientRect: () => rect || { top: 0, bottom: 844, left: 0, right: 390, height: 844 },
+    scrollBy(options) { this.scrolled.push(options.top); },
+    matches(selectors) { return selectors.split(',').some((selector) => className.split(/\s+/).includes(selector.trim().replace(/^\./, ''))); },
+    closest(selectors) {
+      for (let current = this; current; current = current.parentElement) if (current.matches?.(selectors)) return current;
+      return null;
+    },
+  };
+  return node;
+};
+const windowObject = { visualViewport: { scale: 1 }, getComputedStyle: (node) => ({ overflowY: node.style.overflowY }) };
+
+test('a typed stage in a staged Work View scrolls its own step body above the keypad (PQ-037)', async () => {
+  const { scrollFocusedControlVertically } = await import('../../src/platform/mobile/mobileFocusViewport.js');
+  // 390x844, staged Work View, keypad up: the step body (the real scroller)
+  // ended at 391 and the keys began at 570; row 7 of the table sat at 547-591.
+  // The nearest scroller found used to be the page's tool workspace BEHIND the
+  // modal, so the box being typed into stayed off screen.
+  const page = element('math-tool-workspace', { overflowY: 'auto' });
+  const surface = element('mathmaster-work-view-surface', { overflowY: 'hidden', parent: page });
+  const body = element('workflow-focus__workspace-body', { overflowY: 'auto', parent: surface, rect: { top: 183, bottom: 391, left: 8, right: 382 } });
+  const stage = element('workflow-focus__active-stage', { overflowY: 'visible', parent: body });
+  const cell = { getBoundingClientRect: () => ({ top: 547, bottom: 591, left: 200, right: 280 }), closest: (selectors) => stage.closest(selectors) };
+  const keypad = { getBoundingClientRect: () => ({ top: 570, bottom: 844, left: 0, right: 390, height: 274 }) };
+  const documentObject = { querySelector: (selector) => (selector === '.mathmaster-mobile-numeric-keypad' ? keypad : null) };
+
+  scrollFocusedControlVertically(cell, { root: null, margin: 12, windowObject, documentObject });
+  assert.deepEqual(body.scrolled, [591 - (391 - 12)], 'the step body scrolls the box to its visible bottom');
+  assert.deepEqual(page.scrolled, [], 'nothing behind the modal is scrolled');
+
+  // Beside a persistent graph the active stage itself is the scroller.
+  const graphBody = element('workflow-focus__workspace-body workflow-focus__workspace-body--with-graph', { overflowY: 'hidden', parent: surface });
+  const graphStage = element('workflow-focus__active-stage', { overflowY: 'auto', parent: graphBody, rect: { top: 300, bottom: 500, left: 8, right: 382 } });
+  const graphCell = { getBoundingClientRect: () => ({ top: 520, bottom: 560, left: 40, right: 120 }), closest: (selectors) => graphStage.closest(selectors) };
+  scrollFocusedControlVertically(graphCell, { root: null, margin: 12, windowObject, documentObject: { querySelector: () => null } });
+  assert.deepEqual(graphStage.scrolled, [560 - (500 - 12)]);
+  assert.deepEqual(page.scrolled, []);
+
+  // Embedded, neither scrolls: the search walks past them to the page, as before.
+  const embeddedPage = element('math-tool-workspace', { overflowY: 'auto', rect: { top: 300, bottom: 700, left: 0, right: 390 } });
+  const embeddedBody = element('workflow-focus__workspace-body', { overflowY: 'visible', parent: embeddedPage });
+  const embeddedStage = element('workflow-focus__active-stage', { overflowY: 'visible', parent: embeddedBody });
+  const embeddedCell = { getBoundingClientRect: () => ({ top: 720, bottom: 760, left: 40, right: 120 }), closest: (selectors) => embeddedStage.closest(selectors) };
+  scrollFocusedControlVertically(embeddedCell, { root: null, margin: 12, windowObject, documentObject: { querySelector: () => null } });
+  assert.deepEqual(embeddedPage.scrolled, [760 - (700 - 12)]);
+});

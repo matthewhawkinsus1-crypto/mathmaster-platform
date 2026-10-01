@@ -19,8 +19,21 @@ const LOCKED_CONTAINER_SELECTOR = [
   '.mathmaster-question-stage',
 ].join(',');
 
+/*
+ * In a staged question's Work View the surface does not scroll — the active
+ * step's body does (`.workflow-focus__workspace-body`, or the active stage
+ * itself beside a persistent graph; WorkViewShell.css). Without them the
+ * nearest scroller found was the page's `.math-tool-workspace` BEHIND the
+ * modal, so the box being typed into stayed where the keypad had pushed it:
+ * at 390x844, a table stage's row 7 sat at y 547-591 with the keys at 570 and
+ * the step body ending at 391 — typed into, and nowhere on screen (PQ-037).
+ * Embedded, neither element scrolls (overflow visible), so the search walks
+ * past them exactly as before.
+ */
 const VERTICAL_SCROLL_SELECTOR = [
   '.question-prompt-panel',
+  '.workflow-focus__active-stage',
+  '.workflow-focus__workspace-body',
   '.mathmaster-work-view-surface',
   '.math-tool-workspace',
   '.mathmaster-mobile-local-scroll',
