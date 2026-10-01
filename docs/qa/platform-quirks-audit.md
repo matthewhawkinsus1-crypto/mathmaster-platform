@@ -253,25 +253,35 @@ updated record back); that is a harness limitation, not a product finding.
   JS heap and DOM size, printed as a slowest-scenes table and a per-device heap
   line; `WORK_VIEW_CERTIFICATION_TOOL` to run one tool. The timeout was **not**
   simply raised for every scene.
-- **Runs on this branch:**
-  - After the Known 1/4/5/9 fixes: **all seven devices, 161 scenes in 538 s**.
-    One finding — `revealWorkViewTarget is not defined` on laptop · Linear
-    Table Workbench — was the HMR artifact described below (a page loaded
-    between two of my edits) and did not recur.
-  - On the final code: chromebook (122 s), laptop (86 s), tablet-portrait
-    (167 s), tablet-landscape and iphone-portrait **ran to completion**, then the
-    VM ran out of memory (kernel: `virtio_balloon … Out of puff!`, `kswapd0` at
-    45%, ~50 MB free) and the renderer died at iphone-landscape · Sequence
-    Explorer. That harness version printed findings only at the end, so the
-    verdicts for those five devices were lost with the crash. The harness now
-    prints every scene's time, heap and findings as it goes, recovers from a
-    crashed page on a fresh context, and stops with one clear line if the
-    browser process itself is killed.
-  - A per-device re-run was then stopped by Claude Code's memory reaper while
-    the session was idle; as that notice instructs, it was **not restarted**.
-    **The final code still needs one clean certification run**, one device per
-    process: `WORK_VIEW_CERTIFICATION_DEVICE=<id> node tests/browser/workViewCertification.mjs`
-    on a machine with ≥1 GB free.
+- **Final certification — merged head `13ce82c1`** (after reconciling with
+  `main`/PR #400), one device per process, local Chrome, warm server:
+
+  | Device | Scenes | Findings | Time | Mean / slowest scene | JS heap first → last (max) |
+  | --- | --- | --- | --- | --- | --- |
+  | chromebook | 23 | **0** | 67.4 s | 2.93 s / 3.8 s | 88.5 → 97.5 MB (109.6) |
+  | laptop | 23 | **0** | 66.9 s | 2.91 s / 3.8 s | 89.2 → 98.3 MB (115.2) |
+  | tablet-portrait | 23 | **0** | 83.0 s | 3.61 s / 4.4 s | 88.5 → 104 MB (111.8) |
+  | tablet-landscape | 23 | **0** | 82.9 s | 3.60 s / 4.5 s | 88.5 → 95.9 MB (111.0) |
+  | iphone-portrait | 23 | **0** | 72.4 s | 3.15 s / 4.0 s | 88.7 → 98.1 MB (109.5) |
+  | iphone-landscape | 23 | **0** | 71.1 s | 3.09 s / 4.0 s | 88.4 → 98.0 MB (112.1) |
+  | android-narrow | 23 | **0** | 70.3 s | 3.06 s / 3.9 s | 88.6 → 98.2 MB (113.6) |
+
+  **161 / 161 scenes certified, 0 findings.** The slowest scene on every
+  device is Sequence Explorer (≤4.5 s). GitHub CI's own per-device `certify`
+  matrix (Playwright 1.55, bundled Chromium) also passed all seven on the same
+  head, plus `workViewTerminalTransition.mjs`, which passed locally too.
+- **How the harness got there** (all harness-only):
+  - an earlier attempt on this branch lost its verdicts when the VM ran out of
+    memory (kernel: `virtio_balloon … Out of puff!`) and the renderer died
+    mid-run; scenes now print time, heap and findings as they finish, a crashed
+    page is replaced by a fresh context, and a killed browser stops the run
+    with one clear line;
+  - a frozen renderer once held a scene for 800 s, so every scene now has a
+    budget (`WORK_VIEW_CERTIFICATION_SCENE_BUDGET_MS`, default cold wait +
+    120 s); forced with a 1.5 s budget it records "scene exceeded its budget"
+    and exits in 5 s instead of hanging;
+  - the final runs used a warm dev server, ≥1.1 GB free, and screenshots on
+    disk (`tests/browser/artifacts/`, git-ignored) rather than RAM-backed `/tmp`.
 - **Also recorded:** editing `src/` while a long gate runs hot-reloads the
   harness mid-scene. One scene in an earlier run reported
   `revealWorkViewTarget is not defined` because it loaded between two of my own
@@ -991,10 +1001,11 @@ No production data, Firestore rules, Functions or the draft sanitizer changed.
 
   The second lap adds nothing: tool switches release their DOM and state.
   No detached-node or listener growth symptom was observable at this level.
-- **Work View certification:** ~3.3 s a scene on a warm server (161 scenes in
-  538 s); the Chromebook profile's instrumented scenes took 3.5–7.3 s with the
-  JS heap at 84.7–92.7 MB — flat. The one "hang" was a cold first scene (PQ-005);
-  the one crash was the VM running out of memory, not the page.
+- **Work View certification (final head):** 161 scenes in 514 s, a mean of
+  2.9–3.6 s a scene per device, slowest 4.5 s; the JS heap stays 88–115 MB
+  across each device's 23 tools with no upward trend. The earlier "hang" was a
+  cold first scene (PQ-005); the earlier crash was the VM running out of
+  memory, not the page.
 - **Typing and dragging (CPU throttled via DevTools):**
   - Graphing 2, 30 pointer moves while dragging at 4×: 1640 ms (~55 ms a
     move), long tasks 52–128 ms, heap 104 MB — usable.
@@ -1121,9 +1132,8 @@ No production data, Firestore rules, Functions or the draft sanitizer changed.
 
 ## 15. Recommended next PRs (priority order)
 
-**Before merging this PR — one clean Work View certification run** on a
-machine with ≥1 GB free, one device per process (PQ-005). Everything else in
-the gate list has passed on the final code.
+**Before merging this PR:** nothing outstanding. The Work View certification
+that was pending passed on the merged head, 7 / 7 devices (PQ-005).
 
 **NEXT PR A — Assessment integrity in the plotting workspace** — small–medium
 - PQ-036 (P1) DOL / submit-only: construction checks must not return
@@ -1163,24 +1173,29 @@ the gate list has passed on the final code.
 
 ## Tests
 
+All results below are on the **merged head `13ce82c1`** (this branch +
+`main` with PR #400), unless marked otherwise.
+
 | Gate | Result |
 | --- | --- |
-| `npm run test:platform` | **6623 / 6623** (final source; `tests/browser` harness commits after it are not in this suite) |
+| `npm run test:platform` | **6692 / 6692** |
 | `node --test tests/tools/*.test.mjs` | **253 / 253** |
 | `npm run test:authoring-v5` | **686 / 686** |
-| `npm run lint` | exit 0; 450 warnings — the identical list to `main` (compared line by line against a clean export of `524b3e04`) |
-| `npm run audit:theme-colors` | passed (130 documented legacy exception groups) |
+| `npm run lint` | exit 0; 450 warnings — the identical list to current `main` (`1fcd1ea7`), compared line by line against a clean export |
+| `npm run audit:theme-colors` | passed (127 documented legacy exception groups) |
 | `npm run build` | exit 0 (the usual >500 kB chunk warning, as on `main`) |
 | `npm run build:firebase` | exit 0; build manifest written (nothing deployed) |
 | `npm run test:rules` | not run: no Firestore rules or collections changed |
-| `tests/browser/studentUxPlatform.mjs` (9 journeys) | **9 / 9** (open-laptop, open-ipad, rapid-switch, enter, phone, graphs, sort, persistence — 9 records accepted by the sanitizer, wide) |
-| `tests/browser/linearMultipleRepresentations.mjs` (11 journeys) | **11 / 11**, no findings; slowest MathLive focus after a click 0 ms |
+| `tests/browser/workViewCertification.mjs`, one device per process | **7 / 7 devices, 161 / 161 scenes, 0 findings** (PQ-005 table); CI's per-device matrix also green |
+| `tests/browser/workViewTerminalTransition.mjs` | passed on Chromebook and the 390px phone |
+| `tests/browser/darkModeCertification.mjs` | passed, 4 devices × light/dark (CI `browser-readability` green after the PQ-013 test fix) |
+| `tests/browser/studentUxPlatform.mjs` (9 journeys) | **9 / 9** |
+| `tests/browser/linearMultipleRepresentations.mjs` (11 journeys) | **11 / 11**, no findings |
 | `tests/browser/draftPersistence.mjs` | all 14 families pass navigate / reload / reopen (and replacement where it applies) |
-| `tests/browser/toolDraftSyncSweep.mjs` | 23 draft-backed tools, **0 findings**, every tool ≥1 record, 2 targeted journeys restored (fixture refreshed) |
+| `tests/browser/toolDraftSyncSweep.mjs` | 23 draft-backed tools pass the real sanitizer; fixture unchanged |
 | `tests/browser/toolOpenAudit.mjs` chromebook / phone / tablet / phone-landscape | exit 0 on all four ("every tool opens with the tool on the first screen and its directions folded") |
-| `tests/browser/assignmentMobile.mjs` | **0 findings** at 344/360/390 (was 3 on `main`); fixture refreshed after the fix; now also requires the task on screen in the enlarged view |
-| `tests/browser/workViewCertification.mjs` | 161 scenes / 7 devices certified on an intermediate state (one HMR artifact); **final-code run incomplete** — five devices completed, then the VM ran out of memory; see PQ-005. Needs one clean run |
-| `tests/browser/enterContractSurvey.mjs` (new) | 24 registry tools; no attempt from a first Enter in any multi-control tool (fixture written) |
+| `tests/browser/assignmentMobile.mjs` | **0 findings** at 344/360/390 (was 3 on the old `main`); now also requires the task on screen in the enlarged view |
+| `tests/browser/enterContractSurvey.mjs` (new) | no attempt from a first Enter in any multi-control tool; fixture unchanged |
 
 **New node tests:** `workViewReveal`, `responseKeypadProfile`,
 `mathLiveCompat`, `enterContractSurvey`, `landscapeQuestionGrid`,
@@ -1231,7 +1246,7 @@ was corrected.
 
 ## Safe to merge?
 
-**Yes, after one clean Work View certification run** — with these reasons:
+**Yes.** Reasons:
 
 - Every change is contained: CSS scoped to Work View / phone landscape /
   narrow phones, one pure geometry helper (identical output whenever a plane
@@ -1247,14 +1262,9 @@ was corrected.
   fractions such as −2/3 (was `expression`). Grading ignores that field
   (only `interval` and `orderedPair` matter there); stored assignments are
   untouched and still get the number pad through the answer-key check.
-- All node suites, lint, theme audit, both builds and the studentUxPlatform,
-  PR #397 board, draft-persistence, draft-sync, tool-open, assignment-mobile
-  and Enter-survey browser gates pass on the final code. The Work View
-  certification passed 161/161 scenes on an intermediate state. The final-code
-  run got through five of seven devices before the VM ran out of memory, but
-  its verdicts were lost with the crash, so **the final code has no
-  certification verdict yet**. What changed after the complete run: the Work
-  View portrait/plane-height CSS (PQ-001/002/004), the calculator icon, the
-  phone bar, the landscape grid and the domain/range exception — each covered
-  by the browser gates above, but not yet by the certification's
-  edit/Undo/Fit/rotate sequence.
+- Reconciled with `main` after PR #400 without conflicts or overlap (see the
+  note under the title), and every gate — node, lint, builds, the 7-device Work
+  View certification, dark mode and all the student browser journeys — passed
+  on the merged head, locally and in CI.
+- Not deployed. The one deferred P1 (PQ-036) is pre-existing and documented
+  with evidence; it is first in the next PRs.
