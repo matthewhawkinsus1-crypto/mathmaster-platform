@@ -2,6 +2,9 @@ import React, { useCallback, useMemo, useRef } from 'react';
 import { evaluate } from 'mathjs';
 import MultiRelationAlgebraCore from '../../MultiRelationAlgebraCore.jsx';
 import { parseRelationSource } from '../../algebraRelationFoundation.js';
+// The unlock rule is shared with the workspace's server grader, which re-checks
+// the student's graphing form with this same function.
+import { sameGraphingConstraint as sameConstraint } from './inequalityBuilderAdapter.js';
 
 const affineCoefficients = (expression) => {
   try {
@@ -47,28 +50,6 @@ export const graphableConstraintFromRelation = (text) => {
   } catch {
     return null;
   }
-};
-
-const reverseRelation = (relation) => ({
-  '<': '>',
-  '<=': '>=',
-  '>': '<',
-  '>=': '<=',
-  '=': '=',
-}[relation] || relation);
-
-const sameConstraint = (actual, expected, tolerance = 1e-7) => {
-  if (!actual || !expected) return false;
-  const a = [actual.A, actual.B, actual.C].map(Number);
-  const e = [expected.A, expected.B, expected.C].map(Number);
-  const pivot = e.findIndex((value) => Math.abs(value) > tolerance);
-  if (pivot < 0 || a.some((value) => !Number.isFinite(value))) return false;
-  const scale = a[pivot] / e[pivot];
-  if (!Number.isFinite(scale) || Math.abs(scale) <= tolerance) return false;
-  if (!a.every((value, index) => (
-    Math.abs(value - scale * e[index]) <= tolerance * Math.max(1, Math.abs(value), Math.abs(scale * e[index]))
-  ))) return false;
-  return actual.relation === (scale < 0 ? reverseRelation(expected.relation) : expected.relation);
 };
 
 /**
@@ -137,6 +118,9 @@ export default function EmbeddedInequalityRewrite({
       pendingFlip: null,
       verifiedText: verified ? relation : '',
       verifiedConstraint: verified,
+      // The student's relation in graphing form (null until y is alone on the
+      // left) — the rewrite work the shared grader re-checks against the key.
+      graphingForm: candidate || null,
       // Keep a lightweight breadcrumb for old persistence/debug surfaces.
       steps: relation === source
         ? (value?.steps || [])

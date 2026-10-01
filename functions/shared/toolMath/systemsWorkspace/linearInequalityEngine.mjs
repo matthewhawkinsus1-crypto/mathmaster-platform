@@ -12,6 +12,14 @@ const relationToken = (value) => String(value ?? '>=').trim()
   .replace('≤', '<=').replace('≥', '>=');
 const finite = (value) => Number.isFinite(Number(value));
 
+/**
+ * An authored relation as this engine reads it: '≤'/'≥' become '<='/'>=', and
+ * a missing relation is '>=' (the default normalizeLinearInequality applies).
+ * Anything that asks "does this relation include equality / point upward?"
+ * must ask it of this token, not of the raw authored string.
+ */
+export const inequalityRelationToken = (value) => relationToken(value);
+
 const flipRelation = (relation) => ({
   '<': '>',
   '<=': '>=',

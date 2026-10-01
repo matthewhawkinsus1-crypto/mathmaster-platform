@@ -7,6 +7,35 @@ export * from './linearInequalityEngine.mjs';
 
 const EPS = 1e-9;
 
+const deepFreeze = (value) => {
+  if (value && typeof value === 'object') {
+    Object.values(value).forEach(deepFreeze);
+    Object.freeze(value);
+  }
+  return value;
+};
+
+/*
+ * What Systems Workspace shows — and therefore grades — when a question leaves
+ * a field unauthored. One copy, read by the workspace and by its shared grader
+ * (functions/shared/serverGrading/tools/systemsWorkspace/graphical.mjs), so the
+ * screen and the verdict can never default to different systems.
+ */
+export const SYSTEMS_WORKSPACE_DEFAULTS = deepFreeze({
+  system: { m1: 2, b1: 1, m2: -1, b2: 7 },
+  inequalities: [
+    { m: 1, b: 1, relation: '>=' },
+    { m: -0.5, b: 6, relation: '<=' },
+  ],
+  inequalityTestPoint: { x: 2, y: 4 },
+  inequalityGraph: { xMin: -6, xMax: 8, yMin: -4, yMax: 10 },
+  linearQuadratic: {
+    line: { m: 1, b: 2 },
+    quadratic: { a: 1, b: 0, c: -4 },
+  },
+  matrix: { a11: 2, a12: 1, b1: 7, a21: 1, a22: -1, b2: 2 },
+});
+
 export const satisfiesLinearInequality = (inequality = {}, x, y, tolerance = 1e-8) => (
   isPointInInequality(inequality, x, y, tolerance)
 );

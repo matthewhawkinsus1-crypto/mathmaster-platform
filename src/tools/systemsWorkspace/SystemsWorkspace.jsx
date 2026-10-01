@@ -4,33 +4,38 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
-import { matchesNumericAnswer, parseNumericAnswer, solveTwoLines, round } from '../shared/toolMath';
+import { parseNumericAnswer, solveTwoLines, round } from '../shared/toolMath';
 import { useRevealAnswers } from '../shared/ToolRuntimeContext';
 import {
+  SYSTEMS_WORKSPACE_DEFAULTS,
   feasibleRegionPolygon,
   matrix3x4Rows,
-  samePointSet,
-  satisfiesLinearInequality,
   solve2x2System,
   solve3x3System,
   solveLinearQuadratic,
-  normalizeSystemsWorkspaceInequalityConfig,
 } from './systemsMath';
 import {
-  authoredBoundaryFromInequality,
-  boundaryFromHorizontal,
-  boundaryFromTwoPoints,
-  boundaryFromVertical,
   boundaryWithChosenSide,
   classifyFeasibleRegion,
+  explicitBooleanAnswerMatches,
   feasibleRegionPolygon as feasibleRegionPolygonGeneral,
   feasibleRegionVertices,
   lineSegmentForBounds,
-  pointOnBoundaryLine,
-  satisfiesBoundary,
+  modelingEntryToCanonical,
+  pointMembership,
+  pointOnBoundaryIndex,
   sideOfBoundaryLine,
+  studentBoundaryLineFromEntry,
+  studentBuildConstraintStatus,
+  studentBuildInequalityEnabled,
+  studentBuildInequalityTask,
+  studentBuildWorkingConstraints,
+  vertexInclusionExpected,
 } from './inequalityBuilderAdapter';
 import useToolSubmission from '../shared/useToolSubmission';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
 import EmbeddedInequalityRewrite from './EmbeddedInequalityRewrite.jsx';
 import { formatSlopeInterceptInequality } from './linearInequalityEngine.js';
 import AlgebraicSystemMode from './AlgebraicSystemMode.jsx';
@@ -39,16 +44,19 @@ import ThreePlaneWorkspace from './ThreePlaneWorkspace.jsx';
 import { resolveSystemsWorkspaceMode } from './systemsWorkspaceMode.js';
 import { algebraicSystemDimension } from './algebraicSystemsEngine.js';
 
-const DEFAULT_SYSTEM = { m1: 2, b1: 1, m2: -1, b2: 7 };
-const DEFAULT_INEQUALITIES = [
-  { m: 1, b: 1, relation: '>=' },
-  { m: -0.5, b: 6, relation: '<=' },
-];
-const DEFAULT_LINEAR_QUADRATIC = {
-  line: { m: 1, b: 2 },
-  quadratic: { a: 1, b: 0, c: -4 },
-};
-const DEFAULT_MATRIX = { a11: 2, a12: 1, b1: 7, a21: 1, a22: -1, b2: 2 };
+// The defaults the shared grader also reads, so an unauthored field shows and
+// grades the same system (functions/shared/toolMath/systemsWorkspace/systemsMath.mjs).
+const DEFAULT_SYSTEM = SYSTEMS_WORKSPACE_DEFAULTS.system;
+const DEFAULT_INEQUALITIES = SYSTEMS_WORKSPACE_DEFAULTS.inequalities;
+const DEFAULT_LINEAR_QUADRATIC = SYSTEMS_WORKSPACE_DEFAULTS.linearQuadratic;
+const DEFAULT_MATRIX = SYSTEMS_WORKSPACE_DEFAULTS.matrix;
+const DEFAULT_TEST_POINT = SYSTEMS_WORKSPACE_DEFAULTS.inequalityTestPoint;
+const DEFAULT_INEQUALITY_GRAPH = SYSTEMS_WORKSPACE_DEFAULTS.inequalityGraph;
+
+// Every Check below is marked by the workspace's shared grader — the function
+// the server runs as the authority — through gradeToolCheck, and its feedback
+// reads the parts that grader returned. No verdict is computed in this file.
+const partCorrect = (feedback, id) => (feedback?.metadata?.parts || []).some((item) => item.id === id && item.isCorrect === true);
 const inputStyle = { width:'100%', boxSizing:'border-box', padding:'11px 12px', border:'1px solid #cfd8e6', borderRadius:9, background:'#fff', fontSize:15, minHeight:44 };
 const actionStyle = { marginTop:16, padding:'11px 18px', border:0, borderRadius:9, background:'#1a73e8', color:'#fff', fontWeight:800, cursor:'pointer', minHeight:44 };
 const INEQUALITY_COLORS = ['#1a73e8', '#d93025', '#188038', '#9334e6', '#b06000'];
@@ -112,19 +120,20 @@ function LinearMode({ questionData, onAction }) {
   const restore = useCallback((value) => { setX(value?.x || ''); setY(value?.y || ''); setClassification(value?.classification || 'one'); }, []);
   const undoHistory = useMathUndoHistory({ label: 'Undo the last system answer edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
 
+  // The student's work — what Check grades and what a deadline would submit.
+  const work = { x, y, classification };
+  useReportToolWork(work);
+
   const check = () => {
-    const classCorrect = classification === solution.type;
-    const coordinateCorrect = solution.type !== 'one' || (matchesNumericAnswer(x, solution.x, 0.05) && matchesNumericAnswer(y, solution.y, 0.05));
-    const parts = solution.type === 'one' ? [classCorrect, coordinateCorrect] : [classCorrect];
-    submit({ isCorrect: parts.every(Boolean), score: parts.filter(Boolean).length / parts.length }, { x, y, classification }, { mode:'linear', expected:solution, checks:{ classCorrect, coordinateCorrect } });
+    const result = gradeToolCheck(systemsWorkspaceGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode:'linear', parts: result.parts });
   };
 
   const message = () => {
     if (feedback.isCorrect) return solution.type === 'one'
       ? `Correct — the lines meet at exactly one point, (${round(solution.x, 2)}, ${round(solution.y, 2)}).`
       : 'Correct — you classified the system from the slopes and intercepts.';
-    const checks = feedback.metadata?.checks || {};
-    if (!checks.classCorrect) return 'The classification is not right yet. Compare the two slopes first: different slopes always cross exactly once, equal slopes never cross unless the lines are identical.';
+    if (!partCorrect(feedback, 'classification')) return 'The classification is not right yet. Compare the two slopes first: different slopes always cross exactly once, equal slopes never cross unless the lines are identical.';
     return 'The classification is right, but the coordinates are not. Read the crossing point off the graph, then substitute it into both equations to confirm.';
   };
 
@@ -168,22 +177,18 @@ function InequalityMode({ questionData, onAction, draftKey = null }) {
   // Opt-in only (Definition of Done: "Existing systemsWorkspace questions must
   // continue working... New construction/reasoning modes should be opt-in").
   // Every existing authored question omits `studentBuild`, so it is untouched
-  // and falls straight through to the code below exactly as before.
-  const inequalityConfig = normalizeSystemsWorkspaceInequalityConfig(questionData);
-  const studentBuildEnabled = questionData.studentBuild === true
-    || Object.values(inequalityConfig.studentBuild).some(Boolean)
-    || Object.values(inequalityConfig.reasoning).some(Boolean)
-    || Boolean(questionData.modeling);
+  // and falls straight through to the code below exactly as before. The same
+  // test routes the shared grader (studentBuildInequalityEnabled).
+  const studentBuildEnabled = studentBuildInequalityEnabled(questionData);
   if (studentBuildEnabled) return <StudentBuildInequalityMode questionData={questionData} onAction={onAction} draftKey={draftKey} />;
   const inequalities = questionData.inequalities || DEFAULT_INEQUALITIES;
-  const bounds = questionData.graph || { xMin:-6, xMax:8, yMin:-4, yMax:10 };
+  const bounds = questionData.graph || DEFAULT_INEQUALITY_GRAPH;
   const ask = Array.isArray(questionData.ask) && questionData.ask.length
     ? questionData.ask
     : questionData.interaction === 'construct' ? ['construction'] : ['testPoint', 'candidate'];
   const requiresConstruction = ask.includes('construction');
   const correctPolygon = useMemo(() => feasibleRegionPolygon(inequalities, bounds), [inequalities, bounds]);
-  const testPoint = questionData.testPoint || { x:2, y:4 };
-  const expectedTestPoint = inequalities.every((ineq) => satisfiesLinearInequality(ineq, testPoint.x, testPoint.y));
+  const testPoint = questionData.testPoint || DEFAULT_TEST_POINT;
   const [x, setX] = usePersistentToolState('x', '');
   const [y, setY] = usePersistentToolState('y', '');
   const [testChoice, setTestChoice] = usePersistentToolState('testChoice', '');
@@ -252,48 +257,26 @@ function InequalityMode({ questionData, onAction, draftKey = null }) {
     }) : []),
   ];
 
-  const check = () => {
-    const parts = [];
-    const responseConstruction = construction.map((entry) => ({
+  // The student's work — the shape this workspace has always sent (My Math
+  // Path's contract reads the same fields): each typed boundary point already
+  // parsed, the chosen style and shading, and only the answers that were asked.
+  const work = {
+    construction:construction.map((entry) => ({
       points: [
         { x:parseNumericAnswer(entry.x1), y:parseNumericAnswer(entry.y1) },
         { x:parseNumericAnswer(entry.x2), y:parseNumericAnswer(entry.y2) },
       ],
       boundaryStyle:entry.boundaryStyle,
       shade:entry.shade,
-    }));
+    })),
+    ...(ask.includes('testPoint') ? { testChoice } : {}),
+    ...(ask.includes('candidate') ? { candidate:{ x:parseNumericAnswer(x), y:parseNumericAnswer(y) } } : {}),
+  };
+  useReportToolWork(work);
 
-    if (requiresConstruction) {
-      inequalities.forEach((ineq, index) => {
-        const entry = responseConstruction[index];
-        const [first, second] = entry.points;
-        const boundaryCorrect = [first, second].every((point) => (
-          point.x != null && point.y != null
-          && Math.abs(point.y - (Number(ineq.m) * point.x + Number(ineq.b))) <= 0.08
-        )) && first.x != null && second.x != null
-          && Math.hypot(first.x - second.x, first.y - second.y) > 0.08;
-        const styleCorrect = entry.boundaryStyle === (String(ineq.relation).includes('=') ? 'solid' : 'dashed');
-        const shadeCorrect = entry.shade === (String(ineq.relation).includes('>') ? 'above' : 'below');
-        parts.push(boundaryCorrect, styleCorrect, shadeCorrect);
-      });
-    }
-
-    const candidate = { x:parseNumericAnswer(x), y:parseNumericAnswer(y) };
-    const candidateFeasible = candidate.x != null && candidate.y != null && inequalities.every((ineq)=>satisfiesLinearInequality(ineq,candidate.x,candidate.y));
-    const testCorrect = (testChoice === 'yes') === expectedTestPoint;
-    if (ask.includes('testPoint')) parts.push(testCorrect);
-    if (ask.includes('candidate')) parts.push(candidateFeasible);
-
-    const score = parts.length ? parts.filter(Boolean).length / parts.length : 0;
-    submit(
-      { isCorrect:parts.length > 0 && parts.every(Boolean), score },
-      {
-        construction:responseConstruction,
-        ...(ask.includes('testPoint') ? { testChoice } : {}),
-        ...(ask.includes('candidate') ? { candidate } : {}),
-      },
-      { mode:'inequalities', checks:{ construction:parts, candidateFeasible, testCorrect } },
-    );
+  const check = () => {
+    const result = gradeToolCheck(systemsWorkspaceGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode:'inequalities', parts: result.parts });
   };
 
   const message = () => {
@@ -305,9 +288,10 @@ function InequalityMode({ questionData, onAction, draftKey = null }) {
     if (requiresConstruction) {
       return 'At least one graph feature needs revision. Check that both points lie on the boundary equation, use a solid line for ≤ or ≥ and a dashed line for < or >, then shade above for > / ≥ or below for < / ≤.';
     }
-    const checks = feedback.metadata?.checks || {};
-    if (checks.testCorrect && !checks.candidateFeasible) return 'Your judgement about the test point is right, but the point you entered is outside the shaded overlap. Substitute it into each inequality and find the one it fails.';
-    if (!checks.testCorrect && checks.candidateFeasible) return 'Your own point works. Re-check the purple test point: substitute its coordinates into each inequality separately.';
+    const testCorrect = partCorrect(feedback, 'test-point');
+    const candidateFeasible = partCorrect(feedback, 'candidate-point');
+    if (testCorrect && !candidateFeasible) return 'Your judgement about the test point is right, but the point you entered is outside the shaded overlap. Substitute it into each inequality and find the one it fails.';
+    if (!testCorrect && candidateFeasible) return 'Your own point works. Re-check the purple test point: substitute its coordinates into each inequality separately.';
     return 'Neither part is right yet. A point is feasible only when it satisfies every inequality at the same time, not just one of them.';
   };
 
@@ -454,61 +438,10 @@ const emptyModelingEntry = () => ({ coeffA: '', coeffB: '', relation: '>=', cons
 const emptyTestPointResponse = (count) => ({
   overall: '', perInequality: Array.from({ length: count }, () => ''), onBoundary: '', boundaryIncluded: '',
 });
-const explicitBooleanAnswerMatches = (answer, expected) => (
-  (answer === 'yes' || answer === 'no') && (answer === 'yes') === Boolean(expected)
-);
-
-// A student's constructed BOUNDARY LINE (ignoring style/shade), from whichever
-// of the several valid construction methods they used. Any of these that
-// determines a real line is accepted — the task explicitly asks for more than
-// one valid procedure per boundary type.
-const studentBoundaryLineFromEntry = (entry) => {
-  if (!entry) return null;
-  if (entry.method === 'points') {
-    if (!entry.point1Plotted || !entry.point2Plotted) return null;
-    return boundaryFromTwoPoints(
-      [parseNumericAnswer(entry.x1), parseNumericAnswer(entry.y1)],
-      [parseNumericAnswer(entry.x2), parseNumericAnswer(entry.y2)],
-    );
-  }
-  if (entry.method === 'slopeIntercept') {
-    if (!entry.point1Plotted || !entry.point2Plotted) return null;
-    const m = parseNumericAnswer(entry.slope);
-    const b = parseNumericAnswer(entry.intercept);
-    const x1 = parseNumericAnswer(entry.x1);
-    const y1 = parseNumericAnswer(entry.y1);
-    const x2 = parseNumericAnswer(entry.x2);
-    const y2 = parseNumericAnswer(entry.y2);
-    // Slope/intercept entries are planning information, not a shortcut that
-    // lets the platform manufacture the second point. The candidate line only
-    // exists after the student has plotted both points themselves.
-    if ([m, b, x1, y1, x2, y2].some((value) => value == null)) return null;
-    const fromStudentPoints = boundaryFromTwoPoints([x1, y1], [x2, y2]);
-    if (!fromStudentPoints || Math.abs(x1) > 0.08 || Math.abs(y1 - b) > 0.08) return null;
-    const movementSlope = (y2 - y1) / (x2 - x1);
-    return Math.abs(movementSlope - m) <= 0.08 ? fromStudentPoints : null;
-  }
-  if (entry.method === 'vertical') {
-    const c = parseNumericAnswer(entry.constant);
-    return c == null ? null : boundaryFromVertical(c);
-  }
-  if (entry.method === 'horizontal') {
-    const c = parseNumericAnswer(entry.constant);
-    return c == null ? null : boundaryFromHorizontal(c);
-  }
-  return null;
-};
-
-// Two lines are the same line — regardless of how each was parameterized —
-// exactly when two DISTINCT points of one satisfy the other's equation. This
-// is what makes construction validation mathematical rather than
-// pixel/format-exact: a student who used slope-intercept is checked the same
-// way as one who clicked two points.
-const boundaryLinesMatch = (candidate, authored, bounds) => {
-  if (!candidate) return false;
-  const [p1, p2] = lineSegmentForBounds(authored, bounds);
-  return pointOnBoundaryLine(candidate, p1[0], p1[1], 0.08) && pointOnBoundaryLine(candidate, p2[0], p2[1], 0.08);
-};
+// explicitBooleanAnswerMatches, studentBoundaryLineFromEntry, the boundary
+// match and the modeling equivalence live in the shared adapter
+// (inequalityBuilderAdapter.mjs): this screen's step feedback and the shared
+// grader read the same definitions.
 
 const modelingTermText = (coefficient, symbol, isFirst) => {
   if (coefficient == null || coefficient === 0) return '';
@@ -527,41 +460,6 @@ const formatModelingConstraint = (entry, variables) => {
   const lhs = `${modelingTermText(a, v1.symbol, true)}${modelingTermText(b, v2.symbol, false)}`.trim();
   const rhs = entry?.constant === '' || entry?.constant == null ? '?' : entry.constant;
   return `${lhs || '0'} ${entry?.relation || '?'} ${rhs}`;
-};
-
-const modelingEntryToCanonical = (entry) => {
-  if (!entry) return null;
-  const a = parseNumericAnswer(entry.coeffA);
-  const b = parseNumericAnswer(entry.coeffB);
-  const rhs = parseNumericAnswer(entry.constant);
-  if (a == null || b == null || rhs == null || !entry.relation) return null;
-  if (Math.abs(a) <= 1e-12 && Math.abs(b) <= 1e-12) return null;
-  return { A:a, B:b, C:-rhs, relation:entry.relation };
-};
-
-const flipInequalityRelation = (relation) => ({
-  '>':'<', '>=':'<=', '<':'>', '<=':'>=',
-}[relation] || relation);
-
-const equivalentLinearInequality = (actual, expected, tolerance = 1e-6) => {
-  if (!actual || !expected) return false;
-  const a = [Number(actual.A), Number(actual.B), Number(actual.C)];
-  const e = [Number(expected.A), Number(expected.B), Number(expected.C)];
-  const pivot = e.findIndex((value) => Math.abs(value) > tolerance);
-  if (pivot < 0 || a.some((value) => !Number.isFinite(value)) || e.some((value) => !Number.isFinite(value))) return false;
-  const scale = a[pivot] / e[pivot];
-  if (!Number.isFinite(scale) || Math.abs(scale) <= tolerance) return false;
-  const coefficientsMatch = a.every((value, index) => (
-    Math.abs(value - scale * e[index]) <= tolerance * Math.max(1, Math.abs(value), Math.abs(scale * e[index]))
-  ));
-  if (!coefficientsMatch) return false;
-  const expectedRelation = scale > 0 ? expected.relation : flipInequalityRelation(expected.relation);
-  return actual.relation === expectedRelation;
-};
-
-const modelingEntryCorrect = (entry, expected) => {
-  if (!entry || !expected) return false;
-  return equivalentLinearInequality(modelingEntryToCanonical(entry), expected);
 };
 
 // First miss stays neutral — a nudge to re-examine the work, not the rule
@@ -652,39 +550,17 @@ function TestPointReasoning({ title, point, count, response, setResponse, onBoun
 }
 
 function StudentBuildInequalityMode({ questionData, onAction, draftKey = null }) {
-  const inequalityConfig = normalizeSystemsWorkspaceInequalityConfig(questionData);
-  const buildConfig = inequalityConfig.studentBuild;
-  const reasoningConfig = inequalityConfig.reasoning;
-  const hasBuildSteps = Object.values(buildConfig).some(Boolean);
-  const legacyStudentBuild = questionData.studentBuild === true;
-  const bounds = questionData.graph || { xMin:-6, xMax:8, yMin:-4, yMax:10 };
-  const modeling = questionData.modeling || null;
-  const variables = modeling?.variables?.length ? modeling.variables : [{ symbol:'x', label:'x' }, { symbol:'y', label:'y' }];
+  // What the question asks — build steps, reasoning, modeling, the hidden
+  // expected constraints — resolved by the same function the shared grader
+  // uses, so the steps shown here are exactly the steps that are marked.
   // Source constraints are presentation; expected constraints are hidden,
   // canonical grading truth. Never derive a student-facing label from the
   // latter merely because the canonical engine consumes it.
-  const sourceConstraints = questionData.sourceConstraints || questionData.inequalities || DEFAULT_INEQUALITIES;
-  const rawExpectedConstraints = questionData.expectedConstraints || questionData.inequalities || DEFAULT_INEQUALITIES;
-  const expectedConstraints = useMemo(() => (
-    modeling
-      ? (modeling.expectedConstraints || []).map((c) => ({ A:Number(c.A ?? 0), B:Number(c.B ?? 0), C:Number(c.C ?? 0), relation:c.relation || '>=' }))
-      : rawExpectedConstraints.map(authoredBoundaryFromInequality)
-  ), [modeling, rawExpectedConstraints]);
-  const constraintCount = expectedConstraints.length;
-  const askClassification = questionData.askClassification != null
-    ? Boolean(questionData.askClassification)
-    : (legacyStudentBuild || reasoningConfig.classifyRegion);
-  const askVertices = questionData.askVertices != null
-    ? Boolean(questionData.askVertices)
-    : reasoningConfig.vertices;
-  const boundaryProbeEnabled = legacyStudentBuild || reasoningConfig.boundaryProbe;
-  const teacherTestPoint = questionData.testPoint || null;
-  const testPointReasoningEnabled = legacyStudentBuild
-    ? Boolean(teacherTestPoint || questionData.allowStudentTestPoint)
-    : (reasoningConfig.testPoint || Boolean(teacherTestPoint) || Boolean(questionData.allowStudentTestPoint));
-  const allowStudentTestPoint = questionData.allowStudentTestPoint != null
-    ? Boolean(questionData.allowStudentTestPoint)
-    : (reasoningConfig.testPoint && !teacherTestPoint);
+  const task = useMemo(() => studentBuildInequalityTask(questionData), [questionData]);
+  const {
+    buildConfig, hasBuildSteps, bounds, modeling, variables, sourceConstraints, expectedConstraints, constraintCount,
+    askClassification, askVertices, boundaryProbeEnabled, teacherTestPoint, testPointReasoningEnabled, allowStudentTestPoint,
+  } = task;
 
   const [modelingEntries, setModelingEntries] = usePersistentToolState('modelingEntries', () => (
     modeling ? Array.from({ length: constraintCount }, emptyModelingEntry) : []
@@ -697,11 +573,12 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
   const modeledConstraints = useMemo(() => (
     modeling ? modelingEntries.map(modelingEntryToCanonical) : []
   ), [modeling, modelingEntries]);
-  const workingConstraints = useMemo(() => {
-    if (modeling && modelingSent && modeledConstraints.every(Boolean)) return modeledConstraints;
-    if (buildConfig.rewrite) return expectedConstraints.map((expected, index) => rewriteEntries[index]?.verifiedConstraint || expected);
-    return expectedConstraints;
-  }, [modeling, modelingSent, modeledConstraints, buildConfig.rewrite, rewriteEntries, expectedConstraints]);
+  const workingConstraints = useMemo(() => studentBuildWorkingConstraints({
+    task,
+    modelingEntries,
+    modelingSent,
+    rewriteConstraints: buildConfig.rewrite ? rewriteEntries.map((entry) => entry?.verifiedConstraint || null) : [],
+  }), [task, modelingEntries, modelingSent, buildConfig.rewrite, rewriteEntries]);
   const workingClassification = useMemo(() => classifyFeasibleRegion(workingConstraints), [workingConstraints]);
   const workingVertices = useMemo(() => feasibleRegionVertices(workingConstraints), [workingConstraints]);
   const modelingEntriesReady = !modeling || modeledConstraints.length === constraintCount && modeledConstraints.every(Boolean);
@@ -763,19 +640,25 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
   const effectiveLines = build.map((entry, index) => (
     buildConfig.boundary ? studentLines[index] : workingConstraints[index]
   ));
-  const boundaryCorrect = (index) => !buildConfig.boundary || boundaryLinesMatch(studentLines[index], workingConstraints[index], bounds);
-  const styleCorrect = (index) => !buildConfig.lineStyle
-    || build[index]?.style === (String(workingConstraints[index]?.relation || '>=').includes('=') ? 'solid' : 'dashed');
-  const shadeCorrect = (index) => {
-    if (!buildConfig.shading) return true;
-    const point = build[index]?.shadePoint;
-    return Boolean(point) && satisfiesBoundary(workingConstraints[index], point[0], point[1]);
-  };
-  const boundaryVerified = (index) => !buildConfig.boundary || (build[index]?.boundaryAttempts > 0 && boundaryCorrect(index));
-  const styleVerified = (index) => !buildConfig.lineStyle || (build[index]?.styleAttempts > 0 && styleCorrect(index));
-  const shadeVerified = (index) => !buildConfig.shading || (build[index]?.shadeAttempts > 0 && shadeCorrect(index));
   const rewriteVerified = (index) => !buildConfig.rewrite || Boolean(rewriteEntries[index]?.verifiedConstraint);
-  const constraintVerified = (index) => rewriteVerified(index) && boundaryVerified(index) && styleVerified(index) && shadeVerified(index);
+  // Each constraint's step progress (the ✓ marks, the step messages, the
+  // Combine lock) comes from the SAME rule the shared grader marks with:
+  // a step is verified only once it was explicitly checked and is right.
+  const constraintStatus = Array.from({ length: constraintCount }, (_, index) => studentBuildConstraintStatus({
+    buildConfig,
+    entry: build[index],
+    workingConstraint: workingConstraints[index],
+    bounds,
+    rewriteVerified: rewriteVerified(index),
+  }));
+  const stepStatus = (index, step) => constraintStatus[index]?.[step] === true;
+  const boundaryCorrect = (index) => stepStatus(index, 'boundaryCorrect');
+  const styleCorrect = (index) => stepStatus(index, 'styleCorrect');
+  const shadeCorrect = (index) => stepStatus(index, 'shadeCorrect');
+  const boundaryVerified = (index) => stepStatus(index, 'boundaryVerified');
+  const styleVerified = (index) => stepStatus(index, 'styleVerified');
+  const shadeVerified = (index) => stepStatus(index, 'shadeVerified');
+  const constraintVerified = (index) => stepStatus(index, 'constraintVerified');
   const allConstraintsComplete = constraintCount > 0 && Array.from({ length: constraintCount }, (_, i) => i).every(constraintVerified);
 
   const studentBoundaries = build.map((entry, index) => {
@@ -792,8 +675,8 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
   });
   const studentPolygon = combined && studentBoundaries.every(Boolean) ? feasibleRegionPolygonGeneral(studentBoundaries, bounds) : [];
 
-  const onBoundaryIndex = (point) => (point ? workingConstraints.findIndex((b) => pointOnBoundaryLine(b, point[0], point[1], 0.12)) : -1);
-  const membership = (point) => workingConstraints.map((b) => satisfiesBoundary(b, point[0], point[1]));
+  const onBoundaryIndex = (point) => pointOnBoundaryIndex(workingConstraints, point);
+  const membership = (point) => pointMembership(workingConstraints, point);
 
   const armLabel = () => {
     if (!armed) return null;
@@ -876,10 +759,7 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
       : 'Not quite — recheck your reasoning.');
   };
 
-  const vertexIncludedExpected = (vertex) => {
-    const match = workingVertices.find((v) => Math.hypot(v.x - vertex.x, v.y - vertex.y) <= 0.15);
-    return match ? match.included : null;
-  };
+  const vertexIncludedExpected = (vertex) => vertexInclusionExpected(workingVertices, vertex);
   const [vertexFeedback, setVertexFeedback] = useState('');
   const checkVertex = (index) => {
     const vertex = vertices[index];
@@ -891,101 +771,33 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
       : 'Look at the two boundaries meeting at that exact point. If either one is dashed there, the corner is excluded even though the lines still cross.');
   };
 
+  // The student's work — every piece of state the final check marks: what
+  // Check grades and what a deadline would submit. Answer reasoning about a
+  // point is sent only when that point is in play, as before.
+  const teacherPointApplicable = Boolean(teacherTestPoint);
+  const studentPointApplicable = allowStudentTestPoint && Boolean(studentTestPoint);
+  const work = {
+    ...(modeling ? { modelingEntries, modelingSent: Boolean(modelingSent) } : {}),
+    ...(buildConfig.rewrite ? {
+      rewrite: rewriteEntries.map((entry) => ({
+        relation: String(entry?.committedText ?? '').slice(0, 300),
+        // The student's rewritten inequality in graphing form ({A, B: 1, C,
+        // relation}), or null while y is not yet alone on the left. Drafts
+        // saved before this field existed kept it only once verified.
+        graphingForm: entry?.graphingForm !== undefined ? entry.graphingForm : (entry?.verifiedConstraint || null),
+      })),
+    } : {}),
+    build,
+    regionClassification,
+    ...(teacherPointApplicable ? { teacherPointResponse } : {}),
+    ...(studentPointApplicable ? { studentTestPoint, studentPointResponse } : {}),
+    vertices,
+  };
+  useReportToolWork(work);
+
   const finalCheck = () => {
-    const perConstraint = Array.from({ length: constraintCount }, (_, index) => ({
-      rewriteVerified: buildConfig.rewrite ? rewriteVerified(index) : null,
-      boundaryCorrect: buildConfig.boundary ? boundaryCorrect(index) : null,
-      styleCorrect: buildConfig.lineStyle ? styleCorrect(index) : null,
-      inclusionUnderstandingCorrect: buildConfig.lineStyle ? styleCorrect(index) : null,
-      shadeCorrect: buildConfig.shading ? shadeCorrect(index) : null,
-      constraintCorrect: hasBuildSteps ? constraintVerified(index) : null,
-    }));
-    const modelingChecks = modeling ? (() => {
-      // A mathematical model is a SET of constraints, not an ordered answer
-      // list. Match each student-authored inequality to one still-unmatched
-      // expected constraint so an equivalent system earns full credit no
-      // matter which valid constraint the student entered first. Keeping
-      // expected rows single-use also prevents a duplicated correct constraint
-      // from satisfying two requirements.
-      const unmatchedExpected = new Set(expectedConstraints.map((_, index) => index));
-      return modelingEntries.map((entry) => {
-        const matchedIndex = expectedConstraints.findIndex((expected, index) => (
-          unmatchedExpected.has(index) && modelingEntryCorrect(entry, expected)
-        ));
-        if (matchedIndex < 0) return false;
-        unmatchedExpected.delete(matchedIndex);
-        return true;
-      });
-    })() : [];
-    const classificationCorrect = !askClassification || regionClassification === workingClassification;
-    const noSolutionRecognized = workingClassification !== 'empty' || regionClassification === 'empty';
-    const teacherPointApplicable = Boolean(teacherTestPoint);
-    const teacherMembership = teacherPointApplicable ? membership([teacherTestPoint.x, teacherTestPoint.y]) : [];
-    const teacherPerInequalityCorrect = teacherPointApplicable && teacherPointResponse.perInequality.every((value, index) => explicitBooleanAnswerMatches(value, teacherMembership[index]));
-    const teacherOverallCorrect = teacherPointApplicable && explicitBooleanAnswerMatches(teacherPointResponse.overall, teacherMembership.every(Boolean));
-    const teacherBoundaryIndex = teacherPointApplicable ? onBoundaryIndex([teacherTestPoint.x, teacherTestPoint.y]) : -1;
-    const teacherBoundaryApplicable = teacherPointApplicable && boundaryProbeEnabled && teacherBoundaryIndex >= 0;
-    const teacherBoundaryCorrect = !teacherBoundaryApplicable
-      || (teacherPointResponse.onBoundary === 'yes' && explicitBooleanAnswerMatches(teacherPointResponse.boundaryIncluded, teacherMembership.every(Boolean)));
-    const studentPointApplicable = allowStudentTestPoint && Boolean(studentTestPoint);
-    const studentMembership = studentPointApplicable ? membership(studentTestPoint) : [];
-    const studentPerInequalityCorrect = studentPointApplicable && studentPointResponse.perInequality.every((value, index) => explicitBooleanAnswerMatches(value, studentMembership[index]));
-    const studentOverallCorrect = studentPointApplicable && explicitBooleanAnswerMatches(studentPointResponse.overall, studentMembership.every(Boolean));
-    const vertexResults = vertices.map((vertex) => {
-      const expected = vertexIncludedExpected(vertex);
-      return {
-        vertexCorrect: expected != null && explicitBooleanAnswerMatches(vertex.includedAnswer, expected),
-        excludedBoundaryRecognized: expected === false ? vertex.includedAnswer === 'no' : null,
-      };
-    });
-    const allExpectedVerticesFound = workingVertices.every((expected) => (
-      vertices.some((vertex) => Math.hypot(vertex.x - expected.x, vertex.y - expected.y) <= 0.15)
-    ));
-    const vertexCoverageCorrect = !askVertices || (
-      vertices.length === workingVertices.length
-      && allExpectedVerticesFound
-      && vertexResults.every((result) => result.vertexCorrect)
-    );
-
-    const parts = [
-      ...(hasBuildSteps ? perConstraint.map((entry) => entry.constraintCorrect) : []),
-      ...modelingChecks,
-      ...(askClassification ? [classificationCorrect] : []),
-      ...(testPointReasoningEnabled && teacherPointApplicable ? [teacherPerInequalityCorrect, teacherOverallCorrect] : []),
-      ...(teacherBoundaryApplicable ? [teacherBoundaryCorrect] : []),
-      ...(testPointReasoningEnabled && studentPointApplicable ? [studentPerInequalityCorrect, studentOverallCorrect] : []),
-      ...(askVertices ? [vertexCoverageCorrect] : []),
-    ];
-    const score = parts.length ? parts.filter(Boolean).length / parts.length : 0;
-    const isCorrect = parts.length > 0 && parts.every(Boolean);
-
-    submit(
-      { isCorrect, score },
-      {
-        modelingEntries: modeling ? modelingEntries : undefined,
-        build,
-        regionClassification,
-        teacherPointResponse: teacherPointApplicable ? teacherPointResponse : undefined,
-        studentTestPoint: studentPointApplicable ? studentTestPoint : undefined,
-        studentPointResponse: studentPointApplicable ? studentPointResponse : undefined,
-        vertices,
-      },
-      {
-        mode: 'inequalities-studentBuild',
-        checks: {
-          perConstraint,
-          modelingCorrect: modeling ? modelingChecks : null,
-          overlapClassificationCorrect: askClassification ? classificationCorrect : null,
-          noSolutionCorrectlyRecognized: askClassification ? noSolutionRecognized : null,
-          testPointMembershipCorrect: testPointReasoningEnabled && teacherPointApplicable ? teacherOverallCorrect : null,
-          boundaryPointInclusionCorrect: teacherBoundaryApplicable ? teacherBoundaryCorrect : null,
-          studentTestPointMembershipCorrect: testPointReasoningEnabled && studentPointApplicable ? studentOverallCorrect : null,
-          vertexResults: askVertices ? vertexResults : null,
-          vertexCoverageCorrect: askVertices ? vertexCoverageCorrect : null,
-          fullSystemCorrect: isCorrect,
-        },
-      },
-    );
+    const result = gradeToolCheck(systemsWorkspaceGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'inequalities-studentBuild', parts: result.parts });
   };
 
   const graphPoints = [
@@ -1306,18 +1118,18 @@ function LinearQuadraticMode({ questionData, onAction }) {
       ? [{x:parseNumericAnswer(values.x1),y:parseNumericAnswer(values.y1)},{x:parseNumericAnswer(values.x2),y:parseNumericAnswer(values.y2)}]
       : [];
 
+  // The student's work — the count chosen and the points that count shows.
+  const work = { count:parseNumericAnswer(count), points:studentPoints };
+  useReportToolWork(work);
+
   const check = () => {
-    const countCorrect = count !== '' && Number(count) === intersections.length;
-    const allEntered = studentPoints.every((point) => point.x != null && point.y != null);
-    const coordsCorrect = countCorrect && allEntered && samePointSet(studentPoints, intersections, 0.1);
-    const parts = intersections.length ? [countCorrect,coordsCorrect] : [countCorrect];
-    submit({ isCorrect:parts.every(Boolean), score:parts.filter(Boolean).length/parts.length }, { count:parseNumericAnswer(count), points:studentPoints }, { mode:'linearQuadratic', expected:intersections, checks:{ countCorrect, coordsCorrect } });
+    const result = gradeToolCheck(systemsWorkspaceGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode:'linearQuadratic', parts: result.parts });
   };
 
   const message = () => {
     if (feedback.isCorrect) return 'Correct — the count and every intersection point check out.';
-    const checks = feedback.metadata?.checks || {};
-    if (!checks.countCorrect) return 'The number of intersections is not right. Look at how many times the line actually crosses the parabola — a line can miss it, touch it once, or cut through it twice.';
+    if (!partCorrect(feedback, 'count')) return 'The number of intersections is not right. Look at how many times the line actually crosses the parabola — a line can miss it, touch it once, or cut through it twice.';
     return 'The count is right but at least one coordinate is off. Substitute each point into both the line and the parabola: a real intersection satisfies both.';
   };
 
@@ -1374,23 +1186,14 @@ function MatrixMode({ questionData, onAction }) {
     [matrix.a21, matrix.a22, matrix.b2],
   ];
 
+  // The student's work (the same fields My Math Path's matrix3 contract reads).
+  const work = {classification,x,y,...(isMatrix3?{z,technologyUsed}: {})};
+  useReportToolWork(work);
+
   const check = () => {
     if (isMatrix3 && !technologyUsed) return;
-    const classCorrect = classification === solution.type;
-    const coordsCorrect = solution.type !== 'one' || (
-      matchesNumericAnswer(x,solution.x,0.05)
-      && matchesNumericAnswer(y,solution.y,0.05)
-      && (!isMatrix3 || matchesNumericAnswer(z,solution.z,0.05))
-    );
-    const technologyCorrect = !isMatrix3 || technologyUsed;
-    const parts = solution.type === 'one'
-      ? [classCorrect,technologyCorrect,coordsCorrect]
-      : [classCorrect,technologyCorrect];
-    submit(
-      {isCorrect:parts.every(Boolean),score:parts.filter(Boolean).length/parts.length},
-      {classification,x,y,...(isMatrix3?{z,technologyUsed}: {})},
-      {mode:isMatrix3?'matrix3':'matrix',checks:{classCorrect,technologyCorrect,coordsCorrect}},
-    );
+    const result = gradeToolCheck(systemsWorkspaceGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode:isMatrix3?'matrix3':'matrix', parts: result.parts });
   };
 
   const message = () => {
@@ -1399,9 +1202,8 @@ function MatrixMode({ questionData, onAction }) {
         ? 'Correct — you used the matrix RREF technology and interpreted the reduced 3×3 system correctly.'
         : 'Correct — the matrix reduces to exactly what you described.';
     }
-    const checks = feedback.metadata?.checks || {};
-    if (isMatrix3 && !checks.technologyCorrect) return 'Use the RREF technology first. This task is specifically checking the matrix-technology method.';
-    if (!checks.classCorrect) {
+    if (isMatrix3 && !partCorrect(feedback, 'matrix-technology')) return 'Use the RREF technology first. This task is specifically checking the matrix-technology method.';
+    if (!partCorrect(feedback, 'classification')) {
       return isMatrix3
         ? 'The classification is off. Inspect the RREF: an identity coefficient matrix gives exactly one solution; a contradictory row gives no solution; a free variable gives infinitely many.'
         : 'The classification is off. Compute the determinant a₁₁a₂₂ − a₁₂a₂₁ first: nonzero means exactly one solution.';

@@ -19,12 +19,15 @@
 import { declareTool } from '../toolGraderDefinition.mjs';
 import { resolveSystemsWorkspaceMode } from '../../toolMath/systemsWorkspace/systemsWorkspaceMode.mjs';
 import algebraicModes from './systemsWorkspace/algebraic.mjs';
-import graphicalModes from './systemsWorkspace/graphical.mjs';
+import graphicalModes, { graphicalModeSupport } from './systemsWorkspace/graphical.mjs';
 
 export default declareTool({
   contractVersion: 1,
   defaultMode: 'linear',
   resolveMode: (question) => resolveSystemsWorkspaceMode(question),
+  // A spatial model with no answer fields is an exploration with no Check:
+  // readiness and Pre-Flight must not call it server-graded.
+  supports: (question, mode) => graphicalModeSupport(question, mode),
   modes: {
     ...graphicalModes,
     ...algebraicModes,
