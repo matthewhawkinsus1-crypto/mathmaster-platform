@@ -1,16 +1,23 @@
 /*
- * Grading declaration for the `graphScenarioMatch` structured question surface — a question
- * type rendered by QuestionEngine (not a registry tool) whose verdict comes
- * from a shared grader over a structured raw response (toolResponseContract).
+ * Grading declaration for the `graphScenarioMatch` structured question surface
+ * — the Visual Match Board (src/GraphScenarioMatch.jsx), rendered by
+ * QuestionEngine (not a registry tool). Its verdict comes from the shared
+ * grader over a structured raw response (toolResponseContract).
  *
- * Light by design. The mathematics is in ../tools/graphScenarioMatch.mjs.
+ * Each scenario's chosen graph is compared with the question's correctMatches
+ * (or the scenario's own graphId): nothing the server does not hold.
+ *
+ * Light by design. The checks are in ../tools/graphScenarioMatch.mjs.
  */
-import { clientGraded, declareTool } from '../toolGraderDefinition.mjs';
+import { SHARED, declareTool } from '../toolGraderDefinition.mjs';
 
 export default declareTool({
+  // Work shape v1: { matches: [{ scenarioId, graphId }] }, sorted by scenario.
   contractVersion: 1,
-  defaultMode: 'default',
+  // GraphScenarioMatch.jsx has exactly one view and never reads question.mode.
+  defaultMode: 'matchBoard',
+  resolveMode: () => 'matchBoard',
   modes: {
-    default: clientGraded('PENDING: shared server grader not yet implemented for graphScenarioMatch.'),
+    matchBoard: SHARED,
   },
 });

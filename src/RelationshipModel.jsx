@@ -5,15 +5,19 @@ import GraphAxisEditor from './GraphAxisEditor';
 import PointMeaningBuilder from './PointMeaningBuilder';
 import useUndoHistory from './useUndoHistory';
 import {
-  matchesAcceptedText,
-  matchesConceptGroups,
-  stableStringify,
-} from './scenarioResponseUtils';
-import {
-  buildContextInterpretationParts,
   buildInterpretationGraph,
   EMPTY_POINT_MEANING,
 } from './contextInterpretationUtils';
+import relationshipModelGrader from '../functions/shared/serverGrading/tools/relationshipModel.mjs';
+import {
+  relationshipAxisInputMode,
+  relationshipModelRequirements,
+  relationshipOriginConfig,
+  relationshipOriginMode,
+} from '../functions/shared/toolMath/scenario/relationshipModelMath.mjs';
+import { relationshipModelWork } from '../functions/shared/toolMath/scenario/scenarioWork.mjs';
+import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
+import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
 
 const selectStyle = (status) => ({
   width: '100%',
@@ -63,127 +67,23 @@ export default function RelationshipModel({
   const history = useUndoHistory(initial, 80, draftKey ? `${draftKey}:relationship-model` : null);
   const values = history.value;
   const axisSetup = question.axisSetup && typeof question.axisSetup === 'object' ? question.axisSetup : {};
-  const axisInputMode = axisSetup.inputMode === 'drag' ? 'drag' : 'type';
-  const requirements = {
-    quantities: question.requireQuantityRoles !== false,
-    continuity: Boolean(question.relationshipType || question.requireRelationshipType),
-    axes: Boolean(axisSetup.required),
-    scale: Boolean(axisSetup.requireScale),
-    origin: Boolean(question.origin?.required),
-  };
+  // Which sections to show, how the origin is answered and its point-meaning
+  // config: the SAME helpers the shared grader marks with
+  // (functions/shared/toolMath/scenario/relationshipModelMath.mjs).
+  const axisInputMode = relationshipAxisInputMode(question);
+  const requirements = useMemo(() => relationshipModelRequirements(question), [question]);
+  const originMode = relationshipOriginMode(question);
+  const originConfig = useMemo(() => relationshipOriginConfig(question), [question]);
 
-  const originMode = ['builder', 'guided', 'open'].includes(question.origin?.responseMode)
-    ? question.origin.responseMode
-    : 'open';
-  const originConfig = requirements.origin
-    ? {
-        ...question.origin,
-        responseMode: originMode,
-        target: question.origin?.target || {
-          kind: 'startingPoint',
-          coordinates: question.origin?.coordinates || question.origin?.point || [],
-        },
-        quantities: question.origin?.quantities || {
-          x: {
-            id: question.correctIndependentId,
-            name: (question.quantities || []).find((item) => item?.id === question.correctIndependentId)?.label || '',
-            unit: (question.quantities || []).find((item) => item?.id === question.correctIndependentId)?.unit || '',
-            acceptedUnits: axisSetup.acceptedXUnits || [],
-          },
-          y: {
-            id: question.correctDependentId,
-            name: (question.quantities || []).find((item) => item?.id === question.correctDependentId)?.label || '',
-            unit: (question.quantities || []).find((item) => item?.id === question.correctDependentId)?.unit || '',
-            acceptedUnits: axisSetup.acceptedYUnits || [],
-          },
-        },
-        applyResponseToGraph: question.origin?.applyResponseToGraph !== false,
-        quantityChoices: question.quantities || [],
-      }
-    : null;
-
-  const quantityById = Object.fromEntries(quantities.map((item) => [item.id, item]));
-  const acceptedXLabels = axisSetup.acceptedXLabels || [quantityById[question.correctIndependentId]?.label];
-  const acceptedYLabels = axisSetup.acceptedYLabels || [quantityById[question.correctDependentId]?.label];
-  const acceptedXUnits = axisSetup.acceptedXUnits || [quantityById[question.correctIndependentId]?.unit];
-  const acceptedYUnits = axisSetup.acceptedYUnits || [quantityById[question.correctDependentId]?.unit];
-  const acceptedXSteps = (axisSetup.acceptedXSteps || []).map(String);
-  const acceptedYSteps = (axisSetup.acceptedYSteps || []).map(String);
-
-  const parts = [];
-  if (requirements.quantities) {
-    parts.push({
-      id: 'independent',
-      label: 'Independent quantity',
-      isComplete: Boolean(values.independentId),
-      isCorrect: values.independentId === question.correctIndependentId,
-      response: quantityById[values.independentId]?.label || '',
-    });
-    parts.push({
-      id: 'dependent',
-      label: 'Dependent quantity',
-      isComplete: Boolean(values.dependentId),
-      isCorrect: values.dependentId === question.correctDependentId,
-      response: quantityById[values.dependentId]?.label || '',
-    });
-  }
-  if (requirements.continuity) {
-    parts.push({
-      id: 'relationship-type',
-      label: 'Discrete or continuous relationship',
-      isComplete: Boolean(values.relationshipType),
-      isCorrect: values.relationshipType === question.relationshipType,
-      response: values.relationshipType,
-    });
-  }
-  if (requirements.axes) {
-    parts.push({ id: 'x-label', label: 'X-axis quantity', isComplete: Boolean(values.xLabel.trim()), isCorrect: matchesAcceptedText(values.xLabel, acceptedXLabels), response: values.xLabel });
-    parts.push({ id: 'x-unit', label: 'X-axis unit', isComplete: Boolean(values.xUnit.trim()), isCorrect: matchesAcceptedText(values.xUnit, acceptedXUnits), response: values.xUnit });
-    parts.push({ id: 'y-label', label: 'Y-axis quantity', isComplete: Boolean(values.yLabel.trim()), isCorrect: matchesAcceptedText(values.yLabel, acceptedYLabels), response: values.yLabel });
-    parts.push({ id: 'y-unit', label: 'Y-axis unit', isComplete: Boolean(values.yUnit.trim()), isCorrect: matchesAcceptedText(values.yUnit, acceptedYUnits), response: values.yUnit });
-  }
-  if (requirements.scale) {
-    parts.push({
-      id: 'x-step',
-      label: 'Reasonable x-axis scale',
-      isComplete: Boolean(String(values.xStep).trim()),
-      isCorrect: acceptedXSteps.length ? acceptedXSteps.includes(String(values.xStep).trim()) : Number(values.xStep) > 0,
-      response: values.xStep,
-    });
-    parts.push({
-      id: 'y-step',
-      label: 'Reasonable y-axis scale',
-      isComplete: Boolean(String(values.yStep).trim()),
-      isCorrect: acceptedYSteps.length ? acceptedYSteps.includes(String(values.yStep).trim()) : Number(values.yStep) > 0,
-      response: values.yStep,
-    });
-  }
-  if (requirements.origin) {
-    if (originMode === 'open') {
-      parts.push({
-        id: 'origin',
-        label: 'Meaning of the starting point',
-        isComplete: Boolean(values.originMeaning.trim()),
-        isCorrect: matchesConceptGroups(values.originMeaning, question.origin?.requiredConcepts || []),
-        response: values.originMeaning,
-      });
-    } else {
-      parts.push(...buildContextInterpretationParts(values.pointMeaning, originConfig, { prefix: 'origin' }));
-    }
-  }
-
-  const isComplete = parts.length > 0 && parts.every((part) => part.isComplete);
-  const isCorrect = isComplete && parts.every((part) => part.isCorrect);
+  // The student's raw work. Every part's verdict comes ONLY from the shared
+  // grader the server also runs (serverGrading/tools/relationshipModel.mjs).
+  const work = useMemo(() => relationshipModelWork(values), [values]);
+  const grading = useMemo(() => gradeToolCheck(relationshipModelGrader, question, work), [question, work]);
+  const questionDetails = `${question.prompt || 'Model the relationship.'} Scenario: ${question.scenario || ''} Responses: ${JSON.stringify(values)}`;
 
   useEffect(() => {
-    onStateChange({
-      isComplete,
-      isCorrect,
-      responseKey: stableStringify(values),
-      questionDetails: `${question.prompt || 'Model the relationship.'} Scenario: ${question.scenario || ''} Responses: ${JSON.stringify(values)}`,
-      parts,
-    });
-  }, [isComplete, isCorrect, onStateChange, question.prompt, question.scenario, values]);
+    onStateChange(answerStateFromSharedGrading(grading, { questionDetails }));
+  }, [grading, questionDetails, onStateChange]);
 
   useEffect(() => {
     onUndoStateChange?.({ canUndo: history.canUndo, onUndo: history.undo, label: 'Undo the last relationship-model entry' });

@@ -1,16 +1,25 @@
 /*
- * Grading declaration for the `graphing` structured question surface — a question
- * type rendered by QuestionEngine (not a registry tool) whose verdict comes
- * from a shared grader over a structured raw response (toolResponseContract).
+ * Grading declaration for the `graphing` structured question surface — the
+ * "Graphing Lines" screen (src/GraphLine.jsx), rendered by QuestionEngine (not
+ * a registry tool). Its verdict comes from the shared grader over a structured
+ * raw response (toolResponseContract), on the device and on the server.
  *
- * Light by design. The mathematics is in ../tools/graphing.mjs.
+ * The student types the slope and the y-intercept; both are checked against
+ * the question's own key, so the server can reproduce the verdict exactly. A
+ * legacy `generator` item (per-student m/b) is graded on the device and
+ * refused on the server by the common exclusions, not by this declaration.
+ *
+ * Light by design. The checks are in ../tools/graphing.mjs.
  */
-import { clientGraded, declareTool } from '../toolGraderDefinition.mjs';
+import { SHARED, declareTool } from '../toolGraderDefinition.mjs';
 
 export default declareTool({
+  // Work shape v1: { slope: string, intercept: string } — the two input boxes.
   contractVersion: 1,
-  defaultMode: 'default',
+  // GraphLine.jsx has exactly one view and never reads question.mode.
+  defaultMode: 'lineFeatures',
+  resolveMode: () => 'lineFeatures',
   modes: {
-    default: clientGraded('PENDING: shared server grader not yet implemented for graphing.'),
+    lineFeatures: SHARED,
   },
 });

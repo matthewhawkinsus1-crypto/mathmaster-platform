@@ -1,16 +1,24 @@
 /*
- * Grading declaration for the `graphComparison` structured question surface — a question
- * type rendered by QuestionEngine (not a registry tool) whose verdict comes
- * from a shared grader over a structured raw response (toolResponseContract).
+ * Grading declaration for the `graphComparison` structured question surface —
+ * Compare and Contrast Graphs (src/GraphComparison.jsx), rendered by
+ * QuestionEngine (not a registry tool). Its verdict comes from the shared
+ * grader over a structured raw response (toolResponseContract).
  *
- * Light by design. The mathematics is in ../tools/graphComparison.mjs.
+ * A choice field is matched against its accepted answers; any other field
+ * against its required concept groups — all authored on the question.
+ *
+ * Light by design. The checks are in ../tools/graphComparison.mjs.
  */
-import { clientGraded, declareTool } from '../toolGraderDefinition.mjs';
+import { SHARED, declareTool } from '../toolGraderDefinition.mjs';
 
 export default declareTool({
+  // Work shape v1: { responses: [{ fieldId, text }] }, sorted by field.
   contractVersion: 1,
-  defaultMode: 'default',
+  // GraphComparison.jsx has exactly one view (each field picks its own
+  // select/textarea) and never reads question.mode.
+  defaultMode: 'compare',
+  resolveMode: () => 'compare',
   modes: {
-    default: clientGraded('PENDING: shared server grader not yet implemented for graphComparison.'),
+    compare: SHARED,
   },
 });
