@@ -33,3 +33,11 @@ tests/browser/artifacts/
 .playwright-mcp/
 dist-harness
 release-reports
+
+# Written by the FIRST predeploy step of each Functions codebase
+# (scripts/write-functions-provenance.mjs): the commit a deploy was made from.
+# Generated on every deploy, so never committed — but deliberately NOT in the
+# codebases' `ignore` lists in firebase.json, because the Firebase CLI packages
+# by those lists, not by this file, and the deployed functions read it.
+functions/deploy-provenance.json
+functions-path-admin/deploy-provenance.json

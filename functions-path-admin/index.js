@@ -17,16 +17,27 @@
 //
 //   HTTP 429 Per project mutation requests per minute per region
 //
-// Discovery of THIS file must stay near-instant, so it requires exactly two
-// Firebase modules and nothing else. Every expensive module — the compiler, the
-// release engine, the Path issuer, the certified package — is loaded inside a
-// handler, after discovery, and only when that handler needs it.
+// Discovery of THIS file must stay near-instant, so it requires the Firebase
+// modules it registers functions with and the one-file deploy provenance reader,
+// and nothing else. (`firebase-functions/v2/options` is already loaded by
+// `firebase-functions/v2/https`; the reader needs only `fs` and `path`.) Every
+// expensive module — the compiler, the release engine, the Path issuer, the
+// certified package — is loaded inside a handler, after discovery, and only
+// when that handler needs it.
 //
 // This codebase is additive. It defines no name the default codebase already
 // owns, so deploying it cannot delete or take ownership of an existing function.
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { setGlobalOptions } = require("firebase-functions/v2/options");
 const { initializeApp, getApps } = require("firebase-admin/app");
+const { deployProvenanceLabels } = require("./lib/deployProvenance");
+
+// Every function in this codebase carries the commit it was deployed from, as
+// the Cloud labels mm-git-sha and mm-tree — the same labels the default
+// codebase sets (functions/index.js). The values come from the
+// deploy-provenance.json this codebase's first predeploy step writes.
+setGlobalOptions({ labels: deployProvenanceLabels });
 
 if (!getApps().length) initializeApp();
 

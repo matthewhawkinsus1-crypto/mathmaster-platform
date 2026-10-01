@@ -147,3 +147,16 @@ the retry command and rollback steps. Function names come from the real entry
 point (`scripts/lib/functionsInventory.mjs`), not a grep of `index.js` — the grep
 missed eight. Planning logic: `scripts/lib/releasePlan.mjs`,
 `scripts/lib/releaseExecutor.mjs` (tested in `tests/platform/releasePlan.test.mjs`).
+
+Deployed Functions record their commit. The first predeploy step of both
+codebases (`scripts/write-functions-provenance.mjs`) writes a gitignored
+`deploy-provenance.json` that every function turns into Cloud labels
+(`mm-git-sha`, `mm-tree`) and that the public, read-only callable
+`platformBuildInfo` returns. Any release that deploys default-codebase functions
+redeploys `platformBuildInfo` and then a verify step calls it: if it does not
+report HEAD, path-admin, rules and Hosting are held back exactly as for a failed
+function. `node scripts/release-firebase.mjs --whats-live` shows which commit
+Hosting and the Functions are running. Predeploy steps must not rewrite tracked
+files when nothing changed — a dirty tree stops the Hosting step
+(`tests/platform/pathReleaseIdempotentBuild.test.mjs`). Details:
+`docs/DEPLOY_FROM_CLOUD_SHELL.md`, "Which commit is live".

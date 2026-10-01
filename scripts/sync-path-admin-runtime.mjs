@@ -30,6 +30,9 @@ export const VENDORED_PATHS = Object.freeze([
   { from: 'lib/pathContentCompiler.js', to: 'lib/pathContentCompiler.js', kind: 'file' },
   { from: 'lib/pathFirestoreShape.js', to: 'lib/pathFirestoreShape.js', kind: 'file' },
   { from: 'lib/mathPath.js', to: 'lib/mathPath.js', kind: 'file' },
+  // The deploy provenance reader and its label rules: one implementation for
+  // both codebases (functions-path-admin/lib/deployProvenance.js).
+  { from: 'lib/deployProvenance.js', to: 'lib/deployProvenance.js', kind: 'file' },
 ]);
 
 const sourceRoot = path.join(ROOT, 'functions');

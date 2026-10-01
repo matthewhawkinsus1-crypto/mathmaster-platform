@@ -32,9 +32,18 @@ const triggerKind = (endpoint = {}) => {
   return 'other';
 };
 
+// An endpoint with no region is deployed to the CLI's default region; null
+// here means "the default" (scripts/lib/releasePlan.mjs DEFAULT_FUNCTIONS_REGION).
+const endpointRegion = (endpoint = {}) => {
+  const region = Array.isArray(endpoint.region) ? endpoint.region[0] : endpoint.region;
+  return typeof region === 'string' && region ? region : null;
+};
+
 /**
- * @returns {{ entry: string, functions: Array<{ name: string, trigger: string }> }}
- *          names sorted, so batching is deterministic from run to run.
+ * @returns {{ entry: string, functions: Array<{ name: string, trigger: string, region: string|null, labels: object }> }}
+ *          names sorted, so batching is deterministic from run to run. `labels`
+ *          are the Cloud labels the CLI will set — including the deploy
+ *          provenance labels (mm-git-sha, mm-tree) every function carries.
  */
 export const listDeployableFunctions = ({ codebaseDir = path.join(repoRoot, 'functions') } = {}) => {
   const manifest = JSON.parse(readFileSync(path.join(codebaseDir, 'package.json'), 'utf8'));
@@ -43,7 +52,12 @@ export const listDeployableFunctions = ({ codebaseDir = path.join(repoRoot, 'fun
   const exported = require(path.join(codebaseDir, entry));
   const functions = Object.entries(exported || {})
     .filter(([, value]) => value && (typeof value === 'function' || typeof value === 'object') && value.__endpoint)
-    .map(([name, value]) => ({ name, trigger: triggerKind(value.__endpoint) }))
+    .map(([name, value]) => ({
+      name,
+      trigger: triggerKind(value.__endpoint),
+      region: endpointRegion(value.__endpoint),
+      labels: { ...value.__endpoint.labels },
+    }))
     .sort((left, right) => left.name.localeCompare(right.name));
   return { entry, functions };
 };

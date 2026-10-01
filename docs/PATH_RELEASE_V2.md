@@ -245,7 +245,7 @@ Other useful commands:
 
 | Command | What it does |
 | --- | --- |
-| `npm run release:path:build` | compile, certify and write the release artifact |
+| `npm run release:path:build` | compile, certify and write the release artifact. The committed manifest and `pathReleaseManifest.generated.js` are rewritten only when the certified release changed (new release id, content hash, schema or counts); otherwise they keep their committed build metadata and only the gitignored documents package is written, so a deploy's predeploy never dirties the tree |
 | `npm run release:path:verify` | CI gate: fail if the committed manifest and the seeds disagree |
 | `npm run test:path-release` | the Path Release V2 unit and contract suite |
 | `npm run test:path-release:emulator` | interrupted multi-chunk release against real Firestore |

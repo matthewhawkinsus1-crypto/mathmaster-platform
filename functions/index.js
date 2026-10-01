@@ -83,15 +83,39 @@ const fullAssignmentRepair = require("./lib/fullAssignmentRepair");
 const assignmentContentVersion = require("./lib/assignmentContentVersion");
 const assignmentContentTrackerMigration = require("./lib/assignmentContentTrackerMigration");
 const teacherQuestionRepair = require("./lib/teacherQuestionRepair");
+const { deployProvenance, deployProvenanceLabels } = require("./lib/deployProvenance");
 
 // HTTPS/callable transport must be reachable by the Firebase client SDK.
 // MathMaster authorization still happens INSIDE each callable through
 // requireStudent/requireTeacher/requireRootAdmin. Source-controlling this
 // prevents a redeploy from silently returning a Cloud Run service to
 // "Require authentication" before Firebase Auth can be inspected.
-setGlobalOptions({ invoker: "public" });
+//
+// Every function this codebase deploys also carries the commit it was built
+// from, as the Cloud labels mm-git-sha and mm-tree (`gcloud functions list`;
+// `node scripts/release-firebase.mjs --whats-live`). The values come from the
+// deploy-provenance.json the first predeploy step writes (firebase.json), read
+// while the CLI discovers the functions. Global options apply to functions
+// defined AFTER this call, which is every function in this codebase: entry.js,
+// platformEntry.js and the Classroom section entry all load this file first.
+setGlobalOptions({ invoker: "public", labels: deployProvenanceLabels });
 
 initializeApp();
+
+// WHICH COMMIT IS LIVE (F-REL-3). Read-only and deliberately unauthenticated:
+// it returns this deployment's provenance and nothing else — no request data,
+// no Firestore, no secret. mathmaster-build.json already publishes the Hosting
+// commit the same way. scripts/release-firebase.mjs redeploys it in every
+// functions release and then calls it to prove the functions now serve the
+// commit it just deployed; `--whats-live` reads it too. Capped at two
+// instances so an anonymous caller cannot scale it into a bill.
+exports.platformBuildInfo = onCall({ maxInstances: 2 }, () => ({
+  codebase: deployProvenance.codebase,
+  gitSha: deployProvenance.gitSha,
+  gitShaShort: deployProvenance.gitShaShort,
+  treeClean: deployProvenance.treeClean,
+  writtenAt: deployProvenance.writtenAt,
+}));
 
 const MAX_CLASSROOM_COURSES_PER_BATCH = 20;
 const PUBLISH_LEASE_MS = 5 * 60 * 1000;
