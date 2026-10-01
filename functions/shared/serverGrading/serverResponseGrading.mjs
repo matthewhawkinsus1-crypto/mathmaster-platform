@@ -72,6 +72,7 @@ export const gradeServerResponse = ({ question, response } = {}) => {
   // A registry tool. Only a tool response for THIS tool is read.
   const grader = TOOL_GRADERS[surfaceId];
   if (!grader) return { ...ungradedResult(`no-tool-grader:${surfaceId}`), surfaceId, mode: support.mode };
+  if (grader.problems?.length) return { ...ungradedResult('grader-declaration-drift'), surfaceId, mode: support.mode };
   if (!isToolResponse(response)) return { ...ungradedResult('no-tool-response'), surfaceId, mode: support.mode };
   if (text(response.toolId) && text(response.toolId) !== grader.toolId) {
     return { ...ungradedResult('response-tool-mismatch'), surfaceId, mode: support.mode };
@@ -113,6 +114,17 @@ export const gradeToolWork = ({ toolId, question, work } = {}) => {
  * callers that hold an instance rebuilt from a delivery pin.
  */
 export const gradeFamilyInstanceResponse = ({ question = null, response = null } = {}) => gradeServerResponse({ question, response });
+
+/**
+ * Is the shared grader for this question's surface consistent with its
+ * declaration? Drift is refused by the coverage gate; this lets ingestion keep
+ * a drifted tool's submissions on the bounded legacy path instead of blocking.
+ */
+export const sharedGraderDrift = (question) => {
+  const support = serverResponseGradingSupport(question);
+  const grader = support.surfaceId ? TOOL_GRADERS[support.surfaceId] : null;
+  return grader?.problems?.length ? [...grader.problems] : [];
+};
 
 /** The shared grader module for a tool id, or null. */
 export const sharedToolGrader = (toolId) => TOOL_GRADERS[toolId] || null;

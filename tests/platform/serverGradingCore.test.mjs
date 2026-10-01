@@ -120,9 +120,18 @@ test('a tool response from the wire is re-bounded: a device is not trusted to ha
 test('a client-graded mode must name its blocker, and a shared mode must have a grader', () => {
   assert.throws(() => declareTool({ modes: { a: clientGraded('') } }), /documented blocker/);
   const declaration = declareTool({ defaultMode: 'a', modes: { a: SHARED, b: clientGraded('Strokes are judged in screen space.') } });
-  assert.throws(() => bindToolGrader(declaration, 'demo', {}), /declared shared-server but has no grade function/);
-  assert.throws(() => bindToolGrader(declaration, 'demo', { a: () => ({}), b: () => ({}) }), /supplies a grade function/);
-  assert.throws(() => bindToolGrader(declaration, 'demo', { a: () => ({}), c: () => ({}) }), /undeclared mode/);
+  const problemsOf = (graders) => bindToolGrader(declaration, 'demo', graders).problems.join(' ');
+  assert.match(problemsOf({}), /declared shared-server but has no grade function/);
+  assert.match(problemsOf({ a: () => ({}), b: () => ({}) }), /supplies a grade function/);
+  assert.match(problemsOf({ a: () => ({}), c: () => ({}) }), /undeclared mode/);
+  assert.equal(problemsOf({ a: () => gradedResult({ parts: [] }) }), '');
+});
+
+test('a drifted grader fails closed for that tool only: it refuses to grade instead of crashing the registry', () => {
+  const declaration = declareTool({ defaultMode: 'a', modes: { a: SHARED } });
+  const drifted = bindToolGrader(declaration, 'demo', {});
+  assert.equal(drifted.grade({}, { any: 1 }).reason, 'grader-declaration-drift');
+  assert.equal(drifted.support({}).supported, false);
 });
 
 test('a grader that throws on tampered work yields "no verdict", never a crash and never "correct"', () => {

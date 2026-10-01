@@ -39,6 +39,7 @@ import {
 import {
   gradeServerResponse,
   serverResponseGradingSupport,
+  sharedGraderDrift,
   usesToolResponse,
 } from './serverGrading/serverResponseGrading.mjs';
 import { isToolResponse } from './serverGrading/toolResponseContract.mjs';
@@ -324,6 +325,8 @@ export const serverCanRegradeEnvelope = ({ envelope, question }) => {
   if (usesToolResponse(question) && !isToolResponse(envelope.response)) {
     return { regrade: false, reason: 'legacy-unstructured-response' };
   }
+  // Never reachable once the coverage gate passes; fail-closed if it were.
+  if (sharedGraderDrift(question).length) return { regrade: false, reason: 'grader-declaration-drift' };
   return { regrade: true, reason: null };
 };
 

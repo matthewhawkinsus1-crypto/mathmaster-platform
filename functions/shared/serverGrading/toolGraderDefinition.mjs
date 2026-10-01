@@ -120,20 +120,33 @@ export const toolModeSupport = (declaration, question = {}) => {
  */
 export const bindToolGrader = (declaration, toolId, modeGraders = {}) => {
   if (!declaration || declaration.kind !== 'tool') throw new Error(`bindToolGrader(${toolId}): not a tool declaration.`);
+  /*
+   * DRIFT FAILS CLOSED FOR THIS ONE TOOL — IT DOES NOT THROW.
+   *
+   * A declaration that promises a shared grader the code does not supply (or
+   * the reverse) must never ship: tests/platform/serverGradingCoverageGate
+   * fails on any `problems` here. But if one ever did, throwing at import
+   * would take down the whole registry — every ordinary question's server
+   * grading with it. Instead the drifted tool refuses to grade
+   * ('grader-declaration-drift') and its submissions keep the bounded legacy
+   * path, while every other surface is unaffected.
+   */
+  const problems = [];
   Object.entries(declaration.modes).forEach(([mode, entry]) => {
     const hasGrader = typeof modeGraders[mode] === 'function';
     if (entry.authority === GRADING_AUTHORITY.SHARED_SERVER && !hasGrader) {
-      throw new Error(`Tool grader ${toolId}: mode "${mode}" is declared shared-server but has no grade function.`);
+      problems.push(`Tool grader ${toolId}: mode "${mode}" is declared shared-server but has no grade function.`);
     }
     if (entry.authority !== GRADING_AUTHORITY.SHARED_SERVER && hasGrader) {
-      throw new Error(`Tool grader ${toolId}: mode "${mode}" is ${entry.authority} but supplies a grade function.`);
+      problems.push(`Tool grader ${toolId}: mode "${mode}" is ${entry.authority} but supplies a grade function.`);
     }
   });
   Object.keys(modeGraders).forEach((mode) => {
-    if (!declaration.modes[mode]) throw new Error(`Tool grader ${toolId}: grades undeclared mode "${mode}".`);
+    if (!declaration.modes[mode]) problems.push(`Tool grader ${toolId}: grades undeclared mode "${mode}".`);
   });
 
   const grade = (question = {}, work = null) => {
+    if (problems.length) return ungradedResult('grader-declaration-drift', { detail: problems.join(' ') });
     const check = toolModeSupport(declaration, question);
     if (!check.supported) return ungradedResult(check.reason, { mode: check.mode });
     if (work === null || work === undefined || typeof work !== 'object' || Array.isArray(work)) {
@@ -158,7 +171,10 @@ export const bindToolGrader = (declaration, toolId, modeGraders = {}) => {
     contractVersion: declaration.contractVersion,
     declaration,
     modeGraders: Object.freeze({ ...modeGraders }),
-    support: (question) => toolModeSupport(declaration, question),
+    problems: Object.freeze(problems),
+    support: (question) => (problems.length
+      ? { supported: false, reason: 'grader-declaration-drift', mode: null }
+      : toolModeSupport(declaration, question)),
     grade,
   });
 };
