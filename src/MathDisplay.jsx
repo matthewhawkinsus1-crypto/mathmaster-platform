@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import 'mathlive';
+import './platform/math/mathliveRuntime.js';
 import { ensureMathElementRenders } from './platform/math/ensureMathElementRenders.js';
 import { stackDivisions } from '../functions/shared/stackDivisions.mjs';
 import { resolveMathDisplayFormat, unicodeSubscriptsToMathMarkup } from './mathDisplayFormat.js';
