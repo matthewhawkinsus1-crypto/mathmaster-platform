@@ -41,6 +41,10 @@ export default defineConfig({
       path.join(repo, 'src/services/secureExamService.js'),
       path.join(here, 'secureExamServiceStub.js'),
     ),
+    swapFile(
+      path.join(repo, 'src/platform/rewards/rewardsClient.js'),
+      path.join(here, 'rewardsClientStub.js'),
+    ),
     react(),
   ],
 });

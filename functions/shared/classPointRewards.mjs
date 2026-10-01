@@ -35,7 +35,34 @@ export const PRACTICE_PASS_REWARD_CODE = 'practicePass';
 export const PRACTICE_PASS_COST = 100;
 export const PRACTICE_SECTION_ROLE = 'practice';
 export const REWARD_REDEMPTION_SCHEMA_VERSION = 1;
-export const REDEMPTION_STATUS = Object.freeze({ REDEEMED: 'redeemed' });
+export const REDEMPTION_STATUS = Object.freeze({ REDEEMED: 'redeemed', REVERSED: 'reversed' });
+
+/*
+ * HOW A PRACTICE PASS WAS PAID FOR.
+ *
+ *   classPoints  100 Class Points, spent through the ledger (the original
+ *                Phase 5A reward)
+ *   pass         a Practice Pass the student already held — a rewardGrants
+ *                document earned in a Live Challenge or given by a teacher
+ *
+ * Either way the EFFECT is the same document: one
+ * classPointRewardRedemptions/{practicePassRedemptionId(...)} record, which
+ * every grading, completion, Classroom and Grade Transfer consumer already
+ * reads as "Practice is excused here". Payment and effect are written in the
+ * same transaction, so a pass is never spent without the waiver and a waiver
+ * never exists without its payment.
+ */
+export const PRACTICE_PASS_PAYMENT = Object.freeze({ CLASS_POINTS: 'classPoints', PASS: 'pass' });
+
+/**
+ * Whether a redemption document is a live waiver. A redemption a teacher
+ * undid stays as history with status `reversed` and no longer excuses
+ * anything. Documents written before the status could change carry
+ * `redeemed`; a document with no status at all is treated the same way, since
+ * every writer before this one only ever wrote live redemptions.
+ */
+export const isActivePracticePassRedemption = (redemption) => Boolean(redemption)
+  && String(redemption.status || REDEMPTION_STATUS.REDEEMED) === REDEMPTION_STATUS.REDEEMED;
 
 /** Ordinary, expected redemption refusals — never a bug, always a business rule. */
 export const PRACTICE_PASS_INELIGIBLE_CODES = Object.freeze({
@@ -203,6 +230,9 @@ export const evaluatePracticePassEligibility = ({
   balance = 0,
   nowValue = Date.now(),
   studentId = null,
+  // A pass the student already holds is paid for; only a Class Points
+  // purchase needs the balance.
+  paymentMethod = PRACTICE_PASS_PAYMENT.CLASS_POINTS,
 } = {}) => {
   const fail = (code, message) => ({ eligible: false, code, message });
 
@@ -284,7 +314,8 @@ export const evaluatePracticePassEligibility = ({
     );
   }
 
-  if (!(Number.isInteger(Number(balance)) && Number(balance) >= PRACTICE_PASS_COST)) {
+  if (paymentMethod === PRACTICE_PASS_PAYMENT.CLASS_POINTS
+    && !(Number.isInteger(Number(balance)) && Number(balance) >= PRACTICE_PASS_COST)) {
     return fail(
       PRACTICE_PASS_INELIGIBLE_CODES.INSUFFICIENT_BALANCE,
       `You need ${Math.max(0, PRACTICE_PASS_COST - (Number(balance) || 0))} more Class Points.`,
@@ -332,15 +363,24 @@ export const buildPracticePassLedgerTransaction = ({
   createdAt: at,
 });
 
-/** The `classPointRewardRedemptions` document a granted Practice Pass writes. It doubles as the authoritative Practice waiver projection every grading/completion consumer reads. */
+/**
+ * The `classPointRewardRedemptions` document a granted Practice Pass writes. It doubles as the authoritative Practice waiver projection every grading/completion consumer reads.
+ *
+ * `previousRedemptions` keeps every earlier use of this same document id that
+ * a teacher undid, so redeeming the same assignment again after an undo never
+ * erases what happened before.
+ */
 export const buildPracticePassRedemption = ({
   redemptionId,
   studentId,
   classId,
   assignmentId,
   assignmentTitle,
-  transactionId,
+  transactionId = null,
   at,
+  paidWith = PRACTICE_PASS_PAYMENT.CLASS_POINTS,
+  grantId = null,
+  previousRedemptions = [],
 }) => ({
   schemaVersion: REWARD_REDEMPTION_SCHEMA_VERSION,
   redemptionId,
@@ -349,8 +389,68 @@ export const buildPracticePassRedemption = ({
   classId,
   assignmentId,
   assignmentTitle,
-  cost: PRACTICE_PASS_COST,
-  transactionId,
+  paidWith,
+  cost: paidWith === PRACTICE_PASS_PAYMENT.CLASS_POINTS ? PRACTICE_PASS_COST : 0,
+  transactionId: transactionId || null,
+  grantId: grantId || null,
   redeemedAt: at,
   status: REDEMPTION_STATUS.REDEEMED,
+  reversedAt: null,
+  reversal: null,
+  previousRedemptions: Array.isArray(previousRedemptions) ? previousRedemptions : [],
+});
+
+/** The short summary of an undone redemption kept on the document's `previousRedemptions`. */
+export const summarizeReversedRedemption = (redemption = {}) => ({
+  paidWith: redemption.paidWith || PRACTICE_PASS_PAYMENT.CLASS_POINTS,
+  grantId: redemption.grantId || null,
+  transactionId: redemption.transactionId || null,
+  redeemedAt: redemption.redeemedAt || null,
+  reversedAt: redemption.reversedAt || null,
+  reversal: redemption.reversal || null,
+  refund: redemption.refund || null,
+});
+
+/**
+ * Which use of this redemption document an undo is about: 0 for the first,
+ * 1 after one earlier undo, and so on. Refund ids are derived from it, so a
+ * retried undo of the same use collides with itself, and a later use gets its
+ * own refund.
+ */
+export const redemptionCycle = (redemption = {}) => (
+  Array.isArray(redemption?.previousRedemptions) ? redemption.previousRedemptions.length : 0
+);
+
+/** The ledger id of the Class Points refund for one undone use. Deterministic: one undo, one refund. */
+export const practicePassRefundTransactionId = (redemptionId, cycle = 0) => `rfd_${cleanText(redemptionId, 120)}_${Number(cycle) || 0}`;
+
+/** The Class Points refund for an undone Practice Pass that was bought with points. */
+export const buildPracticePassRefundTransaction = ({
+  redemption,
+  reason,
+  issuedByUid,
+  issuedByEmail,
+  originTeacherEmail,
+  authorizedTeacherEmails,
+  at,
+}) => ({
+  schemaVersion: REWARD_REDEMPTION_SCHEMA_VERSION,
+  studentId: redemption.studentId,
+  classId: redemption.classId,
+  amount: Math.abs(Number(redemption.cost) || PRACTICE_PASS_COST),
+  reasonCode: PRACTICE_PASS_REWARD_CODE,
+  reasonLabel: cleanText(reason, 140) ? `Practice Pass returned — ${cleanText(reason, 100)}` : `Practice Pass returned — ${redemption.assignmentTitle || 'assignment'}`,
+  sourceType: SOURCE_TYPES.REWARD_REFUND,
+  isReversal: false,
+  reversalOf: redemption.transactionId || null,
+  issuedByUid: issuedByUid || null,
+  issuedByEmail: issuedByEmail || null,
+  requestId: null,
+  originTeacherEmail,
+  authorizedTeacherEmails,
+  rewardCode: PRACTICE_PASS_REWARD_CODE,
+  assignmentId: redemption.assignmentId,
+  assignmentTitle: redemption.assignmentTitle || null,
+  redemptionId: redemption.redemptionId,
+  createdAt: at,
 });

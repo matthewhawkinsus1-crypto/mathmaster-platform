@@ -759,10 +759,13 @@ async function ingestOneSubmission({ db, studentId, envelope, now }) {
           studentId, classId, assignmentId, rewardCode: rewards.PRACTICE_PASS_REWARD_CODE,
         })),
       );
-      if (redemptionSnap.exists) {
-        // A proven, permanent fact -- Practice is excused for this assignment
-        // -- so the outbox may retire this action instead of retrying it
-        // forever. No grade, no evidence, no attempt is ever written for it.
+      // A use a teacher undid is history, not a waiver: Practice is required
+      // again and its responses are accepted normally.
+      if (rewards.isActivePracticePassRedemption(redemptionSnap.exists ? redemptionSnap.data() : null)) {
+        // A proven fact -- Practice is excused for this assignment -- so the
+        // outbox may retire this action instead of retrying it forever. (A
+        // teacher who later undoes the pass makes Practice required again;
+        // the student answers it afresh.) No grade, no evidence, no attempt is ever written for it.
         transaction.set(receiptRef, {
           studentId,
           actionId: envelope.actionId,
@@ -2177,162 +2180,135 @@ exports.redeemPracticePass = onCall(async (request) => {
     }
     throw error;
   }
-  const { assignmentId } = input;
-
-  const db = getFirestore();
-  const gradeRef = db.collection("grades").doc(studentId);
-  const assignmentRef = db.collection("assignments").doc(assignmentId);
-
-  return db.runTransaction(async (transaction) => {
-    const [gradeSnap, assignmentSnap] = await Promise.all([
-      transaction.get(gradeRef),
-      transaction.get(assignmentRef),
-    ]);
-    if (!gradeSnap.exists) {
-      throw new HttpsError("not-found", "Your student record was not found.");
-    }
-    const gradeData = gradeSnap.data() || {};
-    const classId = authoritativeStudentClassId(gradeData);
-    if (!classId) {
-      throw new HttpsError("failed-precondition", "You are not currently placed in a class.");
-    }
-    if (!assignmentSnap.exists) {
-      throw new HttpsError("not-found", "That assignment was not found.");
-    }
-    const assignment = { id: assignmentSnap.id, ...assignmentSnap.data() };
-
-    const redemptionId = rewards.practicePassRedemptionId({
-      studentId, classId, assignmentId, rewardCode: rewards.PRACTICE_PASS_REWARD_CODE,
-    });
-    const redemptionRef = db.collection(CLASS_POINT_REWARD_REDEMPTIONS_COLLECTION).doc(redemptionId);
-    const points = await classPoints();
-    const accountRef = db.collection(CLASS_POINT_ACCOUNTS_COLLECTION).doc(points.accountId(studentId, classId));
-    const classRef = db.collection("classes").doc(classId);
-    const [redemptionSnap, accountSnap, classSnap] = await Promise.all([
-      transaction.get(redemptionRef),
-      transaction.get(accountRef),
-      transaction.get(classRef),
-    ]);
-
-    // Idempotent replay: the deterministic redemption id IS the retry key.
-    if (redemptionSnap.exists) {
-      const existing = redemptionSnap.data();
-      const existingTransactionSnap = await transaction.get(
-        db.collection(CLASS_POINT_TRANSACTIONS_COLLECTION).doc(String(existing.transactionId)),
-      );
-      return {
-        redemptionId,
-        redemption: existing,
-        account: accountSnap.exists ? accountSnap.data() : null,
-        transaction: existingTransactionSnap.exists ? existingTransactionSnap.data() : null,
-        replay: true,
-      };
-    }
-
-    const classRecord = classSnap.exists ? { classId: classSnap.id, ...classSnap.data() } : null;
-
-    /*
-     * THE CLASS/ROSTER MUST BE INTERNALLY CONSISTENT BEFORE A NEW REDEMPTION.
-     *
-     * This reuses `authorizeClassPointsActor` -- the exact same consistency
-     * rule `awardClassPoints`/`reverseClassPointAward` already enforce -- but
-     * for a different purpose: there is no teacher actor here, so the class's
-     * OWN `teacherOfRecord` is passed as the "actor", which makes the
-     * teacher-identity check in that function a no-op (it always agrees with
-     * itself) while still requiring: the class exists, is not archived, the
-     * student's own grade record currently names this same class, the class
-     * has a `teacherOfRecord` at all, and the roster's `assignedTeacherEmail`
-     * agrees with it. Any of those failing means the roster is not in a state
-     * a redemption should spend real points against.
-     */
-    const consistency = points.authorizeClassPointsActor({
-      isRootAdmin: false,
-      teacherEmail: classRecord?.teacherOfRecord,
-      classRecord,
-      studentRecord: gradeData,
-      requestedClassId: classId,
-    });
-    if (!consistency.authorized) throw new HttpsError(consistency.reason, consistency.message);
-
-    const assignedToClass = studentMatchesAssignmentAudience({ assignment, classId });
-    const isTestCycleAssignment = secureAssignmentMode(assignment) || assignment.secure === true;
-    const practiceIndices = runtimeIncludedQuestionIndicesForSection(assignment, "practice");
-
-    const { normalizeQuestionRecord } = await import("./shared/attemptPolicy.mjs");
-    const tracker = gradeData?.gradesByAssignment?.[assignmentId] || {};
-    // Authoritative evidence only -- never the existence of a local draft. A
-    // student who never submitted a Practice response may still redeem even
-    // if a browser has an unfinished draft sitting in studentWorkspaceDrafts.
-    const hasCreditBearingAttempt = practiceIndices.some((index) => {
-      const record = normalizeQuestionRecord(tracker?.[String(index)] ?? tracker?.[index]);
-      return Number(record.totalAttempts) > 0;
-    });
-
-    const account = accountSnap.exists ? accountSnap.data() : points.emptyAccount({ studentId, classId });
-
-    const decision = rewards.evaluatePracticePassEligibility({
-      assignment,
-      assignedToClass,
-      isTestCycleAssignment,
-      practiceIndices,
-      hasCreditBearingAttempt,
-      alreadyRedeemed: false,
-      balance: account.balance,
-      nowValue: Date.now(),
+  // Paying with a pass the student holds is the default whenever the caller
+  // says so; a call that names no payment keeps the original meaning (spend
+  // 100 Class Points), so a browser still running the previous build works.
+  const payWith = request.data?.payWith === rewards.PRACTICE_PASS_PAYMENT.PASS
+    ? rewards.PRACTICE_PASS_PAYMENT.PASS
+    : rewards.PRACTICE_PASS_PAYMENT.CLASS_POINTS;
+  const store = await rewardActionStore();
+  try {
+    return await store.redeemPracticePass(getFirestore(), {
       studentId,
+      assignmentId: input.assignmentId,
+      payWith,
+      preferredGrantId: String(request.data?.grantId || "").trim() || null,
+      actor: { uid: request.auth.uid, email: callerEmail(request) },
+      // Every fact the eligibility rule needs that only this file can compute,
+      // from the assignment the transaction itself just read.
+      assess: ({ assignment, classId }) => ({
+        assignedToClass: studentMatchesAssignmentAudience({ assignment, classId }),
+        isTestCycleAssignment: secureAssignmentMode(assignment) || assignment.secure === true,
+        practiceIndices: runtimeIncludedQuestionIndicesForSection(assignment, "practice"),
+      }),
     });
-    if (!decision.eligible) {
-      throw new HttpsError("failed-precondition", decision.message);
-    }
+  } catch (error) {
+    throw translateRewardActionError(error);
+  }
+});
 
-    const authorization = points.classPointsAuthorizationContext({
-      classRecord, existingRecord: accountSnap.exists ? account : null,
+// ---------------------------------------------------------------------------
+// Reward actions a teacher takes on one student's rewards. Each is one
+// transaction in functions/shared/rewardActionStore.mjs, authorized from the
+// class record (authorizeClassPointsActor) before anything is read back.
+// ---------------------------------------------------------------------------
+
+let rewardActionStoreModule = null;
+async function rewardActionStore() {
+  if (!rewardActionStoreModule) rewardActionStoreModule = await import("./shared/rewardActionStore.mjs");
+  return rewardActionStoreModule;
+}
+
+const REWARD_ACTION_HTTPS_CODES = new Set([
+  "invalid-argument", "failed-precondition", "permission-denied", "not-found", "already-exists",
+]);
+
+function translateRewardActionError(error) {
+  if (error?.name === "RewardActionError") {
+    const code = REWARD_ACTION_HTTPS_CODES.has(error.code) ? error.code : "failed-precondition";
+    return new HttpsError(code, error.message, error.detail || undefined);
+  }
+  return translateClassPointsError(error);
+}
+
+async function rewardTeacher(request) {
+  const uid = await requireTeacher(request);
+  const email = callerEmail(request);
+  if (!email) throw new HttpsError("permission-denied", "Sign in with a verified school email to manage rewards.");
+  return { uid, email, isRootAdmin: authLib.isRootAdminEmail(email) };
+}
+
+/** A teacher gives one student a Practice Pass or a badge. */
+exports.awardRewardGrant = onCall(async (request) => {
+  const teacher = await rewardTeacher(request);
+  const data = request.data || {};
+  const store = await rewardActionStore();
+  try {
+    return await store.awardRewardGrant(getFirestore(), {
+      studentId: data.studentId,
+      classId: data.classId,
+      rewardCode: data.rewardCode,
+      label: data.label,
+      note: data.note,
+      expiresInDays: data.expiresInDays ?? null,
+      requestId: data.requestId,
+      teacher,
     });
+  } catch (error) {
+    throw translateRewardActionError(error);
+  }
+});
 
-    const nowIso = new Date().toISOString();
-    const assignmentTitle = rewards.safeAssignmentTitle(assignment);
-    const transactionRef = db.collection(CLASS_POINT_TRANSACTIONS_COLLECTION).doc();
-    const ledgerTransaction = rewards.buildPracticePassLedgerTransaction({
-      studentId,
-      classId,
-      assignmentId,
-      assignmentTitle,
-      redemptionId,
-      issuedByUid: request.auth.uid,
-      issuedByEmail: callerEmail(request),
-      originTeacherEmail: authorization.originTeacherEmail,
-      authorizedTeacherEmails: authorization.authorizedTeacherEmails,
-      at: nowIso,
+/** A teacher takes back an unused reward, with a reason the student sees. */
+exports.revokeRewardGrant = onCall(async (request) => {
+  const teacher = await rewardTeacher(request);
+  const store = await rewardActionStore();
+  try {
+    return await store.revokeRewardGrant(getFirestore(), {
+      grantId: request.data?.grantId,
+      reason: request.data?.reason,
+      teacher,
     });
+  } catch (error) {
+    throw translateRewardActionError(error);
+  }
+});
 
-    let nextAccount;
-    try {
-      nextAccount = points.applyTransaction(account, ledgerTransaction);
-    } catch (error) {
-      throw translateClassPointsError(error);
-    }
-    nextAccount = {
-      ...nextAccount,
-      originTeacherEmail: authorization.originTeacherEmail,
-      authorizedTeacherEmails: authorization.authorizedTeacherEmails,
-    };
-
-    const redemption = rewards.buildPracticePassRedemption({
-      redemptionId, studentId, classId, assignmentId, assignmentTitle, transactionId: transactionRef.id, at: nowIso,
+/** A teacher undoes a Practice Pass use: Practice is required again and the pass or points come back. */
+exports.undoPracticePassRedemption = onCall(async (request) => {
+  const teacher = await rewardTeacher(request);
+  const store = await rewardActionStore();
+  try {
+    return await store.undoPracticePassRedemption(getFirestore(), {
+      redemptionId: request.data?.redemptionId,
+      reason: request.data?.reason,
+      teacher,
     });
+  } catch (error) {
+    throw translateRewardActionError(error);
+  }
+});
 
-    transaction.set(transactionRef, ledgerTransaction);
-    transaction.set(accountRef, nextAccount);
-    transaction.set(redemptionRef, redemption);
-
-    return {
-      redemptionId,
-      redemption,
-      account: nextAccount,
-      transaction: ledgerTransaction,
-      replay: false,
-    };
-  });
+/**
+ * Everything a teacher needs to understand ONE student's rewards in one class,
+ * in one authorized, one-time read (rewardActionStore.mjs
+ * loadStudentRewardsForTeacher): what they hold, what they used and on what,
+ * what was taken back, their recent Class Points, and — for the last few Live
+ * Challenges — why each reward rule did or did not pay out and whether the
+ * reward arrived. No listener: Refresh re-reads.
+ */
+exports.getStudentRewards = onCall(async (request) => {
+  const teacher = await rewardTeacher(request);
+  const store = await rewardActionStore();
+  try {
+    return await store.loadStudentRewardsForTeacher(getFirestore(), {
+      studentId: request.data?.studentId,
+      classId: request.data?.classId,
+      teacher,
+    });
+  } catch (error) {
+    throw translateRewardActionError(error);
+  }
 });
 
 /*
@@ -8337,7 +8313,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
               .collection(CLASS_POINT_REWARD_REDEMPTIONS_COLLECTION)
               .doc(redemptionId)
               .get();
-            if (redemptionSnap.exists) {
+            if (rewards.isActivePracticePassRedemption(redemptionSnap.exists ? redemptionSnap.data() : null)) {
               questionIndices = rewards.excludeWaivedIndices(
                 questionIndices,
                 rewards.waivedPracticeIndices({ hasRedemption: true, practiceIndices }),
@@ -10369,7 +10345,16 @@ async function writeChallengeEvidenceFromResult(db, result) {
 async function deliverLiveChallengeRewardsFromResult(db, result) {
   if (result.status !== "finished") return;
   const rewards = await liveChallengeClassPoints();
-  await rewards.processLiveChallengeMatchRewards(db, { matchResult: result, policy: result.rewardPolicy || null });
+  const delivery = await rewards.processLiveChallengeMatchRewards(db, { matchResult: result, policy: result.rewardPolicy || null });
+  // A match whose rewards were skipped as a whole (an archived class, a class
+  // with no teacher of record) writes no award job, so without this the
+  // teacher's reward diagnostics could not say why nobody was rewarded.
+  // update(), never set(): a result removed meanwhile stays removed.
+  if (delivery?.status === "skipped" && result.roomId) {
+    await db.collection(LIVE_CHALLENGE_MATCH_RESULTS).doc(String(result.roomId))
+      .update({ rewardsSkipReason: String(delivery.reason || "skipped") })
+      .catch((error) => logger.warn("liveChallenge.rewards.skipReason.unrecorded", { roomId: result.roomId, message: error?.message || String(error) }));
+  }
 }
 
 // After this many runs an effect that still fails stops being retried by the
@@ -18433,8 +18418,13 @@ exports.listGradeTransferState = onCall(async (request) => {
 
   await Promise.all(classIds.map((classId) => gradeTransferClassAuthority(db, request, classId)));
 
+  // The gradebook needs only "which students have Practice excused"; it asks
+  // for that alone rather than every transfer snapshot of the class.
+  const practicePassesOnly = request.data?.practicePassesOnly === true;
   const [snapshotGroups, redemptionGroups] = await Promise.all([
-    Promise.all(classIds.map((classId) => db.collection("gradeTransferSnapshots").where("classId", "==", classId).get())),
+    practicePassesOnly
+      ? Promise.resolve([])
+      : Promise.all(classIds.map((classId) => db.collection("gradeTransferSnapshots").where("classId", "==", classId).get())),
     Promise.all(classIds.map((classId) => db.collection("classPointRewardRedemptions").where("classId", "==", classId).get())),
   ]);
 
