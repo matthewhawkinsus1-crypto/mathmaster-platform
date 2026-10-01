@@ -9649,6 +9649,13 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
         "Turn on the Warm-Up Live Challenge for this assignment before launching it from the Warm-Up.",
       );
     }
+    // The game writes its Warm-Up credit onto this class's students under this
+    // assignment, so an assignment that names its classes must name this one.
+    // (One assigned to no class in particular is accepted, as before.)
+    const audience = assignmentAudience(assignmentSnapshot.data() || {});
+    if (audience.classIds.length && !(classId && audience.classIds.includes(String(classId)))) {
+      throw new HttpsError("failed-precondition", "That assignment is not assigned to this class. Choose one of this class's assignments for the Warm-Up.");
+    }
   }
 
   // THE MODE, ITS SCORING AND ITS REWARDS are resolved through the engine
@@ -9737,8 +9744,12 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc();
   const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomRef.id);
   const aliasSeed = parseInt(crypto.createHash("sha256").update(roomRef.id).digest("hex").slice(0, 6), 16);
-  const sortedRoster = [...roster].sort((a, b) => a.studentId.localeCompare(b.studentId));
-  const playerRecords = sortedRoster.map((student, index) => ({
+  // Code names are handed out over a RANDOM order. Sorted by student id, the
+  // numbers ran consecutively in roster order — so a classmate could recover
+  // the order, and the same position carried the same name pattern from game
+  // to game. Nothing else depends on this order.
+  const aliasOrder = shuffleChallengeItems(roster);
+  const playerRecords = aliasOrder.map((student, index) => ({
     studentId: student.studentId,
     playerKey: crypto.randomUUID(),
     alias: challenge.challengeAlias(index, aliasSeed),
@@ -9786,7 +9797,7 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
     endsAt: null,
     roundStartedAt: null,
     roundEndsAt: null,
-    eligibleCount: sortedRoster.length,
+    eligibleCount: aliasOrder.length,
     engineVersion: 1,
     modeVersion: mode.version,
     scoringStrategyId,
@@ -11410,6 +11421,10 @@ exports.reportLiveChallengeProgress = onCall(async (request) => {
       || Number(latestRoom.roundVersion || 0) !== requestedVersion
       || String(latestRoom.roundToken || "") !== requestedToken
       || Number(latestPlayer.answeredRound) === roundIndex
+      // Only inside the round's own window, like an answer: progress "made"
+      // during the 3-2-1 (the question is in the room before startsAt) was
+      // paid a milestone's full speed.
+      || !engine.timer.timerAcceptsArrival(engine.timer.timerFromRoom(latestRoom), Date.now()).accepted
     ) return { recorded: false, milestoneSpeedPoints: 0 };
 
     const milestone = challenge.applyProductiveMilestoneAward({
@@ -11532,6 +11547,9 @@ exports.updateLiveChallengePacing = onCall(async (request) => {
   return { roomId, roundClosingThreshold };
 });
 
+// A device's answer id: the alphabet of a UUID, never a server receipt key.
+const LIVE_CHALLENGE_SUBMISSION_ID = /^[A-Za-z0-9_-]{1,100}$/;
+
 exports.submitLiveChallengeResponse = onCall(async (request) => {
   const requestArrivedAt = Date.now();
   const { studentId } = requireStudent(request);
@@ -11547,7 +11565,12 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   const submissionId = String(request.data?.submissionId || `legacy-${crypto.randomUUID()}`).trim();
   const requestedVersion = request.data?.roundVersion == null ? null : Number(request.data.roundVersion);
   const requestedToken = request.data?.roundToken == null ? null : String(request.data.roundToken).trim();
-  if (!roomId || !Number.isInteger(submittedRound) || submittedRound < 0 || (requestedVersion != null && !Number.isInteger(requestedVersion)) || submissionId.length > 100) {
+  // The id keys this answer's receipt in the student's own receipt log, beside
+  // keys the SERVER writes (`milestone:<version>:<depth>`). An id shaped like
+  // one of those overwrote a server receipt — "answering" round 0 with id
+  // `milestone:2:1` let a later progress report erase a wrong answer from the
+  // record the Strong Accuracy reward reads. Honest devices send UUIDs.
+  if (!roomId || !Number.isInteger(submittedRound) || submittedRound < 0 || (requestedVersion != null && !Number.isInteger(requestedVersion)) || !LIVE_CHALLENGE_SUBMISSION_ID.test(submissionId)) {
     throw new HttpsError("invalid-argument", "roomId, roundIndex, roundVersion, and submissionId are required.");
   }
 

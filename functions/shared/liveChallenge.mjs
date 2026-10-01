@@ -294,6 +294,8 @@ export const applyProductiveMilestoneAward = ({
   const receipts = { ...(player.submissionReceipts || {}) };
   const receiptIds = [];
   for (let depth = priorDepth + 1; depth <= targetDepth; depth += 1) {
+    // A milestone never replaces a receipt already in the log under its key.
+    if (receipts[`milestone:${Number(roundVersion)}:${depth}`]) continue;
     const milestone = recordValidatedSpeedMilestone({
       milestones,
       ...secureMilestone,

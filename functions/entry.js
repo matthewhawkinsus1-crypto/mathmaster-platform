@@ -79,7 +79,13 @@ exports.getLiveChallengeExperience = onCall(async (request) => {
 exports.configureLiveChallengeExperience = onCall(async (request) => {
   const db = getFirestore();
   const roomId = String(request.data?.roomId || '').trim();
-  const { teacherEmail } = await ownedRoom({ db, request, roomId });
+  const { teacherEmail, room } = await ownedRoom({ db, request, roomId });
+  // A finished or cancelled game's settings are history, and its private
+  // player state is deleted by its finalization: rewriting those rows here
+  // would recreate them after the cleanup.
+  if (room.status === 'finished' || room.status === 'cancelled') {
+    throw new HttpsError('failed-precondition', 'That Live Challenge has ended; its settings can no longer change.');
+  }
   const rules = await experienceRules();
   const speedInfluencePercent = rules.normalizeSpeedInfluencePercent(request.data?.speedInfluencePercent);
   const playerDisplayMode = rules.normalizePlayerDisplayMode(request.data?.playerDisplayMode);
