@@ -9584,6 +9584,36 @@ async function recoverTeacherActiveChallenge(db, { teacherEmail, challenge }) {
   return recovery;
 }
 
+/*
+ * A room that was created but must never be played: it lost the race for the
+ * teacher's active-room pointer, or its roster could not be written. It is
+ * marked cancelled the way stale sessions are (so nothing can join or reopen
+ * it) and its private state, which no match result will ever need, is removed.
+ */
+async function retireUnusedChallengeRoom(db, { roomRef, privateRef, teacherEmail = null, invitesMayExist = false }) {
+  await roomRef.set({
+    status: "cancelled",
+    phase: "finished",
+    staleSession: true,
+    currentQuestion: null,
+    startsAt: null,
+    endsAt: null,
+    roundStartedAt: null,
+    roundEndsAt: null,
+    roundToken: null,
+    finishedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  if (invitesMayExist && teacherEmail) {
+    await updateLiveChallengeInvitesByRoom(db, {
+      roomId: roomRef.id,
+      teacherEmail,
+      fields: { status: "cancelled", staleSession: true, updatedAt: FieldValue.serverTimestamp() },
+    });
+  }
+  await db.recursiveDelete(privateRef);
+}
+
 async function requireOwnedChallenge(db, request, roomId) {
   await requireTeacher(request);
   const teacherEmail = callerEmail(request);
@@ -9856,57 +9886,96 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   });
   await rootBatch.commit();
 
+  // CLAIM THE TEACHER'S ONE ACTIVE ROOM BEFORE ANYONE IS INVITED. Two creates
+  // racing — two tabs, or Play Again pressed on two screens — both pass the
+  // recovery check above. Both used to build a lobby: the invites went to
+  // whichever batch wrote last, the pointer to whichever wrote last, and one
+  // tab sat on a lobby no student could ever join, left in "lobby" forever.
+  // The pointer is claimed in a transaction instead; the create that loses
+  // retires its own room before it has invited anybody and answers like any
+  // second create, naming the room that won (the console reopens it).
+  const claim = await db.runTransaction(async (transaction) => {
+    const pointer = await transaction.get(activePointerRef);
+    const otherRoomId = pointer.exists ? String(pointer.data()?.roomId || "").trim() : "";
+    if (otherRoomId && otherRoomId !== roomRef.id) {
+      const other = await transaction.get(db.collection(LIVE_CHALLENGE_ROOMS).doc(otherRoomId));
+      const otherRoom = other.exists ? (other.data() || {}) : {};
+      if (other.exists && otherRoom.teacherEmail === teacherEmail
+        && [challenge.LIVE_CHALLENGE_STATUS.LOBBY, challenge.LIVE_CHALLENGE_STATUS.RUNNING].includes(otherRoom.status)) {
+        return { claimed: false, roomId: otherRoomId };
+      }
+    }
+    transaction.set(activePointerRef, { roomId: roomRef.id, teacherEmail, classId, classPeriod, updatedAt: FieldValue.serverTimestamp() });
+    return { claimed: true };
+  });
+  if (!claim.claimed) {
+    await retireUnusedChallengeRoom(db, { roomRef, privateRef });
+    throw new HttpsError(
+      "failed-precondition",
+      "Finish or cancel your current Live Challenge before creating another one.",
+      { roomId: claim.roomId },
+    );
+  }
+
   // Keep identity-bearing player state in one private document per student.
   // Public player documents are created only after students join and contain
   // anonymous aliases/statistics only. This avoids every student contending on
   // one giant room/leaderboard document when a whole class answers together.
-  for (let start = 0; start < playerRecords.length; start += 200) {
-    const batch = db.batch();
-    playerRecords.slice(start, start + 200).forEach((player) => {
-      batch.set(privateRef.collection("players").doc(player.studentId), {
-        playerKey: player.playerKey,
-        alias: player.alias,
-        joined: false,
-        score: 0,
-        correctCount: 0,
-        roundsAnswered: 0,
-        streak: 0,
-        answeredRound: -1,
-        updatedAt: FieldValue.serverTimestamp(),
+  try {
+    for (let start = 0; start < playerRecords.length; start += 200) {
+      const batch = db.batch();
+      playerRecords.slice(start, start + 200).forEach((player) => {
+        batch.set(privateRef.collection("players").doc(player.studentId), {
+          playerKey: player.playerKey,
+          alias: player.alias,
+          joined: false,
+          score: 0,
+          correctCount: 0,
+          roundsAnswered: 0,
+          streak: 0,
+          answeredRound: -1,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        batch.set(db.collection(LIVE_CHALLENGE_INVITES).doc(player.studentId), {
+          roomId: roomRef.id,
+          title,
+          teacherEmail,
+          // The Warm-Up link travels to the student on the invite, because the
+          // invite is the only challenge document a student is allowed to read
+          // before joining. Null for a standalone challenge, which is what stops
+          // one taking over an unrelated assignment's Warm-Up.
+          assignmentId,
+          classId,
+          classPeriod,
+          className: className || null,
+          courseId,
+          alias: player.alias,
+          playerKey: player.playerKey,
+          status: "invited",
+          updatedAt: FieldValue.serverTimestamp(),
+        });
       });
-      batch.set(db.collection(LIVE_CHALLENGE_INVITES).doc(player.studentId), {
-        roomId: roomRef.id,
-        title,
-        teacherEmail,
-        // The Warm-Up link travels to the student on the invite, because the
-        // invite is the only challenge document a student is allowed to read
-        // before joining. Null for a standalone challenge, which is what stops
-        // one taking over an unrelated assignment's Warm-Up.
-        assignmentId,
-        classId,
-        classPeriod,
-        className: className || null,
-        courseId,
-        alias: player.alias,
-        playerKey: player.playerKey,
-        status: "invited",
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-    });
-    // eslint-disable-next-line no-await-in-loop
-    await batch.commit();
+      // eslint-disable-next-line no-await-in-loop
+      await batch.commit();
+    }
+  } catch (error) {
+    // A setup that failed part-way must not trap the teacher behind a pointer
+    // to an unusable lobby: release it (only if it is still this room's),
+    // retire the room and any invites already written, then report the error.
+    await db.runTransaction(async (transaction) => {
+      const pointer = await transaction.get(activePointerRef);
+      if (pointer.exists && pointer.data()?.roomId === roomRef.id) transaction.delete(activePointerRef);
+    }).catch((releaseError) => logger.error("liveChallenge.create.releasePointer.failed", { roomId: roomRef.id, message: releaseError?.message }));
+    await retireUnusedChallengeRoom(db, { roomRef, privateRef, teacherEmail, invitesMayExist: true })
+      .catch((retireError) => logger.error("liveChallenge.create.retire.failed", { roomId: roomRef.id, message: retireError?.message }));
+    throw error;
   }
-
-  // The recover-after-refresh pointer is written only after the lobby roster
-  // and invitations exist, so a partial setup failure cannot trap the teacher
-  // behind a pointer to an unusable room.
-  await activePointerRef.set({ roomId: roomRef.id, teacherEmail, classId, classPeriod, updatedAt: FieldValue.serverTimestamp() });
 
   return {
     roomId: roomRef.id,
     roundCount: actualRoundCount,
     requestedRoundCount,
-    eligibleCount: sortedRoster.length,
+    eligibleCount: aliasOrder.length,
     trimmed: actualRoundCount < requestedRoundCount,
   };
 });
