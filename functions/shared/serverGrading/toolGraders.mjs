@@ -35,7 +35,29 @@ import stepAlgebra2 from './tools/stepAlgebra2.mjs';
 import systemsWorkspace from './tools/systemsWorkspace.mjs';
 import transformationsLab from './tools/transformationsLab.mjs';
 
-export const TOOL_GRADERS = Object.freeze({
+import contextInterpretation from './tools/contextInterpretation.mjs';
+import graphComparison from './tools/graphComparison.mjs';
+import graphing from './tools/graphing.mjs';
+import graphScenarioMatch from './tools/graphScenarioMatch.mjs';
+import graphStory from './tools/graphStory.mjs';
+import graphWorkspace from './tools/graphWorkspace.mjs';
+import relationshipModel from './tools/relationshipModel.mjs';
+
+/** Structured question types — keyed by the surface id they grade. */
+export const STRUCTURED_TYPE_GRADERS = Object.freeze({
+  graphing,
+  graphScenarioMatch,
+  graphComparison,
+  graphStory,
+  contextInterpretation,
+  relationshipModel,
+  functionGraph: graphWorkspace,
+  functionInvestigation: graphWorkspace,
+  graphAnalysis: graphWorkspace,
+});
+
+/** Registry tools — keyed by tool id. */
+export const REGISTRY_TOOL_GRADERS = Object.freeze({
   complexPlaneLab,
   constraintFunctionBuilder,
   dataModelingLab,
@@ -60,4 +82,10 @@ export const TOOL_GRADERS = Object.freeze({
   stepAlgebra2,
   systemsWorkspace,
   transformationsLab,
+});
+
+/** Every structured-response grader, keyed by grading surface id. */
+export const TOOL_GRADERS = Object.freeze({
+  ...STRUCTURED_TYPE_GRADERS,
+  ...REGISTRY_TOOL_GRADERS,
 });

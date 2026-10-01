@@ -681,7 +681,10 @@ export default function QuestionEngine({
         // Extensible metadata bag rather than a positional argument, so future
         // attempt facts can be added without re-threading every caller.
         // Self-grading tools report one score instead of per-part results.
-        { partialCreditPercent: answerState.partialCreditPercent ?? null },
+        // A question graded through the shared structured-response contract
+        // (serverGrading/) reports its raw work as `toolResponse`, which rides
+        // with the attempt so the server re-grades exactly that work.
+        { partialCreditPercent: answerState.partialCreditPercent ?? null, toolResponse: answerState.toolResponse || null },
       );
       const nextFeedback = result || {
         isCorrect: answerState.isCorrect,

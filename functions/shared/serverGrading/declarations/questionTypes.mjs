@@ -1,4 +1,9 @@
 /*
+ * Structured question surfaces (graphing, graphScenarioMatch, graphComparison,
+ * graphStory, contextInterpretation, relationshipModel and the interactive
+ * graph workspace types) are declared in their own files and joined in
+ * ../gradingManifest.mjs STRUCTURED_TYPE_DECLARATIONS.
+ *
  * Grading declarations for every NON-registry question surface QuestionEngine
  * renders (src/QuestionEngine.jsx's type switch), every catalogued type
  * (functions/shared/questionTypeCatalog.mjs) and composed workflows.
@@ -41,16 +46,7 @@ export default Object.freeze({
   numberLine: PENDING('numberLine'),
   stepAlgebra: stepAlgebraFinalAnswer,
   algebra: stepAlgebraFinalAnswer,
-  graphing: PENDING('graphing'),
-  functionGraph: PENDING('functionGraph'),
-  functionInvestigation: PENDING('functionInvestigation'),
-  graphAnalysis: PENDING('graphAnalysis'),
   functionCharacteristics: PENDING('functionCharacteristics'),
-  relationshipModel: PENDING('relationshipModel'),
-  graphScenarioMatch: PENDING('graphScenarioMatch'),
-  graphComparison: PENDING('graphComparison'),
-  graphStory: PENDING('graphStory'),
-  contextInterpretation: PENDING('contextInterpretation'),
   composedWorkflow: PENDING('composedWorkflow'),
   modelingLab: declareSubsystem({
     subsystem: 'modeling-lab-server-evaluation',

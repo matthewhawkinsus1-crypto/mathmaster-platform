@@ -39,7 +39,9 @@ import {
 import {
   gradeServerResponse,
   serverResponseGradingSupport,
+  usesToolResponse,
 } from './serverGrading/serverResponseGrading.mjs';
+import { isToolResponse } from './serverGrading/toolResponseContract.mjs';
 import { attemptInputsFromGrading } from './serverGrading/gradingResult.mjs';
 import {
   getQuestionCredit,
@@ -311,6 +313,17 @@ export const serverCanRegradeEnvelope = ({ envelope, question }) => {
   const support = serverResponseGradingSupport(question);
   if (!support.supported) return { regrade: false, reason: support.reason };
   if (!envelope.response || responseIsBlank(envelope.response)) return { regrade: false, reason: 'no-raw-response' };
+  // A structured-response surface (a registry tool, or a question type graded
+  // by a shared structured grader) can only be marked from its structured
+  // work. A response captured by a client built BEFORE that contract existed
+  // — still sitting in a Chromebook's offline queue — carries only an opaque
+  // string. It is not lost and not blocked: it takes the same sanitized,
+  // attempt-bounded path every such submission took before, and the record
+  // says why (`serverGradingReason`). See docs/architecture/
+  // SERVER_GRADING_COVERAGE.md "Legacy-shaped responses".
+  if (usesToolResponse(question) && !isToolResponse(envelope.response)) {
+    return { regrade: false, reason: 'legacy-unstructured-response' };
+  }
   return { regrade: true, reason: null };
 };
 

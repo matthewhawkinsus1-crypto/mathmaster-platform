@@ -50,6 +50,13 @@ import stepAlgebra2 from './declarations/stepAlgebra2.mjs';
 import systemsWorkspace from './declarations/systemsWorkspace.mjs';
 import transformationsLab from './declarations/transformationsLab.mjs';
 import questionTypeDeclarations from './declarations/questionTypes.mjs';
+import contextInterpretation from './declarations/contextInterpretation.mjs';
+import graphComparison from './declarations/graphComparison.mjs';
+import graphing from './declarations/graphing.mjs';
+import graphScenarioMatch from './declarations/graphScenarioMatch.mjs';
+import graphStory from './declarations/graphStory.mjs';
+import graphWorkspace from './declarations/graphWorkspace.mjs';
+import relationshipModel from './declarations/relationshipModel.mjs';
 
 const text = (value) => String(value ?? '');
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -84,11 +91,30 @@ export const TOOL_GRADING_DECLARATIONS = Object.freeze({
 
 export const REGISTRY_TOOL_IDS = Object.freeze(Object.keys(TOOL_GRADING_DECLARATIONS));
 
+/*
+ * Question types QuestionEngine renders itself (not registry tools) whose
+ * verdict comes from a shared grader over a STRUCTURED raw response — the same
+ * contract as a registry tool, reported through `answerState.toolResponse`.
+ * The three interactive-graph types share one workspace and one grader.
+ */
+export const STRUCTURED_TYPE_DECLARATIONS = Object.freeze({
+  graphing,
+  graphScenarioMatch,
+  graphComparison,
+  graphStory,
+  contextInterpretation,
+  relationshipModel,
+  functionGraph: graphWorkspace,
+  functionInvestigation: graphWorkspace,
+  graphAnalysis: graphWorkspace,
+});
+
 /** The id of the composed-workflow surface. */
 export const COMPOSED_WORKFLOW_SURFACE = 'composedWorkflow';
 
 export const GRADING_MANIFEST = Object.freeze({
   ...questionTypeDeclarations,
+  ...STRUCTURED_TYPE_DECLARATIONS,
   ...TOOL_GRADING_DECLARATIONS,
 });
 
