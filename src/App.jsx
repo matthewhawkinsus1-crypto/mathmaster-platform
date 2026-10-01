@@ -284,13 +284,11 @@ import { adaptLegacyMasteryToPhase5 } from './platform/profile/legacyMasteryAdap
 import StudentDashboardView from './components/student/StudentDashboardView.jsx';
 import StudentGradeCenter from './components/student/StudentGradeCenter.jsx';
 import StudentAssignmentsCenter from './components/student/StudentAssignmentsCenter.jsx';
-import TestCycleCard from './components/student/TestCycleCard.jsx';
 import { isTestCycleAssignment } from './platform/assessment/testCycle.js';
 import { preflightTestCycleCandidate } from './services/testCycleService.js';
 import { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
 import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
 import SectionRecoveryPanel from './components/student/SectionRecoveryPanel.jsx';
-import SectionRecoveryRunner from './components/student/SectionRecoveryRunner.jsx';
 import SectionRecoveryAuditTrail from './components/teacher/SectionRecoveryAuditTrail.jsx';
 import { completedRecoverySections, warmupChallengeCounts } from './platform/recovery/teacherRecoveryAudit.js';
 import { buildStudentRecoverySummary } from './platform/recovery/studentRecoveryModel.js';
@@ -308,7 +306,8 @@ import { practicePassEligibleAssignments } from './platform/rewards/practicePass
 import {
   loadStudentRewardHistory,
   subscribeToStudentRewardInventory,
-  usePracticePass as usePracticePassCallable,
+  // A callable, not a hook: imported under a name rules-of-hooks reads as one.
+  usePracticePass as redeemPracticePassCallable,
 } from './platform/rewards/rewardsClient.js';
 import { buildRewardWallet } from './platform/rewards/rewardWallet.js';
 import { useRewardCelebrations } from './platform/rewards/useRewardCelebrations.js';
@@ -344,9 +343,9 @@ import PathCoverageAudit from './components/teacher/PathCoverageAudit.jsx';
 import {
   blobToBase64,
   generateLessonNotesPdfBlob,
-} from './platform/resources/lessonNotesPdf.js';
+} from './platform/resources/pdfLoaders.js';
 import { buildAssignmentWorksheetModel, PRINT_OUTPUT_MODES } from './platform/resources/assignmentWorksheetPdfModel.js';
-import { downloadAssignmentWorksheetPdf } from './platform/resources/assignmentWorksheetPdf.js';
+import { downloadAssignmentWorksheetPdf } from './platform/resources/pdfLoaders.js';
 import { defaultAssignmentDateInputs } from './platform/assignments/assignmentDateDefaults.js';
 import {
   buildSafeLibraryContentRepair,
@@ -459,6 +458,13 @@ const MarkingPeriodSettings = lazy(() => import('./components/teacher/MarkingPer
 const WarmupChallengeGate = lazy(() => import('./components/liveChallenge/WarmupChallengeGate.jsx'));
 const LiveChallengeTeacher = lazy(() => import('./components/liveChallenge/LiveChallengeTeacher.jsx'));
 const LiveChallengeStudent = lazy(() => import('./components/liveChallenge/LiveChallengeStudent.jsx'));
+// Only a student opening a Test Cycle needs this, and it brings the secure
+// exam player, the calculator and all of MathLive with it — about 1 MB that a
+// static import put in front of every sign-in.
+const TestCycleCard = lazy(() => import('./components/student/TestCycleCard.jsx'));
+// The Recovery runner mounts QuestionEngine, and with it MathLive (~780 KB):
+// a student who opens a Recovery fetches it then, not every student at sign-in.
+const SectionRecoveryRunner = lazy(() => import('./components/student/SectionRecoveryRunner.jsx'));
 
 
 
@@ -716,7 +722,7 @@ function App() {
    * transaction. Nothing here changes a count: the listeners above do, once
    * the server has committed.
    */
-  const handleUsePracticePass = ({ assignmentId, payWith, grantId }) => usePracticePassCallable({ assignmentId, payWith, grantId });
+  const handleUsePracticePass = ({ assignmentId, payWith, grantId }) => redeemPracticePassCallable({ assignmentId, payWith, grantId });
   const handleLoadRewardHistory = () => loadStudentRewardHistory({ db, studentId: user?.id, classId: user?.classId });
 
   /*
@@ -794,6 +800,12 @@ function App() {
   // no longer makes every teacher login download and regrade the full history.
   const teacherGraderRepairRanRef = useRef(false);
   const [assignments, setAssignments] = useState([]);
+  // For effects that only LOOK UP an assignment (a title for a toast). The
+  // whole collection is one live listener, so `assignments` changes whenever
+  // any assignment in the school does; as a dependency it tore down and
+  // re-created the listener holding the lookup on every such change.
+  const assignmentsRef = useRef(assignments);
+  assignmentsRef.current = assignments;
   const [allStudents, setAllStudents] = useState([]);
   const [teacherRosterSummaries, setTeacherRosterSummaries] = useState([]);
   const [teacherStudentDataMode, setTeacherStudentDataMode] = useState('summary');
@@ -2326,7 +2338,7 @@ function App() {
 
         if (teacherTab === 'grades' && !teacherGraderRepairRanRef.current) {
           teacherGraderRepairRanRef.current = true;
-          persistCurrentGraderCreditRepairs(studentData, assignments)
+          persistCurrentGraderCreditRepairs(studentData, assignmentsRef.current)
             .catch((error) => {
               teacherGraderRepairRanRef.current = false;
               console.error('Could not apply deferred current-grader credit repairs:', error);
@@ -2339,9 +2351,13 @@ function App() {
         setTeacherStudentDataMode('summary');
       },
     );
+  // NOT `assignments`: the repair above runs once and reads the ref. Listing
+  // the array tore this listener down on every write to ANY assignment —
+  // another teacher's edit, a DOL unlock, a question-family seat — flipped the
+  // gradebook to loading and re-read every student's grades document.
   }, [
     user?.role, user?.email, user?.isRootAdmin, teacherTab, teacherWorkspaceMode,
-    teacherPreviewRuntimeActive, teacherRosterSummaries, assignments,
+    teacherPreviewRuntimeActive, teacherRosterSummaries,
   ]);
 
   /*
@@ -3223,12 +3239,21 @@ function App() {
    */
   useEffect(() => { trackerRef.current = tracker; }, [tracker]);
 
-  useEffect(() => {
-    if (user?.role !== 'student' || !user.id || !activeAssignmentId || isTeacherPreview) return undefined;
+  // A yes/no, not the list: `assignments` is one live listener over the whole
+  // collection, so as a dependency every edit to ANY assignment — another
+  // teacher's, a seat allocation, a DOL unlock — flushed and tore down this
+  // student's sync, rebuilt it and re-read the draft from the server, on every
+  // open Chromebook at once.
+  const activeAssignmentUsesWorkspaceDrafts = useMemo(() => {
     const assignment = assignments.find((item) => item.id === activeAssignmentId);
     // Secure Test Cycle material has its own server-owned state machine and
     // never uses ordinary draft persistence.
-    if (!assignment || isTestCycleAssignment(assignment)) return undefined;
+    return Boolean(assignment) && !isTestCycleAssignment(assignment);
+  }, [assignments, activeAssignmentId]);
+
+  useEffect(() => {
+    if (user?.role !== 'student' || !user.id || !activeAssignmentId || isTeacherPreview) return undefined;
+    if (!activeAssignmentUsesWorkspaceDrafts) return undefined;
 
     let cancelled = false;
     const sync = createWorkspaceDraftSync({
@@ -3283,7 +3308,7 @@ function App() {
       sync.stop();
       if (workspaceDraftSyncRef.current === sync) workspaceDraftSyncRef.current = null;
     };
-  }, [user?.role, user?.id, user?.classId, activeAssignmentId, isTeacherPreview, assignments]);
+  }, [user?.role, user?.id, user?.classId, activeAssignmentId, isTeacherPreview, activeAssignmentUsesWorkspaceDrafts]);
 
   /*
    * POST-DEADLINE PRACTICE MODE IS NOT A GRADE, AND MUST STILL SURVIVE.
@@ -4224,7 +4249,7 @@ function App() {
           if (classroomSyncNoticeRef.current[assignmentId] === notificationId) return;
           classroomSyncNoticeRef.current[assignmentId] = notificationId;
 
-          const assignment = assignments.find((item) => item.id === assignmentId);
+          const assignment = assignmentsRef.current.find((item) => item.id === assignmentId);
           const title = assignment?.title || 'Your assignment';
           const grade = Number.isFinite(Number(receipt?.grade)) ? Number(receipt.grade) : null;
           const gradeText = grade == null ? 'Your grade' : `${grade}%`;
@@ -4272,7 +4297,7 @@ function App() {
       },
       (error) => console.error('Could not watch Google Classroom grade receipts:', error),
     );
-  }, [user?.role, user?.id, assignments, toastSuccess]);
+  }, [user?.role, user?.id, toastSuccess]);
 
   // DOL reminders are global to the student experience, not just the open
   // assignment. The persistent purple DOL card/banner is the primary notice;
@@ -5261,6 +5286,9 @@ function App() {
         const audio = new window.AudioContext();
         const oscillator = audio.createOscillator();
         oscillator.connect(audio.destination);
+        // A running AudioContext is never garbage collected: one per expired
+        // timer stayed open (and counts against the browser's limit) all day.
+        oscillator.onended = () => { audio.close?.().catch?.(() => {}); };
         oscillator.start();
         oscillator.stop(audio.currentTime + 0.35);
       } catch { /* autoplay may be blocked */ }
@@ -11804,14 +11832,16 @@ function App() {
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
           <main style={{ padding: '24px 16px', maxWidth: 880, margin: '0 auto', boxSizing: 'border-box' }}>
-            <TestCycleCard
-              assignmentId={activeTestCycleAssignmentId}
-              studentProfile={user.profile}
-              // Review is ordinary MathMaster instruction, so it opens the
-              // ordinary runtime — restricted to the review questions.
-              onOpenReview={(assignmentId) => startAssignment(assignmentId, 0, { cycleStage: 'review' })}
-              onExit={openStudentAssignmentsCenter}
-            />
+            <Suspense fallback={<p role="status" style={{ margin: 0 }}>Opening your test…</p>}>
+              <TestCycleCard
+                assignmentId={activeTestCycleAssignmentId}
+                studentProfile={user.profile}
+                // Review is ordinary MathMaster instruction, so it opens the
+                // ordinary runtime — restricted to the review questions.
+                onOpenReview={(assignmentId) => startAssignment(assignmentId, 0, { cycleStage: 'review' })}
+                onExit={openStudentAssignmentsCenter}
+              />
+            </Suspense>
           </main>
         </>,
       );
@@ -11901,16 +11931,18 @@ function App() {
       : null;
     if (recoveryAssignment && openRecoveryEntry) {
       return renderStudentIdentityShell(
-        <SectionRecoveryRunner
-          mode={recoverySession.mode}
-          assignment={recoveryAssignment}
-          entry={openRecoveryEntry}
-          studentId={user.id}
-          studentProfile={user.profile}
-          onExit={() => setRecoverySession(null)}
-          onRecord={(section, record) => mergeSectionRecoveryRecord(recoveryAssignment.id, section, record)}
-          onStartAssessment={(section) => startStudentRecovery(recoveryAssignment.id, section)}
-        />,
+        <Suspense fallback={<p role="status" style={{ padding: 24, margin: 0 }}>Opening Recovery…</p>}>
+          <SectionRecoveryRunner
+            mode={recoverySession.mode}
+            assignment={recoveryAssignment}
+            entry={openRecoveryEntry}
+            studentId={user.id}
+            studentProfile={user.profile}
+            onExit={() => setRecoverySession(null)}
+            onRecord={(section, record) => mergeSectionRecoveryRecord(recoveryAssignment.id, section, record)}
+            onStartAssessment={(section) => startStudentRecovery(recoveryAssignment.id, section)}
+          />
+        </Suspense>,
       );
     }
     return renderStudentIdentityShell(

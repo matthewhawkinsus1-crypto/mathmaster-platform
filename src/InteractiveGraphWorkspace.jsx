@@ -284,6 +284,9 @@ const analysisAnswerShape = (part) => describeAnswerFormat({
   answerFormat: analysisAnswerFormatFor(part) || analysisKeypadProfile(part),
 });
 
+const NO_FUNCTION_SPEC = Object.freeze({});
+const NO_GRAPH = Object.freeze({});
+
 export default function InteractiveGraphWorkspace({
   question,
   onStateChange,
@@ -298,6 +301,15 @@ export default function InteractiveGraphWorkspace({
   // an author cannot switch it on for an exit ticket by adding a field.
   selfCheckAllowed = false,
   onSelfCheck = null,
+  // WHETHER "CHECK POINT PLACEMENTS" MAY SAY WHICH POINTS ARE WRONG.
+  //
+  // The engine passes whether the activity shows outcomes immediately. On a
+  // DOL, quiz or test it does not: the submission is the check, and the grade
+  // is decided from the points as placed. Telling the student "Revise: x = 2"
+  // there gave them unlimited free attempts at an answer the activity allows
+  // once. Workflow stages leave it on — they check the plot against the
+  // student's own table, not against an answer key.
+  revealPointCorrectness = true,
 }) {
   const mobileInteraction = useMobileInteractionMode();
   const svgRef = useRef(null);
@@ -332,8 +344,11 @@ export default function InteractiveGraphWorkspace({
     };
   }, []);
 
-  const functionSpec = question.functionSpec || {};
-  const graph = question.graph || {};
+  // Stable fallbacks: a fresh `{}` per render for a question without these
+  // fields changed every memo below it on every render, and the state report
+  // that depends on them looped with the engine.
+  const functionSpec = question.functionSpec || NO_FUNCTION_SPEC;
+  const graph = question.graph || NO_GRAPH;
   const requestedShowCoordinates = question.showCoordinates ?? graph.showCoordinates ?? true;
   const studentChoosesX = Boolean(question.studentChoosesX || question.chooseXValues);
   const pointOnly = Boolean(question.pointOnly || question.plotMode === 'points');
@@ -520,7 +535,14 @@ export default function InteractiveGraphWorkspace({
   const requiredStrokeCount = functionSpec.type === 'rational' ? 2 : 1;
   const pointParts = useMemo(() => gradePointPlacements(tasks, construction.placements, functionSpec, construction.chosenXValues, Math.max(0.22, snapStep * 0.48)), [tasks, construction.placements, construction.chosenXValues, functionSpec, snapStep]);
   const allMarkersPlaced = endpointRequirements.every((requirement) => Boolean(construction.markerPlacements[requirement.id]));
-  const constructionReadyForAnalysis = !constructionEnabled || (construction.pointsValidated && (pointOnly || (construction.snapped && allMarkersPlaced)));
+  // A plot of points with nothing drawn through them needs no check before it
+  // is submitted when the activity withholds outcomes: every placed point is an
+  // answer, graded as placed, and stays movable until the student submits.
+  // (A curve still has to pass through the right points before it can snap,
+  // so that construction keeps its check — without naming the wrong points.)
+  const pointsCommitted = construction.pointsValidated
+    || (!revealPointCorrectness && pointOnly && pointParts.every((part) => part.isComplete));
+  const constructionReadyForAnalysis = !constructionEnabled || (pointsCommitted && (pointOnly || (construction.snapped && allMarkersPlaced)));
 
   useEffect(() => {
     if (!draftKey) {
@@ -540,9 +562,14 @@ export default function InteractiveGraphWorkspace({
     if (!draftKey) setStage(mode === 'analysis' ? 'analysis' : 'construct');
   }, [questionSemanticKey, draftKey]);
 
+  // Move on by itself only after a construction the student confirmed (a
+  // passed check, a snapped curve). A submit-only point plot is ready the
+  // moment its last point lands, and jumping away then would pull the student
+  // off points they may still be adjusting; step 2 is enabled instead.
+  const constructionConfirmed = constructionReadyForAnalysis && construction.pointsValidated;
   useEffect(() => {
-    if (mode === 'investigate' && analysisEnabled && constructionReadyForAnalysis) setStage('analysis');
-  }, [mode, analysisEnabled, constructionReadyForAnalysis]);
+    if (mode === 'investigate' && analysisEnabled && constructionConfirmed) setStage('analysis');
+  }, [mode, analysisEnabled, constructionConfirmed]);
 
   useEffect(() => {
     const history = stage === 'analysis' ? analysisHistory : constructionHistory;
@@ -609,7 +636,10 @@ export default function InteractiveGraphWorkspace({
     }
     if (!inversePointsCorrect) {
       analysisHistory.setValue((current) => ({ ...current, inversePointsValidated: false, inverseStrokes: [], inverseSnapped: false }));
-      setDrawFeedback('At least one reflected point needs revision. Reflection across y=x swaps the coordinates.');
+      // The rule is help; on a DOL, quiz or test the check only gates the sketch.
+      setDrawFeedback(revealPointCorrectness
+        ? 'At least one reflected point needs revision. Reflection across y=x swaps the coordinates.'
+        : 'Not every reflected point is in place yet.');
       return;
     }
     analysisHistory.setValue((current) => ({ ...current, inversePointsValidated: true, inverseStrokes: [], inverseSnapped: false }));
@@ -649,7 +679,7 @@ export default function InteractiveGraphWorkspace({
 
   useEffect(() => {
     const constructionParts = constructionEnabled ? [
-      ...pointParts.map((part) => ({ ...part, label: `Point placement: ${part.label}`, isComplete: construction.pointsValidated && part.isComplete, isCorrect: construction.pointsValidated && part.isCorrect })),
+      ...pointParts.map((part) => ({ ...part, label: `Point placement: ${part.label}`, isComplete: pointsCommitted && part.isComplete, isCorrect: pointsCommitted && part.isCorrect })),
       ...(pointOnly ? [] : [{ id: 'graph-curve', label: 'Freehand curve and snap', isComplete: construction.snapped, isCorrect: construction.snapped, response: construction.snapped ? 'snapped' : 'not snapped' }]),
       ...(pointOnly ? [] : markerParts),
     ] : [];
@@ -657,7 +687,7 @@ export default function InteractiveGraphWorkspace({
       ? [{ id: 'inverse-line-sketch', label: 'Draw the inverse through the reflected points', isComplete: Boolean(analysis.inverseSnapped), isCorrect: Boolean(analysis.inverseSnapped), response: analysis.inverseSnapped ? 'snapped' : 'not complete' }]
       : [];
     const parts = [...constructionParts, ...(analysisEnabled ? [...analysisGradeParts, ...inverseSketchPart] : [])];
-    const constructionComplete = !constructionEnabled || (construction.pointsValidated && (pointOnly || (construction.snapped && allMarkersPlaced)));
+    const constructionComplete = !constructionEnabled || (pointsCommitted && (pointOnly || (construction.snapped && allMarkersPlaced)));
     const analysisComplete = !analysisEnabled || (analysisGradeParts.length > 0 && analysisGradeParts.every((part) => part.isComplete) && inverseSketchComplete);
     const complete = constructionComplete && analysisComplete;
     const correct = complete && parts.every((part) => part.isCorrect);
@@ -668,7 +698,7 @@ export default function InteractiveGraphWorkspace({
       questionDetails: `${question.prompt || (pointOnly ? 'Plot the table points.' : 'Investigate the function.')} Points: ${Object.entries(construction.placements).map(([id, value]) => `${id}=${taskPlacementLabel(value)}`).join('; ') || 'not required'}. ${pointOnly ? 'Point-only graph.' : `Curve: ${construction.snapped ? 'complete' : 'incomplete'}. Graph boundaries/continuation: ${Object.entries(construction.markerPlacements).map(([id, value]) => `${id}=${markerValue(value)}`).join('; ') || 'not entered'}.`} Analysis: ${analysisGradeParts.map((part) => `${part.label}=${part.response || 'blank'}`).join('; ') || 'not required'}.`,
       parts,
     });
-  }, [construction, analysis, constructionEnabled, analysisEnabled, pointParts, markerParts, analysisGradeParts, allMarkersPlaced, pointOnly, question, onStateChange, inverseSketchRequired, inverseSketchComplete]);
+  }, [construction, pointsCommitted, analysis, constructionEnabled, analysisEnabled, pointParts, markerParts, analysisGradeParts, allMarkersPlaced, pointOnly, question, onStateChange, inverseSketchRequired, inverseSketchComplete]);
 
   const eventToScreenPoint = (event) => {
     const svg = svgRef.current;
@@ -908,12 +938,14 @@ export default function InteractiveGraphWorkspace({
       constructionHistory.setValue((current) => ({ ...current, pointsValidated: true }));
       setPointFeedback(pointOnly ? 'All point placements are correct.' : 'All point placements are correct. The drawing layer is unlocked.');
     } else {
-      const incorrect = pointParts.filter((part) => !part.isCorrect).map((part) => part.label);
+      const incorrect = revealPointCorrectness ? pointParts.filter((part) => !part.isCorrect).map((part) => part.label) : [];
       const centerX = Number(functionSpec.h ?? 0);
       const chosenValues = tasks.filter((task) => task.studentChoosesX).map((task) => Number(construction.chosenXValues[task.id])).filter(Number.isFinite);
       const needsBothSides = ['absolute', 'quadratic', 'cubic', 'cubeRoot', 'rational'].includes(functionSpec.type);
       const distributionHint = studentChoosesX && needsBothSides && (chosenValues.filter((value) => value < centerX).length < 2 || chosenValues.filter((value) => value > centerX).length < 2) ? ' Choose two outer x-values on each side of the center.' : '';
-      setPointFeedback(`Revise: ${incorrect.join(', ') || 'one or more point tasks'}.${distributionHint} Use Undo to remove the last placement.`);
+      setPointFeedback(revealPointCorrectness
+        ? `Revise: ${incorrect.join(', ') || 'one or more point tasks'}.${distributionHint} Use Undo to remove the last placement.`
+        : `Not every point is on the graph yet. Check each one against the rule before you draw.${distributionHint}`);
     }
   };
 
@@ -1218,7 +1250,13 @@ export default function InteractiveGraphWorkspace({
                       )}
                     </div>
                   )}
-                  {!construction.pointsValidated && <button type="button" onClick={checkPoints} disabled={Object.keys(construction.placements).length < tasks.length} style={{ width: '100%', marginTop: '12px', padding: '10px', border: 'none', borderRadius: '8px', background: Object.keys(construction.placements).length >= tasks.length ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Check Point Placements</button>}
+                  {!construction.pointsValidated && !revealPointCorrectness && pointOnly && (
+                    <p data-points-graded-on-submit style={{ margin: '12px 0 0', fontSize: '12px', lineHeight: 1.45, color: '#5f6368' }}>
+                      Your points are graded when you submit. You can move any of them until then.
+                      {analysisEnabled && ` When they are all placed, go on to ${inverseReflectionEnabled ? '2. Build Inverse' : '2. Analyze Function'}.`}
+                    </p>
+                  )}
+                  {!construction.pointsValidated && !(pointOnly && !revealPointCorrectness) && <button type="button" onClick={checkPoints} disabled={Object.keys(construction.placements).length < tasks.length} style={{ width: '100%', marginTop: '12px', padding: '10px', border: 'none', borderRadius: '8px', background: Object.keys(construction.placements).length >= tasks.length ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Check Point Placements</button>}
                 </>
               )}
               {construction.snapped && endpointRequirements.length > 0 && <div style={{ marginTop: '4px' }}>
@@ -1231,7 +1269,7 @@ export default function InteractiveGraphWorkspace({
           ) : (
             <>
               <h3 className="mathmaster-analysis-title" style={{ margin: '0 0 8px', fontSize: '16px', color: '#174ea6' }}>{inverseReflectionEnabled ? 'Build the Inverse' : 'Analysis Parts'}</h3>
-              {inverseReflectionEnabled && <p style={{ margin: '0 0 10px', color: '#5f6368', fontSize: '12px', lineHeight: 1.5 }}>Reflect both validated points across <strong>y=x</strong>. After both reflected points are correct, draw the inverse through them and write <strong>f⁻¹(x)</strong>.</p>}
+              {inverseReflectionEnabled && <p style={{ margin: '0 0 10px', color: '#5f6368', fontSize: '12px', lineHeight: 1.5 }}>Reflect both {revealPointCorrectness ? 'validated' : 'plotted'} points across <strong>y=x</strong>. {revealPointCorrectness ? 'After both reflected points are correct, draw' : 'Then draw'} the inverse through them and write <strong>f⁻¹(x)</strong>.</p>}
               {analysisParts.map((part) => {
                 if (inverseReflectionEnabled && part.id === inverseReflection?.equationPartId && !analysis.inverseSnapped) return null;
                 const grade = feedback?.partGrades?.find((item) => item.id === part.id);

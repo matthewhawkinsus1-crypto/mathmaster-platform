@@ -130,3 +130,20 @@ Rules for every agent/operator:
   is bad. Check the build result separately before changing application code.
 
 The wrapper is `scripts/deploy-hosting-resilient.sh`.
+
+### One command for a whole release
+
+```bash
+node scripts/release-firebase.mjs            # the plan: what changed since the live build, and every command
+node scripts/release-firebase.mjs --execute  # deploy it (asks for the project id)
+```
+
+It diffs against the gitSha of the live `mathmaster-build.json` (or
+`--since <ref>`), deploys only the targets that diff needs, in the order
+indexes → functions (exact names, groups of 8, paced, retried, split to isolate
+a broken one) → path-admin → rules → Hosting via the wrapper, stops before rules
+and Hosting if a function did not ship, and writes `release-reports/*.json` with
+the retry command and rollback steps. Function names come from the real entry
+point (`scripts/lib/functionsInventory.mjs`), not a grep of `index.js` — the grep
+missed eight. Planning logic: `scripts/lib/releasePlan.mjs`,
+`scripts/lib/releaseExecutor.mjs` (tested in `tests/platform/releasePlan.test.mjs`).

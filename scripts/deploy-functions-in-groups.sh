@@ -10,8 +10,13 @@
 # than retrying by hand, this walks the list in small groups, pauses between
 # them so the per-minute quota refills, and retries a group that fails.
 #
-# It reads the function names out of functions/index.js, so it cannot go stale
-# when functions are added or removed.
+# It reads the function names from the codebase's real entry point (package.json
+# `main`), the way the Firebase CLI does, so it cannot go stale when functions
+# are added or removed — and it includes the functions defined outside
+# index.js, which a grep of index.js silently left out (eight of them).
+#
+# For a whole release (scope from the diff, rules and Hosting in order, a
+# report) prefer: node scripts/release-firebase.mjs
 #
 # Usage:
 #   bash scripts/deploy-functions-in-groups.sh                 # all functions
@@ -36,7 +41,7 @@ fi
 if [ "$#" -gt 0 ]; then
   NAMES=("$@")
 else
-  mapfile -t NAMES < <(grep -o '^exports\.[A-Za-z0-9_]*' "$INDEX_FILE" | sed 's/^exports\.//')
+  mapfile -t NAMES < <(node "$REPO_ROOT/scripts/lib/functionsInventory.mjs" "$REPO_ROOT/functions")
 fi
 
 TOTAL=${#NAMES[@]}

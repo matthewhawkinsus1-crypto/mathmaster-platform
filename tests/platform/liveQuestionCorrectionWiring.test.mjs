@@ -49,7 +49,9 @@ test('current grader corrections remain automatic without making teacher login r
   assert.doesNotMatch(teacherHydration, /persistCurrentGraderCreditRepairs/);
 
   assert.match(app, /teacherTab === 'grades' && !teacherGraderRepairRanRef\.current/);
-  assert.match(app, /persistCurrentGraderCreditRepairs\(studentData, assignments\)/);
+  // The current assignment list, read through the ref so the live grades
+  // listener does not depend on (and resubscribe for) every assignment write.
+  assert.match(app, /persistCurrentGraderCreditRepairs\(studentData, (?:assignments|assignmentsRef\.current)\)/);
 
   // Student self-repair still happens during student hydration.
   assert.match(app, /repairedStudentGrades\.changed/);

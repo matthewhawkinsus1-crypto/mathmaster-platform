@@ -827,7 +827,10 @@ test('the assignment result screen shows the Recovery panel and runner, each imp
   const app = componentSource('src/App.jsx');
   const resultView = region(app, "activeView === 'assignmentResult' && assignmentResultRoute", 'if (isStudentAssignment)', 'assignment result view');
   assert.match(app, /^import SectionRecoveryPanel from '\.\/components\/student\/SectionRecoveryPanel\.jsx';$/m);
-  assert.match(app, /^import SectionRecoveryRunner from '\.\/components\/student\/SectionRecoveryRunner\.jsx';$/m);
+  // Lazy, so MathLive (which the runner's QuestionEngine brings) stays out of
+  // the first load (tests/platform/initialBundleBoundary.test.mjs). Either form
+  // binds the name to the same module.
+  assert.match(app, /^(?:import SectionRecoveryRunner from |const SectionRecoveryRunner = lazy\(\(\) => import\()'\.\/components\/student\/SectionRecoveryRunner\.jsx'(?:\)\))?;$/m);
   assert.match(app, /^import \{ buildStudentRecoverySummary \} from '\.\/platform\/recovery\/studentRecoveryModel\.js';$/m);
   assert.match(app, /^import \{ recoveryErrorCode, startSectionRecovery \} from '\.\/services\/sectionRecoveryService\.js';$/m);
   assert.match(resultView, /<SectionRecoveryRunner\b/);

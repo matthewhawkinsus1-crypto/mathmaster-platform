@@ -42,11 +42,18 @@ const emptyState = {
 const highlightBorder = (active, matches) => (active && matches ? '3px solid #b06000' : undefined);
 const highlightBackground = (active, matches) => (active && matches ? '#fff6e5' : undefined);
 
+// A DISPATCHER, AND NOTHING ELSE. Each mode is its own component so the hooks
+// below run in the same order on every render: an early return in front of
+// them is a "rendered fewer hooks" crash the moment one mounted tool receives a
+// question in the other mode.
 export default function RepresentationBridge({ questionData = {}, onAction }) {
   if (questionData.mode === 'linearMultipleRepresentations') {
     return <LinearMultipleRepresentationsBoard questionData={questionData} onAction={onAction} />;
   }
+  return <ClassicRepresentationBridge questionData={questionData} onAction={onAction} />;
+}
 
+function ClassicRepresentationBridge({ questionData = {}, onAction }) {
   const derived = useMemo(() => deriveLinearBridge(questionData), [questionData]);
   const requiredStages = useMemo(() => resolveRequiredStages(questionData), [questionData]);
   const feedbackTiming = resolveFeedbackTiming(questionData);

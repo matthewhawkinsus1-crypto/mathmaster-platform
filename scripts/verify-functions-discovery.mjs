@@ -37,9 +37,12 @@ const fail = (message, remedy = []) => {
 
 let exported;
 try {
-  exported = require(path.join(functionsRoot, 'index.js'));
+  // The module the CLI loads: package.json `main` (platformEntry.js -> entry.js
+  // -> index.js, plus the Classroom section entry). Loading index.js alone
+  // never saw the eight functions defined in the entry files.
+  exported = require(functionsRoot);
 } catch (error) {
-  fail(`functions/index.js threw while loading: ${error?.message || error}`, [
+  fail(`the functions entry point threw while loading: ${error?.message || error}`, [
     'This is a real code defect, not a deploy environment problem.',
     'Run `npm ci --prefix functions` first; if it still throws, fix the error above.',
   ]);
@@ -47,7 +50,7 @@ try {
 
 const exportedNames = Object.keys(exported || {});
 if (!exportedNames.length) {
-  fail('functions/index.js loaded but exported nothing.');
+  fail('the functions entry point loaded but exported nothing.');
 }
 
 // Ask firebase-functions itself to build the manifest when we can reach its

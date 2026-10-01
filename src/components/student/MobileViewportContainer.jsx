@@ -180,8 +180,13 @@ export const MobileViewportContainer = ({
   useEffect(() => {
     const root = rootRef.current;
     if (!root || !isMobile) return undefined;
+    // Each input's original inputmode, to restore on cleanup. A Path session
+    // keeps this container mounted across questions, so inputs of questions
+    // already left are dropped as new ones arrive rather than held (with their
+    // detached question trees) for the whole session.
     const originals = new Map();
     const prepareNumericInputs = (scope) => {
+      originals.forEach((_, input) => { if (!input.isConnected) originals.delete(input); });
       const candidates = [
         ...(scope?.matches?.(NUMERIC_SELECTOR) ? [scope] : []),
         ...(scope?.querySelectorAll?.(NUMERIC_SELECTOR) || []),

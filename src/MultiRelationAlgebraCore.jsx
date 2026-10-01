@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 
 import MathDisplay from './MathDisplay';
 import MathInput from './MathInput';
@@ -40,6 +40,7 @@ import {
 } from './algebraRelationFoundation.js';
 import { RelationDistributionPanel, RelationLikeTermsPanel } from './RelationStructureTools.jsx';
 import { relationDistributionCandidates, relationLikeTermCandidates } from './algebraRelationStructureModel.js';
+import { useContentStableValue } from './platform/react/useContentStableValue.js';
 
 const BASIC_OPERATIONS = [
   { id: 'add', symbol: '+', label: 'Add' },
@@ -553,7 +554,7 @@ function RelationExpressionRegion(props) {
 }
 
 export default function MultiRelationAlgebra({
-  question,
+  question: questionProp,
   onStateChange,
   onStepGrade,
   onUndoStateChange,
@@ -566,6 +567,9 @@ export default function MultiRelationAlgebra({
   // raw mathematics graders and checkpoints already read.
   onRelationDisplayChange = null,
 }) {
+  // Content identity, not object identity: a host that rebuilds an equal
+  // question every render must not reset the workspace (useContentStableValue).
+  const question = useContentStableValue(questionProp);
   const pristine = useMemo(() => {
     const source = relationSourceFromQuestion(question);
     if (!source) {
@@ -2602,7 +2606,7 @@ export default function MultiRelationAlgebra({
             }}
           >
             {summary.exactValues.map((expression, index) => (
-              <React.Fragment key={`${expression}-${index}`}>
+              <Fragment key={`${expression}-${index}`}>
                 {index > 0 && (
                   <span
                     style={{
@@ -2643,7 +2647,7 @@ export default function MultiRelationAlgebra({
                     />
                   </span>
                 </div>
-              </React.Fragment>
+              </Fragment>
             ))}
           </div>
 

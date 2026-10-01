@@ -3,8 +3,9 @@ import { bindMathFieldFocusHandoff } from '../platform/interaction/mathFieldFocu
 import 'mathlive';
 import { getCalculatorButtonsForMode, getCalculatorDrawerLabel } from '../platform/policies/calculatorPolicy';
 import { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
-import { clampCalculatorPosition } from './calculatorPanelGeometry.js';
+import { clampCalculatorPosition, settleCalculatorPosition } from './calculatorPanelGeometry.js';
 import { nextDivisionKeypadStep } from './calculatorKeypadFlow.js';
+import { typedFractionKeyStep, typedFractionValueStep } from '../platform/math/typedFractionEntry.js';
 import CalculatorIcon from './common/CalculatorIcon.jsx';
 
 export { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
@@ -71,6 +72,9 @@ export const CalculatorPanel = ({
   const dragRef = useRef(null);
   // True while the cursor sits in the denominator a ÷ press created.
   const divisionPendingRef = useRef(false);
+  // The same question for a `/` typed on a keyboard (typedFractionEntry.js):
+  // 6/3+1 is (6/3) + 1 = 3, not 6/(3 + 1) = 1.5.
+  const typedFractionRef = useRef(null);
 
   useEffect(() => {
     setEstimate('');
@@ -95,7 +99,16 @@ export const CalculatorPanel = ({
     if (mathField.value !== display) mathField.value = display;
     window.mathVirtualKeyboard?.hide?.();
 
-    const handleInput = () => setDisplay(mathField.value || '0');
+    const handleInput = () => {
+      typedFractionRef.current = typedFractionValueStep(typedFractionRef.current, mathField.value);
+      setDisplay(mathField.value || '0');
+    };
+    const leaveTypedFraction = (event) => {
+      const step = typedFractionKeyStep(typedFractionRef.current, event, mathField.value);
+      typedFractionRef.current = step.state;
+      if (step.leaveFraction) mathField.executeCommand?.('moveAfterParent');
+    };
+    const forgetTypedFraction = () => { typedFractionRef.current = null; };
     const handleKeyDown = (event) => {
       if (
         event.key !== 'Enter'
@@ -122,11 +135,16 @@ export const CalculatorPanel = ({
     };
     const preventContextMenu = (event) => event.preventDefault();
     mathField.addEventListener('input', handleInput);
+    // Capture, so the cursor leaves the fraction before MathLive inserts the key.
+    mathField.addEventListener('keydown', leaveTypedFraction, { capture: true });
     mathField.addEventListener('keydown', handleKeyDown);
+    mathField.addEventListener('pointerdown', forgetTypedFraction);
     mathField.addEventListener('contextmenu', preventContextMenu);
     return () => {
       mathField.removeEventListener('input', handleInput);
+      mathField.removeEventListener('keydown', leaveTypedFraction, { capture: true });
       mathField.removeEventListener('keydown', handleKeyDown);
+      mathField.removeEventListener('pointerdown', forgetTypedFraction);
       mathField.removeEventListener('contextmenu', preventContextMenu);
     };
   }, [isOpen, estimateUnlocked, policy.mode]);
@@ -153,20 +171,25 @@ export const CalculatorPanel = ({
     if (mathField && mathField.value !== display) mathField.value = display;
   }, [display]);
 
+  // Re-clamp once the panel has been measured. `settleCalculatorPosition`
+  // hands back the SAME object when nothing moved: this effect depends on
+  // `panelPosition`, so a fresh-but-equal object here re-ran it on the next
+  // frame, forever — a dragged calculator re-rendered at 60 Hz for as long as
+  // it stayed open.
   useEffect(() => {
     if (!isOpen || !panelPosition) return undefined;
     const frame = window.requestAnimationFrame(() => {
       const panel = panelRef.current;
       if (!panel) return;
       const rect = panel.getBoundingClientRect();
-      setPanelPosition((current) => (current ? clampCalculatorPosition({
+      setPanelPosition((current) => (current ? settleCalculatorPosition(current, clampCalculatorPosition({
         x: current.x,
         y: current.y,
         panelWidth: rect.width,
         panelHeight: rect.height,
         viewportWidth: window.innerWidth,
         viewportHeight: window.innerHeight,
-      }) : current));
+      })) : current));
     });
     return () => window.cancelAnimationFrame(frame);
   }, [isOpen, panelPosition]);
@@ -177,14 +200,14 @@ export const CalculatorPanel = ({
         const panel = panelRef.current;
         if (!current || !panel) return current;
         const rect = panel.getBoundingClientRect();
-        return clampCalculatorPosition({
+        return settleCalculatorPosition(current, clampCalculatorPosition({
           x: current.x,
           y: current.y,
           panelWidth: rect.width,
           panelHeight: rect.height,
           viewportWidth: window.innerWidth,
           viewportHeight: window.innerHeight,
-        });
+        }));
       });
     };
     window.addEventListener('resize', handleResize);
@@ -194,34 +217,6 @@ export const CalculatorPanel = ({
       window.removeEventListener('orientationchange', handleResize);
     };
   }, []);
-
-  if (!policy?.available) {
-    if (!showLauncher) return null;
-    const unavailableReason = policy?.reason || 'No calculator is allowed for this skill.';
-    return (
-      <button
-        className="mathmaster-calculator-toggle is-unavailable"
-        type="button"
-        aria-disabled="true"
-        aria-label={`Calculator unavailable. ${unavailableReason}`}
-        title={unavailableReason}
-        style={{
-          minHeight:44,
-          padding:'9px 14px',
-          borderRadius:999,
-          border:'1px solid #d7a5a1',
-          background:'#fce8e6',
-          color:'#8c1d18',
-          fontWeight:800,
-          cursor:'not-allowed',
-          boxShadow:'none',
-          ...launcherStyle,
-        }}
-      >
-        <CalculatorIcon unavailable /> Calculator
-      </button>
-    );
-  }
 
   const toggleDrawer = () => {
     if (!isOpen) onCalculatorOpened?.();
@@ -239,6 +234,7 @@ export const CalculatorPanel = ({
   const setCalculatorValue = useCallback((value) => {
     const next = String(value ?? '0');
     divisionPendingRef.current = false;
+    typedFractionRef.current = null;
     setDisplay(next);
     if (mathFieldRef.current) mathFieldRef.current.value = next;
   }, []);
@@ -251,6 +247,7 @@ export const CalculatorPanel = ({
       mathField.value = '';
       setDisplay('');
     }
+    typedFractionRef.current = null;
     const step = nextDivisionKeypadStep({
       divisionPending: divisionPendingRef.current,
       command,
@@ -354,6 +351,38 @@ export const CalculatorPanel = ({
     dragRef.current = null;
     event.currentTarget.releasePointerCapture?.(event.pointerId);
   };
+
+  // EVERY HOOK ABOVE, EVERY EARLY RETURN BELOW. The unavailable launcher used
+  // to return before the useCallbacks above, so a panel that stayed mounted
+  // while its policy flipped (a Path session moving to a calculator question)
+  // rendered a different number of hooks and React threw.
+  if (!policy?.available) {
+    if (!showLauncher) return null;
+    const unavailableReason = policy?.reason || 'No calculator is allowed for this skill.';
+    return (
+      <button
+        className="mathmaster-calculator-toggle is-unavailable"
+        type="button"
+        aria-disabled="true"
+        aria-label={`Calculator unavailable. ${unavailableReason}`}
+        title={unavailableReason}
+        style={{
+          minHeight:44,
+          padding:'9px 14px',
+          borderRadius:999,
+          border:'1px solid #d7a5a1',
+          background:'#fce8e6',
+          color:'#8c1d18',
+          fontWeight:800,
+          cursor:'not-allowed',
+          boxShadow:'none',
+          ...launcherStyle,
+        }}
+      >
+        <CalculatorIcon unavailable /> Calculator
+      </button>
+    );
+  }
 
   const buttons = calculatorButtonsForPolicy(policy.mode);
   const panelStyle = panelPosition
