@@ -72,6 +72,9 @@ export const REFUSED_EXPRESSION_FUNCTIONS = Object.freeze([
   'range', 'zeros', 'ones', 'identity', 'resize', 'reshape', 'concat', 'kron',
   'matrixFromRows', 'matrixFromColumns', 'matrixFromFunction', 'diag', 'sparse',
   'random', 'randomInt', 'pickRandom', 'map', 'forEach', 'filter', 'apply',
+  // CPU proportional to a typed number (seconds for a 20-character answer)
+  'isPrime', 'combinations', 'combinationsWithRep', 'permutations', 'stirlingS2',
+  'bellNumbers', 'catalan', 'composition', 'multinomial',
 ]);
 
 // `config` and `typed` cannot be replaced in the namespace — every mathjs
@@ -94,12 +97,59 @@ math.import(
 // toolResponseContract.mjs), with room for LaTeX conversion.
 export const MAX_EXPRESSION_LENGTH = 4_000;
 
-/** Throw if a parsed expression names anything refused, or builds a range. */
+// The largest power a constant may name: past ~1e308 a float is Infinity, and
+// exact (fraction) simplification of `9^9^9` would build a number with hundreds
+// of millions of digits — tens of seconds of CPU for an eight-character answer.
+const MAX_CONSTANT_POWER_DIGITS = 308;
+
+const isConstantSubtree = (node) => node.filter((child) => child.type === 'SymbolNode' || child.type === 'FunctionNode').length === 0;
+
+// A constant subtree's value as a plain number, or null when it is not one (a
+// matrix, a complex number, a string) or cannot be evaluated.
+const constantNumber = (node) => {
+  try {
+    const value = node.compile().evaluate();
+    return typeof value === 'number' ? value : null;
+  } catch {
+    return null;
+  }
+};
+
+/** Would this constant SCALAR power be astronomically large? */
+const oversizeConstantPower = (base, exponent) => {
+  if (!isConstantSubtree(base) || !isConstantSubtree(exponent)) return false;
+  const b = constantNumber(base);
+  const e = constantNumber(exponent);
+  if (b === null || e === null) return false;
+  const magnitude = Math.abs(b);
+  // An Infinity here is itself a tower that already overflowed.
+  if (!Number.isFinite(magnitude) || !Number.isFinite(e)) return true;
+  if (magnitude <= 1 || Number.isNaN(e)) return false;
+  return Math.abs(e) * Math.log10(magnitude) > MAX_CONSTANT_POWER_DIGITS;
+};
+
+/**
+ * Throw if a parsed expression names anything refused, builds a range,
+ * assigns into a matrix index (`x[3000,3000] = 1` resizes x), calls anything
+ * but a plain function name (`{a: det}["a"](...)` reaches a function by
+ * lookup), builds an object, or names a constant power past ~1e308.
+ */
 const assertSafeNode = (root) => {
   root.traverse((node) => {
     if (node.type === 'SymbolNode' && REFUSED.has(node.name)) throw new Error(`${node.name} is not available in an answer.`);
-    if (node.type === 'FunctionNode' && REFUSED.has(node.fn?.name ?? node.name)) throw new Error(`${node.fn?.name ?? node.name} is not available in an answer.`);
+    if (node.type === 'FunctionNode') {
+      if (node.fn?.type !== 'SymbolNode') throw new Error('Only a named function can be called in an answer.');
+      if (REFUSED.has(node.fn.name)) throw new Error(`${node.fn.name} is not available in an answer.`);
+      if (node.fn.name === 'pow' && node.args.length === 2 && oversizeConstantPower(node.args[0], node.args[1])) {
+        throw new Error('That number is too large to work with.');
+      }
+    }
     if (node.type === 'RangeNode') throw new Error('A range is not available in an answer.');
+    if (node.type === 'AssignmentNode' && node.index) throw new Error('Assigning into a matrix is not available in an answer.');
+    if (node.type === 'ObjectNode') throw new Error('An object is not available in an answer.');
+    if (node.type === 'OperatorNode' && node.fn === 'pow' && oversizeConstantPower(node.args[0], node.args[1])) {
+      throw new Error('That number is too large to work with.');
+    }
   });
   return root;
 };

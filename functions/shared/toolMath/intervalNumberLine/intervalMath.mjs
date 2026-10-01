@@ -1,6 +1,6 @@
 // Interval arithmetic and notation for the number-line tool. Kept free of React
 // so the validator, the contract, the shared grader and the tests can all use it.
-import { evaluate } from 'mathjs';
+import { evaluate } from '../../algebra/safeMath.mjs';
 import { parseCanonicalIntervalNotation } from '../../answerEquivalence.mjs';
 
 const INF = Number.POSITIVE_INFINITY;

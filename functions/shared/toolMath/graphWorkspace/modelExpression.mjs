@@ -3,7 +3,7 @@
 // evaluates a student-built model with the same parser the browser uses.
 // The old path is now an `export *` shim.
 
-import { compile, parse } from 'mathjs';
+import { compile, parse } from '../../algebra/safeMath.mjs';
 
 // Shared parser/evaluator for a model the STUDENT wrote.  This sits below both
 // workflow grading and graph rendering so those two systems cannot drift: the
@@ -20,7 +20,24 @@ const LATEX_TO_MATH = [
   [/\s+/g, ''],
 ];
 
-const compiledCache = new Map();
+// Compiled expressions, reused across calls. Bounded: on the server this
+// module lives as long as a warm function instance and sees every student's
+// text, so an unbounded map would grow without limit. Oldest entries go first.
+const COMPILED_CACHE_LIMIT = 500;
+const compiledEntries = new Map();
+const compiledCache = Object.freeze({
+  get: (key) => compiledEntries.get(key),
+  set: (key, value) => {
+    compiledEntries.delete(key);
+    compiledEntries.set(key, value);
+    while (compiledEntries.size > COMPILED_CACHE_LIMIT) compiledEntries.delete(compiledEntries.keys().next().value);
+  },
+  get size() { return compiledEntries.size; },
+});
+
+/** For tests: how many compiled expressions are held. */
+export const compiledModelCacheSize = () => compiledCache.size;
+export { COMPILED_CACHE_LIMIT };
 
 const normalizeLatex = (value) => {
   let text = String(value ?? '').trim().replace(/[−–—]/g, '-');

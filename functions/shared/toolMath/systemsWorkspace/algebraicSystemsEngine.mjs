@@ -13,7 +13,7 @@
  * (StepByStepAlgebraCore). Duplicating that logic here is exactly the
  * "second mini equation solver" this feature must not become.
  */
-import { OperatorNode, evaluate, fraction, parse } from 'mathjs';
+import { OperatorNode, evaluate, fraction, parse } from '../../algebra/safeMath.mjs';
 import { expressionToLatex, latexToExpression } from '../../algebra/algebraAstEngine.mjs';
 
 const EPS = 1e-7;

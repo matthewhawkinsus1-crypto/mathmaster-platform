@@ -1,4 +1,4 @@
-import { parse } from 'mathjs';
+import { parse } from '../../algebra/safeMath.mjs';
 import { latexToExpression } from '../../algebra/algebraAstEngine.mjs';
 import { nearlyEqual, round } from '../shared/toolMath.mjs';
 import {

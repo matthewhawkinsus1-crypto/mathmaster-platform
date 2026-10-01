@@ -18,7 +18,7 @@
 //     isSimplifiedSlopeInterceptExpression / isFactoredLinearExpression — the
 //     same checks the Step Algebra workspace this mode now hosts completes on —
 //     adding only the linear-domain guard.
-import { parse } from 'mathjs';
+import { parse } from '../../algebra/safeMath.mjs';
 import {
   applyBalancedOperation,
   equationToLatex,

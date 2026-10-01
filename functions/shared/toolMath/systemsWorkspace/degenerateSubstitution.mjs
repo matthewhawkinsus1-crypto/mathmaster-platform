@@ -17,7 +17,7 @@
  * Nothing here computes a side FOR the student; the true value is only used
  * to judge what they typed, exactly like the elimination combination check.
  */
-import { evaluate } from 'mathjs';
+import { evaluate } from '../../algebra/safeMath.mjs';
 import { latexToExpression } from '../../algebra/algebraAstEngine.mjs';
 import { exactNumberText, linearEquationForm } from './algebraicSystemsEngine.mjs';
 

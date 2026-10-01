@@ -56,6 +56,14 @@ const HOSTILE = [
   '1:20000000', 'size(1:5)', 'zeros(5000, 5000)', 'ones(9000)', 'identity(9000)', 'resize([1], [100000000])',
   'range(1, 100000000)', 'random()', 'map([1, 2], f(x) = x)', 'concat([1], [2])',
   'evaluate("1 + 1")', 'parse("x")', 'compile("x")', 'simplify("x + x")', 'derivative("x^2", "x")', 'resolve(x, {x: 1})',
+  // Found by the tool reviews: index-assignment resizes a matrix in proportion
+  // to the index; a lookup reaches a function no name check sees; exact
+  // simplification of a constant tower builds a number with millions of
+  // digits; number-theory and combinatorics functions run for seconds.
+  'x = [1]; x[3000, 3000] = 1', '{a: det}["a"]([[1, 2], [3, 4]])', '{a: 1}',
+  'y + 9^9^9 - 9^9^9', 'x^(9^9^9)', 'pow(9, 9^9)', '2^2^2^2^2', '10^-400',
+  'isPrime(9007199254740881)', 'combinations(10000000, 5000000)', 'permutations(170)',
+  'stirlingS2(2000, 1000)', 'bellNumbers(300)', 'catalan(5000)', 'multinomial([500, 500])',
 ];
 
 test('an expression cannot mutate the process or allocate in proportion to a typed number', () => {
@@ -72,6 +80,17 @@ test('an expression cannot mutate the process or allocate in proportion to a typ
   assert.throws(() => safeMathInstance.unit('1 lb2'));
   assert.equal(typeof safeMathInstance.add(1, 2), 'number', 'the type system still works');
   assert.ok(REFUSED_EXPRESSION_SYMBOLS.includes('config') && REFUSED_EXPRESSION_SYMBOLS.includes('typed'));
+});
+
+test('what the new refusals leave alone: equations, function notation, ordinary powers', () => {
+  // `y = 2x + 1` and `f(x) = x^2` parse as assignments; tools read them.
+  assert.equal(parse('y = 2x + 1').toString(), defaultMath.parse('y = 2x + 1').toString());
+  assert.equal(parse('f(x) = x^2').toString(), defaultMath.parse('f(x) = x^2').toString());
+  ['2^10', '10^-3', '(1/2)^100', 'x^(2^3)', '1.05^30', '9^9', 'e^700', '(x+1)^40'].forEach((expression) => {
+    assert.equal(parse(expression).toString(), defaultMath.parse(expression).toString(), expression);
+  });
+  assert.equal(evaluate('9^9'), 387420489);
+  assert.equal(simplify('x^(2^3)').toString(), defaultMath.simplify('x^(2^3)').toString());
 });
 
 test('an over-long answer is refused before it is parsed', () => {

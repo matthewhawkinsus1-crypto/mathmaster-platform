@@ -1,4 +1,4 @@
-import { OperatorNode, ParenthesisNode, evaluate, parse, simplify } from 'mathjs';
+import { OperatorNode, ParenthesisNode, evaluate, parse, simplify } from './safeMath.mjs';
 import { gcdInteger, makeRational, reducedNumberValue } from './algebraExactRational.mjs';
 
 const EPSILON = 1e-9;
