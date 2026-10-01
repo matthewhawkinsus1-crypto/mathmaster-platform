@@ -11,6 +11,7 @@ import { TOOL_RESPONSE_LIMITS, boundToolWork, canonicalToolWorkJson } from '../.
 import { evaluatePolynomial, matchesNumericAnswer, nearlyEqual, parseNumericAnswer } from '../../functions/shared/toolMath/shared/toolMath.mjs';
 import {
   POLYNOMIAL_WORKSHOP_DEFAULTS,
+  POLYNOMIAL_WORKSHOP_STARTING_SELECTIONS,
   coefficientsFromRoots,
   endBehavior,
   factorBehaviorAtRoot,
@@ -31,8 +32,10 @@ import { executableSource, region } from '../platform/helpers/sourceContract.mjs
  * (gradeServerResponse, fed the exact toolResponse the browser produced) must
  * reach the same verdict, completeness, score and parts for every view — and
  * that verdict must be the one the workshop's old inline Check reached, except
- * for the three documented fixes (blank list pieces, coefficient order, and a
- * target value that is no listed root).
+ * for the documented fixes (a blank list box or a stray trailing comma,
+ * coefficient order, and a target value that is no listed root). A view made
+ * only of selects is not COMPLETE until the student moves off its starting
+ * selections, which changes what a deadline submits but never a Check's verdict.
  */
 
 const COMPONENT = 'src/tools/polynomialWorkshop/PolynomialWorkshop.jsx';
@@ -237,6 +240,24 @@ test('the shared defaults table holds exactly the problems the old views drew', 
   assert.ok(Object.isFrozen(POLYNOMIAL_WORKSHOP_DEFAULTS.graphConnection.roots[0]), 'a view cannot mutate the shared default');
 });
 
+test('the selects start where they always started, from the table the grader reads', () => {
+  // The old views' literal usePersistentToolState defaults.
+  assert.deepEqual(JSON.parse(JSON.stringify(POLYNOMIAL_WORKSHOP_STARTING_SELECTIONS)), {
+    factorZero: { factorChoice: 'yes' },
+    graphConnection: { behavior: 'crosses', end: 'both ends rise' },
+    rationalFeatures: { choice: 'hole' },
+  });
+  for (const [name, mode, field] of [
+    ['FactorZero', 'factorZero', 'factorChoice'],
+    ['GraphConnection', 'graphConnection', 'behavior'],
+    ['GraphConnection', 'graphConnection', 'end'],
+    ['RationalFeatures', 'rationalFeatures', 'choice'],
+  ]) {
+    const body = region(code, `function ${name}(`, '\nfunction ', name);
+    assert.match(body, new RegExp(`usePersistentToolState\\('${field}', STARTING\\.${mode}\\.${field}\\)`), `${name} starts its ${field} select from the shared table`);
+  }
+});
+
 /* ------------------------------------------------------------------ */
 /* factorZero                                                          */
 /* ------------------------------------------------------------------ */
@@ -264,6 +285,13 @@ test('factorZero: an authored polynomial that is not a factor, with fractions, U
   assert.equal(wrongChoice.score, 0.5);
   // x + 2 at r = −5 is −3: the U+2212 minus is read.
   assert.equal(assertLegacyParity(q({ coefficients: [1, 2], candidateRoot: -5 }), { value: '−3', factorChoice: 'no' }, 'unicode').isCorrect, true);
+  // "Is a factor" means P(r) is zero (|P(r)| < 1e-9), not merely close to it.
+  // x² − 5x + 6.005 at r = 2 is 0.005: "0" is within the 0.01 value tolerance,
+  // yet (x − 2) is not a factor; and at 0.5 the answer is "no" just the same.
+  const nearZero = q({ coefficients: [1, -5, 6.005], candidateRoot: 2 });
+  assert.equal(assertLegacyParity(nearZero, { value: '0', factorChoice: 'no' }, 'near zero, no').isCorrect, true);
+  assert.deepEqual(failedIds(assertLegacyParity(nearZero, { value: '0', factorChoice: 'yes' }, 'near zero, yes')), ['factor']);
+  assert.deepEqual(failedIds(assertLegacyParity(q({ coefficients: [1, -5, 6.5], candidateRoot: 2 }), { value: '0.5', factorChoice: 'yes' }, 'half')), ['factor']);
   // String coefficients (a rebuilt family instance) read with Number().
   assert.equal(grade(q({ coefficients: ['1', '-5', '6'], candidateRoot: '3' }), { value: '0', factorChoice: 'yes' }).isCorrect, true);
 });
@@ -314,6 +342,22 @@ test('BEHAVIOUR CHANGE: multiplyArea reads the expanded coefficients in order, a
   assert.equal(grade(area, trailing).isCorrect, true, 'after');
   assert.deepEqual(parseCoefficientList('2, -5, -12,'), [2, -5, -12]);
   assert.deepEqual(parseCoefficientList(''), []);
+  assert.deepEqual(parseCoefficientList('  '), []);
+  assert.deepEqual(parseCoefficientList('1, -2, ,'), [1, -2]);
+});
+
+test('an empty piece BETWEEN commas is still the 0 coefficient it always was; unreadable pieces are still skipped', () => {
+  assert.deepEqual(parseCoefficientList('1,,-4'), [1, 0, -4]);
+  assert.deepEqual(parseCoefficientList(', 4'), [0, 4]);
+  assert.deepEqual(parseCoefficientList('1, x, -4'), [1, -4]);
+  // (x + 2)(x − 2) = x² + 0x − 4: "1,,-4" holds the x place, exactly as before.
+  const square = q({ mode: 'multiplyArea', leftBinomial: [1, 2], rightBinomial: [1, -2] });
+  assert.equal(assertLegacyParity(square, { cells: ['1', '-2', '2', '-4'], expanded: '1,,-4' }, 'interior blank').isCorrect, true);
+  // So empty slots never shorten a list into a different polynomial.
+  const division = q({ mode: 'division' });
+  const padded = assertLegacyParity(division, { quotient: '1, , -2, , -11', remainder: '-12' }, 'padded quotient');
+  assert.deepEqual(failedIds(padded), ['quotient']);
+  assert.deepEqual(failedIds(assertLegacyParity(division, { quotient: '1, -2, -11', remainder: ', -12' }, 'leading blank')), ['remainder']);
 });
 
 /* ------------------------------------------------------------------ */
@@ -400,7 +444,20 @@ test('graphConnection: behaviour at the target zero from its multiplicity, ends 
   assert.deepEqual(partIds(correct), ['behavior', 'end-behavior']);
   const untouched = assertLegacyParity(defaults, { behavior: 'crosses', end: 'both ends rise' }, 'untouched');
   assert.equal(untouched.score, 0);
-  assert.equal(untouched.isComplete, true, 'a <select> always holds an answer');
+  // Both selects start filled, so the starting state is no answer a deadline
+  // may submit — yet a Check of it is graded exactly as before.
+  assert.equal(untouched.isComplete, false, 'the untouched starting selections are not finished work');
+  const oneMoved = assertLegacyParity(defaults, { behavior: 'touches', end: 'both ends rise' }, 'one moved');
+  assert.equal(oneMoved.isComplete, true);
+  assert.equal(oneMoved.score, 0.5);
+  // Even degree, positive leading coefficient, odd target multiplicity: the
+  // starting selections ARE the answer. A Check marks it right; a deadline
+  // does not submit it on the student's behalf.
+  const startingIsRight = q({ mode: 'graphConnection', roots: [{ root: 1, multiplicity: 1 }, { root: 2, multiplicity: 1 }] });
+  const unmoved = assertLegacyParity(startingIsRight, { behavior: 'crosses', end: 'both ends rise' }, 'starting is right');
+  assert.equal(unmoved.isCorrect, true);
+  assert.equal(unmoved.score, 1);
+  assert.equal(unmoved.isComplete, false);
 
   // −2(x − 1)³(x + 1)²: degree 5, negative leading coefficient; target 1 has multiplicity 3.
   const authored = q({ mode: 'graphConnection', roots: [{ root: -1, multiplicity: 2 }, { root: 1, multiplicity: 3 }], leadingCoefficient: -2, targetRoot: 1 });
@@ -425,8 +482,15 @@ test('rationalFeatures: hole, asymptote or zero after cancelling common factors'
   const correct = assertLegacyParity(defaults, { choice: 'zero' }, 'defaults');
   assert.equal(correct.isCorrect, true);
   assert.deepEqual(partIds(correct), ['feature']);
-  assert.equal(assertLegacyParity(defaults, { choice: 'hole' }, 'untouched').score, 0);
-  assert.equal(assertLegacyParity(q({ mode: 'rationalFeatures', targetValue: 2 }), { choice: 'hole' }, 'hole').isCorrect, true);
+  const untouched = assertLegacyParity(defaults, { choice: 'hole' }, 'untouched');
+  assert.equal(untouched.score, 0);
+  assert.equal(untouched.isComplete, false, 'the starting selection is not finished work');
+  assert.equal(correct.isComplete, true);
+  // At x = 2 the answer IS the starting 'hole': a Check marks it right, but
+  // a deadline cannot tell it from a view nobody touched.
+  const hole = assertLegacyParity(q({ mode: 'rationalFeatures', targetValue: 2 }), { choice: 'hole' }, 'hole');
+  assert.equal(hole.isCorrect, true);
+  assert.equal(hole.isComplete, false);
   assert.equal(assertLegacyParity(q({ mode: 'rationalFeatures', targetValue: '4' }), { choice: 'verticalAsymptote' }, 'asymptote').isCorrect, true);
   // A doubled denominator factor survives one cancellation: still an asymptote.
   const doubled = q({ mode: 'rationalFeatures', numeratorRoots: [3], denominatorRoots: [3, 3], targetValue: 3 });

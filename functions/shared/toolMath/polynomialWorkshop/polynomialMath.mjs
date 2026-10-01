@@ -135,21 +135,34 @@ export const POLYNOMIAL_WORKSHOP_DEFAULTS = Object.freeze({
 });
 
 /*
- * A coefficient list a student typed: comma-separated numbers, highest degree
- * first.
- *
- * A blank piece is NO coefficient, never zero. `Number('')` is 0, so a blank
- * remainder box used to read as the remainder [0] (marked right on any exact
- * division without the student entering anything), and a stray trailing comma
- * ("1, -2, -11,") read as an extra 0 coefficient. Blank pieces are dropped,
- * exactly as other unreadable pieces already were.
+ * What each <select> holds before the student touches it. PolynomialWorkshop.jsx
+ * starts its selects here, and the shared grader reads the same table to tell
+ * a view the student only opened from an answer (see its completeness rule).
  */
-export const parseCoefficientList = (text) => String(text ?? '')
-  .split(',')
-  .map((value) => value.trim())
-  .filter((value) => value !== '')
-  .map(Number)
-  .filter(Number.isFinite);
+export const POLYNOMIAL_WORKSHOP_STARTING_SELECTIONS = Object.freeze({
+  factorZero: Object.freeze({ factorChoice: 'yes' }),
+  graphConnection: Object.freeze({ behavior: 'crosses', end: 'both ends rise' }),
+  rationalFeatures: Object.freeze({ choice: 'hole' }),
+});
+
+/*
+ * A coefficient list a student typed: comma-separated numbers, highest degree
+ * first. Each piece is read exactly as the workshop always read it — Number()
+ * of the trimmed piece, an unreadable piece skipped, and an EMPTY piece
+ * between two commas ("1,,-4") a 0 coefficient holding its degree's place —
+ * with two exceptions:
+ *
+ *   - a blank box is NO answer, never the list [0]. `Number('')` is 0, so a
+ *     blank remainder box used to read as the remainder 0 and was marked right
+ *     on any exact division without the student entering anything;
+ *   - a stray trailing comma ("1, -2, -11,") adds no coefficient. It used to
+ *     append a 0 and turn a correct list wrong.
+ */
+export const parseCoefficientList = (text) => {
+  const pieces = String(text ?? '').split(',').map((value) => value.trim());
+  while (pieces.length && pieces[pieces.length - 1] === '') pieces.pop();
+  return pieces.map(Number).filter(Number.isFinite);
+};
 
 /** Two coefficient lists name the same polynomial term by term, in order. */
 export const sameCoefficientList = (actual = [], expected = [], tolerance = 0.01) => actual.length === expected.length

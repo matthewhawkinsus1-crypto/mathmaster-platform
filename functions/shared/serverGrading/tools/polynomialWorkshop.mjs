@@ -12,10 +12,15 @@
  * the share of checks that are right (factor pair and rational feature are
  * single all-or-nothing checks).
  *
- * Completeness: every typed box is non-blank. A <select> always holds one of
- * its options ('yes', 'crosses', 'both ends rise', 'hole' by default), so it
- * is complete whenever it holds a valid one — and, exactly as on screen, the
- * default may already be right.
+ * Completeness (what a deadline may submit for the student): every typed box
+ * is non-blank and every <select> holds one of its options. The two views made
+ * only of selects (graphConnection, rationalFeatures) start filled
+ * (POLYNOMIAL_WORKSHOP_STARTING_SELECTIONS), so a view the student only opened
+ * would otherwise be complete — and, whenever the starting selection happens
+ * to be right, auto-submitted as correct. Work still identical to that
+ * starting state is therefore NOT complete. An explicit Check of it is still
+ * graded with exactly the verdict and score the workshop always gave.
+ * (FactorZero needs no such rule: its P(r) box starts blank.)
  */
 import declaration from '../declarations/polynomialWorkshop.mjs';
 import { bindToolGrader } from '../toolGraderDefinition.mjs';
@@ -23,6 +28,7 @@ import { gradedResult, ungradedResult } from '../gradingResult.mjs';
 import { evaluatePolynomial, matchesNumericAnswer, parseNumericAnswer } from '../../toolMath/shared/toolMath.mjs';
 import {
   POLYNOMIAL_WORKSHOP_DEFAULTS as DEFAULTS,
+  POLYNOMIAL_WORKSHOP_STARTING_SELECTIONS as STARTING,
   coefficientsFromRoots,
   endBehavior,
   factorBehaviorAtRoot,
@@ -64,6 +70,18 @@ const choicePart = (id, label, value, options, expected) => {
   const valid = typeof value === 'string' && options.includes(value);
   return { id, label, isComplete: valid, isCorrect: valid && value === expected, response: valid ? value : '' };
 };
+
+/*
+ * A view made only of <select>s: complete when every select holds an option
+ * AND the student has moved off the starting selections. The verdict and the
+ * score are the workshop's own — every check right, the share of checks
+ * right — whether or not the work is complete.
+ */
+const selectionsResult = (parts, untouched) => gradedResult({
+  parts,
+  isComplete: parts.every((part) => part.isComplete) && !untouched,
+  isCorrect: parts.every((part) => part.isCorrect),
+});
 
 /*
  * A question the workshop cannot render (coefficients that are not a list, a
@@ -157,12 +175,10 @@ const graphConnection = (question, work) => withKey(
     const targetEntry = graphConnectionTargetEntry(roots, question.targetRoot);
     return { behavior: factorBehaviorAtRoot(targetEntry.multiplicity), end: endBehavior(coefficients).label };
   },
-  (key) => gradedResult({
-    parts: [
-      choicePart('behavior', 'At the target zero', work.behavior, BEHAVIORS, key.behavior),
-      choicePart('end-behavior', 'End behavior', work.end, END_BEHAVIORS, key.end),
-    ],
-  }),
+  (key) => selectionsResult([
+    choicePart('behavior', 'At the target zero', work.behavior, BEHAVIORS, key.behavior),
+    choicePart('end-behavior', 'End behavior', work.end, END_BEHAVIORS, key.end),
+  ], work.behavior === STARTING.graphConnection.behavior && work.end === STARTING.graphConnection.end),
 );
 
 const rationalFeatures = (question, work) => withKey(
@@ -173,9 +189,10 @@ const rationalFeatures = (question, work) => withKey(
     });
     return rationalFeatureTypeAt(features, rationalFeatureTargetValue(features, question.targetValue));
   },
-  (expected) => gradedResult({
-    parts: [choicePart('feature', 'Feature at the target value', work.choice, RATIONAL_FEATURES, expected)],
-  }),
+  (expected) => selectionsResult(
+    [choicePart('feature', 'Feature at the target value', work.choice, RATIONAL_FEATURES, expected)],
+    work.choice === STARTING.rationalFeatures.choice,
+  ),
 );
 
 export default bindToolGrader(declaration, 'polynomialWorkshop', {

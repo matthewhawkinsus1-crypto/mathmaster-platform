@@ -9,6 +9,7 @@ import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import polynomialWorkshopGrader from '../../../functions/shared/serverGrading/tools/polynomialWorkshop.mjs';
 import {
   POLYNOMIAL_WORKSHOP_DEFAULTS as DEFAULTS,
+  POLYNOMIAL_WORKSHOP_STARTING_SELECTIONS as STARTING,
   coefficientsFromRoots,
   graphConnectionTargetEntry,
   rationalFeatureMap,
@@ -46,7 +47,7 @@ function FactorZero({ questionData, feedback, submit, onAction }) {
   const coefficients = questionData.coefficients || DEFAULTS.factorZero.coefficients;
   const candidateRoot = Number(questionData.candidateRoot ?? DEFAULTS.factorZero.candidateRoot);
   const [value, setValue] = usePersistentToolState('value', '');
-  const [factorChoice, setFactorChoice] = usePersistentToolState('factorChoice', 'yes');
+  const [factorChoice, setFactorChoice] = usePersistentToolState('factorChoice', STARTING.factorZero.factorChoice);
   // The verdict comes from the shared grader the server runs; this view only
   // shows it. The same work is reported live so a deadline can finalize it.
   const work={value,factorChoice};
@@ -126,7 +127,7 @@ function GraphConnection({ questionData, feedback, submit, onAction }) {
   const leadingCoefficient = Number(questionData.leadingCoefficient ?? DEFAULTS.graphConnection.leadingCoefficient);
   const coefficients = useMemo(()=>coefficientsFromRoots(roots,leadingCoefficient),[roots,leadingCoefficient]);
   const targetEntry = graphConnectionTargetEntry(roots, questionData.targetRoot);
-  const [behavior, setBehavior] = usePersistentToolState('behavior', 'crosses'); const [end, setEnd] = usePersistentToolState('end', 'both ends rise');
+  const [behavior, setBehavior] = usePersistentToolState('behavior', STARTING.graphConnection.behavior); const [end, setEnd] = usePersistentToolState('end', STARTING.graphConnection.end);
   const fn=(x)=>evaluatePolynomial(coefficients,x);
   const work={behavior,end};
   useReportToolWork(work);
@@ -143,7 +144,7 @@ function RationalFeatures({ questionData, feedback, submit, onAction }) {
   const denominatorRoots=questionData.denominatorRoots || DEFAULTS.rationalFeatures.denominatorRoots;
   const features=useMemo(()=>rationalFeatureMap({numeratorRoots,denominatorRoots}),[numeratorRoots,denominatorRoots]);
   const targetValue=rationalFeatureTargetValue(features, questionData.targetValue);
-  const [choice, setChoice] = usePersistentToolState('choice', 'hole');
+  const [choice, setChoice] = usePersistentToolState('choice', STARTING.rationalFeatures.choice);
   const work={choice};
   useReportToolWork(work);
   const check=()=>{
