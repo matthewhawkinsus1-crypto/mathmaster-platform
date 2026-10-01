@@ -45,6 +45,16 @@ export const TIMER_PHASE = Object.freeze({
 
 export const ROUND_CLOSING_WINDOW_MS = 5000;
 
+/*
+ * THE COUNTDOWN LEAD. A round the lifecycle opens starts this far after the
+ * server's now: time for every screen to show the same 3-2-1 off the round's
+ * own startsAt before anyone can answer (ROUND_SYNC_LEAD_MS, the bare
+ * synchronization lead, is shorter than a countdown can be read in). Nothing
+ * measures a round from anywhere but startsAt — elapsed time, speed scoring,
+ * the arrival window — so a longer lead never shortens a round.
+ */
+export const ROUND_COUNTDOWN_LEAD_MS = 3_500;
+
 /** Milliseconds since the epoch for any stored timestamp shape, or null. */
 export const timestampToMillis = (value) => {
   if (value === null || value === undefined || value === '') return null;
