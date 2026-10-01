@@ -47,6 +47,7 @@ import { isToolResponse } from './serverGrading/toolResponseContract.mjs';
 import { attemptInputsFromGrading } from './serverGrading/gradingResult.mjs';
 import { gradeModelingLabEvaluation } from './serverGrading/modelingLabGrading.mjs';
 import {
+  getAttemptsRemaining,
   getQuestionCredit,
   normalizeQuestionRecord,
   recordQuestionAttempt,
@@ -212,11 +213,24 @@ export const decideSubmissionIngestion = ({
  * Only for question types the server cannot mark. The record is rebuilt from
  * the server's own canonical read so the fields that decide credit are bounded:
  *
- *   - attempts may advance by at most one, from the count the SERVER read;
- *   - a question already terminal cannot be un-terminalled;
- *   - partial credit is clamped and may never fall below what is already
- *     recorded, so a retry cannot erase earned credit;
+ *   - the attempt count is the SERVER's: the count it read plus at most the
+ *     one attempt this envelope made — never a claimed value, so it cannot go
+ *     backwards (only an authorized replacement resets it) or jump;
+ *   - a question already terminal cannot be un-terminalled: `correct`, or
+ *     `expired` with no attempt left under the server's own attempt limit
+ *     (a teacher-granted extra attempt reopens it, exactly as it does for
+ *     recordQuestionAttempt);
+ *   - partial credit is clamped to the attempt policy's 90% ceiling unless
+ *     the record is `correct`, and may never fall below what is already
+ *     recorded, so a retry cannot erase earned credit and a claimed 100%
+ *     cannot impersonate a correct answer;
  *   - `lastSubmissionId` is stamped here, never accepted from the envelope.
+ *
+ * Before this branch the code did not hold the first three lines its own
+ * comment promised (docs/architecture/SERVER_GRADING_COVERAGE.md, "Sanitizer
+ * gaps"): a claimed `correct` overwrote an exhausted `expired` record, a
+ * claimed attemptCount of 0 reset the count, and a claimed 100% partial
+ * credit counted as full credit without a correct answer.
  */
 const ATTEMPT_STATUSES = new Set(['unattempted', 'attempted', 'correct', 'expired']);
 
@@ -279,26 +293,41 @@ export const sanitizeClientAttemptRecord = ({ envelope, canonicalRecord, maximum
     });
   }
 
+  const attemptLimit = Math.max(1, finite(maximumAttempts, 3));
+  // TERMINAL STAYS TERMINAL — the same rule recordQuestionAttempt and
+  // recordQuestionStep apply to a server-graded attempt. Nothing the browser
+  // claims about a finished question is recorded.
+  if (canonical.status === 'correct' || (canonical.status === 'expired' && getAttemptsRemaining(canonical, attemptLimit) <= 0)) {
+    return canonical;
+  }
+
   const advanced = finite(claimed.totalAttempts, 0) > finite(canonical.totalAttempts, 0);
   const totalAttempts = Math.min(finite(canonical.totalAttempts, 0) + (advanced ? 1 : 0), finite(claimed.totalAttempts, 0) || finite(canonical.totalAttempts, 0));
-  const attemptCount = Math.min(
-    Math.max(finite(claimed.attemptCount, 0), 0),
-    Math.max(finite(canonical.attemptCount, 0) + (advanced ? 1 : 0), 0),
-  );
-  const status = ATTEMPT_STATUSES.has(claimed.status) ? claimed.status : 'attempted';
+  // The attempt count is the server's own: what it read, plus the one attempt
+  // this envelope made. A claimed count is never consulted — a client that
+  // could hold it down would have unlimited attempts on a one-try question.
+  const attemptCount = Math.min(attemptLimit, Math.max(finite(canonical.attemptCount, 0), 0) + (advanced ? 1 : 0));
+  const claimedStatus = ATTEMPT_STATUSES.has(claimed.status) ? claimed.status : 'attempted';
+  // Out of attempts and not correct is expired, whatever the claim says — the
+  // state recordQuestionAttempt would have written.
+  const status = claimedStatus !== 'correct' && attemptCount >= attemptLimit && advanced ? 'expired' : claimedStatus;
+  // The attempt policy's ceiling: partial work never impersonates a correct
+  // answer (attemptPolicy.mjs recordQuestionAttempt, calculateStepPartialCredit).
+  const creditCeiling = status === 'correct' ? 100 : 90;
+  const boundedCredit = (value) => Math.max(0, Math.min(creditCeiling, finite(value, 0)));
   return normalizeQuestionRecord({
     ...canonical,
     ...claimed,
-    status: canonical.status === 'correct' && status !== 'correct' ? 'correct' : status,
-    attemptCount: Math.min(attemptCount, Math.max(1, finite(maximumAttempts, 3))),
+    status,
+    attemptCount,
     totalAttempts: Math.max(totalAttempts, finite(canonical.totalAttempts, 0)),
     variantIndex: envelope.kind === 'questionReplacement'
       ? Math.max(finite(canonical.variantIndex, 0), finite(claimed.variantIndex, 0))
       : finite(canonical.variantIndex, 0),
-    partialCredit: Math.max(0, Math.min(100, finite(claimed.partialCredit, 0))),
+    partialCredit: Math.max(finite(canonical.partialCredit, 0), boundedCredit(claimed.partialCredit)),
     bestPartialCredit: Math.max(
       finite(canonical.bestPartialCredit, 0),
-      Math.max(0, Math.min(100, finite(claimed.bestPartialCredit ?? claimed.partialCredit, 0))),
+      boundedCredit(claimed.bestPartialCredit ?? claimed.partialCredit),
     ),
     timeSpent: Math.max(finite(canonical.timeSpent, 0), Math.max(0, Math.min(86_400, finite(claimed.timeSpent, 0)))),
   });
