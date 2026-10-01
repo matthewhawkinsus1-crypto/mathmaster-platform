@@ -24,11 +24,12 @@
  *   - Question Family instances: rebuilt from their validated delivery pin by
  *     questionFamilyGrading.mjs before they reach a grader;
  *   - student supports (applyStudentSupportToQuestion): presentation fields,
- *     a translated prompt, `prefillFirstStep`, and trimming multiple-choice
- *     `choices` to two for `reduce-complexity`. No shared grader reads a
- *     `choices` list to decide correctness — each grades the student's own
- *     selection against the question's key — so a support never changes a
- *     verdict. tests/platform/serverGradingParity.test.mjs holds that line.
+ *     a translated prompt (the authored one is kept as `authoredPrompt`),
+ *     `prefillFirstStep`, and trimming multiple-choice `choices` to two for
+ *     `reduce-complexity`. No shared grader reads a field a support changes
+ *     — each grades the student's own work against the question's key — so a
+ *     support never changes a verdict.
+ *     tests/platform/gradersIgnoreStudentSupports.test.mjs holds that line.
  *
  * Pure. Idempotent: repairing an already-repaired question changes nothing.
  */
