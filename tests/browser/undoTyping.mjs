@@ -82,6 +82,34 @@ const type = async (page, text) => { await page.keyboard.type(text, { delay: 60 
   await page.close();
 }
 
+// BY KEYBOARD: the press that takes back the last step keeps the focus. A
+// natively disabled button cannot hold it, so it used to drop to the page and
+// a keyboard or screen-reader user lost their place.
+{
+  const page = await open('relationMapping');
+  const domain = page.locator('input[placeholder^="e.g. -4"]');
+  await domain.click();
+  await type(page, '4, 5');
+  const undo = platformUndo(page);
+  await undo.focus();
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(200);
+  check(await domain.inputValue() === '', 'keyboard: Enter on Undo takes back the typing', JSON.stringify(await domain.inputValue()));
+  const focus = await page.evaluate(() => ({
+    onUndo: Boolean(document.activeElement?.classList?.contains('mathmaster-universal-undo')),
+    ariaDisabled: document.activeElement?.getAttribute('aria-disabled') ?? null,
+  }));
+  check(focus.onUndo && focus.ariaDisabled === 'true', 'keyboard: focus stays on Undo, which now says it is unavailable', JSON.stringify(focus));
+  check(!(await undo.isEnabled()), 'keyboard: and it reads as not enabled');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(150);
+  check(await domain.inputValue() === '', 'keyboard: another Enter changes nothing');
+  await page.keyboard.press('Tab');
+  await page.waitForTimeout(100);
+  check(await undo.evaluate((element) => element.disabled), 'keyboard: once focus moves on, Undo is disabled as before');
+  await page.close();
+}
+
 // INTERVAL NUMBER LINE: MathLive's own undo agrees with the platform's.
 {
   const page = await open('intervalNumberLine');
