@@ -1472,9 +1472,11 @@ exports.inspectStudentResponse = onCall(async (request) => {
   return inspector.buildInspectorModel({
     assignment,
     question,
+    questionIndex,
     section,
     student: {
       id: studentId,
+      classId: student.classId || null,
       displayName: student.displayName || student.name || studentId,
     },
     record,
@@ -1604,6 +1606,12 @@ exports.overrideStudentResponseGrade = onCall(async (request) => {
             question,
             record,
             gradingEvidence,
+            // A Question Family attempt is replayed against the instance its
+            // validated delivery pin rebuilds, never the template.
+            assignment,
+            questionIndex,
+            studentId,
+            classId: gradeData.classId || null,
           });
           if (!replay.available) throw new Error(replay.reason);
           score = replay.currentScore;

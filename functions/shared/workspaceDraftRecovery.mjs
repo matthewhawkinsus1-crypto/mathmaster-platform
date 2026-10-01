@@ -27,10 +27,12 @@
  * by an explicit teacher action.
  */
 import { readWorkspaceDraftEntries } from './workspaceDraftSchema.mjs';
-import {
-  gradeOrdinaryResponse,
-  serverGradingSupport,
-} from './ordinaryResponseGrading.mjs';
+// The same shared grading registry ingestion uses (server-only module): a
+// recovered draft is proposed with exactly the verdict its ingestion will
+// record, against the question the student was shown.
+import { gradeServerResponse, serverResponseGradingSupport } from './serverGrading/serverResponseGrading.mjs';
+import { deliveredQuestionForGrading } from './serverGrading/deliveredQuestion.mjs';
+import { resolveGradingSurfaceId } from './serverGrading/gradingManifest.mjs';
 import { normalizeQuestionRecord } from './attemptPolicy.mjs';
 
 const text = (value) => String(value ?? '');
@@ -190,11 +192,14 @@ export const assessWorkspaceDraftEntry = ({
     return { ...base, ...outcome(DRAFT_RECOVERY_STATUS.QUESTION_NOT_RECONSTRUCTIBLE, 'variant-superseded') };
   }
 
-  const support = serverGradingSupport(question);
+  const delivered = deliveredQuestionForGrading(question);
+  const support = serverResponseGradingSupport(delivered);
   if (!support.supported) {
     return { ...base, ...outcome(DRAFT_RECOVERY_STATUS.UNSUPPORTED_QUESTION, `unsupported-question:${support.reason}`) };
   }
-  if (trimmed(question.type) !== response.type) {
+  // The draft must have been written by the surface that renders this
+  // question: a typed-answer draft is not the balance workspace's answer.
+  if (resolveGradingSurfaceId(delivered) !== response.type) {
     return { ...base, ...outcome(DRAFT_RECOVERY_STATUS.QUESTION_NOT_RECONSTRUCTIBLE, `draft-type-mismatch:${response.type}`) };
   }
 
@@ -204,7 +209,7 @@ export const assessWorkspaceDraftEntry = ({
     return { ...base, ...outcome(DRAFT_RECOVERY_STATUS.NEWER_CANONICAL_ATTEMPT, 'question-already-has-an-attempt', { canonicalAttempts: Number(canonical.totalAttempts) }) };
   }
 
-  const grading = gradeOrdinaryResponse({ question, response });
+  const grading = gradeServerResponse({ question: delivered, response });
   if (!grading.graded) {
     return { ...base, ...outcome(DRAFT_RECOVERY_STATUS.INCOMPLETE_RESPONSE, grading.reason || 'incomplete-response') };
   }
