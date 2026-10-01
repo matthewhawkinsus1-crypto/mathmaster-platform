@@ -3376,18 +3376,28 @@ function App() {
       studentId: user.id,
       assignmentId: activeAssignmentId,
       classId: user.classId || null,
-      flush: ({ document }) => writeWorkspaceDraft(document),
+      // A save that gets through while the server's copy has never been read
+      // means the connection came back without the page hearing of it (no
+      // `online` event). Read it then, so this device shows work done on
+      // another Chromebook and the sync learns what the server holds.
+      flush: async ({ document }) => {
+        const result = await writeWorkspaceDraft(document);
+        if (!serverCopyRead) readServerCopy();
+        return result;
+      },
     });
     workspaceDraftSyncRef.current = sync;
     const unsubscribe = subscribeToQuestionDrafts((event) => sync.record(event));
 
     let reading = false;
+    let serverCopyRead = false;
     const readServerCopy = () => {
       if (cancelled || reading) return;
       reading = true;
       readWorkspaceDraft({ studentId: user.id, assignmentId: activeAssignmentId })
         .then((stored) => {
           if (cancelled) return;
+          serverCopyRead = true;
           const entries = readWorkspaceDraftEntries(stored);
           const assignmentGrades = trackerRef.current?.[activeAssignmentId] || {};
           const restorable = selectRestorableDraftEntries({
@@ -10082,7 +10092,7 @@ function App() {
           {lifecycle.isPracticeOnly && !preview && (
             <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: '#f1f3f4', border: '2px solid #5f6368', color: '#3c4043', textAlign: 'left' }}>
               <strong style={{ display: 'block', fontSize: '20px' }}>Practice Mode — grading window ended</strong>
-              <span>Your recorded grade is frozen. You may keep practicing with feedback, but these attempts earn no credit and are not written to the teacher gradebook, mastery evidence, Math Path recommendations, or activity analytics. Practice state stays only in memory for this signed-in browser session and is never saved.</span>
+              <span>Your recorded grade is frozen. You may keep practicing with feedback, but these attempts earn no credit and are not written to the teacher gradebook, mastery evidence, Math Path recommendations, or activity analytics. Your practice is saved, so you can pick it up again on another Chromebook, and your teacher can see it when they review your work.</span>
             </section>
           )}
 
