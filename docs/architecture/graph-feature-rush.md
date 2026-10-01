@@ -87,7 +87,11 @@ defaults) and the report.
 One canonical id per feature (`xIntercept`, `yIntercept`, `vertex`, `maximum`,
 `minimum`), with classroom vocabulary chosen per family and tier: "Find all
 x-intercepts", "Find all zeros", "Find all roots" (roots only for
-polynomials). A prompt never says how many targets there are. Adding a feature
+polynomials). A polynomial with non-real roots — a parabola that never meets
+the axis, a cubic with one real root — is only ever asked for its
+x-intercepts: its roots and zeros include the complex ones, so "Find all
+roots" answered "Does Not Exist" (or with one point) would be false. A prompt
+never says how many targets there are. Adding a feature
 (an axis of symmetry, a hole, an inflection point) is a registry declaration,
 family support and — for a non-point geometry — a hit-test distance; nothing
 in the engine changes.
@@ -122,7 +126,17 @@ the same mix, and a neighbour's screen is a different graph. Question k for a
 student is a pure function of (room seed, student, round, k, settings,
 generator version), so the server stores nothing it issued — it regenerates a
 question to grade a tap. A room created under another generator version
-refuses to issue or grade.
+refuses to issue or grade (the current version is 2).
+
+Each slot of a block first settles whether its answer exists — "Does Not
+Exist" at exactly the tier's share — and only then picks a (family, feature)
+not yet used in the block on that side. (Avoiding repeats across the whole
+catalog drifted the share: a maximum-only Challenge game, where most families
+have no maximum, drew "Does Not Exist" for about two answers in five.) Two
+questions in a row are never the same graph asked the same way: an
+odd-numbered question passes over the graph of either neighbour with its
+family and feature, so every adjacent pair has one free and one checked
+member and grading never regenerates more than three questions.
 
 **Difficulty** is not bigger coefficients. Easy: integer features, one target,
 friendly families and windows, no "Does Not Exist". Standard: halves, two
@@ -134,10 +148,19 @@ Challenge.
 **Visual validation** (fractions of the square view): targets 8% inside the
 edges and 15% apart; both axes and asymptotes visible; enough curve on
 screen; no "ghost zero" — wherever the curve comes closest to the x-axis it
-either crosses (a real zero) or stays clearly away; two nearby zeros must be
-separated by a visible dip; open dots clear of targets and other dots.
-Measured over every slot: at most 11 build attempts, a mean under 3, and no
-fallback question ever needed.
+either crosses (a real zero) or stays clearly away; **every zero is readable
+where it is drawn** — the stretch around it where the curve lies on the axis
+(within 1.5% of the height) reaches at most 6% of the width to either side
+(10% for a curve that touches and turns or flattens through its zero, which
+its symmetry keeps centred), is centred on the zero within 2%, and never runs
+off the view (a shallow square-root or cube-root crossing that lay along the
+axis for a sixth of the width was a guess, not a reading); two nearby zeros
+must be separated by a visible dip; open dots clear of targets and other dots;
+a lopsided Challenge window is at least 6 units each way (a 2-by-2 window
+flattened a cubic into a line). Below Challenge a piecewise y-intercept never
+sits on the split, so the filled or open dot is never the whole question.
+Measured over every slot: build attempts rarely past 15 (cap 80), a mean
+about 1.25, and no fallback question ever needed.
 
 ---
 
