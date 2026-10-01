@@ -4,6 +4,7 @@ import { MISSING_TOOL_IDS, validateToolQuestion } from './tools/toolSchemas.js';
 import { compileAuthoringIntentV5 } from './platform/contract/authoringIntentV5.js';
 import { flattenV5Sections, normalizeAssignmentV5, rebuildV5SectionsFromQuestions } from './platform/contract/assignmentSchemaV5.js';
 import { looksLikeFiniteSetNotation } from '../functions/shared/answerEquivalence.mjs';
+import { parseWrittenNumber } from '../functions/shared/fractionAnswer.mjs';
 
 export const DEFAULT_ASSIGNMENT_BLUEPRINT = `{
   "schemaVersion": 5,
@@ -729,6 +730,17 @@ export const validateAssignmentQuestions = (questions, options = {}) => {
       const toolValidation = validateToolQuestion({ ...question, toolId: questionType });
       if (!toolValidation.isValid) {
         throw new Error(`Question ${index + 1} (${questionType}) is invalid: ${toolValidation.errors.join(' | ')}`);
+      }
+    }
+    // A fraction answer is graded as one written number, so an answer key
+    // that is not one ("three quarters", "3:4", "x/4") could never be matched.
+    // A fraction question with no answer is a drill and stays valid.
+    if (questionType === 'fraction') {
+      const authoredAnswer = question.answer;
+      const hasAnswer = authoredAnswer !== undefined && authoredAnswer !== null && String(authoredAnswer).trim() !== '';
+      if (hasAnswer && !parseWrittenNumber(authoredAnswer)) {
+        const shown = typeof authoredAnswer === 'string' ? authoredAnswer : JSON.stringify(authoredAnswer);
+        throw new Error(`Question ${index + 1} fraction answer "${shown}" is not a number MathMaster can grade (write it like 3/4).`);
       }
     }
     if (questionType === 'modelingLab') {

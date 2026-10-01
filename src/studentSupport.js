@@ -1,5 +1,6 @@
 import { flatSupportIds, resolveEffectiveSupportPlan } from '../functions/shared/supportProfileModel.mjs';
 import { studentFacingLabel } from '../functions/shared/supportCatalog.mjs';
+import { fractionQuestionDrawsNumbers } from '../functions/shared/fractionAnswer.mjs';
 
 const unique = (values) => [...new Set((Array.isArray(values) ? values : []).map(String))];
 
@@ -112,7 +113,12 @@ export const modificationsAppliedToQuestion = (question = {}, configured = []) =
   const set = new Set(Array.isArray(configured) ? configured : []);
   const applied = [];
   if (set.has('reduce-complexity')) {
-    const generatorChanged = COMPLEXITY_REDUCED_GENERATORS.has(question?.generator?.kind);
+    // Narrower denominators change only a fraction DRILL: a question with
+    // authored operands or an authored answer never draws, so the student
+    // sees it at grade level.
+    const generatorChanged = question?.generator?.kind === 'fraction'
+      ? fractionQuestionDrawsNumbers(question)
+      : COMPLEXITY_REDUCED_GENERATORS.has(question?.generator?.kind);
     const choicesTrimmed = Array.isArray(question?.choices) && question.choices.length > 2;
     if (generatorChanged || choicesTrimmed) applied.push('reduce-complexity');
   }

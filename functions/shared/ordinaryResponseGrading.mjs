@@ -22,8 +22,18 @@ import {
   compareOrderedPair,
   matchesAnyAnswer,
   matchesFieldAnswer,
+  normalizeMathAnswer,
   parseOrderedPair,
 } from './answerUtils.mjs';
+import {
+  FRACTION_QUESTION_SHAPES,
+  fractionAnswerCandidates,
+  fractionAnswerRequiresLowestTerms,
+  fractionQuestionShape,
+  fractionSumAnswerKey,
+  isWrittenInLowestTerms,
+  sameWrittenNumber,
+} from './fractionAnswer.mjs';
 
 const text = (value) => String(value ?? '');
 const filled = (value) => text(value).trim() !== '';
@@ -122,11 +132,39 @@ export const gradeLiteralResponse = (question = {}, rawAnswer) => {
   };
 };
 
+/*
+ * A fraction question whose author wrote the answer is graded against THAT
+ * answer, never against numbers the generator drew (the three shapes are
+ * defined in fractionAnswer.mjs).
+ *
+ * The right value is necessary. When the author's own answer is in lowest
+ * terms it is not sufficient: 6/8 and 0.75 are worth 3/4, but they are not
+ * what "a fraction in lowest terms" asked for. So the response must also be
+ * written in lowest terms — unless the author listed that very form (a
+ * teacher may accept 6/8 on purpose).
+ */
+const matchesAuthoredFractionAnswer = (question, answer) => {
+  const candidates = fractionAnswerCandidates(question);
+  if (!candidates.some((candidate) => compareMathAnswer(answer, candidate))) return false;
+  if (!fractionAnswerRequiresLowestTerms(question)) return true;
+  if (isWrittenInLowestTerms(answer)) return true;
+  return candidates.some((candidate) => (
+    sameWrittenNumber(answer, candidate)
+    || normalizeMathAnswer(answer) === normalizeMathAnswer(candidate)
+  ));
+};
+
 export const gradeFractionResponse = (question = {}, rawAnswer) => {
   const answer = text(rawAnswer);
-  const expectedLatex = `\\frac{${question.ansNum}}{${question.ansDen}}`;
+  const shape = fractionQuestionShape(question);
+  // A drill, and an authored sum, keep the rule drills have always had: any
+  // answer worth the sum. An authored sum may arrive before generation has
+  // filled in its key, so the key is derived from its operands when missing.
+  const key = shape === FRACTION_QUESTION_SHAPES.OPERANDS ? fractionSumAnswerKey(question) : question;
   const isComplete = answer !== '';
-  const isCorrect = isComplete && compareMathAnswer(answer, expectedLatex);
+  const isCorrect = isComplete && (shape === FRACTION_QUESTION_SHAPES.AUTHORED_ANSWER
+    ? matchesAuthoredFractionAnswer(question, answer)
+    : compareMathAnswer(answer, `\\frac{${key?.ansNum}}{${key?.ansDen}}`));
   return {
     isComplete,
     isCorrect,
