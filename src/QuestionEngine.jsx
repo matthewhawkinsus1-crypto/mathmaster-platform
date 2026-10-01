@@ -339,7 +339,7 @@ export default function QuestionEngine({
   const [toolOutcomeSlots] = useState(createAttemptOutcomeSlots);
   const [toolOutcomeOwner, setToolOutcomeOwner] = useState(null);
   const toolOutcomeSequenceRef = useRef(0);
-  const [lastSubmittedResponseKey, setLastSubmittedResponseKey] = useState('');
+  const [lastSubmittedResponseKey, setLastSubmittedResponseKey] = useState(() => record.lastResponseKey || '');
   const [submitting, setSubmitting] = useState(false);
   const submissionInFlightRef = useRef(false);
   const [requesting, setRequesting] = useState(false);
@@ -417,7 +417,22 @@ export default function QuestionEngine({
     (supportUsage.modifications || []).forEach((modificationId) => reportSupportEvidence(modificationId, 'provided'));
   }, [stableQuestion, supportPresentation.textToSpeech, supportUsage]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /*
+   * A NEW QUESTION STARTS CLEAN — AND A QUESTION THAT HAS JUST OPENED IS NOT RESET.
+   *
+   * Everything below starts at these values, so on mount there is nothing to
+   * reset. Resetting then was not harmless: React runs a child's effects before
+   * its parent's, so this wiped what the response module had already reported
+   * on mounting. Most modules report again on their next render; WorkflowRunner
+   * reports only when an answer changes, so a finished composed question opened
+   * again could not be submitted until the student changed an answer. The
+   * question this state belongs to is remembered, not a first-run flag, so
+   * React's development double mount is not mistaken for a new question.
+   */
+  const resetForQuestionRef = useRef(processedQuestion);
   useEffect(() => {
+    if (resetForQuestionRef.current === processedQuestion) return;
+    resetForQuestionRef.current = processedQuestion;
     setAnswerState(EMPTY_ANSWER_STATE);
     setFeedback(null);
     setLastSubmittedResponseKey(record.lastResponseKey || '');

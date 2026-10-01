@@ -42,23 +42,33 @@ try {
 }
 console.log(gate.summary);
 
-const args = ['tests/browser/draftPersistence.mjs', ...process.argv.slice(2)];
-const run = spawn(process.execPath, args, {
-  stdio: 'inherit',
-  env: { ...process.env, AUDIT_ORIGIN: gate.origin },
+// The certification, then — on the same warm server — a finished composed
+// question reopened and submitted without changing an answer
+// (tests/browser/composedReopenSubmit.mjs). `--write` re-records only the
+// certification's fixture, so the second check runs on plain runs only.
+const runOne = (args) => new Promise((resolve) => {
+  const child = spawn(process.execPath, args, {
+    stdio: 'inherit',
+    env: { ...process.env, AUDIT_ORIGIN: gate.origin },
+  });
+  const stop = (signal) => { if (child.exitCode === null) child.kill(signal); };
+  process.on('exit', () => stop('SIGTERM'));
+  for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => stop(signal));
+  child.on('exit', (code, signal) => resolve({ code, signal }));
 });
-process.on('exit', () => { if (run.exitCode === null) run.kill('SIGTERM'); });
-for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => run.kill(signal));
 
-run.on('exit', async (code, signal) => {
-  const late = gate.lateRebundles();
-  if (late.length) {
-    console.error(
-      `\n[gate:draft-persistence] Vite re-bundled dependencies DURING the run, which reloads the page under a scene:\n  ${late.join('\n  ')}\n`
-      + '  Add the named package(s) to this gate\'s `include` in scripts/lib/gateServer.mjs.',
-    );
-  }
-  if (code !== 0) console.error(`\n[gate:draft-persistence] server log (last lines):\n${gate.logTail(25)}`);
-  await gate.close().catch(() => {});
-  process.exit(code ?? (signal === 'SIGINT' ? 130 : 1));
-});
+let outcome = await runOne(['tests/browser/draftPersistence.mjs', ...process.argv.slice(2)]);
+if (outcome.code === 0 && !outcome.signal && !process.argv.includes('--write')) {
+  outcome = await runOne(['tests/browser/composedReopenSubmit.mjs']);
+}
+
+const late = gate.lateRebundles();
+if (late.length) {
+  console.error(
+    `\n[gate:draft-persistence] Vite re-bundled dependencies DURING the run, which reloads the page under a scene:\n  ${late.join('\n  ')}\n`
+    + '  Add the named package(s) to this gate\'s `include` in scripts/lib/gateServer.mjs.',
+  );
+}
+if (outcome.code !== 0) console.error(`\n[gate:draft-persistence] server log (last lines):\n${gate.logTail(25)}`);
+await gate.close().catch(() => {});
+process.exit(outcome.code ?? (outcome.signal === 'SIGINT' ? 130 : 1));
