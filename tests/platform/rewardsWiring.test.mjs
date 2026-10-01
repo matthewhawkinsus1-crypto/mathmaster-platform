@@ -103,8 +103,10 @@ test('the reward listeners are scoped to one student and one class, and only aft
 test('a finished Live Challenge shows its rewards apart from placement, through a slot', () => {
   const student = read('src/components/liveChallenge/LiveChallengeStudent.jsx');
   const finished = region(student, "{room.status === 'finished' && (", "{room.status === 'cancelled' && (", 'finished view');
-  assert.match(finished, /renderMatchRewards && invite\?\.roomId \? renderMatchRewards\(invite\.roomId\) : null/);
-  assert.match(region(app, '<LiveChallengeStudent', '/>\n          </Suspense>', 'student challenge mount'), /renderMatchRewards=\{\(roomId\) => \(\s*<ChallengeRewardsEarned/);
+  // The slot is told what the game offered, from the room's public summary,
+  // and hands it to the card.
+  assert.match(finished, /renderMatchRewards && invite\?\.roomId \? renderMatchRewards\(invite\.roomId, \{ offered: rewardSummaryLines\(room\.rewardSummary\) \}\) : null/);
+  assert.match(region(app, '<LiveChallengeStudent', '/>\n          </Suspense>', 'student challenge mount'), /renderMatchRewards=\{\(roomId, match = \{\}\) => \(\s*<ChallengeRewardsEarned\s+roomId=\{roomId\}\s+offered=\{match\.offered\}/);
 });
 
 test("the teacher's reward choice reaches createLiveChallenge as a validated policy", () => {

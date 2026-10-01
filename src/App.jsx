@@ -11786,9 +11786,10 @@ function App() {
             onExit={() => setStudentDashboardMode('assignments')}
             // What the finished match put in the wallet, shown apart from
             // placement and game points.
-            renderMatchRewards={(roomId) => (
+            renderMatchRewards={(roomId, match = {}) => (
               <ChallengeRewardsEarned
                 roomId={roomId}
+                offered={match.offered}
                 grants={studentClassPoints.grants}
                 transactions={studentClassPoints.transactions}
                 onOpenRewards={() => openStudentDashboardMode('rewards')}

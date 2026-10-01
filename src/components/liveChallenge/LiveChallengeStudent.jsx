@@ -7,7 +7,7 @@ import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mj
 import { calculateStepPartialCredit, emptyQuestionRecord, recordQuestionStep } from '../../attemptPolicy.js';
 import { hasMeaningfulRawPathResponse, questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
 import { CHALLENGE_STAGE, GO_FLASH_MS, studentGuidance } from '../../platform/liveChallenge/challengeShellModel.js';
-import { roundResultsView, scorePresentation, shortPlaceText, standingsRows } from '../../platform/liveChallenge/challengeStandingsModel.js';
+import { rewardSummaryLines, roundResultsView, scorePresentation, shortPlaceText, standingsRows } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import { useChallengeClock, usePreviousRoundSummary, useRoundSummary } from '../../platform/liveChallenge/challengeHooks.js';
 import { studentConnectionState } from '../../platform/liveChallenge/challengePresenceModel.js';
 import LiveChallengeFieldQuestion from './LiveChallengeFieldQuestion.jsx';
@@ -601,9 +601,10 @@ const exitButton = { minHeight: 44, padding: '11px 20px', border: 0, borderRadiu
  *   completed     how you finished, what reached your wallet, the top of the class
  *   cancelled     the challenge ended; nothing is recorded
  *
- * `renderMatchRewards(roomId)` is the host's rewards card for a finished match
- * (what reached the wallet). It is a slot, not game logic: the game's own
- * placement and points beside it are unchanged and never read rewards.
+ * `renderMatchRewards(roomId, { offered })` is the host's rewards card for a
+ * finished match (what reached the wallet; `offered` is what the game put up,
+ * in words). It is a slot, not game logic: the game's own placement and
+ * points beside it are unchanged and never read rewards.
  */
 export default function LiveChallengeStudent({ invite, studentProfile = {}, onExit, exitLabel = 'Back to Dashboard', renderMatchRewards = null }) {
   const [room, setRoom] = useState(null);
@@ -916,7 +917,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
               rows={finalRows}
               selfKey={invite.playerKey}
               rush={rushRoom}
-              rewardsSlot={renderMatchRewards && invite?.roomId ? renderMatchRewards(invite.roomId) : null}
+              rewardsSlot={renderMatchRewards && invite?.roomId ? renderMatchRewards(invite.roomId, { offered: rewardSummaryLines(room.rewardSummary) }) : null}
               loading={!playersFresh}
             />
             <button type="button" onClick={onExit} style={{ ...exitButton, justifySelf: 'center' }}>{exitLabel}</button>
