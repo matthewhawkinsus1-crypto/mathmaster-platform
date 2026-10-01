@@ -206,19 +206,29 @@ transaction against regenerated questions, in order:
 
 **Fairness.** A wrong attempt costs 1/20 of a graph in the round's work score
 (exact score units, never below zero). The device pauses input after the
-second miss in a row (600 ms, growing 600 ms per further miss, at most 3 s).
+second miss in a row (1 s, growing 1 s per further miss, at most 4 s).
 The **eighth miss on a graph skips it**, recorded by the server with that
 miss, so the rule holds for a device that never sends the skip. Record
 limits: 30 attempts per graph, 400 per round, 1,800 per match (the private
 record is one document; that is about 760 KiB of receipts). Simulated 60-s
-rounds (through the real pipeline, cooldowns and flashes included):
+rounds of the Algebra 1 Functions preset on a phone (through the real
+pipeline, fingertip tolerance, cooldowns and flashes included; means over 12
+students):
 
 | Player | Graphs | Accuracy | Work score |
 | --- | --- | --- | --- |
-| careful (2.6 s a feature, 10% slips) | 18.0 | 95% | 17.95 |
-| struggling (6 s a feature, 30% slips) | 6.8 | 70% | 6.77 |
-| axis sweeper | 3.3 | 9% | 1.61 |
-| random sprayer | 0.5 | 1% | 0.00 |
+| careful (2.6 s a feature, 10% slips) | 18.5 | 92% | 18.42 |
+| struggling (6 s a feature, 30% slips) | 5.5 | 60% | 5.32 |
+| axis sweeper, taps spaced to the tolerance | 12.0 | 26% | 10.28 |
+| random sprayer | 0.0 | 0% | 0.00 |
+
+Intercepts lie on an axis, so a sweep can find them without reading the
+graph. With the earlier 600 ms cooldown steps a tolerance-spaced sweep matched
+careful readers on an intercept-only game (16.8 graphs each); with 1 s steps
+it completes about two thirds as many (11.6), at about a quarter accuracy —
+plain in the teacher's report — while careful readers lose nothing. A sweep
+can still outscore a student who reads very slowly; the cooldown is not
+allowed to punish honest mistakes harder than that.
 
 What a modified client could still do: skip the cooldown (the miss penalty and
 the eighth-miss skip still apply), or read a question's targets from the
