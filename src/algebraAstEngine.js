@@ -1,5 +1,6 @@
 import { OperatorNode, ParenthesisNode, evaluate, parse, simplify } from 'mathjs';
 import { gcdInteger, makeRational, reducedNumberValue } from './algebraExactRational.js';
+import { latexToExpression } from './platform/math/latexToExpression.js';
 
 const EPSILON = 1e-9;
 const nearlyEqual = (left, right) => Math.abs(Number(left) - Number(right)) <= EPSILON;
@@ -974,44 +975,11 @@ export const isSolvedEquation = (equationState) => {
 };
 
 // MathLive reports LaTeX. Everything downstream of the operand field speaks
-// mathjs, so the conversion happens once, here at the boundary, rather than in
-// each caller — and a student who types 1/2 by hand and one who builds a
-// stacked fraction reach the same expression.
-const LATEX_TO_EXPRESSION = [
-  [/[−–—]/g, '-'],
-  [/\\left|\\right/g, ''],
-  [/\\dfrac|\\tfrac/g, '\\frac'],
-  [/\\cdot|\\times/g, '*'],
-  [/\\div/g, '/'],
-  // MathLive legitimately emits compact atomic fractions such as \\frac12,
-  // \\frac1{2}, and \\frac{1}2. Accept all of them before the ordinary
-  // braced form so a student's keypad choice never turns into a parser crash.
-  [/\\frac\s*([A-Za-z0-9])\s*\{([^{}]*)\}/g, '(($1)/($2))'],
-  [/\\frac\{([^{}]*)\}\s*([A-Za-z0-9])/g, '(($1)/($2))'],
-  [/\\frac\s*([A-Za-z0-9])\s*([A-Za-z0-9])/g, '(($1)/($2))'],
-  [/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, '(($1)/($2))'],
-  [/\\sqrt\{([^{}]*)\}/g, 'sqrt($1)'],
-  [/\\pi/g, 'pi'],
-  [/\\,|\\!|\\;/g, ''],
-  // `~` is LaTeX's non-breaking space, and MathJS's own toTex writes every
-  // implicit product with one: the operand a student types as 2y comes back
-  // from Step Algebra as `2~ y`. To MathJS `~` is bitwise NOT, so left in place
-  // it made the isolated expression unparseable (issue #334). A space, not
-  // nothing: `x~y` is the product x y, never the single symbol `xy`.
-  [/\s*~\s*/g, ' '],
-  [/\^\{([^{}]*)\}/g, '^($1)'],
-  [/_\{([^{}]*)\}/g, '_$1'],
-];
-
-export const latexToExpression = (rawValue) => {
-  let text = String(rawValue ?? '').trim();
-  // Repeat once so a fraction inside a fraction resolves rather than leaving
-  // braces behind for the guard below to reject.
-  for (let pass = 0; pass < 2; pass += 1) {
-    LATEX_TO_EXPRESSION.forEach(([pattern, replacement]) => { text = text.replace(pattern, replacement); });
-  }
-  return text.trim();
-};
+// mathjs, so the conversion happens once, at the boundary, rather than in each
+// caller — and a student who types 1/2 by hand and one who builds a stacked
+// fraction reach the same expression. The boundary is shared with workflow
+// function models (src/platform/math/latexToExpression.js).
+export { latexToExpression };
 
 export const parseOperationOperand = (rawValue) => {
   // Adjacent groups are ordinary multiplication in written algebra:
