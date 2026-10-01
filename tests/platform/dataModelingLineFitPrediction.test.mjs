@@ -1,8 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { lineFitNamesPrediction, lineFitUsesRegressionTechnology, numberVisiblePanels } from '../../src/tools/dataModeling/dataModelingPlan.js';
-import { componentSource, executableSource } from './helpers/sourceContract.mjs';
+import {
+  dataModelingFixedPredictionTarget,
+  dataModelingRequiredParts,
+  lineFitNamesPrediction,
+  lineFitUsesRegressionTechnology,
+  numberVisiblePanels,
+} from '../../src/tools/dataModeling/dataModelingPlan.js';
+import { buildCandidateModels, chooseBestModel } from '../../src/tools/dataModeling/dataModelingMath.js';
+import { linearRegression } from '../../src/tools/shared/toolMath.js';
+import dataModelingGrader from '../../functions/shared/serverGrading/tools/dataModelingLab.mjs';
+import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 
 // Live QA, Algebra I District DOL #2, Classwork Q6: "use the regression
 // calculator to find a linear model and use it to predict the score for 7
@@ -27,13 +36,31 @@ test('visible panels are numbered in the order a student meets them', () => {
 test('DataModelingLab shows, locks and grades the line-fit prediction', () => {
   const source = executableSource(componentSource('src/tools/dataModeling/DataModelingLab.jsx'));
   assert.match(source, /const lineFitPrediction = lineFitNamesPrediction\(mode, questionData\)/);
-  // Graded: the prediction is a required part of a line fit that names one.
-  assert.match(source, /mode === 'lineFit' \|\| FIT_ONLY_MODELS\[mode\] \? \(lineFitPrediction \? \['fit', 'prediction'\] : \['fit'\]\)/);
   // Shown, with the authored target locked.
   assert.match(source, /const showPredictionPanel = [^;]*\|\| lineFitPrediction;/);
-  assert.match(source, /const fixedPredictionTarget = Boolean\(\(FIT_PREDICTION_MODELS\[mode\] \|\| lineFitPrediction\)/);
+  assert.match(source, /const fixedPredictionTarget = dataModelingFixedPredictionTarget\(mode, questionData\);/);
+  assert.match(source, /readOnly=\{fixedPredictionTarget\}/);
+  assert.equal(dataModelingFixedPredictionTarget('lineFit', { predictionX: 7 }), true, 'the authored target is locked');
+  assert.equal(dataModelingFixedPredictionTarget('lineFit', {}), false);
+
+  // Graded — the lab's Check marks its work only through the shared grader
+  // (the one the server runs), and that grader requires the prediction of a
+  // line fit that names one.
+  assert.match(region(source, 'const check = () => {', '\n  };', 'Check handler'), /gradeToolCheck\(dataModelingGrader, questionData, work\)/);
+  assert.deepEqual(dataModelingRequiredParts('lineFit', { predictionX: 7 }), ['fit', 'prediction']);
+  assert.deepEqual(dataModelingRequiredParts('lineFit', {}), ['fit']);
+  const points = [[1, 1], [2, 4], [3, 9], [4, 16], [5, 25]];
+  const question = { mode: 'lineFit', points, predictionX: 7 };
+  const blank = dataModelingGrader.grade(question, { m: 6, b: -7, predictionY: '' });
+  assert.deepEqual(blank.parts.map((part) => [part.id, part.isCorrect]), [['fit', true], ['prediction', false]]);
+  assert.equal(blank.score, 0.5);
+
   // Checked against a LINEAR model: for this data a quadratic fits best by RMSE.
-  assert.match(source, /const expectedPrediction = lineFitPrediction\s*\?\s*regression\.m \* Number\(predictionX\) \+ regression\.b/);
+  // The line is y = 6x − 7, so at x = 7 it predicts 35; the quadratic, 49.
+  const regression = linearRegression(points);
+  assert.equal(chooseBestModel(buildCandidateModels(points, regression)).id, 'quadratic');
+  assert.equal(dataModelingGrader.grade(question, { m: 6, b: -7, predictionY: '35' }).isCorrect, true);
+  assert.equal(dataModelingGrader.grade(question, { m: 6, b: -7, predictionY: '49' }).isCorrect, false);
 });
 
 

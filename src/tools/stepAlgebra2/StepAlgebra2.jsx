@@ -5,6 +5,13 @@ import useMathUndoHistory from '../../platform/workView/useMathUndoHistory';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import { exactFractionText, nearlyEqual } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import stepAlgebra2Grader, {
+  LEGACY_SOLVER_DEFAULT_EQUATION,
+  applyLegacySolverOperation as applyOperation,
+  legacySolverWork,
+} from '../../../functions/shared/serverGrading/tools/stepAlgebra2.mjs';
 import RewriteLinearForm from './RewriteLinearForm';
 import LinearIntercepts from './LinearIntercepts';
 
@@ -34,15 +41,6 @@ const formatEquation = (state) => {
   return `${coefficient} ${b >= 0 ? '+' : '−'} ${exactFractionText(Math.abs(b))} = ${exact(state.c)}`;
 };
 
-const applyOperation = (state, operation, value) => {
-  const next = { ...state };
-  if (operation === 'add') { next.b += value; next.c += value; }
-  if (operation === 'subtract') { next.b -= value; next.c -= value; }
-  if (operation === 'multiply') { next.a *= value; next.b *= value; next.c *= value; }
-  if (operation === 'divide') { next.a /= value; next.b /= value; next.c /= value; }
-  return next;
-};
-
 const describeOperation = (operation, value) => {
   const spec = OPERATIONS[operation];
   if (!spec || !Number.isFinite(value)) return null;
@@ -68,13 +66,17 @@ export default function StepAlgebra2({ questionData = {}, onAction, draftKey = n
 }
 
 function BalanceSolver({ questionData = {}, onAction }) {
-  const original = questionData.equation || { a: 3, b: 6, c: 21 };
+  const original = questionData.equation || LEGACY_SOLVER_DEFAULT_EQUATION;
   const [state, setState] = usePersistentToolState('state', { ...original });
   const [operation, setOperation] = usePersistentToolState('operation', 'subtract');
   const [operand, setOperand] = usePersistentToolState('operand', '');
   const [history, setHistory] = usePersistentToolState('history', []);
   const [inputError, setInputError] = useState('');
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
+  // The student's moves, in order — what Check submits, what a deadline
+  // finalizes, and what the shared grader replays on this question's equation.
+  const work = useMemo(() => legacySolverWork(history), [history]);
+  useReportToolWork(work);
 
   const restoreMathematicalWork = useCallback((snapshot) => {
     setState(snapshot.state);
@@ -138,8 +140,8 @@ function BalanceSolver({ questionData = {}, onAction }) {
   const startOver = () => { clearFeedback(); setState({ ...original }); setHistory([]); setOperand(''); setInputError(''); };
 
   const check = () => {
-    const correct = solved && solution != null && nearlyEqual(state.c, solution, 0.01);
-    submit({ isCorrect: correct, score: correct ? 1 : solved ? 0.5 : 0 }, { history, state }, { stepCount: history.length });
+    const result = gradeToolCheck(stepAlgebra2Grader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'default', stepCount: history.length, parts: result.parts });
   };
 
   const feedbackMessage = () => {

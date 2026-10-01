@@ -773,10 +773,18 @@ const CONTRACTS = {
         parts.push({ id: 'range', isCorrect: sameSet(list(raw.range), definition.range) });
       }
       if (definition.ask.includes('isFunction')) {
+        // The Mapping Diagram answers with a reason, not a bare yes/no:
+        // 'yes-definition', 'yes-output-rule', 'no-input-repeat',
+        // 'no-output-repeat' (serverGrading/tools/relationMapping.mjs
+        // FUNCTION_STATUS_CHOICES). Reading only 'yes'/'true' graded every
+        // function relation as "not a function" here, the inverse of the tool.
+        const choice = normalizeAnswer(raw.isFunction);
         const answered = typeof raw.isFunction === 'boolean'
           ? raw.isFunction
-          : ['yes', 'true'].includes(normalizeAnswer(raw.isFunction));
-        parts.push({ id: 'isFunction', isCorrect: answered === definition.isFunction });
+          : ['yes', 'true'].includes(choice) || choice.startsWith('yes-');
+        // An unanswered classification is not "no".
+        const unanswered = typeof raw.isFunction !== 'boolean' && !choice;
+        parts.push({ id: 'isFunction', isCorrect: !unanswered && answered === definition.isFunction });
       }
       return graded(parts.length > 0 && parts.every((part) => part.isCorrect), parts);
     },

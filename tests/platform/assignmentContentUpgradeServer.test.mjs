@@ -8,6 +8,7 @@ const {
   buildUpgradedAssignment,
 } = require('../../functions/lib/assignmentContentVersion.js');
 const {
+  dataModelingFitIsCorrect,
   migrateTrackerForContentUpgrade,
 } = require('../../functions/lib/assignmentContentTrackerMigration.js');
 
@@ -116,6 +117,17 @@ test('wider regression tolerance can upgrade saved real work without lowering cr
   assert.equal(result.tracker[2].status, 'correct');
   assert.equal(result.tracker[2].bestPartialCredit, 100);
   assert.equal(result.tracker[2].totalAttempts, 3);
+});
+
+test('a wider fit tolerance never credits a wrong prediction: prediction modes are not provable from the fit alone', () => {
+  // The audit's probe: a near-perfect fit with a wildly wrong prediction was
+  // migrated to correct at 100%.
+  const points = [[0, 0], [1, 2], [2, 4], [3, 6.1]];
+  const response = { m: 1.99, b: 0.05, predictionY: -999 };
+  assert.equal(dataModelingFitIsCorrect({ type: 'dataModelingLab', mode: 'linearFitPrediction', points, predictionX: 10 }, response), null);
+  assert.equal(dataModelingFitIsCorrect({ type: 'dataModelingLab', mode: 'lineFit', points, predictionX: 10 }, response), null);
+  // A fit-only question is still regraded on its fit.
+  assert.equal(dataModelingFitIsCorrect({ type: 'dataModelingLab', mode: 'lineFit', points }, response), true);
 });
 
 test('unprovable grading expansion preserves prior credit exactly', async () => {

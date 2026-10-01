@@ -33,7 +33,10 @@ import {
   resolveFamilyQuestionInstance,
 } from '../../functions/shared/questionFamilyInstance.mjs';
 import { getPlatformQuestionFamily } from '../../functions/shared/questionFamilyRegistry.mjs';
-import { resolveFamilyQuestionForGrading, gradeFamilyInstanceResponse } from '../../functions/shared/questionFamilyGrading.mjs';
+import { resolveFamilyQuestionForGrading } from '../../functions/shared/questionFamilyGrading.mjs';
+// The grading itself lives with the other shared graders (heavy); the family
+// module stays light because the student app imports it.
+import { gradeFamilyInstanceResponse } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { describeQuestionVariability, VARIABILITY } from '../../functions/shared/questionVariability.mjs';
 import { buildStudentFamilyContext, writeLocalDeliveryPin } from '../../src/platform/generation/familyDelivery.js';
 import { planGenerationSeatWrites } from '../../src/platform/generation/generationSeatReconciler.js';

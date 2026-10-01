@@ -13,6 +13,7 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey, useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
 import { Panel } from '../shared/ToolShell';
 import MathDisplay from '../../MathDisplay';
+import useReportToolWork from '../shared/useReportToolWork.js';
 import { normalizeAlgebraicSystemConfig } from './algebraicSystemsEngine.js';
 import SubstitutionReductionMode from './SubstitutionReductionMode.jsx';
 import EliminationReductionMode from './EliminationReductionMode.jsx';
@@ -59,6 +60,12 @@ export default function Algebraic3SystemMode({ questionData = {}, onAction, draf
     controller: methodUndoController,
   });
   const chooseMethod = useCallback((next) => setMethod(next), [setMethod]);
+
+  // On the choice screen there is no method and so no work: say so, so the
+  // live work a deadline sees is never the work of a method the student just
+  // stepped away from. Once a method is chosen, the mounted workspace reports
+  // its own work (and owns Check).
+  useReportToolWork({ dimension: config.dimension, method: '' }, { enabled: isStudentChoice && !effectiveMethod });
 
   if (isStudentChoice && !effectiveMethod) {
     return (

@@ -44,7 +44,7 @@ test('Step Algebra exposes optional simplification and a non-attempt-reset actio
 });
 
 test('final-form simplification is strict only when explicitly authored', () => {
-  const source = fs.readFileSync(new URL('../../src/algebraAstEngine.js', import.meta.url), 'utf8');
+  const source = fs.readFileSync(new URL('../../functions/shared/algebra/algebraAstEngine.mjs', import.meta.url), 'utf8');
   assert.match(source, /requireSimplifiedFinalForm:\s*question\.objective\?\.requireSimplifiedFinalForm\s*\?\?/);
   assert.match(source, /objective\.requireSimplifiedFinalForm === true/);
 });

@@ -30,5 +30,13 @@ export default defineConfig(() => {
   fillBuildIdentity()
   return {
     plugins: [react()],
+    resolve: {
+      // The shared graders under functions/shared import mathjs, and so does
+      // the browser's own code. When a developer has installed the Functions
+      // dependencies (functions/node_modules), a bare import from that tree
+      // would otherwise resolve to a SECOND mathjs copy in the bundle — and
+      // browser/server grading parity depends on one mathjs parser.
+      dedupe: ['mathjs'],
+    },
   }
 })

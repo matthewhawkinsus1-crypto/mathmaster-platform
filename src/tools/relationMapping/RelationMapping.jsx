@@ -3,10 +3,20 @@ import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import MathDisplay from '../../MathDisplay';
-import { matchesFieldAnswer } from '../../answerUtils';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../../platform/interaction/choiceOptions.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import relationMappingGrader, {
+  FUNCTION_STATUS_CHOICES,
+  parseList,
+  relationAnalysisFieldsOf,
+  relationAskOf,
+  relationFieldWork,
+  relationPairsOf,
+  uniqueSorted,
+} from '../../../functions/shared/serverGrading/tools/relationMapping.mjs';
 import { givenRelationInstruction } from './relationMappingCopy.js';
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
@@ -18,39 +28,6 @@ const ROW = 46;
 const PAD_Y = 34;
 const LEFT_X = 118;
 const RIGHT_X = WIDTH - 118;
-
-const uniqueSorted = (values) => [...new Set(values.map(Number))].sort((a, b) => a - b);
-const parseList = (text) => String(text || '')
-  .split(/[,;]/)
-  .map((part) => part.trim())
-  .filter(Boolean)
-  .map(Number)
-  .filter((value) => Number.isFinite(value));
-
-const sameSet = (left, right) => {
-  const a = uniqueSorted(left);
-  const b = uniqueSorted(right);
-  return a.length === b.length && a.every((value, index) => Math.abs(value - b[index]) < 1e-9);
-};
-
-const normalizePair = (pair) => {
-  const rawX = Array.isArray(pair) ? pair[0] : pair?.x;
-  const rawY = Array.isArray(pair) ? pair[1] : pair?.y;
-  const x = Number(rawX);
-  const y = Number(rawY);
-  return Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
-};
-
-// A relation is a function when no domain value is sent to two different range
-// values — which is exactly what a mapping diagram makes visible.
-const relationIsFunction = (pairs) => {
-  const seen = new Map();
-  return pairs.every(([x, y]) => {
-    if (!seen.has(x)) { seen.set(x, y); return true; }
-    return Math.abs(seen.get(x) - y) < 1e-9;
-  });
-};
-
 
 const PLOT_SIZE = 430;
 const PLOT_PAD = 34;
@@ -128,19 +105,12 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
 }
 
 export default function RelationMapping({ questionData = {}, onAction }) {
-  const pairs = useMemo(() => (Array.isArray(questionData.pairs) ? questionData.pairs : [])
-    .map(normalizePair)
-    .filter(Boolean), [questionData.pairs]);
+  const pairs = useMemo(() => relationPairsOf(questionData.pairs), [questionData.pairs]);
 
   const domainValues = useMemo(() => uniqueSorted(pairs.map(([x]) => x)), [pairs]);
   const rangeValues = useMemo(() => uniqueSorted(pairs.map(([, y]) => y)), [pairs]);
-  const ask = useMemo(() => (
-    Array.isArray(questionData.ask) ? questionData.ask : ['mapping', 'domain', 'range']
-  ), [questionData.ask]);
-  const analysisFields = useMemo(
-    () => (Array.isArray(questionData.answerFields) ? questionData.answerFields.filter((field) => field?.id) : []),
-    [questionData.answerFields],
-  );
+  const ask = useMemo(() => relationAskOf(questionData.ask), [questionData.ask]);
+  const analysisFields = useMemo(() => relationAnalysisFieldsOf(questionData.answerFields), [questionData.answerFields]);
   const allowTypedPlot = questionData.plotEntryMode === 'typed' || questionData.plotEntryMode === 'clickOrType';
 
   const [arrows, setArrows] = usePersistentToolState('arrows', []);
@@ -198,13 +168,6 @@ export default function RelationMapping({ questionData = {}, onAction }) {
     setSelectedDomain(null);
   };
 
-  const samePairSet = (studentPairs, expectedPairs) => {
-    const key = ([x, y]) => `${Number(x).toFixed(8)}|${Number(y).toFixed(8)}`;
-    const student = new Set(studentPairs.map(key));
-    const expected = new Set(expectedPairs.map(key));
-    return student.size === expected.size && [...expected].every((pair) => student.has(pair));
-  };
-
   const togglePlottedPoint = (x, y) => {
     const nx = Number(x);
     const ny = Number(y);
@@ -228,13 +191,11 @@ export default function RelationMapping({ questionData = {}, onAction }) {
   };
 
   const functionChoiceOptions = useMemo(() => stableShuffleChoices([
-    { value: 'yes-definition', label: 'Yes — every input has exactly one output.' },
-    { value: 'yes-output-rule', label: 'Yes — every output value is used only once.' },
-    { value: 'no-input-repeat', label: 'No — at least one input has more than one output.' },
-    { value: 'no-output-repeat', label: 'No — at least one output value repeats.' },
+    { value: FUNCTION_STATUS_CHOICES.YES_DEFINITION, label: 'Yes — every input has exactly one output.' },
+    { value: FUNCTION_STATUS_CHOICES.YES_OUTPUT_RULE, label: 'Yes — every output value is used only once.' },
+    { value: FUNCTION_STATUS_CHOICES.NO_INPUT_REPEAT, label: 'No — at least one input has more than one output.' },
+    { value: FUNCTION_STATUS_CHOICES.NO_OUTPUT_REPEAT, label: 'No — at least one output value repeats.' },
   ], choiceSeed(questionData.questionId || questionData.prompt, 'relation-function-status')), [questionData.questionId, questionData.prompt]);
-
-  const correctFunctionChoice = relationIsFunction(pairs) ? 'yes-definition' : 'no-input-repeat';
 
   const optionsForField = (field) => {
     const authored = Array.isArray(field?.options) ? field.options : [];
@@ -244,33 +205,32 @@ export default function RelationMapping({ questionData = {}, onAction }) {
     );
   };
 
-  const check = () => {
-    const checks = {};
-    if (ask.includes('plot')) checks.plot = samePairSet(plottedPoints, pairs);
-    if (ask.includes('mapping')) {
-      const drawn = arrows.map(([x, y]) => `${x}->${y}`).sort();
-      const expectedArrows = pairs.map(([x, y]) => `${x}->${y}`).sort();
-      checks.mapping = drawn.length === expectedArrows.length && drawn.every((value, index) => value === expectedArrows[index]);
-    }
-    if (ask.includes('domain')) checks.domain = sameSet(parseList(domainAnswer), domainValues);
-    if (ask.includes('range')) checks.range = sameSet(parseList(rangeAnswer), rangeValues);
-    if (ask.includes('isFunction')) checks.isFunction = functionAnswer === correctFunctionChoice;
-    analysisFields.forEach((field) => {
-      checks[`field:${field.id}`] = matchesFieldAnswer(String(fieldAnswers[field.id] ?? ''), field);
-    });
+  // The student's work, exactly as Check submits it and as a deadline would
+  // checkpoint it. `domain`/`range` are the boxes parsed — the Path contract
+  // reads those — while the shared grader parses the typed text itself.
+  const work = {
+    plottedPoints,
+    arrows,
+    domainText: domainAnswer,
+    rangeText: rangeAnswer,
+    domain: parseList(domainAnswer),
+    range: parseList(rangeAnswer),
+    isFunction: functionAnswer,
+    fields: relationFieldWork(analysisFields, fieldAnswers),
+  };
+  // Nothing to report for a relation with no pairs: it renders no Check.
+  useReportToolWork(work, { enabled: pairs.length > 0 });
 
-    const values = Object.values(checks);
-    const score = values.length ? values.filter(Boolean).length / values.length : 0;
-    submit(
-      { isCorrect: values.every(Boolean), score },
-      { plottedPoints, arrows, domain: parseList(domainAnswer), range: parseList(rangeAnswer), isFunction: functionAnswer, fields: fieldAnswers },
-      { checks },
-    );
+  const check = () => {
+    const result = gradeToolCheck(relationMappingGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'default', parts: result.parts });
   };
 
   const message = () => {
     if (feedback.isCorrect) return 'Correct — the diagram and your answers agree with the relation.';
-    const checks = feedback.metadata?.checks || {};
+    // Each graded part by id (plot, mapping, domain, range, isFunction,
+    // field:<id>) — a part the question did not ask for is simply absent.
+    const checks = Object.fromEntries((feedback.metadata?.parts || []).map((part) => [part.id, part.isCorrect]));
     if (checks.plot === false && !plottedPoints.length) return 'No points plotted yet. Plot each ordered pair on the coordinate plane.';
     if (checks.plot === false) return 'The coordinate plot does not match the relation yet. Check each ordered pair (x, y).';
     if (checks.mapping === false && !arrows.length) return 'No arrows drawn yet. Click a value on the left, then the value on the right it maps to.';

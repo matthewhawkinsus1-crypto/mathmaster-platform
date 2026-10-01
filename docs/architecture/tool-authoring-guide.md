@@ -14,3 +14,12 @@ Function operations always retain exclusions from the original denominator, incl
 ## Curated content and CCMR
 
 Curated and review authoring preserves authored question identity, count, order, and content by default. Integrated assignment AI performs audited CCMR replacement and the Practice coverage target only when its `ccmrEnrichment` option is explicitly `true`. Honors destination publication continues to request audited enrichment through the existing destination-aware hydration path; Standard destinations retain authored questions.
+
+## Server grading
+
+Every tool mode declares who grades it, and a new tool cannot ship without
+that decision (`tests/platform/serverGradingCoverageGate.test.mjs`). A tool's
+Check handler grades through its shared grader, the same function the server
+runs as the authority, and reports its live work so a deadline can finalize it.
+See [adding-server-grading-to-a-tool.md](adding-server-grading-to-a-tool.md)
+and [SERVER_GRADING_COVERAGE.md](SERVER_GRADING_COVERAGE.md).

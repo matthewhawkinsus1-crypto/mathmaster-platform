@@ -356,6 +356,25 @@ test('relations: arrows, sets and functionhood, each on its own', () => {
   assert.equal(grade('relationMapping', { ...right, range: [-1, 2, 3] }).isCorrect, true);
 });
 
+test('relations: the Mapping Diagram answers functionhood with a reason, and Path reads it', () => {
+  // The tool's own vocabulary (serverGrading/tools/relationMapping.mjs
+  // FUNCTION_STATUS_CHOICES). Path once read only 'yes'/'true', so every
+  // function relation answered on the real tool was graded "not a function".
+  const right = { arrows: [[1, 2], [-2, 3], [3, -1]], domain: [-2, 1, 3], range: [3, 2, -1] };
+  ['yes-definition', 'yes-output-rule'].forEach((isFunction) => {
+    assert.equal(grade('relationMapping', { ...right, isFunction }).isCorrect, true, isFunction);
+  });
+  ['no-input-repeat', 'no-output-repeat', ''].forEach((isFunction) => {
+    assert.equal(grade('relationMapping', { ...right, isFunction }).isCorrect, false, isFunction || 'blank');
+  });
+  // A relation that is NOT a function: a 'no-…' reason is right, and leaving
+  // the classification blank is not the same as answering "no".
+  const repeat = buildPrivateToolGrading({ type: 'relationMapping', toolId: 'relationMapping', pairs: [{ x: 1, y: 2 }, { x: 1, y: 3 }], ask: ['isFunction'] });
+  assert.equal(gradePathResponse({ privateGrading: repeat, raw: { isFunction: 'no-input-repeat' } }).isCorrect, true);
+  assert.equal(gradePathResponse({ privateGrading: repeat, raw: { isFunction: 'yes-definition' } }).isCorrect, false);
+  assert.equal(gradePathResponse({ privateGrading: repeat, raw: { isFunction: '' } }).isCorrect, false);
+});
+
 test('number line: the graph and the notation must agree with the key', () => {
   const right = { intervals: [{ start: -4, end: 2, startClosed: true, endClosed: false }], notation: '[-4, 2)' };
   assert.equal(grade('intervalNumberLine', right).isCorrect, true);

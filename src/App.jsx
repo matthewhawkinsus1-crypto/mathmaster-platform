@@ -188,7 +188,8 @@ import {
   INGESTIBLE_KINDS,
   buildSubmissionEnvelope,
   captureSectionAccessProof,
-} from '../functions/shared/submissionIngestion.mjs';
+  normalizeStepWork,
+} from '../functions/shared/submissionEnvelope.mjs';
 import {
   SUBMISSION_DISPOSITION,
 } from '../functions/shared/studentSubmissionDisposition.mjs';
@@ -2564,6 +2565,8 @@ function App() {
       // Which instance of a family-backed slot this work answers. Absent for
       // every other question.
       familyDelivery: payload.familyDelivery || null,
+      // A step submission's raw step, from which the server derives its credit.
+      stepWork: payload.stepWork || null,
       supportUsage: payload.record?.supportUsage || null,
       assignmentSupportUsage: payload.supportUsage || null,
       hasClassworkGrade: payload.hasClassworkGrade === true,
@@ -5579,12 +5582,18 @@ function App() {
     if (!activeAssignmentId || user?.role !== 'student' || isTeacherPreview || !answerState) return;
     const assignment = assignments.find((item) => item.id === activeAssignmentId);
     if (!assignment || isTestCycleAssignment(assignment)) return;
-    // Eligibility is judged against the STORED question, because that is the
-    // question the server will grade against.
+    // Eligibility is judged against the question the SERVER will grade: the
+    // stored question, or — for a Question Family slot — the instance the
+    // server will rebuild from this delivery pin. A family template itself is
+    // never graded, so without the pin a family question could not be
+    // finalized at a deadline at all.
     const storedQuestion = getStoredAssignmentQuestions(assignment)[currentQuestionIndex];
-    if (!checkpointEligibility({ question: storedQuestion, activityRole: activeQuestionRole }).eligible) return;
-
     const currentRecord = normalizeQuestionRecord(tracker?.[activeAssignmentId]?.[currentQuestionIndex]);
+    const familyDelivery = familyDeliveryForQuestion(assignment, currentQuestionIndex, currentRecord);
+    if (isFamilyBackedQuestion(storedQuestion) && !(familyDelivery?.pin && familyDelivery?.renderedQuestion)) return;
+    const gradingQuestion = familyDelivery?.renderedQuestion || storedQuestion;
+    if (!checkpointEligibility({ question: gradingQuestion, activityRole: activeQuestionRole }).eligible) return;
+
     const identity = {
       studentId: user.id,
       assignmentId: activeAssignmentId,
@@ -5596,7 +5605,7 @@ function App() {
     const documentId = checkpointDocumentId(identity);
     // Coalesce: a student re-reading their own answer should not queue a write
     // for a response that has not changed.
-    const fingerprint = responseFingerprint(storedQuestion, answerState);
+    const fingerprint = responseFingerprint(gradingQuestion, answerState);
     if (checkpointFingerprintRef.current.get(documentId) === fingerprint) return;
 
     const now = Date.now();
@@ -5619,7 +5628,8 @@ function App() {
       setStudentPersistenceStatus('capturing');
       const queued = await enqueueResponseCheckpoint({
         identity,
-        question: storedQuestion,
+        question: gradingQuestion,
+        familyDelivery: familyDelivery?.pin || null,
         activityRole: activeQuestionRole,
         answerState,
         revision: now,
@@ -5811,7 +5821,10 @@ function App() {
     const familyDelivery = familyDeliveryForQuestion(assignment, currentQuestionIndex, currentAssignmentGrades[currentQuestionIndex]);
     const capturedResponse = normalizeCheckpointResponse(
       familyDelivery?.renderedQuestion || assignmentQuestions[currentQuestionIndex],
-      { parts, responseKey, isComplete: true },
+      // A registry tool's structured raw work (built through the shared tool
+      // response contract by QuestionEngine) travels as itself; the server
+      // grades it with the same shared grader the browser just used.
+      { parts, responseKey, isComplete: true, toolResponse: attemptMetadata?.toolResponse || null },
     );
 
     let queuedAction;
@@ -5892,7 +5905,12 @@ function App() {
     return outcome.result;
   };
 
-  const handleStepGrade = async ({ stepGrade, countsAttempt, statePatch, supportUsage: providedSupportUsage = null }) => {
+  // `stepWork` is the step's raw work (Step Algebra: the states before and
+  // after, the operation, the support level — never a verdict). It travels in
+  // the durable step submission so the server derives the step's credit from
+  // the work itself (functions/shared/serverGrading/
+  // stepAlgebraStepVerification.mjs) instead of trusting this record.
+  const handleStepGrade = async ({ stepGrade, countsAttempt, statePatch, supportUsage: providedSupportUsage = null, stepWork = null }) => {
     if (!activeAssignmentId) return null;
     const supportUsage = providedSupportUsage || buildSupportUsage(user?.profile, activeQuestions[currentQuestionIndex]);
     const localAssignment = assignments.find((item) => item.id === activeAssignmentId);
@@ -5902,7 +5920,9 @@ function App() {
       classId: user?.classId || null,
       studentId: user?.role === 'student' ? user.id : null,
     });
-    const applyStep = (record) =>
+    // `occurredAt` is the step's capture time on the durable path, so this
+    // record and the one the server derives carry the same timestamps.
+    const applyStep = (record, occurredAt = null) =>
       recordQuestionStep({
         record,
         stepGrade,
@@ -5915,6 +5935,7 @@ function App() {
           activityPolicy: activeActivityPolicy,
           teacherGrantedExtraAttempts,
         }),
+        occurredAt,
       });
 
     if (isTeacherPreview) {
@@ -5955,7 +5976,7 @@ function App() {
     const assignment = localAssignment;
     const currentAssignmentGrades = tracker[activeAssignmentId] || {};
     const priorRecord = normalizeQuestionRecord(currentAssignmentGrades[currentQuestionIndex]);
-    const outcome = applyStep(priorRecord);
+    const outcome = applyStep(priorRecord, stepCapturedAt);
     const updatedTracker = { ...tracker, [activeAssignmentId]: { ...currentAssignmentGrades, [currentQuestionIndex]: outcome.record } };
     const previousSupport = supportUsageByAssignment[activeAssignmentId] || { modified: false, accommodations: [], modifications: [] };
     const assignmentSupportUsage = {
@@ -5994,6 +6015,10 @@ function App() {
           familyDelivery: familyDeliveryForQuestion(assignment, currentQuestionIndex, priorRecord)?.pin || null,
           timeSpentSeconds: activeTimeRef.current,
           record: outcome.record,
+          // The step's raw work, bounded (null when the surface reports none,
+          // or when it cannot be read whole): with it the server derives this
+          // step's credit itself; without it the record above is sanitized.
+          stepWork: normalizeStepWork(stepWork),
           supportUsage: assignmentSupportUsage,
           hasClassworkGrade: false,
           classworkGrade: null,

@@ -36,10 +36,16 @@ const sourceRoot = path.join(ROOT, 'functions');
 
 function filesFor(entry) {
   if (entry.kind === 'file') return [{ from: entry.from, to: entry.to }];
+  // Recursive: `shared/` is taken whole, including its subdirectories
+  // (shared/serverGrading, shared/toolMath, ...). A top-level shared module
+  // that imports one of them would otherwise deploy without its dependency.
   const dir = path.join(sourceRoot, entry.from);
-  return fs.readdirSync(dir, { withFileTypes: true })
-    .filter((item) => item.isFile())
-    .map((item) => ({ from: path.join(entry.from, item.name), to: path.join(entry.to, item.name) }));
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((item) => {
+    if (item.isDirectory()) {
+      return filesFor({ from: path.join(entry.from, item.name), to: path.join(entry.to, item.name), kind: 'dir' });
+    }
+    return item.isFile() ? [{ from: path.join(entry.from, item.name), to: path.join(entry.to, item.name) }] : [];
+  });
 }
 
 /** Every (source, vendored) pair this codebase deploys. */

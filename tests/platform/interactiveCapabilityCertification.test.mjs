@@ -151,7 +151,7 @@ const BEHAVIOUR = {
     assert.ok(eliminatesVariable(combineCoefficients(first.coefficients, second, 'add'), 'x'), 'the student-chosen multiplier eliminates x');
   },
   'three-variable-substitution': () => {
-    assert.match(read('src/tools/systemsWorkspace/substitutionReduction.js'), /export const/);
+    assert.match(read('functions/shared/toolMath/systemsWorkspace/substitutionReduction.mjs'), /export const/);
   },
   'three-variable-elimination': () => {
     // The same pair-elimination math the student performs on Day 1 (#359):

@@ -29,8 +29,11 @@
  * renderer makes. QuestionEngine and StepByStepAlgebra consult it; nothing else
  * should re-derive the choice.
  */
-import { needsMultiRelationWorkspace } from '../../algebraRelationFoundation.js';
-import { withPromptRelationSource } from '../../stepAlgebraRelationRouting.js';
+import {
+  STEP_ALGEBRA_MODES,
+  resolveStepAlgebraMode,
+  usesRelationWorkspace,
+} from '../../../functions/shared/serverGrading/stepAlgebraRouting.mjs';
 import { usesLiteralWorkspace } from '../../literalWorkspace.js';
 import { TOOL_CATALOG } from '../../tools/toolCatalog.js';
 import { readComposedQuestion } from '../workflow/questionWorkflow.js';
@@ -153,10 +156,10 @@ const ROUTE_EXTRA_CAPABILITIES = Object.freeze({
  * The single predicate for that handoff: QuestionEngine's `stepAlgebra` case
  * and StepByStepAlgebra's own conservative second check both come here, so an
  * inequality authored only in the prompt reaches the same engine either way.
+ * It lives in the light grading-routing module because the server must make
+ * the same decision before it grades the work this engine produced.
  */
-export const usesRelationWorkspace = (question = {}) => (
-  needsMultiRelationWorkspace(withPromptRelationSource(isObject(question) ? question : {}))
-);
+export { usesRelationWorkspace };
 
 const registryToolIdFor = (question = {}) => {
   const byToolId = clean(question.toolId);
@@ -217,10 +220,13 @@ export const resolveAlgebraWorkspaceRoute = (question = {}) => {
 
   const type = clean(source.type);
   if (type === 'stepAlgebra' || type === 'algebra') {
-    if (usesRelationWorkspace(source)) {
+    // The same decision the Step Algebra grader makes about which engine's
+    // work it is marking (serverGrading/stepAlgebraRouting.mjs).
+    const mode = resolveStepAlgebraMode(source);
+    if (mode === STEP_ALGEBRA_MODES.RELATION) {
       return routeResult(ALGEBRA_WORKSPACE_ROUTES.RELATION, 'The relation contains an inequality, absolute value or square; the relation workspace opens.');
     }
-    if (type === 'stepAlgebra' && source.mode === 'linearIntercepts') {
+    if (mode === STEP_ALGEBRA_MODES.LINEAR_INTERCEPTS) {
       return routeResult(ALGEBRA_WORKSPACE_ROUTES.LINEAR_INTERCEPTS, 'Linear intercepts run through the orchestrator on the mature engine.');
     }
     return routeResult(ALGEBRA_WORKSPACE_ROUTES.STEP_ALGEBRA, 'The mature Step Algebra engine opens.');

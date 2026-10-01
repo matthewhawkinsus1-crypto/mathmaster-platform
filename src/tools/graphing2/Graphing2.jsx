@@ -7,8 +7,11 @@ import useViewportWidth from '../../platform/mobile/useViewportWidth.js';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useToolSubmission from '../shared/useToolSubmission';
-import { formatLine, lineFromPoints, targetLineFromQuestion } from './graphingMath';
-import { evaluateConstruction, resolveConstructionPolicy } from './constructionPolicy';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import graphing2Grader, { readConstructionFeedback } from '../../../functions/shared/serverGrading/tools/graphing2.mjs';
+import { formatLine, lineFromPoints, targetLineFromQuestion, withDefaultTargetLine } from './graphingMath';
+import { constructionReadyToCheck, requiredConstructionPointCount, resolveConstructionPolicy } from './constructionPolicy';
 import { toFraction, formatFraction } from '../shared/linearEquations.js';
 
 // Hints must never show a repeating decimal for a slope that was authored as
@@ -165,13 +168,20 @@ const hintsForMode = (mode, target, questionData) => {
 export default function Graphing2({ questionData = {}, onAction }) {
   const viewportWidth = useViewportWidth();
   const mode = questionData.mode || 'slopeIntercept';
-  const normalizedQuestion = mode === 'slopeIntercept' && !questionData.line ? { ...questionData, line: { m: 1.5, b: -2 } } : questionData;
+  // An unauthored slope-intercept question shows (and grades) y = 1.5x - 2;
+  // the shared grader reads the target through the same helper.
+  const normalizedQuestion = withDefaultTargetLine(questionData);
   const target = targetLineFromQuestion(normalizedQuestion);
   const policy = resolveConstructionPolicy(questionData);
-  const requiredPointCount = policy.strategy === 'formAware' ? policy.minimumPoints : 2;
+  const requiredPointCount = requiredConstructionPointCount(questionData);
   const [points, setPoints] = usePersistentToolState('points', []);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
   const studentLine = useMemo(() => points.length >= 2 ? lineFromPoints(points[0], points[1]) : null, [points]);
+  // The student's work, exactly as Check submits it and as a deadline would
+  // carry it: the plotted points, plus the "Your line" readout they see. The
+  // shared grader marks the points; nothing here is a verdict or a key.
+  const work = useMemo(() => ({ points, studentLine }), [points, studentLine]);
+  useReportToolWork(work);
   const bounds = questionData.graphBounds || { xMin: -7, xMax: 7, yMin: -7, yMax: 7 };
   // pointSlope's encoded point is given only in the prompt/equation, never
   // preplotted: the student must place it themselves as their own (blue)
@@ -188,22 +198,22 @@ export default function Graphing2({ questionData = {}, onAction }) {
     setPoints((current) => (current.length >= requiredPointCount ? [point] : [...current, point]));
   };
 
+  /*
+   * THE VERDICT IS THE SHARED GRADER'S (functions/shared/serverGrading/tools/
+   * graphing2.mjs), through the same bounded bytes the server re-grades, so
+   * what Check shows is what the gradebook records. Only non-secret metadata
+   * rides along: the mode, the authored strategy and the per-part results the
+   * feedback below is worded from.
+   */
   const check = () => {
-    const evidence = evaluateConstruction(points, questionData, target, Number(questionData.tolerance ?? 0.12));
+    const result = gradeToolCheck(graphing2Grader, questionData, work);
+    // No verdict exists only for a question this tool cannot answer (see the
+    // grader); Check has never recorded an attempt for one.
+    if (!result.graded) return;
     submit(
-      { isCorrect: evidence.isCorrect, score: evidence.score },
-      { points, studentLine: evidence.studentLine },
-      {
-        mode,
-        target,
-        pointChecks: evidence.pointChecks,
-        strategy: evidence.strategy,
-        requiredAnchor: evidence.requiredAnchor,
-        anchorSatisfied: evidence.anchorSatisfied,
-        slopeEvidenceSatisfied: evidence.slopeEvidenceSatisfied,
-        interceptEvidence: evidence.interceptEvidence,
-        category: evidence.category,
-      },
+      { isCorrect: result.isCorrect, score: result.score },
+      work,
+      { mode, strategy: policy.strategy, parts: result.parts },
     );
   };
 
@@ -222,7 +232,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
   /*
    * UNIVERSAL UNDO OVER THE CONSTRUCTION.
    *
-   * The plotted points ARE the answer here — `constructionEvidence` grades them
+   * The plotted points ARE the answer here — the shared grader marks them
    * directly — so the undo stack is exactly the list of points. Two of them are
    * kept at a time, and a student who misplaces the second one now takes it back
    * with the same control they use on every other question, rather than with a
@@ -264,8 +274,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
   // one that never found the line at all, and conflating them would hide the
   // one piece of feedback this policy exists to give.
   const formAwareAnchorLabel = mode === 'pointSlope' ? 'given point' : mode === 'factoredLinear' ? 'x-intercept' : mode === 'standardForm' ? 'intercept(s)' : 'y-intercept';
-  const formAwareFeedback = () => {
-    const category = feedback.metadata?.category;
+  const formAwareFeedback = (category) => {
     if (category === 'duplicatePoint') return 'Two of your points landed on the same spot. Plot distinct points to show your construction.';
     if (category === 'correctLineMissingAnchor') return `Your line is mathematically correct, but you must plot the ${formAwareAnchorLabel} yourself as part of your evidence — it is not enough to land on an equivalent line without it.`;
     if (category === 'correctAnchorWrongSlope') return `You plotted the ${formAwareAnchorLabel} correctly, but the rest of your construction does not produce the correct line. Recheck your slope step.`;
@@ -274,8 +283,8 @@ export default function Graphing2({ questionData = {}, onAction }) {
 
   const feedbackMessage = () => {
     if (feedback.isCorrect) return 'Correct — your construction determines exactly the target line.';
-    if (feedback.metadata?.strategy === 'formAware' && feedback.metadata?.category) return formAwareFeedback();
-    const checks = feedback.metadata?.pointChecks || [];
+    const { category, pointChecks: checks } = readConstructionFeedback({ isCorrect: feedback.isCorrect, parts: feedback.metadata?.parts });
+    if (feedback.metadata?.strategy === 'formAware' && category) return formAwareFeedback(category);
     const onLine = checks.filter(Boolean).length;
     if (!studentLine) return 'Those two clicks landed on the same spot. Two different points are needed to determine a line.';
     if (onLine === 0) return 'Neither point is on the target line yet. Find one point you are certain about — the y-intercept is usually easiest — and start there.';
@@ -295,7 +304,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
    * publishes them from inside, because it is the component that owns the camera
    * and converts every click.
    */
-  const constructionIncomplete = points.length < requiredPointCount || !studentLine;
+  const constructionIncomplete = !constructionReadyToCheck(points, questionData);
   const workspaceCapabilities = {
     undo: undoHistory.capability,
     equationInput: { label: studentLine ? `Your line: ${formatLine(studentLine)}` : 'Your line', studentState: true },

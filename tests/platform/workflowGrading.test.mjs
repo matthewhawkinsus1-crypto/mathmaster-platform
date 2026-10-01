@@ -134,7 +134,11 @@ test('a table that cannot be checked against an unusable model is ungraded', () 
   const { workflow, grading } = readComposedQuestion(CHOCOLATE);
   const result = gradeWorkflow({
     stages: workflow,
-    responses: { equation: 'f(x)=', table: { '0:y': '2' }, interpretation: 'x', classification: 'discrete' },
+    // Every row filled: a table with blank rows is unfinished (and marked
+    // "Not answered") whatever its model, so only a FINISHED table isolates
+    // the unusable-model case this protects (workflowStageWork.mjs
+    // stageWorkIsComplete checks a tableInput stage's cells, tagged or not).
+    responses: { equation: 'f(x)=', table: { '0:y': '2', '1:y': '2', '2:y': '2', '3:y': '2' }, interpretation: 'x', classification: 'discrete' },
     grading,
   });
   const table = result.parts.find((part) => part.id === 'table');

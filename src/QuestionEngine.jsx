@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CHECKPOINT_DEBOUNCE_MS } from './platform/performance/responseCheckpoint.js';
+import { CHECKPOINT_DEBOUNCE_MS, responseSignature, studentChangedResponse } from './platform/performance/responseCheckpoint.js';
 import GraphLine from './GraphLine';
 import NumberLine from './NumberLine';
 import FractionGrader from './FractionGrader';
@@ -43,6 +43,9 @@ import { resolveCalculatorPolicy } from './platform/policies/calculatorPolicy';
 import { getToolDefinition } from './tools/toolRegistry';
 import { buildRawPathResponse } from './platform/path/pathToolResponses';
 import { ToolRuntimeProvider } from './tools/shared/ToolRuntimeContext';
+import { gradeRegistryToolWork, sharedVerdictWithholdsAttempt } from './platform/grading/registryToolGrading.js';
+import { attemptInputsFromGrading } from '../functions/shared/serverGrading/gradingResult.mjs';
+import { buildModelingLabResponse, gradeModelingLabEvaluation } from '../functions/shared/serverGrading/modelingLabGrading.mjs';
 import { ToolDraftScopeProvider, forgetToolDrafts, stampToolDraftSubmission } from './tools/shared/usePersistentToolState.js';
 import InteractiveModelingLabPlayer from './components/labs/InteractiveModelingLabPlayer.jsx';
 import { useToast } from './ui/Toast';
@@ -78,6 +81,13 @@ const WorkViewReadySignal = ({ span }) => {
   }, [span]);
   return null;
 };
+
+// Shown when the server will not mark this work, so nothing was recorded.
+const UNCHECKABLE_WORK_FEEDBACK = Object.freeze({
+  blocked: true,
+  isCorrect: false,
+  message: 'MathMaster could not check this answer, so it was not submitted and no attempt was used. Your work is saved. Let your teacher know about this question.',
+});
 
 const EMPTY_ANSWER_STATE = {
   isComplete: false,
@@ -354,6 +364,14 @@ export default function QuestionEngine({
   const checkpointTimerRef = useRef(null);
   const checkpointWrittenRef = useRef(false);
   const checkpointPendingRef = useRef({ eligible: false, state: null });
+  // Has the student touched THIS question in this session, and what did the
+  // response look like before they did? (See studentChangedResponse.)
+  const studentInteractedRef = useRef(false);
+  const openingResponseSignatureRef = useRef(null);
+  const checkpointIdentityRef = useRef(null);
+  const markStudentInteraction = useCallback(() => {
+    studentInteractedRef.current = true;
+  }, []);
 
   useEffect(() => {
     const wasComplete = previousSectionCompleteRef.current;
@@ -496,8 +514,27 @@ export default function QuestionEngine({
     && !submitting
     && !submissionInFlightRef.current
     && !responseAlreadySubmitted;
+  // A new question, variant or delivery starts with no interaction of its own
+  // (decided during render, so the first render of the next question can never
+  // inherit this one's).
+  const checkpointIdentity = `${generationKey}|${draftKey}`;
+  if (checkpointIdentityRef.current !== checkpointIdentity) {
+    checkpointIdentityRef.current = checkpointIdentity;
+    studentInteractedRef.current = false;
+  }
+  // Until the student interacts, the response on screen is the OPENING state
+  // (defaults, or a draft restored from an earlier session); see
+  // studentChangedResponse in responseCheckpoint.js.
+  if (!studentInteractedRef.current) openingResponseSignatureRef.current = responseSignature(answerState);
   const checkpointPending = checkpointAllowed
-    && (Boolean(answerState.isComplete && answerState.responseKey) || checkpointWrittenRef.current);
+    && (
+      (Boolean(answerState.isComplete && answerState.responseKey) && studentChangedResponse({
+        interacted: studentInteractedRef.current,
+        openingSignature: openingResponseSignatureRef.current,
+        answerState,
+      }))
+      || checkpointWrittenRef.current
+    );
   checkpointPendingRef.current = { eligible: checkpointPending, state: answerState };
 
   // A different question, variant or delivery starts its own checkpoint history.
@@ -694,6 +731,20 @@ export default function QuestionEngine({
 
   const performSubmit = async () => {
     if (!answerState.isComplete || submitting || submissionInFlightRef.current || locked || pausedByAnotherTab) return;
+    /*
+     * A SERVER-GRADED QUESTION WHOSE WORK THE SHARED GRADER DECLINED.
+     *
+     * A composed question reports `sharedGradingWithheld` when its shared
+     * grader will not mark this work: text it will not run on the server
+     * (ingestion holds that attempt for teacher review) or a response too
+     * large to read. Recording the device's own marking would spend an
+     * attempt, and show a result, the gradebook never receives — the same
+     * rule as a registry tool's withheld verdict below.
+     */
+    if (!serverGrading && answerState.sharedGradingWithheld) {
+      setFeedback(UNCHECKABLE_WORK_FEEDBACK);
+      return;
+    }
     submissionInFlightRef.current = true;
     const localAckSpan = startPerformanceSpan('submit_local_ack_ms', {
       flow: serverGrading ? 'secure' : 'ordinary_assignment',
@@ -728,7 +779,10 @@ export default function QuestionEngine({
         // Extensible metadata bag rather than a positional argument, so future
         // attempt facts can be added without re-threading every caller.
         // Self-grading tools report one score instead of per-part results.
-        { partialCreditPercent: answerState.partialCreditPercent ?? null },
+        // A question graded through the shared structured-response contract
+        // (serverGrading/) reports its raw work as `toolResponse`, which rides
+        // with the attempt so the server re-grades exactly that work.
+        { partialCreditPercent: answerState.partialCreditPercent ?? null, toolResponse: answerState.toolResponse || null },
       );
       const nextFeedback = result || {
         isCorrect: answerState.isCorrect,
@@ -775,6 +829,43 @@ export default function QuestionEngine({
 
   enterFreshRef.current = { isComplete: answerState.isComplete, submitDisabled: !answerState.isComplete || submitting || locked || scaffoldRequired || contextScaffoldRequired, handleSubmit };
 
+  /*
+   * A REGISTRY TOOL'S LIVE WORK, AS A CHECKPOINTABLE RESPONSE.
+   *
+   * Ordinary graders report their state through `onStateChange`; a registry
+   * tool reports its raw work through the runtime context
+   * (useReportToolWork). Turning it into the same `answerState` shape lets
+   * the existing checkpoint machinery — debounce, page-lifecycle flush,
+   * "already submitted" detection — carry tool work to a deadline unchanged.
+   * Completeness comes from the shared grader, so a deadline only
+   * auto-submits work the server itself would call finished.
+   */
+  const toolWorkQuestionRef = useRef(null);
+  toolWorkQuestionRef.current = processedQuestion;
+  const toolWorkSequenceRef = useRef(0);
+  const registryToolId = missingToolDefinition?.toolId || null;
+  const registryToolLabel = missingToolDefinition?.label || 'Math tool';
+  const handleToolWork = useCallback((work) => {
+    if (!registryToolId || serverGrading) return;
+    const question = toolWorkQuestionRef.current;
+    toolWorkSequenceRef.current += 1;
+    const sequence = toolWorkSequenceRef.current;
+    void gradeRegistryToolWork({ toolId: registryToolId, question, work }).then((result) => {
+      if (sequence !== toolWorkSequenceRef.current || toolWorkQuestionRef.current !== question) return;
+      if (!result?.toolResponse?.value) return;
+      setAnswerState({
+        isComplete: result.graded === true && result.isComplete === true,
+        // Never a verdict: nothing reads correctness from a draft, and the
+        // checkpoint schema refuses to carry one.
+        isCorrect: false,
+        responseKey: result.toolResponse.value,
+        questionDetails: `${registryToolLabel} work in progress.`,
+        parts: [],
+        toolResponse: result.toolResponse,
+      });
+    });
+  }, [registryToolId, registryToolLabel, serverGrading]);
+
   const handleMissingToolAction = async (type, payload = {}) => {
     // A hint revealed inside a tool is mathematical help, exactly like a hint
     // from the coach panel, so it has to reach the same support-usage record
@@ -802,6 +893,64 @@ export default function QuestionEngine({
     }
     setSubmitting(true);
     try {
+      /*
+       * THE RECORDED VERDICT COMES FROM THE SHARED GRADER, NOT THE TOOL.
+       *
+       * The student's raw work is marked here by the same pure grader the
+       * server runs (functions/shared/serverGrading), through the same
+       * bounded bytes the server will read. Whatever the tool computed for
+       * its own on-screen feedback is only a fallback for a tool mode that
+       * is documented as not yet server-gradable. The structured work rides
+       * with the attempt as `toolResponse`, so ingestion — or a deadline, or
+       * a queue drained days later — reaches the identical verdict.
+       */
+      const sharedVerdict = await gradeRegistryToolWork({
+        toolId: missingToolDefinition?.toolId,
+        question: processedQuestion,
+        work: payload?.response,
+      });
+      const toolResponse = sharedVerdict.toolResponse;
+      /*
+       * A MODE THE SERVER GRADES, BUT THIS WORK COULD NOT BE GRADED.
+       *
+       * The tool's question could not be computed ('invalid-question',
+       * 'no-answer-key'), or the work is unreadable or oversize. The server
+       * holds such a submission for teacher review instead of recording it,
+       * so recording the tool's own fallback verdict here would spend an
+       * attempt the gradebook never sees. Nothing is recorded; the work stays
+       * in the tool's saved draft. Only a mode documented as graded on the
+       * device (or a grader that could not load) uses the tool's verdict.
+       */
+      if (sharedVerdictWithholdsAttempt(sharedVerdict)) {
+        setFeedback(UNCHECKABLE_WORK_FEEDBACK);
+        return;
+      }
+      if (sharedVerdict.graded && Boolean(payload?.isCorrect) !== sharedVerdict.isCorrect) {
+        // A tool whose own Check disagrees with its shared grader is a parity
+        // defect worth seeing in development; the shared verdict stands.
+        console.warn(`[grading-parity] ${missingToolDefinition?.toolId}: tool reported ${Boolean(payload?.isCorrect)}, shared grader ${sharedVerdict.isCorrect}.`);
+      }
+      if (sharedVerdict.graded) {
+        const attemptInputs = attemptInputsFromGrading(sharedVerdict);
+        const details = `${missingToolDefinition?.label || 'Math tool'} response submitted.`;
+        const result = await onGrade?.(
+          attemptInputs.isCorrect,
+          details,
+          attemptInputs.parts,
+          attemptSupportUsage(),
+          toolResponse?.value || JSON.stringify(payload?.response ?? {}),
+          { partialCreditPercent: attemptInputs.partialCreditPercent, toolResponse },
+        );
+        setFeedback(result || {
+          isCorrect: attemptInputs.isCorrect,
+          status: attemptInputs.isCorrect ? 'correct' : record.attemptCount + 1 >= resolvedMaximumAttempts ? 'expired' : 'attempted',
+          attemptCount: record.attemptCount + 1,
+          remainingAttempts: Math.max(0, resolvedMaximumAttempts - record.attemptCount - 1),
+          expired: !attemptInputs.isCorrect && record.attemptCount + 1 >= resolvedMaximumAttempts,
+          partialCredit: attemptInputs.partialCreditPercent || 0,
+        });
+        return;
+      }
       const rawParts = payload?.metadata?.parts;
       const parts = Array.isArray(rawParts)
         ? rawParts.map((part, index) => ({
@@ -818,7 +967,9 @@ export default function QuestionEngine({
       const partialCreditPercent = Number.isFinite(score)
         ? Math.max(0, Math.min(100, Math.round((score <= 1 ? score * 100 : score))))
         : null;
-      const responseKey = JSON.stringify(payload?.response ?? {});
+      // Still carried as structured work, so the server stores exactly what
+      // the student did even for a mode whose verdict stays on the device.
+      const responseKey = toolResponse?.value || JSON.stringify(payload?.response ?? {});
       const details = `${missingToolDefinition?.label || 'Math tool'} response submitted.`;
       const result = await onGrade?.(
         Boolean(payload?.isCorrect),
@@ -826,7 +977,7 @@ export default function QuestionEngine({
         parts,
         attemptSupportUsage(),
         responseKey,
-        { partialCreditPercent },
+        { partialCreditPercent, toolResponse },
       );
       setFeedback(result || {
         isCorrect: Boolean(payload?.isCorrect),
@@ -842,22 +993,27 @@ export default function QuestionEngine({
     }
   };
 
-  const handleModelingLabGrade = async (evaluation) => {
+  const handleModelingLabGrade = async (evaluation, serverResult = null) => {
     if (submitting || locked) return null;
     setSubmitting(true);
     try {
+      // The lab was graded by the server (submitModelingLab). The attempt
+      // queued here carries only a REFERENCE to that evaluation — the lab and
+      // submission ids — and ingestion records it from the server-written
+      // marker. Parts and partial credit come from the same shared mapping
+      // the server applies, so the student sees what the gradebook keeps.
+      const grading = gradeModelingLabEvaluation(evaluation);
+      const attemptInputs = attemptInputsFromGrading(grading);
       const partialCreditPercent = Math.max(0, Math.min(100, Math.round(Number(evaluation?.compositeScore || 0) * 100)));
+      const labId = processedQuestion?.labDefinition?.labId;
+      const toolResponse = buildModelingLabResponse({ question: processedQuestion, labId, submissionId: serverResult?.submissionId });
       const result = await onGrade?.(
-        Boolean(evaluation?.isMastered),
+        attemptInputs.isCorrect,
         `Server-graded modeling lab · ${partialCreditPercent}% composite.`,
-        [
-          { id: 'modelAccuracy', label: 'Model accuracy', isComplete: true, isCorrect: Number(evaluation?.rubricBreakdown?.modelAccuracy || 0) >= 85 },
-          { id: 'hypothesis', label: 'Hypothesis / experimental process', isComplete: true, isCorrect: Number(evaluation?.rubricBreakdown?.hypothesisCompleteness || 0) >= 85 },
-          { id: 'justification', label: 'Written justification completion', isComplete: true, isCorrect: Number(evaluation?.rubricBreakdown?.writtenJustificationCompleteness || 0) >= 85 },
-        ],
+        attemptInputs.parts,
         attemptSupportUsage(),
-        `lab:${processedQuestion?.labDefinition?.labId}:${partialCreditPercent}`,
-        { partialCreditPercent },
+        toolResponse.value || `lab:${labId}:${partialCreditPercent}`,
+        { partialCreditPercent: attemptInputs.partialCreditPercent, toolResponse },
       );
       setFeedback(result || {
         isCorrect: Boolean(evaluation?.isMastered),
@@ -1030,6 +1186,7 @@ export default function QuestionEngine({
         <ToolRuntimeProvider
           showImmediateFeedback={showOutcomeFeedback && !serverGrading}
           questionTerminal={locked}
+          reportWork={locked ? null : handleToolWork}
         >
           {/* THE REGISTRY TOOLS REACH THE PLATFORM UNDO BUTTON THROUGH HERE.
               Every other module is handed `onUndoStateChange` as a prop, but a
@@ -1453,7 +1610,13 @@ export default function QuestionEngine({
     <div
       ref={questionEngineRef}
       className={`mathmaster-question-engine mathmaster-question-engine-has-anchor ${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`}
+      // Any press, keystroke or edit inside the question (portals included:
+      // React delivers their events here too) is the student interacting.
+      onPointerDownCapture={markStudentInteraction}
+      onInputCapture={markStudentInteraction}
+      onChangeCapture={markStudentInteraction}
       onKeyDownCapture={(event) => {
+        markStudentInteraction();
         // THE ENTER CONTRACT (answerEntryUx.js), for the question as a whole.
         // A field that owns its own Enter (a MathInput with onSubmit, a stage
         // check) keeps it: this capture handler runs before theirs and must not

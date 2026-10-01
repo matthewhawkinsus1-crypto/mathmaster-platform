@@ -2,12 +2,15 @@ import React, { useMemo } from 'react';
 import ToolShell, { HintPanel, Panel, ResultPill, TaskCard, ToolGrid } from '../shared/ToolShell';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import useToolSubmission from '../shared/useToolSubmission';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import functionOperationsGrader from '../../../functions/shared/serverGrading/tools/functionOperationsLab.mjs';
 import MathInput from '../../MathInput.jsx';
 import MathDisplay from '../../MathDisplay.jsx';
 import {
   deriveFunctionOperations,
-  functionOperationAnswerMatches,
-  restrictionsMatch,
+  normalizeComposeOrder,
+  normalizeFunctionOperations,
 } from './functionOperationsMath';
 
 const inputStyle = {
@@ -38,18 +41,10 @@ const OPERATION_META = Object.freeze({
   composition: { title: 'Composition', prompt: 'Substitute the inner function into the outer function and simplify.' },
 });
 
-const normalizedOperations = (value) => {
-  const operations = Array.isArray(value) && value.length
-    ? value
-    : ['sum', 'difference', 'product', 'quotient'];
-  return [...new Set(operations.filter((operation) => OPERATION_META[operation]))];
-};
-
-const operationExpectedExpression = (answers, operation) => answers?.[operation]?.expression || '';
-
 export default function FunctionOperationsLab({ questionData = {}, onAction }) {
-  const operations = useMemo(() => normalizedOperations(questionData.operations), [questionData.operations]);
-  const composeOrder = questionData.composeOrder === 'gOfF' ? 'gOfF' : 'fOfG';
+  // The same operation list and composition order the shared grader marks.
+  const operations = useMemo(() => normalizeFunctionOperations(questionData.operations), [questionData.operations]);
+  const composeOrder = normalizeComposeOrder(questionData.composeOrder);
   const answers = useMemo(() => deriveFunctionOperations({
     f: questionData.f,
     g: questionData.g,
@@ -69,28 +64,17 @@ export default function FunctionOperationsLab({ questionData = {}, onAction }) {
     setResponses((current) => ({ ...current, [operation]: value }));
   };
 
-  const check = () => {
-    const operationScores = operations.map((operation) => {
-      const expected = operationExpectedExpression(answers, operation);
-      const expressionCorrect = functionOperationAnswerMatches(operation, responses[operation], expected);
-      if (operation !== 'quotient') return { operation, score: expressionCorrect ? 1 : 0, expressionCorrect };
+  // The verdict comes from the shared grader the server runs; this view only
+  // shows it. The same work is reported live so a deadline can finalize it.
+  const work = { responses, restrictions: restrictionResponse };
+  useReportToolWork(work);
 
-      const expectedRestrictions = answers.quotient?.excludedValues || [];
-      const restrictionCorrect = restrictionsMatch(restrictionResponse, expectedRestrictions);
-      return {
-        operation,
-        score: ((expressionCorrect ? 1 : 0) + (restrictionCorrect ? 1 : 0)) / 2,
-        expressionCorrect,
-        restrictionCorrect,
-      };
-    });
-    const score = operationScores.length
-      ? operationScores.reduce((total, entry) => total + entry.score, 0) / operationScores.length
-      : 0;
+  const check = () => {
+    const result = gradeToolCheck(functionOperationsGrader, questionData, work);
     submit(
-      { isCorrect: score === 1, score },
-      { responses, restrictions: restrictionResponse },
-      { mode: 'functionOperations', operationScores, composeOrder },
+      { isCorrect: result.isCorrect, score: result.score },
+      work,
+      { mode: 'functionOperations', composeOrder, parts: result.parts },
     );
   };
 

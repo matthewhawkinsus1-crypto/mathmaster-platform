@@ -13,15 +13,24 @@
  *     teacher's current overrides. The checkpoint's `candidateFinalizeAt` is a
  *     query hint and is never read here, so writing a later one buys a student
  *     nothing but a later look.
- *   - WHETHER: correctness, from the shared ordinary grading contract run
- *     against the student's raw response.
+ *   - WHETHER: correctness, from the shared grading registry
+ *     (serverGrading/) run against the student's raw response — an ordinary
+ *     type, a registry tool mode with a shared grader, or a Question Family
+ *     instance rebuilt from the checkpoint's delivery pin. A deadline only
+ *     auto-submits work the shared grader calls complete.
  *
  * Every check fails CLOSED. A missing class, a missing question, a role that
  * does not match, a type the server cannot mark — all of them stop the
  * checkpoint rather than letting it through on a default.
  */
 import { resolveAuthoritativeClose, SCHOOL_TIME_ZONE } from './sectionDeadline.mjs';
-import { gradeOrdinaryResponse, serverGradingSupport } from './ordinaryResponseGrading.mjs';
+import {
+  gradeServerResponse,
+  serverResponseGradingSupport,
+} from './serverGrading/serverResponseGrading.mjs';
+import { attemptInputsFromGrading } from './serverGrading/gradingResult.mjs';
+import { resolveServerGradingQuestion } from './questionFamilyGrading.mjs';
+import { normalizeDeliveryPin } from './questionGenerationIdentity.mjs';
 import { getEffectiveActivityPolicy } from './activityPolicies.mjs';
 import { normalizeQuestionRecord, recordQuestionAttempt, resolveQuestionMaximumAttempts, resolveTeacherGrantedExtraAttempts } from './attemptPolicy.mjs';
 import { buildAttemptEvidenceEvent } from './attemptEvidenceEvent.mjs';
@@ -136,20 +145,48 @@ export const verifyCheckpointAuthorization = ({
   const claimedRole = text(checkpoint.activityRole).toLowerCase();
   if (!authoritativeRole || claimedRole !== authoritativeRole) return { ok: false, reason: 'activity-role-mismatch' };
 
-  const support = serverGradingSupport(question);
-  if (!support.supported) return { ok: false, reason: `unsupported-question:${support.reason}`, unsupported: true };
-
   const canonical = normalizeQuestionRecord(
     gradeDocument?.gradesByAssignment?.[text(checkpoint.assignmentId)]?.[String(questionIndex)]
     ?? gradeDocument?.gradesByAssignment?.[text(checkpoint.assignmentId)]?.[questionIndex],
   );
+
+  // The question to grade: the stored question as QuestionEngine renders it,
+  // or a Question Family slot's instance rebuilt from the pin this checkpoint
+  // (or an earlier attempt) recorded. The pin must be for the variant the
+  // server holds; a pin for any other instance is never used.
+  const resolved = resolveServerGradingQuestion({
+    assignment,
+    question,
+    questionIndex,
+    variantIndex: canonical.variantIndex,
+    canonicalRecord: canonical,
+    claimedDelivery: checkpoint.familyDelivery || null,
+    studentId,
+    classId: authoritativeClassId,
+  });
+  if (!resolved.question) {
+    return { ok: false, reason: `unsupported-question:${resolved.reason || 'family-delivery-missing'}`, unsupported: true };
+  }
+  const support = serverResponseGradingSupport(resolved.question);
+  if (!support.supported) return { ok: false, reason: `unsupported-question:${support.reason}`, unsupported: true };
+
   // A checkpoint written against variant 0 cannot finalize after the student
   // took a replacement question: the answer key moved.
   if (Number(checkpoint.variantIndex || 0) !== Number(canonical.variantIndex || 0)) {
     return { ok: false, reason: 'variant-superseded' };
   }
 
-  return { ok: true, reason: null, classId: authoritativeClassId, activityRole: authoritativeRole, canonicalRecord: canonical };
+  return {
+    ok: true,
+    reason: null,
+    classId: authoritativeClassId,
+    activityRole: authoritativeRole,
+    canonicalRecord: canonical,
+    gradingQuestion: resolved.question,
+    family: resolved.familyBacked
+      ? { pin: resolved.pin, verification: resolved.verification || null }
+      : null,
+  };
 };
 
 /**
@@ -240,16 +277,22 @@ export const decideCheckpointFinalization = ({
     return { action: 'close', status: CHECKPOINT_STATUS.SKIPPED_NEWER_SUBMISSION, reason: 'question-already-terminal', cutoff: close.closesAtMs };
   }
 
-  const grading = gradeOrdinaryResponse({ question, response });
+  const grading = gradeServerResponse({ question: authorization.gradingQuestion, response });
   if (!grading.graded) {
     return {
       action: 'close',
-      status: grading.reason === 'incomplete-response' || grading.reason === 'blank-response'
+      status: ['incomplete-response', 'blank-response', 'empty-response'].includes(grading.reason)
         ? CHECKPOINT_STATUS.INCOMPLETE_AT_CLOSE
         : CHECKPOINT_STATUS.UNSUPPORTED_QUESTION,
       reason: grading.reason,
       cutoff: close.closesAtMs,
     };
+  }
+  // A tool's grader marks unfinished work (an explicit Check with an empty
+  // box is a real attempt), but a deadline never invents an attempt from
+  // work the student had not finished.
+  if (grading.isComplete !== true) {
+    return { action: 'close', status: CHECKPOINT_STATUS.INCOMPLETE_AT_CLOSE, reason: 'incomplete-response', cutoff: close.closesAtMs };
   }
 
   return {
@@ -261,6 +304,8 @@ export const decideCheckpointFinalization = ({
     grading,
     activityRole: authorization.activityRole,
     canonicalRecord: canonical,
+    gradingQuestion: authorization.gradingQuestion,
+    family: authorization.family,
   };
 };
 
@@ -318,19 +363,24 @@ export const buildCheckpointFinalization = ({
   const academicAt = occurredAt === null || occurredAt === undefined
     ? resolveCheckpointOccurrenceAt({ checkpoint, decision, runAt })
     : Number(occurredAt);
+  // The delivered question the decision graded (a family instance, or the
+  // runtime-repaired stored question), so evidence names what was answered.
+  const gradedQuestion = decision.gradingQuestion || question;
+  // The same mapping a manual Submit and server ingestion use.
+  const attemptInputs = attemptInputsFromGrading(decision.grading);
   const outcome = recordQuestionAttempt({
     record: decision.canonicalRecord,
-    isCorrect: decision.grading.isCorrect,
-    questionDetails: `${text(question?.prompt) || 'Response submitted automatically when time ended.'}`,
+    isCorrect: attemptInputs.isCorrect,
+    questionDetails: `${text(gradedQuestion?.prompt) || 'Response submitted automatically when time ended.'}`,
     timeSpent: Number(checkpoint?.clientMetadata?.timeSpentSeconds) || 0,
-    parts: decision.grading.parts,
+    parts: attemptInputs.parts,
     supportUsage: checkpoint?.supportUsage || null,
     responseKey: text(checkpoint?.response?.value) || JSON.stringify(checkpoint?.response?.fields || []),
-    // Partial credit is derived from the server's own part results, never from
-    // a number the browser sent.
-    partialCreditPercent: null,
+    // Partial credit is derived from the server's own grading result, never
+    // from a number the browser sent.
+    partialCreditPercent: attemptInputs.partialCreditPercent,
     maximumAttempts: resolveQuestionMaximumAttempts({
-      question,
+      question: gradedQuestion,
       maximumAttempts: activityPolicy.attempts,
       activityPolicy,
       teacherGrantedExtraAttempts: resolveTeacherGrantedExtraAttempts({
@@ -356,6 +406,12 @@ export const buildCheckpointFinalization = ({
     academicOccurredAt: new Date(academicAt).toISOString(),
     finalizedAtRunTime: new Date(runAt).toISOString(),
     recoveredLate: runAt - academicAt > 60_000 ? true : null,
+    // The canonical delivery pin, exactly as ingestion stamps it, so every
+    // device then renders — and the server re-grades — this instance.
+    ...(decision.family?.pin ? {
+      familyDelivery: normalizeDeliveryPin(decision.family.pin),
+      familyDeliveryVerification: decision.family.verification || null,
+    } : {}),
   };
 
   const gradingEvidence = captureAutomaticGradingEvidence({
@@ -365,16 +421,17 @@ export const buildCheckpointFinalization = ({
       isCorrect: record.status === 'correct',
       parts: record.partGrades,
     },
-    question,
+    question: gradedQuestion,
     submittedAt: new Date(academicAt).toISOString(),
     source: 'deadline-auto-submit',
     gradingAuthority: 'server',
+    ...(decision.grading?.graderVersion ? { graderVersion: decision.grading.graderVersion } : {}),
   });
 
-  const evidenceEvent = question?.type === 'modelingLab' ? null : buildAttemptEvidenceEvent({
+  const evidenceEvent = gradedQuestion?.type === 'modelingLab' ? null : buildAttemptEvidenceEvent({
     studentId: text(checkpoint.studentId),
     assignment,
-    question,
+    question: gradedQuestion,
     questionIndex: Number(checkpoint.questionIndex),
     activityRole: decision.activityRole,
     attemptRecord: record,

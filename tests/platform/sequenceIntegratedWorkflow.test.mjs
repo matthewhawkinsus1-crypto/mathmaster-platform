@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
+import sequenceExplorerGrader from '../../functions/shared/serverGrading/tools/sequenceExplorer.mjs';
+import { generateSequence } from '../../functions/shared/toolMath/sequenceExplorer/sequenceMath.mjs';
 
 const source = fs.readFileSync('src/tools/sequenceExplorer/SequenceExplorer.jsx', 'utf8');
 
@@ -77,11 +79,36 @@ test('sequence comparison can require student-created plots for both models befo
   assert.match(compareBlock, /leftPlottedPoints/);
   assert.match(compareBlock, /rightPlottedPoints/);
   assert.match(compareBlock, /onPlot=\{requirePlot \? handlePlot : null\}/);
-  assert.match(compareBlock, /pointSetMatchesRows\(leftPlottedPoints, leftRows/);
-  assert.match(compareBlock, /pointSetMatchesRows\(rightPlottedPoints, rightRows/);
+  // Both plotted sets are the student's work, and the Check is marked by the
+  // shared grader (the server's authority), not by inline code.
+  assert.match(compareBlock, /const work = \{[^}]*\bleftPlottedPoints\b[^}]*\brightPlottedPoints\b[^}]*\};/);
+  assert.match(compareBlock, /gradeToolCheck\(sequenceExplorerGrader, questionData, work\)/);
   assert.match(compareBlock, /points=\{visiblePoints\}/);
   assert.match(compareBlock, /Plot both sequences as discrete functions/);
   assert.doesNotMatch(compareBlock, /\{\s*0:\s*row\.n/);
+
+  // The requirement itself: with plotSequence, each model's graph is checked
+  // against ITS OWN sequence before the comparison can be correct.
+  const question = {
+    type: 'sequenceExplorer',
+    mode: 'compare',
+    studentActions: ['plotSequence', 'compareSequences'],
+    left: { kind: 'arithmetic', first: 2, difference: 5 },
+    right: { kind: 'geometric', first: 2, ratio: 2 },
+    displayCount: 7,
+    compareN: 7,
+  };
+  const leftPoints = generateSequence(question.left, 7).map((row) => [row.n, row.value]);
+  const rightPoints = generateSequence(question.right, 7).map((row) => [row.n, row.value]);
+  const answer = { relation: 'B', difference: '96' };
+  const verdict = (work) => sequenceExplorerGrader.grade(question, { ...answer, ...work });
+  assert.equal(verdict({ leftPlottedPoints: leftPoints, rightPlottedPoints: rightPoints }).isCorrect, true);
+  assert.equal(verdict({ leftPlottedPoints: [], rightPlottedPoints: rightPoints }).isCorrect, false, 'Sequence A must be plotted');
+  assert.equal(verdict({ leftPlottedPoints: leftPoints, rightPlottedPoints: [] }).isCorrect, false, 'Sequence B must be plotted');
+  assert.equal(verdict({ leftPlottedPoints: rightPoints, rightPlottedPoints: leftPoints }).isCorrect, false, 'each graph matches its own sequence');
+  // Without the plotting action the same comparison needs no graph.
+  const unplotted = { ...question, studentActions: ['compareSequences'] };
+  assert.equal(sequenceExplorerGrader.grade(unplotted, { ...answer, leftPlottedPoints: [], rightPlottedPoints: [] }).isCorrect, true);
 });
 
 test('V5 compare-plus-plot intent stays a comparison while preserving the plotting requirement', () => {

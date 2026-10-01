@@ -40,6 +40,21 @@ import {
   selectedLikeTermInfo,
 } from './algebraLikeTermsModel.js';
 import { getAttemptsRemaining, normalizeQuestionRecord } from './attemptPolicy';
+import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
+import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
+import { equationWorkspaceWork, workGraderForQuestion } from '../functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs';
+// What each step earns, and the raw work it is reported with: one definition,
+// shared with the server, which derives the same credit from that work.
+import {
+  STEP_ACTIONS,
+  equationMoveStepGrade,
+  equationRewriteStepGrade,
+  equationStatePatch,
+  equationStepWork,
+  prefilledFirstStep,
+  rejectedMoveStatePatch,
+  stepActionCountsAttempt,
+} from '../functions/shared/serverGrading/stepAlgebraStepVerification.mjs';
 import {
   evaluateMove, getSupportPolicy, resolveEquationAfterKeepingMove, resolveEquationAfterMove,
   resolveEquationAfterStudentSimplification, resolveSupportLevel,
@@ -320,6 +335,10 @@ export default function StepByStepAlgebra({
   // the step — shares the tool row with the target. The engine is unchanged.
   embedded = false,
   embeddedTitle = null,
+  // Which equation this workspace was opened on when a host built it — the
+  // intercept orchestrator's `{ zeroVariable }` — so a step's raw work names
+  // the equation the server must check it against. Never a verdict.
+  stepWorkContext = null,
 }) {
   // Content identity, not object identity: a host that rebuilds an equal
   // question every render must not reset the workspace (useContentStableValue).
@@ -534,17 +553,15 @@ export default function StepByStepAlgebra({
     // first-step support only runs when the student's support profile granted
     // the matching entitlement.
     if (!question.prefillFirstStep || !allowPrefillFirstStep || savedDraft || prefillAppliedRef.current || disabled) return;
-    const suggestion = getSuggestedMove(initialEquation);
-    if (!suggestion) return;
-    try {
-      const move = applyBalancedOperation({ equationState: initialEquation, operation: suggestion.operation, operand: String(suggestion.operand) });
-      prefillAppliedRef.current = true;
-      const prefilledEquation = resolveEquationAfterMove(move, 1, move.requiredCancellationSides || []);
-      setEquation(prefilledEquation);
-      setMessage({ tone: 'growth', text: `The first balanced step was pre-filled: ${describeOperation(suggestion.operation, suggestion.operand)}. Continue from the resulting equation.` });
-    } catch {
-      // A pre-filled anchor is optional and never blocks the question.
-    }
+    // The same pre-filled step the server accepts as a starting point for step
+    // credit (stepAlgebraStepVerification.mjs prefilledFirstStep). A
+    // pre-filled anchor is optional and never blocks the question: no
+    // suggestion, or one the engine cannot apply, leaves the equation as is.
+    const prefill = prefilledFirstStep(initialEquation);
+    if (!prefill) return;
+    prefillAppliedRef.current = true;
+    setEquation(prefill.equation);
+    setMessage({ tone: 'growth', text: `The first balanced step was pre-filled: ${describeOperation(prefill.suggestion.operation, prefill.suggestion.operand)}. Continue from the resulting equation.` });
   }, [question.prefillFirstStep, allowPrefillFirstStep, savedDraft, initialEquation, disabled]);
 
   useEffect(() => {
@@ -570,30 +587,38 @@ export default function StepByStepAlgebra({
     });
   }, [localDraftKey, equation, supportLevel, operand, distributionState, structureTool, workSteps, armedTile, pendingMove, crossedSides, cancelledPairIds, selectedCancellationIndices, simplificationAnswers, promptAnswers, likeTermsOpen, likeTermsSide, selectedLikeTermIndices, likeTermsAnswer]);
 
+  // THE WORK THIS WORKSPACE REPORTS: the committed equation and the typed
+  // prompt answers — student work only, never a verdict or the objective.
+  const gradingWork = useMemo(() => equationWorkspaceWork({ equation, promptAnswers }), [equation, promptAnswers]);
+
   useEffect(() => {
-    const solved = isSolvedEquation(equation);
-    const prompts = Array.isArray(question.algebraPrompts) ? question.algebraPrompts : [];
-    const promptParts = prompts.map((prompt, index) => {
-      const id = String(prompt.id || `algebra-prompt-${index + 1}`);
-      const response = String(promptAnswers[id] || '');
-      const accepted = prompt.acceptedExpressions || prompt.acceptedAnswers || (prompt.acceptedExpression ? [prompt.acceptedExpression] : []);
-      const isComplete = response.trim() !== '';
-      const isCorrect = isComplete && accepted.some((candidate) => expressionsEquivalent(response, candidate, equation.variable));
-      return { id, label: prompt.label || prompt.prompt || `Algebraic prompt ${index + 1}`, isComplete, isCorrect, response };
+    if (!equation?.left || !equation?.right) return;
+    // The verdict comes ONLY from the shared grader — the function the server
+    // runs on these same bytes (functions/shared/serverGrading/
+    // stepAlgebraWorkspaceGrading.mjs): solved for the question's objective,
+    // the same solutions as the question's original equation, every prompt.
+    const result = gradeToolCheck(workGraderForQuestion(question), question, gradingWork);
+    const equationLatex = equationToLatex(equation);
+    const objective = result.parts.find((part) => part.id === 'algebra-objective');
+    const promptParts = result.parts.filter((part) => part.id !== 'algebra-objective');
+    const shared = answerStateFromSharedGrading(result, {
+      questionDetails: objective?.isComplete
+        ? `Solved step-by-step: $${equationLatex}$. ${promptParts.map((part) => `${part.label}: ${part.response}`).join('; ')}`
+        : `Current equation: $${equationLatex}$`,
     });
-    const promptsComplete = promptParts.every((part) => part.isComplete);
-    const promptsCorrect = promptParts.every((part) => part.isCorrect);
     onStateChange({
-      isComplete: solved && promptsComplete,
-      isCorrect: solved && promptsCorrect,
-      responseKey: solved && promptsComplete ? `${equationToLatex(equation)}|${JSON.stringify(promptAnswers)}` : '',
-      questionDetails: solved ? `Solved step-by-step: $${equationToLatex(equation)}$. ${promptParts.map((part) => `${part.label}: ${part.response}`).join('; ')}` : `Current equation: $${equationToLatex(equation)}$`,
-      parts: [
-        { id: 'algebra-objective', label: question.objective?.label || (equation.objective?.kind === 'slopeIntercept' ? 'Write in slope-intercept form' : equation.objective?.kind === 'factoredLinear' ? 'Write in factored linear form' : equation.objective?.kind === 'linearStandardForm' ? 'Write in standard form' : `Isolate ${equation.objective?.variable || equation.variable}`), isComplete: solved, isCorrect: solved, response: equationToLatex(equation) },
-        ...promptParts,
-      ],
+      ...shared,
+      // The workspace's own response key, which composed workflows store as
+      // the stage's answer. The raw work travels separately as toolResponse.
+      responseKey: shared.isComplete ? `${equationLatex}|${JSON.stringify(promptAnswers)}` : '',
+      // The full equation (never the 240-character part copy): the work
+      // history, My Math Path's raw builder and the Systems Workspace embed
+      // all read it.
+      parts: objective
+        ? shared.parts.map((part) => (part.id === 'algebra-objective' ? { ...part, response: equationLatex } : part))
+        : [{ id: 'algebra-objective', label: question.objective?.label || 'Solve the equation', isComplete: false, isCorrect: false, response: equationLatex }],
     });
-  }, [equation, question, promptAnswers, onStateChange]);
+  }, [equation, gradingWork, question, promptAnswers, onStateChange]);
 
   useEffect(() => {
     onWorkStepsChange?.(workSteps);
@@ -817,28 +842,30 @@ export default function StepByStepAlgebra({
     });
   };
 
-  const saveStep = async ({ move, earned, possible, countsAttempt, accepted, equationAfter = equation }) => {
+  // A balanced move's step: committed (BALANCED_MOVE), reported before it is
+  // committed because it costs an attempt (INEFFICIENT_MOVE), or a rejected
+  // cancellation/simplification of the pending move (REJECTED_MOVE). Credit,
+  // attempt use and the saved state come from the shared definitions; the
+  // raw work travels with them so the server can derive the same credit.
+  const saveStep = async ({ move, action, equationAfter = equation }) => {
     if (!onStepGrade) return null;
     setSavingStep(true);
     try {
+      const stepGrade = equationMoveStepGrade({ action, move, supportLevel, before: equation, after: equationAfter, question });
       return await onStepGrade({
-        stepGrade: {
-          kind: accepted ? 'balanced-operation' : 'rejected-operation',
-          label: describeOperation(move.operation, move.operandExpression),
+        stepGrade,
+        countsAttempt: stepActionCountsAttempt(action, { attemptsDoNotExpire }),
+        statePatch: stepGrade.accepted
+          ? equationStatePatch({ equation: equationAfter, supportLevel, stepNumber: Number(normalizedRecord.algebraState?.stepNumber || 0) + 1 })
+          : rejectedMoveStatePatch(move),
+        stepWork: equationStepWork({
+          action,
+          before: equation,
+          after: action === STEP_ACTIONS.BALANCED_MOVE ? equationAfter : null,
+          move,
           supportLevel,
-          productive: move.productive,
-          accepted,
-          earned,
-          possible,
-          equationBefore: equationToLatex(equation),
-          equationAfter: accepted ? equationToLatex(equationAfter) : equationToLatex(equation),
-          expectedTotalPoints: Number(question.expectedStepPoints || 6),
-        },
-        countsAttempt,
-        statePatch: accepted ? {
-          algebraState: { equation: equationAfter, supportLevel, stepNumber: Number(normalizedRecord.algebraState?.stepNumber || 0) + 1 },
-          questionDetails: `Current equation: $${equationToLatex(equationAfter)}$`,
-        } : { questionDetails: `Rejected move: ${describeOperation(move.operation, move.operandExpression)}` },
+          zeroVariable: stepWorkContext?.zeroVariable || null,
+        }),
       });
     } finally {
       setSavingStep(false);
@@ -860,12 +887,12 @@ export default function StepByStepAlgebra({
           ? resolveEquationAfterKeepingMove(move, resolvedCrossedSides)
           : resolveEquationAfterMove(move, supportLevel, resolvedCrossedSides);
       const nextSolved = isSolvedEquation(nextEquation);
-      const earned = verdict.efficient ? 2 : verdict.valid ? 1 : 0;
 
       // Persist the equation the student actually sees. A refresh should never
       // silently replace their intentionally-unsimplified work with the engine's
-      // prettiest equivalent form.
-      await saveStep({ move, earned, possible: 2, countsAttempt: false, accepted: true, equationAfter: nextEquation });
+      // prettiest equivalent form. (Its credit — 2 when efficient, 1 when
+      // merely valid — is equationMoveStepGrade's.)
+      await saveStep({ move, action: STEP_ACTIONS.BALANCED_MOVE, equationAfter: nextEquation });
       pushCommittedEquation(equation, balancedStep(move, nextEquation));
       setEquation(nextEquation);
       setPendingMove(null);
@@ -1032,6 +1059,29 @@ export default function StepByStepAlgebra({
     setMessage(null);
   };
 
+  // A side rewritten into an equivalent form — Rewrite / Simplify, combine like
+  // terms, a one-term rewrite, a structure tool, distribution, cancellation —
+  // earns the shared rewrite credit, and carries the two equations as its raw
+  // work so the server can check the rewrite and derive the same credit.
+  const rewriteStepPayload = (beforeEquation, nextEquation, { kind, label }) => ({
+    stepGrade: equationRewriteStepGrade({ kind, label, supportLevel, before: beforeEquation, after: nextEquation, question }),
+    countsAttempt: stepActionCountsAttempt(STEP_ACTIONS.REWRITE),
+    statePatch: equationStatePatch({
+      equation: nextEquation,
+      supportLevel,
+      stepNumber: Number(normalizedRecord.algebraState?.stepNumber || 0) + 1,
+    }),
+    stepWork: equationStepWork({
+      action: STEP_ACTIONS.REWRITE,
+      kind,
+      label,
+      before: beforeEquation,
+      after: nextEquation,
+      supportLevel,
+      zeroVariable: stepWorkContext?.zeroVariable || null,
+    }),
+  });
+
   const persistStudentRewrite = async (beforeEquation, nextEquation, changedSides, {
     kind = 'student-rewrite',
     label = `Rewrite / simplify ${changedSides.join(' and ')}`,
@@ -1039,29 +1089,7 @@ export default function StepByStepAlgebra({
     if (!onStepGrade) return null;
     setSavingStep(true);
     try {
-      return await onStepGrade({
-        stepGrade: {
-          kind,
-          label,
-          supportLevel,
-          productive: true,
-          accepted: true,
-          earned: 1,
-          possible: 1,
-          equationBefore: equationToLatex(beforeEquation),
-          equationAfter: equationToLatex(nextEquation),
-          expectedTotalPoints: Number(question.expectedStepPoints || 6),
-        },
-        countsAttempt: false,
-        statePatch: {
-          algebraState: {
-            equation: nextEquation,
-            supportLevel,
-            stepNumber: Number(normalizedRecord.algebraState?.stepNumber || 0) + 1,
-          },
-          questionDetails: `Current equation: $${equationToLatex(nextEquation)}$`,
-        },
-      });
+      return await onStepGrade(rewriteStepPayload(beforeEquation, nextEquation, { kind, label }));
     } finally {
       setSavingStep(false);
     }
@@ -1365,25 +1393,10 @@ export default function StepByStepAlgebra({
     if (onStepGrade) {
       setSavingStep(true);
       try {
-        await onStepGrade({
-          stepGrade: {
-            kind: 'distribution',
-            label: `Distribute ${distributionState.factorText} over (${distributionState.groupText})`,
-            supportLevel,
-            productive: true,
-            accepted: true,
-            earned: 1,
-            possible: 1,
-            equationBefore: equationToLatex(equation),
-            equationAfter: equationToLatex(nextEquation),
-            expectedTotalPoints: Number(question.expectedStepPoints || 6),
-          },
-          countsAttempt: false,
-          statePatch: {
-            algebraState: { equation: nextEquation, supportLevel, stepNumber: Number(normalizedRecord.algebraState?.stepNumber || 0) + 1 },
-            questionDetails: `Current equation: $${equationToLatex(nextEquation)}$`,
-          },
-        });
+        await onStepGrade(rewriteStepPayload(equation, nextEquation, {
+          kind: 'distribution',
+          label: `Distribute ${distributionState.factorText} over (${distributionState.groupText})`,
+        }));
       } finally {
         setSavingStep(false);
       }
@@ -1535,7 +1548,12 @@ export default function StepByStepAlgebra({
     setMessage(null);
     let move;
     try {
-      move = applyBalancedOperation({ equationState: equation, operation, operand, placementBySide: placementBySideOverride || placedOperationPositions });
+      const placementBySide = placementBySideOverride || placedOperationPositions;
+      // The move remembers where the student wrote it: the placement shapes
+      // the move's own sides, and a step's raw work reports it so the server
+      // recomputes the same move. (A move rebuilt from a draft has none, and
+      // was computed without one.)
+      move = { ...applyBalancedOperation({ equationState: equation, operation, operand, placementBySide }), placementBySide };
     } catch (error) {
       triggerShake();
       setMessage({ tone: 'error', text: error.message });
@@ -1565,7 +1583,7 @@ export default function StepByStepAlgebra({
     // attempt, which is a pacing decision rather than a verdict on the maths.
     const verdict = evaluateMove(move, supportLevel);
     if (verdict.countsAttempt) {
-      const result = await saveStep({ move, earned: 1, possible: 2, countsAttempt: !attemptsDoNotExpire, accepted: true });
+      const result = await saveStep({ move, action: STEP_ACTIONS.INEFFICIENT_MOVE });
       if (result?.expired) {
         setPendingMove(null);
         setMessage({ tone: 'error', text: 'That used the final attempt on this version.' });
@@ -1668,29 +1686,10 @@ export default function StepByStepAlgebra({
       try {
         if (onStepGrade) {
           setSavingStep(true);
-          await onStepGrade({
-            stepGrade: {
-              kind: 'student-cancellation',
-              label: `Cancel matching terms on the ${side} side`,
-              supportLevel,
-              productive: true,
-              accepted: true,
-              earned: 1,
-              possible: 1,
-              equationBefore: equationToLatex(beforeEquation),
-              equationAfter: equationToLatex(nextEquation),
-              expectedTotalPoints: Number(question.expectedStepPoints || 6),
-            },
-            countsAttempt: false,
-            statePatch: {
-              algebraState: {
-                equation: nextEquation,
-                supportLevel,
-                stepNumber: Number(normalizedRecord.algebraState?.stepNumber || 0) + 1,
-              },
-              questionDetails: `Current equation: $${equationToLatex(nextEquation)}$`,
-            },
-          });
+          await onStepGrade(rewriteStepPayload(beforeEquation, nextEquation, {
+            kind: 'student-cancellation',
+            label: `Cancel matching terms on the ${side} side`,
+          }));
         }
 
         pushCommittedEquation(beforeEquation, describedStep('student-cancellation', [`Cancelled matching ${model.kind === 'additive' ? 'terms' : 'factors'} on the ${side} side`], nextEquation));
@@ -1790,7 +1789,7 @@ export default function StepByStepAlgebra({
     if (!valid) {
       triggerShake();
       if (supportPolicy.inefficientMoveCostsAttempt && !embedded) {
-        const result = await saveStep({ move: pendingMove, earned: 0, possible: 1, countsAttempt: true, accepted: false });
+        const result = await saveStep({ move: pendingMove, action: STEP_ACTIONS.REJECTED_MOVE });
         setMessage({ tone: 'error', text: result?.expired ? 'The third invalid cancellation used the final attempt.' : `That side does not contain the cancellation for this move. ${result?.remainingAttempts ?? getAttemptsRemaining(normalizedRecord, maximumAttempts)} attempts remain.` });
         if (result?.expired) { setPendingMove(null); setSelectedCancellationIndices({}); }
       } else setMessage({ tone: 'growth', text: 'That side does not contain the cancellation pair. Look at the factors in the other side.' });
@@ -1825,7 +1824,7 @@ export default function StepByStepAlgebra({
     if (incorrect.length) {
       triggerShake();
       if (supportPolicy.inefficientMoveCostsAttempt && !embedded) {
-        const result = await saveStep({ move: pendingMove, earned: 0, possible: 1, countsAttempt: true, accepted: false });
+        const result = await saveStep({ move: pendingMove, action: STEP_ACTIONS.REJECTED_MOVE });
         setMessage({ tone: 'error', text: result?.expired ? 'The third incorrect simplification used the final attempt.' : `Revise the ${incorrect.map((target) => target.label.toLowerCase()).join(' and ')} simplification. Algebraically equivalent forms are accepted.` });
       } else {
         setMessage({ tone: 'growth', text: `The balanced move remains available. Revise the ${incorrect.map((target) => target.label.toLowerCase()).join(' and ')} expression; equivalent algebraic forms are accepted.` });

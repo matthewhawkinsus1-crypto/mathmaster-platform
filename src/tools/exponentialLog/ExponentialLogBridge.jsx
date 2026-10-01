@@ -2,24 +2,22 @@ import React, { useMemo } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
-import { nearlyEqual, round } from '../shared/toolMath';
+import { round } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import exponentialLogGrader from '../../../functions/shared/serverGrading/tools/exponentialLogBridge.mjs';
 import {
-  composeForwardAfterInverse,
-  composeInverseAfterForward,
   equivalentExpLogValues,
   inverseLogValue,
   inversePairFeatures,
   inversePoint,
   normalizeExponentialSpec,
-  solveExponentialLinearExponent,
-  solveLogLinearArgument,
   transformedExponentialValue,
 } from './exponentialLogMath';
 
 const inputStyle = { width: '100%', padding: 9, border: '1px solid #cfd8e6', borderRadius: 8, boxSizing: 'border-box' };
 const actionStyle = { marginTop: 14, padding: '10px 16px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer' };
-const matchesNumber = (answer, expected, tolerance = 0.01) => `${answer}`.trim() !== '' && nearlyEqual(answer, expected, tolerance);
 const displayNumber = (value) => Number.isFinite(Number(value)) ? round(value, 4) : 'undefined';
 
 const expSpecFromQuestion = (questionData = {}) => normalizeExponentialSpec(questionData.function || questionData.exponential || {
@@ -69,9 +67,13 @@ function EquivalentForms({ questionData, feedback, submit, onAction }) {
   const values = equivalentExpLogValues({ base: Number(questionData.base ?? 2), exponent: Number(questionData.exponent ?? 3) });
   const [logAnswer, setLogAnswer] = usePersistentToolState('logAnswer', '');
   const [expAnswer, setExpAnswer] = usePersistentToolState('expAnswer', '');
+  // The verdict comes from the shared grader the server runs; this view only
+  // shows it. The same work is reported live so a deadline can finalize it.
+  const work = { logAnswer, expAnswer };
+  useReportToolWork(work);
   const check = () => {
-    const checks = [matchesNumber(logAnswer, values.exponent), matchesNumber(expAnswer, values.value)];
-    submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 }, { logAnswer, expAnswer }, { mode: 'equivalentForms' });
+    const result = gradeToolCheck(exponentialLogGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'equivalentForms', parts: result.parts });
   };
   const simpleSpec = normalizeExponentialSpec({ base: values.base, a: 1, h: 0, k: 0 });
   return <ToolShell title="Exponential ↔ Log Bridge" subtitle="Translate the same relationship between exponential and logarithmic notation." badge="Algebra II · Equivalent Forms">
@@ -97,12 +99,13 @@ function SolveExponential({ questionData, feedback, submit, onAction }) {
     c: Number(questionData.equation?.c ?? -1),
     rhs: Number(questionData.equation?.rhs ?? 16),
   };
-  const solution = solveExponentialLinearExponent(equation);
   const [xAnswer, setXAnswer] = usePersistentToolState('xAnswer', '');
   const [exponentAnswer, setExponentAnswer] = usePersistentToolState('exponentAnswer', '');
+  const work = { xAnswer, exponentAnswer };
+  useReportToolWork(work);
   const check = () => {
-    const checks = [matchesNumber(xAnswer, solution.x, 0.01), matchesNumber(exponentAnswer, solution.exponentValue, 0.01)];
-    submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 }, { xAnswer, exponentAnswer }, { mode: 'solveExponential' });
+    const result = gradeToolCheck(exponentialLogGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'solveExponential', parts: result.parts });
   };
   const exponentText = `${equation.m}x ${equation.c >= 0 ? '+' : '−'} ${Math.abs(equation.c)}`;
   return <ToolShell title="Exponential ↔ Log Bridge" subtitle="Use logarithms to expose an exponent containing the unknown." badge="Algebra II · Solve Exponential">
@@ -130,12 +133,13 @@ function SolveLogarithmic({ questionData, feedback, submit, onAction }) {
     c: Number(questionData.equation?.c ?? 1),
     result: Number(questionData.equation?.result ?? 2),
   };
-  const solution = solveLogLinearArgument(equation);
   const [argumentAnswer, setArgumentAnswer] = usePersistentToolState('argumentAnswer', '');
   const [xAnswer, setXAnswer] = usePersistentToolState('xAnswer', '');
+  const work = { argumentAnswer, xAnswer };
+  useReportToolWork(work);
   const check = () => {
-    const checks = [matchesNumber(argumentAnswer, solution.argumentValue, 0.01), matchesNumber(xAnswer, solution.x, 0.01)];
-    submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 }, { argumentAnswer, xAnswer }, { mode: 'solveLogarithmic' });
+    const result = gradeToolCheck(exponentialLogGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'solveLogarithmic', parts: result.parts });
   };
   const argumentText = `${equation.m}x ${equation.c >= 0 ? '+' : '−'} ${Math.abs(equation.c)}`;
   return <ToolShell title="Exponential ↔ Log Bridge" subtitle="Rewrite a logarithmic equation exponentially, then enforce the logarithm’s positive-input domain." badge="Algebra II · Solve Logarithmic">
@@ -164,9 +168,11 @@ function InverseMode({ questionData, feedback, submit, onAction }) {
   const [inverseAnswer, setInverseAnswer] = usePersistentToolState('inverseAnswer', '');
   const [asymptote, setAsymptote] = usePersistentToolState('asymptote', '');
   const [domainSide, setDomainSide] = usePersistentToolState('domainSide', '');
+  const work = { inverseAnswer, asymptote, domainSide };
+  useReportToolWork(work);
   const check = () => {
-    const checks = [matchesNumber(inverseAnswer, sampleX, 0.01), matchesNumber(asymptote, features.logarithmVerticalAsymptote, 0.01), domainSide === features.logarithmDomainSide];
-    submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length }, { inverseAnswer, asymptote, domainSide }, { mode: 'inverse', sampleX });
+    const result = gradeToolCheck(exponentialLogGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'inverse', parts: result.parts });
   };
   return <ToolShell title="Exponential ↔ Log Bridge" subtitle="Reflect a transformed exponential into its logarithmic inverse, including domain/range and asymptotes." badge="Algebra II · Inverse Functions">
     <TaskCard question={questionData} task={'Give the features of the inverse of this exponential function.'} steps={['Swap the roles of input and output.', 'The horizontal asymptote becomes a vertical one.', 'Domain and range swap places too.']} />
@@ -190,13 +196,13 @@ function CompositionMode({ questionData, feedback, submit, onAction }) {
   const forwardAtX = transformedExponentialValue(spec, x);
   const defaultY = transformedExponentialValue(spec, Number(questionData.inverseSeedX ?? x + 1));
   const y = Number(questionData.y ?? defaultY);
-  const expectedX = composeInverseAfterForward(spec, x);
-  const expectedY = composeForwardAfterInverse(spec, y);
   const [inverseAfterForward, setInverseAfterForward] = usePersistentToolState('inverseAfterForward', '');
   const [forwardAfterInverse, setForwardAfterInverse] = usePersistentToolState('forwardAfterInverse', '');
+  const work = { inverseAfterForward, forwardAfterInverse };
+  useReportToolWork(work);
   const check = () => {
-    const checks = [matchesNumber(inverseAfterForward, expectedX, 0.01), matchesNumber(forwardAfterInverse, expectedY, 0.01)];
-    submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 }, { inverseAfterForward, forwardAfterInverse }, { mode: 'composition', x, y });
+    const result = gradeToolCheck(exponentialLogGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'composition', parts: result.parts });
   };
   return <ToolShell title="Exponential ↔ Log Bridge" subtitle="Use composition to verify that the exponential and logarithmic functions undo one another." badge="Algebra II · Inverse Composition">
     <TaskCard question={questionData} task={'Compose the function with its inverse both ways and give both results.'} steps={['Apply the function first, then its inverse.', 'Then do it in the other order.', 'Enter both results.']} />

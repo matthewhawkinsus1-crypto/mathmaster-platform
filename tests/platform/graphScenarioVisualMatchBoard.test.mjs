@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import graphScenarioMatchGrader from '../../functions/shared/serverGrading/tools/graphScenarioMatch.mjs';
+import { scenarioMatchWork } from '../../functions/shared/toolMath/scenario/scenarioWork.mjs';
+import { gradeToolCheck } from '../../src/tools/shared/sharedToolGrading.js';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const source = fs.readFileSync(new URL('../../src/GraphScenarioMatch.jsx', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../../src/GraphScenarioMatch.css', import.meta.url), 'utf8');
@@ -35,8 +39,45 @@ test('mobile swaps connector lines for tap-to-pair cards and a horizontal graph 
   assert.match(source, /graph-scenario-mobile-match-summary/);
 });
 
+/*
+ * Disconnecting and reassigning only edits the board's { scenarioId: graphId }
+ * state; every verdict is computed from that state against the question's key
+ * by the shared grader (serverGrading/tools/graphScenarioMatch.mjs), the same
+ * function the server runs. The per-scenario comparison used to be inline in
+ * this component; it moved, intact, into the grader.
+ */
 test('matched cards can be disconnected and reassigned without changing grading data', () => {
   assert.match(source, /Disconnect/);
   assert.match(source, /assignGraph\(scenario\.id, ''\)/);
-  assert.match(source, /isCorrect: matches\[scenario\.id\] === correctMatches\[scenario\.id\]/);
+
+  // The board grades its own matches — nothing else — through the shared grader.
+  const code = executableSource(source);
+  const grading = region(code, 'const work = useMemo(', 'const matchedCount', 'the board grading');
+  assert.match(grading, /const work = useMemo\(\(\) => scenarioMatchWork\(matches\), \[matches\]\);/);
+  assert.match(grading, /gradeToolCheck\(graphScenarioMatchGrader, question, work\)/);
+  assert.match(code, /^import graphScenarioMatchGrader from '\.\.\/functions\/shared\/serverGrading\/tools\/graphScenarioMatch\.mjs';$/m);
+
+  // And the grader marks each scenario by its CURRENT match against the key:
+  // a disconnected-then-reassigned board grades exactly like one matched directly.
+  const question = {
+    type: 'graphScenarioMatch',
+    scenarios: [{ id: 's1' }, { id: 's2' }],
+    graphs: [{ id: 'g1', graph: {} }, { id: 'g2', graph: {} }],
+    correctMatches: { s1: 'g1', s2: 'g2' },
+  };
+  const grade = (matches) => gradeToolCheck(graphScenarioMatchGrader, question, scenarioMatchWork(matches));
+  const direct = grade({ s1: 'g1', s2: 'g2' });
+  assert.equal(direct.isCorrect, true);
+  const swapped = grade({ s1: 'g2', s2: 'g1' });
+  assert.equal(swapped.isCorrect, false);
+  assert.deepEqual(swapped.parts.map((part) => part.isCorrect), [false, false]);
+  const disconnected = grade({ s2: 'g2' });
+  assert.equal(disconnected.isComplete, false);
+  assert.deepEqual(disconnected.parts.map((part) => [part.id, part.isComplete, part.isCorrect]), [['match:s1', false, false], ['match:s2', true, true]]);
+  const reassigned = grade({ s2: 'g2', s1: 'g1' });
+  assert.deepEqual(
+    reassigned.parts.map((part) => [part.id, part.isCorrect]),
+    direct.parts.map((part) => [part.id, part.isCorrect]),
+  );
+  assert.equal(reassigned.isCorrect, true);
 });

@@ -39,6 +39,18 @@ import {
   validateRelationTransition,
 } from './algebraRelationFoundation.js';
 import { RelationDistributionPanel, RelationLikeTermsPanel } from './RelationStructureTools.jsx';
+import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
+import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
+import { relationWorkspaceWork, workGraderForQuestion } from '../functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs';
+// A relation step's credit and its raw work: one definition, shared with the
+// server, which derives the same credit from that work.
+import {
+  STEP_ACTIONS,
+  relationStatePatch,
+  relationStepGrade,
+  relationStepWork,
+  stepActionCountsAttempt,
+} from '../functions/shared/serverGrading/stepAlgebraStepVerification.mjs';
 import { relationDistributionCandidates, relationLikeTermCandidates } from './algebraRelationStructureModel.js';
 import { useContentStableValue } from './platform/react/useContentStableValue.js';
 
@@ -636,7 +648,9 @@ export default function MultiRelationAlgebra({
   const [absoluteSplitFocusSignal, setAbsoluteSplitFocusSignal] = useState(0);
 
   const [message, setMessage] = useState(null);
-  const [representationCorrect, setRepresentationCorrect] = useState(null);
+  // The number-line work the student last CHECKED in the nested tool — the
+  // representation the shared grader marks. null until they check it.
+  const [representationWork, setRepresentationWork] = useState(null);
   const [candidateChecks, setCandidateChecks] = useState(() => initialCandidateChecksFor(draftKey));
 
   useEffect(() => {
@@ -663,7 +677,7 @@ export default function MultiRelationAlgebra({
     setAbsoluteSplitValues(['', '']);
     setAbsoluteSplitRelations(['', '']);
     setMessage(null);
-    setRepresentationCorrect(null);
+    setRepresentationWork(null);
     setCandidateChecks(initialCandidateChecksFor(draftKey));
   }, [question, draftKey]);
 
@@ -700,12 +714,27 @@ export default function MultiRelationAlgebra({
     }));
   }, [pristine, summary]);
   const requireCandidateVerification = candidateVerification.length > 0;
-  const candidateVerificationComplete = !requireCandidateVerification
-    || candidateVerification.every(({ value }) => candidateChecks[String(value)] != null);
-  const candidateVerificationCorrect = !requireCandidateVerification
-    || candidateVerification.every(({ value, valid }) => (
-      candidateChecks[String(value)] === (valid ? 'valid' : 'extraneous')
-    ));
+
+  /*
+   * THE VERDICT COMES ONLY FROM THE SHARED GRADER — the function the server
+   * runs on these same bytes (functions/shared/serverGrading/
+   * stepAlgebraWorkspaceGrading.mjs): the relation solved and with the
+   * original's solution set, every candidate classified against the ORIGINAL
+   * relation, and the checked number line re-marked against this solution.
+   */
+  const gradingWork = useMemo(() => relationWorkspaceWork({
+    relationState,
+    awaitingSymbolDecision: Boolean(pendingRelationFlip),
+    candidateChecks,
+    representation: representationWork,
+  }), [relationState, pendingRelationFlip, candidateChecks, representationWork]);
+  const sharedResult = useMemo(
+    () => gradeToolCheck(workGraderForQuestion(question), question, gradingWork),
+    [question, gradingWork],
+  );
+  const candidatePart = sharedResult.parts.find((part) => part.id === 'candidate-verification') || null;
+  const candidateVerificationComplete = !candidatePart || candidatePart.isComplete;
+  const candidateVerificationCorrect = !candidatePart || candidatePart.isCorrect;
   const verifiedSolutions = candidateVerification
     .filter(({ valid }) => valid)
     .map(({ value }) => value);
@@ -734,58 +763,32 @@ export default function MultiRelationAlgebra({
   );
   const requireRepresentations = summary.kind === 'intervals' && solutionRepresentationAsk.length > 0;
   const requiresIntervalNotation = solutionRepresentationAsk.includes('interval');
-  const fullyComplete = !pendingRelationFlip
-    && summary.solved
-    && candidateVerificationComplete
-    && (!requireRepresentations || representationCorrect === true);
-  const fullyCorrect = fullyComplete && candidateVerificationCorrect;
 
   useEffect(() => {
+    const relationText = relationStateToText(relationState);
     const candidateDetail = requireCandidateVerification
       ? ` Candidate checks: ${candidateVerification.map(({ value }) => `${relationState.variable}=${value}:${candidateChecks[String(value)] || 'unchecked'}`).join(', ')}.`
       : '';
+    const shared = answerStateFromSharedGrading(sharedResult, {
+      questionDetails: `${summary.solved ? 'Solved relation' : 'Current relation'}: ${relationText}.${candidateDetail}`,
+    });
     onStateChange?.({
-      isComplete: fullyComplete,
-      isCorrect: fullyCorrect,
-      responseKey: fullyComplete ? `${relationStateToText(relationState)}|${JSON.stringify(candidateChecks)}` : '',
-      questionDetails: `${summary.solved ? 'Solved relation' : 'Current relation'}: ${relationStateToText(relationState)}.${candidateDetail}`,
-      parts: [
-        {
-          id: 'relation-work',
-          label: 'Solve the equation or inequality',
-          isComplete: summary.solved,
-          isCorrect: summary.solved,
-          response: relationStateToText(relationState),
-        },
-        ...(requireCandidateVerification ? [{
-          id: 'candidate-verification',
-          label: 'Check candidates in the original equation',
-          isComplete: candidateVerificationComplete,
-          isCorrect: candidateVerificationComplete && candidateVerificationCorrect,
-          response: candidateVerification.map(({ value }) => `${value}:${candidateChecks[String(value)] || 'unchecked'}`).join(', '),
-        }] : []),
-        ...(requireRepresentations ? [{
-          id: 'solution-representations',
-          label: requiresIntervalNotation ? 'Graph and interval notation' : 'Graph the solution',
-          isComplete: representationCorrect !== null,
-          isCorrect: representationCorrect === true,
-          response: representationCorrect === true ? 'correct' : '',
-        }] : []),
-      ],
+      ...shared,
+      // The workspace's own response key; the raw work travels as toolResponse.
+      responseKey: shared.isComplete ? `${relationText}|${JSON.stringify(candidateChecks)}` : '',
+      // The full relation text (never the 240-character part copy), which My
+      // Math Path's raw builder reads as the final relation.
+      parts: sharedResult.graded
+        ? shared.parts.map((part) => (part.id === 'relation-work' ? { ...part, response: relationText } : part))
+        : [{ id: 'relation-work', label: 'Solve the equation or inequality', isComplete: false, isCorrect: false, response: relationText }],
     });
   }, [
     candidateChecks,
     candidateVerification,
-    candidateVerificationComplete,
-    candidateVerificationCorrect,
-    fullyComplete,
-    fullyCorrect,
     onStateChange,
     relationState,
-    representationCorrect,
     requireCandidateVerification,
-    requireRepresentations,
-    requiresIntervalNotation,
+    sharedResult,
     summary,
   ]);
 
@@ -850,7 +853,7 @@ export default function MultiRelationAlgebra({
           // created before Stage 3C.
           setRelationState(previous.relationState || previous);
           setActiveBranch(previous.relationState ? previous.activeBranch : 0);
-          setRepresentationCorrect(null);
+          setRepresentationWork(null);
           setCandidateChecks({});
           setCancellationSelection({});
           setPlacementByKey({});
@@ -886,25 +889,16 @@ export default function MultiRelationAlgebra({
     rewriteValue,
   ]);
 
-  const persistStep = async (before, after, label, kind = 'relation-step') => {
+  // `transition` is the validation context the step was checked with
+  // (validateRelationTransition): it travels in the step's raw work so the
+  // server re-runs the same check and derives the same credit.
+  const persistStep = async (before, after, label, kind = 'relation-step', transition = { kind: 'equivalentRewrite' }) => {
     if (!onStepGrade) return;
     await onStepGrade({
-      stepGrade: {
-        kind,
-        label,
-        productive: true,
-        accepted: true,
-        earned: 1,
-        possible: 1,
-        equationBefore: relationStateToLatex(before),
-        equationAfter: relationStateToLatex(after),
-        expectedTotalPoints: Number(question.expectedStepPoints || 8),
-      },
-      countsAttempt: false,
-      statePatch: {
-        algebraState: { relationState: after },
-        questionDetails: `Current relation: ${relationStateToText(after)}`,
-      },
+      stepGrade: relationStepGrade({ kind, label, before, after, question }),
+      countsAttempt: stepActionCountsAttempt(STEP_ACTIONS.RELATION_STEP),
+      statePatch: relationStatePatch(after),
+      stepWork: relationStepWork({ kind, label, before, after, transition }),
     });
   };
 
@@ -923,7 +917,7 @@ export default function MultiRelationAlgebra({
 
     setHistory((current) => [...current.slice(-59), { relationState: before, activeBranch }]);
     setRelationState(next);
-    setRepresentationCorrect(null);
+    setRepresentationWork(null);
     setCandidateChecks({});
     setCancellationSelection({});
     setDragCancellationKey(null);
@@ -932,7 +926,7 @@ export default function MultiRelationAlgebra({
     setRelationPicker(null);
     setPlacementByKey({});
     setActiveBranch((current) => Math.min(current, Math.max(0, (next.branches?.length || 1) - 1)));
-    await persistStep(before, next, label, kind);
+    await persistStep(before, next, label, kind, validationContext);
     return true;
   };
 
@@ -1033,7 +1027,7 @@ export default function MultiRelationAlgebra({
       if (flipResults.length) {
         const before = cloneRelationState(relationState);
         setRelationState(result.state);
-        setRepresentationCorrect(null);
+        setRepresentationWork(null);
         setCancellationSelection({});
         setPlacementByKey({});
         setPendingRelationFlip({
@@ -1338,7 +1332,13 @@ export default function MultiRelationAlgebra({
         activeBranch,
       }]);
       setPendingRelationFlip(null);
-      await persistStep(pending.before, next, pending.label, 'student-relation-direction');
+      await persistStep(
+        pending.before,
+        next,
+        pending.label,
+        'student-relation-direction',
+        pending.validationContext || { kind: 'equivalentRewrite' },
+      );
       setMessage({
         tone: 'success',
         text: flipResults.length > 1
@@ -1582,7 +1582,7 @@ export default function MultiRelationAlgebra({
     setAbsoluteSplitValues(['', '']);
     setAbsoluteSplitRelations(['', '']);
     setMessage(null);
-    setRepresentationCorrect(null);
+    setRepresentationWork(null);
     setCandidateChecks({});
   };
 
@@ -2791,7 +2791,9 @@ export default function MultiRelationAlgebra({
             }}
             onAction={(action, payload) => {
               if (action === 'ATTEMPT_SUBMITTED') {
-                setRepresentationCorrect(Boolean(payload?.isCorrect));
+                // Its work, not its verdict: the shared grader re-marks it
+                // against the intervals of this solved relation.
+                setRepresentationWork(payload?.response ?? null);
               }
             }}
           />

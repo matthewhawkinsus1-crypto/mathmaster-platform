@@ -6,6 +6,7 @@ import {
   buildPublicToolPayload,
   gradePathResponse,
 } from '../../functions/shared/pathToolContracts.mjs';
+import { normalizeAnalysisRequests } from '../../functions/shared/toolMath/graphWorkspace/graphWorkspaceModel.mjs';
 
 // A typed `value` analysis request, deliberately NOT an inverse-point one.
 //
@@ -59,9 +60,22 @@ test('public payload keeps typed-value semantics but does not expose the expecte
 });
 
 test('graph renderer preserves value responses as typed answers and supplies ordered-pair keys', () => {
+  // A typed `value` request must stay a typed answer — never fall through to
+  // the click-a-point branch. The workspace resolves its analysis parts with
+  // the shared normalizer (the same one the shared grader marks them with), so
+  // the behaviour is asserted there, and the workspace is held to using it.
+  const [part] = normalizeAnalysisRequests(question, question.functionSpec, {}, false);
+  assert.equal(part.kind, 'value');
+  assert.equal(part.id, 'slope');
+  assert.equal(part.responseMode, 'text', 'the authored typed-response mode is kept');
+  assert.deepEqual(part.acceptedAnswers, ['2']);
+  assert.equal('feature' in part, false, 'a value part is not a feature to click');
+  const [unmoded] = normalizeAnalysisRequests({ analysisRequests: [{ id: 'rate', kind: 'value', expected: 5 }] }, question.functionSpec, {}, false);
+  assert.equal(unmoded.responseMode, 'input', 'an unauthored value part is typed, not clicked');
+  assert.deepEqual(unmoded.acceptedAnswers, [5]);
+
   const source = readFileSync('src/InteractiveGraphWorkspace.jsx', 'utf8');
-  assert.match(source, /if \(request\.kind === 'value'\)/);
-  assert.match(source, /kind: 'value'/);
+  assert.match(source, /(?:graphWorkspaceModelFor|buildGraphWorkspaceModel)\(question, \{ analysisMode: mode === 'analysis' \}\)/);
   assert.match(source, /answerFormat=\{analysisAnswerFormatFor\(part\)\}/);
   assert.match(source, /inverse\\s\*point|inverse\\\\s\*point|inverse\\s\*point/i);
 });

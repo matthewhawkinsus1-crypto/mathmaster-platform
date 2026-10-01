@@ -19,7 +19,9 @@ import MathDisplay from '../../MathDisplay';
 import MathInput from '../../MathInput';
 import { classifyLinearSystem, exactNumberText, linearEquationForm } from './algebraicSystemsEngine.js';
 import { advanceIdleCamera, clipPlaneToCube, cubeCorners, cubeEdges, legibleCamera, planePlaneIntersection, projectPoint, projectPolygon } from './threePlaneGeometry.js';
-import { gradeMultiAnswerResponse } from '../../../functions/shared/ordinaryResponseGrading.mjs';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
 import './AlgebraicSystemMode.css';
 import './ThreePlaneWorkspace.css';
 import { spatialMisconceptionFeedback } from './spatialFeedback.js';
@@ -215,9 +217,21 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
     setResponses((current) => ({ ...current, [fieldId]: value }));
   }, [setResponses]);
 
+  // The student's interpretation — one { id, value } per answer field, the
+  // work Check grades and a deadline would submit. Reported only when this
+  // model is the question's own answer surface (not the 3D connection an
+  // algebraic outcome opens with earnedResult and no answer fields).
+  const answerSurface = !earnedResult && answerFields.length > 0;
+  const work = useMemo(() => ({
+    responses: answerFields
+      .filter((field) => field?.id !== undefined && field?.id !== null && field?.id !== '')
+      .map((field) => ({ id: field.id, value: responses?.[field.id] ?? '' })),
+  }), [answerFields, responses]);
+  useReportToolWork(work, { enabled: answerSurface });
+
   const check = () => {
-    const grade = answerFields.length ? gradeMultiAnswerResponse({ answerFields }, responses) : { isCorrect: true, isComplete: true, parts: [] };
-    submit({ isCorrect: grade.isCorrect, score: grade.isCorrect ? 1 : 0 }, responses, { mode: 'spatial', parts: grade.parts, classification: classification.type });
+    const result = gradeToolCheck(systemsWorkspaceGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'spatial', parts: result.parts });
   };
 
   const revealLabel = classification.type === 'unique' ? 'Reveal the solution point'

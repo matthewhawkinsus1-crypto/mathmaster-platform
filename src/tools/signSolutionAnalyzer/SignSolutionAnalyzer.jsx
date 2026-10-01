@@ -3,11 +3,13 @@ import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import { useRevealAnswers } from '../shared/ToolRuntimeContext';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import signSolutionGrader from '../../../functions/shared/serverGrading/tools/signSolutionAnalyzer.mjs';
 import {
   buildSignIntervals,
   evaluateRadicalEquationCandidate,
   formatSolutionPiece,
-  sameIntervalSelection,
   solutionPiecesForRelation,
   validRadicalCandidates,
 } from './signSolutionMath';
@@ -36,14 +38,22 @@ function SignChart({ questionData, feedback, submit, mode, onAction }) {
   const [selected, setSelected] = usePersistentToolState('selected', []);
   const toggle = (index) => setSelected((old) => old.includes(index) ? old.filter((value) => value !== index) : [...old, index]);
 
+  // The verdict comes from the shared grader the server runs; this chart only
+  // shows it. The same work is reported live so a deadline can finalize it.
+  // Any mode but 'rational' is the polynomial chart (denominators ignored).
+  const chartMode = mode === 'rational' ? 'rational' : 'polynomial';
+  const work = { selected };
+  useReportToolWork(work);
   const check = () => {
-    const isCorrect = sameIntervalSelection(selected, expectedIdx);
-    submit({ isCorrect, score: isCorrect ? 1 : 0 }, { selected }, { mode, relation, expectedCount: expectedIdx.length });
+    const result = gradeToolCheck(signSolutionGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: chartMode, relation, parts: result.parts });
   };
 
   const message = () => {
     if (feedback.isCorrect) return 'Correct — those are exactly the intervals where the expression satisfies the inequality.';
-    const expectedCount = feedback.metadata?.expectedCount ?? 0;
+    // How many intervals qualify steers the hint below. It is read from the
+    // chart on screen, never sent with the attempt.
+    const expectedCount = expectedIdx.length;
     const chosen = selected.length;
     if (chosen === 0) return 'Nothing is selected yet. Pick a test number inside each interval, substitute it, and see whether the result satisfies the inequality.';
     if (chosen > expectedCount) return 'You have selected more intervals than satisfy the inequality. Test one number from each selected interval and drop any that fail.';
@@ -129,10 +139,11 @@ function RadicalCheck({ questionData, feedback, submit, onAction }) {
   const expected = validRadicalCandidates(spec, candidates);
   const [selected, setSelected] = usePersistentToolState('selected', []);
   const toggle = (value) => setSelected((old) => old.includes(value) ? old.filter((entry) => entry !== value) : [...old, value]);
-  const same = (a, b) => a.length === b.length && [...a].sort((x, y) => x - y).every((value, index) => value === [...b].sort((x, y) => x - y)[index]);
+  const work = { selected };
+  useReportToolWork(work);
   const check = () => {
-    const isCorrect = same(selected, expected);
-    submit({ isCorrect, score: isCorrect ? 1 : 0 }, { selected }, { mode:'radicalCheck', expectedCount: expected.length });
+    const result = gradeToolCheck(signSolutionGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'radicalCheck', parts: result.parts });
   };
 
   const equationText = `√(${spec.radicand?.m ?? 1}x ${Number(spec.radicand?.b ?? 0) >= 0 ? '+' : '−'} ${Math.abs(Number(spec.radicand?.b ?? 0))}) = ${spec.rhs?.m ?? 0}x ${Number(spec.rhs?.b ?? 0) >= 0 ? '+' : '−'} ${Math.abs(Number(spec.rhs?.b ?? 0))}`;

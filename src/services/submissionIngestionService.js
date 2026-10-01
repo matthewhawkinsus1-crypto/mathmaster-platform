@@ -22,7 +22,7 @@ import {
   MAX_ENVELOPES_PER_CALL,
   SUBMISSION_DISPOSITION,
   normalizeSubmissionEnvelope,
-} from '../../functions/shared/submissionIngestion.mjs';
+} from '../../functions/shared/submissionEnvelope.mjs';
 
 export { MAX_ENVELOPES_PER_CALL };
 

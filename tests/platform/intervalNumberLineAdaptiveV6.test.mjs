@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { parseExactNumberLineValue } from '../../src/tools/intervalNumberLine/intervalMath.js';
+import intervalGrader from '../../functions/shared/serverGrading/tools/intervalNumberLine.mjs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const src = fs.readFileSync(
   'src/tools/intervalNumberLine/IntervalNumberLine.jsx',
@@ -21,9 +24,21 @@ test('students can type an exact endpoint instead of precision clicking', () => 
 });
 
 test('exact endpoint entry accepts fractions and roots', () => {
-  assert.match(src, /replaceLatexFractions/);
-  assert.match(src, /replaceLatexRoots/);
-  assert.match(src, /\['sqrt', 'pi', 'e'\]/);
+  // The reader moved into the shared interval math so the grader reads typed
+  // notation endpoints the same way; assert what it accepts, not its spelling.
+  assert.equal(parseExactNumberLineValue('-13/8'), -1.625);
+  assert.equal(parseExactNumberLineValue('\\frac{13}{8}'), 1.625);
+  assert.equal(parseExactNumberLineValue('-\\dfrac{13}{8}'), -1.625);
+  assert.ok(Math.abs(parseExactNumberLineValue('sqrt(5)') - Math.sqrt(5)) < 1e-9);
+  assert.equal(parseExactNumberLineValue('\\sqrt{5}'), parseExactNumberLineValue('sqrt(5)'));
+  assert.ok(Math.abs(parseExactNumberLineValue('pi') - Math.PI) < 1e-9);
+  // Numeric only: function names outside sqrt/pi/e are refused even where the
+  // evaluator underneath could compute them (cos(0) is 1 to mathjs).
+  assert.equal(parseExactNumberLineValue('cos(0)'), null);
+  assert.equal(parseExactNumberLineValue('x+1'), null);
+  // And the typed-endpoint control places what that reader returns.
+  const placeTyped = region(executableSource(src), 'const placeTypedEndpoint = () =>', 'const addRay', 'typed endpoint placement');
+  assert.match(placeTyped, /const parsed = parseExactNumberLineValue\(exactEndpoint\);[\s\S]*placeEndpoint\(parsed\);/);
 });
 
 test('plotted endpoints are draggable', () => {
@@ -38,9 +53,18 @@ test('fraction endpoints are displayed as fractions when practical', () => {
 });
 
 test('interval notation can be checked with exact fraction endpoints', () => {
-  assert.match(src, /parseFlexibleIntervalNotation/);
-  assert.match(src, /notationMatchesFlexible/);
+  // The notation stage is marked by the tool's shared grader (the server runs
+  // the same one), so the promise in the placeholder is asserted against it.
+  const question = { intervals: [{ min: -1.625, max: 1.625, minClosed: true, maxClosed: false }], ask: ['interval'] };
+  ['[-13/8, 13/8)', '\\left\\lbrack-\\frac{13}{8},\\frac{13}{8}\\right)', '[-1.625, 1.625)'].forEach((notation) => {
+    assert.equal(intervalGrader.grade(question, { notation }).isCorrect, true, notation);
+  });
+  assert.equal(intervalGrader.grade(question, { notation: '[-13/8, 13/8]' }).isCorrect, false);
   assert.match(src, /placeholder="\[-13\/8, 13\/8\)"/);
+  // The tool's Check is marked by that grader.
+  const code = executableSource(src);
+  assert.match(region(code, 'const check = () =>', 'const message = () =>', 'the Check handler'), /gradeToolCheck\(intervalNumberLineGrader, questionData, work\)/);
+  assert.match(code, /import intervalNumberLineGrader from '\.\.\/\.\.\/\.\.\/functions\/shared\/serverGrading\/tools\/intervalNumberLine\.mjs'/);
 });
 
 test('viewport is chosen for readability rather than exposing every snap tick', () => {

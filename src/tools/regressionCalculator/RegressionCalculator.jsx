@@ -4,6 +4,12 @@ import ToolShell, { TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import regressionCalculatorGrader, {
+  buildRegressionCalculatorWork,
+} from '../../../functions/shared/serverGrading/tools/regressionCalculator.mjs';
+import { resolveRegressionCalculatorMode } from '../../../functions/shared/serverGrading/declarations/regressionCalculator.mjs';
 import { cleanRegressionPoints, regressionCalculatorStats } from './regressionCalculatorMath.js';
 import './RegressionCalculator.css';
 
@@ -16,12 +22,6 @@ const isRegressionExpression = (value) => /^\s*y(?:₁|_?1)\s*[~∼]\s*m\s*x(?:�
 const validRows = (rows = []) => rows
   .filter((row) => row.every((cell) => String(cell).trim() !== '' && Number.isFinite(Number(cell))))
   .map(([x, y]) => [Number(x), Number(y)]);
-const describe = (r) => ({
-  direction: Math.abs(r) < 0.1 ? 'none' : r > 0 ? 'positive' : 'negative',
-  strength: Math.abs(r) >= 0.8 ? 'strong' : Math.abs(r) >= 0.5 ? 'moderate' : Math.abs(r) >= 0.1 ? 'weak' : 'none',
-});
-const samePairs = (left, right) => JSON.stringify([...left].sort(([ax, ay], [bx, by]) => ax - bx || ay - by))
-  === JSON.stringify([...right].sort(([ax, ay], [bx, by]) => ax - bx || ay - by));
 const boundsFor = (points) => {
   const xs = points.map(([x]) => x);
   const ys = points.map(([, y]) => y);
@@ -38,7 +38,9 @@ const boundsFor = (points) => {
 
 export default function RegressionCalculator({ questionData = {}, onAction }) {
   const source = cleanRegressionPoints(questionData.sourceData || questionData.points);
-  const sourceMode = questionData.sourceMode === 'scatterplot' ? 'scatterplot' : 'data';
+  // The same routing the grading declaration resolves, so the grader marks
+  // the view the student actually sees.
+  const sourceMode = resolveRegressionCalculatorMode(questionData);
   const [rows, setRows] = usePersistentToolState('rows', () => [EMPTY_EXPRESSION()]);
   const [selectedId, setSelectedId] = useState(null);
   const [editOpen, setEditOpen] = useState(false);
@@ -75,6 +77,13 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
   );
   const mathematicalStateRef = useRef(mathematicalState);
   mathematicalStateRef.current = mathematicalState;
+
+  // The student's work, exactly as Submit sends it and as a deadline reads it.
+  const work = useMemo(
+    () => buildRegressionCalculatorWork({ table: tablePoints, regressionRun: run, direction, strength, processEvidence }),
+    [tablePoints, run, direction, strength, processEvidence],
+  );
+  useReportToolWork(work);
 
   const clearRedo = () => {
     if (!redoStackRef.current.length) return;
@@ -310,41 +319,27 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
   };
 
   const check = () => {
-    const entered = tablePoints;
-    const expected = regressionCalculatorStats(source);
-    const interpretation = expected ? describe(expected.r) : {};
-    const raw = {
-      table: entered,
-      regressionRun: run,
-      interpretation: { direction, strength },
-      processEvidence,
-    };
-    const tableCorrect = samePairs(entered, source);
-    const parts = {
-      [sourceMode === 'scatterplot' ? 'graph-to-table' : 'data-entry']: tableCorrect,
-      'linear-regression': tableCorrect && run?.operation === 'linearRegression' && samePairs(run.table, entered),
-      'correlation-produced': tableCorrect && Math.abs(Number(run?.r) - Number(expected?.r)) <= 0.0005,
-      interpretation: questionData.requireInterpretation === false
-        || (direction === interpretation.direction && strength === interpretation.strength),
-    };
-    const required = questionData.requireInterpretation === false
-      ? Object.values(parts).slice(0, 3)
-      : Object.values(parts);
+    // The verdict is the shared grader's — the one the server records.
+    const result = gradeToolCheck(regressionCalculatorGrader, questionData, work);
     submit(
-      { isCorrect: required.every(Boolean), score: required.filter(Boolean).length / required.length },
-      raw,
-      { parts },
+      { isCorrect: result.isCorrect, score: result.score },
+      work,
+      { mode: sourceMode, parts: result.parts },
     );
   };
 
+  // Stage-aware feedback, first failing stage first. The table stage is the
+  // first part; interpretation is not a part when it is not required.
+  const feedbackParts = Array.isArray(feedback?.metadata?.parts) ? feedback.metadata.parts : [];
+  const stagePassed = (id) => feedbackParts.find((part) => part.id === id)?.isCorrect === true;
   const feedbackText = feedback && (
-    !Object.values(feedback.metadata.parts)[0]
+    feedbackParts[0]?.isCorrect !== true
       ? 'Data entry/table does not match the provided data.'
-      : !feedback.metadata.parts['linear-regression']
+      : !stagePassed('linear-regression')
         ? 'Regression setup is incomplete or invalid.'
-        : !feedback.metadata.parts['correlation-produced']
+        : !stagePassed('correlation-produced')
           ? 'A correlation value has not been produced.'
-          : !feedback.metadata.parts.interpretation
+          : feedbackParts.some((part) => part.id === 'interpretation') && !stagePassed('interpretation')
             ? 'Check the direction/strength interpretation.'
             : 'Workflow complete.'
   );

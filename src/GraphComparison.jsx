@@ -2,7 +2,10 @@ import { useEffect, useMemo } from 'react';
 import GraphDisplay from './GraphDisplay';
 import QuestionPrompt from './QuestionPrompt';
 import useUndoHistory from './useUndoHistory';
-import { matchesAcceptedText, matchesConceptGroups, stableStringify } from './scenarioResponseUtils';
+import graphComparisonGrader from '../functions/shared/serverGrading/tools/graphComparison.mjs';
+import { fieldResponsesWork } from '../functions/shared/toolMath/scenario/scenarioWork.mjs';
+import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
+import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
 
 export default function GraphComparison({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const graphs = useMemo(() => (Array.isArray(question.graphs) ? question.graphs.filter((item) => item?.graph) : []), [question.graphs]);
@@ -11,26 +14,15 @@ export default function GraphComparison({ question, onStateChange, onUndoStateCh
   const history = useUndoHistory({}, 80, draftKey ? `${draftKey}:graph-comparison` : null);
   const responses = history.value;
 
-  const parts = fields.map((field) => {
-    const response = String(responses[field.id] ?? '');
-    const isComplete = response.trim() !== '';
-    const isCorrect = field.type === 'choice'
-      ? matchesAcceptedText(response, field.acceptedAnswers || [field.answer])
-      : matchesConceptGroups(response, field.requiredConcepts || field.requiredConceptGroups || []);
-    return { id: field.id, label: field.label || field.id, isComplete, isCorrect: isComplete && isCorrect, response };
-  });
-  const isComplete = parts.length > 0 && parts.every((part) => part.isComplete);
-  const isCorrect = isComplete && parts.every((part) => part.isCorrect);
+  // The student's raw work. Each field's verdict comes ONLY from the shared
+  // grader the server also runs (serverGrading/tools/graphComparison.mjs).
+  const work = useMemo(() => fieldResponsesWork(responses), [responses]);
+  const grading = useMemo(() => gradeToolCheck(graphComparisonGrader, question, work), [question, work]);
+  const questionDetails = `${question.prompt || 'Compare the graphs.'} Responses: ${JSON.stringify(responses)}`;
 
   useEffect(() => {
-    onStateChange({
-      isComplete,
-      isCorrect,
-      responseKey: stableStringify(responses),
-      questionDetails: `${question.prompt || 'Compare the graphs.'} Responses: ${JSON.stringify(responses)}`,
-      parts,
-    });
-  }, [isComplete, isCorrect, onStateChange, question.prompt, responses]);
+    onStateChange(answerStateFromSharedGrading(grading, { questionDetails }));
+  }, [grading, questionDetails, onStateChange]);
 
   useEffect(() => {
     onUndoStateChange?.({ canUndo: history.canUndo, onUndo: history.undo, label: 'Undo the last graph-comparison response' });

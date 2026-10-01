@@ -33,6 +33,10 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { WorkViewUndoProvider, questionUndoResetKey, useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
 import { Panel, ResultPill, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
+import { solvedValuesWork, verificationSidesWork } from '../../../functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs';
 import MathDisplay from '../../MathDisplay';
 import MathInput from '../../MathInput';
 import { latexToExpression } from '../../algebraAstEngine.js';
@@ -63,7 +67,6 @@ import {
   chooseReductionSource,
   clearBackDestination,
   emptyReductionState,
-  gradeReduction,
   isolatedExpression,
   knownSolution,
   openTargetSimplification,
@@ -80,7 +83,6 @@ import {
   repairReductionState,
   resetReductionSource,
   setTokenSimplificationDraft,
-  sourceAlreadyIsolated,
   startTokenSimplification,
   substitutionToken,
   targetIsReduced,
@@ -270,32 +272,30 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
     if (value != null) apply(recordBackSolve(reduction, value, text));
   }, [apply, reduction, sourceVariable]);
 
+  /*
+   * THE STUDENT'S WORK, AS THE SHARED GRADER READS IT
+   * (functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs):
+   * every value found so far and the sides typed in each original-equation
+   * check — never the key, never a checked/valid flag. Reported live so a
+   * deadline can finalize it; Check submits this same object.
+   */
+  const work = {
+    dimension: config.dimension,
+    method: 'substitution',
+    values: solvedValuesWork(solution),
+    verification: verificationSidesWork(reduction.verification),
+  };
+  useReportToolWork(work);
+
   const readyToSubmit = phase === 'complete';
   const check = () => {
-    const grade = gradeReduction(reduction, system, reducedSolution, { requireVerification: config.requireVerification });
-    submit({ isCorrect: grade.isCorrect, score: grade.isCorrect ? 1 : 0 }, grade.solution, {
+    const result = gradeToolCheck(systemsWorkspaceGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, {
       mode: 'algebraic',
       dimension: config.dimension,
       method: 'substitution',
-      // The lineage, whole: what was isolated where, what each target became,
-      // how the reduced 2×2 was solved, and where the last value came from.
-      reduction: {
-        source: reduction.source,
-        isolatedExpression: isolated,
-        alreadyIsolated: sourceAlreadyIsolated(reduction, system),
-        tokenExpression: token,
-        targets: targets.map((equation) => ({
-          fromEquationId: equation.id,
-          reducedEquationId: reducedEquationId(reduction, system, equation.id),
-          ...reduction.targets[equation.id],
-        })),
-      },
-      reducedSystem: reduced ? { variables: reduced.variables, equations: reduced.equations.map((equation) => equation.text) } : null,
-      subsystem: subsystemState?.detail || null,
-      backSubstitution: { ...reduction.back, equation: backEquation },
-      verification: reduction.verification,
-      solution: grade.solution,
-      expected: answerKey,
+      source: reduction.source,
+      parts: result.parts,
     });
   };
 
