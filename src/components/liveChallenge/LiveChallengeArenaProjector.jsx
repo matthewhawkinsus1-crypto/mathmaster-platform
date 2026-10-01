@@ -1,22 +1,48 @@
 import { useEffect, useRef, useState } from 'react';
 import MathText from '../common/MathText.jsx';
-import { RushRaceBoard, RushRoundResultsBoard, rushSettingsLine } from './GraphFeatureRushHost.jsx';
+import { RushRaceBoard, rushSettingsLine } from './GraphFeatureRushHost.jsx';
+import {
+  ChallengeClockText,
+  ChallengeCountdown,
+  ChallengeShellStyles,
+  Confetti,
+  RoundResultsTable,
+  StandingsBoard,
+  useLowTime,
+} from './ChallengeShellParts.jsx';
 import { getGraphFeature } from '../../../functions/shared/graphFeatureRegistry.mjs';
 import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
-import { rushPlayingCount, rushRaceRows, rushScoreUnit } from '../../platform/liveChallenge/rushStandingsModel.js';
+import { rushPlayingCount, rushRaceRows } from '../../platform/liveChallenge/rushStandingsModel.js';
+import { CHALLENGE_STAGE, HOST_COMMAND, formatChallengeClock } from '../../platform/liveChallenge/challengeShellModel.js';
+import { useChallengeClock } from '../../platform/liveChallenge/challengeHooks.js';
+import { amountText, rewardSummaryLines, scorePresentation, standingsRows } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import {
   belowPodiumRows,
-  finalStandingRows,
   podiumRows,
-  projectorAnsweredCount,
-  projectorCurrentRound,
   projectorDifficultyLabel,
   projectorFamilyLabel,
   projectorGameLabel,
-  projectorRoundCount,
-  projectorScore,
   projectorShowsClosingThreshold,
 } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
+
+/*
+ * THE PROJECTOR: THE GAME AS THE WHOLE CLASS SEES IT.
+ *
+ * Built to be read from the back of a classroom on a 1366×768 projector with
+ * nothing scrolling during a round: the stage fills the screen, the clock is
+ * the biggest thing on it, and standings show the top of the class plus how
+ * many more are playing — never the bottom of the class by name.
+ *
+ * WHAT IT NEVER SHOWS. A correct answer, a graph, a target, a coordinate, a
+ * student's own response, or a real name the teacher did not choose to show
+ * (it receives the anonymous game aliases only). Classic rounds show the
+ * shared question — everyone is answering it — and only from GO.
+ *
+ * Every view derives from the room's lifecycle (useChallengeClock):
+ * lobby → countdown → round → Time! → results → … → final standings. The
+ * host's controls sit in a strip at the bottom, inside the full-screen
+ * element, so a teacher presenting full screen never has to leave it.
+ */
 
 const FAMILY_ACCENTS = Object.freeze({
   linearEquation: '#5ee7ff',
@@ -27,14 +53,24 @@ const FAMILY_ACCENTS = Object.freeze({
 });
 
 const arenaButton = {
+  minHeight: 40,
   border: '1px solid rgba(255,255,255,.22)',
   borderRadius: 12,
-  padding: '10px 14px',
+  padding: '8px 14px',
   background: 'rgba(12,18,42,.72)',
   color: '#f7f9ff',
   fontWeight: 900,
   cursor: 'pointer',
-  backdropFilter: 'blur(8px)',
+};
+
+const bigButton = {
+  ...arenaButton,
+  minHeight: 54,
+  padding: '13px 30px',
+  fontSize: 'clamp(17px, 1.6vw, 22px)',
+  border: 0,
+  background: 'linear-gradient(135deg, #536dfe, #8c52ff)',
+  boxShadow: '0 0 28px rgba(112,104,255,.3)',
 };
 
 const glassPanel = {
@@ -42,18 +78,37 @@ const glassPanel = {
   border: '1px solid rgba(163,185,255,.22)',
   boxShadow: '0 20px 50px rgba(0,0,0,.25), inset 0 1px rgba(255,255,255,.04)',
   borderRadius: 22,
+  minHeight: 0,
+  boxSizing: 'border-box',
 };
 
 const labelStyle = {
-  fontSize: 12,
+  fontSize: 'clamp(12px, 1.1vw, 15px)',
   fontWeight: 1000,
   letterSpacing: '.11em',
   textTransform: 'uppercase',
+  color: '#9cb8ff',
 };
 
-const scoreText = (row) => projectorScore(row).toLocaleString();
-
 const familyAccent = (room) => FAMILY_ACCENTS[room?.currentQuestion?.challengeFamily] || '#7aa8ff';
+
+/** How many standings rows the screen has room for without scrolling. */
+function useViewportRows() {
+  const measure = () => {
+    const height = typeof window === 'undefined' ? 900 : window.innerHeight;
+    if (height >= 1000) return 10;
+    if (height >= 860) return 8;
+    if (height >= 700) return 6;
+    return 5;
+  };
+  const [rows, setRows] = useState(measure);
+  useEffect(() => {
+    const changed = () => setRows(measure());
+    window.addEventListener('resize', changed);
+    return () => window.removeEventListener('resize', changed);
+  }, []);
+  return rows;
+}
 
 function ArenaBadge({ children, accent = '#7aa8ff' }) {
   if (!children) return null;
@@ -62,12 +117,12 @@ function ArenaBadge({ children, accent = '#7aa8ff' }) {
       display: 'inline-flex',
       alignItems: 'center',
       minHeight: 28,
-      padding: '4px 10px',
+      padding: '4px 12px',
       borderRadius: 999,
       border: `1px solid ${accent}66`,
       background: `${accent}18`,
       color: '#f7f9ff',
-      fontSize: 12,
+      fontSize: 'clamp(12px, 1.1vw, 16px)',
       fontWeight: 900,
       letterSpacing: '.035em',
       whiteSpace: 'nowrap',
@@ -90,18 +145,14 @@ function RoundProgress({ currentRound, roundCount, accent }) {
             key={round}
             title={`Round ${round}`}
             style={{
-              height: active ? 10 : 7,
+              height: active ? 9 : 6,
               flex: 1,
               minWidth: 4,
               borderRadius: 999,
               alignSelf: 'center',
-              background: complete
-                ? `linear-gradient(90deg, ${accent}, #b8c8ff)`
-                : active
-                  ? '#fff'
-                  : 'rgba(255,255,255,.14)',
+              background: complete ? `linear-gradient(90deg, ${accent}, #b8c8ff)` : active ? '#fff' : 'rgba(255,255,255,.14)',
               boxShadow: active ? `0 0 18px ${accent}` : 'none',
-              opacity: complete ? .82 : 1,
+              opacity: complete ? 0.82 : 1,
               transition: 'height 160ms ease, background 160ms ease',
             }}
           />
@@ -111,38 +162,24 @@ function RoundProgress({ currentRound, roundCount, accent }) {
   );
 }
 
-function ArenaLeaderboard({ rows = [], limit = 8, compact = false }) {
-  const shown = finalStandingRows(rows).slice(0, limit);
-  if (!shown.length) {
-    return <div style={{ color: 'rgba(235,240,255,.68)', padding: '14px 0' }}>Players will appear here as they join.</div>;
-  }
+/** The round clock, as big as the screen allows. Time left; "Time!" at zero; elapsed in an open Pace Race. */
+function ArenaClock({ room, clock, clockOffsetMs }) {
+  const low = useLowTime(room, clockOffsetMs);
+  const locked = clock.stage === CHALLENGE_STAGE.ROUND_LOCKED;
+  const paceOpen = clock.openEnded;
+  const label = locked ? 'Time!' : paceOpen ? 'Elapsed' : room?.timingMode === 'pace' ? 'Round closes in' : 'Time left';
   return (
-    <div style={{ display: 'grid', gap: compact ? 7 : 9 }}>
-      {shown.map((row) => {
-        const topThree = Number(row.rank) <= 3;
-        const rankAccent = row.rank === 1 ? '#ffd166' : row.rank === 2 ? '#cbd5e1' : row.rank === 3 ? '#d99562' : '#8ca5d9';
-        return (
-          <div
-            key={row.playerKey || `${row.rank}-${row.alias}`}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: compact ? '34px minmax(0,1fr) auto' : '42px minmax(0,1fr) auto auto',
-              gap: 10,
-              alignItems: 'center',
-              minHeight: compact ? 42 : 50,
-              padding: compact ? '7px 10px' : '9px 12px',
-              borderRadius: 14,
-              background: topThree ? `linear-gradient(90deg, ${rankAccent}18, rgba(255,255,255,.055))` : 'rgba(255,255,255,.045)',
-              border: `1px solid ${topThree ? rankAccent + '45' : 'rgba(255,255,255,.08)'}`,
-            }}
-          >
-            <strong style={{ textAlign: 'center', color: rankAccent, fontSize: compact ? 14 : 16 }}>#{row.rank}</strong>
-            <span style={{ fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#f7f9ff' }}>{row.alias}</span>
-            {!compact && <span style={{ color: 'rgba(235,240,255,.65)', fontSize: 13 }}>{row.correctCount} ✓</span>}
-            <strong style={{ fontVariantNumeric: 'tabular-nums', color: '#fff' }}>{scoreText(row)}</strong>
-          </div>
-        );
-      })}
+    <div className={low || locked ? 'mm-arena-timer mm-arena-timer-low' : 'mm-arena-timer'} data-mm-arena-clock={clock.stage} style={{
+      padding: 'clamp(10px, 1.6vh, 18px) clamp(14px, 1.6vw, 24px)',
+      textAlign: 'center',
+      borderRadius: 18,
+      background: low || locked ? 'rgba(255,87,120,.15)' : 'rgba(95,145,255,.12)',
+      border: `1px solid ${low || locked ? 'rgba(255,105,135,.5)' : 'rgba(130,165,255,.36)'}`,
+    }}>
+      <div style={{ ...labelStyle, color: low || locked ? '#ff9bb0' : '#a8c2ff' }}>{label}</div>
+      <div style={{ marginTop: 2, fontSize: 'clamp(54px, 11vh, 120px)', fontWeight: 1000, lineHeight: 1, letterSpacing: '-.04em', color: '#fff' }}>
+        {locked ? '0:00' : <ChallengeClockText room={room} clockOffsetMs={clockOffsetMs} />}
+      </div>
     </div>
   );
 }
@@ -153,7 +190,7 @@ const PODIUM_RANKS = Object.freeze({
   3: { medal: '🥉', title: '3rd Place', accent: '#d99562' },
 });
 
-function PodiumPlace({ row, place, height, revealDelay, unit = 'pts' }) {
+function PodiumPlace({ row, place, height, revealDelay, presentation, rewards = null }) {
   if (!row) return <div />;
   // The step's height and position come from its place; the medal, title and
   // number come from the player's rank, which tied players share.
@@ -161,19 +198,24 @@ function PodiumPlace({ row, place, height, revealDelay, unit = 'pts' }) {
   const { medal, accent } = PODIUM_RANKS[rank];
   const title = `${PODIUM_RANKS[rank].title}${row.tied ? ' · Tied' : ''}`;
   return (
-    <div className="mm-arena-podium-place" style={{ animationDelay: `${revealDelay}ms`, alignSelf: 'end' }}>
+    <div className="mm-arena-podium-place" data-mm-podium={place} style={{ animationDelay: `${revealDelay}ms`, alignSelf: 'end', minWidth: 0 }}>
       <div style={{
-        padding: place === 1 ? '18px 16px 16px' : '14px 14px 13px',
+        padding: place === 1 ? '16px 14px 14px' : '12px 12px 11px',
         borderRadius: '20px 20px 10px 10px',
         textAlign: 'center',
         background: `linear-gradient(160deg, ${accent}28, rgba(255,255,255,.055))`,
         border: `1px solid ${accent}70`,
         boxShadow: place === 1 ? `0 0 38px ${accent}25` : '0 16px 30px rgba(0,0,0,.2)',
       }}>
-        <div aria-hidden="true" style={{ fontSize: place === 1 ? 42 : 32, lineHeight: 1 }}>{medal}</div>
-        <div style={{ ...labelStyle, marginTop: 7, color: accent }}>{title}</div>
-        <div style={{ marginTop: 6, fontWeight: 1000, fontSize: place === 1 ? 23 : 18, overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.alias}</div>
-        <div style={{ marginTop: 5, color: 'rgba(240,244,255,.74)', fontWeight: 800 }}>{scoreText(row)} {unit}</div>
+        <div aria-hidden="true" style={{ fontSize: place === 1 ? 'clamp(34px, 5vh, 46px)' : 'clamp(28px, 4vh, 36px)', lineHeight: 1 }}>{medal}</div>
+        <div style={{ ...labelStyle, marginTop: 6, color: accent }}>{title}</div>
+        <div style={{ marginTop: 5, fontWeight: 1000, fontSize: place === 1 ? 'clamp(22px, 2.4vw, 32px)' : 'clamp(18px, 1.9vw, 26px)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#fff' }}>{row.alias}</div>
+        <div style={{ marginTop: 4, color: 'rgba(240,244,255,.8)', fontWeight: 800, fontSize: 'clamp(14px, 1.3vw, 18px)' }}>{amountText(row.score, presentation.total)}</div>
+        {rewards && rewards.map((reward) => (
+          <div key={reward.rewardCode} style={{ marginTop: 6, fontWeight: 900, color: '#ffd166', fontSize: 'clamp(13px, 1.2vw, 16px)' }}>
+            {reward.rewardCode === 'practicePass' ? '🎟' : reward.rewardCode === 'badge' ? '🏅' : '⭐'} {reward.label}
+          </div>
+        ))}
       </div>
       <div style={{
         height,
@@ -184,7 +226,7 @@ function PodiumPlace({ row, place, height, revealDelay, unit = 'pts' }) {
         border: `1px solid ${accent}55`,
         borderTop: 0,
         color: '#fff',
-        fontSize: place === 1 ? 38 : 29,
+        fontSize: place === 1 ? 'clamp(30px, 4.5vh, 40px)' : 'clamp(24px, 3.5vh, 30px)',
         fontWeight: 1000,
         textShadow: '0 3px 12px rgba(0,0,0,.35)',
       }}>
@@ -194,36 +236,32 @@ function PodiumPlace({ row, place, height, revealDelay, unit = 'pts' }) {
   );
 }
 
-function FinalPodium({ leaderboard = [], unit = 'pts' }) {
+function FinalPodium({ leaderboard = [], presentation, rewardsByKey = null, rewardSummary = null, rows = 6 }) {
   const podium = podiumRows(leaderboard);
   const remaining = belowPodiumRows(leaderboard).slice(0, 9);
-
+  const shownBelow = remaining.slice(0, Math.max(0, rows - 1));
+  const lines = rewardSummaryLines(rewardSummary);
   return (
-    <div className="mm-arena-finish" style={{ display: 'grid', gap: 24 }}>
-      <div style={{ textAlign: 'center', paddingTop: 6 }}>
-        <div style={{ ...labelStyle, color: '#9cb8ff' }}>Challenge Complete</div>
-        <h2 style={{ margin: '6px 0 0', fontSize: 'clamp(32px, 5vw, 58px)', lineHeight: 1, letterSpacing: '-.025em' }}>Final Podium</h2>
-        <div style={{ marginTop: 8, color: 'rgba(236,241,255,.66)', fontWeight: 800 }}>Top finishers take the arena.</div>
+    <div className="mm-arena-finish" style={{ display: 'grid', gridTemplateRows: 'auto auto minmax(0,1fr)', gap: 'clamp(10px, 1.8vh, 20px)', minHeight: 0, height: '100%' }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={labelStyle}>Challenge Complete</div>
+        {/* Its own colour: the global h2 rule (index.css) would paint it dark on the arena. */}
+        <h2 style={{ margin: '4px 0 0', fontSize: 'clamp(32px, 6vh, 58px)', lineHeight: 1, letterSpacing: '-.025em', color: '#f7f9ff', fontWeight: 1000 }}>Final Podium</h2>
+        <div style={{ marginTop: 6, color: 'rgba(236,241,255,.72)', fontWeight: 800, fontSize: 'clamp(14px, 1.4vw, 19px)' }}>
+          {presentation.placementPoints ? 'Ranked by championship points.' : `Ranked by ${presentation.total.long}.`}{lines.length ? ` Rewards: ${lines.join(' · ')}.` : ''}
+        </div>
       </div>
-
-      <div style={{
-        maxWidth: 900,
-        width: '100%',
-        margin: '0 auto',
-        display: 'grid',
-        gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.12fr) minmax(0,1fr)',
-        gap: 14,
-        alignItems: 'end',
-      }}>
-        <PodiumPlace row={podium.second} place={2} height={72} revealDelay={80} unit={unit} />
-        <PodiumPlace row={podium.first} place={1} height={112} revealDelay={620} unit={unit} />
-        <PodiumPlace row={podium.third} place={3} height={52} revealDelay={350} unit={unit} />
+      <div style={{ maxWidth: 940, width: '100%', margin: '0 auto', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.12fr) minmax(0,1fr)', gap: 14, alignItems: 'end' }}>
+        <PodiumPlace row={podium.second} place={2} height="clamp(44px, 8vh, 72px)" revealDelay={80} presentation={presentation} rewards={rewardsByKey?.get(podium.second?.playerKey) || null} />
+        <PodiumPlace row={podium.first} place={1} height="clamp(70px, 12vh, 112px)" revealDelay={620} presentation={presentation} rewards={rewardsByKey?.get(podium.first?.playerKey) || null} />
+        <PodiumPlace row={podium.third} place={3} height="clamp(32px, 6vh, 52px)" revealDelay={350} presentation={presentation} rewards={rewardsByKey?.get(podium.third?.playerKey) || null} />
       </div>
-
-      {remaining.length > 0 && (
-        <section style={{ ...glassPanel, padding: 18, maxWidth: 820, width: '100%', margin: '0 auto' }}>
-          <div style={{ ...labelStyle, color: '#9cb8ff', marginBottom: 10 }}>Final Standings</div>
-          <ArenaLeaderboard rows={remaining} limit={9} compact />
+      {shownBelow.length > 0 && (
+        <section style={{ ...glassPanel, padding: 'clamp(10px, 1.6vh, 16px)', maxWidth: 860, width: '100%', margin: '0 auto', overflow: 'hidden' }}>
+          <StandingsBoard rows={standingsRows(shownBelow)} presentation={presentation} look="projector" limit={shownBelow.length} showMovement={false} rewardsByKey={rewardsByKey} label="Final standings" />
+          {belowPodiumRows(leaderboard).length > shownBelow.length && (
+            <div style={{ marginTop: 6, color: 'rgba(236,241,255,.7)', fontWeight: 800 }}>Everyone sees their own final place on their device.</div>
+          )}
         </section>
       )}
     </div>
@@ -232,124 +270,114 @@ function FinalPodium({ leaderboard = [], unit = 'pts' }) {
 
 function LobbyView({ room, leaderboard, joinedCount, busy, onStart }) {
   const eligible = Math.max(0, Number(room?.eligibleCount) || 0);
-  const players = finalStandingRows(leaderboard).slice(0, 14);
+  const names = leaderboard.map((row) => ({ key: row.playerKey, alias: row.alias }));
+  // Every name that fits; a big class shrinks the chips before it hides anyone.
+  const shown = names.slice(0, 48);
+  const dense = names.length > 24;
+  const lines = rewardSummaryLines(room?.rewardSummary);
   return (
-    <div className="mm-arena-lobby-grid" style={{ minHeight: '62vh', display: 'grid', gridTemplateColumns: 'minmax(0,1.15fr) minmax(300px,.85fr)', gap: 22, alignItems: 'stretch' }}>
-      <section style={{ ...glassPanel, padding: 'clamp(24px, 5vw, 58px)', display: 'grid', alignContent: 'center', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+    <div className="mm-arena-lobby-grid" style={{ height: '100%', minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(320px,1.15fr)', gap: 'clamp(12px, 1.6vw, 22px)' }}>
+      <section style={{ ...glassPanel, padding: 'clamp(18px, 3vw, 44px)', display: 'grid', alignContent: 'center', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
         <div className="mm-arena-orb mm-arena-orb-a" />
         <div className="mm-arena-orb mm-arena-orb-b" />
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <div style={{ ...labelStyle, color: '#8fb2ff' }}>Arena Lobby</div>
-          <div style={{ marginTop: 10, fontSize: 'clamp(76px, 12vw, 150px)', lineHeight: .85, fontWeight: 1000, letterSpacing: '-.06em' }}>{joinedCount}</div>
-          <div style={{ marginTop: 12, fontSize: 24, fontWeight: 900 }}>students ready</div>
-          {eligible > 0 && <div style={{ marginTop: 6, color: 'rgba(236,241,255,.6)', fontWeight: 700 }}>{joinedCount} of {eligible} invited</div>}
-          <div style={{ marginTop: 28, display: 'inline-flex', alignItems: 'center', gap: 9, padding: '10px 14px', borderRadius: 999, background: 'rgba(99,226,255,.1)', border: '1px solid rgba(99,226,255,.28)', color: '#c8f6ff', fontWeight: 900 }}>
+          <div style={labelStyle}>Arena Lobby</div>
+          <div data-mm-lobby-count={joinedCount} style={{ marginTop: 8, fontSize: 'clamp(76px, 17vh, 150px)', lineHeight: 0.85, fontWeight: 1000, letterSpacing: '-.06em' }}>{joinedCount}</div>
+          <div style={{ marginTop: 10, fontSize: 'clamp(20px, 2.2vw, 28px)', fontWeight: 900 }}>{joinedCount === 1 ? 'student ready' : 'students ready'}</div>
+          {eligible > 0 && <div style={{ marginTop: 4, color: 'rgba(236,241,255,.65)', fontWeight: 700 }}>{joinedCount} of {eligible} invited</div>}
+          <div style={{ marginTop: 18, color: '#dbe6ff', fontWeight: 800, fontSize: 'clamp(15px, 1.5vw, 20px)', lineHeight: 1.4 }}>
+            Open MathMaster and tap <strong>Live Challenge</strong> on your dashboard.
+          </div>
+          {lines.length > 0 && <div style={{ marginTop: 10, color: '#ffd166', fontWeight: 900, fontSize: 'clamp(15px, 1.5vw, 20px)' }}>🏆 {lines.join(' · ')}</div>}
+          <div style={{ marginTop: 18, display: 'inline-flex', alignItems: 'center', gap: 9, padding: '10px 14px', borderRadius: 999, background: 'rgba(99,226,255,.1)', border: '1px solid rgba(99,226,255,.28)', color: '#c8f6ff', fontWeight: 900 }}>
             <span className="mm-arena-pulse" /> Waiting for teacher to start
           </div>
-          {typeof onStart === 'function' && <div style={{ marginTop: 24 }}>
-            <button type="button" disabled={joinedCount < 1 || busy === 'start'} onClick={onStart} style={{ ...arenaButton, padding: '15px 28px', fontSize: 18, background: 'linear-gradient(135deg, #536dfe, #8c52ff)', opacity: joinedCount < 1 || busy === 'start' ? .5 : 1 }}>
+          {typeof onStart === 'function' && <div style={{ marginTop: 18 }}>
+            <button type="button" disabled={joinedCount < 1 || busy === 'start'} onClick={onStart} style={{ ...bigButton, opacity: joinedCount < 1 || busy === 'start' ? 0.5 : 1 }}>
               {busy === 'start' ? 'Starting Challenge…' : 'Start Challenge'}
             </button>
           </div>}
         </div>
       </section>
 
-      <section style={{ ...glassPanel, padding: 20 }}>
-        <div style={{ ...labelStyle, color: '#9cb8ff', marginBottom: 12 }}>Contestants</div>
-        {players.length ? (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {players.map((row) => (
-              <span key={row.playerKey || row.alias} style={{ padding: '9px 12px', borderRadius: 999, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.09)', fontWeight: 900 }}>
-                {row.alias}
+      <section style={{ ...glassPanel, padding: 'clamp(14px, 1.6vw, 22px)', overflow: 'hidden', display: 'grid', gridTemplateRows: 'auto minmax(0,1fr)', gap: 12 }}>
+        <div style={labelStyle}>Contestants</div>
+        {shown.length ? (
+          <div style={{ display: 'flex', gap: dense ? 6 : 9, flexWrap: 'wrap', alignContent: 'flex-start', overflow: 'hidden' }}>
+            {shown.map(({ key, alias }) => (
+              <span key={key || alias} style={{ padding: dense ? '6px 10px' : '9px 13px', borderRadius: 999, background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)', fontWeight: 900, fontSize: dense ? 'clamp(13px, 1.2vw, 16px)' : 'clamp(15px, 1.5vw, 20px)' }}>
+                {alias}
               </span>
             ))}
+            {names.length > shown.length && <span style={{ padding: '6px 10px', color: 'rgba(236,241,255,.7)', fontWeight: 900 }}>+{names.length - shown.length} more</span>}
           </div>
-        ) : <div style={{ color: 'rgba(236,241,255,.62)' }}>Players appear here as they join.</div>}
+        ) : <div style={{ color: 'rgba(236,241,255,.62)', fontSize: 'clamp(15px, 1.5vw, 20px)' }}>Players appear here as they join.</div>}
       </section>
     </div>
   );
 }
 
-function RunningView({ room, leaderboard, joinedCount, remainingMs, elapsedMs, canAdvance, busy, onAdvance }) {
-  const round = projectorCurrentRound(room);
-  const roundCount = projectorRoundCount(room);
-  const answered = projectorAnsweredCount(leaderboard, Number(room?.currentRound) || 0);
+function CountdownView({ room, clock }) {
+  const rush = room?.challengeMode === RUSH_MODE_ID;
+  return (
+    <section style={{ ...glassPanel, height: '100%', display: 'grid', placeItems: 'center' }}>
+      <ChallengeCountdown
+        clock={clock}
+        look="projector"
+        title={clock.isReplay ? `Second Chance · Final round ${clock.replayNumber}` : `Round ${clock.roundNumber} of ${clock.roundCount}`}
+        detail={rush ? 'Everyone gets their own graphs' : 'Eyes on your own screen'}
+      />
+    </section>
+  );
+}
+
+/** A classic round: the shared question (from GO), the clock, who has locked in, the live board. */
+function RunningView({ room, clock, clockOffsetMs, leaderboard, presentation, joinedCount, answeredCount, rows }) {
   const family = projectorFamilyLabel(room);
   const difficulty = projectorDifficultyLabel(room);
   const accent = familyAccent(room);
-  const paceOpen = room?.timingMode === 'pace' && !room?.roundEndsAt && !room?.endsAt;
-  const lowTime = !paceOpen && Number(remainingMs) <= 10000;
-  const roundComplete = !paceOpen && Number(remainingMs) <= 0;
-  const advanceAvailable = canAdvance;
-  const finalRound = Number(room?.currentRound) + 1 >= projectorRoundCount(room);
-  const replay = room?.secondChanceOf != null;
-  const replayOrdinal = Math.max(1, Number(room?.finalRoundNumber) || 1);
-
+  const locked = clock.stage === CHALLENGE_STAGE.ROUND_LOCKED;
+  const prompt = String(room?.currentQuestion?.prompt || '');
+  const promptSize = prompt.length > 220 ? 'clamp(20px, 3vh, 30px)' : prompt.length > 120 ? 'clamp(24px, 3.8vh, 38px)' : 'clamp(28px, 5vh, 48px)';
+  const answeredShare = joinedCount > 0 ? Math.min(100, Math.round((answeredCount / joinedCount) * 100)) : 0;
   return (
-    <div style={{ display: 'grid', gap: 18 }}>
-      <RoundProgress currentRound={round} roundCount={roundCount} accent={accent} />
-      <div className="mm-arena-running-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.42fr) minmax(300px,.78fr)', gap: 20, alignItems: 'stretch' }}>
-        <section style={{ ...glassPanel, padding: 'clamp(20px, 3vw, 34px)', display: 'grid', alignContent: 'space-between', minHeight: '58vh' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
-              <ArenaBadge accent={accent}>{replay ? `FINAL ROUND ${replayOrdinal}` : `Round ${round} / ${roundCount}`}</ArenaBadge>
-              {replay && <ArenaBadge accent="#ffd166">SECOND CHANCE</ArenaBadge>}
-              <ArenaBadge accent={accent}>{family}</ArenaBadge>
-              {difficulty && <ArenaBadge accent="#b79cff">{difficulty}</ArenaBadge>}
-            </div>
-            <div style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 18, flexWrap: 'wrap' }}>
-              <div>
-                <div style={{ ...labelStyle, color: 'rgba(236,241,255,.54)' }}>Solve Now</div>
-                <MathText
-                  as="div"
-                  style={{ marginTop: 12, whiteSpace: 'pre-wrap', fontSize: 'clamp(25px, 3vw, 40px)', lineHeight: 1.38, fontWeight: 900, color: '#fff' }}
-                >
-                  {room?.currentQuestion?.prompt}
-                </MathText>
-              </div>
-              <div className={lowTime ? 'mm-arena-timer mm-arena-timer-low' : 'mm-arena-timer'} style={{
-                minWidth: 170,
-                padding: '15px 18px',
-                textAlign: 'center',
-                borderRadius: 18,
-                background: lowTime ? 'rgba(255,87,120,.13)' : 'rgba(95,145,255,.12)',
-                border: `1px solid ${lowTime ? 'rgba(255,105,135,.46)' : 'rgba(130,165,255,.36)'}`,
-              }}>
-                <div style={{ ...labelStyle, color: lowTime ? '#ff9bb0' : '#a8c2ff' }}>{paceOpen ? 'Elapsed' : roundComplete ? 'Round Complete' : room?.timingMode === 'pace' ? 'Round Closes In' : 'Time Left'}</div>
-                <div style={{ marginTop: 3, fontSize: 'clamp(45px, 6vw, 78px)', fontWeight: 1000, lineHeight: 1, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.05em' }}>
-                  {formatArenaClock(paceOpen ? elapsedMs : remainingMs)}
-                </div>
-              </div>
-            </div>
+    <div className="mm-arena-running-grid" style={{ height: '100%', minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1.45fr) minmax(320px,.85fr)', gap: 'clamp(12px, 1.6vw, 20px)' }}>
+      <section style={{ ...glassPanel, padding: 'clamp(16px, 2.4vw, 32px)', display: 'grid', gridTemplateRows: 'auto minmax(0,1fr) auto', gap: 'clamp(10px, 1.6vh, 18px)', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
+          <ArenaBadge accent={accent}>{clock.isReplay ? `FINAL ROUND ${clock.replayNumber}` : `Round ${clock.roundNumber} / ${clock.roundCount}`}</ArenaBadge>
+          {clock.isReplay && <ArenaBadge accent="#ffd166">SECOND CHANCE</ArenaBadge>}
+          <ArenaBadge accent={accent}>{family}</ArenaBadge>
+          {difficulty && <ArenaBadge accent="#b79cff">{difficulty}</ArenaBadge>}
+        </div>
+        <div style={{ minHeight: 0, overflow: 'auto' }}>
+          <div style={labelStyle}>{locked ? 'Time is up' : 'Solve now'}</div>
+          <MathText
+            as="div"
+            style={{ marginTop: 10, whiteSpace: 'pre-wrap', fontSize: promptSize, lineHeight: 1.32, fontWeight: 900, color: '#fff' }}
+          >
+            {room?.currentQuestion?.prompt}
+          </MathText>
+        </div>
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 'clamp(14px, 1.4vw, 19px)', fontWeight: 900, color: 'rgba(236,241,255,.78)' }}>
+            <span>Locked in</span><span data-mm-locked-in={answeredCount}>{answeredCount} / {joinedCount}</span>
           </div>
-          <div style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-            <div style={{ minWidth: 220, flex: 1 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 13, fontWeight: 900, color: 'rgba(236,241,255,.68)' }}>
-                <span>Locked in</span><span>{answered} / {joinedCount}</span>
-              </div>
-              <div style={{ height: 10, marginTop: 7, background: 'rgba(255,255,255,.08)', borderRadius: 999, overflow: 'hidden' }}>
-                <div style={{ width: `${joinedCount > 0 ? Math.min(100, Math.round(answered / joinedCount * 100)) : 0}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${accent}, #b8c8ff)`, transition: 'width 200ms ease' }} />
-              </div>
-            </div>
-            <div style={{ color: 'rgba(236,241,255,.54)', fontSize: 12, fontWeight: 800 }}>Scores update as answers lock.</div>
+          <div style={{ height: 12, marginTop: 7, background: 'rgba(255,255,255,.08)', borderRadius: 999, overflow: 'hidden' }}>
+            <div style={{ width: `${answeredShare}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${accent}, #b8c8ff)`, transition: 'width 200ms ease' }} />
           </div>
-        </section>
+          <div style={{ marginTop: 8, color: 'rgba(236,241,255,.6)', fontSize: 'clamp(12px, 1.1vw, 15px)', fontWeight: 800 }}>
+            {locked ? 'Collecting the last answers — results next.' : 'Scores update as answers lock.'}
+          </div>
+        </div>
+      </section>
 
-        <section style={{ ...glassPanel, padding: 18, minHeight: '58vh' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline', marginBottom: 12 }}>
-            <div style={{ ...labelStyle, color: '#9cb8ff' }}>Live Standings</div>
-            <div style={{ color: 'rgba(236,241,255,.5)', fontSize: 12, fontWeight: 800 }}>{joinedCount} playing</div>
-          </div>
-          <ArenaLeaderboard rows={leaderboard} limit={8} />
-        </section>
-      </div>
-      {advanceAvailable && typeof onAdvance === 'function' && (
-        <section aria-label="Round controls" style={{ ...glassPanel, padding: 18, display: 'flex', justifyContent: 'center' }}>
-          <button type="button" disabled={busy === 'advance'} onClick={onAdvance} style={{ ...arenaButton, padding: '16px 30px', fontSize: 19, background: 'linear-gradient(135deg, #536dfe, #8c52ff)', boxShadow: '0 0 28px rgba(112,104,255,.3)', opacity: busy === 'advance' ? .55 : 1 }}>
-            {busy === 'advance' ? 'Loading Next Round…' : replay ? (room.hasAdditionalReplay ? 'Next Final Round' : 'Finish & Show Final Standings') : finalRound ? 'Finish & Show Final Standings' : 'Next Round'}
-          </button>
-        </section>
-      )}
+      <section style={{ display: 'grid', gridTemplateRows: 'auto minmax(0,1fr)', gap: 'clamp(10px, 1.4vh, 16px)', minHeight: 0 }}>
+        <ArenaClock room={room} clock={clock} clockOffsetMs={clockOffsetMs} />
+        <div style={{ ...glassPanel, padding: 'clamp(10px, 1.4vw, 18px)', overflow: 'hidden' }}>
+          <div style={{ ...labelStyle, marginBottom: 10 }}>{presentation.placementPoints ? 'Championship' : 'Live standings'}</div>
+          <StandingsBoard rows={standingsRows(leaderboard)} presentation={presentation} look="projector" limit={rows} showMovement={false} label="Live standings" />
+        </div>
+      </section>
     </div>
   );
 }
@@ -357,113 +385,135 @@ function RunningView({ room, leaderboard, joinedCount, remainingMs, elapsedMs, c
 /*
  * GRAPH FEATURE RUSH ON THE PROJECTOR. Every student has their own graphs, so
  * the room sees the race — graphs completed this round — and never a graph or
- * an answer. When the round closes: its results, then the championship.
+ * an answer.
  */
-function RushRunningView({ room, players, leaderboard, joinedCount, remainingMs, canAdvance, busy, onAdvance }) {
-  const round = projectorCurrentRound(room);
-  const roundCount = projectorRoundCount(room);
+function RushRunningView({ room, clock, clockOffsetMs, players, joinedCount, rows }) {
   const roundIndex = Number(room?.currentRound) || 0;
-  const closed = room?.roundState === 'closed';
-  const accent = '#5ee7ff';
-  const lowTime = !closed && Number(remainingMs) <= 10000;
-  const finalRound = roundIndex + 1 >= roundCount;
+  const locked = clock.stage === CHALLENGE_STAGE.ROUND_LOCKED;
   const playing = rushPlayingCount(players, roundIndex);
   const graphs = rushRaceRows(players, roundIndex).reduce((sum, row) => sum + row.completed, 0);
   const features = (room?.graphFeatureRush?.config?.features || []).map((id) => getGraphFeature(id)?.shortLabel || id);
-  const unit = rushScoreUnit(room?.scoringStrategyId);
   return (
-    <div style={{ display: 'grid', gap: 18 }}>
-      <RoundProgress currentRound={round} roundCount={roundCount} accent={accent} />
-      <div className="mm-arena-running-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.2fr) minmax(300px,1fr)', gap: 20, alignItems: 'stretch' }}>
-        <section style={{ ...glassPanel, padding: 'clamp(20px, 3vw, 34px)', display: 'grid', alignContent: 'space-between', minHeight: '58vh' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
-              <ArenaBadge accent={accent}>{`Round ${round} / ${roundCount}`}</ArenaBadge>
-              {features.map((feature) => <ArenaBadge key={feature} accent="#b79cff">{feature}</ArenaBadge>)}
-            </div>
-            <div style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 18, flexWrap: 'wrap' }}>
-              <div>
-                <div style={{ ...labelStyle, color: 'rgba(236,241,255,.54)' }}>{closed ? 'Round complete' : 'Find the features'}</div>
-                <div style={{ marginTop: 12, fontSize: 'clamp(25px, 3vw, 40px)', lineHeight: 1.3, fontWeight: 900, color: '#f7f9ff' }}>
-                  {closed ? `${graphs} graphs completed this round` : 'Everyone has their own graphs. Tap the features. Go!'}
-                </div>
-                <div style={{ marginTop: 10, color: 'rgba(236,241,255,.62)', fontWeight: 800 }}>{rushSettingsLine(room)}</div>
-              </div>
-              {!closed && (
-                <div className={lowTime ? 'mm-arena-timer mm-arena-timer-low' : 'mm-arena-timer'} style={{
-                  minWidth: 170,
-                  padding: '15px 18px',
-                  textAlign: 'center',
-                  borderRadius: 18,
-                  background: lowTime ? 'rgba(255,87,120,.13)' : 'rgba(95,145,255,.12)',
-                  border: `1px solid ${lowTime ? 'rgba(255,105,135,.46)' : 'rgba(130,165,255,.36)'}`,
-                }}>
-                  <div style={{ ...labelStyle, color: lowTime ? '#ff9bb0' : '#a8c2ff' }}>{Number(remainingMs) <= 0 ? 'Time!' : 'Time Left'}</div>
-                  <div style={{ marginTop: 3, fontSize: 'clamp(45px, 6vw, 78px)', fontWeight: 1000, lineHeight: 1, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.05em' }}>
-                    {formatArenaClock(remainingMs)}
-                  </div>
-                </div>
-              )}
-            </div>
+    <div className="mm-arena-running-grid" style={{ height: '100%', minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1.2fr) minmax(320px,1fr)', gap: 'clamp(12px, 1.6vw, 20px)' }}>
+      <section style={{ ...glassPanel, padding: 'clamp(16px, 2.4vw, 32px)', display: 'grid', gridTemplateRows: 'auto minmax(0,1fr) auto', gap: 14, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
+          <ArenaBadge accent="#5ee7ff">{`Round ${clock.roundNumber} / ${clock.roundCount}`}</ArenaBadge>
+          {features.map((feature) => <ArenaBadge key={feature} accent="#b79cff">{feature}</ArenaBadge>)}
+        </div>
+        <div style={{ alignSelf: 'center' }}>
+          <div style={labelStyle}>{locked ? 'Time is up' : 'Find the features'}</div>
+          <div style={{ marginTop: 10, fontSize: 'clamp(28px, 5vh, 48px)', lineHeight: 1.2, fontWeight: 900, color: '#f7f9ff' }}>
+            {locked ? 'Saving the last taps — results next.' : 'Everyone has their own graphs. Tap the features. Go!'}
           </div>
-          {closed ? (
-            <div style={{ marginTop: 22 }}>
-              <div style={{ ...labelStyle, color: '#9cb8ff', marginBottom: 10 }}>Round {round} results{unit.placement ? ' · championship points' : ''}</div>
-              <RushRoundResultsBoard players={players} roundIndex={roundIndex} scoringStrategyId={room?.scoringStrategyId} limit={6} look="projector" />
-            </div>
-          ) : (
-            <div style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap', color: 'rgba(236,241,255,.68)', fontWeight: 900 }}>
-              <span>{playing} of {joinedCount} racing</span>
-              <span>{graphs} graphs completed</span>
-            </div>
-          )}
-        </section>
-
-        <section style={{ ...glassPanel, padding: 18, minHeight: '58vh' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline', marginBottom: 12 }}>
-            <div style={{ ...labelStyle, color: '#9cb8ff' }}>{closed ? (unit.placement ? 'Championship' : 'Standings') : 'Live Race · graphs this round'}</div>
-            <div style={{ color: 'rgba(236,241,255,.5)', fontSize: 12, fontWeight: 800 }}>{joinedCount} playing</div>
-          </div>
-          {closed ? <ArenaLeaderboard rows={leaderboard} limit={8} /> : <RushRaceBoard players={players} roundIndex={roundIndex} limit={8} look="projector" />}
-        </section>
-      </div>
-      {closed && canAdvance && typeof onAdvance === 'function' && (
-        <section aria-label="Round controls" style={{ ...glassPanel, padding: 18, display: 'flex', justifyContent: 'center' }}>
-          <button type="button" disabled={busy === 'advance'} onClick={onAdvance} style={{ ...arenaButton, padding: '16px 30px', fontSize: 19, background: 'linear-gradient(135deg, #536dfe, #8c52ff)', boxShadow: '0 0 28px rgba(112,104,255,.3)', opacity: busy === 'advance' ? .55 : 1 }}>
-            {busy === 'advance' ? 'Loading Next Round…' : finalRound ? 'Finish & Show Final Standings' : 'Next Round'}
-          </button>
-        </section>
-      )}
+          <div style={{ marginTop: 10, color: 'rgba(236,241,255,.68)', fontWeight: 800, fontSize: 'clamp(14px, 1.4vw, 19px)' }}>{rushSettingsLine(room)}</div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', color: 'rgba(236,241,255,.78)', fontWeight: 900, fontSize: 'clamp(15px, 1.5vw, 20px)' }}>
+          <span>{playing} of {joinedCount} racing</span>
+          <span>{graphs} {graphs === 1 ? 'graph' : 'graphs'} completed</span>
+        </div>
+      </section>
+      <section style={{ display: 'grid', gridTemplateRows: 'auto minmax(0,1fr)', gap: 'clamp(10px, 1.4vh, 16px)', minHeight: 0 }}>
+        <ArenaClock room={room} clock={clock} clockOffsetMs={clockOffsetMs} />
+        <div style={{ ...glassPanel, padding: 'clamp(10px, 1.4vw, 18px)', overflow: 'hidden' }}>
+          <div style={{ ...labelStyle, marginBottom: 10 }}>Live race · graphs this round</div>
+          <RushRaceBoard players={players} roundIndex={roundIndex} limit={rows} look="projector" />
+        </div>
+      </section>
     </div>
   );
 }
 
-export const formatArenaClock = (milliseconds) => {
-  const total = Math.max(0, Math.ceil((Number(milliseconds) || 0) / 1000));
-  const minutes = Math.floor(total / 60);
-  const seconds = total % 60;
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
-};
+/** A closed round: its own table, and the standings it left (with movement since the round before). */
+function ResultsView({ clock, roundView, presentation, leaderboard, rows }) {
+  // The standings arrive with the round's result, written when it closed —
+  // never the live board's rows from before it. A round closed before results
+  // carried standings shows the live board.
+  const standings = roundView ? (roundView.standings || standingsRows(leaderboard)) : null;
+  return (
+    <div className="mm-arena-running-grid" style={{ height: '100%', minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 'clamp(12px, 1.6vw, 20px)' }}>
+      <section style={{ ...glassPanel, padding: 'clamp(14px, 2vw, 26px)', overflow: 'hidden' }}>
+        <div style={labelStyle}>{clock.isReplay ? `Second Chance round ${clock.replayNumber}` : `Round ${clock.roundNumber} of ${clock.roundCount}`}</div>
+        <div style={{ margin: '4px 0 12px', fontSize: 'clamp(26px, 4.6vh, 42px)', fontWeight: 1000, color: '#fff' }}>Round results{presentation.placementPoints ? ' · championship points' : ''}</div>
+        <RoundResultsTable view={roundView} presentation={presentation} look="projector" limit={Math.max(3, rows - 1)} />
+      </section>
+      <section style={{ ...glassPanel, padding: 'clamp(14px, 2vw, 26px)', overflow: 'hidden' }}>
+        <div style={labelStyle}>{presentation.placementPoints ? 'Championship' : 'Standings'}</div>
+        <div style={{ margin: '4px 0 12px', fontSize: 'clamp(26px, 4.6vh, 42px)', fontWeight: 1000, color: '#fff' }}>After round {clock.roundNumber}</div>
+        {standings
+          ? <StandingsBoard rows={standings} presentation={presentation} look="projector" limit={rows} showMovement label="Standings after this round" />
+          : <p style={{ margin: 0, color: 'rgba(236,241,255,.7)', fontSize: 'clamp(16px, 1.7vw, 24px)' }}>Tallying the round…</p>}
+      </section>
+    </div>
+  );
+}
+
+/** Host controls along the bottom: the one thing to press, plus what the stage allows. */
+function HostStrip({ room, stage, primaryAction, busy, controlBusy, onStart, onAdvance, onPlayAgain, onNewChallenge, onRequestEndGame, onRequestEndRound, onThresholdChange }) {
+  const openRound = [CHALLENGE_STAGE.COUNTDOWN, CHALLENGE_STAGE.ROUND_ACTIVE, CHALLENGE_STAGE.ROUND_LOCKED].includes(stage);
+  const handlers = {
+    [HOST_COMMAND.START]: onStart,
+    [HOST_COMMAND.ADVANCE]: onAdvance,
+    [HOST_COMMAND.PLAY_AGAIN]: onPlayAgain,
+    [HOST_COMMAND.NEW_CHALLENGE]: onNewChallenge,
+  };
+  const primary = primaryAction?.command && stage !== CHALLENGE_STAGE.LOBBY ? primaryAction : null;
+  const primaryHandler = primary ? handlers[primary.command] : null;
+  const working = busy === 'advance' ? 'Loading…' : busy === 'replay' ? 'Creating the lobby…' : null;
+  return (
+    <footer data-mm-arena-host="1" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', minHeight: 54 }}>
+      {primary && typeof primaryHandler === 'function' && (
+        <button type="button" data-mm-primary-action={primary.command} disabled={primary.disabled || controlBusy || busy === 'replay'} onClick={primaryHandler} style={{ ...bigButton, opacity: primary.disabled || controlBusy ? 0.55 : 1 }}>
+          {(primary.command === HOST_COMMAND.ADVANCE && busy === 'advance') || (primary.command === HOST_COMMAND.PLAY_AGAIN && busy === 'replay') ? working : primary.label}
+        </button>
+      )}
+      {stage === CHALLENGE_STAGE.COMPLETED && typeof onNewChallenge === 'function' && <button type="button" onClick={onNewChallenge} style={arenaButton}>New Challenge</button>}
+      {openRound && typeof onRequestEndRound === 'function' && <button type="button" disabled={controlBusy} onClick={onRequestEndRound} style={{ ...arenaButton, opacity: controlBusy ? 0.55 : 1 }}>End Round Now</button>}
+      {(openRound || stage === CHALLENGE_STAGE.ROUND_RESULTS) && typeof onRequestEndGame === 'function' && <button type="button" disabled={controlBusy} onClick={onRequestEndGame} style={{ ...arenaButton, color: '#ffb4ab', opacity: controlBusy ? 0.55 : 1 }}>End Game</button>}
+      {projectorShowsClosingThreshold(room) && typeof onThresholdChange === 'function' && stage !== CHALLENGE_STAGE.COMPLETED && <label style={{ fontSize: 13, fontWeight: 900, color: 'rgba(236,241,255,.75)' }}>Round closing threshold
+        <select aria-label="Round closing threshold" value={room.roundClosingThreshold ?? 'off'} onChange={(event) => onThresholdChange(event.target.value)} style={{ ...arenaButton, marginLeft: 7, minHeight: 36 }}>
+          <option value="off">Off</option>{[60, 70, 80, 90, 100].map((value) => <option key={value} value={value}>{value}%</option>)}
+        </select>
+      </label>}
+      {primaryAction?.hint && stage !== CHALLENGE_STAGE.LOBBY && <span style={{ flex: '1 1 260px', color: 'rgba(236,241,255,.6)', fontWeight: 700, fontSize: 'clamp(12px, 1.1vw, 15px)' }}>{primaryAction.hint}</span>}
+    </footer>
+  );
+}
+
+export const formatArenaClock = (milliseconds) => formatChallengeClock(milliseconds);
 
 export default function LiveChallengeArenaProjector({
-  room = {},
+  room = null,
+  loading = false,
   leaderboard = [],
   players = [],
   joinedCount = 0,
-  remainingMs = 0,
-  elapsedMs = 0,
-  canAdvance = false,
+  answeredCount = 0,
+  clockOffsetMs = 0,
+  roundView = null,
+  presentation: presentationProp = null,
+  rewardsByKey = null,
+  primaryAction = null,
   busy = '',
+  controlBusy = false,
   error = '',
   audioReady = false,
+  audioMuted = false,
+  onToggleMute,
   onEnableAudio,
   onStart,
   onAdvance,
+  onPlayAgain,
+  onNewChallenge,
+  onRequestEndGame,
+  onRequestEndRound,
   onThresholdChange,
   onExit,
+  dialog = null,
 }) {
   const shellRef = useRef(null);
   const [nativeFullscreen, setNativeFullscreen] = useState(false);
+  const clock = useChallengeClock(room, clockOffsetMs);
+  const rows = useViewportRows();
   useEffect(() => {
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -477,26 +527,34 @@ export default function LiveChallengeArenaProjector({
   const exitFullscreen = async () => {
     try { if (document.fullscreenElement) await document.exitFullscreen?.(); } catch { /* CSS viewport remains active */ }
   };
-  const gameLabel = projectorGameLabel(room);
+  const stage = room ? clock.stage : null;
+  const presentation = presentationProp || scorePresentation({ scoringStrategyId: room?.scoringStrategyId, questionSet: room?.challengeMode === RUSH_MODE_ID });
+  const gameLabel = room ? projectorGameLabel(room) : 'Live Challenge';
   const accent = familyAccent(room);
   const title = room?.title || 'MathMaster Live Challenge';
+  const openRound = [CHALLENGE_STAGE.ROUND_ACTIVE, CHALLENGE_STAGE.ROUND_LOCKED, CHALLENGE_STAGE.ROUND_PAUSED].includes(stage);
+  const showProgress = room && room.status === 'running';
 
   return (
-    <div ref={shellRef} className="mm-arena-shell" style={{
+    <div ref={shellRef} className="mm-arena-shell" data-mm-arena-stage={loading ? 'loading' : stage || 'none'} style={{
       width: '100vw',
       height: '100dvh',
       position: 'fixed',
       inset: 0,
       zIndex: 10000,
       overflow: 'hidden',
-      overflowY: 'auto',
       borderRadius: 0,
       boxSizing: 'border-box',
-      padding: 'clamp(18px, 2.8vw, 34px)',
+      padding: 'clamp(12px, 2vw, 28px)',
+      display: 'grid',
+      gridTemplateRows: 'auto minmax(0,1fr) auto',
+      gap: 'clamp(8px, 1.4vh, 16px)',
       color: '#f7f9ff',
+      colorScheme: 'dark',
       background: 'radial-gradient(circle at 12% 12%, rgba(74,103,255,.24), transparent 34%), radial-gradient(circle at 88% 4%, rgba(174,83,255,.2), transparent 31%), radial-gradient(circle at 74% 90%, rgba(0,206,209,.12), transparent 36%), linear-gradient(145deg, #111831 0%, #091128 48%, #12142e 100%)',
       boxShadow: 'none',
     }}>
+      <ChallengeShellStyles />
       <style>{`
         .mm-arena-shell::before {
           content: "";
@@ -510,15 +568,8 @@ export default function LiveChallengeArenaProjector({
           background-size: 42px 42px;
           mask-image: linear-gradient(to bottom, rgba(0,0,0,.8), transparent 85%);
         }
-        .mm-arena-shell::after {
-          content: "";
-          position: absolute;
-          inset: -1px;
-          pointer-events: none;
-          border-radius: 26px;
-          border: 1px solid rgba(160,182,255,.18);
-          box-shadow: inset 0 0 60px rgba(91,113,255,.08);
-        }
+        .mm-arena-shell > * { position: relative; z-index: 1; min-width: 0; }
+        .mm-arena-shell button:focus-visible, .mm-arena-shell select:focus-visible { outline: 3px solid #8ab4f8; outline-offset: 2px; }
         .mm-arena-pulse {
           width: 9px;
           height: 9px;
@@ -544,15 +595,6 @@ export default function LiveChallengeArenaProjector({
           transform: translateY(22px) scale(.98);
           animation: mmArenaPodiumReveal 520ms cubic-bezier(.2,.75,.25,1) forwards;
         }
-        .mm-arena-finish::before {
-          content: "✦   ✧   ✦";
-          display: block;
-          text-align: center;
-          color: rgba(255,215,102,.75);
-          letter-spacing: 1.2em;
-          font-size: 18px;
-          margin-bottom: -8px;
-        }
         @keyframes mmArenaPulse {
           70% { box-shadow: 0 0 0 9px rgba(114,241,255,0); }
           100% { box-shadow: 0 0 0 0 rgba(114,241,255,0); }
@@ -568,6 +610,7 @@ export default function LiveChallengeArenaProjector({
           .mm-arena-running-grid,
           .mm-arena-lobby-grid {
             grid-template-columns: 1fr !important;
+            overflow-y: auto;
           }
         }
         @media (prefers-reduced-motion: reduce) {
@@ -584,34 +627,63 @@ export default function LiveChallengeArenaProjector({
         }
       `}</style>
 
-      <div style={{ position: 'relative', zIndex: 1, display: 'grid', gap: 22 }}>
-        <header style={{ display: 'flex', justifyContent: 'space-between', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
-              <span style={{ ...labelStyle, color: '#9cb8ff' }}>MathMaster Arena</span>
-              <ArenaBadge accent={accent}>{gameLabel}</ArenaBadge>
+      <header style={{ display: 'grid', gap: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center' }}>
+          <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
+                <span style={labelStyle}>MathMaster Arena</span>
+                <ArenaBadge accent={accent}>{gameLabel}</ArenaBadge>
+              </div>
+              {/* Its own colour: the global h1 rule (index.css) would paint it dark on the arena. */}
+              <h1 style={{ margin: '4px 0 0', fontSize: 'clamp(22px, 3vw, 40px)', lineHeight: 1.05, letterSpacing: '-.02em', color: '#f7f9ff', fontWeight: 900, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</h1>
             </div>
-            {/* Its own colour: the global h1 rule (index.css) would paint it dark on the arena. */}
-            <h1 style={{ margin: '5px 0 0', fontSize: 'clamp(27px, 3.4vw, 46px)', lineHeight: 1.03, letterSpacing: '-.025em', overflowWrap: 'anywhere', color: '#f7f9ff' }}>{title}</h1>
           </div>
-          <div style={{ display: 'flex', gap: 9 }}>
-            {projectorShowsClosingThreshold(room) && <label style={{ fontSize: 12, fontWeight: 900 }}>Round closing threshold
-              <select aria-label="Round closing threshold" value={room.roundClosingThreshold ?? 'off'} onChange={(event) => onThresholdChange?.(event.target.value)} style={{ ...arenaButton, marginLeft: 7 }}>
-                <option value="off">Off</option>{[60, 70, 80, 90, 100].map((value) => <option key={value} value={value}>{value}%</option>)}
-              </select>
-            </label>}
+          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
             {!audioReady && typeof onEnableAudio === 'function' && <button type="button" onClick={onEnableAudio} style={arenaButton}>Enable Audio</button>}
+            {audioReady && typeof onToggleMute === 'function' && <button type="button" aria-pressed={audioMuted} onClick={onToggleMute} style={arenaButton}>{audioMuted ? 'Unmute' : 'Mute'}</button>}
             <button type="button" onClick={nativeFullscreen ? exitFullscreen : enterFullscreen} style={arenaButton}>{nativeFullscreen ? 'Exit Full Screen' : 'Enter Full Screen'}</button>
             <button type="button" onClick={onExit} style={arenaButton}>Exit Projector View</button>
           </div>
-        </header>
+        </div>
+        {showProgress && <RoundProgress currentRound={clock.roundNumber} roundCount={clock.roundCount} accent={accent} />}
+      </header>
 
-        {error && <div role="alert" style={{ padding: '12px 16px', borderRadius: 12, background: 'rgba(255,87,120,.16)', border: '1px solid rgba(255,105,135,.5)', color: '#ffd9e1', fontWeight: 800 }}>{error}</div>}
-        {room?.status === 'lobby' && <LobbyView room={room} leaderboard={leaderboard} joinedCount={joinedCount} busy={busy} onStart={onStart} />}
-        {room?.status === 'running' && room?.challengeMode === RUSH_MODE_ID && <RushRunningView room={room} players={players} leaderboard={leaderboard} joinedCount={joinedCount} remainingMs={remainingMs} canAdvance={canAdvance} busy={busy} onAdvance={onAdvance} />}
-        {room?.status === 'running' && room?.challengeMode !== RUSH_MODE_ID && <RunningView room={room} leaderboard={leaderboard} joinedCount={joinedCount} remainingMs={remainingMs} elapsedMs={elapsedMs} canAdvance={canAdvance} busy={busy} onAdvance={onAdvance} />}
-        {room?.status === 'finished' && <FinalPodium leaderboard={leaderboard} unit={room?.challengeMode === RUSH_MODE_ID ? rushScoreUnit(room?.scoringStrategyId).short : 'pts'} />}
-      </div>
+      <main style={{ minHeight: 0, display: 'grid', gridTemplateRows: error ? 'auto minmax(0,1fr)' : 'minmax(0,1fr)', gap: 10 }}>
+        {error && <div role="alert" style={{ padding: '10px 16px', borderRadius: 12, background: 'rgba(255,87,120,.16)', border: '1px solid rgba(255,105,135,.5)', color: '#ffd9e1', fontWeight: 800 }}>{error}</div>}
+        <div style={{ minHeight: 0 }}>
+          {loading && <section style={{ ...glassPanel, height: '100%', display: 'grid', placeItems: 'center', fontSize: 'clamp(24px, 4vh, 40px)', fontWeight: 900 }} aria-busy="true">Opening the new lobby…</section>}
+          {!loading && stage === CHALLENGE_STAGE.LOBBY && <LobbyView room={room} leaderboard={leaderboard} joinedCount={joinedCount} busy={busy} onStart={onStart} />}
+          {!loading && stage === CHALLENGE_STAGE.COUNTDOWN && <CountdownView room={room} clock={clock} />}
+          {!loading && openRound && room?.challengeMode === RUSH_MODE_ID && <RushRunningView room={room} clock={clock} clockOffsetMs={clockOffsetMs} players={players} joinedCount={joinedCount} rows={rows} />}
+          {!loading && openRound && room?.challengeMode !== RUSH_MODE_ID && <RunningView room={room} clock={clock} clockOffsetMs={clockOffsetMs} leaderboard={leaderboard} presentation={presentation} joinedCount={joinedCount} answeredCount={answeredCount} rows={rows} />}
+          {!loading && stage === CHALLENGE_STAGE.ROUND_RESULTS && <ResultsView clock={clock} roundView={roundView} presentation={presentation} leaderboard={leaderboard} rows={rows} />}
+          {!loading && stage === CHALLENGE_STAGE.COMPLETED && (
+            <>
+              <Confetti />
+              <FinalPodium leaderboard={leaderboard} presentation={presentation} rewardsByKey={rewardsByKey} rewardSummary={room?.rewardSummary} rows={rows} />
+            </>
+          )}
+        </div>
+      </main>
+
+      {!loading && room && (
+        <HostStrip
+          room={room}
+          stage={stage}
+          primaryAction={primaryAction}
+          busy={busy}
+          controlBusy={controlBusy}
+          onStart={onStart}
+          onAdvance={onAdvance}
+          onPlayAgain={onPlayAgain}
+          onNewChallenge={onNewChallenge}
+          onRequestEndGame={onRequestEndGame}
+          onRequestEndRound={onRequestEndRound}
+          onThresholdChange={onThresholdChange}
+        />
+      )}
+      {dialog}
     </div>
   );
 }

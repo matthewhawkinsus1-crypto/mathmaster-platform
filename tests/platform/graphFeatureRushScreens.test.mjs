@@ -10,6 +10,8 @@ import { RUSH_MODE_ID } from '../../functions/shared/graphFeatureRushRules.mjs';
 import { rushPlayingCount, rushRaceRows, rushRoundFacts, rushRoundResultRows, rushScoreUnit } from '../../src/platform/liveChallenge/rushStandingsModel.js';
 import { changeRushSetup, defaultRushSetup, grandPrixLadder, rushCreateRequest, rushSetupFromPreset } from '../../src/platform/liveChallenge/rushSetupModel.js';
 import { PASS_RULE_ID, buildChallengeRewardPolicy } from '../../src/platform/rewards/challengeRewardPolicy.js';
+import { CHALLENGE_STAGE, HOST_COMMAND, ROUND_CLOSE_AFTER_DEADLINE_MS, hostPrimaryAction, roundCloseDue } from '../../src/platform/liveChallenge/challengeShellModel.js';
+import { SUBMISSION_ARRIVAL_GRACE_MS } from '../../functions/shared/liveChallengeParity.mjs';
 
 /*
  * GRAPH FEATURE RUSH ON EVERY SCREEN.
@@ -128,7 +130,17 @@ test('the class\'s taps do not wake every student\'s screen during a rush round'
   // Paused while a rush round is open, resumed (fresh) when it closes.
   assert.ok(listener.indexOf('if (rushRoundOpen) return undefined;') > 0 && listener.indexOf('if (rushRoundOpen) return undefined;') < listener.indexOf('watchLiveChallengePlayers('), 'the pause comes before the subscription');
   assert.match(listener, /setPlayersFresh\(false\)[\s\S]*setPlayersFresh\(true\)/);
-  assert.match(student, /<RushRoundResults [^>]*fresh=\{playersFresh\}/);
+  // The held rows stop counting as current the moment the pause begins.
+  assert.ok(listener.indexOf('setPlayersFresh(false)') < listener.indexOf('if (rushRoundOpen) return undefined;'), 'stale from the start of the pause');
+  // A closed round's results come from the round's own result document,
+  // written when it closed — never from rows the paused listener held from
+  // before the round — and the header shows no score it cannot keep current.
+  const results = region(student, 'function StudentRoundResults(', '\n}\n', 'student round results');
+  assert.match(results, /useRoundSummary\(room\.roomId, roundIndex, true\)/);
+  assert.match(results, /roundResultsView\(\{ summary, previousSummary, selfKey: playerKey \}\)/);
+  assert.doesNotMatch(executableSource(results), /players|leaderboard/, 'never the standings listener');
+  assert.match(student, /\{stage === CHALLENGE_STAGE\.ROUND_RESULTS && \(\s*<StudentRoundResults /);
+  assert.match(student, /const headerRow = selfRow && room\.status === 'running' && playersFresh \? selfRow : null;/);
   // With the listener paused, a successful join must not be asked again.
   const join = region(student, 'if (joinRefusedForRef.current === roomId', '.finally(', 'automatic join');
   assert.match(join, /joinedRoomRef\.current === roomId\) return;/);
@@ -169,20 +181,37 @@ test('the teacher console offers the rush and creates it with its own settings',
 });
 
 test('a rush round closes itself after its deadline, and moves on only once closed', () => {
+  // Every round closes on the host's schedule (challengeShellModel's
+  // roundCloseDue). A rush is played against the clock, so everyone
+  // "finishing" never closes it early: only its deadline does — after the
+  // arrival grace, so taps sent at 0:00 still count.
+  const rush = { status: 'running', roundState: 'open', challengeMode: RUSH_MODE_ID, currentRound: 0, roundCount: 3, startsAt: 1_000, endsAt: 61_000 };
+  const due = roundCloseDue({ room: rush, joinedCount: 4, finishedCount: 4, allFinishedSinceMs: 30_000 });
+  assert.equal(due.reason, 'deadline');
+  assert.equal(due.dueAtMs, 61_000 + ROUND_CLOSE_AFTER_DEADLINE_MS);
+  assert.ok(ROUND_CLOSE_AFTER_DEADLINE_MS > SUBMISSION_ARRIVAL_GRACE_MS, 'closing never refuses taps the server would still take');
+  assert.equal(roundCloseDue({ room: { ...rush, roundState: 'closed' } }), null, 'a closed round is not closed again');
+  const classic = { ...rush, challengeMode: undefined };
+  assert.equal(roundCloseDue({ room: classic, joinedCount: 4, finishedCount: 4, allFinishedSinceMs: 30_000 }).reason, 'allFinished', 'a classic round with every answer in closes early');
+  // Moving on: nothing to press while the round is open; Next Round comes with its results.
+  assert.equal(hostPrimaryAction({ room: rush, stage: CHALLENGE_STAGE.ROUND_ACTIVE }).command, null);
+  assert.equal(hostPrimaryAction({ room: { ...rush, roundState: 'closed' }, stage: CHALLENGE_STAGE.ROUND_RESULTS }).command, HOST_COMMAND.ADVANCE);
+  // The console schedules that close on its calibrated clock and sends the
+  // same idempotent, round-scoped close the teacher can press.
   const teacher = read('../../src/components/liveChallenge/LiveChallengeTeacher.jsx');
-  assert.match(teacher, /export const RUSH_AUTO_CLOSE_DELAY_MS = 1_500;/);
-  const autoClose = region(teacher, 'const autoClosedRef = useRef', '}, [rushRoom, room?.status', 'auto close');
-  assert.match(autoClose, /if \(!rushRoom \|\| room\?\.status !== 'running' \|\| room\?\.roundState === 'closed' \|\| !hasRoundDeadline\) return;/);
-  assert.match(autoClose, /if \(serverNow < roundEndsAtMs \+ RUSH_AUTO_CLOSE_DELAY_MS\) return;/);
-  assert.match(autoClose, /control\('close', closeLiveChallengeRound\)/);
-  assert.match(teacher, /\|\| \(!rushRoom && challengeCanAdvance\(\{/, 'a rush never skips its own results');
+  const autoClose = region(teacher, 'const autoClosedRef = useRef', '}, [closeDue?.dueAtMs, closeDue?.reason, roundKey, closeRetry]);', 'auto close');
+  assert.match(autoClose, /control\('close', closeRoundOnTime\)/);
+  assert.match(autoClose, /closeDue\.dueAtMs - \(Date\.now\(\) \+ clockOffsetMs\)/);
+  assert.doesNotMatch(executableSource(teacher), /challengeCanAdvance\(/, 'no mode skips its own results');
 });
+
 
 test('the projector shows the race, never a graph or an answer', () => {
   const projector = read('../../src/components/liveChallenge/LiveChallengeArenaProjector.jsx');
   const host = read('../../src/components/liveChallenge/GraphFeatureRushHost.jsx');
   assert.match(projector, /room\?\.challengeMode === RUSH_MODE_ID && <RushRunningView /);
-  assert.match(projector, /\{projectorShowsClosingThreshold\(room\) && <label/);
+  // The closing threshold is a classic-mode control; a rush never shows it.
+  assert.match(region(projector, 'function HostStrip(', '\nexport const formatArenaClock', 'host strip'), /\{projectorShowsClosingThreshold\(room\) && [^\n]*<label/);
   assert.equal(getChallengeMode(RUSH_MODE_ID).capabilities.closingThreshold, false);
   for (const [name, source] of [['projector', projector], ['host', host]]) {
     const code = executableSource(source);

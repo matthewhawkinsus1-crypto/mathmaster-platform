@@ -1,12 +1,14 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import ChallengeDryRun from './ChallengeDryRun.jsx';
 import ChallengeQuestionLibrary from './ChallengeQuestionLibrary.jsx';
-import { RushHostStatus, RushRaceBoard, RushReport, RushRoundResultsBoard, rushSettingsLine } from './GraphFeatureRushHost.jsx';
+import { RushHostStatus, RushRaceBoard, RushReport, rushSettingsLine } from './GraphFeatureRushHost.jsx';
 import LiveChallengeArenaProjector from './LiveChallengeArenaProjector.jsx';
+import { ChallengeClockText, ChallengeCountdown, ChallengeShellStyles, ConfirmDialog, StandingsBoard, useLowTime } from './ChallengeShellParts.jsx';
+import { HostControlBar, HostRosterPanel, HostRoundResultsPanel, NotJoinedLine, StagePill } from './ChallengeHostConsole.jsx';
 import MathText from '../common/MathText.jsx';
 import { fetchPathCoverage } from '../../platform/path/pathCoverageService.js';
 import { summarizeCoverage } from '../../../functions/shared/pathCoverage.mjs';
-import { challengeCanAdvance, publicLeaderboard } from '../../../functions/shared/liveChallenge.mjs';
+import { publicLeaderboard } from '../../../functions/shared/liveChallenge.mjs';
 import { buildChallengeExport, challengeExportFileName } from '../../../functions/shared/liveChallengeExport.mjs';
 import { buildChallengeScoringPreview } from '../../../functions/shared/liveChallengeExperience.mjs';
 import { acceptChallengeSnapshot, calibrateChallengeClock } from '../../../functions/shared/liveChallengeParity.mjs';
@@ -14,7 +16,27 @@ import { leaderboardOptionsFor } from '../../../functions/shared/liveChallengeSc
 import { rushConfigProblem } from '../../../functions/shared/graphFeatureRushConfig.mjs';
 import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { LiveChallengeAudioDirector } from '../../platform/liveChallenge/liveChallengeAudio.js';
+import { projectorGameLabel } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
 import { defaultRushSetup, rushCreateRequest } from '../../platform/liveChallenge/rushSetupModel.js';
+import {
+  CHALLENGE_STAGE,
+  HOST_COMMAND,
+  cueRemainingMs,
+  hostPrimaryAction,
+  roundCloseDue,
+  roomRunsQuestionSets,
+  stageHasOpenRound,
+} from '../../platform/liveChallenge/challengeShellModel.js';
+import {
+  placementRewardsFor,
+  rewardSummaryLines,
+  roundResultsView,
+  scorePresentation,
+  standingsRows,
+} from '../../platform/liveChallenge/challengeStandingsModel.js';
+import { hostRoster } from '../../platform/liveChallenge/challengePresenceModel.js';
+import { replayExperienceFromRoom, replayRequestFromRoom, replaySummary } from '../../platform/liveChallenge/challengeReplayModel.js';
+import { useChallengeClock, useLatest, usePreviousRoundSummary, useRoundSummary } from '../../platform/liveChallenge/challengeHooks.js';
 import ChallengeRewardSettings from './ChallengeRewardSettings.jsx';
 import { DEFAULT_CHALLENGE_REWARD_CHOICE, buildChallengeRewardPolicy, normalizeChallengeRewardChoice } from '../../platform/rewards/challengeRewardPolicy.js';
 import {
@@ -25,11 +47,11 @@ import {
   configureLiveChallengeExperience,
   createLiveChallenge,
   finishLiveChallenge,
+  getLiveChallengeHostRoster,
   readChallengeReport,
   setWarmupChallengeDelivery,
   startLiveChallenge,
   updateLiveChallengePacing,
-  timestampMillis,
   watchLiveChallengePlayers,
   watchLiveChallengeDiagnostics,
   watchLiveChallengeRoom,
@@ -41,23 +63,6 @@ const primary = { border: 0, borderRadius: 9, padding: '11px 16px', background: 
 const secondary = { border: '1px solid #b7bec8', borderRadius: 9, padding: '10px 15px', background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 900, cursor: 'pointer' };
 const field = { display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid #b7bec8' };
 
-function useNow(active = true) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    if (!active) return undefined;
-    const timer = window.setInterval(() => setNow(Date.now()), 250);
-    return () => window.clearInterval(timer);
-  }, [active]);
-  return now;
-}
-
-const formatClock = (milliseconds) => {
-  const total = Math.max(0, Math.ceil(milliseconds / 1000));
-  const minutes = Math.floor(total / 60);
-  const seconds = total % 60;
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
-};
-
 const courseLabel = (courseId) => courseId === 'algebra2' ? 'Algebra II' : 'Algebra I';
 
 // Graph Feature Rush's setup panel and practice round load only when a
@@ -65,11 +70,32 @@ const courseLabel = (courseId) => courseId === 'algebra2' ? 'Algebra II' : 'Alge
 const GraphFeatureRushSetup = lazy(() => import('./GraphFeatureRushSetup.jsx'));
 const GraphFeatureRushPractice = lazy(() => import('./GraphFeatureRushPractice.jsx'));
 
-// A rush round closes itself this long after its deadline — past the arrival
-// grace a last batch of taps is allowed — so students see their round results
-// without the teacher reaching for a button.
-export const RUSH_AUTO_CLOSE_DELAY_MS = 1_500;
 const speedPreset = (value) => [0, 10, 20, 35].includes(Number(value)) ? String(Number(value)) : 'custom';
+
+// The room this tab last hosted, so a refresh on the final podium returns to
+// it instead of to an empty setup panel. Per tab, and only for a few hours.
+const LAST_ROOM_KEY = 'mathmaster.liveChallenge.host.lastRoom';
+const LAST_ROOM_MAX_AGE_MS = 3 * 60 * 60 * 1000;
+const rememberHostedRoom = (roomId) => {
+  try { window.sessionStorage.setItem(LAST_ROOM_KEY, JSON.stringify({ roomId, savedAt: Date.now() })); } catch { /* not remembered */ }
+};
+const forgetHostedRoom = () => {
+  try { window.sessionStorage.removeItem(LAST_ROOM_KEY); } catch { /* nothing to forget */ }
+};
+const rememberedHostedRoom = () => {
+  try {
+    const saved = JSON.parse(window.sessionStorage.getItem(LAST_ROOM_KEY) || 'null');
+    return saved?.roomId && Date.now() - Number(saved.savedAt) < LAST_ROOM_MAX_AGE_MS ? String(saved.roomId) : null;
+  } catch { return null; }
+};
+
+// A close the host sends on its own is refused while the round is genuinely
+// still running (a student joined at the buzzer, say). That is an expected
+// answer, not an error to put in front of the teacher; the deadline closes it.
+const closeRoundOnTime = (payload) => closeLiveChallengeRound(payload).catch((error) => {
+  if (error?.details?.lifecycle === 'round_in_progress') return null;
+  throw error;
+});
 
 function ChallengeReport({ report }) {
   const roundSet = useMemo(() => buildChallengeExport(report), [report]);
@@ -133,36 +159,53 @@ const LIFECYCLE_CONTROLS = Object.freeze(['start', 'advance', 'close', 'finish',
 // round after it.
 const ROUND_SCOPED_CONTROLS = Object.freeze(['advance', 'close']);
 
-export function Leaderboard({ rows = [], limit = 12, projector = false, ranked = true }) {
-  if (!rows.length) return <p style={{ color: '#5f6368', margin: 0 }}>Students who join will appear here.</p>;
+/**
+ * A board of game aliases, labelled with the ENGINE's rank — a tie reads "T-2"
+ * for everyone sharing it — and the score in the room's own unit. (The lobby
+ * has no order to show: it lists the class by name, HostRosterPanel.) The dry
+ * run renders this same component with its sample players.
+ */
+export function Leaderboard({ rows = [], limit = 12, projector = false, presentation = null, showMovement = false }) {
+  if (!rows.length) return <p style={{ color: 'var(--mm-text-muted)', margin: 0 }}>Students who join will appear here.</p>;
   return (
-    <div style={{ display: 'grid', gap: 8 }}>
-      {rows.slice(0, limit).map((row) => (
-        <div key={row.playerKey || row.alias} style={{ display: 'grid', gridTemplateColumns: ranked ? '42px minmax(0,1fr) auto auto' : 'minmax(0,1fr)', gap: 10, alignItems: 'center', padding: projector ? '13px 14px' : '9px 11px', borderRadius: 10, background: ranked && row.rank <= 3 ? '#fef7e0' : '#f8f9fa', border: '1px solid #e1e5ea', fontSize: projector ? 18 : 14 }}>
-          {ranked && <strong style={{ textAlign: 'center' }}>#{row.rank}</strong>}
-          <span style={{ fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.alias}</span>
-          {ranked && <span style={{ color: '#5f6368' }}>{row.correctCount} ✓</span>}
-          {ranked && <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{(row.liveScore ?? row.score).toLocaleString()}</strong>}
-        </div>
-      ))}
-    </div>
+    <StandingsBoard
+      rows={standingsRows(rows)}
+      presentation={presentation || scorePresentation({})}
+      look={projector ? 'projector' : 'console'}
+      limit={limit}
+      showMovement={showMovement}
+      showCorrect
+      label="Leaderboard"
+    />
   );
 }
 
-export function ChallengeLiveStatus({ room, remainingMs, elapsedMs = 0, answeredCount = 0, joinedCount = 0 }) {
-  const paceOpen = room?.timingMode === 'pace' && !timestampMillis(room?.roundEndsAt || room?.endsAt);
-  const low = !paceOpen && remainingMs <= 10000;
+/**
+ * The round, the question and the clock, for the teacher. Stage-aware: the
+ * countdown before the round, the time left in it, "Time!" at the deadline.
+ * Read from the room's own clock (and the screen's calibrated offset), so it
+ * matches the projector and every student. The dry run renders it too.
+ */
+export function ChallengeLiveStatus({ room, clockOffsetMs = 0, answeredCount = 0, joinedCount = 0 }) {
+  const clock = useChallengeClock(room, clockOffsetMs);
+  const low = useLowTime(room, clockOffsetMs);
+  const paceOpen = clock.openEnded;
+  const counting = clock.stage === CHALLENGE_STAGE.COUNTDOWN;
+  const locked = clock.stage === CHALLENGE_STAGE.ROUND_LOCKED;
+  const timerLabel = counting ? 'Starts in' : locked ? 'Time!' : paceOpen ? 'Elapsed' : 'Time left';
   return (
-    <section style={{ ...panel, border: '2px solid #1a73e8' }}>
+    <section data-mm-live-status={clock.stage} style={{ ...panel, border: '2px solid #1a73e8' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 18, flexWrap: 'wrap' }}>
-        <div>
-          <div style={{ color: '#174ea6', fontSize: 12, fontWeight: 1000, textTransform: 'uppercase' }}>Round {(room.currentRound || 0) + 1} of {room.roundCount} · {room.currentQuestion?.teksCode || 'Mixed review'}</div>
+        <div style={{ flex: '1 1 320px', minWidth: 0 }}>
+          <div style={{ color: '#174ea6', fontSize: 12, fontWeight: 1000, textTransform: 'uppercase' }}>{clock.isReplay ? `Second Chance round ${clock.replayNumber}` : `Round ${(room.currentRound || 0) + 1} of ${room.roundCount}`} · {room.currentQuestion?.teksCode || 'Mixed review'}</div>
           <MathText as="div" style={{ marginTop: 8, whiteSpace: 'pre-wrap', fontSize: 20, lineHeight: 1.45, fontWeight: 700 }}>{room.currentQuestion?.prompt}</MathText>
         </div>
-        <div style={{ minWidth: 140, textAlign: 'center', padding: 12, borderRadius: 12, background: low ? '#fce8e6' : '#e8f0fe', color: low ? '#a50e0e' : '#174ea6' }}>
-          <div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>{paceOpen ? 'Elapsed' : 'Time left'}</div>
-          <div style={{ fontSize: 38, fontWeight: 1000 }}>{formatClock(paceOpen ? elapsedMs : remainingMs)}</div>
-          {room?.timingMode === 'pace' && !paceOpen && <div style={{ marginTop: 4, fontSize: 12, fontWeight: 900 }}>Round closes in {formatClock(remainingMs)}</div>}
+        <div style={{ minWidth: 150, textAlign: 'center', padding: 12, borderRadius: 12, background: low || locked ? '#fce8e6' : '#e8f0fe', color: low || locked ? '#a50e0e' : '#174ea6' }}>
+          <div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>{timerLabel}</div>
+          <div style={{ fontSize: 38, fontWeight: 1000 }}>
+            {counting ? clock.countdownStep : <ChallengeClockText room={room} clockOffsetMs={clockOffsetMs} />}
+          </div>
+          {room?.timingMode === 'pace' && !paceOpen && !counting && <div style={{ marginTop: 4, fontSize: 12, fontWeight: 900 }}>Closing countdown</div>}
         </div>
       </div>
       <div style={{ marginTop: 14, fontWeight: 800, color: '#5f6368' }}>{answeredCount} of {joinedCount} joined students answered</div>
@@ -188,7 +231,7 @@ function ScoringCompetitionCard({ roundSeconds, speedInfluencePercent }) {
   );
 }
 
-function AudioMixer({ director, mix, onMixChange, onEnable, audioReady }) {
+function AudioMixer({ mix, onMixChange, onEnable, audioReady }) {
   const slider = (key, label) => (
     <label style={{ minWidth: 150, fontSize: 12, fontWeight: 800 }}>{label} {Math.round((mix?.[key] ?? 0) * 100)}%
       <input type="range" min="0" max="1" step="0.01" value={mix?.[key] ?? 0} onChange={(event) => onMixChange({ [key]: Number(event.target.value) })} style={{ display: 'block', width: '100%' }} />
@@ -202,6 +245,7 @@ function AudioMixer({ director, mix, onMixChange, onEnable, audioReady }) {
         <button type="button" onClick={() => onMixChange({ muted: !mix?.muted })} style={secondary}>{mix?.muted ? 'Unmute All' : 'Mute All'}</button>
         <button type="button" onClick={onEnable} style={{ ...secondary, color: '#174ea6' }}>{audioReady ? 'Audio Ready' : 'Enable Audio'}</button>
       </div>
+      <p style={{ margin: '8px 0 0', fontSize: 12, color: '#5f6368' }}>Sound plays only from this screen, never from students&apos; devices, and nothing depends on it.</p>
     </section>
   );
 }
@@ -251,19 +295,33 @@ export default function LiveChallengeTeacher({
   const [warmupDeliveryMode, setWarmupDeliveryMode] = useState('liveChallenge');
   const [roomId, setRoomId] = useState(null);
   const [room, setRoom] = useState(null);
+  // The room listener answered and the room does not exist (a stale pointer).
+  const [roomMissing, setRoomMissing] = useState(false);
   const [players, setPlayers] = useState([]);
   const [diagnostics, setDiagnostics] = useState([]);
+  // Player key -> student name, for this console only (never the projector).
+  const [rosterNames, setRosterNames] = useState(null);
+  const [showAliases, setShowAliases] = useState(false);
   const [clockOffsetMs, setClockOffsetMs] = useState(0);
   const [busy, setBusy] = useState('');
   const controlLockRef = useRef(false);
   const [message, setMessage] = useState('');
+  // "Reconnected to your game" after a refresh or a dropped connection.
+  const [recoveredNotice, setRecoveredNotice] = useState('');
+  // Which destructive action is waiting for the teacher to confirm it.
+  const [confirming, setConfirming] = useState(null);
   const [projector, setProjector] = useState(false);
   const [dryRunOpen, setDryRunOpen] = useState(false);
   const audioDirectorRef = useRef(null);
   if (!audioDirectorRef.current) audioDirectorRef.current = new LiveChallengeAudioDirector();
   const [audioMix, setAudioMix] = useState(() => audioDirectorRef.current.getMix());
   const [audioReady, setAudioReady] = useState(false);
-  const now = useNow(room?.status === 'running');
+  // The stage re-derives at its own boundaries (countdown steps, start, GO,
+  // deadline); clocks tick in their own components. Nothing here re-renders
+  // the whole console four times a second any more.
+  const clock = useChallengeClock(room, clockOffsetMs);
+  const stage = room ? clock.stage : null;
+  const roomIdRef = useLatest(roomId);
 
   useEffect(() => () => audioDirectorRef.current?.dispose(), []);
   useEffect(() => {
@@ -289,17 +347,50 @@ export default function LiveChallengeTeacher({
     fetchPathCoverage(courseId).then((value) => { if (alive) setCoverage(value); });
     return () => { alive = false; };
   }, [courseId]);
+
+  // HOST RECOVERY. The server keeps one active-room pointer per teacher while
+  // a game is in its lobby or running: a refresh, a second device or a dropped
+  // connection reopens that game — the match is never restarted, the clock
+  // never reset. A finished game has no pointer, so this tab remembers the
+  // room it last hosted and reopens its results after a refresh.
+  const sessionRestoreTriedRef = useRef(false);
+  // A create in flight sets the active pointer before it returns; that new
+  // room is not a "reconnect", and create opens it itself.
+  const creatingRef = useRef(false);
+  // Room ids the server no longer has: never reopened from a stale pointer.
+  const missingRoomsRef = useRef(new Set());
   useEffect(() => watchTeacherActiveChallenge(signedInEmail, (active) => {
-    if (active?.roomId && !roomId) setRoomId(active.roomId);
-  }), [signedInEmail, roomId]);
+    if (roomIdRef.current || creatingRef.current) return;
+    if (active?.roomId && !missingRoomsRef.current.has(active.roomId)) {
+      setRoomId(active.roomId);
+      setRecoveredNotice('Reconnected to your live game. It kept running while you were away — nothing was restarted.');
+      return;
+    }
+    if (sessionRestoreTriedRef.current) return;
+    sessionRestoreTriedRef.current = true;
+    const remembered = rememberedHostedRoom();
+    if (remembered) setRoomId(remembered);
+  }), [signedInEmail, roomIdRef]);
   useEffect(() => {
     // Each room starts from nothing; the previous game's state never shows in it.
     setRoom(null);
+    setRoomMissing(false);
+    setPlayers([]);
+    setDiagnostics([]);
+    setRosterNames(null);
+    setShowAliases(false);
     if (!roomId) return undefined;
-    return watchLiveChallengeRoom(roomId, (next) => setRoom((current) => acceptChallengeSnapshot(current, next)), (error) => setMessage(error?.message || 'Could not load the Live Challenge.'));
+    rememberHostedRoom(roomId);
+    return watchLiveChallengeRoom(roomId, (next) => {
+      setRoomMissing(!next);
+      setRoom((current) => acceptChallengeSnapshot(current, next));
+    }, (error) => setMessage(error?.message || 'Could not load the Live Challenge.'));
   }, [roomId]);
+  // CLOCK CALIBRATION, only while the game can still need a clock: the lobby
+  // (its first countdown) and the rounds. A finished game stops calling.
+  const roomLive = room?.status === 'lobby' || room?.status === 'running';
   useEffect(() => {
-    if (!roomId) return undefined;
+    if (!roomId || !roomLive) return undefined;
     let stopped = false;
     const sample = async () => {
       const samples = [];
@@ -312,9 +403,9 @@ export default function LiveChallengeTeacher({
       if (!stopped) setClockOffsetMs(calibrateChallengeClock(samples).offsetMs);
     };
     sample().catch(() => {});
-    const timer = window.setInterval(sample, 30000);
+    const timer = window.setInterval(() => { sample().catch(() => {}); }, 30000);
     return () => { stopped = true; window.clearInterval(timer); };
-  }, [roomId]);
+  }, [roomId, roomLive]);
   useEffect(() => {
     if (!roomId) { setDiagnostics([]); return undefined; }
     return watchLiveChallengeDiagnostics(roomId, setDiagnostics, () => setDiagnostics([]));
@@ -323,9 +414,26 @@ export default function LiveChallengeTeacher({
     if (!roomId) { setPlayers([]); return undefined; }
     return watchLiveChallengePlayers(roomId, setPlayers, (error) => setMessage(error?.message || 'Could not load Live Challenge players.'));
   }, [roomId]);
+  // The names behind the game aliases, once per room, for this console.
+  useEffect(() => {
+    if (!roomId || !roomLive) return undefined;
+    let cancelled = false;
+    getLiveChallengeHostRoster({ roomId })
+      .then((reply) => { if (!cancelled) setRosterNames(Array.isArray(reply?.players) ? reply.players : []); })
+      .catch(() => { if (!cancelled) setRosterNames([]); });
+    return () => { cancelled = true; };
+  }, [roomId, roomLive]);
+  // A recovery notice is news for a moment, not a fixture.
+  useEffect(() => {
+    if (!recoveredNotice) return undefined;
+    const timer = window.setTimeout(() => setRecoveredNotice(''), 8000);
+    return () => window.clearTimeout(timer);
+  }, [recoveredNotice]);
 
   const coverageRows = useMemo(() => summarizeCoverage(coverage || {}, { onlyGaps: false }).filter((row) => row.studentReady), [coverage]);
-  const activeRound = room?.status === 'running' ? Number(room.currentRound) : null;
+  // In-progress points are shown only while the round is taking answers: past
+  // the deadline the board is banked scores only (no phantom "working" points).
+  const activeRound = stage === CHALLENGE_STAGE.ROUND_ACTIVE ? Number(room.currentRound) : null;
   const scoringStrategyId = room?.scoringStrategyId || null;
   // Ranked the way this room's scoring strategy ranks a match.
   const leaderboard = useMemo(
@@ -333,31 +441,54 @@ export default function LiveChallengeTeacher({
     [players, activeRound, scoringStrategyId],
   );
   const joinedCount = leaderboard.length;
-  const answeredCount = leaderboard.filter((player) => Number(player.answeredRound) === Number(room?.currentRound)).length;
-  const roundStartsAtMs = timestampMillis(room?.roundStartedAt || room?.startsAt);
-  const roundEndsAtMs = timestampMillis(room?.roundEndsAt || room?.endsAt);
-  const serverNow = now + clockOffsetMs;
-  const hasRoundDeadline = roundEndsAtMs > 0;
-  const elapsedMs = Math.max(0, serverNow - roundStartsAtMs);
-  const remainingMs = hasRoundDeadline ? Math.max(0, roundEndsAtMs - serverNow) : 0;
   const rushMode = challengeMode === RUSH_MODE_ID;
   const rushProblem = rushMode ? rushConfigProblem(rushSetup) : null;
-  // A rush room moves on only from a closed round: its results are what the
-  // class sees between rounds.
   const rushRoom = room?.challengeMode === RUSH_MODE_ID;
-  // A round the server has already closed can always move on.
-  const canAdvance = room?.roundState === 'closed'
-    || (!rushRoom && challengeCanAdvance({ joinedCount, answeredCount, roundEndsAtMs, nowMs: serverNow }));
+  const questionSetRoom = roomRunsQuestionSets(room);
+  const currentRound = Number(room?.currentRound);
+  const roundOpen = stageHasOpenRound(stage);
+  // Who has finished the current round. A classic round: they answered it. A
+  // question-set round is every player's own work against the clock, so it
+  // finishes on the deadline.
+  const finishedKeys = useMemo(() => new Set(roundOpen && !questionSetRoom
+    ? players.filter((player) => player?.joined !== false && Number(player.answeredRound) === currentRound).map((player) => String(player.playerKey))
+    : []), [players, roundOpen, questionSetRoom, currentRound]);
+  const answeredCount = finishedKeys.size;
   const controlBusy = LIFECYCLE_CONTROLS.includes(busy);
-  const connectionSummary = ['synchronized', 'delayed', 'reconnecting', 'degraded'].map((status) => ({
-    status,
-    count: diagnostics.filter((entry) => entry.connectionStatus === status).length,
-  }));
+  const presentation = useMemo(() => scorePresentation({ scoringStrategyId, questionSet: questionSetRoom }), [scoringStrategyId, questionSetRoom]);
+  const roster = useMemo(() => hostRoster({
+    roster: rosterNames,
+    players,
+    diagnostics,
+    roundIndex: roundOpen ? currentRound : null,
+    finishedKeys,
+    nowMs: Date.now() + clockOffsetMs,
+  }), [rosterNames, players, diagnostics, roundOpen, currentRound, finishedKeys, clockOffsetMs]);
 
+  // THE RESULTS MOMENT reads the round's own result document: the round's
+  // table and the standings it left, written in the commit that closed it.
+  const showingResults = stage === CHALLENGE_STAGE.ROUND_RESULTS;
+  const roundSummary = useRoundSummary(roomId, Number.isInteger(currentRound) ? currentRound : null, showingResults);
+  const previousSummary = usePreviousRoundSummary(roomId, Number.isInteger(currentRound) ? currentRound : null, showingResults);
+  const roundView = useMemo(() => (showingResults ? roundResultsView({ summary: roundSummary, previousSummary }) : null), [showingResults, roundSummary, previousSummary]);
+  const finalRewards = useMemo(() => (stage === CHALLENGE_STAGE.COMPLETED ? placementRewardsFor(standingsRows(leaderboard), room?.rewardSummary) : null), [stage, leaderboard, room?.rewardSummary]);
+
+  // HOST AUDIO follows the room on its own timer: the countdown ticks and the
+  // buzzer need the clock four times a second, the console does not.
+  const audioInputs = useLatest({ room, leaderboard, clockOffsetMs });
   useEffect(() => {
-    if (!room) return;
-    audioDirectorRef.current?.sync({ room, leaderboard, remainingMs, nowMs: serverNow });
-  }, [room, leaderboard, remainingMs, serverNow]);
+    if (!room) return undefined;
+    const syncAudio = () => {
+      const { room: current, leaderboard: board, clockOffsetMs: offset } = audioInputs.current;
+      if (!current) return;
+      const serverNow = Date.now() + offset;
+      audioDirectorRef.current?.sync({ room: current, leaderboard: board, remainingMs: cueRemainingMs(current, serverNow), nowMs: serverNow });
+    };
+    syncAudio();
+    if (room.status !== 'running') return undefined;
+    const timer = window.setInterval(syncAudio, 250);
+    return () => window.clearInterval(timer);
+  }, [room, leaderboard, audioInputs]);
 
   const [report, setReport] = useState(null);
   useEffect(() => {
@@ -390,7 +521,10 @@ export default function LiveChallengeTeacher({
   const enableAudio = async () => {
     await audioDirectorRef.current.prime();
     setAudioReady(true);
-    audioDirectorRef.current.sync({ room, leaderboard, remainingMs, nowMs: Date.now() });
+    if (room) {
+      const serverNow = Date.now() + clockOffsetMs;
+      audioDirectorRef.current.sync({ room, leaderboard, remainingMs: cueRemainingMs(room, serverNow), nowMs: serverNow });
+    }
   };
 
   const changeWarmupDeliveryMode = async (nextMode) => {
@@ -414,9 +548,9 @@ export default function LiveChallengeTeacher({
     setMessage('Students will use the standard Warm-Up for this assignment. No Live Challenge lobby was created.');
     return true;
   });
-
   const create = async () => {
     audioDirectorRef.current.prime().then(() => setAudioReady(true)).catch(() => {});
+    creatingRef.current = true;
     const result = await run('create', async () => {
       if (rushMode) {
         // Graph Feature Rush: no Warm-Up link, no bank question style, no
@@ -497,6 +631,7 @@ export default function LiveChallengeTeacher({
       }
       return created;
     });
+    creatingRef.current = false;
     if (result?.roomId && !result.resumed) {
       setRoomId(result.roomId);
       if (result.trimmed) setMessage(`The secure bank had ${result.roundCount} unique usable questions for this selection, so MathMaster shortened the game from ${result.requestedRoundCount} rounds.`);
@@ -524,26 +659,185 @@ export default function LiveChallengeTeacher({
     return control('start', startLiveChallenge);
   };
 
-  // RUSH ROUNDS CLOSE ON TIME. Shortly after the deadline the host closes the
-  // round (an ordinary close command: idempotent, round-scoped), so placement
-  // is decided and every student sees their results. A failed close is tried
-  // again a few seconds later; the teacher can also close it by hand.
-  const autoClosedRef = useRef('');
+  // ROUND PACING. A round ends on the server's terms — every player has
+  // finished, or the deadline has passed — and this console then closes it
+  // with the same idempotent, round-scoped close the teacher can press. After
+  // the deadline it first waits out the arrival grace (an answer sent at 0:00
+  // still counts); when everyone finished early it waits a moment so the last
+  // answer's feedback is seen. Every mode then shows the round's results, and
+  // the next round starts only when the teacher presses Next Round. Several
+  // open host screens all send the close: the first closes it, the rest are
+  // told it is already closed.
+  const roundKey = room && roundOpen ? `${room.roomId || roomId}-${room.currentRound}-${room.roundVersion || 0}` : '';
+  const everyoneFinished = roundOpen && !questionSetRoom && joinedCount > 0 && answeredCount >= joinedCount;
+  const [allFinishedSince, setAllFinishedSince] = useState({ key: '', at: null });
   useEffect(() => {
-    if (!rushRoom || room?.status !== 'running' || room?.roundState === 'closed' || !hasRoundDeadline) return;
-    if (serverNow < roundEndsAtMs + RUSH_AUTO_CLOSE_DELAY_MS) return;
-    const key = `${room.roomId || roomId}-${room.currentRound}-${room.roundVersion || 0}`;
-    if (autoClosedRef.current === key) return;
-    autoClosedRef.current = key;
-    control('close', closeLiveChallengeRound).then((result) => {
-      if (result) return;
-      window.setTimeout(() => { if (autoClosedRef.current === key) autoClosedRef.current = ''; }, 3_000);
-    });
-    // `control` reads the room it closes from the latest render.
+    if (!everyoneFinished || !roundKey) return;
+    setAllFinishedSince((current) => (current.key === roundKey && current.at !== null ? current : { key: roundKey, at: Date.now() + clockOffsetMs }));
+  }, [everyoneFinished, roundKey, clockOffsetMs]);
+  const closeDue = room ? roundCloseDue({
+    room,
+    joinedCount,
+    finishedCount: answeredCount,
+    allFinishedSinceMs: everyoneFinished && allFinishedSince.key === roundKey ? allFinishedSince.at : null,
+  }) : null;
+  const autoClosedRef = useRef('');
+  const [closeRetry, setCloseRetry] = useState(0);
+  useEffect(() => {
+    if (!closeDue || !roundKey) return undefined;
+    const key = `${roundKey}:${closeDue.reason}`;
+    if (autoClosedRef.current === key) return undefined;
+    const timer = window.setTimeout(() => {
+      autoClosedRef.current = key;
+      control('close', closeRoundOnTime).then((result) => {
+        if (result) return;
+        // Not closed: another command held the console's lock, or the server
+        // says the round is still running. Look again in a moment.
+        window.setTimeout(() => {
+          if (autoClosedRef.current === key) autoClosedRef.current = '';
+          setCloseRetry((value) => value + 1);
+        }, 3_000);
+      });
+    }, Math.max(0, closeDue.dueAtMs - (Date.now() + clockOffsetMs)));
+    return () => window.clearTimeout(timer);
+    // `control` reads the round it closes from the latest render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rushRoom, room?.status, room?.roundState, room?.currentRound, room?.roundVersion, hasRoundDeadline, roundEndsAtMs, serverNow]);
+  }, [closeDue?.dueAtMs, closeDue?.reason, roundKey, closeRetry]);
+
+  // A room id the server no longer has (a stale pointer or remembered room) is
+  // dropped, once, and never reopened by the pointer listener.
+  useEffect(() => {
+    if (!roomMissing || !roomId) return;
+    missingRoomsRef.current.add(roomId);
+    forgetHostedRoom();
+    setRoomId(null);
+    setMessage('That Live Challenge is no longer available. Set up a new one below.');
+  }, [roomMissing, roomId]);
+
+  // PLAY AGAIN: a fresh match with this room's settings (challengeReplayModel)
+  // and the Rewards choice on this device. A new room id is a new match — new
+  // receipts, rounds, clock and reward identities — and the class's invites
+  // move to it, so every student's screen follows into the new lobby.
+  const playAgain = async () => {
+    if (!room || busy) return null;
+    const request = replayRequestFromRoom(room, { rewardPolicy: buildChallengeRewardPolicy(rewardChoice) });
+    if (!request) {
+      setMessage('This game cannot be replayed automatically. Choose New Challenge to set one up.');
+      return null;
+    }
+    creatingRef.current = true;
+    const result = await run('replay', async () => {
+      let created;
+      try {
+        created = await createLiveChallenge(request);
+      } catch (error) {
+        const activeRoomId = error?.details?.roomId;
+        if (String(error?.code || '').endsWith('failed-precondition') && activeRoomId) return { roomId: activeRoomId, resumed: true };
+        throw error;
+      }
+      if (!created?.roomId) return created;
+      try {
+        await configureLiveChallengeExperience({ roomId: created.roomId, ...replayExperienceFromRoom(room) });
+      } catch (configurationError) {
+        await cancelLiveChallenge({ roomId: created.roomId }).catch(() => {});
+        throw new Error(`The new lobby was cancelled because its name settings could not be secured. ${configurationError?.message || ''}`.trim());
+      }
+      return created;
+    });
+    creatingRef.current = false;
+    if (!result?.roomId) return null;
+    setReport(null);
+    setRoomId(result.roomId);
+    if (result.resumed) setMessage('You already have an active Live Challenge. It has been reopened.');
+    else if (result.trimmed) setMessage(`The secure bank had ${result.roundCount} unique usable questions for this selection, so MathMaster shortened the game from ${result.requestedRoundCount} rounds.`);
+    return result;
+  };
+
+  // Back to the setup panel with this browser's settings still filled in.
+  const newChallenge = () => {
+    forgetHostedRoom();
+    setProjector(false);
+    setRoomId(null);
+    setRoom(null);
+    setPlayers([]);
+    setTitle('');
+    setMessage('');
+  };
+
+  const forceCloseRound = (payload) => closeLiveChallengeRound({ ...payload, force: true });
+  const stillWorking = Math.max(0, joinedCount - answeredCount);
+  // Destructive actions, confirmed once. Harmless ones (Next Round, Start)
+  // never ask; the command lock and the round they name stop doubles.
+  const CONFIRMATIONS = {
+    finish: {
+      title: 'End the game now?',
+      body: 'Answers already given in this round still count. The final standings use the rounds played so far, and rewards are given from them.',
+      confirmLabel: 'End Game',
+      run: () => control('finish', finishLiveChallenge),
+    },
+    cancel: {
+      title: 'Cancel this lobby?',
+      body: 'Students in the lobby will see that the challenge was cancelled. Nothing is recorded and nobody is rewarded.',
+      confirmLabel: 'Cancel Session',
+      cancelLabel: 'Keep the lobby',
+      run: () => control('cancel', cancelLiveChallenge),
+    },
+    close: {
+      title: 'End this round now?',
+      body: questionSetRoom
+        ? 'Every student stops where they are; what they have finished counts.'
+        : `${stillWorking} ${stillWorking === 1 ? 'student is' : 'students are'} still working. An answer they have not locked in will not count for this round.`,
+      confirmLabel: 'End Round Now',
+      run: () => control('close', forceCloseRound),
+    },
+  };
+  const confirmation = confirming ? CONFIRMATIONS[confirming] : null;
+  const confirmDialog = (
+    <ConfirmDialog
+      open={Boolean(confirmation)}
+      title={confirmation?.title}
+      body={confirmation?.body}
+      confirmLabel={confirmation?.confirmLabel}
+      cancelLabel={confirmation?.cancelLabel || 'Keep playing'}
+      busy={controlBusy}
+      onCancel={() => setConfirming(null)}
+      onConfirm={async () => {
+        const action = confirmation;
+        setConfirming(null);
+        await action?.run();
+      }}
+    />
+  );
+
+  const primaryAction = room ? hostPrimaryAction({ room, stage, joinedCount, finishedCount: answeredCount }) : null;
+  // The console's one primary control, by stage. Start and Next Round go
+  // through the same command lock and authorized callables as the projector.
+  const runPrimaryAction = () => {
+    switch (primaryAction?.command) {
+      case HOST_COMMAND.START:
+        audioDirectorRef.current.prime().then(() => setAudioReady(true)).catch(() => {});
+        return control('start', startLiveChallenge);
+      case HOST_COMMAND.ADVANCE:
+        return control('advance', advanceLiveChallenge);
+      case HOST_COMMAND.PLAY_AGAIN:
+        return playAgain();
+      case HOST_COMMAND.NEW_CHALLENGE:
+        return newChallenge();
+      default:
+        return null;
+    }
+  };
+
+  // Play Again from the projector keeps the projector — and full screen — up
+  // while the new lobby loads.
+  if (projector && roomId && !room && !roomMissing) {
+    return <ChallengeProjector room={null} loading dialog={confirmDialog} onExit={() => setProjector(false)} />;
+  }
 
   if (!roomId || !room) {
+    if (roomId && !roomMissing) {
+      return <section aria-busy="true" style={panel}><h2 style={{ margin: 0, fontSize: 22, color: 'var(--mm-text-strong)' }}>Opening your Live Challenge…</h2></section>;
+    }
     if (dryRunOpen && rushMode) {
       return (
         <Suspense fallback={<p style={{ padding: 20 }}>Loading practice…</p>}>
@@ -762,115 +1056,164 @@ export default function LiveChallengeTeacher({
       leaderboard={leaderboard}
       players={players}
       joinedCount={joinedCount}
-      remainingMs={remainingMs}
-      canAdvance={canAdvance}
+      answeredCount={answeredCount}
+      clockOffsetMs={clockOffsetMs}
+      roundView={roundView}
+      presentation={presentation}
+      rewardsByKey={finalRewards}
+      primaryAction={primaryAction}
       busy={busy}
+      controlBusy={controlBusy}
       error={message}
       audioReady={audioReady}
+      audioMuted={audioMix.muted}
+      onToggleMute={() => updateAudioMix({ muted: !audioMix.muted })}
       onEnableAudio={enableAudio}
       onStart={startFromProjector}
-      elapsedMs={elapsedMs}
       onAdvance={() => control('advance', advanceLiveChallenge)}
+      onPlayAgain={playAgain}
+      onNewChallenge={newChallenge}
+      onRequestEndGame={() => setConfirming('finish')}
+      onRequestEndRound={() => setConfirming('close')}
       onThresholdChange={changeClosingThreshold}
       onExit={() => setProjector(false)}
+      dialog={confirmDialog}
     />;
   }
 
+  const lobby = stage === CHALLENGE_STAGE.LOBBY;
+  const finished = stage === CHALLENGE_STAGE.COMPLETED;
+  const cancelled = stage === CHALLENGE_STAGE.CANCELLED;
+  const rewardLines = rewardSummaryLines(room.rewardSummary);
+  const gameLabel = projectorGameLabel(room);
+  const standingTitle = presentation.placementPoints ? 'Championship' : 'Standings';
+  const secondaryControls = [
+    roundOpen ? { key: 'close', label: 'End Round Now', busyLabel: 'Closing…', onClick: () => setConfirming('close') } : null,
+  ];
+
   return (
-    <div style={{ display: 'grid', gap: 18 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-        <div><h2 style={{ margin: 0 }}>{room.title}</h2><p style={{ margin: '6px 0 0', color: '#5f6368' }}>{room.classPeriod} · {courseLabel(room.courseId)} · {rushRoom ? 'Graph Feature Rush' : room.standardCode === 'mixed' ? 'Mixed review' : room.standardCode}</p></div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button type="button" onClick={() => setProjector(true)} style={primary}>Resume Session</button>
-          <button type="button" onClick={() => setProjector(true)} style={secondary}>Projector View</button>
+    <div style={{ display: 'grid', gap: 16 }} data-mm-host-console={stage || 'loading'}>
+      <ChallengeShellStyles />
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <StagePill stage={stage} />
+            <span style={{ color: 'var(--mm-text-muted)', fontWeight: 800 }}>{gameLabel} · {room.classPeriod} · {courseLabel(room.courseId)}{!rushRoom && room.standardCode && room.standardCode !== 'mixed' ? ` · ${room.standardCode}` : ''}</span>
+          </div>
+          <h2 style={{ margin: '6px 0 0', fontSize: 26, lineHeight: 1.15, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{room.title}</h2>
         </div>
-      </div>
-      <AudioMixer director={audioDirectorRef.current} mix={audioMix} onMixChange={updateAudioMix} onEnable={enableAudio} audioReady={audioReady} />
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {!cancelled && <button type="button" onClick={() => setProjector(true)} style={primary}>Projector View</button>}
+          {lobby && <button type="button" disabled={controlBusy} onClick={() => (joinedCount > 0 ? setConfirming('cancel') : control('cancel', cancelLiveChallenge))} style={{ ...secondary, color: '#a50e0e', opacity: controlBusy ? 0.55 : 1 }}>Cancel Session</button>}
+          {(roundOpen || stage === CHALLENGE_STAGE.ROUND_RESULTS) && <button type="button" disabled={controlBusy} onClick={() => setConfirming('finish')} style={{ ...secondary, color: '#a50e0e', opacity: controlBusy ? 0.55 : 1 }}>{busy === 'finish' ? 'Ending…' : 'End Game'}</button>}
+        </div>
+      </header>
+      {recoveredNotice && <div role="status" style={{ padding: 12, borderRadius: 9, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', border: '1px solid var(--mm-info-border)', fontWeight: 800 }}>{recoveredNotice}</div>}
       {message && <div role="alert" style={{ padding: 12, borderRadius: 9, background: '#fff4ce', color: '#7a4f00' }}>{message}</div>}
-      {rushRoom && ['lobby', 'running'].includes(room.status) && <section style={{ ...panel, padding: 12 }}><strong>Graph Feature Rush · {rushSettingsLine(room)}</strong></section>}
-      {!rushRoom && ['lobby', 'running'].includes(room.status) && <section style={{ ...panel, padding: 12, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-        <strong>{room.roundCount} scheduled rounds · {room.timingMode === 'pace' ? 'Pace Race' : 'Timed Race'} · Closing {room.roundClosingThreshold == null ? 'Off' : `at ${room.roundClosingThreshold}%`} · Second Chance {room.secondChanceMode === 'off' ? 'Off' : 'Automatic'}{room.solverRaceDifficulty === 'ramp' ? ' · Ramp difficulty' : ''}</strong>
-        <label style={{ marginLeft: 'auto', fontWeight: 800 }}>Round closing threshold
-          <select value={room.roundClosingThreshold ?? 'off'} disabled={busy === 'threshold'} onChange={(event) => changeClosingThreshold(event.target.value)} style={{ ...field, width: 'auto', display: 'inline-block', margin: '0 0 0 8px' }}>
-            <option value="off">Off</option>{[60, 70, 80, 90, 100].map((value) => <option key={value} value={value}>{value}%</option>)}
-          </select>
-        </label>
-      </section>}
 
-      {room.status === 'lobby' && (
+      {lobby && (
         <>
-          <section style={{ ...panel, background: '#e8f0fe', borderColor: '#aecbfa' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
-              <div><div style={{ color: '#5f6368', fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>Joined</div><div style={{ fontSize: 32, fontWeight: 1000 }}>{joinedCount} / {room.eligibleCount || 0}</div></div>
-              <div><div style={{ color: '#5f6368', fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>Rounds</div><div style={{ fontSize: 32, fontWeight: 1000 }}>{room.roundCount}</div></div>
-              <div><div style={{ color: '#5f6368', fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>Per round</div><div style={{ fontSize: 32, fontWeight: 1000 }}>{room.roundSeconds}s</div></div>
+          <section style={{ ...panel, background: '#e8f0fe', borderColor: '#aecbfa', display: 'grid', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, color: '#174ea6' }}>
+              <div><div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>Joined</div><div style={{ fontSize: 34, fontWeight: 1000 }}>{joinedCount} / {room.eligibleCount || 0}</div></div>
+              <div><div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>Rounds</div><div style={{ fontSize: 34, fontWeight: 1000 }}>{room.roundCount}</div></div>
+              <div><div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>{room.timingMode === 'pace' ? 'Timing' : 'Per round'}</div><div style={{ fontSize: 34, fontWeight: 1000 }}>{room.timingMode === 'pace' ? 'Pace' : `${room.roundSeconds}s`}</div></div>
+              <div><div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>Scoring</div><div style={{ fontSize: 22, fontWeight: 1000, marginTop: 6 }}>{presentation.placementPoints ? 'Grand Prix' : presentation.strategyId === 'correctCount' ? 'Correct Count' : 'Points'}</div></div>
             </div>
-            <p style={{ marginBottom: 0, color: '#174ea6' }}>Students already signed into this class receive the challenge automatically. No join code is required.</p>
+            <div style={{ color: '#174ea6', lineHeight: 1.5 }}>
+              <strong>How students join:</strong> students in {room.className || room.classPeriod || 'this class'} see a Live Challenge card on their MathMaster dashboard — no code to type.{room.assignmentId ? ' Students who open the linked assignment during its Warm-Up are taken straight in.' : ''}
+            </div>
+            {rushRoom
+              ? <div style={{ color: '#3c4043', fontWeight: 800 }}>Graph Feature Rush · {rushSettingsLine(room)}</div>
+              : <div style={{ color: '#3c4043', fontWeight: 800 }}>{room.timingMode === 'pace' ? 'Pace Race' : 'Timed Race'} · Closing {room.roundClosingThreshold == null ? 'Off' : `at ${room.roundClosingThreshold}%`} · Second Chance {room.secondChanceMode === 'off' ? 'Off' : 'Automatic'}{room.solverRaceDifficulty === 'ramp' ? ' · Ramp difficulty' : ''}</div>}
+            {rewardLines.length > 0 && <div style={{ color: '#3c4043' }}><strong>Rewards:</strong> {rewardLines.join(' · ')}</div>}
+            <HostControlBar action={primaryAction} busy={busy} controlBusy={controlBusy} onPrimary={runPrimaryAction} />
           </section>
-          {/* Nobody has played yet, so there is no order to show — only who is here. */}
-          <section style={panel}><h3 style={{ marginTop: 0 }}>Players in lobby</h3><Leaderboard rows={leaderboard} limit={60} ranked={false} /></section>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button type="button" disabled={joinedCount < 1 || controlBusy} onClick={() => { audioDirectorRef.current.prime().then(() => setAudioReady(true)).catch(() => {}); control('start', startLiveChallenge); }} style={{ ...primary, opacity: joinedCount < 1 || controlBusy ? .55 : 1 }}>{busy === 'start' ? 'Starting…' : 'Start Challenge'}</button>
-            <button type="button" disabled={controlBusy} onClick={() => control('cancel', cancelLiveChallenge)} style={{ ...secondary, color: '#a50e0e' }}>Cancel Session</button>
-          </div>
+          <NotJoinedLine roster={roster} />
+          <HostRosterPanel roster={roster} stage={stage} title="Players in lobby" showAliases={showAliases} onToggleAliases={setShowAliases} />
         </>
       )}
 
-      {room.status === 'running' && rushRoom && (
+      {(roundOpen || stage === CHALLENGE_STAGE.ROUND_RESULTS) && (
         <>
-          <section aria-label="Connection status" style={{ ...panel, padding: 12 }}>
-            <strong>Class connection: </strong>
-            {connectionSummary.map(({ status, count }) => <span key={status} style={{ marginRight: 14 }}>{count} {status === 'delayed' ? 'connection delay / unstable' : status}</span>)}
-          </section>
-          <RushHostStatus room={room} players={players} remainingMs={remainingMs} joinedCount={joinedCount} closing={busy === 'close'} />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 18 }}>
-            <section style={panel}>
-              <h3 style={{ marginTop: 0 }}>{room.roundState === 'closed' ? `Round ${(room.currentRound || 0) + 1} results` : 'Live race · graphs this round'}</h3>
-              {room.roundState === 'closed'
-                ? <RushRoundResultsBoard players={players} roundIndex={Number(room.currentRound) || 0} scoringStrategyId={room.scoringStrategyId} />
-                : <RushRaceBoard players={players} roundIndex={Number(room.currentRound) || 0} />}
+          {!rushRoom && stage !== CHALLENGE_STAGE.ROUND_RESULTS && (
+            <section style={{ ...panel, padding: 12, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 800 }}>{room.roundCount} scheduled rounds · {room.timingMode === 'pace' ? 'Pace Race' : 'Timed Race'} · Second Chance {room.secondChanceMode === 'off' ? 'Off' : 'Automatic'}</span>
+              <label style={{ marginLeft: 'auto', fontWeight: 800 }}>Round closing threshold
+                <select value={room.roundClosingThreshold ?? 'off'} disabled={busy === 'threshold'} onChange={(event) => changeClosingThreshold(event.target.value)} style={{ ...field, width: 'auto', display: 'inline-block', margin: '0 0 0 8px' }}>
+                  <option value="off">Off</option>{[60, 70, 80, 90, 100].map((value) => <option key={value} value={value}>{value}%</option>)}
+                </select>
+              </label>
             </section>
-            <section style={panel}><h3 style={{ marginTop: 0 }}>{room.scoringStrategyId === 'grandPrix' ? 'Championship' : 'Standings'}</h3><Leaderboard rows={leaderboard} /></section>
-          </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button type="button" disabled={!canAdvance || controlBusy} onClick={() => control('advance', advanceLiveChallenge)} style={{ ...primary, opacity: !canAdvance || controlBusy ? .55 : 1 }}>{busy === 'advance' ? 'Loading next round…' : (room.currentRound + 1 >= room.roundCount ? 'Finish & Show Final Standings' : 'Next Round')}</button>
-            {room.roundState !== 'closed' && hasRoundDeadline && remainingMs <= 0 && (
-              <button type="button" disabled={controlBusy} onClick={() => control('close', closeLiveChallengeRound)} style={secondary}>{busy === 'close' ? 'Closing round…' : 'Close Round Now'}</button>
-            )}
-            <button type="button" disabled={controlBusy} onClick={() => control('finish', finishLiveChallenge)} style={{ ...secondary, color: '#a50e0e' }}>End Session</button>
-          </div>
-          {!canAdvance && <p style={{ margin: 0, color: '#5f6368', fontSize: 13 }}>The round closes on its own when time runs out; then the results show and Next Round unlocks.</p>}
-        </>
-      )}
-
-      {room.status === 'running' && !rushRoom && (
-        <>
-          <section aria-label="Connection status" style={{ ...panel, padding: 12 }}>
-            <strong>Class connection: </strong>
-            {connectionSummary.map(({ status, count }) => <span key={status} style={{ marginRight: 14 }}>{count} {status === 'delayed' ? 'connection delay / unstable' : status}</span>)}
+          )}
+          {stage === CHALLENGE_STAGE.COUNTDOWN && (
+            <section style={{ ...panel, padding: 8 }}>
+              <ChallengeCountdown clock={clock} look="console" title={clock.isReplay ? `Second Chance round ${clock.replayNumber}` : `Round ${clock.roundNumber} of ${clock.roundCount}`} />
+            </section>
+          )}
+          {stage !== CHALLENGE_STAGE.ROUND_RESULTS && (rushRoom
+            ? <RushHostStatus room={room} players={players} clockOffsetMs={clockOffsetMs} joinedCount={joinedCount} closing={busy === 'close'} />
+            : <ChallengeLiveStatus room={room} clockOffsetMs={clockOffsetMs} answeredCount={answeredCount} joinedCount={joinedCount} />)}
+          {stage === CHALLENGE_STAGE.ROUND_RESULTS && (
+            <HostRoundResultsPanel view={roundView} presentation={presentation} roundNumber={clock.roundNumber} fallbackRows={standingsRows(leaderboard)} />
+          )}
+          <section style={{ ...panel, padding: 14 }}>
+            <HostControlBar action={primaryAction} busy={busy} controlBusy={controlBusy} onPrimary={runPrimaryAction} secondary={secondaryControls} />
           </section>
-          <ChallengeLiveStatus room={room} remainingMs={remainingMs} elapsedMs={elapsedMs} answeredCount={answeredCount} joinedCount={joinedCount} />
-          <section style={panel}><h3 style={{ marginTop: 0 }}>Leaderboard</h3><Leaderboard rows={leaderboard} /></section>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button type="button" disabled={!canAdvance || controlBusy} onClick={() => control('advance', advanceLiveChallenge)} style={{ ...primary, opacity: !canAdvance || controlBusy ? .55 : 1 }}>{busy === 'advance' ? 'Loading next round…' : room.secondChanceOf != null ? (room.hasAdditionalReplay ? 'Next Final Round' : 'Finish & Show Final Standings') : (room.currentRound + 1 >= room.roundCount ? 'Finish & Show Final Standings' : 'Next Round')}</button>
-            <button type="button" disabled={controlBusy} onClick={() => control('finish', finishLiveChallenge)} style={{ ...secondary, color: '#a50e0e' }}>End Session</button>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 16, alignItems: 'start' }}>
+            {stage !== CHALLENGE_STAGE.ROUND_RESULTS && (
+              <section style={panel}>
+                <h3 style={{ marginTop: 0 }}>{rushRoom ? 'Live race · graphs this round' : `Live ${standingTitle.toLowerCase()}`}</h3>
+                {rushRoom
+                  ? <RushRaceBoard players={players} roundIndex={currentRound || 0} />
+                  : <Leaderboard rows={leaderboard} presentation={presentation} limit={12} />}
+              </section>
+            )}
+            <HostRosterPanel roster={roster} stage={stage} showAliases={showAliases} onToggleAliases={setShowAliases} />
           </div>
-          {!canAdvance && <p style={{ margin: 0, color: '#5f6368', fontSize: 13 }}>{room.timingMode === 'pace' && !hasRoundDeadline ? 'Next Round unlocks when everyone submits or the closing threshold starts and its countdown finishes.' : 'Next Round unlocks when everyone who joined has answered or the timer reaches zero.'}</p>}
         </>
       )}
 
-      {room.status === 'finished' && (
+      {finished && (
         <>
-          <section style={{ ...panel, background: '#e6f4ea', borderColor: '#9bd2aa' }}><h2 style={{ marginTop: 0, color: '#137333' }}>Challenge complete</h2><p style={{ marginBottom: 0 }}>Competition points are game results only. Warm-Up academic credit uses participation and mathematical accuracy.</p></section>
-          <section style={panel}><h3 style={{ marginTop: 0 }}>Final Standings</h3><Leaderboard rows={leaderboard} limit={20} /></section>
+          <section style={{ ...panel, background: '#e6f4ea', borderColor: '#9bd2aa', display: 'grid', gap: 12 }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 26, color: '#137333' }}>Challenge complete</h2>
+              <p style={{ margin: '6px 0 0', color: '#1e4620' }}>Competition points are game results only. Warm-Up academic credit uses participation and mathematical accuracy.</p>
+            </div>
+            {rewardLines.length > 0 && <div style={{ color: '#1e4620' }}><strong>Rewards from this game:</strong> {rewardLines.join(' · ')}. Each student&apos;s screen shows what reached their wallet.</div>}
+            <HostControlBar
+              action={primaryAction}
+              busy={busy}
+              controlBusy={controlBusy}
+              onPrimary={runPrimaryAction}
+              secondary={[{ key: 'newChallenge', label: 'New Challenge', onClick: newChallenge }]}
+            />
+            <div style={{ color: '#3c4043', fontSize: 13 }}>Play Again runs {replaySummary(room)}{room.assignmentId ? ' as a standalone game (the Warm-Up keeps this game’s result)' : ''}, with this device&apos;s Rewards choice.</div>
+          </section>
+          <section style={panel}>
+            <h3 style={{ marginTop: 0 }}>Final {standingTitle.toLowerCase()}</h3>
+            <StandingsBoard rows={standingsRows(leaderboard)} presentation={presentation} look="console" limit={40} showCorrect={!presentation.placementPoints} rewardsByKey={finalRewards} label="Final standings" />
+          </section>
           <ChallengeReport report={report} />
-          <button type="button" onClick={() => { setRoomId(null); setRoom(null); setPlayers([]); setTitle(''); setMessage(''); }} style={{ ...primary, justifySelf: 'start' }}>Create Another Challenge</button>
         </>
       )}
 
-      {room.status === 'cancelled' && (
-        <section style={panel}><h3 style={{ marginTop: 0 }}>Challenge cancelled</h3><button type="button" onClick={() => { setRoomId(null); setRoom(null); setPlayers([]); }} style={primary}>Create Another Challenge</button></section>
+      {cancelled && (
+        <section style={{ ...panel, display: 'grid', gap: 12 }}>
+          <h3 style={{ margin: 0 }}>Challenge cancelled</h3>
+          <p style={{ margin: 0, color: '#5f6368' }}>Nothing from this game is recorded, and nobody is rewarded.</p>
+          <HostControlBar action={primaryAction} busy={busy} controlBusy={controlBusy} onPrimary={runPrimaryAction} secondary={[{ key: 'sameAgain', label: 'Same Settings Again', onClick: playAgain }]} />
+        </section>
       )}
+
+      <details style={{ ...panel, padding: 12 }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 900 }}>Game audio{audioMix.muted ? ' · muted' : audioReady ? ' · on' : ' · off'}</summary>
+        <div style={{ marginTop: 10 }}>
+          <AudioMixer mix={audioMix} onMixChange={updateAudioMix} onEnable={enableAudio} audioReady={audioReady} />
+        </div>
+      </details>
+      {confirmDialog}
     </div>
   );
 }
