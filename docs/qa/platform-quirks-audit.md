@@ -32,7 +32,9 @@ re-run on the merged head.
 | **P3** | 12 | 1 | 10 | 1 |
 
 The one deferred P1 (PQ-036, a DOL correctness leak in the plotting workspace)
-needs an assessment-policy decision; it is first in the recommended next PRs.
+was closed in the 2026-10-01 cleanup of PRs #407/#408, together with the same
+leak in multi-step questions; see its entry. (The counts above are as this
+audit first recorded them; each entry's status line is current.)
 
 | ID | Sev | Status | Finding |
 | --- | --- | --- | --- |
@@ -41,7 +43,7 @@ needs an assessment-policy decision; it is first in the recommended next PRs.
 | PQ-002 | P1 | FIXED | iPad portrait: the "enlarged" plane is smaller than the embedded one |
 | PQ-014 | P1 | FIXED | A tap on a letterboxed plane lands on the wrong coordinate |
 | PQ-015 | P1 | FIXED | Phone in landscape: the tool starts below the fold behind a blank column |
-| PQ-036 | P1 | PARTLY FIXED | In a DOL, the plotting workspace tells the student which points are wrong |
+| PQ-036 | P1 | FIXED (2026-10-01 cleanup) | In a DOL, the plotting workspace tells the student which points are wrong |
 | PQ-003 | P2 | FIXED | Phone: tap a point card, and the plane is scrolled away |
 | PQ-004 | P2 | FIXED | 1366×768 Work View: the plane is taller than the stage body |
 | PQ-005 | P2 | FIXED | `workViewCertification.mjs` "times out" |
@@ -60,7 +62,7 @@ needs an assessment-policy decision; it is first in the recommended next PRs.
 | PQ-021 | P2 | DEFERRED | Phone identity bar is 67–86px and always pinned |
 | PQ-022 | P2 | DEFERRED | After a tool's Check, the attempt outcome is off-screen |
 | PQ-023 | P2 | DEFERRED | Tool chrome and folded help sit between the task and the mathematics |
-| PQ-024 | P2 | DEFERRED | Point cards say "P1: x = −1" but x is not locked |
+| PQ-024 | P2 | FIXED (2026-10-01 cleanup) | Point cards say "P1: x = −1" but x is not locked |
 | PQ-035 | P2 | NOT REPRODUCED | Memory growth over a long session |
 | PQ-039 | P2 | NOT A PRODUCTION ISSUE | Typing latency in the student harness |
 | PQ-040 | P2 | FIXED | Typing "−2/3x + 4" on a keyboard makes −2 over (3x + 4) |
@@ -718,7 +720,24 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   leak symptom to chase. See §5.
 - **Scope:** —
 
-### PQ-036 · In a DOL, the plotting workspace tells the student which points are wrong — **P1 · PARTLY FIXED**
+### PQ-036 · In a DOL, the plotting workspace tells the student which points are wrong — **P1 · FIXED (2026-10-01 cleanup)**
+
+- **Fixed (cleanup of PRs #407/#408):** where outcomes are withheld nothing on
+  the plane says whether the work is right, and nothing has to be right to
+  continue. There is no point check and no reflected-point check; the curve is
+  drawn through the student's OWN points and stays as drawn (Clear Sketch frees
+  the points); graph ends offer every symbol, with no pulse and no pull. Each
+  part is graded at submission exactly as practice requires before its snap:
+  the curve counts when every point it was drawn through is right and the
+  sketch follows the function, and a marker counts within the radius practice
+  uses — so a correct DOL graph earns full credit (browser-checked) and a wrong
+  one does not. Multi-step questions follow the same policy in every step: the
+  mapping-diagram and number-line steps no longer say "Correct / Not yet", a
+  graph step built from a table no longer reveals whether the table is right
+  ("do not agree" block, magnet), and later steps show "Your graph" (the
+  student's own points) instead of "Your checked graph" only when right.
+  Practice is unchanged. Gates: `tests/browser/graphPointCheck.mjs`,
+  `tests/browser/composedOutcomePolicy.mjs`, `tests/platform/graphOutcomePolicy.test.mjs`.
 
 - **Update 2026-10-01:** wherever outcomes are not shown immediately (DOL, quiz, test):
   - A point-only plot has no check. Its points are graded as placed and stay movable until submission.
@@ -875,7 +894,18 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   real identity bar and a realistic navigator).
 - **Scope:** medium (ToolShell + TaskCard; every tool).
 
-### PQ-024 · Point cards say "P1: x = −1" but x is not locked — **P2 · DEFERRED (pedagogy)**
+### PQ-024 · Point cards say "P1: x = −1" but x is not locked — **P2 · FIXED (2026-10-01 cleanup)**
+
+- **Fixed:** the rule follows the card. One predicate (`taskStatesX` in
+  `src/interactiveGraphEngine.js`) decides both what a card prints and what the
+  plane holds: a card that states its x places at that x on every route (click,
+  drag, keyboard, typed coordinate) and the drag guide shows it; the height is
+  the student's. A centre or key point (its x is not on the card — it is part of
+  what the student must find) and an x the student chooses are never held.
+  Cards that state the same x (a relation that is not a function) are matched
+  to their expected points as a set, so a correct plot is correct either way
+  round. Tests: `tests/platform/statedTaskX.test.mjs`; browser:
+  `composedOutcomePolicy.mjs`, `relationPlotGrading.mjs`.
 
 - **Reproduction:** staged plotting stage, tap P1, tap the plane at x = −4 →
   P1 is placed at **(−4, 4)**. The tasks are built with `lockedX: true`
