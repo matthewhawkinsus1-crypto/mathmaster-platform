@@ -16,6 +16,7 @@ import {
   writeLoginHints,
 } from './authService';
 import { shouldPromoteClassroomStudentSession } from './classroomSession.js';
+import { clearAccountTabStorage } from './accountTabStorage.js';
 
 const AuthContext = createContext(null);
 
@@ -52,6 +53,9 @@ export function AuthProvider({ children }) {
   const applyFirebaseUser = useCallback(async (firebaseUser) => {
     if (!firebaseUser) {
       resolvingRef.current = null;
+      // However the session ended (here, in another tab, or by expiry), no
+      // account's tab drafts outlive it (accountTabStorage.js).
+      clearAccountTabStorage();
       setState({ status: 'signedOut', session: null, linkRequest: null });
       return;
     }

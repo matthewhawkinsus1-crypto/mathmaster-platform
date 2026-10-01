@@ -7,11 +7,16 @@
  * students instead, with the custom-token claims a real student session
  * carries ({ role: 'student', studentId }), so the student side of the
  * support evidence build can be driven against the same in-memory school.
+ *
+ * `?teacherUid=<uid>` signs the synthetic teacher in under another account
+ * id — a second teacher account using the same browser tab — so what an
+ * account keeps in the tab (the case review's next-steps draft) can be shown
+ * not to reach another account.
  */
 import { TEACHER_EMAIL } from './fixture.js';
 
 const teacher = {
-  uid: 'harness-teacher-uid',
+  uid: new URLSearchParams(window.location.search).get('teacherUid') || 'harness-teacher-uid',
   email: TEACHER_EMAIL,
   displayName: 'Sample Teacher',
   photoURL: null,

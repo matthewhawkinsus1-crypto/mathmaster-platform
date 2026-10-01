@@ -31,6 +31,9 @@
 //   C5  print (12 sections, teacher-authored next steps, only the case review
 //       on paper) and CSV / JSON exports
 //   C6  the student sees none of it and loads none of its code
+//   C7  the teacher's next steps come back after the case review is closed
+//       and after a reload (printed and exported), clear on request, never
+//       reach another account using the tab, and leave with sign-out
 //
 // Exit code 1 on any finding. Screenshots in
 // tests/browser/artifacts/caseReview/ (git-ignored).
@@ -382,6 +385,75 @@ const journeys = {
     await page.waitForTimeout(300);
     expect('C5', await page.locator('.cr-print-root').count() === 0 && !(await page.evaluate(() => document.body.classList.contains('cr-printing'))), 'after printing the print copy is removed');
     expect('C5', await printTab.isVisible(), 'the teacher is still on the print tab');
+  },
+
+  async C7(page) {
+    const steps = 'Reteach elimination with two worked examples; check in on Thursday (synthetic note).';
+    const DRAFT_PREFIX = 'mathmaster.accountTab.v1:';
+    const drafts = () => page.evaluate((prefix) => Object.keys(sessionStorage).filter((key) => key.startsWith(prefix)), DRAFT_PREFIX);
+    const openPrintTab = async (entry = null) => {
+      const review = await openCaseReview(page, { entry });
+      await build(page, review);
+      await tab(page, review, 'Print & export');
+      return { review, box: panel(review, 'print').getByLabel('Teacher-entered next steps (optional)') };
+    };
+    const signedIn = async (url) => {
+      await page.goto(url, { timeout: 180000 });
+      await page.getByText('Instructor Dashboard').first().waitFor({ timeout: 120000 });
+      await page.waitForTimeout(2500);
+    };
+
+    let { review, box } = await openPrintTab();
+    expect('C7', await box.inputValue() === '', 'a first case review starts with no next steps');
+    await box.fill(steps);
+    expect('C7', /stays in this browser tab/.test(await text(panel(review, 'print').locator('[data-case-next-steps-note]'))), 'the box says where its words are kept');
+    expect('C7', (await drafts()).length === 1 && (await drafts())[0].includes('harness-teacher-uid'), `one draft, under this teacher's account (${(await drafts()).join(', ')})`);
+
+    // Closed and opened again: the teacher's words are there, printed and exported.
+    await review.getByRole('button', { name: 'Close', exact: true }).click();
+    await page.waitForTimeout(400);
+    expect('C7', await page.locator('[data-case-review]').count() === 0, 'the case review closed');
+    ({ review, box } = await openPrintTab(page.locator('[data-case-review-entry]')));
+    expect('C7', await box.inputValue() === steps, 'the next steps come back after the case review is closed');
+    expect('C7', (await text(panel(review, 'print').locator('.cr-print-preview'))).includes(steps), 'the restored steps are in the print preview');
+    const [download] = await Promise.all([page.waitForEvent('download'), panel(review, 'print').getByRole('button', { name: 'JSON (full case file)' }).click()]);
+    const exported = JSON.parse(readFileSync(await download.path(), 'utf8'));
+    expect('C7', exported.teacherEnteredNextSteps?.text === steps && exported.teacherEnteredNextSteps?.label === TEACHER_AUTHORED_LABEL, 'the restored steps are in the JSON export, labelled as the teacher\'s');
+    await page.evaluate(() => { window.__printCalls = 0; window.print = () => { window.__printCalls += 1; }; });
+    await panel(review, 'print').getByRole('button', { name: 'Print / Save PDF' }).click();
+    await page.waitForTimeout(500);
+    expect('C7', (await page.locator('body > .cr-print-root').innerText()).includes(steps), 'the restored steps are on the printed copy');
+    await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+    await page.waitForTimeout(300);
+
+    // A reload of the page.
+    await signedIn(PAGE);
+    ({ review, box } = await openPrintTab());
+    expect('C7', await box.inputValue() === steps, 'the next steps survive a reload');
+
+    // Cleared by the teacher: gone, and still gone after reopening.
+    await panel(review, 'print').getByRole('button', { name: 'Clear next steps' }).click();
+    expect('C7', await box.inputValue() === '' && (await drafts()).length === 0, 'Clear empties the box and removes the draft');
+    await review.getByRole('button', { name: 'Close', exact: true }).click();
+    ({ review, box } = await openPrintTab(page.locator('[data-case-review-entry]')));
+    expect('C7', await box.inputValue() === '', 'a cleared draft stays cleared');
+
+    // Another teacher account in the same tab never sees it.
+    await box.fill(steps);
+    await signedIn(`${PAGE}&teacherUid=harness-teacher-2`);
+    ({ review, box } = await openPrintTab());
+    expect('C7', await box.inputValue() === '', 'another account opening the case review sees no next steps');
+    expect('C7', !(await drafts()).some((key) => key.includes('harness-teacher-uid')), `the other account's draft was removed from the tab (${(await drafts()).join(', ')})`);
+    await box.fill('Second account\'s own plan (synthetic).');
+    expect('C7', (await drafts()).length === 1 && (await drafts())[0].includes('harness-teacher-2'), 'the second account keeps only its own draft');
+
+    // Signing out takes every account's drafts with it.
+    await review.getByRole('button', { name: 'Close', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+    await page.getByRole('button', { name: 'Log Out', exact: true }).first().click();
+    await page.waitForTimeout(1500);
+    expect('C7', (await drafts()).length === 0, `signing out leaves no draft in the tab (${(await drafts()).join(', ')})`);
   },
 
   async C6(page) {

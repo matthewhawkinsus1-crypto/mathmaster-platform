@@ -10852,6 +10852,7 @@ function App() {
                 assignments={assignments}
                 gradingPeriodSettings={gradingPeriodSettings}
                 teacherEmail={user?.email || ''}
+                teacherUid={user?.uid || ''}
                 onClose={() => setCaseReviewStudentId(null)}
                 onInspectResponse={(target) => setResponseInspectorTarget(target)}
                 onOpenSupportReport={(studentId) => setSupportReportStudentId(studentId)}

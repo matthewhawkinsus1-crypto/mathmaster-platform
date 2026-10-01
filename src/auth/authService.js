@@ -22,6 +22,7 @@ import {
   classroomSessionIsExpired,
   nextClassroomSessionExpiry,
 } from './classroomSession.js';
+import { clearAccountTabStorage } from './accountTabStorage.js';
 
 const REMEMBER_DEVICE_KEY = 'mathmaster.rememberDevice';
 const LAST_ROLE_KEY = 'mathmaster.lastRole';
@@ -296,6 +297,9 @@ export const teacherAdmin = {
 
 export async function signOutSession() {
   clearTemporaryClassroomStudentSessionLease();
+  // Drafts an account kept in this tab (a case review's next steps) leave
+  // with it, so the next person on a shared device finds none of them.
+  clearAccountTabStorage();
   await signOut(auth);
 }
 
