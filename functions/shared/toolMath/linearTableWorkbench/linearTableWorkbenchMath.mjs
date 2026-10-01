@@ -1,7 +1,55 @@
+import { parse } from 'mathjs';
 import { linearRegression, matchesNumericAnswer, nearlyEqual } from '../shared/toolMath.mjs';
 import { canonicalFromEquationText, canonicalFromSlopeIntercept, linesEquivalent } from '../shared/linearEquations.mjs';
 
 export const LINEAR_TABLE_WORKBENCH_MODES = Object.freeze(['constantRate', 'deriveEquation', 'repairValue']);
+
+/*
+ * IS A TYPED EQUATION SAFE TO HAND TO mathjs `evaluate`?
+ *
+ * deriveEquation marks the student's equation by evaluating both sides with
+ * mathjs (linearEquations.mjs). Once the server grades it, that text is
+ * attacker-controlled input to a general-purpose evaluator: measured, the 20
+ * characters `y = zeros(3000,3000)` take a minute and ~700 MB before failing,
+ * and `range`, `ones`, `identity`, `createUnit`, `evaluate("...")` and array
+ * literals reach the same machinery. None of them can describe a line — a
+ * collection never reads as one finite number — so refusing them changes no
+ * legitimate verdict.
+ *
+ * Parsing is linear in the (already bounded) text and evaluates nothing. The
+ * equation is safe when every node is a number, a symbol, an operator or a
+ * parenthesis, plus calls to a short list of scalar functions a student might
+ * plausibly write (`sqrt(4)x`). Anything that builds a collection, assigns,
+ * indexes, or calls any other function is refused.
+ */
+const UNSAFE_EQUATION_NODE_TYPES = new Set([
+  'ArrayNode', 'MatrixNode', 'RangeNode', 'IndexNode', 'AccessorNode', 'ObjectNode',
+  'AssignmentNode', 'FunctionAssignmentNode', 'BlockNode',
+]);
+const SCALAR_EQUATION_FUNCTIONS = new Set([
+  'sqrt', 'cbrt', 'abs', 'square', 'cube', 'pow', 'nthRoot', 'exp', 'log', 'log10', 'log2',
+  'sin', 'cos', 'tan', 'round', 'floor', 'ceil', 'fix', 'sign', 'min', 'max', 'sum', 'mean',
+]);
+
+export const equationTextIsSafeToEvaluate = (text) => {
+  const sides = String(text ?? '').split('=');
+  // linearEquations reads exactly one '='; any other text never evaluates.
+  if (sides.length !== 2) return false;
+  try {
+    return sides.every((side) => {
+      let safe = true;
+      parse(side.trim()).traverse((node) => {
+        if (!safe) return;
+        if (UNSAFE_EQUATION_NODE_TYPES.has(node.type)) safe = false;
+        else if (node.type === 'FunctionNode' && !(node.fn?.type === 'SymbolNode' && SCALAR_EQUATION_FUNCTIONS.has(node.fn.name))) safe = false;
+      });
+      return safe;
+    });
+  } catch {
+    // Unparseable text is exactly what canonicalFromEquationText rejects too.
+    return false;
+  }
+};
 
 export const normalizeRows = (rows = []) => (Array.isArray(rows) ? rows : [])
   .map((row) => (Array.isArray(row)

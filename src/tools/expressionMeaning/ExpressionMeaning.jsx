@@ -2,8 +2,14 @@ import React, { useMemo, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ResultPill, TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
-import { choiceBankFor, EXPRESSION_MEANING_DIMENSIONS, nextIncompleteExpressionId, scoreExpressionMeaning } from './expressionMeaningMath.js';
+import { choiceBankFor, EXPRESSION_MEANING_DIMENSIONS, nextIncompleteExpressionId } from './expressionMeaningMath.js';
+import expressionMeaningGrader, {
+  expressionMeaningDimensionChecks,
+  expressionMeaningWork,
+} from '../../../functions/shared/serverGrading/tools/expressionMeaning.mjs';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid #c9d6e8', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
 
@@ -53,21 +59,28 @@ export default function ExpressionMeaning({ questionData = {}, onAction }) {
   }).length;
   const allComplete = expressions.length > 0 && completedCount === expressions.length;
 
+  // The student's work: one selection per expression, in matrix order —
+  // exactly what Submit sends and what a deadline checkpoints.
+  const work = useMemo(() => expressionMeaningWork(questionData, assignments), [questionData, assignments]);
+  useReportToolWork(work);
+
   const check = () => {
-    const response = { assignments };
-    const result = scoreExpressionMeaning(questionData, response);
-    const parts = result.perExpression.map((entry) => ({
-      id: entry.id,
-      label: expressions.find((expr) => expr.id === entry.id)?.expression || entry.id,
-      isCorrect: entry.complete,
-      isComplete: true,
-      dimensions: entry.checks,
-    }));
-    submit({ isCorrect: result.isCorrect, score: result.score }, response, { parts });
+    // The verdict is the shared grader's — the one the server records. Which
+    // dimension of each row to reconsider comes from the same scorer call the
+    // grader makes, aligned with its parts.
+    const result = gradeToolCheck(expressionMeaningGrader, questionData, work);
+    submit(
+      { isCorrect: result.isCorrect, score: result.score },
+      work,
+      { mode: 'default', parts: result.parts, dimensions: expressionMeaningDimensionChecks(questionData, work) },
+    );
   };
 
   const feedbackParts = feedback?.metadata?.parts || [];
-  const wrongParts = feedbackParts.filter((part) => !part.isCorrect);
+  const feedbackDimensions = feedback?.metadata?.dimensions || [];
+  const wrongParts = feedbackParts
+    .map((part, index) => ({ ...part, dimensions: feedbackDimensions[index] }))
+    .filter((part) => !part.isCorrect);
 
   return (
     <ToolShell
