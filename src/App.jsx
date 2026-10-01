@@ -3341,7 +3341,7 @@ function App() {
    *      entry an older build saved, whose time may be an opening's, only
    *      where this device has no dated copy — see selectRestorableDraftEntries);
    *   4. Practice Mode state, kept in its own structure so it can never reach
-   *      a grade;
+   *      a grade, merged per question here and on the server;
    *   5. the resume position.
    *
    * The question does NOT wait for the server's copy (PQ-044). It opens from

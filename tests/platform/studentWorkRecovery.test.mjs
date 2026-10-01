@@ -869,15 +869,18 @@ test('for the same key the newer save wins, and a stale device cannot wipe it', 
 });
 
 test('a stale resume or Practice update cannot roll back a newer one', () => {
+  // Practice is merged per question by progress (practiceTrackerMerge.mjs), so
+  // the records are the ones a student can actually have: the newer one is the
+  // second try that came out correct, the stale one the first try.
   let server = applyPatch(null, buildWorkspaceDraftPatch({
     studentId: STUDENT, assignmentId: ASSIGNMENT, entries: [],
     resume: { questionIndex: 9, activityRole: 'dol', variantIndex: 0, updatedAt: 5_000 }, hasResume: true,
-    practice: { 1: { status: 'correct' } }, hasPractice: true, practiceUpdatedAt: 5_000,
+    practice: { 1: { status: 'correct', attemptCount: 2, totalAttempts: 2 } }, hasPractice: true, practiceUpdatedAt: 5_000,
   }));
   server = applyPatch(server, buildWorkspaceDraftPatch({
     studentId: STUDENT, assignmentId: ASSIGNMENT, entries: [],
     resume: { questionIndex: 2, activityRole: 'warmup', variantIndex: 0, updatedAt: 1_000 }, hasResume: true,
-    practice: { 1: { status: 'attempted' } }, hasPractice: true, practiceUpdatedAt: 1_000,
+    practice: { 1: { status: 'attempted', attemptCount: 1, totalAttempts: 1 } }, hasPractice: true, practiceUpdatedAt: 1_000,
   }));
   assert.equal(server.resume.questionIndex, 9);
   assert.equal(server.practice[1].status, 'correct');

@@ -14,6 +14,8 @@
  * seeds, and nothing from a secure Test Cycle or a private Path session.
  */
 
+import { mergePracticeTrackers, samePracticeProgress } from './practiceTrackerMerge.mjs';
+
 export const WORKSPACE_DRAFT_SCHEMA_VERSION = 1;
 
 /** One document per student per assignment: one read on open, one write per flush. */
@@ -249,8 +251,10 @@ const normalizeResume = (resume) => (resume
  * Only what THIS device changed. A full-document write was a data-loss bug: a
  * device that restored ten questions and then edited one would send a document
  * containing one entry, and `setDoc` would erase the other nine for every
- * device. `hasResume`/`hasPractice` distinguish "not changed" from "cleared",
- * so an untouched field is never mistaken for a deletion.
+ * device. `hasResume`/`hasPractice` distinguish "not changed" from "sent", so
+ * an untouched field is never mistaken for a deletion. (A resume can be
+ * cleared; practice is merged per question, so a patch can add to it and
+ * never take it away.)
  */
 export const buildWorkspaceDraftPatch = ({
   studentId,
@@ -291,8 +295,8 @@ export const buildWorkspaceDraftPatch = ({
  * Each entry keeps its own edit-time marker: the copy that wins brings its
  * marker, or its lack of one, with it.
  *
- * Resume uses its own `updatedAt` and Practice its own `practiceUpdatedAt` for
- * the same reason.
+ * Resume uses its own `updatedAt` for the same reason. Practice is merged per
+ * question instead (see below).
  */
 export const mergeWorkspaceDraftDocument = ({ existing = null, patch } = {}) => {
   if (!patch) return existing;
@@ -325,8 +329,22 @@ export const mergeWorkspaceDraftDocument = ({ existing = null, patch } = {}) => 
     ? patch.resume
     : existingResume;
 
+  /*
+   * POST-DEADLINE PRACTICE, PER QUESTION (practiceTrackerMerge.mjs).
+   *
+   * A device sends its whole tracker. The server keeps, for each question,
+   * the record with more practice progress — the rule the device applies to
+   * the copy it reads back. A tracker with nothing new in it — the fresh
+   * start every device sends as Practice Mode opens, or none at all from an
+   * ordinary assignment — therefore changes nothing, whichever save lands
+   * first. It used to replace the saved practice whole whenever it was the
+   * newer save. `practiceUpdatedAt` is when the progress last changed.
+   */
+  const existingPractice = existing?.practice && typeof existing.practice === 'object' ? existing.practice : null;
   const existingPracticeUpdatedAt = Math.max(0, Number(existing?.practiceUpdatedAt) || 0);
-  const practiceIsNewer = patch.hasPractice && patch.practiceUpdatedAt >= existingPracticeUpdatedAt;
+  const incomingPractice = patch.hasPractice && patch.practice && typeof patch.practice === 'object' ? patch.practice : null;
+  const practice = incomingPractice ? mergePracticeTrackers(existingPractice || {}, incomingPractice) : existingPractice;
+  const practiceChanged = incomingPractice !== null && !samePracticeProgress(existingPractice || {}, practice);
 
   return {
     schemaVersion: WORKSPACE_DRAFT_SCHEMA_VERSION,
@@ -341,8 +359,10 @@ export const mergeWorkspaceDraftDocument = ({ existing = null, patch } = {}) => 
     resume,
     // Post-deadline Practice Mode. A separate structure precisely so it can
     // never be mistaken for, or merged into, the canonical grade.
-    practice: practiceIsNewer ? patch.practice : (existing?.practice ?? null),
-    practiceUpdatedAt: practiceIsNewer ? patch.practiceUpdatedAt : existingPracticeUpdatedAt,
+    practice: practice ?? null,
+    practiceUpdatedAt: practiceChanged
+      ? Math.max(existingPracticeUpdatedAt, Math.max(0, Number(patch.practiceUpdatedAt) || 0))
+      : existingPracticeUpdatedAt,
   };
 };
 
