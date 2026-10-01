@@ -410,10 +410,9 @@ export const modeRoundOutcome = (mode, summary) => (
 /** The round count and seconds a room of this mode may be created with. */
 export const modeRoundLimits = (mode) => (mode || getChallengeMode(null)).roundLimits;
 
-const clampTo = (value, fallback, low, high) => {
-  const numeric = Math.round(Number(value));
-  return Number.isFinite(numeric) && numeric > 0 ? Math.max(low, Math.min(high, numeric)) : fallback;
-};
+// The same arithmetic as liveChallenge.normalizeRoundCount/Seconds, so a mode
+// on the default limits normalizes exactly as rooms always have.
+const clampTo = (value, fallback, low, high) => Math.max(low, Math.min(high, Math.round(Number(value) || fallback)));
 
 export const normalizeModeRoundCount = (mode, value) => {
   const limits = modeRoundLimits(mode);

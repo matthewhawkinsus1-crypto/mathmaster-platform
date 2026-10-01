@@ -85,7 +85,9 @@ test('every callable that draws questions honours the style', () => {
     }
     // The VALUE matters, not the key name. A hardcoded "any" here would still
     // mention questionStyle while silently ignoring the teacher's choice.
-    assert.match(block, /const modeConfig = engine\.modes\.normalizeModeConfig\(mode, request\.data \|\| \{\}\)/, `${name} must read the request's style`);
+    // `const` or a `let` assigned inside the create's config-error guard: the
+    // binding is incidental, the request's data reaching the normalizer is not.
+    assert.match(block, /\bmodeConfig = engine\.modes\.normalizeModeConfig\(mode, request\.data \|\| \{\}\)/, `${name} must read the request's style`);
     assert.match(block, /liveChallengeQuestionPlanner\(mode\)\.plan\(\{[\s\S]{0,120}modeConfig/, `${name} must pass it to the draw`);
   });
 

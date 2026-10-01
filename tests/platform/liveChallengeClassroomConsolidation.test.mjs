@@ -9,6 +9,8 @@ import {
   recordValidatedSpeedMilestone,
   roundClosingDecision,
 } from '../../functions/shared/liveChallenge.mjs';
+import { getChallengeMode } from '../../functions/shared/liveChallengeModes.mjs';
+import { region } from './helpers/sourceContract.mjs';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
 
@@ -113,7 +115,21 @@ test('Pace Race is mutually exclusive with the visible round timer and Second Ch
   const server = read('../../functions/index.js');
 
   assert.match(teacher, /const \[secondChanceMode, setSecondChanceMode\] = useState\('off'\)/);
-  assert.match(server, /secondChanceMode = request\.data\?\.secondChanceMode === "automatic" \? "automatic" : "off"/);
+  // Second Chance is opt-in on the server too: only an explicit "automatic"
+  // turns it on, and only in a mode that has a second chance at all (a Graph
+  // Feature Rush round has none). The room's decision is evaluated, not
+  // matched, so rewording the expression passes and a default that turned it
+  // on does not.
+  const create = region(server, 'exports.createLiveChallenge', '\nexports.', 'createLiveChallenge');
+  const secondChanceExpression = create.match(/const secondChanceMode = ([^;]+);/)?.[1];
+  assert.ok(secondChanceExpression, 'createLiveChallenge must decide the room\'s secondChanceMode');
+  const secondChanceFor = new Function('mode', 'request', `return ${secondChanceExpression};`);
+  const classic = getChallengeMode('standard');
+  const rush = getChallengeMode('graphFeatureRush');
+  assert.equal(secondChanceFor(classic, { data: {} }), 'off');
+  assert.equal(secondChanceFor(classic, { data: { secondChanceMode: 'on' } }), 'off');
+  assert.equal(secondChanceFor(classic, { data: { secondChanceMode: 'automatic' } }), 'automatic');
+  assert.equal(secondChanceFor(rush, { data: { secondChanceMode: 'automatic' } }), 'off');
   assert.match(teacher, /disabled=\{timingMode === 'pace'\}/);
   assert.match(teacher, /Disabled in Pace Race/);
   assert.match(teacher, /timingMode=\{timingMode\}/);
