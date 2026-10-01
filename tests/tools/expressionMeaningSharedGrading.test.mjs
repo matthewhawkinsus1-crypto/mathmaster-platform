@@ -224,6 +224,84 @@ test('selections are matched by id, in any order, and numeric options read as th
   const numericWork = expressionMeaningWork(numeric, { 1: { unit: 'items', contextMeaning: 'count', mathRole: 1 }, 2: { unit: 'items', contextMeaning: 'double', mathRole: 2 } });
   assert.equal(bothPaths(numeric, numericWork).browser.isCorrect, true);
   assert.equal(bothPaths(numeric, { selections: numericWork.selections.map((entry) => ({ ...entry, id: String(entry.id) })) }).browser.isCorrect, true);
+
+  // Any scalar id is a row, exactly as the matrix keys its `assignments`
+  // (a property key): a boolean id is answerable on screen, so it grades.
+  const scalarIds = {
+    type: 'expressionMeaning',
+    expressions: [
+      { id: true, expression: 'p', unit: 'items', contextMeaning: 'count', mathRole: 'slope' },
+      { id: 'b', expression: 'q', unit: 'hours', contextMeaning: 'double', mathRole: 'intercept' },
+    ],
+  };
+  const scalarState = { true: { unit: 'items', contextMeaning: 'count', mathRole: 'slope' }, b: { unit: 'hours', contextMeaning: 'double', mathRole: 'intercept' } };
+  assert.equal(scoreExpressionMeaning(scalarIds, { assignments: scalarState }).isCorrect, true, 'the previous scorer');
+  const scalarResult = grade(scalarIds, scalarState);
+  assert.equal(scalarResult.isCorrect, true);
+  assert.equal(scalarResult.isComplete, true);
+});
+
+test('completeness is the matrix\'s own: an option authored as 0 or false is marked, but never completes a row', () => {
+  // ExpressionMeaning.jsx's row completeness and Submit gate, verbatim: a
+  // dimension counts only when `String(given[dimension] || '').trim()` is
+  // non-empty. Its matrix cell (`given[dimension] || '—'`) and its selected
+  // button (`assignments[id]?.[dimension] || ''`) read the same way, so an
+  // option authored as 0 never shows as chosen on screen.
+  const rowGate = (given = {}) => ['unit', 'contextMeaning', 'mathRole'].every((dimension) => String(given[dimension] || '').trim());
+  const zero = {
+    type: 'expressionMeaning',
+    expressions: [
+      { id: 'n', expression: 'n', unit: 'items', contextMeaning: 'count', mathRole: 0 },
+      { id: 'flag', expression: 'f', unit: 'items', contextMeaning: 'switch', mathRole: false },
+    ],
+    choiceBanks: { units: ['items', 'hours'], contextMeanings: ['count', 'switch'], mathRoles: [0, 1, false] },
+  };
+  const assignments = { n: { unit: 'items', contextMeaning: 'count', mathRole: 0 }, flag: { unit: 'items', contextMeaning: 'switch', mathRole: false } };
+  const work = expressionMeaningWork(zero, assignments);
+  // The work carries the option the student chose, not a rewritten one.
+  assert.deepEqual(work.selections.map((entry) => entry.mathRole), [0, false]);
+  const result = bothPaths(zero, work).browser;
+  // Marked exactly as the previous scorer marked it: every pick is right...
+  const previous = scoreExpressionMeaning(zero, { assignments });
+  assert.equal(previous.isCorrect, true);
+  assert.equal(result.isCorrect, previous.isCorrect);
+  assert.equal(result.score, 1);
+  // ...but no row is complete, just as the matrix's Submit gate says.
+  assert.deepEqual(result.parts.map((part) => part.isComplete), zero.expressions.map((expr) => Boolean(rowGate(assignments[expr.id]))));
+  assert.deepEqual(result.parts.map((part) => part.isComplete), [false, false]);
+  assert.equal(result.isComplete, false);
+  // Any other option, the number 1 or true included, is chosen.
+  const one = bothPaths(zero, expressionMeaningWork(zero, { ...assignments, n: { ...assignments.n, mathRole: 1 }, flag: { ...assignments.flag, mathRole: true } })).browser;
+  assert.deepEqual(one.parts.map((part) => part.isComplete), [true, true]);
+  assert.equal(one.isComplete, true);
+  assert.equal(one.isCorrect, false);
+
+  // And over many matrices the grader's completeness is that gate, row by row
+  // (a seeded mix of blank, whitespace, text, 0/1 and true/false options:
+  // about a quarter of the rows complete, a few whole matrices complete).
+  const options = ['dollars', 'shirts', ' ', '', 0, 1, true, false, 'Dollars '];
+  let completeRows = 0;
+  let completeMatrices = 0;
+  for (let seed = 1; seed <= 300; seed += 1) {
+    let state = seed;
+    const next = () => { state = (state * 48271) % 2147483647; return state; };
+    const assignmentsForSeed = {};
+    SHIRTS.expressions.forEach((expr) => {
+      const row = {};
+      ['unit', 'contextMeaning', 'mathRole'].forEach((dimension) => {
+        const choice = next() % (options.length + 3);
+        row[dimension] = choice < options.length ? options[choice] : 'dollars';
+      });
+      if (next() % 6) assignmentsForSeed[expr.id] = row;
+    });
+    const graded = grade(SHIRTS, assignmentsForSeed);
+    const gate = SHIRTS.expressions.map((expr) => Boolean(rowGate(assignmentsForSeed[expr.id] || {})));
+    assert.deepEqual(graded.parts.map((part) => part.isComplete), gate, `seed ${seed}`);
+    assert.equal(graded.isComplete, gate.every(Boolean), `seed ${seed}`);
+    completeRows += gate.filter(Boolean).length;
+    if (gate.every(Boolean)) completeMatrices += 1;
+  }
+  assert.ok(completeRows > 100 && completeMatrices > 0, `${completeRows} complete rows, ${completeMatrices} complete matrices`);
 });
 
 test('the choice banks play no part: trimmed, reordered or missing banks never change a verdict', () => {

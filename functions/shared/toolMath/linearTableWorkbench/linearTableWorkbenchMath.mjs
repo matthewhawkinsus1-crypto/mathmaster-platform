@@ -1,4 +1,6 @@
-import { parse } from 'mathjs';
+// The hardened instance: its parse refuses the namespace-mutating and
+// allocating functions on its own, before the scalar allow-list below.
+import { parse } from '../../algebra/safeMath.mjs';
 import { linearRegression, matchesNumericAnswer, nearlyEqual } from '../shared/toolMath.mjs';
 import { canonicalFromEquationText, canonicalFromSlopeIntercept, linesEquivalent } from '../shared/linearEquations.mjs';
 

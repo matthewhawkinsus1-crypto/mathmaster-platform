@@ -14,7 +14,8 @@
  *
  * Parts are one per expression, as the matrix reported them, now carrying
  * `credit` = right picks / 3 so a part grade states the same partial credit
- * the score does.
+ * the score does. A row is complete exactly when the matrix's own Submit gate
+ * says so (`String(value || '').trim()` for each of its three picks).
  */
 import declaration from '../declarations/expressionMeaning.mjs';
 import { bindToolGrader } from '../toolGraderDefinition.mjs';
@@ -34,7 +35,20 @@ const pickText = (value) => {
   if ((typeof value === 'number' && Number.isFinite(value)) || typeof value === 'boolean') return String(value);
   return '';
 };
-const idKey = (value) => (typeof value === 'string' || (typeof value === 'number' && Number.isFinite(value)) ? String(value) : null);
+// An authored id as the matrix keys its state by it: a property key, so any
+// scalar id reads as its own spelling (1 and '1' are the same row, as they
+// are in the matrix's `assignments`).
+const idKey = (value) => (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' ? String(value) : null);
+// The option itself, as the matrix holds it (text, a number or a boolean).
+const optionValue = (value) => (
+  typeof value === 'string' || typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value)) ? value : ''
+);
+// Whether a dimension counts as chosen: the matrix's own rule. Its row
+// completeness, its Submit gate, its matrix cell and its selected button all
+// read `value || ''`, so an option authored as 0 or false never shows as
+// chosen there and does not make the row complete here. It is still marked
+// against the key exactly as before.
+const pickChosen = (value) => Boolean(value) && pickText(value).trim() !== '';
 
 /**
  * The matrix's state as work: one selection per authored expression, in
@@ -48,20 +62,27 @@ export const expressionMeaningWork = (question, assignments) => {
       const row = key !== null && Object.prototype.hasOwnProperty.call(given, key) && isRecord(given[key]) ? given[key] : {};
       return {
         id: expr?.id,
-        ...Object.fromEntries(EXPRESSION_MEANING_DIMENSIONS.map((dimension) => [dimension, pickText(row[dimension])])),
+        ...Object.fromEntries(EXPRESSION_MEANING_DIMENSIONS.map((dimension) => [dimension, optionValue(row[dimension])])),
       };
     }),
   };
 };
 
-/** Selections by authored id. The first selection for an id is the one read. */
+/**
+ * Selections by authored id: per id, `picks` (the text each dimension is
+ * marked on) and `chosen` (whether the matrix counts that dimension as filled
+ * in). The first selection for an id is the one read.
+ */
 const readSelections = (work) => {
   const byId = new Map();
   (Array.isArray(work?.selections) ? work.selections : []).forEach((entry) => {
     if (!isRecord(entry)) return;
     const key = idKey(entry.id);
     if (key === null || byId.has(key)) return;
-    byId.set(key, Object.fromEntries(EXPRESSION_MEANING_DIMENSIONS.map((dimension) => [dimension, pickText(entry[dimension])])));
+    byId.set(key, {
+      picks: Object.fromEntries(EXPRESSION_MEANING_DIMENSIONS.map((dimension) => [dimension, pickText(entry[dimension])])),
+      chosen: Object.fromEntries(EXPRESSION_MEANING_DIMENSIONS.map((dimension) => [dimension, pickChosen(entry[dimension])])),
+    });
   });
   return byId;
 };
@@ -75,7 +96,7 @@ export const expressionMeaningChecks = (question = {}, work = {}) => {
   // A prototype-free map, so an authored id such as `__proto__` or
   // `constructor` is an ordinary entry and never an inherited property.
   const assignments = Object.create(null);
-  byId.forEach((picks, key) => { assignments[key] = picks; });
+  byId.forEach((selection, key) => { assignments[key] = selection.picks; });
   return { byId, scored: scoreExpressionMeaning(question || {}, { assignments }) };
 };
 
@@ -87,7 +108,10 @@ export const expressionMeaningDimensionChecks = (question, work) => (
   expressionMeaningChecks(question, work).scored.perExpression.map((entry) => ({ ...entry.checks }))
 );
 
-const BLANK_PICKS = Object.freeze(Object.fromEntries(EXPRESSION_MEANING_DIMENSIONS.map((dimension) => [dimension, ''])));
+const BLANK_SELECTION = Object.freeze({
+  picks: Object.freeze(Object.fromEntries(EXPRESSION_MEANING_DIMENSIONS.map((dimension) => [dimension, '']))),
+  chosen: Object.freeze(Object.fromEntries(EXPRESSION_MEANING_DIMENSIONS.map((dimension) => [dimension, false]))),
+});
 
 const gradeMatrix = (question, work) => {
   const expressions = expressionsOf(question);
@@ -95,12 +119,12 @@ const gradeMatrix = (question, work) => {
   const parts = expressions.map((expr, index) => {
     const entry = scored.perExpression[index];
     const key = idKey(expr?.id);
-    const picks = (key !== null && byId.get(key)) || BLANK_PICKS;
+    const { picks, chosen } = (key !== null && byId.get(key)) || BLANK_SELECTION;
     const right = EXPRESSION_MEANING_DIMENSIONS.filter((dimension) => entry.checks[dimension]).length;
     return {
       id: expr?.id,
       label: expr?.expression || expr?.id,
-      isComplete: EXPRESSION_MEANING_DIMENSIONS.every((dimension) => picks[dimension].trim() !== ''),
+      isComplete: EXPRESSION_MEANING_DIMENSIONS.every((dimension) => chosen[dimension]),
       isCorrect: entry.complete === true,
       credit: right / EXPRESSION_MEANING_DIMENSIONS.length,
       response: EXPRESSION_MEANING_DIMENSIONS.map((dimension) => picks[dimension]).join(' | '),
