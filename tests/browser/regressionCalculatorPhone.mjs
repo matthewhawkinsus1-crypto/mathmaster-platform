@@ -9,6 +9,9 @@ const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasT
 await page.goto(`${ORIGIN}/tests/browser/captureToolResponses.html?tool=regressionCalculator`, { waitUntil: 'networkidle' });
 
 const sourceGraph = page.locator('[data-regression-source-graph]');
+// The tool loads lazily: on a cold dev server it can still be compiling when
+// the page reaches network idle, so wait for it before counting anything.
+await sourceGraph.first().waitFor({ timeout: 120000 }).catch(() => {});
 if (await sourceGraph.count() !== 1) throw new Error('Scatterplot source mode did not render its source graph');
 if (await sourceGraph.locator('circle').count() !== 4) throw new Error('Source scatterplot did not render all canonical points');
 await sourceGraph.locator('circle').first().hover({ force: true });
