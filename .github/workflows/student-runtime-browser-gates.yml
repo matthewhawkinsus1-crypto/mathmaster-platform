@@ -1,6 +1,6 @@
 name: Student Runtime Browser Gates
 
-# Three fast browser gates over the real student runtime (real React, real
+# Fast browser gates over the real student runtime (real React, real
 # MathLive), for the failures node tests cannot see:
 #
 #   mathEntryContract   types on a real keyboard into MathInput and the
@@ -13,6 +13,8 @@ name: Student Runtime Browser Gates
 #   errorRecovery       a chunk from an older build (a tab that outlived a
 #                       deploy) and an ordinary bug, through the real error
 #                       boundaries: recoverable screens, no reload loop
+#   duplicateTabs       the same question in two tabs of one browser: the older
+#                       tab pauses, and the newest work is the work kept
 
 on:
   pull_request:
@@ -22,6 +24,8 @@ on:
       - "tests/browser/mathEntryContract*"
       - "tests/browser/renderStability*"
       - "tests/browser/errorRecovery*"
+      - "tests/browser/duplicateTabs.mjs"
+      - "tests/browser/studentUxPlatform*"
       - "tests/browser/stepAlgebraDriver.mjs"
       - "package.json"
       - "package-lock.json"
@@ -68,3 +72,9 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/errorRecovery.mjs
+      - name: Duplicate tabs
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/duplicateTabs.mjs
