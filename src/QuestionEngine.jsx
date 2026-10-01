@@ -1004,20 +1004,31 @@ export default function QuestionEngine({
     // the same runtime.
     if (isComposed) {
       return (
-        <WorkflowRunner
-          question={presentationQuestion}
-          onStateChange={commonModuleProps.onStateChange}
-          onProgressChange={(progress) => setWorkflowGuidanceState({
-            ...progress,
-            questionKey: workflowGuidanceQuestionKey,
-          })}
-          disabled={commonModuleProps.disabled}
-          draftKey={draftKey}
-          canonicalSavedAt={canonicalAnswerSavedAt}
-          showPrompt={false}
-          showStagePrompt={false}
-          submissionReview={showOutcomeFeedback ? workflowSubmissionReview : null}
-        />
+        // A composed question's steps are the same tools the registry mounts
+        // (the mapping diagram, the number line) and the same graph workspace,
+        // so they answer to the same policy. Without this provider they read
+        // the context's default, which shows verdicts: "Correct" / "Not yet" on
+        // a mapping step of a DOL, before the question was submitted.
+        <ToolRuntimeProvider
+          showImmediateFeedback={showOutcomeFeedback && !serverGrading}
+          questionTerminal={locked}
+        >
+          <WorkflowRunner
+            question={presentationQuestion}
+            onStateChange={commonModuleProps.onStateChange}
+            onProgressChange={(progress) => setWorkflowGuidanceState({
+              ...progress,
+              questionKey: workflowGuidanceQuestionKey,
+            })}
+            disabled={commonModuleProps.disabled}
+            draftKey={draftKey}
+            canonicalSavedAt={canonicalAnswerSavedAt}
+            showPrompt={false}
+            showStagePrompt={false}
+            submissionReview={showOutcomeFeedback ? workflowSubmissionReview : null}
+            revealCorrectness={showOutcomeFeedback}
+          />
+        </ToolRuntimeProvider>
       );
     }
 

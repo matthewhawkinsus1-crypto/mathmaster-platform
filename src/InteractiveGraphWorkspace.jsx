@@ -87,6 +87,16 @@ const MARKER_SNAP_PIXELS = 82;
 const buildTicks = (minimum, maximum, step) => majorTicks(minimum, maximum, step);
 
 const pointLabel = ([x, y]) => `(${x}, ${y})`;
+// A sketch drawn through the student's own points is also kept in graph
+// coordinates (sketchGraph, inverseSketchGraph), so a zoom after drawing
+// cannot move the curve that is judged at submission. That copy stays out of
+// the response key: the key is stored with every attempt, the strokes already
+// identify the response, and work saved before the copy existed must keep the
+// key it was submitted under.
+const SKETCH_COPY_FIELDS = new Set(['sketchGraph', 'inverseSketchGraph']);
+const responseKeyState = (state) => Object.fromEntries(
+  Object.entries(state || {}).filter(([key]) => !SKETCH_COPY_FIELDS.has(key)),
+);
 const taskPlacementLabel = (placement) => placement === 'undefined' ? 'Undefined' : Array.isArray(placement) ? pointLabel(placement) : 'Not placed';
 const markerLabels = { arrow: 'Arrow', open: 'Open Circle', closed: 'Closed Circle' };
 const markerExplanations = { arrow: 'Function continues', open: 'Endpoint excluded', closed: 'Endpoint included' };
@@ -314,6 +324,12 @@ export default function InteractiveGraphWorkspace({
   const mobileInteraction = useMobileInteractionMode();
   const svgRef = useRef(null);
   const drawingRef = useRef([]);
+  // The browser follows a drag with a click on the same plane. When the drag
+  // was a stroke, that click is not a placement: on a DOL the points stay
+  // movable while a curve is being drawn, and without this the click that
+  // ends a stroke moved the selected point to where the stroke ended and threw
+  // the stroke away.
+  const strokeJustEndedRef = useRef(false);
   const [drawing, setDrawing] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState(null);
   const [draggingTaskId, setDraggingTaskId] = useState(null);
@@ -445,14 +461,21 @@ export default function InteractiveGraphWorkspace({
   const endpointRequirements = useMemo(() => pointOnly ? [] : (constructionEnabled ? (question.endpointRequirements || getDefaultEndpointRequirements(functionSpec, visiblePaths, { ...question, graph: viewWindow })) : getDefaultEndpointRequirements(functionSpec, visiblePaths, { ...question, graph: viewWindow })), [question, functionSpec, visiblePaths, viewWindow, constructionEnabled, pointOnly]);
   const boundaryOnly = endpointRequirements.length > 0 && endpointRequirements.every((requirement) => requirement.marker === 'open' || requirement.marker === 'closed');
   const continuationOnly = endpointRequirements.length > 0 && endpointRequirements.every((requirement) => requirement.marker === 'arrow');
-  const availableMarkerTypes = boundaryOnly ? ['open', 'closed'] : continuationOnly ? ['arrow'] : ['arrow', 'open', 'closed'];
-  const endpointSectionTitle = boundaryOnly ? 'Boundary Markers' : continuationOnly ? 'Continuation' : 'Graph End Markers';
-  const endpointInstruction = boundaryOnly
-    ? 'Show exactly where the relationship stops. Choose whether each boundary value is included (closed) or excluded (open).'
-    : continuationOnly
-      ? 'Show that the function continues beyond the visible coordinate plane.'
-      : 'Use arrows for continuation and open/closed circles for finite boundaries.';
-  const endpointCompletionNoun = boundaryOnly ? 'boundary marker' : continuationOnly ? 'continuation arrow' : 'end marker';
+  // Which marker types are offered, and how the ends are described, say
+  // whether the graph stops or continues — the answer to this part. Where the
+  // activity withholds outcomes every type is offered and the wording is the
+  // general one (`revealPointCorrectness` is the policy; see outcomesWithheld).
+  const endsDescribedForStudent = revealPointCorrectness;
+  const availableMarkerTypes = !endsDescribedForStudent ? ['arrow', 'open', 'closed'] : boundaryOnly ? ['open', 'closed'] : continuationOnly ? ['arrow'] : ['arrow', 'open', 'closed'];
+  const endpointSectionTitle = !endsDescribedForStudent ? 'Graph End Markers' : boundaryOnly ? 'Boundary Markers' : continuationOnly ? 'Continuation' : 'Graph End Markers';
+  const endpointInstruction = !endsDescribedForStudent
+    ? 'Use arrows for continuation and open/closed circles for finite boundaries.'
+    : boundaryOnly
+      ? 'Show exactly where the relationship stops. Choose whether each boundary value is included (closed) or excluded (open).'
+      : continuationOnly
+        ? 'Show that the function continues beyond the visible coordinate plane.'
+        : 'Use arrows for continuation and open/closed circles for finite boundaries.';
+  const endpointCompletionNoun = !endsDescribedForStudent ? 'end marker' : boundaryOnly ? 'boundary marker' : continuationOnly ? 'continuation arrow' : 'end marker';
   const analysisParts = useMemo(() => normalizeAnalysisRequests(question, functionSpec, viewWindow, mode === 'analysis'), [question, functionSpec, viewWindow, mode]);
   const analysisEnabled = mode === 'analysis' || analysisParts.length > 0;
 
@@ -535,13 +558,40 @@ export default function InteractiveGraphWorkspace({
   const requiredStrokeCount = functionSpec.type === 'rational' ? 2 : 1;
   const pointParts = useMemo(() => gradePointPlacements(tasks, construction.placements, functionSpec, construction.chosenXValues, Math.max(0.22, snapStep * 0.48)), [tasks, construction.placements, construction.chosenXValues, functionSpec, snapStep]);
   const allMarkersPlaced = endpointRequirements.every((requirement) => Boolean(construction.markerPlacements[requirement.id]));
-  // A plot of points with nothing drawn through them needs no check before it
-  // is submitted when the activity withholds outcomes: every placed point is an
-  // answer, graded as placed, and stays movable until the student submits.
-  // (A curve still has to pass through the right points before it can snap,
-  // so that construction keeps its check — without naming the wrong points.)
+  /*
+   * ON A DOL, QUIZ OR TEST THE STUDENT'S OWN CONSTRUCTION IS THE ANSWER.
+   *
+   * Where the activity withholds outcomes until submission, nothing here may
+   * say whether the mathematics is right — not a point check, not a curve that
+   * snaps to the true function, not a magnetic pull to the true graph ends, not
+   * a reflection check. Each of those was a free, repeatable answer oracle on an
+   * exit ticket (PQ-036): a curve could only be drawn through the CORRECT
+   * points, so its check had to be passed before the question could even be
+   * submitted. Here instead:
+   *   - points count as placed once every point is down, and stay movable;
+   *   - the curve is accepted when it passes through the student's OWN points,
+   *     and stays drawn as the student drew it;
+   *   - graph-end markers go where the student puts them, any type;
+   *   - each part is graded at submission from what the student built
+   *     (the curve against the function, silently — see curveCorrect).
+   * Practice, Warm-Up and Classwork keep the checks exactly as before.
+   */
+  const outcomesWithheld = !revealPointCorrectness;
+  // Accepted through the student's own points rather than snapped to the
+  // function: the student's strokes stay on screen and the exact curve is not
+  // drawn. Read from the construction, not from the policy, so a teacher's
+  // later release of feedback shows the student's curve as they drew it
+  // instead of the true function in its place. (While outcomes are shown a
+  // curve can only snap after a passed check, so this is never true there.)
+  const curveAcceptedOwnPoints = Boolean(construction.snapped) && !construction.pointsValidated;
+  // Drawing through one's own points, begun or finished.
+  const ownPointsSketch = !construction.pointsValidated && !pointOnly
+    && (curveAcceptedOwnPoints || (outcomesWithheld && construction.strokes.length > 0));
   const pointsCommitted = construction.pointsValidated
-    || (!revealPointCorrectness && pointOnly && pointParts.every((part) => part.isComplete));
+    || ((outcomesWithheld || ownPointsSketch) && pointParts.every((part) => part.isComplete));
+  // A curve is drawn through points; once one is being drawn the points hold
+  // still ("Clear Sketch" frees them). A passed check fixes them as before.
+  const pointsLocked = construction.pointsValidated || ownPointsSketch;
   const constructionReadyForAnalysis = !constructionEnabled || (pointsCommitted && (pointOnly || (construction.snapped && allMarkersPlaced)));
 
   useEffect(() => {
@@ -628,6 +678,39 @@ export default function InteractiveGraphWorkspace({
   const inverseRequiredGraphPoints = useMemo(() => inversePointParts.flatMap((part) => part.expected || []).map(([x, y]) => [toScreenX(x), toScreenY(y)]), [inversePointParts, renderWindow]);
   const inverseSketchRequired = Boolean(inverseReflectionEnabled && inverseReflection?.requireInverseSketch !== false);
   const inverseSketchComplete = !inverseSketchRequired || Boolean(analysis.inverseSnapped);
+  // The same rules for the inverse as for the original curve (see outcomesWithheld).
+  const inverseAcceptedOwnPoints = Boolean(analysis.inverseSnapped) && !analysis.inversePointsValidated;
+  const inverseOwnPointsSketch = !analysis.inversePointsValidated
+    && (inverseAcceptedOwnPoints || (outcomesWithheld && (analysis.inverseStrokes || []).length > 0));
+  const inversePointsCommitted = analysis.inversePointsValidated
+    || ((outcomesWithheld || inverseOwnPointsSketch) && inversePointsComplete);
+  const inversePointsLocked = analysis.inversePointsValidated || inverseOwnPointsSketch;
+
+  /*
+   * GRADED, NEVER SHOWN: is the student's own curve the graph of the function?
+   *
+   * Exactly what practice demands before its curve may snap, judged at
+   * submission instead: every point the curve was drawn through is right (the
+   * points cannot move while the curve is drawn, so these are those points),
+   * and the sketch follows the true function by the same rough-sketch test the
+   * practice snap uses. The sketch test alone is not enough — its tolerance is
+   * for tracing points already known to be right, and it accepts a line drawn
+   * through a point a whole grid unit off. The sketch is kept in graph
+   * coordinates so a zoom after drawing cannot move it. A curve that snapped
+   * after a passed check is correct as before (the only way it could snap).
+   */
+  const strokesOnScreen = (graphStrokes) => (Array.isArray(graphStrokes) ? graphStrokes : [])
+    .map((stroke) => (Array.isArray(stroke) ? stroke : []).map(([x, y]) => [toScreenX(x), toScreenY(y)]));
+  const sketchFollowsFunction = useMemo(() => (curveAcceptedOwnPoints
+    ? roughSketchMatchesGraph({ strokes: strokesOnScreen(construction.sketchGraph), requiredScreenPoints: requiredGraphPoints, idealScreenPaths: idealScreenPointPaths, requiredStrokeCount, tolerance: 68 })
+    : null), [curveAcceptedOwnPoints, construction.sketchGraph, requiredGraphPoints, idealScreenPointPaths, requiredStrokeCount]);
+  const curveCorrect = construction.snapped
+    && (!curveAcceptedOwnPoints || (sketchFollowsFunction === true && pointParts.every((part) => part.isCorrect)));
+  const inverseSketchFollowsInverse = useMemo(() => (inverseAcceptedOwnPoints
+    ? roughSketchMatchesGraph({ strokes: strokesOnScreen(analysis.inverseSketchGraph), requiredScreenPoints: inverseRequiredGraphPoints, idealScreenPaths: inverseIdealScreenPointPaths, requiredStrokeCount: 1, tolerance: 68 })
+    : null), [inverseAcceptedOwnPoints, analysis.inverseSketchGraph, inverseRequiredGraphPoints, inverseIdealScreenPointPaths]);
+  const inverseCurveCorrect = Boolean(analysis.inverseSnapped)
+    && (!inverseAcceptedOwnPoints || (inverseSketchFollowsInverse === true && inversePointsCorrect));
 
   const checkInversePoints = () => {
     if (!inversePointsComplete) {
@@ -680,11 +763,11 @@ export default function InteractiveGraphWorkspace({
   useEffect(() => {
     const constructionParts = constructionEnabled ? [
       ...pointParts.map((part) => ({ ...part, label: `Point placement: ${part.label}`, isComplete: pointsCommitted && part.isComplete, isCorrect: pointsCommitted && part.isCorrect })),
-      ...(pointOnly ? [] : [{ id: 'graph-curve', label: 'Freehand curve and snap', isComplete: construction.snapped, isCorrect: construction.snapped, response: construction.snapped ? 'snapped' : 'not snapped' }]),
+      ...(pointOnly ? [] : [{ id: 'graph-curve', label: 'Freehand curve and snap', isComplete: construction.snapped, isCorrect: curveCorrect, response: construction.snapped ? (curveAcceptedOwnPoints ? 'drawn through the student\'s points' : 'snapped') : 'not snapped' }]),
       ...(pointOnly ? [] : markerParts),
     ] : [];
     const inverseSketchPart = inverseSketchRequired
-      ? [{ id: 'inverse-line-sketch', label: 'Draw the inverse through the reflected points', isComplete: Boolean(analysis.inverseSnapped), isCorrect: Boolean(analysis.inverseSnapped), response: analysis.inverseSnapped ? 'snapped' : 'not complete' }]
+      ? [{ id: 'inverse-line-sketch', label: 'Draw the inverse through the reflected points', isComplete: Boolean(analysis.inverseSnapped), isCorrect: inverseCurveCorrect, response: analysis.inverseSnapped ? (inverseAcceptedOwnPoints ? 'drawn through the student\'s points' : 'snapped') : 'not complete' }]
       : [];
     const parts = [...constructionParts, ...(analysisEnabled ? [...analysisGradeParts, ...inverseSketchPart] : [])];
     const constructionComplete = !constructionEnabled || (pointsCommitted && (pointOnly || (construction.snapped && allMarkersPlaced)));
@@ -694,11 +777,11 @@ export default function InteractiveGraphWorkspace({
     onStateChange({
       isComplete: complete,
       isCorrect: correct,
-      responseKey: JSON.stringify({ construction, analysis }),
+      responseKey: JSON.stringify({ construction: responseKeyState(construction), analysis: responseKeyState(analysis) }),
       questionDetails: `${question.prompt || (pointOnly ? 'Plot the table points.' : 'Investigate the function.')} Points: ${Object.entries(construction.placements).map(([id, value]) => `${id}=${taskPlacementLabel(value)}`).join('; ') || 'not required'}. ${pointOnly ? 'Point-only graph.' : `Curve: ${construction.snapped ? 'complete' : 'incomplete'}. Graph boundaries/continuation: ${Object.entries(construction.markerPlacements).map(([id, value]) => `${id}=${markerValue(value)}`).join('; ') || 'not entered'}.`} Analysis: ${analysisGradeParts.map((part) => `${part.label}=${part.response || 'blank'}`).join('; ') || 'not required'}.`,
       parts,
     });
-  }, [construction, pointsCommitted, analysis, constructionEnabled, analysisEnabled, pointParts, markerParts, analysisGradeParts, allMarkersPlaced, pointOnly, question, onStateChange, inverseSketchRequired, inverseSketchComplete]);
+  }, [construction, pointsCommitted, analysis, constructionEnabled, analysisEnabled, pointParts, markerParts, analysisGradeParts, allMarkersPlaced, pointOnly, question, onStateChange, inverseSketchRequired, inverseSketchComplete, curveCorrect, curveAcceptedOwnPoints, inverseCurveCorrect, inverseAcceptedOwnPoints]);
 
   const eventToScreenPoint = (event) => {
     const svg = svgRef.current;
@@ -771,7 +854,7 @@ export default function InteractiveGraphWorkspace({
   ];
 
   const placeTask = (taskId, point, options = {}) => {
-    if (!taskId || !point || construction.pointsValidated) return;
+    if (!taskId || !point || pointsLocked) return;
     // A verdict about a point the student has since moved is worse than no
     // verdict: it reads as the platform disagreeing with what is on screen.
     setSelfCheckReport(null);
@@ -795,27 +878,39 @@ export default function InteractiveGraphWorkspace({
     if (!construction.snapped || !markerType || !point) return;
     const nearest = nearestEndpoint(point);
     if (!nearest) return;
-    const magnetic = nearest.distance <= MARKER_SNAP_PIXELS;
+    // The pull is toward the TRUE graph end, so on a DOL, quiz or test it is
+    // an answer finder: the marker stays exactly where the student put it.
+    // Where it counts as "at the end" does not change, though: the same radius
+    // the pull uses in practice, judged silently, so a marker dropped at the
+    // end of a correct curve earns what it would have earned in practice.
+    const nearTheEnd = nearest.distance <= MARKER_SNAP_PIXELS;
+    const magnetic = !outcomesWithheld && nearTheEnd;
     constructionHistory.setValue((current) => ({
       ...current,
       markerPlacements: {
         ...current.markerPlacements,
-        [nearest.requirement.id]: { marker: markerType, point: magnetic ? nearest.requirement.point : point, droppedPoint: point, locationCorrect: magnetic },
+        [nearest.requirement.id]: { marker: markerType, point: magnetic ? nearest.requirement.point : point, droppedPoint: point, locationCorrect: nearTheEnd },
       },
     }));
     setActiveMarker(null);
     setDraggingMarkerType(null);
     setDropCandidate(null);
     setDropMagneticTarget(null);
-    setDrawFeedback(magnetic ? `The ${markerLabels[markerType]} snapped to End ${endpointRequirements.indexOf(nearest.requirement) + 1}.` : `The marker was recorded for End ${endpointRequirements.indexOf(nearest.requirement) + 1}. Its placement will be graded separately.`);
+    setDrawFeedback(outcomesWithheld
+      ? `${markerLabels[markerType]} placed. Markers are graded when you submit.`
+      : magnetic ? `The ${markerLabels[markerType]} snapped to End ${endpointRequirements.indexOf(nearest.requirement) + 1}.` : `The marker was recorded for End ${endpointRequirements.indexOf(nearest.requirement) + 1}. Its placement will be graded separately.`);
   };
 
   const handleGridClick = (event) => {
+    if (strokeJustEndedRef.current) {
+      strokeJustEndedRef.current = false;
+      return;
+    }
     const point = eventToGraphPoint(event);
     if (!point) return;
     if (stage === 'analysis') {
       const part = analysisParts.find((item) => item.id === activeAnalysisPartId && ['point', 'inversePoint'].includes(item.kind));
-      if (!part || part.responseMode === 'input' || (part.kind === 'inversePoint' && analysis.inversePointsValidated)) return;
+      if (!part || part.responseMode === 'input' || (part.kind === 'inversePoint' && inversePointsLocked)) return;
       analysisHistory.setValue((current) => {
         const existing = current.selections[part.id] || [];
         const selected = existing.length >= Math.max(1, part.expected.length) ? [point] : [...existing, point];
@@ -829,7 +924,7 @@ export default function InteractiveGraphWorkspace({
       return;
     }
     if (construction.snapped && activeMarker) placeMarkerAt(activeMarker, point);
-    else if (!construction.pointsValidated && activeTaskId) {
+    else if (!pointsLocked && activeTaskId) {
       const placement = eventToTaskPlacement(event, activeTaskId);
       if (placement) placeTask(activeTaskId, placement.point, { magnetic: Boolean(placement.magnetic) });
     }
@@ -848,7 +943,7 @@ export default function InteractiveGraphWorkspace({
     const target = clampToWindow(point);
     if (stage === 'analysis') {
       const part = analysisParts.find((item) => item.id === activeAnalysisPartId && ['point', 'inversePoint'].includes(item.kind));
-      if (!part || part.responseMode === 'input' || (part.kind === 'inversePoint' && analysis.inversePointsValidated)) {
+      if (!part || part.responseMode === 'input' || (part.kind === 'inversePoint' && inversePointsLocked)) {
         setKeyboardAnnouncement('Choose which part you are answering first.');
         return false;
       }
@@ -870,7 +965,7 @@ export default function InteractiveGraphWorkspace({
       setKeyboardAnnouncement(`Placed ${markerLabels[activeMarker] || 'marker'} at ${pointLabel(target)}.`);
       return true;
     }
-    if (!construction.pointsValidated && activeTaskId) {
+    if (!pointsLocked && activeTaskId) {
       const task = tasks.find((item) => item.id === activeTaskId);
       placeTask(activeTaskId, target);
       setKeyboardAnnouncement(`Placed ${task?.label || 'point'} at ${pointLabel(target)}.`);
@@ -936,13 +1031,18 @@ export default function InteractiveGraphWorkspace({
     const correct = placementsMatchTasks(tasks, construction.placements, Math.max(0.22, snapStep * 0.48), functionSpec, construction.chosenXValues);
     if (correct) {
       constructionHistory.setValue((current) => ({ ...current, pointsValidated: true }));
-      setPointFeedback(pointOnly ? 'All point placements are correct.' : 'All point placements are correct. The drawing layer is unlocked.');
+      // Only reachable where outcomes are shown (the check is not offered
+      // otherwise); the wording is gated anyway so it can never leak.
+      setPointFeedback(!revealPointCorrectness
+        ? 'Your points are placed.'
+        : pointOnly ? 'All point placements are correct.' : 'All point placements are correct. The drawing layer is unlocked.');
     } else {
       const incorrect = revealPointCorrectness ? pointParts.filter((part) => !part.isCorrect).map((part) => part.label) : [];
       const centerX = Number(functionSpec.h ?? 0);
       const chosenValues = tasks.filter((task) => task.studentChoosesX).map((task) => Number(construction.chosenXValues[task.id])).filter(Number.isFinite);
       const needsBothSides = ['absolute', 'quadratic', 'cubic', 'cubeRoot', 'rational'].includes(functionSpec.type);
-      const distributionHint = studentChoosesX && needsBothSides && (chosenValues.filter((value) => value < centerX).length < 2 || chosenValues.filter((value) => value > centerX).length < 2) ? ' Choose two outer x-values on each side of the center.' : '';
+      // Where to put the x-values is a rule hint: shown only where hints are.
+      const distributionHint = revealPointCorrectness && studentChoosesX && needsBothSides && (chosenValues.filter((value) => value < centerX).length < 2 || chosenValues.filter((value) => value > centerX).length < 2) ? ' Choose two outer x-values on each side of the center.' : '';
       setPointFeedback(revealPointCorrectness
         ? `Revise: ${incorrect.join(', ') || 'one or more point tasks'}.${distributionHint} Use Undo to remove the last placement.`
         : `Not every point is on the graph yet. Check each one against the rule before you draw.${distributionHint}`);
@@ -950,9 +1050,11 @@ export default function InteractiveGraphWorkspace({
   };
 
   const beginDrawing = (event) => {
+    // A new gesture: whatever the last one was, its click has come and gone.
+    strokeJustEndedRef.current = false;
     if (pointOnly) return;
-    const drawingOriginal = stage === 'construct' && construction.pointsValidated && !construction.snapped;
-    const drawingInverse = stage === 'analysis' && inverseReflectionEnabled && analysis.inversePointsValidated && !analysis.inverseSnapped;
+    const drawingOriginal = stage === 'construct' && pointsCommitted && !construction.snapped;
+    const drawingInverse = stage === 'analysis' && inverseReflectionEnabled && inversePointsCommitted && !analysis.inverseSnapped;
     if (!drawingOriginal && !drawingInverse) return;
     const point = eventToScreenPoint(event);
     if (!point) return;
@@ -961,7 +1063,7 @@ export default function InteractiveGraphWorkspace({
     event.currentTarget.setPointerCapture?.(event.pointerId);
   };
   const continueDrawing = (event) => {
-    const taskPlacement = stage === 'construct' && !construction.pointsValidated && activeTaskId
+    const taskPlacement = stage === 'construct' && !pointsLocked && activeTaskId
       ? eventToTaskPlacement(event, activeTaskId)
       : null;
     const graphPoint = taskPlacement?.point || eventToGraphPoint(event);
@@ -971,8 +1073,8 @@ export default function InteractiveGraphWorkspace({
       setDropMagneticTarget(taskPlacement.magnetic);
     }
     if (pointOnly || !drawing) return;
-    const drawingOriginal = stage === 'construct' && construction.pointsValidated && !construction.snapped;
-    const drawingInverse = stage === 'analysis' && inverseReflectionEnabled && analysis.inversePointsValidated && !analysis.inverseSnapped;
+    const drawingOriginal = stage === 'construct' && pointsCommitted && !construction.snapped;
+    const drawingInverse = stage === 'analysis' && inverseReflectionEnabled && inversePointsCommitted && !analysis.inverseSnapped;
     if (!drawingOriginal && !drawingInverse) return;
     const point = eventToScreenPoint(event);
     if (!point) return;
@@ -986,6 +1088,26 @@ export default function InteractiveGraphWorkspace({
     const finished = [...drawingRef.current];
     drawingRef.current = [];
     if (finished.length < 2) return;
+    strokeJustEndedRef.current = true;
+
+    const toGraphStroke = (stroke) => stroke.map(([x, y]) => [Number(fromScreenX(x).toFixed(4)), Number(fromScreenY(y).toFixed(4))]);
+
+    if (stage === 'analysis' && inverseReflectionEnabled && outcomesWithheld && !analysis.inversePointsValidated) {
+      // Through the student's own reflected points; judged at submission.
+      const completed = [...(analysis.inverseStrokes || []), finished];
+      const ownPoints = inversePointParts.flatMap((part) => analysis.selections[part.id] || []).map(([x, y]) => [toScreenX(x), toScreenY(y)]);
+      const passes = roughSketchMatchesGraph({ strokes: completed, requiredScreenPoints: ownPoints, idealScreenPaths: [], requiredStrokeCount: 1, tolerance: 68 });
+      analysisHistory.setValue((current) => ({
+        ...current,
+        inverseStrokes: completed,
+        inverseSketchGraph: completed.map(toGraphStroke),
+        inverseSnapped: passes,
+      }));
+      setDrawFeedback(passes
+        ? 'Your inverse passes through your reflected points. It is graded when you submit. Finish the inverse equation.'
+        : 'Draw the inverse through each of your reflected points. Use Clear Inverse Sketch to start again.');
+      return;
+    }
 
     if (stage === 'analysis' && inverseReflectionEnabled) {
       const completed = [...(analysis.inverseStrokes || []), finished];
@@ -1012,6 +1134,20 @@ export default function InteractiveGraphWorkspace({
       setDrawFeedback(`Draw ${requiredStrokeCount - completed.length} more branch before the graph can snap.`);
       return;
     }
+    if (outcomesWithheld && !construction.pointsValidated) {
+      // Through the student's own points; judged against the function at
+      // submission (curveCorrect), never here.
+      const ownPoints = resolvedPointTasks
+        .filter((task) => task.role !== 'center' && Array.isArray(construction.placements[task.id]))
+        .map((task) => construction.placements[task.id])
+        .map(([x, y]) => [toScreenX(x), toScreenY(y)]);
+      const passes = roughSketchMatchesGraph({ strokes: completed, requiredScreenPoints: ownPoints, idealScreenPaths: [], requiredStrokeCount, tolerance: 68 });
+      constructionHistory.setValue((current) => ({ ...current, strokes: completed, sketchGraph: completed.map(toGraphStroke), snapped: passes }));
+      setDrawFeedback(passes
+        ? `Your curve passes through your points. It is graded when you submit.${endpointRequirements.length ? ` Add the ${endpointCompletionNoun}${endpointRequirements.length === 1 ? '' : 's'} at the ends of your curve.` : ''}`
+        : 'Draw the curve through each of your plotted points. Use Clear Sketch to start again.');
+      return;
+    }
     const matches = roughSketchMatchesGraph({ strokes: completed, requiredScreenPoints: requiredGraphPoints, idealScreenPaths: idealScreenPointPaths, requiredStrokeCount, tolerance: 68 });
     if (matches) {
       constructionHistory.setValue((current) => ({ ...current, strokes: completed, snapped: true }));
@@ -1019,9 +1155,9 @@ export default function InteractiveGraphWorkspace({
     } else setDrawFeedback('The sketch must travel through the plotted points. Use Undo or Clear Sketch and trace the function again.');
   };
 
-  const showPredrawnGraph = !pointOnly && (mode === 'analysis' || construction.snapped);
+  const showPredrawnGraph = !pointOnly && (mode === 'analysis' || (construction.snapped && !curveAcceptedOwnPoints));
   const activePointPart = analysisParts.find((part) => part.id === activeAnalysisPartId && ['point', 'inversePoint'].includes(part.kind));
-  const dragGuideActive = Boolean((draggingTaskId || activeTaskId) && dropCandidate && !construction.pointsValidated);
+  const dragGuideActive = Boolean((draggingTaskId || activeTaskId) && dropCandidate && !pointsLocked);
   const markerGhostActive = Boolean((draggingMarkerType || activeMarker) && dropCandidate && construction.snapped);
 
   const workspaceTitle = pointOnly
@@ -1084,7 +1220,9 @@ export default function InteractiveGraphWorkspace({
       ? 'Place one boundary or continuation marker at each graph end.'
       : construction.pointsValidated
         ? 'Draw through all validated points.'
-        : pointOnly
+        : pointsCommitted && !pointOnly
+          ? 'Draw your curve through all of your points.'
+          : pointOnly
           ? 'Plot every point from your table.'
           : 'Plot each required point, then draw the function through them.';
   const workspaceCapabilities = {
@@ -1204,9 +1342,9 @@ export default function InteractiveGraphWorkspace({
                   const xValue = construction.chosenXValues[task.id] ?? '';
                   const canPlace = task.expected === 'undefined' || Number.isFinite(Number(xValue));
                   return <div key={task.id} style={{ border: active ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '9px', background: placement ? '#eef5ff' : '#fff', padding: '9px' }}>
-                    <button type="button" draggable={!mobileInteraction.isMobile && !construction.pointsValidated && canPlace} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-point', task.id); event.dataTransfer.setDragImage(makePointDragImage(), 22, 22); setDraggingTaskId(task.id); }} onDragEnd={() => { setDraggingTaskId(null); setDropCandidate(null); setDropMagneticTarget(null); }} aria-pressed={active}
+                    <button type="button" draggable={!mobileInteraction.isMobile && !pointsLocked && canPlace} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-point', task.id); event.dataTransfer.setDragImage(makePointDragImage(), 22, 22); setDraggingTaskId(task.id); }} onDragEnd={() => { setDraggingTaskId(null); setDropCandidate(null); setDropMagneticTarget(null); }} aria-pressed={active}
                     aria-label={`${toPlainMath(task.label)}${active ? ' — selected. Move the cursor on the plane and press Enter, or type an exact coordinate.' : ''}`}
-                    onClick={() => { if (!construction.pointsValidated && canPlace) { setActiveTaskId(task.id); setKeyboardAnnouncement(`${toPlainMath(task.label)} selected. Use the arrow keys on the plane and press Enter, or type an exact coordinate below.`); if (mobileInteraction.isMobile) revealPlaneForPlacement(); } }} style={{ width: '100%', textAlign: 'left', border: 'none', background: 'transparent', padding: 0, cursor: construction.pointsValidated || !canPlace ? 'default' : 'grab' }}>
+                    onClick={() => { if (!pointsLocked && canPlace) { setActiveTaskId(task.id); setKeyboardAnnouncement(`${toPlainMath(task.label)} selected. Use the arrow keys on the plane and press Enter, or type an exact coordinate below.`); if (mobileInteraction.isMobile) revealPlaneForPlacement(); } }} style={{ width: '100%', textAlign: 'left', border: 'none', background: 'transparent', padding: 0, cursor: pointsLocked || !canPlace ? 'default' : 'grab' }}>
                       {/* Point tasks are authored as "Plot the point where $x = 0$".
                           The aria-label above deliberately keeps the plain string —
                           a screen reader should hear the source, not markup — but
@@ -1250,20 +1388,24 @@ export default function InteractiveGraphWorkspace({
                       )}
                     </div>
                   )}
-                  {!construction.pointsValidated && !revealPointCorrectness && pointOnly && (
+                  {!construction.pointsValidated && outcomesWithheld && (
                     <p data-points-graded-on-submit style={{ margin: '12px 0 0', fontSize: '12px', lineHeight: 1.45, color: '#5f6368' }}>
-                      Your points are graded when you submit. You can move any of them until then.
-                      {analysisEnabled && ` When they are all placed, go on to ${inverseReflectionEnabled ? '2. Build Inverse' : '2. Analyze Function'}.`}
+                      {pointOnly
+                        ? 'Your points are graded when you submit. You can move any of them until then.'
+                        : 'Your points and your curve are graded when you submit. Place every point, then draw your curve through them. Clear Sketch lets you move a point again.'}
+                      {pointOnly && analysisEnabled && ` When they are all placed, go on to ${inverseReflectionEnabled ? '2. Build Inverse' : '2. Analyze Function'}.`}
                     </p>
                   )}
-                  {!construction.pointsValidated && !(pointOnly && !revealPointCorrectness) && <button type="button" onClick={checkPoints} disabled={Object.keys(construction.placements).length < tasks.length} style={{ width: '100%', marginTop: '12px', padding: '10px', border: 'none', borderRadius: '8px', background: Object.keys(construction.placements).length >= tasks.length ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Check Point Placements</button>}
+                  {!construction.pointsValidated && !outcomesWithheld && <button type="button" onClick={checkPoints} disabled={Object.keys(construction.placements).length < tasks.length} style={{ width: '100%', marginTop: '12px', padding: '10px', border: 'none', borderRadius: '8px', background: Object.keys(construction.placements).length >= tasks.length ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Check Point Placements</button>}
                 </>
               )}
               {construction.snapped && endpointRequirements.length > 0 && <div style={{ marginTop: '4px' }}>
-                <p style={{ margin: '0 0 8px', fontSize: '11px', color: '#5f6368', lineHeight: 1.45 }}>{endpointInstruction} {mobileInteraction.isMobile ? 'Tap a marker, then tap near a graph end; a generous magnetic area helps it snap into place.' : 'Drag or select a marker, then place it near a graph end; a generous magnetic area helps it snap into place.'}</p>
+                <p style={{ margin: '0 0 8px', fontSize: '11px', color: '#5f6368', lineHeight: 1.45 }}>{endpointInstruction} {outcomesWithheld
+                  ? (mobileInteraction.isMobile ? 'Tap a marker, then tap the end of your curve.' : 'Drag or select a marker, then place it at the end of your curve.')
+                  : (mobileInteraction.isMobile ? 'Tap a marker, then tap near a graph end; a generous magnetic area helps it snap into place.' : 'Drag or select a marker, then place it near a graph end; a generous magnetic area helps it snap into place.')}</p>
                 {availableMarkerTypes.map((type) => { const label = markerLabels[type]; return <button key={type} type="button" draggable={!mobileInteraction.isMobile} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-marker', type); event.dataTransfer.setDragImage(makeMarkerDragImage(type), 26, 26); setDraggingMarkerType(type); }} onDragEnd={() => { setDraggingMarkerType(null); setDropCandidate(null); setDropMagneticTarget(null); }} aria-pressed={activeMarker === type}
                   onClick={() => { setActiveMarker(type); setKeyboardAnnouncement(`${label} selected. Use the arrow keys on the plane and press Enter, or type an exact coordinate.`); }} style={{ width: '100%', marginTop: '6px', padding: '9px', border: activeMarker === type ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '8px', background: 'var(--mm-surface)', fontWeight: 'bold', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ fontSize: '23px', color: '#1a73e8' }}>{markerSymbols[type]}</span><span><span style={{ display: 'block' }}>{label}</span><span style={{ display: 'block', fontSize: '11px', color: '#5f6368', fontWeight: 400 }}>{markerExplanations[type]}</span></span></button>; })}
-                <div style={{ marginTop: '10px', display: 'grid', gap: '5px' }}>{endpointRequirements.map((requirement, index) => { const placement = construction.markerPlacements[requirement.id]; return <div key={requirement.id} style={{ fontSize: '12px', color: placement ? '#174ea6' : '#5f6368' }}>{boundaryOnly ? 'Boundary' : 'End'} {index + 1}: {placement ? markerLabels[markerValue(placement)] : 'not placed'}</div>; })}</div>
+                <div style={{ marginTop: '10px', display: 'grid', gap: '5px' }}>{endpointRequirements.map((requirement, index) => { const placement = construction.markerPlacements[requirement.id]; return <div key={requirement.id} style={{ fontSize: '12px', color: placement ? '#174ea6' : '#5f6368' }}>{boundaryOnly && endsDescribedForStudent ? 'Boundary' : 'End'} {index + 1}: {placement ? markerLabels[markerValue(placement)] : 'not placed'}</div>; })}</div>
               </div>}
             </>
           ) : (
@@ -1319,7 +1461,7 @@ export default function InteractiveGraphWorkspace({
                   </div>}
                 </div>;
               })}
-              {inverseReflectionEnabled && !analysis.inversePointsValidated && (
+              {inverseReflectionEnabled && !analysis.inversePointsValidated && !outcomesWithheld && (
                 <button
                   type="button"
                   onClick={checkInversePoints}
@@ -1329,7 +1471,7 @@ export default function InteractiveGraphWorkspace({
                   Check Reflected Points
                 </button>
               )}
-              {inverseReflectionEnabled && analysis.inversePointsValidated && !analysis.inverseSnapped && <p style={{ margin: '12px 0 0', color: '#6f2da8', fontSize: '12px', lineHeight: 1.5, fontWeight: 'bold' }}>Both reflected points are correct. Draw f⁻¹ directly on the coordinate plane through both points.</p>}
+              {inverseReflectionEnabled && inversePointsCommitted && !analysis.inverseSnapped && <p style={{ margin: '12px 0 0', color: '#6f2da8', fontSize: '12px', lineHeight: 1.5, fontWeight: 'bold' }}>{analysis.inversePointsValidated ? 'Both reflected points are correct. Draw f⁻¹ directly on the coordinate plane through both points.' : 'Draw f⁻¹ directly on the coordinate plane through both of your reflected points. They are graded when you submit.'}</p>}
               {inverseReflectionEnabled && analysis.inverseSnapped && <p style={{ margin: '12px 0 0', color: '#137333', fontSize: '12px', lineHeight: 1.5, fontWeight: 'bold' }}>Inverse graph complete. Finish the equation field above.</p>}
             </>
           )}
@@ -1372,7 +1514,7 @@ export default function InteractiveGraphWorkspace({
               }
             }}
             onPointerDown={beginDrawing} onPointerMove={continueDrawing} onPointerUp={endDrawing} onPointerCancel={endDrawing} onPointerLeave={() => { setHoverPoint(null); if (!draggingTaskId) { setDropCandidate(null); setDropMagneticTarget(null); } }}
-            style={{ display: 'block', width: '100%', height: 'auto', touchAction: 'none', cursor: stage === 'analysis' || (!construction.pointsValidated && activeTaskId) || (construction.snapped && activeMarker) ? 'crosshair' : (!pointOnly && construction.pointsValidated && !construction.snapped ? 'crosshair' : 'default') }}>
+            style={{ display: 'block', width: '100%', height: 'auto', touchAction: 'none', cursor: stage === 'analysis' || (!pointsLocked && activeTaskId) || (construction.snapped && activeMarker) ? 'crosshair' : (!pointOnly && pointsCommitted && !construction.snapped ? 'crosshair' : 'default') }}>
             {/* Everything mathematical is drawn inside this rectangle. Without
                 it, zooming in pushes the curve and the placed points out over
                 the axis numbers and the plane's own border. Ticks and their
@@ -1406,22 +1548,22 @@ export default function InteractiveGraphWorkspace({
             )}
 
             {showPredrawnGraph && idealPaths.map((path, index) => <path key={`ideal-${index}`} className={construction.snapped ? 'mathmaster-snap-curve' : ''} d={path} fill="none" stroke="#1a73e8" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />)}
-            {inverseReflectionEnabled && analysis.inverseSnapped && inverseIdealPaths.map((path, index) => <path key={`inverse-ideal-${index}`} d={path} fill="none" stroke="#9334e6" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />)}
+            {inverseReflectionEnabled && analysis.inverseSnapped && !inverseAcceptedOwnPoints && inverseIdealPaths.map((path, index) => <path key={`inverse-ideal-${index}`} d={path} fill="none" stroke="#9334e6" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />)}
             {mode === 'analysis' && endpointRequirements.map((requirement) => { const x = toScreenX(requirement.point[0]); const y = toScreenY(requirement.point[1]); const angle = (Math.atan2(toScreenY(requirement.point[1] + requirement.vector[1]) - y, toScreenX(requirement.point[0] + requirement.vector[0]) - x) * 180) / Math.PI; return <EndpointMarker key={`analysis-${requirement.id}`} type={requirement.marker} x={x} y={y} angle={angle} color="#1a73e8" />; })}
-            {!construction.snapped && construction.strokes.map((stroke, strokeIndex) => <polyline key={`stroke-${strokeIndex}`} points={stroke.map((point) => point.join(',')).join(' ')} fill="none" stroke="#7baaf7" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.88" />)}
-            {stage === 'analysis' && inverseReflectionEnabled && !analysis.inverseSnapped && (analysis.inverseStrokes || []).map((stroke, strokeIndex) => <polyline key={`inverse-stroke-${strokeIndex}`} points={stroke.map((point) => point.join(',')).join(' ')} fill="none" stroke="#b38ae8" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />)}
+            {(!construction.snapped || curveAcceptedOwnPoints) && construction.strokes.map((stroke, strokeIndex) => <polyline key={`stroke-${strokeIndex}`} points={stroke.map((point) => point.join(',')).join(' ')} fill="none" stroke="#7baaf7" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.88" />)}
+            {stage === 'analysis' && inverseReflectionEnabled && (!analysis.inverseSnapped || inverseAcceptedOwnPoints) && (analysis.inverseStrokes || []).map((stroke, strokeIndex) => <polyline key={`inverse-stroke-${strokeIndex}`} points={stroke.map((point) => point.join(',')).join(' ')} fill="none" stroke="#b38ae8" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />)}
             {drawing && drawingRef.current.length > 1 && <polyline points={drawingRef.current.map((point) => point.join(',')).join(' ')} fill="none" stroke={stage === 'analysis' && inverseReflectionEnabled ? '#b38ae8' : '#7baaf7'} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.88" />}
 
             {constructionEnabled && tasks.filter((task) => Array.isArray(construction.placements[task.id])).map((task) => { const point = construction.placements[task.id]; const isCenter = task.role === 'center'; const x = toScreenX(point[0]); const y = toScreenY(point[1]); return <g key={task.id}><circle cx={x} cy={y} r={isCenter ? 10 : 8} fill={isCenter ? '#fff' : POINT_GUIDE_COLOR} stroke={isCenter ? '#9334e6' : '#fff'} strokeWidth="3" />{isCenter && <text x={x - 4} y={y + 5} fontSize="17" fontWeight="bold" fill="#9334e6">×</text>}<rect x={x + 8} y={y - 29} width={Math.max(36, toPlainMath(task.label).length * 7 + 12)} height="21" rx="6" fill="rgba(255,255,255,0.58)" /><text x={x + 14} y={y - 14} fontSize="12" fontWeight="bold" fill="#174ea6">{toPlainMath(task.label)}</text></g>; })}
             {dragGuideActive && <g pointerEvents="none"><line x1={toScreenX(dropCandidate[0])} y1={PADDING} x2={toScreenX(dropCandidate[0])} y2={HEIGHT - PADDING} stroke={POINT_GUIDE_COLOR} strokeWidth={dropMagneticTarget ? 4 : 3} strokeDasharray="8 5" opacity="0.84" /><line x1={PADDING} y1={toScreenY(dropCandidate[1])} x2={WIDTH - PADDING} y2={toScreenY(dropCandidate[1])} stroke={POINT_GUIDE_COLOR} strokeWidth={dropMagneticTarget ? 4 : 3} strokeDasharray="8 5" opacity="0.84" />{dropMagneticTarget && <circle cx={toScreenX(dropCandidate[0])} cy={toScreenY(dropCandidate[1])} r="24" fill="rgba(19,115,51,0.10)" stroke="#137333" strokeWidth="3" strokeDasharray="5 4" />}<circle cx={toScreenX(dropCandidate[0])} cy={toScreenY(dropCandidate[1])} r="15" fill="rgba(0,166,166,0.22)" stroke={dropMagneticTarget ? '#137333' : POINT_GUIDE_COLOR} strokeWidth="4" /><circle cx={toScreenX(dropCandidate[0])} cy={toScreenY(dropCandidate[1])} r="6" fill={dropMagneticTarget ? '#137333' : POINT_GUIDE_COLOR} />{dropMagneticTarget && <text x={toScreenX(dropCandidate[0])} y={toScreenY(dropCandidate[1]) - 31} textAnchor="middle" fontSize="12" fontWeight="bold" fill="#137333">Snap</text>}</g>}
             {stage === 'analysis' && analysisParts.filter((part) => ['point', 'inversePoint'].includes(part.kind)).flatMap((part) => (analysis.selections[part.id] || []).map((point, index) => <g key={`analysis-${part.id}-${index}`}><circle cx={toScreenX(point[0])} cy={toScreenY(point[1])} r="8" fill={part.kind === 'inversePoint' ? '#9334e6' : '#d93025'} stroke="#fff" strokeWidth="3" /><rect x={toScreenX(point[0]) + 8} y={toScreenY(point[1]) - 29} width="82" height="22" rx="6" fill="rgba(255,255,255,0.72)" /><text x={toScreenX(point[0]) + 13} y={toScreenY(point[1]) - 14} fontSize="12" fontWeight="bold" fill="#3c4043">{pointLabel(point)}</text></g>))}
 
-            {construction.snapped && endpointRequirements.map((requirement) => { const placement = construction.markerPlacements[requirement.id]; const displayPoint = markerPoint(placement) || requirement.point; const x = toScreenX(displayPoint[0]); const y = toScreenY(displayPoint[1]); const correctX = toScreenX(requirement.point[0]); const correctY = toScreenY(requirement.point[1]); const angle = (Math.atan2(toScreenY(requirement.point[1] + requirement.vector[1]) - correctY, toScreenX(requirement.point[0] + requirement.vector[0]) - correctX) * 180) / Math.PI; return <g key={requirement.id}>{!placement && <><circle cx={correctX} cy={correctY} r="25" fill="rgba(251,188,4,0.10)" stroke="#f9ab00" strokeWidth="2" strokeDasharray="6 6" className="mathmaster-endpoint-pulse" /><text x={correctX} y={correctY - 31} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#8a5a00">Graph end {endpointRequirements.indexOf(requirement) + 1}</text></>}{placement && <EndpointMarker type={markerValue(placement)} x={x} y={y} angle={angle} />}</g>; })}
+            {construction.snapped && endpointRequirements.map((requirement) => { const placement = construction.markerPlacements[requirement.id]; const displayPoint = markerPoint(placement) || requirement.point; const x = toScreenX(displayPoint[0]); const y = toScreenY(displayPoint[1]); const correctX = toScreenX(requirement.point[0]); const correctY = toScreenY(requirement.point[1]); const angle = (Math.atan2(toScreenY(requirement.point[1] + requirement.vector[1]) - correctY, toScreenX(requirement.point[0] + requirement.vector[0]) - correctX) * 180) / Math.PI; return <g key={requirement.id}>{!placement && !outcomesWithheld && <><circle cx={correctX} cy={correctY} r="25" fill="rgba(251,188,4,0.10)" stroke="#f9ab00" strokeWidth="2" strokeDasharray="6 6" className="mathmaster-endpoint-pulse" /><text x={correctX} y={correctY - 31} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#8a5a00">Graph end {endpointRequirements.indexOf(requirement) + 1}</text></>}{placement && <EndpointMarker type={markerValue(placement)} x={x} y={y} angle={angle} />}</g>; })}
             {markerGhostActive && <EndpointMarker type={draggingMarkerType || activeMarker} x={toScreenX(dropCandidate[0])} y={toScreenY(dropCandidate[1])} opacity={0.55} scale={1.15} />}
             {showCoordinates && hoverPoint && <g pointerEvents="none"><rect x={Math.min(WIDTH - 132, toScreenX(hoverPoint[0]) + 10)} y={Math.max(12, toScreenY(hoverPoint[1]) - 35)} width="116" height="27" rx="6" fill="#202124" opacity="0.66" /><text x={Math.min(WIDTH - 122, toScreenX(hoverPoint[0]) + 20)} y={Math.max(31, toScreenY(hoverPoint[1]) - 16)} fontSize="13" fill="#fff">{pointLabel(hoverPoint)}</text></g>}
             </g>
           </svg>
-          <figcaption style={{ color: '#5f6368', fontSize: '13px', padding: '8px 4px 0' }}>{pointOnly ? 'Plot each ordered pair from your completed table.' : boundaryOnly ? 'This relationship has a finite domain. Its graph must stop at explicit open or closed boundary markers.' : continuationOnly ? 'Arrows show that the function continues beyond the visible coordinate plane.' : 'Arrows show continuation; open and closed circles show finite-domain boundaries.'}</figcaption>
+          <figcaption style={{ color: '#5f6368', fontSize: '13px', padding: '8px 4px 0' }}>{pointOnly ? 'Plot each ordered pair from your completed table.' : !endsDescribedForStudent ? 'Arrows show continuation; open and closed circles show finite-domain boundaries.' : boundaryOnly ? 'This relationship has a finite domain. Its graph must stop at explicit open or closed boundary markers.' : continuationOnly ? 'Arrows show that the function continues beyond the visible coordinate plane.' : 'Arrows show continuation; open and closed circles show finite-domain boundaries.'}</figcaption>
         </figure>
       </div>
       </EnlargeableFigure>
@@ -1430,25 +1572,25 @@ export default function InteractiveGraphWorkspace({
         {stage === 'construct' ? (
           <>
             {pointFeedback && <p style={{ margin: '8px 0', color: construction.pointsValidated ? '#137333' : '#8a5a00', fontWeight: 'bold' }}>{pointFeedback}</p>}
-            {!pointOnly && construction.pointsValidated && !construction.snapped && <p style={{ margin: '8px 0', color: '#174ea6', fontWeight: 'bold' }}>Draw through all validated points. {requiredStrokeCount === 2 ? 'Draw both rational branches as separate strokes.' : ''}</p>}
-            {drawFeedback && <p style={{ margin: '8px 0', color: construction.snapped ? '#137333' : '#8a5a00', fontWeight: 'bold' }}>{drawFeedback}</p>}
+            {!pointOnly && pointsCommitted && !construction.snapped && <p style={{ margin: '8px 0', color: '#174ea6', fontWeight: 'bold' }}>{construction.pointsValidated ? 'Draw through all validated points.' : 'Draw your curve through all of your points.'} {requiredStrokeCount === 2 ? 'Draw both rational branches as separate strokes.' : ''}</p>}
+            {drawFeedback && <p style={{ margin: '8px 0', color: curveAcceptedOwnPoints ? '#174ea6' : construction.snapped ? '#137333' : '#8a5a00', fontWeight: 'bold' }}>{drawFeedback}</p>}
           </>
         ) : (
           <>
             <p style={{ margin: '8px 0', color: '#6f2da8', fontWeight: 'bold' }}>
-              {!analysis.inversePointsValidated
+              {!inversePointsCommitted
                 ? 'Reflect both original points across y=x. Select each reflected-point card, then place its image on the plane.'
                 : !analysis.inverseSnapped
-                  ? `Both reflected points are correct. ${inverseReflection?.inverseLineLabel || 'Draw the inverse graph through the reflected points.'}`
+                  ? `${analysis.inversePointsValidated ? 'Both reflected points are correct. ' : ''}${inverseReflection?.inverseLineLabel || 'Draw the inverse graph through the reflected points.'}`
                   : 'The inverse graph is complete. Finish the inverse equation.'}
             </p>
-            {drawFeedback && <p style={{ margin: '8px 0', color: analysis.inverseSnapped ? '#137333' : '#8a5a00', fontWeight: 'bold' }}>{drawFeedback}</p>}
+            {drawFeedback && <p style={{ margin: '8px 0', color: inverseAcceptedOwnPoints ? '#174ea6' : analysis.inverseSnapped ? '#137333' : '#8a5a00', fontWeight: 'bold' }}>{drawFeedback}</p>}
           </>
         )}
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: '9px', flexWrap: 'wrap', marginTop: '10px' }}>
-          {((stage === 'construct' && !construction.pointsValidated)
-            || (stage === 'analysis' && inverseReflectionEnabled && !analysis.inversePointsValidated)) && (
+          {((stage === 'construct' && !pointsLocked)
+            || (stage === 'analysis' && inverseReflectionEnabled && !inversePointsLocked)) && (
             <div style={{ display: 'flex', gap: '7px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
               <label style={{ fontSize: '12px', fontWeight: 700, color: '#3c4043' }}>
                 x
@@ -1493,9 +1635,18 @@ export default function InteractiveGraphWorkspace({
           {stage === 'construct' && !pointOnly && construction.pointsValidated && !construction.snapped && (
             <button type="button" onClick={() => constructionHistory.setValue((current) => ({ ...current, strokes: [] }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}>Clear Sketch</button>
           )}
+          {/* Where outcomes are withheld a sketch through the student's own
+              points can be cleared even once accepted: that is how a point is
+              moved again, and the markers placed on it go with it. */}
+          {stage === 'construct' && ownPointsSketch && (
+            <button type="button" onClick={() => { constructionHistory.setValue((current) => ({ ...current, strokes: [], sketchGraph: [], snapped: false, markerPlacements: {} })); setDrawFeedback(''); }} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}>Clear Sketch</button>
+          )}
 
           {stage === 'analysis' && inverseReflectionEnabled && analysis.inversePointsValidated && !analysis.inverseSnapped && (
             <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, inverseStrokes: [], inverseSnapped: false }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 'bold' }}>Clear Inverse Sketch</button>
+          )}
+          {stage === 'analysis' && inverseReflectionEnabled && inverseOwnPointsSketch && (
+            <button type="button" onClick={() => { analysisHistory.setValue((current) => ({ ...current, inverseStrokes: [], inverseSketchGraph: [], inverseSnapped: false })); setDrawFeedback(''); }} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 'bold' }}>Clear Inverse Sketch</button>
           )}
 
           <button
@@ -1579,7 +1730,7 @@ export default function InteractiveGraphWorkspace({
         {keyboardAnnouncement}
       </p>
 
-      {stage === 'analysis' && activePointPart && activePointPart.responseMode !== 'input' && !(inverseReflectionEnabled && analysis.inversePointsValidated) && <div style={{ textAlign: 'center', marginTop: '12px' }}><p style={{ color: '#174ea6', fontWeight: 'bold' }}>Active part: {activePointPart.label}. Select {activePointPart.expected.length || 1} location(s){activePointPart.allowNone ? ', or choose “Does not exist.”' : '.'}</p>{(analysis.selections[activePointPart.id] || []).length > 0 && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, selections: { ...current.selections, [activePointPart.id]: [] }, inversePointsValidated: false, inverseStrokes: [], inverseSnapped: false }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}>Clear This Selection</button>}</div>}
+      {stage === 'analysis' && activePointPart && activePointPart.responseMode !== 'input' && !(inverseReflectionEnabled && inversePointsLocked) && <div style={{ textAlign: 'center', marginTop: '12px' }}><p style={{ color: '#174ea6', fontWeight: 'bold' }}>Active part: {activePointPart.label}. Select {activePointPart.expected.length || 1} location(s){activePointPart.allowNone ? ', or choose “Does not exist.”' : '.'}</p>{(analysis.selections[activePointPart.id] || []).length > 0 && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, selections: { ...current.selections, [activePointPart.id]: [] }, inversePointsValidated: false, inverseStrokes: [], inverseSnapped: false }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}>Clear This Selection</button>}</div>}
     </div>
   );
 }

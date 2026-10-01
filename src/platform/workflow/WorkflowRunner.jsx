@@ -24,7 +24,7 @@ import { buildStudentTableMagneticTargets } from '../../graphInteractionPrecisio
 import { buildWorkflowSummaryItems, shouldUseWorkflowFocusMode, summarizeStageResponse } from './workflowFocusMode';
 import { stageFamily, stageFamilyLabel } from './stageFamilies';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../interaction/choiceOptions.js';
-import { checkedGraphIsPointOnly, graphWindowOnly, workflowEndpointMarkers, workflowGraphDomainRestriction, workflowRequiresEndpointMarkers } from './workflowGraphVisuals.js';
+import { checkedGraphIsPointOnly, graphWindowOnly, studentPlottedPoints, workflowEndpointMarkers, workflowGraphDomainRestriction, workflowRequiresEndpointMarkers } from './workflowGraphVisuals.js';
 import { resolveWorkflowTaskPrompt, selectPersistentWorkflowGraph } from './workflowPresentation.js';
 import { buildWorkflowReviewState, firstIncorrectWorkflowIndex } from './workflowReviewState.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../workView/useMathUndoHistory.js';
@@ -614,6 +614,7 @@ const DELEGATES = {
           },
           ruleLatex: rule,
           showRule: Boolean(rule),
+          checkedAgainstStudentFunction: driven,
         }}
         onStateChange={onChange}
         draftKey={draftKey}
@@ -638,7 +639,7 @@ const DELEGATES = {
       onAction={toolAction(onChange)}
     />
   ),
-  coordinatePlot: ({ stage, input, content, onChange, draftKey }) => {
+  coordinatePlot: ({ stage, input, content, onChange, draftKey, revealCorrectness = true }) => {
     const source = input?.from === 'student' ? input.value : null;
     const fromTable = source?.[WORKFLOW_ARTIFACT] === 'table' ? source.points : null;
     const equationPoints = typeof source === 'string'
@@ -663,7 +664,11 @@ const DELEGATES = {
       expected: point,
       lockedX: true,
     }));
-    const magneticSnapTargets = source?.[WORKFLOW_ARTIFACT] === 'table'
+    // The magnet is offered only for a table that agrees with its source, so
+    // whether it appears says whether the table is right: on a DOL, quiz or
+    // test it stays off and the points are placed on the grid like any other.
+    const magneticSnapTargets = revealCorrectness
+      && source?.[WORKFLOW_ARTIFACT] === 'table'
       && source.isComplete
       && source.sourceConsistent !== false
       ? buildStudentTableMagneticTargets(pairs)
@@ -698,10 +703,11 @@ const DELEGATES = {
         mode="construct"
         onStateChange={onChange}
         draftKey={draftKey}
+        revealPointCorrectness={revealCorrectness}
       />
     );
   },
-  functionGraph: ({ stage, input, content, onChange, draftKey }) => {
+  functionGraph: ({ stage, input, content, onChange, draftKey, revealCorrectness = true }) => {
     const source = input?.from === 'student' ? input.value : null;
     const sourceIsTable = source?.[WORKFLOW_ARTIFACT] === 'table';
     const tablePoints = sourceIsTable && Array.isArray(source.points) ? source.points : [];
@@ -722,7 +728,9 @@ const DELEGATES = {
       }).filter(Boolean);
     })();
     const graphWindow = expandGraphWindowToPoints(authoredGraphWindow, points);
-    const magneticSnapTargets = sourceIsTable
+    // See coordinatePlot: the magnet's presence would say the table is right.
+    const magneticSnapTargets = revealCorrectness
+      && sourceIsTable
       && source.isComplete
       && source.sourceConsistent !== false
       ? buildStudentTableMagneticTargets(points)
@@ -732,7 +740,14 @@ const DELEGATES = {
     // came from an equation, contradictory work has no single graph; make that
     // conflict visible and require the student to resolve it rather than
     // secretly switching to the authored answer key.
-    if (sourceIsTable && (source.sourceModel || source.sourceFunctionSpec) && source.sourceChecked > 0 && source.sourceConsistent === false) {
+    //
+    // Not where outcomes are withheld. "Your table and function do not agree"
+    // is a verdict on the table — against the AUTHORED function when the table
+    // was not built from the student's own equation — and it could be asked
+    // again after every edit, on an exit ticket. There the step is built from
+    // the student's own table and function as they stand (never from the
+    // answer key) and both are graded when the question is submitted.
+    if (revealCorrectness && sourceIsTable && (source.sourceModel || source.sourceFunctionSpec) && source.sourceChecked > 0 && source.sourceConsistent === false) {
       return (
         <div style={{ ...waitingPanel, background: '#fff8e1', color: '#7a4f00' }}>
           <strong>Your table and function do not agree yet.</strong>
@@ -801,6 +816,7 @@ const DELEGATES = {
         mode="construct"
         onStateChange={onChange}
         draftKey={draftKey}
+        revealPointCorrectness={revealCorrectness}
       />
     );
   },
@@ -823,7 +839,7 @@ const DELEGATES = {
 const NOTATION_PROFILE = { interval: 'interval', inequality: 'inequality', set: 'set' };
 export const ALL_REAL_NUMBERS_RESPONSE = '\\text{All Real Numbers}';
 
-function StageBody({ stage, input, content, value, onChange, disabled, draftKey, canonicalSavedAt = 0, controlsBranch = false, openKeypad = true, showFigure = true }) {
+function StageBody({ stage, input, content, value, onChange, disabled, draftKey, canonicalSavedAt = 0, controlsBranch = false, openKeypad = true, showFigure = true, revealCorrectness = true }) {
   const delegate = DELEGATES[stage.kind];
   /*
    * A STAGE'S TOOL GETS ITS OWN DRAFT NAMESPACE.
@@ -841,7 +857,7 @@ function StageBody({ stage, input, content, value, onChange, disabled, draftKey,
         scope={`stage-${stage.id || stage.kind}`}
         canonicalSavedAt={canonicalSavedAt}
       >
-        {delegate({ stage, input, content, onChange, draftKey, disabled })}
+        {delegate({ stage, input, content, onChange, draftKey, disabled, revealCorrectness })}
       </ToolDraftScopeProvider>
     );
   }
@@ -1031,7 +1047,7 @@ const normalizeWorkflowPoint = (point) => {
   return Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
 };
 
-const checkedGraphReference = ({ workflow, responses, content, grading, activeStageIndex }) => {
+const checkedGraphReference = ({ workflow, responses, content, grading, activeStageIndex, revealCorrectness = true }) => {
   if (!Array.isArray(workflow) || activeStageIndex <= 0) return null;
   let graphIndex = -1;
   for (let index = Math.min(activeStageIndex - 1, workflow.length - 1); index >= 0; index -= 1) {
@@ -1044,7 +1060,23 @@ const checkedGraphReference = ({ workflow, responses, content, grading, activeSt
 
   const graphStage = workflow[graphIndex];
   const graphResponse = responses?.[graphStage.id];
-  if (graphResponse?.[WORKFLOW_ARTIFACT] !== 'graph' || graphResponse.isComplete !== true || graphResponse.isCorrect !== true) return null;
+  if (graphResponse?.[WORKFLOW_ARTIFACT] !== 'graph' || graphResponse.isComplete !== true) return null;
+
+  // Outcomes withheld: the student's own points, shown to every student who
+  // finished the graph — never the function's curve, never only when right.
+  if (!revealCorrectness) {
+    const ownPoints = studentPlottedPoints(graphResponse);
+    if (!ownPoints.length) return null;
+    return {
+      ...expandGraphWindowToPoints(
+        graphWindowOnly(graphStage.graph || content?.graph || { xMin: -10, xMax: 10, yMin: -10, yMax: 10 }),
+        ownPoints,
+      ),
+      points: ownPoints.map(([x, y]) => ({ x, y })),
+      ariaLabel: 'Your graph',
+    };
+  }
+  if (graphResponse.isCorrect !== true) return null;
 
   const input = resolveStageInput({ stage: graphStage, responses, content });
   const source = input?.from === 'student' ? input.value : null;
@@ -1107,6 +1139,10 @@ export default function WorkflowRunner({
   showPrompt = true,
   showStagePrompt = true,
   submissionReview = null,
+  // May the steps say whether the work is right before the question is
+  // submitted? QuestionEngine's showOutcomeFeedback: false on a DOL, quiz or
+  // test until feedback is released. Defaults to the practice behaviour.
+  revealCorrectness = true,
 }) {
   const { content, workflow: authoredWorkflow, grading } = useMemo(() => readComposedQuestion(question), [question]);
   const [responses, setResponses] = useLocalDraftState(
@@ -1351,13 +1387,18 @@ export default function WorkflowRunner({
     content,
     grading,
     activeStageIndex: safeActiveIndex,
+    revealCorrectness,
   });
   const graphReference = selectPersistentWorkflowGraph({ content, workflow, checkedGraph });
   const activeStageHasOwnGraphWorkspace = ['graphFeatureSelect', 'coordinatePlot', 'functionGraph'].includes(activeStage?.kind);
   const showPersistentGraphReference = Boolean(graphReference && !activeStageHasOwnGraphWorkspace);
-  const graphReferenceTitle = checkedGraph ? 'Your checked graph' : 'Graph for this question';
+  const graphReferenceTitle = checkedGraph
+    ? (revealCorrectness ? 'Your checked graph' : 'Your graph')
+    : 'Graph for this question';
   const graphReferenceDescription = checkedGraph
-    ? 'Use the graph you just completed while answering the remaining analysis steps.'
+    ? (revealCorrectness
+      ? 'Use the graph you just completed while answering the remaining analysis steps.'
+      : 'The points you plotted, to use in the remaining steps. Your graph is graded when you submit.')
     : 'Keep this graph in view while you answer each analysis step.';
 
   const renderStage = (stage, index, { focused = false } = {}) => {
@@ -1473,6 +1514,7 @@ export default function WorkflowRunner({
               }
               draftKey={draftKey ? `${draftKey}:${stage.id}${stage.sourceStageId && ['functionGraph', 'coordinatePlot'].includes(stage.kind) ? `:${dependencyFingerprint(input.value)}` : ''}` : null}
               canonicalSavedAt={canonicalSavedAt}
+              revealCorrectness={revealCorrectness}
             />
           </>
         )}

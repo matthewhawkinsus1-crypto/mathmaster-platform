@@ -132,6 +132,29 @@ export const checkedGraphIsPointOnly = ({ graphStage = null, responses = {} } = 
   return mode === 'discrete';
 };
 
+/*
+ * THE POINTS A STUDENT PLOTTED, READ BACK FROM THE GRAPH STEP'S OWN RECORD.
+ *
+ * Where outcomes are withheld (DOL, quiz, test) the later steps cannot show
+ * "Your checked graph": it appeared only when the graph was right, so its
+ * presence was the verdict. They show the student's own points instead, right
+ * or wrong. The graph step already records each placement as a part
+ * ("Point placement: P1" → "(3, -2)", written by gradePointPlacements), so the
+ * points are read from there and the stored step keeps exactly the shape it
+ * has always had: a new field would make every submitted graph look edited
+ * (workflowReviewState compares the step with what was submitted).
+ */
+const PLACED_POINT = /^\((-?\d+(?:\.\d+)?(?:e[-+]?\d+)?), (-?\d+(?:\.\d+)?(?:e[-+]?\d+)?)\)$/i;
+export const MAX_REFERENCE_POINTS = 60;
+
+export const studentPlottedPoints = (graphResponse = null) => (Array.isArray(graphResponse?.parts) ? graphResponse.parts : [])
+  .filter((part) => String(part?.label || '').startsWith('Point placement:'))
+  .map((part) => PLACED_POINT.exec(String(part?.response ?? '').trim()))
+  .filter(Boolean)
+  .map((match) => [Number(match[1]), Number(match[2])])
+  .filter((point) => point.every(Number.isFinite))
+  .slice(0, MAX_REFERENCE_POINTS);
+
 export const workflowEndpointMarkers = ({ evaluate, domain = null, viewWindow = {} } = {}) => {
   if (typeof evaluate !== 'function') return [];
   const view = {
