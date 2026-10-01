@@ -39,6 +39,7 @@ const {
   toDate,
 } = require("./lib/classroomGradeRuntime");
 const { assignmentFeedbackIsHeld } = require("./lib/activityFeedback");
+const sectionRecoveryGrades = require("./lib/sectionRecoveryGrades");
 const {
   CLASSROOM_SECTION_GRADE_RECONCILIATION_VERSION,
   sectionGradeEvidenceFingerprint,
@@ -592,7 +593,10 @@ const syncSectionGradeToClassroom = onDocumentWritten(
       (assignmentId) => JSON.stringify(afterSignals[assignmentId]) !== JSON.stringify(beforeSignals[assignmentId])
     );
     const signaledSet = new Set(signaledAssignmentIds);
-    const assignmentIds = [...new Set([...gradeChangedAssignmentIds, ...signaledAssignmentIds])];
+    // A completed Practice-based Recovery rescores a Warm-Up/DOL section, so it
+    // wakes the section passback exactly like a changed answer does.
+    const recoveryChangedIds = sectionRecoveryGrades.recoveryChangedAssignmentIds(afterData, beforeData);
+    const assignmentIds = [...new Set([...gradeChangedAssignmentIds, ...signaledAssignmentIds, ...recoveryChangedIds])];
     if (!assignmentIds.length) return;
 
     const db = getFirestore();
@@ -605,7 +609,20 @@ const syncSectionGradeToClassroom = onDocumentWritten(
       const assignment = assignmentSnapshot.data() || {};
       if (assignmentFeedbackIsHeld(assignment)) continue;
       const questions = runtimeQuestionsFromAssignment(assignment);
-      const tracker = afterByAssignment[assignmentId] || {};
+      // A completed Recovery credits its section at the recorded score in the
+      // same section grade (functions/lib/sectionRecoveryGrades.js). This path
+      // grades without teacher overrides, so the original is read the same way.
+      // eslint-disable-next-line no-await-in-loop
+      const { tracker } = await sectionRecoveryGrades.projectRecoveredGradeInputs({
+        assignment,
+        tracker: afterByAssignment[assignmentId] || {},
+        questions,
+        overrides: {},
+        recoveryForAssignment: afterData.sectionRecoveryByAssignment?.[assignmentId] || null,
+        // A Live Challenge Warm-Up result is the Warm-Up grade.
+        challengeCredit: afterData.warmupChallengeByAssignment?.[assignmentId] || null,
+        gradeProgress: (gradeTracker, indices, gradeQuestions) => assignmentGradeProgress(gradeTracker, indices, gradeQuestions),
+      });
       const releaseSignal = signaledSet.has(assignmentId) ? afterSignals[assignmentId] : null;
       const signalReason = releaseSignalReason(releaseSignal);
       const forceRetry = signalReason === "manual-retry" || signalReason === "section-grade-reconcile";

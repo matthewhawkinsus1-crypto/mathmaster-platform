@@ -145,6 +145,13 @@ export default function QuestionEngine({
   onLoadScratchpad,
   onSaveScratchpad,
   generationKey,
+  // For a question-family slot: the student's seat allocation, the variant and
+  // any delivery pin (src/platform/generation/familyDelivery.js). Null for
+  // every other question and every host that does not seat students.
+  familyContext = null,
+  // Told which family instance was shown, so the host can pin it and send the
+  // pin with the student's work.
+  onFamilyDelivery = null,
   // The assignment-adaptation decision for this student and this question,
   // resolved by the caller so the generator and the evidence writer agree.
   // Null means "not adapted", which is what preview and every legacy
@@ -203,6 +210,9 @@ export default function QuestionEngine({
   // the question on every keystroke — and leaving it OUT would serve a stale
   // band after the student's evidence moves.
   const stableAdaptation = useDeepStableValue(adaptation);
+  // Same treatment: the host rebuilds this object on every render, and a new
+  // identity must not regenerate the question.
+  const stableFamilyContext = useDeepStableValue(familyContext);
   // ONE RUNTIME VIEW FOR EVERY HOST. The student assignment player repaired
   // stored questions before they got here; Teacher Question Review, library
   // and Path previews, Live Challenge and the demo did not, so a stored
@@ -216,9 +226,18 @@ export default function QuestionEngine({
     [stableQuestion, serverGraded],
   );
   const processedQuestion = useMemo(
-    () => normalizeContextualQuestion(generateQuestion(runtimeQuestion, generationKey, stableStudentProfile, stableAdaptation)),
-    [runtimeQuestion, generationKey, stableStudentProfile, stableAdaptation],
+    () => normalizeContextualQuestion(generateQuestion(runtimeQuestion, generationKey, stableStudentProfile, stableAdaptation, stableFamilyContext)),
+    [runtimeQuestion, generationKey, stableStudentProfile, stableAdaptation, stableFamilyContext],
   );
+  const familyDelivery = processedQuestion?.familyDelivery || null;
+  const familyDeliverySignature = familyDelivery
+    ? `${familyDelivery.slot}|${familyDelivery.variant}|${familyDelivery.fingerprint}`
+    : '';
+  useEffect(() => {
+    if (familyDelivery && typeof onFamilyDelivery === 'function') onFamilyDelivery(familyDelivery, processedQuestion);
+    // Reported once per distinct delivery, not once per render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [familyDeliverySignature]);
   // Which algebra workspace this question opens — decided once, by the same
   // React-free resolver the capability certification tests call.
   const algebraWorkspaceRoute = useMemo(

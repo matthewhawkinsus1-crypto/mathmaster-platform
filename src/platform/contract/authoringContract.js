@@ -15,6 +15,7 @@ import { getSkillCrosswalk } from '../ccmr/assessmentCrosswalk.js';
 import { QUESTION_TYPE_CATALOG, REPRESENTATIONS } from './questionTypeCatalog.js';
 import { TYPES_THAT_RENDER_A_TABLE } from './semanticValidation.js';
 import { AUTHORING_INTENT_V5_ACTIONS } from './authoringIntentV5.js';
+import { allRegisteredQuestionFamilies } from '../../../functions/shared/questionFamilyRegistry.mjs';
 import { ANALYSIS_NOTATIONS, NOTATION_ANALYSIS_KINDS, POINT_FEATURES } from '../../analysisRequestCatalog.js';
 import {
   ALIGNMENT_FRAMEWORK_IDS,
@@ -43,6 +44,12 @@ const GENERATOR_FIELDS = Object.freeze([
   { field: 'generator.modifiedOneStep', shape: 'boolean', note: 'forces a one-step equation for modified content' },
   { field: 'generator.seedNote', shape: 'string', note: 'author note only; never affects generation' },
 ]);
+
+// The platform Question Families an assignment may reference, read from the
+// live registry so the contract can never list one that does not exist.
+const questionFamilyCatalogLines = () => allRegisteredQuestionFamilies()
+  .filter((family) => family.scope !== 'assignment')
+  .map((family) => `- \`${family.id}\` (v${family.version}) — ${String(family.skill?.label || family.skill?.objective || family.id).replace(/\.$/, '')}; tools: ${Object.keys(family.tools).join(', ')}`);
 
 const RESPONSE_TYPES = Object.freeze([
   { id: 'numeric', note: 'a single number' },
@@ -519,7 +526,7 @@ export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = nu
   '  },',
   '  "variantPolicy": {',
   '    "mode": "personalized",',
-  '    "sectionModes": { "warmup": "shared", "classwork": "shared", "practice": "personalized", "dol": "shared" }',
+  '    "sectionModes": { "warmup": "shared", "classwork": "shared", "practice": "personalized", "dol": "personalized" }',
   '  },',
   '  "differentiationPolicy": { "mode": "bounded", "allowStandardChange": false, "preserveAssessmentFidelity": true },',
   '  "supportPolicy": { "mode": "inheritStudentProfile", "modificationsAllowed": false },',
@@ -587,6 +594,15 @@ export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = nu
   '- Never use inputProfile "text" merely because the answer will be typed. Mathematical responses belong in MathInput; plain text is for genuine word/phrase responses.',
   '- MathMaster infers answerFormat and required mobile keys from the expected response (parentheses, commas, variables, fractions, roots, exponents, interval/set symbols, inequalities). Do not micromanage keypad layout.',
   '- requiredSymbols is only for an unusual symbol the expected response cannot reveal on its own. Preflight blocks any response whose required notation cannot be guaranteed on the controlled mobile keypad.',
+  '',
+  '## Question Families (per-student versions and Recovery)',
+  '- A question that should give every student their OWN version references a Question Family with a `questionFamily` block. MathMaster then guarantees different students in a class get different questions, the same student gets the same question back on reload or another device, and the server can rebuild and grade exactly what each student saw.',
+  '- DOL questions should reference a Question Family. It is what keeps classmates from sharing an exit ticket and what lets MathMaster generate a Practice-based Recovery after the DOL closes. A DOL whose questions cannot vary should set its section mode to "shared" so the teacher is not told otherwise.',
+  '- Platform family: `"questionFamily": { "id": "linear.twoStepEquation", "version": 1, "constraints": { "solutionRange": [-8, 8] } }` on a question that still has its own prompt, studentActions and alignment. The family writes the numbers, the answer key and the answer fields; do not author them. `{{equation}}` / `{{points}}` in the prompt are replaced with the generated mathematics.',
+  '- Assignment-local family: keep the question\'s `generator` (finite integer `parameters`, `derived`, `constraints`) and `{{placeholders}}`, and add `"questionFamily": { "scope": "assignment" }`. Every parameter needs a finite min/max so MathMaster can count the distinct versions.',
+  '- A family writes QUESTIONS only: never solution steps, hints or worked solutions, and it never makes a tool show more than it otherwise would.',
+  '- Platform families available now:',
+  ...questionFamilyCatalogLines(),
   '',
   '## Common studentActions',
   AUTHORING_INTENT_V5_ACTIONS.join(', '),

@@ -1,4 +1,4 @@
-import { canonicalPresentedAssignmentGrade, projectTeacherOverridesForDisplay } from '../grading/canonicalGradeProjection.js';
+import { canonicalPresentedAssignmentGrade, projectedAssignmentTrackerFor } from '../grading/canonicalGradeProjection.js';
 import { splitGrade, splitGradesBySection } from './gradeEvidence.js';
 
 export const CONTACT_METHODS = Object.freeze(['phone', 'email', 'text', 'conference', 'voicemail', 'other']);
@@ -13,9 +13,8 @@ const time = (value) => Date.parse(value || '') || 0;
 
 /** Build the same override-aware assignment rows the production Grade Center displays. */
 export const projectProgressBriefGrades = ({ student = {}, assignments = [] } = {}) => {
-  const projected = projectTeacherOverridesForDisplay(student.gradesByAssignment || {}, student.teacherGradeOverridesByAssignment || {});
   return list(assignments).map((assignment) => {
-    const tracker = projected[assignment.id];
+    const tracker = projectedAssignmentTrackerFor({ student, assignment });
     const grade = canonicalPresentedAssignmentGrade({ student, assignment });
     if (!tracker && grade == null) return null;
     const split = tracker ? splitGrade({ tracker, assignment }) : null;
