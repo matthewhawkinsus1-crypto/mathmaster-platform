@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
-import ToolShell from '../shared/ToolShell';
+import ToolShell, { AttemptOutcome } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import { useToolRuntimeContext } from '../shared/ToolRuntimeContext';
 import CoordinatePlane from '../shared/CoordinatePlane';
@@ -1569,6 +1569,10 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                 {feedback.isCorrect
                   ? 'Every part is correct, and they all describe the same line.'
                   : `Not yet — ${Math.round((Number(feedback.score) || 0) * 100)}% of the board is correct.`}
+                {/* What the attempt cost, beside the verdict rather than below
+                    the whole board (PQ-022); inside this live region, so it
+                    is announced once. */}
+                <AttemptOutcome inline />
               </strong>
               {partsToRevisit.length ? (
                 <p style={{ margin: 0, fontSize: 14 }}>Take another look at: {partsToRevisit.join(', ')}.</p>

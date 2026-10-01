@@ -1,7 +1,7 @@
 // AFTER A TOOL'S CHECK, THE STUDENT SEES WHAT THE ATTEMPT COST — WHERE THEY ARE LOOKING.
 //
-//   npx vite --port 5441 --strictPort &
-//   AUDIT_ORIGIN=http://localhost:5441 node tests/browser/toolAttemptOutcome.mjs
+//   npx vite --port 5199 --strictPort &
+//   node tests/browser/toolAttemptOutcome.mjs
 //
 // Platform quirks audit PQ-022. A registry tool's own verdict ("• Not yet")
 // appears beside its Check button; QuestionEngine's authoritative outcome —
@@ -12,7 +12,8 @@
 //
 // In the real QuestionEngine, App.jsx's wrappers and the real identity bar,
 // with a record that counts attempts the way App.jsx does:
-//   practice  inverse / investigation / regression: the outcome is inside the
+//   practice  inverse / investigation / regression / the representations
+//             board: the outcome is inside the
 //             tool, on screen, close below Check, in exactly one live region,
 //             and the count goes down attempt by attempt; the final attempt
 //             still gets QuestionEngine's closing box (the tool is inert then).
@@ -25,7 +26,7 @@
 //             in the tool or below it, until feedback is released.
 // Exits non-zero on any failure.
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
-const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5441';
+const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5199';
 
 const launch = { args: ['--no-sandbox'] };
 if (process.env.CHROMIUM_PATH) launch.executablePath = process.env.CHROMIUM_PATH;
@@ -56,6 +57,15 @@ const open = async (device, role, tool, prior = 0) => {
 
 // A wrong attempt, the way a student makes one.
 const attemptWrong = async (page, tool) => {
+  if (tool === 'board') {
+    // Submit the board with its parts still empty; it asks first.
+    const submitBoard = page.getByRole('button', { name: 'Submit board' });
+    await submitBoard.scrollIntoViewIfNeeded();
+    await submitBoard.click();
+    const anyway = page.getByRole('button', { name: 'Submit anyway' });
+    if (await anyway.count()) await anyway.first().click();
+    return;
+  }
   if (tool === 'literal') {
     const field = page.locator('.mathmaster-question-tool-workspace').locator('math-field, input').first();
     await field.click();
@@ -93,7 +103,9 @@ const attemptWrong = async (page, tool) => {
 const outcomeState = (page) => page.evaluate((source) => {
   const pattern = new RegExp(source);
   const shell = document.querySelector('.mathmaster-tool-shell');
-  const submit = shell?.querySelector('button[data-mm-enter-action="submit"], button[data-primary-answer-action="true"]') || document.querySelector('button.mathmaster-bar-submit');
+  const submit = shell?.querySelector('button[data-mm-enter-action="submit"], button[data-primary-answer-action="true"]')
+    || [...(shell?.querySelectorAll('button') || [])].find((button) => (button.textContent || '').trim() === 'Submit board')
+    || document.querySelector('button.mathmaster-bar-submit');
   const visible = (element) => {
     const rect = element.getBoundingClientRect();
     const style = getComputedStyle(element);
@@ -149,7 +161,7 @@ for (const device of ['chromebook', 'phone']) {
   await context.close();
 }
 
-for (const tool of ['investigation', 'regression']) {
+for (const tool of ['investigation', 'regression', 'board']) {
   for (const device of ['chromebook', 'phone']) {
     const { context, page } = await open(device, 'practice', tool);
     await attemptWrong(page, tool);
@@ -225,6 +237,16 @@ for (const role of ['dol', 'quiz', 'test']) {
   check(state.count === 0 && !/Not quite|attempts? remaining|Not yet|Correct!/.test(state.pageText) && !state.verdictPill,
     `chromebook ${role} inverse: nothing about correctness or attempts left, in the tool or below it`, state.count ? state.text : '');
   check(/Your response is recorded/.test(state.pageText), `chromebook ${role} inverse: the submission is acknowledged`);
+  await context.close();
+}
+{
+  const { context, page } = await open('chromebook', 'dol', 'board');
+  await attemptWrong(page, 'board');
+  await page.waitForFunction(() => /Your response is recorded/.test(document.body.innerText), null, { timeout: 8000 }).catch(() => {});
+  await page.waitForTimeout(400);
+  const state = await outcomeState(page);
+  check(state.count === 0 && !/Not quite|attempts? remaining|Correct!/.test(state.pageText),
+    'chromebook dol board: no attempt outcome, in the board or below it', state.count ? state.text : '');
   await context.close();
 }
 

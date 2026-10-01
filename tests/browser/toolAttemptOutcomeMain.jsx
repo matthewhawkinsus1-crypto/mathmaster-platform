@@ -9,6 +9,8 @@
 //   ?tool=inverse         Inverse & Composition (restriction), a ResultPill verdict
 //   ?tool=investigation   Function Investigation (domain and range), a ResultPill verdict
 //   ?tool=regression      Regression Calculator, whose verdict is its own live region
+//   ?tool=board           the Linear Multiple Representations board, whose
+//                         Submit verdict is its own live region
 //   ?tool=server          Inverse & Composition, server-graded (Path): the tool
 //                         shows no verdict of its own, so the engine's box stays
 //   ?tool=literal         an ordinary typed question, not a tool: the engine's box
@@ -41,6 +43,15 @@ const QUESTIONS = {
   inverse: { id: 'attempt-outcome-inverse', type: 'inverseCompositionLab', prompt: 'Restrict the domain so f has an inverse, then undo it.', ...SAMPLE_SPECS.inverseCompositionLab },
   investigation: { id: 'attempt-outcome-investigation', type: 'functionInvestigation2', prompt: 'Give the domain and range of this function.', ...SAMPLE_SPECS.functionInvestigation2 },
   regression: { id: 'attempt-outcome-regression', type: 'regressionCalculator', ...SAMPLE_SPECS.regressionCalculator },
+  board: {
+    id: 'attempt-outcome-board',
+    type: 'representationBridge',
+    mode: 'linearMultipleRepresentations',
+    studentActions: ['connectLinearRepresentations'],
+    prompt: 'You are given a slope-intercept equation. Build the other representations.',
+    source: { kind: 'slopeIntercept', m: -0.75, b: 2 },
+    feedbackTiming: 'guided',
+  },
   server: { id: 'attempt-outcome-server', type: 'inverseCompositionLab', prompt: 'Restrict the domain so f has an inverse, then undo it.', ...SAMPLE_SPECS.inverseCompositionLab },
   literal: { id: 'attempt-outcome-literal', type: 'literal', prompt: 'What is 3 + 4?', correctAnswer: '7' },
 };
