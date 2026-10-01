@@ -1664,16 +1664,21 @@ was corrected.
 
 ### 2026-10-01 cleanup: PQ-020, PQ-021, PQ-025, PQ-026, PQ-027, PQ-030, PQ-031, PQ-037
 
-On the cleanup branch at `4e4b6a84` plus these commits, against a dev server
-with HMR off and its own dependency cache, on a machine shared with other
-browser runs (load average 4–12 on 4 cores).
+On the cleanup branch at `50838f98` plus these commits (first on `4e4b6a84`),
+against a dev server with HMR off and its own dependency cache, on a machine
+shared with other browser runs (load average 4–12 on 4 cores). Re-run after
+integration at `c8279796`, all green: `test:platform` 7678 / 7678, tools
+259 / 259, the 13 journeys, the certification on all seven devices
+(161 / 161), the opener survey (nothing covered at 344, 390, 820 or 1366px),
+lint and build.
 
 | Gate | Result |
 | --- | --- |
-| `npm run test:platform` | **7566 / 7566** before the docs commit; new: `workViewPhoneChrome` (9), `studentIdentityPhone` (2), `numberEntry` (+1); rewritten against behaviour: `studentQaLayoutContracts` (scroll padding), `workViewStage3A` (the caption), `workViewCapabilities` (the record gained `shortHeight`, with a comment) |
+| `npm run test:platform` | **7576 / 7576**; `node --test tests/tools/*.test.mjs` **259 / 259**; new: `workViewPhoneChrome` (9), `studentIdentityPhone` (2), `numberEntry` (+1); rewritten against behaviour: `studentQaLayoutContracts` (scroll padding), `workViewStage3A` (the caption), `workViewCapabilities` (the record gained `shortHeight`, with a comment) |
 | `npm run lint` | exit 0; no new warning in a touched file (`WorkflowRunner.jsx:445` is older) |
 | `npm run build` | exit 0 (the usual >500 kB chunk warning) |
 | `tests/browser/studentUxPlatform.mjs` | **13 / 13** journeys (four new: `identity`, `opener`, `staged`, `sticky-reveal`) |
+| `tests/browser/linearMultipleRepresentations.mjs` | 13 journeys, no findings |
 | `tests/browser/workViewCertification.mjs`, one device per process | **7 / 7 devices, 161 / 161 scenes**, rotation included. Touch devices need the harness fix in this branch: a `<select>`'s native picker blocked `page.screenshot` for 30 s (same on the parent head) |
 | the same at 344×882, 740×360, 820×1180 | 23 / 23, 21 / 23, 23 / 23 — the two at 740×360 are the seven-action rail of Graphing 2 and Transformations Lab, identical before this change (PQ-020) |
 | `workViewMatrix.mjs`, `assignmentMobile.mjs`, `composedOutcomePolicy.mjs`, `workViewTerminalTransition.mjs`, `gradeCenterMobile.mjs` | all pass, no findings |
@@ -1696,7 +1701,7 @@ the next row into view before tapping it, as a student does.
 | `pq002-before-ipad-820x1180-enlarge.png` / `pq002-after-…` | iPad Work View: 256×182 plane beside the list vs 502×357 (PQ-002) |
 | `pq-landscape-phone-before-844x390.png` / `…-after-…` | Landscape phone: blank right column vs the tool beside the task (PQ-015) |
 | `pq-calculator-icon-before-phone-bar.png` / `…-after-phone-bar.png` / `…-after-work-view.png` | "□" vs the drawn calculator (PQ-013) |
-| `pq-open-landscape-844x390-enlarge.png` | Landscape Work View's 150px stage body (PQ-020, deferred) |
+| `pq-open-landscape-844x390-enlarge.png` | Landscape Work View's 150px stage body (PQ-020, when it was deferred) |
 | `pq007-after-phone-number-pad.png` | The slope box on a phone: "Write a single number.", the number pad and "Needed for this answer: a⁄b" (PQ-007) |
 | `pq036-dol-point-check.png` | A DOL plotting stage answering "Revise: P1, P2, P3, P4, P5." (PQ-036, deferred) |
 | `pq023-phone-first-screen-inverse-composition.png` | A phone's first screen: identity, navigator, task, tries, tool header and two help rows before any mathematics (PQ-023, deferred) |
