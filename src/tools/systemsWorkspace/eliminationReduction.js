@@ -39,7 +39,7 @@
  *
  * Every transition is a pure function `(state, system, ...) -> { state, feedback }`.
  */
-import { evaluate } from 'mathjs';
+import { evaluate } from '../../platform/math/mathjs.js';
 import { latexToExpression } from '../../algebraAstEngine.js';
 import {
   applyFormMultiplier,

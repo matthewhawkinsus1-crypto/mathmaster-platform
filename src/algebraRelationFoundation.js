@@ -1,4 +1,4 @@
-import { evaluate, parse } from 'mathjs';
+import { evaluate, parse } from './platform/math/mathjs.js';
 import {
   applyAdditiveOperationAtPlacement,
   expressionToLatex,

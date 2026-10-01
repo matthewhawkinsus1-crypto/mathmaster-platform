@@ -1,4 +1,4 @@
-import { OperatorNode, ParenthesisNode, evaluate, parse, simplify } from 'mathjs';
+import { math, evaluate, parse, simplify } from './platform/math/mathjs.js';
 import { gcdInteger, makeRational, reducedNumberValue } from './algebraExactRational.js';
 import { latexToExpression } from './platform/math/latexToExpression.js';
 
@@ -304,7 +304,7 @@ const withoutRedundantGrouping = (node, parent = null, argIndex = 0) => {
     while (isParenthesis(content)) content = content.content;
     const cleanedContent = withoutRedundantGrouping(content, node, 0);
     if (groupingIsRedundant(parent, argIndex, cleanedContent)) return cleanedContent;
-    return new ParenthesisNode(cleanedContent);
+    return new math.ParenthesisNode(cleanedContent);
   }
   if (node?.type === 'OperatorNode' && Array.isArray(node.args)) {
     const args = node.args.map((arg, index) => withoutRedundantGrouping(arg, node, index));
@@ -316,9 +316,9 @@ const withoutRedundantGrouping = (node, parent = null, argIndex = 0) => {
       && ['ConstantNode', 'SymbolNode'].includes(only.args?.[0]?.type)
       && !(only.args[0].type === 'ConstantNode' && Number(only.args[0].value) < 0)) {
       const [leading, ...rest] = only.args;
-      return new OperatorNode(only.op, only.fn, [new OperatorNode('-', 'unaryMinus', [leading]), ...rest], only.implicit);
+      return new math.OperatorNode(only.op, only.fn, [new math.OperatorNode('-', 'unaryMinus', [leading]), ...rest], only.implicit);
     }
-    return new OperatorNode(node.op, node.fn, args, node.implicit);
+    return new math.OperatorNode(node.op, node.fn, args, node.implicit);
   }
   return node;
 };
@@ -375,8 +375,8 @@ const withoutParenthesisNodes = (node) => {
 const groupNegativeFactors = (node) => {
   const mapped = node.map((child) => groupNegativeFactors(child));
   if (mapped.type !== 'OperatorNode' || mapped.fn !== 'multiply') return mapped;
-  return new OperatorNode(mapped.op, mapped.fn, mapped.args.map((arg) => (
-    arg.type === 'OperatorNode' && arg.fn === 'unaryMinus' ? new ParenthesisNode(arg) : arg
+  return new math.OperatorNode(mapped.op, mapped.fn, mapped.args.map((arg) => (
+    arg.type === 'OperatorNode' && arg.fn === 'unaryMinus' ? new math.ParenthesisNode(arg) : arg
   )), mapped.implicit);
 };
 

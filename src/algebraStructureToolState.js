@@ -13,7 +13,7 @@
  * restored draft whose equation no longer matches is discarded rather than
  * replayed against different mathematics.
  */
-import { parse } from 'mathjs';
+import { parse } from './platform/math/mathjs.js';
 import { expressionsEquivalent, splitAdditiveTerms } from './algebraAstEngine.js';
 
 export const STRUCTURE_TOOL_UNDO_LIMIT = 40;

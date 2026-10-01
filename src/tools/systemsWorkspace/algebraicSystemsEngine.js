@@ -13,7 +13,7 @@
  * (StepByStepAlgebraCore). Duplicating that logic here is exactly the
  * "second mini equation solver" this feature must not become.
  */
-import { OperatorNode, evaluate, fraction, parse } from 'mathjs';
+import { math, evaluate, fraction, parse } from '../../platform/math/mathjs.js';
 import { expressionToLatex, latexToExpression } from '../../algebraAstEngine.js';
 
 const EPS = 1e-7;
@@ -240,7 +240,7 @@ export const classroomEquationText = (equationText) => {
       const numericFactor = factor.type === 'ConstantNode'
         || (factor.type === 'OperatorNode' && factor.fn === 'unaryMinus' && factor.args[0]?.type === 'ConstantNode');
       const numericTarget = target.type === 'ConstantNode' || (target.type === 'ParenthesisNode' && target.content?.type === 'ConstantNode');
-      if (numericFactor && !numericTarget) return new OperatorNode('*', 'multiply', mapped.args, true);
+      if (numericFactor && !numericTarget) return new math.OperatorNode('*', 'multiply', mapped.args, true);
     }
     return mapped;
   };
@@ -328,7 +328,7 @@ export const substituteVariable = (text, variable, replacementExpression) => {
       return parse(`-1 * (${replacementText})`);
     }
     if (groupedReplacement && n.type === 'OperatorNode' && n.fn === 'subtract' && n.args.length === 2 && isVariable(n.args[1])) {
-      return new OperatorNode('-', 'subtract', [n.args[0].transform(substitute), parse(`1 * (${replacementText})`)]);
+      return new math.OperatorNode('-', 'subtract', [n.args[0].transform(substitute), parse(`1 * (${replacementText})`)]);
     }
     return isVariable(n) ? replacement : n;
   };

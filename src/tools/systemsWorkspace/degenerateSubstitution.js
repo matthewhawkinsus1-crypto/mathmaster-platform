@@ -17,7 +17,7 @@
  * Nothing here computes a side FOR the student; the true value is only used
  * to judge what they typed, exactly like the elimination combination check.
  */
-import { evaluate } from 'mathjs';
+import { evaluate } from '../../platform/math/mathjs.js';
 import { latexToExpression } from '../../algebraAstEngine.js';
 import { exactNumberText, linearEquationForm } from './algebraicSystemsEngine.js';
 

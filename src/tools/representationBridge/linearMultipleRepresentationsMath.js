@@ -6,7 +6,7 @@
 //   - graphing2/constructionPolicy.js + graphingMath.js
 //   - linearTableWorkbench/linearTableWorkbenchMath.js
 
-import { parse } from 'mathjs';
+import { parse } from '../../platform/math/mathjs.js';
 import {
   fitTableLine,
   isCollinear,

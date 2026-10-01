@@ -16,7 +16,7 @@
  * (-1 × 2 × x)/(-1 × 2 × 2), so the two negatives are cancelled by the student
  * too, never silently.
  */
-import { parse } from 'mathjs';
+import { parse } from './platform/math/mathjs.js';
 import { expressionToLatex, splitAdditiveTerms } from './algebraAstEngine.js';
 import {
   exactMonomial,

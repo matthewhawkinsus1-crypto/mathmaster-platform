@@ -12,7 +12,7 @@
 // a small-denominator rational (e.g. an irrational slope), never as the
 // default comparison.
 
-import { parse } from 'mathjs';
+import { parse } from '../../platform/math/mathjs.js';
 
 const MAX_DENOMINATOR = 100000;
 

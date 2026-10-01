@@ -31,7 +31,7 @@ closes them carries the full table, the tests and the deploy steps. In short:
 | §9 | `classes/*`, `settings/*` readable when signed in | **Kept, verified.** A catalog with no roster, and school configuration with no student data; student screens read both |
 | §10.1 | Student fan-out from `assignments` | **Fixed** by the class scoping above |
 | §10.2 | Outbox `retired` read whole on every report | **Fixed** without the version bump this section said it needed: a per-student tally in the existing `deviceIdentity` store, changed in the retire transaction. Also: an idle device's identical reports (≈12 a minute) now go once per 5 minutes unless something changed |
-| §10.3 | mathjs (634 KB) in the first load | **Remaining.** Nine static edges from `App.jsx` reach it, and `generateQuestion` is render-time; it needs the shell split (§15.2) |
+| §10.3 | mathjs (634 KB) in the first load | **Its cost is fixed; its bytes remain.** mathjs's prebuilt instance built every function before the sign-in screen: 586 ms of main thread on a 4x-throttled CPU. The client now builds the same instance with `create(all)` (`src/platform/math/mathjs.js`), each function on first use. Production build, 4x CPU, median of 7: sign-in controls appear at 1485 ms instead of 1977 ms, and mathjs takes 108 ms. The 641 KB download stays until the shell split (§15.2) |
 | §10.4 | Teacher session summaries, `limit(1000)` per class | **Kept.** Bounded by design, documented in code, inside the protected support area |
 | §10.5 | Scratchpads held all day | **Fixed.** Budgeted LRU (8 MiB; the open scratchpad never evicted). Found on the way: multi-page scratchpad pages were saved with `dataUrl: undefined`, so graded saves failed |
 | §10.6 | ThreePlaneWorkspace idle orbit at 60 fps | **Fixed.** At most 10 s, paused off-screen and in hidden tabs |
@@ -51,7 +51,7 @@ closes them carries the full table, the tests and the deploy steps. In short:
 | §14 | Seat writes reach every device | **Fixed** by the class scoping |
 | §14 | PQ-036 for the assessment owner | **Fixed:** where outcomes are withheld there is no check; the curve goes through the student's own points and is graded at submission by practice's rule |
 | §15.4 | One feedback-policy context | **Done:** `ToolRuntimeContext` carries `showImmediateFeedback`, `hintsAllowed`, `onHintUsed` and `questionTerminal`, composed questions included. A full audit found and closed 12 more surfaces (systems 2×2/3×3 checks, student-built inequalities, intercepts, the relation solver's number line, the modeling lab's result); `assessmentLeakGates.mjs` covers them |
-| §15.2 | Split `App.jsx` | **Remaining** (see §10.3) |
+| §15.2 | Split `App.jsx` | **Not done.** An architecture change of its own: it would take mathjs's 641 KB and the teacher modules out of a student's first load. The reasons are in the cleanup PR (I-1) |
 | §15.6 | Retire source-text contracts | **Ongoing practice;** eight more were rewritten against behaviour in this pass |
 
 ---
@@ -324,7 +324,9 @@ uses locators.
    certification. *(Cleanup pass: done without a bump — the counter is a record
    in the existing `deviceIdentity` store — see the status table above.)*
 3. **mathjs (634 KB) in the first load** through `problemGenerator`. That
-   chain dissolves once the shells split.
+   chain dissolves once the shells split. *(Cleanup pass: its main-thread cost
+   is gone, because each function is built on first use
+   (`src/platform/math/mathjs.js`). The bytes still wait for the shells.)*
 4. **Teacher session summaries.** `studentSupportStore.js` opens one
    `limit(1000)` listener per class. A six-class teacher can hold 6000
    documents live on Home. Bounded, but a paged read would serve the

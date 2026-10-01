@@ -1,4 +1,4 @@
-import { evaluate } from 'mathjs';
+import { evaluate } from '../math/mathjs.js';
 import { calculatorModeAllowsExpression } from './calculatorPolicy.js';
 
 const SAFE_FUNCTIONS = new Set(['sqrt', 'sin', 'cos', 'tan', 'log', 'ln', 'abs']);

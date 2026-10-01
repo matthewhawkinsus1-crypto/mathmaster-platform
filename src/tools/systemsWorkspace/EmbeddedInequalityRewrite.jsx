@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef } from 'react';
-import { evaluate } from 'mathjs';
+import { evaluate } from '../../platform/math/mathjs.js';
 import MultiRelationAlgebraCore from '../../MultiRelationAlgebraCore.jsx';
 import { parseRelationSource } from '../../algebraRelationFoundation.js';
 

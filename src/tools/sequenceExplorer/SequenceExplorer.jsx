@@ -5,7 +5,7 @@ import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workVie
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { matchesNumericAnswer, round } from '../shared/toolMath';
-import { evaluate } from 'mathjs';
+import { evaluate } from '../../platform/math/mathjs.js';
 import useToolSubmission from '../shared/useToolSubmission';
 import {
   compareSequencesAt,

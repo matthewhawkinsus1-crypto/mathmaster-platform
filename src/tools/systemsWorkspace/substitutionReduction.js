@@ -28,7 +28,7 @@
  * `feedback` is transient interaction text for the student (a neutral
  * rejection), never mathematics, and never persisted.
  */
-import { evaluate } from 'mathjs';
+import { evaluate } from '../../platform/math/mathjs.js';
 import { expressionsEquivalent, isLinearStandardFormEquation, latexToExpression } from '../../algebraAstEngine.js';
 import {
   classifyLinearSystem,

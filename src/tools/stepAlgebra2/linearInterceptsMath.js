@@ -1,4 +1,4 @@
-import { parse } from 'mathjs';
+import { parse } from '../../platform/math/mathjs.js';
 import { latexToExpression } from '../../algebraAstEngine.js';
 import { compareOrderedPair, parseOrderedPair } from '../../answerUtils.js';
 import { nearlyEqual, round } from '../shared/toolMath.js';

@@ -1,4 +1,4 @@
-import { derivative, parse, simplify } from 'mathjs';
+import { derivative, parse, simplify } from './platform/math/mathjs.js';
 import MathDisplay from './MathDisplay';
 import GraphDisplay from './GraphDisplay';
 import {

@@ -14,7 +14,7 @@
  * a number was required, an irrational function, an integer beyond 2^53.
  * Callers treat null as "this move does not apply here", never as zero.
  */
-import { parse } from 'mathjs';
+import { parse } from './platform/math/mathjs.js';
 
 export const gcdInteger = (left, right) => {
   let a = Math.abs(Number(left));

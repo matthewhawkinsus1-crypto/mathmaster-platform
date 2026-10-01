@@ -38,7 +38,7 @@ import {
   multiplyMonomials,
   signedFactorList,
 } from './algebraExactRational.js';
-import { parse } from 'mathjs';
+import { parse } from './platform/math/mathjs.js';
 import {
   equationKey,
   pushTransient,

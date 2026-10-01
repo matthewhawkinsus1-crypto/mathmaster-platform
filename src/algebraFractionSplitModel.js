@@ -13,7 +13,7 @@
  * nor is a variable denominator, which would change where the expression is
  * defined.
  */
-import { parse } from 'mathjs';
+import { parse } from './platform/math/mathjs.js';
 import { expressionToLatex, splitAdditiveTerms } from './algebraAstEngine.js';
 import { exactRationalFromNode } from './algebraExactRational.js';
 import {

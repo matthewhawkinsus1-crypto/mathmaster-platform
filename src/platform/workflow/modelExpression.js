@@ -1,4 +1,4 @@
-import { compile, parse } from 'mathjs';
+import { compile, parse } from '../math/mathjs.js';
 import { latexToExpression } from '../math/latexToExpression.js';
 
 // Shared parser/evaluator for a model the STUDENT wrote.  This sits below both

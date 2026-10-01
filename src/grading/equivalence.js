@@ -1,4 +1,4 @@
-import { parse, simplify } from 'mathjs';
+import { parse, simplify } from '../platform/math/mathjs.js';
 import { compareMathAnswer, normalizeMathAnswer } from '../answerUtils.js';
 import { sameValue as sharedAnswerEquivalent } from '../../functions/shared/answerEquivalence.mjs';
 
