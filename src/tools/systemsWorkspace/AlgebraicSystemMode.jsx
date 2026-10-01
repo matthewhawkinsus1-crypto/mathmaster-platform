@@ -2087,7 +2087,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
         </div>
 
         <div className="mathmaster-algebraic-system-workflow">
-        <Panel title={`${methodTitle} workflow`}>
+        <Panel title={`${methodTitle} steps`}>
           {workflowBody}
         </Panel>
         </div>

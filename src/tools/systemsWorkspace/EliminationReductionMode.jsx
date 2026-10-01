@@ -423,7 +423,7 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
         </aside>
 
         <div className="mathmaster-reduction-workflow">
-          <Panel title="3×3 elimination workflow">
+          <Panel title="3×3 elimination steps">
             {unsupported ? (
               <div className="mathmaster-reduction-unsupported" role="alert">
                 <strong>This system cannot be solved in this workspace yet.</strong>

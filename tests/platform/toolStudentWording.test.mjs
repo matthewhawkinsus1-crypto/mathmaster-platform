@@ -36,15 +36,9 @@ const renderedStrings = (source) => {
   return found.filter((text) => WORD.test(` ${text} `));
 };
 
-// Panel titles in the Systems Workspace say "3×3 substitution workflow" and
-// "<method> workflow". That directory belongs to the systems work in flight
-// (assessment checks), so they are recorded in PQ-029 rather than changed
-// here. Tolerated, not required: renaming them must not fail this test.
-const TOLERATED = new Set([
-  'src/tools/systemsWorkspace/SubstitutionReductionMode.jsx|3×3 substitution workflow',
-  'src/tools/systemsWorkspace/EliminationReductionMode.jsx|3×3 elimination workflow',
-  'src/tools/systemsWorkspace/AlgebraicSystemMode.jsx|${methodTitle} workflow',
-]);
+// Nothing is tolerated any more: the Systems Workspace's panel titles said
+// "3×3 substitution workflow" and "<method> workflow" and now say "steps".
+const TOLERATED = new Set();
 
 test('no registry tool or composed-question stage shows a student the word "workflow"', () => {
   const files = [...jsxUnder('src/tools'), ...jsxUnder('src/platform/workflow')];

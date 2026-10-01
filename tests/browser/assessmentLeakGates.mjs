@@ -110,7 +110,7 @@ const scenario = async (label, body) => {
 // Every line that would judge a reading of 0 = −3 or a plane relationship.
 const SYSTEMS_VERDICT = /Evaluate both sides|does not fix any coordinate|Can any ordered triple|An identity (is true|places no condition)|compare the coefficient ratio|Are the x-, y- and z-coefficients|Check the ratios of the x-|Your contradiction means|Your identity means/;
 const reachContradiction = async (page) => {
-  await page.getByRole('heading', { name: '3×3 elimination workflow' }).waitFor();
+  await page.getByRole('heading', { name: '3×3 elimination steps' }).waitFor();
   await chooseVariable(page, 'x');
   await choosePair(page, 'Equation 1 and Equation 2');
   await scaleEquation(page, 'round1', 'Equation 1', '2', { x: '6', y: '-2', z: '-4', constant: '8' }, 'leak-gates');

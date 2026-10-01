@@ -57,12 +57,12 @@ const EARLY = /0 = 0|0 = −3|0 = -3|27 = 27|identity|contradiction|dependent|in
 const open = async (page, id, run, viewport) => {
   await page.setViewportSize(viewport);
   await page.goto(`${ORIGIN}/tests/browser/day2Nonunique.html?q=${id}&run=${run}`);
-  await page.getByRole('heading', { name: '3×3 elimination workflow' }).waitFor();
+  await page.getByRole('heading', { name: '3×3 elimination steps' }).waitFor();
   await settle(page, 400);
 };
 const reload = async (page) => {
   await page.reload();
-  await page.getByRole('heading', { name: '3×3 elimination workflow' }).waitFor();
+  await page.getByRole('heading', { name: '3×3 elimination steps' }).waitFor();
   await settle(page, 900);
 };
 // MathLive renders into shadow DOM: read each math element's source as well as the text.
