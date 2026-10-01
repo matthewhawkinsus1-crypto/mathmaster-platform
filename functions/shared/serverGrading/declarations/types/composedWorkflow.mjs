@@ -1,7 +1,32 @@
 /*
- * Grading declaration for the `composedWorkflow` question surface.
- * Light: declarations only. The grader is ../../questionGraders/composedWorkflow.mjs.
+ * Grading declaration for the `composedWorkflow` question surface — a question
+ * defined by its workflow (an explicit `workflow`, or a `recipe` that expands
+ * into one), whatever its `type`. resolveGradingSurfaceId routes every such
+ * question here before any tool or type lookup, exactly as QuestionEngine
+ * routes it to WorkflowRunner first.
+ *
+ * Server-authoritative per question: the shared grader marks the stage
+ * responses with the same gradeWorkflow the browser runs. A question it cannot
+ * mark from the work alone — one with a graph-construction stage, or with a
+ * stage/figure/cell key the response contract would strip — is declined with
+ * its exact reason and stays graded on the device
+ * (../../../toolMath/workflow/composedWorkflowContract.mjs).
+ *
+ * Light: declarations only (no mathjs). The grader is
+ * ../../questionGraders/composedWorkflow.mjs.
  */
-import { declareClientGraded } from '../../surfaceDeclarations.mjs';
+import { declareQuestionGrader } from '../../surfaceDeclarations.mjs';
+import {
+  COMPOSED_WORKFLOW_BLOCKERS,
+  composedWorkflowSupport,
+} from '../../../toolMath/workflow/composedWorkflowContract.mjs';
 
-export default declareClientGraded({ blocker: 'PENDING: grading audit for composedWorkflow.' });
+export default declareQuestionGrader({
+  graderVersion: 'composed-workflow-v1',
+  supports: (question) => composedWorkflowSupport(question),
+  // The fallback reason for a declined question. Each declined question also
+  // reports its own specific blocker through `supports`.
+  blocker: COMPOSED_WORKFLOW_BLOCKERS.graphStage,
+  note: 'Graded from `{ responses }` (toolId composedWorkflow, contract v1) by gradeWorkflow; '
+    + 'graph-construction stages keep a workflow on the device.',
+});

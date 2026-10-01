@@ -16,7 +16,9 @@ import { previewFigures } from './choicePreview';
 import RelationMapping from '../../tools/relationMapping/RelationMapping';
 import { getStage } from './interactionStages';
 import { activeStages, hasStageResponse, lockedStageIds, readComposedQuestion, resolveStageInput, stageControlsLaterGraphConstruction, summarizeWorkflowProgress } from './questionWorkflow';
-import { checkTableConsistency, gradeWorkflow } from './workflowGrading';
+import { checkTableConsistency } from './workflowGrading';
+import { buildWorkflowAnswerState } from './workflowAnswerState.js';
+import { workflowTableLayout } from '../../../functions/shared/toolMath/workflow/workflowStageWork.mjs';
 import { buildExpressionFunctionSpec, evaluateModelAt, evaluateNumericValue } from './modelExpression';
 import { bringActiveStageIntoView } from './stageNavigationScroll.js';
 import { evaluateGraphFunction } from '../../functionGraphUtils';
@@ -438,12 +440,7 @@ const parseResponseKey = (payload) => {
 };
 
 const numericTablePoints = ({ stage, cells }) => {
-  const columns = Array.isArray(stage.columns) && stage.columns.length
-    ? stage.columns
-    : [{ key: 'x', label: 'x' }, { key: 'y', label: 'f(x)' }];
-  const inputColumn = stage.inputColumn || columns[0]?.key || 'x';
-  const responseColumn = stage.responseColumn || columns[columns.length - 1]?.key || 'y';
-  const xValues = Array.isArray(stage.xValues) ? stage.xValues : [];
+  const { responseColumn, xValues } = workflowTableLayout(stage);
   return xValues.map((x, rowIndex) => {
     const rawY = cells?.[`${rowIndex}:${responseColumn}`];
     if (String(rawY ?? '').trim() === '') return null;
@@ -455,11 +452,7 @@ const numericTablePoints = ({ stage, cells }) => {
 
 const checkTableAgainstFunctionSpec = ({ cells = {}, stage, functionSpec }) => {
   if (!functionSpec) return null;
-  const columns = Array.isArray(stage.columns) && stage.columns.length
-    ? stage.columns
-    : [{ key: 'x', label: 'x' }, { key: 'y', label: 'f(x)' }];
-  const responseColumn = stage.responseColumn || columns[columns.length - 1]?.key || 'y';
-  const xValues = Array.isArray(stage.xValues) ? stage.xValues : [];
+  const { responseColumn, xValues } = workflowTableLayout(stage);
   const rows = [];
   xValues.forEach((x, rowIndex) => {
     const entered = cells?.[`${rowIndex}:${responseColumn}`];
@@ -490,10 +483,7 @@ const tableArtifact = (payload, { stage, input, content }) => {
   const sourceModel = typeof input?.value === 'string'
     ? input.value
     : input?.value?.sourceModel || null;
-  const columns = Array.isArray(stage.columns) && stage.columns.length
-    ? stage.columns
-    : [{ key: 'x', label: 'x' }, { key: 'y', label: 'f(x)' }];
-  const responseColumn = stage.responseColumn || columns[columns.length - 1]?.key || 'y';
+  const { responseColumn } = workflowTableLayout(stage);
   const sourceFunctionSpec = !sourceModel && content?.functionSpec ? content.functionSpec : null;
   const consistency = sourceModel
     ? checkTableConsistency({
@@ -574,12 +564,9 @@ const coordinateReadout = (stage, content) => (
 
 const DELEGATES = {
   tableInput: ({ stage, input, content, onChange, draftKey }) => {
-    const xValues = Array.isArray(stage.xValues) ? stage.xValues : [];
-    const columns = Array.isArray(stage.columns) && stage.columns.length
-      ? stage.columns
-      : [{ key: 'x', label: 'x' }, { key: 'y', label: 'f(x)' }];
-    const inputColumn = stage.inputColumn || columns[0]?.key || 'x';
-    const responseColumn = stage.responseColumn || columns[columns.length - 1]?.key || 'y';
+    // One layout, shared with the grader: the cells rendered editable here are
+    // exactly the cells it requires before the table counts as finished.
+    const { columns, inputColumn, xValues, blanks } = workflowTableLayout(stage);
     const rows = xValues.map((x) => ({ [inputColumn]: x }));
 
     // Driven by the student's own function: every response cell is editable and
@@ -610,7 +597,7 @@ const DELEGATES = {
             // Day 2 Q8). Keeping editability separate from answer ownership
             // fixes that class of question without exposing a key in the UI.
             answers: {},
-            blanks: xValues.map((_, rowIndex) => `${rowIndex}:${responseColumn}`),
+            blanks,
           },
           ruleLatex: rule,
           showRule: Boolean(rule),
@@ -1277,11 +1264,18 @@ export default function WorkflowRunner({
   workflowRef.current = workflow;
   const gradingRef = useRef(grading);
   gradingRef.current = grading;
+  const questionRef = useRef(question);
+  questionRef.current = question;
 
+  // THE VERDICT IS THE SHARED GRADER'S. buildWorkflowAnswerState marks the
+  // student's work through the same bytes and the same function the server
+  // runs (questionGraders/composedWorkflow.mjs), and attaches that work as the
+  // attempt's toolResponse; a question declared client-graded (a graph-
+  // construction stage) keeps its device marking.
   useEffect(() => {
-    const stages = workflowRef.current;
-    onStateChangeRef.current?.(gradeWorkflow({
-      stages,
+    onStateChangeRef.current?.(buildWorkflowAnswerState({
+      question: questionRef.current,
+      stages: workflowRef.current,
       responses,
       grading: gradingRef.current,
     }));

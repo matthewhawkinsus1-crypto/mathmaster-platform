@@ -35,5 +35,31 @@ test('QuestionEngine checks the guard before it records a registry tool attempt'
   const guard = handler.indexOf('sharedVerdictWithholdsAttempt(sharedVerdict)');
   assert.ok(guard > 0, 'the guard is consulted');
   assert.ok(guard < handler.indexOf('onGrade?.('), 'before any attempt is recorded');
-  assert.match(handler.slice(guard, guard + 600), /blocked: true[\s\S]*return;/);
+  assert.match(handler.slice(guard, guard + 200), /setFeedback\(UNCHECKABLE_WORK_FEEDBACK\);\s*return;/);
+  assert.match(region(source, 'const UNCHECKABLE_WORK_FEEDBACK', 'const EMPTY_ANSWER_STATE'), /blocked: true/);
+});
+
+test('a composed question whose work the shared grader declines records no attempt either', async () => {
+  const { buildWorkflowAnswerState } = await import('../../src/platform/workflow/workflowAnswerState.js');
+  const { readComposedQuestion, activeStages } = await import('../../src/platform/workflow/questionWorkflow.js');
+  const question = {
+    type: 'relationMapping',
+    prompt: 'Study the relation {(-4, 1), (-2, 3), (1, 3), (3, 5)}.',
+    pairs: [[-4, 1], [-2, 3], [1, 3], [3, 5]],
+    recipe: { ask: ['mapping', 'domain', 'range', 'isFunction'] },
+  };
+  const composed = readComposedQuestion(question);
+  const stages = activeStages(composed.workflow, {});
+  const domainStage = stages.find((stage) => /domain/i.test(stage.id));
+  assert.ok(domainStage, 'the recipe has a domain stage');
+  // Text the server will not run (a range) is declined, and the host is told.
+  const state = buildWorkflowAnswerState({ question, stages, responses: { [domainStage.id]: 'sum(1:100000)' } });
+  assert.equal(state.sharedGradingWithheld, 'unsafe-expression');
+
+  const source = componentSource('src/QuestionEngine.jsx');
+  const submit = region(source, 'const performSubmit', 'const handleSubmit');
+  const guard = submit.indexOf('answerState.sharedGradingWithheld');
+  assert.ok(guard > 0, 'performSubmit consults the withheld marker');
+  assert.ok(guard < submit.indexOf('onGrade('), 'before any attempt is recorded');
+  assert.match(submit.slice(guard, guard + 200), /setFeedback\(UNCHECKABLE_WORK_FEEDBACK\);\s*return;/);
 });

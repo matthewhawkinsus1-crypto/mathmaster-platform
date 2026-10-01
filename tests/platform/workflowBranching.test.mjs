@@ -195,7 +195,11 @@ test('the runtime never consults the answer key to decide what to show', () => {
   // workflow and the student's responses. If `grading` ever reaches it, a
   // branch could open only for a correct answer, which would announce the
   // answer to everyone who saw it.
-  const source = readFileSync('src/platform/workflow/questionWorkflow.js', 'utf8');
+  // The implementation lives in functions/shared (the server grades composed
+  // questions with it); the browser path re-exports that same module.
+  const shim = readFileSync('src/platform/workflow/questionWorkflow.js', 'utf8');
+  assert.match(shim, /export \* from '\.\.\/\.\.\/\.\.\/functions\/shared\/toolMath\/workflow\/questionWorkflow\.mjs'/);
+  const source = readFileSync('functions/shared/toolMath/workflow/questionWorkflow.mjs', 'utf8');
   const start = source.indexOf('export const activeStageIds');
   const body = source.slice(start, source.indexOf('\nexport const activeStages'));
   assert.ok(start > 0, 'activeStageIds must exist');

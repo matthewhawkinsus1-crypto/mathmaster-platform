@@ -81,6 +81,13 @@ const WorkViewReadySignal = ({ span }) => {
   return null;
 };
 
+// Shown when the server will not mark this work, so nothing was recorded.
+const UNCHECKABLE_WORK_FEEDBACK = Object.freeze({
+  blocked: true,
+  isCorrect: false,
+  message: 'MathMaster could not check this answer, so it was not submitted and no attempt was used. Your work is saved. Let your teacher know about this question.',
+});
+
 const EMPTY_ANSWER_STATE = {
   isComplete: false,
   isCorrect: false,
@@ -648,6 +655,20 @@ export default function QuestionEngine({
 
   const performSubmit = async () => {
     if (!answerState.isComplete || submitting || submissionInFlightRef.current || locked) return;
+    /*
+     * A SERVER-GRADED QUESTION WHOSE WORK THE SHARED GRADER DECLINED.
+     *
+     * A composed question reports `sharedGradingWithheld` when its shared
+     * grader will not mark this work: text it will not run on the server
+     * (ingestion holds that attempt for teacher review) or a response too
+     * large to read. Recording the device's own marking would spend an
+     * attempt, and show a result, the gradebook never receives — the same
+     * rule as a registry tool's withheld verdict below.
+     */
+    if (!serverGrading && answerState.sharedGradingWithheld) {
+      setFeedback(UNCHECKABLE_WORK_FEEDBACK);
+      return;
+    }
     submissionInFlightRef.current = true;
     const localAckSpan = startPerformanceSpan('submit_local_ack_ms', {
       flow: serverGrading ? 'secure' : 'ordinary_assignment',
@@ -825,11 +846,7 @@ export default function QuestionEngine({
        * device (or a grader that could not load) uses the tool's verdict.
        */
       if (sharedVerdictWithholdsAttempt(sharedVerdict)) {
-        setFeedback({
-          blocked: true,
-          isCorrect: false,
-          message: 'MathMaster could not check this answer, so it was not submitted and no attempt was used. Your work is saved. Let your teacher know about this question.',
-        });
+        setFeedback(UNCHECKABLE_WORK_FEEDBACK);
         return;
       }
       if (sharedVerdict.graded && Boolean(payload?.isCorrect) !== sharedVerdict.isCorrect) {

@@ -26,6 +26,7 @@
  */
 import { GRADING_AUTHORITY } from './gradingAuthority.mjs';
 import { usesLiteralWorkspace } from '../runtime/literalWorkspaceRoute.mjs';
+import { expandRecipe } from '../questionRecipes.mjs';
 import complexPlaneLab from './declarations/complexPlaneLab.mjs';
 import constraintFunctionBuilder from './declarations/constraintFunctionBuilder.mjs';
 import dataModelingLab from './declarations/dataModelingLab.mjs';
@@ -121,16 +122,15 @@ export const GRADING_MANIFEST = Object.freeze({
 
 /*
  * A composed question is defined by its workflow, not its type
- * (src/platform/workflow/questionWorkflow.js readComposedQuestion): an
- * explicit `workflow` array, or a named `recipe` that expands into one.
- * QuestionEngine checks this BEFORE looking up a registry tool, and so does
- * the resolver below. A `recipe` that names nothing renders as an ordinary
- * question in the browser, but is treated as composed here — which can only
- * make the server decline to grade (fail closed), never grade the wrong thing.
+ * (toolMath/workflow/questionWorkflow.mjs readComposedQuestion): an explicit
+ * `workflow` array, or a named `recipe` that expands into one. QuestionEngine
+ * checks this BEFORE looking up a registry tool, and so does the resolver
+ * below. A `recipe` that expands to no stages (an unknown name) renders and is
+ * graded as the ordinary question it is, here as in the browser.
  */
 export const isComposedQuestionShape = (question = {}) => (
   (Array.isArray(question?.workflow) && question.workflow.length > 0)
-  || Boolean(question?.recipe)
+  || (Boolean(question?.recipe) && (expandRecipe(question)?.workflow?.length || 0) > 0)
 );
 
 /**
