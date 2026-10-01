@@ -18,7 +18,7 @@ import useToolSubmission from '../shared/useToolSubmission';
 import MathDisplay from '../../MathDisplay';
 import MathInput from '../../MathInput';
 import { classifyLinearSystem, exactNumberText, linearEquationForm } from './algebraicSystemsEngine.js';
-import { advanceIdleCamera, clipPlaneToCube, cubeCorners, cubeEdges, legibleCamera, planePlaneIntersection, projectPoint, projectPolygon } from './threePlaneGeometry.js';
+import { advanceIdleCamera, clipPlaneToCube, cubeCorners, cubeEdges, idleOrbitPending, idleOrbitPhase, legibleCamera, planePlaneIntersection, projectPoint, projectPolygon, spendIdleOrbitFrame } from './threePlaneGeometry.js';
 import { gradeMultiAnswerResponse } from '../../../functions/shared/ordinaryResponseGrading.mjs';
 import './AlgebraicSystemMode.css';
 import './ThreePlaneWorkspace.css';
@@ -78,9 +78,20 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
   const [hasInteracted, setHasInteracted] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
   const dragRef = useRef(null);
+  const modelRef = useRef(null);
+  // The orbit's budget (threePlaneGeometry.js): the orbit time already shown,
+  // and whether it is all spent.
+  const orbitShownMsRef = useRef(0);
+  const [orbitBudgetSpent, setOrbitBudgetSpent] = useState(false);
+  // Whether anyone could see the orbit. Without an IntersectionObserver the
+  // model counts as on-screen, and the budget alone bounds the orbit.
+  const [modelOnScreen, setModelOnScreen] = useState(true);
+  const [pageHidden, setPageHidden] = useState(() => typeof document !== 'undefined' && document.hidden === true);
 
   // Gently orbit before the student touches the model so the flat SVG reads
-  // immediately as a 3D object. Stop on first interaction and respect reduced motion.
+  // immediately as a 3D object. Stop on first interaction and respect reduced
+  // motion; otherwise stop for good once the budget is spent, and wait — without
+  // spending it — while the model is off-screen or the tab is hidden.
   useEffect(() => {
     const media = typeof window !== 'undefined' && window.matchMedia
       ? window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -94,22 +105,64 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
   useEffect(() => {
     setCamera(openingCamera);
     setHasInteracted(false);
+    // A different system is a new model to read, so it gets the whole orbit.
+    orbitShownMsRef.current = 0;
+    setOrbitBudgetSpent(false);
   }, [systemIdentity, openingCamera.azimuth, openingCamera.elevation]);
 
+  const orbitPhase = idleOrbitPhase({
+    hasInteracted,
+    reduceMotion,
+    budgetSpent: orbitBudgetSpent,
+    onScreen: modelOnScreen,
+    pageHidden,
+  });
+  const orbitPending = idleOrbitPending(orbitPhase);
+
+  // Visibility is watched only while there is an orbit left to pause.
   useEffect(() => {
-    if (hasInteracted || reduceMotion || typeof window === 'undefined') return undefined;
+    if (!orbitPending || typeof document === 'undefined') return undefined;
+    const sync = () => setPageHidden(document.hidden === true);
+    sync();
+    document.addEventListener('visibilitychange', sync);
+    return () => document.removeEventListener('visibilitychange', sync);
+  }, [orbitPending]);
+
+  useEffect(() => {
+    const model = modelRef.current;
+    if (!orbitPending || !model || typeof window === 'undefined' || typeof window.IntersectionObserver !== 'function') return undefined;
+    const observer = new window.IntersectionObserver((entries) => {
+      const latest = entries[entries.length - 1];
+      if (latest) setModelOnScreen(latest.isIntersecting);
+    });
+    observer.observe(model);
+    return () => observer.disconnect();
+  }, [orbitPending]);
+
+  useEffect(() => {
+    if (orbitPhase !== 'running' || typeof window === 'undefined') return undefined;
     let frameId = null;
     let previous = null;
     const tick = (timestamp) => {
-      if (previous != null) setCamera((current) => advanceIdleCamera(current, timestamp - previous));
+      // The first frame after starting or resuming only sets the clock, so a
+      // pause is never turned into a jump.
+      const frame = spendIdleOrbitFrame(orbitShownMsRef.current, previous == null ? 0 : timestamp - previous);
       previous = timestamp;
+      orbitShownMsRef.current = frame.spentMs;
+      if (frame.stepMs > 0) setCamera((current) => advanceIdleCamera(current, frame.stepMs));
+      if (frame.budgetSpent) {
+        // Done for good: no next frame, and the camera stays where it is.
+        frameId = null;
+        setOrbitBudgetSpent(true);
+        return;
+      }
       frameId = window.requestAnimationFrame(tick);
     };
     frameId = window.requestAnimationFrame(tick);
     return () => {
       if (frameId != null) window.cancelAnimationFrame(frameId);
     };
-  }, [hasInteracted, reduceMotion]);
+  }, [orbitPhase]);
 
   const markInteracted = useCallback(() => setHasInteracted(true), []);
   const [visiblePlanes, setVisiblePlanes] = usePersistentToolState('visiblePlanes', [true, true, true]);
@@ -249,13 +302,17 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
         </div>
 
         <div className="mathmaster-threeplane-viewport">
-          <div className={`mathmaster-threeplane-motion-cue${!hasInteracted && !reduceMotion ? ' is-idle' : ''}`}>
+          {/* Says the model is turning only while the orbit is still to come:
+              never after the student takes over, under reduced motion, or once
+              the budget is spent and the model has stopped. */}
+          <div className={`mathmaster-threeplane-motion-cue${orbitPending ? ' is-idle' : ''}`}>
             <span className="mathmaster-threeplane-motion-dot" aria-hidden="true" />
-            {!hasInteracted && !reduceMotion
+            {orbitPending
               ? 'Auto-rotating to show depth — drag the model to take control.'
               : 'Drag the model to rotate it. Use Reset view to return to the opening angle.'}
           </div>
           <svg
+            ref={modelRef}
             viewBox={`0 0 ${VIEW_SIZE} ${VIEW_SIZE}`}
             role="img"
             aria-label="Interactive 3D view of the three planes. Drag to rotate."
