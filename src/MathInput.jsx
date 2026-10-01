@@ -435,6 +435,11 @@ export default function MathInput({
       mathField.value = value || '';
       // Written from outside: whatever the student was typing into is gone.
       typedFractionRef.current = null;
+      // And so is the field's own undo history. MathLive keeps one per field,
+      // and after a platform Undo cleared "[-3,5)" a Ctrl+Z in the field put
+      // it straight back (tests/browser/undoTyping.mjs). The field's history
+      // now starts at what the platform wrote.
+      mathField.resetUndo?.();
       stabilizeMobileViewport();
     }
   }, [value, stabilizeMobileViewport]);

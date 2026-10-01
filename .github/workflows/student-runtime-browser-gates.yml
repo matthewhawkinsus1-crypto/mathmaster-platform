@@ -17,6 +17,8 @@ name: Student Runtime Browser Gates
 #                       tab pauses, and the newest work is the work kept
 #   graphPointCheck     on a DOL, quiz or test the graph's point check never
 #                       names a wrong point; a point plot is graded as placed
+#   undoTyping          one platform Undo takes back a run of typing, not one
+#                       character; a math field's own Ctrl+Z agrees with it
 
 on:
   pull_request:
@@ -28,6 +30,7 @@ on:
       - "tests/browser/errorRecovery*"
       - "tests/browser/duplicateTabs.mjs"
       - "tests/browser/graphPointCheck*"
+      - "tests/browser/undoTyping*"
       - "tests/browser/studentUxPlatform*"
       - "tests/browser/stepAlgebraDriver.mjs"
       - "package.json"
@@ -87,3 +90,9 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/graphPointCheck.mjs
+      - name: Undo groups typing and agrees with the math field
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/undoTyping.mjs
