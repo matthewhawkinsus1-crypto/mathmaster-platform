@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CHECKPOINT_DEBOUNCE_MS } from './platform/performance/responseCheckpoint.js';
+import { CHECKPOINT_DEBOUNCE_MS, responseSignature, studentChangedResponse } from './platform/performance/responseCheckpoint.js';
 import GraphLine from './GraphLine';
 import NumberLine from './NumberLine';
 import FractionGrader from './FractionGrader';
@@ -339,6 +339,14 @@ export default function QuestionEngine({
   const checkpointTimerRef = useRef(null);
   const checkpointWrittenRef = useRef(false);
   const checkpointPendingRef = useRef({ eligible: false, state: null });
+  // Has the student touched THIS question in this session, and what did the
+  // response look like before they did? (See studentChangedResponse.)
+  const studentInteractedRef = useRef(false);
+  const openingResponseSignatureRef = useRef(null);
+  const checkpointIdentityRef = useRef(null);
+  const markStudentInteraction = useCallback(() => {
+    studentInteractedRef.current = true;
+  }, []);
 
   useEffect(() => {
     const wasComplete = previousSectionCompleteRef.current;
@@ -472,8 +480,27 @@ export default function QuestionEngine({
     && !submitting
     && !submissionInFlightRef.current
     && !responseAlreadySubmitted;
+  // A new question, variant or delivery starts with no interaction of its own
+  // (decided during render, so the first render of the next question can never
+  // inherit this one's).
+  const checkpointIdentity = `${generationKey}|${draftKey}`;
+  if (checkpointIdentityRef.current !== checkpointIdentity) {
+    checkpointIdentityRef.current = checkpointIdentity;
+    studentInteractedRef.current = false;
+  }
+  // Until the student interacts, the response on screen is the OPENING state
+  // (defaults, or a draft restored from an earlier session); see
+  // studentChangedResponse in responseCheckpoint.js.
+  if (!studentInteractedRef.current) openingResponseSignatureRef.current = responseSignature(answerState);
   const checkpointPending = checkpointAllowed
-    && (Boolean(answerState.isComplete && answerState.responseKey) || checkpointWrittenRef.current);
+    && (
+      (Boolean(answerState.isComplete && answerState.responseKey) && studentChangedResponse({
+        interacted: studentInteractedRef.current,
+        openingSignature: openingResponseSignatureRef.current,
+        answerState,
+      }))
+      || checkpointWrittenRef.current
+    );
   checkpointPendingRef.current = { eligible: checkpointPending, state: answerState };
 
   // A different question, variant or delivery starts its own checkpoint history.
@@ -1531,7 +1558,13 @@ export default function QuestionEngine({
     <div
       ref={questionEngineRef}
       className={`mathmaster-question-engine mathmaster-question-engine-has-anchor ${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`}
+      // Any press, keystroke or edit inside the question (portals included:
+      // React delivers their events here too) is the student interacting.
+      onPointerDownCapture={markStudentInteraction}
+      onInputCapture={markStudentInteraction}
+      onChangeCapture={markStudentInteraction}
       onKeyDownCapture={(event) => {
+        markStudentInteraction();
         // THE ENTER CONTRACT (answerEntryUx.js), for the question as a whole.
         // A field that owns its own Enter (a MathInput with onSubmit, a stage
         // check) keeps it: this capture handler runs before theirs and must not

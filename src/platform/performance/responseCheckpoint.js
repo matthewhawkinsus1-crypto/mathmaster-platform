@@ -54,6 +54,28 @@ export const normalizeCheckpointResponse = (question, answerState) => (
   || normalizeOrdinaryResponse({ question, answerState })
 );
 
+/*
+ * ONLY WORK THE STUDENT CHANGED IS EVER CHECKPOINTED.
+ *
+ * Many surfaces open with every graded input already holding a value — a
+ * pre-selected radio, a starting line, a default select — so their opening
+ * state can be "complete". A deadline must never submit a question the
+ * student only opened. So QuestionEngine remembers the response as it stood
+ * before the student's first interaction in this session (the opening
+ * signature) and starts checkpointing only once an interaction has changed
+ * it. A draft restored from an earlier session was checkpointed in that
+ * session; reopening it without touching it writes nothing new.
+ */
+export const responseSignature = (answerState) => stableStringify({
+  isComplete: answerState?.isComplete === true,
+  responseKey: answerState?.responseKey ?? '',
+  toolResponse: answerState?.toolResponse?.value ?? null,
+});
+
+export const studentChangedResponse = ({ interacted = false, openingSignature = null, answerState = null } = {}) => (
+  interacted === true && responseSignature(answerState) !== openingSignature
+);
+
 export const responseFingerprint = (question, answerState) => stableStringify({
   response: normalizeCheckpointResponse(question, answerState),
   isComplete: answerState?.isComplete === true,
