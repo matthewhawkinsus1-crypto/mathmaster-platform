@@ -5,8 +5,8 @@
 //
 //   (TEACHER_HARNESS_ORIGIN=<origin> if not http://127.0.0.1:5188;
 //    PLAYWRIGHT_MODULE=<path to playwright/index.mjs> and CHROMIUM_PATH=<chrome>
-//    when the defaults are not installed; VIEWPORTS=1440x900,1366x768,1024x768,768x1024;
-//    ONLY=C1,C2 to run some journeys.)
+//    when the defaults are not installed; VIEWPORTS=1440x900,1366x768,1024x768,768x1024,390x844
+//    — add 344x882 for the narrowest phones; ONLY=C1,C2 to run some journeys.)
 //
 // Same harness as journeys.mjs and supportEvidenceJourneys.mjs: the real
 // App.jsx with `firebase/*` replaced by in-memory fakes and a synthetic school
@@ -35,6 +35,12 @@
 //       and after a reload (printed and exported), clear on request, never
 //       reach another account using the tab, and leave with sign-out
 //
+// At phone width (390x844 is in the default run; 344x882 on request) every
+// screen is also checked for what a phone teacher meets: nothing scrolls
+// sideways or sticks out past the screen, every control is at least 44 px,
+// every table value is named by its column, and the evidence — not the header
+// — gets the screen, even with the selection reopened.
+//
 // Exit code 1 on any finding. Screenshots in
 // tests/browser/artifacts/caseReview/ (git-ignored).
 
@@ -54,7 +60,7 @@ const ARTIFACTS = path.join(repo, 'tests/browser/artifacts/caseReview');
 const ORIGIN = process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188';
 const PAGE = `${ORIGIN}/tests/browser/teacherWorkflow/index.html?reset=1`;
 const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
-const VIEWPORTS = (process.env.VIEWPORTS || '1440x900,1366x768,1024x768,768x1024')
+const VIEWPORTS = (process.env.VIEWPORTS || '1440x900,1366x768,1024x768,768x1024,390x844')
   .split(',').map((entry) => entry.split('x').map(Number)).map(([width, height]) => ({ width, height }));
 
 rmSync(ARTIFACTS, { recursive: true, force: true });
@@ -84,7 +90,89 @@ const noSidewaysScroll = async (journey, page, where) => {
     return element ? element.scrollWidth - element.clientWidth : 0;
   });
   expect(journey, shell <= 1, `${where}: the case review fits its window (${shell}px)`);
+  // The body too: a long record path once widened the facts list, and the
+  // evidence then scrolled sideways inside a window that itself fit.
+  const body = await page.evaluate(() => {
+    const element = document.querySelector('[data-case-review] .cr-body');
+    return element ? element.scrollWidth - element.clientWidth : 0;
+  });
+  expect(journey, body <= 1, `${where}: the evidence fits its width (${body}px)`);
 };
+
+// A PHONE (≤ 600 px wide): nothing scrolls sideways or sticks out past the
+// screen, every control is at least 44 px each way, and every table value is
+// named by its column (tables read as one card per row).
+const PHONE_MAX_WIDTH = 600;
+const isPhone = (page) => page.viewportSize().width <= PHONE_MAX_WIDTH;
+const phoneLayout = async (journey, page, where) => {
+  if (!isPhone(page)) return;
+  const report = await page.evaluate(() => {
+    const shell = document.querySelector('[data-case-review]');
+    if (!shell) return null;
+    const width = document.documentElement.clientWidth;
+    // Shown to the eye: a visually hidden table header (1 px, clipped) is not.
+    const shown = (element) => {
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 1 && rect.height > 1;
+    };
+    const name = (element) => `${element.tagName.toLowerCase()} "${String(element.getAttribute('aria-label') || element.innerText || element.value || '').replace(/\s+/g, ' ').trim().slice(0, 40)}"`;
+    const sideways = [];
+    const outside = [];
+    shell.querySelectorAll('*').forEach((element) => {
+      if (!shown(element) || element.closest('thead')) return;
+      if (element.scrollWidth - element.clientWidth > 1 && /auto|scroll/.test(getComputedStyle(element).overflowX)) sideways.push(`${name(element)} ${element.scrollWidth}>${element.clientWidth}`);
+      const rect = element.getBoundingClientRect();
+      if (rect.right > width + 1 || rect.left < -1) outside.push(`${name(element)} ${Math.round(rect.left)}..${Math.round(rect.right)}`);
+    });
+    const small = [];
+    shell.querySelectorAll('button, a[href], summary, select, textarea, input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), [role="tab"], label:has(> input[type="checkbox"]), label:has(> input[type="radio"])').forEach((element) => {
+      if (!shown(element)) return;
+      const rect = element.getBoundingClientRect();
+      if (rect.height < 43.5 || rect.width < 43.5) small.push(`${name(element)} ${Math.round(rect.width)}x${Math.round(rect.height)}`);
+    });
+    const unnamed = [];
+    shell.querySelectorAll('table').forEach((table) => {
+      const heads = [...(table.tHead?.rows?.[0]?.cells || [])].map((cell) => cell.textContent.replace(/\s+/g, ' ').trim());
+      [...table.tBodies].forEach((body) => [...body.rows].forEach((row) => [...row.cells].forEach((cell, index) => {
+        if (shown(cell) && (!heads[index] || cell.getAttribute('data-label') !== heads[index])) unnamed.push(`"${heads[0] || '?'}" table, column ${index + 1}`);
+      })));
+    });
+    return { sideways, outside, small, unnamed };
+  });
+  if (!report) return;
+  expect(journey, !report.sideways.length, `${where}: nothing scrolls sideways at phone width (${report.sideways.slice(0, 3).join('; ')})`);
+  expect(journey, !report.outside.length, `${where}: nothing sticks out past the screen (${report.outside.slice(0, 3).join('; ')})`);
+  expect(journey, !report.small.length, `${where}: every control is at least 44 px (${report.small.slice(0, 4).join('; ')})`);
+  expect(journey, !report.unnamed.length, `${where}: every table value is named by its column (${report.unnamed.slice(0, 3).join('; ')})`);
+};
+// The evidence gets the screen: scrolled as far as the teacher can go, the
+// open tab fills at least 60% of a phone screen (or shows whole). A header
+// pinned above it once left 438 of 844 px, and 32 px with the selection open.
+const evidenceRoom = async (journey, page, review, where) => {
+  if (!isPhone(page)) return;
+  const room = await review.evaluate((shell) => {
+    const body = shell.querySelector('.cr-body');
+    const scroller = getComputedStyle(body).overflowY === 'visible' ? shell : body;
+    scroller.scrollTop = scroller.scrollHeight;
+    const open = body.querySelector('[role="tabpanel"]:not([hidden])') || body;
+    // What shows of the tab: inside the element that scrolls it (a pinned
+    // header hides the rest), inside the screen.
+    const view = scroller.getBoundingClientRect();
+    const top = Math.max(view.top, 0);
+    const bottom = Math.min(view.bottom, window.innerHeight);
+    const rect = open.getBoundingClientRect();
+    return { visible: Math.round(Math.min(rect.bottom, bottom) - Math.max(rect.top, top)), tab: Math.round(rect.height), screen: window.innerHeight };
+  });
+  expect(journey, room.visible >= Math.min(room.tab, room.screen * 0.6) - 1, `${where}: the evidence gets the screen (${room.visible} of ${room.screen} px show the tab, which is ${room.tab} px)`);
+};
+// What scrolls the evidence: the body under the header, or on a phone the
+// whole case review. Scroll memory is checked on whichever it is.
+const evidenceScroller = (review) => review.evaluateHandle((shell) => {
+  const body = shell.querySelector('.cr-body');
+  return getComputedStyle(body).overflowY === 'visible' ? shell : body;
+});
+const openAllDetails = (scope) => scope.locator('details').evaluateAll((elements) => elements.forEach((element) => { element.open = true; }));
 const shot = (page, name) => page.screenshot({ path: path.join(ARTIFACTS, `${name}-${page.viewportSize().width}.png`) });
 
 const TAB_KEYS = ['summary', 'grades', 'questions', 'skills', 'dol', 'completion', 'supports', 'timeline', 'gradebook', 'facts', 'attention', 'print'];
@@ -148,6 +236,7 @@ const journeys = {
     const header = await text(review.locator('header'));
     expect('C1', /Garza, Oakley · ID 910002/.test(header), `the student is named (${header.slice(0, 160)})`);
     expect('C1', /Choose the marking period/.test(await text(review)), 'nothing is read until the teacher builds');
+    await phoneLayout('C1', page, 'selection before building');
     await build(page, review, { period: 'all' });
     const summary = await text(panel(review, 'summary'));
     expect('C1', /\b4 assigned in this selection/.test(summary), `the four lessons given to this class (${summary.match(/\d+ assigned in this selection/)?.[0]})`);
@@ -163,6 +252,14 @@ const journeys = {
       expect('C1', !/\bNaN\b|undefined|\[object Object\]/.test(said), `${key}: no broken values (${said.match(/.{0,40}(?:NaN|undefined|\[object Object\]).{0,40}/)?.[0]})`);
       await noSidewaysScroll('C1', page, `${key} tab`);
       await shot(page, `tab-${key}`);
+      if (isPhone(page)) {
+        // Folded content counts too: open every disclosure on the tab.
+        await openAllDetails(panel(review, key));
+        await page.waitForTimeout(150);
+        await noSidewaysScroll('C1', page, `${key} tab, every disclosure open`);
+        await phoneLayout('C1', page, `${key} tab`);
+        await evidenceRoom('C1', page, review, `${key} tab`);
+      }
     }
     const skills = await text(panel(review, 'skills'));
     expect('C1', /A\.5C/.test(skills) && /A\.5A/.test(skills), 'skills come from the questions\' own standards');
@@ -172,6 +269,16 @@ const journeys = {
     const supports = await text(panel(review, 'supports'));
     expect('C1', /Revision 2/.test(supports) && /read aloud/i.test(supports) && /Staff documented/.test(supports), 'PR #401\'s support records are reused');
     expect('C1', await panel(review, 'timeline').locator('[data-timeline-kind]').count() > 5, 'the timeline lists recorded events');
+
+    // The selection reopened over a built case review (every assignment
+    // listed): still usable, and the evidence still reachable.
+    await review.getByRole('button', { name: 'Change selection' }).click();
+    await review.locator('[data-case-assignment-filter]').evaluate((element) => { element.open = true; });
+    await page.waitForTimeout(300);
+    await noSidewaysScroll('C1', page, 'selection reopened');
+    await phoneLayout('C1', page, 'selection reopened');
+    await evidenceRoom('C1', page, review, 'selection reopened');
+    if (isPhone(page)) await page.screenshot({ path: path.join(ARTIFACTS, `selection-reopened-${page.viewportSize().width}.png`), fullPage: true });
   },
 
   async C2(page) {
@@ -183,13 +290,13 @@ const journeys = {
     // part-way down the tab, and the click itself needs no further scrolling.
     const details = panel(review, 'grades').locator('details[data-case-grade-detail]');
     for (let index = 0; index < await details.count(); index += 1) await details.nth(index).locator('summary').click();
-    const body = review.locator('.cr-body');
-    await body.evaluate((element) => {
+    const scroller = await evidenceScroller(review);
+    await scroller.evaluate((element) => {
       const row = element.querySelector('[data-case-assignment="a-lastweek"]');
       element.scrollTop = Math.max(0, row.getBoundingClientRect().top - element.getBoundingClientRect().top + element.scrollTop - 24);
     });
     await page.waitForTimeout(200);
-    const scrolled = await body.evaluate((element) => element.scrollTop);
+    const scrolled = await scroller.evaluate((element) => element.scrollTop);
     expect('C2', scrolled > 0, `the Grades tab is scrolled before drilling in (${scrolled})`);
     await review.locator('[data-case-assignment="a-lastweek"]').getByRole('button', { name: 'Linear Functions — Review' }).click();
     const assignment = review.locator('[data-case-assignment-detail="a-lastweek"]');
@@ -205,6 +312,12 @@ const journeys = {
     expect('C2', /Error pattern not determinable from stored evidence\./.test(detail), 'no error pattern is invented');
     expect('C2', !/Solve the system|What is y\?/.test(detail), 'the question text and its answer are not on the main report');
     expect('C2', (await crumbs(review)).endsWith('› Linear Functions — Review › Classwork Q2'), `breadcrumb at the question (${await crumbs(review)})`);
+    if (isPhone(page)) {
+      // The drill shows the question, not the header above it.
+      const top = await review.evaluate((shell) => shell.querySelector('[data-case-question-detail]').getBoundingClientRect().top);
+      expect('C2', top >= -1 && top < page.viewportSize().height / 2, `the question opens in view on a phone (its top at ${Math.round(top)} px)`);
+      await phoneLayout('C2', page, 'question detail');
+    }
     await shot(page, 'question-detail');
 
     // The Response Inspector opens above; Escape there leaves the case review alone.
@@ -223,7 +336,8 @@ const journeys = {
     expect('C2', await question.count() === 0, 'Back returns to the assignment');
     await review.locator('[data-case-back]').click();
     await panel(review, 'grades').waitFor({ timeout: 5000 });
-    const restored = await body.evaluate((element) => element.scrollTop);
+    await page.waitForTimeout(100);
+    const restored = await scroller.evaluate((element) => element.scrollTop);
     expect('C2', Math.abs(restored - scrolled) <= 2, `Back returns to the Grades tab where the teacher left it (scroll ${restored}, was ${scrolled})`);
     expect('C2', await details.evaluateAll((elements) => elements.every((element) => element.open)), 'the details the teacher opened are still open');
     await review.locator('[data-case-back]').click();
@@ -268,6 +382,7 @@ const journeys = {
     const contribution = await text(gradebook.locator('[data-case-official-contribution]'));
     expect('C3', /Daily/.test(contribution) && /Major/.test(contribution) && !/will not guess/.test(contribution), `the file's own weights reproduce its average, so the breakdown is shown (${contribution.slice(0, 220)})`);
     await shot(page, 'gradebook-reconciliation');
+    await phoneLayout('C3', page, 'gradebook reconciliation');
 
     // The teacher says what "Unit Quiz 3" is.
     await table.getByLabel('MathMaster match for Unit Quiz 3').selectOption({ label: 'Systems of Equations — Lesson 2: Substitution — Classwork' });
@@ -345,6 +460,8 @@ const journeys = {
     const preview = await text(printTab.locator('.cr-print-preview'));
     PRINT_SECTIONS.forEach((section) => expect('C5', preview.includes(section.title), `preview has "${section.title}"`));
     expect('C5', preview.includes(TEACHER_AUTHORED_LABEL) && preview.includes(steps), 'the next steps print last, labelled as the teacher\'s');
+    await noSidewaysScroll('C5', page, 'print tab and preview');
+    await phoneLayout('C5', page, 'print tab and preview');
 
     const save = async (button) => {
       const [download] = await Promise.all([page.waitForEvent('download'), printTab.getByRole('button', { name: button }).click()]);

@@ -25,6 +25,7 @@ import CaseNarrativeTab from './CaseNarrativeTab.jsx';
 import CaseAttentionTab from './CaseAttentionTab.jsx';
 import CasePrintView from './CasePrintView.jsx';
 import { day, when } from './CaseReviewParts.jsx';
+import { keepTableCellsLabelled } from './tableCellLabels.js';
 import '../teacherWorkspace.css';
 import '../supportEvidence.css';
 import './caseReview.css';
@@ -76,6 +77,19 @@ const download = (text, fileName, type) => {
 };
 
 const sameLocation = (a, b) => a.tab === b.tab && a.drill.assignmentId === b.drill.assignmentId && a.drill.storageIndex === b.drill.storageIndex;
+
+// What scrolls the evidence: the body, under a fixed header — or, on a phone,
+// the whole case review, header and tabs included (caseReview.css). Each
+// place's position is remembered on whichever one it is.
+const scrollerOf = (body, shell) => {
+  if (!body) return null;
+  return getComputedStyle(body).overflowY === 'visible' && shell ? shell : body;
+};
+// Where the evidence begins inside that scroller: the top of the body, or
+// below the header and tabs when the whole case review scrolls.
+const evidenceTopIn = (scroller, body) => (scroller && body && scroller !== body
+  ? body.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop
+  : 0);
 
 export default function StudentCaseReviewView({
   open = false,
@@ -211,16 +225,31 @@ export default function StudentCaseReviewView({
   }, [open, student, assignments, gradingPeriodSettings, selection]);
 
   // Per-tab scroll position: restored when the teacher comes back to a tab or
-  // a drill level.
+  // a drill level. A place not yet visited opens at its start, and never
+  // further down than where its evidence begins (on a phone that keeps the
+  // tabs in view when a tab is chosen, and shows a drilled-into question
+  // rather than the header above it).
   const locationKey = `${location.tab}|${location.drill.assignmentId || ''}|${Number.isInteger(location.drill.storageIndex) ? location.drill.storageIndex : ''}`;
   useLayoutEffect(() => {
-    if (bodyRef.current) bodyRef.current.scrollTop = scrollByTab.current[locationKey] || 0;
+    const scroller = scrollerOf(bodyRef.current, shellRef.current);
+    if (!scroller) return;
+    const saved = scrollByTab.current[locationKey];
+    scroller.scrollTop = Number.isFinite(saved) ? saved : Math.min(scroller.scrollTop, evidenceTopIn(scroller, bodyRef.current));
   }, [locationKey]);
+  const rememberScroll = () => {
+    const scroller = scrollerOf(bodyRef.current, shellRef.current);
+    if (scroller) scrollByTab.current[locationKey] = scroller.scrollTop;
+  };
+
+  // On a phone every table row reads as a card whose values carry their
+  // column names (caseReview.css); the names come from the table headers.
+  useEffect(() => keepTableCellsLabelled(bodyRef.current), [open, student?.id]);
 
   const navigate = useCallback((next) => {
     const target = { tab: next.tab, drill: next.drill || {} };
     if (sameLocation(target, location)) return;
-    if (bodyRef.current) scrollByTab.current[locationKey] = bodyRef.current.scrollTop;
+    const scroller = scrollerOf(bodyRef.current, shellRef.current);
+    if (scroller) scrollByTab.current[locationKey] = scroller.scrollTop;
     setTrail((current) => [...current.slice(-40), location]);
     setLocation(target);
     if (target.tab === 'questions') setQuestionsDrill(target.drill);
@@ -229,7 +258,7 @@ export default function StudentCaseReviewView({
 
   const goBack = () => {
     if (!trail.length) { onCloseRef.current?.(); return; }
-    if (bodyRef.current) scrollByTab.current[locationKey] = bodyRef.current.scrollTop;
+    rememberScroll();
     const previous = trail[trail.length - 1];
     setTrail((current) => current.slice(0, -1));
     setLocation(previous);
@@ -372,7 +401,7 @@ export default function StudentCaseReviewView({
 
   return (
     <div className="cr-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onCloseRef.current?.(); }}>
-      <article ref={shellRef} className="cr-shell" role="dialog" aria-modal="true" aria-labelledby="case-review-title" data-case-review={student.id}>
+      <article ref={shellRef} className="cr-shell" role="dialog" aria-modal="true" aria-labelledby="case-review-title" data-case-review={student.id} onScroll={rememberScroll}>
         <header className="cr-header">
           <div className="cr-header__top">
             <div style={{ minWidth: 0 }}>
@@ -481,7 +510,7 @@ export default function StudentCaseReviewView({
           </>
         )}
 
-        <div ref={bodyRef} className="cr-body" onScroll={() => { if (bodyRef.current) scrollByTab.current[locationKey] = bodyRef.current.scrollTop; }}>
+        <div ref={bodyRef} className="cr-body" onScroll={rememberScroll}>
           {!model && !load.loading && (
             <div className="tw-notice">
               Choose the marking period (and dates or assignments, if needed), then build the case review. Only this student&apos;s records for that selection are read.
