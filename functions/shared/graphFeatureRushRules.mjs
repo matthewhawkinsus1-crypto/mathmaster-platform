@@ -51,7 +51,12 @@ export const RUSH_LIMITS = Object.freeze({
 });
 
 // Consecutive wrong answers on one graph before input pauses, and the pause.
-export const RUSH_LOCKOUT = Object.freeze({ after: 2, baseMs: 600, stepMs: 600, maxMs: 3_000 });
+// One second, growing a second per further miss, at most four: at 600 ms
+// steps a student tapping along an axis at the spacing of the tap tolerance
+// completed as many intercept graphs as one reading them (simulated, through
+// the real pipeline); at these, about two thirds as many, while a careful
+// reader loses nothing and a struggling one almost nothing.
+export const RUSH_LOCKOUT = Object.freeze({ after: 2, baseMs: 1_000, stepMs: 1_000, maxMs: 4_000 });
 
 // Misses on one graph after which it is skipped for the student: a stuck
 // student moves on, and sweeping an axis for intercepts stops paying. The
@@ -63,7 +68,8 @@ export const RUSH_AUTO_SKIP_MISSES = 8;
  * Exist" presses) in a row on one graph. A single mistake costs nothing; a
  * second in a row a moment's pause; spraying taps a growing one, so guessing
  * is slower than looking. Tuned by simulation (graphFeatureRushEngine tests):
- * every honest pace outranks spraying and axis-sweeping.
+ * reading the graph outranks spraying and axis-sweeping, even a sweep spaced
+ * exactly to the tap tolerance.
  */
 export const rushLockoutMs = (consecutiveMisses = 0) => {
   const misses = Math.max(0, Math.floor(Number(consecutiveMisses) || 0));

@@ -9658,6 +9658,36 @@ async function recoverTeacherActiveChallenge(db, { teacherEmail, challenge }) {
   return recovery;
 }
 
+/*
+ * A room that was created but must never be played: it lost the race for the
+ * teacher's active-room pointer, or its roster could not be written. It is
+ * marked cancelled the way stale sessions are (so nothing can join or reopen
+ * it) and its private state, which no match result will ever need, is removed.
+ */
+async function retireUnusedChallengeRoom(db, { roomRef, privateRef, teacherEmail = null, invitesMayExist = false }) {
+  await roomRef.set({
+    status: "cancelled",
+    phase: "finished",
+    staleSession: true,
+    currentQuestion: null,
+    startsAt: null,
+    endsAt: null,
+    roundStartedAt: null,
+    roundEndsAt: null,
+    roundToken: null,
+    finishedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  if (invitesMayExist && teacherEmail) {
+    await updateLiveChallengeInvitesByRoom(db, {
+      roomId: roomRef.id,
+      teacherEmail,
+      fields: { status: "cancelled", staleSession: true, updatedAt: FieldValue.serverTimestamp() },
+    });
+  }
+  await db.recursiveDelete(privateRef);
+}
+
 async function requireOwnedChallenge(db, request, roomId) {
   await requireTeacher(request);
   const teacherEmail = callerEmail(request);
@@ -9722,6 +9752,13 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
         "failed-precondition",
         "Turn on the Warm-Up Live Challenge for this assignment before launching it from the Warm-Up.",
       );
+    }
+    // The game writes its Warm-Up credit onto this class's students under this
+    // assignment, so an assignment that names its classes must name this one.
+    // (One assigned to no class in particular is accepted, as before.)
+    const audience = assignmentAudience(assignmentSnapshot.data() || {});
+    if (audience.classIds.length && !(classId && audience.classIds.includes(String(classId)))) {
+      throw new HttpsError("failed-precondition", "That assignment is not assigned to this class. Choose one of this class's assignments for the Warm-Up.");
     }
   }
 
@@ -9811,8 +9848,12 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc();
   const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomRef.id);
   const aliasSeed = parseInt(crypto.createHash("sha256").update(roomRef.id).digest("hex").slice(0, 6), 16);
-  const sortedRoster = [...roster].sort((a, b) => a.studentId.localeCompare(b.studentId));
-  const playerRecords = sortedRoster.map((student, index) => ({
+  // Code names are handed out over a RANDOM order. Sorted by student id, the
+  // numbers ran consecutively in roster order — so a classmate could recover
+  // the order, and the same position carried the same name pattern from game
+  // to game. Nothing else depends on this order.
+  const aliasOrder = shuffleChallengeItems(roster);
+  const playerRecords = aliasOrder.map((student, index) => ({
     studentId: student.studentId,
     playerKey: crypto.randomUUID(),
     alias: challenge.challengeAlias(index, aliasSeed),
@@ -9860,7 +9901,7 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
     endsAt: null,
     roundStartedAt: null,
     roundEndsAt: null,
-    eligibleCount: sortedRoster.length,
+    eligibleCount: aliasOrder.length,
     engineVersion: 1,
     modeVersion: mode.version,
     scoringStrategyId,
@@ -9919,57 +9960,96 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   });
   await rootBatch.commit();
 
+  // CLAIM THE TEACHER'S ONE ACTIVE ROOM BEFORE ANYONE IS INVITED. Two creates
+  // racing — two tabs, or Play Again pressed on two screens — both pass the
+  // recovery check above. Both used to build a lobby: the invites went to
+  // whichever batch wrote last, the pointer to whichever wrote last, and one
+  // tab sat on a lobby no student could ever join, left in "lobby" forever.
+  // The pointer is claimed in a transaction instead; the create that loses
+  // retires its own room before it has invited anybody and answers like any
+  // second create, naming the room that won (the console reopens it).
+  const claim = await db.runTransaction(async (transaction) => {
+    const pointer = await transaction.get(activePointerRef);
+    const otherRoomId = pointer.exists ? String(pointer.data()?.roomId || "").trim() : "";
+    if (otherRoomId && otherRoomId !== roomRef.id) {
+      const other = await transaction.get(db.collection(LIVE_CHALLENGE_ROOMS).doc(otherRoomId));
+      const otherRoom = other.exists ? (other.data() || {}) : {};
+      if (other.exists && otherRoom.teacherEmail === teacherEmail
+        && [challenge.LIVE_CHALLENGE_STATUS.LOBBY, challenge.LIVE_CHALLENGE_STATUS.RUNNING].includes(otherRoom.status)) {
+        return { claimed: false, roomId: otherRoomId };
+      }
+    }
+    transaction.set(activePointerRef, { roomId: roomRef.id, teacherEmail, classId, classPeriod, updatedAt: FieldValue.serverTimestamp() });
+    return { claimed: true };
+  });
+  if (!claim.claimed) {
+    await retireUnusedChallengeRoom(db, { roomRef, privateRef });
+    throw new HttpsError(
+      "failed-precondition",
+      "Finish or cancel your current Live Challenge before creating another one.",
+      { roomId: claim.roomId },
+    );
+  }
+
   // Keep identity-bearing player state in one private document per student.
   // Public player documents are created only after students join and contain
   // anonymous aliases/statistics only. This avoids every student contending on
   // one giant room/leaderboard document when a whole class answers together.
-  for (let start = 0; start < playerRecords.length; start += 200) {
-    const batch = db.batch();
-    playerRecords.slice(start, start + 200).forEach((player) => {
-      batch.set(privateRef.collection("players").doc(player.studentId), {
-        playerKey: player.playerKey,
-        alias: player.alias,
-        joined: false,
-        score: 0,
-        correctCount: 0,
-        roundsAnswered: 0,
-        streak: 0,
-        answeredRound: -1,
-        updatedAt: FieldValue.serverTimestamp(),
+  try {
+    for (let start = 0; start < playerRecords.length; start += 200) {
+      const batch = db.batch();
+      playerRecords.slice(start, start + 200).forEach((player) => {
+        batch.set(privateRef.collection("players").doc(player.studentId), {
+          playerKey: player.playerKey,
+          alias: player.alias,
+          joined: false,
+          score: 0,
+          correctCount: 0,
+          roundsAnswered: 0,
+          streak: 0,
+          answeredRound: -1,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        batch.set(db.collection(LIVE_CHALLENGE_INVITES).doc(player.studentId), {
+          roomId: roomRef.id,
+          title,
+          teacherEmail,
+          // The Warm-Up link travels to the student on the invite, because the
+          // invite is the only challenge document a student is allowed to read
+          // before joining. Null for a standalone challenge, which is what stops
+          // one taking over an unrelated assignment's Warm-Up.
+          assignmentId,
+          classId,
+          classPeriod,
+          className: className || null,
+          courseId,
+          alias: player.alias,
+          playerKey: player.playerKey,
+          status: "invited",
+          updatedAt: FieldValue.serverTimestamp(),
+        });
       });
-      batch.set(db.collection(LIVE_CHALLENGE_INVITES).doc(player.studentId), {
-        roomId: roomRef.id,
-        title,
-        teacherEmail,
-        // The Warm-Up link travels to the student on the invite, because the
-        // invite is the only challenge document a student is allowed to read
-        // before joining. Null for a standalone challenge, which is what stops
-        // one taking over an unrelated assignment's Warm-Up.
-        assignmentId,
-        classId,
-        classPeriod,
-        className: className || null,
-        courseId,
-        alias: player.alias,
-        playerKey: player.playerKey,
-        status: "invited",
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-    });
-    // eslint-disable-next-line no-await-in-loop
-    await batch.commit();
+      // eslint-disable-next-line no-await-in-loop
+      await batch.commit();
+    }
+  } catch (error) {
+    // A setup that failed part-way must not trap the teacher behind a pointer
+    // to an unusable lobby: release it (only if it is still this room's),
+    // retire the room and any invites already written, then report the error.
+    await db.runTransaction(async (transaction) => {
+      const pointer = await transaction.get(activePointerRef);
+      if (pointer.exists && pointer.data()?.roomId === roomRef.id) transaction.delete(activePointerRef);
+    }).catch((releaseError) => logger.error("liveChallenge.create.releasePointer.failed", { roomId: roomRef.id, message: releaseError?.message }));
+    await retireUnusedChallengeRoom(db, { roomRef, privateRef, teacherEmail, invitesMayExist: true })
+      .catch((retireError) => logger.error("liveChallenge.create.retire.failed", { roomId: roomRef.id, message: retireError?.message }));
+    throw error;
   }
-
-  // The recover-after-refresh pointer is written only after the lobby roster
-  // and invitations exist, so a partial setup failure cannot trap the teacher
-  // behind a pointer to an unusable room.
-  await activePointerRef.set({ roomId: roomRef.id, teacherEmail, classId, classPeriod, updatedAt: FieldValue.serverTimestamp() });
 
   return {
     roomId: roomRef.id,
     roundCount: actualRoundCount,
     requestedRoundCount,
-    eligibleCount: sortedRoster.length,
+    eligibleCount: aliasOrder.length,
     trimmed: actualRoundCount < requestedRoundCount,
   };
 });
@@ -10641,6 +10721,7 @@ async function writeLiveChallengeReportFromResult(db, result) {
   const report = reportRules.buildChallengeReport({
     room: result,
     scheduledRoundCount: Number(result.scheduledRoundCount) || 0,
+    playedRoundCount: typeof result.playedRoundCount === "number" ? result.playedRoundCount : null,
     roundMisses: derivedTallies.roundMisses,
     roundStandards: result.roundStandards || {},
     answeredCounts: derivedTallies.roundAnswers,
@@ -10900,8 +10981,12 @@ async function finalizeLiveChallengeMatch(db, { roomRef, room, command, status }
     const nowMs = Date.now();
     const privateState = privateSnapshot.data() || {};
     let players = playersFromSnapshot(playersSnapshot);
-    // Ending mid-round still counts the round for everyone who answered it.
-    if (plan.closeCurrentRound && status === lifecycle.SESSION_STATUS.FINISHED) {
+    // Ending mid-round still counts the round for everyone who answered it —
+    // but a round still in its 3-2-1 countdown (Next Round, then End Game) was
+    // never answerable: it is not ranked, and the match result does not count
+    // it as played (results.playedRoundCountAt).
+    if (plan.closeCurrentRound && status === lifecycle.SESSION_STATUS.FINISHED
+      && engine.results.openRoundStartedAt(currentRoom, nowMs)) {
       players = applyLiveChallengeRoundClose(transaction, {
         engine, roomRef, privateRef, room: currentRoom, privateState, players, roundIndex: plan.roundIndex, nowMs,
       }).players;
@@ -11040,15 +11125,32 @@ exports.calibrateLiveChallengeClock = onCall(async (request) => {
  * gone quiet, or who was signed in twice. This read-only callable gives the
  * room's own teacher the names for their CONSOLE — never the projector — and
  * nothing else: no student ids, no scores (the public rows carry those).
- * A finished room's private state is deleted by its effects; its roster is
- * then empty, and the console falls back to the game aliases.
+ *
+ * After the game. A finished room's private state is deleted by its effects,
+ * which used to leave the roster empty — so the final standings, the moment a
+ * teacher most wants to know who "Algebra Hawk 91" is, showed game names only,
+ * and a refresh lost the names for good. The durable match result (server-only,
+ * written in the finishing transaction) still knows who played under which
+ * key, so the roster is read from it then.
  */
 exports.getLiveChallengeHostRoster = onCall(async (request) => {
   const roomId = String(request.data?.roomId || "").trim();
   if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
   const db = getFirestore();
   await requireOwnedChallenge(db, request, roomId);
-  const players = await loadPrivateChallengePlayers(db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId));
+  let players = await loadPrivateChallengePlayers(db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId));
+  if (!players.length) {
+    const result = await db.collection(LIVE_CHALLENGE_MATCH_RESULTS).doc(roomId).get();
+    players = result.exists
+      ? (Array.isArray(result.data()?.standings) ? result.data().standings : [])
+        .filter((standing) => standing?.studentId && standing?.playerKey)
+        .map((standing) => ({ studentId: String(standing.studentId), playerKey: standing.playerKey, alias: standing.alias, joined: standing.joined === true }))
+      : [];
+  }
+  // Only players with a key can be shown, and the names are read for exactly
+  // those, in the same order: filtering AFTER the read once paired every name
+  // after a keyless record with the next student's.
+  players = players.filter((player) => player.playerKey && player.studentId);
   if (!players.length) return { roomId, players: [] };
   const { experience } = await liveChallengeEngine();
   const identity = await studentIdentity();
@@ -11061,7 +11163,6 @@ exports.getLiveChallengeHostRoster = onCall(async (request) => {
   return {
     roomId,
     players: players
-      .filter((player) => player.playerKey)
       .map((player, index) => ({
         playerKey: String(player.playerKey),
         name: experience.displayAliasForStudent({
@@ -11479,6 +11580,10 @@ exports.reportLiveChallengeProgress = onCall(async (request) => {
       || Number(latestRoom.roundVersion || 0) !== requestedVersion
       || String(latestRoom.roundToken || "") !== requestedToken
       || Number(latestPlayer.answeredRound) === roundIndex
+      // Only inside the round's own window, like an answer: progress "made"
+      // during the 3-2-1 (the question is in the room before startsAt) was
+      // paid a milestone's full speed.
+      || !engine.timer.timerAcceptsArrival(engine.timer.timerFromRoom(latestRoom), Date.now()).accepted
     ) return { recorded: false, milestoneSpeedPoints: 0 };
 
     const milestone = challenge.applyProductiveMilestoneAward({
@@ -11542,28 +11647,34 @@ async function maybeCompressLiveChallengeRoundAfterThreshold(db, { roomRef, roun
   const decision = challenge.roundClosingDecision({ joinedCount, answeredCount, threshold: roomAtCount.roundClosingThreshold });
   const { thresholdCount } = decision;
   if (!decision.shouldClose) return { compressed: false, ...decision };
+  // Already closing (another answer got there first), or nothing left to
+  // shorten: answer from this read, without a transaction on the room.
+  if (!challenge.roundCompressionMayApply(roomAtCount, Date.now())) return { compressed: false, ...decision };
 
+  // ONE WRITER, NO TRANSACTION. Every answer that crossed the threshold at the
+  // same instant reaches this point, and each used to open a read-then-write
+  // transaction on the room: they aborted one another and retried with
+  // backoff, and the class waited 2-4 s for its feedback. The write is instead
+  // conditional on the room being exactly as read above — the same atomicity,
+  // checked by Firestore — so the first answer shortens the clock and every
+  // other one is refused at once (the room has changed) and moves on.
+  if (
+    !roomSnapshot.exists
+    || roomAtCount.status !== "running"
+    // A closed round's clock is over; nothing is left to compress.
+    || roomAtCount.roundState === "closed"
+    || Number(roomAtCount.currentRound) !== Number(roundIndex)
+    || Number(roomAtCount.roundVersion || 0) !== Number(roundVersion || 0)
+  ) return { compressed: false, answeredCount, joinedCount, thresholdCount };
   const targetEndsAtMs = Date.now() + 5000;
+  const currentEndsAtMs = toDate(roomAtCount.endsAt || roomAtCount.roundEndsAt)?.getTime() || 0;
+  const paceMode = challenge.normalizeChallengeTimingMode(roomAtCount.timingMode) === "pace";
+  if (!paceMode && (!currentEndsAtMs || currentEndsAtMs <= targetEndsAtMs)) return { compressed: false, answeredCount, joinedCount, thresholdCount };
+
+  const shortenedEndsAt = new Date(targetEndsAtMs);
   let compressed = false;
-  await db.runTransaction(async (transaction) => {
-    const latestRoomSnapshot = await transaction.get(roomRef);
-    if (!latestRoomSnapshot.exists) return;
-    const latestRoom = latestRoomSnapshot.data() || {};
-    if (
-      latestRoom.status !== "running"
-      // A closed round's clock is over; nothing is left to compress.
-      || latestRoom.roundState === "closed"
-      || Number(latestRoom.currentRound) !== Number(roundIndex)
-      || Number(latestRoom.roundVersion || 0) !== Number(roundVersion || 0)
-    ) return;
-
-    if (latestRoom.closingStartedAt) return;
-    const currentEndsAtMs = toDate(latestRoom.endsAt || latestRoom.roundEndsAt)?.getTime() || 0;
-    const paceMode = challenge.normalizeChallengeTimingMode(latestRoom.timingMode) === "pace";
-    if (!paceMode && (!currentEndsAtMs || currentEndsAtMs <= targetEndsAtMs)) return;
-
-    const shortenedEndsAt = new Date(targetEndsAtMs);
-    transaction.set(roomRef, {
+  try {
+    await roomRef.update({
       endsAt: shortenedEndsAt,
       roundEndsAt: shortenedEndsAt,
       roundCompressionReason: `${decision.threshold}-percent-answered`,
@@ -11571,9 +11682,13 @@ async function maybeCompressLiveChallengeRoundAfterThreshold(db, { roomRef, roun
       closingStartedAt: FieldValue.serverTimestamp(),
       roundCompressedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
+    }, { lastUpdateTime: roomSnapshot.updateTime });
     compressed = true;
-  });
+  } catch (error) {
+    // FAILED_PRECONDITION: the room changed since it was read — another answer
+    // already started the closing countdown, or the round moved on.
+    if (error?.code !== 9 && !/FAILED_PRECONDITION|precondition/i.test(String(error?.message || ""))) throw error;
+  }
 
   return { compressed, answeredCount, joinedCount, thresholdCount };
 }
@@ -11601,6 +11716,19 @@ exports.updateLiveChallengePacing = onCall(async (request) => {
   return { roomId, roundClosingThreshold };
 });
 
+// A device's answer id: the alphabet of a UUID, never a server receipt key.
+const LIVE_CHALLENGE_SUBMISSION_ID = /^[A-Za-z0-9_-]{1,100}$/;
+
+// What a student reads when an answer arrives outside its round's window: an
+// answer sent before GO is told to wait for GO, a late one that time was up.
+const liveChallengeArrivalRefusal = (arrival) => new HttpsError("deadline-exceeded", arrival?.reason === "round_not_started"
+  ? "This round has not started yet. Wait for GO, then answer."
+  : "Time was up before your answer arrived, so it was not counted.", { reason: arrival?.reason || null });
+
+// A round whose question can no longer be rebuilt cannot check answers. Rare
+// (the question was deleted mid-game); the student is told what happens next.
+const LIVE_CHALLENGE_QUESTION_UNAVAILABLE = "This round's question could not be checked, so answers to it are not counted. Your teacher can move on to the next round.";
+
 exports.submitLiveChallengeResponse = onCall(async (request) => {
   const requestArrivedAt = Date.now();
   const { studentId } = requireStudent(request);
@@ -11616,7 +11744,12 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   const submissionId = String(request.data?.submissionId || `legacy-${crypto.randomUUID()}`).trim();
   const requestedVersion = request.data?.roundVersion == null ? null : Number(request.data.roundVersion);
   const requestedToken = request.data?.roundToken == null ? null : String(request.data.roundToken).trim();
-  if (!roomId || !Number.isInteger(submittedRound) || submittedRound < 0 || (requestedVersion != null && !Number.isInteger(requestedVersion)) || submissionId.length > 100) {
+  // The id keys this answer's receipt in the student's own receipt log, beside
+  // keys the SERVER writes (`milestone:<version>:<depth>`). An id shaped like
+  // one of those overwrote a server receipt — "answering" round 0 with id
+  // `milestone:2:1` let a later progress report erase a wrong answer from the
+  // record the Strong Accuracy reward reads. Honest devices send UUIDs.
+  if (!roomId || !Number.isInteger(submittedRound) || submittedRound < 0 || (requestedVersion != null && !Number.isInteger(requestedVersion)) || !LIVE_CHALLENGE_SUBMISSION_ID.test(submissionId)) {
     throw new HttpsError("invalid-argument", "roomId, roundIndex, roundVersion, and submissionId are required.");
   }
 
@@ -11645,7 +11778,7 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   const submitPlan = lifecycle.planLifecycleCommand({ command: lifecycle.LIFECYCLE_COMMAND.SUBMIT, room, expected: expectedRound });
   if (submitPlan.outcome !== lifecycle.LIFECYCLE_OUTCOME.APPLY) throw new HttpsError("failed-precondition", submitPlan.message);
   const initialArrival = roundTimer.timerAcceptsArrival(roundTimer.timerFromRoom(room), requestArrivedAt);
-  if (!initialArrival.accepted) throw new HttpsError("deadline-exceeded", "The bounded delivery window for this round has ended.");
+  if (!initialArrival.accepted) throw liveChallengeArrivalRefusal(initialArrival);
   if (!currentPlayer.joined) throw new HttpsError("failed-precondition", "Join the Live Challenge before answering.");
   // The response model decides whether this question can take another
   // attempt. A classic round is one question completed by one response:
@@ -11663,13 +11796,13 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   const questionId = privateState.questionIds?.[submittedRound];
   const privateAuthored = privateState.roundQuestions?.[submittedRound] || null;
   const questionSnapshot = !privateAuthored && questionId ? await db.collection("pathQuestionBank").doc(questionId).get() : null;
-  if (!privateAuthored && !questionSnapshot?.exists) throw new HttpsError("failed-precondition", "This round's secure question is unavailable.");
+  if (!privateAuthored && !questionSnapshot?.exists) throw new HttpsError("failed-precondition", LIVE_CHALLENGE_QUESTION_UNAVAILABLE);
   const authored = privateAuthored || questionSnapshot.data() || {};
   const seedKey = `challenge|${roomId}|${submittedRound}|${questionId}`;
   const instantiated = await mathPath.instantiateQuestion(authored, seedKey);
-  if (!instantiated.question) throw new HttpsError("failed-precondition", "This round's question could not be regenerated securely.");
+  if (!instantiated.question) throw new HttpsError("failed-precondition", LIVE_CHALLENGE_QUESTION_UNAVAILABLE);
   const plan = await mathPath.buildIssuePlan(instantiated.question);
-  if (!plan.issuable) throw new HttpsError("failed-precondition", "This round can no longer be securely graded.");
+  if (!plan.issuable) throw new HttpsError("failed-precondition", LIVE_CHALLENGE_QUESTION_UNAVAILABLE);
   const grading = await mathPath.gradePathToolResponse(plan.privateGrading, request.data?.responsePayload || {});
   if (grading?.rejected) throw new HttpsError("failed-precondition", grading.reason || "The response could not be graded.");
 
@@ -11677,12 +11810,15 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   let finalScore = null;
   let duplicateReceipt = null;
   let scoringStrategyId = null;
+  // The room as the committing attempt read it: what the pacing check below needs.
+  let roomAtSubmit = null;
   await db.runTransaction(async (transaction) => {
     const [latestRoomSnapshot, latestPlayerSnapshot] = await Promise.all([
       transaction.get(roomRef), transaction.get(privatePlayerRef),
     ]);
     if (!latestRoomSnapshot.exists || !latestPlayerSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge ended before the response could be saved.");
     const latestRoom = latestRoomSnapshot.data() || {};
+    roomAtSubmit = latestRoom;
     const player = latestPlayerSnapshot.data() || {};
     if (player.submissionReceipts?.[submissionId]) {
       duplicateReceipt = player.submissionReceipts[submissionId];
@@ -11695,7 +11831,7 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
     const latestStartsAtMs = latestTimer.startsAtMs || 0;
     const nowMs = Date.now();
     const arrival = roundTimer.timerAcceptsArrival(latestTimer, requestArrivedAt);
-    if (!arrival.accepted) throw new HttpsError("deadline-exceeded", "The bounded delivery window for this round has ended.");
+    if (!arrival.accepted) throw liveChallengeArrivalRefusal(arrival);
     if (!player.joined) throw new HttpsError("failed-precondition", "Join the Live Challenge before answering.");
     if (Number(player.answeredRound) === submittedRound || attemptPlanFor(player).decision === responses.ATTEMPT_DECISION.REJECT) {
       throw new HttpsError("already-exists", "You already answered this round.");
@@ -11857,19 +11993,24 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
 
   if (duplicateReceipt) return { ...duplicateReceipt, duplicate: true };
 
-  // Classroom pacing: once 80% of the students who actually joined this round
-  // have answered, any longer remaining timer is compressed to five seconds.
-  // This happens after the authoritative score write, and failures here never
-  // invalidate a student's accepted answer.
-  await maybeCompressLiveChallengeRoundAfterThreshold(db, {
-    roomRef,
-    roundIndex: submittedRound,
-    roundVersion: submittedVersion,
-  }).catch((error) => logger.error("liveChallenge.roundCompression.failed", {
-    roomId,
-    roundIndex: submittedRound,
-    message: error?.message || String(error),
-  }));
+  // Classroom pacing: once the room's threshold of the students who actually
+  // joined this round have answered, any longer remaining timer is compressed
+  // to five seconds. This happens after the authoritative score write, and
+  // failures here never invalidate a student's accepted answer. Only an answer
+  // that could cross the threshold counts the class (roundCompressionMayApply):
+  // the student's feedback waits on this, and the room is the class's hot
+  // document.
+  if (challenge.roundCompressionMayApply(roomAtSubmit, Date.now())) {
+    await maybeCompressLiveChallengeRoundAfterThreshold(db, {
+      roomRef,
+      roundIndex: submittedRound,
+      roundVersion: submittedVersion,
+    }).catch((error) => logger.error("liveChallenge.roundCompression.failed", {
+      roomId,
+      roundIndex: submittedRound,
+      message: error?.message || String(error),
+    }));
+  }
 
   return {
     isCorrect: grading?.isCorrect === true,

@@ -9,21 +9,43 @@
 // student's tap is graded by the real transaction, a round is closed by the
 // real lifecycle, and every screen renders what the server actually wrote.
 //
-// The watchers are re-exported untouched: the component under test subscribes
-// through exactly the code students run, with `db` pointed at the emulator.
+// The watchers are the real ones: the component under test subscribes through
+// exactly the code students run, with `db` pointed at the emulator. Each is
+// only COUNTED while open (window.__mmWatchers), so a driver can see whether
+// listeners pile up across rounds and games — the count must come back down
+// every time a screen moves on.
+
+import * as service from '../../../src/platform/liveChallenge/liveChallengeService.js';
 
 export {
-  watchLiveChallengeInvite,
-  watchLiveChallengeRoom,
-  watchLiveChallengePlayers,
-  watchLiveChallengeDiagnostics,
-  watchTeacherActiveChallenge,
-  watchLiveChallengeRound,
   readLiveChallengeRound,
   readChallengeReport,
   timestampMillis,
   setWarmupChallengeDelivery,
 } from '../../../src/platform/liveChallenge/liveChallengeService.js';
+
+window.__mmWatchers = { open: {}, opened: 0, closed: 0 };
+const counted = (name, watch) => (...args) => {
+  const stop = watch(...args);
+  const book = window.__mmWatchers;
+  book.open[name] = (book.open[name] || 0) + 1;
+  book.opened += 1;
+  let stopped = false;
+  return () => {
+    if (!stopped) {
+      stopped = true;
+      book.open[name] -= 1;
+      book.closed += 1;
+    }
+    return typeof stop === 'function' ? stop() : undefined;
+  };
+};
+export const watchLiveChallengeInvite = counted('invite', service.watchLiveChallengeInvite);
+export const watchLiveChallengeRoom = counted('room', service.watchLiveChallengeRoom);
+export const watchLiveChallengePlayers = counted('players', service.watchLiveChallengePlayers);
+export const watchLiveChallengeDiagnostics = counted('diagnostics', service.watchLiveChallengeDiagnostics);
+export const watchTeacherActiveChallenge = counted('teacherActive', service.watchTeacherActiveChallenge);
+export const watchLiveChallengeRound = counted('round', service.watchLiveChallengeRound);
 
 const params = new URLSearchParams(window.location.search);
 const BRIDGE = params.get('bridge') || 'http://localhost:5299';

@@ -31,6 +31,10 @@
  *   - for x-intercept questions, nowhere does the curve skim the x-axis
  *     without crossing it (a near-miss that LOOKS like a zero), unless the
  *     variant is the deliberate "asymptote on the axis" case;
+ *   - at every zero the curve leaves the axis promptly and evenly, so where
+ *     it visibly meets the axis is where the zero is (a crossing so shallow
+ *     that the curve lies along the axis for a stretch is a guess, not a
+ *     reading);
  *   - open endpoints are clearly separated from closed ones and from targets.
  *
  * If a slot ever exhausted its attempts, a known-good question for the same
@@ -65,7 +69,7 @@ import {
   tierGridDenominator,
 } from './graphFeatureFamilies.mjs';
 
-export const GRAPH_FEATURE_GENERATOR_VERSION = 1;
+export const GRAPH_FEATURE_GENERATOR_VERSION = 2;
 
 export const SCHEDULE_BLOCK_SIZE = 6;
 export const MAX_GENERATION_ATTEMPTS = 80;
@@ -144,6 +148,9 @@ export const createRng = (seedText) => {
 /* --------------------------------- views --------------------------------- */
 
 const NICE_HALF_SPANS = Object.freeze([5, 6, 8, 10, 12, 15, 16, 20, 24, 25, 30, 40]);
+// A lopsided (Challenge) window is never narrower than this: a 2-by-2 window
+// flattens a cubic into a line and turns a parabola into a corner.
+const MIN_LOPSIDED_SPAN = 6;
 const MAX_X_SPAN = Object.freeze({ [EASY]: 20, [STANDARD]: 32, [CHALLENGE]: 48 });
 const MAX_Y_SPAN = Object.freeze({ [EASY]: 20, [STANDARD]: 40, [CHALLENGE]: 60 });
 const VALUE_LIMIT = Object.freeze({ [EASY]: 9, [STANDARD]: 16, [CHALLENGE]: 24 });
@@ -157,6 +164,15 @@ export const VIEW_RULES = Object.freeze({
   ghostBand: 0.05,
   ghostReach: 0.08,
   crossingDepth: 0.06,
+  // Where the drawn curve visibly lies ON the x-axis: within this fraction of
+  // the height (about 5 px on a phone). Around a zero that stretch may reach
+  // at most contactReach of the width to either side (flatContactReach for a
+  // curve that touches and turns, or flattens through, its zero), and must
+  // be centred on the zero within contactCentring.
+  contactBand: 0.015,
+  contactReach: 0.06,
+  flatContactReach: 0.1,
+  contactCentring: 0.02,
   openMarkerClearance: 0.06,
   jumpClearance: 0.08,
   asymptoteClearance: 0.08,
@@ -208,10 +224,14 @@ export const chooseView = ({ required = [], framing = [], asymptotes = { vertica
     const yH = uniform ? Math.max(xHalf, yHalf) : yHalf;
     window = { xMin: -xH, xMax: xH, yMin: -yH, yMax: yH };
   } else {
-    const xStep = tickStep(xHigh - xLow + 2 * xPad);
-    const yStep = tickStep(yHigh - yLow + 2 * yPad);
-    const [x0, x1] = snapOut(xLow - xPad, xHigh + xPad, xStep);
-    const [y0, y1] = snapOut(yLow - yPad, yHigh + yPad, yStep);
+    const atLeastMinimum = (low, high) => {
+      const missing = MIN_LOPSIDED_SPAN - (high - low);
+      return missing > 0 ? [low - missing / 2, high + missing / 2] : [low, high];
+    };
+    const [xa, xb] = atLeastMinimum(xLow - xPad, xHigh + xPad);
+    const [ya, yb] = atLeastMinimum(yLow - yPad, yHigh + yPad);
+    const [x0, x1] = snapOut(xa, xb, tickStep(xb - xa));
+    const [y0, y1] = snapOut(ya, yb, tickStep(yb - ya));
     window = { xMin: x0, xMax: x1, yMin: y0, yMax: y1 };
   }
   const xSpan = window.xMax - window.xMin;
@@ -239,7 +259,8 @@ const normalizedDistance = (a, b, view) => Math.hypot(
  * zero. A vertex hovering just above the axis, an endpoint a hair off it, or
  * an asymptote hugging it all read as zeros that are not there.
  *
- * A shallow crossing is fine: its closest approach IS the zero.
+ * A crossing's closest approach IS its zero, so this rule passes it; how
+ * readably the curve crosses is zerosReadable's question.
  */
 const ghostZeroFree = (graph, view, zeros) => {
   const xSpan = view.xMax - view.xMin;
@@ -266,6 +287,37 @@ const ghostZeroFree = (graph, view, zeros) => {
         && (!after || after.magnitude >= sample.magnitude);
       return !closestApproach || nearZero(sample.x);
     });
+  });
+};
+
+/*
+ * Where a zero is must be readable from where the curve meets the axis. The
+ * stretch around each zero along which the drawn curve lies ON the axis
+ * (within contactBand of the height) must be short — a crossing so shallow
+ * that the curve runs along the axis is a guess, not a reading — and centred
+ * on the zero, so a student who taps the middle of what they see taps the
+ * zero. A curve that touches and turns at its zero (a double root) or
+ * flattens through it (a triple root) is flat there by nature: it gets a
+ * longer stretch, which its symmetry keeps centred. A stretch that runs off
+ * the edge of the view never passes.
+ */
+const zerosReadable = (graph, view, zeros, flat) => {
+  const xSpan = view.xMax - view.xMin;
+  const band = VIEW_RULES.contactBand * (view.yMax - view.yMin);
+  const reach = (flat ? VIEW_RULES.flatContactReach : VIEW_RULES.contactReach) * xSpan;
+  const step = xSpan / 2000;
+  const onAxis = (x) => {
+    const y = evaluateGraph(graph, x);
+    return Number.isFinite(y) && Math.abs(y) < band;
+  };
+  return zeros.every((zero) => {
+    let left = zero.x;
+    while (left - step >= view.xMin && onAxis(left - step)) left -= step;
+    let right = zero.x;
+    while (right + step <= view.xMax && onAxis(right + step)) right += step;
+    if (left - step < view.xMin || right + step > view.xMax) return false;
+    return Math.max(zero.x - left, right - zero.x) <= reach
+      && Math.abs((left + right) / 2 - zero.x) <= VIEW_RULES.contactCentring * xSpan;
   });
 };
 
@@ -323,6 +375,9 @@ export const viewProblems = ({ family, feature, variant, graph, view, targets, t
   }
   if (feature === GRAPH_FEATURE.X_INTERCEPT && !separatedCrossings(graph, view, targets)) {
     problems.push('neighbouring zeros are not visibly separate');
+  }
+  if (feature === GRAPH_FEATURE.X_INTERCEPT && !zerosReadable(graph, view, targets, variant.flags?.flatZero === true)) {
+    problems.push('where the curve meets the x-axis is not clear');
   }
   // A domain that excludes x = 0 must visibly do so.
   if (feature === GRAPH_FEATURE.Y_INTERCEPT && !variant.exists && variant.flags?.domainExcludesZero) {
@@ -423,7 +478,13 @@ const fallbackQuestion = (feature) => {
 };
 
 const wordingFor = (rng, slot) => {
-  const options = featureWordings(slot.feature, { family: slot.family, tier: slot.tier });
+  const variant = familyVariants(slot.family, slot.feature, slot.tier).find((entry) => entry.id === slot.variant);
+  // A polynomial's roots and zeros include its complex ones: a parabola that
+  // never meets the axis still has two roots, so "Find all roots" answered
+  // "Does Not Exist" would teach something false. A polynomial with non-real
+  // roots is only ever asked for its x-intercepts.
+  const options = featureWordings(slot.feature, { family: slot.family, tier: slot.tier })
+    .filter((entry) => variant?.flags?.nonRealRoots !== true || entry.id === 'xIntercepts');
   return options.length ? rng.pick(options) : { id: slot.feature, prompt: getGraphFeature(slot.feature)?.label || slot.feature };
 };
 
@@ -444,16 +505,18 @@ export const diagnoseSlot = ({ slot, seedText, attempts = 200 }) => {
 };
 
 /**
- * Generate the question for a slot from a seed. Deterministic.
+ * Generate the question for a slot from a seed. Deterministic. A candidate
+ * whose graph is one of `avoidGraphs` is passed over like any rejected one.
  */
-export const generateQuestionForSlot = ({ slot, seedText, questionIndex = 0 }) => {
+export const generateQuestionForSlot = ({ slot, seedText, questionIndex = 0, avoidGraphs = [] }) => {
   const rng = createRng(`${seedText}|v${GRAPH_FEATURE_GENERATOR_VERSION}`);
   const wording = wordingFor(rng, slot);
+  const avoid = new Set(avoidGraphs.map((graph) => JSON.stringify(graph)));
   let built = null;
   let attempts = 0;
   for (; attempts < MAX_GENERATION_ATTEMPTS && !built; attempts += 1) {
     const outcome = attemptSlot({ slot, rng });
-    if (outcome.question) built = outcome.question;
+    if (outcome.question && !avoid.has(JSON.stringify(outcome.question.graph))) built = outcome.question;
   }
   const fallback = !built;
   const question = built || fallbackQuestion(slot.feature);
@@ -552,15 +615,27 @@ export const blockTiers = (difficulty, blockIndex) => {
  * The block every student in a round shares: SCHEDULE_BLOCK_SIZE slots drawn
  * from the catalog with the room's secret, avoiding a repeated
  * (family, feature) inside one block where the catalog allows it.
+ *
+ * Each slot first settles whether its answer exists — "Does Not Exist" at
+ * exactly the catalog's share — and only then picks a fresh (family,
+ * feature) on that side. Avoiding repeats across the whole catalog would
+ * drift that share: once the families that HAVE a maximum are used up, only
+ * the ones that do not are fresh, and a maximum-only block could ask for
+ * four answers that do not exist.
  */
 export const roundBlockTemplate = ({ seed, roundIndex, blockIndex, config }) => {
   const rng = createRng(`${seed}|template|r${roundIndex}|b${blockIndex}|v${GRAPH_FEATURE_GENERATOR_VERSION}`);
   const tiers = blockTiers(config.difficulty, blockIndex);
   const used = new Set();
+  const weightOf = (slots) => slots.reduce((sum, slot) => sum + slot.weight, 0);
   return tiers.map((tier) => {
     const catalog = catalogForTier(config, tier);
-    const fresh = catalog.filter((slot) => !used.has(`${slot.family}|${slot.feature}`));
-    const chosen = rng.weighted(fresh.length ? fresh : catalog);
+    const present = catalog.filter((slot) => slot.exists);
+    const absent = catalog.filter((slot) => !slot.exists);
+    const absentShare = catalog.length ? weightOf(absent) / weightOf(catalog) : 0;
+    const side = absent.length && (!present.length || rng.chance(absentShare)) ? absent : present;
+    const fresh = side.filter((slot) => !used.has(`${slot.family}|${slot.feature}`));
+    const chosen = rng.weighted(fresh.length ? fresh : side);
     if (!chosen) return null;
     used.add(`${chosen.family}|${chosen.feature}`);
     return Object.freeze({ family: chosen.family, feature: chosen.feature, variant: chosen.variant, tier: chosen.tier });
@@ -576,15 +651,29 @@ export const scheduledSlot = ({ seed, studentKey, roundIndex, questionIndex, con
   return template[order[questionIndex % SCHEDULE_BLOCK_SIZE]] || null;
 };
 
-/** A student's question k in a round. */
+/**
+ * A student's question k in a round.
+ *
+ * Two questions in a row are never the same graph asked the same way — on a
+ * small Easy catalog that happened often enough to look like a tap that did
+ * nothing. Even-numbered questions are drawn freely; an odd-numbered one
+ * passes over the graph of either neighbour that shares its family and
+ * feature. Every adjacent pair has exactly one odd member, so no pair can
+ * repeat, and no question depends on more than its two neighbours' first
+ * draws (grading regenerates one question, never a chain of them).
+ */
 export const generateRushQuestion = ({ seed, studentKey, roundIndex, questionIndex, config }) => {
-  const slot = scheduledSlot({ seed, studentKey, roundIndex, questionIndex, config });
+  const slotAt = (index) => (index >= 0 ? scheduledSlot({ seed, studentKey, roundIndex, questionIndex: index, config }) : null);
+  const seedTextAt = (index) => `${seed}|q|${studentKey}|r${roundIndex}|q${index}`;
+  const slot = slotAt(questionIndex);
   if (!slot) return null;
-  return generateQuestionForSlot({
-    slot,
-    seedText: `${seed}|q|${studentKey}|r${roundIndex}|q${questionIndex}`,
-    questionIndex,
-  });
+  const avoidGraphs = questionIndex % 2 === 1
+    ? [questionIndex - 1, questionIndex + 1]
+      .map((index) => ({ index, neighbour: slotAt(index) }))
+      .filter(({ neighbour }) => neighbour && neighbour.family === slot.family && neighbour.feature === slot.feature)
+      .map(({ index, neighbour }) => generateQuestionForSlot({ slot: neighbour, seedText: seedTextAt(index), questionIndex: index }).graph)
+    : [];
+  return generateQuestionForSlot({ slot, seedText: seedTextAt(questionIndex), questionIndex, avoidGraphs });
 };
 
 /**

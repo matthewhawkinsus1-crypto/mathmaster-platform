@@ -65,9 +65,13 @@ function StudentView() {
   });
   const classPoints = { account: data.account, transactions: data.transactions, announcements: [], unavailable: data.unavailable };
   if (view === 'challenge') {
+    // `offered`: what the match put up, '|'-separated; empty for no rewards;
+    // absent when the caller does not know.
+    const offeredParam = params.get('offered');
+    const offered = offeredParam === null ? null : offeredParam.split('|').filter(Boolean);
     return (
-      <div style={{ background: '#0b1f33', minHeight: '100vh', padding: 16 }}>
-        <ChallengeRewardsEarned roomId={params.get('room')} grants={data.grants || []} transactions={data.transactions} onOpenRewards={() => {}} />
+      <div data-qa="challenge-view" style={{ background: '#0b1f33', minHeight: '100vh', padding: 16 }}>
+        <ChallengeRewardsEarned roomId={params.get('room')} grants={data.grants || []} transactions={data.transactions} onOpenRewards={() => {}} offered={offered} />
       </div>
     );
   }

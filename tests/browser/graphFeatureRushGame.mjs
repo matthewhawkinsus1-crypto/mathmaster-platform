@@ -113,6 +113,7 @@ const admin = require(path.join(repo, 'functions/node_modules/firebase-admin'));
 const db = admin.firestore();
 const { generateRushQuestion } = await import(path.join(repo, 'functions/shared/graphFeatureGenerator.mjs'));
 const { unitX, unitY } = await import(path.join(repo, 'src/platform/liveChallenge/rushGraphModel.js'));
+const { rushLockoutMs } = await import(path.join(repo, 'functions/shared/graphFeatureRushRules.mjs'));
 
 const authFor = (identity = {}) => (identity.as === 'teacher'
   ? { uid: `${identity.email}-uid`, token: { role: 'teacher', email: identity.email, email_verified: true } }
@@ -322,7 +323,7 @@ const solveOne = async (student, roomId, { misses = 0, scenario }) => {
     await tapGraph(student, question.view, cornerOf(question.view));
     await wait(80);
     // A second miss in a row starts a short cooldown; let it pass.
-    if (miss >= 1) await wait(650 + 600 * (miss - 1));
+    if (rushLockoutMs(miss + 1) > 0) await wait(rushLockoutMs(miss + 1) + 50);
   }
   if (!question.targets.length) {
     await student.page.getByRole('button', { name: 'Does Not Exist' }).click();

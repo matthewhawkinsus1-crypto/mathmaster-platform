@@ -87,7 +87,11 @@ defaults) and the report.
 One canonical id per feature (`xIntercept`, `yIntercept`, `vertex`, `maximum`,
 `minimum`), with classroom vocabulary chosen per family and tier: "Find all
 x-intercepts", "Find all zeros", "Find all roots" (roots only for
-polynomials). A prompt never says how many targets there are. Adding a feature
+polynomials). A polynomial with non-real roots — a parabola that never meets
+the axis, a cubic with one real root — is only ever asked for its
+x-intercepts: its roots and zeros include the complex ones, so "Find all
+roots" answered "Does Not Exist" (or with one point) would be false. A prompt
+never says how many targets there are. Adding a feature
 (an axis of symmetry, a hole, an inflection point) is a registry declaration,
 family support and — for a non-point geometry — a hit-test distance; nothing
 in the engine changes.
@@ -122,7 +126,17 @@ the same mix, and a neighbour's screen is a different graph. Question k for a
 student is a pure function of (room seed, student, round, k, settings,
 generator version), so the server stores nothing it issued — it regenerates a
 question to grade a tap. A room created under another generator version
-refuses to issue or grade.
+refuses to issue or grade (the current version is 2).
+
+Each slot of a block first settles whether its answer exists — "Does Not
+Exist" at exactly the tier's share — and only then picks a (family, feature)
+not yet used in the block on that side. (Avoiding repeats across the whole
+catalog drifted the share: a maximum-only Challenge game, where most families
+have no maximum, drew "Does Not Exist" for about two answers in five.) Two
+questions in a row are never the same graph asked the same way: an
+odd-numbered question passes over the graph of either neighbour with its
+family and feature, so every adjacent pair has one free and one checked
+member and grading never regenerates more than three questions.
 
 **Difficulty** is not bigger coefficients. Easy: integer features, one target,
 friendly families and windows, no "Does Not Exist". Standard: halves, two
@@ -134,10 +148,19 @@ Challenge.
 **Visual validation** (fractions of the square view): targets 8% inside the
 edges and 15% apart; both axes and asymptotes visible; enough curve on
 screen; no "ghost zero" — wherever the curve comes closest to the x-axis it
-either crosses (a real zero) or stays clearly away; two nearby zeros must be
-separated by a visible dip; open dots clear of targets and other dots.
-Measured over every slot: at most 11 build attempts, a mean under 3, and no
-fallback question ever needed.
+either crosses (a real zero) or stays clearly away; **every zero is readable
+where it is drawn** — the stretch around it where the curve lies on the axis
+(within 1.5% of the height) reaches at most 6% of the width to either side
+(10% for a curve that touches and turns or flattens through its zero, which
+its symmetry keeps centred), is centred on the zero within 2%, and never runs
+off the view (a shallow square-root or cube-root crossing that lay along the
+axis for a sixth of the width was a guess, not a reading); two nearby zeros
+must be separated by a visible dip; open dots clear of targets and other dots;
+a lopsided Challenge window is at least 6 units each way (a 2-by-2 window
+flattened a cubic into a line). Below Challenge a piecewise y-intercept never
+sits on the split, so the filled or open dot is never the whole question.
+Measured over every slot: build attempts rarely past 15 (cap 80), a mean
+about 1.25, and no fallback question ever needed.
 
 ---
 
@@ -183,19 +206,29 @@ transaction against regenerated questions, in order:
 
 **Fairness.** A wrong attempt costs 1/20 of a graph in the round's work score
 (exact score units, never below zero). The device pauses input after the
-second miss in a row (600 ms, growing 600 ms per further miss, at most 3 s).
+second miss in a row (1 s, growing 1 s per further miss, at most 4 s).
 The **eighth miss on a graph skips it**, recorded by the server with that
 miss, so the rule holds for a device that never sends the skip. Record
 limits: 30 attempts per graph, 400 per round, 1,800 per match (the private
 record is one document; that is about 760 KiB of receipts). Simulated 60-s
-rounds (through the real pipeline, cooldowns and flashes included):
+rounds of the Algebra 1 Functions preset on a phone (through the real
+pipeline, fingertip tolerance, cooldowns and flashes included; means over 12
+students):
 
 | Player | Graphs | Accuracy | Work score |
 | --- | --- | --- | --- |
-| careful (2.6 s a feature, 10% slips) | 18.0 | 95% | 17.95 |
-| struggling (6 s a feature, 30% slips) | 6.8 | 70% | 6.77 |
-| axis sweeper | 3.3 | 9% | 1.61 |
-| random sprayer | 0.5 | 1% | 0.00 |
+| careful (2.6 s a feature, 10% slips) | 18.5 | 92% | 18.42 |
+| struggling (6 s a feature, 30% slips) | 5.5 | 60% | 5.32 |
+| axis sweeper, taps spaced to the tolerance | 12.0 | 26% | 10.28 |
+| random sprayer | 0.0 | 0% | 0.00 |
+
+Intercepts lie on an axis, so a sweep can find them without reading the
+graph. With the earlier 600 ms cooldown steps a tolerance-spaced sweep matched
+careful readers on an intercept-only game (16.8 graphs each); with 1 s steps
+it completes about two thirds as many (11.6), at about a quarter accuracy —
+plain in the teacher's report — while careful readers lose nothing. A sweep
+can still outscore a student who reads very slowly; the cooldown is not
+allowed to punish honest mistakes harder than that.
 
 What a modified client could still do: skip the cooldown (the miss penalty and
 the eighth-miss skip still apply), or read a question's targets from the
@@ -210,8 +243,8 @@ its speed and protect nothing. The answer key is never on a shared screen.
 ### Correct Count
 
 One point per completed graph, banked as the server confirms it; the match
-total is graphs completed. Ties: match accuracy (hits ÷ attempts), then rounds
-played.
+total is graphs completed. Ties: match accuracy (hits ÷ attempts), then fewer
+rounds played (the same total in fewer rounds ranks first).
 
 ### Grand Prix
 
@@ -219,8 +252,11 @@ Each round ranks the field by work score, then accuracy, then the earliest
 last correct completion. Placement earns championship points on a curve sized
 to the class: a straight line from 11 at the top of the field down to 3 for
 last (rounded half up), with a one-point winner's bonus that makes 1st worth
-12. Ties share the place's points, and a player who completed nothing earns
-nothing.
+12. Ties share the place's points, and a player with no credit earns nothing:
+nothing found, or misses that cancel what was (a work score of 0). Work counts
+targets found fractionally, so a student who found one of a graph's two zeros
+before time ran out has half a graph of work — it places them, and the
+results card says so beside "0 graphs completed".
 
 | Players | Points by place |
 | --- | --- |
@@ -240,8 +276,8 @@ round wins, then raw work.
 **Final ranking rule.** Round: work score ↓, accuracy ↓, last correct
 completion time ↑; equal on all three is a tie (shared rank). Match (Grand
 Prix): championship points ↓, round wins ↓, raw score ↓. Match (Correct
-Count): graphs ↓, accuracy ↓, rounds played ↓. Never by name, device or
-arrival order.
+Count): graphs ↓, accuracy ↓, rounds played ↑. Never by name, device or
+arrival order. (↓: higher first; ↑: lower first.)
 
 ---
 
@@ -285,8 +321,9 @@ taps do not wake every screen. The "Get ready" card counts 3 · 2 · 1 off the
 round's start. Between rounds the student sees the shell's results card, read
 from the round's own result document (never from the paused listener's rows):
 graphs, accuracy, place, the championship points it earned, and their
-championship total and standing — or, if they never completed a graph, that
-they earned no championship points.
+championship total and standing — or, if they earned no credit, that they
+earned no championship points (targets found on a graph left unfinished are
+credit, and the card says they count toward the place).
 
 **Teacher.** Graph Feature Rush is a game type in the existing Create a
 challenge panel: presets as starting points, then families, features,

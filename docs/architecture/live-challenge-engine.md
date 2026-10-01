@@ -136,6 +136,19 @@ still open, or the next one when the current round has already closed. A
 rejoin keeps the recorded round. Warm-Up credit and the Finisher reward measure
 a student against the rounds from there on.
 
+**A round ended in its 3-2-1 was never played.** `finish` closes an open
+round only if it has started (`openRoundStartedAt`); ended during its
+countdown, the round is neither ranked nor counted, and the match result's
+`playedRoundCount` (`playedRoundCountAt`) leaves it out — so Warm-Up credit
+and the Finisher reward are never measured against a round nobody could
+answer.
+
+**One lobby per teacher, even from two tabs.** `createLiveChallenge` claims
+the teacher's active-room pointer in a transaction before it writes players
+or invites. The tab that loses the race retires its own room (cancelled,
+private state deleted) and is told which room is live; a players or invites
+write that fails releases the pointer and retires the room the same way.
+
 **Readiness** — a round may close when every joined player has completed it,
 or its authoritative deadline has passed (`roundReadyToClose`). Zero of zero is
 not "everyone finished"; a paused clock does not expire; an open-ended Pace Race
@@ -234,6 +247,11 @@ deadline. There is no countdown to restart.
 - `timerFromRoom(room)` — reads it back; only `timingMode: 'pace'` is
   open-ended by design.
 - `compressTimer` — the closing threshold; only ever brings a deadline closer.
+  It is applied once per round by a single conditional write (a precondition
+  on the room's update time), checked only while it can still apply
+  (`roundCompressionMayApply`: threshold on, not already closing and, for a
+  timed round, the deadline more than 5 s away); a class answering at once
+  used to queue every answer behind a room transaction.
 - `pauseTimer` / `resumeTimer` — modelled, not yet wired to a control. Resuming
   shifts **both** timestamps by the paused duration, so everything that computes
   elapsed time as `now − startsAt` (speed scoring included) excludes the pause
@@ -265,8 +283,12 @@ not complete it).
 **The receipt log is the source of truth.** The attempt id (the client's
 `submissionId`) is the receipt key, written in the same transaction that scores
 it, so a retried submission is a **replay** of its receipt, never a second
-attempt. Score-only receipts (Solver Race productive-speed milestones,
-`receiptKind: 'productiveSpeedMilestone'`) carry points but are never attempts.
+attempt. An id is `[A-Za-z0-9_-]{1,100}` (a UUID's alphabet), so it can never
+be a server receipt's key. Score-only receipts (Solver Race productive-speed
+milestones, `receiptKind: 'productiveSpeedMilestone'`, keyed
+`milestone:{version}:{depth}`) carry points but are never attempts, and a
+milestone never overwrites a receipt already there. Progress reports
+(`reportLiveChallengeProgress`) are not recorded until the round has started.
 
 A **forfeit** receipt (`forfeit: true`) gives a question up: it completes the
 question, not correctly, keeping any targets already found. Each attempt on a
@@ -446,7 +468,11 @@ Finisher +2, Strong Accuracy +3, Comeback +2, under their original rule ids.
 
 Rules read **standings from the match result** — never score, speed bonus,
 streak or the live board. Placement is decided by rank, so tied winners both
-finish first.
+finish first. Participation (Finisher) measures a student against the rounds
+the match actually played (`rewardContextFor`: the smaller of scheduled and
+played), so a game the teacher ends after five of ten rounds still rewards
+the students who answered all five; the reward diagnostics use the same
+facts (`participationFacts`).
 
 ### Delivery and identity
 
@@ -489,6 +515,9 @@ student's).
 | two Start / Next Round / Finish presses | lifecycle plan inside the transaction; `alreadyApplied` |
 | a late or repeated round command | `expectedRoundIndex` / `expectedRoundVersion` |
 | a retried submission | receipt keyed by `submissionId` → replay |
+| a submission id shaped like a server receipt key | ids are `[A-Za-z0-9_-]{1,100}`; a milestone never overwrites a receipt |
+| two lobby creates at once (two tabs) | pointer claimed in a transaction before players and invites; the losing room is retired |
+| a class answering at once past the closing threshold | one conditional write per round; the rest find it closing and skip |
 | a second answer to a classic round | `planAttempt` → completed question rejects |
 | a submission into a stale round | lifecycle `submit` checks round index, version and token |
 | a retried round close | `roundState: closed`; per-round totals keyed by round |
@@ -570,7 +599,10 @@ clears every collection above.
 - **Per submission**: one transaction reading the room and the private player,
   writing the private and public player — as before. Speed influence is read
   from the room (rooms created before the field read the experience document
-  once).
+  once). The closing-threshold check (two count aggregations) runs only while
+  compression can still apply, and compresses with one precondition write: 20
+  answers arriving together waited 3.4 s (p50) for "Correct!" behind a room
+  transaction each; they now take about 0.3 s.
 - **Per round close / advance**: one transaction reading the room, private state
   and the room's private players (the roster), writing the room, private state,
   two round-result documents, and — for a per-round strategy only — each

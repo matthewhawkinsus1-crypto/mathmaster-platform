@@ -343,5 +343,5 @@ test('the cooldown: a mistake is free, a spray gets slower and slower', () => {
   const schedule = [2, 3, 4, 5, 6, 10, 40].map(rushLockoutMs);
   assert.ok(schedule[0] > 0 && schedule[0] <= 1_000, 'a second in a row costs a moment');
   assert.ok(schedule.every((value, index) => index === 0 || value >= schedule[index - 1]), 'never shrinks while the misses continue');
-  assert.ok(schedule[schedule.length - 1] <= 3_000, 'and is never a punishment that ends the round');
+  assert.ok(schedule[schedule.length - 1] <= 4_000, 'and is never a punishment that ends the round');
 });

@@ -182,8 +182,8 @@ test('a submission must name the open round exactly', () => {
   const stale = submit({ roundIndex: 1, roundVersion: 4, roundToken: 'token-4' });
   assert.equal(stale.code, LIFECYCLE_REJECTION.STALE_ROUND);
   assert.equal(stale.message, 'That Live Challenge round is no longer active.');
-  assert.equal(submit({ roundIndex: 2, roundVersion: 4, roundToken: 'token-5' }).message, 'That submission belongs to a stale round version.');
-  assert.equal(submit({ roundIndex: 2, roundVersion: 5, roundToken: 'other' }).message, 'That submission belongs to a stale round version.');
+  assert.equal(submit({ roundIndex: 2, roundVersion: 4, roundToken: 'token-5' }).message, 'That round has changed since your screen loaded it, so this answer was not counted.');
+  assert.equal(submit({ roundIndex: 2, roundVersion: 5, roundToken: 'other' }).message, 'That round has changed since your screen loaded it, so this answer was not counted.');
   assert.equal(submit({ roundIndex: 2, roundVersion: 5, roundToken: 'token-5' }, ROOMS[MATCH_STATE.ROUND_RESULTS]).code, LIFECYCLE_REJECTION.ROUND_NOT_OPEN);
   assert.equal(submit({ roundIndex: 9 }, ROOMS[MATCH_STATE.COMPLETED]).code, LIFECYCLE_REJECTION.MATCH_ENDED);
   assert.equal(submit({ roundIndex: 0 }, ROOMS[MATCH_STATE.LOBBY]).code, LIFECYCLE_REJECTION.NOT_STARTED);

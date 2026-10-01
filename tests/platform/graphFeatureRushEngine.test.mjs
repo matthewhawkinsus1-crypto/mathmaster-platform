@@ -28,6 +28,7 @@ import { correctCountStrategy, grandPrixStrategy, getScoringStrategy } from '../
 import { publicLeaderboard } from '../../functions/shared/liveChallenge.mjs';
 import { evaluateRewardPolicy } from '../../functions/shared/liveChallengeRewardRules.mjs';
 import { generateRushQuestion } from '../../functions/shared/graphFeatureGenerator.mjs';
+import { GRAPH_FAMILY_IDS } from '../../functions/shared/graphFeatureFamilies.mjs';
 import { POINTER_KIND, clampTolerance } from '../../functions/shared/graphFeatureHitTest.mjs';
 import {
   RUSH_AUTO_SKIP_MISSES,
@@ -168,6 +169,22 @@ test('a round ranks work done (less 1/20 per miss), then accuracy, then the earl
   // Exactly equal work ties and shares points.
   const tied = closeRound([rushPlayer('a', receiptsFor({ completed: 5 })), rushPlayer('b', receiptsFor({ completed: 5 }))], 0);
   assert.deepEqual(tied.standings.map((row) => [row.rank, row.matchPointsAwarded]), [[1, 12], [1, 12]]);
+  // A target found on a graph left unfinished is work (half a graph of two
+  // zeros): it places its player and earns points, though no graph was
+  // completed — and eleven misses cost more than that half (1 − 11/20).
+  sequence += 1;
+  const half = { [`half${sequence}`]: { serverConfirmed: true, receiptKind: 'targetAttempt', roundIndex: 0, sequence, questionIndex: 0, targetCount: 2, targetId: 'x1', isCorrect: true, completesQuestion: false, pointsAwarded: 0, elapsedMs: 20_000, feature: 'xIntercept', family: 'quadratic', tier: 'standard' } };
+  const partial = closeRound([
+    rushPlayer('half-a-graph', half),
+    rushPlayer('one-graph-eleven-misses', receiptsFor({ completed: 1, misses: 11 })),
+    rushPlayer('only-misses', receiptsFor({ completed: 0, misses: 3 })),
+  ], 0);
+  const rowOf = (id) => partial.standings.find((row) => row.studentId === id);
+  assert.deepEqual([rowOf('half-a-graph').metrics.questionsCorrect, rowOf('half-a-graph').metrics.workScore], [0, 0.5]);
+  assert.equal(rowOf('half-a-graph').rank, 1);
+  assert.ok(rowOf('half-a-graph').matchPointsAwarded > 0, 'partial work earns its place');
+  assert.equal(rowOf('one-graph-eleven-misses').metrics.workScore, 0.45);
+  assert.equal(rowOf('only-misses').matchPointsAwarded, 0, 'no credit, no points');
 });
 
 test('Grand Prix placement points scale with the class, from 2 to 35 players', () => {
@@ -292,7 +309,7 @@ const ROUND_MS = 60_000;
  * `decide(question, found, rng)` says where it taps next and how long that
  * took; time advances by think time, cooldowns, completion flashes and skips.
  */
-const simulateRound = ({ studentKey, decide, strategy = grandPrixStrategy, roundIndex = 0, seed = 'sim-room' }) => {
+const simulateRound = ({ studentKey, decide, strategy = grandPrixStrategy, roundIndex = 0, seed = 'sim-room', config = CONFIG, reach = 0.06 }) => {
   let player = {};
   let clock = 0;
   let questionIndex = 0;
@@ -303,13 +320,13 @@ const simulateRound = ({ studentKey, decide, strategy = grandPrixStrategy, round
   let localSeed = studentKey.length * 7919;
   const rng = () => { localSeed = (localSeed * 48271) % 2147483647; return localSeed / 2147483647; };
   while (clock < ROUND_MS && questionIndex < 50) {
-    const question = generateRushQuestion({ seed, studentKey, roundIndex, questionIndex, config: CONFIG });
+    const question = generateRushQuestion({ seed, studentKey, roundIndex, questionIndex, config });
     const move = decide(question, found, rng);
     clock += move.thinkMs;
     if (clock >= ROUND_MS) break;
     counter += 1;
     const attempt = move.kind === 'tap'
-      ? { attemptId: `${studentKey}-${counter}`, questionIndex, kind: 'tap', x: move.x, y: move.y, tolerance: clampTolerance({ x: 0.06 * (question.view.xMax - question.view.xMin), y: 0.06 * (question.view.yMax - question.view.yMin) }, question.view), pointer: POINTER_KIND.TOUCH, clientElapsedMs: clock }
+      ? { attemptId: `${studentKey}-${counter}`, questionIndex, kind: 'tap', x: move.x, y: move.y, tolerance: clampTolerance({ x: reach * (question.view.xMax - question.view.xMin), y: reach * (question.view.yMax - question.view.yMin) }, question.view), pointer: POINTER_KIND.TOUCH, clientElapsedMs: clock }
       : { attemptId: `${studentKey}-${counter}`, questionIndex, kind: move.kind, clientElapsedMs: clock };
     const outcome = applyRushAttempts({
       player, roundIndex, roundVersion: 1, attempts: [attempt], questionFor: (index) => (index === questionIndex ? question : null),
@@ -392,6 +409,58 @@ test('honest students — even struggling ones — beat spraying and sweeping', 
     }
   }
   assert.ok(metricsOf('accurate-1').questionsCorrect >= 8, `an accurate student completes a real round of work (${metricsOf('accurate-1').questionsCorrect})`);
+});
+
+// A cannier sweeper: it never reads the curve, but spaces its taps along the
+// asked-about axis at twice the tap tolerance across the band where every
+// target lives (8%–92% of the view), so no target can slip between taps; a
+// sweep that finds nothing presses "Does Not Exist". Other features it skips.
+// One per student: each sweeps its own graphs from the start.
+const toleranceSweeper = () => {
+  const steps = new Map();
+  return (question, found) => {
+    const key = `${question.questionIndex}`;
+    const step = steps.get(key) || 0;
+    steps.set(key, step + 1);
+    if (!['xIntercept', 'yIntercept'].includes(question.feature)) return { kind: 'skip', thinkMs: 250 };
+    const alongX = question.feature === 'xIntercept';
+    const low = alongX ? question.view.xMin : question.view.yMin;
+    const span = alongX ? question.view.xMax - question.view.xMin : question.view.yMax - question.view.yMin;
+    const reach = 0.07; // a fingertip on a phone: the widest tolerance there is
+    const positions = [];
+    for (let at = 0.08 + reach; at - reach < 0.92; at += 2 * reach * 0.999) positions.push(at);
+    if (step < positions.length) {
+      const value = low + positions[step] * span;
+      return alongX ? { kind: 'tap', x: value, y: 0, thinkMs: 250 } : { kind: 'tap', x: 0, y: value, thinkMs: 250 };
+    }
+    return found.length ? { kind: 'skip', thinkMs: 250 } : { kind: 'dne', thinkMs: 250 };
+  };
+};
+
+test('reading the graph beats a sweep spaced to the tap tolerance, even on intercept-only games', () => {
+  // Intercepts lie on an axis, so a sweep can find them without reading. The
+  // cooldown after repeated misses is what keeps that slower than looking: at
+  // 600 ms steps a tolerance-spaced sweep matched careful readers here.
+  const interceptsOnly = normalizeGraphFeatureRushConfig({ families: [...GRAPH_FAMILY_IDS], features: ['xIntercept', 'yIntercept'], difficulty: 'standard' });
+  // On a phone, where a fingertip's tolerance is widest and a sweep needs the fewest taps.
+  const ids = ['a', 'b', 'c', 'd', 'e', 'f'];
+  const players = [
+    ...ids.map((id) => simulateRound({ studentKey: `reader-${id}`, decide: accurate, config: interceptsOnly, reach: 0.07 })),
+    ...ids.map((id) => simulateRound({ studentKey: `sweeper-${id}`, decide: toleranceSweeper(), config: interceptsOnly, reach: 0.07 })),
+  ];
+  const round = closeRound(players, 0);
+  const row = (id) => round.standings.find((entry) => entry.studentId === id);
+  const graphs = (prefix) => round.standings.filter((entry) => entry.studentId.startsWith(prefix)).map((entry) => entry.metrics.questionsCorrect);
+  const worstReader = Math.min(...graphs('reader-'));
+  const bestSweeper = Math.max(...graphs('sweeper-'));
+  for (const reader of ids.map((id) => `reader-${id}`)) {
+    for (const sweeper of ids.map((id) => `sweeper-${id}`)) {
+      assert.ok(row(reader).rank < row(sweeper).rank, `${reader} (${row(reader).metrics.questionsCorrect} graphs) outranks ${sweeper} (${row(sweeper).metrics.questionsCorrect} graphs)`);
+    }
+  }
+  assert.ok(bestSweeper <= 0.85 * worstReader, `the best sweep (${bestSweeper} graphs) stays well behind the slowest careful reader (${worstReader})`);
+  // And the class can see it: a sweep is mostly misses.
+  round.standings.filter((entry) => entry.studentId.startsWith('sweeper-')).forEach((entry) => assert.ok(entry.metrics.accuracy < 0.5, `sweep accuracy ${entry.metrics.accuracy}`));
 });
 
 test('every class size plays a full simulated round without a broken question', () => {

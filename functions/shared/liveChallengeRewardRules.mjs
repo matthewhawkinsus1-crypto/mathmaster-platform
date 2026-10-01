@@ -248,9 +248,44 @@ export const storedRewardPolicy = (raw) => {
 const integerRounds = (values) => new Set((Array.isArray(values) ? values : [])
   .filter((value) => typeof value === 'number' && Number.isInteger(value)));
 
+/**
+ * The scheduled rounds a match actually reached: all of them, unless the
+ * teacher ended the game early. `playedRoundCount` (liveChallengeResults
+ * playedRoundCountAt) counts rounds that started, replays included, so it is
+ * capped at the schedule; a result written before it existed reads as the
+ * whole schedule, which is what it was measured against then.
+ */
+export const scheduledRoundsReached = (context = {}) => {
+  const scheduled = typeof context.scheduledRoundCount === 'number' ? Math.max(0, context.scheduledRoundCount) : 0;
+  const played = context.playedRoundCount;
+  return typeof played === 'number' && Number.isFinite(played) ? Math.max(0, Math.min(scheduled, played)) : scheduled;
+};
+
+/**
+ * Participation as the Finisher rule measures it — and as the teacher's reward
+ * diagnostics explain it, so the two can never disagree: the scheduled rounds
+ * that were played after the student arrived, and how many of them they
+ * answered. A game ended after round three of ten measures everyone against
+ * three rounds, never against seven that did not happen.
+ */
+export const participationFacts = (standing = {}, context = {}) => {
+  const reached = scheduledRoundsReached(context);
+  const joinedAt = typeof standing?.joinedAtRound === 'number' ? Math.max(0, standing.joinedAtRound) : 0;
+  const available = Math.max(0, reached - joinedAt);
+  const answered = [...integerRounds(standing?.answeredRounds)].filter((round) => round >= joinedAt && round < reached).length;
+  return Object.freeze({ available, answered });
+};
+
+/** The match facts every criterion may need, read from a match result. */
+export const rewardContextFor = (matchResult = {}) => Object.freeze({
+  scheduledRoundCount: typeof matchResult.scheduledRoundCount === 'number' ? matchResult.scheduledRoundCount : 0,
+  playedRoundCount: typeof matchResult.playedRoundCount === 'number' ? matchResult.playedRoundCount : null,
+  secondChanceOf: matchResult.secondChanceOf || {},
+});
+
 /*
  * Criterion evaluation. `context` carries the match facts every criterion may
- * need: { scheduledRoundCount, secondChanceOf }.
+ * need: { scheduledRoundCount, playedRoundCount, secondChanceOf }.
  */
 export const criterionMet = (criterion = {}, standing = {}, context = {}) => {
   if (!standing || standing.joined !== true) return false;
@@ -258,11 +293,9 @@ export const criterionMet = (criterion = {}, standing = {}, context = {}) => {
 
   switch (criterion.kind) {
     case REWARD_CRITERION.PARTICIPATION: {
-      const joinedAt = typeof standing.joinedAtRound === 'number' ? Math.max(0, standing.joinedAtRound) : 0;
-      const available = Math.max(0, scheduled - joinedAt);
+      const { available, answered } = participationFacts(standing, context);
       if (available < criterion.minAvailableRounds) return false;
-      const answered = [...integerRounds(standing.answeredRounds)].filter((round) => round >= joinedAt && round < scheduled);
-      return answered.length / available >= criterion.minRatio;
+      return answered / available >= criterion.minRatio;
     }
     case REWARD_CRITERION.ACCURACY: {
       const firstByRound = new Map();
@@ -340,10 +373,7 @@ export const rewardAwardIdentity = ({ sourceType = REWARD_SOURCE_TYPE.LIVE_CHALL
  */
 export const evaluateRewardPolicy = ({ matchResult = {}, policy = DEFAULT_LIVE_CHALLENGE_REWARD_POLICY } = {}) => {
   const normalized = storedRewardPolicy(policy);
-  const context = {
-    scheduledRoundCount: typeof matchResult.scheduledRoundCount === 'number' ? matchResult.scheduledRoundCount : 0,
-    secondChanceOf: matchResult.secondChanceOf || {},
-  };
+  const context = rewardContextFor(matchResult);
   const sourceId = String(matchResult.roomId || '');
   const awards = [];
   const standings = [...(Array.isArray(matchResult.standings) ? matchResult.standings : [])]

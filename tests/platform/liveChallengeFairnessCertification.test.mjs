@@ -208,7 +208,9 @@ test('server and student contracts include idempotency, immediate lock, trust bo
   assert.match(student, /submitResponse\(pending\)/);
   assert.match(student, /quality: 'reconnecting', sampleCount: 0/);
   assert.match(student, /catch \{[\s\S]{0,220}quality: 'degraded'/);
-  assert.match(student, /clock\.quality === 'degraded'[\s\S]*Clock sync is unavailable/);
+  // A degraded clock is announced in words a student understands, and never
+  // stops them answering.
+  assert.match(student, /clock\.quality === 'degraded' \? <div role="status">[^<]*You can still answer[^<]*<\/div>/);
   assert.match(rules, /match \/diagnostics\/\{playerKey\}[\s\S]*teacher\(\)/);
   assert.doesNotMatch(rules.match(/match \/diagnostics\/\{playerKey\}[\s\S]*?\n      \}/)?.[0] || '', /role == 'student'/);
 });

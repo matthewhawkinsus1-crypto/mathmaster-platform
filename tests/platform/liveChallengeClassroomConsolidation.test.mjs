@@ -8,6 +8,7 @@ import {
   normalizeRoundClosingThreshold,
   recordValidatedSpeedMilestone,
   roundClosingDecision,
+  roundCompressionMayApply,
 } from '../../functions/shared/liveChallenge.mjs';
 import { STEP_ACTIONS, stepActionCountsAttempt } from '../../functions/shared/serverGrading/stepAlgebraStepVerification.mjs';
 import { getChallengeMode } from '../../functions/shared/liveChallengeModes.mjs';
@@ -104,8 +105,15 @@ test('teacher pacing changes are server-owned and closing is irreversible', () =
   assert.match(update, /roundClosingThreshold/);
   assert.match(update, /maybeCompressLiveChallengeRoundAfterThreshold/);
   const compression = server.slice(server.indexOf('async function maybeCompressLiveChallengeRoundAfterThreshold'), server.indexOf('exports.updateLiveChallengePacing'));
-  assert.match(compression, /if \(latestRoom\.closingStartedAt\) return/);
+  // Closing is irreversible: a room already closing is refused from the room
+  // as read, and the write is conditional on exactly that read — so a close
+  // that started in between is never overwritten or re-shortened.
+  assert.match(compression, /if \(!challenge\.roundCompressionMayApply\(roomAtCount, Date\.now\(\)\)\) return/);
+  assert.match(compression, /\{ lastUpdateTime: roomSnapshot\.updateTime \}/);
   assert.match(compression, /currentEndsAtMs <= targetEndsAtMs/);
+  const later = Date.now() + 60_000;
+  assert.equal(roundCompressionMayApply({ roundClosingThreshold: 70, endsAt: new Date(later) }), true);
+  assert.equal(roundCompressionMayApply({ roundClosingThreshold: 70, endsAt: new Date(later), closingStartedAt: new Date() }), false, 'a closing round is never compressed again');
 });
 
 
