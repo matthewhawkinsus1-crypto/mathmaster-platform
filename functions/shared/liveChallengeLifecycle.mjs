@@ -132,6 +132,18 @@ export const roomRoundState = (room = {}) => {
   return integerOr(room?.currentRound, -1) >= 0 ? ROUND_STATE.OPEN : null;
 };
 
+/**
+ * The first round a student joining now can still play — what their
+ * participation is measured from. A lobby join counts from round 0; a join
+ * while a round is open counts that round; a join after it closed counts from
+ * the next. A rejoin keeps the round recorded on first arrival.
+ */
+export const joinRoundFor = ({ room = {}, recordedJoinRound = null } = {}) => {
+  if (typeof recordedJoinRound === 'number' && Number.isInteger(recordedJoinRound)) return recordedJoinRound;
+  const current = integerOr(room?.currentRound, -1);
+  return Math.max(0, roomRoundState(room) === ROUND_STATE.CLOSED ? current + 1 : current);
+};
+
 /** The one value a screen renders from. */
 export const deriveMatchState = (room = {}, nowMs = Date.now()) => {
   const status = room?.status;

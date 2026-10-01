@@ -10403,11 +10403,9 @@ exports.joinLiveChallenge = onCall(async (request) => {
     // Preserved once set. Rejoining is not arriving — a Chromebook waking from
     // sleep re-enters this transaction, and recomputing would move the student's
     // join to the current round, shrinking the denominator and inflating the
-    // participation of the one person whose device failed them.
-    const existingJoinRound = Number.isInteger(Number(player.joinedAtRound)) ? Number(player.joinedAtRound) : null;
-    const joinedAtRound = existingJoinRound !== null
-      ? existingJoinRound
-      : Math.max(0, Number.isInteger(Number(room.currentRound)) ? Number(room.currentRound) : 0);
+    // participation of the one person whose device failed them. A round that
+    // already closed is not one they could play, so it is not counted either.
+    const joinedAtRound = lifecycle.joinRoundFor({ room, recordedJoinRound: player.joinedAtRound });
     const joinedPlayer = { ...player, joined: true, joinedAtRound, updatedAt: FieldValue.serverTimestamp() };
     const publicPlayerRef = roomRef.collection("players").doc(player.playerKey);
     // The same identity every time: the player key and alias were fixed when
@@ -10537,9 +10535,7 @@ exports.closeLiveChallengeRound = onCall(async (request) => {
       transaction.get(privateRef.collection("players")),
     ]);
     if (!roomSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge no longer exists.");
-    if (!latestPrivate.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
     const currentRoom = roomSnapshot.data() || {};
-    const privateState = latestPrivate.data() || {};
     const players = playersFromSnapshot(latestPlayers);
     const counts = liveChallengeRoundCompletion(engine, currentRoom, players);
     const nowMs = Date.now();
@@ -10554,6 +10550,9 @@ exports.closeLiveChallengeRound = onCall(async (request) => {
     });
     if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.ALREADY_APPLIED) return { alreadyApplied: true, room: currentRoom };
     if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.REJECT) throw lifecycleHttpsError(plan);
+    // As in advance: a close that raced a Finish is answered from the room.
+    if (!latestPrivate.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
+    const privateState = latestPrivate.data() || {};
     const { roundResult } = applyLiveChallengeRoundClose(transaction, {
       engine, roomRef, privateRef, room: currentRoom, privateState, players, roundIndex: plan.roundIndex, nowMs,
     });
@@ -10598,11 +10597,12 @@ exports.advanceLiveChallenge = onCall(async (request) => {
     privateRef.get(),
     privateRef.collection("players").get(),
   ]);
-  if (!privateSnapshot.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
-  const draft = planNextLiveChallengeRound({
+  // No private state: the match may have finished since the read above, and
+  // its effects deleted it. The transaction tells the two apart.
+  const draft = privateSnapshot.exists ? planNextLiveChallengeRound({
     challenge, engine, room, privateState: privateSnapshot.data() || {}, players: playersFromSnapshot(playersSnapshot), roundIndex: expected.roundIndex,
-  });
-  const draftOpening = draft.finish ? null : await prepareLiveChallengeRoundOpening(db, {
+  }) : null;
+  const draftOpening = !draft || draft.finish ? null : await prepareLiveChallengeRoundOpening(db, {
     roomId, room, privateState: draft.privateState, roundIndex: draft.roundIndex,
   });
 
@@ -10616,9 +10616,7 @@ exports.advanceLiveChallenge = onCall(async (request) => {
       pointerRef ? transaction.get(pointerRef) : Promise.resolve(null),
     ]);
     if (!roomSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge no longer exists.");
-    if (!latestPrivate.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
     const currentRoom = roomSnapshot.data() || {};
-    const privateState = latestPrivate.data() || {};
     const players = playersFromSnapshot(latestPlayers);
     const counts = liveChallengeRoundCompletion(engine, currentRoom, players);
     const nowMs = Date.now();
@@ -10633,6 +10631,11 @@ exports.advanceLiveChallenge = onCall(async (request) => {
     });
     if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.ALREADY_APPLIED) return { alreadyApplied: true, room: currentRoom };
     if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.REJECT) throw lifecycleHttpsError(plan);
+    // Required only by a command that changes the match: a press that raced a
+    // Finish was answered above, from the room, even after the finished
+    // match's effects deleted its private state.
+    if (!latestPrivate.exists) throw new HttpsError("not-found", "The private challenge state is missing.");
+    const privateState = latestPrivate.data() || {};
 
     let roundPlayers = players;
     if (plan.closeCurrentRound) {

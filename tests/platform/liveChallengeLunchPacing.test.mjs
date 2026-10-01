@@ -114,6 +114,32 @@ test('advanceLiveChallenge has an authoritative readiness guard', () => {
   assert.equal(planLifecycleCommand({ command: 'advance', room: { ...room, endsAt: 40_000 }, joinedCount: 20, completedCount: 12, nowMs: 50_000 }).outcome, 'apply');
 });
 
+test('a round command that raced Finish is told the match finished, not that its state is missing', () => {
+  // A finished match's effects delete its private state. A Next Round or a
+  // Close press already on its way must still get "already finished" — the
+  // answer the room gives — rather than a not-found error.
+  const callable = (name, nextName) => {
+    const start = server.indexOf(name);
+    assert.ok(start > 0, `${name} must be locatable`);
+    return server.slice(start, server.indexOf(nextName, start));
+  };
+  for (const block of [
+    callable('exports.closeLiveChallengeRound = onCall', 'exports.advanceLiveChallenge'),
+    callable('exports.advanceLiveChallenge = onCall', 'exports.finishLiveChallenge'),
+  ]) {
+    const transaction = block.slice(block.indexOf('db.runTransaction'));
+    const answered = transaction.indexOf('if (plan.outcome === lifecycle.LIFECYCLE_OUTCOME.ALREADY_APPLIED) return { alreadyApplied: true, room: currentRoom };');
+    const required = transaction.indexOf('if (!latestPrivate.exists) throw new HttpsError("not-found"');
+    assert.ok(answered > 0 && required > answered, 'the room answers before the private state is required');
+  }
+  const advance = callable('exports.advanceLiveChallenge = onCall', 'exports.finishLiveChallenge');
+  assert.doesNotMatch(advance.slice(0, advance.indexOf('db.runTransaction')), /private challenge state is missing/, 'the draft read is not the judge');
+  // What the room answers: a finished match has already done what was asked.
+  for (const command of ['advance', 'closeRound']) {
+    assert.equal(planLifecycleCommand({ command, room: { status: 'finished', currentRound: 2, roundState: 'closed' }, expected: { roundIndex: 2 } }).outcome, 'alreadyApplied');
+  }
+});
+
 test('final speed scoring uses activeRoundSeconds rather than the teacher baseline', () => {
   const start = server.indexOf('exports.submitLiveChallengeResponse');
   const end = server.indexOf('// Phase 5D', start);

@@ -397,6 +397,10 @@ test('closing a round ranks it once, refuses late answers, and the next round st
   const late = await failureOf(answer(roomId, S2, { correct: true }));
   assert.equal(late?.code, 'failed-precondition', `a closed round accepts nothing (got ${late?.code}: ${late?.message || 'accepted'})`);
   assert.equal((await privatePlayer(roomId, S2)).answeredRound, -1);
+  // Arriving between rounds: round 0 can no longer be answered, so it is not
+  // one of the rounds this student is measured against.
+  await call('joinLiveChallenge', student(S3, { roomId }));
+  assert.equal((await privatePlayer(roomId, S3)).joinedAtRound, 1);
 
   // From results the host moves on without the round being ranked again.
   const closedAt = round.closedAtMs;

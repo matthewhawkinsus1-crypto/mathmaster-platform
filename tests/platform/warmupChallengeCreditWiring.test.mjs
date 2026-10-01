@@ -6,6 +6,7 @@ import {
   roundsAvailableToStudent,
   warmupChallengeCredit,
 } from '../../functions/shared/warmupChallenge.mjs';
+import { joinRoundFor } from '../../functions/shared/liveChallengeLifecycle.mjs';
 
 const source = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
 const code = source
@@ -97,16 +98,31 @@ test('a late arrival is measured against the rounds they could play', () => {
 });
 
 test('the join round is recorded and preserved across a rejoin', () => {
+  // The join records what the rule decides, from the room its transaction read
+  // and the round already on the player's record.
   const join = joinBody();
-  assert.match(join, /joinedAtRound/);
+  assert.match(join, /const joinedAtRound = lifecycle\.joinRoundFor\(\{ room, recordedJoinRound: player\.joinedAtRound \}\);/);
+  assert.match(join, /const joinedPlayer = \{ \.\.\.player, joined: true, joinedAtRound,/);
   // Recomputing on a rejoin would shrink the denominator of the one student
   // whose device failed them.
-  assert.match(join, /existingJoinRound !== null\s*\?\s*existingJoinRound/);
+  const laterRoom = { status: 'running', currentRound: 7, roundState: 'open' };
+  assert.equal(joinRoundFor({ room: laterRoom, recordedJoinRound: 2 }), 2);
+  assert.equal(joinRoundFor({ room: laterRoom, recordedJoinRound: 0 }), 0, 'a lobby arrival stays a lobby arrival');
 });
 
 test('a lobby join counts from round zero, not from -1', () => {
-  assert.match(joinBody(), /: Math\.max\(0, Number\.isInteger\(Number\(room\.currentRound\)\)/);
+  assert.equal(joinRoundFor({ room: { status: 'lobby', currentRound: -1 } }), 0);
+  assert.equal(joinRoundFor({ room: { status: 'lobby' } }), 0);
   assert.equal(roundsAvailableToStudent({ totalRounds: 10, joinedAtRound: 0 }), 10);
+});
+
+test('a join counts the round still open, never one that already closed', () => {
+  assert.equal(joinRoundFor({ room: { status: 'running', currentRound: 3, roundState: 'open' } }), 3);
+  assert.equal(joinRoundFor({ room: { status: 'running', currentRound: 3 } }), 3, 'a room from before roundState reads as open');
+  // Between rounds — the host closed round 3 — that round cannot be answered.
+  const betweenRounds = { status: 'running', currentRound: 3, roundState: 'closed' };
+  assert.equal(joinRoundFor({ room: betweenRounds }), 4);
+  assert.equal(roundsAvailableToStudent({ totalRounds: 10, joinedAtRound: joinRoundFor({ room: betweenRounds }) }), 6);
 });
 
 test('a game that never ran does not record a zero percent', () => {

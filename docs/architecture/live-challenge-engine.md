@@ -120,6 +120,16 @@ earlier round or version means the command already happened →
 `alreadyApplied`. The teacher console always sends the round on screen, so two
 presses of Next Round open one round, never two.
 
+**The room answers first.** A round command plans from the room before it
+requires the private state. A Next Round press that raced Finish is told the
+match is finished (`alreadyApplied`) even after the finished match's effects
+deleted its private state.
+
+**Joining mid-match** records `joinedAtRound` once (`joinRoundFor`): the round
+still open, or the next one when the current round has already closed. A
+rejoin keeps the recorded round. Warm-Up credit and the Finisher reward measure
+a student against the rounds from there on.
+
 **Readiness** — a round may close when every joined player has completed it,
 or its authoritative deadline has passed (`roundReadyToClose`). Zero of zero is
 not "everyone finished"; a paused clock does not expire; an open-ended Pace Race
@@ -338,7 +348,7 @@ runs each effect **from the match result**, never from private game state:
 | `warmupCredit` | the assignment's participation/accuracy credit, measured against rounds actually played |
 | `evidence` | mastery evidence (weight 0.7, replays excluded) |
 | `rewards` | reward delivery (section 9); finished matches only |
-| `privateCleanup` | deletes `liveChallengePrivate/{roomId}` — last, only once every other effect has settled (or been abandoned after `LIVE_CHALLENGE_EFFECT_MAX_ATTEMPTS`) |
+| `privateCleanup` | deletes `liveChallengePrivate/{roomId}` — last, once every other effect has settled, or on the last attempt |
 
 Each effect is idempotent. Outcomes are merged into `effects` in a transaction
 where `done` always wins. A failure is logged and left for the scheduled sweep
