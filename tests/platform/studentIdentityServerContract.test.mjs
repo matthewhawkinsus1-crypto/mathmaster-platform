@@ -262,3 +262,18 @@ test('firestore.rules pins exactly the shared server-owned identity fields on cl
   assert.match(update, /&& studentIdentityUnchanged\(\)/);
   assert.match(create, /&& studentIdentityAbsentOnClientCreate\(\)/);
 });
+
+test("the Live Challenge host roster reads names only, with each student's id", () => {
+  // The room's teacher sees names on the console. Those names come from a
+  // field-masked read (never a player's attempt history), are resolved with
+  // the student's id so a stored id is never shown as a name, and a student
+  // with no name reads as the explicit unavailable state.
+  const roster = callable('getLiveChallengeHostRoster', 'exports.startLiveChallenge');
+  assert.match(roster, /\{ fieldMask: \[\.\.\.identity\.STUDENT_IDENTITY_FIELDS, "profile", "sisStudentId"\] \}/);
+  assert.match(roster, /studentId: String\(player\.studentId \|\| ""\)/);
+  assert.match(roster, /codeAlias: identity\.STUDENT_NAME_UNAVAILABLE/);
+  HISTORY_FIELDS.forEach((field) => assert.doesNotMatch(roster, new RegExp(field)));
+  // What that produces, through the real alias builder.
+  assert.equal(displayAliasForStudent({ student: { displayName: 'S-77', studentId: 'S-77' }, mode: 'fullName', codeAlias: identity.STUDENT_NAME_UNAVAILABLE }), identity.STUDENT_NAME_UNAVAILABLE);
+  assert.equal(displayAliasForStudent({ student: { googleName: 'Rowan Exampleton', studentId: 'S-78' }, mode: 'fullName', codeAlias: identity.STUDENT_NAME_UNAVAILABLE }), 'Rowan Exampleton');
+});

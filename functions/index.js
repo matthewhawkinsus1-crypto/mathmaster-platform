@@ -10977,7 +10977,13 @@ exports.getLiveChallengeHostRoster = onCall(async (request) => {
   const players = await loadPrivateChallengePlayers(db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId));
   if (!players.length) return { roomId, players: [] };
   const { experience } = await liveChallengeEngine();
-  const grades = await db.getAll(...players.map((player) => db.collection("grades").doc(player.studentId)));
+  const identity = await studentIdentity();
+  // Names only: the field mask keeps every player's attempt history out of
+  // this read, exactly like the teacher roster projection.
+  const grades = await db.getAll(
+    ...players.map((player) => db.collection("grades").doc(player.studentId)),
+    { fieldMask: [...identity.STUDENT_IDENTITY_FIELDS, "profile", "sisStudentId"] },
+  );
   return {
     roomId,
     players: players
@@ -10985,9 +10991,11 @@ exports.getLiveChallengeHostRoster = onCall(async (request) => {
       .map((player, index) => ({
         playerKey: String(player.playerKey),
         name: experience.displayAliasForStudent({
-          student: grades[index]?.exists ? grades[index].data() || {} : {},
+          // With its id, so a name field holding the student's own id is never
+          // shown as the student's name.
+          student: { ...(grades[index]?.exists ? grades[index].data() || {} : {}), studentId: String(player.studentId || "") },
           mode: "fullName",
-          codeAlias: "Student",
+          codeAlias: identity.STUDENT_NAME_UNAVAILABLE,
         }),
         alias: String(player.alias || ""),
         joined: player.joined === true,
