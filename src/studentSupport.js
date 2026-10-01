@@ -141,6 +141,10 @@ export const applyStudentSupportToQuestion = (question, profile) => {
     ? question?.translations?.[normalized.translationLanguage]
     : null;
   if (translation && typeof translation === 'object' && !Array.isArray(translation)) {
+    // The authored prompt is kept beside the translation: a grader that reads
+    // the wording (a legacy constraint rewrite, for one) must judge the
+    // question as authored, exactly as the server does, never the translation.
+    if (typeof translation.prompt === 'string' && next.authoredPrompt === undefined) next.authoredPrompt = question?.prompt ?? null;
     if (typeof translation.prompt === 'string') next.prompt = translation.prompt;
     if (typeof translation.title === 'string') next.title = translation.title;
     if (typeof translation.scenario === 'string' && next.context && typeof next.context === 'object') {
