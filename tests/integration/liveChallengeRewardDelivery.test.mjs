@@ -157,3 +157,98 @@ test('a teacher can take back an unused reward; history is kept', async () => {
   assert.deepEqual(stored.history.map((entry) => entry.status), ['available', 'revoked']);
   assert.equal((await transitionRewardGrant(db, 'no-such-grant', { to: 'revoked', reason: 'x' })).code, 'not_found');
 });
+
+/* ---------- jobs the sweep must let go of, and must not bring back ---------- */
+
+const SOLO = 'rewards-solo';
+await db.collection('grades').doc(SOLO).set({ classId: CLASS_ID, assignedTeacherEmail: TEACHER });
+
+// The award shape the earlier implementation staged: no reward kind, no rule
+// version, no identity.
+const legacyAward = (roomId, studentId, achievementCode, extra = {}) => ({
+  id: delivery.buildAchievementTransactionId(roomId, studentId, achievementCode),
+  roomId,
+  classId: CLASS_ID,
+  studentId,
+  achievementCode,
+  amount: 2,
+  reasonLabel: 'Challenge Finisher',
+  processed: false,
+  ...extra,
+});
+const seedJob = (roomId, awards, status = 'pending') => db.collection(delivery.JOBS_COLLECTION).doc(roomId).set({
+  roomId, classId: CLASS_ID, awards, awardsCount: awards.length, studentIds: [...new Set(awards.map((award) => award.studentId))], status,
+});
+
+// The engine suite runs the scheduled sweep while these tests run, and the
+// sweep may reach a job seeded here first. Each test below therefore asserts
+// what must hold whichever executor gets there first.
+
+// The same Firestore, with something landing just before the executor's
+// first transaction — here, another process deleting the job.
+const beforeFirstTransaction = (hook) => {
+  let first = true;
+  return new Proxy(db, {
+    get(target, property) {
+      const value = Reflect.get(target, property);
+      if (property !== 'runTransaction') return typeof value === 'function' ? value.bind(target) : value;
+      return async (...args) => {
+        if (first) {
+          first = false;
+          await hook();
+        }
+        return target.runTransaction(...args);
+      };
+    },
+  });
+};
+
+test('an award that fails for the last time finishes its job, and the sweep lets it go', async () => {
+  const roomId = 'rewards-room-refused';
+  // On its last attempt, and the ledger refuses it (no zero-point entries):
+  // every executor fails it the same way.
+  const award = legacyAward(roomId, SOLO, 'challengeFinisher', { amount: 0, attempts: delivery.MAX_AWARD_ATTEMPTS - 1 });
+  await seedJob(roomId, [award]);
+  const result = await delivery.executeLiveChallengeAchievementAwards(db, roomId);
+  assert.equal(result.unprocessedCount, 0);
+
+  const job = (await db.collection(delivery.JOBS_COLLECTION).doc(roomId).get()).data();
+  assert.equal(job.awards[0].outcome, 'failed');
+  assert.equal(job.awards[0].attempts, delivery.MAX_AWARD_ATTEMPTS);
+  assert.equal(job.status, 'completed_with_failures');
+  // Left in the sweep's query, twenty such jobs would take every slot from
+  // the jobs behind them, every 15 minutes, forever.
+  const swept = await db.collection(delivery.JOBS_COLLECTION).where('status', 'in', [...delivery.RETRYABLE_JOB_STATUSES]).get();
+  assert.ok(!swept.docs.some((doc) => doc.id === roomId), 'a finished job leaves the retry query');
+  assert.equal((await db.collection('classPointTransactions').doc(award.id).get()).exists, false);
+});
+
+test('a job the earlier implementation left undelivered is delivered, then relabelled', async () => {
+  // `partially_failed` is in the sweep's statuses (unit tested); this is what
+  // running such a job does.
+  const roomId = 'rewards-room-legacy';
+  const award = legacyAward(roomId, SOLO, 'challengeFinisher');
+  await seedJob(roomId, [award], 'partially_failed');
+
+  const result = await delivery.executeLiveChallengeAchievementAwards(db, roomId);
+  assert.equal(result.status, 'completed');
+  const job = (await db.collection(delivery.JOBS_COLLECTION).doc(roomId).get()).data();
+  assert.equal(job.status, 'completed');
+  assert.ok(['awarded', 'alreadyAwarded'].includes(job.awards[0].outcome), job.awards[0].outcome);
+  const entry = (await db.collection('classPointTransactions').doc(award.id).get()).data();
+  assert.equal(entry.amount, 2);
+  assert.equal(entry.ruleId, 'challengeFinisher', 'a legacy award is credited under its achievement code');
+});
+
+test('a job deleted while its awards were being delivered is not written back', async () => {
+  // Permanent student deletion removes a job whose every award was that
+  // student's. An executor already running must not recreate it — without the
+  // studentIds a later deletion would search by.
+  const roomId = 'rewards-room-erased';
+  const jobRef = db.collection(delivery.JOBS_COLLECTION).doc(roomId);
+  await seedJob(roomId, [legacyAward(roomId, 'rewards-erased-student', 'challengeFinisher')]);
+  const deletion = beforeFirstTransaction(() => jobRef.delete());
+  const result = await delivery.executeLiveChallengeAchievementAwards(deletion, roomId);
+  assert.equal(result.unprocessedCount, 0);
+  assert.equal((await jobRef.get()).exists, false);
+});

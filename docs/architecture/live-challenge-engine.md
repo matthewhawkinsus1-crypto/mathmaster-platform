@@ -414,6 +414,15 @@ Delivery (`processLiveChallengeMatchRewards`):
    retried. A transient error is retried up to `MAX_AWARD_ATTEMPTS`, then
    recorded `failed`.
 
+A job is `pending` while any award is undelivered, and only pending jobs are
+retried (`RETRYABLE_JOB_STATUSES`). Once every award is processed the job is
+`completed`, or `completed_with_failures` when one failed for good, and it
+leaves the sweep's query. `partially_failed`, which the earlier implementation
+wrote for a job with undelivered awards, is still retried and is relabelled on
+its first run. An executor never writes back a job that was deleted while it
+ran (permanent student deletion removes a job whose every award was that
+student's).
+
 ---
 
 ## 10. Idempotency, in one table

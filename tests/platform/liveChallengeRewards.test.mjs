@@ -8,9 +8,13 @@ import {
   buildRewardGrantId,
   calculateStudentChallengeAchievements,
   cleanupStudentLiveChallengeAchievements,
+  JOBS_COLLECTION,
+  jobStatusFor,
   mergeStagedAwards,
   planLiveChallengeAwards,
   processLiveChallengeClassPoints,
+  RETRYABLE_JOB_STATUSES,
+  retryPendingLiveChallengeAchievementJobs,
   rosterAuthorizationFromRecords,
   validateRosterAuthorization,
 } from '../../functions/shared/liveChallengeClassPoints.mjs';
@@ -231,6 +235,38 @@ test('re-staging merges: a delivered award stays delivered, history is never dro
   assert.equal(merged.length, planned.length + 1);
   assert.deepEqual(merged.at(-1), retired, 'an award the plan no longer produces is kept as history');
   assert.deepEqual(mergeStagedAwards(undefined, planned), planned);
+});
+
+/* ---------- the retry sweep ---------- */
+
+test('a job whose awards are all processed is finished, even when one failed for good', () => {
+  const award = (processed, outcome = null) => ({ id: `award-${processed}-${outcome}`, processed, outcome });
+  assert.equal(jobStatusFor([award(true, 'awarded'), award(true, 'skipped'), award(true, 'alreadyAwarded')]), 'completed');
+  assert.equal(jobStatusFor([award(true, 'awarded'), award(true, 'failed')]), 'completed_with_failures');
+  assert.equal(jobStatusFor([award(true, 'failed'), award(false)]), 'pending');
+  assert.equal(jobStatusFor([]), 'completed');
+  // Only a job with something left to deliver is retried. A finished job —
+  // failures and all — that stayed in the sweep's query would be re-run
+  // forever, and twenty of them would take every slot from the jobs behind.
+  for (const finished of [[award(true, 'failed')], [award(true, 'awarded'), award(true, 'failed')], [award(true, 'skipped')], []]) {
+    assert.equal(RETRYABLE_JOB_STATUSES.includes(jobStatusFor(finished)), false, JSON.stringify(finished));
+  }
+  assert.equal(RETRYABLE_JOB_STATUSES.includes(jobStatusFor([award(true, 'failed'), award(false)])), true);
+  assert.ok(RETRYABLE_JOB_STATUSES.includes('partially_failed'), 'a job the earlier implementation left undelivered is still retried');
+});
+
+test('the sweep selects jobs by exactly the retryable statuses', async () => {
+  const queries = [];
+  const recordingDb = {
+    collection: (name) => ({
+      where: (...clause) => {
+        queries.push([name, ...clause]);
+        return { limit: () => ({ get: async () => ({ docs: [], size: 0 }) }) };
+      },
+    }),
+  };
+  assert.deepEqual(await retryPendingLiveChallengeAchievementJobs(recordingDb), { scanned: 0, completed: 0, failed: 0 });
+  assert.deepEqual(queries, [[JOBS_COLLECTION, 'status', 'in', [...RETRYABLE_JOB_STATUSES]]]);
 });
 
 /* ---------- roster authority ---------- */

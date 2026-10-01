@@ -236,11 +236,28 @@ export function mergeStagedAwards(existing = [], planned = []) {
   return [...merged, ...byId.values()];
 }
 
-const jobStatusFor = (awards = []) => {
-  if (!awards.length || awards.every((award) => award.processed === true)) {
-    return awards.some((award) => award.outcome === AWARD_OUTCOME.FAILED) ? 'partially_failed' : 'completed';
-  }
-  return 'pending';
+export const JOB_STATUS = Object.freeze({
+  PENDING: 'pending',
+  COMPLETED: 'completed',
+  // Every award processed, at least one of them failed for good.
+  COMPLETED_WITH_FAILURES: 'completed_with_failures',
+});
+
+/*
+ * The statuses the retry sweep selects. Only a job with an undelivered award
+ * is retried; every processed outcome — delivered, skipped or failed — is
+ * terminal. `partially_failed` is what the earlier implementation wrote for a
+ * job that still had undelivered awards; the first run of this executor
+ * relabels it.
+ */
+export const RETRYABLE_JOB_STATUSES = Object.freeze([JOB_STATUS.PENDING, 'partially_failed']);
+
+export const jobStatusFor = (awards = []) => {
+  const recorded = awards.filter(Boolean);
+  if (recorded.some((award) => award.processed !== true)) return JOB_STATUS.PENDING;
+  return recorded.some((award) => award.outcome === AWARD_OUTCOME.FAILED)
+    ? JOB_STATUS.COMPLETED_WITH_FAILURES
+    : JOB_STATUS.COMPLETED;
 };
 
 /**
@@ -437,7 +454,11 @@ export async function executeLiveChallengeAchievementAwards(db, roomId, { maxAtt
 
   const finalAwards = await db.runTransaction(async (transaction) => {
     const latest = await transaction.get(jobRef);
-    const current = latest.exists && Array.isArray(latest.data()?.awards) ? latest.data().awards : awards;
+    // Deleted during this run (permanent student deletion removes a job whose
+    // every award was that student's): writing it back would recreate it,
+    // without the studentIds a later deletion searches by.
+    if (!latest.exists) return null;
+    const current = Array.isArray(latest.data()?.awards) ? latest.data().awards : [];
     const merged = current.map((award) => {
       const update = updates.get(award?.id);
       if (!update) return award;
@@ -453,6 +474,8 @@ export async function executeLiveChallengeAchievementAwards(db, roomId, { maxAtt
     }, { merge: true });
     return merged;
   });
+  // Like a job that was never there: nothing is left to deliver.
+  if (!finalAwards) return { status: JOB_STATUS.COMPLETED, awardsProcessed: processedCount, unprocessedCount: 0 };
 
   const remaining = finalAwards.filter((award) => award.processed !== true).length;
   return { status: jobStatusFor(finalAwards), awardsProcessed: processedCount, unprocessedCount: remaining };
@@ -494,7 +517,7 @@ export async function processLiveChallengeClassPoints(db, roomId, roomData, play
 export async function retryPendingLiveChallengeAchievementJobs(db) {
   const pendingSnap = await db
     .collection(JOBS_COLLECTION)
-    .where('status', 'in', ['pending', 'partially_failed'])
+    .where('status', 'in', [...RETRYABLE_JOB_STATUSES])
     .limit(20)
     .get();
 
