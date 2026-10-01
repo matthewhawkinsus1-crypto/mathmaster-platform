@@ -16,7 +16,9 @@
 // restore (composedDraftRestoreMain.jsx), for three questions — a model whose
 // graph is graded by its own verdict, a function-characteristics question whose
 // plot is closed by a later step, and a relation graded by its plotted pairs —
-// each on Practice or a DOL:
+// each on Practice or a DOL, and each with the server copy arriving after the
+// question has mounted (App.jsx's order whenever the read is the slower) and
+// before it:
 //
 //   DEVICE A   the student works every step. Nothing is refused by the guard,
 //              and the server copy holds every step's answer with no verdict
@@ -28,7 +30,8 @@
 //              is a step to open, the question cannot be submitted yet and its
 //              graph step is not graded wrong; opening it brings the verdict
 //              back from the student's own construction (and Undo is not left
-//              holding that as an edit), and the submission grades exactly as
+//              holding that as an edit, nor the answers re-stamped: the server
+//              copy stays A's — PQ-044), and the submission grades exactly as
 //              device A's.
 //
 // Exits non-zero on any failure.
@@ -36,11 +39,11 @@
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 const ORIGIN = process.env.AUDIT_ORIGIN || 'http://127.0.0.1:5199';
 const ONLY = process.argv.slice(2).filter((arg) => !arg.startsWith('--'));
-// `before` is restoreQuestionDrafts' contract (the server copy is applied
-// before the question renders). `after` is the order App.jsx runs today, which
-// restores nothing into the question on screen — a separate defect, reported
-// beside PQ-043 — so it is not this gate's default.
-const RESTORE = process.env.RESTORE_ORDER || 'before';
+// When the server copy arrives: `after` the question has mounted (a read
+// slower than the question — App.jsx then remounts it) or `before` (a read that
+// beat it). Both, unless RESTORE_ORDER names one. Until PQ-044, `after` restored
+// nothing into the question on screen.
+const ORDERS = process.env.RESTORE_ORDER ? [process.env.RESTORE_ORDER] : ['after', 'before'];
 
 const launch = { args: ['--no-sandbox'] };
 if (process.env.CHROMIUM_PATH) launch.executablePath = process.env.CHROMIUM_PATH;
@@ -307,72 +310,85 @@ for (const [q, spec] of Object.entries(QUESTIONS)) {
     check(enabledA && gradedA, `${tag} A: the finished question can be submitted`);
     await contextA.close();
 
-    /* SAME DEVICE: its own copy AND the server copy. */
-    const contextSame = await browser.newContext({ viewport: VIEWPORT, storageState: profileA });
-    await contextSame.addInitScript((doc) => { window.__mmServerSeed = doc; }, server);
-    const { page: pageSame } = await openPage(contextSame, q, role, run, `&restore=${RESTORE}`);
-    await pageSame.waitForTimeout(RESTORE === 'after' ? 1200 : 300);
-    const restoredSame = await pageSame.evaluate(() => window.__mmRestore.restored);
-    check(restoredSame === 0, `${tag} same device: nothing from the server copy replaces the device's own`, String(restoredSame));
-    const graphSame = await localGraph(pageSame, spec.graphStage);
-    check(JSON.stringify(graphSame) === JSON.stringify(graphOnA), `${tag} same device: the graph step is exactly the device's own, verdict and all`);
-    // A finished composed question opened again cannot be submitted until an
-    // answer changes (QuestionEngine clears the first report on mount — not
-    // this change; see the PQ-043 entry). The student retypes the answer on
-    // screen, which leaves the work exactly as it was.
-    await spec.touch(pageSame);
-    const responsesSame = await pageSame.evaluate(() => window.__mm.local()[':workflow-responses']?.value);
-    check(JSON.stringify(responsesSame) === JSON.stringify(localAll), `${tag} same device: the retyped answer leaves the work exactly as it was`);
-    const { enabled: enabledSame, graded: gradedSame } = await submitAndRead(pageSame);
-    check(enabledSame && sameGrade(gradedSame, gradedA), `${tag} same device: graded exactly as before`, JSON.stringify({ a: gradedA?.partialCreditPercent, again: gradedSame?.partialCreditPercent }));
-    await contextSame.close();
+    for (const RESTORE of ORDERS) {
+      const tagO = `${tag} [server copy ${RESTORE} the question]`;
+      /* SAME DEVICE: its own copy AND the server copy. */
+      const contextSame = await browser.newContext({ viewport: VIEWPORT, storageState: profileA });
+      await contextSame.addInitScript((doc) => { window.__mmServerSeed = doc; }, server);
+      const { page: pageSame } = await openPage(contextSame, q, role, run, `&restore=${RESTORE}`);
+      await pageSame.waitForTimeout(RESTORE === 'after' ? 1200 : 300);
+      const restoredSame = await pageSame.evaluate(() => window.__mmRestore.restored);
+      check(restoredSame === 0, `${tagO} same device: nothing from the server copy replaces the device's own`, String(restoredSame));
+      const graphSame = await localGraph(pageSame, spec.graphStage);
+      check(JSON.stringify(graphSame) === JSON.stringify(graphOnA), `${tagO} same device: the graph step is exactly the device's own, verdict and all`);
+      // A finished composed question opened again cannot be submitted until an
+      // answer changes (QuestionEngine clears the first report on mount — not
+      // this change; see the PQ-043 entry). The student retypes the answer on
+      // screen, which leaves the work exactly as it was.
+      await spec.touch(pageSame);
+      const responsesSame = await pageSame.evaluate(() => window.__mm.local()[':workflow-responses']?.value);
+      check(JSON.stringify(responsesSame) === JSON.stringify(localAll), `${tagO} same device: the retyped answer leaves the work exactly as it was`);
+      const { enabled: enabledSame, graded: gradedSame } = await submitAndRead(pageSame);
+      check(enabledSame && sameGrade(gradedSame, gradedA), `${tagO} same device: graded exactly as before`, JSON.stringify({ a: gradedA?.partialCreditPercent, again: gradedSame?.partialCreditPercent }));
+      await contextSame.close();
 
-    /* DEVICE B: nothing but the server copy. */
-    const contextB = await browser.newContext({ viewport: VIEWPORT });
-    await contextB.addInitScript((doc) => { window.__mmServerSeed = doc; }, server);
-    const { page: pageB } = await openPage(contextB, q, role, run, `&restore=${RESTORE}`);
-    await pageB.waitForTimeout(RESTORE === 'after' ? 1200 : 300);
-    const restoredB = await pageB.evaluate(() => window.__mmRestore.restored);
-    check(restoredB > 0, `${tag} B: the server copy is restored`, String(restoredB));
-    const notice = pageB.locator('[aria-label="Work brought back from another device"]');
-    if (spec.stacked) {
-      // Every step is on the page, so the graph step's workspace mounted with
-      // it and has already worked its verdict out again: nothing to open.
-      check(!(await notice.isVisible().catch(() => false)), `${tag} B: stacked, there is nothing to open`);
-    } else {
-      const awaiting = await localGraph(pageB, spec.graphStage);
-      check(awaiting?.rederiveOnOpen === true && !('isCorrect' in (awaiting || {})), `${tag} B: the graph step came back without a verdict`);
-      const [answeredB, totalB] = await progress(pageB);
-      check(totalB > 0 && answeredB === totalB - 1, `${tag} B: every other step's answer came back`, `${answeredB} of ${totalB}`);
-      check(!(await submitButton(pageB).isEnabled()), `${tag} B: the question cannot be submitted before the graph step is opened`);
-      const pending = await pageB.evaluate((id) => window.__mm.gradeLocal().parts.find((part) => part.id === id), spec.graphStage);
-      check(pending?.graded === false && pending?.isComplete === false, `${tag} B: the graph step is not graded (in particular not graded wrong) until it is opened`, JSON.stringify({ graded: pending?.graded, isCorrect: pending?.isCorrect }));
-      const noticeShown = await notice.isVisible().catch(() => false);
-      const opener = notice.getByRole('button', { name: new RegExp(`^Open Step ${spec.graphStep}:`) });
-      check(noticeShown && (await opener.count()) === 1, `${tag} B: the student is told which step to open`, noticeShown ? '' : '(no notice)');
-      if (await opener.count()) await opener.click();
-      else await pageB.getByRole('button', { name: new RegExp(`^Step ${spec.graphStep}:`) }).click();
-      await pageB.waitForTimeout(900);
+      /* DEVICE B: nothing but the server copy. */
+      const contextB = await browser.newContext({ viewport: VIEWPORT });
+      await contextB.addInitScript((doc) => { window.__mmServerSeed = doc; }, server);
+      const { page: pageB } = await openPage(contextB, q, role, run, `&restore=${RESTORE}`);
+      await pageB.waitForTimeout(RESTORE === 'after' ? 1200 : 300);
+      const restoredB = await pageB.evaluate(() => window.__mmRestore.restored);
+      check(restoredB > 0, `${tagO} B: the server copy is restored`, String(restoredB));
+      const notice = pageB.locator('[aria-label="Work brought back from another device"]');
+      if (spec.stacked) {
+        // Every step is on the page, so the graph step's workspace mounted with
+        // it and has already worked its verdict out again: nothing to open.
+        check(!(await notice.isVisible().catch(() => false)), `${tagO} B: stacked, there is nothing to open`);
+      } else {
+        const awaiting = await localGraph(pageB, spec.graphStage);
+        check(awaiting?.rederiveOnOpen === true && !('isCorrect' in (awaiting || {})), `${tagO} B: the graph step came back without a verdict`);
+        const [answeredB, totalB] = await progress(pageB);
+        check(totalB > 0 && answeredB === totalB - 1, `${tagO} B: every other step's answer came back`, `${answeredB} of ${totalB}`);
+        check(!(await submitButton(pageB).isEnabled()), `${tagO} B: the question cannot be submitted before the graph step is opened`);
+        const pending = await pageB.evaluate((id) => window.__mm.gradeLocal().parts.find((part) => part.id === id), spec.graphStage);
+        check(pending?.graded === false && pending?.isComplete === false, `${tagO} B: the graph step is not graded (in particular not graded wrong) until it is opened`, JSON.stringify({ graded: pending?.graded, isCorrect: pending?.isCorrect }));
+        const noticeShown = await notice.isVisible().catch(() => false);
+        const opener = notice.getByRole('button', { name: new RegExp(`^Open Step ${spec.graphStep}:`) });
+        check(noticeShown && (await opener.count()) === 1, `${tagO} B: the student is told which step to open`, noticeShown ? '' : '(no notice)');
+        if (await opener.count()) await opener.click();
+        else await pageB.getByRole('button', { name: new RegExp(`^Step ${spec.graphStep}:`) }).click();
+        await pageB.waitForTimeout(900);
+      }
+
+      const rederived = await localGraph(pageB, spec.graphStage);
+      check(JSON.stringify(rederived) === JSON.stringify(graphOnA), `${tagO} B: opening the step brings back the device's exact graph answer, verdict re-derived`, JSON.stringify({ isComplete: rederived?.isComplete, isCorrect: rederived?.isCorrect, same: JSON.stringify(rederived) === JSON.stringify(graphOnA) }));
+      const constructionsB = await constructions(pageB);
+      check(JSON.stringify(constructionsB) === JSON.stringify(constructionsA), `${tagO} B: the plotting workspace has the student's construction back (points, curve, markers)`, Object.keys(constructionsB).join(','));
+      const readoutsB = await pointReadouts(pageB);
+      // A step closed by a later one shows no workspace once its answer is back
+      // (the closed note is what shows it re-derived and closed again); a curve
+      // that snapped hides its point cards. Where the cards show, they read the same.
+      const closedAgain = /This step is closed/.test(await bodyText(pageB));
+      check(closedAgain || JSON.stringify(readoutsB) === JSON.stringify(readoutsA), `${tagO} B: the plotted points read as the student left them`, `${readoutsA.join(' ') || '(no cards shown)'} -> ${closedAgain ? '(closed again)' : readoutsB.join(' ') || '(no cards shown)'}`);
+      check(!(await notice.isVisible().catch(() => false)), `${tagO} B: the notice is gone once the step is back`);
+      // Bringing the step back is the workspace reporting work the student did
+      // on A, not an edit (PQ-044): the answers keep the time they came back
+      // with, and the server copy is still exactly A's.
+      const responsesB = await pageB.evaluate(() => window.__mm.local()[':workflow-responses'] || null);
+      await pageB.evaluate(() => window.__mm.flush());
+      await pageB.waitForTimeout(400);
+      const serverB = await serverResponses(pageB);
+      check(responsesB?.savedAt === stored?.savedAt && serverB?.savedAt === stored?.savedAt && serverB?.valueJson === stored?.valueJson,
+        `${tagO} B: bringing the step back is not an edit — the answers keep A's time and the server copy is A's`,
+        JSON.stringify({ a: stored?.savedAt, local: responsesB?.savedAt, server: serverB?.savedAt }));
+      const [answeredAfter, totalAfter] = await progress(pageB);
+      check(answeredAfter === totalAfter, `${tagO} B: every step answered again`, `${answeredAfter} of ${totalAfter}`);
+      const undo = await workflowUndo(pageB);
+      check(!undo.present || undo.disabled, `${tagO} B: getting the verdict back is not an Undo step`, JSON.stringify(undo));
+      const { enabled: enabledB, graded: gradedB } = await submitAndRead(pageB);
+      check(enabledB && sameGrade(gradedB, gradedA), `${tagO} B: graded exactly as on device A`, JSON.stringify({ a: { isCorrect: gradedA?.isCorrect, partial: gradedA?.partialCreditPercent }, b: { isCorrect: gradedB?.isCorrect, partial: gradedB?.partialCreditPercent } }));
+      await contextB.close();
     }
-
-    const rederived = await localGraph(pageB, spec.graphStage);
-    check(JSON.stringify(rederived) === JSON.stringify(graphOnA), `${tag} B: opening the step brings back the device's exact graph answer, verdict re-derived`, JSON.stringify({ isComplete: rederived?.isComplete, isCorrect: rederived?.isCorrect, same: JSON.stringify(rederived) === JSON.stringify(graphOnA) }));
-    const constructionsB = await constructions(pageB);
-    check(JSON.stringify(constructionsB) === JSON.stringify(constructionsA), `${tag} B: the plotting workspace has the student's construction back (points, curve, markers)`, Object.keys(constructionsB).join(','));
-    const readoutsB = await pointReadouts(pageB);
-    // A step closed by a later one shows no workspace once its answer is back
-    // (the closed note is what shows it re-derived and closed again); a curve
-    // that snapped hides its point cards. Where the cards show, they read the same.
-    const closedAgain = /This step is closed/.test(await bodyText(pageB));
-    check(closedAgain || JSON.stringify(readoutsB) === JSON.stringify(readoutsA), `${tag} B: the plotted points read as the student left them`, `${readoutsA.join(' ') || '(no cards shown)'} -> ${closedAgain ? '(closed again)' : readoutsB.join(' ') || '(no cards shown)'}`);
-    check(!(await notice.isVisible().catch(() => false)), `${tag} B: the notice is gone once the step is back`);
-    const [answeredAfter, totalAfter] = await progress(pageB);
-    check(answeredAfter === totalAfter, `${tag} B: every step answered again`, `${answeredAfter} of ${totalAfter}`);
-    const undo = await workflowUndo(pageB);
-    check(!undo.present || undo.disabled, `${tag} B: getting the verdict back is not an Undo step`, JSON.stringify(undo));
-    const { enabled: enabledB, graded: gradedB } = await submitAndRead(pageB);
-    check(enabledB && sameGrade(gradedB, gradedA), `${tag} B: graded exactly as on device A`, JSON.stringify({ a: { isCorrect: gradedA?.isCorrect, partial: gradedA?.partialCreditPercent }, b: { isCorrect: gradedB?.isCorrect, partial: gradedB?.partialCreditPercent } }));
-    await contextB.close();
   }
 }
 

@@ -260,7 +260,28 @@ const changesBetween = (previous, paths) => {
   return changes;
 };
 
-export const getDoc = async (ref) => { bump(stats.reads, ref.path); return docSnapshot(ref.path); };
+/*
+ * THE WORKSPACE-DRAFT ROUND TRIP IS NOT INSTANT, AND NOT ALWAYS THERE.
+ *
+ * For the cross-device draft journeys (draftCrossDeviceJourneys.mjs):
+ *   ?draftReadMs=<ms>  reading `studentWorkspaceDrafts/…` takes this long — a
+ *                      real Firestore read over school Wi-Fi, which is what
+ *                      lets a question mount before its server copy arrives;
+ *   ?offline=1         start with that collection unreachable (reads and the
+ *                      background save's transaction fail, as Firestore does
+ *                      offline) until `__mmHarnessStore.setOnline(true)`.
+ * Every other path is untouched, so no other journey changes.
+ */
+const harnessParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+const draftReadMs = Math.max(0, Number(harnessParams.get('draftReadMs')) || 0);
+let draftsOnline = harnessParams.get('offline') !== '1';
+const draftNetwork = async (path) => {
+  if (!String(path || '').startsWith('studentWorkspaceDrafts/')) return;
+  if (draftReadMs) await new Promise((resolve) => { setTimeout(resolve, draftReadMs); });
+  if (!draftsOnline) throw new Error('Failed to get document because the client is offline. (harness)');
+};
+
+export const getDoc = async (ref) => { await draftNetwork(ref.path); bump(stats.reads, ref.path); return docSnapshot(ref.path); };
 export const getDocs = async (target) => runQuery(target);
 
 export const onSnapshot = (target, ...rest) => {
@@ -358,7 +379,7 @@ export const writeBatch = () => {
 
 export const runTransaction = async (_db, fn) => {
   const tx = {
-    get: async (ref) => docSnapshot(ref.path),
+    get: async (ref) => { await draftNetwork(ref.path); return docSnapshot(ref.path); },
     set: (ref, data, options) => { writeSet(ref, data, options); return tx; },
     update: (ref, ...args) => { writeUpdate(ref, args); return tx; },
     delete: (ref) => { remove(ref.path); return tx; },
@@ -385,6 +406,17 @@ export const harnessStore = {
     notifyEveryWrite,
   }),
   resetStats: () => { stats.reads.clear(); stats.subscriptions.clear(); stats.notifications.clear(); },
+  // One document as stored, and back: how the draft journeys carry what one
+  // "device" (browser context) saved to the server into another device's
+  // already-open page, Timestamps intact.
+  exportDoc: (path) => (store.has(path) ? serialize(store.get(path)) : null),
+  importDoc: (path, data) => { if (data) put(path, revive(data)); else remove(path); notify(); },
+  // The device's connection, as the draft journeys switch it (see draftNetwork).
+  setOnline: (value) => {
+    draftsOnline = Boolean(value);
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event(draftsOnline ? 'online' : 'offline'));
+    return draftsOnline;
+  },
 };
 if (typeof window !== 'undefined') window.__mmHarnessStore = harnessStore;
 

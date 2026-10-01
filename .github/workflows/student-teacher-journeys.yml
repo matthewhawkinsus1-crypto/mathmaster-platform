@@ -10,6 +10,9 @@ name: Student and Teacher Journeys
 #                          DOL fire drill, moving classwork, exports)
 #   support evidence       tests/browser/teacherWorkflow/supportEvidenceJourneys.mjs
 #   case review            tests/browser/teacherWorkflow/caseReviewJourneys.mjs
+#   cross-device drafts    tests/browser/teacherWorkflow/draftCrossDeviceJourneys.mjs
+#                          (a fresh, slow or offline Chromebook gets the work
+#                          and never overwrites it; the newest edit wins)
 #   student UX platform    tests/browser/studentUxPlatform.mjs
 #   representations board  tests/browser/linearMultipleRepresentations.mjs
 #   endurance (nightly)    tests/browser/teacherWorkflow/enduranceJourneys.mjs
@@ -70,6 +73,11 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/caseReviewJourneys.mjs
+      - name: Unfinished work across Chromebooks
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/draftCrossDeviceJourneys.mjs
       - name: Endurance (nightly and on demand)
         if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         env:

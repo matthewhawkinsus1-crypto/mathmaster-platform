@@ -48,7 +48,11 @@ name: Student Runtime Browser Gates
 #   composedDraftRestore a composed question with a graph step reaches the
 #                       server backup with no verdict in it, comes back on
 #                       another device (the graph step re-derived when opened)
-#                       and grades exactly as on the first (PQ-043)
+#                       and grades exactly as on the first (PQ-043), whether
+#                       the server copy arrives before or after the question
+#   draftEditTime       in every draft-certified family, opening a question
+#                       stamps no draft; the student's edit does, and coming
+#                       back or reloading keeps its time (PQ-044)
 
 on:
   pull_request:
@@ -72,6 +76,8 @@ on:
       - "tests/browser/unansweredChoiceGates*"
       - "tests/browser/graphKeyboardRoute*"
       - "tests/browser/composedDraftRestore*"
+      - "tests/browser/draftEditTime.mjs"
+      - "tests/browser/draftPersistence*"
       - "tests/browser/harnessProduction.config.mjs"
       - "scripts/serve-static-spa.mjs"
       - "tests/browser/studentUxPlatform*"
@@ -199,6 +205,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/composedDraftRestore.mjs
+      - name: Opening a question is not an edit, in every certified family
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/draftEditTime.mjs
       - name: A production build serves the math fonts
         if: always()
         env:

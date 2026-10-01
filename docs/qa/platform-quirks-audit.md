@@ -45,6 +45,7 @@ audit first recorded them; each entry's status line is current.)
 | PQ-015 | P1 | FIXED | Phone in landscape: the tool starts below the fold behind a blank column |
 | PQ-036 | P1 | FIXED (2026-10-01 cleanup) | In a DOL, the plotting workspace tells the student which points are wrong |
 | PQ-041 | P1 | FIXED (2026-10-01 follow-up) | A phone held sideways cannot scroll the question |
+| PQ-044 | P1 | FIXED (2026-10-01 follow-up) | Opening a question on another Chromebook throws the saved work away |
 | PQ-003 | P2 | FIXED | Phone: tap a point card, and the plane is scrolled away |
 | PQ-004 | P2 | FIXED | 1366×768 Work View: the plane is taller than the stage body |
 | PQ-005 | P2 | FIXED | `workViewCertification.mjs` "times out" |
@@ -1508,6 +1509,9 @@ student screen with its identity bar and navigator; see Tests).
   notice (1, 2), a notice reaching past the navigator (1), the audit judging the
   device's copy (1, 4).
 - **Found on the way, not changed here:**
+  - *In App.jsx's own order — the question mounts, then the server read lands —
+    the second device got nothing back at all*, for any question: PQ-044, fixed
+    in its own commits.
   - *A finished composed question opened again cannot be submitted until an
     answer changes.* QuestionEngine clears its answer state in a mount effect,
     which React runs after the children's, so WorkflowRunner's first report is
@@ -1526,6 +1530,160 @@ student screen with its identity bar and navigator; see Tests).
     certification, driven with their scenes' edits and every Check, pass too
     (Step Algebra's `pendingMove.analysisBefore.solution`, fixed separately,
     is not reached by those edits).
+
+### PQ-044 · Opening a question on another Chromebook throws the saved work away — **P1 · FIXED (2026-10-01 follow-up)**
+
+- **Found** proving PQ-043 in App.jsx's own order — the question mounts, then
+  the server read lands and the question is remounted: the second device got
+  nothing back (0 of 4 steps), where applying the server copy before the
+  question rendered (restoreQuestionDrafts' documented contract, which App.jsx
+  never followed) had passed.
+- **Reproduction, in the real App:** the teacher-workflow harness (App.jsx with
+  in-memory Firebase fakes; `?draftReadMs=` makes the server read as slow as
+  school Wi-Fi, `?offline=1` takes it away). Device A types `7` in one question
+  and `−2/3` in the next, and stops. Device B, a fresh browser with only the
+  server copy, signs in and opens the assignment. On `main` (9edd1d04) and on
+  this branch before the fix alike, B shows empty boxes, and 2.5 s later the
+  server copy of the question B opened is `{}`, saved after A's
+  `{"m":"-\frac23"}`: A's work is gone for every device. The same with a 0 ms
+  read, a 400 ms read, a cold or a warm question chunk — whenever the question
+  mounts before the read lands, which in App.jsx it always can. And in every
+  family: in the draft-certification harness, opening any of the 16 families'
+  questions stamps drafts "now" (the eight QuestionEngine families their work
+  drafts, re-stamped on every return and reload; the registry tools the
+  question's coach-panel state).
+- **Root cause:** every draft write was stamped `savedAt = now`, and `savedAt`
+  is what every copy is ordered by — the server merge keeps the newer copy of
+  each key, a restore writes the server's copy only where it is newer than
+  this device's (`selectRestorableDraftEntries`), and a draft older than the
+  last submitted attempt is history. Every workspace writes its draft back
+  when it mounts (useLocalDraftState's and useUndoHistory's effect, Step
+  Algebra's and the relation solver's state effects, a composed question's
+  steps reporting), so opening a question made whatever it showed the newest
+  version of the student's work: (1) the restore found the device's copy newer
+  and restored nothing into the question on screen; (2) the background save
+  carried that copy to the server, over the real work. App.jsx's effect order
+  decides only which writes are sent: children's mount effects run before
+  App's effect subscribes the sync, but the remount that follows a restore
+  (and every later question change) writes back with the sync subscribed.
+- **Fixed — only a student's edit moves a draft forward in time**
+  (`questionDraftStorage.js`):
+  - Each write says whether it is the student's edit. An edit is stamped now.
+    Anything else keeps the time of the last edit the draft carries — or 0,
+    "never edited", on a Chromebook that never saw this work — so it can
+    never look newer than real work, here or on the server. The value is
+    stored either way: reload, question change and reopen on the same device
+    restore exactly what they did. (Expiry still runs 45 days from the last
+    time the device wrote the draft, through a new `touchedAt`; an envelope
+    written before it expires from `savedAt`, as before.)
+  - Who says: the draft hooks (`useLocalDraftState`, `useUndoHistory`) write
+    their value back as not an edit, and their setters are edits once the
+    student has touched the page — a trusted keyboard, pointer or input event —
+    since the hook loaded its draft (a caller may pass `{ edit }`). A registry
+    tool's field (`usePersistentToolState`) measures from when that field
+    mounted, because the parsed record is cached across mounts. A composed
+    question's step measures from when the step appeared (WorkflowRunner's
+    `StageBody`): every step shares one draft, and in focus mode a step mounts
+    on the click that opens it. Anything else is inferred: a write after input
+    since this page read the draft (Step Algebra and the relation solver, whose
+    state effects are their only writer, are judged this way, unchanged). A
+    reset and a submission's re-stamp are edits by definition.
+  - A write that is not an edit never puts back an older copy: if a restore,
+    or this student in another tab, wrote the draft after the page read it, it
+    is dropped until the page reads again (a restore remounts the question).
+  - The background save never stamps anything (`workspaceDraftSync.js`). An
+    edit goes at its own time. A write that is not an edit goes only to give
+    the server an edit it lacks (one made offline, or just before the page
+    closed), so it waits for the assignment's read (`noteServerCopy`) and goes
+    only if the server holds nothing for that key at that time or later; a
+    copy derived from what the server holds can never replace it.
+  - App.jsx reads the server copy again when the device comes back online, and
+    when the page comes back after at least 15 s out of sight (a closed lid;
+    long enough to have used another Chromebook), so a device that opened
+    offline, or slept while the student worked elsewhere, catches up.
+  - No wait on the first render: the question opens from the device at once,
+    and when the read lands with anything newer it is remounted, as it always
+    was. Nothing the student does waits on the network; offline, the device is
+    local-first, and since what it opened with carries no edit time, none of it
+    can reach the server when it reconnects.
+- **After** (`tests/browser/teacherWorkflow/draftCrossDeviceJourneys.mjs`, the
+  real App; before → after on the code before this fix):
+  - *fresh device, quick read and a 2 s read:* the question on screen showed
+    `["", ""]` → A's `["−2/3", ""]` (the other question, not yet mounted when
+    the read landed, came back in both); the server copy after B merely opened
+    the two questions: A's `{"m":"−2/3"}` replaced by `{}` and every key
+    re-stamped → exactly A's, unchanged.
+  - *A's own server copy:* also held the coach panel's state, written on mount
+    → only the two answers A typed.
+  - *offline, then back online:* a fresh device shows its own empty boxes, and
+    back online stays empty → shows A's work; the server copy is untouched.
+  - *A works, B opens and edits, A comes back (reopened):* B's edit saved `{"b":
+    "4"}` alone (A's slope gone) → `{"m":"−2/3","b":"4"}`, newer than A's; A
+    came back to its own older copy `["−2/3", ""]` → B's `["−2/3", "4"]`, and
+    opening it changed nothing on the server; A's next edit is the newest and
+    keeps B's intercept. B, left open and woken after A's edit: its own older
+    `["", "4"]` → A's newest `["−1/2", "4"]`.
+  - *canonical attempts still beat drafts:* reopening the submitted question
+    re-stamped its pre-submission draft after the submission → it keeps the
+    edit's time; a fresh device restored that draft over the submission → does
+    not.
+  - *every certified family* (`tests/browser/draftEditTime.mjs`, the draft
+    certification's harness): opening stamped every draft, and coming back or
+    reloading re-stamped them (32 failures over the 16 families) → no draft is
+    stamped by opening, every draft the student's edit changed carries the
+    edit's time, and it keeps that time through navigation and reload.
+  - *a composed question* (`composedDraftRestore.mjs`, now run with the server
+    copy arriving after the question as well as before it): in App.jsx's order
+    B got 0 of 4 steps and the journey could not open the graph step → every
+    check passes in both orders, and bringing the graph step back is not an
+    edit (the answers keep A's time and the server copy stays A's).
+- **Precedence, every direction:** per draft key the newest student edit wins;
+  a device's own newer edit is never replaced; a server edit newer than the
+  device's last edit replaces it however recently the device opened the
+  question; a draft older than the question's last submitted attempt is not
+  restored. Unchanged in code (`selectRestorableDraftEntries`) — what changed
+  is that the times now mean what that rule assumes.
+- **Gates:** `draftEditTime.test.mjs` (24: the storage rules, what a restore
+  decides, the background save, two Chromebooks and one server, and the wiring
+  in the hooks, WorkflowRunner and App.jsx); the five source contracts that
+  pinned the old write signatures, rewritten to the same capability
+  (`studentAssignmentFocusAndPendingWork`, `studentDraftDurability`,
+  `studentWorkRecovery`, `toolDraftPersistence`, `toolDraftSyncContract`); and
+  the three browser gates above — the journeys in CI beside the teacher
+  journeys, `draftEditTime` and `composedDraftRestore` with the student runtime
+  gates. Mutation checks, each undone in turn, all red: 28 in the unit tests
+  (non-edits stamped now; inference never or always an edit; a script's event
+  counted as the student; an older copy put back over a restore or another
+  tab; a read not remembered; expiry from `savedAt` alone; a reset not an edit;
+  each hook's write-back left to inference or its setter never an edit; a tool
+  field never an edit, measured from its first load, a submission not stamped,
+  a coalesced edit demoted; every step report an edit, or the step's answer
+  dropped; the sync offering an unedited draft, not waiting for the read,
+  replacing what the server holds, stamping with its own clock, or not
+  learning from its own saves; App not telling the sync, not reading again
+  online or on return, or skipping an empty server; the canonical check
+  removed) — and the 11 of them a browser can see, red in the browser too.
+- **Known limits, not changed here:**
+  - *The unit is the draft key.* A composed question's step answers share one
+    key, so a student who edits a step on a Chromebook that never received the
+    server copy (offline throughout) replaces the other steps' saved answers
+    when it reconnects: that edit is the newest. Merging per step would be a
+    server-merge change.
+  - *Server copies saved before this change* may carry the time a question was
+    opened rather than edited, and nothing stored tells the two apart. The rule
+    above trusts them, as the old restore did. Measured: A (this code) types
+    `−2/3`; B (the code before it) merely opens the question, and the server
+    copy becomes `{}`, saved later. A coming back with this code shows `["",
+    ""]` — the restore takes the newer server copy over A's own, the last copy
+    of the work; with the old code A showed `["−2/3", ""]` (its own mount write
+    won the race) and wrote it back on its next edit. The reverse case — B
+    really edited — is restored correctly now and was overwritten by the old
+    code. Telling the two apart needs a marker on new entries (a schema change
+    with its own trade-off); not done here.
+  - *A submitted question on another device* shows what it always did when the
+    submitting device had not reopened it: a draft older than the submission is
+    not brought back. Reopening it there used to re-stamp the draft after the
+    submission, so it came back; now it does not.
 
 ---
 
@@ -2007,6 +2165,9 @@ bar case of the phone reveal.
 - **PQ-043:** fixed since (see its entry): the server copy of a composed
   question's answers carries a graph step without its verdict, and the step
   works it out again where it is opened.
+- **PQ-044:** fixed since (see its entry): opening a question no longer makes
+  what it shows newer than the student's saved work, so a second Chromebook
+  gets the work into the question on screen and never overwrites it.
 
 ## Evidence
 

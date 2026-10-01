@@ -19,10 +19,9 @@
 //   ?role=practice|dol           the activity policy (default practice)
 //   ?run=<id>                    the student, so every run has its own drafts
 //   ?restore=after|before        when the server copy is applied: `after` is
-//                                App.jsx's order (the question mounts, then the
-//                                read resolves and the question remounts);
-//                                `before` is restoreQuestionDrafts' contract
-//                                ("called before the assignment renders")
+//                                a read slower than the question (it mounts,
+//                                then the read resolves and the question
+//                                remounts); `before` a read that beat it
 //   ?delay=<ms>                  how long the server read takes (default 250)
 //
 // What a Submit would send lands in window.__mmGraded.
@@ -143,6 +142,9 @@ function Harness() {
     const unsubscribe = subscribeToQuestionDrafts((event) => sync.record(event));
     let cancelled = false;
     let timer = null;
+    // Then, as App.jsx does once the read is back, the sync is told what the
+    // server holds (PQ-044).
+    const serverEntries = () => (server ? readWorkspaceDraftEntries(server) : []);
     if (restoreMode === 'after') {
       timer = window.setTimeout(() => {
         if (cancelled) return;
@@ -150,7 +152,10 @@ function Harness() {
         window.__mmRestore.restored = restored;
         // App.jsx remounts the question when anything was restored.
         if (restored) setGeneration((value) => value + 1);
+        sync.noteServerCopy(serverEntries());
       }, restoreDelay);
+    } else {
+      sync.noteServerCopy(serverEntries());
     }
     return () => {
       cancelled = true;
