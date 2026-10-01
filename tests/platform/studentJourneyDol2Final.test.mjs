@@ -169,6 +169,11 @@ test('an element that is not pinned on this screen covers nothing but the identi
   assert.equal(pinnedBottom(nav, win), 38);
 });
 
+// A phone does not get this reveal: it has no pinned task card, and the step's
+// answer area is brought into its own scroller instead
+// (stageNavigationPhoneReveal.test.mjs). This root has no active stage, so the
+// phone call has nothing to reveal — and would scroll the window under the
+// anchor if the desktop reveal ever ran there.
 test('student step navigation brings the step card under the task, on desktop only', () => {
   const anchor = box(196, 225);
   const workspace = box(700);
