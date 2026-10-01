@@ -144,7 +144,11 @@ export const applyStudentSupportToQuestion = (question, profile) => {
     // The authored prompt is kept beside the translation: a grader that reads
     // the wording (a legacy constraint rewrite, for one) must judge the
     // question as authored, exactly as the server does, never the translation.
-    if (typeof translation.prompt === 'string' && next.authoredPrompt === undefined) next.authoredPrompt = question?.prompt ?? null;
+    // Always a string, so `authoredPrompt ?? prompt` can never fall through to
+    // the translation when the authored question has no prompt.
+    if (typeof translation.prompt === 'string' && next.authoredPrompt === undefined) {
+      next.authoredPrompt = typeof question?.prompt === 'string' ? question.prompt : '';
+    }
     if (typeof translation.prompt === 'string') next.prompt = translation.prompt;
     if (typeof translation.title === 'string') next.title = translation.title;
     if (typeof translation.scenario === 'string' && next.context && typeof next.context === 'object') {

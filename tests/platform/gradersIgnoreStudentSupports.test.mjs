@@ -164,4 +164,12 @@ test('a translation keeps the authored prompt for graders, and only then', () =>
   assert.equal(translated.prompt, 'Resuelve para h.');
   assert.equal(translated.authoredPrompt, 'Solve for h.');
   assert.equal(applyStudentSupportToQuestion(question, { accommodations: ['large-text'] }).question.authoredPrompt, undefined);
+
+  // An authored question with no prompt keeps an empty authored prompt, so
+  // `authoredPrompt ?? prompt` reads '' (what the server reads), never the
+  // translation.
+  const unprompted = { type: 'literal', translations: { es: { prompt: 'Construye una parábola con vértice en el cuadrante IV.' } } };
+  const seen = applyStudentSupportToQuestion(unprompted, { translationLanguage: 'es' }).question;
+  assert.equal(seen.authoredPrompt, '');
+  assert.equal(seen.authoredPrompt ?? seen.prompt, '');
 });

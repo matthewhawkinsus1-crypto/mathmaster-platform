@@ -295,7 +295,7 @@ test('an authored question with no prompt is never marked on a translation\'s wo
   // authored vertex is what is checked, on the device and on the server.
   const authored = q({ constraints: [{ kind: 'vertex', point: [4, -3] }], translations: { fr: { prompt: 'Le sommet est dans le quadrant IV.' } } });
   const french = translatedFor(authored, 'fr');
-  assert.equal(french.authoredPrompt, null, 'the authored question had no prompt');
+  assert.equal(french.authoredPrompt, '', 'the authored question had no prompt');
   const work = built({ family: 'quadratic', a: 1, h: 2, k: -1 });
   const device = gradeToolCheck(constraintFunctionGrader, french, work);
   const server = gradeServerResponse({ question: authored, response: JSON.parse(JSON.stringify(device.toolResponse)) });

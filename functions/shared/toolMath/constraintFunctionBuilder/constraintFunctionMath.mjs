@@ -207,7 +207,7 @@ export const builderFamilyIsReachable = (question = {}, family = '') => (
  * Spanish "cuadrante IV" would not match the rewrite below, so reading the
  * translation would mark a translated student differently from the server and
  * from an English-reading classmate. An `authoredPrompt` that is present but
- * null (the authored question had no prompt) still wins: the translation is
+ * empty (the authored question had no prompt) still wins: the translation is
  * never the wording that is graded.
  */
 export const builderGradingPrompt = (question = {}) => String(
