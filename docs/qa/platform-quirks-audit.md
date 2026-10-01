@@ -75,7 +75,7 @@ audit first recorded them; each entry's status line is current.)
 | PQ-030 | P3 | DEFERRED | The identity bar's ⭐ is an emoji too |
 | PQ-031 | P3 | NOT REPRODUCED | Scroll padding assumes a 140px task card |
 | PQ-032 | P3 | DEFERRED | Multi-line verdict text in a pill |
-| PQ-033 | P3 | DEFERRED | Dev-server hazards for the browser gates |
+| PQ-033 | P3 | FIXED (2026-10-01 cleanup) | Dev-server hazards for the browser gates |
 | PQ-034 | P3 | DEFERRED | Three click maps still stretch linearly |
 | PQ-037 | P3 | DEFERRED | Typed stages inside a staged Work View may not scroll above a keypad |
 
@@ -976,7 +976,7 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   Safe today (no height cap on those SVGs); would break the day one is added.
   **Next:** route them through `clientPointToViewBox`. **Scope:** tiny.
 
-### PQ-033 · Dev-server hazards for the browser gates — **P3 (test infrastructure) · DEFERRED**
+### PQ-033 · Dev-server hazards for the browser gates — **P3 (test infrastructure) · FIXED (2026-10-01 cleanup)**
 
 - Editing `src/` while a long gate runs hot-reloads the harness mid-scene
   (seen once as `revealWorkViewTarget is not defined` between two of my own
@@ -1003,6 +1003,20 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   certification's first page load went from 88–113 s to 1.0–1.4 s and the 180 s
   budget is gone. Adopted by the draft-persistence and durable-outbox runners;
   the other `tests/browser/*.mjs` drivers still start Vite themselves.
+- **Closed (2026-10-01 cleanup).** All three hazards have their cause removed:
+  the cold start (one swap plugin, above); the fonts, which MathLive now loads
+  with the editor itself (`src/platform/math/mathliveRuntime.js` imports
+  `mathlive/fonts.css`, so no harness sets `fontsDirectory` and production gets
+  them too — they were missing there, `tests/browser/mathFontsProduction.mjs`);
+  and the mid-run reload, which the gate server cannot do (`hmr: false`). The
+  remaining drivers run against a server their operator starts — in CI a fresh
+  checkout nothing edits — so the rule for a local run is the one the drivers'
+  headers already state: do not edit `src/` while a gate runs, or use
+  `npm run gates:serve`. One late re-bundle was seen while closing this: Vite
+  optimized `firebase/auth` mid-run, which the draft harness never imports
+  (only `index.html` → `main.jsx` reaches it), while other checkouts' runners
+  were active on the machine. The gate server named it as designed, and it did
+  not recur in two further runs, one from a cold cache.
 
 ---
 
