@@ -20,8 +20,11 @@ import {
 import {
   normalizeOrdinaryResponse,
   responseIsBlank,
-  serverGradingSupport,
 } from '../../../functions/shared/ordinaryResponseGrading.mjs';
+// The LIGHT half of the shared grading registry: declarations only, so the
+// main bundle can ask "can the server mark this?" without loading graders.
+import { serverResponseGradingSupport } from '../../../functions/shared/serverGrading/gradingSupport.mjs';
+import { normalizeToolResponse } from '../../../functions/shared/serverGrading/toolResponseContract.mjs';
 
 export { checkpointActionId, checkpointDocumentId };
 export { RESPONSE_CHECKPOINT_SCHEMA_VERSION } from '../../../functions/shared/responseCheckpointSchema.mjs';
@@ -34,11 +37,22 @@ export const checkpointEligibility = ({ question, activityRole, secureContext = 
   if (!['warmup', 'classwork', 'practice', 'dol'].includes(String(activityRole || ''))) {
     return { eligible: false, reason: `unsupported-activity-role:${activityRole || 'none'}` };
   }
-  const support = serverGradingSupport(question);
+  // The same registry the server grades through: an ordinary type, a
+  // registry tool mode with a shared grader, or a Question Family instance
+  // (the caller passes the rendered instance for a family slot).
+  const support = serverResponseGradingSupport(question);
   return { eligible: support.supported, reason: support.reason };
 };
 
-export const normalizeCheckpointResponse = (question, answerState) => normalizeOrdinaryResponse({ question, answerState });
+/**
+ * The raw response that crosses the boundary. A registry tool's structured
+ * work (answerState.toolResponse) travels as itself, never as a truncated
+ * JSON string; every other question keeps the ordinary normalization.
+ */
+export const normalizeCheckpointResponse = (question, answerState) => (
+  normalizeToolResponse(answerState?.toolResponse)
+  || normalizeOrdinaryResponse({ question, answerState })
+);
 
 export const responseFingerprint = (question, answerState) => stableStringify({
   response: normalizeCheckpointResponse(question, answerState),
@@ -66,6 +80,9 @@ export const buildResponseCheckpointAction = ({
   supportUsage = null,
   timeSpentSeconds = 0,
   capturedAt = Date.now(),
+  // A Question Family slot's delivery pin, so a deadline can rebuild exactly
+  // the instance this work answers.
+  familyDelivery = null,
 } = {}) => {
   const eligibility = checkpointEligibility({ question, activityRole });
   if (!eligibility.eligible) return null;
@@ -94,6 +111,7 @@ export const buildResponseCheckpointAction = ({
       supportUsage,
       timeSpentSeconds,
       capturedAt,
+      familyDelivery,
     }),
   });
 };

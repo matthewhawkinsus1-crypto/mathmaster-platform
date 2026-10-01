@@ -16,7 +16,7 @@
  * Pure: no Firestore, no clock (`nowValue` / `at` are parameters).
  */
 
-import { normalizeRecoveryPolicy, RECOVERY_TYPE } from './recoveryPolicy.mjs';
+import { normalizeRecoveryPolicy } from './recoveryPolicy.mjs';
 import { evaluateRecentPracticeMastery } from './practiceMastery.mjs';
 import { resolveWarmupDelivery } from './warmupDelivery.mjs';
 import { resolveRecoveryAttendance } from './recoveryAttendance.mjs';
@@ -27,19 +27,13 @@ import {
   evaluateSectionRecoveryEligibility,
   resolveOriginalOpportunity,
 } from './sectionRecoveryEligibility.mjs';
-import { buildRecoveryAssessmentPlan, buildRecoveryPracticeItem } from './sectionRecoveryPlan.mjs';
+import { buildRecoveryPracticeItem } from './sectionRecoveryPlan.mjs';
 import {
-  RecoveryTransitionError,
-  applyRecoveryCompletion,
-  applyRecoveryPracticeAttempt,
-  applyRecoveryStart,
-  applyRecoveryUnlock,
   normalizeRecoveryRecord,
   recoveryRecordFingerprints,
 } from './sectionRecoveryRecord.mjs';
-import { isFamilyBackedQuestion, reproduceFamilyQuestionFromPin, resolveFamilyQuestionInstance } from './questionFamilyInstance.mjs';
+import { isFamilyBackedQuestion, resolveFamilyQuestionInstance } from './questionFamilyInstance.mjs';
 import { normalizeDeliveryPin, resolveGenerationAllocation, resolveLearnerSeat } from './questionGenerationIdentity.mjs';
-import { gradeFamilyInstanceResponse } from './questionFamilyGrading.mjs';
 
 const clean = (value) => String(value ?? '').trim();
 const list = (value) => (Array.isArray(value) ? value : []);
@@ -200,177 +194,10 @@ export const nextRecoveryPracticeItem = (context) => {
   return withoutQuestion;
 };
 
-const refuse = (code, message) => { throw new RecoveryTransitionError(code, message); };
-
-const expectedPracticeSlotPrefix = (context) => `${context.assignmentId}|recoveryPractice:${context.section}:o`;
-
-/**
- * Apply one student action. Returns { record, changed, gradeChanged, response }.
- * Throws RecoveryTransitionError (with a code) for anything not allowed.
+/*
+ * `runSectionRecoveryAction` — the server half that GRADES — lives in
+ * sectionRecoveryActions.mjs. It loads every shared grader, and this module
+ * is also imported by the student app (studentRecoveryModel.js), which must
+ * not download every tool's mathematics to show a Recovery panel.
  */
-export const runSectionRecoveryAction = ({ context, action, payload = {}, at = Date.now() } = {}) => {
-  if (!context) refuse('recovery-context-missing');
-  const { section, policy, eligibility } = context;
-
-  if (action === RECOVERY_ACTION.STATUS) {
-    return { record: context.record, changed: false, gradeChanged: false, response: { eligibility, mastery: context.mastery, nextPracticeItem: nextRecoveryPracticeItem(context) } };
-  }
-
-  // The assignment's final submission date is the Recovery end date: nothing
-  // that could change a Recovery — or the grade it feeds — is accepted after it.
-  if (eligibility.reason === 'recovery-window-ended') {
-    refuse('recovery-window-ended', 'The final submission date for this assignment has passed, so Recovery is closed.');
-  }
-
-  if (action === RECOVERY_ACTION.PRACTICE) {
-    if (![RECOVERY_STATE.LOCKED, RECOVERY_STATE.UNLOCKED].includes(eligibility.state)) {
-      refuse('practice-not-available', 'Recovery Practice is not available right now.');
-    }
-    const pin = normalizeDeliveryPin(payload.pin);
-    if (!pin || !pin.slot.startsWith(expectedPracticeSlotPrefix(context))) refuse('practice-pin-invalid');
-    const slot = context.readiness.readySlots.find((candidate) => pin.slot.endsWith(`|${candidate.questionId || `index-${candidate.storageIndex}`}`));
-    if (!slot) refuse('practice-pin-invalid', 'That practice question does not belong to this Recovery.');
-    if (context.seenFingerprints.includes(pin.fingerprint)) refuse('practice-item-repeated', 'That practice question was already answered.');
-    const reproduced = reproduceFamilyQuestionFromPin({
-      question: context.questionsByIndex[slot.storageIndex],
-      assignmentId: context.assignmentId,
-      storageIndex: slot.storageIndex,
-      pin,
-    });
-    if (reproduced.error) refuse('practice-pin-invalid', 'That practice question could not be verified.');
-    // A forfeit is an item the student could not finish (for example every
-    // try in a step tool used up). It is recorded as incorrect without
-    // grading — it can only lower mastery, so it needs no verification — and
-    // it is what stops an unfinishable item from blocking Practice. There is
-    // no free skip: moving on always costs the item.
-    const grading = payload.forfeit === true
-      ? { graded: true, isCorrect: false }
-      : gradeFamilyInstanceResponse({ question: reproduced.question, response: payload.response });
-    if (!grading.graded) refuse('practice-response-ungradable', grading.reason || 'The answer could not be read.');
-    const applied = applyRecoveryPracticeAttempt({
-      record: context.record,
-      section,
-      item: {
-        key: pin.fingerprint,
-        familyId: reproduced.family.id,
-        coverageKey: slot.coverageKey,
-        correct: grading.isCorrect === true,
-        independent: attemptWasIndependent(payload.supportUsage),
-        solutionViewed: payload.solutionViewed === true,
-        attempts: payload.attempts,
-      },
-      practiceIndex: Number.isInteger(Number(payload.practiceIndex)) ? Number(payload.practiceIndex) : null,
-      policy,
-      requiredCoverage: context.requiredCoverage,
-      at,
-    });
-    let nextRecord = applied.record;
-    // Mastery shown: unlock in the same write, with the evidence that did it.
-    if (applied.mastery.met && nextRecord.status === 'practicing') {
-      nextRecord = applyRecoveryUnlock({ record: nextRecord, section, mastery: applied.mastery, at }).record;
-    }
-    return {
-      record: nextRecord,
-      changed: true,
-      gradeChanged: false,
-      response: {
-        isCorrect: grading.isCorrect === true,
-        mastery: applied.mastery,
-        unlocked: nextRecord.status === 'unlocked',
-      },
-    };
-  }
-
-  if (action === RECOVERY_ACTION.UNLOCK) {
-    if (eligibility.state !== RECOVERY_STATE.UNLOCKED) refuse('recovery-locked', 'More Practice is needed before this Recovery unlocks.');
-    const masteryRequired = eligibility.type === RECOVERY_TYPE.RECOVERY || policy.mastery.excusedRequiresMastery;
-    const applied = applyRecoveryUnlock({ record: context.record, section, mastery: context.mastery, masteryRequired, at });
-    return { record: applied.record, changed: true, gradeChanged: false, response: { unlocked: true } };
-  }
-
-  if (action === RECOVERY_ACTION.START) {
-    if (eligibility.state === RECOVERY_STATE.IN_PROGRESS) {
-      return { record: context.record, changed: false, gradeChanged: false, response: { plan: context.record.plan } };
-    }
-    if (eligibility.state !== RECOVERY_STATE.UNLOCKED) refuse('recovery-locked', 'This Recovery is not unlocked.');
-    let record = context.record;
-    if (!record || record.status === 'practicing') {
-      const masteryRequired = eligibility.type === RECOVERY_TYPE.RECOVERY || policy.mastery.excusedRequiresMastery;
-      record = applyRecoveryUnlock({ record, section, mastery: context.mastery, masteryRequired, at }).record;
-    }
-    const plan = buildRecoveryAssessmentPlan({
-      assignmentId: context.assignmentId,
-      section,
-      readySlots: context.readiness.readySlots,
-      questionsByIndex: context.questionsByIndex,
-      questionCount: section === 'warmup' ? policy.warmup.questionCount : 0,
-      seatInfo: context.seatInfo,
-      seenFingerprints: context.seenFingerprints,
-      opportunity: (record?.opportunitiesUsed || 0) + 1,
-    });
-    if (plan.error) refuse('recovery-plan-unavailable', 'A fresh Recovery could not be prepared.');
-    const applied = applyRecoveryStart({
-      record,
-      section,
-      plan,
-      type: eligibility.type,
-      policy,
-      attendance: context.attendance,
-      originalScore: context.sectionOriginal?.score ?? null,
-      at,
-    });
-    return { record: applied.record, changed: true, gradeChanged: false, response: { plan: applied.record.plan, type: applied.record.type } };
-  }
-
-  if (action === RECOVERY_ACTION.SUBMIT) {
-    if (eligibility.state !== RECOVERY_STATE.IN_PROGRESS || !context.record?.plan) {
-      refuse('recovery-not-in-progress', 'There is no Recovery in progress to submit.');
-    }
-    const responses = payload.responses && typeof payload.responses === 'object' ? payload.responses : {};
-    const results = context.record.plan.items.map((item) => {
-      const question = context.questionsByIndex[item.storageIndex];
-      const reproduced = question && item.pin
-        ? reproduceFamilyQuestionFromPin({ question, assignmentId: context.assignmentId, storageIndex: item.storageIndex, pin: item.pin })
-        : { error: 'missing' };
-      if (reproduced.error) {
-        return { itemId: item.itemId, isCorrect: false, credit: 0, weight: recoveryQuestionWeight(question), graded: false, reason: 'question-unavailable' };
-      }
-      const response = responses[item.itemId] || null;
-      const grading = response ? gradeFamilyInstanceResponse({ question: reproduced.question, response }) : { graded: true, isCorrect: false };
-      return {
-        itemId: item.itemId,
-        isCorrect: grading.isCorrect === true,
-        credit: grading.isCorrect === true ? 1 : 0,
-        weight: recoveryQuestionWeight(question),
-        graded: grading.graded !== false,
-        reason: grading.graded === false ? grading.reason || 'ungradable' : null,
-      };
-    });
-    const applied = applyRecoveryCompletion({
-      record: context.record,
-      section,
-      results,
-      policy,
-      originalScore: context.sectionOriginal?.score ?? null,
-      originalAttempted: Number(context.sectionOriginal?.attempted) > 0,
-      at,
-    });
-    return {
-      record: applied.record,
-      changed: true,
-      gradeChanged: true,
-      response: {
-        rawScore: applied.record.rawScore,
-        recordedScore: applied.gradeState.recordedScore,
-        cap: applied.gradeState.cap,
-        type: applied.record.type,
-        reason: applied.gradeState.reason,
-      },
-    };
-  }
-
-  refuse('recovery-action-unknown', `Unknown Recovery action: ${action}`);
-  return null;
-};
-
 export { ORIGINAL_OPPORTUNITY, RECOVERY_STATE };

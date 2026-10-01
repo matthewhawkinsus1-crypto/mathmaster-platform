@@ -31,8 +31,10 @@ import {
   RECOVERY_ACTION,
   buildSectionRecoveryContext,
   nextRecoveryPracticeItem,
-  runSectionRecoveryAction,
 } from '../../functions/shared/sectionRecoveryService.mjs';
+// The grading half is its own module so the student app never loads every
+// shared tool grader to draw a Recovery panel.
+import { runSectionRecoveryAction } from '../../functions/shared/sectionRecoveryActions.mjs';
 import { resolveWarmupDelivery } from '../../functions/shared/warmupDelivery.mjs';
 import { warmupChallengeScore, warmupChallengeSignature } from '../../functions/shared/warmupChallengeGrade.mjs';
 import { assessSectionRecoveryReadiness } from '../../functions/shared/sectionRecoveryReadiness.mjs';

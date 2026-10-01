@@ -19,8 +19,12 @@
 
 import { isFamilyBackedQuestion, reproduceFamilyQuestionFromPin } from './questionFamilyInstance.mjs';
 import { ALLOCATION_BASIS, normalizeDeliveryPin, resolveLearnerSeat } from './questionGenerationIdentity.mjs';
-import { gradeOrdinaryResponse, serverGradingSupport } from './ordinaryResponseGrading.mjs';
-import { evaluateExpression } from './pathQuestionGeneration.mjs';
+// LIGHT: the support question is answered from the grading manifest alone.
+// The graders themselves are in serverGrading/serverResponseGrading.mjs,
+// which this module must not import — the student app imports this file.
+import { serverResponseGradingSupport } from './serverGrading/gradingSupport.mjs';
+import { deliveredQuestionForGrading } from './serverGrading/deliveredQuestion.mjs';
+import { gradeStepAlgebraFinalAnswer } from './serverGrading/stepAlgebraFinalAnswer.mjs';
 
 export const FAMILY_DELIVERY_VERIFICATION = Object.freeze({
   SEAT_VERIFIED: 'seat-verified',
@@ -97,63 +101,58 @@ export const resolveFamilyQuestionForGrading = ({
 
 /* ---------------------------------------------------------------------------
  * Marking a family instance's raw response — the server's view.
+ *
+ * Through the SAME shared grading registry every other path uses: an ordinary
+ * type, a registry tool mode with a shared grader, or the Step Algebra
+ * final-answer check. Recovery readiness, Pre-Flight and grading therefore
+ * cannot disagree about which family tools the server can mark. The marking
+ * itself is `gradeFamilyInstanceResponse` in
+ * serverGrading/serverResponseGrading.mjs (heavy: it loads every grader).
  * ------------------------------------------------------------------------- */
 
-
-/** "\frac{-14}{-7}" -> "(-14)/(-7)", "21-6" stays; null for anything else. */
-const latexNumericToExpression = (latex) => {
-  let text = String(latex ?? '')
-    .replace(/\\left|\\right/g, '')
-    .replace(/\\[dt]?frac/g, '\\frac')
-    .replace(/\\cdot|\\times/g, '*')
-    .replace(/[−–—]/g, '-')
-    .replace(/\s+/g, '');
-  for (let guard = 0; guard < 20 && text.includes('\\frac'); guard += 1) {
-    const next = text.replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/, '($1)/($2)');
-    if (next === text) return null;
-    text = next;
-  }
-  if (/[\\{}]/.test(text)) return null;
-  return text;
-};
-
-/**
- * Check a Step Algebra final equation ("x = 21-6", "3 = x") against the
- * instance's answer. The workspace only permits balanced steps, so reaching
- * an isolated variable already means the student solved it; this confirms
- * the final value really is the instance's answer before any credit counts.
- */
-export const gradeStepAlgebraFinalAnswer = ({ question = null, responseValue = '' } = {}) => {
-  const expected = Number(question?.generatedAnswer);
-  const variable = String(question?.variable || question?.objective?.variable || 'x').trim();
-  if (!Number.isFinite(expected) || !variable) return { graded: false, reason: 'no-step-answer-key', isCorrect: false };
-  const equation = String(responseValue ?? '').split('|')[0];
-  const sides = equation.split('=');
-  if (sides.length !== 2) return { graded: false, reason: 'step-answer-unparseable', isCorrect: false };
-  const [left, right] = sides.map((side) => side.replace(/\s+/g, ''));
-  const isVariable = (side) => side.replace(/[{}]/g, '') === variable;
-  const valueSide = isVariable(left) ? right : isVariable(right) ? left : null;
-  if (valueSide === null) return { graded: true, reason: null, isComplete: true, isCorrect: false };
-  const expression = latexNumericToExpression(valueSide);
-  const value = expression === null ? null : evaluateExpression(expression, {});
-  if (value === null) return { graded: false, reason: 'step-answer-unparseable', isCorrect: false };
-  return { graded: true, reason: null, isComplete: true, isCorrect: Math.abs(value - expected) <= 1e-9 };
-};
-
 /** Can the server mark a response to this built family instance? */
-export const familyInstanceServerGradable = (question) => (
-  serverGradingSupport(question).supported
-  || (String(question?.type || '') === 'stepAlgebra' && Number.isFinite(Number(question?.generatedAnswer)))
-);
+export const familyInstanceServerGradable = (question) => serverResponseGradingSupport(question).supported === true;
+
+/** Why it cannot, when it cannot: the registry's reason and documented blocker. */
+export const familyInstanceGradingSupport = (question) => serverResponseGradingSupport(question);
 
 /**
- * Mark a raw response against a built family instance: the ordinary grading
- * contract where it applies, the verified Step Algebra final answer otherwise.
+ * THE QUESTION THE SERVER GRADES, for any stored question.
+ *
+ * Exactly what QuestionEngine renders: the stored question with the runtime
+ * repair applied, then — for a Question Family slot — the instance rebuilt
+ * from the validated delivery pin, then the word-problem layer's
+ * normalization. Ingestion, the deadline finalizer and Recovery all call this,
+ * so one raw response gets one verdict whichever path delivered it.
+ *
+ * Returns resolveFamilyQuestionForGrading's shape: `question` is null (with a
+ * `reason`) only for a family slot whose instance cannot be rebuilt.
  */
-export const gradeFamilyInstanceResponse = ({ question = null, response = null } = {}) => {
-  if (serverGradingSupport(question).supported) return gradeOrdinaryResponse({ question, response });
-  if (String(question?.type || '') === 'stepAlgebra') {
-    return gradeStepAlgebraFinalAnswer({ question, responseValue: response?.value });
-  }
-  return { graded: false, reason: `unsupported-type:${question?.type || 'unknown'}`, isCorrect: false };
+export const resolveServerGradingQuestion = ({
+  assignment = null,
+  question = null,
+  questionIndex = 0,
+  variantIndex = 0,
+  canonicalRecord = null,
+  claimedDelivery = null,
+  studentId = null,
+  classId = null,
+} = {}) => {
+  if (!question || typeof question !== 'object') return { familyBacked: false, question: null, pin: null, reason: 'question-index-not-found' };
+  const delivered = deliveredQuestionForGrading(question);
+  const family = resolveFamilyQuestionForGrading({
+    assignment,
+    question: delivered,
+    questionIndex,
+    variantIndex,
+    canonicalRecord,
+    claimedDelivery,
+    studentId,
+    classId,
+  });
+  if (!family.familyBacked) return { ...family, question: delivered };
+  if (!family.question) return family;
+  return { ...family, question: deliveredQuestionForGrading(family.question) };
 };
+
+export { gradeStepAlgebraFinalAnswer };

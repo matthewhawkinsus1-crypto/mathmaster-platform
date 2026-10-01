@@ -2,30 +2,28 @@ import React from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
-import { nearlyEqual, round } from '../shared/toolMath';
+import { round } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
 import { useRevealAnswers } from '../shared/ToolRuntimeContext';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import complexPlaneGrader from '../../../functions/shared/serverGrading/tools/complexPlaneLab.mjs';
 import {
   complexAdd,
   complexArgumentDegrees,
   complexConjugateValue,
   complexDivide,
-  complexMagnitudeValue,
   complexMultiplyValues,
   complexPower,
   complexSubtract,
   formatComplex,
-  normalizedQuarterTurns,
   quadraticRootsComplex,
   quarterTurnLabel,
   rotateByPowerOfI,
-  sameComplexSet,
   toComplex,
 } from './complexMath';
 
 const inputStyle = { width: '100%', padding: 9, border: '1px solid #cfd8e6', borderRadius: 8, boxSizing: 'border-box' };
 const actionStyle = { marginTop: 14, padding: '10px 16px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer' };
-const matchesNumber = (answer, expected, tolerance = 0.01) => `${answer}`.trim() !== '' && nearlyEqual(answer, expected, tolerance);
 const hintProps = (onAction, hints) => ({ hints, onHintUsed: () => onAction?.('HINT_USED') });
 
 // Several modes plotted the expected result on the plane and printed its value
@@ -70,14 +68,14 @@ export default function ComplexPlaneLab({ questionData = {}, onAction }) {
 function Features({ questionData, feedback, submit, onAction }) {
   const z = toComplex(questionData.z || { re: 3, im: -4 });
   const conjugate = complexConjugateValue(z);
-  const magnitude = complexMagnitudeValue(z);
   const angle = complexArgumentDegrees(z);
   const [magnitudeAnswer, setMagnitudeAnswer] = usePersistentToolState('magnitudeAnswer', '');
   const [conjugateRe, setConjugateRe] = usePersistentToolState('conjugateRe', '');
   const [conjugateIm, setConjugateIm] = usePersistentToolState('conjugateIm', '');
   const check = () => {
-    const checks = [matchesNumber(magnitudeAnswer, magnitude), matchesNumber(conjugateRe, conjugate.re), matchesNumber(conjugateIm, conjugate.im)];
-    submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length }, { magnitudeAnswer, conjugateRe, conjugateIm }, { mode: 'features' });
+    const work = { magnitudeAnswer, conjugateRe, conjugateIm };
+    const result = gradeToolCheck(complexPlaneGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'features', parts: result.parts });
   };
   return <ToolShell title="Complex Plane Lab" subtitle="Treat a + bi as both a number and a vector from the origin." badge="Algebra II · Geometry of Complex Numbers">
     <TaskCard question={questionData} task='Find the magnitude of z and the real and imaginary parts of its conjugate.' steps={['Magnitude is the distance from the origin to the point — use the Pythagorean theorem.', 'The conjugate reflects the point across the real (horizontal) axis.', 'Enter |z| first, then the conjugate’s two parts.']} />
@@ -105,8 +103,9 @@ function Operations({ questionData, feedback, submit, onAction }) {
   const [real, setReal] = usePersistentToolState('real', '');
   const [imaginary, setImaginary] = usePersistentToolState('imaginary', '');
   const check = () => {
-    const checks = [matchesNumber(real, expected.re), matchesNumber(imaginary, expected.im)];
-    submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 }, { real, imaginary }, { mode: 'operations', operation });
+    const work = { real, imaginary };
+    const result = gradeToolCheck(complexPlaneGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'operations', operation, parts: result.parts });
   };
   return <ToolShell title="Complex Plane Lab" subtitle="Connect symbolic complex-number operations to points and vectors." badge="Algebra II · Operations">
     <TaskCard question={questionData} task='Carry out the operation and give the real and imaginary parts of the result.' steps={['Combine the real parts and the imaginary parts separately.', 'For multiplication, expand every product, then replace i² with −1.', 'Enter the result as a real part and an imaginary part.']} />
@@ -127,15 +126,15 @@ function Operations({ questionData, feedback, submit, onAction }) {
 function Division({ questionData, feedback, submit, onAction }) {
   const z = toComplex(questionData.z || { re: 4, im: 2 });
   const w = toComplex(questionData.w || { re: 1, im: -1 });
-  const conjugate = complexConjugateValue(w);
   const quotient = complexDivide(z, w);
   const [conjugateRe, setConjugateRe] = usePersistentToolState('conjugateRe', '');
   const [conjugateIm, setConjugateIm] = usePersistentToolState('conjugateIm', '');
   const [real, setReal] = usePersistentToolState('real', '');
   const [imaginary, setImaginary] = usePersistentToolState('imaginary', '');
   const check = () => {
-    const checks = [matchesNumber(conjugateRe, conjugate.re), matchesNumber(conjugateIm, conjugate.im), matchesNumber(real, quotient.re), matchesNumber(imaginary, quotient.im)];
-    submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length }, { conjugateRe, conjugateIm, real, imaginary }, { mode: 'division' });
+    const work = { conjugateRe, conjugateIm, real, imaginary };
+    const result = gradeToolCheck(complexPlaneGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'division', parts: result.parts });
   };
   return <ToolShell title="Complex Plane Lab" subtitle="Use a conjugate to turn a complex denominator into a real number." badge="Algebra II · Division by Conjugates">
     <TaskCard question={questionData} task="Rationalize the denominator, then give the quotient's real and imaginary parts." steps={['Write down the conjugate of the denominator.', 'Multiply the top and the bottom by that conjugate.', 'The new denominator is a real number — divide both parts by it.']} />
@@ -157,13 +156,13 @@ function Powers({ questionData, feedback, submit, onAction }) {
   const z = toComplex(questionData.z || { re: 1, im: 1 });
   const exponent = Number(questionData.exponent ?? 3);
   const expected = complexPower(z, exponent);
-  const expectedMagnitude = complexMagnitudeValue(expected);
   const [real, setReal] = usePersistentToolState('real', '');
   const [imaginary, setImaginary] = usePersistentToolState('imaginary', '');
   const [magnitude, setMagnitude] = usePersistentToolState('magnitude', '');
   const check = () => {
-    const checks = [matchesNumber(real, expected.re), matchesNumber(imaginary, expected.im), matchesNumber(magnitude, expectedMagnitude, 0.02)];
-    submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length }, { real, imaginary, magnitude }, { mode: 'powers', exponent });
+    const work = { real, imaginary, magnitude };
+    const result = gradeToolCheck(complexPlaneGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'powers', exponent, parts: result.parts });
   };
   return <ToolShell title="Complex Plane Lab" subtitle="Build integer powers through repeated complex multiplication and track magnitude." badge="Algebra II · Powers">
     <TaskCard question={questionData} task='Compute the power and its magnitude.' steps={['Multiply z by itself the required number of times.', 'Replace i² with −1 each time it appears.', 'Then find the distance of the result from the origin.']} />
@@ -186,13 +185,13 @@ function Rotation({ questionData, feedback, submit, onAction }) {
   const z = toComplex(questionData.z || { re: 3, im: 1 });
   const quarterTurns = Number(questionData.quarterTurns ?? 1);
   const expected = rotateByPowerOfI(z, quarterTurns);
-  const expectedTurns = `${normalizedQuarterTurns(quarterTurns)}`;
   const [real, setReal] = usePersistentToolState('real', '');
   const [imaginary, setImaginary] = usePersistentToolState('imaginary', '');
   const [rotation, setRotation] = usePersistentToolState('rotation', '');
   const check = () => {
-    const checks = [matchesNumber(real, expected.re), matchesNumber(imaginary, expected.im), rotation === expectedTurns];
-    submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length }, { real, imaginary, rotation }, { mode: 'rotation', quarterTurns });
+    const work = { real, imaginary, rotation };
+    const result = gradeToolCheck(complexPlaneGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'rotation', quarterTurns, parts: result.parts });
   };
   return <ToolShell title="Complex Plane Lab" subtitle="See multiplication by powers of i as quarter-turn rotations around the origin." badge="Algebra II · Multiplication as Rotation">
     <TaskCard question={questionData} task='Multiply by the power of i, give the result, and name the net rotation.' steps={['Reduce the exponent on i modulo 4.', 'Apply that many 90° counterclockwise quarter-turns to the point.', 'Enter the new coordinates and pick the matching rotation.']} />
@@ -217,10 +216,9 @@ function QuadraticRoots({ questionData, feedback, submit, onAction }) {
   const [r1Re, setR1Re] = usePersistentToolState('r1Re', ''); const [r1Im, setR1Im] = usePersistentToolState('r1Im', '');
   const [r2Re, setR2Re] = usePersistentToolState('r2Re', ''); const [r2Im, setR2Im] = usePersistentToolState('r2Im', '');
   const check = () => {
-    const complete = [r1Re, r1Im, r2Re, r2Im].every((value) => `${value}`.trim() !== '');
-    const actual = [{ re: Number(r1Re), im: Number(r1Im) }, { re: Number(r2Re), im: Number(r2Im) }];
-    const correct = complete && sameComplexSet(actual, roots, 0.01);
-    submit({ isCorrect: correct, score: correct ? 1 : 0 }, { r1Re, r1Im, r2Re, r2Im }, { mode: 'quadraticRoots' });
+    const work = { r1Re, r1Im, r2Re, r2Im };
+    const result = gradeToolCheck(complexPlaneGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'quadraticRoots', parts: result.parts });
   };
   const discriminant = quadratic.b ** 2 - 4 * quadratic.a * quadratic.c;
   return <ToolShell title="Complex Plane Lab" subtitle="Extend the quadratic formula into the complex plane when the discriminant is negative." badge="Algebra II · Complex Quadratic Roots">

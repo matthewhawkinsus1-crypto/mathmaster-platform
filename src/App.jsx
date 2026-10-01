@@ -188,7 +188,7 @@ import {
   INGESTIBLE_KINDS,
   buildSubmissionEnvelope,
   captureSectionAccessProof,
-} from '../functions/shared/submissionIngestion.mjs';
+} from '../functions/shared/submissionEnvelope.mjs';
 import {
   SUBMISSION_DISPOSITION,
 } from '../functions/shared/studentSubmissionDisposition.mjs';
@@ -5444,12 +5444,18 @@ function App() {
     if (!activeAssignmentId || user?.role !== 'student' || isTeacherPreview || !answerState) return;
     const assignment = assignments.find((item) => item.id === activeAssignmentId);
     if (!assignment || isTestCycleAssignment(assignment)) return;
-    // Eligibility is judged against the STORED question, because that is the
-    // question the server will grade against.
+    // Eligibility is judged against the question the SERVER will grade: the
+    // stored question, or — for a Question Family slot — the instance the
+    // server will rebuild from this delivery pin. A family template itself is
+    // never graded, so without the pin a family question could not be
+    // finalized at a deadline at all.
     const storedQuestion = getStoredAssignmentQuestions(assignment)[currentQuestionIndex];
-    if (!checkpointEligibility({ question: storedQuestion, activityRole: activeQuestionRole }).eligible) return;
-
     const currentRecord = normalizeQuestionRecord(tracker?.[activeAssignmentId]?.[currentQuestionIndex]);
+    const familyDelivery = familyDeliveryForQuestion(assignment, currentQuestionIndex, currentRecord);
+    if (isFamilyBackedQuestion(storedQuestion) && !(familyDelivery?.pin && familyDelivery?.renderedQuestion)) return;
+    const gradingQuestion = familyDelivery?.renderedQuestion || storedQuestion;
+    if (!checkpointEligibility({ question: gradingQuestion, activityRole: activeQuestionRole }).eligible) return;
+
     const identity = {
       studentId: user.id,
       assignmentId: activeAssignmentId,
@@ -5461,7 +5467,7 @@ function App() {
     const documentId = checkpointDocumentId(identity);
     // Coalesce: a student re-reading their own answer should not queue a write
     // for a response that has not changed.
-    const fingerprint = responseFingerprint(storedQuestion, answerState);
+    const fingerprint = responseFingerprint(gradingQuestion, answerState);
     if (checkpointFingerprintRef.current.get(documentId) === fingerprint) return;
 
     const now = Date.now();
@@ -5484,7 +5490,8 @@ function App() {
       setStudentPersistenceStatus('capturing');
       const queued = await enqueueResponseCheckpoint({
         identity,
-        question: storedQuestion,
+        question: gradingQuestion,
+        familyDelivery: familyDelivery?.pin || null,
         activityRole: activeQuestionRole,
         answerState,
         revision: now,
@@ -5676,7 +5683,10 @@ function App() {
     const familyDelivery = familyDeliveryForQuestion(assignment, currentQuestionIndex, currentAssignmentGrades[currentQuestionIndex]);
     const capturedResponse = normalizeCheckpointResponse(
       familyDelivery?.renderedQuestion || assignmentQuestions[currentQuestionIndex],
-      { parts, responseKey, isComplete: true },
+      // A registry tool's structured raw work (built through the shared tool
+      // response contract by QuestionEngine) travels as itself; the server
+      // grades it with the same shared grader the browser just used.
+      { parts, responseKey, isComplete: true, toolResponse: attemptMetadata?.toolResponse || null },
     );
 
     let queuedAction;

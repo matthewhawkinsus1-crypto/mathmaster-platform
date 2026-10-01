@@ -33,7 +33,11 @@ import {
   familySlotKey,
 } from '../../../functions/shared/questionFamilyInstance.mjs';
 import { measureFamilyCapacity } from '../../../functions/shared/questionFamilyEngine.mjs';
-import { familyInstanceServerGradable, gradeFamilyInstanceResponse } from '../../../functions/shared/questionFamilyGrading.mjs';
+import { familyInstanceGradingSupport, familyInstanceServerGradable } from '../../../functions/shared/questionFamilyGrading.mjs';
+// The light, non-tool half of the shared dispatch: the answer-key self-check
+// below only builds keys for ordinary types and Step Algebra, and Pre-Flight
+// is on the app's static import path, which must not load every tool grader.
+import { gradeQuestionResponse } from '../../../functions/shared/serverGrading/questionResponseGrading.mjs';
 import { describeQuestionVariability, VARIABILITY } from '../../../functions/shared/questionVariability.mjs';
 import { assessSectionRecoveryReadiness } from '../../../functions/shared/sectionRecoveryReadiness.mjs';
 import { normalizeRecoveryPolicy } from '../../../functions/shared/recoveryPolicy.mjs';
@@ -104,6 +108,7 @@ const auditFamilySlot = ({ assignmentId, question, storageIndex, capacityMemo })
   const capacity = capacityMemo.get(capacityKey);
   const keyFailures = [];
   let gradable = true;
+  let gradingSupport = null;
   let sampled = 0;
   for (let index = 0; index < SAMPLE_INSTANCES; index += 1) {
     const result = resolveFamilyQuestionInstance({
@@ -116,11 +121,15 @@ const auditFamilySlot = ({ assignmentId, question, storageIndex, capacityMemo })
     sampled += 1;
     if (!familyInstanceServerGradable(result.question)) {
       gradable = false;
+      // The shared grading registry's own reason — and, for a tool mode that
+      // stays on the device, its documented blocker — so the warning says
+      // exactly why rather than just "cannot".
+      gradingSupport = familyInstanceGradingSupport(result.question);
       break;
     }
     const response = answerKeyResponse(result.question);
     if (!response) continue;
-    const grading = gradeFamilyInstanceResponse({ question: result.question, response });
+    const grading = gradeQuestionResponse({ question: result.question, response });
     if (grading.isCorrect !== true) keyFailures.push(result.instance.answer?.display || result.instance.fingerprint);
   }
   return {
@@ -130,6 +139,7 @@ const auditFamilySlot = ({ assignmentId, question, storageIndex, capacityMemo })
     toolIssue: definition.toolIssue,
     constraintIssues: definition.constraintIssues || [],
     gradable,
+    gradingSupport,
     keyFailures,
     sampled,
   };
@@ -188,7 +198,8 @@ export const auditAssignmentQuestionGeneration = (assignment = {}, questions = [
       warnings.push(`${where}: constraint "${issue.constraint}" (${JSON.stringify(issue.requested)}) is not something ${audit.family.id} allows, so its default is used (${issue.code}).`);
     });
     if (!audit.gradable) {
-      warnings.push(`${where} uses a tool whose answers the server cannot mark for ${audit.family.id}; its grade will rely on the student's device.`);
+      const why = audit.gradingSupport?.blocker || audit.gradingSupport?.reason || '';
+      warnings.push(`${where} uses a tool whose answers the server cannot mark for ${audit.family.id}${why ? ` (${why})` : ''}; its grade will rely on the student's device.`);
     }
     if (audit.keyFailures.length) {
       errors.push(`${where}: the generated answer key does not grade as correct for ${audit.keyFailures.length} of ${audit.sampled} sampled versions (for example ${audit.keyFailures[0]}). Fix the answer in the template or family before students see it.`);

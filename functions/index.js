@@ -982,7 +982,14 @@ exports.ingestStudentSubmissions = onCall(async (request) => {
 let sectionRecoveryServiceModule = null;
 async function sectionRecoveryService() {
   if (!sectionRecoveryServiceModule) {
-    sectionRecoveryServiceModule = await import("./shared/sectionRecoveryService.mjs");
+    // The context builder (shared with the student app) and the grading
+    // actions (server-only: they load every shared tool grader) are two
+    // modules so the browser never downloads the graders it does not run.
+    const [service, actions] = await Promise.all([
+      import("./shared/sectionRecoveryService.mjs"),
+      import("./shared/sectionRecoveryActions.mjs"),
+    ]);
+    sectionRecoveryServiceModule = { ...service, ...actions };
   }
   return sectionRecoveryServiceModule;
 }

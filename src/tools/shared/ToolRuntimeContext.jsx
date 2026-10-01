@@ -9,15 +9,20 @@ const DEFAULT_RUNTIME = {
   // correct for a teacher previewing a tool and ruins the item for a student,
   // so answers stay hidden unless a surface explicitly opts in.
   revealAnswers: false,
+  // The channel a tool reports its LIVE raw work through (see
+  // useReportToolWork.js). QuestionEngine turns it into the response a
+  // deadline checkpoint carries; outside an assignment it is a no-op.
+  reportWork: null,
 };
 
 const ToolRuntimeContext = createContext(DEFAULT_RUNTIME);
 
-export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, children }) => (
+export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, reportWork = null, children }) => (
   <ToolRuntimeContext.Provider value={{
     showImmediateFeedback: Boolean(showImmediateFeedback),
     revealAnswers: Boolean(revealAnswers),
     questionTerminal: Boolean(questionTerminal),
+    reportWork: typeof reportWork === 'function' ? reportWork : null,
   }}>
     {children}
   </ToolRuntimeContext.Provider>

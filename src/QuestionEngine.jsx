@@ -43,6 +43,8 @@ import { resolveCalculatorPolicy } from './platform/policies/calculatorPolicy';
 import { getToolDefinition } from './tools/toolRegistry';
 import { buildRawPathResponse } from './platform/path/pathToolResponses';
 import { ToolRuntimeProvider } from './tools/shared/ToolRuntimeContext';
+import { gradeRegistryToolWork } from './platform/grading/registryToolGrading.js';
+import { attemptInputsFromGrading } from '../functions/shared/serverGrading/gradingResult.mjs';
 import { ToolDraftScopeProvider, forgetToolDrafts, stampToolDraftSubmission } from './tools/shared/usePersistentToolState.js';
 import InteractiveModelingLabPlayer from './components/labs/InteractiveModelingLabPlayer.jsx';
 import { useToast } from './ui/Toast';
@@ -726,6 +728,43 @@ export default function QuestionEngine({
 
   enterFreshRef.current = { isComplete: answerState.isComplete, submitDisabled: !answerState.isComplete || submitting || locked || scaffoldRequired || contextScaffoldRequired, handleSubmit };
 
+  /*
+   * A REGISTRY TOOL'S LIVE WORK, AS A CHECKPOINTABLE RESPONSE.
+   *
+   * Ordinary graders report their state through `onStateChange`; a registry
+   * tool reports its raw work through the runtime context
+   * (useReportToolWork). Turning it into the same `answerState` shape lets
+   * the existing checkpoint machinery — debounce, page-lifecycle flush,
+   * "already submitted" detection — carry tool work to a deadline unchanged.
+   * Completeness comes from the shared grader, so a deadline only
+   * auto-submits work the server itself would call finished.
+   */
+  const toolWorkQuestionRef = useRef(null);
+  toolWorkQuestionRef.current = processedQuestion;
+  const toolWorkSequenceRef = useRef(0);
+  const registryToolId = missingToolDefinition?.toolId || null;
+  const registryToolLabel = missingToolDefinition?.label || 'Math tool';
+  const handleToolWork = useCallback((work) => {
+    if (!registryToolId || serverGrading) return;
+    const question = toolWorkQuestionRef.current;
+    toolWorkSequenceRef.current += 1;
+    const sequence = toolWorkSequenceRef.current;
+    void gradeRegistryToolWork({ toolId: registryToolId, question, work }).then((result) => {
+      if (sequence !== toolWorkSequenceRef.current || toolWorkQuestionRef.current !== question) return;
+      if (!result?.toolResponse?.value) return;
+      setAnswerState({
+        isComplete: result.graded === true && result.isComplete === true,
+        // Never a verdict: nothing reads correctness from a draft, and the
+        // checkpoint schema refuses to carry one.
+        isCorrect: false,
+        responseKey: result.toolResponse.value,
+        questionDetails: `${registryToolLabel} work in progress.`,
+        parts: [],
+        toolResponse: result.toolResponse,
+      });
+    });
+  }, [registryToolId, registryToolLabel, serverGrading]);
+
   const handleMissingToolAction = async (type, payload = {}) => {
     // A hint revealed inside a tool is mathematical help, exactly like a hint
     // from the coach panel, so it has to reach the same support-usage record
@@ -753,6 +792,49 @@ export default function QuestionEngine({
     }
     setSubmitting(true);
     try {
+      /*
+       * THE RECORDED VERDICT COMES FROM THE SHARED GRADER, NOT THE TOOL.
+       *
+       * The student's raw work is marked here by the same pure grader the
+       * server runs (functions/shared/serverGrading), through the same
+       * bounded bytes the server will read. Whatever the tool computed for
+       * its own on-screen feedback is only a fallback for a tool mode that
+       * is documented as not yet server-gradable. The structured work rides
+       * with the attempt as `toolResponse`, so ingestion — or a deadline, or
+       * a queue drained days later — reaches the identical verdict.
+       */
+      const sharedVerdict = await gradeRegistryToolWork({
+        toolId: missingToolDefinition?.toolId,
+        question: processedQuestion,
+        work: payload?.response,
+      });
+      const toolResponse = sharedVerdict.toolResponse;
+      if (sharedVerdict.graded && Boolean(payload?.isCorrect) !== sharedVerdict.isCorrect) {
+        // A tool whose own Check disagrees with its shared grader is a parity
+        // defect worth seeing in development; the shared verdict stands.
+        console.warn(`[grading-parity] ${missingToolDefinition?.toolId}: tool reported ${Boolean(payload?.isCorrect)}, shared grader ${sharedVerdict.isCorrect}.`);
+      }
+      if (sharedVerdict.graded) {
+        const attemptInputs = attemptInputsFromGrading(sharedVerdict);
+        const details = `${missingToolDefinition?.label || 'Math tool'} response submitted.`;
+        const result = await onGrade?.(
+          attemptInputs.isCorrect,
+          details,
+          attemptInputs.parts,
+          attemptSupportUsage(),
+          toolResponse?.value || JSON.stringify(payload?.response ?? {}),
+          { partialCreditPercent: attemptInputs.partialCreditPercent, toolResponse },
+        );
+        setFeedback(result || {
+          isCorrect: attemptInputs.isCorrect,
+          status: attemptInputs.isCorrect ? 'correct' : record.attemptCount + 1 >= resolvedMaximumAttempts ? 'expired' : 'attempted',
+          attemptCount: record.attemptCount + 1,
+          remainingAttempts: Math.max(0, resolvedMaximumAttempts - record.attemptCount - 1),
+          expired: !attemptInputs.isCorrect && record.attemptCount + 1 >= resolvedMaximumAttempts,
+          partialCredit: attemptInputs.partialCreditPercent || 0,
+        });
+        return;
+      }
       const rawParts = payload?.metadata?.parts;
       const parts = Array.isArray(rawParts)
         ? rawParts.map((part, index) => ({
@@ -769,7 +851,9 @@ export default function QuestionEngine({
       const partialCreditPercent = Number.isFinite(score)
         ? Math.max(0, Math.min(100, Math.round((score <= 1 ? score * 100 : score))))
         : null;
-      const responseKey = JSON.stringify(payload?.response ?? {});
+      // Still carried as structured work, so the server stores exactly what
+      // the student did even for a mode whose verdict stays on the device.
+      const responseKey = toolResponse?.value || JSON.stringify(payload?.response ?? {});
       const details = `${missingToolDefinition?.label || 'Math tool'} response submitted.`;
       const result = await onGrade?.(
         Boolean(payload?.isCorrect),
@@ -777,7 +861,7 @@ export default function QuestionEngine({
         parts,
         attemptSupportUsage(),
         responseKey,
-        { partialCreditPercent },
+        { partialCreditPercent, toolResponse },
       );
       setFeedback(result || {
         isCorrect: Boolean(payload?.isCorrect),
@@ -978,6 +1062,7 @@ export default function QuestionEngine({
         <ToolRuntimeProvider
           showImmediateFeedback={showOutcomeFeedback && !serverGrading}
           questionTerminal={locked}
+          reportWork={locked ? null : handleToolWork}
         >
           {/* THE REGISTRY TOOLS REACH THE PLATFORM UNDO BUTTON THROUGH HERE.
               Every other module is handed `onUndoStateChange` as a prop, but a
