@@ -126,17 +126,30 @@ test('both callables derive authorization from the shared helper, not a re-imple
 // receipt from before, never a fresh spend -- so the consistency check only
 // has to run, and only has to be enforced, for a genuinely new redemption.
 
+// The redemption transaction itself moved out of the callable into
+// functions/shared/rewardActionStore.mjs, so a pass the student HOLDS and a
+// pass bought with points go through one body (and so the emulator suite can
+// run it). The callable is now a thin wrapper; the ordering below is about
+// the transaction, so it is asserted where the transaction lives.
+const storeSource = fs.readFileSync('functions/shared/rewardActionStore.mjs', 'utf8');
 const redeemBody = executableSource(region(
-  source,
-  'exports.redeemPracticePass = onCall(',
-  'function trustedResponseInspectionEvidence(',
+  storeSource,
+  'export async function redeemPracticePass(',
+  'export async function undoPracticePassRedemption(',
   'redeemPracticePass',
 ));
 
+test('the redeemPracticePass callable delegates to the one redemption transaction', () => {
+  const callable = executableSource(region(source, 'exports.redeemPracticePass = onCall(', '\n});', 'redeemPracticePass callable'));
+  assert.match(callable, /requireStudent\(request\)/, 'the student identity comes from the verified token');
+  assert.match(callable, /store\.redeemPracticePass\(/);
+  assert.doesNotMatch(callable, /transaction\.set\(/, 'the callable writes nothing itself');
+});
+
 test('redeemPracticePass verifies class/roster consistency before spending, not merely after', () => {
-  const idempotencyBranch = firstIndexOf(redeemBody, 'redemptionSnap.exists', 'the idempotent-replay check');
+  const idempotencyBranch = firstIndexOf(redeemBody, 'if (isActivePracticePassRedemption(existing))', 'the idempotent-replay check');
   const consistencyCall = firstIndexOf(redeemBody, 'authorizeClassPointsActor(', 'the class/roster consistency check');
-  const consistencyThrow = firstIndexOf(redeemBody, 'if (!consistency.authorized) throw', 'the consistency-failure throw');
+  const consistencyThrow = firstIndexOf(redeemBody, 'if (!consistency.authorized) fail', 'the consistency-failure throw');
   const eligibilityCall = firstIndexOf(redeemBody, 'evaluatePracticePassEligibility(', 'the eligibility decision');
   const firstWrite = firstIndexOf(redeemBody, 'transaction.set(', 'the first transactional write');
 
@@ -155,7 +168,7 @@ test('redeemPracticePass verifies class/roster consistency before spending, not 
 });
 
 test('redeemPracticePass reuses the shared authorization helper rather than a hand-rolled roster check', () => {
-  assert.match(redeemBody, /points\.authorizeClassPointsActor\(/);
+  assert.match(redeemBody, /authorizeClassPointsActor\(/);
   assert.doesNotMatch(redeemBody, /assignedTeacherEmail\s*!==\s*teacherEmail/);
 });
 

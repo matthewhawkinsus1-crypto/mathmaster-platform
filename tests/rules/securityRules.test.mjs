@@ -1372,6 +1372,34 @@ test('a reward grant is read by its student and their teacher, and written by no
   }
 });
 
+test('the rewards wallet reads exactly its own student and class, and can change nothing', async () => {
+  await seedLiveChallengeEngine();
+  // My Rewards: the live inventory and the one-time history read.
+  const inventory = (client, studentId) => query(collection(client, 'rewardGrants'),
+    where('studentId', '==', studentId), where('classId', '==', 'class-a'), where('status', '==', 'available'));
+  await assertSucceeds(getDocs(inventory(studentA(), 'STUDENT_A')));
+  await assertFails(getDocs(inventory(studentB(), 'STUDENT_A')), "another student's rewards");
+  await assertSucceeds(getDocs(query(collection(studentA(), 'rewardGrants'), where('studentId', '==', 'STUDENT_A'), where('classId', '==', 'class-a'))));
+  // The waiver and use history the wallet and grade views read.
+  const uses = (client, studentId) => query(collection(client, 'classPointRewardRedemptions'),
+    where('studentId', '==', studentId), where('classId', '==', 'class-a'));
+  await assertSucceeds(getDocs(uses(studentA(), 'STUDENT_A')));
+  await assertFails(getDocs(uses(studentB(), 'STUDENT_A')));
+
+  // A student cannot give themselves a reward, change its type or quantity,
+  // rewrite where it came from, or excuse their own Practice.
+  const self = studentA();
+  await assertFails(setDoc(doc(self, 'rewardGrants/grant-a2'), { rewardCode: 'practicePass', studentId: 'STUDENT_A', classId: 'class-a', status: 'available' }));
+  await assertFails(updateDoc(doc(self, 'rewardGrants/grant-a'), { rewardCode: 'badge' }));
+  await assertFails(updateDoc(doc(self, 'rewardGrants/grant-a'), { source: { type: 'teacher' } }));
+  await assertFails(updateDoc(doc(self, 'rewardGrants/grant-a'), { history: [] }));
+  await assertFails(updateDoc(doc(self, 'rewardGrants/grant-a'), { status: 'available', expiresAt: null }));
+  await assertFails(setDoc(doc(self, 'classPointRewardRedemptions/self-excused'), {
+    rewardCode: 'practicePass', studentId: 'STUDENT_A', classId: 'class-a', assignmentId: 'a1', status: 'redeemed', paidWith: 'pass',
+  }));
+  await assertFails(updateDoc(doc(self, 'classPointRewardRedemptions/redemption-a'), { status: 'reversed' }));
+});
+
 test('a closed round\'s result is read by the room\'s audience only, and written by no client', async () => {
   await seedLiveChallengeEngine();
   const round = 'liveChallengeRooms/lc-room-a/rounds/0';
