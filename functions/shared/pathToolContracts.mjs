@@ -81,6 +81,7 @@ import {
   sanitizeGraphingPublicQuestion,
   validateGraphingResponse,
 } from './pathGraphingGrading.mjs';
+import { functionAnswerIsCorrect } from './relationFunctionChoice.mjs';
 
 export {
   asNumber,
@@ -531,9 +532,15 @@ const enhancedInverseReflectionPrompt = (question = {}, inverse = null) => {
 
 const CONTRACTS = {
   // Solve an equation. The equation is the question; its solution is not.
+  // Version 2. `algebra` questions are shown with the balance workspace (the
+  // answer box they were written for is retired), which ends on an equation
+  // such as "x = 4". Version 1 read only the answer box's `value`, so every
+  // finished workspace was marked wrong. The equation is graded as
+  // `stepAlgebra` grades it: the value the variable is isolated to. A `value`
+  // from an older client is still read.
   algebra: {
-    serverGradingVersion: 1,
-    responseShape: 'value',
+    serverGradingVersion: 2,
+    responseShape: 'finalEquationOrValue',
     sanitizePublicQuestion: (question) => pick(question, [
       'prompt', 'equationLatex', 'equationAscii', 'variable', 'solveFor',
       'targetForm', 'objective', 'workspaceDifficulty', 'graph', 'context',
@@ -541,16 +548,25 @@ const CONTRACTS = {
     buildPrivateGradingDefinition: (question) => ({
       expected: question.answer ?? question.expected ?? null,
       accepted: list(question.acceptedAnswers),
+      variable: String(question.variable || question.solveFor || question.objective?.variable || 'x'),
       tolerance: Number(question.numericTolerance ?? 1e-6),
     }),
-    validateStudentResponse: (raw) => (
-      raw && typeof raw.value === 'string' && raw.value.trim() !== ''
+    validateStudentResponse: (raw) => {
+      const hasEquation = typeof raw?.finalEquation === 'string' && raw.finalEquation.trim() !== '';
+      const hasValue = typeof raw?.value === 'string' && raw.value.trim() !== '';
+      return hasEquation || hasValue
         ? valid()
-        : invalid('An algebra response needs the value the student entered.')
-    ),
+        : invalid('An algebra response needs the equation the student finished with.');
+    },
     gradeStudentResponse: (definition, raw) => {
-      const candidates = [definition.expected, ...definition.accepted].filter((entry) => entry !== null && entry !== undefined);
-      const isCorrect = candidates.some((entry) => sameValue(raw.value, entry, definition.tolerance));
+      const given = typeof raw.finalEquation === 'string' && raw.finalEquation.trim() !== ''
+        ? isolatedValue(raw.finalEquation, definition.variable)
+        : raw.value;
+      const candidates = [definition.expected, ...definition.accepted]
+        .filter((entry) => entry !== null && entry !== undefined)
+        .map((entry) => isolatedValue(entry, definition.variable) ?? entry);
+      const isCorrect = given !== null && given !== undefined
+        && candidates.some((entry) => sameValue(given, entry, definition.tolerance));
       return graded(isCorrect, [{ id: 'value', isCorrect }]);
     },
   },
@@ -727,8 +743,14 @@ const CONTRACTS = {
   },
 
   // Plot a relation, or read one. The pairs are the question here.
+  //
+  // Version 2. Version 1 knew only yes / no for "is it a function?", while the
+  // tool has sent the verdict with its reason ("yes-definition", …) since it
+  // gained the reasons: every function was marked wrong and every non-function
+  // right, whatever the student chose. The tool and this grader now share one
+  // rule (relationFunctionChoice.mjs); a bare yes / no / boolean is still read.
   relationMapping: {
-    serverGradingVersion: 1,
+    serverGradingVersion: 2,
     responseShape: 'relation',
     // No secret in the pairs — a student can see the relation and work its
     // domain out. What the server protects is the verdict, not the data.
@@ -773,10 +795,7 @@ const CONTRACTS = {
         parts.push({ id: 'range', isCorrect: sameSet(list(raw.range), definition.range) });
       }
       if (definition.ask.includes('isFunction')) {
-        const answered = typeof raw.isFunction === 'boolean'
-          ? raw.isFunction
-          : ['yes', 'true'].includes(normalizeAnswer(raw.isFunction));
-        parts.push({ id: 'isFunction', isCorrect: answered === definition.isFunction });
+        parts.push({ id: 'isFunction', isCorrect: functionAnswerIsCorrect(raw.isFunction, definition.isFunction) });
       }
       return graded(parts.length > 0 && parts.every((part) => part.isCorrect), parts);
     },

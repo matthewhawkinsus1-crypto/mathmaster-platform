@@ -2,7 +2,7 @@
   "algebra": {
     "pathToolId": "algebra",
     "rawWork": {
-      "value": "4"
+      "finalEquation": " x = 4"
     }
   },
   "system": {
@@ -50,7 +50,8 @@
         2,
         3
       ],
-      "isFunction": "yes"
+      "isFunction": "yes-definition",
+      "fields": {}
     }
   },
   "intervalNumberLine": {

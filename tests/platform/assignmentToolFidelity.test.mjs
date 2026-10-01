@@ -15,6 +15,7 @@ import {
   stableShuffleChoices,
   strengthenTwoChoiceSet,
 } from '../../src/platform/interaction/choiceOptions.js';
+import { FUNCTION_CHOICES } from '../../functions/shared/relationFunctionChoice.mjs';
 
 test('finite choices are strengthened and keep a stable shuffled order', () => {
   const strengthened = strengthenTwoChoiceSet(['discrete', 'continuous']);
@@ -428,7 +429,10 @@ test('student-facing renderers contain the fidelity safeguards', async () => {
   assert.match(relation, /Move the pointer over the grid to see the exact coordinate/);
   assert.match(relation, /allowTypedPlot \?/);
   assert.match(relation, /analysisFields\.map/);
-  assert.match(relation, /every input has exactly one output/);
+  // The function question's choices live with the server's grader, and the
+  // tool renders those: the definition is offered as a reason.
+  assert.match(relation, /FUNCTION_CHOICES/);
+  assert.ok(FUNCTION_CHOICES.some((choice) => /every input has exactly one output/.test(choice.label)));
   assert.match(workflow, /Your checked graph/);
   assert.match(workflow, /checkedGraphReference/);
   assert.match(workflow, /missing the quantity choices needed to identify the input and output/);

@@ -100,7 +100,9 @@ test('the issued question is the real tool, with no answer anywhere in it', asyn
   const { questionInstance } = await runtime.fetchNextSanitizedQuestion({ sessionId: session.sessionId });
 
   assert.equal(questionInstance.pathToolId, 'algebra', 'issued as the algebra tool, not as text');
-  assert.equal(questionInstance.serverGradingVersion, 1);
+  // Version 2: the balance workspace's finished equation is graded, not only
+  // the retired answer box's value (pathToolContracts.mjs, algebra).
+  assert.equal(questionInstance.serverGradingVersion, 2);
   assert.equal(questionInstance.tool.equationLatex, '2x + 5 = 13', 'the equation is the question');
   assert.equal(questionInstance.canonicalQuestion, undefined, 'a contract-graded question does not ship the authored item');
 
@@ -150,28 +152,23 @@ test('work that is not in the tool\'s shape is refused, not marked wrong', async
 // --- What the browser collects is what the server grades -----------------------
 
 test('the engine\'s answer state becomes exactly the raw work the grader expects', () => {
-  // This is the shape EquationGrader reports through `onStateChange`.
-  const fromEquationGrader = {
+  // StepByStepAlgebra's answer state. QuestionEngine shows `algebra` with the
+  // same balance workspace as `stepAlgebra` (the answer box, EquationGrader, is
+  // retired and mounted nowhere), so both send the equation it finished on.
+  const fromWorkspace = {
     isComplete: true,
     // The browser's own verdict, which the secure route does not read.
     isCorrect: true,
-    responseKey: '4',
-    parts: [{ id: 'x', label: 'Value of x', isComplete: true, isCorrect: true, response: '4' }],
-  };
-  assert.deepEqual(
-    buildRawPathResponse({ pathToolId: 'algebra', answerState: fromEquationGrader }),
-    { value: '4' },
-  );
-
-  // And this is StepByStepAlgebra's.
-  const fromWorkspace = {
     responseKey: 'x = 5|{}',
     parts: [{ id: 'algebra-objective', label: 'Isolate x', isComplete: true, isCorrect: true, response: 'x = 5' }],
   };
-  assert.deepEqual(
-    buildRawPathResponse({ pathToolId: 'stepAlgebra', answerState: fromWorkspace }),
-    { finalEquation: 'x = 5' },
-  );
+  for (const pathToolId of ['algebra', 'stepAlgebra']) {
+    assert.deepEqual(
+      buildRawPathResponse({ pathToolId, answerState: fromWorkspace }),
+      { finalEquation: 'x = 5' },
+      pathToolId,
+    );
+  }
 
   // A tool with no translation must produce nothing, so the caller refuses to
   // submit rather than sending something the server will mark wrong.

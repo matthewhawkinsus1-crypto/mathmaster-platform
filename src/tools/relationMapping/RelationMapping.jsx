@@ -9,6 +9,7 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import { clientPointToViewBox } from '../../utils/responsiveCoordinates.js';
 import { givenRelationInstruction } from './relationMappingCopy.js';
+import { FUNCTION_CHOICES, correctFunctionChoice } from '../../../functions/shared/relationFunctionChoice.mjs';
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: '#174ea6', border: '1px solid #9bb8e8' };
@@ -237,14 +238,12 @@ export default function RelationMapping({ questionData = {}, onAction }) {
     setPlotY('');
   };
 
-  const functionChoiceOptions = useMemo(() => stableShuffleChoices([
-    { value: 'yes-definition', label: 'Yes — every input has exactly one output.' },
-    { value: 'yes-output-rule', label: 'Yes — every output value is used only once.' },
-    { value: 'no-input-repeat', label: 'No — at least one input has more than one output.' },
-    { value: 'no-output-repeat', label: 'No — at least one output value repeats.' },
-  ], choiceSeed(questionData.questionId || questionData.prompt, 'relation-function-status')), [questionData.questionId, questionData.prompt]);
-
-  const correctFunctionChoice = relationIsFunction(pairs) ? 'yes-definition' : 'no-input-repeat';
+  // The choices and the rule are shared with the server's grader
+  // (functions/shared/relationFunctionChoice.mjs), which grades what this sends.
+  const functionChoiceOptions = useMemo(() => stableShuffleChoices(
+    FUNCTION_CHOICES.map((choice) => ({ ...choice })),
+    choiceSeed(questionData.questionId || questionData.prompt, 'relation-function-status'),
+  ), [questionData.questionId, questionData.prompt]);
 
   const optionsForField = (field) => {
     const authored = Array.isArray(field?.options) ? field.options : [];
@@ -264,7 +263,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
     }
     if (ask.includes('domain')) checks.domain = sameSet(parseList(domainAnswer), domainValues);
     if (ask.includes('range')) checks.range = sameSet(parseList(rangeAnswer), rangeValues);
-    if (ask.includes('isFunction')) checks.isFunction = functionAnswer === correctFunctionChoice;
+    if (ask.includes('isFunction')) checks.isFunction = functionAnswer === correctFunctionChoice(relationIsFunction(pairs));
     analysisFields.forEach((field) => {
       checks[`field:${field.id}`] = matchesFieldAnswer(String(fieldAnswers[field.id] ?? ''), field);
     });

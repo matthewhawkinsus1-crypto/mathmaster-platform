@@ -1613,13 +1613,17 @@ tool's Yes/No select is four reasons, the number line's switches read
 go by role and accessible name, and `graphing2`, which never had a script, is
 plotted from the keyboard: **12 / 12** captures, byte-identical on two runs.
 Nine payloads are unchanged; Function Investigation differs only in where the
-student let go of each arrow (`droppedPoint`, not graded here). Two are **not**
-committed, because the server marks the real payload wrong: `algebra` sends
-`{ value: " x = 4|{}" }`, and the relation tool sends
-`isFunction: "yes-definition"`, which the server reads as "no" — so "Is it a
-function?" is marked wrong on every function and right on every non-function,
-whatever the student chose. Both date from PR #47; the fixture keeps their old
-entries until they are fixed.
+student let go of each arrow (`droppedPoint`, not graded here). Two showed
+the server marking real work wrong, both dating from PR #47. `algebra` sent
+`{ value: " x = 4|{}" }`, which the grader could never accept. The relation
+tool sends `isFunction: "yes-definition"`, which the server read as "no", so
+"Is it a function?" was marked wrong on every function and right on every
+non-function, whatever the student chose, in My Math Path and Live Challenge.
+Both are fixed in the cleanup branch. `algebra` now sends the equation the
+workspace ended on (`{ finalEquation: " x = 4" }`), graded by the value it
+isolates. The tool and the grader share one rule for the function question
+(`functions/shared/relationFunctionChoice.mjs`), and a bare yes / no is still
+read. Their true captures are committed.
 
 ## Tests
 

@@ -99,12 +99,8 @@ const SCRIPTS = {
   // 2x + 5 = 13. `algebra` is the balance workspace now (the answer box was
   // retired), so the student solves it there: subtract 5 from both sides,
   // cross out the zero pair, write 13 - 5 as 8; divide both sides by 2, cross
-  // out the 2s, write 8 / 2 as 4.
-  //
-  // KNOWN DEFECT (docs/qa/platform-quirks-audit.md, "captureToolResponses.mjs,
-  // repaired"). What this sends, { value: " x = 4|{}" }, the server's algebra
-  // grader marks wrong, so the fixture still holds the retired answer box's
-  // capture until the builder or the grader is fixed.
+  // out the 2s, write 8 / 2 as 4. It sends the equation it ended on,
+  // { finalEquation: " x = 4" }.
   algebra: async (page) => {
     await balanceMove(page, 'Subtract', '5');
     await btn(page, '+ 5, select to cancel').click();
@@ -135,11 +131,8 @@ const SCRIPTS = {
     }
     await page.getByRole('textbox', { name: /^Domain/ }).fill('-2, 1, 3');
     await page.getByRole('textbox', { name: /^Range/ }).fill('-1, 2, 3');
-    // "Is this relation a function?" is answered with its reason.
-    //
-    // KNOWN DEFECT (same QA note). The tool sends that reason's id,
-    // isFunction: "yes-definition", which the server reads as "no", so the
-    // fixture still holds the old Yes / No select's capture until it is fixed.
+    // "Is this relation a function?" is answered with its reason, and the tool
+    // sends that reason's id: isFunction: "yes-definition".
     await page.getByRole('radio', { name: 'Yes — every input has exactly one output.' }).click();
     await btn(page, 'Check').click();
   },

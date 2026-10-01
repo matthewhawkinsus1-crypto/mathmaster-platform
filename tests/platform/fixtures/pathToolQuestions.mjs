@@ -77,14 +77,6 @@ export const PATH_TOOL_QUESTIONS = {
     ],
   },
 
-  dataModelingLab: {
-    type: 'dataModelingLab',
-    prompt: 'Use technology to calculate the correlation coefficient and interpret its direction and strength.',
-    mode: 'correlation',
-    points: [[0, 2], [1, 4], [2, 6], [3, 8], [4, 10]],
-    correlationTolerance: 0.01,
-  },
-
   regressionCalculator: {
     type: 'regressionCalculator',
     prompt: 'Read the scatterplot, enter the ordered pairs, run linear regression, and interpret the produced correlation.',

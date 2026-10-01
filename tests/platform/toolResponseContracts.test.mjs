@@ -297,10 +297,12 @@ test('a forged verdict changes nothing on work the server has already judged', (
 // tests above. So each capture is also broken in the one way that matters for
 // that tool, in its own real shape, and must come back wrong.
 const SPOILED = {
-  algebra: (work) => ({ ...work, value: '5' }),
+  // The balance workspace finished one step short of the answer's value.
+  algebra: (work) => ({ ...work, finalEquation: ' x = 5' }),
   system: (work) => ({ ...work, x: 2 }),
   multiAnswer: (work) => ({ ...work, responses: { ...work.responses, intercept: '9' } }),
-  relationMapping: (work) => ({ ...work, isFunction: 'no' }),
+  // The right verdict for the wrong reason: one-to-one is not the definition.
+  relationMapping: (work) => ({ ...work, isFunction: 'yes-output-rule' }),
   // A closed endpoint where the answer is open: the same numbers, a different
   // interval. Nothing but reading `maxClosed` can tell these apart.
   intervalNumberLine: (work) => ({
@@ -315,7 +317,6 @@ const SPOILED = {
     intervals: [{ ...work.intervals[0], max: 8 }, work.intervals[1]],
     notation: '(-∞, -3] U (2, 8)',
   }),
-  dataModelingLab: (work) => ({ ...work, r: 0 }),
   systemsWorkspace: (work) => ({ ...work, classification: 'none' }),
   dataModelingLab: (work) => ({ ...work, r: 0.25 }),
   regressionCalculator: (work) => ({
