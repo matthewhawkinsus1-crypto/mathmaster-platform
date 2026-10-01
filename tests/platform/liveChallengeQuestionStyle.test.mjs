@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { region } from './helpers/sourceContract.mjs';
+import { shortPlaceText } from '../../src/platform/liveChallenge/challengeStandingsModel.js';
 
 import {
   CHALLENGE_QUESTION_STYLES,
@@ -201,10 +202,19 @@ test('the question card follows the semantic surface so its tools keep contrast 
 });
 
 test('a student can see where they stand without waiting for the round to end', () => {
-  assert.match(student, /Your score/);
-  assert.match(student, /selfRow\.liveScore \?\? selfRow\.score/);
+  // The header shows the live score — banked points plus this round's working
+  // points — and the student's place on the same board everyone sees.
+  const header = region(student, 'data-mm-student-score="1"', '</header>', 'score header');
+  assert.match(header, /Your score/);
+  assert.match(header, /\(headerRow\.liveScore \?\? headerRow\.score\)\.toLocaleString\(\)/);
+  assert.match(header, /shortPlaceText\(headerRow\)/);
+  assert.equal(shortPlaceText({ rank: 2, tied: true }), 'T-2nd', 'a shared place says so');
+  assert.equal(shortPlaceText({ rank: 11 }), '11th');
+  assert.equal(shortPlaceText({ rank: null }), null, 'no place before there is one');
   // And the finish screen leads with their own result, not with the list.
-  assert.match(student, /#\{selfRow\.rank\}/);
+  const finalCard = region(read('../../src/components/liveChallenge/ChallengeStudentShell.jsx'), 'export function StudentFinalCard(', '\n}\n', 'final card');
+  const ownPlace = finalCard.indexOf('{selfRow.place.ordinal}');
+  assert.ok(ownPlace > -1 && ownPlace < finalCard.indexOf('<StandingsBoard'), 'their own place comes before the list');
 });
 
 test('every exit route out of the game still exists', () => {

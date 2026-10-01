@@ -22,6 +22,8 @@ export {
   watchLiveChallengePlayers,
   watchLiveChallengeDiagnostics,
   watchTeacherActiveChallenge,
+  watchLiveChallengeRound,
+  readLiveChallengeRound,
   readChallengeReport,
   timestampMillis,
 } from '../../../src/platform/liveChallenge/liveChallengeService.js';

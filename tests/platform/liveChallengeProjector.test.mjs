@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { region } from './helpers/sourceContract.mjs';
+import { CHALLENGE_STAGE, HOST_COMMAND, hostPrimaryAction } from '../../src/platform/liveChallenge/challengeShellModel.js';
 
 const modelPath = path.resolve('src/platform/liveChallenge/liveChallengeProjectorModel.js');
 const loadModel = () => import(`${pathToFileURL(modelPath).href}?test=${Date.now()}`);
@@ -116,14 +117,33 @@ test('projector presents gated lobby and round controls without owning server lo
   assert.match(lobby, /onClick=\{onStart\}/);
   assert.match(lobby, /Starting Challenge…/);
 
-  const running = region(arena, 'function RunningView(', '\nexport const formatArenaClock', 'running projector');
-  assert.match(running, /const paceOpen = room\?\.timingMode === 'pace'/);
-  assert.match(running, /const roundComplete = !paceOpen && Number\(remainingMs\) <= 0/);
-  assert.match(running, /const advanceAvailable = canAdvance/);
-  assert.match(running, /\{advanceAvailable && typeof onAdvance === 'function' && \(/, 'Next is absent during active solving unless early advancement is authorized');
-  assert.match(running, /onClick=\{onAdvance\}/);
-  assert.match(running, /Finish & Show Final Standings/);
-  assert.match(running, /Round Complete/);
+  // Round controls come from the room's STAGE (challengeShellModel's
+  // hostPrimaryAction), never from a clock the projector keeps: nothing to
+  // press while a round is open — it ends when time runs out or everyone has
+  // answered, and its results show — then Next Round, or Finish on the last.
+  const strip = region(arena, 'function HostStrip(', '\nexport const formatArenaClock', 'projector host strip');
+  assert.match(strip, /const primary = primaryAction\?\.command && stage !== CHALLENGE_STAGE\.LOBBY \? primaryAction : null;/);
+  assert.match(strip, /\[HOST_COMMAND\.ADVANCE\]: onAdvance,/);
+  assert.match(strip, /disabled=\{primary\.disabled \|\| controlBusy/, 'one command at a time');
+  assert.match(strip, /onClick=\{primaryHandler\}/);
+  // Ending a round or the game early is asked first (the console's dialog).
+  assert.match(strip, /onClick=\{onRequestEndRound\}/);
+  assert.match(strip, /onClick=\{onRequestEndGame\}/);
+  const room = { status: 'running', roundState: 'open', currentRound: 0, roundCount: 3, startsAt: 1_000, endsAt: 31_000 };
+  for (const stage of [CHALLENGE_STAGE.COUNTDOWN, CHALLENGE_STAGE.ROUND_ACTIVE, CHALLENGE_STAGE.ROUND_LOCKED]) {
+    assert.equal(hostPrimaryAction({ room, stage, joinedCount: 5, finishedCount: 2 }).command, null, `nothing to press in ${stage}`);
+  }
+  const results = hostPrimaryAction({ room: { ...room, roundState: 'closed' }, stage: CHALLENGE_STAGE.ROUND_RESULTS });
+  assert.equal(results.command, HOST_COMMAND.ADVANCE);
+  assert.equal(results.label, 'Next Round');
+  const last = hostPrimaryAction({ room: { ...room, roundState: 'closed', currentRound: 2 }, stage: CHALLENGE_STAGE.ROUND_RESULTS });
+  assert.equal(last.label, 'Finish & Show Final Standings');
+  // The results moment is its own view: the round's own table, and the
+  // standings it left — "Tallying" until they arrive, never the old board.
+  const resultsView = region(arena, 'function ResultsView(', '\n/** Host controls', 'results view');
+  assert.match(resultsView, /<RoundResultsTable view=\{roundView\}/);
+  assert.match(resultsView, /const standings = roundView \? \(roundView\.standings \|\| standingsRows\(leaderboard\)\) : null;/);
+  assert.match(resultsView, /Tallying the round/);
 });
 
 test('projector retains exit, audio enablement, and readable action errors', () => {
@@ -136,7 +156,11 @@ test('projector retains exit, audio enablement, and readable action errors', () 
 
 test('normal teacher controls retain their existing authorized start and advance paths', () => {
   const teacher = readFileSync('src/components/liveChallenge/LiveChallengeTeacher.jsx', 'utf8');
-  const normalScreen = region(teacher, '\n  return (\n    <div style=', null, 'normal teacher screen');
-  assert.match(normalScreen, /control\('start', startLiveChallenge\)/);
-  assert.match(normalScreen, /control\('advance', advanceLiveChallenge\)/);
+  // The console's one primary control runs the same authorized callables,
+  // through the same one-command-at-a-time lock, as the projector's.
+  const primary = region(teacher, 'const runPrimaryAction = () => {', '\n  };', 'console primary control');
+  assert.match(primary, /case HOST_COMMAND\.START:[\s\S]*?return control\('start', startLiveChallenge\);/);
+  assert.match(primary, /case HOST_COMMAND\.ADVANCE:\s*return control\('advance', advanceLiveChallenge\);/);
+  const consoleScreen = region(teacher, 'data-mm-host-console=', null, 'normal teacher screen');
+  assert.ok((consoleScreen.match(/onPrimary=\{runPrimaryAction\}/g) || []).length >= 3, 'the lobby, the rounds and the end each show it');
 });

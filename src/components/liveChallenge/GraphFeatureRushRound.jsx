@@ -132,6 +132,23 @@ function RushClock({ startMono, endMono }) {
   );
 }
 
+/*
+ * 3 · 2 · 1 in the "Get ready" card, off the round's one clock anchor: every
+ * student's number changes on the same server second, and a device that
+ * opens mid-countdown shows the step the server is on.
+ */
+function RushCountdownNumber({ startMono }) {
+  const [now, setNow] = useState(() => performance.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(performance.now()), 100);
+    return () => window.clearInterval(timer);
+  }, []);
+  const before = startMono - now;
+  if (before <= 0) return null;
+  const step = Math.min(3, Math.max(1, Math.ceil(before / 1000)));
+  return <span key={step} className="mm-rush-count" data-mm-countdown={String(step)} aria-hidden="true">{step}</span>;
+}
+
 /** Spoken time warnings, once each: a screen reader is not asked to read a ticking clock. */
 function useTimeAnnouncements(endMono, active) {
   const [spoken, setSpoken] = useState('');
@@ -193,6 +210,7 @@ const RUSH_CSS = `
   border-radius: 12px; background: rgba(13,16,23,.86); color: #f7f9ff; padding: 16px;
 }
 .mm-rush-overlay strong { font-size: clamp(28px, 7vmin, 56px); line-height: 1; }
+.mm-rush-count { font-size: clamp(64px, 18vmin, 140px); font-weight: 1000; line-height: .9; font-variant-numeric: tabular-nums; color: #fff; animation: mmRushCountPop 420ms cubic-bezier(.2,.9,.3,1.3); }
 .mm-rush-flash { position: absolute; inset: 0; border-radius: 12px; pointer-events: none; box-shadow: inset 0 0 0 6px #81c995; animation: mmRushFlash 420ms ease-out forwards; }
 .mm-rush-banner { padding: 6px 10px; border-radius: 8px; background: rgba(253,214,99,.14); border: 1px solid rgba(253,214,99,.45); color: #fdd663; font-weight: 800; font-size: 13px; }
 .mm-rush-alert { padding: 9px 12px; border-radius: 9px; background: #4a3708; color: #ffe9a8; border: 1px solid #f9ab00; font-weight: 800; }
@@ -203,6 +221,7 @@ const RUSH_CSS = `
 .mm-rush-in-b { animation: mmRushInB 160ms ease-out; }
 @keyframes mmRushDrain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 @keyframes mmRushFlash { from { opacity: 1; } to { opacity: 0; } }
+@keyframes mmRushCountPop { from { transform: scale(.55); opacity: .2; } to { transform: scale(1); opacity: 1; } }
 @keyframes mmRushPop { from { transform: scale(.4); } to { transform: scale(1); } }
 @keyframes mmRushMiss { 0% { opacity: 1; transform: scale(.8); } 70% { opacity: .9; transform: scale(1); } 100% { opacity: 0; transform: scale(1.05); } }
 @keyframes mmRushInA { from { opacity: .6; } to { opacity: 1; } }
@@ -231,7 +250,7 @@ const RUSH_CSS = `
   .mm-rush-dne, .mm-rush-skip { min-height: 46px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .mm-rush-found-fresh, .mm-rush-in-a, .mm-rush-in-b { animation: none; }
+  .mm-rush-found-fresh, .mm-rush-in-a, .mm-rush-in-b, .mm-rush-count { animation: none; }
   .mm-rush-miss { animation: mmRushFlash 650ms linear forwards; }
   .mm-rush-flash { animation: none; opacity: .8; }
 }
@@ -541,7 +560,7 @@ export default function GraphFeatureRushRound({
   let overlay = null;
   if (phase === 'loading') overlay = <><strong>Loading…</strong><span>{connection === 'retrying' ? 'Reconnecting to the round…' : 'Getting your graphs ready.'}</span></>;
   else if (phase === 'closed' || roundClosed) overlay = <><strong>Round over</strong><span>Waiting for the results…</span></>;
-  else if (!started) overlay = <><strong>Get ready</strong><span>Tap each feature you are asked for. Starting in a moment.</span></>;
+  else if (!started) overlay = <><RushCountdownNumber startMono={timing.startMono} /><strong>Get ready</strong><span>Tap each feature you are asked for.</span></>;
   else if (over) {
     overlay = practice
       ? (
