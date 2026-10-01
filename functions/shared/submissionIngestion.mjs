@@ -226,6 +226,10 @@ export const decideSubmissionIngestion = ({
  *     cannot impersonate a correct answer;
  *   - `lastSubmissionId` is stamped here, never accepted from the envelope.
  *
+ *   - a claimed `correct` is refused outright where it cannot be legitimate:
+ *     on a step submission, and on a submission that withheld the raw
+ *     response for a question the server could have marked.
+ *
  * Before this branch the code did not hold the first three lines its own
  * comment promised (docs/architecture/SERVER_GRADING_COVERAGE.md, "Sanitizer
  * gaps"): a claimed `correct` overwrote an exhausted `expired` record, a
@@ -267,7 +271,15 @@ const replacementResetIsAuthorized = ({ envelope, canonical, claimed }) => (
   && finite(claimed.variantIndex, 0) > finite(canonical.variantIndex, 0)
 );
 
-export const sanitizeClientAttemptRecord = ({ envelope, canonicalRecord, maximumAttempts }) => {
+export const sanitizeClientAttemptRecord = ({
+  envelope,
+  canonicalRecord,
+  maximumAttempts,
+  // False when a claimed `correct` cannot be legitimate: a step submission
+  // (recordQuestionStep never completes a question), or a submission that
+  // withheld the raw response for a question the server could have marked.
+  allowClaimedCorrect = true,
+}) => {
   const canonical = stripNonCanonicalInspectionFields(normalizeQuestionRecord(canonicalRecord));
   const claimed = stripNonCanonicalInspectionFields(normalizeQuestionRecord(envelope.record));
   const resetting = replacementResetIsAuthorized({ envelope, canonical, claimed });
@@ -307,7 +319,9 @@ export const sanitizeClientAttemptRecord = ({ envelope, canonicalRecord, maximum
   // this envelope made. A claimed count is never consulted — a client that
   // could hold it down would have unlimited attempts on a one-try question.
   const attemptCount = Math.min(attemptLimit, Math.max(finite(canonical.attemptCount, 0), 0) + (advanced ? 1 : 0));
-  const claimedStatus = ATTEMPT_STATUSES.has(claimed.status) ? claimed.status : 'attempted';
+  const claimedStatus = ATTEMPT_STATUSES.has(claimed.status) && (allowClaimedCorrect || claimed.status !== 'correct')
+    ? claimed.status
+    : 'attempted';
   // Out of attempts and not correct is expired, whatever the claim says — the
   // state recordQuestionAttempt would have written.
   const status = claimedStatus !== 'correct' && attemptCount >= attemptLimit && advanced ? 'expired' : claimedStatus;
@@ -489,7 +503,16 @@ export const buildIngestedAttempt = ({
     result = outcome.result;
     gradedBy = 'server';
   } else {
-    record = sanitizeClientAttemptRecord({ envelope, canonicalRecord: canonical, maximumAttempts });
+    record = sanitizeClientAttemptRecord({
+      envelope,
+      canonicalRecord: canonical,
+      maximumAttempts,
+      // The browser always sends the raw response with an ordinary submission
+      // (App.jsx), and a step never completes a question. Either way round, a
+      // claimed `correct` here would be a verdict the server was denied the
+      // chance to check.
+      allowClaimedCorrect: envelope.kind !== 'stepSubmission' && regrade.reason !== 'no-raw-response',
+    });
     result = {
       isCorrect: record.status === 'correct',
       status: record.status,
