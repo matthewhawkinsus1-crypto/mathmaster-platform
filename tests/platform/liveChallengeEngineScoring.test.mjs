@@ -102,7 +102,12 @@ test('Grand Prix turns a round rank into bounded placement points', () => {
   assert.equal(points(3, 900, true, { placementPoints: [10, 5], beyondTablePoints: 0 }), 0);
   assert.deepEqual(grandPrixStrategy.normalizeConfig({ beyondTablePoints: -3, zeroPerformancePoints: 99 }), {
     placementPoints: [15, 12, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1], beyondTablePoints: 1, zeroPerformancePoints: 0,
+    // The class-size curve (Graph Feature Rush) is opt-in: a room that does
+    // not ask for it keeps the racing table it was always scored with.
+    placementCurve: 'table', fieldCurve: { max: 12, min: 3, winnerBonus: 1 },
   });
+  assert.equal(points(30, 900, true, { placementCurve: 'field' }), 3, 'without a reported field, a place is read as last of its own field — never as a win');
+  assert.equal(points(1, 900, true, { placementCurve: 'field' }), 12);
 });
 
 test('a championship is ranked by match points, then round wins, then raw score', () => {
