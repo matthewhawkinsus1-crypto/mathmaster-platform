@@ -26,7 +26,10 @@
 //   DOL ends  a finite-domain curve does not announce "Boundary Markers";
 //   DOL plot  there is no check: placed points are the answer, graded as placed;
 //   inverse   on a DOL there is no reflection check; the inverse is drawn
-//             through the student's own reflected points and graded on submit.
+//             through the student's own reflected points and graded on submit;
+//   phone     at 390 px by touch (tap, drawn stroke, markers), the same DOL
+//             graph earns the same credit, and a tap a little off a card's
+//             stated x places at that x.
 // Exits non-zero on any failure.
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
@@ -310,6 +313,71 @@ for (const role of ['practice', 'dol']) {
   const sketch = part(graded, 'inverse-line-sketch');
   check(sketch?.isComplete === true && sketch?.isCorrect === false, 'DOL inverse sketch: the drawn inverse is graded against the true inverse', JSON.stringify(sketch));
   await page.close();
+}
+
+// A PHONE, BY TOUCH. Students do DOLs on phones too: the same work, done with
+// a fingertip at 390 px, is graded the same way, and a tap a little off a
+// card's stated x still places at that x (PQ-024).
+{
+  const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  pageCount += 1;
+  const page = await phone.newPage();
+  page.on('pageerror', (error) => failures.push(`phone: page error ${error.message}`));
+  await page.goto(`${ORIGIN}/tests/browser/graphPointCheck.html?role=dol&run=${run}-${pageCount}`, { waitUntil: 'networkidle' });
+  await page.locator('button', { hasText: 'Plot the point where x = 0' }).first().waitFor();
+  const onScreen = async () => {
+    // Whatever the layout does after a tap, the plane is where the next touch goes.
+    await page.evaluate(() => {
+      const svg = [...document.querySelectorAll('svg')].sort((a, b) => b.getBoundingClientRect().width - a.getBoundingClientRect().width)[0];
+      const box = svg.getBoundingClientRect();
+      if (box.top < 0 || box.bottom > innerHeight) svg.scrollIntoView({ block: 'center' });
+    });
+    await page.waitForTimeout(150);
+    return axisFit(page);
+  };
+  const tapPlot = async (label, x, y) => {
+    await page.locator('button', { hasText: label }).first().tap();
+    await page.waitForTimeout(200);
+    const fit = await onScreen();
+    await page.touchscreen.tap(...toScreen(fit, x, y));
+    await page.waitForTimeout(250);
+  };
+  const touchDraw = async (f, fromX, toX) => {
+    const fit = await onScreen();
+    const points = [];
+    for (let x = fromX; x <= toX + 1e-9; x += 0.2) points.push(toScreen(fit, x, f(x)));
+    const cdp = await phone.newCDPSession(page);
+    const touch = (type, [x, y] = []) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+    await touch('touchStart', points[0]);
+    for (const point of points.slice(1)) await touch('touchMove', point);
+    await touch('touchEnd');
+    await cdp.detach();
+    await page.waitForTimeout(350);
+  };
+  const tapMarker = async (type, x, y) => {
+    await page.locator('button', { hasText: type }).first().tap();
+    await page.waitForTimeout(150);
+    const fit = await onScreen();
+    await page.touchscreen.tap(...toScreen(fit, x, y));
+    await page.waitForTimeout(250);
+  };
+
+  check(await checkButton(page).count() === 0, 'phone DOL: there is no point check');
+  // A fingertip lands a little to the right of the stated x = 2.
+  await tapPlot('Plot the point where x = 0', 0, 1);
+  await tapPlot('Plot the point where x = 2', 2.3, 5);
+  await touchDraw(line, -1.4, 2.8);
+  check(/Your curve passes through your points\. It is graded when you submit\./.test(await bodyText(page)), 'phone DOL: a curve drawn by touch through the student\'s points is accepted');
+  check(await page.locator('.mathmaster-snap-curve').count() === 0, 'phone DOL: the true function is never drawn in place of the student\'s curve');
+  for (const [x, y] of trueEnds || []) await tapMarker('Arrow', x, y);
+  const scroll = await page.evaluate(() => document.scrollingElement.scrollWidth - document.scrollingElement.clientWidth);
+  check(scroll <= 1, 'phone DOL: nothing scrolls sideways at 390 px', `${scroll}px`);
+  const { submittable, graded } = await submitAndRead(page);
+  check(submittable, 'phone DOL: the finished graph can be submitted by touch');
+  check(part(graded, 'p2')?.response === '(2, 5)', 'phone DOL: a tap at x = 2.3 on the card "x = 2" places at x = 2', JSON.stringify(part(graded, 'p2')));
+  const wrong = (graded?.parts || []).filter((entry) => !entry.isCorrect).map((entry) => entry.id);
+  check(graded?.isCorrect === true, 'phone DOL: the correct graph earns full credit, as on a Chromebook', JSON.stringify(wrong));
+  await phone.close();
 }
 
 await browser.close();
