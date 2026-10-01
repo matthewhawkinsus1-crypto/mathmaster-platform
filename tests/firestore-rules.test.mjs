@@ -173,7 +173,10 @@ await check('student CANNOT delete own record', assertFails(deleteDoc(doc(studen
 await check('student CANNOT delete own scratchpad', assertFails(deleteDoc(doc(student, 'grades/S1042/scratchpads/a__question_0'))));
 await check('teacher CAN delete an authorized scratchpad', assertSucceeds(deleteDoc(doc(teacher, 'grades/S1042/scratchpads/a__question_delete'))));
 await check('student reads own Phase 5C evidence', assertSucceeds(getDoc(doc(student, 'grades/S1042/evidenceEvents/ev_existing'))));
-await check('student appends own Phase 5C evidence', assertSucceeds(setDoc(doc(student, 'grades/S1042/evidenceEvents/ev_new'), { eventKey: 'ev_new', studentId: 'S1042', occurredAt: 2, authorizedTeacherEmails: [TEACHER_EMAIL] })));
+// Attempt evidence is Admin-SDK-only: the student client's writer was dead
+// code, and client-minted events fed the mastery trigger. A well-formed event
+// is refused exactly like a forged one.
+await check('student CANNOT append Phase 5C evidence (server-only)', assertFails(setDoc(doc(student, 'grades/S1042/evidenceEvents/ev_new'), { eventKey: 'ev_new', studentId: 'S1042', occurredAt: 2, authorizedTeacherEmails: [TEACHER_EMAIL] })));
 await check('student CANNOT mutate existing Phase 5C evidence', assertFails(setDoc(doc(student, 'grades/S1042/evidenceEvents/ev_existing'), { eventKey: 'ev_existing', studentId: 'S1042', occurredAt: 999 }, { merge: true })));
 await check('student CANNOT forge another studentId into evidence', assertFails(setDoc(doc(student, 'grades/S1042/evidenceEvents/ev_forged'), { eventKey: 'ev_forged', studentId: 'S2000', occurredAt: 3 })));
 await check('student CANNOT delete Phase 5C evidence', assertFails(deleteDoc(doc(student, 'grades/S1042/evidenceEvents/ev_existing'))));

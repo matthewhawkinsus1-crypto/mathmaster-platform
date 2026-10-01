@@ -7,6 +7,7 @@ import { resolveAssignmentGradingPeriod } from '../../platform/student/gradingPe
 import { describeClassLesson } from '../../platform/teacher/classLessonControls.js';
 import { classGradeProgress, classLiveProgress, PASSING_DISPLAY_THRESHOLD } from '../../platform/teacher/assignmentProgress.js';
 import { AssignmentLessonRows } from './ClassLessonControls.jsx';
+import AssignmentSupportLayer from './AssignmentSupportLayer.jsx';
 import './teacherWorkspace.css';
 
 /*
@@ -26,7 +27,10 @@ import './teacherWorkspace.css';
  *   3. right now in this class — the same Warm-Up/Classwork/Practice/DOL
  *      controls Home uses, for just this assignment;
  *   4. students — live now, and (where grades are loaded) progress and scores,
- *      each name one click from the student and their work.
+ *      each name one click from the student and their work;
+ *   5. supports & evidence — students with a support profile, their individual
+ *      deadlines on this assignment, one-click classroom support records, and
+ *      (on request) what the evidence records show (AssignmentSupportLayer).
  *
  * It computes nothing new: controls come from classLessonControls.js, progress
  * from assignmentProgress.js, and every change goes through the same App.jsx
@@ -107,6 +111,9 @@ export default function AssignmentHub({
   onEditSetup = null,
   onEditQuestions = null,
   onOpenClass = null,
+  // The signed-in teacher: the one-click support records are filed in their
+  // name. Without it the Supports layer is not shown.
+  teacherEmail = '',
 }) {
   const closeRef = useRef(null);
   const panelRef = useRef(null);
@@ -331,9 +338,27 @@ export default function AssignmentHub({
               </section>
             );
 
+            const gradeRecordsById = hasGradeRecords
+              ? Object.fromEntries(roster.map((student) => [student.id, student]))
+              : fetched?.students
+                ? Object.fromEntries(fetched.students.map((student) => [student.id, student]))
+                : null;
+            const supportsSection = classContext && teacherEmail && (
+              <AssignmentSupportLayer
+                assignment={assignment}
+                classContext={classContext}
+                roster={roster}
+                gradeRecordsById={gradeRecordsById}
+                teacherEmail={teacherEmail}
+                nameOf={nameOf}
+                onOpenStudent={onOpenStudent}
+                nowValue={nowValue}
+              />
+            );
+
             return pastLesson
-              ? <>{progressSection}{liveSection}{controls}</>
-              : <>{controls}{liveSection}{progressSection}</>;
+              ? <>{progressSection}{liveSection}{controls}{supportsSection}</>
+              : <>{controls}{liveSection}{progressSection}{supportsSection}</>;
           })()}
         </div>
       </aside>

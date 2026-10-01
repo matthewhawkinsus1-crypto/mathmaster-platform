@@ -74,9 +74,12 @@ export default function WhatShouldIDoNow({
         {nextAction.detail}
       </p>
 
-      {nextAction.assignment && (nextAction.assignment.dueAt || nextAction.assignment.dueDate) && (
+      {/* The student's own due date, resolved by the model from their
+          lifecycle — never the assignment's class date, which is a day early
+          for a student with an individualized due date. */}
+      {nextAction.assignment && nextAction.dueAt && (
         <div style={{ marginTop: 6, color: '#5f6368', fontSize: 13, fontWeight: 800 }}>
-          Due {formatDateTime(nextAction.assignment.dueAt || nextAction.assignment.dueDate)}
+          Due {formatDateTime(nextAction.dueAt)}
         </div>
       )}
 

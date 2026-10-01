@@ -186,6 +186,11 @@ export default function QuestionEngine({
   onResponseStateChange = null,
   onResponseCheckpoint = null,
   onSpotlightFrame = null,
+  // Support evidence: ({ supportId, eventType }) when a support is on screen
+  // ('available'), applied to this item ('provided') or used ('used'). The
+  // caller filters to supports the student is entitled to and de-duplicates.
+  // Student assignment work only; previews pass nothing.
+  onSupportEvidence = null,
 }) {
   useRenderPerformance('QuestionEngine', String(question?.toolId || question?.type || 'question'));
   const resolvedActivityPolicy = activityPolicy || getEffectiveActivityPolicy(activityRole);
@@ -371,6 +376,17 @@ export default function QuestionEngine({
     () => buildSupportUsage(stableStudentProfile, stableQuestion),
     [stableStudentProfile, stableQuestion],
   );
+  // The parent re-creates this callback every render; the effects below must
+  // fire when the ITEM changes, not on every render.
+  const onSupportEvidenceRef = useRef(onSupportEvidence);
+  useEffect(() => { onSupportEvidenceRef.current = onSupportEvidence; });
+  const reportSupportEvidence = (supportId, eventType) => onSupportEvidenceRef.current?.({ supportId, eventType });
+  useEffect(() => {
+    // Read aloud is on screen for this item.
+    if (supportPresentation.textToSpeech) reportSupportEvidence('text-to-speech', 'available');
+    // A modification that actually changed this item (never one that did not).
+    (supportUsage.modifications || []).forEach((modificationId) => reportSupportEvidence(modificationId, 'provided'));
+  }, [stableQuestion, supportPresentation.textToSpeech, supportUsage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setAnswerState(EMPTY_ANSWER_STATE);
@@ -570,13 +586,24 @@ export default function QuestionEngine({
     assessmentContext,
   }), [processedQuestion, resolvedActivityPolicy, studentProfile, teacherCalculatorChoice, assessmentContext]);
   const calculatorUnavailableReason = calculatorPolicy?.reason || 'No calculator is allowed for this skill.';
+  useEffect(() => {
+    if (calculatorPolicy?.available) reportSupportEvidence('calculator', 'available');
+  }, [stableQuestion, calculatorPolicy?.available]); // eslint-disable-line react-hooks/exhaustive-deps
+  const markCalculatorOpened = () => {
+    setCalculatorUsed(true);
+    reportSupportEvidence('calculator', 'used');
+  };
   const handleCalculatorControl = () => {
     if (!calculatorPolicy?.available) {
       toastInfo('Calculator unavailable', calculatorUnavailableReason);
       return;
     }
-    setCalculatorUsed(true);
-    setCalculatorOpen((current) => !current);
+    if (calculatorOpen) {
+      setCalculatorOpen(false);
+      return;
+    }
+    markCalculatorOpened();
+    setCalculatorOpen(true);
   };
   const scaffold = processedQuestion?.scaffold || (processedQuestion?.type === 'stepAlgebra'
     ? { prompt: 'Let’s back up. What operation undoes multiplication?', options: ['Add', 'Divide'], correct: 'Divide' }
@@ -892,6 +919,9 @@ export default function QuestionEngine({
       // overlay falls back to it. Nothing already saved needs migrating.
       setScratchpadPages(Array.isArray(saved?.pages) && saved.pages.length ? saved.pages : null);
       setScratchpadOpen(true);
+      // Graph paper is a support only for a student entitled to it; opening the
+      // scratchpad is their use of it.
+      if (supportPresentation.graphPaper) reportSupportEvidence('graph-paper', 'used');
     } finally {
       setScratchpadLoading(false);
     }
@@ -1303,7 +1333,7 @@ export default function QuestionEngine({
           : <><CalculatorIcon unavailable /><span className="mathmaster-action-label"> Calculator</span></>}
       </button>
       {supportPresentation.textToSpeech && (
-        <button type="button" className="mathmaster-work-bar-tool" aria-label="Read aloud" onClick={() => speakText(referenceSpeechText)} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}><span aria-hidden="true">🔊</span><span className="mathmaster-action-label"> Read</span></button>
+        <button type="button" className="mathmaster-work-bar-tool" aria-label="Read aloud" onClick={() => { speakText(referenceSpeechText); reportSupportEvidence('text-to-speech', 'used'); }} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}><span aria-hidden="true">🔊</span><span className="mathmaster-action-label"> Read</span></button>
       )}
     </>
   );
@@ -1580,7 +1610,7 @@ export default function QuestionEngine({
       <CalculatorPanel
         policy={calculatorPolicy}
         estimationRequired={processedQuestion?.estimationRequired === true}
-        onCalculatorOpened={() => setCalculatorUsed(true)}
+        onCalculatorOpened={markCalculatorOpened}
         open={calculatorOpen}
         onOpenChange={setCalculatorOpen}
         showLauncher={false}
@@ -1725,7 +1755,7 @@ export default function QuestionEngine({
         </div>
       )}
 
-      <ScratchpadOverlay open={scratchpadOpen} questionKey={processedQuestion?.questionId ?? processedQuestion?.id ?? null} questionDetails={scratchpadQuestionDetails} initialDataUrl={scratchpadDataUrl} initialPages={scratchpadPages} onSave={saveScratchpad} onClose={() => setScratchpadOpen(false)} readOnly={locked} />
+      <ScratchpadOverlay open={scratchpadOpen} questionKey={processedQuestion?.questionId ?? processedQuestion?.id ?? null} questionDetails={scratchpadQuestionDetails} initialDataUrl={scratchpadDataUrl} initialPages={scratchpadPages} onSave={saveScratchpad} onClose={() => setScratchpadOpen(false)} readOnly={locked} gridBackground={supportPresentation.graphPaper === true} />
     </div>
     </WorkViewUndoProvider>
     </QuestionLifecycleProvider>

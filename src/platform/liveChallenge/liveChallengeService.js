@@ -10,6 +10,9 @@ const call = (name) => {
 export const createLiveChallenge = call('createLiveChallenge');
 export const joinLiveChallenge = call('joinLiveChallenge');
 export const startLiveChallenge = call('startLiveChallenge');
+// Round-scoped commands accept { expectedRoundIndex, expectedRoundVersion }: a
+// command about a round that has already moved on is answered as already done.
+export const closeLiveChallengeRound = call('closeLiveChallengeRound');
 export const advanceLiveChallenge = call('advanceLiveChallenge');
 export const finishLiveChallenge = call('finishLiveChallenge');
 export const cancelLiveChallenge = call('cancelLiveChallenge');

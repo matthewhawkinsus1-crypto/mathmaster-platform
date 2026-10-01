@@ -1,6 +1,7 @@
 import {
   assignmentIsForStudent,
   getAssignmentLifecycle,
+  studentDueDates,
 } from '../../assignmentLifecycle.js';
 import {
   gradeWeightTotals,
@@ -396,8 +397,10 @@ export const buildStudentGradeCenter = ({
       assignment,
       assignmentId: assignment.id,
       title: assignment.title || 'MathMaster assignment',
-      dueAt: assignment.dueAt || assignment.dueDate || null,
-      lateDueAt: assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate || null,
+      // This student's dates, read off the same lifecycle that decided the
+      // status: an individualized due date or an attendance extension moves
+      // what the Grades tab and the result screen print, not just the status.
+      ...studentDueDates(assignment, lifecycle),
       lifecycle,
       overall: effectiveOverall,
       sections,

@@ -130,23 +130,45 @@ test('an empty game produces an empty report rather than throwing', () => {
   assert.equal(report.classAccuracyPercent, null);
 });
 
+const regionOf = (source, startNeedle, endNeedle) => {
+  const start = source.indexOf(startNeedle);
+  assert.notEqual(start, -1, `could not find ${startNeedle}`);
+  const end = source.indexOf(endNeedle, start + startNeedle.length);
+  assert.notEqual(end, -1, `could not find ${endNeedle}`);
+  return source.slice(start, end);
+};
+
 test('the report is written before the state it reads is deleted', () => {
-  // deletePrivateChallengeState removes roundMisses, roundStandards and
-  // roundAnswers. Assembling afterwards would produce an empty report, which is
-  // how a report quietly becomes useless rather than obviously broken.
+  // Deleting private state removes roundStandards, the question set and the
+  // per-player answers. A report assembled from it afterwards would be empty,
+  // which is how a report quietly becomes useless rather than obviously broken.
+  //
+  // The report no longer reads private state at all: the finishing
+  // transaction copies everything it needs into the durable match result, and
+  // the report is built from that. Private state is deleted last.
   const source = codeOf('functions/index.js');
-  const finish = source.slice(source.indexOf('async function finishLiveChallengeRoom'));
-  const body = finish.slice(0, finish.indexOf('exports.advanceLiveChallenge'));
+  const writer = regionOf(source, 'async function writeLiveChallengeReportFromResult', 'async function writeWarmupCreditFromResult');
+  assert.match(writer, /const players = Array\.isArray\(result\.standings\) \? result\.standings : \[\]/);
+  assert.match(writer, /roundStandards: result\.roundStandards/);
+  assert.doesNotMatch(writer, /LIVE_CHALLENGE_PRIVATE|privateRef|loadPrivateChallengePlayers/);
+  const effects = regionOf(source, 'async function runLiveChallengeFinalizationEffects', 'async function finalizeLiveChallengeMatch');
   assert.ok(
-    body.indexOf('LIVE_CHALLENGE_REPORTS') < body.indexOf('deletePrivateChallengeState'),
+    effects.indexOf('report: () => writeLiveChallengeReportFromResult(db, result)') > 0
+      && effects.indexOf('report: () => writeLiveChallengeReportFromResult') < effects.indexOf('recursiveDelete(db.collection(LIVE_CHALLENGE_PRIVATE)'),
     'the report must be built before private state is deleted',
   );
 });
 
 test('a failed report never strands a room the teacher cannot end', () => {
+  // The room is terminal the moment the finishing transaction commits; every
+  // effect after it — the report included — is caught, logged and retried by
+  // the scheduled sweep instead of surfacing to the teacher.
   const source = codeOf('functions/index.js');
-  const finish = source.slice(source.indexOf('async function finishLiveChallengeRoom'));
-  assert.match(finish.slice(0, 2200), /catch \(error\)[\s\S]{0,200}liveChallenge\.report\.failed/);
+  const effects = regionOf(source, 'async function runLiveChallengeFinalizationEffects', 'async function finalizeLiveChallengeMatch');
+  assert.match(effects, /catch \(error\) \{\s*outcomes\[name\] = "failed";\s*logger\.error\("liveChallenge\.finalization\.effect\.failed"/);
+  const finalize = regionOf(source, 'async function finalizeLiveChallengeMatch', 'exports.joinLiveChallenge');
+  assert.match(finalize, /await runLiveChallengeFinalizationEffects\(db, roomId\)\.catch\(/);
+  assert.ok(finalize.indexOf('db.runTransaction') < finalize.indexOf('await runLiveChallengeFinalizationEffects'));
 });
 
 test('the standard for each round is captured when the room is built', () => {
@@ -162,9 +184,20 @@ test('every answer is counted, not only the misses', () => {
   // submission; they are now derived from the player records, but the report
   // must still receive both.
   const source = codeOf('functions/index.js');
-  assert.match(source, /roundAnswers: derivedTallies\.roundAnswers/);
-  assert.match(source, /answeredCounts: derivedTallies\.roundAnswers/);
-  assert.match(source, /roundMisses: derivedTallies\.roundMisses/);
+  const writer = regionOf(source, 'async function writeLiveChallengeReportFromResult', 'async function writeWarmupCreditFromResult');
+  // The answered count is the denominator the report builder actually reads.
+  assert.match(writer, /answeredCounts: derivedTallies\.roundAnswers/);
+  assert.match(writer, /roundMisses: derivedTallies\.roundMisses/);
+  const built = buildChallengeReport({
+    scheduledRoundCount: 1,
+    roundMisses: { 0: 8 },
+    answeredCounts: { 0: 24 },
+    roundStandards: { 0: 'texas:A.3(C)' },
+    players: [],
+  });
+  assert.equal(built.rounds[0].answered, 24);
+  assert.equal(built.rounds[0].missed, 8);
+  assert.equal(built.rounds[0].accuracyPercent, 67, '8 of 24 missed is told apart from 8 of 10');
 });
 
 test('a report that names students is not readable by students', () => {

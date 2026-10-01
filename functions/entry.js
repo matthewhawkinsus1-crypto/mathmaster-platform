@@ -87,6 +87,12 @@ exports.configureLiveChallengeExperience = onCall(async (request) => {
   await db.collection(LIVE_CHALLENGE_EXPERIENCE).doc(roomId).set({
     roomId, teacherEmail, speedInfluencePercent, playerDisplayMode, updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
+  // The scoring strategy reads the speed setting from the room itself
+  // (liveChallengeScoring.mjs applies it natively at submit time), so the
+  // room and the experience record move together.
+  await db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId).set({
+    speedInfluencePercent, playerDisplayMode, updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
 
   const privatePlayersSnapshot = await db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId).collection('players').get();
   const records = await Promise.all(privatePlayersSnapshot.docs.map(async (playerDoc) => {
@@ -122,9 +128,15 @@ exports.configureLiveChallengeExperience = onCall(async (request) => {
 });
 
 /**
- * One score-adjustment primitive is shared by the synchronous submit wrapper
- * and the Firestore retry/fallback trigger. The round marker means either path
- * may win the race without ever double-paying speed.
+ * LEGACY post-hoc speed adjustment.
+ *
+ * Speed influence used to be applied after the mature scorer returned — by a
+ * synchronous wrapper around submitLiveChallengeResponse and, as a fallback,
+ * by the trigger below. The room's scoring strategy now applies it natively
+ * (functions/shared/liveChallengeScoring.mjs), and every new submission marks
+ * its round as adjusted (`experienceSpeedAdjustedRound`), so this primitive
+ * only ever acts on a private player written by the earlier code during a
+ * rolling deploy. The marker is what keeps it from ever paying speed twice.
  */
 const applyExperienceSpeedAdjustment = async ({ db, roomId, studentId, answeredRound, originalSpeedBonus, submissionId = null }) => {
   const [config, privateRoomSnapshot] = await Promise.all([
@@ -198,51 +210,21 @@ const applyExperienceSpeedAdjustment = async ({ db, roomId, studentId, answeredR
   });
 };
 
-/**
- * Override only the exported transport, not the mature grader. The legacy
- * callable still grades and writes the answer first; this wrapper immediately
- * scales its known `speedBonus` before returning to the Chromebook, so the
- * student sees the same configured score the leaderboard stores.
+/*
+ * submitLiveChallengeResponse is exported from index.js unwrapped: it scores
+ * with the room's strategy and speed setting and returns the stored numbers
+ * directly, so the student's result panel and the leaderboard can never
+ * disagree.
  */
-const legacySubmitLiveChallengeResponse = base.submitLiveChallengeResponse;
-exports.submitLiveChallengeResponse = onCall(async (request) => {
-  const result = await legacySubmitLiveChallengeResponse.run(request);
-  if (!result?.isCorrect || result?.secondChance === true || !Number(result?.speedBonus)) return result;
-
-  const roomId = String(request.data?.roomId || '').trim();
-  const studentId = String(request.auth?.token?.studentId || '').trim();
-  const answeredRound = Number(request.data?.roundIndex);
-  if (!roomId || !studentId || !Number.isInteger(answeredRound)) return result;
-
-  try {
-    const applied = await applyExperienceSpeedAdjustment({
-      db: getFirestore(), roomId, studentId, answeredRound, originalSpeedBonus: Number(result.speedBonus) || 0,
-      submissionId: String(request.data?.submissionId || '').trim() || null,
-    });
-    const adjustment = Math.round(Number(applied.adjustment) || 0);
-    return {
-      ...result,
-      speedBonus: Math.max(0, Math.round(Number(result.speedBonus) || 0) + adjustment),
-      pointsAwarded: Math.max(0, Math.round(Number(result.pointsAwarded) || 0) + adjustment),
-      totalScore: applied.totalScore == null
-        ? Math.max(0, Math.round(Number(result.totalScore) || 0) + adjustment)
-        : Math.max(0, Math.round(Number(applied.totalScore) || 0)),
-    };
-  } catch (error) {
-    // The mathematical answer is already safely recorded by the mature submit
-    // callable. Never turn a recorded correct answer into a client-visible
-    // submit failure merely because the game bonus adjustment had a transient
-    // problem; the fallback trigger below will retry the score correction.
-    console.error('Live Challenge speed adjustment will fall back to trigger:', error);
-    return result;
-  }
-});
 
 /**
- * Retry/fallback for a base player write. Normally the synchronous wrapper above
- * has already marked the round before this trigger executes. If Functions is
- * retried or the wrapper's adjustment write had a transient failure, this path
- * reaches the same idempotent primitive and repairs the stored leaderboard.
+ * LEGACY fallback for a player write from the earlier submit code, which
+ * scored speed on the mature 100-point scale and relied on this trigger to
+ * rescale it. Current submissions mark their round as already adjusted, so
+ * this returns early for every write the current code makes — including the
+ * round-close and milestone writes, which never change answeredRound. It is
+ * kept deployed for the rolling-deploy window and can be deleted in a
+ * deployment that explicitly removes the function.
  */
 exports.adjustLiveChallengeExperienceScore = onDocumentWritten(
   `${LIVE_CHALLENGE_PRIVATE}/{roomId}/players/{studentId}`,

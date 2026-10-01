@@ -110,7 +110,9 @@ test('progress reporting is debounced and never fires after an answer', () => {
   const start = student.indexOf("const reportedRef = useRef('');");
   const end = student.indexOf('const submit = async', start);
   const block = student.slice(start, end);
-  assert.match(block, /if \(result \|\| expired \|\| !room\?\.roomId\) return undefined;/);
+  // An answer recorded on the server (seen on the public row after a refresh)
+  // stops progress reports exactly as a local result does.
+  assert.match(block, /if \(result \|\| answeredOnServer \|\| expired \|\| !room\?\.roomId\) return undefined;/);
   assert.match(block, /const signature = `\$\{workingPoints\}:\$\{JSON\.stringify\(progressRawResponse \|\| null\)\}`/);
   assert.match(block, /if \(signature === reportedRef\.current\) return undefined;/);
   assert.match(block, /\}, 900\);/);

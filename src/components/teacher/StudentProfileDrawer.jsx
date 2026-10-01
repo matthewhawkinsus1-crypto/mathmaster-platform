@@ -5,6 +5,7 @@ import { resolveAdaptiveRigorFromProfile } from '../../platform/rigor/courseRigo
 import { courseLabel, courseLevelLabel } from '../../../functions/shared/classModel.mjs';
 import { SUPPORT_EVENT_LABEL, SUPPORT_STAGE_LABEL } from '../../platform/teacher/studentSupportSignals.js';
 import StudentAssignmentsList from './StudentAssignmentsList.jsx';
+import StudentSupportEvidencePanel from './StudentSupportEvidencePanel.jsx';
 
 /*
  * ONE STUDENT, ONE ANSWER, FROM ANYWHERE.
@@ -20,9 +21,11 @@ import StudentAssignmentsList from './StudentAssignmentsList.jsx';
  * the teacher's current work instead of replacing it — a teacher checking one
  * student mid-lesson should not lose the class monitor they were watching.
  *
- * It is deliberately read-only. Opening a student is a question, not a decision,
- * and nothing here alters a plan. The two buttons at the bottom go to the places
- * where a teacher can act, and those places ask before they change anything.
+ * Opening a student is a question, not a decision, and nothing here alters a
+ * plan. The one exception is deliberate and narrow: Supports & evidence lets a
+ * teacher RECORD that a support happened (append-only evidence, never an edit
+ * to the plan), and changes the support profile only by saving a new, dated
+ * revision in its own dialog.
  */
 
 const OVERLAY = {
@@ -70,8 +73,15 @@ export default function StudentProfileDrawer({
   gradingPeriodSettings = null,
   onOpenAssignment = null,
   onOpenStudentWork = null,
+  // Supports & evidence (IEP / student support). Absent in contexts that do
+  // not pass a teacher email, where the section is not shown.
+  teacherEmail = '',
+  studentSupportProfile = null,
+  onOpenSupportReport = null,
+  onSupportProfileSaved = null,
 }) {
   const closeRef = useRef(null);
+  const panelRef = useRef(null);
 
   // Keyed on `open` (and the student), not on onClose: the parent passes a new
   // onClose every render, which during class is about once a second, and each
@@ -80,7 +90,14 @@ export default function StudentProfileDrawer({
   useEffect(() => { onCloseRef.current = onClose; });
   useEffect(() => {
     if (!open) return undefined;
-    const onKey = (event) => { if (event.key === 'Escape') onCloseRef.current?.(); };
+    // Escape closes only the top layer: a service log or profile dialog opened
+    // from this drawer handles its own Escape first (and marks it handled).
+    const onKey = (event) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      const modals = [...document.querySelectorAll('[aria-modal="true"]')];
+      if (modals.length && modals[modals.length - 1] !== panelRef.current) return;
+      onCloseRef.current?.();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
@@ -102,7 +119,7 @@ export default function StudentProfileDrawer({
       role="presentation"
       onClick={(event) => { if (event.target === event.currentTarget) onClose?.(); }}
     >
-      <aside style={PANEL} role="dialog" aria-modal="true" aria-label={`Learning profile for ${studentName}`}>
+      <aside ref={panelRef} style={PANEL} role="dialog" aria-modal="true" aria-label={`Learning profile for ${studentName}`} data-student-profile-drawer={studentId || ''}>
         <header style={{ padding: '18px 22px 14px', borderBottom: '1px solid #eef0f2' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'flex-start' }}>
             <div style={{ minWidth: 0 }}>
@@ -154,6 +171,21 @@ export default function StudentProfileDrawer({
                 />
               </div>
             </details>
+          )}
+
+          {teacherEmail && studentId && (
+            <StudentSupportEvidencePanel
+              student={{
+                id: studentId,
+                name: studentName,
+                classId: studentRecord?.classId || classRecord?.classId || null,
+                profile: studentSupportProfile || studentRecord?.profile || {},
+              }}
+              assignments={assignments}
+              teacherEmail={teacherEmail}
+              onOpenReport={onOpenSupportReport}
+              onSupportProfileSaved={onSupportProfileSaved}
+            />
           )}
 
           <StudentLearningProfileView studentName={studentName} profile={profile} plan={plan} />
@@ -245,7 +277,7 @@ export default function StudentProfileDrawer({
             </button>
           )}
           <span style={{ marginLeft: 'auto', alignSelf: 'center', color: '#5f6368', fontSize: 12 }}>
-            Read-only. Nothing here changes this student&apos;s plan.
+            Recording support evidence never changes this student&apos;s plan.
           </span>
         </footer>
       </aside>

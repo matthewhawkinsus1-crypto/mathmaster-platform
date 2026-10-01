@@ -3,6 +3,7 @@ import { deriveDomainReadiness, resolveAdaptiveRigorFromProfile } from '../../pl
 import { courseLabel, courseLevelLabel, resolveStudentCourseContext } from '../../../functions/shared/classModel.mjs';
 import { collectStudentEvidence } from '../../masteryEngine.js';
 import { evidenceRowsToEvents } from '../../platform/profile/legacyEvidenceAdapter.js';
+import SupportProfileEditor from './SupportProfileEditor.jsx';
 import { buildStudentLearningProfile } from '../../platform/profile/studentLearningProfile.js';
 import { adaptLegacyMasteryToPhase5 } from '../../platform/profile/legacyMasteryAdapter.js';
 import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
@@ -39,19 +40,31 @@ const confidenceLabel = (profile) => {
 
 const pill = (background, color) => ({ display: 'inline-block', padding: '3px 7px', borderRadius: 999, background, color, fontSize: 10, fontWeight: 900 });
 
+// `profile` here is the normalized view (src/studentSupport.js): the flat ids
+// of the revision in effect today. Inclusion alone used to be the only thing
+// this column reflected, so a student with accommodations read "—".
+const hasActiveSupports = (profile) => Boolean(
+  profile?.inclusionStatus || profile?.accommodations?.length || profile?.modifications?.length,
+);
+const supportStatusLabel = (profile) => {
+  if (!hasActiveSupports(profile)) return 'None flagged';
+  return profile?.modifications?.length ? 'Active · MOD' : 'Active';
+};
+
 export default function StudentsRoster({
   students = [],
   classes = [],
   classPeriods = [],
   courseProfiles = {},
   masteryProfilesByStudentId = {},
-  supportOptions = {},
   assignments = [],
   pacingByClass = {},
   skillOverrides = [],
   onChangeClassPeriod,
-  onUpdateStudentProfile,
-  onToggleStudentSupport,
+  // Supports are saved only as immutable, dated revisions (SupportProfileEditor);
+  // the parent refreshes its copy of the student's profile when one is saved.
+  teacherEmail = '',
+  onSupportProfileSaved = null,
   onGenerateIEPReport,
   isRootAdmin = false,
   onOpenAdministration,
@@ -213,14 +226,14 @@ export default function StudentsRoster({
             ) : (
               <button type="button" onClick={onOpenAdministration} style={{ padding: '9px 13px', border: '1px solid #dadce0', borderRadius: 8, background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 800 }}>Class membership is managed in Administration</button>
             )}
-            <button type="button" onClick={() => onGenerateIEPReport(selected)} style={{ padding: '9px 13px', border: '1px solid #6f2da8', borderRadius: 8, background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 900 }}>Generate IEP Report</button>
+            <button type="button" onClick={() => onGenerateIEPReport(selected)} style={{ padding: '9px 13px', border: '1px solid #6f2da8', borderRadius: 8, background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 900 }}>Support evidence report</button>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
           {['overview', 'profile', 'progress', 'assignments', 'path', 'supports', 'account'].map((tab) => <button type="button" key={tab} onClick={() => setDetailTab(tab)} style={tabButton(detailTab === tab)}>{tab === 'path' ? 'My Math Path' : tab === 'profile' ? 'Learning Profile' : tab.charAt(0).toUpperCase() + tab.slice(1)}</button>)}
         </div>
 
-        {detailTab === 'overview' && <section style={{ padding: 18, border: '1px solid #d8dde6', borderRadius: 10 }}><h3 style={{ marginTop: 0 }}>Overview</h3><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10 }}><div><div style={{ color: '#5f6368', fontSize: 12 }}>Academic profile</div><StudentPerformanceBadge profile={learningProfiles[selected.id]} studentName={formatStudentName(selected)} onClick={() => setDetailTab('profile')} /></div><div><div style={{ color: '#5f6368', fontSize: 12 }}>Evidence confidence</div><strong>{confidenceLabel(learningProfiles[selected.id])}</strong></div><div><div style={{ color: '#5f6368', fontSize: 12 }}>Supports</div><strong>{selected.profile?.inclusionStatus ? 'Active' : 'None flagged'}</strong></div><div><div style={{ color: '#5f6368', fontSize: 12 }}>Adaptive path</div><strong>{pathLabel(selected)}</strong></div></div></section>}
+        {detailTab === 'overview' && <section style={{ padding: 18, border: '1px solid #d8dde6', borderRadius: 10 }}><h3 style={{ marginTop: 0 }}>Overview</h3><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10 }}><div><div style={{ color: '#5f6368', fontSize: 12 }}>Academic profile</div><StudentPerformanceBadge profile={learningProfiles[selected.id]} studentName={formatStudentName(selected)} onClick={() => setDetailTab('profile')} /></div><div><div style={{ color: '#5f6368', fontSize: 12 }}>Evidence confidence</div><strong>{confidenceLabel(learningProfiles[selected.id])}</strong></div><div><div style={{ color: '#5f6368', fontSize: 12 }}>Supports</div><strong>{supportStatusLabel(selected.profile)}</strong></div><div><div style={{ color: '#5f6368', fontSize: 12 }}>Adaptive path</div><strong>{pathLabel(selected)}</strong></div></div></section>}
 
         {detailTab === 'profile' && (
           <StudentLearningProfileView
@@ -263,7 +276,7 @@ export default function StudentsRoster({
 
         {detailTab === 'path' && <section style={{ padding: 18, border: '1px solid #d8dde6', borderRadius: 10 }}><h3 style={{ marginTop: 0 }}>My Math Path</h3><p style={{ color: '#5f6368' }}>Current adaptive posture: <strong>{pathLabel(selected)}</strong>. The panel below is the student&apos;s real Path and mastery view in teacher read-only mode.</p>{classProfile.courseLevel === 'honors' && domains.some((domain) => domain.readiness === 'developing') && <div style={{ padding: 12, marginBottom: 12, borderRadius: 8, background: '#fff4ce', color: '#6b4c00' }}><strong>Honors target preserved.</strong> Prerequisite repair can run before the student returns to Honors-level work.</div>}{classProfile.courseLevel !== 'honors' && domains.some((domain) => domain.readiness === 'advanced') && <div style={{ padding: 12, marginBottom: 12, borderRadius: 8, background: '#e6f4ea', color: '#137333' }}><strong>Individual enrichment active.</strong> This student can receive CCMR/deeper work without being relabeled as Honors.</div>}<div style={{ marginTop: 14, overflow: 'hidden', border: '1px solid #e1e5ea', borderRadius: 12 }}><MyMathPathApp key={selected.id} readOnly initialTab="dashboard" studentId={selected.id} studentName={formatStudentName(selected)} studentProfile={{ ...(selected.profile || {}), course: courseId, courseLevel: classProfile.courseLevel || 'standard' }} assignments={selectedAssignments} pathOptions={selectedPathOptions} courseId={courseId} studentRecord={selected} /></div></section>}
 
-        {detailTab === 'supports' && <section style={{ padding: 18, border: '1px solid #d8dde6', borderRadius: 10 }}><h3 style={{ marginTop: 0 }}>Supports</h3><label style={{ display: 'inline-flex', gap: 7, alignItems: 'center', padding: '8px 11px', borderRadius: 999, background: selected.profile?.inclusionStatus ? '#efe4ff' : '#f1f3f4', fontWeight: 900 }}><input type="checkbox" checked={Boolean(selected.profile?.inclusionStatus)} onChange={(event) => onUpdateStudentProfile(selected.id, { inclusionStatus: event.target.checked })} /> Inclusion</label><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 12, marginTop: 15 }}>{Object.entries(supportOptions).map(([group, options]) => <fieldset key={group} style={{ border: '1px solid #d8dde6', borderRadius: 8, padding: 12 }}><legend style={{ fontWeight: 900, textTransform: 'capitalize' }}>{group}</legend>{options.map(([value, label]) => <label key={value} style={{ display: 'block', margin: '8px 0' }}><input type="checkbox" checked={(selected.profile?.[group] || []).includes(value)} onChange={() => onToggleStudentSupport(selected, group, value)} /> {label}</label>)}</fieldset>)}</div></section>}
+        {detailTab === 'supports' && <section style={{ padding: 18, border: '1px solid #d8dde6', borderRadius: 10 }}><SupportProfileEditor student={selected} teacherEmail={teacherEmail} onSaved={onSupportProfileSaved} /></section>}
 
         {detailTab === 'account' && <section style={{ padding: 18, border: '1px solid #d8dde6', borderRadius: 10 }}><h3 style={{ marginTop: 0 }}>Account</h3><p style={{ color: '#5f6368' }}>Student PIN and Google-link support is available from Student Access.</p>{isRootAdmin && <div style={{ marginTop: 18, padding: 14, border: '1px solid #f1a5a0', borderRadius: 9, background: '#fce8e6' }}><strong style={{ color: '#a50e0e' }}>Danger Zone</strong><p style={{ color: '#5f6368' }}>Permanent account and data erasure requires the protected Administration workspace and typed confirmation.</p><button type="button" onClick={onOpenAdministration} style={{ padding: '9px 13px', border: 0, borderRadius: 7, background: '#b3261e', color: '#fff', fontWeight: 900 }}>Open Administration</button></div>}</section>}
       </div>
@@ -284,7 +297,7 @@ export default function StudentsRoster({
           </select>
         </label>
       </div></div>
-      <div style={{ overflowX: 'auto', border: '1px solid #d8dde6', borderRadius: 10 }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ textAlign: 'left', padding: 11 }}>Student</th><th style={{ textAlign: 'left' }}>Class</th><th>Mastery</th><th>Supports</th><th style={{ textAlign: 'left' }}>Math Path</th><th></th></tr></thead><tbody>{filtered.map((student) => { const rowContext = courseContextFor(student); return <tr key={student.id} style={{ borderTop: '1px solid #eef0f2' }}><td style={{ padding: 11 }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} profile={learningProfiles[student.id]} onOpen={onOpenProfileDrawer || ((id) => { setSelectedId(id); setDetailTab('profile'); })} /><div style={{ color: '#5f6368', fontSize: 11 }}>ID {student.id}</div></td><td><div>{classesById[student.classId]?.name || student.classPeriod || 'Unassigned'}</div><div style={{ color: '#5f6368', fontSize: 11 }}>{courseLabel(rowContext.courseId)}{rowContext.courseLevel === 'honors' ? ' · Honors' : ''}</div></td><td style={{ textAlign: 'center' }}><StudentPerformanceBadge profile={learningProfiles[student.id]} size="small" studentName={formatStudentName(student)} onClick={() => { setSelectedId(student.id); setDetailTab('profile'); }} /></td><td style={{ textAlign: 'center' }}>{student.profile?.inclusionStatus ? <span style={pill('#efe4ff', '#6f2da8')}>Active</span> : '—'}</td><td style={{ fontSize: 12 }}>{pathLabel(student)}</td><td style={{ textAlign: 'right', paddingRight: 10 }}><button type="button" onClick={() => { setSelectedId(student.id); setDetailTab('overview'); }} style={{ padding: '8px 11px', border: '1px solid #1a73e8', borderRadius: 7, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 900 }}>Open</button></td></tr>; })}</tbody></table></div>
+      <div style={{ overflowX: 'auto', border: '1px solid #d8dde6', borderRadius: 10 }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ textAlign: 'left', padding: 11 }}>Student</th><th style={{ textAlign: 'left' }}>Class</th><th>Mastery</th><th>Supports</th><th style={{ textAlign: 'left' }}>Math Path</th><th></th></tr></thead><tbody>{filtered.map((student) => { const rowContext = courseContextFor(student); return <tr key={student.id} style={{ borderTop: '1px solid #eef0f2' }}><td style={{ padding: 11 }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} profile={learningProfiles[student.id]} onOpen={onOpenProfileDrawer || ((id) => { setSelectedId(id); setDetailTab('profile'); })} /><div style={{ color: '#5f6368', fontSize: 11 }}>ID {student.id}</div></td><td><div>{classesById[student.classId]?.name || student.classPeriod || 'Unassigned'}</div><div style={{ color: '#5f6368', fontSize: 11 }}>{courseLabel(rowContext.courseId)}{rowContext.courseLevel === 'honors' ? ' · Honors' : ''}</div></td><td style={{ textAlign: 'center' }}><StudentPerformanceBadge profile={learningProfiles[student.id]} size="small" studentName={formatStudentName(student)} onClick={() => { setSelectedId(student.id); setDetailTab('profile'); }} /></td><td style={{ textAlign: 'center' }}>{hasActiveSupports(student.profile) ? <span style={pill('#efe4ff', '#6f2da8')}>{supportStatusLabel(student.profile)}</span> : '—'}</td><td style={{ fontSize: 12 }}>{pathLabel(student)}</td><td style={{ textAlign: 'right', paddingRight: 10 }}><button type="button" onClick={() => { setSelectedId(student.id); setDetailTab('overview'); }} style={{ padding: '8px 11px', border: '1px solid #1a73e8', borderRadius: 7, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 900 }}>Open</button></td></tr>; })}</tbody></table></div>
       {!filtered.length && <p style={{ color: '#5f6368' }}>No students match that search.</p>}
     </div>
   );

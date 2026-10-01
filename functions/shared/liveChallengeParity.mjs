@@ -2,8 +2,11 @@
 // Firebase or browser dependency so the same contract is exercised by Cloud
 // Functions, clients, and the parity certification harness.
 
+// `results` is a closed round whose results are persisted (roundState
+// 'closed'). It sits after `locked` so a client never treats the close of the
+// round it is showing as an older snapshot.
 export const ROUND_PHASE = Object.freeze({
-  LOBBY: 'lobby', COUNTDOWN: 'countdown', ANSWERING: 'answering', LOCKED: 'locked', FINISHED: 'finished',
+  LOBBY: 'lobby', COUNTDOWN: 'countdown', ANSWERING: 'answering', LOCKED: 'locked', RESULTS: 'results', FINISHED: 'finished',
 });
 
 const PHASE_ORDER = Object.freeze(Object.fromEntries(Object.values(ROUND_PHASE).map((phase, index) => [phase, index])));
@@ -58,9 +61,24 @@ export function challengeSpeedTier(elapsedMs, totalMs) {
   return Object.freeze({ ...band, multiplier, elapsedRatio, elapsedSecond, totalSeconds });
 }
 
+/*
+ * Should a client replace the room it is showing with this snapshot?
+ *
+ * Within ONE room, never go backwards: an older round, an older version of the
+ * same round, or an earlier phase of it is a delayed snapshot and is ignored.
+ *
+ * Across rooms that ordering means nothing. A student who finished game A at
+ * round 9 and is invited into game B (round -1, lobby) must see game B — the
+ * earlier comparison kept game A's final screen, showing game B's zero-score
+ * players, until game B happened to pass round 9. A snapshot for a different
+ * room is always accepted.
+ */
 export function acceptChallengeSnapshot(current, incoming) {
   if (!incoming) return current || null;
   if (!current) return incoming;
+  const currentRoomId = current.roomId ?? null;
+  const incomingRoomId = incoming.roomId ?? null;
+  if (currentRoomId && incomingRoomId && currentRoomId !== incomingRoomId) return incoming;
   const currentRound = Number(current.currentRound ?? -1);
   const incomingRound = Number(incoming.currentRound ?? -1);
   if (incomingRound < currentRound) return current;
@@ -90,6 +108,7 @@ export function monotonicRoundOrigin({ monotonicNow, serverNowMs, startsAtMs }) 
 export function challengePhaseAt(snapshot = {}, serverNowMs = Date.now()) {
   if (snapshot.status === 'finished' || snapshot.status === 'cancelled') return ROUND_PHASE.FINISHED;
   if (snapshot.status === 'lobby') return ROUND_PHASE.LOBBY;
+  if (snapshot.roundState === 'closed') return ROUND_PHASE.RESULTS;
   const startsAtMs = Number(snapshot.startsAtMs || snapshot.roundStartedAtMs || 0);
   const endsAtMs = Number(snapshot.endsAtMs || snapshot.roundEndsAtMs || 0);
   if (startsAtMs > 0 && Number(serverNowMs) < startsAtMs) return ROUND_PHASE.COUNTDOWN;

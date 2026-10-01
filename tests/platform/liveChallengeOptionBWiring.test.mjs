@@ -74,12 +74,26 @@ test('service exposes experience callables without duplicating score logic in th
   assert.doesNotMatch(service, /speedBonus\s*=|pointsAwarded\s*=/);
 });
 
-test('configured speed is returned synchronously while the trigger remains a retry fallback', () => {
+test('configured speed is scored at submit, and the legacy trigger cannot pay it again', () => {
+  // Speed influence used to be bolted on after the mature scorer returned: a
+  // wrapper in entry.js rescaled the speed bonus, and a Firestore trigger
+  // retried it. The room's scoring strategy now applies it inside the submit
+  // transaction, so the number a student is shown is the number the
+  // leaderboard stores, with nothing left to reconcile afterwards.
   const entry = readRequired('functions/entry.js');
-  assert.match(entry, /legacySubmitLiveChallengeResponse\.run\(request\)/);
-  assert.match(entry, /exports\.submitLiveChallengeResponse\s*=\s*onCall/);
-  assert.match(entry, /applyExperienceSpeedAdjustment/);
-  assert.match(entry, /fallback trigger/i);
+  assert.doesNotMatch(entry, /exports\.submitLiveChallengeResponse\s*=/, 'a second scorer around submit would pay speed twice');
+  const server = readRequired('functions/index.js');
+  const start = server.indexOf('exports.submitLiveChallengeResponse');
+  const submit = server.slice(start, server.indexOf('// Phase 5D', start));
+  assert.match(submit, /finalScore = strategy\.scoreResponse\(\{[^}]*speedInfluencePercent,/);
+  assert.match(submit, /experienceSpeedAdjustedRound: submittedRound,\s*experienceSpeedAdjustment: 0,/);
+
+  // The trigger stays deployed for player writes from the earlier code during
+  // a rolling deploy, and it stops at the marker before adjusting anything.
+  const trigger = entry.slice(entry.indexOf('exports.adjustLiveChallengeExperienceScore'));
+  const marker = trigger.indexOf('if (Number(after.experienceSpeedAdjustedRound) === answeredRound) return null;');
+  assert.ok(marker > 0, 'the trigger must honour the adjusted-round marker');
+  assert.ok(marker < trigger.indexOf('applyExperienceSpeedAdjustment('), 'the marker check must come before any adjustment');
 });
 
 test('Warm-Up waiting is a focused overlay, not a contradictory panel above standard work', () => {

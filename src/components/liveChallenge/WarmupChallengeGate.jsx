@@ -21,6 +21,8 @@ export default function WarmupChallengeGate({
     return (
       <section aria-label="Warm-Up Live Challenge" style={{ marginBottom: 16 }}>
         <LiveChallengeStudent
+          // A new Warm-Up game is a new mount; see App.jsx.
+          key={decision.roomId}
           invite={{ ...(invite || {}), roomId: decision.roomId }}
           studentProfile={studentProfile}
           onExit={onExitToAssignment}

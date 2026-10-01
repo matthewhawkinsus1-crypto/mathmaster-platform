@@ -243,6 +243,13 @@ test('a game nobody missed ends instead of replaying', async () => {
     playerKey: 'clean-player',
     score: 1000,
   });
+  // The authoritative record every joined player has. Advancing reads round
+  // completion from these (inside its transaction), not from the public board.
+  await cleanPrivate.collection('players').doc('clean-student').set({
+    studentId: 'clean-student', playerKey: 'clean-player', alias: 'Clean Player', joined: true,
+    score: 1000, correctCount: 1, roundsAnswered: 1, answeredRound: 0,
+    answeredRounds: [0], missedRounds: [],
+  });
   const result = await functionsIndex.advanceLiveChallenge.run(teacherRequest({ roomId: cleanRoom }));
   assert.equal(result.status, 'finished', 'a question nobody missed never comes back');
 });

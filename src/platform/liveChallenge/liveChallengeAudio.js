@@ -118,6 +118,22 @@ export class LiveChallengeAudioDirector {
     this.lastCountdownSecond = null;
     this.endedRoundKey = null;
     this.duckTimer = null;
+    this.roomKey = null;
+  }
+
+  /*
+   * A new room is a new game. The director outlives a game (it belongs to the
+   * teacher's screen), so what it remembers about the last one — its leader,
+   * its standings, which round it last closed, its countdown — is forgotten
+   * here rather than compared against the next game's first snapshot. The
+   * teacher's mix and the primed audio are kept.
+   */
+  #enterRoom(roomKey) {
+    this.roomKey = roomKey;
+    this.previous = null;
+    this.leaderHold = {};
+    this.lastCountdownSecond = null;
+    this.endedRoundKey = null;
   }
 
   #readMix() {
@@ -258,6 +274,8 @@ export class LiveChallengeAudioDirector {
 
   sync({ room = null, leaderboard = [], remainingMs = null, nowMs = this.now() } = {}) {
     if (!room) return;
+    const roomKey = room.roomId || room.id || null;
+    if (roomKey !== this.roomKey) this.#enterRoom(roomKey);
     const roundKey = `${room.currentRound ?? ''}:${room.roundEndsAt?.seconds ?? room.roundEndsAt?._seconds ?? room.roundEndsAt ?? ''}`;
     const roundEnded = room.status === 'running' && Number.isFinite(Number(remainingMs)) && Number(remainingMs) <= 0;
     this.switchMusic(challengeMusicState(room, remainingMs));

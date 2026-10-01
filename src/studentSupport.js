@@ -1,9 +1,40 @@
+import { flatSupportIds, resolveEffectiveSupportPlan } from '../functions/shared/supportProfileModel.mjs';
+import { studentFacingLabel } from '../functions/shared/supportCatalog.mjs';
+
 const unique = (values) => [...new Set((Array.isArray(values) ? values : []).map(String))];
 
-export const normalizeStudentProfile = (profile = {}) => {
+const hasSupportPlan = (profile) => Array.isArray(profile?.supportPlan?.windows) && profile.supportPlan.windows.length > 0;
+
+/**
+ * The flat support view every runtime reader uses.
+ *
+ * A versioned profile (`supportPlan`, functions/shared/supportProfileModel.mjs)
+ * is resolved to the revision in effect today, so a future-dated revision
+ * switches on by itself and an inactive one switches supports off. The plan
+ * itself is passed through untouched: individualized deadlines are governed by
+ * the revision in effect on each assignment's due date, not today's.
+ *
+ * This is a READ view. Never write it back to Firestore — the profile is
+ * saved only as a new revision plus its projection
+ * (src/platform/supportEvidence/supportEvidenceStore.js).
+ */
+export const normalizeStudentProfile = (profile = {}, { nowValue = Date.now() } = {}) => {
   const safeProfile = profile && typeof profile === 'object' && !Array.isArray(profile)
     ? profile
     : {};
+
+  if (hasSupportPlan(safeProfile)) {
+    const plan = resolveEffectiveSupportPlan(safeProfile, { nowValue });
+    const ids = flatSupportIds(plan);
+    return {
+      inclusionStatus: plan.inclusionStatus === true,
+      accommodations: unique(ids.accommodations),
+      modifications: unique(ids.modifications),
+      translationLanguage: String(plan.translationLanguage || '').trim().toLowerCase() || null,
+      supportPlan: safeProfile.supportPlan,
+      supportRevisionId: plan.revisionId || null,
+    };
+  }
 
   return {
     inclusionStatus: Boolean(safeProfile.inclusionStatus),
@@ -35,8 +66,58 @@ export const getStudentSupportPresentation = (profile) => {
     // should not silently receive an operation-application shortcut they were
     // never assigned.
     algebraAutoApply: normalized.accommodations.includes('algebra-auto-apply'),
+    // Supplemental aid: the scratchpad opens on graph paper.
+    graphPaper: normalized.accommodations.includes('graph-paper'),
     translationLanguage: normalized.translationLanguage,
   };
+};
+
+/**
+ * What the student's neutral "Support tools" panel offers, from the plan in
+ * effect today. Only student-facing tools appear, each under its neutral
+ * student label (functions/shared/supportCatalog.mjs studentLabel) — never a
+ * program, a classification or a teacher label.
+ */
+export const studentSupportTools = (profile, { nowValue = Date.now() } = {}) => {
+  const plan = resolveEffectiveSupportPlan(profile || {}, { nowValue });
+  if (!plan.active) return { tools: [], resources: [], any: false };
+  const tools = [];
+  const resources = [];
+  plan.accommodations.forEach((entry) => {
+    const label = studentFacingLabel(entry.id);
+    if (!label) return;
+    if (Array.isArray(entry?.params?.resources) && entry.params.resources.length) {
+      entry.params.resources
+        // Re-checked here: the editor accepts only https links, but a link
+        // reaches a student's screen, so nothing else is rendered.
+        .filter((resource) => /^https:\/\/[^\s]+$/i.test(String(resource?.url || '')))
+        .forEach((resource) => resources.push({ supportId: entry.id, group: label, label: resource.label, url: resource.url }));
+    } else if (!['reteach-resources', 'study-sheet'].includes(entry.id)) {
+      tools.push({ supportId: entry.id, label });
+    }
+  });
+  return { tools, resources, any: tools.length > 0 || resources.length > 0 };
+};
+
+/*
+ * Which configured modifications actually CHANGE this item — kept next to the
+ * transformation below so the two cannot drift. `reduce-complexity` rewrites
+ * the fraction / one-step / literal generators and trims multiple choice;
+ * `prefill-first-step` is honoured only by the step-algebra tool. A
+ * modification that changed nothing leaves the item — and the student's work
+ * on it — at grade level, and must not mark the work Modified.
+ */
+const COMPLEXITY_REDUCED_GENERATORS = new Set(['fraction', 'stepLinearEquation', 'literalLinear']);
+export const modificationsAppliedToQuestion = (question = {}, configured = []) => {
+  const set = new Set(Array.isArray(configured) ? configured : []);
+  const applied = [];
+  if (set.has('reduce-complexity')) {
+    const generatorChanged = COMPLEXITY_REDUCED_GENERATORS.has(question?.generator?.kind);
+    const choicesTrimmed = Array.isArray(question?.choices) && question.choices.length > 2;
+    if (generatorChanged || choicesTrimmed) applied.push('reduce-complexity');
+  }
+  if (set.has('prefill-first-step') && question?.type === 'stepAlgebra') applied.push('prefill-first-step');
+  return applied;
 };
 
 export const applyStudentSupportToQuestion = (question, profile) => {
@@ -50,7 +131,7 @@ export const applyStudentSupportToQuestion = (question, profile) => {
     supportEntitlements: {},
   };
   if (!normalized.inclusionStatus && !normalized.accommodations.length && !normalized.modifications.length && !normalized.translationLanguage) {
-    return { question: trustedQuestion, usage: { modified: false, accommodations: [], modifications: [] } };
+    return { question: trustedQuestion, usage: { modified: false, accommodations: [], modifications: [], modificationsConfigured: [] } };
   }
   const next = {
     ...trustedQuestion,
@@ -66,11 +147,14 @@ export const applyStudentSupportToQuestion = (question, profile) => {
       next.context = { ...next.context, scenario: translation.scenario };
     }
   }
+  // `accommodations` keeps its long-standing meaning — configured for this
+  // student and presented with the item — which attempt evidence records as
+  // stage "presented". It is NOT a record of use; the support evidence system
+  // records use separately (grades/{id}/supportEvidence).
   const usedAccommodations = [...normalized.accommodations];
-  const usedModifications = [];
+  const appliedModifications = modificationsAppliedToQuestion(question, normalized.modifications);
 
   if (normalized.modifications.includes('reduce-complexity')) {
-    usedModifications.push('reduce-complexity');
     if (next.generator?.kind === 'fraction') {
       next.generator.denominators = [2, 4, 5, 10];
     }
@@ -93,7 +177,6 @@ export const applyStudentSupportToQuestion = (question, profile) => {
       ...(next.supportEntitlements || {}),
       prefillFirstStep: true,
     };
-    usedModifications.push('prefill-first-step');
   }
 
   if (getStudentSupportPresentation(normalized).visualChunking) next.visualChunking = true;
@@ -102,9 +185,11 @@ export const applyStudentSupportToQuestion = (question, profile) => {
   return {
     question: next,
     usage: {
-      modified: usedModifications.length > 0,
+      // Modified only where a modification changed this item (see above).
+      modified: appliedModifications.length > 0,
       accommodations: usedAccommodations,
-      modifications: usedModifications,
+      modifications: appliedModifications,
+      modificationsConfigured: [...normalized.modifications],
     },
   };
 };
@@ -112,32 +197,4 @@ export const applyStudentSupportToQuestion = (question, profile) => {
 export const buildSupportUsage = (profile, question) => {
   const result = applyStudentSupportToQuestion(question, profile);
   return result.usage;
-};
-
-const escapeHtml = (value) => String(value ?? '')
-  .replaceAll('&', '&amp;')
-  .replaceAll('<', '&lt;')
-  .replaceAll('>', '&gt;')
-  .replaceAll('"', '&quot;');
-
-export const buildIEPReportHtml = ({ student, assignments = [] }) => {
-  const profile = normalizeStudentProfile(student?.profile || student);
-  const assignmentRows = assignments.map(({ assignment, score, supportUsage, activity, dol, classwork }) => {
-    const modified = Boolean(supportUsage?.modified || supportUsage?.modifications?.length);
-    const dolEntries = Object.entries(dol || {}).sort(([a], [b]) => a.localeCompare(b));
-    const latestDol = dolEntries.length ? dolEntries[dolEntries.length - 1][1] : null;
-    return `<tr>
-      <td>${escapeHtml(assignment?.title)}</td>
-      <td>${escapeHtml(score ?? '—')}%</td>
-      <td>${modified ? '<strong style="color:#6f2da8">MOD</strong>' : 'Standard'}</td>
-      <td>${escapeHtml((supportUsage?.accommodations || []).join(', ') || 'None recorded')}</td>
-      <td>${escapeHtml((supportUsage?.modifications || []).join(', ') || 'None recorded')}</td>
-      <td>${escapeHtml(Math.round((Number(activity?.totalTimeSeconds) || 0) / 60))} min total<br>${escapeHtml(Math.round((Number(activity?.lateSeconds) || 0) / 60))} min late</td>
-      <td>${escapeHtml(latestDol?.score ?? '—')}%</td>
-      <td>${escapeHtml(classwork?.score ?? '—')}%</td>
-    </tr>`;
-  }).join('');
-  return `<!doctype html><html><head><meta charset="utf-8"><title>IEP Support Report</title><style>
-    body{font-family:Arial,sans-serif;margin:32px;color:#202124}h1{color:#174ea6}h2{margin-top:26px}table{width:100%;border-collapse:collapse;margin-top:14px}th,td{border:1px solid #cfd7e3;padding:9px;text-align:left;vertical-align:top}th{background:#f3f6fa}.badge{display:inline-block;background:#efe4ff;color:#6f2da8;padding:3px 7px;border-radius:999px;font-weight:bold}@media print{button{display:none}}
-  </style></head><body><button onclick="window.print()" style="float:right;padding:10px 16px">Print / Save PDF</button><h1>MathMaster IEP Support Report</h1><p><strong>Student:</strong> ${escapeHtml(student?.id)}</p><p><strong>Class:</strong> ${escapeHtml(student?.classPeriod || 'Unassigned')}</p><h2>Student profile</h2><p><strong>Inclusion status:</strong> ${profile.inclusionStatus ? '<span class="badge">INCLUSION</span>' : 'No'}</p><p><strong>Configured accommodations:</strong> ${escapeHtml(profile.accommodations.join(', ') || 'None')}</p><p><strong>Configured modifications:</strong> ${escapeHtml(profile.modifications.join(', ') || 'None')}</p><h2>Assignment evidence</h2><table><thead><tr><th>Assignment</th><th>Score</th><th>Version</th><th>Accommodations used</th><th>Modifications used</th><th>Engaged time</th><th>Latest DOL</th><th>Classwork prerequisite</th></tr></thead><tbody>${assignmentRows || '<tr><td colspan="8">No assignment evidence is available.</td></tr>'}</tbody></table><p style="margin-top:24px;color:#5f6368;font-size:12px">This report distinguishes accommodations from modifications so grade-level and modified performance are not represented as the same instructional condition.</p></body></html>`;
 };

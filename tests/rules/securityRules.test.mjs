@@ -1323,3 +1323,74 @@ test('parent contact logs are private, append-only, teacher-of-record records wi
   await assertFails(updateDoc(doc(teacherA(), 'parentContactLogs/contact-a'), { notes: 'rewritten' }));
   await assertFails(deleteDoc(doc(teacherA(), 'parentContactLogs/contact-a')));
 });
+
+/* ---------- Live Challenge engine and reward grants ---------- */
+//
+// Three paths the engine added. A reward grant is an item a student holds; it
+// is read like the Class Points ledger and written only by the server. A
+// round result is the anonymous ranking of one closed round, read by exactly
+// the audience of the room's standings. A match result names students and
+// carries reward bookkeeping, so no client reads it at all.
+
+const seedLiveChallengeEngine = async () => env.withSecurityRulesDisabled(async (context) => {
+  const db = context.firestore();
+  await setDoc(doc(db, 'rewardGrants/grant-a'), {
+    schemaVersion: 1, grantId: 'grant-a', rewardCode: 'practicePass', category: 'pass', studentId: 'STUDENT_A', classId: 'class-a',
+    status: 'available', history: [{ status: 'available', at: '2026-09-01T12:00:00.000Z', actorType: 'system', reason: 'awarded' }],
+    originTeacherEmail: TEACHER_A, authorizedTeacherEmails: [TEACHER_A],
+  });
+  await setDoc(doc(db, 'liveChallengeRooms/lc-room-a'), { teacherEmail: TEACHER_A, status: 'running', currentRound: 1 });
+  await setDoc(doc(db, 'liveChallengeRooms/lc-room-a/rounds/0'), {
+    roundIndex: 0, standings: [{ playerKey: 'pk-a', alias: 'Nova Fox', rank: 1, matchPointsAwarded: 15 }],
+  });
+  await setDoc(doc(db, 'liveChallengeInvites/STUDENT_A'), { roomId: 'lc-room-a', playerKey: 'pk-a' });
+  await setDoc(doc(db, 'liveChallengeInvites/STUDENT_B'), { roomId: 'lc-room-elsewhere', playerKey: 'pk-b' });
+  await setDoc(doc(db, 'liveChallengeMatchResults/lc-room-a'), {
+    roomId: 'lc-room-a', teacherEmail: TEACHER_A, status: 'finished', standings: [{ studentId: 'STUDENT_A', rank: 1 }],
+  });
+});
+
+test('a reward grant is read by its student and their teacher, and written by no client', async () => {
+  await seedLiveChallengeEngine();
+  await assertSucceeds(getDoc(doc(studentA(), 'rewardGrants/grant-a')));
+  await assertFails(getDoc(doc(studentB(), 'rewardGrants/grant-a')));
+  await assertSucceeds(getDoc(doc(teacherA(), 'rewardGrants/grant-a')));
+  await assertFails(getDoc(doc(teacherB(), 'rewardGrants/grant-a')));
+  await assertSucceeds(getDoc(doc(admin(), 'rewardGrants/grant-a')));
+  await assertFails(getDoc(doc(stranger(), 'rewardGrants/grant-a')));
+  // The wallet and roster queries a rewards screen would make.
+  await assertSucceeds(getDocs(query(collection(studentA(), 'rewardGrants'), where('studentId', '==', 'STUDENT_A'))));
+  await assertSucceeds(getDocs(query(collection(teacherA(), 'rewardGrants'), where('authorizedTeacherEmails', 'array-contains', TEACHER_A))));
+  await assertFails(getDocs(collection(teacherA(), 'rewardGrants')));
+
+  // Nobody issues, spends, restores or erases a grant from a client.
+  const forged = { grantId: 'forged', rewardCode: 'practicePass', studentId: 'STUDENT_A', classId: 'class-a', status: 'available', authorizedTeacherEmails: [TEACHER_A] };
+  for (const client of [studentA(), teacherA(), admin()]) {
+    await assertFails(setDoc(doc(client, 'rewardGrants/forged'), forged));
+    await assertFails(updateDoc(doc(client, 'rewardGrants/grant-a'), { status: 'redeemed' }));
+    await assertFails(deleteDoc(doc(client, 'rewardGrants/grant-a')));
+  }
+});
+
+test('a closed round\'s result is read by the room\'s audience only, and written by no client', async () => {
+  await seedLiveChallengeEngine();
+  const round = 'liveChallengeRooms/lc-room-a/rounds/0';
+  await assertSucceeds(getDoc(doc(teacherA(), round)));
+  await assertFails(getDoc(doc(teacherB(), round)));
+  await assertSucceeds(getDoc(doc(studentA(), round)), 'a student invited to the room');
+  await assertFails(getDoc(doc(studentB(), round)), 'a student invited to another room');
+  await assertSucceeds(getDoc(doc(admin(), round)));
+  await assertFails(getDoc(doc(stranger(), round)));
+  for (const client of [studentA(), teacherA(), admin()]) {
+    await assertFails(setDoc(doc(client, 'liveChallengeRooms/lc-room-a/rounds/1'), { standings: [] }));
+    await assertFails(updateDoc(doc(client, round), { standings: [] }));
+  }
+});
+
+test('a match result is unreachable from every client', async () => {
+  await seedLiveChallengeEngine();
+  for (const client of [studentA(), teacherA(), admin()]) {
+    await assertFails(getDoc(doc(client, 'liveChallengeMatchResults/lc-room-a')));
+    await assertFails(setDoc(doc(client, 'liveChallengeMatchResults/lc-room-a'), { status: 'cancelled' }, { merge: true }));
+  }
+});

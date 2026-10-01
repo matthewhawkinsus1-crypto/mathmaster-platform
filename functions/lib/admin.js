@@ -77,6 +77,18 @@ const PREPRODUCTION_RESET_COLLECTIONS = Object.freeze([
   "classPointTransactions",
   "liveChallengeAchievementJobs",
   "classPointIdempotencyKeys",
+  // Reward redemptions and item grants are ledger-side reward state: clearing
+  // the transactions above while keeping these would leave a waiver or a
+  // Practice Pass pointing at history that no longer exists.
+  "classPointRewardRedemptions",
+  "rewardGrants",
+  // The rest of the Live Challenge runtime: finished-match results and
+  // reports (both name students), room scoring/name settings, and teacher
+  // rehearsals.
+  "liveChallengeMatchResults",
+  "liveChallengeReports",
+  "liveChallengeExperience",
+  "liveChallengeDryRuns",
 ]);
 
 const PREPRODUCTION_PRESERVED_COLLECTIONS = Object.freeze([

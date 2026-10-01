@@ -21,6 +21,8 @@
   --mm-warning-bg: #fff8df; --mm-warning-text: #8a4b00; --mm-warning-border: #f4b400;
   --mm-error-bg: #fce8e6; --mm-error-text: #a50e0e; --mm-error-border: #d93025;
   --mm-info-bg: #e8f0fe; --mm-info-text: #174ea6; --mm-info-border: #8ab4f8;
+  /* Modified instructional condition (MOD) — the gradebook's long-standing purple. */
+  --mm-mod-bg: #efe4ff; --mm-mod-text: #5b2391; --mm-mod-border: #b79ad9;
   --mm-graph-bg: #ffffff; --mm-graph-axis: #5f6368; --mm-graph-grid: #dfe3e7;
   --mm-graph-grid-minor: #f0f2f4; --mm-graph-label: #3c4043; --mm-graph-highlight: #f9ab00;
   --text: var(--mm-text);
@@ -65,6 +67,7 @@
     --mm-warning-bg: #3b2e0b; --mm-warning-text: #fdd663; --mm-warning-border: #e8a900;
     --mm-error-bg: #461c1c; --mm-error-text: #ffb4ab; --mm-error-border: #ff7b72;
     --mm-info-bg: #172b4d; --mm-info-text: #aecbfa; --mm-info-border: #669df6;
+    --mm-mod-bg: #2e1d45; --mm-mod-text: #dcc4ff; --mm-mod-border: #a47be0;
     --mm-graph-bg: #171a20; --mm-graph-axis: #d3d9e3; --mm-graph-grid: #4a5260; --mm-graph-grid-minor: #303640; --mm-graph-label: #f1f4f9; --mm-graph-highlight: #fdd663;
     --code-bg: #1f2028;
     --accent: #c084fc;
@@ -90,6 +93,7 @@
   --mm-warning-bg: #3b2e0b; --mm-warning-text: #fdd663; --mm-warning-border: #e8a900;
   --mm-error-bg: #461c1c; --mm-error-text: #ffb4ab; --mm-error-border: #ff7b72;
   --mm-info-bg: #172b4d; --mm-info-text: #aecbfa; --mm-info-border: #669df6;
+  --mm-mod-bg: #2e1d45; --mm-mod-text: #dcc4ff; --mm-mod-border: #a47be0;
   --mm-graph-bg: #171a20; --mm-graph-axis: #d3d9e3; --mm-graph-grid: #4a5260; --mm-graph-grid-minor: #303640; --mm-graph-label: #f1f4f9; --mm-graph-highlight: #fdd663;
 }
 

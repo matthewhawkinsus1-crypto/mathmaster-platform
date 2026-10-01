@@ -178,8 +178,16 @@ test('miss counts never reach a document a student can read', () => {
 
 test('the replay set is planned once', () => {
   const source = codeOf('functions/index.js');
-  assert.match(source, /privateState\.secondChancePlanned\s*\n?\s*\?\s*\[\]/);
-  assert.match(source, /secondChancePlanned: true/);
+  const plannerStart = source.indexOf('function planNextLiveChallengeRound(');
+  const planner = source.slice(plannerStart, source.indexOf('\n}\n', plannerStart));
+  // Once planned, the end of the replays is the end of the game.
+  assert.match(planner, /if \(privateState\.secondChancePlanned[^{]*\{\s*return \{ finish: true \};/);
+  assert.match(planner, /secondChancePlanned: true/);
+  // The plan is written in the same transaction that opens the first replay,
+  // so two concurrent advances cannot each append a replay set.
+  const openingStart = source.indexOf('function applyLiveChallengeRoundOpening(');
+  const opening = source.slice(openingStart, source.indexOf('\n}\n', openingStart));
+  assert.match(opening, /transaction\.set\(privateRef, \{\s*\.\.\.privatePatch,/);
   assert.match(source, /scheduledRoundCount: selected\.length/);
 });
 

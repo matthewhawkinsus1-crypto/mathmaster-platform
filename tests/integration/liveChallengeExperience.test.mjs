@@ -1,8 +1,9 @@
 // Option B against a real Firestore emulator.
 //
-// The unit tests prove the arithmetic. This file proves the new entry wrapper,
-// room configuration and idempotency marker actually cooperate with the mature
-// Live Challenge submit callable and stored leaderboard state.
+// The unit tests prove the arithmetic. This file proves the room configuration,
+// the scoring strategy's native speed setting and the legacy trigger's
+// idempotency marker actually cooperate with the real submit callable and the
+// stored leaderboard state.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -93,8 +94,7 @@ const seed = async () => {
     roundSeconds: 60,
     currentRound: 0,
     roundStartedAt: admin.firestore.Timestamp.fromMillis(now),
-    // More than 60 seconds remaining intentionally clamps the mature speed
-    // scorer to its full 100-point speed component.
+    // Re-anchored to the moment of the answer below; see there.
     roundEndsAt: admin.firestore.Timestamp.fromMillis(now + 600000),
     currentQuestion: { questionInstanceId: `challenge_${ROOM}_r1` },
   });
@@ -165,10 +165,20 @@ test('selected public identity is applied without losing the generated code name
   assert.equal(publicAfterConfig.studentId, undefined, 'public leaderboard must not receive the roster id');
 });
 
+// Speed is scored from the round's start in one-second buckets, so the full
+// speed component needs the answer to arrive within a second of the start.
+// Measured from seeding, that included configuration and answer-key work —
+// and, with the other integration suites sharing the emulator in parallel, it
+// sometimes took longer, paying 196 instead of 200. Start the round at the
+// moment of answering, so the elapsed time is the submit's own latency.
+const answer = await correctAnswer();
+await db.collection('liveChallengeRooms').doc(ROOM).set({
+  roundStartedAt: admin.firestore.Timestamp.fromMillis(Date.now()),
+}, { merge: true });
 const correct = await functionsEntry.submitLiveChallengeResponse.run(studentRequest({
   roomId: ROOM,
   roundIndex: 0,
-  responsePayload: { responses: { answer: await correctAnswer() } },
+  responsePayload: { responses: { answer } },
 }));
 const privateAfterSubmit = (await db.collection('liveChallengePrivate').doc(ROOM).collection('players').doc(STUDENT).get()).data();
 const publicAfterSubmit = (await db.collection('liveChallengeRooms').doc(ROOM).collection('players').doc(PLAYER_KEY).get()).data();
@@ -180,13 +190,26 @@ test('Standard 20% speed is returned synchronously and stored on both leaderboar
   assert.equal(correct.totalScore, 1200);
   assert.equal(privateAfterSubmit.score, 1200);
   assert.equal(publicAfterSubmit.score, 1200);
-  assert.equal(privateAfterSubmit.experienceSpeedAdjustedRound, 0);
-  assert.equal(privateAfterSubmit.experienceSpeedAdjustment, 100);
 });
 
-// Fire the fallback with the BASE write shape after the synchronous path has
-// already marked the database. The transaction must observe the marker and
-// decline to pay the same extra 100 points again.
+test('the scoring strategy applies the 20% setting where the points are computed', () => {
+  // Speed used to be rescaled AFTER the scorer returned, with a +100 delta
+  // recorded as experienceSpeedAdjustment. The strategy now scales it
+  // natively, and the receipt records both scales so an audit can see it.
+  const receipt = privateAfterSubmit.submissionReceipts?.[correct.submissionId];
+  assert.ok(receipt, 'the response receipt exists under its submission id');
+  assert.equal(receipt.speedInfluencePercent, 20);
+  assert.equal(receipt.legacySpeedBonus, 100, 'the mature 100-point scale');
+  assert.equal(receipt.speedBonus, 200, 'rescaled to the room setting');
+  assert.equal(receipt.pointsAwarded, 1200);
+  // Nothing is left for the post-hoc path to add, and the round says so.
+  assert.equal(privateAfterSubmit.experienceSpeedAdjustedRound, 0);
+  assert.equal(privateAfterSubmit.experienceSpeedAdjustment, 0);
+});
+
+// Fire the fallback with the BASE write shape after the submission has marked
+// the database. The legacy trigger must observe the marker and decline to pay
+// another 100 points.
 await functionsEntry.adjustLiveChallengeExperienceScore.run({
   params: { roomId: ROOM, studentId: STUDENT },
   data: {
@@ -199,7 +222,7 @@ const privateAfterRetry = (await db.collection('liveChallengePrivate').doc(ROOM)
 test('trigger retry cannot double-pay the configured speed bonus', () => {
   assert.equal(privateAfterRetry.score, 1200);
   assert.equal(privateAfterRetry.experienceSpeedAdjustedRound, 0);
-  assert.equal(privateAfterRetry.experienceSpeedAdjustment, 100);
+  assert.equal(privateAfterRetry.experienceSpeedAdjustment, 0);
 });
 
 test('another teacher cannot change this room experience', async () => {
