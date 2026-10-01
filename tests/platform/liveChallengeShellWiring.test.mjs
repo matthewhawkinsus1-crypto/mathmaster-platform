@@ -223,10 +223,15 @@ test('the final standings under the podium show only rows that fit whole, and th
   // The viewport's row budget asked for five rows at 1366×768 where three
   // fit; the rest, and "Everyone sees their own final place", were cut off.
   const finale = region(projector, 'function FinalPodium(', '\nfunction LobbyView(', 'final podium');
-  assert.match(finale, /useRowsThatFit\(boardRef, Math\.min\(remaining\.length, Math\.max\(0, rows - 1\)\)\)/);
+  assert.match(finale, /const fit = useRowsThatFit\(boardRef, Math\.min\(remaining\.length, Math\.max\(0, rows - 1\)\)\);/);
+  assert.match(finale, /const shownBelow = fit\.room \? remaining\.slice\(0, fit\.rows\) : \[\];/);
   assert.match(finale, /<div ref=\{boardRef\} style=\{\{ minHeight: 0, overflow: 'hidden'/);
+  // With no room under the podium at all (150% zoom), the note moves into
+  // the podium's heading rather than vanishing.
+  assert.match(finale, /\{!fit\.room && someoneUnseen && <span data-mm-final-more="header">/);
   const fit = region(projector, 'function useRowsThatFit(', '\nfunction FinalPodium(', 'row fit');
-  assert.match(fit, /Math\.floor\(\(box\.clientHeight - chrome - FINAL_NOTE_PX \+ 6\) \/ rowHeight\)/);
+  assert.match(fit, /Math\.floor\(\(space - FINAL_NOTE_PX \+ 6\) \/ rowHeight\)/);
+  assert.match(fit, /const room = space >= FINAL_NOTE_PX;/);
   assert.match(fit, /new ResizeObserver\(measure\)/);
   assert.match(fit, /return \(\) => observer\.disconnect\(\);/);
 });

@@ -243,25 +243,32 @@ function PodiumPlace({ row, place, height, revealDelay, presentation, rewards = 
 /*
  * How many standings rows fit WHOLE in the box `ref` points at (a box that
  * fills the space it is given), up to `wanted`, with room left for a one-line
- * note under them. The viewport's row budget cannot know how tall the podium
- * above came out — at 1366×768 it asked for five rows where three fit, and
- * the last ones, with "Everyone sees their own final place", were cut off.
+ * note under them — and whether even the note fits (`room`). The viewport's
+ * row budget cannot know how tall the podium above came out: at 1366×768 it
+ * asked for five rows where three fit, and the last ones, with "Everyone sees
+ * their own final place", were cut off; at 150% zoom nothing fits at all.
  */
 const FINAL_NOTE_PX = 30;
+const FINAL_PANEL_CHROME_PX = 34;
 function useRowsThatFit(ref, wanted) {
-  const [fit, setFit] = useState(wanted);
+  const [fit, setFit] = useState({ rows: wanted, room: true });
   useLayoutEffect(() => {
     const box = ref.current;
     if (!box) return undefined;
     const measure = () => {
       const panel = box.firstElementChild;
-      if (!panel) return;
-      const styles = window.getComputedStyle(panel);
-      const chrome = ['paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth']
-        .reduce((sum, key) => sum + (parseFloat(styles[key]) || 0), 0);
-      const row = panel.querySelector('li');
+      let chrome = FINAL_PANEL_CHROME_PX;
+      if (panel) {
+        const styles = window.getComputedStyle(panel);
+        chrome = ['paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth']
+          .reduce((sum, key) => sum + (parseFloat(styles[key]) || 0), 0);
+      }
+      const row = panel?.querySelector('li');
       const rowHeight = (row ? row.getBoundingClientRect().height : 56) + 6;
-      setFit(Math.max(0, Math.min(wanted, Math.floor((box.clientHeight - chrome - FINAL_NOTE_PX + 6) / rowHeight))));
+      const space = box.clientHeight - chrome;
+      const rows = Math.max(0, Math.min(wanted, Math.floor((space - FINAL_NOTE_PX + 6) / rowHeight)));
+      const room = space >= FINAL_NOTE_PX;
+      setFit((current) => (current.rows === rows && current.room === room ? current : { rows, room }));
     };
     measure();
     if (typeof ResizeObserver !== 'function') return undefined;
@@ -269,14 +276,16 @@ function useRowsThatFit(ref, wanted) {
     observer.observe(box);
     return () => observer.disconnect();
   }, [ref, wanted]);
-  return Math.min(fit, wanted);
+  return { rows: Math.min(fit.rows, wanted), room: fit.room };
 }
 
 function FinalPodium({ leaderboard = [], presentation, rewardsByKey = null, rewardSummary = null, rows = 6 }) {
   const podium = podiumRows(leaderboard);
   const remaining = belowPodiumRows(leaderboard).slice(0, 9);
   const boardRef = useRef(null);
-  const shownBelow = remaining.slice(0, useRowsThatFit(boardRef, Math.min(remaining.length, Math.max(0, rows - 1))));
+  const fit = useRowsThatFit(boardRef, Math.min(remaining.length, Math.max(0, rows - 1)));
+  const shownBelow = fit.room ? remaining.slice(0, fit.rows) : [];
+  const someoneUnseen = belowPodiumRows(leaderboard).length > shownBelow.length;
   const lines = rewardSummaryLines(rewardSummary);
   return (
     <div className="mm-arena-finish" style={{ display: 'grid', gridTemplateRows: 'auto auto minmax(0,1fr)', gap: 'clamp(10px, 1.8vh, 20px)', minHeight: 0, height: '100%' }}>
@@ -286,6 +295,8 @@ function FinalPodium({ leaderboard = [], presentation, rewardsByKey = null, rewa
         <h2 style={{ margin: '4px 0 0', fontSize: 'clamp(32px, 6vh, 58px)', lineHeight: 1, letterSpacing: '-.025em', color: '#f7f9ff', fontWeight: 1000 }}>Final Podium</h2>
         <div style={{ marginTop: 6, color: 'rgba(236,241,255,.72)', fontWeight: 800, fontSize: 'clamp(14px, 1.4vw, 19px)' }}>
           {presentation.placementPoints ? 'Ranked by championship points.' : `Ranked by ${presentation.total.long}.`}{lines.length ? ` Rewards: ${lines.join(' · ')}.` : ''}
+          {/* No room under the podium (a small or zoomed projector): the note moves up here. */}
+          {!fit.room && someoneUnseen && <span data-mm-final-more="header"> Everyone sees their own final place on their device.</span>}
         </div>
       </div>
       <div style={{ maxWidth: 940, width: '100%', margin: '0 auto', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.12fr) minmax(0,1fr)', gap: 14, alignItems: 'end' }}>
@@ -295,14 +306,16 @@ function FinalPodium({ leaderboard = [], presentation, rewardsByKey = null, rewa
       </div>
       {remaining.length > 0 && (
         <div ref={boardRef} style={{ minHeight: 0, overflow: 'hidden', display: 'grid', alignContent: 'start' }}>
-          <section data-mm-final-board={shownBelow.length} style={{ ...glassPanel, padding: 'clamp(10px, 1.6vh, 16px)', maxWidth: 860, width: '100%', margin: '0 auto', overflow: 'hidden', boxSizing: 'border-box' }}>
-            {shownBelow.length > 0 && (
-              <StandingsBoard rows={standingsRows(shownBelow)} presentation={presentation} look="projector" limit={shownBelow.length} showMovement={false} rewardsByKey={rewardsByKey} label="Final standings" />
-            )}
-            {belowPodiumRows(leaderboard).length > shownBelow.length && (
-              <div data-mm-final-more="1" style={{ marginTop: shownBelow.length ? 6 : 0, color: 'rgba(236,241,255,.7)', fontWeight: 800 }}>Everyone sees their own final place on their device.</div>
-            )}
-          </section>
+          {fit.room && (
+            <section data-mm-final-board={shownBelow.length} style={{ ...glassPanel, padding: 'clamp(10px, 1.6vh, 16px)', maxWidth: 860, width: '100%', margin: '0 auto', overflow: 'hidden', boxSizing: 'border-box' }}>
+              {shownBelow.length > 0 && (
+                <StandingsBoard rows={standingsRows(shownBelow)} presentation={presentation} look="projector" limit={shownBelow.length} showMovement={false} rewardsByKey={rewardsByKey} label="Final standings" />
+              )}
+              {someoneUnseen && (
+                <div data-mm-final-more="1" style={{ marginTop: shownBelow.length ? 6 : 0, color: 'rgba(236,241,255,.7)', fontWeight: 800 }}>Everyone sees their own final place on their device.</div>
+              )}
+            </section>
+          )}
         </div>
       )}
     </div>
