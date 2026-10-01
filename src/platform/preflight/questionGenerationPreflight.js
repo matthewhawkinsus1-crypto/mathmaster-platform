@@ -38,6 +38,9 @@ import { familyInstanceGradingSupport, familyInstanceServerGradable } from '../.
 // below only builds keys for ordinary types and Step Algebra, and Pre-Flight
 // is on the app's static import path, which must not load every tool grader.
 import { gradeQuestionResponse } from '../../../functions/shared/serverGrading/questionResponseGrading.mjs';
+import { serverResponseGradingSupport } from '../../../functions/shared/serverGrading/gradingSupport.mjs';
+import { deliveredQuestionForGrading } from '../../../functions/shared/serverGrading/deliveredQuestion.mjs';
+import { GRADING_AUTHORITY } from '../../../functions/shared/serverGrading/gradingAuthority.mjs';
 import { describeQuestionVariability, VARIABILITY } from '../../../functions/shared/questionVariability.mjs';
 import { assessSectionRecoveryReadiness } from '../../../functions/shared/sectionRecoveryReadiness.mjs';
 import { normalizeRecoveryPolicy } from '../../../functions/shared/recoveryPolicy.mjs';
@@ -145,6 +148,51 @@ const auditFamilySlot = ({ assignmentId, question, storageIndex, capacityMemo })
   };
 };
 
+/*
+ * WHO WILL MARK THIS STATIC QUESTION?
+ *
+ * Read from the shared grading registry (serverGrading/gradingManifest.mjs),
+ * never from a list of tool names here, against the question the student will
+ * actually be shown (the runtime repair QuestionEngine applies). A question
+ * the server can mark — or that a dedicated server subsystem grades — needs no
+ * comment. One whose grade will rely on the student's device is named, with
+ * the registry's documented reason, so a teacher is never surprised by it.
+ */
+const GENERATED_IN_BROWSER = new Set(['generated-question', 'variant-selection', 'adaptive-band-profile']);
+const firstSentence = (value) => {
+  const text = clean(value);
+  const match = /^(.+?[.;])(\s|$)/.exec(text);
+  return (match ? match[1] : text).replace(/[.;]$/, '');
+};
+
+export const staticQuestionGradingAuthority = (question = {}) => {
+  let support;
+  try {
+    support = serverResponseGradingSupport(deliveredQuestionForGrading(question));
+  } catch {
+    return { gradedOn: 'unknown', reason: 'grading-support-unavailable', surfaceId: null };
+  }
+  const base = { surfaceId: support.surfaceId || null, mode: support.mode || null, reason: support.reason || null };
+  if (support.supported) return { ...base, gradedOn: 'server', authority: support.authority };
+  if (support.authority === GRADING_AUTHORITY.SPECIALIZED_SUBSYSTEM) return { ...base, gradedOn: 'server', authority: support.authority };
+  if (GENERATED_IN_BROWSER.has(support.reason)) {
+    return {
+      ...base,
+      gradedOn: 'device',
+      authority: GRADING_AUTHORITY.CLIENT_GRADED,
+      why: 'it is generated in the student\'s browser from a seed the server does not re-run; a Question Family would let the server mark it',
+    };
+  }
+  if (support.authority === GRADING_AUTHORITY.CLIENT_GRADED) {
+    return { ...base, gradedOn: 'device', authority: support.authority, why: firstSentence(support.blocker) || support.reason };
+  }
+  // Secure, teacher-excluded, non-graded, or missing its answer key: other
+  // checks speak for those.
+  return { ...base, gradedOn: 'other', authority: support.authority || null };
+};
+
+const DEVICE_GRADED_LISTED = 6;
+
 /**
  * The audit. `questions` are the flattened runtime questions, in order (the
  * flat index is the "Question N" every other Pre-Flight message uses).
@@ -161,6 +209,7 @@ export const auditAssignmentQuestionGeneration = (assignment = {}, questions = [
   const slots = [];
   const positionInSection = {};
   const staticBySection = {};
+  const deviceGraded = [];
 
   list.forEach((question, flatIndex) => {
     const role = clean(question?.activityRole).toLowerCase() || 'classwork';
@@ -179,7 +228,18 @@ export const auditAssignmentQuestionGeneration = (assignment = {}, questions = [
       if (variability.mode === VARIABILITY.UNRECOGNIZED_GENERATOR) {
         warnings.push(`${where} has a generator MathMaster does not recognize (${variability.reason}), so every student is shown the same question.`);
       }
-      slots.push({ questionIndex: flatIndex, role, label: where, familyBacked: false, variability: variability.mode });
+      const grading = staticQuestionGradingAuthority(question);
+      if (grading.gradedOn === 'device') deviceGraded.push({ flatIndex, why: grading.why });
+      slots.push({
+        questionIndex: flatIndex,
+        role,
+        label: where,
+        familyBacked: false,
+        variability: variability.mode,
+        gradedOn: grading.gradedOn,
+        gradingSurface: grading.surfaceId,
+        gradingReason: grading.reason,
+      });
       return;
     }
 
@@ -286,6 +346,14 @@ export const auditAssignmentQuestionGeneration = (assignment = {}, questions = [
         : `${label} ready: ${policy.warmup.questionCount} fresh questions from ${readiness.readySlots.length} Warm-Up question${readiness.readySlots.length === 1 ? '' : 's'} (counts up to ${policy.warmup.maxRecordedScore}%; open until the final submission date).`);
     }
   });
+
+  if (deviceGraded.length) {
+    const listed = deviceGraded.slice(0, DEVICE_GRADED_LISTED)
+      .map((entry) => `Question ${entry.flatIndex + 1} (${entry.why})`)
+      .join('; ');
+    const more = deviceGraded.length > DEVICE_GRADED_LISTED ? `; and ${deviceGraded.length - DEVICE_GRADED_LISTED} more` : '';
+    notes.push(`${deviceGraded.length} question${deviceGraded.length === 1 ? ' is' : 's are'} graded on the student's device; the server records that result within its attempt limits but cannot re-mark it: ${listed}${more}.`);
+  }
 
   const familySlots = slots.filter((slot) => slot.familyBacked && !slot.error);
   if (familySlots.length) {

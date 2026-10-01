@@ -212,3 +212,23 @@ test('the Pre-Flight modal shows the panel, uses the runtime default mode and pa
   assert.match(app, /rosterSizesByClassId=\{preflightRosterSizesByClassId\}/);
   assert.match(region(app, 'const preflightRosterSizesByClassId = useMemo(', '}, [teacherRosterSummaries]);', 'roster size memo'), /sizes\[student\.classId\] = \(sizes\[student\.classId\] \|\| 0\) \+ 1/);
 });
+
+test('Pre-Flight names every static question whose grade will rely on the student\'s device, from the grading registry', () => {
+  const questions = [
+    // Marked by the server from the raw answer: not mentioned.
+    { questionId: 's1', type: 'literal', prompt: 'Solve A = bh for h.', equation: 'A = bh', solveFor: 'h', acceptedAnswers: ['A/b'], activityRole: 'classwork' },
+    // Generated in the browser from a seed the server does not re-run.
+    { questionId: 's2', type: 'literal', prompt: 'Solve for x.', generator: { kind: 'literalEquation' }, activityRole: 'classwork' },
+    // Graded by a dedicated server subsystem: not mentioned.
+    { questionId: 's3', type: 'modelingLab', prompt: 'Model the data.', labDefinition: { labId: 'lab-1' }, activityRole: 'classwork' },
+  ];
+  const audit = auditAssignmentQuestionGeneration({ id: 'A1' }, questions);
+  const note = audit.notes.find((entry) => /graded on the student's device/.test(entry));
+  assert.ok(note, audit.notes.join('\n'));
+  assert.match(note, /^1 question is graded on the student's device/);
+  assert.match(note, /Question 2 \(it is generated in the student's browser/);
+  assert.doesNotMatch(note, /Question 1|Question 3/);
+  assert.deepEqual(audit.slots.map((slot) => slot.gradedOn), ['server', 'device', 'server']);
+  // A notice, not a warning: an existing assignment is not newly flagged.
+  assert.equal(audit.warnings.some((entry) => /student's device/.test(entry)), false);
+});
