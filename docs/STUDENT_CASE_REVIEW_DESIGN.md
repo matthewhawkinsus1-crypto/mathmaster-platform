@@ -237,7 +237,13 @@ completion · support evidence (PR #401 rows/summary) · timeline · SIS reconci
 attention · evidence gaps · data sources & coverage · legend · limitations. CSV exports: assignment
 contribution rows, question rows and narrative facts (formula-neutralised cells, PR #401's `csvCell`); JSON:
 the whole model. Print: the 12 sections the brief lists, teacher-entered next steps labelled
-"Teacher-authored — written by the teacher, not generated evidence." (kept in the page only; not saved).
+"Teacher-authored — written by the teacher, not generated evidence." Next steps have no server home and are given
+none: since follow-up CR-3 they are a draft in the tab's `sessionStorage`, one per signed-in teacher (uid) per
+student (`src/platform/caseReview/nextStepsDraft.js` over `src/auth/accountTabStorage.js`), so closing the case
+review or reloading no longer loses them. The draft is removed when the teacher clears the box, when any account
+signs out in the tab (`signOutSession`, and `AuthProvider` when a session ends any other way), when another account
+opens a case review in the tab, and when the tab closes; it is bounded (10,000 characters) and never written to
+Firestore or `localStorage`. Print and the JSON export carry whatever the box holds, restored or typed.
 
 Every grade contribution carries a **state** so an unanswered section is never shown as a score:
 `not-started` (no answers, still open for this student → "Not started"), `no-answers-closed` (final cutoff
@@ -306,6 +312,15 @@ Report sit above it). Print renders a portal copy on `<body>` only while printin
 layout and a report printed from above prints alone. Every important fact shows a provenance badge; narrative
 facts open to their sources. Components are one per tab (no giant component); CSS prefix `cr-`, semantic
 tokens only (the print-only black-on-white exception is recorded in `scripts/theme-color-baseline.json`).
+
+On a phone (≤ 600 px wide, or under 500 px tall — a phone on its side; follow-up CR-6, checked at 390×844,
+344×882 and 844×390) the whole case review scrolls, header and tabs included — kept fixed they took half of an
+844-px screen (254 of 390 px on its side) and, with the selection reopened, left the evidence 32 px — and the scroll
+memory follows whichever element scrolls (a new place opens no further down than where its evidence starts). Every
+control is at least 44 px. Upright, every table reads as one card per row, each value beside its column's name: the
+names are copied from the table headers onto the cells (`tableCellLabels.js`), so no table scrolls sideways and none
+repeats its column names in JSX (on a phone on its side the wide tables keep their own sideways scroll). A long record
+path in a narrative fact's sources wraps instead of widening the list.
 
 ## 8. File plan
 
