@@ -4,9 +4,11 @@ import { readFileSync } from 'node:fs';
 import {
   applyProductiveMilestoneAward,
   authoritativeReceiptTotal,
+  legacyMilestoneSpeedTotalForRound,
   milestoneSpeedTotalForRound,
   recordValidatedSpeedMilestone,
 } from '../../functions/shared/liveChallenge.mjs';
+import { accuracyFirstStrategy } from '../../functions/shared/liveChallengeScoring.mjs';
 import { SOLVER_RACE_CATALOG } from '../../functions/shared/solverRace.mjs';
 import { buildPrivateToolGrading, gradePathResponse } from '../../functions/shared/pathToolContracts.mjs';
 
@@ -95,7 +97,11 @@ test('the production progress callable enforces round identity and writes receip
   assert.match(block, /grading\?\.productiveDepth/);
   assert.match(block, /applyProductiveMilestoneAward/);
   assert.match(block, /submissionReceipts: milestone\.submissionReceipts/);
-  assert.match(block, /transaction\.set\(publicPlayerRef,[\s\S]*score: milestone\.totalScore/);
+  // The receipt-derived total reaches the public board: as the match score for
+  // a per-response strategy, as raw round performance under a placement one.
+  assert.match(block, /\? \{ rawScore: milestone\.totalScore \} : \{ score: milestone\.totalScore, rawScore: milestone\.totalScore \}/);
+  assert.match(block, /transaction\.set\(publicPlayerRef, \{[\s\S]{0,120}\.\.\.scoreFields,/);
+  assert.match(block, /speedInfluencePercent,\s*\}\);/, 'milestone speed honours the room setting');
   assert.doesNotMatch(block, /request\.data\?\.productiveDepth|request\.data\?\.speedPoints/);
 });
 
@@ -103,10 +109,44 @@ test('final scoring consumes banked milestone speed without double-paying it', (
   const server = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
   const start = server.indexOf('exports.submitLiveChallengeResponse');
   const block = server.slice(start, server.indexOf('// Phase 5D', start));
-  assert.match(block, /milestoneSpeedTotalForRound/);
-  assert.match(block, /finalScore\.speedBonus - bankedMilestoneSpeed/);
-  assert.match(block, /isSecondChance \? 0/);
+  // Banked speed is handed to the strategy on the mature 100-point scale…
+  assert.match(block, /bankedLegacyMilestoneSpeed: isSecondChance \? 0 : challenge\.legacyMilestoneSpeedTotalForRound\(/);
   assert.match(block, /authoritativeReceiptTotal\(submissionReceipts\)/);
+
+  // …which pays only the remainder. Milestones plus the final answer add up
+  // to one round's speed, at the room's setting, never more.
+  const player = {};
+  const banked = apply(player, milestone({ productiveDepth: 2, elapsedMs: 2_000 }), { speedInfluencePercent: 20 });
+  const bankedLegacy = legacyMilestoneSpeedTotalForRound(banked.submissionReceipts, 2, 7);
+  const paidMilestones = milestoneSpeedTotalForRound(banked.submissionReceipts, 2, 7);
+  assert.ok(bankedLegacy > 0);
+  assert.equal(paidMilestones, Object.values(banked.submissionReceipts).reduce((sum, receipt) => sum + receipt.speedBonus, 0));
+  const final = accuracyFirstStrategy.scoreResponse({
+    gradeScore: 1, isCorrect: true, elapsedMs: 2_000, totalMs: 40_000,
+    speedInfluencePercent: 20, bankedLegacyMilestoneSpeed: bankedLegacy,
+  });
+  const unbanked = accuracyFirstStrategy.scoreResponse({
+    gradeScore: 1, isCorrect: true, elapsedMs: 2_000, totalMs: 40_000, speedInfluencePercent: 20,
+  });
+  assert.equal(final.legacySpeedBonus, unbanked.legacySpeedBonus - bankedLegacy);
+  assert.ok(Math.abs((paidMilestones + final.speedBonus) - unbanked.speedBonus) <= 2, 'rounding aside, speed is paid once');
+  assert.equal(accuracyFirstStrategy.scoreResponse({
+    gradeScore: 1, isCorrect: true, elapsedMs: 2_000, totalMs: 40_000, secondChance: true, missedOriginally: true,
+    speedInfluencePercent: 20, bankedLegacyMilestoneSpeed: 0,
+  }).speedBonus, 0, 'a replay pays no speed');
+});
+
+test('milestone speed honours the room speed setting, including Off', () => {
+  // The teacher's 0% "Off" setting used to leave Solver Race milestone speed
+  // unscaled — speed was still paid in a room that had switched it off.
+  const off = apply({}, milestone({ productiveDepth: 2 }), { speedInfluencePercent: 0 });
+  assert.equal(off.accepted, true, 'the depth is still banked');
+  assert.equal(off.speedPoints, 0);
+  assert.equal(milestoneSpeedTotalForRound(off.submissionReceipts, 2, 7), 0);
+  assert.ok(legacyMilestoneSpeedTotalForRound(off.submissionReceipts, 2, 7) > 0, 'the mature-scale amount is kept for the final subtraction');
+  const standard = apply({}, milestone({ productiveDepth: 2 }), { speedInfluencePercent: 20 });
+  const legacy = apply({}, milestone({ productiveDepth: 2 }));
+  assert.equal(standard.speedPoints, legacy.speedPoints * 2, 'Standard 20% is twice the mature 10% scale');
 });
 
 test('challenge-only attempt policy remains isolated from ordinary assignments', () => {

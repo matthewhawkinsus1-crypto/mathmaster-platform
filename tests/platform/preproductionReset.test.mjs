@@ -169,8 +169,11 @@ test('reset preserves the Firestore connection-test sentinel while recursively d
 });
 
 test('reset writes one aggregate admin audit receipt without copying student identities into it', () => {
+  // The reset callable itself, not the student-deletion helpers that follow
+  // it: those exist to find one student's rows by id, which is their job.
   const start = functionsSource.indexOf('exports.resetPreproductionTestData');
-  const end = functionsSource.indexOf('exports.permanentlyDeleteStudent', start);
+  const end = functionsSource.indexOf('\n});', start) + 4;
+  assert.ok(start >= 0 && end > start);
   const block = functionsSource.slice(start, end);
 
   assert.match(block, /writeAdminAudit\(db, actor, "preproduction_test_data_reset", "preproduction-test-data"/);

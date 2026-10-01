@@ -10,6 +10,7 @@ import {
   parseChallengeExport,
 } from '../../functions/shared/liveChallengeExport.mjs';
 import { buildChallengeReport } from '../../functions/shared/liveChallengeReport.mjs';
+import { buildMatchResult } from '../../functions/shared/liveChallengeResults.mjs';
 
 const codeOf = (path) => readFileSync(path, 'utf8')
   .replace(/\/\*[\s\S]*?\*\//g, ' ')
@@ -103,8 +104,20 @@ test('the report carries the question set the export needs', () => {
   assert.deepEqual(built.rounds.map((round) => round.questionId), ['q-alpha', 'q-beta', 'q-gamma']);
   assert.equal(built.courseId, 'algebra1');
 
+  // The finishing transaction copies the set into the durable match result…
+  const matchResult = buildMatchResult({
+    roomId: 'room-export',
+    room: { title: 'P3 Challenge', courseId: 'algebra1', roundCount: 3, currentRound: 2 },
+    privateState: { questionIds: ['q-alpha', 'q-beta', 'q-gamma'], scheduledRoundCount: 3 },
+    players: [],
+    status: 'finished',
+  });
+  assert.deepEqual(matchResult.questionIds, ['q-alpha', 'q-beta', 'q-gamma']);
+  // …and the report is written from that result, after private state is gone.
   const server = codeOf('functions/index.js');
-  assert.match(server, /questionIds: Array\.isArray\(privateState\.questionIds\)/);
+  const writerStart = server.indexOf('async function writeLiveChallengeReportFromResult');
+  const writer = server.slice(writerStart, server.indexOf('async function writeWarmupCreditFromResult', writerStart));
+  assert.match(writer, /questionIds: Array\.isArray\(result\.questionIds\) \? result\.questionIds : \[\]/);
 });
 
 test('the export is anchored to the report, not the live room', () => {

@@ -130,8 +130,11 @@ test('the dry-run callables write nothing but the dry-run document', () => {
   // report, no mastery evidence, no grade — rests on this block touching one
   // collection. Reading the bank is expected; writing anywhere else is not.
   const start = functionsIndex.indexOf('async function requireOwnedDryRun(');
-  const end = functionsIndex.indexOf('exports.joinLiveChallenge = onCall');
-  assert.ok(start > 0 && end > start, 'the dry-run block must be locatable');
+  // The block ends with the discard callable; whatever the file places after it
+  // is not part of the dry run.
+  const discard = functionsIndex.indexOf('exports.discardChallengeDryRun = onCall', start);
+  const end = functionsIndex.indexOf('\n});', discard) + '\n});'.length;
+  assert.ok(start > 0 && discard > start && end > discard, 'the dry-run block must be locatable');
   const block = functionsIndex.slice(start, end);
 
   for (const forbidden of [
@@ -152,6 +155,16 @@ test('the dry-run callables write nothing but the dry-run document', () => {
   assert.ok(writes.length >= 2, 'create and swap must persist their dry-run state');
   assert.equal((block.match(/await ref\.set\(/g) || []).length, writes.length, 'every write must target only the dry-run document');
   assert.equal((block.match(/\.delete\(\)/g) || []).length, 1, 'only discard may delete');
+
+  // Choosing and swapping questions is delegated to the question planners a
+  // real room uses too. They may read the bank; they must never write.
+  const plannersStart = functionsIndex.indexOf('const LIVE_CHALLENGE_QUESTION_PLANNERS');
+  const plannersEnd = functionsIndex.indexOf('function liveChallengeQuestionPlanner(', plannersStart);
+  assert.ok(plannersStart > 0 && plannersEnd > plannersStart, 'the question planners must be locatable');
+  assert.match(block, /liveChallengeQuestionPlanner\(mode\)\.plan\(/, 'create plans through the shared planner');
+  assert.match(block, /liveChallengeQuestionPlanner\(mode\)\.swap\(/, 'swap draws through the shared planner');
+  const planners = functionsIndex.slice(plannersStart, plannersEnd);
+  assert.deepEqual(planners.match(/\.(set|update|add|create|delete)\(/g) || [], [], 'the question planners only read');
 });
 
 test('a dry run cannot be read or written from a browser', () => {

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import QuestionEngine from '../../QuestionEngine.jsx';
 import { publicLeaderboard, LIVE_PROVISIONAL_MAX_POINTS } from '../../../functions/shared/liveChallenge.mjs';
 import { acceptChallengeSnapshot, calibrateChallengeClock, challengePhaseAt, monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
+import { getScoringStrategy, leaderboardOptionsFor, SCORE_ACCUMULATION } from '../../../functions/shared/liveChallengeScoring.mjs';
 import { calculateStepPartialCredit, emptyQuestionRecord, recordQuestionStep } from '../../attemptPolicy.js';
 import { hasMeaningfulRawPathResponse, questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
 import LiveChallengeFieldQuestion from './LiveChallengeFieldQuestion.jsx';
@@ -35,6 +36,18 @@ const formatClock = (milliseconds) => {
 };
 
 const ROW_HEIGHT = 44;
+
+// The server's answer to this device's locked response, kept for the round so
+// a refresh shows the result instead of reopening a question already answered.
+const challengeResultKey = (roomId, roundIndex, roundVersion) => `live-challenge-result-${roomId}-${roundIndex}-${roundVersion || 0}`;
+const readStoredJson = (key) => {
+  if (!key) return null;
+  try { return JSON.parse(window.localStorage.getItem(key) || 'null'); } catch { return null; }
+};
+const writeStoredJson = (key, value) => {
+  if (!key) return;
+  try { window.localStorage.setItem(key, JSON.stringify(value)); } catch { /* the server still holds the answer */ }
+};
 
 function useCountUp(target, durationMs = 420) {
   const [shown, setShown] = useState(target);
@@ -118,6 +131,9 @@ export function ChallengeRound({
   reportProgress = reportLiveChallengeProgress,
   showLeaderboard = true,
   beforeQuestion = null,
+  // A live room keeps the server's answer across a refresh. A rehearsal does
+  // not: a teacher revisiting a dry-run round should be able to answer again.
+  persistResult = false,
 }) {
   const question = room.currentQuestion;
   const roundIndex = Number(room.currentRound) || 0;
@@ -134,16 +150,26 @@ export function ChallengeRound({
   const elapsedMs = Math.max(0, monotonicNow - roundOriginMonoRef.current);
   const remainingMs = Math.max(0, (endsAtMs - startsAtMs) - elapsedMs);
   const paceMode = room.timingMode === 'pace';
-  const expired = endsAtMs > 0 && remainingMs <= 0;
+  // A round the host has closed is over whatever its clock says; the server
+  // accepts nothing more for it.
+  const roundClosed = room.roundState === 'closed';
+  const expired = roundClosed || (endsAtMs > 0 && remainingMs <= 0);
   const urgent = !expired && remainingMs <= 10000;
-  const [result, setResult] = useState(null);
+  const resultKey = persistResult ? challengeResultKey(room.roomId, roundIndex, room.roundVersion) : null;
+  const [result, setResult] = useState(() => readStoredJson(resultKey));
   const pendingKey = `live-challenge-pending-${room.roomId}-${roundIndex}-${room.roundVersion || 0}`;
-  const [pending, setPending] = useState(() => {
-    try { return JSON.parse(window.localStorage.getItem(pendingKey) || 'null'); } catch { return null; }
-  });
+  const [pending, setPending] = useState(() => readStoredJson(pendingKey));
+  // The public leaderboard row says whether the server already holds this
+  // student's answer for this round — true after a refresh on this device or a
+  // switch to another one, when no local result or pending envelope survives.
+  const currentSelf = leaderboard.find((entry) => entry.playerKey === playerKey);
+  const answeredOnServer = Number(currentSelf?.answeredRound) === roundIndex;
+  const answeredOnServerRef = useRef(answeredOnServer);
+  answeredOnServerRef.current = answeredOnServer;
+  const [alreadyRecorded, setAlreadyRecorded] = useState(false);
   const recoveredPendingRef = useRef(Boolean(pending));
   const submissionInFlightRef = useRef(false);
-  const submissionLockRef = useRef(Boolean(pending));
+  const submissionLockRef = useRef(Boolean(pending || result));
   const pendingRef = useRef(pending);
   const resultRef = useRef(result);
   const latestRawResponseRef = useRef(null);
@@ -166,7 +192,10 @@ export function ChallengeRound({
   resultRef.current = result;
 
   useEffect(() => {
-    setResult(null);
+    const stored = readStoredJson(resultKey);
+    setResult(stored);
+    resultRef.current = stored;
+    setAlreadyRecorded(false);
     setSubmitError('');
     const fresh = emptyQuestionRecord();
     roundOriginMonoRef.current = monotonicRoundOrigin({
@@ -179,15 +208,35 @@ export function ChallengeRound({
     latestRawResponseRef.current = null;
     setProgressRawResponse(null);
     wasExpiredRef.current = false;
-    submissionLockRef.current = Boolean(pendingRef.current);
+    submissionLockRef.current = Boolean(pendingRef.current || stored);
     // The origin is intentionally not recalculated when wall-clock calibration
     // refreshes; device clock changes during a round cannot alter elapsed time.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roundIndex, question?.questionInstanceId, pendingKey]);
 
+  // The same lock and messages for each way a round can already be over for
+  // this student.
+  const settle = (grading) => {
+    setResult(grading);
+    resultRef.current = grading;
+    writeStoredJson(resultKey, grading);
+    setPending(null);
+    pendingRef.current = null;
+    window.localStorage.removeItem(pendingKey);
+    onResult?.(grading);
+  };
+  const settleAsAlreadyRecorded = () => {
+    // The server refused a second answer for this round: the first one is
+    // recorded. Nothing is lost, so this is information, not an error.
+    setPending(null);
+    pendingRef.current = null;
+    window.localStorage.removeItem(pendingKey);
+    setAlreadyRecorded(true);
+  };
+
   const reportedRef = useRef('');
   useEffect(() => {
-    if (result || expired || !room?.roomId) return undefined;
+    if (result || answeredOnServer || expired || !room?.roomId) return undefined;
     const signature = `${workingPoints}:${JSON.stringify(progressRawResponse || null)}`;
     if (signature === reportedRef.current) return undefined;
     const timer = window.setTimeout(() => {
@@ -202,10 +251,10 @@ export function ChallengeRound({
       })).catch(() => {});
     }, 900);
     return () => window.clearTimeout(timer);
-  }, [workingPoints, progressRawResponse, result, expired, room?.roomId, room?.roundVersion, room?.roundToken, roundIndex, reportProgress]);
+  }, [workingPoints, progressRawResponse, result, answeredOnServer, expired, room?.roomId, room?.roundVersion, room?.roundToken, roundIndex, reportProgress]);
 
   const submit = async (responsePayload, { atRoundEnd = false } = {}) => {
-    if (resultRef.current || pendingRef.current || submissionLockRef.current || (!atRoundEnd && expired) || !roundStarted) return null;
+    if (resultRef.current || pendingRef.current || submissionLockRef.current || answeredOnServerRef.current || (!atRoundEnd && expired) || !roundStarted) return null;
     submissionLockRef.current = true;
     setSubmitError('');
     const submissionId = globalThis.crypto?.randomUUID?.() || `submission-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -231,12 +280,7 @@ export function ChallengeRound({
     submissionInFlightRef.current = true;
     try {
       const grading = await submitResponse(capture);
-      setResult(grading);
-      resultRef.current = grading;
-      setPending(null);
-      pendingRef.current = null;
-      window.localStorage.removeItem(pendingKey);
-      onResult?.(grading);
+      settle(grading);
       return {
         isCorrect: grading.isCorrect,
         status: grading.isCorrect ? 'correct' : 'attempted',
@@ -248,7 +292,8 @@ export function ChallengeRound({
           : `${Number(grading.scorePercent) || 0}% credit · +${Number(grading.pointsAwarded) || 0} points`,
       };
     } catch (error) {
-      setSubmitError(error?.message || 'Your answer could not be submitted.');
+      if (/already-exists/.test(String(error?.code || ''))) settleAsAlreadyRecorded();
+      else setSubmitError(error?.message || 'Your answer could not be submitted.');
       return null;
     } finally {
       submissionInFlightRef.current = false;
@@ -259,7 +304,10 @@ export function ChallengeRound({
   useEffect(() => {
     const transitionedToExpired = expired && !wasExpiredRef.current;
     wasExpiredRef.current = expired;
-    if (!transitionedToExpired || !secureQuestion || resultRef.current || pendingRef.current || submissionInFlightRef.current) return;
+    if (!transitionedToExpired || !secureQuestion || resultRef.current || pendingRef.current || answeredOnServerRef.current || submissionInFlightRef.current) return;
+    // The buzzer sends work the clock ran out on. A round the host closed is
+    // not accepting it, so sending would only end in an error.
+    if (roundClosed) return;
     const rawWork = latestRawResponseRef.current;
     // Any meaningful solver state is worth sending at the buzzer. The secure
     // server grader decides whether it earns 0%, partial credit, or full credit;
@@ -278,15 +326,11 @@ export function ChallengeRound({
     setSubmitError('');
     try {
       const grading = await submitResponse(pending);
-      setResult(grading);
-      resultRef.current = grading;
-      setPending(null);
-      pendingRef.current = null;
-      window.localStorage.removeItem(pendingKey);
-      onResult?.(grading);
+      settle(grading);
     } catch (error) {
       const code = String(error?.code || '');
-      if (/failed-precondition|deadline-exceeded|not-found/.test(code)) {
+      if (/already-exists/.test(code)) settleAsAlreadyRecorded();
+      else if (/failed-precondition|deadline-exceeded|not-found/.test(code)) {
         setPending(null);
         pendingRef.current = null;
         window.localStorage.removeItem(pendingKey);
@@ -314,7 +358,9 @@ export function ChallengeRound({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending?.submissionId, result]);
 
-  const currentSelf = leaderboard.find((entry) => entry.playerKey === playerKey);
+  const answerRecorded = Boolean(result) || answeredOnServer || alreadyRecorded;
+  const locked = answerRecorded || Boolean(pending);
+  const perRoundScoring = getScoringStrategy(result?.scoringStrategyId || room.scoringStrategyId).accumulation === SCORE_ACCUMULATION.PER_ROUND;
 
   return (
     <div style={{ display: 'grid', gap: 14 }}>
@@ -385,8 +431,8 @@ export function ChallengeRound({
             studentProfile={studentProfile}
             attemptsDoNotExpire
             activityRole="practice"
-            assignmentLocked={Boolean(result) || Boolean(pending) || expired || !roundStarted}
-            assignmentLockedMessage={!roundStarted ? 'The synchronized round is about to start.' : expired && !result ? 'Time is up for this Live Challenge round.' : 'Your answer is locked in for this round.'}
+            assignmentLocked={locked || expired || !roundStarted}
+            assignmentLockedMessage={!roundStarted ? 'The synchronized round is about to start.' : expired && !answerRecorded ? 'Time is up for this Live Challenge round.' : 'Your answer is locked in for this round.'}
             draftKey={`live-challenge-${room.roomId}-${roundIndex}`}
             serverGrading={{
               pathToolId: question.pathToolId,
@@ -416,14 +462,15 @@ export function ChallengeRound({
           />
         </section>
       ) : (
-        <LiveChallengeFieldQuestion question={question} disabled={Boolean(result) || Boolean(pending) || expired || !roundStarted} onSubmit={submit} />
+        <LiveChallengeFieldQuestion question={question} disabled={locked || expired || !roundStarted} onSubmit={submit} />
       )}
 
       {pending && !result && <div aria-live="assertive" style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>Answer locked · waiting for secure server confirmation…</div>}
 
       {submitError && <div role="alert" style={{ padding: 11, borderRadius: 9, background: '#4a3708', color: '#ffe9a8', border: '1px solid #f9ab00' }}>{submitError}</div>}
       {pending && !result && <button type="button" onClick={retryPending}>Retry locked answer</button>}
-      {expired && !result && <div aria-live="polite" style={{ padding: 15, borderRadius: 11, background: 'rgba(255,255,255,.08)', color: '#eef1f6', border: '1px solid rgba(255,255,255,.16)', fontWeight: 900 }}>Time is up. Wait for your teacher to start the next round.</div>}
+      {!result && !pending && (answeredOnServer || alreadyRecorded) && <div aria-live="polite" style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>Your answer for this round is recorded. Wait for your teacher to start the next round.</div>}
+      {expired && !answerRecorded && <div aria-live="polite" style={{ padding: 15, borderRadius: 11, background: 'rgba(255,255,255,.08)', color: '#eef1f6', border: '1px solid rgba(255,255,255,.16)', fontWeight: 900 }}>Time is up. Wait for your teacher to start the next round.</div>}
       {result && (
         <section aria-live="polite" style={{ padding: 16, borderRadius: 12, background: result.isCorrect ? '#e6f4ea' : '#fff4ce', color: result.isCorrect ? '#137333' : '#7a4f00', textAlign: 'left' }}>
           <div style={{ fontSize: 22, fontWeight: 1000 }}>{result.isCorrect ? 'Correct!' : `${Number(result.scorePercent) || 0}% credit`}</div>
@@ -437,7 +484,13 @@ export function ChallengeRound({
               Second chance — you got points back on this one. +{result.recoveryPoints}
             </div>
           )}
-          <div style={{ marginTop: 5, fontWeight: 800 }}>+{Number(result.pointsAwarded) || 0} points · Total {(Number(result.totalScore) || 0).toLocaleString()}{result.rank ? ` · Rank #${result.rank}` : ''}</div>
+          <div style={{ marginTop: 5, fontWeight: 800 }}>
+            {perRoundScoring
+              // A championship strategy ranks the round first; the points above
+              // are round performance, and placement points arrive at round close.
+              ? `+${Number(result.pointsAwarded) || 0} round points · ${(Number(result.totalScore) || 0).toLocaleString()} championship points so far`
+              : `+${Number(result.pointsAwarded) || 0} points · Total ${(Number(result.totalScore) || 0).toLocaleString()}${result.rank ? ` · Rank #${result.rank}` : ''}`}
+          </div>
           {!result.secondChance && (result.speedBonus > 0 || result.streakBonus > 0) && <div style={{ marginTop: 4, fontSize: 13 }}>Accuracy base {Number(result.basePoints) || 0} · Speed +{Number(result.speedBonus) || 0} · Streak +{Number(result.streakBonus) || 0}</div>}
         </section>
       )}
@@ -459,17 +512,27 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   const [error, setError] = useState('');
   const roomId = invite?.roomId || null;
   const [clock, setClock] = useState({ offsetMs: 0, rttMs: 0, jitterMs: 0, quality: 'reconnecting', sampleCount: 0 });
+  // Read by the room listener without being one of its dependencies: a clock
+  // re-calibration (every 30 s) must not tear down and re-open the listener.
+  const clockOffsetRef = useRef(clock.offsetMs);
+  clockOffsetRef.current = clock.offsetMs;
+  // A join the server refused for this room is not retried on every snapshot.
+  const joinRefusedForRef = useRef(null);
 
   useEffect(() => {
-    if (!roomId) { setRoom(null); return undefined; }
+    // A different room is a different game. Nothing from the previous one —
+    // its final standings, its round, an error about it — may carry over.
+    setRoom(null);
+    setError('');
+    if (!roomId) return undefined;
     return watchLiveChallengeRoom(roomId, (next) => {
       const phase = challengePhaseAt({
         ...next,
         roundEndsAtMs: timestampMillis(next?.endsAt || next?.roundEndsAt),
-      }, Date.now() + clock.offsetMs);
-      setRoom((current) => acceptChallengeSnapshot(current, { ...next, phase }));
+      }, Date.now() + clockOffsetRef.current);
+      setRoom((current) => acceptChallengeSnapshot(current, next ? { ...next, phase } : null));
     }, (watchError) => setError(watchError?.message || 'Could not load the Live Challenge.'));
-  }, [roomId, clock.offsetMs]);
+  }, [roomId]);
 
   useEffect(() => {
     if (!roomId) return undefined;
@@ -512,28 +575,47 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   }, [roomId]);
 
   const activeRound = room?.status === 'running' ? Number(room.currentRound) : null;
-  const leaderboard = useMemo(() => publicLeaderboard(players, { activeRound }), [players, activeRound]);
+  const scoringStrategyId = room?.scoringStrategyId || null;
+  // Ranked the way this room's scoring strategy ranks a match.
+  const leaderboard = useMemo(
+    () => publicLeaderboard(players, { activeRound, ...leaderboardOptionsFor(scoringStrategyId) }),
+    [players, activeRound, scoringStrategyId],
+  );
 
   useEffect(() => {
     if (!roomId || activeRound == null) return;
     const currentPrefix = `live-challenge-pending-${roomId}-${activeRound}-${room?.roundVersion || 0}`;
+    const currentResult = challengeResultKey(roomId, activeRound, room?.roundVersion);
     for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
       const key = window.localStorage.key(index);
       if (key?.startsWith(`live-challenge-pending-${roomId}-`) && key !== currentPrefix) {
+        window.localStorage.removeItem(key);
+      }
+      // A kept result only matters for the round on screen, in any room.
+      if (key?.startsWith('live-challenge-result-') && key !== currentResult) {
         window.localStorage.removeItem(key);
       }
     }
   }, [roomId, activeRound, room?.roundVersion]);
 
   useEffect(() => {
-    if (!roomId || joining || !room || !['lobby', 'running'].includes(room.status)) return;
+    if (!roomId || joining || !room || room.roomId !== roomId || !['lobby', 'running'].includes(room.status)) return;
+    if (joinRefusedForRef.current === roomId) return;
     const alreadyJoined = leaderboard.some((entry) => entry.playerKey === invite?.playerKey);
     if (alreadyJoined) return;
     setJoining(true);
     joinLiveChallenge({ roomId })
-      .catch((joinError) => setError(joinError?.message || 'Could not join the Live Challenge.'))
+      .catch((joinError) => {
+        // A refusal (the game ended, or this student is not on its roster) will
+        // not change by asking again on the next snapshot; a dropped
+        // connection might, so only refusals stop the automatic join.
+        if (/permission-denied|failed-precondition|not-found|invalid-argument/.test(String(joinError?.code || ''))) {
+          joinRefusedForRef.current = roomId;
+        }
+        setError(joinError?.message || 'Could not join the Live Challenge.');
+      })
       .finally(() => setJoining(false));
-  }, [roomId, room?.status, invite?.playerKey, joining, leaderboard]);
+  }, [roomId, room, invite?.playerKey, joining, leaderboard]);
 
   if (!invite || !roomId) {
     return <div style={{ padding: 40, textAlign: 'center' }}><h2>No Live Challenge is waiting.</h2><button type="button" onClick={onExit}>{exitLabel}</button></div>;
@@ -605,6 +687,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
             playerKey={invite.playerKey}
             leaderboard={leaderboard}
             studentProfile={studentProfile}
+            persistResult
             beforeQuestion={clock.quality === 'degraded' ? <div role="status">Clock sync is unavailable. You can still answer; speed will use conservative server timing.</div> : null}
           />
         )}

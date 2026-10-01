@@ -112,6 +112,25 @@ export const experienceScoreAdjustment = ({
   return Math.round(original * (targetScale - 1));
 };
 
+// The mature scorer's native speed scale: 100 points, i.e. 10% of 1000.
+export const LEGACY_SPEED_INFLUENCE_PERCENT = 10;
+
+/**
+ * Speed points on the mature 100-point scale, rescaled to a room's setting.
+ *
+ * This is the arithmetic the post-hoc submit wrapper used to apply
+ * (original + experienceScoreAdjustment), now applied where the points are
+ * computed, so every speed payment — a final answer or a Solver Race
+ * milestone — honours the teacher's setting. A null/undefined setting means
+ * "leave the mature scale alone", which is what pure callers and tests rely on.
+ */
+export const scaleLegacySpeedPoints = (legacyPoints, speedInfluencePercent = LEGACY_SPEED_INFLUENCE_PERCENT) => {
+  const points = Math.max(0, Math.round(Number(legacyPoints) || 0));
+  if (!points) return 0;
+  if (speedInfluencePercent === null || speedInfluencePercent === undefined) return points;
+  return Math.max(0, points + experienceScoreAdjustment({ originalSpeedBonus: points, speedInfluencePercent }));
+};
+
 export const buildChallengeScoringPreview = ({
   roundSeconds = 20,
   speedInfluencePercent = DEFAULT_SPEED_INFLUENCE_PERCENT,
@@ -145,11 +164,13 @@ export const buildChallengeScoringPreview = ({
   });
 };
 
-export default Object.freeze({
+// Pure, so a bundle that imports one helper does not keep every other one.
+export default /* @__PURE__ */ Object.freeze({
   normalizeSpeedInfluencePercent,
   speedBonusCapForPercent,
   normalizePlayerDisplayMode,
   displayAliasForStudent,
   experienceScoreAdjustment,
+  scaleLegacySpeedPoints,
   buildChallengeScoringPreview,
 });

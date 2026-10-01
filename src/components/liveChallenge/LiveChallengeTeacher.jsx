@@ -9,6 +9,7 @@ import { challengeCanAdvance, publicLeaderboard } from '../../../functions/share
 import { buildChallengeExport, challengeExportFileName } from '../../../functions/shared/liveChallengeExport.mjs';
 import { buildChallengeScoringPreview } from '../../../functions/shared/liveChallengeExperience.mjs';
 import { acceptChallengeSnapshot, calibrateChallengeClock } from '../../../functions/shared/liveChallengeParity.mjs';
+import { leaderboardOptionsFor } from '../../../functions/shared/liveChallengeScoring.mjs';
 import { LiveChallengeAudioDirector } from '../../platform/liveChallenge/liveChallengeAudio.js';
 import {
   advanceLiveChallenge,
@@ -106,16 +107,24 @@ function ChallengeReport({ report }) {
   );
 }
 
-export function Leaderboard({ rows = [], limit = 12, projector = false }) {
+// The lifecycle commands share one lock: a second command while one is in
+// flight (End Session during a Next Round, a double click) is never sent.
+const LIFECYCLE_CONTROLS = Object.freeze(['start', 'advance', 'close', 'finish', 'cancel']);
+// Commands about one round carry the round the teacher was looking at, so a
+// late or repeated click is answered "already done" instead of skipping the
+// round after it.
+const ROUND_SCOPED_CONTROLS = Object.freeze(['advance', 'close']);
+
+export function Leaderboard({ rows = [], limit = 12, projector = false, ranked = true }) {
   if (!rows.length) return <p style={{ color: '#5f6368', margin: 0 }}>Students who join will appear here.</p>;
   return (
     <div style={{ display: 'grid', gap: 8 }}>
       {rows.slice(0, limit).map((row) => (
-        <div key={row.playerKey || row.alias} style={{ display: 'grid', gridTemplateColumns: '42px minmax(0,1fr) auto auto', gap: 10, alignItems: 'center', padding: projector ? '13px 14px' : '9px 11px', borderRadius: 10, background: row.rank <= 3 ? '#fef7e0' : '#f8f9fa', border: '1px solid #e1e5ea', fontSize: projector ? 18 : 14 }}>
-          <strong style={{ textAlign: 'center' }}>#{row.rank}</strong>
+        <div key={row.playerKey || row.alias} style={{ display: 'grid', gridTemplateColumns: ranked ? '42px minmax(0,1fr) auto auto' : 'minmax(0,1fr)', gap: 10, alignItems: 'center', padding: projector ? '13px 14px' : '9px 11px', borderRadius: 10, background: ranked && row.rank <= 3 ? '#fef7e0' : '#f8f9fa', border: '1px solid #e1e5ea', fontSize: projector ? 18 : 14 }}>
+          {ranked && <strong style={{ textAlign: 'center' }}>#{row.rank}</strong>}
           <span style={{ fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.alias}</span>
-          <span style={{ color: '#5f6368' }}>{row.correctCount} ✓</span>
-          <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{(row.liveScore ?? row.score).toLocaleString()}</strong>
+          {ranked && <span style={{ color: '#5f6368' }}>{row.correctCount} ✓</span>}
+          {ranked && <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{(row.liveScore ?? row.score).toLocaleString()}</strong>}
         </div>
       ))}
     </div>
@@ -217,6 +226,7 @@ export default function LiveChallengeTeacher({
   const [diagnostics, setDiagnostics] = useState([]);
   const [clockOffsetMs, setClockOffsetMs] = useState(0);
   const [busy, setBusy] = useState('');
+  const controlLockRef = useRef(false);
   const [message, setMessage] = useState('');
   const [projector, setProjector] = useState(false);
   const [dryRunOpen, setDryRunOpen] = useState(false);
@@ -252,7 +262,9 @@ export default function LiveChallengeTeacher({
     if (active?.roomId && !roomId) setRoomId(active.roomId);
   }), [signedInEmail, roomId]);
   useEffect(() => {
-    if (!roomId) { setRoom(null); return undefined; }
+    // Each room starts from nothing; the previous game's state never shows in it.
+    setRoom(null);
+    if (!roomId) return undefined;
     return watchLiveChallengeRoom(roomId, (next) => setRoom((current) => acceptChallengeSnapshot(current, next)), (error) => setMessage(error?.message || 'Could not load the Live Challenge.'));
   }, [roomId]);
   useEffect(() => {
@@ -283,7 +295,12 @@ export default function LiveChallengeTeacher({
 
   const coverageRows = useMemo(() => summarizeCoverage(coverage || {}, { onlyGaps: false }).filter((row) => row.studentReady), [coverage]);
   const activeRound = room?.status === 'running' ? Number(room.currentRound) : null;
-  const leaderboard = useMemo(() => publicLeaderboard(players, { activeRound }), [players, activeRound]);
+  const scoringStrategyId = room?.scoringStrategyId || null;
+  // Ranked the way this room's scoring strategy ranks a match.
+  const leaderboard = useMemo(
+    () => publicLeaderboard(players, { activeRound, ...leaderboardOptionsFor(scoringStrategyId) }),
+    [players, activeRound, scoringStrategyId],
+  );
   const joinedCount = leaderboard.length;
   const answeredCount = leaderboard.filter((player) => Number(player.answeredRound) === Number(room?.currentRound)).length;
   const roundStartsAtMs = timestampMillis(room?.roundStartedAt || room?.startsAt);
@@ -292,7 +309,10 @@ export default function LiveChallengeTeacher({
   const hasRoundDeadline = roundEndsAtMs > 0;
   const elapsedMs = Math.max(0, serverNow - roundStartsAtMs);
   const remainingMs = hasRoundDeadline ? Math.max(0, roundEndsAtMs - serverNow) : 0;
-  const canAdvance = challengeCanAdvance({ joinedCount, answeredCount, roundEndsAtMs, nowMs: serverNow });
+  // A round the server has already closed can always move on.
+  const canAdvance = room?.roundState === 'closed'
+    || challengeCanAdvance({ joinedCount, answeredCount, roundEndsAtMs, nowMs: serverNow });
+  const controlBusy = LIFECYCLE_CONTROLS.includes(busy);
   const connectionSummary = ['synchronized', 'delayed', 'reconnecting', 'degraded'].map((status) => ({
     status,
     count: diagnostics.filter((entry) => entry.connectionStatus === status).length,
@@ -413,7 +433,15 @@ export default function LiveChallengeTeacher({
     }
   };
 
-  const control = async (key, action) => run(key, () => action({ roomId }));
+  const control = async (key, action) => {
+    if (controlLockRef.current) return null;
+    controlLockRef.current = true;
+    const expectation = ROUND_SCOPED_CONTROLS.includes(key) && room?.status === 'running'
+      ? { expectedRoundIndex: Number(room.currentRound), expectedRoundVersion: Number(room.roundVersion) || 0 }
+      : {};
+    try { return await run(key, () => action({ roomId, ...expectation })); }
+    finally { controlLockRef.current = false; }
+  };
   const changeClosingThreshold = async (value) => {
     const threshold = value === 'off' ? null : Number(value);
     setRoundClosingThreshold(threshold);
@@ -659,10 +687,11 @@ export default function LiveChallengeTeacher({
             </div>
             <p style={{ marginBottom: 0, color: '#174ea6' }}>Students already signed into this class receive the challenge automatically. No join code is required.</p>
           </section>
-          <section style={panel}><h3 style={{ marginTop: 0 }}>Players in lobby</h3><Leaderboard rows={leaderboard} /></section>
+          {/* Nobody has played yet, so there is no order to show — only who is here. */}
+          <section style={panel}><h3 style={{ marginTop: 0 }}>Players in lobby</h3><Leaderboard rows={leaderboard} limit={60} ranked={false} /></section>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button type="button" disabled={joinedCount < 1 || busy === 'start'} onClick={() => { audioDirectorRef.current.prime().then(() => setAudioReady(true)).catch(() => {}); control('start', startLiveChallenge); }} style={{ ...primary, opacity: joinedCount < 1 || busy === 'start' ? .55 : 1 }}>{busy === 'start' ? 'Starting…' : 'Start Challenge'}</button>
-            <button type="button" disabled={busy === 'cancel'} onClick={() => control('cancel', cancelLiveChallenge)} style={{ ...secondary, color: '#a50e0e' }}>Cancel Session</button>
+            <button type="button" disabled={joinedCount < 1 || controlBusy} onClick={() => { audioDirectorRef.current.prime().then(() => setAudioReady(true)).catch(() => {}); control('start', startLiveChallenge); }} style={{ ...primary, opacity: joinedCount < 1 || controlBusy ? .55 : 1 }}>{busy === 'start' ? 'Starting…' : 'Start Challenge'}</button>
+            <button type="button" disabled={controlBusy} onClick={() => control('cancel', cancelLiveChallenge)} style={{ ...secondary, color: '#a50e0e' }}>Cancel Session</button>
           </div>
         </>
       )}
@@ -676,8 +705,8 @@ export default function LiveChallengeTeacher({
           <ChallengeLiveStatus room={room} remainingMs={remainingMs} elapsedMs={elapsedMs} answeredCount={answeredCount} joinedCount={joinedCount} />
           <section style={panel}><h3 style={{ marginTop: 0 }}>Leaderboard</h3><Leaderboard rows={leaderboard} /></section>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button type="button" disabled={!canAdvance || busy === 'advance'} onClick={() => control('advance', advanceLiveChallenge)} style={{ ...primary, opacity: !canAdvance || busy === 'advance' ? .55 : 1 }}>{busy === 'advance' ? 'Loading next round…' : room.secondChanceOf != null ? (room.hasAdditionalReplay ? 'Next Final Round' : 'Finish & Show Final Standings') : (room.currentRound + 1 >= room.roundCount ? 'Finish & Show Final Standings' : 'Next Round')}</button>
-            <button type="button" disabled={busy === 'finish'} onClick={() => control('finish', finishLiveChallenge)} style={{ ...secondary, color: '#a50e0e' }}>End Session</button>
+            <button type="button" disabled={!canAdvance || controlBusy} onClick={() => control('advance', advanceLiveChallenge)} style={{ ...primary, opacity: !canAdvance || controlBusy ? .55 : 1 }}>{busy === 'advance' ? 'Loading next round…' : room.secondChanceOf != null ? (room.hasAdditionalReplay ? 'Next Final Round' : 'Finish & Show Final Standings') : (room.currentRound + 1 >= room.roundCount ? 'Finish & Show Final Standings' : 'Next Round')}</button>
+            <button type="button" disabled={controlBusy} onClick={() => control('finish', finishLiveChallenge)} style={{ ...secondary, color: '#a50e0e' }}>End Session</button>
           </div>
           {!canAdvance && <p style={{ margin: 0, color: '#5f6368', fontSize: 13 }}>{room.timingMode === 'pace' && !hasRoundDeadline ? 'Next Round unlocks when everyone submits or the closing threshold starts and its countdown finishes.' : 'Next Round unlocks when everyone who joined has answered or the timer reaches zero.'}</p>}
         </>

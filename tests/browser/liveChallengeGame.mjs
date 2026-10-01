@@ -267,7 +267,8 @@ report.push({ step: 'round-1-future-start', text: futureScreen.text.slice(0, 150
 if (futureProblems.length) findings.push({ step: 'round-1-future-start', problems: futureProblems });
 const preStart = await page.evaluate(() => {
   const scope = document.querySelector('[data-mm-game]');
-  const answerControl = scope?.querySelector('input[type="radio"], input[type="text"], input[type="number"]');
+  // Choices render as role="radio" buttons; typed answers as inputs.
+  const answerControl = scope?.querySelector('[role="radio"], input[type="radio"], input[type="text"], input[type="number"]');
   answerControl?.click();
   return {
     locked: !answerControl || answerControl.disabled || answerControl.getAttribute('aria-disabled') === 'true',
@@ -286,7 +287,7 @@ await step('round-1-authoritative-start', { mustContain: ['Round 1 of 2'], mustN
 // afterwards is driven by Firestore rather than by the harness.
 const answered = await page.evaluate(() => {
   const scope = document.querySelector('[data-mm-game]');
-  const radio = scope?.querySelector('input[type="radio"]');
+  const radio = scope?.querySelector('[role="radio"], input[type="radio"]');
   if (radio) {
     radio.click();
   } else {
