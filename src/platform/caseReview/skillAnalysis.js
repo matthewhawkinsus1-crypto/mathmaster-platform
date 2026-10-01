@@ -65,6 +65,7 @@ export const accuracyOf = (rows = []) => {
     questions: list(rows).length,
     attempted: scored.length,
     finalCreditAverage: scored.length ? Math.round(credit / scored.length) : null,
+    finalCorrect: scored.filter((row) => row.finalResult === 'correct').length,
     finalCorrectRate: percent(scored.filter((row) => row.finalResult === 'correct').length, scored.length),
     firstAttemptAccuracy: percent(firstKnown.filter((row) => row.firstAttemptCorrect).length, firstKnown.length),
     notCorrectAtEnd: scored.filter((row) => NOT_CORRECT_AT_END.has(row.outcome)).length,

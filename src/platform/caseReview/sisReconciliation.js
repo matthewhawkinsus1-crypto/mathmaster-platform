@@ -74,12 +74,21 @@ const stripSectionWords = (normalized) => {
 };
 
 const tokens = (value) => new Set(value.split(' ').filter(Boolean));
-const similarity = (left, right) => {
-  const a = tokens(left);
-  const b = tokens(right);
+/**
+ * How well a gradebook item's name fits a MathMaster title: token overlap, or
+ * — because gradebook names are usually shorter ("Lesson 4 DOL" for "Lesson 4 —
+ * Systems") — every item token found in the title, when the item has a number
+ * or at least three words to be specific with.
+ */
+const similarity = (item, title) => {
+  const a = tokens(item);
+  const b = tokens(title);
   if (!a.size || !b.size) return 0;
   const shared = [...a].filter((token) => b.has(token)).length;
-  return shared / new Set([...a, ...b]).size;
+  const overlap = shared / new Set([...a, ...b]).size;
+  const specific = a.size >= 3 || (a.size >= 2 && [...a].some((token) => /\d/.test(token)));
+  const contained = specific && shared === a.size ? 0.9 : 0;
+  return Math.max(overlap, contained);
 };
 
 const partKey = (part) => `${clean(part.assignmentId)}|${clean(part.sectionKey)}`;

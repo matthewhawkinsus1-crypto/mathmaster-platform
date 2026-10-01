@@ -35,6 +35,7 @@ import {
 import { getEffectiveActivityPolicy, isActivityRole, normalizeActivityRole } from '../../../functions/shared/activityPolicies.mjs';
 import { normalizeQuestionStandards, normalizeQuestionComplexity } from '../../../functions/shared/questionMetadata.mjs';
 import { toDisplayCode } from '../../../functions/shared/teksUtils.mjs';
+import { normalizeMisconceptionCodes } from '../../../functions/shared/misconceptionCodes.mjs';
 import { projectCurrentAssignmentContent } from '../assignments/currentContentProjection.js';
 import { projectedAssignmentTrackerFor } from '../grading/canonicalGradeProjection.js';
 import { CASE_PROVENANCE } from './caseProvenance.js';
@@ -316,6 +317,8 @@ export const analyzeAssignmentQuestions = ({
       improved: attempted && firstCredit !== null && finalCredit !== null && finalCredit > firstCredit,
       repeatedReturn: timedAttempts.length >= 2 ? countVisits(timedAttempts.map((attempt) => attempt.atMs)) >= 2 : null,
       lastAttemptAtMs: attempted ? lastAtMs : null,
+      // Viewed but not answered: the record exists with browser-counted time.
+      viewed: !attempted && Boolean(raw) && (Number(record.timeSpent) || 0) > 0,
       // A server-ingested record's time is bounded by the server; an older
       // record's time came from the student's device.
       lastAttemptTimeProvenance: !attempted || lastAtMs === null
@@ -324,6 +327,18 @@ export const analyzeAssignmentQuestions = ({
       lastAttemptSupports: attempted ? flagsOf(record.supportUsage) : [],
       supportUses: supportUses.filter((event) => Number(event?.questionIndex) === index).map((event) => clean(event.supportId)),
       recoveredLate: record.recoveredLate === true,
+      // The latest attempt's parts, as the grader recorded them: names and
+      // correctness only (the student's response text is not carried).
+      latestParts: attempted
+        ? list(record.partGrades).filter((part) => part && part.graded !== false).slice(0, 40).map((part) => ({
+          id: clean(part.id), label: clean(part.label), isCorrect: part.isCorrect === true, isComplete: part.isComplete !== false,
+        }))
+        : [],
+      // Structured misconception codes, only where a tool stored one.
+      misconceptionCodes: [...new Set([
+        ...questionEvents.flatMap((event) => normalizeMisconceptionCodes(event?.performance?.misconceptionCodes)),
+        ...list(record.partGrades).flatMap((part) => normalizeMisconceptionCodes(part?.misconceptionCode)),
+      ])],
     };
   });
 

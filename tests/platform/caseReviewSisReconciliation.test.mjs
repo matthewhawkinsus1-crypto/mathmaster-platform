@@ -42,6 +42,11 @@ test('items match MathMaster parts by title and section words; ambiguous or fore
   assert.equal(byName['Lesson 4 DOL'].sectionKey, 'dol');
   assert.equal(byName['Lesson 5 - Exit Ticket'].sectionKey, 'dol', 'exit ticket is DOL');
   assert.equal(byName['Quiz 2'], null);
+  // A shorter gradebook name still matches a longer MathMaster title — but a
+  // name that fits two titles equally is left for the teacher.
+  const longTitles = [part('a7', 'Lesson 7 — Systems (synthetic)', 'dol', 'DOL', 60, notExported), part('a8', 'Lesson 8 — Systems (synthetic)', 'dol', 'DOL', 60, notExported)];
+  assert.equal(matchSisItems({ items: [item('Lesson 7 DOL', 60)], parts: longTitles })[0].match.assignmentId, 'a7');
+  assert.equal(matchSisItems({ items: [item('Systems DOL', 60)], parts: longTitles })[0].match, null);
   // A teacher's choice wins over the automatic one, and can say "no match".
   const confirmed = matchSisItems({ items: snapshot.items, parts, confirmedMatches: { 'Quiz 2': { assignmentId: 'a6', sectionKey: 'classwork' }, 'Lesson 4 DOL': { none: true } } });
   assert.equal(confirmed.find((entry) => entry.itemName === 'Quiz 2').match.method, 'teacher-confirmed');
