@@ -1,0 +1,98 @@
+name: Student Runtime Browser Gates
+
+# Fast browser gates over the real student runtime (real React, real
+# MathLive), for the failures node tests cannot see:
+#
+#   mathEntryContract   types on a real keyboard into MathInput and the
+#                       calculator and checks the structure MathLive built
+#                       (src/platform/math/typedFractionEntry.js, PQ-040)
+#   renderStability     mounts QuestionEngine the ways its hosts do and counts
+#                       React commits while nothing happens: a render loop
+#                       ("Maximum update depth exceeded") is hundreds of them;
+#                       and a host re-render must not erase a student's step
+#   errorRecovery       a chunk from an older build (a tab that outlived a
+#                       deploy) and an ordinary bug, through the real error
+#                       boundaries: recoverable screens, no reload loop
+#   duplicateTabs       the same question in two tabs of one browser: the older
+#                       tab pauses, and the newest work is the work kept
+#   graphPointCheck     on a DOL, quiz or test the graph's point check never
+#                       names a wrong point; a point plot is graded as placed
+#   undoTyping          one platform Undo takes back a run of typing, not one
+#                       character; a math field's own Ctrl+Z agrees with it
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "tests/browser/mathEntryContract*"
+      - "tests/browser/renderStability*"
+      - "tests/browser/errorRecovery*"
+      - "tests/browser/duplicateTabs.mjs"
+      - "tests/browser/graphPointCheck*"
+      - "tests/browser/undoTyping*"
+      - "tests/browser/studentUxPlatform*"
+      - "tests/browser/stepAlgebraDriver.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/student-runtime-browser-gates.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: student-runtime-browser-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  student-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false playwright@1.55.0
+      - run: npx playwright install --with-deps chromium
+      - name: Start the harness server
+        run: |
+          npx vite --host 127.0.0.1 --port 5199 --strictPort >/tmp/student-runtime-vite.log 2>&1 &
+          for i in {1..60}; do curl -fsS http://127.0.0.1:5199/tests/browser/renderStability.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/student-runtime-vite.log; exit 1
+      - name: Math entry contract
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/mathEntryContract.mjs
+      - name: Render stability
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/renderStability.mjs
+      - name: Error recovery
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/errorRecovery.mjs
+      - name: Duplicate tabs
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/duplicateTabs.mjs
+      - name: Graph point check follows the feedback policy
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/graphPointCheck.mjs
+      - name: Undo groups typing and agrees with the math field
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/undoTyping.mjs

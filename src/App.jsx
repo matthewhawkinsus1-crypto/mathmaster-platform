@@ -285,13 +285,11 @@ import { adaptLegacyMasteryToPhase5 } from './platform/profile/legacyMasteryAdap
 import StudentDashboardView from './components/student/StudentDashboardView.jsx';
 import StudentGradeCenter from './components/student/StudentGradeCenter.jsx';
 import StudentAssignmentsCenter from './components/student/StudentAssignmentsCenter.jsx';
-import TestCycleCard from './components/student/TestCycleCard.jsx';
 import { isTestCycleAssignment } from './platform/assessment/testCycle.js';
 import { preflightTestCycleCandidate } from './services/testCycleService.js';
 import { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
 import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
 import SectionRecoveryPanel from './components/student/SectionRecoveryPanel.jsx';
-import SectionRecoveryRunner from './components/student/SectionRecoveryRunner.jsx';
 import SectionRecoveryAuditTrail from './components/teacher/SectionRecoveryAuditTrail.jsx';
 import { completedRecoverySections, warmupChallengeCounts } from './platform/recovery/teacherRecoveryAudit.js';
 import { buildStudentRecoverySummary } from './platform/recovery/studentRecoveryModel.js';
@@ -301,12 +299,22 @@ import { ASSIGNMENT_NAV_HEIGHT_VAR, stickyHeightRef } from './platform/layout/st
 import { shouldCompactAssignmentNavigation } from './platform/layout/assignmentNavigationChrome.js';
 import {
   emptyClassPointAccount,
-  redeemPracticePass as redeemPracticePassCallable,
   subscribeToClassPointAnnouncements,
   subscribeToPracticePassRedemptions,
   subscribeToStudentClassPoints,
 } from './platform/classPointsClient.js';
 import { practicePassEligibleAssignments } from './platform/rewards/practicePassClientEligibility.js';
+import {
+  loadStudentRewardHistory,
+  subscribeToStudentRewardInventory,
+  // A callable, not a hook: imported under a name rules-of-hooks reads as one.
+  usePracticePass as redeemPracticePassCallable,
+} from './platform/rewards/rewardsClient.js';
+import { buildRewardWallet } from './platform/rewards/rewardWallet.js';
+import { useRewardCelebrations } from './platform/rewards/useRewardCelebrations.js';
+import { useClassPracticePasses } from './platform/rewards/useClassPracticePasses.js';
+import StudentRewardsCenter from './components/student/rewards/StudentRewardsCenter.jsx';
+import ChallengeRewardsEarned from './components/student/rewards/ChallengeRewardsEarned.jsx';
 
 import {
   buildStudentGradeCenter,
@@ -336,9 +344,9 @@ import PathCoverageAudit from './components/teacher/PathCoverageAudit.jsx';
 import {
   blobToBase64,
   generateLessonNotesPdfBlob,
-} from './platform/resources/lessonNotesPdf.js';
+} from './platform/resources/pdfLoaders.js';
 import { buildAssignmentWorksheetModel, PRINT_OUTPUT_MODES } from './platform/resources/assignmentWorksheetPdfModel.js';
-import { downloadAssignmentWorksheetPdf } from './platform/resources/assignmentWorksheetPdf.js';
+import { downloadAssignmentWorksheetPdf } from './platform/resources/pdfLoaders.js';
 import { defaultAssignmentDateInputs } from './platform/assignments/assignmentDateDefaults.js';
 import {
   buildSafeLibraryContentRepair,
@@ -438,6 +446,9 @@ const MyMathPathApp = lazy(() => import('./components/student/MyMathPathApp.jsx'
 const StudentSecureExamDashboard = lazy(() => import('./components/assessment/StudentSecureExamDashboard.jsx'));
 const TeacherSecureExamDashboard = lazy(() => import('./components/assessment/TeacherSecureExamDashboard.jsx'));
 const TeacherAnalyticsDashboard = lazy(() => import('./components/analytics/TeacherAnalyticsDashboard.jsx'));
+// Student Case Review / Academic Evidence Deep Dive: its code loads only when a
+// teacher opens it from the student drawer (docs/STUDENT_CASE_REVIEW_DESIGN.md).
+const StudentCaseReviewView = lazy(() => import('./components/teacher/caseReview/StudentCaseReviewView.jsx'));
 const DemoExperience = lazy(() => import('./components/demo/DemoExperience.jsx'));
 const StudentsRoster = lazy(() => import('./components/teacher/StudentsRoster.jsx'));
 const ClassCourseSettings = lazy(() => import('./components/teacher/ClassCourseSettings.jsx'));
@@ -448,6 +459,13 @@ const MarkingPeriodSettings = lazy(() => import('./components/teacher/MarkingPer
 const WarmupChallengeGate = lazy(() => import('./components/liveChallenge/WarmupChallengeGate.jsx'));
 const LiveChallengeTeacher = lazy(() => import('./components/liveChallenge/LiveChallengeTeacher.jsx'));
 const LiveChallengeStudent = lazy(() => import('./components/liveChallenge/LiveChallengeStudent.jsx'));
+// Only a student opening a Test Cycle needs this, and it brings the secure
+// exam player, the calculator and all of MathLive with it — about 1 MB that a
+// static import put in front of every sign-in.
+const TestCycleCard = lazy(() => import('./components/student/TestCycleCard.jsx'));
+// The Recovery runner mounts QuestionEngine, and with it MathLive (~780 KB):
+// a student who opens a Recovery fetches it then, not every student at sign-in.
+const SectionRecoveryRunner = lazy(() => import('./components/student/SectionRecoveryRunner.jsx'));
 
 
 
@@ -618,10 +636,22 @@ function App() {
   const { toastSuccess, toastError, toastInfo, toastWarning, confirm: confirmAction } = useToast();
   const [user, setUser] = useState(null);
   const emptyStudentClassPoints = () => ({
-    account: emptyClassPointAccount(), transactions: [], announcements: [], redemptionsByAssignment: {}, unavailable: true,
+    account: emptyClassPointAccount(),
+    transactions: [],
+    announcements: [],
+    // Live waivers only, by assignment: what grading and completion read.
+    redemptionsByAssignment: {},
+    // Every Practice Pass use, undone ones included: what reward history reads.
+    redemptions: [],
+    // The student's usable rewards (rewardGrants with status available);
+    // null until the first snapshot, so "what they already had" is never
+    // mistaken for "just earned".
+    grants: null,
+    inventoryUnavailable: false,
+    unavailable: true,
   });
   const [studentClassPoints, setStudentClassPoints] = useState(emptyStudentClassPoints());
-  const [redeemingPracticePass, setRedeemingPracticePass] = useState(false);
+
   const [sessionHydrating, setSessionHydrating] = useState(false);
   const [sessionHydrationError, setSessionHydrationError] = useState(null);
 
@@ -660,20 +690,41 @@ function App() {
       db,
       studentId: user.id,
       classId: user.classId,
-      onRedemptions: (redemptionsByAssignment) => setStudentClassPoints((current) => ({ ...current, redemptionsByAssignment })),
+      onRedemptions: (redemptionsByAssignment, redemptions = []) => setStudentClassPoints((current) => ({ ...current, redemptionsByAssignment, redemptions })),
       onError: (error) => console.warn('Practice Pass redemptions are temporarily unavailable:', error),
     });
-    return () => { unsubscribeWallet(); unsubscribeAnnouncements(); unsubscribeRedemptions(); };
+    // The student's usable rewards. A failure here hides nothing else.
+    const unsubscribeInventory = subscribeToStudentRewardInventory({
+      db,
+      studentId: user.id,
+      classId: user.classId,
+      onGrants: (grants) => setStudentClassPoints((current) => ({ ...current, grants, inventoryUnavailable: false })),
+      onError: (error) => {
+        console.warn('Rewards are temporarily unavailable:', error);
+        setStudentClassPoints((current) => ({ ...current, inventoryUnavailable: true }));
+      },
+    });
+    return () => { unsubscribeWallet(); unsubscribeAnnouncements(); unsubscribeRedemptions(); unsubscribeInventory(); };
   }, [user?.role, user?.id, user?.classId]);
 
-  const handleRedeemPracticePass = async (assignmentId) => {
-    setRedeemingPracticePass(true);
-    try {
-      await redeemPracticePassCallable({ assignmentId });
-    } finally {
-      setRedeemingPracticePass(false);
-    }
-  };
+  // A new reward gets one toast and a "New" mark (useRewardCelebrations).
+  const celebratingStudentId = user?.role === 'student' ? user.id : null;
+  const { newIds: newRewardIds, clearNew: clearNewRewards } = useRewardCelebrations({
+    studentId: celebratingStudentId,
+    grants: studentClassPoints.grants,
+    onCelebrate: (message) => toastSuccess(message),
+  });
+
+  /*
+   * THE ONE DOOR A STUDENT USES TO SPEND A REWARD.
+   *
+   * `redeemPracticePass` (functions/index.js → rewardActionStore.mjs) checks
+   * everything again and writes the waiver and the payment in one
+   * transaction. Nothing here changes a count: the listeners above do, once
+   * the server has committed.
+   */
+  const handleUsePracticePass = ({ assignmentId, payWith, grantId }) => redeemPracticePassCallable({ assignmentId, payWith, grantId });
+  const handleLoadRewardHistory = () => loadStudentRewardHistory({ db, studentId: user?.id, classId: user?.classId });
 
   /*
    * THE ONE PLACE THE STUDENT RUNTIME ASKS "IS PRACTICE EXCUSED HERE?"
@@ -750,6 +801,12 @@ function App() {
   // no longer makes every teacher login download and regrade the full history.
   const teacherGraderRepairRanRef = useRef(false);
   const [assignments, setAssignments] = useState([]);
+  // For effects that only LOOK UP an assignment (a title for a toast). The
+  // whole collection is one live listener, so `assignments` changes whenever
+  // any assignment in the school does; as a dependency it tore down and
+  // re-created the listener holding the lookup on every such change.
+  const assignmentsRef = useRef(assignments);
+  assignmentsRef.current = assignments;
   const [allStudents, setAllStudents] = useState([]);
   const [teacherRosterSummaries, setTeacherRosterSummaries] = useState([]);
   const [teacherStudentDataMode, setTeacherStudentDataMode] = useState('summary');
@@ -794,6 +851,7 @@ function App() {
   // The Student Support Evidence Report, opened for one student from the
   // drawer, the gradebook or the roster. It stacks above the drawer.
   const [supportReportStudentId, setSupportReportStudentId] = useState(null);
+  const [caseReviewStudentId, setCaseReviewStudentId] = useState(null);
   // ONE ASSIGNMENT, FROM ANYWHERE (components/teacher/AssignmentHub.jsx): the
   // assignment and the class it was opened from. Like the student drawer, it
   // opens over the current screen instead of navigating away from it.
@@ -1231,6 +1289,20 @@ function App() {
       : []
   ), [user, assignments, gradeDisplayTracker, studentClassPoints.redemptionsByAssignment, now]);
 
+  const studentRewardWallet = useMemo(() => buildRewardWallet({
+    grants: studentClassPoints.grants,
+    redemptions: studentClassPoints.redemptions,
+    account: studentClassPoints.unavailable ? null : studentClassPoints.account,
+    nowMs: now,
+  }), [studentClassPoints.grants, studentClassPoints.redemptions, studentClassPoints.account, studentClassPoints.unavailable, now]);
+
+  // "New" lasts for one visit to My Rewards: leaving it clears the marks.
+  const previousStudentModeRef = useRef(null);
+  useEffect(() => {
+    if (previousStudentModeRef.current === 'rewards' && studentDashboardMode !== 'rewards') clearNewRewards();
+    previousStudentModeRef.current = studentDashboardMode;
+  }, [studentDashboardMode]);
+
   // The signed-in student's own Student Learning Profile, built from the same
   // evidence their teacher's roster reads. Assignment adaptation needs the DOK
   // and stable-band picture, which the legacy mastery profile does not carry.
@@ -1508,6 +1580,13 @@ function App() {
     assignmentId: null,
     student: null,
   });
+
+  // The gradebook shows Practice excused where a student used a Practice
+  // Pass, exactly as the student's Grade Center and Google Classroom already
+  // do; without this the same student read "Practice 0%" here.
+  const gradebookHasPracticePass = useClassPracticePasses(
+    user?.role === 'teacher' && teacherTab === 'grades' ? gradebookFilter.classId || null : null,
+  );
 
   const [exportJsonAssignment, setExportJsonAssignment] = useState(null);
   const [exportJsonCopied, setExportJsonCopied] = useState(false);
@@ -2260,7 +2339,7 @@ function App() {
 
         if (teacherTab === 'grades' && !teacherGraderRepairRanRef.current) {
           teacherGraderRepairRanRef.current = true;
-          persistCurrentGraderCreditRepairs(studentData, assignments)
+          persistCurrentGraderCreditRepairs(studentData, assignmentsRef.current)
             .catch((error) => {
               teacherGraderRepairRanRef.current = false;
               console.error('Could not apply deferred current-grader credit repairs:', error);
@@ -2273,9 +2352,13 @@ function App() {
         setTeacherStudentDataMode('summary');
       },
     );
+  // NOT `assignments`: the repair above runs once and reads the ref. Listing
+  // the array tore this listener down on every write to ANY assignment —
+  // another teacher's edit, a DOL unlock, a question-family seat — flipped the
+  // gradebook to loading and re-read every student's grades document.
   }, [
     user?.role, user?.email, user?.isRootAdmin, teacherTab, teacherWorkspaceMode,
-    teacherPreviewRuntimeActive, teacherRosterSummaries, assignments,
+    teacherPreviewRuntimeActive, teacherRosterSummaries,
   ]);
 
   /*
@@ -2875,9 +2958,9 @@ function App() {
       : `${remainingSeconds}s`;
   };
 
-  const calculateGrade = (assignmentTracker, assignmentData) => {
+  const calculateGrade = (assignmentTracker, assignmentData, { practicePassRedeemed = false } = {}) => {
     if (!assignmentTracker || !getStoredAssignmentQuestions(assignmentData).length) return 0;
-    return splitGrade({ tracker: assignmentTracker, assignment: assignmentData }).score ?? 0;
+    return splitGrade({ tracker: assignmentTracker, assignment: assignmentData, practicePassRedeemed }).score ?? 0;
   };
 
   const calculatePracticeProgress = (assignmentTracker, assignmentData, { hasPracticePass = false } = {}) => {
@@ -3159,12 +3242,21 @@ function App() {
    */
   useEffect(() => { trackerRef.current = tracker; }, [tracker]);
 
-  useEffect(() => {
-    if (user?.role !== 'student' || !user.id || !activeAssignmentId || isTeacherPreview) return undefined;
+  // A yes/no, not the list: `assignments` is one live listener over the whole
+  // collection, so as a dependency every edit to ANY assignment — another
+  // teacher's, a seat allocation, a DOL unlock — flushed and tore down this
+  // student's sync, rebuilt it and re-read the draft from the server, on every
+  // open Chromebook at once.
+  const activeAssignmentUsesWorkspaceDrafts = useMemo(() => {
     const assignment = assignments.find((item) => item.id === activeAssignmentId);
     // Secure Test Cycle material has its own server-owned state machine and
     // never uses ordinary draft persistence.
-    if (!assignment || isTestCycleAssignment(assignment)) return undefined;
+    return Boolean(assignment) && !isTestCycleAssignment(assignment);
+  }, [assignments, activeAssignmentId]);
+
+  useEffect(() => {
+    if (user?.role !== 'student' || !user.id || !activeAssignmentId || isTeacherPreview) return undefined;
+    if (!activeAssignmentUsesWorkspaceDrafts) return undefined;
 
     let cancelled = false;
     const sync = createWorkspaceDraftSync({
@@ -3219,7 +3311,7 @@ function App() {
       sync.stop();
       if (workspaceDraftSyncRef.current === sync) workspaceDraftSyncRef.current = null;
     };
-  }, [user?.role, user?.id, user?.classId, activeAssignmentId, isTeacherPreview, assignments]);
+  }, [user?.role, user?.id, user?.classId, activeAssignmentId, isTeacherPreview, activeAssignmentUsesWorkspaceDrafts]);
 
   /*
    * POST-DEADLINE PRACTICE MODE IS NOT A GRADE, AND MUST STILL SURVIVE.
@@ -4160,7 +4252,7 @@ function App() {
           if (classroomSyncNoticeRef.current[assignmentId] === notificationId) return;
           classroomSyncNoticeRef.current[assignmentId] = notificationId;
 
-          const assignment = assignments.find((item) => item.id === assignmentId);
+          const assignment = assignmentsRef.current.find((item) => item.id === assignmentId);
           const title = assignment?.title || 'Your assignment';
           const grade = Number.isFinite(Number(receipt?.grade)) ? Number(receipt.grade) : null;
           const gradeText = grade == null ? 'Your grade' : `${grade}%`;
@@ -4208,7 +4300,7 @@ function App() {
       },
       (error) => console.error('Could not watch Google Classroom grade receipts:', error),
     );
-  }, [user?.role, user?.id, assignments, toastSuccess]);
+  }, [user?.role, user?.id, toastSuccess]);
 
   // DOL reminders are global to the student experience, not just the open
   // assignment. The persistent purple DOL card/banner is the primary notice;
@@ -5011,6 +5103,7 @@ function App() {
   const navigateStudent = (destination) => {
     if (destination === STUDENT_DESTINATION.ASSIGNMENTS) return openStudentAssignmentsCenter();
     if (destination === STUDENT_DESTINATION.GRADES) return openStudentGradeCenter();
+    if (destination === STUDENT_DESTINATION.REWARDS) return openStudentDashboardMode('rewards');
     if (destination === STUDENT_DESTINATION.MATH_PATH) return openStudentDashboardMode('mathPath');
     if (destination === STUDENT_DESTINATION.SECURE_EXAMS) return openStudentDashboardMode('secureExams');
     return openStudentDashboardMode('assignments');
@@ -5196,6 +5289,9 @@ function App() {
         const audio = new window.AudioContext();
         const oscillator = audio.createOscillator();
         oscillator.connect(audio.destination);
+        // A running AudioContext is never garbage collected: one per expired
+        // timer stayed open (and counts against the browser's limit) all day.
+        oscillator.onended = () => { audio.close?.().catch?.(() => {}); };
         oscillator.start();
         oscillator.stop(audio.currentTime + 0.35);
       } catch { /* autoplay may be blocked */ }
@@ -10388,7 +10484,7 @@ function App() {
     // The class summary above the gradebook table, from the same canonical
     // grade projection the table rows use. It is also the table filter.
     const gradebookProgress = teacherTab === 'grades' && selectedAssignment
-      ? classGradeProgress({ assignment: selectedAssignment, roster: selectedClassStudents, hasGradeRecords: teacherStudentDataMode === 'full', nameOf: (student) => formatStudentName(student) })
+      ? classGradeProgress({ assignment: selectedAssignment, roster: selectedClassStudents, hasGradeRecords: teacherStudentDataMode === 'full', nameOf: (student) => formatStudentName(student), hasPracticePass: gradebookHasPracticePass })
       : null;
     const gradebookFilterIds = gradebookProgress && gradebookProgressFilter !== 'all'
       ? new Set(({ complete: gradebookProgress.complete, inProgress: gradebookProgress.inProgress, notStarted: gradebookProgress.notStarted, below: gradebookProgress.belowThreshold }[gradebookProgressFilter] || []).map((row) => row.id))
@@ -10654,7 +10750,33 @@ function App() {
           studentSupportProfile={profileDrawerStudent?.profile || null}
           onSupportProfileSaved={handleSupportProfileSaved}
           onOpenSupportReport={(studentId) => setSupportReportStudentId(studentId)}
+          onOpenCaseReview={user?.role === 'teacher' ? (studentId) => setCaseReviewStudentId(studentId) : null}
         />
+
+        {/* Above the drawer it was opened from (closing it returns to the
+            student) and below the Support Evidence Report, which it can open. */}
+        {(() => {
+          const caseStudent = caseReviewStudentId
+            ? allStudents.find((entry) => entry.id === caseReviewStudentId) || null
+            : null;
+          if (!caseStudent) return null;
+          return (
+            <Suspense fallback={null}>
+              <StudentCaseReviewView
+                open
+                student={caseStudent}
+                studentName={formatStudentName(caseStudent)}
+                classRecord={classesById[caseStudent.classId] || null}
+                assignments={assignments}
+                gradingPeriodSettings={gradingPeriodSettings}
+                teacherEmail={user?.email || ''}
+                onClose={() => setCaseReviewStudentId(null)}
+                onInspectResponse={(target) => setResponseInspectorTarget(target)}
+                onOpenSupportReport={(studentId) => setSupportReportStudentId(studentId)}
+              />
+            </Suspense>
+          );
+        })()}
 
         {(() => {
           const reportStudent = supportReportStudentId
@@ -11416,7 +11538,7 @@ function App() {
                 )}
 
                 {selectedGradebookPeriod && selectedAssignment && !gradebookFilter.student && (
-                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ padding: '12px' }}>Student</th><th>Overall</th><th>Warm-Up</th><th>Classwork</th><th>Practice</th><th>DOL</th><th>Instructional condition</th><th>Activity</th><th></th></tr></thead><tbody>{gradebookVisibleStudents.map((student) => { const grades = projectedAssignmentTrackerFor({ student, assignment: selectedAssignment }) || undefined; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const score = assignmentOverride ? assignmentOverride.score : grades ? calculateGrade(grades, selectedAssignment) : null; const sectionGrades = splitGradesBySection({ tracker: grades, assignment: selectedAssignment }); const recoveredSections = completedRecoverySections(student, selectedAssignment.id); const challengeWarmup = warmupChallengeCounts(student, selectedAssignment.id); const recoveredMark = (section) => (<>{section === 'warmup' && challengeWarmup ? <span data-warmup-challenge-mark="true" title="The Warm-Up grade is this student's Live Challenge result. Open Details for the rounds." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>LC</span> : null}{recoveredSections.has(section) ? <span data-recovered-section={section} title="Includes a completed Practice-based Recovery. Open Details for Original, Recovery and Final." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>R</span> : null}</>); const gradeSplit = splitGrade({ tracker: grades, assignment: selectedAssignment }); const gradeExplanation = grades ? explainGrade(gradeSplit) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <tr key={student.id} style={{ borderBottom: '1px solid #e8eaed' }}><td style={{ padding: '12px' }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} profile={teacherLearningProfiles[student.id]} onOpen={setProfileDrawerStudentId} showBadge /><div style={{ marginTop: 3, color: '#5f6368', fontSize: 11 }}>ID {student.id}</div></td><td><strong style={{ color: modified ? '#6f2da8' : score >= 70 ? '#188038' : '#202124' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: '#efe4ff', color: '#6f2da8', fontWeight: 900, fontSize: '11px' }}>MOD</span>}
+                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ padding: '12px' }}>Student</th><th>Overall</th><th>Warm-Up</th><th>Classwork</th><th>Practice</th><th>DOL</th><th>Instructional condition</th><th>Activity</th><th></th></tr></thead><tbody>{gradebookVisibleStudents.map((student) => { const grades = projectedAssignmentTrackerFor({ student, assignment: selectedAssignment }) || undefined; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const practicePassRedeemed = gradebookHasPracticePass(student, selectedAssignment); const score = assignmentOverride ? assignmentOverride.score : grades ? calculateGrade(grades, selectedAssignment, { practicePassRedeemed }) : null; const sectionGrades = splitGradesBySection({ tracker: grades, assignment: selectedAssignment, practicePassRedeemed }); const recoveredSections = completedRecoverySections(student, selectedAssignment.id); const challengeWarmup = warmupChallengeCounts(student, selectedAssignment.id); const recoveredMark = (section) => (<>{section === 'warmup' && challengeWarmup ? <span data-warmup-challenge-mark="true" title="The Warm-Up grade is this student's Live Challenge result. Open Details for the rounds." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>LC</span> : null}{recoveredSections.has(section) ? <span data-recovered-section={section} title="Includes a completed Practice-based Recovery. Open Details for Original, Recovery and Final." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>R</span> : null}</>); const gradeSplit = splitGrade({ tracker: grades, assignment: selectedAssignment, practicePassRedeemed }); const gradeExplanation = grades ? explainGrade(gradeSplit) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <tr key={student.id} style={{ borderBottom: '1px solid #e8eaed' }}><td style={{ padding: '12px' }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} profile={teacherLearningProfiles[student.id]} onOpen={setProfileDrawerStudentId} showBadge /><div style={{ marginTop: 3, color: '#5f6368', fontSize: 11 }}>ID {student.id}</div></td><td><strong style={{ color: modified ? '#6f2da8' : score >= 70 ? '#188038' : '#202124' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: '#efe4ff', color: '#6f2da8', fontWeight: 900, fontSize: '11px' }}>MOD</span>}
                     {/*
                       COMPLETION AND PERFORMANCE, VISUALLY APART.
                       The grade above is unchanged. These two lines are what a
@@ -11438,7 +11560,7 @@ function App() {
                         )}
                       </div>
                     )}
-                    {gradeExplanation && <div style={{ marginTop: 4, fontSize: 11, color: '#5f6368', lineHeight: 1.4, maxWidth: 280 }}>{gradeExplanation}</div>}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.warmup.attempted ? `${sectionGrades.warmup.score}%` : '—'}{recoveredMark('warmup')}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.classwork.attempted ? `${sectionGrades.classwork.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.practice.attempted ? `${sectionGrades.practice.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.dol.attempted ? `${sectionGrades.dol.score}%` : '—'}{recoveredMark('dol')}</td><td style={{ fontSize: '12px' }}>{modified ? `Modified: ${(usage.modifications || []).join(', ')}` : (usage.accommodations || []).length ? `Accommodated: ${usage.accommodations.join(', ')}` : 'Standard'}</td><td style={{ fontSize: '12px', lineHeight: 1.45 }}>{activity.totalTimeSeconds ? <>Total {formatTime(activity.totalTimeSeconds)}<br />On time {formatTime(activity.onTimeSeconds || 0)} · Late {formatTime(activity.lateSeconds || 0)}</> : 'Time not recorded'}<br />Last on-time: {formatTimeStamp(activity.lastActiveBeforeDue)}<br />Last late: {formatTimeStamp(activity.lastActiveLate)}</td><td><button onClick={() => setGradebookFilter((current) => ({ ...current, student }))} style={{ padding: '8px 12px', border: 0, borderRadius: '6px', background: '#1a73e8', color: '#fff', fontWeight: 'bold' }}>Details</button></td></tr>; })}</tbody></table></div>
+                    {gradeExplanation && <div style={{ marginTop: 4, fontSize: 11, color: '#5f6368', lineHeight: 1.4, maxWidth: 280 }}>{gradeExplanation}</div>}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.warmup.attempted ? `${sectionGrades.warmup.score}%` : '—'}{recoveredMark('warmup')}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.classwork.attempted ? `${sectionGrades.classwork.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.practice?.excused ? <span title="The student used a Practice Pass: Practice is excused — not scored and not required." style={{ color: '#6a1b9a' }}>Excused (Pass)</span> : sectionGrades.practice.attempted ? `${sectionGrades.practice.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.dol.attempted ? `${sectionGrades.dol.score}%` : '—'}{recoveredMark('dol')}</td><td style={{ fontSize: '12px' }}>{modified ? `Modified: ${(usage.modifications || []).join(', ')}` : (usage.accommodations || []).length ? `Accommodated: ${usage.accommodations.join(', ')}` : 'Standard'}</td><td style={{ fontSize: '12px', lineHeight: 1.45 }}>{activity.totalTimeSeconds ? <>Total {formatTime(activity.totalTimeSeconds)}<br />On time {formatTime(activity.onTimeSeconds || 0)} · Late {formatTime(activity.lateSeconds || 0)}</> : 'Time not recorded'}<br />Last on-time: {formatTimeStamp(activity.lastActiveBeforeDue)}<br />Last late: {formatTimeStamp(activity.lastActiveLate)}</td><td><button onClick={() => setGradebookFilter((current) => ({ ...current, student }))} style={{ padding: '8px 12px', border: 0, borderRadius: '6px', background: '#1a73e8', color: '#fff', fontWeight: 'bold' }}>Details</button></td></tr>; })}</tbody></table></div>
                 )}
 
                 {gradebookFilter.student && selectedAssignment && (() => { const student = allStudents.find((entry) => entry.id === gradebookFilter.student.id) || gradebookFilter.student; const studentGrades = projectedAssignmentTrackerFor({ student, assignment: selectedAssignment }) || {}; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const displayedAssignmentScore = assignmentOverride ? assignmentOverride.score : Object.keys(studentGrades).length ? calculateGrade(studentGrades, selectedAssignment) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{displayedAssignmentScore === null ? '—' : `${displayedAssignmentScore}%`}</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>{activity.totalTimeSeconds ? `Total engagement ${formatTime(activity.totalTimeSeconds)} · Late engagement ${formatTime(activity.lateSeconds || 0)}` : 'Engagement time not recorded (see the support evidence report for server-timed minutes)'}</div><AssignmentGradeOverrideControls student={student} assignment={selectedAssignment} onChanged={() => setGradebookFilter((current) => ({ ...current, student: null }))} /><SectionRecoveryAuditTrail student={student} assignment={selectedAssignment} />{selectedAssignment?.dol?.enabled && (() => { const recovery = summarizeStudentRecovery({ assignment: selectedAssignment, classId: student.classId || activeClass?.classId || null, studentId: student.id }); const busy = dolAttemptGrantBusyKey === `${selectedAssignment.id}:students:${student.id}`; return <div data-dol-student-recovery={student.id} style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, fontSize: 12.5, color: '#3c4043' }}><span>Teacher-granted DOL attempts: <strong>{recovery.extraAttempts}</strong>{recovery.studentExtraAttempts ? ` (${recovery.studentExtraAttempts} for this student)` : ''}</span><button type="button" disabled={busy} onClick={() => handleGrantDOLAttemptForStudents(selectedAssignment, [student])} style={{ padding: '6px 10px', border: '1px solid #1a73e8', borderRadius: 6, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, cursor: busy ? 'wait' : 'pointer' }}>{busy ? 'Granting…' : 'Grant +1 DOL attempt'}</button></div>; })()}{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid #d8dde6' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: 'var(--mm-text-strong)' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 900 }}>Support evidence report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{getStoredAssignmentQuestions(selectedAssignment).map((question, index) => { if (!questionIsIncluded(question)) return null; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type} · Grade ×{normalizeQuestionWeight(question)}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.teacherGradeOverrideDisplay?.active ? (credit >= 100 ? 'Teacher assigned · Correct ✓' : `Teacher assigned · ${credit}%`) : record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button>{studentGrades[index] && <button type="button" onClick={() => setResponseInspectorTarget({ studentId: student.id, assignmentId: selectedAssignment.id, questionIndex: index })} style={{ marginTop: '8px', marginLeft: '8px', padding: '8px 11px', border: '1px solid #1a73e8', borderRadius: '6px', background: '#e8f0fe', color: '#174ea6', fontWeight: 'bold' }}>Inspect Response / Override Grade</button>}</article>; })}</div></div>; })()}
@@ -11634,6 +11756,16 @@ function App() {
             invite={liveChallengeInvite}
             studentProfile={user.profile}
             onExit={() => setStudentDashboardMode('assignments')}
+            // What the finished match put in the wallet, shown apart from
+            // placement and game points.
+            renderMatchRewards={(roomId) => (
+              <ChallengeRewardsEarned
+                roomId={roomId}
+                grants={studentClassPoints.grants}
+                transactions={studentClassPoints.transactions}
+                onOpenRewards={() => openStudentDashboardMode('rewards')}
+              />
+            )}
           />
           </Suspense>
         </>,
@@ -11679,6 +11811,29 @@ function App() {
         </>,
       );
     }
+    if (studentDashboardMode === 'rewards') {
+      return renderStudentIdentityShell(
+        <>
+          {renderStudentPackUpBanner()}
+          {renderStudentWarmupBanner()}
+          <StudentRewardsCenter
+            student={{ ...studentRecord, ...user }}
+            wallet={studentRewardWallet}
+            classPoints={studentClassPoints}
+            inventoryUnavailable={studentClassPoints.inventoryUnavailable}
+            redemptions={studentClassPoints.redemptions}
+            eligibleAssignments={studentPracticePassEligibleAssignments}
+            onUsePracticePass={handleUsePracticePass}
+            loadHistory={handleLoadRewardHistory}
+            newGrantIds={newRewardIds}
+            supportPresentation={getStudentSupportPresentation(user.profile)}
+            onNavigate={navigateStudent}
+            onLogout={handleLogout}
+            nowMs={now}
+          />
+        </>,
+      );
+    }
     if (studentDashboardMode === 'grades') {
       return renderStudentIdentityShell(
         <>
@@ -11702,14 +11857,16 @@ function App() {
           {renderStudentPackUpBanner()}
           {renderStudentWarmupBanner()}
           <main style={{ padding: '24px 16px', maxWidth: 880, margin: '0 auto', boxSizing: 'border-box' }}>
-            <TestCycleCard
-              assignmentId={activeTestCycleAssignmentId}
-              studentProfile={user.profile}
-              // Review is ordinary MathMaster instruction, so it opens the
-              // ordinary runtime — restricted to the review questions.
-              onOpenReview={(assignmentId) => startAssignment(assignmentId, 0, { cycleStage: 'review' })}
-              onExit={openStudentAssignmentsCenter}
-            />
+            <Suspense fallback={<p role="status" style={{ margin: 0 }}>Opening your test…</p>}>
+              <TestCycleCard
+                assignmentId={activeTestCycleAssignmentId}
+                studentProfile={user.profile}
+                // Review is ordinary MathMaster instruction, so it opens the
+                // ordinary runtime — restricted to the review questions.
+                onOpenReview={(assignmentId) => startAssignment(assignmentId, 0, { cycleStage: 'review' })}
+                onExit={openStudentAssignmentsCenter}
+              />
+            </Suspense>
           </main>
         </>,
       );
@@ -11762,9 +11919,9 @@ function App() {
         onOpenLiveChallenge={() => setStudentDashboardMode('liveChallenge')}
         onLogout={handleLogout}
         classPoints={studentClassPoints}
-        practicePassEligibleAssignments={studentPracticePassEligibleAssignments}
-        onRedeemPracticePass={handleRedeemPracticePass}
-        redeemingPracticePass={redeemingPracticePass}
+        rewardWallet={studentRewardWallet}
+        hasNewRewards={newRewardIds.size > 0}
+        onOpenRewards={() => openStudentDashboardMode('rewards')}
         recommended={{
           student: studentRecord,
           assignments: studentPathAssignments,
@@ -11799,16 +11956,18 @@ function App() {
       : null;
     if (recoveryAssignment && openRecoveryEntry) {
       return renderStudentIdentityShell(
-        <SectionRecoveryRunner
-          mode={recoverySession.mode}
-          assignment={recoveryAssignment}
-          entry={openRecoveryEntry}
-          studentId={user.id}
-          studentProfile={user.profile}
-          onExit={() => setRecoverySession(null)}
-          onRecord={(section, record) => mergeSectionRecoveryRecord(recoveryAssignment.id, section, record)}
-          onStartAssessment={(section) => startStudentRecovery(recoveryAssignment.id, section)}
-        />,
+        <Suspense fallback={<p role="status" style={{ padding: 24, margin: 0 }}>Opening Recovery…</p>}>
+          <SectionRecoveryRunner
+            mode={recoverySession.mode}
+            assignment={recoveryAssignment}
+            entry={openRecoveryEntry}
+            studentId={user.id}
+            studentProfile={user.profile}
+            onExit={() => setRecoverySession(null)}
+            onRecord={(section, record) => mergeSectionRecoveryRecord(recoveryAssignment.id, section, record)}
+            onStartAssessment={(section) => startStudentRecovery(recoveryAssignment.id, section)}
+          />
+        </Suspense>,
       );
     }
     return renderStudentIdentityShell(

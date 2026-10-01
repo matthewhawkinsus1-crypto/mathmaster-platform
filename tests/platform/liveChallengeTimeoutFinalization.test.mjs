@@ -13,7 +13,10 @@ test('QuestionEngine publishes the same canonical raw payload used by secure man
   const start = engine.indexOf('// Secure callers sometimes need');
   const end = engine.indexOf('const handleMissingToolAction', start);
   const secureSubmissionRegion = engine.slice(start, end);
-  assert.match(secureSubmissionRegion, /onResponseStateChange\(buildRawPathResponse\(\{/);
+  // What the host is handed is exactly what the canonical builder produced
+  // (published through a ref, and only when it changes, so the host's inline
+  // callback cannot loop the engine — tests/browser/renderStability.mjs).
+  assert.match(secureSubmissionRegion, /const rawWork = buildRawPathResponse\(\{[\s\S]*?onResponseStateChangeRef\.current\?\.\(rawWork\)/);
   assert.match(secureSubmissionRegion, /submitToServer\(\s*buildRawPathResponse\(\{/);
   assert.doesNotMatch(secureSubmissionRegion, /querySelector|textContent|innerText/);
 });

@@ -1240,8 +1240,11 @@ test('the workspace reports the shared grader, through the server bytes, with no
   assert.match(COMPONENT, /import \{ gradeToolCheck \} from '\.\/tools\/shared\/sharedToolGrading\.js';/);
   assert.match(COMPONENT, /import \{ answerStateFromSharedGrading \} from '\.\/platform\/grading\/sharedAnswerState\.js';/);
   // The work is built from the component's state by the shared mapper (the one
-  // place pointsValidated becomes the student's `pointsLocked` commit)...
-  assert.match(COMPONENT, /const work = useMemo\(\(\) => graphWorkspaceWorkFromState\(\{ construction, analysis \}\), \[construction, analysis\]\);/);
+  // place the student's commit becomes `pointsLocked`). The commit is a passed
+  // check — or, on a DOL, quiz or test, a points-only plot with every point
+  // placed: there is no check there, and the points are graded as placed...
+  assert.match(COMPONENT, /const pointsCommitted = construction\.pointsValidated\s*\|\| \(!revealPointCorrectness && pointOnly && pointParts\.every\(\(part\) => part\.isComplete\)\);/);
+  assert.match(COMPONENT, /graphWorkspaceWorkFromState\(\{ construction: \{ \.\.\.construction, pointsValidated: pointsCommitted \}, analysis \}\),\s*\[construction, analysis, pointsCommitted\],/);
   assert.match(COMPONENT, /const sharedGrade = useMemo\(\(\) => gradeToolCheck\(graphWorkspaceGrader, question, work\), \[question, work\]\);/);
   // ...and the effect reports the shared result as is: no verdict, completeness
   // or stage gate of the component's own is laid over it.

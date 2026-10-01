@@ -5,6 +5,7 @@ import { requiredAnswerToolForSymbol, resolveRequiredAnswerSymbols } from './pla
 import { buildMobileMathTools } from './platform/interaction/mobileKeypadPolicy.js';
 import { scheduleHorizontalViewportStabilization } from './platform/mobile/mobileFocusViewport.js';
 import { bindMathFieldFocusHandoff, focusMathFieldWithoutScroll } from './platform/interaction/mathFieldFocusHandoff.js';
+import { typedFractionCommandStep, typedFractionKeyStep, typedFractionValueStep } from './platform/math/typedFractionEntry.js';
 
 const BASIC_KEYS = [
   { label: 'π', command: '\\pi', ariaLabel: 'Insert pi' },
@@ -232,6 +233,9 @@ export default function MathInput({
   // sync below can tell its own late echo from a change made elsewhere.
   const echoGuardRef = useRef(null);
   if (!echoGuardRef.current) echoGuardRef.current = createFieldEchoGuard();
+  // Whether the cursor sits in the denominator of a fraction the student opened
+  // by typing `/`, and what they have typed there (typedFractionEntry.js).
+  const typedFractionRef = useRef(null);
   const emit = useCallback((next) => {
     echoGuardRef.current.emitted(next);
     onChangeRef.current(next);
@@ -347,6 +351,7 @@ export default function MathInput({
     window.mathVirtualKeyboard?.hide?.();
 
     const handleInput = () => {
+      typedFractionRef.current = typedFractionValueStep(typedFractionRef.current, mathField.value);
       emit(mathField.value);
       stabilizeMobileViewport();
     };
@@ -362,6 +367,14 @@ export default function MathInput({
     };
 
     const preventUnusedModes = (event) => {
+      // A typed `/` builds the fraction the same characters mean as text:
+      // once the denominator is a plain number, a letter, operator, relation,
+      // comma or closing bracket starts after it — y=-2/3x+4 is −(2/3)x + 4,
+      // not −2/(3x + 4) (PQ-040). Runs before MathLive inserts the key, like
+      // the `=` rule below; anything it does not recognise changes nothing.
+      const fractionStep = typedFractionKeyStep(typedFractionRef.current, event, mathField.value);
+      typedFractionRef.current = fractionStep.state;
+      if (fractionStep.leaveFraction) mathField.executeCommand('moveAfterParent');
       if (event.key === 'Enter' && onSubmit && !event.isComposing && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
         event.preventDefault();
         event.stopPropagation();
@@ -392,18 +405,25 @@ export default function MathInput({
       }
     };
     const preventContextMenu = (event) => event.preventDefault();
-    const handleFocus = () => stabilizeMobileViewport();
+    // A click or tap can put the caret anywhere: stop watching the fraction.
+    const forgetTypedFraction = () => { typedFractionRef.current = null; };
+    const handleFocus = () => {
+      forgetTypedFraction();
+      stabilizeMobileViewport();
+    };
 
     mathField.addEventListener('input', handleInput);
     mathField.addEventListener('focus', handleFocus);
     mathField.addEventListener('keydown', preventUnusedModes, { capture: true });
     mathField.addEventListener('contextmenu', preventContextMenu);
+    mathField.addEventListener('pointerdown', forgetTypedFraction);
 
     return () => {
       mathField.removeEventListener('input', handleInput);
       mathField.removeEventListener('focus', handleFocus);
       mathField.removeEventListener('keydown', preventUnusedModes, { capture: true });
       mathField.removeEventListener('contextmenu', preventContextMenu);
+      mathField.removeEventListener('pointerdown', forgetTypedFraction);
     };
   }, [placeholder, isMobile, toolProfile, onSubmit, shouldSuppressNativeKeyboard, stabilizeMobileViewport, emit]);
 
@@ -413,6 +433,13 @@ export default function MathInput({
     const mathField = mfRef.current;
     if (mathField && echoGuardRef.current.shouldWrite(mathField.value, value)) {
       mathField.value = value || '';
+      // Written from outside: whatever the student was typing into is gone.
+      typedFractionRef.current = null;
+      // And so is the field's own undo history. MathLive keeps one per field,
+      // and after a platform Undo cleared "[-3,5)" a Ctrl+Z in the field put
+      // it straight back (tests/browser/undoTyping.mjs). The field's history
+      // now starts at what the platform wrote.
+      mathField.resetUndo?.();
       stabilizeMobileViewport();
     }
   }, [value, stabilizeMobileViewport]);
@@ -464,11 +491,17 @@ export default function MathInput({
     if (!mathField) return;
     mathField.focus({ preventScroll: true });
     if (action) {
+      typedFractionRef.current = null;
       mathField.executeCommand?.(action);
       emit(mathField.value);
       stabilizeMobileViewport();
       return;
     }
+    // A keypad x, +, × or digit after a typed 2/3 follows the same rule as the
+    // physical key; a template key (a/b, xʸ, √) ends the watch.
+    const fractionStep = typedFractionCommandStep(typedFractionRef.current, command, mathField.value);
+    typedFractionRef.current = fractionStep.state;
+    if (fractionStep.leaveFraction) mathField.executeCommand?.('moveAfterParent');
     mathField.insert(command, {
       insertionMode: 'replaceSelection',
       selectionMode: /#0|#\?/.test(command) ? 'placeholder' : 'after',

@@ -34,10 +34,12 @@ import {
 } from '../../../functions/shared/questionFamilyInstance.mjs';
 import { measureFamilyCapacity } from '../../../functions/shared/questionFamilyEngine.mjs';
 import { familyInstanceGradingSupport, familyInstanceServerGradable } from '../../../functions/shared/questionFamilyGrading.mjs';
-// The light, non-tool half of the shared dispatch: the answer-key self-check
-// below only builds keys for ordinary types and Step Algebra, and Pre-Flight
-// is on the app's static import path, which must not load every tool grader.
-import { gradeQuestionResponse } from '../../../functions/shared/serverGrading/questionResponseGrading.mjs';
+// The answer-key self-check below only builds keys for ordinary types and a
+// Step Algebra instance's final answer, so it uses the two LIGHT graders for
+// those: Pre-Flight is on the app's static import path, which must not load
+// the composed, workspace or tool graders (and mathjs with them).
+import { gradeOrdinaryResponse } from '../../../functions/shared/ordinaryResponseGrading.mjs';
+import { gradeStepAlgebraFinalAnswer } from '../../../functions/shared/serverGrading/stepAlgebraFinalAnswer.mjs';
 import { serverResponseGradingSupport } from '../../../functions/shared/serverGrading/gradingSupport.mjs';
 import { deliveredQuestionForGrading } from '../../../functions/shared/serverGrading/deliveredQuestion.mjs';
 import { GRADING_AUTHORITY } from '../../../functions/shared/serverGrading/gradingAuthority.mjs';
@@ -64,6 +66,13 @@ const sectionModeFor = (assignment, role) => {
 };
 
 /** The response a student who answered with the key would send. */
+/** Does the generated answer key grade correct? (Ordinary types and Step Algebra only.) */
+const selfCheckAnswerKey = (question, response) => (
+  clean(question?.type) === 'stepAlgebra'
+    ? gradeStepAlgebraFinalAnswer({ question, responseValue: response.value })
+    : gradeOrdinaryResponse({ question, response })
+);
+
 export const answerKeyResponse = (question = {}) => {
   const type = clean(question?.type);
   if (type === 'stepAlgebra') {
@@ -132,7 +141,7 @@ const auditFamilySlot = ({ assignmentId, question, storageIndex, capacityMemo })
     }
     const response = answerKeyResponse(result.question);
     if (!response) continue;
-    const grading = gradeQuestionResponse({ question: result.question, response });
+    const grading = selfCheckAnswerKey(result.question, response);
     if (grading.isCorrect !== true) keyFailures.push(result.instance.answer?.display || result.instance.fingerprint);
   }
   return {

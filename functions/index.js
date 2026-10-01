@@ -759,10 +759,13 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
           studentId, classId, assignmentId, rewardCode: rewards.PRACTICE_PASS_REWARD_CODE,
         })),
       );
-      if (redemptionSnap.exists) {
-        // A proven, permanent fact -- Practice is excused for this assignment
-        // -- so the outbox may retire this action instead of retrying it
-        // forever. No grade, no evidence, no attempt is ever written for it.
+      // A use a teacher undid is history, not a waiver: Practice is required
+      // again and its responses are accepted normally.
+      if (rewards.isActivePracticePassRedemption(redemptionSnap.exists ? redemptionSnap.data() : null)) {
+        // A proven fact -- Practice is excused for this assignment -- so the
+        // outbox may retire this action instead of retrying it forever. (A
+        // teacher who later undoes the pass makes Practice required again;
+        // the student answers it afresh.) No grade, no evidence, no attempt is ever written for it.
         transaction.set(receiptRef, {
           studentId,
           actionId: envelope.actionId,
@@ -1509,6 +1512,90 @@ exports.inspectStudentResponse = onCall(async (request) => {
 });
 
 /**
+ * Student Case Review (teacher, read-only): the records a case review needs
+ * that no teacher browser may read under firestore.rules — one event per
+ * graded attempt, submission receipts (including answers refused after the
+ * assignment closed), Practice Mode question records and teacher grade-change
+ * audits — for ONE student and the assignments the teacher selected.
+ *
+ * Authorization and every projection live in
+ * functions/shared/caseReviewEvidence.mjs (tested in
+ * tests/platform/caseReviewEvidenceProjection.test.mjs): the root
+ * administrator, the student's class teacher of record, or their roster
+ * teacher. Nothing is written, and nothing leaves that the case review does not
+ * show: no response text, no answer key, no draft contents, no other student.
+ * See docs/STUDENT_CASE_REVIEW_DESIGN.md §5.2.
+ */
+exports.loadStudentCaseEvidence = onCall(async (request) => {
+  await requireTeacher(request);
+  const caseEvidence = await import("./shared/caseReviewEvidence.mjs");
+  const validation = caseEvidence.validateCaseEvidenceRequest(request.data || {});
+  if (!validation.ok) throw new HttpsError("invalid-argument", validation.errors.join(" "));
+  const { studentId, assignmentIds } = validation.request;
+  const teacherEmail = callerEmail(request);
+
+  const db = getFirestore();
+  const gradeRef = db.collection("grades").doc(studentId);
+  const studentSnap = await gradeRef.get();
+  const student = studentSnap.exists ? studentSnap.data() || {} : null;
+  const classSnap = student?.classId
+    ? await db.collection(CLASS_COLLECTION).doc(String(student.classId)).get()
+    : null;
+  const decision = caseEvidence.authorizeCaseEvidenceCaller({
+    callerEmail: teacherEmail,
+    callerRole: request.auth?.token?.role,
+    isRootAdmin: authLib.isRootAdminEmail(teacherEmail),
+    student,
+    classRecord: classSnap?.exists ? classSnap.data() || {} : null,
+  });
+  if (!decision.allowed) {
+    throw new HttpsError(
+      decision.reason === "student-not-found" ? "not-found" : "permission-denied",
+      "Only this student's teacher may load case review evidence.",
+    );
+  }
+
+  const { workspaceDraftDocumentId } = await import("./shared/workspaceDraftSchema.mjs");
+  const limits = caseEvidence.CASE_EVIDENCE_LIMITS;
+  const chunks = caseEvidence.chunk(assignmentIds);
+  const draftRefs = assignmentIds.map((assignmentId) => db
+    .collection(WORKSPACE_DRAFT_COLLECTION)
+    .doc(workspaceDraftDocumentId({ studentId, assignmentId })));
+  const [eventSnapshots, receiptSnapshots, draftSnapshots, auditSnapshot] = await Promise.all([
+    // By assignment (single-field indexes only), so My Math Path and Live
+    // Challenge events never crowd out the assignments asked about.
+    Promise.all(chunks.map((ids) => gradeRef.collection("evidenceEvents")
+      .where("source.assignmentId", "in", ids)
+      .limit(Math.ceil(limits.maxEvents / chunks.length))
+      .get())),
+    Promise.all(chunks.map((ids) => db.collection(SUBMISSION_RECEIPT_COLLECTION)
+      .where("studentId", "==", studentId)
+      .where("assignmentId", "in", ids)
+      .limit(limits.maxReceiptsPerChunk)
+      .get())),
+    // Only the Practice Mode fields: a draft's saved work is never read here.
+    db.getAll(...draftRefs, { fieldMask: ["practice", "practiceUpdatedAt", "updatedAt"] }),
+    gradeRef.collection("gradeOverrideAudits").limit(limits.maxAudits).get(),
+  ]);
+
+  const drafts = {};
+  draftSnapshots.forEach((snapshot, index) => {
+    if (snapshot.exists) drafts[assignmentIds[index]] = snapshot.data() || {};
+  });
+  const response = caseEvidence.buildCaseEvidenceResponse({
+    request: validation.request,
+    events: eventSnapshots.flatMap((snapshot) => snapshot.docs.map((entry) => ({ id: entry.id, data: entry.data() || {} }))),
+    receipts: receiptSnapshots.flatMap((snapshot) => snapshot.docs.map((entry) => entry.data() || {})),
+    drafts,
+    audits: auditSnapshot.docs.map((entry) => entry.data() || {}),
+    nowMs: Date.now(),
+  });
+  response.truncated.events = eventSnapshots.some((snapshot) => snapshot.size >= Math.ceil(limits.maxEvents / chunks.length));
+  response.truncated.receipts = receiptSnapshots.some((snapshot) => snapshot.size >= limits.maxReceiptsPerChunk);
+  return response;
+});
+
+/**
  * Teacher grade correction. The active override lives in the rule-protected
  * top-level teacherGradeOverridesByAssignment map, never in the client-writable
  * question record. The original automatic attempt stays untouched.
@@ -2251,162 +2338,135 @@ exports.redeemPracticePass = onCall(async (request) => {
     }
     throw error;
   }
-  const { assignmentId } = input;
-
-  const db = getFirestore();
-  const gradeRef = db.collection("grades").doc(studentId);
-  const assignmentRef = db.collection("assignments").doc(assignmentId);
-
-  return db.runTransaction(async (transaction) => {
-    const [gradeSnap, assignmentSnap] = await Promise.all([
-      transaction.get(gradeRef),
-      transaction.get(assignmentRef),
-    ]);
-    if (!gradeSnap.exists) {
-      throw new HttpsError("not-found", "Your student record was not found.");
-    }
-    const gradeData = gradeSnap.data() || {};
-    const classId = authoritativeStudentClassId(gradeData);
-    if (!classId) {
-      throw new HttpsError("failed-precondition", "You are not currently placed in a class.");
-    }
-    if (!assignmentSnap.exists) {
-      throw new HttpsError("not-found", "That assignment was not found.");
-    }
-    const assignment = { id: assignmentSnap.id, ...assignmentSnap.data() };
-
-    const redemptionId = rewards.practicePassRedemptionId({
-      studentId, classId, assignmentId, rewardCode: rewards.PRACTICE_PASS_REWARD_CODE,
-    });
-    const redemptionRef = db.collection(CLASS_POINT_REWARD_REDEMPTIONS_COLLECTION).doc(redemptionId);
-    const points = await classPoints();
-    const accountRef = db.collection(CLASS_POINT_ACCOUNTS_COLLECTION).doc(points.accountId(studentId, classId));
-    const classRef = db.collection("classes").doc(classId);
-    const [redemptionSnap, accountSnap, classSnap] = await Promise.all([
-      transaction.get(redemptionRef),
-      transaction.get(accountRef),
-      transaction.get(classRef),
-    ]);
-
-    // Idempotent replay: the deterministic redemption id IS the retry key.
-    if (redemptionSnap.exists) {
-      const existing = redemptionSnap.data();
-      const existingTransactionSnap = await transaction.get(
-        db.collection(CLASS_POINT_TRANSACTIONS_COLLECTION).doc(String(existing.transactionId)),
-      );
-      return {
-        redemptionId,
-        redemption: existing,
-        account: accountSnap.exists ? accountSnap.data() : null,
-        transaction: existingTransactionSnap.exists ? existingTransactionSnap.data() : null,
-        replay: true,
-      };
-    }
-
-    const classRecord = classSnap.exists ? { classId: classSnap.id, ...classSnap.data() } : null;
-
-    /*
-     * THE CLASS/ROSTER MUST BE INTERNALLY CONSISTENT BEFORE A NEW REDEMPTION.
-     *
-     * This reuses `authorizeClassPointsActor` -- the exact same consistency
-     * rule `awardClassPoints`/`reverseClassPointAward` already enforce -- but
-     * for a different purpose: there is no teacher actor here, so the class's
-     * OWN `teacherOfRecord` is passed as the "actor", which makes the
-     * teacher-identity check in that function a no-op (it always agrees with
-     * itself) while still requiring: the class exists, is not archived, the
-     * student's own grade record currently names this same class, the class
-     * has a `teacherOfRecord` at all, and the roster's `assignedTeacherEmail`
-     * agrees with it. Any of those failing means the roster is not in a state
-     * a redemption should spend real points against.
-     */
-    const consistency = points.authorizeClassPointsActor({
-      isRootAdmin: false,
-      teacherEmail: classRecord?.teacherOfRecord,
-      classRecord,
-      studentRecord: gradeData,
-      requestedClassId: classId,
-    });
-    if (!consistency.authorized) throw new HttpsError(consistency.reason, consistency.message);
-
-    const assignedToClass = studentMatchesAssignmentAudience({ assignment, classId });
-    const isTestCycleAssignment = secureAssignmentMode(assignment) || assignment.secure === true;
-    const practiceIndices = runtimeIncludedQuestionIndicesForSection(assignment, "practice");
-
-    const { normalizeQuestionRecord } = await import("./shared/attemptPolicy.mjs");
-    const tracker = gradeData?.gradesByAssignment?.[assignmentId] || {};
-    // Authoritative evidence only -- never the existence of a local draft. A
-    // student who never submitted a Practice response may still redeem even
-    // if a browser has an unfinished draft sitting in studentWorkspaceDrafts.
-    const hasCreditBearingAttempt = practiceIndices.some((index) => {
-      const record = normalizeQuestionRecord(tracker?.[String(index)] ?? tracker?.[index]);
-      return Number(record.totalAttempts) > 0;
-    });
-
-    const account = accountSnap.exists ? accountSnap.data() : points.emptyAccount({ studentId, classId });
-
-    const decision = rewards.evaluatePracticePassEligibility({
-      assignment,
-      assignedToClass,
-      isTestCycleAssignment,
-      practiceIndices,
-      hasCreditBearingAttempt,
-      alreadyRedeemed: false,
-      balance: account.balance,
-      nowValue: Date.now(),
+  // Paying with a pass the student holds is the default whenever the caller
+  // says so; a call that names no payment keeps the original meaning (spend
+  // 100 Class Points), so a browser still running the previous build works.
+  const payWith = request.data?.payWith === rewards.PRACTICE_PASS_PAYMENT.PASS
+    ? rewards.PRACTICE_PASS_PAYMENT.PASS
+    : rewards.PRACTICE_PASS_PAYMENT.CLASS_POINTS;
+  const store = await rewardActionStore();
+  try {
+    return await store.redeemPracticePass(getFirestore(), {
       studentId,
+      assignmentId: input.assignmentId,
+      payWith,
+      preferredGrantId: String(request.data?.grantId || "").trim() || null,
+      actor: { uid: request.auth.uid, email: callerEmail(request) },
+      // Every fact the eligibility rule needs that only this file can compute,
+      // from the assignment the transaction itself just read.
+      assess: ({ assignment, classId }) => ({
+        assignedToClass: studentMatchesAssignmentAudience({ assignment, classId }),
+        isTestCycleAssignment: secureAssignmentMode(assignment) || assignment.secure === true,
+        practiceIndices: runtimeIncludedQuestionIndicesForSection(assignment, "practice"),
+      }),
     });
-    if (!decision.eligible) {
-      throw new HttpsError("failed-precondition", decision.message);
-    }
+  } catch (error) {
+    throw translateRewardActionError(error);
+  }
+});
 
-    const authorization = points.classPointsAuthorizationContext({
-      classRecord, existingRecord: accountSnap.exists ? account : null,
+// ---------------------------------------------------------------------------
+// Reward actions a teacher takes on one student's rewards. Each is one
+// transaction in functions/shared/rewardActionStore.mjs, authorized from the
+// class record (authorizeClassPointsActor) before anything is read back.
+// ---------------------------------------------------------------------------
+
+let rewardActionStoreModule = null;
+async function rewardActionStore() {
+  if (!rewardActionStoreModule) rewardActionStoreModule = await import("./shared/rewardActionStore.mjs");
+  return rewardActionStoreModule;
+}
+
+const REWARD_ACTION_HTTPS_CODES = new Set([
+  "invalid-argument", "failed-precondition", "permission-denied", "not-found", "already-exists",
+]);
+
+function translateRewardActionError(error) {
+  if (error?.name === "RewardActionError") {
+    const code = REWARD_ACTION_HTTPS_CODES.has(error.code) ? error.code : "failed-precondition";
+    return new HttpsError(code, error.message, error.detail || undefined);
+  }
+  return translateClassPointsError(error);
+}
+
+async function rewardTeacher(request) {
+  const uid = await requireTeacher(request);
+  const email = callerEmail(request);
+  if (!email) throw new HttpsError("permission-denied", "Sign in with a verified school email to manage rewards.");
+  return { uid, email, isRootAdmin: authLib.isRootAdminEmail(email) };
+}
+
+/** A teacher gives one student a Practice Pass or a badge. */
+exports.awardRewardGrant = onCall(async (request) => {
+  const teacher = await rewardTeacher(request);
+  const data = request.data || {};
+  const store = await rewardActionStore();
+  try {
+    return await store.awardRewardGrant(getFirestore(), {
+      studentId: data.studentId,
+      classId: data.classId,
+      rewardCode: data.rewardCode,
+      label: data.label,
+      note: data.note,
+      expiresInDays: data.expiresInDays ?? null,
+      requestId: data.requestId,
+      teacher,
     });
+  } catch (error) {
+    throw translateRewardActionError(error);
+  }
+});
 
-    const nowIso = new Date().toISOString();
-    const assignmentTitle = rewards.safeAssignmentTitle(assignment);
-    const transactionRef = db.collection(CLASS_POINT_TRANSACTIONS_COLLECTION).doc();
-    const ledgerTransaction = rewards.buildPracticePassLedgerTransaction({
-      studentId,
-      classId,
-      assignmentId,
-      assignmentTitle,
-      redemptionId,
-      issuedByUid: request.auth.uid,
-      issuedByEmail: callerEmail(request),
-      originTeacherEmail: authorization.originTeacherEmail,
-      authorizedTeacherEmails: authorization.authorizedTeacherEmails,
-      at: nowIso,
+/** A teacher takes back an unused reward, with a reason the student sees. */
+exports.revokeRewardGrant = onCall(async (request) => {
+  const teacher = await rewardTeacher(request);
+  const store = await rewardActionStore();
+  try {
+    return await store.revokeRewardGrant(getFirestore(), {
+      grantId: request.data?.grantId,
+      reason: request.data?.reason,
+      teacher,
     });
+  } catch (error) {
+    throw translateRewardActionError(error);
+  }
+});
 
-    let nextAccount;
-    try {
-      nextAccount = points.applyTransaction(account, ledgerTransaction);
-    } catch (error) {
-      throw translateClassPointsError(error);
-    }
-    nextAccount = {
-      ...nextAccount,
-      originTeacherEmail: authorization.originTeacherEmail,
-      authorizedTeacherEmails: authorization.authorizedTeacherEmails,
-    };
-
-    const redemption = rewards.buildPracticePassRedemption({
-      redemptionId, studentId, classId, assignmentId, assignmentTitle, transactionId: transactionRef.id, at: nowIso,
+/** A teacher undoes a Practice Pass use: Practice is required again and the pass or points come back. */
+exports.undoPracticePassRedemption = onCall(async (request) => {
+  const teacher = await rewardTeacher(request);
+  const store = await rewardActionStore();
+  try {
+    return await store.undoPracticePassRedemption(getFirestore(), {
+      redemptionId: request.data?.redemptionId,
+      reason: request.data?.reason,
+      teacher,
     });
+  } catch (error) {
+    throw translateRewardActionError(error);
+  }
+});
 
-    transaction.set(transactionRef, ledgerTransaction);
-    transaction.set(accountRef, nextAccount);
-    transaction.set(redemptionRef, redemption);
-
-    return {
-      redemptionId,
-      redemption,
-      account: nextAccount,
-      transaction: ledgerTransaction,
-      replay: false,
-    };
-  });
+/**
+ * Everything a teacher needs to understand ONE student's rewards in one class,
+ * in one authorized, one-time read (rewardActionStore.mjs
+ * loadStudentRewardsForTeacher): what they hold, what they used and on what,
+ * what was taken back, their recent Class Points, and — for the last few Live
+ * Challenges — why each reward rule did or did not pay out and whether the
+ * reward arrived. No listener: Refresh re-reads.
+ */
+exports.getStudentRewards = onCall(async (request) => {
+  const teacher = await rewardTeacher(request);
+  const store = await rewardActionStore();
+  try {
+    return await store.loadStudentRewardsForTeacher(getFirestore(), {
+      studentId: request.data?.studentId,
+      classId: request.data?.classId,
+      teacher,
+    });
+  } catch (error) {
+    throw translateRewardActionError(error);
+  }
 });
 
 /*
@@ -8411,7 +8471,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
               .collection(CLASS_POINT_REWARD_REDEMPTIONS_COLLECTION)
               .doc(redemptionId)
               .get();
-            if (redemptionSnap.exists) {
+            if (rewards.isActivePracticePassRedemption(redemptionSnap.exists ? redemptionSnap.data() : null)) {
               questionIndices = rewards.excludeWaivedIndices(
                 questionIndices,
                 rewards.waivedPracticeIndices({ hasRedemption: true, practiceIndices }),
@@ -9108,6 +9168,20 @@ async function liveChallengeEvidenceRules() {
   return liveChallengeEvidenceModule;
 }
 
+// GRAPH FEATURE RUSH: the mode's own pure rules (attempts, generation, config).
+let graphFeatureRushModules = null;
+async function graphFeatureRushRules() {
+  if (!graphFeatureRushModules) {
+    const [rush, generator, config] = await Promise.all([
+      import("./shared/graphFeatureRush.mjs"),
+      import("./shared/graphFeatureGenerator.mjs"),
+      import("./shared/graphFeatureRushConfig.mjs"),
+    ]);
+    graphFeatureRushModules = { rush, generator, config };
+  }
+  return graphFeatureRushModules;
+}
+
 // THE ENGINE CONTRACTS every Live Challenge callable runs through. They are
 // pure modules shared with the browser; see docs/architecture/
 // live-challenge-engine.md for what each owns.
@@ -9259,9 +9333,12 @@ function selectChallengeQuestions(entries, requestedCount) {
  *
  * A game mode declares where its questions come from; this is the only place
  * that knows how to build them. `plan` returns the selected entries plus any
- * server-only authored questions and seed. `swap` replaces one dry-run round.
- * A new mode with a new source adds a planner here — it does not add a branch
- * to createLiveChallenge.
+ * server-only authored questions and seed, and may contribute fields of its
+ * own to the room (`roomFields`, public) and the private state
+ * (`privateFields`). `swap` replaces one dry-run round. `openRound`, when a
+ * planner has one, builds a round's opening itself instead of drawing a bank
+ * question. A new mode with a new source adds a planner here — it does not
+ * add a branch to createLiveChallenge.
  */
 const LIVE_CHALLENGE_QUESTION_PLANNERS = Object.freeze({
   secureBank: Object.freeze({
@@ -9342,8 +9419,59 @@ const LIVE_CHALLENGE_QUESTION_PLANNERS = Object.freeze({
   }),
 });
 
+/*
+ * GRAPH FEATURE RUSH draws nothing up front: each student's graphs are
+ * generated from the room's private seed as they reach them
+ * (getGraphFeatureRushRound) and regenerated to grade a tap. A round is a
+ * placeholder id, which recovery and the report read; the round's public
+ * question is a card naming what to look for, never a graph.
+ */
+const GRAPH_FEATURE_RUSH_PLANNER = Object.freeze({
+  async plan({ modeConfig, roundCount }) {
+    const { generator } = await graphFeatureRushRules();
+    const config = modeConfig.graphFeatureRush;
+    const generatorVersion = generator.GRAPH_FEATURE_GENERATOR_VERSION;
+    return {
+      candidateCount: roundCount,
+      selected: Array.from({ length: roundCount }, (_, index) => ({
+        question: { id: `graphFeatureRush:round:${index + 1}`, alignmentKeys: [] },
+      })),
+      roundQuestions: null,
+      seed: null,
+      // The seed never leaves the server: it is what makes a student's graphs
+      // theirs and reproducible.
+      privateFields: { graphFeatureRush: { seed: crypto.randomUUID(), config, generatorVersion } },
+      roomFields: { graphFeatureRush: { config, generatorVersion } },
+    };
+  },
+  async swap() {
+    throw new HttpsError("failed-precondition", "Graph Feature Rush graphs are generated for each student; there is no shared round to swap.");
+  },
+  async openRound({ room, privateState, roundIndex, mode, engine }) {
+    const questionId = privateState.questionIds?.[roundIndex];
+    if (!questionId) throw new HttpsError("failed-precondition", "That Live Challenge round has no question.");
+    const config = privateState.graphFeatureRush?.config || room.graphFeatureRush?.config || {};
+    return {
+      roundIndex,
+      questionId,
+      currentQuestion: {
+        kind: "graphFeatureRush",
+        challengeRound: roundIndex,
+        prompt: "Find the features on your own graphs",
+        features: Array.isArray(config.features) ? config.features : [],
+        families: Array.isArray(config.families) ? config.families : [],
+        difficulty: config.difficulty || null,
+        teksCode: null,
+      },
+      roundSeconds: engine.modes.normalizeModeRoundSeconds(mode, room.roundSeconds),
+    };
+  },
+});
+
 function liveChallengeQuestionPlanner(mode) {
-  const planner = LIVE_CHALLENGE_QUESTION_PLANNERS[mode?.questionSource];
+  const planner = mode?.questionSource === "graphFeatureGenerator"
+    ? GRAPH_FEATURE_RUSH_PLANNER
+    : LIVE_CHALLENGE_QUESTION_PLANNERS[mode?.questionSource];
   if (!planner) throw new HttpsError("failed-precondition", `The ${mode?.label || "selected"} game has no question source on this server.`);
   return planner;
 }
@@ -9528,30 +9656,48 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
     }
   }
 
-  const standardCode = challenge.canonicalChallengeStandard(
-    request.data?.standardCode || warmupChallengeConfig?.standardCode || "mixed",
-  );
-  const requestedRoundCount = challenge.normalizeRoundCount(
-    request.data?.roundCount || warmupChallengeConfig?.roundCount,
-  );
-  const roundSeconds = challenge.normalizeRoundSeconds(
-    request.data?.roundSeconds || warmupChallengeConfig?.roundSeconds,
-  );
-  const timingMode = challenge.normalizeChallengeTimingMode(request.data?.timingMode);
-  const roundClosingThreshold = challenge.normalizeRoundClosingThreshold(request.data?.roundClosingThreshold);
-  const secondChanceMode = request.data?.secondChanceMode === "automatic" ? "automatic" : "off";
-  const defaultTitle = `${className || classPeriod || "Class"} Live Challenge`;
-  const title = String(request.data?.title || defaultTitle).trim().slice(0, 120) || defaultTitle;
-
   // THE MODE, ITS SCORING AND ITS REWARDS are resolved through the engine
   // registries, before any roster or bank work, so a bad request fails fast.
   // An unknown mode is the standard game, which is what it always was.
   const engine = await liveChallengeEngine();
   const mode = engine.modes.getChallengeMode(request.data?.challengeMode);
-  const modeConfig = engine.modes.normalizeModeConfig(mode, request.data || {});
+  if (assignmentId && !mode.capabilities.warmupLink) {
+    throw new HttpsError("failed-precondition", `${mode.label} cannot run as an assignment's Warm-Up yet. Launch it from Live Challenge instead.`);
+  }
+
+  const standardCode = challenge.canonicalChallengeStandard(
+    request.data?.standardCode || warmupChallengeConfig?.standardCode || "mixed",
+  );
+  // The mode's own limits (a rush may be one round; the classic games keep
+  // theirs), and only the settings the mode actually has.
+  const requestedRoundCount = engine.modes.normalizeModeRoundCount(
+    mode,
+    request.data?.roundCount || warmupChallengeConfig?.roundCount,
+  );
+  const roundSeconds = engine.modes.normalizeModeRoundSeconds(
+    mode,
+    request.data?.roundSeconds || warmupChallengeConfig?.roundSeconds,
+  );
+  const timingMode = mode.capabilities.paceTiming ? challenge.normalizeChallengeTimingMode(request.data?.timingMode) : "timed";
+  const roundClosingThreshold = mode.capabilities.closingThreshold
+    ? challenge.normalizeRoundClosingThreshold(request.data?.roundClosingThreshold)
+    : null;
+  const secondChanceMode = mode.capabilities.secondChance && request.data?.secondChanceMode === "automatic" ? "automatic" : "off";
+  const defaultTitle = `${className || classPeriod || "Class"} Live Challenge`;
+  const title = String(request.data?.title || defaultTitle).trim().slice(0, 120) || defaultTitle;
+
+  let modeConfig;
+  try {
+    modeConfig = engine.modes.normalizeModeConfig(mode, request.data || {});
+  } catch (error) {
+    if (error?.name === "GraphFeatureRushConfigError") throw new HttpsError("invalid-argument", error.message);
+    throw error;
+  }
   const { questionStyle, solverRaceFocus, solverRaceDifficulty } = modeConfig;
   const scoringStrategyId = engine.modes.resolveModeScoringStrategy(mode, request.data?.scoringStrategyId);
-  const scoringConfig = engine.scoring.getScoringStrategy(scoringStrategyId).normalizeConfig(request.data?.scoringConfig || {});
+  // The mode's scoring defaults first (a rush's Grand Prix scales to the
+  // class), then anything the request set explicitly.
+  const scoringConfig = engine.modes.modeScoringConfig(mode, scoringStrategyId, request.data?.scoringConfig || {});
   let rewardPolicy;
   try {
     rewardPolicy = engine.rewardRules.normalizeRewardPolicy(request.data?.rewardPolicy);
@@ -9582,7 +9728,7 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   const planned = await liveChallengeQuestionPlanner(mode).plan({
     db, courseId, standardCode, modeConfig, roundCount: requestedRoundCount,
   });
-  if (planned.candidateCount < challenge.MIN_ROUND_COUNT) {
+  if (planned.candidateCount < mode.roundLimits.minRounds) {
     throw new HttpsError(
       "failed-precondition",
       standardCode === "mixed"
@@ -9652,6 +9798,13 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
     // Kept for readers that predate scoringStrategyId.
     scoringMode: scoringStrategyId,
     speedInfluencePercent,
+    // Public settings a mode's planner contributes (a rush's families and
+    // features, which the projector shows; never its seed).
+    ...planned.roomFields,
+    // What placements earn ("Top 3: Practice Pass"), for the lobby and final
+    // screens. Names rewards, never students; the policy itself stays private
+    // and rewards are still delivered only from the match result.
+    rewardSummary: engine.rewardRules.publicRewardSummary(rewardPolicy),
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -9664,6 +9817,7 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
     // Generated solver definitions stay in the server-only challenge document.
     // Public room payloads are produced by the normal Path sanitizer below.
     roundQuestions: planned.roundQuestions,
+    ...planned.privateFields,
     scoringStrategyId,
     scoringConfig,
     // Validated when the room was created; read by the reward pipeline from
@@ -9825,6 +9979,9 @@ exports.createChallengeDryRun = onCall(async (request) => {
   // rehearses exactly what students would receive.
   const engine = await liveChallengeEngine();
   const mode = engine.modes.getChallengeMode(request.data?.challengeMode);
+  if (!mode.capabilities.dryRun) {
+    throw new HttpsError("failed-precondition", `${mode.label} is rehearsed with its own preview, not a dry run.`);
+  }
   const modeConfig = engine.modes.normalizeModeConfig(mode, request.data || {});
   const { questionStyle, solverRaceFocus, solverRaceDifficulty } = modeConfig;
   const planned = await liveChallengeQuestionPlanner(mode).plan({
@@ -10042,12 +10199,14 @@ function liveChallengeRoundResponse(roomId, room = {}, extra = {}) {
 function liveChallengeRoundCompletion(engine, room, players) {
   const mode = engine.modes.getChallengeMode(room.challengeMode);
   const roundIndex = Number(room.currentRound);
-  const questionSpecs = engine.modes.roundQuestionSpecsFor(mode);
   let joinedCount = 0;
   let completedCount = 0;
   players.forEach((player) => {
     if (player.joined !== true) return;
     joinedCount += 1;
+    // Per-player modes read each player's own question specs from their log;
+    // a rush player "finishes" only by working through the whole pool.
+    const questionSpecs = engine.modes.roundQuestionSpecsFor(mode, { receipts: player.submissionReceipts, roundIndex });
     const finished = Number(player.answeredRound) === roundIndex
       || engine.responses.summarizeRoundProgress({ receipts: player.submissionReceipts, roundIndex, questionSpecs }).finished;
     if (finished) completedCount += 1;
@@ -10057,6 +10216,12 @@ function liveChallengeRoundCompletion(engine, room, players) {
 
 /** The next round's public question and duration. Deterministic for a given room/round/question. */
 async function prepareLiveChallengeRoundOpening(db, { roomId, room, privateState, roundIndex }) {
+  const engine = await liveChallengeEngine();
+  const mode = engine.modes.getChallengeMode(room.challengeMode);
+  const planner = liveChallengeQuestionPlanner(mode);
+  if (typeof planner.openRound === "function") {
+    return planner.openRound({ db, roomId, room, privateState, roundIndex, mode, engine });
+  }
   const challenge = await liveChallengeRules();
   const questionId = privateState.questionIds?.[roundIndex];
   if (!questionId) throw new HttpsError("failed-precondition", "That Live Challenge round has no question.");
@@ -10075,8 +10240,11 @@ function applyLiveChallengeRoundOpening(transaction, {
 }) {
   const { lifecycle } = engine;
   const timingMode = challenge.normalizeChallengeTimingMode(room.timingMode);
+  // Every round starts in the future by the countdown lead: each screen shows
+  // the same 3-2-1 off this startsAt, and nobody can answer before it.
   const timer = engine.timer.buildRoundTimer({
     nowMs,
+    syncLeadMs: engine.timer.ROUND_COUNTDOWN_LEAD_MS,
     durationMs: timingMode === "pace" ? null : opening.roundSeconds * 1000,
   });
   const roundIndex = opening.roundIndex;
@@ -10158,38 +10326,91 @@ function applyLiveChallengeRoundClose(transaction, {
     ...roundResult,
     closedAt: FieldValue.serverTimestamp(),
   });
+
+  const perRound = strategy.accumulation === engine.scoring.SCORE_ACCUMULATION.PER_ROUND;
+  // A question-set round leaves each player their own round facts on their
+  // public record — what their round-results screen shows, also after a
+  // refresh. Anonymous: alias-keyed, counts and percentages only.
+  const questionSet = engine.modes.roundStructureFor(engine.modes.getChallengeMode(room.challengeMode)).id
+    === engine.modes.ROUND_STRUCTURE.QUESTION_SET;
+  const updatedPlayers = perRound || questionSet
+    ? applyLiveChallengeRoundPlayerTotals(transaction, {
+      engine, roomRef, privateRef, room, players, roundIndex, roundResult, scoringStrategyId, perRound, questionSet,
+    })
+    : players;
+  // The anonymous copy carries the match standings this round left behind,
+  // ranked from the totals just written, so a results screen shows the round
+  // and the standings it produced from one document — and movement since the
+  // last round compares two ranks the engine wrote.
   transaction.set(roomRef.collection("rounds").doc(String(roundIndex)), {
-    ...engine.results.publicRoundSummary(roundResult),
+    ...engine.results.publicRoundSummary(roundResult, {
+      standingsAfterRound: engine.results.matchStandingsAfterRound({
+        players: updatedPlayers, modeId: room.challengeMode, scoringStrategyId,
+      }),
+    }),
     closedAt: FieldValue.serverTimestamp(),
   });
-
-  if (strategy.accumulation !== engine.scoring.SCORE_ACCUMULATION.PER_ROUND) {
-    return { roundResult, players };
-  }
-  const standingByStudent = new Map(roundResult.standings.map((standing) => [standing.studentId, standing]));
-  const updatedPlayers = players.map((player) => {
-    const standing = standingByStudent.get(player.studentId);
-    const totals = engine.results.playerTotalsAfterRound({ player, standing, roundIndex, scoringStrategyId });
-    if (!totals || totals.alreadyApplied) return player;
-    const { alreadyApplied: _alreadyApplied, ...patch } = totals;
-    transaction.set(privateRef.collection("players").doc(player.studentId), {
-      ...patch,
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
-    if (player.joined === true && player.playerKey) {
-      transaction.set(roomRef.collection("players").doc(String(player.playerKey)), {
-        score: patch.score,
-        matchPoints: patch.matchPoints,
-        roundWins: patch.roundWins,
-        // Null when the round earned them nothing: no credit, no placement.
-        lastRoundRank: engine.results.roundPlacementRank(standing),
-        lastRoundMatchPoints: standing.matchPointsAwarded,
-        updatedAt: FieldValue.serverTimestamp(),
-      }, { merge: true });
-    }
-    return { ...player, ...patch };
-  });
   return { roundResult, players: updatedPlayers };
+}
+
+/**
+ * A closed round's effect on each player's record: placement points (a
+ * per-round strategy) and the player's own public round facts (a question-set
+ * round). Returns the players as they stand after the round.
+ */
+function applyLiveChallengeRoundPlayerTotals(transaction, {
+  engine, roomRef, privateRef, room, players, roundIndex, roundResult, scoringStrategyId, perRound, questionSet,
+}) {
+  const publicStandings = new Map(engine.results.publicRoundSummary(roundResult).standings.map((row) => [row.playerKey, row]));
+  const standingByStudent = new Map(roundResult.standings.map((standing) => [standing.studentId, standing]));
+  return players.map((player) => {
+    const standing = standingByStudent.get(player.studentId);
+    let patch = null;
+    if (perRound) {
+      const totals = engine.results.playerTotalsAfterRound({ player, standing, roundIndex, scoringStrategyId });
+      if (totals && !totals.alreadyApplied) {
+        const { alreadyApplied: _alreadyApplied, ...rest } = totals;
+        patch = rest;
+        transaction.set(privateRef.collection("players").doc(player.studentId), {
+          ...patch,
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
+    }
+    if (player.joined === true && player.playerKey && standing) {
+      const publicRow = publicStandings.get(String(player.playerKey)) || {};
+      const publicPatch = {
+        ...(patch ? {
+          score: patch.score,
+          matchPoints: patch.matchPoints,
+          roundWins: patch.roundWins,
+          // Null when the round earned them nothing: no credit, no placement.
+          lastRoundRank: engine.results.roundPlacementRank(standing),
+          lastRoundMatchPoints: standing.matchPointsAwarded,
+        } : {}),
+        ...(questionSet ? {
+          lastRound: {
+            roundIndex,
+            roundVersion: Math.max(0, Number(room.roundVersion) || 0),
+            rank: standing.participated ? standing.rank : null,
+            fieldSize: roundResult.fieldSize,
+            completed: Number(publicRow.completed) || 0,
+            accuracyPercent: publicRow.accuracyPercent ?? null,
+            workScore: Number(standing.metrics?.workScore) || 0,
+            matchPointsAwarded: standing.matchPointsAwarded,
+            participated: standing.participated === true,
+          },
+        } : {}),
+      };
+      if (Object.keys(publicPatch).length) {
+        transaction.set(roomRef.collection("players").doc(String(player.playerKey)), {
+          ...publicPatch,
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
+    }
+    return patch ? { ...player, ...patch } : player;
+  });
 }
 
 /**
@@ -10359,8 +10580,21 @@ async function writeLiveChallengeReportFromResult(db, result) {
     players,
   });
   const finishedAt = Number(result.finalizedAtMs) ? new Date(Number(result.finalizedAtMs)) : FieldValue.serverTimestamp();
+  // A question-set game has no one question per round and no standard per
+  // round: its report is the breakdown by feature and family, and its class
+  // accuracy is every tap.
+  const { modes } = await liveChallengeEngine();
+  const questionSet = modes.roundStructureFor(modes.getChallengeMode(result.modeId)).id === modes.ROUND_STRUCTURE.QUESTION_SET;
+  const rushReport = questionSet ? (await graphFeatureRushRules()).rush.buildRushReport(result) : null;
   await db.collection(LIVE_CHALLENGE_REPORTS).doc(result.roomId).set({
     ...report,
+    ...(rushReport ? {
+      graphFeatureRush: rushReport,
+      classAccuracyPercent: rushReport.accuracyPercent,
+      rounds: [],
+      standards: [],
+      weakestStandard: null,
+    } : {}),
     roomId: result.roomId,
     teacherEmail: result.teacherEmail,
     classId: result.classId || null,
@@ -10443,7 +10677,16 @@ async function writeChallengeEvidenceFromResult(db, result) {
 async function deliverLiveChallengeRewardsFromResult(db, result) {
   if (result.status !== "finished") return;
   const rewards = await liveChallengeClassPoints();
-  await rewards.processLiveChallengeMatchRewards(db, { matchResult: result, policy: result.rewardPolicy || null });
+  const delivery = await rewards.processLiveChallengeMatchRewards(db, { matchResult: result, policy: result.rewardPolicy || null });
+  // A match whose rewards were skipped as a whole (an archived class, a class
+  // with no teacher of record) writes no award job, so without this the
+  // teacher's reward diagnostics could not say why nobody was rewarded.
+  // update(), never set(): a result removed meanwhile stays removed.
+  if (delivery?.status === "skipped" && result.roomId) {
+    await db.collection(LIVE_CHALLENGE_MATCH_RESULTS).doc(String(result.roomId))
+      .update({ rewardsSkipReason: String(delivery.reason || "skipped") })
+      .catch((error) => logger.warn("liveChallenge.rewards.skipReason.unrecorded", { roomId: result.roomId, message: error?.message || String(error) }));
+  }
 }
 
 // After this many runs an effect that still fails stops being retried by the
@@ -10695,15 +10938,66 @@ exports.calibrateLiveChallengeClock = onCall(async (request) => {
     const db = getFirestore();
     const privatePlayer = await db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId).collection("players").doc(studentId).get();
     if (privatePlayer.exists && privatePlayer.data()?.playerKey) {
-      const quality = ["synchronized", "delayed", "reconnecting", "degraded"].includes(request.data.quality) ? request.data.quality : "delayed";
-      await db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId).collection("diagnostics").doc(privatePlayer.data().playerKey).set({
-        connectionStatus: quality,
-        connectionRttCategory: quality === "synchronized" ? "normal" : "elevated",
-        connectionUpdatedAt: FieldValue.serverTimestamp(),
-      }, { merge: true });
+      // The game screen's heartbeat (shared/liveChallengePresence.mjs): its
+      // quality, which tabs/devices it is on, and whether it is back after a
+      // silence — read and written together so two tabs' reports never drop
+      // each other. The device map is replaced, not merged, so a session
+      // aged out of it really leaves.
+      const presence = await import("./shared/liveChallengePresence.mjs");
+      const diagnosticsRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId).collection("diagnostics").doc(privatePlayer.data().playerKey);
+      await db.runTransaction(async (transaction) => {
+        const previous = await transaction.get(diagnosticsRef);
+        const previousData = previous.exists ? previous.data() || {} : {};
+        const report = presence.nextConnectionReport({
+          previousHeardMs: toDate(previousData.connectionUpdatedAt)?.getTime() || null,
+          previousSessions: previousData.sessions || null,
+          quality: request.data.quality,
+          sessionId: request.data.sessionId,
+          nowMs: serverAt,
+        });
+        const fields = { ...report, connectionUpdatedAt: FieldValue.serverTimestamp() };
+        transaction.set(diagnosticsRef, fields, { mergeFields: Object.keys(fields) });
+      });
     }
   }
   return { serverAt };
+});
+
+/*
+ * THE TEACHER'S ROSTER FOR A ROOM: player key -> student name.
+ *
+ * The public player rows are anonymous by design (code names by default), so
+ * a teacher running a game could not tell who had not joined, whose device had
+ * gone quiet, or who was signed in twice. This read-only callable gives the
+ * room's own teacher the names for their CONSOLE — never the projector — and
+ * nothing else: no student ids, no scores (the public rows carry those).
+ * A finished room's private state is deleted by its effects; its roster is
+ * then empty, and the console falls back to the game aliases.
+ */
+exports.getLiveChallengeHostRoster = onCall(async (request) => {
+  const roomId = String(request.data?.roomId || "").trim();
+  if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
+  const db = getFirestore();
+  await requireOwnedChallenge(db, request, roomId);
+  const players = await loadPrivateChallengePlayers(db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId));
+  if (!players.length) return { roomId, players: [] };
+  const { experience } = await liveChallengeEngine();
+  const grades = await db.getAll(...players.map((player) => db.collection("grades").doc(player.studentId)));
+  return {
+    roomId,
+    players: players
+      .filter((player) => player.playerKey)
+      .map((player, index) => ({
+        playerKey: String(player.playerKey),
+        name: experience.displayAliasForStudent({
+          student: grades[index]?.exists ? grades[index].data() || {} : {},
+          mode: "fullName",
+          codeAlias: "Student",
+        }),
+        alias: String(player.alias || ""),
+        joined: player.joined === true,
+      })),
+  };
 });
 
 exports.startLiveChallenge = onCall(async (request) => {
@@ -11020,6 +11314,10 @@ exports.reportLiveChallengeProgress = onCall(async (request) => {
     throw new HttpsError("permission-denied", "This Live Challenge was not assigned to you.");
   }
   const room = roomSnapshot.data() || {};
+  // A per-player mode reports its progress through its own attempts.
+  if (engine.modes.getChallengeMode(room.challengeMode).questionIssue === engine.modes.QUESTION_ISSUE.PER_PLAYER) {
+    return { recorded: false };
+  }
   const privateState = privateSnapshot.data() || {};
   const player = playerSnapshot.data() || {};
   const requestedVersion = Number(request.data?.roundVersion);
@@ -11209,6 +11507,11 @@ exports.updateLiveChallengePacing = onCall(async (request) => {
   const db = getFirestore();
   const challenge = await liveChallengeRules();
   const { roomRef, room } = await requireOwnedChallenge(db, request, roomId);
+  // A mode without a closing threshold (a timed rush) has no early close.
+  const { modes } = await liveChallengeEngine();
+  if (!modes.getChallengeMode(room.challengeMode).capabilities.closingThreshold) {
+    return { roomId, roundClosingThreshold: null };
+  }
   const roundClosingThreshold = challenge.normalizeRoundClosingThreshold(request.data?.roundClosingThreshold);
   await roomRef.set({ roundClosingThreshold, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   if (room.status === challenge.LIVE_CHALLENGE_STATUS.RUNNING) {
@@ -11250,6 +11553,9 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   if (!roomSnapshot.exists || !privateSnapshot.exists || !playerSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge is no longer available.");
   if (!inviteSnapshot.exists || inviteSnapshot.data()?.roomId !== roomId) throw new HttpsError("permission-denied", "This Live Challenge was not assigned to you.");
   const room = roomSnapshot.data() || {};
+  if (engine.modes.getChallengeMode(room.challengeMode).questionIssue === engine.modes.QUESTION_ISSUE.PER_PLAYER) {
+    throw new HttpsError("failed-precondition", "This game is played by tapping graphs, not by submitting an answer.");
+  }
   const submittedVersion = requestedVersion ?? Number(room.roundVersion || 0);
   const submittedToken = requestedToken ?? String(room.roundToken || "");
   const expectedRound = { roundIndex: submittedRound, roundVersion: submittedVersion, roundToken: submittedToken };
@@ -11512,6 +11818,237 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   };
 });
 
+
+// ---------------------------------------------------------------------------
+// GRAPH FEATURE RUSH: A STUDENT'S OWN GRAPHS, AND THEIR TAPS.
+//
+// The rush's rounds open, close and finish through the same lifecycle
+// commands as every mode, on the room's authoritative clock. What it adds is
+// how a student gets questions and answers them:
+//
+//   getGraphFeatureRushRound        where the student stands in the round,
+//                                   read from their receipts, and their next
+//                                   graphs, generated from the room's private
+//                                   seed. Writes nothing.
+//   submitGraphFeatureRushAttempts  a batch of taps, "Does Not Exist" presses
+//                                   and skips, graded in ONE transaction
+//                                   against the server's own regenerated
+//                                   questions (graphFeatureRush.
+//                                   applyRushAttempts) and recorded as
+//                                   targetAttempt receipts. A retried batch
+//                                   replays by attempt id; a graph completes
+//                                   once.
+//   previewGraphFeatureRush         sample graphs for a teacher's settings.
+//
+// The device grades each tap instantly with the same hit test; the server's
+// verdict is the one that counts, and the device resynchronizes to it.
+// ---------------------------------------------------------------------------
+
+const optionalRushInteger = (value) => {
+  if (value === undefined || value === null || value === "") return null;
+  const numeric = Number(value);
+  return Number.isInteger(numeric) ? numeric : Number.NaN;
+};
+const optionalRushString = (value) => (value === undefined || value === null ? null : String(value).trim());
+
+async function loadGraphFeatureRushContext(db, { studentId, roomId }) {
+  const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId);
+  const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
+  const privatePlayerRef = privateRef.collection("players").doc(studentId);
+  const inviteRef = db.collection(LIVE_CHALLENGE_INVITES).doc(studentId);
+  const [roomSnapshot, privateSnapshot, playerSnapshot, inviteSnapshot] = await Promise.all([
+    roomRef.get(), privateRef.get(), privatePlayerRef.get(), inviteRef.get(),
+  ]);
+  if (!roomSnapshot.exists || !privateSnapshot.exists || !playerSnapshot.exists) {
+    throw new HttpsError("not-found", "That Live Challenge is no longer available.");
+  }
+  if (!inviteSnapshot.exists || inviteSnapshot.data()?.roomId !== roomId) {
+    throw new HttpsError("permission-denied", "This Live Challenge was not assigned to you.");
+  }
+  const room = roomSnapshot.data() || {};
+  const engine = await liveChallengeEngine();
+  const mode = engine.modes.getChallengeMode(room.challengeMode);
+  if (mode.questionSource !== engine.modes.QUESTION_SOURCE.GRAPH_FEATURE_GENERATOR) {
+    throw new HttpsError("failed-precondition", "This Live Challenge is not a Graph Feature Rush.");
+  }
+  const rules = await graphFeatureRushRules();
+  const rushState = (privateSnapshot.data() || {}).graphFeatureRush || {};
+  // A room is graded with the generator it was created under, or not at all:
+  // regenerating under different rules would grade a tap on a graph the
+  // student never saw.
+  if (!rushState.seed || Number(rushState.generatorVersion) !== rules.generator.GRAPH_FEATURE_GENERATOR_VERSION) {
+    throw new HttpsError("failed-precondition", "This Graph Feature Rush was created before an update. Ask your teacher to start a new game.");
+  }
+  return { engine, rules, mode, room, roomRef, privatePlayerRef, player: playerSnapshot.data() || {}, rushState };
+}
+
+/** Question k of one student's round: deterministic, generated once per call. */
+function graphFeatureRushIssuer({ rules, rushState, studentId, roundIndex }) {
+  const issued = new Map();
+  return (questionIndex) => {
+    if (!issued.has(questionIndex)) {
+      issued.set(questionIndex, rules.generator.generateRushQuestion({
+        seed: rushState.seed, studentKey: studentId, roundIndex, questionIndex, config: rushState.config,
+      }));
+    }
+    return issued.get(questionIndex);
+  };
+}
+
+exports.getGraphFeatureRushRound = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const db = getFirestore();
+  const roomId = String(request.data?.roomId || "").trim();
+  const roundIndex = Number(request.data?.roundIndex);
+  const roundVersion = optionalRushInteger(request.data?.roundVersion);
+  const roundToken = optionalRushString(request.data?.roundToken);
+  if (!roomId || !Number.isInteger(roundIndex) || roundIndex < 0 || Number.isNaN(roundVersion)) {
+    throw new HttpsError("invalid-argument", "roomId and roundIndex are required.");
+  }
+  const { engine, rules, mode, room, player, rushState } = await loadGraphFeatureRushContext(db, { studentId, roomId });
+  const { lifecycle } = engine;
+  const poolSize = mode.questionSpecs.length;
+  const state = rules.rush.rushRoundState({ receipts: player.submissionReceipts || {}, roundIndex, poolSize });
+  const roundOpen = lifecycle.planLifecycleCommand({
+    command: lifecycle.LIFECYCLE_COMMAND.SUBMIT,
+    room,
+    expected: { roundIndex, roundVersion, roundToken },
+  }).outcome === lifecycle.LIFECYCLE_OUTCOME.APPLY;
+  // Graphs only for an open round the student has joined, starting no
+  // earlier than where they are and no further ahead than two batches.
+  const requested = Number(request.data?.fromIndex);
+  const fromIndex = Number.isInteger(requested)
+    ? Math.min(Math.max(requested, state.cursor), state.cursor + 2 * rules.rush.RUSH_LIMITS.issueBatch)
+    : state.cursor;
+  const count = Math.max(0, Math.min(rules.rush.RUSH_LIMITS.issueBatch, Math.floor(Number(request.data?.count ?? 6)) || 0));
+  const issue = graphFeatureRushIssuer({ rules, rushState, studentId, roundIndex });
+  const joined = player.joined === true;
+  const questions = roundOpen && joined
+    ? Array.from({ length: Math.max(0, Math.min(count, poolSize - fromIndex)) }, (_, offset) => rules.generator.publicRushQuestion(issue(fromIndex + offset)))
+    : [];
+  // `poolSize` is where the round's graphs end; `joined` tells a device whose
+  // join is still on its way to ask again rather than to give up.
+  return { roomId, roundIndex, roundOpen, joined, poolSize, state, questions };
+});
+
+exports.submitGraphFeatureRushAttempts = onCall(async (request) => {
+  const requestArrivedAt = Date.now();
+  const { studentId } = requireStudent(request);
+  const db = getFirestore();
+  const roomId = String(request.data?.roomId || "").trim();
+  const roundIndex = Number(request.data?.roundIndex);
+  const roundVersion = optionalRushInteger(request.data?.roundVersion);
+  const roundToken = optionalRushString(request.data?.roundToken);
+  const attempts = Array.isArray(request.data?.attempts) ? request.data.attempts : [];
+  if (!roomId || !Number.isInteger(roundIndex) || roundIndex < 0 || !Number.isInteger(roundVersion) || !attempts.length) {
+    throw new HttpsError("invalid-argument", "roomId, roundIndex, roundVersion and attempts are required.");
+  }
+  const { engine, rules, mode, room, roomRef, privatePlayerRef, rushState } = await loadGraphFeatureRushContext(db, { studentId, roomId });
+  const { lifecycle, timer: roundTimer } = engine;
+  const expected = { roundIndex, roundVersion, roundToken };
+  // Cheap refusals before the transaction: a stale round, a closed one, or a
+  // request that arrived after the deadline's bounded grace.
+  const precheck = lifecycle.planLifecycleCommand({ command: lifecycle.LIFECYCLE_COMMAND.SUBMIT, room, expected });
+  if (precheck.outcome !== lifecycle.LIFECYCLE_OUTCOME.APPLY) {
+    throw new HttpsError("failed-precondition", precheck.message, { lifecycle: precheck.code });
+  }
+  if (!roundTimer.timerAcceptsArrival(roundTimer.timerFromRoom(room), requestArrivedAt).accepted) {
+    throw new HttpsError("deadline-exceeded", "Time is up for this round.");
+  }
+  const poolSize = mode.questionSpecs.length;
+  const issue = graphFeatureRushIssuer({ rules, rushState, studentId, roundIndex });
+
+  const outcome = await db.runTransaction(async (transaction) => {
+    const [latestRoomSnapshot, latestPlayerSnapshot] = await Promise.all([
+      transaction.get(roomRef), transaction.get(privatePlayerRef),
+    ]);
+    if (!latestRoomSnapshot.exists || !latestPlayerSnapshot.exists) {
+      throw new HttpsError("not-found", "That Live Challenge ended before your taps could be saved.");
+    }
+    const latestRoom = latestRoomSnapshot.data() || {};
+    const player = latestPlayerSnapshot.data() || {};
+    const plan = lifecycle.planLifecycleCommand({ command: lifecycle.LIFECYCLE_COMMAND.SUBMIT, room: latestRoom, expected });
+    if (plan.outcome !== lifecycle.LIFECYCLE_OUTCOME.APPLY) {
+      throw new HttpsError("failed-precondition", plan.message, { lifecycle: plan.code });
+    }
+    const latestTimer = roundTimer.timerFromRoom(latestRoom);
+    const arrival = roundTimer.timerAcceptsArrival(latestTimer, requestArrivedAt);
+    if (!arrival.accepted) throw new HttpsError("deadline-exceeded", "Time is up for this round.");
+    if (player.joined !== true || !player.playerKey) throw new HttpsError("failed-precondition", "Join the Live Challenge before playing.");
+    const strategy = engine.scoring.getScoringStrategy(engine.scoring.roomScoringStrategyId(latestRoom));
+    const applied = rules.rush.applyRushAttempts({
+      player,
+      roundIndex,
+      roundVersion,
+      attempts,
+      questionFor: issue,
+      arrivedAtMs: requestArrivedAt,
+      arrivalElapsedMs: arrival.elapsedMs,
+      roundDurationMs: latestTimer.durationMs || mode.roundLimits.maxSeconds * 1000,
+      strategy,
+      poolSize,
+    });
+    // Replays, found-again targets and resolved graphs record nothing, so a
+    // batch of only those writes nothing either.
+    if (applied.recorded > 0) {
+      const { totals } = applied;
+      transaction.set(privatePlayerRef, {
+        submissionReceipts: applied.receipts,
+        attemptSequence: applied.attemptSequence,
+        score: totals.score,
+        rawScore: totals.rawScore,
+        correctCount: totals.correctCount,
+        roundsAnswered: totals.roundsAnswered,
+        answeredRounds: totals.answeredRounds,
+        targetAttempts: totals.targetAttempts,
+        targetHits: totals.targetHits,
+        matchAccuracy: totals.matchAccuracy,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      // The player's own public row: the board's numbers and the host's
+      // "racing now" signal. No student id, no answers.
+      transaction.set(roomRef.collection("players").doc(String(player.playerKey)), {
+        score: totals.score,
+        rawScore: totals.rawScore,
+        correctCount: totals.correctCount,
+        roundsAnswered: totals.roundsAnswered,
+        matchAccuracy: totals.matchAccuracy,
+        rushRound: roundIndex,
+        rushRoundCompleted: applied.state.questionsCorrect,
+        rushActiveAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+    return {
+      verdicts: applied.verdicts,
+      state: applied.state,
+      recorded: applied.recorded,
+      score: applied.totals.score,
+      correctCount: applied.totals.correctCount,
+    };
+  });
+  return { roomId, roundIndex, ...outcome };
+});
+
+exports.previewGraphFeatureRush = onCall(async (request) => {
+  await requireTeacher(request);
+  const { generator, config } = await graphFeatureRushRules();
+  let normalized;
+  try {
+    normalized = config.normalizeGraphFeatureRushConfig(request.data?.graphFeatureRush || {});
+  } catch (error) {
+    if (error?.name === "GraphFeatureRushConfigError") throw new HttpsError("invalid-argument", error.message);
+    throw error;
+  }
+  // A fresh seed every time: the teacher sees what a student might get, and
+  // nothing is written anywhere.
+  const seed = crypto.randomUUID();
+  const count = Math.max(1, Math.min(18, Math.floor(Number(request.data?.count) || 12)));
+  const questions = Array.from({ length: count }, (_, questionIndex) => generator.publicRushQuestion(generator.generateRushQuestion({
+    seed, studentKey: "preview", roundIndex: 0, questionIndex, config: normalized,
+  })));
+  return { config: normalized, questions };
+});
 
 // Phase 5D: secure My Math Path production seam
 // ---------------------------------------------------------------------------
@@ -13208,13 +13745,16 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
     // within a question are for assistance — so this runs once per question,
     // never once per attempt.
     let routed = null;
+    // Declared before the routing block, not inside it: the CCMR
+    // direct-evidence write below reads it too, and a block-scoped `const` there
+    // was a ReferenceError that failed every finalized exam-style question.
+    const activeSkillCode = currentQuestion.skillCode || mathPath.displayAlignmentKey(session.target?.alignmentKey);
     if (questionFinalized) {
       nextSummary.completedQuestions = Number(nextSummary.completedQuestions || 0) + 1;
       nextSummary.correctQuestions = Number(nextSummary.correctQuestions || 0) + (gradingCore.isCorrect ? 1 : 0);
       nextSummary.independentSuccesses = Number(nextSummary.independentSuccesses || 0) + (gradingCore.isCorrect && independent ? 1 : 0);
       nextCurrentQuestion = null;
 
-      const activeSkillCode = currentQuestion.skillCode || mathPath.displayAlignmentKey(session.target.alignmentKey);
       const schedule = retentionSchedules[activeSkillCode] || null;
       // A retention PROBE is two questions and a verdict. Routing it into a
       // repair excursion would turn "a quick check that this stayed with you"
@@ -18507,8 +19047,13 @@ exports.listGradeTransferState = onCall(async (request) => {
 
   await Promise.all(classIds.map((classId) => gradeTransferClassAuthority(db, request, classId)));
 
+  // The gradebook needs only "which students have Practice excused"; it asks
+  // for that alone rather than every transfer snapshot of the class.
+  const practicePassesOnly = request.data?.practicePassesOnly === true;
   const [snapshotGroups, redemptionGroups] = await Promise.all([
-    Promise.all(classIds.map((classId) => db.collection("gradeTransferSnapshots").where("classId", "==", classId).get())),
+    practicePassesOnly
+      ? Promise.resolve([])
+      : Promise.all(classIds.map((classId) => db.collection("gradeTransferSnapshots").where("classId", "==", classId).get())),
     Promise.all(classIds.map((classId) => db.collection("classPointRewardRedemptions").where("classId", "==", classId).get())),
   ]);
 

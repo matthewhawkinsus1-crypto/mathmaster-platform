@@ -587,6 +587,9 @@ export const publicLeaderboard = (players = {}, {
         matchPoints: nonNegativeInt(player.matchPoints ?? player.score),
         roundWins: nonNegativeInt(player.roundWins),
         rawScore: nonNegativeInt(player.rawScore ?? player.score),
+        // Hits over attempts, recorded only by modes with per-tap attempts
+        // (Correct Count's tiebreak there). Null — tied — everywhere else.
+        matchAccuracy: typeof player.matchAccuracy === 'number' && Number.isFinite(player.matchAccuracy) ? player.matchAccuracy : null,
       };
     }),
   ranking,

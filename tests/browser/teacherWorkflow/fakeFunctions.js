@@ -8,6 +8,10 @@
  */
 import { harnessStore, Timestamp } from './fakeFirestore.js';
 import { TEACHER_EMAIL } from './fixture.js';
+import {
+  authorizeCaseEvidenceCaller, buildCaseEvidenceResponse, validateCaseEvidenceRequest,
+} from '../../../functions/shared/caseReviewEvidence.mjs';
+import { workspaceDraftDocumentId } from '../../../functions/shared/workspaceDraftSchema.mjs';
 
 const iso = (value) => (value instanceof Timestamp ? value.toDate().toISOString() : value || null);
 const harness = (typeof window !== 'undefined' && (window.__mmHarness = window.__mmHarness || {})) || {};
@@ -57,6 +61,39 @@ const handlers = {
   setStudentSisId: ({ studentId, sisStudentId }) => {
     harnessStore.update(`grades/${studentId}`, { sisStudentId });
     return { studentId, sisStudentId };
+  },
+  // The Student Case Review's read-only callable, with the real request
+  // validation, teacher-of-record decision and response projection
+  // (functions/shared/caseReviewEvidence.mjs) over the in-memory store.
+  loadStudentCaseEvidence: (data) => {
+    const validation = validateCaseEvidenceRequest(data);
+    if (!validation.ok) throw Object.assign(new Error(`invalid-argument: ${validation.errors.join(' ')}`), { code: 'functions/invalid-argument' });
+    const { studentId, assignmentIds } = validation.request;
+    const student = harnessStore.get(`grades/${studentId}`) || null;
+    const classRecord = student?.classId ? harnessStore.get(`classes/${student.classId}`) || null : null;
+    const decision = authorizeCaseEvidenceCaller({ callerEmail: TEACHER_EMAIL, callerRole: 'teacher', student, classRecord });
+    if (!decision.allowed) {
+      throw Object.assign(new Error('permission-denied: Only this student\'s teacher may load case review evidence.'), { code: decision.reason === 'student-not-found' ? 'functions/not-found' : 'functions/permission-denied' });
+    }
+    const wanted = new Set(assignmentIds);
+    const events = harnessStore.paths(`grades/${studentId}/evidenceEvents/`)
+      .map((path) => ({ id: path.split('/').pop(), data: harnessStore.get(path) }))
+      .filter((entry) => wanted.has(entry.data?.source?.assignmentId));
+    const receipts = harnessStore.paths('studentSubmissionReceipts/').map((path) => harnessStore.get(path))
+      .filter((receipt) => receipt?.studentId === studentId && wanted.has(receipt?.assignmentId));
+    const drafts = {};
+    assignmentIds.forEach((assignmentId) => {
+      const draft = harnessStore.get(`studentWorkspaceDrafts/${workspaceDraftDocumentId({ studentId, assignmentId })}`);
+      // The real callable reads these three fields only (a Firestore field mask).
+      if (draft) drafts[assignmentId] = { practice: draft.practice, practiceUpdatedAt: draft.practiceUpdatedAt, updatedAt: draft.updatedAt };
+    });
+    const audits = harnessStore.paths(`grades/${studentId}/gradeOverrideAudits/`).map((path) => harnessStore.get(path));
+    return buildCaseEvidenceResponse({ request: validation.request, events, receipts, drafts, audits, nowMs: Date.now() });
+  },
+  // The Response Inspector reads the live record server-side; the in-memory
+  // harness has no grader to replay, so it says so instead of rendering {}.
+  inspectStudentResponse: () => {
+    throw Object.assign(new Error('The Response Inspector is not available in the in-memory harness.'), { code: 'functions/failed-precondition' });
   },
   getTeacherWeeklyPathCompletions: () => {
     if (harness.weeklyPathFails) throw Object.assign(new Error('internal'), { code: 'functions/internal' });

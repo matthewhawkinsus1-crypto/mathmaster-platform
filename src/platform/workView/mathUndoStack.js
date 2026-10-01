@@ -75,6 +75,73 @@ export function mathematicalSnapshot(value) {
 
 export const EMPTY_MATH_UNDO_STACK = Object.freeze({ entries: Object.freeze([]) });
 
+/*
+ * THE STUDENT TYPES "-2, 1, 3"; ONE UNDO TAKES IT BACK.
+ *
+ * Every keystroke in a field is a new state, and recording each one made Undo
+ * take back a single character per press — eight presses for "-2, 1, 3" in
+ * Relation Mapping — while the typing spent the 60-entry limit and pushed the
+ * student's earlier arrows and points out of reach.
+ *
+ * So a run of typing in ONE field is one entry: a change whose only difference
+ * is one text value, at the same place as the entry before it, within
+ * MATH_UNDO_TYPING_IDLE_MS of the previous keystroke, joins that entry. A pause,
+ * another field, or any non-text edit (a point, an arrow, a choice of a
+ * different kind) starts a new one. Decided from the data, so no tool has to
+ * say which of its values are typed.
+ */
+export const MATH_UNDO_TYPING_IDLE_MS = 1000;
+
+const TEXT_DIFF_LIMIT = 2;
+
+// One insertion or one deletion in one place — what a keystroke, a Backspace or
+// a paste at the caret does. Swapping "yes" for "no", or selecting a whole
+// answer and typing over it, is a different act and keeps its own Undo.
+const isContiguousTextEdit = (before, after) => {
+  const a = String(before ?? '');
+  const b = String(after ?? '');
+  let prefix = 0;
+  while (prefix < a.length && prefix < b.length && a[prefix] === b[prefix]) prefix += 1;
+  let suffix = 0;
+  while (suffix < a.length - prefix && suffix < b.length - prefix
+    && a[a.length - 1 - suffix] === b[b.length - 1 - suffix]) suffix += 1;
+  return prefix + suffix === Math.min(a.length, b.length);
+};
+
+/**
+ * The path of the one text value that differs between two states, or null when
+ * they differ anywhere else, in more than one place, or not at all. Camera keys
+ * are ignored, as everywhere in Undo.
+ */
+export function singleTextEditPath(previousState, nextState) {
+  const diffs = [];
+  const visit = (before, after, path) => {
+    if (diffs.length >= TEXT_DIFF_LIMIT) return;
+    const beforeIsObject = before !== null && typeof before === 'object';
+    const afterIsObject = after !== null && typeof after === 'object';
+    if (beforeIsObject && afterIsObject && Array.isArray(before) === Array.isArray(after)) {
+      const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+      for (const key of keys) {
+        if (cameraKeys.has(key)) continue;
+        visit(before[key], after[key], `${path}/${key}`);
+        if (diffs.length >= TEXT_DIFF_LIMIT) return;
+      }
+      return;
+    }
+    if (mathematicalSnapshot(before) === mathematicalSnapshot(after)) return;
+    diffs.push({ path, before, after });
+  };
+  visit(previousState, nextState, '');
+  if (diffs.length !== 1) return null;
+  const [{ path, before, after }] = diffs;
+  // Typing into a field that was empty or never set is still typing; clearing
+  // a field to nothing is not (it is its own action, and its own Undo).
+  const typed = typeof after === 'string'
+    && (typeof before === 'string' || before === undefined || before === null)
+    && isContiguousTextEdit(before, after);
+  return typed ? path : null;
+}
+
 export const mathUndoDepth = (stack) => (stack?.entries?.length || 0);
 
 export const canUndoMath = (stack) => mathUndoDepth(stack) > 0;
@@ -91,7 +158,19 @@ export function recordMathUndoEntry(stack, previousState, nextState, options = {
   const current = stack?.entries ? stack : EMPTY_MATH_UNDO_STACK;
   const limit = Math.max(1, Number(options.limit) || MATH_UNDO_LIMIT);
   if (mathematicalSnapshot(previousState) === mathematicalSnapshot(nextState)) return current;
-  return { entries: [...current.entries, previousState].slice(-limit) };
+  // Typing runs are grouped only when the caller says what time it is; without
+  // a clock every change is its own entry, exactly as before.
+  const at = Number(options.now);
+  const textPath = Number.isFinite(at) ? singleTextEditPath(previousState, nextState) : null;
+  const idleMs = Number.isFinite(Number(options.typingIdleMs)) ? Number(options.typingIdleMs) : MATH_UNDO_TYPING_IDLE_MS;
+  const last = current.typing;
+  if (textPath !== null && last && last.path === textPath && at - last.at <= idleMs && current.entries.length) {
+    // Same field, still typing: the entry already holds the state from before
+    // the run began, which is where one Undo should go back to.
+    return { entries: current.entries, typing: { path: textPath, at } };
+  }
+  const entries = [...current.entries, previousState].slice(-limit);
+  return textPath !== null ? { entries, typing: { path: textPath, at } } : { entries };
 }
 
 /**

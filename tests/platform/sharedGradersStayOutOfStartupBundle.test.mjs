@@ -30,6 +30,14 @@ const HEAVY = [
   'functions/shared/serverGrading/serverResponseGrading.mjs',
   'functions/shared/submissionIngestion.mjs',
   'functions/shared/sectionRecoveryActions.mjs',
+  // The question-kind dispatch and its heavy graders: the composed workflow
+  // grader (which carries the graph workspace's), and the Step Algebra
+  // workspace and step engines. Pre-Flight, which IS on the startup path,
+  // self-checks answer keys with the light ordinary and final-answer graders.
+  'functions/shared/serverGrading/questionResponseGrading.mjs',
+  'functions/shared/serverGrading/questionGraders/composedWorkflow.mjs',
+  'functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs',
+  'functions/shared/serverGrading/stepAlgebraStepVerification.mjs',
 ];
 
 const RESOLVE_EXTENSIONS = ['', '.js', '.jsx', '.mjs', '/index.js', '/index.jsx'];
@@ -128,7 +136,9 @@ test('the student app entry never statically imports the shared grader map', () 
   }];
   const importsStatically = (component, grader) => graph.has(component)
     && staticSpecifiers(fs.readFileSync(component, 'utf8')).some((specifier) => resolveSpecifier(component, specifier) === grader);
-  STAGE_GRADERS.forEach(({ component, grader }) => {
+  STAGE_GRADERS.forEach(({ importer, component, grader }) => {
+    // Only relevant while the composed grader is itself on the startup path.
+    if (!graph.has(importer)) return;
     assert.ok(importsStatically(component, grader), `${path.relative(ROOT, component)} no longer imports ${path.relative(ROOT, grader)} on the startup path; the composed-stage exemption no longer holds`);
   });
   const viaSharedCode = toolGraderFiles.filter((file) => {

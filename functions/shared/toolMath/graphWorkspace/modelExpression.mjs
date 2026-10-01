@@ -4,46 +4,48 @@
 // The old path is now an `export *` shim.
 
 import { compile, parse } from '../../algebra/safeMath.mjs';
+import { latexToExpression } from '../../algebra/latexToExpression.mjs';
 
 // Shared parser/evaluator for a model the STUDENT wrote.  This sits below both
 // workflow grading and graph rendering so those two systems cannot drift: the
 // exact expression used to check the student's table is also the expression
 // used to build the student's graph.
 
-const LATEX_TO_MATH = [
-  [/\\left|\\right/g, ''],
-  [/\\cdot|\\times/g, '*'],
-  [/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, '(($1)/($2))'],
-  [/\\sqrt\{([^{}]*)\}/g, 'sqrt($1)'],
-  [/\\pi/g, 'pi'],
-  [/[{}]/g, ''],
-  [/\s+/g, ''],
-];
+// The LaTeX a student's field reports is read by the same boundary every
+// other evaluator uses (compact \frac23, \dfrac, nested fractions, braced
+// exponents; ../../algebra/latexToExpression.mjs). This file used to keep its
+// own weaker copy, which flattened 2^{x+1} into 2^x + 1 and could not read
+// \frac23 at all.
+//
+// After it, whitespace goes — the parser below splits on `=` and matches
+// `f(x)` without spaces — but a space BETWEEN two terms is a product (π r²,
+// MathJS's own `2~ y`), so it becomes `*` rather than gluing `pi r` into an
+// unknown symbol `pir`. Braces left over grouped nothing the rules recognise
+// and are dropped, as before.
+const normalizeLatex = (value) => latexToExpression(value)
+  .replace(/([A-Za-z0-9)])\s+(?=[A-Za-z0-9(])/g, '$1*')
+  .replace(/\s+/g, '')
+  .replace(/[{}]/g, '');
 
-// Compiled expressions, reused across calls. Bounded: on the server this
-// module lives as long as a warm function instance and sees every student's
-// text, so an unbounded map would grow without limit. Oldest entries go first.
-const COMPILED_CACHE_LIMIT = 500;
-const compiledEntries = new Map();
-const compiledCache = Object.freeze({
-  get: (key) => compiledEntries.get(key),
-  set: (key, value) => {
-    compiledEntries.delete(key);
-    compiledEntries.set(key, value);
-    while (compiledEntries.size > COMPILED_CACHE_LIMIT) compiledEntries.delete(compiledEntries.keys().next().value);
-  },
-  get size() { return compiledEntries.size; },
-});
+// Compiled models, keyed by what the student typed. Bounded: every partial
+// expression a student types on the way to an answer is compiled once, and on
+// the server this module lives as long as a warm instance and sees every
+// student's text. Map order is insertion order, so the oldest entry goes first.
+const COMPILED_CACHE_LIMIT = 400;
+const compiledCache = new Map();
+const compileCached = (cacheKey, expression) => {
+  let compiled = compiledCache.get(cacheKey);
+  if (!compiled) {
+    compiled = compile(expression);
+    compiledCache.set(cacheKey, compiled);
+    if (compiledCache.size > COMPILED_CACHE_LIMIT) compiledCache.delete(compiledCache.keys().next().value);
+  }
+  return compiled;
+};
 
-/** For tests: how many compiled expressions are held. */
+/** Test hook: how many compiled models are held. */
 export const compiledModelCacheSize = () => compiledCache.size;
 export { COMPILED_CACHE_LIMIT };
-
-const normalizeLatex = (value) => {
-  let text = String(value ?? '').trim().replace(/[−–—]/g, '-');
-  LATEX_TO_MATH.forEach(([pattern, replacement]) => { text = text.replace(pattern, replacement); });
-  return text;
-};
 
 /**
  * Read a student function definition such as W(t)=5t, f(x)=x+2 or y=3x-1.
@@ -112,11 +114,7 @@ export const parseFunctionModel = (value) => {
 
   try {
     const cacheKey = `${variable}|${expression}`;
-    let compiled = compiledCache.get(cacheKey);
-    if (!compiled) {
-      compiled = compile(expression);
-      compiledCache.set(cacheKey, compiled);
-    }
+    const compiled = compileCached(cacheKey, expression);
     // Probe once. A variable-only expression is fine; truly malformed syntax is
     // rejected before a graph stage is allowed to depend on it.
     const probe = compiled.evaluate({ [variable]: 0, x: 0 });
@@ -240,11 +238,7 @@ export const evaluateModelAt = (modelOrValue, x) => {
     : parseFunctionModel(modelOrValue);
   if (!model || !Number.isFinite(Number(x))) return null;
   try {
-    let compiled = compiledCache.get(model.cacheKey || `${model.variable || 'x'}|${model.expression}`);
-    if (!compiled) {
-      compiled = compile(model.expression);
-      compiledCache.set(model.cacheKey || `${model.variable || 'x'}|${model.expression}`, compiled);
-    }
+    const compiled = compileCached(model.cacheKey || `${model.variable || 'x'}|${model.expression}`, model.expression);
     // Supply both the student's variable and x.  This lets W(t)=5t and y=5x
     // drive the same coordinate-plane interaction without renaming their work.
     const result = compiled.evaluate({ [model.variable || 'x']: Number(x), x: Number(x) });

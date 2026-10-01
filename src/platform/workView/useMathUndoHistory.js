@@ -166,10 +166,12 @@ export default function useMathUndoHistory({
       }
       restoringSnapshotRef.current = null;
     }
-    const next = recordMathUndoEntry(stackRef.current, previous, state, { limit });
+    const next = recordMathUndoEntry(stackRef.current, previous, state, { limit, now: Date.now() });
     if (next === stackRef.current) return;
     stackRef.current = next;
     setDepth(mathUndoDepth(next));
+    // A keystroke that joined the current typing run changes no entry, only
+    // the state the persisted stack ends at.
     save(next, state);
   }, [state, limit, save]);
 

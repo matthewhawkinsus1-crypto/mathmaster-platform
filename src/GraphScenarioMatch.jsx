@@ -18,6 +18,8 @@ const isVisibleInside = (childRect, paneRect) => (
   && childRect.left < paneRect.right
 );
 
+const NO_MATCHES = Object.freeze({});
+
 export default function GraphScenarioMatch({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const scenarios = useMemo(
     () => (Array.isArray(question.scenarios) ? question.scenarios.filter((item) => item?.id) : []),
@@ -28,7 +30,9 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
     [question.graphs],
   );
   const history = useUndoHistory({}, 80, draftKey ? `${draftKey}:graph-scenario-match` : null);
-  const matches = history.value || {};
+  // A restored draft of `null` must not become a new `{}` per render: the
+  // connector layout effect depends on `matches` and sets state every time.
+  const matches = history.value || NO_MATCHES;
 
   const [selectedGraphId, setSelectedGraphId] = useState('');
   const mobileInteraction = useMobileInteractionMode();

@@ -64,18 +64,30 @@ test('wallet exposes teacher reason text but no internal ledger metadata', async
   assert.doesNotMatch(source, /requestId|issuedByUid|authorizedTeacherEmails|transaction\.id|accountId/);
 });
 
-// Phase 5A adds the first spendable reward. The wallet may now offer a real
-// redemption, but it must still never decide eligibility, never subtract
-// points itself, and never write Firestore directly for it -- the callable
-// (functions/index.js `redeemPracticePass`) and the authoritative account
-// subscription remain the only things that can move the balance shown here.
-test('the Practice Pass card never optimistically spends points and never writes Firestore', async () => {
-  const source = await read('src/components/student/ClassPointsWallet.jsx');
-  assert.match(source, /onRedeemPracticePass/);
-  assert.doesNotMatch(source, /addDoc|setDoc|updateDoc|deleteDoc|writeBatch|runTransaction/);
-  // The balance shown always comes from the `account` prop (the authoritative
-  // subscription), never from local component state.
-  assert.doesNotMatch(source, /setBalance|balance\s*[-+]=|totals\.balance\s*[-+]/);
+// Phase 5A added the first spendable reward. Using a Practice Pass now lives
+// in ONE flow (My Rewards -> UsePracticePassDialog), whether it is paid with a
+// pass the student holds or with 100 Class Points. That flow must still never
+// decide eligibility, never change a count itself, and never write Firestore
+// directly -- the callable (functions/index.js `redeemPracticePass`) and the
+// authoritative subscriptions remain the only things that can move a number.
+const PRACTICE_PASS_FLOW = [
+  'src/components/student/ClassPointsWallet.jsx',
+  'src/components/student/rewards/UsePracticePassDialog.jsx',
+  'src/components/student/rewards/StudentRewardsCenter.jsx',
+  'src/components/student/rewards/RewardsSummaryCard.jsx',
+];
+
+test('the Practice Pass flow never optimistically spends and never writes Firestore', async () => {
+  for (const file of PRACTICE_PASS_FLOW) {
+    const source = executableSource(await read(file));
+    assert.doesNotMatch(source, /addDoc|setDoc|updateDoc|deleteDoc|writeBatch|runTransaction|firebase\/firestore/, `${file} must not write Firestore`);
+    // Counts come from props (the authoritative subscriptions), never from
+    // local arithmetic on a balance or a pass count.
+    assert.doesNotMatch(source, /setBalance|balance\s*[-+]=|totals\.balance\s*[-+]|count\s*[-+]=|setCount/, `${file} must not count optimistically`);
+  }
+  // The only way the dialog spends anything is the handler it is given.
+  const dialog = executableSource(await read('src/components/student/rewards/UsePracticePassDialog.jsx'));
+  assert.match(dialog, /await onUse\(/);
 });
 
 test('the wallet footer distinguishes earning Class Points from spending a reward on them', async () => {
@@ -87,14 +99,17 @@ test('the wallet footer distinguishes earning Class Points from spending a rewar
   assert.doesNotMatch(source, /Class Points are classroom rewards\. They do not change your MathMaster grade or mastery\./);
 });
 
-test('the Practice Pass card never computes its own eligibility list', async () => {
-  const source = await read('src/components/student/ClassPointsWallet.jsx');
-  // `eligibleAssignments` arrives as a prop; this file must not IMPORT the
+test('the Practice Pass flow never computes its own eligibility list', async () => {
+  // `eligibleAssignments` arrives as a prop; these files must not IMPORT the
   // client eligibility filter or the assignment lifecycle and recompute it
-  // itself -- a code fact, so it is checked against executable source only;
-  // a comment explaining that boundary (as this one does) is not a violation.
-  assert.doesNotMatch(executableSource(source), /practicePassClientEligibility|assignmentLifecycle|currentContentProjection/);
-  assert.match(source, /eligibleAssignments/);
+  // themselves -- a code fact, so it is checked against executable source
+  // only; a comment explaining that boundary (as this one does) is not a
+  // violation.
+  for (const file of PRACTICE_PASS_FLOW) {
+    assert.doesNotMatch(executableSource(await read(file)), /practicePassClientEligibility|assignmentLifecycle|currentContentProjection/, file);
+  }
+  const dialog = await read('src/components/student/rewards/UsePracticePassDialog.jsx');
+  assert.match(dialog, /eligibleAssignments\.map\(/, 'the dialog lists exactly the assignments it was given');
 });
 
 test('teacher preview is isolated before subscriptions and identity points rendering', async () => {

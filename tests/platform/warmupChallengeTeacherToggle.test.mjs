@@ -25,9 +25,14 @@ test('the assignment id is sent to the server on create', () => {
 test('the opt-in is persisted before the room is created', () => {
   const createBlock = teacher.slice(teacher.indexOf('const create = async'), teacher.indexOf('const control = async'));
   const linkAt = createBlock.indexOf('onLinkWarmupChallenge(');
-  const createAt = createBlock.indexOf('createLiveChallenge(');
-  assert.ok(linkAt > -1 && createAt > -1);
-  assert.ok(linkAt < createAt, 'a room must never exist for an assignment that is not switched on');
+  // The create that can carry an assignment is the one the link must precede.
+  const creates = [...createBlock.matchAll(/createLiveChallenge\(\{([\s\S]*?)\n\s*\}\);/g)].map((match) => ({ at: match.index, payload: match[1] }));
+  const linked = creates.filter((entry) => /\bassignmentId\b/.test(entry.payload));
+  assert.ok(linkAt > -1 && linked.length === 1);
+  assert.ok(linkAt < linked[0].at, 'a room must never exist for an assignment that is not switched on');
+  // Any create before the opt-in (a Graph Feature Rush, which cannot be a
+  // Warm-Up) sends no assignment at all.
+  creates.filter((entry) => entry.at < linkAt).forEach((entry) => assert.doesNotMatch(entry.payload, /assignment/i));
 });
 
 test('only assignments with a Warm-Up are offered', () => {

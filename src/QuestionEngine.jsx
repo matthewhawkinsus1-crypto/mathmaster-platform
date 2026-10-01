@@ -73,6 +73,7 @@ import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 import CalculatorIcon from './components/common/CalculatorIcon.jsx';
 import { startPerformanceSpan } from './platform/performance/performanceTelemetry.js';
 import { useRenderPerformance } from './platform/performance/useRenderPerformance.js';
+import { useActiveWorkTab } from './platform/persistence/activeWorkTab.js';
 
 const WorkViewReadySignal = ({ span }) => {
   useEffect(() => {
@@ -94,6 +95,18 @@ const EMPTY_ANSWER_STATE = {
   responseKey: '',
   questionDetails: '',
   parts: [],
+};
+
+// Answer states are small plain objects (flags, a response key, a details
+// sentence, a parts list), so a serialized comparison is cheap and exact.
+const sameAnswerState = (left, right) => {
+  if (left === right) return true;
+  if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
+  }
 };
 
 const MULTIPART_TYPES = new Set([
@@ -310,6 +323,18 @@ export default function QuestionEngine({
    */
   const canonicalAnswerSavedAt = Date.parse(record.lastAttemptAt || '') || 0;
   const [answerState, setAnswerState] = useState(EMPTY_ANSWER_STATE);
+  // WHAT EVERY RESPONSE MODULE REPORTS INTO.
+  //
+  // Modules report their answer state from effects, and most rebuild the object
+  // on every render. Stored as-is, an unchanged report still re-rendered this
+  // engine, which re-rendered the module, whose effect reported again. Any
+  // module whose effect also depended on a value rebuilt per render — a `|| {}`
+  // or `= []` fallback for a field an imported question lacks — then looped
+  // without end. Keeping the previous object for structurally equal work lets
+  // React bail out, so that whole class of loop cannot start here.
+  const reportAnswerState = useCallback((next) => {
+    setAnswerState((current) => (sameAnswerState(current, next) ? current : next));
+  }, []);
 
   useEffect(() => {
     onSpotlightFrame?.({ question: processedQuestion, answerState });
@@ -468,12 +493,21 @@ export default function QuestionEngine({
    * Nothing here waits on the network. The callback hands the revision to the
    * durable outbox and returns.
    */
+  // ONE TAB WORKS ON A QUESTION AT A TIME (activeWorkTab.js). If this
+  // question has since been opened in another tab, this copy holds work as it
+  // was when it loaded: it is paused — no typing, no draft, no checkpoint —
+  // until the student chooses to continue here, which reloads the latest work.
+  const activeWorkTab = useActiveWorkTab(executionScope === 'student' && draftKey ? draftKey : null);
+  const pausedByAnotherTab = activeWorkTab.paused;
   const responseAlreadySubmitted = Boolean(answerState.responseKey)
     && (answerState.responseKey === lastSubmittedResponseKey
       || answerState.responseKey === record.lastResponseKey);
   const checkpointAllowed = Boolean(onResponseCheckpoint)
     && !serverGrading
     && !locked
+    // A paused tab's answer is older than the work in the tab that owns the
+    // question; closing it must not checkpoint that older answer.
+    && !pausedByAnotherTab
     // `submitting` is state and arrives a render later; the ref flips the
     // instant Submit is pressed. A pagehide in that gap must not checkpoint
     // work that is already becoming an attempt.
@@ -656,13 +690,28 @@ export default function QuestionEngine({
   // (for example, at a synchronized round deadline). Publish only the same
   // canonical raw payload manual Submit uses; no browser verdict or step score
   // is included in this seam.
+  //
+  // PUBLISHED WHEN THE WORK CHANGES, NOT WHEN THE HOST RE-RENDERS. A host
+  // passes `serverGrading` and `onResponseStateChange` inline, and the Live
+  // Challenge round stores what it receives in state. With both in the
+  // dependency list every report re-rendered the host, which handed over new
+  // props, which re-ran this: an endless loop for the whole of every Warm-Up
+  // challenge round ("Maximum update depth exceeded" in development; a pinned
+  // CPU on every Chromebook in production). The callback is read through a
+  // ref, and a payload identical to the last one published is not sent again.
+  const onResponseStateChangeRef = useRef(onResponseStateChange);
+  onResponseStateChangeRef.current = onResponseStateChange;
+  const lastPublishedResponseRef = useRef(null);
+  const serverGradingToolId = serverGrading?.pathToolId ?? null;
+  const publishesResponseState = Boolean(serverGrading && onResponseStateChange);
   useEffect(() => {
-    if (!serverGrading || !onResponseStateChange) return;
-    onResponseStateChange(buildRawPathResponse({
-      pathToolId: serverGrading.pathToolId,
-      answerState,
-    }));
-  }, [answerState, onResponseStateChange, serverGrading]);
+    if (!publishesResponseState) return;
+    const rawWork = buildRawPathResponse({ pathToolId: serverGradingToolId, answerState });
+    const signature = stableStringify(rawWork ?? null);
+    if (signature === lastPublishedResponseRef.current) return;
+    lastPublishedResponseRef.current = signature;
+    onResponseStateChangeRef.current?.(rawWork);
+  }, [answerState, publishesResponseState, serverGradingToolId]);
 
   // The one place a server-graded attempt is sent. Returns the server's
   // feedback, or a refusal — never a locally computed verdict.
@@ -681,7 +730,7 @@ export default function QuestionEngine({
   };
 
   const performSubmit = async () => {
-    if (!answerState.isComplete || submitting || submissionInFlightRef.current || locked) return;
+    if (!answerState.isComplete || submitting || submissionInFlightRef.current || locked || pausedByAnotherTab) return;
     /*
      * A SERVER-GRADED QUESTION WHOSE WORK THE SHARED GRADER DECLINED.
      *
@@ -770,7 +819,7 @@ export default function QuestionEngine({
   };
 
   const handleSubmit = async () => {
-    if (!answerState.isComplete || submitting || locked) return;
+    if (!answerState.isComplete || submitting || locked || pausedByAnotherTab) return;
     if (sameIncorrectResponse && isMultipart) {
       setUnchangedConfirmOpen(true);
       return;
@@ -825,7 +874,7 @@ export default function QuestionEngine({
       setHintUsed(true);
       return;
     }
-    if (type !== 'ATTEMPT_SUBMITTED' || submitting || locked) return;
+    if (type !== 'ATTEMPT_SUBMITTED' || submitting || locked || pausedByAnotherTab) return;
     if (serverGrading) {
       // The registry tools already hand back the student's work in the shape
       // the contract grades. `payload.isCorrect` and `payload.score` are the
@@ -1085,11 +1134,14 @@ export default function QuestionEngine({
     // Reported exactly like a revealed hint, which is what discounts the
     // mastery weight through isMathematicallyIndependent.
     onSelfCheck: () => setHintUsed(true),
+    // The point check may name wrong points only where outcomes are shown at
+    // once; on a DOL, quiz or test the submission is the check.
+    revealPointCorrectness: showOutcomeFeedback,
   };
 
   const commonModuleProps = {
     question: presentationQuestion,
-    onStateChange: setAnswerState,
+    onStateChange: reportAnswerState,
     onUndoStateChange: registerUndo,
     workspaceMode: solverWorkspaceMode,
     onWorkspaceModeChange: setSolverWorkspaceMode,
@@ -1312,7 +1364,7 @@ export default function QuestionEngine({
     }
   };
 
-  const submitDisabled = !answerState.isComplete || submitting || locked || scaffoldRequired || contextScaffoldRequired;
+  const submitDisabled = !answerState.isComplete || submitting || locked || scaffoldRequired || contextScaffoldRequired || pausedByAnotherTab;
   const shouldShowSubmit = !missingToolDefinition && processedQuestion?.type !== 'modelingLab' && processedQuestion?.type !== 'platformQuestionError' && (processedQuestion?.type !== 'stepAlgebra' || answerState.isComplete);
   const scratchpadQuestionDetails = answerState.questionDetails || processedQuestion?.prompt || 'Show your work for this question.';
   const partialPercent = Math.max(Number(record.bestPartialCredit) || 0, Number(feedback?.partialCredit) || 0);
@@ -1663,12 +1715,36 @@ export default function QuestionEngine({
         style={{ position: 'relative' }}
       >
         {!solverWorkspaceActive && guidedCoach}
-        <fieldset disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+        {pausedByAnotherTab ? (
+          <div
+            role="status"
+            data-active-work-paused="true"
+            style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, margin: '0 auto 12px', maxWidth: 860, padding: '12px 16px', borderRadius: 12, border: '1px solid var(--mm-info-border, #aecbfa)', background: 'var(--mm-info-bg, #e8f0fe)', color: 'var(--mm-text-strong, #1f2937)' }}
+          >
+            <span style={{ flex: '1 1 260px', lineHeight: 1.5 }}>
+              <strong>This question is open in another tab.</strong> It is paused here so your work stays in one place.
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                // Take the question back, then re-read the latest saved work:
+                // the module remounts and loads its draft from storage.
+                activeWorkTab.continueHere();
+                setAnswerState(EMPTY_ANSWER_STATE);
+                setQuestionResetVersion((current) => current + 1);
+              }}
+              style={{ minHeight: 44, padding: '9px 16px', border: 0, borderRadius: 10, background: 'var(--mm-primary, #174ea6)', color: 'var(--mm-on-primary, #ffffff)', fontWeight: 800, cursor: 'pointer' }}
+            >
+              Continue here
+            </button>
+          </div>
+        ) : null}
+        <fieldset disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting || pausedByAnotherTab} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           {/* `inert` must be a boolean: React 19 reads inert="" as false, which
               left a completed answer's math field focused and editable (and
               swallowing the Enter that should continue). pointer-events alone
               only stops the mouse. */}
-          <div aria-disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting ? 'true' : undefined} inert={locked || scaffoldRequired || contextScaffoldRequired || submitting ? true : undefined} style={{ pointerEvents: locked || scaffoldRequired || contextScaffoldRequired || submitting ? 'none' : 'auto', opacity: locked ? 0.72 : scaffoldRequired || contextScaffoldRequired ? 0.5 : 1 }}>
+          <div aria-disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting || pausedByAnotherTab ? 'true' : undefined} inert={locked || scaffoldRequired || contextScaffoldRequired || submitting || pausedByAnotherTab ? true : undefined} style={{ pointerEvents: locked || scaffoldRequired || contextScaffoldRequired || submitting || pausedByAnotherTab ? 'none' : 'auto', opacity: locked ? 0.72 : scaffoldRequired || contextScaffoldRequired || pausedByAnotherTab ? 0.5 : 1 }}>
             <QuestionModuleBoundary
               key={`${generationKey}|${record.variantIndex}|reset-${questionResetVersion}`}
               questionType={processedQuestion?.type}

@@ -59,7 +59,8 @@ test('Export grades from the hub arrives scoped to this class and this assignmen
 
 test('on the live screens the hub loads this class\'s progress on request instead of showing zeros', () => {
   // Without grade records the hub never reports a class of zeros…
-  assert.match(hub, /hasGradeRecords\s*\?\s*classGradeProgress\(\{ assignment, roster, hasGradeRecords, nameOf \}\)\s*:\s*fetched\?\.students\s*\?\s*classGradeProgress\(\{ assignment, roster: fetched\.students, hasGradeRecords: true, nameOf \}\)\s*:\s*null/);
+  // (hasPracticePass: a student excused from Practice by a Practice Pass is not "not finished".)
+  assert.match(hub, /hasGradeRecords\s*\?\s*classGradeProgress\(\{ assignment, roster, hasGradeRecords, nameOf(, hasPracticePass)? \}\)\s*:\s*fetched\?\.students\s*\?\s*classGradeProgress\(\{ assignment, roster: fetched\.students, hasGradeRecords: true, nameOf(, hasPracticePass)? \}\)\s*:\s*null/);
   // …it offers to load them, and says how fresh they are once loaded.
   assert.match(hub, /onClick=\{loadGrades\}/);
   assert.match(hub, /const students = await onLoadClassGrades\(key\);/);
@@ -88,7 +89,8 @@ test('a student opened from the hub stacks on top of it, and Escape closes one l
 
 test('student -> assignment -> work, from the Students page and from the student drawer alike', () => {
   const list = executableSource(read('src/components/teacher/StudentAssignmentsList.jsx'));
-  assert.match(list, /studentAssignmentProgress\(\{ student, assignment \}\)/);
+  // The waiver for this student's Practice Pass rides along (see rewardsWiring).
+  assert.match(list, /studentAssignmentProgress\(\{ student, assignment(, practicePassRedeemed: [^}]+)? \}\)/);
   assert.match(list, /onOpenAssignment\(assignment\.id, classId\)/);
   assert.match(list, /onOpenStudentWork\(classId, assignment\.id, student\.id\)/);
   const roster = read('src/components/teacher/StudentsRoster.jsx');

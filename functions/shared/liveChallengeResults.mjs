@@ -25,12 +25,23 @@
 
 import { authoritativeReceiptTotal } from './liveChallenge.mjs';
 import { rankEntries } from './liveChallengeRanking.mjs';
-import { roundOutcome, summarizeRoundProgress } from './liveChallengeResponses.mjs';
 import {
+  COMPLETION_RULE,
+  RECEIPT_KIND,
+  isAttemptReceipt,
+  questionProgress,
+  receiptKindOf,
+  roundOutcome,
+  summarizeRoundProgress,
+} from './liveChallengeResponses.mjs';
+import {
+  ROUND_STRUCTURE,
   getChallengeMode,
+  modeRoundOutcome,
   roundPerformanceFor,
   roundQuestionSpecsFor,
   roundRankingFor,
+  roundStructureFor,
 } from './liveChallengeModes.mjs';
 import { SCORE_ACCUMULATION, getScoringStrategy } from './liveChallengeScoring.mjs';
 
@@ -67,11 +78,12 @@ export const buildRoundResult = ({
   const strategy = getScoringStrategy(scoringStrategyId);
   const config = strategy.normalizeConfig(scoringConfig || {});
   const round = integerOr(roundIndex, -1);
-  const questionSpecs = roundQuestionSpecsFor(mode);
 
   const entries = (Array.isArray(players) ? players : [])
     .filter((player) => player?.joined === true && studentIdOf(player))
     .map((player) => {
+      // Per-player modes read each player's own question specs from their log.
+      const questionSpecs = roundQuestionSpecsFor(mode, { receipts: player.submissionReceipts, roundIndex: round });
       const summary = summarizeRoundProgress({ receipts: player.submissionReceipts, roundIndex: round, questionSpecs });
       return {
         participantId: studentIdOf(player),
@@ -85,6 +97,9 @@ export const buildRoundResult = ({
       };
     });
 
+  // The players who actually raced this round: what a field-scaled placement
+  // curve divides its range across.
+  const fieldSize = entries.filter((entry) => entry.participated).length;
   const standings = rankEntries(entries, roundRankingFor(mode)).map((entry) => ({
     studentId: entry.studentId,
     playerKey: entry.playerKey,
@@ -100,6 +115,7 @@ export const buildRoundResult = ({
       rank: entry.rank,
       participated: entry.participated,
       performance: entry.metrics.performance,
+      fieldSize,
     }, config),
   }));
 
@@ -114,12 +130,37 @@ export const buildRoundResult = ({
     closedAtMs: closedAtMs == null ? null : Number(closedAtMs),
     participantCount: standings.length,
     completedCount: standings.filter((standing) => standing.finished).length,
+    fieldSize,
     standings,
   });
 };
 
-/** The anonymous copy a projector or student may read: no student ids. */
-export const publicRoundSummary = (roundResult = {}) => Object.freeze({
+/*
+ * What a question-set round's anonymous copy says about each player: how many
+ * questions they completed and how accurately. Facts a round-results screen
+ * shows next to an alias; never the attempts themselves.
+ */
+const publicRoundFacts = (standing) => {
+  const metrics = standing?.metrics || {};
+  if (!Number.isFinite(Number(metrics.questionsCorrect)) || metrics.questionsCorrect === undefined) return {};
+  return {
+    completed: nonNegativeInt(metrics.questionsCorrect),
+    accuracyPercent: Number.isFinite(Number(metrics.accuracy)) && metrics.accuracy !== null
+      ? Math.round(Number(metrics.accuracy) * 100)
+      : null,
+  };
+};
+
+/**
+ * The anonymous copy a projector or student may read: no student ids.
+ *
+ * `standingsAfterRound` (matchStandingsAfterRound) is added when the closing
+ * transaction supplies it: the match standings this round left behind, so a
+ * results screen shows the round and the standings it produced from one
+ * document written in one commit.
+ */
+export const publicRoundSummary = (roundResult = {}, { standingsAfterRound = null } = {}) => Object.freeze({
+  ...(Array.isArray(standingsAfterRound) ? { standingsAfterRound } : {}),
   schemaVersion: RESULT_SCHEMA_VERSION,
   roundIndex: roundResult.roundIndex,
   roundVersion: roundResult.roundVersion,
@@ -129,6 +170,7 @@ export const publicRoundSummary = (roundResult = {}) => Object.freeze({
   closedAtMs: roundResult.closedAtMs ?? null,
   participantCount: roundResult.participantCount || 0,
   completedCount: roundResult.completedCount || 0,
+  fieldSize: roundResult.fieldSize ?? null,
   standings: (roundResult.standings || []).map((standing) => ({
     playerKey: standing.playerKey,
     alias: standing.alias,
@@ -139,6 +181,7 @@ export const publicRoundSummary = (roundResult = {}) => Object.freeze({
     finished: standing.finished,
     roundPoints: standing.roundPoints,
     matchPointsAwarded: standing.matchPointsAwarded,
+    ...publicRoundFacts(standing),
   })),
 });
 
@@ -189,17 +232,101 @@ export const playerTotalsAfterRound = ({
   });
 };
 
-/** A player's per-round outcomes, read from response receipts only. */
-export const playerRoundOutcomes = (player = {}) => {
+/**
+ * A player's per-round outcomes, read from attempt receipts only. A classic
+ * round's outcome is its graded response; a question-set round's is how the
+ * player's round went (liveChallengeResponses.questionSetRoundOutcome).
+ */
+export const playerRoundOutcomes = (player = {}, { mode = null } = {}) => {
   const receipts = player?.submissionReceipts || {};
   const rounds = new Set();
   Object.values(receipts).forEach((receipt) => {
     const round = integerOr(receipt?.roundIndex, null);
     if (round !== null && round >= 0) rounds.add(round);
   });
+  const questionSet = mode && roundStructureFor(mode).id === ROUND_STRUCTURE.QUESTION_SET;
   return [...rounds].sort((a, b) => a - b)
-    .map((roundIndex) => roundOutcome({ receipts, roundIndex }))
+    .map((roundIndex) => {
+      if (!questionSet) return roundOutcome({ receipts, roundIndex });
+      const questionSpecs = roundQuestionSpecsFor(mode, { receipts, roundIndex });
+      return modeRoundOutcome(mode, summarizeRoundProgress({ receipts, roundIndex, questionSpecs }));
+    })
     .filter(Boolean);
+};
+
+const tally = () => ({ questions: 0, completed: 0, attempts: 0, hits: 0 });
+
+/**
+ * One player's whole match in a question-set mode, for the teacher's report:
+ * totals, and the same counts broken down by the tags each attempt recorded
+ * (the feature asked, the function family, the difficulty tier). Built from
+ * the receipt log alone.
+ */
+export const questionSetMatchSummary = (player = {}) => {
+  const receipts = player?.submissionReceipts || {};
+  const attempts = Object.entries(receipts)
+    .filter(([, receipt]) => isAttemptReceipt(receipt) && receiptKindOf(receipt) === RECEIPT_KIND.TARGET);
+  const questions = new Map();
+  attempts.forEach(([, receipt]) => {
+    const key = `${integerOr(receipt.roundIndex, -1)}:${integerOr(receipt.questionIndex, 0)}`;
+    if (!questions.has(key)) {
+      questions.set(key, {
+        roundIndex: integerOr(receipt.roundIndex, -1),
+        questionIndex: integerOr(receipt.questionIndex, 0),
+        targetCount: integerOr(receipt.targetCount, 1),
+        feature: receipt.feature ? String(receipt.feature) : null,
+        family: receipt.family ? String(receipt.family) : null,
+        tier: receipt.tier ? String(receipt.tier) : null,
+      });
+    }
+  });
+  const totals = { questions: 0, completed: 0, skipped: 0, attempts: 0, hits: 0, dnePresses: 0, dneCorrect: 0 };
+  const byFeature = {};
+  const byFamily = {};
+  const byTier = {};
+  const bump = (bucket, key, progress) => {
+    if (!key) return;
+    const entry = bucket[key] || tally();
+    entry.questions += 1;
+    entry.completed += progress.completedCorrectly ? 1 : 0;
+    entry.attempts += progress.attempts;
+    entry.hits += progress.correctAttempts;
+    bucket[key] = entry;
+  };
+  questions.forEach((question) => {
+    const progress = questionProgress({
+      receipts,
+      roundIndex: question.roundIndex,
+      questionIndex: question.questionIndex,
+      spec: { completionRule: COMPLETION_RULE.ALL_TARGETS, targetCount: question.targetCount },
+    });
+    totals.questions += 1;
+    totals.completed += progress.completedCorrectly ? 1 : 0;
+    totals.skipped += progress.completed && !progress.completedCorrectly ? 1 : 0;
+    totals.attempts += progress.attempts;
+    totals.hits += progress.correctAttempts;
+    bump(byFeature, question.feature, progress);
+    bump(byFamily, question.family, progress);
+    bump(byTier, question.tier, progress);
+  });
+  attempts.forEach(([, receipt]) => {
+    if (receipt.attemptKind !== 'dne') return;
+    totals.dnePresses += 1;
+    if (receipt.isCorrect === true) totals.dneCorrect += 1;
+  });
+  return Object.freeze({ ...totals, byFeature, byFamily, byTier });
+};
+
+/** Hits over attempts across the whole match, or null with no attempts. */
+const attemptAccuracy = (player = {}) => {
+  let attempts = 0;
+  let hits = 0;
+  Object.values(player?.submissionReceipts || {}).forEach((receipt) => {
+    if (!isAttemptReceipt(receipt)) return;
+    attempts += 1;
+    if (receipt.isCorrect === true && receipt.forfeit !== true) hits += 1;
+  });
+  return attempts > 0 ? hits / attempts : null;
 };
 
 /**
@@ -207,12 +334,15 @@ export const playerRoundOutcomes = (player = {}) => {
  * report, credit, evidence or reward rule may need — and nothing identifying
  * beyond the student id the teacher-only consumers already hold.
  */
-export const standingFromPlayer = (player = {}) => {
+export const standingFromPlayer = (player = {}, { mode = null } = {}) => {
   const receipts = player.submissionReceipts || {};
   const score = nonNegativeInt(player.score);
   const joinedAtRound = typeof player.joinedAtRound === 'number' && Number.isInteger(player.joinedAtRound)
     ? Math.max(0, player.joinedAtRound)
     : null;
+  // Question-set modes record attempts that classic rounds do not have: the
+  // accuracy that breaks a Correct Count tie, and the report's breakdown.
+  const questionSet = mode && roundStructureFor(mode).id === ROUND_STRUCTURE.QUESTION_SET;
   return {
     studentId: studentIdOf(player),
     playerKey: player.playerKey ? String(player.playerKey) : null,
@@ -231,8 +361,48 @@ export const standingFromPlayer = (player = {}) => {
     bestStreak: nonNegativeInt(player.bestStreak),
     comebackCount: nonNegativeInt(player.comebackCount),
     recoveryCount: nonNegativeInt(player.recoveryCount),
-    roundOutcomes: playerRoundOutcomes(player),
+    roundOutcomes: playerRoundOutcomes(player, { mode }),
+    ...(questionSet ? {
+      matchAccuracy: attemptAccuracy(player),
+      questionSetSummary: questionSetMatchSummary(player),
+    } : {}),
   };
+};
+
+/**
+ * The match standings a closed round leaves behind: every joined player ranked
+ * by the strategy's MATCH ranking on their totals after the round — the same
+ * ranking the final match result (and every reward rule) uses.
+ *
+ * Written into the round's anonymous result in the transaction that closes
+ * the round, so a results screen never pairs the round's table with standings
+ * from before it (a Grand Prix round changes every total when it closes), and
+ * so movement — ↑2 since the last round — is the difference between two ranks
+ * the engine wrote, which a refresh or a reconnect reads back unchanged.
+ *
+ * Ties list by alias, then player key: the order the live board
+ * (publicLeaderboard) gives them.
+ */
+export const matchStandingsAfterRound = ({ players = [], modeId = null, scoringStrategyId = null } = {}) => {
+  const mode = getChallengeMode(modeId);
+  const strategy = getScoringStrategy(scoringStrategyId);
+  const entries = (Array.isArray(players) ? players : [])
+    .filter((player) => player?.joined === true && player?.playerKey && studentIdOf(player))
+    .map((player) => {
+      const standing = standingFromPlayer(player, { mode });
+      return { ...standing, participantId: standing.playerKey, liveScore: standing.score };
+    });
+  return rankEntries(entries, strategy.matchRanking).map((entry) => Object.freeze({
+    playerKey: entry.playerKey,
+    alias: entry.alias,
+    rank: entry.rank,
+    position: entry.position,
+    tied: entry.tied,
+    score: entry.score,
+    correctCount: entry.correctCount,
+    roundsAnswered: entry.roundsAnswered,
+    roundWins: entry.roundWins,
+  }));
 };
 
 /**
@@ -261,7 +431,7 @@ export const buildMatchResult = ({
   const entries = (Array.isArray(players) ? players : [])
     .filter((player) => studentIdOf(player))
     .map((player) => {
-      const standing = standingFromPlayer(player);
+      const standing = standingFromPlayer(player, { mode });
       // `liveScore` is the accuracy-first ranking metric; a finished match has
       // no work in progress, so it is the banked score.
       return { ...standing, participantId: standing.studentId, liveScore: standing.score };

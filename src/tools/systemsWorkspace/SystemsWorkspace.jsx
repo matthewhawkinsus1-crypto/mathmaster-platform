@@ -181,6 +181,12 @@ function InequalityMode({ questionData, onAction, draftKey = null }) {
   // test routes the shared grader (studentBuildInequalityEnabled).
   const studentBuildEnabled = studentBuildInequalityEnabled(questionData);
   if (studentBuildEnabled) return <StudentBuildInequalityMode questionData={questionData} onAction={onAction} draftKey={draftKey} />;
+  // No hook behind the early return above: the classic mode is its own
+  // component (see RepresentationBridge for why that matters).
+  return <ClassicInequalityMode questionData={questionData} onAction={onAction} />;
+}
+
+function ClassicInequalityMode({ questionData, onAction }) {
   const inequalities = questionData.inequalities || DEFAULT_INEQUALITIES;
   const bounds = questionData.graph || DEFAULT_INEQUALITY_GRAPH;
   const ask = Array.isArray(questionData.ask) && questionData.ask.length

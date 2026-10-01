@@ -241,9 +241,10 @@ const NO_MARKUP = ['$', '\\frac', '\\left', 'undefined', 'NaN', '[object Object]
 // so the literal word this once matched is gone — deliberately: "lobby" is the
 // teacher's word for the screen, not something a student needs. What a student
 // does need is to know they are waiting rather than late, so the check moved
-// from the jargon to the three facts that actually carry that.
+// from the jargon to the three facts that actually carry that: who they are,
+// that others are in, and that the teacher starts the game.
 await step('lobby', {
-  mustContain: ['Swift Otter', 'players in', 'teacher starts'],
+  mustContain: ['Swift Otter', 'players in', 'Waiting for your teacher to start'],
   mustNotContain: NO_MARKUP,
   mustHaveButton: 'Back to Warm-Up',
 });

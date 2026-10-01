@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { region } from './helpers/sourceContract.mjs';
+import { shortPlaceText } from '../../src/platform/liveChallenge/challengeStandingsModel.js';
 
 import {
   CHALLENGE_QUESTION_STYLES,
@@ -85,7 +86,9 @@ test('every callable that draws questions honours the style', () => {
     }
     // The VALUE matters, not the key name. A hardcoded "any" here would still
     // mention questionStyle while silently ignoring the teacher's choice.
-    assert.match(block, /const modeConfig = engine\.modes\.normalizeModeConfig\(mode, request\.data \|\| \{\}\)/, `${name} must read the request's style`);
+    // `const` or a `let` assigned inside the create's config-error guard: the
+    // binding is incidental, the request's data reaching the normalizer is not.
+    assert.match(block, /\bmodeConfig = engine\.modes\.normalizeModeConfig\(mode, request\.data \|\| \{\}\)/, `${name} must read the request's style`);
     assert.match(block, /liveChallengeQuestionPlanner\(mode\)\.plan\(\{[\s\S]{0,120}modeConfig/, `${name} must pass it to the draw`);
   });
 
@@ -143,8 +146,13 @@ test('the control exists and rehearses with the dry run', () => {
     deps[1].split(',').map((name) => name.trim()).includes('questionStyle'),
     'a style change must close a rehearsal drawn under the old style',
   );
-  const createCall = region(teacher, 'created = await createLiveChallenge({', '});', 'createLiveChallenge payload');
-  assert.match(createCall, /\bquestionStyle,/, 'createLiveChallenge must send the selected style');
+  // Every create that draws from the bank sends the style. A Graph Feature
+  // Rush generates its own graphs and has none, so its create (which spreads
+  // rushCreateRequest) is the one payload allowed without it.
+  const payloads = [...teacher.matchAll(/createLiveChallenge\(\{([\s\S]*?)\n\s*\}\);/g)].map((match) => match[1]);
+  const bankPayloads = payloads.filter((payload) => !payload.includes('rushCreateRequest('));
+  assert.ok(bankPayloads.length >= 1, 'the bank game\'s createLiveChallenge call must exist');
+  bankPayloads.forEach((payload) => assert.match(payload, /\bquestionStyle,/, 'createLiveChallenge must send the selected style'));
 });
 
 /* ---------- the student round reads as a game ---------- */
@@ -194,10 +202,19 @@ test('the question card follows the semantic surface so its tools keep contrast 
 });
 
 test('a student can see where they stand without waiting for the round to end', () => {
-  assert.match(student, /Your score/);
-  assert.match(student, /selfRow\.liveScore \?\? selfRow\.score/);
+  // The header shows the live score — banked points plus this round's working
+  // points — and the student's place on the same board everyone sees.
+  const header = region(student, 'data-mm-student-score="1"', '</header>', 'score header');
+  assert.match(header, /Your score/);
+  assert.match(header, /\(headerRow\.liveScore \?\? headerRow\.score\)\.toLocaleString\(\)/);
+  assert.match(header, /shortPlaceText\(headerRow\)/);
+  assert.equal(shortPlaceText({ rank: 2, tied: true }), 'T-2nd', 'a shared place says so');
+  assert.equal(shortPlaceText({ rank: 11 }), '11th');
+  assert.equal(shortPlaceText({ rank: null }), null, 'no place before there is one');
   // And the finish screen leads with their own result, not with the list.
-  assert.match(student, /#\{selfRow\.rank\}/);
+  const finalCard = region(read('../../src/components/liveChallenge/ChallengeStudentShell.jsx'), 'export function StudentFinalCard(', '\n}\n', 'final card');
+  const ownPlace = finalCard.indexOf('{selfRow.place.ordinal}');
+  assert.ok(ownPlace > -1 && ownPlace < finalCard.indexOf('<StandingsBoard'), 'their own place comes before the list');
 });
 
 test('every exit route out of the game still exists', () => {

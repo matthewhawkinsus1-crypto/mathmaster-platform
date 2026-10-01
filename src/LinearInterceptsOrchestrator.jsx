@@ -211,13 +211,8 @@ export default function LinearInterceptsOrchestrator({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bothInterceptsFound, disabled]);
 
-  if (!standard || Math.abs(Number(standard.A)) <= 1e-12 || Math.abs(Number(standard.B)) <= 1e-12) {
-    return (
-      <p style={{ color: '#a50e0e' }}>
-        This intercept question requires a two-variable linear equation with nonzero x- and y-coefficients.
-      </p>
-    );
-  }
+  const standardUsable = Boolean(standard)
+    && Math.abs(Number(standard.A)) > 1e-12 && Math.abs(Number(standard.B)) > 1e-12;
 
   const selectZeroChoice = (variable) => {
     pushStageHistory();
@@ -261,13 +256,23 @@ export default function LinearInterceptsOrchestrator({
   // — built by the shared interceptSubEquationQuestion, the same question the
   // server checks this sub-solve's steps against.
   const subEquationQuestion = useMemo(
-    () => (stage.committed ? interceptSubEquationQuestion(question, standard, stage.placedZeroVariable) : null),
+    () => (standardUsable && stage.committed ? interceptSubEquationQuestion(question, standard, stage.placedZeroVariable) : null),
     // Rebuild only when the committed substitution itself changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [stage.committed, stage.placedZeroVariable, kind],
   );
   // Which equation the sub-solve opened, so its steps' raw work names it.
   const subSolveStepWorkContext = stage.committed ? { zeroVariable: stage.placedZeroVariable } : null;
+
+  // After every hook, never before one: an early return above the useMemo made
+  // its call conditional on the question's coefficients.
+  if (!standardUsable) {
+    return (
+      <p style={{ color: '#a50e0e' }}>
+        This intercept question requires a two-variable linear equation with nonzero x- and y-coefficients.
+      </p>
+    );
+  }
 
   const handleSubEquationStateChange = (payload) => {
     const update = solvedStageUpdate(stage, payload);

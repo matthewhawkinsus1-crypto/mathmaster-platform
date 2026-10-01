@@ -20,6 +20,17 @@ export const submitLiveChallengeResponse = call('submitLiveChallengeResponse');
 export const calibrateLiveChallengeClock = call('calibrateLiveChallengeClock');
 export const reportLiveChallengeProgress = call('reportLiveChallengeProgress');
 export const updateLiveChallengePacing = call('updateLiveChallengePacing');
+// The room's own teacher only: player key -> student name, for the console's
+// roster. Never shown on the projector.
+export const getLiveChallengeHostRoster = call('getLiveChallengeHostRoster');
+
+// Graph Feature Rush. A student's place in the round and their next graphs,
+// and a batch of their taps, "Does Not Exist" presses and skips — graded
+// again on the server, which alone decides what counts. The preview shows a
+// teacher sample graphs for their settings and writes nothing.
+export const getGraphFeatureRushRound = call('getGraphFeatureRushRound');
+export const submitGraphFeatureRushAttempts = call('submitGraphFeatureRushAttempts');
+export const previewGraphFeatureRush = call('previewGraphFeatureRush');
 
 // Option B room experience. These remain server-authoritative: the browser
 // chooses a policy, but the server owns public aliases and speed-score scaling.
@@ -65,14 +76,38 @@ export const watchLiveChallengeInvite = (studentId, onValue, onError = console.e
   }, onError);
 };
 
-export const watchLiveChallengeRoom = (roomId, onValue, onError = console.error) => {
+// `onValue(room, { fromCache })`. With `includeMetadataChanges` the listener
+// also reports when the SDK falls back to its cache (offline) and when it is
+// back in sync — what a student's "Reconnecting…" is read from.
+export const watchLiveChallengeRoom = (roomId, onValue, onError = console.error, { includeMetadataChanges = false } = {}) => {
   if (!roomId) {
+    onValue?.(null, { fromCache: false });
+    return () => {};
+  }
+  return onSnapshot(doc(db, 'liveChallengeRooms', String(roomId)), { includeMetadataChanges }, (snapshot) => {
+    onValue?.(snapshot.exists() ? { roomId: snapshot.id, ...snapshot.data() } : null, { fromCache: snapshot.metadata.fromCache === true });
+  }, onError);
+};
+
+// One closed round's anonymous result (liveChallengeRooms/{room}/rounds/{n}):
+// written once, in the transaction that closes the round, with the standings
+// the round left behind. Watched only while a screen shows that round's
+// results; a document that never changes again costs one read.
+export const watchLiveChallengeRound = (roomId, roundIndex, onValue, onError = console.error) => {
+  if (!roomId || !Number.isInteger(Number(roundIndex)) || Number(roundIndex) < 0) {
     onValue?.(null);
     return () => {};
   }
-  return onSnapshot(doc(db, 'liveChallengeRooms', String(roomId)), (snapshot) => {
-    onValue?.(snapshot.exists() ? { roomId: snapshot.id, ...snapshot.data() } : null);
+  return onSnapshot(doc(db, 'liveChallengeRooms', String(roomId), 'rounds', String(Number(roundIndex))), (snapshot) => {
+    onValue?.(snapshot.exists() ? snapshot.data() : null);
   }, onError);
+};
+
+// The round before, for movement since then. One read; it never changes.
+export const readLiveChallengeRound = async (roomId, roundIndex) => {
+  if (!roomId || !Number.isInteger(Number(roundIndex)) || Number(roundIndex) < 0) return null;
+  const snapshot = await getDoc(doc(db, 'liveChallengeRooms', String(roomId), 'rounds', String(Number(roundIndex))));
+  return snapshot.exists() ? snapshot.data() : null;
 };
 
 export const watchLiveChallengePlayers = (roomId, onValue, onError = console.error) => {

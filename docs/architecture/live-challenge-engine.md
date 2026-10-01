@@ -39,8 +39,14 @@ durable match result.
 | `liveChallengeClassPoints.mjs` | staging and delivering awards (ledger credits, grants) | server |
 | `liveChallenge.mjs` | the mature per-response scorer, receipts, leaderboard, tallies (pre-engine; still authoritative for Accuracy First arithmetic) | yes |
 | `liveChallengeParity.mjs` | client clock calibration, round phases, snapshot acceptance | yes |
+| `graphFeature*.mjs` | Graph Feature Rush: exact graph math, the generator, hit testing, attempt rules (see `graph-feature-rush.md`) | yes |
+| `liveChallengePresence.mjs` | the heartbeat a game screen's clock calibration writes: quality, recent sessions (devices), reconnects | yes |
 
 `functions/index.js` loads the pure modules once through `liveChallengeEngine()`.
+
+The screens around a game — the host console, the projector and a student's
+device, for every mode — are the **shell**, with its own client-side models:
+see `live-challenge-shell.md`.
 
 ---
 
@@ -152,8 +158,12 @@ defineChallengeMode({
   questionSpec: { completionRule: 'singleResponse', targetCount: 1 },
   defaultScoringStrategy: 'accuracyFirst',
   scoringStrategies: ['accuracyFirst', 'grandPrix', 'correctCount'],
-  capabilities: { secondChance, progressMilestones, paceTiming, closingThreshold, dryRun },
+  capabilities: { secondChance, progressMilestones, paceTiming, closingThreshold, dryRun, warmupLink },
   normalizeConfig: (raw) => ({ questionStyle, ... }),   // the mode's teacher settings
+  // Optional:
+  questionIssue: QUESTION_ISSUE.SHARED,   // or PER_PLAYER: each player has their own questions
+  roundLimits: { minRounds, maxRounds, defaultRounds, minSeconds, maxSeconds, defaultSeconds },
+  scoringDefaults: { grandPrix: { placementCurve: 'field' } },
 })
 ```
 
@@ -163,8 +173,11 @@ defineChallengeMode({
 | `questionSource` | which question planner draws the round's questions (`LIVE_CHALLENGE_QUESTION_PLANNERS` in `functions/index.js`: `plan` for a room or dry run, `swap` for a dry-run swap) |
 | `questionSpec` | completion rule and target count per question (section 5) |
 | `scoringStrategies` | the strategies a room of this mode may use; anything else resolves to the default |
-| `capabilities` | engine features the mode opts into, read where they apply (e.g. `progressMilestones` gates the Solver Race progress callable) |
+| `capabilities` | engine features the mode opts into, read where they apply (e.g. `progressMilestones` gates the Solver Race progress callable; `warmupLink` whether a room may be an assignment's Warm-Up) |
 | `normalizeConfig` | validates the mode's own create settings |
+| `questionIssue` | `shared` (everyone answers the round's question) or `perPlayer` (each player's questions are their own; a round's question specs are read from that player's receipts, `questionSpecsFromReceipts`) |
+| `roundLimits` | the round count and seconds a room of the mode may be created with (`normalizeModeRoundCount/Seconds`); the classic defaults otherwise |
+| `scoringDefaults` | per-strategy config defaults applied before the request's own (`modeScoringConfig`) |
 
 Round structures:
 
@@ -183,7 +196,10 @@ created before modes existed keep working.
 
 1. If a new question source is needed, add a planner to
    `LIVE_CHALLENGE_QUESTION_PLANNERS` (`plan` returning
-   `{ candidateCount, selected, roundQuestions, seed }`, and `swap`).
+   `{ candidateCount, selected, roundQuestions, seed }`, and `swap`). A planner
+   may also return `roomFields` (public room settings) and `privateFields`
+   (server-only state, such as a seed), and may define `openRound` to build a
+   round's opening itself instead of drawing a bank question.
 2. Declare the mode with `defineChallengeMode` and register it in the mode
    registry. Start with `teacherSelectable: false` until it ships.
 3. Pick a round structure and question spec. A multi-target question is
@@ -197,7 +213,8 @@ created before modes existed keep working.
    integration test that plays one round through the callables.
 
 `tests/platform/liveChallengeEngineModes.test.mjs` declares a Feature-Rush-
-shaped mode exactly this way.
+shaped mode exactly this way, and Graph Feature Rush (`graph-feature-rush.md`)
+is the first registered mode built on the question-set structure.
 
 ---
 
@@ -208,8 +225,11 @@ derives what it shows from those timestamps and its calibrated view of server
 time, so a refresh, a sleeping Chromebook or a reconnect catches up to the real
 deadline. There is no countdown to restart.
 
-- `buildRoundTimer({ nowMs, durationMs })` — a round starts
-  `ROUND_SYNC_LEAD_MS` after the server's now so every device can synchronize;
+- `buildRoundTimer({ nowMs, syncLeadMs, durationMs })` — a round starts in the
+  future so every device can synchronize: `ROUND_SYNC_LEAD_MS` by default, and
+  `ROUND_COUNTDOWN_LEAD_MS` (3.5 s) for every round the lifecycle opens, so
+  each screen shows the same 3-2-1 off `startsAt` before anyone can answer.
+  Everything counts from `startsAt`, so the lead never shortens a round.
   `durationMs: null` is an open-ended Pace Race round.
 - `timerFromRoom(room)` — reads it back; only `timingMode: 'pace'` is
   open-ended by design.
@@ -248,6 +268,16 @@ it, so a retried submission is a **replay** of its receipt, never a second
 attempt. Score-only receipts (Solver Race productive-speed milestones,
 `receiptKind: 'productiveSpeedMilestone'`) carry points but are never attempts.
 
+A **forfeit** receipt (`forfeit: true`) gives a question up: it completes the
+question, not correctly, keeping any targets already found. Each attempt on a
+multi-target question records its `targetCount`, so a per-player round's
+question specs are rebuilt from the log alone. Round score totals are kept in
+**exact score units** (`SCORE_UNIT`, the least common multiple of 1–20 target
+counts), so equal work compares equal whatever order fractions were added in.
+A round holds at most `MAX_QUESTIONS_PER_ROUND` (150) questions. A
+question-set round's **work score** is completed work less 1/20 of a question
+per wrong attempt, never below zero (`questionSetWorkScore`).
+
 ---
 
 ## 6. Scoring strategies
@@ -270,8 +300,8 @@ defineScoringStrategy({
 | Strategy | Accumulation | Match total |
 | --- | --- | --- |
 | `accuracyFirst` (default) | per response | the sum of response points: 1,000 for correctness, bounded speed, streak and comeback bonuses, second-chance recovery shares. Unchanged arithmetic. |
-| `grandPrix` | per round | round performance → round rank → placement points (`[15, 12, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]`, 1 beyond the table, 0 for no credit) → championship total. No streak/comeback carry-over between rounds. Ranked by match points, then round wins, then raw score. |
-| `correctCount` | per response | one point per fully correct response |
+| `grandPrix` | per round | round performance → round rank → placement points → championship total. `placementCurve: 'table'` (default): `[15, 12, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]`, 1 beyond the table. `'field'` (Graph Feature Rush): sized to the class — a straight line from 11 at the top down to 3 for last, plus a one-point winner's bonus that makes 1st worth 12 (`fieldPlacementPoints`). Either way 0 for no credit, and ties share a place's points. No streak/comeback carry-over between rounds. Ranked by match points, then round wins, then raw score. |
+| `correctCount` | per response | one point per fully correct response (or completed multi-target question, via the `scoreTargetAttempt` hook); ties by match accuracy, then rounds answered |
 
 **Speed influence is native.** The teacher's speed setting (0–50%) is applied by
 the strategy at submit time with the exact arithmetic the retired post-hoc
@@ -321,8 +351,18 @@ Written once, in the transaction that closes the round:
   player's round metrics, rank, round points and the match points the strategy
   awarded.
 - `liveChallengeRooms/{roomId}/rounds/{round}` — the **anonymous** copy
-  (`publicRoundSummary`: player key, alias, rank, points — no student id), read
-  by the room's audience.
+  (`publicRoundSummary`: player key, alias, rank, points — no student id; for
+  a question-set round also `completed` and `accuracyPercent`), read by the
+  room's audience. It also carries `standingsAfterRound`
+  (`matchStandingsAfterRound`): the match standings ranked from the totals the
+  same transaction wrote — the final result's own ranking — so a results
+  screen reads the round and the standings it left from one document, and
+  movement compares two standings the engine wrote. The last round's are the
+  final standings.
+- For a question-set round, each joined player's public row gets `lastRound`
+  (their rank in the round's field, `fieldSize`, completed work, accuracy and
+  the points it earned) in the same transaction — what their round-results
+  screen shows, also after a refresh.
 
 ### Match result
 
@@ -458,10 +498,17 @@ student's).
 | re-staging rewards | merge keeps processed awards processed |
 | a grant used twice | `transitionRewardGrant` plans and writes in one transaction |
 | a reconnect | `joinLiveChallenge` merges into the existing player: same key, score and join round |
+| several host screens closing the same round on time | the close is round-scoped and idempotent: the first closes it, the rest get `alreadyApplied` |
+| Play Again | always a new room id: new receipts, rounds, tokens, match result and award identities |
 
 ---
 
 ## 11. Clients
+
+The host console, the projector and the student screens are described in
+`live-challenge-shell.md`: the derived stages, the countdown, round pacing,
+score presentation, the results moment, the roster and presence, reconnects,
+late join and Play Again. The rules below are the engine-facing ones.
 
 - **One mount per room.** The student screen is keyed by room id (dashboard and
   Warm-Up), and resets its room, standings and error when the room changes.
@@ -469,18 +516,27 @@ student's).
   unconditionally and orders snapshots of the same room by round, version and
   phase. A student's second and third match of a period start clean.
 - **Listener ownership.** The room listener depends on the room id only; clock
-  calibration (every 30 s) is read through a ref and never re-subscribes it.
+  calibration (every 30 s, live games only) is read through a ref and never
+  re-subscribes it.
 - **Refresh after answering.** The public player row's `answeredRound` locks the
   round even when no local result survived; the server's result is kept for the
   current round (live rooms only) and restored on reload; a refused second
   answer (`already-exists`) is shown as "recorded", not as an error.
 - **One command at a time.** The teacher console sends lifecycle commands
-  through one lock; every lifecycle button is disabled while any command is in
+  through one lock; every lifecycle control is disabled while any command is in
   flight, and round commands carry the round on screen.
-- **Leaderboards** rank with the room's strategy (`leaderboardOptionsFor`);
-  the lobby lists players without ranks; the podium fills steps in standing
-  order and labels each step with its player's (possibly shared) rank.
-- **Host audio** forgets the previous game's state when the room changes.
+- **The host closes rounds** for every mode (shell doc §4) with the same
+  idempotent close the teacher can press; Next Round is the teacher's, from a
+  closed round.
+- **Boards** rank with the room's strategy (`leaderboardOptionsFor`) and show
+  working points only while the round takes answers; results read the round's
+  result document; the podium fills steps in standing order and labels each
+  step with its player's (possibly shared) rank.
+- **Host audio** forgets the previous game's state when the room changes, and
+  makes no sound it cannot play (unprimed or muted).
+- **Graph Feature Rush** (`graph-feature-rush.md`): the student plays on a
+  lazily loaded full-screen surface; the standings listener pauses while a
+  rush round is open.
 
 ---
 
@@ -488,10 +544,10 @@ student's).
 
 | Path | Holds | Client access |
 | --- | --- | --- |
-| `liveChallengeRooms/{roomId}` | status, round identity and state, clock, current question, mode/strategy ids, speed setting | room audience reads |
-| `…/players/{playerKey}` | alias, scores, answeredRound — no student id | room audience reads |
-| `…/rounds/{round}` | anonymous round result | room audience reads |
-| `…/diagnostics/{playerKey}` | device health | room owner reads |
+| `liveChallengeRooms/{roomId}` | status, round identity and state, clock, current question, mode/strategy ids, speed setting, `rewardSummary` (what placements earn; no student) | room audience reads |
+| `…/players/{playerKey}` | alias, scores, answeredRound; for a rush also `matchAccuracy`, `rushRound`, `rushRoundCompleted`, `rushActiveAt`, `lastRound` — no student id | room audience reads |
+| `…/rounds/{round}` | anonymous round result, with `standingsAfterRound` | room audience reads |
+| `…/diagnostics/{playerKey}` | device health: connection quality, recent `sessions` (per-tab ids → last heard), `reconnectedAt` | room owner reads |
 | `liveChallengePrivate/{roomId}` (+ `players`, `rounds`) | question ids, roster, receipts, reward policy, scoring config | none |
 | `liveChallengeInvites/{studentId}` | which room a student is in | own student |
 | `liveChallengeTeacherActive/{email}` | the teacher's active room pointer | own teacher |
@@ -526,14 +582,26 @@ clears every collection above.
   once the round is ready, when late traffic is limited to the bounded grace.
 - **Finalization**: one transaction (room, private state, match result,
   pointer), then the effects. Award delivery is one small transaction per award.
-- **Client listeners**: student — room + players (the 30-second re-subscription
-  is gone); teacher — room, players, diagnostics, active pointer.
+- **Client listeners**: student — room (with metadata, for an honest
+  "Reconnecting…") + players, plus the current round's result while its
+  results are on screen; teacher — room, players, diagnostics, active pointer,
+  plus the round result during results; the roster callable once per room.
+  Each calibration is now one transaction on the student's diagnostics row
+  (it was a merge write).
+- **Client rendering**: screens re-derive at clock boundaries instead of
+  re-rendering every 250 ms; clock digits tick in their own component; the
+  question engine is memoized against the round around it (shell doc §2).
+- **Graph Feature Rush**: one transaction per batch of a student's taps (see
+  `graph-feature-rush.md` §10).
 - **Client bundle**: the lazily loaded student game chunk carries the ranking,
   timer-readiness and strategy registries it now ranks with — about 12 kB more
   than before the engine (≈4 kB gzip). The engine modules deliberately have no
   `export default` aggregate object: one would reference every function and
   defeat tree-shaking, which is what an early draft of this work did (+23 kB).
-  Keep it that way when adding modules the browser imports.
+  Keep it that way when adding modules the browser imports. The shell (stage,
+  standings, presence and replay models, the shared parts and cards) added
+  about 32 kB to the lazily loaded student chunk (≈10 kB gzip) and 16 kB to the
+  teacher console (≈5 kB gzip).
 
 ---
 
@@ -560,15 +628,21 @@ clears every collection above.
 
 ## 15. Deferred, deliberately
 
-- Host pause/resume controls (the timer model supports them) and an automatic
-  round close from the host screen when a round becomes ready.
-- Teacher UI for choosing a scoring strategy, Grand Prix round-result screens
-  and a reward-policy editor (the server accepts `scoringStrategyId`,
-  `scoringConfig` and `rewardPolicy` at create and validates them).
-- A student rewards wallet, teacher revoke, and an expiry sweep — all built on
-  `transitionRewardGrant`.
-- Graph Feature Rush (multi-target, question-set rounds) — the mode contract,
-  round structure and attempt model are in place.
+- Host pause/resume controls (the timer model supports them). ~~An automatic
+  round close from the host screen for the classic modes~~ — built: every mode
+  (`live-challenge-shell.md` §4).
+- Teacher UI for choosing a scoring strategy for the classic modes (the server
+  accepts `scoringStrategyId` and `scoringConfig` at create and validates them;
+  every results screen presents Grand Prix and Correct Count; Graph Feature
+  Rush's setup offers its two strategies). The reward-policy
+  choice now exists as a small preset picker (`ChallengeRewardSettings`, used
+  by every mode); a free-form rule editor is still deferred.
+- ~~A student rewards wallet and teacher revoke~~ — built: see
+  `docs/architecture/rewards.md` (wallet, Practice Pass redemption from a
+  held pass, teacher give / take back / undo, Challenge reward choice and
+  diagnostics). An expiry sweep is still deferred: an expired grant already
+  reads as expired everywhere (`effectiveGrantStatus`), so persisting it is
+  housekeeping, not correctness.
 - Deleting the legacy experience trigger in a deployment that removes it
   explicitly.
 - Reports written before `studentIds` existed are not reachable by permanent

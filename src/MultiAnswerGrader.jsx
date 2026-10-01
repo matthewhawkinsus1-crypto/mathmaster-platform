@@ -87,8 +87,12 @@ const shouldUsePlainTextInput = (field) => {
   return accepted.length > 0 && accepted.every(looksLikePlainLanguageAnswer);
 };
 
+// Stable fallback: `answerFields = []` built a new array per render, and the
+// report effect below depends on what is derived from it.
+const NO_FIELDS = Object.freeze([]);
+
 export default function MultiAnswerGrader({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
-  const { prompt, answerFields = [] } = question;
+  const { prompt, answerFields = NO_FIELDS } = question;
   const safeFields = useMemo(() => (Array.isArray(answerFields) ? answerFields.filter((field) => field?.id) : []), [answerFields]);
   const candidateGraphs = useMemo(
     () => stableShuffleChoices(

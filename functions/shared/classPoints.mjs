@@ -73,6 +73,10 @@ export const SOURCE_TYPES = Object.freeze({
   TEACHER_REVERSAL: 'teacherReversal',
   LIVE_CHALLENGE_ACHIEVEMENT: 'liveChallengeAchievement',
   REWARD_REDEMPTION: 'rewardRedemption',
+  // Points given back when a teacher undoes a Practice Pass that was bought
+  // with points. It cancels a spend, so it lowers lifetimeSpent rather than
+  // raising lifetimeEarned — see applyTransaction.
+  REWARD_REFUND: 'rewardRefund',
 });
 
 // Small positive integers only. High enough for a generous single award (a
@@ -342,8 +346,9 @@ export const applyTransaction = (account, transaction) => {
   if (nextBalance < 0) reject('This would take the account balance below zero.');
 
   const isReversal = transaction.sourceType === SOURCE_TYPES.TEACHER_REVERSAL;
-  const earnedDelta = isReversal ? amount : Math.max(amount, 0);
-  const spentDelta = (!isReversal && amount < 0) ? -amount : 0;
+  const isRefund = transaction.sourceType === SOURCE_TYPES.REWARD_REFUND;
+  const earnedDelta = isRefund ? 0 : isReversal ? amount : Math.max(amount, 0);
+  const spentDelta = isRefund ? -amount : (!isReversal && amount < 0) ? -amount : 0;
 
   return {
     ...account,
@@ -352,7 +357,7 @@ export const applyTransaction = (account, transaction) => {
     classId: account?.classId ?? transaction.classId,
     balance: nextBalance,
     lifetimeEarned: (account?.lifetimeEarned || 0) + earnedDelta,
-    lifetimeSpent: (account?.lifetimeSpent || 0) + spentDelta,
+    lifetimeSpent: Math.max(0, (account?.lifetimeSpent || 0) + spentDelta),
     updatedAt: transaction.createdAt || account?.updatedAt || null,
   };
 };

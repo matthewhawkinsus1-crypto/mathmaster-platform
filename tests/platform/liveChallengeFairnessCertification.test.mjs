@@ -14,7 +14,7 @@ import {
   ROUND_SYNC_LEAD_MS,
   submissionArrivalDecision,
 } from '../../functions/shared/liveChallengeParity.mjs';
-import { buildRoundTimer } from '../../functions/shared/liveChallengeTimer.mjs';
+import { buildRoundTimer, ROUND_COUNTDOWN_LEAD_MS } from '../../functions/shared/liveChallengeTimer.mjs';
 
 test('future authoritative start maps ahead of the monotonic clock without counting sync lead', () => {
   const origin = monotonicRoundOrigin({ monotonicNow: 8_000, serverNowMs: 100_600, startsAtMs: 101_500 });
@@ -178,16 +178,22 @@ test('server and student contracts include idempotency, immediate lock, trust bo
   assert.match(server, /submissionReceipts\?\.\[submissionId\]/);
   assert.match(server, /roundVersion/);
   assert.match(server, /roundToken/);
-  // Every round is published with the future sync lead: the authoritative
-  // timer puts the official start ROUND_SYNC_LEAD_MS after the server's now,
-  // and opening a round uses that timer without overriding the lead.
+  // Every round is published with a future start. The bare sync lead is
+  // ROUND_SYNC_LEAD_MS; a round the lifecycle opens uses the longer COUNTDOWN
+  // lead, so every screen can show the same 3-2-1 off the official start before
+  // anyone can answer. Either way the start is in the future and the round's
+  // length is measured from it: a longer lead never shortens a round.
   const timer = buildRoundTimer({ nowMs: 500_000, durationMs: 30_000 });
   assert.equal(timer.startsAtMs, 500_000 + ROUND_SYNC_LEAD_MS);
   assert.equal(timer.endsAtMs, timer.startsAtMs + 30_000);
+  assert.ok(ROUND_COUNTDOWN_LEAD_MS >= ROUND_SYNC_LEAD_MS, 'the countdown lead is never shorter than the sync lead');
+  const counted = buildRoundTimer({ nowMs: 500_000, syncLeadMs: ROUND_COUNTDOWN_LEAD_MS, durationMs: 30_000 });
+  assert.equal(counted.startsAtMs, 500_000 + ROUND_COUNTDOWN_LEAD_MS);
+  assert.equal(counted.endsAtMs - counted.startsAtMs, 30_000, 'the round keeps its full length after the countdown');
   const openingStart = server.indexOf('function applyLiveChallengeRoundOpening(');
   const opening = server.slice(openingStart, server.indexOf('\n}\n', openingStart));
-  assert.match(opening, /engine\.timer\.buildRoundTimer\(\{\s*nowMs,/);
-  assert.doesNotMatch(opening, /syncLeadMs/);
+  // The lead the opening passes is the shared constant — not a number of its own.
+  assert.match(opening, /engine\.timer\.buildRoundTimer\(\{\s*nowMs,\s*syncLeadMs: engine\.timer\.ROUND_COUNTDOWN_LEAD_MS,/);
   assert.match(opening, /const startsAt = new Date\(timer\.startsAtMs\)/);
   assert.match(server, /humanElapsedMs: request\.data\?\.timingDegraded \? null : request\.data\?\.humanElapsedMs/);
   assert.match(server, /gradePathToolResponse/);

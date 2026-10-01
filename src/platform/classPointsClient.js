@@ -261,6 +261,7 @@ export const sourceTypeLabel = (transaction = {}) => {
     case 'teacherReversal': return 'Reversal';
     case 'liveChallengeAchievement': return 'Live Challenge';
     case 'rewardRedemption': return 'Reward redeemed';
+    case 'rewardRefund': return 'Reward returned';
     default: return 'Teacher award';
   }
 };
@@ -317,6 +318,8 @@ export const describeClassPointTransaction = (transaction = {}) => {
     ? 'correction'
     : transaction.sourceType === 'rewardRedemption'
       ? 'spent'
+      : transaction.sourceType === 'rewardRefund'
+        ? 'refund'
       : transaction.sourceType === 'liveChallengeAchievement'
         ? 'challenge'
         : 'earned';
@@ -326,6 +329,7 @@ export const describeClassPointTransaction = (transaction = {}) => {
     kind,
     kindLabel: kind === 'correction' ? 'Teacher correction'
       : kind === 'spent' ? 'Reward used'
+        : kind === 'refund' ? 'Points returned'
         : kind === 'challenge' ? 'Live Challenge reward'
           : 'Earned',
     reasonLabel: String(transaction.reasonLabel || '').trim(),
@@ -393,6 +397,10 @@ export const PRACTICE_PASS_COST = 100;
 
 const CLASS_POINT_REWARD_REDEMPTIONS_COLLECTION = 'classPointRewardRedemptions';
 
+/** Same rule as functions/shared/classPointRewards.mjs isActivePracticePassRedemption: an undone use is history, not a waiver. */
+export const isActivePracticePassRedemption = (redemption) => Boolean(redemption)
+  && String(redemption.status || 'redeemed') === 'redeemed';
+
 /** Exact required confirmation copy, kept in one place so it cannot drift screen to screen. */
 export const practicePassConfirmationCopy = (assignmentTitle) => ({
   question: `Use 100 Class Points to excuse the Practice section of ${assignmentTitle}?`,
@@ -430,13 +438,18 @@ export const subscribeToPracticePassRedemptions = ({
   return onSnapshot(
     redemptionsQuery,
     (snapshot) => {
+      // Only a LIVE waiver excuses Practice. A use a teacher undid stays
+      // readable (second argument, for reward history) but is not a waiver:
+      // every grading and completion consumer reads byAssignmentId.
       const byAssignmentId = {};
+      const all = [];
       snapshot.docs.forEach((entry) => {
         const data = entry.data();
+        all.push(data);
         const assignmentId = cleanText(data?.assignmentId, 200);
-        if (assignmentId) byAssignmentId[assignmentId] = data;
+        if (assignmentId && isActivePracticePassRedemption(data)) byAssignmentId[assignmentId] = data;
       });
-      onRedemptions(byAssignmentId);
+      onRedemptions(byAssignmentId, all);
     },
     onError,
   );

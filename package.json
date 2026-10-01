@@ -15,6 +15,7 @@
     "validate:authoring-v5": "node scripts/validate-authoring-v5.mjs",
     "validate:assignments": "node scripts/validate-assignments.mjs",
     "test:live-challenge": "node --test tests/platform/liveChallenge.test.mjs",
+    "test:rewards-browser": "node tests/browser/rewardsQa.mjs",
     "build:firebase": "node scripts/build-firebase-hosting.mjs",
     "deploy:hosting": "bash scripts/deploy-hosting-resilient.sh",
     "verify:deployed-build": "node scripts/verify-deployed-build.mjs",

@@ -217,7 +217,11 @@ const context = await browser.newContext({ viewport: VIEWPORT });
 const page = await context.newPage();
 page.on('pageerror', (error) => note('page', 'runtime', String(error)));
 
-await page.goto(PAGE);
+// The first navigation waits for a cold dev server: Vite scans and pre-bundles
+// dependencies before it answers, which took 34 s on a 4-core container (82 s
+// with another dev server sharing node_modules/.vite). That is compile time, not
+// the certification's subject, so it gets its own budget.
+await page.goto(PAGE, { timeout: 180000 });
 await page.waitForSelector('[data-draft-scene]', { timeout: 30000 });
 await page.evaluate(() => window.__mmDraft.clearStorage());
 

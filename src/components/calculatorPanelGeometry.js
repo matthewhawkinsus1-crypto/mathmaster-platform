@@ -23,3 +23,13 @@ export const clampCalculatorPosition = ({
     y: Math.min(maxY, Math.max(safeMargin, finiteOr(y, safeMargin))),
   };
 };
+
+/**
+ * The position to store after a re-clamp: `current` itself when the clamp
+ * moved nothing, so a state update with it is a no-op instead of a re-render
+ * (and, in an effect that depends on the position, another re-clamp).
+ */
+export const settleCalculatorPosition = (current, next) => {
+  if (!current || !next) return next ?? current;
+  return Math.abs(current.x - next.x) < 0.5 && Math.abs(current.y - next.y) < 0.5 ? current : next;
+};
