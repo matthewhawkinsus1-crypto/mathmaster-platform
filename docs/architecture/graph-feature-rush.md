@@ -243,8 +243,8 @@ its speed and protect nothing. The answer key is never on a shared screen.
 ### Correct Count
 
 One point per completed graph, banked as the server confirms it; the match
-total is graphs completed. Ties: match accuracy (hits ÷ attempts), then rounds
-played.
+total is graphs completed. Ties: match accuracy (hits ÷ attempts), then fewer
+rounds played (the same total in fewer rounds ranks first).
 
 ### Grand Prix
 
@@ -276,8 +276,8 @@ round wins, then raw work.
 **Final ranking rule.** Round: work score ↓, accuracy ↓, last correct
 completion time ↑; equal on all three is a tie (shared rank). Match (Grand
 Prix): championship points ↓, round wins ↓, raw score ↓. Match (Correct
-Count): graphs ↓, accuracy ↓, rounds played ↓. Never by name, device or
-arrival order.
+Count): graphs ↓, accuracy ↓, rounds played ↑. Never by name, device or
+arrival order. (↓: higher first; ↑: lower first.)
 
 ---
 
