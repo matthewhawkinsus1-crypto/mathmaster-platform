@@ -1,9 +1,10 @@
 /*
  * Run the unfinished-work certification end to end.
  *
- * Starts the harness dev server, waits for it, drives a real Chromium through
- * navigate / reload / close-and-reopen for every certified family, and shuts
- * the server down again.
+ * Starts the harness dev server WARM (scripts/lib/gateServer.mjs: the harness
+ * page and everything it imports compiled before a browser opens), drives a
+ * real Chromium through navigate / reload / close-and-reopen for every
+ * certified family, and shuts the server down again.
  *
  * It needs Playwright and a Chromium build. When neither is available the run
  * SKIPS with a message and a zero exit code — a persistence claim that silently
@@ -11,10 +12,9 @@
  * exists to prevent, so a skip has to look like a skip.
  */
 import { spawn } from 'node:child_process';
-import { setTimeout as sleep } from 'node:timers/promises';
+import { GATES, startGateServer } from './lib/gateServer.mjs';
 
 const PORT = Number(process.env.DRAFT_PERSISTENCE_PORT || 5203);
-const ORIGIN = `http://127.0.0.1:${PORT}`;
 
 try {
   await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
@@ -33,39 +33,32 @@ try {
   }
 }
 
-const server = spawn(
-  process.execPath,
-  ['node_modules/vite/bin/vite.js', '--config', 'tests/browser/emulator/vite.config.mjs', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'],
-  { stdio: ['ignore', 'pipe', 'pipe'] },
-);
-let serverLog = '';
-server.stdout.on('data', (chunk) => { serverLog += chunk; });
-server.stderr.on('data', (chunk) => { serverLog += chunk; });
-
-const stop = () => { if (!server.killed) server.kill('SIGTERM'); };
-process.on('exit', stop);
-process.on('SIGINT', () => { stop(); process.exit(130); });
-
-const ready = async () => {
-  for (let attempt = 0; attempt < 60; attempt += 1) {
-    try {
-      const response = await fetch(ORIGIN);
-      if (response.ok) return true;
-    } catch { /* not up yet */ }
-    await sleep(500);
-  }
-  return false;
-};
-
-if (!(await ready())) {
-  console.error(`The harness dev server never came up on ${ORIGIN}.\n${serverLog}`);
-  stop();
+let gate;
+try {
+  gate = await startGateServer(GATES['draft-persistence'], { port: PORT });
+} catch (error) {
+  console.error(`The harness dev server never became ready.\n${error.message}`);
   process.exit(1);
 }
+console.log(gate.summary);
 
 const args = ['tests/browser/draftPersistence.mjs', ...process.argv.slice(2)];
 const run = spawn(process.execPath, args, {
   stdio: 'inherit',
-  env: { ...process.env, AUDIT_ORIGIN: ORIGIN },
+  env: { ...process.env, AUDIT_ORIGIN: gate.origin },
 });
-run.on('exit', (code) => { stop(); process.exit(code ?? 1); });
+process.on('exit', () => { if (run.exitCode === null) run.kill('SIGTERM'); });
+for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => run.kill(signal));
+
+run.on('exit', async (code, signal) => {
+  const late = gate.lateRebundles();
+  if (late.length) {
+    console.error(
+      `\n[gate:draft-persistence] Vite re-bundled dependencies DURING the run, which reloads the page under a scene:\n  ${late.join('\n  ')}\n`
+      + '  Add the named package(s) to this gate\'s `include` in scripts/lib/gateServer.mjs.',
+    );
+  }
+  if (code !== 0) console.error(`\n[gate:draft-persistence] server log (last lines):\n${gate.logTail(25)}`);
+  await gate.close().catch(() => {});
+  process.exit(code ?? (signal === 'SIGINT' ? 130 : 1));
+});

@@ -217,11 +217,13 @@ const context = await browser.newContext({ viewport: VIEWPORT });
 const page = await context.newPage();
 page.on('pageerror', (error) => note('page', 'runtime', String(error)));
 
-// The first navigation waits for a cold dev server: Vite scans and pre-bundles
-// dependencies before it answers, which took 34 s on a 4-core container (82 s
-// with another dev server sharing node_modules/.vite). That is compile time, not
-// the certification's subject, so it gets its own budget.
-await page.goto(PAGE, { timeout: 180000 });
+// An ordinary page budget. `npm run test:draft-persistence` hands this script a
+// WARM server (scripts/lib/gateServer.mjs): the harness and everything it
+// imports are compiled before a browser opens, so this load measures the page,
+// not Vite — about 1–1.5 s from a cold cache. PR #407 gave it 180 s because the
+// harness config's swap plugins made Vite's cold dependency scan take 36–106 s;
+// that cause is fixed in tests/browser/emulator/swapModules.mjs.
+await page.goto(PAGE);
 await page.waitForSelector('[data-draft-scene]', { timeout: 30000 });
 await page.evaluate(() => window.__mmDraft.clearStorage());
 

@@ -956,6 +956,23 @@ Measured inside the real wrappers with the identity bar, standard vs wide
 - **Next:** a `npm run gates:serve` script that starts Vite with `hmr: false`,
   a dedicated `cacheDir` and the fonts directory, used by every
   `tests/browser/*.mjs` header. **Scope:** tiny.
+- **Update — gate server (after PR #407).** The slow cold start had a cause in
+  the harness config itself: five chained `swapFile` plugins each resolved and
+  returned null, so Vite resolved every import 326 times. Vite's dependency
+  scan took 36 s alone and 82–106 s beside a loading page, which is what PR
+  #407's 180 s first-`goto` budget absorbed and why `npm run
+  test:durable-outbox` failed from a cold cache. One swap plugin that returns
+  its own resolution (`tests/browser/emulator/swapModules.mjs`, pinned by
+  `tests/platform/harnessModuleSwap.test.mjs`) brings the scan to ~1 s.
+  `scripts/lib/gateServer.mjs` (`npm run gates:serve -- <gate>`) starts a gate
+  with `hmr: false`, `appType: 'mpa'`, its own `node_modules/.vite-gates/<gate>`
+  cache, `optimizeDeps.entries`/`include` for its harness, MathLive's fonts
+  served where pre-bundled MathLive looks for them (they were answered with
+  `index.html` and a 200, not a 404), and readiness = the harness page, its
+  entry modules and everything they import answer 200. Cold, the draft
+  certification's first page load went from 88–113 s to 1.0–1.4 s and the 180 s
+  budget is gone. Adopted by the draft-persistence and durable-outbox runners;
+  the other `tests/browser/*.mjs` drivers still start Vite themselves.
 
 ---
 

@@ -31,6 +31,8 @@ on:
       - "src/platform/workflow/WorkflowRunner.jsx"
       - "src/tools/**"
       - "scripts/run-draft-persistence-certification.mjs"
+      - "scripts/lib/gateServer.mjs"
+      - "tests/browser/emulator/**"
       - "tests/browser/draftPersistence*"
       - "tests/platform/toolDraftPersistence*.test.mjs"
       - "tests/platform/draftPersistenceFindings.test.mjs"

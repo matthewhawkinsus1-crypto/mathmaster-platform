@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
@@ -75,14 +76,26 @@ test('a grading result missing a number cannot throw inside a live round', () =>
 
 /* ---------- the harness cannot reach production ---------- */
 
-test('the game harness is pinned to the emulator and to localhost', () => {
+test('the game harness is pinned to the emulator and to localhost', async () => {
   const runner = read('../browser/liveChallengeGame.mjs');
   assert.match(runner, /context\.route\('\*\*\/\*'/);
   assert.match(runner, /route\.abort\(\)/);
-  const swap = read('../browser/emulator/vite.config.mjs');
   // A string alias would silently not fire on relative specifiers and the
-  // harness would load the real, production-pointed Firebase module.
-  assert.match(swap, /resolved\.id === targetAbs/);
+  // harness would load the real, production-pointed Firebase module. So the
+  // harness's swap is asked about a RELATIVE import that resolves to
+  // src/firebase.js, and must answer with the emulator module. (Every swapped
+  // module, through Vite's real resolver: harnessModuleSwap.test.mjs.)
+  const { default: harness } = await import('../browser/emulator/vite.config.mjs');
+  const swap = harness.plugins.find((plugin) => plugin.name === 'mm-harness-swap');
+  assert.ok(swap, 'the harness config must carry its module swap');
+  const at = (rel) => fileURLToPath(new URL(rel, import.meta.url));
+  const swapped = await swap.resolveId.call(
+    { resolve: async () => ({ id: at('../../src/firebase.js') }) },
+    '../../firebase.js',
+    at('../../src/platform/liveChallenge/liveChallengeService.js'),
+    {},
+  );
+  assert.equal(swapped, at('../browser/emulator/firebaseEmulator.js'));
   const firebase = read('../browser/emulator/firebaseEmulator.js');
   assert.match(firebase, /connectFirestoreEmulator/);
   assert.doesNotMatch(firebase, /mathmaster-aleks/);
