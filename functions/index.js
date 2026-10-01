@@ -1444,6 +1444,90 @@ exports.inspectStudentResponse = onCall(async (request) => {
 });
 
 /**
+ * Student Case Review (teacher, read-only): the records a case review needs
+ * that no teacher browser may read under firestore.rules — one event per
+ * graded attempt, submission receipts (including answers refused after the
+ * assignment closed), Practice Mode question records and teacher grade-change
+ * audits — for ONE student and the assignments the teacher selected.
+ *
+ * Authorization and every projection live in
+ * functions/shared/caseReviewEvidence.mjs (tested in
+ * tests/platform/caseReviewEvidenceProjection.test.mjs): the root
+ * administrator, the student's class teacher of record, or their roster
+ * teacher. Nothing is written, and nothing leaves that the case review does not
+ * show: no response text, no answer key, no draft contents, no other student.
+ * See docs/STUDENT_CASE_REVIEW_DESIGN.md §5.2.
+ */
+exports.loadStudentCaseEvidence = onCall(async (request) => {
+  await requireTeacher(request);
+  const caseEvidence = await import("./shared/caseReviewEvidence.mjs");
+  const validation = caseEvidence.validateCaseEvidenceRequest(request.data || {});
+  if (!validation.ok) throw new HttpsError("invalid-argument", validation.errors.join(" "));
+  const { studentId, assignmentIds } = validation.request;
+  const teacherEmail = callerEmail(request);
+
+  const db = getFirestore();
+  const gradeRef = db.collection("grades").doc(studentId);
+  const studentSnap = await gradeRef.get();
+  const student = studentSnap.exists ? studentSnap.data() || {} : null;
+  const classSnap = student?.classId
+    ? await db.collection(CLASS_COLLECTION).doc(String(student.classId)).get()
+    : null;
+  const decision = caseEvidence.authorizeCaseEvidenceCaller({
+    callerEmail: teacherEmail,
+    callerRole: request.auth?.token?.role,
+    isRootAdmin: authLib.isRootAdminEmail(teacherEmail),
+    student,
+    classRecord: classSnap?.exists ? classSnap.data() || {} : null,
+  });
+  if (!decision.allowed) {
+    throw new HttpsError(
+      decision.reason === "student-not-found" ? "not-found" : "permission-denied",
+      "Only this student's teacher may load case review evidence.",
+    );
+  }
+
+  const { workspaceDraftDocumentId } = await import("./shared/workspaceDraftSchema.mjs");
+  const limits = caseEvidence.CASE_EVIDENCE_LIMITS;
+  const chunks = caseEvidence.chunk(assignmentIds);
+  const draftRefs = assignmentIds.map((assignmentId) => db
+    .collection(WORKSPACE_DRAFT_COLLECTION)
+    .doc(workspaceDraftDocumentId({ studentId, assignmentId })));
+  const [eventSnapshots, receiptSnapshots, draftSnapshots, auditSnapshot] = await Promise.all([
+    // By assignment (single-field indexes only), so My Math Path and Live
+    // Challenge events never crowd out the assignments asked about.
+    Promise.all(chunks.map((ids) => gradeRef.collection("evidenceEvents")
+      .where("source.assignmentId", "in", ids)
+      .limit(Math.ceil(limits.maxEvents / chunks.length))
+      .get())),
+    Promise.all(chunks.map((ids) => db.collection(SUBMISSION_RECEIPT_COLLECTION)
+      .where("studentId", "==", studentId)
+      .where("assignmentId", "in", ids)
+      .limit(limits.maxReceiptsPerChunk)
+      .get())),
+    // Only the Practice Mode fields: a draft's saved work is never read here.
+    db.getAll(...draftRefs, { fieldMask: ["practice", "practiceUpdatedAt", "updatedAt"] }),
+    gradeRef.collection("gradeOverrideAudits").limit(limits.maxAudits).get(),
+  ]);
+
+  const drafts = {};
+  draftSnapshots.forEach((snapshot, index) => {
+    if (snapshot.exists) drafts[assignmentIds[index]] = snapshot.data() || {};
+  });
+  const response = caseEvidence.buildCaseEvidenceResponse({
+    request: validation.request,
+    events: eventSnapshots.flatMap((snapshot) => snapshot.docs.map((entry) => ({ id: entry.id, data: entry.data() || {} }))),
+    receipts: receiptSnapshots.flatMap((snapshot) => snapshot.docs.map((entry) => entry.data() || {})),
+    drafts,
+    audits: auditSnapshot.docs.map((entry) => entry.data() || {}),
+    nowMs: Date.now(),
+  });
+  response.truncated.events = eventSnapshots.some((snapshot) => snapshot.size >= Math.ceil(limits.maxEvents / chunks.length));
+  response.truncated.receipts = receiptSnapshots.some((snapshot) => snapshot.size >= limits.maxReceiptsPerChunk);
+  return response;
+});
+
+/**
  * Teacher grade correction. The active override lives in the rule-protected
  * top-level teacherGradeOverridesByAssignment map, never in the client-writable
  * question record. The original automatic attempt stays untouched.

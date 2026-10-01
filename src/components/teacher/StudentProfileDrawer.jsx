@@ -81,6 +81,9 @@ export default function StudentProfileDrawer({
   studentSupportProfile = null,
   onOpenSupportReport = null,
   onSupportProfileSaved = null,
+  // Student Case Review / Academic Evidence Deep Dive. Only an entry point:
+  // the case review's code and records load when it is opened.
+  onOpenCaseReview = null,
 }) {
   const closeRef = useRef(null);
   const panelRef = useRef(null);
@@ -179,6 +182,24 @@ export default function StudentProfileDrawer({
                 />
               </div>
             </details>
+          )}
+
+          {onOpenCaseReview && studentId && (
+            <section
+              data-case-review-entry={studentId}
+              style={{ marginBottom: 20, padding: '12px 14px', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-surface-raised, var(--mm-surface))', textAlign: 'left' }}
+            >
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ minWidth: 0, flex: '1 1 260px' }}>
+                  <h3 style={{ margin: 0, fontSize: 15, color: 'var(--mm-text-strong)' }}>Academic evidence deep dive</h3>
+                  <p style={{ margin: '3px 0 0', fontSize: 12.5, lineHeight: 1.45, color: 'var(--mm-text-muted)' }}>
+                    One case file for a marking period or date range: every question and attempt, grade contributions, skills, DOL vs instruction,
+                    completion, support evidence, and facts for a parent, administrator or ARD narrative.
+                  </p>
+                </div>
+                <button type="button" className="tw-btn tw-btn--sm" onClick={() => onOpenCaseReview(studentId)}>Open case review</button>
+              </div>
+            </section>
           )}
 
           {teacherEmail && studentId && rewardsClassId && (

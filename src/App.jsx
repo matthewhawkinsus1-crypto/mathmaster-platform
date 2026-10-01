@@ -446,6 +446,9 @@ const MyMathPathApp = lazy(() => import('./components/student/MyMathPathApp.jsx'
 const StudentSecureExamDashboard = lazy(() => import('./components/assessment/StudentSecureExamDashboard.jsx'));
 const TeacherSecureExamDashboard = lazy(() => import('./components/assessment/TeacherSecureExamDashboard.jsx'));
 const TeacherAnalyticsDashboard = lazy(() => import('./components/analytics/TeacherAnalyticsDashboard.jsx'));
+// Student Case Review / Academic Evidence Deep Dive: its code loads only when a
+// teacher opens it from the student drawer (docs/STUDENT_CASE_REVIEW_DESIGN.md).
+const StudentCaseReviewView = lazy(() => import('./components/teacher/caseReview/StudentCaseReviewView.jsx'));
 const DemoExperience = lazy(() => import('./components/demo/DemoExperience.jsx'));
 const StudentsRoster = lazy(() => import('./components/teacher/StudentsRoster.jsx'));
 const ClassCourseSettings = lazy(() => import('./components/teacher/ClassCourseSettings.jsx'));
@@ -835,6 +838,7 @@ function App() {
   // The Student Support Evidence Report, opened for one student from the
   // drawer, the gradebook or the roster. It stacks above the drawer.
   const [supportReportStudentId, setSupportReportStudentId] = useState(null);
+  const [caseReviewStudentId, setCaseReviewStudentId] = useState(null);
   // ONE ASSIGNMENT, FROM ANYWHERE (components/teacher/AssignmentHub.jsx): the
   // assignment and the class it was opened from. Like the student drawer, it
   // opens over the current screen instead of navigating away from it.
@@ -10693,7 +10697,33 @@ function App() {
           studentSupportProfile={profileDrawerStudent?.profile || null}
           onSupportProfileSaved={handleSupportProfileSaved}
           onOpenSupportReport={(studentId) => setSupportReportStudentId(studentId)}
+          onOpenCaseReview={user?.role === 'teacher' ? (studentId) => setCaseReviewStudentId(studentId) : null}
         />
+
+        {/* Above the drawer it was opened from (closing it returns to the
+            student) and below the Support Evidence Report, which it can open. */}
+        {(() => {
+          const caseStudent = caseReviewStudentId
+            ? allStudents.find((entry) => entry.id === caseReviewStudentId) || null
+            : null;
+          if (!caseStudent) return null;
+          return (
+            <Suspense fallback={null}>
+              <StudentCaseReviewView
+                open
+                student={caseStudent}
+                studentName={formatStudentName(caseStudent)}
+                classRecord={classesById[caseStudent.classId] || null}
+                assignments={assignments}
+                gradingPeriodSettings={gradingPeriodSettings}
+                teacherEmail={user?.email || ''}
+                onClose={() => setCaseReviewStudentId(null)}
+                onInspectResponse={(target) => setResponseInspectorTarget(target)}
+                onOpenSupportReport={(studentId) => setSupportReportStudentId(studentId)}
+              />
+            </Suspense>
+          );
+        })()}
 
         {(() => {
           const reportStudent = supportReportStudentId
