@@ -121,6 +121,40 @@ before the leaderboard reloads — harmless, because the call is idempotent.
 
 ## Live Challenge
 
+### ~~Live Challenge engine and rewards foundation~~ — shipped
+**Status:** shipped · follow-ups open below
+
+One engine now runs every game mode: an explicit lifecycle whose commands are
+planned and applied inside transactions (a double click, a retry or a second
+tab is "already applied", and a finished match can no longer be relabelled
+cancelled), a server-owned round clock, game modes and scoring strategies as
+registered declarations, deterministic ranking with honest ties, and a durable
+match result that the report, Warm-Up credit, mastery evidence and rewards are
+all built from — then re-run by the sweep if a finish is interrupted. Rewards
+are rules that read the match result and deliver each award exactly once under
+an identity derived from match, student and rule; item rewards are grants with
+an available/redeemed/expired/revoked history. A class's second and third
+match of a period now start clean on student screens.
+
+See `docs/architecture/live-challenge-engine.md`.
+
+**Open follow-ups, each built on what shipped:**
+
+- **Teacher choice of scoring** — the server accepts `scoringStrategyId`
+  (Accuracy First, Grand Prix, Correct Count); the create panel does not offer
+  it yet, and Grand Prix needs its round-results screen on the projector.
+- **Reward policy editor** — the server validates and stores a per-room
+  `rewardPolicy`; teachers cannot author one yet, so every room uses the default
+  (the original +2/+3/+2 achievements).
+- **Rewards wallet, teacher take-back, expiry sweep** — all call
+  `transitionRewardGrant`; none has a screen yet.
+- **Host pause/resume and automatic round close** — modelled in the timer and
+  the lifecycle, not wired to controls.
+- **Graph Feature Rush** — multi-target, question-set rounds; the mode
+  contract, round structure and attempt model are in place.
+- **Retire the legacy speed trigger** (`adjustLiveChallengeExperienceScore`) in
+  a deployment that deletes it explicitly.
+
 ### ~~Fix how the question bank is sampled~~ — fixed (variety); difficulty still open
 **Status:** variety fixed · difficulty targeting still open
 
