@@ -26,7 +26,10 @@ export FIREBASE_HOSTING_UPLOAD_CONCURRENCY="${FIREBASE_HOSTING_UPLOAD_CONCURRENC
 
 echo
 echo "Deploying fresh main to Firebase project $PROJECT ..."
-npx firebase deploy --only hosting --project "$PROJECT"
+# Through the resilient wrapper, like every Hosting release (AGENTS.md): low
+# upload fan-out, retries on Cloud Shell's transient upload failures, and a
+# build-SHA check. A fresh clone of main always passes its provenance gate.
+FIREBASE_PROJECT="$PROJECT" bash scripts/deploy-hosting-resilient.sh
 
 if [ ! -f dist/mathmaster-build.json ]; then
   echo "ERROR: Firebase production build manifest was not created." >&2

@@ -32,3 +32,4 @@ check_module1.mjs
 tests/browser/artifacts/
 .playwright-mcp/
 dist-harness
+release-reports

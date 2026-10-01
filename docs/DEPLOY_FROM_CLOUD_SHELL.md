@@ -106,7 +106,7 @@ Use the repository helper instead:
 cd ~/mathmaster-platform && git checkout main && git pull --ff-only origin main && npm run deploy:hosting
 ```
 
-The helper keeps Hosting upload concurrency at 8 by default and automatically
+The helper keeps Hosting upload concurrency at 4 by default and automatically
 retries only transient network/upload failures with backoff. Real build,
 authorization, configuration, or Firebase errors stop immediately instead of
 being hidden by retries. To override the defaults for an unusually weak
@@ -169,8 +169,9 @@ route.
 
 ## Nothing else needs updating
 
-No Vercel deploy, no Firestore composite indexes (nothing in the app uses a
-compound query that would need one), and no manual database work beyond Block 4.
+No Vercel deploy and no manual database work beyond Block 4. Composite indexes
+do exist (`firestore.indexes.json`); a release that changes them deploys them
+first — `node scripts/release-firebase.mjs` does that for you.
 
 ---
 
@@ -194,7 +195,7 @@ compound query that would need one), and no manual database work beyond Block 4.
 
 This is the common one, and it usually means nothing is wrong with the code.
 
-The project ships **76 Cloud Functions from one codebase**. `firebase deploy`
+The project ships **about 150 Cloud Functions from one codebase** (153 on 2026-10-01; `node scripts/lib/functionsInventory.mjs | wc -l` prints today's number). `firebase deploy`
 pushes them in big parallel batches, and Google rate-limits how many function
 updates a project may make per minute. Past that ceiling the extra ones come
 back as failures. Hosting and Firestore rules still went out fine; only some
@@ -221,9 +222,22 @@ cd ~/mathmaster-platform && firebase deploy --only "functions:PASTE_THE_NAMES_HE
 ```
 
 Most of the time this finishes clean, because you are now deploying a handful
-instead of 76.
+instead of all of them.
 
-### Step 2 — if it keeps failing, deploy them a few at a time
+### Step 2 — if it keeps failing, let the release script pace it
+
+```
+cd ~/mathmaster-platform && git pull origin main && node scripts/release-firebase.mjs --only functions
+```
+
+That prints the plan — every function, in groups of eight, 45 seconds apart.
+Add `--execute` to run it (it asks you to type the project id). A group that
+hits the quota waits and retries; a group that keeps failing is split in half
+until the one function that is really broken is named, and the rest still
+ship. It finishes with the exact command to retry what is left, and writes a
+report under `release-reports/`. `--functions name1,name2` deploys only those.
+
+### Step 2 (older script) — deploy them a few at a time
 
 This walks the whole list in groups of ten, waits between groups so the
 per-minute quota refills, and retries a group that fails. It takes roughly
@@ -233,7 +247,7 @@ per-minute quota refills, and retries a group that fails. It takes roughly
 cd ~/mathmaster-platform && git pull origin main && bash scripts/deploy-functions-in-groups.sh
 ```
 
-It prints `All 76 functions deployed.` at the end. If some still fail it lists
+It prints `All N functions deployed.` at the end (N is every function the entry point exports, about 150). If some still fail it lists
 them by name and prints the exact command to retry just those.
 
 Smaller groups if the network is unhappy:
@@ -267,7 +281,7 @@ Two causes worth knowing about:
 cd ~/mathmaster-platform && firebase functions:list --project mathmaster-aleks | wc -l
 ```
 
-76 functions plus a header row or two. Far fewer means the retry is still owed.
+About 150 functions plus a header row or two (compare with `node scripts/lib/functionsInventory.mjs | wc -l`). Far fewer means the retry is still owed.
 
 ### Starting over
 
