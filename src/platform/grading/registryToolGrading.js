@@ -33,3 +33,19 @@ export const gradeRegistryToolWork = async ({ toolId, question, work } = {}) => 
     return { graded: false, reason: 'shared-grading-unavailable', toolResponse: fallbackResponse };
   }
 };
+
+/*
+ * Does this shared result mean "do not record an attempt"?
+ *
+ * Yes when the mode IS server-graded but this particular work could not be
+ * graded (the question cannot be computed, the work is unreadable or
+ * oversize): the server will hold the same submission for teacher review, so
+ * recording a fallback verdict would spend an attempt the gradebook never
+ * sees. No when the mode is documented as graded on the device, or when the
+ * shared grader itself could not load — then the tool's own verdict stands,
+ * exactly as before.
+ */
+const DEVICE_VERDICT_REASONS = /^(mode-not-server-gradable|no-tool|no-tool-grader|shared-grading-unavailable)/;
+export const sharedVerdictWithholdsAttempt = (verdict) => Boolean(verdict)
+  && verdict.graded !== true
+  && !DEVICE_VERDICT_REASONS.test(String(verdict.reason || ''));

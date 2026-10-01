@@ -43,7 +43,7 @@ import { resolveCalculatorPolicy } from './platform/policies/calculatorPolicy';
 import { getToolDefinition } from './tools/toolRegistry';
 import { buildRawPathResponse } from './platform/path/pathToolResponses';
 import { ToolRuntimeProvider } from './tools/shared/ToolRuntimeContext';
-import { gradeRegistryToolWork } from './platform/grading/registryToolGrading.js';
+import { gradeRegistryToolWork, sharedVerdictWithholdsAttempt } from './platform/grading/registryToolGrading.js';
 import { attemptInputsFromGrading } from '../functions/shared/serverGrading/gradingResult.mjs';
 import { buildModelingLabResponse, gradeModelingLabEvaluation } from '../functions/shared/serverGrading/modelingLabGrading.mjs';
 import { ToolDraftScopeProvider, forgetToolDrafts, stampToolDraftSubmission } from './tools/shared/usePersistentToolState.js';
@@ -813,6 +813,25 @@ export default function QuestionEngine({
         work: payload?.response,
       });
       const toolResponse = sharedVerdict.toolResponse;
+      /*
+       * A MODE THE SERVER GRADES, BUT THIS WORK COULD NOT BE GRADED.
+       *
+       * The tool's question could not be computed ('invalid-question',
+       * 'no-answer-key'), or the work is unreadable or oversize. The server
+       * holds such a submission for teacher review instead of recording it,
+       * so recording the tool's own fallback verdict here would spend an
+       * attempt the gradebook never sees. Nothing is recorded; the work stays
+       * in the tool's saved draft. Only a mode documented as graded on the
+       * device (or a grader that could not load) uses the tool's verdict.
+       */
+      if (sharedVerdictWithholdsAttempt(sharedVerdict)) {
+        setFeedback({
+          blocked: true,
+          isCorrect: false,
+          message: 'MathMaster could not check this answer, so it was not submitted and no attempt was used. Your work is saved. Let your teacher know about this question.',
+        });
+        return;
+      }
       if (sharedVerdict.graded && Boolean(payload?.isCorrect) !== sharedVerdict.isCorrect) {
         // A tool whose own Check disagrees with its shared grader is a parity
         // defect worth seeing in development; the shared verdict stands.
