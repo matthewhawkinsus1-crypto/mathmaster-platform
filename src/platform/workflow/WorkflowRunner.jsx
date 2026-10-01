@@ -1129,6 +1129,11 @@ const checkedGraphReference = ({ workflow, responses, content, grading, activeSt
   };
 };
 
+// The stages whose answer is typed in notation on the math keypad. A module
+// constant: declared inside the component it was a new array every render, a
+// dependency the memo that picks the open keypad did not list.
+const KEYPAD_KINDS = ['domainInput', 'rangeInput', 'intervalInput', 'valueSet'];
+
 export default function WorkflowRunner({
   question,
   onStateChange,
@@ -1240,7 +1245,6 @@ export default function WorkflowRunner({
     return ids;
   }, [workflow]);
 
-  const KEYPAD_KINDS = ['domainInput', 'rangeInput', 'intervalInput', 'valueSet'];
   const openKeypadStageId = useMemo(() => {
     const notationStages = (Array.isArray(workflow) ? workflow : [])
       .filter((stage) => KEYPAD_KINDS.includes(stage?.kind));
@@ -1345,9 +1349,11 @@ export default function WorkflowRunner({
     });
   }, [responses, activeStageIndex, focusMode, workflowGuidanceSignature]);
 
+  // The setter is useLocalDraftState's, stable for a given draft key; when the
+  // key changes (another question), the restored index is clamped again.
   useEffect(() => {
     setActiveStageIndex((current) => Math.min(current, Math.max(0, workflow.length - 1)));
-  }, [workflow.length]);
+  }, [workflow.length, setActiveStageIndex]);
 
   // Only a step change the student asked for moves the page; restoring a
   // draft or jumping to a step that needs revision after a check does not.

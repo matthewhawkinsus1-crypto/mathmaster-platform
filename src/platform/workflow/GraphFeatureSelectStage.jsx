@@ -86,18 +86,23 @@ export default function GraphFeatureSelectStage({ stage, sourceGraph, value, onC
   const { selections, none } = readFeatureSelection(value);
   const selectionCount = Math.max(1, Number(stage?.selectionCount) || 1);
   const allowNone = stage?.allowNone !== false;
-  const rawGraph = sourceGraph && typeof sourceGraph === 'object' ? sourceGraph : {};
   // Feature selection must use the same assessment-safe frame as the static
   // reference graph. Otherwise a student can see a repaired endpoint in one
   // step and an off-screen/clipped version of the same graph in the next.
-  const graph = useMemo(() => fitStaticGraphViewport(rawGraph), [rawGraph]);
+  // The empty fallback is built inside the memo: built outside it, a stage with
+  // no source graph got a new `{}` — and a refit, and a new graph — every render.
+  const graph = useMemo(() => {
+    const rawGraph = sourceGraph && typeof sourceGraph === 'object' ? sourceGraph : {};
+    return fitStaticGraphViewport(rawGraph);
+  }, [sourceGraph]);
 
-  const viewWindow = {
-    xMin: Number.isFinite(Number(graph.xMin)) ? Number(graph.xMin) : -10,
-    xMax: Number.isFinite(Number(graph.xMax)) ? Number(graph.xMax) : 10,
-    yMin: Number.isFinite(Number(graph.yMin)) ? Number(graph.yMin) : -10,
-    yMax: Number.isFinite(Number(graph.yMax)) ? Number(graph.yMax) : 10,
-  };
+  const xMin = Number.isFinite(Number(graph.xMin)) ? Number(graph.xMin) : -10;
+  const xMax = Number.isFinite(Number(graph.xMax)) ? Number(graph.xMax) : 10;
+  const yMin = Number.isFinite(Number(graph.yMin)) ? Number(graph.yMin) : -10;
+  const yMax = Number.isFinite(Number(graph.yMax)) ? Number(graph.yMax) : 10;
+  // One object per window rather than per render, so the endpoint markers can
+  // depend on the window itself and still recompute only when it moves.
+  const viewWindow = useMemo(() => ({ xMin, xMax, yMin, yMax }), [xMin, xMax, yMin, yMax]);
 
   // Canonical V5 graph questions normally store the drawable curve in
   // graph.functions. Older workflow content may instead provide graph.model or
@@ -149,7 +154,7 @@ export default function GraphFeatureSelectStage({ stage, sourceGraph, value, onC
 
   const endpointMarkers = useMemo(
     () => (baseEvaluate ? workflowEndpointMarkers({ evaluate: baseEvaluate, domain: functionDomain, viewWindow }) : []),
-    [baseEvaluate, functionDomain, viewWindow.xMin, viewWindow.xMax, viewWindow.yMin, viewWindow.yMax],
+    [baseEvaluate, functionDomain, viewWindow],
   );
   const asymptotes = useMemo(() => workflowHorizontalAsymptotes(functionSpec), [functionSpec]);
 

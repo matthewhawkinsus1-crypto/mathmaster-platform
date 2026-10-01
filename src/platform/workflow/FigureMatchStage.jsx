@@ -68,12 +68,13 @@ const normalizePoint = (point) => {
 
 function FigureGraph({ graph, label }) {
   const spec = graph && typeof graph === 'object' ? graph : {};
-  const viewWindow = {
-    xMin: Number.isFinite(Number(spec.xMin)) ? Number(spec.xMin) : -10,
-    xMax: Number.isFinite(Number(spec.xMax)) ? Number(spec.xMax) : 10,
-    yMin: Number.isFinite(Number(spec.yMin)) ? Number(spec.yMin) : -10,
-    yMax: Number.isFinite(Number(spec.yMax)) ? Number(spec.yMax) : 10,
-  };
+  const xMin = Number.isFinite(Number(spec.xMin)) ? Number(spec.xMin) : -10;
+  const xMax = Number.isFinite(Number(spec.xMax)) ? Number(spec.xMax) : 10;
+  const yMin = Number.isFinite(Number(spec.yMin)) ? Number(spec.yMin) : -10;
+  const yMax = Number.isFinite(Number(spec.yMax)) ? Number(spec.yMax) : 10;
+  // One object per window rather than per render, so the endpoint markers can
+  // depend on the window itself and still recompute only when it moves.
+  const viewWindow = useMemo(() => ({ xMin, xMax, yMin, yMax }), [xMin, xMax, yMin, yMax]);
   const model = typeof spec.model === 'string' ? spec.model.trim() : '';
 
   const functions = useMemo(() => {
@@ -93,7 +94,7 @@ function FigureGraph({ graph, label }) {
   );
   const endpointMarkers = useMemo(
     () => (functions.length ? workflowEndpointMarkers({ evaluate: functions[0], viewWindow }) : []),
-    [functions, viewWindow.xMin, viewWindow.xMax, viewWindow.yMin, viewWindow.yMax],
+    [functions, viewWindow],
   );
 
   return (

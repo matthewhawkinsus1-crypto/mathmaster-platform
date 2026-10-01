@@ -15,6 +15,10 @@
       "rules": { "no-undef": "error" }
     },
     {
+      "files": ["src/platform/**"],
+      "rules": { "react/exhaustive-deps": "error" }
+    },
+    {
       "files": ["functions/*.js", "functions/lib/**", "functions/shared/**", "functions-path-admin/*.js", "functions-path-admin/lib/**", "scripts/**"],
       "env": { "node": true, "es2024": true },
       "rules": { "no-undef": "error" }
