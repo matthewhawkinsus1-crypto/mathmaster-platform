@@ -225,9 +225,56 @@ route.
 
 ---
 
+## Block 5 — student privacy on assignments (once, after the release that adds it)
+
+Every student's device can read an assignment, and attendance extensions
+granted before this release stored the student's absence dates, meeting counts
+and the granting teacher on it (PR #407 deep dive, F-PRIV-1). The release that
+fixes it ships with nothing switched on: new extensions already keep their
+details private, but existing ones stay where they are until you move them, and
+students' devices keep their old read access until you turn it off.
+
+**Step 1 — move the existing extension details (any time after the release).**
+
+1. Sign in as the root administrator → **Administration → Classes** →
+   **Student privacy on assignments**.
+2. **Check without changing anything.** It pages through every assignment and
+   reports how many extensions would move. Nothing is written.
+3. **Move extension details.** Each extension's original details are copied,
+   unchanged, into the student's private record
+   (`grades/{student}/attendanceExtensionGrants/legacy__{assignment}`, field
+   `legacyExtension`) in the same transaction that leaves only the deadline
+   (`lateDueAt`) and `{dateKey, grantedAt}` on the assignment. Deadlines do not
+   move. Expect **Could not finish: 0**; anything listed there was left exactly
+   as it was and can be retried.
+4. **Check without changing anything** again: the card turns green when no
+   assignment carries extension details any more. Running it twice is safe —
+   the second run changes nothing and creates no duplicates.
+
+**Step 2 — class-scoped assignment lists (the next school day).**
+
+Open tabs from the previous release still list every assignment. Once every
+student device has loaded this release — after a full school day — use
+**Class-scoped assignment lists → Turn on**. From then on a student's device may
+list only its own class's assignments (it can still open one by id, which is
+how work from an earlier class keeps loading).
+
+**Rollback.**
+
+- **Turn off** the class-scoped lists on the same card. It takes effect at
+  once and needs no deploy.
+- Rolling the code back does **not** require undoing Step 1. Deadlines and the
+  `{dateKey, grantedAt}` stub that attendance reconciliation reads stay on the
+  assignment; the only earlier screen that showed more was the case review's
+  "N class meetings" note on an extension. The originals stay in the private
+  records — never delete `attendanceExtensionGrants`; it is also where every
+  new grant is kept, one record per grant.
+
+---
+
 ## Nothing else needs updating
 
-No Vercel deploy and no manual database work beyond Block 4. Composite indexes
+No Vercel deploy and no manual database work beyond Blocks 4 and 5. Composite indexes
 do exist (`firestore.indexes.json`); a release that changes them deploys them
 first — `node scripts/release-firebase.mjs` does that for you.
 
