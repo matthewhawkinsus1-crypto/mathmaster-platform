@@ -33,6 +33,7 @@ function driveResources() {
 
 const { runtimeIncludedQuestionIndices, runtimeIncludedQuestionIndicesForSection, runtimeQuestionsFromAssignment } = require("./lib/assignmentRuntime");
 const { weightedQuestionTotals } = require("./lib/questionWeights");
+const sectionRecoveryGrades = require("./lib/sectionRecoveryGrades");
 const challengeSampling = require("./lib/challengeSampling");
 const { encryptLaunchPayload, decryptLaunchToken } = require("./lib/linkToken");
 const {
@@ -758,10 +759,13 @@ async function ingestOneSubmission({ db, studentId, envelope, now }) {
           studentId, classId, assignmentId, rewardCode: rewards.PRACTICE_PASS_REWARD_CODE,
         })),
       );
-      if (redemptionSnap.exists) {
-        // A proven, permanent fact -- Practice is excused for this assignment
-        // -- so the outbox may retire this action instead of retrying it
-        // forever. No grade, no evidence, no attempt is ever written for it.
+      // A use a teacher undid is history, not a waiver: Practice is required
+      // again and its responses are accepted normally.
+      if (rewards.isActivePracticePassRedemption(redemptionSnap.exists ? redemptionSnap.data() : null)) {
+        // A proven fact -- Practice is excused for this assignment -- so the
+        // outbox may retire this action instead of retrying it forever. (A
+        // teacher who later undoes the pass makes Practice required again;
+        // the student answers it afresh.) No grade, no evidence, no attempt is ever written for it.
         transaction.set(receiptRef, {
           studentId,
           actionId: envelope.actionId,
@@ -961,6 +965,159 @@ exports.ingestStudentSubmissions = onCall(async (request) => {
     }
   }
   return { receipts, ingestedAt: now };
+});
+
+/*
+ * PRACTICE-BASED RECOVERY — THE ONLY WRITER OF A STUDENT'S RECOVERY RECORD.
+ *
+ * Students reach their own Warm-Up/DOL Recovery through this callable:
+ * `status` (read), `practice` (one server-graded Practice item for the
+ * mastery gate), `unlock`, `start` (freeze a fresh plan) and `submit` (server-
+ * graded Recovery). Every rule — who may recover, when, what they are asked,
+ * how it is graded and recorded — is the shared, pure service in
+ * functions/shared/sectionRecoveryService.mjs; this function only reads the
+ * authoritative documents, runs it inside a transaction and writes the result
+ * to `grades/{studentId}.sectionRecoveryByAssignment`, a map the Firestore
+ * rules pin to the server. A completed Recovery changes the recorded score
+ * through the Classroom triggers' existing grade calculation; nothing here
+ * writes a grade directly.
+ */
+let sectionRecoveryServiceModule = null;
+async function sectionRecoveryService() {
+  if (!sectionRecoveryServiceModule) {
+    sectionRecoveryServiceModule = await import("./shared/sectionRecoveryService.mjs");
+  }
+  return sectionRecoveryServiceModule;
+}
+
+const RECOVERY_SECTION_KEYS = new Set(["warmup", "dol"]);
+const RECOVERY_ACTIONS_WITH_ATTENDANCE = new Set(["status", "unlock", "start"]);
+
+function serverSectionVariantMode(assignment = {}, role = "") {
+  const policy = assignment?.variantPolicy && typeof assignment.variantPolicy === "object" ? assignment.variantPolicy : {};
+  const sectionMode = String(policy.sectionModes?.[role] || "").trim().toLowerCase();
+  if (["shared", "personalized", "variant", "adaptive"].includes(sectionMode)) return sectionMode;
+  const mode = String(policy.mode || "").trim().toLowerCase();
+  return ["shared", "personalized", "variant", "adaptive"].includes(mode) ? mode : "personalized";
+}
+
+exports.advanceSectionRecovery = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  const section = String(request.data?.section || "").trim().toLowerCase();
+  const action = String(request.data?.action || "status").trim();
+  if (!assignmentId || !RECOVERY_SECTION_KEYS.has(section)) {
+    throw new HttpsError("invalid-argument", "A Recovery request needs an assignment and a Warm-Up or DOL section.");
+  }
+  const service = await sectionRecoveryService();
+  if (!Object.values(service.RECOVERY_ACTION).includes(action)) {
+    throw new HttpsError("invalid-argument", "Unknown Recovery action.");
+  }
+
+  const db = getFirestore();
+  const gradeRef = db.collection("grades").doc(studentId);
+  const assignmentRef = db.collection("assignments").doc(assignmentId);
+
+  // Reads that do not need to be transactional: the schedule, the class
+  // period and, when the decision needs it, that day's attendance.
+  const [scheduleSnapshot, preGrade, preAssignment] = await Promise.all([
+    db.collection("settings").doc("classSchedule").get(),
+    gradeRef.get(),
+    assignmentRef.get(),
+  ]);
+  if (!preAssignment.exists) throw new HttpsError("not-found", "That assignment is no longer available.");
+  const schedule = scheduleSnapshot.exists ? scheduleSnapshot.data() : null;
+  const preGradeData = preGrade.exists ? preGrade.data() || {} : {};
+  const classId = authoritativeStudentClassId(preGradeData);
+  const classPeriod = await resolveCheckpointClassPeriod(db, classId, preGradeData, new Map());
+  let supportEvents = null;
+  if (RECOVERY_ACTIONS_WITH_ATTENDANCE.has(action)) {
+    const deadlines = await import("./shared/sectionDeadline.mjs");
+    const preAssignmentData = { id: preAssignment.id, ...preAssignment.data() };
+    const dateKey = section === "warmup"
+      ? deadlines.resolveWarmupInstructionDateKey({ assignment: preAssignmentData, classId, classPeriod })
+      : deadlines.resolveDolInstructionDateKey({ assignment: preAssignmentData, classId, classPeriod });
+    if (dateKey) {
+      const eventsSnapshot = await db.collection("studentSupportEvents")
+        .where("studentId", "==", studentId)
+        .where("dateKey", "==", dateKey)
+        .get();
+      supportEvents = eventsSnapshot.docs.map((doc) => doc.data() || {});
+    } else {
+      supportEvents = [];
+    }
+  }
+
+  try {
+    return await db.runTransaction(async (transaction) => {
+      const [assignmentSnapshot, gradeSnapshot] = await Promise.all([
+        transaction.get(assignmentRef),
+        transaction.get(gradeRef),
+      ]);
+      if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment is no longer available.");
+      if (!gradeSnapshot.exists) throw new HttpsError("failed-precondition", "Your class record is not ready yet.");
+      const assignment = { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
+      const gradeData = gradeSnapshot.data() || {};
+      if (secureAssignmentMode(assignment) || assignment.secure === true) {
+        throw new HttpsError("failed-precondition", "Secure assessments use their own retest process.");
+      }
+      if (!studentMatchesAssignmentAudience({ assignment, classId: authoritativeStudentClassId(gradeData) })) {
+        throw new HttpsError("permission-denied", "This assignment is not assigned to your class.");
+      }
+
+      const questions = runtimeQuestionsFromAssignment(assignment);
+      const sectionIndices = runtimeIncludedQuestionIndicesForSection(assignment, section);
+      const tracker = gradeData.gradesByAssignment?.[assignmentId] || {};
+      const overrides = gradeData.teacherGradeOverridesByAssignment?.[assignmentId] || {};
+      const original = assignmentGradeProgress(tracker, sectionIndices, questions, overrides);
+      const context = service.buildSectionRecoveryContext({
+        assignment,
+        section,
+        sectionEntries: sectionIndices.map((storageIndex) => ({ storageIndex, question: questions[storageIndex] })),
+        questions,
+        tracker,
+        sectionOriginal: { score: original.total ? original.grade : null, attempted: original.attempted, total: original.total },
+        record: gradeData.sectionRecoveryByAssignment?.[assignmentId]?.[section] || null,
+        studentId,
+        classId: authoritativeStudentClassId(gradeData),
+        classPeriod,
+        schedule,
+        supportEvents,
+        challengeCredit: gradeData.warmupChallengeByAssignment?.[assignmentId] || null,
+        studentProfile: gradeData.profile || null,
+        sectionModeFor: (role) => serverSectionVariantMode(assignment, role),
+        nowValue: Date.now(),
+      });
+      const outcome = service.runSectionRecoveryAction({
+        context,
+        action,
+        payload: request.data?.payload && typeof request.data.payload === "object" ? request.data.payload : {},
+        at: Date.now(),
+      });
+      if (outcome.changed) {
+        transaction.update(
+          gradeRef,
+          new FieldPath("sectionRecoveryByAssignment", assignmentId, section),
+          outcome.record,
+        );
+      }
+      return {
+        action,
+        section,
+        state: context.eligibility.state,
+        reason: context.eligibility.reason,
+        record: outcome.record,
+        ...outcome.response,
+      };
+    });
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    if (error?.name === "RecoveryTransitionError") {
+      throw new HttpsError("failed-precondition", error.message || error.code, { code: error.code });
+    }
+    logger.error("Section recovery action failed", { studentId, assignmentId, section, action, message: error?.message });
+    throw new HttpsError("internal", "Recovery could not be updated. Your work is still saved; try again.");
+  }
 });
 
 const studentMatchesAssignmentAudience = ({ assignment = {}, classId = null } = {}) => {
@@ -2023,162 +2180,135 @@ exports.redeemPracticePass = onCall(async (request) => {
     }
     throw error;
   }
-  const { assignmentId } = input;
-
-  const db = getFirestore();
-  const gradeRef = db.collection("grades").doc(studentId);
-  const assignmentRef = db.collection("assignments").doc(assignmentId);
-
-  return db.runTransaction(async (transaction) => {
-    const [gradeSnap, assignmentSnap] = await Promise.all([
-      transaction.get(gradeRef),
-      transaction.get(assignmentRef),
-    ]);
-    if (!gradeSnap.exists) {
-      throw new HttpsError("not-found", "Your student record was not found.");
-    }
-    const gradeData = gradeSnap.data() || {};
-    const classId = authoritativeStudentClassId(gradeData);
-    if (!classId) {
-      throw new HttpsError("failed-precondition", "You are not currently placed in a class.");
-    }
-    if (!assignmentSnap.exists) {
-      throw new HttpsError("not-found", "That assignment was not found.");
-    }
-    const assignment = { id: assignmentSnap.id, ...assignmentSnap.data() };
-
-    const redemptionId = rewards.practicePassRedemptionId({
-      studentId, classId, assignmentId, rewardCode: rewards.PRACTICE_PASS_REWARD_CODE,
-    });
-    const redemptionRef = db.collection(CLASS_POINT_REWARD_REDEMPTIONS_COLLECTION).doc(redemptionId);
-    const points = await classPoints();
-    const accountRef = db.collection(CLASS_POINT_ACCOUNTS_COLLECTION).doc(points.accountId(studentId, classId));
-    const classRef = db.collection("classes").doc(classId);
-    const [redemptionSnap, accountSnap, classSnap] = await Promise.all([
-      transaction.get(redemptionRef),
-      transaction.get(accountRef),
-      transaction.get(classRef),
-    ]);
-
-    // Idempotent replay: the deterministic redemption id IS the retry key.
-    if (redemptionSnap.exists) {
-      const existing = redemptionSnap.data();
-      const existingTransactionSnap = await transaction.get(
-        db.collection(CLASS_POINT_TRANSACTIONS_COLLECTION).doc(String(existing.transactionId)),
-      );
-      return {
-        redemptionId,
-        redemption: existing,
-        account: accountSnap.exists ? accountSnap.data() : null,
-        transaction: existingTransactionSnap.exists ? existingTransactionSnap.data() : null,
-        replay: true,
-      };
-    }
-
-    const classRecord = classSnap.exists ? { classId: classSnap.id, ...classSnap.data() } : null;
-
-    /*
-     * THE CLASS/ROSTER MUST BE INTERNALLY CONSISTENT BEFORE A NEW REDEMPTION.
-     *
-     * This reuses `authorizeClassPointsActor` -- the exact same consistency
-     * rule `awardClassPoints`/`reverseClassPointAward` already enforce -- but
-     * for a different purpose: there is no teacher actor here, so the class's
-     * OWN `teacherOfRecord` is passed as the "actor", which makes the
-     * teacher-identity check in that function a no-op (it always agrees with
-     * itself) while still requiring: the class exists, is not archived, the
-     * student's own grade record currently names this same class, the class
-     * has a `teacherOfRecord` at all, and the roster's `assignedTeacherEmail`
-     * agrees with it. Any of those failing means the roster is not in a state
-     * a redemption should spend real points against.
-     */
-    const consistency = points.authorizeClassPointsActor({
-      isRootAdmin: false,
-      teacherEmail: classRecord?.teacherOfRecord,
-      classRecord,
-      studentRecord: gradeData,
-      requestedClassId: classId,
-    });
-    if (!consistency.authorized) throw new HttpsError(consistency.reason, consistency.message);
-
-    const assignedToClass = studentMatchesAssignmentAudience({ assignment, classId });
-    const isTestCycleAssignment = secureAssignmentMode(assignment) || assignment.secure === true;
-    const practiceIndices = runtimeIncludedQuestionIndicesForSection(assignment, "practice");
-
-    const { normalizeQuestionRecord } = await import("./shared/attemptPolicy.mjs");
-    const tracker = gradeData?.gradesByAssignment?.[assignmentId] || {};
-    // Authoritative evidence only -- never the existence of a local draft. A
-    // student who never submitted a Practice response may still redeem even
-    // if a browser has an unfinished draft sitting in studentWorkspaceDrafts.
-    const hasCreditBearingAttempt = practiceIndices.some((index) => {
-      const record = normalizeQuestionRecord(tracker?.[String(index)] ?? tracker?.[index]);
-      return Number(record.totalAttempts) > 0;
-    });
-
-    const account = accountSnap.exists ? accountSnap.data() : points.emptyAccount({ studentId, classId });
-
-    const decision = rewards.evaluatePracticePassEligibility({
-      assignment,
-      assignedToClass,
-      isTestCycleAssignment,
-      practiceIndices,
-      hasCreditBearingAttempt,
-      alreadyRedeemed: false,
-      balance: account.balance,
-      nowValue: Date.now(),
+  // Paying with a pass the student holds is the default whenever the caller
+  // says so; a call that names no payment keeps the original meaning (spend
+  // 100 Class Points), so a browser still running the previous build works.
+  const payWith = request.data?.payWith === rewards.PRACTICE_PASS_PAYMENT.PASS
+    ? rewards.PRACTICE_PASS_PAYMENT.PASS
+    : rewards.PRACTICE_PASS_PAYMENT.CLASS_POINTS;
+  const store = await rewardActionStore();
+  try {
+    return await store.redeemPracticePass(getFirestore(), {
       studentId,
+      assignmentId: input.assignmentId,
+      payWith,
+      preferredGrantId: String(request.data?.grantId || "").trim() || null,
+      actor: { uid: request.auth.uid, email: callerEmail(request) },
+      // Every fact the eligibility rule needs that only this file can compute,
+      // from the assignment the transaction itself just read.
+      assess: ({ assignment, classId }) => ({
+        assignedToClass: studentMatchesAssignmentAudience({ assignment, classId }),
+        isTestCycleAssignment: secureAssignmentMode(assignment) || assignment.secure === true,
+        practiceIndices: runtimeIncludedQuestionIndicesForSection(assignment, "practice"),
+      }),
     });
-    if (!decision.eligible) {
-      throw new HttpsError("failed-precondition", decision.message);
-    }
+  } catch (error) {
+    throw translateRewardActionError(error);
+  }
+});
 
-    const authorization = points.classPointsAuthorizationContext({
-      classRecord, existingRecord: accountSnap.exists ? account : null,
+// ---------------------------------------------------------------------------
+// Reward actions a teacher takes on one student's rewards. Each is one
+// transaction in functions/shared/rewardActionStore.mjs, authorized from the
+// class record (authorizeClassPointsActor) before anything is read back.
+// ---------------------------------------------------------------------------
+
+let rewardActionStoreModule = null;
+async function rewardActionStore() {
+  if (!rewardActionStoreModule) rewardActionStoreModule = await import("./shared/rewardActionStore.mjs");
+  return rewardActionStoreModule;
+}
+
+const REWARD_ACTION_HTTPS_CODES = new Set([
+  "invalid-argument", "failed-precondition", "permission-denied", "not-found", "already-exists",
+]);
+
+function translateRewardActionError(error) {
+  if (error?.name === "RewardActionError") {
+    const code = REWARD_ACTION_HTTPS_CODES.has(error.code) ? error.code : "failed-precondition";
+    return new HttpsError(code, error.message, error.detail || undefined);
+  }
+  return translateClassPointsError(error);
+}
+
+async function rewardTeacher(request) {
+  const uid = await requireTeacher(request);
+  const email = callerEmail(request);
+  if (!email) throw new HttpsError("permission-denied", "Sign in with a verified school email to manage rewards.");
+  return { uid, email, isRootAdmin: authLib.isRootAdminEmail(email) };
+}
+
+/** A teacher gives one student a Practice Pass or a badge. */
+exports.awardRewardGrant = onCall(async (request) => {
+  const teacher = await rewardTeacher(request);
+  const data = request.data || {};
+  const store = await rewardActionStore();
+  try {
+    return await store.awardRewardGrant(getFirestore(), {
+      studentId: data.studentId,
+      classId: data.classId,
+      rewardCode: data.rewardCode,
+      label: data.label,
+      note: data.note,
+      expiresInDays: data.expiresInDays ?? null,
+      requestId: data.requestId,
+      teacher,
     });
+  } catch (error) {
+    throw translateRewardActionError(error);
+  }
+});
 
-    const nowIso = new Date().toISOString();
-    const assignmentTitle = rewards.safeAssignmentTitle(assignment);
-    const transactionRef = db.collection(CLASS_POINT_TRANSACTIONS_COLLECTION).doc();
-    const ledgerTransaction = rewards.buildPracticePassLedgerTransaction({
-      studentId,
-      classId,
-      assignmentId,
-      assignmentTitle,
-      redemptionId,
-      issuedByUid: request.auth.uid,
-      issuedByEmail: callerEmail(request),
-      originTeacherEmail: authorization.originTeacherEmail,
-      authorizedTeacherEmails: authorization.authorizedTeacherEmails,
-      at: nowIso,
+/** A teacher takes back an unused reward, with a reason the student sees. */
+exports.revokeRewardGrant = onCall(async (request) => {
+  const teacher = await rewardTeacher(request);
+  const store = await rewardActionStore();
+  try {
+    return await store.revokeRewardGrant(getFirestore(), {
+      grantId: request.data?.grantId,
+      reason: request.data?.reason,
+      teacher,
     });
+  } catch (error) {
+    throw translateRewardActionError(error);
+  }
+});
 
-    let nextAccount;
-    try {
-      nextAccount = points.applyTransaction(account, ledgerTransaction);
-    } catch (error) {
-      throw translateClassPointsError(error);
-    }
-    nextAccount = {
-      ...nextAccount,
-      originTeacherEmail: authorization.originTeacherEmail,
-      authorizedTeacherEmails: authorization.authorizedTeacherEmails,
-    };
-
-    const redemption = rewards.buildPracticePassRedemption({
-      redemptionId, studentId, classId, assignmentId, assignmentTitle, transactionId: transactionRef.id, at: nowIso,
+/** A teacher undoes a Practice Pass use: Practice is required again and the pass or points come back. */
+exports.undoPracticePassRedemption = onCall(async (request) => {
+  const teacher = await rewardTeacher(request);
+  const store = await rewardActionStore();
+  try {
+    return await store.undoPracticePassRedemption(getFirestore(), {
+      redemptionId: request.data?.redemptionId,
+      reason: request.data?.reason,
+      teacher,
     });
+  } catch (error) {
+    throw translateRewardActionError(error);
+  }
+});
 
-    transaction.set(transactionRef, ledgerTransaction);
-    transaction.set(accountRef, nextAccount);
-    transaction.set(redemptionRef, redemption);
-
-    return {
-      redemptionId,
-      redemption,
-      account: nextAccount,
-      transaction: ledgerTransaction,
-      replay: false,
-    };
-  });
+/**
+ * Everything a teacher needs to understand ONE student's rewards in one class,
+ * in one authorized, one-time read (rewardActionStore.mjs
+ * loadStudentRewardsForTeacher): what they hold, what they used and on what,
+ * what was taken back, their recent Class Points, and — for the last few Live
+ * Challenges — why each reward rule did or did not pay out and whether the
+ * reward arrived. No listener: Refresh re-reads.
+ */
+exports.getStudentRewards = onCall(async (request) => {
+  const teacher = await rewardTeacher(request);
+  const store = await rewardActionStore();
+  try {
+    return await store.loadStudentRewardsForTeacher(getFirestore(), {
+      studentId: request.data?.studentId,
+      classId: request.data?.classId,
+      teacher,
+    });
+  } catch (error) {
+    throw translateRewardActionError(error);
+  }
 });
 
 /*
@@ -8113,11 +8243,16 @@ exports.syncGradeToClassroom = onDocumentWritten(
         JSON.stringify(beforeReleaseSignals[assignmentId])
     );
     const releaseSignalSet = new Set(releaseSignaledAssignmentIds);
+    // A completed Practice-based Recovery, or a Live Challenge Warm-Up result,
+    // rescores its section in this same grade, so it has to wake this trigger
+    // too.
+    const recoveryChangedIds = sectionRecoveryGrades.recoveryChangedAssignmentIds(afterData, beforeData);
     const changedAssignmentIds = [...new Set([
       ...gradeChangedAssignmentIds,
       ...overrideChangedAssignmentIds,
       ...testCycleChangedAssignmentIds,
       ...releaseSignaledAssignmentIds,
+      ...recoveryChangedIds,
     ])];
     if (changedAssignmentIds.length === 0) return;
 
@@ -8178,7 +8313,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
               .collection(CLASS_POINT_REWARD_REDEMPTIONS_COLLECTION)
               .doc(redemptionId)
               .get();
-            if (redemptionSnap.exists) {
+            if (rewards.isActivePracticePassRedemption(redemptionSnap.exists ? redemptionSnap.data() : null)) {
               questionIndices = rewards.excludeWaivedIndices(
                 questionIndices,
                 rewards.waivedPracticeIndices({ hasRedemption: true, practiceIndices }),
@@ -8194,6 +8329,21 @@ exports.syncGradeToClassroom = onDocumentWritten(
       const releaseSignal = releaseSignalSet.has(assignmentId)
         ? afterReleaseSignals[assignmentId]
         : null;
+      // A completed Recovery credits its section at the recorded score inside
+      // this same calculation (functions/lib/sectionRecoveryGrades.js).
+      // eslint-disable-next-line no-await-in-loop
+      const recoveredInputs = isTestCycleAssignment
+        ? { tracker: assignmentTracker, overrides: authoritativeOverrides }
+        : await sectionRecoveryGrades.projectRecoveredGradeInputs({
+          assignment,
+          tracker: assignmentTracker,
+          questions,
+          overrides: authoritativeOverrides,
+          recoveryForAssignment: afterData.sectionRecoveryByAssignment?.[assignmentId] || null,
+          // A Live Challenge Warm-Up result is the Warm-Up grade.
+          challengeCredit: afterData.warmupChallengeByAssignment?.[assignmentId] || null,
+          gradeProgress: assignmentGradeProgress,
+        });
       let progress = isTestCycleAssignment
         ? {
           total: 1,
@@ -8208,10 +8358,10 @@ exports.syncGradeToClassroom = onDocumentWritten(
           minimumProgressQuestions: 1,
         }
         : assignmentGradeProgress(
-          assignmentTracker,
+          recoveredInputs.tracker,
           questionIndices,
           questions,
-          authoritativeOverrides,
+          recoveredInputs.overrides,
         );
       if (assignmentGradeOverride) {
         progress = {
@@ -10340,7 +10490,16 @@ async function writeChallengeEvidenceFromResult(db, result) {
 async function deliverLiveChallengeRewardsFromResult(db, result) {
   if (result.status !== "finished") return;
   const rewards = await liveChallengeClassPoints();
-  await rewards.processLiveChallengeMatchRewards(db, { matchResult: result, policy: result.rewardPolicy || null });
+  const delivery = await rewards.processLiveChallengeMatchRewards(db, { matchResult: result, policy: result.rewardPolicy || null });
+  // A match whose rewards were skipped as a whole (an archived class, a class
+  // with no teacher of record) writes no award job, so without this the
+  // teacher's reward diagnostics could not say why nobody was rewarded.
+  // update(), never set(): a result removed meanwhile stays removed.
+  if (delivery?.status === "skipped" && result.roomId) {
+    await db.collection(LIVE_CHALLENGE_MATCH_RESULTS).doc(String(result.roomId))
+      .update({ rewardsSkipReason: String(delivery.reason || "skipped") })
+      .catch((error) => logger.warn("liveChallenge.rewards.skipReason.unrecorded", { roomId: result.roomId, message: error?.message || String(error) }));
+  }
 }
 
 // After this many runs an effect that still fails stops being retried by the
@@ -18647,8 +18806,13 @@ exports.listGradeTransferState = onCall(async (request) => {
 
   await Promise.all(classIds.map((classId) => gradeTransferClassAuthority(db, request, classId)));
 
+  // The gradebook needs only "which students have Practice excused"; it asks
+  // for that alone rather than every transfer snapshot of the class.
+  const practicePassesOnly = request.data?.practicePassesOnly === true;
   const [snapshotGroups, redemptionGroups] = await Promise.all([
-    Promise.all(classIds.map((classId) => db.collection("gradeTransferSnapshots").where("classId", "==", classId).get())),
+    practicePassesOnly
+      ? Promise.resolve([])
+      : Promise.all(classIds.map((classId) => db.collection("gradeTransferSnapshots").where("classId", "==", classId).get())),
     Promise.all(classIds.map((classId) => db.collection("classPointRewardRedemptions").where("classId", "==", classId).get())),
   ]);
 

@@ -15,6 +15,8 @@ import { rushConfigProblem } from '../../../functions/shared/graphFeatureRushCon
 import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
 import { LiveChallengeAudioDirector } from '../../platform/liveChallenge/liveChallengeAudio.js';
 import { defaultRushSetup, rushCreateRequest } from '../../platform/liveChallenge/rushSetupModel.js';
+import ChallengeRewardSettings from './ChallengeRewardSettings.jsx';
+import { DEFAULT_CHALLENGE_REWARD_CHOICE, buildChallengeRewardPolicy, normalizeChallengeRewardChoice } from '../../platform/rewards/challengeRewardPolicy.js';
 import {
   advanceLiveChallenge,
   cancelLiveChallenge,
@@ -235,6 +237,16 @@ export default function LiveChallengeTeacher({
   const [title, setTitle] = useState('');
   const [speedInfluencePercent, setSpeedInfluencePercent] = useState(20);
   const [playerDisplayMode, setPlayerDisplayMode] = useState('codeName');
+  // The teacher's reward choice, remembered in this browser: a teacher who
+  // gives the top three a Practice Pass usually does so every period.
+  const [rewardChoice, setRewardChoiceState] = useState(() => {
+    try { return normalizeChallengeRewardChoice(JSON.parse(window.localStorage.getItem('mathmaster.liveChallenge.rewardChoice') || 'null') || DEFAULT_CHALLENGE_REWARD_CHOICE); } catch { return DEFAULT_CHALLENGE_REWARD_CHOICE; }
+  });
+  const setRewardChoice = (next) => {
+    const normalized = normalizeChallengeRewardChoice(next);
+    setRewardChoiceState(normalized);
+    try { window.localStorage.setItem('mathmaster.liveChallenge.rewardChoice', JSON.stringify(normalized)); } catch { /* private mode: not remembered */ }
+  };
   const [warmupAssignmentId, setWarmupAssignmentId] = useState('');
   const [warmupDeliveryMode, setWarmupDeliveryMode] = useState('liveChallenge');
   const [roomId, setRoomId] = useState(null);
@@ -463,6 +475,8 @@ export default function LiveChallengeTeacher({
           secondChanceMode,
           assignmentId: warmupAssignmentId || null,
           title: title.trim() || `${selectedClass?.name || classPeriod || 'Class'} Live Challenge`,
+          // Null keeps the server's default (Class Points achievements only).
+          rewardPolicy: buildChallengeRewardPolicy(rewardChoice),
         });
       } catch (error) {
         const activeRoomId = error?.details?.roomId;
@@ -719,6 +733,7 @@ export default function LiveChallengeTeacher({
             </div>
           )}
           {!rushMode && <ScoringCompetitionCard roundSeconds={roundSeconds} speedInfluencePercent={speedInfluencePercent} />}
+          <ChallengeRewardSettings choice={rewardChoice} onChange={setRewardChoice} />
           {!rushMode && <ChallengeQuestionLibrary assignments={assignments} onImported={() => fetchPathCoverage(courseId).then(setCoverage)} />}
           {rushMode ? (
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>

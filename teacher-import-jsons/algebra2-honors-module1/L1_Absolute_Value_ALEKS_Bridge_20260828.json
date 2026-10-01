@@ -878,7 +878,10 @@
           "purpose": "independentPractice",
           "evidenceWeight": 0.75,
           "dok": 2,
-          "difficultyBand": 3
+          "difficultyBand": 3,
+          "questionFamily": {
+            "scope": "assignment"
+          }
         }
       ]
     },

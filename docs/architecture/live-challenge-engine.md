@@ -597,12 +597,17 @@ clears every collection above.
   round close from the host screen for the classic modes (Graph Feature Rush
   closes its rounds this way).
 - Teacher UI for choosing a scoring strategy and Grand Prix round-result
-  screens for the classic modes, and a general reward-policy editor (the server
-  accepts `scoringStrategyId`, `scoringConfig` and `rewardPolicy` at create and
-  validates them; Graph Feature Rush's setup offers its scoring and three
-  reward choices).
-- A student rewards wallet, teacher revoke, and an expiry sweep — all built on
-  `transitionRewardGrant`.
+  screens for the classic modes (the server accepts `scoringStrategyId` and
+  `scoringConfig` at create and validates them; Graph Feature Rush's setup
+  offers its two strategies and shows its round results). The reward-policy
+  choice now exists as a small preset picker (`ChallengeRewardSettings`, used
+  by every mode); a free-form rule editor is still deferred.
+- ~~A student rewards wallet and teacher revoke~~ — built: see
+  `docs/architecture/rewards.md` (wallet, Practice Pass redemption from a
+  held pass, teacher give / take back / undo, Challenge reward choice and
+  diagnostics). An expiry sweep is still deferred: an expired grant already
+  reads as expired everywhere (`effectiveGrantStatus`), so persisting it is
+  housekeeping, not correctness.
 - Deleting the legacy experience trigger in a deployment that removes it
   explicitly.
 - Reports written before `studentIds` existed are not reachable by permanent

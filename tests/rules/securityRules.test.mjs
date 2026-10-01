@@ -833,6 +833,61 @@ test('no client can CREATE a grades row with a Test Cycle grade already in it', 
   await assertSucceeds(setDoc(doc(teacherA(), 'grades/STUDENT_NEW2'), { ...roster, testCycleGrades: {} }));
 });
 
+test('no client can write a Practice-based Recovery record or the Live Challenge Warm-Up credit', async () => {
+  /*
+   * `sectionRecoveryByAssignment` decides a recorded DOL/Warm-Up score (the
+   * Grade Center, gradebook, Grade Transfer and Classroom passback all derive
+   * it), and `warmupChallengeByAssignment` is the Live Challenge Warm-Up credit
+   * Recovery reads to recognise a game-delivered Warm-Up. Both are written only
+   * by Cloud Functions; a student who could write them could raise their own
+   * DOL or switch off a Warm-Up they missed.
+   */
+  const recovery = {
+    'assignment-1': { dol: { schemaVersion: 1, section: 'dol', status: 'completed', rawScore: 72, cap: 90, type: 'recovery' } },
+  };
+  const credit = { 'assignment-1': { answered: 4, correct: 3, roundsAvailable: 5 } };
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'grades/STUDENT_A'), {
+      displayName: 'Student A', classId: 'class-a', classPeriod: 'Period 1',
+      assignedTeacherEmail: TEACHER_A, status: 'active', gradesByAssignment: {},
+      sectionRecoveryByAssignment: recovery,
+      warmupChallengeByAssignment: credit,
+    });
+  });
+
+  const forgedRecovery = {
+    'assignment-1': { dol: { schemaVersion: 1, section: 'dol', status: 'completed', rawScore: 100, cap: 100, type: 'excusedMakeUp' } },
+  };
+  for (const client of [studentA, teacherA, admin]) {
+    await assertFails(updateDoc(doc(client(), 'grades/STUDENT_A'), { sectionRecoveryByAssignment: forgedRecovery }));
+    await assertFails(updateDoc(doc(client(), 'grades/STUDENT_A'), { 'sectionRecoveryByAssignment.assignment-1.dol.rawScore': 100 }));
+    await assertFails(updateDoc(doc(client(), 'grades/STUDENT_A'), { warmupChallengeByAssignment: {} }));
+  }
+  // Removing a Recovery is no more allowed than rewriting it.
+  await assertFails(updateDoc(doc(studentA(), 'grades/STUDENT_A'), { sectionRecoveryByAssignment: {} }));
+
+  // Ordinary work still saves, which is what the document is for.
+  await assertSucceeds(updateDoc(doc(studentA(), 'grades/STUDENT_A'), {
+    gradesByAssignment: { 'assignment-1': { 0: { status: 'correct' } } },
+  }));
+});
+
+test('no client can CREATE a grades row that already holds a Recovery record or Warm-Up credit', async () => {
+  const roster = {
+    displayName: 'Student New', classId: 'class-a', classPeriod: 'Period 1',
+    assignedTeacherEmail: TEACHER_A, status: 'active', gradesByAssignment: {},
+  };
+  const studentNew = () => env.authenticatedContext('uid-new-recovery', { role: 'student', studentId: 'STUDENT_NEW_R' }).firestore();
+  const forgedRecovery = { 'assignment-1': { dol: { status: 'completed', rawScore: 100, cap: 100 } } };
+
+  await assertFails(setDoc(doc(studentNew(), 'grades/STUDENT_NEW_R'), { ...roster, sectionRecoveryByAssignment: forgedRecovery }));
+  await assertFails(setDoc(doc(teacherA(), 'grades/STUDENT_NEW_R'), { ...roster, sectionRecoveryByAssignment: forgedRecovery }));
+  await assertFails(setDoc(doc(studentNew(), 'grades/STUDENT_NEW_R'), { ...roster, warmupChallengeByAssignment: { a: { correct: 5 } } }));
+
+  await assertSucceeds(setDoc(doc(studentNew(), 'grades/STUDENT_NEW_R'), roster));
+  await assertSucceeds(setDoc(doc(teacherA(), 'grades/STUDENT_NEW_R2'), { ...roster, sectionRecoveryByAssignment: {} }));
+});
+
 test('a student cannot read the path question bank, which holds answer keys', async () => {
   await assertFails(getDoc(doc(studentA(), 'pathQuestionBank/q-1')));
   await assertFails(getDoc(doc(studentA(), 'examQuestionBank/q-1')));
@@ -1370,6 +1425,34 @@ test('a reward grant is read by its student and their teacher, and written by no
     await assertFails(updateDoc(doc(client, 'rewardGrants/grant-a'), { status: 'redeemed' }));
     await assertFails(deleteDoc(doc(client, 'rewardGrants/grant-a')));
   }
+});
+
+test('the rewards wallet reads exactly its own student and class, and can change nothing', async () => {
+  await seedLiveChallengeEngine();
+  // My Rewards: the live inventory and the one-time history read.
+  const inventory = (client, studentId) => query(collection(client, 'rewardGrants'),
+    where('studentId', '==', studentId), where('classId', '==', 'class-a'), where('status', '==', 'available'));
+  await assertSucceeds(getDocs(inventory(studentA(), 'STUDENT_A')));
+  await assertFails(getDocs(inventory(studentB(), 'STUDENT_A')), "another student's rewards");
+  await assertSucceeds(getDocs(query(collection(studentA(), 'rewardGrants'), where('studentId', '==', 'STUDENT_A'), where('classId', '==', 'class-a'))));
+  // The waiver and use history the wallet and grade views read.
+  const uses = (client, studentId) => query(collection(client, 'classPointRewardRedemptions'),
+    where('studentId', '==', studentId), where('classId', '==', 'class-a'));
+  await assertSucceeds(getDocs(uses(studentA(), 'STUDENT_A')));
+  await assertFails(getDocs(uses(studentB(), 'STUDENT_A')));
+
+  // A student cannot give themselves a reward, change its type or quantity,
+  // rewrite where it came from, or excuse their own Practice.
+  const self = studentA();
+  await assertFails(setDoc(doc(self, 'rewardGrants/grant-a2'), { rewardCode: 'practicePass', studentId: 'STUDENT_A', classId: 'class-a', status: 'available' }));
+  await assertFails(updateDoc(doc(self, 'rewardGrants/grant-a'), { rewardCode: 'badge' }));
+  await assertFails(updateDoc(doc(self, 'rewardGrants/grant-a'), { source: { type: 'teacher' } }));
+  await assertFails(updateDoc(doc(self, 'rewardGrants/grant-a'), { history: [] }));
+  await assertFails(updateDoc(doc(self, 'rewardGrants/grant-a'), { status: 'available', expiresAt: null }));
+  await assertFails(setDoc(doc(self, 'classPointRewardRedemptions/self-excused'), {
+    rewardCode: 'practicePass', studentId: 'STUDENT_A', classId: 'class-a', assignmentId: 'a1', status: 'redeemed', paidWith: 'pass',
+  }));
+  await assertFails(updateDoc(doc(self, 'classPointRewardRedemptions/redemption-a'), { status: 'reversed' }));
 });
 
 test('a closed round\'s result is read by the room\'s audience only, and written by no client', async () => {

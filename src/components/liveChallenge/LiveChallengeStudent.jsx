@@ -575,7 +575,10 @@ function RushRoundResults({ room, players, leaderboard, playerKey, fresh = true 
   );
 }
 
-export default function LiveChallengeStudent({ invite, studentProfile = {}, onExit, exitLabel = 'Back to Dashboard' }) {
+// `renderMatchRewards(roomId)` is the host's rewards card for a finished match
+// (what reached the wallet). It is a slot, not game logic: the game's own
+// placement and points above it are unchanged and never read rewards.
+export default function LiveChallengeStudent({ invite, studentProfile = {}, onExit, exitLabel = 'Back to Dashboard', renderMatchRewards = null }) {
   const [room, setRoom] = useState(null);
   const [players, setPlayers] = useState([]);
   // True once the standings listener has delivered since it last (re)started.
@@ -818,6 +821,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
               <h2 style={{ margin: '12px 0 6px', color: '#fff' }}>Final Standings</h2>
               <p style={{ margin: 0, color: '#c9e7d4' }}>Your game score is practice feedback. It does not change your assignment grade.</p>
             </section>
+            {renderMatchRewards && invite?.roomId ? renderMatchRewards(invite.roomId) : null}
             <section style={{ padding: 18, borderRadius: 16, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.14)' }}>
               <MiniLeaderboard rows={leaderboard} playerKey={invite.playerKey} />
             </section>

@@ -5,6 +5,7 @@ import { auditStaticGraphViewport } from '../../graphSpecUtils.js';
 import { validateQuestionInteractionContracts } from '../interaction/interactionContract.js';
 import { validateQuestionGradingContracts } from '../grading/gradingContract.js';
 import { instructionalIntegrityProblems } from './instructionalIntegrity.js';
+import { isFamilyBackedQuestion, resolveFamilyQuestionInstance } from '../../../functions/shared/questionFamilyInstance.mjs';
 
 // Recognising a type name is not validation. `{ type: 'graphAnalysis', prompt:
 // 'A graph falls from left to right until x = 2' }` used to pass because
@@ -391,10 +392,34 @@ const checkPlainTextMath = (question, label, errors, warnings) => {
  * AI fix request.
  */
 export const validateQuestionSemantics = (question = {}, { label = 'Question' } = {}) => {
+  if (!isObject(question)) return { errors: [`${label} must be an object.`], warnings: [] };
+
+  // A Question Family slot is a template: the family writes the fields a
+  // student's question needs (answer fields, equations, graph) when it is
+  // generated. Judge the question a student is actually given — a generated
+  // preview — not the template, and refuse a reference that cannot generate
+  // at all rather than letting it fall back to anything static.
+  if (isFamilyBackedQuestion(question)) {
+    const preview = resolveFamilyQuestionInstance({
+      question,
+      assignmentId: 'semantic-check',
+      storageIndex: 0,
+      allocation: { seat: 0, variant: 0, stride: 1, index: 0, basis: 'preview' },
+    });
+    if (preview.error) {
+      return {
+        errors: [`${label} references a Question Family that cannot generate questions (${preview.error}${preview.issues?.length ? `: ${preview.issues.join('; ')}` : ''}). Students would see "This question could not be prepared" instead of a question.`],
+        warnings: [],
+      };
+    }
+    return validateBuiltQuestionSemantics(preview.question, { label });
+  }
+  return validateBuiltQuestionSemantics(question, { label });
+};
+
+const validateBuiltQuestionSemantics = (question = {}, { label = 'Question' } = {}) => {
   const errors = [];
   const warnings = [];
-
-  if (!isObject(question)) return { errors: [`${label} must be an object.`], warnings };
 
   const type = question.toolId || question.type;
   const composed = readComposedQuestion(question);

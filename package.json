@@ -15,6 +15,7 @@
     "validate:authoring-v5": "node scripts/validate-authoring-v5.mjs",
     "validate:assignments": "node scripts/validate-assignments.mjs",
     "test:live-challenge": "node --test tests/platform/liveChallenge.test.mjs",
+    "test:rewards-browser": "node tests/browser/rewardsQa.mjs",
     "build:firebase": "node scripts/build-firebase-hosting.mjs",
     "deploy:hosting": "bash scripts/deploy-hosting-resilient.sh",
     "verify:deployed-build": "node scripts/verify-deployed-build.mjs",
@@ -45,6 +46,7 @@
     "deploy:persistence": "bash scripts/deploy-persistence.sh",
     "verify:response-inspector-production": "node scripts/verify-response-inspector-production.mjs",
     "deploy:response-inspector": "bash scripts/deploy-response-inspector.sh",
+    "deploy:question-family-recovery": "bash scripts/deploy-question-family-recovery.sh",
     "deploy:content-v2": "firebase deploy --only functions:previewAssignmentContentUpgrade,functions:commitAssignmentContentUpgrade --project mathmaster-aleks",
     "audit:theme-colors": "node scripts/audit-theme-colors.mjs",
     "certify:dark-mode": "node tests/browser/darkModeCertification.mjs"

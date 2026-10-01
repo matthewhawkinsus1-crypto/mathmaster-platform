@@ -255,7 +255,7 @@ const expressionDependencies = (text) => {
   return [...dependencies];
 };
 
-const orderDerivedExpressions = (parameterNames, derived) => {
+export const orderDerivedExpressions = (parameterNames, derived) => {
   const entries = Object.entries(derived || {});
   if (!entries.length) return { entries: [], reason: null };
 
@@ -494,6 +494,11 @@ export const collapseSigns = (text) => {
   }
   return looksLikeProse(text) ? collapseExpressionTokens(text) : collapseRuns(text);
 };
+
+// Exported for assignment-local question families (questionFamilyTemplate.mjs),
+// which fill the same {{placeholder}} documents from engine-chosen parameters
+// instead of from a fresh random draw. One substitution, not two.
+export const substitutePlaceholders = (node, scope) => substitute(node, scope);
 
 const substitute = (node, scope) => {
   if (typeof node === 'string') return collapseSigns(substituteString(node, scope));

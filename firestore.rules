@@ -108,6 +108,34 @@ service cloud.firestore {
     }
 
     /*
+     * PRACTICE-BASED RECOVERY IS SERVER-DERIVED, ON THE SAME CLIENT-WRITABLE DOC.
+     *
+     * `sectionRecoveryByAssignment` holds each Warm-Up/DOL Recovery: the
+     * server-graded Practice evidence that unlocked it, its plan and its raw
+     * score. The recorded grade the Grade Center, the gradebook, Grade
+     * Transfer and Classroom passback show is derived from it, so a student
+     * who could write it could raise their own DOL. Only the
+     * `advanceSectionRecovery` callable (Admin SDK, rules bypassed) writes it.
+     *
+     * `warmupChallengeByAssignment` is the Live Challenge Warm-Up credit,
+     * written only by the server's match finalization effects
+     * (writeWarmupCreditFromResult, Admin SDK). Recovery reads it to
+     * recognise a Warm-Up delivered as a Live Challenge, so it is pinned the
+     * same way; no client has ever written it.
+     */
+    function serverRecoveryFieldsUnchanged() {
+      return request.resource.data.get('sectionRecoveryByAssignment', {})
+          == resource.data.get('sectionRecoveryByAssignment', {})
+        && request.resource.data.get('warmupChallengeByAssignment', {})
+          == resource.data.get('warmupChallengeByAssignment', {});
+    }
+
+    function serverRecoveryFieldsAbsentOnCreate() {
+      return request.resource.data.get('sectionRecoveryByAssignment', {}) == {}
+        && request.resource.data.get('warmupChallengeByAssignment', {}) == {};
+    }
+
+    /*
      * TEACHER GRADE OVERRIDES ARE SERVER-AUTHORITATIVE.
      *
      * Ordinary grade documents remain client-writable for existing student and
@@ -427,7 +455,8 @@ service cloud.firestore {
         && rosterAuthorizationUnchanged()
         && sisIdentityUnchanged()
         && testCycleGradesUnchanged()
-        && teacherGradeOverridesUnchanged();
+        && teacherGradeOverridesUnchanged()
+        && serverRecoveryFieldsUnchanged();
       // Creation stays open to any teacher: a roster row may be written before
       // the student has been placed in a class, and it carries no work yet.
       // "No work yet" is enforced, not assumed, for the one field that is
@@ -436,7 +465,8 @@ service cloud.firestore {
       allow create: if (teacher() || (ownsStudent(studentId) && supportProfileAbsentOnStudentCreate()))
         && sisIdentityAbsentOnClientCreate()
         && testCycleGradesAbsentOnCreate()
-        && teacherGradeOverridesAbsentOnCreate();
+        && teacherGradeOverridesAbsentOnCreate()
+        && serverRecoveryFieldsAbsentOnCreate();
       allow delete: if false;
 
       /*
