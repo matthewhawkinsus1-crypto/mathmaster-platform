@@ -98,11 +98,11 @@ const TEXT_DIFF_LIMIT = 2;
  * A FRACTION BAR IS A KEYSTROKE TOO.
  *
  * A math field reports LaTeX, and not every key a student types lands in it as
- * an insertion. "/" turns `y=1` into `y=\frac{1}{\placeholder{}}`, the next "2"
- * makes it `y=\frac12`, and "(" adds `\left(\right)` around the caret. Compared
- * character by character neither is one contiguous edit, so typing
- * y = 1/2x − 3 into one field was three Undo steps, and the middle one handed
- * back a fraction with an empty box in it (PQ-009, the representations board).
+ * an insertion. "/" turns `y=1` into `y=\frac{1}{\placeholder{}}`, and the next
+ * "2" makes it `y=\frac12`. Compared character by character neither is one
+ * contiguous edit, so typing y = 1/2x − 3 into one field was three Undo steps,
+ * and the middle one handed back a fraction with an empty box in it (PQ-009,
+ * the representations board). Brackets (`\left(\right)`) were always fine.
  *
  * So contiguity is judged on the text with MathLive's structure taken out —
  * braces, backslashes and empty placeholders. Selecting a whole answer and

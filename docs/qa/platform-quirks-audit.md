@@ -441,13 +441,14 @@ updated record back); that is a harness limitation, not a product finding.
     `mathUndoStack.js`). It takes back that graph's latest change even when
     the student typed somewhere else after it. The step is removed from the
     shared history, so the platform Undo can never replay it.
-  - **A fraction bar or a bracket no longer splits a typing run.** MathLive
-    turns "/" into `\frac{1}{\placeholder{}}`, which is not a contiguous
-    character edit. Before this change, y = 1/2x − 3 typed into one field
-    took three Undo steps, and one of them handed back a fraction with an
-    empty box. Contiguity is now judged with MathLive's braces, backslashes
-    and empty placeholders stripped (`typingText`). Select-all-and-overwrite
-    and a swapped choice are still separate steps.
+  - **A fraction bar no longer splits a typing run.** MathLive turns "/"
+    into `\frac{1}{\placeholder{}}`, which is not a contiguous character edit.
+    Before this change, y = 1/2x − 3 typed into one field took three Undo
+    steps, and one of them handed back a fraction with an empty box.
+    Contiguity is now judged with MathLive's braces, backslashes and empty
+    placeholders stripped (`typingText`). Select-all-and-overwrite and a
+    swapped choice are still separate steps. A character typed and rubbed out
+    within one run no longer leaves an Undo that changes nothing.
   - **Reload.** The history stays on the device, capped at 12 KB (about 6–10
     board steps), and never goes in the synced work record. It is dropped if
     it was recorded for different work. An Undo after a reload takes back
