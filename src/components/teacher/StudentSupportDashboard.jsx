@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { summarizeLiveClass } from '../../livePresence.js';
-import { compareStudentsByName, formatStudentName, resolveRosterStudentName } from '../../platform/studentName.js';
+import { compareStudentsByName, formatStudentLabel, formatStudentName, resolveRosterStudentName } from '../../platform/studentName.js';
+import { rosterStudentLabel, rosterStudentNameForStorage } from '../../platform/teacher/teacherRosterSummary.js';
 import {
   SUPPORT_EVENT_KIND,
   SUPPORT_EVENT_LABEL,
@@ -77,6 +78,11 @@ export default function StudentSupportDashboard({
   const resolveName = (studentId, historicalName = '') => resolveRosterStudentName({
     studentId, students, historicalName,
   });
+  // What a card shows: the name, or "Name unavailable · ID 101410" — the id is
+  // labelled as an id so two students without names are still told apart.
+  const labelFor = (studentId, historicalName = '') => rosterStudentLabel({
+    studentId, students, historicalName,
+  });
   const namedClassEvents = useMemo(() => classEvents.map((event) => ({
     ...event,
     studentName: resolveRosterStudentName({
@@ -146,7 +152,7 @@ export default function StudentSupportDashboard({
       .map((row) => ({
         key: `live:${row.id}:${row.live?.startedAt || 0}`,
         studentId: row.id,
-        studentName: row.name,
+        studentName: row.nameMissing ? null : row.name,
         assignmentId: row.live?.assignmentId || null,
         assignmentTitle: row.live?.assignmentTitle || null,
         sessionKey: supportSessionKey({ studentId: row.id, assignmentId: row.live?.assignmentId, startedAt: row.live?.startedAt }),
@@ -198,6 +204,11 @@ export default function StudentSupportDashboard({
     classPeriod,
     source: event.source || 'supportDashboard',
     ...event,
+    // The stored copy is the roster name or null. A display string ("Name
+    // unavailable") or an id never becomes a student's name in history.
+    studentName: rosterStudentNameForStorage({
+      studentId: event.studentId, students, historicalName: event.studentName,
+    }),
   });
 
   const saveTeacherNote = async () => {
@@ -217,7 +228,7 @@ export default function StudentSupportDashboard({
         kind: noteKind,
         stage,
         studentId: student.id,
-        studentName: formatStudentName(student, { lastFirst: false }),
+        studentName: formatStudentName(student, { lastFirst: false, fallbackToNeutral: false }) || null,
         summary: noteKind === SUPPORT_EVENT_KIND.TEACHER_INTERVENTION
           ? 'Teacher added an intervention/check-in note.'
           : 'Teacher added a reviewed support concern/follow-up note.',
@@ -258,7 +269,7 @@ export default function StudentSupportDashboard({
           {watchList.length ? watchList.map((entry) => (
             <div key={entry.studentId} style={{ borderTop: '1px solid #eef0f2', padding: '8px 0' }}>
               <button type="button" onClick={() => onOpenStudent?.(entry.studentId)} style={{ border: 0, padding: 0, background: 'transparent', fontWeight: 900, cursor: 'pointer', textAlign: 'left' }}>
-                {entry.studentName}
+                {labelFor(entry.studentId, entry.studentName)}
               </button>
               <div style={{ fontSize: 11.5, color: '#5f6368', marginTop: 2 }}>{entry.reasons.join(' · ')}</div>
               <div style={{ display: 'flex', gap: 5, marginTop: 6, flexWrap: 'wrap' }}>
@@ -293,7 +304,7 @@ export default function StudentSupportDashboard({
               <div style={{ fontWeight: 800 }}>{group.label}</div>
               <div style={{ fontSize: 11.5, color: '#5f6368', marginTop: 2 }}>{group.students.length} students</div>
               <div style={{ fontSize: 11.5, color: '#3c4043', marginTop: 3 }}>
-                {group.students.slice(0, 5).map((student) => student.studentName).join(', ')}
+                {group.students.slice(0, 5).map((student) => labelFor(student.studentId, student.studentName)).join(', ')}
                 {group.students.length > 5 ? ` +${group.students.length - 5} more` : ''}
               </div>
               <button type="button" style={{ ...actionButton, marginTop: 6 }} onClick={() => saveGroup(group)}>Save group</button>
@@ -306,7 +317,7 @@ export default function StudentSupportDashboard({
           <div style={{ color: '#5f6368', fontSize: 11.5, margin: '3px 0 8px' }}>Requires repeated teacher-confirmed productivity concerns; platform telemetry alone can never place a student here.</div>
           {parents.length ? parents.map((entry) => (
             <div key={entry.studentId} style={{ borderTop: '1px solid #eef0f2', padding: '8px 0' }}>
-              <button type="button" onClick={() => onOpenStudent?.(entry.studentId)} style={{ border: 0, padding: 0, background: 'transparent', fontWeight: 900, cursor: 'pointer', textAlign: 'left' }}>{entry.studentName}</button>
+              <button type="button" onClick={() => onOpenStudent?.(entry.studentId)} style={{ border: 0, padding: 0, background: 'transparent', fontWeight: 900, cursor: 'pointer', textAlign: 'left' }}>{labelFor(entry.studentId, entry.studentName)}</button>
               <div style={{ fontSize: 11.5, color: '#5f6368', marginTop: 2 }}>
                 {entry.confirmedProductivityDays.length} confirmed day{entry.confirmedProductivityDays.length === 1 ? '' : 's'}
                 {entry.completionSignals.length ? ` · ${entry.completionSignals.length} completion signal${entry.completionSignals.length === 1 ? '' : 's'}` : ''}
@@ -331,7 +342,7 @@ export default function StudentSupportDashboard({
           <div style={{ color: '#5f6368', fontSize: 11.5, margin: '3px 0 8px' }}>Unusual response patterns only. MathMaster never labels a student as cheating.</div>
           {integrity.length ? integrity.map((entry) => (
             <div key={entry.key} style={{ borderTop: '1px solid #eef0f2', padding: '8px 0' }}>
-              <button type="button" onClick={() => onOpenStudent?.(entry.studentId)} style={{ border: 0, padding: 0, background: 'transparent', fontWeight: 900, cursor: 'pointer', textAlign: 'left' }}>{entry.studentName}</button>
+              <button type="button" onClick={() => onOpenStudent?.(entry.studentId)} style={{ border: 0, padding: 0, background: 'transparent', fontWeight: 900, cursor: 'pointer', textAlign: 'left' }}>{labelFor(entry.studentId, entry.studentName)}</button>
               <div style={{ fontSize: 10.5, color: '#80868b', marginTop: 2 }}>{entry.sourceLabel}{entry.assignmentTitle ? ` · ${entry.assignmentTitle}` : ''}</div>
               <div style={{ fontSize: 11.5, color: '#6b4c00', marginTop: 3 }}>{entry.signal.reasons.join(' · ')}</div>
               <div style={{ display: 'flex', gap: 5, marginTop: 6, flexWrap: 'wrap' }}>
@@ -374,7 +385,7 @@ export default function StudentSupportDashboard({
             return (
               <div key={summary.id} style={{ borderTop: '1px solid #eef0f2', padding: '8px 0' }}>
                 <button type="button" onClick={() => onOpenStudent?.(summary.studentId)} style={{ border: 0, padding: 0, background: 'transparent', fontWeight: 900, cursor: 'pointer', textAlign: 'left' }}>
-                  {summary.studentName}
+                  {labelFor(summary.studentId, summary.studentName)}
                 </button>
                 <div style={{ fontSize: 11.5, color: '#5f6368', marginTop: 2 }}>
                   {summary.assignmentTitle || 'Assignment'} · {Math.round(active)} active min of {Math.round(elapsed)} elapsed · {summary.answered || 0} answered
@@ -420,7 +431,7 @@ export default function StudentSupportDashboard({
             <select value={noteStudentId} onChange={(event) => setNoteStudentId(event.target.value)} style={{ minHeight: 38, padding: '7px 8px', border: '1px solid #c9ced6', borderRadius: 7, background: 'var(--mm-surface)' }}>
               <option value="">Choose student…</option>
               {[...students].sort(compareStudentsByName).map((student) => (
-                <option key={student.id} value={student.id}>{formatStudentName(student, { lastFirst: false })}</option>
+                <option key={student.id} value={student.id}>{formatStudentLabel(student, { lastFirst: false })}</option>
               ))}
             </select>
             <select value={noteKind} onChange={(event) => setNoteKind(event.target.value)} style={{ minHeight: 38, padding: '7px 8px', border: '1px solid #c9ced6', borderRadius: 7, background: 'var(--mm-surface)' }}>
@@ -453,7 +464,7 @@ export default function StudentSupportDashboard({
           {recent.length ? recent.map((event) => (
             <div key={event.id} style={{ padding: '8px 9px', borderRadius: 8, background: '#f8f9fa' }}>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-                <strong>{event.studentName}</strong>
+                <strong>{labelFor(event.studentId, event.studentName)}</strong>
                 <span style={{ fontSize: 11, color: '#80868b' }}>{fmt(event.createdAt)}</span>
               </div>
               <div style={{ marginTop: 2, fontSize: 11.5 }}>

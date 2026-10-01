@@ -228,11 +228,16 @@ test('the most urgent thing is first, and a truncated read is the most urgent th
 
 test('students on no roster are reported as a system problem, not a student problem', () => {
   const findings = systemFindings({
-    unplaceable: [{ id: 's9', displayName: 'Okafor, Chidi' }], classCount: 2,
+    unplaceable: [{ id: 's9', displayName: 'Okafor, Chidi' }, { id: '101410', displayName: '101410' }], classCount: 2,
   });
   const alert = findings.find((finding) => finding.rule === 'unplaceableStudents');
   assert.equal(alert.kind, ALERT_KIND.SYSTEM);
-  assert.match(alert.detail, /Okafor, Chidi/);
+  // The detail names each student — by name in natural order (the shared
+  // formatter reads "Last, First" storage as a name), and a student with no
+  // name on file as "Name unavailable" with the id labelled as an id.
+  assert.match(alert.detail, /Chidi Okafor/);
+  assert.match(alert.detail, /Name unavailable · ID 101410/);
+  assert.doesNotMatch(alert.detail, /(^|, )101410(,|\.|$)/, 'an id is never listed as a name');
 });
 
 test('filters are ANDed, and an unset filter filters nothing', () => {

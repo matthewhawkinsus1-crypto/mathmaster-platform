@@ -40,6 +40,7 @@ import {
   ASSIGNMENT_STATUS, SCHOOL_TIME_ZONE, activeEvidence, buildAssignmentEvidenceRow, configuredSupportIds,
   distinctUses, evidenceRecordingStartMs, isStaffEvent,
 } from './evidenceAggregation.js';
+import { acceptStudentName, formatStudentName } from '../studentName.js';
 
 export const SUPPORT_REPORT_SCHEMA_VERSION = 1;
 export const TIMELINE_LIMIT = 400;
@@ -419,7 +420,10 @@ export const buildSupportEvidenceReport = ({
       generatedAtMs: now,
       generatedByEmail: clean(generatedByEmail) || null,
       studentId: clean(student?.id),
-      studentName: clean(studentName) || clean(student?.displayName) || clean(student?.id),
+      // The caller's name when it is really a name, else the record's resolved
+      // name, else "Name unavailable". studentId is its own field; the report
+      // never prints the id where the name belongs.
+      studentName: acceptStudentName(studentName, student || {}) || formatStudentName(student || {}, { lastFirst: false }),
       classId: clean(student?.classId) || null,
       className: clean(classRecord?.name) || clean(classRecord?.period) || clean(student?.classPeriod) || null,
       gradingPeriodId: clean(selection.gradingPeriodId) || 'all',

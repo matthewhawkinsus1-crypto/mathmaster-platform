@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { formatStudentName } from '../../platform/studentName.js';
+import { studentNameForStorage } from '../../../functions/shared/studentIdentity.mjs';
+import {
+  STUDENT_NAME_UNAVAILABLE, compareStudentsByName, formatStudentLabel, resolveRosterStudentName, studentIdentityIndexFor,
+} from '../../platform/studentName.js';
 import {
   CONTACT_CATEGORIES, CONTACT_METHODS, buildStudentProgressBrief, contactsCsv, groupContactsByStudent, progressBriefText, projectProgressBriefGrades, validateContactDraft,
 } from '../../platform/teacher/parentContactCenter.js';
@@ -17,6 +20,16 @@ export default function ParentContactCenter({ students = [], classes = [], assig
   const [error, setError] = useState('');
   const [briefText, setBriefText] = useState('');
   const groups = useMemo(() => groupContactsByStudent({ contacts, students }), [contacts, students]);
+  // Picker: named students by last name, then students with no name on file,
+  // each shown as "Name unavailable · ID x" so two of them are told apart.
+  const pickerStudents = useMemo(() => [...students].sort(compareStudentsByName), [students]);
+  const identityIndex = useMemo(() => studentIdentityIndexFor(students), [students]);
+  // A record that only carries a studentId is named from the roster at display
+  // time; with no name on file it reads "Name unavailable · ID x".
+  const nameLabel = (studentIdValue, historicalName) => {
+    const name = resolveRosterStudentName({ studentId: studentIdValue, index: identityIndex, historicalName });
+    return name === STUDENT_NAME_UNAVAILABLE ? formatStudentLabel(String(studentIdValue ?? '')) : name;
+  };
   const student = students.find((entry) => String(entry.id || entry.studentId) === studentId) || null;
   useEffect(() => {
     if (!sourceAction?.studentId) return;
@@ -37,7 +50,7 @@ export default function ParentContactCenter({ students = [], classes = [], assig
 
   const save = async (event) => {
     event.preventDefault();
-    const payload = { ...draft, studentId, studentName: student ? formatStudentName(student) : '', classId: student?.classId || null, classPeriod: student?.classPeriod || null, sourceEventId: sourceAction?.sourceId || null };
+    const payload = { ...draft, studentId, studentName: student ? studentNameForStorage(student) || '' : '', classId: student?.classId || null, classPeriod: student?.classPeriod || null, sourceEventId: sourceAction?.sourceId || null };
     const errors = validateContactDraft(payload);
     if (errors.length) return setError(errors.join(' '));
     setError('');
@@ -70,10 +83,10 @@ export default function ParentContactCenter({ students = [], classes = [], assig
 
   return <section aria-labelledby="contact-center-heading" style={{ padding: 22 }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}><div><h2 id="contact-center-heading" style={{ margin: 0 }}>Parent Contact Center</h2><p style={{ color: '#5f6368' }}>All classes · records stay connected by canonical student ID.</p></div><button type="button" style={button} onClick={exportAll}>Export all contact history (CSV)</button></div>
-    {returnCheckIns.length > 0 && <aside style={{ padding: 12, marginBottom: 16, borderRadius: 9, background: '#fff8e1' }}><strong>Return-from-absence follow-up</strong><div>{returnCheckIns.map((item) => `${item.studentName} (${item.classPeriod})`).join(', ')}</div></aside>}
+    {returnCheckIns.length > 0 && <aside style={{ padding: 12, marginBottom: 16, borderRadius: 9, background: '#fff8e1' }}><strong>Return-from-absence follow-up</strong><div>{returnCheckIns.map((item) => `${nameLabel(item.studentId, item.studentName)} (${item.classPeriod})`).join(', ')}</div></aside>}
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 18 }}>
       <form onSubmit={save} style={{ padding: 16, border: '1px solid #dadce0', borderRadius: 12 }}><h3 style={{ marginTop: 0 }}>Record contact</h3>
-        <label>Student<select required value={studentId} onChange={(e) => setStudentId(e.target.value)} style={{ display: 'block', width: '100%', padding: 8 }}><option value="">Choose student</option>{students.map((entry) => <option key={entry.id} value={entry.id}>{formatStudentName(entry)} — {entry.classPeriod || entry.classId}</option>)}</select></label>
+        <label>Student<select required value={studentId} onChange={(e) => setStudentId(e.target.value)} style={{ display: 'block', width: '100%', padding: 8 }}><option value="">Choose student</option>{pickerStudents.map((entry) => <option key={entry.id} value={entry.id}>{formatStudentLabel(entry)} — {entry.classPeriod || entry.classId}</option>)}</select></label>
         <label>Date and time<input required type="datetime-local" value={draft.occurredAt} onChange={(e) => setDraft({ ...draft, occurredAt: e.target.value })} style={{ display: 'block', width: '100%', padding: 8 }} /></label>
         <label>Method<select value={draft.method} onChange={(e) => setDraft({ ...draft, method: e.target.value })} style={{ display: 'block', width: '100%', padding: 8 }}>{CONTACT_METHODS.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select></label>
         <label>Reason<select value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })} style={{ display: 'block', width: '100%', padding: 8 }}>{CONTACT_CATEGORIES.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select></label>
@@ -82,7 +95,7 @@ export default function ParentContactCenter({ students = [], classes = [], assig
         <label>Optional follow-up date<input type="date" value={draft.followUpDate} onChange={(e) => setDraft({ ...draft, followUpDate: e.target.value })} style={{ display: 'block', width: '100%', padding: 8 }} /></label>
         {error && <p role="alert" style={{ color: '#b3261e' }}>{error}</p>}<div style={{ display: 'flex', gap: 8, marginTop: 12 }}><button style={{ ...button, background: '#1a73e8', color: '#fff' }}>Save contact</button><button type="button" style={button} onClick={buildBrief}>Generate progress brief</button></div>
       </form>
-      <div><h3 style={{ marginTop: 0 }}>History by student</h3>{!groups.length && <p>No contacts recorded yet.</p>}{groups.map((group) => <details key={group.studentId} open={group.studentId === studentId} style={{ borderBottom: '1px solid #e8eaed', padding: 10 }}><summary><strong>{group.studentName}</strong> · {group.contacts.length} contact{group.contacts.length === 1 ? '' : 's'}</summary>{group.contacts.map((entry) => <article key={entry.id || `${entry.occurredAt}:${entry.method}`} style={{ margin: '10px 0', paddingLeft: 12, borderLeft: '3px solid #d2e3fc' }}><strong>{new Date(entry.occurredAt).toLocaleString()} · {label(entry.method)} · {label(entry.category)}</strong><div>{entry.outcome}</div>{entry.notes && <div>{entry.notes}</div>}{entry.followUpDate && <div>Follow up: {entry.followUpDate} {entry.followUpCompleted ? '· Completed' : <button type="button" style={button} onClick={() => onCompleteFollowUp(entry)}>Mark complete</button>}</div>}</article>)}</details>)}</div>
+      <div><h3 style={{ marginTop: 0 }}>History by student</h3>{!groups.length && <p>No contacts recorded yet.</p>}{groups.map((group) => <details key={group.studentId} open={group.studentId === studentId} style={{ borderBottom: '1px solid #e8eaed', padding: 10 }}><summary><strong>{group.nameMissing ? formatStudentLabel(group.studentId) : group.studentName}</strong> · {group.contacts.length} contact{group.contacts.length === 1 ? '' : 's'}</summary>{group.contacts.map((entry) => <article key={entry.id || `${entry.occurredAt}:${entry.method}`} style={{ margin: '10px 0', paddingLeft: 12, borderLeft: '3px solid #d2e3fc' }}><strong>{new Date(entry.occurredAt).toLocaleString()} · {label(entry.method)} · {label(entry.category)}</strong><div>{entry.outcome}</div>{entry.notes && <div>{entry.notes}</div>}{entry.followUpDate && <div>Follow up: {entry.followUpDate} {entry.followUpCompleted ? '· Completed' : <button type="button" style={button} onClick={() => onCompleteFollowUp(entry)}>Mark complete</button>}</div>}</article>)}</details>)}</div>
     </div>
     {briefText && <div style={{ marginTop: 20 }}><h3>Student Progress Brief</h3><p style={{ color: '#5f6368' }}>Clear factual context for the teacher to review or copy into a drafting tool.</p><textarea readOnly value={briefText} aria-label="Student progress brief" style={{ width: '100%', minHeight: 260, padding: 12, boxSizing: 'border-box' }} /><button type="button" style={button} onClick={() => navigator.clipboard.writeText(briefText)}>Copy brief</button></div>}
   </section>;

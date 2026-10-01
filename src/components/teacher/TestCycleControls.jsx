@@ -6,7 +6,7 @@ import {
   preflightTestCycleAssignment,
   teacherTestCycleAction,
 } from '../../services/testCycleService.js';
-import { resolveRosterStudentName } from '../../platform/studentName.js';
+import { STUDENT_NAME_UNAVAILABLE, formatStudentLabel, resolveRosterStudentName } from '../../platform/studentName.js';
 
 /*
  * THE TEACHER'S VIEW OF A TEST CYCLE.
@@ -28,6 +28,13 @@ import { resolveRosterStudentName } from '../../platform/studentName.js';
  *
  * Presentational. Nothing here computes a grade or decides a stage.
  */
+
+// The roster name, or "Name unavailable · ID x" so two nameless students stay
+// distinguishable — never the bare id standing in for a name.
+const rosterStudentLabel = (studentId, students, historicalName = '') => {
+  const name = resolveRosterStudentName({ studentId, students, historicalName });
+  return name === STUDENT_NAME_UNAVAILABLE ? formatStudentLabel(String(studentId ?? '')) : name;
+};
 
 const cell = { padding: '8px 10px', fontSize: 13, borderBottom: '1px solid #e3e6ea', textAlign: 'left' };
 const button = (tone) => ({
@@ -138,7 +145,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [] })
           <tbody>
             {rows.map((row) => (
               <tr key={row.studentId}>
-                <td style={cell}>{resolveRosterStudentName({ studentId: row.studentId, students, historicalName: row.studentName })}</td>
+                <td style={cell}>{rosterStudentLabel(row.studentId, students, row.studentName)}</td>
                 <td style={cell}>{row.statusLabel || row.stage || '—'}</td>
                 <td style={cell}>{percent(row.originalTestGrade)}</td>
                 <td style={cell}>{percent(row.rawRetestGrade)}</td>
@@ -171,7 +178,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [] })
                         style={button()}
                         onClick={() => run(
                           () => teacherTestCycleAction({ assignmentId, studentId: row.studentId, action, stage }),
-                          `${label} applied for ${resolveRosterStudentName({ studentId: row.studentId, students, historicalName: row.studentName })}.`,
+                          `${label} applied for ${rosterStudentLabel(row.studentId, students, row.studentName)}.`,
                         )}
                       >
                         {label}
@@ -203,7 +210,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [] })
           "the algorithm decided". */}
       {plans && (
         <div style={{ marginTop: 18, padding: 14, borderRadius: 10, background: '#f8f9fa', border: '1px solid #e3e6ea' }}>
-          <h3 style={{ marginTop: 0, fontSize: 15 }}>Generated plans · {resolveRosterStudentName({ studentId: plans.studentId, students, historicalName: plans.studentName })}</h3>
+          <h3 style={{ marginTop: 0, fontSize: 15 }}>Generated plans · {rosterStudentLabel(plans.studentId, students, plans.studentName)}</h3>
           {plans.corrections ? (
             <>
               <h4 style={{ marginBottom: 4, fontSize: 13 }}>Corrections, mapped to the failed Test evidence</h4>

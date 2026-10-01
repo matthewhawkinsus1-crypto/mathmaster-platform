@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { describeAuthError, teacherAdmin } from '../../auth/authService';
-import { compareStudentsByName, formatStudentName } from '../../platform/studentName';
+import { compareStudentsByName, formatStudentLabel, formatStudentName, studentIdentityIndexFor } from '../../platform/studentName';
 import {
   COURSES, COURSE_LEVELS, DEFAULT_PERIODS, REMOVAL_KINDS,
   courseLabel, courseLevelLabel, describeRemovalKinds,
@@ -89,6 +89,10 @@ export default function ClassesAdmin() {
   // Students with no class at all. An administrator has to be able to find
   // these: a student nobody put in a class gets no assignments and no course.
   const unassigned = useMemo(() => students.filter((student) => !student.classId).sort(compareStudentsByName), [students]);
+  // Migration reports carry studentIds only; name each from the roster this
+  // screen already holds ("Name · ID x", or "Name unavailable · ID x").
+  const studentIndex = useMemo(() => studentIdentityIndexFor(students), [students]);
+  const reportStudentLabel = (studentId) => formatStudentLabel(studentIndex.get(String(studentId ?? '')) || String(studentId ?? ''), { includeId: true });
 
   const selectedClass = classes.find((entry) => entry.classId === selectedClassId) || null;
   const roster = useMemo(
@@ -177,7 +181,7 @@ export default function ClassesAdmin() {
               <ul style={{ margin: '8px 0 0', color: '#a50e0e', fontSize: 13, lineHeight: 1.6 }}>
                 {(migration.activeStudentsMissingTeacherAfterMigration || []).slice(0, 25).map((studentId) => (
                   <li key={studentId}>
-                    {studentId} — {(migration.unresolvedStudents || []).find((entry) => entry.studentId === studentId)?.reason?.replace(/_/g, ' ') || 'no teacher of record'}
+                    {reportStudentLabel(studentId)} — {(migration.unresolvedStudents || []).find((entry) => entry.studentId === studentId)?.reason?.replace(/_/g, ' ') || 'no teacher of record'}
                   </li>
                 ))}
                 {(migration.activeStudentsMissingTeacherAfterMigration || []).length > 25 && <li>…and more.</li>}
@@ -188,7 +192,7 @@ export default function ClassesAdmin() {
                 <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#7a4f00' }}>{migration.conflicts.length} conflicting record{migration.conflicts.length === 1 ? '' : 's'}</summary>
                 <ul style={{ margin: '8px 0 0', fontSize: 13, lineHeight: 1.6, color: '#3c4043' }}>
                   {migration.conflicts.slice(0, 25).map((conflict, index) => (
-                    <li key={`${conflict.studentId}-${index}`}>{conflict.studentId} — {conflict.reason.replace(/_/g, ' ')}</li>
+                    <li key={`${conflict.studentId}-${index}`}>{reportStudentLabel(conflict.studentId)} — {conflict.reason.replace(/_/g, ' ')}</li>
                   ))}
                 </ul>
               </details>
@@ -338,9 +342,9 @@ export default function ClassesAdmin() {
                           removalKinds={removalKinds}
                           confirming={confirming}
                           setConfirming={setConfirming}
-                          onMove={(classId) => run(`move:${student.studentId}`, () => teacherAdmin.setStudentClass({ studentId: student.studentId, classId }), (result) => `${student.studentId} is now in ${classes.find((c) => c.classId === result.classId)?.name || 'no class'}.`)}
-                          onRemove={() => run(`move:${student.studentId}`, () => teacherAdmin.setStudentClass({ studentId: student.studentId, classId: '' }), `${student.studentId} was removed from ${entry.name}. The account and all of its work are untouched.`)}
-                          onSetActive={(active) => run(`status:${student.studentId}`, () => teacherAdmin.setStudentAccountStatus({ studentId: student.studentId, active }), active ? `${student.studentId} can sign in again.` : `${student.studentId} is deactivated. Records kept.`)}
+                          onMove={(classId) => run(`move:${student.studentId}`, () => teacherAdmin.setStudentClass({ studentId: student.studentId, classId }), (result) => `${formatStudentLabel(student, { includeId: true })} is now in ${classes.find((c) => c.classId === result.classId)?.name || 'no class'}.`)}
+                          onRemove={() => run(`move:${student.studentId}`, () => teacherAdmin.setStudentClass({ studentId: student.studentId, classId: '' }), `${formatStudentLabel(student, { includeId: true })} was removed from ${entry.name}. The account and all of its work are untouched.`)}
+                          onSetActive={(active) => run(`status:${student.studentId}`, () => teacherAdmin.setStudentAccountStatus({ studentId: student.studentId, active }), active ? `${formatStudentLabel(student, { includeId: true })} can sign in again.` : `${formatStudentLabel(student, { includeId: true })} is deactivated. Records kept.`)}
                         />
                       ))}
                     </div>
@@ -370,9 +374,9 @@ export default function ClassesAdmin() {
               removalKinds={removalKinds}
               confirming={confirming}
               setConfirming={setConfirming}
-              onMove={(classId) => run(`move:${student.studentId}`, () => teacherAdmin.setStudentClass({ studentId: student.studentId, classId }), (result) => `${student.studentId} added to ${classes.find((c) => c.classId === result.classId)?.name || 'a class'}.`)}
+              onMove={(classId) => run(`move:${student.studentId}`, () => teacherAdmin.setStudentClass({ studentId: student.studentId, classId }), (result) => `${formatStudentLabel(student, { includeId: true })} added to ${classes.find((c) => c.classId === result.classId)?.name || 'a class'}.`)}
               onRemove={null}
-              onSetActive={(active) => run(`status:${student.studentId}`, () => teacherAdmin.setStudentAccountStatus({ studentId: student.studentId, active }), active ? `${student.studentId} can sign in again.` : `${student.studentId} is deactivated. Records kept.`)}
+              onSetActive={(active) => run(`status:${student.studentId}`, () => teacherAdmin.setStudentAccountStatus({ studentId: student.studentId, active }), active ? `${formatStudentLabel(student, { includeId: true })} can sign in again.` : `${formatStudentLabel(student, { includeId: true })} is deactivated. Records kept.`)}
             />
           ))}
         </div>

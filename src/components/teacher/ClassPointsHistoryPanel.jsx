@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { db } from '../../firebase.js';
-import { resolveRosterStudentName } from '../../platform/studentName.js';
+import { STUDENT_NAME_UNAVAILABLE, formatStudentLabel, resolveRosterStudentName } from '../../platform/studentName.js';
 import {
   DEFAULT_REVERSAL_REASON,
   buildReversalPayload,
@@ -12,6 +12,13 @@ import {
   sourceTypeLabel,
   watchClassPointHistory,
 } from '../../platform/classPointsClient.js';
+
+// The roster name, or "Name unavailable · ID x" so two nameless students stay
+// distinguishable — never the bare id standing in for a name.
+const rosterStudentLabel = (studentId, students, historicalName = '') => {
+  const name = resolveRosterStudentName({ studentId, students, historicalName });
+  return name === STUDENT_NAME_UNAVAILABLE ? formatStudentLabel(String(studentId ?? '')) : name;
+};
 
 // Compact, bounded recent-activity panel for the active class. It reads only
 // classPointTransactions through the shared, indexed teacher query — never an
@@ -125,7 +132,7 @@ export default function ClassPointsHistoryPanel({ classId, teacherEmail, roster 
       ) : (
         <div style={{ display: 'grid', gap: 7 }}>
           {transactions.map((transaction) => {
-            const studentName = resolveRosterStudentName({ studentId: transaction.studentId, students: roster });
+            const studentName = rosterStudentLabel(transaction.studentId, roster);
             const amount = Number(transaction.amount) || 0;
             return (
               <div key={transaction.id} style={rowStyle}>

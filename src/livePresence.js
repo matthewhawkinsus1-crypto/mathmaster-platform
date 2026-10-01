@@ -1,4 +1,4 @@
-import { formatStudentName } from './platform/studentName.js';
+import { STUDENT_NAME_UNAVAILABLE, formatStudentName, studentIdLabel } from './platform/studentName.js';
 
 // Live class monitoring, as pure functions so the whole thing is testable
 // without Firestore.
@@ -207,10 +207,16 @@ const mean = (values) => (values.length
  */
 export const classifyLiveStudent = (student, { classStats = null, nowValue = Date.now() } = {}) => {
   const live = student?.liveStatus && typeof student.liveStatus === 'object' ? student.liveStatus : null;
-  const name = formatStudentName(student, { lastFirst: false, fallbackToId: true });
+  // The tile's name is the student's NAME, never their id. A student with no
+  // name on file reads "Name unavailable"; the id travels separately as a
+  // labelled diagnostic (idLabel) that the teacher view may show beneath it
+  // and the room view projected to the class never does.
+  const resolvedName = formatStudentName(student, { lastFirst: false, fallbackToNeutral: false });
   const base = {
     id: student?.id || '',
-    name,
+    name: resolvedName || STUDENT_NAME_UNAVAILABLE,
+    nameMissing: !resolvedName,
+    idLabel: studentIdLabel(student),
     classPeriod: student?.classPeriod || student?.profile?.classPeriod || '',
     live,
     flags: [],
@@ -349,8 +355,12 @@ export const summarizeLiveClass = (students = [], { nowValue = Date.now(), assig
     .map((entry) => classifyLiveStudent(entry.student, { classStats, nowValue }));
 
   const severityRank = { [LIVE_SEVERITY.ALERT]: 0, [LIVE_SEVERITY.WATCH]: 1, [LIVE_SEVERITY.OK]: 2 };
+  // Within a severity: named students alphabetically, then any without a name
+  // on file (by id), so they sit together where a teacher can spot and fix them.
   rows.sort((a, b) => severityRank[a.severity] - severityRank[b.severity]
-    || a.name.localeCompare(b.name));
+    || Number(a.nameMissing) - Number(b.nameMissing)
+    || a.name.localeCompare(b.name)
+    || String(a.id).localeCompare(String(b.id)));
 
   return {
     rows,

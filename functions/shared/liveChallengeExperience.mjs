@@ -4,6 +4,8 @@
 // React previews and tests can all use the same arithmetic and naming contract
 // without creating a second scorer or a second interpretation of a roster name.
 
+import { acceptStudentName, resolveStudentIdentity, splitStudentDisplayName } from './studentIdentity.mjs';
+
 export const DEFAULT_SPEED_INFLUENCE_PERCENT = 20;
 export const MAX_SPEED_INFLUENCE_PERCENT = 50;
 export const CORRECTNESS_BASE_POINTS = 1000;
@@ -40,28 +42,18 @@ export const normalizePlayerDisplayMode = (value) => {
   return PLAYER_DISPLAY_MODE_SET.has(mode) ? mode : 'codeName';
 };
 
-const splitDisplayName = (displayName) => {
-  const parts = cleanText(displayName).split(' ').filter(Boolean);
-  if (!parts.length) return { firstName: '', lastName: '' };
-  if (parts.length === 1) return { firstName: parts[0], lastName: '' };
-  return { firstName: parts.slice(0, -1).join(' '), lastName: parts.at(-1) };
-};
-
+// The roster name as parts, from the shared resolver (studentIdentity.mjs):
+// every candidate must read as a name for THIS student, so an id, an email or
+// a placeholder stored in a name field is skipped instead of becoming a
+// player's public alias.
 const studentNameParts = (student = {}) => {
   const record = student && typeof student === 'object' && !Array.isArray(student) ? student : {};
-  const firstName = cleanText(record.firstName);
-  const lastName = cleanText(record.lastName);
+  const firstName = acceptStudentName(record.firstName, record);
+  const lastName = acceptStudentName(record.lastName, record);
   if (firstName || lastName) return { firstName, lastName };
 
-  return splitDisplayName(
-    record.displayName
-      || record.name
-      || record.googleName
-      || record.profile?.displayName
-      || record.profile?.name
-      || record.profile?.googleName
-      || '',
-  );
+  const identity = resolveStudentIdentity(record);
+  return identity.hasName ? splitStudentDisplayName(identity.displayName) : { firstName: '', lastName: '' };
 };
 
 /**

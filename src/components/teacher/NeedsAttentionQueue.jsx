@@ -4,6 +4,15 @@ import {
   filterQueue, summarizeQueue,
 } from '../../platform/teacher/needsAttention.js';
 import { ACTION, actionsForAlert } from '../../platform/teacher/teacherActions.js';
+import { STUDENT_NAME_UNAVAILABLE, studentIdLabel } from '../../platform/studentName.js';
+
+// "Name unavailable" alone cannot tell two students apart, so a student with no
+// name on file is shown with the id beside it — labelled as an id.
+const studentAlertLabel = (studentName, studentId) => (
+  studentName === STUDENT_NAME_UNAVAILABLE && studentId
+    ? `${studentName} · ${studentIdLabel(String(studentId))}`
+    : studentName
+);
 
 /*
  * "WHAT NEEDS MY ATTENTION RIGHT NOW?"
@@ -207,7 +216,7 @@ export default function NeedsAttentionQueue({
                       onClick={() => onOpenStudent?.(alert.studentId)}
                       style={{ border: 0, background: 'transparent', padding: 0, color: '#174ea6', fontWeight: 900, cursor: 'pointer', fontSize: 13.5 }}
                     >
-                      {alert.studentName}
+                      {studentAlertLabel(alert.studentName, alert.studentId)}
                     </button>
                   )}
                 </div>
@@ -231,7 +240,7 @@ export default function NeedsAttentionQueue({
                           onClick={() => onOpenStudent?.(entry.studentId)}
                           style={{ padding: '5px 9px', border: '1px solid #dadce0', borderRadius: 7, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
                         >
-                          {entry.studentName}
+                          {studentAlertLabel(entry.studentName, entry.studentId)}
                         </button>
                       ))}
                     </div>

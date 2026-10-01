@@ -1,6 +1,7 @@
 import { SUPPORT_EVENT_KIND, SUPPORT_EVENT_STAGE } from './studentSupportSignals.js';
 import { TRANSFER_STATE } from '../gradeTransfer/gradeTransferModel.js';
 import { localDateKeyOf } from '../attendance/classMeetings.js';
+import { resolveRosterStudentName, studentIdentityIndexFor } from '../studentName.js';
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const text = (value) => String(value ?? '').trim();
@@ -32,10 +33,12 @@ const resolutionReferences = (event) => new Set([
   event?.evidence?.parentFollowUpId, event?.evidence?.incidentId,
 ].map(text).filter(Boolean));
 
-const canonicalStudentName = (studentById, studentId, fallback = '') => {
-  const student = studentById.get(studentId);
-  return text(student?.displayName || student?.name || student?.studentName || fallback || studentId);
-};
+// The roster name by studentId (structured, Google and legacy names all
+// count), else the record's stored copy if it is really a name, else
+// "Name unavailable". Never the id: the row shows it separately, as an id.
+const canonicalStudentName = (studentById, studentId, fallback = '') => resolveRosterStudentName({
+  studentId, index: studentById, historicalName: fallback,
+});
 
 const statusForDueDate = (dueAt, status, todayDateKey) => {
   if (status === 'completed') return 90;
@@ -66,7 +69,7 @@ export const buildTeacherActionItems = ({
   now = Date.now(),
   todayDateKey = localDateKeyOf(now),
 } = {}) => {
-  const studentById = new Map(list(students).map((student) => [text(student.id || student.studentId), student]));
+  const studentById = studentIdentityIndexFor(list(students));
   const classById = new Map(list(classes).map((record) => [text(record.classId || record.id), record]));
   // `classes` is the teacher/root-admin authorized class projection. Applying
   // it here makes a stale event disappear after teacher reassignment too.

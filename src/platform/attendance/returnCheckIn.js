@@ -22,12 +22,17 @@ import { MEETING_STATUS, classifySchoolDay, previousActualMeetingDateKey } from 
 import { attendanceHistoryMarkIsAbsent, effectiveAttendanceForStudentDay } from './attendanceHistory.js';
 import { SUPPORT_EVENT_KIND, SUPPORT_EVENT_STAGE } from '../teacher/studentSupportSignals.js';
 import { assignmentIsForStudent, getDOLInstructionDateKey, getWarmupInstructionDateKey } from '../../assignmentLifecycle.js';
+import { acceptStudentName, formatStudentLabel, formatStudentName } from '../studentName.js';
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const clean = (value) => String(value ?? '').trim();
 
 const studentIdOf = (student) => clean(student?.id || student?.studentId);
-const studentNameOf = (student) => clean(student?.displayName || student?.name || student?.studentName) || studentIdOf(student);
+// The name a check-in keeps: the student's natural name, or null. Never the
+// id — a reader with the roster resolves a null name by studentId. The
+// one-line studentLabel ("Name unavailable · ID 101410") is for display only.
+const studentNameOf = (student) => formatStudentName(student, { lastFirst: false, fallbackToNeutral: false }) || null;
+const storedNameFor = (name, studentId) => acceptStudentName(name, { studentId: clean(studentId) }) || null;
 
 const returnCheckInKey = ({ studentId, classId, classPeriod, lastMissedDateKey }) => (
   [clean(studentId), clean(classId) || clean(classPeriod), clean(lastMissedDateKey)].join('|')
@@ -127,6 +132,7 @@ export const resolveReturnCheckIns = ({
       key,
       studentId,
       studentName: studentNameOf(student),
+      studentLabel: formatStudentLabel(student, { lastFirst: false }),
       classId: classId || null,
       classPeriod: classPeriod || null,
       returnDateKey: todayDateKey,
@@ -156,15 +162,18 @@ export const buildReturnCheckInEvent = ({
 } = {}) => {
   if (!candidate?.studentId || !candidate?.key) throw new Error('A return check-in needs a resolved candidate.');
   const stage = dismissed ? SUPPORT_EVENT_STAGE.DISMISSED : SUPPORT_EVENT_STAGE.ACTION_TAKEN;
+  // A stored sentence never embeds an id as a name: no name, "the student".
+  const studentName = storedNameFor(candidate.studentName, candidate.studentId);
+  const subject = studentName || 'the student';
   const summary = dismissed
-    ? `Teacher dismissed the return-from-absence follow-up for ${candidate.studentName}.`
-    : `Teacher checked in with ${candidate.studentName} after ${candidate.meetingsMissed} missed class meeting${candidate.meetingsMissed === 1 ? '' : 's'}.`;
+    ? `Teacher dismissed the return-from-absence follow-up for ${subject}.`
+    : `Teacher checked in with ${subject} after ${candidate.meetingsMissed} missed class meeting${candidate.meetingsMissed === 1 ? '' : 's'}.`;
 
   return {
     kind: SUPPORT_EVENT_KIND.RETURN_FROM_ABSENCE,
     stage,
     studentId: candidate.studentId,
-    studentName: candidate.studentName,
+    studentName,
     classId: candidate.classId,
     classPeriod: candidate.classPeriod,
     assignmentId: null,
@@ -211,15 +220,17 @@ export const buildAttendanceCorrectionReviewEvent = ({
   nowValue = Date.now(),
 } = {}) => {
   const key = buildAttendanceCorrectionReviewKey({ studentId, assignmentId, existingDateKey: existing?.dateKey });
+  const storedName = storedNameFor(studentName, studentId);
+  const subject = storedName || 'the student';
   const summary = resolution === 'shortened'
-    ? `Teacher confirmed shortening the extension for ${studentName || studentId} after an attendance correction.`
-    : `Teacher kept the existing extension for ${studentName || studentId} after reviewing an attendance correction.`;
+    ? `Teacher confirmed shortening the extension for ${subject} after an attendance correction.`
+    : `Teacher kept the existing extension for ${subject} after reviewing an attendance correction.`;
 
   return {
     kind: SUPPORT_EVENT_KIND.ATTENDANCE_CORRECTION_REVIEW,
     stage: SUPPORT_EVENT_STAGE.RESOLVED,
     studentId: clean(studentId),
-    studentName: clean(studentName) || clean(studentId),
+    studentName: storedName,
     classId: classId || null,
     classPeriod: classPeriod || null,
     assignmentId: assignmentId || null,

@@ -152,6 +152,9 @@ export const isIdentifierLikeName = (candidate, record = {}) => {
   if (text.includes('@')) return true;
   const lower = text.toLowerCase();
   if (PLACEHOLDER_NAMES.has(lower)) return true;
+  // A one-line label this platform prints ('Name unavailable · ID 101410',
+  // 'Jordan Williams · ID 101410') is presentation, never a stored name.
+  if (lower.startsWith(`${STUDENT_NAME_UNAVAILABLE.toLowerCase()} `) || / · id \S/.test(lower)) return true;
   const identifiers = identifiersOf(record);
   if (identifiers.includes(lower)) return true;
   const label = text.match(ID_LABEL);
@@ -517,9 +520,14 @@ const fillPlan = ({ studentId, current, chosen }) => {
  * updates[].set, which is the data to be written.
  */
 export const planStudentIdentityRepair = (inputs = {}) => {
-  const studentIdKey = typeof inputs.studentIdKey === 'function'
-    ? inputs.studentIdKey
-    : (id) => String(id || '').trim().toUpperCase();
+  const injectedKey = typeof inputs.studentIdKey === 'function' ? inputs.studentIdKey : null;
+  // functions/lib/auth.js studentIdKey throws on legacy ids its sign-in pattern
+  // rejects; an audit must count those records, not crash on them.
+  const studentIdKey = (id) => {
+    const fallback = String(id || '').trim().toUpperCase();
+    if (!injectedKey) return fallback;
+    try { return injectedKey(id); } catch { return fallback; }
+  };
   const students = (Array.isArray(inputs.students) ? inputs.students : [])
     .map((entry) => ({ studentId: cleanId(entry?.studentId), data: asRecord(entry?.data) }))
     .filter((entry) => entry.studentId && entry.studentId !== 'test_connection');

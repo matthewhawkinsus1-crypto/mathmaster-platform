@@ -1,4 +1,5 @@
 import StudentPerformanceBadge from './StudentPerformanceBadge.jsx';
+import { STUDENT_NAME_UNAVAILABLE, acceptStudentName, studentIdLabel } from '../../platform/studentName.js';
 
 /*
  * A STUDENT'S NAME IS A DOORWAY.
@@ -27,15 +28,27 @@ export default function StudentNameLink({
   // Set when the name sits in a context where engagement would be misread as
   // performance — a gradebook row already showing a score, for instance.
   showEngagement = true,
+  // A screen that already prints "ID x" under every name (the Students
+  // roster) turns this off so a nameless student's id is not shown twice.
+  showMissingId = true,
   style = {},
 }) {
-  const name = studentName || String(studentId || 'Student');
+  // The name a caller resolved, or "Name unavailable" with the id shown
+  // beside it as a labelled id. The id itself is never the link text: a
+  // nameless student must read as missing a name, not as '101410'.
+  const name = acceptStudentName(studentName, { studentId }) || STUDENT_NAME_UNAVAILABLE;
+  const idLabel = name === STUDENT_NAME_UNAVAILABLE ? studentIdLabel(studentId) : '';
+  const label = idLabel ? `${name} · ${idLabel}` : name;
+  const idNote = idLabel && showMissingId
+    ? <span style={{ color: '#5f6368', fontWeight: 400, fontSize: '0.85em' }}>{idLabel}</span>
+    : null;
 
   if (!onOpen) {
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, ...style }}>
         <span style={{ fontWeight: 800 }}>{name}</span>
-        {showBadge && <StudentPerformanceBadge profile={profile} size={badgeSize} showEngagement={showEngagement} studentName={name} />}
+        {idNote}
+        {showBadge && <StudentPerformanceBadge profile={profile} size={badgeSize} showEngagement={showEngagement} studentName={label} />}
       </span>
     );
   }
@@ -45,7 +58,7 @@ export default function StudentNameLink({
       <button
         type="button"
         onClick={() => onOpen(studentId)}
-        title={`Open ${name}'s learning profile`}
+        title={idLabel ? `Open the learning profile for ${label}` : `Open ${name}'s learning profile`}
         style={{
           border: 0,
           background: 'transparent',
@@ -63,12 +76,13 @@ export default function StudentNameLink({
       >
         {name}
       </button>
+      {idNote}
       {showBadge && (
         <StudentPerformanceBadge
           profile={profile}
           size={badgeSize}
           showEngagement={showEngagement}
-          studentName={name}
+          studentName={label}
           onClick={() => onOpen(studentId)}
         />
       )}
