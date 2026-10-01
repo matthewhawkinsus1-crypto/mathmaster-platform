@@ -2188,8 +2188,16 @@ html[data-work-view-open="true"] .mathmaster-tool-shell-about[data-merged="true"
    question dots) covered about 350px of the 390 — the question underneath was
    a sliver (live QA, Algebra I DOL #2). On a screen this short the navigator
    and task scroll with the page; the identity bar stays, and Work View is one
-   tap away for focused work. */
-@media (min-width: 769px) and (max-height: 560px) {
+   tap away for focused work.
+
+   Every phone on its side, not only the wide ones. From 769px only, a
+   narrower phone held sideways (667×375, 740×360, 664×390) kept the
+   navigator sticky at 44px from the top inside a screen that does not scroll
+   (MathToolMobileLayout.css), which pushed it 44px down over the question:
+   the top 36px of the question — "Your task" and the attempt strip — sat
+   under it. A screen this short and wider than it is tall is that phone,
+   whatever its width. */
+@media (orientation: landscape) and (max-height: 560px) {
   html:has(.mathmaster-assignment-screen),
   body:has(.mathmaster-assignment-screen),
   .mathmaster-assignment-screen {

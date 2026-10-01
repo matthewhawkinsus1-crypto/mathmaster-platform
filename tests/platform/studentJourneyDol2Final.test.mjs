@@ -299,10 +299,32 @@ test('the DOL question note is one quiet line in student words', () => {
   assert.match(engine, /DOL exit ticket · this question counts toward today&apos;s DOL grade\./);
 });
 
+// The media features App.css uses, evaluated the way a browser does, so the
+// test says WHICH screens a rule reaches rather than how its query is spelled.
+const mediaMatches = (query, { width, height }) => query.split(/\s+and\s+/).every((part) => {
+  const [, feature, value] = part.match(/\(\s*([a-z-]+)\s*:\s*([^)]+?)\s*\)/) || [];
+  const px = Number.parseFloat(value);
+  if (feature === 'orientation') return value === (width > height ? 'landscape' : 'portrait');
+  if (feature === 'min-width') return width >= px;
+  if (feature === 'max-width') return width <= px;
+  if (feature === 'min-height') return height >= px;
+  if (feature === 'max-height') return height <= px;
+  throw new Error(`unsupported media feature in ${part}`);
+});
+
 test('short landscape screens let the navigator and task scroll; dark nav text stays readable', () => {
   const css = source('src/App.css');
-  const short = region(css, '@media (min-width: 769px) and (max-height: 560px) {', '/* Short laptop / zoomed classroom view', 'short landscape rule');
+  const short = region(css, 'A PHONE ON ITS SIDE HAS NO ROOM TO PIN ANYTHING.', '/* Short laptop / zoomed classroom view', 'short landscape rule');
   assert.match(short, /\.mathmaster-assignment-unified-nav,[\s\S]*position: relative;/);
+  // Every phone held sideways, not only the ones 769px wide: narrower ones kept
+  // the navigator sticky 44px down, over the top of the question.
+  const query = short.match(/@media ([^{]+)\{/)[1].trim();
+  for (const phone of [{ width: 844, height: 390 }, { width: 740, height: 360 }, { width: 667, height: 375 }, { width: 664, height: 390 }]) {
+    assert.ok(mediaMatches(query, phone), `${phone.width}×${phone.height} keeps a pinned navigator (${query})`);
+  }
+  for (const screen of [{ width: 1366, height: 768 }, { width: 1024, height: 768 }, { width: 820, height: 1180 }, { width: 390, height: 844 }, { width: 390, height: 664 }]) {
+    assert.ok(!mediaMatches(query, screen), `${screen.width}×${screen.height} loses its pinned navigator (${query})`);
+  }
   assert.match(css, /:root\[data-theme='dark'\] \.mathmaster-overview-button,[\s\S]*?color: var\(--mm-primary\);/);
   assert.match(css, /\.mathmaster-current-section-summary strong \{\s*color: #1f2937;/);
 });
