@@ -40,6 +40,9 @@ import {
   selectedLikeTermInfo,
 } from './algebraLikeTermsModel.js';
 import { getAttemptsRemaining, normalizeQuestionRecord } from './attemptPolicy';
+import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
+import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
+import { equationWorkspaceWork, workGraderForQuestion } from '../functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs';
 import {
   evaluateMove, getSupportPolicy, resolveEquationAfterKeepingMove, resolveEquationAfterMove,
   resolveEquationAfterStudentSimplification, resolveSupportLevel,
@@ -566,30 +569,38 @@ export default function StepByStepAlgebra({
     });
   }, [localDraftKey, equation, supportLevel, operand, distributionState, structureTool, workSteps, armedTile, pendingMove, crossedSides, cancelledPairIds, selectedCancellationIndices, simplificationAnswers, promptAnswers, likeTermsOpen, likeTermsSide, selectedLikeTermIndices, likeTermsAnswer]);
 
+  // THE WORK THIS WORKSPACE REPORTS: the committed equation and the typed
+  // prompt answers — student work only, never a verdict or the objective.
+  const gradingWork = useMemo(() => equationWorkspaceWork({ equation, promptAnswers }), [equation, promptAnswers]);
+
   useEffect(() => {
-    const solved = isSolvedEquation(equation);
-    const prompts = Array.isArray(question.algebraPrompts) ? question.algebraPrompts : [];
-    const promptParts = prompts.map((prompt, index) => {
-      const id = String(prompt.id || `algebra-prompt-${index + 1}`);
-      const response = String(promptAnswers[id] || '');
-      const accepted = prompt.acceptedExpressions || prompt.acceptedAnswers || (prompt.acceptedExpression ? [prompt.acceptedExpression] : []);
-      const isComplete = response.trim() !== '';
-      const isCorrect = isComplete && accepted.some((candidate) => expressionsEquivalent(response, candidate, equation.variable));
-      return { id, label: prompt.label || prompt.prompt || `Algebraic prompt ${index + 1}`, isComplete, isCorrect, response };
+    if (!equation?.left || !equation?.right) return;
+    // The verdict comes ONLY from the shared grader — the function the server
+    // runs on these same bytes (functions/shared/serverGrading/
+    // stepAlgebraWorkspaceGrading.mjs): solved for the question's objective,
+    // the same solutions as the question's original equation, every prompt.
+    const result = gradeToolCheck(workGraderForQuestion(question), question, gradingWork);
+    const equationLatex = equationToLatex(equation);
+    const objective = result.parts.find((part) => part.id === 'algebra-objective');
+    const promptParts = result.parts.filter((part) => part.id !== 'algebra-objective');
+    const shared = answerStateFromSharedGrading(result, {
+      questionDetails: objective?.isComplete
+        ? `Solved step-by-step: $${equationLatex}$. ${promptParts.map((part) => `${part.label}: ${part.response}`).join('; ')}`
+        : `Current equation: $${equationLatex}$`,
     });
-    const promptsComplete = promptParts.every((part) => part.isComplete);
-    const promptsCorrect = promptParts.every((part) => part.isCorrect);
     onStateChange({
-      isComplete: solved && promptsComplete,
-      isCorrect: solved && promptsCorrect,
-      responseKey: solved && promptsComplete ? `${equationToLatex(equation)}|${JSON.stringify(promptAnswers)}` : '',
-      questionDetails: solved ? `Solved step-by-step: $${equationToLatex(equation)}$. ${promptParts.map((part) => `${part.label}: ${part.response}`).join('; ')}` : `Current equation: $${equationToLatex(equation)}$`,
-      parts: [
-        { id: 'algebra-objective', label: question.objective?.label || (equation.objective?.kind === 'slopeIntercept' ? 'Write in slope-intercept form' : equation.objective?.kind === 'factoredLinear' ? 'Write in factored linear form' : equation.objective?.kind === 'linearStandardForm' ? 'Write in standard form' : `Isolate ${equation.objective?.variable || equation.variable}`), isComplete: solved, isCorrect: solved, response: equationToLatex(equation) },
-        ...promptParts,
-      ],
+      ...shared,
+      // The workspace's own response key, which composed workflows store as
+      // the stage's answer. The raw work travels separately as toolResponse.
+      responseKey: shared.isComplete ? `${equationLatex}|${JSON.stringify(promptAnswers)}` : '',
+      // The full equation (never the 240-character part copy): the work
+      // history, My Math Path's raw builder and the Systems Workspace embed
+      // all read it.
+      parts: objective
+        ? shared.parts.map((part) => (part.id === 'algebra-objective' ? { ...part, response: equationLatex } : part))
+        : [{ id: 'algebra-objective', label: question.objective?.label || 'Solve the equation', isComplete: false, isCorrect: false, response: equationLatex }],
     });
-  }, [equation, question, promptAnswers, onStateChange]);
+  }, [equation, gradingWork, question, promptAnswers, onStateChange]);
 
   useEffect(() => {
     onWorkStepsChange?.(workSteps);

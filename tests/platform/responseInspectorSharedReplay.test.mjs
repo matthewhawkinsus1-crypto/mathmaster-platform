@@ -81,8 +81,15 @@ test('workspace-draft recovery proposes the verdict ingestion will record, and n
 
   // The same literal opened on the balance workspace is answered with a final
   // equation, not a typed expression: a typed-answer draft is not its work.
-  const workspace = { ...typed, presentation: 'workspace' };
+  const workspace = { ...typed, equation: 'y = 2x + 1', solveFor: 'x', presentation: 'workspace' };
   const refused = assessWorkspaceDraftEntry({ entry, question: workspace, documentSavedAtMs: SAVED, closesAtMs: CLOSE });
   assert.equal(refused.recoverable, false);
   assert.match(refused.reason, /draft-type-mismatch|unsupported-question/);
+
+  // ...unless the workspace cannot be built, in which case the student saw
+  // the typed answer box, and its draft is exactly what they answered.
+  const unbuildable = { type: 'literal', equation: 'A = bh', solveFor: 'q', workspace: true, acceptedAnswers: ['2x+1'], activityRole: 'classwork', questionId: 'q1' };
+  const typedBox = assessWorkspaceDraftEntry({ entry, question: unbuildable, documentSavedAtMs: SAVED, closesAtMs: CLOSE });
+  assert.equal(typedBox.recoverable, true, typedBox.reason);
+  assert.equal(typedBox.proposedResult, 'Correct');
 });

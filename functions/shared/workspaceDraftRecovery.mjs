@@ -33,10 +33,22 @@ import { readWorkspaceDraftEntries } from './workspaceDraftSchema.mjs';
 import { gradeServerResponse, serverResponseGradingSupport } from './serverGrading/serverResponseGrading.mjs';
 import { deliveredQuestionForGrading } from './serverGrading/deliveredQuestion.mjs';
 import { resolveGradingSurfaceId } from './serverGrading/gradingManifest.mjs';
+import { buildLiteralWorkspaceQuestion } from './toolMath/algebra-literal/literalWorkspace.mjs';
 import { normalizeQuestionRecord } from './attemptPolicy.mjs';
 
 const text = (value) => String(value ?? '');
 const trimmed = (value) => text(value).trim();
+
+/**
+ * Did the surface that renders this question write a draft of this type? A
+ * balance literal whose workspace cannot be built is shown in the typed
+ * LiteralGrader instead, which writes `literal` drafts.
+ */
+const draftWrittenBySurface = (delivered, draftType) => {
+  const surface = resolveGradingSurfaceId(delivered);
+  if (surface === draftType) return true;
+  return surface === 'literalWorkspace' && draftType === 'literal' && !buildLiteralWorkspaceQuestion(delivered).question;
+};
 // `Number(null)` is 0, and 0 is finite. Treating a missing close time as the
 // epoch would silently mark every draft "saved after the cutoff", which is the
 // wrong refusal and hides the real one.
@@ -199,7 +211,7 @@ export const assessWorkspaceDraftEntry = ({
   }
   // The draft must have been written by the surface that renders this
   // question: a typed-answer draft is not the balance workspace's answer.
-  if (resolveGradingSurfaceId(delivered) !== response.type) {
+  if (!draftWrittenBySurface(delivered, response.type)) {
     return { ...base, ...outcome(DRAFT_RECOVERY_STATUS.QUESTION_NOT_RECONSTRUCTIBLE, `draft-type-mismatch:${response.type}`) };
   }
 

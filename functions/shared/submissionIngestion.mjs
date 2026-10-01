@@ -93,6 +93,9 @@ const text = (value) => String(value ?? '');
 const trimmed = (value) => text(value).trim();
 const list = (value) => (Array.isArray(value) ? value : []);
 const finite = (value, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
+// A grader's refusal that means "this surface is graded on the device", not
+// "this work could not be graded".
+const DEVICE_GRADED_REASON = /^mode-not-server-gradable(?::|$)/;
 
 /** The Warm-Up window the browser recorded, judged against the capture time. */
 export const warmupWasActiveAtCapture = (timedSectionAccess, capturedAt) => {
@@ -442,7 +445,7 @@ export const buildIngestedAttempt = ({
     activityPolicy,
     teacherGrantedExtraAttempts,
   });
-  const regrade = family.familyBacked && !family.question
+  let regrade = family.familyBacked && !family.question
     ? { regrade: false, reason: family.reason }
     : serverCanRegradeEnvelope({ envelope, question: gradingQuestion });
 
@@ -461,6 +464,21 @@ export const buildIngestedAttempt = ({
   const modelingLab = text(gradingQuestion?.type) === 'modelingLab' && envelope.kind === 'ordinarySubmission';
   if (modelingLab && !modelingLabMarker?.result?.evaluation) {
     return { blocked: true, reason: 'modeling-lab-evaluation-missing' };
+  }
+  /*
+   * A grader can learn only while grading that the student was shown a
+   * surface the server does not mark — a balance literal whose workspace
+   * could not be built falls back to a typed answer box, and that box has no
+   * key. That is a device-graded question, not ungradable work: it takes the
+   * sanitized path, exactly as if support had said so up front. Any other
+   * refusal still holds the work for review.
+   */
+  let regradeGrading = null;
+  if (!modelingLab && regrade.regrade) {
+    regradeGrading = gradeServerResponse({ question: gradingQuestion, response: envelope.response });
+    if (!regradeGrading.graded && DEVICE_GRADED_REASON.test(text(regradeGrading.reason))) {
+      regrade = { regrade: false, reason: regradeGrading.reason };
+    }
   }
   if (modelingLab) {
     const grading = gradeModelingLabEvaluation(modelingLabMarker.result.evaluation);
@@ -482,7 +500,7 @@ export const buildIngestedAttempt = ({
     result = outcome.result;
     gradedBy = 'server';
   } else if (regrade.regrade) {
-    const grading = gradeServerResponse({ question: gradingQuestion, response: envelope.response });
+    const grading = regradeGrading;
     if (!grading.graded) {
       return { blocked: true, reason: grading.reason || 'server-grading-failed' };
     }

@@ -24,7 +24,8 @@ import {
   splitAdditiveTerms,
 } from '../../src/algebraAstEngine.js';
 import { replaceSelectedLikeTerms, replaceSingleAdditiveTerm } from '../../src/algebraLikeTermsModel.js';
-import { componentSource, executableSource } from './helpers/sourceContract.mjs';
+import { stepAlgebraWorkGrader } from '../../functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs';
+import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 
 const YZ = ['y', 'z'];
 
@@ -72,7 +73,19 @@ test('the objective drives isSolvedEquation, and every other objective keeps its
 test('Step Algebra names the form as its target, never the coefficients', () => {
   const core = executableSource(componentSource('src/StepByStepAlgebraCore.jsx'));
   assert.match(core, /: equation\.objective\?\.kind === 'linearStandardForm'\s*\?\s*`Target: \$\{\(equation\.objective\.variables/);
-  assert.match(core, /equation\.objective\?\.kind === 'linearStandardForm' \? 'Write in standard form'/);
+  // The reported part (the label a teacher reads on the attempt) is the shared
+  // grader's, so it is asserted on what the grader returns for a standard-form
+  // question — the form's name, and none of the coefficients — and on the
+  // workspace reporting the grader's parts.
+  const question = { type: 'stepAlgebra', equation: '2(6 - y - z) - y + 3z = 9', solveFor: 'y', objective: { kind: 'linearStandardForm', variable: 'y', variables: YZ } };
+  const result = stepAlgebraWorkGrader.grade(question, { equation: { left: '-3 y + z', right: '-3' }, promptAnswers: [] });
+  const objective = result.parts.find((part) => part.id === 'algebra-objective');
+  assert.equal(objective.label, 'Write in standard form');
+  assert.doesNotMatch(objective.label, /-?3|\d/);
+  assert.equal(objective.isCorrect, true);
+  const report = region(core, 'const result = gradeToolCheck(workGraderForQuestion(question), question, gradingWork);', '}, [equation, gradingWork', 'state report');
+  assert.match(report, /answerStateFromSharedGrading\(result/);
+  assert.match(report, /shared\.parts\.map\(/);
 });
 
 test('every additive term text reads back as the same term', () => {
