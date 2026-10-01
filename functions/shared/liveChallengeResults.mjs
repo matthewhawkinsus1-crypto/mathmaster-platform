@@ -151,8 +151,16 @@ const publicRoundFacts = (standing) => {
   };
 };
 
-/** The anonymous copy a projector or student may read: no student ids. */
-export const publicRoundSummary = (roundResult = {}) => Object.freeze({
+/**
+ * The anonymous copy a projector or student may read: no student ids.
+ *
+ * `standingsAfterRound` (matchStandingsAfterRound) is added when the closing
+ * transaction supplies it: the match standings this round left behind, so a
+ * results screen shows the round and the standings it produced from one
+ * document written in one commit.
+ */
+export const publicRoundSummary = (roundResult = {}, { standingsAfterRound = null } = {}) => Object.freeze({
+  ...(Array.isArray(standingsAfterRound) ? { standingsAfterRound } : {}),
   schemaVersion: RESULT_SCHEMA_VERSION,
   roundIndex: roundResult.roundIndex,
   roundVersion: roundResult.roundVersion,
@@ -359,6 +367,42 @@ export const standingFromPlayer = (player = {}, { mode = null } = {}) => {
       questionSetSummary: questionSetMatchSummary(player),
     } : {}),
   };
+};
+
+/**
+ * The match standings a closed round leaves behind: every joined player ranked
+ * by the strategy's MATCH ranking on their totals after the round — the same
+ * ranking the final match result (and every reward rule) uses.
+ *
+ * Written into the round's anonymous result in the transaction that closes
+ * the round, so a results screen never pairs the round's table with standings
+ * from before it (a Grand Prix round changes every total when it closes), and
+ * so movement — ↑2 since the last round — is the difference between two ranks
+ * the engine wrote, which a refresh or a reconnect reads back unchanged.
+ *
+ * Ties list by alias, then player key: the order the live board
+ * (publicLeaderboard) gives them.
+ */
+export const matchStandingsAfterRound = ({ players = [], modeId = null, scoringStrategyId = null } = {}) => {
+  const mode = getChallengeMode(modeId);
+  const strategy = getScoringStrategy(scoringStrategyId);
+  const entries = (Array.isArray(players) ? players : [])
+    .filter((player) => player?.joined === true && player?.playerKey && studentIdOf(player))
+    .map((player) => {
+      const standing = standingFromPlayer(player, { mode });
+      return { ...standing, participantId: standing.playerKey, liveScore: standing.score };
+    });
+  return rankEntries(entries, strategy.matchRanking).map((entry) => Object.freeze({
+    playerKey: entry.playerKey,
+    alias: entry.alias,
+    rank: entry.rank,
+    position: entry.position,
+    tied: entry.tied,
+    score: entry.score,
+    correctCount: entry.correctCount,
+    roundsAnswered: entry.roundsAnswered,
+    roundWins: entry.roundWins,
+  }));
 };
 
 /**

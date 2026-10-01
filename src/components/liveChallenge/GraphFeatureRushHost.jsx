@@ -1,6 +1,8 @@
 import { graphFamilyLabel } from '../../../functions/shared/graphFeatureCatalog.mjs';
 import { getGraphFeature } from '../../../functions/shared/graphFeatureRegistry.mjs';
 import { rushPlayingCount, rushRaceRows, rushRoundResultRows, rushScoreUnit } from '../../platform/liveChallenge/rushStandingsModel.js';
+import { useChallengeClock } from '../../platform/liveChallenge/challengeHooks.js';
+import { ChallengeClockText, useLowTime } from './ChallengeShellParts.jsx';
 
 /*
  * GRAPH FEATURE RUSH ON THE TEACHER'S SCREENS.
@@ -11,11 +13,6 @@ import { rushPlayingCount, rushRaceRows, rushRoundResultRows, rushScoreUnit } fr
  * whole room. Two looks: `console` (the teacher's light panels) and
  * `projector` (the dark arena).
  */
-
-const formatClock = (milliseconds) => {
-  const total = Math.max(0, Math.ceil((Number(milliseconds) || 0) / 1000));
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
-};
 
 const ordinal = (place) => {
   const tens = place % 100;
@@ -103,24 +100,30 @@ export function RushRoundResultsBoard({ players = [], roundIndex = 0, scoringStr
   );
 }
 
-/** The teacher console's live panel for a rush round. */
-export function RushHostStatus({ room, players = [], remainingMs = 0, joinedCount = 0, closing = false }) {
+/**
+ * The teacher console's live panel for a rush round, on the room's own clock
+ * (and the console's calibrated offset): the countdown, time left, "Time!".
+ */
+export function RushHostStatus({ room, players = [], clockOffsetMs = 0, joinedCount = 0, closing = false }) {
   const roundIndex = Number(room.currentRound) || 0;
   const closed = room.roundState === 'closed';
+  const clock = useChallengeClock(room, clockOffsetMs);
+  const low = useLowTime(room, clockOffsetMs);
+  const counting = clock.stage === 'countdown';
+  const timeUp = clock.stage === 'roundLocked';
   const playing = rushPlayingCount(players, roundIndex);
   const graphs = rushRaceRows(players, roundIndex).reduce((sum, row) => sum + row.completed, 0);
-  const low = !closed && remainingMs <= 10_000;
   return (
-    <section style={{ background: 'var(--mm-surface)', border: '2px solid #1a73e8', borderRadius: 14, padding: 20, textAlign: 'left' }}>
+    <section data-mm-live-status={clock.stage} style={{ background: 'var(--mm-surface)', border: '2px solid #1a73e8', borderRadius: 14, padding: 20, textAlign: 'left' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 18, flexWrap: 'wrap' }}>
         <div>
           <div style={{ color: 'var(--mm-primary)', fontSize: 12, fontWeight: 1000, textTransform: 'uppercase' }}>Round {roundIndex + 1} of {room.roundCount} · Graph Feature Rush</div>
-          <div style={{ marginTop: 8, fontSize: 20, fontWeight: 800, color: 'var(--mm-text-strong)' }}>{closed ? `Round ${roundIndex + 1} results` : 'Students are finding features on their own graphs.'}</div>
+          <div style={{ marginTop: 8, fontSize: 20, fontWeight: 800, color: 'var(--mm-text-strong)' }}>{closed ? `Round ${roundIndex + 1} results` : counting ? 'Get ready — the round is about to start.' : timeUp ? 'Time! Saving the last taps, then the results.' : 'Students are finding features on their own graphs.'}</div>
           <div style={{ marginTop: 6, color: 'var(--mm-text-muted)' }}>{rushSettingsLine(room)}</div>
         </div>
-        <div style={{ minWidth: 150, textAlign: 'center', padding: 12, borderRadius: 12, background: low ? 'var(--mm-error-bg)' : 'var(--mm-info-bg)', color: low ? 'var(--mm-error-text)' : 'var(--mm-info-text)' }}>
-          <div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>{closed ? 'Round closed' : closing ? 'Closing…' : 'Time left'}</div>
-          <div style={{ fontSize: 38, fontWeight: 1000, fontVariantNumeric: 'tabular-nums' }}>{closed ? '—' : formatClock(remainingMs)}</div>
+        <div style={{ minWidth: 150, textAlign: 'center', padding: 12, borderRadius: 12, background: low || timeUp ? 'var(--mm-error-bg)' : 'var(--mm-info-bg)', color: low || timeUp ? 'var(--mm-error-text)' : 'var(--mm-info-text)' }}>
+          <div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>{closed ? 'Round closed' : closing ? 'Closing…' : counting ? 'Starts in' : timeUp ? 'Time!' : 'Time left'}</div>
+          <div style={{ fontSize: 38, fontWeight: 1000, fontVariantNumeric: 'tabular-nums' }}>{closed ? '—' : counting ? clock.countdownStep : <ChallengeClockText room={room} clockOffsetMs={clockOffsetMs} />}</div>
         </div>
       </div>
       {!closed && <div style={{ marginTop: 14, fontWeight: 800, color: 'var(--mm-text-muted)' }}>{playing} of {joinedCount} playing · {graphs} graph{graphs === 1 ? '' : 's'} completed this round</div>}

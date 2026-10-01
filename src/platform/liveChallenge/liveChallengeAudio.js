@@ -97,6 +97,9 @@ const ANNOUNCER_FILES = Object.freeze({
   newLeader: 'new_leader.wav', finalRound: 'final_round.wav', hotStreak: 'hot_streak.wav',
   tie: 'all_tied_up.wav', complete: 'challenge_complete.wav', nextQuestion: 'next_question.wav',
 });
+// Sounds alive at once (music, a cue, an announcement, a few effects).
+export const MAX_LIVE_SOUNDS = 8;
+
 const audioUrl = (relative) => `${LIVE_CHALLENGE_AUDIO_ROOT}${String(relative || '').replace(/^\/+/, '')}`;
 
 export class LiveChallengeAudioDirector {
@@ -146,10 +149,29 @@ export class LiveChallengeAudioDirector {
   getMix() { return { ...this.mix }; }
 
   setMix(next = {}) {
+    const wasMuted = this.mix.muted;
     this.mix = normalizeChallengeAudioMix({ ...this.mix, ...next });
     try { this.storage?.setItem?.(AUDIO_MIX_STORAGE_KEY, JSON.stringify(this.mix)); } catch { /* best effort */ }
-    if (this.music && this.fadeTimers.size === 0) this.music.volume = this.mix.muted ? 0 : this.mix.music;
+    if (this.mix.muted && !wasMuted) {
+      // Muted is silent AND idle: nothing keeps playing at volume zero.
+      this.#releaseAll();
+    } else if (wasMuted && !this.mix.muted && this.primed && this.musicKey) {
+      // Unmuted: the music for the current moment comes back.
+      const key = this.musicKey;
+      this.musicKey = null;
+      this.switchMusic(key);
+    } else if (this.music && this.fadeTimers.size === 0) this.music.volume = this.mix.muted ? 0 : this.mix.music;
     return this.getMix();
+  }
+
+  // Stops and lets go of every sound. The current music KEY is kept, so the
+  // right track can return when the sound does.
+  #releaseAll() {
+    this.fadeTimers.forEach((timer) => globalThis?.clearInterval?.(timer));
+    this.fadeTimers.clear();
+    this.transient.forEach((audio) => audio.pause?.());
+    this.transient.clear();
+    this.music = null;
   }
 
   async prime() {
@@ -163,11 +185,23 @@ export class LiveChallengeAudioDirector {
     return this.getMix();
   }
 
+  /*
+   * A sound is made only when it can be heard. An Audio element downloads its
+   * file and is held here until it ends — so one made before the teacher's
+   * first click (unprimed) or while muted would never play, never end and
+   * never be released: every snapshot of a game used to add a few.
+   */
   #makeAudio(relative, volume, loop = false) {
-    if (!this.AudioClass || !relative) return null;
+    if (!this.AudioClass || !relative || !this.primed || this.mix.muted) return null;
     try {
       const audio = new this.AudioClass(audioUrl(relative));
-      audio.preload = 'auto'; audio.loop = loop; audio.volume = this.mix.muted ? 0 : clamp01(volume, 1);
+      audio.preload = 'auto'; audio.loop = loop; audio.volume = clamp01(volume, 1);
+      // Bounded: a burst of effects never holds more than a handful at once;
+      // the oldest effect (never the music) gives way.
+      if (this.transient.size >= MAX_LIVE_SOUNDS) {
+        const oldest = [...this.transient].find((sound) => sound !== this.music);
+        if (oldest) { oldest.pause?.(); this.transient.delete(oldest); }
+      }
       this.transient.add(audio);
       const cleanup = () => this.transient.delete(audio);
       audio.addEventListener?.('ended', cleanup, { once: true });
@@ -338,11 +372,9 @@ export class LiveChallengeAudioDirector {
 
   dispose() {
     globalThis?.clearTimeout?.(this.duckTimer);
-    this.fadeTimers.forEach((timer) => globalThis?.clearInterval?.(timer));
-    this.fadeTimers.clear();
     this.music?.pause?.();
-    this.transient.forEach((audio) => audio.pause?.());
-    this.transient.clear(); this.music = null; this.previous = null; this.primed = false;
+    this.#releaseAll();
+    this.previous = null; this.primed = false;
   }
 }
 

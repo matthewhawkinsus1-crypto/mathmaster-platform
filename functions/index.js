@@ -9796,6 +9796,10 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
     // Public settings a mode's planner contributes (a rush's families and
     // features, which the projector shows; never its seed).
     ...planned.roomFields,
+    // What placements earn ("Top 3: Practice Pass"), for the lobby and final
+    // screens. Names rewards, never students; the policy itself stays private
+    // and rewards are still delivered only from the match result.
+    rewardSummary: engine.rewardRules.publicRewardSummary(rewardPolicy),
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -10231,8 +10235,11 @@ function applyLiveChallengeRoundOpening(transaction, {
 }) {
   const { lifecycle } = engine;
   const timingMode = challenge.normalizeChallengeTimingMode(room.timingMode);
+  // Every round starts in the future by the countdown lead: each screen shows
+  // the same 3-2-1 off this startsAt, and nobody can answer before it.
   const timer = engine.timer.buildRoundTimer({
     nowMs,
+    syncLeadMs: engine.timer.ROUND_COUNTDOWN_LEAD_MS,
     durationMs: timingMode === "pace" ? null : opening.roundSeconds * 1000,
   });
   const roundIndex = opening.roundIndex;
@@ -10314,10 +10321,6 @@ function applyLiveChallengeRoundClose(transaction, {
     ...roundResult,
     closedAt: FieldValue.serverTimestamp(),
   });
-  transaction.set(roomRef.collection("rounds").doc(String(roundIndex)), {
-    ...engine.results.publicRoundSummary(roundResult),
-    closedAt: FieldValue.serverTimestamp(),
-  });
 
   const perRound = strategy.accumulation === engine.scoring.SCORE_ACCUMULATION.PER_ROUND;
   // A question-set round leaves each player their own round facts on their
@@ -10325,10 +10328,37 @@ function applyLiveChallengeRoundClose(transaction, {
   // refresh. Anonymous: alias-keyed, counts and percentages only.
   const questionSet = engine.modes.roundStructureFor(engine.modes.getChallengeMode(room.challengeMode)).id
     === engine.modes.ROUND_STRUCTURE.QUESTION_SET;
-  if (!perRound && !questionSet) return { roundResult, players };
+  const updatedPlayers = perRound || questionSet
+    ? applyLiveChallengeRoundPlayerTotals(transaction, {
+      engine, roomRef, privateRef, room, players, roundIndex, roundResult, scoringStrategyId, perRound, questionSet,
+    })
+    : players;
+  // The anonymous copy carries the match standings this round left behind,
+  // ranked from the totals just written, so a results screen shows the round
+  // and the standings it produced from one document — and movement since the
+  // last round compares two ranks the engine wrote.
+  transaction.set(roomRef.collection("rounds").doc(String(roundIndex)), {
+    ...engine.results.publicRoundSummary(roundResult, {
+      standingsAfterRound: engine.results.matchStandingsAfterRound({
+        players: updatedPlayers, modeId: room.challengeMode, scoringStrategyId,
+      }),
+    }),
+    closedAt: FieldValue.serverTimestamp(),
+  });
+  return { roundResult, players: updatedPlayers };
+}
+
+/**
+ * A closed round's effect on each player's record: placement points (a
+ * per-round strategy) and the player's own public round facts (a question-set
+ * round). Returns the players as they stand after the round.
+ */
+function applyLiveChallengeRoundPlayerTotals(transaction, {
+  engine, roomRef, privateRef, room, players, roundIndex, roundResult, scoringStrategyId, perRound, questionSet,
+}) {
   const publicStandings = new Map(engine.results.publicRoundSummary(roundResult).standings.map((row) => [row.playerKey, row]));
   const standingByStudent = new Map(roundResult.standings.map((standing) => [standing.studentId, standing]));
-  const updatedPlayers = players.map((player) => {
+  return players.map((player) => {
     const standing = standingByStudent.get(player.studentId);
     let patch = null;
     if (perRound) {
@@ -10376,7 +10406,6 @@ function applyLiveChallengeRoundClose(transaction, {
     }
     return patch ? { ...player, ...patch } : player;
   });
-  return { roundResult, players: updatedPlayers };
 }
 
 /**
@@ -10904,15 +10933,66 @@ exports.calibrateLiveChallengeClock = onCall(async (request) => {
     const db = getFirestore();
     const privatePlayer = await db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId).collection("players").doc(studentId).get();
     if (privatePlayer.exists && privatePlayer.data()?.playerKey) {
-      const quality = ["synchronized", "delayed", "reconnecting", "degraded"].includes(request.data.quality) ? request.data.quality : "delayed";
-      await db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId).collection("diagnostics").doc(privatePlayer.data().playerKey).set({
-        connectionStatus: quality,
-        connectionRttCategory: quality === "synchronized" ? "normal" : "elevated",
-        connectionUpdatedAt: FieldValue.serverTimestamp(),
-      }, { merge: true });
+      // The game screen's heartbeat (shared/liveChallengePresence.mjs): its
+      // quality, which tabs/devices it is on, and whether it is back after a
+      // silence — read and written together so two tabs' reports never drop
+      // each other. The device map is replaced, not merged, so a session
+      // aged out of it really leaves.
+      const presence = await import("./shared/liveChallengePresence.mjs");
+      const diagnosticsRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId).collection("diagnostics").doc(privatePlayer.data().playerKey);
+      await db.runTransaction(async (transaction) => {
+        const previous = await transaction.get(diagnosticsRef);
+        const previousData = previous.exists ? previous.data() || {} : {};
+        const report = presence.nextConnectionReport({
+          previousHeardMs: toDate(previousData.connectionUpdatedAt)?.getTime() || null,
+          previousSessions: previousData.sessions || null,
+          quality: request.data.quality,
+          sessionId: request.data.sessionId,
+          nowMs: serverAt,
+        });
+        const fields = { ...report, connectionUpdatedAt: FieldValue.serverTimestamp() };
+        transaction.set(diagnosticsRef, fields, { mergeFields: Object.keys(fields) });
+      });
     }
   }
   return { serverAt };
+});
+
+/*
+ * THE TEACHER'S ROSTER FOR A ROOM: player key -> student name.
+ *
+ * The public player rows are anonymous by design (code names by default), so
+ * a teacher running a game could not tell who had not joined, whose device had
+ * gone quiet, or who was signed in twice. This read-only callable gives the
+ * room's own teacher the names for their CONSOLE — never the projector — and
+ * nothing else: no student ids, no scores (the public rows carry those).
+ * A finished room's private state is deleted by its effects; its roster is
+ * then empty, and the console falls back to the game aliases.
+ */
+exports.getLiveChallengeHostRoster = onCall(async (request) => {
+  const roomId = String(request.data?.roomId || "").trim();
+  if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
+  const db = getFirestore();
+  await requireOwnedChallenge(db, request, roomId);
+  const players = await loadPrivateChallengePlayers(db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId));
+  if (!players.length) return { roomId, players: [] };
+  const { experience } = await liveChallengeEngine();
+  const grades = await db.getAll(...players.map((player) => db.collection("grades").doc(player.studentId)));
+  return {
+    roomId,
+    players: players
+      .filter((player) => player.playerKey)
+      .map((player, index) => ({
+        playerKey: String(player.playerKey),
+        name: experience.displayAliasForStudent({
+          student: grades[index]?.exists ? grades[index].data() || {} : {},
+          mode: "fullName",
+          codeAlias: "Student",
+        }),
+        alias: String(player.alias || ""),
+        joined: player.joined === true,
+      })),
+  };
 });
 
 exports.startLiveChallenge = onCall(async (request) => {

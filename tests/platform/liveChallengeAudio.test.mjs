@@ -107,3 +107,87 @@ test('leaderboard effects are cooldown-limited instead of firing on every render
   assert.equal(cooldownReady({ lastPlayedAt: 1000, nowMs: 1900, cooldownMs: 900 }), true);
   assert.equal(cooldownReady({ lastPlayedAt: 0, nowMs: 10, cooldownMs: 2000 }), true);
 });
+
+test('no sound is made that cannot be heard, and a burst of effects stays bounded', async () => {
+  // An Audio element downloads its file and was held until it ended. Made
+  // before the teacher's first click (unprimed) or while muted, it never
+  // played, never ended and was never released — every snapshot of a game
+  // added a few.
+  const created = [];
+  class FakeAudio {
+    constructor(src) { this.src = src; this.paused = true; created.push(this); }
+    addEventListener() {}
+    play() { this.paused = false; return Promise.resolve(); }
+    pause() { this.paused = true; }
+  }
+  const { LiveChallengeAudioDirector, MAX_LIVE_SOUNDS } = await loadAudio();
+  let clock = 0;
+  const director = new LiveChallengeAudioDirector({ AudioClass: FakeAudio, fetchImpl: async () => ({ ok: false }), now: () => clock });
+  const room = (round) => ({ roomId: 'r1', status: 'running', currentRound: round, roundCount: 5, roundEndsAt: { seconds: round } });
+  const board = (flip) => [
+    { playerKey: 'a', alias: 'A', rank: flip ? 2 : 1, score: 10, streak: 4 },
+    { playerKey: 'b', alias: 'B', rank: flip ? 1 : 2, score: 10, streak: 0 },
+  ];
+  const playRound = (round) => {
+    for (let tick = 0; tick < 40; tick += 1) {
+      clock += 1_000;
+      director.sync({ room: room(round), leaderboard: board(tick % 2), remainingMs: 4_000 - tick * 100, nowMs: clock });
+    }
+  };
+
+  playRound(0);
+  assert.equal(created.length, 0, 'unprimed: nothing is created');
+  assert.equal(director.transient.size, 0);
+
+  await director.prime();
+  director.setMix({ muted: true });
+  playRound(1);
+  assert.equal(created.length, 0, 'muted: nothing is created');
+  assert.equal(director.transient.size, 0);
+
+  director.setMix({ muted: false });
+  playRound(2);
+  assert.ok(created.length > 0, 'audible again');
+  assert.ok(director.transient.size <= MAX_LIVE_SOUNDS, `at most ${MAX_LIVE_SOUNDS} sounds are held`);
+  for (let burst = 0; burst < 30; burst += 1) director.playSfx('countdownTick');
+  assert.ok(director.transient.size <= MAX_LIVE_SOUNDS, 'a burst of effects stays bounded');
+  if (director.music) assert.ok(director.transient.has(director.music), 'the music is never what gives way');
+
+  // Muting stops and releases everything; unmuting brings the moment's music back.
+  director.sync({ room: room(3), leaderboard: board(0), remainingMs: 30_000, nowMs: clock });
+  assert.equal(director.musicKey, 'round');
+  director.setMix({ muted: true });
+  assert.equal(director.transient.size, 0);
+  assert.ok(created.every((audio) => audio.paused), 'nothing plays on, silently');
+  director.setMix({ muted: false });
+  assert.equal(director.musicKey, 'round');
+  assert.ok(director.music && !director.music.paused, 'the round music is back');
+  director.dispose();
+  assert.equal(director.transient.size, 0);
+});
+
+test('the music stays down through a round\'s results, and returns with the next round', async () => {
+  // A round now stays on screen, closed, while the class talks it through.
+  // The cues hear "no time left" from the buzzer until the next round opens.
+  const { cueRemainingMs } = await import(`${pathToFileURL(path.resolve('src/platform/liveChallenge/challengeShellModel.js')).href}?test=${Date.now()}`);
+  const base = { roomId: 'r2', status: 'running', currentRound: 0, roundCount: 3, startsAt: 10_000, endsAt: 40_000 };
+  assert.equal(cueRemainingMs(base, 5_000), 30_000, 'the countdown hears the whole round ahead');
+  assert.equal(cueRemainingMs(base, 25_000), 15_000);
+  assert.equal(cueRemainingMs(base, 41_000), 0, 'at the buzzer');
+  const closed = { ...base, roundState: 'closed' };
+  assert.equal(cueRemainingMs(closed, 41_000), 0, 'through the results');
+  assert.equal(cueRemainingMs({ ...base, timingMode: 'pace', endsAt: null }, 25_000), undefined, 'an open Pace Race has no time left to hear');
+
+  class FakeAudio { constructor(src) { this.src = src; } addEventListener() {} play() { return Promise.resolve(); } pause() {} }
+  const { LiveChallengeAudioDirector } = await loadAudio();
+  const director = new LiveChallengeAudioDirector({ AudioClass: FakeAudio, fetchImpl: async () => ({ ok: false }) });
+  await director.prime();
+  director.sync({ room: base, remainingMs: cueRemainingMs(base, 25_000) });
+  assert.equal(director.musicKey, 'round');
+  director.sync({ room: closed, remainingMs: cueRemainingMs(closed, 60_000) });
+  assert.equal(director.musicKey, null, 'quiet while the results are discussed');
+  const next = { ...base, currentRound: 1, roundState: 'open', startsAt: 70_000, endsAt: 100_000 };
+  director.sync({ room: next, remainingMs: cueRemainingMs(next, 75_000) });
+  assert.equal(director.musicKey, 'round', 'back with the next round');
+  director.dispose();
+});

@@ -298,6 +298,35 @@ export const criterionMet = (criterion = {}, standing = {}, context = {}) => {
   }
 };
 
+/**
+ * What a room's policy can earn, in public words: the PLACEMENT rewards (a
+ * Practice Pass for the top three, a Champion badge) with the rule a final
+ * standing must meet, and whether Class Points achievements are on. Stored on
+ * the public room when it is created, so a lobby can say "Top 3: Practice
+ * Pass" and a final screen can show it against the final standings. It names
+ * rewards, never a student, and delivers nothing: rewards are still issued
+ * once, by the server, from the durable match result.
+ */
+export const publicRewardSummary = (policy) => {
+  const normalized = storedRewardPolicy(policy);
+  const placement = normalized.rules
+    .filter((rule) => rule.criterion.kind === REWARD_CRITERION.PLACEMENT)
+    .map((rule) => Object.freeze({
+      ruleId: rule.ruleId,
+      maxRank: rule.criterion.maxRank,
+      minRoundsAnswered: rule.criterion.minRoundsAnswered,
+      rewardKind: rule.reward.kind,
+      rewardCode: rule.reward.kind === REWARD_KIND.GRANT ? rule.reward.rewardCode : REWARD_KIND.CLASS_POINTS,
+      label: rule.reward.kind === REWARD_KIND.GRANT ? rule.reward.label : `${rule.reward.amount} Class Points`,
+    }));
+  return Object.freeze({
+    schemaVersion: REWARD_POLICY_SCHEMA_VERSION,
+    placement: Object.freeze(placement),
+    classPoints: normalized.rules.some((rule) => rule.criterion.kind !== REWARD_CRITERION.PLACEMENT
+      && rule.reward.kind === REWARD_KIND.CLASS_POINTS),
+  });
+};
+
 /** The plain-text identity of one award. Hashed server-side into a document id. */
 export const rewardAwardIdentity = ({ sourceType = REWARD_SOURCE_TYPE.LIVE_CHALLENGE, sourceId, studentId, ruleId } = {}) => {
   const parts = [sourceType, sourceId, studentId, ruleId].map((part) => cleanText(part, 200));

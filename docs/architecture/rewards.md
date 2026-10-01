@@ -149,6 +149,17 @@ result, and delivers each award once (engine doc §9). This change adds:
 - **`rewardsSkipReason`** on the match result, written when a whole match's
   rewards were skipped (archived class, no teacher of record). Before this, it
   left no trace.
+- **What placement earns, on the screens** (`live-challenge-shell.md`). At
+  create, `publicRewardSummary(policy)` stores the policy's placement rules on
+  the public room as `rewardSummary` (max rank, minimum rounds answered, the
+  reward's code and label; whether Class Points achievements are on) — rewards,
+  never a student. The lobby and the console say "Top 3: Practice Pass each";
+  the projector's podium shows the reward beside each place
+  (`placementRewardsFor`, the same rule the delivery applies — a test holds the
+  two equal over random standings, ties included). It is display only: the
+  policy itself stays private and rewards are still delivered once, by the
+  server, from the match result; a student's own device shows what reached
+  their wallet.
 
 ## 7. Reversal rules
 

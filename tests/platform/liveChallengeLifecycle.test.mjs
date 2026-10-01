@@ -35,9 +35,18 @@ test('create returns the active room id and the teacher UI reopens it without a 
 });
 
 test('a recovered teacher has explicit resume and escape controls', () => {
-  assert.match(teacherSource, />Resume Session</);
-  assert.match(teacherSource, />Cancel Session</);
-  assert.match(teacherSource, />End Session</);
+  // A teacher who comes back to a live room lands on its console, told that
+  // the game kept running: the room's own stage decides the one primary
+  // control (Start, Next Round, Play Again — challengeShellModel's
+  // hostPrimaryAction, tested as a function), the projector is one click away,
+  // and the game can always be cancelled or ended from the console's header.
+  const recovery = teacherSource.slice(teacherSource.indexOf('useEffect(() => watchTeacherActiveChallenge('), teacherSource.indexOf('}), [signedInEmail, roomIdRef]);'));
+  assert.match(recovery, /setRoomId\(active\.roomId\);\s*setRecoveredNotice\('Reconnected to your live game\./);
+  const headerStart = teacherSource.indexOf('data-mm-host-console=');
+  const header = teacherSource.slice(headerStart, teacherSource.indexOf('</header>', headerStart));
+  assert.match(header, /\{!cancelled && <button [^\n]*onClick=\{\(\) => setProjector\(true\)\}[^>]*>Projector View</, 'resume on the projector');
+  assert.match(header, /\{lobby && <button [^\n]*cancelLiveChallenge[^\n]*>Cancel Session</, 'escape a lobby');
+  assert.match(header, /\{\(roundOpen \|\| stage === CHALLENGE_STAGE\.ROUND_RESULTS\) && <button [^\n]*setConfirming\('finish'\)[^\n]*'End Game'/, 'escape a running game, confirmed');
 });
 
 test('missing-private cancellation clears timers and only clears its own current pointer', () => {
