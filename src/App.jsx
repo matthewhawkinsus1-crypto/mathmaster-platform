@@ -306,7 +306,8 @@ import { practicePassEligibleAssignments } from './platform/rewards/practicePass
 import {
   loadStudentRewardHistory,
   subscribeToStudentRewardInventory,
-  usePracticePass as usePracticePassCallable,
+  // A callable, not a hook: imported under a name rules-of-hooks reads as one.
+  usePracticePass as redeemPracticePassCallable,
 } from './platform/rewards/rewardsClient.js';
 import { buildRewardWallet } from './platform/rewards/rewardWallet.js';
 import { useRewardCelebrations } from './platform/rewards/useRewardCelebrations.js';
@@ -718,7 +719,7 @@ function App() {
    * transaction. Nothing here changes a count: the listeners above do, once
    * the server has committed.
    */
-  const handleUsePracticePass = ({ assignmentId, payWith, grantId }) => usePracticePassCallable({ assignmentId, payWith, grantId });
+  const handleUsePracticePass = ({ assignmentId, payWith, grantId }) => redeemPracticePassCallable({ assignmentId, payWith, grantId });
   const handleLoadRewardHistory = () => loadStudentRewardHistory({ db, studentId: user?.id, classId: user?.classId });
 
   /*
