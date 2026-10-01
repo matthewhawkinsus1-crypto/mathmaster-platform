@@ -70,6 +70,7 @@ import {
   placeOnTerm as placeDistributionTermState,
   undoLastPlacement as undoDistributionPlacement,
 } from './algebraDistributionModel';
+import { useContentStableValue } from './platform/react/useContentStableValue.js';
 
 const STRUCTURE_TOOL_TITLES = {
   factor: 'Choose terms, write them as primes, and pull out a factor they share',
@@ -287,7 +288,7 @@ function OperationChip({ token, latex = '' }) {
 }
 
 export default function StepByStepAlgebra({
-  question,
+  question: questionProp,
   questionRecord,
   onStateChange,
   onStepGrade,
@@ -320,6 +321,9 @@ export default function StepByStepAlgebra({
   embedded = false,
   embeddedTitle = null,
 }) {
+  // Content identity, not object identity: a host that rebuilds an equal
+  // question every render must not reset the workspace (useContentStableValue).
+  const question = useContentStableValue(questionProp);
   const normalizedRecord = normalizeQuestionRecord(questionRecord);
   const initialParse = useMemo(() => getInitialEquation(question, normalizedRecord), [question]);
   const initialEquation = initialParse.equation;
