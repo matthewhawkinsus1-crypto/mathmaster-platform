@@ -21,6 +21,8 @@ import {
   rushRoundState,
 } from '../../functions/shared/graphFeatureRush.mjs';
 import { correctCountStrategy, grandPrixStrategy } from '../../functions/shared/liveChallengeScoring.mjs';
+import { MAX_QUESTIONS_PER_ROUND, questionSpecsFromReceipts, summarizeRoundProgress } from '../../functions/shared/liveChallengeResponses.mjs';
+import { getChallengeMode, roundQuestionSpecsFor } from '../../functions/shared/liveChallengeModes.mjs';
 import { generateRushQuestion } from '../../functions/shared/graphFeatureGenerator.mjs';
 
 /*
@@ -255,6 +257,58 @@ test('the per-graph and per-round limits bound the private record', () => {
   assert.ok(limited > 0, 'the round limit is reached');
   assert.equal(rushRoundState({ receipts: player.submissionReceipts, roundIndex: 0, poolSize: 50 }).attempts, RUSH_LIMITS.perRound);
   assert.equal(play({}, Array.from({ length: 40 }, (_, index) => tap(`b${index}`, 0, 8, 8))).verdicts.length, RUSH_LIMITS.batch, 'one request carries at most a batch');
+});
+
+test('a whole match is bounded too, so the private record stays one document', () => {
+  // 1,800 receipts already spread over earlier rounds: the next attempt is refused.
+  const earlier = Object.fromEntries(Array.from({ length: RUSH_LIMITS.perMatch }, (_, index) => [`m-${index}`, {
+    receiptKind: 'targetAttempt', roundIndex: index % 5, roundVersion: 1, questionIndex: Math.floor(index / 5), targetId: 'x1', targetCount: 1,
+    isCorrect: true, completesQuestion: true, sequence: index + 1, elapsedMs: 1_000, serverConfirmed: true,
+  }]));
+  const refused = applyRushAttempts({
+    player: { submissionReceipts: earlier, attemptSequence: RUSH_LIMITS.perMatch },
+    roundIndex: 7, roundVersion: 1, attempts: [tap('late', 0, -4)], questionFor: () => question(), strategy: correctCountStrategy, poolSize: 150,
+  });
+  assert.deepEqual([refused.verdicts[0].verdict, refused.recorded], [RUSH_VERDICT.LIMIT, 0]);
+  // Rounds times attempts per round could otherwise outgrow it.
+  assert.ok(RUSH_LIMITS.perMatch < 8 * RUSH_LIMITS.perRound);
+});
+
+test('a round holds more graphs than the fastest student can reach', () => {
+  const pool = getChallengeMode('graphFeatureRush').questionSpecs.length;
+  assert.equal(pool, MAX_QUESTIONS_PER_ROUND);
+  // Two minutes at better than one graph a second, completion flash included.
+  assert.ok(pool >= 120, `${pool} graphs`);
+});
+
+test('the round state a device sees matches the engine summary that ranks the round', () => {
+  // rushRoundState counts only attempted questions; the engine summarizes the
+  // whole pool. Over random play they must agree on everything a round ranks by.
+  let seed = 11;
+  const random = () => { seed = (seed * 48271) % 2147483647; return seed / 2147483647; };
+  const graphs = Array.from({ length: 150 }, (_, index) => question({ questionIndex: index, targets: index % 4 ? ZEROS.slice(0, 1 + (index % 3)) : [], targetCount: index % 4 ? 1 + (index % 3) : 1 }));
+  let player = {};
+  for (let step = 0; step < 120; step += 1) {
+    const state = rushRoundState({ receipts: player.submissionReceipts || {}, roundIndex: 0, poolSize: 150 });
+    const current = graphs[state.cursor];
+    const roll = random();
+    const attempt = roll < 0.08 ? press(`p${step}`, state.cursor, 'skip')
+      : !current.targets.length ? press(`p${step}`, state.cursor, roll < 0.7 ? 'dne' : 'skip')
+        : roll < 0.75 ? tap(`p${step}`, state.cursor, current.targets.find((target) => !state.cursorTargetsFound.includes(target.id))?.x ?? 9, 0)
+          : tap(`p${step}`, state.cursor, 8, 8);
+    player = carry(player, play(player, [attempt], { questions: graphs }));
+  }
+  const receipts = player.submissionReceipts;
+  const device = rushRoundState({ receipts, roundIndex: 0, poolSize: 150 });
+  const engine = summarizeRoundProgress({ receipts, roundIndex: 0, questionSpecs: roundQuestionSpecsFor(getChallengeMode('graphFeatureRush'), { receipts, roundIndex: 0 }) });
+  assert.equal(engine.questionCount, 150);
+  assert.deepEqual(
+    [device.questionsCorrect, device.attempts, device.hits, device.accuracy, device.scoreTotal],
+    [engine.questionsCorrect, engine.attempts, engine.correctAttempts, engine.accuracy, engine.scoreTotal],
+  );
+  assert.equal(device.skipped, engine.questions.filter((entry) => entry.completed && !entry.completedCorrectly).length);
+  assert.ok(device.cursor > 20, `${device.cursor} graphs played`);
+  assert.equal(questionSpecsFromReceipts({ receipts, roundIndex: 0, poolSize: 150 }).length, 150);
 });
 
 test('attempt times are server-bounded: never after arrival, never backwards', () => {

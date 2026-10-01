@@ -67,7 +67,11 @@ export const ATTEMPT_REJECTION = Object.freeze({
 });
 
 export const MAX_TARGETS_PER_QUESTION = 20;
-export const MAX_QUESTIONS_PER_ROUND = 50;
+// The most questions one round can hold. A per-player question set (Graph
+// Feature Rush) needs room for a fast student's whole round — 150 graphs in a
+// two-minute round is faster than anyone reads a graph — and a classic round
+// is one question, so the cap only ever bounds work.
+export const MAX_QUESTIONS_PER_ROUND = 150;
 
 /*
  * EXACT SCORE UNITS. A round's score total adds fractions — two of three zeros

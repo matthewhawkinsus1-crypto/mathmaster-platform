@@ -39,7 +39,7 @@ import {
 } from './liveChallengeResponses.mjs';
 import { SCORE_ACCUMULATION } from './liveChallengeScoring.mjs';
 import { DOES_NOT_EXIST_TARGET_ID, getGraphFeature } from './graphFeatureRegistry.mjs';
-import { getGraphFamily } from './graphFeatureFamilies.mjs';
+import { graphFamilyLabel } from './graphFeatureCatalog.mjs';
 import { POINTER_KIND, TAP_RESULT, clampTolerance, normalizePointerKind, resolveTap } from './graphFeatureHitTest.mjs';
 import {
   RUSH_ATTEMPT_KIND,
@@ -107,15 +107,28 @@ export const rushQuestionProgress = ({ receipts, roundIndex, questionIndex, targ
  */
 export const rushRoundState = ({ receipts = {}, roundIndex, poolSize = 50 } = {}) => {
   const round = integerOr(roundIndex, -1);
+  // Each attempted question's target count — recorded on its first receipt —
+  // in one pass. Called once per attempt in a batch, so it stays linear.
+  const targetCounts = new Map();
+  roundReceiptsOf(receipts, round)
+    .map(([, receipt]) => receipt)
+    .sort((left, right) => integerOr(left.sequence, 0) - integerOr(right.sequence, 0))
+    .forEach((receipt) => {
+      const index = integerOr(receipt.questionIndex, 0);
+      if (!targetCounts.has(index)) targetCounts.set(index, Math.max(1, integerOr(receipt.targetCount, 1)));
+    });
+  const specFor = (questionIndex) => ({ ...TARGET_SPEC(targetCounts.get(questionIndex) ?? 1), questionIndex });
   let cursor = 0;
   let current = null;
   while (cursor < poolSize) {
-    current = rushQuestionProgress({ receipts, roundIndex: round, questionIndex: cursor });
+    current = questionProgress({ receipts, roundIndex: round, questionIndex: cursor, spec: specFor(cursor) });
     if (!current.completed) break;
     cursor += 1;
   }
-  const specs = Array.from({ length: poolSize }, (_, index) => TARGET_SPEC(targetCountOf(receipts, round, index)))
-    .map((spec, questionIndex) => ({ ...spec, questionIndex }));
+  // Only a question with attempts can count toward anything, and every one
+  // of them sits at or below the highest index attempted.
+  const attempted = targetCounts.size ? Math.max(...targetCounts.keys()) + 1 : 1;
+  const specs = Array.from({ length: Math.max(1, Math.min(poolSize, attempted)) }, (_, questionIndex) => specFor(questionIndex));
   const summary = summarizeRoundProgress({ receipts, roundIndex: round, questionSpecs: specs });
   const skipped = summary.questions.filter((question) => question.completed && !question.completedCorrectly).length;
   return Object.freeze({
@@ -222,6 +235,7 @@ export const applyRushAttempts = ({
     return questionCache.get(index);
   };
   let roundRecorded = roundReceiptsOf(receipts, round).length;
+  let matchRecorded = Object.values(receipts).filter((receipt) => isAttemptReceipt(receipt) && receiptKindOf(receipt) === RECEIPT_KIND.TARGET).length;
   const verdicts = [];
   let recorded = 0;
   let completed = 0;
@@ -255,7 +269,7 @@ export const applyRushAttempts = ({
       verdicts.push(verdictRow(attempt, RUSH_VERDICT.OUT_OF_ORDER));
       return;
     }
-    if (state.cursorAttempts >= RUSH_LIMITS.perQuestion || roundRecorded >= RUSH_LIMITS.perRound) {
+    if (state.cursorAttempts >= RUSH_LIMITS.perQuestion || roundRecorded >= RUSH_LIMITS.perRound || matchRecorded >= RUSH_LIMITS.perMatch) {
       verdicts.push(verdictRow(attempt, RUSH_VERDICT.LIMIT));
       return;
     }
@@ -337,6 +351,7 @@ export const applyRushAttempts = ({
       };
       recorded += 1;
       roundRecorded += 1;
+      matchRecorded += 1;
     };
     record(attempt.attemptId, {
       attemptKind: attempt.kind,
@@ -481,7 +496,7 @@ export const buildRushReport = (matchResult = {}) => {
     accuracyPercent: percent(totals.hits, totals.attempts),
     doesNotExist: { presses: totals.dnePresses, correct: totals.dneCorrect, accuracyPercent: percent(totals.dneCorrect, totals.dnePresses) },
     byFeature: breakdown(byFeature, (key) => getGraphFeature(key)?.shortLabel || key),
-    byFamily: breakdown(byFamily, (key) => getGraphFamily(key)?.label || key),
+    byFamily: breakdown(byFamily, (key) => graphFamilyLabel(key) || key),
     players,
   });
 };

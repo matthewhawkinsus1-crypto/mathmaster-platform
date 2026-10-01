@@ -166,6 +166,7 @@ test('question specs are bounded and normalized', () => {
   assert.equal(normalizeQuestionSpec({ completionRule: 'allTargets', targetCount: 0 }).targetCount, 1);
   assert.equal(normalizeQuestionSpec({ completionRule: 'whatever' }).completionRule, 'singleResponse');
   assert.equal(normalizeRoundQuestionSpecs(undefined).length, 1, 'a classic round is one default question');
-  assert.equal(normalizeRoundQuestionSpecs(Array.from({ length: 80 }, () => ({}))).length, MAX_QUESTIONS_PER_ROUND);
+  // Anything past the cap is dropped, whatever the cap is.
+  assert.equal(normalizeRoundQuestionSpecs(Array.from({ length: MAX_QUESTIONS_PER_ROUND + 30 }, () => ({}))).length, MAX_QUESTIONS_PER_ROUND);
   assert.deepEqual(normalizeRoundQuestionSpecs([{}, {}]).map((spec) => spec.questionIndex), [0, 1]);
 });

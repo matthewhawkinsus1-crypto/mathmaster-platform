@@ -11525,10 +11525,13 @@ exports.getGraphFeatureRushRound = onCall(async (request) => {
     : state.cursor;
   const count = Math.max(0, Math.min(rules.rush.RUSH_LIMITS.issueBatch, Math.floor(Number(request.data?.count ?? 6)) || 0));
   const issue = graphFeatureRushIssuer({ rules, rushState, studentId, roundIndex });
-  const questions = roundOpen && player.joined === true
+  const joined = player.joined === true;
+  const questions = roundOpen && joined
     ? Array.from({ length: Math.max(0, Math.min(count, poolSize - fromIndex)) }, (_, offset) => rules.generator.publicRushQuestion(issue(fromIndex + offset)))
     : [];
-  return { roomId, roundIndex, roundOpen, state, questions };
+  // `poolSize` is where the round's graphs end; `joined` tells a device whose
+  // join is still on its way to ask again rather than to give up.
+  return { roomId, roundIndex, roundOpen, joined, poolSize, state, questions };
 });
 
 exports.submitGraphFeatureRushAttempts = onCall(async (request) => {

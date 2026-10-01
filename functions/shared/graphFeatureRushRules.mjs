@@ -10,6 +10,10 @@
  * Pure: shared by Cloud Functions, the student device and tests.
  */
 
+// The game mode's id (liveChallengeModes.CHALLENGE_MODE_ID), here so the
+// student's screen can recognise a rush room without the mode registry.
+export const RUSH_MODE_ID = 'graphFeatureRush';
+
 export const RUSH_ATTEMPT_KIND = Object.freeze({
   TAP: 'tap',
   DOES_NOT_EXIST: 'dne',
@@ -33,10 +37,13 @@ export const RUSH_LIMITS = Object.freeze({
   // Attempts in one request. A device sends one request at a time, so a burst
   // of taps on a slow connection arrives as one batch, in order.
   batch: 12,
-  // Recorded attempts on one graph, and in one round. Far above anything a
-  // student tapping with intent produces; they bound the private record.
+  // Recorded attempts on one graph, in one round, and in a whole match. Far
+  // above anything a student tapping with intent produces; they bound the
+  // private record, which is ONE document (Firestore's limit is 1 MiB, and a
+  // receipt is about 430 bytes: 1,800 of them stay under 800 KiB).
   perQuestion: 30,
   perRound: 400,
+  perMatch: 1_800,
   // How long before its request arrived an attempt may claim to have happened.
   claimWindowMs: 8_000,
   // Questions a device may ask for at once.
