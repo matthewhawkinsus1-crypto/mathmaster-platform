@@ -60,8 +60,8 @@ audit first recorded them; each entry's status line is current.)
 | PQ-009 | P2 | FIXED | Whole-board Undo |
 | PQ-020 | P2 | DEFERRED | Landscape phone Work View gives the stage 120–150px |
 | PQ-021 | P2 | DEFERRED | Phone identity bar is 67–86px and always pinned |
-| PQ-022 | P2 | DEFERRED | After a tool's Check, the attempt outcome is off-screen |
-| PQ-023 | P2 | DEFERRED | Tool chrome and folded help sit between the task and the mathematics |
+| PQ-022 | P2 | FIXED (2026-10-01 cleanup) | After a tool's Check, the attempt outcome is off-screen |
+| PQ-023 | P2 | FIXED (2026-10-01 cleanup; steps 1–2) | Tool chrome and folded help sit between the task and the mathematics |
 | PQ-024 | P2 | FIXED (2026-10-01 cleanup) | Point cards say "P1: x = −1" but x is not locked |
 | PQ-035 | P2 | NOT REPRODUCED | Memory growth over a long session |
 | PQ-039 | P2 | NOT A PRODUCTION ISSUE | Typing latency in the student harness |
@@ -70,13 +70,13 @@ audit first recorded them; each entry's status line is current.)
 | PQ-025 | P3 | DEFERRED | "Enlarge question" sits on top of content on phones |
 | PQ-026 | P3 | DEFERRED | Work View header says "Question Work View" and clips the task |
 | PQ-027 | P3 | DEFERRED | Work View capability chips look like disabled buttons |
-| PQ-028 | P3 | DEFERRED | Expression Meaning reopens on its first row after a reload |
-| PQ-029 | P3 | DEFERRED | Regression Calculator's button says "Submit workflow" |
+| PQ-028 | P3 | FIXED (2026-10-01 cleanup) | Expression Meaning reopens on its first row after a reload |
+| PQ-029 | P3 | FIXED (2026-10-01 cleanup) | Regression Calculator's button says "Submit workflow" |
 | PQ-030 | P3 | DEFERRED | The identity bar's ⭐ is an emoji too |
 | PQ-031 | P3 | NOT REPRODUCED | Scroll padding assumes a 140px task card |
-| PQ-032 | P3 | DEFERRED | Multi-line verdict text in a pill |
+| PQ-032 | P3 | FIXED (2026-10-01 cleanup) | Multi-line verdict text in a pill |
 | PQ-033 | P3 | FIXED (2026-10-01 cleanup) | Dev-server hazards for the browser gates |
-| PQ-034 | P3 | DEFERRED | Three click maps still stretch linearly |
+| PQ-034 | P3 | FIXED (2026-10-01 cleanup) | Three click maps still stretch linearly |
 | PQ-037 | P3 | DEFERRED | Typed stages inside a staged Work View may not scroll above a keypad |
 
 ---
@@ -1458,6 +1458,54 @@ that was pending passed on the merged head, 7 / 7 devices (PQ-005).
 - PQ-033 a gate server script (`hmr: false`, own `cacheDir`, MathLive fonts)
 
 ---
+
+## Follow-up: six deferred student-experience findings closed
+
+On `claude/close-pr-407-408-findings-90hfdz` at `3132a221`. Not deployed. Each
+item was reproduced in a browser at the viewports its entry names, fixed, and
+re-driven; the entries above (PQ-022, PQ-023, PQ-028, PQ-029, PQ-032, PQ-034)
+carry the numbers.
+
+| Item | What a student sees now | Commits |
+| --- | --- | --- |
+| PQ-022 | "Not quite. You have 2 attempts remaining on this version." appears under the tool's own "Not yet", 59–62px below Check, instead of 147–403px below it, off screen | `d6282f81`, `54030097` |
+| PQ-023 | One "How to do this (3 steps)" fold that opens with the tool's description; on a phone the tool's name is a small label beside "Enlarge question"; the first answer box is 56–75px higher on a phone | `7622fe3c`, `4bc8f2ea` |
+| PQ-028 | Expression Meaning reopens on the row they were working on | `b8a7aca2` |
+| PQ-029 | "Submit my regression"; "Regression complete."; a composed question's Undo tooltip says "Undo the last answer in these steps" | `4d976395` |
+| PQ-032 | A sentence-long verdict is a 10px-cornered card, not a lozenge | `3120650b` |
+| PQ-034 | A tap on the number line, the relation plot or the story sketch lands where it was made, also on a phone held sideways | `570e3aeb` |
+
+**What a teacher will notice:** nothing changes in grading, attempts, records or
+policy. On a DOL, quiz or test, nothing about correctness or attempts appears in
+the tool or below it before feedback is released — unchanged, and now driven by
+a browser gate. The relation plot no longer records a different point from the
+one a student tapped on a phone held sideways.
+
+**Gates (this follow-up's head):**
+
+| Gate | Result |
+| --- | --- |
+| `npm run test:platform` | **7486 / 7487** — the one failure is pre-existing at `3132a221`: `calculatorPanelWiringV3` pins `import 'mathlive'`, and `2b53096f` moved CalculatorPanel to `mathliveRuntime.js` |
+| `node --test tests/tools/*.test.mjs` | **253 / 253** |
+| `npm run lint` | exit 0; the only warning in a touched file is `WorkflowRunner.jsx:444` (`inputColumn`), identical at `3132a221` |
+| `npm run build` | exit 0 (the usual >500 kB chunk notice) |
+| `tests/browser/toolAttemptOutcome.mjs` (new) | **39 / 39** (13 red before the fix) |
+| `tests/browser/clickMapLetterbox.mjs` (new) | **13 / 13** (4 red before the fix) |
+| `toolPolicyGates.mjs` · `composedOutcomePolicy.mjs` | 39 / 39 · 21 / 21 |
+| `enterContractSurvey.mjs` · `mathEntryContract.mjs` | pass (fixture regenerated: only the regression label and timestamp changed) · 17 / 17 |
+| `toolOpenAudit.mjs` chromebook / phone / tablet / phone-landscape | all four pass |
+| `workViewMatrix.mjs` · `studentUxPlatform.mjs` · `linearMultipleRepresentations.mjs` | pass · 9 / 9 · no findings |
+| `toolDraftSyncSweep.mjs` · `regressionCalculatorPhone.mjs` | pass (and the new reopen-row check) · pass |
+| `captureToolResponses.mjs` | the captured payloads are unchanged. 8 of its 11 scripts cannot drive their tool — **identically at `3132a221`** (stale selectors: a checkbox before the algebra box, a second "Submit Answer" in the Work View rail) |
+
+Every new or changed assertion was broken once and went red: 50 mutations
+across the six items, 49 red; the one survivor is a browser-level mutation
+explained under PQ-022 (its node contract kills it).
+
+**Evidence** (`docs/qa/platform-quirks-audit/`): `pq022-before-phone-390x844.png`
+/ `pq022-after-phone-390x844.png` / `pq022-after-chromebook-1366x768.png`,
+`pq023-before-phone-390x844.png` / `pq023-after-phone-390x844.png`,
+`pq032-before-chromebook-1366x768.png` / `pq032-after-chromebook-1366x768.png`.
 
 ## Tests
 
