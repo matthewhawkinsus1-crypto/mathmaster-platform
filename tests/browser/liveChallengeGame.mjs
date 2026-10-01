@@ -179,8 +179,13 @@ const pageErrors = [];
 page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()); });
 page.on('pageerror', (e) => pageErrors.push(String(e?.message || e)));
 
-await page.goto(`${ORIGIN}/tests/browser/liveChallengeGame.html?emulator=${EMULATOR}`, { waitUntil: 'domcontentloaded' });
-await page.waitForFunction(() => typeof window.__mmGameMount === 'function', { timeout: 30000 });
+// The FIRST load compiles the whole student screen on demand. The harnesses use
+// two Vite configs that share one dependency cache (node_modules/.vite), so a
+// run after the other harness starts cold — 15-30 s on a busy 4-core machine,
+// which a 30 s budget turned into a spurious TimeoutError. Later loads are warm.
+const FIRST_LOAD_MS = 120_000;
+await page.goto(`${ORIGIN}/tests/browser/liveChallengeGame.html?emulator=${EMULATOR}`, { waitUntil: 'domcontentloaded', timeout: FIRST_LOAD_MS });
+await page.waitForFunction(() => typeof window.__mmGameMount === 'function', { timeout: FIRST_LOAD_MS });
 await page.evaluate((invite) => window.__mmGameMount(invite), {
   roomId: ROOM_ID, title: 'Period 3 Warm-Up Challenge', alias: 'Swift Otter',
   playerKey: PLAYER_KEY, status: 'running', assignmentId: 'assignment-a',
