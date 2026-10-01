@@ -712,10 +712,23 @@ await run('class-of-twelve', async () => {
   check(S, ranked.length === 10, `${ranked.length} ranked players, expected 10`);
   check(S, ranked[0]?.lastRound.matchPointsAwarded === 12, `1st earned ${ranked[0]?.lastRound.matchPointsAwarded}, expected 12`);
   check(S, rows.filter((row) => row.lastRound && !row.lastRound.participated).every((row) => row.lastRound.matchPointsAwarded === 0), 'a player who never tapped earned points');
+  // Every student's results card says what the server recorded for them:
+  // their graphs, their place in the field and their points — or, for the
+  // two who never tapped, no points.
   for (const student of students) {
     const record = await privatePlayer(roomId, student.studentId);
-    const shownDone = await doneCount(student).catch(() => null);
-    notes.push({ scenario: S, student: student.studentId, serverCompleted: record.correctCount ?? 0, screen: shownDone });
+    const facts = rows.find((row) => row.playerKey === record.playerKey)?.lastRound;
+    check(S, facts?.roundIndex === 0, `${student.studentId}: no lastRound facts`);
+    if (!facts) continue;
+    const graphs = `${facts.completed} ${facts.completed === 1 ? 'graph' : 'graphs'} completed`;
+    check(S, await waitForText(student, graphs, 10_000), `${student.studentId}: results do not show the server's "${graphs}"`);
+    if (facts.participated) {
+      check(S, await waitForText(student, `#${facts.rank} of ${facts.fieldSize} this round`, 5_000), `${student.studentId}: results do not show #${facts.rank} of ${facts.fieldSize}`);
+      check(S, await waitForText(student, `+${facts.matchPointsAwarded} championship points`, 5_000), `${student.studentId}: results do not show +${facts.matchPointsAwarded} championship points`);
+    } else {
+      check(S, await waitForText(student, 'No championship points this round', 5_000), `${student.studentId}: a student who never tapped is not told they earned no points`);
+    }
+    notes.push({ scenario: S, student: student.studentId, completed: facts.completed, rank: facts.rank ?? null, points: facts.matchPointsAwarded });
   }
   await shot(students[0], 'class12-results-chromebook');
   await shot(teacher, 'class12-results-teacher');
