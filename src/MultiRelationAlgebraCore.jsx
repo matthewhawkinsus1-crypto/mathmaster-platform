@@ -2810,6 +2810,10 @@ export default function MultiRelationAlgebra({
               if (action === 'ATTEMPT_SUBMITTED') {
                 setRepresentationCorrect(Boolean(payload?.isCorrect));
               }
+              // Changed after its Check: the checked graph is not the one on
+              // screen any more, so the step waits for the next Check rather
+              // than being graded on the old one.
+              if (action === 'ATTEMPT_WITHDRAWN') setRepresentationCorrect(null);
               // A hint revealed in the number line is help like any other:
               // report it to the activity's hint recorder (none outside one).
               if (action === 'HINT_USED') reportHintUse?.();

@@ -537,6 +537,31 @@ const relation = async () => {
       check(grade?.isCorrect === false && partsOf(grade)['solution-representations'] === false, 'dol relation: the wrong graph is graded wrong', brief(grade));
     });
   }
+  // A graph changed after its Check is not the graph that was recorded: the
+  // step waits for the next Check instead of grading the old one (practice
+  // would otherwise grade a broken graph "correct", a DOL a fixed one wrong).
+  await scenario('practice relation changed after a right graph', async () => {
+    const page = await open('practice', 'relation', RELATION);
+    await graphRay(page, 'open');
+    check(await page.getByRole('button', { name: /^Submit/ }).count() > 0, 'practice relation changed: a right graph can be submitted');
+    await button(page, 'Start over').click();
+    await settle(page, 300);
+    check(await page.getByRole('button', { name: /^Submit/ }).count() === 0, 'practice relation changed: after Start over the old graph is not submitted');
+  });
+  await scenario('dol relation changed after Check', async () => {
+    const page = await open('dol', 'relation', RELATION);
+    await graphRay(page, 'open');
+    check(/Your graph is recorded/.test(await bodyText(page)), 'dol relation changed: the first graph is recorded');
+    await button(page, 'Start over').click();
+    await settle(page, 300);
+    check(!/Your graph is recorded/.test(await bodyText(page)) && await page.getByRole('button', { name: /^Submit/ }).count() === 0,
+      'dol relation changed: after a change nothing is recorded until the next Check');
+    await graphRay(page, 'closed');
+    check(/Your graph is recorded/.test(await bodyText(page)), 'dol relation changed: the next Check records the new graph');
+    await submitEngine(page);
+    const grade = await lastGrade(page);
+    check(grade?.isCorrect === false && partsOf(grade)['solution-representations'] === false, 'dol relation changed: the graph on screen is the one graded', brief(grade));
+  });
   await scenario('dol relation right', async () => {
     const page = await open('dol', 'relation', RELATION);
     await graphRay(page, 'open');

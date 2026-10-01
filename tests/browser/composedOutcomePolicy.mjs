@@ -193,6 +193,14 @@ for (const role of ['dol', 'quiz', 'practice']) {
   if (role === 'practice') check(verdict, 'practice mapping: the step still says whether the arrows are right');
   else check(!verdict, `${role} mapping: the step says nothing about whether the arrows are right`, (text.match(/Not yet|Correct[^\n]*|The arrows do not match[^\n]*/) || [''])[0]);
   check(/1 of 2 steps answered/.test(text), `${role} mapping: the step's answer is still recorded`);
+  // Changing checked arrows withdraws the step's answer until the next Check,
+  // so what is graded is what is on screen (useToolSubmission).
+  await arrow(3, 6);
+  await page.waitForTimeout(300);
+  check(/0 of 2 steps answered/.test(await bodyText(page)), `${role} mapping: a change after Check waits for the next Check`, ((await bodyText(page)).match(/\d of 2 steps answered/) || [''])[0]);
+  await page.getByRole('button', { name: 'Check', exact: true }).first().click();
+  await page.waitForTimeout(400);
+  check(/1 of 2 steps answered/.test(await bodyText(page)), `${role} mapping: and the next Check records the changed arrows`);
   await page.close();
 }
 

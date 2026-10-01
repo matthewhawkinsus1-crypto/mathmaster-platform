@@ -549,6 +549,9 @@ const readDelegateResponse = {
 // string "ATTEMPT_SUBMITTED" and never the student's work.
 const toolAction = (onChange) => (actionType, payload) => {
   if (actionType === 'ATTEMPT_SUBMITTED') onChange(payload);
+  // The student changed checked work: the step's answer is no longer what is
+  // on screen, so it waits for the next Check (useToolSubmission).
+  if (actionType === 'ATTEMPT_WITHDRAWN') onChange(null);
 };
 
 // Stages that delegate to an existing component. Each adapter builds the
