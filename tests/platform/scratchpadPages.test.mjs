@@ -83,6 +83,37 @@ test('only page one carries the count, because it is the only findable page', ()
   assert.equal(writes[2].data.pageIndex, 2);
 });
 
+test('the caller\'s metadata never replaces a page\'s own image, index or count', () => {
+  // App passes its whole record with `dataUrl: undefined`, meaning "not page
+  // one's image in every page". Spread after the page's fields, that blanked
+  // every page: Firestore rejects an undefined field, so no graded scratchpad
+  // could be saved, and Practice / preview scratchpads reopened empty.
+  const compactRecord = {
+    dataUrl: png('p1'),
+    assignmentId: 'a1',
+    questionIndex: 2,
+    variantIndex: 0,
+    updatedAt: '2026-10-01T12:00:00.000Z',
+    metadata: { width: 1200, height: 900, mimeType: 'image/webp', byteLength: 30 },
+  };
+  const { writes } = buildScratchpadWrites({
+    baseId: 'a1__question_2',
+    pages: [png('p1'), png('p2')],
+    metadata: { ...compactRecord, dataUrl: undefined, pageIndex: 7, pageCount: 9 },
+  });
+  assert.deepEqual(writes.map((entry) => entry.data.dataUrl), [png('p1'), png('p2')]);
+  assert.deepEqual(writes.map((entry) => entry.data.pageIndex), [0, 1]);
+  assert.equal(writes[0].data.pageCount, 2);
+  assert.equal(writes[0].data.assignmentId, 'a1', 'the descriptive fields are still written');
+  assert.equal(writes[1].data.questionIndex, 2);
+  for (const { data } of writes) {
+    // Firestore refuses a document with an undefined field anywhere in it.
+    assert.deepEqual(Object.entries(data).filter(([, value]) => value === undefined), []);
+  }
+  // A loader reading those documents back gets both images.
+  assert.deepEqual(normalizeScratchpadPages(writes[0].data, [writes[1].data]), [png('p1'), png('p2')]);
+});
+
 test('a page the student removed is deleted, not merely left unwritten', () => {
   // An orphaned document reappears as a page on the next load, which reads as
   // the platform resurrecting work the student deliberately dropped.

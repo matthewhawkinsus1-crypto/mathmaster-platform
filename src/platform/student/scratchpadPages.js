@@ -102,12 +102,18 @@ export const buildScratchpadWrites = ({
   const writes = kept.map((dataUrl, index) => ({
     docId: scratchpadPageDocId(base, index),
     data: {
+      // The caller's descriptive fields go first, so they can never replace
+      // the page's own image, index or count. They did: App passes its record
+      // with `dataUrl: undefined` (to keep page one's image out of the shared
+      // fields), and spread last that blanked every page — Firestore refused
+      // the write outright, and the in-memory Practice and preview scratchpads
+      // kept a record with no image in it.
+      ...metadata,
       dataUrl,
       pageIndex: index,
       // Only page one carries the count, because it is the only page a loader
       // can find without already knowing how many there are.
       ...(index === 0 ? { pageCount: kept.length } : {}),
-      ...metadata,
     },
   }));
 
