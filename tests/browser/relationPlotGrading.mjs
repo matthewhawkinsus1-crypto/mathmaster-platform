@@ -1,7 +1,7 @@
 // A CORRECT RELATION PLOT, SUBMITTED, IS GRADED CORRECT.
 //
-//   npx vite --port 5441 --strictPort &
-//   AUDIT_ORIGIN=http://localhost:5441 node tests/browser/relationPlotGrading.mjs
+//   npx vite --port 5199 --strictPort &
+//   node tests/browser/relationPlotGrading.mjs
 //
 // relationRepresentations keys its plot stage `{ pairs }`, and the grader read
 // the plot's graph artifact as if it were a list of pairs: an empty list. Every
@@ -15,7 +15,7 @@
 // Exits non-zero on any failure.
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
-const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5441';
+const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5199';
 
 const launch = { args: ['--no-sandbox'] };
 if (process.env.CHROMIUM_PATH) launch.executablePath = process.env.CHROMIUM_PATH;

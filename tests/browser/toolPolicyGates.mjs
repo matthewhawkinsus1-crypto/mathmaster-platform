@@ -1,7 +1,7 @@
 // ON A DOL, A REGISTRY TOOL NEITHER GRADES A STAGE EARLY NOR OFFERS A HINT.
 //
-//   npx vite --port 5441 --strictPort &
-//   AUDIT_ORIGIN=http://localhost:5441 node tests/browser/toolPolicyGates.mjs
+//   npx vite --port 5199 --strictPort &
+//   node tests/browser/toolPolicyGates.mjs
 //
 // Two defects, each a free answer key on an exit ticket:
 //
@@ -31,7 +31,7 @@
 // Exits non-zero on any failure.
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
-const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5441';
+const ORIGIN = process.env.AUDIT_ORIGIN || 'http://localhost:5199';
 const AUTHORED_BRIDGE_HINT = 'AUTHORED-BRIDGE-HINT';
 
 const launch = { args: ['--no-sandbox'] };
