@@ -47,6 +47,7 @@ test('the run actually certified every family the brief names', () => {
     'multi-answer',
     'sequence-explorer',
     'step-algebra',
+    'step-algebra-mid-move',
     'systems-workspace',
     'table',
     'transformations',
@@ -54,9 +55,14 @@ test('the run actually certified every family the brief names', () => {
 });
 
 test('every family passed every journey that applies to it', () => {
+  // `backup`: every record the edit left is one the server backup's guard
+  // accepts (functions/shared/workspaceDraftSchema.mjs) — what another device
+  // gets back. A move left mid-cancellation once failed it by saving the
+  // equation's solution.
+  assert.ok(audit.journeys.includes('backup'), 'the run checked the server backup');
   const failures = [];
   audit.families.forEach((family) => {
-    ['navigate', 'reload', 'reopen', 'replacement'].forEach((journey) => {
+    ['navigate', 'reload', 'reopen', 'replacement', 'backup'].forEach((journey) => {
       const verdict = family[journey];
       // "NO WORK" is a failure with a different cause: the scripted edit left
       // nothing behind, so the row certified an empty workspace.

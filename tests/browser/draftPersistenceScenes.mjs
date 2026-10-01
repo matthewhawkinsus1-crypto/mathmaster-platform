@@ -19,6 +19,9 @@ const choose = (index, value) => ({ kind: 'choose', index, value });
 const math = (index, value) => ({ kind: 'math', index, value });
 const plane = (fx, fy) => ({ kind: 'plane', fx, fy });
 const press = (label) => ({ kind: 'press', label });
+// A control found by its accessible name, for one that is not a <button>: an
+// equation side armed for placement is a role="button" region.
+const activate = (name) => ({ kind: 'activate', name });
 
 export const DRAFT_SCENES = [
   {
@@ -112,6 +115,25 @@ export const DRAFT_SCENES = [
     // Pick up "subtract", then type what to subtract. Neither has become a
     // committed step, and both have to be there on the way back.
     edit: [press('−'), press('Show math tools'), math(0, '5')],
+  },
+  {
+    id: 'step-algebra-mid-move',
+    label: 'Step Algebra, a move waiting for its cancellation',
+    family: 'StepByStepAlgebra',
+    question: {
+      questionId: 'draft-step-mid-move', type: 'stepAlgebra',
+      prompt: 'Solve 3x + 4 = 19 and show each balanced step.',
+      equation: '3*x + 4 = 19', variable: 'x', answer: '5',
+    },
+    // Subtract 4, placed on each side by the student. The move is made but the
+    // +4 / −4 pair is not yet cancelled: the pending move is the work, and it
+    // has to come back exactly as placed — and reach the server backup, which
+    // refuses a record carrying the equation's solution.
+    edit: [
+      press('−'), press('Show math tools'), math(0, '4'), press('Pick up'),
+      activate('Place Subtract 4 on both sides on the left side'),
+      activate('Place Subtract 4 on both sides on the right side'),
+    ],
   },
   {
     id: 'function-operations',
@@ -232,4 +254,4 @@ export const SCENE_IDS = DRAFT_SCENES.map((scene) => scene.id);
 
 export const sceneById = (id) => DRAFT_SCENES.find((scene) => scene.id === id) || null;
 
-export { fill, choose, math, plane, press };
+export { fill, choose, math, plane, press, activate };

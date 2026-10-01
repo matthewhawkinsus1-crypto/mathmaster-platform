@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { region } from './helpers/sourceContract.mjs';
 
 const src = fs.readFileSync('src/StepByStepAlgebraCore.jsx', 'utf8');
 
@@ -40,8 +41,13 @@ test('V1.3 freeform add-subtract placement remains', () => {
   // The positions the student chose are honoured by the COMMITTED move: they
   // are handed to the balanced-operation engine, which places the operand at
   // each position. (The workspace itself no longer applies them to draw a
-  // preview inside the equation — issue #341.)
-  assert.match(src, /applyBalancedOperation\(\{[^}]*placementBySide: placementBySideOverride \|\| placedOperationPositions/);
+  // preview inside the equation — issue #341.) The workspace makes the move
+  // through makePendingMove, the route a restored draft takes too
+  // (algebraDraftState.js), and that hands the positions to the engine.
+  const attempt = region(src, 'const attemptMove = async', 'setPendingMove(move);', 'attemptMove');
+  assert.match(attempt, /makePendingMove\(\{[^}]*placementBySide: placementBySideOverride \|\| placedOperationPositions/);
+  const draftState = fs.readFileSync('src/algebraDraftState.js', 'utf8');
+  assert.match(region(draftState, 'export const makePendingMove', '\n};', 'makePendingMove'), /applyBalancedOperation\(\{[^}]*placementBySide: placement\b/);
   const engine = fs.readFileSync('src/algebraAstEngine.js', 'utf8');
   assert.match(engine, /applyOperationToExpression\(equationState\.left, operation, operand\.expression, placementBySide\?\.left\)/);
   assert.match(engine, /applyAdditiveOperationAtPlacement\(expression, operation, operandExpression, placement\)/);

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
-import { ALGEBRA_DRAFT_VERSION, rehydrateAlgebraDraft } from './algebraDraftState';
+import { ALGEBRA_DRAFT_VERSION, makePendingMove, pendingMoveDraft, rehydrateAlgebraDraft } from './algebraDraftState';
 import { advanceCancellationProgress } from './algebraCancellationProgress';
 import { buildCancellationModel } from './algebraCancellationModel';
 import { stageOperationPlacement } from './algebraOperationPlacement';
@@ -574,7 +574,10 @@ export default function StepByStepAlgebra({
       structureTool,
       workSteps,
       armedTile,
-      pendingMove,
+      // What the student did, not the engine's analysis of it: that carries the
+      // equation's solution, which a student-readable draft must not, and the
+      // server backup refuses it (algebraDraftState.js).
+      pendingMove: pendingMoveDraft(pendingMove),
       crossedSides,
       cancelledPairIds,
       selectedCancellationIndices,
@@ -1552,7 +1555,9 @@ export default function StepByStepAlgebra({
     setMessage(null);
     let move;
     try {
-      move = applyBalancedOperation({ equationState: equation, operation, operand, placementBySide: placementBySideOverride || placedOperationPositions });
+      // Made the way a restored draft remakes it (algebraDraftState.js), so a
+      // reload brings back this move and not a neighbouring one.
+      move = makePendingMove({ equation, operation, operand, placementBySide: placementBySideOverride || placedOperationPositions });
     } catch (error) {
       triggerShake();
       setMessage({ tone: 'error', text: error.message });

@@ -28,6 +28,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { DRAFT_SCENES } from './draftPersistenceScenes.mjs';
+import { explainWorkspaceDraftRejection } from '../../functions/shared/workspaceDraftSchema.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -112,6 +113,10 @@ const applyEdits = async (page, scene) => {
     } else if (action.kind === 'press') {
       const button = page.locator(`[data-draft-scene] button`, { hasText: action.label }).first();
       if (await button.count()) await button.click();
+    } else if (action.kind === 'activate') {
+      const control = page.locator('[data-draft-scene]').getByRole('button', { name: action.name, exact: true }).first();
+      if (!(await control.count())) { note(scene.id, 'edit', `no control named "${action.name}"`); continue; }
+      await control.click();
     }
     await page.waitForTimeout(90);
   }
@@ -234,7 +239,7 @@ const reopenedBaselines = {};
 
 for (let index = 0; index < DRAFT_SCENES.length; index += 1) {
   const scene = DRAFT_SCENES[index];
-  const row = { id: scene.id, label: scene.label, family: scene.family, navigate: 'n/a', reload: 'n/a', reopen: 'n/a', replacement: 'n/a' };
+  const row = { id: scene.id, label: scene.label, family: scene.family, navigate: 'n/a', reload: 'n/a', reopen: 'n/a', replacement: 'n/a', backup: 'n/a' };
 
   await page.evaluate((target) => window.__mmDraft.go(target), index);
   await ready(page, scene.id);
@@ -253,6 +258,18 @@ for (let index = 0; index < DRAFT_SCENES.length; index += 1) {
     await shoot(page, `${scene.id}-no-work`);
     continue;
   }
+
+  /*
+   * BACKUP: would the server keep it? A Chromebook swapped for another one
+   * gets back only what the server backup stored, and its guard
+   * (functions/shared/workspaceDraftSchema.mjs) refuses a whole record for one
+   * answer-shaped key or for its size. Every record the edit left must pass.
+   */
+  const refused = Object.entries(before.drafts)
+    .map(([suffix, value]) => ({ suffix, verdict: explainWorkspaceDraftRejection(value) }))
+    .filter(({ verdict }) => !verdict.ok);
+  row.backup = refused.length ? 'FAIL' : 'pass';
+  refused.forEach(({ suffix, verdict }) => note(scene.id, 'backup', `the server backup refuses stored workspace "${suffix}": ${verdict.reason}${verdict.path ? ` at ${verdict.path}` : ''}`));
 
   /* NAVIGATE: away to another question, and back. */
   await page.evaluate((target) => window.__mmDraft.go(target === 0 ? 1 : 0), index);
@@ -472,9 +489,9 @@ writeFileSync(REPORT, `${JSON.stringify(report, null, 2)}\n`);
 
 const width = Math.max(...rows.map((row) => row.label.length), 10);
 console.log('\nDRAFT PERSISTENCE — unfinished work, no Submit pressed\n');
-console.log(`${'family'.padEnd(width)}  navigate  reload    reopen    replacement`);
+console.log(`${'family'.padEnd(width)}  navigate  reload    reopen    replacement  backup`);
 rows.forEach((row) => {
-  console.log(`${row.label.padEnd(width)}  ${row.navigate.padEnd(8)}  ${row.reload.padEnd(8)}  ${row.reopen.padEnd(8)}  ${row.replacement}`);
+  console.log(`${row.label.padEnd(width)}  ${row.navigate.padEnd(8)}  ${row.reload.padEnd(8)}  ${row.reopen.padEnd(8)}  ${row.replacement.padEnd(11)}  ${row.backup}`);
 });
 
 console.log('\nPERFORMANCE — what the local draft write costs\n');
@@ -495,7 +512,7 @@ if (WRITE) {
   mkdirSync(path.dirname(FINDINGS), { recursive: true });
   writeFileSync(FINDINGS, `${JSON.stringify({
     generatedAt: report.generatedAt,
-    journeys: ['navigate', 'reload', 'reopen', 'replacement'],
+    journeys: ['navigate', 'reload', 'reopen', 'replacement', 'backup'],
     budgets: { maxSingleWriteMs: MAX_SINGLE_WRITE_MS, maxWriteShare: MAX_WRITE_SHARE },
     families: rows,
     performance: performance_,

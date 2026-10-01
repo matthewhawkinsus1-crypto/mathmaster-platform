@@ -1,10 +1,11 @@
 {
-  "generatedAt": "2026-09-15T22:33:40.666Z",
+  "generatedAt": "2026-10-01T18:08:53.983Z",
   "journeys": [
     "navigate",
     "reload",
     "reopen",
-    "replacement"
+    "replacement",
+    "backup"
   ],
   "budgets": {
     "maxSingleWriteMs": 4,
@@ -18,7 +19,8 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass"
     },
     {
       "id": "multi-answer",
@@ -27,7 +29,8 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass"
     },
     {
       "id": "table",
@@ -36,7 +39,8 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass"
     },
     {
       "id": "composed-workflow",
@@ -45,7 +49,8 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass"
     },
     {
       "id": "interactive-graph",
@@ -54,7 +59,8 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass"
     },
     {
       "id": "step-algebra",
@@ -63,7 +69,18 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass"
+    },
+    {
+      "id": "step-algebra-mid-move",
+      "label": "Step Algebra, a move waiting for its cancellation",
+      "family": "StepByStepAlgebra",
+      "navigate": "pass",
+      "reload": "pass",
+      "reopen": "pass",
+      "replacement": "n/a",
+      "backup": "pass"
     },
     {
       "id": "function-operations",
@@ -72,7 +89,8 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "pass"
+      "replacement": "pass",
+      "backup": "pass"
     },
     {
       "id": "function-investigation",
@@ -81,7 +99,8 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass"
     },
     {
       "id": "graphing2",
@@ -90,7 +109,8 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass"
     },
     {
       "id": "sequence-explorer",
@@ -99,7 +119,8 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass"
     },
     {
       "id": "systems-workspace",
@@ -108,7 +129,8 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass"
     },
     {
       "id": "transformations",
@@ -117,7 +139,8 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass"
     },
     {
       "id": "interval-number-line",
@@ -126,7 +149,8 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass"
     },
     {
       "id": "data-modeling",
@@ -135,25 +159,26 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass"
     }
   ],
   "performance": [
     {
       "probe": "rapid typing",
-      "burstMs": 82,
+      "burstMs": 120,
       "count": 18,
-      "totalMs": 0.7999999998137355,
-      "maxMs": 0.10000000009313226,
-      "share": 0.009756097558704092
+      "totalMs": 0.9000000022351742,
+      "maxMs": 0.19999999925494194,
+      "share": 0.007500000018626452
     },
     {
       "probe": "endpoint drag",
-      "burstMs": 1022,
+      "burstMs": 1012,
       "count": 8,
-      "totalMs": 0.4999999990686774,
-      "maxMs": 0.10000000009313226,
-      "share": 0.0004892367896953791
+      "totalMs": 0.3999999985098839,
+      "maxMs": 0.10000000149011612,
+      "share": 0.0003952569155236007
     }
   ],
   "findings": []
