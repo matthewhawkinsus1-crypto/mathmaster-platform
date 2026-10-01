@@ -5,10 +5,15 @@ import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workVie
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useToolSubmission from '../shared/useToolSubmission';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import constraintFunctionGrader from '../../../functions/shared/serverGrading/tools/constraintFunctionBuilder.mjs';
 import {
-  BUILDER_FAMILIES,
+  builderAllowedFamilies,
   builderEquation,
+  effectiveBuilderConstraints,
   evaluateBuilderModel,
+  initialBuilderModel,
   normalizeBuilderModel,
   scoreConstraintModel,
 } from './constraintFunctionMath';
@@ -30,31 +35,24 @@ const numericField = (label, value, setter, step = 1) => (
 );
 
 export default function ConstraintFunctionBuilder({ questionData = {}, onAction }) {
-  const allowedFamilies = (questionData.allowedFamilies || BUILDER_FAMILIES).filter((family) => BUILDER_FAMILIES.includes(family));
-  const hasAuthoredInitialModel = questionData.initialModel && typeof questionData.initialModel === 'object';
-  const initial = normalizeBuilderModel({
-    family: allowedFamilies[0] || 'linear',
-    // An open-construction question must not open on a fully valid answer.
-    // A zero leading coefficient intentionally collapses linear/quadratic/
-    // absolute/exponential defaults until the student actually constructs one.
-    ...(hasAuthoredInitialModel ? questionData.initialModel : { a: 0, h: 0, k: 0 }),
-  });
+  // The families on offer, the opening model (an open-construction question
+  // never opens on a valid answer) and the constraints in the checklist all
+  // come from the shared definitions the grader reads.
+  const allowedFamilies = builderAllowedFamilies(questionData);
+  const initial = initialBuilderModel(questionData);
   const [model, setModel] = usePersistentToolState('model', initial);
   const [hasEdited, setHasEdited] = usePersistentToolState('hasEdited', false);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
-  const effectiveConstraints = useMemo(() => {
-    const prompt = String(questionData.prompt || '');
-    const match = prompt.match(/\bquadrant\s*(iv|iii|ii|i|4|3|2|1)\b/i);
-    const quadrant = match
-      ? ({ '1': 'I', i: 'I', '2': 'II', ii: 'II', '3': 'III', iii: 'III', '4': 'IV', iv: 'IV' })[match[1].toLowerCase()]
-      : null;
-    const namesExactPoint = /\(\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\)/.test(prompt);
-    return (Array.isArray(questionData.constraints) ? questionData.constraints : []).map((constraint) => (
-      constraint?.kind === 'vertex' && quadrant && !namesExactPoint
-        ? { ...constraint, kind: 'vertexQuadrant', value: quadrant, label: constraint.label || `Vertex in Quadrant ${quadrant}` }
-        : constraint
-    ));
-  }, [questionData.constraints, questionData.prompt]);
+  // The checklist reads the AUTHORED wording, exactly as the grader does: a
+  // translated prompt never changes which constraints are checked.
+  const effectiveConstraints = useMemo(
+    () => effectiveBuilderConstraints({
+      prompt: questionData.prompt,
+      authoredPrompt: questionData.authoredPrompt,
+      constraints: questionData.constraints,
+    }),
+    [questionData.constraints, questionData.prompt, questionData.authoredPrompt],
+  );
   const bounds = questionData.graph || { xMin: -8, xMax: 8, yMin: -8, yMax: 8 };
   const discreteXs = useMemo(() => {
     const low = Math.ceil(Math.min(model.domainMin, model.domainMax));
@@ -101,14 +99,15 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
     setHasEdited(true);
     setModel((current) => normalizeBuilderModel({ ...current, ...patch }));
   };
+  // The student's work, exactly as the shared grader reads it. `hasEdited` is
+  // part of it: the builder never submits an untouched model, and a deadline
+  // must not either.
+  const work = useMemo(() => ({ model, hasEdited, equation: builderEquation(model) }), [model, hasEdited]);
+  useReportToolWork(work);
   const check = () => {
     if (!hasEdited) return;
-    const result = scoreConstraintModel(model, effectiveConstraints);
-    submit(
-      { isCorrect: result.isCorrect, score: result.score },
-      { model, equation: builderEquation(model) },
-      { parts: result.parts.map((part) => ({ id: part.id, label: part.label, isComplete: true, isCorrect: part.isCorrect })) },
-    );
+    const result = gradeToolCheck(constraintFunctionGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'default', parts: result.parts });
   };
 
   const workspaceCapabilities = {

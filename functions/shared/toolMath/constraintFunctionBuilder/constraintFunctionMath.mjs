@@ -161,6 +161,82 @@ export const scoreConstraintModel = (model, constraints = []) => {
   return { isCorrect: parts.length > 0 && correctCount === parts.length, score: parts.length ? correctCount / parts.length : 0, parts };
 };
 
+/*
+ * WHAT THE BUILDER'S SCREEN IS SET UP WITH, READ FROM THE QUESTION.
+ *
+ * One definition, used by ConstraintFunctionBuilder.jsx to set up the screen
+ * and by the shared grader (serverGrading/tools/constraintFunctionBuilder.mjs)
+ * to mark the work, so the families on offer, the starting model and the
+ * constraints being checked cannot mean one thing on the screen and another
+ * in the gradebook.
+ */
+
+/** The families the Family select offers. */
+export const builderAllowedFamilies = (question = {}) => (question?.allowedFamilies || BUILDER_FAMILIES)
+  .filter((family) => BUILDER_FAMILIES.includes(family));
+
+/** The model the builder opens on before the student has made any choice. */
+export const initialBuilderModel = (question = {}) => {
+  const allowedFamilies = builderAllowedFamilies(question);
+  const hasAuthoredInitialModel = question?.initialModel && typeof question.initialModel === 'object';
+  return normalizeBuilderModel({
+    family: allowedFamilies[0] || 'linear',
+    // An open-construction question must not open on a fully valid answer.
+    // A zero leading coefficient intentionally collapses linear/quadratic/
+    // absolute/exponential defaults until the student actually constructs one.
+    ...(hasAuthoredInitialModel ? question.initialModel : { a: 0, h: 0, k: 0 }),
+  });
+};
+
+/**
+ * Can a student actually hold this family in the builder? The Family select
+ * offers only the allowed families; the one other family a model can carry is
+ * the one the builder opens on (an authored `initialModel` may start outside
+ * the offered list).
+ */
+export const builderFamilyIsReachable = (question = {}, family = '') => (
+  builderAllowedFamilies(question).includes(family) || initialBuilderModel(question).family === family
+);
+
+/*
+ * The wording the constraints are read from: always the AUTHORED prompt.
+ *
+ * A translation support replaces `prompt` on the student's device with their
+ * language and keeps the authored text beside it as `authoredPrompt`
+ * (src/studentSupport.js); the server only ever holds the authored text. A
+ * Spanish "cuadrante IV" would not match the rewrite below, so reading the
+ * translation would mark a translated student differently from the server and
+ * from an English-reading classmate. An `authoredPrompt` that is present but
+ * null (the authored question had no prompt) still wins: the translation is
+ * never the wording that is graded.
+ */
+export const builderGradingPrompt = (question = {}) => String(
+  (question?.authoredPrompt !== undefined ? question.authoredPrompt : question?.prompt) || '',
+);
+
+/*
+ * The constraints the question actually checks.
+ *
+ * The authored list, with one legacy rewrite: a `vertex` constraint on a task
+ * that only says "the vertex is in Quadrant IV" (and names no coordinate pair)
+ * is checked as the quadrant, not as a hidden exact point the prompt never
+ * gave the student. Questions compiled by Authoring V5 already carry the
+ * rewritten constraint; this keeps older questions marked the same way.
+ */
+export const effectiveBuilderConstraints = (question = {}) => {
+  const prompt = builderGradingPrompt(question);
+  const match = prompt.match(/\bquadrant\s*(iv|iii|ii|i|4|3|2|1)\b/i);
+  const quadrant = match
+    ? ({ '1': 'I', i: 'I', '2': 'II', ii: 'II', '3': 'III', iii: 'III', '4': 'IV', iv: 'IV' })[match[1].toLowerCase()]
+    : null;
+  const namesExactPoint = /\(\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?\s*\)/.test(prompt);
+  return (Array.isArray(question?.constraints) ? question.constraints : []).map((constraint) => (
+    constraint?.kind === 'vertex' && quadrant && !namesExactPoint
+      ? { ...constraint, kind: 'vertexQuadrant', value: quadrant, label: constraint.label || `Vertex in Quadrant ${quadrant}` }
+      : constraint
+  ));
+};
+
 export const validateConstraintBuilderQuestion = (question = {}) => {
   const errors = [];
   const constraints = Array.isArray(question.constraints) ? question.constraints : [];

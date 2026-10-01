@@ -99,3 +99,50 @@ export const restrictionDescription = (spec = {}) => {
   if (spec.inverseBranch === 'right' || Number(spec.domain?.min) === h) return `Restrict the original domain to x ≥ ${h}.`;
   return 'A quadratic must be restricted to one side of its vertex before its inverse is a function.';
 };
+
+/*
+ * WHAT THE LAB'S SCREEN IS SET UP WITH, READ FROM THE QUESTION.
+ *
+ * One definition, used by InverseCompositionLab.jsx / InverseDerivationLab.jsx
+ * to set up the screen and by the shared grader
+ * (serverGrading/tools/inverseCompositionLab.mjs) to mark the work, so the
+ * functions, the input x and the parts a mode asks for cannot mean one thing
+ * on the screen and another in the gradebook.
+ */
+
+/** The functions the lab shows when the question does not author f or g. */
+export const DEFAULT_INVERSE_LAB_F = Object.freeze({ type: 'linear', a: 2, h: 0, k: 3 });
+export const DEFAULT_INVERSE_LAB_G = Object.freeze({ type: 'linear', a: -1, h: 0, k: 4 });
+
+export const inverseLabFunctions = (question = {}) => ({
+  f: question?.f || DEFAULT_INVERSE_LAB_F,
+  g: question?.g || DEFAULT_INVERSE_LAB_G,
+});
+
+/** The input x the lab opens on. */
+export const inverseLabInitialX = (question = {}) => question?.x ?? 2;
+
+/** An authored x is the given input — the student cannot change it — unless the question allows it. */
+export const inverseLabInputLocked = (question = {}) => question?.x !== undefined && question?.allowInputChange !== true;
+
+/** The restriction choice that makes f one-to-one ('none' for anything but a quadratic). */
+export const expectedInverseRestriction = (f = {}) => {
+  if (f.type !== 'quadratic') return 'none';
+  const h = Number(f.h ?? 0);
+  if (f.inverseBranch === 'left' || Number(f.domain?.max) === h) return 'left';
+  if (f.inverseBranch === 'right' || Number(f.domain?.min) === h) return 'right';
+  return 'required';
+};
+
+/** Every value the restriction select can hold. */
+export const INVERSE_RESTRICTION_CHOICES = Object.freeze(['none', 'left', 'right', 'required']);
+
+/**
+ * The parts a view asks for and marks, in order. `mode` is the lab's own
+ * reading of the question (`question.mode || 'full'`); anything that is not
+ * composition, inverse or restriction is marked as the full lab.
+ */
+export const inverseLabRequiredParts = (mode, f = {}) => (mode === 'composition' ? ['fog', 'gof']
+  : mode === 'inverse' ? ['inverse']
+    : mode === 'restriction' ? ['restriction', 'inverse']
+      : ['fog', 'gof', 'inverse', ...(f.type === 'quadratic' ? ['restriction'] : [])]);
