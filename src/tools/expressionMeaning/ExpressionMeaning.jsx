@@ -3,7 +3,7 @@ import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ResultPill, TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
-import { choiceBankFor, EXPRESSION_MEANING_DIMENSIONS, nextIncompleteExpressionId, scoreExpressionMeaning } from './expressionMeaningMath.js';
+import { choiceBankFor, EXPRESSION_MEANING_DIMENSIONS, firstIncompleteExpressionId, nextIncompleteExpressionId, scoreExpressionMeaning } from './expressionMeaningMath.js';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid #c9d6e8', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
 
@@ -13,8 +13,12 @@ export default function ExpressionMeaning({ questionData = {}, onAction }) {
   const expressions = useMemo(() => (Array.isArray(questionData.expressions) ? questionData.expressions : []), [questionData.expressions]);
   const [assignments, setAssignments] = usePersistentToolState('assignments', {});
   // Which expression's meaning row is currently open for editing. Selection,
-  // not an answer, so it stays out of the draft/undo history.
-  const [activeId, setActiveId] = useState(expressions[0]?.id || null);
+  // not an answer, so it stays out of the draft/undo history — but it opens
+  // where the restored answers say the student was: the first row still
+  // missing a choice, not row 1 (PQ-028).
+  const [activeId, setActiveId] = useState(() => (
+    firstIncompleteExpressionId(expressions, assignments) || expressions[0]?.id || null
+  ));
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
 
   const mathematicalState = useMemo(() => ({ assignments }), [assignments]);

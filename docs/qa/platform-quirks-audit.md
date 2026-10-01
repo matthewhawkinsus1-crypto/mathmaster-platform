@@ -983,11 +983,27 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   button-shaped chips under the real actions. **Next:** style as a caption
   ("You can: pan and zoom, place and move points") or remove. **Scope:** tiny.
 
-### PQ-028 · Expression Meaning reopens on its first row after a reload — **P3 · DEFERRED**
+### PQ-028 · Expression Meaning reopens on its first row after a reload — **P3 · FIXED**
 
 - The work restores exactly (PQ-006), but the row being edited is not persisted
   by design, so a student mid-way through row 3 comes back to row 1. **Next:**
   open on the first incomplete row. **Scope:** tiny.
+- **Reproduced** (1366×768, real wrappers): rows 1–2 complete and row 3 begun;
+  after a reload the open row was **"15" (row 1)**, and the same after leaving
+  for another question and coming back.
+- **Fixed:** the open row is still a selection and still not saved; it is now
+  *derived* from the restored answers when the tool opens — the first row, in
+  matrix order, with a choice still empty (`firstIncompleteExpressionId`),
+  falling back to row 1 when every row is done or there is no work. After: the
+  same journey reopens on **"(t − 3)" (row 3)** after a reload and after
+  navigating back; a fresh question still opens on row 1. Nothing new is
+  persisted.
+- **Tests:** `expressionMeaningAdvance.test.mjs` (the helper — no work, mid-row,
+  an earlier gap, all done, a blank choice; and the open-row state is derived
+  from the restored answers — three mutations, all red);
+  `toolDraftSyncSweep.mjs`'s Expression Meaning reload journey now also
+  requires the half-done row to reopen (with the old initializer it reports
+  "reopened on row 1 of 3").
 
 ### PQ-029 · Regression Calculator's button says "Submit workflow" — **P3 · FIXED (Systems Workspace titles left to its owner)**
 
