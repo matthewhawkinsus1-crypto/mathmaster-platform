@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { challengeCanAdvance } from '../../functions/shared/liveChallenge.mjs';
+import { challengeCanAdvance, roundCompressionMayApply } from '../../functions/shared/liveChallenge.mjs';
 import { MATCH_STATE, planLifecycleCommand } from '../../functions/shared/liveChallengeLifecycle.mjs';
 import { buildRoundTimer } from '../../functions/shared/liveChallengeTimer.mjs';
 import { challengeClock, roundCloseDue } from '../../src/platform/liveChallenge/challengeShellModel.js';
@@ -35,7 +35,32 @@ test('the configured joined-student threshold compresses any longer timer to fiv
   assert.match(block, /Date\.now\(\) \+ 5000/);
   assert.match(block, /currentEndsAtMs <= targetEndsAtMs/);
   assert.match(block, /roundCompressionReason:\s*`\$\{decision\.threshold\}-percent-answered`/);
-  assert.match(block, /if \(latestRoom\.closingStartedAt\) return/);
+  // Once: a room already closing is refused, and the one write is conditional
+  // on the room as read (the answers that cross together do not all write).
+  assert.match(block, /if \(!challenge\.roundCompressionMayApply\(roomAtCount, Date\.now\(\)\)\) return/);
+  assert.match(block, /\{ lastUpdateTime: roomSnapshot\.updateTime \}/);
+});
+
+/*
+ * ONLY AN ANSWER THAT COULD START THE CLOSING COUNTDOWN COUNTS THE CLASS. The
+ * student's feedback waits on this check, and it used to run — two count
+ * queries and a transaction on the room every answer in flight reads — for
+ * every answer: 20 answers at once took 2.4-3.9 s with the threshold on.
+ */
+test('the closing check runs only when an answer could start the closing countdown', () => {
+  const now = 1_700_000_000_000;
+  const timed = { roundClosingThreshold: 70, timingMode: 'timed', endsAt: new Date(now + 30_000) };
+  assert.equal(roundCompressionMayApply(timed, now), true);
+  assert.equal(roundCompressionMayApply({ ...timed, roundClosingThreshold: null }, now), false, 'threshold off');
+  assert.equal(roundCompressionMayApply({ ...timed, closingStartedAt: new Date(now - 1_000) }, now), false, 'already closing');
+  assert.equal(roundCompressionMayApply({ ...timed, endsAt: new Date(now + 4_000) }, now), false, 'nothing left to shorten');
+  assert.equal(roundCompressionMayApply({ roundClosingThreshold: 70, timingMode: 'pace' }, now), true, 'a Pace Race gets its first deadline');
+  // A room created before thresholds were stored keeps the platform default.
+  assert.equal(roundCompressionMayApply({ endsAt: new Date(now + 30_000) }, now), true);
+  // The submit path asks before counting, from the room its own transaction read.
+  const submit = server.slice(server.indexOf('exports.submitLiveChallengeResponse'), server.indexOf('// Phase 5D'));
+  assert.match(submit, /roomAtSubmit = latestRoom;/);
+  assert.match(submit, /if \(challenge\.roundCompressionMayApply\(roomAtSubmit, Date\.now\(\)\)\) \{\s*await maybeCompressLiveChallengeRoundAfterThreshold\(/);
 });
 
 test('round compression is best-effort after the authoritative score write', () => {

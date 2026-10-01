@@ -11573,28 +11573,34 @@ async function maybeCompressLiveChallengeRoundAfterThreshold(db, { roomRef, roun
   const decision = challenge.roundClosingDecision({ joinedCount, answeredCount, threshold: roomAtCount.roundClosingThreshold });
   const { thresholdCount } = decision;
   if (!decision.shouldClose) return { compressed: false, ...decision };
+  // Already closing (another answer got there first), or nothing left to
+  // shorten: answer from this read, without a transaction on the room.
+  if (!challenge.roundCompressionMayApply(roomAtCount, Date.now())) return { compressed: false, ...decision };
 
+  // ONE WRITER, NO TRANSACTION. Every answer that crossed the threshold at the
+  // same instant reaches this point, and each used to open a read-then-write
+  // transaction on the room: they aborted one another and retried with
+  // backoff, and the class waited 2-4 s for its feedback. The write is instead
+  // conditional on the room being exactly as read above — the same atomicity,
+  // checked by Firestore — so the first answer shortens the clock and every
+  // other one is refused at once (the room has changed) and moves on.
+  if (
+    !roomSnapshot.exists
+    || roomAtCount.status !== "running"
+    // A closed round's clock is over; nothing is left to compress.
+    || roomAtCount.roundState === "closed"
+    || Number(roomAtCount.currentRound) !== Number(roundIndex)
+    || Number(roomAtCount.roundVersion || 0) !== Number(roundVersion || 0)
+  ) return { compressed: false, answeredCount, joinedCount, thresholdCount };
   const targetEndsAtMs = Date.now() + 5000;
+  const currentEndsAtMs = toDate(roomAtCount.endsAt || roomAtCount.roundEndsAt)?.getTime() || 0;
+  const paceMode = challenge.normalizeChallengeTimingMode(roomAtCount.timingMode) === "pace";
+  if (!paceMode && (!currentEndsAtMs || currentEndsAtMs <= targetEndsAtMs)) return { compressed: false, answeredCount, joinedCount, thresholdCount };
+
+  const shortenedEndsAt = new Date(targetEndsAtMs);
   let compressed = false;
-  await db.runTransaction(async (transaction) => {
-    const latestRoomSnapshot = await transaction.get(roomRef);
-    if (!latestRoomSnapshot.exists) return;
-    const latestRoom = latestRoomSnapshot.data() || {};
-    if (
-      latestRoom.status !== "running"
-      // A closed round's clock is over; nothing is left to compress.
-      || latestRoom.roundState === "closed"
-      || Number(latestRoom.currentRound) !== Number(roundIndex)
-      || Number(latestRoom.roundVersion || 0) !== Number(roundVersion || 0)
-    ) return;
-
-    if (latestRoom.closingStartedAt) return;
-    const currentEndsAtMs = toDate(latestRoom.endsAt || latestRoom.roundEndsAt)?.getTime() || 0;
-    const paceMode = challenge.normalizeChallengeTimingMode(latestRoom.timingMode) === "pace";
-    if (!paceMode && (!currentEndsAtMs || currentEndsAtMs <= targetEndsAtMs)) return;
-
-    const shortenedEndsAt = new Date(targetEndsAtMs);
-    transaction.set(roomRef, {
+  try {
+    await roomRef.update({
       endsAt: shortenedEndsAt,
       roundEndsAt: shortenedEndsAt,
       roundCompressionReason: `${decision.threshold}-percent-answered`,
@@ -11602,9 +11608,13 @@ async function maybeCompressLiveChallengeRoundAfterThreshold(db, { roomRef, roun
       closingStartedAt: FieldValue.serverTimestamp(),
       roundCompressedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
+    }, { lastUpdateTime: roomSnapshot.updateTime });
     compressed = true;
-  });
+  } catch (error) {
+    // FAILED_PRECONDITION: the room changed since it was read — another answer
+    // already started the closing countdown, or the round moved on.
+    if (error?.code !== 9 && !/FAILED_PRECONDITION|precondition/i.test(String(error?.message || ""))) throw error;
+  }
 
   return { compressed, answeredCount, joinedCount, thresholdCount };
 }
@@ -11716,12 +11726,15 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   let finalScore = null;
   let duplicateReceipt = null;
   let scoringStrategyId = null;
+  // The room as the committing attempt read it: what the pacing check below needs.
+  let roomAtSubmit = null;
   await db.runTransaction(async (transaction) => {
     const [latestRoomSnapshot, latestPlayerSnapshot] = await Promise.all([
       transaction.get(roomRef), transaction.get(privatePlayerRef),
     ]);
     if (!latestRoomSnapshot.exists || !latestPlayerSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge ended before the response could be saved.");
     const latestRoom = latestRoomSnapshot.data() || {};
+    roomAtSubmit = latestRoom;
     const player = latestPlayerSnapshot.data() || {};
     if (player.submissionReceipts?.[submissionId]) {
       duplicateReceipt = player.submissionReceipts[submissionId];
@@ -11896,19 +11909,24 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
 
   if (duplicateReceipt) return { ...duplicateReceipt, duplicate: true };
 
-  // Classroom pacing: once 80% of the students who actually joined this round
-  // have answered, any longer remaining timer is compressed to five seconds.
-  // This happens after the authoritative score write, and failures here never
-  // invalidate a student's accepted answer.
-  await maybeCompressLiveChallengeRoundAfterThreshold(db, {
-    roomRef,
-    roundIndex: submittedRound,
-    roundVersion: submittedVersion,
-  }).catch((error) => logger.error("liveChallenge.roundCompression.failed", {
-    roomId,
-    roundIndex: submittedRound,
-    message: error?.message || String(error),
-  }));
+  // Classroom pacing: once the room's threshold of the students who actually
+  // joined this round have answered, any longer remaining timer is compressed
+  // to five seconds. This happens after the authoritative score write, and
+  // failures here never invalidate a student's accepted answer. Only an answer
+  // that could cross the threshold counts the class (roundCompressionMayApply):
+  // the student's feedback waits on this, and the room is the class's hot
+  // document.
+  if (challenge.roundCompressionMayApply(roomAtSubmit, Date.now())) {
+    await maybeCompressLiveChallengeRoundAfterThreshold(db, {
+      roomRef,
+      roundIndex: submittedRound,
+      roundVersion: submittedVersion,
+    }).catch((error) => logger.error("liveChallenge.roundCompression.failed", {
+      roomId,
+      roundIndex: submittedRound,
+      message: error?.message || String(error),
+    }));
+  }
 
   return {
     isCorrect: grading?.isCorrect === true,
