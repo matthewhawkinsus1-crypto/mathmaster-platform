@@ -102,3 +102,16 @@ test('batch A schemas reject unsafe mode/base/quadratic definitions', () => {
   assert.equal(validateToolQuestion({toolId:'systemsWorkspace',mode:'linearQuadratic',linearQuadratic:{quadratic:{a:0}},masteryEvidenceKeys:['texas:A.5C']}).isValid,false);
   assert.equal(validateToolQuestion({toolId:'inverseCompositionLab',f:{type:'exponential',base:1},masteryEvidenceKeys:['texas:2A.2A']}).isValid,false);
 });
+
+// Platform quirks audit: the Inverse & Composition lab printed
+// "f(x) = 1(x − 2)² − 1" and "g(x) = -1x + 4".
+test('function labels are written the way a student writes them', async () => {
+  const { functionLabel } = await import('../../src/tools/inverseComposition/inverseCompositionMath.js');
+  assert.equal(functionLabel({ type: 'quadratic', a: 1, h: 2, k: -1 }), 'f(x) = (x − 2)² − 1');
+  assert.equal(functionLabel({ type: 'linear', a: -1, h: 0, k: 4 }, 'g'), 'g(x) = −x + 4');
+  assert.equal(functionLabel({ type: 'linear', a: 2, h: 0, k: 1 }), 'f(x) = 2x + 1');
+  assert.equal(functionLabel({ type: 'exponential', a: 1, base: 2 }), 'f(x) = 2^x');
+  assert.equal(functionLabel({ type: 'exponential', a: 3, base: 2, h: 1 }), 'f(x) = 3·2^(x − 1)');
+  assert.equal(functionLabel({ type: 'logarithmic', a: -1, base: 3 }), 'f(x) = −log_3(x)');
+  assert.equal(functionLabel({ type: 'squareRoot', a: -2, h: 3, k: 1 }), 'f(x) = −2√(x − 3) + 1');
+});

@@ -31,22 +31,20 @@
  *      there. A finished answer is never edited by a key meant for another box.
  */
 
-const SINK_SELECTOR = '[part="keyboard-sink"], .ML__keyboard-sink';
+// The MathLive internals this relies on (the sink, hasFocus) live in
+// mathLiveCompat.js, the one place a MathLive upgrade has to be checked.
+import {
+  mathFieldHasFocus as mathLiveHasFocus,
+  mathFieldKeyboardSink,
+  reportMathLiveCompatProblem,
+} from '../math/mathLiveCompat.js';
+
+export { mathFieldKeyboardSink };
 
 const deepActiveElement = (documentObject = typeof document !== 'undefined' ? document : null) => {
   let active = documentObject?.activeElement || null;
   while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement;
   return active;
-};
-
-export const mathFieldKeyboardSink = (mathField) => mathField?.shadowRoot?.querySelector?.(SINK_SELECTOR) || null;
-
-const mathLiveHasFocus = (mathField) => {
-  try {
-    return Boolean(mathField?.hasFocus?.());
-  } catch {
-    return false;
-  }
 };
 
 /**
@@ -88,7 +86,15 @@ const PRINTABLE = (event) => event.key && event.key.length === 1 && !event.ctrlK
 export const bindMathFieldFocusHandoff = (mathField, { documentObject = typeof document !== 'undefined' ? document : null } = {}) => {
   if (!mathField?.addEventListener) return () => {};
 
+  let compatChecked = false;
   const handOver = () => {
+    // The first real press is when the field is certainly upgraded, so it is
+    // where a MathLive upgrade that removed the sink or hasFocus() is reported
+    // (development and test builds only; see mathLiveCompat.js).
+    if (!compatChecked) {
+      compatChecked = true;
+      reportMathLiveCompatProblem(mathField);
+    }
     if (!mathLiveHasFocus(mathField)) return;
     const sink = mathFieldKeyboardSink(mathField);
     if (!sink || deepActiveElement(documentObject) === sink) return;

@@ -94,6 +94,51 @@ const workOnce = async () => {
   }
 };
 
+// TOOLS WHOSE WORK IS A CHOICE, NOT A TYPED VALUE OR A CHECK.
+//
+// The generic student above types, selects, taps planes and presses commit
+// buttons. Signs and Solutions records which sign-chart intervals are chosen,
+// and Expression Meaning which unit / meaning / role is chosen for each
+// expression — both are aria-pressed choice buttons, which the generic pass
+// never presses, so until the platform quirks audit both tools were "swept"
+// with zero records (their persisted state was never produced at runtime).
+// Each journey leaves a realistic record: partly done, checked or submitted,
+// then edited again. The record is then reloaded and must come back.
+// What the student can see of their choices: the summary table when the tool
+// has one (Expression Meaning reopens on its first row, so which option
+// buttons are pressed depends on the row, not the work), else the pressed
+// choice buttons.
+const visibleChoices = () => page.evaluate(() => {
+  const cells = [...document.querySelectorAll('[data-audit-root] table td')].map((cell) => cell.textContent.trim());
+  if (cells.length) return cells.join(' | ');
+  return String(document.querySelectorAll('[data-audit-root] button[aria-pressed="true"]').length);
+});
+const TARGETED = {
+  signSolutionAnalyzer: async () => {
+    const choices = page.locator('[data-audit-root] button[aria-pressed]');
+    const count = await choices.count();
+    await choices.nth(0).click();
+    if (count > 2) await choices.nth(2).click();
+    await page.getByRole('button', { name: /^Check/ }).first().click();
+    // An edit after the check: the record is the live selection, not the verdict.
+    if (count > 3) await choices.nth(3).click();
+  },
+  expressionMeaning: async () => {
+    const rows = page.locator('[data-audit-root] button[aria-label^="Edit the meaning of"]');
+    const rowCount = await rows.count();
+    for (let row = 0; row < rowCount; row += 1) {
+      await rows.nth(row).click();
+      const groups = page.locator('[data-audit-root] [role="group"]');
+      const groupCount = await groups.count();
+      // The last expression is left half done, like a student mid-task.
+      const answer = row === rowCount - 1 ? Math.min(1, groupCount) : groupCount;
+      for (let group = 0; group < answer; group += 1) {
+        await groups.nth(group).locator('button').nth(row % 2).click();
+      }
+    }
+  },
+};
+
 const toolIds = ONLY.length ? ONLY : draftBackedToolIds();
 const tools = [];
 const findings = [];
@@ -108,10 +153,35 @@ for (const toolId of toolIds) {
     await page.waitForFunction(() => document.querySelector('[data-audit-root]')?.children.length > 0, null, { timeout: 60000 });
     await page.waitForTimeout(1200);
     row.mounted = !(await page.locator('[data-audit-error]').count());
-    await workOnce();
-    await page.waitForTimeout(400);
-    await workOnce();
-    await page.waitForTimeout(600);
+    if (TARGETED[toolId]) {
+      row.journey = 'targeted';
+      await TARGETED[toolId]();
+      await page.waitForTimeout(600);
+      // Reload: the chosen work has to come back from the draft, unchanged.
+      const readRecords = () => page.evaluate(() => Object.keys(window.localStorage)
+        .filter((key) => key.startsWith(window.__TOOL_DRAFT_KEY__))
+        .sort()
+        .map((key) => window.localStorage.getItem(key)));
+      const beforeReload = await readRecords();
+      const shownBefore = await visibleChoices();
+      await page.reload({ timeout: 120000 });
+      await page.waitForFunction(() => document.querySelector('[data-audit-root]')?.children.length > 0, null, { timeout: 60000 });
+      await page.waitForTimeout(1200);
+      const afterReload = await readRecords();
+      const shownAfter = await visibleChoices();
+      const values = (records) => records.map((raw) => JSON.stringify(JSON.parse(raw)?.value));
+      row.restoredAfterReload = beforeReload.length > 0
+        && JSON.stringify(values(beforeReload)) === JSON.stringify(values(afterReload))
+        && shownAfter === shownBefore;
+      if (!row.restoredAfterReload) {
+        findings.push({ toolId, key: null, detail: `targeted journey: work did not come back after reload (records ${beforeReload.length} -> ${afterReload.length}; shown "${shownBefore}" -> "${shownAfter}")` });
+      }
+    } else {
+      await workOnce();
+      await page.waitForTimeout(400);
+      await workOnce();
+      await page.waitForTimeout(600);
+    }
     const stored = await page.evaluate(() => {
       const prefix = window.__TOOL_DRAFT_KEY__;
       const out = [];
@@ -144,7 +214,10 @@ for (const toolId of toolIds) {
   }
   page.off('console', onConsole);
   tools.push(row);
-  console.log(`${toolId.padEnd(28)} mounted=${row.mounted} records=${row.records} largest=${row.largestRecordBytes}B fields=${row.persistedFields.length}`);
+  if (row.mounted && !row.records && !findings.some((finding) => finding.toolId === toolId)) {
+    findings.push({ toolId, key: null, detail: 'the sweep produced no stored record for this tool, so its runtime state was never checked against the sanitizer' });
+  }
+  console.log(`${toolId.padEnd(28)} mounted=${row.mounted} records=${row.records} largest=${row.largestRecordBytes}B fields=${row.persistedFields.length}${row.journey ? ` journey=${row.journey} restored=${row.restoredAfterReload}` : ''}`);
 }
 
 await browser.close();

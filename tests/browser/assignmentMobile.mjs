@@ -308,6 +308,13 @@ const ENLARGE = () => {
       })(),
       hasResponseControls: controls.length > 0,
       hasClose: [...modal.querySelectorAll('button')].filter(visible).some((el) => /close/i.test(el.textContent || '')),
+      // The student enlarged the work, not the question away: what they were
+      // asked has to stay on screen with the graph.
+      taskOnScreen: (() => {
+        const task = modal.querySelector('[aria-label="Your task"]');
+        const r = task?.getBoundingClientRect();
+        return Boolean(r && r.height > 0 && r.top >= 0 && r.top < window.innerHeight);
+      })(),
     });
   }, 350));
 };
@@ -371,6 +378,7 @@ for (const device of DEVICES) {
           problems.push({ rule: 'enlarge', detail: 'the enlarged workspace has no way to answer, so it has to be closed again' });
         }
         if (!enlarge.hasClose) problems.push({ rule: 'enlarge', detail: 'no reachable way out of the enlarged workspace' });
+        if (!enlarge.taskOnScreen) problems.push({ rule: 'enlarge', detail: 'the task is not on screen in the enlarged workspace' });
       }
       if (!m.zoomControls && !m.exactEntry) {
         problems.push({

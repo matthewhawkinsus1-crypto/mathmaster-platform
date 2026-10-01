@@ -67,6 +67,7 @@ import { WorkViewUndoProvider } from './platform/workView/useMathUndoHistory.js'
 import { QuestionLifecycleProvider } from './platform/question/QuestionLifecycleContext.jsx';
 import UniversalUndoButton from './components/common/UniversalUndoButton.jsx';
 import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
+import CalculatorIcon from './components/common/CalculatorIcon.jsx';
 import { startPerformanceSpan } from './platform/performance/performanceTelemetry.js';
 import { useRenderPerformance } from './platform/performance/useRenderPerformance.js';
 
@@ -1179,7 +1180,11 @@ export default function QuestionEngine({
       title: 'Open the scratchpad without covering the solver controls',
     },
     calculator: {
-      label: calculatorPolicy?.available ? '🧮 Calculator' : '🚫 🧮 Calculator',
+      id: 'calculator',
+      label: 'Calculator',
+      // Drawn, not an emoji: 🧮 is a box on devices without a Unicode 11 emoji
+      // font (CalculatorIcon.jsx). The Work View rail renders `icon` before the label.
+      icon: <CalculatorIcon unavailable={!calculatorPolicy?.available} />,
       onClick: handleCalculatorControl,
       disabled: false,
       title: calculatorPolicy?.available ? 'Open the calculator' : calculatorUnavailableReason,
@@ -1255,8 +1260,8 @@ export default function QuestionEngine({
         }}
       >
         {calculatorPolicy?.available
-          ? <><span aria-hidden="true">🧮</span><span className="mathmaster-action-label"> Calculator</span></>
-          : <><span aria-hidden="true">🚫 🧮</span><span className="mathmaster-action-label"> Calculator</span></>}
+          ? <><CalculatorIcon /><span className="mathmaster-action-label"> Calculator</span></>
+          : <><CalculatorIcon unavailable /><span className="mathmaster-action-label"> Calculator</span></>}
       </button>
       {supportPresentation.textToSpeech && (
         <button type="button" className="mathmaster-work-bar-tool" aria-label="Read aloud" onClick={() => speakText(referenceSpeechText)} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}><span aria-hidden="true">🔊</span><span className="mathmaster-action-label"> Read</span></button>
@@ -1554,8 +1559,12 @@ export default function QuestionEngine({
         </div>
       )}
 
+      {/* role="status": the attempt outcome ("Not quite. You have 2 attempts
+          remaining") was the one grading message a screen reader never heard —
+          only the Correct overlay was a live region (platform quirks audit).
+          Rendered only when outcome feedback is allowed, so a DOL stays silent. */}
       {feedback && !feedback.blocked && showOutcomeFeedback && (
-        <div style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', backgroundColor: feedback.isCorrect ? '#e6f4ea' : '#fce8e6', color: feedback.isCorrect ? '#137333' : '#c5221f', fontSize: '16px', fontWeight: 'bold' }}>
+        <div role="status" style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', backgroundColor: feedback.isCorrect ? '#e6f4ea' : '#fce8e6', color: feedback.isCorrect ? '#137333' : '#c5221f', fontSize: '16px', fontWeight: 'bold' }}>
           {feedback.message || (feedback.isCorrect
             ? 'Correct! This question is complete.'
             : isExpired

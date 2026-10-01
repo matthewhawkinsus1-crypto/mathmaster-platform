@@ -306,11 +306,33 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
     );
   };
 
+  // WIDE WHEN IT SAVES A ROW (platform quirks audit). The full lab is six
+  // panels: in the standard 1180px shell that is three rows of two, and at
+  // 1920x1080 or a Chromebook zoomed to ~67% the wide shell makes it two rows
+  // of three — the tool 1715px -> 1313px tall, panels still ~450px wide. With
+  // only two panels wide would just stretch each line to ~700px, so those
+  // modes keep the standard width.
+  // The steppers show a value to their step's precision ("1.13"), but their
+  // starting value sits a whole number of steps from the regression line and
+  // is NOT on that grid, so "Your model" printed y = 1.12571428571x −
+  // 0.128571428571 under a stepper reading 1.13 — two different slopes on one
+  // screen (platform quirks audit). Shown at the steppers' precision; the
+  // model, residuals and grading still use the exact value.
+  const steppersDriveModel = exploratoryLineFit;
+  const shownSlope = steppersDriveModel ? Number(m).toFixed(decimalsForStep(fitControls.slope.step)) : m;
+  const shownInterceptMagnitude = steppersDriveModel
+    ? Math.abs(Number(b)).toFixed(decimalsForStep(fitControls.intercept.step))
+    : Math.abs(Number(b));
+
+  const visiblePanelCount = [true, showAssociationPanel, showResidualPanel, showModelComparePanel, showPredictionPanel]
+    .filter(Boolean).length + 1;
+
   return (
     <ToolShell
       title="Data Modeling Lab"
       subtitle="Build a model, inspect residuals, compare functions, and make defensible predictions without confusing association with causation."
       badge="Algebra I / II · Data Modeling"
+      widthProfile={visiblePanelCount >= 3 ? 'wide' : 'standard'}
     >
       <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.full} steps={MODE_STEPS[mode] || MODE_STEPS.full} />
       <ToolGrid min={350}>
@@ -416,7 +438,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                       ? <>y = {exponentialA}({exponentialBase})^x</>
                       : mode === 'squareRootFitPrediction'
                         ? <>y = {squareRootA}√(x − {squareRootH}) {Number(squareRootK) >= 0 ? '+' : '−'} {Math.abs(Number(squareRootK))}</>
-                        : <>y = {m}x {Number(b) >= 0 ? '+' : '−'} {Math.abs(Number(b))}</>}
+                        : <>y = {shownSlope}x {Number(b) >= 0 ? '+' : '−'} {shownInterceptMagnitude}</>}
                   <br/><span style={{ fontSize:13 }}>Current MAE: {Number.isFinite(studentMetrics.mae) ? round(studentMetrics.mae, 2) : '—'} · RMSE: {Number.isFinite(studentMetrics.rmse) ? round(studentMetrics.rmse, 2) : '—'}</span>
                 </div>
               ) : (

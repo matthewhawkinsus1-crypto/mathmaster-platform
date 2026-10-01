@@ -223,4 +223,13 @@ test('the browser sweep found no refused tool record, and covered every draft-ba
   const swept = new Set(fixture.tools.filter((tool) => tool.mounted).map((tool) => tool.toolId));
   const missing = draftBackedToolIds().filter((toolId) => !swept.has(toolId));
   assert.deepEqual(missing, [], 'rerun tests/browser/toolDraftSyncSweep.mjs --write after adding a tool');
+  // Mounting is not coverage. Signs and Solutions and Expression Meaning were
+  // "swept" with zero records until the platform quirks audit gave them
+  // targeted journeys: their stored state had never met the real sanitizer.
+  const unrecorded = fixture.tools.filter((tool) => tool.mounted && !(tool.records > 0)).map((tool) => tool.toolId);
+  assert.deepEqual(unrecorded, [], 'every draft-backed tool must leave at least one real record for the sanitizer');
+  const unrestored = fixture.tools.filter((tool) => tool.journey === 'targeted' && tool.restoredAfterReload !== true).map((tool) => tool.toolId);
+  assert.deepEqual(unrestored, [], 'a targeted journey\'s work must come back after reload');
+  const targeted = fixture.tools.filter((tool) => tool.journey === 'targeted').map((tool) => tool.toolId).sort();
+  assert.deepEqual(targeted, ['expressionMeaning', 'signSolutionAnalyzer']);
 });

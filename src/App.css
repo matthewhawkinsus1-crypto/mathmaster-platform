@@ -527,8 +527,10 @@
    a 664px phone, so the student presses "enlarge graph" and gets a list, with
    the graph they asked for below the fold of the panel they just opened.
    The controls stay in the panel, one scroll below, so nobody has to close it
-   to answer. */
-@media (max-width: 700px) {
+   to answer.
+   Portrait only. A phone on its side (667x375) keeps the two-column grid, and
+   putting the graph first there moved it into the 220px sidebar column. */
+@media (max-width: 700px) and (orientation: portrait) {
   [data-enlarged="true"] .mathmaster-function-workspace-grid {
     display: flex;
     flex-direction: column;

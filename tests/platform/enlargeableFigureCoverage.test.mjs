@@ -23,7 +23,7 @@ test('the shared coordinate plane can be opened full window', () => {
   assert.match(source, /<EnlargeableFigure/);
 });
 
-test('enlarging a plane cannot move where a plotted point lands', () => {
+test('enlarging a plane cannot move where a plotted point lands', async () => {
   // The figure changes the rendered box, not the viewBox. Every click is
   // converted through getBoundingClientRect at event time and normalised by the
   // measured width, so the same press yields the same coordinate at any size.
@@ -33,9 +33,27 @@ test('enlarging a plane cannot move where a plotted point lands', () => {
   assert.match(plane, /getBoundingClientRect\(\)/);
   assert.match(plane, /viewBox=\{`0 0 \$\{width\} \$\{height\}`\}/);
 
-  const mapping = read('src/utils/responsiveCoordinates.js');
-  assert.match(mapping, /\(\(clientX - left\) \/ width\) \* viewBoxWidth/);
-  assert.match(mapping, /\(\(clientY - top\) \/ height\) \* viewBoxHeight/);
+  // The conversion itself, measured rather than read: the same drawn point
+  // maps to the same viewBox point at embedded size, enlarged size, and in a
+  // box the 70dvh cap has letterboxed (the platform quirks audit found the
+  // letterboxed case put a click on (6, 10) at (5.5, 10)).
+  const { clientPointToViewBox } = await import('../../src/utils/responsiveCoordinates.js');
+  const viewBox = { viewBoxWidth: 760, viewBoxHeight: 540 };
+  const drawnAt = (rect, vx, vy) => {
+    const scale = Math.min(rect.width / 760, rect.height / 540);
+    return {
+      clientX: rect.left + (rect.width - 760 * scale) / 2 + vx * scale,
+      clientY: rect.top + (rect.height - 540 * scale) / 2 + vy * scale,
+    };
+  };
+  for (const rect of [
+    { left: 20, top: 300, width: 587, height: 587 * 540 / 760 },
+    { left: 0, top: 60, width: 1300, height: 1300 * 540 / 760 },
+    { left: 100, top: 200, width: 808, height: 528 },
+  ]) {
+    const point = clientPointToViewBox({ ...drawnAt(rect, 612, 118), rect, ...viewBox });
+    assert.ok(Math.abs(point.x - 612) < 1e-9 && Math.abs(point.y - 118) < 1e-9, `${rect.width}x${rect.height}`);
+  }
 });
 
 test('a plane inside another control does not grow a nested button', () => {

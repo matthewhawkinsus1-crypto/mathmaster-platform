@@ -103,6 +103,29 @@ const answerFieldsIn = (scope) => (
 
 const fieldIsEmpty = (element) => String(element?.value ?? '').trim() === '';
 
+/*
+ * PARTS OF AN ANSWER THAT ARE NOT TYPED.
+ *
+ * The single-answer convention (one box, Enter submits) was decided by
+ * counting TYPED boxes in the field's panel. The platform quirks audit drove
+ * every registry tool and found three whose one typed box sits beside answer
+ * parts a student sets another way, where the first Enter spent a graded
+ * attempt before those parts were done:
+ *   Inverse Composition (restriction)  the inverse box beside a restriction
+ *                                      <select> whose default is itself an answer
+ *   Sequence Explorer (compare)        the difference box beside a plane the
+ *                                      student plots both sequences on
+ *   Interval Number Line               the notation box beside the number line
+ *                                      and the exact-endpoint box
+ * A whole-question submit is pressed only when the box is the tool's ONLY
+ * answer control; otherwise Enter brings it into focus, like any multi-part
+ * question.
+ */
+const OTHER_ANSWER_CONTROLS = 'select, textarea, input[type="radio"], input[type="checkbox"], svg[role="application"], [role="radiogroup"], [role="slider"]';
+const otherAnswerControlsIn = (scope) => (
+  scope?.querySelectorAll ? [...scope.querySelectorAll(OTHER_ANSWER_CONTROLS)].filter(shownAndEnabled) : []
+);
+
 /** The next empty answer box after `field` in `scope`, wrapping; null if every box is filled. */
 export const nextEmptyAnswerField = (scope, field) => {
   const fields = answerFieldsIn(scope);
@@ -143,8 +166,11 @@ export const resolveToolEnterAction = ({ field, shell } = {}) => {
   if (!shownAndEnabled(button)) return none;
 
   if (local && enterActionKind(button) === 'card') return { kind: 'press', target: button };
-  const onlyBox = local && answerFieldsIn(localScope).length === 1;
-  return onlyBox ? { kind: 'press', target: button } : { kind: 'focus', target: button };
+  const onlyAnswer = local
+    && answerFieldsIn(localScope).length === 1
+    && answerFieldsIn(shell).length === 1
+    && otherAnswerControlsIn(shell).length === 0;
+  return onlyAnswer ? { kind: 'press', target: button } : { kind: 'focus', target: button };
 };
 
 /**

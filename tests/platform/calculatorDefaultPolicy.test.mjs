@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { ACTIVITY_POLICIES, ACTIVITY_ROLES } from '../../src/platform/policies/activityPolicies.js';
 import { CALCULATOR_MODES, resolveCalculatorPolicy } from '../../src/platform/policies/calculatorPolicy.js';
+import { executableSource } from './helpers/sourceContract.mjs';
 
 test('calculator is available by default for ordinary questions regardless of tool type', () => {
   for (const type of ['algebra', 'fraction', 'numberLine', 'stepAlgebra', 'graphing', 'graphing2', 'stepAlgebra2']) {
@@ -50,9 +51,15 @@ test('student UI keeps a visible prohibited calculator control when calculator u
   const questionEngine = readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
   const calculatorPanel = readFileSync(new URL('../../src/components/CalculatorPanel.jsx', import.meta.url), 'utf8');
 
-  assert.match(questionEngine, /🚫 🧮 Calculator/);
+  // The prohibited state is drawn (CalculatorIcon's strike), not the 🚫 🧮
+  // emoji pair, which is a box on devices without a Unicode 11 emoji font.
+  assert.match(questionEngine, /<CalculatorIcon unavailable \/><span className="mathmaster-action-label"> Calculator<\/span>/);
+  assert.match(questionEngine, /icon: <CalculatorIcon unavailable=\{!calculatorPolicy\?\.available\} \/>/);
   assert.match(questionEngine, /toastInfo\('Calculator unavailable'/);
   assert.match(questionEngine, /aria-disabled=\{!calculatorPolicy\?\.available\}/);
   assert.match(calculatorPanel, /Calculator unavailable/);
-  assert.match(calculatorPanel, /🚫 🧮 Calculator/);
+  assert.match(calculatorPanel, /<CalculatorIcon unavailable \/> Calculator/);
+  const icon = readFileSync(new URL('../../src/components/common/CalculatorIcon.jsx', import.meta.url), 'utf8');
+  assert.match(icon, /\{unavailable \? <line /, 'the unavailable icon carries a strike');
+  assert.doesNotMatch(executableSource(questionEngine + calculatorPanel), /🧮/, 'no emoji-font dependency on the calculator control');
 });

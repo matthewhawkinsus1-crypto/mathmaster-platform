@@ -32,6 +32,12 @@ export const formatProblemForResponse = (field = {}, value = '') => {
   if (format === 'expression' && hasEqualsSign(value) && !keys.some(hasEqualsSign)) {
     return 'Write only the expression, without an equals sign. Leave out the part before "=".';
   }
+  // A number box gets the same protection. "b = 4" in the y-intercept box was
+  // graded wrong and spent a try, and once a slope of -2/3 became a number
+  // (platform quirks audit) "m = -2/3" would have too.
+  if (format === 'number' && hasEqualsSign(value) && !keys.some(hasEqualsSign)) {
+    return 'Write only the number, without an equals sign. Leave out the part before "=".';
+  }
   if (format === 'equation' && !hasEqualsSign(value) && keys.length && keys.every(hasEqualsSign)) {
     return 'Write the full equation, including the equals sign.';
   }

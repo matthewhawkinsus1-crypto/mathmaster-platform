@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { zoomedWindow } from './graphWorkspaceViewport.js';
+import { clientPointToViewBox, viewBoxRenderScale } from './utils/responsiveCoordinates.js';
+import { revealInNearestScroller } from './platform/workView/workViewReveal.js';
 import { majorTicks } from './platform/graph/graphScaleService.js';
 import MathDisplay from './MathDisplay';
 import MathInput from './MathInput';
@@ -671,11 +673,14 @@ export default function InteractiveGraphWorkspace({
   const eventToScreenPoint = (event) => {
     const svg = svgRef.current;
     if (!svg) return null;
-    const rectangle = svg.getBoundingClientRect();
     const clientX = event.clientX ?? event.touches?.[0]?.clientX;
     const clientY = event.clientY ?? event.touches?.[0]?.clientY;
     if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return null;
-    return [(clientX - rectangle.left) * (WIDTH / rectangle.width), (clientY - rectangle.top) * (HEIGHT / rectangle.height)];
+    // Letterbox-aware: the 70dvh cap can make the box wider than the drawing
+    // (see responsiveCoordinates.js). A straight stretch put a click on (6, 10)
+    // at (5.5, 10) on a 1366x768 Chromebook.
+    const point = clientPointToViewBox({ clientX, clientY, rect: svg.getBoundingClientRect(), viewBoxWidth: WIDTH, viewBoxHeight: HEIGHT });
+    return point ? [point.x, point.y] : null;
   };
   const eventToGraphPoint = (event) => {
     const screen = eventToScreenPoint(event);
@@ -694,8 +699,8 @@ export default function InteractiveGraphWorkspace({
       rawScreenPoint: screen,
       targets: magneticSnapTargets,
       toScreenPoint: (point) => [toScreenX(point[0]), toScreenY(point[1])],
-      cssScaleX: rectangle?.width ? rectangle.width / WIDTH : 1,
-      cssScaleY: rectangle?.height ? rectangle.height / HEIGHT : 1,
+      cssScaleX: viewBoxRenderScale({ rect: rectangle, viewBoxWidth: WIDTH, viewBoxHeight: HEIGHT }),
+      cssScaleY: viewBoxRenderScale({ rect: rectangle, viewBoxWidth: WIDTH, viewBoxHeight: HEIGHT }),
       radiusPixels: MAGNETIC_POINT_SNAP_PIXELS,
     });
     return { point: magnetic?.point || latticePoint, magnetic };
@@ -722,6 +727,13 @@ export default function InteractiveGraphWorkspace({
     Number((((viewWindow.xMin + viewWindow.xMax) / 2)).toFixed(4)),
     Number((((viewWindow.yMin + viewWindow.yMax) / 2)).toFixed(4)),
   ];
+
+  // Tap a card, then tap the plane: on a phone the plane is the next thing the
+  // student needs, and it is usually scrolled away from the card list.
+  const revealPlaneForPlacement = () => {
+    if (typeof window === 'undefined') return;
+    window.requestAnimationFrame(() => revealInNearestScroller(svgRef.current));
+  };
 
   const clampToWindow = ([x, y]) => [
     Math.min(viewWindow.xMax, Math.max(viewWindow.xMin, x)),
@@ -1162,7 +1174,7 @@ export default function InteractiveGraphWorkspace({
                   return <div key={task.id} style={{ border: active ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '9px', background: placement ? '#eef5ff' : '#fff', padding: '9px' }}>
                     <button type="button" draggable={!mobileInteraction.isMobile && !construction.pointsValidated && canPlace} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-point', task.id); event.dataTransfer.setDragImage(makePointDragImage(), 22, 22); setDraggingTaskId(task.id); }} onDragEnd={() => { setDraggingTaskId(null); setDropCandidate(null); setDropMagneticTarget(null); }} aria-pressed={active}
                     aria-label={`${toPlainMath(task.label)}${active ? ' — selected. Move the cursor on the plane and press Enter, or type an exact coordinate.' : ''}`}
-                    onClick={() => { if (!construction.pointsValidated && canPlace) { setActiveTaskId(task.id); setKeyboardAnnouncement(`${toPlainMath(task.label)} selected. Use the arrow keys on the plane and press Enter, or type an exact coordinate below.`); } }} style={{ width: '100%', textAlign: 'left', border: 'none', background: 'transparent', padding: 0, cursor: construction.pointsValidated || !canPlace ? 'default' : 'grab' }}>
+                    onClick={() => { if (!construction.pointsValidated && canPlace) { setActiveTaskId(task.id); setKeyboardAnnouncement(`${toPlainMath(task.label)} selected. Use the arrow keys on the plane and press Enter, or type an exact coordinate below.`); if (mobileInteraction.isMobile) revealPlaneForPlacement(); } }} style={{ width: '100%', textAlign: 'left', border: 'none', background: 'transparent', padding: 0, cursor: construction.pointsValidated || !canPlace ? 'default' : 'grab' }}>
                       {/* Point tasks are authored as "Plot the point where $x = 0$".
                           The aria-label above deliberately keeps the plain string —
                           a screen reader should hear the source, not markup — but
@@ -1285,7 +1297,10 @@ export default function InteractiveGraphWorkspace({
           )}
         </aside>
 
-        <figure className="mathmaster-function-workspace-graph" style={{ margin: 0, width: '100%', padding: '10px', border: '1px solid #dfe3e7', borderRadius: '12px', background: 'var(--mm-surface)', boxSizing: 'border-box' }}>
+        {/* data-work-view-reveal: enlarging the question brings this plane fully
+            into view (workViewReveal.js). Read only by the Work View shell, so
+            the embedded page does not move. */}
+        <figure className="mathmaster-function-workspace-graph" data-work-view-reveal="true" style={{ margin: 0, width: '100%', padding: '10px', border: '1px solid #dfe3e7', borderRadius: '12px', background: 'var(--mm-surface)', boxSizing: 'border-box' }}>
           <svg ref={svgRef} className="mathmaster-responsive-canvas mathmaster-touch-surface" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="xMidYMid meet" role="application"
             aria-label="Coordinate plane. Use the arrow keys to move the cursor, hold Shift to move faster, and press Enter to place at the cursor."
             tabIndex={0}

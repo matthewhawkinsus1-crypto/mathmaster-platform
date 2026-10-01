@@ -109,7 +109,7 @@ test('hand-fit regression is button-driven and phone controls stack vertically',
 
 test('calculator launcher lives in the shared work bar and Work View actions', () => {
   const engine = read('src/QuestionEngine.jsx');
-  assert.match(engine, /🧮 Calculator/);
+  assert.match(engine, /<CalculatorIcon \/><span className="mathmaster-action-label"> Calculator<\/span>/);
   assert.match(engine, /workspaceActions\.calculator/);
   assert.match(engine, /showLauncher=\{false\}/);
   const contextStart = engine.indexOf('const questionContextPanel');

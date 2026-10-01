@@ -52,6 +52,38 @@ export const toolProfileForInputProfile = (value) => {
   })[profile] || 'expression';
 };
 
+/**
+ * THE KEYPAD A TYPED RESPONSE FIELD GETS WHEN ITS RENDERER NAMES NONE.
+ *
+ * Presentation only: grading and the stated format never read this. A field
+ * the contract declares `number` (or an ordered pair) gets the compact pad —
+ * digits, sign, decimal point and a fraction key — instead of the algebra pad.
+ * The multi-answer grader bypassed toolProfileForInputProfile and handed every
+ * such field `basic`, so a box whose own hint said "Write a single number."
+ * offered π, e, log and roots on a phone (PR #398 QA).
+ *
+ * A field declared `expression` (or nothing) whose every accepted answer is a
+ * plain number also gets the number pad, which covers assignments stored
+ * before fractions such as -2/3 were classified as numbers. Returns '' when the
+ * field should keep whatever the renderer uses by default.
+ */
+export const keypadProfileForResponseField = (field = {}) => {
+  if (!isObject(field)) return '';
+  const declared = normalizeInteractionInputProfile(field.inputProfile || field.inputMode || '')
+    || profileForAnswerFormat(field.answerFormat ?? field.inputContract?.format ?? '');
+  if (declared === 'number' || declared === 'orderedPair') return toolProfileForInputProfile(declared);
+  if (declared && declared !== 'expression') return '';
+  const answers = [
+    field.answer,
+    field.expected,
+    field.correctAnswer,
+    ...asArray(field.acceptedAnswers),
+  ].filter((value) => value != null && value !== '');
+  return answers.length && answers.every((value) => inferAnswerFormatFromExpected(value) === 'number')
+    ? 'number'
+    : '';
+};
+
 const formatForProfile = (profile) => ({
   orderedPair: 'orderedPair',
   interval: 'interval',
@@ -111,6 +143,11 @@ const normalizedMathText = (value) => answerText(value)
   .replace(/\\,/g, '')
   .trim();
 
+const NUMBER_TEXT = '-?(?:\\d+(?:\\.\\d+)?|\\.\\d+)';
+const SIGNED_FRACTION_LITERAL = new RegExp(
+  `^(?:${NUMBER_TEXT}/${NUMBER_TEXT}|-?\\\\[dt]?frac\\{${NUMBER_TEXT}\\}\\{${NUMBER_TEXT}\\})$`,
+);
+
 export const inferAnswerFormatFromExpected = (value) => {
   const text = normalizedMathText(value);
   if (!text) return '';
@@ -121,6 +158,10 @@ export const inferAnswerFormatFromExpected = (value) => {
   if (/^[\(].*,.*[\)]$/.test(text)) return 'orderedPair';
   if (/=/.test(text)) return 'equation';
   if (/^-?(?:\d+(?:\.\d+)?|\.\d+)$/.test(text)) return 'number';
+  // A fraction of two numbers is a number too: a slope of -2/3 was declared an
+  // "expression", so the student read "Write an expression. No equals sign."
+  // and got the full algebra pad (π, e, log, roots) for a single value.
+  if (SIGNED_FRACTION_LITERAL.test(text.replace(/\s+/g, ''))) return 'number';
   // Genuine words such as "continuous", "increasing", or "no solution" are
   // language responses, not symbolic expressions merely because they contain letters.
   if (/^[A-Za-z]+(?:\s+[A-Za-z]+){0,4}$/.test(text) && !/^[A-Za-z]$/.test(text)) return '';

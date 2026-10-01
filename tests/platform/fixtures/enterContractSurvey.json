@@ -1,0 +1,627 @@
+{
+  "generatedAt": "2026-09-30T10:35:39.886Z",
+  "viewport": "1366x900",
+  "tools": [
+    {
+      "toolId": "dataModelingLab",
+      "typedFields": 2,
+      "otherAnswerControls": 8,
+      "ownsEnter": 0,
+      "declared": [
+        {
+          "kind": "submit",
+          "text": "Check data model"
+        }
+      ],
+      "enters": [
+        {
+          "field": 0,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 1
+          }
+        },
+        {
+          "field": 1,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "button",
+            "declared": "submit",
+            "text": "Check data model"
+          }
+        }
+      ]
+    },
+    {
+      "toolId": "regressionCalculator",
+      "typedFields": 1,
+      "otherAnswerControls": 0,
+      "ownsEnter": 0,
+      "declared": [
+        {
+          "kind": "submit",
+          "text": "Submit workflow"
+        }
+      ],
+      "enters": [
+        {
+          "field": 0,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "input"
+          }
+        }
+      ]
+    },
+    {
+      "toolId": "inverseCompositionLab",
+      "typedFields": 1,
+      "otherAnswerControls": 1,
+      "ownsEnter": 0,
+      "declared": [
+        {
+          "kind": "submit",
+          "text": "Check function reasoning"
+        }
+      ],
+      "enters": [
+        {
+          "field": 0,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "button",
+            "declared": "submit",
+            "text": "Check function reasoning"
+          }
+        }
+      ]
+    },
+    {
+      "toolId": "functionOperationsLab",
+      "typedFields": 5,
+      "otherAnswerControls": 0,
+      "ownsEnter": 0,
+      "declared": [
+        {
+          "kind": "submit",
+          "text": "Check all operations"
+        }
+      ],
+      "enters": [
+        {
+          "field": 0,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 1
+          }
+        },
+        {
+          "field": 1,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 2
+          }
+        },
+        {
+          "field": 2,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 3
+          }
+        },
+        {
+          "field": 3,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 4
+          }
+        },
+        {
+          "field": 4,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "button",
+            "declared": "submit",
+            "text": "Check all operations"
+          }
+        }
+      ]
+    },
+    {
+      "toolId": "systemsWorkspace",
+      "typedFields": 0,
+      "otherAnswerControls": 1,
+      "ownsEnter": 0,
+      "declared": [
+        {
+          "kind": "submit",
+          "text": "Check intersections"
+        }
+      ],
+      "enters": []
+    },
+    {
+      "toolId": "parabolaGeometryLab",
+      "typedFields": 4,
+      "otherAnswerControls": 0,
+      "ownsEnter": 0,
+      "declared": [
+        {
+          "kind": "submit",
+          "text": "Check features"
+        }
+      ],
+      "enters": [
+        {
+          "field": 0,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 1
+          }
+        },
+        {
+          "field": 1,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 2
+          }
+        },
+        {
+          "field": 2,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 3
+          }
+        },
+        {
+          "field": 3,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "button",
+            "declared": "submit",
+            "text": "Check features"
+          }
+        }
+      ]
+    },
+    {
+      "toolId": "polynomialWorkshop",
+      "typedFields": 0,
+      "otherAnswerControls": 2,
+      "ownsEnter": 0,
+      "declared": [
+        {
+          "kind": "submit",
+          "text": "Check graph connections"
+        }
+      ],
+      "enters": []
+    },
+    {
+      "toolId": "signSolutionAnalyzer",
+      "typedFields": 0,
+      "otherAnswerControls": 0,
+      "ownsEnter": 0,
+      "declared": [
+        {
+          "kind": "submit",
+          "text": "Check selected intervals"
+        }
+      ],
+      "enters": []
+    },
+    {
+      "toolId": "sequenceExplorer",
+      "typedFields": 1,
+      "otherAnswerControls": 2,
+      "ownsEnter": 0,
+      "declared": [
+        {
+          "kind": "submit",
+          "text": "Check comparison"
+        }
+      ],
+      "enters": [
+        {
+          "field": 0,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "button",
+            "declared": "submit",
+            "text": "Check comparison"
+          }
+        }
+      ]
+    },
+    {
+      "toolId": "complexPlaneLab",
+      "typedFields": 2,
+      "otherAnswerControls": 1,
+      "ownsEnter": 0,
+      "declared": [
+        {
+          "kind": "submit",
+          "text": "Check rotation"
+        }
+      ],
+      "enters": [
+        {
+          "field": 0,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 1
+          }
+        },
+        {
+          "field": 1,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "button",
+            "declared": "submit",
+            "text": "Check rotation"
+          }
+        }
+      ]
+    },
+    {
+      "toolId": "exponentialLogBridge",
+      "typedFields": 2,
+      "otherAnswerControls": 1,
+      "ownsEnter": 0,
+      "declared": [
+        {
+          "kind": "submit",
+          "text": "Check inverse features"
+        }
+      ],
+      "enters": [
+        {
+          "field": 0,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 1
+          }
+        },
+        {
+          "field": 1,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "button",
+            "declared": "submit",
+            "text": "Check inverse features"
+          }
+        }
+      ]
+    },
+    {
+      "toolId": "transformationsLab",
+      "typedFields": 0,
+      "otherAnswerControls": 1,
+      "ownsEnter": 0,
+      "declared": [
+        {
+          "kind": "submit",
+          "text": "Check graph"
+        }
+      ],
+      "enters": []
+    },
+    {
+      "toolId": "representationMatch",
+      "typedFields": 0,
+      "otherAnswerControls": 3,
+      "ownsEnter": 0,
+      "declared": [],
+      "enters": []
+    },
+    {
+      "toolId": "functionInvestigation2",
+      "typedFields": 0,
+      "otherAnswerControls": 2,
+      "ownsEnter": 0,
+      "declared": [
+        {
+          "kind": "submit",
+          "text": "Check domain and range"
+        }
+      ],
+      "enters": []
+    },
+    {
+      "toolId": "graphing2",
+      "typedFields": 0,
+      "otherAnswerControls": 1,
+      "ownsEnter": 0,
+      "declared": [],
+      "enters": []
+    },
+    {
+      "toolId": "stepAlgebra2",
+      "typedFields": 1,
+      "otherAnswerControls": 1,
+      "ownsEnter": 0,
+      "declared": [],
+      "enters": [
+        {
+          "field": 0,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 0
+          }
+        }
+      ]
+    },
+    {
+      "toolId": "solutionReview2",
+      "typedFields": 0,
+      "otherAnswerControls": 0,
+      "ownsEnter": 0,
+      "declared": [],
+      "enters": []
+    },
+    {
+      "toolId": "intervalNumberLine",
+      "typedFields": 2,
+      "otherAnswerControls": 1,
+      "ownsEnter": 0,
+      "declared": [
+        {
+          "kind": "submit",
+          "text": "Check"
+        }
+      ],
+      "enters": [
+        {
+          "field": 0,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 0
+          }
+        },
+        {
+          "field": 1,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "button",
+            "declared": "submit",
+            "text": "Check"
+          }
+        }
+      ]
+    },
+    {
+      "toolId": "relationMapping",
+      "typedFields": 2,
+      "otherAnswerControls": 1,
+      "ownsEnter": 0,
+      "declared": [
+        {
+          "kind": "submit",
+          "text": "Check"
+        }
+      ],
+      "enters": [
+        {
+          "field": 0,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 1
+          }
+        },
+        {
+          "field": 1,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "button",
+            "declared": "submit",
+            "text": "Check"
+          }
+        }
+      ]
+    },
+    {
+      "toolId": "openSortBoard",
+      "typedFields": 2,
+      "otherAnswerControls": 0,
+      "ownsEnter": 0,
+      "declared": [],
+      "enters": [
+        {
+          "field": 0,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 0
+          }
+        },
+        {
+          "field": 1,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 1
+          }
+        }
+      ]
+    },
+    {
+      "toolId": "constraintFunctionBuilder",
+      "typedFields": 3,
+      "otherAnswerControls": 2,
+      "ownsEnter": 0,
+      "declared": [
+        {
+          "kind": "submit",
+          "text": "Submit this model"
+        }
+      ],
+      "enters": [
+        {
+          "field": 0,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "button",
+            "declared": "submit",
+            "text": "Submit this model"
+          }
+        },
+        {
+          "field": 1,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "button",
+            "declared": "submit",
+            "text": "Submit this model"
+          }
+        },
+        {
+          "field": 2,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "button",
+            "declared": "submit",
+            "text": "Submit this model"
+          }
+        }
+      ]
+    },
+    {
+      "toolId": "linearTableWorkbench",
+      "typedFields": 3,
+      "otherAnswerControls": 0,
+      "ownsEnter": 0,
+      "declared": [
+        {
+          "kind": "submit",
+          "text": "Check my work"
+        }
+      ],
+      "enters": [
+        {
+          "field": 0,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 1
+          }
+        },
+        {
+          "field": 1,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 2
+          }
+        },
+        {
+          "field": 2,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 2
+          }
+        }
+      ]
+    },
+    {
+      "toolId": "expressionMeaning",
+      "typedFields": 0,
+      "otherAnswerControls": 0,
+      "ownsEnter": 0,
+      "declared": [
+        {
+          "kind": "submit",
+          "text": "Submit meaning map"
+        }
+      ],
+      "enters": []
+    },
+    {
+      "toolId": "representationBridge",
+      "typedFields": 1,
+      "otherAnswerControls": 0,
+      "ownsEnter": 0,
+      "declared": [
+        {
+          "kind": "card",
+          "text": "Check this stage"
+        },
+        {
+          "kind": "card",
+          "text": "Check this stage"
+        },
+        {
+          "kind": "card",
+          "text": "Check this stage"
+        },
+        {
+          "kind": "card",
+          "text": "Check this stage"
+        },
+        {
+          "kind": "card",
+          "text": "Check this stage"
+        },
+        {
+          "kind": "submit",
+          "text": "Submit the bridge"
+        }
+      ],
+      "enters": [
+        {
+          "field": 0,
+          "submittedAttempt": false,
+          "actions": [],
+          "focus": {
+            "kind": "field",
+            "index": 0
+          }
+        }
+      ]
+    }
+  ]
+}
