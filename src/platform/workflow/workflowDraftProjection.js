@@ -29,6 +29,17 @@
  * not an answer it cannot be closed by a later step (`lockedStageIds`), so it
  * can always be opened. A device built before this change reads it the same
  * way: `isComplete: false`, a step to finish — never a step to mark wrong.
+ *
+ * A TABLE step's answer is the student's cells, and beside them what was
+ * worked out from them: `sourceConsistent` / `sourceChecked`, whether the cells
+ * agree with the function they came from — the AUTHORED function when the
+ * table was not built from the student's own equation, so on a DOL a verdict —
+ * and `sourceFunctionSpec`, that authored function itself. Nothing grades from
+ * them: the practice-only messages that use them work them out again from the
+ * cells and the question wherever they are shown (WorkflowRunner's
+ * `tableSourceCheck`), and the function comes from the question. So the server
+ * copy carries the table as the student's work alone: the step stays answered,
+ * and it grades and draws exactly as on the device that did it.
  */
 
 export const WORKFLOW_ARTIFACT = '__mathmasterWorkflowArtifact';
@@ -71,6 +82,19 @@ export const projectGraphArtifactForServer = (artifact) => ({
   parts: (Array.isArray(artifact?.parts) ? artifact.parts : []).filter(isPlainObject).map(projectPart),
 });
 
+export const isTableArtifact = (value) => isPlainObject(value) && value[WORKFLOW_ARTIFACT] === 'table';
+
+// The student's work, and the layout and points that are only that work read
+// as numbers; `sourceModel` is the student's own equation the table came from.
+const TABLE_FIELDS = [WORKFLOW_ARTIFACT, 'isComplete', 'cells', 'xValues', 'points', 'sourceModel'];
+
+/** One table step's answer as the server copy holds it: the work, no verdict. */
+export const projectTableArtifactForServer = (artifact) => Object.fromEntries(
+  TABLE_FIELDS
+    .filter((field) => Object.prototype.hasOwnProperty.call(artifact, field))
+    .map((field) => [field, artifact[field]]),
+);
+
 /**
  * The whole `workflow-responses` record for the server copy. Every other
  * step's answer is carried unchanged; the record on the device is never
@@ -84,6 +108,9 @@ export const projectWorkflowResponsesForServer = (responses) => {
     if (isGraphArtifact(value)) {
       projected[stageId] = projectGraphArtifactForServer(value);
       changed = true;
+    } else if (isTableArtifact(value)) {
+      projected[stageId] = projectTableArtifactForServer(value);
+      changed = changed || Object.keys(projected[stageId]).length !== Object.keys(value).length;
     } else {
       projected[stageId] = value;
     }

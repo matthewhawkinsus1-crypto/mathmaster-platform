@@ -10,7 +10,8 @@
 // device" is a fresh browser context that starts with nothing but that server
 // copy (window.__mmServerSeed, set by the driver before the page loads).
 //
-//   ?q=model|analysis|relation   table -> graph -> domain -> range (graded by
+//   ?q=model|tableGraph|analysis|relation
+//                                table -> graph -> domain -> range (graded by
 //                                the graph's own verdict) | a plotted table,
 //                                its family, an x-intercept and the domain (the
 //                                plot closes once the intercept step is in
@@ -70,6 +71,20 @@ const QUESTIONS = {
     graph: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
     correctDomain: '(-\\infty, \\infty)',
     correctRange: '(-\\infty, \\infty)',
+  },
+  // The same table and graph, alone: two steps, so stacked, and the graph
+  // step's workspace mounts with the page — its draft named after the table it
+  // is built from (a table restored without its check must be whole again by
+  // then).
+  tableGraph: {
+    id: 'pq043-table-graph',
+    type: 'relationshipModel',
+    prompt: 'A pattern follows y = 2x + 1.',
+    recipe: { name: 'functionModeling', ask: ['table', 'graph'] },
+    functionSpec: { type: 'linear', m: 2, b: 1 },
+    graphMode: 'continuous',
+    tableXValues: [0, 1, 2],
+    graph: { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
   },
   // The staged function-characteristics question, shortened. Its plot is
   // graded by its own verdict and CLOSES (reveals) once the intercept step is

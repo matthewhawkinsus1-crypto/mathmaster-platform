@@ -147,7 +147,9 @@ test('a multi-step question reveals nothing about a table through the graph step
   assert.equal(magnets.length, 2, 'the magnet (on only for an agreeing table) is off where outcomes are withheld, in both graph steps');
   const block = region(runner, '<strong>Your table and function do not agree yet.</strong>', null, 'disagreement block');
   assert.ok(block);
-  assert.match(runner, /if \(revealCorrectness && sourceIsTable && \(source\.sourceModel \|\| source\.sourceFunctionSpec\) && source\.sourceChecked > 0 && source\.sourceConsistent === false\)/);
+  // The check is worked out from the table as it stands (tableSourceCheck.js),
+  // and only consulted where outcomes are revealed.
+  assert.match(runner, /if \(revealCorrectness && sourceIsTable && input\?\.sourceCheck && input\.sourceCheck\.checked > 0 && input\.sourceCheck\.consistent === false\)/);
 });
 
 test('the later-step graph is the student\'s own where outcomes are withheld, and never only when right', () => {

@@ -17,10 +17,10 @@ import { previewFigures } from './choicePreview';
 import RelationMapping from '../../tools/relationMapping/RelationMapping';
 import { getStage } from './interactionStages';
 import { activeStages, hasStageResponse, lockedStageIds, readComposedQuestion, resolveStageInput, stageControlsLaterGraphConstruction, summarizeWorkflowProgress } from './questionWorkflow';
-import { checkTableConsistency, gradeWorkflow } from './workflowGrading';
+import { gradeWorkflow } from './workflowGrading';
 import { buildExpressionFunctionSpec, evaluateModelAt, evaluateNumericValue } from './modelExpression';
 import { bringActiveStageIntoView } from './stageNavigationScroll.js';
-import { evaluateGraphFunction } from '../../functionGraphUtils';
+import { rederiveRestoredTables, tableSourceCheck, tableSourceFields } from './tableSourceCheck.js';
 import { buildStudentTableMagneticTargets } from '../../graphInteractionPrecision';
 import { buildWorkflowSummaryItems, shouldUseWorkflowFocusMode, summarizeStageResponse } from './workflowFocusMode';
 import { stageFamily, stageFamilyLabel } from './stageFamilies';
@@ -456,56 +456,11 @@ const numericTablePoints = ({ stage, cells }) => {
   }).filter(Boolean);
 };
 
-const checkTableAgainstFunctionSpec = ({ cells = {}, stage, functionSpec }) => {
-  if (!functionSpec) return null;
-  const columns = Array.isArray(stage.columns) && stage.columns.length
-    ? stage.columns
-    : [{ key: 'x', label: 'x' }, { key: 'y', label: 'f(x)' }];
-  const responseColumn = stage.responseColumn || columns[columns.length - 1]?.key || 'y';
-  const xValues = Array.isArray(stage.xValues) ? stage.xValues : [];
-  const rows = [];
-  xValues.forEach((x, rowIndex) => {
-    const entered = cells?.[`${rowIndex}:${responseColumn}`];
-    if (String(entered ?? '').trim() === '') return;
-    const numericX = evaluateNumericValue(x);
-    const expected = numericX === null ? Number.NaN : evaluateGraphFunction(functionSpec, numericX);
-    const enteredNumber = evaluateNumericValue(entered);
-    rows.push({
-      x,
-      entered,
-      expected,
-      matches: Number.isFinite(expected)
-        ? (enteredNumber !== null && Math.abs(enteredNumber - expected) <= 1e-6)
-        : null,
-    });
-  });
-  const checked = rows.filter((row) => row.matches !== null);
-  return {
-    checked: checked.length,
-    consistent: checked.length > 0 && checked.every((row) => row.matches),
-    mismatches: checked.filter((row) => !row.matches),
-    rows,
-  };
-};
-
 const tableArtifact = (payload, { stage, input, content }) => {
   const cells = parseResponseKey(payload);
   const sourceModel = typeof input?.value === 'string'
     ? input.value
     : input?.value?.sourceModel || null;
-  const columns = Array.isArray(stage.columns) && stage.columns.length
-    ? stage.columns
-    : [{ key: 'x', label: 'x' }, { key: 'y', label: 'f(x)' }];
-  const responseColumn = stage.responseColumn || columns[columns.length - 1]?.key || 'y';
-  const sourceFunctionSpec = !sourceModel && content?.functionSpec ? content.functionSpec : null;
-  const consistency = sourceModel
-    ? checkTableConsistency({
-      response: cells,
-      xValues: Array.isArray(stage.xValues) ? stage.xValues : [],
-      model: sourceModel,
-      responseColumn,
-    })
-    : checkTableAgainstFunctionSpec({ cells, stage, functionSpec: sourceFunctionSpec });
 
   return {
     [WORKFLOW_ARTIFACT]: 'table',
@@ -514,9 +469,10 @@ const tableArtifact = (payload, { stage, input, content }) => {
     xValues: Array.isArray(stage.xValues) ? stage.xValues : [],
     points: numericTablePoints({ stage, cells }),
     sourceModel,
-    sourceFunctionSpec,
-    sourceChecked: consistency?.checked || 0,
-    sourceConsistent: consistency ? consistency.consistent : null,
+    // Whether the cells agree with their source, and the function they were
+    // checked against: worked out by tableSourceCheck.js, here and wherever
+    // they are needed again (the server copy does not carry them).
+    ...tableSourceFields({ cells, stage, sourceModel, content }),
   };
 };
 
@@ -676,7 +632,7 @@ const DELEGATES = {
     const magneticSnapTargets = revealCorrectness
       && source?.[WORKFLOW_ARTIFACT] === 'table'
       && source.isComplete
-      && source.sourceConsistent !== false
+      && input?.sourceCheck?.consistent !== false
       ? buildStudentTableMagneticTargets(pairs)
       : [];
 
@@ -738,7 +694,7 @@ const DELEGATES = {
     const magneticSnapTargets = revealCorrectness
       && sourceIsTable
       && source.isComplete
-      && source.sourceConsistent !== false
+      && input?.sourceCheck?.consistent !== false
       ? buildStudentTableMagneticTargets(points)
       : [];
 
@@ -753,7 +709,7 @@ const DELEGATES = {
     // again after every edit, on an exit ticket. There the step is built from
     // the student's own table and function as they stand (never from the
     // answer key) and both are graded when the question is submitted.
-    if (revealCorrectness && sourceIsTable && (source.sourceModel || source.sourceFunctionSpec) && source.sourceChecked > 0 && source.sourceConsistent === false) {
+    if (revealCorrectness && sourceIsTable && input?.sourceCheck && input.sourceCheck.checked > 0 && input.sourceCheck.consistent === false) {
       return (
         <div style={{ ...waitingPanel, background: '#fff8e1', color: '#7a4f00' }}>
           <strong>Your table and function do not agree yet.</strong>
@@ -1172,7 +1128,7 @@ export default function WorkflowRunner({
   revealCorrectness = true,
 }) {
   const { content, workflow: authoredWorkflow, grading } = useMemo(() => readComposedQuestion(question), [question]);
-  const [responses, setResponses] = useLocalDraftState(
+  const [storedResponses, setResponses] = useLocalDraftState(
     draftKey ? `${draftKey}:workflow-responses` : null,
     {},
   );
@@ -1180,6 +1136,24 @@ export default function WorkflowRunner({
     draftKey ? `${draftKey}:workflow-stage` : null,
     0,
   );
+
+  // A table step that came back from the server copy carries only the
+  // student's cells (workflowDraftProjection.js). What the device that did the
+  // work stored beside them is worked out again — from the same cells, by the
+  // same code (tableSourceCheck.js) — BEFORE anything reads it: a graph step
+  // built from the table names its own draft after the table
+  // (dependencyFingerprint), and would look for the student's construction
+  // under the wrong name. So the answers are that device's exactly, a
+  // submission included, from the first render; they are written back as what
+  // they are, not an edit, keeping the time they came back with.
+  const responses = useMemo(
+    () => rederiveRestoredTables({ responses: storedResponses, stages: authoredWorkflow, content }),
+    [storedResponses, authoredWorkflow, content],
+  );
+  useEffect(() => {
+    if (responses === storedResponses) return;
+    setResponses((current) => rederiveRestoredTables({ responses: current, stages: authoredWorkflow, content }), { edit: false });
+  }, [responses, storedResponses, authoredWorkflow, content, setResponses]);
 
   // Graph steps that came back from the server copy without their verdict
   // (workflowDraftProjection.js), by id. Always empty on the device that did
@@ -1473,7 +1447,20 @@ export default function WorkflowRunner({
           resolvedGraphMode: String(responses?.[stage.continuityStageId] || '').toLowerCase(),
         }
       : baseEffectiveStage;
-    const input = resolveStageInput({ stage, responses, content });
+    const resolvedInput = resolveStageInput({ stage, responses, content });
+    // A step built from a table is told whether that table agrees with its
+    // source as it stands now (tableSourceCheck), never from a stored verdict.
+    const input = resolvedInput.from === 'student'
+      ? {
+          ...resolvedInput,
+          sourceCheck: tableSourceCheck({
+            table: resolvedInput.value,
+            tableStage: workflow.find((entry) => entry.id === stage.sourceStageId)
+              || (Array.isArray(authoredWorkflow) ? authoredWorkflow : []).find((entry) => entry?.id === stage.sourceStageId),
+            content,
+          }),
+        }
+      : resolvedInput;
     const continuityReady = !stage.continuityStageId || hasStageResponse(responses?.[stage.continuityStageId]);
     const waiting = (Boolean(stage.sourceStageId) && !input.ready) || !continuityReady;
     const waitingStageId = !continuityReady ? stage.continuityStageId : stage.sourceStageId;

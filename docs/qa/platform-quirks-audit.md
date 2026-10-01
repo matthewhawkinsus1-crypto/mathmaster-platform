@@ -1512,19 +1512,39 @@ student screen with its identity bar and navigator; see Tests).
   - *In App.jsx's own order — the question mounts, then the server read lands —
     the second device got nothing back at all*, for any question: PQ-044, fixed
     in its own commits.
-  - *A finished composed question opened again cannot be submitted until an
-    answer changes.* QuestionEngine clears its answer state in a mount effect,
-    which React runs after the children's, so WorkflowRunner's first report is
-    wiped, and WorkflowRunner reports again only when a response changes. Same
-    on the code before this change; the gate's same-device journey retypes the
-    answer on screen, which leaves the work identical.
-  - *Verdict-like fields the guard does not name* reach the server copy in
-    other records, unchanged by this fix: a table step's `sourceConsistent` /
-    `sourceChecked` (checked against the AUTHORED function when the question
-    has no equation step, so on a DOL it says whether the table is right), and
-    the graph construction's `markerPlacements.*.locationCorrect` (whether a
-    marker is at the true graph end, on a DOL too). Both are in the device's
-    own storage as well.
+  - *A finished composed question opened again could not be submitted until
+    an answer changed* — **fixed since in fd739ea2.** QuestionEngine cleared
+    its answer state in a mount effect, which React runs after the children's,
+    so WorkflowRunner's first report was wiped, and WorkflowRunner reports
+    again only when a response changes. QuestionEngine now resets only when the
+    question changes (`tests/browser/composedReopenSubmit.mjs`), and the gate's
+    same-device journey submits the reopened question as it stands.
+  - *Verdict-like fields the guard does not name:*
+    - a table step's `sourceConsistent` / `sourceChecked` (checked against the
+      AUTHORED function when the question has no equation step, so on a DOL it
+      says whether the table is right), and beside them that function itself,
+      `sourceFunctionSpec` — **no longer in the server copy** (follow-up to
+      this fix). Nothing grades from them; the practice-only messages that use
+      them (the plotting step's magnet, "Your table and function do not agree
+      yet") now work the check out where it is shown, from the cells and the
+      question (`tableSourceCheck.js`), and a table that comes back on another
+      Chromebook has it worked out again before the first render, by the same
+      code (a graph step built from the table names its own draft after it),
+      so its answers — and what is submitted — are byte for byte the first
+      device's (`workflowDraftProjection.test.mjs`; `composedDraftRestore.mjs`
+      checks the server copy and the submitted response key, stacked and in
+      focus mode; 6 mutations, all red).
+    - the graph construction's `markerPlacements.*.locationCorrect` (whether a
+      graph-end marker was dropped at the true end, on a DOL too) — **left as
+      it is**, because it is not a stored copy of something the grader works
+      out: grading reads it first (`placement.locationCorrect === true ||` a
+      distance check in graph units), and it is the judgment made when the marker
+      was dropped, within 82 *screen pixels* of the true end on that device's
+      plane. Another Chromebook's plane is another size, so it cannot be worked
+      out again the same way; dropping it from the server copy would change
+      the credit for the same marker after a restore. Closing it means grading
+      the drop in graph units when it is made — a grading change, not a
+      backup change. It is in the device's own storage as well.
   - The whole tool draft sweep finds no other refused record: every registry
     tool's records pass, and the QuestionEngine families of the draft
     certification, driven with their scenes' edits and every Check, pass too

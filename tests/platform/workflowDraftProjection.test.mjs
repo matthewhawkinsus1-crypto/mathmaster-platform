@@ -40,10 +40,12 @@ import {
   WORKFLOW_ARTIFACT,
   graphArtifactAwaitsVerdict,
   projectGraphArtifactForServer,
+  projectTableArtifactForServer,
   projectWorkflowResponsesForServer,
   stagesAwaitingVerdict,
 } from '../../src/platform/workflow/workflowDraftProjection.js';
 import { projectDraftForServer } from '../../src/platform/persistence/serverDraftProjection.js';
+import { rederiveRestoredTables, tableAwaitsRederivation, tableSourceCheck, tableSourceFields } from '../../src/platform/workflow/tableSourceCheck.js';
 import { createWorkspaceDraftSync } from '../../src/platform/persistence/workspaceDraftSync.js';
 import {
   auditDraftWrite,
@@ -213,21 +215,84 @@ test('the projected graph step is marked for re-derivation and reads as a step t
   assert.deepEqual(Object.keys(projected.parts[0]).sort(), ['id', 'isComplete', 'label', 'response']);
 });
 
-test('every other step is carried as it is, and the projection is idempotent', () => {
+test('a table step travels as the student\'s work alone, every other step as it is, and the projection is idempotent', () => {
   const local = modelResponses();
   const projected = projectWorkflowResponsesForServer(local);
-  assert.equal(projected.table, local.table, 'a table step is not rewritten — the graph step is keyed by its fingerprint');
+  // Whether the cells agree with the AUTHORED function (a verdict on a DOL),
+  // and that function itself, stay on the device; the cells, the points read
+  // from them and the student's own source equation travel.
+  assert.deepEqual(projected.table, {
+    [WORKFLOW_ARTIFACT]: 'table',
+    isComplete: true,
+    cells: TABLE.cells,
+    xValues: TABLE.xValues,
+    points: TABLE.points,
+    sourceModel: null,
+  });
+  assert.deepEqual(projectTableArtifactForServer(TABLE), projected.table);
   assert.equal(projected.domain, local.domain);
   assert.equal(projected.range, local.range);
   assert.deepEqual(projectWorkflowResponsesForServer(projected), projected);
-  // A record with no graph step is the same object: nothing to project.
-  const noGraph = { table: TABLE, domain: 'x' };
-  assert.equal(projectWorkflowResponsesForServer(noGraph), noGraph);
+  // A record with nothing to project is the same object.
+  const nothing = { table: projected.table, model: 'Quadratic', domain: 'x' };
+  assert.equal(projectWorkflowResponsesForServer(nothing), nothing);
   // Only the workflow record is projected. Any other draft goes as it is, and
   // the guard judges it as before.
   const elsewhere = { tool: graphArtifact() };
   assert.equal(projectDraftForServer(`${draftKey}:work:tool`, elsewhere), elsewhere);
   assert.equal(sanitizeWorkspaceDraftValue(projectDraftForServer(`${draftKey}:work:tool`, elsewhere)).ok, false);
+});
+
+test('a table step\'s stored verdict decides no grade: the server copy grades as the device copy, right table or wrong', () => {
+  const wrongCells = { '0:y': '1', '1:y': '4', '2:y': '5' };
+  for (const table of [
+    TABLE,
+    { ...TABLE, cells: wrongCells, points: [[0, 1], [1, 4], [2, 5]], sourceConsistent: false },
+  ]) {
+    const local = modelResponses();
+    local.table = table;
+    const onDevice = grade(MODEL, local);
+    // Restored on another Chromebook, with the graph step opened again.
+    const restored = { ...projectWorkflowResponsesForServer(local), graph: local.graph };
+    assert.equal(Object.hasOwn(restored.table, 'sourceConsistent'), false);
+    assert.equal(tableAwaitsRederivation(restored.table), true);
+    // The credit never depended on it...
+    const credit = (result) => ({ isCorrect: result.isCorrect, partialCreditPercent: result.partialCreditPercent, parts: result.parts });
+    assert.deepEqual(credit(grade(MODEL, restored)), credit(onDevice));
+    // ...and once it is worked out again the submission is the device's, byte for byte.
+    const { workflow, content } = readComposedQuestion(MODEL);
+    const rederived = rederiveRestoredTables({ responses: restored, stages: workflow, content });
+    assert.equal(JSON.stringify(rederived.table), JSON.stringify(table));
+    assert.deepEqual(grade(MODEL, rederived), onDevice);
+  }
+});
+
+test('a table\'s check is one computation: the stored fields, the check a later step reads, and the re-derived answer agree', () => {
+  const { workflow, content } = readComposedQuestion(MODEL);
+  const tableStage = workflow.find((stage) => stage.id === 'table');
+  for (const [cells, sourceModel, expected] of [
+    [{ '0:y': '1', '1:y': '3', '2:y': '5' }, null, { sourceFunctionSpec: content.functionSpec, sourceChecked: 3, sourceConsistent: true }],
+    [{ '0:y': '1', '1:y': '4', '2:y': '5' }, null, { sourceFunctionSpec: content.functionSpec, sourceChecked: 3, sourceConsistent: false }],
+    // Built from the student's own equation: checked against it, no authored function.
+    [{ '0:y': '1', '1:y': '3' }, '2x+1', { sourceFunctionSpec: null, sourceChecked: 2, sourceConsistent: true }],
+    [{ '0:y': '1', '1:y': '9' }, '2x+1', { sourceFunctionSpec: null, sourceChecked: 2, sourceConsistent: false }],
+    // Nothing entered: nothing checked, and not consistent.
+    [{}, null, { sourceFunctionSpec: content.functionSpec, sourceChecked: 0, sourceConsistent: false }],
+  ]) {
+    const fields = tableSourceFields({ cells, stage: tableStage, sourceModel, content });
+    assert.deepEqual(fields, expected);
+    const table = { [WORKFLOW_ARTIFACT]: 'table', isComplete: true, cells, xValues: [0, 1, 2], points: [], sourceModel, ...fields };
+    assert.deepEqual(tableSourceCheck({ table, tableStage, content }), { checked: expected.sourceChecked, consistent: expected.sourceConsistent });
+    assert.deepEqual(tableSourceCheck({ table: projectTableArtifactForServer(table), tableStage, content }), tableSourceCheck({ table, tableStage, content }),
+      'a later step reads the same check from the server copy as from the device copy');
+    const back = rederiveRestoredTables({ responses: { table: projectTableArtifactForServer(table) }, stages: workflow, content });
+    assert.equal(JSON.stringify(back.table), JSON.stringify(table));
+  }
+  // Nothing to work out: the same object, so WorkflowRunner writes nothing.
+  const full = modelResponses();
+  assert.equal(rederiveRestoredTables({ responses: full, stages: workflow, content }), full);
+  assert.equal(tableSourceCheck({ table: 'x+1', tableStage, content }), null);
+  assert.equal(tableSourceCheck({ table: TABLE, tableStage: null, content }), null);
 });
 
 test('the device copy is never touched by the projection', () => {
@@ -352,9 +417,13 @@ for (const [name, question, responsesFor, graphStageId] of [
     assert.equal(waiting.isComplete, false, 'and the question cannot be submitted around it');
     assert.equal(waiting.isCorrect, false);
 
-    // Its workspace reports again from the student's own construction: the
-    // same artifact, so exactly the same grade as on the device that did it.
-    const rederived = { ...restored, [graphStageId]: local[graphStageId] };
+    // Its workspace reports again from the student's own construction, and
+    // a table step's check is worked out again on mount (WorkflowRunner): the
+    // same answers, byte for byte, so exactly the same grade and the same
+    // submitted response as on the device that did it.
+    const { workflow, content } = readComposedQuestion(question);
+    const rederived = rederiveRestoredTables({ responses: { ...restored, [graphStageId]: local[graphStageId] }, stages: workflow, content });
+    assert.equal(JSON.stringify(rederived), JSON.stringify(local));
     assert.deepEqual(grade(question, rederived), onDevice);
   });
 }
@@ -402,4 +471,23 @@ test('WorkflowRunner re-baselines Undo when a restored step gets its verdict bac
   assert.match(notice, /stage\.id !== activeStage\?\.id && index <= furthestReachableIndex/);
   const banner = region(runner, '{restoredGraphSteps.length ? (', '{/* NOTHING TO SHOW MEANS NOTHING ON SCREEN.', 'the restored-steps notice');
   assert.match(banner, /onClick=\{\(\) => goToStage\(index\)\}/);
+});
+
+test('whether a table agrees with its source is worked out where it is used, never read back from a stored answer', () => {
+  const runner = executableSource(read('src/platform/workflow/WorkflowRunner.jsx'));
+  // One computation (tableSourceCheck.js), when the step reports...
+  const artifact = region(runner, 'const tableArtifact = (payload, { stage, input, content }) => {', 'const graphArtifact', 'the table step\'s report');
+  assert.match(artifact, /\.\.\.tableSourceFields\(\{ cells, stage, sourceModel, content \}\),/);
+  assert.doesNotMatch(runner, /const (checkTableAgainstFunctionSpec|tableSourceConsistency|tableSourceCheck) =/, 'no second copy of the check');
+  // ...when a table comes back from the server copy: before the first render
+  // reads it (a graph step's draft is named after its table), and written back
+  // as what it is, not an edit...
+  assert.match(runner, /const responses = useMemo\(\s*\(\) => rederiveRestoredTables\(\{ responses: storedResponses, stages: authoredWorkflow, content \}\),/);
+  assert.match(runner, /if \(responses === storedResponses\) return;\s*setResponses\(\(current\) => rederiveRestoredTables\(\{ responses: current, stages: authoredWorkflow, content \}\), \{ edit: false \}\);/);
+  // ...and every later step is handed the check as it stands...
+  assert.match(runner, /sourceCheck: tableSourceCheck\(\{\s*table: resolvedInput\.value,/);
+  // ...and nothing reads the stored one (practice-only messages included).
+  assert.doesNotMatch(runner, /source\??\.sourceConsistent|source\??\.sourceChecked/);
+  assert.equal((runner.match(/input\?\.sourceCheck\?\.consistent !== false/g) || []).length, 2, 'both plotting steps gate their magnet on the worked-out check');
+  assert.match(runner, /input\?\.sourceCheck && input\.sourceCheck\.checked > 0 && input\.sourceCheck\.consistent === false/);
 });

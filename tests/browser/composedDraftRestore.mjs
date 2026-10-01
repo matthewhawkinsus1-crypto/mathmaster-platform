@@ -1,7 +1,7 @@
 // A COMPOSED QUESTION WITH A GRAPH STEP SURVIVES A CHROMEBOOK SWAP (PQ-043).
 //
 //   npx vite --host 127.0.0.1 --port 5199 --strictPort &
-//   AUDIT_ORIGIN=http://127.0.0.1:5199 node tests/browser/composedDraftRestore.mjs [model|analysis|relation ...]
+//   AUDIT_ORIGIN=http://127.0.0.1:5199 node tests/browser/composedDraftRestore.mjs [model|tableGraph|analysis|relation ...]
 //   (PLAYWRIGHT_MODULE / CHROMIUM_PATH when the defaults are not installed)
 //
 // WorkflowRunner keeps every step's answer in one draft, and a graph step's
@@ -126,16 +126,6 @@ const nextStep = async (page) => {
   await page.getByRole('button', { name: /Next step/ }).click();
   await page.waitForTimeout(700);
 };
-// Replace what the visible field holds with `text`, as a student retyping it.
-const retypeMath = async (page, text) => {
-  const field = (await stageScope(page)).locator('math-field:visible').first();
-  await field.click();
-  await page.keyboard.press('Control+A');
-  await page.keyboard.press('Backspace');
-  await page.waitForTimeout(200);
-  await page.keyboard.type(text, { delay: 15 });
-  await page.waitForTimeout(350);
-};
 const typeMath = async (page, text) => {
   // Simple steps stay mounted in focus mode (hidden), so the step's field is
   // the visible one.
@@ -164,7 +154,9 @@ const pointReadouts = (page) => page.evaluate(() => [...(document.querySelector(
   .filter((text) => /\(\s*-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?\s*\)/.test(text))
   .map((text) => text.match(/\(\s*-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?\s*\)/)[0].replace(/\s+/g, ''))
   .sort());
-const VERDICT_KEYS = ['isCorrect', 'score', 'partGrades', 'partialCreditPercent', 'credit', 'answerKey', 'solution', 'grading', 'accepted', 'acceptedAnswers', 'correctAnswer', 'expectedAnswer'];
+// A table step's check against the authored function, and that function, are
+// worked out where they are needed, never carried (tableSourceCheck.js).
+const VERDICT_KEYS = ['isCorrect', 'score', 'partGrades', 'partialCreditPercent', 'credit', 'answerKey', 'solution', 'grading', 'accepted', 'acceptedAnswers', 'correctAnswer', 'expectedAnswer', 'sourceConsistent', 'sourceChecked', 'sourceFunctionSpec'];
 const serverResponses = (page) => page.evaluate(() => {
   const entry = (window.__mm.server()?.entries || []).find((candidate) => candidate.key.endsWith(':workflow-responses'));
   return entry ? { savedAt: entry.savedAt, valueJson: entry.valueJson, value: JSON.parse(entry.valueJson) } : null;
@@ -214,9 +206,25 @@ const QUESTIONS = {
       await nextStep(page);
       await typeMath(page, '(-inf,inf)');
     },
-    // The reopened question opens on the range step: type it again.
-    async touch(page) {
-      await retypeMath(page, '(-inf,inf)');
+  },
+  // Stacked: the graph step mounts with the page, its draft named after the
+  // table (which comes back from the server copy without its check).
+  tableGraph: {
+    graphStage: 'graph',
+    graphStep: 2,
+    stacked: true,
+    roles: ['practice'],
+    async work(page, role) {
+      for (const [index, value] of [1, 3, 5].entries()) await page.getByLabel(`Row ${index + 1}, f(x)`).fill(String(value));
+      await page.waitForTimeout(500);
+      await tapPlane(page, 'Center / Key Point', 0, 1);
+      await tapPlane(page, 'P1: x = 1', 1, 3);
+      await tapPlane(page, 'P2: x = 2', 2, 5);
+      if (role === 'practice') {
+        await page.getByRole('button', { name: 'Check Point Placements' }).click();
+        await page.waitForTimeout(250);
+      }
+      await draw(page, (x) => 2 * x + 1, -1.5, 3);
     },
   },
   analysis: {
@@ -239,13 +247,6 @@ const QUESTIONS = {
       await page.locator('.workflow-focus__active-stage button', { hasText: 'All Real Numbers' }).first().click();
       await page.waitForTimeout(300);
     },
-    // The reopened question opens on the domain step: write something else,
-    // then choose All Real Numbers again.
-    async touch(page) {
-      await retypeMath(page, 'x');
-      await page.locator('.workflow-focus__active-stage button', { hasText: 'All Real Numbers' }).first().click();
-      await page.waitForTimeout(300);
-    },
   },
   relation: {
     graphStage: 'plot',
@@ -260,9 +261,6 @@ const QUESTIONS = {
         await page.waitForTimeout(250);
       }
       await typeMath(page, '{-4,-2,1,3}');
-    },
-    async touch(page) {
-      await retypeMath(page, '{-4,-2,1,3}');
     },
   },
 };
@@ -321,13 +319,10 @@ for (const [q, spec] of Object.entries(QUESTIONS)) {
       check(restoredSame === 0, `${tagO} same device: nothing from the server copy replaces the device's own`, String(restoredSame));
       const graphSame = await localGraph(pageSame, spec.graphStage);
       check(JSON.stringify(graphSame) === JSON.stringify(graphOnA), `${tagO} same device: the graph step is exactly the device's own, verdict and all`);
-      // A finished composed question opened again cannot be submitted until an
-      // answer changes (QuestionEngine clears the first report on mount — not
-      // this change; see the PQ-043 entry). The student retypes the answer on
-      // screen, which leaves the work exactly as it was.
-      await spec.touch(pageSame);
+      // Opened again, the finished question can be submitted as it stands
+      // (fd739ea2: QuestionEngine no longer clears the first report on mount).
       const responsesSame = await pageSame.evaluate(() => window.__mm.local()[':workflow-responses']?.value);
-      check(JSON.stringify(responsesSame) === JSON.stringify(localAll), `${tagO} same device: the retyped answer leaves the work exactly as it was`);
+      check(JSON.stringify(responsesSame) === JSON.stringify(localAll), `${tagO} same device: every answer is exactly the device's own`);
       const { enabled: enabledSame, graded: gradedSame } = await submitAndRead(pageSame);
       check(enabledSame && sameGrade(gradedSame, gradedA), `${tagO} same device: graded exactly as before`, JSON.stringify({ a: gradedA?.partialCreditPercent, again: gradedSame?.partialCreditPercent }));
       await contextSame.close();
