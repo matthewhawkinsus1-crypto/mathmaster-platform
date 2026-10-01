@@ -102,6 +102,11 @@ const copyCommon = (source, target = {}) => {
   const studentActions = normalizeActions(source);
   if (studentActions.length) target.studentActions = studentActions;
   if (source.questionId) target.questionId = source.questionId;
+  // A Question Family opt-in travels with the question whatever its type: it
+  // is what makes the slot generate per-student versions (and Recovery). A
+  // compiler that dropped it would silently turn the slot back into a
+  // template only the legacy generator reads.
+  if (isObject(source.questionFamily)) target.questionFamily = source.questionFamily;
   if (source.standard) target.standard = source.standard;
   if (source.primaryStandard) target.primaryStandard = source.primaryStandard;
   if (source.secondaryStandards) target.secondaryStandards = source.secondaryStandards;

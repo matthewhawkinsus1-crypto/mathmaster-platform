@@ -14,7 +14,9 @@ test('assignment intake opens Preflight with canonical V5 rather than a Lesson B
 
 test('Preflight validates and plans delivery from Assignment V5 directly', () => {
   assert.match(modal, /buildPreflightReviewedAssignmentV5/);
-  assert.match(modal, /buildAssignmentV5PreflightModel\(reviewedAssignmentV5\)/);
+  // The reviewed V5 object is the model's input (first argument); an options
+  // bag may follow (it carries the class size for Pre-Flight's uniqueness check).
+  assert.match(modal, /buildAssignmentV5PreflightModel\(reviewedAssignmentV5[,)]/);
   assert.doesNotMatch(modal, /validateLessonBundle/);
   assert.doesNotMatch(modal, /lessonBundle/);
   assert.match(modal, /assignmentV5:\s*effectiveAssignmentV5/);

@@ -66,6 +66,9 @@ export default function StudentAssignmentResult({
    * wrong for half of the students who arrive.
    */
   origin = LEVEL.ASSIGNMENTS,
+  // Practice-based Recovery for a closed Warm-Up/DOL, when the student has
+  // one (SectionRecoveryPanel). Null for everyone else.
+  recoveryPanel = null,
 }) {
   const cameFromGrades = origin === LEVEL.GRADES;
   // The label comes from the navigation model, which owns the rule that a Back
@@ -166,6 +169,7 @@ export default function StudentAssignmentResult({
 
         <GradeSectionBreakdown sections={entry.sections} />
         <TestCycleGradeBreakdown entry={entry} />
+        {recoveryPanel}
 
         {/* Feedback/release state, said plainly, because "no number yet" and
             "you scored nothing" are opposite messages. */}

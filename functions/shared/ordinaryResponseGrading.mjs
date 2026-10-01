@@ -87,6 +87,10 @@ export const serverGradingSupport = (question) => {
   // does not re-run. Marking the template against an instance answer is worse
   // than not marking it at all.
   if (question.generator && typeof question.generator === 'object') return { supported: false, reason: 'generated-question' };
+  // A Question Family slot is a template too: what the student answered is
+  // the instance rebuilt from their delivery pin (questionFamilyGrading.mjs),
+  // never whatever key the template itself may carry.
+  if (question.questionFamily && typeof question.questionFamily === 'object') return { supported: false, reason: 'family-template' };
   if (list(question.variants).length > 0) return { supported: false, reason: 'variant-selection' };
   // `auto` differentiation swaps in a band profile that may carry its own
   // answer key, so the stored question is not the delivered question.

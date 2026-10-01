@@ -33,6 +33,7 @@ function driveResources() {
 
 const { runtimeIncludedQuestionIndices, runtimeIncludedQuestionIndicesForSection, runtimeQuestionsFromAssignment } = require("./lib/assignmentRuntime");
 const { weightedQuestionTotals } = require("./lib/questionWeights");
+const sectionRecoveryGrades = require("./lib/sectionRecoveryGrades");
 const challengeSampling = require("./lib/challengeSampling");
 const { encryptLaunchPayload, decryptLaunchToken } = require("./lib/linkToken");
 const {
@@ -961,6 +962,159 @@ exports.ingestStudentSubmissions = onCall(async (request) => {
     }
   }
   return { receipts, ingestedAt: now };
+});
+
+/*
+ * PRACTICE-BASED RECOVERY — THE ONLY WRITER OF A STUDENT'S RECOVERY RECORD.
+ *
+ * Students reach their own Warm-Up/DOL Recovery through this callable:
+ * `status` (read), `practice` (one server-graded Practice item for the
+ * mastery gate), `unlock`, `start` (freeze a fresh plan) and `submit` (server-
+ * graded Recovery). Every rule — who may recover, when, what they are asked,
+ * how it is graded and recorded — is the shared, pure service in
+ * functions/shared/sectionRecoveryService.mjs; this function only reads the
+ * authoritative documents, runs it inside a transaction and writes the result
+ * to `grades/{studentId}.sectionRecoveryByAssignment`, a map the Firestore
+ * rules pin to the server. A completed Recovery changes the recorded score
+ * through the Classroom triggers' existing grade calculation; nothing here
+ * writes a grade directly.
+ */
+let sectionRecoveryServiceModule = null;
+async function sectionRecoveryService() {
+  if (!sectionRecoveryServiceModule) {
+    sectionRecoveryServiceModule = await import("./shared/sectionRecoveryService.mjs");
+  }
+  return sectionRecoveryServiceModule;
+}
+
+const RECOVERY_SECTION_KEYS = new Set(["warmup", "dol"]);
+const RECOVERY_ACTIONS_WITH_ATTENDANCE = new Set(["status", "unlock", "start"]);
+
+function serverSectionVariantMode(assignment = {}, role = "") {
+  const policy = assignment?.variantPolicy && typeof assignment.variantPolicy === "object" ? assignment.variantPolicy : {};
+  const sectionMode = String(policy.sectionModes?.[role] || "").trim().toLowerCase();
+  if (["shared", "personalized", "variant", "adaptive"].includes(sectionMode)) return sectionMode;
+  const mode = String(policy.mode || "").trim().toLowerCase();
+  return ["shared", "personalized", "variant", "adaptive"].includes(mode) ? mode : "personalized";
+}
+
+exports.advanceSectionRecovery = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  const section = String(request.data?.section || "").trim().toLowerCase();
+  const action = String(request.data?.action || "status").trim();
+  if (!assignmentId || !RECOVERY_SECTION_KEYS.has(section)) {
+    throw new HttpsError("invalid-argument", "A Recovery request needs an assignment and a Warm-Up or DOL section.");
+  }
+  const service = await sectionRecoveryService();
+  if (!Object.values(service.RECOVERY_ACTION).includes(action)) {
+    throw new HttpsError("invalid-argument", "Unknown Recovery action.");
+  }
+
+  const db = getFirestore();
+  const gradeRef = db.collection("grades").doc(studentId);
+  const assignmentRef = db.collection("assignments").doc(assignmentId);
+
+  // Reads that do not need to be transactional: the schedule, the class
+  // period and, when the decision needs it, that day's attendance.
+  const [scheduleSnapshot, preGrade, preAssignment] = await Promise.all([
+    db.collection("settings").doc("classSchedule").get(),
+    gradeRef.get(),
+    assignmentRef.get(),
+  ]);
+  if (!preAssignment.exists) throw new HttpsError("not-found", "That assignment is no longer available.");
+  const schedule = scheduleSnapshot.exists ? scheduleSnapshot.data() : null;
+  const preGradeData = preGrade.exists ? preGrade.data() || {} : {};
+  const classId = authoritativeStudentClassId(preGradeData);
+  const classPeriod = await resolveCheckpointClassPeriod(db, classId, preGradeData, new Map());
+  let supportEvents = null;
+  if (RECOVERY_ACTIONS_WITH_ATTENDANCE.has(action)) {
+    const deadlines = await import("./shared/sectionDeadline.mjs");
+    const preAssignmentData = { id: preAssignment.id, ...preAssignment.data() };
+    const dateKey = section === "warmup"
+      ? deadlines.resolveWarmupInstructionDateKey({ assignment: preAssignmentData, classId, classPeriod })
+      : deadlines.resolveDolInstructionDateKey({ assignment: preAssignmentData, classId, classPeriod });
+    if (dateKey) {
+      const eventsSnapshot = await db.collection("studentSupportEvents")
+        .where("studentId", "==", studentId)
+        .where("dateKey", "==", dateKey)
+        .get();
+      supportEvents = eventsSnapshot.docs.map((doc) => doc.data() || {});
+    } else {
+      supportEvents = [];
+    }
+  }
+
+  try {
+    return await db.runTransaction(async (transaction) => {
+      const [assignmentSnapshot, gradeSnapshot] = await Promise.all([
+        transaction.get(assignmentRef),
+        transaction.get(gradeRef),
+      ]);
+      if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment is no longer available.");
+      if (!gradeSnapshot.exists) throw new HttpsError("failed-precondition", "Your class record is not ready yet.");
+      const assignment = { id: assignmentSnapshot.id, ...assignmentSnapshot.data() };
+      const gradeData = gradeSnapshot.data() || {};
+      if (secureAssignmentMode(assignment) || assignment.secure === true) {
+        throw new HttpsError("failed-precondition", "Secure assessments use their own retest process.");
+      }
+      if (!studentMatchesAssignmentAudience({ assignment, classId: authoritativeStudentClassId(gradeData) })) {
+        throw new HttpsError("permission-denied", "This assignment is not assigned to your class.");
+      }
+
+      const questions = runtimeQuestionsFromAssignment(assignment);
+      const sectionIndices = runtimeIncludedQuestionIndicesForSection(assignment, section);
+      const tracker = gradeData.gradesByAssignment?.[assignmentId] || {};
+      const overrides = gradeData.teacherGradeOverridesByAssignment?.[assignmentId] || {};
+      const original = assignmentGradeProgress(tracker, sectionIndices, questions, overrides);
+      const context = service.buildSectionRecoveryContext({
+        assignment,
+        section,
+        sectionEntries: sectionIndices.map((storageIndex) => ({ storageIndex, question: questions[storageIndex] })),
+        questions,
+        tracker,
+        sectionOriginal: { score: original.total ? original.grade : null, attempted: original.attempted, total: original.total },
+        record: gradeData.sectionRecoveryByAssignment?.[assignmentId]?.[section] || null,
+        studentId,
+        classId: authoritativeStudentClassId(gradeData),
+        classPeriod,
+        schedule,
+        supportEvents,
+        challengeCredit: gradeData.warmupChallengeByAssignment?.[assignmentId] || null,
+        studentProfile: gradeData.profile || null,
+        sectionModeFor: (role) => serverSectionVariantMode(assignment, role),
+        nowValue: Date.now(),
+      });
+      const outcome = service.runSectionRecoveryAction({
+        context,
+        action,
+        payload: request.data?.payload && typeof request.data.payload === "object" ? request.data.payload : {},
+        at: Date.now(),
+      });
+      if (outcome.changed) {
+        transaction.update(
+          gradeRef,
+          new FieldPath("sectionRecoveryByAssignment", assignmentId, section),
+          outcome.record,
+        );
+      }
+      return {
+        action,
+        section,
+        state: context.eligibility.state,
+        reason: context.eligibility.reason,
+        record: outcome.record,
+        ...outcome.response,
+      };
+    });
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    if (error?.name === "RecoveryTransitionError") {
+      throw new HttpsError("failed-precondition", error.message || error.code, { code: error.code });
+    }
+    logger.error("Section recovery action failed", { studentId, assignmentId, section, action, message: error?.message });
+    throw new HttpsError("internal", "Recovery could not be updated. Your work is still saved; try again.");
+  }
 });
 
 const studentMatchesAssignmentAudience = ({ assignment = {}, classId = null } = {}) => {
@@ -8113,11 +8267,16 @@ exports.syncGradeToClassroom = onDocumentWritten(
         JSON.stringify(beforeReleaseSignals[assignmentId])
     );
     const releaseSignalSet = new Set(releaseSignaledAssignmentIds);
+    // A completed Practice-based Recovery, or a Live Challenge Warm-Up result,
+    // rescores its section in this same grade, so it has to wake this trigger
+    // too.
+    const recoveryChangedIds = sectionRecoveryGrades.recoveryChangedAssignmentIds(afterData, beforeData);
     const changedAssignmentIds = [...new Set([
       ...gradeChangedAssignmentIds,
       ...overrideChangedAssignmentIds,
       ...testCycleChangedAssignmentIds,
       ...releaseSignaledAssignmentIds,
+      ...recoveryChangedIds,
     ])];
     if (changedAssignmentIds.length === 0) return;
 
@@ -8194,6 +8353,21 @@ exports.syncGradeToClassroom = onDocumentWritten(
       const releaseSignal = releaseSignalSet.has(assignmentId)
         ? afterReleaseSignals[assignmentId]
         : null;
+      // A completed Recovery credits its section at the recorded score inside
+      // this same calculation (functions/lib/sectionRecoveryGrades.js).
+      // eslint-disable-next-line no-await-in-loop
+      const recoveredInputs = isTestCycleAssignment
+        ? { tracker: assignmentTracker, overrides: authoritativeOverrides }
+        : await sectionRecoveryGrades.projectRecoveredGradeInputs({
+          assignment,
+          tracker: assignmentTracker,
+          questions,
+          overrides: authoritativeOverrides,
+          recoveryForAssignment: afterData.sectionRecoveryByAssignment?.[assignmentId] || null,
+          // A Live Challenge Warm-Up result is the Warm-Up grade.
+          challengeCredit: afterData.warmupChallengeByAssignment?.[assignmentId] || null,
+          gradeProgress: assignmentGradeProgress,
+        });
       let progress = isTestCycleAssignment
         ? {
           total: 1,
@@ -8208,10 +8382,10 @@ exports.syncGradeToClassroom = onDocumentWritten(
           minimumProgressQuestions: 1,
         }
         : assignmentGradeProgress(
-          assignmentTracker,
+          recoveredInputs.tracker,
           questionIndices,
           questions,
-          authoritativeOverrides,
+          recoveredInputs.overrides,
         );
       if (assignmentGradeOverride) {
         progress = {

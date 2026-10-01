@@ -15,7 +15,7 @@
  * Nothing here computes a new grade. "Below 70%" uses the gradebook's own
  * green/black threshold; "not started" is the grade split's own shape.
  */
-import { assignmentGradeOverrideFor, canonicalPresentedAssignmentGrade, projectTeacherOverridesForDisplay } from '../grading/canonicalGradeProjection.js';
+import { assignmentGradeOverrideFor, canonicalPresentedAssignmentGrade, projectedAssignmentTrackerFor } from '../grading/canonicalGradeProjection.js';
 import { GRADE_SHAPE, splitGrade } from './gradeEvidence.js';
 import { classifyLiveStudent, LIVE_ACTIVITY, LIVE_FLAGS } from '../../livePresence.js';
 
@@ -30,10 +30,7 @@ export const PASSING_DISPLAY_THRESHOLD = 70;
 /** One student's standing on one assignment, from their full grade record. */
 export const studentAssignmentProgress = ({ student, assignment }) => {
   const override = assignmentGradeOverrideFor(student, assignment?.id);
-  const tracker = projectTeacherOverridesForDisplay(
-    student?.gradesByAssignment || {},
-    student?.teacherGradeOverridesByAssignment || {},
-  )?.[assignment?.id] || null;
+  const tracker = projectedAssignmentTrackerFor({ student, assignment });
   const split = splitGrade({ tracker, assignment });
   const score = canonicalPresentedAssignmentGrade({ student, assignment });
   let state = PROGRESS_STATE.IN_PROGRESS;

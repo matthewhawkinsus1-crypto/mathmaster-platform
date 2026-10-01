@@ -543,7 +543,14 @@ test('Classroom passback wakes on authoritative override changes and applies the
   const region = source.slice(start, end);
   assert.match(region, /teacherGradeOverridesByAssignment/);
   assert.match(region, /overrideChangedAssignmentIds/);
-  assert.match(region, /assignmentGradeProgress\([\s\S]*authoritativeOverrides/);
+  // The authoritative overrides reach the grade by question index. They pass
+  // through the Practice-based Recovery projection first (which drops only the
+  // per-question overrides inside a recovered section, because those shaped
+  // the original the Recovery replaced) and the grade is computed from what
+  // comes out — see sectionRecoveryGrades.js.
+  assert.match(region, /projectRecoveredGradeInputs\(\{[\s\S]*?overrides: authoritativeOverrides,[\s\S]*?\}\)/);
+  assert.match(region, /assignmentGradeProgress\(\s*recoveredInputs\.tracker,[\s\S]*?recoveredInputs\.overrides,?\s*\)/);
+  assert.match(region, /\? \{ tracker: assignmentTracker, overrides: authoritativeOverrides \}/, 'a Test Cycle keeps the overrides unprojected');
 });
 
 test('Firestore rules pin teacher override projection and default-deny private inspection evidence', () => {

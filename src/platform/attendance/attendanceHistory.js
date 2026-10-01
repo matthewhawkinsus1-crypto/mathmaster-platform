@@ -24,10 +24,20 @@
  */
 
 import { ATTENDANCE_MARK } from './absencePolicy.js';
-import { LIVE_ATTENDANCE_EVENT_KIND } from '../teacher/liveAttendance.js';
 import { MEETING_STATUS, classifySchoolDay, shiftDateKey } from './classMeetings.js';
+// The day-resolution rules ("which mark governs this student's day") moved to
+// shared code so the server reads attendance exactly as these screens do —
+// Practice-based Recovery decides there whether an absence was excused.
+import {
+  ATTENDANCE_HISTORY_EVENT_KIND as SHARED_ATTENDANCE_HISTORY_EVENT_KIND,
+  attendanceEventsForStudentDay,
+  effectiveAttendanceForClassDay,
+  effectiveAttendanceForStudentDay,
+} from '../../../functions/shared/attendanceDay.mjs';
 
-export const ATTENDANCE_HISTORY_EVENT_KIND = 'attendanceHistory';
+export { attendanceEventsForStudentDay, effectiveAttendanceForClassDay, effectiveAttendanceForStudentDay };
+
+export const ATTENDANCE_HISTORY_EVENT_KIND = SHARED_ATTENDANCE_HISTORY_EVENT_KIND;
 
 export const ATTENDANCE_HISTORY_MARK = Object.freeze({
   PRESENT: ATTENDANCE_MARK.PRESENT,
@@ -46,125 +56,8 @@ const ABSENT_HISTORY_MARKS = new Set([
 ]);
 
 const clean = (value) => String(value ?? '').trim();
-const list = (value) => (Array.isArray(value) ? value : []);
-
-const toMillis = (value) => {
-  if (!value) return null;
-  if (typeof value === 'number') return value;
-  if (typeof value?.toMillis === 'function') return value.toMillis();
-  if (typeof value?.seconds === 'number') return value.seconds * 1000;
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? null : parsed;
-};
 
 export const attendanceHistoryMarkIsAbsent = (mark) => ABSENT_HISTORY_MARKS.has(clean(mark).toLowerCase());
-
-const eventTime = (event) => (
-  toMillis(event?.evidence?.markedAt ?? event?.evidence?.correctedAt)
-  ?? toMillis(event?.createdAt)
-  ?? toMillis(event?.createdAtServer)
-  ?? 0
-);
-
-const eventMatchesClass = (event, classId, classPeriod) => {
-  if (classId) return String(event?.classId || '') === String(classId);
-  if (classPeriod) return String(event?.classPeriod || '') === String(classPeriod);
-  return true;
-};
-
-/**
- * One `studentSupportEvents` doc, whichever of the two attendance kinds it
- * is, normalized to a common shape. Anything else returns null.
- */
-const normalizeAttendanceEvent = (event) => {
-  const kind = clean(event?.kind);
-  if (kind === LIVE_ATTENDANCE_EVENT_KIND) {
-    const rawMark = clean(event?.evidence?.attendanceMark).toLowerCase();
-    if (!rawMark) return null;
-    // A bare live "absent" carries no excused/unexcused opinion yet — it is
-    // its own real state, never assumed to be unexcused.
-    const mark = rawMark === 'absent' ? ATTENDANCE_HISTORY_MARK.ABSENT_UNCLASSIFIED : rawMark;
-    if (!HISTORY_MARKS.has(mark)) return null;
-    return {
-      mark,
-      markSource: 'liveQuickMark',
-      classified: rawMark !== 'absent',
-      reason: null,
-      at: eventTime(event),
-      event,
-    };
-  }
-  if (kind === ATTENDANCE_HISTORY_EVENT_KIND) {
-    const mark = clean(event?.evidence?.mark).toLowerCase();
-    if (!HISTORY_MARKS.has(mark)) return null;
-    return {
-      mark,
-      markSource: 'historyCorrection',
-      classified: true,
-      reason: clean(event?.evidence?.reason) || null,
-      at: eventTime(event),
-      event,
-    };
-  }
-  return null;
-};
-
-/**
- * Every recorded attendance action for one student on one class/day, newest
- * first — the audit trail a history screen shows, and the input to
- * `effectiveAttendanceForDay` below.
- */
-export const attendanceEventsForStudentDay = ({
-  supportEvents = [],
-  studentId = null,
-  classId = null,
-  classPeriod = null,
-  dateKey = null,
-} = {}) => {
-  const student = clean(studentId);
-  const day = clean(dateKey);
-  if (!student || !day) return [];
-  return list(supportEvents)
-    .filter((event) => clean(event?.studentId) === student)
-    .filter((event) => clean(event?.evidence?.dateKey) === day)
-    .filter((event) => eventMatchesClass(event, classId, classPeriod))
-    .map(normalizeAttendanceEvent)
-    .filter(Boolean)
-    .sort((a, b) => b.at - a.at);
-};
-
-/**
- * The single mark that governs today for one student: the newest teacher
- * action wins, whichever kind it came from. `priorEvents` is every older
- * entry, for the "show prior correction history" panel.
- */
-export const effectiveAttendanceForStudentDay = (args) => {
-  const events = attendanceEventsForStudentDay(args);
-  if (!events.length) return { mark: null, markSource: null, classified: false, reason: null, at: null, event: null, priorEvents: [] };
-  const [effective, ...priorEvents] = events;
-  return { ...effective, priorEvents };
-};
-
-/** The batch version of the above, across a whole class for one day. */
-export const effectiveAttendanceForClassDay = ({
-  supportEvents = [], classId = null, classPeriod = null, dateKey = null,
-} = {}) => {
-  const day = clean(dateKey);
-  if (!day) return {};
-  const latest = new Map();
-  list(supportEvents)
-    .filter((event) => clean(event?.evidence?.dateKey) === day)
-    .filter((event) => eventMatchesClass(event, classId, classPeriod))
-    .forEach((event) => {
-      const studentId = clean(event?.studentId);
-      const normalized = normalizeAttendanceEvent(event);
-      if (!studentId || !normalized) return;
-      const current = latest.get(studentId);
-      if (current && current.at > normalized.at) return;
-      latest.set(studentId, normalized);
-    });
-  return Object.fromEntries(latest.entries());
-};
 
 /**
  * Build the payload for a teacher's historical attendance correction. This

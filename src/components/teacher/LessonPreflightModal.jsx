@@ -179,6 +179,9 @@ export const LessonPreflightModal = ({
   busy = false,
   reviewMode = 'create',
   allowQuestionRepair = true,
+  // { classId: number of active students } — lets Pre-Flight compare each
+  // question's distinct versions with the class it will actually be given to.
+  rosterSizesByClassId = {},
 }) => {
   const isNarrow = useIsNarrow();
   const [draft, setDraft] = useState(() => initialReviewDraft(initialDraft));
@@ -211,9 +214,17 @@ export const LessonPreflightModal = ({
     () => buildPreflightReviewedAssignmentV5(workingAssignmentV5, draft),
     [workingAssignmentV5, draft],
   );
+  // The largest class this assignment will be given to: uniqueness is per class.
+  const preflightClassSize = useMemo(() => {
+    const chosen = Array.isArray(draft.assignedClassIds) && draft.assignedClassIds.length
+      ? draft.assignedClassIds
+      : Object.keys(rosterSizesByClassId || {});
+    const sizes = chosen.map((classId) => Number(rosterSizesByClassId?.[classId]) || 0).filter((size) => size > 0);
+    return sizes.length ? Math.max(...sizes) : null;
+  }, [draft.assignedClassIds, rosterSizesByClassId]);
   const preflightModel = useMemo(
-    () => buildAssignmentV5PreflightModel(reviewedAssignmentV5),
-    [reviewedAssignmentV5],
+    () => buildAssignmentV5PreflightModel(reviewedAssignmentV5, { classSize: preflightClassSize }),
+    [reviewedAssignmentV5, preflightClassSize],
   );
   const effectiveAssignmentV5 = preflightModel.assignmentV5;
   const publishingIntent = useMemo(() => normalizeLessonPublishingIntentV5({
@@ -596,11 +607,16 @@ export const LessonPreflightModal = ({
     }
   };
 
+  // The same fallback the saved assignment and the runtime use
+  // (resolveReviewedSectionModes, getSectionVariantMode). This used to fall
+  // back to 'shared', so a section the teacher never touched SHOWED "Same
+  // questions for all students" while students were in fact given different
+  // versions — the screen and the classroom disagreed.
   const sectionVariantMode = (role) => (
     draft.sectionVariantModes?.[role]
     || assignmentV5?.variantPolicy?.sectionModes?.[role]
     || assignmentV5?.variantPolicy?.mode
-    || 'shared'
+    || 'personalized'
   );
   const setSectionVariantMode = (role, value) => setDraft((current) => ({
     ...current,
@@ -1388,6 +1404,25 @@ export const LessonPreflightModal = ({
   const renderCheck = () => (
     <section aria-label="Check">
       {isNarrow && <StepBlockers blockers={blockersForStep(readiness, 'check')} />}
+
+      {(preflightModel.questionGeneration?.notes?.length > 0 || preflightModel.questionGeneration?.warnings?.length > 0) && (
+        <div data-question-generation-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
+          <strong style={{ color: 'var(--mm-info-text)' }}>Question versions and Recovery</strong>
+          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.5 }}>
+            MathMaster generated sample versions of each question, checked that their answers grade correctly, and checked whether a fresh Recovery can be made for the Warm-Up and DOL.
+          </p>
+          {preflightModel.questionGeneration.notes.length > 0 && (
+            <ul style={{ margin: '0 0 8px', paddingLeft: 18, fontSize: 13, lineHeight: 1.5 }}>
+              {preflightModel.questionGeneration.notes.map((note) => <li key={note}>{note}</li>)}
+            </ul>
+          )}
+          {preflightModel.questionGeneration.warnings.length > 0 && (
+            <ul data-question-generation-warnings="true" style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
+              {preflightModel.questionGeneration.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
 
       {preflightModel.toolContract?.findings?.length > 0 && (
         <div data-tool-contract-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid #aecbfa', borderRadius: 10, background: '#f8fbff' }}>
