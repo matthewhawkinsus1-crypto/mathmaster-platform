@@ -35,6 +35,11 @@ name: Student Runtime Browser Gates
 #                       relation solver, constraint builder); practice unchanged
 #   clickMapLetterbox   number line, relation plot and story sketch place a tap
 #                       where it lands on a letterboxed plane (PQ-034)
+#   stagedQuestion      every step of a staged graph question, reached as a
+#                       student reaches it on six screens: its question and its
+#                       answer control on screen together, a plane big enough
+#                       to mark, zoom offered, no coordinates printed where a
+#                       later step asks for them
 
 on:
   pull_request:
@@ -54,6 +59,7 @@ on:
       - "tests/browser/toolAttemptOutcome*"
       - "tests/browser/assessmentLeakGates*"
       - "tests/browser/clickMapLetterbox*"
+      - "tests/browser/stagedQuestion*"
       - "tests/browser/harnessProduction.config.mjs"
       - "scripts/serve-static-spa.mjs"
       - "tests/browser/studentUxPlatform*"
@@ -157,6 +163,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/clickMapLetterbox.mjs
+      - name: Every step of a staged question fits and leaks nothing, on six screens
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/stagedQuestion.mjs
       - name: A production build serves the math fonts
         if: always()
         env:
