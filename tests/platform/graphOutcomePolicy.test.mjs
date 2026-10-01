@@ -75,13 +75,22 @@ test('a curve drawn where outcomes are withheld is accepted through the student\
 
 test('that curve is graded at submission as practice would have required before its snap', () => {
   const verdict = region(workspace, 'const sketchFollowsFunction = useMemo', 'const inverseSketchFollowsInverse', 'curve verdict');
-  // Against the function...
-  assert.match(verdict, /requiredScreenPoints: requiredGraphPoints, idealScreenPaths: idealScreenPointPaths/);
+  // Against the function — its required points and its sampled paths...
+  assert.match(verdict, /requiredScreenPoints: graphStrokesOnScreen\(\[\s*resolvedPointTasks\.filter\([^\n]*task\.role !== 'center'\)\.map\(\(task\) => task\.resolvedExpected\),?\s*\], viewWindow\)\[0\]/);
+  assert.match(verdict, /idealScreenPaths: graphStrokesOnScreen\(visiblePaths, viewWindow\)/);
+  // ...in the question's own window, never the zoomed one: the sketch test's
+  // tolerance is in pixels, so a student zoomed in at Submit would be graded
+  // more strictly than practice (tests/browser/graphPointCheck.mjs zooms in).
+  assert.match(verdict, /strokes: graphStrokesOnScreen\(construction\.sketchGraph, viewWindow\)/);
+  assert.doesNotMatch(verdict, /renderWindow|zoomView|toScreen[XY]/);
   // ...and through right points, because the sketch tolerance alone accepts a
   // line through a point a grid unit off.
   assert.match(verdict, /const curveCorrect = construction\.snapped\s*&& \(!curveAcceptedOwnPoints \|\| \(sketchFollowsFunction === true && pointParts\.every\(\(part\) => part\.isCorrect\)\)\)/);
   const inverseVerdict = region(workspace, 'const inverseSketchFollowsInverse', 'const checkInversePoints', 'inverse verdict');
-  assert.match(inverseVerdict, /requiredScreenPoints: inverseRequiredGraphPoints, idealScreenPaths: inverseIdealScreenPointPaths/);
+  assert.match(inverseVerdict, /requiredScreenPoints: graphStrokesOnScreen\(\[inversePointParts\.flatMap\(\(part\) => part\.expected \|\| \[\]\)\], viewWindow\)\[0\]/);
+  assert.match(inverseVerdict, /idealScreenPaths: graphStrokesOnScreen\(inverseVisiblePaths, viewWindow\)/);
+  assert.match(inverseVerdict, /strokes: graphStrokesOnScreen\(analysis\.inverseSketchGraph, viewWindow\)/);
+  assert.doesNotMatch(inverseVerdict, /renderWindow|zoomView|toScreen[XY]/);
   assert.match(inverseVerdict, /inverseSketchFollowsInverse === true && inversePointsCorrect/);
   const report = region(workspace, 'const constructionParts = constructionEnabled ? [', 'const parts = [', 'graded parts');
   assert.match(report, /id: 'graph-curve'[^\n]*isCorrect: curveCorrect/);

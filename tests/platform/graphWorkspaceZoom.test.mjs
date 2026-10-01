@@ -66,8 +66,10 @@ test('a coarser grid keeps a proportionally wider floor', () => {
 
 test('the authored window is what tasks and answers are still expressed in', () => {
   const source = readFileSync('src/InteractiveGraphWorkspace.jsx', 'utf8');
-  // Screen mapping follows what is on screen...
-  assert.match(source, /const toScreenX = \(x\) => PADDING \+ \(\(x - renderWindow\.xMin\)/);
+  // Screen mapping follows what is on screen (inline, or through the module's
+  // window-parameterised mapping bound to the render window)...
+  assert.match(source, /const toScreenX = \(x\) => (?:PADDING \+ \(\(x - renderWindow\.xMin\)|screenXIn\(renderWindow, x\))/);
+  assert.match(source, /const toScreenY = \(y\) => (?:PADDING \+ \(\(renderWindow\.yMax - y\)|screenYIn\(renderWindow, y\))/);
   assert.match(source, /const fromScreenX = \(screenX\) => renderWindow\.xMin/);
   // ...but a placed point is still clamped to the domain the question defined,
   // so zooming can never be used to answer outside it.

@@ -69,6 +69,15 @@ const ZOOM_BUTTON = {
 const WIDTH = 760;
 const HEIGHT = 540;
 const PADDING = 56;
+const INNER_WIDTH = WIDTH - PADDING * 2;
+const INNER_HEIGHT = HEIGHT - PADDING * 2;
+
+// Graph coordinates to plot pixels for one window. The component's
+// toScreenX / toScreenY are these, bound to what is on screen.
+const screenXIn = (view, x) => PADDING + ((x - view.xMin) / (view.xMax - view.xMin)) * INNER_WIDTH;
+const screenYIn = (view, y) => PADDING + ((view.yMax - y) / (view.yMax - view.yMin)) * INNER_HEIGHT;
+const graphStrokesOnScreen = (graphStrokes, view) => (Array.isArray(graphStrokes) ? graphStrokes : [])
+  .map((stroke) => (Array.isArray(stroke) ? stroke : []).map(([x, y]) => [screenXIn(view, x), screenYIn(view, y)]));
 const POINT_GUIDE_COLOR = '#00a6a6';
 const MARKER_SNAP_PIXELS = 82;
 
@@ -509,12 +518,12 @@ export default function InteractiveGraphWorkspace({
   const construction = constructionHistory.value;
   const analysis = analysisHistory.value;
 
-  const innerWidth = WIDTH - PADDING * 2;
-  const innerHeight = HEIGHT - PADDING * 2;
+  const innerWidth = INNER_WIDTH;
+  const innerHeight = INNER_HEIGHT;
   // Screen mapping, ticks and axes follow what is ON SCREEN. Everything else in
   // this component — tasks, keys, clamping — stays on the authored window.
-  const toScreenX = (x) => PADDING + ((x - renderWindow.xMin) / (renderWindow.xMax - renderWindow.xMin)) * innerWidth;
-  const toScreenY = (y) => PADDING + ((renderWindow.yMax - y) / (renderWindow.yMax - renderWindow.yMin)) * innerHeight;
+  const toScreenX = (x) => screenXIn(renderWindow, x);
+  const toScreenY = (y) => screenYIn(renderWindow, y);
   const fromScreenX = (screenX) => renderWindow.xMin + ((screenX - PADDING) / innerWidth) * (renderWindow.xMax - renderWindow.xMin);
   const fromScreenY = (screenY) => renderWindow.yMax - ((screenY - PADDING) / innerHeight) * (renderWindow.yMax - renderWindow.yMin);
   const xTicks = useMemo(() => buildTicks(renderWindow.xMin, renderWindow.xMax, renderWindow.xStep ?? 1), [renderWindow]);
@@ -698,19 +707,34 @@ export default function InteractiveGraphWorkspace({
    * practice snap uses. The sketch test alone is not enough — its tolerance is
    * for tracing points already known to be right, and it accepts a line drawn
    * through a point a whole grid unit off. The sketch is kept in graph
-   * coordinates so a zoom after drawing cannot move it. A curve that snapped
-   * after a passed check is correct as before (the only way it could snap).
+   * coordinates so a zoom after drawing cannot move it, and it is judged in
+   * the question's own window: the test's tolerance is in pixels, so judging
+   * it at the current zoom would grade a student who happened to be zoomed in
+   * more strictly than practice does. A curve that snapped after a passed
+   * check is correct as before (the only way it could snap).
    */
-  const strokesOnScreen = (graphStrokes) => (Array.isArray(graphStrokes) ? graphStrokes : [])
-    .map((stroke) => (Array.isArray(stroke) ? stroke : []).map(([x, y]) => [toScreenX(x), toScreenY(y)]));
   const sketchFollowsFunction = useMemo(() => (curveAcceptedOwnPoints
-    ? roughSketchMatchesGraph({ strokes: strokesOnScreen(construction.sketchGraph), requiredScreenPoints: requiredGraphPoints, idealScreenPaths: idealScreenPointPaths, requiredStrokeCount, tolerance: 68 })
-    : null), [curveAcceptedOwnPoints, construction.sketchGraph, requiredGraphPoints, idealScreenPointPaths, requiredStrokeCount]);
+    ? roughSketchMatchesGraph({
+      strokes: graphStrokesOnScreen(construction.sketchGraph, viewWindow),
+      requiredScreenPoints: graphStrokesOnScreen([
+        resolvedPointTasks.filter((task) => Array.isArray(task.resolvedExpected) && task.role !== 'center').map((task) => task.resolvedExpected),
+      ], viewWindow)[0],
+      idealScreenPaths: graphStrokesOnScreen(visiblePaths, viewWindow),
+      requiredStrokeCount,
+      tolerance: 68,
+    })
+    : null), [curveAcceptedOwnPoints, construction.sketchGraph, viewWindow, resolvedPointTasks, visiblePaths, requiredStrokeCount]);
   const curveCorrect = construction.snapped
     && (!curveAcceptedOwnPoints || (sketchFollowsFunction === true && pointParts.every((part) => part.isCorrect)));
   const inverseSketchFollowsInverse = useMemo(() => (inverseAcceptedOwnPoints
-    ? roughSketchMatchesGraph({ strokes: strokesOnScreen(analysis.inverseSketchGraph), requiredScreenPoints: inverseRequiredGraphPoints, idealScreenPaths: inverseIdealScreenPointPaths, requiredStrokeCount: 1, tolerance: 68 })
-    : null), [inverseAcceptedOwnPoints, analysis.inverseSketchGraph, inverseRequiredGraphPoints, inverseIdealScreenPointPaths]);
+    ? roughSketchMatchesGraph({
+      strokes: graphStrokesOnScreen(analysis.inverseSketchGraph, viewWindow),
+      requiredScreenPoints: graphStrokesOnScreen([inversePointParts.flatMap((part) => part.expected || [])], viewWindow)[0],
+      idealScreenPaths: graphStrokesOnScreen(inverseVisiblePaths, viewWindow),
+      requiredStrokeCount: 1,
+      tolerance: 68,
+    })
+    : null), [inverseAcceptedOwnPoints, analysis.inverseSketchGraph, viewWindow, inversePointParts, inverseVisiblePaths]);
   const inverseCurveCorrect = Boolean(analysis.inverseSnapped)
     && (!inverseAcceptedOwnPoints || (inverseSketchFollowsInverse === true && inversePointsCorrect));
 

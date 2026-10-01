@@ -205,6 +205,27 @@ let trueEnds = null;
   await page.close();
 }
 
+// ZOOM DOES NOT CHANGE THE GRADE. The sketch test's tolerance is in pixels, so
+// the curve is judged in the question's own window: a curve through the right
+// points that practice would snap (a slight bend) earns the same credit when
+// the student happens to be zoomed in at Submit. (Zooming out past the
+// question's window is not possible, so nothing can loosen it either.)
+{
+  const page = await open('dol');
+  await plot(page, 'Plot the point where x = 0', 0, 1);
+  await plot(page, 'Plot the point where x = 2', 2, 5);
+  await draw(page, (x) => line(x) + 0.6 * x * (x - 2), -1.4, 2.8);
+  for (const [x, y] of trueEnds || []) await placeMarker(page, 'Arrow', x, y);
+  for (let step = 0; step < 3; step += 1) {
+    await page.getByRole('button', { name: 'Zoom in' }).click();
+    await page.waitForTimeout(120);
+  }
+  const { graded } = await submitAndRead(page);
+  const curve = part(graded, 'graph-curve');
+  check(curve?.isCorrect === true && graded?.isCorrect === true, 'DOL zoom: a curve practice would accept earns the same credit zoomed in', JSON.stringify(curve));
+  await page.close();
+}
+
 // Clear Sketch frees the points again (the student can change their mind).
 {
   const page = await open('dol');
