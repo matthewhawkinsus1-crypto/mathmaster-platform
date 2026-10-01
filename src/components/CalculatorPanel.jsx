@@ -5,6 +5,7 @@ import { getCalculatorButtonsForMode, getCalculatorDrawerLabel } from '../platfo
 import { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
 import { clampCalculatorPosition, settleCalculatorPosition } from './calculatorPanelGeometry.js';
 import { nextDivisionKeypadStep } from './calculatorKeypadFlow.js';
+import { typedFractionKeyStep, typedFractionValueStep } from '../platform/math/typedFractionEntry.js';
 import CalculatorIcon from './common/CalculatorIcon.jsx';
 
 export { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
@@ -71,6 +72,9 @@ export const CalculatorPanel = ({
   const dragRef = useRef(null);
   // True while the cursor sits in the denominator a ÷ press created.
   const divisionPendingRef = useRef(false);
+  // The same question for a `/` typed on a keyboard (typedFractionEntry.js):
+  // 6/3+1 is (6/3) + 1 = 3, not 6/(3 + 1) = 1.5.
+  const typedFractionRef = useRef(null);
 
   useEffect(() => {
     setEstimate('');
@@ -95,7 +99,16 @@ export const CalculatorPanel = ({
     if (mathField.value !== display) mathField.value = display;
     window.mathVirtualKeyboard?.hide?.();
 
-    const handleInput = () => setDisplay(mathField.value || '0');
+    const handleInput = () => {
+      typedFractionRef.current = typedFractionValueStep(typedFractionRef.current, mathField.value);
+      setDisplay(mathField.value || '0');
+    };
+    const leaveTypedFraction = (event) => {
+      const step = typedFractionKeyStep(typedFractionRef.current, event, mathField.value);
+      typedFractionRef.current = step.state;
+      if (step.leaveFraction) mathField.executeCommand?.('moveAfterParent');
+    };
+    const forgetTypedFraction = () => { typedFractionRef.current = null; };
     const handleKeyDown = (event) => {
       if (
         event.key !== 'Enter'
@@ -122,11 +135,16 @@ export const CalculatorPanel = ({
     };
     const preventContextMenu = (event) => event.preventDefault();
     mathField.addEventListener('input', handleInput);
+    // Capture, so the cursor leaves the fraction before MathLive inserts the key.
+    mathField.addEventListener('keydown', leaveTypedFraction, { capture: true });
     mathField.addEventListener('keydown', handleKeyDown);
+    mathField.addEventListener('pointerdown', forgetTypedFraction);
     mathField.addEventListener('contextmenu', preventContextMenu);
     return () => {
       mathField.removeEventListener('input', handleInput);
+      mathField.removeEventListener('keydown', leaveTypedFraction, { capture: true });
       mathField.removeEventListener('keydown', handleKeyDown);
+      mathField.removeEventListener('pointerdown', forgetTypedFraction);
       mathField.removeEventListener('contextmenu', preventContextMenu);
     };
   }, [isOpen, estimateUnlocked, policy.mode]);
@@ -216,6 +234,7 @@ export const CalculatorPanel = ({
   const setCalculatorValue = useCallback((value) => {
     const next = String(value ?? '0');
     divisionPendingRef.current = false;
+    typedFractionRef.current = null;
     setDisplay(next);
     if (mathFieldRef.current) mathFieldRef.current.value = next;
   }, []);
@@ -228,6 +247,7 @@ export const CalculatorPanel = ({
       mathField.value = '';
       setDisplay('');
     }
+    typedFractionRef.current = null;
     const step = nextDivisionKeypadStep({
       divisionPending: divisionPendingRef.current,
       command,
