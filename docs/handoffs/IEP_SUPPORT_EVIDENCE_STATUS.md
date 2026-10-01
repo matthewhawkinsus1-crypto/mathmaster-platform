@@ -9,9 +9,10 @@ Branch: `ai/claude-iep-evidence-20260930` (from `origin/main` @ `1fcd1ea7`, PR #
 
 ## Current state
 
-- **Phase:** 7 — committed browser journeys, final review, PR description (next). Draft PR: #401
-- **Design:** `docs/IEP_SUPPORT_EVIDENCE_DESIGN.md` (committed with this checkpoint)
-- **PR:** #401 (draft; CI runs the full gate on every push)
+- **Phase:** 7, final stretch. Handed off to a cloud session on 2026-09-30. See **Handoff: what remains, in order** at the end of this file.
+- PR #401 is still a draft. It is **not merged and not deployed**, and must stay that way. The near-final description is already the PR body.
+- **Design:** `docs/IEP_SUPPORT_EVIDENCE_DESIGN.md`, with the as-built differences in §9.
+- **QA:** `docs/qa/iep-support-evidence.md`. The screenshots come from the fake-school harness only.
 
 ## Phases
 
@@ -20,11 +21,11 @@ Branch: `ai/claude-iep-evidence-20260930` (from `origin/main` @ `1fcd1ea7`, PR #
 | 0 | Reconnaissance, design doc, status doc, first checkpoint push | ✅ |
 | 1 | Architecture + schemas + Firestore rules + rule tests | ✅ |
 | 2 | Support profile versioning + support resolution / automatic application | ✅ |
-| 3 | Telemetry + evidence event logging + engagement metric repair | ⬜ |
+| 3 | Telemetry + evidence event logging + engagement metric repair | ✅ |
 | 4 | Teacher Support/Evidence UI (hub + drawer) + one-click events + service log | ✅ |
 | 5 | Student "Support tools" UI | ✅ |
 | 6 | Report model/renderer + grade-impact aggregation + assignment-instance dedup | ✅ |
-| 7 | Browser QA (fake-school harness) + final hardening + security review + PR | ⬜ |
+| 7 | Browser QA (fake-school harness) + final hardening + security review + PR | ◐ finishing — see **Handoff** |
 
 ## Environment notes (this machine)
 
@@ -32,6 +33,13 @@ Branch: `ai/claude-iep-evidence-20260930` (from `origin/main` @ `1fcd1ea7`, PR #
 - CI (`.github/workflows/full-platform-suite.yml`) runs `npm run test:rules` on every PR to `main`.
 - Teacher browser harness: `npx vite --config tests/browser/teacherWorkflow/vite.config.mjs` →
   `http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html?reset=1` (in-memory Firebase fakes).
+- **Don't edit files under `src/` or `functions/shared/` while a journey is running**, including mutation checks.
+  Vite hot-reloads the harness page mid-journey, and the journey fails for no product reason.
+- **Don't start a second Vite server from this checkout while the harness is running.** For example, the main
+  config on :5199 for `tests/browser/algebraicSystems3x3.mjs` would share `node_modules/.vite`. Its dependency
+  re-optimization makes the harness page fully reload. Run the two one after the other.
+- **CI runs in UTC.** Tests of student-facing dates must not assume a Chicago process. Run new date tests with
+  `TZ=UTC` as well.
 
 ## Reconnaissance findings (verified against the code on this branch)
 
@@ -209,16 +217,99 @@ These are the facts the design is built on. File references are to `origin/main`
 - Found (pre-existing, confirmed on untouched main in an A/B worktree): the student assignment view logs React
   "Maximum update depth exceeded" in the harness. Not caused by this branch; backlog.
 
-## Phase 7 checklist (next)
+## Phase 7 — done so far
 
-- [ ] Commit the harness journeys (teacher + student) as `tests/browser/teacherWorkflow/supportEvidenceJourneys.mjs`
-- [ ] Re-run existing journeys A–K against the updated fixture
-- [ ] Layout at 1440 / 1024 / 768 (drawer, hub, report, student tools)
-- [ ] Final security + integration review; `test:rules`, `test:authoring-v5`, `tests/tools`, `build:firebase`
-- [ ] Final PR description (deploy: rules + functions list + hosting; rollback; limitations; teacher steps)
+**Browser gate committed.** `tests/browser/teacherWorkflow/supportEvidenceJourneys.mjs` covers:
+- T1 drawer section;
+- T2 one-click, note-after and "entered in error";
+- T3 service log;
+- T4 hub supports layer;
+- T5 profile editor and a new revision;
+- T6 report (7 sections, no library copies, no "0 min", CSV, print);
+- S1 student: own due date, neutral Support tools, and available / provided / used records plus a ledger minute.
+
+The existing PR #400 journeys A–K and retry run against the updated fixture.
+
+**Security review hardenings** (commit `07af5f40`):
+- A correction (`voidsEventId`) can only withdraw the same author's existing staff record or service entry. This is enforced in the rules and in aggregation, so one staff member cannot erase another's records.
+- "Used" counts are de-duplicated per support, assignment, question and minute, so a flood of writes cannot inflate them.
+- Teacher-attached student links are re-checked for https at render.
+
+**Narrow screens** (commit `f667d11b`): phones and portrait tablets hide the assignment header by existing design, which hid Support tools there. The panel now also renders in the expanded navigator, under exactly the media conditions that hide the header. A contract test covers this, and S1 passes at 390×844 and 844×390.
+
+**CI fixes** (commit `70ff9700`):
+- Two deadline assertions assumed a Chicago process; CI runs in UTC. The suite now passes in five zones, and the rewritten assertions were mutation-checked in two.
+- The report's print-only black-on-white is recorded in the theme baseline.
+
+**Interactive Capability Certification** failed twice in CI at `teacherPreview-3x3`: the token drop onto R₂ landed under the floating work bar, so the solver never appeared.
+- It is not caused by this branch. The screenshot just before the drag is byte-identical to the green run's, no file the 3×3 page loads changed between the green and red commits, and the journey passes locally (exit 0) on this branch.
+- This certification also fails intermittently on `main` (4 of its last 18 runs).
+
+## Handoff: what remains, in order
+
+Everything above is committed and pushed. Resume on `ai/claude-iep-evidence-20260930` (PR #401).
+
+**1. Fix: four student surfaces show the class due date instead of the student's own.**
+Found in the browser with the fake student 910002: the class due is Oct 1 and their individualized due is Oct 2. The assignment header and the dashboard assignment card correctly say "Your due date: Oct 2". These four still print "Due Oct 1":
+- `src/components/student/WhatShouldIDoNow.jsx:77-79` (Home "Do this next"). It formats `nextAction.assignment.dueAt` directly.
+- `src/platform/student/studentAssignmentsCenterModel.js:167-168` (Assignments tab). Rendered at `StudentAssignmentsCenter.jsx:74-76`.
+- `src/platform/student/studentGradeCenterModel.js:399-400` (Grades tab and assignment result). Rendered at `StudentGradeCenter.jsx:119-120` and `StudentAssignmentResult.jsx:106-109`.
+
+Each of those models already holds the student-bound lifecycle:
+- grade center: `getAssignmentLifecycle(assignment, nowValue, { studentId })` at line 320;
+- assignments center: `entry.lifecycle` from the dashboard model, whose provider is bound to the student at `App.jsx` ~11356;
+- dashboard output: `dashboard.allEntries[].lifecycle` and `dashboard.resumeLifecycle` for the next-action card.
+
+Planned fix:
+- In both models, take `dueAt` / `lateDueAt` from `lifecycle.dueAt` / `lifecycle.lateDueAt` (Dates → ISO strings). Fall back to the class fields when there is no lifecycle.
+- For the next-action card, have `resolveNextAction` attach the student's `dueAt`: from `resumeLifecycle` for `resume`, and otherwise from the matching `allEntries` entry. The card then prints that.
+- Keep the labels as they are.
+
+Tests:
+- Each model gives an individualized date and the class date for another student.
+- The next-action card's due comes from the student's lifecycle.
+- Mutation-check each assertion.
+- Run the new tests under `TZ=UTC` as well, because CI runs in UTC.
+- Extend browser journey S1 to assert the "Do this next" card shows the individualized date ("Oct 2" for the fixture).
+
+This also fixes the same pre-existing gap for attendance extensions.
+
+**2. Full verification after the fix:**
+- `npm run test:platform`, plus `TZ=UTC npm run test:platform`.
+- `npm run test:rules` (needs Java).
+- `npm run lint`, `npm run audit:theme-colors`, `npm run build`, `npm run build:firebase`.
+- Browser journeys, if Chrome and Playwright are available:
+  - `supportEvidenceJourneys.mjs` with `VIEWPORTS=1440x900,1024x768,768x1024,390x844`;
+  - `journeys.mjs` (A–K).
+  - Run them one at a time, with nothing else editing `src/` or running a second Vite server (see Environment notes).
+
+**3. CI on PR #401.** At `70ff9700`, all checks were green except two:
+- **Interactive Capability Certification:** red twice at `teacherPreview-3x3` (a token drop under the floating work bar; analysed above as a CI flake). Re-run the failed job once; if it fails again, investigate. The journey passes locally.
+- **Work View Browser Matrix:** still pending at handoff.
+
+**4. Finalize the PR body.** Update the test counts, the browser results and the CI note. Edit with `gh api -X PATCH repos/matthewhawkinsus1-crypto/mathmaster-platform/pulls/401 -F body=@file`; `gh pr edit` silently does nothing on this repo. Then `gh pr ready 401`.
+- **Do not merge.**
+- **Do not deploy.**
+
+**5. Mark this file complete** and add the final verification results to the log.
 
 ## Remaining work / known gaps
 
-- Phases 2–7 not started. See design §9 for the file plan.
-- Adjacent security fixes made (documented in PR): student-writable profile; client-mintable attempt evidence.
-- Decisions awaiting product-owner confirmation: design §10.
+**Not done, by instruction:** deploy and merge. The deploy steps, in order, are in the PR description:
+- rules;
+- the seven listed Cloud Functions;
+- Hosting via `npm run deploy:hosting`, which must go with the rules and the functions.
+
+**Known limitations** (PR "Known limitations"):
+- **Classroom passback's class-wide `final-deadline` signal still returns a grade at the class cutoff** for students with any individual deadline. This is pre-existing for attendance extensions; it needs a per-student final signal.
+- **Per-student Warm-Up and DOL timed windows are not extended by extra time.** Secure-exam multipliers are not applied either.
+- **"Next school day" means the next weekday.** A/B meetings and holidays are not known server-side.
+- **No provider role.** Providers are recorded by the teacher of record, with a provider role and label.
+- **A former teacher's list queries use current-teacher access.**
+- **Profile resolution lag in My Math Path.** Its entitlements (`functions/shared/supportEntitlements.mjs`) use the flat keys written at save time. A future-dated revision switches on in the student client and for deadlines automatically, but in Path only at the next save.
+- **"Reduced item count, same rigor" is recorded, not automated.** It is recorded as a teacher-documented accommodation; the platform does not pick the items.
+- **Offline one-click timestamps reflect server receipt.**
+
+**Pre-existing, backlog:** the student assignment view logs React "Maximum update depth exceeded" in the harness. It was confirmed on untouched `main`.
+
+**Decisions awaiting product-owner confirmation:** design §10. All four were implemented as proposed.
