@@ -114,3 +114,61 @@ export const sameNumberMultiset = (a = [], b = [], tolerance = 1e-6) => {
   const right = [...b].map(Number).sort((x, y) => x - y);
   return left.every((value, index) => nearlyEqual(value, right[index], tolerance));
 };
+
+/*
+ * WHAT THE WORKSHOP SHOWS FOR AN UNAUTHORED QUESTION.
+ *
+ * One table, read by PolynomialWorkshop.jsx to draw each view and by the
+ * shared grader to mark it, so the problem on screen and the problem graded
+ * can never drift apart.
+ */
+export const POLYNOMIAL_WORKSHOP_DEFAULTS = Object.freeze({
+  factorZero: Object.freeze({ coefficients: Object.freeze([1, -5, 6]), candidateRoot: 2 }),
+  multiplyArea: Object.freeze({ leftBinomial: Object.freeze([2, 3]), rightBinomial: Object.freeze([1, -4]) }),
+  factorQuadratic: Object.freeze({ coefficients: Object.freeze([1, -5, 6]) }),
+  division: Object.freeze({ dividend: Object.freeze([1, -4, -7, 10]), divisor: Object.freeze([1, -2]) }),
+  graphConnection: Object.freeze({
+    roots: Object.freeze([Object.freeze({ root: -2, multiplicity: 2 }), Object.freeze({ root: 3, multiplicity: 1 })]),
+    leadingCoefficient: 1,
+  }),
+  rationalFeatures: Object.freeze({ numeratorRoots: Object.freeze([2, -1]), denominatorRoots: Object.freeze([2, 4]) }),
+});
+
+/*
+ * A coefficient list a student typed: comma-separated numbers, highest degree
+ * first.
+ *
+ * A blank piece is NO coefficient, never zero. `Number('')` is 0, so a blank
+ * remainder box used to read as the remainder [0] (marked right on any exact
+ * division without the student entering anything), and a stray trailing comma
+ * ("1, -2, -11,") read as an extra 0 coefficient. Blank pieces are dropped,
+ * exactly as other unreadable pieces already were.
+ */
+export const parseCoefficientList = (text) => String(text ?? '')
+  .split(',')
+  .map((value) => value.trim())
+  .filter((value) => value !== '')
+  .map(Number)
+  .filter(Number.isFinite);
+
+/** Two coefficient lists name the same polynomial term by term, in order. */
+export const sameCoefficientList = (actual = [], expected = [], tolerance = 0.01) => actual.length === expected.length
+  && actual.every((value, index) => nearlyEqual(value, expected[index], tolerance));
+
+/** The zero the graph-connection view asks about: the authored one, else the first root. */
+export const graphConnectionTargetEntry = (roots = [], targetRoot) => {
+  const target = targetRoot ?? roots[0].root;
+  return roots.find((entry) => nearlyEqual(entry.root, target)) || roots[0];
+};
+
+/** The x-value the rational-features view asks about: the authored one, else the smallest root. */
+export const rationalFeatureTargetValue = (features = [], targetValue) => Number(targetValue ?? features[0]?.root ?? 2);
+
+/*
+ * What happens at x = targetValue: the feature listed there, or `none` when
+ * neither the numerator nor the denominator vanishes at that value — the
+ * function is defined and non-zero there, so "None of these" is the answer.
+ */
+export const rationalFeatureTypeAt = (features = [], targetValue) => (
+  features.find((feature) => nearlyEqual(feature.root, targetValue))?.type ?? 'none'
+);

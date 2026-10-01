@@ -240,10 +240,25 @@ export const functionOperationAnswerMatches = (operation, submitted, expected) =
   return sameValue(submitted, expected);
 };
 
+/*
+ * The excluded x-values a student typed: comma-separated numbers.
+ *
+ * A blank entry is NO value, never zero. The lab tells the student to "leave
+ * blank only when there are none", but `Number('')` is 0, so a blank box used
+ * to read as "x = 0 is excluded" — marking the instructed blank wrong when
+ * there are no exclusions, and right when 0 happened to be the one exclusion.
+ * A stray trailing comma ("2, -5,") read as an extra 0 the same way. Blank
+ * pieces are dropped, exactly as other unreadable pieces already were.
+ */
+export const parseExcludedValues = (submitted) => String(submitted ?? '')
+  .split(',')
+  .map((value) => value.trim())
+  .filter((value) => value !== '')
+  .map(Number)
+  .filter(Number.isFinite);
+
 export const restrictionsMatch = (submitted, expectedValues = []) => {
-  const values = Array.isArray(submitted)
-    ? submitted
-    : String(submitted ?? '').split(',').map((value) => Number(value.trim())).filter(Number.isFinite);
+  const values = Array.isArray(submitted) ? submitted : parseExcludedValues(submitted);
   const actual = uniqueSortedNumbers(values);
   const expected = uniqueSortedNumbers(expectedValues);
   return actual.length === expected.length
@@ -257,3 +272,20 @@ export const SUPPORTED_FUNCTION_OPERATIONS = Object.freeze([
   'quotient',
   'composition',
 ]);
+
+/** What the lab asks for when a question names no operations. */
+export const DEFAULT_FUNCTION_OPERATIONS = Object.freeze(['sum', 'difference', 'product', 'quotient']);
+
+/*
+ * The operations the lab renders — and therefore grades — for a question:
+ * the authored list (or the default four when there is none), restricted to
+ * supported operations, each once, in authored order. One definition, read by
+ * FunctionOperationsLab.jsx and by the shared grader.
+ */
+export const normalizeFunctionOperations = (value) => {
+  const operations = Array.isArray(value) && value.length ? value : DEFAULT_FUNCTION_OPERATIONS;
+  return [...new Set(operations.filter((operation) => SUPPORTED_FUNCTION_OPERATIONS.includes(operation)))];
+};
+
+/** Composition order: `gOfF` only when authored exactly; otherwise f∘g. */
+export const normalizeComposeOrder = (value) => (value === 'gOfF' ? 'gOfF' : 'fOfG');
