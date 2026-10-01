@@ -72,7 +72,10 @@ test('clock calibration never re-subscribes the room listener', () => {
 });
 
 test('a refused join is not retried on every snapshot', () => {
-  const join = region(student, "if (joinRefusedForRef.current === roomId) return;", '}, [roomId, room,', 'automatic join');
+  // The guard line may hold more than one reason to skip (a join that already
+  // succeeded is one); what matters is that a refusal is among them.
+  const join = region(student, 'if (joinRefusedForRef.current === roomId', '}, [roomId, room,', 'automatic join');
+  assert.match(join, /^if \(joinRefusedForRef\.current === roomId[^\n]*\) return;/);
   assert.match(join, /permission-denied\|failed-precondition\|not-found\|invalid-argument/);
   assert.match(join, /joinRefusedForRef\.current = roomId;/);
   const guard = region(student, 'useEffect(() => {\n    if (!roomId || joining || !room', 'joinLiveChallenge(', 'join guard');

@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import QuestionEngine from '../../QuestionEngine.jsx';
 import { publicLeaderboard, LIVE_PROVISIONAL_MAX_POINTS } from '../../../functions/shared/liveChallenge.mjs';
 import { acceptChallengeSnapshot, calibrateChallengeClock, challengePhaseAt, monotonicRoundOrigin } from '../../../functions/shared/liveChallengeParity.mjs';
 import { getScoringStrategy, leaderboardOptionsFor, SCORE_ACCUMULATION } from '../../../functions/shared/liveChallengeScoring.mjs';
+import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
+import { rushRoundFacts, rushScoreUnit } from '../../platform/liveChallenge/rushStandingsModel.js';
 import { calculateStepPartialCredit, emptyQuestionRecord, recordQuestionStep } from '../../attemptPolicy.js';
 import { hasMeaningfulRawPathResponse, questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
 import LiveChallengeFieldQuestion from './LiveChallengeFieldQuestion.jsx';
@@ -15,6 +17,11 @@ import {
   watchLiveChallengePlayers,
   watchLiveChallengeRoom,
 } from '../../platform/liveChallenge/liveChallengeService.js';
+
+// Graph Feature Rush plays on its own full-screen surface, loaded only for a
+// rush room — and fetched while the lobby waits, so Round 1 opens at once.
+const loadGraphFeatureRushRound = () => import('./GraphFeatureRushRound.jsx');
+const GraphFeatureRushRound = lazy(loadGraphFeatureRushRound);
 
 function useMonotonicNow(active = true) {
   const [now, setNow] = useState(() => performance.now());
@@ -505,12 +512,77 @@ export function ChallengeRound({
   );
 }
 
+function RushStat({ value, label }) {
+  return (
+    <div style={{ minWidth: 92 }}>
+      <div style={{ fontSize: 40, fontWeight: 1000, color: '#f7f9ff', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
+      <div style={{ marginTop: 6, fontSize: 13, fontWeight: 800, color: '#c3d2ea' }}>{label}</div>
+    </div>
+  );
+}
+
+/*
+ * Between Graph Feature Rush rounds: what this student did in the round that
+ * just closed — read from their own public row, so a refresh shows the same —
+ * and where they stand in the match.
+ */
+function RushRoundResults({ room, players, leaderboard, playerKey, fresh = true }) {
+  const roundIndex = Number(room.currentRound) || 0;
+  // The standings listener was paused for the round; until its first snapshot
+  // after the close arrives, the rows on hand are from before the round.
+  if (!fresh) {
+    return (
+      <section aria-live="polite" style={{ padding: 24, borderRadius: 18, background: 'linear-gradient(135deg,#1d3a6e,#25508f)', border: '1px solid rgba(174,203,250,.35)', textAlign: 'center' }}>
+        <div style={{ fontSize: 13, fontWeight: 900, color: '#aecbfa', textTransform: 'uppercase', letterSpacing: '.08em' }}>Round {roundIndex + 1} complete</div>
+        <p style={{ margin: '14px 0 0', color: '#dbe6f7', fontWeight: 800 }}>Tallying the round…</p>
+      </section>
+    );
+  }
+  const facts = rushRoundFacts(players, playerKey, roundIndex);
+  const unit = rushScoreUnit(room.scoringStrategyId);
+  const selfRow = leaderboard.find((entry) => entry.playerKey === playerKey);
+  const finalRound = roundIndex + 1 >= Math.max(1, Number(room.roundCount) || 1);
+  return (
+    <div style={{ display: 'grid', gap: 16 }}>
+      <section aria-live="polite" style={{ padding: 24, borderRadius: 18, background: 'linear-gradient(135deg,#1d3a6e,#25508f)', border: '1px solid rgba(174,203,250,.35)', textAlign: 'center' }}>
+        <div style={{ fontSize: 13, fontWeight: 900, color: '#aecbfa', textTransform: 'uppercase', letterSpacing: '.08em' }}>Round {roundIndex + 1} complete</div>
+        {facts ? (
+          <>
+            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center', gap: 26, flexWrap: 'wrap' }}>
+              <RushStat value={facts.completed} label={facts.completed === 1 ? 'graph completed' : 'graphs completed'} />
+              <RushStat value={facts.accuracyPercent == null ? '—' : `${facts.accuracyPercent}%`} label="accuracy" />
+              {facts.rank != null && <RushStat value={`#${facts.rank}`} label={`of ${facts.fieldSize || leaderboard.length} this round`} />}
+            </div>
+            {unit.placement && (
+              <div style={{ marginTop: 16, fontSize: 20, fontWeight: 1000, color: '#fdd663' }}>
+                {facts.matchPointsAwarded > 0 ? `+${facts.matchPointsAwarded} championship points` : 'No championship points this round'}
+              </div>
+            )}
+          </>
+        ) : <p style={{ margin: '14px 0 0', color: '#dbe6f7', fontWeight: 800 }}>You will play from the next round.</p>}
+        {selfRow && (
+          <div style={{ marginTop: 12, fontWeight: 900, color: '#eef1f6' }}>
+            {unit.placement ? `${selfRow.score.toLocaleString()} championship points` : `${selfRow.score.toLocaleString()} graphs in all`} · #{selfRow.rank} overall
+          </div>
+        )}
+        <p style={{ margin: '14px 0 0', color: '#c3d2ea' }}>{finalRound ? 'Final standings are on their way.' : `Your teacher starts Round ${roundIndex + 2} next.`}</p>
+      </section>
+      <section style={{ padding: 16, borderRadius: 14, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.14)', textAlign: 'left', color: '#eef1f6' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', marginBottom: 10 }}><strong>Top 5</strong><span style={{ color: '#9fb0cc', fontSize: 13 }}>{unit.long}</span></div>
+        <MiniLeaderboard rows={leaderboard} playerKey={playerKey} />
+      </section>
+    </div>
+  );
+}
+
 // `renderMatchRewards(roomId)` is the host's rewards card for a finished match
 // (what reached the wallet). It is a slot, not game logic: the game's own
 // placement and points above it are unchanged and never read rewards.
 export default function LiveChallengeStudent({ invite, studentProfile = {}, onExit, exitLabel = 'Back to Dashboard', renderMatchRewards = null }) {
   const [room, setRoom] = useState(null);
   const [players, setPlayers] = useState([]);
+  // True once the standings listener has delivered since it last (re)started.
+  const [playersFresh, setPlayersFresh] = useState(false);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
   const roomId = invite?.roomId || null;
@@ -521,6 +593,9 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   clockOffsetRef.current = clock.offsetMs;
   // A join the server refused for this room is not retried on every snapshot.
   const joinRefusedForRef = useRef(null);
+  // A join that succeeded is not repeated either: while a rush round is open
+  // the standings listener is paused, so "am I on the board?" cannot be asked.
+  const joinedRoomRef = useRef(null);
 
   useEffect(() => {
     // A different room is a different game. Nothing from the previous one —
@@ -572,10 +647,25 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
     return () => { stopped = true; window.clearTimeout(timer); };
   }, [roomId]);
 
+  // GRAPH FEATURE RUSH. While a rush round is open every student's taps write
+  // their public row, so a standings listener here would wake on each of the
+  // class's taps; the round screen shows the student's own count instead, and
+  // the standings return when the round closes.
+  const rushRoom = room?.challengeMode === RUSH_MODE_ID;
+  const rushRoundOpen = rushRoom && room?.status === 'running' && room?.roundState !== 'closed';
+  useEffect(() => {
+    if (rushRoom) loadGraphFeatureRushRound().catch(() => {});
+  }, [rushRoom]);
+
   useEffect(() => {
     if (!roomId) { setPlayers([]); return undefined; }
-    return watchLiveChallengePlayers(roomId, setPlayers, (watchError) => setError(watchError?.message || 'Could not load Live Challenge standings.'));
-  }, [roomId]);
+    if (rushRoundOpen) return undefined;
+    setPlayersFresh(false);
+    return watchLiveChallengePlayers(roomId, (rows) => {
+      setPlayers(rows);
+      setPlayersFresh(true);
+    }, (watchError) => setError(watchError?.message || 'Could not load Live Challenge standings.'));
+  }, [roomId, rushRoundOpen]);
 
   const activeRound = room?.status === 'running' ? Number(room.currentRound) : null;
   const scoringStrategyId = room?.scoringStrategyId || null;
@@ -603,11 +693,12 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
 
   useEffect(() => {
     if (!roomId || joining || !room || room.roomId !== roomId || !['lobby', 'running'].includes(room.status)) return;
-    if (joinRefusedForRef.current === roomId) return;
+    if (joinRefusedForRef.current === roomId || joinedRoomRef.current === roomId) return;
     const alreadyJoined = leaderboard.some((entry) => entry.playerKey === invite?.playerKey);
     if (alreadyJoined) return;
     setJoining(true);
     joinLiveChallenge({ roomId })
+      .then(() => { joinedRoomRef.current = roomId; })
       .catch((joinError) => {
         // A refusal (the game ended, or this student is not on its roster) will
         // not change by asking again on the next snapshot; a dropped
@@ -675,14 +766,30 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
           </section>
         )}
 
-        {room.status === 'running' && room.currentQuestion && clock.sampleCount === 0 && clock.quality !== 'degraded' && (
+        {room.status === 'running' && room.currentQuestion && (!rushRoom || rushRoundOpen) && clock.sampleCount === 0 && clock.quality !== 'degraded' && (
           <section aria-live="polite" style={{ padding: 26, borderRadius: 16, background: '#17365f', textAlign: 'center' }}>
             <h2>Synchronizing round clock…</h2>
             <p>Your round uses the teacher's server-authored deadline and will catch up automatically.</p>
           </section>
         )}
 
-        {room.status === 'running' && room.currentQuestion && (clock.sampleCount > 0 || clock.quality === 'degraded') && (
+        {rushRoundOpen && room.currentQuestion && (clock.sampleCount > 0 || clock.quality === 'degraded') && (
+          <Suspense fallback={<section aria-live="polite" style={{ padding: 26, borderRadius: 16, background: '#17365f', textAlign: 'center' }}><h2>Loading your graphs…</h2></section>}>
+            <GraphFeatureRushRound
+              key={`${room.roomId}-${room.currentRound}-${room.roundVersion}`}
+              room={{ ...room, connectionQuality: clock.quality, serverNowAtRender: Date.now() + clock.offsetMs }}
+              alias={invite.alias}
+              onExit={onExit}
+              exitLabel="Exit"
+            />
+          </Suspense>
+        )}
+
+        {rushRoom && room.status === 'running' && room.roundState === 'closed' && (
+          <RushRoundResults room={room} players={players} leaderboard={leaderboard} playerKey={invite.playerKey} fresh={playersFresh} />
+        )}
+
+        {!rushRoom && room.status === 'running' && room.currentQuestion && (clock.sampleCount > 0 || clock.quality === 'degraded') && (
           <ChallengeRound
             key={`${room.roomId}-${room.currentRound}-${room.roundVersion}`}
             room={{ ...room, connectionQuality: clock.quality, serverNowAtRender: Date.now() + clock.offsetMs }}
@@ -702,7 +809,13 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
               {selfRow && (
                 <div style={{ margin: '10px 0 4px' }}>
                   <div style={{ fontSize: 52, fontWeight: 1000, color: '#fff', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>#{selfRow.rank}</div>
-                  <div style={{ marginTop: 6, fontSize: 19, fontWeight: 900, color: '#fdd663' }}>{selfRow.score.toLocaleString()} points · {selfRow.correctCount} correct</div>
+                  <div style={{ marginTop: 6, fontSize: 19, fontWeight: 900, color: '#fdd663' }}>
+                    {!rushRoom
+                      ? `${selfRow.score.toLocaleString()} points · ${selfRow.correctCount} correct`
+                      : rushScoreUnit(room.scoringStrategyId).placement
+                        ? `${selfRow.score.toLocaleString()} championship points · ${selfRow.correctCount} graphs`
+                        : `${selfRow.correctCount} graphs completed`}
+                  </div>
                 </div>
               )}
               <h2 style={{ margin: '12px 0 6px', color: '#fff' }}>Final Standings</h2>
