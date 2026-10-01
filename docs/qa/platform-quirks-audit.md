@@ -1661,8 +1661,9 @@ student screen with its identity bar and navigator; see Tests).
   a device's own newer edit is never replaced; a server edit newer than the
   device's last edit replaces it however recently the device opened the
   question; a draft older than the question's last submitted attempt is not
-  restored. Unchanged in code (`selectRestorableDraftEntries`) — what changed
-  is that the times now mean what that rule assumes.
+  restored. Unchanged in code (`selectRestorableDraftEntries`) for the entries
+  this build saves — what changed is that the times now mean what that rule
+  assumes; entries an older build saved are narrower (the rollout, below).
 - **Gates:** `draftEditTime.test.mjs` (24: the storage rules, what a restore
   decides, the background save, two Chromebooks and one server, and the wiring
   in the hooks, WorkflowRunner and App.jsx); the five source contracts that
@@ -1683,27 +1684,129 @@ student screen with its identity bar and navigator; see Tests).
   learning from its own saves; App not telling the sync, not reading again
   online or on return, or skipping an empty server; the canonical check
   removed) — and the 11 of them a browser can see, red in the browser too.
+- **The rollout — an edit-time marker** (`workspaceDraftSchema.mjs`, "the
+  edit-time marker"). Until every Chromebook runs this build, server copies are
+  also saved by the build before it, whose time may be when a question was
+  merely opened; nothing in such an entry says which. Measured before the
+  marker: A (this build) types `−2/3`; B (the build before) merely opens the
+  question, and the server copy becomes `{}`, saved later; A coming back showed
+  `["", ""]` — the restore took the newer server copy over A's own, the last
+  copy of the work — where the old build kept `["−2/3", ""]` (its own mount
+  write re-dated it). So this build says it:
+  - Every entry whose time is a student's edit carries `savedAtIsEdit: true`:
+    every edit this build saves, and a copy offered again (an edit made
+    offline) when its own time was an edit's. The local envelope keeps the same
+    flag — set by an edit and by restoring a marked entry, kept by every write
+    that is not an edit — so a copy an older build dated (here, or restored from
+    an unmarked entry) goes back unmarked: the marker never claims an opening's
+    time is an edit's.
+  - Stored, merged and read back with its entry: the copy that wins the merge
+    brings its marker, or its lack of one. An unmarked entry is stored exactly
+    as an older build stores one (no field), so the two mean the same thing.
+  - A **marked** entry follows the precedence below. An **unmarked** (legacy)
+    entry replaces a device's copy only where that device has nothing dated of
+    its own for the draft — a fresh device, or one where it was never edited —
+    which is what the older build did there. A device that holds a dated copy
+    keeps it, as the older build's devices did (opening re-dated it). That is
+    narrower than "no edit of its own": a copy that came from the server copy
+    is kept too, because replacing it would be worse than the older build when
+    the legacy entry is an empty question opened elsewhere.
+  - Old readers keep working: the schema version is unchanged (`1`, which the
+    rules require); Firestore's rules check top-level fields only; an older
+    build reads entries by the fields it knows and ignores the new one; the
+    server's readers (`workspaceDraftRecovery.mjs`, `responseInspector.mjs`)
+    project `key`/`value`/`savedAt` and never see it; the path-admin vendored
+    copy is regenerated and checked by `pathAdminCodebaseIsolation.test.mjs`.
+  - During the rollout an older build that saves to the same document rewrites
+    every entry with the fields it knows, so all markers in that document go:
+    those entries then count as legacy — never worse than the build before.
+  - A device that keeps its own work over a legacy entry does not send it back
+    over it: its copy is the older one, and re-dating it "now" is exactly what
+    made an opening outrank work. The server keeps the legacy copy until the
+    student's next edit there, which is newer and marked, and wins everywhere.
+  - *After* (journeys, the real App; before → after on the code before the
+    marker): A coming back after the older build opened the question showed
+    `["", ""]` → `["−2/3", ""]`, and its next edit (the intercept) was saved as
+    `{"b":"4"}` alone, the slope gone → `{"m":"−2/3","b":"4"}`, marked; a fresh
+    device still takes what the server holds (A's other answer `7`, and the
+    legacy `{}`), as the older build would; the same empty boxes saved as an
+    edit (B cleared the slope, later) do replace A's older work; and B's real
+    edit in `directions` — marked — still replaces A's own older edit.
 - **Known limits, not changed here:**
-  - *The unit is the draft key.* A composed question's step answers share one
-    key, so a student who edits a step on a Chromebook that never received the
-    server copy (offline throughout) replaces the other steps' saved answers
-    when it reconnects: that edit is the newest. Merging per step would be a
-    server-merge change.
-  - *Server copies saved before this change* may carry the time a question was
-    opened rather than edited, and nothing stored tells the two apart. The rule
-    above trusts them, as the old restore did. Measured: A (this code) types
-    `−2/3`; B (the code before it) merely opens the question, and the server
-    copy becomes `{}`, saved later. A coming back with this code shows `["",
-    ""]` — the restore takes the newer server copy over A's own, the last copy
-    of the work; with the old code A showed `["−2/3", ""]` (its own mount write
-    won the race) and wrote it back on its next edit. The reverse case — B
-    really edited — is restored correctly now and was overwritten by the old
-    code. Telling the two apart needs a marker on new entries (a schema change
-    with its own trade-off); not done here.
+  - *The unit is the draft key.* A composed question is ONE record — every
+    step's answer in `…:workflow-responses` — and the newest edit to any step
+    carries the whole record. So two Chromebooks editing different steps of the
+    same question lose one side: B answers step 3 while A, offline and never
+    having read B's copy, then answers step 1 — when A reconnects its record is
+    the newest and replaces the server's whole, B's step-3 answer included (and
+    B gets A's record on its next read). The other way round — A answers step 1
+    offline first, B answers step 3 after — A's answer is the older edit: it
+    loses to B's record on the server, and on A once A reads it. The code
+    before this change did the same per key, with a worse clock: any write
+    dated the record — opening the question included — so merely opening it on
+    a Chromebook that had an older copy, or none, replaced every step's newer
+    answers, with no edit at all. Now only an edit can. Merging per step would
+    need each step's own edit time inside the record and a merge that knows a
+    workflow's structure (a table step feeds the graph step, a later step is
+    built on an earlier answer, so a per-step union can combine answers never
+    on one screen together); not done here.
   - *A submitted question on another device* shows what it always did when the
     submitting device had not reopened it: a draft older than the submission is
     not brought back. Reopening it there used to re-stamp the draft after the
     submission, so it came back; now it does not.
+- **Practice Mode, the same principle** (post-deadline Practice Mode's progress
+  rides the same server copy; App.jsx).
+  - *Reproduction* (journey `practice`, the real App): the student practises on
+    one device (the Warm-Up, correct: saved `{"0":"correct/1",…}`). Another
+    opens Practice Mode with the server out of reach — and back without the
+    browser noticing (Wi-Fi up, the school's connection down: no `online`
+    event), so the read that failed is not tried again while the background
+    save keeps trying and gets through. The server's practice became every
+    question `unattempted/0`, and the next device showed the Warm-Up "not
+    attempted". (With the `online` event the read lands first and nothing is
+    lost. Over a slow connection the fresh start is saved first and the merged
+    copy a few seconds later, so a tab closed between the two loses it too.)
+  - *Root cause:* every entry into Practice Mode starts a fresh tracker (every
+    question unattempted, the graded variant) and sends it at once, dated
+    "now"; the server merge kept whichever whole tracker was saved last
+    (`practiceUpdatedAt`). The device merged per question only what it read
+    back — when it could read it first. An ordinary assignment's save (no
+    practice in it) cleared the saved practice the same way.
+  - *Fixed — merged per question on the server too:* the save's transaction
+    keeps, per question, the record with more practice progress (later
+    variant, then more attempts, then correct, then the later attempt) — the
+    rule the device already applied, moved to
+    `functions/shared/practiceTrackerMerge.mjs` so both use the one
+    implementation. A fresh start or an ordinary assignment's save changes
+    nothing, in any order; practice done on two devices is kept from both;
+    `practiceUpdatedAt` moves only when progress does. Progress only grows, so
+    "more" is "later". The teacher's case review reads this practice summary
+    (`caseReviewEvidence.mjs`): same shape, and now it is not erased by an
+    opening. An older build's save still replaces the practice whole, as before.
+  - *After:* the unreachable device leaves the saved practice
+    `{"0":"correct/1",…}` (was all `unattempted/0`) and the next device shows
+    the Warm-Up "correct" (was "not attempted"); the `online` case passes before
+    and after.
+- **Gates for the marker and Practice Mode:** `draftEditTime.test.mjs` (now 30:
+  six for the marker — the envelope, a restore, the save, the server copy, the
+  restore decision, and an older build opening the question between two of this
+  build's devices), `practiceDraftMerge.test.mjs` (6), and two updated
+  assertions in `studentWorkRecovery.test.mjs` (a restore test now states which
+  entries are marked; the stale-Practice test uses records a student can have —
+  a correct answer after two tries — since practice is now merged by progress).
+  Journeys: `legacy` and `practice` added, the marker asserted in `A` and
+  `directions` (before → after: 7 of 37 checks failed → 37 of 37; three of the
+  seven only ask for the marker). Mutation checks, each undone in turn, all red
+  in the unit tests: 11 for the marker (stored, read back, the legacy rule
+  removed or made absolute, a write that is not an edit dropping or inventing
+  it, a restore not carrying it, the save marking every copy, no edit, a held
+  copy, or nothing) and 6 for Practice (the old whole-tracker merge, an
+  ordinary save clearing it, an opening dating it, and the per-question rule
+  broken three ways). Nine were also run against the journeys: eight red. The
+  ninth — the save sending an edit unmarked — cannot be seen in the app,
+  because the storage layer already passes the marker with every edit it
+  reports; breaking the path itself (the save sending no marker at all) is red
+  there.
 
 ---
 
@@ -2187,7 +2290,10 @@ bar case of the phone reveal.
   works it out again where it is opened.
 - **PQ-044:** fixed since (see its entry): opening a question no longer makes
   what it shows newer than the student's saved work, so a second Chromebook
-  gets the work into the question on screen and never overwrites it.
+  gets the work into the question on screen and never overwrites it; entries an
+  older build saved during the rollout cannot take a device's own work away
+  (the edit-time marker); and opening Practice Mode no longer erases the
+  practice saved from another Chromebook.
 
 ## Evidence
 

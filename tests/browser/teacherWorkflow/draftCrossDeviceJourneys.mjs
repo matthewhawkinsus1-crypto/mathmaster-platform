@@ -29,15 +29,28 @@
 //   offline    a fresh device opens offline: its own (empty) boxes, nothing
 //              saved; back online: A's work comes in, the server copy is
 //              unchanged.
-//   directions A works; B opens and edits; A comes back (reopened): B's edit
-//              is what A sees and what the server keeps; A edits again: A's is
-//              the newest. B, left open and asleep, is woken: it shows A's
-//              newest work, not its own older copy.
+//   directions A works; B opens and edits; A comes back (reopened): B's edit —
+//              saved marked as an edit, which is what lets it replace A's own
+//              older edit — is what A sees and what the server keeps; A edits
+//              again: A's is the newest. B, left open and asleep, is woken: it
+//              shows A's newest work, not its own older copy.
+//   legacy     the rollout: a build from before the edit-time marker merely
+//              opens the question on another Chromebook after A's work, and
+//              saves its empty boxes dated later, unmarked. A comes back to
+//              the work it typed and sends nothing over it; A's next edit wins
+//              (marked); a fresh device takes the server copy as an older
+//              build would. The same empty boxes saved as an edit (marked)
+//              do replace A's older work.
 //   canonical  a submitted question reopened on the device that submitted it
 //              does not make its pre-submission draft newer than the
 //              submission, so another device does not bring that draft back
 //              (the harness has no ingestion, so the journey writes the
 //              canonical record the server would).
+//   practice   post-deadline Practice Mode: the student practises on one
+//              device; another opens Practice Mode with the server out of
+//              reach and back without an `online` event (its read failed, its
+//              save gets through): the saved practice survives, and the next
+//              device shows it. With the `online` event: the same.
 //
 // Exit code 1 on any failure.
 
@@ -143,12 +156,13 @@ const shows = async (page, expected, ms = 6000) => {
 /* -------------------------------------------------------------- server */
 
 const serverDb = (page) => page.evaluate((key) => window.localStorage.getItem(key), DB_KEY);
-// The server copy of this assignment's drafts, by key suffix: value and time.
+// The server copy of this assignment's drafts, by key suffix: value, time, and
+// whether the time is marked as an edit's (workspaceDraftSchema.mjs).
 const serverDrafts = (page) => page.evaluate((doc) => {
   const stored = window.__mmHarnessStore.get(doc);
   return Object.fromEntries((stored?.entries || []).map((entry) => [
     String(entry.key).split(':').slice(6).join(':'),
-    { value: JSON.parse(entry.valueJson), savedAt: entry.savedAt },
+    { value: JSON.parse(entry.valueJson), savedAt: entry.savedAt, marked: entry.savedAtIsEdit === true },
   ]));
 }, DOC);
 const waitForServer = async (page, test, ms = 15000) => {
@@ -178,6 +192,21 @@ const comingBack = (storageState, server) => ({
   })),
 });
 const same = (left, right) => JSON.stringify(left) === JSON.stringify(right);
+// The server as a build from before the edit-time marker leaves it after
+// merely OPENING the line question on another Chromebook: its write-back of
+// empty boxes, dated when it opened, over A's work — saved with the entry
+// fields that build knows, so no entry keeps a marker. `marked`: the same
+// empty boxes saved by this build as the student's edit (they cleared it).
+const openedElsewhere = (db, openedAt, { marked = false } = {}) => JSON.stringify(JSON.parse(db).map(([path, data]) => {
+  if (path !== DOC) return [path, data];
+  return [path, {
+    ...data,
+    entries: data.entries.map(({ savedAtIsEdit, ...entry }) => {
+      if (!String(entry.key).endsWith(`:${LINE_KEY}`)) return marked ? { ...entry, savedAtIsEdit } : entry;
+      return { ...entry, valueJson: '{}', savedAt: openedAt, ...(marked ? { savedAtIsEdit: true } : {}) };
+    }),
+  }];
+}));
 const hidden = (page, value) => page.evaluate((isHidden) => {
   Object.defineProperty(document, 'hidden', { configurable: true, get: () => isHidden });
   Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (isHidden ? 'hidden' : 'visible') });
@@ -186,19 +215,25 @@ const hidden = (page, value) => page.evaluate((isHidden) => {
 
 /* ===================================================== device A works */
 
-const A = await openDevice('A');
-await openAssignment(A.page);
-await goTo(A.page, Q_FRACTION);
-await typeInto(A.page, 0, '7');
-await goTo(A.page, Q_LINE);
-await typeInto(A.page, 0, '-2/3');
-const afterA = await waitForServer(A.page, (drafts) => drafts[LINE_KEY]?.value?.m && drafts[FRACTION_KEY]?.value?.f);
-check(afterA[FRACTION_KEY]?.value?.f === '7' && afterA[LINE_KEY]?.value?.m === '-\\frac23', 'A: both answers reach the server copy', JSON.stringify(afterA));
-const unedited = Object.keys(afterA).filter((key) => ![FRACTION_KEY, LINE_KEY].includes(key));
-check(unedited.length === 0, 'A: nothing the student did not edit is in the server copy (a workspace writing back what it read is not work)', unedited.join(', '));
-const serverAfterA = await serverDb(A.page);
-const stateA = await A.context.storageState();
-await A.context.close();
+let afterA = null;
+let serverAfterA = null;
+let stateA = null;
+if (['fresh', 'offline', 'directions', 'canonical', 'legacy'].some(wanted)) {
+  const A = await openDevice('A');
+  await openAssignment(A.page);
+  await goTo(A.page, Q_FRACTION);
+  await typeInto(A.page, 0, '7');
+  await goTo(A.page, Q_LINE);
+  await typeInto(A.page, 0, '-2/3');
+  afterA = await waitForServer(A.page, (drafts) => drafts[LINE_KEY]?.value?.m && drafts[FRACTION_KEY]?.value?.f);
+  check(afterA[FRACTION_KEY]?.value?.f === '7' && afterA[LINE_KEY]?.value?.m === '-\\frac23', 'A: both answers reach the server copy', JSON.stringify(afterA));
+  const unedited = Object.keys(afterA).filter((key) => ![FRACTION_KEY, LINE_KEY].includes(key));
+  check(unedited.length === 0, 'A: nothing the student did not edit is in the server copy (a workspace writing back what it read is not work)', unedited.join(', '));
+  check(afterA[FRACTION_KEY]?.marked === true && afterA[LINE_KEY]?.marked === true, 'A: each saved entry says its time is an edit\'s', JSON.stringify(afterA));
+  serverAfterA = await serverDb(A.page);
+  stateA = await A.context.storageState();
+  await A.context.close();
+}
 
 /* ============================================================== fresh */
 
@@ -256,16 +291,20 @@ if (wanted('directions')) {
   await shows(B.page, ['-\\frac23', ''], 7000);
   await typeInto(B.page, 1, '4');
   const afterB = await waitForServer(B.page, (drafts) => drafts[LINE_KEY]?.value?.b === '4');
-  check(afterB[LINE_KEY]?.value?.b === '4' && afterB[LINE_KEY]?.value?.m === '-\\frac23' && afterB[LINE_KEY].savedAt > afterA[LINE_KEY].savedAt,
-    'directions: B\'s edit is saved, newer than A\'s', JSON.stringify(afterB[LINE_KEY]));
+  check(afterB[LINE_KEY]?.value?.b === '4' && afterB[LINE_KEY]?.value?.m === '-\\frac23' && afterB[LINE_KEY].savedAt > afterA[LINE_KEY].savedAt && afterB[LINE_KEY].marked === true,
+    'directions: B\'s edit is saved, newer than A\'s and marked as an edit', JSON.stringify(afterB[LINE_KEY]));
   const serverAfterB = await serverDb(B.page);
 
-  // A comes back: its own copy is older than B's edit.
+  // A comes back: its own copy is older than B's edit. A has an edit of its
+  // own there, so only the marker lets B's in (see `legacy`).
   const A2 = await openDevice('A back', { storageState: comingBack(stateA, serverAfterB), params: { draftReadMs: '600' } });
   await openAssignment(A2.page);
   await goTo(A2.page, Q_LINE);
   const seen = await shows(A2.page, ['-\\frac23', '4'], 7000);
   check(same(seen, ['-\\frac23', '4']), 'directions: A comes back to B\'s newer work, not its own older copy', JSON.stringify(seen));
+  const restoredOnA = await localDraft(A2.page, LINE_KEY);
+  check(restoredOnA?.savedAt === afterB[LINE_KEY].savedAt && restoredOnA?.savedAtIsEdit === true,
+    'directions: A\'s copy is now B\'s edit, at B\'s time and still marked', JSON.stringify(restoredOnA && { savedAt: restoredOnA.savedAt, savedAtIsEdit: restoredOnA.savedAtIsEdit }));
   await A2.page.waitForTimeout(SAVED);
   const afterReturn = await serverDrafts(A2.page);
   check(same(afterReturn[LINE_KEY], afterB[LINE_KEY]), 'directions: coming back changes nothing in the server copy', JSON.stringify(afterReturn[LINE_KEY]));
@@ -287,6 +326,56 @@ if (wanted('directions')) {
   check(same(afterWake[LINE_KEY], afterA2[LINE_KEY]), 'directions: waking B changes nothing in the server copy', JSON.stringify(afterWake[LINE_KEY]));
   await A2.context.close();
   await B.context.close();
+}
+
+/* ============================================================= legacy */
+
+if (wanted('legacy')) {
+  // The rollout: a Chromebook still on the build before the edit-time marker
+  // merely opens the line question after A's work. Its write-back of empty
+  // boxes is dated when it opened — later than A's edit — and carries no
+  // marker (openedElsewhere). That build kept whatever copy a device already
+  // had (opening re-dated it); this one must not do worse.
+  const openedAt = Date.now();
+  const legacyServer = openedElsewhere(serverAfterA, openedAt);
+
+  const A3 = await openDevice('A after an older build', { storageState: comingBack(stateA, legacyServer), params: { draftReadMs: '600' } });
+  await openAssignment(A3.page);
+  await goTo(A3.page, Q_LINE);
+  await A3.page.waitForTimeout(2500);
+  const kept = await fields(A3.page);
+  check(same(kept, ['-\\frac23', '']), 'legacy: A comes back to the −2/3 it typed, not the empty boxes an older build saved over it later', JSON.stringify(kept));
+  await A3.page.waitForTimeout(SAVED);
+  const untouched = await serverDrafts(A3.page);
+  check(untouched[LINE_KEY]?.savedAt === openedAt && untouched[LINE_KEY]?.marked === false,
+    'legacy: coming back sends nothing over it — A\'s copy is the older one', JSON.stringify(untouched[LINE_KEY]));
+  await typeInto(A3.page, 1, '4');
+  const edited = await waitForServer(A3.page, (drafts) => drafts[LINE_KEY]?.value?.b === '4');
+  check(edited[LINE_KEY]?.value?.m === '-\\frac23' && edited[LINE_KEY]?.savedAt > openedAt && edited[LINE_KEY]?.marked === true,
+    'legacy: A\'s next edit replaces it in the server copy, marked as an edit', JSON.stringify(edited[LINE_KEY]));
+  await A3.context.close();
+
+  // A fresh Chromebook has nothing of its own: it takes what the server holds,
+  // as an older build would — A's other answer, and the empty boxes.
+  const F = await openDevice('F after an older build', { server: legacyServer, params: { draftReadMs: '600' } });
+  await openAssignment(F.page);
+  await goTo(F.page, Q_FRACTION);
+  const other = await shows(F.page, ['7'], 7000);
+  check(same(other, ['7']), 'legacy: a fresh device restores the unmarked entries (A\'s other answer)', JSON.stringify(other));
+  const takenAsIs = await localDraft(F.page, LINE_KEY);
+  check(takenAsIs?.savedAt === openedAt && same(takenAsIs?.value, {}) && !takenAsIs?.savedAtIsEdit,
+    'legacy: and the empty boxes the older build saved, as that build would have', JSON.stringify(takenAsIs));
+  await F.context.close();
+
+  // The same empty boxes saved by THIS build are the student's edit — they
+  // cleared the slope on another Chromebook, after A — and replace A's work.
+  const clearedServer = openedElsewhere(serverAfterA, openedAt, { marked: true });
+  const A4 = await openDevice('A after B cleared it', { storageState: comingBack(stateA, clearedServer), params: { draftReadMs: '600' } });
+  await openAssignment(A4.page);
+  await goTo(A4.page, Q_LINE);
+  const cleared = await shows(A4.page, ['', ''], 7000);
+  check(same(cleared, ['', '']), 'legacy: marked as an edit, the same newer empty boxes do replace A\'s older work', JSON.stringify(cleared));
+  await A4.context.close();
 }
 
 /* ========================================================== canonical */
@@ -335,6 +424,90 @@ if (wanted('canonical')) {
   const envelope = await localDraft(E.page, FRACTION_KEY);
   check(envelope === null, 'canonical: another device does not bring the pre-submission draft back over the submission', JSON.stringify(envelope));
   await E.context.close();
+}
+
+/* =========================================================== practice */
+
+if (wanted('practice')) {
+  // Post-deadline Practice Mode on last week's closed lesson. Its progress
+  // rides the same server copy (App.jsx), and every entry into it starts from
+  // a fresh tracker — every question unattempted — sent at once.
+  const PRACTICE_DOC = `studentWorkspaceDrafts/${STUDENT}__a-lastweek`;
+  const openPractice = async (page) => {
+    await page.getByRole('button', { name: /^Grades$/ }).first().click();
+    await page.waitForTimeout(800);
+    await page.getByRole('button', { name: /^Practice$/ }).first().click();
+    await page.locator('.mathmaster-question-stage math-field').first().waitFor({ timeout: 60000 });
+    await page.waitForTimeout(600);
+  };
+  // The first Warm-Up question as the question navigator states it.
+  const warmUp = (page) => page.evaluate(() => (
+    [...document.querySelectorAll('.mathmaster-question-number')]
+      .map((button) => button.getAttribute('aria-label') || '')
+      .find((label) => label.startsWith('Warm-Up question 1:')) || ''
+  ));
+  const showsWarmUp = async (page, pattern, ms = 6000) => {
+    const deadline = Date.now() + ms;
+    let label = await warmUp(page);
+    while (!pattern.test(label) && Date.now() < deadline) {
+      await page.waitForTimeout(250);
+      label = await warmUp(page);
+    }
+    return label;
+  };
+  const savedPractice = (page) => page.evaluate((doc) => {
+    const stored = window.__mmHarnessStore.get(doc);
+    return Object.fromEntries(Object.entries(stored?.practice || {}).map(([index, record]) => [index, `${record?.status}/${record?.totalAttempts}`]));
+  }, PRACTICE_DOC);
+  const practiced = (rows) => rows['0'] === 'correct/1';
+
+  // The student practises on one Chromebook: the Warm-Up, answered correctly.
+  const P = await openDevice('P practises');
+  await openPractice(P.page);
+  await typeInto(P.page, 0, '5');
+  await P.page.getByRole('button', { name: /^Submit Answer/ }).first().click();
+  await showsWarmUp(P.page, /: correct/);
+  let rows = await savedPractice(P.page);
+  for (let wait = 0; wait < 40 && !practiced(rows); wait += 1) {
+    await P.page.waitForTimeout(300);
+    rows = await savedPractice(P.page);
+  }
+  check(practiced(rows), 'practice: the student\'s practice reaches the server copy', JSON.stringify(rows));
+  const serverAfterPractice = await serverDb(P.page);
+  await P.context.close();
+
+  // Another Chromebook opens Practice Mode with the server out of reach. The
+  // browser never noticed — Wi-Fi up, the school's connection down — so when
+  // the server is back no `online` event says so: the read that failed is not
+  // retried, while the background save keeps trying, and gets through.
+  const Q = await openDevice('Q unreachable', { server: serverAfterPractice, params: { offline: '1' } });
+  await openPractice(Q.page);
+  await Q.page.waitForTimeout(SAVED);
+  await Q.page.evaluate(() => window.__mmHarnessStore.setOnline(true, { announce: false }));
+  await Q.page.waitForTimeout(SAVED);
+  const afterQ = await savedPractice(Q.page);
+  check(practiced(afterQ), 'practice: a device that opened Practice Mode unreachable does not replace the saved practice with its fresh start', JSON.stringify(afterQ));
+  const serverAfterQ = await serverDb(Q.page);
+  await Q.context.close();
+
+  // The same, with the browser noticing it is back: the read comes first.
+  const R = await openDevice('R offline', { server: serverAfterPractice, params: { offline: '1' } });
+  await openPractice(R.page);
+  await R.page.waitForTimeout(SAVED);
+  await R.page.evaluate(() => window.__mmHarnessStore.setOnline(true));
+  const backOnline = await showsWarmUp(R.page, /: correct/, 8000);
+  check(/: correct/.test(backOnline), 'practice: back online, the saved practice comes in', backOnline);
+  await R.page.waitForTimeout(SAVED);
+  const afterR = await savedPractice(R.page);
+  check(practiced(afterR), 'practice: and stays saved', JSON.stringify(afterR));
+  await R.context.close();
+
+  // Whatever the order, the next Chromebook picks up where the student was.
+  const S = await openDevice('S fresh', { server: serverAfterQ });
+  await openPractice(S.page);
+  const resumed = await showsWarmUp(S.page, /: correct/, 8000);
+  check(/: correct/.test(resumed), 'practice: the next device shows the practice already done', resumed);
+  await S.context.close();
 }
 
 await browser.close();

@@ -412,9 +412,12 @@ export const harnessStore = {
   exportDoc: (path) => (store.has(path) ? serialize(store.get(path)) : null),
   importDoc: (path, data) => { if (data) put(path, revive(data)); else remove(path); notify(); },
   // The device's connection, as the draft journeys switch it (see draftNetwork).
-  setOnline: (value) => {
+  // `announce: false` is the server becoming reachable (or not) without the
+  // browser noticing — Wi-Fi up while the school's connection was down — so
+  // no `online`/`offline` event fires.
+  setOnline: (value, { announce = true } = {}) => {
     draftsOnline = Boolean(value);
-    if (typeof window !== 'undefined') window.dispatchEvent(new Event(draftsOnline ? 'online' : 'offline'));
+    if (announce && typeof window !== 'undefined') window.dispatchEvent(new Event(draftsOnline ? 'online' : 'offline'));
     return draftsOnline;
   },
 };
