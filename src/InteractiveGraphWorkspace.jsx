@@ -862,6 +862,14 @@ export default function InteractiveGraphWorkspace({
   const [typedX, setTypedX] = useState('');
   const [typedY, setTypedY] = useState('');
   const [keyboardAnnouncement, setKeyboardAnnouncement] = useState('');
+  // Whether the typed x / y entry is on screen. One condition renders it and
+  // decides whether an announcement offers it: end markers are placed after
+  // the curve has fixed the points, when the entry is gone, and "or type an
+  // exact coordinate" sent a screen-reader student looking for a field that
+  // was not there.
+  const exactEntryAvailable = (stage === 'construct' && !pointsLocked)
+    || (stage === 'analysis' && inverseReflectionEnabled && !inversePointsLocked);
+  const typedRouteOffer = (where = '') => (exactEntryAvailable ? `, or type an exact coordinate${where}` : '');
 
   /** Where an arrow-key cursor should start: the middle of the visible plane. */
   const defaultCursor = () => [
@@ -1374,8 +1382,8 @@ export default function InteractiveGraphWorkspace({
                   const canPlace = task.expected === 'undefined' || Number.isFinite(Number(xValue));
                   return <div key={task.id} style={{ border: active ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '9px', background: placement ? '#eef5ff' : '#fff', padding: '9px' }}>
                     <button type="button" draggable={!mobileInteraction.isMobile && !pointsLocked && canPlace} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-point', task.id); event.dataTransfer.setDragImage(makePointDragImage(), 22, 22); setDraggingTaskId(task.id); }} onDragEnd={() => { setDraggingTaskId(null); setDropCandidate(null); setDropMagneticTarget(null); }} aria-pressed={active}
-                    aria-label={`${toPlainMath(task.label)}${active ? ' — selected. Move the cursor on the plane and press Enter, or type an exact coordinate.' : ''}`}
-                    onClick={() => { if (!pointsLocked && canPlace) { setActiveTaskId(task.id); setKeyboardAnnouncement(`${toPlainMath(task.label)} selected. Use the arrow keys on the plane and press Enter, or type an exact coordinate below.`); if (mobileInteraction.isMobile) revealPlaneForPlacement(); } }} style={{ width: '100%', textAlign: 'left', border: 'none', background: 'transparent', padding: 0, cursor: pointsLocked || !canPlace ? 'default' : 'grab' }}>
+                    aria-label={`${toPlainMath(task.label)}${active ? ` — selected. Move the cursor on the plane and press Enter${typedRouteOffer()}.` : ''}`}
+                    onClick={() => { if (!pointsLocked && canPlace) { setActiveTaskId(task.id); setKeyboardAnnouncement(`${toPlainMath(task.label)} selected. Use the arrow keys on the plane and press Enter${typedRouteOffer(' below')}.`); if (mobileInteraction.isMobile) revealPlaneForPlacement(); } }} style={{ width: '100%', textAlign: 'left', border: 'none', background: 'transparent', padding: 0, cursor: pointsLocked || !canPlace ? 'default' : 'grab' }}>
                       {/* Point tasks are authored as "Plot the point where $x = 0$".
                           The aria-label above deliberately keeps the plain string —
                           a screen reader should hear the source, not markup — but
@@ -1435,7 +1443,7 @@ export default function InteractiveGraphWorkspace({
                   ? (mobileInteraction.isMobile ? 'Tap a marker, then tap the end of your curve.' : 'Drag or select a marker, then place it at the end of your curve.')
                   : (mobileInteraction.isMobile ? 'Tap a marker, then tap near a graph end; a generous magnetic area helps it snap into place.' : 'Drag or select a marker, then place it near a graph end; a generous magnetic area helps it snap into place.')}</p>
                 {availableMarkerTypes.map((type) => { const label = markerLabels[type]; return <button key={type} type="button" draggable={!mobileInteraction.isMobile} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-marker', type); event.dataTransfer.setDragImage(makeMarkerDragImage(type), 26, 26); setDraggingMarkerType(type); }} onDragEnd={() => { setDraggingMarkerType(null); setDropCandidate(null); setDropMagneticTarget(null); }} aria-pressed={activeMarker === type}
-                  onClick={() => { setActiveMarker(type); setKeyboardAnnouncement(`${label} selected. Use the arrow keys on the plane and press Enter, or type an exact coordinate.`); }} style={{ width: '100%', marginTop: '6px', padding: '9px', border: activeMarker === type ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '8px', background: 'var(--mm-surface)', fontWeight: 'bold', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ fontSize: '23px', color: '#1a73e8' }}>{markerSymbols[type]}</span><span><span style={{ display: 'block' }}>{label}</span><span style={{ display: 'block', fontSize: '11px', color: '#5f6368', fontWeight: 400 }}>{markerExplanations[type]}</span></span></button>; })}
+                  onClick={() => { setActiveMarker(type); setKeyboardAnnouncement(`${label} selected. Use the arrow keys on the plane and press Enter${typedRouteOffer(' below')}.`); }} style={{ width: '100%', marginTop: '6px', padding: '9px', border: activeMarker === type ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '8px', background: 'var(--mm-surface)', fontWeight: 'bold', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ fontSize: '23px', color: '#1a73e8' }}>{markerSymbols[type]}</span><span><span style={{ display: 'block' }}>{label}</span><span style={{ display: 'block', fontSize: '11px', color: '#5f6368', fontWeight: 400 }}>{markerExplanations[type]}</span></span></button>; })}
                 <div style={{ marginTop: '10px', display: 'grid', gap: '5px' }}>{endpointRequirements.map((requirement, index) => { const placement = construction.markerPlacements[requirement.id]; return <div key={requirement.id} style={{ fontSize: '12px', color: placement ? '#174ea6' : '#5f6368' }}>{boundaryOnly && endsDescribedForStudent ? 'Boundary' : 'End'} {index + 1}: {placement ? markerLabels[markerValue(placement)] : 'not placed'}</div>; })}</div>
               </div>}
             </>
@@ -1462,7 +1470,7 @@ export default function InteractiveGraphWorkspace({
                   {['point', 'inversePoint'].includes(part.kind) ? <>
                     {part.responseMode !== 'input' && <div style={{ marginTop: '5px', fontSize: '12px', color: '#5f6368' }}>{noneSelected ? 'Marked: does not exist' : `${selected.length}/${part.expected.length || 1} selected`}</div>}
                     {part.allowNone && part.responseMode !== 'input' && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, noneSelections: { ...current.noneSelections, [part.id]: !current.noneSelections[part.id] }, selections: { ...current.selections, [part.id]: [] } }))} style={{ marginTop: '7px', padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: noneSelected ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}
-                    {part.responseMode !== 'click' && <div style={{ marginTop: '8px' }}><MathInput value={analysis.typedPoints[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, typedPoints: { ...current.typedPoints, [part.id]: value } }))} placeholder={part.expected.length > 1 ? '(x₁, y₁), (x₂, y₂)' : '(x, y) or DNE'} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} /></div>}
+                    {part.responseMode !== 'click' && <div style={{ marginTop: '8px' }}><MathInput value={analysis.typedPoints[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, typedPoints: { ...current.typedPoints, [part.id]: value } }))} ariaLabel={toPlainMath(part.label)} placeholder={part.expected.length > 1 ? '(x₁, y₁), (x₂, y₂)' : '(x, y) or DNE'} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} /></div>}
                   </> : <div style={{ marginTop: '8px' }}>
                     <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', marginBottom: (part.allowsEmptyAnswer || offersAllRealNumbers) ? '7px' : 0 }}>
                       {part.allowsEmptyAnswer && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: 'does not exist' } }))} style={{ padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: String(analysis.answers[part.id] || '').toLowerCase().includes('exist') ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}
@@ -1488,7 +1496,10 @@ export default function InteractiveGraphWorkspace({
                         All Real Numbers
                       </button>}
                     </div>
-                    <MathInput value={analysis.answers[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: value } }))} toolProfile={analysisKeypadProfile(part)} answerFormat={analysisAnswerFormatFor(part)} showToolsInitially placeholder={answerShape.example} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
+                    {/* Named by its part, as the point cards are. Without a name of
+                        its own the field was called by its placeholder — the
+                        format example "[2, ∞)" — or, with none, "Math answer". */}
+                    <MathInput value={analysis.answers[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: value } }))} toolProfile={analysisKeypadProfile(part)} answerFormat={analysisAnswerFormatFor(part)} showToolsInitially ariaLabel={toPlainMath(part.label)} placeholder={answerShape.example} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
                   </div>}
                 </div>;
               })}
@@ -1620,8 +1631,7 @@ export default function InteractiveGraphWorkspace({
         )}
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: '9px', flexWrap: 'wrap', marginTop: '10px' }}>
-          {((stage === 'construct' && !pointsLocked)
-            || (stage === 'analysis' && inverseReflectionEnabled && !inversePointsLocked)) && (
+          {exactEntryAvailable && (
             <div style={{ display: 'flex', gap: '7px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
               <label style={{ fontSize: '12px', fontWeight: 700, color: '#3c4043' }}>
                 x
