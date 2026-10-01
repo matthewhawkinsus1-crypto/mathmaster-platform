@@ -2,8 +2,8 @@
  * THE FOUR ANSWERS TO "WHO DECIDES WHETHER THIS IS CORRECT?"
  *
  * Every grade-bearing MathMaster surface — question type, registry tool, and
- * each tool mode — must declare exactly one of these in the grading registry
- * (gradingRegistry.mjs). tests/platform/serverGradingCoverageGate.test.mjs
+ * each tool mode — must declare exactly one of these in the grading manifest
+ * (gradingManifest.mjs). tests/platform/serverGradingCoverageGate.test.mjs
  * fails if a new surface appears without a declaration, so no future tool can
  * silently inherit client-authoritative grading.
  */
