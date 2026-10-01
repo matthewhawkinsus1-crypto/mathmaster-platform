@@ -8,6 +8,7 @@ import {
   buildPublicToolPayload,
   gradePathResponse,
 } from '../../functions/shared/pathToolContracts.mjs';
+import { normalizeAnalysisRequests } from '../../functions/shared/toolMath/graphWorkspace/graphWorkspaceModel.mjs';
 
 const legacyLiveQuestion = {
   id: 'mm_A2_2B_gen2_inverse-point-graph',
@@ -137,8 +138,21 @@ test('inverse equation part receives the equation keypad', () => {
 });
 
 test('workspace contains the full reflection interaction', () => {
+  // A reflected-point request becomes a click part whose expected point is the
+  // source point with its coordinates swapped, (f(x), x). The workspace builds
+  // its analysis parts with the shared normalizer the grader also uses, so the
+  // behaviour is asserted there and the workspace held to that model.
+  const [reflected] = normalizeAnalysisRequests(
+    { pointTasks: [{ id: 'px', x: 3, expected: [3, 7] }], analysisRequests: [{ id: 'reflect-px', kind: 'inversePoint', sourceTaskId: 'px' }] },
+    { type: 'linear', m: 4, b: -5 },
+    {},
+    false,
+  );
+  assert.equal(reflected.kind, 'inversePoint');
+  assert.equal(reflected.responseMode, 'click');
+  assert.deepEqual(reflected.expected, [[7, 3]]);
   const source = readFileSync('src/InteractiveGraphWorkspace.jsx', 'utf8');
-  assert.match(source, /request\.kind === 'inversePoint'/);
+  assert.match(source, /(?:graphWorkspaceModelFor|buildGraphWorkspaceModel)\(question, \{ analysisMode: mode === 'analysis' \}\)/);
   assert.match(source, /Check Reflected Points/);
   assert.match(source, /PathQuestionStimulus/);
   assert.match(source, /stimulus=\{question\.stimulus\}/);
