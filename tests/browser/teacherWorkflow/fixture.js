@@ -86,6 +86,27 @@ const TRACKERS = {
   warmupOnly: { 0: correct },
 };
 
+/*
+ * STUDENT IDENTITY EDGE CASES — invented names only. The shapes legacy roster
+ * records really have (see functions/shared/studentIdentity.mjs):
+ *   910090  Classroom-linked, created nameless: googleName is the ONLY name
+ *   910091  no name field at all — the teacher must see "Name unavailable"
+ *   910092  displayName equal to its own id (an old writer's fallback)
+ *   910093  two different students who share one full name; they must stay
+ *   910094  two tiles/rows, never merged
+ * All in the Lab section of Period 3 (in session), working on today's lesson.
+ */
+export const IDENTITY_EDGE_STUDENTS = Object.freeze([
+  { id: '910090', names: { googleName: 'Rowan Exampleton' } },
+  { id: '910091', names: {} },
+  { id: '910092', names: { displayName: '910092' } },
+  { id: '910093', names: { firstName: 'Juniper', lastName: 'Samplewood', displayName: 'Juniper Samplewood' } },
+  { id: '910094', names: { firstName: 'Juniper', lastName: 'Samplewood', displayName: 'Juniper Samplewood' } },
+]);
+export const IDENTITY_EDGE_IDS = IDENTITY_EDGE_STUDENTS.map((entry) => entry.id);
+// The name studentNameJourneys.mjs adds for 910091 through Sign-in Access.
+export const IDENTITY_NAME_TO_ADD = Object.freeze({ firstName: 'Ellery', lastName: 'Mockingworth' });
+
 export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, params = null } = {}) => {
   const sectionsFor = params?.get?.('questions') === 'real' ? realLessonSections : lessonSections;
   const todayKey = dateKey(now);
@@ -201,6 +222,21 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
     'a-p1-ready': TRACKERS[['strong', 'solid', 'struggling', 'strong', 'partial', 'solid'][index]],
   }));
   addStudents(byId['c-alg1-p5'], 5, () => ({}));
+  // Identity edge cases (studentNameJourneys.mjs), pushed AFTER every serial
+  // student so no existing id or p3[] index moves. All invented.
+  IDENTITY_EDGE_STUDENTS.forEach(({ id, names }) => {
+    students.push({
+      id,
+      ...names,
+      classId: 'c-lab-p3',
+      classPeriod: byId['c-lab-p3'].period,
+      assignedTeacherEmail: TEACHER_EMAIL,
+      status: 'active',
+      profile: {},
+      gradesByAssignment: {},
+      assignmentActivity: {},
+    });
+  });
   students.forEach(({ id, ...data }) => { fixture[`grades/${id}`] = data; });
 
   // ---------------------------------------------------------------- live presence
@@ -217,6 +253,11 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   presence(p3[1], { questionIndex: 2, sectionQuestionIndex: 1, questionStates: 'cc....', answeredCount: 2, correctCount: 2 });
   presence(p3[2], { questionIndex: 1, currentAttempts: 3, questionStates: 'cx....', answeredCount: 2, correctCount: 1, accuracy: 50 });
   presence(p3[3], { assignmentId: 'a-yesterday', assignmentTitle: 'Systems of Equations — Lesson 2: Substitution', activityRole: 'practice', questionIndex: 3 });
+  // The identity edge students are working in the Lab section, so each one is
+  // a Live Class tile. Presence carries no name: the tile must take it from the roster.
+  students.filter((student) => IDENTITY_EDGE_IDS.includes(student.id)).forEach((student) => presence(student, {
+    questionIndex: 0, sectionQuestionIndex: 0, questionStates: '......', answeredCount: 0, correctCount: 0, accuracy: null,
+  }));
 
   // ---------------------------------------------------------------- export history
   // Build the snapshots the REAL projection would have written, so the history

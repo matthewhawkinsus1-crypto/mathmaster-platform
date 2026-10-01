@@ -1,19 +1,20 @@
-import { formatStudentName } from './platform/studentName.js';
+import { resolveRosterStudentName, studentIdentityIndexFor } from './platform/studentName.js';
 
 const clean = (value) => String(value ?? '').trim();
 
+// The roster name (googleName and first/last included), then a name the sync
+// record carried if it is really a name, else "Name unavailable". The id is
+// returned separately and rendered as its own "ID x" line — never as the name.
+// The identity index is cached per roster array, so 100 rows are 100 lookups,
+// not 100 roster scans.
 export function gradeSyncStudentDisplay(sync = {}, students = []) {
   const studentId = clean(sync?.studentId);
-  const student = (Array.isArray(students) ? students : [])
-    .find((candidate) => clean(candidate?.id || candidate?.studentId) === studentId);
-  const studentName = student
-    ? formatStudentName(student, { lastFirst: false, fallbackToId: false })
-    : '';
-  const fallbackName = clean(sync?.studentName || sync?.name);
-  return {
-    name: studentName || fallbackName || (studentId ? `Student ${studentId}` : 'Unknown student'),
+  const name = resolveRosterStudentName({
     studentId,
-  };
+    index: studentIdentityIndexFor(Array.isArray(students) ? students : []),
+    historicalName: clean(sync?.studentName || sync?.name),
+  });
+  return { name, studentId };
 }
 
 export function gradeSyncStatusLabel(sync = {}) {

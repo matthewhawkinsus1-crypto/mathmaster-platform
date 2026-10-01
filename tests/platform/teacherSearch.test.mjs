@@ -53,16 +53,19 @@ test('a TEKS code typed in full goes straight to the standard', () => {
   assert.equal(first.title, 'A.5C');
 });
 
-test('typing a surname finds the student, in stored order', () => {
+test('typing a surname finds the student first', () => {
   const [first] = search('rivera');
-  assert.equal(first.title, 'Rivera, Ana');
+  assert.equal(first.id, '1042');
+  // A stored "Rivera, Ana" is read as last-then-first by the shared resolver,
+  // so the title is the natural name rather than the comma form.
+  assert.equal(first.title, 'Ana Rivera');
 });
 
 test('typing a first name finds them too, though the roster stores surname first', () => {
   // Rosters store "Rivera, Ana"; teachers think "Ana Rivera". A search that only
   // matched the stored order would fail on the most natural thing to type.
   const results = search('ana');
-  assert.ok(results.some((entry) => entry.title === 'Rivera, Ana'));
+  assert.ok(results.some((entry) => entry.kind === RESULT_KIND.STUDENT && entry.id === '1042'));
 });
 
 test('a prefix beats a match buried in the middle of a title', () => {

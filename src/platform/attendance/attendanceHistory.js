@@ -25,6 +25,7 @@
 
 import { ATTENDANCE_MARK } from './absencePolicy.js';
 import { MEETING_STATUS, classifySchoolDay, shiftDateKey } from './classMeetings.js';
+import { formatStudentName } from '../studentName.js';
 // The day-resolution rules ("which mark governs this student's day") moved to
 // shared code so the server reads attendance exactly as these screens do —
 // Practice-based Recovery decides there whether an absence was excused.
@@ -84,7 +85,9 @@ export const buildAttendanceHistoryEvent = ({
     throw new Error(`Unsupported attendance mark: ${normalizedMark || 'blank'}`);
   }
 
-  const studentName = clean(student?.displayName || student?.name || student?.studentName || studentId);
+  // The student's name or null — never the id. Readers resolve a null name
+  // by studentId against the roster at display time.
+  const studentName = formatStudentName(student, { lastFirst: false, fallbackToNeutral: false }) || null;
   const resolvedPeriod = clean(classPeriod || student?.classPeriod || student?.profile?.classPeriod) || null;
   const label = normalizedMark === ATTENDANCE_HISTORY_MARK.EXCUSED ? 'Excused absence'
     : normalizedMark === ATTENDANCE_HISTORY_MARK.UNEXCUSED ? 'Unexcused absence'

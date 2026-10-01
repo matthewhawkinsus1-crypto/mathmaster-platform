@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
+import { STUDENT_IDENTITY_FIELDS, TEACHER_ROSTER_SELECT_FIELDS } from '../../functions/shared/studentIdentity.mjs';
+
 const app = fs.readFileSync('src/App.jsx', 'utf8');
 const functions = fs.readFileSync('functions/index.js', 'utf8');
 
@@ -78,6 +80,10 @@ test('opening one student from a light screen reads only that student detail doc
 });
 
 test('compact roster callable explicitly excludes attempt history fields', () => {
+  // The teacher roster projection is the ONE shared field list
+  // (functions/shared/studentIdentity.mjs), so the server cannot select less
+  // than the name resolver reads — dropping googleName is how Classroom-linked
+  // students lost their names — or more than the compact roster needs.
   const callable = between(
     functions,
     'exports.listSignInAccess = onCall',
@@ -90,9 +96,20 @@ test('compact roster callable explicitly excludes attempt history fields', () =>
     ').get(),',
     'compact grades projection',
   );
-  assert.match(projection, /"profile"/);
-  assert.match(projection, /"sisStudentId"/);
-  assert.doesNotMatch(projection, /gradesByAssignment|assignmentActivity|supportUsageByAssignment|dolGradesByAssignment|classworkGradesByAssignment/);
+  // Exactly the shared list: nothing added beside it, nothing listed locally.
+  const spread = projection.match(/^db\.collection\("grades"\)\.select\(\s*\.\.\.(\w+)\.TEACHER_ROSTER_SELECT_FIELDS,?\s*$/);
+  assert.ok(spread, 'listSignInAccess must select exactly ...TEACHER_ROSTER_SELECT_FIELDS and nothing else');
+  assert.match(callable, new RegExp(`const ${spread[1]} = await studentIdentity\\(\\);`));
+  assert.match(functions, /studentIdentityModule = await import\("\.\/shared\/studentIdentity\.mjs"\)/);
+
+  // And that list carries every name field, the support profile and the SIS
+  // id — and nothing from a student's attempt history.
+  for (const field of ['profile', 'sisStudentId', 'googleName', ...STUDENT_IDENTITY_FIELDS]) {
+    assert.ok(TEACHER_ROSTER_SELECT_FIELDS.includes(field), `the roster projection must select ${field}`);
+  }
+  for (const history of ['gradesByAssignment', 'assignmentActivity', 'supportUsageByAssignment', 'dolGradesByAssignment', 'classworkGradesByAssignment']) {
+    assert.ok(!TEACHER_ROSTER_SELECT_FIELDS.includes(history), `the roster projection must not select ${history}`);
+  }
 });
 
 test('teacher background history streams are scoped to the screens that use them', () => {

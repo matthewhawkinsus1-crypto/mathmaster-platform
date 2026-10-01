@@ -1464,6 +1464,7 @@ exports.inspectStudentResponse = onCall(async (request) => {
 
   const inspector = await import("./shared/responseInspector.mjs");
   const { workspaceDraftDocumentId } = await import("./shared/workspaceDraftSchema.mjs");
+  const identity = await studentIdentity();
   const inspectionEvidenceRef = gradeRef
     .collection(RESPONSE_INSPECTION_EVIDENCE_COLLECTION)
     .doc(inspector.responseInspectionEvidenceDocumentId({ assignmentId, questionIndex }));
@@ -1498,10 +1499,12 @@ exports.inspectStudentResponse = onCall(async (request) => {
     question,
     questionIndex,
     section,
+    // The real name or null — never the id. The inspector labels a missing
+    // name explicitly and shows the id separately.
     student: {
       id: studentId,
       classId: student.classId || null,
-      displayName: student.displayName || student.name || studentId,
+      displayName: identity.studentNameForStorage(studentIdentityRecord(identity, studentId, student)),
     },
     record,
     workspace,
@@ -1893,6 +1896,7 @@ exports.overrideStudentAssignmentGrade = onCall(async (request) => {
   const gradeRef = db.collection("grades").doc(studentId);
   const assignmentRef = db.collection("assignments").doc(assignmentId);
   const nowIso = new Date().toISOString();
+  const identity = await studentIdentity();
 
   return db.runTransaction(async (transaction) => {
     const [gradeSnap, assignmentSnap] = await Promise.all([transaction.get(gradeRef), transaction.get(assignmentRef)]);
@@ -1955,7 +1959,10 @@ exports.overrideStudentAssignmentGrade = onCall(async (request) => {
       newOverride: nextOverride, overrideActiveAfter: action === "issueZero" });
 
     if (action === "issueZero") {
-      const commonEvent = { schemaVersion: 1, studentId, studentName: gradeData.displayName || studentId,
+      // studentName is the real name or null — never the id. Teacher screens
+      // resolve a null name by studentId against the roster at display time.
+      const commonEvent = { schemaVersion: 1, studentId,
+        studentName: identity.studentNameForStorage(studentIdentityRecord(identity, studentId, gradeData)),
         classId: gradeData.classId || null, assignmentId, assignmentTitle: assignment.title || null,
         originClassId: gradeData.classId || null, originTeacherEmail: teacherEmail,
         createdByEmail: teacherEmail, authorizedTeacherEmails: [teacherEmail], createdAt: nowIso, createdAtServer: FieldValue.serverTimestamp(),
@@ -2156,7 +2163,8 @@ exports.awardClassPoints = onCall(async (request) => {
       const announcementRef = classRef.collection(CLASS_POINT_ANNOUNCEMENTS_COLLECTION).doc();
       const announcement = points.buildAnnouncement({
         classId,
-        publicStudentLabel: points.publicStudentLabel(studentRecord),
+        // The id travels with the record so a name that only repeats it is refused.
+        publicStudentLabel: points.publicStudentLabel({ ...studentRecord, studentId }),
         amount,
         reasonLabel,
         awardTransactionId: transactionRef.id,
@@ -2837,6 +2845,28 @@ async function classModel() {
   return classModelModule;
 }
 
+// What a student's NAME is — and that an id never is one. Shared with the
+// browser (src/platform/studentName.js) so the roster projection, every server
+// name copy and every screen resolve a name the same way.
+let studentIdentityModule = null;
+async function studentIdentity() {
+  if (!studentIdentityModule) studentIdentityModule = await import("./shared/studentIdentity.mjs");
+  return studentIdentityModule;
+}
+
+/**
+ * The identity-bearing fields of one grades document, plus its id — what the
+ * shared resolver needs and nothing from the attempt history. The identifiers
+ * travel with it so a name that merely repeats one of them is refused.
+ */
+function studentIdentityRecord(identity, studentId, data = {}) {
+  const record = { studentId: String(studentId || "") };
+  [...identity.STUDENT_IDENTITY_FIELDS, "profile", "sisStudentId", "googleUserId"].forEach((field) => {
+    if (data?.[field] !== undefined) record[field] = data[field];
+  });
+  return record;
+}
+
 let authorizationModule = null;
 async function authorizationContext() {
   if (!authorizationModule) authorizationModule = await import("./shared/authorizationContext.mjs");
@@ -3015,27 +3045,22 @@ async function writeAdminAudit(db, actor, action, target, details = {}) {
   });
 }
 
-/** Creates the `grades` document a student's whole dashboard hangs off of. */
-async function ensureStudentRecord(db, studentId, { classId = null, classPeriod = null, assignedTeacherEmail = null } = {}) {
-  const ref = db.collection("grades").doc(studentId);
-  const snapshot = await ref.get();
-  if (snapshot.exists) return snapshot.data() || {};
-
-  const seed = {
-    ...(classId ? { classId } : {}),
-    classPeriod: classPeriod || "Unassigned",
-    ...(assignedTeacherEmail ? { assignedTeacherEmail } : {}),
-    profile: {},
-    gradesByAssignment: {},
-    assignmentActivity: {},
-    dolGradesByAssignment: {},
-    classworkGradesByAssignment: {},
-    supportUsageByAssignment: {},
-    createdAt: FieldValue.serverTimestamp(),
-  };
-  await ref.set(seed);
-  return seed;
+/**
+ * The roster record a signed-in student's dashboard hangs off of — read, never
+ * created. Signing in used to create a missing `grades` document, and every
+ * one it created was a nameless roster row a teacher then saw as a bare ID.
+ * Roster rows are created only by createStudentAccount, with a name. A field
+ * mask keeps this read from loading the student's attempt history.
+ */
+async function readStudentRosterPresence(db, studentId) {
+  const [snapshot] = await db.getAll(
+    db.collection("grades").doc(String(studentId)),
+    { fieldMask: ["classPeriod", "status"] },
+  );
+  return snapshot.exists ? { exists: true, classPeriod: snapshot.data()?.classPeriod || null } : { exists: false };
 }
+
+const STUDENT_NOT_ON_ROSTER_MESSAGE = "This MathMaster student account is no longer on a class roster. Ask your teacher.";
 
 async function resolveJoinCodeMembership(db, joinCode = {}) {
   const classId = String(joinCode.classId || "").trim();
@@ -3109,8 +3134,11 @@ exports.resolveSignedInRole = onCall(async (request) => {
   const { uid, token } = request.auth;
 
   // Students who signed in with a custom token already carry their claims.
+  // A token whose roster row is gone fails closed: the client shows this
+  // message and signs out, and no empty roster row is created.
   if (token.role === "student" && token.studentId) {
-    const record = await ensureStudentRecord(db, token.studentId);
+    const record = await readStudentRosterPresence(db, token.studentId);
+    if (!record.exists) throw new HttpsError("failed-precondition", STUDENT_NOT_ON_ROSTER_MESSAGE);
     return { role: "student", studentId: token.studentId, classPeriod: record.classPeriod || "Unassigned" };
   }
 
@@ -3150,7 +3178,11 @@ exports.resolveSignedInRole = onCall(async (request) => {
     const directory = await db.collection(authLib.DIRECTORY_COLLECTION).doc(email).get();
     const studentId = directory.exists ? directory.data()?.studentId : null;
     if (studentId) {
-      const record = await ensureStudentRecord(db, studentId);
+      const record = await readStudentRosterPresence(db, studentId);
+      // A Google link to a roster row that no longer exists grants nothing
+      // and creates nothing: the account goes back through linking, where
+      // linkGoogleAccount accepts only an ID that is on the roster.
+      if (!record.exists) return { role: null, needsLink: true, email };
       if (token.role !== "student" || token.studentId !== studentId) {
         await assignClaims(uid, { role: "student", studentId });
       }
@@ -3374,7 +3406,9 @@ exports.studentSignIn = onCall(async (request) => {
     await assignClaims(uid, claims);
   } catch (error) {
     if (error?.code !== "auth/user-not-found") throw error;
-    await getAuth().createUser({ uid, displayName: studentId });
+    // No displayName: the student ID is not a name, and an Auth profile that
+    // calls the student '101410' is one more place for the ID to surface as one.
+    await getAuth().createUser({ uid });
     await assignClaims(uid, claims);
   }
 
@@ -3440,7 +3474,15 @@ exports.unlinkStudentAccount = onCall(async (request) => {
       if (uid) await assignClaims(uid, {}).catch(() => {});
     }),
   );
-  await db.collection("grades").doc(studentId).set({ linkedEmail: FieldValue.delete() }, { merge: true });
+  // update() on a row that exists, never set(merge): clearing the link on an
+  // ID with no roster row must not create one — a ghost row with no name that
+  // the roster would then show as a bare ID.
+  // FOLLOW-UP: like resetStudentPasscode, this asks only for a teacher, not
+  // for this student's teacher of record (see setStudentSisId for the check).
+  const rosterRow = await readStudentRosterPresence(db, studentId);
+  if (rosterRow.exists) {
+    await db.collection("grades").doc(studentId).update({ linkedEmail: FieldValue.delete() });
+  }
 
   return { studentId, unlinked: links.size };
 });
@@ -3547,20 +3589,19 @@ exports.listSignInAccess = onCall(async (request) => {
   const db = getFirestore();
   const isRootAdmin = request.auth?.token?.rootAdmin === true
     && authLib.isRootAdminEmail(callerEmail(request));
+  const identity = await studentIdentity();
   const [roster, credentials, directory, aliases, teachers, classes] = await Promise.all([
-    // Only these fields — the rest of a grades document is the student's
+    // Only the shared roster fields — names (every field the name resolver
+    // reads, googleName included), class membership, account state and the
+    // small support profile. The rest of a grades document is the student's
     // entire attempt history and has no business in this payload.
-    db.collection("grades").select(
-      "classPeriod", "classId", "status", "linkedEmail", "assignedTeacherEmail",
-      "displayName", "firstName", "lastName", "profile", "sisStudentId",
-    ).get(),
+    db.collection("grades").select(...identity.TEACHER_ROSTER_SELECT_FIELDS).get(),
     db.collection(authLib.CREDENTIALS_COLLECTION).get(),
     db.collection(authLib.DIRECTORY_COLLECTION).get(),
     db.collection(authLib.ALIAS_COLLECTION).get(),
     db.collection(authLib.TEACHER_COLLECTION).get(),
     loadClasses(db),
   ]);
-  const model = await classModel();
   const canonicalByKey = {};
   aliases.docs.forEach((aliasDoc) => {
     canonicalByKey[aliasDoc.id] = aliasDoc.data()?.studentId || aliasDoc.id;
@@ -3576,51 +3617,19 @@ exports.listSignInAccess = onCall(async (request) => {
     credentialByStudent[studentId] = credentialDoc.data() || {};
   });
 
-  // MathMaster structured student names / class-centric account creation v1
-  // Structured names are preferred. Old roster rows that only have
-  // displayName remain sortable by treating the last word as the surname.
-  const sortParts = (student) => {
-    const firstName = String(student.firstName || "").trim();
-    const lastName = String(student.lastName || "").trim();
-    if (firstName || lastName) return { firstName, lastName };
-    const parts = String(student.displayName || "").trim().split(/\s+/).filter(Boolean);
-    return {
-      firstName: parts.length > 1 ? parts.slice(0, -1).join(" ") : (parts[0] || ""),
-      lastName: parts.length > 1 ? parts.at(-1) : "",
-    };
-  };
-
+  // One row per student from the shared projection: the name is resolved from
+  // every name field on file (a Classroom-linked legacy student whose only
+  // name is googleName keeps it) and never from the id. A student with no name
+  // on file says so (nameMissing) and sorts after the named ones.
   const caller = callerEmail(request);
   const students = roster.docs
     .filter((rosterDoc) => rosterDoc.id !== "test_connection")
     .filter((rosterDoc) => isRootAdmin || String(rosterDoc.data()?.assignedTeacherEmail || "").trim().toLowerCase() === caller)
-    .map((rosterDoc) => {
-      const credential = credentialByStudent[rosterDoc.id];
-      const data = rosterDoc.data() || {};
-      return {
-        studentId: rosterDoc.id,
-        firstName: data.firstName || null,
-        lastName: data.lastName || null,
-        displayName: data.displayName || null,
-        classId: data.classId || null,
-        classPeriod: data.classPeriod || "Unassigned",
-        status: data.status === model.ACCOUNT_STATUS.DISABLED ? model.ACCOUNT_STATUS.DISABLED : model.ACCOUNT_STATUS.ACTIVE,
-        assignedTeacherEmail: data.assignedTeacherEmail || null,
-        sisStudentId: data.sisStudentId || null,
-        profile: data.profile && typeof data.profile === "object" ? data.profile : {},
-        hasPasscode: Boolean(credential?.hash) && credential?.resetRequired !== true,
-        resetRequired: credential?.resetRequired === true,
-        linkedEmail: emailByStudent[rosterDoc.id] || data.linkedEmail || null,
-      };
-    })
-    .sort((a, b) => {
-      const aName = sortParts(a);
-      const bName = sortParts(b);
-      const options = { sensitivity: "base", numeric: true };
-      return aName.lastName.localeCompare(bName.lastName, undefined, options)
-        || aName.firstName.localeCompare(bName.firstName, undefined, options)
-        || a.studentId.localeCompare(b.studentId, undefined, options);
-    });
+    .map((rosterDoc) => identity.buildTeacherRosterSummaryRow(rosterDoc.id, rosterDoc.data() || {}, {
+      credential: credentialByStudent[rosterDoc.id],
+      linkedEmail: emailByStudent[rosterDoc.id],
+    }))
+    .sort(identity.compareStudentIdentities);
 
   return {
     students,
@@ -3689,10 +3698,18 @@ exports.createStudentAccount = onCall(async (request) => {
     if (!firstName) firstName = parts.length > 1 ? parts.slice(0, -1).join(" ") : (parts[0] || "");
     if (!lastName && parts.length > 1) lastName = parts.at(-1);
   }
-  if ((request.data?.firstName || request.data?.lastName) && (!firstName || !lastName)) {
-    throw new HttpsError("invalid-argument", "Enter both the student's first name and last name.");
-  }
-  const displayName = cleanName([firstName, lastName].filter(Boolean).join(" ") || legacyDisplayName, 120);
+  // Every new student has a real first and last name. A nameless account is
+  // how '101410' ended up where a child's name belonged, so a request with no
+  // name — or with the ID, an email or a placeholder typed as one — is refused
+  // here, not only in the form.
+  const identity = await studentIdentity();
+  const validatedName = identity.validateStudentNameInput(
+    { firstName, lastName },
+    { studentId, sisStudentId: studentId },
+  );
+  if (!validatedName.ok) throw new HttpsError("invalid-argument", validatedName.error);
+  ({ firstName, lastName } = validatedName);
+  const { displayName } = validatedName;
 
   const model = await classModel();
   // A new student is placed by CLASS. The class carries the period and the
@@ -6234,6 +6251,7 @@ exports.listClassroomRosterLinks = onCall(async (request) => {
   const courseId = String(request.data?.courseId || "").trim();
   if (!courseId) throw new HttpsError("invalid-argument", "courseId is required.");
 
+  const identity = await studentIdentity();
   // Query by teacher only so this does not require a fragile composite index.
   // A teacher has a small bounded set of roster links; course scoping happens
   // in memory and the client receives only the selected course.
@@ -6254,10 +6272,40 @@ exports.listClassroomRosterLinks = onCall(async (request) => {
         studentId: entry.studentId || null,
         googleUserId: entry.googleUserId || null,
         email: entry.email || null,
-        name: entry.name || null,
+        // A stored copy that is an id or a placeholder is not a name.
+        name: identity.acceptStudentName(entry.name, entry) || null,
       })),
   };
 });
+
+/**
+ * The Google identity a Classroom link copies onto grades/{studentId} and onto
+ * the classroomRosterLinks record.
+ *
+ * googleName is the ONLY name some legacy students have, so a roster entry
+ * with no usable name (blank, an email address, an id) never erases one: the
+ * name and the email are written only when the new value is real. The one
+ * exception is a link that moves the record to a DIFFERENT Google account —
+ * the name and email on file then belong to someone else and are removed, for
+ * the same reason the replaced-link cleanup in linkClassroomRosterBatch
+ * removes them from a student who loses a link.
+ */
+function classroomGoogleIdentityFields(
+  identity,
+  { studentId, googleUserId, name, email, previousGoogleUserId = null },
+  { nameField, emailField },
+) {
+  const acceptedName = identity.acceptStudentName(name, { studentId, googleUserId });
+  const cleanEmail = typeof email === "string" ? email.trim().slice(0, 320) : "";
+  const previous = String(previousGoogleUserId || "").trim();
+  const accountChanged = Boolean(previous) && previous !== String(googleUserId);
+  const fields = {};
+  if (acceptedName) fields[nameField] = acceptedName;
+  else if (accountChanged) fields[nameField] = FieldValue.delete();
+  if (cleanEmail) fields[emailField] = cleanEmail;
+  else if (accountChanged) fields[emailField] = FieldValue.delete();
+  return fields;
+}
 
 exports.linkStudentToClassroom = onCall(async (request) => {
   const teacherUid = await requireTeacher(request);
@@ -6279,28 +6327,40 @@ exports.linkStudentToClassroom = onCall(async (request) => {
     );
   }
   const cleanStudentId = String(studentId).trim();
-  await assertMappedStudent(db, teacherUid, String(courseId), effectiveClassId, cleanStudentId);
+  const { student } = await assertMappedStudent(db, teacherUid, String(courseId), effectiveClassId, cleanStudentId);
 
   const rosterLinkId = rosterLinkDocumentId(String(courseId), cleanStudentId);
-  await db.doc(`classroomRosterLinks/${rosterLinkId}`).set(
+  const rosterLinkRef = db.doc(`classroomRosterLinks/${rosterLinkId}`);
+  const identity = await studentIdentity();
+  const cleanGoogleUserId = String(googleUserId);
+  const existingLink = await rosterLinkRef.get();
+  // Only a real name/email is copied; a blank one never erases what is on file.
+  const linkInput = { studentId: cleanStudentId, googleUserId: cleanGoogleUserId, name, email };
+  await rosterLinkRef.set(
     {
       rosterLinkId,
       teacherUid,
       classId: effectiveClassId,
       courseId: String(courseId),
       studentId: cleanStudentId,
-      googleUserId: String(googleUserId),
-      email: email || null,
-      name: name || null,
+      googleUserId: cleanGoogleUserId,
+      ...classroomGoogleIdentityFields(
+        identity,
+        { ...linkInput, previousGoogleUserId: existingLink.exists ? existingLink.data()?.googleUserId : null },
+        { nameField: "name", emailField: "email" },
+      ),
       updatedAt: FieldValue.serverTimestamp(),
     },
     { merge: true }
   );
   await db.doc(`grades/${cleanStudentId}`).set(
     {
-      googleUserId: String(googleUserId),
-      googleEmail: email || null,
-      googleName: name || null,
+      googleUserId: cleanGoogleUserId,
+      ...classroomGoogleIdentityFields(
+        identity,
+        { ...linkInput, previousGoogleUserId: student?.googleUserId },
+        { nameField: "googleName", emailField: "googleEmail" },
+      ),
       classroomCourseIds: FieldValue.arrayUnion(String(courseId)),
     },
     { merge: true }
@@ -6361,8 +6421,11 @@ exports.linkClassroomRosterBatch = onCall(async (request) => {
     prepared.push({
       studentId,
       googleUserId,
-      email: item.email || null,
-      name: item.name || null,
+      // Raw Classroom values; classroomGoogleIdentityFields decides what is
+      // a real name/email before anything is written.
+      email: item.email,
+      name: item.name,
+      previousGoogleUserId: studentSnap.data()?.googleUserId || null,
     });
   }
 
@@ -6432,8 +6495,12 @@ exports.linkClassroomRosterBatch = onCall(async (request) => {
     );
   }
 
+  const identity = await studentIdentity();
+  const existingLinkById = new Map(existingLinks.map((entry) => [entry.id, entry]));
   for (const item of prepared) {
     const rosterLinkId = rosterLinkDocumentId(cleanCourseId, item.studentId);
+    // Only a real name/email is copied; a blank one never erases what is on
+    // file (googleName is the only name some legacy students have).
     batch.set(
       db.doc(`classroomRosterLinks/${rosterLinkId}`),
       {
@@ -6443,8 +6510,11 @@ exports.linkClassroomRosterBatch = onCall(async (request) => {
         courseId: cleanCourseId,
         studentId: item.studentId,
         googleUserId: item.googleUserId,
-        email: item.email,
-        name: item.name,
+        ...classroomGoogleIdentityFields(
+          identity,
+          { ...item, previousGoogleUserId: existingLinkById.get(rosterLinkId)?.googleUserId || null },
+          { nameField: "name", emailField: "email" },
+        ),
         updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true }
@@ -6453,8 +6523,7 @@ exports.linkClassroomRosterBatch = onCall(async (request) => {
       db.doc(`grades/${item.studentId}`),
       {
         googleUserId: item.googleUserId,
-        googleEmail: item.email,
-        googleName: item.name,
+        ...classroomGoogleIdentityFields(identity, item, { nameField: "googleName", emailField: "googleEmail" }),
         classroomCourseIds: FieldValue.arrayUnion(cleanCourseId),
       },
       { merge: true }
@@ -10982,7 +11051,13 @@ exports.getLiveChallengeHostRoster = onCall(async (request) => {
   const players = await loadPrivateChallengePlayers(db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId));
   if (!players.length) return { roomId, players: [] };
   const { experience } = await liveChallengeEngine();
-  const grades = await db.getAll(...players.map((player) => db.collection("grades").doc(player.studentId)));
+  const identity = await studentIdentity();
+  // Names only: the field mask keeps every player's attempt history out of
+  // this read, exactly like the teacher roster projection.
+  const grades = await db.getAll(
+    ...players.map((player) => db.collection("grades").doc(player.studentId)),
+    { fieldMask: [...identity.STUDENT_IDENTITY_FIELDS, "profile", "sisStudentId"] },
+  );
   return {
     roomId,
     players: players
@@ -10990,9 +11065,11 @@ exports.getLiveChallengeHostRoster = onCall(async (request) => {
       .map((player, index) => ({
         playerKey: String(player.playerKey),
         name: experience.displayAliasForStudent({
-          student: grades[index]?.exists ? grades[index].data() || {} : {},
+          // With its id, so a name field holding the student's own id is never
+          // shown as the student's name.
+          student: { ...(grades[index]?.exists ? grades[index].data() || {} : {}), studentId: String(player.studentId || "") },
           mode: "fullName",
-          codeAlias: "Student",
+          codeAlias: identity.STUDENT_NAME_UNAVAILABLE,
         }),
         alias: String(player.alias || ""),
         joined: player.joined === true,
@@ -16216,6 +16293,8 @@ async function archiveStudentPresenceSnapshot({
   const gradeData = grade.exists ? (grade.data() || {}) : {};
   const ref = db.collection(STUDENT_SESSION_SUMMARY_COLLECTION).doc(summaryId);
   const endedAt = Number(observedAt) || Number(live.updatedAt) || Date.now();
+  // The shared name resolver: the summary keeps a real name or null, never the id.
+  const names = await studentIdentity();
 
   await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
@@ -16226,6 +16305,7 @@ async function archiveStudentPresenceSnapshot({
       studentId,
       previous,
       observedAt: endedAt,
+      names,
     });
     if (!summary) return;
 
@@ -18489,6 +18569,7 @@ async function buildStudentRecoveryRow({
   const recovery = await workspaceDraftRecovery();
   const { resolveAuthoritativeClose } = await import("./shared/sectionDeadline.mjs");
   const { normalizeQuestionRecord } = await import("./shared/attemptPolicy.mjs");
+  const identity = await studentIdentity();
 
   const questions = runtimeQuestionsFromAssignment(assignment) || [];
   const tracker = gradeData?.gradesByAssignment?.[assignmentId] || {};
@@ -18619,7 +18700,9 @@ async function buildStudentRecoveryRow({
 
   return {
     studentId,
-    studentName: String(gradeData?.displayName || studentId).slice(0, 180),
+    // The real name or null — never the id; the report resolves a null name
+    // against the teacher's roster by studentId.
+    studentName: identity.studentNameForStorage(studentIdentityRecord(identity, studentId, gradeData))?.slice(0, 180) || null,
     canonicalAttempted,
     canonicalAttemptedByRole: attemptedByRole,
     expectedQuestionCount: runtimeIncludedQuestionIndices(assignment).length,
@@ -18846,6 +18929,7 @@ exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (req
   const { recoveryPreviewToken, previewTokenSetsMatch } = await import("./shared/recoveryPreviewToken.mjs");
   const ingestion = await submissionIngestion();
   const { resolveAuthoritativeClose } = await import("./shared/sectionDeadline.mjs");
+  const identity = await studentIdentity();
 
   const [assignmentSnapshot, scheduleSnapshot] = await Promise.all([
     db.collection("assignments").doc(assignmentId).get(),
@@ -18903,7 +18987,8 @@ exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (req
       const question = questions[Number(entry.questionIndex)] || null;
       const proposal = {
         studentId,
-        studentName: String(gradeData.displayName || studentId).slice(0, 180),
+        // Real name or null — never the id (resolved by studentId on screen).
+        studentName: identity.studentNameForStorage(studentIdentityRecord(identity, studentId, gradeData))?.slice(0, 180) || null,
         questionIndex: Number(entry.questionIndex),
         questionNumber: Number(entry.questionIndex) + 1,
         questionId: question?.questionId || question?.id || null,
@@ -19218,6 +19303,85 @@ exports.setStudentSisId = onCall(async (request) => {
     { sisStudentId, classId: classId || null },
   );
   return { studentId, sisStudentId };
+});
+
+/**
+ * Teacher action: set or correct a student's name.
+ *
+ * This is how a student whose roster record has no usable name (an account
+ * created before names were required, or a legacy row whose only name was a
+ * Google Classroom copy) gets one, and how a misspelling is fixed. The people
+ * who may set the SIS Student ID may set the name: the root administrator, the
+ * student's roster teacher, or the teacher of record of the student's class.
+ *
+ * It writes ONLY the canonical name fields and their provenance — never an
+ * attempt, a grade, an identifier or class membership — and reads the roster
+ * record through a field mask, so the attempt history is never loaded.
+ * Removing identityBackfill marks the name as a person's decision, so rolling
+ * back an automated backfill can never undo it.
+ */
+exports.setStudentName = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const identity = await studentIdentity();
+  const studentId = String(request.data?.studentId || "").trim();
+  if (!studentId || studentId.length > 180 || studentId.includes("/")) {
+    throw new HttpsError("invalid-argument", "studentId is required.");
+  }
+  const email = callerEmail(request);
+  const isRootAdmin = request.auth?.token?.rootAdmin === true && authLib.isRootAdminEmail(email);
+  const studentRef = db.collection("grades").doc(studentId);
+  const auditRef = db.collection(authLib.ADMIN_AUDIT_COLLECTION).doc();
+  const readMask = [...identity.STUDENT_IDENTITY_FIELDS, "assignedTeacherEmail", "classId", "sisStudentId", "status"];
+  const storedText = (value) => (typeof value === "string" ? value : null);
+
+  return db.runTransaction(async (transaction) => {
+    const [snapshot] = await transaction.getAll(studentRef, { fieldMask: readMask });
+    if (!snapshot.exists) throw new HttpsError("not-found", "That student is not on the MathMaster roster.");
+    const student = snapshot.data() || {};
+
+    let authorized = isRootAdmin
+      || String(student.assignedTeacherEmail || "").trim().toLowerCase() === email;
+    const classId = String(student.classId || "").trim();
+    if (!authorized && classId) {
+      const classSnapshot = await transaction.get(db.collection(CLASS_COLLECTION).doc(classId));
+      authorized = classSnapshot.exists
+        && String(classSnapshot.data()?.teacherOfRecord || "").trim().toLowerCase() === email;
+    }
+    if (!authorized) throw new HttpsError("permission-denied", "Only this student's teacher of record can change the student's name.");
+
+    const validatedName = identity.validateStudentNameInput(
+      { firstName: request.data?.firstName, lastName: request.data?.lastName },
+      { studentId, sisStudentId: student.sisStudentId || "" },
+    );
+    if (!validatedName.ok) throw new HttpsError("invalid-argument", validatedName.error);
+    const next = {
+      firstName: validatedName.firstName,
+      lastName: validatedName.lastName,
+      displayName: validatedName.displayName,
+    };
+    const previous = {
+      firstName: storedText(student.firstName),
+      lastName: storedText(student.lastName),
+      displayName: storedText(student.displayName),
+    };
+
+    transaction.update(studentRef, {
+      ...next,
+      nameUpdatedAt: FieldValue.serverTimestamp(),
+      nameUpdatedBy: email,
+      identityBackfill: FieldValue.delete(),
+    });
+    transaction.set(auditRef, {
+      actorUid: request.auth?.uid || null,
+      actorEmail: email,
+      action: "student_name_set",
+      target: studentId,
+      details: { previous, next },
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return { studentId, ...next };
+  });
 });
 
 

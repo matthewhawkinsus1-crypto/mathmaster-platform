@@ -140,7 +140,11 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
       {academicDataLoaded ? (
         <ClassOverviewPanel
           className={selectedClass.name || selectedPeriod}
-          students={periodStudents.map((student) => ({ ...student, displayName: formatStudentName(student) }))}
+          // classOverview resolves each name itself (first/last, googleName,
+          // legacy fields). Overwriting displayName with a formatted label here
+          // turned "Name unavailable" into a stored-looking name and rebuilt
+          // every student object on each render.
+          students={periodStudents}
           profilesByStudentId={learningProfilesByStudentId}
           masteryProfilesByStudentId={masteryProfilesByStudentId}
           evidenceByStudentId={evidenceByStudentId}

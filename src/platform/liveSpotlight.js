@@ -1,3 +1,9 @@
+import {
+  STUDENT_SELF_NEUTRAL_LABEL,
+  resolveStudentIdentity,
+  studentNamePartsFromIdentity,
+} from '../../functions/shared/studentIdentity.mjs';
+
 export const SPOTLIGHT_REQUEST_COLLECTION = 'liveSpotlightRequests';
 export const SPOTLIGHT_FRAME_COLLECTION = 'liveSpotlightFrames';
 export const SPOTLIGHT_REQUEST_TTL_MS = 2 * 60 * 1000;
@@ -161,8 +167,21 @@ export const createSpotlightPublisher = ({ publish, delayMs = SPOTLIGHT_FRAME_DE
   };
 };
 
+/**
+ * The label the CLASS sees on a projected Spotlight: "First L.", from the same
+ * resolver every teacher screen uses, so a Google Classroom name counts and an
+ * id or placeholder never does. A student with no name on file is the neutral
+ * "Student" — never "Name unavailable" (a teacher diagnostic) and never an id.
+ */
 export const publicStudentLabel = (student = {}) => {
-  const first = cleanText(student.firstName || student.profile?.firstName || String(student.displayName || student.name || '').trim().split(/\s+/)[0] || 'Student', 40);
-  const last = cleanText(student.lastName || student.profile?.lastName || String(student.displayName || student.name || '').trim().split(/\s+/).slice(-1)[0] || '', 40);
+  const identity = resolveStudentIdentity(student && typeof student === 'object' ? student : {});
+  if (!identity.hasName) return STUDENT_SELF_NEUTRAL_LABEL;
+  // A lone stored surname is never shown to the class in full.
+  if (identity.nameSource === 'structured' && !identity.firstName) {
+    return `${STUDENT_SELF_NEUTRAL_LABEL} ${identity.lastName.charAt(0).toUpperCase()}.`;
+  }
+  const parts = studentNamePartsFromIdentity(identity);
+  const first = cleanText(parts.firstName || identity.displayName, 40);
+  const last = cleanText(parts.lastName, 40);
   return last && last !== first ? `${first} ${last.charAt(0).toUpperCase()}.` : first;
 };

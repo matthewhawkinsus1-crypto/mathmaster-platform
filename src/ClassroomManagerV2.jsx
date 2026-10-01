@@ -341,10 +341,13 @@ export default function ClassroomManagerV2({
     });
     const refreshed = await listClassroomRosterLinks({ courseId: rosterCourseId });
     setRosterLinks(refreshed.links || []);
+    // The Classroom side is named by its Google name (or email); the MathMaster
+    // side by its id, labelled as an id.
+    const googleLabel = item.classroomStudent.name || item.classroomStudent.email || 'this Classroom student';
     setStatus(
       result.replaced
-        ? `Changed the Classroom link for ${item.classroomStudent.name} to MathMaster ID ${selectedId}. The old grade-passback route was removed.`
-        : `Linked ${item.classroomStudent.name} to MathMaster ID ${selectedId}. Google name/email are now attached to that MathMaster student for identification and grade passback.`
+        ? `Changed the Classroom link for ${googleLabel} to MathMaster ID ${selectedId}. The old grade-passback route was removed.`
+        : `Linked ${googleLabel} to MathMaster ID ${selectedId}. Google name/email are now attached to that MathMaster student for identification and grade passback.`
     );
   });
 

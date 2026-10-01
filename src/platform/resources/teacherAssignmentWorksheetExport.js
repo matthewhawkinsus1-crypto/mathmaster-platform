@@ -13,6 +13,7 @@ import { normalizeContextualQuestion } from '../context/wordProblemLayer.js';
 import { projectCurrentAssignmentContent } from '../assignments/currentContentProjection.js';
 import { buildAssignmentWorksheetModel, PRINT_OUTPUT_MODES } from './assignmentWorksheetPdfModel.js';
 import { buildStudentFamilyContext } from '../generation/familyDelivery.js';
+import { formatStudentLabel } from '../studentName.js';
 
 const activityTitleForRole = (role) => ({
   warmup: 'Warm-Up',
@@ -23,12 +24,13 @@ const activityTitleForRole = (role) => ({
   test: 'Unit Test',
 }[role] || 'Activity');
 
+// A personalized worksheet is one student's version, so it has to say whose:
+// the resolved name ("First Last", googleName and legacy fields included), or
+// "Name unavailable · ID 101410" — the id labelled as an id, never printed as
+// though it were the student's name.
 const displayNameFor = (student) => {
   if (!student) return '';
-  const direct = String(student.displayName || student.name || '').trim();
-  if (direct) return direct;
-  return [student.firstName, student.lastName].map((value) => String(value || '').trim()).filter(Boolean).join(' ')
-    || String(student.id || '').trim();
+  return formatStudentLabel(student, { lastFirst: false });
 };
 
 const assignmentHasAudience = (assignment = {}) => (

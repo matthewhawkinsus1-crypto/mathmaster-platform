@@ -22,10 +22,16 @@ test('student dashboard hydrates identity from roster name, then session name, t
   );
   assert.match(hydration, /rosterStudent: \{ \.\.\.studentData, id: studentId \}/);
   assert.match(hydration, /sessionDisplayName: session\.displayName/);
+  // The resolver knows the student's id, so a passcode session whose only
+  // "name" is that id can never become the greeting.
+  const resolverCall = region(hydration, 'resolveStudentDisplayName({', '});', 'resolver call');
+  assert.match(resolverCall, /^\s*studentId(: studentId)?,?\s*$/m);
   assert.match(hydration, /displayName: studentDisplayName/);
   const dashboardCall = region(appSource, '<StudentDashboardView', '/>', 'student dashboard call');
   assert.match(dashboardCall, /student=\{\{ \.\.\.studentRecord, \.\.\.user,/);
-  assert.match(dashboardSource, /Welcome, \{formatStudentName\(student, \{ lastFirst: false \}\)\}/);
+  // No name on file greets the student with the neutral "Student", never the
+  // teacher-facing "Name unavailable" and never the id.
+  assert.match(dashboardSource, /Welcome, \{formatStudentName\(student, \{ lastFirst: false, neutralLabel: STUDENT_SELF_NEUTRAL_LABEL \}\)\}/);
 });
 
 test('recommended skill launch waits for secure coverage and then opens the selected TEKS', () => {

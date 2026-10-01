@@ -60,6 +60,15 @@ jobs:
         timeout-minutes: 10
         run: npm run test:path-release:emulator
 
+      # The legacy student-name backfill against Firestore: a dry run writes
+      # nothing, execute fills only missing names inside re-checking
+      # transactions, a re-run writes nothing, rollback removes exactly what a
+      # run filled, and academic data is untouched. Its own emulator run, so its
+      # load never races the parallel integration suites below.
+      - name: Certify the student identity backfill against Firestore
+        timeout-minutes: 10
+        run: npm run test:identity-repair:emulator
+
       # Runs the real finishLiveChallenge against the emulator and reads back
       # the report, the Warm-Up credit and the mastery evidence. Source
       # assertions cannot tell a correct write from a wrong field path.

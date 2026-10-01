@@ -1,6 +1,14 @@
 import { INSTRUCTIONAL_BAND } from '../profile/studentLearningProfile.js';
-import { formatStudentName } from '../studentName.js';
+import { STUDENT_NAME_UNAVAILABLE, formatStudentName } from '../studentName.js';
 import { academicFindingsFor } from './needsAttention.js';
+
+// Named students alphabetically, then students with no name on file, each tie
+// broken by studentId so two "Name unavailable" entries keep a stable order.
+const byStudentName = (a, b) => (
+  (Number(a.studentName === STUDENT_NAME_UNAVAILABLE) - Number(b.studentName === STUDENT_NAME_UNAVAILABLE))
+  || String(a.studentName).localeCompare(String(b.studentName))
+  || String(a.studentId).localeCompare(String(b.studentId), undefined, { numeric: true })
+);
 
 /*
  * SUGGESTED GROUPS — AND THE WORD "SUGGESTED" IS DOING REAL WORK.
@@ -153,7 +161,7 @@ export const buildInstructionalGroups = ({
     purpose: GROUP_PURPOSE[group],
     students: placements
       .filter((placement) => placement.group === group)
-      .sort((a, b) => String(a.studentName).localeCompare(String(b.studentName))),
+      .sort(byStudentName),
   }));
 };
 

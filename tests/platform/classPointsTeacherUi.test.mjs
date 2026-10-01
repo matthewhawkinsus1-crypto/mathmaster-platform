@@ -277,14 +277,34 @@ test('once reversed, the button no longer encourages a second reversal', () => {
 
 test('the history panel resolves a roster display name for the primary label; it does not render the raw studentId in <strong>', () => {
   const rowBody = region(historyPanelSource, 'transactions.map((transaction) =>', 'export default function ClassPointsHistoryPanel', 'history row').split('return (')[1] || '';
-  assert.match(historyPanelSource, /resolveRosterStudentName\(\{ studentId: transaction\.studentId, students: roster \}\)/);
+  // The row's name comes from the roster by studentId — directly, or through
+  // the panel's label helper, which adds "· ID x" only when no name is on file.
+  const rowSource = region(historyPanelSource, 'transactions.map((transaction) =>', 'export default function ClassPointsHistoryPanel', 'history row');
+  assertCapability(executableSource(rowSource), [
+    /const studentName = resolveRosterStudentName\(\{ studentId: transaction\.studentId, students: roster \}\)/,
+    /const studentName = rosterStudentLabel\(transaction\.studentId, roster(?:, '', showStudentId)?\)/,
+  ], 'each history row must name its student from the roster by studentId');
+  if (/rosterStudentLabel\(/.test(historyPanelSource)) {
+    const helper = region(historyPanelSource, 'const rosterStudentLabel', '\n};', 'roster label helper');
+    assert.match(helper, /resolveRosterStudentName\(\{ studentId, students/);
+    // A missing name reads "Name unavailable · ID x" (only "Name unavailable"
+    // while the room tiles are projected) — never the bare id.
+    assert.match(helper, /if \(name !== STUDENT_NAME_UNAVAILABLE \|\| !showStudentId\) return name;\s*return formatStudentLabel\(/, 'a missing name reads "Name unavailable · ID x", never the bare id');
+    assert.match(historyPanelSource, /import \{[^}]*\bformatStudentLabel\b[^}]*\bresolveRosterStudentName\b[^}]*\} from '\.\.\/\.\.\/platform\/studentName\.js'/);
+  }
   assert.match(historyPanelSource, /<strong[^>]*>\{studentName\}<\/strong>/);
   assert.doesNotMatch(executableSource(rowBody || historyPanelSource), /<strong[^>]*>\{transaction\.studentId\}/);
 });
 
 test('the student tile award control is keyed by the teacher-visible row, not a bare id string', () => {
   assert.doesNotMatch(executableSource(awardDialogSource), /<h2[^>]*>Award \{student\?\.id/);
-  assert.match(awardDialogSource, /Award \{student\?\.name \|\| 'this student'\}/);
+  // The heading names the student only by a name the dialog has accepted as a
+  // name — an id handed in as `name` is refused, and "this student" stands in.
+  assert.match(awardDialogSource, /const studentName = acceptStudentName\(student\?\.name, \{ studentId: student\?\.id \}\);/);
+  assert.match(awardDialogSource, /Award \{studentName \|\| 'this student'\}/);
+  // The live tile passes no name when none is on file, and never the row's
+  // "Name unavailable" display string as one.
+  assert.match(monitorSource, /name: studentRow\.nameMissing \? null : studentRow\.name/);
 });
 
 // --- 11: Class Points cannot mutate grades/mastery/evidence/presence/Google Classroom/Live Challenge scoring ---

@@ -32,6 +32,7 @@
  * both numbers.
  */
 import { authoritativeSisStudentId } from '../gradeTransfer/gradeTransferModel.js';
+import { resolveStudentIdentity, studentNameParts } from '../studentName.js';
 
 export const GRADEBOOK_LAYOUT = Object.freeze({
   WIDE: 'wide',
@@ -269,10 +270,14 @@ const sameId = (left, right) => {
   return /^\d+$/.test(a) && /^\d+$/.test(b) && a.replace(/^0+/, '') === b.replace(/^0+/, '');
 };
 
+// The student's resolved name (first/last, displayName, googleName, legacy
+// fields) — never an id: a nameless student offers no name candidates at all.
+// A single full name is split for display so a "Last, First" SIS row can be
+// offered; a name match is only ever a candidate the teacher confirms.
 const nameKeys = (student) => {
-  const first = clean(student?.firstName);
-  const last = clean(student?.lastName);
-  const display = clean(student?.displayName || student?.name);
+  const record = student && typeof student === 'object' ? student : {};
+  const { firstName: first, lastName: last } = studentNameParts(record);
+  const display = resolveStudentIdentity(record).displayName;
   return new Set([
     first && last ? norm(`${last} ${first}`) : '',
     first && last ? norm(`${first} ${last}`) : '',

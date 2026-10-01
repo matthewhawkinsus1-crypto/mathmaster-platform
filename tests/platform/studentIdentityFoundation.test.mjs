@@ -20,7 +20,10 @@ test('authenticated student render paths use the identity shell with the student
 
 test('identity bar shows a full natural name, period, and normal not-you logout path', () => {
   const source = read('src/components/student/StudentIdentityBar.jsx');
-  assert.match(source, /formatStudentName\(student, \{ lastFirst: false \}\)/);
+  // A student with no name on file sees the neutral "Student" — the
+  // teacher-facing "Name unavailable" and the id are never their own label.
+  assert.match(source, /formatStudentName\(student, \{ lastFirst: false, neutralLabel: STUDENT_SELF_NEUTRAL_LABEL \}\)/);
+  assert.match(source, /import \{[^}]*\bSTUDENT_SELF_NEUTRAL_LABEL\b[^}]*\} from '\.\.\/\.\.\/platform\/studentName\.js'/);
   assert.match(source, /`Period \$\{period\}`/);
   assert.match(source, /Not you\?/);
   assert.match(source, /onClick=\{onLogout\}[\s\S]*Log Out/);
@@ -66,8 +69,14 @@ test('teacher preview is visibly preview-only and cannot receive student logout 
 
 test('walkthrough monitor delegates teacher-facing names to the canonical identity utility', () => {
   const source = executableSource(read('src/platform/teacher/walkthroughMonitor.js'));
-  assert.match(source, /import \{ formatStudentName \} from ['"]\.\.\/studentName\.js['"]/);
-  assert.match(source, /name: formatStudentName\(student, \{ lastFirst: false \}\)/);
+  assert.match(source, /import \{[^}]*\bformatStudentName\b[^}]*\} from ['"]\.\.\/studentName\.js['"]/);
+  // The card's name is the resolved name or the explicit "Name unavailable";
+  // the id travels separately as a labelled idLabel, never as the name.
+  const row = region(source, 'const resolvedName =', 'row.reason =', 'walkthrough row');
+  assert.match(row, /const resolvedName = formatStudentName\(student, \{ lastFirst: false, fallbackToNeutral: false \}\)/);
+  assert.match(row, /name: resolvedName \|\| STUDENT_NAME_UNAVAILABLE/);
+  assert.match(row, /nameMissing: !resolvedName/);
+  assert.match(row, /idLabel: studentIdLabel\(id\)/);
   assert.doesNotMatch(source, /const studentName\s*=/);
 });
 

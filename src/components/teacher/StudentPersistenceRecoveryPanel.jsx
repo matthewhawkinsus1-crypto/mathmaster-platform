@@ -5,6 +5,7 @@ import {
   resolveStudentPersistenceHold,
   sweepAllStudentResponseCheckpoints,
 } from '../../services/persistenceRecoveryService.js';
+import { STUDENT_NAME_UNAVAILABLE, resolveRosterStudentName, studentIdLabel } from '../../platform/studentName.js';
 
 /*
  * "THE CLASS WAS WORKING AND THE GRADEBOOK IS EMPTY."
@@ -58,7 +59,7 @@ const countList = (counts = {}) => Object.entries(counts)
   .map(([label, count]) => `${label} ${count}`)
   .join(' · ') || '—';
 
-export default function StudentPersistenceRecoveryPanel({ assignmentId, classId, assignmentTitle = '', className = '' }) {
+export default function StudentPersistenceRecoveryPanel({ assignmentId, classId, assignmentTitle = '', className = '', studentIdentityIndex = null }) {
   const [report, setReport] = useState(null);
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
@@ -72,6 +73,25 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
   const [resolutionReason, setResolutionReason] = useState('');
 
   const ready = Boolean(assignmentId && classId);
+
+  /*
+   * THE SERVER SENDS studentName: null WHEN NO NAME IS ON FILE.
+   *
+   * Name each row from the teacher's roster by studentId (an O(1) lookup in
+   * the identity index the page already holds), then from the report's own
+   * copy if it is really a name, else "Name unavailable" with the id beneath
+   * it, labelled as an id. The id is never the name.
+   */
+  const nameOf = (row, { lastFirst = true } = {}) => resolveRosterStudentName({
+    studentId: row?.studentId, index: studentIdentityIndex instanceof Map ? studentIdentityIndex : null,
+    historicalName: row?.studentName, lastFirst,
+  });
+  // One line for sentences and the confirmation: the natural name, or
+  // "Name unavailable · ID 101410".
+  const labelOf = (row) => {
+    const name = nameOf(row, { lastFirst: false });
+    return name === STUDENT_NAME_UNAVAILABLE && row?.studentId ? `${name} · ${studentIdLabel(String(row.studentId))}` : name;
+  };
 
   /*
    * STATE BELONGS TO A TARGET, NOT TO THE COMPONENT.
@@ -222,7 +242,7 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
     setResolutionTarget(null);
     setResolutionReason('');
     setNotice(
-      `Technical persistence hold resolved for ${target.studentName}. No grade, attempt or score was created; `
+      `Technical persistence hold resolved for ${labelOf(target)}. No grade, attempt or score was created; `
       + 'finalization now proceeds on the canonical evidence that exists.',
     );
     await loadReport();
@@ -308,7 +328,7 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
                 <thead><tr>{['Student', 'Student ID', 'Question', 'Question ID', 'Section / role', 'Draft saved', 'Academic time recorded', 'Why eligible', 'Current canonical status', 'Proposed result', 'Outcome'].map((heading) => <th key={heading} style={{ ...CELL, fontWeight: 900, borderBottom: '2px solid #dadce0' }}>{heading}</th>)}</tr></thead>
                 <tbody>{proposals.proposals.map((proposal) => (
                   <tr key={proposal.actionId}>
-                    <td style={CELL}>{proposal.studentName}</td><td style={CELL}>{proposal.studentId}</td>
+                    <td style={CELL}>{nameOf(proposal)}</td><td style={CELL}>{proposal.studentId}</td>
                     <td style={CELL}>{proposal.questionNumber}</td><td style={CELL}>{proposal.questionId || '—'}</td>
                     <td style={CELL}>{proposal.activityRole}</td><td style={CELL}>{clock(proposal.savedAt)}</td>
                     <td style={CELL}>{clock(proposal.academicOccurredAt)}</td><td style={CELL}>{proposal.qualificationReason}</td>
@@ -334,7 +354,10 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
                 {report.students.map((student) => (
                   <tr key={student.studentId} style={student.persistencePending ? { background: '#fef7e0' } : undefined}>
                     <td style={CELL}>
-                      {student.studentName}
+                      {nameOf(student)}
+                      {nameOf(student) === STUDENT_NAME_UNAVAILABLE && student.studentId ? (
+                        <><br /><span style={{ fontSize: 11, color: '#5f6368' }}>{studentIdLabel(String(student.studentId))}</span></>
+                      ) : null}
                       {/* Name the DISCREPANCY, not just the state. A teacher
                           deciding whether work is unrecoverable needs to see
                           which evidence disagrees with the gradebook before
@@ -438,12 +461,12 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
               evidence that exists.
             </p>
             <p style={{ fontSize: 13 }}>
-              This creates <strong>no grade, no attempt and no zero</strong>. Nothing in {resolutionTarget.studentName}&rsquo;s
+              This creates <strong>no grade, no attempt and no zero</strong>. Nothing in {nameOf(resolutionTarget) === STUDENT_NAME_UNAVAILABLE ? 'this student' : nameOf(resolutionTarget, { lastFirst: false })}&rsquo;s
               record changes. Only the safety hold on the final Google Classroom passback is released, and only for the
               discrepancy shown here.
             </p>
             <dl style={{ display: 'grid', gridTemplateColumns: '190px 1fr', gap: 6, fontSize: 13 }}>
-              <dt>Student</dt><dd style={{ margin: 0, fontWeight: 800 }}>{resolutionTarget.studentName}</dd>
+              <dt>Student</dt><dd style={{ margin: 0, fontWeight: 800 }}>{labelOf(resolutionTarget)}</dd>
               <dt>Assignment</dt><dd style={{ margin: 0, fontWeight: 800 }}>{assignmentTitle || assignmentId}</dd>
               <dt>Session says worked</dt><dd style={{ margin: 0, fontWeight: 800 }}>{resolutionTarget.presence.answered}</dd>
               <dt>Canonical attempts</dt><dd style={{ margin: 0, fontWeight: 800 }}>{resolutionTarget.canonicalAttempted}</dd>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 
 import { functions } from '../../firebase.js';
+import { STUDENT_NAME_UNAVAILABLE, formatStudentLabel, resolveRosterStudentName, studentIdentityIndexFor } from '../../platform/studentName.js';
 
 /*
  * THE SWITCH THAT TURNS ON AUTOMATIC WEEKLY GRADE PUBLISHING.
@@ -47,7 +48,15 @@ const REASON_TEXT = Object.freeze({
 
 const describe = (reason) => REASON_TEXT[reason] || reason || 'skipped';
 
-export default function WeeklyPathAutoPublish({ classId = null, weekKey = null }) {
+// The server's preview rows carry only studentId. They are named from the
+// roster the gradebook already holds (no extra read): the name, or
+// "Name unavailable · ID x" — never the bare id standing in for a name.
+const previewStudentLabel = (studentId, index) => {
+  const name = resolveRosterStudentName({ studentId, index });
+  return name === STUDENT_NAME_UNAVAILABLE ? formatStudentLabel(String(studentId ?? '')) : name;
+};
+
+export default function WeeklyPathAutoPublish({ classId = null, weekKey = null, students = [] }) {
   const [state, setState] = useState(null);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(null);
@@ -67,6 +76,7 @@ export default function WeeklyPathAutoPublish({ classId = null, weekKey = null }
   if (!classId) return null;
 
   const enabled = state?.enabled === true;
+  const identityIndex = studentIdentityIndexFor(students);
 
   const toggle = async () => {
     setBusy(true);
@@ -155,7 +165,7 @@ export default function WeeklyPathAutoPublish({ classId = null, weekKey = null }
             <ul style={{ margin: '8px 0 0', paddingLeft: 18, ...MUTED, fontSize: 12.5 }}>
               {preview.results.slice(0, 40).map((row) => (
                 <li key={row.studentId}>
-                  {row.studentId}: {row.reason === 'dry_run'
+                  {previewStudentLabel(row.studentId, identityIndex)}: {row.reason === 'dry_run'
                     ? `${row.points} points`
                     : describe(row.reason)}
                 </li>

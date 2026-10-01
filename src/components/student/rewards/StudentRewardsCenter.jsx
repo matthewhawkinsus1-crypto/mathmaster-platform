@@ -4,7 +4,7 @@ import ClassPointsWallet from '../ClassPointsWallet.jsx';
 import ClassPointsCelebrations from '../ClassPointsCelebrations.jsx';
 import UsePracticePassDialog from './UsePracticePassDialog.jsx';
 import RewardHistory from './RewardHistory.jsx';
-import { formatStudentName } from '../../../platform/studentName.js';
+import { STUDENT_SELF_NEUTRAL_LABEL, formatStudentName } from '../../../platform/studentName.js';
 import {
   PRACTICE_PASS,
   describeExpiry,
@@ -120,7 +120,7 @@ export default function StudentRewardsCenter({
         <header className="rw-header">
           <div style={{ textAlign: 'left' }}>
             <h1>My Rewards</h1>
-            <p>{formatStudentName(student, { lastFirst: false })}{student.classPeriod ? ` · ${student.classPeriod}` : ''}</p>
+            <p>{formatStudentName(student, { lastFirst: false, neutralLabel: STUDENT_SELF_NEUTRAL_LABEL })}{student.classPeriod ? ` · ${student.classPeriod}` : ''}</p>
           </div>
           <StudentGlobalNav current={STUDENT_DESTINATION.REWARDS} onNavigate={onNavigate} onLogout={onLogout} dense />
         </header>
