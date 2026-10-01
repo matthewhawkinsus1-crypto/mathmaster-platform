@@ -30,14 +30,14 @@
 import { GRADING_MANIFEST } from './gradingManifest.mjs';
 import { ungradedResult } from './gradingResult.mjs';
 import { serverResponseGradingSupport } from './gradingSupport.mjs';
-import { QUESTION_GRADERS, gradeQuestionResponse } from './questionResponseGrading.mjs';
+import { QUESTION_GRADERS, gradeQuestionResponse, questionGraderAccepts } from './questionResponseGrading.mjs';
 import { TOOL_GRADERS } from './toolGraders.mjs';
 import { isToolResponse, readToolWork } from './toolResponseContract.mjs';
 import { gradeWorkWithGrader } from './toolWorkGrading.mjs';
 
 export { gradeWorkWithGrader };
 
-export { QUESTION_GRADERS, gradeQuestionResponse };
+export { QUESTION_GRADERS, gradeQuestionResponse, questionGraderAccepts };
 export {
   commonServerGradingExclusion,
   declaredGradingSupport,

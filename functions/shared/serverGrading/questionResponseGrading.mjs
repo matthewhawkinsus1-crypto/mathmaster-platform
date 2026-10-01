@@ -14,41 +14,49 @@ import { gradeOrdinaryResponse, responseIsBlank } from '../ordinaryResponseGradi
 import { GRADING_MANIFEST } from './gradingManifest.mjs';
 import { ungradedResult } from './gradingResult.mjs';
 import { serverResponseGradingSupport } from './gradingSupport.mjs';
-import { gradeStepAlgebraFinalAnswer } from './stepAlgebraFinalAnswer.mjs';
 import { isToolResponse } from './toolResponseContract.mjs';
+import { resolveGradingSurfaceId } from './gradingManifest.mjs';
+import composedWorkflow from './questionGraders/composedWorkflow.mjs';
+import figureMatch from './questionGraders/figureMatch.mjs';
+import fraction from './questionGraders/fraction.mjs';
+import functionCharacteristics from './questionGraders/functionCharacteristics.mjs';
+import graphChoicePreview from './questionGraders/graphChoicePreview.mjs';
+import literalWorkspace from './questionGraders/literalWorkspace.mjs';
+import numberLine from './questionGraders/numberLine.mjs';
+import stepAlgebra from './questionGraders/stepAlgebra.mjs';
 
-const text = (value) => String(value ?? '');
 
 /*
- * Question-type graders that are neither ordinary nor tools. Keyed by surface
- * id; each takes (question, normalizedResponse) and returns the
- * gradingResult.mjs shape.
+ * Question-type graders that are neither ordinary nor tools, one module per
+ * surface (./questionGraders/<surface>.mjs): { accepts(response), grade(question, response) }.
  */
-const stepAlgebraGrader = (question, response) => {
-  const result = gradeStepAlgebraFinalAnswer({ question, responseValue: response?.value });
-  if (!result.graded) return ungradedResult(result.reason);
-  return {
-    graded: true,
-    reason: null,
-    isComplete: true,
-    isCorrect: result.isCorrect === true,
-    score: result.isCorrect === true ? 1 : 0,
-    parts: [{
-      id: 'algebra-objective',
-      label: 'Final equation',
-      isComplete: true,
-      isCorrect: result.isCorrect === true,
-      credit: result.isCorrect === true ? 1 : 0,
-      weight: 1,
-      response: text(response?.value).split('|')[0].slice(0, 240),
-    }],
-  };
-};
-
 export const QUESTION_GRADERS = Object.freeze({
-  stepAlgebra: stepAlgebraGrader,
-  algebra: stepAlgebraGrader,
+  stepAlgebra,
+  algebra: stepAlgebra,
+  literalWorkspace,
+  fraction,
+  numberLine,
+  composedWorkflow,
+  functionCharacteristics,
+  figureMatch,
+  graphChoicePreview,
 });
+
+/**
+ * Will this surface's question grader read this response shape? A response it
+ * will not read (an older client's opaque string) keeps the bounded legacy
+ * path at ingestion rather than being blocked.
+ */
+export const questionGraderAccepts = (question, response) => {
+  const surfaceId = resolveGradingSurfaceId(question);
+  const grader = QUESTION_GRADERS[surfaceId];
+  if (!grader || GRADING_MANIFEST[surfaceId]?.kind !== 'question') return true;
+  try {
+    return grader.accepts(response) === true;
+  } catch {
+    return false;
+  }
+};
 
 /**
  * Mark a response to an ordinary type or a question-grader surface. A
@@ -77,10 +85,17 @@ export const gradeQuestionResponse = ({ question, response } = {}) => {
   if (declaration.kind === 'question') {
     const grader = QUESTION_GRADERS[surfaceId];
     if (!grader) return { ...ungradedResult(`no-question-grader:${surfaceId}`), surfaceId, mode: null };
-    if (!response || typeof response !== 'object' || isToolResponse(response) || responseIsBlank(response)) {
+    if (!response || typeof response !== 'object' || responseIsBlank(response)) {
       return { ...ungradedResult('blank-response'), surfaceId, mode: null };
     }
-    return { ...grader(question, response), surfaceId, graderVersion: declaration.graderVersion, mode: support.mode || null };
+    if (!questionGraderAccepts(question, response)) return { ...ungradedResult('response-shape-not-accepted'), surfaceId, mode: null };
+    let result;
+    try {
+      result = grader.grade(question, response);
+    } catch (error) {
+      result = ungradedResult('malformed-response', { detail: String(error?.message || '').slice(0, 200) });
+    }
+    return { ...result, surfaceId, graderVersion: declaration.graderVersion, mode: support.mode || null };
   }
 
   return { ...ungradedResult('tool-surface-needs-tool-grader'), surfaceId, mode: support.mode || null };

@@ -25,6 +25,7 @@
  * Pure.
  */
 import { GRADING_AUTHORITY } from './gradingAuthority.mjs';
+import { usesLiteralWorkspace } from '../runtime/literalWorkspaceRoute.mjs';
 import complexPlaneLab from './declarations/complexPlaneLab.mjs';
 import constraintFunctionBuilder from './declarations/constraintFunctionBuilder.mjs';
 import dataModelingLab from './declarations/dataModelingLab.mjs';
@@ -144,6 +145,9 @@ export const resolveGradingSurfaceId = (question = {}) => {
   if (toolId && TOOL_GRADING_DECLARATIONS[toolId]) return toolId;
   const type = text(question.type).trim();
   if (type && TOOL_GRADING_DECLARATIONS[type]) return type;
+  // QuestionEngine opens a workspace literal on the balance workspace, whose
+  // answer is a final equation — a different surface from the typed answer box.
+  if (usesLiteralWorkspace(question)) return 'literalWorkspace';
   return type || null;
 };
 

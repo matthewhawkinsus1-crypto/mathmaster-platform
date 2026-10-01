@@ -103,8 +103,20 @@ test('the student app entry never statically imports the shared grader map', () 
     const absolute = path.join(ROOT, relative);
     assert.equal(graph.has(absolute), false, `${relative} is statically reachable from src/main.jsx:\n  ${graph.has(absolute) ? chainTo(graph, absolute) : ''}`);
   });
+  // A tool whose COMPONENT is on the startup path (WorkflowRunner renders the
+  // Mapping Diagram as a composed-workflow stage, for one) carries its own
+  // grader with it — that is the tool's own code, not the aggregate map. What
+  // must never happen is a grader reached through shared platform code.
   const toolGraderFiles = [...graph.keys()].filter((file) => file.includes(`${path.sep}serverGrading${path.sep}tools${path.sep}`));
-  assert.deepEqual(toolGraderFiles.map((file) => path.relative(ROOT, file)), [], 'no tool grader is on the startup path');
+  const viaSharedCode = toolGraderFiles.filter((file) => {
+    let importer = graph.get(file);
+    // Grader-internal imports (a tool grader composed of mode modules) are
+    // followed back to whoever imported the grader itself.
+    while (importer && importer.includes(`${path.sep}serverGrading${path.sep}tools${path.sep}`)) importer = graph.get(importer);
+    return !importer || !importer.startsWith(path.join(ROOT, 'src', 'tools') + path.sep);
+  });
+  assert.deepEqual(viaSharedCode.map((file) => `${path.relative(ROOT, file)} <- ${path.relative(ROOT, graph.get(file) || '')}`), [],
+    'a tool grader reached through shared platform code instead of its own tool component');
 });
 
 test('the lazy loader is a dynamic import, which is what keeps the graders out', () => {

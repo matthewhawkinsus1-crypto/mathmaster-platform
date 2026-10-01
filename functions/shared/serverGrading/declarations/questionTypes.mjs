@@ -12,29 +12,19 @@
  * (ordinary types delegate to ../../ordinaryResponseGrading.mjs).
  */
 import {
-  declareClientGraded,
   declareNonGraded,
   declareOrdinary,
-  declareQuestionGrader,
   declareSubsystem,
 } from '../surfaceDeclarations.mjs';
 
-const PENDING = (type) => declareClientGraded({ blocker: `PENDING: grading audit for question type ${type}.` });
-
-/*
- * Step Algebra: a Question Family instance carries its generated answer, so the
- * server can confirm the student's FINAL equation isolates the variable at the
- * instance's value (questionFamilyGrading.mjs gradeStepAlgebraFinalAnswer).
- */
-const stepAlgebraFinalAnswer = declareQuestionGrader({
-  graderVersion: 'step-algebra-final-answer-v1',
-  supports: (question) => (
-    Number.isFinite(Number(question?.generatedAnswer))
-      ? { supported: true }
-      : { supported: false, reason: 'no-step-answer-key' }
-  ),
-  blocker: 'PENDING: grading audit for authored (non-family) Step Algebra questions.',
-});
+import fraction from './types/fraction.mjs';
+import numberLine from './types/numberLine.mjs';
+import stepAlgebra from './types/stepAlgebra.mjs';
+import literalWorkspace from './types/literalWorkspace.mjs';
+import composedWorkflow from './types/composedWorkflow.mjs';
+import functionCharacteristics from './types/functionCharacteristics.mjs';
+import figureMatch from './types/figureMatch.mjs';
+import graphChoicePreview from './types/graphChoicePreview.mjs';
 
 export default Object.freeze({
   literal: declareOrdinary(),
@@ -42,12 +32,19 @@ export default Object.freeze({
   orderedPair: declareOrdinary(),
   system: declareOrdinary(),
   table: declareOrdinary(),
-  fraction: PENDING('fraction'),
-  numberLine: PENDING('numberLine'),
-  stepAlgebra: stepAlgebraFinalAnswer,
-  algebra: stepAlgebraFinalAnswer,
-  functionCharacteristics: PENDING('functionCharacteristics'),
-  composedWorkflow: PENDING('composedWorkflow'),
+  fraction,
+  numberLine,
+  stepAlgebra,
+  // The retired answer-box solver; QuestionEngine renders it as the same
+  // balance workspace, so it is the same surface.
+  algebra: stepAlgebra,
+  // A literal question that asks for the balance workspace is answered with
+  // a final equation, not a typed expression (see gradingManifest.mjs).
+  literalWorkspace,
+  functionCharacteristics,
+  figureMatch,
+  graphChoicePreview,
+  composedWorkflow,
   // Graded by the submitModelingLab callable (functions/lib/labEvaluation.js),
   // which writes the evaluation to a server-owned marker. Ingestion records
   // the gradebook attempt from THAT marker (serverGrading/

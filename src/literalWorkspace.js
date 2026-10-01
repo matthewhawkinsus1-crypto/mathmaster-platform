@@ -35,19 +35,10 @@ export const literalSymbols = (expression) => [
   ...new Set(String(expression ?? '').match(/[A-Za-z][A-Za-z0-9_]*/g) || []),
 ].filter((name) => !RESERVED.has(name));
 
-/**
- * Does this question want the workspace?
- *
- * Opt-in, never inferred. Every existing literal question expects the
- * type-the-answer grader, and quietly changing what a student is asked to do
- * because a field happened to parse would be a worse failure than not offering
- * the workspace at all.
- */
-export const usesLiteralWorkspace = (question = {}) => {
-  if (!question || question.type !== 'literal') return false;
-  if (question.workspace === true || question.solveOnBalance === true) return true;
-  return text(question.presentation).toLowerCase() === 'workspace';
-};
+// Does this question want the workspace? Shared with the server, which must
+// route (and grade) a workspace literal the same way: see
+// functions/shared/runtime/literalWorkspaceRoute.mjs.
+export { usesLiteralWorkspace } from '../functions/shared/runtime/literalWorkspaceRoute.mjs';
 
 /**
  * The equation, in the form the AST engine reads.

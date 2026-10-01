@@ -39,6 +39,7 @@ import {
 import {
   gradeServerResponse,
   serverResponseGradingSupport,
+  questionGraderAccepts,
   sharedGraderDrift,
   usesToolResponse,
 } from './serverGrading/serverResponseGrading.mjs';
@@ -324,6 +325,9 @@ export const serverCanRegradeEnvelope = ({ envelope, question }) => {
   // says why (`serverGradingReason`). See docs/architecture/
   // SERVER_GRADING_COVERAGE.md "Legacy-shaped responses".
   if (usesToolResponse(question) && !isToolResponse(envelope.response)) {
+    return { regrade: false, reason: 'legacy-unstructured-response' };
+  }
+  if (!questionGraderAccepts(question, envelope.response)) {
     return { regrade: false, reason: 'legacy-unstructured-response' };
   }
   // Never reachable once the coverage gate passes; fail-closed if it were.
