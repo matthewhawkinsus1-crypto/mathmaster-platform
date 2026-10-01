@@ -169,6 +169,22 @@ test('a round ranks work done (less 1/20 per miss), then accuracy, then the earl
   // Exactly equal work ties and shares points.
   const tied = closeRound([rushPlayer('a', receiptsFor({ completed: 5 })), rushPlayer('b', receiptsFor({ completed: 5 }))], 0);
   assert.deepEqual(tied.standings.map((row) => [row.rank, row.matchPointsAwarded]), [[1, 12], [1, 12]]);
+  // A target found on a graph left unfinished is work (half a graph of two
+  // zeros): it places its player and earns points, though no graph was
+  // completed — and eleven misses cost more than that half (1 − 11/20).
+  sequence += 1;
+  const half = { [`half${sequence}`]: { serverConfirmed: true, receiptKind: 'targetAttempt', roundIndex: 0, sequence, questionIndex: 0, targetCount: 2, targetId: 'x1', isCorrect: true, completesQuestion: false, pointsAwarded: 0, elapsedMs: 20_000, feature: 'xIntercept', family: 'quadratic', tier: 'standard' } };
+  const partial = closeRound([
+    rushPlayer('half-a-graph', half),
+    rushPlayer('one-graph-eleven-misses', receiptsFor({ completed: 1, misses: 11 })),
+    rushPlayer('only-misses', receiptsFor({ completed: 0, misses: 3 })),
+  ], 0);
+  const rowOf = (id) => partial.standings.find((row) => row.studentId === id);
+  assert.deepEqual([rowOf('half-a-graph').metrics.questionsCorrect, rowOf('half-a-graph').metrics.workScore], [0, 0.5]);
+  assert.equal(rowOf('half-a-graph').rank, 1);
+  assert.ok(rowOf('half-a-graph').matchPointsAwarded > 0, 'partial work earns its place');
+  assert.equal(rowOf('one-graph-eleven-misses').metrics.workScore, 0.45);
+  assert.equal(rowOf('only-misses').matchPointsAwarded, 0, 'no credit, no points');
 });
 
 test('Grand Prix placement points scale with the class, from 2 to 35 players', () => {

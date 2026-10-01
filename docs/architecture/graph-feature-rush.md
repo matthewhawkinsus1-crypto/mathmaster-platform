@@ -252,8 +252,11 @@ Each round ranks the field by work score, then accuracy, then the earliest
 last correct completion. Placement earns championship points on a curve sized
 to the class: a straight line from 11 at the top of the field down to 3 for
 last (rounded half up), with a one-point winner's bonus that makes 1st worth
-12. Ties share the place's points, and a player who completed nothing earns
-nothing.
+12. Ties share the place's points, and a player with no credit earns nothing:
+nothing found, or misses that cancel what was (a work score of 0). Work counts
+targets found fractionally, so a student who found one of a graph's two zeros
+before time ran out has half a graph of work — it places them, and the
+results card says so beside "0 graphs completed".
 
 | Players | Points by place |
 | --- | --- |
@@ -318,8 +321,9 @@ taps do not wake every screen. The "Get ready" card counts 3 · 2 · 1 off the
 round's start. Between rounds the student sees the shell's results card, read
 from the round's own result document (never from the paused listener's rows):
 graphs, accuracy, place, the championship points it earned, and their
-championship total and standing — or, if they never completed a graph, that
-they earned no championship points.
+championship total and standing — or, if they earned no credit, that they
+earned no championship points (targets found on a graph left unfinished are
+credit, and the card says they count toward the place).
 
 **Teacher.** Graph Feature Rush is a game type in the existing Create a
 challenge panel: presets as starting points, then families, features,

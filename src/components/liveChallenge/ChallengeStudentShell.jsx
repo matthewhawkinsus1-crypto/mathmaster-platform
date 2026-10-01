@@ -113,6 +113,11 @@ export function StudentRoundResultsCard({ view, presentation, guidance, rushRoun
             {self.matchPointsAwarded > 0 ? `+${self.matchPointsAwarded} championship points` : 'No championship points this round'}
           </div>
         )}
+        {/* A rush round ranks work, and a target found on a graph left
+            unfinished is part of it: say so beside "0 graphs completed". */}
+        {rushRound && self && completed === 0 && self.matchPointsAwarded > 0 && (
+          <p style={{ margin: '8px 0 0', color: '#c3d2ea' }}>Targets you found on a graph you did not finish still count toward your place.</p>
+        )}
         {standing && (
           <div style={{ marginTop: 12, fontWeight: 900, color: '#eef1f6' }}>
             Overall: {standing.place.spoken} · {amountText(standing.score, presentation.total)}
