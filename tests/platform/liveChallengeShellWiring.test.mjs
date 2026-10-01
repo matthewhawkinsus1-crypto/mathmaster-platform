@@ -84,7 +84,7 @@ test('a finished game: your place, then what reached your wallet, then the top o
   const order = ['{selfRow.place.ordinal}', '{rewardsSlot}', '<StandingsBoard'].map((needle) => finalCard.indexOf(needle));
   assert.ok(order.every((at) => at > -1), 'all three are shown');
   assert.deepEqual([...order].sort((left, right) => left - right), order, 'in that order');
-  assert.match(finalCard, /tied, /, 'a shared place says so');
+  assert.match(finalCard, /selfRow\.tied \? `tied for \$\{ordinal\(selfRow\.rank\)\} ` : ''/, 'a shared place says so');
   assert.match(finalCard, /It does not change your assignment grade\./);
 });
 

@@ -147,7 +147,13 @@ export function ChallengeRound({
 }) {
   const question = room.currentQuestion;
   const roundIndex = Number(room.currentRound) || 0;
-  const monotonicNow = useMonotonicNow(true);
+  // The round's clock re-renders on a quarter-second tick; every reading below
+  // is taken at render time, and the countdown's steps and GO get renders of
+  // their own (below), so 3 · 2 · 1 and the question land on the server's
+  // second — in step with the projector — not up to a tick later.
+  useMonotonicNow(true);
+  const [, setBoundaryRender] = useState(0);
+  const monotonicNow = performance.now();
   const endsAtMs = timestampMillis(room.roundEndsAt);
   const startsAtMs = timestampMillis(room.startsAt || room.roundStartedAt);
   const roundOriginMonoRef = useRef(monotonicRoundOrigin({
@@ -221,6 +227,19 @@ export function ChallengeRound({
     submissionLockRef.current = Boolean(pendingRef.current || stored);
     // The origin is intentionally not recalculated when wall-clock calibration
     // refreshes; device clock changes during a round cannot alter elapsed time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roundIndex, question?.questionInstanceId, pendingKey]);
+
+  // A render at each countdown step and at GO, off this round's origin.
+  useEffect(() => {
+    const untilStart = roundOriginMonoRef.current - performance.now();
+    if (untilStart <= 0) return undefined;
+    const timers = [3_000, 2_000, 1_000, 0]
+      .map((before) => untilStart - before)
+      .filter((delay) => delay > 0)
+      .map((delay) => window.setTimeout(() => setBoundaryRender((value) => value + 1), delay + 5));
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+    // The same identity as the origin itself (the effect above resets it).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roundIndex, question?.questionInstanceId, pendingKey]);
 

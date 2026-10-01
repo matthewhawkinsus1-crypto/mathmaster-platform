@@ -164,6 +164,44 @@ test('the results moment: the round\'s own table, the standings it left, and you
   assert.deepEqual([rush[0].completed, rush[0].accuracyPercent], [7, 88]);
 });
 
+test('a per-response round lists what each player earned, so no place sits beside a bigger number', () => {
+  // Accuracy First ranks a round correct-first, then fastest — but banks
+  // points per answer, bonuses included. A streak bonus can out-earn a faster
+  // answer; the round's table must not read "3rd · 1,350" under "2nd · 1,200".
+  const summary = publicRoundSummary({
+    roundIndex: 1,
+    modeId: 'standard',
+    scoringStrategyId: 'accuracyFirst',
+    fieldSize: 4,
+    standings: [
+      { playerKey: 'owl', alias: 'Owl', rank: 1, position: 0, tied: false, participated: true, roundPoints: 1225, matchPointsAwarded: 0 },
+      { playerKey: 'eagle', alias: 'Eagle', rank: 2, position: 1, tied: false, participated: true, roundPoints: 1200, matchPointsAwarded: 0 },
+      { playerKey: 'ranger', alias: 'Ranger', rank: 3, position: 2, tied: false, participated: true, roundPoints: 1350, matchPointsAwarded: 0 },
+      { playerKey: 'comet', alias: 'Comet', rank: 4, position: 3, tied: false, participated: true, roundPoints: 1225, matchPointsAwarded: 0 },
+      { playerKey: 'vertex', alias: 'Vertex', rank: 5, position: 4, tied: false, participated: false, roundPoints: 0, matchPointsAwarded: 0 },
+    ],
+  });
+  const view = roundResultsView({ summary, selfKey: 'comet' });
+  assert.equal(view.rankedBy, 'points');
+  assert.deepEqual(view.rows.map((row) => [row.alias, row.place.short, row.roundPoints]), [
+    ['Ranger', '1', 1350],
+    ['Owl', 'T-2', 1225],
+    ['Comet', 'T-2', 1225],
+    ['Eagle', '4', 1200],
+    ['Vertex', '—', 0],
+  ]);
+  const points = view.rows.filter((row) => row.participated).map((row) => row.roundPoints);
+  assert.deepEqual(points, [...points].sort((left, right) => right - left), 'never a smaller number above a bigger one');
+  assert.equal(roundPlacementSentence(view.self, view.fieldSize), 'You tied for 2nd of 4');
+  // Correct Count: equal credit, equal place.
+  const counted = roundResultsView({ summary: { ...summary, scoringStrategyId: 'correctCount', standings: summary.standings.map((row) => ({ ...row, roundPoints: row.participated && row.playerKey !== 'eagle' ? 1 : 0 })) } });
+  assert.deepEqual(counted.rows.filter((row) => row.participated).map((row) => row.place.short), ['T-1', 'T-1', 'T-1', '4']);
+  // Grand Prix and a rush keep the engine's placement: the place IS the score.
+  assert.equal(roundResultsView({ summary: { ...summary, scoringStrategyId: 'grandPrix' } }).rankedBy, 'place');
+  assert.deepEqual(roundResultsView({ summary: { ...summary, scoringStrategyId: 'grandPrix' } }).rows.map((row) => row.alias).slice(0, 4), ['Owl', 'Eagle', 'Ranger', 'Comet']);
+  assert.equal(roundResultsView({ summary: { ...summary, modeId: RUSH_MODE_ID, scoringStrategyId: 'correctCount' } }).rankedBy, 'place');
+});
+
 /* ---------------- the standings a round leaves (server, pure) --------------- */
 
 const player = (studentId, fields) => ({ studentId, playerKey: `k-${studentId}`, alias: studentId.toUpperCase(), joined: true, ...fields });

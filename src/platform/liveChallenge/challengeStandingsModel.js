@@ -23,6 +23,7 @@
  */
 
 import { getScoringStrategy, SCORE_ACCUMULATION } from '../../../functions/shared/liveChallengeScoring.mjs';
+import { roomRunsQuestionSets } from './challengeShellModel.js';
 
 const integerOr = (value, fallback) => {
   const numeric = Number(value);
@@ -196,6 +197,22 @@ export const standingsWindow = (rows = [], { limit = 8, selfKey = null } = {}) =
   });
 };
 
+/*
+ * WHICH ORDER A ROUND'S TABLE IS IN. A round's place means something only
+ * where the scoring reads it: Grand Prix turns it into championship points,
+ * and a question-set round (a rush) ranks the work each player did. A
+ * per-response strategy (Accuracy First, Correct Count) banks points answer by
+ * answer and never reads the round's place — its engine rank (correct first,
+ * then fastest) would sit beside points it was not ranked by (a streak bonus
+ * can out-earn a faster answer: "3rd · 1,350 pts" under "2nd · 1,200 pts").
+ * So such a round's table lists what each player EARNED, most first, with
+ * equal points sharing a place; the match standings are the engine's as ever.
+ */
+export const roundRankedByPoints = (summary = null) => (
+  getScoringStrategy(summary?.scoringStrategyId).accumulation !== SCORE_ACCUMULATION.PER_ROUND
+  && !roomRunsQuestionSets({ challengeMode: summary?.modeId })
+);
+
 /**
  * One closed round, from its anonymous result document
  * (liveChallengeRooms/{room}/rounds/{round}): every player's place in the
@@ -204,25 +221,38 @@ export const standingsWindow = (rows = [], { limit = 8, selfKey = null } = {}) =
  */
 export const roundResultRows = (summary = null, { selfKey = null } = {}) => {
   if (!summary || !Array.isArray(summary.standings)) return [];
-  return summary.standings
-    .map((row, index) => {
-      const participated = row.participated === true;
-      const rank = participated ? integerOr(row.rank, null) : null;
-      return Object.freeze({
-        playerKey: row.playerKey ? String(row.playerKey) : null,
-        alias: String(row.alias || 'Player'),
-        participated,
-        rank,
-        tied: participated && row.tied === true,
-        position: integerOr(row.position, index),
-        place: placeLabel({ rank, tied: participated && row.tied === true }),
-        roundPoints: nonNegativeInt(row.roundPoints),
-        matchPointsAwarded: nonNegativeInt(row.matchPointsAwarded),
-        completed: row.completed === undefined ? null : nonNegativeInt(row.completed),
-        accuracyPercent: Number.isFinite(Number(row.accuracyPercent)) && row.accuracyPercent !== null ? Math.round(Number(row.accuracyPercent)) : null,
-        isSelf: Boolean(selfKey) && String(row.playerKey) === String(selfKey),
-      });
-    })
+  const byPoints = roundRankedByPoints(summary);
+  const rows = summary.standings.map((row, index) => {
+    const participated = row.participated === true;
+    return {
+      playerKey: row.playerKey ? String(row.playerKey) : null,
+      alias: String(row.alias || 'Player'),
+      participated,
+      rank: participated ? integerOr(row.rank, null) : null,
+      tied: participated && row.tied === true,
+      position: integerOr(row.position, index),
+      roundPoints: nonNegativeInt(row.roundPoints),
+      matchPointsAwarded: nonNegativeInt(row.matchPointsAwarded),
+      completed: row.completed === undefined ? null : nonNegativeInt(row.completed),
+      accuracyPercent: Number.isFinite(Number(row.accuracyPercent)) && row.accuracyPercent !== null ? Math.round(Number(row.accuracyPercent)) : null,
+      isSelf: Boolean(selfKey) && String(row.playerKey) === String(selfKey),
+    };
+  });
+  if (byPoints) {
+    // Most points first; equal points share a place (competition ranking);
+    // the engine's own order breaks the display tie.
+    const earners = rows.filter((row) => row.participated)
+      .sort((left, right) => right.roundPoints - left.roundPoints || (left.rank ?? 0) - (right.rank ?? 0) || left.position - right.position);
+    earners.forEach((row, index) => {
+      const first = earners.findIndex((other) => other.roundPoints === row.roundPoints);
+      row.rank = first + 1;
+      row.tied = earners.filter((other) => other.roundPoints === row.roundPoints).length > 1;
+      row.position = index;
+    });
+    rows.filter((row) => !row.participated).forEach((row, index) => { row.position = earners.length + index; });
+  }
+  return rows
+    .map((row) => Object.freeze({ ...row, place: placeLabel({ rank: row.rank, tied: row.tied }) }))
     .sort((left, right) => (left.rank ?? Number.MAX_SAFE_INTEGER) - (right.rank ?? Number.MAX_SAFE_INTEGER) || left.position - right.position);
 };
 
@@ -243,6 +273,9 @@ export const roundResultsView = ({ summary = null, previousSummary = null, selfK
   return Object.freeze({
     roundIndex: integerOr(summary.roundIndex, null),
     isSecondChance: summary.isSecondChance === true,
+    // 'points': the table ranks what each player earned (a per-response
+    // strategy); 'place': the engine's round placement (see roundRankedByPoints).
+    rankedBy: roundRankedByPoints(summary) ? 'points' : 'place',
     fieldSize,
     participantCount: rows.length,
     rows,

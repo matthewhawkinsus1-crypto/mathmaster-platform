@@ -1,5 +1,5 @@
 import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
-import { amountText, rewardSummaryLines, roundPlacementSentence } from '../../platform/liveChallenge/challengeStandingsModel.js';
+import { amountText, ordinal, rewardSummaryLines, roundPlacementSentence } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import { RoundResultsTable, StandingsBoard } from './ChallengeShellParts.jsx';
 
 /*
@@ -64,7 +64,7 @@ export function StudentLobbyCard({ room, alias, joining = false, playerCount = 0
       <p style={{ margin: '8px 0 0', color: '#c3d2ea' }}>
         {rush ? 'Graph Feature Rush — tap the features on your own graphs' : room?.challengeMode === 'solverRace' ? 'Solver Race' : 'Live Challenge'}
         {rounds ? ` · ${rounds} round${rounds === 1 ? '' : 's'}` : ''}
-        {room?.timingMode === 'pace' ? ' · Pace Race' : room?.roundSeconds ? ` · about ${room.roundSeconds}s each` : ''}
+        {room?.timingMode === 'pace' ? ' · Pace Race' : room?.roundSeconds ? ` · ${rush ? '' : 'about '}${room.roundSeconds}s each` : ''}
       </p>
       {rewards.length > 0 && <p style={{ margin: '10px 0 0', color: '#fdd663', fontWeight: 900 }}>🏆 {rewards.join(' · ')}</p>}
     </section>
@@ -88,21 +88,27 @@ export function StudentRoundResultsCard({ view, presentation, guidance, rushRoun
   const self = view.self;
   const standing = view.selfStanding;
   const participated = Boolean(self?.participated);
+  // In a rush every joined student has their own graphs: one who never
+  // completed one is told so in graphs, not "no answer".
+  const completed = self ? (self.completed ?? 0) : null;
+  const headline = rushRound && self && !participated
+    ? 'No graphs completed this round.'
+    : roundPlacementSentence(self, view.fieldSize);
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       <section aria-live="polite" data-mm-student-results={participated ? 'played' : 'none'} style={card}>
         <div style={eyebrow}>{guidance?.headline || 'Round results'}</div>
-        <div style={{ marginTop: 10, fontSize: 'clamp(22px, 6vw, 30px)', fontWeight: 1000, color: '#fff' }}>{roundPlacementSentence(self, view.fieldSize)}</div>
-        {participated && (
+        <div style={{ marginTop: 10, fontSize: 'clamp(22px, 6vw, 30px)', fontWeight: 1000, color: '#fff' }}>{headline}</div>
+        {self && (participated || rushRound) && (
           <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center', gap: 26, flexWrap: 'wrap' }}>
-            {self.completed !== null
-              ? <Stat value={self.completed} label={self.completed === 1 ? 'graph completed' : 'graphs completed'} />
+            {rushRound || self.completed !== null
+              ? <Stat value={completed} label={completed === 1 ? 'graph completed' : 'graphs completed'} />
               : <Stat value={presentation.strategyId === 'correctCount' ? (self.roundPoints > 0 ? '✓' : '✗') : `+${self.roundPoints.toLocaleString()}`} label={presentation.strategyId === 'correctCount' ? (self.roundPoints > 0 ? 'correct' : 'not correct') : 'points this round'} />}
-            {self.accuracyPercent !== null && <Stat value={`${self.accuracyPercent}%`} label="accuracy" />}
-            <Stat value={self.place.short === '—' ? '—' : self.place.ordinal} label={`of ${view.fieldSize} this round`} />
+            {participated && self.accuracyPercent !== null && <Stat value={`${self.accuracyPercent}%`} label="accuracy" />}
+            {participated && <Stat value={self.place.short === '—' ? '—' : self.place.ordinal} label={`of ${view.fieldSize} this round`} />}
           </div>
         )}
-        {presentation.placementPoints && participated && (
+        {presentation.placementPoints && self && (
           <div style={{ marginTop: 16, fontSize: 20, fontWeight: 1000, color: '#fdd663' }}>
             {self.matchPointsAwarded > 0 ? `+${self.matchPointsAwarded} championship points` : 'No championship points this round'}
           </div>
@@ -113,7 +119,7 @@ export function StudentRoundResultsCard({ view, presentation, guidance, rushRoun
             {standing.movement && standing.movement.direction !== 'same' && <span aria-label={standing.movement.spoken} style={{ marginLeft: 8, color: standing.movement.direction === 'up' ? '#81c995' : '#ffb4ab' }}>{standing.movement.text}</span>}
           </div>
         )}
-        {!participated && rushRound && <p style={{ margin: '12px 0 0', color: '#c3d2ea' }}>Tap the features on your graphs next round to earn points.</p>}
+        {self && !participated && rushRound && <p style={{ margin: '12px 0 0', color: '#c3d2ea' }}>Tap the features on your graphs to earn points.</p>}
         {guidance?.detail && <p style={{ margin: '14px 0 0', color: '#c3d2ea' }}>{guidance.detail}</p>}
       </section>
       <section style={quietPanel}>
@@ -138,7 +144,9 @@ export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows
         {selfRow ? (
           <div style={{ margin: '10px 0 4px' }}>
             <div style={{ fontSize: 'clamp(40px, 12vw, 56px)', fontWeight: 1000, color: '#fff', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{selfRow.place.ordinal}</div>
-            <div style={{ marginTop: 4, color: '#d7f5e1', fontWeight: 800 }}>{selfRow.tied ? 'tied, ' : ''}of {totalPlayers} {totalPlayers === 1 ? 'player' : 'players'}</div>
+            <div style={{ marginTop: 4, color: '#d7f5e1', fontWeight: 800 }}>
+              {selfRow.tied ? `tied for ${ordinal(selfRow.rank)} ` : ''}of {totalPlayers} {totalPlayers === 1 ? 'player' : 'players'}
+            </div>
             <div style={{ marginTop: 10, fontSize: 19, fontWeight: 900, color: '#fdd663' }}>
               {amountText(selfRow.score, presentation.total)}
               {presentation.placementPoints || presentation.strategyId !== 'correctCount'

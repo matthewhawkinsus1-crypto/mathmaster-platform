@@ -1087,8 +1087,12 @@ export default function LiveChallengeTeacher({
   const rewardLines = rewardSummaryLines(room.rewardSummary);
   const gameLabel = projectorGameLabel(room);
   const standingTitle = presentation.placementPoints ? 'Championship' : 'Standings';
+  // Ending a round early is for a round in play: not one still counting down,
+  // and not one past its buzzer, which closes itself in a moment.
   const secondaryControls = [
-    roundOpen ? { key: 'close', label: 'End Round Now', busyLabel: 'Closing…', onClick: () => setConfirming('close') } : null,
+    stage === CHALLENGE_STAGE.ROUND_ACTIVE || stage === CHALLENGE_STAGE.ROUND_PAUSED
+      ? { key: 'close', label: 'End Round Now', busyLabel: 'Closing…', onClick: () => setConfirming('close') }
+      : null,
   ];
 
   return (
@@ -1117,7 +1121,10 @@ export default function LiveChallengeTeacher({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, color: '#174ea6' }}>
               <div><div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>Joined</div><div style={{ fontSize: 34, fontWeight: 1000 }}>{joinedCount} / {room.eligibleCount || 0}</div></div>
               <div><div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>Rounds</div><div style={{ fontSize: 34, fontWeight: 1000 }}>{room.roundCount}</div></div>
-              <div><div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>{room.timingMode === 'pace' ? 'Timing' : 'Per round'}</div><div style={{ fontSize: 34, fontWeight: 1000 }}>{room.timingMode === 'pace' ? 'Pace' : `${room.roundSeconds}s`}</div></div>
+              {/* A classic round's time is fitted to its question (a one-step
+                  question gets less, a multi-step one more); a rush round is
+                  exactly this long. */}
+              <div><div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>{room.timingMode === 'pace' ? 'Timing' : 'Per round'}</div><div style={{ fontSize: 34, fontWeight: 1000 }}>{room.timingMode === 'pace' ? 'Pace' : `${questionSetRoom ? '' : '~'}${room.roundSeconds}s`}</div>{room.timingMode !== 'pace' && !questionSetRoom && <div style={{ fontSize: 12, fontWeight: 700 }}>fitted to each question</div>}</div>
               <div><div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>Scoring</div><div style={{ fontSize: 22, fontWeight: 1000, marginTop: 6 }}>{presentation.placementPoints ? 'Grand Prix' : presentation.strategyId === 'correctCount' ? 'Correct Count' : 'Points'}</div></div>
             </div>
             <div style={{ color: '#174ea6', lineHeight: 1.5 }}>

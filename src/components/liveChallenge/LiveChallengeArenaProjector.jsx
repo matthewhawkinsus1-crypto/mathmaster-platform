@@ -99,7 +99,11 @@ function useViewportRows() {
     if (height >= 1000) return 10;
     if (height >= 860) return 8;
     if (height >= 700) return 6;
-    return 5;
+    // A small or zoomed projector (1366×768 at 150% is 911×512): fewer, still
+    // full-size rows, with room left for "and N more".
+    if (height >= 600) return 5;
+    if (height >= 500) return 4;
+    return 3;
   };
   const [rows, setRows] = useState(measure);
   useEffect(() => {
@@ -450,6 +454,9 @@ function ResultsView({ clock, roundView, presentation, leaderboard, rows }) {
 /** Host controls along the bottom: the one thing to press, plus what the stage allows. */
 function HostStrip({ room, stage, primaryAction, busy, controlBusy, onStart, onAdvance, onPlayAgain, onNewChallenge, onRequestEndGame, onRequestEndRound, onThresholdChange }) {
   const openRound = [CHALLENGE_STAGE.COUNTDOWN, CHALLENGE_STAGE.ROUND_ACTIVE, CHALLENGE_STAGE.ROUND_LOCKED].includes(stage);
+  // Ending a round early is for a round in play: not one still counting down,
+  // and not one past its buzzer, which closes itself in a moment.
+  const endableRound = stage === CHALLENGE_STAGE.ROUND_ACTIVE || stage === CHALLENGE_STAGE.ROUND_PAUSED;
   const handlers = {
     [HOST_COMMAND.START]: onStart,
     [HOST_COMMAND.ADVANCE]: onAdvance,
@@ -467,10 +474,10 @@ function HostStrip({ room, stage, primaryAction, busy, controlBusy, onStart, onA
         </button>
       )}
       {stage === CHALLENGE_STAGE.COMPLETED && typeof onNewChallenge === 'function' && <button type="button" onClick={onNewChallenge} style={arenaButton}>New Challenge</button>}
-      {openRound && typeof onRequestEndRound === 'function' && <button type="button" disabled={controlBusy} onClick={onRequestEndRound} style={{ ...arenaButton, opacity: controlBusy ? 0.55 : 1 }}>End Round Now</button>}
+      {endableRound && typeof onRequestEndRound === 'function' && <button type="button" disabled={controlBusy} onClick={onRequestEndRound} style={{ ...arenaButton, opacity: controlBusy ? 0.55 : 1 }}>End Round Now</button>}
       {(openRound || stage === CHALLENGE_STAGE.ROUND_RESULTS) && typeof onRequestEndGame === 'function' && <button type="button" disabled={controlBusy} onClick={onRequestEndGame} style={{ ...arenaButton, color: '#ffb4ab', opacity: controlBusy ? 0.55 : 1 }}>End Game</button>}
       {projectorShowsClosingThreshold(room) && typeof onThresholdChange === 'function' && stage !== CHALLENGE_STAGE.COMPLETED && <label style={{ fontSize: 13, fontWeight: 900, color: 'rgba(236,241,255,.75)' }}>Round closing threshold
-        <select aria-label="Round closing threshold" value={room.roundClosingThreshold ?? 'off'} onChange={(event) => onThresholdChange(event.target.value)} style={{ ...arenaButton, marginLeft: 7, minHeight: 36 }}>
+        <select aria-label="Round closing threshold" value={room.roundClosingThreshold ?? 'off'} onChange={(event) => onThresholdChange(event.target.value)} style={{ ...arenaButton, WebkitTextFillColor: arenaButton.color, marginLeft: 7, minHeight: 36 }}>
           <option value="off">Off</option>{[60, 70, 80, 90, 100].map((value) => <option key={value} value={value}>{value}%</option>)}
         </select>
       </label>}
