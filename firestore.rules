@@ -368,6 +368,35 @@ service cloud.firestore {
         && request.time < before.occurredAt + duration.value(15, 'm');
     }
 
+    // An imported gradebook snapshot saved with one student's case file
+    // (Student Case Review). Staff only, immutable, one student's rows only —
+    // the browser drops every other student before saving. Field list mirrors
+    // functions/shared/sisGradebookSnapshot.mjs buildSisSnapshotDocument.
+    function sisGradebookSnapshotValid(studentId) {
+      let d = request.resource.data;
+      return staffForStudent(studentId)
+        && d.keys().hasOnly([
+          'schemaVersion', 'studentId', 'classId', 'fileName', 'layout', 'matchedBy', 'items', 'categories',
+          'categoryAverages', 'officialAverage', 'confirmedMatches', 'importedByEmail', 'authorizedTeacherEmails', 'importedAt'
+        ])
+        && d.keys().hasAll([
+          'schemaVersion', 'studentId', 'layout', 'matchedBy', 'items', 'importedByEmail', 'authorizedTeacherEmails', 'importedAt'
+        ])
+        && d.schemaVersion == 1
+        && d.studentId == studentId
+        && d.layout in ['wide', 'long', 'mathmaster-teams']
+        && d.matchedBy in ['sis-id', 'mathmaster-id', 'teacher-confirmed-row']
+        && d.items is list && d.items.size() > 0 && d.items.size() <= 300
+        && d.get('categories', []) is list && d.get('categories', []).size() <= 30
+        && d.get('categoryAverages', []) is list && d.get('categoryAverages', []).size() <= 30
+        && (d.get('officialAverage', null) == null || d.get('officialAverage', null) is number)
+        && d.get('confirmedMatches', {}) is map && d.get('confirmedMatches', {}).size() <= 300
+        && optionalString(d, 'fileName', 160)
+        && staffAuthorship(d, 'importedByEmail')
+        && d.importedAt == request.time
+        && classMatchesRoster(d, studentId);
+    }
+
     function serviceLogEntryValid(studentId) {
       let d = request.resource.data;
       return staffForStudent(studentId)
@@ -496,6 +525,15 @@ service cloud.firestore {
       match /supportServiceLog/{entryId} {
         allow read: if rootAdmin() || teachesPresenceStudent(studentId) || authorizedTeacher();
         allow create: if serviceLogEntryValid(studentId);
+        allow update, delete: if false;
+      }
+
+      // Student Case Review: a gradebook snapshot the teacher chose to save with
+      // this student's case file. Read-only analysis — nothing reads it to
+      // change a grade. Students cannot read it; nobody can edit or delete it.
+      match /sisGradebookSnapshots/{snapshotId} {
+        allow read: if rootAdmin() || teachesPresenceStudent(studentId) || authorizedTeacher();
+        allow create: if sisGradebookSnapshotValid(studentId);
         allow update, delete: if false;
       }
 

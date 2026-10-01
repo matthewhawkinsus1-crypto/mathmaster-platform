@@ -444,3 +444,65 @@ export const extractStudentGradebook = ({ rows = [], layout, student, confirmedR
 };
 
 export default extractStudentGradebook;
+
+// --- Teacher-corrected column roles ------------------------------------------------------------
+
+export const COLUMN_ROLES = Object.freeze({
+  wide: ['ignore', 'studentId', 'name', 'lastName', 'firstName', 'item', 'officialAverage'],
+  long: ['ignore', 'studentId', 'name', 'lastName', 'firstName', 'item', 'score', 'pointsPossible', 'category', 'weight', 'dueDate'],
+});
+
+export const COLUMN_ROLE_LABEL = Object.freeze({
+  ignore: 'Not used',
+  studentId: 'Student ID',
+  name: 'Student name',
+  lastName: 'Last name',
+  firstName: 'First name',
+  item: 'Gradebook item',
+  score: 'Score',
+  pointsPossible: 'Points possible',
+  category: 'Category',
+  weight: 'Category weight',
+  dueDate: 'Due date',
+  officialAverage: 'Official average',
+});
+
+/** The role each header column plays in a detected layout. */
+export const columnRolesFromLayout = (layout, header = []) => {
+  const columns = layout?.columns || {};
+  const items = new Set(list(layout?.itemColumns).map((column) => column.index));
+  return list(header).map((cell, index) => {
+    const key = Object.keys(columns).find((name) => columns[name] === index);
+    if (key) return key;
+    return items.has(index) ? 'item' : 'ignore';
+  });
+};
+
+/**
+ * A layout rebuilt from roles the teacher chose. Nothing is inferred: a column
+ * is an item only if the teacher (or the detection they accepted) says so.
+ */
+export const applyColumnRoles = (layout, header = [], roles = []) => {
+  if (!layout || ![GRADEBOOK_LAYOUT.WIDE, GRADEBOOK_LAYOUT.LONG].includes(layout.layout)) return layout;
+  const allowed = new Set(COLUMN_ROLES[layout.layout]);
+  const columns = {};
+  const itemColumns = [];
+  list(roles).forEach((role, index) => {
+    if (!allowed.has(role) || role === 'ignore') return;
+    if (role === 'item' && layout.layout === GRADEBOOK_LAYOUT.WIDE) {
+      itemColumns.push({ index, name: clean(header[index]).slice(0, IMPORT_LIMITS.itemName) || `Column ${index + 1}` });
+      return;
+    }
+    if (columns[role] === undefined) columns[role] = index;
+  });
+  const hasStudent = columns.studentId !== undefined || columns.name !== undefined || columns.lastName !== undefined;
+  const complete = layout.layout === GRADEBOOK_LAYOUT.LONG ? columns.item !== undefined && columns.score !== undefined : itemColumns.length > 0 || columns.officialAverage !== undefined;
+  return {
+    ...layout,
+    columns,
+    itemColumns: itemColumns.slice(0, IMPORT_LIMITS.maxItems),
+    categoryAverageColumns: layout.layout === GRADEBOOK_LAYOUT.WIDE ? list(layout.categoryAverageColumns).filter((column) => !itemColumns.some((item) => item.index === column.index) && roles[column.index] === 'ignore') : [],
+    reason: hasStudent && complete ? '' : 'Choose a student column and, for this layout, the item and score columns.',
+    teacherAdjusted: true,
+  };
+};

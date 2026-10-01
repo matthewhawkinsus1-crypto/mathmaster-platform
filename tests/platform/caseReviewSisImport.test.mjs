@@ -115,3 +115,20 @@ test('an unrecognisable file is refused with a reason, never half-read', () => {
   assert.equal(layout.layout, GRADEBOOK_LAYOUT.UNKNOWN);
   assert.match(layout.reason, /student/i);
 });
+
+test('the teacher can correct the detected column roles; nothing becomes an item unless chosen', async () => {
+  const { applyColumnRoles, columnRolesFromLayout } = await import('../../src/platform/caseReview/sisGradebookImport.js');
+  const parsed = parseDelimitedText(WIDE);
+  const layout = detectGradebookLayout(parsed.rows);
+  const header = parsed.rows[layout.headerIndex];
+  const roles = columnRolesFromLayout(layout, header);
+  assert.deepEqual(roles, ['studentId', 'name', 'item', 'item', 'item', 'officialAverage']);
+  // The teacher says "Quiz 2" is not one of this gradebook's items for the comparison.
+  roles[4] = 'ignore';
+  const adjusted = applyColumnRoles(layout, header, roles);
+  assert.equal(adjusted.teacherAdjusted, true);
+  const result = extractStudentGradebook({ rows: parsed.rows, layout: adjusted, student });
+  assert.deepEqual(result.items.map((item) => item.name), ['Lesson 4 - Classwork', 'Lesson 4 - DOL']);
+  // Without a student column the layout says what is missing.
+  assert.match(applyColumnRoles(layout, header, roles.map(() => 'ignore')).reason, /student column/);
+});
