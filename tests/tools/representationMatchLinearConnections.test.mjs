@@ -167,3 +167,21 @@ test('findMismatch requires three cards, a strict majority, and detects a factor
   const cards = buildLinearConnectionCards([three], ['slopeIntercept', 'factoredLinear', 'standard']);
   assert.deepEqual(findLinearMismatch(cards).mismatchIds, ['three:factoredLinear']);
 });
+
+// The grouping score scales pair agreement by the share of cards placed. An
+// unplaced card is "apart" from every other card, so pair agreement alone used
+// to credit an untouched board with every cross-line pair (48/91 here).
+test('grouping credit is scaled by the share of cards placed: a blank board earns nothing', () => {
+  const cards = buildLinearConnectionCards([LINE_A, LINE_B]);
+  assert.equal(cards.length, 14);
+  const blank = scoreLinearConnectionGrouping(cards, {});
+  assert.equal(blank.pairScore, 48 / 91, 'the pair tally itself is unchanged');
+  assert.equal(blank.score, 0);
+  assert.equal(blank.isCorrect, false);
+  const firstSeven = Object.fromEntries(cards.slice(0, 7).map((card) => [card.id, card.setId === 'lineA' ? 0 : 1]));
+  const half = scoreLinearConnectionGrouping(cards, firstSeven);
+  assert.equal(half.assignedCards, 7);
+  assert.equal(half.score, half.pairScore * (7 / 14));
+  const full = Object.fromEntries(cards.map((card) => [card.id, card.setId === 'lineA' ? 0 : 1]));
+  assert.equal(scoreLinearConnectionGrouping(cards, full).score, 1, 'a fully placed board scores exactly as before');
+});

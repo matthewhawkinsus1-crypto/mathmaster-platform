@@ -45,6 +45,50 @@ export const mixedRepresentationCards = (sets = [], mixed = {}, kinds = ['equati
   return { kind, sourceId, value: source?.[kind] ?? '' };
 });
 
+/*
+ * WHAT EACH VIEW SHOWS, RESOLVED FROM THE QUESTION.
+ *
+ * RepresentationMatch.jsx renders from these and the shared grader
+ * (functions/shared/serverGrading/tools/representationMatch.mjs) grades from
+ * them, so the board the student sees and the board the server marks are one
+ * board — including every fallback for a field the author left out.
+ */
+export const REPRESENTATION_MATCH_MODES = Object.freeze(['completeSet', 'findMismatch', 'tableAudit', 'graphMatch', 'linearConnections']);
+
+/** The view the tool routes to: `mode`, or completeSet when it is missing. */
+export const representationMatchMode = (question = {}) => question?.mode || 'completeSet';
+
+/** The relationships on the board. linearConnections never falls back to the
+ * demo sets — an authoring mistake there is an empty board, not a silently
+ * wrong linear question. */
+export const representationSetsFor = (question = {}) => {
+  if (representationMatchMode(question) === 'linearConnections') return Array.isArray(question?.sets) ? question.sets : [];
+  return Array.isArray(question?.sets) && question.sets.length ? question.sets : buildDefaultRepresentationSets();
+};
+
+export const representationTargetId = (question = {}, sets = representationSetsFor(question)) => question?.targetId || sets[0]?.id;
+
+/** findMismatch's three source ids: authored, or the target's equation and
+ * context with the first other set's table. */
+export const representationMixedSet = (question = {}, sets = representationSetsFor(question), targetId = representationTargetId(question, sets)) => {
+  if (question?.mixedSet) return question.mixedSet;
+  const fallbackMismatchId = sets.find((item) => item?.id !== targetId)?.id || targetId;
+  return { equationId: targetId, tableId: fallbackMismatchId, contextId: targetId };
+};
+
+export const tableAuditFunction = (question = {}) => question?.function || { type: 'quadratic', a: 1, h: 0, k: 0 };
+
+/** tableAudit's rows. Stored Path rows are Firestore-safe `{ cells: [...] }`
+ * maps; authored and preview content uses plain arrays. Without authored rows
+ * the table samples x = -2..2 and corrupts the middle row by +2. */
+export const tableAuditRows = (question = {}, spec = tableAuditFunction(question)) => {
+  if (Array.isArray(question?.rows) && question.rows.length) {
+    return question.rows.map((row) => (Array.isArray(row) ? row : (Array.isArray(row?.cells) ? row.cells : [])));
+  }
+  const rows = tableRowsForFunction(spec, [-2, -1, 0, 1, 2]);
+  return rows.map((row, index) => (index === Math.min(2, rows.length - 1) ? [row[0], row[1] + 2] : row));
+};
+
 // --- linearConnections ------------------------------------------------
 //
 // Every card kind a linearConnections set may expose. "graph" and the four
@@ -53,6 +97,30 @@ export const mixedRepresentationCards = (sets = [], mixed = {}, kinds = ['equati
 // "2x+y=5") because canonicalFromEquationText resolves any of them to the
 // same line without needing to know which form it is looking at.
 export const LINEAR_CARD_KINDS = ['slopeIntercept', 'factoredLinear', 'pointSlope', 'standard', 'graph', 'slope', 'point', 'xIntercept', 'yIntercept', 'context', 'table'];
+
+// The equation forms a findMismatch task compares.
+export const LINEAR_EQUATION_KINDS = ['slopeIntercept', 'factoredLinear', 'pointSlope', 'standard'];
+
+/** linearConnections' task: findMismatch when authored, otherwise group. */
+export const linearConnectionsTask = (question = {}) => (question?.task === 'findMismatch' ? 'findMismatch' : 'group');
+
+/** The card kinds a group deck draws from: authored `cardKinds`, or all. */
+export const linearConnectionsCardKinds = (question = {}) => (
+  Array.isArray(question?.cardKinds) && question.cardKinds.length ? question.cardKinds : LINEAR_CARD_KINDS
+);
+
+/** The set a findMismatch task is built from (`mismatchSetId`), or null. */
+export const linearMismatchSetFor = (question = {}, sets = []) => sets.find((set) => set?.id === question?.mismatchSetId) || null;
+
+/**
+ * A card placement map ({ [cardId]: slot }) as plain student work: one
+ * { cardId, slot } per placed card, in card-id order, so the same board is
+ * always the same bytes and no card id has to fit an object-key limit.
+ */
+export const linearPlacementsFromAssignments = (assignments = {}) => Object.keys(assignments || {})
+  .filter((cardId) => assignments[cardId] != null)
+  .sort()
+  .map((cardId) => ({ cardId, slot: assignments[cardId] }));
 
 /*
  * A TABLE CARD (student UX pass, R-9).
@@ -295,9 +363,24 @@ export const scoreLinearConnectionGrouping = (cards, assignments = {}) => {
       if (sameActual === sameAssigned) correctPairs += 1;
     }
   }
-  const fullyAssigned = cards.length > 0 && cards.every((card) => assignments[card.id] != null);
-  const score = totalPairs ? correctPairs / totalPairs : 0;
-  return { score, isCorrect: fullyAssigned && correctPairs === totalPairs, fullyAssigned, correctPairs, totalPairs };
+  const assignedCards = cards.filter((card) => assignments[card.id] != null).length;
+  const fullyAssigned = cards.length > 0 && assignedCards === cards.length;
+  const pairScore = totalPairs ? correctPairs / totalPairs : 0;
+  // An unplaced card is "apart" from every other card, so pair agreement alone
+  // credited an untouched board for every cross-relationship pair (a blank
+  // two-line deck of 14 cards scored 48/91 = 0.53). As in the open sort
+  // (openSortMath scorePartitionAgainstScheme), credit is scaled by the share
+  // of cards actually placed; a fully placed board scores exactly as before.
+  const completion = cards.length ? assignedCards / cards.length : 0;
+  return {
+    score: pairScore * completion,
+    pairScore,
+    isCorrect: fullyAssigned && correctPairs === totalPairs,
+    fullyAssigned,
+    assignedCards,
+    correctPairs,
+    totalPairs,
+  };
 };
 
 /**

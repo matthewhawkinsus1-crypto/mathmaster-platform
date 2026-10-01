@@ -1,10 +1,13 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { evaluateFunctionSpec } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
-import { scoreControlledSort, scoreOpenSort } from './openSortMath';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import openSortBoardGrader from '../../../functions/shared/serverGrading/tools/openSortBoard.mjs';
+import { openSortProgress, openSortSettings } from './openSortMath';
 import { readGraphPointCoordinates } from '../../graphPointUtils.js';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid #c9d6e8', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
@@ -75,15 +78,10 @@ const emptyGroups = (count) => Array.from({ length: count }, (_, index) => ({ id
 
 export default function OpenSortBoard({ questionData = {}, onAction }) {
   const items = Array.isArray(questionData.items) ? questionData.items : [];
-  const controlled = questionData.mode === 'controlled';
-  const categories = controlled && Array.isArray(questionData.categories)
-    ? questionData.categories.filter((category) => category?.id && category?.label)
-    : [];
-  const minGroups = controlled ? categories.length : Math.max(2, Number(questionData.minGroups || 2));
-  const maxGroups = controlled ? categories.length : Math.max(minGroups, Number(questionData.maxGroups || 5));
-  const rationaleMinLength = Math.max(0, Number(questionData.rationaleMinLength ?? 12));
-  const requireRationale = controlled ? false : questionData.requireRationale !== false;
-  const requireGroupNames = controlled ? false : questionData.requireGroupNames !== false;
+  // What the board asks for — shared with the grader, so the Check gate below
+  // and the completeness the server records are one definition.
+  const settings = openSortSettings(questionData);
+  const { controlled, categories, minGroups, maxGroups, rationaleMinLength, requireRationale } = settings;
   const [groups, setGroups] = usePersistentToolState('groups', () => (
     controlled
       ? categories.map((category) => ({ id: String(category.id), name: String(category.label), rationale: '', itemIds: [] }))
@@ -91,8 +89,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
   ));
   const [selectedId, setSelectedId] = useState(null);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
-  const assignedIds = useMemo(() => new Set(groups.flatMap((group) => group.itemIds)), [groups]);
-  const unassigned = items.filter((item) => !assignedIds.has(String(item.id)));
+  const { unassigned, usedGroups, namesComplete, rationaleComplete, ready } = openSortProgress({ settings, items, groups });
 
   const updateGroup = (id, patch) => {
     clearFeedback();
@@ -142,26 +139,23 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
     clearFeedback();
   };
 
-  const usedGroups = groups.filter((group) => group.itemIds.length);
-  const rationaleComplete = !requireRationale || usedGroups.every((group) => group.rationale.trim().length >= rationaleMinLength);
-  const namesComplete = !requireGroupNames || usedGroups.every((group) => group.name.trim().length >= 2);
-  const ready = controlled
-    ? unassigned.length === 0
-    : unassigned.length === 0 && usedGroups.length >= minGroups && namesComplete && rationaleComplete;
+  // The student's work: exactly the groups on the board. Reported live so a
+  // deadline can finalize it, and submitted as-is by Check.
+  const work = { groups: groups.map(({ id, name, rationale, itemIds }) => ({ id, name, rationale, itemIds })) };
+  useReportToolWork(work);
 
+  /*
+   * THE VERDICT IS THE SHARED GRADER'S (functions/shared/serverGrading/tools/
+   * openSortBoard.mjs), through the same bounded bytes the server re-grades.
+   * Only non-secret metadata rides along: never the matched scheme, which
+   * names the answer key.
+   */
   const check = () => {
-    const result = controlled
-      ? scoreControlledSort({ items, responseGroups: groups, validSchemes: questionData.validSchemes || [] })
-      : scoreOpenSort({ items, responseGroups: groups, validSchemes: questionData.validSchemes || [] });
-    const parts = [
-      { id: 'partition', label: 'Mathematical grouping', isComplete: unassigned.length === 0, isCorrect: result.isCorrect },
-      { id: 'names', label: 'Group names', isComplete: namesComplete, isCorrect: namesComplete, graded: false },
-      { id: 'rationale', label: 'Group explanations', isComplete: rationaleComplete, isCorrect: rationaleComplete, graded: false },
-    ];
+    const result = gradeToolCheck(openSortBoardGrader, questionData, work);
     submit(
-      { isCorrect: result.isCorrect && namesComplete && rationaleComplete, score: result.isCorrect ? 1 : result.score },
-      { groups: groups.map(({ id, name, rationale, itemIds }) => ({ id, name, rationale, itemIds })) },
-      { matchedSchemeId: result.matchedSchemeId, parts },
+      { isCorrect: result.isCorrect, score: result.score },
+      work,
+      { mode: controlled ? 'controlled' : 'open', parts: result.parts },
     );
   };
 

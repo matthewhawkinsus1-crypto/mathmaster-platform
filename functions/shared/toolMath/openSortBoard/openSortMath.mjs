@@ -118,6 +118,73 @@ export const scoreControlledSort = ({ items = [], responseGroups = [], validSche
   };
 };
 
+/*
+ * WHAT THE BOARD ASKS FOR, AND WHEN THE STUDENT HAS FINISHED IT.
+ *
+ * OpenSortBoard.jsx gates its Check button on `openSortProgress(...).ready`,
+ * and the shared grader (functions/shared/serverGrading/tools/openSortBoard.mjs)
+ * reports the same `ready` as the response's completeness — one definition, so
+ * a deadline only auto-submits a sort the student could have checked.
+ */
+export const openSortSettings = (question = {}) => {
+  const controlled = question?.mode === 'controlled';
+  const categories = controlled && Array.isArray(question.categories)
+    ? question.categories.filter((category) => category?.id && category?.label)
+    : [];
+  const minGroups = controlled ? categories.length : Math.max(2, Number(question?.minGroups || 2));
+  const maxGroups = controlled ? categories.length : Math.max(minGroups, Number(question?.maxGroups || 5));
+  return {
+    controlled,
+    categories,
+    minGroups,
+    maxGroups,
+    rationaleMinLength: Math.max(0, Number(question?.rationaleMinLength ?? 12)),
+    requireRationale: controlled ? false : question?.requireRationale !== false,
+    requireGroupNames: controlled ? false : question?.requireGroupNames !== false,
+  };
+};
+
+/*
+ * THE PLACEMENTS A BOARD CAN HOLD.
+ *
+ * A placement is one of the question's cards in exactly one group: the board
+ * offers only the question's cards, and placing a card removes it from every
+ * other group. Anything else — an id that is not a card on this board (a
+ * tampered response, or a saved board from before the teacher removed a card)
+ * or a card claimed by several groups — is not a placement, and the scorers
+ * above would otherwise credit it: an invented id counts towards "the share of
+ * cards placed", and a card in every bin satisfies every category at once.
+ * A card claimed by more than one group is therefore unplaced. Groups keep
+ * their order, names and explanations.
+ */
+export const boardPlacements = ({ items = [], groups = [] }) => {
+  const onBoard = new Set(items.map((item) => String(item?.id)));
+  const own = groups.map((group) => [...new Set(group.itemIds.map(String))].filter((id) => onBoard.has(id)));
+  const claims = new Map();
+  own.forEach((ids) => ids.forEach((id) => claims.set(id, (claims.get(id) || 0) + 1)));
+  return groups.map((group, index) => ({ ...group, itemIds: own[index].filter((id) => claims.get(id) === 1) }));
+};
+
+/**
+ * `groups`: [{ name, rationale, itemIds }] with string fields, as the board
+ * holds them. Returns the cards still to place, whether each requirement the
+ * Check button waits for is met, and the board's real placements
+ * (`placedGroups`, see boardPlacements) — what the scorers grade.
+ */
+export const openSortProgress = ({ settings, items = [], groups = [] }) => {
+  const placedGroups = boardPlacements({ items, groups });
+  const assignedIds = new Set(placedGroups.flatMap((group) => group.itemIds));
+  const unassigned = items.filter((item) => !assignedIds.has(String(item.id)));
+  const usedGroups = placedGroups.filter((group) => group.itemIds.length);
+  const rationaleComplete = !settings.requireRationale
+    || usedGroups.every((group) => group.rationale.trim().length >= settings.rationaleMinLength);
+  const namesComplete = !settings.requireGroupNames || usedGroups.every((group) => group.name.trim().length >= 2);
+  const ready = settings.controlled
+    ? unassigned.length === 0
+    : unassigned.length === 0 && usedGroups.length >= settings.minGroups && namesComplete && rationaleComplete;
+  return { unassigned, usedGroups, placedGroups, namesComplete, rationaleComplete, ready };
+};
+
 export const validateSortQuestion = (question = {}) => {
   const errors = [];
   const items = Array.isArray(question.items) ? question.items : [];

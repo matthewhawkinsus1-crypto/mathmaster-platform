@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { scoreControlledSort, scoreOpenSort, validateSortQuestion } from '../../src/tools/openSortBoard/openSortMath.js';
+import { boardPlacements, openSortProgress, openSortSettings, scoreControlledSort, scoreOpenSort, validateSortQuestion } from '../../src/tools/openSortBoard/openSortMath.js';
 
 const items = ['A','B','C','D','E','F'].map((id) => ({ id }));
 const schemes = [
@@ -105,4 +105,28 @@ test('controlled sort validator requires fixed labeled categories that match sch
   });
   assert.ok(bad.some((message) => /student-visible label/.test(message)));
   assert.ok(bad.some((message) => /same category ids/.test(message)));
+});
+
+// The board offers only the question's cards, and placing one removes it from
+// every other group. boardPlacements is that rule, and openSortProgress (the
+// Check gate the board renders AND the completeness the shared grader reports)
+// reads placements through it — so an invented id, a card in two groups or a
+// card id left over from before the teacher removed it is never a placement.
+test('a placement is one of the question\'s cards in exactly one group', () => {
+  const groups = [
+    { id: 'g1', name: 'up', rationale: 'rises left to right', itemIds: ['A', 'B', 'A', 'ghost'] },
+    { id: 'g2', name: 'down', rationale: 'falls left to right', itemIds: ['B', 'C'] },
+    { id: 'g3', name: 'old', rationale: 'a card no longer here', itemIds: ['retired'] },
+  ];
+  const placed = boardPlacements({ items, groups });
+  assert.deepEqual(placed.map((group) => group.itemIds), [['A'], ['C'], []]);
+  assert.deepEqual(placed.map((group) => [group.id, group.name, group.rationale]), groups.map((group) => [group.id, group.name, group.rationale]));
+  // Numeric authored ids are the board's string ids.
+  assert.deepEqual(boardPlacements({ items: [{ id: 1 }, { id: 2 }], groups: [{ itemIds: ['1', 2] }] })[0].itemIds, ['1', '2']);
+
+  const progress = openSortProgress({ settings: openSortSettings({}), items, groups });
+  assert.deepEqual(progress.placedGroups, placed);
+  assert.deepEqual(progress.usedGroups.map((group) => group.id), ['g1', 'g2'], 'a group of retired ids is not a used group');
+  assert.deepEqual(progress.unassigned.map((item) => item.id), ['B', 'D', 'E', 'F'], 'B is claimed twice, so it is still to place');
+  assert.equal(progress.ready, false);
 });
