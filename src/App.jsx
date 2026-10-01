@@ -11286,6 +11286,9 @@ function App() {
           {renderStudentWarmupBanner()}
           <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading Live Challenge…</div>}>
           <LiveChallengeStudent
+            // One mount per room: a new invite is a new game, and nothing the
+            // last game's screen held may be shown in it.
+            key={liveChallengeInvite?.roomId || 'no-live-challenge'}
             invite={liveChallengeInvite}
             studentProfile={user.profile}
             onExit={() => setStudentDashboardMode('assignments')}

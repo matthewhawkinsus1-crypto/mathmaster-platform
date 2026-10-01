@@ -14,6 +14,7 @@ import {
   ROUND_SYNC_LEAD_MS,
   submissionArrivalDecision,
 } from '../../functions/shared/liveChallengeParity.mjs';
+import { buildRoundTimer } from '../../functions/shared/liveChallengeTimer.mjs';
 
 test('future authoritative start maps ahead of the monotonic clock without counting sync lead', () => {
   const origin = monotonicRoundOrigin({ monotonicNow: 8_000, serverNowMs: 100_600, startsAtMs: 101_500 });
@@ -177,14 +178,26 @@ test('server and student contracts include idempotency, immediate lock, trust bo
   assert.match(server, /submissionReceipts\?\.\[submissionId\]/);
   assert.match(server, /roundVersion/);
   assert.match(server, /roundToken/);
-  assert.match(server, /new Date\(nowMs \+ parity\.ROUND_SYNC_LEAD_MS\)/);
+  // Every round is published with the future sync lead: the authoritative
+  // timer puts the official start ROUND_SYNC_LEAD_MS after the server's now,
+  // and opening a round uses that timer without overriding the lead.
+  const timer = buildRoundTimer({ nowMs: 500_000, durationMs: 30_000 });
+  assert.equal(timer.startsAtMs, 500_000 + ROUND_SYNC_LEAD_MS);
+  assert.equal(timer.endsAtMs, timer.startsAtMs + 30_000);
+  const openingStart = server.indexOf('function applyLiveChallengeRoundOpening(');
+  const opening = server.slice(openingStart, server.indexOf('\n}\n', openingStart));
+  assert.match(opening, /engine\.timer\.buildRoundTimer\(\{\s*nowMs,/);
+  assert.doesNotMatch(opening, /syncLeadMs/);
+  assert.match(opening, /const startsAt = new Date\(timer\.startsAtMs\)/);
   assert.match(server, /humanElapsedMs: request\.data\?\.timingDegraded \? null : request\.data\?\.humanElapsedMs/);
   assert.match(server, /gradePathToolResponse/);
   assert.match(student, /setPending\(capture\)[\s\S]{0,180}await submitResponse\(capture\)/);
   assert.match(student, /performance\.now\(\) - roundOriginMonoRef\.current/);
   assert.match(student, /Retry locked answer/);
   assert.match(student, /addEventListener\('online', recover\)/);
-  assert.match(student, /JSON\.parse\(window\.localStorage\.getItem\(pendingKey\)/);
+  // The locked envelope survives a reload: it is read back from storage on mount.
+  assert.match(student, /const \[pending, setPending\] = useState\(\(\) => readStoredJson\(pendingKey\)\)/);
+  assert.match(student, /const readStoredJson = \(key\) => \{[\s\S]{0,80}JSON\.parse\(window\.localStorage\.getItem\(key\)/);
   assert.match(student, /const recover = \(\) => retryPending\(\)/);
   assert.match(student, /submitResponse\(pending\)/);
   assert.match(student, /quality: 'reconnecting', sampleCount: 0/);

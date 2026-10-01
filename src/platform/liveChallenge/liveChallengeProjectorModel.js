@@ -1,3 +1,5 @@
+import { getChallengeMode } from '../../../functions/shared/liveChallengeModes.mjs';
+
 const FAMILY_LABELS = Object.freeze({
   linearEquation: 'Linear Equations',
   literalEquation: 'Literal Equations',
@@ -45,9 +47,8 @@ export const projectorDifficultyLabel = (room = {}) => {
   return DIFFICULTY_LABELS[raw] || raw.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (letter) => letter.toUpperCase());
 };
 
-export const projectorGameLabel = (room = {}) => (
-  room?.challengeMode === 'solverRace' ? 'Solver Race' : 'Live Challenge'
-);
+// The game mode names itself; an unknown or missing mode reads as Standard.
+export const projectorGameLabel = (room = {}) => getChallengeMode(room?.challengeMode).projectorLabel;
 
 export const projectorRoundCount = (room = {}) => {
   const scheduled = Math.round(Number(room?.scheduledRoundCount) || 0);
@@ -70,32 +71,29 @@ export const projectorScore = (row = {}) => (
   Math.max(0, Math.round(Number(row?.liveScore ?? row?.score) || 0))
 );
 
-export const podiumRows = (leaderboard = []) => {
-  const rows = [...(Array.isArray(leaderboard) ? leaderboard : [])]
-    .filter(Boolean)
-    .sort((left, right) => {
-      const rankDelta = (Number(left?.rank) || Number.MAX_SAFE_INTEGER) - (Number(right?.rank) || Number.MAX_SAFE_INTEGER);
-      if (rankDelta) return rankDelta;
-      const scoreDelta = projectorScore(right) - projectorScore(left);
-      if (scoreDelta) return scoreDelta;
-      return cleanText(left?.alias).localeCompare(cleanText(right?.alias));
-    })
-    .slice(0, 3);
-
-  const byRank = new Map(rows.map((row, index) => [Number(row?.rank) || index + 1, row]));
-  return {
-    first: byRank.get(1) || rows[0] || null,
-    second: byRank.get(2) || rows[1] || null,
-    third: byRank.get(3) || rows[2] || null,
-  };
-};
-
+/*
+ * Standing order: by rank, then by the leaderboard's own display order. The
+ * sort is stable, so players who share a rank keep the deterministic order the
+ * ranking gave them (liveChallengeRanking.mjs) instead of being re-sorted here
+ * by a second, different rule.
+ */
 export const finalStandingRows = (leaderboard = []) => (
   [...(Array.isArray(leaderboard) ? leaderboard : [])]
     .filter(Boolean)
-    .sort((left, right) => {
-      const rankDelta = (Number(left?.rank) || Number.MAX_SAFE_INTEGER) - (Number(right?.rank) || Number.MAX_SAFE_INTEGER);
-      if (rankDelta) return rankDelta;
-      return projectorScore(right) - projectorScore(left);
-    })
+    .sort((left, right) => (
+      (Number(left?.rank) || Number.MAX_SAFE_INTEGER) - (Number(right?.rank) || Number.MAX_SAFE_INTEGER)
+    ))
 );
+
+/*
+ * The three podium steps, filled in standing order. Tied players share a rank,
+ * so looking places up by rank number would put one of them on two steps and
+ * leave the other off the podium; each step shows its player's own rank.
+ */
+export const podiumRows = (leaderboard = []) => {
+  const [first = null, second = null, third = null] = finalStandingRows(leaderboard);
+  return { first, second, third };
+};
+
+/** Everyone after the three podium steps, in standing order. */
+export const belowPodiumRows = (leaderboard = []) => finalStandingRows(leaderboard).slice(3);

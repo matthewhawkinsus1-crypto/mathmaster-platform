@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import MathText from '../common/MathText.jsx';
 import {
+  belowPodiumRows,
   finalStandingRows,
   podiumRows,
   projectorAnsweredCount,
@@ -141,9 +142,19 @@ function ArenaLeaderboard({ rows = [], limit = 8, compact = false }) {
   );
 }
 
-function PodiumPlace({ row, place, accent, height, revealDelay, title }) {
+const PODIUM_RANKS = Object.freeze({
+  1: { medal: '🥇', title: 'Champion', accent: '#ffd166' },
+  2: { medal: '🥈', title: '2nd Place', accent: '#cbd5e1' },
+  3: { medal: '🥉', title: '3rd Place', accent: '#d99562' },
+});
+
+function PodiumPlace({ row, place, height, revealDelay }) {
   if (!row) return <div />;
-  const medal = place === 1 ? '🥇' : place === 2 ? '🥈' : '🥉';
+  // The step's height and position come from its place; the medal, title and
+  // number come from the player's rank, which tied players share.
+  const rank = Math.max(1, Math.min(3, Number(row.rank) || place));
+  const { medal, accent } = PODIUM_RANKS[rank];
+  const title = `${PODIUM_RANKS[rank].title}${row.tied ? ' · Tied' : ''}`;
   return (
     <div className="mm-arena-podium-place" style={{ animationDelay: `${revealDelay}ms`, alignSelf: 'end' }}>
       <div style={{
@@ -172,7 +183,7 @@ function PodiumPlace({ row, place, accent, height, revealDelay, title }) {
         fontWeight: 1000,
         textShadow: '0 3px 12px rgba(0,0,0,.35)',
       }}>
-        {place}
+        {rank}
       </div>
     </div>
   );
@@ -180,8 +191,7 @@ function PodiumPlace({ row, place, accent, height, revealDelay, title }) {
 
 function FinalPodium({ leaderboard = [] }) {
   const podium = podiumRows(leaderboard);
-  const standings = finalStandingRows(leaderboard);
-  const remaining = standings.filter((row) => Number(row.rank) > 3).slice(0, 9);
+  const remaining = belowPodiumRows(leaderboard).slice(0, 9);
 
   return (
     <div className="mm-arena-finish" style={{ display: 'grid', gap: 24 }}>
@@ -200,9 +210,9 @@ function FinalPodium({ leaderboard = [] }) {
         gap: 14,
         alignItems: 'end',
       }}>
-        <PodiumPlace row={podium.second} place={2} accent="#cbd5e1" height={72} revealDelay={80} title="2nd Place" />
-        <PodiumPlace row={podium.first} place={1} accent="#ffd166" height={112} revealDelay={620} title="Champion" />
-        <PodiumPlace row={podium.third} place={3} accent="#d99562" height={52} revealDelay={350} title="3rd Place" />
+        <PodiumPlace row={podium.second} place={2} height={72} revealDelay={80} />
+        <PodiumPlace row={podium.first} place={1} height={112} revealDelay={620} />
+        <PodiumPlace row={podium.third} place={3} height={52} revealDelay={350} />
       </div>
 
       {remaining.length > 0 && (
