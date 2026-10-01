@@ -24,6 +24,8 @@
  *
  * Light and pure: no mathjs.
  */
+import { GRAPH_CONSTRUCTION_STAGE_KINDS } from './composedWorkflowContract.mjs';
+
 const MAX_ALGEBRAIC_EXPRESSION_LENGTH = 300;
 
 /**
@@ -101,7 +103,10 @@ const ALGEBRAIC_STAGE_KINDS = new Set(['algebraWorkspace', 'domainInput', 'range
  * while gradeWorkflow marks it, or null. Mirrors where workflowGrading.mjs
  * reaches the engine: every stage the student is on (`active`, from
  * questionWorkflow.mjs activeStageIds), and — whether or not they are on it —
- * any stage a `consistentWith` rule reads.
+ * any stage a `consistentWith` rule reads, and the source of every graph-
+ * construction stage the student is on: rebuilding that graph
+ * (workflowGraphStage.mjs) evaluates the source table's cells and the model
+ * it follows, or the equation itself, and the graph grader samples it.
  */
 export const unsafeExpressionStage = ({ workflow = [], grading = null, responses = {}, active = null } = {}) => {
   // Without the student's branch, every stage counts as one they are on.
@@ -118,6 +123,9 @@ export const unsafeExpressionStage = ({ workflow = [], grading = null, responses
   });
   stages.forEach((stage) => {
     if (isActive(stage.id) && MODEL_STAGE_KINDS.has(stage.kind)) evaluated.add(String(stage.id));
+    if (isActive(stage.id) && GRAPH_CONSTRUCTION_STAGE_KINDS.includes(stage.kind) && stage.sourceStageId) {
+      evaluated.add(String(stage.sourceStageId));
+    }
   });
 
   for (const stageId of evaluated) {

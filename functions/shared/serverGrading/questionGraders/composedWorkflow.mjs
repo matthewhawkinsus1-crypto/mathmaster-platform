@@ -19,9 +19,26 @@
  * is right (workflowGrading.mjs gradeWorkflow). A stage nobody can mark (an
  * interpretation, a manual rubric) is reported `graded: false` and never
  * counts for or against the student.
+ *
+ * A GRAPH-CONSTRUCTION STAGE IS RE-MARKED, NEVER BELIEVED. Its response is the
+ * workspace's raw work. The graph the stage showed — built from the student's
+ * own table or equation, the window, the continuity choice, the domain's
+ * boundary rule — is rebuilt from the authoritative question and the other
+ * responses (workflowGraphStage.mjs resolveWorkflowGraphStages, the function
+ * WorkflowRunner renders it with), and the construction is marked against it
+ * by the shared graph-workspace grader, through the same bytes the workspace
+ * marks itself with. That verdict — complete, correct — is what gradeStage
+ * reads for the stage, exactly where it used to read the workspace's own
+ * claim, so the stage's credit, weight, completeness and graded flag follow
+ * the same rule as before (the credit stays all-or-nothing, as the claim it
+ * replaces was). A stage whose graph cannot be built (its source reopened, a
+ * table that disagrees with its function, no function at all) or that carries
+ * no work is unanswered.
  */
 import { gradedResult, ungradedResult } from '../gradingResult.mjs';
 import { buildToolResponse, isToolResponse, readToolWork } from '../toolResponseContract.mjs';
+import { gradeWorkWithGrader } from '../toolWorkGrading.mjs';
+import graphWorkspaceGrader from '../tools/graphWorkspace.mjs';
 import {
   COMPOSED_WORKFLOW_CONTRACT_VERSION,
   COMPOSED_WORKFLOW_TOOL_ID,
@@ -30,10 +47,50 @@ import {
 } from '../../toolMath/workflow/composedWorkflowContract.mjs';
 import { unsafeExpressionStage } from '../../toolMath/workflow/expressionSafety.mjs';
 import { activeStageIds } from '../../toolMath/workflow/questionWorkflow.mjs';
+import { resolveWorkflowGraphStages, workflowGraphStageWork } from '../../toolMath/workflow/workflowGraphStage.mjs';
+import { WORKFLOW_ARTIFACT } from '../../toolMath/workflow/workflowStageWork.mjs';
 import { gradeWorkflow } from '../../toolMath/workflow/workflowGrading.mjs';
 
 const text = (value) => String(value ?? '');
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+/**
+ * The verdict of one graph-construction stage, as gradeStage reads it: the
+ * shared graph-workspace grader's mark of the stage's work against the
+ * rebuilt sub-question, in the shape the workspace's own report took
+ * (answerStateFromSharedGrading: complete and correct only when graded).
+ * null when the stage is unanswered — no buildable graph, or no work.
+ */
+const graphStageVerdict = (resolution, response) => {
+  const work = workflowGraphStageWork(response);
+  if (resolution?.status !== 'ready' || !work) return null;
+  const marked = gradeWorkWithGrader({ grader: graphWorkspaceGrader, question: resolution.question, work });
+  const graded = marked.graded === true;
+  return {
+    [WORKFLOW_ARTIFACT]: 'graph',
+    isComplete: graded && marked.isComplete === true,
+    isCorrect: graded && marked.isCorrect === true,
+  };
+};
+
+/**
+ * The responses gradeWorkflow marks: the student's, with every graph stage the
+ * student is on replaced by the server's own verdict on its work.
+ */
+const withGraphStageVerdicts = ({ composed, responses }) => {
+  const graphStages = resolveWorkflowGraphStages({
+    workflow: composed.workflow,
+    content: composed.content,
+    grading: composed.grading,
+    responses,
+  });
+  if (!graphStages.size) return responses;
+  const marking = { ...responses };
+  graphStages.forEach((resolution, stageId) => {
+    marking[stageId] = graphStageVerdict(resolution, responses[stageId]);
+  });
+  return marking;
+};
 
 /**
  * Mark normalized work (`{ responses }`) against the authoritative question.
@@ -60,7 +117,11 @@ export const gradeComposedWorkflowWork = (question, work) => {
     active: activeStageIds(composed.workflow, responses),
   });
   if (unsafeStage) return ungradedResult('unsafe-expression', { mode: support.mode, detail: `stage:${unsafeStage}`.slice(0, 120) });
-  const marked = gradeWorkflow({ stages: composed.workflow, responses, grading: composed.grading });
+  const marked = gradeWorkflow({
+    stages: composed.workflow,
+    responses: withGraphStageVerdicts({ composed, responses }),
+    grading: composed.grading,
+  });
   const percent = Number(marked.partialCreditPercent);
   return {
     ...gradedResult({

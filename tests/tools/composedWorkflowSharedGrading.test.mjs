@@ -19,10 +19,11 @@
  *   - that the browser path and the server path (gradeServerResponse over
  *     the serialized response) agree exactly, and that the answer state
  *     WorkflowRunner reports is the attempt the server would record;
- *   - which questions the server declines, and why (graph-construction
- *     stages; keys the contract strips; unsafe student text; recipes that
- *     expand to nothing), plus the bare catalogued types and the
- *     per-student-generated fraction / numberLine;
+ *   - which questions the server declines, and why (keys the contract
+ *     strips; unsafe student text; recipes that expand to nothing), plus the
+ *     bare catalogued types and the per-student-generated fraction /
+ *     numberLine. Graph-construction stages are no longer a reason: they are
+ *     re-marked from the workspace's work (composedWorkflowGraphStages.test.mjs);
  *   - that tampered or malformed work never crashes and never earns credit,
  *     and that answer-key material never travels as work.
  */
@@ -234,7 +235,8 @@ const KEYED_TABLE_RIGHT = Object.freeze({
   interval: '(-\\infty,3]',
 });
 
-// Graph-construction stages: marked inside InteractiveGraphWorkspace.
+// Graph-construction stages: re-marked from the workspace's work against the
+// graph rebuilt from the student's earlier stages.
 const PLOTTED = Object.freeze({ ...FEATURES, recipe: 'functionCharacteristics' });
 const GRAPHED_MODEL = Object.freeze({
   ...MODELING,
@@ -334,33 +336,32 @@ test('the server reads the workflow exactly as WorkflowRunner renders it (mode r
   assert.equal(composedWorkflowSupport({ ...RELATION, recipe: { ask: ['domain'] } }).mode, 'recipe:relationRepresentations');
 });
 
-test('a graph-construction stage keeps the workflow on the device, with the precise blocker', () => {
+test('a graph-construction stage no longer keeps the workflow on the device: its claim is replaced by a re-mark', () => {
   [PLOTTED, GRAPHED_MODEL].forEach((question) => {
     const kinds = readComposedQuestion(question).workflow.map((stage) => stage.kind);
     assert.ok(kinds.includes('coordinatePlot') || kinds.includes('functionGraph'));
     const support = serverResponseGradingSupport(question);
-    assert.equal(support.supported, false);
-    assert.equal(support.reason, 'graph-construction-stage');
-    assert.equal(support.authority, GRADING_AUTHORITY.CLIENT_GRADED);
-    assert.equal(support.blocker, COMPOSED_WORKFLOW_BLOCKERS.graphStage);
-    // The precise reason: the sub-question is assembled in the React runner,
-    // and the stage mark is the workspace's own (stripped) claim.
-    assert.match(support.blocker, /WorkflowRunner\.jsx/);
-    assert.match(support.blocker, /useStageVerdict/);
+    assert.equal(support.supported, true, support.reason);
+    assert.equal(support.authority, GRADING_AUTHORITY.SHARED_SERVER);
+    assert.equal(composedWorkflowDeclaration.supports(question).supported, true);
   });
-  // The reason is real: the stage's verdict is the workspace's own claim,
-  // which the response contract strips — so the server could not reproduce it.
+  assert.equal('graphStage' in COMPOSED_WORKFLOW_BLOCKERS, false, 'no graph blocker is left to report');
+  // The workspace's own verdict is not student work and is never believed: a
+  // plot artifact claiming to be right, with no construction behind it, is an
+  // unanswered stage on both paths — where the device used to count it.
   const plot = { [ARTIFACT]: 'graph', isComplete: true, isCorrect: true, partialCreditPercent: 100, parts: [{ id: 'p1', isCorrect: true }], responseKey: '{"construction":{}}' };
   assert.deepEqual(composedWorkflowStageWork(plot), { [ARTIFACT]: 'graph', isComplete: true });
   const local = deviceMarking(PLOTTED, { ...FEATURES_RIGHT, plot });
-  assert.equal(verdicts(local).plot, true, 'on the device the workspace verdict marks the plot');
-  assert.equal(gradeComposedWorkflowCheck(PLOTTED, composedWorkflowWork({ ...FEATURES_RIGHT, plot })).graded, false);
-  // ...and the browser keeps marking it exactly as before, with the work attached.
+  assert.equal(verdicts(local).plot, true, 'on the device the workspace verdict marked the plot');
+  const { server } = bothPaths(PLOTTED, { ...FEATURES_RIGHT, plot });
+  const part = server.parts.find((entry) => entry.id === 'plot');
+  assert.deepEqual([part.isComplete, part.isCorrect, part.credit], [false, false, 0]);
+  // ...and the browser reports exactly that.
   const state = runnerState(PLOTTED, { ...FEATURES_RIGHT, plot });
-  assert.equal(state.isCorrect, local.isCorrect);
-  assert.equal(state.partialCreditPercent, local.partialCreditPercent);
-  assert.equal(state.responseKey, local.responseKey);
+  assert.equal(state.isCorrect, false);
+  assert.equal(state.isComplete, false);
   assert.equal(state.toolResponse.toolId, 'composedWorkflow');
+  assert.equal(state.responseKey, state.toolResponse.value);
 });
 
 test('a stage, figure or cell key the response contract would strip keeps the question on the device', () => {
@@ -922,11 +923,14 @@ test('WorkflowRunner reports its answer state through the shared grader, never i
   const runner = executableSource(read('src/platform/workflow/WorkflowRunner.jsx'));
   const effect = region(runner, 'onStateChangeRef.current?.(', '}, [responses]);', 'state-reporting effect');
   assert.match(effect, /buildWorkflowAnswerState\(\{[\s\S]*question:[\s\S]*stages:[\s\S]*responses[\s\S]*grading:/);
-  assert.match(runner, /import \{ buildWorkflowAnswerState \} from '\.\/workflowAnswerState\.js';/);
+  assert.match(runner, /import \{[^}]*\bbuildWorkflowAnswerState\b[^}]*\} from '\.\/workflowAnswerState\.js';/);
   assert.doesNotMatch(runner, /gradeWorkflow\s*\(/, 'no verdict is computed in the runner itself');
 
   const answerState = executableSource(read('src/platform/workflow/workflowAnswerState.js'));
-  assert.match(answerState, /gradeComposedWorkflowCheck\(question, composedWorkflowWork\(responses\)\)/);
+  // The check is given the student's responses as composed work (an old
+  // draft's graph artifact upgraded first; composedWorkflowGraphStages.test.mjs).
+  assert.match(answerState, /gradeComposedWorkflowCheck\(question, workflowWork\(responses\)\)/);
+  assert.match(answerState, /const workflowWork = \(responses\) => composedWorkflowWork\(upgradeLegacyGraphResponses\(responses\)\);/);
   assert.match(answerState, /answerStateFromSharedGrading\(check/);
 
   // The table a student fills is the table the grader requires to be filled.

@@ -116,12 +116,28 @@ test('the student app entry never statically imports the shared grader map', () 
   const gradersImportedBy = (importer) => [...graph.entries()]
     .filter(([file, from]) => from === importer && isGraderFile(file)).length;
   const toolGraderFiles = [...graph.keys()].filter(isGraderFile);
+  // A composed workflow re-marks its graph stages with the graph workspace's
+  // own grader. That grader is on the startup path anyway, through its own
+  // component (WorkflowRunner renders InteractiveGraphWorkspace), so the
+  // composed grader adds no bytes — and the exemption holds only while the
+  // component still imports exactly that grader statically.
+  const STAGE_GRADERS = [{
+    importer: path.join(ROOT, 'functions/shared/serverGrading/questionGraders/composedWorkflow.mjs'),
+    grader: path.join(ROOT, 'functions/shared/serverGrading/tools/graphWorkspace.mjs'),
+    component: path.join(ROOT, 'src/InteractiveGraphWorkspace.jsx'),
+  }];
+  const importsStatically = (component, grader) => graph.has(component)
+    && staticSpecifiers(fs.readFileSync(component, 'utf8')).some((specifier) => resolveSpecifier(component, specifier) === grader);
+  STAGE_GRADERS.forEach(({ component, grader }) => {
+    assert.ok(importsStatically(component, grader), `${path.relative(ROOT, component)} no longer imports ${path.relative(ROOT, grader)} on the startup path; the composed-stage exemption no longer holds`);
+  });
   const viaSharedCode = toolGraderFiles.filter((file) => {
     let importer = graph.get(file);
     // Grader-internal imports (a tool grader composed of mode modules) are
     // followed back to whoever imported the grader itself.
     while (importer && isGraderFile(importer)) importer = graph.get(importer);
     if (!importer) return true;
+    if (STAGE_GRADERS.some((stage) => stage.importer === importer && stage.grader === file && importsStatically(stage.component, file))) return false;
     if (importer.startsWith(path.join(ROOT, 'src', 'tools') + path.sep)) return false;
     const ownComponent = importer.endsWith('.jsx') && !PLATFORM_SHELLS.has(importer) && gradersImportedBy(importer) === 1;
     return !ownComponent;

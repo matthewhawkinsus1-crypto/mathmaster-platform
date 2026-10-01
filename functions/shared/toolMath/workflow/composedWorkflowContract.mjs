@@ -13,25 +13,27 @@
  * sides: serverGrading/questionGraders/composedWorkflow.mjs.
  *
  * WORK IS STUDENT WORK. A delegated stage reports a status object, and some of
- * that is not the student's: a graph stage's `isCorrect`, `parts` and
- * `partialCreditPercent` are InteractiveGraphWorkspace's own verdict; a table's
- * `sourceFunctionSpec` is the AUTHORED function (answer-key material), and its
- * `sourceConsistent` / `sourceChecked` / `points` are values derived by the
- * browser. composedWorkflowStageWork keeps only what the student did.
+ * that is not the student's: a graph stage's `isCorrect` (and, in an old
+ * draft, `parts` and `responseKey`) are InteractiveGraphWorkspace's own
+ * verdict; a table's `sourceFunctionSpec` is the AUTHORED function
+ * (answer-key material), and its `sourceConsistent` / `sourceChecked` /
+ * `points` are values derived by the browser. composedWorkflowStageWork keeps
+ * only what the student did — for a graph stage, the workspace's raw
+ * construction and analysis, which the grader re-marks against the graph it
+ * rebuilds from the student's earlier stages (workflowGraphStage.mjs).
  *
  * WHICH QUESTIONS ARE MARKED ON THE SERVER (composedWorkflowSupport): every
- * stage the grader marks must be markable from that work alone. Two things
- * keep a question on the device, each with its exact reason:
+ * stage the grader marks must be markable from that work alone. One thing
+ * keeps a question on the device, with its exact reason: a stage, figure or
+ * table-cell key the contract would strip or bound (a verdict / answer-key
+ * name, a prototype key, an over-long key), so that stage's work could not
+ * reach the server intact.
  *
- *   - a graph-construction stage (coordinatePlot / functionGraph). The graph
- *     workspace marks it against a sub-question WorkflowRunner.jsx's graph
- *     delegates (React) assemble from the student's earlier stages; the
- *     workflow keeps only that workspace's own claim (`useStageVerdict`),
- *     which the contract strips as a verdict, and the construction travels
- *     only as one opaque string. Its completeness is the same claim.
- *   - a stage, figure or table-cell key the contract would strip or bound
- *     (a verdict / answer-key name, a prototype key, an over-long key), so
- *     that stage's work could not reach the server intact.
+ * Graph-construction stages (coordinatePlot / functionGraph) no longer keep a
+ * workflow on the device: the sub-question the graph delegates render is a
+ * pure function of the question and the work (workflowGraphStage.mjs), the
+ * browser renders it from the same bounded work the server reads, and the
+ * construction travels as the workspace's own bounded work.
  *
  * Light and pure: no mathjs, no React. The grading manifest's declaration
  * (serverGrading/declarations/types/composedWorkflow.mjs) imports it.
@@ -45,20 +47,13 @@ import { WORKFLOW_ARTIFACT, isWorkflowArtifact, workflowTableLayout } from './wo
 export const COMPOSED_WORKFLOW_TOOL_ID = 'composedWorkflow';
 export const COMPOSED_WORKFLOW_CONTRACT_VERSION = 1;
 
-/** Stages rendered by InteractiveGraphWorkspace (WorkflowRunner DELEGATES). */
+/*
+ * Stages rendered by InteractiveGraphWorkspace (WorkflowRunner DELEGATES). Their
+ * sub-question is built, on both sides, by workflowGraphStage.mjs.
+ */
 export const GRAPH_CONSTRUCTION_STAGE_KINDS = Object.freeze(['coordinatePlot', 'functionGraph']);
 
 export const COMPOSED_WORKFLOW_BLOCKERS = Object.freeze({
-  graphStage: "Its graph-building step is marked against a graph the browser assembles from the student's earlier "
-    + 'steps, which the server cannot rebuild yet. A composed workflow with a graph-construction stage '
-    + '(coordinatePlot or functionGraph) is graded on the device: the graph workspace marks that stage against a '
-    + "sub-question that WorkflowRunner.jsx's graph delegates (React) assemble at render time from the student's "
-    + 'table points and their consistency with the function the student wrote, the continuity choice, the authored '
-    + 'window and domain restriction, and the snap targets. The workflow then keeps only that workspace\'s own '
-    + 'isCorrect / partialCreditPercent / isComplete claim (gradeStage\'s useStageVerdict branch), which the response '
-    + 'contract strips, and the construction itself (placements, strokes, camera, end markers) travels only inside '
-    + 'one JSON string the composed contract does not carry. The server can neither rebuild that sub-question nor '
-    + 're-mark the construction until both are pure shared modules.',
   unsafeKey: "One of its step, figure or table-cell names is a word the grading contract reserves, so that work "
     + "cannot reach the server intact. A stage id, figure id or table-cell key in this composed workflow is"
     + " one the tool-response contract strips or bounds (a verdict or answer-key name such as `score` or "
@@ -130,18 +125,6 @@ export const resolveComposedWorkflow = (question) => {
     };
   }
   const mode = modeOf(composed);
-  if (composed.workflow.some((stage) => GRAPH_CONSTRUCTION_STAGE_KINDS.includes(stage?.kind))) {
-    return {
-      composed,
-      support: {
-        supported: false,
-        reason: 'graph-construction-stage',
-        mode,
-        authority: GRADING_AUTHORITY.CLIENT_GRADED,
-        blocker: COMPOSED_WORKFLOW_BLOCKERS.graphStage,
-      },
-    };
-  }
   if (!workKeysFit(composed.workflow)) {
     return {
       composed,
@@ -167,10 +150,17 @@ export const composedWorkflowSupport = (question) => resolveComposedWorkflow(que
  * axis setup, quantity roles) are already only the student's. Three delegated
  * artifacts carry more than that, and keep only the fields the grader reads:
  *
- *   graph             its kind and completeness claim; never the workspace's
- *                     verdict (`isCorrect`, `parts`, `partialCreditPercent`)
- *                     or its raw construction JSON (unbounded, and read by no
- *                     grader — a graph stage is graded on the device)
+ *   graph             its kind, the completeness claim the runner unlocks the
+ *                     next step with (read by no grader), and the workspace's
+ *                     raw work — `construction` (placements, the commits, the
+ *                     strokes with their camera, the end markers) and
+ *                     `analysis` — already bounded by the workspace
+ *                     (graphWorkspaceModel.mjs normalizeGraphWorkspaceWork).
+ *                     Never the workspace's verdict (`isCorrect`, `parts`,
+ *                     `partialCreditPercent`). An old draft's artifact with
+ *                     no `construction` carries no work: the runner upgrades
+ *                     it first (workflowGraphStage.mjs), and one it cannot
+ *                     read is marked unanswered.
  *   table             the cells, the completeness claim, and `sourceModel` —
  *                     the student's own equation the table was built from;
  *                     never `sourceFunctionSpec` (the authored function) or
@@ -187,7 +177,13 @@ export const composedWorkflowStageWork = (value) => {
   if (!isPlainObject(value) || !value[WORKFLOW_ARTIFACT]) return value;
   switch (value[WORKFLOW_ARTIFACT]) {
     case 'graph':
-      return { [WORKFLOW_ARTIFACT]: 'graph', isComplete: value.isComplete === true };
+      return {
+        [WORKFLOW_ARTIFACT]: 'graph',
+        isComplete: value.isComplete === true,
+        ...(isPlainObject(value.construction)
+          ? { construction: value.construction, analysis: isPlainObject(value.analysis) ? value.analysis : {} }
+          : {}),
+      };
     case 'table':
       return {
         [WORKFLOW_ARTIFACT]: 'table',
