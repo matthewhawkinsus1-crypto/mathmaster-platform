@@ -66,12 +66,17 @@ test('QuestionEngine hands every registry tool — standalone or inside a compos
     assert.match(tag, /\sonHintUsed=\{recordHintUse\}/);
     assert.match(tag, /\squestionTerminal=\{locked\}/);
   };
-  const registry = region(engine, 'if (missingToolDefinition) {', '</ToolRuntimeProvider>', 'the registry tool mount');
+  // Both mounts live in renderModule. (`if (isComposed) {` also opens a branch
+  // of performSubmit, earlier in the file; a region started there would read
+  // whatever provider comes next — such as the solvers' own, which follows
+  // showOutcomeFeedback alone — instead of the composed mount.)
+  const render = region(engine, 'const renderModule = () => {', null, 'renderModule');
+  const registry = region(render, 'if (missingToolDefinition) {', '</ToolRuntimeProvider>', 'the registry tool mount');
   governed(openingTag(registry));
   assert.match(registry, /<Tool questionData=\{presentationQuestion\}/);
 
   // A composed question mounts RelationMapping / IntervalNumberLine as stages.
-  const composed = region(engine, 'if (isComposed) {', '</ToolRuntimeProvider>', 'the composed question mount');
+  const composed = region(render, 'if (isComposed) {', '</ToolRuntimeProvider>', 'the composed question mount');
   governed(openingTag(composed));
   assert.match(composed, /<ToolRuntimeProvider\b[^>]*>\s*<WorkflowRunner\b/);
   // The provider must actually enclose the runner, not sit beside it.
@@ -113,7 +118,9 @@ for (const file of [
 ]) {
   test(`${path.basename(file)} publishes its hints-only Work View Help only where hints are allowed`, () => {
     const source = code(file);
-    assert.match(source, /import \{ useHintsAllowed \} from '\.\.\/shared\/ToolRuntimeContext';/);
+    // Other runtime hooks may come from the same import (the constraint
+    // builder also reads whether outcomes are shown); this one must.
+    assert.match(source, /import \{[^}]*\buseHintsAllowed\b[^}]*\} from '\.\.\/shared\/ToolRuntimeContext';/);
     assert.match(source, /\n\s*const hintsAllowed = useHintsAllowed\(\);/);
     const capabilities = region(source, 'const workspaceCapabilities', 'return (', 'the Work View capabilities');
     assert.match(capabilities, /\n\s*help: hintsAllowed \? \{/);
@@ -123,7 +130,9 @@ for (const file of [
 
 test('the systems workspace\'s embedded Step Algebra offers no strategic hint where hints are withheld', () => {
   const mode = code('src/tools/systemsWorkspace/AlgebraicSystemMode.jsx');
-  assert.match(mode, /import \{ useHintsAllowed \} from '\.\.\/shared\/ToolRuntimeContext';/);
+  // The same import also brings the outcome policy the 2×2 interpretation
+  // reads (systemsInterpretationOutcomePolicy.test.mjs).
+  assert.match(mode, /import \{[^}]*\buseHintsAllowed\b[^}]*\} from '\.\.\/shared\/ToolRuntimeContext';/);
   const embedded = region(mode, 'export function EmbeddedStepAlgebra', 'const hostRef', 'the embedded solver');
   assert.match(embedded, /\n\s*const hintsAllowed = useHintsAllowed\(\);/);
   assert.match(embedded, /\n\s*const offerHint = showHint && hintsAllowed;/);
@@ -176,8 +185,20 @@ test('a question\'s authored hints reach a student only through HintPanel or the
 test('the step-algebra solver\'s strategic hint follows the same permission, and opening it is recorded', () => {
   const core = code('src/StepByStepAlgebraCore.jsx');
   const signature = region(core, 'export default function StepByStepAlgebra({', '}) {', 'the solver props');
-  assert.match(signature, /\bhintsAllowed = true,/);
-  assert.match(signature, /\bonHintUsed = null,/);
+  // The props default to allowed / no recorder...
+  assert.match(signature, /\bhintsAllowed: hintsAllowedProp = true,/);
+  assert.match(signature, /\bonHintUsed: onHintUsedProp = null,/);
+  // ...and the permission the hint reads is the prop AND the activity's
+  // runtime context, so a host that passes no props (a composed question's
+  // algebra step) still follows the activity. The recorder falls back to the
+  // context's too. Outside any provider the context allows hints and has no
+  // recorder — the old default exactly.
+  const body = region(core, '}) {', 'const normalizedRecord', 'the solver body');
+  assert.match(core, /import \{ useHintsAllowed, useHintUseReporter \} from '\.\/tools\/shared\/ToolRuntimeContext';/);
+  assert.match(body, /\n\s*const contextHintsAllowed = useHintsAllowed\(\);/);
+  assert.match(body, /\n\s*const contextHintReporter = useHintUseReporter\(\);/);
+  assert.match(body, /\n\s*const hintsAllowed = hintsAllowedProp !== false && contextHintsAllowed;/);
+  assert.match(body, /\n\s*const onHintUsed = onHintUsedProp \|\| contextHintReporter;/);
   const hint = core.match(/\{([^{}\n]*)&& <details onToggle=\{\(event\) => \{ if \(event\.currentTarget\.open\) onHintUsed\?\.\(\); \}\}[^\n]*Need a strategic hint\?/);
   assert.ok(hint, 'the strategic hint reports when it is opened');
   assert.match(hint[1], /^hintsAllowed && /, 'and is not rendered at all where hints are withheld');

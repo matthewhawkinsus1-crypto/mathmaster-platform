@@ -15,6 +15,7 @@ import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { Panel, HintPanel, ResultPill } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
+import { useToolRuntimeContext } from '../shared/ToolRuntimeContext';
 import MathDisplay from '../../MathDisplay';
 import MathInput from '../../MathInput';
 import { classifyLinearSystem, exactNumberText, linearEquationForm } from './algebraicSystemsEngine.js';
@@ -22,7 +23,7 @@ import { advanceIdleCamera, clipPlaneToCube, cubeCorners, cubeEdges, idleOrbitPe
 import { gradeMultiAnswerResponse } from '../../../functions/shared/ordinaryResponseGrading.mjs';
 import './AlgebraicSystemMode.css';
 import './ThreePlaneWorkspace.css';
-import { spatialMisconceptionFeedback } from './spatialFeedback.js';
+import { earnedResultCaption, spatialMisconceptionFeedback, threePlaneRevealAvailable } from './spatialFeedback.js';
 
 const DEFAULT_VARIABLES = ['x', 'y', 'z'];
 const PLANE_COLORS = ['#1a73e8', '#ea4335', '#34a853'];
@@ -167,7 +168,11 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
   const markInteracted = useCallback(() => setHasInteracted(true), []);
   const [visiblePlanes, setVisiblePlanes] = usePersistentToolState('visiblePlanes', [true, true, true]);
   const [revealed, setRevealed] = usePersistentToolState('solutionRevealed', spatialModel.revealSolution === true);
-  const canReveal = !earnedResult && (spatialModel.revealSolution === true || spatialModel.allowSolutionReveal === true);
+  // A DOL, quiz or test never offers a student-pressed reveal, and the line
+  // under an earned model never names the true outcome there (see both
+  // helpers in spatialFeedback.js).
+  const { showImmediateFeedback, hintsAllowed } = useToolRuntimeContext();
+  const canReveal = threePlaneRevealAvailable({ earnedResult, spatialModel, showImmediateFeedback, hintsAllowed });
   const showResult = Boolean(earnedResult) || (canReveal && revealed);
   const shownType = earnedResult?.type || classification.type;
 
@@ -436,16 +441,19 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
                   system. "The three planes meet at exactly one point" was the
                   answer to the very question beside it, nearly word for word
                   (CW3, PR4, DOL2 — #361). */}
-              {shownType === 'unique'
-                ? `Point marked on the model: ${orderedTripleText(shownSolution, variables)}.`
+              {earnedResult
                 // An earned statement speaks of the student's own result — and
                 // still names no plane relationship: which planes coincide or
                 // are parallel is the student's next answer, not a caption (#392).
-                : shownType === 'none'
-                  ? (earnedResult ? 'Your contradiction means no point lies on all three planes. Rotate the model and hide or show each plane to see why.' : 'The three planes share no common point.')
-                  : shownType === 'infinite'
-                    ? (earnedResult ? 'Your identity means the planes share more than one point. Rotate the model and hide or show each plane to see what all three have in common.' : 'The three planes share infinitely many points.')
-                    : 'This system could not be classified.'}
+                // Where outcomes are withheld it names no outcome at all.
+                ? earnedResultCaption({ type: shownType, solutionText: shownType === 'unique' ? orderedTripleText(shownSolution, variables) : '', showImmediateFeedback })
+                : shownType === 'unique'
+                  ? `Point marked on the model: ${orderedTripleText(shownSolution, variables)}.`
+                  : shownType === 'none'
+                    ? 'The three planes share no common point.'
+                    : shownType === 'infinite'
+                      ? 'The three planes share infinitely many points.'
+                      : 'This system could not be classified.'}
             </p>
           ) : null}
         </div>

@@ -161,6 +161,27 @@ export const scoreConstraintModel = (model, constraints = []) => {
   return { isCorrect: parts.length > 0 && correctCount === parts.length, score: parts.length ? correctCount / parts.length : 0, parts };
 };
 
+/**
+ * THE CONSTRAINT CHECKLIST, AS THE STUDENT SEES IT WHILE BUILDING.
+ *
+ * Where the activity shows outcomes at once each constraint ticks green the
+ * moment the model satisfies it — a live target to build toward, which is the
+ * point of this tool in practice. But every constraint is a graded part, so on
+ * a DOL, quiz or test (`showImmediateFeedback` false) a live tick is a free
+ * answer key: nudge a parameter until every box is green, then submit. There
+ * the checklist lists what the model must satisfy, the same for every model,
+ * and the model is judged only when it is submitted.
+ */
+export const constraintChecklistView = ({ parts = [], showImmediateFeedback = true } = {}) => {
+  const verdictsShown = showImmediateFeedback !== false;
+  return (Array.isArray(parts) ? parts : []).map((part) => ({
+    id: part.id,
+    label: part.label,
+    satisfied: verdictsShown ? Boolean(part.isCorrect) : null,
+    mark: verdictsShown ? (part.isCorrect ? '✓' : '○') : '•',
+  }));
+};
+
 export const validateConstraintBuilderQuestion = (question = {}) => {
   const errors = [];
   const constraints = Array.isArray(question.constraints) ? question.constraints : [];

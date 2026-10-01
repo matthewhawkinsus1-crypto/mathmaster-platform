@@ -3,29 +3,33 @@ import MathDisplay from '../../MathDisplay';
 import ThreePlaneWorkspace from './ThreePlaneWorkspace.jsx';
 import {
   PLANE_RELATIONSHIP_OPTIONS,
-  describePlaneRelationships,
   planePairs,
-  planeRelationshipFeedback,
 } from './spatialFeedback.js';
 import {
   STATEMENT_KINDS,
   SYSTEM_MEANINGS,
-  classificationFeedback,
   emptyPlaneWork,
   planeTruthFor,
-  planeWorkEarned,
-  statementKindCorrect,
+  resolveInterpretationGate,
 } from './algebraicOutcomeModel.js';
 
 /**
  * The caller supplies only a statement produced by checked student work.
  *
  * For an identity or contradiction the student then (1) says what kind of
- * statement it is and what it means for the system, and (2) once that is
- * right, states how each pair of planes meets. The model never captions the
- * relationships for them (#392).
+ * statement it is and what it means for the system, and (2) states how each
+ * pair of planes meets. The model never captions the relationships for them
+ * (#392).
+ *
+ * Whether either check may say "right or wrong" is decided by the caller's
+ * `interpretation` (resolveInterpretationGate in algebraicOutcomeModel.js),
+ * because the caller also decides from it when the question can be submitted
+ * and how it is graded: where the activity shows outcomes at once a
+ * classification is recorded only once the statement is read right and the
+ * planes stay open until they are right; on a DOL, quiz or test each check
+ * only records the student's answer and the next step opens regardless.
  */
-export default function AlgebraicOutcome({ outcome, classified, onClassify, questionData, solution = null, planeWork = null, onPlaneWorkChange = null, onAction = null }) {
+export default function AlgebraicOutcome({ outcome, classified, onClassify, questionData, solution = null, planeWork = null, onPlaneWorkChange = null, onAction = null, interpretation = null }) {
   const [kind, setKind] = useState('');
   const [choice, setChoice] = useState('');
   const [attempted, setAttempted] = useState(false);
@@ -34,18 +38,22 @@ export default function AlgebraicOutcome({ outcome, classified, onClassify, ques
 
   const truth = useMemo(() => planeTruthFor(questionData), [questionData]);
   const planes = planeWork || emptyPlaneWork();
+  // A caller with no statement to interpret (the substitution route's 3D
+  // connection) passes no gate; it only ever needs the model.
+  const gate = interpretation || resolveInterpretationGate({ outcome, questionData, planeWork });
   const askPlanes = Boolean(outcome && classified && onPlaneWorkChange && Object.keys(truth).length === 3);
-  const planesEarned = askPlanes && planeWorkEarned(planes, questionData);
-  const planeHint = askPlanes && planes.checked && !planesEarned ? planeRelationshipFeedback(planes.answers, truth) : null;
+  const planesDone = askPlanes && gate.planesDone;
+  const planeHint = askPlanes ? gate.planeHint : null;
 
   const submitClassification = (event) => {
     event.preventDefault();
     setAttempted(true);
-    // Only a correct reading of the statement is recorded as a classification;
-    // a wrong one stays here with its nudge and never unlocks the model.
-    if (statementKindCorrect(outcome, kind)) onClassify(choice);
+    // Where outcomes are shown only a correct reading of the statement is
+    // recorded; a wrong one stays here with its nudge and never unlocks the
+    // model. Where they are withheld the answer is recorded as chosen.
+    if (gate.recordsClassification(kind, choice)) onClassify(choice, kind);
   };
-  const hint = attempted ? classificationFeedback(outcome, kind, choice) : null;
+  const hint = attempted ? gate.classificationHint(kind, choice) : null;
 
   return <section className="mathmaster-algebraic-outcome" aria-label="Interpret your algebraic result">
     {outcome ? <>
@@ -66,7 +74,7 @@ export default function AlgebraicOutcome({ outcome, classified, onClassify, ques
         </label>
         <button type="submit" disabled={!kind || !choice}>Check my classification</button>
         {hint ? <p role="status">{hint}</p> : null}
-      </form> : <p role="status">Your classification: {outcome.type === 'infinite' ? 'an identity; consistent and dependent; infinitely many solutions' : 'a contradiction; inconsistent; no solution'}.</p>}
+      </form> : <p role="status">{gate.classificationSummary}</p>}
     </> : null}
     {earned ? <button type="button" onClick={() => setShowModel((value) => !value)}>{showModel ? 'Hide 3D connection' : 'Connect my result to 3D'}</button> : null}
     {earned && showModel ? <ThreePlaneWorkspace
@@ -78,7 +86,7 @@ export default function AlgebraicOutcome({ outcome, classified, onClassify, ques
     /> : null}
     {askPlanes ? <fieldset className="mathmaster-algebraic-outcome-planes" data-stage="plane-relationships">
       <legend>How do the planes meet? Use the model or compare the coefficients and constants.</legend>
-      {planesEarned ? <p role="status">Your plane relationships: {describePlaneRelationships(planes.answers).join(' ')}</p> : <>
+      {planesDone ? <p role="status">{gate.planeSummary}</p> : <>
         {planePairs(3).map(({ id, first, second }) => <label key={id}>Planes {first} and {second}
           <select
             aria-label={`How Planes ${first} and ${second} meet`}

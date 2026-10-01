@@ -1,5 +1,6 @@
 import { parse } from 'mathjs';
 import { latexToExpression } from '../../algebraAstEngine.js';
+import { compareOrderedPair, parseOrderedPair } from '../../answerUtils.js';
 import { nearlyEqual, round } from '../shared/toolMath.js';
 import {
   formatFraction,
@@ -245,6 +246,65 @@ export const shouldShowConceptRedirect = (stage, kind, feedbackTiming = 'delayed
   if (feedbackTiming === 'guided') return true;
   if (feedbackTiming === 'delayed') return (stage?.workHistory?.length || 0) >= 1;
   return false;
+};
+
+/*
+ * WHAT "CHECK x-INTERCEPT" DOES WITH THE POINT THE STUDENT WROTE.
+ *
+ * Where the activity shows outcomes at once (practice, warm-up, classwork)
+ * the check is a verdict: only the right point completes the intercept, a
+ * wrong one is named as wrong ("That point does not match this equation…",
+ * "an x-intercept … its y-coordinate is 0") and costs nothing, and a right one
+ * earns its step credit. That is the same behaviour practice always had.
+ *
+ * On a DOL, quiz or test (QuestionEngine's showOutcomeFeedback false →
+ * `revealCorrectness` false) that free, repeatable check is an answer key. So
+ * there any readable ordered pair is RECORDED — right or wrong, in the same
+ * words — and the workflow moves on; nothing earns step credit before Submit
+ * (credit that arrived only for a right point would itself be the verdict, in
+ * the "% partial credit so far" line); and the point is graded when the
+ * question is submitted (interceptCompletionPayload). Only an unreadable entry
+ * is turned back, and that says nothing about correctness.
+ */
+export const resolveInterceptCheck = ({ revealCorrectness = true, kind = 'x', point = '', expectedPoint = null } = {}) => {
+  const pair = parseOrderedPair(point);
+  const isCorrect = Boolean(pair && expectedPoint && compareOrderedPair(point, expectedPoint, 1e-6));
+  if (!pair) {
+    return { completes: false, isCorrect: false, earnsStepCredit: false, message: 'Enter the intercept as an ordered pair, such as (3, 0).' };
+  }
+  if (revealCorrectness === false) return { completes: true, isCorrect, earnsStepCredit: false, message: '' };
+  if (isCorrect) return { completes: true, isCorrect: true, earnsStepCredit: true, message: '' };
+  let message = 'That point does not match this equation. Recheck the value you solved for.';
+  if (kind === 'x' && Math.abs(pair[1]) > 1e-6) message = 'An x-intercept is a point on the x-axis, so its y-coordinate is 0.';
+  else if (kind === 'y' && Math.abs(pair[0]) > 1e-6) message = 'A y-intercept is a point on the y-axis, so its x-coordinate is 0.';
+  return { completes: false, isCorrect: false, earnsStepCredit: false, message };
+};
+
+/*
+ * WHAT THE HOST IS TOLD ONCE BOTH INTERCEPTS ARE IN.
+ *
+ * Each part is graded against the equation's own intercept — never assumed.
+ * In practice only a right point can complete, so every part is right there
+ * (exactly what this always reported); on a DOL, quiz or test a recorded
+ * point can be wrong, and the submitted attempt has to say so: that part is
+ * complete and wrong, earns nothing, and the question is not correct.
+ */
+export const interceptCompletionPayload = (finishedWork, standard) => {
+  const partFor = (kind) => {
+    const point = finishedWork?.[kind]?.point ?? '';
+    const expected = expectedInterceptPoint(standard, kind);
+    const isCorrect = Boolean(parseOrderedPair(point) && expected && compareOrderedPair(point, expected, 1e-6));
+    const label = kind === 'x' ? 'x-intercept' : 'y-intercept';
+    return { id: label, label, isComplete: true, isCorrect, response: point };
+  };
+  const parts = [partFor('x'), partFor('y')];
+  return {
+    isComplete: true,
+    isCorrect: parts.every((part) => part.isCorrect),
+    questionDetails: `x-intercept ${finishedWork?.x?.point ?? ''}, y-intercept ${finishedWork?.y?.point ?? ''}`,
+    responseKey: JSON.stringify({ x: parseOrderedPair(finishedWork?.x?.point), y: parseOrderedPair(finishedWork?.y?.point) }),
+    parts,
+  };
 };
 
 export const conceptualRedirect = (kind) => {

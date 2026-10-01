@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 import { parseNumericAnswer } from '../../src/tools/shared/toolMath.js';
+import { resolveInequalityBuildGate } from '../../src/tools/systemsWorkspace/inequalityBuildPolicy.js';
 
 const source = componentSource('src/tools/systemsWorkspace/SystemsWorkspace.jsx');
 const executable = executableSource(source);
@@ -45,21 +46,44 @@ test('solid/dashed and shading feedback stays neutral on the first miss, per the
   assert.match(executable, /Use a test point or compare the inequality to its boundary\./);
 });
 
+// The decisions below live in resolveInequalityBuildGate (inequalityBuildPolicy.js)
+// since the DOL / quiz / test fix: there a step counts once it is FINISHED and
+// nothing is a verdict (inequalityBuildOutcomePolicy.test.mjs). Where outcomes
+// are shown — practice, warm-up, classwork — they are exactly what these tests
+// always protected.
+const practiceGate = (overrides = {}) => resolveInequalityBuildGate({
+  showImmediateFeedback: true,
+  buildConfig: { boundary: true, lineStyle: true, shading: true },
+  build: [{ boundaryAttempts: 1, styleAttempts: 1, shadeAttempts: 1 }],
+  constraintCount: 1,
+  rewriteVerified: () => true,
+  stepCorrect: () => true,
+  stepFinished: () => true,
+  ...overrides,
+});
+
 test('progress checkmarks and Combine remain locked until the student explicitly checks each enabled construction step', () => {
+  // Right but unchecked work ticks nothing and opens nothing.
+  const unchecked = practiceGate({ build: [{ boundaryAttempts: 1, styleAttempts: 0, shadeAttempts: 1 }] });
+  assert.equal(unchecked.stepDone(0, 'boundary'), true);
+  assert.equal(unchecked.stepDone(0, 'lineStyle'), false, 'the line style was never checked');
+  assert.equal(unchecked.allConstraintsDone, false);
+  assert.equal(practiceGate().allConstraintsDone, true);
   const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
-  assert.match(mode, /const boundaryVerified = .*boundaryAttempts > 0/);
-  assert.match(mode, /const styleVerified = .*styleAttempts > 0/);
-  assert.match(mode, /const shadeVerified = .*shadeAttempts > 0/);
+  assert.match(mode, /const boundaryVerified = \(index\) => buildGate\.stepDone\(index, 'boundary'\);/);
+  assert.match(mode, /const styleVerified = \(index\) => buildGate\.stepDone\(index, 'lineStyle'\);/);
+  assert.match(mode, /const shadeVerified = \(index\) => buildGate\.stepDone\(index, 'shading'\);/);
   assert.match(mode, /const rewriteVerified = .*verifiedConstraint/);
-  assert.match(mode, /every\(constraintVerified\)/);
-  assert.match(mode, /Boundary \{buildConfig\.boundary \? \(boundaryVerified/);
+  assert.match(mode, /const allConstraintsComplete = buildGate\.allConstraintsDone;/);
+  assert.match(mode, /Boundary \{buildConfig\.boundary \? stepChip\(boundaryVerified\(index\)\)\.mark/);
 });
 
 test('the combined region is locked until every constraint is individually correct, and never renders early', () => {
+  assert.equal(practiceGate({ stepCorrect: (index, step) => step !== 'shading' }).allConstraintsDone, false, 'one wrong step keeps the overlap locked');
+  assert.equal(practiceGate({ constraintCount: 0, build: [] }).allConstraintsDone, false, 'no constraints, no overlap');
   const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
   assert.match(mode, /disabled=\{!allConstraintsComplete\}/, 'Find overlap / Combine regions must be disabled until every constraint checks out.');
   assert.match(mode, /combined\s*&&\s*studentPolygon\.length\s*>=\s*3/, 'the combined polygon must only render after the student explicitly combines, never before.');
-  assert.match(mode, /allConstraintsComplete\s*=\s*constraintCount\s*>\s*0\s*&&/);
 });
 
 test('blank yes/no answers cannot earn accidental credit and requested vertex work requires full vertex coverage', () => {
@@ -204,10 +228,18 @@ test('completed rewrites display a clean slope-intercept inequality instead of t
 });
 
 test('rewrite-only work requires verified rewrite evidence and shows it in collapsed progress', () => {
+  // A constraint whose rewrite is not verified is neither done nor graded
+  // right, whatever else is built — under either policy.
+  for (const showImmediateFeedback of [true, false]) {
+    const gate = practiceGate({ showImmediateFeedback, rewriteVerified: () => false });
+    assert.equal(gate.constraintDone(0), false, `${showImmediateFeedback}`);
+    assert.equal(gate.constraintCorrect(0), false, `${showImmediateFeedback}`);
+  }
   const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
-  assert.match(mode, /constraintVerified = \(index\) => rewriteVerified\(index\)/);
+  const gate = region(mode, 'const buildGate = resolveInequalityBuildGate({', '});', 'build gate');
+  assert.match(gate, /\n\s*rewriteVerified,/);
   assert.match(mode, /rewriteVerified: buildConfig\.rewrite \? rewriteVerified\(index\) : null/);
-  assert.match(mode, /Rewrite \{buildConfig\.rewrite \? \(rewriteVerified\(index\) \? '✓' : '…'\) : 'provided'\}/);
+  assert.match(mode, /Rewrite \{buildConfig\.rewrite \? stepChip\(rewriteVerified\(index\)\)\.mark : 'provided'\}/);
 });
 
 test('the student-build workspace is wired into Work View with undo, point editing, and a primary check action', () => {

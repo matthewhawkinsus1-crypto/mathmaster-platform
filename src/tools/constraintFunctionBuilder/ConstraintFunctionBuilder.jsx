@@ -5,10 +5,11 @@ import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workVie
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useHintsAllowed } from '../shared/ToolRuntimeContext';
+import { useHintsAllowed, useToolRuntimeContext } from '../shared/ToolRuntimeContext';
 import {
   BUILDER_FAMILIES,
   builderEquation,
+  constraintChecklistView,
   evaluateBuilderModel,
   normalizeBuilderModel,
   scoreConstraintModel,
@@ -73,6 +74,9 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
     : [];
   const verticalLines = model.family === 'verticalLine' ? [model.verticalX] : [];
   const liveScore = scoreConstraintModel(model, effectiveConstraints);
+  // Live ticks only where outcomes are shown at once (constraintChecklistView).
+  const { showImmediateFeedback } = useToolRuntimeContext();
+  const checklist = constraintChecklistView({ parts: liveScore.parts, showImmediateFeedback });
 
   /*
    * UNIVERSAL UNDO OVER THE CONSTRUCTED MODEL.
@@ -137,7 +141,9 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
         steps={[
           'Read the characteristics first — identify which families are even possible.',
           'Choose a family, then adjust the coefficients/parameters while watching the graph update.',
-          'Use the constraint checklist as a target, not as an answer key: it tells you which properties are satisfied, not what numbers to choose.',
+          showImmediateFeedback !== false
+            ? 'Use the constraint checklist as a target, not as an answer key: it tells you which properties are satisfied, not what numbers to choose.'
+            : 'Use the constraint checklist as your target: every characteristic on it must be true of your model. It is checked when you submit.',
           'Submit when every constraint is satisfied.',
         ]}
       />
@@ -177,8 +183,11 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
           <div style={{ marginTop: 15 }}>
             <strong style={{ display: 'block', marginBottom: 8 }}>Constraint checklist</strong>
             <div style={{ display: 'grid', gap: 7 }}>
-              {liveScore.parts.map((part) => <div key={part.id} style={{ padding: '8px 10px', borderRadius: 8, background: part.isCorrect ? '#e6f4ea' : '#f8f9fa', color: part.isCorrect ? '#137333' : '#5f6368', border: `1px solid ${part.isCorrect ? '#a8dab5' : '#d9e2f1'}`, fontWeight: 800 }}>{part.isCorrect ? '✓' : '○'} {part.label}</div>)}
+              {checklist.map((item) => <div key={item.id} data-constraint-satisfied={item.satisfied === null ? 'withheld' : String(item.satisfied)} style={{ padding: '8px 10px', borderRadius: 8, background: item.satisfied ? '#e6f4ea' : '#f8f9fa', color: item.satisfied ? '#137333' : '#5f6368', border: `1px solid ${item.satisfied ? '#a8dab5' : '#d9e2f1'}`, fontWeight: 800 }}>{item.mark} {item.label}</div>)}
             </div>
+            {checklist.length > 0 && checklist[0].satisfied === null ? (
+              <div style={{ marginTop: 7, fontSize: 12, color: '#5f6368' }}>Your model must satisfy every characteristic above. It is checked when you submit.</div>
+            ) : null}
           </div>
 
           <button

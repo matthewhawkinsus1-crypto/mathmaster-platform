@@ -4,7 +4,8 @@ import MathDisplay from './MathDisplay';
 import MathInput from './MathInput';
 import QuestionPrompt from './QuestionPrompt';
 import IntervalNumberLine from './tools/intervalNumberLine/IntervalNumberLine';
-import { inequalitySolutionRepresentationStages } from './platform/curriculum/inequalityRepresentationPolicy.js';
+import { useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
+import { inequalitySolutionRepresentationStages, solutionRepresentationStageStatus } from './platform/curriculum/inequalityRepresentationPolicy.js';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
 import { normalizeQuestionRecord } from './attemptPolicy';
 import {
@@ -637,6 +638,12 @@ export default function MultiRelationAlgebra({
 
   const [message, setMessage] = useState(null);
   const [representationCorrect, setRepresentationCorrect] = useState(null);
+  // The activity's policy, from the provider QuestionEngine mounts this solver
+  // in (defaults — outcomes shown, no hint recorder — anywhere else). False on
+  // a DOL, quiz or test: there the number-line stage below is recorded when
+  // the student checks it, not passed only once it is right.
+  const { showImmediateFeedback, onHintUsed: reportHintUse } = useToolRuntimeContext();
+  const representationsWithheld = showImmediateFeedback === false;
   const [candidateChecks, setCandidateChecks] = useState(() => initialCandidateChecksFor(draftKey));
 
   useEffect(() => {
@@ -734,11 +741,18 @@ export default function MultiRelationAlgebra({
   );
   const requireRepresentations = summary.kind === 'intervals' && solutionRepresentationAsk.length > 0;
   const requiresIntervalNotation = solutionRepresentationAsk.includes('interval');
+  // Where outcomes are shown the graph and notation must be RIGHT before the
+  // question is complete (the number line says "Correct" / "Not yet"). On a
+  // DOL, quiz or test that wait would be the verdict — Submit appearing only
+  // once the graph is right — so there the stage is complete once it has been
+  // checked, and its correctness is graded at submission.
+  const representationStage = solutionRepresentationStageStatus({ showImmediateFeedback, representationCorrect });
   const fullyComplete = !pendingRelationFlip
     && summary.solved
     && candidateVerificationComplete
-    && (!requireRepresentations || representationCorrect === true);
-  const fullyCorrect = fullyComplete && candidateVerificationCorrect;
+    && (!requireRepresentations || representationStage.done);
+  const fullyCorrect = fullyComplete && candidateVerificationCorrect
+    && (!requireRepresentations || representationStage.correct);
 
   useEffect(() => {
     const candidateDetail = requireCandidateVerification
@@ -2742,7 +2756,10 @@ export default function MultiRelationAlgebra({
             })}
           </div>
 
-          {disabled && candidateVerificationComplete && candidateVerificationCorrect && (
+          {/* Shown only when the candidates were judged right, so it is a
+              verdict: on a DOL, quiz or test the work is locked after Submit
+              but its outcome is still withheld. */}
+          {!representationsWithheld && disabled && candidateVerificationComplete && candidateVerificationCorrect && (
             <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: '#e6f4ea', color: '#137333', fontWeight: 800 }}>
               Verified solution{verifiedSolutions.length === 1 ? '' : 's'}: {verifiedSolutions.join(', ')}
             </div>
@@ -2793,8 +2810,19 @@ export default function MultiRelationAlgebra({
               if (action === 'ATTEMPT_SUBMITTED') {
                 setRepresentationCorrect(Boolean(payload?.isCorrect));
               }
+              // A hint revealed in the number line is help like any other:
+              // report it to the activity's hint recorder (none outside one).
+              if (action === 'HINT_USED') reportHintUse?.();
             }}
           />
+          {representationStage.recordedNotice ? (
+            // The same line for a right and a wrong graph.
+            <p role="status" data-representation-recorded="true" style={{ margin: '10px 0 0', color: '#174ea6', fontSize: 13, fontWeight: 700 }}>
+              {requiresIntervalNotation
+                ? 'Your graph and interval notation are recorded. They are graded when you submit — if you change either, press Check again.'
+                : 'Your graph is recorded. It is graded when you submit — if you change it, press Check again.'}
+            </p>
+          ) : null}
         </div>
       )}
     </section>

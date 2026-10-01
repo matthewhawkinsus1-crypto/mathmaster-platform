@@ -107,7 +107,25 @@ test('three-plane visualizer includes explicit depth and orientation cues', () =
   assert.match(css, /\.mathmaster-threeplane-plane-label/);
 });
 
-test('idle rotation does not alter reveal timing', () => {
-  assert.match(source, /const canReveal = !earnedResult && \(spatialModel\.revealSolution === true \|\| spatialModel\.allowSolutionReveal === true\)/);
+test('idle rotation does not alter reveal timing', async () => {
+  // Whether the reveal is offered is decided from the question, the earned
+  // result and the activity's policy — nothing about the camera or the orbit.
+  const canReveal = source.match(/\n\s*const canReveal = threePlaneRevealAvailable\(\{([^}]*)\}\);/);
+  assert.ok(canReveal, 'the reveal comes from threePlaneRevealAvailable');
+  assert.deepEqual(canReveal[1].split(',').map((name) => name.trim()).sort(), ['earnedResult', 'hintsAllowed', 'showImmediateFeedback', 'spatialModel']);
+  assert.doesNotMatch(canReveal[1], /camera|orbit|interact|motion/i);
+  // Where outcomes are shown it is exactly the rule it always was.
+  const { threePlaneRevealAvailable } = await import('../../src/tools/systemsWorkspace/spatialFeedback.js');
+  for (const earnedResult of [null, { type: 'none' }]) {
+    for (const revealSolution of [undefined, true]) {
+      for (const allowSolutionReveal of [undefined, true]) {
+        assert.equal(
+          threePlaneRevealAvailable({ earnedResult, spatialModel: { revealSolution, allowSolutionReveal } }),
+          !earnedResult && (revealSolution === true || allowSolutionReveal === true),
+          JSON.stringify({ earnedResult, revealSolution, allowSolutionReveal }),
+        );
+      }
+    }
+  }
   assert.match(source, /shownType !== 'unique' \|\| !showResult/);
 });

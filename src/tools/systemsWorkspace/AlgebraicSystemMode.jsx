@@ -5,7 +5,8 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey, useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
 import { Panel, ResultPill, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
-import { useHintsAllowed } from '../shared/ToolRuntimeContext';
+import { useHintsAllowed, useToolRuntimeContext } from '../shared/ToolRuntimeContext';
+import { resolveSpecialCaseReport } from './algebraicOutcomeModel.js';
 import { matchesNumericAnswer } from '../shared/toolMath';
 import MathDisplay from '../../MathDisplay';
 import MathInput from '../../MathInput';
@@ -484,6 +485,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   });
   const [firstSolved, setFirstSolved] = usePersistentToolState('firstSolved', { variable: null, value: null, expression: null });
   const [specialCase, setSpecialCase] = usePersistentToolState('specialCase', null);
+  // False on a DOL, quiz or test (resolveSpecialCaseReport).
+  const { showImmediateFeedback } = useToolRuntimeContext();
   // Inside a 3×3 only: the student's own simplification of a substituted
   // equation that has no variable left (#392). Keyed by that equation.
   const [storedStatementWork, setStatementWork] = usePersistentToolState('statementWork', emptyStatementWork);
@@ -1206,6 +1209,13 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     && specialCase.solutionsAnswer === (degenerateTruth.isTrue ? 'infinite' : 'none')
     && specialCase.classificationAnswer === (degenerateTruth.isTrue ? 'consistent-dependent' : 'inconsistent')
   );
+  // What the interpretation may show before Submit: a verdict where outcomes
+  // are shown at once, only "recorded" on a DOL, quiz or test.
+  const specialCaseReport = resolveSpecialCaseReport({
+    showImmediateFeedback,
+    answered: Boolean(specialCaseAnswered),
+    correct: Boolean(specialCaseCorrect),
+  });
 
   const readyToSubmit = isDegenerate ? Boolean(!subsystem && specialCaseAnswered) : Boolean(solution && (!config.requireVerification || allVerified));
 
@@ -1412,8 +1422,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
       {
         id: 'interpret',
         label: 'Interpret',
-        complete: Boolean(specialCaseCorrect),
-        summary: specialCaseCorrect
+        complete: specialCaseReport.stageComplete,
+        summary: specialCaseReport.showsCorrect
           ? (degenerateTruth?.isTrue ? 'Infinitely many solutions · consistent and dependent' : 'No solution · inconsistent')
           : '',
       },
@@ -1501,7 +1511,8 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   }, [
     effectiveMethod,
     isDegenerate,
-    specialCaseCorrect,
+    specialCaseReport.stageComplete,
+    specialCaseReport.showsCorrect,
     degenerateTruth,
     firstSolvedDone,
     firstSolved,
@@ -1806,13 +1817,18 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                     <option value="consistent-dependent">Consistent and dependent</option>
                   </select>
                 </Field>
-                {specialCaseAnswered ? (
+                {specialCaseReport.line?.kind === 'verdict' ? (
                   <p style={{ margin: 0, color: specialCaseCorrect ? '#137333' : '#a02020', fontSize: 13 }}>
                     {specialCaseCorrect
                       ? 'Correct interpretation.'
                       : (specialCase.isTrueAnswer === 'true') !== degenerateTruth.isTrue
                         ? `${formatLinearEquation(reduceCoefficients, variables)} is ${degenerateTruth.isTrue ? 'true' : 'false'} — check that statement again before deciding what it means for the system.`
                         : '0 = 0 is a true statement; a false statement like -4 = 8 means the system has no solution. Re-check the number of solutions and the classification together.'}
+                  </p>
+                ) : specialCaseReport.line?.kind === 'recorded' ? (
+                  // A DOL, quiz or test: the same line for every answer.
+                  <p role="status" data-interpretation-recorded="true" style={{ margin: 0, color: '#174ea6', fontSize: 13 }}>
+                    Your interpretation is recorded. It is graded when you submit.
                   </p>
                 ) : null}
               </div>
@@ -2063,7 +2079,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
             </div>
           ) : null}
           {isDegenerate && !subsystem ? (
-            <div style={{ marginTop: 12, padding: 10, borderRadius: 8, background: specialCaseCorrect ? '#f0fbf4' : '#f3f4f6' }}>
+            <div style={{ marginTop: 12, padding: 10, borderRadius: 8, background: specialCaseReport.showsCorrect ? '#f0fbf4' : '#f3f4f6' }}>
               <strong>Reduced statement:</strong> <MathDisplay value={formatLinearEquation(reduceCoefficients, variables)} format="ascii-math" inline />
             </div>
           ) : null}

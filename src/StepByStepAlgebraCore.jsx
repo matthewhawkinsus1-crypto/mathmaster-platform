@@ -71,6 +71,7 @@ import {
   undoLastPlacement as undoDistributionPlacement,
 } from './algebraDistributionModel';
 import { useContentStableValue } from './platform/react/useContentStableValue.js';
+import { useHintsAllowed, useHintUseReporter } from './tools/shared/ToolRuntimeContext';
 
 const STRUCTURE_TOOL_TITLES = {
   factor: 'Choose terms, write them as primes, and pull out a factor they share',
@@ -324,9 +325,19 @@ export default function StepByStepAlgebra({
   // `hintsAllowed`). Where it is false — a DOL, quiz or test — the strategic
   // hint is not offered at all. Where it is offered, opening it is reported
   // like every other hint, so the attempt's mastery weight is discounted.
-  hintsAllowed = true,
-  onHintUsed = null,
+  hintsAllowed: hintsAllowedProp = true,
+  onHintUsed: onHintUsedProp = null,
 }) {
+  // The props are what QuestionEngine passes the solvers it mounts. Every
+  // other host inherits the activity's ToolRuntimeContext instead — a composed
+  // question's algebra step (WorkflowRunner's algebraWorkspace) passes no hint
+  // props at all, and offered "Need a strategic hint?" on a DOL. Either one
+  // withholding hints withholds them; outside any provider the context allows
+  // them and has no recorder, which is exactly the old default.
+  const contextHintsAllowed = useHintsAllowed();
+  const contextHintReporter = useHintUseReporter();
+  const hintsAllowed = hintsAllowedProp !== false && contextHintsAllowed;
+  const onHintUsed = onHintUsedProp || contextHintReporter;
   // Content identity, not object identity: a host that rebuilds an equal
   // question every render must not reset the workspace (useContentStableValue).
   const question = useContentStableValue(questionProp);

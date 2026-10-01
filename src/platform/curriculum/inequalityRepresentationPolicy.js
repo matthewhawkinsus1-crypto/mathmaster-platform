@@ -53,3 +53,31 @@ export const inequalitySolutionRepresentationStages = (question = {}) => {
   // question to request a narrower representation set.
   return requested.length ? [...new Set(requested)] : ['graph', 'interval'];
 };
+
+/*
+ * WHEN THE "GRAPH YOUR SOLUTION" STAGE IS DONE, AND WHAT IT IS GRADED AS.
+ *
+ * Once a student has solved an inequality, the relation solver asks them to
+ * graph the solution (and, above Algebra I, write it in interval notation) in
+ * an embedded number line. `representationCorrect` is that number line's last
+ * Check: null before any, then whether the graph and notation matched the
+ * student's own solved inequality.
+ *
+ * Where the activity shows outcomes at once the question is complete only
+ * once that check passed — the number line says "Correct" / "Not yet" and the
+ * student revises until it is right, which is the practice behaviour. On a
+ * DOL, quiz or test that wait is the verdict (Submit appears only once the
+ * graph is right), so there the stage is done once it has been checked, right
+ * or wrong, and its correctness is graded at submission.
+ */
+export const solutionRepresentationStageStatus = ({ showImmediateFeedback = true, representationCorrect = null } = {}) => {
+  const withheld = showImmediateFeedback === false;
+  const checked = representationCorrect !== null && representationCorrect !== undefined;
+  return {
+    withheld,
+    done: withheld ? checked : representationCorrect === true,
+    correct: representationCorrect === true,
+    // The neutral "recorded" line under the number line: withheld outcomes only.
+    recordedNotice: withheld && checked,
+  };
+};

@@ -27,6 +27,7 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { WorkViewUndoProvider, questionUndoResetKey, useActiveUndoOwner } from '../../platform/workView/useMathUndoHistory.js';
 import { Panel, ResultPill, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
+import { useToolRuntimeContext } from '../shared/ToolRuntimeContext';
 import MathDisplay from '../../MathDisplay';
 import AlgebraicSystemMode, {
   EmbeddedStepAlgebra,
@@ -74,7 +75,7 @@ import {
 } from './eliminationReduction.js';
 import { allOriginalsVerified } from './substitutionReduction.js';
 import AlgebraicOutcome from './AlgebraicOutcome.jsx';
-import { planeWorkEarned } from './algebraicOutcomeModel.js';
+import { resolveInterpretationGate } from './algebraicOutcomeModel.js';
 import OriginalEquationsVerification from './OriginalEquationsVerification.jsx';
 import {
   EliminationCombinationEntry,
@@ -154,6 +155,10 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
   const [subsystemReport, setSubsystemReport] = useState(null);
   const [showSolvedSubsystem, setShowSolvedSubsystem] = useState(false);
   const { feedback, submit } = useToolSubmission(onAction);
+  // False on a DOL, quiz or test: there interpreting an identity or
+  // contradiction records the student's answers and says nothing about them
+  // until the question is submitted (resolveInterpretationGate).
+  const { showImmediateFeedback } = useToolRuntimeContext();
 
   // A stage that appears while the student works (the next pair choice, a
   // distribution row, the combination line) comes into view instead of opening
@@ -221,14 +226,28 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
   const directOutcome = eliminationOutcome(elimination, system);
   const outcome = directOutcome || subsystemState?.outcome || null;
   const outcomeIdentity = outcome ? `${reducedIdentity}|${outcome.statement}` : null;
-  const classified = directOutcome
-    ? eliminationPhase(elimination, system) === 'classified'
-    : Boolean(outcome && subsystemClassification?.identity === outcomeIdentity && subsystemClassification?.choice === outcome.type);
-  const phase = outcome ? (classified ? 'classified' : 'classify') : eliminationPhase(elimination, system, { reducedSolution, requireVerification: config.requireVerification, allVerified });
+  // What is recorded for THIS outcome: the parent's own classification for a
+  // statement its rows produced, or the reduced 2×2's for one the 2×2 earned.
+  const classificationRecord = !outcome ? null
+    : directOutcome
+      ? (elimination.classification?.statement === directOutcome.statement ? elimination.classification : null)
+      : (subsystemClassification?.identity === outcomeIdentity ? subsystemClassification : null);
   // After classifying, the student states how the planes meet (#392): the
   // geometry the combined Day 2 items used to ask is answered, not captioned.
   const planeQuestion = useMemo(() => ({ ...questionData, equations: system.equations.map((equation) => equation.text), variables: system.variables }), [questionData, system]);
-  const planesEarned = Boolean(outcome && classified && planeWorkEarned(planeWork, planeQuestion));
+  // EVERY PLACE INTERPRETING THE RESULT COULD SAY "RIGHT OR WRONG", DECIDED
+  // ONCE: when the classification counts as done, when the planes do, what
+  // the checks say, and how the submission is graded.
+  const interpretation = useMemo(() => resolveInterpretationGate({
+    showImmediateFeedback,
+    outcome,
+    classification: classificationRecord,
+    planeWork,
+    questionData: planeQuestion,
+  }), [showImmediateFeedback, outcome, classificationRecord, planeWork, planeQuestion]);
+  const classified = interpretation.classified;
+  const phase = outcome ? (classified ? 'classified' : 'classify') : eliminationPhase(elimination, system, { reducedSolution, requireVerification: config.requireVerification, allVerified });
+  const planesEarned = Boolean(outcome && interpretation.planesDone);
   const solution = eliminationKnownSolution(elimination, reducedSolution);
   const fullSolution = elimination.back?.solved ? solution : null;
   const backEquation = reducedSolution ? eliminationBackSubstitutionEquation(elimination, system, reducedSolution) : null;
@@ -275,11 +294,16 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
   const readyToSubmit = phase === 'complete' || (phase === 'classified' && planesEarned);
   const check = () => {
     const key = answerKey;
-    const interpreted = classified && planesEarned;
+    // An interpretation is graded from the answers the student recorded —
+    // never from the fact that they were recorded, which on a DOL is all
+    // "classified" means.
+    const interpreted = Boolean(outcome) && interpretation.grade.isCorrect;
     const valuesCorrect = interpreted || Boolean(fullSolution && key.type === 'unique'
       && system.variables.every((name) => Number.isFinite(fullSolution[name]) && Math.abs(fullSolution[name] - key.solution[name]) <= 1e-6 * Math.max(1, Math.abs(key.solution[name]))));
     const verified = interpreted || !config.requireVerification || allVerified;
-    submit({ isCorrect: valuesCorrect && verified, score: (valuesCorrect && verified) ? 1 : 0 }, outcome ? { classification: outcome.type, statement: outcome.statement, planes: planeWork?.answers || {} } : fullSolution, {
+    const isCorrect = valuesCorrect && verified;
+    submit({ isCorrect, score: outcome ? interpretation.grade.score : (isCorrect ? 1 : 0) }, outcome ? { classification: classificationRecord?.choice || '', kind: classificationRecord?.kind || '', statement: outcome.statement, planes: planeWork?.answers || {} } : fullSolution, {
+      ...(outcome ? { parts: interpretation.grade.parts } : {}),
       mode: 'algebraic',
       dimension: config.dimension,
       method: 'elimination',
@@ -535,9 +559,10 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
                   key={outcomeIdentity || 'unique'} outcome={outcome} classified={classified}
                   solution={phase === 'complete' ? fullSolution : null} questionData={planeQuestion}
                   planeWork={planeWork} onPlaneWorkChange={setPlaneWork} onAction={onAction}
-                  onClassify={(choice) => directOutcome
-                    ? apply(classifyEliminationOutcome(elimination, system, choice))
-                    : setSubsystemClassification({ identity: outcomeIdentity, choice })}
+                  interpretation={interpretation}
+                  onClassify={(choice, kind) => directOutcome
+                    ? apply(classifyEliminationOutcome(elimination, system, choice, kind))
+                    : setSubsystemClassification({ identity: outcomeIdentity, choice, kind })}
                 /> : null}
                 {readyToSubmit ? <button type="button" onClick={check} style={actionStyle}>Check my work</button> : null}
                 {feedback ? (

@@ -11,13 +11,15 @@ test('terminal classification is a student submission and geometry consumes earn
  assert.match(ui,/<form onSubmit=\{submitClassification\}>/);
  const submitted=region(ui,'const submitClassification =','const hint =', 'classification submit');
  assert.match(submitted,/event\.preventDefault\(\)/);
- assert.match(submitted,/onClassify\(choice\)/);
+ // The student's own choice — and their reading of the statement, which a
+ // DOL, quiz or test records and grades at submission — goes up.
+ assert.match(submitted,/onClassify\(choice, kind\)/);
  const model=region(ui,'{earned && showModel ?', '/> : null}', 'earned model');
  assert.match(model,/<ThreePlaneWorkspace/);
  assert.match(model,/earnedResult=\{solution \? \{ type: 'unique', solution \}/);
  assert.doesNotMatch(model,/answerKey|expected/);
  assert.match(parent,/import AlgebraicOutcome from '.\/AlgebraicOutcome.jsx'/);
- assert.match(parent,/onClassify=\{\(choice\) => directOutcome[\s\S]*?classifyEliminationOutcome\(elimination, system, choice\)/);
+ assert.match(parent,/onClassify=\{\(choice, kind\) => directOutcome[\s\S]*?classifyEliminationOutcome\(elimination, system, choice, kind\)/);
  const marker=region(spatial,'const solutionMarker =', '// Painter', 'solution marker');
  assert.match(marker,/if \(shownType !== 'unique' \|\| !showResult\) return null/);
  assert.match(marker,/variables.map\(\(name\) => shownSolution\[name\]\)/);

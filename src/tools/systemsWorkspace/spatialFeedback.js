@@ -9,6 +9,41 @@ export function spatialMisconceptionFeedback(fields, responses, parts = []) {
   return 'A system solution must satisfy all three equations at once. Compare what all three planes share, including any planes that are currently hidden.';
 }
 
+/**
+ * WHETHER THE THREE-PLANE MODEL MAY OFFER ITS "REVEAL" BUTTON.
+ *
+ * An author can let a student reveal the solution point (or whether the
+ * planes share one) with `spatialModel.allowSolutionReveal`. Pressing it shows
+ * the answer to the classification the question goes on to ask, so it is
+ * offered only where the activity shows outcomes at once AND allows help —
+ * never on a DOL, quiz or test. A model the author shows already revealed
+ * (`revealSolution: true`) is the question's own content and is unchanged,
+ * and a model opened from the student's earned result has no reveal at all.
+ */
+export const threePlaneRevealAvailable = ({ earnedResult = null, spatialModel = {}, showImmediateFeedback = true, hintsAllowed = true } = {}) => {
+  if (earnedResult) return false;
+  if (spatialModel?.revealSolution === true) return true;
+  return spatialModel?.allowSolutionReveal === true && showImmediateFeedback !== false && hintsAllowed !== false;
+};
+
+/**
+ * The line under a model opened from the student's own result.
+ *
+ * For a non-unique result it names what the TRUE outcome means ("Your
+ * contradiction means no point lies on all three planes") — after a correct
+ * classification in practice that is the student's own conclusion read back.
+ * Where outcomes are withheld the classification is recorded whatever it was,
+ * so the same line would grade it; there the line only says how to use the
+ * model. A unique result is the student's own verified triple either way.
+ */
+export const earnedResultCaption = ({ type, solutionText = '', showImmediateFeedback = true } = {}) => {
+  if (type === 'unique') return `Point marked on the model: ${solutionText}.`;
+  if (showImmediateFeedback === false) return 'Rotate the model and hide or show each plane to see how the three planes meet.';
+  if (type === 'none') return 'Your contradiction means no point lies on all three planes. Rotate the model and hide or show each plane to see why.';
+  if (type === 'infinite') return 'Your identity means the planes share more than one point. Rotate the model and hide or show each plane to see what all three have in common.';
+  return 'This system could not be classified.';
+};
+
 const EPS = 1e-9;
 
 /** Every pair of planes, in authored order: `1-2`, `1-3`, `2-3`. */

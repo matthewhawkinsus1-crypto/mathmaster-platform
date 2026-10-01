@@ -4,7 +4,6 @@ import MathInput from './MathInput.jsx';
 import StepByStepAlgebraCore from './StepByStepAlgebraCore';
 import EnlargeableFigure from './components/common/EnlargeableFigure';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
-import { compareOrderedPair, parseOrderedPair } from './answerUtils.js';
 import { round } from './tools/shared/toolMath.js';
 import { InteractiveStandardEquation } from './tools/stepAlgebra2/linearInterceptsConceptualUi.jsx';
 import {
@@ -14,6 +13,8 @@ import {
   expectedInterceptPoint,
   formatStandardEquation,
   formatSubstitutionEquation,
+  interceptCompletionPayload,
+  resolveInterceptCheck,
   resolveStandardCoefficients,
   shouldShowConceptRedirect,
   solvedStageUpdate,
@@ -59,19 +60,15 @@ const initialStage = () => ({
 
 const initialWork = () => ({ activeKind: 'x', x: initialStage(), y: initialStage() });
 
-// What the host is told once both intercepts are checked. Built in one place
-// because it is said twice: when the second Check succeeds, and again when a
-// reload restores two checked intercepts that were never submitted.
-const interceptCompletionPayload = (finishedWork) => ({
-  isComplete: true,
-  isCorrect: true,
-  questionDetails: `x-intercept ${finishedWork.x.point}, y-intercept ${finishedWork.y.point}`,
-  responseKey: JSON.stringify({ x: parseOrderedPair(finishedWork.x.point), y: parseOrderedPair(finishedWork.y.point) }),
-  parts: [
-    { id: 'x-intercept', label: 'x-intercept', isComplete: true, isCorrect: true, response: finishedWork.x.point },
-    { id: 'y-intercept', label: 'y-intercept', isComplete: true, isCorrect: true, response: finishedWork.y.point },
-  ],
-});
+// What the host is told once both intercepts are in is built in one place —
+// interceptCompletionPayload in linearInterceptsMath.js — because it is said
+// twice: when the second Check succeeds, and again when a reload restores two
+// finished intercepts that were never submitted. Each part is graded there
+// against the equation, never assumed right.
+
+// Told when a finished intercept is reopened on a DOL, quiz or test: the
+// question is no longer complete, so Submit waits again.
+const INCOMPLETE_PAYLOAD = Object.freeze({ isComplete: false, isCorrect: false, questionDetails: '', responseKey: '', parts: [] });
 
 // The one-variable equation StepByStepAlgebraCore solves after substitution.
 // buildSubstitutionState always leaves `constant` at 0 (see
@@ -96,6 +93,10 @@ export default function LinearInterceptsOrchestrator({
   draftKey = null,
   hintsAllowed = true,
   onHintUsed = null,
+  // May a check say whether the work is right before the question is
+  // submitted? QuestionEngine's showOutcomeFeedback: false on a DOL, quiz or
+  // test until feedback is released. Defaults to the practice behaviour.
+  revealCorrectness = true,
 }) {
   const standard = useMemo(() => resolveStandardCoefficients(question), [question]);
   const feedbackTiming = INTERCEPT_FEEDBACK_TIMINGS.includes(question.feedbackTiming)
@@ -157,7 +158,11 @@ export default function LinearInterceptsOrchestrator({
   // work-has-happened signal instead: guided timing still redirects the
   // instant a wrong zero is placed, delayed timing waits until the student
   // has actually finished the (wrong-path) algebra before saying so.
-  const progressiveRedirect = shouldShowConceptRedirect(
+  //
+  // The redirect appears only when the substitution is on the WRONG variable,
+  // so it is a verdict: where outcomes are withheld it never appears, and the
+  // point the wrong path leads to is graded at submission like any other.
+  const progressiveRedirect = revealCorrectness && shouldShowConceptRedirect(
     { committed: stage.committed, placedZeroVariable: stage.placedZeroVariable, workHistory: stage.solved ? [1] : [] },
     kind,
     feedbackTiming,
@@ -210,7 +215,7 @@ export default function LinearInterceptsOrchestrator({
   useEffect(() => {
     if (!bothInterceptsFound || disabled || completionReportedRef.current) return;
     completionReportedRef.current = true;
-    onStateChange?.(interceptCompletionPayload(work));
+    onStateChange?.(interceptCompletionPayload(work, standard));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bothInterceptsFound, disabled]);
 
@@ -301,45 +306,65 @@ export default function LinearInterceptsOrchestrator({
   };
 
   const checkCurrentIntercept = () => {
-    const pair = parseOrderedPair(stage.point);
-    const isCorrect = Boolean(pair && expectedPoint && compareOrderedPair(stage.point, expectedPoint, 1e-6));
-    const nextStage = { ...stage, checked: true, completed: isCorrect };
+    // A verdict where outcomes are shown; on a DOL, quiz or test the point is
+    // recorded as written and graded at submission (resolveInterceptCheck).
+    const decision = resolveInterceptCheck({ revealCorrectness, kind, point: stage.point, expectedPoint });
+    const nextStage = { ...stage, checked: true, completed: decision.completes };
 
-    if (!isCorrect) {
+    if (!decision.completes) {
       updateStage(nextStage);
-      if (!pair) setMessage('Enter the intercept as an ordered pair, such as (3, 0).');
-      else if (kind === 'x' && Math.abs(pair[1]) > 1e-6) setMessage('An x-intercept is a point on the x-axis, so its y-coordinate is 0.');
-      else if (kind === 'y' && Math.abs(pair[0]) > 1e-6) setMessage('A y-intercept is a point on the y-axis, so its x-coordinate is 0.');
-      else setMessage('That point does not match this equation. Recheck the value you solved for.');
+      setMessage(decision.message);
       return;
     }
 
     setMessage('');
-    onStepGrade?.({
-      stepGrade: {
-        kind: 'linear-intercept',
-        label: `Found the ${stageLabel(kind)}`,
-        productive: true,
-        accepted: true,
-        earned: 1,
-        possible: 1,
-        equationBefore: formatStandardEquation(standard),
-        equationAfter: `${stageLabel(kind)} = ${stage.point}`,
-        expectedTotalPoints: 2,
-      },
-      countsAttempt: false,
-    });
+    if (decision.earnsStepCredit) {
+      onStepGrade?.({
+        stepGrade: {
+          kind: 'linear-intercept',
+          label: `Found the ${stageLabel(kind)}`,
+          productive: true,
+          accepted: true,
+          earned: 1,
+          possible: 1,
+          equationBefore: formatStandardEquation(standard),
+          equationAfter: `${stageLabel(kind)} = ${stage.point}`,
+          expectedTotalPoints: 2,
+        },
+        countsAttempt: false,
+      });
+    }
 
-    if (kind === 'x') {
-      setWork((current) => ({ ...current, x: nextStage, activeKind: 'y' }));
+    // The other intercept next, unless it is already in (a DOL student who
+    // reopened this one to change it).
+    const otherKind = kind === 'x' ? 'y' : 'x';
+    if (!work[otherKind]?.completed) {
+      setWork((current) => ({ ...current, [kind]: nextStage, activeKind: otherKind }));
       setZeroArmed(false);
       return;
     }
 
-    const finishedWork = { ...work, y: nextStage, activeKind: 'y' };
+    const finishedWork = { ...work, [kind]: nextStage, activeKind: kind };
     setWork(finishedWork);
     completionReportedRef.current = true;
-    onStateChange?.(interceptCompletionPayload(finishedWork));
+    onStateChange?.(interceptCompletionPayload(finishedWork, standard));
+  };
+
+  // A DOL, quiz or test only: a recorded intercept can be changed until the
+  // question is submitted, because nothing told the student whether it was
+  // right. (In practice an intercept completes only once it is right.)
+  const reopenIntercept = (target) => {
+    setMessage('');
+    setZeroArmed(false);
+    if (bothInterceptsFound) {
+      completionReportedRef.current = false;
+      onStateChange?.(INCOMPLETE_PAYLOAD);
+    }
+    setWork((current) => ({
+      ...current,
+      activeKind: target,
+      [target]: { ...(current[target] || initialStage()), checked: false, completed: false },
+    }));
   };
 
   const activeRedirect = progressiveRedirect ? conceptualRedirect(kind) : '';
@@ -350,7 +375,7 @@ export default function LinearInterceptsOrchestrator({
   const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
   const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: '#174ea6', border: '1px solid #9bb8e8' };
 
-  const content = bothInterceptsFound ? (
+  const content = bothInterceptsFound ? (revealCorrectness ? (
     // The stage below would still read "now write the y-intercept" over a
     // Check button, while the only thing left to do is submit.
     <div role="status" style={{ padding: 14, borderRadius: 10, background: '#e6f4ea', color: '#137333', lineHeight: 1.5 }}>
@@ -358,7 +383,23 @@ export default function LinearInterceptsOrchestrator({
       <div style={{ marginTop: 4 }}>x-intercept {work.x.point} · y-intercept {work.y.point}</div>
       {!disabled ? <div style={{ marginTop: 4, fontWeight: 800 }}>Submit your answer to finish this question.</div> : null}
     </div>
-  ) : !stage.committed ? (
+  ) : (
+    // A DOL, quiz or test: the same neutral summary for right and wrong
+    // points, and either one can still be changed before Submit.
+    <div role="status" data-intercepts-recorded="true" style={{ padding: 14, borderRadius: 10, background: '#e8f0fe', color: '#174ea6', lineHeight: 1.5 }}>
+      <strong>Both intercepts recorded.</strong>
+      <div style={{ marginTop: 4 }}>x-intercept {work.x.point} · y-intercept {work.y.point}</div>
+      {!disabled ? (
+        <>
+          <div style={{ marginTop: 4, fontWeight: 800 }}>They are graded when you submit. Submit your answer to finish this question.</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+            <button type="button" onClick={() => reopenIntercept('x')} style={secondaryButton}>Change x-intercept</button>
+            <button type="button" onClick={() => reopenIntercept('y')} style={secondaryButton}>Change y-intercept</button>
+          </div>
+        </>
+      ) : null}
+    </div>
+  )) : !stage.committed ? (
     <div>
       <p style={{ marginTop: 0, lineHeight: 1.5 }}>
         At the <strong>{stageLabel(kind)}</strong>, which variable equals 0?
@@ -506,12 +547,24 @@ export default function LinearInterceptsOrchestrator({
       }}
     >
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-        <span style={{ padding: '6px 10px', borderRadius: 999, background: work.x?.completed ? '#e6f4ea' : kind === 'x' ? '#e8f0fe' : '#f1f3f4', color: work.x?.completed ? '#137333' : '#3c4756', fontWeight: 850 }}>
-          {work.x?.completed ? '✓' : kind === 'x' ? '→' : '○'} x-intercept
-        </span>
-        <span style={{ padding: '6px 10px', borderRadius: 999, background: work.y?.completed ? '#e6f4ea' : kind === 'y' ? '#e8f0fe' : '#f1f3f4', color: work.y?.completed ? '#137333' : '#3c4756', fontWeight: 850 }}>
-          {work.y?.completed ? '✓' : kind === 'y' ? '→' : '○'} y-intercept
-        </span>
+        {['x', 'y'].map((chipKind) => {
+          const done = Boolean(work[chipKind]?.completed);
+          // A green ✓ only where it means "right" (practice); on a DOL, quiz or
+          // test a finished intercept is marked recorded, in a neutral colour.
+          const doneLook = revealCorrectness
+            ? { background: '#e6f4ea', color: '#137333', mark: '✓', suffix: '' }
+            : { background: '#e8f0fe', color: '#174ea6', mark: '•', suffix: ' recorded' };
+          return (
+            <span key={chipKind} data-intercept-chip={chipKind} style={{ padding: '6px 10px', borderRadius: 999, background: done ? doneLook.background : kind === chipKind ? '#e8f0fe' : '#f1f3f4', color: done ? doneLook.color : '#3c4756', fontWeight: 850 }}>
+              {done ? doneLook.mark : kind === chipKind ? '→' : '○'} {chipKind}-intercept{done ? doneLook.suffix : ''}
+            </span>
+          );
+        })}
+        {!revealCorrectness && !bothInterceptsFound && !disabled && ['x', 'y'].filter((chipKind) => chipKind !== kind && work[chipKind]?.completed).map((chipKind) => (
+          <button key={`change-${chipKind}`} type="button" onClick={() => reopenIntercept(chipKind)} style={{ ...secondaryButton, minHeight: 32, padding: '4px 10px' }}>
+            Change {chipKind}-intercept
+          </button>
+        ))}
       </div>
       {content}
     </EnlargeableFigure>

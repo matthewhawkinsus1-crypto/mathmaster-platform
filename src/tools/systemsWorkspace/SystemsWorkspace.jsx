@@ -5,7 +5,12 @@ import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workVie
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { matchesNumericAnswer, parseNumericAnswer, solveTwoLines, round } from '../shared/toolMath';
-import { useRevealAnswers } from '../shared/ToolRuntimeContext';
+import { useRevealAnswers, useToolRuntimeContext } from '../shared/ToolRuntimeContext';
+import {
+  INEQUALITY_STEP_COMPLETION_TEXT,
+  REASONING_COMPLETION_TEXT,
+  resolveInequalityBuildGate,
+} from './inequalityBuildPolicy.js';
 import {
   feasibleRegionPolygon,
   matrix3x4Rows,
@@ -721,6 +726,9 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
   const [studentPointResponse, setStudentPointResponse] = usePersistentToolState('studentPointResponse', () => emptyTestPointResponse(constraintCount));
   const [vertices, setVertices] = usePersistentToolState('vertices', []);
   const { feedback, submit } = useToolSubmission(onAction);
+  // False on a DOL, quiz or test: there every check below says only whether
+  // the work is finished (resolveInequalityBuildGate).
+  const { showImmediateFeedback } = useToolRuntimeContext();
 
   const mathState = useMemo(() => ({
     modelingEntries, modelingSent, rewriteEntries, build, combined, regionClassification, regionClassificationAttempts,
@@ -777,12 +785,40 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
     const point = build[index]?.shadePoint;
     return Boolean(point) && satisfiesBoundary(workingConstraints[index], point[0], point[1]);
   };
-  const boundaryVerified = (index) => !buildConfig.boundary || (build[index]?.boundaryAttempts > 0 && boundaryCorrect(index));
-  const styleVerified = (index) => !buildConfig.lineStyle || (build[index]?.styleAttempts > 0 && styleCorrect(index));
-  const shadeVerified = (index) => !buildConfig.shading || (build[index]?.shadeAttempts > 0 && shadeCorrect(index));
   const rewriteVerified = (index) => !buildConfig.rewrite || Boolean(rewriteEntries[index]?.verifiedConstraint);
-  const constraintVerified = (index) => rewriteVerified(index) && boundaryVerified(index) && styleVerified(index) && shadeVerified(index);
-  const allConstraintsComplete = constraintCount > 0 && Array.from({ length: constraintCount }, (_, i) => i).every(constraintVerified);
+  // Whether a step's work is all there — never compared with the answer.
+  const stepFinished = (index, step) => {
+    const entry = build[index] || {};
+    if (step === 'boundary') return Boolean(studentLines[index]);
+    if (step === 'lineStyle') return entry.style === 'solid' || entry.style === 'dashed';
+    const line = effectiveLines[index];
+    return Boolean(line && entry.shadePoint && sideOfBoundaryLine(line, entry.shadePoint[0], entry.shadePoint[1]) !== 0);
+  };
+  const stepCorrect = (index, step) => (
+    step === 'boundary' ? boundaryCorrect(index) : step === 'lineStyle' ? styleCorrect(index) : shadeCorrect(index)
+  );
+  // EVERY PLACE THIS MODE COULD SAY "RIGHT OR WRONG" BEFORE SUBMIT, DECIDED
+  // ONCE: the step chips, the overlap lock, each check's line, the vertex
+  // magnet and how each constraint is graded.
+  const buildGate = resolveInequalityBuildGate({
+    showImmediateFeedback,
+    buildConfig,
+    build,
+    constraintCount,
+    rewriteVerified,
+    stepCorrect,
+    stepFinished,
+  });
+  const boundaryVerified = (index) => buildGate.stepDone(index, 'boundary');
+  const styleVerified = (index) => buildGate.stepDone(index, 'lineStyle');
+  const shadeVerified = (index) => buildGate.stepDone(index, 'shading');
+  const allConstraintsComplete = buildGate.allConstraintsDone;
+  // A step chip: ticked green only by a passed check where outcomes are shown;
+  // "done" in a neutral colour once the step is finished where they are not.
+  const stepChip = (done) => (buildGate.verdictsShown
+    ? { color: done ? '#137333' : '#5f6b7a', mark: done ? '✓' : '…' }
+    : { color: done ? '#174ea6' : '#5f6b7a', mark: done ? 'done' : '…' });
+  const completionLine = (report, text) => (report?.kind === 'completion' ? (report.complete ? text.complete : text.incomplete) : null);
 
   const studentBoundaries = build.map((entry, index) => {
     const line = effectiveLines[index];
@@ -800,6 +836,11 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
 
   const onBoundaryIndex = (point) => (point ? workingConstraints.findIndex((b) => pointOnBoundaryLine(b, point[0], point[1], 0.12)) : -1);
   const membership = (point) => workingConstraints.map((b) => satisfiesBoundary(b, point[0], point[1]));
+  // Which boundary the student's OWN test point sits on, for its boundary
+  // questions: a true one where outcomes are shown, one the student built where
+  // they are withheld (probeFromOwnLines in inequalityBuildPolicy.js).
+  const ownBoundaryIndex = (point) => (point ? effectiveLines.findIndex((line) => Boolean(line) && pointOnBoundaryLine(line, point[0], point[1], 0.12)) : -1);
+  const studentProbeIndex = (point) => (buildGate.probeFromOwnLines ? ownBoundaryIndex(point) : onBoundaryIndex(point));
 
   const armLabel = () => {
     if (!armed) return null;
@@ -822,7 +863,10 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
       const snapTolerance = Math.max(bounds.xMax - bounds.xMin, bounds.yMax - bounds.yMin) * 0.05;
       let best = null;
       let bestDistance = Infinity;
-      [...workingVertices, ...feasibleRegionVertices(studentBoundaries.filter(Boolean))].forEach((v) => {
+      // The true corners are a magnet only where outcomes are shown: landing a
+      // tap exactly on the answer is a verdict. The student's own region's
+      // corners are their work and always snap.
+      [...(buildGate.snapToExpectedVertices ? workingVertices : []), ...feasibleRegionVertices(studentBoundaries.filter(Boolean))].forEach((v) => {
         const distance = Math.hypot(v.x - px, v.y - py);
         if (distance < bestDistance) { bestDistance = distance; best = v; }
       });
@@ -838,9 +882,12 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
     setArmed(null);
   };
 
+  // Where outcomes are withheld a step's Check says only whether the step is
+  // finished, in the same words for right and wrong work.
   const boundaryMessage = (index) => {
     const entry = build[index];
     if (!entry.boundaryAttempts) return null;
+    if (!buildGate.verdictsShown) return completionLine(buildGate.stepReport(index, 'boundary'), INEQUALITY_STEP_COMPLETION_TEXT.boundary);
     if (boundaryCorrect(index)) return 'Correct boundary.';
     return staged(entry.boundaryAttempts,
       'Check whether the points you used satisfy the boundary equation.',
@@ -848,6 +895,7 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
   };
   const styleMessage = (index) => {
     const entry = build[index];
+    if (!buildGate.verdictsShown) return completionLine(buildGate.stepReport(index, 'lineStyle'), INEQUALITY_STEP_COMPLETION_TEXT.lineStyle);
     if (!entry.styleAttempts || !entry.style) return null;
     if (styleCorrect(index)) return 'Correct line style.';
     return staged(entry.styleAttempts,
@@ -856,6 +904,7 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
   };
   const shadeMessage = (index) => {
     const entry = build[index];
+    if (!buildGate.verdictsShown) return completionLine(buildGate.stepReport(index, 'shading'), INEQUALITY_STEP_COMPLETION_TEXT.shading);
     if (!entry.shadeAttempts || !entry.shadePoint) return null;
     if (shadeCorrect(index)) return 'Correct shading.';
     return staged(entry.shadeAttempts,
@@ -865,12 +914,23 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
 
   const [teacherPointFeedback, setTeacherPointFeedback] = useState('');
   const [studentPointFeedback, setStudentPointFeedback] = useState('');
-  const checkPointResponse = (point, response, setFeedbackText) => {
+  // `probeIndex`: the boundary the point's boundary questions were shown for
+  // (the student's own point: studentProbeIndex).
+  const checkPointResponse = (point, response, setFeedbackText, probeIndex = onBoundaryIndex(point)) => {
     if (!point) return;
+    const boundaryIndex = onBoundaryIndex(point);
+    if (!buildGate.verdictsShown) {
+      // Recorded, not judged: every question about the point answered or not —
+      // the boundary questions exactly when they are on screen.
+      const complete = response.perInequality.every((value) => value === 'yes' || value === 'no')
+        && (response.overall === 'yes' || response.overall === 'no')
+        && (!boundaryProbeEnabled || probeIndex < 0 || (Boolean(response.onBoundary) && Boolean(response.boundaryIncluded)));
+      setFeedbackText(completionLine(buildGate.reasoningReport({ pressed: true, complete }), REASONING_COMPLETION_TEXT));
+      return;
+    }
     const expectedMembership = membership(point);
     const perInequalityCorrect = response.perInequality.every((value, index) => explicitBooleanAnswerMatches(value, expectedMembership[index]));
     const overallCorrect = explicitBooleanAnswerMatches(response.overall, expectedMembership.every(Boolean));
-    const boundaryIndex = onBoundaryIndex(point);
     const boundaryProbeCorrect = !boundaryProbeEnabled || boundaryIndex < 0 || (
       (response.onBoundary === 'yes') && explicitBooleanAnswerMatches(response.boundaryIncluded, expectedMembership.every(Boolean))
     );
@@ -889,6 +949,11 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
   const [vertexFeedback, setVertexFeedback] = useState('');
   const checkVertex = (index) => {
     const vertex = vertices[index];
+    if (!buildGate.verdictsShown) {
+      // Not even whether the tap landed on a true corner: that is a verdict.
+      setVertexFeedback(completionLine(buildGate.reasoningReport({ pressed: true, complete: vertex?.includedAnswer === 'yes' || vertex?.includedAnswer === 'no' }), REASONING_COMPLETION_TEXT));
+      return;
+    }
     const expected = vertexIncludedExpected(vertex);
     if (expected == null) { setVertexFeedback('That point does not look like a corner of this system yet. Try tapping exactly where two boundary lines cross.'); return; }
     const correct = explicitBooleanAnswerMatches(vertex.includedAnswer, expected);
@@ -904,7 +969,9 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
       styleCorrect: buildConfig.lineStyle ? styleCorrect(index) : null,
       inclusionUnderstandingCorrect: buildConfig.lineStyle ? styleCorrect(index) : null,
       shadeCorrect: buildConfig.shading ? shadeCorrect(index) : null,
-      constraintCorrect: hasBuildSteps ? constraintVerified(index) : null,
+      // Graded from the work as it stands where outcomes are withheld (no
+      // check was needed there); checked-and-right where they are shown.
+      constraintCorrect: hasBuildSteps ? buildGate.constraintCorrect(index) : null,
     }));
     const modelingChecks = modeling ? (() => {
       // A mathematical model is a SET of constraints, not an ordered answer
@@ -1125,10 +1192,10 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
                     </label>
                   </div>
                   <div style={{ display:'flex', gap:10, fontSize:12, fontWeight:800, marginBottom:10 }}>
-                    <span style={{ color: rewriteVerified(index) ? '#137333' : '#5f6b7a' }}>Rewrite {buildConfig.rewrite ? (rewriteVerified(index) ? '✓' : '…') : 'provided'}</span>
-                    <span style={{ color: boundaryVerified(index) ? '#137333' : '#5f6b7a' }}>Boundary {buildConfig.boundary ? (boundaryVerified(index) ? '✓' : '…') : 'provided'}</span>
-                    <span style={{ color: styleVerified(index) ? '#137333' : '#5f6b7a' }}>Line style {buildConfig.lineStyle ? (styleVerified(index) ? '✓' : '…') : 'provided'}</span>
-                    <span style={{ color: shadeVerified(index) ? '#137333' : '#5f6b7a' }}>Region {buildConfig.shading ? (shadeVerified(index) ? '✓' : '…') : 'provided'}</span>
+                    <span style={{ color: stepChip(rewriteVerified(index)).color }}>Rewrite {buildConfig.rewrite ? stepChip(rewriteVerified(index)).mark : 'provided'}</span>
+                    <span data-build-chip="boundary" style={{ color: stepChip(boundaryVerified(index)).color }}>Boundary {buildConfig.boundary ? stepChip(boundaryVerified(index)).mark : 'provided'}</span>
+                    <span data-build-chip="lineStyle" style={{ color: stepChip(styleVerified(index)).color }}>Line style {buildConfig.lineStyle ? stepChip(styleVerified(index)).mark : 'provided'}</span>
+                    <span data-build-chip="shading" style={{ color: stepChip(shadeVerified(index)).color }}>Region {buildConfig.shading ? stepChip(shadeVerified(index)).mark : 'provided'}</span>
                   </div>
                   {activeIndex === index ? (
                     <div style={{ display:'grid', gap:12 }}>
@@ -1193,10 +1260,13 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
                 </div>
               ))}
 
-              <div style={{ padding:12, border:'1px solid #dbe3ef', borderRadius:10, background: allConstraintsComplete ? '#f0fbf4' : '#f3f4f6' }}>
+              <div data-combine-ready={allConstraintsComplete ? 'true' : 'false'} style={{ padding:12, border:'1px solid #dbe3ef', borderRadius:10, background: allConstraintsComplete && buildGate.verdictsShown ? '#f0fbf4' : '#f3f4f6' }}>
                 <strong>Combined solution</strong>
                 <p style={{ margin:'6px 0 10px', fontSize:13, color:'#5f6b7a' }}>
-                  {allConstraintsComplete ? 'Every constraint checks out. Combine them to see your overlap region.' : 'Locked until every constraint above is correct.'}
+                  {buildGate.verdictsShown
+                    ? (allConstraintsComplete ? 'Every constraint checks out. Combine them to see your overlap region.' : 'Locked until every constraint above is correct.')
+                    // Opens on finished work, right or wrong: the lock would be the verdict.
+                    : (allConstraintsComplete ? 'Every constraint is built. Combine them to see your overlap region.' : 'Finish every constraint above first.')}
                 </p>
                 <button type="button" onClick={()=>setCombined(true)} disabled={!allConstraintsComplete} style={{ ...actionStyle, opacity: allConstraintsComplete ? 1 : 0.5 }}>Find overlap / Combine regions</button>
               </div>
@@ -1212,7 +1282,13 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
                     </select>
                   </Field>
                   <button type="button" onClick={()=>setRegionClassificationAttempts((n)=>n+1)} style={{ ...actionStyle, padding:'8px 14px', fontSize:13 }}>Check classification</button>
-                  {regionClassificationAttempts > 0 && regionClassification ? (
+                  {!buildGate.verdictsShown ? (
+                    regionClassificationAttempts > 0 ? (
+                      <p role="status" style={{ margin:'6px 0 0', fontSize:13, color:'#174ea6' }}>
+                        {completionLine(buildGate.reasoningReport({ pressed: true, complete: Boolean(regionClassification) }), REASONING_COMPLETION_TEXT)}
+                      </p>
+                    ) : null
+                  ) : regionClassificationAttempts > 0 && regionClassification ? (
                     <p style={{ margin:'6px 0 0', fontSize:13, color:'#3c4756' }}>
                       {regionClassification === workingClassification
                         ? 'Correct classification.'
@@ -1244,11 +1320,11 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
                       <TestPointReasoning
                         title="Your point" point={studentTestPoint} count={constraintCount}
                         response={studentPointResponse} setResponse={setStudentPointResponse}
-                        onBoundaryIndex={studentTestPoint ? onBoundaryIndex(studentTestPoint) : -1}
+                        onBoundaryIndex={studentTestPoint ? studentProbeIndex(studentTestPoint) : -1}
                         askBoundaryProbe={boundaryProbeEnabled}
                         inequalityLabels={Array.from({ length: constraintCount }, (_, i) => inequalityLabel(i))}
                         feedback={studentPointFeedback}
-                        onCheck={()=>checkPointResponse(studentTestPoint, studentPointResponse, setStudentPointFeedback)}
+                        onCheck={()=>checkPointResponse(studentTestPoint, studentPointResponse, setStudentPointFeedback, studentProbeIndex(studentTestPoint))}
                       />
                     </div>
                   ) : null}

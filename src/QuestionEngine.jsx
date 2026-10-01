@@ -1009,6 +1009,24 @@ export default function QuestionEngine({
     hintsAllowed: toolHintsAllowed,
     onHintUsed: recordHintUse,
   };
+  // The algebra solvers are mounted here directly, not through the registry,
+  // but the relation solver embeds a registry tool — its "graph your solution
+  // and write it in interval notation" stage is IntervalNumberLine — which
+  // reads its policy from ToolRuntimeContext. Without a provider it ran on the
+  // context's defaults (verdicts and hints on) on a DOL, quiz or test. The
+  // stage's key is the student's own solved relation, which the solver holds
+  // under server grading too, so — unlike a registry tool — it follows
+  // showOutcomeFeedback alone.
+  const withSolverRuntime = (node) => (
+    <ToolRuntimeProvider
+      showImmediateFeedback={showOutcomeFeedback}
+      hintsAllowed={toolHintsAllowed}
+      onHintUsed={recordHintUse}
+      questionTerminal={locked}
+    >
+      {node}
+    </ToolRuntimeProvider>
+  );
 
   const graphModuleProps = {
     selfCheckAllowed,
@@ -1151,7 +1169,9 @@ export default function QuestionEngine({
 
     switch (processedQuestion.type) {
       case 'modelingLab':
-        return <InteractiveModelingLabPlayer rawLabSpec={processedQuestion.labDefinition} assignmentId={assignmentId} executionScope={executionScope} supportUsage={supportUsage} disabled={commonModuleProps.disabled} onServerGraded={handleModelingLabGrade} />;
+        // The lab is graded on submit and shows its own result; on a DOL,
+        // quiz or test that waits for release like every other outcome.
+        return <InteractiveModelingLabPlayer rawLabSpec={processedQuestion.labDefinition} assignmentId={assignmentId} executionScope={executionScope} supportUsage={supportUsage} disabled={commonModuleProps.disabled} onServerGraded={handleModelingLabGrade} revealEvaluation={showOutcomeFeedback} />;
       case 'graphing':
         return <GraphLine {...commonModuleProps} />;
       case 'functionGraph':
@@ -1163,14 +1183,14 @@ export default function QuestionEngine({
         // The relation check runs first, so an inequality never reaches the
         // intercept orchestrator by accident (see algebraWorkspaceRoute.js).
         if (algebraWorkspaceRoute.route === ALGEBRA_WORKSPACE_ROUTES.RELATION) {
-          return (
+          return withSolverRuntime(
             <MultiRelationAlgebra
               {...commonModuleProps}
               workspaceActions={workspaceActions}
               questionRecord={record}
               onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
               attemptsDoNotExpire={attemptsDoNotExpire}
-            />
+            />,
           );
         }
         // linearIntercepts keeps its own conceptual zero-substitution stage,
@@ -1186,6 +1206,10 @@ export default function QuestionEngine({
               key={draftKey || processedQuestion?.questionId || processedQuestion?.id || generationKey}
               {...commonModuleProps}
               {...stepAlgebraHintProps}
+              // Not a registry tool, so the policy comes in as a prop: on a
+              // DOL, quiz or test "Check x-intercept" records the point and
+              // says nothing about it, and it is graded at submission.
+              revealCorrectness={showOutcomeFeedback}
               questionRecord={record}
               onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
               maximumAttempts={resolvedMaximumAttempts}
@@ -1193,7 +1217,9 @@ export default function QuestionEngine({
             />
           );
         }
-        return (
+        // StepByStepAlgebra hands a prompt-only inequality to the relation
+        // solver itself, so it gets the same runtime.
+        return withSolverRuntime(
           <StepByStepAlgebra
             {...commonModuleProps}
             {...stepAlgebraHintProps}
@@ -1202,13 +1228,13 @@ export default function QuestionEngine({
             onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
             maximumAttempts={resolvedMaximumAttempts}
             attemptsDoNotExpire={attemptsDoNotExpire}
-          />
+          />,
         );
       case 'algebra':
         // Retired legacy answer-box solver. Older stored test assignments may
         // still carry the old type, so treat it as an alias for the balance
         // workspace instead of reviving the obsolete EquationGrader UI.
-        return (
+        return withSolverRuntime(
           <StepByStepAlgebra
             {...commonModuleProps}
             {...stepAlgebraHintProps}
@@ -1217,7 +1243,7 @@ export default function QuestionEngine({
             onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
             maximumAttempts={resolvedMaximumAttempts}
             attemptsDoNotExpire={attemptsDoNotExpire}
-          />
+          />,
         );
       case 'numberLine':
         return <NumberLine {...commonModuleProps} />;
@@ -1241,7 +1267,7 @@ export default function QuestionEngine({
             </div>
           );
         }
-        return (
+        return withSolverRuntime(
           <StepByStepAlgebra
             {...commonModuleProps}
             {...stepAlgebraHintProps}
@@ -1251,7 +1277,7 @@ export default function QuestionEngine({
             onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
             maximumAttempts={resolvedMaximumAttempts}
             attemptsDoNotExpire={attemptsDoNotExpire}
-          />
+          />,
         );
       }
       case 'system':
