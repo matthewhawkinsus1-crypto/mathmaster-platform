@@ -44,6 +44,7 @@ audit first recorded them; each entry's status line is current.)
 | PQ-014 | P1 | FIXED | A tap on a letterboxed plane lands on the wrong coordinate |
 | PQ-015 | P1 | FIXED | Phone in landscape: the tool starts below the fold behind a blank column |
 | PQ-036 | P1 | FIXED (2026-10-01 cleanup) | In a DOL, the plotting workspace tells the student which points are wrong |
+| PQ-041 | P1 | FIXED (2026-10-01 follow-up) | A phone held sideways cannot scroll the question |
 | PQ-003 | P2 | FIXED | Phone: tap a point card, and the plane is scrolled away |
 | PQ-004 | P2 | FIXED | 1366×768 Work View: the plane is taller than the stage body |
 | PQ-005 | P2 | FIXED | `workViewCertification.mjs` "times out" |
@@ -66,6 +67,8 @@ audit first recorded them; each entry's status line is current.)
 | PQ-035 | P2 | NOT REPRODUCED | Memory growth over a long session |
 | PQ-039 | P2 | NOT A PRODUCTION ISSUE | Typing latency in the student harness |
 | PQ-040 | P2 | FIXED | Typing "−2/3x + 4" on a keyboard makes −2 over (3x + 4) |
+| PQ-042 | P2 | FIXED (2026-10-01 follow-up) | On a phone, "Next step" can open the next step out of view |
+| PQ-043 | P2 | OPEN (persistence owner) | A composed question with a plotting step is never backed up to the server |
 | PQ-019 | P3 | FIXED | Inverse & Composition writes "1(x − 2)²" and "−1x" |
 | PQ-025 | P3 | FIXED (2026-10-01 cleanup) | "Enlarge question" sits on top of content on phones |
 | PQ-026 | P3 | FIXED (2026-10-01 cleanup) | Work View header says "Question Work View" and clips the task |
@@ -834,10 +837,26 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   keys 608; 360×800: 291–335 vs 526). Gates: `studentUxPlatform` `staged`
   types all seven rows on the keypad after Done and a scroll, as a student
   does, and fails with the selector removed (rows 3–7 off screen);
-  `numberEntry.test.mjs`. **Still open:** at 390×664 the step body is 28px tall
-  once the keypad and the two-row action row are up, so no scroll can show a
-  44px box (16px of it shows); that is portrait Work View's height budget with
-  the keypad, not the scroller. Evidence: `pq037-before-…`, `pq037-after-…`.
+  `numberEntry.test.mjs`. Evidence: `pq037-before-…`, `pq037-after-…`.
+- **Fixed (2026-10-01 follow-up): a small phone with the keypad up.** At
+  390×664 the step body was 28px once the keypad and the two-row action row
+  were up — the regular chrome (a four-line task in an 81px header, the
+  instruction, the step heading, the Previous/Next row) spent the 390px left
+  above the keys — so no scroll could show the 44px box being typed into;
+  16px of it showed (375×667: 31px, 19px). The keypad is MathMaster's own and
+  docked to the bottom, so `resolveWorkViewLayout` now counts its height:
+  with less than 460px left above it, Work View takes its short form, as on a
+  phone held sideways (instruction in a one-line header, heading in the
+  Previous/Next row). The software keyboard still never refolds the view.
+  EnlargeableFigure re-reads the layout when MobileViewportContainer flags the
+  keypad up or down (`data-mobile-keypad-open`). Keypad up: **28 → 158px** at
+  390×664 and **31 → 161px** at 375×667, the row being typed into wholly on
+  screen (44 of 44px); Done restores the regular chrome (302 / 305px). 390×844
+  is unchanged (482px down, 208px up: 570px is left above the keys), and so are
+  iPad 820×1180 (924px; no MathMaster keypad) and Chromebook 1366×768 (509px).
+  Gates: `studentUxPlatform` `keypad-short` (390×664, 375×667, 390×844),
+  `workViewPhoneChrome.test.mjs`. Evidence: `pq037-keypad-before-390x664.png` /
+  `pq037-keypad-after-…`.
 - `mobileFocusViewport.js`'s `VERTICAL_SCROLL_SELECTOR` does not include
   `.workflow-focus__workspace-body`, the only element that scrolls in a staged
   Work View; a focused field there may therefore not be scrolled clear of the
@@ -906,11 +925,20 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   (≥250 / ≥220px, folded chrome, plane on screen, work intact after turning
   back), `workViewCertification.mjs` (rotation on every device),
   `workViewPhoneChrome.test.mjs`. Evidence: `pq020-before-…`, `pq020-after-…`.
-  **Still open (not from this change):** at 740×360 a tool that registers
-  seven rail actions (Graphing 2, Transformations Lab) needs ~332px of rail and
-  has ~307px, so the last action ("Start over") is reached by scrolling the
-  rail; the certification flags it as clipped there, identically on the code
-  before this change. A staged question's six actions fit (286px).
+- **Fixed (2026-10-01 follow-up): seven actions fit the rail at 740×360.**
+  Measured first: under a 53px header the rail had 307px, and seven 44px
+  actions with its 6px padding and 2px gutters need 332, so Graphing 2's
+  "Start over" and Transformations Lab's "Clear" sat at y 335–379 on a 360px
+  screen (667×375: 10px short as well; the certification at 740×360 flagged
+  both as clipped, 21 / 23). A rail with seven or more actions on a short
+  phone now has no padding and no gutters and the header 2px of padding a
+  side instead of 4 (`WorkViewShell.css`, `:has(> button:nth-of-type(7))`):
+  308px of actions in a 311px rail, every one 155×44 and on screen (Undo at
+  49–93 … Start over at 313–357) at 740×360, 667×375, 664×390 and 844×390.
+  Rails with fewer actions are unchanged. Gates: the certification gains the
+  740×360 phone (`android-landscape`, 23 / 23, also in CI's matrix) and
+  `workViewPhoneChrome.test.mjs` checks the budget from the rules themselves.
+  Evidence: `pq020-rail-before-740x360.png` / `pq020-rail-after-…`.
 - **Viewport:** 844×390, 740×360 (staged question → Enlarge).
 - **Reproduction:** Work View header (task + Task/Help/Close) ~56px,
   instruction ~50px, step heading ~55px, Previous/Next footer ~60px: the
@@ -1329,6 +1357,99 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   were active on the machine. The gate server named it as designed, and it did
   not recur in two further runs, one from a cold cache.
 
+### PQ-041 · A phone held sideways cannot scroll the question — **P1 · FIXED (2026-10-01 follow-up)**
+
+Found by repairing `tests/browser/stagedQuestion.mjs` so it opens each step
+the way a student does (the whole question in QuestionEngine, in App.jsx's
+student screen with its identity bar and navigator; see Tests).
+
+- **Reproduction:** 664×390 and 844×390, any question. On a short landscape
+  phone the assignment screen is one screen tall and its question stage clips
+  (`overflow: hidden`); the prompt column and the work column are meant to
+  scroll inside it. The height rule named the question container but not the
+  question engine between it and the stage, so both grew to their content: a
+  staged question laid itself out **1150px tall in a 287px stage**, neither
+  column scrolled, and a 200px finger drag over the work moved nothing. A
+  student saw the top of step 1 and could reach nothing below it except
+  through "Enlarge question".
+- **Fixed:** `MathToolMobileLayout.css` holds the engine to the stage's height
+  as the portrait rule always did. The work column now scrolls (233px tall at
+  664×390 over 1097px of work; the same drag moves it 279px). Bounded, two more
+  things showed and are fixed with it:
+  - the prompt column's action bar (Undo, Reset, Scratchpad, Calculator,
+    Submit; five full-width buttons) was pinned to the bottom of a 287px
+    column and covered the question above it. It follows the question now, a
+    short scroll down its column (`position: static`); Work View carries the
+    same actions in its rail.
+  - the coordinate plane had no height cap: a blanket `max-height: 100%` for
+    every svg in the phone workspace outranked App.css's screen cap and, on a
+    box with no set height, capped nothing (303px of plane in a 233px column).
+    The rule now leaves `.mathmaster-responsive-canvas` alone, so the plane
+    keeps its cap (150px on a 390px-tall screen, the whole parabola and its
+    zoom buttons on screen). Portrait phones are unaffected (their planes are
+    width-bound well below the cap).
+  - the navigator covered the top of the question on a phone narrower than
+    769px (664×390, 740×360, 667×375). App.css lets the navigator scroll on a
+    short landscape screen only from 769px, and the phone rules are
+    portrait-only, so these kept it sticky 44px from the top inside a screen
+    that does not scroll: it sat at 82–139 over a question starting at 103,
+    covering "Your task" and the attempt strip. The rule now reaches every
+    landscape screen up to 560px tall (`(orientation: landscape) and
+    (max-height: 560px)`); the navigator sits at 38–95, above the question.
+- **After:** every step of the staged question at 664×390 has its question in
+  the left column, its answer control on screen on arriving and nothing over
+  the question's top. With the reveal of PQ-042 in place and these rules
+  undone, the audit reports 23 findings at 664×390 (the question off screen at
+  16 steps, three planes 30–36px on screen and over their cap, plot over its
+  cap) and, with the navigator rule undone alone, "the top of the question
+  opens under" the navigator; 0 now. A finger drag the audit cannot fake was
+  checked by hand: it moved nothing before and scrolls the work column now.
+  Gates: `stagedQuestion.mjs` (phone-landscape), `landscapeQuestionGrid.test.mjs`,
+  `studentJourneyDol2Final.test.mjs` (which screens the navigator rule reaches,
+  evaluated as media queries). Evidence: `pq041-before-664x390.png` /
+  `pq041-after-664x390.png`.
+
+### PQ-042 · On a phone, "Next step" can open the next step out of view — **P2 · FIXED (2026-10-01 follow-up)**
+
+- **Reproduction:** 390×664, the staged function-characteristics question.
+  After a student-initiated step change the desktop page brings the step under
+  the pinned task card (`bringActiveStageIntoView`); a phone was left out ("the
+  sticky stack is a desktop layout"). But the phone's work scrolls in its own
+  box between the task and the action bar (226px here), and Next left that box
+  where the old step had it: "Mark every x-intercept" opened with its plane
+  scrolled out above the box and only "0 of 2 marked." in view, as did the
+  y-intercept and maximum steps; "Where is this function increasing" opened
+  with its choices above the box.
+- **Fixed:** on a phone the active stage (the step's own controls) is brought
+  into whatever scrolls it, as little as possible: a stage in view stays put,
+  one below rises until its last control is in, one above or taller than the
+  view (a plane) lines up its top; on a phone held sideways the page scrolls,
+  under the identity bar. It runs two frames after the tap, because the phone
+  container keeps a focused control in view one frame after focus and, run
+  first, scrolled the box straight back to the Next button
+  (`stageNavigationScroll.js`).
+- **After:** the three planes and the choices are on screen on arriving at
+  390×664 (4 findings → 0); foldable, tablet, Chromebook and desktop were
+  already clean and stay so. Gates: `stagedQuestion.mjs` (phone-portrait),
+  `stageNavigationPhoneReveal.test.mjs` (eight cases). Evidence:
+  `pq042-before-390x664.png` / `pq042-after-390x664.png`.
+
+### PQ-043 · A composed question with a plotting step is never backed up to the server — **P2 · OPEN (persistence; outside this change)**
+
+- **Found** while placing the staged question's five points through the plot
+  step's own controls: the moment Check Point Placements completes the step,
+  the development audit reports `[MathMaster draft sync] The server backup will
+  NOT store "…:workflow-responses": forbidden-key at plot.isCorrect`.
+  WorkflowRunner's `graphArtifact` (coordinatePlot and functionGraph stages)
+  keeps `isCorrect` in the step's response, and `sanitizeWorkspaceDraftValue`
+  refuses any record with `isCorrect` anywhere in it (rightly: it is the guard
+  that keeps answers out of student-readable documents). So from the first
+  checked graph on, a composed question's answers stay on the device only —
+  the PR #397 board failure (`cardChecks.isCorrect`) again, in a different
+  record. **Next:** keep correctness out of the stored artifact and derive it
+  where the workflow is graded — a grading/persistence change for that owner
+  (`gradeWorkflow` reads the artifact's `isCorrect` today). Not changed here.
+
 ---
 
 ## 3. Fixed during this pass
@@ -1703,7 +1824,7 @@ lint and build.
 | `tests/browser/workViewCertification.mjs`, one device per process | **7 / 7 devices, 161 / 161 scenes**, rotation included. Touch devices need the harness fix in this branch: a `<select>`'s native picker blocked `page.screenshot` for 30 s (same on the parent head) |
 | the same at 344×882, 740×360, 820×1180 | 23 / 23, 21 / 23, 23 / 23 — the two at 740×360 are the seven-action rail of Graphing 2 and Transformations Lab, identical before this change (PQ-020) |
 | `workViewMatrix.mjs`, `assignmentMobile.mjs`, `composedOutcomePolicy.mjs`, `workViewTerminalTransition.mjs`, `gradeCenterMobile.mjs` | all pass, no findings |
-| `stagedQuestion.mjs` | 54 "answer control not visible without scrolling" findings on every device, the same 54 on the parent head; its fixture (0) was last recorded 2026-09-23 and the gate is not in CI — not this change, worth a look |
+| `stagedQuestion.mjs` | 54 "answer control not visible without scrolling" findings on every device, the same 54 on the parent head; its fixture (0) was last recorded 2026-09-23 and the gate is not in CI — repaired in the follow-up below |
 
 **Mutation checks.** 28 at source level (each fix undone in turn, the
 matching node test goes red) and 7 in the browser (each fix undone, its
@@ -1711,6 +1832,84 @@ journey fails: `staged` ×3, `identity` ×2, `opener`, `sticky-reveal`). The fir
 version of `staged` did not catch PQ-037 — with the keypad left open every row
 was scrolled into an already-shrunk step — so it now presses Done and scrolls
 the next row into view before tapping it, as a student does.
+
+### 2026-10-01 follow-up: the staged-question audit, PQ-041, PQ-042, the keypad and the rail
+
+On `b0562e55` plus these commits, same scratch server.
+
+**The audit, repaired.** `tests/browser/stagedQuestion.mjs` measured two
+artifacts: its "answer control" was the first `math-field, textarea, input,
+svg…, button` in the stage, which had become the zero-size button in the
+closed Work View header (control "not visible" even at 1920×1080), and
+`stagedQuestionMain.jsx` mounted WorkflowRunner alone in a bare
+`.mathmaster-question-container`, so on a 390px phone the plotting stage kept
+the desktop two-column grid and drew a 98×70px plane. Now:
+
+- the whole question is mounted in QuestionEngine inside App.jsx's student
+  screen — identity bar, a navigator with App.jsx's markup that folds as
+  App.jsx's does (`shouldCompactAssignmentNavigation`), assignment
+  screen/shell/stage — so the phone layout, the Work View host and the
+  seventeen-step focus mode are the real ones;
+- each step is reached as a student reaches it: step 1 when the question
+  opens; step 2 after the five points are placed through the plot step's own
+  controls and checked; every later step by "Next step" from the one before,
+  with the earlier answers in the question's draft;
+- the control is chosen by kind (the plane, the choices, the field), rendered
+  and inside the active step, and counts as on screen only where it can be
+  seen: in the window, inside every scroller around it, under nothing;
+- new checks: the step counter reads the step meant; a marking plane is at
+  least 240px wide and within App.css's cap; nothing covers the question's top
+  when it opens. Exit 1 on any finding; in CI with the student runtime gates
+  (path filter `tests/browser/stagedQuestion*`, permissions still read-only).
+  The fixture stays `[]`: the audit is genuinely empty now.
+
+On the code before this follow-up the repaired audit found **4** findings at
+390×664 (PQ-042) and **23** at 664×390 (PQ-041; 31 with an unfolded
+navigator), **0** at 344×882, 820×1180, 1366×640 and 1920×1080. Now **0** on
+all six. Noted on every run, not failed: on arriving at a marking step 224 of
+the 234px plane is on screen at 390×664 and **254 of 400px at 1366×640**.
+
+| Gate | Result |
+| --- | --- |
+| `npm run test:platform` | **7693 / 7693** (+15: `stageNavigationPhoneReveal` 8, `landscapeQuestionGrid` +3, `workViewPhoneChrome` +4; the short-landscape test in `studentJourneyDol2Final` now evaluates which screens the rule reaches) |
+| `node --test tests/tools/*.test.mjs` | **259 / 259** |
+| `npm run lint` | exit 0; 423 warnings before and after, none in a touched file |
+| `npm run build` | exit 0 |
+| `stagedQuestion.mjs` | 6 screens × 17 steps, **no findings** |
+| `studentUxPlatform.mjs` | **14 / 14** journeys (new: `keypad-short`) |
+| `workViewCertification.mjs`, one device per process | **8 / 8 devices, 184 / 184 scenes** (new device: `android-landscape`, 740×360, also in CI's matrix; it was 21 / 23 there) |
+| `clickMapLetterbox`, `assignmentMobile`, `workViewMatrix`, `composedOutcomePolicy`, `workViewTerminalTransition`, `toolAttemptOutcome`, `assessmentLeakGates`, `renderStability`, `graphPointCheck`, `relationPlotGrading`, `toolPolicyGates`, `undoTyping`, `mathEntryContract`, `errorRecovery`, `duplicateTabs`, `linearMultipleRepresentations` | all pass, no findings |
+
+**Mutation checks.** 15 at source level and 13 in the browser, each change
+undone in turn: all red but one. The audit itself: the old control selector
+put back ("the measured control is not part of this step" on every step) and
+the bare mount put back ("a 102×72px plane is too small to mark", the question
+off screen). PQ-042: no phone branch, or the reveal run at once instead of two
+frames on (both: three planes "0px of 234px seen"), a tall step aligned by its
+bottom, the identity bar ignored, the desktop reveal run on a phone. PQ-041:
+the engine out of the height rule, the action bar pinned again, the plane cap
+switched off ("303px tall, over its 150px cap"), the navigator pinned on a
+narrow phone ("the top of the question opens under" it). Keypad: ignored by
+the layout, a right-docked keypad counted, Work View not told it moved, a
+change of short alone ignored (the journey: "the chrome did not fold", 28px).
+Rail: the gutters back (certification: "1 controls are clipped" for both
+tools), the header padding back (unit test red; the certification misses it,
+because the seventh action is then 1px over the edge and its clipping check
+allows 1px). One assertion was added after a mutation survived: the identity
+bar case of the phone reveal.
+
+**Still open, measured, not changed:**
+
+- **1366×640 Chromebook, marking a feature:** the plane honours its cap (the
+  smaller of 70% of the screen and the screen less 240px: 400px), but what
+  sits above and below it on arriving — the pinned task card, the step heading,
+  the action bar — is ~385px, not 240, so 254px of it is on screen and the
+  x-axis is below the fold. Fitting it to the measured chrome would make it
+  ~250px tall on that screen — a product decision; the audit notes it on every
+  run.
+- **PQ-043:** a composed question with a plotting step is not backed up to the
+  server once the graph is checked (`plot.isCorrect` in its draft). Grading /
+  persistence.
 
 ## Evidence
 
@@ -1734,6 +1933,10 @@ the next row into view before tapping it, as a student does.
 | `pq026-before-344x882-header.png` / `pq026-after-…` | "Question Work View" over a task cut mid-line vs the whole task (PQ-026) |
 | `pq027-before-1366x768-rail.png` / `pq027-after-…` | Capability chips under the actions vs one caption (PQ-027) |
 | `pq037-before-390x844-row7-keypad.png` / `pq037-after-…` | Typing into row 7 with the keypad up: the box off screen vs above the keys (PQ-037) |
+| `pq037-keypad-before-390x664.png` / `pq037-keypad-after-…` | A small phone typing with the keypad up: a 28px step with the box half shown vs the folded chrome and a 158px step (PQ-037 follow-up) |
+| `pq020-rail-before-740x360.png` / `pq020-rail-after-…` | Graphing 2's rail at 740×360: "Start over" below the edge vs all seven actions on screen (PQ-020 follow-up) |
+| `pq041-before-664x390.png` / `pq041-after-…` | A phone held sideways after Next to "Mark every x-intercept": no question, no plane vs both (PQ-041) |
+| `pq042-before-390x664.png` / `pq042-after-…` | A phone after Next to "Mark every x-intercept": "0 of 2 marked." and no plane vs the plane (PQ-042) |
 
 ## Safe to merge?
 
