@@ -41,39 +41,28 @@ import { SCORE_ACCUMULATION } from './liveChallengeScoring.mjs';
 import { DOES_NOT_EXIST_TARGET_ID, getGraphFeature } from './graphFeatureRegistry.mjs';
 import { getGraphFamily } from './graphFeatureFamilies.mjs';
 import { POINTER_KIND, TAP_RESULT, clampTolerance, normalizePointerKind, resolveTap } from './graphFeatureHitTest.mjs';
+import {
+  RUSH_ATTEMPT_KIND,
+  RUSH_AUTO_SKIP_MISSES,
+  RUSH_COMPLETE_FLASH_MS,
+  RUSH_LIMITS,
+  RUSH_LOCKOUT,
+  RUSH_SKIP_PAUSE_MS,
+  RUSH_VERDICT,
+  rushLockoutMs,
+} from './graphFeatureRushRules.mjs';
 
-export const RUSH_ATTEMPT_KIND = Object.freeze({
-  TAP: 'tap',
-  DOES_NOT_EXIST: 'dne',
-  SKIP: 'skip',
-});
-
-export const RUSH_VERDICT = Object.freeze({
-  // Recorded attempts.
-  HIT: 'hit',
-  MISS: 'miss',
-  SKIPPED: 'skipped',
-  // Not recorded: neither credit nor penalty.
-  ALREADY_FOUND: 'alreadyFound',
-  RESOLVED: 'resolved',
-  OUT_OF_ORDER: 'outOfOrder',
-  LIMIT: 'limit',
-  INVALID: 'invalid',
-});
-
-export const RUSH_LIMITS = Object.freeze({
-  // Attempts in one request. A device sends one request at a time, so a burst
-  // of taps on a slow connection arrives as one batch, in order.
-  batch: 12,
-  // Recorded attempts on one graph, and in one round. Far above anything a
-  // student tapping with intent produces; they bound the private record.
-  perQuestion: 30,
-  perRound: 400,
-  // How long before its request arrived an attempt may claim to have happened.
-  claimWindowMs: 8_000,
-  // Questions a device may ask for at once.
-  issueBatch: 8,
-});
+// The shared rules, re-exported for the server and tests.
+export {
+  RUSH_ATTEMPT_KIND,
+  RUSH_AUTO_SKIP_MISSES,
+  RUSH_COMPLETE_FLASH_MS,
+  RUSH_LIMITS,
+  RUSH_LOCKOUT,
+  RUSH_SKIP_PAUSE_MS,
+  RUSH_VERDICT,
+  rushLockoutMs,
+};
 
 const TARGET_SPEC = (targetCount) => Object.freeze({ completionRule: COMPLETION_RULE.ALL_TARGETS, targetCount });
 
@@ -146,10 +135,17 @@ export const rushRoundState = ({ receipts = {}, roundIndex, poolSize = 50 } = {}
 
 /* -------------------------------- attempts ------------------------------- */
 
+// A device's attempt ids: a UUID, or anything else in the same alphabet. The
+// alphabet keeps `~` free for the receipts the server records itself.
+const ATTEMPT_ID_PATTERN = /^[A-Za-z0-9_-]{1,100}$/;
+
+/** The id of the skip the server records after a graph's last allowed miss. */
+export const autoSkipAttemptId = (attemptId) => `${attemptId}~auto-skip`;
+
 /** A client attempt, shape-checked. Returns null for anything malformed. */
 export const normalizeRushAttempt = (raw = {}) => {
   const attemptId = String(raw?.attemptId || '').trim();
-  if (!attemptId || attemptId.length > 100) return null;
+  if (!ATTEMPT_ID_PATTERN.test(attemptId)) return null;
   const questionIndex = integerOr(raw?.questionIndex, null);
   if (questionIndex === null || questionIndex < 0) return null;
   const kind = Object.values(RUSH_ATTEMPT_KIND).includes(raw?.kind) ? raw.kind : null;
@@ -240,8 +236,9 @@ export const applyRushAttempts = ({
     if (prior) {
       verdicts.push(verdictRow(attempt, verdictOfReceipt(prior), {
         replay: true,
-        targetId: prior.targetId ?? null,
+        targetId: prior.isCorrect === true ? prior.targetId ?? null : null,
         completesQuestion: prior.completesQuestion === true,
+        ...(receipts[autoSkipAttemptId(attempt.attemptId)] ? { autoSkipped: true } : {}),
       }));
       return;
     }
@@ -316,40 +313,66 @@ export const applyRushAttempts = ({
     // attempt, never earlier than the claim window allows.
     const elapsedMs = Math.round(Math.min(ceiling, Math.max(elapsedFloor, ceiling - RUSH_LIMITS.claimWindowMs, claimed)));
     elapsedFloor = elapsedMs;
-    sequence += 1;
     const score = strategy?.scoreTargetAttempt
       ? strategy.scoreTargetAttempt({ completesQuestion, isCorrect })
       : { pointsAwarded: completesQuestion ? 1 : 0 };
-    receipts[attempt.attemptId] = {
-      receiptKind: RECEIPT_KIND.TARGET,
+    const record = (receiptId, fields) => {
+      sequence += 1;
+      receipts[receiptId] = {
+        receiptKind: RECEIPT_KIND.TARGET,
+        submissionId: receiptId,
+        roundIndex: round,
+        roundVersion: integerOr(roundVersion, 0),
+        questionIndex: attempt.questionIndex,
+        targetCount,
+        // What was asked, for the teacher's report.
+        feature: question.feature,
+        family: question.family,
+        tier: question.tier,
+        ...fields,
+        sequence,
+        arrivedAtMs: finiteOr(arrivedAtMs, 0),
+        elapsedMs,
+        serverConfirmed: true,
+      };
+      recorded += 1;
+      roundRecorded += 1;
+    };
+    record(attempt.attemptId, {
       attemptKind: attempt.kind,
-      submissionId: attempt.attemptId,
-      roundIndex: round,
-      roundVersion: integerOr(roundVersion, 0),
-      questionIndex: attempt.questionIndex,
       targetId,
-      targetCount,
       isCorrect,
       ...(forfeit ? { forfeit: true } : {}),
       completesQuestion,
-      // What was asked, for the teacher's report.
-      feature: question.feature,
-      family: question.family,
-      tier: question.tier,
       // Where a tap landed, for analysing what students mistake for a feature.
       ...(attempt.kind === RUSH_ATTEMPT_KIND.TAP ? { x: round3(attempt.x), y: round3(attempt.y), pointer: attempt.pointer } : {}),
-      sequence,
-      arrivedAtMs: finiteOr(arrivedAtMs, 0),
-      elapsedMs,
       pointsAwarded: Math.max(0, Math.round(Number(score?.pointsAwarded) || 0)),
-      serverConfirmed: true,
-    };
-    recorded += 1;
-    roundRecorded += 1;
+    });
     if (completesQuestion) completed += 1;
+
+    // THE LAST ALLOWED MISS SKIPS THE GRAPH, decided here and not only on the
+    // device: the rule holds for a device that never sends the skip, and a
+    // student who refreshes after that miss resumes on the next graph.
+    let autoSkipped = false;
+    if (!isCorrect && !forfeit) {
+      const progress = rushQuestionProgress({ receipts, roundIndex: round, questionIndex: attempt.questionIndex, targetCount });
+      if (!progress.completed && progress.incorrectAttempts >= RUSH_AUTO_SKIP_MISSES) {
+        record(autoSkipAttemptId(attempt.attemptId), {
+          attemptKind: RUSH_ATTEMPT_KIND.SKIP,
+          automatic: true,
+          targetId: 'skip',
+          isCorrect: false,
+          forfeit: true,
+          completesQuestion: false,
+          pointsAwarded: 0,
+        });
+        autoSkipped = true;
+      }
+    }
     verdicts.push(verdictRow(attempt, forfeit ? RUSH_VERDICT.SKIPPED : (isCorrect ? RUSH_VERDICT.HIT : RUSH_VERDICT.MISS), {
       targetId: isCorrect ? targetId : null,
       completesQuestion,
+      ...(autoSkipped ? { autoSkipped: true } : {}),
     }));
   });
 
@@ -389,30 +412,6 @@ export const rushPlayerTotals = ({ player = {}, receipts = {}, strategy } = {}) 
 };
 
 /* --------------------------------- device -------------------------------- */
-
-// Consecutive wrong answers on one graph before input pauses, and the pause.
-export const RUSH_LOCKOUT = Object.freeze({ after: 2, baseMs: 600, stepMs: 600, maxMs: 3_000 });
-
-// Misses on one graph after which it is skipped for the student: a stuck
-// student moves on, and sweeping an axis for intercepts stops paying.
-export const RUSH_AUTO_SKIP_MISSES = 8;
-
-/**
- * The cooldown after `consecutiveMisses` wrong taps (or wrong "Does Not
- * Exist" presses) in a row on one graph. A single mistake costs nothing; a
- * second in a row a moment's pause; spraying taps a growing one, so guessing
- * is slower than looking. Tuned by simulation (graphFeatureRushEngine tests):
- * every honest pace outranks spraying and axis-sweeping.
- */
-export const rushLockoutMs = (consecutiveMisses = 0) => {
-  const misses = Math.max(0, Math.floor(Number(consecutiveMisses) || 0));
-  if (misses < RUSH_LOCKOUT.after) return 0;
-  return Math.min(RUSH_LOCKOUT.maxMs, RUSH_LOCKOUT.baseMs + (misses - RUSH_LOCKOUT.after) * RUSH_LOCKOUT.stepMs);
-};
-
-// How long a completed graph's success flash, and a skip, hold the screen.
-export const RUSH_COMPLETE_FLASH_MS = 420;
-export const RUSH_SKIP_PAUSE_MS = 1_200;
 
 export { POINTER_KIND };
 

@@ -304,8 +304,7 @@ const simulateRound = ({ studentKey, decide, strategy = grandPrixStrategy, round
   const rng = () => { localSeed = (localSeed * 48271) % 2147483647; return localSeed / 2147483647; };
   while (clock < ROUND_MS && questionIndex < 50) {
     const question = generateRushQuestion({ seed, studentKey, roundIndex, questionIndex, config: CONFIG });
-    // The device skips a graph for the student after enough misses on it.
-    const move = missesOnGraph >= RUSH_AUTO_SKIP_MISSES ? { kind: 'skip', thinkMs: 0 } : decide(question, found, rng);
+    const move = decide(question, found, rng);
     clock += move.thinkMs;
     if (clock >= ROUND_MS) break;
     counter += 1;
@@ -324,10 +323,13 @@ const simulateRound = ({ studentKey, decide, strategy = grandPrixStrategy, round
     } else if (verdict.verdict === 'miss') {
       missesInARow += 1;
       missesOnGraph += 1;
-      clock += rushLockoutMs(missesInARow);
+      // The server skips the graph on its last allowed miss; the device shows
+      // the skip instead of a cooldown.
+      assert.equal(verdict.autoSkipped === true, missesOnGraph === RUSH_AUTO_SKIP_MISSES);
+      if (!verdict.autoSkipped) clock += rushLockoutMs(missesInARow);
     }
-    if (verdict.completesQuestion || verdict.verdict === 'skipped') {
-      clock += verdict.verdict === 'skipped' ? RUSH_SKIP_PAUSE_MS : RUSH_COMPLETE_FLASH_MS;
+    if (verdict.completesQuestion || verdict.verdict === 'skipped' || verdict.autoSkipped) {
+      clock += verdict.completesQuestion ? RUSH_COMPLETE_FLASH_MS : RUSH_SKIP_PAUSE_MS;
       questionIndex += 1;
       found = [];
       missesInARow = 0;

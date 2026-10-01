@@ -11,9 +11,11 @@ import {
   toleranceForPointer,
 } from '../../functions/shared/graphFeatureHitTest.mjs';
 import {
+  RUSH_AUTO_SKIP_MISSES,
   RUSH_LIMITS,
   RUSH_VERDICT,
   applyRushAttempts,
+  autoSkipAttemptId,
   rushLockoutMs,
   rushPlayerTotals,
   rushRoundState,
@@ -201,16 +203,57 @@ test('attempts for a graph the server has not reached are refused, not recorded'
   assert.equal(play({}, [tap('a', 0, 1)], { questions: [] }).verdicts[0].verdict, RUSH_VERDICT.INVALID, 'no question, no grading');
 });
 
-test('spraying taps hits the per-graph limit; the record stays bounded', () => {
+test('spraying one graph ends in its automatic skip, recorded by the server', () => {
+  // The eighth miss on a graph skips it, in the same transaction: a device
+  // that never sends the skip still moves on, and a refresh resumes on the
+  // next graph.
+  const spray = Array.from({ length: RUSH_LIMITS.batch }, (_, index) => tap(`spray-${index}`, 0, 8, 8));
+  const graphs = [question(), question({ questionIndex: 1 })];
+  const sprayed = play({}, spray, { questions: graphs });
+  const verdicts = sprayed.verdicts.map((row) => row.verdict);
+  assert.deepEqual(verdicts.slice(0, RUSH_AUTO_SKIP_MISSES), Array(RUSH_AUTO_SKIP_MISSES).fill(RUSH_VERDICT.MISS));
+  assert.equal(sprayed.verdicts.findIndex((row) => row.autoSkipped === true), RUSH_AUTO_SKIP_MISSES - 1, 'the eighth miss skips the graph');
+  assert.ok(verdicts.slice(RUSH_AUTO_SKIP_MISSES).every((verdict) => verdict === RUSH_VERDICT.RESOLVED), 'taps after it change nothing');
+  assert.equal(sprayed.state.cursor, 1);
+  assert.equal(sprayed.state.skipped, 1);
+  assert.equal(sprayed.state.attempts, RUSH_AUTO_SKIP_MISSES + 1, 'the misses, and the one skip');
+  const skip = sprayed.receipts[autoSkipAttemptId(`spray-${RUSH_AUTO_SKIP_MISSES - 1}`)];
+  assert.deepEqual([skip.forfeit, skip.automatic, skip.attemptKind, skip.isCorrect], [true, true, 'skip', false]);
+  // Retried, the eighth miss reports the skip again and records nothing.
+  const replay = play(carry({}, sprayed), [spray[RUSH_AUTO_SKIP_MISSES - 1]], { questions: graphs });
+  assert.deepEqual([replay.verdicts[0].verdict, replay.verdicts[0].autoSkipped, replay.recorded], [RUSH_VERDICT.MISS, true, 0]);
+  // Seven misses and a hit: no skip.
+  const close = play({}, [...spray.slice(0, RUSH_AUTO_SKIP_MISSES - 1), tap('found', 0, -4)], { questions: graphs });
+  assert.ok(close.verdicts.every((row) => row.autoSkipped !== true));
+  assert.equal(close.state.cursor, 0);
+  // A device's attempt ids cannot take the server's own.
+  assert.equal(play({}, [tap('a~auto-skip', 0, -4)]).verdicts[0].verdict, RUSH_VERDICT.INVALID);
+});
+
+test('the per-graph and per-round limits bound the private record', () => {
+  // Per graph: a backstop behind the automatic skip, which no live graph
+  // reaches (at most 19 hits and 8 misses before it completes or is skipped).
+  // A record that holds the limit already — written under older rules —
+  // takes no more.
+  const legacy = Object.fromEntries(Array.from({ length: RUSH_LIMITS.perQuestion }, (_, index) => [`old-${index}`, {
+    receiptKind: 'targetAttempt', roundIndex: 0, roundVersion: 1, questionIndex: 0, targetId: 'miss', targetCount: 3,
+    isCorrect: false, completesQuestion: false, sequence: index + 1, elapsedMs: 1_000, serverConfirmed: true,
+  }]));
+  const full = { submissionReceipts: legacy, attemptSequence: RUSH_LIMITS.perQuestion };
+  assert.equal(rushRoundState({ receipts: legacy, roundIndex: 0, poolSize: 50 }).cursor, 0);
+  const more = play(full, [tap('one-more', 0, -4)]);
+  assert.deepEqual([more.verdicts[0].verdict, more.recorded], [RUSH_VERDICT.LIMIT, 0]);
+  // Per round: graph after graph of misses stops at the round's limit.
+  const pool = Array.from({ length: 50 }, (_, index) => question({ questionIndex: index }));
   let player = {};
-  for (let start = 0; start < RUSH_LIMITS.perQuestion + 6; start += RUSH_LIMITS.batch) {
-    const batch = Array.from({ length: RUSH_LIMITS.batch }, (_, index) => tap(`spray-${start + index}`, 0, 8, 8));
-    player = carry(player, play(player, batch));
+  let limited = 0;
+  for (let graph = 0; graph < 50 && !limited; graph += 1) {
+    const outcome = play(player, Array.from({ length: RUSH_AUTO_SKIP_MISSES }, (_, index) => tap(`g${graph}-${index}`, graph, 8, 8)), { questions: pool });
+    player = carry(player, outcome);
+    limited = outcome.verdicts.filter((row) => row.verdict === RUSH_VERDICT.LIMIT).length;
   }
-  const state = rushRoundState({ receipts: player.submissionReceipts, roundIndex: 0, poolSize: 50 });
-  assert.equal(state.attempts, RUSH_LIMITS.perQuestion);
-  const more = play(player, [tap('one-more', 0, -4)]);
-  assert.equal(more.verdicts[0].verdict, RUSH_VERDICT.LIMIT);
+  assert.ok(limited > 0, 'the round limit is reached');
+  assert.equal(rushRoundState({ receipts: player.submissionReceipts, roundIndex: 0, poolSize: 50 }).attempts, RUSH_LIMITS.perRound);
   assert.equal(play({}, Array.from({ length: 40 }, (_, index) => tap(`b${index}`, 0, 8, 8))).verdicts.length, RUSH_LIMITS.batch, 'one request carries at most a batch');
 });
 
