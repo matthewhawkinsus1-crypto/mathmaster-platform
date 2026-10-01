@@ -435,7 +435,10 @@ test('secure Test Cycle and private Path state never reach ordinary draft persis
   // Test Cycle assignments are excluded at the App level as well.
   const start = appSource.indexOf('SERVER-BACKED WORKING DRAFTS');
   const block = appSource.slice(start, appSource.indexOf('const assignmentOpenSpanRef', start));
-  assert.match(block, /if \(!assignment \|\| isTestCycleAssignment\(assignment\)\) return undefined;/);
+  // The exclusion is a yes/no derived from the open assignment, so the sync
+  // does not depend on the whole (live) assignment list; the effect bails on it.
+  assert.match(block, /const activeAssignmentUsesWorkspaceDrafts = useMemo\(\(\) => \{[\s\S]*?return Boolean\(assignment\) && !isTestCycleAssignment\(assignment\);/);
+  assert.match(block, /if \(!activeAssignmentUsesWorkspaceDrafts\) return undefined;\s*\n\s*let cancelled = false;\s*\n\s*const sync = createWorkspaceDraftSync/);
 });
 
 test('an answer key can never be stored in a workspace draft', () => {

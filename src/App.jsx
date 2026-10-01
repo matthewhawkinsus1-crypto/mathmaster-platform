@@ -737,6 +737,12 @@ function App() {
   // no longer makes every teacher login download and regrade the full history.
   const teacherGraderRepairRanRef = useRef(false);
   const [assignments, setAssignments] = useState([]);
+  // For effects that only LOOK UP an assignment (a title for a toast). The
+  // whole collection is one live listener, so `assignments` changes whenever
+  // any assignment in the school does; as a dependency it tore down and
+  // re-created the listener holding the lookup on every such change.
+  const assignmentsRef = useRef(assignments);
+  assignmentsRef.current = assignments;
   const [allStudents, setAllStudents] = useState([]);
   const [teacherRosterSummaries, setTeacherRosterSummaries] = useState([]);
   const [teacherStudentDataMode, setTeacherStudentDataMode] = useState('summary');
@@ -3032,12 +3038,21 @@ function App() {
    */
   useEffect(() => { trackerRef.current = tracker; }, [tracker]);
 
-  useEffect(() => {
-    if (user?.role !== 'student' || !user.id || !activeAssignmentId || isTeacherPreview) return undefined;
+  // A yes/no, not the list: `assignments` is one live listener over the whole
+  // collection, so as a dependency every edit to ANY assignment — another
+  // teacher's, a seat allocation, a DOL unlock — flushed and tore down this
+  // student's sync, rebuilt it and re-read the draft from the server, on every
+  // open Chromebook at once.
+  const activeAssignmentUsesWorkspaceDrafts = useMemo(() => {
     const assignment = assignments.find((item) => item.id === activeAssignmentId);
     // Secure Test Cycle material has its own server-owned state machine and
     // never uses ordinary draft persistence.
-    if (!assignment || isTestCycleAssignment(assignment)) return undefined;
+    return Boolean(assignment) && !isTestCycleAssignment(assignment);
+  }, [assignments, activeAssignmentId]);
+
+  useEffect(() => {
+    if (user?.role !== 'student' || !user.id || !activeAssignmentId || isTeacherPreview) return undefined;
+    if (!activeAssignmentUsesWorkspaceDrafts) return undefined;
 
     let cancelled = false;
     const sync = createWorkspaceDraftSync({
@@ -3088,7 +3103,7 @@ function App() {
       sync.stop();
       if (workspaceDraftSyncRef.current === sync) workspaceDraftSyncRef.current = null;
     };
-  }, [user?.role, user?.id, user?.classId, activeAssignmentId, isTeacherPreview, assignments]);
+  }, [user?.role, user?.id, user?.classId, activeAssignmentId, isTeacherPreview, activeAssignmentUsesWorkspaceDrafts]);
 
   /*
    * POST-DEADLINE PRACTICE MODE IS NOT A GRADE, AND MUST STILL SURVIVE.
@@ -4023,7 +4038,7 @@ function App() {
           if (classroomSyncNoticeRef.current[assignmentId] === notificationId) return;
           classroomSyncNoticeRef.current[assignmentId] = notificationId;
 
-          const assignment = assignments.find((item) => item.id === assignmentId);
+          const assignment = assignmentsRef.current.find((item) => item.id === assignmentId);
           const title = assignment?.title || 'Your assignment';
           const grade = Number.isFinite(Number(receipt?.grade)) ? Number(receipt.grade) : null;
           const gradeText = grade == null ? 'Your grade' : `${grade}%`;
@@ -4071,7 +4086,7 @@ function App() {
       },
       (error) => console.error('Could not watch Google Classroom grade receipts:', error),
     );
-  }, [user?.role, user?.id, assignments, toastSuccess]);
+  }, [user?.role, user?.id, toastSuccess]);
 
   // DOL reminders are global to the student experience, not just the open
   // assignment. The persistent purple DOL card/banner is the primary notice;

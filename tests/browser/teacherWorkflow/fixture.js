@@ -38,6 +38,23 @@ const previousSchoolDay = (ms) => {
 const FIRST = ['Avery', 'Blake', 'Casey', 'Devon', 'Emery', 'Finley', 'Gray', 'Harper', 'Indy', 'Jordan', 'Kai', 'Logan', 'Morgan', 'Noel', 'Oakley', 'Parker', 'Quinn', 'Reese', 'Sage', 'Tatum', 'Uri', 'Val', 'Wren', 'Yael', 'Zion'];
 const LAST = ['Adler', 'Brooks', 'Castillo', 'Dunn', 'Ellis', 'Flores', 'Garza', 'Hale', 'Ibarra', 'Jensen', 'Khan', 'Lopez', 'Mercer', 'Nash', 'Ortiz', 'Price', 'Quade', 'Rios', 'Sato', 'Tran'];
 
+// `?questions=real`: the same lesson shape with question types the student
+// runtime actually renders (math fields, a multi-part answer, a system, an
+// ordered pair), for the endurance journeys that type and submit. The default stays
+// `freeResponse`, which the teacher journeys never open.
+const realLessonSections = (id) => ([
+  { id: `${id}-wu`, role: 'warmup', title: 'Warm-Up', questions: [{ questionId: `${id}-w1`, activityRole: 'warmup', type: 'literal', prompt: 'Solve 2y = 10 for y.', solveFor: 'y', acceptedAnswers: ['5'] }] },
+  { id: `${id}-cw`, role: 'classwork', title: 'Classwork', questions: [
+    { questionId: `${id}-c1`, activityRole: 'classwork', type: 'multiAnswer', prompt: 'Write 6/8 in lowest terms.', answerFields: [{ id: 'f', label: 'Fraction', answer: '3/4' }] },
+    { questionId: `${id}-c2`, activityRole: 'classwork', type: 'multiAnswer', prompt: 'A line passes through (0, 4) and (3, 2).', answerFields: [{ id: 'm', label: 'Slope', answer: '-2/3' }, { id: 'b', label: 'y-intercept', answer: '4' }] },
+  ] },
+  { id: `${id}-pr`, role: 'practice', title: 'Practice', questions: [
+    { questionId: `${id}-p1`, activityRole: 'practice', type: 'system', prompt: 'Solve the system x + y = 5, x − y = 1.', solution: { x: 3, y: 2 }, equationsLatex: ['x+y=5', 'x-y=1'] },
+    { questionId: `${id}-p2`, activityRole: 'practice', type: 'orderedPair', prompt: 'Where do y = x + 1 and y = 3 meet?', answer: '(2,3)' },
+  ] },
+  { id: `${id}-dol`, role: 'dol', title: 'DOL', questions: [{ questionId: `${id}-d1`, activityRole: 'dol', type: 'literal', prompt: 'Solve 5x − 5 = 20 for x.', solveFor: 'x', acceptedAnswers: ['5'] }] },
+]);
+
 const lessonSections = (id) => ([
   { id: `${id}-wu`, role: 'warmup', title: 'Warm-Up', questions: [{ questionId: `${id}-w1`, activityRole: 'warmup', type: 'freeResponse', prompt: 'Solve 2x + 3 = 11.', expected: '4' }] },
   { id: `${id}-cw`, role: 'classwork', title: 'Classwork', questions: [
@@ -63,7 +80,8 @@ const TRACKERS = {
   warmupOnly: { 0: correct },
 };
 
-export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp } = {}) => {
+export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, params = null } = {}) => {
+  const sectionsFor = params?.get?.('questions') === 'real' ? realLessonSections : lessonSections;
   const todayKey = dateKey(now);
   const yesterday = previousSchoolDay(now);
   const fixture = {};
@@ -122,7 +140,7 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp } = {}
     releaseAt: releaseMs ? startOfDay(releaseMs) : null,
     dueAt: endOfDay(dueMs),
     lateDueAt: endOfDay(lateMs),
-    sections: lessonSections(id),
+    sections: sectionsFor(id),
     warmup: { enabled: true, instructionDate: instructionMs ? dateKey(instructionMs) : null, minutesBeforeStart: 7, closeMinutesAfterStart: 10 },
     dol: { enabled: true, instructionDate: instructionMs ? dateKey(instructionMs) : null, minutesBeforeEnd: 10, closeMinutesBeforeEnd: 5 },
     gradingPeriod: period,

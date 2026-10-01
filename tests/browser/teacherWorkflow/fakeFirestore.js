@@ -77,6 +77,11 @@ const revive = (value) => {
 
 const store = new Map();
 const listeners = new Set();
+// What the app asked of "Firestore", for the endurance journeys: document
+// reads by path, listeners opened by path, and how many are open right now.
+const stats = { reads: new Map(), subscriptions: new Map() };
+const bump = (map, key) => map.set(key, (map.get(key) || 0) + 1);
+const targetPath = (target) => (target?.type === 'query' ? target.collectionPath : target?.path) || '';
 
 const persist = () => {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...store.entries()].map(([path, data]) => [path, serialize(data)]))); } catch { /* quota: harness only */ }
@@ -186,7 +191,7 @@ const runQuery = (target) => {
   return { docs, empty: docs.length === 0, size: docs.length, forEach: (fn) => docs.forEach(fn), docChanges: () => docs.map((entry) => ({ type: 'added', doc: entry })) };
 };
 
-export const getDoc = async (ref) => docSnapshot(ref.path);
+export const getDoc = async (ref) => { bump(stats.reads, ref.path); return docSnapshot(ref.path); };
 export const getDocs = async (target) => runQuery(target);
 
 export const onSnapshot = (target, ...rest) => {
@@ -198,6 +203,7 @@ export const onSnapshot = (target, ...rest) => {
     },
   };
   listeners.add(listener);
+  bump(stats.subscriptions, targetPath(target));
   setTimeout(() => listener.emit(), 0);
   return () => listeners.delete(listener);
 };
@@ -280,6 +286,12 @@ export const harnessStore = {
   update: (path, patch) => { writeUpdate(new DocumentReference(path), [patch]); notify(); },
   paths: (prefix = '') => [...store.keys()].filter((path) => path.startsWith(prefix)),
   reset: () => { localStorage.removeItem(STORAGE_KEY); window.location.search = '?reset=1'; },
+  stats: () => ({
+    openListeners: listeners.size,
+    reads: Object.fromEntries(stats.reads),
+    subscriptions: Object.fromEntries(stats.subscriptions),
+  }),
+  resetStats: () => { stats.reads.clear(); stats.subscriptions.clear(); },
 };
 if (typeof window !== 'undefined') window.__mmHarnessStore = harnessStore;
 
