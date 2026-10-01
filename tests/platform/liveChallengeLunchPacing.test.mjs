@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { challengeCanAdvance } from '../../functions/shared/liveChallenge.mjs';
-import { planLifecycleCommand } from '../../functions/shared/liveChallengeLifecycle.mjs';
+import { MATCH_STATE, planLifecycleCommand } from '../../functions/shared/liveChallengeLifecycle.mjs';
 import { buildRoundTimer } from '../../functions/shared/liveChallengeTimer.mjs';
+import { challengeClock, roundCloseDue } from '../../src/platform/liveChallenge/challengeShellModel.js';
 
 const student = readFileSync(new URL('../../src/components/liveChallenge/LiveChallengeStudent.jsx', import.meta.url), 'utf8');
 const server = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
@@ -150,11 +151,33 @@ test('final speed scoring uses activeRoundSeconds rather than the teacher baseli
 });
 
 test('teacher and projector distinguish open Pace Race from an expired round', () => {
+  // An open Pace Race round has no deadline until its closing threshold sets
+  // one. Read off the room's clock it is playing — elapsed time, no time left,
+  // never "Time!" — and nothing closes it on a clock it does not have. Once
+  // the threshold sets a deadline it counts down and locks like any round.
+  const pace = { status: 'running', roundState: 'open', currentRound: 0, roundCount: 4, timingMode: 'pace', startsAt: 10_000, endsAt: null };
+  const open = challengeClock(pace, 70_000);
+  assert.equal(open.stage, MATCH_STATE.ROUND_ACTIVE);
+  assert.equal(open.openEnded, true);
+  assert.equal(open.remainingMs, null, 'no time left to show');
+  assert.equal(open.elapsedMs, 60_000);
+  assert.equal(roundCloseDue({ room: pace, joinedCount: 5, finishedCount: 2 }), null, 'an open Pace Race is never closed on a clock');
+  const closing = { ...pace, endsAt: 75_000 };
+  assert.equal(challengeClock(closing, 70_000).openEnded, false);
+  assert.equal(challengeClock(closing, 70_000).remainingMs, 5_000);
+  assert.equal(challengeClock(closing, 76_000).stage, MATCH_STATE.ROUND_LOCKED, 'past the threshold deadline the round is over');
+  assert.equal(roundCloseDue({ room: closing, joinedCount: 5, finishedCount: 2 }).reason, 'deadline');
+  // Both host screens label the clock from that reading — and the digits
+  // themselves (ChallengeClockText) show elapsed time for an open round.
   const teacher = readFileSync(new URL('../../src/components/liveChallenge/LiveChallengeTeacher.jsx', import.meta.url), 'utf8');
   const projector = readFileSync(new URL('../../src/components/liveChallenge/LiveChallengeArenaProjector.jsx', import.meta.url), 'utf8');
-  assert.match(teacher, /const hasRoundDeadline = roundEndsAtMs > 0/);
-  assert.match(teacher, /paceOpen \? 'Elapsed' : 'Time left'/);
-  assert.match(projector, /const paceOpen = room\?\.timingMode === 'pace'/);
-  assert.match(projector, /const roundComplete = !paceOpen && Number\(remainingMs\) <= 0/);
-  assert.match(projector, /const advanceAvailable = canAdvance/);
+  const parts = readFileSync(new URL('../../src/components/liveChallenge/ChallengeShellParts.jsx', import.meta.url), 'utf8');
+  const status = teacher.slice(teacher.indexOf('export function ChallengeLiveStatus('), teacher.indexOf('export function ChallengeProjector('));
+  assert.match(status, /const paceOpen = clock\.openEnded;/);
+  assert.match(status, /paceOpen \? 'Elapsed' : 'Time left'/);
+  const arenaClock = projector.slice(projector.indexOf('function ArenaClock('), projector.indexOf('const PODIUM_RANKS'));
+  assert.match(arenaClock, /const paceOpen = clock\.openEnded;/);
+  assert.match(arenaClock, /paceOpen \? 'Elapsed'/);
+  const digits = parts.slice(parts.indexOf('export function ChallengeClockText('), parts.indexOf('export function useLowTime('));
+  assert.match(digits, /clock\.openEnded \? formatChallengeClock\(clock\.elapsedMs\)/);
 });

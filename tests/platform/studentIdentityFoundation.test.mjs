@@ -72,10 +72,19 @@ test('walkthrough monitor delegates teacher-facing names to the canonical identi
 });
 
 test('Live Challenge shared leaderboard remains alias-based', () => {
-  const studentBoard = read('src/components/liveChallenge/LiveChallengeStudent.jsx');
-  const teacherBoard = read('src/components/liveChallenge/LiveChallengeTeacher.jsx');
-  assert.match(studentBoard, /\{row\.alias\}/);
-  assert.match(teacherBoard, /\{row\.alias\}/);
-  assert.doesNotMatch(executableSource(studentBoard), /formatStudentName/);
-  assert.doesNotMatch(executableSource(teacherBoard), /formatStudentName/);
+  // Every shared board — student devices, the console's live board, the
+  // projector — renders through the shell's boards, which show game aliases.
+  const parts = read('src/components/liveChallenge/ChallengeShellParts.jsx');
+  assert.match(region(parts, 'export function StandingsBoard(', '\nexport const roundPerformanceText', 'standings board'), />\{row\.alias\}</);
+  assert.match(region(parts, 'export function RoundResultsTable(', '\nexport function ConfirmDialog', 'round results'), />\{row\.alias\}</);
+  const files = ['LiveChallengeStudent.jsx', 'LiveChallengeTeacher.jsx', 'LiveChallengeArenaProjector.jsx', 'ChallengeShellParts.jsx', 'ChallengeStudentShell.jsx', 'ChallengeHostConsole.jsx']
+    .map((name) => [name, read(`src/components/liveChallenge/${name}`)]);
+  files.forEach(([name, source]) => assert.doesNotMatch(executableSource(source), /formatStudentName/, name));
+  // Names exist for the teacher's console only (a teacher-only callable): the
+  // projector is never handed the roster, and never asks for it.
+  const teacher = read('src/components/liveChallenge/LiveChallengeTeacher.jsx');
+  const projectorProps = region(teacher, "if (projector && ['lobby', 'running', 'finished'].includes(room.status)) {", '/>;', 'projector props');
+  assert.doesNotMatch(projectorProps, /roster/i);
+  const projector = executableSource(read('src/components/liveChallenge/LiveChallengeArenaProjector.jsx'));
+  assert.doesNotMatch(projector, /roster|getLiveChallengeHostRoster/i);
 });

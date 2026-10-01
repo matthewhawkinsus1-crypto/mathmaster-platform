@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import MathInput from '../../MathInput.jsx';
 import MathText from '../common/MathText.jsx';
 import { liveChallengeResponseReadiness } from '../../../functions/shared/liveChallenge.mjs';
@@ -170,7 +170,7 @@ function TextField({ field, value, disabled, onChange, onSubmit, autoFocus }) {
  * It owns presentation only. The values below are the sanitized runtime values
  * from Path; correctness is still decided by the existing server callable.
  */
-export default function LiveChallengeFieldQuestion({ question, disabled, onSubmit }) {
+function LiveChallengeFieldQuestionView({ question, disabled, onSubmit }) {
   const fields = question?.responseFields?.length ? question.responseFields : [];
   const readiness = useMemo(() => liveChallengeResponseReadiness(question), [question]);
   const [responses, setResponses] = useState({});
@@ -261,5 +261,22 @@ export default function LiveChallengeFieldQuestion({ question, disabled, onSubmi
         {busy ? 'Checking…' : 'Lock In Answer'}
       </button>
     </section>
+  );
+}
+
+/*
+ * Re-rendered only when what it SHOWS changes — the question, or whether it is
+ * locked. The round around it redraws its clock four times a second and its
+ * board on every classmate's progress; none of that reaches the choices or the
+ * math they render. `onSubmit` always reaches the round's latest submit
+ * through a ref, so a skipped render can never hold an old one.
+ */
+export default function LiveChallengeFieldQuestion({ question, disabled, onSubmit }) {
+  const submitRef = useRef(onSubmit);
+  submitRef.current = onSubmit;
+  const stableSubmit = useMemo(() => (...args) => submitRef.current?.(...args), []);
+  return useMemo(
+    () => <LiveChallengeFieldQuestionView question={question} disabled={disabled} onSubmit={stableSubmit} />,
+    [question, disabled, stableSubmit],
   );
 }

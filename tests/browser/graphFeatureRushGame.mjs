@@ -404,6 +404,18 @@ const playUntil = async (student, roomId, endsAtMs, { scenario, missEvery = 0, s
 
 const endsAtOf = (room) => (room.roundEndsAt?.toMillis?.() || room.endsAt?.toMillis?.() || 0);
 
+const ordinal = (place) => {
+  const tens = place % 100;
+  if (tens >= 11 && tens <= 13) return `${place}th`;
+  return `${place}${({ 1: 'st', 2: 'nd', 3: 'rd' })[place % 10] || 'th'}`;
+};
+// "1st of 10 this round" / "T-2nd of 10 this round", from the round's own result.
+const roundPlaceText = async (roomId, roundIndex, playerKey) => {
+  const summary = (await roomRef(roomId).collection('rounds').doc(String(roundIndex)).get()).data() || {};
+  const row = (summary.standings || []).find((entry) => entry.playerKey === playerKey) || {};
+  return `${row.tied ? 'T-' : ''}${ordinal(Number(row.rank) || 0)} of ${summary.fieldSize} this round`;
+};
+
 const run = async (name, scenario) => {
   if (ONLY.length && !ONLY.includes(name)) return;
   log(`▶ ${name}`);
@@ -517,7 +529,7 @@ await run('two-player-grand-prix', async () => {
   room = await waitForRoundClosed(roomId, 0, 15_000);
   check(S, room?.roundState === 'closed', 'round 1 was not closed automatically after the deadline');
   for (const student of [a, b]) {
-    check(S, await waitForText(student, 'Round 1 complete', 10_000), `${student.studentId}: no round results screen`);
+    check(S, await waitForText(student, 'Round 1 results', 10_000), `${student.studentId}: no round results screen`);
   }
   await shot(a, 'gp-r1-results-chromebook');
   await shot(b, 'gp-r1-results-phone');
@@ -669,9 +681,11 @@ await run('correct-count-devices', async () => {
   await Promise.all(students.map((student, index) => playUntil(student, roomId, endsAt, { scenario: S, missEvery: index + 2 })));
   await waitForRoundClosed(roomId, 0, 15_000);
   for (const student of students) {
-    check(S, await waitForText(student, 'Round 1 complete', 10_000), `${student.studentId}: no results`);
+    check(S, await waitForText(student, 'Round 1 results', 10_000), `${student.studentId}: no results`);
     const record = await privatePlayer(roomId, student.studentId);
-    check(S, await waitForText(student, `${record.correctCount} graphs in all`, 5_000), `${student.studentId}: results do not show ${record.correctCount} graphs in all`);
+    // The standings line: their match total, in the room's own unit.
+    const total = `${record.correctCount} ${record.correctCount === 1 ? 'graph' : 'graphs'} completed`;
+    check(S, await waitForText(student, `Overall: `, 5_000) && await waitForText(student, total, 5_000), `${student.studentId}: results do not show the match total "${total}"`);
     await shot(student, `cc-results-${student.device}`);
   }
   await teacher.page.getByRole('button', { name: 'Finish & Show Final Standings' }).click();
@@ -680,12 +694,15 @@ await run('correct-count-devices', async () => {
   for (const student of students) check(S, await waitForText(student, 'graphs completed', 15_000), `${student.studentId}: final summary is not in graphs`);
 
   // The class's next game: a new lobby reaches every open screen.
-  await teacher.page.getByRole('button', { name: 'Create Another Challenge' }).click();
+  // Back to setup with this game's settings (Play Again would replay the same preset).
+  await teacher.page.getByRole('button', { name: 'New Challenge', exact: true }).click();
   const nextRoom = await createRush(teacher, { classKey: 'class', preset: 'Intercept Sprint', rounds: 1, seconds: 30, scoring: 'correctCount' });
   check(S, nextRoom && nextRoom !== roomId, 'no new room');
   for (const student of students) check(S, await waitForText(student, 'You are in as', 15_000), `${student.studentId}: the next game's lobby never appeared`);
   check(S, !(await textOf(students[0])).includes('Challenge complete'), 'the previous game\'s final screen carried into the next lobby');
-  await teacher.page.getByRole('button', { name: 'Cancel Session' }).click();
+  // Students are in, so cancelling asks first.
+  await teacher.page.getByRole('button', { name: 'Cancel Session' }).first().click();
+  await teacher.page.getByRole('alertdialog').getByRole('button', { name: 'Cancel Session' }).click();
   for (const handle of [teacher, ...students]) check(S, handle.errors.length === 0, `console errors on ${handle.device}: ${handle.errors.slice(0, 3).join(' | ')}`);
   await Promise.all([teacher, ...students].map((handle) => handle.context.close()));
 });
@@ -723,7 +740,10 @@ await run('class-of-twelve', async () => {
     const graphs = `${facts.completed} ${facts.completed === 1 ? 'graph' : 'graphs'} completed`;
     check(S, await waitForText(student, graphs, 10_000), `${student.studentId}: results do not show the server's "${graphs}"`);
     if (facts.participated) {
-      check(S, await waitForText(student, `#${facts.rank} of ${facts.fieldSize} this round`, 5_000), `${student.studentId}: results do not show #${facts.rank} of ${facts.fieldSize}`);
+      // Their place in the round, as the round's own result says it (a shared
+      // place reads "T-2nd").
+      const place = await roundPlaceText(roomId, 0, record.playerKey);
+      check(S, await waitForText(student, place, 5_000), `${student.studentId}: results do not show "${place}"`);
       check(S, await waitForText(student, `+${facts.matchPointsAwarded} championship points`, 5_000), `${student.studentId}: results do not show +${facts.matchPointsAwarded} championship points`);
     } else {
       check(S, await waitForText(student, 'No championship points this round', 5_000), `${student.studentId}: a student who never tapped is not told they earned no points`);

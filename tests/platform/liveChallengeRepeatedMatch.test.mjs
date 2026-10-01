@@ -26,6 +26,8 @@ import { region } from './helpers/sourceContract.mjs';
 const read = (relative) => readFileSync(new URL(`../../${relative}`, import.meta.url), 'utf8');
 const student = read('src/components/liveChallenge/LiveChallengeStudent.jsx');
 const teacher = read('src/components/liveChallenge/LiveChallengeTeacher.jsx');
+const consoleParts = read('src/components/liveChallenge/ChallengeHostConsole.jsx');
+const projector = read('src/components/liveChallenge/LiveChallengeArenaProjector.jsx');
 const app = read('src/App.jsx');
 const gate = read('src/components/liveChallenge/WarmupChallengeGate.jsx');
 const dryRun = read('src/components/liveChallenge/ChallengeDryRun.jsx');
@@ -164,13 +166,24 @@ test('the teacher sends one lifecycle command at a time', () => {
   assert.match(control, /if \(controlLockRef\.current\) return null;\s*controlLockRef\.current = true;/);
   assert.match(control, /finally \{ controlLockRef\.current = false; \}/);
   assert.match(teacher, /const controlBusy = LIFECYCLE_CONTROLS\.includes\(busy\);/);
-  const screen = region(teacher, "{room.status === 'lobby' && (", null, 'teacher lobby and game controls');
-  for (const button of ['start', 'cancel', 'advance', 'finish']) {
-    const at = screen.indexOf(`control('${button}'`);
-    assert.ok(at > -1, `${button} must be a teacher control`);
-    const tag = screen.slice(screen.lastIndexOf('<button', at), at);
-    assert.match(tag, /disabled=\{[^}]*controlBusy[^}]*\}/, `${button} must be disabled while any command is in flight`);
+  // Every control that can send one is disabled while ANY is in flight: the
+  // console's primary and secondary controls (HostControlBar), the header's
+  // Cancel Session and End Game, the confirmation's own button, and the
+  // projector's strip.
+  const bar = region(consoleParts, 'export function HostControlBar(', '\n}\n', 'console control bar');
+  assert.match(bar, /data-mm-primary-action=\{action\.command\}\s*disabled=\{action\.disabled \|\| controlBusy/);
+  assert.match(bar, /disabled=\{control\.disabled \|\| controlBusy\}/);
+  const header = region(teacher, 'data-mm-host-console=', '</header>', 'console header');
+  for (const label of ['Cancel Session', "'End Game'"]) {
+    const line = header.split('\n').find((text) => text.includes(label));
+    assert.ok(line, `${label} is on the console`);
+    assert.match(line, /disabled=\{controlBusy\}/, `${label} must be disabled while any command is in flight`);
   }
+  assert.match(region(teacher, 'const confirmDialog = (', '\n  );', 'confirmation'), /busy=\{controlBusy\}/);
+  const strip = region(projector, 'function HostStrip(', '\nexport const formatArenaClock', 'projector strip');
+  const lifecycleButtons = strip.split('\n').filter((text) => /<button/.test(text) && !/onNewChallenge\}/.test(text));
+  assert.ok(lifecycleButtons.length >= 3);
+  lifecycleButtons.forEach((text) => assert.match(text, /disabled=\{[^}]*controlBusy/, `projector control must respect the lock: ${text.trim().slice(0, 80)}`));
 });
 
 test('round commands carry the round the teacher saw', () => {
@@ -181,13 +194,23 @@ test('round commands carry the round the teacher saw', () => {
   assert.match(teacher, /const ROUND_SCOPED_CONTROLS = Object\.freeze\(\['advance', 'close'\]\);/);
 });
 
-test('the lobby lists who is here without ranking anyone', () => {
+test('the lobby lists who is here without ranking anyone', async () => {
   // With honest ties every lobby player is "#1", which reads as nonsense; the
-  // lobby has no order to show.
-  const lobby = region(teacher, "{room.status === 'lobby' && (", "{room.status === 'running' && (", 'teacher lobby');
-  assert.match(lobby, /<Leaderboard rows=\{leaderboard\} limit=\{60\} ranked=\{false\} \/>/);
-  const board = region(teacher, 'export function Leaderboard(', '\nexport function ChallengeLiveStatus', 'Leaderboard');
-  assert.match(board, /\{ranked && <strong style=\{\{ textAlign: 'center' \}\}>#\{row\.rank\}<\/strong>\}/);
+  // lobby has no order to show. The console lists the class by name, with
+  // who has joined — never a rank or a score.
+  const lobby = region(teacher, '{lobby && (', '{(roundOpen || stage === CHALLENGE_STAGE.ROUND_RESULTS) && (', 'teacher lobby');
+  assert.match(lobby, /<HostRosterPanel roster=\{roster\}/);
+  assert.doesNotMatch(lobby, /<StandingsBoard|<Leaderboard|\.rank\b/);
+  const panel = region(consoleParts, 'export function HostRosterPanel(', '\nexport function NotJoinedLine', 'roster panel');
+  assert.doesNotMatch(panel, /\.rank\b|\.score\b|place/);
+  const { hostRoster } = await loadFresh('src/platform/liveChallenge/challengePresenceModel.js');
+  const roster = hostRoster({
+    roster: [{ playerKey: 'z', name: 'Zoe Park' }, { playerKey: 'a', name: 'Ana Ruiz' }, { playerKey: 'm', name: 'Mo Diaz' }],
+    players: [{ playerKey: 'z', alias: 'Nova', joined: true, score: 900 }, { playerKey: 'a', alias: 'Atlas', joined: true, score: 10 }],
+  });
+  assert.deepEqual(roster.entries.map((entry) => entry.name), ['Ana Ruiz', 'Mo Diaz', 'Zoe Park'], 'by name, whatever the scores');
+  assert.ok(roster.entries.every((entry) => !('rank' in entry) && !('score' in entry)));
+  assert.deepEqual(roster.summary.notJoined, ['Mo Diaz']);
 });
 
 /* ---------- the projector and the podium ---------- */

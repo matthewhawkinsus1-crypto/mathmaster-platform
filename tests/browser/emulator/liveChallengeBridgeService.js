@@ -18,6 +18,8 @@ export {
   watchLiveChallengePlayers,
   watchLiveChallengeDiagnostics,
   watchTeacherActiveChallenge,
+  watchLiveChallengeRound,
+  readLiveChallengeRound,
   readChallengeReport,
   timestampMillis,
   setWarmupChallengeDelivery,
@@ -76,6 +78,7 @@ export const submitLiveChallengeResponse = call('submitLiveChallengeResponse');
 export const calibrateLiveChallengeClock = call('calibrateLiveChallengeClock');
 export const reportLiveChallengeProgress = call('reportLiveChallengeProgress');
 export const updateLiveChallengePacing = call('updateLiveChallengePacing');
+export const getLiveChallengeHostRoster = call('getLiveChallengeHostRoster');
 export const getGraphFeatureRushRound = call('getGraphFeatureRushRound');
 export const submitGraphFeatureRushAttempts = call('submitGraphFeatureRushAttempts');
 export const previewGraphFeatureRush = call('previewGraphFeatureRush');
