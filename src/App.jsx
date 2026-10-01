@@ -5039,6 +5039,9 @@ function App() {
         const audio = new window.AudioContext();
         const oscillator = audio.createOscillator();
         oscillator.connect(audio.destination);
+        // A running AudioContext is never garbage collected: one per expired
+        // timer stayed open (and counts against the browser's limit) all day.
+        oscillator.onended = () => { audio.close?.().catch?.(() => {}); };
         oscillator.start();
         oscillator.stop(audio.currentTime + 0.35);
       } catch { /* autoplay may be blocked */ }
