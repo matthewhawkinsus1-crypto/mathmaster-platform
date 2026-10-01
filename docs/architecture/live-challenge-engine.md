@@ -562,11 +562,16 @@ clears every collection above.
 
 - Host pause/resume controls (the timer model supports them) and an automatic
   round close from the host screen when a round becomes ready.
-- Teacher UI for choosing a scoring strategy, Grand Prix round-result screens
-  and a reward-policy editor (the server accepts `scoringStrategyId`,
-  `scoringConfig` and `rewardPolicy` at create and validates them).
-- A student rewards wallet, teacher revoke, and an expiry sweep — all built on
-  `transitionRewardGrant`.
+- Teacher UI for choosing a scoring strategy and Grand Prix round-result
+  screens (the server accepts `scoringStrategyId` and `scoringConfig` at create
+  and validates them). The reward-policy choice now exists as a small preset
+  picker (`ChallengeRewardSettings`); a free-form rule editor is still deferred.
+- ~~A student rewards wallet and teacher revoke~~ — built: see
+  `docs/architecture/rewards.md` (wallet, Practice Pass redemption from a
+  held pass, teacher give / take back / undo, Challenge reward choice and
+  diagnostics). An expiry sweep is still deferred: an expired grant already
+  reads as expired everywhere (`effectiveGrantStatus`), so persisting it is
+  housekeeping, not correctness.
 - Graph Feature Rush (multi-target, question-set rounds) — the mode contract,
   round structure and attempt model are in place.
 - Deleting the legacy experience trigger in a deployment that removes it
