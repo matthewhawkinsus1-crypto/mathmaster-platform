@@ -16,6 +16,7 @@ import {
   buildStandardsExportPayload,
 } from './masteryEngine.js';
 import { legacyPerformanceTone, toneChip } from './platform/profile/performanceTone.js';
+import { compareStudentsByName, formatStudentName, studentIdLabel } from './platform/studentName.js';
 import CognitiveDemandView from './components/teacher/CognitiveDemandView.jsx';
 import CcmrDashboard from './components/teacher/CcmrDashboard.jsx';
 
@@ -143,8 +144,11 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
     .filter((entry) => entry?.status !== 'archived' && allStudents.some((student) => student?.classId === entry.classId))
     .slice()
     .sort((a, b) => String(a.name || a.period || '').localeCompare(String(b.name || b.period || ''), undefined, { numeric: true })), [classes, allStudents]);
+  // Named students by last name, then any with no name on file (by id).
   const students = useMemo(
-    () => allStudents.filter((student) => classId === 'All' || String(student.classId || '') === classId),
+    () => allStudents
+      .filter((student) => classId === 'All' || String(student.classId || '') === classId)
+      .sort(compareStudentsByName),
     [allStudents, classId],
   );
   const profiles = useMemo(() => buildClassMasteryProfiles({ students, assignments }), [students, assignments]);
@@ -354,7 +358,7 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
                   const courseProfile = getCourseProfile(profile, selectedCourseId);
                   return (
                     <tr key={student.id} onClick={() => setSelectedStudentId(student.id)} style={{ cursor: 'pointer', background: selectedStudent?.id === student.id ? '#f3f7ff' : '#fff', borderTop: '1px solid #eceff3' }}>
-                      <td style={{ padding: '10px', fontWeight: 800 }}>{student.id}<div style={{ color: '#5f6368', fontWeight: 400 }}>{student.classPeriod || 'Unassigned'}</div></td>
+                      <td style={{ padding: '10px', fontWeight: 800 }}>{formatStudentName(student)}<div style={{ color: '#5f6368', fontWeight: 400 }}>{studentIdLabel(student)} · {student.classPeriod || 'Unassigned'}</div></td>
                       <td style={{ padding: '10px', textAlign: 'center' }}><PerformanceBadge performance={courseProfile?.overall?.performance} /></td>
                       <td style={{ padding: '10px', textAlign: 'center' }}>{courseProfile?.overall?.confidence || 'Low'}</td>
                       <td style={{ padding: '10px', textAlign: 'center', fontWeight: 900 }}>{courseProfile?.overall?.recommendedGeneratorBand || 3}</td>
@@ -373,8 +377,8 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
           <aside style={{ padding: '14px', border: '1px solid #d9e2ef', borderRadius: '10px', background: '#fbfcff' }}>
             {selectedStudent ? (
               <>
-                <h3 style={{ margin: 0 }}>{selectedStudent.id}</h3>
-                <div style={{ color: '#5f6368', fontSize: '12px', margin: '4px 0 10px' }}>{selectedStudent.classPeriod || 'Unassigned'} · {selectedCourse?.label}</div>
+                <h3 style={{ margin: 0 }}>{formatStudentName(selectedStudent)}</h3>
+                <div style={{ color: '#5f6368', fontSize: '12px', margin: '4px 0 10px' }}>{studentIdLabel(selectedStudent)} · {selectedStudent.classPeriod || 'Unassigned'} · {selectedCourse?.label}</div>
                 <PerformanceBadge performance={selectedCourseProfile?.overall?.performance} />
                 <div style={{ marginTop: '11px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px', fontSize: '12px' }}>
                   <div><strong>{pct(selectedCourseProfile?.overall?.score)}</strong><br />weighted score</div>

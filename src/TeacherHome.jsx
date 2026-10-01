@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CLASS_PERIODS,
   assignmentIsForStudent,
@@ -12,6 +12,7 @@ import StudentPersistenceRecoveryPanel from './components/teacher/StudentPersist
 import ClassLessonControls from './components/teacher/ClassLessonControls.jsx';
 import { projectClassLessons } from './platform/teacher/classLessonControls.js';
 import { classIdsForTeacher, studentsInClass } from '../functions/shared/classModel.mjs';
+import { buildStudentIdentityIndex } from './platform/studentName.js';
 import './components/teacher/teacherWorkspace.css';
 
 const formatClock = (date) => date instanceof Date ? date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
@@ -26,7 +27,7 @@ const greetingFor = (date) => {
 // Landing tab for teachers: today's classes at a glance, so a period's
 // status and roster are one click away instead of hunting through the
 // class-period dropdown on Grades or scrolling the full Classes grid.
-export default function TeacherHome({ allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onGrantDOLAttempt = null, dolAttemptGrantBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, needsAttentionAcademicCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [], teacherUid = '', teacherEmail = '', teacherLabel = 'Your teacher', isRootAdmin = false, studentSupportEvents = [], studentSessionSummaries = [], onRecordStudentSupportEvent = null, onRecommendPersonalPath = null, pathInterventionBusyStudentId = null, liveTeachingSession = null, onTeachAssignment = null, onResumeTeaching = null, onEndLiveTeaching = null, onDolControl = null, dolControlBusyKey = null, onOpenAssignment = null, onSelectClass = null, liveFocus = null }) {
+export default function TeacherHome({ allStudents = [], studentIdentityIndex = null, assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onGrantDOLAttempt = null, dolAttemptGrantBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, needsAttentionAcademicCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [], teacherUid = '', teacherEmail = '', teacherLabel = 'Your teacher', isRootAdmin = false, studentSupportEvents = [], studentSessionSummaries = [], onRecordStudentSupportEvent = null, onRecommendPersonalPath = null, pathInterventionBusyStudentId = null, liveTeachingSession = null, onTeachAssignment = null, onResumeTeaching = null, onEndLiveTeaching = null, onDolControl = null, dolControlBusyKey = null, onOpenAssignment = null, onSelectClass = null, liveFocus = null }) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
   const [recoveryClassId, setRecoveryClassId] = useState('');
   const [recoveryAssignmentId, setRecoveryAssignmentId] = useState('');
@@ -118,18 +119,27 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
   // The roster is the source of truth for who is in the class; presence only
   // says what they are doing right now. Joining here means a student with no
   // presence document still appears, as "Not started".
-  const monitoredStudents = allStudents.map((student) => ({
+  // Memoized so the identity lookups below (studentIdentityIndexFor caches one
+  // index per roster array) are not rebuilt on renders that changed nothing.
+  const monitoredStudents = useMemo(() => allStudents.map((student) => ({
     ...student,
     liveStatus: presenceById[student.id] || null,
-  }));
-  const supportRoster = currentClass
+  })), [allStudents, presenceById]);
+  const hasClassInSession = Boolean(currentClass);
+  const supportRoster = useMemo(() => (hasClassInSession
     ? studentsInClass({
       students: monitoredStudents,
       classes,
       classId: classIdInSession,
       classPeriod: periodInSession,
     })
-    : [];
+    : []), [hasClassInSession, monitoredStudents, classes, classIdInSession, periodInSession]);
+  // studentId -> roster row, for screens that name a student from a stored id
+  // (Submission recovery). App hands down the one it builds from the compact
+  // roster; otherwise one is built here from the roster already in hand.
+  const identityIndex = useMemo(() => (
+    studentIdentityIndex instanceof Map ? studentIdentityIndex : buildStudentIdentityIndex(allStudents)
+  ), [studentIdentityIndex, allStudents]);
 
   // One projection of today's Warm-Up / Classwork / Practice / DOL for the class
   // in session — the same one the class page and the Assignment Hub render —
@@ -354,6 +364,7 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
             classId={recoveryClassId}
             assignmentTitle={recoveryAssignments.find((assignment) => assignment.id === recoveryAssignmentId)?.title || ''}
             className={recoveryClass?.name || recoveryClass?.period || ''}
+            studentIdentityIndex={identityIndex}
           />
         )}
         </div>

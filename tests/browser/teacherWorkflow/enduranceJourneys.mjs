@@ -203,6 +203,11 @@ const teacherJourney = async () => {
   const tabs = ['Assignments', 'Classes', 'Students', 'Grades', 'Action Center', 'Attendance History', 'Grade Export', 'Home'];
   const samples = [];
   let gradeListenerChurn = 0;
+  // The lightweight roster (listSignInAccess) names every student on Home and
+  // Live; an unrelated assignment edit must not refetch it, nor re-query the
+  // grades collection. (Counters an older harness does not keep read as 0.)
+  let rosterRefetches = 0;
+  let gradesQueries = 0;
   for (let round = 1; round <= ROUNDS; round += 1) {
     for (const tab of tabs) {
       // A tab may carry a count badge ("Action Center (3)").
@@ -218,6 +223,8 @@ const teacherJourney = async () => {
     await settle(page, 400);
     const stats = await page.evaluate(() => window.__mmHarnessStore.stats());
     gradeListenerChurn += Object.entries(stats.subscriptions || {}).filter(([path]) => path === 'grades').reduce((total, [, count]) => total + count, 0);
+    rosterRefetches += stats.callables?.listSignInAccess || 0;
+    gradesQueries += stats.queries?.grades || 0;
     await page.locator('nav, aside').getByRole('button', { name: /^Home(\s*\(\d+\))?$/ }).first().click();
     await settle(page, 600);
     samples.push(await measure(page, cdp));
@@ -228,6 +235,9 @@ const teacherJourney = async () => {
   // flip the gradebook to loading and re-read every student's grades.
   console.log(`  grades-collection listeners re-created by other assignments' edits: ${gradeListenerChurn}`);
   if (gradeListenerChurn > 0) finding(journey, `other assignments' edits re-created the teacher's grades listener ${gradeListenerChurn} times`);
+  console.log(`  roster refetches (listSignInAccess) and grades queries caused by other assignments' edits: ${rosterRefetches}, ${gradesQueries}`);
+  if (rosterRefetches > 0) finding(journey, `other assignments' edits refetched the teacher roster ${rosterRefetches} times`);
+  if (gradesQueries > 0) finding(journey, `other assignments' edits re-queried the grades collection ${gradesQueries} times`);
   if (consoleProblems.length) finding(journey, `console: ${[...new Set(consoleProblems)].slice(0, 5).join(' | ')}`);
   await context.close();
 };

@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 
+import { acceptStudentNamePart, resolveStudentIdentity, splitStudentDisplayName } from './studentIdentity.mjs';
+
 // Class Points: a classroom participation reward currency, scoped to
 // studentId + classId. This is deliberately NOT assignment credit, mastery,
 // Live Challenge score, or evidence of mathematical proficiency — it is a
@@ -488,16 +490,24 @@ export const reversalTransactionId = (transactionId) => `rev_${cleanText(transac
  * the only student-identifying text a public class announcement may carry;
  * the teacher-facing transaction keeps the canonical studentId separately.
  */
-export const publicStudentLabel = ({ firstName, lastName, displayName } = {}) => {
-  const first = cleanText(firstName, 60);
-  const lastInitial = cleanText(lastName, 60).slice(0, 1);
+export const publicStudentLabel = (student = {}) => {
+  const record = student && typeof student === 'object' && !Array.isArray(student) ? student : {};
+  // Every candidate must read as a name for THIS student: an id, an email or a
+  // placeholder never reaches the class display.
+  const first = cleanText(acceptStudentNamePart(record.firstName, record), 60);
+  const lastInitial = cleanText(acceptStudentNamePart(record.lastName, record), 60).slice(0, 1);
   if (first && lastInitial) return `${first} ${lastInitial}.`;
   if (first) return first;
 
-  const parts = cleanText(displayName, 120).split(/\s+/).filter(Boolean);
-  if (parts.length > 1) return `${parts[0]} ${parts.at(-1).slice(0, 1)}.`;
-  if (parts.length === 1) return parts[0];
-  return 'A student';
+  // A full-name field (displayName, then a Google Classroom name, then a
+  // legacy copy). A lone stored last name is never shown in full.
+  const identity = resolveStudentIdentity(record);
+  if (!identity.hasName || identity.nameSource === 'structured') return 'A student';
+  const parts = splitStudentDisplayName(identity.displayName);
+  const given = cleanText(parts.firstName, 120).split(' ').filter(Boolean)[0] || '';
+  const surnameInitial = cleanText(parts.lastName, 60).slice(0, 1);
+  if (given && surnameInitial) return `${given} ${surnameInitial}.`;
+  return given || 'A student';
 };
 
 /** How long a class announcement stays on a future display before it expires. */

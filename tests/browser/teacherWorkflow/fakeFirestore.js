@@ -77,11 +77,29 @@ const revive = (value) => {
 
 const store = new Map();
 const listeners = new Set();
-// What the app asked of "Firestore", for the endurance journeys: document
-// reads by path, listeners opened by path, and how many are open right now.
-const stats = { reads: new Map(), subscriptions: new Map() };
-const bump = (map, key) => map.set(key, (map.get(key) || 0) + 1);
+// What the app asked of "Firestore", for the endurance journeys and the
+// identity performance probe: document reads by path (getDoc and transaction
+// reads), one-shot queries by collection path (getDocs), listeners opened by
+// path, how many are open right now (and on which path), every document handed
+// to the app (docsDelivered, by onSnapshot emissions and getDocs results), and
+// the callables the app invoked with the byte size of each one's latest
+// response (fakeFunctions.js reports them here, so one stats() call covers the
+// whole fake backend).
+const stats = {
+  reads: new Map(),
+  queries: new Map(),
+  subscriptions: new Map(),
+  docsDelivered: new Map(),
+  callables: new Map(),
+  callableBytes: new Map(),
+};
+const bump = (map, key, by = 1) => map.set(key, (map.get(key) || 0) + by);
 const targetPath = (target) => (target?.type === 'query' ? target.collectionPath : target?.path) || '';
+/** fakeFunctions.js: one callable invocation, and the JSON size of its latest response. */
+export const recordHarnessCallable = (name, responseBytes = null) => {
+  bump(stats.callables, name);
+  if (Number.isFinite(responseBytes)) stats.callableBytes.set(name, responseBytes);
+};
 
 const persist = () => {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...store.entries()].map(([path, data]) => [path, serialize(data)]))); } catch { /* quota: harness only */ }
@@ -192,14 +210,24 @@ const runQuery = (target) => {
 };
 
 export const getDoc = async (ref) => { bump(stats.reads, ref.path); return docSnapshot(ref.path); };
-export const getDocs = async (target) => runQuery(target);
+export const getDocs = async (target) => {
+  const result = runQuery(target);
+  bump(stats.queries, targetPath(target));
+  bump(stats.docsDelivered, targetPath(target), result.size);
+  return result;
+};
 
 export const onSnapshot = (target, ...rest) => {
   const handlers = rest.filter((entry) => typeof entry === 'function');
   const [onNext, onError] = handlers.length ? handlers : [rest[1]?.next, rest[1]?.error];
   const listener = {
+    path: targetPath(target),
     emit: () => {
-      try { onNext?.(target.type === 'document' ? docSnapshot(target.path) : runQuery(target)); } catch (error) { onError?.(error); }
+      try {
+        const snapshot = target.type === 'document' ? docSnapshot(target.path) : runQuery(target);
+        bump(stats.docsDelivered, listener.path, target.type === 'document' ? Number(snapshot.exists()) : snapshot.size);
+        onNext?.(snapshot);
+      } catch (error) { onError?.(error); }
     },
   };
   listeners.add(listener);
@@ -269,7 +297,7 @@ export const writeBatch = () => {
 
 export const runTransaction = async (_db, fn) => {
   const tx = {
-    get: async (ref) => docSnapshot(ref.path),
+    get: async (ref) => { bump(stats.reads, ref.path); return docSnapshot(ref.path); },
     set: (ref, data, options) => { writeSet(ref, data, options); return tx; },
     update: (ref, ...args) => { writeUpdate(ref, args); return tx; },
     delete: (ref) => { store.delete(ref.path); return tx; },
@@ -286,12 +314,22 @@ export const harnessStore = {
   update: (path, patch) => { writeUpdate(new DocumentReference(path), [patch]); notify(); },
   paths: (prefix = '') => [...store.keys()].filter((path) => path.startsWith(prefix)),
   reset: () => { localStorage.removeItem(STORAGE_KEY); window.location.search = '?reset=1'; },
-  stats: () => ({
-    openListeners: listeners.size,
-    reads: Object.fromEntries(stats.reads),
-    subscriptions: Object.fromEntries(stats.subscriptions),
-  }),
-  resetStats: () => { stats.reads.clear(); stats.subscriptions.clear(); },
+  stats: () => {
+    const openByPath = new Map();
+    listeners.forEach((listener) => bump(openByPath, listener.path));
+    return {
+      openListeners: listeners.size,
+      openListenersByPath: Object.fromEntries(openByPath),
+      reads: Object.fromEntries(stats.reads),
+      queries: Object.fromEntries(stats.queries),
+      subscriptions: Object.fromEntries(stats.subscriptions),
+      docsDelivered: [...stats.docsDelivered.values()].reduce((total, count) => total + count, 0),
+      docsDeliveredByPath: Object.fromEntries(stats.docsDelivered),
+      callables: Object.fromEntries(stats.callables),
+      callableBytes: Object.fromEntries(stats.callableBytes),
+    };
+  },
+  resetStats: () => { Object.values(stats).forEach((map) => map.clear()); },
 };
 if (typeof window !== 'undefined') window.__mmHarnessStore = harnessStore;
 

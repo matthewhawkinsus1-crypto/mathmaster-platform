@@ -8,6 +8,7 @@ import {
   buildAwardPayload,
   createRequestIdController,
 } from '../../platform/classPointsClient.js';
+import { STUDENT_NAME_UNAVAILABLE, acceptStudentName, studentIdLabel } from '../../platform/studentName.js';
 
 // Compact teacher-only award control: quick enough to use walking around the
 // room. Every award is one INTENDED action carrying exactly one requestId —
@@ -49,6 +50,13 @@ export default function ClassPointsAwardDialog({ student, classId, teacherEmail,
   const [result, setResult] = useState(null);
 
   const requestControllerRef = useRef(createRequestIdController());
+
+  // The caller passes a name only when one is on file. Anything id-like is
+  // refused here too, so the heading can never read "Award 101410". With no
+  // name the dialog says so, and shows the id labelled as an id unless it was
+  // opened from the room view, which may be on the projector.
+  const studentName = acceptStudentName(student?.name, { studentId: student?.id });
+  const studentIdLine = !studentName && student?.showStudentId !== false ? studentIdLabel(String(student?.id ?? '')) : '';
 
   const effectiveAmount = usingCustomAmount ? Number(customAmount) : amount;
   const reasonLabel = reasonCode === 'custom' ? customReasonLabel.trim() : DEFAULT_REASON_LABELS[reasonCode];
@@ -115,13 +123,18 @@ export default function ClassPointsAwardDialog({ student, classId, teacherEmail,
       <section role="dialog" aria-modal="true" aria-labelledby="class-points-award-title" style={dialogStyle}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid #e8eaed' }}>
           <div style={{ color: '#7a4f00', fontWeight: 900, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em' }}>Class Points</div>
-          <h2 id="class-points-award-title" style={{ margin: '4px 0 0', fontSize: 18, color: 'var(--mm-text-strong)' }}>Award {student?.name || 'this student'}</h2>
+          <h2 id="class-points-award-title" style={{ margin: '4px 0 0', fontSize: 18, color: 'var(--mm-text-strong)' }}>Award {studentName || 'this student'}</h2>
+          {!studentName && (
+            <div style={{ marginTop: 2, fontSize: 12, color: '#5f6368' }}>
+              {STUDENT_NAME_UNAVAILABLE}{studentIdLine ? ` · ${studentIdLine}` : ''}
+            </div>
+          )}
         </div>
 
         {result ? (
           <div style={bodyStyle}>
             <div style={{ padding: '12px 14px', borderRadius: 10, background: '#e6f4ea', color: '#137333', fontWeight: 800 }}>
-              ⭐ Awarded +{result.amount} pts to {student?.name || 'this student'} for {result.reasonLabel}.
+              ⭐ Awarded +{result.amount} pts to {studentName || 'this student'} for {result.reasonLabel}.
             </div>
             <button type="button" onClick={onClose} style={{ padding: '10px 14px', borderRadius: 9, border: '1px solid #188038', background: '#188038', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Done</button>
           </div>

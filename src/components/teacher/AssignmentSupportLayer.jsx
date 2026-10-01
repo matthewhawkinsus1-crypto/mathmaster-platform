@@ -9,6 +9,7 @@ import { buildAssignmentEvidenceRow } from '../../platform/supportEvidence/evide
 import {
   fetchEngagementLedger, fetchStudentGradeRecord, fetchSupportEvidence, fetchSupportProfileRevisions,
 } from '../../platform/supportEvidence/supportEvidenceStore.js';
+import { compareStudentsByName, formatStudentLabel } from '../../platform/studentName.js';
 import SupportQuickActions from './SupportQuickActions.jsx';
 import { SupportClassificationTag } from './SupportProfileEditor.jsx';
 import './teacherWorkspace.css';
@@ -44,7 +45,9 @@ export default function AssignmentSupportLayer({
   roster = [],
   gradeRecordsById = null,
   teacherEmail = '',
-  nameOf = (student) => student?.displayName || student?.id,
+  // A name, or "Name unavailable · ID x" — never the bare id (AssignmentHub
+  // passes the same labeller).
+  nameOf = formatStudentLabel,
   onOpenStudent = null,
   nowValue = Date.now(),
 }) {
@@ -56,8 +59,8 @@ export default function AssignmentSupportLayer({
   useEffect(() => { setLoaded({ rows: {}, at: null, loading: false, error: '' }); setActionsFor(null); }, [scopeKey]);
 
   const supported = useMemo(
-    () => roster.filter((student) => hasSupports(student.profile)).sort((a, b) => String(nameOf(a)).localeCompare(String(nameOf(b)))),
-    [roster, nameOf],
+    () => roster.filter((student) => hasSupports(student.profile)).sort(compareStudentsByName),
+    [roster],
   );
   const individualDeadlines = useMemo(() => roster
     .map((student) => {

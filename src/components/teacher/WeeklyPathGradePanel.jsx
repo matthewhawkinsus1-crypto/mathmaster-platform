@@ -155,7 +155,7 @@ export default function WeeklyPathGradePanel({
         >
           Review before publishing
         </button>
-      <WeeklyPathAutoPublish classId={classId} weekKey={weekKey} />
+      <WeeklyPathAutoPublish classId={classId} weekKey={weekKey} students={students} />
       </div>
     </section>
   );

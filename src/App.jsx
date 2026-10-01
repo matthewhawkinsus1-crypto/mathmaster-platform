@@ -276,7 +276,21 @@ import {
 } from './platform/student/browserHistory.js';
 import { questionAssessmentFramework } from './platform/student/questionAlignmentInfo.js';
 import { FRAMEWORK_LABELS } from './platform/ccmr/assessmentCrosswalk.js';
-import { compareStudentsByName, formatStudentName, resolveStudentDisplayName } from './platform/studentName';
+import {
+  STUDENT_SELF_NEUTRAL_LABEL,
+  buildStudentIdentityIndex,
+  compareStudentsByName,
+  formatStudentLabel,
+  formatStudentName,
+  resolveStudentDisplayName,
+} from './platform/studentName';
+// The teacher roster is RESOLVED, not copied: the compact listSignInAccess row
+// is the only name a Classroom-linked legacy student has on Home and Live.
+import {
+  normalizeTeacherRosterSummary,
+  rosterStudentLabel,
+  rosterStudentNameForStorage,
+} from './platform/teacher/teacherRosterSummary.js';
 import { evidenceRowsToEvents } from './platform/profile/legacyEvidenceAdapter.js';
 import { buildStudentLearningProfile } from './platform/profile/studentLearningProfile.js';
 import { resolveDeliveredQuestionMetadata } from './platform/assignments/assignmentAdaptation.js';
@@ -1224,6 +1238,15 @@ function App() {
     return sizes;
   }, [teacherRosterSummaries]);
 
+  // THE TEACHER IDENTITY INDEX: studentId -> compact roster row. Built from the
+  // roster the teacher already holds — no read, no listener — and only when
+  // that roster is refetched, so naming a student from a stored id (a toast, a
+  // support event, a recovery row) is an O(1) lookup on every screen.
+  const teacherStudentIdentityIndex = useMemo(
+    () => buildStudentIdentityIndex(teacherRosterSummaries),
+    [teacherRosterSummaries],
+  );
+
   const mergeSectionRecoveryRecord = useCallback((assignmentId, section, record) => {
     if (!assignmentId || !section || !record) return;
     setSectionRecoveryByAssignment((current) => ({
@@ -1397,7 +1420,8 @@ function App() {
     if (!activeId) return [];
     return studentsInClass({ students: allStudents, classes, classId: activeId })
       .map((student) => ({ ...student, name: formatStudentName(student) }))
-      .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      // Named students by last, first, id; students with no name on file last.
+      .sort(compareStudentsByName);
   }, [allStudents, classes, activeClass.classId, teacherTab]);
 
   const teacherWeeklyGoalsByStudent = useMemo(() => {
@@ -1933,6 +1957,11 @@ function App() {
   } = {}) => {
     const id = String(studentId || '').trim();
     if (!id) return null;
+    // Named from the roster by id. The caller's name is only a historical hint:
+    // a Live tile whose student has no name on file passes none, and the id is
+    // never promoted to a name — the toast labels it as an id instead.
+    const studentLabel = rosterStudentLabel({ studentId: id, index: teacherStudentIdentityIndex, historicalName: studentName });
+    const storedStudentName = rosterStudentNameForStorage({ studentId: id, index: teacherStudentIdentityIndex, historicalName: studentName });
     setPathInterventionBusyStudentId(id);
     try {
       const result = await setStudentPathIntervention({
@@ -1945,7 +1974,7 @@ function App() {
       if (clear) {
         toastSuccess(
           'Personal Path recommendation cleared',
-          `${studentName || id} is back to the normal adaptive Path priorities.`,
+          `${studentLabel} is back to the normal adaptive Path priorities.`,
         );
         return result;
       }
@@ -1961,7 +1990,7 @@ function App() {
             kind: SUPPORT_EVENT_KIND.TEACHER_INTERVENTION,
             stage: SUPPORT_EVENT_STAGE.ACTION_TAKEN,
             studentId: id,
-            studentName: studentName || id,
+            studentName: storedStudentName,
             classId,
             classPeriod,
             assignmentId,
@@ -1981,7 +2010,7 @@ function App() {
 
       toastSuccess(
         'Path recommendation updated',
-        `${teksCode} is now a personal priority for ${studentName || id} for 48 hours. Normal prerequisite and content safeguards still apply.`,
+        `${teksCode} is now a personal priority for ${studentLabel} for 48 hours. Normal prerequisite and content safeguards still apply.`,
       );
       return result;
     } catch (error) {
@@ -2282,24 +2311,9 @@ function App() {
   );
 
 
-  const normalizeTeacherRosterSummary = (entry = {}) => {
-    const id = String(entry.studentId || entry.id || '').trim();
-    return {
-      id,
-      studentId: id,
-      firstName: entry.firstName || null,
-      lastName: entry.lastName || null,
-      displayName: entry.displayName || null,
-      classId: entry.classId || null,
-      classPeriod: entry.classPeriod || 'Unassigned',
-      status: entry.status || 'active',
-      assignedTeacherEmail: entry.assignedTeacherEmail || null,
-      linkedEmail: entry.linkedEmail || null,
-      sisStudentId: entry.sisStudentId || null,
-      profile: normalizeStudentProfile(entry.profile || {}),
-    };
-  };
-
+  // normalizeTeacherRosterSummary (src/platform/teacher/teacherRosterSummary.js)
+  // resolves each compact row's name rather than copying an allow-list of name
+  // fields — the copy here is what dropped googleName-only students to an id.
   const fetchTeacherRosterSummaries = async () => {
     const response = await teacherAdmin.listSignInAccess();
     const summaries = (Array.isArray(response?.students) ? response.students : [])
@@ -2313,6 +2327,12 @@ function App() {
     }
     return summaries;
   };
+
+  // SignInAccess calls this after the server saves a corrected student name.
+  // Refetching the compact roster rebuilds the identity index once, which is
+  // what makes Home, Live and every id-keyed history record show the new name.
+  const refreshTeacherRosterAfterNameChange = () => fetchTeacherRosterSummaries()
+    .catch((error) => console.error('Could not refresh the roster after a student name change:', error));
 
   useEffect(() => {
     if (user?.role !== 'teacher') return undefined;
@@ -2810,9 +2830,12 @@ function App() {
           classesById: Object.fromEntries(loadedClasses.map((entry) => [entry.classId, entry])),
           courseProfiles: loadedCourseProfiles,
         });
+        // studentId lets the resolver refuse a session name that is really this
+        // student's id (a passcode session has no other name to offer).
         const studentDisplayName = resolveStudentDisplayName({
           rosterStudent: { ...studentData, id: studentId },
           sessionDisplayName: session.displayName,
+          studentId,
         });
         setUser({
           id: studentId,
@@ -3591,7 +3614,10 @@ function App() {
     const currentTeksCode = getQuestionPrimaryTeksCodes(question || {})[0] || null;
     const payload = {
       studentId: user.id,
-      name: formatStudentName(user, { lastFirst: false }),
+      // The roster name or null — never the id, and never a placeholder
+      // ('Student', 'Name unavailable') a teacher's tile would show as a name.
+      // Teacher screens name the tile from their own roster by studentId.
+      name: formatStudentName(user, { lastFirst: false, fallbackToNeutral: false }) || null,
       classId: user.classId || null,
       classPeriod: user.classPeriod || '',
       currentTeksCode,
@@ -4024,7 +4050,12 @@ function App() {
       await recordStudentSupportEvent({
         db, teacherEmail: user.email,
         event: buildAttendanceCorrectionReviewEvent({
-          studentId: student.id || student.studentId, studentName: student.displayName || student.name,
+          studentId: student.id || student.studentId,
+          studentName: rosterStudentNameForStorage({
+            studentId: student.id || student.studentId,
+            index: teacherStudentIdentityIndex,
+            historicalName: formatStudentName(student, { lastFirst: false, fallbackToNeutral: false }),
+          }),
           assignmentId: assignment.id, assignmentTitle: assignment.title, classId, classPeriod,
           existing: resolution.existing, proposed: resolution.proposed, resolution: 'kept', actorEmail: user.email,
         }),
@@ -4053,7 +4084,12 @@ function App() {
       await recordStudentSupportEvent({
         db, teacherEmail: user.email,
         event: buildAttendanceCorrectionReviewEvent({
-          studentId, studentName: student.displayName || student.name,
+          studentId,
+          studentName: rosterStudentNameForStorage({
+            studentId,
+            index: teacherStudentIdentityIndex,
+            historicalName: formatStudentName(student, { lastFirst: false, fallbackToNeutral: false }),
+          }),
           assignmentId: assignment.id, assignmentTitle: assignment.title, classId, classPeriod,
           existing: resolution.existing, proposed: resolution.proposed, resolution: 'shortened', actorEmail: user.email,
         }),
@@ -4802,7 +4838,9 @@ function App() {
 
     const model = buildAssignmentWorksheetModel({
       assignment: assignmentData,
-      student: { displayName: formatStudentName(user, { lastFirst: false }), classPeriod: user.classPeriod },
+      // A blank name line on the printout rather than a placeholder for a
+      // student with no name on file.
+      student: { displayName: formatStudentName(user, { lastFirst: false, fallbackToNeutral: false }), classPeriod: user.classPeriod },
       entries: printableEntries,
     });
     if (!model.sections.some((section) => section.questions.length)) {
@@ -4830,8 +4868,9 @@ function App() {
     setTeacherWorksheetBusy(true);
     try {
       const masteryProfile = student ? teacherMasteryProfilesByStudentId?.[student.id] || null : null;
+      // No name on file prints a blank name line, never a placeholder or id.
       const selectedStudent = student
-        ? { ...student, displayName: formatStudentName(student) }
+        ? { ...student, displayName: formatStudentName(student, { fallbackToNeutral: false }) }
         : null;
       const selectedStudentProfile = selectedStudent
         ? {
@@ -4855,7 +4894,7 @@ function App() {
       toastSuccess(
         `${outputLabel} ready`,
         selectedStudent
-          ? `${formatStudentName(selectedStudent)} · ${result.pageCount} page${result.pageCount === 1 ? '' : 's'} exported.`
+          ? `${formatStudentLabel(student)} · ${result.pageCount} page${result.pageCount === 1 ? '' : 's'} exported.`
           : `${result.pageCount} page${result.pageCount === 1 ? '' : 's'} exported from the shared assignment version.`,
       );
       setTeacherWorksheetDialog(null);
@@ -7201,6 +7240,15 @@ function App() {
     // every student, and passing a stale period here would silently filter it.
     classPeriod: activeClass.classId ? activeClass.classPeriod : null,
   }), [allStudents, classes, activeClass.classId, activeClass.classPeriod]);
+
+  // Analytics names students by displayName; build those copies once per roster
+  // change, not on every App render.
+  const teacherAnalyticsStudents = useMemo(() => (
+    teacherTab === 'analytics'
+      ? (activeClass.classId ? studentsInActiveClass : allStudents)
+        .map((student) => ({ ...student, displayName: formatStudentName(student) }))
+      : []
+  ), [teacherTab, activeClass.classId, studentsInActiveClass, allStudents]);
 
   // THE NEEDS-ATTENTION QUEUE.
   //
@@ -10513,7 +10561,7 @@ function App() {
             </div>
             <main style={{ padding: 28 }}>
               {adminTab === 'classes' && <ClassesAdmin />}
-              {adminTab === 'accounts' && <SignInAccess signedInEmail={user.email} mode="admin" />}
+              {adminTab === 'accounts' && <SignInAccess signedInEmail={user.email} mode="admin" onStudentIdentityChanged={refreshTeacherRosterAfterNameChange} />}
               {adminTab === 'coverage' && <PathCoverageAudit />}
               {adminTab === 'ai' && <AssignmentAiHealth />}
               {adminTab === 'reset' && (
@@ -10623,7 +10671,11 @@ function App() {
         */}
         <TeacherQuickSearch
           open={quickSearchOpen}
-          students={allStudents.map((student) => ({ ...student, displayName: formatStudentName(student) }))}
+          // Raw roster records: teacherSearch formats names itself (structured,
+          // Google and legacy names) and searches ids. Copying a formatted name
+          // into displayName here rebuilt every record on every render and made
+          // a nameless student match a search for "unavailable".
+          students={allStudents}
           classes={classes}
           assignments={assignments}
           standards={searchableStandards}
@@ -11238,6 +11290,7 @@ function App() {
             {teacherTab === 'home' && (
               <TeacherHome
                 allStudents={allStudents}
+                studentIdentityIndex={teacherStudentIdentityIndex}
                 assignments={assignments}
                 classSchedule={classSchedule}
                 nowValue={now}
@@ -11513,7 +11566,7 @@ function App() {
                 )}
 
                 {selectedGradebookPeriod && selectedAssignment && !gradebookFilter.student && (
-                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ padding: '12px' }}>Student</th><th>Overall</th><th>Warm-Up</th><th>Classwork</th><th>Practice</th><th>DOL</th><th>Instructional condition</th><th>Activity</th><th></th></tr></thead><tbody>{gradebookVisibleStudents.map((student) => { const grades = projectedAssignmentTrackerFor({ student, assignment: selectedAssignment }) || undefined; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const practicePassRedeemed = gradebookHasPracticePass(student, selectedAssignment); const score = assignmentOverride ? assignmentOverride.score : grades ? calculateGrade(grades, selectedAssignment, { practicePassRedeemed }) : null; const sectionGrades = splitGradesBySection({ tracker: grades, assignment: selectedAssignment, practicePassRedeemed }); const recoveredSections = completedRecoverySections(student, selectedAssignment.id); const challengeWarmup = warmupChallengeCounts(student, selectedAssignment.id); const recoveredMark = (section) => (<>{section === 'warmup' && challengeWarmup ? <span data-warmup-challenge-mark="true" title="The Warm-Up grade is this student's Live Challenge result. Open Details for the rounds." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>LC</span> : null}{recoveredSections.has(section) ? <span data-recovered-section={section} title="Includes a completed Practice-based Recovery. Open Details for Original, Recovery and Final." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>R</span> : null}</>); const gradeSplit = splitGrade({ tracker: grades, assignment: selectedAssignment, practicePassRedeemed }); const gradeExplanation = grades ? explainGrade(gradeSplit) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <tr key={student.id} style={{ borderBottom: '1px solid #e8eaed' }}><td style={{ padding: '12px' }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} profile={teacherLearningProfiles[student.id]} onOpen={setProfileDrawerStudentId} showBadge /><div style={{ marginTop: 3, color: '#5f6368', fontSize: 11 }}>ID {student.id}</div></td><td><strong style={{ color: modified ? '#6f2da8' : score >= 70 ? '#188038' : '#202124' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: '#efe4ff', color: '#6f2da8', fontWeight: 900, fontSize: '11px' }}>MOD</span>}
+                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ padding: '12px' }}>Student</th><th>Overall</th><th>Warm-Up</th><th>Classwork</th><th>Practice</th><th>DOL</th><th>Instructional condition</th><th>Activity</th><th></th></tr></thead><tbody>{gradebookVisibleStudents.map((student) => { const grades = projectedAssignmentTrackerFor({ student, assignment: selectedAssignment }) || undefined; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const practicePassRedeemed = gradebookHasPracticePass(student, selectedAssignment); const score = assignmentOverride ? assignmentOverride.score : grades ? calculateGrade(grades, selectedAssignment, { practicePassRedeemed }) : null; const sectionGrades = splitGradesBySection({ tracker: grades, assignment: selectedAssignment, practicePassRedeemed }); const recoveredSections = completedRecoverySections(student, selectedAssignment.id); const challengeWarmup = warmupChallengeCounts(student, selectedAssignment.id); const recoveredMark = (section) => (<>{section === 'warmup' && challengeWarmup ? <span data-warmup-challenge-mark="true" title="The Warm-Up grade is this student's Live Challenge result. Open Details for the rounds." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>LC</span> : null}{recoveredSections.has(section) ? <span data-recovered-section={section} title="Includes a completed Practice-based Recovery. Open Details for Original, Recovery and Final." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>R</span> : null}</>); const gradeSplit = splitGrade({ tracker: grades, assignment: selectedAssignment, practicePassRedeemed }); const gradeExplanation = grades ? explainGrade(gradeSplit) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <tr key={student.id} style={{ borderBottom: '1px solid #e8eaed' }}><td style={{ padding: '12px' }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} showMissingId={false} profile={teacherLearningProfiles[student.id]} onOpen={setProfileDrawerStudentId} showBadge /><div style={{ marginTop: 3, color: '#5f6368', fontSize: 11 }}>ID {student.id}</div></td><td><strong style={{ color: modified ? '#6f2da8' : score >= 70 ? '#188038' : '#202124' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: '#efe4ff', color: '#6f2da8', fontWeight: 900, fontSize: '11px' }}>MOD</span>}
                     {/*
                       COMPLETION AND PERFORMANCE, VISUALLY APART.
                       The grade above is unchanged. These two lines are what a
@@ -11603,6 +11656,7 @@ function App() {
             {responseInspectorTarget && (
               <StudentResponseInspector
                 {...responseInspectorTarget}
+                studentIdentityIndex={teacherStudentIdentityIndex}
                 onClose={() => setResponseInspectorTarget(null)}
                 onChanged={undefined}
               />
@@ -11624,8 +11678,7 @@ function App() {
 
             {teacherTab === 'analytics' && (
               <TeacherAnalyticsDashboard
-                students={(activeClass.classId ? studentsInActiveClass : allStudents)
-                  .map((student) => ({ ...student, displayName: formatStudentName(student) }))}
+                students={teacherAnalyticsStudents}
                 masteryProfilesByStudentId={teacherMasteryProfilesByStudentId}
                 learningProfilesByStudentId={teacherLearningProfiles}
                 onOpenStudent={setProfileDrawerStudentId}
@@ -11663,7 +11716,7 @@ function App() {
               />
             )}
 
-            {teacherTab === 'access' && <SignInAccess signedInEmail={user.email} mode="teacher" />}
+            {teacherTab === 'access' && <SignInAccess signedInEmail={user.email} mode="teacher" onStudentIdentityChanged={refreshTeacherRosterAfterNameChange} />}
           </div>
           </div>
         </div>
@@ -11753,7 +11806,7 @@ function App() {
           {renderStudentWarmupBanner()}
           <MyMathPathApp
           studentId={user.id}
-          studentName={formatStudentName({ ...studentRecord, ...user }, { lastFirst: false })}
+          studentName={formatStudentName({ ...studentRecord, ...user }, { lastFirst: false, neutralLabel: STUDENT_SELF_NEUTRAL_LABEL })}
           studentProfile={adaptiveStudentProfile || user.profile}
           assignments={studentPathAssignments}
           launchTeksCode={pathLaunchTeks}

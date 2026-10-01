@@ -18,6 +18,7 @@
 import { assignmentGradeOverrideFor, canonicalPresentedAssignmentGrade, projectedAssignmentTrackerFor } from '../grading/canonicalGradeProjection.js';
 import { GRADE_SHAPE, splitGrade } from './gradeEvidence.js';
 import { classifyLiveStudent, LIVE_ACTIVITY, LIVE_FLAGS } from '../../livePresence.js';
+import { STUDENT_NAME_UNAVAILABLE, formatStudentLabel } from '../studentName.js';
 
 export const PROGRESS_STATE = Object.freeze({
   NOT_STARTED: 'notStarted',
@@ -68,7 +69,15 @@ export const isBelowThreshold = (row) => (
   || (row.state === PROGRESS_STATE.IN_PROGRESS && row.creditOnAttempted !== null && row.creditOnAttempted < PASSING_DISPLAY_THRESHOLD)
 );
 
-const byName = (left, right) => String(left.name).localeCompare(String(right.name), undefined, { sensitivity: 'base' });
+// A row's name is the resolved human name, or "Name unavailable · ID x" (the
+// default nameOf) — never the bare id. Named students first, then students with
+// no name on file, each group by name and then id so two of either stay apart.
+const nameMissing = (row) => !row.name || String(row.name).startsWith(STUDENT_NAME_UNAVAILABLE);
+const byName = (left, right) => (Number(nameMissing(left)) - Number(nameMissing(right)))
+  || String(left.name).localeCompare(String(right.name), undefined, { sensitivity: 'base', numeric: true })
+  || String(left.id).localeCompare(String(right.id), undefined, { numeric: true });
+
+const defaultNameOf = (student) => formatStudentLabel(student);
 
 /**
  * Grade progress for a roster. Returns null when the roster rows are not full
@@ -79,7 +88,7 @@ export const classGradeProgress = ({
   assignment,
   roster = [],
   hasGradeRecords = true,
-  nameOf = (student) => student?.displayName || student?.id,
+  nameOf = defaultNameOf,
   // (student, assignment) => whether that student has Practice excused by a
   // Practice Pass here. Absent → nobody does (the screen has not loaded it).
   hasPracticePass = () => false,
@@ -108,7 +117,7 @@ export const classGradeProgress = ({
 };
 
 /** Live picture for one assignment in one class, from presence. */
-export const classLiveProgress = ({ assignment, roster = [], presenceById = {}, nowValue = Date.now(), nameOf = (student) => student?.displayName || student?.id }) => {
+export const classLiveProgress = ({ assignment, roster = [], presenceById = {}, nowValue = Date.now(), nameOf = defaultNameOf }) => {
   const now = nowValue instanceof Date ? nowValue.getTime() : Number(nowValue);
   const rows = roster.map((student) => {
     const live = presenceById?.[student.id] || null;

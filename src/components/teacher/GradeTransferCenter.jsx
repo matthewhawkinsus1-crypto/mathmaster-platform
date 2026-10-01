@@ -6,9 +6,11 @@ import {
   teamsCsv,
   transferFileName,
   transferSnapshotId,
+  transferStudentLabel,
   TRANSFER_STATE,
   validSisStudentId,
 } from '../../platform/gradeTransfer/gradeTransferModel.js';
+import { compareStudentsByName, formatStudentLabel, studentIdentityIndexFor } from '../../platform/studentName.js';
 import { buildGradebookZip } from '../../platform/gradeTransfer/gradeTransferPackage.js';
 import {
   confirmTransferUploaded,
@@ -216,16 +218,25 @@ export default function GradeTransferCenter({
     return [...byClass.values()].sort((left, right) => (order.get(left.classId) ?? 0) - (order.get(right.classId) ?? 0));
   }, [visible, authorizedClasses]);
 
+  // Held-back/problem rows carry studentId + a real name or null; they are
+  // named from the roster the screen already holds (no extra read), so a name
+  // corrected since is shown, and a nameless student reads "Name unavailable ·
+  // ID 101410" rather than the bare id.
+  const identityIndex = useMemo(() => studentIdentityIndexFor(students || []), [students]);
+  const personLabel = (row) => transferStudentLabel(row, identityIndex);
+
   const sisProblems = useMemo(() => {
     const scopeClasses = classFilter.size ? classFilter : new Set(authorizedClassIds);
     return projectedStudents
       .filter((student) => scopeClasses.has(student.classId))
       .filter((student) => !validSisStudentId(authoritativeSisStudentId(student)))
+      .sort(compareStudentsByName)
       .map((student) => ({
         studentId: student.id,
-        name: student.displayName || student.name || student.id,
-      }))
-      .sort((left, right) => String(left.name).localeCompare(String(right.name), undefined, { sensitivity: 'base', numeric: true }));
+        // The name, or "Name unavailable · ID x": two nameless students in this
+        // list must still be told apart, and the id is never shown AS the name.
+        name: formatStudentLabel(student),
+      }));
   }, [authorizedClassIds, projectedStudents, classFilter]);
 
   const selectable = (unit) => Boolean(summaries.get(unit.key)?.canExport) && stateLoaded;
@@ -488,7 +499,7 @@ export default function GradeTransferCenter({
                     <details style={{ marginTop: 4 }}>
                       <summary className="tw-small tw-link" style={{ display: 'inline' }}>Held back, excused or needing review ({people.length})</summary>
                       <ul className="tw-small" style={{ margin: '4px 0 0', paddingLeft: 18 }}>
-                        {people.map((item) => <li key={`${item.studentId}-${item.reason}`}>{item.name}: {item.reason}</li>)}
+                        {people.map((item) => <li key={`${item.studentId}-${item.reason}`}>{personLabel(item)}: {item.reason}</li>)}
                       </ul>
                     </details>
                   )}
@@ -545,7 +556,7 @@ export default function GradeTransferCenter({
             <dt>Assignments</dt><dd>{plan.assignmentTitles.length === 1 ? plan.assignmentTitles[0] : `${plan.assignmentTitles.length} assignments`}</dd>
             {plan.periodLabels.length > 0 && <><dt>Marking period</dt><dd>{plan.periodLabels.join(', ')}</dd></>}
             <dt>Files</dt><dd>{plan.fileCount} CSV file{plan.fileCount === 1 ? '' : 's'} · {plan.gradeCount} student grade{plan.gradeCount === 1 ? '' : 's'}</dd>
-            <dt>Held back</dt><dd>{plan.withheld.length ? `${plan.withheld.length} with an active extension (${plan.withheld.map((row) => row.name).join(', ')})` : 'None'}</dd>
+            <dt>Held back</dt><dd>{plan.withheld.length ? `${plan.withheld.length} with an active extension (${plan.withheld.map(personLabel).join(', ')})` : 'None'}</dd>
             {plan.excused.length > 0 && <><dt>Excused</dt><dd>{plan.excused.length} (no numeric grade is sent)</dd></>}
             <dt>In TEAMS</dt><dd>{!plan.overwrite
               ? 'Answer NO to “Overwrite existing grades?” — first export for these files.'

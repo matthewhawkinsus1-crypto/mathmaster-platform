@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { resolveRosterStudentName } from '../../platform/studentName.js';
+import { STUDENT_NAME_UNAVAILABLE, formatStudentLabel, resolveRosterStudentName } from '../../platform/studentName.js';
 
 /*
  * WHAT WOULD BE SENT, BEFORE ANYTHING IS SENT.
@@ -15,6 +15,13 @@ import { resolveRosterStudentName } from '../../platform/studentName.js';
  * A button that appears to publish and does not is worse than no button. A
  * teacher who clicks it will believe the grades went out.
  */
+
+// The roster name, or "Name unavailable · ID x" so two nameless students stay
+// distinguishable — never the bare id standing in for a name.
+const rosterStudentLabel = (studentId, students, historicalName = '') => {
+  const name = resolveRosterStudentName({ studentId, students, historicalName });
+  return name === STUDENT_NAME_UNAVAILABLE ? formatStudentLabel(String(studentId ?? '')) : name;
+};
 
 const OVERLAY = {
   position: 'fixed', inset: 0, background: 'rgba(16, 24, 22, .42)', zIndex: 95,
@@ -92,7 +99,7 @@ export default function ClassroomSyncReview({ proposal = null, students = [], on
             <tbody>
               {proposal.grades.map((grade) => (
                 <tr key={grade.studentId} style={{ borderTop: '1px solid #eef0f2' }}>
-                  <td style={{ padding: '9px 22px' }}>{resolveRosterStudentName({ studentId: grade.studentId, students, historicalName: grade.studentName })}</td>
+                  <td style={{ padding: '9px 22px' }}>{rosterStudentLabel(grade.studentId, students, grade.studentName)}</td>
                   <td style={{ padding: '9px 12px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#5f6368' }}>
                     {grade.completed} / {grade.required}
                   </td>

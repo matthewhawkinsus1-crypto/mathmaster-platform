@@ -3,6 +3,7 @@ import { answerCandidatesForField, matchesFieldAnswer, normalizeMathAnswer, pars
 import { getQuestionCredit, normalizeQuestionRecord } from './attemptPolicy.mjs';
 import { dolSectionProjection } from './assignmentProjections.mjs';
 import { readWorkspaceDraftEntries } from './workspaceDraftSchema.mjs';
+import { STUDENT_NAME_UNAVAILABLE, studentIdLabel, studentNameForStorage } from './studentIdentity.mjs';
 
 export const GRADER_VERSION = 'ordinary-response-v3';
 export const GRADING_EVIDENCE_VERSION = 3;
@@ -532,9 +533,12 @@ export const buildInspectorModel = ({
       prompt: question?.prompt || 'Unavailable',
       type: question?.type || question?.toolId || 'Unavailable',
     },
+    // The student's name, or the explicit 'Name unavailable' — never the id,
+    // which is reported separately (idLabel) for the screen to show as an id.
     student: {
       id: student?.id || null,
-      name: student?.displayName || student?.name || 'Unavailable',
+      name: studentNameForStorage({ ...student, studentId: student?.id }) || STUDENT_NAME_UNAVAILABLE,
+      idLabel: studentIdLabel(student?.id) || null,
     },
     attemptNumber: Number(record?.totalAttempts || record?.attemptCount) || null,
     automaticScore: evidence?.automaticScore ?? automaticQuestionScore(record),

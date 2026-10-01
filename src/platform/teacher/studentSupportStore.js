@@ -13,6 +13,7 @@ import {
   SUPPORT_EVENT_STAGE,
   supportEventSignalKey,
 } from './studentSupportSignals.js';
+import { acceptStudentName } from '../studentName.js';
 
 export const STUDENT_SUPPORT_COLLECTION = 'studentSupportEvents';
 export const STUDENT_SESSION_SUMMARY_COLLECTION = 'studentSessionSummaries';
@@ -72,7 +73,10 @@ export const recordStudentSupportEvent = async ({
     kind,
     stage: clean(event.stage) || SUPPORT_EVENT_STAGE.TEACHER_CONFIRMED,
     studentId,
-    studentName: clean(event.studentName) || studentId,
+    // A real name or null — never the id, never a placeholder. Every reader
+    // resolves a null name by studentId against the roster at display time,
+    // so a name corrected later shows on old records too.
+    studentName: acceptStudentName(event.studentName, { studentId }) || null,
     classId: clean(event.classId) || null,
     classPeriod: clean(event.classPeriod) || null,
     originClassId: clean(event.classId) || null,

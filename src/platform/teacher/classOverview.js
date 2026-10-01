@@ -1,5 +1,13 @@
 import { BAND_LABEL, INSTRUCTIONAL_BAND } from '../profile/studentLearningProfile.js';
-import { formatStudentName } from '../studentName.js';
+import { STUDENT_NAME_UNAVAILABLE, formatStudentName } from '../studentName.js';
+
+// Named students alphabetically, then students with no name on file, each tie
+// broken by studentId so two "Name unavailable" entries keep a stable order.
+const byStudentName = (a, b) => (
+  (Number(a.studentName === STUDENT_NAME_UNAVAILABLE) - Number(b.studentName === STUDENT_NAME_UNAVAILABLE))
+  || String(a.studentName).localeCompare(String(b.studentName))
+  || String(a.studentId).localeCompare(String(b.studentId), undefined, { numeric: true })
+);
 
 /*
  * WHAT IS TRUE ABOUT THIS CLASS, IN ONE PARAGRAPH.
@@ -63,9 +71,7 @@ export const bandDistribution = (students = [], profilesByStudentId = {}) => {
     const band = profile.instructionalBand;
     (buckets[band] || buckets.unclassified).push(entry);
   });
-  Object.values(buckets).forEach((bucket) => bucket.sort((a, b) => (
-    String(a.studentName).localeCompare(String(b.studentName))
-  )));
+  Object.values(buckets).forEach((bucket) => bucket.sort(byStudentName));
   return buckets;
 };
 

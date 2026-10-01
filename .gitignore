@@ -33,3 +33,9 @@ tests/browser/artifacts/
 .playwright-mcp/
 dist-harness
 release-reports
+
+# Student identity audit/backfill reports (scripts/student-identity-repair.mjs).
+# Counts-only by default, but --list-ids adds student ids and --include-names
+# adds student names: never commit them. Runbook:
+# docs/handoffs/STUDENT_IDENTITY_REPAIR_RUNBOOK.md
+identity-reports/

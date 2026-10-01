@@ -1,4 +1,4 @@
-import { formatStudentName } from '../studentName.js';
+import { STUDENT_NAME_UNAVAILABLE, formatStudentName, studentIdLabel } from '../studentName.js';
 import { classifyLiveActivity, LIVE_ACTIVITY } from '../../livePresence.js';
 
 export const WALKTHROUGH_STATUS = Object.freeze({
@@ -104,9 +104,15 @@ export function buildWalkthroughMonitor({
       behindBy = teacherQuestionIndex - sectionIndex;
     }
 
+    // The card's name is the student's name, never the id. With no name on
+    // file it reads "Name unavailable" and idLabel ("ID 101410") says which
+    // student it is, labelled as an id, beneath it.
+    const resolvedName = formatStudentName(student, { lastFirst: false, fallbackToNeutral: false });
     const row = {
       id,
-      name: formatStudentName(student, { lastFirst: false }),
+      name: resolvedName || STUDENT_NAME_UNAVAILABLE,
+      nameMissing: !resolvedName,
+      idLabel: studentIdLabel(id),
       student,
       live,
       attendance,
@@ -133,7 +139,9 @@ export function buildWalkthroughMonitor({
   };
   needsCheck.sort((a, b) => priority(a) - priority(b)
     || b.behindBy - a.behindBy
-    || a.name.localeCompare(b.name));
+    || Number(a.nameMissing) - Number(b.nameMissing)
+    || a.name.localeCompare(b.name)
+    || a.id.localeCompare(b.id));
 
   const bottlenecks = new Map();
   all.forEach((row) => {

@@ -22,6 +22,7 @@ import CaseNarrativeTab from './CaseNarrativeTab.jsx';
 import CaseAttentionTab from './CaseAttentionTab.jsx';
 import CasePrintView from './CasePrintView.jsx';
 import { day, when } from './CaseReviewParts.jsx';
+import { acceptStudentName, formatStudentName } from '../../../platform/studentName.js';
 import '../teacherWorkspace.css';
 import '../supportEvidence.css';
 import './caseReview.css';
@@ -87,6 +88,13 @@ export default function StudentCaseReviewView({
   onOpenSupportReport = null,
 }) {
   const settings = useMemo(() => normalizeGradingPeriodSettings(gradingPeriodSettings || {}), [gradingPeriodSettings]);
+  // The name passed in when it is really a name, else the student record's own
+  // resolved name, else "Name unavailable" — the id is shown beside it as
+  // "ID x", never in its place.
+  const resolvedStudentName = useMemo(
+    () => acceptStudentName(studentName, student || {}) || formatStudentName(student || {}, { lastFirst: false }),
+    [studentName, student],
+  );
   const [selection, setSelection] = useState(EMPTY_SELECTION);
   const [load, setLoad] = useState({ loading: false, error: '', records: null });
   const [location, setLocation] = useState({ tab: 'summary', drill: {} });
@@ -164,7 +172,7 @@ export default function StudentCaseReviewView({
     if (!records) return null;
     return buildStudentCaseReview({
       student: records.student,
-      studentName,
+      studentName: resolvedStudentName,
       classRecord,
       assignments,
       gradingPeriodSettings,
@@ -184,7 +192,7 @@ export default function StudentCaseReviewView({
       nowValue: records.loadedAtMs,
       generatedByEmail: teacherEmail,
     });
-  }, [records, sis, studentName, classRecord, assignments, gradingPeriodSettings, teacherEmail]);
+  }, [records, sis, resolvedStudentName, classRecord, assignments, gradingPeriodSettings, teacherEmail]);
 
   // Assignments the teacher may narrow the case review to (given to this
   // student's class in the chosen period and dates; never library copies).
@@ -349,7 +357,7 @@ export default function StudentCaseReviewView({
             <div style={{ minWidth: 0 }}>
               <h1 id="case-review-title">Student Case Review — Academic Evidence</h1>
               <div className="cr-header__meta">
-                {studentName || student.id} · ID {student.id} · {classRecord?.name || classRecord?.period || 'No class'}{course ? ` · ${course}` : ''}
+                {resolvedStudentName} · ID {student.id} · {classRecord?.name || classRecord?.period || 'No class'}{course ? ` · ${course}` : ''}
                 {model ? ` · ${model.meta.gradingPeriodLabel} · ${model.meta.fromDateKey} to ${model.meta.toDateKey}` : ''}
               </div>
               {model && <div className="cr-header__meta">Built {when(model.generatedAtMs)} · a factual summary of MathMaster records — not a compliance determination and not a diagnosis.</div>}
@@ -427,7 +435,7 @@ export default function StudentCaseReviewView({
               ))}
             </div>
             <nav className="cr-crumbs" aria-label="Where you are">
-              <button type="button" onClick={() => onCloseRef.current?.()}>{studentName || student.id}</button>
+              <button type="button" onClick={() => onCloseRef.current?.()}>{resolvedStudentName}</button>
               <span aria-hidden="true">›</span>
               <button type="button" onClick={() => navigate({ tab: 'summary' })}>Case review</button>
               <span aria-hidden="true">›</span>
