@@ -42,6 +42,7 @@ import {
 import { RelationDistributionPanel, RelationLikeTermsPanel } from './RelationStructureTools.jsx';
 import { relationDistributionCandidates, relationLikeTermCandidates } from './algebraRelationStructureModel.js';
 import { useContentStableValue } from './platform/react/useContentStableValue.js';
+import { persistablePendingFlip, restoredPendingFlip } from './relationPendingFlipDraft.js';
 
 const BASIC_OPERATIONS = [
   { id: 'add', symbol: '+', label: 'Add' },
@@ -93,10 +94,12 @@ const readRelationDraft = (draftKey) => {
     return { relationState: null, pendingRelationFlip: null, candidateChecks: {} };
   }
   const relationState = restorableRelationState(saved.relationState);
-  const pending = saved.pendingRelationFlip;
+  // Saved without its expected symbols; they are derived again here
+  // (relationPendingFlipDraft.js).
+  const pending = restoredPendingFlip(saved.pendingRelationFlip);
   const pendingSound = Boolean(
     relationState
-    && pending && typeof pending === 'object' && !Array.isArray(pending)
+    && pending
     && pendingFlipResultsFor(pending).length
     && pendingFlipResultsFor(pending).every((item) => (
       Number.isInteger(item?.branchIndex)
@@ -678,7 +681,8 @@ export default function MultiRelationAlgebra({
     writeQuestionDraft(draftKeyFor(draftKey), {
       relationState,
       activeBranch,
-      pendingRelationFlip,
+      // What the student did, never the symbols the open step expects.
+      pendingRelationFlip: persistablePendingFlip(pendingRelationFlip),
       candidateChecks,
     });
   }, [draftKey, relationState, activeBranch, pendingRelationFlip, candidateChecks]);
