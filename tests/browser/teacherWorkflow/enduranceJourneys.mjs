@@ -15,8 +15,8 @@
 //            other teachers' edits, DOL unlocks and seat allocations do all
 //            day; then the same again
 //   teacher  walk Home → Assignments → Classes → Students → Grades → Action
-//            Center → Attendance → Grade Export → Home, while assignments are
-//            edited
+//            Center → Attendance → Grade Export → Home, then sit on Grades
+//            while assignments are edited (no listener may be re-created)
 //
 // The fake Firestore re-emits EVERY listener on ANY write (real Firestore only
 // notifies the queries a write touches), which makes it strict: an effect that
@@ -209,18 +209,25 @@ const teacherJourney = async () => {
       await page.locator('nav, aside').getByRole('button', { name: new RegExp(`${tab}(\\s*\\(\\d+\\))?$`) }).first().click();
       await settle(page, 700);
     }
+    // Edited while the Grades tab holds the live grades listener — the screen a
+    // teacher leaves open during class — then back Home for the sample.
+    await page.locator('nav, aside').getByRole('button', { name: /^Grades(\s*\(\d+\))?$/ }).first().click();
+    await settle(page, 700);
     await page.evaluate(() => window.__mmHarnessStore.resetStats());
     await editOtherAssignments(page, round);
+    await settle(page, 400);
     const stats = await page.evaluate(() => window.__mmHarnessStore.stats());
     gradeListenerChurn += Object.entries(stats.subscriptions || {}).filter(([path]) => path === 'grades').reduce((total, [, count]) => total + count, 0);
+    await page.locator('nav, aside').getByRole('button', { name: /^Home(\s*\(\d+\))?$/ }).first().click();
     await settle(page, 600);
     samples.push(await measure(page, cdp));
     console.log(`  round ${round} done`);
   }
   summarize(journey, samples);
-  // Recorded, not failed: the teacher grades listener still depends on the
-  // assignment list (handoff in docs/qa/platform-engineering-deep-dive).
+  // Every write to any assignment used to tear the live grades listener down,
+  // flip the gradebook to loading and re-read every student's grades.
   console.log(`  grades-collection listeners re-created by other assignments' edits: ${gradeListenerChurn}`);
+  if (gradeListenerChurn > 0) finding(journey, `other assignments' edits re-created the teacher's grades listener ${gradeListenerChurn} times`);
   if (consoleProblems.length) finding(journey, `console: ${[...new Set(consoleProblems)].slice(0, 5).join(' | ')}`);
   await context.close();
 };

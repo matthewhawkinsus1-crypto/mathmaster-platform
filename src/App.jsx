@@ -2270,7 +2270,7 @@ function App() {
 
         if (teacherTab === 'grades' && !teacherGraderRepairRanRef.current) {
           teacherGraderRepairRanRef.current = true;
-          persistCurrentGraderCreditRepairs(studentData, assignments)
+          persistCurrentGraderCreditRepairs(studentData, assignmentsRef.current)
             .catch((error) => {
               teacherGraderRepairRanRef.current = false;
               console.error('Could not apply deferred current-grader credit repairs:', error);
@@ -2283,9 +2283,13 @@ function App() {
         setTeacherStudentDataMode('summary');
       },
     );
+  // NOT `assignments`: the repair above runs once and reads the ref. Listing
+  // the array tore this listener down on every write to ANY assignment —
+  // another teacher's edit, a DOL unlock, a question-family seat — flipped the
+  // gradebook to loading and re-read every student's grades document.
   }, [
     user?.role, user?.email, user?.isRootAdmin, teacherTab, teacherWorkspaceMode,
-    teacherPreviewRuntimeActive, teacherRosterSummaries, assignments,
+    teacherPreviewRuntimeActive, teacherRosterSummaries,
   ]);
 
   /*
