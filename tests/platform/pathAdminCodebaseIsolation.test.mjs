@@ -150,14 +150,9 @@ test('the shared Path runtime travels with the deployment and never forks', () =
 
   // The declared closure must cover everything path-admin actually loads.
   const vendored = new Set(vendoredFilePairs().map((pair) => pair.relative.split(path.sep).join('/')));
-  const loaded = [
-    ...[...read('functions-path-admin/lib/releaseStore.js').matchAll(/(?:requireRuntime|importRuntime)\("([^"]+)"\)/g)],
-    ...[...read('functions-path-admin/lib/releaseArtifact.js').matchAll(/(?:requireRuntime|importRuntime)\("([^"]+)"\)/g)],
-    ...[...read('functions-path-admin/lib/coverage.js').matchAll(/(?:requireRuntime|importRuntime)\("([^"]+)"\)/g)],
-    ...[...read('functions-path-admin/lib/authorization.js').matchAll(/(?:requireRuntime|importRuntime)\("([^"]+)"\)/g)],
-    ...[...read('functions-path-admin/lib/releaseService.js').matchAll(/(?:requireRuntime|importRuntime)\("([^"]+)"\)/g)],
-    ...[...read('functions-path-admin/lib/deployProvenance.js').matchAll(/(?:requireRuntime|importRuntime)\("([^"]+)"\)/g)],
-  ].map((match) => match[1]);
+  const loaded = ['releaseStore.js', 'releaseArtifact.js', 'coverage.js', 'authorization.js', 'releaseService.js', 'deployProvenance.js']
+    .flatMap((file) => [...read(`functions-path-admin/lib/${file}`).matchAll(/(?:requireRuntime|importRuntime)\("([^"]+)"\)/g)])
+    .map((match) => match[1]);
   assert.ok(loaded.length > 0);
   loaded.forEach((relative) => assert.equal(vendored.has(relative), true, `${relative} is loaded but not vendored`));
 });
