@@ -356,10 +356,10 @@ test('the local draft write is synchronous and only then offers a background sav
   const start = draftStorageSource.indexOf('export const writeQuestionDraft');
   const block = draftStorageSource.slice(start, draftStorageSource.indexOf('export const questionDraftSavedAt'));
   assert.doesNotMatch(block, /await|async/);
-  assert.match(block, /notifyDraftWritten\(key, value, savedAt\)/);
-  assert.match(block, /window\.localStorage\.setItem/);
+  // Offered with its time and whether it was the student's edit (PQ-044).
+  assert.match(block, /notifyDraftWritten\(key, value, savedAt, isEdit\);[\s\S]*window\.localStorage\.setItem/);
   // Subscribers cannot break the keystroke.
-  assert.match(draftStorageSource, /try \{\s*\n\s*listener\(\{ key, value, savedAt \}\);\s*\n\s*\} catch/);
+  assert.match(draftStorageSource, /try \{\s*\n\s*listener\(\{ key, value, savedAt, edit \}\);\s*\n\s*\} catch/);
 });
 
 test('temporary network loss leaves the work locally durable and retries later', async () => {

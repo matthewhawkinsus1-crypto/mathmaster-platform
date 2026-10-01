@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
+import { readQuestionDraft, studentInputMark, studentInputSince, writeQuestionDraft } from './questionDraftStorage';
 
 const cloneValue = (value) => {
   if (value === undefined) return value;
@@ -10,12 +10,25 @@ const cloneValue = (value) => {
   }
 };
 
+/*
+ * WHICH OF THIS HOOK'S WRITES ARE THE STUDENT'S (PQ-044).
+ *
+ * The effect below writes the value back whenever it changes — including the
+ * moment the workspace mounts with what it just read. That write is not an
+ * edit, and says so, so opening a question never makes its drafts look newer
+ * than work saved anywhere else (see writeQuestionDraft). The setter is how
+ * the workspace changes the value: an edit when the student has touched the
+ * page since this hook loaded its draft, unless the caller knows better and
+ * passes `{ edit }` (WorkflowRunner does, per step).
+ */
 export default function useLocalDraftState(storageKey, initialValue) {
   const initialValueRef = useRef(initialValue);
   const activeKeyRef = useRef(storageKey);
   const skipNextWriteRef = useRef(false);
+  const inputMarkRef = useRef(0);
   const [value, setValue] = useState(() => {
     const fallback = typeof initialValue === 'function' ? initialValue() : initialValue;
+    inputMarkRef.current = studentInputMark();
     return cloneValue(readQuestionDraft(storageKey, fallback));
   });
 
@@ -25,6 +38,7 @@ export default function useLocalDraftState(storageKey, initialValue) {
     skipNextWriteRef.current = true;
     const source = initialValueRef.current;
     const fallback = typeof source === 'function' ? source() : source;
+    inputMarkRef.current = studentInputMark();
     setValue(cloneValue(readQuestionDraft(storageKey, fallback)));
   }, [storageKey]);
 
@@ -33,10 +47,12 @@ export default function useLocalDraftState(storageKey, initialValue) {
       skipNextWriteRef.current = false;
       return;
     }
-    writeQuestionDraft(storageKey, value);
+    // What the state already holds: written by the setter if it was an edit,
+    // read from the draft if it was not. Never an edit of its own.
+    writeQuestionDraft(storageKey, value, { edit: false });
   }, [storageKey, value]);
 
-  const setPersistedValue = useCallback((nextValue) => {
+  const setPersistedValue = useCallback((nextValue, options = {}) => {
     setValue((current) => {
       const resolved = typeof nextValue === 'function' ? nextValue(current) : nextValue;
 
@@ -51,7 +67,8 @@ export default function useLocalDraftState(storageKey, initialValue) {
       if (Object.is(resolved, current)) return current;
 
       const saved = cloneValue(resolved);
-      writeQuestionDraft(storageKey, saved);
+      const edit = typeof options?.edit === 'boolean' ? options.edit : studentInputSince(inputMarkRef.current);
+      writeQuestionDraft(storageKey, saved, { edit });
       return saved;
     });
   }, [storageKey]);

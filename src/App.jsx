@@ -26,7 +26,7 @@ import {
   normalizeCheckpointResponse,
   responseFingerprint,
 } from './platform/performance/responseCheckpoint.js';
-import { createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
+import { WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS, createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
 import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
 import { readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
 import { resolveAuthoritativeClose, resolveWarmupInstructionDateKey } from '../functions/shared/sectionDeadline.mjs';
@@ -3341,6 +3341,15 @@ function App() {
    *   4. Practice Mode state, kept in its own structure so it can never reach
    *      a grade;
    *   5. the resume position.
+   *
+   * The question does NOT wait for the server's copy (PQ-044). It opens from
+   * this device at once, and its workspaces write back what they read as
+   * what it is — not the student's edit — so that copy keeps the time of the
+   * last real edit (0 on a Chromebook that never saw this work) and cannot
+   * outrank the server's on its way in, nor be sent over it. When the read
+   * lands with anything newer, the question is remounted to show it. A device
+   * that opened offline, or slept while the student worked on another one,
+   * reads again when it is back online or back in front of the student.
    */
   useEffect(() => { trackerRef.current = tracker; }, [tracker]);
 
@@ -3370,44 +3379,70 @@ function App() {
     workspaceDraftSyncRef.current = sync;
     const unsubscribe = subscribeToQuestionDrafts((event) => sync.record(event));
 
-    readWorkspaceDraft({ studentId: user.id, assignmentId: activeAssignmentId })
-      .then((stored) => {
-        if (cancelled || !stored) return;
-        const assignmentGrades = trackerRef.current?.[activeAssignmentId] || {};
-        const restorable = selectRestorableDraftEntries({
-          entries: readWorkspaceDraftEntries(stored),
-          localSavedAt: (key) => questionDraftSavedAt(key),
-          canonicalSavedAt: (entry) => {
-            const record = normalizeQuestionRecord(assignmentGrades[entry?.questionIndex]);
-            return Date.parse(record.lastAttemptAt || '') || 0;
-          },
-        });
-        if (restoreQuestionDrafts(restorable)) setWorkspaceDraftGeneration((value) => value + 1);
-        if (stored.practice && typeof stored.practice === 'object') {
-          // Per question, the record with more practice progress wins. The
-          // session's tracker is usually a fresh seed with a row for every
-          // question; spreading it over the saved copy erased all saved practice
-          // on every reload (see practiceTrackerMerge.js).
-          setPracticeTracker((current) => ({
-            ...current,
-            [activeAssignmentId]: mergePracticeTrackers(stored.practice || {}, current[activeAssignmentId] || {}),
-          }));
-        }
-      })
-      .catch((error) => {
-        // The device's own drafts are still there. Recovery is best-effort.
-        console.warn('Could not restore saved workspace drafts:', error);
-      });
+    let reading = false;
+    const readServerCopy = () => {
+      if (cancelled || reading) return;
+      reading = true;
+      readWorkspaceDraft({ studentId: user.id, assignmentId: activeAssignmentId })
+        .then((stored) => {
+          if (cancelled) return;
+          const entries = readWorkspaceDraftEntries(stored);
+          const assignmentGrades = trackerRef.current?.[activeAssignmentId] || {};
+          const restorable = selectRestorableDraftEntries({
+            entries,
+            localSavedAt: (key) => questionDraftSavedAt(key),
+            canonicalSavedAt: (entry) => {
+              const record = normalizeQuestionRecord(assignmentGrades[entry?.questionIndex]);
+              return Date.parse(record.lastAttemptAt || '') || 0;
+            },
+          });
+          if (restoreQuestionDrafts(restorable)) setWorkspaceDraftGeneration((value) => value + 1);
+          // Only now is it known what the server holds — and so whether this
+          // device has an edit it never received (see workspaceDraftSync).
+          sync.noteServerCopy(entries);
+          if (stored?.practice && typeof stored.practice === 'object') {
+            // Per question, the record with more practice progress wins. The
+            // session's tracker is usually a fresh seed with a row for every
+            // question; spreading it over the saved copy erased all saved practice
+            // on every reload (see practiceTrackerMerge.js).
+            setPracticeTracker((current) => ({
+              ...current,
+              [activeAssignmentId]: mergePracticeTrackers(stored.practice || {}, current[activeAssignmentId] || {}),
+            }));
+          }
+        })
+        .catch((error) => {
+          // The device's own drafts are still there. Recovery is best-effort,
+          // and is tried again when the device is back (below).
+          console.warn('Could not restore saved workspace drafts:', error);
+        })
+        .finally(() => { reading = false; });
+    };
+    readServerCopy();
 
     // Leaving the page is the moment a pending draft most needs to be written.
     const flush = () => { void sync.flushNow(); };
-    const flushWhenHidden = () => { if (document.hidden) flush(); };
+    // Coming back is the moment the student may have worked somewhere else:
+    // online again, or in front of the student again after long enough away
+    // to have used another Chromebook.
+    let hiddenAt = 0;
+    const flushWhenHidden = () => {
+      if (document.hidden) {
+        hiddenAt = Date.now();
+        flush();
+        return;
+      }
+      if (hiddenAt && Date.now() - hiddenAt >= WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS) readServerCopy();
+      hiddenAt = 0;
+    };
     window.addEventListener('pagehide', flush);
+    window.addEventListener('online', readServerCopy);
     document.addEventListener('visibilitychange', flushWhenHidden);
     return () => {
       cancelled = true;
       unsubscribe();
       window.removeEventListener('pagehide', flush);
+      window.removeEventListener('online', readServerCopy);
       document.removeEventListener('visibilitychange', flushWhenHidden);
       void sync.flushNow();
       sync.stop();

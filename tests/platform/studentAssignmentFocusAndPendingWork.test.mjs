@@ -112,8 +112,10 @@ test('multipart draft state is written during the response change, and composed 
     readFile(new URL('../../src/platform/workflow/WorkflowRunner.jsx', import.meta.url), 'utf8'),
   ]);
 
-  assert.match(undoHistory, /writeQuestionDraft\(persistenceKey, saved\);[\s\S]*return saved/);
-  assert.match(localDraft, /setPersistedValue[\s\S]*writeQuestionDraft\(storageKey, saved\)/);
+  // Written inside the transition, before the new value is returned (the
+  // options say whether it was the student's edit — PQ-044).
+  assert.match(undoHistory, /writeQuestionDraft\(persistenceKey, saved\b[^;]*\);\s*return saved/);
+  assert.match(localDraft, /setPersistedValue[\s\S]*writeQuestionDraft\(storageKey, saved\b[^;]*\);\s*return saved/);
   assert.match(workflow, /workflow-responses/);
   assert.match(workflow, /workflow-stage/);
 });

@@ -23,6 +23,14 @@ import { projectDraftForServer } from './serverDraftProjection.js';
 
 export const WORKSPACE_DRAFT_DEBOUNCE_MS = 2500;
 
+/*
+ * How long a page must have been out of sight before coming back to it reads
+ * the server copy again (App.jsx): long enough to have picked up another
+ * Chromebook and worked on this assignment there, short enough to catch a lid
+ * closed between periods. A quick tab switch to look something up costs no read.
+ */
+export const WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS = 15_000;
+
 /**
  * @param flush  async ({ document }) => void — the only network call.
  *               Injected so the engine is testable without Firestore, and so a
@@ -57,7 +65,23 @@ export const createWorkspaceDraftSync = ({
   // `rejected` counts drafts the guard refused, by reason. They are also
   // `skipped`; the separate tally is what tells a refused record (a tool bug
   // that stops server backup) from an out-of-scope key (expected).
-  const stats = { recorded: 0, skipped: 0, flushes: 0, failures: 0, rejected: {} };
+  const stats = { recorded: 0, skipped: 0, flushes: 0, failures: 0, rejected: {}, unedited: 0 };
+
+  /*
+   * WHAT THE SERVER HOLDS, AS FAR AS THIS DEVICE KNOWS (PQ-044).
+   *
+   * Per key, the newest `savedAt` seen there: from the assignment's read
+   * (`noteServerCopy`) and from every save this device has made since. Until
+   * that read has come back, nothing is known — and a draft that is not the
+   * student's edit (see `record`) waits for it in `held`.
+   */
+  const serverSavedAt = new Map();
+  let serverKnown = false;
+  const held = new Map();
+  const noteServerSavedAt = (key, savedAt) => {
+    const at = Number(savedAt) || 0;
+    if (key && at > (serverSavedAt.get(key) || 0)) serverSavedAt.set(key, at);
+  };
 
   const snapshotPatch = () => buildWorkspaceDraftPatch({
     studentId,
@@ -108,6 +132,7 @@ export const createWorkspaceDraftSync = ({
     inFlight = Promise.resolve(started)
       .then(() => {
         flushedAt.forEach((savedAt, key) => {
+          noteServerSavedAt(key, savedAt);
           if ((pending.get(key)?.savedAt ?? -1) === savedAt) pending.delete(key);
         });
         if (flushedResume !== null && (resumePatch?.updatedAt ?? 0) === flushedResume) resumeDirty = false;
@@ -127,41 +152,78 @@ export const createWorkspaceDraftSync = ({
     handle = timers.set(runFlush, debounceMs);
   }
 
+  /** Called synchronously from the draft write. Must stay cheap. */
+  const record = ({ key, value, savedAt, edit } = {}) => {
+    if (stopped) return false;
+    const identity = parseQuestionDraftKey(key);
+    if (!identity || !['student', 'practice'].includes(identity.sessionBucket)) { stats.skipped += 1; return false; }
+    if (identity.studentId !== String(studentId) || identity.assignmentId !== String(assignmentId)) { stats.skipped += 1; return false; }
+    if (!isSyncableDraftKey(key)) { stats.skipped += 1; return false; }
+    /*
+     * NOT THE STUDENT'S EDIT (questionDraftStorage.js): a workspace writing
+     * back what it read as it mounted, a tool reporting what it derived. It
+     * carries the time of the last real edit — 0 if there never was one, and
+     * then there is nothing to back up — and it is sent only to give the
+     * server an edit it does not have yet (one made offline, or just before
+     * the page closed). Whether the server has it is only known once the
+     * assignment's read has come back; until then it waits. It never replaces
+     * what the server holds at the same time, so a derived copy cannot
+     * overwrite the work it was derived from.
+     */
+    let stamp = Number(savedAt) || 0;
+    if (edit === false) {
+      if (stamp <= 0) { stats.unedited += 1; return false; }
+      if ((pending.get(key)?.savedAt ?? 0) >= stamp) return false;
+      if (!serverKnown) { held.set(key, { key, value, savedAt: stamp }); return false; }
+      if (stamp <= (serverSavedAt.get(key) || 0)) return false;
+    } else {
+      held.delete(key);
+      if (!stamp) stamp = now();
+    }
+    // What the server may hold of this draft (serverDraftProjection.js):
+    // the draft itself, except where the device's copy keeps a verdict the
+    // student-readable server copy must not. The guard below judges exactly
+    // what would be sent.
+    const serverValue = projectDraftForServer(key, value);
+    if (!sanitizeWorkspaceDraftValue(serverValue).ok) {
+      // Refused by the guard, which stays exactly as strict. What changes is
+      // that someone hears about it: the path and reason go to the console
+      // once (see draftSyncDiagnostics.js). The student is told nothing —
+      // their local draft is still durable.
+      const explanation = explainWorkspaceDraftRejection(serverValue);
+      stats.skipped += 1;
+      stats.rejected[explanation.reason] = (stats.rejected[explanation.reason] || 0) + 1;
+      reportDraftSyncRejection({ key, explanation, source: 'sync' });
+      return false;
+    }
+    pending.set(key, {
+      key,
+      value: serverValue,
+      savedAt: stamp,
+      questionIndex: identity.questionIndex,
+      variantIndex: identity.variantIndex,
+    });
+    stats.recorded += 1;
+    dirtySinceFlush = true;
+    schedule();
+    return true;
+  };
+
   return {
-    /** Called synchronously from the draft write. Must stay cheap. */
-    record({ key, value, savedAt } = {}) {
-      if (stopped) return false;
-      const identity = parseQuestionDraftKey(key);
-      if (!identity || !['student', 'practice'].includes(identity.sessionBucket)) { stats.skipped += 1; return false; }
-      if (identity.studentId !== String(studentId) || identity.assignmentId !== String(assignmentId)) { stats.skipped += 1; return false; }
-      if (!isSyncableDraftKey(key)) { stats.skipped += 1; return false; }
-      // What the server may hold of this draft (serverDraftProjection.js):
-      // the draft itself, except where the device's copy keeps a verdict the
-      // student-readable server copy must not. The guard below judges exactly
-      // what would be sent.
-      const serverValue = projectDraftForServer(key, value);
-      if (!sanitizeWorkspaceDraftValue(serverValue).ok) {
-        // Refused by the guard, which stays exactly as strict. What changes is
-        // that someone hears about it: the path and reason go to the console
-        // once (see draftSyncDiagnostics.js). The student is told nothing —
-        // their local draft is still durable.
-        const explanation = explainWorkspaceDraftRejection(serverValue);
-        stats.skipped += 1;
-        stats.rejected[explanation.reason] = (stats.rejected[explanation.reason] || 0) + 1;
-        reportDraftSyncRejection({ key, explanation, source: 'sync' });
-        return false;
-      }
-      pending.set(key, {
-        key,
-        value: serverValue,
-        savedAt: Number(savedAt) || now(),
-        questionIndex: identity.questionIndex,
-        variantIndex: identity.variantIndex,
-      });
-      stats.recorded += 1;
-      dirtySinceFlush = true;
-      schedule();
-      return true;
+    record,
+    /**
+     * The assignment's server copy has been read (its entries, as
+     * readWorkspaceDraftEntries decodes them; none when there is no document).
+     * From now on this device knows what the server holds, and the drafts that
+     * were waiting to learn it are sent if — and only if — the server lacks them.
+     */
+    noteServerCopy(entries = []) {
+      if (stopped) return;
+      (Array.isArray(entries) ? entries : []).forEach((entry) => noteServerSavedAt(String(entry?.key || ''), entry?.savedAt));
+      serverKnown = true;
+      const waiting = [...held.values()];
+      held.clear();
+      waiting.forEach((entry) => record({ ...entry, edit: false }));
     },
     /*
      * Resume position and Practice Mode ride the same document and debounce.

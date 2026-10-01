@@ -133,11 +133,12 @@ test('the student is never shown the diagnostic', () => {
 test('the write path and the sync are both wired to the reporter', () => {
   const storage = executableSource(read('src/questionDraftStorage.js'));
   const writer = storage.slice(storage.indexOf('export const writeQuestionDraft'), storage.indexOf('export const questionDraftSavedAt'));
-  assert.match(writer, /auditDraftWrite\(key, value\);[\s\S]*notifyDraftWritten\(key, value, savedAt\)/,
+  assert.match(writer, /auditDraftWrite\(key, value\);[\s\S]*notifyDraftWritten\(key, value, savedAt, isEdit\)/,
     'writeQuestionDraft must audit every draft before it is offered to the sync');
   assert.match(storage, /import \{ auditDraftWrite \} from '\.\/platform\/persistence\/draftSyncDiagnostics\.js'/);
   const sync = executableSource(read('src/platform/persistence/workspaceDraftSync.js'));
-  const record = sync.slice(sync.indexOf('record({'), sync.indexOf('setResume('));
+  const record = sync.slice(sync.indexOf('const record = ('), sync.indexOf('setResume('));
+  assert.ok(record.length > 200, 'the sync\'s record() was found');
   // What the guard judges must be exactly what is queued for the server: the
   // draft's server projection (serverDraftProjection.js, PQ-043), never the
   // device's copy in one place and something else in the other.

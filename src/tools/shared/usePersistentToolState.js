@@ -35,6 +35,8 @@ import {
   questionDraftSavedAt,
   readQuestionDraft,
   removeQuestionDraft,
+  studentInputMark,
+  studentInputSince,
   writeQuestionDraft,
 } from '../../questionDraftStorage.js';
 
@@ -109,7 +111,7 @@ const loadStore = (key) => {
   const generation = questionDraftRestoreGeneration();
   let store = stores.get(key);
   if (!store) {
-    store = { key, record: readRecord(key), generation, timer: null, pending: false };
+    store = { key, record: readRecord(key), generation, timer: null, pending: false, pendingEdit: false };
     stores.set(key, store);
     evictOldest();
     return store;
@@ -132,7 +134,10 @@ function flushStore(store) {
   }
   if (!store.pending) return false;
   store.pending = false;
-  writeQuestionDraft(store.key, store.record);
+  // An edit if any change it coalesced was one (see commitField).
+  const edit = store.pendingEdit === true;
+  store.pendingEdit = false;
+  writeQuestionDraft(store.key, store.record, { edit });
   return true;
 }
 
@@ -156,16 +161,27 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
   }
 }
 
-const commitField = (key, field, value, coalesceMs) => {
+/*
+ * `edit`: did the student make this change (PQ-044)? A tool that sets a field
+ * from an effect as it mounts — normalising what it restored, deriving a
+ * default — is not editing, and must not make the record look newer than work
+ * saved on another Chromebook. usePersistentToolState answers it per mounted
+ * field; see writeQuestionDraft for what the answer changes.
+ */
+const commitField = (key, field, value, coalesceMs, edit = true) => {
   if (!key) return false;
   const store = stores.get(key) || loadStore(key);
   store.record = { ...store.record, [field]: value };
   if (!coalesceMs) {
     store.pending = false;
+    // A coalesced edit still waiting goes out with this write, as an edit.
+    const coalescedEdit = store.pendingEdit === true;
+    store.pendingEdit = false;
     if (store.timer !== null) { clearTimeout(store.timer); store.timer = null; }
-    return writeQuestionDraft(key, store.record) !== false;
+    return writeQuestionDraft(key, store.record, { edit: edit || coalescedEdit }) !== false;
   }
   store.pending = true;
+  store.pendingEdit = store.pendingEdit === true || edit;
   if (store.timer === null) {
     store.timer = setTimeout(() => { store.timer = null; flushStore(store); }, coalesceMs);
   }
@@ -313,7 +329,9 @@ export const stampToolDraftSubmission = (draftKey) => {
   stores.forEach((store, key) => {
     if (!key.startsWith(prefix)) return;
     flushStore(store);
-    writeQuestionDraft(key, store.record);
+    // Deliberately the newest time: the student just submitted this work,
+    // here (PQ-044 keeps every other unchanged write at its old time).
+    writeQuestionDraft(key, store.record, { edit: true });
     stamped += 1;
   });
   return stamped;
@@ -376,7 +394,15 @@ export default function usePersistentToolState(field, initialValue, options = {}
   // questions without remounting the tool, the new key must not fall back to
   // the previous question's defaults.
   initialRef.current = initialValue;
-  const [value, setValue] = useState(() => restoreField(key, field, initialRef.current, canonicalSavedAt));
+  // Where "has the student touched the page since this field loaded?" is
+  // measured from — per mounted field, because the parsed record is cached
+  // across mounts and a tool that comes back after a question change has not
+  // been edited by coming back (PQ-044).
+  const inputMarkRef = useRef(0);
+  const [value, setValue] = useState(() => {
+    inputMarkRef.current = studentInputMark();
+    return restoreField(key, field, initialRef.current, canonicalSavedAt);
+  });
 
   // The question can change UNDER a mounted tool: PathSessionPlayer renders one
   // QuestionEngine and swaps the question beneath it. Re-read rather than keep
@@ -385,6 +411,7 @@ export default function usePersistentToolState(field, initialValue, options = {}
   useEffect(() => {
     if (keyRef.current === key) return;
     keyRef.current = key;
+    inputMarkRef.current = studentInputMark();
     // `setValue`, not the persisting setter: reading a draft back is not an
     // edit and must not write it out again.
     setValue(restoreField(key, field, initialRef.current, canonicalSavedAt));
@@ -401,7 +428,7 @@ export default function usePersistentToolState(field, initialValue, options = {}
       // that loses power between the two would lose the edit, and an effect
       // that never runs because the component unmounted first would lose it
       // every time.
-      commitField(keyRef.current, field, resolved, coalesceMs);
+      commitField(keyRef.current, field, resolved, coalesceMs, studentInputSince(inputMarkRef.current));
       return resolved;
     });
   }, [field, coalesceMs]);

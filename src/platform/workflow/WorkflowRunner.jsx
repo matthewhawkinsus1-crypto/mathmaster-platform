@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MathInput from '../../MathInput';
 import useLocalDraftState from '../../useLocalDraftState';
+import { studentInputMark, studentInputSince } from '../../questionDraftStorage';
 import MathDisplay from '../../MathDisplay';
 import QuestionPrompt from '../../QuestionPrompt';
 import TableGrader from '../../TableGrader';
@@ -844,7 +845,23 @@ const DELEGATES = {
 const NOTATION_PROFILE = { interval: 'interval', inequality: 'inequality', set: 'set' };
 export const ALL_REAL_NUMBERS_RESPONSE = '\\text{All Real Numbers}';
 
-function StageBody({ stage, input, content, value, onChange, disabled, draftKey, canonicalSavedAt = 0, controlsBranch = false, openKeypad = true, showFigure = true, revealCorrectness = true }) {
+function StageBody({ stage, input, content, value, onReport, disabled, draftKey, canonicalSavedAt = 0, controlsBranch = false, openKeypad = true, showFigure = true, revealCorrectness = true }) {
+  /*
+   * WHAT A STEP REPORTS IS AN EDIT ONLY IF THE STUDENT HAS TOUCHED THE PAGE
+   * SINCE THE STEP APPEARED (PQ-044).
+   *
+   * Every step's answer lives in ONE draft, `workflow-responses`. A plotting
+   * workspace or a table reports its state the moment it mounts — and in focus
+   * mode it mounts when the student moves to its step, which is a click. Judged
+   * from when the workflow loaded its draft, that report would be an "edit": a
+   * student who only paged through a question on a Chromebook that had not yet
+   * received their work would stamp the whole record newer than the work saved
+   * from another one, and the background save would carry it over that work.
+   * Measured from when this step appeared, a report the student did not cause
+   * keeps the record's time (see writeQuestionDraft).
+   */
+  const [inputMark] = useState(studentInputMark);
+  const onChange = (next) => onReport(next, { edit: studentInputSince(inputMark) });
   const delegate = DELEGATES[stage.kind];
   /*
    * A STAGE'S TOOL GETS ITS OWN DRAFT NAMESPACE.
@@ -1322,13 +1339,13 @@ export default function WorkflowRunner({
   // comparison never matches: each report would be "new", causing a re-render,
   // causing another report. That is an infinite loop, and it is what happens
   // if you take the obvious `Object.is` route here.
-  const setResponse = useCallback((stageId, value) => {
+  const setResponse = useCallback((stageId, value, options) => {
     queueMicrotask(() => {
       setResponses((current) => {
         const sameValue = current[stageId] === value
           || JSON.stringify(current[stageId] ?? null) === JSON.stringify(value ?? null);
         return sameValue ? current : { ...current, [stageId]: value };
-      });
+      }, options);
     });
   }, [setResponses]);
 
@@ -1536,7 +1553,7 @@ export default function WorkflowRunner({
               input={input}
               content={content}
               value={responses[stage.id]}
-              onChange={(value) => setResponse(stage.id, (readDelegateResponse[stage.kind] || ((raw) => raw))(value, { stage, input, content }))}
+              onReport={(value, options) => setResponse(stage.id, (readDelegateResponse[stage.kind] || ((raw) => raw))(value, { stage, input, content }), options)}
               disabled={disabled}
               controlsBranch={branchControllerIds.has(stage.id)}
               openKeypad={stage.id === openKeypadStageId}

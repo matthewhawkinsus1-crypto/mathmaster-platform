@@ -42,15 +42,101 @@ export const subscribeToQuestionDrafts = (listener) => {
   return () => draftSubscribers.delete(listener);
 };
 
-const notifyDraftWritten = (key, value, savedAt) => {
+const notifyDraftWritten = (key, value, savedAt, edit) => {
   draftSubscribers.forEach((listener) => {
     try {
-      listener({ key, value, savedAt });
+      listener({ key, value, savedAt, edit });
     } catch (error) {
       // A failing sync listener must never cost the student their keystroke.
       console.warn('MathMaster could not queue a draft for background save:', error);
     }
   });
+};
+
+/*
+ * ONLY A STUDENT'S EDIT MOVES A DRAFT FORWARD IN TIME (PQ-044).
+ *
+ * `savedAt` is what every copy of a draft is ordered by. The server keeps the
+ * newer copy of each key; a restore writes the server's copy over this device's
+ * only when it is newer; a draft older than the question's last submitted
+ * attempt is history. It used to be stamped by EVERY write — and every
+ * workspace writes its draft back the moment it mounts. So merely opening a
+ * question made what it showed (on a Chromebook that had never seen this work:
+ * empty boxes) the newest version of the student's work. The server copy then
+ * on its way lost the restore to it, and the background save carried the
+ * empty boxes up over the real work, for every device.
+ *
+ * So each write says whether it is the student's edit:
+ *
+ *   - an EDIT is stamped now, as every write used to be;
+ *   - anything else — a workspace writing back what it just read, a tool
+ *     reporting state it derived as it mounted — keeps the time of the edit
+ *     the draft already carries, or 0 ("never edited") when it carries none.
+ *     It never looks newer than real work, here or on the server, and the
+ *     background save never sends it as new work (workspaceDraftSync.js).
+ *
+ * The VALUE is stored either way, so a reload, a question change or a reopened
+ * browser on this device restores exactly what it always did.
+ *
+ * Who decides: a writer that knows passes `{ edit }` (the draft hooks do; see
+ * useLocalDraftState, useUndoHistory, usePersistentToolState). Otherwise it is
+ * inferred: an edit is a write made after the student touched the page — a
+ * trusted keyboard, pointer or input event — since this page read that draft.
+ * Opening a question reads its drafts and writes them back with no touch in
+ * between. A read is therefore a promise to write back only what was read, and
+ * every reader in the app is a workspace loading the draft it owns; anything
+ * that only wants to LOOK at a draft must not use readQuestionDraft to do it.
+ */
+const STUDENT_INPUT_EVENTS = Object.freeze([
+  'keydown', 'beforeinput', 'input', 'paste', 'cut', 'drop',
+  'pointerdown', 'mousedown', 'touchstart', 'click', 'change',
+]);
+let studentInputCount = 0;
+let studentInputTracked = false;
+
+const noteStudentInput = (event) => {
+  // The browser's own events only. A script's dispatchEvent — a tool
+  // re-dispatching, a math field announcing a value it normalised — is not
+  // the student.
+  if (event?.isTrusted === true) studentInputCount += 1;
+};
+
+/**
+ * Count the student's input on `target` (the window, by default, in the
+ * capture phase so nothing can hide an event from it). Where input cannot be
+ * observed at all, every write counts as an edit — exactly the old behaviour.
+ */
+export const trackStudentInput = (target = typeof window !== 'undefined' ? window : null) => {
+  if (!target || typeof target.addEventListener !== 'function') return false;
+  STUDENT_INPUT_EVENTS.forEach((type) => target.addEventListener(type, noteStudentInput, { capture: true, passive: true }));
+  studentInputTracked = true;
+  return true;
+};
+
+try {
+  trackStudentInput();
+} catch {
+  // Untracked: every write is an edit, as before.
+}
+
+/** Where to measure "has the student touched the page since?" from. */
+export const studentInputMark = () => studentInputCount;
+
+/** Has the student touched the page since `mark`? Always yes where input is not observed. */
+export const studentInputSince = (mark) => !studentInputTracked || studentInputCount > (Number(mark) || 0);
+
+/*
+ * What this page last saw of each draft: the edit time it read (or wrote), and
+ * the student's input mark when it read it.
+ */
+const pageView = new Map();
+
+const notePageRead = (key, savedAt) => {
+  pageView.set(key, { savedAt: Number(savedAt) || 0, input: studentInputCount });
+};
+
+const forgetPageView = (matches) => {
+  [...pageView.keys()].forEach((key) => { if (matches(key)) pageView.delete(key); });
 };
 
 /**
@@ -97,21 +183,67 @@ export const buildQuestionDraftKey = ({
   ].join(':');
 };
 
+/*
+ * `savedAt` is the time of the last edit; `touchedAt` the last time this
+ * device wrote the draft at all. Expiry runs from whichever is later, so a
+ * draft that is opened keeps living exactly as long as it used to (an envelope
+ * from before `touchedAt` existed simply expires from its `savedAt`).
+ */
 export const readQuestionDraft = (key, fallback = null) => {
-  if (!key || !storageAvailable()) return fallback;
-  const parsed = safeParse(window.localStorage.getItem(key));
-  if (!parsed || typeof parsed !== 'object') return fallback;
-  const savedAt = Number(parsed.savedAt || 0);
-  if (savedAt && Date.now() - savedAt > MAX_DRAFT_AGE_MS) {
-    window.localStorage.removeItem(key);
+  if (!key) return fallback;
+  if (!storageAvailable()) {
+    notePageRead(key, 0);
     return fallback;
   }
+  const parsed = safeParse(window.localStorage.getItem(key));
+  if (!parsed || typeof parsed !== 'object') {
+    notePageRead(key, 0);
+    return fallback;
+  }
+  const savedAt = Number(parsed.savedAt || 0);
+  const lastWritten = Math.max(savedAt, Number(parsed.touchedAt) || 0);
+  if (lastWritten && Date.now() - lastWritten > MAX_DRAFT_AGE_MS) {
+    window.localStorage.removeItem(key);
+    notePageRead(key, 0);
+    return fallback;
+  }
+  notePageRead(key, savedAt);
   return parsed.value ?? fallback;
 };
 
-export const writeQuestionDraft = (key, value) => {
+const storedSavedAt = (key) => {
+  if (!key || !storageAvailable()) return 0;
+  try {
+    return Number(safeParse(window.localStorage.getItem(key))?.savedAt) || 0;
+  } catch {
+    return 0;
+  }
+};
+
+/**
+ * Store a draft and offer it to the background save.
+ *
+ * `edit`: true when the student made this change, false when they did not
+ * (a workspace writing back what it read). Leave it out to have it inferred
+ * from the student's input since this page read the draft (see above).
+ */
+export const writeQuestionDraft = (key, value, { edit } = {}) => {
   if (!key) return false;
-  const savedAt = Date.now();
+  const seen = pageView.get(key);
+  const isEdit = typeof edit === 'boolean' ? edit : studentInputSince(seen ? seen.input : 0);
+  const now = Date.now();
+  let savedAt = now;
+  if (!isEdit) {
+    const stored = storedSavedAt(key);
+    // Something else wrote this draft after this page last saw it — a newer
+    // copy restored from the server, this student's edit in another tab. The
+    // page's own copy is the older one, and a write that is not an edit must
+    // not put it back. (The page catches up when it next reads: a restore
+    // remounts the question.)
+    if (seen && stored !== seen.savedAt) return false;
+    savedAt = stored;
+  }
+  pageView.set(key, { savedAt, input: seen ? seen.input : 0 });
   // Development only: name the field that would stop the server backup at the
   // keystroke that introduced it, whether or not a signed-in sync is running.
   // A no-op in production, where the sync reports what it refuses.
@@ -119,10 +251,10 @@ export const writeQuestionDraft = (key, value) => {
   // The background save is offered even when local storage is unavailable —
   // a district policy that blocks site data is exactly the case where the
   // server copy is the only copy the student will get back.
-  notifyDraftWritten(key, value, savedAt);
+  notifyDraftWritten(key, value, savedAt, isEdit);
   if (!storageAvailable()) return false;
   try {
-    window.localStorage.setItem(key, JSON.stringify({ version: 2, savedAt, value }));
+    window.localStorage.setItem(key, JSON.stringify({ version: 2, savedAt, value, touchedAt: now }));
     return true;
   } catch (error) {
     console.warn('MathMaster could not save local question work:', error);
@@ -130,12 +262,8 @@ export const writeQuestionDraft = (key, value) => {
   }
 };
 
-/** When this device last saved that draft, or 0 if it never did. */
-export const questionDraftSavedAt = (key) => {
-  if (!key || !storageAvailable()) return 0;
-  const parsed = safeParse(window.localStorage.getItem(key));
-  return Number(parsed?.savedAt) || 0;
-};
+/** When the student last edited that draft (as this device knows it), or 0. */
+export const questionDraftSavedAt = (key) => storedSavedAt(key);
 
 /*
  * HOW A CACHE KNOWS THE SERVER OVERWROTE IT.
@@ -152,9 +280,12 @@ export const questionDraftRestoreGeneration = () => restoreGeneration;
 /**
  * Write server-held drafts back into this device, newest wins.
  *
- * Called before the assignment renders, so useLocalDraftState and
- * useUndoHistory pick the restored value up on their first read exactly as if
- * the student had never left.
+ * The server's answer usually arrives after the question has mounted. Its
+ * workspaces have already read their (older, or empty) drafts and written them
+ * back — as what they are, not edits, so those writes never outrank the copy
+ * arriving here (see writeQuestionDraft). App then remounts the question
+ * (`workspaceDraftGeneration`), and every workspace reads what was restored,
+ * exactly as if the student had never left.
  */
 export const restoreQuestionDrafts = (entries = []) => {
   if (!storageAvailable()) return 0;
@@ -175,7 +306,9 @@ export const restoreQuestionDrafts = (entries = []) => {
 };
 
 export const removeQuestionDraft = (key) => {
-  if (!key || !storageAvailable()) return;
+  if (!key) return;
+  pageView.delete(key);
+  if (!storageAvailable()) return;
   try {
     window.localStorage.removeItem(key);
   } catch {
@@ -185,7 +318,9 @@ export const removeQuestionDraft = (key) => {
 
 
 export const removeQuestionDraftFamily = (prefix) => {
-  if (!prefix || !storageAvailable()) return;
+  if (!prefix) return;
+  forgetPageView((key) => key === prefix || key.startsWith(`${prefix}:`));
+  if (!storageAvailable()) return;
   try {
     for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
       const key = window.localStorage.key(index);
@@ -226,15 +361,18 @@ export const resetQuestionDraftFamily = (prefix) => {
     }
   }
 
-  keys.forEach((key) => writeQuestionDraft(key, null));
+  // The student (or teacher) asked for this: the reset is the newest thing
+  // that happened to every one of these drafts, wherever they were last edited.
+  keys.forEach((key) => writeQuestionDraft(key, null, { edit: true }));
   return keys.size;
 };
 
 export const removeAssignmentDrafts = ({ studentId, assignmentId }) => {
-  if (!storageAvailable()) return;
   const studentPart = normalizeKeyPart(studentId || 'anonymous');
   const assignmentPart = normalizeKeyPart(assignmentId || 'assignment');
   const prefix = `${DRAFT_PREFIX}:${studentPart}:${assignmentPart}:`;
+  forgetPageView((key) => key.startsWith(prefix));
+  if (!storageAvailable()) return;
   try {
     for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
       const key = window.localStorage.key(index);
