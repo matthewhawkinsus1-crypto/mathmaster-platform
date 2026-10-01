@@ -32,6 +32,14 @@ function dataModelingFitIsCorrect(question = {}, response = {}) {
   if (String(question.type || "") !== "dataModelingLab") return null;
   const mode = String(question.mode || "full");
   if (!["lineFit", "linearFit", "linearFitPrediction"].includes(mode)) return null;
+  // The fit is all this regrade can verify. A question whose grade also
+  // required a prediction (always for linearFitPrediction; for a line fit when
+  // a predictionX is authored) cannot be marked correct on the fit alone —
+  // that credited wrong predictions in full. Not provable here: the record is
+  // left as it was, and a teacher can still correct it from the Inspector.
+  const asksPrediction = mode === "linearFitPrediction"
+    || (question.predictionX !== undefined && question.predictionX !== null && String(question.predictionX).trim() !== "");
+  if (asksPrediction) return null;
   const regression = regressionFor(question.points);
   const m = Number(response.m);
   const b = Number(response.b);
