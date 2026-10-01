@@ -1,17 +1,23 @@
 import { challengeSpeedTier } from './liveChallengeParity.mjs';
+import { scaleLegacySpeedPoints } from './liveChallengeExperience.mjs';
+import { SESSION_STATUS } from './liveChallengeLifecycle.mjs';
+import { RANK_DIRECTION, rankEntries } from './liveChallengeRanking.mjs';
+import { roundReadyToClose } from './liveChallengeTimer.mjs';
 
 // Pure Live Challenge rules shared by Cloud Functions and tests.
 //
 // The game is deliberately accuracy-first. A correct answer is worth 1000
 // points; speed can add at most 100 and a streak can add at most another 100.
 // That means a fast guess can never outweigh actually knowing one more problem.
+//
+// This file holds the rules of the classic accuracy-first game. The engine
+// contracts every mode shares live beside it: liveChallengeLifecycle.mjs
+// (states and commands), liveChallengeTimer.mjs, liveChallengeRanking.mjs,
+// liveChallengeScoring.mjs, liveChallengeResponses.mjs, liveChallengeModes.mjs
+// and liveChallengeResults.mjs. See docs/architecture/live-challenge-engine.md.
 
-export const LIVE_CHALLENGE_STATUS = Object.freeze({
-  LOBBY: 'lobby',
-  RUNNING: 'running',
-  FINISHED: 'finished',
-  CANCELLED: 'cancelled',
-});
+// The session status vocabulary. One definition, owned by the lifecycle.
+export const LIVE_CHALLENGE_STATUS = SESSION_STATUS;
 
 export const DEFAULT_ROUND_COUNT = 10;
 export const MIN_ROUND_COUNT = 3;
@@ -244,15 +250,26 @@ export const authoritativeReceiptTotal = (submissionReceipts = {}) => Object.val
   .filter((receipt) => receipt?.serverConfirmed === true)
   .reduce((sum, receipt) => sum + Math.max(0, Math.round(Number(receipt?.pointsAwarded) || 0)), 0);
 
-export const milestoneSpeedTotalForRound = (submissionReceipts = {}, roundIndex = -1, roundVersion = -1) => Object.values(submissionReceipts || {})
+const milestoneReceiptsForRound = (submissionReceipts = {}, roundIndex = -1, roundVersion = -1) => Object.values(submissionReceipts || {})
   .filter((receipt) => receipt?.serverConfirmed === true
     && receipt?.receiptKind === 'productiveSpeedMilestone'
     && Number(receipt?.roundIndex) === Number(roundIndex)
-    && Number(receipt?.roundVersion) === Number(roundVersion))
+    && Number(receipt?.roundVersion) === Number(roundVersion));
+
+// Milestone speed actually PAID this round, at the room's speed setting.
+export const milestoneSpeedTotalForRound = (submissionReceipts = {}, roundIndex = -1, roundVersion = -1) => milestoneReceiptsForRound(submissionReceipts, roundIndex, roundVersion)
   .reduce((sum, receipt) => sum + Math.max(0, Math.round(Number(receipt?.speedBonus) || 0)), 0);
+
+// The same milestones on the mature 100-point scale. The final answer's speed
+// is computed on that scale, so this is what it must subtract. Receipts written
+// before speed was scaled at the source were already on this scale.
+export const legacyMilestoneSpeedTotalForRound = (submissionReceipts = {}, roundIndex = -1, roundVersion = -1) => milestoneReceiptsForRound(submissionReceipts, roundIndex, roundVersion)
+  .reduce((sum, receipt) => sum + Math.max(0, Math.round(Number(receipt?.legacySpeedBonus ?? receipt?.speedBonus) || 0)), 0);
 
 export const applyProductiveMilestoneAward = ({
   player = {}, roundIndex = 0, roundVersion = 0, secureMilestone = null, secondChance = false,
+  // The room's speed setting. Omitted means the mature 100-point scale.
+  speedInfluencePercent = null,
 } = {}) => {
   const progressKey = `${Number(roundIndex)}:${Number(roundVersion)}`;
   const priorProgress = player?.challengeMilestoneProgress?.[progressKey] || {};
@@ -285,7 +302,8 @@ export const applyProductiveMilestoneAward = ({
     });
     if (!milestone.accepted) continue;
     milestones = milestone.milestones;
-    speedPoints += milestone.speedPoints;
+    const paidSpeed = scaleLegacySpeedPoints(milestone.speedPoints, speedInfluencePercent);
+    speedPoints += paidSpeed;
     const receiptId = `milestone:${Number(roundVersion)}:${depth}`;
     receiptIds.push(receiptId);
     receipts[receiptId] = {
@@ -295,8 +313,9 @@ export const applyProductiveMilestoneAward = ({
       receiptKind: 'productiveSpeedMilestone',
       productiveDepth: depth,
       stateHash: milestone.milestone.stateHash,
-      speedBonus: milestone.speedPoints,
-      pointsAwarded: milestone.speedPoints,
+      speedBonus: paidSpeed,
+      legacySpeedBonus: milestone.speedPoints,
+      pointsAwarded: paidSpeed,
       serverConfirmed: true,
     };
   }
@@ -520,25 +539,58 @@ export const provisionalPointsFor = (player, activeRound = null) => {
   return Math.max(0, Math.min(LIVE_PROVISIONAL_MAX_POINTS, points));
 };
 
-export const publicLeaderboard = (players = {}, { activeRound = null } = {}) => (Array.isArray(players) ? players : Object.values(players || {}))
-  .filter((player) => player?.joined !== false)
-  .map((player) => {
-    const score = Math.max(0, Math.round(Number(player.score) || 0));
-    const provisionalPoints = provisionalPointsFor(player, activeRound);
-    return {
-      playerKey: player?.playerKey ? String(player.playerKey).slice(0, 80) : null,
-      alias: String(player.alias || 'Player').slice(0, 60),
-      score,
-      provisionalPoints,
-      liveScore: score + provisionalPoints,
-      correctCount: Math.max(0, Math.round(Number(player.correctCount) || 0)),
-      roundsAnswered: Math.max(0, Math.round(Number(player.roundsAnswered) || 0)),
-      streak: Math.max(0, Math.round(Number(player.streak) || 0)),
-      answeredRound: Number.isInteger(Number(player.answeredRound)) ? Number(player.answeredRound) : -1,
-    };
-  })
-  .sort((a, b) => b.liveScore - a.liveScore || b.correctCount - a.correctCount || a.alias.localeCompare(b.alias))
-  .map((player, index) => ({ ...player, rank: index + 1 }));
+/*
+ * The accuracy-first match ranking: live score, then correct answers. Players
+ * equal on both are TIED and share a rank — the alias only orders them on the
+ * screen. (The board used to break exact ties alphabetically, so the student
+ * whose name sorted first always took the higher place.)
+ */
+export const ACCURACY_FIRST_MATCH_RANKING = Object.freeze({
+  id: 'accuracyFirst.match',
+  metrics: Object.freeze([
+    Object.freeze({ key: 'liveScore', direction: RANK_DIRECTION.HIGHER_IS_BETTER }),
+    Object.freeze({ key: 'correctCount', direction: RANK_DIRECTION.HIGHER_IS_BETTER }),
+  ]),
+});
+
+const nonNegativeInt = (value) => Math.max(0, Math.round(Number(value) || 0));
+
+/**
+ * The anonymous leaderboard, from public player documents.
+ *
+ * `ranking` is the scoring strategy's match ranking (accuracy-first unless a
+ * room says otherwise — see leaderboardOptionsFor in liveChallengeScoring.mjs).
+ * `includeProvisional` adds a player's in-progress round work to their live
+ * score; it is only meaningful for strategies that score per response.
+ */
+export const publicLeaderboard = (players = {}, {
+  activeRound = null,
+  ranking = ACCURACY_FIRST_MATCH_RANKING,
+  includeProvisional = true,
+} = {}) => rankEntries(
+  (Array.isArray(players) ? players : Object.values(players || {}))
+    .filter((player) => player?.joined !== false)
+    .map((player) => {
+      const score = nonNegativeInt(player.score);
+      const provisionalPoints = includeProvisional ? provisionalPointsFor(player, activeRound) : 0;
+      return {
+        playerKey: player?.playerKey ? String(player.playerKey).slice(0, 80) : null,
+        alias: String(player.alias || 'Player').slice(0, 60),
+        score,
+        provisionalPoints,
+        liveScore: score + provisionalPoints,
+        correctCount: nonNegativeInt(player.correctCount),
+        roundsAnswered: nonNegativeInt(player.roundsAnswered),
+        streak: nonNegativeInt(player.streak),
+        answeredRound: Number.isInteger(Number(player.answeredRound)) ? Number(player.answeredRound) : -1,
+        // Championship fields; zero for strategies that do not use them.
+        matchPoints: nonNegativeInt(player.matchPoints ?? player.score),
+        roundWins: nonNegativeInt(player.roundWins),
+        rawScore: nonNegativeInt(player.rawScore ?? player.score),
+      };
+    }),
+  ranking,
+);
 
 export const joinedPlayerCount = (players = {}) => (Array.isArray(players) ? players : Object.values(players || {}))
   .filter((player) => player?.joined !== false).length;
@@ -546,14 +598,20 @@ export const joinedPlayerCount = (players = {}) => (Array.isArray(players) ? pla
 export const currentAnsweredCount = (players = {}, roundIndex = null) => (Array.isArray(players) ? players : Object.values(players || {}))
   .filter((player) => player?.joined !== false && (roundIndex == null ? player?.answeredCurrent === true : Number(player?.answeredRound) === Number(roundIndex))).length;
 
+/**
+ * May the host move past the current round? The same rule the server's close
+ * guard applies (roundReadyToClose): everyone who joined has answered, or the
+ * authoritative deadline has passed. A Pace Race round without a deadline is
+ * never "expired" merely because its deadline is null.
+ */
 export const challengeCanAdvance = ({ joinedCount = 0, answeredCount = 0, roundEndsAtMs = 0, nowMs = Date.now() } = {}) => {
-  const joined = Math.max(0, Number(joinedCount) || 0);
-  const answered = Math.max(0, Number(answeredCount) || 0);
   const deadline = Number(roundEndsAtMs) || 0;
-  return joined > 0 && (
-    answered >= joined
-    || (deadline > 0 && Number(nowMs) >= deadline)
-  );
+  return roundReadyToClose({
+    timer: { endsAtMs: deadline > 0 ? deadline : null, pausedAtMs: null },
+    nowMs,
+    participantCount: joinedCount,
+    completedCount: answeredCount,
+  }).ready;
 };
 
 export const deriveRoundTallies = ({
