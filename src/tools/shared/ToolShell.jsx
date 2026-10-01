@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import MathText from '../../components/common/MathText.jsx';
 import {
   countAnswerControls,
@@ -15,6 +15,7 @@ import QuietDisclosure from '../../components/common/QuietDisclosure.jsx';
 import { useRenderPerformance } from '../../platform/performance/useRenderPerformance.js';
 import { PlotHelpScope } from './plotHelpScope.js';
 import { useHintsAllowed } from './ToolRuntimeContext';
+import { VERDICT_CARD_RADIUS, verdictRadius, verdictTextLength, verdictWraps } from './verdictShape.js';
 
 // A stable key for "this exact block of text", so a student's decision to fold
 // the steps away is remembered per tool without every one of the eighteen tools
@@ -221,11 +222,43 @@ export const Panel = ({ title, children, collapsible = false, defaultOpen = true
   );
 };
 
-export const ResultPill = ({ ok, children }) => (
-  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 999, padding: '7px 11px', fontWeight: 800, background: ok ? '#e6f4ea' : '#fce8e6', color: ok ? '#137333' : '#c5221f' }}>
-    {ok ? '✓' : '•'} {children}
-  </span>
-);
+export const ResultPill = ({ ok, children }) => {
+  // PQ-032: a verdict that wraps is a 10px card, not a 999px lozenge. Long
+  // text is known before layout; whether a shorter one wraps depends on the
+  // width it is given, so it is measured, and re-measured when that changes.
+  const pillRef = useRef(null);
+  const [wrapped, setWrapped] = useState(false);
+  useLayoutEffect(() => {
+    const pill = pillRef.current;
+    if (!pill || typeof window === 'undefined') return undefined;
+    const measure = () => {
+      const style = window.getComputedStyle(pill);
+      setWrapped(verdictWraps({
+        height: pill.getBoundingClientRect().height,
+        lineHeight: parseFloat(style.lineHeight),
+        fontSize: parseFloat(style.fontSize),
+        paddingTop: parseFloat(style.paddingTop),
+        paddingBottom: parseFloat(style.paddingBottom),
+      }));
+    };
+    measure();
+    if (typeof ResizeObserver !== 'function') return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(pill);
+    return () => observer.disconnect();
+  }, []);
+  const radius = verdictRadius({ textLength: verdictTextLength(children), wrapped });
+  return (
+    <span
+      ref={pillRef}
+      className="mathmaster-result-pill"
+      data-verdict-shape={radius === VERDICT_CARD_RADIUS ? 'card' : 'pill'}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: radius, padding: '7px 11px', fontWeight: 800, background: ok ? '#e6f4ea' : '#fce8e6', color: ok ? '#137333' : '#c5221f' }}
+    >
+      {ok ? '✓' : '•'} {children}
+    </span>
+  );
+};
 
 // Every tool leads with the same thing: one sentence naming the task, then the
 // concrete steps. Previously each tool buried its directions in a paragraph

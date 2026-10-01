@@ -178,6 +178,7 @@ export const SHARED_TOOL_TRANSIENT_STATE = Object.freeze({
   }),
   'shared/ToolShell.jsx': Object.freeze({
     revealed: 'Whether the hint list is open.',
+    wrapped: 'Whether a verdict pill wraps at its current width, which sets its corner radius (PQ-032). Measured layout.',
   }),
   'shared/useToolSubmission.js': Object.freeze({
     feedback: 'The verdict for the last submission. A grading result, never a draft.',

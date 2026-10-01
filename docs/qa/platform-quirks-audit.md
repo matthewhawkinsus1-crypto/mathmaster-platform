@@ -1043,11 +1043,27 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   **Next:** use the measured height (the `data-work-view-focus` scroll-margin
   already does) the next time this CSS is touched. **Scope:** tiny.
 
-### PQ-032 · Multi-line verdict text in a pill — **P3 · DEFERRED**
+### PQ-032 · Multi-line verdict text in a pill — **P3 · FIXED**
 
 - `ResultPill` has a 999px radius; long feedback ("• Odd multiplicity crosses;
   even multiplicity touches…") wraps into a three-line lozenge on phones.
   **Next:** switch to a 10px radius above ~60 characters. **Scope:** tiny.
+- **Reproduced** (a wrong Check in the real wrappers): at 390×844 Complex
+  Plane (74 characters) and Parabola Geometry (77) wrapped to two lines and
+  Polynomial Workshop (101), Exponential/Log (94) and Sequence Explorer (85) to
+  three — 322×60 to 322×84, an effective radius of 30–42px. At 1366×768 the
+  same verdicts were two or three lines too (454×66 to 454×92, 33–46px).
+- **Fixed:** `ResultPill` takes a 10px radius when its text is longer than 60
+  characters or when it actually wraps at the width it is given — measured
+  after layout and re-measured by a ResizeObserver, so a verdict that wraps
+  only on a phone is a card there and a pill on a Chromebook. A short one-line
+  verdict stays a pill. After: all ten long verdicts above are 10px cards at
+  both sizes; "• Not yet" is still a pill; squeezed to 60px wide it becomes a
+  card, and a pill again when released.
+- **Tests:** `tests/platform/verdictShape.test.mjs` — the rule, the rendered
+  text length, the wrap measurement and the pill's wiring (five mutations, all
+  red: a fixed 999px radius, wrapping ignored, the 60-character boundary moved,
+  a three-line wrap threshold, no re-measure on resize).
 
 ### PQ-034 · Three click maps still stretch linearly — **P3 · FIXED**
 
