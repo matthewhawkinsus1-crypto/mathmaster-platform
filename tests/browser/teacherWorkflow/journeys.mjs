@@ -35,6 +35,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inflateRawSync } from 'node:zlib';
 
+import { watchUnimplementedCallables } from './journeyChecks.mjs';
+
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -342,6 +344,7 @@ for (const viewport of VIEWPORTS) {
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
+    const unimplemented = watchUnimplementedCallables(page);
     const label = `${name}@${viewport.width}`;
     try {
       await page.goto(PAGE, { waitUntil: 'domcontentloaded' });
@@ -351,6 +354,7 @@ for (const viewport of VIEWPORTS) {
       await run(page, {});
       const overflow = await page.evaluate(() => document.scrollingElement.scrollWidth - document.scrollingElement.clientWidth);
       expect(name, overflow <= 1, `no sideways scrolling at ${viewport.width}px (${overflow}px)`);
+      expect(name, !unimplemented().length, `reached a callable the harness does not implement: ${unimplemented().join(', ')}`);
       if (findings.length === before) passed.push(label);
     } catch (error) {
       findings.push({ journey: label, detail: `stopped: ${error.message.split('\n')[0]}` });

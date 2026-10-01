@@ -41,6 +41,7 @@ import { fileURLToPath } from 'node:url';
 
 import { narrativeViolations } from '../../../src/platform/caseReview/narrativeGuard.js';
 import { PRINT_SECTIONS, TEACHER_AUTHORED_LABEL } from '../../../src/platform/caseReview/caseReviewExport.js';
+import { watchUnimplementedCallables } from './journeyChecks.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -403,6 +404,7 @@ for (const viewport of VIEWPORTS) {
     const page = await context.newPage();
     const pageErrors = [];
     page.on('pageerror', (error) => pageErrors.push(String(error)));
+    const unimplemented = watchUnimplementedCallables(page);
     const label = `${name} @ ${viewport.width}x${viewport.height}`;
     try {
       if (name !== 'C6') {
@@ -413,6 +415,7 @@ for (const viewport of VIEWPORTS) {
       const before = findings.length;
       await run(page);
       expect(name, pageErrors.length === 0, `no page errors (${pageErrors.slice(0, 2).join(' | ')})`);
+      expect(name, !unimplemented().length, `reached a callable the harness does not implement: ${unimplemented().join(', ')}`);
       if (findings.length === before) passed.push(label);
       else findings.slice(before).forEach((finding) => { finding.viewport = `${viewport.width}x${viewport.height}`; });
     } catch (error) {
