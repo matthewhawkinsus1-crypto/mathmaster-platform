@@ -149,6 +149,9 @@ export function StandingsBoard({
   showMovement = true,
   showCorrect = false,
   rewardsByKey = null,
+  // Player key -> student name: the teacher's console only, never a projector
+  // or a student's device (they are not handed names at all).
+  namesByKey = null,
   emptyText = 'Players appear here as they join.',
   label = 'Standings',
 }) {
@@ -180,6 +183,9 @@ export function StandingsBoard({
         <RankCell row={row} style={style} look={look} />
         <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.alias}</span>
+          {namesByKey?.get(row.playerKey) && (
+            <span data-mm-standing-name="1" style={{ fontSize: '.85em', fontWeight: 700, color: style.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{namesByKey.get(row.playerKey)}</span>
+          )}
           {row.isSelf && <span style={{ fontSize: '.75em', fontWeight: 900, color: style.accent }}>you</span>}
           {rewards && rewards.map((reward) => (
             <span key={reward.rewardCode} title={reward.label} style={{ fontSize: '.72em', fontWeight: 900, padding: '2px 7px', borderRadius: 999, background: 'rgba(253,214,99,.18)', color: style.gold, whiteSpace: 'nowrap' }}>

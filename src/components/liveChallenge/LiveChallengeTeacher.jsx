@@ -420,15 +420,37 @@ export default function LiveChallengeTeacher({
     if (!roomId) { setPlayers([]); return undefined; }
     return watchLiveChallengePlayers(roomId, setPlayers, (error) => setMessage(error?.message || 'Could not load Live Challenge players.'));
   }, [roomId]);
-  // The names behind the game aliases, once per room, for this console.
+  // The names behind the game aliases, for this console: once per room — in the
+  // lobby, during the game AND after it (the server reads a finished game's
+  // names from its match result, so the final standings can name the winners
+  // after a refresh). Asked again a few times while it knows fewer names than
+  // the room invited: a second tab can open a lobby whose roster is still being
+  // written, and a single empty answer used to leave game names up for good.
+  const rosterWanted = Boolean(room) && room.status !== 'cancelled';
+  const eligibleRef = useLatest(Number(room?.eligibleCount) || 0);
   useEffect(() => {
-    if (!roomId || !roomLive) return undefined;
+    if (!roomId || !rosterWanted) return undefined;
     let cancelled = false;
-    getLiveChallengeHostRoster({ roomId })
-      .then((reply) => { if (!cancelled) setRosterNames(Array.isArray(reply?.players) ? reply.players : []); })
-      .catch(() => { if (!cancelled) setRosterNames([]); });
-    return () => { cancelled = true; };
-  }, [roomId, roomLive]);
+    let timer = 0;
+    let attempts = 0;
+    const load = () => {
+      attempts += 1;
+      getLiveChallengeHostRoster({ roomId })
+        .then((reply) => {
+          if (cancelled) return;
+          const names = Array.isArray(reply?.players) ? reply.players : [];
+          setRosterNames(names);
+          if (names.length < eligibleRef.current && attempts < 4) timer = window.setTimeout(load, 1_500 * attempts);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setRosterNames((current) => current || []);
+          if (attempts < 4) timer = window.setTimeout(load, 1_500 * attempts);
+        });
+    };
+    load();
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [roomId, rosterWanted, eligibleRef]);
   // A recovery notice is news for a moment, not a fixture.
   useEffect(() => {
     if (!recoveredNotice) return undefined;
@@ -462,6 +484,10 @@ export default function LiveChallengeTeacher({
   const answeredCount = finishedKeys.size;
   const controlBusy = LIFECYCLE_CONTROLS.includes(busy);
   const presentation = useMemo(() => scorePresentation({ scoringStrategyId, questionSet: questionSetRoom }), [scoringStrategyId, questionSetRoom]);
+  // Player key -> student name, from the roster callable (console only).
+  const rosterNameByKey = useMemo(() => new Map((Array.isArray(rosterNames) ? rosterNames : [])
+    .filter((entry) => entry?.playerKey && entry?.name)
+    .map((entry) => [String(entry.playerKey), String(entry.name)])), [rosterNames]);
   const roster = useMemo(() => hostRoster({
     roster: rosterNames,
     players,
@@ -1206,7 +1232,17 @@ export default function LiveChallengeTeacher({
           </section>
           <section style={panel}>
             <h3 style={{ marginTop: 0 }}>Final {standingTitle.toLowerCase()}</h3>
-            <StandingsBoard rows={standingsRows(leaderboard)} presentation={presentation} look="console" limit={40} showCorrect={!presentation.placementPoints} rewardsByKey={finalRewards} label="Final standings" />
+            {/* Who "Algebra Hawk 91" is: the teacher's own console, on request.
+                The same switch as the roster's (off by default — a projected
+                console must not pair names with places); the projector is
+                never given names. */}
+            <StandingsBoard rows={standingsRows(leaderboard)} presentation={presentation} look="console" limit={40} showCorrect={!presentation.placementPoints} rewardsByKey={finalRewards} namesByKey={showAliases ? rosterNameByKey : null} label="Final standings" />
+            {rosterNameByKey.size > 0 && (
+              <label style={{ display: 'inline-flex', gap: 8, alignItems: 'center', marginTop: 10, fontSize: 13, color: 'var(--mm-text-muted)' }}>
+                <input type="checkbox" data-mm-final-names="1" checked={showAliases} onChange={(event) => setShowAliases(event.target.checked)} />
+                Show each student&apos;s name beside their game name (keep off while this screen is projected)
+              </label>
+            )}
           </section>
           <ChallengeReport report={report} />
         </>

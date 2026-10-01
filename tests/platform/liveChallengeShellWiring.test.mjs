@@ -147,11 +147,29 @@ test('Play Again is a fresh match with the same settings; its name settings are 
   assert.match(replay, /setRoomId\(result\.roomId\);/);
 });
 
-test('names reach the console only, and only while the game is live', () => {
-  const rosterEffect = region(teacher, '  // The names behind the game aliases, once per room, for this console.', '}, [roomId, roomLive]);', 'roster read');
-  assert.match(rosterEffect, /if \(!roomId \|\| !roomLive\) return undefined;/);
+/*
+ * NAMES ON THE CONSOLE — IN THE LOBBY, DURING THE GAME AND AFTER IT. The final
+ * standings are when a teacher most needs to know who "Algebra Hawk 91" is;
+ * the roster used to be read only while the game was live (a refresh on the
+ * podium lost it for good). Never for a cancelled game, asked again a few
+ * times while it knows fewer names than the room invited, and released on
+ * unmount. The projector is never handed names.
+ */
+test('names reach the console only — in the lobby, during the game and after it', () => {
+  assert.match(teacher, /const rosterWanted = Boolean\(room\) && room\.status !== 'cancelled';/);
+  const rosterEffect = region(teacher, '  // The names behind the game aliases, for this console:', '}, [roomId, rosterWanted, eligibleRef]);', 'roster read');
+  assert.match(rosterEffect, /if \(!roomId \|\| !rosterWanted\) return undefined;/);
   assert.match(rosterEffect, /getLiveChallengeHostRoster\(\{ roomId \}\)/);
-  assert.match(rosterEffect, /return \(\) => \{ cancelled = true; \};/);
+  assert.match(rosterEffect, /names\.length < eligibleRef\.current && attempts < 4/);
+  assert.match(rosterEffect, /return \(\) => \{ cancelled = true; window\.clearTimeout\(timer\); \};/);
+  // The final standings pair names with places only behind the console's
+  // "keep off while projected" switch.
+  const finished = region(teacher, '      {finished && (', '      {cancelled && (', 'finished stage');
+  assert.match(finished, /namesByKey=\{showAliases \? rosterNameByKey : null\}/);
+  // The projector receives neither the roster nor a name map.
+  const projectorCall = region(teacher, '    return <ChallengeProjector\n      room={room}', '/>;', 'projector render');
+  assert.doesNotMatch(projectorCall, /roster|namesByKey|rosterName/i);
+  assert.doesNotMatch(executableSource(projector), /getLiveChallengeHostRoster|namesByKey|rosterNames/);
 });
 
 test('the host reopens what it was hosting: a live game from the server, a finished one from this tab', () => {

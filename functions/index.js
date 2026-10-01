@@ -11051,15 +11051,32 @@ exports.calibrateLiveChallengeClock = onCall(async (request) => {
  * gone quiet, or who was signed in twice. This read-only callable gives the
  * room's own teacher the names for their CONSOLE — never the projector — and
  * nothing else: no student ids, no scores (the public rows carry those).
- * A finished room's private state is deleted by its effects; its roster is
- * then empty, and the console falls back to the game aliases.
+ *
+ * After the game. A finished room's private state is deleted by its effects,
+ * which used to leave the roster empty — so the final standings, the moment a
+ * teacher most wants to know who "Algebra Hawk 91" is, showed game names only,
+ * and a refresh lost the names for good. The durable match result (server-only,
+ * written in the finishing transaction) still knows who played under which
+ * key, so the roster is read from it then.
  */
 exports.getLiveChallengeHostRoster = onCall(async (request) => {
   const roomId = String(request.data?.roomId || "").trim();
   if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
   const db = getFirestore();
   await requireOwnedChallenge(db, request, roomId);
-  const players = await loadPrivateChallengePlayers(db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId));
+  let players = await loadPrivateChallengePlayers(db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId));
+  if (!players.length) {
+    const result = await db.collection(LIVE_CHALLENGE_MATCH_RESULTS).doc(roomId).get();
+    players = result.exists
+      ? (Array.isArray(result.data()?.standings) ? result.data().standings : [])
+        .filter((standing) => standing?.studentId && standing?.playerKey)
+        .map((standing) => ({ studentId: String(standing.studentId), playerKey: standing.playerKey, alias: standing.alias, joined: standing.joined === true }))
+      : [];
+  }
+  // Only players with a key can be shown, and the names are read for exactly
+  // those, in the same order: filtering AFTER the read once paired every name
+  // after a keyless record with the next student's.
+  players = players.filter((player) => player.playerKey && player.studentId);
   if (!players.length) return { roomId, players: [] };
   const { experience } = await liveChallengeEngine();
   const identity = await studentIdentity();
@@ -11072,7 +11089,6 @@ exports.getLiveChallengeHostRoster = onCall(async (request) => {
   return {
     roomId,
     players: players
-      .filter((player) => player.playerKey)
       .map((player, index) => ({
         playerKey: String(player.playerKey),
         name: experience.displayAliasForStudent({
