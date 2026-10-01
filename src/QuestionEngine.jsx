@@ -825,6 +825,10 @@ export default function QuestionEngine({
             isComplete: part?.isComplete !== false,
             isCorrect: Boolean(part?.isCorrect),
             response: part?.response ?? '',
+            // A structured misconception code the tool put on this part goes
+            // on to the attempt record; the attempt policy keeps catalog ids
+            // only (functions/shared/misconceptionCodes.mjs).
+            ...(part?.misconceptionCode ? { misconceptionCode: part.misconceptionCode } : {}),
           }))
         : rawParts && typeof rawParts === 'object'
           ? Object.entries(rawParts).map(([id, value]) => ({ id, label: id, isComplete: true, isCorrect: Boolean(value), response: '' }))

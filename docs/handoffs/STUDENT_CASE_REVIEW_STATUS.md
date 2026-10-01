@@ -100,8 +100,17 @@ Full tables: design doc §1. The ones that changed the plan:
    staff-only, immutable, one student's rows only).
 3. Teacher-entered next steps are kept in the page only (printed, exported, not saved).
 4. The production ingestion path is not changed (no misconception pass-through yet; documented as the next
-   step in the catalog header).
+   step in the catalog header). *Superseded by CR-4 below.*
 
 ## Remaining work / known gaps
 
 Tracked in "Phases". Known limits are listed in design doc §1.5.
+
+## Follow-ups after PR #408
+
+- **CR-4 — misconception codes are carried.** A catalog id a tool or grader puts on a part
+  (`misconceptionCode`) now survives the QuestionEngine forwarder, the attempt policy's part compaction (so the
+  question record, browser-queued or server-written) and the evidence-event builder
+  (`performance.misconceptionCodes`), which the callable already projected. Additive: a part or event without a code
+  keeps its exact shape; no collection, rule or index changed. Not done (new data design): no classroom tool emits a
+  code yet, and a question-level code has no record slot. `tests/platform/misconceptionCodePassThrough.test.mjs`.

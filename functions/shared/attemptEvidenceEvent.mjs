@@ -10,8 +10,24 @@ import { normalizeQuestionInstructionalMetadata } from './questionMetadata.mjs';
 import { generateStableId } from './idUtils.mjs';
 import { toCanonicalKey } from './teksUtils.mjs';
 import { describeAdaptation } from './adaptationNarrative.mjs';
+import { normalizeMisconceptionCodes } from './misconceptionCodes.mjs';
 
 const unique = (values = []) => [...new Set(values.filter(Boolean))];
+
+/*
+ * THIS ATTEMPT'S STRUCTURED MISCONCEPTION CODES.
+ *
+ * Read from the attempt's own parts: every caller hands this builder the
+ * record as it stands after the attempt, so its `partGrades` are this
+ * attempt's parts (the attempt policy keeps a catalog code on each part it
+ * concerns). Catalog ids only, de-duplicated and capped
+ * (functions/shared/misconceptionCodes.mjs) — a wrong answer alone is never
+ * classified here.
+ */
+const attemptMisconceptionCodes = (attemptRecord) => normalizeMisconceptionCodes(
+  (Array.isArray(attemptRecord?.partGrades) ? attemptRecord.partGrades : [])
+    .map((part) => part?.misconceptionCode),
+);
 
 const supportTelemetryFromUsage = (supportUsage = {}) => {
   const telemetry = [];
@@ -83,6 +99,7 @@ export const buildAttemptEvidenceEvent = ({
   const eventKey = generateStableId('ev', questionInstanceId, attemptNumber);
   const partialCredit = Number(attemptResult?.partialCredit ?? attemptRecord?.partialCredit ?? 0);
   const score = attemptResult?.isCorrect ? 1 : Math.max(0, Math.min(1, partialCredit / 100));
+  const misconceptionCodes = attemptMisconceptionCodes(attemptRecord);
 
   return {
     schemaVersion: 1,
@@ -141,6 +158,9 @@ export const buildAttemptEvidenceEvent = ({
       status: String(attemptRecord?.status || attemptResult?.status || 'attempted'),
       partialCredit: Math.max(0, Math.min(100, partialCredit)),
       isMathematicallyIndependent: supportUsage.isMathematicallyIndependent !== false,
+      // Present only when a grader named one: an attempt without a code keeps
+      // exactly the shape every earlier event has.
+      ...(misconceptionCodes.length ? { misconceptionCodes } : {}),
     },
     supportUsage: {
       modified: Boolean(supportUsage.modified),

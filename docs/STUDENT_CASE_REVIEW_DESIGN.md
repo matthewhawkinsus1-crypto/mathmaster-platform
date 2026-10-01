@@ -179,9 +179,17 @@ wrong answer alone is never classified, and no LLM is involved. Today no stored 
 so every item reads **"Error pattern not determinable from stored evidence."**; the latest attempt's
 not-correct *part names* (e.g. "y-intercept") are shown as recorded facts, not as a diagnosis.
 
-To emit codes later a tool sets `misconceptionCodes` (catalog ids) on its grading result; the remaining wiring
-is listed in the catalog's header (part compaction in `attemptPolicy.mjs`, the evidence-event builder, and the
-`QuestionEngine` registry-tool forwarder). This PR does not change the production ingestion path.
+A tool names a code by putting a catalog id on the **part** of its grading result it concerns
+(`misconceptionCode` on a part). Since follow-up CR-4 the three seams carry it: the `QuestionEngine` registry-tool
+forwarder copies it onto the part it hands the attempt recorder, `attemptPolicy.mjs` part compaction keeps it
+(catalog ids only, one per part — so it reaches the record the browser queues, the record ingestion accepts for a
+type the server cannot re-mark, and the record a server grader's parts produce), and the evidence-event builder
+copies the attempt's part codes onto `performance.misconceptionCodes`, which `loadStudentCaseEvidence` already
+projects. A part or event without a code keeps its exact earlier shape (no collection, no rule, no index changed).
+Two things remain outside it, both new data design: no classroom tool or grader emits a code yet (graphing2's
+construction `category` is not a catalog id, and mapping categories to codes is a pedagogical decision), and a code
+for a question as a whole has no slot on the question record (codes are stored per part). Until a tool emits one,
+every case review still reads "not determinable". Test: `tests/platform/misconceptionCodePassThrough.test.mjs`.
 
 ### 3.6 Timeline (`caseTimeline.js`)
 PR #401's support timeline entries (profile revisions, support evidence, service, classroom records) plus
