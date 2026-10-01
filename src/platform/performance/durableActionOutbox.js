@@ -45,9 +45,19 @@ const RETIRED_STORE_NAME = 'retired';
  * so the identity making the claim has to survive exactly as long as the queue
  * does. Identity in `localStorage` and queue in IndexedDB can diverge — a
  * browser that clears one and not the other leaves rows nobody can clear.
+ *
+ * The same store keeps the device's other bookkeeping ABOUT its queue, each
+ * record under its own key: a tally of the `retired` store per student
+ * (`retiredTally:<studentId>`) and the last device report the server
+ * acknowledged (`lastAcknowledgedReport`). A new key needs no schema change —
+ * the store exists on every version 3 database — so neither needed a version
+ * bump, and a version bump is not free: a tab left open from the previous
+ * release cannot open a newer database at all, so its next Submit would have
+ * nowhere durable to go.
  */
 const DEVICE_IDENTITY_STORE_NAME = 'deviceIdentity';
 const DEVICE_IDENTITY_KEY = 'self';
+const DEVICE_REPORT_ACKNOWLEDGEMENT_KEY = 'lastAcknowledgedReport';
 /*
  * EVERY VERSION BUMP IS ADDITIVE ON PURPOSE.
  *
@@ -255,6 +265,203 @@ const removeIfCurrentTransaction = async (actionId, expectedCreatedOrder) => {
 };
 
 /*
+ * A TRANSACTION THIS MODULE DRIVES ITSELF.
+ *
+ * `body` issues every request and owns every handler, and the promise settles
+ * when the TRANSACTION completes — never on a request's own success. That is
+ * the shape `removeIfCurrent` needs and the shared request helper above cannot
+ * give, kept in one place for the transactions added after it.
+ */
+const runOwnTransaction = async (storeNames, mode, body) => {
+  const database = await openDatabase();
+  try {
+    return await new Promise((resolve, reject) => {
+      const transaction = database.transaction(storeNames, mode);
+      let result;
+      body(
+        transaction,
+        (value) => { result = value; },
+        (error) => reject(error || new Error('Student action outbox request failed.')),
+      );
+      transaction.oncomplete = () => resolve(result);
+      transaction.onabort = () => reject(transaction.error || new Error('Student action outbox transaction aborted.'));
+      transaction.onerror = () => reject(transaction.error || new Error('Student action outbox transaction failed.'));
+    });
+  } finally {
+    database.close();
+  }
+};
+
+/*
+ * THE RETIRED STORE IS COUNTED AS IT GROWS, NOT EVERY TIME IT IS DESCRIBED.
+ *
+ * `retired` is never pruned — every row in it is recovery evidence — and the
+ * device summary used to describe it with a `getAll()` of the whole store.
+ * Summaries run on every device report and reports run after every drain, so
+ * over a semester each Submit deserialized every submission the Chromebook had
+ * ever retired, for every student who had ever used it.
+ *
+ * Each student now has a tally record in the `deviceIdentity` store, changed
+ * inside the SAME readwrite transaction that moves a row into `retired`. The
+ * move and the count commit together or not at all, and a second tab cannot
+ * count a row twice: IndexedDB runs readwrite transactions over overlapping
+ * stores one at a time, and a tab retiring a row another tab already moved
+ * finds no queue row and changes nothing.
+ *
+ * A device that already holds retired rows has no tally. One is built lazily
+ * by the first summary that needs it, in ONE readwrite transaction over both
+ * stores that writes only if the tally is still absent — so two tabs racing to
+ * build it produce one tally, and a retirement lands either before the count
+ * (and is counted) or after it (and is added). Until a tally exists a
+ * retirement leaves it absent rather than starting one, because a tally that
+ * began counting late would start out short of the rows already there.
+ *
+ * The numbers are the ones the summary always reported: rows whose
+ * `studentId` is this student, grouped by `retirement.disposition`, or
+ * `'unknown'` when a row has none.
+ */
+export const RETIRED_TALLY_VERSION = 1;
+const RETIRED_TALLY_KEY_PREFIX = 'retiredTally:';
+const RETIRED_STUDENT_INDEX = 'studentId';
+
+export const retiredTallyKey = (studentId) => `${RETIRED_TALLY_KEY_PREFIX}${studentId}`;
+
+// Only a real student id has a tally. The summary's filter is strict equality,
+// so a row stored under any other kind of id can never match one, and anything
+// that is not a student id is still counted from the rows, as before.
+const isTalliedStudentId = (studentId) => typeof studentId === 'string' && studentId.length > 0;
+
+// Exactly the key the summary has always filed a retired row under.
+const retiredDispositionOf = (row) => String(row?.retirement?.disposition || 'unknown');
+
+/** Count retired rows that are already selected: the summary's own arithmetic. */
+export const countRetiredRows = (rows = []) => {
+  const byDisposition = new Map();
+  let total = 0;
+  (Array.isArray(rows) ? rows : []).forEach((row) => {
+    if (!row) return;
+    total += 1;
+    const disposition = retiredDispositionOf(row);
+    byDisposition.set(disposition, (byDisposition.get(disposition) || 0) + 1);
+  });
+  return { total, byDisposition: Object.fromEntries(byDisposition) };
+};
+
+/** One student's tally from scratch — the full read the tally exists to replace. */
+export const tallyRetiredRows = (rows, studentId) => countRetiredRows(
+  (Array.isArray(rows) ? rows : []).filter((row) => row && row.studentId === studentId),
+);
+
+/**
+ * A stored tally this release can trust, or null.
+ *
+ * Null for a missing record, another release's format, or a record that does
+ * not add up — and null always means "count the rows again", never "zero".
+ */
+const readRetiredTallyRecord = (record, studentId) => {
+  if (!record || typeof record !== 'object') return null;
+  if (record.version !== RETIRED_TALLY_VERSION || record.studentId !== studentId) return null;
+  const { total, byDisposition } = record;
+  if (!Number.isSafeInteger(total) || total < 0) return null;
+  if (!byDisposition || typeof byDisposition !== 'object' || Array.isArray(byDisposition)) return null;
+  const entries = Object.entries(byDisposition);
+  if (entries.some(([, count]) => !Number.isSafeInteger(count) || count < 1)) return null;
+  if (entries.reduce((sum, [, count]) => sum + count, 0) !== total) return null;
+  return { total, byDisposition: Object.fromEntries(entries) };
+};
+
+const retiredTallyRecord = (studentId, tally) => ({
+  key: retiredTallyKey(studentId),
+  version: RETIRED_TALLY_VERSION,
+  studentId,
+  total: tally.total,
+  byDisposition: { ...tally.byDisposition },
+});
+
+/**
+ * The tally after one row replaces another in `retired`; either may be null.
+ *
+ * A `put` REPLACES a row already retired under the same action id, so a
+ * re-retired id moves its count from one disposition to another instead of
+ * adding one. Null means the tally cannot have described the store — it would
+ * remove a row it never counted — so the caller discards it and the next
+ * summary counts the rows again rather than carrying a wrong number forward.
+ */
+export const applyRetiredTallyChange = (tally, { studentId, removed = null, added = null } = {}) => {
+  const byDisposition = new Map(Object.entries(tally?.byDisposition || {}));
+  let total = Number(tally?.total) || 0;
+  if (removed && removed.studentId === studentId) {
+    const disposition = retiredDispositionOf(removed);
+    const remaining = (byDisposition.get(disposition) || 0) - 1;
+    if (remaining < 0 || total < 1) return null;
+    total -= 1;
+    if (remaining === 0) byDisposition.delete(disposition);
+    else byDisposition.set(disposition, remaining);
+  }
+  if (added && added.studentId === studentId) {
+    const disposition = retiredDispositionOf(added);
+    byDisposition.set(disposition, (byDisposition.get(disposition) || 0) + 1);
+    total += 1;
+  }
+  return { total, byDisposition: Object.fromEntries(byDisposition) };
+};
+
+const retiredStudentIndex = (retiredStore) => (
+  retiredStore.indexNames.contains(RETIRED_STUDENT_INDEX) ? retiredStore.index(RETIRED_STUDENT_INDEX) : null
+);
+
+/*
+ * THE COUNT IS NEVER ALLOWED TO COST THE MOVE.
+ *
+ * This runs inside the retirement transaction, and in IndexedDB a failed
+ * request or a handler that throws aborts the WHOLE transaction — which would
+ * leave a proven-retirable submission in the queue, re-delivered on every
+ * drain, over a bookkeeping error. So every failure here is contained: the
+ * error is kept from aborting the transaction (and from reaching the handler
+ * that would report the retirement as failed), and the tally is deleted
+ * instead, which only means the next summary counts the rows again.
+ */
+const keepRetiredTallyCurrent = (tallies, { replaced, added }) => {
+  const owners = [...new Set([replaced?.studentId, added?.studentId])].filter(isTalliedStudentId);
+  owners.forEach((studentId) => {
+    const key = retiredTallyKey(studentId);
+    const contain = (event) => {
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
+    };
+    const discard = (event) => {
+      contain(event);
+      try {
+        tallies.delete(key).onerror = contain;
+      } catch {
+        // Nothing more can be done inside this transaction. The move still commits.
+      }
+    };
+    try {
+      const read = tallies.get(key);
+      read.onerror = discard;
+      read.onsuccess = () => {
+        try {
+          const stored = readRetiredTallyRecord(read.result, studentId);
+          // No tally yet: the first summary that needs one counts this row with the rest.
+          if (!stored) return;
+          const next = applyRetiredTallyChange(stored, { studentId, removed: replaced, added });
+          if (!next) {
+            discard();
+            return;
+          }
+          tallies.put(retiredTallyRecord(studentId, next)).onerror = discard;
+        } catch {
+          discard();
+        }
+      };
+    } catch {
+      discard();
+    }
+  });
+};
+
+/*
  * RETIREMENT IS A MOVE, NOT A DELETE.
  *
  * The retired row is what proves to a teacher that a student's submission
@@ -262,12 +469,21 @@ const removeIfCurrentTransaction = async (actionId, expectedCreatedOrder) => {
  * row happen in ONE transaction across both stores, so a crash between them
  * cannot lose the envelope. If the queue row has moved on, nothing is retired:
  * the newer revision is still owed a delivery.
+ *
+ * The same transaction keeps the student's retired tally current (see above),
+ * which is why it also opens the store that holds the tally.
  */
 const retireIfCurrentTransaction = async (actionId, expectedCreatedOrder, retirement) => {
   const database = await openDatabase();
   try {
     return await new Promise((resolve, reject) => {
-      const transaction = database.transaction([STORE_NAME, RETIRED_STORE_NAME], 'readwrite');
+      // Every version 3 database has the tally's store. The check only keeps a
+      // database that somehow lacks it retiring exactly as it always did.
+      const keepsTally = database.objectStoreNames.contains(DEVICE_IDENTITY_STORE_NAME);
+      const transaction = database.transaction(
+        keepsTally ? [STORE_NAME, RETIRED_STORE_NAME, DEVICE_IDENTITY_STORE_NAME] : [STORE_NAME, RETIRED_STORE_NAME],
+        'readwrite',
+      );
       const store = transaction.objectStore(STORE_NAME);
       const retiredStore = transaction.objectStore(RETIRED_STORE_NAME);
       let retired = true;
@@ -280,8 +496,21 @@ const retireIfCurrentTransaction = async (actionId, expectedCreatedOrder, retire
           retired = false;
           return;
         }
-        retiredStore.put(clone({ ...current, retirement }));
-        store.delete(actionId);
+        const entry = clone({ ...current, retirement });
+        // The `put` below replaces anything already retired under this id, so
+        // the tally has to see that row before it is overwritten.
+        const replaced = retiredStore.get(actionId);
+        replaced.onerror = () => reject(replaced.error || new Error('Student action outbox request failed.'));
+        replaced.onsuccess = () => {
+          retiredStore.put(entry);
+          store.delete(actionId);
+          if (keepsTally) {
+            keepRetiredTallyCurrent(transaction.objectStore(DEVICE_IDENTITY_STORE_NAME), {
+              replaced: replaced.result || null,
+              added: entry,
+            });
+          }
+        };
       };
       transaction.oncomplete = () => resolve(retired);
       transaction.onabort = () => reject(transaction.error || new Error('Student action outbox transaction aborted.'));
@@ -351,6 +580,150 @@ const deviceIdentityTransaction = async (mutate) => {
   }
 };
 
+/*
+ * READING A TALLY: ONE RECORD, ALMOST ALWAYS.
+ *
+ * The ordinary read is a single `get` of the tally record; `retired` is not
+ * even opened. Only when there is no tally this release can trust does a
+ * readwrite transaction over both stores look again and, if it is STILL
+ * missing, read this student's retired rows once and store what they add up to.
+ *
+ * `verify` adds a count of this student's retired rows — an index count of
+ * keys, nothing deserialized — and rebuilds the tally if the two disagree. The
+ * summary asks for it once per page per student. It is what heals a tally left
+ * behind by code that does not know tallies exist: a tab still running the
+ * previous release, or a rollback, retires rows without counting them.
+ */
+const rebuildRetiredTallyTransaction = (studentId, { verify }) => runOwnTransaction(
+  [RETIRED_STORE_NAME, DEVICE_IDENTITY_STORE_NAME],
+  'readwrite',
+  (transaction, settle, fail) => {
+    const tallies = transaction.objectStore(DEVICE_IDENTITY_STORE_NAME);
+    const retiredStore = transaction.objectStore(RETIRED_STORE_NAME);
+    const index = retiredStudentIndex(retiredStore);
+    const build = () => {
+      // The one full read of this student's retired rows, inside the same
+      // transaction that stores what it found.
+      const rows = index ? index.getAll(IDBKeyRange.only(studentId)) : retiredStore.getAll();
+      rows.onerror = () => fail(rows.error);
+      rows.onsuccess = () => {
+        const tally = tallyRetiredRows(rows.result, studentId);
+        tallies.put(retiredTallyRecord(studentId, tally));
+        settle(tally);
+      };
+    };
+    const read = tallies.get(retiredTallyKey(studentId));
+    read.onerror = () => fail(read.error);
+    read.onsuccess = () => {
+      const stored = readRetiredTallyRecord(read.result, studentId);
+      // Another tab built it after this one looked: use it, write nothing.
+      if (stored && !verify) {
+        settle(stored);
+        return;
+      }
+      if (!stored || !index) {
+        build();
+        return;
+      }
+      const count = index.count(IDBKeyRange.only(studentId));
+      count.onerror = () => fail(count.error);
+      count.onsuccess = () => {
+        if (count.result === stored.total) settle(stored);
+        else build();
+      };
+    };
+  },
+);
+
+const readRetiredTallyTransaction = async (studentId, { verify = false } = {}) => {
+  if (!isTalliedStudentId(studentId)) throw new TypeError('A retired tally belongs to one student id.');
+  const snapshot = await runOwnTransaction(
+    verify ? [DEVICE_IDENTITY_STORE_NAME, RETIRED_STORE_NAME] : DEVICE_IDENTITY_STORE_NAME,
+    'readonly',
+    (transaction, settle, fail) => {
+      const found = { tally: null, counted: null };
+      settle(found);
+      const read = transaction.objectStore(DEVICE_IDENTITY_STORE_NAME).get(retiredTallyKey(studentId));
+      read.onerror = () => fail(read.error);
+      read.onsuccess = () => { found.tally = readRetiredTallyRecord(read.result, studentId); };
+      if (!verify) return;
+      // No index means no cheap count, so the tally goes unverified and the
+      // readwrite path below rebuilds it from the rows.
+      const index = retiredStudentIndex(transaction.objectStore(RETIRED_STORE_NAME));
+      if (!index) return;
+      const count = index.count(IDBKeyRange.only(studentId));
+      count.onerror = () => fail(count.error);
+      count.onsuccess = () => { found.counted = count.result; };
+    },
+  );
+  if (snapshot.tally && (!verify || snapshot.counted === snapshot.tally.total)) return snapshot.tally;
+  return rebuildRetiredTallyTransaction(studentId, { verify });
+};
+
+/*
+ * THE LAST DEVICE REPORT THE SERVER ACKNOWLEDGED.
+ *
+ * Read in the same transaction as the identity record, because the decision
+ * to skip a report compares the two: the acknowledgement is only good while
+ * its generation is still the latest this device has started (see
+ * src/platform/persistence/deviceReportDedupe.js).
+ */
+const withoutStoreKey = (record) => {
+  if (!record || typeof record !== 'object') return null;
+  const copy = { ...record };
+  delete copy.key;
+  return copy;
+};
+
+/** Acknowledgements only move forward: a late answer never replaces a newer one. */
+const newerAcknowledgement = (stored, candidate) => {
+  const candidateGeneration = Number(candidate?.generation);
+  if (!Number.isFinite(candidateGeneration) || candidateGeneration <= 0) return stored;
+  const storedGeneration = Number(stored?.generation);
+  return Number.isFinite(storedGeneration) && storedGeneration >= candidateGeneration ? stored : candidate;
+};
+
+const readDeviceReportStateTransaction = () => runOwnTransaction(
+  DEVICE_IDENTITY_STORE_NAME,
+  'readonly',
+  (transaction, settle, fail) => {
+    const store = transaction.objectStore(DEVICE_IDENTITY_STORE_NAME);
+    const state = { identity: null, acknowledged: null };
+    settle(state);
+    const identity = store.get(DEVICE_IDENTITY_KEY);
+    identity.onerror = () => fail(identity.error);
+    identity.onsuccess = () => { state.identity = identity.result || null; };
+    const acknowledged = store.get(DEVICE_REPORT_ACKNOWLEDGEMENT_KEY);
+    acknowledged.onerror = () => fail(acknowledged.error);
+    acknowledged.onsuccess = () => { state.acknowledged = withoutStoreKey(acknowledged.result); };
+  },
+);
+
+const recordDeviceReportAcknowledgementTransaction = (acknowledgement) => runOwnTransaction(
+  DEVICE_IDENTITY_STORE_NAME,
+  'readwrite',
+  (transaction, settle, fail) => {
+    const store = transaction.objectStore(DEVICE_IDENTITY_STORE_NAME);
+    const read = store.get(DEVICE_REPORT_ACKNOWLEDGEMENT_KEY);
+    read.onerror = () => fail(read.error);
+    read.onsuccess = () => {
+      const stored = withoutStoreKey(read.result);
+      const kept = newerAcknowledgement(stored, acknowledgement);
+      if (kept === acknowledgement) store.put({ ...clone(acknowledgement), key: DEVICE_REPORT_ACKNOWLEDGEMENT_KEY });
+      settle(kept ? clone(kept) : null);
+    };
+  },
+);
+
+const clearDeviceReportAcknowledgementTransaction = () => runOwnTransaction(
+  DEVICE_IDENTITY_STORE_NAME,
+  'readwrite',
+  (transaction, settle) => {
+    transaction.objectStore(DEVICE_IDENTITY_STORE_NAME).delete(DEVICE_REPORT_ACKNOWLEDGEMENT_KEY);
+    settle(true);
+  },
+);
+
 export const indexedDbOutboxStorage = Object.freeze({
   put: (action) => transactionRequest('readwrite', (store) => store.put(clone(action))),
   remove: (actionId) => transactionRequest('readwrite', (store) => store.delete(actionId)),
@@ -360,7 +733,20 @@ export const indexedDbOutboxStorage = Object.freeze({
   retireIfCurrent: (actionId, expectedCreatedOrder, retirement) => retireIfCurrentTransaction(actionId, expectedCreatedOrder, retirement),
   annotateIfCurrent: (actionId, expectedCreatedOrder, delivery) => annotateIfCurrentTransaction(actionId, expectedCreatedOrder, delivery),
   list: () => transactionRequest('readonly', (store) => store.getAll()),
+  /** Every retired row. The device summary no longer calls this; see `readRetiredTally`. */
   listRetired: () => transactionRequest('readonly', (store) => store.getAll(), RETIRED_STORE_NAME),
+  /**
+   * `{ total, byDisposition }` for one student's retired rows, from the tally
+   * record — built from the rows once if this device has none, and rebuilt if
+   * `verify` finds it disagreeing with them.
+   */
+  readRetiredTally: (studentId, options) => readRetiredTallyTransaction(studentId, options),
+  /** The identity record and the last acknowledged device report, read together. */
+  readDeviceReportState: () => readDeviceReportStateTransaction(),
+  /** Remember an acknowledged report unless a newer generation is already remembered. */
+  recordDeviceReportAcknowledgement: (acknowledgement) => recordDeviceReportAcknowledgementTransaction(acknowledgement),
+  /** Forget it: the server may now hold a report this device has no durable record of. */
+  clearDeviceReportAcknowledgement: () => clearDeviceReportAcknowledgementTransaction(),
   /** The stored identity, or null when this browser has never reported. */
   readDeviceIdentity: () => deviceIdentityTransaction((current) => current),
   /**
@@ -767,10 +1153,49 @@ const nestedCountByAssignment = (actions, valueForAction) => {
   return Object.fromEntries(Object.entries(summaries).slice(0, MAX_SUMMARIZED_ASSIGNMENTS));
 };
 
+/*
+ * WHICH TALLIES THIS PAGE HAS ALREADY CHECKED AGAINST THEIR ROWS.
+ *
+ * The first summary for a student on each page load asks for a verified tally
+ * (a key count, nothing deserialized); every later one on that page reads the
+ * tally record alone. A tally can only drift when code that does not maintain
+ * it retires a row — a tab still on the previous release, or a rollback — and
+ * the stored tally is shared, so the next page of this release to load on the
+ * device corrects it for every tab. Keyed by storage so a test's in-memory
+ * device is never mistaken for the browser's.
+ */
+let retiredTalliesVerified = new WeakMap();
+
+const EMPTY_RETIRED_COUNTS = Object.freeze({ total: 0, byDisposition: Object.freeze({}) });
+
+const retiredCountsFor = async ({ storage, studentId }) => {
+  if (isTalliedStudentId(studentId) && typeof storage.readRetiredTally === 'function') {
+    let verified = retiredTalliesVerified.get(storage);
+    if (!verified) {
+      verified = new Set();
+      retiredTalliesVerified.set(storage, verified);
+    }
+    const verify = !verified.has(studentId);
+    const tally = await storage.readRetiredTally(studentId, { verify });
+    if (verify) verified.add(studentId);
+    return tally;
+  }
+  // A device-wide summary (no student — nothing on the report path asks for
+  // one) and a storage adapter that keeps no tally count the rows, as before.
+  return countRetiredRows(await listRetiredDurableActions({ storage, studentId }));
+};
+
+/** Test seam: what a page reload does to the memory above. Never called in the browser. */
+export const resetRetiredTallyVerificationForTests = () => {
+  retiredTalliesVerified = new WeakMap();
+};
+
 export const summarizeDurableOutbox = async ({ storage = indexedDbOutboxStorage, studentId = null } = {}) => {
   const [queued, retired] = await Promise.all([
     listDurableActions({ storage, studentId }),
-    listRetiredDurableActions({ storage, studentId }).catch(() => []),
+    // A summary that cannot count retired rows reports none, exactly as the
+    // full read it replaces did when that read failed.
+    retiredCountsFor({ storage, studentId }).catch(() => EMPTY_RETIRED_COUNTS),
   ]);
   const gradeBearing = queued.filter(isGradeBearingAction);
   const needsReviewActions = queued.filter(
@@ -800,18 +1225,52 @@ export const summarizeDurableOutbox = async ({ storage = indexedDbOutboxStorage,
     latestCapturedAt: queued.length ? Math.max(...queued.map((action) => Number(action.createdAt) || 0)) : null,
     blockedReasons: byReason,
     needsReview: needsReviewActions.length,
-    retired: retired.length,
-    retiredByDisposition: retired.reduce(
-      (counts, action) => ({ ...counts, [action.retirement?.disposition || 'unknown']: (counts[action.retirement?.disposition || 'unknown'] || 0) + 1 }),
-      {},
-    ),
+    // From the student's retired tally — the same two numbers the full read
+    // of `retired` produced, without reading a single retired row.
+    retired: retired.total,
+    retiredByDisposition: { ...retired.byDisposition },
   };
 };
 
-export const createMemoryOutboxStorage = (initial = []) => {
+/*
+ * THE SAME STORAGE, IN MEMORY, WITH THE SAME RULES.
+ *
+ * Tests run the outbox against this, so every rule the IndexedDB adapter
+ * enforces is enforced here too — including the ones that only matter under
+ * concurrency. `readRetiredTally` yields between its read and its rebuild just
+ * as the IndexedDB adapter runs them as two transactions, so two concurrent
+ * callers interleave the way two tabs do.
+ *
+ * `retired` seeds rows retired before this adapter existed — a Chromebook
+ * carrying evidence from an earlier release, with no tally — and
+ * `deviceRecords` seeds the identity store's other records, by key.
+ */
+export const createMemoryOutboxStorage = (initial = [], { retired: initialRetired = [], deviceRecords: initialDeviceRecords = [] } = {}) => {
   const records = new Map(initial.map((action) => [action.actionId, clone(action)]));
-  const retired = new Map();
+  const retired = new Map(initialRetired.map((row) => [row.actionId, clone(row)]));
+  const deviceRecords = new Map(initialDeviceRecords.map((record) => [record.key, clone(record)]));
   let deviceIdentity = null;
+  let retiredScanCount = 0;
+
+  const countRetiredFor = (studentId) => [...retired.values()].filter((row) => row?.studentId === studentId).length;
+  const trustedTally = (studentId, verify) => {
+    const stored = readRetiredTallyRecord(deviceRecords.get(retiredTallyKey(studentId)), studentId);
+    if (!stored) return null;
+    if (verify && countRetiredFor(studentId) !== stored.total) return null;
+    return stored;
+  };
+  // The retirement transaction's tally upkeep, for the same rows.
+  const keepTallyCurrent = ({ replaced, added }) => {
+    [...new Set([replaced?.studentId, added?.studentId])].filter(isTalliedStudentId).forEach((studentId) => {
+      const key = retiredTallyKey(studentId);
+      const stored = readRetiredTallyRecord(deviceRecords.get(key), studentId);
+      if (!stored) return;
+      const next = applyRetiredTallyChange(stored, { studentId, removed: replaced, added });
+      if (next) deviceRecords.set(key, retiredTallyRecord(studentId, next));
+      else deviceRecords.delete(key);
+    });
+  };
+
   return {
     async put(action) { records.set(action.actionId, clone(action)); },
     async remove(actionId) { records.delete(actionId); },
@@ -827,8 +1286,11 @@ export const createMemoryOutboxStorage = (initial = []) => {
       const current = records.get(actionId);
       if (!current) return true;
       if (Number(current.createdOrder ?? current.createdAt ?? 0) > Number(expectedCreatedOrder ?? 0)) return false;
-      retired.set(actionId, clone({ ...current, retirement }));
+      const entry = clone({ ...current, retirement });
+      const replaced = retired.get(actionId) || null;
+      retired.set(actionId, entry);
       records.delete(actionId);
+      keepTallyCurrent({ replaced, added: entry });
       return true;
     },
     async annotateIfCurrent(actionId, expectedCreatedOrder, delivery) {
@@ -840,6 +1302,42 @@ export const createMemoryOutboxStorage = (initial = []) => {
     },
     async list() { return [...records.values()].map(clone); },
     async listRetired() { return [...retired.values()].map(clone); },
+    async readRetiredTally(studentId, { verify = false } = {}) {
+      if (!isTalliedStudentId(studentId)) throw new TypeError('A retired tally belongs to one student id.');
+      // Like the IndexedDB adapter's readonly read: the tally record alone.
+      const found = trustedTally(studentId, verify);
+      if (found) return clone(found);
+      // The gap between that read and the readwrite transaction, where
+      // another tab can run.
+      await Promise.resolve();
+      // Like its readwrite transaction: look again, and build only if still needed.
+      const settled = trustedTally(studentId, verify);
+      if (settled) return clone(settled);
+      retiredScanCount += 1;
+      const tally = tallyRetiredRows([...retired.values()], studentId);
+      deviceRecords.set(retiredTallyKey(studentId), retiredTallyRecord(studentId, tally));
+      return clone(tally);
+    },
+    /** For tests: how many times a tally was built by reading retired rows. */
+    retiredRowScans() { return retiredScanCount; },
+    async readDeviceReportState() {
+      return {
+        identity: deviceIdentity ? clone(deviceIdentity) : null,
+        acknowledged: withoutStoreKey(deviceRecords.get(DEVICE_REPORT_ACKNOWLEDGEMENT_KEY)),
+      };
+    },
+    async recordDeviceReportAcknowledgement(acknowledgement) {
+      const stored = withoutStoreKey(deviceRecords.get(DEVICE_REPORT_ACKNOWLEDGEMENT_KEY));
+      const kept = newerAcknowledgement(stored, acknowledgement);
+      if (kept === acknowledgement) {
+        deviceRecords.set(DEVICE_REPORT_ACKNOWLEDGEMENT_KEY, { ...clone(acknowledgement), key: DEVICE_REPORT_ACKNOWLEDGEMENT_KEY });
+      }
+      return kept ? clone(kept) : null;
+    },
+    async clearDeviceReportAcknowledgement() {
+      deviceRecords.delete(DEVICE_REPORT_ACKNOWLEDGEMENT_KEY);
+      return true;
+    },
     // The same device-identity semantics, in memory, so tests exercise the
     // real read-modify-write rules rather than a simplified stand-in.
     async readDeviceIdentity() { return deviceIdentity ? clone(deviceIdentity) : null; },

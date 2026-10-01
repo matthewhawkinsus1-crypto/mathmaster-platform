@@ -16,8 +16,7 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase.js';
 import { measurePerformanceOperation } from '../platform/performance/performanceTelemetry.js';
-import { summarizeDurableOutbox } from '../platform/performance/durableActionOutbox.js';
-import { nextDeviceReportGeneration } from '../platform/persistence/deviceIdentity.js';
+import { reportDeviceQueueUnlessUnchanged } from '../platform/persistence/deviceReportDedupe.js';
 import {
   MAX_ENVELOPES_PER_CALL,
   SUBMISSION_DISPOSITION,
@@ -114,29 +113,36 @@ export const callableDeliveryDiagnostic = (error, transport = 'callable') => {
  *
  * WHO is reporting and WHICH report is newer both come from
  * `deviceIdentity.js`, which keeps them beside the queue they describe. The
- * generation is stamped at CAPTURE, in the same step that reads the summary,
- * because what the server has to order is when the queue was observed — not
- * when the request happened to arrive. `withTimeout` below stops waiting; it
- * cannot cancel a callable already on the wire, so a slow positive report can
- * and does arrive after the zero report that replaced it.
+ * generation is stamped at CAPTURE — once the summary has been read, before
+ * the request goes out — because what the server has to order is when the
+ * queue was observed, not when the request happened to arrive. `withTimeout`
+ * below stops waiting; it cannot cancel a callable already on the wire, so a
+ * slow positive report can and does arrive after the zero report that
+ * replaced it.
+ *
+ * A report whose content the server has already acknowledged, within the
+ * heartbeat, is not sent at all: `deviceReportDedupe.js` says exactly when
+ * that is safe. This function only supplies the wire.
  */
 export { resolveDeviceId } from '../platform/persistence/deviceIdentity.js';
 
 export const reportDeviceQueueState = async ({ studentId, summary = null, timeoutMs = INGEST_TIMEOUT_MS } = {}) => {
   if (!studentId) return null;
-  const [payload, { deviceId, generation }] = await Promise.all([
-    summary || summarizeDurableOutbox({ studentId }),
-    nextDeviceReportGeneration(),
-  ]);
-  const response = await withTimeout(
-    httpsCallable(functions, 'reportStudentDeviceQueue')({
-      deviceId,
-      reportGeneration: generation,
-      summary: payload,
-    }),
-    timeoutMs,
-  );
-  return response?.data || null;
+  return reportDeviceQueueUnlessUnchanged({
+    studentId,
+    summary,
+    transport: async ({ deviceId, generation, summary: payload }) => {
+      const response = await withTimeout(
+        httpsCallable(functions, 'reportStudentDeviceQueue')({
+          deviceId,
+          reportGeneration: generation,
+          summary: payload,
+        }),
+        timeoutMs,
+      );
+      return response?.data || null;
+    },
+  });
 };
 
 /*

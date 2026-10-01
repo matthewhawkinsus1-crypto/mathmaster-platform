@@ -40,6 +40,9 @@ const mint = () => `dev_${Math.random().toString(36).slice(2)}${Date.now().toStr
  */
 let volatileIdentity = null;
 let volatileGeneration = 0;
+// Set once this page has sent a report under a generation nothing durable
+// remembers. See `readDeviceReportState`.
+let volatileGenerationIssued = false;
 let resolved = null;
 let inFlight = null;
 
@@ -141,8 +144,51 @@ export const nextDeviceReportGeneration = async ({
    * the race actually happens: two in-flight reports from one tab.
    */
   volatileGeneration = Math.max(volatileGeneration + 1, floor);
+  /*
+   * A report is about to go out under a generation no durable record holds.
+   * If the server applies it, this device's record of what the server holds
+   * stops being true, and nothing durable says so. So this page stops trusting
+   * that record, and the record is dropped if storage still allows it, so a
+   * reload cannot trust it either.
+   */
+  volatileGenerationIssued = true;
+  try {
+    await storage.clearDeviceReportAcknowledgement?.();
+  } catch {
+    // Storage that could not advance the counter may not delete either. The
+    // page flag above still holds for as long as this page does.
+  }
   return { deviceId, generation: volatileGeneration, durable: false };
 };
+
+/*
+ * WHAT THIS DEVICE KNOWS ABOUT THE REPORT THE SERVER HOLDS FOR IT.
+ *
+ * The latest generation this device has STARTED, and the last report the
+ * server ACKNOWLEDGED applying, read together in one transaction. The two are
+ * only worth comparing while every generation this page sent was a durable
+ * one; once a report has gone out under a volatile generation, or identity
+ * itself is not durable, the answer is "unknown", and unknown always sends.
+ */
+export const readDeviceReportState = async ({ storage = indexedDbOutboxStorage } = {}) => {
+  const { deviceId, durable } = await resolveDeviceIdentity({ storage });
+  if (!durable || volatileGenerationIssued || typeof storage.readDeviceReportState !== 'function') {
+    return { deviceId, latestGeneration: null, acknowledged: null };
+  }
+  const { identity, acknowledged } = await storage.readDeviceReportState();
+  return {
+    deviceId,
+    latestGeneration: Number(identity?.reportGeneration) || null,
+    acknowledged: acknowledged || null,
+  };
+};
+
+/** Remember that the server applied a report. Never moves backwards. */
+export const recordDeviceReportAcknowledgement = async ({ storage = indexedDbOutboxStorage, acknowledgement } = {}) => (
+  typeof storage.recordDeviceReportAcknowledgement === 'function'
+    ? storage.recordDeviceReportAcknowledgement(acknowledgement)
+    : null
+);
 
 /** Test seam. Never called in the browser. */
 export const resetDeviceIdentityCacheForTests = () => {
@@ -150,4 +196,5 @@ export const resetDeviceIdentityCacheForTests = () => {
   inFlight = null;
   volatileIdentity = null;
   volatileGeneration = 0;
+  volatileGenerationIssued = false;
 };
