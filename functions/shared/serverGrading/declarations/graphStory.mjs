@@ -15,6 +15,8 @@ import { SHARED, declareTool } from '../toolGraderDefinition.mjs';
 export default declareTool({
   // Work shape v1: { scenario, independent, dependent, xLabel, xUnit, yLabel,
   //                  yUnit, explanation, strokes: [[[x, y], ...], ...] }
+  // scenario and explanation are strings, or their chunks when longer than the
+  // contract's per-string limit (scenarioWork.mjs freeTextWork).
   contractVersion: 1,
   /*
    * GraphStory.jsx renders the sketch plane — and requires a sketch — when

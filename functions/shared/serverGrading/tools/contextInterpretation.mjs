@@ -13,6 +13,9 @@
  *   open     the text contains every required concept group (any non-blank
  *            text when none are authored — kept at parity, a content issue)
  *
+ * The open text is read whole (scenarioWork.mjs readPointMeaningWork), so a
+ * concept written past the contract's per-string limit still counts.
+ *
  * `requireQuantities` / `requireValues` / `requireUnits: false` drop those
  * parts. The work is complete when there is at least one part and every part
  * is complete. A part is correct only when it is complete (creditCompleteParts):

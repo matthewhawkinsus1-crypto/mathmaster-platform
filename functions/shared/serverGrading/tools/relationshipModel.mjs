@@ -17,6 +17,10 @@
  *                builder/guided: buildContextInterpretationParts (prefix
  *                'origin') over the origin config
  *
+ * The open origin meaning is read whole (scenarioWork.mjs
+ * readRelationshipModelWork), so a concept past the contract's per-string
+ * limit still counts.
+ *
  * The work is complete when there is at least one part and every part is
  * complete; correct when also every part is correct. A part is correct only
  * when it is complete (creditCompleteParts): on their own, a blank origin value

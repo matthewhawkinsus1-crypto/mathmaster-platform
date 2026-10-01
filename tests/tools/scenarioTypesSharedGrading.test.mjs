@@ -1045,6 +1045,10 @@ test('relationshipModel: every section matches the old screen part-for-part', ()
     [MODEL_MINIMAL, modelState(), true],
     [MODEL_MINIMAL, modelState({ dependentId: '' }), false],
     [{ ...MODEL_MINIMAL, requireQuantityRoles: false }, modelState(), false],
+    // No accepted steps: any POSITIVE count-by value is reasonable, on each axis.
+    [{ ...MODEL_MINIMAL, axisSetup: { requireScale: true } }, modelState({ xStep: '0.5', yStep: '25' }), true],
+    [{ ...MODEL_MINIMAL, axisSetup: { requireScale: true } }, modelState({ xStep: '0', yStep: '25' }), false],
+    [{ ...MODEL_MINIMAL, axisSetup: { requireScale: true } }, modelState({ xStep: '2', yStep: '0' }), false],
   ];
   fixtures.forEach(([question, values, correct]) => {
     const work = relationshipModelWork(values);
@@ -1070,6 +1074,77 @@ test('relationshipModel: the screen and the grader derive sections and the origi
   assert.match(source, /const originConfig = useMemo\(\(\) => relationshipOriginConfig\(question\), \[question\]\);/);
   assert.match(source, /const originMode = relationshipOriginMode\(question\);/);
   assert.match(source, /config=\{originConfig\}/);
+});
+
+test('relationshipModel: the origin target is the authored target, else `coordinates`, else `point` — as on the old screen', () => {
+  const pointMeaning = (xValue, yValue) => ({ ...modelState().pointMeaning, xValue, yValue });
+  const shapes = [
+    // `coordinates` wins over `point` when both are authored.
+    [{ ...MODEL, origin: { required: true, responseMode: 'builder', coordinates: [0, 0], point: [0, 50] } }, [['0', '0', true], ['0', '50', false]]],
+    // `point` alone is the fallback.
+    [{ ...MODEL, origin: { required: true, responseMode: 'builder', point: [0, 50] } }, [['0', '50', true], ['0', '0', false]]],
+    // An authored `target` beats both.
+    [{ ...MODEL, origin: { required: true, responseMode: 'guided', target: { coordinates: [1, 5] }, coordinates: [0, 0], point: [0, 50] } }, [['1', '5', true], ['0', '0', false]]],
+  ];
+  shapes.forEach(([question, cases]) => {
+    cases.forEach(([xValue, yValue, correct]) => {
+      const values = modelState({ pointMeaning: pointMeaning(xValue, yValue) });
+      const result = gradeBoth(relationshipModelGrader, question, relationshipModelWork(values));
+      assertMatchesLegacy(result, legacyRelationshipModel(question, values), `${JSON.stringify(question.origin)} (${xValue}, ${yValue})`);
+      assert.equal(result.isCorrect, correct, `${JSON.stringify(question.origin)} (${xValue}, ${yValue})`);
+    });
+  });
+});
+
+/*
+ * A BLANK PART NEVER EARNS CREDIT (scenarioWork.mjs creditCompleteParts).
+ *
+ * On the old screens a blank value box "matched" an expected 0 (Number('') is
+ * 0) and a blank unit "matched" a quantity with no unit. Harmless there —
+ * Submit waits for every part — but the server grades whatever work it is
+ * sent, so an empty response must earn nothing.
+ */
+test('a blank part is never correct, so empty work earns no credit on either path', () => {
+  const blankPoint = { xQuantityId: '', xValue: '', xUnit: '', yQuantityId: '', yValue: '', yUnit: '', openText: '' };
+  // The old screen called these blank parts correct (and incomplete).
+  const atOrigin = { ...POINT, target: { coordinates: [0, 0] }, quantities: { x: { id: 'time', name: 'Time' }, y: { id: 'distance', name: 'Distance' } } };
+  const legacyBlank = legacyContextInterpretation(atOrigin, blankPoint);
+  assert.deepEqual(legacyBlank.parts.filter((part) => part.isCorrect).map((part) => part.id), ['meaning-x-value', 'meaning-y-value']);
+  const blank = gradeBoth(contextInterpretationGrader, atOrigin, pointMeaningWork(blankPoint));
+  assert.equal(blank.isComplete, false);
+  assert.deepEqual(blank.parts.filter((part) => part.isCorrect).map((part) => part.id), []);
+  assert.equal(blank.score, 0);
+  // Filled in, the same entries are correct exactly as before.
+  const filled = gradeBoth(contextInterpretationGrader, { ...atOrigin, requireUnits: false }, pointMeaningWork({ ...blankPoint, xQuantityId: 'time', yQuantityId: 'distance', xValue: '0', yValue: '0' }));
+  assert.equal(filled.isCorrect, true);
+
+  // relationshipModel: blank origin values "matched" (0, 0), and a blank axis
+  // unit "matched" a correct quantity that has no unit.
+  const model = {
+    ...MODEL_MINIMAL,
+    requireQuantityRoles: false,
+    correctIndependentId: 'rate',
+    axisSetup: { required: true },
+    origin: { required: true, responseMode: 'guided', coordinates: [0, 0] },
+  };
+  const emptyModel = relationshipModelWork({});
+  assert.deepEqual(
+    legacyRelationshipModel(model, readRelationshipModelWork(emptyModel)).parts.filter((part) => part.isCorrect).map((part) => part.id),
+    ['x-unit', 'origin-x-value', 'origin-y-value'],
+    'the old screen called these blank parts correct',
+  );
+  const empty = gradeBoth(relationshipModelGrader, model, emptyModel);
+  assert.equal(empty.isComplete, false);
+  assert.deepEqual(empty.parts.filter((part) => part.isCorrect).map((part) => part.id), []);
+  assert.equal(empty.score, 0);
+  assert.equal(answerStateFromSharedGrading(gradeToolCheck(relationshipModelGrader, model, emptyModel)).partialCreditPercent, 0);
+
+  // graphScenarioMatch: an unmatched scenario with no key read `undefined === undefined`.
+  const partlyKeyed = { type: 'graphScenarioMatch', graphs: [{ id: 'g1', graph: {} }], scenarios: [{ id: 's1', graphId: 'g1' }, { id: 's2' }] };
+  assert.deepEqual(legacyScenarioMatch(partlyKeyed, {}).parts.map((part) => part.isCorrect), [false, true], 'the old screen called the blank, unkeyed scenario correct');
+  const emptyBoard = gradeBoth(graphScenarioMatchGrader, partlyKeyed, scenarioMatchWork({}));
+  assert.deepEqual(emptyBoard.parts.map((part) => part.isCorrect), [false, false]);
+  assert.equal(emptyBoard.score, 0);
 });
 
 /*

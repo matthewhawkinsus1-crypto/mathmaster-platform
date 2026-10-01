@@ -22,6 +22,8 @@ export default declareTool({
   // Work shape v1: { independentId, dependentId, relationshipType, xLabel,
   //   xUnit, yLabel, yUnit, xStep, yStep, originMeaning,
   //   pointMeaning: { xQuantityId, xValue, xUnit, yQuantityId, yValue, yUnit, openText } }
+  // originMeaning and openText are strings, or their chunks when longer than
+  // the contract's per-string limit (scenarioWork.mjs freeTextWork).
   contractVersion: 1,
   // RelationshipModel.jsx has exactly one view and never reads question.mode.
   defaultMode: 'standalone',

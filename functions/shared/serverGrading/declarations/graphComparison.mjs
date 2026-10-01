@@ -12,7 +12,9 @@
 import { SHARED, declareTool } from '../toolGraderDefinition.mjs';
 
 export default declareTool({
-  // Work shape v1: { responses: [{ fieldId, text }] }, sorted by field.
+  // Work shape v1: { responses: [{ fieldId, text }] }, sorted by field. `text`
+  // is a string, or — past the contract's per-string limit — its chunks
+  // (toolMath/scenario/scenarioWork.mjs freeTextWork), so it is graded whole.
   contractVersion: 1,
   // GraphComparison.jsx has exactly one view (each field picks its own
   // select/textarea) and never reads question.mode.

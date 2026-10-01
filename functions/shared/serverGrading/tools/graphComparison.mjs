@@ -12,6 +12,9 @@
  *   any other      the response contains every `requiredConcepts` group
  *                  (or `requiredConceptGroups`).
  *
+ * Each response is read WHOLE (scenarioWork.mjs freeText): a concept written
+ * after the contract's per-string limit counts, as it did on the screen.
+ *
  * KNOWN CONTENT DEFECT, KEPT AT PARITY: a non-choice field with no concept
  * groups accepts ANY non-blank text (matchesConceptGroups(x, []) is "not
  * empty"), and its `answer` is not read. The type catalog's own example is

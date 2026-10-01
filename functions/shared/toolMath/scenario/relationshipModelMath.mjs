@@ -68,7 +68,7 @@ export const relationshipOriginConfig = (question = {}) => {
     responseMode: relationshipOriginMode(question),
     target: question.origin?.target || {
       kind: 'startingPoint',
-      coordinates: question.origin?.point || question.origin?.coordinates || [],
+      coordinates: question.origin?.coordinates || question.origin?.point || [],
     },
     quantities: question.origin?.quantities || {
       x: {

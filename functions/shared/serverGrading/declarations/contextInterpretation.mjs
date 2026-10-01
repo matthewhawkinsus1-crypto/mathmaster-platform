@@ -17,6 +17,8 @@ const RESPONSE_MODES = ['builder', 'guided', 'open'];
 export default declareTool({
   // Work shape v1 (every mode): the seven PointMeaningBuilder entries
   //   { xQuantityId, xValue, xUnit, yQuantityId, yValue, yUnit, openText }
+  // openText is a string, or its chunks when longer than the contract's
+  // per-string limit (scenarioWork.mjs freeTextWork).
   contractVersion: 1,
   /*
    * PointMeaningBuilder renders by `responseMode` exactly as
