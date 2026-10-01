@@ -14,11 +14,13 @@ import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import dataModelingGrader from '../../../functions/shared/serverGrading/tools/dataModelingLab.mjs';
 import {
+  DATA_MODELING_STARTING_CHOICES,
   FIT_PREDICTION_MODELS,
   FORCED_FIT_MODELS,
   dataModelingFixedPredictionTarget,
   dataModelingPoints,
   dataModelingRequiredParts,
+  dataModelingStartingLine,
   lineFitNamesPrediction,
   lineFitUsesRegressionTechnology,
   numberVisiblePanels,
@@ -97,7 +99,6 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const { min:xMin, max:xMax } = xScale;
   const { min:yMin, max:yMax } = yScale;
 
-  const forcedModelId = FORCED_FIT_MODELS[mode] || null;
   const startingModel = questionData.startingModel || {};
   const exploratoryLineFit = mode === 'lineFit' || mode === 'full';
   const fitControls = useMemo(() => fitAdjustmentPlan({
@@ -114,14 +115,17 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
     challengeClicks: questionData.fitChallengeClicks,
   }), [regression.m, regression.b, dataXMin, dataXMax, dataYMin, dataYMax, exploratoryLineFit, questionData.slopeTolerance, questionData.interceptTolerance, questionData.slopeStep, questionData.interceptStep, questionData.fitChallengeClicks]);
 
-  const [m, setM] = usePersistentToolState('m', startingModel.m ?? (exploratoryLineFit ? fitControls.slope.start : (forcedModelId === 'linear' ? 1 : round(regression.m * 0.75, 2))));
-  const [b, setB] = usePersistentToolState('b', startingModel.b ?? (exploratoryLineFit ? fitControls.intercept.start : (forcedModelId === 'linear' ? 0 : round(regression.b + 1, 2))));
+  // The starting line and choices come from the plan the shared grader reads,
+  // so it can tell this untouched lab from finished work.
+  const startingLine = dataModelingStartingLine(mode, questionData, { regression, stepperPlan: exploratoryLineFit ? fitControls : null });
+  const [m, setM] = usePersistentToolState('m', startingLine.m);
+  const [b, setB] = usePersistentToolState('b', startingLine.b);
   const slopeIncrements = interactionIncrements(regression.m);
   const interceptIncrements = interactionIncrements(Math.max(Math.abs(regression.b), yMax - yMin));
-  const [direction, setDirection] = usePersistentToolState('direction', 'positive');
-  const [strength, setStrength] = usePersistentToolState('strength', 'moderate');
-  const [causation, setCausation] = usePersistentToolState('causation', 'association');
-  const [modelChoice, setModelChoice] = usePersistentToolState('modelChoice', 'linear');
+  const [direction, setDirection] = usePersistentToolState('direction', DATA_MODELING_STARTING_CHOICES.direction);
+  const [strength, setStrength] = usePersistentToolState('strength', DATA_MODELING_STARTING_CHOICES.strength);
+  const [causation, setCausation] = usePersistentToolState('causation', DATA_MODELING_STARTING_CHOICES.causation);
+  const [modelChoice, setModelChoice] = usePersistentToolState('modelChoice', DATA_MODELING_STARTING_CHOICES.modelChoice);
   // Keep the default prediction target tied to the observed data, not to display/camera bounds.
   // Work View and graph fitting are presentation concerns and must not change submitted math state.
   const defaultPredictionX = Math.ceil(Math.max(...xs, 1) + 1);

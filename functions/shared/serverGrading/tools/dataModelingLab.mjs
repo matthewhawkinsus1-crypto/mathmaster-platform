@@ -17,6 +17,14 @@
  *   - the same parsing: a box counts as answered only when parseNumericAnswer
  *     reads a number from it, so a cleared box is blank, never 0.
  *
+ * Completeness (what a deadline may submit for the student) is every graded
+ * input present AND not the lab's untouched starting state. The steppers, the
+ * association selects and the model-family radio all start filled, so an
+ * association or model-family question the student only opened would
+ * otherwise be complete — and, whenever the pre-selected choice happens to be
+ * right, auto-submitted as correct. An explicit Check of untouched work is
+ * still graded exactly as before.
+ *
  * Nothing here reads a value the browser computed: the work is the lab's raw
  * inputs, and every expected value is recomputed from the question.
  */
@@ -37,7 +45,8 @@ import {
   dataModelingFixedPredictionTarget,
   dataModelingPoints,
   dataModelingRequiredParts,
-  exploratoryLineFitTolerances,
+  dataModelingStartingWork,
+  exploratoryLineFitPlan,
   lineFitNamesPrediction,
 } from '../../toolMath/dataModeling/dataModelingPlan.mjs';
 
@@ -56,13 +65,23 @@ const fitCoefficientTolerance = (expected, authored, floor, relative = 0.05) => 
 
 const within = (answer, expected, tolerance) => Math.abs(Number(answer) - Number(expected)) <= tolerance;
 
+// The work keys of the fitted function, by the family the mode names (a line
+// otherwise).
+const FIT_KEYS = Object.freeze({
+  quadratic: ['a', 'b', 'c'],
+  exponential: ['a', 'base'],
+  squareRoot: ['a', 'h', 'k'],
+  linear: ['m', 'b'],
+});
+const fitKeys = (mode) => FIT_KEYS[FORCED_FIT_MODELS[mode] || 'linear'];
+
 /*
  * The fitted function, read in the family the mode names. The work keeps the
  * keys the lab has always sent (My Math Path's grader reads the same ones), so
  * `a`/`b`/`c` are a quadratic's coefficients in a quadratic mode, and `m`/`b`
  * the line's slope and intercept wherever the model is a line.
  */
-const fitPart = (question, work, mode, { points, regression, expectedModel }) => {
+const fitPart = (question, work, mode, { regression, expectedModel, stepperPlan }) => {
   const family = FORCED_FIT_MODELS[mode];
   const expected = expectedModel?.model || {};
   if (family === 'quadratic') {
@@ -99,21 +118,8 @@ const fitPart = (question, work, mode, { points, regression, expectedModel }) =>
   }
   // A line. The stepper fits (`full`, `lineFit`) are judged with the
   // steppers' own tolerances; a typed line with the typed-fit ones.
-  const exploratory = mode === 'lineFit' || mode === 'full';
-  let stepper = null;
-  if (exploratory) {
-    const xs = points.map(([x]) => Number(x));
-    const ys = points.map(([, y]) => Number(y));
-    stepper = exploratoryLineFitTolerances({
-      targetSlope: regression.m,
-      xMin: Math.min(...xs),
-      xMax: Math.max(...xs),
-      yMin: Math.min(...ys),
-      yMax: Math.max(...ys),
-    });
-  }
-  const slopeTolerance = Number(question.slopeTolerance ?? (exploratory ? stepper.slope : Math.max(0.2, Math.abs(regression.m) * 0.12)));
-  const interceptTolerance = Number(question.interceptTolerance ?? (exploratory ? stepper.intercept : 0.8));
+  const slopeTolerance = Number(question.slopeTolerance ?? (stepperPlan ? stepperPlan.slope.tolerance : Math.max(0.2, Math.abs(regression.m) * 0.12)));
+  const interceptTolerance = Number(question.interceptTolerance ?? (stepperPlan ? stepperPlan.intercept.tolerance : 0.8));
   const slope = parseNumericAnswer(work.m);
   const intercept = parseNumericAnswer(work.b);
   return {
@@ -151,6 +157,26 @@ const gradeMode = (mode) => (question, work) => {
   // A line fit's prediction is not classified; every other prediction is.
   const asksPredictionType = !lineFitPrediction;
 
+  // The steppers of a hand-fit line: their default tolerances and the line
+  // they start on — the same plan the lab sizes them from.
+  const xs = points.map(([x]) => Number(x));
+  const ys = points.map(([, y]) => Number(y));
+  const stepperPlan = mode === 'lineFit' || mode === 'full'
+    ? exploratoryLineFitPlan({
+      targetSlope: regression.m,
+      targetIntercept: regression.b,
+      xMin: Math.min(...xs),
+      xMax: Math.max(...xs),
+      yMin: Math.min(...ys),
+      yMax: Math.max(...ys),
+      slopeTolerance: question.slopeTolerance,
+      interceptTolerance: question.interceptTolerance,
+      slopeStep: question.slopeStep,
+      interceptStep: question.interceptStep,
+      challengeClicks: question.fitChallengeClicks,
+    })
+    : null;
+
   const interpretation = () => ({
     complete: filled(work.direction) && filled(work.strength),
     correct: work.direction === descriptor.direction && work.strength === descriptor.strength,
@@ -158,7 +184,7 @@ const gradeMode = (mode) => (question, work) => {
   });
 
   const checks = {
-    fit: () => fitPart(question, work, mode, { points, regression, expectedModel }),
+    fit: () => fitPart(question, work, mode, { regression, expectedModel, stepperPlan }),
     correlationInterpretation: interpretation,
     association: () => {
       const read = interpretation();
@@ -186,7 +212,11 @@ const gradeMode = (mode) => (question, work) => {
       // An authored target is the question's own x, shown read-only, so it is
       // graded at that x whatever x the work names. Otherwise x is the
       // student's choice, and a cleared x box reads as 0, as the lab reads it.
-      const predictionX = fixedTarget ? question.predictionX : work.predictionX;
+      // A null x is the lab's NaN after JSON (its default x when a plotted x
+      // is not a number): NaN, which the lab never marked correct — not
+      // Number(null), which is 0.
+      const studentX = work.predictionX === null ? Number.NaN : work.predictionX;
+      const predictionX = fixedTarget ? question.predictionX : studentX;
       const expectedPrediction = lineFitPrediction
         // A line-fit prediction is made with a LINEAR model, whatever family
         // happens to fit these points best.
@@ -202,22 +232,43 @@ const gradeMode = (mode) => (question, work) => {
         correct: predicted != null && Number.isFinite(expectedPrediction)
           && Math.abs(predicted - expectedPrediction) <= tolerance
           && (!asksPredictionType || work.predictionType === expectedType),
-        response: `x = ${entry(predictionX)}, y = ${entry(work.predictionY)}${asksPredictionType ? `, ${entry(work.predictionType)}` : ''}`,
+        response: `x = ${entry(fixedTarget ? question.predictionX : work.predictionX)}, y = ${entry(work.predictionY)}${asksPredictionType ? `, ${entry(work.predictionType)}` : ''}`,
       };
     },
   };
 
-  const parts = dataModelingRequiredParts(mode, question).map((id) => {
+  const requiredParts = dataModelingRequiredParts(mode, question);
+  const parts = requiredParts.map((id) => {
     const result = checks[id]();
     return { id, label: PART_LABELS[id], isComplete: result.complete, isCorrect: result.correct === true, response: result.response };
   });
   const correctCount = parts.filter((part) => part.isCorrect).length;
+
+  // Every input the graded parts read, and whether each still holds the
+  // lab's starting value.
+  const gradedKeys = new Set(requiredParts.flatMap((id) => ({
+    fit: fitKeys(mode),
+    association: ['direction', 'strength', 'causation'],
+    correlationInterpretation: ['direction', 'strength'],
+    correlation: ['r'],
+    modelChoice: ['modelChoice'],
+    prediction: [
+      'predictionY',
+      ...(asksPredictionType ? ['predictionType'] : []),
+      ...(fixedTarget ? [] : ['predictionX']),
+    ],
+  })[id]));
+  const start = dataModelingStartingWork(mode, question, { xs, regression, stepperPlan });
+  const untouched = [...gradedKeys].every((key) => entry(work[key]) === entry(start[key]));
+
   return gradedResult({
     parts,
+    // Complete: every graded input present, and not the untouched lab.
+    isComplete: parts.every((part) => part.isComplete) && !untouched,
     // The lab's verdict: correct when every part is, scored as the share of
     // correct parts. Completeness is reported, not required — an explicit
-    // Check on a half-finished lab is still marked, while a deadline submits
-    // only complete work.
+    // Check on a half-finished (or untouched) lab is still marked, while a
+    // deadline submits only complete work.
     isCorrect: correctCount === parts.length,
     score: correctCount / parts.length,
   });

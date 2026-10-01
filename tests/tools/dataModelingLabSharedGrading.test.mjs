@@ -40,9 +40,12 @@ import {
 } from '../../functions/shared/toolMath/dataModeling/dataModelingMath.mjs';
 import {
   DATA_MODELING_MODES,
+  DATA_MODELING_STARTING_CHOICES,
   FIT_PREDICTION_MODELS,
   dataModelingFixedPredictionTarget,
   dataModelingRequiredParts,
+  dataModelingStartingLine,
+  exploratoryLineFitPlan,
   exploratoryLineFitTolerances,
   lineFitNamesPrediction,
 } from '../../functions/shared/toolMath/dataModeling/dataModelingPlan.mjs';
@@ -556,6 +559,163 @@ test('the stepper tolerance the grader applies is the one the lab sizes its step
   assert.ok(Number.isNaN(degenerate.slope) && Number.isNaN(degeneratePlan.slope.tolerance));
 });
 
+test('the grader\'s stepper plan is the lab\'s, field for field (tolerances, steps and the starting line)', () => {
+  // exploratoryLineFitPlan is a copy of graphScaleService.fitAdjustmentPlan
+  // (src/ cannot be imported by a Cloud Function). Any drift — a tolerance, a
+  // step, the starting line — fails here.
+  let compared = 0;
+  const authored = [
+    {},
+    { slopeTolerance: 0.05, interceptTolerance: 0.3 },
+    { slopeTolerance: '0.2', interceptTolerance: 0 },
+    { slopeTolerance: -1, interceptTolerance: 'abc' },
+    { slopeStep: 0.1, interceptStep: 0.5 },
+    { slopeStep: 0, interceptStep: '-2' },
+    { challengeClicks: 6 },
+    { challengeClicks: 12.6 },
+    { challengeClicks: 3 },
+    { challengeClicks: null },
+    { challengeClicks: 'x', slopeTolerance: 1e-9 },
+  ];
+  for (const [name, points] of Object.entries(DATA)) {
+    const pairs = (points || LEGACY_DEFAULT_POINTS).map((pair) => (Array.isArray(pair) ? pair : [pair.x, pair.y]));
+    const xs = pairs.map(([x]) => Number(x));
+    const ys = pairs.map(([, y]) => Number(y));
+    const regression = linearRegression(pairs);
+    const base = { targetSlope: regression.m, targetIntercept: regression.b, xMin: Math.min(...xs), xMax: Math.max(...xs), yMin: Math.min(...ys), yMax: Math.max(...ys) };
+    for (const extra of authored) {
+      const args = { ...base, ...extra };
+      assert.deepEqual(exploratoryLineFitPlan(args), fitAdjustmentPlan(args), `${name} ${JSON.stringify(extra)}`);
+      compared += 1;
+    }
+  }
+  for (const args of [
+    {},
+    { targetSlope: Number.NaN, targetIntercept: Number.NaN, xMin: 0, xMax: 0, yMin: 2, yMax: 2 },
+    { targetSlope: -3, targetIntercept: 40, xMin: -5, xMax: 5, yMin: 25, yMax: 55 },
+    { targetSlope: 0, targetIntercept: 0, xMin: Number.POSITIVE_INFINITY, xMax: Number.NEGATIVE_INFINITY, yMin: 0, yMax: 1 },
+  ]) {
+    assert.deepEqual(exploratoryLineFitPlan(args), fitAdjustmentPlan(args), JSON.stringify(args));
+    compared += 1;
+  }
+  assert.ok(compared > 100);
+});
+
+/*
+ * AN UNTOUCHED LAB IS NOT COMPLETE.
+ *
+ * The steppers, the association selects and the model-family radio all start
+ * filled, so before this rule an association or modelCompare question the
+ * student had only OPENED reported complete live work — and a deadline
+ * auto-submitted it, as correct whenever the pre-selected choice was right.
+ * Untouched work is now incomplete; an explicit Check of it is still graded
+ * exactly as the lab graded it.
+ */
+test('the lab\'s untouched starting state is never complete, on either path, and still grades as before', () => {
+  let checked = 0;
+  for (const { label, question } of ALL_QUESTIONS) {
+    const work = componentWork(question, legacyInitialState(question));
+    const browser = browserGrade(question, work);
+    assert.equal(browser.graded, true, label);
+    assert.equal(browser.isComplete, false, `${label}: the untouched lab is not complete`);
+    assert.deepEqual(comparable(serverGrade(browser, question)), comparable(browser), `${label}: browser and server agree`);
+    const legacy = legacyCheck(question, legacyInitialState(question));
+    assert.equal(browser.isCorrect, legacy.isCorrect, `${label}: an explicit Check is graded as the lab graded it`);
+    assert.equal(browser.score, legacy.score, `${label}: same score`);
+    checked += 1;
+  }
+  assert.ok(checked > 500);
+});
+
+test('pre-selected choices that happen to be right: graded correct on Check, but not complete until the student acts', () => {
+  // Positive, moderate data: the association selects start on the right answer.
+  const moderate = [[1, 2], [2, 1], [3, 4], [4, 3], [5, 6], [6, 3], [7, 5]];
+  const descriptor = correlationDescriptor(correlation(moderate));
+  assert.deepEqual(descriptor, { direction: 'positive', strength: 'moderate' });
+  const association = { type: 'dataModelingLab', mode: 'association', points: moderate };
+  const untouched = componentWork(association, legacyInitialState(association));
+  const opened = browserGrade(association, untouched);
+  assert.equal(opened.isCorrect, true, 'an explicit Check of the starting choices is still correct');
+  assert.equal(opened.isComplete, false, 'but a deadline will not submit a lab the student only opened');
+  assert.equal(serverGrade(opened, association).isComplete, false);
+  // Any graded choice the student makes is their work.
+  const acted = browserGrade(association, { ...untouched, causation: 'causation' });
+  assert.equal(acted.isComplete, true);
+  assert.equal(acted.isCorrect, false);
+  // Selects nobody grades in this mode do not count as acting on it.
+  assert.equal(browserGrade(association, { ...untouched, modelChoice: 'quadratic', predictionY: '3' }).isComplete, false);
+
+  // Linear data: the model-family radio starts on the right family.
+  const compare = { type: 'dataModelingLab', mode: 'modelCompare', points: [[1, 2], [2, 4], [3, 6], [4, 8], [5, 10]] };
+  assert.equal(chooseBestModel(buildCandidateModels(compare.points, linearRegression(compare.points))).id, 'linear');
+  const compareStart = browserGrade(compare, componentWork(compare, legacyInitialState(compare)));
+  assert.equal(compareStart.isCorrect, true);
+  assert.equal(compareStart.isComplete, false);
+  assert.equal(browserGrade(compare, { modelChoice: 'quadratic' }).isComplete, true);
+
+  // The steppers' starting line, a typed line's y = x, and an authored starting model.
+  for (const question of [
+    { type: 'dataModelingLab', mode: 'lineFit', points: DATA.linearNoisy },
+    { type: 'dataModelingLab', mode: 'lineFit', points: DATA.linearNoisy, fitChallengeClicks: 6, slopeStep: 0.05 },
+    { type: 'dataModelingLab', mode: 'linearFit', points: DATA.linearNoisy },
+    { type: 'dataModelingLab', mode: 'linearFit', points: DATA.linearNoisy, startingModel: { m: 2, b: 1 } },
+    { type: 'dataModelingLab', mode: 'quadraticFit', points: DATA.quadratic, startingModel: { a: 1, b: 0, c: 0 } },
+    { type: 'dataModelingLab', mode: 'exponentialFit', points: DATA.exponential, startingModel: { a: 2, base: 1.5 } },
+  ]) {
+    const start = componentWork(question, legacyInitialState(question));
+    assert.equal(browserGrade(question, start).isComplete, false, `${question.mode}: untouched`);
+    const fitFields = Object.keys(start).filter((field) => ['m', 'b', 'a', 'c', 'base', 'h', 'k'].includes(field));
+    assert.ok(fitFields.length >= 2, `${question.mode}: the fit is in the work`);
+    for (const field of fitFields) {
+      // Any single coefficient the student moves makes the work theirs.
+      const moved = { ...start, [field]: String(Number(start[field]) + 0.01) };
+      assert.equal(browserGrade(question, moved).isComplete, true, `${question.mode}: moving ${field} is the student's work`);
+    }
+  }
+  // The steppers start where the plan says, and the lab starts there too.
+  const lineFit = { type: 'dataModelingLab', mode: 'lineFit', points: DATA.linearNoisy };
+  const plan = fitAdjustmentPlan({ ...exploratoryArgs(lineFit) });
+  assert.deepEqual(dataModelingStartingLine('lineFit', lineFit, { regression: linearRegression(DATA.linearNoisy), stepperPlan: plan }), { m: plan.slope.start, b: plan.intercept.start });
+  assert.deepEqual({ m: legacyInitialState(lineFit).m, b: legacyInitialState(lineFit).b }, { m: plan.slope.start, b: plan.intercept.start });
+  for (const [field, value] of Object.entries(DATA_MODELING_STARTING_CHOICES)) {
+    assert.equal(legacyInitialState(lineFit)[field], value, `${field} starts as the lab started it`);
+  }
+});
+
+const exploratoryArgs = (question) => {
+  const pairs = question.points;
+  const xs = pairs.map(([x]) => Number(x));
+  const ys = pairs.map(([, y]) => Number(y));
+  const regression = linearRegression(pairs);
+  return {
+    targetSlope: regression.m, targetIntercept: regression.b,
+    xMin: Math.min(...xs), xMax: Math.max(...xs), yMin: Math.min(...ys), yMax: Math.max(...ys),
+    slopeTolerance: question.slopeTolerance, interceptTolerance: question.interceptTolerance,
+    slopeStep: question.slopeStep, interceptStep: question.interceptStep, challengeClicks: question.fitChallengeClicks,
+  };
+};
+
+test('a default prediction x the lab could not compute (NaN) is never graded as x = 0', () => {
+  // A plotted x that is not a number makes the lab's default x
+  // Math.ceil(Math.max(NaN, ...) + 1) = NaN, which JSON carries as null. The
+  // lab compared against the model at NaN and never accepted the prediction;
+  // Number(null) would have graded it at x = 0.
+  const question = { type: 'dataModelingLab', mode: 'prediction', points: [['a', 1], [1, 2], [2, 4], [3, 6], [4, 8]], expectedModel: 'quadratic' };
+  const state = legacyInitialState(question);
+  assert.ok(Number.isNaN(state.predictionX));
+  const quadraticAtZero = buildCandidateModels(
+    question.points,
+    linearRegression(question.points),
+  ).find((entry) => entry.id === 'quadratic').predict(0);
+  assert.ok(Number.isFinite(quadraticAtZero));
+  const atZero = { ...state, predictionY: String(quadraticAtZero), predictionType: 'extrapolation' };
+  const result = assertParity(question, atZero, 'nan-default-x');
+  assert.equal(result.isCorrect, false, 'the lab never marked a prediction at an x it could not read');
+  assert.equal(result.isComplete, false);
+  // A cleared box is still 0, as the lab read it.
+  assert.equal(browserGrade(question, componentWork(question, { ...atZero, predictionX: '' })).isCorrect, true);
+});
+
 /* ---------------------------- per-mode cases ---------------------------- */
 
 const POINTS = DATA.linearNoisy;
@@ -913,6 +1073,14 @@ test('the lab reports and submits the same raw work, in the shape the grader rea
   // Raw values: a cleared box must not become 0 on the way to the grader.
   assert.doesNotMatch(block, /Number\(/);
   assert.match(block, /useReportToolWork\(work\);/);
+  // The lab starts from the plan's starting line and choices — the state the
+  // grader recognises as untouched.
+  assert.match(COMPONENT, /const startingLine = dataModelingStartingLine\(mode, questionData, \{ regression, stepperPlan: exploratoryLineFit \? fitControls : null \}\);/);
+  assert.match(COMPONENT, /usePersistentToolState\('m', startingLine\.m\)/);
+  assert.match(COMPONENT, /usePersistentToolState\('b', startingLine\.b\)/);
+  for (const field of Object.keys(DATA_MODELING_STARTING_CHOICES)) {
+    assert.match(COMPONENT, new RegExp(`usePersistentToolState\\('${field}', DATA_MODELING_STARTING_CHOICES\\.${field}\\)`), `${field} starts from the plan`);
+  }
   // The read-only prediction target is the plan's, the same one the grader uses.
   assert.match(COMPONENT, /const fixedPredictionTarget = dataModelingFixedPredictionTarget\(mode, questionData\);/);
   assert.match(COMPONENT, /readOnly=\{fixedPredictionTarget\}/);
