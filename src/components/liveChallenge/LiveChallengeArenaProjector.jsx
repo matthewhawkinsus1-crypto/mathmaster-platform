@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import MathText from '../common/MathText.jsx';
+import { RushRaceBoard, RushRoundResultsBoard, rushSettingsLine } from './GraphFeatureRushHost.jsx';
+import { getGraphFeature } from '../../../functions/shared/graphFeatureRegistry.mjs';
+import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
+import { rushPlayingCount, rushRaceRows, rushScoreUnit } from '../../platform/liveChallenge/rushStandingsModel.js';
 import {
   belowPodiumRows,
   finalStandingRows,
@@ -11,6 +15,7 @@ import {
   projectorGameLabel,
   projectorRoundCount,
   projectorScore,
+  projectorShowsClosingThreshold,
 } from '../../platform/liveChallenge/liveChallengeProjectorModel.js';
 
 const FAMILY_ACCENTS = Object.freeze({
@@ -148,7 +153,7 @@ const PODIUM_RANKS = Object.freeze({
   3: { medal: '🥉', title: '3rd Place', accent: '#d99562' },
 });
 
-function PodiumPlace({ row, place, height, revealDelay }) {
+function PodiumPlace({ row, place, height, revealDelay, unit = 'pts' }) {
   if (!row) return <div />;
   // The step's height and position come from its place; the medal, title and
   // number come from the player's rank, which tied players share.
@@ -168,7 +173,7 @@ function PodiumPlace({ row, place, height, revealDelay }) {
         <div aria-hidden="true" style={{ fontSize: place === 1 ? 42 : 32, lineHeight: 1 }}>{medal}</div>
         <div style={{ ...labelStyle, marginTop: 7, color: accent }}>{title}</div>
         <div style={{ marginTop: 6, fontWeight: 1000, fontSize: place === 1 ? 23 : 18, overflow: 'hidden', textOverflow: 'ellipsis' }}>{row.alias}</div>
-        <div style={{ marginTop: 5, color: 'rgba(240,244,255,.74)', fontWeight: 800 }}>{scoreText(row)} pts</div>
+        <div style={{ marginTop: 5, color: 'rgba(240,244,255,.74)', fontWeight: 800 }}>{scoreText(row)} {unit}</div>
       </div>
       <div style={{
         height,
@@ -189,7 +194,7 @@ function PodiumPlace({ row, place, height, revealDelay }) {
   );
 }
 
-function FinalPodium({ leaderboard = [] }) {
+function FinalPodium({ leaderboard = [], unit = 'pts' }) {
   const podium = podiumRows(leaderboard);
   const remaining = belowPodiumRows(leaderboard).slice(0, 9);
 
@@ -210,9 +215,9 @@ function FinalPodium({ leaderboard = [] }) {
         gap: 14,
         alignItems: 'end',
       }}>
-        <PodiumPlace row={podium.second} place={2} height={72} revealDelay={80} />
-        <PodiumPlace row={podium.first} place={1} height={112} revealDelay={620} />
-        <PodiumPlace row={podium.third} place={3} height={52} revealDelay={350} />
+        <PodiumPlace row={podium.second} place={2} height={72} revealDelay={80} unit={unit} />
+        <PodiumPlace row={podium.first} place={1} height={112} revealDelay={620} unit={unit} />
+        <PodiumPlace row={podium.third} place={3} height={52} revealDelay={350} unit={unit} />
       </div>
 
       {remaining.length > 0 && (
@@ -349,6 +354,90 @@ function RunningView({ room, leaderboard, joinedCount, remainingMs, elapsedMs, c
   );
 }
 
+/*
+ * GRAPH FEATURE RUSH ON THE PROJECTOR. Every student has their own graphs, so
+ * the room sees the race — graphs completed this round — and never a graph or
+ * an answer. When the round closes: its results, then the championship.
+ */
+function RushRunningView({ room, players, leaderboard, joinedCount, remainingMs, canAdvance, busy, onAdvance }) {
+  const round = projectorCurrentRound(room);
+  const roundCount = projectorRoundCount(room);
+  const roundIndex = Number(room?.currentRound) || 0;
+  const closed = room?.roundState === 'closed';
+  const accent = '#5ee7ff';
+  const lowTime = !closed && Number(remainingMs) <= 10000;
+  const finalRound = roundIndex + 1 >= roundCount;
+  const playing = rushPlayingCount(players, roundIndex);
+  const graphs = rushRaceRows(players, roundIndex).reduce((sum, row) => sum + row.completed, 0);
+  const features = (room?.graphFeatureRush?.config?.features || []).map((id) => getGraphFeature(id)?.shortLabel || id);
+  const unit = rushScoreUnit(room?.scoringStrategyId);
+  return (
+    <div style={{ display: 'grid', gap: 18 }}>
+      <RoundProgress currentRound={round} roundCount={roundCount} accent={accent} />
+      <div className="mm-arena-running-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.2fr) minmax(300px,1fr)', gap: 20, alignItems: 'stretch' }}>
+        <section style={{ ...glassPanel, padding: 'clamp(20px, 3vw, 34px)', display: 'grid', alignContent: 'space-between', minHeight: '58vh' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
+              <ArenaBadge accent={accent}>{`Round ${round} / ${roundCount}`}</ArenaBadge>
+              {features.map((feature) => <ArenaBadge key={feature} accent="#b79cff">{feature}</ArenaBadge>)}
+            </div>
+            <div style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 18, flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ ...labelStyle, color: 'rgba(236,241,255,.54)' }}>{closed ? 'Round complete' : 'Find the features'}</div>
+                <div style={{ marginTop: 12, fontSize: 'clamp(25px, 3vw, 40px)', lineHeight: 1.3, fontWeight: 900, color: '#f7f9ff' }}>
+                  {closed ? `${graphs} graphs completed this round` : 'Everyone has their own graphs. Tap the features. Go!'}
+                </div>
+                <div style={{ marginTop: 10, color: 'rgba(236,241,255,.62)', fontWeight: 800 }}>{rushSettingsLine(room)}</div>
+              </div>
+              {!closed && (
+                <div className={lowTime ? 'mm-arena-timer mm-arena-timer-low' : 'mm-arena-timer'} style={{
+                  minWidth: 170,
+                  padding: '15px 18px',
+                  textAlign: 'center',
+                  borderRadius: 18,
+                  background: lowTime ? 'rgba(255,87,120,.13)' : 'rgba(95,145,255,.12)',
+                  border: `1px solid ${lowTime ? 'rgba(255,105,135,.46)' : 'rgba(130,165,255,.36)'}`,
+                }}>
+                  <div style={{ ...labelStyle, color: lowTime ? '#ff9bb0' : '#a8c2ff' }}>{Number(remainingMs) <= 0 ? 'Time!' : 'Time Left'}</div>
+                  <div style={{ marginTop: 3, fontSize: 'clamp(45px, 6vw, 78px)', fontWeight: 1000, lineHeight: 1, fontVariantNumeric: 'tabular-nums', letterSpacing: '-.05em' }}>
+                    {formatArenaClock(remainingMs)}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          {closed ? (
+            <div style={{ marginTop: 22 }}>
+              <div style={{ ...labelStyle, color: '#9cb8ff', marginBottom: 10 }}>Round {round} results{unit.placement ? ' · championship points' : ''}</div>
+              <RushRoundResultsBoard players={players} roundIndex={roundIndex} scoringStrategyId={room?.scoringStrategyId} limit={6} look="projector" />
+            </div>
+          ) : (
+            <div style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap', color: 'rgba(236,241,255,.68)', fontWeight: 900 }}>
+              <span>{playing} of {joinedCount} racing</span>
+              <span>{graphs} graphs completed</span>
+            </div>
+          )}
+        </section>
+
+        <section style={{ ...glassPanel, padding: 18, minHeight: '58vh' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline', marginBottom: 12 }}>
+            <div style={{ ...labelStyle, color: '#9cb8ff' }}>{closed ? (unit.placement ? 'Championship' : 'Standings') : 'Live Race · graphs this round'}</div>
+            <div style={{ color: 'rgba(236,241,255,.5)', fontSize: 12, fontWeight: 800 }}>{joinedCount} playing</div>
+          </div>
+          {closed ? <ArenaLeaderboard rows={leaderboard} limit={8} /> : <RushRaceBoard players={players} roundIndex={roundIndex} limit={8} look="projector" />}
+        </section>
+      </div>
+      {closed && canAdvance && typeof onAdvance === 'function' && (
+        <section aria-label="Round controls" style={{ ...glassPanel, padding: 18, display: 'flex', justifyContent: 'center' }}>
+          <button type="button" disabled={busy === 'advance'} onClick={onAdvance} style={{ ...arenaButton, padding: '16px 30px', fontSize: 19, background: 'linear-gradient(135deg, #536dfe, #8c52ff)', boxShadow: '0 0 28px rgba(112,104,255,.3)', opacity: busy === 'advance' ? .55 : 1 }}>
+            {busy === 'advance' ? 'Loading Next Round…' : finalRound ? 'Finish & Show Final Standings' : 'Next Round'}
+          </button>
+        </section>
+      )}
+    </div>
+  );
+}
+
 export const formatArenaClock = (milliseconds) => {
   const total = Math.max(0, Math.ceil((Number(milliseconds) || 0) / 1000));
   const minutes = Math.floor(total / 60);
@@ -359,6 +448,7 @@ export const formatArenaClock = (milliseconds) => {
 export default function LiveChallengeArenaProjector({
   room = {},
   leaderboard = [],
+  players = [],
   joinedCount = 0,
   remainingMs = 0,
   elapsedMs = 0,
@@ -501,14 +591,15 @@ export default function LiveChallengeArenaProjector({
               <span style={{ ...labelStyle, color: '#9cb8ff' }}>MathMaster Arena</span>
               <ArenaBadge accent={accent}>{gameLabel}</ArenaBadge>
             </div>
-            <h1 style={{ margin: '5px 0 0', fontSize: 'clamp(27px, 3.4vw, 46px)', lineHeight: 1.03, letterSpacing: '-.025em', overflowWrap: 'anywhere' }}>{title}</h1>
+            {/* Its own colour: the global h1 rule (index.css) would paint it dark on the arena. */}
+            <h1 style={{ margin: '5px 0 0', fontSize: 'clamp(27px, 3.4vw, 46px)', lineHeight: 1.03, letterSpacing: '-.025em', overflowWrap: 'anywhere', color: '#f7f9ff' }}>{title}</h1>
           </div>
           <div style={{ display: 'flex', gap: 9 }}>
-            <label style={{ fontSize: 12, fontWeight: 900 }}>Round closing threshold
+            {projectorShowsClosingThreshold(room) && <label style={{ fontSize: 12, fontWeight: 900 }}>Round closing threshold
               <select aria-label="Round closing threshold" value={room.roundClosingThreshold ?? 'off'} onChange={(event) => onThresholdChange?.(event.target.value)} style={{ ...arenaButton, marginLeft: 7 }}>
                 <option value="off">Off</option>{[60, 70, 80, 90, 100].map((value) => <option key={value} value={value}>{value}%</option>)}
               </select>
-            </label>
+            </label>}
             {!audioReady && typeof onEnableAudio === 'function' && <button type="button" onClick={onEnableAudio} style={arenaButton}>Enable Audio</button>}
             <button type="button" onClick={nativeFullscreen ? exitFullscreen : enterFullscreen} style={arenaButton}>{nativeFullscreen ? 'Exit Full Screen' : 'Enter Full Screen'}</button>
             <button type="button" onClick={onExit} style={arenaButton}>Exit Projector View</button>
@@ -517,8 +608,9 @@ export default function LiveChallengeArenaProjector({
 
         {error && <div role="alert" style={{ padding: '12px 16px', borderRadius: 12, background: 'rgba(255,87,120,.16)', border: '1px solid rgba(255,105,135,.5)', color: '#ffd9e1', fontWeight: 800 }}>{error}</div>}
         {room?.status === 'lobby' && <LobbyView room={room} leaderboard={leaderboard} joinedCount={joinedCount} busy={busy} onStart={onStart} />}
-        {room?.status === 'running' && <RunningView room={room} leaderboard={leaderboard} joinedCount={joinedCount} remainingMs={remainingMs} elapsedMs={elapsedMs} canAdvance={canAdvance} busy={busy} onAdvance={onAdvance} />}
-        {room?.status === 'finished' && <FinalPodium leaderboard={leaderboard} />}
+        {room?.status === 'running' && room?.challengeMode === RUSH_MODE_ID && <RushRunningView room={room} players={players} leaderboard={leaderboard} joinedCount={joinedCount} remainingMs={remainingMs} canAdvance={canAdvance} busy={busy} onAdvance={onAdvance} />}
+        {room?.status === 'running' && room?.challengeMode !== RUSH_MODE_ID && <RunningView room={room} leaderboard={leaderboard} joinedCount={joinedCount} remainingMs={remainingMs} elapsedMs={elapsedMs} canAdvance={canAdvance} busy={busy} onAdvance={onAdvance} />}
+        {room?.status === 'finished' && <FinalPodium leaderboard={leaderboard} unit={room?.challengeMode === RUSH_MODE_ID ? rushScoreUnit(room?.scoringStrategyId).short : 'pts'} />}
       </div>
     </div>
   );

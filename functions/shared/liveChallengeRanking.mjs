@@ -178,6 +178,46 @@ export const normalizePlacementTable = (table) => {
   return valid ? Object.freeze(values) : DEFAULT_PLACEMENT_POINTS;
 };
 
+/*
+ * FIELD-SCALED PLACEMENT POINTS.
+ *
+ * A fixed table is tuned for one field size: the twelve-place table gives
+ * places 13 to 30 of a big class the same single point, and gives a two-player
+ * game a 15-to-12 split that barely rewards winning. The field curve scales
+ * the same bounded range to however many players actually raced the round:
+ *
+ *   1st place            `max` (12)
+ *   every other place    `min` .. `max − winnerBonus`, linear in the share of
+ *                        the field the player finished ahead of, rounded
+ *                        half up
+ *   last place           `min` (3)
+ *
+ * So first always earns strictly more than anyone not tied for first, last
+ * still earns something, and no round can be worth more than max − min (9)
+ * points over anyone who finished it. Integer arithmetic only, so every
+ * device computes the same points. Tied players share their rank's points.
+ */
+export const DEFAULT_FIELD_PLACEMENT = Object.freeze({ max: 12, min: 3, winnerBonus: 1 });
+
+export const fieldPlacementPoints = (rank, fieldSize, curve = DEFAULT_FIELD_PLACEMENT) => {
+  const place = Number(rank);
+  if (!Number.isInteger(place) || place < 1) return 0;
+  const max = Number.isInteger(curve?.max) ? curve.max : DEFAULT_FIELD_PLACEMENT.max;
+  const min = Number.isInteger(curve?.min) ? Math.min(curve.min, max) : DEFAULT_FIELD_PLACEMENT.min;
+  const bonus = Number.isInteger(curve?.winnerBonus) ? Math.max(0, Math.min(curve.winnerBonus, max - min)) : DEFAULT_FIELD_PLACEMENT.winnerBonus;
+  if (place === 1) return max;
+  // An unknown (or impossible) field is read conservatively: the player is
+  // last of a field exactly their rank's size.
+  const reported = Math.floor(Number(fieldSize));
+  const field = Number.isFinite(reported) && reported >= place ? reported : place;
+  const position = place;
+  const spread = max - bonus - min;
+  // round((spread × (field − position)) / (field − 1)), half up, in integers.
+  const numerator = spread * (field - position);
+  const denominator = field - 1;
+  return min + Math.floor((2 * numerator + denominator) / (2 * denominator));
+};
+
 /** Points for a rank. Ranks outside the table earn `beyondTablePoints`. */
 export const placementPoints = (rank, { table = DEFAULT_PLACEMENT_POINTS, beyondTablePoints = 0 } = {}) => {
   const place = Number(rank);

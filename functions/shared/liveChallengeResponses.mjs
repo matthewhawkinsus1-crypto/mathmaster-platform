@@ -26,6 +26,16 @@
  * same log. They carry points but are not attempts, and nothing here counts
  * them as one — the earlier achievement code did, which is how a Solver Race
  * student who answered every round correctly could be denied Strong Accuracy.
+ *
+ * A FORFEIT is an attempt that gives a question up — a Graph Feature Rush
+ * student skipping a graph they cannot finish. It counts as an incorrect
+ * attempt, ends the question without completing it correctly, and keeps the
+ * partial credit already earned (targets found before the skip still count).
+ *
+ * PER-PLAYER QUESTIONS. When every player is issued their own questions, the
+ * number of targets in question k differs from player to player. Each target
+ * attempt records `targetCount`, so the log alone says what every attempted
+ * question needed (`questionSpecsFromReceipts`); nothing else has to be kept.
  */
 
 export const RECEIPT_KIND = Object.freeze({
@@ -57,7 +67,21 @@ export const ATTEMPT_REJECTION = Object.freeze({
 });
 
 export const MAX_TARGETS_PER_QUESTION = 20;
-export const MAX_QUESTIONS_PER_ROUND = 50;
+// The most questions one round can hold. A per-player question set (Graph
+// Feature Rush) needs room for a fast student's whole round — 150 graphs in a
+// two-minute round is faster than anyone reads a graph — and a classic round
+// is one question, so the cap only ever bounds work.
+export const MAX_QUESTIONS_PER_ROUND = 150;
+
+/*
+ * EXACT SCORE UNITS. A round's score total adds fractions — two of three zeros
+ * found is 2/3 — and floating-point sums of thirds and halves come out a hair
+ * apart depending on order, which would break a genuine tie by rounding
+ * noise. Scores are therefore also kept as whole units of 1/SCORE_UNIT, the
+ * least common multiple of every possible target count (1..20), so equal work
+ * is equal to the last bit.
+ */
+export const SCORE_UNIT = 232792560;
 
 const COMPLETION_RULES = new Set(Object.values(COMPLETION_RULE));
 
@@ -151,12 +175,13 @@ export const questionProgress = ({ receipts, roundIndex, questionIndex = 0, spec
   let completed = false;
   let completedCorrectly = false;
   let scoreFraction = 0;
+  let scoreUnits = 0;
   let completedAtElapsedMs = null;
   let completingAttemptId = null;
 
   for (const attempt of attempts) {
     if (completed) break;
-    const correct = attempt.isCorrect === true;
+    const correct = attempt.isCorrect === true && attempt.forfeit !== true;
     if (correct) correctAttempts += 1;
     else incorrectAttempts += 1;
 
@@ -164,6 +189,11 @@ export const questionProgress = ({ receipts, roundIndex, questionIndex = 0, spec
       completed = true;
       completedCorrectly = correct;
       scoreFraction = scoreFractionOf(attempt);
+      scoreUnits = Math.round(scoreFraction * SCORE_UNIT);
+    } else if (attempt.forfeit === true) {
+      // Given up: done, not correct, partial credit kept.
+      completed = true;
+      completedCorrectly = false;
     } else if (normalized.completionRule === COMPLETION_RULE.CORRECT_RESPONSE) {
       scoreFraction = Math.max(scoreFraction, scoreFractionOf(attempt));
       if (correct) {
@@ -171,10 +201,13 @@ export const questionProgress = ({ receipts, roundIndex, questionIndex = 0, spec
         completedCorrectly = true;
         scoreFraction = 1;
       }
+      scoreUnits = Math.round(scoreFraction * SCORE_UNIT);
     } else if (correct && attempt.targetId != null) {
       const target = String(attempt.targetId);
       if (!targetsFound.includes(target)) targetsFound.push(target);
       scoreFraction = targetsFound.length / normalized.targetCount;
+      // Exact: every target count divides SCORE_UNIT.
+      scoreUnits = targetsFound.length * (SCORE_UNIT / normalized.targetCount);
       if (targetsFound.length >= normalized.targetCount) {
         completed = true;
         completedCorrectly = true;
@@ -195,6 +228,7 @@ export const questionProgress = ({ receipts, roundIndex, questionIndex = 0, spec
     completed,
     completedCorrectly,
     scoreFraction,
+    scoreUnits,
     completedAtElapsedMs,
     completingAttemptId,
   });
@@ -238,6 +272,34 @@ export const planAttempt = ({
   return Object.freeze({ decision: ATTEMPT_DECISION.ACCEPT, progress });
 };
 
+/**
+ * The specs of a round whose questions are issued per player: `poolSize`
+ * questions, each with the target count its attempts recorded. A question
+ * nobody has attempted yet keeps a placeholder count — it is incomplete
+ * whatever its count, so the placeholder can never change a result.
+ */
+export const questionSpecsFromReceipts = ({
+  receipts,
+  roundIndex,
+  poolSize = MAX_QUESTIONS_PER_ROUND,
+  completionRule = COMPLETION_RULE.ALL_TARGETS,
+} = {}) => {
+  const size = Math.max(1, Math.min(MAX_QUESTIONS_PER_ROUND, integerOr(poolSize, MAX_QUESTIONS_PER_ROUND)));
+  const counts = new Map();
+  receiptList(receipts)
+    .filter(([, receipt]) => isAttemptReceipt(receipt) && integerOr(receipt.roundIndex, null) === integerOr(roundIndex, NaN))
+    .sort(compareAttempts)
+    .forEach(([, receipt]) => {
+      const index = integerOr(receipt.questionIndex, 0);
+      if (!counts.has(index)) counts.set(index, integerOr(receipt.targetCount, 1));
+    });
+  return normalizeRoundQuestionSpecs(Array.from({ length: size }, (_, index) => ({
+    questionIndex: index,
+    completionRule,
+    targetCount: counts.get(index) ?? 1,
+  })));
+};
+
 /** Points recorded for a round, including score-only receipts such as milestones. */
 export const roundPointsFromReceipts = (receipts, roundIndex) => receiptList(receipts)
   .filter(([, receipt]) => receipt?.serverConfirmed === true
@@ -257,6 +319,7 @@ export const summarizeRoundProgress = ({ receipts, roundIndex, questionSpecs } =
   const completionTimes = questions
     .filter((question) => question.completedCorrectly && question.completedAtElapsedMs != null)
     .map((question) => question.completedAtElapsedMs);
+  const scoreUnits = questions.reduce((sum, question) => sum + question.scoreUnits, 0);
   return Object.freeze({
     roundIndex: integerOr(roundIndex, -1),
     questionCount: specs.length,
@@ -265,13 +328,35 @@ export const summarizeRoundProgress = ({ receipts, roundIndex, questionSpecs } =
     attempts,
     correctAttempts,
     incorrectAttempts: attempts - correctAttempts,
-    scoreTotal: questions.reduce((sum, question) => sum + question.scoreFraction, 0),
+    // Exact (see SCORE_UNIT): equal work compares equal whatever the order.
+    scoreTotal: scoreUnits / SCORE_UNIT,
+    scoreUnits,
     accuracy: attempts > 0 ? correctAttempts / attempts : null,
     lastCorrectCompletionElapsedMs: completionTimes.length ? Math.max(...completionTimes) : null,
     participated: attempts > 0,
     finished: questions.every((question) => question.completed),
     points: roundPointsFromReceipts(receipts, roundIndex),
     questions: Object.freeze(questions),
+  });
+};
+
+/*
+ * A question-set round has no single "answer", so its outcome is how the
+ * player's round went: participated, and — the meaning reward rules give
+ * "correct" — completed at least one question with at least this accuracy.
+ */
+export const ACCURATE_ROUND_THRESHOLD = 0.8;
+
+export const questionSetRoundOutcome = (summary) => {
+  if (!summary?.participated) return null;
+  const accuracy = Number(summary.accuracy) || 0;
+  return Object.freeze({
+    roundIndex: integerOr(summary.roundIndex, -1),
+    isCorrect: summary.questionsCorrect >= 1 && accuracy >= ACCURATE_ROUND_THRESHOLD,
+    scorePercent: Math.round(accuracy * 100),
+    secondChance: false,
+    elapsedMs: summary.lastCorrectCompletionElapsedMs ?? null,
+    questionsCorrect: summary.questionsCorrect,
   });
 };
 

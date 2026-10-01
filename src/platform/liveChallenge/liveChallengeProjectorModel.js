@@ -50,6 +50,9 @@ export const projectorDifficultyLabel = (room = {}) => {
 // The game mode names itself; an unknown or missing mode reads as Standard.
 export const projectorGameLabel = (room = {}) => getChallengeMode(room?.challengeMode).projectorLabel;
 
+// Only a mode with an early close has a threshold to change (a timed rush has none).
+export const projectorShowsClosingThreshold = (room = {}) => getChallengeMode(room?.challengeMode).capabilities.closingThreshold === true;
+
 export const projectorRoundCount = (room = {}) => {
   const scheduled = Math.round(Number(room?.scheduledRoundCount) || 0);
   const configured = Math.round(Number(room?.roundCount) || 0);

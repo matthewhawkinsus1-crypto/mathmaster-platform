@@ -468,7 +468,9 @@ export const buildSupportEvidenceReport = ({
 
 // --- Exports ----------------------------------------------------------------------------------
 
-const csvCell = (value) => {
+// Exported so every MathMaster evidence export neutralises formulas the same way
+// (the Student Case Review's CSVs use it too).
+export const csvCell = (value) => {
   const text = value === null || value === undefined ? '' : String(value);
   // Neutralise spreadsheet formulas in teacher-entered text.
   const safe = /^[=+\-@]/.test(text) ? `'${text}` : text;

@@ -43,9 +43,11 @@
 import { ACCURACY_FIRST_MATCH_RANKING, scoreChallengeRound } from './liveChallenge.mjs';
 import { LEGACY_SPEED_INFLUENCE_PERCENT, scaleLegacySpeedPoints } from './liveChallengeExperience.mjs';
 import {
+  DEFAULT_FIELD_PLACEMENT,
   DEFAULT_PLACEMENT_POINTS,
   MAX_PLACEMENT_POINTS,
   RANK_DIRECTION,
+  fieldPlacementPoints,
   normalizePlacementTable,
   normalizeRankingSpec,
   placementPoints,
@@ -79,6 +81,21 @@ const requireFunction = (definition, name) => {
   }
 };
 
+/*
+ * TARGET ATTEMPTS. In a question-set round (Graph Feature Rush) one tap is one
+ * attempt and a question is complete when all its targets are found. The
+ * attempt that completes a question is worth one point of round work; every
+ * other attempt is worth none. A per-response strategy banks that point into
+ * the match; a placement strategy keeps it as raw performance.
+ */
+export const defaultTargetAttemptScore = ({ completesQuestion = false } = {}, accumulation = SCORE_ACCUMULATION.PER_RESPONSE) => {
+  const pointsAwarded = completesQuestion === true ? 1 : 0;
+  return Object.freeze({
+    pointsAwarded,
+    matchPointsDelta: accumulation === SCORE_ACCUMULATION.PER_RESPONSE ? pointsAwarded : 0,
+  });
+};
+
 /** Validate and freeze a strategy definition. */
 export const defineScoringStrategy = (definition = {}) => {
   const id = String(definition.id || '').trim();
@@ -89,8 +106,13 @@ export const defineScoringStrategy = (definition = {}) => {
   requireFunction(definition, 'scoreResponse');
   requireFunction(definition, 'matchPointsForPlacement');
   requireFunction(definition, 'normalizeConfig');
+  const accumulation = definition.accumulation;
   return Object.freeze({
     ...definition,
+    // Optional; every strategy can score a target attempt.
+    scoreTargetAttempt: typeof definition.scoreTargetAttempt === 'function'
+      ? definition.scoreTargetAttempt
+      : (input) => defaultTargetAttemptScore(input, accumulation),
     id,
     label: String(definition.label || id),
     description: String(definition.description || ''),
@@ -139,6 +161,13 @@ export const accuracyFirstStrategy = defineScoringStrategy({
   matchRanking: ACCURACY_FIRST_MATCH_RANKING,
 });
 
+export const PLACEMENT_CURVE = Object.freeze({
+  // The fixed racing table (15, 12, 10, ... 1, then 1 beyond it).
+  TABLE: 'table',
+  // Scaled to the number of players who raced the round (ranking module).
+  FIELD: 'field',
+});
+
 export const DEFAULT_GRAND_PRIX_CONFIG = Object.freeze({
   placementPoints: DEFAULT_PLACEMENT_POINTS,
   // Anyone with real work beyond the table still scores something.
@@ -146,12 +175,29 @@ export const DEFAULT_GRAND_PRIX_CONFIG = Object.freeze({
   // No placement points for a round with no credit at all: a wrong answer must
   // not collect 10 points because only two classmates got it right.
   zeroPerformancePoints: 0,
+  // Rooms choose the field curve explicitly (a mode's scoring defaults);
+  // existing rooms keep the table they were created with.
+  placementCurve: PLACEMENT_CURVE.TABLE,
+  fieldCurve: DEFAULT_FIELD_PLACEMENT,
 });
+
+const normalizeFieldCurve = (raw = {}) => {
+  const max = boundedIntFallback(raw?.max, DEFAULT_FIELD_PLACEMENT.max, 2, MAX_PLACEMENT_POINTS);
+  const min = boundedIntFallback(raw?.min, DEFAULT_FIELD_PLACEMENT.min, 0, max - 1);
+  const winnerBonus = boundedIntFallback(raw?.winnerBonus, DEFAULT_FIELD_PLACEMENT.winnerBonus, 0, max - min);
+  return Object.freeze({ max, min, winnerBonus });
+};
 
 const boundedInt = (value, fallback, max) => {
   const numeric = Number(value);
   return Number.isInteger(numeric) && numeric >= 0 && numeric <= max ? numeric : fallback;
 };
+
+function boundedIntFallback(value, fallback, min, max) {
+  const numeric = Number(value);
+  if (Number.isInteger(numeric) && numeric >= min && numeric <= max) return numeric;
+  return Math.max(min, Math.min(max, fallback));
+}
 
 export const grandPrixStrategy = defineScoringStrategy({
   id: SCORING_STRATEGY_ID.GRAND_PRIX,
@@ -162,6 +208,8 @@ export const grandPrixStrategy = defineScoringStrategy({
     placementPoints: normalizePlacementTable(raw?.placementPoints ?? DEFAULT_GRAND_PRIX_CONFIG.placementPoints),
     beyondTablePoints: boundedInt(raw?.beyondTablePoints, DEFAULT_GRAND_PRIX_CONFIG.beyondTablePoints, MAX_PLACEMENT_POINTS),
     zeroPerformancePoints: boundedInt(raw?.zeroPerformancePoints, DEFAULT_GRAND_PRIX_CONFIG.zeroPerformancePoints, 5),
+    placementCurve: raw?.placementCurve === PLACEMENT_CURVE.FIELD ? PLACEMENT_CURVE.FIELD : PLACEMENT_CURVE.TABLE,
+    fieldCurve: normalizeFieldCurve(raw?.fieldCurve),
   }),
   scoreResponse: (input = {}) => {
     // Round performance only. A streak or comeback bonus would carry an
@@ -191,10 +239,13 @@ export const grandPrixStrategy = defineScoringStrategy({
       matchPointsDelta: 0,
     });
   },
-  matchPointsForPlacement: ({ rank, participated, performance } = {}, config = DEFAULT_GRAND_PRIX_CONFIG) => {
+  // `fieldSize` is how many players raced the round (participated), which is
+  // what the field curve scales to; the table ignores it.
+  matchPointsForPlacement: ({ rank, participated, performance, fieldSize } = {}, config = DEFAULT_GRAND_PRIX_CONFIG) => {
     if (participated !== true) return 0;
     const normalized = grandPrixStrategy.normalizeConfig(config);
     if (!(Number(performance) > 0)) return normalized.zeroPerformancePoints;
+    if (normalized.placementCurve === PLACEMENT_CURVE.FIELD) return fieldPlacementPoints(rank, fieldSize, normalized.fieldCurve);
     return placementPoints(rank, { table: normalized.placementPoints, beyondTablePoints: normalized.beyondTablePoints });
   },
   matchRanking: {
@@ -236,6 +287,10 @@ export const correctCountStrategy = defineScoringStrategy({
     id: 'correctCount.match',
     metrics: [
       { key: 'liveScore', direction: RANK_DIRECTION.HIGHER_IS_BETTER },
+      // Equal counts: the more accurate player (hits ÷ attempts). Only modes
+      // that record attempts carry it; for a classic room every player lacks
+      // it, they tie on it, and the next metric decides exactly as before.
+      { key: 'matchAccuracy', direction: RANK_DIRECTION.HIGHER_IS_BETTER },
       { key: 'roundsAnswered', direction: RANK_DIRECTION.LOWER_IS_BETTER },
     ],
   },

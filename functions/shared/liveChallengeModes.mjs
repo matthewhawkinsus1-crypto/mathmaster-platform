@@ -20,18 +20,36 @@
  * differently should extend a contract here — a round structure, a completion
  * rule, a scoring strategy — rather than branch on its own id somewhere else.
  *
- * Built-in modes: `standard` (the classic secure-bank challenge) and
- * `solverRace` (generated algebra-workspace races with milestone speed).
+ * Built-in modes: `standard` (the classic secure-bank challenge),
+ * `solverRace` (generated algebra-workspace races with milestone speed) and
+ * `graphFeatureRush` (individually generated graphs; tap every feature
+ * against the round clock).
  *
  * Pure: shared by Cloud Functions and the browser. The server holds the
  * question planners keyed by `questionSource`; nothing here touches Firestore.
  */
 
-import { canonicalQuestionStyle } from './liveChallenge.mjs';
-import { COMPLETION_RULE, normalizeRoundQuestionSpecs } from './liveChallengeResponses.mjs';
+import {
+  DEFAULT_ROUND_COUNT,
+  DEFAULT_ROUND_SECONDS,
+  MAX_ROUND_COUNT,
+  MAX_ROUND_SECONDS,
+  MIN_ROUND_COUNT,
+  MIN_ROUND_SECONDS,
+  canonicalQuestionStyle,
+} from './liveChallenge.mjs';
+import {
+  COMPLETION_RULE,
+  MAX_QUESTIONS_PER_ROUND,
+  SCORE_UNIT,
+  normalizeRoundQuestionSpecs,
+  questionSetRoundOutcome,
+  questionSpecsFromReceipts,
+} from './liveChallengeResponses.mjs';
 import { RANK_DIRECTION, normalizeRankingSpec } from './liveChallengeRanking.mjs';
-import { SCORING_STRATEGY_ID, isRegisteredScoringStrategy } from './liveChallengeScoring.mjs';
+import { PLACEMENT_CURVE, SCORING_STRATEGY_ID, getScoringStrategy, isRegisteredScoringStrategy } from './liveChallengeScoring.mjs';
 import { canonicalSolverRaceDifficulty, canonicalSolverRaceFocus } from './solverRace.mjs';
+import { RUSH_ROUND_LIMITS, normalizeGraphFeatureRushConfig } from './graphFeatureRushConfig.mjs';
 
 export class ChallengeModeContractError extends Error {
   constructor(message) {
@@ -43,11 +61,28 @@ export class ChallengeModeContractError extends Error {
 export const CHALLENGE_MODE_ID = Object.freeze({
   STANDARD: 'standard',
   SOLVER_RACE: 'solverRace',
+  GRAPH_FEATURE_RUSH: 'graphFeatureRush',
 });
 
 export const QUESTION_SOURCE = Object.freeze({
   SECURE_BANK: 'secureBank',
   SOLVER_RACE_GENERATOR: 'solverRaceGenerator',
+  GRAPH_FEATURE_GENERATOR: 'graphFeatureGenerator',
+});
+
+/*
+ * WHO GETS WHICH QUESTION.
+ *
+ *   shared     every player answers the round's question(s); the mode's specs
+ *              describe them
+ *   perPlayer  every player is issued their own questions. The round's specs
+ *              are read per player from their attempt receipts, which record
+ *              each question's target count (questionSpecsFromReceipts).
+ *              Question-set rounds only.
+ */
+export const QUESTION_ISSUE = Object.freeze({
+  SHARED: 'shared',
+  PER_PLAYER: 'perPlayer',
 });
 
 /*
@@ -68,6 +103,23 @@ export const ROUND_STRUCTURE = Object.freeze({
 });
 
 const finiteOrNull = (value) => (typeof value === 'number' && Number.isFinite(value) ? value : null);
+
+/*
+ * WHAT A WRONG ATTEMPT COSTS IN A QUESTION-SET ROUND: one twentieth of a
+ * question. A mistake or two is a rounding error; spraying taps across a graph
+ * hoping to land on a feature costs more than the lucky hits are worth. (The
+ * device adds a brief cooldown after repeated misses; this is the part that
+ * holds even for a device that skips it.) Exact, in score units.
+ */
+export const QUESTION_SET_MISS_PENALTY = 1 / 20;
+const MISS_PENALTY_UNITS = SCORE_UNIT / 20;
+
+/** Completed work minus the miss penalty, never below zero. Exact. */
+export const questionSetWorkScore = (summary = {}) => {
+  const units = Number.isInteger(summary.scoreUnits) ? summary.scoreUnits : Math.round((Number(summary.scoreTotal) || 0) * SCORE_UNIT);
+  const misses = Math.max(0, Math.floor(Number(summary.incorrectAttempts) || 0));
+  return Math.max(0, units - misses * MISS_PENALTY_UNITS) / SCORE_UNIT;
+};
 
 const ROUND_STRUCTURES = Object.freeze({
   [ROUND_STRUCTURE.SYNCHRONIZED_QUESTION]: Object.freeze({
@@ -92,19 +144,25 @@ const ROUND_STRUCTURES = Object.freeze({
     id: ROUND_STRUCTURE.QUESTION_SET,
     questionsPerRound: null,
     performance: (summary = {}) => Object.freeze({
-      performance: Number(summary.scoreTotal) || 0,
-      // Completed work first (targets found count fractionally), then how
-      // cleanly it was done, then how early the last correct completion came.
+      // Completed work, less 1/20 of a question per wrong attempt — whether
+      // anything was earned at all, and the first thing the round ranks by.
+      performance: questionSetWorkScore(summary),
+      workScore: questionSetWorkScore(summary),
+      // Completed work (targets found count fractionally), then how cleanly it
+      // was done, then how early the last correct completion came.
       scoreTotal: Number(summary.scoreTotal) || 0,
       accuracy: finiteOrNull(summary.accuracy),
       lastCorrectCompletionElapsedMs: summary.questionsCorrect > 0 || summary.scoreTotal > 0
         ? finiteOrNull(summary.lastCorrectCompletionElapsedMs)
         : null,
+      // Shown on round results; not ranked on directly (scoreTotal is).
+      questionsCorrect: Number(summary.questionsCorrect) || 0,
+      attempts: Number(summary.attempts) || 0,
     }),
     ranking: normalizeRankingSpec({
       id: 'questionSet.round',
       metrics: [
-        { key: 'scoreTotal', direction: RANK_DIRECTION.HIGHER_IS_BETTER },
+        { key: 'workScore', direction: RANK_DIRECTION.HIGHER_IS_BETTER },
         { key: 'accuracy', direction: RANK_DIRECTION.HIGHER_IS_BETTER },
         { key: 'lastCorrectCompletionElapsedMs', direction: RANK_DIRECTION.LOWER_IS_BETTER },
       ],
@@ -120,7 +178,37 @@ const CAPABILITY_KEYS = Object.freeze([
   'paceTiming',
   'closingThreshold',
   'dryRun',
+  // May run as an assignment's Warm-Up. The Warm-Up credit counts rounds
+  // answered and rounds correct, which only means something for one graded
+  // response per round.
+  'warmupLink',
 ]);
+
+const DEFAULT_ROUND_LIMITS = Object.freeze({
+  minRounds: MIN_ROUND_COUNT,
+  maxRounds: MAX_ROUND_COUNT,
+  defaultRounds: DEFAULT_ROUND_COUNT,
+  minSeconds: MIN_ROUND_SECONDS,
+  maxSeconds: MAX_ROUND_SECONDS,
+  defaultSeconds: DEFAULT_ROUND_SECONDS,
+});
+
+const normalizeRoundLimits = (id, raw) => {
+  if (!raw) return DEFAULT_ROUND_LIMITS;
+  const int = (value, fallback) => (Number.isInteger(Number(value)) ? Number(value) : fallback);
+  const limits = {
+    minRounds: int(raw.minRounds, DEFAULT_ROUND_LIMITS.minRounds),
+    maxRounds: int(raw.maxRounds, DEFAULT_ROUND_LIMITS.maxRounds),
+    defaultRounds: int(raw.defaultRounds, DEFAULT_ROUND_LIMITS.defaultRounds),
+    minSeconds: int(raw.minSeconds, DEFAULT_ROUND_LIMITS.minSeconds),
+    maxSeconds: int(raw.maxSeconds, DEFAULT_ROUND_LIMITS.maxSeconds),
+    defaultSeconds: int(raw.defaultSeconds, DEFAULT_ROUND_LIMITS.defaultSeconds),
+  };
+  const ordered = limits.minRounds >= 1 && limits.minRounds <= limits.defaultRounds && limits.defaultRounds <= limits.maxRounds
+    && limits.minSeconds >= 5 && limits.minSeconds <= limits.defaultSeconds && limits.defaultSeconds <= limits.maxSeconds;
+  if (!ordered) throw new ChallengeModeContractError(`Game mode "${id}" has inconsistent round limits.`);
+  return Object.freeze(limits);
+};
 
 const MODE_ID_PATTERN = /^[a-z][A-Za-z0-9]{1,40}$/;
 
@@ -158,6 +246,20 @@ export const defineChallengeMode = (definition = {}) => {
     CAPABILITY_KEYS.map((key) => [key, definition.capabilities?.[key] === true]),
   ));
 
+  const questionIssue = definition.questionIssue === QUESTION_ISSUE.PER_PLAYER ? QUESTION_ISSUE.PER_PLAYER : QUESTION_ISSUE.SHARED;
+  if (questionIssue === QUESTION_ISSUE.PER_PLAYER && structure.id !== ROUND_STRUCTURE.QUESTION_SET) {
+    throw new ChallengeModeContractError(`Game mode "${id}" issues questions per player, which needs a question-set round.`);
+  }
+
+  // Strategy settings a mode starts its rooms with (a teacher's request may
+  // still override them field by field).
+  const scoringDefaults = Object.freeze(Object.fromEntries(Object.entries(definition.scoringDefaults || {}).map(([strategyId, config]) => {
+    if (!scoringStrategies.includes(strategyId)) {
+      throw new ChallengeModeContractError(`Game mode "${id}" sets defaults for "${strategyId}", a strategy it does not allow.`);
+    }
+    return [strategyId, Object.freeze({ ...config })];
+  })));
+
   return Object.freeze({
     id,
     label,
@@ -167,9 +269,12 @@ export const defineChallengeMode = (definition = {}) => {
     teacherSelectable: definition.teacherSelectable !== false,
     roundStructure: structure.id,
     questionSource,
+    questionIssue,
     questionSpecs,
     defaultScoringStrategy: definition.defaultScoringStrategy,
     scoringStrategies: Object.freeze(scoringStrategies),
+    scoringDefaults,
+    roundLimits: normalizeRoundLimits(id, definition.roundLimits),
     capabilities,
     normalizeConfig: definition.normalizeConfig,
   });
@@ -185,7 +290,7 @@ export const standardMode = defineChallengeMode({
   questionSpec: { completionRule: COMPLETION_RULE.SINGLE_RESPONSE, targetCount: 1 },
   defaultScoringStrategy: SCORING_STRATEGY_ID.ACCURACY_FIRST,
   scoringStrategies: [SCORING_STRATEGY_ID.ACCURACY_FIRST, SCORING_STRATEGY_ID.GRAND_PRIX, SCORING_STRATEGY_ID.CORRECT_COUNT],
-  capabilities: { secondChance: true, progressMilestones: false, paceTiming: true, closingThreshold: true, dryRun: true },
+  capabilities: { secondChance: true, progressMilestones: false, paceTiming: true, closingThreshold: true, dryRun: true, warmupLink: true },
   normalizeConfig: (raw = {}) => Object.freeze({
     questionStyle: canonicalQuestionStyle(raw?.questionStyle),
     solverRaceFocus: null,
@@ -203,7 +308,7 @@ export const solverRaceMode = defineChallengeMode({
   questionSpec: { completionRule: COMPLETION_RULE.SINGLE_RESPONSE, targetCount: 1 },
   defaultScoringStrategy: SCORING_STRATEGY_ID.ACCURACY_FIRST,
   scoringStrategies: [SCORING_STRATEGY_ID.ACCURACY_FIRST, SCORING_STRATEGY_ID.GRAND_PRIX],
-  capabilities: { secondChance: true, progressMilestones: true, paceTiming: true, closingThreshold: true, dryRun: true },
+  capabilities: { secondChance: true, progressMilestones: true, paceTiming: true, closingThreshold: true, dryRun: true, warmupLink: true },
   normalizeConfig: (raw = {}) => Object.freeze({
     // Every Solver Race round is an interactive algebra workspace.
     questionStyle: 'tools',
@@ -212,9 +317,43 @@ export const solverRaceMode = defineChallengeMode({
   }),
 });
 
+/*
+ * GRAPH FEATURE RUSH. Each student races the round clock through their own
+ * generated graphs, tapping every requested feature; a graph completes the
+ * moment its last target is found. Ranking is the question-set structure's:
+ * work completed (found targets count fractionally), then accuracy, then the
+ * time of the last completion. Grand Prix scales its placement points to the
+ * field that raced. See docs/architecture/graph-feature-rush.md.
+ */
+export const GRAPH_FEATURE_RUSH_QUESTION_POOL = MAX_QUESTIONS_PER_ROUND;
+
+export const graphFeatureRushMode = defineChallengeMode({
+  id: CHALLENGE_MODE_ID.GRAPH_FEATURE_RUSH,
+  label: 'Graph Feature Rush',
+  projectorLabel: 'Graph Feature Rush',
+  description: 'Every student gets their own graphs and races the clock to tap intercepts, vertices and extremes.',
+  roundStructure: ROUND_STRUCTURE.QUESTION_SET,
+  questionsPerRound: GRAPH_FEATURE_RUSH_QUESTION_POOL,
+  questionSource: QUESTION_SOURCE.GRAPH_FEATURE_GENERATOR,
+  questionIssue: QUESTION_ISSUE.PER_PLAYER,
+  questionSpec: { completionRule: COMPLETION_RULE.ALL_TARGETS, targetCount: 1 },
+  defaultScoringStrategy: SCORING_STRATEGY_ID.GRAND_PRIX,
+  scoringStrategies: [SCORING_STRATEGY_ID.GRAND_PRIX, SCORING_STRATEGY_ID.CORRECT_COUNT],
+  scoringDefaults: { [SCORING_STRATEGY_ID.GRAND_PRIX]: { placementCurve: PLACEMENT_CURVE.FIELD } },
+  roundLimits: RUSH_ROUND_LIMITS,
+  capabilities: { secondChance: false, progressMilestones: false, paceTiming: false, closingThreshold: false, dryRun: false, warmupLink: false },
+  normalizeConfig: (raw = {}) => Object.freeze({
+    questionStyle: 'any',
+    solverRaceFocus: null,
+    solverRaceDifficulty: null,
+    graphFeatureRush: normalizeGraphFeatureRushConfig(raw?.graphFeatureRush),
+  }),
+});
+
 const REGISTRY = new Map([
   [standardMode.id, standardMode],
   [solverRaceMode.id, solverRaceMode],
+  [graphFeatureRushMode.id, graphFeatureRushMode],
 ]);
 
 export const DEFAULT_CHALLENGE_MODE_ID = CHALLENGE_MODE_ID.STANDARD;
@@ -247,8 +386,50 @@ export const resolveModeScoringStrategy = (mode, requested) => {
 
 export const roundStructureFor = (mode) => getRoundStructure((mode || getChallengeMode(null)).roundStructure);
 
-/** Question specs for one round. Every round of a built-in mode has the mode's specs. */
-export const roundQuestionSpecsFor = (mode) => (mode || getChallengeMode(null)).questionSpecs;
+/**
+ * Question specs for one round. A shared-question mode's rounds all have the
+ * mode's specs; a per-player mode's specs are read from one player's receipts
+ * for that round, so pass `{ receipts, roundIndex }`.
+ */
+export const roundQuestionSpecsFor = (mode, { receipts = null, roundIndex = null } = {}) => {
+  const resolved = mode || getChallengeMode(null);
+  if (resolved.questionIssue !== QUESTION_ISSUE.PER_PLAYER) return resolved.questionSpecs;
+  return questionSpecsFromReceipts({
+    receipts,
+    roundIndex,
+    poolSize: resolved.questionSpecs.length,
+    completionRule: resolved.questionSpecs[0]?.completionRule,
+  });
+};
+
+/** One player's round outcome, as a match result records it. */
+export const modeRoundOutcome = (mode, summary) => (
+  roundStructureFor(mode).id === ROUND_STRUCTURE.QUESTION_SET ? questionSetRoundOutcome(summary) : null
+);
+
+/** The round count and seconds a room of this mode may be created with. */
+export const modeRoundLimits = (mode) => (mode || getChallengeMode(null)).roundLimits;
+
+// The same arithmetic as liveChallenge.normalizeRoundCount/Seconds, so a mode
+// on the default limits normalizes exactly as rooms always have.
+const clampTo = (value, fallback, low, high) => Math.max(low, Math.min(high, Math.round(Number(value) || fallback)));
+
+export const normalizeModeRoundCount = (mode, value) => {
+  const limits = modeRoundLimits(mode);
+  return clampTo(value, limits.defaultRounds, limits.minRounds, limits.maxRounds);
+};
+
+export const normalizeModeRoundSeconds = (mode, value) => {
+  const limits = modeRoundLimits(mode);
+  return clampTo(value, limits.defaultSeconds, limits.minSeconds, limits.maxSeconds);
+};
+
+/** A room's strategy settings: the mode's defaults, then the request's own. */
+export const modeScoringConfig = (mode, strategyId, raw = {}) => {
+  const resolved = mode || getChallengeMode(null);
+  const defaults = resolved.scoringDefaults?.[strategyId] || {};
+  return getScoringStrategy(strategyId).normalizeConfig({ ...defaults, ...(raw && typeof raw === 'object' ? raw : {}) });
+};
 
 export const roundPerformanceFor = (mode, summary) => roundStructureFor(mode).performance(summary);
 

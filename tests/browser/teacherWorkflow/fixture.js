@@ -19,6 +19,7 @@ import { buildRevisionDocument, buildSupportProjection, normalizeSupportRevision
 import {
   buildServiceLogEntry, buildStaffEvidenceEvent, buildStudentEvidenceEvent, engagementDocId, epochMinuteOf, utcDayOf,
 } from '../../../functions/shared/supportEvidenceModel.mjs';
+import { WORKSPACE_DRAFT_SCHEMA_VERSION, workspaceDraftDocumentId } from '../../../functions/shared/workspaceDraftSchema.mjs';
 
 export const TEACHER_EMAIL = 'teacher@harness.example';
 
@@ -38,6 +39,11 @@ const previousSchoolDay = (ms) => {
 const FIRST = ['Avery', 'Blake', 'Casey', 'Devon', 'Emery', 'Finley', 'Gray', 'Harper', 'Indy', 'Jordan', 'Kai', 'Logan', 'Morgan', 'Noel', 'Oakley', 'Parker', 'Quinn', 'Reese', 'Sage', 'Tatum', 'Uri', 'Val', 'Wren', 'Yael', 'Zion'];
 const LAST = ['Adler', 'Brooks', 'Castillo', 'Dunn', 'Ellis', 'Flores', 'Garza', 'Hale', 'Ibarra', 'Jensen', 'Khan', 'Lopez', 'Mercer', 'Nash', 'Ortiz', 'Price', 'Quade', 'Rios', 'Sato', 'Tran'];
 
+// Each question carries its own standards metadata, as V5 lessons do (the
+// Student Case Review reads skills from it, never from a title).
+const ONE_VARIABLE = { primary: ['A.5A'] };
+const SYSTEMS = { primary: ['A.5C'] };
+
 // `?questions=real`: the same lesson shape with question types the student
 // runtime actually renders (math fields, a multi-part answer, a system, an
 // ordered pair), for the endurance journeys that type and submit. The default stays
@@ -56,16 +62,16 @@ const realLessonSections = (id) => ([
 ]);
 
 const lessonSections = (id) => ([
-  { id: `${id}-wu`, role: 'warmup', title: 'Warm-Up', questions: [{ questionId: `${id}-w1`, activityRole: 'warmup', type: 'freeResponse', prompt: 'Solve 2x + 3 = 11.', expected: '4' }] },
+  { id: `${id}-wu`, role: 'warmup', title: 'Warm-Up', questions: [{ questionId: `${id}-w1`, activityRole: 'warmup', type: 'freeResponse', prompt: 'Solve 2x + 3 = 11.', expected: '4', standards: ONE_VARIABLE }] },
   { id: `${id}-cw`, role: 'classwork', title: 'Classwork', questions: [
-    { questionId: `${id}-c1`, activityRole: 'classwork', type: 'freeResponse', prompt: 'Solve the system x + y = 5, x − y = 1. What is x?', expected: '3' },
-    { questionId: `${id}-c2`, activityRole: 'classwork', type: 'freeResponse', prompt: 'What is y?', expected: '2' },
+    { questionId: `${id}-c1`, activityRole: 'classwork', type: 'freeResponse', prompt: 'Solve the system x + y = 5, x − y = 1. What is x?', expected: '3', standards: SYSTEMS },
+    { questionId: `${id}-c2`, activityRole: 'classwork', type: 'freeResponse', prompt: 'What is y?', expected: '2', standards: SYSTEMS },
   ] },
   { id: `${id}-pr`, role: 'practice', title: 'Practice', questions: [
-    { questionId: `${id}-p1`, activityRole: 'practice', type: 'freeResponse', prompt: 'Solve 3x = 12.', expected: '4' },
-    { questionId: `${id}-p2`, activityRole: 'practice', type: 'freeResponse', prompt: 'Solve x/2 = 5.', expected: '10' },
+    { questionId: `${id}-p1`, activityRole: 'practice', type: 'freeResponse', prompt: 'Solve 3x = 12.', expected: '4', standards: ONE_VARIABLE },
+    { questionId: `${id}-p2`, activityRole: 'practice', type: 'freeResponse', prompt: 'Solve x/2 = 5.', expected: '10', standards: ONE_VARIABLE },
   ] },
-  { id: `${id}-dol`, role: 'dol', title: 'DOL', questions: [{ questionId: `${id}-d1`, activityRole: 'dol', type: 'freeResponse', prompt: 'Solve 5x − 5 = 20.', expected: '5' }] },
+  { id: `${id}-dol`, role: 'dol', title: 'DOL', questions: [{ questionId: `${id}-d1`, activityRole: 'dol', type: 'freeResponse', prompt: 'Solve 5x − 5 = 20.', expected: '5', standards: ONE_VARIABLE }] },
 ]);
 
 const correct = { status: 'correct', totalAttempts: 1, timeSpent: 40 };
@@ -242,6 +248,7 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   changed.gradesByAssignment['a-lastweek'] = { ...changed.gradesByAssignment['a-lastweek'], 2: correct };
 
   addSupportEvidence({ fixture, now, Timestamp, supported: p3[1], legacy: p3[4] });
+  addCaseReviewEvidence({ fixture, now, Timestamp, student: p3[1] });
   return fixture;
 };
 
@@ -320,4 +327,107 @@ const addSupportEvidence = ({ fixture, now, Timestamp, supported, legacy }) => {
   // A pre-versioning profile with graded work and no timing recorded.
   fixture[`grades/${legacy.id}`].profile = { inclusionStatus: true, accommodations: ['text-to-speech', 'extra-time'], modifications: [], translationLanguage: null };
   fixture[`grades/${legacy.id}`].assignmentActivity = { 'a-lastweek': { totalTimeSeconds: 0, onTimeSeconds: 0, lateSeconds: 0 } };
+};
+
+/*
+ * STUDENT CASE REVIEW — synthetic per-attempt history for the supported
+ * student (`910002`), as the server records it: one evidence event per graded
+ * attempt on last week's and yesterday's lessons (retries that end correct, a
+ * question whose attempts ran out), Practice Mode after a lesson closed, an
+ * answer that arrived after the final cutoff and was not counted, and
+ * class-session summaries. The question records carry the same attempts with
+ * the same statuses and credit, so every grade — and the export history built
+ * from them above — is unchanged.
+ */
+const QUESTIONS = [
+  { suffix: 'w1', role: 'warmup', code: 'A.5A' },
+  { suffix: 'c1', role: 'classwork', code: 'A.5C' },
+  { suffix: 'c2', role: 'classwork', code: 'A.5C' },
+  { suffix: 'p1', role: 'practice', code: 'A.5A' },
+  { suffix: 'p2', role: 'practice', code: 'A.5A' },
+  { suffix: 'd1', role: 'dol', code: 'A.5A' },
+];
+const addCaseReviewEvidence = ({ fixture, now, Timestamp, student }) => {
+  const at = (ms) => Timestamp.fromMillis(ms);
+  const base = `grades/${student.id}`;
+  const lessons = [
+    // Attempt results per question: true = correct. Same outcomes as the 'solid' tracker.
+    { assignmentId: 'a-lastweek', startMs: now - 8 * DAY + 2 * 60_000, plan: [[true], [true], [false, false, false], [false, true], [true], [true]] },
+    { assignmentId: 'a-yesterday', startMs: previousSchoolDay(now) - 45 * 60_000, plan: [[true], [false, false, true], [false, false, false], [true], [true], [true]] },
+  ];
+  lessons.forEach(({ assignmentId, startMs, plan }) => {
+    let minute = 1;
+    const tracker = { ...fixture[base].gradesByAssignment[assignmentId] };
+    plan.forEach((results, questionIndex) => {
+      const { suffix, role, code } = QUESTIONS[questionIndex];
+      let lastMs = null;
+      results.forEach((isCorrect, attemptIndex) => {
+        lastMs = startMs + minute * 60_000;
+        minute += 2;
+        const attemptNumber = attemptIndex + 1;
+        fixture[`${base}/evidenceEvents/case-${assignmentId}-${questionIndex}-${attemptNumber}`] = {
+          schemaVersion: 1,
+          eventKey: `case-${assignmentId}-${questionIndex}-${attemptNumber}`,
+          studentId: student.id,
+          occurredAt: at(lastMs),
+          alignmentKeys: [`texas:${code}`],
+          questionSnapshot: { questionId: `${assignmentId}-${suffix}`, questionType: 'freeResponse', variantIndex: 0 },
+          source: { kind: 'assignment', assignmentId, activityRole: role, questionIndex },
+          performance: { attemptNumber, isCorrect, partialCredit: isCorrect ? 100 : 0, status: isCorrect ? 'correct' : (attemptNumber === results.length ? 'expired' : 'attempted') },
+          supportUsage: { calculatorUsed: assignmentId === 'a-lastweek' && questionIndex === 3 },
+        };
+      });
+      const iso = new Date(lastMs).toISOString();
+      tracker[questionIndex] = {
+        ...tracker[questionIndex],
+        attemptCount: results.length,
+        totalAttempts: results.length,
+        variantIndex: 0,
+        lastAttemptAt: iso,
+        academicOccurredAt: iso,
+        submissionOrigin: 'server-ingestion',
+      };
+    });
+    fixture[base].gradesByAssignment = { ...fixture[base].gradesByAssignment, [assignmentId]: tracker };
+    fixture[`studentSessionSummaries/case-${student.id}-${assignmentId}`] = {
+      studentId: student.id,
+      classId: student.classId,
+      assignmentId,
+      assignmentTitle: fixture[`assignments/${assignmentId}`]?.title || assignmentId,
+      startedAt: startMs,
+      endedAt: startMs + (minute + 2) * 60_000,
+      activeSeconds: minute * 60,
+      answered: plan.length,
+      correct: plan.filter((results) => results[results.length - 1]).length,
+      accuracy: Math.round((100 * plan.filter((results) => results[results.length - 1]).length) / plan.length),
+      focusLossCount: 0,
+      authorizedTeacherEmails: [TEACHER_EMAIL],
+      createdAt: at(startMs + (minute + 2) * 60_000),
+    };
+  });
+
+  // Practice Mode on the closed 1st-marking-period lesson (device clock), and
+  // one answer that arrived after its final cutoff and was not counted.
+  const practiceMs = now - 26 * DAY;
+  fixture[`studentWorkspaceDrafts/${workspaceDraftDocumentId({ studentId: student.id, assignmentId: 'a-mp1' })}`] = {
+    schemaVersion: WORKSPACE_DRAFT_SCHEMA_VERSION,
+    studentId: student.id,
+    assignmentId: 'a-mp1',
+    entries: {},
+    practice: {
+      2: { status: 'correct', totalAttempts: 2, lastAttemptAt: new Date(practiceMs).toISOString() },
+      5: { status: 'attempted', totalAttempts: 1, lastAttemptAt: new Date(practiceMs + 4 * 60_000).toISOString() },
+    },
+    practiceUpdatedAt: at(practiceMs + 5 * 60_000),
+    updatedAt: at(practiceMs + 5 * 60_000),
+  };
+  fixture[`studentSubmissionReceipts/case-${student.id}-a-mp1-after-close`] = {
+    studentId: student.id,
+    assignmentId: 'a-mp1',
+    questionIndex: 2,
+    disposition: 'not-counted',
+    reason: 'assignment-closed-at-capture',
+    academicOccurredAt: at(now - 27 * DAY),
+    issuedAt: at(now - 27 * DAY),
+  };
 };

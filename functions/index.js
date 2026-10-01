@@ -1444,6 +1444,90 @@ exports.inspectStudentResponse = onCall(async (request) => {
 });
 
 /**
+ * Student Case Review (teacher, read-only): the records a case review needs
+ * that no teacher browser may read under firestore.rules — one event per
+ * graded attempt, submission receipts (including answers refused after the
+ * assignment closed), Practice Mode question records and teacher grade-change
+ * audits — for ONE student and the assignments the teacher selected.
+ *
+ * Authorization and every projection live in
+ * functions/shared/caseReviewEvidence.mjs (tested in
+ * tests/platform/caseReviewEvidenceProjection.test.mjs): the root
+ * administrator, the student's class teacher of record, or their roster
+ * teacher. Nothing is written, and nothing leaves that the case review does not
+ * show: no response text, no answer key, no draft contents, no other student.
+ * See docs/STUDENT_CASE_REVIEW_DESIGN.md §5.2.
+ */
+exports.loadStudentCaseEvidence = onCall(async (request) => {
+  await requireTeacher(request);
+  const caseEvidence = await import("./shared/caseReviewEvidence.mjs");
+  const validation = caseEvidence.validateCaseEvidenceRequest(request.data || {});
+  if (!validation.ok) throw new HttpsError("invalid-argument", validation.errors.join(" "));
+  const { studentId, assignmentIds } = validation.request;
+  const teacherEmail = callerEmail(request);
+
+  const db = getFirestore();
+  const gradeRef = db.collection("grades").doc(studentId);
+  const studentSnap = await gradeRef.get();
+  const student = studentSnap.exists ? studentSnap.data() || {} : null;
+  const classSnap = student?.classId
+    ? await db.collection(CLASS_COLLECTION).doc(String(student.classId)).get()
+    : null;
+  const decision = caseEvidence.authorizeCaseEvidenceCaller({
+    callerEmail: teacherEmail,
+    callerRole: request.auth?.token?.role,
+    isRootAdmin: authLib.isRootAdminEmail(teacherEmail),
+    student,
+    classRecord: classSnap?.exists ? classSnap.data() || {} : null,
+  });
+  if (!decision.allowed) {
+    throw new HttpsError(
+      decision.reason === "student-not-found" ? "not-found" : "permission-denied",
+      "Only this student's teacher may load case review evidence.",
+    );
+  }
+
+  const { workspaceDraftDocumentId } = await import("./shared/workspaceDraftSchema.mjs");
+  const limits = caseEvidence.CASE_EVIDENCE_LIMITS;
+  const chunks = caseEvidence.chunk(assignmentIds);
+  const draftRefs = assignmentIds.map((assignmentId) => db
+    .collection(WORKSPACE_DRAFT_COLLECTION)
+    .doc(workspaceDraftDocumentId({ studentId, assignmentId })));
+  const [eventSnapshots, receiptSnapshots, draftSnapshots, auditSnapshot] = await Promise.all([
+    // By assignment (single-field indexes only), so My Math Path and Live
+    // Challenge events never crowd out the assignments asked about.
+    Promise.all(chunks.map((ids) => gradeRef.collection("evidenceEvents")
+      .where("source.assignmentId", "in", ids)
+      .limit(Math.ceil(limits.maxEvents / chunks.length))
+      .get())),
+    Promise.all(chunks.map((ids) => db.collection(SUBMISSION_RECEIPT_COLLECTION)
+      .where("studentId", "==", studentId)
+      .where("assignmentId", "in", ids)
+      .limit(limits.maxReceiptsPerChunk)
+      .get())),
+    // Only the Practice Mode fields: a draft's saved work is never read here.
+    db.getAll(...draftRefs, { fieldMask: ["practice", "practiceUpdatedAt", "updatedAt"] }),
+    gradeRef.collection("gradeOverrideAudits").limit(limits.maxAudits).get(),
+  ]);
+
+  const drafts = {};
+  draftSnapshots.forEach((snapshot, index) => {
+    if (snapshot.exists) drafts[assignmentIds[index]] = snapshot.data() || {};
+  });
+  const response = caseEvidence.buildCaseEvidenceResponse({
+    request: validation.request,
+    events: eventSnapshots.flatMap((snapshot) => snapshot.docs.map((entry) => ({ id: entry.id, data: entry.data() || {} }))),
+    receipts: receiptSnapshots.flatMap((snapshot) => snapshot.docs.map((entry) => entry.data() || {})),
+    drafts,
+    audits: auditSnapshot.docs.map((entry) => entry.data() || {}),
+    nowMs: Date.now(),
+  });
+  response.truncated.events = eventSnapshots.some((snapshot) => snapshot.size >= Math.ceil(limits.maxEvents / chunks.length));
+  response.truncated.receipts = receiptSnapshots.some((snapshot) => snapshot.size >= limits.maxReceiptsPerChunk);
+  return response;
+});
+
+/**
  * Teacher grade correction. The active override lives in the rule-protected
  * top-level teacherGradeOverridesByAssignment map, never in the client-writable
  * question record. The original automatic attempt stays untouched.
@@ -9010,6 +9094,20 @@ async function liveChallengeEvidenceRules() {
   return liveChallengeEvidenceModule;
 }
 
+// GRAPH FEATURE RUSH: the mode's own pure rules (attempts, generation, config).
+let graphFeatureRushModules = null;
+async function graphFeatureRushRules() {
+  if (!graphFeatureRushModules) {
+    const [rush, generator, config] = await Promise.all([
+      import("./shared/graphFeatureRush.mjs"),
+      import("./shared/graphFeatureGenerator.mjs"),
+      import("./shared/graphFeatureRushConfig.mjs"),
+    ]);
+    graphFeatureRushModules = { rush, generator, config };
+  }
+  return graphFeatureRushModules;
+}
+
 // THE ENGINE CONTRACTS every Live Challenge callable runs through. They are
 // pure modules shared with the browser; see docs/architecture/
 // live-challenge-engine.md for what each owns.
@@ -9161,9 +9259,12 @@ function selectChallengeQuestions(entries, requestedCount) {
  *
  * A game mode declares where its questions come from; this is the only place
  * that knows how to build them. `plan` returns the selected entries plus any
- * server-only authored questions and seed. `swap` replaces one dry-run round.
- * A new mode with a new source adds a planner here — it does not add a branch
- * to createLiveChallenge.
+ * server-only authored questions and seed, and may contribute fields of its
+ * own to the room (`roomFields`, public) and the private state
+ * (`privateFields`). `swap` replaces one dry-run round. `openRound`, when a
+ * planner has one, builds a round's opening itself instead of drawing a bank
+ * question. A new mode with a new source adds a planner here — it does not
+ * add a branch to createLiveChallenge.
  */
 const LIVE_CHALLENGE_QUESTION_PLANNERS = Object.freeze({
   secureBank: Object.freeze({
@@ -9244,8 +9345,59 @@ const LIVE_CHALLENGE_QUESTION_PLANNERS = Object.freeze({
   }),
 });
 
+/*
+ * GRAPH FEATURE RUSH draws nothing up front: each student's graphs are
+ * generated from the room's private seed as they reach them
+ * (getGraphFeatureRushRound) and regenerated to grade a tap. A round is a
+ * placeholder id, which recovery and the report read; the round's public
+ * question is a card naming what to look for, never a graph.
+ */
+const GRAPH_FEATURE_RUSH_PLANNER = Object.freeze({
+  async plan({ modeConfig, roundCount }) {
+    const { generator } = await graphFeatureRushRules();
+    const config = modeConfig.graphFeatureRush;
+    const generatorVersion = generator.GRAPH_FEATURE_GENERATOR_VERSION;
+    return {
+      candidateCount: roundCount,
+      selected: Array.from({ length: roundCount }, (_, index) => ({
+        question: { id: `graphFeatureRush:round:${index + 1}`, alignmentKeys: [] },
+      })),
+      roundQuestions: null,
+      seed: null,
+      // The seed never leaves the server: it is what makes a student's graphs
+      // theirs and reproducible.
+      privateFields: { graphFeatureRush: { seed: crypto.randomUUID(), config, generatorVersion } },
+      roomFields: { graphFeatureRush: { config, generatorVersion } },
+    };
+  },
+  async swap() {
+    throw new HttpsError("failed-precondition", "Graph Feature Rush graphs are generated for each student; there is no shared round to swap.");
+  },
+  async openRound({ room, privateState, roundIndex, mode, engine }) {
+    const questionId = privateState.questionIds?.[roundIndex];
+    if (!questionId) throw new HttpsError("failed-precondition", "That Live Challenge round has no question.");
+    const config = privateState.graphFeatureRush?.config || room.graphFeatureRush?.config || {};
+    return {
+      roundIndex,
+      questionId,
+      currentQuestion: {
+        kind: "graphFeatureRush",
+        challengeRound: roundIndex,
+        prompt: "Find the features on your own graphs",
+        features: Array.isArray(config.features) ? config.features : [],
+        families: Array.isArray(config.families) ? config.families : [],
+        difficulty: config.difficulty || null,
+        teksCode: null,
+      },
+      roundSeconds: engine.modes.normalizeModeRoundSeconds(mode, room.roundSeconds),
+    };
+  },
+});
+
 function liveChallengeQuestionPlanner(mode) {
-  const planner = LIVE_CHALLENGE_QUESTION_PLANNERS[mode?.questionSource];
+  const planner = mode?.questionSource === "graphFeatureGenerator"
+    ? GRAPH_FEATURE_RUSH_PLANNER
+    : LIVE_CHALLENGE_QUESTION_PLANNERS[mode?.questionSource];
   if (!planner) throw new HttpsError("failed-precondition", `The ${mode?.label || "selected"} game has no question source on this server.`);
   return planner;
 }
@@ -9430,30 +9582,48 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
     }
   }
 
-  const standardCode = challenge.canonicalChallengeStandard(
-    request.data?.standardCode || warmupChallengeConfig?.standardCode || "mixed",
-  );
-  const requestedRoundCount = challenge.normalizeRoundCount(
-    request.data?.roundCount || warmupChallengeConfig?.roundCount,
-  );
-  const roundSeconds = challenge.normalizeRoundSeconds(
-    request.data?.roundSeconds || warmupChallengeConfig?.roundSeconds,
-  );
-  const timingMode = challenge.normalizeChallengeTimingMode(request.data?.timingMode);
-  const roundClosingThreshold = challenge.normalizeRoundClosingThreshold(request.data?.roundClosingThreshold);
-  const secondChanceMode = request.data?.secondChanceMode === "automatic" ? "automatic" : "off";
-  const defaultTitle = `${className || classPeriod || "Class"} Live Challenge`;
-  const title = String(request.data?.title || defaultTitle).trim().slice(0, 120) || defaultTitle;
-
   // THE MODE, ITS SCORING AND ITS REWARDS are resolved through the engine
   // registries, before any roster or bank work, so a bad request fails fast.
   // An unknown mode is the standard game, which is what it always was.
   const engine = await liveChallengeEngine();
   const mode = engine.modes.getChallengeMode(request.data?.challengeMode);
-  const modeConfig = engine.modes.normalizeModeConfig(mode, request.data || {});
+  if (assignmentId && !mode.capabilities.warmupLink) {
+    throw new HttpsError("failed-precondition", `${mode.label} cannot run as an assignment's Warm-Up yet. Launch it from Live Challenge instead.`);
+  }
+
+  const standardCode = challenge.canonicalChallengeStandard(
+    request.data?.standardCode || warmupChallengeConfig?.standardCode || "mixed",
+  );
+  // The mode's own limits (a rush may be one round; the classic games keep
+  // theirs), and only the settings the mode actually has.
+  const requestedRoundCount = engine.modes.normalizeModeRoundCount(
+    mode,
+    request.data?.roundCount || warmupChallengeConfig?.roundCount,
+  );
+  const roundSeconds = engine.modes.normalizeModeRoundSeconds(
+    mode,
+    request.data?.roundSeconds || warmupChallengeConfig?.roundSeconds,
+  );
+  const timingMode = mode.capabilities.paceTiming ? challenge.normalizeChallengeTimingMode(request.data?.timingMode) : "timed";
+  const roundClosingThreshold = mode.capabilities.closingThreshold
+    ? challenge.normalizeRoundClosingThreshold(request.data?.roundClosingThreshold)
+    : null;
+  const secondChanceMode = mode.capabilities.secondChance && request.data?.secondChanceMode === "automatic" ? "automatic" : "off";
+  const defaultTitle = `${className || classPeriod || "Class"} Live Challenge`;
+  const title = String(request.data?.title || defaultTitle).trim().slice(0, 120) || defaultTitle;
+
+  let modeConfig;
+  try {
+    modeConfig = engine.modes.normalizeModeConfig(mode, request.data || {});
+  } catch (error) {
+    if (error?.name === "GraphFeatureRushConfigError") throw new HttpsError("invalid-argument", error.message);
+    throw error;
+  }
   const { questionStyle, solverRaceFocus, solverRaceDifficulty } = modeConfig;
   const scoringStrategyId = engine.modes.resolveModeScoringStrategy(mode, request.data?.scoringStrategyId);
-  const scoringConfig = engine.scoring.getScoringStrategy(scoringStrategyId).normalizeConfig(request.data?.scoringConfig || {});
+  // The mode's scoring defaults first (a rush's Grand Prix scales to the
+  // class), then anything the request set explicitly.
+  const scoringConfig = engine.modes.modeScoringConfig(mode, scoringStrategyId, request.data?.scoringConfig || {});
   let rewardPolicy;
   try {
     rewardPolicy = engine.rewardRules.normalizeRewardPolicy(request.data?.rewardPolicy);
@@ -9484,7 +9654,7 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   const planned = await liveChallengeQuestionPlanner(mode).plan({
     db, courseId, standardCode, modeConfig, roundCount: requestedRoundCount,
   });
-  if (planned.candidateCount < challenge.MIN_ROUND_COUNT) {
+  if (planned.candidateCount < mode.roundLimits.minRounds) {
     throw new HttpsError(
       "failed-precondition",
       standardCode === "mixed"
@@ -9554,6 +9724,9 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
     // Kept for readers that predate scoringStrategyId.
     scoringMode: scoringStrategyId,
     speedInfluencePercent,
+    // Public settings a mode's planner contributes (a rush's families and
+    // features, which the projector shows; never its seed).
+    ...planned.roomFields,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
@@ -9566,6 +9739,7 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
     // Generated solver definitions stay in the server-only challenge document.
     // Public room payloads are produced by the normal Path sanitizer below.
     roundQuestions: planned.roundQuestions,
+    ...planned.privateFields,
     scoringStrategyId,
     scoringConfig,
     // Validated when the room was created; read by the reward pipeline from
@@ -9727,6 +9901,9 @@ exports.createChallengeDryRun = onCall(async (request) => {
   // rehearses exactly what students would receive.
   const engine = await liveChallengeEngine();
   const mode = engine.modes.getChallengeMode(request.data?.challengeMode);
+  if (!mode.capabilities.dryRun) {
+    throw new HttpsError("failed-precondition", `${mode.label} is rehearsed with its own preview, not a dry run.`);
+  }
   const modeConfig = engine.modes.normalizeModeConfig(mode, request.data || {});
   const { questionStyle, solverRaceFocus, solverRaceDifficulty } = modeConfig;
   const planned = await liveChallengeQuestionPlanner(mode).plan({
@@ -9944,12 +10121,14 @@ function liveChallengeRoundResponse(roomId, room = {}, extra = {}) {
 function liveChallengeRoundCompletion(engine, room, players) {
   const mode = engine.modes.getChallengeMode(room.challengeMode);
   const roundIndex = Number(room.currentRound);
-  const questionSpecs = engine.modes.roundQuestionSpecsFor(mode);
   let joinedCount = 0;
   let completedCount = 0;
   players.forEach((player) => {
     if (player.joined !== true) return;
     joinedCount += 1;
+    // Per-player modes read each player's own question specs from their log;
+    // a rush player "finishes" only by working through the whole pool.
+    const questionSpecs = engine.modes.roundQuestionSpecsFor(mode, { receipts: player.submissionReceipts, roundIndex });
     const finished = Number(player.answeredRound) === roundIndex
       || engine.responses.summarizeRoundProgress({ receipts: player.submissionReceipts, roundIndex, questionSpecs }).finished;
     if (finished) completedCount += 1;
@@ -9959,6 +10138,12 @@ function liveChallengeRoundCompletion(engine, room, players) {
 
 /** The next round's public question and duration. Deterministic for a given room/round/question. */
 async function prepareLiveChallengeRoundOpening(db, { roomId, room, privateState, roundIndex }) {
+  const engine = await liveChallengeEngine();
+  const mode = engine.modes.getChallengeMode(room.challengeMode);
+  const planner = liveChallengeQuestionPlanner(mode);
+  if (typeof planner.openRound === "function") {
+    return planner.openRound({ db, roomId, room, privateState, roundIndex, mode, engine });
+  }
   const challenge = await liveChallengeRules();
   const questionId = privateState.questionIds?.[roundIndex];
   if (!questionId) throw new HttpsError("failed-precondition", "That Live Challenge round has no question.");
@@ -10065,31 +10250,62 @@ function applyLiveChallengeRoundClose(transaction, {
     closedAt: FieldValue.serverTimestamp(),
   });
 
-  if (strategy.accumulation !== engine.scoring.SCORE_ACCUMULATION.PER_ROUND) {
-    return { roundResult, players };
-  }
+  const perRound = strategy.accumulation === engine.scoring.SCORE_ACCUMULATION.PER_ROUND;
+  // A question-set round leaves each player their own round facts on their
+  // public record — what their round-results screen shows, also after a
+  // refresh. Anonymous: alias-keyed, counts and percentages only.
+  const questionSet = engine.modes.roundStructureFor(engine.modes.getChallengeMode(room.challengeMode)).id
+    === engine.modes.ROUND_STRUCTURE.QUESTION_SET;
+  if (!perRound && !questionSet) return { roundResult, players };
+  const publicStandings = new Map(engine.results.publicRoundSummary(roundResult).standings.map((row) => [row.playerKey, row]));
   const standingByStudent = new Map(roundResult.standings.map((standing) => [standing.studentId, standing]));
   const updatedPlayers = players.map((player) => {
     const standing = standingByStudent.get(player.studentId);
-    const totals = engine.results.playerTotalsAfterRound({ player, standing, roundIndex, scoringStrategyId });
-    if (!totals || totals.alreadyApplied) return player;
-    const { alreadyApplied: _alreadyApplied, ...patch } = totals;
-    transaction.set(privateRef.collection("players").doc(player.studentId), {
-      ...patch,
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
-    if (player.joined === true && player.playerKey) {
-      transaction.set(roomRef.collection("players").doc(String(player.playerKey)), {
-        score: patch.score,
-        matchPoints: patch.matchPoints,
-        roundWins: patch.roundWins,
-        // Null when the round earned them nothing: no credit, no placement.
-        lastRoundRank: engine.results.roundPlacementRank(standing),
-        lastRoundMatchPoints: standing.matchPointsAwarded,
-        updatedAt: FieldValue.serverTimestamp(),
-      }, { merge: true });
+    let patch = null;
+    if (perRound) {
+      const totals = engine.results.playerTotalsAfterRound({ player, standing, roundIndex, scoringStrategyId });
+      if (totals && !totals.alreadyApplied) {
+        const { alreadyApplied: _alreadyApplied, ...rest } = totals;
+        patch = rest;
+        transaction.set(privateRef.collection("players").doc(player.studentId), {
+          ...patch,
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
     }
-    return { ...player, ...patch };
+    if (player.joined === true && player.playerKey && standing) {
+      const publicRow = publicStandings.get(String(player.playerKey)) || {};
+      const publicPatch = {
+        ...(patch ? {
+          score: patch.score,
+          matchPoints: patch.matchPoints,
+          roundWins: patch.roundWins,
+          // Null when the round earned them nothing: no credit, no placement.
+          lastRoundRank: engine.results.roundPlacementRank(standing),
+          lastRoundMatchPoints: standing.matchPointsAwarded,
+        } : {}),
+        ...(questionSet ? {
+          lastRound: {
+            roundIndex,
+            roundVersion: Math.max(0, Number(room.roundVersion) || 0),
+            rank: standing.participated ? standing.rank : null,
+            fieldSize: roundResult.fieldSize,
+            completed: Number(publicRow.completed) || 0,
+            accuracyPercent: publicRow.accuracyPercent ?? null,
+            workScore: Number(standing.metrics?.workScore) || 0,
+            matchPointsAwarded: standing.matchPointsAwarded,
+            participated: standing.participated === true,
+          },
+        } : {}),
+      };
+      if (Object.keys(publicPatch).length) {
+        transaction.set(roomRef.collection("players").doc(String(player.playerKey)), {
+          ...publicPatch,
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
+    }
+    return patch ? { ...player, ...patch } : player;
   });
   return { roundResult, players: updatedPlayers };
 }
@@ -10261,8 +10477,21 @@ async function writeLiveChallengeReportFromResult(db, result) {
     players,
   });
   const finishedAt = Number(result.finalizedAtMs) ? new Date(Number(result.finalizedAtMs)) : FieldValue.serverTimestamp();
+  // A question-set game has no one question per round and no standard per
+  // round: its report is the breakdown by feature and family, and its class
+  // accuracy is every tap.
+  const { modes } = await liveChallengeEngine();
+  const questionSet = modes.roundStructureFor(modes.getChallengeMode(result.modeId)).id === modes.ROUND_STRUCTURE.QUESTION_SET;
+  const rushReport = questionSet ? (await graphFeatureRushRules()).rush.buildRushReport(result) : null;
   await db.collection(LIVE_CHALLENGE_REPORTS).doc(result.roomId).set({
     ...report,
+    ...(rushReport ? {
+      graphFeatureRush: rushReport,
+      classAccuracyPercent: rushReport.accuracyPercent,
+      rounds: [],
+      standards: [],
+      weakestStandard: null,
+    } : {}),
     roomId: result.roomId,
     teacherEmail: result.teacherEmail,
     classId: result.classId || null,
@@ -10931,6 +11160,10 @@ exports.reportLiveChallengeProgress = onCall(async (request) => {
     throw new HttpsError("permission-denied", "This Live Challenge was not assigned to you.");
   }
   const room = roomSnapshot.data() || {};
+  // A per-player mode reports its progress through its own attempts.
+  if (engine.modes.getChallengeMode(room.challengeMode).questionIssue === engine.modes.QUESTION_ISSUE.PER_PLAYER) {
+    return { recorded: false };
+  }
   const privateState = privateSnapshot.data() || {};
   const player = playerSnapshot.data() || {};
   const requestedVersion = Number(request.data?.roundVersion);
@@ -11120,6 +11353,11 @@ exports.updateLiveChallengePacing = onCall(async (request) => {
   const db = getFirestore();
   const challenge = await liveChallengeRules();
   const { roomRef, room } = await requireOwnedChallenge(db, request, roomId);
+  // A mode without a closing threshold (a timed rush) has no early close.
+  const { modes } = await liveChallengeEngine();
+  if (!modes.getChallengeMode(room.challengeMode).capabilities.closingThreshold) {
+    return { roomId, roundClosingThreshold: null };
+  }
   const roundClosingThreshold = challenge.normalizeRoundClosingThreshold(request.data?.roundClosingThreshold);
   await roomRef.set({ roundClosingThreshold, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
   if (room.status === challenge.LIVE_CHALLENGE_STATUS.RUNNING) {
@@ -11161,6 +11399,9 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   if (!roomSnapshot.exists || !privateSnapshot.exists || !playerSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge is no longer available.");
   if (!inviteSnapshot.exists || inviteSnapshot.data()?.roomId !== roomId) throw new HttpsError("permission-denied", "This Live Challenge was not assigned to you.");
   const room = roomSnapshot.data() || {};
+  if (engine.modes.getChallengeMode(room.challengeMode).questionIssue === engine.modes.QUESTION_ISSUE.PER_PLAYER) {
+    throw new HttpsError("failed-precondition", "This game is played by tapping graphs, not by submitting an answer.");
+  }
   const submittedVersion = requestedVersion ?? Number(room.roundVersion || 0);
   const submittedToken = requestedToken ?? String(room.roundToken || "");
   const expectedRound = { roundIndex: submittedRound, roundVersion: submittedVersion, roundToken: submittedToken };
@@ -11423,6 +11664,237 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   };
 });
 
+
+// ---------------------------------------------------------------------------
+// GRAPH FEATURE RUSH: A STUDENT'S OWN GRAPHS, AND THEIR TAPS.
+//
+// The rush's rounds open, close and finish through the same lifecycle
+// commands as every mode, on the room's authoritative clock. What it adds is
+// how a student gets questions and answers them:
+//
+//   getGraphFeatureRushRound        where the student stands in the round,
+//                                   read from their receipts, and their next
+//                                   graphs, generated from the room's private
+//                                   seed. Writes nothing.
+//   submitGraphFeatureRushAttempts  a batch of taps, "Does Not Exist" presses
+//                                   and skips, graded in ONE transaction
+//                                   against the server's own regenerated
+//                                   questions (graphFeatureRush.
+//                                   applyRushAttempts) and recorded as
+//                                   targetAttempt receipts. A retried batch
+//                                   replays by attempt id; a graph completes
+//                                   once.
+//   previewGraphFeatureRush         sample graphs for a teacher's settings.
+//
+// The device grades each tap instantly with the same hit test; the server's
+// verdict is the one that counts, and the device resynchronizes to it.
+// ---------------------------------------------------------------------------
+
+const optionalRushInteger = (value) => {
+  if (value === undefined || value === null || value === "") return null;
+  const numeric = Number(value);
+  return Number.isInteger(numeric) ? numeric : Number.NaN;
+};
+const optionalRushString = (value) => (value === undefined || value === null ? null : String(value).trim());
+
+async function loadGraphFeatureRushContext(db, { studentId, roomId }) {
+  const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId);
+  const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId);
+  const privatePlayerRef = privateRef.collection("players").doc(studentId);
+  const inviteRef = db.collection(LIVE_CHALLENGE_INVITES).doc(studentId);
+  const [roomSnapshot, privateSnapshot, playerSnapshot, inviteSnapshot] = await Promise.all([
+    roomRef.get(), privateRef.get(), privatePlayerRef.get(), inviteRef.get(),
+  ]);
+  if (!roomSnapshot.exists || !privateSnapshot.exists || !playerSnapshot.exists) {
+    throw new HttpsError("not-found", "That Live Challenge is no longer available.");
+  }
+  if (!inviteSnapshot.exists || inviteSnapshot.data()?.roomId !== roomId) {
+    throw new HttpsError("permission-denied", "This Live Challenge was not assigned to you.");
+  }
+  const room = roomSnapshot.data() || {};
+  const engine = await liveChallengeEngine();
+  const mode = engine.modes.getChallengeMode(room.challengeMode);
+  if (mode.questionSource !== engine.modes.QUESTION_SOURCE.GRAPH_FEATURE_GENERATOR) {
+    throw new HttpsError("failed-precondition", "This Live Challenge is not a Graph Feature Rush.");
+  }
+  const rules = await graphFeatureRushRules();
+  const rushState = (privateSnapshot.data() || {}).graphFeatureRush || {};
+  // A room is graded with the generator it was created under, or not at all:
+  // regenerating under different rules would grade a tap on a graph the
+  // student never saw.
+  if (!rushState.seed || Number(rushState.generatorVersion) !== rules.generator.GRAPH_FEATURE_GENERATOR_VERSION) {
+    throw new HttpsError("failed-precondition", "This Graph Feature Rush was created before an update. Ask your teacher to start a new game.");
+  }
+  return { engine, rules, mode, room, roomRef, privatePlayerRef, player: playerSnapshot.data() || {}, rushState };
+}
+
+/** Question k of one student's round: deterministic, generated once per call. */
+function graphFeatureRushIssuer({ rules, rushState, studentId, roundIndex }) {
+  const issued = new Map();
+  return (questionIndex) => {
+    if (!issued.has(questionIndex)) {
+      issued.set(questionIndex, rules.generator.generateRushQuestion({
+        seed: rushState.seed, studentKey: studentId, roundIndex, questionIndex, config: rushState.config,
+      }));
+    }
+    return issued.get(questionIndex);
+  };
+}
+
+exports.getGraphFeatureRushRound = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const db = getFirestore();
+  const roomId = String(request.data?.roomId || "").trim();
+  const roundIndex = Number(request.data?.roundIndex);
+  const roundVersion = optionalRushInteger(request.data?.roundVersion);
+  const roundToken = optionalRushString(request.data?.roundToken);
+  if (!roomId || !Number.isInteger(roundIndex) || roundIndex < 0 || Number.isNaN(roundVersion)) {
+    throw new HttpsError("invalid-argument", "roomId and roundIndex are required.");
+  }
+  const { engine, rules, mode, room, player, rushState } = await loadGraphFeatureRushContext(db, { studentId, roomId });
+  const { lifecycle } = engine;
+  const poolSize = mode.questionSpecs.length;
+  const state = rules.rush.rushRoundState({ receipts: player.submissionReceipts || {}, roundIndex, poolSize });
+  const roundOpen = lifecycle.planLifecycleCommand({
+    command: lifecycle.LIFECYCLE_COMMAND.SUBMIT,
+    room,
+    expected: { roundIndex, roundVersion, roundToken },
+  }).outcome === lifecycle.LIFECYCLE_OUTCOME.APPLY;
+  // Graphs only for an open round the student has joined, starting no
+  // earlier than where they are and no further ahead than two batches.
+  const requested = Number(request.data?.fromIndex);
+  const fromIndex = Number.isInteger(requested)
+    ? Math.min(Math.max(requested, state.cursor), state.cursor + 2 * rules.rush.RUSH_LIMITS.issueBatch)
+    : state.cursor;
+  const count = Math.max(0, Math.min(rules.rush.RUSH_LIMITS.issueBatch, Math.floor(Number(request.data?.count ?? 6)) || 0));
+  const issue = graphFeatureRushIssuer({ rules, rushState, studentId, roundIndex });
+  const joined = player.joined === true;
+  const questions = roundOpen && joined
+    ? Array.from({ length: Math.max(0, Math.min(count, poolSize - fromIndex)) }, (_, offset) => rules.generator.publicRushQuestion(issue(fromIndex + offset)))
+    : [];
+  // `poolSize` is where the round's graphs end; `joined` tells a device whose
+  // join is still on its way to ask again rather than to give up.
+  return { roomId, roundIndex, roundOpen, joined, poolSize, state, questions };
+});
+
+exports.submitGraphFeatureRushAttempts = onCall(async (request) => {
+  const requestArrivedAt = Date.now();
+  const { studentId } = requireStudent(request);
+  const db = getFirestore();
+  const roomId = String(request.data?.roomId || "").trim();
+  const roundIndex = Number(request.data?.roundIndex);
+  const roundVersion = optionalRushInteger(request.data?.roundVersion);
+  const roundToken = optionalRushString(request.data?.roundToken);
+  const attempts = Array.isArray(request.data?.attempts) ? request.data.attempts : [];
+  if (!roomId || !Number.isInteger(roundIndex) || roundIndex < 0 || !Number.isInteger(roundVersion) || !attempts.length) {
+    throw new HttpsError("invalid-argument", "roomId, roundIndex, roundVersion and attempts are required.");
+  }
+  const { engine, rules, mode, room, roomRef, privatePlayerRef, rushState } = await loadGraphFeatureRushContext(db, { studentId, roomId });
+  const { lifecycle, timer: roundTimer } = engine;
+  const expected = { roundIndex, roundVersion, roundToken };
+  // Cheap refusals before the transaction: a stale round, a closed one, or a
+  // request that arrived after the deadline's bounded grace.
+  const precheck = lifecycle.planLifecycleCommand({ command: lifecycle.LIFECYCLE_COMMAND.SUBMIT, room, expected });
+  if (precheck.outcome !== lifecycle.LIFECYCLE_OUTCOME.APPLY) {
+    throw new HttpsError("failed-precondition", precheck.message, { lifecycle: precheck.code });
+  }
+  if (!roundTimer.timerAcceptsArrival(roundTimer.timerFromRoom(room), requestArrivedAt).accepted) {
+    throw new HttpsError("deadline-exceeded", "Time is up for this round.");
+  }
+  const poolSize = mode.questionSpecs.length;
+  const issue = graphFeatureRushIssuer({ rules, rushState, studentId, roundIndex });
+
+  const outcome = await db.runTransaction(async (transaction) => {
+    const [latestRoomSnapshot, latestPlayerSnapshot] = await Promise.all([
+      transaction.get(roomRef), transaction.get(privatePlayerRef),
+    ]);
+    if (!latestRoomSnapshot.exists || !latestPlayerSnapshot.exists) {
+      throw new HttpsError("not-found", "That Live Challenge ended before your taps could be saved.");
+    }
+    const latestRoom = latestRoomSnapshot.data() || {};
+    const player = latestPlayerSnapshot.data() || {};
+    const plan = lifecycle.planLifecycleCommand({ command: lifecycle.LIFECYCLE_COMMAND.SUBMIT, room: latestRoom, expected });
+    if (plan.outcome !== lifecycle.LIFECYCLE_OUTCOME.APPLY) {
+      throw new HttpsError("failed-precondition", plan.message, { lifecycle: plan.code });
+    }
+    const latestTimer = roundTimer.timerFromRoom(latestRoom);
+    const arrival = roundTimer.timerAcceptsArrival(latestTimer, requestArrivedAt);
+    if (!arrival.accepted) throw new HttpsError("deadline-exceeded", "Time is up for this round.");
+    if (player.joined !== true || !player.playerKey) throw new HttpsError("failed-precondition", "Join the Live Challenge before playing.");
+    const strategy = engine.scoring.getScoringStrategy(engine.scoring.roomScoringStrategyId(latestRoom));
+    const applied = rules.rush.applyRushAttempts({
+      player,
+      roundIndex,
+      roundVersion,
+      attempts,
+      questionFor: issue,
+      arrivedAtMs: requestArrivedAt,
+      arrivalElapsedMs: arrival.elapsedMs,
+      roundDurationMs: latestTimer.durationMs || mode.roundLimits.maxSeconds * 1000,
+      strategy,
+      poolSize,
+    });
+    // Replays, found-again targets and resolved graphs record nothing, so a
+    // batch of only those writes nothing either.
+    if (applied.recorded > 0) {
+      const { totals } = applied;
+      transaction.set(privatePlayerRef, {
+        submissionReceipts: applied.receipts,
+        attemptSequence: applied.attemptSequence,
+        score: totals.score,
+        rawScore: totals.rawScore,
+        correctCount: totals.correctCount,
+        roundsAnswered: totals.roundsAnswered,
+        answeredRounds: totals.answeredRounds,
+        targetAttempts: totals.targetAttempts,
+        targetHits: totals.targetHits,
+        matchAccuracy: totals.matchAccuracy,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      // The player's own public row: the board's numbers and the host's
+      // "racing now" signal. No student id, no answers.
+      transaction.set(roomRef.collection("players").doc(String(player.playerKey)), {
+        score: totals.score,
+        rawScore: totals.rawScore,
+        correctCount: totals.correctCount,
+        roundsAnswered: totals.roundsAnswered,
+        matchAccuracy: totals.matchAccuracy,
+        rushRound: roundIndex,
+        rushRoundCompleted: applied.state.questionsCorrect,
+        rushActiveAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+    return {
+      verdicts: applied.verdicts,
+      state: applied.state,
+      recorded: applied.recorded,
+      score: applied.totals.score,
+      correctCount: applied.totals.correctCount,
+    };
+  });
+  return { roomId, roundIndex, ...outcome };
+});
+
+exports.previewGraphFeatureRush = onCall(async (request) => {
+  await requireTeacher(request);
+  const { generator, config } = await graphFeatureRushRules();
+  let normalized;
+  try {
+    normalized = config.normalizeGraphFeatureRushConfig(request.data?.graphFeatureRush || {});
+  } catch (error) {
+    if (error?.name === "GraphFeatureRushConfigError") throw new HttpsError("invalid-argument", error.message);
+    throw error;
+  }
+  // A fresh seed every time: the teacher sees what a student might get, and
+  // nothing is written anywhere.
+  const seed = crypto.randomUUID();
+  const count = Math.max(1, Math.min(18, Math.floor(Number(request.data?.count) || 12)));
+  const questions = Array.from({ length: count }, (_, questionIndex) => generator.publicRushQuestion(generator.generateRushQuestion({
+    seed, studentKey: "preview", roundIndex: 0, questionIndex, config: normalized,
+  })));
+  return { config: normalized, questions };
+});
 
 // Phase 5D: secure My Math Path production seam
 // ---------------------------------------------------------------------------

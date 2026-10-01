@@ -85,7 +85,9 @@ test('every callable that draws questions honours the style', () => {
     }
     // The VALUE matters, not the key name. A hardcoded "any" here would still
     // mention questionStyle while silently ignoring the teacher's choice.
-    assert.match(block, /const modeConfig = engine\.modes\.normalizeModeConfig\(mode, request\.data \|\| \{\}\)/, `${name} must read the request's style`);
+    // `const` or a `let` assigned inside the create's config-error guard: the
+    // binding is incidental, the request's data reaching the normalizer is not.
+    assert.match(block, /\bmodeConfig = engine\.modes\.normalizeModeConfig\(mode, request\.data \|\| \{\}\)/, `${name} must read the request's style`);
     assert.match(block, /liveChallengeQuestionPlanner\(mode\)\.plan\(\{[\s\S]{0,120}modeConfig/, `${name} must pass it to the draw`);
   });
 
@@ -143,8 +145,13 @@ test('the control exists and rehearses with the dry run', () => {
     deps[1].split(',').map((name) => name.trim()).includes('questionStyle'),
     'a style change must close a rehearsal drawn under the old style',
   );
-  const createCall = region(teacher, 'created = await createLiveChallenge({', '});', 'createLiveChallenge payload');
-  assert.match(createCall, /\bquestionStyle,/, 'createLiveChallenge must send the selected style');
+  // Every create that draws from the bank sends the style. A Graph Feature
+  // Rush generates its own graphs and has none, so its create (which spreads
+  // rushCreateRequest) is the one payload allowed without it.
+  const payloads = [...teacher.matchAll(/createLiveChallenge\(\{([\s\S]*?)\n\s*\}\);/g)].map((match) => match[1]);
+  const bankPayloads = payloads.filter((payload) => !payload.includes('rushCreateRequest('));
+  assert.ok(bankPayloads.length >= 1, 'the bank game\'s createLiveChallenge call must exist');
+  bankPayloads.forEach((payload) => assert.match(payload, /\bquestionStyle,/, 'createLiveChallenge must send the selected style'));
 });
 
 /* ---------- the student round reads as a game ---------- */

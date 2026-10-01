@@ -109,8 +109,10 @@ test('a finished Live Challenge shows its rewards apart from placement, through 
 
 test("the teacher's reward choice reaches createLiveChallenge as a validated policy", () => {
   const teacher = read('src/components/liveChallenge/LiveChallengeTeacher.jsx');
-  const create = region(teacher, 'created = await createLiveChallenge({', '});', 'create payload');
-  assert.match(create, /rewardPolicy: buildChallengeRewardPolicy\(rewardChoice\)/);
+  // Every create — a bank game's and a Graph Feature Rush's — carries it.
+  const creates = [...teacher.matchAll(/created = await createLiveChallenge\(\{([\s\S]*?)\n\s*\}\);/g)].map((match) => match[1]);
+  assert.ok(creates.length >= 2, 'both create paths are found');
+  creates.forEach((create) => assert.match(create, /rewardPolicy: buildChallengeRewardPolicy\(rewardChoice\)/));
   assert.match(teacher, /<ChallengeRewardSettings choice=\{rewardChoice\} onChange=\{setRewardChoice\} \/>/);
 });
 
