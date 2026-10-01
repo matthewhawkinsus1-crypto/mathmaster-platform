@@ -28,6 +28,13 @@ const rewards = await import(path.join(repo, 'functions/shared/liveChallengeClas
 const db = admin.firestore();
 
 const TEACHER = 'engine-teacher@example.com';
+// The integration files share one emulator and run in parallel, and a mixed
+// review draws from the whole bank — including another suite's questions,
+// which that suite deletes when it finishes (testCycleCertification does).
+// This suite's rooms draw only questions carrying its own standard, so a
+// question can never disappear in the middle of one of its matches.
+const ENGINE_STANDARD = 'ENGINESUITE1';
+const ENGINE_ALIGNMENT_KEY = `texas:${ENGINE_STANDARD}`;
 const CLASS_ID = 'engine-class-p4';
 const [S1, S2, S3] = ['engine-s1', 'engine-s2', 'engine-s3'];
 
@@ -61,18 +68,21 @@ for (const file of readdirSync(path.join(repo, 'functions/seeds/pathQuestionBank
     const instantiated = await mathPath.instantiateQuestion(item, `engine-probe|${item.id}`);
     if (!instantiated?.question || !challenge.liveChallengeEligible(instantiated.question)) continue;
     if (!mathPath.isChoiceOnlyPathQuestion(instantiated.question)) continue;
+    // A real standard first, so round standards, the report and evidence
+    // still name one; the suite's own key is only appended for the draw.
+    if (!Array.isArray(item.alignmentKeys) || !item.alignmentKeys.length) continue;
     if ((await mathPath.buildIssuePlan(instantiated.question)).issuable) bank.push(item);
     if (bank.length >= 6) break;
   }
   if (bank.length >= 6) break;
 }
 assert.ok(bank.length >= 3, 'the seed bank must hold at least three gradable choice questions');
-// Under this suite's own ids: the integration files share one emulator and run
-// in parallel, and another file may write the same seed item without the
-// course field a mixed-review draw queries on.
+// Under this suite's own ids, so no other file overwrites or deletes them.
 await Promise.all(bank.map((item) => {
   const id = `${item.id}--engine-suite`;
-  return db.collection('pathQuestionBank').doc(id).set({ ...item, id, courseId: 'algebra1', active: true });
+  return db.collection('pathQuestionBank').doc(id).set({
+    ...item, id, courseId: 'algebra1', active: true, alignmentKeys: [...item.alignmentKeys, ENGINE_ALIGNMENT_KEY],
+  });
 }));
 await db.collection('classes').doc(CLASS_ID).set({ teacherOfRecord: TEACHER, status: 'active', course: 'algebra1', period: '4', name: 'Engine Period 4' });
 for (const [index, studentId] of [S1, S2, S3].entries()) {
@@ -85,7 +95,7 @@ for (const [index, studentId] of [S1, S2, S3].entries()) {
 /* ---------- playing ---------- */
 
 const create = (extra = {}) => call('createLiveChallenge', teacher({
-  classId: CLASS_ID, courseId: 'algebra1', standardCode: 'mixed', questionStyle: 'noTools', roundCount: 3, roundSeconds: 30, ...extra,
+  classId: CLASS_ID, courseId: 'algebra1', standardCode: ENGINE_STANDARD, questionStyle: 'noTools', roundCount: 3, roundSeconds: 30, ...extra,
 }));
 
 // The server's own answer key for the round, regenerated exactly as submit does.
@@ -93,6 +103,8 @@ const responseFor = async (roomId, roundIndex, { correct }) => {
   const state = (await privateRef(roomId).get()).data();
   const questionId = state.questionIds[roundIndex];
   const authored = state.roundQuestions?.[roundIndex] || (await db.collection('pathQuestionBank').doc(questionId).get()).data();
+  assert.ok(authored, `round ${roundIndex} drew ${questionId}, which is no longer in the bank`);
+  assert.ok(questionId.endsWith('--engine-suite'), `round ${roundIndex} drew ${questionId} from outside this suite`);
   const instantiated = await mathPath.instantiateQuestion(authored, `challenge|${roomId}|${roundIndex}|${questionId}`);
   const plan = await mathPath.buildIssuePlan(instantiated.question);
   return { responses: Object.fromEntries(plan.privateGrading.fields.map((field) => [field.id, correct ? field.expected : '__not-an-answer__'])) };
@@ -376,7 +388,7 @@ test('closing a round ranks it once, refuses late answers, and the next round st
   assert.deepEqual(round.standings.map((row) => [row.rank, row.participated]), [[1, true], [2, false]]);
 
   const late = await failureOf(answer(roomId, S2, { correct: true }));
-  assert.equal(late?.code, 'failed-precondition', 'a closed round accepts nothing');
+  assert.equal(late?.code, 'failed-precondition', `a closed round accepts nothing (got ${late?.code}: ${late?.message || 'accepted'})`);
   assert.equal((await privatePlayer(roomId, S2)).answeredRound, -1);
 
   // From results the host moves on without the round being ranked again.

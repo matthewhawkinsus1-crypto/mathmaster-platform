@@ -94,8 +94,7 @@ const seed = async () => {
     roundSeconds: 60,
     currentRound: 0,
     roundStartedAt: admin.firestore.Timestamp.fromMillis(now),
-    // More than 60 seconds remaining intentionally clamps the mature speed
-    // scorer to its full 100-point speed component.
+    // Re-anchored to the moment of the answer below; see there.
     roundEndsAt: admin.firestore.Timestamp.fromMillis(now + 600000),
     currentQuestion: { questionInstanceId: `challenge_${ROOM}_r1` },
   });
@@ -166,10 +165,20 @@ test('selected public identity is applied without losing the generated code name
   assert.equal(publicAfterConfig.studentId, undefined, 'public leaderboard must not receive the roster id');
 });
 
+// Speed is scored from the round's start in one-second buckets, so the full
+// speed component needs the answer to arrive within a second of the start.
+// Measured from seeding, that included configuration and answer-key work —
+// and, with the other integration suites sharing the emulator in parallel, it
+// sometimes took longer, paying 196 instead of 200. Start the round at the
+// moment of answering, so the elapsed time is the submit's own latency.
+const answer = await correctAnswer();
+await db.collection('liveChallengeRooms').doc(ROOM).set({
+  roundStartedAt: admin.firestore.Timestamp.fromMillis(Date.now()),
+}, { merge: true });
 const correct = await functionsEntry.submitLiveChallengeResponse.run(studentRequest({
   roomId: ROOM,
   roundIndex: 0,
-  responsePayload: { responses: { answer: await correctAnswer() } },
+  responsePayload: { responses: { answer } },
 }));
 const privateAfterSubmit = (await db.collection('liveChallengePrivate').doc(ROOM).collection('players').doc(STUDENT).get()).data();
 const publicAfterSubmit = (await db.collection('liveChallengeRooms').doc(ROOM).collection('players').doc(PLAYER_KEY).get()).data();
