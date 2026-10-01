@@ -4,19 +4,18 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
-import { evaluateFunctionSpec, nearlyEqual } from '../shared/toolMath';
+import { evaluateFunctionSpec } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import functionInvestigationGrader from '../../../functions/shared/serverGrading/tools/functionInvestigation2.mjs';
 import {
   FUNCTION_FAMILY_LABELS,
-  behaviorForSpec,
   behaviorLabel,
-  compareFunctionValues,
   domainRangeForSpec,
   interceptsForSpec,
   investigationFeatures,
   normalizeInvestigationSpec,
-  numericSetsMatch,
-  parseNumericList,
   relationLabel,
 } from './functionInvestigationMath';
 
@@ -130,56 +129,65 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
   const compareLeft = normalizeInvestigationSpec(questionData.left || { type: 'linear', a: 1, h: 0, k: 0 });
   const compareRight = normalizeInvestigationSpec(questionData.right || { type: 'quadratic', a: 1, h: 0, k: 0 });
   const compareX = Number(questionData.x ?? 2);
-  const comparisonResult = compareFunctionValues(compareLeft, compareRight, compareX);
 
-  const checkFeatures = () => {
-    const checks = [nearlyEqual(Number(anchorX), features.anchor.point[0], 0.01), nearlyEqual(Number(anchorY), features.anchor.point[1], 0.01)];
-    if (features.verticalAsymptotes.length) checks.push(nearlyEqual(Number(verticalAsymptote), features.verticalAsymptotes[0], 0.01));
-    if (features.horizontalAsymptotes.length) checks.push(nearlyEqual(Number(horizontalAsymptote), features.horizontalAsymptotes[0], 0.01));
-    submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length }, { anchor: [Number(anchorX), Number(anchorY)], verticalAsymptote, horizontalAsymptote }, { mode, family: spec.type, featureLabel: features.anchor.label, anchorIsOnGraph: features.anchor.isOnGraph, checks });
+  /*
+   * THE VERDICT COMES FROM THE SHARED GRADER, NOT FROM THIS SCREEN.
+   *
+   * `work` is the raw answer for the mode on screen — exactly what the student
+   * typed or chose, never a value computed from the key — and every Check marks
+   * it with the same pure grader the server runs
+   * (functions/shared/serverGrading/tools/functionInvestigation2.mjs), through
+   * the same bounded bytes. Typed boxes travel as typed, so an empty box stays
+   * empty instead of becoming 0. The chain mirrors the Check routing below
+   * (`primaryAction`), final `else` included: a mode this tool does not
+   * recognise is checked as a comparison. The same object is reported live, so
+   * a deadline sees exactly the work a Check would have marked.
+   */
+  const work = mode === 'features'
+    ? { anchorX, anchorY, verticalAsymptote, horizontalAsymptote }
+    : mode === 'domainRange'
+      ? { domainCode, rangeCode }
+      : mode === 'intercepts'
+        ? { xIntercepts, yIntercept }
+        : mode === 'behavior'
+          ? { behavior }
+          : { comparison };
+  useReportToolWork(work);
+
+  const checkWork = (metadata) => {
+    const result = gradeToolCheck(functionInvestigationGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode, ...metadata, parts: result.parts });
   };
 
-  const checkDomainRange = () => {
-    const checks = [domainCode === domainRange.domainCode, rangeCode === domainRange.rangeCode];
-    submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 }, { domainCode, rangeCode }, { mode, family: spec.type, checks });
-  };
-
-  const checkIntercepts = () => {
-    const parsedX = parseNumericList(xIntercepts);
-    const parsedY = parseNumericList(yIntercept);
-    const expectedY = intercepts.y == null ? [] : [intercepts.y];
-    const checks = [numericSetsMatch(parsedX, intercepts.x, 0.01), numericSetsMatch(parsedY, expectedY, 0.01)];
-    submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 }, { xIntercepts: parsedX, yIntercept: parsedY }, { mode, family: spec.type, checks });
-  };
-
-  const checkBehavior = () => {
-    const expected = behaviorForSpec(spec);
-    const ok = behavior === expected;
-    submit({ isCorrect: ok, score: ok ? 1 : 0 }, { behavior }, { mode, family: spec.type });
-  };
-
-  const checkComparison = () => {
-    const ok = comparison === comparisonResult.relation;
-    submit({ isCorrect: ok, score: ok ? 1 : 0 }, { comparison }, { mode, x: compareX, leftValue: comparisonResult.leftValue, rightValue: comparisonResult.rightValue });
-  };
+  const checkFeatures = () => checkWork({ family: spec.type, featureLabel: features.anchor.label, anchorIsOnGraph: features.anchor.isOnGraph });
+  const checkDomainRange = () => checkWork({ family: spec.type });
+  const checkIntercepts = () => checkWork({ family: spec.type });
+  const checkBehavior = () => checkWork({ family: spec.type });
+  const checkComparison = () => checkWork({ x: compareX });
 
   // Say which half of a two-part answer was wrong instead of restating the
   // learning objective at a student who already knows what they were asked.
+  // Each half is read by its part id from the shared grader's result.
   const feedbackMessage = () => {
     if (feedback.isCorrect) return 'Correct — that matches the function’s structure.';
-    const checks = feedback.metadata?.checks;
-    if (mode === 'domainRange' && Array.isArray(checks)) {
-      if (checks[0] && !checks[1]) return 'The domain is right. Look again at the range: which y-values does the graph actually reach?';
-      if (!checks[0] && checks[1]) return 'The range is right. Look again at the domain: which x-values can you substitute in?';
+    const parts = feedback.metadata?.parts;
+    const partIsCorrect = (id) => Array.isArray(parts) && parts.some((part) => part?.id === id && part.isCorrect === true);
+    if (mode === 'domainRange' && Array.isArray(parts)) {
+      const domainOk = partIsCorrect('domain');
+      const rangeOk = partIsCorrect('range');
+      if (domainOk && !rangeOk) return 'The domain is right. Look again at the range: which y-values does the graph actually reach?';
+      if (!domainOk && rangeOk) return 'The range is right. Look again at the domain: which x-values can you substitute in?';
       return 'Neither one matches yet. Trace the graph left-to-right for the domain, then bottom-to-top for the range.';
     }
-    if (mode === 'intercepts' && Array.isArray(checks)) {
-      if (checks[0] && !checks[1]) return 'Your x-intercepts are right. Check the y-intercept — substitute x = 0.';
-      if (!checks[0] && checks[1]) return 'Your y-intercept is right. Check the x-intercepts — set y = 0 and solve.';
+    if (mode === 'intercepts' && Array.isArray(parts)) {
+      const xOk = partIsCorrect('x-intercepts');
+      const yOk = partIsCorrect('y-intercept');
+      if (xOk && !yOk) return 'Your x-intercepts are right. Check the y-intercept — substitute x = 0.';
+      if (!xOk && yOk) return 'Your y-intercept is right. Check the x-intercepts — set y = 0 and solve.';
       return 'Neither intercept matches. Remember an intercept can legitimately be none.';
     }
-    if (mode === 'features' && Array.isArray(checks)) {
-      if (!checks[0] || !checks[1]) return `Check the coordinates of the ${features.anchor.label}. Count gridlines across for x first, then up or down for y.`;
+    if (mode === 'features' && Array.isArray(parts)) {
+      if (!partIsCorrect('anchor-x') || !partIsCorrect('anchor-y')) return `Check the coordinates of the ${features.anchor.label}. Count gridlines across for x first, then up or down for y.`;
       return 'The point is right, but an asymptote value is off. An asymptote is a line the graph approaches but never touches.';
     }
     if (mode === 'compare') return `Follow the dashed line at x = ${compareX} and compare how high each curve sits there.`;
