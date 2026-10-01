@@ -8,13 +8,15 @@
  * pair; the same tolerances (0.001 for a common change or a₁, 0.01 for a term,
  * a sum or a difference, max(0.02, snap / 3) for a plotted point); the same
  * score (the share of the mode's checks that pass, every check weighted 1);
- * and the same reading of a typed rule (mathjs, sampled at five inputs).
+ * and the same reading of a typed rule (mathjs, sampled at five inputs) — on
+ * the hardened instance (../../algebra/safeMath.mjs), and only as a scalar
+ * expression (SCALAR_RULE_NODES below).
  *
  * The rows a student fills and plots, the snap step and the comparison layout
  * come from ../../toolMath/sequenceExplorer/sequenceMath.mjs — the same
  * functions the screen draws them with.
  */
-import { parse } from 'mathjs';
+import { parse } from '../../algebra/safeMath.mjs';
 import declaration from '../declarations/sequenceExplorer.mjs';
 import { bindToolGrader } from '../toolGraderDefinition.mjs';
 import { gradedResult } from '../gradingResult.mjs';
@@ -26,6 +28,7 @@ import {
   fullBridgeTermCount,
   generateSequence,
   inferPlotSnapStep,
+  missingTermCount,
   plotPointTolerance,
   pointSetMatchesRows,
   sequenceChange,
@@ -68,8 +71,8 @@ export const normalizePreviousTermToken = (value = '') => (
 
 /**
  * Implicit multiplication made explicit: 3n → 3*n, 2(n-1) → 2*(n-1).
- * A side effect the rule check relies on: every `name(` becomes `name*(`, so a
- * typed rule can never call a mathjs function.
+ * A side effect: every `name(` becomes `name*(`, so a rule never calls a
+ * mathjs function BY NAME. That alone is not a fence — see SCALAR_RULE_NODES.
  */
 export const normalizeSequenceExpressionText = (value = '') => (
   String(value || '')
@@ -81,17 +84,33 @@ export const normalizeSequenceExpressionText = (value = '') => (
     .replace(/([A-Za-z])(?=\d|\()/g, '$1*')
 );
 
-// The one mathjs construct left that allocates in proportion to a number the
-// student types: `1:99999999` builds a hundred-million-entry matrix. A range
-// is never a sequence term (its value is a matrix, which already fails the
-// finite-number test below), so refusing it changes no verdict — it only stops
-// a ten-character rule from exhausting the server's memory.
-const containsRange = (node) => {
-  let found = false;
+/*
+ * WHAT A TYPED RULE MAY BE BUILT FROM: numbers, n or p, operators, brackets
+ * and a ternary — a scalar expression, which is every rule a student writes.
+ *
+ * The server evaluates this text on a mathjs instance that every later grade
+ * in the same warm process shares, so every other construct is refused before
+ * evaluation. The normalizer's `name*(` does not stop a call made through an
+ * accessor, and mathjs has other ways for a short string to allocate or to
+ * change shared state (safeMath refuses some by name; this refuses them all):
+ *   - `{a:zeros}["a"](30000,30000)` or `[zeros][1](…)` call any function: an
+ *     allocation, or createUnit/import changing the instance for everyone;
+ *   - `q=x=[1];x[30000,30000]=1` resizes a matrix by index assignment;
+ *   - `1:99999999` builds a range;
+ *   - `([1;1;…]*[[1,1,…]])^2147483647` multiplies literal matrices for seconds.
+ * A matrix, a range, an object or a function is never a sequence term, so this
+ * changes no verdict for a rule written as a rule. What the old check accepted
+ * and this refuses is only what no rule is written as: a lookup into a typed
+ * list (`(1:10)[n]`, `[1,2,3,…][n]`), a call through an object, a second `=`
+ * (`aₙ = x = n`) or a `;`.
+ */
+const SCALAR_RULE_NODES = new Set(['ConstantNode', 'SymbolNode', 'OperatorNode', 'ParenthesisNode', 'ConditionalNode']);
+const isScalarRule = (node) => {
+  let scalar = true;
   node.traverse((child) => {
-    if (child.type === 'RangeNode') found = true;
+    if (!SCALAR_RULE_NODES.has(child.type)) scalar = false;
   });
-  return found;
+  return scalar;
 };
 
 const expressionMatchesSamples = (value, samples = [], expectedAt = () => Number.NaN) => {
@@ -99,7 +118,7 @@ const expressionMatchesSamples = (value, samples = [], expectedAt = () => Number
   if (!expression) return false;
   try {
     const node = parse(expression);
-    if (containsRange(node)) return false;
+    if (!isScalarRule(node)) return false;
     const code = node.compile();
     return samples.every((scope) => {
       const actual = Number(code.evaluate(scope));
@@ -222,6 +241,11 @@ const fullBridge = (question, work) => {
 const missingTerm = (question, work) => {
   const spec = sequenceSpecFromQuestion(question);
   const missingIndex = Number(question.missingIndex ?? 4);
+  // The screen draws missingTermCount() terms and cannot render at all when
+  // that is not a positive integer, so such a question is never graded either
+  // (checked without building the row list a huge count would allocate).
+  const count = missingTermCount(question);
+  if (!Number.isInteger(count) || count < 1) throw new Error('Sequence count must be a positive integer.');
   return byChecks([
     termPart('term', missingIndex, work.termAnswer, sequenceTerm(spec, missingIndex)),
     kindPart(work, spec),

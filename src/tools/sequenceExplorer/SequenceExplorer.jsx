@@ -16,6 +16,7 @@ import {
   fullBridgeTermCount,
   generateSequence,
   inferPlotSnapStep,
+  missingTermCount,
   sequenceEvidenceCount,
   sequenceSpecFromQuestion,
   sequenceStudentActions,
@@ -263,9 +264,12 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
                   <td key={row.n} style={{ padding: 5 }}>
                     <input
                       aria-label={`Sequence output a${row.n}`}
-                      value={tableValues[index]}
-                      onChange={(event) => setTableValues((current) => current.map((item, valueIndex) => (
-                        valueIndex === index ? event.target.value : item
+                      value={tableValues[index] ?? ''}
+                      // One entry per row on screen: a draft saved when the
+                      // table had fewer rows still lets every box be filled,
+                      // and the grader reads every row.
+                      onChange={(event) => setTableValues((current) => rows.map((_row, valueIndex) => (
+                        valueIndex === index ? event.target.value : (current?.[valueIndex] ?? '')
                       )))}
                       {...FRACTION_ENTRY_PROPS}
                       style={{ ...inputStyle, minWidth: 72, textAlign: 'center' }}
@@ -468,7 +472,7 @@ function RuleBridge({ questionData, feedback, submit, onAction }) {
 function MissingTerm({ questionData, feedback, submit, onAction }) {
   const spec = sequenceSpecFromQuestion(questionData);
   const missingIndex = Number(questionData.missingIndex ?? 4);
-  const count = Math.max(6, Number(questionData.displayCount ?? 7), missingIndex + 1);
+  const count = missingTermCount(questionData);
   const rows = generateSequence(spec, count);
   sequenceTerm(spec, missingIndex); // a gap with no term fails before render (see top of file)
   const [termAnswer, setTermAnswer] = usePersistentToolState('termAnswer', '');

@@ -15,6 +15,7 @@ import {
   comparePlotCount,
   fullBridgeTermCount,
   generateSequence,
+  missingTermCount,
 } from '../../functions/shared/toolMath/sequenceExplorer/sequenceMath.mjs';
 import { gradeToolCheck } from '../../src/tools/shared/sharedToolGrading.js';
 import { executableSource, region } from '../platform/helpers/sourceContract.mjs';
@@ -252,23 +253,48 @@ test('ruleBridge: an unauthored question grades against aₙ = n', () => {
   assert.equal(result.isCorrect, true);
 });
 
-test('a typed rule cannot make the grader allocate a range (server memory guard)', () => {
+test('a typed rule is evaluated only as a scalar expression (server memory and shared-state guard)', () => {
   const spec = { kind: 'arithmetic', first: 1, difference: 1 };
-  // `(1:10)[n]` does evaluate to n, and the old inline check accepted it; it is
-  // refused now because building a range is the one way a short rule could
-  // allocate without bound. Every scalar spelling of the rule still matches.
-  assert.equal(matchesExplicitRule('(1:10)[n]', spec), false);
-  assert.equal(matchesExplicitRule('n', spec), true);
-  assert.equal(matchesExplicitRule('[1,2,3,4,5,6,7,8][n]', spec), true, 'a literal list is bounded by the text itself');
-  // A ternary uses ":" too, and is not a range.
-  assert.equal(matchesExplicitRule('n > 0 ? n : 0', spec), true);
+  // Every scalar spelling of a rule still matches: operators, brackets,
+  // implicit products, powers, and a ternary (whose ":" is not a range).
+  for (const rule of ['n', '(n)', '2n - n', 'n^1', '-(-n)', 'n > 0 ? n : 0', '1 + (n - 1)1']) {
+    assert.equal(matchesExplicitRule(rule, spec), true, rule);
+  }
+  // Lookups into a typed list did evaluate to n, and the old inline check
+  // accepted them. They are refused now: a matrix, a range, an object or an
+  // accessor call is never a sequence term, and each is a way for a short
+  // string to allocate on the server.
+  for (const rule of ['(1:10)[n]', '[1,2,3,4,5,6,7,8][n]', '[n][1]', '{a:n}["a"]', '{a:abs}["a"](n)', 'q=x=n', '0;n']) {
+    assert.equal(matchesExplicitRule(rule, spec), false, rule);
+  }
+  assert.equal(matchesRecursiveRule('[p][1] + 1', spec), false);
+
   const started = Date.now();
   assert.equal(matchesExplicitRule('1:20000000', spec), false);
   assert.equal(matchesRecursiveRule('p + 0*(1:20000000)', spec), false);
-  assert.ok(Date.now() - started < 1000, 'refused without building twenty million entries');
-  // Function calls never reach mathjs: `name(` is read as `name*(`.
+  // `name(` is read as `name*(`, but a call through an accessor is not, so
+  // the guard — not the normalizer — is what keeps zeros() from running.
+  assert.equal(matchesExplicitRule('{a:zeros}["a"](2000,2000)', spec), false);
+  assert.equal(matchesExplicitRule('[zeros][1](2000,2000)', spec), false);
+  // An index assignment resizes a matrix to whatever the student types.
+  assert.equal(matchesExplicitRule('q=x=[1];x[2000,2000]=1', spec), false);
+  assert.ok(Date.now() - started < 1000, 'refused without building millions of entries');
   assert.equal(matchesExplicitRule('createUnit("n")', spec), false);
   assert.equal(matchesExplicitRule('sqrt(n^2)', spec), false);
+});
+
+test('one student\'s typed rule cannot change how the server grades the next one', () => {
+  // The server grades on one process-wide mathjs instance. Through an accessor
+  // call, createUnit would register a unit there, and a later rule written
+  // with that name would start to evaluate — a verdict changed by someone
+  // else's submission. A known unit shows the probe itself works.
+  const spec = { kind: 'arithmetic', first: 1, difference: 1 };
+  assert.equal(matchesExplicitRule('n*(cm/cm)', spec), true, 'control: a defined unit divides out');
+  assert.equal(matchesExplicitRule('n*(seqguardunit/seqguardunit)', spec), false);
+  for (const attack of ['{a:createUnit}["a"]("seqguardunit")', '[createUnit][1]("seqguardunit")']) {
+    assert.equal(grade(RULES_ARITHMETIC, { explicitRule: attack, recursiveFirst: '3', recursiveRule: 'a_{n-1} + 4' }).isCorrect, false);
+  }
+  assert.equal(matchesExplicitRule('n*(seqguardunit/seqguardunit)', spec), false, 'no unit was created');
 });
 
 /* ------------------------------------------------------------------ */
@@ -351,6 +377,11 @@ test('fullBridge: a table must answer every row on screen (stale or emptied draf
   const long = grade(tableOnly, bridgeWork({ tableValues: [...bridgeWork().tableValues, '233', 'junk'] }));
   assert.equal(long.graded, true);
   assert.equal(long.isCorrect, true, 'a value past the last row is not on screen and is not read');
+  // A short draft is never a trap: typing in any box rebuilds the table with
+  // one entry per row on screen, so every row the grader reads can be filled.
+  const body = region(code, 'function FullSequenceBridge(', '\nfunction ', 'FullSequenceBridge');
+  assert.match(body, /value=\{tableValues\[index\] \?\? ''\}/);
+  assert.match(body, /onChange=\{\(event\) => setTableValues\(\(current\) => rows\.map\(\(_row, valueIndex\) => \(\s*valueIndex === index \? event\.target\.value : \(current\?\.\[valueIndex\] \?\? ''\)/);
 });
 
 test('fullBridge: an unauthored model requires nothing and is marked as one failed check', () => {
@@ -389,6 +420,23 @@ test('missingTerm: the gap and the family, half credit each', () => {
   assert.equal(blank.score, 0.5);
   // Unauthored: 1, 2, 3, ? with the gap at a₄.
   assert.equal(grade(q({ mode: 'missingTerm' }), { termAnswer: '4', kindAnswer: 'arithmetic' }).isCorrect, true);
+});
+
+test('missingTerm: a question the screen cannot draw is never graded', () => {
+  // The screen shows missingTermCount() terms and fails to render when that is
+  // not a whole number; tampered work for such a question earns nothing.
+  assert.equal(missingTermCount(q({ mode: 'missingTerm' })), 7);
+  assert.equal(missingTermCount(q({ mode: 'missingTerm', missingIndex: 9 })), 10);
+  assert.equal(missingTermCount(q({ mode: 'missingTerm', displayCount: 3, missingIndex: 2 })), 6, 'never fewer than six terms');
+  for (const displayCount of [7.5, 'seven']) {
+    const broken = grade(q({ mode: 'missingTerm', displayCount }), { termAnswer: '4', kindAnswer: 'arithmetic' });
+    assert.equal(broken.graded, false, `displayCount ${displayCount}`);
+    assert.equal(broken.isCorrect, false);
+    assert.equal(broken.score, 0);
+  }
+  assert.equal(grade(q({ mode: 'missingTerm', displayCount: 12 }), { termAnswer: '4', kindAnswer: 'arithmetic' }).isCorrect, true);
+  const body = region(code, 'function MissingTerm(', '\nfunction ', 'MissingTerm');
+  assert.match(body, /const count = missingTermCount\(questionData\);\s*const rows = generateSequence\(spec, count\);/, 'the screen draws the count the grader checks');
 });
 
 test('partialSum: last term and Sₙ, for arithmetic, geometric and ratio-1 sequences', () => {
@@ -432,6 +480,11 @@ test('compare: the larger term and the absolute difference, with unauthored defa
   assert.deepEqual(failedIds(half), ['relation']);
   assert.equal(half.score, 0.5);
 
+  for (const difference of ['74/2', ' 37 ', '37.004', '+37']) {
+    assert.equal(grade(q({ mode: 'compare' }), { relation: 'B', difference }).isCorrect, true, difference);
+  }
+  assert.equal(grade(q({ mode: 'compare' }), { relation: 'B', difference: '-37' }).isCorrect, false, 'the difference is absolute');
+
   const tie = q({ mode: 'compare', left: { kind: 'arithmetic', first: 2, difference: 2 }, right: { kind: 'geometric', first: 2, ratio: 2 }, compareN: 2 });
   assert.equal(grade(tie, { relation: 'equal', difference: '0' }).isCorrect, true);
   assert.equal(grade(tie, { relation: 'A', difference: '0' }).isCorrect, false);
@@ -469,6 +522,29 @@ test('injected verdicts and keys are dropped and never change the verdict', () =
   const result = grade(ANALYZE, tampered);
   assert.equal(result.isCorrect, false);
   assert.equal(result.score, 0);
+
+  // Every mode: a claimed verdict changes nothing, for wrong and right work.
+  const INJECTED = { isCorrect: true, score: 1, correct: true, passed: true, expected: '1', answerKey: {}, checks: [true], verdict: 'correct' };
+  const MISSING = q({ mode: 'missingTerm', sequence: { kind: 'geometric', first: 2, ratio: 3 }, missingIndex: 3 });
+  const SUM = q({ mode: 'partialSum', sequence: { kind: 'arithmetic', first: 3, difference: 2 }, sumN: 5 });
+  for (const [question, work] of [
+    [ANALYZE, { kindAnswer: 'arithmetic', changeAnswer: '4', termAnswer: '36' }],
+    [RULES_ARITHMETIC, { explicitRule: '4n', recursiveFirst: '3', recursiveRule: 'a_{n-1} + 4' }],
+    [BRIDGE, bridgeWork({ termAnswer: '0' })],
+    [MISSING, { termAnswer: '19', kindAnswer: 'geometric' }],
+    [SUM, { lastTerm: '11', sumAnswer: '36' }],
+    [PLOTTED, { relation: 'A', difference: '96', leftPlottedPoints: plotted(PLOTTED.left), rightPlottedPoints: plotted(PLOTTED.right) }],
+  ]) {
+    const clean = grade(question, work);
+    const claimed = grade(question, { ...work, ...INJECTED });
+    assert.equal(clean.isCorrect, false, `${question.mode} control is wrong work`);
+    assert.deepEqual(
+      [claimed.isCorrect, claimed.isComplete, claimed.score, claimed.parts],
+      [clean.isCorrect, clean.isComplete, clean.score, clean.parts],
+      `${question.mode}: injected verdict ignored`,
+    );
+    assert.ok(clean.score > 0 && clean.score < 1, `${question.mode}: partial credit`);
+  }
 });
 
 test('wrong types read as blank and never crash the grader', () => {
@@ -487,6 +563,14 @@ test('wrong types read as blank and never crash the grader', () => {
   const compare = grade(PLOTTED, { relation: 5, difference: null, leftPlottedPoints: [['x', 'y']], rightPlottedPoints: 'points' });
   assert.equal(compare.graded, true);
   assert.equal(compare.isCorrect, false);
+
+  // A list that would stringify to the right answer is still not a typed box.
+  const rules = grade(RULES_ARITHMETIC, { explicitRule: ['4n-1'], recursiveFirst: ['3'], recursiveRule: { rule: 'a_{n-1}+4' } });
+  assert.deepEqual([rules.graded, rules.isCorrect, rules.isComplete, rules.score], [true, false, false, 0]);
+  const missing = grade(q({ mode: 'missingTerm' }), { termAnswer: ['4'], kindAnswer: ['arithmetic'] });
+  assert.deepEqual([missing.graded, missing.score], [true, 0]);
+  const sum = grade(q({ mode: 'partialSum' }), { lastTerm: { n: 6 }, sumAnswer: false });
+  assert.deepEqual([sum.graded, sum.score, sum.isComplete], [true, 0, false]);
 });
 
 test('non-object and oversize work is not graded, on either path', () => {

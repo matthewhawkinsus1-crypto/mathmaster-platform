@@ -153,6 +153,17 @@ export const fullBridgeTermCount = (question = {}) => {
   );
 };
 
+/**
+ * Missing-term mode: how many terms the gapped sequence shows — at least six,
+ * and always past the gap. Not a positive integer (an authored displayCount of
+ * 7.5 or "seven") means the screen cannot draw the question at all.
+ */
+export const missingTermCount = (question = {}) => Math.max(
+  6,
+  Number(question?.displayCount ?? 7),
+  Number(question?.missingIndex ?? 4) + 1,
+);
+
 /** Compare mode: how many term positions of each sequence are drawn (and, when plotting is required, plotted). */
 export const comparePlotCount = (question = {}) => {
   const requirePlot = sequenceStudentActions(question).includes('plotSequence');
