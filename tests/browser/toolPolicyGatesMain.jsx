@@ -9,6 +9,7 @@
 //   ?tool=composed   the same relation as a composed question: its mapping
 //                    stage mounts RelationMapping inside WorkflowRunner
 //   ?tool=graphing   Graphing2, whose Work View Help is its HintPanel
+//   ?tool=step       a step-algebra solve, with its "Need a strategic hint?"
 //
 // What the engine would submit lands in window.__mmGraded.
 import React from 'react';
@@ -54,6 +55,12 @@ const QUESTIONS = {
     prompt: 'Represent this relation.',
     pairs: relation,
     recipe: { name: 'relationRepresentations', ask: ['mapping', 'domain'] },
+  },
+  step: {
+    id: 'policy-gates-step',
+    type: 'stepAlgebra',
+    prompt: 'Solve for x.',
+    equation: '2x+3=11',
   },
   graphing: {
     id: 'policy-gates-graphing',

@@ -29,10 +29,12 @@ const check = (ok, label, detail = '') => {
 };
 
 const run = Date.now();
-const open = async (pairs = '') => {
+let pageCount = 0;
+const open = async (pairs = '', role = 'practice') => {
+  pageCount += 1;
   const page = await context.newPage();
   page.on('pageerror', (error) => failures.push(`page error ${error.message}`));
-  await page.goto(`${ORIGIN}/tests/browser/relationPlotGrading.html?role=practice${pairs ? `&pairs=${pairs}` : ''}&run=${run}`, { waitUntil: 'networkidle' });
+  await page.goto(`${ORIGIN}/tests/browser/relationPlotGrading.html?role=${role}${pairs ? `&pairs=${pairs}` : ''}&run=${run}-${pageCount}`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: /^P1\b/ }).first().waitFor({ timeout: 20000 });
   return page;
 };
@@ -79,6 +81,34 @@ const submit = async (page) => {
   const { graded } = await submit(page);
   const plot = graded?.parts?.find((part) => part.id === 'plot');
   check(plot?.isCorrect === true && graded?.isCorrect === true, 'a plotted non-function relation is graded correct', JSON.stringify(plot));
+  await page.close();
+}
+
+{
+  // The two x = 1 cards differ only in order, so either way round is right
+  // (the check used to pair them in order: "Revise: P1, P2", and practice
+  // never let the student past it).
+  const page = await open('nonfunction');
+  for (const [index, point] of [[1, 5], [1, 2], [3, 4]].entries()) await place(page, `P${index + 1}`, point);
+  await page.getByRole('button', { name: 'Check Point Placements' }).click();
+  await page.waitForTimeout(250);
+  check(/All point placements are correct/.test(await page.evaluate(() => document.body.innerText)), 'practice: the x = 1 cards are accepted either way round');
+  const { graded } = await submit(page);
+  const plot = graded?.parts?.find((part) => part.id === 'plot');
+  check(plot?.isCorrect === true && graded?.isCorrect === true, 'and the swapped plot is graded correct', JSON.stringify(plot));
+  await page.close();
+}
+
+{
+  // On a DOL the plot stage has no check to iterate against; a wrong point is
+  // graded wrong on submit, without the stage ever having said so.
+  const page = await open('', 'dol');
+  check(await page.getByRole('button', { name: 'Check Point Placements' }).count() === 0, 'DOL: the plot stage offers no point check');
+  for (const [index, point] of [[-2, 3], [1, 2], [3, 1], [-4, -3]].entries()) await place(page, `P${index + 1}`, point);
+  check(!/Revise:/.test(await page.evaluate(() => document.body.innerText)), 'DOL: nothing names the wrong point');
+  const { enabled, graded } = await submit(page);
+  const plot = graded?.parts?.find((part) => part.id === 'plot');
+  check(enabled && plot?.isCorrect === false && graded?.isCorrect === false, 'DOL: the plot is submitted and graded as placed', JSON.stringify(plot));
   await page.close();
 }
 

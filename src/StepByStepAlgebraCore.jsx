@@ -320,6 +320,12 @@ export default function StepByStepAlgebra({
   // the step — shares the tool row with the target. The engine is unchanged.
   embedded = false,
   embeddedTitle = null,
+  // The activity's hint permission (QuestionEngine: the policy's
+  // `hintsAllowed`). Where it is false — a DOL, quiz or test — the strategic
+  // hint is not offered at all. Where it is offered, opening it is reported
+  // like every other hint, so the attempt's mastery weight is discounted.
+  hintsAllowed = true,
+  onHintUsed = null,
 }) {
   // Content identity, not object identity: a host that rebuilds an equal
   // question every render must not reset the workspace (useContentStableValue).
@@ -3360,10 +3366,12 @@ export default function StepByStepAlgebra({
           </p>
         </div>
       )}
-      {question.showHint !== false && suggestedMove && !solved && <details style={{ marginTop: '14px', color: '#5f6368' }}><summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Need a strategic hint?</summary><p style={{ margin: '8px 0 0' }}>Look for a move that cancels a term: {describeOperation(suggestedMove.operation, suggestedMove.operand)}.</p></details>}
+      {hintsAllowed && question.showHint !== false && suggestedMove && !solved && <details onToggle={(event) => { if (event.currentTarget.open) onHintUsed?.(); }} style={{ marginTop: '14px', color: '#5f6368' }}><summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Need a strategic hint?</summary><p style={{ margin: '8px 0 0' }}>Look for a move that cancels a term: {describeOperation(suggestedMove.operation, suggestedMove.operand)}.</p></details>}
       {message && <div role="status" style={{ marginTop: '16px', padding: '13px 15px', borderRadius: '10px', background: message.tone === 'success' ? '#e6f4ea' : message.tone === 'growth' ? '#fef7e0' : '#fce8e6', color: message.tone === 'success' ? '#137333' : message.tone === 'growth' ? '#8a5a00' : '#c5221f', fontWeight: 'bold' }}>{message.text}</div>}
       {!embedded && <p style={{ color: '#5f6368', fontSize: '13px', marginTop: '12px' }}>
-        {supportPolicy.description}
+        {/* The level's own sentence promises "Hints are available on request";
+            where the activity withholds hints that is no longer true. */}
+        {hintsAllowed ? supportPolicy.description : supportPolicy.description.replace(/\s*Hints are available on request\./, '')}
         {supportPolicy.inefficientMoveCostsAttempt
           ? attemptsDoNotExpire ? ' Live Challenge work does not expire from intermediate moves.' : ` Attempts remaining: ${attemptsRemaining}. A longer route still counts as correct algebra, but it uses an attempt at this level.`
           : ' A longer route is still correct algebra here and costs nothing.'}

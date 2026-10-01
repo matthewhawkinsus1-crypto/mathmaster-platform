@@ -132,6 +132,43 @@ export const gradePointPlacements = (tasks, placements, spec, chosenXValues = {}
     return { id: task.id, label: task.label, isComplete, isCorrect, response: placement === 'undefined' ? 'Undefined' : Array.isArray(placement) ? `(${placement[0]}, ${placement[1]})` : '' };
   });
 
+  /*
+   * CARDS THAT STATE THE SAME x ARE INTERCHANGEABLE.
+   *
+   * A relation that is not a function has two outputs at one input, so its
+   * plot has two cards reading "x = 2". Nothing tells the student which height
+   * belongs to which card — they differ only in order — and pairing them in
+   * order marked a correct plot wrong ("Revise: P1, P2") and, in practice,
+   * never let the check pass. Within such a group the points are matched to
+   * the expected points as a set: the pairing that gets the most right, the
+   * in-order pairing whenever nothing does better. A function's cards all
+   * state different x-values, so nothing about them changes.
+   */
+  const groups = new Map();
+  tasks.forEach((task, index) => {
+    if (!taskStatesX(task) || !Array.isArray(resolveTaskExpected(task, spec, chosenXValues))) return;
+    const key = String(Number(task.x));
+    groups.set(key, [...(groups.get(key) || []), index]);
+  });
+  groups.forEach((indices) => {
+    if (indices.length < 2 || indices.length > 6) return;
+    const expected = indices.map((index) => resolveTaskExpected(tasks[index], spec, chosenXValues));
+    const placed = indices.map((index) => placements[tasks[index].id]);
+    const matches = (placement, target) => Array.isArray(placement) && pointDistance(placement, target) <= tolerance;
+    let best = null;
+    const permute = (order, remaining) => {
+      if (!remaining.length) {
+        const correct = order.map((target, slot) => matches(placed[slot], expected[target]));
+        const score = correct.filter(Boolean).length;
+        if (!best || score > best.score) best = { score, correct };
+        return;
+      }
+      remaining.forEach((target, position) => permute([...order, target], remaining.filter((_, other) => other !== position)));
+    };
+    permute([], indices.map((_, slot) => slot));
+    indices.forEach((index, slot) => { parts[index].isCorrect = best.correct[slot]; });
+  });
+
   const chosenXs = tasks.filter((task) => task.studentChoosesX).map((task) => Number(chosenXValues[task.id])).filter(Number.isFinite);
   const dynamicParts = parts.filter((part) => tasks.find((task) => task.id === part.id)?.studentChoosesX);
   const uniqueXs = new Set(chosenXs.map((value) => round(value, 5))).size === chosenXs.length;

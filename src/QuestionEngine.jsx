@@ -976,6 +976,15 @@ export default function QuestionEngine({
   // ToolRuntimeContext: their hint panels (and any other hint affordance) are
   // absent where the activity withholds help, not merely recorded.
   const toolHintsAllowed = resolvedActivityPolicy?.hintsAllowed !== false;
+  // A hint revealed anywhere — a tool's panel, the Work View Help drawer, the
+  // solver's "Need a strategic hint?" — is recorded the same way.
+  const recordHintUse = () => setHintUsed(true);
+  // The step-algebra solvers carry their own strategic hint: the same
+  // permission, and opening it is reported like any other hint.
+  const stepAlgebraHintProps = {
+    hintsAllowed: toolHintsAllowed,
+    onHintUsed: recordHintUse,
+  };
 
   const graphModuleProps = {
     selfCheckAllowed,
@@ -1018,6 +1027,7 @@ export default function QuestionEngine({
         <ToolRuntimeProvider
           showImmediateFeedback={showOutcomeFeedback && !serverGrading}
           hintsAllowed={toolHintsAllowed}
+          onHintUsed={recordHintUse}
           questionTerminal={locked}
         >
           <WorkflowRunner
@@ -1048,6 +1058,7 @@ export default function QuestionEngine({
         <ToolRuntimeProvider
           showImmediateFeedback={showOutcomeFeedback && !serverGrading}
           hintsAllowed={toolHintsAllowed}
+          onHintUsed={recordHintUse}
           questionTerminal={locked}
         >
           {/* THE REGISTRY TOOLS REACH THE PLATFORM UNDO BUTTON THROUGH HERE.
@@ -1116,6 +1127,7 @@ export default function QuestionEngine({
             <LinearInterceptsOrchestrator
               key={draftKey || processedQuestion?.questionId || processedQuestion?.id || generationKey}
               {...commonModuleProps}
+              {...stepAlgebraHintProps}
               questionRecord={record}
               onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
               maximumAttempts={resolvedMaximumAttempts}
@@ -1126,6 +1138,7 @@ export default function QuestionEngine({
         return (
           <StepByStepAlgebra
             {...commonModuleProps}
+            {...stepAlgebraHintProps}
             workspaceActions={workspaceActions}
             questionRecord={record}
             onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
@@ -1140,6 +1153,7 @@ export default function QuestionEngine({
         return (
           <StepByStepAlgebra
             {...commonModuleProps}
+            {...stepAlgebraHintProps}
             workspaceActions={workspaceActions}
             questionRecord={record}
             onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
@@ -1172,6 +1186,7 @@ export default function QuestionEngine({
         return (
           <StepByStepAlgebra
             {...commonModuleProps}
+            {...stepAlgebraHintProps}
             workspaceActions={workspaceActions}
             question={literalWorkspace.question}
             questionRecord={record}

@@ -94,6 +94,8 @@ export default function LinearInterceptsOrchestrator({
   attemptsDoNotExpire = false,
   disabled = false,
   draftKey = null,
+  hintsAllowed = true,
+  onHintUsed = null,
 }) {
   const standard = useMemo(() => resolveStandardCoefficients(question), [question]);
   const feedbackTiming = INTERCEPT_FEEDBACK_TIMINGS.includes(question.feedbackTiming)
@@ -454,6 +456,8 @@ export default function LinearInterceptsOrchestrator({
           attemptsDoNotExpire={attemptsDoNotExpire}
           disabled={disabled}
           draftKey={draftKey ? `${draftKey}:${kind}-intercept` : null}
+          hintsAllowed={hintsAllowed}
+          onHintUsed={onHintUsed}
         />
       ) : (
         <>

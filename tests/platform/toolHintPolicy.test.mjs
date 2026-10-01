@@ -57,13 +57,23 @@ test('QuestionEngine hands every registry tool — standalone or inside a compos
   const engine = code('src/QuestionEngine.jsx');
   assert.match(engine, /\n\s*const toolHintsAllowed = resolvedActivityPolicy\?\.hintsAllowed !== false;/);
 
+  // Each provider's opening tag carries the policy, whatever order its
+  // attributes are written in, and opens directly onto what it governs.
+  const openingTag = (mount) => (mount.match(/<ToolRuntimeProvider\b[^>]*>/) || [''])[0];
+  const governed = (tag) => {
+    assert.match(tag, /\sshowImmediateFeedback=\{showOutcomeFeedback && !serverGrading\}/);
+    assert.match(tag, /\shintsAllowed=\{toolHintsAllowed\}/);
+    assert.match(tag, /\sonHintUsed=\{recordHintUse\}/);
+    assert.match(tag, /\squestionTerminal=\{locked\}/);
+  };
   const registry = region(engine, 'if (missingToolDefinition) {', '</ToolRuntimeProvider>', 'the registry tool mount');
-  assert.match(registry, /<ToolRuntimeProvider\s+showImmediateFeedback=\{showOutcomeFeedback && !serverGrading\}\s+hintsAllowed=\{toolHintsAllowed\}/);
+  governed(openingTag(registry));
   assert.match(registry, /<Tool questionData=\{presentationQuestion\}/);
 
   // A composed question mounts RelationMapping / IntervalNumberLine as stages.
   const composed = region(engine, 'if (isComposed) {', '</ToolRuntimeProvider>', 'the composed question mount');
-  assert.match(composed, /<ToolRuntimeProvider\s+showImmediateFeedback=\{showOutcomeFeedback && !serverGrading\}\s+hintsAllowed=\{toolHintsAllowed\}\s+questionTerminal=\{locked\}\s*>\s*<WorkflowRunner\b/);
+  governed(openingTag(composed));
+  assert.match(composed, /<ToolRuntimeProvider\b[^>]*>\s*<WorkflowRunner\b/);
   // The provider must actually enclose the runner, not sit beside it.
   assert.ok(composed.indexOf('<ToolRuntimeProvider') < composed.indexOf('<WorkflowRunner'));
   assert.match(read('src/platform/workflow/WorkflowRunner.jsx'), /import RelationMapping from '\.\.\/\.\.\/tools\/relationMapping\/RelationMapping'/,
@@ -80,13 +90,18 @@ test('HintPanel renders nothing where hints are withheld, before it renders anyt
 
 test('the Work View Help drawer stops printing a question\'s authored hints where hints are withheld', () => {
   const view = code('src/tools/shared/RegisteredToolWorkView.jsx');
-  assert.match(view, /import \{ useHintsAllowed \} from '\.\/ToolRuntimeContext';/);
+  assert.match(view, /import \{[^}]*\buseHintsAllowed\b[^}]*\} from '\.\/ToolRuntimeContext';/);
   const body = region(view, 'export default function RegisteredToolWorkView', 'const capabilities', 'the work view');
   // Called before the early return, so the hook order never changes.
   assert.ok(body.indexOf('const hintsAllowed = useHintsAllowed();') > -1);
   assert.ok(body.indexOf('const hintsAllowed = useHintsAllowed();') < body.indexOf('if (!inventory'));
+  assert.ok(body.indexOf('const reportHintUse = useHintUseReporter();') > -1);
+  assert.ok(body.indexOf('const reportHintUse = useHintUseReporter();') < body.indexOf('if (!inventory'));
   assert.match(body, /const authoredHints = hintsAllowed && Array\.isArray\(questionData\?\.hints\)/);
-  assert.match(body, /const helpText = authoredHints\.length\s*\?\s*authoredHints\.join\(' '\)/);
+  // Where they are allowed, they are the recorded, one-at-a-time HintPanel —
+  // never the whole list printed unrecorded.
+  assert.match(body, /const helpText = authoredHints\.length\s*\?\s*<HintPanel hints=\{authoredHints\} onHintUsed=\{\(\) => reportHintUse\?\.\(\)\} \/>/);
+  assert.doesNotMatch(body, /authoredHints\.join/);
 });
 
 for (const file of [
@@ -154,4 +169,48 @@ test('a question\'s authored hints reach a student only through HintPanel or the
     });
   });
   assert.deepEqual(offenders, []);
+});
+
+test('the step-algebra solver\'s strategic hint follows the same permission, and opening it is recorded', () => {
+  const core = code('src/StepByStepAlgebraCore.jsx');
+  const signature = region(core, 'export default function StepByStepAlgebra({', '}) {', 'the solver props');
+  assert.match(signature, /\bhintsAllowed = true,/);
+  assert.match(signature, /\bonHintUsed = null,/);
+  const hint = core.match(/\{([^{}\n]*)&& <details onToggle=\{\(event\) => \{ if \(event\.currentTarget\.open\) onHintUsed\?\.\(\); \}\}[^\n]*Need a strategic hint\?/);
+  assert.ok(hint, 'the strategic hint reports when it is opened');
+  assert.match(hint[1], /^hintsAllowed && /, 'and is not rendered at all where hints are withheld');
+
+  // Every solver QuestionEngine mounts is handed the permission and the
+  // recorder, including the one inside the intercepts orchestrator.
+  const engine = code('src/QuestionEngine.jsx');
+  const mounts = [...engine.matchAll(/<(StepByStepAlgebra|LinearInterceptsOrchestrator)\s/g)]
+    .map((match) => engine.slice(match.index, engine.indexOf('/>', match.index)));
+  assert.ok(mounts.length >= 4, `found ${mounts.length} solver mounts`);
+  mounts.forEach((mount) => assert.match(mount, /\{\.\.\.stepAlgebraHintProps\}/, mount.slice(0, 60)));
+  assert.match(engine, /const stepAlgebraHintProps = \{\s*hintsAllowed: toolHintsAllowed,\s*onHintUsed: recordHintUse,\s*\};/);
+  assert.match(engine, /const recordHintUse = \(\) => setHintUsed\(true\);/);
+  const orchestrator = code('src/LinearInterceptsOrchestrator.jsx');
+  const inner = region(orchestrator, '<StepByStepAlgebraCore', '/>', 'the intercept solver');
+  assert.match(inner, /hintsAllowed=\{hintsAllowed\}/);
+  assert.match(inner, /onHintUsed=\{onHintUsed\}/);
+});
+
+test('the runtime context carries the hint recorder to surfaces the tool does not own', () => {
+  const context = code('src/tools/shared/ToolRuntimeContext.jsx');
+  assert.match(context, /onHintUsed: null,/);
+  assert.match(context, /onHintUsed: typeof onHintUsed === 'function' \? onHintUsed : null,/);
+  assert.match(context, /export const useHintUseReporter = \(\) => useContext\(ToolRuntimeContext\)\.onHintUsed \|\| null;/);
+});
+
+test('where hints are withheld the solver does not promise one on request', async () => {
+  const { SUPPORT_LEVELS } = await import('../../src/algebraSupportLevels.js');
+  const promising = SUPPORT_LEVELS.filter((level) => /Hints are available on request\./.test(level.description));
+  // The sentence the solver removes is the sentence a level actually says;
+  // reword it there and this fails rather than the promise quietly returning.
+  assert.ok(promising.length > 0);
+  const core = code('src/StepByStepAlgebraCore.jsx');
+  const removed = core.match(/\{hintsAllowed \? supportPolicy\.description : supportPolicy\.description\.replace\((\/[^/]+\/), ''\)\}/);
+  assert.ok(removed, 'the footnote drops the promise where hints are withheld');
+  const pattern = new RegExp(removed[1].slice(1, -1));
+  promising.forEach((level) => assert.doesNotMatch(level.description.replace(pattern, ''), /hint/i, level.id));
 });

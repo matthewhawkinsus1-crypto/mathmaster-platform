@@ -101,7 +101,17 @@ const submitBridge = (page) => page.getByRole('button', { name: 'Submit the brid
   text = await bodyText(page);
   check(/General form correct/.test(text), 'practice bridge: a right stage check says so');
   check(await page.locator(`input[aria-label="${FACTORED.a}"]`).isEnabled(), 'practice bridge: a passed stage opens the next');
-  check(await helpDrawerShows(page, AUTHORED_BRIDGE_HINT), 'practice bridge: the authored hint is in the Work View Help drawer', await helpDrawers(page));
+  // The drawer offers the authored hint the way every tool does — one reveal at
+  // a time, recorded — not printed all at once and unrecorded.
+  check(await helpDrawerShows(page, 'Show a hint'), 'practice bridge: the Work View Help drawer offers the authored hint as a recorded hint', await helpDrawers(page));
+  check(!(await helpDrawers(page)).includes(AUTHORED_BRIDGE_HINT), 'practice bridge: the hint is not printed before the student asks for it', await helpDrawers(page));
+  await page.getByRole('button', { name: /Enlarge question/ }).first().click();
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: 'Help', exact: true }).first().click();
+  await page.waitForTimeout(200);
+  await page.locator('section[aria-label="Help and instructions"]').getByRole('button', { name: /Show a hint/ }).first().click();
+  await page.waitForTimeout(200);
+  check(await helpDrawerShows(page, AUTHORED_BRIDGE_HINT), 'practice bridge: asking for it in the drawer shows the authored hint', await helpDrawers(page));
   await page.close();
 }
 
@@ -206,6 +216,25 @@ for (const role of ['practice', 'dol']) {
     check(count === 0, 'DOL graphing: no hint is offered, inline or in Work View Help', `${count} hint button(s)`);
     check(/Use the task directions/.test(drawers), 'DOL graphing: Work View Help keeps the platform directions rather than an empty drawer', drawers.slice(0, 160));
   }
+  await page.close();
+}
+
+// ------------------------------------------------------------- step algebra
+// The solver's own "Need a strategic hint?" follows the activity's permission,
+// and opening it in practice is recorded like any other hint.
+{
+  const page = await open('practice', 'step', (p) => p.getByText('Need a strategic hint?'));
+  check(await page.getByText('Need a strategic hint?').count() === 1, 'practice step algebra: the strategic hint is offered');
+  await page.getByText('Need a strategic hint?').click();
+  await page.waitForTimeout(150);
+  check(/Look for a move that cancels a term/.test(await bodyText(page)), 'practice step algebra: opening it shows the hint');
+  await page.close();
+}
+for (const role of ['dol', 'test']) {
+  // Ready: the solver's own footnote, in the same render as the hint would be.
+  const page = await open(role, 'step', (p) => p.getByText(/Nothing is simplified for the student\./));
+  check(await page.getByText('Need a strategic hint?').count() === 0, `${role} step algebra: no strategic hint is offered`);
+  check(!/Hints are available on request/.test(await bodyText(page)), `${role} step algebra: nothing promises a hint on request`);
   await page.close();
 }
 
