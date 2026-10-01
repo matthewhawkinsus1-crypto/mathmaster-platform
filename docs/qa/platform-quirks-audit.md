@@ -1014,11 +1014,31 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   even multiplicity touches…") wraps into a three-line lozenge on phones.
   **Next:** switch to a 10px radius above ~60 characters. **Scope:** tiny.
 
-### PQ-034 · Three click maps still stretch linearly — **P3 · DEFERRED (note)**
+### PQ-034 · Three click maps still stretch linearly — **P3 · FIXED**
 
 - `IntervalNumberLine`, `RelationMapping`, `GraphStory` map clicks linearly.
   Safe today (no height cap on those SVGs); would break the day one is added.
   **Next:** route them through `clientPointToViewBox`. **Scope:** tiny.
+- **Reproduced — and one was already live.** `tests/browser/clickMapLetterbox.mjs`
+  taps where the browser itself draws a value (`getScreenCTM`). Capped to 55%
+  of its natural height (letterboxed): a tap on the drawn **5** of the number
+  line placed **3**; on the drawn **(2, 1)** of the relation plot (522×289 box,
+  430×430 drawing) it plotted **(0, 1)**; a sketch stroke from (200, 300) to
+  (520, 120) was recorded from (271.8, 298.9) to (448.2, 121.1). No cap was
+  needed for the relation plot on a **phone held sideways (844×390)**: the
+  landscape layout's `.mathmaster-tool-panel svg { max-height: 62dvh }` makes
+  it 520×242 for a 430×430 drawing, and a tap on the drawn (2, 1) plotted
+  (0, 1) inside the real QuestionEngine.
+- **Fixed:** the three pointer handlers map through `clientPointToViewBox`, as
+  the plotting workspace and CoordinatePlane do — exact for `meet`, identical to
+  the old stretch whenever the box keeps the drawing's shape. After: the
+  number line places 5, the plot (2, 1) at 1366×768 capped and at 844×390, and
+  the sketch stroke lands within 2 viewBox units (the plane's 2px CSS border,
+  which no plane's mapping subtracts); the uncapped controls are unchanged.
+- **Tests:** `tests/platform/clickMapLetterbox.test.mjs` (each handler goes
+  through the helper with its own viewBox, converts the helper's point, has no
+  stretch, and imports the helper — four mutations, all red);
+  `tests/browser/clickMapLetterbox.mjs` (13 checks; 4 red before the fix).
 
 ### PQ-033 · Dev-server hazards for the browser gates — **P3 (test infrastructure) · FIXED (2026-10-01 cleanup)**
 

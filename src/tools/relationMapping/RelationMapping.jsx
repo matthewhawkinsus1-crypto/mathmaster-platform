@@ -7,6 +7,7 @@ import { matchesFieldAnswer } from '../../answerUtils';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../../platform/interaction/choiceOptions.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
+import { clientPointToViewBox } from '../../utils/responsiveCoordinates.js';
 import { givenRelationInstruction } from './relationMappingCopy.js';
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
@@ -68,11 +69,20 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
   const snap = (value) => Number((Math.round(value / step) * step).toFixed(8));
 
   const pointFromEvent = (event) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const svgX = ((event.clientX - rect.left) / rect.width) * PLOT_SIZE;
-    const svgY = ((event.clientY - rect.top) / rect.height) * PLOT_SIZE;
-    const rawX = xMin + ((svgX - PLOT_PAD) / width) * (xMax - xMin);
-    const rawY = yMax - ((svgY - PLOT_PAD) / height) * (yMax - yMin);
+    // Where the tap is in the DRAWING, not in the box. A phone held sideways
+    // caps this plot at 62dvh, so the square is drawn centred in a wider box,
+    // and a straight stretch plotted a tap on the drawn (2, 1) at (0, 1)
+    // (PQ-034).
+    const point = clientPointToViewBox({
+      clientX: event.clientX,
+      clientY: event.clientY,
+      rect: event.currentTarget.getBoundingClientRect(),
+      viewBoxWidth: PLOT_SIZE,
+      viewBoxHeight: PLOT_SIZE,
+    });
+    if (!point) return null;
+    const rawX = xMin + ((point.x - PLOT_PAD) / width) * (xMax - xMin);
+    const rawY = yMax - ((point.y - PLOT_PAD) / height) * (yMax - yMin);
     const x = snap(rawX);
     const y = snap(rawY);
     if (x < xMin || x > xMax || y < yMin || y > yMax) return null;
