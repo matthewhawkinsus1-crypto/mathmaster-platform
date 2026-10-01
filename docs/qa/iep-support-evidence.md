@@ -1,6 +1,6 @@
 # PR #401 — Student Support Evidence: browser QA
 
-**Branch:** `ai/claude-iep-evidence-20260930` · **Reviewer:** Claude · **Date:** 2026-09-30
+**Branch:** `ai/claude-iep-evidence-20260930` · **Reviewer:** Claude · **Date:** 2026-09-30 (final run 2026-10-01)
 
 Everything here ran in the in-memory **fake-school harness** (`tests/browser/teacherWorkflow/`): synthetic students, synthetic teacher (`teacher@harness.example`), no Firebase project, no network writes.
 - No production data was opened, read or written.
@@ -33,13 +33,13 @@ The fixture seeds two synthetic students with support profiles:
 | T4 | Assignment hub, **Supports & evidence** layer | both supported students listed; the extra-time deadline listed; Garza is Standard (the configured modification changed no item of this lesson); active time 26 min; "Read aloud: used 2×, available"; the pre-versioning student reads "active time: Not recorded" |
 | T5 | **Edit support profile**: revision 3 adds graph paper, source "ARD amendment (synthetic)" | exactly one new revision, and earlier revisions byte-for-byte unchanged; source, author and time recorded; the student-readable projection follows with no privileged source text; "Saved as a new revision" |
 | T6 | **Support evidence report** for the current marking period | all 7 section headings; an unassigned library copy never appears; no "0 min" for unrecorded time; "not a compliance determination"; Standard and Modified never averaged together; CSV named by student and dates, with the expected header; printing hides the controls; Close returns to the drawer |
-| S1 | Student signs in, opens the assignment, opens **Support tools**, uses Read aloud | "Your due date" on the dashboard (and in the header wherever the layout shows the header); no program or classification words; exactly one Support tools panel reachable at every width; records **available / provided / used** plus a server-timed ledger minute, all platform telemetry (no note, no staff author) |
+| S1 | Student signs in, checks Home, Assignments, Grades and a result screen, opens the assignment, opens **Support tools**, uses Read aloud | "Your due date" on the dashboard; the Home **"Do this next"** card, the Resume card, the **Assignments** and **Grades** rows, the **assignment result** and (wherever the layout shows it) the header all name the same date, and it is not the class due date; no program or classification words; exactly one Support tools panel reachable at every width; records **available / provided / used** plus a server-timed ledger minute, all platform telemetry (no note, no staff author) |
 
 Every journey also checks for no page errors and no sideways scroll.
 
-## Results (final run, commit `70ff9700`)
+## Results (final run, commit `4341b42a`)
 
-All on a freshly started harness, one run at a time:
+All on a freshly started harness, one run at a time (2026-10-01, cloud container, browser zone UTC):
 
 | Suite | Viewports | Result |
 | --- | --- | --- |
@@ -47,15 +47,12 @@ All on a freshly started harness, one run at a time:
 | `supportEvidenceJourneys.mjs`, S1 only (targeted) | 844×390, phone landscape | pass |
 | PR #400 `journeys.mjs`, A–K + retry | 1440×900, 1024×768, 768×1024 | **36 / 36 pass** |
 
-**Open finding**, found after this run with the fake student 910002, class due Oct 1 and their own due date Oct 2:
-- The assignment header and the dashboard assignment card correctly show "Your due date: Oct 2".
-- Four student surfaces still print the class date ("Due Oct 1"):
-  - the Home **"Do this next" card** (`WhatShouldIDoNow.jsx`, which formats `assignment.dueAt`);
-  - the **Assignments** tab (`studentAssignmentsCenterModel.js`, row `dueAt` / `lateDueAt`);
-  - the **Grades** tab and the assignment result screen (`studentGradeCenterModel.js`, entry `dueAt` / `lateDueAt`).
-- All three models already hold the student's own lifecycle. Only the displayed date is read from the class document.
-- The same gap already applied to attendance extensions. The fix is in progress; see the status doc.
+The S1 due-date checks were mutation-checked in the browser. Each change below, made alone, turned S1 red with a finding naming the screen:
+- the "Do this next" card printing the class date;
+- the Assignments rows copying the class dates;
+- the Grade Center entries copying the class dates. This also turned the result screen red.
 
+The earlier run at `70ff9700` had the same totals.
 
 ## Problems found in the browser and fixed on this PR
 
@@ -64,6 +61,7 @@ All on a freshly started harness, one run at a time:
 | A question-less support use was stored as question 0 (`Number(null) === 0`) | `questionIndex` stays null. Unit test added. |
 | A report gap said support was "not provided" when it simply wasn't recorded here | Reworded to "Support given outside MathMaster is not recorded here." |
 | On phones and portrait tablets the assignment header (and so Support tools) is hidden by the existing mobile design | The same panel renders in the expanded navigator under exactly those media conditions. Contract test added; S1 runs at 390×844. |
+| Four student surfaces printed the class due date ("Due Oct 1") for a student whose own due date was Oct 2: the Home **"Do this next"** card, the **Assignments** tab, the **Grades** tab and the **assignment result** | Their models now take the dates from the student's own lifecycle (`studentDueDates`, beside `studentDueDateLines`), and `resolveNextAction` carries the date with the decision. The same fix covers attendance extensions on late and closed rows. Unit tests in `studentIndividualizedDueDates.test.mjs`; S1 compares all six places and rejects the class date. |
 | Harness listed `grades/{id}/…` subcollection documents as students | Fake `listSignInAccess` lists roster rows only |
 | Fake Firestore lacked `arrayUnion` / `arrayRemove` (engagement ledger) | Added with merge semantics |
 
@@ -76,6 +74,7 @@ All on a freshly started harness, one run at a time:
 | ![Report](iep-support-evidence/03-report-1440.png) | **Student Support Evidence Report** — profile with source and revision, executive summary with Standard / Modified kept apart |
 | ![Student](iep-support-evidence/04-student-1440.png) | **Student, laptop** — own due date and Support tools in neutral words |
 | ![Student phone](iep-support-evidence/05-student-390.png) | **Student, phone** — Support tools in the expanded navigator |
+| ![Do this next](iep-support-evidence/06-student-do-this-next-1440.png) | **Student, Home** — "Do this next" names the student's own due date (Oct 2; the class date is Oct 1). Captured in the school's time zone. |
 
 ## Not covered here
 
