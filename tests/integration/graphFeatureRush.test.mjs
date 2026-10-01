@@ -254,6 +254,27 @@ test('a refresh mid-graph resumes on the same graph with its found targets', asy
   assert.equal(finish.verdicts.at(-1).completesQuestion, true);
 });
 
+test('the eighth miss on a graph skips it on the server; a refresh resumes on the next graph', async () => {
+  const identity = await identityOf(G1);
+  const before = await call('getGraphFeatureRushRound', student(B, { ...identity, count: 1 }));
+  assert.equal(before.joined, true);
+  assert.ok(before.poolSize >= 120, `a pool of ${before.poolSize} outlasts the fastest student`);
+  const [question] = before.questions;
+  // Eight wrong taps in one batch: a device that skipped its cooldown.
+  const result = await call('submitGraphFeatureRushAttempts', student(B, { ...identity, attempts: Array.from({ length: 8 }, () => missTap(question)) }));
+  assert.deepEqual(result.verdicts.map((row) => row.verdict), Array(8).fill('miss'));
+  assert.deepEqual(result.verdicts.map((row) => row.autoSkipped === true), [...Array(7).fill(false), true]);
+  assert.equal(result.state.cursor, question.questionIndex + 1);
+  // The device never sent a skip and reloads: it is on the next graph.
+  const after = await call('getGraphFeatureRushRound', student(B, { ...identity, count: 1 }));
+  assert.equal(after.state.cursor, question.questionIndex + 1);
+  assert.equal(after.questions[0].questionIndex, question.questionIndex + 1);
+  const skips = Object.values((await privatePlayer(G1, B)).submissionReceipts)
+    .filter((receipt) => receipt.questionIndex === question.questionIndex && receipt.roundIndex === identity.roundIndex && receipt.forfeit === true);
+  assert.equal(skips.length, 1, 'one skip, recorded by the server');
+  assert.equal(skips[0].automatic, true);
+});
+
 test('a stale round token, a classic answer and a pacing change are refused or ignored', async () => {
   const identity = await identityOf(G1);
   const stale = await failureOf(call('submitGraphFeatureRushAttempts', student(A, { ...identity, roundToken: 'old-token', attempts: [{ attemptId: randomUUID(), questionIndex: 1, kind: 'dne' }] })));
@@ -447,6 +468,7 @@ test('a teacher previews sample graphs without creating anything', async () => {
   const preview = await call('previewGraphFeatureRush', teacher({ graphFeatureRush: { presetId: 'algebra2Mixed' }, count: 6 }));
   assert.equal(preview.questions.length, 6);
   assert.equal(preview.config.difficulty, 'mixed');
+  assert.equal(preview.config.presetId, 'algebra2Mixed', 'a preset listed in any order keeps its name');
   const refused = await failureOf(call('previewGraphFeatureRush', student(studentsOf('pair')[0], {})));
   assert.ok(refused, 'students cannot preview');
 });

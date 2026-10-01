@@ -61,10 +61,29 @@ const waitForHttp = async (url, attempts = 80) => {
   return false;
 };
 
+// Children run in their own process groups. The Firebase CLI starts the
+// emulator's Java process in yet another group, so a kill would leave it
+// holding its port: the CLI is asked to stop (SIGINT, which shuts its
+// emulators down) and only then killed.
 const started = [];
-const stopAll = () => { for (const child of started) { try { child.kill('SIGKILL'); } catch { /* gone */ } } };
-process.on('exit', stopAll);
-process.on('SIGINT', () => { stopAll(); process.exit(130); });
+const killAll = () => {
+  for (const child of started) {
+    try { process.kill(-child.pid, 'SIGKILL'); } catch { /* gone */ }
+  }
+};
+const stopAll = async () => {
+  const exited = started.map((child) => new Promise((resolve) => {
+    if (child.exitCode !== null) resolve();
+    else child.once('exit', resolve);
+  }));
+  for (const child of started) {
+    try { process.kill(-child.pid, 'SIGINT'); } catch { /* gone */ }
+  }
+  await Promise.race([Promise.all(exited), wait(15_000)]);
+  killAll();
+};
+process.on('exit', killAll);
+process.on('SIGINT', () => { stopAll().finally(() => process.exit(130)); });
 
 /* ------------------------------ the emulator ----------------------------- */
 
@@ -76,7 +95,7 @@ if (!await waitForHttp(`http://${EMULATOR}/`, 2)) {
   const emulator = spawn(
     'npx',
     ['firebase', 'emulators:start', '--only', 'firestore', '--project', PROJECT, '--config', path.join(here, 'emulator/firebase.json')],
-    { cwd: path.join(here, 'emulator'), stdio: 'ignore' },
+    { cwd: path.join(here, 'emulator'), stdio: 'ignore', detached: true },
   );
   started.push(emulator);
   if (!await waitForHttp(`http://${EMULATOR}/`)) {
@@ -134,7 +153,7 @@ await new Promise((resolve) => bridge.listen(BRIDGE_PORT, resolve));
 const vite = spawn(
   'npx',
   ['vite', '--config', path.join(here, 'emulator/vite.bridge.config.mjs'), '--port', String(VITE_PORT), '--strictPort'],
-  { cwd: repo, stdio: 'ignore' },
+  { cwd: repo, stdio: 'ignore', detached: true },
 );
 started.push(vite);
 if (!await waitForHttp(`${ORIGIN}/`)) {
@@ -722,6 +741,42 @@ await run('teacher-practice', async () => {
   await teacher.context.close();
 });
 
+// INSTANT FEEDBACK, MEASURED: from the pointerdown to the frame after the
+// found or miss mark appears, on a Chromebook profile with the CPU slowed 4×.
+await run('tap-latency', async () => {
+  const S = 'tap-latency';
+  const [id] = studentsOf('pair');
+  const teacher = await openTeacher('chromebook');
+  const student = await openStudent(id, 'chromebook');
+  const cdp = await student.context.newCDPSession(student.page);
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+  const roomId = await createRush(teacher, { classKey: 'pair', preset: 'Algebra I Functions', rounds: 1, seconds: 30, scoring: 'correctCount' });
+  check(S, await waitForText(student, 'You are in as'), 'no lobby');
+  await startGame(teacher);
+  const room = await waitForRoundOpen(roomId, 0);
+  check(S, await waitForPlay(student), 'no graph');
+  await student.page.evaluate(() => {
+    window.__mmLatency = [];
+    let pressedAt = null;
+    document.addEventListener('pointerdown', (event) => { pressedAt = event.timeStamp; }, true);
+    new MutationObserver(() => {
+      if (pressedAt == null || !document.querySelector('.mm-rush-found-fresh, .mm-rush-miss')) return;
+      const from = pressedAt;
+      pressedAt = null;
+      requestAnimationFrame(() => window.__mmLatency.push(performance.now() - from));
+    }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+  });
+  await playUntil(student, roomId, endsAtOf(room), { scenario: S, missEvery: 3 });
+  const samples = (await student.page.evaluate(() => window.__mmLatency)).sort((left, right) => left - right);
+  const at = (fraction) => Math.round(samples[Math.min(samples.length - 1, Math.floor(samples.length * fraction))]);
+  notes.push({ scenario: S, cpuSlowdown: 4, taps: samples.length, medianMs: at(0.5), p95Ms: at(0.95), maxMs: Math.round(samples.at(-1) || 0) });
+  check(S, samples.length >= 10, `only ${samples.length} feedback samples`);
+  check(S, at(0.95) < 150, `tap feedback p95 ${at(0.95)}ms on a 4× slower CPU`);
+  await waitForRoundClosed(roomId, 0, 15_000);
+  await teacher.page.getByRole('button', { name: 'Finish & Show Final Standings' }).click();
+  await Promise.all([teacher, student].map((handle) => handle.context.close()));
+});
+
 /* --------------------------------- report --------------------------------- */
 
 const summary = {
@@ -741,5 +796,5 @@ writeFileSync(path.join(SHOTS, 'report.json'), JSON.stringify(summary, null, 2))
 log(`${findings.length ? `${findings.length} finding(s)` : 'No findings'}. Screenshots and report: ${SHOTS}`);
 await browser.close();
 bridge.close();
-stopAll();
+await stopAll();
 process.exit(findings.length ? 1 : 0);
