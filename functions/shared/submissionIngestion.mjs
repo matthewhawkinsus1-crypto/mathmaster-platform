@@ -429,6 +429,12 @@ export const buildIngestedAttempt = ({
       studentId: envelope?.studentId || null,
       classId: gradeDocument?.classId || null,
     });
+  // A delivery pin was offered but cannot be trusted — it does not reproduce,
+  // or it names an instance this student was never allocated (a classmate's
+  // pin). The server cannot verify what was shown, so the work is held for a
+  // teacher (needs-review: kept, never retired) rather than credited on the
+  // browser's word or graded against someone else's question.
+  if (family.refused) return { blocked: true, reason: family.reason };
   const gradingQuestion = family.question || question;
   const maximumAttempts = resolveQuestionMaximumAttempts({
     question: gradingQuestion,

@@ -112,11 +112,23 @@ later seating a provisional student all show the same question.
 
 **Server grading** (`questionFamilyGrading.mjs`, `submissionIngestion.mjs`):
 
-* The attempt envelope carries the pin. Ingestion rebuilds the instance and
-  marks the raw response with the shared contract (`gradeOrdinaryResponse`,
-  plus a verified Step Algebra final answer).
-* The browser's verdict is discarded for those questions. A seat mismatch is
-  recorded for diagnostics but never refuses work.
+* The attempt envelope carries the pin. Ingestion, the deadline finalizer and
+  Recovery rebuild the instance and mark the raw response through the shared
+  grading registry (`serverGrading/`), the same grader whatever the surface:
+  an ordinary type, a registry tool mode, or a Step Algebra final answer. See
+  [SERVER_GRADING_COVERAGE.md](SERVER_GRADING_COVERAGE.md).
+* The browser's verdict is discarded for those questions.
+* A pin must be one this student could have been shown
+  (`deliveryPinAllocationProblem`): it is for this slot; a `seated` pin names
+  a seat the student's learner token holds (in any class, so a class change is
+  safe); a `shared` pin is only valid in a "same questions for all" section;
+  and walking the family from the pinned allocation lands on the pinned
+  fingerprint. A pin that fails (a classmate's pin, a steered index, a stale
+  fingerprint) is refused: the canonical record's pin is tried next, and if
+  none can be trusted the work is held for teacher review (`needs-review`,
+  kept, never retired) instead of being credited on the browser's word. A
+  `provisional` pin cannot be tied to a student after the fact and is accepted
+  as shown. The seat verification is still recorded for diagnostics.
 * A family template is never marked against its own fields:
   `serverGradingSupport` returns `family-template`.
 

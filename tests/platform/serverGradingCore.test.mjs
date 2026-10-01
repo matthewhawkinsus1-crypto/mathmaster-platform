@@ -40,6 +40,7 @@ import {
 } from '../../functions/shared/submissionIngestion.mjs';
 import { buildSubmissionEnvelope } from '../../functions/shared/submissionEnvelope.mjs';
 import { resolveFamilyQuestionInstance } from '../../functions/shared/questionFamilyInstance.mjs';
+import { learnerToken } from '../../functions/shared/questionGenerationIdentity.mjs';
 import { familyInstanceServerGradable, resolveServerGradingQuestion } from '../../functions/shared/questionFamilyGrading.mjs';
 import { assessRecoverySlot } from '../../functions/shared/sectionRecoveryReadiness.mjs';
 import { normalizeStoredResponse } from '../../functions/shared/responseCheckpointSchema.mjs';
@@ -235,10 +236,19 @@ test('complexPlaneLab fixtures discriminate: the same correct work fails against
  * One raw response, one record — whichever path delivers it
  * ------------------------------------------------------------------------- */
 
-const ASSIGNMENT = { id: 'A1', schemaVersion: 5, releaseAt: '2026-09-01T00:00:00Z' };
+// S1 sits in seat 3 and S2 in seat 7 — the seat map the teacher's app writes.
+const ASSIGNMENT = {
+  id: 'A1',
+  schemaVersion: 5,
+  releaseAt: '2026-09-01T00:00:00Z',
+  generationSeats: { version: 1, byClassId: { C1: { [learnerToken('A1', 'S1')]: 3, [learnerToken('A1', 'S2')]: 7 } } },
+};
 const CAPTURED_AT = Date.parse('2026-09-14T15:00:00Z');
 
-const envelopeFor = ({ question, response, record = null, questionIndex = 0, activityRole = 'classwork', familyDelivery = null }) => normalizeSubmissionEnvelope(buildSubmissionEnvelope({
+// As ingestStudentSubmissions does: the wire envelope never says whose work it
+// is; the server stamps the authenticated student after normalizing it.
+const asServerReceives = (envelope, studentId = 'S1') => Object.assign(envelope, { studentId });
+const envelopeFor = ({ question, response, record = null, questionIndex = 0, activityRole = 'classwork', familyDelivery = null }) => asServerReceives(normalizeSubmissionEnvelope(buildSubmissionEnvelope({
   actionId: `act-${questionIndex}-${Math.round(Math.random() * 1e9)}`,
   kind: 'ordinarySubmission',
   studentId: 'S1',
@@ -253,7 +263,7 @@ const envelopeFor = ({ question, response, record = null, questionIndex = 0, act
   record: record || { status: 'correct', attemptCount: 1, totalAttempts: 1, partialCredit: 100, bestPartialCredit: 100 },
   response,
   familyDelivery,
-}));
+})));
 
 test('ingestion re-grades a tool submission from its raw work and discards the browser verdict', () => {
   const wrong = gradeToolWork({ toolId: 'complexPlaneLab', question: OPERATIONS, work: { real: '-8', imaginary: '5' } });
@@ -333,19 +343,81 @@ test('a family instance is graded against the instance its own validated pin nam
   const browser = gradeToolWork({ toolId: 'complexPlaneLab', question: mine.question, work: myWork });
   assert.equal(browser.isCorrect, true);
 
-  const serverWithMyPin = resolveServerGradingQuestion({ assignment: { id: 'A1' }, question: TEMPLATE, questionIndex: 0, variantIndex: 0, claimedDelivery: mine.delivery });
+  const resolveAs = (studentId, claimedDelivery, extra = {}) => resolveServerGradingQuestion({
+    assignment: ASSIGNMENT, question: TEMPLATE, questionIndex: 0, variantIndex: 0, claimedDelivery, studentId, classId: 'C1', ...extra,
+  });
+  const serverWithMyPin = resolveAs('S1', mine.delivery);
+  assert.equal(serverWithMyPin.reason, null);
+  assert.equal(serverWithMyPin.verification, 'seat-verified');
   assert.equal(gradeServerResponse({ question: serverWithMyPin.question, response: browser.toolResponse }).isCorrect, true);
 
-  // Substituting another student's pin grades against THEIR instance, so my
-  // answer is not correct there — a pin cannot be used to borrow a key.
-  const serverWithTheirPin = resolveServerGradingQuestion({ assignment: { id: 'A1' }, question: TEMPLATE, questionIndex: 0, variantIndex: 0, claimedDelivery: theirs.delivery });
-  assert.equal(gradeServerResponse({ question: serverWithTheirPin.question, response: browser.toolResponse }).isCorrect, false);
+  // Substituting a classmate's pin (and with it the classmate's answer) is
+  // refused outright: seat 7 is not this student's seat.
+  const theirWork = { real: String(Number(theirs.question.z.re) + 2), imaginary: String(Number(theirs.question.z.im) - 1) };
+  assert.equal(gradeToolWork({ toolId: 'complexPlaneLab', question: theirs.question, work: theirWork }).isCorrect, true, 'the classmate\'s answer is right for the classmate\'s question');
+  const borrowed = resolveAs('S1', theirs.delivery);
+  assert.equal(borrowed.question, null);
+  assert.equal(borrowed.refused, true);
+  assert.equal(borrowed.reason, 'family-pin-seat-not-held');
+  // The classmate's own pin is, of course, theirs.
+  assert.equal(resolveAs('S2', theirs.delivery).reason, null);
+
+  // Keeping my seat but pointing the index (or the walk) at their instance.
+  const reindexed = resolveAs('S1', { ...theirs.delivery, seat: 3 });
+  assert.equal(reindexed.question, null);
+  assert.equal(reindexed.reason, 'family-pin-index-not-allocated');
+  // Keeping my seat and index but steering the replay (resolvedIndex) to
+  // their instance: walking from my allocation does not land there.
+  const steered = resolveAs('S1', { ...mine.delivery, resolvedIndex: theirs.delivery.resolvedIndex, fingerprint: theirs.delivery.fingerprint });
+  assert.equal(steered.question, null);
+  assert.equal(steered.reason, 'family-pin-index-not-allocated');
+  // Calling it a shared-section delivery in a personalized section.
+  const sharedInstance = resolveFamilyQuestionInstance({ question: TEMPLATE, assignmentId: 'A1', storageIndex: 0, allocation: { seat: 0, variant: 0, stride: 1, index: 0, basis: 'shared' } });
+  const sharedClaim = resolveAs('S1', sharedInstance.delivery);
+  assert.equal(sharedClaim.question, null);
+  assert.equal(sharedClaim.reason, 'family-pin-shared-outside-shared-section');
+  // ...which is exactly right in a section set to the same questions for all.
+  const sharedSection = { ...ASSIGNMENT, variantPolicy: { mode: 'personalized', sectionModes: { dol: 'shared' } } };
+  assert.equal(resolveServerGradingQuestion({ assignment: sharedSection, question: TEMPLATE, questionIndex: 0, variantIndex: 0, claimedDelivery: sharedInstance.delivery, studentId: 'S1', classId: 'C1' }).reason, null);
+  // A pin from another question that uses the same family is not this slot's.
+  const otherSlot = resolveFamilyQuestionInstance({ question: { ...TEMPLATE, questionId: 'cpl-family-2' }, assignmentId: 'A1', storageIndex: 1, allocation: { seat: 3, variant: 0, stride: 40, index: 3, basis: 'seated' } });
+  assert.equal(resolveAs('S1', otherSlot.delivery).reason, 'family-pin-slot-mismatch');
+  // A teacher-preview pin is never a student's delivery.
+  assert.equal(resolveAs('S1', { ...mine.delivery, basis: 'preview' }).reason, 'family-pin-basis-not-a-student-delivery');
 
   // A pin for another variant is never used, and a forged fingerprint fails.
-  assert.equal(resolveServerGradingQuestion({ assignment: { id: 'A1' }, question: TEMPLATE, questionIndex: 0, variantIndex: 1, claimedDelivery: mine.delivery }).question, null);
-  const forged = resolveServerGradingQuestion({ assignment: { id: 'A1' }, question: TEMPLATE, questionIndex: 0, variantIndex: 0, claimedDelivery: { ...mine.delivery, fingerprint: 'local:A1_cpl-family:deadbeefdeadbeef' } });
+  assert.equal(resolveAs('S1', mine.delivery, { variantIndex: 1 }).question, null);
+  const forged = resolveAs('S1', { ...mine.delivery, fingerprint: 'local:A1_cpl-family:deadbeefdeadbeef' });
   assert.equal(forged.question, null);
+  assert.equal(forged.refused, true);
   assert.match(forged.reason, /^family-/);
+
+  // A refused claim does not discard a good canonical pin the server stamped.
+  const recovered = resolveAs('S1', theirs.delivery, { canonicalRecord: { variantIndex: 0, familyDelivery: mine.delivery } });
+  assert.equal(recovered.reason, null);
+  assert.equal(recovered.pin.fingerprint, mine.delivery.fingerprint);
+});
+
+test('a provisional pin (shown before the student was seated) is accepted on its own word — the documented residual', () => {
+  const provisional = resolveFamilyQuestionInstance({ question: TEMPLATE, assignmentId: 'A1', storageIndex: 0, allocation: { seat: 12, variant: 0, stride: 13, index: 12, basis: 'provisional' } });
+  const resolved = resolveServerGradingQuestion({ assignment: ASSIGNMENT, question: TEMPLATE, questionIndex: 0, variantIndex: 0, claimedDelivery: provisional.delivery, studentId: 'S1', classId: 'C1' });
+  assert.equal(resolved.reason, null);
+  assert.equal(resolved.verification, 'provisional');
+});
+
+test('ingestion holds work submitted on a classmate\'s pin for a teacher instead of crediting it', () => {
+  const theirs = instanceFor(7);
+  const theirWork = { real: String(Number(theirs.question.z.re) + 2), imaginary: String(Number(theirs.question.z.im) - 1) };
+  const browser = gradeToolWork({ toolId: 'complexPlaneLab', question: theirs.question, work: theirWork });
+  const built = buildIngestedAttempt({
+    envelope: envelopeFor({ question: TEMPLATE, response: browser.toolResponse, activityRole: 'dol', familyDelivery: theirs.delivery }),
+    assignment: ASSIGNMENT,
+    question: TEMPLATE,
+    canonicalRecord: null,
+    ingestedAt: CAPTURED_AT + 1000,
+  });
+  assert.equal(built.blocked, true);
+  assert.equal(built.reason, 'family-pin-seat-not-held');
 });
 
 test('ingestion grades a family-backed tool slot against the pinned instance and stamps the canonical pin', () => {
