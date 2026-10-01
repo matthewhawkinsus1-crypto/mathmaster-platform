@@ -33,6 +33,19 @@
 //                 stored record passes the real draft sanitizer.
 //   wide          1920×1080 (a Chromebook zoomed out): multi-column tools use
 //                 the width; ordinary questions do not.
+//   identity      the signed-in identity bar at 344, 390 and 479px (one line,
+//                 ~38px, pinned, every name kept) and on iPad and Chromebook;
+//                 its star drawn, not typed (PQ-021, PQ-030).
+//   opener        "⤢ Enlarge question" covers no text or control of a
+//                 multi-part answer or Step Algebra, phone to Chromebook
+//                 (PQ-025).
+//   staged        a composed question in phone Work View: the header is the
+//                 task (PQ-026), all seven table rows typed on the number
+//                 keypad stay on screen above the keys (PQ-037); then the
+//                 phone turns on its side and the step gets the height
+//                 (PQ-020), and turns back with the work intact.
+//   sticky-reveal 1366×768: Enter walks to a blank below a tall task card and
+//                 the blank lands below the card, not under it (PQ-031).
 //
 // Exit code 1 on any finding. Screenshots: tests/browser/artifacts/studentUxPlatform/.
 
@@ -455,6 +468,271 @@ const JOURNEYS = {
     await go(page, 'ux-multi');
     const plain = await page.evaluate(() => document.querySelector('.mathmaster-assignment-shell').getBoundingClientRect().width);
     check(plain <= 1120, `an ordinary question widened to ${plain}px`);
+  },
+
+  async identity(browser) {
+    // Whose work is on the screen stays on the screen — compactly. Phones get
+    // one ~38px line (was 67px at 390, 86px at 344); wider screens keep
+    // "Not you?" (PQ-021). The star is an svg (PQ-030).
+    for (const [width, height, phone] of [[344, 882, true], [390, 844, true], [479, 900, true], [820, 1180, true], [1366, 768, false]]) {
+      const context = await browser.newContext(phone ? { viewport: { width, height }, hasTouch: true, isMobile: true } : { viewport: { width, height } });
+      const page = await context.newPage();
+      await page.goto(`${ORIGIN}/tests/browser/studentUxPlatform.html?q=ux-multi&identity=1&run=identity-${width}-${Date.now()}`, { timeout: 120000 });
+      await page.waitForFunction(() => window.__ux && document.querySelector('[data-student-identity]'), null, { timeout: 120000 });
+      await settle(page, 1500);
+      const bar = await page.evaluate(() => {
+        const node = document.querySelector('[data-student-identity]');
+        const middle = (element) => { const r = element.getBoundingClientRect(); return r.top + r.height / 2; };
+        const name = node.querySelector('.mm-identity-name');
+        const points = node.querySelector('[aria-label$="Class Points"]');
+        const logout = [...node.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Log Out');
+        const notYou = node.querySelector('.mm-identity-not-you');
+        return {
+          height: Math.round(node.getBoundingClientRect().height),
+          offset: getComputedStyle(document.documentElement).getPropertyValue('--mm-student-identity-stack-offset').trim(),
+          sticky: getComputedStyle(node).position === 'sticky',
+          oneRow: Boolean(name && points && logout) && [points, logout].every((element) => Math.abs(middle(element) - middle(name)) <= 6),
+          nameText: name?.textContent || '',
+          pointsName: points?.getAttribute('aria-label') || '',
+          pointsText: (points?.textContent || '').replace(/\s+/g, ' ').trim(),
+          pointsDrawn: Boolean(points?.querySelector('svg')) && !/⭐/.test(points?.textContent || ''),
+          notYouShown: Boolean(notYou && notYou.getBoundingClientRect().width > 0),
+          overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        };
+      });
+      const where = `${width}×${height}`;
+      check(bar.sticky, `${where}: the identity bar is not pinned`);
+      check(bar.height <= 40, `${where}: the identity bar is ${bar.height}px`);
+      check(bar.offset === `${bar.height}px`, `${where}: the bar publishes ${bar.offset} for a ${bar.height}px bar`);
+      check(bar.oneRow, `${where}: the name, the points and Log Out are not one row`);
+      check(bar.nameText === 'Claude QA Student • Period 3', `${where}: the name reads "${bar.nameText}"`);
+      check(bar.pointsName === '120 Class Points' && bar.pointsText === '120 Class Points', `${where}: the points read ${JSON.stringify([bar.pointsName, bar.pointsText])}`);
+      check(bar.pointsDrawn, `${where}: the points star is not drawn`);
+      check(bar.notYouShown === (width >= 480), `${where}: "Not you?" ${bar.notYouShown ? 'shown' : 'hidden'} (expected only from 480px)`);
+      check(bar.overflowX <= 1, `${where}: ${bar.overflowX}px of sideways scroll`);
+      check(await page.getByRole('button', { name: 'Log Out', exact: true }).count() === 1, `${where}: no button named "Log Out"`);
+      await shot(page, `identity-${width}x${height}`);
+      await context.close();
+    }
+  },
+
+  async opener(browser) {
+    // The opener floats over the top-right corner of the question. Nothing the
+    // student reads or presses may be under it: "Complete Each Pa|rt" at 390,
+    // Step Algebra's "Reset work" at 1366×768 (PQ-025).
+    const covered = (page) => page.evaluate(() => {
+      const opener = [...document.querySelectorAll('.mathmaster-work-view-host[data-open="false"] > .mathmaster-work-view-body > .mathmaster-work-view-surface > button')]
+        .find((button) => /enlarge/i.test(button.textContent || ''));
+      if (!opener) return ['(no opener)'];
+      const o = opener.getBoundingClientRect();
+      const over = (r) => r.width > 0 && r.height > 0 && r.left < o.right - 1 && r.right > o.left + 1 && r.top < o.bottom - 1 && r.bottom > o.top + 1;
+      const hits = [];
+      const walker = document.createTreeWalker(opener.parentElement, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if (opener.contains(node) || !node.textContent.trim()) continue;
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        if ([...range.getClientRects()].some(over)) hits.push(`"${node.textContent.trim().slice(0, 24)}"`);
+      }
+      opener.parentElement.querySelectorAll('button, input, math-field, [role="radio"]').forEach((element) => {
+        if (element !== opener && over(element.getBoundingClientRect())) hits.push(`<${element.tagName.toLowerCase()}> "${(element.textContent || '').trim().slice(0, 24)}"`);
+      });
+      return [...new Set(hits)];
+    });
+    for (const [width, height, phone] of [[344, 882, true], [390, 844, true], [820, 1180, true], [1366, 768, false]]) {
+      const context = await browser.newContext(phone ? { viewport: { width, height }, hasTouch: true, isMobile: true } : { viewport: { width, height } });
+      const page = await context.newPage();
+      await open(page, 'ux-multi');
+      for (const id of ['ux-multi', 'ux-simple', 'ux-step']) {
+        if (id !== 'ux-multi') await go(page, id);
+        const hits = await covered(page);
+        check(hits.length === 0, `${width}×${height} ${id}: the Enlarge button covers ${hits.join(', ')}`);
+      }
+      await shot(page, `opener-step-${width}x${height}`);
+      await context.close();
+    }
+  },
+
+  async staged(browser) {
+    const context = await browser.newContext(PHONE);
+    const page = await context.newPage();
+    await page.goto(`${ORIGIN}/tests/browser/studentUxPlatform.html?q=ux-staged-table&identity=1&staged=1&run=staged-${Date.now()}`, { timeout: 120000 });
+    await page.waitForFunction(() => window.__ux && document.querySelector('[data-question-id="ux-staged-table"] .workflow-focus'), null, { timeout: 120000 });
+    await settle(page, 2500);
+
+    // Embedded: the Enlarge button sits beside the step chips, not on them (PQ-025).
+    const chipRow = await page.evaluate(() => {
+      const opener = [...document.querySelectorAll('button')].find((button) => /enlarge question/i.test(button.textContent || ''));
+      const o = opener.getBoundingClientRect();
+      const n = document.querySelector('.workflow-focus__navigator').getBoundingClientRect();
+      return Math.max(0, Math.min(o.right, n.right) - Math.max(o.left, n.left)) * Math.max(0, Math.min(o.bottom, n.bottom) - Math.max(o.top, n.top));
+    });
+    check(chipRow === 0, `the Enlarge button overlaps the step chips by ${Math.round(chipRow)}px²`);
+
+    await page.locator('.mathmaster-work-view-host[data-open="false"] > .mathmaster-work-view-body > .mathmaster-work-view-surface > button', { hasText: /Enlarge/ }).first().tap();
+    await page.waitForSelector('.mathmaster-work-view-host[data-open="true"]');
+    await settle(page, 700);
+
+    // The header is the task, all of it (PQ-026).
+    const header = await page.evaluate(() => {
+      const host = document.querySelector('.mathmaster-work-view-host[data-open="true"]');
+      const task = host.querySelector('.mathmaster-work-view-persistent-task');
+      return {
+        title: Boolean(host.querySelector('.mathmaster-work-view-title')),
+        hidden: task ? task.scrollHeight - task.clientHeight : -1,
+        height: Math.round(host.querySelector('.mathmaster-work-view-header').getBoundingClientRect().height),
+      };
+    });
+    check(!header.title, 'the Work View header still says "Question Work View" above the task');
+    check(header.hidden >= 0 && header.hidden <= 1, `${header.hidden}px of the task is cut off in the header`);
+    // Four whole lines of task at most (81px); the old title-plus-2.4-lines
+    // header was 78px and cut its third line in half.
+    check(header.height <= 82, `the Work View header is ${header.height}px on a phone`);
+
+    // Every row, typed on the number keypad, stays on screen above the keys (PQ-037).
+    const cells = page.locator('.mathmaster-work-view-host[data-open="true"] input[aria-label^="Row "]');
+    const count = await cells.count();
+    check(count === 7, `expected the seven-row table, found ${count} rows`);
+    const key = (label) => page.locator('.mathmaster-mobile-numeric-keypad button', { hasText: new RegExp(`^${label}$`) }).first();
+    for (let index = 0; index < count; index += 1) {
+      const cell = cells.nth(index);
+      // The worst case, and a common one: the student pressed Done, scrolled
+      // the next row just into view at the bottom of the step, and taps it —
+      // then the keypad takes the bottom of the screen and the step shrinks.
+      const done = page.locator('.mathmaster-keypad-done');
+      if (await done.count()) {
+        await done.tap();
+        await settle(page, 250);
+      }
+      await cell.evaluate((element) => element.scrollIntoView({ block: 'end' }));
+      await settle(page, 150);
+      await cell.tap();
+      await page.waitForSelector('.mathmaster-mobile-numeric-keypad', { timeout: 10000 });
+      await settle(page, 450);
+      const value = String(4 + 2 * index);
+      for (const digit of value) await key(digit).tap();
+      await settle(page, 150);
+      const seen = await cell.evaluate((element) => {
+        const r = element.getBoundingClientRect();
+        const keys = document.querySelector('.mathmaster-mobile-numeric-keypad').getBoundingClientRect();
+        const body = element.closest('.workflow-focus__workspace-body').getBoundingClientRect();
+        const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return {
+          box: `${Math.round(r.top)}-${Math.round(r.bottom)}`,
+          keys: Math.round(keys.top),
+          body: `${Math.round(body.top)}-${Math.round(body.bottom)}`,
+          visible: r.bottom <= keys.top + 1 && r.top >= body.top - 1 && r.bottom <= body.bottom + 1 && Boolean(top && (top === element || element.contains(top))),
+          active: document.activeElement === element,
+        };
+      });
+      check(seen.visible && seen.active, `row ${index + 1}: the box being typed into is not on screen (box ${seen.box}, step body ${seen.body}, keys from ${seen.keys})`);
+      check(await cell.inputValue() === value, `row ${index + 1}: the keypad typed "${await cell.inputValue()}" for ${value}`);
+      if (index === count - 1) await shot(page, 'staged-phone-keypad-last-row');
+    }
+    await page.locator('.mathmaster-keypad-done').tap();
+    await settle(page, 300);
+
+    const next = page.getByRole('button', { name: 'Next step', exact: true });
+    check(await next.isEnabled(), 'Next step stayed disabled after the table was filled');
+    await next.tap();
+    await settle(page, 900);
+
+    // On its side, the step gets the height (PQ-020): the instruction joins the
+    // header, the step heading joins the Previous/Next row.
+    const sideways = async (width, height) => {
+      await page.setViewportSize({ width, height });
+      await settle(page, 900);
+      return page.evaluate(() => {
+        const host = document.querySelector('.mathmaster-work-view-host[data-open="true"]');
+        if (!host) return { open: false };
+        const box = (element) => element?.getBoundingClientRect();
+        const body = box(host.querySelector('.workflow-focus__workspace-body'));
+        const footer = host.querySelector('.workflow-focus__footer');
+        const heading = host.querySelector('.workflow-focus__workspace-heading');
+        const planes = [...host.querySelectorAll('.workflow-focus__workspace-body svg')].map((svg) => svg.getBoundingClientRect())
+          .filter((r) => r.width > 60 && r.height > 60).sort((a, b) => b.width * b.height - a.width * a.height);
+        const plane = planes[0];
+        const shown = plane ? Math.max(0, Math.min(plane.bottom, body.bottom, innerHeight) - Math.max(plane.top, body.top, 0)) : 0;
+        const buttons = [...host.querySelectorAll('.workflow-focus__nav-button')].map((button) => button.getBoundingClientRect());
+        return {
+          open: true,
+          height: host.dataset.height,
+          body: Math.round(body.height),
+          headingInFooter: Boolean(heading && footer.contains(heading)),
+          instructionInHeader: Boolean(host.querySelector('.mathmaster-work-view-header .mathmaster-work-view-instruction')),
+          stepButtons: buttons.length === 2 && buttons.every((r) => r.height >= 44 && r.top >= 0 && r.bottom <= innerHeight + 1),
+          plane: plane ? Math.round((shown / plane.height) * 100) : 0,
+          overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        };
+      });
+    };
+    for (const [width, height, minimum] of [[844, 390, 250], [740, 360, 220]]) {
+      const view = await sideways(width, height);
+      const where = `${width}×${height}`;
+      check(view.open, `${where}: Work View closed when the phone turned`);
+      if (!view.open) break;
+      check(view.height === 'short', `${where}: not laid out as a short Work View (${view.height})`);
+      check(view.body >= minimum, `${where}: the step gets ${view.body}px (want ≥ ${minimum})`);
+      check(view.headingInFooter && view.instructionInHeader, `${where}: the chrome did not fold (heading in footer ${view.headingInFooter}, instruction in header ${view.instructionInHeader})`);
+      check(view.stepButtons, `${where}: Previous/Next are not both on screen at full size`);
+      check(view.plane >= 95, `${where}: ${view.plane}% of the plane is on screen`);
+      check(view.overflowX <= 1, `${where}: ${view.overflowX}px of sideways scroll`);
+      await shot(page, `staged-sideways-${width}x${height}`);
+    }
+
+    // Back upright, still open, and the table still holds the student's work.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await settle(page, 900);
+    check(await page.locator('.mathmaster-work-view-host[data-open="true"]').count() === 1, 'Work View closed when the phone turned back');
+    await page.getByRole('button', { name: 'Previous step', exact: true }).tap();
+    await settle(page, 900);
+    const kept = await cells.evaluateAll((inputs) => inputs.map((input) => input.value));
+    check(JSON.stringify(kept) === JSON.stringify(['4', '6', '8', '10', '12', '14', '16']), `the table lost the student's work across the turns: ${JSON.stringify(kept)}`);
+    await context.close();
+  },
+
+  async 'sticky-reveal'(browser) {
+    // A blank the platform walks to with Enter lands BELOW the pinned task card,
+    // whatever its height: scroll padding comes from the card's measured height
+    // (PQ-031). A long task is stood in for by a taller card.
+    const page = await (await browser.newContext(LAPTOP)).newPage();
+    await open(page, 'ux-multi');
+    for (const cardHeight of [null, 184]) {
+      const placed = await page.evaluate(async (height) => {
+        const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        const anchor = document.querySelector('.mathmaster-desktop-question-anchor');
+        anchor.style.minHeight = height ? `${height}px` : '';
+        if (!document.querySelector('[data-reveal-room]')) {
+          const room = document.createElement('div');
+          room.dataset.revealRoom = '1';
+          room.style.height = '2400px';
+          document.querySelector('.mathmaster-assignment-shell').appendChild(room);
+        }
+        await wait(250);
+        const fields = [...document.querySelectorAll('.mathmaster-question-engine math-field')];
+        fields.forEach((field) => { field.value = ''; });
+        // The second blank 30px under the card; the first one has the caret.
+        window.scrollBy(0, fields[1].getBoundingClientRect().top - (anchor.getBoundingClientRect().bottom - 30));
+        await wait(200);
+        fields[0].focus({ preventScroll: true });
+        await wait(200);
+        return Math.round(anchor.getBoundingClientRect().height);
+      }, cardHeight);
+      await page.keyboard.press('Enter');
+      await settle(page, 600);
+      const after = await page.evaluate(() => {
+        const anchor = document.querySelector('.mathmaster-desktop-question-anchor').getBoundingClientRect();
+        const fields = [...document.querySelectorAll('.mathmaster-question-engine math-field')];
+        const second = fields[1];
+        return {
+          active: second === document.activeElement || second.contains(document.activeElement),
+          under: Math.round(anchor.bottom - second.getBoundingClientRect().top),
+        };
+      });
+      check(after.active, `card ${placed}px: Enter did not walk to the next blank`);
+      check(after.under <= 0, `card ${placed}px: the blank Enter walked to is ${after.under}px under the task card`);
+    }
+    await shot(page, 'sticky-reveal-tall-card');
   },
 };
 

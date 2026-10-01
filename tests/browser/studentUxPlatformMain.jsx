@@ -31,6 +31,11 @@
 //                 tool (its sample spec, as the Work View certification mounts
 //                 it), so any tool can be opened inside the real wrappers and a
 //                 long navigation session can visit all of them.
+//   ?staged=1     appends a "Staged" section: one composed question (complete
+//                 a seven-row table, graph it, state its domain and range),
+//                 compiled through the same import chain. The `staged` journey
+//                 types into the table in phone Work View with the number
+//                 keypad up (PQ-037), then turns the phone on its side (PQ-020).
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MathfieldElement } from 'mathlive';
@@ -178,6 +183,30 @@ const pick = (sections, role, ids) => sections
   .filter((section) => section.questions.length);
 
 const WITH_IDENTITY = params.get('identity') === '1';
+const STAGED_PASS = {
+  schemaVersion: 5,
+  assignment: { title: 'Staged question', courseId: 'algebra1', instructionalPurpose: 'lesson', gradingPurpose: 'classwork' },
+  sections: [{
+    id: 'ux-staged',
+    role: 'classwork',
+    title: 'Staged',
+    feedbackMode: 'immediate',
+    hintsAllowed: true,
+    attemptsAllowed: 3,
+    questions: [{
+      questionId: 'ux-staged-table',
+      ...teks('A.3C'),
+      prompt: 'A plant is 4 cm tall and grows 2 cm each week. Complete the table, graph the function, then give its domain and range.',
+      studentActions: ['completeTable', 'constructGraph', 'stateDomain', 'stateRange'],
+      function: { family: 'linear', m: 2, b: 4 },
+      tableXValues: [0, 1, 2, 3, 4, 5, 6],
+      graph: { xMin: -1, xMax: 8, yMin: -2, yMax: 18 },
+      correctDomain: 'x >= 0',
+      correctRange: 'y >= 4',
+    }],
+  }],
+};
+const stagedSection = params.get('staged') === '1' ? compile(JSON.stringify(STAGED_PASS)).sections : [];
 const toolSection = params.get('tools') === '1' ? [{
   id: 'ux-tools',
   role: 'classwork',
@@ -201,6 +230,7 @@ const sections = [
   ...pick(finalCompiled.sections, 'dol', ['lmr-dol-1']),
   ...passCompiled.sections.filter((section) => section.role === 'dol'),
   ...toolSection,
+  ...stagedSection,
 ];
 const allQuestions = sections.flatMap((section) => section.questions.map((question, index) => ({ section, question, index })));
 
