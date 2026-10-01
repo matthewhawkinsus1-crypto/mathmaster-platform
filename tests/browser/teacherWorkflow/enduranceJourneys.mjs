@@ -58,9 +58,11 @@ const openPage = async (query) => {
     if (message.type() === 'error' || /Warning:|Maximum update depth|Cannot update a component/.test(text)) consoleProblems.push(text.slice(0, 220));
   });
   page.on('pageerror', (error) => consoleProblems.push(`pageerror: ${error.message}`));
-  // Name the URL of a failed load; the console line alone does not. The dev
-  // server cannot serve MathLive's font files (a harness limitation, not a
-  // production one), so those are ignored like their console noise.
+  // Name the URL of a failed load; the console line alone does not. Font
+  // requests are left out: MathLive's fonts now ship with the build through
+  // mathlive/fonts.css (src/platform/math/mathliveRuntime.js) — their absence
+  // was a production defect, not a harness limitation, and it has its own
+  // gate (tests/browser/mathFontsProduction.mjs).
   page.on('response', (response) => {
     if (response.status() < 400) return;
     const url = response.url();
@@ -76,10 +78,10 @@ const openPage = async (query) => {
 };
 
 const measure = async (page, cdp) => {
-  // An attached inspector keeps every object passed to console.* alive; in the
-  // dev harness MathLive logs its (unloadable) font errors with elements in
-  // scope, which pinned every closed screen. A student's browser has no
-  // inspector, so drop what this session collected before measuring.
+  // An attached inspector keeps every object passed to console.* alive (MathLive
+  // used to log its font failure with elements in scope, which pinned every
+  // closed screen). A student's browser has no inspector, so drop what this
+  // session collected before measuring.
   await cdp.send('Runtime.discardConsoleEntries').catch(() => {});
   await cdp.send('HeapProfiler.collectGarbage');
   await settle(page, 300);
