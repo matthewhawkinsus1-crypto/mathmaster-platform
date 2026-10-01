@@ -3,7 +3,7 @@ import { bindMathFieldFocusHandoff } from '../platform/interaction/mathFieldFocu
 import 'mathlive';
 import { getCalculatorButtonsForMode, getCalculatorDrawerLabel } from '../platform/policies/calculatorPolicy';
 import { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
-import { clampCalculatorPosition } from './calculatorPanelGeometry.js';
+import { clampCalculatorPosition, settleCalculatorPosition } from './calculatorPanelGeometry.js';
 import { nextDivisionKeypadStep } from './calculatorKeypadFlow.js';
 import CalculatorIcon from './common/CalculatorIcon.jsx';
 
@@ -153,20 +153,25 @@ export const CalculatorPanel = ({
     if (mathField && mathField.value !== display) mathField.value = display;
   }, [display]);
 
+  // Re-clamp once the panel has been measured. `settleCalculatorPosition`
+  // hands back the SAME object when nothing moved: this effect depends on
+  // `panelPosition`, so a fresh-but-equal object here re-ran it on the next
+  // frame, forever — a dragged calculator re-rendered at 60 Hz for as long as
+  // it stayed open.
   useEffect(() => {
     if (!isOpen || !panelPosition) return undefined;
     const frame = window.requestAnimationFrame(() => {
       const panel = panelRef.current;
       if (!panel) return;
       const rect = panel.getBoundingClientRect();
-      setPanelPosition((current) => (current ? clampCalculatorPosition({
+      setPanelPosition((current) => (current ? settleCalculatorPosition(current, clampCalculatorPosition({
         x: current.x,
         y: current.y,
         panelWidth: rect.width,
         panelHeight: rect.height,
         viewportWidth: window.innerWidth,
         viewportHeight: window.innerHeight,
-      }) : current));
+      })) : current));
     });
     return () => window.cancelAnimationFrame(frame);
   }, [isOpen, panelPosition]);
@@ -177,14 +182,14 @@ export const CalculatorPanel = ({
         const panel = panelRef.current;
         if (!current || !panel) return current;
         const rect = panel.getBoundingClientRect();
-        return clampCalculatorPosition({
+        return settleCalculatorPosition(current, clampCalculatorPosition({
           x: current.x,
           y: current.y,
           panelWidth: rect.width,
           panelHeight: rect.height,
           viewportWidth: window.innerWidth,
           viewportHeight: window.innerHeight,
-        });
+        }));
       });
     };
     window.addEventListener('resize', handleResize);
@@ -194,34 +199,6 @@ export const CalculatorPanel = ({
       window.removeEventListener('orientationchange', handleResize);
     };
   }, []);
-
-  if (!policy?.available) {
-    if (!showLauncher) return null;
-    const unavailableReason = policy?.reason || 'No calculator is allowed for this skill.';
-    return (
-      <button
-        className="mathmaster-calculator-toggle is-unavailable"
-        type="button"
-        aria-disabled="true"
-        aria-label={`Calculator unavailable. ${unavailableReason}`}
-        title={unavailableReason}
-        style={{
-          minHeight:44,
-          padding:'9px 14px',
-          borderRadius:999,
-          border:'1px solid #d7a5a1',
-          background:'#fce8e6',
-          color:'#8c1d18',
-          fontWeight:800,
-          cursor:'not-allowed',
-          boxShadow:'none',
-          ...launcherStyle,
-        }}
-      >
-        <CalculatorIcon unavailable /> Calculator
-      </button>
-    );
-  }
 
   const toggleDrawer = () => {
     if (!isOpen) onCalculatorOpened?.();
@@ -354,6 +331,38 @@ export const CalculatorPanel = ({
     dragRef.current = null;
     event.currentTarget.releasePointerCapture?.(event.pointerId);
   };
+
+  // EVERY HOOK ABOVE, EVERY EARLY RETURN BELOW. The unavailable launcher used
+  // to return before the useCallbacks above, so a panel that stayed mounted
+  // while its policy flipped (a Path session moving to a calculator question)
+  // rendered a different number of hooks and React threw.
+  if (!policy?.available) {
+    if (!showLauncher) return null;
+    const unavailableReason = policy?.reason || 'No calculator is allowed for this skill.';
+    return (
+      <button
+        className="mathmaster-calculator-toggle is-unavailable"
+        type="button"
+        aria-disabled="true"
+        aria-label={`Calculator unavailable. ${unavailableReason}`}
+        title={unavailableReason}
+        style={{
+          minHeight:44,
+          padding:'9px 14px',
+          borderRadius:999,
+          border:'1px solid #d7a5a1',
+          background:'#fce8e6',
+          color:'#8c1d18',
+          fontWeight:800,
+          cursor:'not-allowed',
+          boxShadow:'none',
+          ...launcherStyle,
+        }}
+      >
+        <CalculatorIcon unavailable /> Calculator
+      </button>
+    );
+  }
 
   const buttons = calculatorButtonsForPolicy(policy.mode);
   const panelStyle = panelPosition
