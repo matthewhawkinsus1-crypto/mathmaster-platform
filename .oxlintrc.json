@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "oxc", "unicorn", "typescript"],
+  "env": { "es2024": true },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/jsx-no-undef": "error",
+    "react/exhaustive-deps": "off",
+    "react/only-export-components": "off"
+  },
+  "overrides": [
+    {
+      "files": ["src/**", "tests/browser/**/*.jsx"],
+      "env": { "browser": true, "es2024": true },
+      "rules": { "no-undef": "error" }
+    },
+    {
+      "files": ["functions/*.js", "functions/lib/**", "functions/shared/**", "functions-path-admin/*.js", "functions-path-admin/lib/**", "scripts/**"],
+      "env": { "node": true, "es2024": true },
+      "rules": { "no-undef": "error" }
+    },
+    {
+      "files": ["tests/browser/**"],
+      "rules": { "react-hooks/rules-of-hooks": "off", "react/rules-of-hooks": "off" }
+    }
+  ]
+}

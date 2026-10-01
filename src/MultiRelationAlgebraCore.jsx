@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 
 import MathDisplay from './MathDisplay';
 import MathInput from './MathInput';
@@ -2602,7 +2602,7 @@ export default function MultiRelationAlgebra({
             }}
           >
             {summary.exactValues.map((expression, index) => (
-              <React.Fragment key={`${expression}-${index}`}>
+              <Fragment key={`${expression}-${index}`}>
                 {index > 0 && (
                   <span
                     style={{
@@ -2643,7 +2643,7 @@ export default function MultiRelationAlgebra({
                     />
                   </span>
                 </div>
-              </React.Fragment>
+              </Fragment>
             ))}
           </div>
 

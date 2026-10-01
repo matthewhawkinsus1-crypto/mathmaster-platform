@@ -62,7 +62,12 @@ export default function StepAlgebra2({ questionData = {}, onAction, draftKey = n
   if (questionData.mode === 'linearIntercepts') {
     return <LinearIntercepts questionData={questionData} onAction={onAction} />;
   }
+  // Each mode is its own component, so no hook ever sits behind the early
+  // returns above (see RepresentationBridge for why that matters).
+  return <BalanceSolver questionData={questionData} onAction={onAction} />;
+}
 
+function BalanceSolver({ questionData = {}, onAction }) {
   const original = questionData.equation || { a: 3, b: 6, c: 21 };
   const [state, setState] = usePersistentToolState('state', { ...original });
   const [operation, setOperation] = usePersistentToolState('operation', 'subtract');

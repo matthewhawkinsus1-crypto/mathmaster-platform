@@ -175,6 +175,12 @@ function InequalityMode({ questionData, onAction, draftKey = null }) {
     || Object.values(inequalityConfig.reasoning).some(Boolean)
     || Boolean(questionData.modeling);
   if (studentBuildEnabled) return <StudentBuildInequalityMode questionData={questionData} onAction={onAction} draftKey={draftKey} />;
+  // No hook behind the early return above: the classic mode is its own
+  // component (see RepresentationBridge for why that matters).
+  return <ClassicInequalityMode questionData={questionData} onAction={onAction} />;
+}
+
+function ClassicInequalityMode({ questionData, onAction }) {
   const inequalities = questionData.inequalities || DEFAULT_INEQUALITIES;
   const bounds = questionData.graph || { xMin:-6, xMax:8, yMin:-4, yMax:10 };
   const ask = Array.isArray(questionData.ask) && questionData.ask.length

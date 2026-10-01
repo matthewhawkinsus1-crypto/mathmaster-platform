@@ -84,7 +84,10 @@ import {
   startTokenSimplification,
   substitutionToken,
   targetIsReduced,
-  useIsolatedExpressionAsToken,
+  // A pure state transition, not a React hook: imported under a name without
+  // the `use` prefix so neither a reader nor the hooks lint mistakes the
+  // onClick calls below for a hook called in a callback.
+  useIsolatedExpressionAsToken as adoptIsolatedExpressionAsToken,
 } from './substitutionReduction.js';
 import OriginalEquationsVerification from './OriginalEquationsVerification.jsx';
 import './AlgebraicSystemMode.css';
@@ -463,7 +466,7 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
                     </div>
                     {!reduction.isolation.simplifying ? (
                       <div className="mathmaster-reduction-button-row">
-                        <button type="button" onClick={() => apply(useIsolatedExpressionAsToken(reduction, system))} style={secondaryButtonStyle}>Use this expression</button>
+                        <button type="button" onClick={() => apply(adoptIsolatedExpressionAsToken(reduction, system))} style={secondaryButtonStyle}>Use this expression</button>
                         <button type="button" onClick={() => apply(startTokenSimplification(reduction))} style={secondaryButtonStyle}>Simplify first (optional)</button>
                       </div>
                     ) : (
@@ -480,7 +483,7 @@ export default function SubstitutionReductionMode({ questionData = {}, onAction,
                         </label>
                         <div className="mathmaster-reduction-button-row">
                           <button type="button" onClick={() => apply(checkTokenSimplification(reduction, system))} style={smallActionStyle}>Check and use my simplification</button>
-                          <button type="button" onClick={() => apply(useIsolatedExpressionAsToken(reduction, system))} style={secondaryButtonStyle}>Skip simplification</button>
+                          <button type="button" onClick={() => apply(adoptIsolatedExpressionAsToken(reduction, system))} style={secondaryButtonStyle}>Skip simplification</button>
                         </div>
                         {reduction.isolation.simplificationChecked && !reduction.isolation.simplificationValid ? (
                           <p className="mathmaster-systems-substitution-feedback is-error">That rewrite is not equivalent to the isolated expression yet. Revise it, or use the original form.</p>
