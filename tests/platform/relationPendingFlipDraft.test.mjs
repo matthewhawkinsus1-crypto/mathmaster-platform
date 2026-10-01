@@ -73,3 +73,17 @@ test('the workspace saves through the one writer and restores through the one re
   assert.match(writer, /pendingRelationFlip: persistablePendingFlip\(pendingRelationFlip\)/);
   assert.equal((source.match(/writeQuestionDraft\(draftKeyFor\(draftKey\)/g) || []).length, 1, 'no other path writes the relation draft');
 });
+
+test('a remount brings the open symbol step back from the draft, as it does the relation', () => {
+  // The workspace's reset effect runs on mount as well as when the question
+  // changes. It read the relation back from the draft but set the open symbol
+  // step to null, so every remount — navigating back, a reload, a reopened
+  // Chromebook — returned the relation already divided by the negative, still
+  // showing the old symbol, with no step left to reverse it. The browser side
+  // is certified by the "relation-symbol-pending" draft-persistence scene.
+  const source = fs.readFileSync('src/MultiRelationAlgebraCore.jsx', 'utf8');
+  const reset = region(source, 'setRelationState(initialStateFor(question, draftKey));', '}, [question, draftKey]);', 'the mount / question-change reset');
+  assert.match(reset, /setPendingRelationFlip\(initialPendingRelationFlipFor\(draftKey\)\)/, 'the open step comes from the same draft as the relation');
+  assert.doesNotMatch(reset, /setPendingRelationFlip\(null\)/, 'not dropped on mount');
+  assert.match(source, /useState\(\(\) => initialPendingRelationFlipFor\(draftKey\)\)/, 'and the first render starts from it too');
+});

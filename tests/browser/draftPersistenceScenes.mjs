@@ -10,6 +10,14 @@
  * after a reload and after a close/reopen, and a comparison is only meaningful
  * if the edit was identical each time.
  *
+ * Two optional fields, for work whose open step has an answer:
+ *
+ *   backupMustNotContain  keys that may appear nowhere in the copy the server
+ *                         backup would store (the answer to the open step)
+ *   resume                { edit, expect }: after the browser is reopened the
+ *                         student finishes the step; each expect is
+ *                         { suffix, path, equals } on a stored record
+ *
  * Shared by tests/browser/draftPersistenceMain.jsx (in the page) and
  * tests/browser/draftPersistence.mjs (the driver), so the two can never drift.
  */
@@ -134,6 +142,37 @@ export const DRAFT_SCENES = [
       activate('Place Subtract 4 on both sides on the left side'),
       activate('Place Subtract 4 on both sides on the right side'),
     ],
+  },
+  {
+    id: 'relation-symbol-pending',
+    label: 'Relation solver, a reversed-symbol step left open',
+    family: 'MultiRelationAlgebra',
+    question: {
+      questionId: 'draft-relation-symbol', type: 'stepAlgebra',
+      prompt: 'Solve −2x + 3 > 7 and show each balanced step.',
+      equation: '-2x + 3 > 7', variable: 'x',
+    },
+    // Divide both sides by −2 and commit: the operation is written and the
+    // student must now reverse the symbol themselves ("Update the relation
+    // symbol(s) yourself"). That step is left open — it is the work in
+    // progress, and it has to come back open.
+    edit: [
+      press('Divide by'), math(0, '-2'),
+      activate('Place divisor'), activate('Place divisor'),
+      press('Commit step'),
+    ],
+    // The reversed symbol is the answer to the open step. It may be derived
+    // again on restore, never saved where the student can read it.
+    backupMustNotContain: ['expectedRelations'],
+    // After the browser is reopened the student finishes the step: choosing
+    // "<" commits it, and the saved step is gone.
+    resume: {
+      edit: [activate('Choose relation symbol'), activate('<')],
+      expect: [
+        { suffix: ':multi-relation', path: ['pendingRelationFlip'], equals: null },
+        { suffix: ':multi-relation', path: ['relationState', 'branches', 0, 'relations'], equals: ['<'] },
+      ],
+    },
   },
   {
     id: 'function-operations',

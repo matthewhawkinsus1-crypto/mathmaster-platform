@@ -45,6 +45,7 @@ test('the run actually certified every family the brief names', () => {
     'interval-number-line',
     'literal-input',
     'multi-answer',
+    'relation-symbol-pending',
     'sequence-explorer',
     'step-algebra',
     'step-algebra-mid-move',
@@ -57,12 +58,15 @@ test('the run actually certified every family the brief names', () => {
 test('every family passed every journey that applies to it', () => {
   // `backup`: every record the edit left is one the server backup's guard
   // accepts (functions/shared/workspaceDraftSchema.mjs) — what another device
-  // gets back. A move left mid-cancellation once failed it by saving the
-  // equation's solution.
+  // gets back — and its copy carries no answer a scene names. A move left
+  // mid-cancellation once failed it by saving the equation's solution, and an
+  // open inequality-symbol step by saving the reversed symbols.
+  // `resume`: an open step that came back can still be finished.
   assert.ok(audit.journeys.includes('backup'), 'the run checked the server backup');
+  assert.ok(audit.journeys.includes('resume'), 'the run finished the restored open steps');
   const failures = [];
   audit.families.forEach((family) => {
-    ['navigate', 'reload', 'reopen', 'replacement', 'backup'].forEach((journey) => {
+    ['navigate', 'reload', 'reopen', 'replacement', 'backup', 'resume'].forEach((journey) => {
       const verdict = family[journey];
       // "NO WORK" is a failure with a different cause: the scripted edit left
       // nothing behind, so the row certified an empty workspace.
@@ -70,6 +74,18 @@ test('every family passed every journey that applies to it', () => {
     });
   });
   assert.deepEqual(failures, []);
+});
+
+test('an open inequality-symbol step is restored without its answer and can be finished', () => {
+  // Dividing -2x + 3 > 7 by -2 and leaving the symbol step open: navigate,
+  // reload and reopen bring it back exactly, the backup copy holds no
+  // expectedRelations, and the student then reverses the symbol and it commits.
+  const relation = audit.families.find((family) => family.id === 'relation-symbol-pending');
+  assert.ok(relation, 'the relation solver scene ran');
+  assert.deepEqual(
+    ['navigate', 'reload', 'reopen', 'backup', 'resume'].map((journey) => relation[journey]),
+    ['pass', 'pass', 'pass', 'pass', 'pass'],
+  );
 });
 
 test('a replacement variant is certified as isolated in both directions', () => {

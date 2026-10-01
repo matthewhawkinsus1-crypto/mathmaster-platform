@@ -1,11 +1,12 @@
 {
-  "generatedAt": "2026-10-01T18:08:53.983Z",
+  "generatedAt": "2026-10-01T19:19:54.365Z",
   "journeys": [
     "navigate",
     "reload",
     "reopen",
     "replacement",
-    "backup"
+    "backup",
+    "resume"
   ],
   "budgets": {
     "maxSingleWriteMs": 4,
@@ -20,7 +21,8 @@
       "reload": "pass",
       "reopen": "pass",
       "replacement": "n/a",
-      "backup": "pass"
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "multi-answer",
@@ -30,7 +32,8 @@
       "reload": "pass",
       "reopen": "pass",
       "replacement": "n/a",
-      "backup": "pass"
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "table",
@@ -40,7 +43,8 @@
       "reload": "pass",
       "reopen": "pass",
       "replacement": "n/a",
-      "backup": "pass"
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "composed-workflow",
@@ -50,7 +54,8 @@
       "reload": "pass",
       "reopen": "pass",
       "replacement": "n/a",
-      "backup": "pass"
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "interactive-graph",
@@ -60,7 +65,8 @@
       "reload": "pass",
       "reopen": "pass",
       "replacement": "n/a",
-      "backup": "pass"
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "step-algebra",
@@ -70,7 +76,8 @@
       "reload": "pass",
       "reopen": "pass",
       "replacement": "n/a",
-      "backup": "pass"
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "step-algebra-mid-move",
@@ -80,7 +87,19 @@
       "reload": "pass",
       "reopen": "pass",
       "replacement": "n/a",
-      "backup": "pass"
+      "backup": "pass",
+      "resume": "n/a"
+    },
+    {
+      "id": "relation-symbol-pending",
+      "label": "Relation solver, a reversed-symbol step left open",
+      "family": "MultiRelationAlgebra",
+      "navigate": "pass",
+      "reload": "pass",
+      "reopen": "pass",
+      "replacement": "n/a",
+      "backup": "pass",
+      "resume": "pass"
     },
     {
       "id": "function-operations",
@@ -90,7 +109,8 @@
       "reload": "pass",
       "reopen": "pass",
       "replacement": "pass",
-      "backup": "pass"
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "function-investigation",
@@ -100,7 +120,8 @@
       "reload": "pass",
       "reopen": "pass",
       "replacement": "n/a",
-      "backup": "pass"
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "graphing2",
@@ -110,7 +131,8 @@
       "reload": "pass",
       "reopen": "pass",
       "replacement": "n/a",
-      "backup": "pass"
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "sequence-explorer",
@@ -120,7 +142,8 @@
       "reload": "pass",
       "reopen": "pass",
       "replacement": "n/a",
-      "backup": "pass"
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "systems-workspace",
@@ -130,7 +153,8 @@
       "reload": "pass",
       "reopen": "pass",
       "replacement": "n/a",
-      "backup": "pass"
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "transformations",
@@ -140,7 +164,8 @@
       "reload": "pass",
       "reopen": "pass",
       "replacement": "n/a",
-      "backup": "pass"
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "interval-number-line",
@@ -150,7 +175,8 @@
       "reload": "pass",
       "reopen": "pass",
       "replacement": "n/a",
-      "backup": "pass"
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "data-modeling",
@@ -160,25 +186,26 @@
       "reload": "pass",
       "reopen": "pass",
       "replacement": "n/a",
-      "backup": "pass"
+      "backup": "pass",
+      "resume": "n/a"
     }
   ],
   "performance": [
     {
       "probe": "rapid typing",
-      "burstMs": 120,
+      "burstMs": 105,
       "count": 18,
-      "totalMs": 0.9000000022351742,
-      "maxMs": 0.19999999925494194,
-      "share": 0.007500000018626452
+      "totalMs": 0.5999999977648258,
+      "maxMs": 0.10000000149011612,
+      "share": 0.005714285692998341
     },
     {
       "probe": "endpoint drag",
-      "burstMs": 1012,
+      "burstMs": 1018,
       "count": 8,
       "totalMs": 0.3999999985098839,
       "maxMs": 0.10000000149011612,
-      "share": 0.0003952569155236007
+      "share": 0.0003929273069841688
     }
   ],
   "findings": []

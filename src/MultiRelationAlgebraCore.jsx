@@ -666,7 +666,12 @@ export default function MultiRelationAlgebra({
     setDragCancellationKey(null);
     setDragStroke(null);
     dragStrokeRef.current = null;
-    setPendingRelationFlip(null);
+    // From the same saved draft as the relation itself. This effect also runs
+    // on mount, and resetting the open symbol step to null here dropped it on
+    // every remount — navigating back, a reload, a reopened Chromebook — while
+    // the relation came back already divided by the negative and still showing
+    // the old symbol, with no step left to reverse it.
+    setPendingRelationFlip(initialPendingRelationFlipFor(draftKey));
     setRelationPicker(null);
     setAbsoluteSplitOpen(false);
     setAbsoluteSplitStructure(null);

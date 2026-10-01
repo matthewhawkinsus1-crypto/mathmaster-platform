@@ -15,6 +15,11 @@
 //              Chromebook being closed and opened again the next period.
 //   REPLACEMENT a new variant of the same question must NOT inherit the
 //              previous variant's work, and must not lose it either.
+//   BACKUP     the copy the server backup would keep (what another device gets
+//              back) is accepted by its guard, and carries nothing the scene
+//              says the student may not read — the answer to an open step.
+//   RESUME     for a scene with an open step: after the reopen, the student
+//              finishes it, and the stored work shows it committed.
 //
 // Every comparison is structural: the stored workspace record AND the control
 // values the student can see, never a screenshot. A tool that draws the right
@@ -28,7 +33,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { DRAFT_SCENES } from './draftPersistenceScenes.mjs';
-import { explainWorkspaceDraftRejection } from '../../functions/shared/workspaceDraftSchema.mjs';
+import { buildWorkspaceDraftPatch, explainWorkspaceDraftRejection, isSyncableDraftKey } from '../../functions/shared/workspaceDraftSchema.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -59,23 +64,28 @@ const ready = async (page, sceneId) => {
 
 const controls = (page, selector) => page.locator(`[data-draft-scene] ${selector}`);
 
-/** Replay one scene's edits. Typing is real typing — MathLive owns its own input. */
-const applyEdits = async (page, scene) => {
-  for (const action of scene.edit) {
+/**
+ * Replay a list of student actions on a scene: its edit before leaving, or the
+ * step it finishes after coming back. Typing is real typing — MathLive owns its
+ * own input. `journey` names where a missing control is reported.
+ */
+const runActions = async (page, scene, actions, journey = 'edit') => {
+  const missing = (detail) => note(scene.id, journey, detail);
+  for (const action of actions) {
     if (action.kind === 'math') {
       const field = controls(page, 'math-field').nth(action.index);
-      if (!(await field.count())) { note(scene.id, 'edit', `no math-field at index ${action.index}`); continue; }
+      if (!(await field.count())) { missing(`no math-field at index ${action.index}`); continue; }
       await field.click();
       await page.keyboard.type(action.value, { delay: 12 });
       await page.keyboard.press('Tab');
     } else if (action.kind === 'fill') {
       const input = controls(page, 'input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio])').nth(action.index);
-      if (!(await input.count())) { note(scene.id, 'edit', `no input at index ${action.index}`); continue; }
+      if (!(await input.count())) { missing(`no input at index ${action.index}`); continue; }
       await input.fill(action.value);
       await input.blur();
     } else if (action.kind === 'choose') {
       const select = controls(page, 'select').nth(action.index);
-      if (!(await select.count())) { note(scene.id, 'edit', `no select at index ${action.index}`); continue; }
+      if (!(await select.count())) { missing(`no select at index ${action.index}`); continue; }
       await select.selectOption(action.value).catch(async () => {
         // Some dropdowns are authored per question; take the second option.
         const options = await select.locator('option').all();
@@ -99,14 +109,14 @@ const applyEdits = async (page, scene) => {
         const { x, y, width, height } = svgs[0].svg.getBoundingClientRect();
         return { x, y, width, height };
       });
-      if (!box) { note(scene.id, 'edit', 'no coordinate plane to plot on'); continue; }
+      if (!box) { missing('no coordinate plane to plot on'); continue; }
       await page.waitForTimeout(150);
       const target = { x: box.x + box.width * action.fx, y: box.y + box.height * action.fy };
       const onPlane = await page.evaluate(({ x, y }) => {
         const element = document.elementFromPoint(x, y);
         return Boolean(element && element.closest('svg') && !element.closest('button'));
       }, target);
-      if (!onPlane) { note(scene.id, 'edit', `the plane is not clickable at (${action.fx}, ${action.fy})`); continue; }
+      if (!onPlane) { missing(`the plane is not clickable at (${action.fx}, ${action.fy})`); continue; }
       await page.mouse.move(target.x, target.y);
       await page.mouse.down();
       await page.mouse.up();
@@ -115,13 +125,63 @@ const applyEdits = async (page, scene) => {
       if (await button.count()) await button.click();
     } else if (action.kind === 'activate') {
       const control = page.locator('[data-draft-scene]').getByRole('button', { name: action.name, exact: true }).first();
-      if (!(await control.count())) { note(scene.id, 'edit', `no control named "${action.name}"`); continue; }
+      if (!(await control.count())) { missing(`no control named "${action.name}"`); continue; }
       await control.click();
     }
     await page.waitForTimeout(90);
   }
   // Longer than the hook's coalescing window, so a drag-rate writer has landed.
   await page.waitForTimeout(300);
+};
+
+const applyEdits = (page, scene) => runActions(page, scene, scene.edit, 'edit');
+
+// Where a key occurs anywhere in a stored record, as readable paths.
+const pathsOfKey = (value, name, at = '', found = []) => {
+  if (Array.isArray(value)) value.forEach((entry, index) => pathsOfKey(entry, name, `${at}[${index}]`, found));
+  else if (value && typeof value === 'object') {
+    Object.entries(value).forEach(([key, nested]) => {
+      const here = at ? `${at}.${key}` : key;
+      if (key === name) found.push(here);
+      pathsOfKey(nested, name, here, found);
+    });
+  }
+  return found;
+};
+
+const valueAt = (value, steps) => steps.reduce((current, step) => (current == null ? undefined : current[step]), value);
+
+/*
+ * THE COPY THE SERVER BACKUP WOULD KEEP, AND WHAT IS IN IT.
+ *
+ * A Chromebook swapped for another one gets back only that copy, so it is built
+ * here exactly as the background save builds it (buildWorkspaceDraftPatch). A
+ * record the guard refuses — one answer-shaped key, or too large — is not in it
+ * at all. A record it accepts must still not carry what the scene says the
+ * student may not read: the guard knows a fixed list of keys, and the answer to
+ * an open step can sit under any other name (`expectedRelations` did).
+ */
+const backupProblems = (scene, draftKey, drafts) => {
+  const problems = [];
+  Object.entries(drafts).forEach(([suffix, value]) => {
+    const key = `${draftKey}${suffix}`;
+    // Preview and secure-session keys are never sent, by design.
+    if (!isSyncableDraftKey(key)) return;
+    const [copy] = buildWorkspaceDraftPatch({
+      studentId: 'draft-cert-student', assignmentId: 'draft-cert-assignment', entries: [{ key, value, savedAt: 1 }],
+    }).entries;
+    if (!copy) {
+      const verdict = explainWorkspaceDraftRejection(value);
+      problems.push(`the server backup refuses stored workspace "${suffix}": ${verdict.reason}${verdict.path ? ` at ${verdict.path}` : ''}`);
+      return;
+    }
+    const kept = JSON.parse(copy.valueJson);
+    (scene.backupMustNotContain || []).forEach((name) => {
+      const where = pathsOfKey(kept, name);
+      if (where.length) problems.push(`the server backup's copy of "${suffix}" carries ${name} (at ${where.join(', ')}): the answer to the open step`);
+    });
+  });
+  return problems;
 };
 
 /*
@@ -239,7 +299,7 @@ const reopenedBaselines = {};
 
 for (let index = 0; index < DRAFT_SCENES.length; index += 1) {
   const scene = DRAFT_SCENES[index];
-  const row = { id: scene.id, label: scene.label, family: scene.family, navigate: 'n/a', reload: 'n/a', reopen: 'n/a', replacement: 'n/a', backup: 'n/a' };
+  const row = { id: scene.id, label: scene.label, family: scene.family, navigate: 'n/a', reload: 'n/a', reopen: 'n/a', replacement: 'n/a', backup: 'n/a', resume: 'n/a' };
 
   await page.evaluate((target) => window.__mmDraft.go(target), index);
   await ready(page, scene.id);
@@ -259,17 +319,11 @@ for (let index = 0; index < DRAFT_SCENES.length; index += 1) {
     continue;
   }
 
-  /*
-   * BACKUP: would the server keep it? A Chromebook swapped for another one
-   * gets back only what the server backup stored, and its guard
-   * (functions/shared/workspaceDraftSchema.mjs) refuses a whole record for one
-   * answer-shaped key or for its size. Every record the edit left must pass.
-   */
-  const refused = Object.entries(before.drafts)
-    .map(([suffix, value]) => ({ suffix, verdict: explainWorkspaceDraftRejection(value) }))
-    .filter(({ verdict }) => !verdict.ok);
-  row.backup = refused.length ? 'FAIL' : 'pass';
-  refused.forEach(({ suffix, verdict }) => note(scene.id, 'backup', `the server backup refuses stored workspace "${suffix}": ${verdict.reason}${verdict.path ? ` at ${verdict.path}` : ''}`));
+  /* BACKUP: the copy the server would keep is accepted, and holds no answer. */
+  const draftKey = await page.evaluate(() => document.querySelector('[data-draft-scene]')?.dataset.draftKey || '');
+  const backup = backupProblems(scene, draftKey, before.drafts);
+  row.backup = backup.length ? 'FAIL' : 'pass';
+  backup.forEach((detail) => note(scene.id, 'backup', detail));
 
   /* NAVIGATE: away to another question, and back. */
   await page.evaluate((target) => window.__mmDraft.go(target === 0 ? 1 : 0), index);
@@ -326,6 +380,23 @@ for (let index = 0; index < DRAFT_SCENES.length; index += 1) {
     row.reopen = 'FAIL';
   } else {
     row.reopen = 'pass';
+  }
+
+  /*
+   * RESUME: the work came back — can the student finish it? A step that comes
+   * back looking right but cannot be completed (its expected answer lost on
+   * the way, say) is not restored work. Run in the reopened browser, the
+   * hardest restore, after the comparison above.
+   */
+  if (scene.resume) {
+    await runActions(reopenedPage, scene, scene.resume.edit, 'resume');
+    const resumed = await snapshot(reopenedPage);
+    const unmet = (scene.resume.expect || [])
+      .map((expect) => ({ expect, actual: valueAt(resumed.drafts[expect.suffix], expect.path) }))
+      .filter(({ expect, actual }) => JSON.stringify(actual ?? null) !== JSON.stringify(expect.equals));
+    unmet.forEach(({ expect, actual }) => note(scene.id, 'resume', `after finishing the step, stored "${expect.suffix}" ${expect.path.join('.')} is ${JSON.stringify(actual ?? null)}, expected ${JSON.stringify(expect.equals)}`));
+    row.resume = unmet.length || findings.some((finding) => finding.sceneId === scene.id && finding.journey === 'resume') ? 'FAIL' : 'pass';
+    if (row.resume === 'FAIL') await shoot(reopenedPage, `${scene.id}-resume`);
   }
 }
 
@@ -489,9 +560,9 @@ writeFileSync(REPORT, `${JSON.stringify(report, null, 2)}\n`);
 
 const width = Math.max(...rows.map((row) => row.label.length), 10);
 console.log('\nDRAFT PERSISTENCE — unfinished work, no Submit pressed\n');
-console.log(`${'family'.padEnd(width)}  navigate  reload    reopen    replacement  backup`);
+console.log(`${'family'.padEnd(width)}  navigate  reload    reopen    replacement  backup  resume`);
 rows.forEach((row) => {
-  console.log(`${row.label.padEnd(width)}  ${row.navigate.padEnd(8)}  ${row.reload.padEnd(8)}  ${row.reopen.padEnd(8)}  ${row.replacement.padEnd(11)}  ${row.backup}`);
+  console.log(`${row.label.padEnd(width)}  ${row.navigate.padEnd(8)}  ${row.reload.padEnd(8)}  ${row.reopen.padEnd(8)}  ${row.replacement.padEnd(11)}  ${row.backup.padEnd(6)}  ${row.resume}`);
 });
 
 console.log('\nPERFORMANCE — what the local draft write costs\n');
@@ -512,7 +583,7 @@ if (WRITE) {
   mkdirSync(path.dirname(FINDINGS), { recursive: true });
   writeFileSync(FINDINGS, `${JSON.stringify({
     generatedAt: report.generatedAt,
-    journeys: ['navigate', 'reload', 'reopen', 'replacement', 'backup'],
+    journeys: ['navigate', 'reload', 'reopen', 'replacement', 'backup', 'resume'],
     budgets: { maxSingleWriteMs: MAX_SINGLE_WRITE_MS, maxWriteShare: MAX_WRITE_SHARE },
     families: rows,
     performance: performance_,
