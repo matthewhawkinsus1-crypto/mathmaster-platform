@@ -14,7 +14,7 @@ import { isMobileQuestionViewport } from '../../components/student/MobileViewpor
 import QuietDisclosure from '../../components/common/QuietDisclosure.jsx';
 import { useRenderPerformance } from '../../platform/performance/useRenderPerformance.js';
 import { PlotHelpScope } from './plotHelpScope.js';
-import { useHintsAllowed } from './ToolRuntimeContext';
+import { useHintsAllowed, useToolRuntimeContext } from './ToolRuntimeContext';
 import { VERDICT_CARD_RADIUS, verdictRadius, verdictTextLength, verdictWraps } from './verdictShape.js';
 
 // A stable key for "this exact block of text", so a student's decision to fold
@@ -222,7 +222,94 @@ export const Panel = ({ title, children, collapsible = false, defaultOpen = true
   );
 };
 
-export const ResultPill = ({ ok, children }) => {
+/*
+ * THE PLATFORM'S OUTCOME FOR AN ATTEMPT, WHERE THE STUDENT IS LOOKING (PQ-022).
+ *
+ * A verdict area renders this slot. It joins the question's slot registry
+ * while mounted (attemptOutcomeSlots.js) and shows QuestionEngine's outcome —
+ * "Not quite. You have 2 attempts remaining on this version." — when that
+ * outcome is handed to it, which QuestionEngine does only where it would have
+ * shown the sentence in its own box: outcome feedback allowed, nothing
+ * withheld, the question still open. It is then the one place the outcome
+ * appears, and its live region the one announcement (PQ-017).
+ *
+ * The live region is mounted, empty and visually hidden, with the verdict —
+ * the moment Check is pressed — so the sentence that arrives when the attempt
+ * is graded is an addition to a region that already exists, which screen
+ * readers announce reliably. `inline` renders the bare sentence for a tool
+ * whose verdict is itself a live region (Regression Calculator), so the
+ * outcome joins that announcement instead of starting a second one.
+ */
+const OUTCOME_WAITING_STYLE = {
+  position: 'absolute', width: 1, height: 1, margin: -1, padding: 0, border: 0,
+  overflow: 'hidden', clip: 'rect(0 0 0 0)', clipPath: 'inset(50%)', whiteSpace: 'nowrap',
+};
+const outcomeStyle = (tone) => ({
+  // Its own row in the flex rows some tools put their verdict in.
+  flexBasis: '100%',
+  boxSizing: 'border-box',
+  margin: '8px 0 0',
+  padding: '8px 12px',
+  borderRadius: 10,
+  background: tone === 'correct' ? '#e6f4ea' : '#fce8e6',
+  color: tone === 'correct' ? '#137333' : '#c5221f',
+  fontSize: 14,
+  fontWeight: 800,
+  lineHeight: 1.45,
+});
+
+export const AttemptOutcome = ({ inline = false }) => {
+  const { attemptOutcome, attemptOutcomeSlots } = useToolRuntimeContext();
+  const [slot, setSlot] = useState(null);
+  const regionRef = useRef(null);
+  useLayoutEffect(() => {
+    if (!attemptOutcomeSlots) return undefined;
+    const token = attemptOutcomeSlots.register();
+    setSlot(token);
+    return () => attemptOutcomeSlots.unregister(token);
+  }, [attemptOutcomeSlots]);
+  const outcome = attemptOutcomeSlots && attemptOutcome && slot !== null && attemptOutcome.slot === slot ? attemptOutcome : null;
+  // Once per attempt, and only as far as needed: Check pressed low on a phone
+  // leaves the verdict at the bottom edge, where the sentence below it could
+  // land under the action bar. `nearest` does nothing when it is already in
+  // view, and the scroll padding (or, on a phone, the scroller ending at the
+  // bar) keeps it clear of the bar.
+  const shownId = outcome ? outcome.id : null;
+  useEffect(() => {
+    if (shownId === null) return;
+    regionRef.current?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }, [shownId]);
+  // Outside a question (the tools lab) there is no attempt to report.
+  if (!attemptOutcomeSlots) return null;
+  if (inline) {
+    return outcome ? (
+      <span ref={regionRef} className="mathmaster-tool-attempt-outcome" data-attempt-outcome="shown">
+        {' '}{outcome.text}{outcome.detail ? ` ${outcome.detail}` : ''}
+      </span>
+    ) : null;
+  }
+  return (
+    <div
+      ref={regionRef}
+      role="status"
+      className="mathmaster-tool-attempt-outcome"
+      data-attempt-outcome={outcome ? 'shown' : 'waiting'}
+      style={outcome ? outcomeStyle(outcome.tone) : OUTCOME_WAITING_STYLE}
+    >
+      {outcome ? (
+        <>
+          {outcome.text}
+          {outcome.detail ? <span style={{ display: 'block', marginTop: 4, fontWeight: 700 }}>{outcome.detail}</span> : null}
+        </>
+      ) : null}
+    </div>
+  );
+};
+
+// The verdict of a Check. `stageCheck` marks a pill that reports one stage or
+// step of the work rather than the attempt ("General form correct", "y
+// isolated"): it is not where an attempt's outcome belongs.
+export const ResultPill = ({ ok, children, stageCheck = false }) => {
   // PQ-032: a verdict that wraps is a 10px card, not a 999px lozenge. Long
   // text is known before layout; whether a shorter one wraps depends on the
   // width it is given, so it is measured, and re-measured when that changes.
@@ -249,14 +336,17 @@ export const ResultPill = ({ ok, children }) => {
   }, []);
   const radius = verdictRadius({ textLength: verdictTextLength(children), wrapped });
   return (
-    <span
-      ref={pillRef}
-      className="mathmaster-result-pill"
-      data-verdict-shape={radius === VERDICT_CARD_RADIUS ? 'card' : 'pill'}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: radius, padding: '7px 11px', fontWeight: 800, background: ok ? '#e6f4ea' : '#fce8e6', color: ok ? '#137333' : '#c5221f' }}
-    >
-      {ok ? '✓' : '•'} {children}
-    </span>
+    <>
+      <span
+        ref={pillRef}
+        className="mathmaster-result-pill"
+        data-verdict-shape={radius === VERDICT_CARD_RADIUS ? 'card' : 'pill'}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: radius, padding: '7px 11px', fontWeight: 800, background: ok ? '#e6f4ea' : '#fce8e6', color: ok ? '#137333' : '#c5221f' }}
+      >
+        {ok ? '✓' : '•'} {children}
+      </span>
+      {stageCheck ? null : <AttemptOutcome />}
+    </>
   );
 };
 

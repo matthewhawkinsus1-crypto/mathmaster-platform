@@ -82,7 +82,9 @@ test('QuestionEngine hands every registry tool — standalone or inside a compos
 
 test('HintPanel renders nothing where hints are withheld, before it renders anything else', () => {
   const shell = code('src/tools/shared/ToolShell.jsx');
-  assert.match(shell, /import \{ useHintsAllowed \} from '\.\/ToolRuntimeContext';/);
+  // ToolShell also reads the attempt outcome from the same context (PQ-022),
+  // so the import names more than the hint permission.
+  assert.match(shell, /import \{[^}]*\buseHintsAllowed\b[^}]*\} from '\.\/ToolRuntimeContext';/);
   const panel = region(shell, 'export const HintPanel', 'const revealNext', 'the hint panel');
   assert.match(panel, /\n\s*const hintsAllowed = useHintsAllowed\(\);/);
   assert.match(panel, /\n\s*if \(!hintsAllowed \|\| !hints\.length\) return null;/);

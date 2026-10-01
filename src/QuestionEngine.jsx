@@ -43,6 +43,7 @@ import { resolveCalculatorPolicy } from './platform/policies/calculatorPolicy';
 import { getToolDefinition } from './tools/toolRegistry';
 import { buildRawPathResponse } from './platform/path/pathToolResponses';
 import { ToolRuntimeProvider } from './tools/shared/ToolRuntimeContext';
+import { createAttemptOutcomeSlots } from './tools/shared/attemptOutcomeSlots.js';
 import { ToolDraftScopeProvider, forgetToolDrafts, stampToolDraftSubmission } from './tools/shared/usePersistentToolState.js';
 import InteractiveModelingLabPlayer from './components/labs/InteractiveModelingLabPlayer.jsx';
 import { useToast } from './ui/Toast';
@@ -330,6 +331,13 @@ export default function QuestionEngine({
     onSpotlightFrame?.({ question: processedQuestion, answerState });
   }, [answerState, processedQuestion, onSpotlightFrame]);
   const [feedback, setFeedback] = useState(null);
+  // PQ-022: the verdict areas of the registry tool on screen, and which of
+  // them shows the outcome of which attempt (attemptOutcomeSlots.js). The
+  // owner is tied to the feedback object it was chosen for, so it can never
+  // carry over to another attempt's feedback.
+  const [toolOutcomeSlots] = useState(createAttemptOutcomeSlots);
+  const [toolOutcomeOwner, setToolOutcomeOwner] = useState(null);
+  const toolOutcomeSequenceRef = useRef(0);
   const [lastSubmittedResponseKey, setLastSubmittedResponseKey] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const submissionInFlightRef = useRef(false);
@@ -435,13 +443,20 @@ export default function QuestionEngine({
   }, [processedQuestion]);
 
   useEffect(() => {
+    // A registry tool reports its work through ATTEMPT_SUBMITTED, never through
+    // `answerState`, whose response key therefore stays '' for it. Compared
+    // with the last response key of a question that already had an attempt on
+    // its record, '' looked like "the answer changed", and the outcome of the
+    // tool's new attempt was cleared the instant it arrived (PQ-022). A tool
+    // clears its own verdict when its work changes.
+    if (missingToolDefinition) return;
     if (
       feedback?.isCorrect === false &&
       answerState.responseKey !== lastSubmittedResponseKey
     ) {
       setFeedback(null);
     }
-  }, [answerState.responseKey, feedback, lastSubmittedResponseKey]);
+  }, [answerState.responseKey, feedback, lastSubmittedResponseKey, missingToolDefinition]);
 
   const registerUndo = useCallback((controller) => {
     setBaseUndoController(controller ? { ...controller, ownerId: 'current-tool' } : null);
@@ -828,14 +843,19 @@ export default function QuestionEngine({
         responseKey,
         { partialCreditPercent },
       );
-      setFeedback(result || {
+      const nextFeedback = result || {
         isCorrect: Boolean(payload?.isCorrect),
         status: payload?.isCorrect ? 'correct' : record.attemptCount + 1 >= resolvedMaximumAttempts ? 'expired' : 'attempted',
         attemptCount: record.attemptCount + 1,
         remainingAttempts: Math.max(0, resolvedMaximumAttempts - record.attemptCount - 1),
         expired: !payload?.isCorrect && record.attemptCount + 1 >= resolvedMaximumAttempts,
         partialCredit: partialCreditPercent || 0,
-      });
+      };
+      setFeedback(nextFeedback);
+      // The tool's verdict for this Check mounted when Check was pressed,
+      // before the attempt was graded, so it is the latest slot (PQ-022).
+      toolOutcomeSequenceRef.current += 1;
+      setToolOutcomeOwner({ feedback: nextFeedback, slot: toolOutcomeSlots.latest(), id: toolOutcomeSequenceRef.current });
     } finally {
       setSubmitting(false);
       stampToolDraftSubmission(draftKey);
@@ -1007,6 +1027,38 @@ export default function QuestionEngine({
     disabled: locked || scaffoldRequired || contextScaffoldRequired || submitting,
   };
 
+  // THE ATTEMPT OUTCOME, WORDED ONCE. The box below the question and a
+  // registry tool's result area show exactly the same words.
+  const attemptOutcomeText = feedback
+    ? (feedback.message || (feedback.isCorrect
+      ? 'Correct! This question is complete.'
+      : isExpired
+        ? `That was the final allowed attempt (${resolvedMaximumAttempts} total). This response is locked.${resolvedActivityPolicy?.allowReplacement ? ' Review the solution, then request a new question to continue.' : ''}`
+        : `Not quite. You have ${remainingAttempts} ${remainingAttempts === 1 ? 'attempt' : 'attempts'} remaining on this version.`))
+    : '';
+  const attemptOutcomeFocus = feedback && !feedback.isCorrect && !isComposed && Array.isArray(feedback.incorrectParts) && feedback.incorrectParts.length > 0
+    ? `Focus on: ${feedback.incorrectParts.join(', ')}.`
+    : '';
+  // WHERE A TOOL'S ATTEMPT OUTCOME IS SHOWN (PQ-022). In the tool's result
+  // area, beside its own verdict, when the tool showed one for this attempt and
+  // the box below would have shown the outcome at all: outcome feedback
+  // allowed (never on a DOL, quiz or test before release), the attempt not
+  // blocked, and the question still open — a correct or final attempt locks
+  // the tool, inert, so the box below announces it as before. Otherwise in the
+  // box. Never both, so it is announced once (PQ-017).
+  const toolOutcomeSlot = toolOutcomeOwner && toolOutcomeOwner.feedback === feedback ? toolOutcomeOwner.slot : null;
+  const outcomeInTool = Boolean(
+    missingToolDefinition && toolOutcomeSlot !== null
+      && feedback && !feedback.blocked && showOutcomeFeedback && !locked,
+  );
+  const toolAttemptOutcome = outcomeInTool ? {
+    id: toolOutcomeOwner.id,
+    slot: toolOutcomeSlot,
+    text: attemptOutcomeText,
+    detail: attemptOutcomeFocus,
+    tone: feedback.isCorrect ? 'correct' : 'incorrect',
+  } : null;
+
   const renderModule = () => {
     if (!processedQuestion) return null;
     // A composed question is defined by its workflow, not by its type name, and
@@ -1060,6 +1112,8 @@ export default function QuestionEngine({
           hintsAllowed={toolHintsAllowed}
           onHintUsed={recordHintUse}
           questionTerminal={locked}
+          attemptOutcome={toolAttemptOutcome}
+          attemptOutcomeSlots={toolOutcomeSlots}
         >
           {/* THE REGISTRY TOOLS REACH THE PLATFORM UNDO BUTTON THROUGH HERE.
               Every other module is handed `onUndoStateChange` as a prop, but a
@@ -1721,21 +1775,19 @@ export default function QuestionEngine({
       {/* role="status": the attempt outcome ("Not quite. You have 2 attempts
           remaining") was the one grading message a screen reader never heard —
           only the Correct overlay was a live region (platform quirks audit).
-          Rendered only when outcome feedback is allowed, so a DOL stays silent. */}
-      {feedback && !feedback.blocked && showOutcomeFeedback && (
+          Rendered only when outcome feedback is allowed, so a DOL stays silent.
+          A registry tool that showed its own verdict shows this outcome beside
+          it instead (`outcomeInTool`, PQ-022): one place, one announcement. */}
+      {feedback && !feedback.blocked && showOutcomeFeedback && !outcomeInTool && (
         <div role="status" style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', backgroundColor: feedback.isCorrect ? '#e6f4ea' : '#fce8e6', color: feedback.isCorrect ? '#137333' : '#c5221f', fontSize: '16px', fontWeight: 'bold' }}>
-          {feedback.message || (feedback.isCorrect
-            ? 'Correct! This question is complete.'
-            : isExpired
-              ? `That was the final allowed attempt (${resolvedMaximumAttempts} total). This response is locked.${resolvedActivityPolicy?.allowReplacement ? ' Review the solution, then request a new question to continue.' : ''}`
-              : `Not quite. You have ${remainingAttempts} ${remainingAttempts === 1 ? 'attempt' : 'attempts'} remaining on this version.`)}
+          {attemptOutcomeText}
           {!feedback.isCorrect && isComposed && workflowSubmissionReview?.parts?.some((part) => part?.graded !== false && !part?.isCorrect) && (
             <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>
               The red steps above are the specific responses that need revision. MathMaster moved you to the first one.
             </div>
           )}
-          {!feedback.isCorrect && !isComposed && Array.isArray(feedback.incorrectParts) && feedback.incorrectParts.length > 0 && (
-            <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>Focus on: {feedback.incorrectParts.join(', ')}.</div>
+          {attemptOutcomeFocus && (
+            <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>{attemptOutcomeFocus}</div>
           )}
         </div>
       )}

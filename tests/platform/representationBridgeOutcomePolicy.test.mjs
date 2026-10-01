@@ -300,7 +300,10 @@ test('every stage result is rendered through the gate, and the withheld result n
   assert.doesNotMatch(classic, /ResultPill ok=\{stageChecks\./, 'no stage pill reads a stored check directly any more');
   const result = region(classic, 'const stageCheckResult', '\n  };', 'the stage result');
   assert.match(result, /const report = stageGate\.checkReport\(stage\);/);
-  assert.match(result, /if \(report\.kind === 'verdict'\) \{\s*return <ResultPill ok=\{report\.passed\}>/, 'a verdict is rendered only for a verdict report');
+  // `stageCheck` marks the pill as one stage's result, not the attempt's: the
+  // attempt outcome (PQ-022) never lands beside a stage check.
+  assert.match(result, /if \(report\.kind === 'verdict'\) \{\s*return <ResultPill\b[^>]*\bok=\{report\.passed\}[^>]*>/, 'a verdict is rendered only for a verdict report');
+  assert.match(result, /<ResultPill\b[^>]*\bstageCheck\b/, 'a stage verdict is not where an attempt outcome belongs');
   const withheld = region(result, '<span', '</span>', 'the finished-only result');
   assert.match(withheld, /data-stage-completion=\{report\.complete \?/);
   assert.match(withheld, /graded when you submit/);

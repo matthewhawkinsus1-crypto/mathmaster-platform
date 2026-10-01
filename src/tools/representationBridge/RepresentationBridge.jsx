@@ -296,7 +296,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
     const report = stageGate.checkReport(stage);
     if (!report) return null;
     if (report.kind === 'verdict') {
-      return <ResultPill ok={report.passed}>{report.passed ? correctLabel : 'Needs another look'}</ResultPill>;
+      return <ResultPill stageCheck ok={report.passed}>{report.passed ? correctLabel : 'Needs another look'}</ResultPill>;
     }
     return (
       <span

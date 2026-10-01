@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
-import ToolShell, { TaskCard } from '../shared/ToolShell';
+import ToolShell, { AttemptOutcome, TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
@@ -699,7 +699,9 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
         <button className="regression-submit" data-primary-answer-action="true" type="button" onClick={check}>
           Submit my regression
         </button>
-        {feedbackText ? <p role="status">{feedbackText}</p> : null}
+        {/* Its verdict is already a live region, so the attempt outcome
+            (PQ-022) is read as part of it rather than as a second one. */}
+        {feedbackText ? <p role="status">{feedbackText}<AttemptOutcome inline /></p> : null}
       </div>
     </ToolShell>
   );

@@ -22,11 +22,20 @@ const DEFAULT_RUNTIME = {
   // see — the Work View Help drawer. QuestionEngine passes its hint recorder;
   // outside an activity there is nobody to tell.
   onHintUsed: null,
+  // THE PLATFORM'S OUTCOME FOR THE LATEST ATTEMPT, SHOWN BESIDE THE TOOL'S OWN
+  // VERDICT (PQ-022; see attemptOutcomeSlots.js). `attemptOutcomeSlots` is the
+  // registry a verdict area joins while mounted; `attemptOutcome` is
+  // { slot, text, detail, tone } when QuestionEngine hands an outcome to one of
+  // them. Both null outside a question (the tools lab), and the outcome is
+  // null whenever QuestionEngine shows it in its own box — or shows nothing,
+  // as on a DOL before feedback is released.
+  attemptOutcome: null,
+  attemptOutcomeSlots: null,
 };
 
 const ToolRuntimeContext = createContext(DEFAULT_RUNTIME);
 
-export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, hintsAllowed = true, onHintUsed = null, children }) => (
+export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, hintsAllowed = true, onHintUsed = null, attemptOutcome = null, attemptOutcomeSlots = null, children }) => (
   <ToolRuntimeContext.Provider value={{
     showImmediateFeedback: Boolean(showImmediateFeedback),
     revealAnswers: Boolean(revealAnswers),
@@ -35,6 +44,8 @@ export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswer
     // gives the policy field (`hintsAllowed !== false`).
     hintsAllowed: hintsAllowed !== false,
     onHintUsed: typeof onHintUsed === 'function' ? onHintUsed : null,
+    attemptOutcome: attemptOutcome && typeof attemptOutcome === 'object' ? attemptOutcome : null,
+    attemptOutcomeSlots: attemptOutcomeSlots || null,
   }}>
     {children}
   </ToolRuntimeContext.Provider>

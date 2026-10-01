@@ -900,7 +900,7 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   you?" — target 38px.
 - **Scope:** small.
 
-### PQ-022 · After a tool's Check, the attempt outcome is off-screen — **P2 · DEFERRED**
+### PQ-022 · After a tool's Check, the attempt outcome is off-screen — **P2 · FIXED**
 
 - **Reproduction:** Inverse Composition / Function Investigation, wrong Check.
   The tool's own pill ("• Not yet") appears 55–115px below Check (on screen);
@@ -914,6 +914,61 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   result area (via `ToolRuntimeContext`) and keep QuestionEngine's box for
   non-tool questions. PQ-017 already announces it.
 - **Scope:** small.
+- **Reproduced** in a new harness with the real wrappers, the real identity bar
+  and a record that counts attempts the way App.jsx does
+  (`tests/browser/toolAttemptOutcome.mjs`). After a wrong Check the outcome was
+  **357px** (Inverse Composition) and **403px** (Function Investigation) below
+  Check at 1366×768 and **190px** / **147px** below it at 390×844; Regression
+  Calculator's was 133–142px below — off screen in every case. It also found a
+  second, production-only defect: on a question that already had an attempt
+  on its record the outcome was **cleared the instant it arrived** (the engine
+  compared a registry tool's answer key, which a tool never reports and so is
+  always empty, with the recorded one, and read that as "the answer changed").
+- **Fixed:** a tool's verdict area offers a slot. `ResultPill` does unless it
+  reports one stage rather than the attempt (the classic Representation
+  Bridge's stage checks and Inverse Derivation's "y isolated" are marked
+  `stageCheck`); Regression Calculator's verdict, already a live region, takes
+  the outcome inline. QuestionEngine hands the attempt's outcome — the same
+  words its box shows, worded once — through `ToolRuntimeContext` to the slot
+  that mounted with the verdict of the Check just pressed
+  (`attemptOutcomeSlots.js`), and then does not render its box. It hands it
+  over only where the box would have shown it: outcome feedback allowed, not
+  blocked, the question still open. A correct or final attempt locks the tool
+  (inert, so hidden from screen readers), so the box announces those as
+  before; a server-graded tool shows no verdict of its own and keeps the box;
+  composed and non-tool questions keep the box. The live region is mounted,
+  empty and visually hidden, with the verdict, so the sentence arrives as an
+  addition to an existing region; it is scrolled into view only as far as
+  needed (`block: 'nearest'`, once per attempt). The engine no longer clears a
+  registry tool's outcome against an answer key the tool never reports.
+- **After:** 62px below Check at 1366×768 and 59px at 390×844, on screen, for
+  both tools; Regression Calculator on screen on both. One element and one live
+  region carry the outcome every time; the count goes "2 attempts" → "1
+  attempt" → the final-attempt box; a right answer still gets the engine's
+  "Correct!" box, once; DOL, quiz and test show nothing about correctness or
+  attempts, in the tool or below it; the question with an earlier attempt keeps
+  its outcome.
+- **Not changed here:** the representations board
+  (`LinearMultipleRepresentationsBoard`, being edited elsewhere) has no
+  `ResultPill`, so it keeps the engine's box until its verdict renders
+  `<AttemptOutcome />` — one line.
+- **Worth a follow-up:** the box's "Focus on: …" line moved with the sentence,
+  as part of the same outcome. For a registry tool it lists the tool's own
+  part ids — "fog, gof, inverse, restriction" (Inverse Composition, whose
+  restriction mode does not ask for fog or gof), "data-entry,
+  linear-regression, …" (Regression Calculator). The wording is not new; it is
+  now on screen.
+- **Tests:** `tests/browser/toolAttemptOutcome.mjs` (39 checks; 13 red before
+  the fix; with the box rendered beside the tool's outcome it reports "2 shown,
+  2 live", and with the old clearing it reports the revisited outcome gone);
+  `tests/platform/toolAttemptOutcome.test.mjs` (the ownership rule in node and
+  its wiring); `attemptFeedbackAnnounced.test.mjs` rewritten against the
+  behaviour it protects (the box's literal condition moved; announced once,
+  only where outcome feedback is shown, now asserted for both places). Thirteen
+  mutations, all red. One browser mutation survives by design: dropping the
+  feedback-policy condition from the hand-over is invisible in a browser,
+  because under a withheld policy no tool renders a verdict and so no slot
+  exists — the node contract kills it.
 
 ### PQ-023 · Tool chrome and folded help sit between the task and the mathematics — **P2 · DEFERRED**
 
