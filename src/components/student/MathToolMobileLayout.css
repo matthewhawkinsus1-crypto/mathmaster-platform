@@ -547,6 +547,10 @@
     display: none !important;
   }
 
+  .mathmaster-assignment-screen .mathmaster-narrow-support-tools {
+    display: block;
+  }
+
   /* The signed-in identity bar sits ABOVE the assignment screen. A screen of
      a full 100dvh therefore ended one identity-bar below the phone's bottom
      edge, and the action bar's second row (Calculator) was off-screen. */

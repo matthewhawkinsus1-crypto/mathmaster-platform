@@ -201,6 +201,9 @@ export const decideCheckpointFinalization = ({
     // (assignment.studentOverrides[studentId].lateDueAt) — a checkpoint
     // captured within an authorized extension finalizes for credit here too.
     studentId: text(checkpoint.studentId),
+    // …and the individualized extra-time deadline, derived from the student's
+    // pinned profile on the grade document already in hand.
+    studentProfile: gradeDocument?.profile || null,
   });
   if (!close.closesAtMs) return { action: 'hold', status: 'no-authoritative-close', reason: 'no-authoritative-close' };
   // The close moved later — a teacher extension or reopen. Come back then.

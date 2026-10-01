@@ -1,4 +1,5 @@
 import { BUCKET } from '../../studentDashboardModel.js';
+import { studentDueDates } from '../../assignmentLifecycle.js';
 import { isTestCycleAssignment } from '../assessment/testCycle.js';
 import { findGradeCenterEntry } from './studentGradeCenterModel.js';
 import { normalizeGradingPeriodSettings } from './gradingPeriods.js';
@@ -164,8 +165,10 @@ export const buildAssignmentRow = ({ entry, gradeEntry }) => {
     assignmentId: assignment.id,
     isTestCycle: testCycle,
     title: assignment.title || 'MathMaster assignment',
-    dueAt: assignment.dueAt || assignment.dueDate || null,
-    lateDueAt: assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate || null,
+    // Read off the dashboard's lifecycle for this student, never the class
+    // fields: an individualized due date or attendance extension is the date
+    // this student actually has.
+    ...studentDueDates(assignment, entry.lifecycle),
     lifecycle: entry.lifecycle,
     bucket: entry.bucket,
     categories: categoriesForRow({ bucket: entry.bucket, practiceAvailable: actions.practiceAvailable }),

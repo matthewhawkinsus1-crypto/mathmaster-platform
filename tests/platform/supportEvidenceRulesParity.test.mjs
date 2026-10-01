@@ -1,0 +1,79 @@
+// The support-evidence rules repeat, as literals, lists the shared modules own:
+// field allow-lists, service types, provider roles, event types, the supports
+// inclusion status implies. Firestore rules cannot import JavaScript, so the
+// duplication is unavoidable — and a drift is silent in production: a builder
+// that gains a field produces writes the rules refuse, and the evidence is
+// simply never recorded.
+//
+// This suite reads firestore.rules as text and checks every such list against
+// the module that owns it, so the drift fails CI instead. The behaviour of the
+// rules themselves is proven in tests/rules/supportEvidenceRules.test.mjs.
+
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+import { region } from './helpers/sourceContract.mjs';
+import { INCLUSION_IMPLIED_SUPPORT_IDS, serviceTypes } from '../../functions/shared/supportCatalog.mjs';
+import {
+  ACTIVITY_ROLES, PROVIDER_ROLES, STAFF_EVIDENCE_EVENT_TYPES, STUDENT_EVIDENCE_EVENT_TYPES,
+  buildServiceLogEntry, buildStaffEvidenceEvent, buildStudentEvidenceEvent,
+} from '../../functions/shared/supportEvidenceModel.mjs';
+import { buildRevisionDocument, normalizeSupportRevisionInput } from '../../functions/shared/supportProfileModel.mjs';
+
+const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
+
+const fn = (name) => region(rules, `function ${name}(`, '\n    function ', `rules function ${name}`);
+
+/** The string literals of the first `[...]` list after `needle` in `source`. */
+const listAfter = (source, needle) => {
+  const at = source.indexOf(needle);
+  assert.notEqual(at, -1, `could not find "${needle}"`);
+  const open = source.indexOf('[', at + needle.length);
+  const close = source.indexOf(']', open);
+  return [...source.slice(open, close).matchAll(/'([^']+)'/g)].map((match) => match[1]);
+};
+
+const sorted = (values) => [...new Set(values)].sort();
+
+test('the revision allow-list is exactly the document the store writes, plus server time', () => {
+  const { revision } = normalizeSupportRevisionInput({ effectiveStart: '2026-08-17', sourceLabel: 'IEP' });
+  const document = buildRevisionDocument({ revision, studentId: 'S1', classId: 'c', revisionNumber: 1, createdByEmail: 't@x.test' });
+  assert.deepEqual(sorted(listAfter(fn('supportRevisionValid'), 'keys().hasOnly(')), sorted([...Object.keys(document), 'createdAt']));
+});
+
+test('the evidence allow-list covers both builders, plus server time', () => {
+  const staff = buildStaffEvidenceEvent({ studentId: 'S1', supportId: 'check-for-understanding', actorEmail: 't@x.test' }).payload;
+  const student = buildStudentEvidenceEvent({ studentId: 'S1', supportId: 'text-to-speech', assignedTeacherEmail: 't@x.test' }).payload;
+  const allowed = sorted(listAfter(fn('supportEvidenceCommonValid'), 'keys().hasOnly('));
+  assert.deepEqual(allowed, sorted([...Object.keys(staff), 'occurredAt']));
+  assert.deepEqual(allowed, sorted([...Object.keys(student), 'occurredAt']));
+});
+
+test('the service-log allow-list is exactly the entry the store writes, plus server time', () => {
+  const entry = buildServiceLogEntry({ studentId: 'S1', dateKey: '2026-09-28', minutes: 30, serviceType: 'inclusion-support', providerRole: 'other', createdByEmail: 't@x.test' }).payload;
+  assert.deepEqual(sorted(listAfter(fn('serviceLogEntryValid'), 'keys().hasOnly(')), sorted([...Object.keys(entry), 'createdAt']));
+});
+
+test('service types, provider roles and event types match their owning modules', () => {
+  const serviceRule = fn('serviceLogEntryValid');
+  assert.deepEqual(sorted(listAfter(serviceRule, 'd.serviceType in')), sorted(serviceTypes().map((entry) => entry.id)));
+  assert.deepEqual(sorted(listAfter(serviceRule, 'd.providerRole in')), sorted(PROVIDER_ROLES));
+  const staffRule = fn('staffSupportEvidenceValid');
+  assert.deepEqual(sorted(listAfter(staffRule, 'd.eventType in')), sorted(STAFF_EVIDENCE_EVENT_TYPES));
+  assert.deepEqual(sorted(listAfter(staffRule, "d.get('providerRole', null) in")), sorted(PROVIDER_ROLES));
+  const studentRule = fn('studentSupportEvidenceValid');
+  assert.deepEqual(sorted(listAfter(studentRule, 'd.eventType in')), sorted(STUDENT_EVIDENCE_EVENT_TYPES));
+  assert.deepEqual(sorted(listAfter(studentRule, "profile.get('inclusionStatus', false) == true && d.supportId in")), sorted(INCLUSION_IMPLIED_SUPPORT_IDS));
+  assert.deepEqual(sorted(listAfter(fn('supportEvidenceCommonValid'), "d.get('activityRole', null) in")), sorted(ACTIVITY_ROLES));
+});
+
+test('the student roster row pins the profile, and attempt evidence has no client writer', () => {
+  const grades = region(rules, 'match /grades/{studentId} {', 'match /supportProfileRevisions/', 'grades rules');
+  assert.match(grades, /allow update: if \(rootAdmin\(\) \|\| teachesStudent\(\) \|\| \(ownsStudent\(studentId\) && supportProfileUnchanged\(\)\)\)/);
+  assert.match(grades, /ownsStudent\(studentId\) && supportProfileAbsentOnStudentCreate\(\)/);
+  const evidence = region(rules, 'match /evidenceEvents/{eventId} {', '}', 'evidenceEvents rules');
+  assert.match(evidence, /allow create, update, delete: if false;/);
+  const source = readFileSync(new URL('../../src/platform/history/evidencePersistence.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /\bsetDoc\b|\baddDoc\b/, 'the client module only reads attempt evidence');
+});

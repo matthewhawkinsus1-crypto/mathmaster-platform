@@ -1,12 +1,8 @@
-import { collection, doc, getDocs, limit, orderBy, query, setDoc } from 'firebase/firestore';
+import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
 import { db } from '../../firebase.js';
 
-export const writeImmutableEvidenceEvent = async (studentId, event) => {
-  if (!studentId || !event?.eventKey) throw new Error('Evidence events require a studentId and eventKey.');
-  const eventRef = doc(db, 'grades', String(studentId), 'evidenceEvents', String(event.eventKey));
-  await setDoc(eventRef, event);
-  return event.eventKey;
-};
+// Evidence events are written only by the Admin SDK (see firestore.rules,
+// grades/{studentId}/evidenceEvents). This module only reads them.
 
 export const fetchStudentEvidenceEvents = async (studentId, { maxEvents = 300 } = {}) => {
   if (!studentId) return [];

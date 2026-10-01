@@ -107,21 +107,34 @@ const studentOverrideDates = (assignment, studentId) => {
   return entry && typeof entry === 'object' ? entry : null;
 };
 
+const latestDate = (...dates) => dates
+  .filter((date) => date instanceof Date && !Number.isNaN(date.getTime()))
+  .reduce((latest, date) => (!latest || date.getTime() > latest.getTime() ? date : latest), null);
+
 export const getAssignmentDate = (assignment, field, studentId = null) => {
   if (!assignment) return null;
   const override = studentId ? studentOverrideDates(assignment, studentId) : null;
-  // Student overrides grant additional credit opportunity; they do not move
-  // the class pacing checkpoint that distinguishes on-time from late work.
-  if (field === 'due') return parseLocalDateTime(assignment.dueAt || assignment.dueDate, true);
-  if (field === 'late') {
-    const classFinal = parseLocalDateTime(
-      assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate,
-      true,
+  if (field === 'due') {
+    // An attendance override grants additional credit opportunity; it does
+    // not move the class pacing checkpoint that distinguishes on-time from
+    // late work. An individualized extra-time due date DOES — that is the
+    // accommodation — and it only ever exists later than the class due
+    // (functions/shared/supportDeadline.mjs, injected by
+    // withStudentSupportDates; never stored on the assignment).
+    return latestDate(
+      parseLocalDateTime(assignment.dueAt || assignment.dueDate, true),
+      parseLocalDateTime(override?.supportDueAt, false),
     );
-    const studentFinal = parseLocalDateTime(override?.lateDueAt || override?.dueAt, true);
-    if (!classFinal) return studentFinal;
-    if (!studentFinal) return classFinal;
-    return studentFinal.getTime() > classFinal.getTime() ? studentFinal : classFinal;
+  }
+  if (field === 'late') {
+    return latestDate(
+      parseLocalDateTime(
+        assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate,
+        true,
+      ),
+      parseLocalDateTime(override?.lateDueAt || override?.dueAt, true),
+      parseLocalDateTime(override?.supportFinalAt, false),
+    );
   }
   if (field === 'release') return parseLocalDateTime(assignment.releaseAt || assignment.releaseDate, false);
   return null;
@@ -168,6 +181,50 @@ export const formatDateTime = (value) => {
     hour: 'numeric',
     minute: '2-digit',
   });
+};
+
+/**
+ * The dates a STUDENT is shown: the ones the platform actually applies to them.
+ *
+ * `lifecycle` is getAssignmentLifecycle(assignment, now, { studentId }) on the
+ * student's own copy of the assignment, which already folds in an attendance
+ * extension and an individualized (extra-time) due date. Printing the class
+ * dates instead would tell a student "late" work was due a day before their
+ * real deadline. The wording names no reason.
+ */
+export const studentDueDateLines = (assignment, lifecycle) => {
+  const classDue = getAssignmentDate(assignment, 'due');
+  const classFinal = getAssignmentDate(assignment, 'late');
+  const due = lifecycle?.dueAt || classDue;
+  const final = lifecycle?.lateDueAt || classFinal;
+  const individualizedDue = Boolean(due && classDue && due.getTime() > classDue.getTime());
+  const individualizedFinal = Boolean(final && classFinal && final.getTime() > classFinal.getTime());
+  return {
+    dueLabel: individualizedDue ? 'Your due date' : 'Regular due',
+    dueText: formatDateTime(due),
+    finalLabel: individualizedFinal ? 'Your last day to turn in' : 'Final late due',
+    finalText: formatDateTime(final),
+    individualizedDue,
+    individualizedFinal,
+  };
+};
+
+/**
+ * The same dates as values a student-facing model stores on a row or card:
+ * ISO strings of the instants `lifecycle` applies to this student. Every
+ * screen that prints `formatDateTime(row.dueAt)` then shows the date the
+ * platform enforces, and a list sorted by `dueAt` orders by the student's own
+ * deadline. With no lifecycle (or a date it could not read) the class fields
+ * pass through unchanged — what every row held before.
+ */
+export const studentDueDates = (assignment, lifecycle) => {
+  const instant = (date) => (date instanceof Date && !Number.isNaN(date.getTime()) ? date.toISOString() : null);
+  const classDue = assignment?.dueAt || assignment?.dueDate || null;
+  const classFinal = assignment?.lateDueAt || assignment?.lateDueDate || classDue;
+  return {
+    dueAt: instant(lifecycle?.dueAt) || classDue,
+    lateDueAt: instant(lifecycle?.lateDueAt) || classFinal,
+  };
 };
 
 export const formatRemainingTime = (milliseconds) => {

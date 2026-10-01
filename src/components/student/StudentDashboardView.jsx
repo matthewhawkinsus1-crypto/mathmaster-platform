@@ -8,7 +8,7 @@ import { formatStudentName } from '../../platform/studentName.js';
 import BuildStamp from './BuildStamp.jsx';
 import { BUCKET_LABEL, BUCKET_OPEN_BY_DEFAULT, BUCKET_ORDER } from '../../studentDashboardModel.js';
 import DOLCountdown from './DOLCountdown.jsx';
-import { formatDateTime, formatRemainingTime } from '../../assignmentLifecycle';
+import { formatDateTime, formatRemainingTime, studentDueDateLines } from '../../assignmentLifecycle';
 import { describeClassroomReceipt } from '../../platform/classroom/classroomReceiptPresentation.js';
 import ClassPointsWallet from './ClassPointsWallet.jsx';
 import ClassPointsCelebrations from './ClassPointsCelebrations.jsx';
@@ -24,16 +24,6 @@ import ClassPointsCelebrations from './ClassPointsCelebrations.jsx';
 // Presentational only. No Firestore, no lifecycle computation, no clock. That
 // is what lets one set of components serve a real student reading live data and
 // a simulated learner reading synthetic data.
-
-const formatDueDate = (assignmentOrValue) => (
-  assignmentOrValue && typeof assignmentOrValue === 'object'
-    ? formatDateTime(assignmentOrValue.dueAt || assignmentOrValue.dueDate)
-    : formatDateTime(assignmentOrValue)
-);
-
-const formatLateDueDate = (assignment) => formatDateTime(
-  assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate,
-);
 
 const formatTime = (seconds) => {
   if (!seconds) return '0s';
@@ -112,7 +102,7 @@ export default function StudentDashboardView({
       <article key={assignment.id} style={{ background: 'var(--mm-surface)', padding: '21px 26px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap', border: `2px solid ${statusStyle.border}` }}>
         <div style={{ textAlign: 'left', flex: '1 1 470px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}><h3 style={{ margin: 0, color: 'var(--mm-text-strong)' }}>{assignment.title}</h3><span style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', padding: '4px 8px', borderRadius: '999px', background: statusStyle.bg, color: statusStyle.color }}>{statusStyle.label}</span><span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6' }}>{assignment.assignmentType === 'notesClasswork' ? 'NOTES / CLASSWORK' : 'PRACTICE'}</span>{Object.keys(assignment.sectionVariantModes || {}).length > 0 ? <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#f3e8fd', color: '#681da8' }}>SECTION-SPECIFIC VERSIONS</span> : assignment.variantMode === 'shared' && <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#e6f4ea', color: '#137333' }}>SAME CLASS VERSION</span>}</div>
-          <div style={{ color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>Regular due: {formatDueDate(assignment)} · Final late due: {formatLateDueDate(assignment)}{lifecycle.isLate && <><br /><strong style={{ color: '#7a4f00' }}>Late work remains open for {formatRemainingTime(lifecycle.millisecondsRemaining)}.</strong></>}{!access.open && <><br /><strong style={{ color: '#a50e0e' }}>Complete the prerequisite notes/classwork first. It opens automatically at {formatDateTime(assignment.releaseAt)} if not completed.</strong></>}{assignment.assignmentType === 'notesClasswork' && <><br />Engaged: {formatTime(activity.totalTimeSeconds || 0)} · Daily grade: {classwork?.score === 100 ? '100 — prerequisite met' : 'In progress'}</>}{dol.enabled && dol.status === 'waiting' && <><br />DOL opens during the final {assignment.dol?.minutesBeforeEnd || 10} minutes of class.</>}</div>
+          <div style={{ color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>{(() => { const dates = studentDueDateLines(assignment, lifecycle); return <>{dates.dueLabel}: {dates.dueText} · {dates.finalLabel}: {dates.finalText}</>; })()}{lifecycle.isLate && <><br /><strong style={{ color: '#7a4f00' }}>Late work remains open for {formatRemainingTime(lifecycle.millisecondsRemaining)}.</strong></>}{!access.open && <><br /><strong style={{ color: '#a50e0e' }}>Complete the prerequisite notes/classwork first. It opens automatically at {formatDateTime(assignment.releaseAt)} if not completed.</strong></>}{assignment.assignmentType === 'notesClasswork' && <><br />Engaged: {formatTime(activity.totalTimeSeconds || 0)} · Daily grade: {classwork?.score === 100 ? '100 — prerequisite met' : 'In progress'}</>}{dol.enabled && dol.status === 'waiting' && <><br />DOL opens during the final {assignment.dol?.minutesBeforeEnd || 10} minutes of class.</>}</div>
           {questionsTotal > 0 && assignment.assignmentType !== 'notesClasswork' && (
             <div style={{ marginTop: '12px', maxWidth: '340px' }}>
               <ProgressBar
@@ -258,7 +248,7 @@ export default function StudentDashboardView({
                   )}
                 </div>
               )}
-              <div style={{ marginTop: '12px', fontSize: '13px', fontWeight: 'bold', opacity: 0.88 }}>{resumeLifecycle.isClosed ? 'Permanently closed · review saved work' : resumeLifecycle.isLate ? `Late · ${formatRemainingTime(resumeLifecycle.millisecondsRemaining)} until final close` : `Due ${formatDueDate(resumeAssignment)}`}</div>
+              <div style={{ marginTop: '12px', fontSize: '13px', fontWeight: 'bold', opacity: 0.88 }}>{resumeLifecycle.isClosed ? 'Permanently closed · review saved work' : resumeLifecycle.isLate ? `Late · ${formatRemainingTime(resumeLifecycle.millisecondsRemaining)} until final close` : `Due ${studentDueDateLines(resumeAssignment, resumeLifecycle).dueText}`}</div>
             </div>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
               <button type="button" disabled={!onExportAssignmentPdf || exportingAssignmentId === resumeAssignment.id} onClick={() => exportPdf(resumeAssignment.id)} style={{ padding: '13px 18px', border: '2px solid rgba(255,255,255,0.76)', borderRadius: '12px', background: 'transparent', color: '#fff', fontSize: '15px', fontWeight: 900, cursor: 'pointer' }}>{exportingAssignmentId === resumeAssignment.id ? 'Preparing PDF…' : 'Export PDF'}</button>

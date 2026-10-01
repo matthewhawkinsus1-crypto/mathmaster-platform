@@ -982,6 +982,10 @@
     display: none !important;
   }
 
+  .mathmaster-assignment-screen .mathmaster-narrow-support-tools {
+    display: block;
+  }
+
   .mathmaster-assignment-screen .mathmaster-assignment-compact-nav {
     position: relative;
     top: 0;
@@ -1093,6 +1097,12 @@
 
 .mathmaster-assignment-unified-top {
   justify-content: space-between;
+}
+
+/* Support tools sit in the assignment header. Phones and portrait tablets hide
+   that header, so the same panel rides in the expanded navigator there only. */
+.mathmaster-narrow-support-tools {
+  display: none;
 }
 
 .mathmaster-unified-nav-back,

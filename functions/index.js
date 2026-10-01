@@ -688,7 +688,10 @@ async function ingestOneSubmission({ db, studentId, envelope, now }) {
     // [studentId].lateDueAt) is the same authoritative final cutoff the
     // client and the checkpoint finalizer both read — ingestion must not be
     // the one path that ignores it.
-    const finalCloseAtMs = assignment ? assignmentFinalCloseAt(assignment, null, studentId) : null;
+    // The individualized extra-time deadline is derived from the student's
+    // pinned profile (functions/shared/supportDeadline.mjs) — same answer the
+    // student's dashboard and the checkpoint finalizer give.
+    const finalCloseAtMs = assignment ? assignmentFinalCloseAt(assignment, null, studentId, gradeData?.profile || null) : null;
     const decision = ingestion.decideSubmissionIngestion({
       envelope,
       assignmentExists: assignmentSnapshot.exists,
@@ -16344,6 +16347,7 @@ async function countRecoverableWorkspaceDrafts({
       // Measured against the day the draft was SAVED, never today.
       nowValue: draftSavedAtMs || Date.now(),
       studentId,
+      studentProfile: gradeData?.profile || null,
     }).closesAtMs,
   });
   return Number(assessment?.recoverable?.length) || 0;
@@ -17067,6 +17071,7 @@ async function buildStudentRecoveryRow({
         // or a Monday draft would be measured against this week's bell.
         nowValue: draftDocument.updatedAtMs || Date.now(),
         studentId,
+        studentProfile: gradeData?.profile || null,
       }).closesAtMs,
     })
     : null;
@@ -17405,6 +17410,7 @@ exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (req
         classPeriod,
         nowValue: savedAtMs || Date.now(),
         studentId,
+        studentProfile: gradeData?.profile || null,
       }).closesAtMs,
     });
 
