@@ -5,7 +5,7 @@ import { parseNumericAnswer } from '../../src/tools/shared/toolMath.js';
 
 const source = componentSource('src/tools/systemsWorkspace/SystemsWorkspace.jsx');
 const executable = executableSource(source);
-const adapterSource = componentSource('src/tools/systemsWorkspace/inequalityBuilderAdapter.js');
+const adapterSource = componentSource('functions/shared/toolMath/systemsWorkspace/inequalityBuilderAdapter.mjs');
 const schemaSource = componentSource('src/tools/toolSchemas.js');
 const persistenceSource = componentSource('src/tools/toolStatePersistence.js');
 const rewriteSource = executableSource(componentSource('src/tools/systemsWorkspace/EmbeddedInequalityRewrite.jsx'));

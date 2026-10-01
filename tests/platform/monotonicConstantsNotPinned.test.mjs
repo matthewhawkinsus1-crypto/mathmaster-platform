@@ -29,7 +29,9 @@ import { readFileSync, readdirSync } from 'node:fs';
  */
 
 const MONOTONIC = [
-  { name: 'ASSIGNMENT_RUNTIME_REPAIR_VERSION', file: 'src/platform/assignments/assignmentRuntimeRepair.js' },
+  // The repair moved to functions/shared/runtime so server grading can apply it
+  // too; src/platform/assignments/assignmentRuntimeRepair.js re-exports it.
+  { name: 'ASSIGNMENT_RUNTIME_REPAIR_VERSION', file: 'functions/shared/runtime/assignmentRuntimeRepair.mjs' },
 ];
 
 const root = new URL('../../', import.meta.url);
