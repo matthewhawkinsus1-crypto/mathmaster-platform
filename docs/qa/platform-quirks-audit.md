@@ -58,8 +58,8 @@ audit first recorded them; each entry's status line is current.)
 | PQ-018 | P2 | FIXED | Data Modeling: "Your model" disagrees with the steppers |
 | PQ-038 | P2 | FIXED | "b = 4" in a number box is graded wrong and spends a try |
 | PQ-009 | P2 | FIXED | Whole-board Undo |
-| PQ-020 | P2 | DEFERRED | Landscape phone Work View gives the stage 120–150px |
-| PQ-021 | P2 | DEFERRED | Phone identity bar is 67–86px and always pinned |
+| PQ-020 | P2 | FIXED (2026-10-01 cleanup) | Landscape phone Work View gives the stage 120–150px |
+| PQ-021 | P2 | FIXED (2026-10-01 cleanup) | Phone identity bar is 67–86px and always pinned |
 | PQ-022 | P2 | FIXED (2026-10-01 cleanup) | After a tool's Check, the attempt outcome is off-screen |
 | PQ-023 | P2 | FIXED (2026-10-01 cleanup; steps 1–2) | Tool chrome and folded help sit between the task and the mathematics |
 | PQ-024 | P2 | FIXED (2026-10-01 cleanup) | Point cards say "P1: x = −1" but x is not locked |
@@ -67,17 +67,17 @@ audit first recorded them; each entry's status line is current.)
 | PQ-039 | P2 | NOT A PRODUCTION ISSUE | Typing latency in the student harness |
 | PQ-040 | P2 | FIXED | Typing "−2/3x + 4" on a keyboard makes −2 over (3x + 4) |
 | PQ-019 | P3 | FIXED | Inverse & Composition writes "1(x − 2)²" and "−1x" |
-| PQ-025 | P3 | DEFERRED | "Enlarge question" sits on top of content on phones |
-| PQ-026 | P3 | DEFERRED | Work View header says "Question Work View" and clips the task |
-| PQ-027 | P3 | DEFERRED | Work View capability chips look like disabled buttons |
+| PQ-025 | P3 | FIXED (2026-10-01 cleanup) | "Enlarge question" sits on top of content on phones |
+| PQ-026 | P3 | FIXED (2026-10-01 cleanup) | Work View header says "Question Work View" and clips the task |
+| PQ-027 | P3 | FIXED (2026-10-01 cleanup) | Work View capability chips look like disabled buttons |
 | PQ-028 | P3 | FIXED (2026-10-01 cleanup) | Expression Meaning reopens on its first row after a reload |
 | PQ-029 | P3 | FIXED (2026-10-01 cleanup) | Regression Calculator's button says "Submit workflow" |
-| PQ-030 | P3 | DEFERRED | The identity bar's ⭐ is an emoji too |
-| PQ-031 | P3 | NOT REPRODUCED | Scroll padding assumes a 140px task card |
+| PQ-030 | P3 | FIXED (2026-10-01 cleanup) | The identity bar's ⭐ is an emoji too |
+| PQ-031 | P3 | FIXED (2026-10-01 cleanup) | Scroll padding assumes a 140px task card |
 | PQ-032 | P3 | FIXED (2026-10-01 cleanup) | Multi-line verdict text in a pill |
 | PQ-033 | P3 | FIXED (2026-10-01 cleanup) | Dev-server hazards for the browser gates |
 | PQ-034 | P3 | FIXED (2026-10-01 cleanup) | Three click maps still stretch linearly |
-| PQ-037 | P3 | DEFERRED | Typed stages inside a staged Work View may not scroll above a keypad |
+| PQ-037 | P3 | FIXED (2026-10-01 cleanup) | Typed stages inside a staged Work View may not scroll above a keypad |
 
 ---
 
@@ -96,6 +96,9 @@ audit first recorded them; each entry's status line is current.)
     way the Work View certification mounts it), so all 24 tools can be opened
     inside the real wrappers in one long session. The harness navigator shows
     section tabs plus the current section's numbers, like App.jsx's.
+  - `?staged=1` (2026-10-01 cleanup) appends a composed question — complete a
+    seven-row table, graph it, give its domain and range — compiled the same
+    way, for the `staged` journey (PQ-020, PQ-026, PQ-037).
 - `tests/browser/assignmentMobile.html` (composed/staged questions),
   `toolOpenAudit.html` (one tool, no chrome), `workViewCertification.html`.
 - Viewports: 344×882, 360×800, 375×812, 390×844, 390×664 (phones, touch);
@@ -816,8 +819,25 @@ Measured inside the real wrappers with the identity bar, standard vs wide
 - **Evidence:** `platform-quirks-audit/pq036-dol-point-check.png`.
 - **Scope:** small–medium.
 
-### PQ-037 · Typed stages inside a staged Work View may not scroll above a keypad — **P3 · DEFERRED (source observation, not reproduced)**
+### PQ-037 · Typed stages inside a staged Work View may not scroll above a keypad — **P3 · FIXED (2026-10-01 cleanup)**
 
+- **Fixed (2026-10-01 cleanup):** reproduced first. A seven-row table stage
+  (compiled through the import chain, `studentUxPlatform.html?staged=1`) in
+  phone Work View, number keypad up: at 390×844 row 7 sat at y 547–591 with
+  the keys from 570 and the step body ending at 391, so the digit went into a
+  box nowhere on screen (same at 344×882 and 360×800). The scroller search
+  found the page's `.math-tool-workspace` behind the modal.
+  `.workflow-focus__workspace-body` and `.workflow-focus__active-stage` (the
+  scroller beside a persistent graph) are now in `VERTICAL_SCROLL_SELECTOR`;
+  embedded neither scrolls, so the search passes them as before. Row 7 now
+  lands at 335–379, inside the body and above the keys (344×882: 373–417 vs
+  keys 608; 360×800: 291–335 vs 526). Gates: `studentUxPlatform` `staged`
+  types all seven rows on the keypad after Done and a scroll, as a student
+  does, and fails with the selector removed (rows 3–7 off screen);
+  `numberEntry.test.mjs`. **Still open:** at 390×664 the step body is 28px tall
+  once the keypad and the two-row action row are up, so no scroll can show a
+  44px box (16px of it shows); that is portrait Work View's height budget with
+  the keypad, not the scroller. Evidence: `pq037-before-…`, `pq037-after-…`.
 - `mobileFocusViewport.js`'s `VERTICAL_SCROLL_SELECTOR` does not include
   `.workflow-focus__workspace-body`, the only element that scrolls in a staged
   Work View; a focused field there may therefore not be scrolled clear of the
@@ -869,8 +889,28 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   time a denominator grows past a number. Needs care: `1/(2x)` must still be
   typeable. **Scope:** small–medium.
 
-### PQ-020 · Landscape phone Work View gives the stage 120–150px — **P2 · DEFERRED**
+### PQ-020 · Landscape phone Work View gives the stage 120–150px — **P2 · FIXED (2026-10-01 cleanup)**
 
+- **Fixed (2026-10-01 cleanup), as recommended:** below 460px of layout height
+  (`resolveWorkViewLayout().shortHeight` → `data-height="short"`; the layout
+  height, so a keyboard never refolds the view) the step instruction sits
+  under the task in the header, the step heading joins the Previous/Next row
+  ("Step 1. Plot the points · BUILD IT · 1 of 12 ← →"; WorkflowRunner moves it
+  through `workViewPresentation.js` without remounting the stage, and the
+  buttons' words stay their names), and the insets are trimmed. Stage body
+  **150 → 265px** at 844×390, **120 → 235px** at 740×360, **128 → 250px** at
+  667×375; the plotting plane **60 / 50 / 55% → 100%** on screen. Portrait
+  390×844 484 → 499px; 1366×768 unchanged (508 → 509). The open view now
+  re-runs its reveal when the phone turns: a graph stage built from a table was
+  81–88% on screen after turning, 100% now. Gates: `studentUxPlatform` `staged`
+  (≥250 / ≥220px, folded chrome, plane on screen, work intact after turning
+  back), `workViewCertification.mjs` (rotation on every device),
+  `workViewPhoneChrome.test.mjs`. Evidence: `pq020-before-…`, `pq020-after-…`.
+  **Still open (not from this change):** at 740×360 a tool that registers
+  seven rail actions (Graphing 2, Transformations Lab) needs ~332px of rail and
+  has ~307px, so the last action ("Start over") is reached by scrolling the
+  rail; the certification flags it as clipped there, identically on the code
+  before this change. A staged question's six actions fit (286px).
 - **Viewport:** 844×390, 740×360 (staged question → Enlarge).
 - **Reproduction:** Work View header (task + Task/Help/Close) ~56px,
   instruction ~50px, step heading ~55px, Previous/Next footer ~60px: the
@@ -885,8 +925,18 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   Needs a design look, and `workViewCertification` covers the rotation.
 - **Scope:** small–medium.
 
-### PQ-021 · Phone identity bar is 67–86px and always pinned — **P2 · DEFERRED (needs product input)**
+### PQ-021 · Phone identity bar is 67–86px and always pinned — **P2 · FIXED (2026-10-01 cleanup)**
 
+- **Fixed (2026-10-01 cleanup), compact rather than hidden (the product
+  decision):** below 480px the bar is one line, **38px** at 344, 360, 375, 390
+  and 479px (was 86 / 67 / 67 / 67 / 67). The name and period end in an
+  ellipsis (the full text stays in the DOM and the tooltip; at 344px it reads
+  "Claude QA Student • Peri…"), the points read "★ 120" with the words "Class
+  Points" visually hidden rather than removed, and "Not you?" gives way to Log
+  Out. It stays sticky and still publishes its height, so the navigator, the
+  task and the phone container move up 29–48px. iPad and Chromebook are
+  unchanged (38px, "Not you?" shown). Gates: `studentUxPlatform` `identity`,
+  `studentIdentityPhone.test.mjs`. Evidence: `pq021-before-…`, `pq021-after-…`.
 - **Viewport:** 390×844 (two lines, **67px**), 344×882 (three lines, **86px**).
 - **Reproduction:** `?identity=1`: "Claude QA Student • Period 3", the ⭐ Class
   Points chip and "Not you? Log Out" wrap. It is `position: sticky` over every
@@ -1061,23 +1111,52 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   assessed) or drop the flag and label the card "P1 (x from the table)".
 - **Scope:** tiny either way, once decided.
 
-### PQ-025 · "Enlarge question" sits on top of content on phones — **P3 · DEFERRED**
+### PQ-025 · "Enlarge question" sits on top of content on phones — **P3 · FIXED (2026-10-01 cleanup)**
 
+- **Fixed (2026-10-01 cleanup), by reserving its width** (the task card is
+  another change's file): EnlargeableFigure publishes the opener's measured
+  width and bottom edge on the surface. A staged question's progress rail and
+  step chips end before it (overlap 4,643px² → 0 at 344, 360 and 390px; the
+  row still scrolls), the multi-answer heading stops before it below 600px,
+  and Step Algebra's toolbar ends before it — on a phone it starts below it
+  instead, because that toolbar wraps and a right margin narrowed every row to
+  ~165px at 344px. A survey of all 35 harness questions (the 24 tools
+  included) found content under the opener in **4 / 4 / 1 / 1** questions at
+  390 / 344 / 820 / 1366px — at 1366×768 it covered Step Algebra's "Reset
+  work", a control a Chromebook student could not press — and in **0** at every
+  width after. Gates: `studentUxPlatform` `opener` and `staged`,
+  `workViewPhoneChrome.test.mjs`. Evidence: `pq025-before-…`, `pq025-after-…`.
 - **Viewport:** 390px. The opener is absolutely positioned at the top right of
   the question surface: over the workflow's step-chip row (chips 3–4 hidden at
   rest, reachable by scrolling the row) and over the multi-answer heading
   ("Complete Each Pa|rt", `pq007-after-phone-number-pad.png`). **Next:** reserve the button's width at the end of the chip row, or
   place the opener in the task card's header row. **Scope:** tiny.
 
-### PQ-026 · Work View header says "Question Work View" and clips the task — **P3 · DEFERRED**
+### PQ-026 · Work View header says "Question Work View" and clips the task — **P3 · FIXED (2026-10-01 cleanup)**
 
+- **Fixed (2026-10-01 cleanup), as recommended:** the header shows the title
+  only when there is no task (the dialog keeps its accessible name), and the
+  task's clamp is four whole lines instead of 3.2em. 390×844: header 78 →
+  64px with the whole task shown (11px of it was hidden); 344×882: 78 → 81px
+  with the whole four-line task shown (28px, a line and a half, was hidden);
+  820×1180 and 1366×768: 57px (was 57–58). Gates: `studentUxPlatform`
+  `staged`, `workViewPhoneChrome.test.mjs`. Evidence: `pq026-before-…`,
+  `pq026-after-…`.
 - 390px: the 23px title "Question Work View" (a product term; the button the
   student pressed said "Enlarge question") sits above a task clamped to 3.2em,
   which cut "…describe what it does" mid-word. **Next:** drop the title when a
   task is shown and give the task the line. **Scope:** tiny.
 
-### PQ-027 · Work View capability chips look like disabled buttons — **P3 · DEFERRED**
+### PQ-027 · Work View capability chips look like disabled buttons — **P3 · FIXED (2026-10-01 cleanup)**
 
+- **Fixed (2026-10-01 cleanup), as a caption:** one line of 12px muted text
+  under the actions — "In this view: Pan and zoom · Plot and edit points ·
+  Your line" — with no background, radius or padding (each label was a
+  #e8f0fe chip, 7px radius, 7×9px padding, the width of the buttons above
+  it), still hidden on phones. "In this view" rather than "You can": the
+  labels tools register mix actions and things ("Sequence table", "Your line:
+  y = 2x + 3"). Measured at 820×1180, 1024×768 and 1366×768. Evidence:
+  `pq027-before-…`, `pq027-after-…`.
 - iPad/desktop rail: "Pan and zoom", "Place and move points" are grey
   button-shaped chips under the real actions. **Next:** style as a caption
   ("You can: pan and zoom, place and move points") or remove. **Scope:** tiny.
@@ -1127,14 +1206,32 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   verdict use the student's words. Five mutations, all red (each old string
   restored, the tolerated list emptied, a new "Check my workflow" label).
 
-### PQ-030 · The identity bar's ⭐ is an emoji too — **P3 · DEFERRED**
+### PQ-030 · The identity bar's ⭐ is an emoji too — **P3 · FIXED (2026-10-01 cleanup)**
 
+- **Fixed (2026-10-01 cleanup):** `StarIcon.jsx`, an inline SVG in the
+  CalculatorIcon manner (PQ-013), decorative, so the chip still reads "120
+  Class Points". Reproduced on demand by running Chrome with a fontconfig of
+  DejaVu and Liberation only (no font has U+2B50): "□ 120 Class Points"
+  before, a drawn star after, at 1366×768, 390×844 and 344×882. Gates:
+  `studentUxPlatform` `identity` (the chip holds an svg and no ⭐),
+  `studentIdentityPhone.test.mjs`. Evidence: `pq030-before-…`, `pq030-after-…`.
 - Rendered "□" on the emoji-less test machine (U+2B50 is Unicode 5.1, so far
   more widely supported than 🧮). **Next:** reuse the CalculatorIcon approach if
   PQ-021 redesigns the bar. **Scope:** tiny.
 
-### PQ-031 · Scroll padding assumes a 140px task card — **P3 · NOT REPRODUCED**
+### PQ-031 · Scroll padding assumes a 140px task card — **P3 · FIXED (2026-10-01 cleanup)**
 
+- **Reproduced and fixed (2026-10-01 cleanup).** Chrome does show it — not
+  through Tab, which centres the field, but through MathInput's focus signal,
+  which reveals with `scrollIntoView({ block: 'nearest' })`: with the task card
+  at 184px, Enter in the first blank walked to the second and left it **30px
+  under the card** at 1366×768, 1920×1080 and 820×1180. (The fields' own
+  scroll-margin does not help there; Chrome does not apply it to the math
+  field in that reveal.) The padding is now `top + var(--mm-sticky-task-height,
+  84px) + 56px`, the label allowance the fields' scroll-margin uses: the old
+  140px for an 84px card and before the first measurement, and the walked-to
+  blank now lands 56px below a 184px card. Gates: `studentUxPlatform`
+  `sticky-reveal` (fails with the flat 140px), `studentQaLayoutContracts.test.mjs`.
 - `scroll-padding-top: calc(var(--mm-sticky-task-top) + 140px)` guesses the
   task card's height although it is measured (`--mm-sticky-task-height`). With
   the card forced to 158–184px, keyboard focus still never landed a field under
@@ -1565,6 +1662,30 @@ and the one-column rule would have overridden the ≥1050px domain/range layout
 assignment-mobile fixtures were refreshed only after the behaviour they record
 was corrected.
 
+### 2026-10-01 cleanup: PQ-020, PQ-021, PQ-025, PQ-026, PQ-027, PQ-030, PQ-031, PQ-037
+
+On the cleanup branch at `4e4b6a84` plus these commits, against a dev server
+with HMR off and its own dependency cache, on a machine shared with other
+browser runs (load average 4–12 on 4 cores).
+
+| Gate | Result |
+| --- | --- |
+| `npm run test:platform` | **7566 / 7566** before the docs commit; new: `workViewPhoneChrome` (9), `studentIdentityPhone` (2), `numberEntry` (+1); rewritten against behaviour: `studentQaLayoutContracts` (scroll padding), `workViewStage3A` (the caption), `workViewCapabilities` (the record gained `shortHeight`, with a comment) |
+| `npm run lint` | exit 0; no new warning in a touched file (`WorkflowRunner.jsx:445` is older) |
+| `npm run build` | exit 0 (the usual >500 kB chunk warning) |
+| `tests/browser/studentUxPlatform.mjs` | **13 / 13** journeys (four new: `identity`, `opener`, `staged`, `sticky-reveal`) |
+| `tests/browser/workViewCertification.mjs`, one device per process | **7 / 7 devices, 161 / 161 scenes**, rotation included. Touch devices need the harness fix in this branch: a `<select>`'s native picker blocked `page.screenshot` for 30 s (same on the parent head) |
+| the same at 344×882, 740×360, 820×1180 | 23 / 23, 21 / 23, 23 / 23 — the two at 740×360 are the seven-action rail of Graphing 2 and Transformations Lab, identical before this change (PQ-020) |
+| `workViewMatrix.mjs`, `assignmentMobile.mjs`, `composedOutcomePolicy.mjs`, `workViewTerminalTransition.mjs`, `gradeCenterMobile.mjs` | all pass, no findings |
+| `stagedQuestion.mjs` | 54 "answer control not visible without scrolling" findings on every device, the same 54 on the parent head; its fixture (0) was last recorded 2026-09-23 and the gate is not in CI — not this change, worth a look |
+
+**Mutation checks.** 28 at source level (each fix undone in turn, the
+matching node test goes red) and 7 in the browser (each fix undone, its
+journey fails: `staged` ×3, `identity` ×2, `opener`, `sticky-reveal`). The first
+version of `staged` did not catch PQ-037 — with the keypad left open every row
+was scrolled into an already-shrunk step — so it now presses Done and scrolls
+the next row into view before tapping it, as a student does.
+
 ## Evidence
 
 `docs/qa/platform-quirks-audit/`:
@@ -1579,6 +1700,14 @@ was corrected.
 | `pq007-after-phone-number-pad.png` | The slope box on a phone: "Write a single number.", the number pad and "Needed for this answer: a⁄b" (PQ-007) |
 | `pq036-dol-point-check.png` | A DOL plotting stage answering "Revise: P1, P2, P3, P4, P5." (PQ-036, deferred) |
 | `pq023-phone-first-screen-inverse-composition.png` | A phone's first screen: identity, navigator, task, tries, tool header and two help rows before any mathematics (PQ-023, deferred) |
+| `pq020-before-844x390-work-view.png` / `pq020-after-…` | A staged plotting step on a phone held sideways: 150px body, plane half off screen vs 265px, whole plane, instruction in the header, heading in the step row (PQ-020) |
+| `pq021-before-344x882-identity.png` / `pq021-after-…` | The identity bar at 344px: three lines (86px) vs one (38px) (PQ-021) |
+| `pq030-before-390x844-no-emoji-font.png` / `pq030-after-…` | Without an emoji font: "□ 120 Class Points" vs the drawn star (PQ-030) |
+| `pq025-before-390x844-step-chips.png` / `pq025-after-…` | "Enlarge question" over step chips 3–4 vs beside the chip row (PQ-025) |
+| `pq025-before-1366x768-step-algebra.png` / `pq025-after-…` | Chromebook: the opener over Step Algebra's "Reset work" vs the toolbar ending before it (PQ-025) |
+| `pq026-before-344x882-header.png` / `pq026-after-…` | "Question Work View" over a task cut mid-line vs the whole task (PQ-026) |
+| `pq027-before-1366x768-rail.png` / `pq027-after-…` | Capability chips under the actions vs one caption (PQ-027) |
+| `pq037-before-390x844-row7-keypad.png` / `pq037-after-…` | Typing into row 7 with the keypad up: the box off screen vs above the keys (PQ-037) |
 
 ## Safe to merge?
 
