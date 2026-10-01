@@ -13,7 +13,8 @@
 //   - A CLASS ANSWERING AT ONCE: the closing threshold starts the countdown
 //     exactly once, and no answer waits on the room;
 //   - ANSWER IDS can never be a server receipt's key; progress is never
-//     recorded before a round starts; code names are not in roster order;
+//     recorded before a round starts, and an answer sent then is told to
+//     wait for GO; code names are not in roster order;
 //   - a Warm-Up link must be this class's assignment; a finished room's
 //     experience settings no longer change.
 
@@ -309,6 +310,10 @@ test('an answer id is never a server receipt key, and progress is not recorded b
     roomId, roundIndex: counting.currentRound, roundVersion: counting.roundVersion, roundToken: counting.roundToken, provisionalPoints: 500,
   }));
   assert.equal(early.recorded, false, 'nothing is recorded before the round starts');
+  // An answer sent during the 3-2-1 is refused in words a student can act on.
+  const tooEarly = await failureOf(answer(roomId, second, { room: counting, fields: await answerFields(roomId, counting.currentRound) }));
+  assert.equal(tooEarly?.code, 'deadline-exceeded');
+  assert.equal(tooEarly?.message, 'This round has not started yet. Wait for GO, then answer.');
   const room = await untilStarted(roomId);
   const fields = await answerFields(roomId, room.currentRound);
   const forged = await failureOf(answer(roomId, first, { room, fields, submissionId: `milestone:${room.roundVersion + 1}:1` }));

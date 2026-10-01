@@ -227,6 +227,14 @@ test('the host has one primary control per stage — or a reason there is none',
     assert.ok(action.hint, `${stage} says what is happening`);
   }
   assert.match(hostPrimaryAction({ room: opened(), stage: CHALLENGE_STAGE.ROUND_ACTIVE, joinedCount: 3, finishedCount: 3 }).hint, /Everyone has finished/);
+  // A Graph Feature Rush round ends on the clock: the hint never promises an
+  // early end for "everyone answered", whatever the counts say.
+  for (const finishedCount of [0, 3]) {
+    const rush = hostPrimaryAction({ room: opened({ challengeMode: RUSH_MODE_ID }), stage: CHALLENGE_STAGE.ROUND_ACTIVE, joinedCount: 3, finishedCount });
+    assert.equal(rush.command, null);
+    assert.match(rush.hint, /until time runs out/);
+    assert.doesNotMatch(rush.hint, /everyone|Everyone/);
+  }
   const results = hostPrimaryAction({ room: opened({ roundState: 'closed', currentRound: 1 }), stage: CHALLENGE_STAGE.ROUND_RESULTS });
   assert.deepEqual([results.command, results.label], [HOST_COMMAND.ADVANCE, 'Next Round']);
   assert.match(results.hint, /round 3/);

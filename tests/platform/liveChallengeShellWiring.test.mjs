@@ -54,7 +54,14 @@ test('a live round says what comes next — its results — and when you finishe
 test('the student\'s connection status comes from the listener itself, honestly', () => {
   const listener = region(studentMain, '    return watchLiveChallengeRoom(roomId,', '}, [roomId]);', 'room listener');
   assert.match(listener, /\{ includeMetadataChanges: true \}/);
-  assert.match(listener, /setRoomFromCache\(fromCache\);\s*if \(!fromCache\) setEverInSync\(true\);/);
+  // Only the server's word counts: a cached copy proves neither that the
+  // device is in sync nor that the room is gone.
+  assert.match(listener, /setRoomFromCache\(fromCache\);\s*if \(!fromCache\) \{\s*setEverInSync\(true\);\s*setRoomMissing\(!next\);\s*\}/);
+  // A room the server says does not exist is said so in words, with the way
+  // out — never "Opening…" forever.
+  const missing = region(studentMain, '  if (!room || roomMissing) {', '\n  }\n', 'missing room screen');
+  assert.match(missing, /This Live Challenge is no longer available\./);
+  assert.match(missing, /\(roomMissing \|\| error\) && \(\s*<button type="button" onClick=\{onExit\}/);
   assert.match(studentMain, /const connection = studentConnectionState\(\{ online, fromCache: roomFromCache, everInSync \}\);/);
   assert.match(studentMain, /<ConnectionPill state=\{connection\} look="student" \/>/);
   const onlineEffect = region(studentMain, "window.addEventListener('online', update);", '}, []);', 'online listener');
@@ -86,6 +93,11 @@ test('a finished game: your place, then what reached your wallet, then the top o
   assert.deepEqual([...order].sort((left, right) => left - right), order, 'in that order');
   assert.match(finalCard, /selfRow\.tied \? `tied for \$\{ordinal\(selfRow\.rank\)\} ` : ''/, 'a shared place says so');
   assert.match(finalCard, /It does not change your assignment grade\./);
+  // Until the standings arrive (a refresh on the podium) the card waits in
+  // words; it never tells a player who was there that they joined too late.
+  assert.match(finalCard, /\{loading \? 'Loading your final place…' : 'You joined after the last round\.'\}/);
+  const finished = region(studentMain, "{room.status === 'finished' && (", "{room.status === 'cancelled' && (", 'finished view');
+  assert.match(finished, /loading=\{!playersFresh\}/);
 });
 
 /* ------------------------------ the boards themselves ------------------------------ */

@@ -379,8 +379,8 @@ await page.evaluate((invite) => window.__mmGameMount(invite), {
 });
 await wait(350);
 await step('calibration-failure-degraded-mode', {
-  mustContain: ['Clock sync is unavailable', 'Time is up'],
-  mustNotContain: ['Synchronizing round clock'],
+  mustContain: ['Your connection is slow right now', 'Time is up'],
+  mustNotContain: ['Getting the round ready'],
 });
 
 await setRoom({ status: 'finished', currentQuestion: null, roundEndsAt: null });

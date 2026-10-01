@@ -11645,6 +11645,16 @@ exports.updateLiveChallengePacing = onCall(async (request) => {
 // A device's answer id: the alphabet of a UUID, never a server receipt key.
 const LIVE_CHALLENGE_SUBMISSION_ID = /^[A-Za-z0-9_-]{1,100}$/;
 
+// What a student reads when an answer arrives outside its round's window: an
+// answer sent before GO is told to wait for GO, a late one that time was up.
+const liveChallengeArrivalRefusal = (arrival) => new HttpsError("deadline-exceeded", arrival?.reason === "round_not_started"
+  ? "This round has not started yet. Wait for GO, then answer."
+  : "Time was up before your answer arrived, so it was not counted.", { reason: arrival?.reason || null });
+
+// A round whose question can no longer be rebuilt cannot check answers. Rare
+// (the question was deleted mid-game); the student is told what happens next.
+const LIVE_CHALLENGE_QUESTION_UNAVAILABLE = "This round's question could not be checked, so answers to it are not counted. Your teacher can move on to the next round.";
+
 exports.submitLiveChallengeResponse = onCall(async (request) => {
   const requestArrivedAt = Date.now();
   const { studentId } = requireStudent(request);
@@ -11694,7 +11704,7 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   const submitPlan = lifecycle.planLifecycleCommand({ command: lifecycle.LIFECYCLE_COMMAND.SUBMIT, room, expected: expectedRound });
   if (submitPlan.outcome !== lifecycle.LIFECYCLE_OUTCOME.APPLY) throw new HttpsError("failed-precondition", submitPlan.message);
   const initialArrival = roundTimer.timerAcceptsArrival(roundTimer.timerFromRoom(room), requestArrivedAt);
-  if (!initialArrival.accepted) throw new HttpsError("deadline-exceeded", "The bounded delivery window for this round has ended.");
+  if (!initialArrival.accepted) throw liveChallengeArrivalRefusal(initialArrival);
   if (!currentPlayer.joined) throw new HttpsError("failed-precondition", "Join the Live Challenge before answering.");
   // The response model decides whether this question can take another
   // attempt. A classic round is one question completed by one response:
@@ -11712,13 +11722,13 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   const questionId = privateState.questionIds?.[submittedRound];
   const privateAuthored = privateState.roundQuestions?.[submittedRound] || null;
   const questionSnapshot = !privateAuthored && questionId ? await db.collection("pathQuestionBank").doc(questionId).get() : null;
-  if (!privateAuthored && !questionSnapshot?.exists) throw new HttpsError("failed-precondition", "This round's secure question is unavailable.");
+  if (!privateAuthored && !questionSnapshot?.exists) throw new HttpsError("failed-precondition", LIVE_CHALLENGE_QUESTION_UNAVAILABLE);
   const authored = privateAuthored || questionSnapshot.data() || {};
   const seedKey = `challenge|${roomId}|${submittedRound}|${questionId}`;
   const instantiated = await mathPath.instantiateQuestion(authored, seedKey);
-  if (!instantiated.question) throw new HttpsError("failed-precondition", "This round's question could not be regenerated securely.");
+  if (!instantiated.question) throw new HttpsError("failed-precondition", LIVE_CHALLENGE_QUESTION_UNAVAILABLE);
   const plan = await mathPath.buildIssuePlan(instantiated.question);
-  if (!plan.issuable) throw new HttpsError("failed-precondition", "This round can no longer be securely graded.");
+  if (!plan.issuable) throw new HttpsError("failed-precondition", LIVE_CHALLENGE_QUESTION_UNAVAILABLE);
   const grading = await mathPath.gradePathToolResponse(plan.privateGrading, request.data?.responsePayload || {});
   if (grading?.rejected) throw new HttpsError("failed-precondition", grading.reason || "The response could not be graded.");
 
@@ -11747,7 +11757,7 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
     const latestStartsAtMs = latestTimer.startsAtMs || 0;
     const nowMs = Date.now();
     const arrival = roundTimer.timerAcceptsArrival(latestTimer, requestArrivedAt);
-    if (!arrival.accepted) throw new HttpsError("deadline-exceeded", "The bounded delivery window for this round has ended.");
+    if (!arrival.accepted) throw liveChallengeArrivalRefusal(arrival);
     if (!player.joined) throw new HttpsError("failed-precondition", "Join the Live Challenge before answering.");
     if (Number(player.answeredRound) === submittedRound || attemptPlanFor(player).decision === responses.ATTEMPT_DECISION.REJECT) {
       throw new HttpsError("already-exists", "You already answered this round.");
