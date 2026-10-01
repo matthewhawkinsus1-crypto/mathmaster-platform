@@ -34,9 +34,20 @@ export function resolveWorkViewLayout({ width, height, visualHeight = height, of
   // and buttons must not spend it. Everything else compact gets the bottom row,
   // and a Chromebook or desktop keeps the side rail it has.
   const bottomRow = compact && !(landscape && layoutHeight <= WORK_VIEW_SHORT_MAX);
+  /*
+   * SHORT: THE CHROME FOLDS INTO TWO ROWS.
+   *
+   * A phone on its side gave the active step 120-150px: header, the step's
+   * instruction, the step heading and the Previous/Next row each kept a row of
+   * their own (PQ-020). At this height the instruction joins the header and
+   * the step heading joins the Previous/Next row. The LAYOUT height again, so
+   * a keyboard opening never refolds the view under the student.
+   */
+  const shortHeight = layoutHeight > 0 && layoutHeight <= WORK_VIEW_SHORT_MAX;
   return {
     mode: compact ? 'mobile' : 'desktop',
     orientation: landscape ? 'landscape' : 'portrait',
+    shortHeight,
     usableHeight: safeHeight,
     // What the visual viewport has been pushed down by — the software keyboard
     // on iOS scrolls the visual viewport rather than resizing the layout one, so

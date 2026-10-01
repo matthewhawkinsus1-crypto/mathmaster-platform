@@ -2562,7 +2562,10 @@ export default function StepByStepAlgebra({
   return (
     <section className={`${shake ? 'algebra-shake' : ''}${embedded ? ' algebra-embedded' : ''}`} style={{ maxWidth: '1120px', margin: '0 auto', padding: embedded ? '4px 0 8px' : '10px 10px 24px', textAlign: 'left' }}>
       {showPrompt && !embedded ? <QuestionPrompt>{question.prompt || 'Solve the equation by keeping both sides balanced.'}</QuestionPrompt> : null}
-      <div className={embedded ? 'algebra-embedded-toolbar' : undefined} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: embedded ? '8px 12px' : '12px', flexWrap: 'wrap', marginBottom: embedded ? '8px' : '16px' }}>
+      {/* `algebra-toolbar`: the row the question starts with, so the Enlarge
+          button that floats over its right end gets room (WorkViewShell.css,
+          PQ-025) — it sat on "Reset work" at 1366x768. */}
+      <div className={embedded ? 'algebra-embedded-toolbar' : 'algebra-toolbar'} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: embedded ? '8px 12px' : '12px', flexWrap: 'wrap', marginBottom: embedded ? '8px' : '16px' }}>
         {embedded ? (
           <div className="algebra-embedded-heading">
             {embeddedTitle ? <strong>{embeddedTitle}</strong> : null}

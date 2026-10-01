@@ -10,6 +10,7 @@ import {
   workViewCapabilitySummary,
 } from '../../platform/workView/workViewCapabilities.js';
 import { readWorkViewViewport } from '../../platform/workView/workViewViewport.js';
+import { WorkViewPresentationContext } from '../../platform/workView/workViewPresentation.js';
 import { captureWorkViewScrollHold, restoreWorkViewScrollHold } from '../../platform/workView/workViewScrollHold.js';
 import { revealWorkViewTarget } from '../../platform/workView/workViewReveal.js';
 import { useQuestionLifecycle } from '../../platform/question/QuestionLifecycleContext.jsx';
@@ -202,6 +203,11 @@ export default function EnlargeableFigure({
    * way, and the scroll goes to whichever element actually scrolls — for a
    * staged question that is the workflow body, not the surface. See
    * workViewReveal.js for the 0%-on-screen phone measurement this fixes.
+   *
+   * And again when the phone turns with the view open: the whole layout
+   * reflows (a short screen folds the chrome, PQ-020), and a student who filled
+   * a table upright and turned sideways to plot found 81-88% of the plane on
+   * screen, the axis under the fold. A stage that marks nothing is not moved.
    */
   useEffect(() => {
     if (!enlarged || typeof window === 'undefined') return undefined;
@@ -209,7 +215,7 @@ export default function EnlargeableFigure({
       revealWorkViewTarget(hostRef.current?.querySelector?.('.mathmaster-work-view-surface'));
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [enlarged]);
+  }, [enlarged, viewport.orientation]);
 
   // Back in the flow: put the page where the student left it. Once before
   // paint, and once more on the next frame, because scroll anchoring moves the
@@ -359,6 +365,40 @@ export default function EnlargeableFigure({
     };
   }, [enlarged, viewport.controlsPlacement]);
 
+  /*
+   * THE OPENER FLOATS OVER THE TOP-RIGHT CORNER, SO IT SAYS HOW WIDE IT IS.
+   *
+   * "⤢ Enlarge question" is absolutely positioned over whatever the question
+   * starts with. A staged question's step chips (3 and 4 under the button at
+   * 390px), the multi-answer heading ("Complete Each Pa|rt") and Step Algebra's
+   * toolbar ("Reset work" under it at 1366x768) all started there (PQ-025).
+   * Measured, because the label, the font and the zoom all change its size;
+   * WorkViewShell.css reserves its width at the end of those first rows, or on
+   * a phone starts a wrapping row below its bottom edge.
+   */
+  useLayoutEffect(() => {
+    const opener = openerRef.current;
+    const surface = opener?.parentElement;
+    if (enlarged || !opener || !surface) return undefined;
+    const publishSpace = () => {
+      surface.style.setProperty('--mm-work-view-opener-space', `${Math.ceil(opener.offsetWidth) + 16}px`);
+      surface.style.setProperty('--mm-work-view-opener-bottom', `${Math.ceil(opener.offsetTop + opener.offsetHeight)}px`);
+    };
+    publishSpace();
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(publishSpace) : null;
+    observer?.observe(opener);
+    return () => {
+      observer?.disconnect();
+      surface.style.removeProperty('--mm-work-view-opener-space');
+      surface.style.removeProperty('--mm-work-view-opener-bottom');
+    };
+  }, [enlarged]);
+
+  // Where the shell's own chrome goes, for descendants that place theirs
+  // around it (workViewPresentation.js). Presentation only.
+  const shortHeight = enlarged && viewport.shortHeight;
+  const presentation = useMemo(() => ({ enlarged, shortHeight }), [enlarged, shortHeight]);
+
   const task = registeredCapabilities.task?.content || registeredCapabilities.task?.text || taskText;
   const help = registeredCapabilities.help?.content || registeredCapabilities.help?.text;
   const instruction = registeredCapabilities.instruction?.content || registeredCapabilities.instruction?.text;
@@ -386,6 +426,18 @@ export default function EnlargeableFigure({
 
   const invokeAction = (action) => (action.onAction || action.onClick)?.();
 
+  // The current instruction is the one sentence telling the student what this
+  // step asks for, so it keeps a class of its own. It used to share the chip
+  // class with the capability labels, and the mobile rule that drops those
+  // chips to save room was taking the instruction with them — on the narrow
+  // screen that needs it most. On a short screen it sits in the header, under
+  // the task, instead of taking a row above the work (PQ-020).
+  const instructionNode = enlarged && instruction ? (
+    <div className="mathmaster-work-view-instruction">
+      {typeof instruction === 'string' ? <MathText>{instruction}</MathText> : instruction}
+    </div>
+  ) : null;
+
   // This figure occupies the same keyed position for embedded and Work View.
   // Only CSS presentation changes around it, so children are never cloned or
   // remounted and their mathematical React state remains the single owner.
@@ -409,22 +461,15 @@ export default function EnlargeableFigure({
         }
         : { position: 'relative', margin: 0, boxSizing: 'border-box', ...style }}
     >
-      {/* The current instruction is the one sentence telling the student what
-          this step asks for, so it keeps a class of its own. It used to share
-          the chip class with the capability labels, and the mobile rule that
-          drops those chips to save room was taking the instruction with them —
-          on the narrow screen that needs it most. */}
-      {enlarged && instruction ? (
-        <div className="mathmaster-work-view-instruction">
-          {typeof instruction === 'string' ? <MathText>{instruction}</MathText> : instruction}
-        </div>
-      ) : null}
+      {shortHeight ? null : instructionNode}
       {!enlarged ? (
         <button ref={openerRef} className="mm-button-neutral" type="button" onClick={openWorkView} disabled={shouldForceClose} style={CONTROL}>
           ⤢ {enlargeLabel}
         </button>
       ) : null}
-      <WorkViewCapabilityPortProvider publish={publish}>{children}</WorkViewCapabilityPortProvider>
+      <WorkViewCapabilityPortProvider publish={publish}>
+        <WorkViewPresentationContext.Provider value={presentation}>{children}</WorkViewPresentationContext.Provider>
+      </WorkViewCapabilityPortProvider>
     </figure>
   );
 
@@ -474,6 +519,7 @@ export default function EnlargeableFigure({
       data-layout={viewport.mode}
       data-orientation={viewport.orientation}
       data-controls={viewport.controlsPlacement}
+      data-height={viewport.shortHeight ? 'short' : 'regular'}
       data-keyboard={viewport.keyboardOpen ? 'open' : undefined}
       style={enlarged ? {
         '--mm-work-view-height': `${viewport.usableHeight}px`,
@@ -495,15 +541,19 @@ export default function EnlargeableFigure({
     >
       <header className="mathmaster-work-view-header">
         <div className="mathmaster-work-view-heading" style={{ minWidth: 0, flex: '1 1 auto', display: 'grid', gap: 2 }}>
-          <strong className="mathmaster-work-view-title">{label}</strong>
+          {/* THE TASK IS THE HEADING. "Question Work View" is product
+              vocabulary — the button the student pressed said "Enlarge
+              question" — and its line was taken from the task, which was cut
+              off mid-word underneath it on a phone (PQ-026). The title stays
+              for a figure that has no task to show; the dialog keeps its name
+              either way. The task's height is whole lines (WorkViewShell.css). */}
+          {task ? null : <strong className="mathmaster-work-view-title">{label}</strong>}
           {task ? (
             <div
               className="mathmaster-work-view-persistent-task"
               aria-label="Your task"
               style={{
                 minWidth: 0,
-                maxHeight: '3.2em',
-                overflowY: 'auto',
                 paddingRight: 4,
                 color: '#3c4756',
                 fontSize: 12.5,
@@ -515,6 +565,7 @@ export default function EnlargeableFigure({
               {typeof task === 'string' ? <MathText>{task}</MathText> : task}
             </div>
           ) : null}
+          {shortHeight ? instructionNode : null}
         </div>
         {task ? <button type="button" aria-expanded={drawer === 'task'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'task'))}>Task</button> : null}
         {help ? <button type="button" aria-expanded={drawer === 'help'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'help'))}>Help</button> : null}
@@ -560,7 +611,22 @@ export default function EnlargeableFigure({
               ) : action.label}
             </button>
           ))}
-          {capabilityNames.map((name) => <span key={name} className="mathmaster-work-view-capability" data-work-view-capability={name}>{registeredCapabilities[name]?.label || name}</span>)}
+          {/* A CAPTION, NOT MORE BUTTONS. Each of these used to be its own grey
+              chip under the real actions, and "Pan and zoom" or "Plot and edit
+              points" read as disabled buttons (PQ-027). It says what the view
+              carries; the labels mix actions and things ("Sequence table",
+              "Your line: y = 2x + 3"), hence "In this view", not "You can". */}
+          {capabilityNames.length ? (
+            <p className="mathmaster-work-view-capabilities">
+              <span className="mathmaster-work-view-capabilities-lead">In this view: </span>
+              {capabilityNames.map((name, index) => (
+                <React.Fragment key={name}>
+                  {index ? ' · ' : null}
+                  <span className="mathmaster-work-view-capability" data-work-view-capability={name}>{registeredCapabilities[name]?.label || name}</span>
+                </React.Fragment>
+              ))}
+            </p>
+          ) : null}
         </aside>
       </div>
     </div>

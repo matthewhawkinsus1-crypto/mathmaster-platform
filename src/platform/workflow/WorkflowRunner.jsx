@@ -28,6 +28,7 @@ import { checkedGraphIsPointOnly, graphWindowOnly, studentPlottedPoints, workflo
 import { resolveWorkflowTaskPrompt, selectPersistentWorkflowGraph } from './workflowPresentation.js';
 import { buildWorkflowReviewState, firstIncorrectWorkflowIndex } from './workflowReviewState.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../workView/useMathUndoHistory.js';
+import { useWorkViewPresentation } from '../workView/workViewPresentation.js';
 import { ToolDraftScopeProvider } from '../../tools/shared/usePersistentToolState.js';
 import './WorkflowFocusMode.css';
 
@@ -1203,6 +1204,11 @@ export default function WorkflowRunner({
   // branch that took the count under the threshold would otherwise flip the
   // whole layout mid-question, which is disorienting in the middle of a graph.
   const focusMode = shouldUseWorkflowFocusMode(authoredWorkflow);
+  // In a Work View on a screen with almost no height (a phone on its side) the
+  // step heading rides in the Previous/Next row rather than taking a row of its
+  // own above the work (PQ-020). Presentation only: the heading moves, the
+  // active stage below it is never remounted.
+  const { shortHeight: headingInFooter } = useWorkViewPresentation();
   // Which steps some other step branches on. Their choice lists are rendered
   // exactly as authored — see ChoiceStage.
   const branchControllerIds = useMemo(() => new Set(
@@ -1566,6 +1572,20 @@ export default function WorkflowRunner({
     ? Math.round((progress.answered / workflow.length) * 100)
     : 0;
 
+  // Above the work, or — in a short Work View — in the Previous/Next row.
+  const stepHeading = (
+    <div className="workflow-focus__workspace-heading">
+      <div className="workflow-focus__workspace-heading-left">
+        <h4>Step {safeActiveIndex + 1}. {activeDefinition?.label || activeStage?.kind}</h4>
+        <span className="workflow-focus__family">{stageFamilyLabel(activeStage?.kind)}</span>
+        {activeReviewStatus === 'correct' ? <span className="workflow-focus__review-status workflow-focus__review-status--correct">✓ Checked correct</span> : null}
+        {activeReviewStatus === 'incorrect' ? <span className="workflow-focus__review-status workflow-focus__review-status--incorrect">! Needs revision</span> : null}
+        {activeReviewStatus === 'changed' ? <span className="workflow-focus__review-status workflow-focus__review-status--changed">↻ Edited — check again</span> : null}
+      </div>
+      <span className="workflow-focus__counter">{safeActiveIndex + 1} of {workflow.length}</span>
+    </div>
+  );
+
   return (
     <div ref={focusRootRef} className="workflow-focus" data-family={activeFamily}>
       {promptAndScenario}
@@ -1683,16 +1703,7 @@ export default function WorkflowRunner({
       ) : null}
 
       <main className={`workflow-focus__workspace${activeReviewStatus === 'incorrect' ? ' workflow-focus__workspace--incorrect' : activeReviewStatus === 'changed' ? ' workflow-focus__workspace--changed' : ''}`}>
-        <div className="workflow-focus__workspace-heading">
-          <div className="workflow-focus__workspace-heading-left">
-            <h4>Step {safeActiveIndex + 1}. {activeDefinition?.label || activeStage?.kind}</h4>
-            <span className="workflow-focus__family">{stageFamilyLabel(activeStage?.kind)}</span>
-            {activeReviewStatus === 'correct' ? <span className="workflow-focus__review-status workflow-focus__review-status--correct">✓ Checked correct</span> : null}
-            {activeReviewStatus === 'incorrect' ? <span className="workflow-focus__review-status workflow-focus__review-status--incorrect">! Needs revision</span> : null}
-            {activeReviewStatus === 'changed' ? <span className="workflow-focus__review-status workflow-focus__review-status--changed">↻ Edited — check again</span> : null}
-          </div>
-          <span className="workflow-focus__counter">{safeActiveIndex + 1} of {workflow.length}</span>
-        </div>
+        {headingInFooter ? null : stepHeading}
         <div className={showPersistentGraphReference ? 'workflow-focus__workspace-body workflow-focus__workspace-body--with-graph' : 'workflow-focus__workspace-body'}>
           <div className="workflow-focus__active-stage" key={activeStage?.id || safeActiveIndex}>
             {workflow.map((stage, index) => renderStage(stage, index, { focused: index === safeActiveIndex }))}
@@ -1708,6 +1719,7 @@ export default function WorkflowRunner({
       </main>
 
       <footer className="workflow-focus__footer">
+        {headingInFooter ? stepHeading : null}
         <div className="workflow-focus__footer-group">
           <button
             type="button"
@@ -1715,7 +1727,9 @@ export default function WorkflowRunner({
             disabled={!canGoPrevious}
             onClick={() => goToStage((index) => Math.max(0, index - 1))}
           >
-            ← Previous step
+            {/* The words are a label of their own so a short Work View can
+                show the arrows alone and keep them as the button's name. */}
+            <span aria-hidden="true">←</span> <span className="workflow-focus__nav-label">Previous step</span>
           </button>
           <button
             type="button"
@@ -1723,7 +1737,7 @@ export default function WorkflowRunner({
             disabled={!canGoNext}
             onClick={() => goToStage((index) => Math.min(workflow.length - 1, index + 1))}
           >
-            Next step →
+            <span className="workflow-focus__nav-label">Next step</span> <span aria-hidden="true">→</span>
           </button>
         </div>
         <p className="workflow-focus__progress-text">
