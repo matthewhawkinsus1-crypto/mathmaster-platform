@@ -12260,13 +12260,16 @@ exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("su
     // within a question are for assistance — so this runs once per question,
     // never once per attempt.
     let routed = null;
+    // Declared before the routing block, not inside it: the CCMR
+    // direct-evidence write below reads it too, and a block-scoped `const` there
+    // was a ReferenceError that failed every finalized exam-style question.
+    const activeSkillCode = currentQuestion.skillCode || mathPath.displayAlignmentKey(session.target?.alignmentKey);
     if (questionFinalized) {
       nextSummary.completedQuestions = Number(nextSummary.completedQuestions || 0) + 1;
       nextSummary.correctQuestions = Number(nextSummary.correctQuestions || 0) + (gradingCore.isCorrect ? 1 : 0);
       nextSummary.independentSuccesses = Number(nextSummary.independentSuccesses || 0) + (gradingCore.isCorrect && independent ? 1 : 0);
       nextCurrentQuestion = null;
 
-      const activeSkillCode = currentQuestion.skillCode || mathPath.displayAlignmentKey(session.target.alignmentKey);
       const schedule = retentionSchedules[activeSkillCode] || null;
       // A retention PROBE is two questions and a verdict. Routing it into a
       // repair excursion would turn "a quick check that this stayed with you"
