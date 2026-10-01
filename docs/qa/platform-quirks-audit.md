@@ -1593,7 +1593,7 @@ one a student tapped on a phone held sideways.
 | `toolOpenAudit.mjs` chromebook / phone / tablet / phone-landscape | all four pass |
 | `workViewMatrix.mjs` · `studentUxPlatform.mjs` · `linearMultipleRepresentations.mjs` | pass · 9 / 9 · no findings |
 | `toolDraftSyncSweep.mjs` · `regressionCalculatorPhone.mjs` | pass (and the new reopen-row check) · pass |
-| `captureToolResponses.mjs` | the captured payloads are unchanged. 8 of its 11 scripts cannot drive their tool — **identically at `3132a221`** (stale selectors: a checkbox before the algebra box, a second "Submit Answer" in the Work View rail) |
+| `captureToolResponses.mjs` | **12 / 12** captures after the repair below; before it, 8 of its 11 scripts could not drive their tool — **identically at `3132a221`** |
 
 Every new or changed assertion was broken once and went red: 50 mutations
 across the six items, 49 red; the one survivor is a browser-level mutation
@@ -1603,6 +1603,23 @@ explained under PQ-022 (its node contract kills it).
 / `pq022-after-phone-390x844.png` / `pq022-after-chromebook-1366x768.png`,
 `pq023-before-phone-390x844.png` / `pq023-after-phone-390x844.png`,
 `pq032-before-chromebook-1366x768.png` / `pq032-after-chromebook-1366x768.png`.
+
+**`captureToolResponses.mjs`, repaired.** Its scripts found controls by
+position and by old wording. Three failed only on "the first Submit Answer",
+now the Work View rail's hidden copy; the others met tools that had changed —
+`algebra` is the balance workspace since PR #47 (`4b65b4ee`), the relation
+tool's Yes/No select is four reasons, the number line's switches read
+"● Closed" / "○ Open", and `stepAlgebra` has no Apply button. The scripts now
+go by role and accessible name, and `graphing2`, which never had a script, is
+plotted from the keyboard: **12 / 12** captures, byte-identical on two runs.
+Nine payloads are unchanged; Function Investigation differs only in where the
+student let go of each arrow (`droppedPoint`, not graded here). Two are **not**
+committed, because the server marks the real payload wrong: `algebra` sends
+`{ value: " x = 4|{}" }`, and the relation tool sends
+`isFunction: "yes-definition"`, which the server reads as "no" — so "Is it a
+function?" is marked wrong on every function and right on every non-function,
+whatever the student chose. Both date from PR #47; the fixture keeps their old
+entries until they are fixed.
 
 ## Tests
 

@@ -124,8 +124,8 @@
             -4.33
           ],
           "droppedPoint": [
-            -3,
-            -5
+            -2.5,
+            -4.5
           ],
           "locationCorrect": true
         },
@@ -136,8 +136,8 @@
             6.33
           ],
           "droppedPoint": [
-            2,
-            5
+            2.5,
+            6.5
           ],
           "locationCorrect": true
         }
