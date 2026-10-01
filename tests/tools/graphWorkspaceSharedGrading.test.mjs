@@ -1096,6 +1096,83 @@ test('point placements count only once committed and all right — all or nothin
   assert.equal(unlockedGrade.parts.find((part) => part.id === 'graph-curve').isCorrect, true, 'the sketch is still its own part');
 });
 
+test('a points-only plot submitted as placed is graded point by point, once every point is placed', () => {
+  // On a DOL, quiz or test a points-only plot has no "Check Point Placements":
+  // every placed point is an answer, graded where it sits, and the points stay
+  // movable until submit. The workspace counted them the moment the last one
+  // landed (pointsCommitted: !revealPointCorrectness && pointOnly && every
+  // point placed), each part marked by gradePointPlacements.
+  const asPlaced = (placements, label, extra = {}) => gradeBothWays(POINT_ONLY, { construction: { placements, pointsGradedAsPlaced: true, ...extra } }, label).browser;
+  const mainRule = (placements) => {
+    const parts = gradePointPlacements(modelFor(POINT_ONLY).tasks, placements, modelFor(POINT_ONLY).functionSpec, {}, modelFor(POINT_ONLY).pointTolerance);
+    const committed = parts.every((part) => part.isComplete);
+    return parts.map((part) => [committed && part.isComplete, committed && part.isCorrect, part.response]);
+  };
+
+  const oneOff = { a: [0, 1], b: [2, 3], c: [-2, 0] };
+  const graded = asPlaced(oneOff, 'as placed, one point off');
+  assert.equal(graded.graded, true);
+  assert.equal(graded.isComplete, true, 'all placed: it can be submitted');
+  assert.equal(graded.isCorrect, false, 'graded as placed, not as correct');
+  assert.deepEqual(graded.parts.map((part) => [part.isComplete, part.isCorrect, part.response]), mainRule(oneOff));
+  assert.deepEqual(graded.parts.map((part) => part.isCorrect), [true, false, true], 'each point where it was last put');
+  assert.equal(graded.parts[1].response, '(2, 3)');
+  // The attempt it records is the one the workspace's own parts recorded.
+  const mainParts = mainRule(oneOff).map(([isComplete, isCorrect, response], index) => ({ ...graded.parts[index], isComplete, isCorrect, response }));
+  assert.equal(recordFor(attemptInputsFromGrading(graded)).partialCredit, recordFor({ isCorrect: false, parts: mainParts }).partialCredit);
+  assert.equal(attemptInputsFromGrading(graded).partialCreditPercent, 67);
+
+  const right = asPlaced({ a: [0, 1], b: [2, 2], c: [-2, 0] }, 'as placed, all right');
+  assert.equal(right.isCorrect, true);
+  assert.equal(attemptInputsFromGrading(right).partialCreditPercent, 100);
+
+  // Until the last point lands nothing counts — the workspace kept Submit closed.
+  const partial = { a: [0, 1], b: [2, 2] };
+  const unfinished = asPlaced(partial, 'as placed, one missing');
+  assert.equal(unfinished.isComplete, false);
+  assert.deepEqual(unfinished.parts.map((part) => [part.isComplete, part.isCorrect, part.response]), mainRule(partial));
+  assert.equal(unfinished.parts.some((part) => part.isCorrect), false);
+  assert.equal(asPlaced({}, 'as placed, nothing placed').isComplete, false);
+  // A points-only plot with no point tasks is vacuously complete, as the
+  // workspace (and the committed path) always counted it — never stuck.
+  const noTasks = { type: 'functionGraph', plotMode: 'points', pointOnly: true, functionSpec: { type: 'expression', expression: '0', variable: 'x', referencePoints: [] }, pointTasks: [] };
+  assert.equal(modelFor(noTasks).tasks.length, 0);
+  assert.equal(gradeBothWays(noTasks, { construction: { pointsGradedAsPlaced: true } }, 'as placed, no tasks').browser.isComplete, true);
+
+  // Only a literal `true` asks for it.
+  ['true', 1, {}, [true]].forEach((value) => {
+    const work = { construction: { placements: oneOff, pointsGradedAsPlaced: value } };
+    assert.equal(normalizeGraphWorkspaceWork(work).construction.pointsGradedAsPlaced, false);
+    assert.equal(gradeBothWays(POINT_ONLY, work, `as placed ${JSON.stringify(value)}`).browser.isComplete, false);
+  });
+
+  // It is a points-only rule: a construction with a curve through the points
+  // still needs its committed check, whatever the work says.
+  const curve = graphWorkspaceWorkFromState(correctSession(QUADRATIC).session.now);
+  curve.construction.pointsLocked = false;
+  curve.construction.pointsGradedAsPlaced = true;
+  const curveGrade = gradeBothWays(QUADRATIC, curve, 'as placed on a curve construction').browser;
+  assert.equal(curveGrade.isComplete, false);
+  assert.equal(curveGrade.parts.filter((part) => part.id.startsWith('point-')).some((part) => part.isCorrect), false);
+
+  // It changes when the points are graded, never the marks: with a passed
+  // check too, the parts are the same marks.
+  assert.deepEqual(asPlaced({ a: [0, 1], b: [2, 2], c: [-2, 0] }, 'as placed and locked', { pointsLocked: true }).parts, right.parts);
+
+  // With analysis, the plot counts as placed and the analysis still has to be answered.
+  const withAnalysis = (answers) => gradeBothWays(POINT_ONLY_ANALYSIS, { construction: { placements: oneOff, pointsGradedAsPlaced: true }, analysis: { answers } }, 'as placed with analysis').browser;
+  assert.equal(withAnalysis({}).isComplete, false);
+  const answered = withAnalysis({ slope: '1/2' });
+  assert.equal(answered.isComplete, true);
+  assert.deepEqual(answered.parts.map((part) => part.isCorrect), [true, false, true, true]);
+
+  // The component's state never keeps the flag; the mapper carries it as work.
+  const fromState = graphWorkspaceWorkFromState({ construction: { placements: oneOff, pointsValidated: false, pointsGradedAsPlaced: true } });
+  assert.equal(fromState.construction.pointsGradedAsPlaced, true);
+  assert.equal(fromState.construction.pointsLocked, false);
+  assert.deepEqual(normalizeGraphWorkspaceWork(fromState), fromState);
+});
+
 test('a sketch counts only once it snapped on screen: Undo after a snap takes the credit back with it', () => {
   // Undo right after a snap keeps strokes that would pass. The workspace
   // showed that sketch as not snapped (drawing re-opens) and counted the curve
@@ -1240,11 +1317,13 @@ test('the workspace reports the shared grader, through the server bytes, with no
   assert.match(COMPONENT, /import \{ gradeToolCheck \} from '\.\/tools\/shared\/sharedToolGrading\.js';/);
   assert.match(COMPONENT, /import \{ answerStateFromSharedGrading \} from '\.\/platform\/grading\/sharedAnswerState\.js';/);
   // The work is built from the component's state by the shared mapper (the one
-  // place the student's commit becomes `pointsLocked`). The commit is a passed
-  // check — or, on a DOL, quiz or test, a points-only plot with every point
-  // placed: there is no check there, and the points are graded as placed...
+  // place the student's commit becomes `pointsLocked`). On a DOL, quiz or test
+  // a points-only plot has no check: the work says its points are graded as
+  // placed, and the grader counts them once every point is placed — the same
+  // moment the screen opens Submit (pointsCommitted)...
   assert.match(COMPONENT, /const pointsCommitted = construction\.pointsValidated\s*\|\| \(!revealPointCorrectness && pointOnly && pointParts\.every\(\(part\) => part\.isComplete\)\);/);
-  assert.match(COMPONENT, /graphWorkspaceWorkFromState\(\{ construction: \{ \.\.\.construction, pointsValidated: pointsCommitted \}, analysis \}\),\s*\[construction, analysis, pointsCommitted\],/);
+  assert.match(COMPONENT, /const pointsGradedAsPlaced = !revealPointCorrectness && pointOnly;/);
+  assert.match(COMPONENT, /graphWorkspaceWorkFromState\(\{ construction: \{ \.\.\.construction, pointsGradedAsPlaced \}, analysis \}\),\s*\[construction, analysis, pointsGradedAsPlaced\],/);
   assert.match(COMPONENT, /const sharedGrade = useMemo\(\(\) => gradeToolCheck\(graphWorkspaceGrader, question, work\), \[question, work\]\);/);
   // ...and the effect reports the shared result as is: no verdict, completeness
   // or stage gate of the component's own is laid over it.

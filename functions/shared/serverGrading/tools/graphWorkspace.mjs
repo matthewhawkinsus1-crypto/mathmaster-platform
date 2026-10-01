@@ -28,6 +28,15 @@
  * own re-check that the button really did accept these placements (below). The
  * flag can only withhold credit; it never grants any.
  *
+ * A POINTS-ONLY PLOT CAN BE GRADED AS PLACED. When the activity withholds
+ * outcomes (a DOL, quiz or test) a plot of points with nothing drawn through
+ * them has no check: the workspace counts every point once all of them are
+ * placed, each marked where it sits, and they stay movable until submit. The
+ * work carries that as `pointsGradedAsPlaced`; the grader honours it only for
+ * a point-only construction with every task placed, and still marks each
+ * point itself. The flag moves when the points are graded, never the marks,
+ * so forging it in practice only gives up the check — it earns nothing.
+ *
  * ONE EDIT SURVIVES THE COMMIT. A student-chosen x-value box stays open until
  * the sketch snaps, and retyping it clears that task's placement (which can no
  * longer be re-placed). The workspace kept the commit and marked the cleared
@@ -113,10 +122,14 @@ export const gradeGraphWorkspace = (question, rawWork) => {
   const placementGrades = model.constructionEnabled
     ? gradePointPlacements(model.tasks, construction.placements, model.functionSpec, construction.chosenXValues, model.pointTolerance)
     : [];
-  // Committed with "Check Point Placements", and still the set it accepted.
-  const pointsAccepted = model.constructionEnabled
-    && construction.pointsLocked
+  // Committed with "Check Point Placements", and still the set it accepted —
+  // or a points-only plot submitted as placed, once every point is placed.
+  const pointsCommitted = construction.pointsLocked
     && model.tasks.every((task) => committedPlacementHolds(model, task, own(construction.placements, task.id), construction.chosenXValues));
+  const pointsSubmittedAsPlaced = model.pointOnly
+    && construction.pointsGradedAsPlaced
+    && placementGrades.every((part) => part.isComplete);
+  const pointsAccepted = model.constructionEnabled && (pointsCommitted || pointsSubmittedAsPlaced);
   const pointParts = placementGrades.map((part) => ({
     ...part,
     label: `Point placement: ${part.label}`,

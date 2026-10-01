@@ -535,6 +535,13 @@ const readTrue = (value) => (value === true ? true : undefined);
  * its own re-check of the work passes (gradeGraphWorkspace), so a lock can
  * only withhold credit: a forged `true` on wrong work earns nothing.
  *
+ * A PLOT OF POINTS CAN ALSO BE SUBMITTED AS PLACED. On a DOL, quiz or test a
+ * points-only plot has no check to pass: every placed point is an answer, and
+ * the points stay movable until the student submits. The work says so with
+ * `pointsGradedAsPlaced`, and the grader then marks each placed point where it
+ * sits — right or wrong — instead of waiting for a commit. It changes when
+ * the points are graded, never how: it cannot turn a wrong point right.
+ *
  * Keeps the `{ construction, analysis }` envelope and the per-id maps My Math
  * Path's raw builder reads (src/platform/path/pathToolResponses.js).
  */
@@ -546,6 +553,7 @@ export const normalizeGraphWorkspaceWork = (raw = {}) => {
       placements: readEntries(construction.placements, readPlacement),
       chosenXValues: readEntries(construction.chosenXValues, readChosenX),
       pointsLocked: construction.pointsLocked === true,
+      pointsGradedAsPlaced: construction.pointsGradedAsPlaced === true,
       strokes: boundSketchStrokes(construction.strokes, SKETCH_LIMITS.constructionPoints),
       sketchView: readSketchCamera(construction.sketchView),
       sketchLocked: construction.sketchLocked === true,
@@ -572,14 +580,21 @@ export const normalizeGraphWorkspaceWork = (raw = {}) => {
  * with "Check Point Placements" (`pointsValidated`) as `pointsLocked`, the
  * snapped sketch (`snapped`) as `sketchLocked`, the snapped inverse sketch
  * (`inverseSnapped`) as `inverseSketchLocked` — and every other flag stays
- * behind. (`inversePointsValidated` only gates the inverse drawing layer; the
+ * behind. A points-only plot submitted as placed (no check to pass) sets
+ * `pointsGradedAsPlaced` on the state it hands over; the component never
+ * keeps it in its history. (`inversePointsValidated` only gates the inverse drawing layer; the
  * reflected points are graded from the selections themselves.)
  */
 export const graphWorkspaceWorkFromState = ({ construction = {}, analysis = {} } = {}) => {
   const state = isPlainObject(construction) ? construction : {};
   const analysisState = isPlainObject(analysis) ? analysis : {};
   return normalizeGraphWorkspaceWork({
-    construction: { ...state, pointsLocked: state.pointsValidated === true, sketchLocked: state.snapped === true },
+    construction: {
+      ...state,
+      pointsLocked: state.pointsValidated === true,
+      pointsGradedAsPlaced: state.pointsGradedAsPlaced === true,
+      sketchLocked: state.snapped === true,
+    },
     analysis: { ...analysisState, inverseSketchLocked: analysisState.inverseSnapped === true },
   });
 };

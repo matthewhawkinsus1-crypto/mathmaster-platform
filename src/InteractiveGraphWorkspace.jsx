@@ -497,12 +497,14 @@ export default function InteractiveGraphWorkspace({
    * same bytes the server will read, so what this workspace reports is what
    * the gradebook records.
    */
-  // The points count as committed when the check passed — or, on a DOL, quiz
-  // or test, when a points-only plot has every point placed: there is no check
-  // to pass, and the points are graded as placed (pointsCommitted, above).
+  // The points count once the check passed — or, on a DOL, quiz or test, a
+  // points-only plot is graded as placed: there is no check to pass, and each
+  // point is marked where it sits once all of them are placed (pointsCommitted,
+  // above). The grader decides when that is; the work only says which rule.
+  const pointsGradedAsPlaced = !revealPointCorrectness && pointOnly;
   const work = useMemo(
-    () => graphWorkspaceWorkFromState({ construction: { ...construction, pointsValidated: pointsCommitted }, analysis }),
-    [construction, analysis, pointsCommitted],
+    () => graphWorkspaceWorkFromState({ construction: { ...construction, pointsGradedAsPlaced }, analysis }),
+    [construction, analysis, pointsGradedAsPlaced],
   );
   const sharedGrade = useMemo(() => gradeToolCheck(graphWorkspaceGrader, question, work), [question, work]);
 

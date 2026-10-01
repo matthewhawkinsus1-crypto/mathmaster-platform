@@ -439,6 +439,16 @@ ingestion keeps the sanitized client record instead of holding it.
 * **Authorization and subsystems untouched.** Server authorization checks,
   Secure Test Cycle, My Math Path and Live Challenge keep their own engines and
   rules; this change does not route them through the new registry.
+* **A student's commit in the work only says when, never what.** Some tools
+  counted a piece of work only after the student committed it on screen: the
+  graph workspace's "Check Point Placements" (`pointsLocked`) and snapped
+  sketches (`sketchLocked`, `inverseSketchLocked`), and on a DOL, quiz or test
+  a points-only plot graded as placed once every point lands
+  (`pointsGradedAsPlaced`). Those flags travel as work because the screen
+  counted nothing before them, but the grader still marks every point and
+  sketch itself: a forged commit on wrong work earns nothing, and forging
+  "graded as placed" in practice only gives up the check
+  (`tests/tools/graphWorkspaceSharedGrading.test.mjs`, mutation-checked).
 * **Malformed and hostile work.** A grader that throws returns
   `malformed-response`; a response for another tool returns
   `response-tool-mismatch`; prototype keys are dropped; every grader is
