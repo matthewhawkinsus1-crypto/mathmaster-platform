@@ -4,30 +4,40 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
-import { matchesNumericAnswer, round } from '../shared/toolMath';
-import { evaluate } from 'mathjs';
+import { round } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import sequenceExplorerGrader from '../../../functions/shared/serverGrading/tools/sequenceExplorer.mjs';
 import {
   compareSequencesAt,
+  comparePlotCount,
+  compareSpecsFromQuestion,
+  fullBridgeTermCount,
   generateSequence,
-  normalizeSequenceSpec,
-  sequenceChange,
-  sequencePartialSum,
+  inferPlotSnapStep,
   sequenceEvidenceCount,
-  sequenceRuleParts,
+  sequenceSpecFromQuestion,
+  sequenceStudentActions,
   sequenceTerm,
 } from './sequenceMath';
 import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js';
 
+/*
+ * Every Check is marked by the shared grader
+ * (functions/shared/serverGrading/tools/sequenceExplorer.mjs) — the function
+ * the server runs as the authority — through the same bounded bytes the
+ * server reads. Each view reports the same `work` object it submits, so a
+ * deadline can finalize the student's unsubmitted work.
+ *
+ * Where a view asks for a term (aₙ, a missing term, Sₙ, the comparison term),
+ * it still evaluates that term while rendering: an index the sequence has no
+ * term for (0, 2.5, NaN) fails before the screen draws, as it always has,
+ * rather than showing a question that can never be answered.
+ */
 const inputStyle = { width: '100%', padding: 9, border: '1px solid #cfd8e6', borderRadius: 8, boxSizing: 'border-box' };
 const actionStyle = { marginTop: 14, padding: '10px 16px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer' };
 const numberText = (value) => `${round(value, 4)}`;
-const matchesNumber = (answer, expected, tolerance = 0.01) => matchesNumericAnswer(answer, expected, tolerance);
-
-const sequenceFromQuestion = (questionData = {}) => {
-  const kind = questionData.sequence?.kind || questionData.kind || 'arithmetic';
-  return normalizeSequenceSpec({ ...questionData.sequence, kind }, kind);
-};
 
 const graphBounds = (values = []) => {
   const finite = values.filter(Number.isFinite);
@@ -53,82 +63,6 @@ const graphBounds = (values = []) => {
   }
 
   return { yMin: Math.floor(low), yMax: Math.ceil(high) };
-};
-
-
-const inferPlotSnapStep = (rows = [], authored = null) => {
-  const supplied = Number(authored);
-  if (Number.isFinite(supplied) && supplied > 0) return supplied;
-  const values = rows.map((row) => Number(row.value)).filter(Number.isFinite);
-  if (values.every((value) => Math.abs(value - Math.round(value)) <= 1e-9)) return 1;
-  if (values.every((value) => Math.abs(value * 4 - Math.round(value * 4)) <= 1e-9)) return 0.25;
-  if (values.every((value) => Math.abs(value * 10 - Math.round(value * 10)) <= 1e-9)) return 0.1;
-  return 0.01;
-};
-
-const stripRuleLeftSide = (value = '') => {
-  const text = String(value || '').trim().replace(/−/g, '-').replace(/×/g, '*').replace(/·/g, '*');
-  const equalsIndex = text.indexOf('=');
-  return equalsIndex >= 0 ? text.slice(equalsIndex + 1).trim() : text;
-};
-
-const normalizePreviousTermToken = (value = '') => (
-  stripRuleLeftSide(value)
-    .replace(/a\s*[_]?\s*\{?\s*n\s*[-−]\s*1\s*\}?/gi, 'p')
-    .replace(/a\s*\(\s*n\s*[-−]\s*1\s*\)/gi, 'p')
-    .replace(/a\s*\[\s*n\s*[-−]\s*1\s*\]/gi, 'p')
-    .replace(/aₙ₋₁/gi, 'p')
-);
-
-const normalizeSequenceExpressionText = (value = '') => (
-  String(value || '')
-    .trim()
-    .replace(/−/g, '-')
-    .replace(/[×·]/g, '*')
-    .replace(/\s+/g, '')
-    .replace(/(\d|\))(?=[A-Za-z(])/g, '$1*')
-    .replace(/([A-Za-z])(?=\d|\()/g, '$1*')
-);
-
-const expressionMatchesSamples = (value, samples = [], expectedAt = () => Number.NaN) => {
-  const expression = normalizeSequenceExpressionText(value);
-  if (!expression) return false;
-  try {
-    return samples.every((scope) => {
-      const actual = Number(evaluate(expression, scope));
-      const expected = Number(expectedAt(scope));
-      return Number.isFinite(actual) && Number.isFinite(expected) && Math.abs(actual - expected) <= 1e-6;
-    });
-  } catch {
-    return false;
-  }
-};
-
-const matchesExplicitRule = (value, spec) => {
-  const rhs = stripRuleLeftSide(value);
-  return expressionMatchesSamples(
-    rhs,
-    [1, 2, 3, 5, 8].map((n) => ({ n })),
-    ({ n }) => sequenceTerm(spec, n),
-  );
-};
-
-const matchesRecursiveRule = (value, spec) => {
-  const rhs = normalizePreviousTermToken(value);
-  const change = sequenceChange(spec);
-  return expressionMatchesSamples(
-    rhs,
-    [-11, -2.5, 0, 3, 10].map((p) => ({ p })),
-    ({ p }) => spec.kind === 'arithmetic' ? p + change : p * change,
-  );
-};
-
-const pointSetMatchesRows = (points = [], rows = [], tolerance = 0.02) => {
-  if (!Array.isArray(points) || points.length !== rows.length) return false;
-  return rows.every((row) => points.some((point) => (
-    Math.abs(Number(point?.[0]) - Number(row.n)) <= tolerance
-    && Math.abs(Number(point?.[1]) - Number(row.value)) <= tolerance
-  )));
 };
 
 function SequenceVisual({ spec, count = 7, title = 'Table + discrete graph' }) {
@@ -165,19 +99,20 @@ export default function SequenceExplorer({ questionData = {}, onAction }) {
 }
 
 function AnalyzeSequence({ questionData, feedback, submit, onAction }) {
-  const spec = sequenceFromQuestion(questionData);
+  const spec = sequenceSpecFromQuestion(questionData);
   const targetN = Number(questionData.targetN ?? 8);
-  const expectedChange = sequenceChange(spec);
-  const expectedTerm = sequenceTerm(spec, targetN);
+  sequenceTerm(spec, targetN); // a target with no term fails before render (see top of file)
   const [kindAnswer, setKindAnswer] = usePersistentToolState('kindAnswer', '');
   const [changeAnswer, setChangeAnswer] = usePersistentToolState('changeAnswer', '');
   const [termAnswer, setTermAnswer] = usePersistentToolState('termAnswer', '');
   const mathState = useMemo(() => ({ kindAnswer, changeAnswer, termAnswer }), [kindAnswer, changeAnswer, termAnswer]);
   const restore = useCallback((value) => { setKindAnswer(value?.kindAnswer || ''); setChangeAnswer(value?.changeAnswer || ''); setTermAnswer(value?.termAnswer || ''); }, []);
   const undoHistory = useMathUndoHistory({ label: 'Undo the last sequence answer edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
+  const work = { kindAnswer, changeAnswer, termAnswer };
+  useReportToolWork(work);
   const check = () => {
-    const checks = [kindAnswer === spec.kind, matchesNumber(changeAnswer, expectedChange, 0.001), matchesNumber(termAnswer, expectedTerm, 0.01)];
-    submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length }, { kindAnswer, changeAnswer, termAnswer }, { mode: 'analyze', targetN });
+    const result = gradeToolCheck(sequenceExplorerGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'analyze', targetN, parts: result.parts });
   };
   return <ToolShell title="Analyze the Sequence" subtitle="Connect the pattern, table, discrete graph, and term structure." badge="Pattern and terms">
     <TaskCard question={questionData} task={'Decide whether this sequence is arithmetic or geometric, then give its change and the requested term.'} steps={['Compare consecutive terms by subtracting, then by dividing.', 'Whichever stays constant tells you the type.', 'Use that constant to reach the requested term.']} />
@@ -197,15 +132,10 @@ function AnalyzeSequence({ questionData, feedback, submit, onAction }) {
 
 
 function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
-  const spec = sequenceFromQuestion(questionData);
-  const actions = Array.isArray(questionData.studentActions) ? questionData.studentActions : [];
+  const spec = sequenceSpecFromQuestion(questionData);
+  const actions = sequenceStudentActions(questionData);
   const targetN = Number(questionData.targetN || 0);
-  const requestedCount = Number(questionData.displayCount ?? 5);
-  const count = sequenceEvidenceCount(
-    Math.max(3, requestedCount),
-    targetN > 0 ? targetN : null,
-    { revealTarget: questionData.revealTargetTerm === true, cap: 8 },
-  );
+  const count = fullBridgeTermCount(questionData);
   const rows = generateSequence(spec, count);
   const bounds = graphBounds(rows.map((row) => row.value));
   const plotSnapStep = inferPlotSnapStep(rows, questionData.plotSnapStep);
@@ -261,41 +191,28 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
     });
   };
 
-  const check = () => {
-    const checks = [];
-    if (requireTable) checks.push(tableValues.every((value, index) => matchesNumber(value, rows[index].value, 0.01)));
-    if (requirePlot) checks.push(pointSetMatchesRows(plottedPoints, rows, Math.max(0.02, plotSnapStep / 3)));
-    if (requireAnalyze) {
-      checks.push(kindAnswer === spec.kind);
-      checks.push(matchesNumber(changeAnswer, sequenceChange(spec), 0.001));
-    }
-    if (requireExplicit) checks.push(matchesExplicitRule(explicitRule, spec));
-    if (requireRecursive) {
-      checks.push(matchesNumber(recursiveFirst, spec.first, 0.001));
-      checks.push(matchesRecursiveRule(recursiveRule, spec));
-    }
-    if (requireTarget) checks.push(matchesNumber(termAnswer, sequenceTerm(spec, targetN), 0.01));
+  const work = {
+    tableValues,
+    plottedPoints,
+    kindAnswer,
+    changeAnswer,
+    explicitRule,
+    recursiveFirst,
+    recursiveRule,
+    termAnswer,
+  };
+  useReportToolWork(work);
 
-    const safeChecks = checks.length ? checks : [false];
+  const check = () => {
+    const result = gradeToolCheck(sequenceExplorerGrader, questionData, work);
     submit(
-      {
-        isCorrect: safeChecks.every(Boolean),
-        score: safeChecks.filter(Boolean).length / safeChecks.length,
-      },
-      {
-        tableValues,
-        plottedPoints,
-        kindAnswer,
-        changeAnswer,
-        explicitRule,
-        recursiveFirst,
-        recursiveRule,
-        termAnswer,
-      },
+      { isCorrect: result.isCorrect, score: result.score },
+      work,
       {
         mode: 'fullBridge',
         targetN: requireTarget ? targetN : null,
         representationCount: count,
+        parts: result.parts,
       },
     );
   };
@@ -481,24 +398,19 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
 }
 
 function RuleBridge({ questionData, feedback, submit, onAction }) {
-  const spec = sequenceFromQuestion(questionData);
+  const spec = sequenceSpecFromQuestion(questionData);
   const [explicitRule, setExplicitRule] = usePersistentToolState('explicitRule', '');
   const [recursiveFirst, setRecursiveFirst] = usePersistentToolState('recursiveFirst', '');
   const [recursiveRule, setRecursiveRule] = usePersistentToolState('recursiveRule', '');
   const mathState = useMemo(() => ({ explicitRule, recursiveFirst, recursiveRule }), [explicitRule, recursiveFirst, recursiveRule]);
   const restore = useCallback((value) => { setExplicitRule(value?.explicitRule || ''); setRecursiveFirst(value?.recursiveFirst || ''); setRecursiveRule(value?.recursiveRule || ''); }, []);
   const undoHistory = useMathUndoHistory({ label: 'Undo the last rule edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
+  const work = { explicitRule, recursiveFirst, recursiveRule };
+  useReportToolWork(work);
   const check = () => {
-    const checks = [
-      matchesExplicitRule(explicitRule, spec),
-      matchesNumber(recursiveFirst, spec.first, 0.001),
-      matchesRecursiveRule(recursiveRule, spec),
-    ];
-    submit(
-      { isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length },
-      { explicitRule, recursiveFirst, recursiveRule },
-      { mode: 'ruleBridge', kind: spec.kind },
-    );
+    const result = gradeToolCheck(sequenceExplorerGrader, questionData, work);
+    // The sequence family is not reported: other views grade it as an answer.
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'ruleBridge', parts: result.parts });
   };
   return <ToolShell title="Write the Sequence Rules" subtitle="Write complete explicit and recursive equations for the same sequence." badge="Recursive and explicit">
     <TaskCard
@@ -554,19 +466,21 @@ function RuleBridge({ questionData, feedback, submit, onAction }) {
 }
 
 function MissingTerm({ questionData, feedback, submit, onAction }) {
-  const spec = sequenceFromQuestion(questionData);
+  const spec = sequenceSpecFromQuestion(questionData);
   const missingIndex = Number(questionData.missingIndex ?? 4);
   const count = Math.max(6, Number(questionData.displayCount ?? 7), missingIndex + 1);
   const rows = generateSequence(spec, count);
-  const expected = sequenceTerm(spec, missingIndex);
+  sequenceTerm(spec, missingIndex); // a gap with no term fails before render (see top of file)
   const [termAnswer, setTermAnswer] = usePersistentToolState('termAnswer', '');
   const [kindAnswer, setKindAnswer] = usePersistentToolState('kindAnswer', '');
   const mathState = useMemo(() => ({ termAnswer, kindAnswer }), [termAnswer, kindAnswer]);
   const restore = useCallback((value) => { setTermAnswer(value?.termAnswer || ''); setKindAnswer(value?.kindAnswer || ''); }, []);
   const undoHistory = useMathUndoHistory({ label: 'Undo the last missing-term edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
+  const work = { termAnswer, kindAnswer };
+  useReportToolWork(work);
   const check = () => {
-    const checks = [matchesNumber(termAnswer, expected, 0.01), kindAnswer === spec.kind];
-    submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 }, { termAnswer, kindAnswer }, { mode: 'missingTerm', missingIndex });
+    const result = gradeToolCheck(sequenceExplorerGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'missingTerm', missingIndex, parts: result.parts });
   };
   return <ToolShell title="Find the Missing Term" subtitle="Recover a missing term from the sequence pattern." badge="Sequence pattern">
     <TaskCard question={questionData} task={'Recover the missing term and say what kind of sequence this is.'} steps={['Look at the terms either side of the gap.', 'Work out the constant difference or ratio from terms you can see.', 'Apply it to fill the gap.']} />
@@ -587,18 +501,19 @@ function MissingTerm({ questionData, feedback, submit, onAction }) {
 }
 
 function PartialSum({ questionData, feedback, submit, onAction }) {
-  const spec = sequenceFromQuestion(questionData);
+  const spec = sequenceSpecFromQuestion(questionData);
   const sumN = Number(questionData.sumN ?? 6);
-  const expectedLast = sequenceTerm(spec, sumN);
-  const expectedSum = sequencePartialSum(spec, sumN);
+  sequenceTerm(spec, sumN); // a sum length with no last term fails before render (see top of file)
   const [lastTerm, setLastTerm] = usePersistentToolState('lastTerm', '');
   const [sumAnswer, setSumAnswer] = usePersistentToolState('sumAnswer', '');
   const mathState = useMemo(() => ({ lastTerm, sumAnswer }), [lastTerm, sumAnswer]);
   const restore = useCallback((value) => { setLastTerm(value?.lastTerm || ''); setSumAnswer(value?.sumAnswer || ''); }, []);
   const undoHistory = useMathUndoHistory({ label: 'Undo the last finite-sum edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
+  const work = { lastTerm, sumAnswer };
+  useReportToolWork(work);
   const check = () => {
-    const checks = [matchesNumber(lastTerm, expectedLast, 0.01), matchesNumber(sumAnswer, expectedSum, 0.01)];
-    submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 }, { lastTerm, sumAnswer }, { mode: 'partialSum', sumN });
+    const result = gradeToolCheck(sequenceExplorerGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'partialSum', sumN, parts: result.parts });
   };
   return <ToolShell title="Find the Finite Sum" subtitle="Connect a sequence of terms to the finite series formed by adding them." badge="Finite series">
     <TaskCard question={questionData} task={'Find the last term of this finite sequence and the sum of all its terms.'} steps={['Extend the sequence to the requested number of terms.', 'Identify the last term.', 'Add all the terms, or use the appropriate sum formula.']} />
@@ -617,22 +532,14 @@ function PartialSum({ questionData, feedback, submit, onAction }) {
 }
 
 function CompareSequences({ questionData, feedback, submit, onAction }) {
-  const left = normalizeSequenceSpec(questionData.left || { kind: 'arithmetic', first: 3, difference: 4 }, questionData.left?.kind || 'arithmetic');
-  const right = normalizeSequenceSpec(questionData.right || { kind: 'geometric', first: 1, ratio: 2 }, questionData.right?.kind || 'geometric');
-  const actions = Array.isArray(questionData.studentActions) ? questionData.studentActions : [];
+  const { left, right } = compareSpecsFromQuestion(questionData);
+  const actions = sequenceStudentActions(questionData);
   const requirePlot = actions.includes('plotSequence');
   const compareN = Number(questionData.compareN ?? 7);
-  const result = compareSequencesAt(left, right, compareN);
+  compareSequencesAt(left, right, compareN); // a comparison term that does not exist fails before render (see top of file)
   const leftLabel = questionData.leftLabel || 'Sequence A';
   const rightLabel = questionData.rightLabel || 'Sequence B';
-  const evidenceCount = sequenceEvidenceCount(questionData.displayCount ?? 7, compareN, { revealTarget: questionData.revealCompareTerm === true, cap: 7 });
-  const authoredDisplayCount = Number(questionData.displayCount);
-  const preferredPlotCount = Number.isInteger(authoredDisplayCount) && authoredDisplayCount > 0
-    ? authoredDisplayCount
-    : Math.min(compareN, 7);
-  const plotCount = requirePlot
-    ? Math.max(1, Math.min(8, Math.max(preferredPlotCount, Math.min(compareN, 7))))
-    : evidenceCount;
+  const plotCount = comparePlotCount(questionData);
   const leftRows = generateSequence(left, plotCount);
   const rightRows = generateSequence(right, plotCount);
   const bounds = graphBounds([...leftRows, ...rightRows].map((row) => row.value));
@@ -656,7 +563,10 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
     label: 'Undo the last sequence comparison edit', state: mathState,
     onRestore: restoreMathState, resetKey: questionUndoResetKey(questionData),
   });
-  const expectedRelation = result.relation === 'left' ? 'A' : result.relation === 'right' ? 'B' : 'equal';
+  // Both plotted point sets travel with every comparison: when the question
+  // requires plotting, the shared grader marks each against its own sequence.
+  const work = { relation, difference, leftPlottedPoints, rightPlottedPoints };
+  useReportToolWork(work);
 
   const handlePlot = (point) => {
     const rawN = Number(point?.[0]);
@@ -675,18 +585,11 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
   };
 
   const check = () => {
-    const checks = [];
-    if (requirePlot) {
-      const tolerance = Math.max(0.02, plotSnapStep / 3);
-      checks.push(pointSetMatchesRows(leftPlottedPoints, leftRows, tolerance));
-      checks.push(pointSetMatchesRows(rightPlottedPoints, rightRows, tolerance));
-    }
-    checks.push(relation === expectedRelation);
-    checks.push(matchesNumber(difference, result.difference, 0.01));
+    const result = gradeToolCheck(sequenceExplorerGrader, questionData, work);
     submit(
-      { isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length },
-      { relation, difference, leftPlottedPoints, rightPlottedPoints },
-      { mode: 'compare', compareN, plotRequired: requirePlot, plotCount: requirePlot ? plotCount : 0 },
+      { isCorrect: result.isCorrect, score: result.score },
+      work,
+      { mode: 'compare', compareN, plotRequired: requirePlot, plotCount: requirePlot ? plotCount : 0, parts: result.parts },
     );
   };
 

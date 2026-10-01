@@ -116,3 +116,79 @@ export const compareSequencesAt = (leftSpec = {}, rightSpec = {}, n = 1, toleran
   const relation = nearlyEqual(left, right, tolerance) ? 'equal' : left > right ? 'left' : 'right';
   return { n: Number(n), left, right, relation, difference: Math.abs(left - right) };
 };
+
+/*
+ * WHAT SEQUENCE EXPLORER DRAWS AND GRADES FOR ONE QUESTION.
+ *
+ * Read by SequenceExplorer.jsx to lay out the screen and by the shared grader
+ * (functions/shared/serverGrading/tools/sequenceExplorer.mjs) to mark the
+ * student's work, so the rows a student fills or plots are by construction the
+ * rows the server checks. Each default here is the screen's own default for an
+ * unauthored field.
+ */
+
+/** The single sequence every non-compare mode shows (unauthored: arithmetic 1, 2, 3, ...). */
+export const sequenceSpecFromQuestion = (question = {}) => {
+  const kind = question?.sequence?.kind || question?.kind || 'arithmetic';
+  return normalizeSequenceSpec({ ...question?.sequence, kind }, kind);
+};
+
+/** Compare mode's two sequences (unauthored: 3, 7, 11, ... against 1, 2, 4, ...). */
+export const compareSpecsFromQuestion = (question = {}) => ({
+  left: normalizeSequenceSpec(question?.left || { kind: 'arithmetic', first: 3, difference: 4 }, question?.left?.kind || 'arithmetic'),
+  right: normalizeSequenceSpec(question?.right || { kind: 'geometric', first: 1, ratio: 2 }, question?.right?.kind || 'geometric'),
+});
+
+/** The authored student actions a composed sequence screen requires. */
+export const sequenceStudentActions = (question = {}) => (Array.isArray(question?.studentActions) ? question.studentActions : []);
+
+/** Build-the-model mode: how many term positions the table and graph hold. */
+export const fullBridgeTermCount = (question = {}) => {
+  const targetN = Number(question?.targetN || 0);
+  const requestedCount = Number(question?.displayCount ?? 5);
+  return sequenceEvidenceCount(
+    Math.max(3, requestedCount),
+    targetN > 0 ? targetN : null,
+    { revealTarget: question?.revealTargetTerm === true, cap: 8 },
+  );
+};
+
+/** Compare mode: how many term positions of each sequence are drawn (and, when plotting is required, plotted). */
+export const comparePlotCount = (question = {}) => {
+  const requirePlot = sequenceStudentActions(question).includes('plotSequence');
+  const compareN = Number(question?.compareN ?? 7);
+  const evidenceCount = sequenceEvidenceCount(question?.displayCount ?? 7, compareN, { revealTarget: question?.revealCompareTerm === true, cap: 7 });
+  const authoredDisplayCount = Number(question?.displayCount);
+  const preferredPlotCount = Number.isInteger(authoredDisplayCount) && authoredDisplayCount > 0
+    ? authoredDisplayCount
+    : Math.min(compareN, 7);
+  return requirePlot
+    ? Math.max(1, Math.min(8, Math.max(preferredPlotCount, Math.min(compareN, 7))))
+    : evidenceCount;
+};
+
+/** The grid a plotted term value snaps to: authored, else the coarsest step every value sits on. */
+export const inferPlotSnapStep = (rows = [], authored = null) => {
+  const supplied = Number(authored);
+  if (Number.isFinite(supplied) && supplied > 0) return supplied;
+  const values = rows.map((row) => Number(row.value)).filter(Number.isFinite);
+  if (values.every((value) => Math.abs(value - Math.round(value)) <= 1e-9)) return 1;
+  if (values.every((value) => Math.abs(value * 4 - Math.round(value * 4)) <= 1e-9)) return 0.25;
+  if (values.every((value) => Math.abs(value * 10 - Math.round(value * 10)) <= 1e-9)) return 0.1;
+  return 0.01;
+};
+
+/** How far a plotted point may sit from (n, aₙ) and still be that term. */
+export const plotPointTolerance = (snapStep) => Math.max(0.02, snapStep / 3);
+
+/**
+ * A plotted discrete graph matches the rows: exactly one point per row, and
+ * every row (n, aₙ) has a plotted point within `tolerance` of it.
+ */
+export const pointSetMatchesRows = (points = [], rows = [], tolerance = 0.02) => {
+  if (!Array.isArray(points) || points.length !== rows.length) return false;
+  return rows.every((row) => points.some((point) => (
+    Math.abs(Number(point?.[0]) - Number(row.n)) <= tolerance
+    && Math.abs(Number(point?.[1]) - Number(row.value)) <= tolerance
+  )));
+};
