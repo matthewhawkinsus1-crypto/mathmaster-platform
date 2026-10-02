@@ -270,6 +270,36 @@ export const resolveFamilyQuestionInstance = ({
   };
 };
 
+/*
+ * THE QUESTION A VALIDATOR JUDGES FOR A FAMILY SLOT.
+ *
+ * A template is not a question — `"{{m}}"` is not a slope, and a rich tool's
+ * own schema rightly refuses a board whose line cannot be derived. Every check
+ * that asks "could a student be given this?" (semantic validation, a registry
+ * tool's schema, the runtime contract) therefore judges a generated PREVIEW,
+ * from this one fixed allocation, so they all judge the same instance and
+ * agree with each other. `index` walks further previews for a sampled check.
+ *
+ * Never throws: `{ error, issues }` for a slot that cannot generate, which the
+ * caller reports with `familyResolutionMessage` (one wording, so Pre-Flight's
+ * de-duplication folds the runtime-contract and semantic reports together).
+ */
+export const FAMILY_PREVIEW_ASSIGNMENT_ID = 'semantic-check';
+
+export const resolveFamilyPreviewInstance = (question, { index = 0 } = {}) => {
+  const position = Math.max(0, Math.floor(Number(index) || 0));
+  return resolveFamilyQuestionInstance({
+    question,
+    assignmentId: FAMILY_PREVIEW_ASSIGNMENT_ID,
+    storageIndex: 0,
+    allocation: { seat: position, variant: 0, stride: 1, index: position, basis: ALLOCATION_BASIS.PREVIEW },
+  });
+};
+
+export const familyResolutionMessage = (label, preview = {}) => (
+  `${label} references a Question Family that cannot generate questions (${preview.error}${preview.issues?.length ? `: ${preview.issues.join('; ')}` : ''}). Students would see "This question could not be prepared" instead of a question.`
+);
+
 /**
  * Re-create exactly the question a delivery pin describes.
  *

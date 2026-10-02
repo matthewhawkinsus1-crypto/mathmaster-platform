@@ -4,6 +4,11 @@ import { MISSING_TOOL_IDS, validateToolQuestion } from './tools/toolSchemas.js';
 import { compileAuthoringIntentV5 } from './platform/contract/authoringIntentV5.js';
 import { flattenV5Sections, normalizeAssignmentV5, rebuildV5SectionsFromQuestions } from './platform/contract/assignmentSchemaV5.js';
 import { looksLikeFiniteSetNotation } from '../functions/shared/answerEquivalence.mjs';
+import {
+  familyResolutionMessage,
+  isFamilyBackedQuestion,
+  resolveFamilyPreviewInstance,
+} from '../functions/shared/questionFamilyInstance.mjs';
 
 export const DEFAULT_ASSIGNMENT_BLUEPRINT = `{
   "schemaVersion": 5,
@@ -720,15 +725,28 @@ export const validateAssignmentQuestions = (questions, options = {}) => {
   const supportedTypes = new Set(SUPPORTED_QUESTION_TYPES);
 
   questions.forEach((question, index) => {
-    const questionType = question?.toolId || question?.type;
+    // A Question Family slot is a TEMPLATE: "{{m}}" is not a slope, and a rich
+    // tool's schema rightly refuses a board whose line cannot be derived. The
+    // renderer contract is judged on the question a student is generated —
+    // the same preview semantic validation judges — and a slot that cannot
+    // generate at all is refused here rather than validated as a template.
+    // The authored metadata checks below still read the slot itself.
+    let rendered = question;
+    if (isFamilyBackedQuestion(question)) {
+      const preview = resolveFamilyPreviewInstance(question);
+      if (preview.error) throw new Error(familyResolutionMessage(`Question ${index + 1}`, preview));
+      rendered = preview.question;
+    }
+    const questionType = rendered?.toolId || rendered?.type;
     if (!questionType) throw new Error(`Question ${index + 1} is missing a type/toolId.`);
     if (!supportedTypes.has(questionType)) {
       throw new Error(`Question ${index + 1} uses unsupported type ${questionType}.`);
     }
     if (MISSING_TOOL_IDS.includes(questionType)) {
-      const toolValidation = validateToolQuestion({ ...question, toolId: questionType });
+      const toolValidation = validateToolQuestion({ ...rendered, toolId: questionType });
       if (!toolValidation.isValid) {
-        throw new Error(`Question ${index + 1} (${questionType}) is invalid: ${toolValidation.errors.join(' | ')}`);
+        const which = rendered === question ? '' : ' in its generated version';
+        throw new Error(`Question ${index + 1} (${questionType}) is invalid${which}: ${toolValidation.errors.join(' | ')}`);
       }
     }
     if (questionType === 'modelingLab') {

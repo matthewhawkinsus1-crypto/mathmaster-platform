@@ -357,6 +357,26 @@ const applyFilter = (value, filter) => {
 };
 
 /** Every placeholder name a document mentions, so unbound ones can be reported. */
+/**
+ * How many times each placeholder appears in a document: { name: count }.
+ *
+ * `placeholdersUsed` answers "which names"; a transformation of a template (the
+ * V5 compiler, say) is checked against THIS, because dropping one of two
+ * `{{m}}` fields loses a templated value while leaving the name in use.
+ */
+export const placeholderOccurrences = (node, counts = {}) => {
+  if (typeof node === 'string') {
+    PLACEHOLDER.lastIndex = 0;
+    for (let match = PLACEHOLDER.exec(node); match; match = PLACEHOLDER.exec(node)) {
+      counts[match[1]] = (counts[match[1]] || 0) + 1;
+    }
+    return counts;
+  }
+  if (Array.isArray(node)) { node.forEach((entry) => placeholderOccurrences(entry, counts)); return counts; }
+  if (node && typeof node === 'object') { Object.values(node).forEach((entry) => placeholderOccurrences(entry, counts)); return counts; }
+  return counts;
+};
+
 export const placeholdersUsed = (node, found = new Set()) => {
   if (typeof node === 'string') {
     PLACEHOLDER.lastIndex = 0;

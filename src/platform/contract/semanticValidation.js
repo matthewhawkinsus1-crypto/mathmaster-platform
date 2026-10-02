@@ -5,7 +5,11 @@ import { auditStaticGraphViewport } from '../../graphSpecUtils.js';
 import { validateQuestionInteractionContracts } from '../interaction/interactionContract.js';
 import { validateQuestionGradingContracts } from '../grading/gradingContract.js';
 import { instructionalIntegrityProblems } from './instructionalIntegrity.js';
-import { isFamilyBackedQuestion, resolveFamilyQuestionInstance } from '../../../functions/shared/questionFamilyInstance.mjs';
+import {
+  familyResolutionMessage,
+  isFamilyBackedQuestion,
+  resolveFamilyPreviewInstance,
+} from '../../../functions/shared/questionFamilyInstance.mjs';
 
 // Recognising a type name is not validation. `{ type: 'graphAnalysis', prompt:
 // 'A graph falls from left to right until x = 2' }` used to pass because
@@ -400,15 +404,10 @@ export const validateQuestionSemantics = (question = {}, { label = 'Question' } 
   // preview — not the template, and refuse a reference that cannot generate
   // at all rather than letting it fall back to anything static.
   if (isFamilyBackedQuestion(question)) {
-    const preview = resolveFamilyQuestionInstance({
-      question,
-      assignmentId: 'semantic-check',
-      storageIndex: 0,
-      allocation: { seat: 0, variant: 0, stride: 1, index: 0, basis: 'preview' },
-    });
+    const preview = resolveFamilyPreviewInstance(question);
     if (preview.error) {
       return {
-        errors: [`${label} references a Question Family that cannot generate questions (${preview.error}${preview.issues?.length ? `: ${preview.issues.join('; ')}` : ''}). Students would see "This question could not be prepared" instead of a question.`],
+        errors: [familyResolutionMessage(label, preview)],
         warnings: [],
       };
     }

@@ -37,6 +37,7 @@ import { hashString32 } from './questionFamilyEngine.mjs';
 import {
   evaluateExpression,
   orderDerivedExpressions,
+  placeholderOccurrences,
   placeholdersUsed,
   substitutePlaceholders,
 } from './pathQuestionGeneration.mjs';
@@ -92,7 +93,11 @@ const documentOf = (question) => {
  */
 const FINGERPRINT_IGNORED_FIELDS = new Set([
   'id', 'questionId', 'sectionId', 'sectionTitle', 'activityRole', 'role',
-  'questionWeight', 'alignments', 'standard', 'teks', 'familyId', 'familyVersion',
+  // The grade value and the record of who set it are scoring, not mathematics:
+  // re-weighting a question must never change which question it is (a pinned
+  // delivery would stop replaying).
+  'questionWeight', 'questionWeightBasis',
+  'alignments', 'standard', 'teks', 'familyId', 'familyVersion',
 ]);
 
 const mathematicalContent = (document) => {
@@ -155,6 +160,23 @@ export const templateStructuralIssues = (question) => {
   const emptyDomains = names.filter((name) => domainForSpec(generator.parameters[name]).values.length === 0);
   if (emptyDomains.length) issues.push(`empty_parameter_domain:${emptyDomains.sort().join(',')}`);
   return issues;
+};
+
+/**
+ * Placeholders an authored template uses that a transformed copy of it carries
+ * FEWER times — a templated value that a transformation (the V5 authoring
+ * compiler) dropped, or coerced into something that is no longer a token.
+ *
+ * Either way the student would be generated a question without that value:
+ * `function.m: "{{m}}"` coerced to NaN draws no line, and a templated field the
+ * tool does not keep simply never reaches the screen. Counting occurrences
+ * rather than names catches the loss even when the name survives elsewhere
+ * (in the prompt, say). Returns the names, sorted; empty means nothing lost.
+ */
+export const lostTemplatePlaceholders = (authored, transformed) => {
+  const before = placeholderOccurrences(documentOf(isObject(authored) ? authored : {}));
+  const after = placeholderOccurrences(documentOf(isObject(transformed) ? transformed : {}));
+  return Object.keys(before).filter((name) => (after[name] || 0) < before[name]).sort();
 };
 
 /**

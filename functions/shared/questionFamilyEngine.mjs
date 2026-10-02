@@ -323,8 +323,17 @@ export const createFamilyInstanceSequence = (family, constraintValues, seedKey) 
 const SEQUENCE_CACHE_LIMIT = 64;
 const sequenceCache = new Map();
 
+/*
+ * A platform family is immutable per (id, version). An assignment-local
+ * family is NOT: its id is its slot (`local:<assignment>|<question>`), and a
+ * teacher can edit the template in place without bumping a version. Its
+ * content hash is therefore part of its identity here — without it, an edited
+ * template in the same session (a Pre-Flight re-run after a repair, a warm
+ * server instance) kept serving the instance list of the template it
+ * replaced, so Pre-Flight re-checked versions that no longer existed.
+ */
 export const familySequenceKey = (family, constraintValues, seedKey) => (
-  `${family.id}|v${family.version}|${JSON.stringify(constraintValues || {})}|${seedKey}`
+  `${family.id}|v${family.version}${family.source?.contentHash ? `|c${family.source.contentHash}` : ''}|${JSON.stringify(constraintValues || {})}|${seedKey}`
 );
 
 export const cachedFamilyInstanceSequence = (family, constraintValues, seedKey) => {
