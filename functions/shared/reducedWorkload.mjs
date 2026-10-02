@@ -732,6 +732,30 @@ export const resolveStudentWorkload = ({
   };
 };
 
+/**
+ * The indices this student's accommodation omits, over the WHOLE current
+ * content — for a section-level reader (the classwork completion rule, the
+ * DOL projection, Recovery, a Classroom section column) that filters its own
+ * indices with it. Because the plan is content-only and answered work is
+ * pinned per coverage cell, this equals what the full projection omits from
+ * any base (with or without a Practice Pass) intersected with that base.
+ * An empty set for a student without automatic reduction.
+ */
+export const studentOmittedIndices = ({ assignment = null, profile = null, tracker = null, nowValue = Date.now() } = {}) => {
+  if (!isObject(profile)) return new Set();
+  try {
+    return new Set(resolveStudentWorkload({ assignment, profile, tracker, nowValue }).omitted);
+  } catch {
+    // A malformed record must never block grading: fall back to the full set.
+    return new Set();
+  }
+};
+
+/** `indices` minus what the accommodation omits (order kept). */
+export const filterStudentRequiredIndices = (indices = [], omitted = new Set()) => (
+  omitted && omitted.size ? list(indices).filter((index) => !omitted.has(Number(index))) : list(indices)
+);
+
 /** "25%" / "33.3%" from tenths of a percent. */
 export const formatPercentTenths = (tenths) => {
   const value = Math.max(0, Number(tenths) || 0) / 10;

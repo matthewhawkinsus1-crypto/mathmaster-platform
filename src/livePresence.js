@@ -152,6 +152,10 @@ export const classifyLiveActivity = (live, nowValue = Date.now()) => {
 
 export const QUESTION_STATE_CHARS = Object.freeze({
   CORRECT: 'c', INCORRECT: 'x', ATTEMPTED: 'a', UNTOUCHED: '.',
+  // Not part of this student's required items (their reduced-item-count
+  // accommodation omits it). Kept in the string so every position still lines
+  // up with the class's question order; counted as neither done nor to-do.
+  NOT_REQUIRED: 'n',
 });
 
 /**
@@ -160,9 +164,10 @@ export const QUESTION_STATE_CHARS = Object.freeze({
  * attempt-policy statuses: correct, expired (out of attempts), attempted, and
  * unattempted.
  */
-export const encodeQuestionStates = (assignmentTracker = {}, questionIndices = []) => (
+export const encodeQuestionStates = (assignmentTracker = {}, questionIndices = [], { notRequired = null } = {}) => (
   (Array.isArray(questionIndices) ? questionIndices : [])
     .map((index) => {
+      if (notRequired && typeof notRequired.has === 'function' && notRequired.has(index)) return QUESTION_STATE_CHARS.NOT_REQUIRED;
       const status = assignmentTracker?.[index]?.status
         ?? (typeof assignmentTracker?.[index] === 'string' ? assignmentTracker[index] : null);
       if (status === 'correct') return QUESTION_STATE_CHARS.CORRECT;
@@ -177,9 +182,10 @@ export const encodeQuestionStates = (assignmentTracker = {}, questionIndices = [
 
 export const countQuestionStates = (questionStates) => {
   const text = String(questionStates || '');
-  const counts = { correct: 0, incorrect: 0, attempted: 0, untouched: 0 };
+  const counts = { correct: 0, incorrect: 0, attempted: 0, untouched: 0, notRequired: 0 };
   for (const character of text) {
-    if (character === QUESTION_STATE_CHARS.CORRECT) counts.correct += 1;
+    if (character === QUESTION_STATE_CHARS.NOT_REQUIRED) counts.notRequired += 1;
+    else if (character === QUESTION_STATE_CHARS.CORRECT) counts.correct += 1;
     else if (character === QUESTION_STATE_CHARS.INCORRECT) counts.incorrect += 1;
     else if (character === QUESTION_STATE_CHARS.ATTEMPTED) counts.attempted += 1;
     else counts.untouched += 1;
