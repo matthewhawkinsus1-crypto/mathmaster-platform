@@ -12,6 +12,7 @@ import {
   resolveRelationNumberLineConfig,
 } from '../../src/algebraRelationFoundation.js';
 import { multiRelationSource } from './helpers/solverSource.mjs';
+import { region } from './helpers/sourceContract.mjs';
 
 test('fraction endpoints get a reachable eighth-unit number-line scale', () => {
   const config = resolveRelationNumberLineConfig([
@@ -94,7 +95,13 @@ test('workspace asks student for relation symbols and absolute split structure',
 
 test('pending relation-symbol work is persisted in the question draft', () => {
   const src = multiRelationSource();
-  assert.match(src, /pendingRelationFlip,[\s\S]{0,160}candidateChecks,[\s\S]{0,80}\}\);/);
+  // The open symbol step is saved in the same record as the relation and the
+  // candidate checks — as what the student did, without its expected symbols
+  // (relationPendingFlipDraft.js) — and read back from it.
+  const writer = region(src, 'writeQuestionDraft(draftKeyFor(draftKey), {', '});', 'the relation draft writer');
+  assert.match(writer, /\bpendingRelationFlip: persistablePendingFlip\(pendingRelationFlip\),/, 'the open step is saved, without its symbols');
+  assert.match(writer, /\brelationState,/);
+  assert.match(writer, /\bcandidateChecks,/);
   assert.match(src, /initialPendingRelationFlipFor/);
 });
 

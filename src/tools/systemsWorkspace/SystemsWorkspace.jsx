@@ -5,7 +5,12 @@ import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workVie
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { parseNumericAnswer, solveTwoLines, round } from '../shared/toolMath';
-import { useRevealAnswers } from '../shared/ToolRuntimeContext';
+import { useRevealAnswers, useToolRuntimeContext } from '../shared/ToolRuntimeContext';
+import {
+  INEQUALITY_STEP_COMPLETION_TEXT,
+  REASONING_COMPLETION_TEXT,
+  resolveInequalityBuildGate,
+} from './inequalityBuildPolicy.js';
 import {
   SYSTEMS_WORKSPACE_DEFAULTS,
   feasibleRegionPolygon,
@@ -24,6 +29,7 @@ import {
   modelingEntryToCanonical,
   pointMembership,
   pointOnBoundaryIndex,
+  pointOnBoundaryLine,
   sideOfBoundaryLine,
   studentBoundaryLineFromEntry,
   studentBuildConstraintStatus,
@@ -33,6 +39,7 @@ import {
   vertexInclusionExpected,
 } from './inequalityBuilderAdapter';
 import useToolSubmission from '../shared/useToolSubmission';
+import { UNANSWERED, isAnswered } from '../shared/judgmentChoices.js';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
@@ -114,17 +121,25 @@ function LinearMode({ questionData, onAction }) {
   const revealAnswers = useRevealAnswers();
   const [x, setX] = usePersistentToolState('x', '');
   const [y, setY] = usePersistentToolState('y', '');
-  const [classification, setClassification] = usePersistentToolState('classification', 'one');
+  // Unanswered until the student classifies (judgmentChoices.js): it opened on
+  // "Exactly one solution", the right answer for most systems.
+  const [classification, setClassification] = usePersistentToolState('classification', UNANSWERED);
   const { feedback, submit } = useToolSubmission(onAction);
   const mathState = useMemo(() => ({ x, y, classification }), [x, y, classification]);
-  const restore = useCallback((value) => { setX(value?.x || ''); setY(value?.y || ''); setClassification(value?.classification || 'one'); }, []);
+  const restore = useCallback((value) => { setX(value?.x || ''); setY(value?.y || ''); setClassification(value?.classification || UNANSWERED); }, []);
   const undoHistory = useMathUndoHistory({ label: 'Undo the last system answer edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
+  const classified = isAnswered(classification);
 
   // The student's work — what Check grades and what a deadline would submit.
   const work = { x, y, classification };
   useReportToolWork(work);
 
   const check = () => {
+    // Not an answer yet: the classification decides what else is asked (x and
+    // y only for exactly one solution). The shared grader marks a response
+    // without one unanswered and My Math Path's contract refuses it, so
+    // nothing is sent until it is chosen.
+    if (!classified) return;
     const result = gradeToolCheck(systemsWorkspaceGrader, questionData, work);
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode:'linear', parts: result.parts });
   };
@@ -142,7 +157,7 @@ function LinearMode({ questionData, onAction }) {
     equationInput: { label: 'Both equations', studentState: true },
     numericControls: { label: 'Solution and classification', studentState: true },
     instruction: { text: 'Classify the system, then solve where the equations meet.' },
-    primaryActions: [{ id: 'check-system', label: 'Check system', onAction: check }],
+    primaryActions: [{ id: 'check-system', label: 'Check system', onAction: check, disabled: !classified }],
   }}><ToolSplit>
     <Panel title="Both equations on one grid">
       <CoordinatePlane xMin={questionData.graph?.xMin ?? -6} xMax={questionData.graph?.xMax ?? 8} yMin={questionData.graph?.yMin ?? -6} yMax={questionData.graph?.yMax ?? 12}
@@ -157,9 +172,10 @@ function LinearMode({ questionData, onAction }) {
       ]} />
     </Panel>
     <Panel title="Classify and solve">
-      <Field label="How many solutions does this system have?"><select value={classification} onChange={(e)=>setClassification(e.target.value)} style={inputStyle}><option value="one">Exactly one solution</option><option value="none">No solution</option><option value="infinite">Infinitely many solutions</option></select></Field>
+      <Field label="How many solutions does this system have?"><select value={classification} onChange={(e)=>setClassification(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="one">Exactly one solution</option><option value="none">No solution</option><option value="infinite">Infinitely many solutions</option></select></Field>
       {classification === 'one' ? <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:12}}><Field label="x"><input type="number" inputMode="decimal" value={x} onChange={(e)=>setX(e.target.value)} style={inputStyle}/></Field><Field label="y"><input type="number" inputMode="decimal" value={y} onChange={(e)=>setY(e.target.value)} style={inputStyle}/></Field></div> : null}
-      <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check system</button>
+      <button data-mm-enter-action="submit" type="button" onClick={check} disabled={!classified} style={{...actionStyle,opacity:classified?1:0.5}}>Check system</button>
+      {!classified ? <p style={{margin:'8px 0 0',color:'#5f6368',fontSize:13}}>Choose how many solutions the system has first.</p> : null}
       {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'#3c4756',lineHeight:1.55}}>{message()}</p></div> : null}
       <HintPanel
         hints={[
@@ -263,6 +279,14 @@ function ClassicInequalityMode({ questionData, onAction }) {
     }) : []),
   ];
 
+  // The choices this question asks must be made before the work is an answer:
+  // a blank one is never marked as one, and My Math Path's contract refuses a
+  // response missing any of them, so the tool does not send one either.
+  const constructionChoicesMade = !requiresConstruction
+    || construction.every((entry) => isAnswered(entry?.boundaryStyle) && isAnswered(entry?.shade));
+  const testChoiceMade = !ask.includes('testPoint') || isAnswered(testChoice);
+  const choicesMade = constructionChoicesMade && testChoiceMade;
+
   // The student's work — the shape this workspace has always sent (My Math
   // Path's contract reads the same fields): each typed boundary point already
   // parsed, the chosen style and shading, and only the answers that were asked.
@@ -281,6 +305,7 @@ function ClassicInequalityMode({ questionData, onAction }) {
   useReportToolWork(work);
 
   const check = () => {
+    if (!choicesMade) return;
     const result = gradeToolCheck(systemsWorkspaceGrader, questionData, work);
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode:'inequalities', parts: result.parts });
   };
@@ -309,7 +334,7 @@ function ClassicInequalityMode({ questionData, onAction }) {
     numericControls: { label: requiresConstruction ? 'Boundary and shading controls' : 'Solution controls', studentState: true },
     pointEditing: requiresConstruction ? { label: 'Boundary points', studentState: true } : null,
     instruction: { text: requiresConstruction ? 'Construct every boundary and shade their overlap.' : 'Test points against both inequalities.' },
-    primaryActions: [{ id: 'check-inequalities', label: requiresConstruction ? 'Check inequality graph' : 'Check feasible region', onAction: check }],
+    primaryActions: [{ id: 'check-inequalities', label: requiresConstruction ? 'Check inequality graph' : 'Check feasible region', onAction: check, disabled: !choicesMade }],
   }}><ToolSplit>
     <Panel title={requiresConstruction ? 'Your inequality graph' : 'Feasible region'}>
       <CoordinatePlane
@@ -394,7 +419,11 @@ function ClassicInequalityMode({ questionData, onAction }) {
         </div>
       ) : null}
 
-      <button type="button" onClick={check} style={actionStyle}>{requiresConstruction ? 'Check inequality graph' : 'Check feasible region'}</button>
+      <button type="button" onClick={check} disabled={!choicesMade} style={{...actionStyle,opacity:choicesMade?1:0.5}}>{requiresConstruction ? 'Check inequality graph' : 'Check feasible region'}</button>
+      {!choicesMade ? <p style={{margin:'8px 0 0',color:'#5f6368',fontSize:13}}>{[
+        constructionChoicesMade ? null : 'Choose a boundary style and a side to shade for every inequality.',
+        testChoiceMade ? null : 'Decide whether the purple point is in the feasible region.',
+      ].filter(Boolean).join(' ')}</p> : null}
       {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'#3c4756',lineHeight:1.55}}>{message()}</p></div> : null}
       <HintPanel
         hints={requiresConstruction ? [
@@ -439,7 +468,9 @@ const emptyBuildEntry = () => ({
 
 const emptyRewriteEntry = (source = '') => ({ source, steps: [], committedText:source, draft:source, pendingFlip:null, verifiedText:'', verifiedConstraint:null });
 
-const emptyModelingEntry = () => ({ coeffA: '', coeffB: '', relation: '>=', constant: '' });
+// The relation is the student's choice of symbol, so it starts unanswered: it
+// opened on ≥, which was already right for every "at least" constraint.
+const emptyModelingEntry = () => ({ coeffA: '', coeffB: '', relation: UNANSWERED, constant: '' });
 
 const emptyTestPointResponse = (count) => ({
   overall: '', perInequality: Array.from({ length: count }, () => ''), onBoundary: '', boundaryIncluded: '',
@@ -598,6 +629,9 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
   const [studentPointResponse, setStudentPointResponse] = usePersistentToolState('studentPointResponse', () => emptyTestPointResponse(constraintCount));
   const [vertices, setVertices] = usePersistentToolState('vertices', []);
   const { feedback, submit } = useToolSubmission(onAction);
+  // False on a DOL, quiz or test: there every check below says only whether
+  // the work is finished (resolveInequalityBuildGate).
+  const { showImmediateFeedback } = useToolRuntimeContext();
 
   const mathState = useMemo(() => ({
     modelingEntries, modelingSent, rewriteEntries, build, combined, regionClassification, regionClassificationAttempts,
@@ -647,9 +681,8 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
     buildConfig.boundary ? studentLines[index] : workingConstraints[index]
   ));
   const rewriteVerified = (index) => !buildConfig.rewrite || Boolean(rewriteEntries[index]?.verifiedConstraint);
-  // Each constraint's step progress (the ✓ marks, the step messages, the
-  // Combine lock) comes from the SAME rule the shared grader marks with:
-  // a step is verified only once it was explicitly checked and is right.
+  // Whether each step's work is right comes from the SAME rule the shared
+  // grader marks with (studentBuildConstraintStatus).
   const constraintStatus = Array.from({ length: constraintCount }, (_, index) => studentBuildConstraintStatus({
     buildConfig,
     entry: build[index],
@@ -661,11 +694,42 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
   const boundaryCorrect = (index) => stepStatus(index, 'boundaryCorrect');
   const styleCorrect = (index) => stepStatus(index, 'styleCorrect');
   const shadeCorrect = (index) => stepStatus(index, 'shadeCorrect');
-  const boundaryVerified = (index) => stepStatus(index, 'boundaryVerified');
-  const styleVerified = (index) => stepStatus(index, 'styleVerified');
-  const shadeVerified = (index) => stepStatus(index, 'shadeVerified');
-  const constraintVerified = (index) => stepStatus(index, 'constraintVerified');
-  const allConstraintsComplete = constraintCount > 0 && Array.from({ length: constraintCount }, (_, i) => i).every(constraintVerified);
+  // Whether a step's work is all there — never compared with the answer.
+  const stepFinished = (index, step) => {
+    const entry = build[index] || {};
+    if (step === 'boundary') return Boolean(studentLines[index]);
+    if (step === 'lineStyle') return entry.style === 'solid' || entry.style === 'dashed';
+    const line = effectiveLines[index];
+    return Boolean(line && entry.shadePoint && sideOfBoundaryLine(line, entry.shadePoint[0], entry.shadePoint[1]) !== 0);
+  };
+  const stepCorrect = (index, step) => (
+    step === 'boundary' ? boundaryCorrect(index) : step === 'lineStyle' ? styleCorrect(index) : shadeCorrect(index)
+  );
+  // EVERY PLACE THIS MODE COULD SAY "RIGHT OR WRONG" BEFORE SUBMIT, DECIDED
+  // ONCE: the step chips, the overlap lock, each check's line and the vertex
+  // magnet. Where outcomes are shown a step is done once it was checked and is
+  // right (the status's "verified", which the grader marks practice with);
+  // where they are withheld, once it is finished. The grade itself is the
+  // shared grader's, told by the work below which of the two applies.
+  const buildGate = resolveInequalityBuildGate({
+    showImmediateFeedback,
+    buildConfig,
+    build,
+    constraintCount,
+    rewriteVerified,
+    stepCorrect,
+    stepFinished,
+  });
+  const boundaryVerified = (index) => buildGate.stepDone(index, 'boundary');
+  const styleVerified = (index) => buildGate.stepDone(index, 'lineStyle');
+  const shadeVerified = (index) => buildGate.stepDone(index, 'shading');
+  const allConstraintsComplete = buildGate.allConstraintsDone;
+  // A step chip: ticked green only by a passed check where outcomes are shown;
+  // "done" in a neutral colour once the step is finished where they are not.
+  const stepChip = (done) => (buildGate.verdictsShown
+    ? { color: done ? '#137333' : '#5f6b7a', mark: done ? '✓' : '…' }
+    : { color: done ? '#174ea6' : '#5f6b7a', mark: done ? 'done' : '…' });
+  const completionLine = (report, text) => (report?.kind === 'completion' ? (report.complete ? text.complete : text.incomplete) : null);
 
   const studentBoundaries = build.map((entry, index) => {
     const line = effectiveLines[index];
@@ -683,6 +747,11 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
 
   const onBoundaryIndex = (point) => pointOnBoundaryIndex(workingConstraints, point);
   const membership = (point) => pointMembership(workingConstraints, point);
+  // Which boundary the student's OWN test point sits on, for its boundary
+  // questions: a true one where outcomes are shown, one the student built where
+  // they are withheld (probeFromOwnLines in inequalityBuildPolicy.js).
+  const ownBoundaryIndex = (point) => (point ? effectiveLines.findIndex((line) => Boolean(line) && pointOnBoundaryLine(line, point[0], point[1], 0.12)) : -1);
+  const studentProbeIndex = (point) => (buildGate.probeFromOwnLines ? ownBoundaryIndex(point) : onBoundaryIndex(point));
 
   const armLabel = () => {
     if (!armed) return null;
@@ -705,7 +774,10 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
       const snapTolerance = Math.max(bounds.xMax - bounds.xMin, bounds.yMax - bounds.yMin) * 0.05;
       let best = null;
       let bestDistance = Infinity;
-      [...workingVertices, ...feasibleRegionVertices(studentBoundaries.filter(Boolean))].forEach((v) => {
+      // The true corners are a magnet only where outcomes are shown: landing a
+      // tap exactly on the answer is a verdict. The student's own region's
+      // corners are their work and always snap.
+      [...(buildGate.snapToExpectedVertices ? workingVertices : []), ...feasibleRegionVertices(studentBoundaries.filter(Boolean))].forEach((v) => {
         const distance = Math.hypot(v.x - px, v.y - py);
         if (distance < bestDistance) { bestDistance = distance; best = v; }
       });
@@ -721,9 +793,12 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
     setArmed(null);
   };
 
+  // Where outcomes are withheld a step's Check says only whether the step is
+  // finished, in the same words for right and wrong work.
   const boundaryMessage = (index) => {
     const entry = build[index];
     if (!entry.boundaryAttempts) return null;
+    if (!buildGate.verdictsShown) return completionLine(buildGate.stepReport(index, 'boundary'), INEQUALITY_STEP_COMPLETION_TEXT.boundary);
     if (boundaryCorrect(index)) return 'Correct boundary.';
     return staged(entry.boundaryAttempts,
       'Check whether the points you used satisfy the boundary equation.',
@@ -731,6 +806,7 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
   };
   const styleMessage = (index) => {
     const entry = build[index];
+    if (!buildGate.verdictsShown) return completionLine(buildGate.stepReport(index, 'lineStyle'), INEQUALITY_STEP_COMPLETION_TEXT.lineStyle);
     if (!entry.styleAttempts || !entry.style) return null;
     if (styleCorrect(index)) return 'Correct line style.';
     return staged(entry.styleAttempts,
@@ -739,6 +815,7 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
   };
   const shadeMessage = (index) => {
     const entry = build[index];
+    if (!buildGate.verdictsShown) return completionLine(buildGate.stepReport(index, 'shading'), INEQUALITY_STEP_COMPLETION_TEXT.shading);
     if (!entry.shadeAttempts || !entry.shadePoint) return null;
     if (shadeCorrect(index)) return 'Correct shading.';
     return staged(entry.shadeAttempts,
@@ -748,12 +825,23 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
 
   const [teacherPointFeedback, setTeacherPointFeedback] = useState('');
   const [studentPointFeedback, setStudentPointFeedback] = useState('');
-  const checkPointResponse = (point, response, setFeedbackText) => {
+  // `probeIndex`: the boundary the point's boundary questions were shown for
+  // (the student's own point: studentProbeIndex).
+  const checkPointResponse = (point, response, setFeedbackText, probeIndex = onBoundaryIndex(point)) => {
     if (!point) return;
+    const boundaryIndex = onBoundaryIndex(point);
+    if (!buildGate.verdictsShown) {
+      // Recorded, not judged: every question about the point answered or not —
+      // the boundary questions exactly when they are on screen.
+      const complete = response.perInequality.every((value) => value === 'yes' || value === 'no')
+        && (response.overall === 'yes' || response.overall === 'no')
+        && (!boundaryProbeEnabled || probeIndex < 0 || (Boolean(response.onBoundary) && Boolean(response.boundaryIncluded)));
+      setFeedbackText(completionLine(buildGate.reasoningReport({ pressed: true, complete }), REASONING_COMPLETION_TEXT));
+      return;
+    }
     const expectedMembership = membership(point);
     const perInequalityCorrect = response.perInequality.every((value, index) => explicitBooleanAnswerMatches(value, expectedMembership[index]));
     const overallCorrect = explicitBooleanAnswerMatches(response.overall, expectedMembership.every(Boolean));
-    const boundaryIndex = onBoundaryIndex(point);
     const boundaryProbeCorrect = !boundaryProbeEnabled || boundaryIndex < 0 || (
       (response.onBoundary === 'yes') && explicitBooleanAnswerMatches(response.boundaryIncluded, expectedMembership.every(Boolean))
     );
@@ -769,6 +857,11 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
   const [vertexFeedback, setVertexFeedback] = useState('');
   const checkVertex = (index) => {
     const vertex = vertices[index];
+    if (!buildGate.verdictsShown) {
+      // Not even whether the tap landed on a true corner: that is a verdict.
+      setVertexFeedback(completionLine(buildGate.reasoningReport({ pressed: true, complete: vertex?.includedAnswer === 'yes' || vertex?.includedAnswer === 'no' }), REASONING_COMPLETION_TEXT));
+      return;
+    }
     const expected = vertexIncludedExpected(vertex);
     if (expected == null) { setVertexFeedback('That point does not look like a corner of this system yet. Try tapping exactly where two boundary lines cross.'); return; }
     const correct = explicitBooleanAnswerMatches(vertex.includedAnswer, expected);
@@ -779,7 +872,9 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
 
   // The student's work — every piece of state the final check marks: what
   // Check grades and what a deadline would submit. Answer reasoning about a
-  // point is sent only when that point is in play, as before.
+  // point is sent only when that point is in play, as before. On a DOL, quiz
+  // or test no step Check here was a verdict, so the work says so and the
+  // shared grader marks each constraint from its work as it stands.
   const teacherPointApplicable = Boolean(teacherTestPoint);
   const studentPointApplicable = allowStudentTestPoint && Boolean(studentTestPoint);
   const work = {
@@ -798,6 +893,7 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
     ...(teacherPointApplicable ? { teacherPointResponse } : {}),
     ...(studentPointApplicable ? { studentTestPoint, studentPointResponse } : {}),
     vertices,
+    ...(buildGate.verdictsShown ? {} : { outcomesWithheld: true }),
   };
   useReportToolWork(work);
 
@@ -901,6 +997,7 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
                     <Field label={`Coefficient of ${variables[1].symbol}`}><input type="number" inputMode="decimal" value={entry.coeffB} onChange={(e)=>updateModelingEntry(index,'coeffB',e.target.value)} style={inputStyle}/></Field>
                     <Field label="Relation">
                       <select value={entry.relation} onChange={(e)=>updateModelingEntry(index,'relation',e.target.value)} style={inputStyle}>
+                        <option value={UNANSWERED}>Choose…</option>
                         <option value=">=">≥</option><option value=">">&gt;</option><option value="<=">≤</option><option value="<">&lt;</option>
                       </select>
                     </Field>
@@ -937,10 +1034,10 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
                     </label>
                   </div>
                   <div style={{ display:'flex', gap:10, fontSize:12, fontWeight:800, marginBottom:10 }}>
-                    <span style={{ color: rewriteVerified(index) ? '#137333' : '#5f6b7a' }}>Rewrite {buildConfig.rewrite ? (rewriteVerified(index) ? '✓' : '…') : 'provided'}</span>
-                    <span style={{ color: boundaryVerified(index) ? '#137333' : '#5f6b7a' }}>Boundary {buildConfig.boundary ? (boundaryVerified(index) ? '✓' : '…') : 'provided'}</span>
-                    <span style={{ color: styleVerified(index) ? '#137333' : '#5f6b7a' }}>Line style {buildConfig.lineStyle ? (styleVerified(index) ? '✓' : '…') : 'provided'}</span>
-                    <span style={{ color: shadeVerified(index) ? '#137333' : '#5f6b7a' }}>Region {buildConfig.shading ? (shadeVerified(index) ? '✓' : '…') : 'provided'}</span>
+                    <span style={{ color: stepChip(rewriteVerified(index)).color }}>Rewrite {buildConfig.rewrite ? stepChip(rewriteVerified(index)).mark : 'provided'}</span>
+                    <span data-build-chip="boundary" style={{ color: stepChip(boundaryVerified(index)).color }}>Boundary {buildConfig.boundary ? stepChip(boundaryVerified(index)).mark : 'provided'}</span>
+                    <span data-build-chip="lineStyle" style={{ color: stepChip(styleVerified(index)).color }}>Line style {buildConfig.lineStyle ? stepChip(styleVerified(index)).mark : 'provided'}</span>
+                    <span data-build-chip="shading" style={{ color: stepChip(shadeVerified(index)).color }}>Region {buildConfig.shading ? stepChip(shadeVerified(index)).mark : 'provided'}</span>
                   </div>
                   {activeIndex === index ? (
                     <div style={{ display:'grid', gap:12 }}>
@@ -1005,10 +1102,13 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
                 </div>
               ))}
 
-              <div style={{ padding:12, border:'1px solid #dbe3ef', borderRadius:10, background: allConstraintsComplete ? '#f0fbf4' : '#f3f4f6' }}>
+              <div data-combine-ready={allConstraintsComplete ? 'true' : 'false'} style={{ padding:12, border:'1px solid #dbe3ef', borderRadius:10, background: allConstraintsComplete && buildGate.verdictsShown ? '#f0fbf4' : '#f3f4f6' }}>
                 <strong>Combined solution</strong>
                 <p style={{ margin:'6px 0 10px', fontSize:13, color:'#5f6b7a' }}>
-                  {allConstraintsComplete ? 'Every constraint checks out. Combine them to see your overlap region.' : 'Locked until every constraint above is correct.'}
+                  {buildGate.verdictsShown
+                    ? (allConstraintsComplete ? 'Every constraint checks out. Combine them to see your overlap region.' : 'Locked until every constraint above is correct.')
+                    // Opens on finished work, right or wrong: the lock would be the verdict.
+                    : (allConstraintsComplete ? 'Every constraint is built. Combine them to see your overlap region.' : 'Finish every constraint above first.')}
                 </p>
                 <button type="button" onClick={()=>setCombined(true)} disabled={!allConstraintsComplete} style={{ ...actionStyle, opacity: allConstraintsComplete ? 1 : 0.5 }}>Find overlap / Combine regions</button>
               </div>
@@ -1024,7 +1124,13 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
                     </select>
                   </Field>
                   <button type="button" onClick={()=>setRegionClassificationAttempts((n)=>n+1)} style={{ ...actionStyle, padding:'8px 14px', fontSize:13 }}>Check classification</button>
-                  {regionClassificationAttempts > 0 && regionClassification ? (
+                  {!buildGate.verdictsShown ? (
+                    regionClassificationAttempts > 0 ? (
+                      <p role="status" style={{ margin:'6px 0 0', fontSize:13, color:'#174ea6' }}>
+                        {completionLine(buildGate.reasoningReport({ pressed: true, complete: Boolean(regionClassification) }), REASONING_COMPLETION_TEXT)}
+                      </p>
+                    ) : null
+                  ) : regionClassificationAttempts > 0 && regionClassification ? (
                     <p style={{ margin:'6px 0 0', fontSize:13, color:'#3c4756' }}>
                       {regionClassification === workingClassification
                         ? 'Correct classification.'
@@ -1056,11 +1162,11 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
                       <TestPointReasoning
                         title="Your point" point={studentTestPoint} count={constraintCount}
                         response={studentPointResponse} setResponse={setStudentPointResponse}
-                        onBoundaryIndex={studentTestPoint ? onBoundaryIndex(studentTestPoint) : -1}
+                        onBoundaryIndex={studentTestPoint ? studentProbeIndex(studentTestPoint) : -1}
                         askBoundaryProbe={boundaryProbeEnabled}
                         inequalityLabels={Array.from({ length: constraintCount }, (_, i) => inequalityLabel(i))}
                         feedback={studentPointFeedback}
-                        onCheck={()=>checkPointResponse(studentTestPoint, studentPointResponse, setStudentPointFeedback)}
+                        onCheck={()=>checkPointResponse(studentTestPoint, studentPointResponse, setStudentPointFeedback, studentProbeIndex(studentTestPoint))}
                       />
                     </div>
                   ) : null}
@@ -1177,14 +1283,16 @@ function MatrixMode({ questionData, onAction }) {
     [isMatrix3, matrix],
   );
   const revealAnswers = useRevealAnswers();
-  const [classification, setClassification] = usePersistentToolState('classification', 'one');
+  // Unanswered until the student classifies, as in LinearMode.
+  const [classification, setClassification] = usePersistentToolState('classification', UNANSWERED);
   const [x, setX] = usePersistentToolState('x', '');
   const [y, setY] = usePersistentToolState('y', '');
   const [z, setZ] = usePersistentToolState('z', '');
   const [technologyUsed, setTechnologyUsed] = usePersistentToolState('technologyUsed', false);
   const { feedback, submit } = useToolSubmission(onAction);
   const mathState = useMemo(() => ({ classification, x, y, z, technologyUsed }), [classification, x, y, z, technologyUsed]);
-  const restore = useCallback((value) => { setClassification(value?.classification || 'one'); setX(value?.x || ''); setY(value?.y || ''); setZ(value?.z || ''); setTechnologyUsed(Boolean(value?.technologyUsed)); }, []);
+  const restore = useCallback((value) => { setClassification(value?.classification || UNANSWERED); setX(value?.x || ''); setY(value?.y || ''); setZ(value?.z || ''); setTechnologyUsed(Boolean(value?.technologyUsed)); }, []);
+  const classified = isAnswered(classification);
   const undoHistory = useMathUndoHistory({ label: 'Undo the last matrix-system edit', state: mathState, onRestore: restore, resetKey: questionUndoResetKey(questionData) });
 
   const matrixRows = isMatrix3 ? (matrix3x4Rows(matrix) || []) : [
@@ -1197,7 +1305,10 @@ function MatrixMode({ questionData, onAction }) {
   useReportToolWork(work);
 
   const check = () => {
-    if (isMatrix3 && !technologyUsed) return;
+    // A matrix response with no classification, or (3×3) without the RREF
+    // technology, is not an answer: the shared grader marks it unfinished and
+    // My Math Path's contract refuses it, so neither is sent.
+    if (!classified || (isMatrix3 && !technologyUsed)) return;
     const result = gradeToolCheck(systemsWorkspaceGrader, questionData, work);
     submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode:isMatrix3?'matrix3':'matrix', parts: result.parts });
   };
@@ -1221,7 +1332,7 @@ function MatrixMode({ questionData, onAction }) {
 
   const showRref = isMatrix3 && (technologyUsed || revealAnswers);
 
-  return <EnlargeableFigure label="Matrix system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, equationInput: { label: isMatrix3 ? 'Three equations and RREF' : 'Both equations and augmented matrix' }, numericControls: { label: 'Row reduction and solution controls', studentState: true }, instruction: { text: isMatrix3 ? 'Compute and interpret the RREF.' : 'Classify and solve the augmented system.' }, primaryActions: [{ id: 'check-matrix', label: 'Check matrix solution', onAction: check, disabled: isMatrix3 && !technologyUsed }] }}><ToolSplit>
+  return <EnlargeableFigure label="Matrix system workspace" enlargeLabel="Enlarge system workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, equationInput: { label: isMatrix3 ? 'Three equations and RREF' : 'Both equations and augmented matrix' }, numericControls: { label: 'Row reduction and solution controls', studentState: true }, instruction: { text: isMatrix3 ? 'Compute and interpret the RREF.' : 'Classify and solve the augmented system.' }, primaryActions: [{ id: 'check-matrix', label: 'Check matrix solution', onAction: check, disabled: !classified || (isMatrix3 && !technologyUsed) }] }}><ToolSplit>
     <Panel title={isMatrix3 ? "3×3 augmented matrix" : "Augmented matrix"}>
       <div style={{
         display:'grid',
@@ -1284,6 +1395,7 @@ function MatrixMode({ questionData, onAction }) {
     <Panel title={isMatrix3 ? "Interpret the RREF" : "Row-reduction outcome"}>
       <Field label="How many solutions does this system have?">
         <select value={classification} onChange={(e)=>setClassification(e.target.value)} style={inputStyle}>
+          <option value={UNANSWERED}>Choose…</option>
           <option value="one">Exactly one solution</option>
           <option value="none">No solution</option>
           <option value="infinite">Infinitely many solutions</option>
@@ -1297,11 +1409,12 @@ function MatrixMode({ questionData, onAction }) {
       <button
         type="button"
         onClick={check}
-        disabled={isMatrix3 && !technologyUsed}
-        style={{...actionStyle,opacity:isMatrix3&&!technologyUsed?0.5:1}}
+        disabled={!classified || (isMatrix3 && !technologyUsed)}
+        style={{...actionStyle,opacity:!classified || (isMatrix3&&!technologyUsed)?0.5:1}}
       >
         {isMatrix3 && !technologyUsed ? 'Use RREF technology first' : 'Check matrix solution'}
       </button>
+      {!classified && !(isMatrix3 && !technologyUsed) ? <p style={{margin:'8px 0 0',color:'#5f6368',fontSize:13}}>Choose how many solutions the system has first.</p> : null}
       {feedback?<div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'#3c4756',lineHeight:1.55}}>{message()}</p></div>:null}
       <HintPanel
         hints={isMatrix3 ? [

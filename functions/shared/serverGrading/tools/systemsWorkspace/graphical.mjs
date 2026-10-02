@@ -115,16 +115,14 @@ const matrix = (question, work) => {
   const coordinatesTyped = typed(work.x) && typed(work.y) && (!isMatrix3 || typed(work.z));
   const parts = [
     part('classification', 'Number of solutions', classification === solution.type, classification !== '', SOLUTION_TYPES[classification] || classification),
-    // Kept exactly as the workspace scored it: a 2×2 matrix has no technology
-    // step, so this part is always earned there (see the test file's note).
-    part(
-      'matrix-technology',
-      isMatrix3 ? 'Used the RREF technology' : 'Technology step (not required for 2×2)',
-      !isMatrix3 || technologyUsed,
-      !isMatrix3 || technologyUsed,
-      isMatrix3 ? (technologyUsed ? 'used' : 'not used') : '',
-    ),
   ];
+  // Only the 3×3 task asks for the RREF technology, so only it grades that
+  // step. A 2×2 matrix has no technology step at all: it used to carry an
+  // always-earned "technology" part, which gave a blank or wrong answer 1/3
+  // (or 1/2) of the credit for a step nobody took (see the test file).
+  if (isMatrix3) {
+    parts.push(part('matrix-technology', 'Used the RREF technology', technologyUsed, technologyUsed, technologyUsed ? 'used' : 'not used'));
+  }
   if (solution.type === 'one') {
     parts.push(part(
       'solution',
@@ -248,7 +246,16 @@ const legacyInequalities = (question, work) => {
 //     rewrite?: [{ relation, graphingForm: { A, B, C, relation }|null }],
 //     modelingEntries?: [{ coeffA, coeffB, relation, constant }], modelingSent?,
 //     regionClassification, teacherPointResponse?, studentTestPoint?,
-//     studentPointResponse?, vertices: [{ x, y, includedAnswer }] }
+//     studentPointResponse?, vertices: [{ x, y, includedAnswer }],
+//     outcomesWithheld?: true }
+//
+// Where the activity withholds outcomes until Submit (a DOL, quiz or test) a
+// step's Check says only whether the step is finished, and the overlap opens
+// on finished work (B-24), so a student there need never press one: the work
+// says so (`outcomesWithheld`), and each constraint is graded from its work as
+// it stands. Elsewhere a step counts once it was checked and is right, as the
+// workspace always marked it. The flag never makes wrong work right, and a
+// forged one gains nothing a client could not get by sending attempt counters.
 // ---------------------------------------------------------------------------
 const INEQUALITY_RELATIONS = new Set(['>', '>=', '<', '<=']);
 
@@ -313,13 +320,16 @@ const studentBuildInequalities = (question, work) => {
     bounds,
     rewriteVerified: Boolean(rewriteConstraints[index]),
   }));
+  const outcomesWithheld = work.outcomesWithheld === true;
+  const stepChecked = (attempts) => outcomesWithheld || attempts > 0;
   const constraintComplete = (index) => {
     const row = build[index];
     return (!buildConfig.rewrite || isRecord(rewriteRows[index]?.graphingForm))
-      && (!buildConfig.boundary || (row?.boundaryAttempts > 0 && Boolean(studentBoundaryLineFromEntry(row))))
-      && (!buildConfig.lineStyle || (row?.styleAttempts > 0 && (row.style === 'solid' || row.style === 'dashed')))
-      && (!buildConfig.shading || (row?.shadeAttempts > 0 && Boolean(row.shadePoint)));
+      && (!buildConfig.boundary || (stepChecked(row?.boundaryAttempts) && Boolean(studentBoundaryLineFromEntry(row))))
+      && (!buildConfig.lineStyle || (stepChecked(row?.styleAttempts) && (row?.style === 'solid' || row?.style === 'dashed')))
+      && (!buildConfig.shading || (stepChecked(row?.shadeAttempts) && Boolean(row?.shadePoint)));
   };
+  const constraintGraded = (status) => (outcomesWithheld ? status.constraintCorrect : status.constraintVerified);
 
   // A mathematical model is a SET of constraints, not an ordered answer list:
   // each student row is matched to one still-unmatched expected constraint, so
@@ -383,7 +393,7 @@ const studentBuildInequalities = (question, work) => {
   const boundaryAnswered = answered(teacherResponse.onBoundary) && answered(teacherResponse.boundaryIncluded);
 
   const parts = [
-    ...(hasBuildSteps ? statuses.map((status, index) => part(`constraint-${index + 1}`, `Constraint ${index + 1}: rewrite, boundary, style and shading`, status.constraintVerified, constraintComplete(index))) : []),
+    ...(hasBuildSteps ? statuses.map((status, index) => part(`constraint-${index + 1}`, `Constraint ${index + 1}: rewrite, boundary, style and shading`, constraintGraded(status), constraintComplete(index))) : []),
     ...modelingChecks.map((correct, index) => part(`model-${index + 1}`, `Modeled constraint ${index + 1}`, correct, modelComplete)),
     ...(askClassification ? [part('region-classification', 'Classify the solution region', classificationCorrect, regionClassification !== '', regionClassification)] : []),
     ...(teacherAsked ? [

@@ -14,6 +14,8 @@
  * seeds, and nothing from a secure Test Cycle or a private Path session.
  */
 
+import { mergePracticeTrackers, samePracticeProgress } from './practiceTrackerMerge.mjs';
+
 export const WORKSPACE_DRAFT_SCHEMA_VERSION = 1;
 
 /** One document per student per assignment: one read on open, one write per flush. */
@@ -142,6 +144,28 @@ export const sanitizeWorkspaceDraftValue = (value) => {
   return { ok: true, reason: null, value, json, bytes: json.length };
 };
 
+/*
+ * THE EDIT-TIME MARKER (`savedAtIsEdit`).
+ *
+ * An entry's `savedAt` is what every copy is ordered by. This build stamps it
+ * only when the student edits (PQ-044, questionDraftStorage.js); builds before
+ * it stamped every write, and every question writes its drafts back the moment
+ * it opens — so an entry an older build saved may carry the time a Chromebook
+ * merely OPENED the question, over boxes that were empty there. Nothing in such
+ * an entry tells the two apart, so this build says it: every entry whose time
+ * is a student's edit carries `savedAtIsEdit: true`. Entries without it are
+ * legacy, and a restore lets one replace only a device that has nothing dated
+ * of its own (`selectRestorableDraftEntries`) — what an older build did there.
+ *
+ * The marker travels with its entry: stored, merged and read back with it. An
+ * older build that saves to the same document rewrites the entries with the
+ * fields it knows and so drops every marker; those entries then count as
+ * legacy, as they would have before this build. Firestore's rules check the
+ * document's top-level fields only, and the schema version is unchanged, so
+ * older builds read and write these documents as they always did.
+ */
+const editMarker = (entry) => (entry?.savedAtIsEdit === true ? { savedAtIsEdit: true } : {});
+
 /** Decode what was stored, dropping anything that no longer parses. */
 export const readWorkspaceDraftEntries = (document) => (
   (Array.isArray(document?.entries) ? document.entries : []).flatMap((entry) => {
@@ -150,6 +174,8 @@ export const readWorkspaceDraftEntries = (document) => (
         key: String(entry?.key || ''),
         value: JSON.parse(String(entry?.valueJson ?? 'null')),
         savedAt: Number(entry?.savedAt) || 0,
+        // True only when the saving device said its time is an edit's.
+        savedAtIsEdit: entry?.savedAtIsEdit === true,
         // `Number(null)` is 0, and 0 is a real question index, so a guard that
         // only tests `Number.isInteger` turns a missing index into question
         // zero. Read nulls as nulls.
@@ -204,6 +230,9 @@ const storableEntry = (entry) => {
     savedAt: Math.max(0, Number(entry?.savedAt) || 0),
     questionIndex: Number.isInteger(Number(entry?.questionIndex)) ? Number(entry.questionIndex) : null,
     variantIndex: Number.isInteger(Number(entry?.variantIndex)) ? Number(entry.variantIndex) : null,
+    // Absent rather than false when unmarked: a legacy entry and an unmarked
+    // one are stored alike, because they mean the same thing.
+    ...editMarker(entry),
   };
 };
 
@@ -222,8 +251,10 @@ const normalizeResume = (resume) => (resume
  * Only what THIS device changed. A full-document write was a data-loss bug: a
  * device that restored ten questions and then edited one would send a document
  * containing one entry, and `setDoc` would erase the other nine for every
- * device. `hasResume`/`hasPractice` distinguish "not changed" from "cleared",
- * so an untouched field is never mistaken for a deletion.
+ * device. `hasResume`/`hasPractice` distinguish "not changed" from "sent", so
+ * an untouched field is never mistaken for a deletion. (A resume can be
+ * cleared; practice is merged per question, so a patch can add to it and
+ * never take it away.)
  */
 export const buildWorkspaceDraftPatch = ({
   studentId,
@@ -261,8 +292,11 @@ export const buildWorkspaceDraftPatch = ({
  * A per-device `revision` is deliberately NOT used for this: device A's
  * revision 15 and device B's revision 2 say nothing about which is newer.
  *
- * Resume uses its own `updatedAt` and Practice its own `practiceUpdatedAt` for
- * the same reason.
+ * Each entry keeps its own edit-time marker: the copy that wins brings its
+ * marker, or its lack of one, with it.
+ *
+ * Resume uses its own `updatedAt` for the same reason. Practice is merged per
+ * question instead (see below).
  */
 export const mergeWorkspaceDraftDocument = ({ existing = null, patch } = {}) => {
   if (!patch) return existing;
@@ -295,8 +329,22 @@ export const mergeWorkspaceDraftDocument = ({ existing = null, patch } = {}) => 
     ? patch.resume
     : existingResume;
 
+  /*
+   * POST-DEADLINE PRACTICE, PER QUESTION (practiceTrackerMerge.mjs).
+   *
+   * A device sends its whole tracker. The server keeps, for each question,
+   * the record with more practice progress — the rule the device applies to
+   * the copy it reads back. A tracker with nothing new in it — the fresh
+   * start every device sends as Practice Mode opens, or none at all from an
+   * ordinary assignment — therefore changes nothing, whichever save lands
+   * first. It used to replace the saved practice whole whenever it was the
+   * newer save. `practiceUpdatedAt` is when the progress last changed.
+   */
+  const existingPractice = existing?.practice && typeof existing.practice === 'object' ? existing.practice : null;
   const existingPracticeUpdatedAt = Math.max(0, Number(existing?.practiceUpdatedAt) || 0);
-  const practiceIsNewer = patch.hasPractice && patch.practiceUpdatedAt >= existingPracticeUpdatedAt;
+  const incomingPractice = patch.hasPractice && patch.practice && typeof patch.practice === 'object' ? patch.practice : null;
+  const practice = incomingPractice ? mergePracticeTrackers(existingPractice || {}, incomingPractice) : existingPractice;
+  const practiceChanged = incomingPractice !== null && !samePracticeProgress(existingPractice || {}, practice);
 
   return {
     schemaVersion: WORKSPACE_DRAFT_SCHEMA_VERSION,
@@ -311,8 +359,10 @@ export const mergeWorkspaceDraftDocument = ({ existing = null, patch } = {}) => 
     resume,
     // Post-deadline Practice Mode. A separate structure precisely so it can
     // never be mistaken for, or merged into, the canonical grade.
-    practice: practiceIsNewer ? patch.practice : (existing?.practice ?? null),
-    practiceUpdatedAt: practiceIsNewer ? patch.practiceUpdatedAt : existingPracticeUpdatedAt,
+    practice: practice ?? null,
+    practiceUpdatedAt: practiceChanged
+      ? Math.max(existingPracticeUpdatedAt, Math.max(0, Number(patch.practiceUpdatedAt) || 0))
+      : existingPracticeUpdatedAt,
   };
 };
 
@@ -322,13 +372,23 @@ export const mergeWorkspaceDraftDocument = ({ existing = null, patch } = {}) => 
  * A draft never overwrites newer work. `localSavedAt` is what this device
  * already has; `canonicalSavedAt` is when the question was last actually
  * submitted. Either being newer means the stored draft is history.
+ *
+ * An entry without the edit-time marker (see above) was saved by an older
+ * build, and its time may be when some Chromebook merely opened the question.
+ * It is restored only where this device has nothing dated of its own for that
+ * draft — a fresh device, or one where it was never edited — which is what an
+ * older build did there too. A device that has a copy keeps it, as an older
+ * build's devices did (their own opening re-dated it): that copy may be the
+ * student's own work, and the legacy entry an empty question opened elsewhere.
  */
 export const selectRestorableDraftEntries = ({ entries = [], localSavedAt = () => 0, canonicalSavedAt = () => 0 } = {}) => (
   (Array.isArray(entries) ? entries : []).filter((entry) => {
     const savedAt = Number(entry?.savedAt) || 0;
     if (!savedAt) return false;
-    if (savedAt <= (Number(localSavedAt(entry.key)) || 0)) return false;
+    const local = Number(localSavedAt(entry.key)) || 0;
+    if (savedAt <= local) return false;
     if (savedAt <= (Number(canonicalSavedAt(entry)) || 0)) return false;
+    if (entry?.savedAtIsEdit !== true && local > 0) return false;
     return true;
   })
 );

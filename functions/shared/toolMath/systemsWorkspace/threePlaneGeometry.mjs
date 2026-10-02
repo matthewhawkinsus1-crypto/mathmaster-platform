@@ -9,6 +9,13 @@
  *
  * This module is pure math: it knows nothing about React, drag handling, or
  * persistence.
+ *
+ * No grader reads it. It sits in functions/shared because every pure tool
+ * module moved here (src/tools/systemsWorkspace/threePlaneGeometry.js is its
+ * `export *` shim), and the idle-orbit timing below stays beside
+ * advanceIdleCamera because both clamp a frame by the same
+ * IDLE_ORBIT_MAX_FRAME_MS: the budget has to measure exactly the turn the
+ * camera made.
  */
 
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -122,6 +129,9 @@ export const projectPolygon = (points3D, camera) => {
   return { points: projected.map(({ screenX, screenY }) => [screenX, screenY]), depth };
 };
 
+/** The longest single step the idle orbit takes, however long the gap since the last frame. */
+export const IDLE_ORBIT_MAX_FRAME_MS = 80;
+
 /**
  * Advance the camera during the pre-interaction idle orbit.
  *
@@ -133,12 +143,89 @@ export const advanceIdleCamera = (camera, elapsedMs, speedRadiansPerSecond = 0.2
   const safeCamera = camera && Number.isFinite(camera.azimuth) && Number.isFinite(camera.elevation)
     ? camera
     : { azimuth: 0, elevation: 0.5 };
-  const deltaMs = Math.max(0, Math.min(80, Number(elapsedMs) || 0));
+  const deltaMs = Math.max(0, Math.min(IDLE_ORBIT_MAX_FRAME_MS, Number(elapsedMs) || 0));
   const speed = Number.isFinite(speedRadiansPerSecond) ? speedRadiansPerSecond : 0.22;
   return {
     azimuth: safeCamera.azimuth + (deltaMs / 1000) * speed,
     elevation: safeCamera.elevation,
   };
+};
+
+/*
+ * HOW LONG THE IDLE ORBIT RUNS, AND WHEN IT WAITS (deep dive 2026-10-01, §10.6).
+ *
+ * The orbit exists so the flat SVG reads as a 3D object the moment it appears.
+ * It used to run from mount until the student's first touch — which may never
+ * come — re-rendering the whole model about sixty times a second for the rest
+ * of the class period, including while it was scrolled off-screen. On a school
+ * Chromebook that is a core kept busy all day for a cue that has done its job
+ * in the first few seconds.
+ *
+ * TEN SECONDS OF ORBIT, THEN IT STOPS WHERE IT IS. Depth from rotation is
+ * seen within the first second or two of motion; the rest of the ten seconds
+ * is for a student whose eyes reach the model late, because the layout puts
+ * the three equations first and a student reads them before looking across.
+ * At the orbit's 0.22 rad/s, ten seconds is 2.2 rad (about 126°) — more than
+ * a quarter turn, so each plane is seen from clearly different sides. It costs
+ * about 600 renders per model instead of about 216,000 an hour, and the model
+ * is still by the time the student is working the questions beneath it, with
+ * nothing moving at the edge of their eye. The camera is left where it ends —
+ * snapping back would be a jump nobody asked for — and "Reset view" returns to
+ * the opening angle.
+ *
+ * ONLY ORBIT SOMEONE COULD SEE IS SPENT. While the model is off-screen or the
+ * tab is hidden the orbit waits, unspent, and a model first scrolled into view
+ * minutes later still gets all ten seconds. A long gap between frames counts
+ * as one clamped step, the same IDLE_ORBIT_MAX_FRAME_MS advanceIdleCamera
+ * allows, so the budget measures exactly the turn the camera made.
+ */
+export const IDLE_ORBIT_BUDGET_MS = 10_000;
+
+/**
+ * Whether the idle orbit should be animating right now.
+ *
+ *   'off'      the student has taken control, or prefers reduced motion —
+ *              these decide first, exactly as before the budget existed
+ *   'finished' the budget is spent; the camera stays where the orbit left it
+ *   'paused'   the model is off-screen or the page hidden; nothing is spent
+ *   'running'  animate
+ */
+export const idleOrbitPhase = ({
+  hasInteracted = false,
+  reduceMotion = false,
+  budgetSpent = false,
+  onScreen = true,
+  pageHidden = false,
+} = {}) => {
+  if (hasInteracted || reduceMotion) return 'off';
+  if (budgetSpent) return 'finished';
+  if (!onScreen || pageHidden) return 'paused';
+  return 'running';
+};
+
+/**
+ * Whether the orbit is still to come: under way, or waiting to be seen. Only
+ * then may the model say it is auto-rotating — a paused orbit resumes the
+ * moment anyone can see the model, but a finished or switched-off one never
+ * turns again.
+ */
+export const idleOrbitPending = (phase) => phase === 'running' || phase === 'paused';
+
+/**
+ * Spend one animation frame of the orbit budget.
+ *
+ * `spentMs` is the orbit already shown and `elapsedMs` the time since the
+ * previous frame. Returns `{ stepMs, spentMs, budgetSpent }`: `stepMs` is how
+ * far to turn the camera (pass it to advanceIdleCamera) — clamped like a frame
+ * there, and never past what is left of the budget, so the final frame turns
+ * only the remainder and the orbit ends exactly on budget.
+ */
+export const spendIdleOrbitFrame = (spentMs, elapsedMs, budgetMs = IDLE_ORBIT_BUDGET_MS) => {
+  const budget = Number.isFinite(Number(budgetMs)) && Number(budgetMs) >= 0 ? Number(budgetMs) : IDLE_ORBIT_BUDGET_MS;
+  const spent = Math.min(budget, Math.max(0, Number(spentMs) || 0));
+  const frame = Math.max(0, Math.min(IDLE_ORBIT_MAX_FRAME_MS, Number(elapsedMs) || 0));
+  const stepMs = Math.min(frame, budget - spent);
+  return { stepMs, spentMs: spent + stepMs, budgetSpent: spent + stepMs >= budget };
 };
 
 /** `[a, b, c, d]` for `a·x + b·y + c·z = d`, from a `linearEquationForm` result and an [x,y,z]-ordered variable list. */

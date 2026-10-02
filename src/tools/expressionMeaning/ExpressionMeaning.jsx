@@ -5,7 +5,7 @@ import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
-import { choiceBankFor, EXPRESSION_MEANING_DIMENSIONS, nextIncompleteExpressionId } from './expressionMeaningMath.js';
+import { choiceBankFor, EXPRESSION_MEANING_DIMENSIONS, firstIncompleteExpressionId, nextIncompleteExpressionId } from './expressionMeaningMath.js';
 import expressionMeaningGrader, {
   expressionMeaningDimensionChecks,
   expressionMeaningWork,
@@ -19,8 +19,12 @@ export default function ExpressionMeaning({ questionData = {}, onAction }) {
   const expressions = useMemo(() => (Array.isArray(questionData.expressions) ? questionData.expressions : []), [questionData.expressions]);
   const [assignments, setAssignments] = usePersistentToolState('assignments', {});
   // Which expression's meaning row is currently open for editing. Selection,
-  // not an answer, so it stays out of the draft/undo history.
-  const [activeId, setActiveId] = useState(expressions[0]?.id || null);
+  // not an answer, so it stays out of the draft/undo history — but it opens
+  // where the restored answers say the student was: the first row still
+  // missing a choice, not row 1 (PQ-028).
+  const [activeId, setActiveId] = useState(() => (
+    firstIncompleteExpressionId(expressions, assignments) || expressions[0]?.id || null
+  ));
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
 
   const mathematicalState = useMemo(() => ({ assignments }), [assignments]);

@@ -862,7 +862,7 @@ test('each graph stage is a workspace in the view WorkflowRunner mounts: points-
   // WorkflowRunner mounts every graph stage with mode="construct" (never the
   // analysis view), and the workspace picks points-only from the sub-question.
   const runner = executableSource(read('src/platform/workflow/WorkflowRunner.jsx'));
-  const delegates = region(runner, '  coordinatePlot: ({ graphStage, onChange, draftKey }) => {', '  algebraWorkspace:', 'graph delegates');
+  const delegates = region(runner, '  coordinatePlot: ({ graphStage, onChange, draftKey, revealCorrectness = true }) => {', '  algebraWorkspace:', 'graph delegates');
   assert.equal((delegates.match(/<InteractiveGraphWorkspace\s+question=\{graphStage\.question\}\s+mode="construct"/g) || []).length, 2);
 
   const modeOf = (question, stageId, responses) => {
@@ -1275,10 +1275,12 @@ test('relationRepresentations marks a plot by the rebuilt graph (fix: its { pair
   // so on the merge-base device a correct plot was always marked wrong and the
   // question could never be fully correct. The recipe now marks the stage by
   // the rebuilt workspace verdict, whose point tasks are exactly those pairs.
-  // The old rule, authored explicitly, still shows what it did: a correct plot
-  // is marked wrong.
+  // The old rule, authored explicitly, no longer marks a correct plot wrong
+  // either: a `{ pairs }` key on a graph stage reads the stage's re-marked
+  // verdict (workflowGrading.mjs gradePlottedPairs), never the stage as a
+  // list of arrows.
   const oldRule = { ...RELATION_PLOT, grading: { plot: { pairs: RELATION_PLOT.pairs } } };
-  assert.equal(verdicts(assertParity(oldRule, rightPlay(oldRule), 'relation plot, old rule').server).plot, false);
+  assert.equal(verdicts(assertParity(oldRule, rightPlay(oldRule), 'relation plot, old rule').server).plot, true);
   const { server } = assertParity(RELATION_PLOT, rightPlay(RELATION_PLOT), 'relation plot');
   assert.deepEqual(verdicts(server), { mapping: true, plot: true, domain: true, range: true, isFunction: true });
   assert.equal(server.isCorrect, true);
@@ -1463,7 +1465,7 @@ test('WorkflowRunner builds its graph stages from the work the server reads, wit
   assert.match(render, /const graphStage = graphStages\.get\(stage\.id\) \|\| null;/);
   assert.match(region(render, '<StageBody', '/>', 'StageBody props'), /graphStage=\{graphStage\}/);
   assert.match(region(runner, 'function StageBody(', 'switch (stage.kind)', 'StageBody'), /delegate\(\{[^}]*\bgraphStage\b[^}]*\}\)/);
-  const delegates = region(runner, '  coordinatePlot: ({ graphStage, onChange, draftKey }) => {', '  algebraWorkspace:', 'graph delegates');
+  const delegates = region(runner, '  coordinatePlot: ({ graphStage, onChange, draftKey, revealCorrectness = true }) => {', '  algebraWorkspace:', 'graph delegates');
   assert.doesNotMatch(delegates, /expandGraphWindowToPoints|buildExpressionFunctionSpec|pointTasks|functionSpec:/, 'no second sub-question builder');
   // The responses the delegates record are the workspace's work.
   const readers = region(runner, 'const readDelegateResponse = {', '};', 'readDelegateResponse');
@@ -1472,11 +1474,12 @@ test('WorkflowRunner builds its graph stages from the work the server reads, wit
   assert.match(region(runner, 'const tableArtifact = (payload', '});', 'tableArtifact'), /workflowTableArtifact\(\{/);
   // An old draft is upgraded in place.
   const upgrade = region(runner, 'useEffect(() => {\n    if (upgradeLegacyGraphResponses(responses) === responses) return;', '}, [responses, setResponses]);', 'legacy upgrade');
-  assert.match(upgrade, /setResponses\(\(current\) => upgradeLegacyGraphResponses\(current\)\);/);
+  // (The same work in a new shape is not an edit: the draft keeps its time.)
+  assert.match(upgrade, /setResponses\(\(current\) => upgradeLegacyGraphResponses\(current\), \{ edit: false \}\);/);
   // The answer state marks the upgraded work.
   const answerState = executableSource(read('src/platform/workflow/workflowAnswerState.js'));
-  assert.match(answerState, /const workflowWork = \(responses\) => composedWorkflowWork\(upgradeLegacyGraphResponses\(responses\)\);/);
-  assert.match(answerState, /gradeComposedWorkflowCheck\(question, workflowWork\(responses\)\)/);
+  assert.match(answerState, /const workflowWork = \(responses, options\) => composedWorkflowWork\(upgradeLegacyGraphResponses\(responses\), options\);/);
+  assert.match(answerState, /gradeComposedWorkflowCheck\(question, workflowWork\(responses, \{ outcomesWithheld \}\)\)/);
 });
 
 test('the composed grader marks graph stages with the shared graph-workspace grader, never a claim', () => {
@@ -1486,7 +1489,7 @@ test('the composed grader marks graph stages with the shared graph-workspace gra
   assert.match(verdict, /gradeWorkWithGrader\(\{ grader: graphWorkspaceGrader, question: resolution\.question, work \}\)/);
   assert.doesNotMatch(verdict, /response\.isCorrect|response\.isComplete|partialCreditPercent/);
   const marking = region(grader, 'export const gradeComposedWorkflowWork', '\n};', 'composed marking');
-  assert.match(marking, /responses: withGraphStageVerdicts\(\{ composed, responses \}\)/);
+  assert.match(marking, /responses: withGraphStageVerdicts\(\{ composed, responses, outcomesWithheld: work\.outcomesWithheld === true \}\)/);
 });
 
 /* ======================================================================== *

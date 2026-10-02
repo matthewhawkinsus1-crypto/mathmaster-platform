@@ -110,6 +110,25 @@ export const warmupWasActiveAtCapture = (timedSectionAccess, capturedAt) => {
   return !Number.isFinite(endsAt) || finite(capturedAt, Date.now()) <= endsAt;
 };
 
+/*
+ * THE ACTIVITY A SUBMISSION IS JUDGED UNDER IS ITS QUESTION'S.
+ *
+ * The role decides the attempt limit, the section window, the DOL bucket and
+ * the evidence event. The device names it, and can leave it out (a row queued
+ * by an older build, or a forged envelope); an envelope with no role used to
+ * be judged as Classwork: three attempts at a DOL, quiz or test question, and
+ * no section window. The stored question is authoritative wherever it carries
+ * a role, so that role fills a missing one. An envelope that names a DIFFERENT
+ * role is not corrected here: envelopeMatchesQuestion holds it for a teacher.
+ * Only a question with no role, from an assignment that predates roles, is
+ * judged by what the device said.
+ */
+export const withAuthoritativeActivityRole = ({ envelope, question = null } = {}) => {
+  const authoritative = trimmed(question?.activityRole).toLowerCase();
+  if (!envelope || envelope.activityRole || !authoritative) return envelope;
+  return { ...envelope, activityRole: authoritative };
+};
+
 /**
  * Does this envelope describe the question the server is holding?
  *
@@ -168,7 +187,7 @@ export const resolveAcademicOccurrenceAt = ({ envelope, assignment = null, inges
  * has already read. Reads nothing, writes nothing, trusts no verdict.
  */
 export const decideSubmissionIngestion = ({
-  envelope,
+  envelope: claimedEnvelope,
   assignmentExists,
   gradeRecordExists,
   authorizedForClass,
@@ -179,6 +198,7 @@ export const decideSubmissionIngestion = ({
   deliveryAttempts = 0,
   now = Date.now(),
 } = {}) => {
+  const envelope = withAuthoritativeActivityRole({ envelope: claimedEnvelope, question });
   if (!envelope) return { disposition: SUBMISSION_DISPOSITION.PERMANENTLY_INVALID, reason: 'unreadable-envelope' };
 
   const canonical = normalizeQuestionRecord(canonicalRecord);
@@ -393,7 +413,7 @@ export const serverCanRegradeEnvelope = ({ envelope, question }) => {
  * a manual Submit and the deadline finalizer already use.
  */
 export const buildIngestedAttempt = ({
-  envelope,
+  envelope: claimedEnvelope,
   assignment,
   question,
   canonicalRecord,
@@ -416,6 +436,7 @@ export const buildIngestedAttempt = ({
   // retires the legacy step path below. Off unless the setting says so.
   requireStepWork = false,
 } = {}) => {
+  const envelope = withAuthoritativeActivityRole({ envelope: claimedEnvelope, question });
   const canonical = stripNonCanonicalInspectionFields(normalizeQuestionRecord(canonicalRecord));
   const academicAt = occurredAt === null || occurredAt === undefined
     ? resolveAcademicOccurrenceAt({ envelope, assignment, ingestedAt })

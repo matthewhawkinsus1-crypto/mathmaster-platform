@@ -11,6 +11,7 @@ import { TOOL_RESPONSE_LIMITS, boundToolWork, canonicalToolWorkJson } from '../.
 import { evaluatePolynomial, matchesNumericAnswer, nearlyEqual, parseNumericAnswer } from '../../functions/shared/toolMath/shared/toolMath.mjs';
 import {
   POLYNOMIAL_WORKSHOP_DEFAULTS,
+  POLYNOMIAL_WORKSHOP_PRESELECTED_SELECTIONS,
   POLYNOMIAL_WORKSHOP_STARTING_SELECTIONS,
   coefficientsFromRoots,
   endBehavior,
@@ -23,6 +24,7 @@ import {
   sameNumberMultiset,
 } from '../../functions/shared/toolMath/polynomialWorkshop/polynomialMath.mjs';
 import { gradeToolCheck } from '../../src/tools/shared/sharedToolGrading.js';
+import { UNANSWERED } from '../../functions/shared/toolMath/shared/judgmentChoices.mjs';
 import { executableSource, region } from '../platform/helpers/sourceContract.mjs';
 
 /*
@@ -128,7 +130,7 @@ test('every view grades its Check through the shared grader and reports the same
   assert.match(code, /import \{ gradeToolCheck \} from '\.\.\/shared\/sharedToolGrading\.js';/);
   assert.match(code, /import useReportToolWork from '\.\.\/shared\/useReportToolWork\.js';/);
   for (const [mode, name] of Object.entries(VIEWS)) {
-    const body = region(code, `function ${name}(`, '\nfunction ', name);
+    const body = region(code, `function ${name}(`, '\n}', name);
     const check = region(body, 'const check=()=>{', '\n  };', `${name} check`);
     assert.match(body, /const work=\{[^}]+\};/, `${name} builds work at render scope`);
     assert.match(body, /useReportToolWork\(work\);/, `${name} reports live work`);
@@ -148,14 +150,14 @@ test('the views draw their unauthored problem from the same defaults table the g
     GraphConnection: ['roots', 'leadingCoefficient'],
     RationalFeatures: ['numeratorRoots', 'denominatorRoots'],
   })) {
-    const body = region(code, `function ${name}(`, '\nfunction ', name);
+    const body = region(code, `function ${name}(`, '\n}', name);
     const mode = Object.entries(VIEWS).find(([, view]) => view === name)[0];
     for (const field of fields) {
       assert.match(body, new RegExp(`questionData\\.${field} (\\|\\||\\?\\?) DEFAULTS\\.${mode}\\.${field}`), `${name} reads ${field} with the shared default`);
     }
   }
   assert.match(region(code, 'function GraphConnection(', '\nfunction ', 'GraphConnection'), /graphConnectionTargetEntry\(roots, questionData\.targetRoot\)/);
-  assert.match(region(code, 'function RationalFeatures(', '\nfunction ', 'RationalFeatures'), /rationalFeatureTargetValue\(features, questionData\.targetValue\)/);
+  assert.match(region(code, 'function RationalFeatures(', '\n}', 'RationalFeatures'), /rationalFeatureTargetValue\(features, questionData\.targetValue\)/);
 });
 
 test('the inline verdict code is gone from the component', () => {
@@ -240,9 +242,17 @@ test('the shared defaults table holds exactly the problems the old views drew', 
   assert.ok(Object.isFrozen(POLYNOMIAL_WORKSHOP_DEFAULTS.graphConnection.roots[0]), 'a view cannot mutate the shared default');
 });
 
-test('the selects start where they always started, from the table the grader reads', () => {
-  // The old views' literal usePersistentToolState defaults.
+test('every select starts unanswered, as the table the grader reads says', () => {
+  // Each one is a judgment the student is asked to make, so it opens on
+  // "Choose…" ('' — judgmentChoices.mjs), not on one of its own options.
   assert.deepEqual(JSON.parse(JSON.stringify(POLYNOMIAL_WORKSHOP_STARTING_SELECTIONS)), {
+    factorZero: { factorChoice: UNANSWERED },
+    graphConnection: { behavior: UNANSWERED, end: UNANSWERED },
+    rationalFeatures: { choice: UNANSWERED },
+  });
+  // What the old views pre-selected (their literal usePersistentToolState
+  // defaults): the grader still reads work holding them as untouched.
+  assert.deepEqual(JSON.parse(JSON.stringify(POLYNOMIAL_WORKSHOP_PRESELECTED_SELECTIONS)), {
     factorZero: { factorChoice: 'yes' },
     graphConnection: { behavior: 'crosses', end: 'both ends rise' },
     rationalFeatures: { choice: 'hole' },
@@ -253,9 +263,44 @@ test('the selects start where they always started, from the table the grader rea
     ['GraphConnection', 'graphConnection', 'end'],
     ['RationalFeatures', 'rationalFeatures', 'choice'],
   ]) {
-    const body = region(code, `function ${name}(`, '\nfunction ', name);
-    assert.match(body, new RegExp(`usePersistentToolState\\('${field}', STARTING\\.${mode}\\.${field}\\)`), `${name} starts its ${field} select from the shared table`);
+    const body = region(code, `function ${name}(`, '\n}', name);
+    assert.equal(POLYNOMIAL_WORKSHOP_STARTING_SELECTIONS[mode][field], UNANSWERED);
+    assert.match(body, new RegExp(`usePersistentToolState\\('${field}', UNANSWERED\\)`), `${name} starts its ${field} select unanswered, as the shared table says`);
+    // …and offers that unanswered state as the select's first, visible option.
+    const start = body.indexOf(`value={${field}}`);
+    assert.notEqual(start, -1, `${name} renders its ${field} select`);
+    const options = body.slice(body.indexOf('<option', start), body.indexOf('</select>', start));
+    assert.match(options, /^<option value=\{UNANSWERED\}>Choose…<\/option>/, `${name}'s ${field} select opens on "Choose…"`);
   }
+});
+
+/*
+ * AN UNANSWERED SELECT IS NO ANSWER — IN PARTICULAR, A BLANK FACTOR IS NOT "NO".
+ *
+ * The old Check read `(factorChoice === 'yes') === isFactor`, so a blank
+ * answer was right whenever (x − r) is not a factor. The shared grader reads
+ * only one of a select's options as an answer; "Choose…" is none of them.
+ */
+test('an unanswered select is neither complete nor correct, on either path', () => {
+  // x² − 5x + 6 at r = 3 is 0, and at r = 4 it is 2: not a factor, so "no" is right.
+  const notFactor = q({ mode: 'factorZero', candidateRoot: 4 });
+  assert.equal(grade(notFactor, { value: '2', factorChoice: 'no' }).isCorrect, true);
+  const blankFactor = grade(notFactor, { value: '2', factorChoice: UNANSWERED });
+  assert.equal(blankFactor.isCorrect, false, 'a blank is not "no"');
+  assert.equal(blankFactor.isComplete, false);
+  assert.deepEqual(failedIds(blankFactor), ['factor']);
+  assert.equal(blankFactor.score, 0.5);
+
+  const defaults = q({ mode: 'graphConnection' });
+  const opened = grade(defaults, POLYNOMIAL_WORKSHOP_STARTING_SELECTIONS.graphConnection);
+  assert.deepEqual({ isCorrect: opened.isCorrect, isComplete: opened.isComplete, score: opened.score }, { isCorrect: false, isComplete: false, score: 0 });
+  const half = grade(defaults, { behavior: 'touches', end: UNANSWERED });
+  assert.deepEqual({ isComplete: half.isComplete, score: half.score }, { isComplete: false, score: 0.5 });
+
+  // At x = 2 the answer is a hole — the old pre-selection — but unanswered is not it.
+  const hole = q({ mode: 'rationalFeatures', targetValue: 2 });
+  const noFeature = grade(hole, POLYNOMIAL_WORKSHOP_STARTING_SELECTIONS.rationalFeatures);
+  assert.deepEqual({ isCorrect: noFeature.isCorrect, isComplete: noFeature.isComplete, score: noFeature.score }, { isCorrect: false, isComplete: false, score: 0 });
 });
 
 /* ------------------------------------------------------------------ */

@@ -36,6 +36,7 @@ import {
   resetDeviceIdentityCacheForTests,
   resolveDeviceId,
 } from '../../src/platform/persistence/deviceIdentity.js';
+import { reportDeviceQueueUnlessUnchanged } from '../../src/platform/persistence/deviceReportDedupe.js';
 
 /*
  * Every file the browser ships, read once. Used to check a claim about the
@@ -182,7 +183,7 @@ test('grade delivery has one canonical writer and hydration reports before and a
   assert.match(cycle, /reconcileWithDeviceReports\(\{[\s\S]*report: reportStudentOutbox[\s\S]*drain: \(\) => drainStudentOutbox\(options\)/);
   assert.doesNotMatch(executableSource(cycle), /await\s+reportStudentOutbox\(/);
   assert.match(app, /import \{[\s\S]*reconcileWithDeviceReports[\s\S]*\} from '\.\/platform\/persistence\/deviceReportCoordinator\.js'/);
-  const passback = region(functionsSource, 'exports.syncGradeToClassroom', 'exports.getClassroomSyncHealth', 'Classroom passback');
+  const passback = region(functionsSource, 'exports.syncGradeToClassroom', 'exports.queueReleasedAssessmentGrades', 'Classroom passback');
   assert.match(passback, /!isTestCycleAssignment && isFinal/);
   assert.match(passback, /status: "sync-pending"[\s\S]*isFinal: false/);
   assert.match(passback, /if \(persistenceState\.persistencePending\)[\s\S]*continue;/);
@@ -958,14 +959,44 @@ test('a device that loses durable storage can still outrank what the server alre
   resetDeviceIdentityCacheForTests();
 });
 
+/*
+ * The behaviour, not the call's spelling. This used to pin
+ * `nextDeviceReportGeneration()` inside `reportDeviceQueueState`; the
+ * allocation moved into deviceReportDedupe.js, which has to decide whether a
+ * report is sent at all BEFORE it spends a generation. What has to hold is
+ * unchanged: every report that goes out carries this device's durable id and a
+ * generation from its durable counter, taken from ONE allocation so the two
+ * can never be paired wrongly, and both reach the callable.
+ */
 test('the reporting callable sends the device id and the generation together', async () => {
   const service = await readFile(
     new URL('../../src/services/submissionIngestionService.js', import.meta.url),
     'utf8',
   );
   const report = region(service, 'export const reportDeviceQueueState', 'ASK THE SERVER TO RE-DERIVE', 'device report');
-  assert.match(report, /nextDeviceReportGeneration\(\)/);
-  assert.match(report, /deviceId,[\s\S]*reportGeneration: generation,/);
+  // The service supplies the wire, and the wire carries both values it is handed.
+  assert.match(report, /return reportDeviceQueueUnlessUnchanged\(\{/);
+  assert.match(
+    report,
+    /transport: async \(\{ deviceId, generation, summary: payload \}\)[\s\S]*httpsCallable\(functions, 'reportStudentDeviceQueue'\)\(\{\s*deviceId,\s*reportGeneration: generation,\s*summary: payload,/,
+  );
   // The old per-call fallback is gone from the service entirely.
   assert.doesNotMatch(executableSource(service), /dev_session_/);
+
+  // And what it is handed is one durable allocation, report after report.
+  resetDeviceIdentityCacheForTests();
+  const storage = createMemoryOutboxStorage();
+  const sent = [];
+  const transport = async (wire) => { sent.push(wire); return { success: true, applied: false, ignored: true }; };
+  await reportDeviceQueueUnlessUnchanged({ storage, studentId: 'student-a', transport });
+  const afterFirst = await storage.readDeviceIdentity();
+  await reportDeviceQueueUnlessUnchanged({ storage, studentId: 'student-a', transport });
+  const afterSecond = await storage.readDeviceIdentity();
+  assert.equal(sent.length, 2, 'a report the server did not apply is never treated as delivered');
+  assert.equal(sent[0].deviceId, await resolveDeviceId({ storage }));
+  assert.equal(sent[1].deviceId, sent[0].deviceId);
+  assert.equal(sent[0].generation, afterFirst.reportGeneration, 'the generation is the durable counter, not a fresh number');
+  assert.equal(sent[1].generation, afterSecond.reportGeneration);
+  assert.ok(sent[1].generation > sent[0].generation);
+  resetDeviceIdentityCacheForTests();
 });

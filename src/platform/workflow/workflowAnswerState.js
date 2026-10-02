@@ -37,7 +37,7 @@ import { answerStateFromSharedGrading } from '../grading/sharedAnswerState.js';
 import { describeWorkflowResponses, gradeWorkflow } from './workflowGrading.js';
 
 /** The stage responses as student work: what the attempt carries. */
-const workflowWork = (responses) => composedWorkflowWork(upgradeLegacyGraphResponses(responses));
+const workflowWork = (responses, options) => composedWorkflowWork(upgradeLegacyGraphResponses(responses), options);
 
 /**
  * The stage responses exactly as the server will read them — bounded,
@@ -69,8 +69,8 @@ export const workflowStageWorkResponses = (responses, { serverGraded = true } = 
 // `sharedGradingWithheld` is set.
 const DEVICE_MARKED_REASONS = new Set(['oversize-response', 'unsafe-expression']);
 
-export const buildWorkflowAnswerState = ({ question, stages = [], responses = {}, grading = null } = {}) => {
-  const check = gradeComposedWorkflowCheck(question, workflowWork(responses));
+export const buildWorkflowAnswerState = ({ question, stages = [], responses = {}, grading = null, outcomesWithheld = false } = {}) => {
+  const check = gradeComposedWorkflowCheck(question, workflowWork(responses, { outcomesWithheld }));
   if (check.supported && !DEVICE_MARKED_REASONS.has(check.reason)) {
     const state = answerStateFromSharedGrading(check, {
       questionDetails: describeWorkflowResponses(stages, responses),

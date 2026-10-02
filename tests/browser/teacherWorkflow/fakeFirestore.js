@@ -6,7 +6,20 @@
  * runs exactly as in the product while nothing leaves the browser. The store
  * persists to localStorage so a reload keeps state; `?reset=1` reseeds.
  *
- * Implements only the Firestore surface the app imports.
+ * Implements only the Firestore surface the app imports
+ * (tests/platform/teacherHarnessFakes.test.mjs fails if the app imports
+ * anything more). The app calls no startAfter, documentId or collectionGroup;
+ * those run only in Cloud Functions, whose callables the harness answers in
+ * fakeFunctions.js.
+ *
+ * LISTENERS ARE NOTIFIED AS FIRESTORE NOTIFIES THEM: only when a write changes
+ * what their own document or query returns — a document added to or removed
+ * from the result, a result document's content changed, or the order moved. A
+ * write elsewhere, or one that rewrites identical content, notifies no one.
+ * Queries honour their constraints the way Firestore does, including that
+ * orderBy and != / not-in leave out documents without the field.
+ * `?notify=every-write` restores the old stress mode (every listener re-emits
+ * on any write), which the endurance journey uses on purpose.
  */
 import { buildTeacherWorkflowFixture } from './fixture.js';
 
@@ -76,25 +89,48 @@ const revive = (value) => {
 };
 
 const store = new Map();
+// Every document's content fingerprint, and a version that moves only when
+// that content changes (or the document is deleted): what a listener compares
+// to know whether a write changed what it returns.
+const fingerprints = new Map();
+const versions = new Map();
+const put = (path, data) => {
+  store.set(path, data);
+  const fingerprint = JSON.stringify(serialize(data));
+  if (fingerprints.get(path) === fingerprint) return;
+  fingerprints.set(path, fingerprint);
+  versions.set(path, (versions.get(path) || 0) + 1);
+};
+const remove = (path) => {
+  if (!store.has(path)) return;
+  store.delete(path);
+  fingerprints.delete(path);
+  versions.set(path, (versions.get(path) || 0) + 1);
+};
+const versionOf = (path) => versions.get(path) || 0;
+
 const listeners = new Set();
 // What the app asked of "Firestore", for the endurance journeys and the
 // identity performance probe: document reads by path (getDoc and transaction
 // reads), one-shot queries by collection path (getDocs), listeners opened by
-// path, how many are open right now (and on which path), every document handed
-// to the app (docsDelivered, by onSnapshot emissions and getDocs results), and
-// the callables the app invoked with the byte size of each one's latest
-// response (fakeFunctions.js reports them here, so one stats() call covers the
-// whole fake backend).
+// path, how many are open right now (and on which path), snapshots delivered
+// to listeners by path (notifications), every document handed to the app
+// (docsDelivered, by onSnapshot emissions and getDocs results), and the
+// callables the app invoked with the byte size of each one's latest response
+// (fakeFunctions.js reports them here, so one stats() call covers the whole
+// fake backend).
 const stats = {
   reads: new Map(),
   queries: new Map(),
   subscriptions: new Map(),
+  notifications: new Map(),
   docsDelivered: new Map(),
   callables: new Map(),
   callableBytes: new Map(),
 };
 const bump = (map, key, by = 1) => map.set(key, (map.get(key) || 0) + by);
 const targetPath = (target) => (target?.type === 'query' ? target.collectionPath : target?.path) || '';
+const notifyEveryWrite = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('notify') === 'every-write';
 /** fakeFunctions.js: one callable invocation, and the JSON size of its latest response. */
 export const recordHarnessCallable = (name, responseBytes = null) => {
   bump(stats.callables, name);
@@ -108,16 +144,20 @@ const loadOrSeed = () => {
   const params = new URLSearchParams(window.location.search);
   const saved = params.get('reset') ? null : localStorage.getItem(STORAGE_KEY);
   store.clear();
+  fingerprints.clear();
+  versions.clear();
   if (saved) {
-    JSON.parse(saved).forEach(([path, data]) => store.set(path, revive(data)));
+    JSON.parse(saved).forEach(([path, data]) => put(path, revive(data)));
     return;
   }
   const fixture = buildTeacherWorkflowFixture({ now: Date.now(), Timestamp, params });
-  Object.entries(fixture).forEach(([path, data]) => store.set(path, clone(data)));
+  Object.entries(fixture).forEach(([path, data]) => put(path, clone(data)));
   persist();
 };
 loadOrSeed();
 
+// Writes are delivered after the current task, like Firestore's own snapshot
+// events; each listener then decides whether its result changed.
 let notifyQueued = false;
 const notify = () => {
   persist();
@@ -170,13 +210,14 @@ const matches = (data, { field, op, value }) => {
   const expected = comparable(value);
   switch (op) {
     case '==': return actual === expected;
-    case '!=': return actual !== expected;
+    // Firestore leaves out documents without the field for != and not-in.
+    case '!=': return actual !== undefined && actual !== expected;
     case '<': return actual < expected;
     case '<=': return actual <= expected;
     case '>': return actual > expected;
     case '>=': return actual >= expected;
     case 'in': return Array.isArray(expected) && expected.includes(actual);
-    case 'not-in': return Array.isArray(expected) && !expected.includes(actual);
+    case 'not-in': return actual !== undefined && Array.isArray(expected) && !expected.includes(actual);
     case 'array-contains': return Array.isArray(actual) && actual.includes(expected);
     case 'array-contains-any': return Array.isArray(actual) && Array.isArray(expected) && expected.some((entry) => actual.includes(entry));
     default: return true;
@@ -192,11 +233,16 @@ const childrenOf = (collectionPath) => [...store.keys()].filter((path) => {
   if (!path.startsWith(`${collectionPath}/`)) return false;
   return !path.slice(collectionPath.length + 1).includes('/');
 });
-const runQuery = (target) => {
+// The documents a collection or query returns, in order: where, then orderBy
+// (which, as in Firestore, leaves out documents without the field), then limit.
+const queryPaths = (target) => {
   const collectionPath = target.type === 'query' ? target.collectionPath : target.path;
   const constraints = target.type === 'query' ? target.constraints : [];
-  let paths = childrenOf(collectionPath).filter((path) => constraints.filter((entry) => entry.kind === 'where').every((entry) => matches(store.get(path), entry)));
-  constraints.filter((entry) => entry.kind === 'orderBy').reverse().forEach(({ field, direction }) => {
+  const orderings = constraints.filter((entry) => entry.kind === 'orderBy');
+  let paths = childrenOf(collectionPath)
+    .filter((path) => constraints.filter((entry) => entry.kind === 'where').every((entry) => matches(store.get(path), entry)))
+    .filter((path) => orderings.every(({ field }) => getField(store.get(path), field) !== undefined));
+  orderings.slice().reverse().forEach(({ field, direction }) => {
     paths = paths.slice().sort((left, right) => {
       const a = comparable(getField(store.get(left), field)); const b = comparable(getField(store.get(right), field));
       if (a === b) return 0;
@@ -205,11 +251,56 @@ const runQuery = (target) => {
   });
   const limitEntry = constraints.find((entry) => entry.kind === 'limit');
   if (limitEntry) paths = paths.slice(0, limitEntry.count);
+  return paths;
+};
+// `changes` (for a listener) says what moved since its last snapshot; a
+// removed document is reported without its last content, which nothing in
+// the app reads.
+const querySnapshot = (paths, changes = null) => {
   const docs = paths.map(docSnapshot);
-  return { docs, empty: docs.length === 0, size: docs.length, forEach: (fn) => docs.forEach(fn), docChanges: () => docs.map((entry) => ({ type: 'added', doc: entry })) };
+  const docChanges = changes || docs.map((entry, newIndex) => ({ type: 'added', doc: entry, oldIndex: -1, newIndex }));
+  return { docs, empty: docs.length === 0, size: docs.length, forEach: (fn) => docs.forEach(fn), docChanges: () => docChanges };
+};
+const runQuery = (target) => querySnapshot(queryPaths(target));
+const resultSignature = (paths) => paths.map((path) => `${path}@${versionOf(path)}`).join('|');
+const changesBetween = (previous, paths) => {
+  const now = new Map(paths.map((path, index) => [path, index]));
+  const changes = [];
+  [...previous.keys()].forEach((path, oldIndex) => {
+    if (!now.has(path)) changes.push({ type: 'removed', doc: docSnapshot(path), oldIndex, newIndex: -1 });
+  });
+  // As in Firestore, a document that only shifted because another came or
+  // went is not a change; one whose own content changed is "modified".
+  const oldIndexes = new Map([...previous.keys()].map((path, index) => [path, index]));
+  paths.forEach((path, newIndex) => {
+    if (!previous.has(path)) changes.push({ type: 'added', doc: docSnapshot(path), oldIndex: -1, newIndex });
+    else if (previous.get(path) !== versionOf(path)) changes.push({ type: 'modified', doc: docSnapshot(path), oldIndex: oldIndexes.get(path), newIndex });
+  });
+  return changes;
 };
 
-export const getDoc = async (ref) => { bump(stats.reads, ref.path); return docSnapshot(ref.path); };
+/*
+ * THE WORKSPACE-DRAFT ROUND TRIP IS NOT INSTANT, AND NOT ALWAYS THERE.
+ *
+ * For the cross-device draft journeys (draftCrossDeviceJourneys.mjs):
+ *   ?draftReadMs=<ms>  reading `studentWorkspaceDrafts/…` takes this long — a
+ *                      real Firestore read over school Wi-Fi, which is what
+ *                      lets a question mount before its server copy arrives;
+ *   ?offline=1         start with that collection unreachable (reads and the
+ *                      background save's transaction fail, as Firestore does
+ *                      offline) until `__mmHarnessStore.setOnline(true)`.
+ * Every other path is untouched, so no other journey changes.
+ */
+const harnessParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+const draftReadMs = Math.max(0, Number(harnessParams.get('draftReadMs')) || 0);
+let draftsOnline = harnessParams.get('offline') !== '1';
+const draftNetwork = async (path) => {
+  if (!String(path || '').startsWith('studentWorkspaceDrafts/')) return;
+  if (draftReadMs) await new Promise((resolve) => { setTimeout(resolve, draftReadMs); });
+  if (!draftsOnline) throw new Error('Failed to get document because the client is offline. (harness)');
+};
+
+export const getDoc = async (ref) => { await draftNetwork(ref.path); bump(stats.reads, ref.path); return docSnapshot(ref.path); };
 export const getDocs = async (target) => {
   const result = runQuery(target);
   bump(stats.queries, targetPath(target));
@@ -221,12 +312,31 @@ export const onSnapshot = (target, ...rest) => {
   const handlers = rest.filter((entry) => typeof entry === 'function');
   const [onNext, onError] = handlers.length ? handlers : [rest[1]?.next, rest[1]?.error];
   const listener = {
+    // What this listener last delivered: null until its first snapshot, which
+    // is always delivered (an empty result included).
+    signature: null,
+    delivered: new Map(),
     path: targetPath(target),
     emit: () => {
+      // An unsubscribed listener hears nothing more, not even its first snapshot.
+      if (!listeners.has(listener)) return;
       try {
-        const snapshot = target.type === 'document' ? docSnapshot(target.path) : runQuery(target);
-        bump(stats.docsDelivered, listener.path, target.type === 'document' ? Number(snapshot.exists()) : snapshot.size);
-        onNext?.(snapshot);
+        const paths = target.type === 'document' ? [target.path] : queryPaths(target);
+        const signature = resultSignature(paths);
+        if (signature === listener.signature && !notifyEveryWrite) return;
+        const first = listener.signature === null;
+        listener.signature = signature;
+        bump(stats.notifications, targetPath(target));
+        if (target.type === 'document') {
+          const snapshot = docSnapshot(target.path);
+          bump(stats.docsDelivered, listener.path, Number(snapshot.exists()));
+          onNext?.(snapshot);
+          return;
+        }
+        const changes = first ? null : changesBetween(listener.delivered, paths);
+        listener.delivered = new Map(paths.map((path) => [path, versionOf(path)]));
+        bump(stats.docsDelivered, listener.path, paths.length);
+        onNext?.(querySnapshot(paths, changes));
       } catch (error) { onError?.(error); }
     },
   };
@@ -259,7 +369,7 @@ const deepMerge = (base, patch) => {
 };
 
 const writeSet = (ref, data, options = {}) => {
-  store.set(ref.path, options?.merge ? deepMerge(store.get(ref.path), data) : clone(data));
+  put(ref.path, options?.merge ? deepMerge(store.get(ref.path), data) : clone(data));
 };
 const writeUpdate = (ref, args) => {
   const existing = store.get(ref.path);
@@ -277,30 +387,30 @@ const writeUpdate = (ref, args) => {
   } else {
     Object.entries(args[0] || {}).forEach(([key, value]) => setNested(next, key.split('.'), value));
   }
-  store.set(ref.path, next);
+  put(ref.path, next);
 };
 
 export const setDoc = async (ref, data, options) => { writeSet(ref, data, options); notify(); };
 export const updateDoc = async (ref, ...args) => { writeUpdate(ref, args); notify(); };
 export const addDoc = async (collectionRef, data) => { const ref = doc(collectionRef); writeSet(ref, data); notify(); return ref; };
-export const deleteDoc = async (ref) => { store.delete(ref.path); notify(); };
+export const deleteDoc = async (ref) => { remove(ref.path); notify(); };
 
 export const writeBatch = () => {
   const ops = [];
   return {
     set: (ref, data, options) => { ops.push(() => writeSet(ref, data, options)); },
     update: (ref, ...args) => { ops.push(() => writeUpdate(ref, args)); },
-    delete: (ref) => { ops.push(() => store.delete(ref.path)); },
+    delete: (ref) => { ops.push(() => remove(ref.path)); },
     commit: async () => { ops.forEach((op) => op()); notify(); },
   };
 };
 
 export const runTransaction = async (_db, fn) => {
   const tx = {
-    get: async (ref) => { bump(stats.reads, ref.path); return docSnapshot(ref.path); },
+    get: async (ref) => { await draftNetwork(ref.path); bump(stats.reads, ref.path); return docSnapshot(ref.path); },
     set: (ref, data, options) => { writeSet(ref, data, options); return tx; },
     update: (ref, ...args) => { writeUpdate(ref, args); return tx; },
-    delete: (ref) => { store.delete(ref.path); return tx; },
+    delete: (ref) => { remove(ref.path); return tx; },
   };
   const result = await fn(tx);
   notify();
@@ -310,8 +420,9 @@ export const runTransaction = async (_db, fn) => {
 /* Driver/debug surface for scripted scenarios. */
 export const harnessStore = {
   get: (path) => clone(store.get(path)),
-  set: (path, data) => { store.set(path, clone(data)); notify(); },
+  set: (path, data) => { put(path, clone(data)); notify(); },
   update: (path, patch) => { writeUpdate(new DocumentReference(path), [patch]); notify(); },
+  remove: (path) => { remove(path); notify(); },
   paths: (prefix = '') => [...store.keys()].filter((path) => path.startsWith(prefix)),
   reset: () => { localStorage.removeItem(STORAGE_KEY); window.location.search = '?reset=1'; },
   stats: () => {
@@ -323,6 +434,9 @@ export const harnessStore = {
       reads: Object.fromEntries(stats.reads),
       queries: Object.fromEntries(stats.queries),
       subscriptions: Object.fromEntries(stats.subscriptions),
+      // Snapshots delivered to listeners, by the path they listen to.
+      notifications: Object.fromEntries(stats.notifications),
+      notifyEveryWrite,
       docsDelivered: [...stats.docsDelivered.values()].reduce((total, count) => total + count, 0),
       docsDeliveredByPath: Object.fromEntries(stats.docsDelivered),
       callables: Object.fromEntries(stats.callables),
@@ -330,6 +444,20 @@ export const harnessStore = {
     };
   },
   resetStats: () => { Object.values(stats).forEach((map) => map.clear()); },
+  // One document as stored, and back: how the draft journeys carry what one
+  // "device" (browser context) saved to the server into another device's
+  // already-open page, Timestamps intact.
+  exportDoc: (path) => (store.has(path) ? serialize(store.get(path)) : null),
+  importDoc: (path, data) => { if (data) put(path, revive(data)); else remove(path); notify(); },
+  // The device's connection, as the draft journeys switch it (see draftNetwork).
+  // `announce: false` is the server becoming reachable (or not) without the
+  // browser noticing — Wi-Fi up while the school's connection was down — so
+  // no `online`/`offline` event fires.
+  setOnline: (value, { announce = true } = {}) => {
+    draftsOnline = Boolean(value);
+    if (announce && typeof window !== 'undefined') window.dispatchEvent(new Event(draftsOnline ? 'online' : 'offline'));
+    return draftsOnline;
+  },
 };
 if (typeof window !== 'undefined') window.__mmHarnessStore = harnessStore;
 
@@ -341,7 +469,7 @@ setInterval(() => {
   [...store.keys()].filter((path) => path.startsWith('presence/')).forEach((path) => {
     const data = store.get(path);
     if (!data?.__simulated) return;
-    store.set(path, { ...data, updatedAt: now, lastInteractionAt: data.__idle ? data.lastInteractionAt : now - 5_000 });
+    put(path, { ...data, updatedAt: now, lastInteractionAt: data.__idle ? data.lastInteractionAt : now - 5_000 });
     touched = true;
   });
   if (touched) notify();

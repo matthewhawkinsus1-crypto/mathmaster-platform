@@ -18,12 +18,20 @@
  *     reads a number from it, so a cleared box is blank, never 0.
  *
  * Completeness (what a deadline may submit for the student) is every graded
- * input present AND not the lab's untouched starting state. The steppers, the
- * association selects and the model-family radio all start filled, so an
- * association or model-family question the student only opened would
- * otherwise be complete — and, whenever the pre-selected choice happens to be
- * right, auto-submitted as correct. An explicit Check of untouched work is
- * still graded exactly as before.
+ * input present AND not the lab's untouched starting state. The steppers
+ * start filled, so a line fit the student only opened would otherwise be
+ * complete. Every judgment — direction, strength, causation, model family,
+ * prediction type — opens unanswered ('' — "Choose…", judgmentChoices.mjs):
+ * unanswered is never filled and never matches a key, so it is neither
+ * complete nor correct. Before that change the lab pre-selected positive /
+ * moderate / association / linear / interpolation, and work an earlier client
+ * saved at that start (a draft or checkpoint revision, say after Undo) still
+ * holds them; such work that holds them in every graded input is untouched
+ * too, so a deadline never submits it — or credits it whenever a pre-selection
+ * happens to be right. Work from today's lab says its choices are the
+ * student's own (OWN_CHOICES, judgmentChoices.mjs), so a student who chose
+ * exactly those options is graded like any other. An explicit Check of
+ * untouched work is still graded exactly as before.
  *
  * Nothing here reads a value the browser computed: the work is the lab's raw
  * inputs, and every expected value is recomputed from the question.
@@ -32,6 +40,7 @@ import declaration from '../declarations/dataModelingLab.mjs';
 import { bindToolGrader } from '../toolGraderDefinition.mjs';
 import { gradedResult } from '../gradingResult.mjs';
 import { correlation, linearRegression, parseNumericAnswer } from '../../toolMath/shared/toolMath.mjs';
+import { choicesAreOwn } from '../../toolMath/shared/judgmentChoices.mjs';
 import {
   buildCandidateModels,
   chooseBestModel,
@@ -258,8 +267,10 @@ const gradeMode = (mode) => (question, work) => {
       ...(fixedTarget ? [] : ['predictionX']),
     ],
   })[id]));
-  const start = dataModelingStartingWork(mode, question, { xs, regression, stepperPlan });
-  const untouched = [...gradedKeys].every((key) => entry(work[key]) === entry(start[key]));
+  const holdsEveryGradedInput = (start) => [...gradedKeys].every((key) => entry(work[key]) === entry(start[key]));
+  const untouched = holdsEveryGradedInput(dataModelingStartingWork(mode, question, { xs, regression, stepperPlan }))
+    || (!choicesAreOwn(work)
+      && holdsEveryGradedInput(dataModelingStartingWork(mode, question, { xs, regression, stepperPlan, preselected: true })));
 
   return gradedResult({
     parts,

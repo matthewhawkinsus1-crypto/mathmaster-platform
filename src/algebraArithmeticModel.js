@@ -6,7 +6,7 @@
  * state — 3 × 5 = 15 — and then the workspace writes 15(x - 3). The platform
  * checks the product exactly (fractions stay fractions); it never supplies it.
  */
-import { parse } from 'mathjs';
+import { parse } from './platform/math/mathjs.js';
 import { expressionToLatex, latexToExpression, splitAdditiveTerms } from './algebraAstEngine.js';
 import {
   exactRationalFromExpression,

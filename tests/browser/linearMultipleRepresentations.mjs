@@ -28,12 +28,24 @@
 //   dol            DOL (laptop): no Check, no verdicts, Enter never submits,
 //                  an incomplete board asks first, one submission.
 //   complete       CW2, CW3, PR1 and PR2 finished and submitted correct; CW3 insists on
-//                  its GIVEN anchor (3, 2) for Graph 3.
+//                  its GIVEN anchor (3, 2) for Graph 3. A correct board is final:
+//                  Undo cannot reopen it.
 //   zoom           CW1 at 1920×1080 (a 1366 laptop at ~70% zoom).
 //   family         The family-backed upgrade (?family=1): this student's generated
 //                  versions of CW2, CW3, PR1 and PR2 completed and submitted correct,
 //                  and the DOL submitted once — answers worked out from each
 //                  version's own line; the GIVEN shown is the version's and read-only.
+//   undo           PQ-009, PR2 (laptop): a checked card, then five edits across four
+//                  cards (a meaning, the table twice, a typed equation, a point);
+//                  the platform Undo takes them back one at a time, newest first,
+//                  opens a folded card, brings each change into view, announces it
+//                  once, keeps focus on Undo and never touches a verdict. A Check
+//                  is not a step. Graph 3's own Undo is the same history filtered
+//                  to Graph 3. After a reload one Undo takes back one step; after a
+//                  submission the attempt and its result stay.
+//   undo-phone     PQ-009 at 390×844 by touch: four edits on three cards, four Undos
+//                  from the portrait bar, each revealed and announced — two in a
+//                  row on one card both heard; no sideways scroll.
 //
 // Exit code 1 on any finding. Screenshots: tests/browser/artifacts/linearMultipleRepresentations/.
 
@@ -182,6 +194,67 @@ const overflow = (page) => page.evaluate(() => {
     .slice(0, 5).map((el) => el.tagName.toLowerCase());
   return { vw, docScroll: document.documentElement.scrollWidth, offenders, scrollers };
 });
+
+// ------------------------------------------------------------- Undo helpers
+// The platform Undo the student presses: in the desktop action bar, or the
+// phone's portrait bar.
+const platformUndo = (page) => page.locator('.mathmaster-universal-undo:visible').first();
+// The work as a student built it, without the record's layout and Check
+// fingerprints — what an Undo is allowed to change.
+const mathOf = ({ expandedCards: _layout, checkedCards: _checks, ...rest }) => JSON.stringify(Object.keys(rest).sort().map((key) => [key, rest[key]]));
+/**
+ * Record what screen readers would be told: every node or text added to any
+ * live region on the page (aria-live, role=status/alert), including regions
+ * that appear later. Read and clear with takeAnnouncements.
+ */
+const watchAnnouncements = (page) => page.evaluate(() => {
+  window.__announced = [];
+  const watched = new WeakSet();
+  const watch = () => document.querySelectorAll('[aria-live], [role="status"], [role="alert"]').forEach((region) => {
+    if (watched.has(region)) return;
+    watched.add(region);
+    new MutationObserver((records) => {
+      const text = records.flatMap((record) => (record.type === 'characterData'
+        ? [record.target.textContent]
+        : [...record.addedNodes].map((node) => node.textContent))).map((value) => String(value || '').trim()).filter(Boolean);
+      if (text.length) window.__announced.push({ politeness: region.getAttribute('aria-live') || region.getAttribute('role'), board: region.hasAttribute('data-lmr-announcer'), text: text.join(' ') });
+    }).observe(region, { childList: true, subtree: true, characterData: true });
+  });
+  watch();
+  new MutationObserver(watch).observe(document.body, { childList: true, subtree: true });
+});
+const takeAnnouncements = (page) => page.evaluate(() => window.__announced.splice(0));
+/** Whether an element is on screen with nothing over its middle: what the student can see. */
+const uncovered = async (locator) => (await locator.count()) > 0 && locator.evaluate((element) => {
+  const box = element.getBoundingClientRect();
+  const x = box.left + box.width / 2;
+  const y = box.top + Math.min(box.height / 2, 30);
+  if (!box.width || !box.height || x < 0 || y < 0 || x >= window.innerWidth || y >= window.innerHeight) return false;
+  const hit = document.elementFromPoint(x, y);
+  return Boolean(hit) && element.contains(hit);
+});
+/**
+ * Press the platform Undo and report what it did: which card it marked, whether
+ * the changed field is in view, what was announced, and where focus is.
+ */
+const pressUndo = async (page, button = platformUndo(page), { touch = false } = {}) => {
+  await takeAnnouncements(page);
+  // An Undo that is off is a finding, not a 30-second wait on a dead button.
+  if (!(await button.isEnabled())) return { pressed: false, marked: [], announced: [], focusOnUndo: false };
+  if (touch) await button.tap();
+  else await button.click();
+  await settle(page, 350);
+  const marked = await page.evaluate(() => {
+    const cards = [...document.querySelectorAll('[data-lmr-undone]')];
+    const newest = Math.max(0, ...cards.map((card) => Number(card.dataset.lmrUndone)));
+    return [...new Set(cards.filter((card) => Number(card.dataset.lmrUndone) === newest).map((card) => card.dataset.lmrCard))];
+  });
+  const focusOnUndo = await page.evaluate(() => Boolean(document.activeElement?.closest?.('button')?.matches('.mathmaster-universal-undo, [aria-label^="Undo on"]')));
+  return { marked, announced: await takeAnnouncements(page), focusOnUndo };
+};
+// The element an Undo of `field` must bring into view: inside the enlarged
+// graph when that is open, on the board otherwise.
+const fieldOnBoard = (page, field) => page.locator(`.mm-lmr-board [data-lmr-field="${field}"]`).first();
 
 const measureDraft = async (page, id) => {
   const record = await work(page, id);
@@ -699,6 +772,14 @@ journeys.dol = async (browser) => {
   await settle(page, 800);
   check((await grades(page)).length === 0, 'Enter in a DOL field never submits');
   check(!(await hasCorrectBadge(page, 'slope')), 'no verdict appears in a DOL');
+  // Undo on a DOL takes back work and says where — and still says nothing
+  // about correctness: no Check appears, no verdict, nothing announced but the
+  // card's name (PQ-009).
+  await watchAnnouncements(page);
+  const dolUndo = await pressUndo(page);
+  check((await work(page, id)).featureSlope === '' && dolUndo.announced.map((entry) => entry.text).join() === 'Undid your last change to Slope.', `Undo on a DOL takes back the slope and names only the card (${JSON.stringify(dolUndo.announced)})`);
+  check(await page.locator('button[data-card-check="true"]').count() === 0 && !(await hasCorrectBadge(page, 'slope')), 'Undo on a DOL brings back no Check and no verdict');
+  await typeMath(page, mathField(page, 'slope'), '-3');
   // An incomplete board asks first.
   await page.getByRole('button', { name: 'Submit board' }).click();
   await settle(page);
@@ -805,6 +886,8 @@ journeys.complete = async (browser) => {
     await settle(page, 1500);
     const recorded = (await grades(page)).filter((grade) => grade.questionId === id);
     check(recorded.length === 1 && recorded[0].isCorrect === true, `${id}: submitted correct (${JSON.stringify(recorded.map((g) => [g.isCorrect, g.partialCreditPercent]))})`);
+    // A finished question is final: the Undo that walks the board back cannot reopen it.
+    check(!(await platformUndo(page).isEnabled()) && await page.getByRole('button', { name: 'Submit board' }).isDisabled(), `${id}: after a correct submission Undo is off and the board cannot be resubmitted`);
     await renderAllMath(page);
     await shot(page, `complete-${id}`);
   }
@@ -937,6 +1020,235 @@ journeys.zoom = async (browser) => {
   const layout = await overflow(page);
   check(layout.offenders.length === 0, `no overflow at 1920 (${JSON.stringify(layout.offenders)})`);
   note(`CW1 page height at 1920×1080: ${await page.evaluate(() => document.documentElement.scrollHeight)}px`);
+  await context.close();
+};
+
+// The board's answer fields at their starting values, so a record that never
+// saw a field compares equal to one an Undo wrote back to empty.
+const BOARD_DEFAULTS = {
+  standardFormEquation: '', slopeInterceptEquation: '', pointSlopeEquation: '',
+  featureSlope: '', featureXIntercept: '', featureYIntercept: '', featurePoint1: '', featurePoint2: '',
+  tableRows: [{ x: '', y: '' }, { x: '', y: '' }, { x: '', y: '' }, { x: '', y: '' }],
+  graph1Points: [], graph2Points: [], graph3Points: [],
+  contextIndependent: '', contextDependent: '', contextSlopeMeaning: '', contextYInterceptMeaning: '', contextXInterceptMeaning: '', contextDomain: '',
+};
+const boardMath = async (page, id) => mathOf({ ...BOARD_DEFAULTS, ...(await page.evaluate((qid) => window.__lmr.work(qid), id)) });
+
+// PQ-009: ONE UNDO FOR THE WHOLE BOARD. PR2 (the candle) has every kind of
+// card: meanings chosen from a list, typed equations, a table, three graphs.
+journeys.undo = async (browser) => {
+  const id = 'lmr-pr-2';
+  const context = await browser.newContext({ viewport: LAPTOP });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await open(page, id, `undo-${Date.now()}`);
+  await watchAnnouncements(page);
+  check(!(await platformUndo(page).isEnabled()), 'nothing to undo on a fresh board');
+  const strip = () => page.locator('[aria-label="Your progress"]').innerText();
+  const cell = (row, field) => card(page, 'table').locator(`input[aria-label="Row ${row} ${field}"]`);
+  const typeCell = async (row, field, text) => { await cell(row, field).click(); await page.keyboard.type(text, { delay: 30 }); await settle(page, 250); };
+
+  // A CHECKED CARD stays on the board throughout: the slope, typed and checked.
+  await typeMath(page, mathField(page, 'slope'), '-2');
+  await checkButton(page, 'slope').click();
+  await settle(page);
+  check(await hasCorrectBadge(page, 'slope'), 'the slope −2 is checked correct before any Undo');
+  const checkedBefore = JSON.stringify((await work(page, id)).checkedCards);
+  const stripBefore = (await strip()).match(/Checked correct: \d+ of \d+/)?.[0];
+  await takeAnnouncements(page);
+
+  // FIVE EDITS ACROSS FOUR CARDS: a meaning, a table cell, a typed equation,
+  // a graph point, another table cell.
+  const states = [await boardMath(page, id)];
+  const selects = page.locator('[data-lmr-card="context"] select');
+  await selects.nth(0).selectOption('time since the candle was lit (hours)');
+  await settle(page, 250);
+  states.push(await boardMath(page, id));
+  await typeCell(1, 'x', '3');
+  states.push(await boardMath(page, id));
+  // With a fraction bar and brackets in it, typed in one go: one step.
+  await typeMath(page, mathField(page, 'pointSlope'), 'y-10=-4/2 (x-4)');
+  states.push(await boardMath(page, id));
+  await plot(page, page, 'graph2', [0, 18]);
+  states.push(await boardMath(page, id));
+  await typeCell(1, 'y', '12');
+  states.push(await boardMath(page, id));
+  check(new Set(states).size === 6, 'each of the five edits changed the board');
+  check(/Undo your last change to Table of values/.test(await platformUndo(page).getAttribute('title') || ''), `the Undo button names what it will change ("${await platformUndo(page).getAttribute('title')}")`);
+  // The table is folded away before the first Undo, which changes it.
+  await page.getByRole('button', { name: 'Collapse table' }).click();
+  await settle(page, 200);
+  check(await cell(1, 'y').count() === 0, 'the table is folded');
+
+  // UNDO, FIVE TIMES: each takes back exactly one edit, newest first, opens and
+  // shows the card it changed, says so once, and leaves the verdict alone.
+  const expected = [
+    ['table', 'tableRows', 'Table of values'],
+    ['graphSlopeIntercept', 'graph2Points', 'Graph 2 (slope-intercept)'],
+    ['pointSlope', 'pointSlopeEquation', 'Point-slope form'],
+    ['table', 'tableRows', 'Table of values'],
+    ['context', 'contextIndependent', 'Independent quantity'],
+  ];
+  for (const [step, [cardId, field, label]] of expected.entries()) {
+    // Start each Undo from the other end of the page from the change — except
+    // once, with the change already in front of the student, where an Undo
+    // must leave the page exactly where it is.
+    const inView = step === 2;
+    // In view but not centred, so an Undo that re-centred anyway would show.
+    if (inView) await fieldOnBoard(page, field).evaluate((element) => window.scrollBy(0, element.getBoundingClientRect().top - window.innerHeight * 0.25));
+    else await page.evaluate((top) => window.scrollTo(0, top ? 0 : document.documentElement.scrollHeight), step % 2 === 1);
+    await settle(page, 150);
+    const scrolledFrom = await page.evaluate(() => window.scrollY);
+    const result = await pressUndo(page);
+    if (inView) check((await page.evaluate(() => window.scrollY)) === scrolledFrom, `Undo ${step + 1} does not move a page that already shows the change`);
+    const after = await boardMath(page, id);
+    check(after === states[4 - step], `Undo ${step + 1} takes back exactly the ${label} edit (${after === states[5 - step] ? 'nothing changed' : 'something else changed'})`);
+    check(samePoints(result.marked, [cardId]), `Undo ${step + 1} marks the card it changed (${JSON.stringify(result.marked)}, expected ${cardId})`);
+    check(await uncovered(fieldOnBoard(page, field)), `Undo ${step + 1} brings ${label} into view, uncovered`);
+    const said = result.announced.map((entry) => entry.text);
+    check(result.announced.length === 1 && result.announced[0].board && result.announced[0].politeness === 'polite' && said[0] === `Undid your last change to ${label}.`, `Undo ${step + 1} is announced once, politely, naming ${label} (${JSON.stringify(result.announced)})`);
+    check(result.focusOnUndo, `Undo ${step + 1} leaves keyboard focus on the Undo button`);
+    check(await hasCorrectBadge(page, 'slope'), `Undo ${step + 1} leaves the checked slope's verdict on the board`);
+    check(JSON.stringify((await work(page, id)).checkedCards) === checkedBefore, `Undo ${step + 1} never changes what was checked`);
+    check((await strip()).includes(stripBefore), `Undo ${step + 1} leaves the progress count (${stripBefore})`);
+    if (step === 0) check(await cell(1, 'y').count() === 1, 'the folded table was opened to show the change');
+  }
+  await shot(page, 'undo-01-five-undone');
+
+  // A CHECK, THEN UNDO. The next Undo is the slope's own typing, from before
+  // the Check. It takes the typing back and NOT the Check: what was checked is
+  // still recorded, so typing the same slope again shows its verdict without
+  // another Check, and nothing announces a new one.
+  const sixth = await pressUndo(page);
+  check((await work(page, id)).featureSlope === '' && sixth.announced.map((entry) => entry.text).join() === 'Undid your last change to Slope.', `Undo 6 takes back the slope's typing (${JSON.stringify(sixth.announced)})`);
+  check(JSON.stringify((await work(page, id)).checkedCards) === checkedBefore, 'Undo after a Check does not erase the Check');
+  check(!(await hasCorrectBadge(page, 'slope')), 'an empty slope shows no verdict');
+  check(!(await platformUndo(page).isEnabled()), 'the Check itself is not a step: nothing is left to undo');
+  await typeMath(page, mathField(page, 'slope'), '-2');
+  check(await hasCorrectBadge(page, 'slope'), 'the same slope typed again shows the verdict it was checked with');
+  check(!(await takeAnnouncements(page)).some((entry) => /correct/i.test(entry.text)), 'no Check was replayed or announced');
+
+  // EACH GRAPH'S OWN UNDO is the same history, filtered to that graph.
+  await plot(page, page, 'graph3', [4, 10]);
+  await plot(page, page, 'graph3', [5, 8]);
+  await typeMath(page, mathField(page, 'xIntercept'), '(9,0)');
+  const xIntercept = (await work(page, id)).featureXIntercept;
+  const graph3Undo = card(page, 'graphPointSlope').getByRole('button', { name: /^Undo on Graph 3/ });
+  const g3 = await pressUndo(page, graph3Undo);
+  let saved = await work(page, id);
+  check(samePoints(saved.graph3Points, [[4, 10]]) && saved.featureXIntercept === xIntercept, `Graph 3's Undo takes back its last point and keeps the x-intercept typed after it (${JSON.stringify([saved.graph3Points, saved.featureXIntercept])})`);
+  check(samePoints(g3.marked, ['graphPointSlope']) && g3.announced.map((entry) => entry.text).join() === 'Undid your last change to Graph 3 (point-slope).', `Graph 3's Undo is shown and announced (${JSON.stringify(g3)})`);
+  const xUndo = await pressUndo(page);
+  saved = await work(page, id);
+  check(saved.featureXIntercept === '' && samePoints(saved.graph3Points, [[4, 10]]), `the platform Undo then takes the x-intercept and never replays the point (${JSON.stringify([saved.graph3Points, saved.featureXIntercept])})`);
+  check(samePoints(xUndo.marked, ['xIntercept']), 'and shows the x-intercept card');
+  const g3Last = await pressUndo(page, graph3Undo);
+  check(samePoints((await work(page, id)).graph3Points, []) && await graph3Undo.isDisabled(), 'Graph 3\'s Undo walks back to an empty graph, then has nothing left');
+  check(!g3Last.focusOnUndo && await page.evaluate(() => Boolean(document.activeElement?.closest?.('.mm-lmr-board [data-lmr-plane="graph3"]'))), 'its last Undo hands focus to the Graph 3 plane, not the page');
+
+  // IN THE ENLARGED GRAPH the graph's Undo shows its change there, in the dialog.
+  await card(page, 'graphIntercepts').getByRole('button', { name: /^Enlarge/ }).click();
+  const dialog = page.locator('[role="dialog"][data-lmr-dialog="graph1"]');
+  await dialog.waitFor();
+  await settle(page, 300);
+  await plot(page, dialog, 'graph1', [9, 0]);
+  const inDialog = await pressUndo(page, dialog.getByRole('button', { name: /^Undo on Graph 1/ }));
+  check(samePoints((await work(page, id)).graph1Points, []), 'the enlarged graph\'s own Undo takes back its point');
+  check(samePoints(inDialog.marked, ['graphIntercepts']) && await uncovered(dialog.locator('[data-lmr-field="graph1Points"]')), `the change is shown in the dialog (${JSON.stringify(inDialog.marked)})`);
+  check(inDialog.announced.map((entry) => entry.text).join() === 'Undid your last change to Graph 1 (intercepts).', `and announced once (${JSON.stringify(inDialog)})`);
+  // That was Graph 1's last step, so its Undo is now off; focus must not fall
+  // out of the dialog — it goes to the plane, where the next point goes.
+  check(await dialog.getByRole('button', { name: /^Undo on Graph 1/ }).isDisabled(), 'with nothing left on Graph 1, its Undo is off');
+  check(await page.evaluate(() => Boolean(document.activeElement?.closest?.('[data-lmr-dialog="graph1"] [data-lmr-plane="graph1"]'))), 'focus stays in the dialog, on the plane');
+  await page.keyboard.press('Escape');
+  await settle(page, 300);
+
+  // A RELOAD: the restored work stays, and one Undo takes back one step of it.
+  await typeMath(page, mathField(page, 'yIntercept'), '(0,18)');
+  await plot(page, page, 'graph1', [9, 0]);
+  await settle(page, 400);
+  const beforeReload = await work(page, id);
+  await page.reload();
+  await page.locator('[data-lmr-given]').waitFor({ timeout: 120000 });
+  await settle(page, 1500);
+  await watchAnnouncements(page);
+  const restored = await work(page, id);
+  check(mathOf(restored) === mathOf(beforeReload), 'the reload restores the board');
+  check(await platformUndo(page).isEnabled(), 'Undo still works after a reload');
+  const reloadUndo = await pressUndo(page);
+  const afterReloadUndo = await work(page, id);
+  check(mathOf(afterReloadUndo) === mathOf({ ...beforeReload, graph1Points: [] }), `an Undo after the reload takes back only the last point and keeps the rest of the restored work (${JSON.stringify(afterReloadUndo).slice(0, 160)})`);
+  check(samePoints(reloadUndo.marked, ['graphIntercepts']), 'and shows Graph 1');
+  const yField = mathField(page, 'yIntercept');
+  await yField.click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Control+z');
+  await settle(page, 300);
+  check((await yField.evaluate((element) => element.value)) === beforeReload.featureYIntercept, 'Ctrl+Z in a restored field does not empty it');
+
+  // A SUBMISSION, THEN UNDO. The attempt is spent and stays spent: Undo takes
+  // back a step of the work, never the attempt or what it said.
+  const attempts = (await grades(page)).filter((grade) => grade.questionId === id).length;
+  await page.getByRole('button', { name: 'Submit board' }).click();
+  await settle(page, 300);
+  await page.getByRole('button', { name: 'Submit anyway' }).click();
+  await settle(page, 1500);
+  const resultPanel = () => page.locator('[data-lmr-submit] [role="status"]').innerText({ timeout: 3000 }).catch(() => '(no result shown)');
+  const result = await resultPanel();
+  check(/Not yet/.test(result), `the incomplete board is graded (${result.slice(0, 60)})`);
+  const submitted = (await grades(page)).filter((grade) => grade.questionId === id).length;
+  check(submitted === attempts + 1, 'one attempt was spent');
+  const afterSubmit = await pressUndo(page);
+  check((await work(page, id)).featureYIntercept === '', 'Undo after a submission takes back the last edit');
+  check((await resultPanel()) === result, `and leaves the submission result where it was (${(await resultPanel()).slice(0, 40)})`);
+  check((await grades(page)).filter((grade) => grade.questionId === id).length === submitted, 'and neither spends nor gives back an attempt');
+  check(afterSubmit.announced.length === 1 && afterSubmit.announced[0].board, `one announcement, the Undo's (${JSON.stringify(afterSubmit.announced)})`);
+  await shot(page, 'undo-02-after-submission');
+  check(!errors.length, `no page errors (${errors.slice(0, 3).join(' | ')})`);
+  await context.close();
+};
+
+// The same on a phone, by touch: the portrait bar's Undo.
+journeys['undo-phone'] = async (browser) => {
+  const id = 'lmr-pr-2';
+  const context = await browser.newContext({ viewport: PHONE, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
+  const page = await context.newPage();
+  await open(page, id, `undo-phone-${Date.now()}`);
+  await watchAnnouncements(page);
+  const states = [await boardMath(page, id)];
+  await page.locator('[data-lmr-card="context"] select').nth(2).selectOption('The candle gets 2 inches shorter every hour.');
+  await settle(page, 250);
+  states.push(await boardMath(page, id));
+  await plot(page, page, 'graph2', [0, 18], { touch: true });
+  states.push(await boardMath(page, id));
+  // Two cells of one row: two edits on one card, so two Undos in a row say the
+  // same sentence — and both must be heard.
+  for (const field of ['x', 'y']) {
+    const input = card(page, 'table').locator(`input[aria-label="Row 2 ${field}"]`);
+    await input.scrollIntoViewIfNeeded();
+    await input.tap();
+    await page.keyboard.type('6', { delay: 40 });
+    await settle(page, 300);
+    states.push(await boardMath(page, id));
+  }
+  check(new Set(states).size === 5, 'four edits on three cards');
+  for (const [step, [cardId, field, label]] of [
+    ['table', 'tableRows', 'Table of values'],
+    ['table', 'tableRows', 'Table of values'],
+    ['graphSlopeIntercept', 'graph2Points', 'Graph 2 (slope-intercept)'],
+    ['context', 'contextSlopeMeaning', 'Meaning of the slope'],
+  ].entries()) {
+    const result = await pressUndo(page, platformUndo(page), { touch: true });
+    check((await boardMath(page, id)) === states[3 - step], `phone Undo ${step + 1} takes back exactly the ${label} edit`);
+    check(samePoints(result.marked, [cardId]), `phone Undo ${step + 1} marks ${cardId} (${JSON.stringify(result.marked)})`);
+    check(await uncovered(fieldOnBoard(page, field)), `phone Undo ${step + 1} brings ${label} into view, uncovered`);
+    check(result.announced.length === 1 && result.announced[0].text === `Undid your last change to ${label}.`, `phone Undo ${step + 1} is announced once (${JSON.stringify(result.announced)})`);
+    if (step === 2) await shot(page, 'undo-phone-graph2');
+  }
+  check(!(await platformUndo(page).isEnabled()), 'nothing left to undo');
+  const layout = await overflow(page);
+  check(layout.offenders.length === 0 && layout.scrollers.length === 0, `no horizontal overflow after Undo on a phone (${JSON.stringify(layout)})`);
   await context.close();
 };
 

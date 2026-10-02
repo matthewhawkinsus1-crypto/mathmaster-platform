@@ -12,14 +12,16 @@
  * same tolerances (0.01, and 0.02 for equidistance distances), and the same
  * score — the share of checks that are right.
  *
- * Completeness: every typed box is non-blank. A <select> always holds one of
- * its options ('yes' / 'up' by default), so it is complete whenever it holds a
- * valid one — and, exactly as on screen, the default may already be right.
+ * Completeness: every typed box is non-blank, and every <select> holds one of
+ * its options. The selects ("Is P on the parabola?", the opening direction)
+ * open unanswered — "Choose…", '' (judgmentChoices.mjs) — and unanswered is
+ * no option: neither complete nor correct, and in particular never "no".
  */
 import declaration from '../declarations/parabolaGeometryLab.mjs';
 import { bindToolGrader } from '../toolGraderDefinition.mjs';
 import { gradedResult, ungradedResult } from '../gradingResult.mjs';
 import { matchesNumericAnswer } from '../../toolMath/shared/toolMath.mjs';
+import { yesNoAnswerMatches } from '../../toolMath/shared/judgmentChoices.mjs';
 import {
   geometryFromFocusDirectrix,
   parabolaFeatures,
@@ -91,7 +93,7 @@ const equidistance = (question, work) => withKey(
     parts: [
       numberPart('focus-distance', 'Distance P → focus', work.focusDistance, distances.focusDistance, 0.02),
       numberPart('directrix-distance', 'Distance P → directrix', work.directrixDistance, distances.directrixDistance, 0.02),
-      choicePart('on-parabola', 'Is P on the parabola?', work.onCurve, ['yes', 'no'], (value) => (value === 'yes') === distances.onParabola),
+      choicePart('on-parabola', 'Is P on the parabola?', work.onCurve, ['yes', 'no'], (value) => yesNoAnswerMatches(value, distances.onParabola)),
     ],
   }),
 );

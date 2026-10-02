@@ -18,10 +18,12 @@
 //            Center → Attendance → Grade Export → Home, then sit on Grades
 //            while assignments are edited (no listener may be re-created)
 //
-// The fake Firestore re-emits EVERY listener on ANY write (real Firestore only
-// notifies the queries a write touches), which makes it strict: an effect that
-// depends on a collection it does not need shows up here as repeated reads,
-// even where production would see one per edit per device.
+// This journey runs the fake Firestore in its stress mode, `notify=every-write`:
+// EVERY listener re-emits on ANY write. Real Firestore — and the harness by
+// default — notifies only the listeners whose result a write changes, so this
+// is deliberately stricter than production: an effect that depends on a
+// collection it does not need shows up here as repeated reads, even where
+// production would see one per edit per device.
 //
 // After every round, at the same resting screen, with garbage collected:
 // JS heap, DOM nodes, JS event listeners and open Firestore listeners. A leak
@@ -36,6 +38,14 @@ const ROUNDS = Math.max(3, Number(process.env.ROUNDS || 6));
 const ONLY = process.env.ONLY || '';
 const STUDENT_ID = '910002';
 const IGNORED_CONSOLE = /Failed to decode downloaded font|OTS parsing error|math fonts could not be loaded|Download the React DevTools|\[vite\]|Failed to load resource/;
+// NOT SIMULATED, AND SAID SO. The harness has no fake for server ingestion —
+// the durable outbox's server half — so a submission here fails as an
+// undeployed function would (fakeFunctions.js), the device keeps it queued and
+// retries, and no answer reaches the in-memory grade record. This journey
+// measures the client (memory, listeners, re-reads), which that does not
+// change; it reports how often these were reached instead of failing on them.
+// Any OTHER unimplemented callable is still a finding.
+const NOT_SIMULATED = /^\[teacher harness\] callable "(ingestStudentSubmissions|reconcileAssignmentActivityProjection)" is not implemented/;
 
 const launchOptions = { args: ['--no-sandbox', '--js-flags=--expose-gc'] };
 if (process.env.CHROMIUM_PATH) launchOptions.executablePath = process.env.CHROMIUM_PATH;
@@ -50,17 +60,22 @@ const openPage = async (query) => {
   const context = await browser.newContext({ viewport: { width: 1366, height: 768 } });
   const page = await context.newPage();
   const consoleProblems = [];
+  const notSimulated = new Map();
   page.on('console', (message) => {
     if (!['error', 'warning'].includes(message.type())) return;
     const text = message.text();
     if (IGNORED_CONSOLE.test(text)) return;
+    const unsimulated = NOT_SIMULATED.exec(text);
+    if (unsimulated) { notSimulated.set(unsimulated[1], (notSimulated.get(unsimulated[1]) || 0) + 1); return; }
     // React's own warnings, and any error, are findings; ordinary warnings are logged.
     if (message.type() === 'error' || /Warning:|Maximum update depth|Cannot update a component/.test(text)) consoleProblems.push(text.slice(0, 220));
   });
   page.on('pageerror', (error) => consoleProblems.push(`pageerror: ${error.message}`));
-  // Name the URL of a failed load; the console line alone does not. The dev
-  // server cannot serve MathLive's font files (a harness limitation, not a
-  // production one), so those are ignored like their console noise.
+  // Name the URL of a failed load; the console line alone does not. Font
+  // requests are left out: MathLive's fonts now ship with the build through
+  // mathlive/fonts.css (src/platform/math/mathliveRuntime.js) — their absence
+  // was a production defect, not a harness limitation, and it has its own
+  // gate (tests/browser/mathFontsProduction.mjs).
   page.on('response', (response) => {
     if (response.status() < 400) return;
     const url = response.url();
@@ -70,16 +85,22 @@ const openPage = async (query) => {
   const cdp = await context.newCDPSession(page);
   await cdp.send('Performance.enable');
   await cdp.send('Runtime.enable');
-  await page.goto(`${ORIGIN}/tests/browser/teacherWorkflow/index.html?reset=1${query}`, { waitUntil: 'networkidle' });
+  await page.goto(`${ORIGIN}/tests/browser/teacherWorkflow/index.html?reset=1&notify=every-write${query}`, { waitUntil: 'networkidle' });
+  const harnessMode = await page.evaluate(() => window.__mmHarnessStore?.stats?.().notifyEveryWrite === true);
+  if (!harnessMode) consoleProblems.push('the fake Firestore is not in its every-write stress mode');
   await settle(page, 2500);
-  return { context, page, cdp, consoleProblems };
+  return { context, page, cdp, consoleProblems, notSimulated };
+};
+const reportNotSimulated = (notSimulated) => {
+  if (!notSimulated.size) return;
+  console.log(`  not simulated by the harness (answers stay queued on the device): ${[...notSimulated].map(([name, count]) => `${name} ×${count}`).join(', ')}`);
 };
 
 const measure = async (page, cdp) => {
-  // An attached inspector keeps every object passed to console.* alive; in the
-  // dev harness MathLive logs its (unloadable) font errors with elements in
-  // scope, which pinned every closed screen. A student's browser has no
-  // inspector, so drop what this session collected before measuring.
+  // An attached inspector keeps every object passed to console.* alive (MathLive
+  // used to log its font failure with elements in scope, which pinned every
+  // closed screen). A student's browser has no inspector, so drop what this
+  // session collected before measuring.
   await cdp.send('Runtime.discardConsoleEntries').catch(() => {});
   await cdp.send('HeapProfiler.collectGarbage');
   await settle(page, 300);
@@ -129,7 +150,7 @@ const summarize = (journey, samples) => {
 const studentJourney = async () => {
   const journey = 'student';
   console.log(`\nSTUDENT — ${ROUNDS} rounds of the lesson, other assignments edited throughout`);
-  const { context, page, cdp, consoleProblems } = await openPage(`&as=student&studentId=${STUDENT_ID}&questions=real`);
+  const { context, page, cdp, consoleProblems, notSimulated } = await openPage(`&as=student&studentId=${STUDENT_ID}&questions=real`);
   const samples = [];
   let fanOut = { draftReads: 0, gradeSubscriptions: 0 };
   for (let round = 1; round <= ROUNDS; round += 1) {
@@ -190,6 +211,7 @@ const studentJourney = async () => {
   console.log(`  while other assignments were edited during work: ${fanOut.draftReads} workspace-draft reads, ${fanOut.gradeSubscriptions} new grades/${STUDENT_ID} listeners`);
   if (fanOut.draftReads > 0) finding(journey, `editing OTHER assignments re-read this student's workspace draft ${fanOut.draftReads} times`);
   if (fanOut.gradeSubscriptions > 0) finding(journey, `editing OTHER assignments re-created this student's grades listener ${fanOut.gradeSubscriptions} times`);
+  reportNotSimulated(notSimulated);
   if (consoleProblems.length) finding(journey, `console: ${[...new Set(consoleProblems)].slice(0, 5).join(' | ')}`);
   await context.close();
 };
@@ -199,7 +221,7 @@ const teacherJourney = async () => {
   console.log(`\nTEACHER — ${ROUNDS} rounds through the workspace, assignments edited throughout`);
   // weeklyPath=ok: the harness fails that callable by default, as production
   // did during the teacher audit; this journey is about the client.
-  const { context, page, cdp, consoleProblems } = await openPage('&weeklyPath=ok');
+  const { context, page, cdp, consoleProblems, notSimulated } = await openPage('&weeklyPath=ok');
   const tabs = ['Assignments', 'Classes', 'Students', 'Grades', 'Action Center', 'Attendance History', 'Grade Export', 'Home'];
   const samples = [];
   let gradeListenerChurn = 0;
@@ -235,6 +257,7 @@ const teacherJourney = async () => {
   // flip the gradebook to loading and re-read every student's grades.
   console.log(`  grades-collection listeners re-created by other assignments' edits: ${gradeListenerChurn}`);
   if (gradeListenerChurn > 0) finding(journey, `other assignments' edits re-created the teacher's grades listener ${gradeListenerChurn} times`);
+  reportNotSimulated(notSimulated);
   console.log(`  roster refetches (listSignInAccess) and grades queries caused by other assignments' edits: ${rosterRefetches}, ${gradesQueries}`);
   if (rosterRefetches > 0) finding(journey, `other assignments' edits refetched the teacher roster ${rosterRefetches} times`);
   if (gradesQueries > 0) finding(journey, `other assignments' edits re-queried the grades collection ${gradesQueries} times`);

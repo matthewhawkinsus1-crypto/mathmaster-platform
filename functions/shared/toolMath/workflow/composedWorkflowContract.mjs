@@ -203,13 +203,21 @@ export const composedWorkflowStageWork = (value) => {
   }
 };
 
-/** The whole composed question's work: `{ responses }`, student work only. */
-export const composedWorkflowWork = (responses) => ({
+/**
+ * The whole composed question's work: `{ responses }`, student work only —
+ * plus `outcomesWithheld: true` when it was done on a DOL, quiz or test, where
+ * a graph step is built without the magnet or the "table and function do not
+ * agree" block (workflowGraphStage.mjs). The flag changes how a graph is set
+ * up, never how anything is marked: forged in practice, it only gives up the
+ * help those offer.
+ */
+export const composedWorkflowWork = (responses, { outcomesWithheld = false } = {}) => ({
   responses: isPlainObject(responses)
     ? Object.fromEntries(Object.entries(responses)
       .filter(([, value]) => value !== undefined)
       .map(([stageId, value]) => [stageId, composedWorkflowStageWork(value)]))
     : {},
+  ...(outcomesWithheld === true ? { outcomesWithheld: true } : {}),
 });
 
 /*

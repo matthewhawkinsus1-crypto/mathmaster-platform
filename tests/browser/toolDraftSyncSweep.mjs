@@ -105,9 +105,8 @@ const workOnce = async () => {
 // Each journey leaves a realistic record: partly done, checked or submitted,
 // then edited again. The record is then reloaded and must come back.
 // What the student can see of their choices: the summary table when the tool
-// has one (Expression Meaning reopens on its first row, so which option
-// buttons are pressed depends on the row, not the work), else the pressed
-// choice buttons.
+// has one (which option buttons are pressed depends on the row Expression
+// Meaning reopens on, not only on the work), else the pressed choice buttons.
 const visibleChoices = () => page.evaluate(() => {
   const cells = [...document.querySelectorAll('[data-audit-root] table td')].map((cell) => cell.textContent.trim());
   if (cells.length) return cells.join(' | ');
@@ -175,6 +174,17 @@ for (const toolId of toolIds) {
         && shownAfter === shownBefore;
       if (!row.restoredAfterReload) {
         findings.push({ toolId, key: null, detail: `targeted journey: work did not come back after reload (records ${beforeReload.length} -> ${afterReload.length}; shown "${shownBefore}" -> "${shownAfter}")` });
+      }
+      if (toolId === 'expressionMeaning') {
+        // ...and the student comes back to the row they were on: the journey
+        // leaves the last expression half done, so that is the first row still
+        // missing a choice. It used to reopen on row 1 (PQ-028).
+        const rowButtons = page.locator('[data-audit-root] button[aria-label^="Edit the meaning of"]');
+        const reopened = await rowButtons.evaluateAll((buttons) => buttons.findIndex((button) => button.getAttribute('aria-pressed') === 'true'));
+        const rowCount = await rowButtons.count();
+        if (reopened !== rowCount - 1) {
+          findings.push({ toolId, key: null, detail: `targeted journey: reopened on row ${reopened + 1} of ${rowCount}, not on the half-done row ${rowCount}` });
+        }
       }
     } else {
       await workOnce();

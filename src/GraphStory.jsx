@@ -11,16 +11,28 @@ import {
 import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
 import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
 import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
+import { clientPointToViewBox } from './utils/responsiveCoordinates.js';
 
 const WIDTH = 720;
 const HEIGHT = 420;
 const PAD = 44;
 
+// Where the pointer is in the DRAWING, not in the box: capped to a shorter box,
+// the plane is drawn centred and narrower than the box, and a straight
+// box-to-viewBox stretch drew the stroke up to the empty band away from the
+// pen (PQ-034). Null only for a box with no size.
 const pointFromEvent = (event, element) => {
-  const rect = element.getBoundingClientRect();
+  const point = clientPointToViewBox({
+    clientX: event.clientX,
+    clientY: event.clientY,
+    rect: element.getBoundingClientRect(),
+    viewBoxWidth: WIDTH,
+    viewBoxHeight: HEIGHT,
+  });
+  if (!point) return null;
   return {
-    x: Math.max(PAD, Math.min(WIDTH - PAD, ((event.clientX - rect.left) / rect.width) * WIDTH)),
-    y: Math.max(PAD, Math.min(HEIGHT - PAD, ((event.clientY - rect.top) / rect.height) * HEIGHT)),
+    x: Math.max(PAD, Math.min(WIDTH - PAD, point.x)),
+    y: Math.max(PAD, Math.min(HEIGHT - PAD, point.y)),
   };
 };
 
@@ -62,14 +74,16 @@ export default function GraphStory({ question, onStateChange, onUndoStateChange,
 
   const setField = (field, value) => history.setValue((current) => ({ ...current, [field]: value }));
   const startStroke = (event) => {
+    const point = pointFromEvent(event, event.currentTarget);
+    if (!point) return;
     drawingRef.current = true;
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    const point = pointFromEvent(event, event.currentTarget);
     history.setValue((current) => ({ ...current, strokes: [...current.strokes, [point]] }));
   };
   const continueStroke = (event) => {
     if (!drawingRef.current) return;
     const point = pointFromEvent(event, event.currentTarget);
+    if (!point) return;
     history.setValue((current) => {
       const strokes = [...current.strokes];
       const last = [...(strokes.at(-1) || [])];

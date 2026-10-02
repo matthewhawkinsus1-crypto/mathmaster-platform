@@ -240,7 +240,7 @@ for (const { file, label } of MIGRATED) {
     const figure = region(text, `label="${label}"`, '>', 'the Work View registration');
     assert.match(figure, /capabilities=\{workspaceCapabilities\}/);
 
-    const registration = region(text, 'const workspaceCapabilities', 'return (', 'the capability descriptor');
+    const registration = region(text, 'const workspaceCapabilities', '};', 'the capability descriptor');
     // Enlarging has to carry the activity: the task, what to do next, and a way
     // to act on it. A Work View holding only a bigger graph is the failure this
     // stage exists to end.
@@ -329,11 +329,15 @@ test('the Work View shell keeps the current instruction on a phone', async () =>
   const figure = await source('src/components/common/EnlargeableFigure.jsx');
   const css = await source('src/components/common/WorkViewShell.css');
   // The instruction used to share the chip class with the capability labels, and
-  // the mobile rule that drops those chips took the instruction with it.
+  // the mobile rule that drops those chips took the instruction with it. The
+  // labels are one caption now (PQ-027); the phone still drops the caption, and
+  // still must not take the instruction with it.
   assert.match(figure, /className="mathmaster-work-view-instruction"/);
-  const mobileChips = region(css, '[data-layout="mobile"] .mathmaster-work-view-capability', '\n', 'the mobile chip rule');
-  assert.match(mobileChips, /display:\s*none/);
-  assert.doesNotMatch(mobileChips, /instruction/);
+  assert.match(figure, /<p className="mathmaster-work-view-capabilities">[\s\S]*capabilityNames\.map/,
+    'the capability labels live in the caption the phone rule hides');
+  const mobileCaption = region(css, '[data-layout="mobile"] .mathmaster-work-view-capabilities', '\n', 'the mobile capability-caption rule');
+  assert.match(mobileCaption, /display:\s*none/);
+  assert.doesNotMatch(mobileCaption, /instruction/);
 });
 
 test('mobile Work View stands the assignment chrome down and never floats controls over the graph', async () => {

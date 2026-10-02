@@ -15,7 +15,10 @@
  *   inequalities     legacy:  { construction, testChoice?, candidate? }
  *                    student-build: { build, rewrite?, modelingEntries?,
  *                      modelingSent?, regionClassification, teacherPointResponse?,
- *                      studentTestPoint?, studentPointResponse?, vertices }
+ *                      studentTestPoint?, studentPointResponse?, vertices,
+ *                      outcomesWithheld? }  (true on a DOL, quiz or test: no
+ *                      step Check there was a verdict, so each constraint is
+ *                      graded from its work as it stands)
  *   spatial          { responses: [{ id, value }] }
  *
  * linear / matrix3 / legacy-inequality work is the same shape My Math Path's

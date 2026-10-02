@@ -66,7 +66,7 @@ test('every embedded Step Algebra stage uses the same inline equation interactio
   const reduceSolver = region(
     modeSource,
     '{reduceInputText && !isDegenerate && !firstSolvedDone ? (',
-    '{isDegenerate ? (',
+    '{statementSides && !firstSolvedDone ? (',
     'systems reduced equation',
   );
   assert.match(reduceSolver, /inlineExpressionTools/);
@@ -181,7 +181,7 @@ test('substitution distribution leaves products unsimplified for the student', (
   const reduceSolver = region(
     modeSource,
     '{reduceInputText && !isDegenerate && !firstSolvedDone ? (',
-    '{isDegenerate ? (',
+    '{statementSides && !firstSolvedDone ? (',
     'substitution reduce solver',
   );
   assert.match(reduceSolver, /autoOpenDistribution=\{effectiveMethod === 'substitution'\}/);
@@ -403,7 +403,7 @@ test('embedded Step Algebra owns universal Undo while a one-variable solve is ac
 });
 
 test('ordered-pair display uses coordinate values rather than x = / y = labels', () => {
-  const orderedPair = region(modeSource, '<strong>Ordered-pair solution:</strong>', '{isDegenerate ? (', 'ordered-pair display');
+  const orderedPair = region(modeSource, '<strong>Ordered-pair solution:</strong>', '{isDegenerate && !subsystem ? (', 'ordered-pair display');
   assert.match(orderedPair, /MathDisplay/);
   assert.match(orderedPair, /solutionExpressions\[variables\[0\]\]/);
   assert.match(orderedPair, /solutionExpressions\[variables\[1\]\]/);
@@ -560,7 +560,7 @@ test('back-substitution and verification tokens use exact expressions instead of
 });
 
 test('systems work trail renders mathematical summaries as MathDisplay instead of exposing machine syntax', () => {
-  const trail = region(modeSource, 'function SystemsWorkTrail', 'const cleanCoefficient', 'SystemsWorkTrail');
+  const trail = region(modeSource, 'function SystemsWorkTrail', 'const solvedExpressionFor', 'SystemsWorkTrail');
   assert.match(trail, /stage\.summaryMath \|\| stage\.summaryLatex/);
   assert.match(trail, /value=\{stage\.summaryLatex \|\| stage\.summaryMath\}/);
   assert.match(trail, /format=\{stage\.summaryLatex \? 'latex' : 'ascii-math'\}/);
@@ -589,7 +589,7 @@ test('completed systems history carries classroom LaTeX in addition to machine-s
   assert.match(modeSource, /classroomAssignmentLatex/);
   assert.match(modeSource, /summaryMath:/);
   assert.match(modeSource, /summaryLatex:/);
-  const trail = region(modeSource, 'function SystemsWorkTrail', 'const cleanCoefficient', 'SystemsWorkTrail');
+  const trail = region(modeSource, 'function SystemsWorkTrail', 'const solvedExpressionFor', 'SystemsWorkTrail');
   assert.match(trail, /format=\{stage\.summaryLatex \? 'latex' : 'ascii-math'\}/);
 });
 

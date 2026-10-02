@@ -251,9 +251,35 @@ export const exploratoryLineFitTolerances = ({ targetSlope, xMin, xMax, yMin, yM
 
 /**
  * The choices the lab's selects and radio buttons hold before the student
- * picks anything (DataModelingLab.jsx starts its state from these).
+ * picks anything: none. Every judgment opens on "Choose…" — the empty string,
+ * UNANSWERED in toolMath/shared/judgmentChoices.mjs (written out here so this
+ * module stays import-free) — and DataModelingLab.jsx starts its state there.
+ * An unanswered judgment is never an answer: the grader compares it with the
+ * key and it is no box filled in.
  */
 export const DATA_MODELING_STARTING_CHOICES = Object.freeze({
+  direction: '',
+  strength: '',
+  causation: '',
+  modelChoice: '',
+  predictionType: '',
+});
+
+/**
+ * What the lab PRE-SELECTED before every judgment opened unanswered: positive,
+ * moderate, association, linear, and interpolation wherever the prediction
+ * type was not a FIT_PREDICTION mode's own question.
+ *
+ * Kept for one job. Work saved by a client from before that change — a draft
+ * or a checkpoint revision, say after Undo took the lab back to its start —
+ * can hold exactly these values without the student having chosen any of
+ * them. The grader therefore still reads such work that holds them in every
+ * graded input as untouched — not complete, so a deadline never submits it —
+ * exactly as it did while they were the lab's start. Work from today's lab
+ * carries OWN_CHOICES (judgmentChoices.mjs): its choices are the student's,
+ * these included. An explicit Check of such work is graded as always.
+ */
+export const DATA_MODELING_PRESELECTED_CHOICES = Object.freeze({
   direction: 'positive',
   strength: 'moderate',
   causation: 'association',
@@ -282,17 +308,20 @@ export const dataModelingStartingLine = (mode, questionData = {}, { regression =
  *
  * DataModelingLab.jsx's starting state, keyed as its work is: the steppers'
  * starting line (`full`, `lineFit`), a typed line's starting values, the
- * authored `startingModel`, the pre-selected direction, strength, causation,
+ * authored `startingModel`, the unanswered direction, strength, causation,
  * model family and prediction type, and the default prediction x. `xs` are the
  * plotted x-values, `regression` their linear regression, and `stepperPlan`
  * the `exploratoryLineFitPlan` for a stepper mode (null otherwise).
+ * `preselected: true` gives the same start with the choices an earlier lab
+ * pre-selected (DATA_MODELING_PRESELECTED_CHOICES) instead.
  *
  * The grader uses it to tell untouched work from finished work: a mode whose
- * every graded input starts filled (a line fit's steppers, the association
- * selects, the pre-selected model family) would otherwise look complete the
- * moment it opened, and a deadline would submit it for the student.
+ * every graded input starts filled (a line fit's steppers — and, before the
+ * judgments opened unanswered, the association selects and the model family)
+ * would otherwise look complete the moment it opened, and a deadline would
+ * submit it for the student.
  */
-export const dataModelingStartingWork = (mode, questionData = {}, { xs = [], regression = {}, stepperPlan = null } = {}) => {
+export const dataModelingStartingWork = (mode, questionData = {}, { xs = [], regression = {}, stepperPlan = null, preselected = false } = {}) => {
   const startingModel = questionData?.startingModel || {};
   const forcedModelId = FORCED_FIT_MODELS[mode] || null;
   const fitStart = forcedModelId === 'quadratic'
@@ -305,9 +334,10 @@ export const dataModelingStartingWork = (mode, questionData = {}, { xs = [], reg
   return {
     ...fitStart,
     r: '',
-    ...DATA_MODELING_STARTING_CHOICES,
+    ...(preselected
+      ? { ...DATA_MODELING_PRESELECTED_CHOICES, predictionType: FIT_PREDICTION_MODELS[mode] ? '' : 'interpolation' }
+      : DATA_MODELING_STARTING_CHOICES),
     predictionX: questionData?.predictionX ?? Math.ceil(Math.max(...xs, 1) + 1),
     predictionY: '',
-    predictionType: FIT_PREDICTION_MODELS[mode] ? '' : 'interpolation',
   };
 };

@@ -24,6 +24,9 @@ export default declareTool({
   //   division          { quotient: 'a, b, …', remainder: 'r, …' }
   //   graphConnection   { behavior: 'crosses'|'touches', end: <one of four end-behaviour labels> }
   //   rationalFeatures  { choice: 'hole'|'verticalAsymptote'|'zero'|'none' }
+  //   (both also carry choicesOpenUnanswered: true from a workshop whose
+  //   selects open unanswered — judgmentChoices.mjs OWN_CHOICES; older work
+  //   has none)
   contractVersion: 1,
   // PolynomialWorkshop.jsx: `questionData.mode || 'factorZero'`, then strict
   // `===` against each routed view, falling through to FactorZero. The

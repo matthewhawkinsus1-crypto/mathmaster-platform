@@ -137,3 +137,20 @@ export const nextIncompleteExpressionId = (expressions = [], assignments = {}, c
   }
   return null;
 };
+
+/*
+ * Where the tool opens when the student comes back to it.
+ *
+ * The open row is a selection, not an answer, so it is not saved — but the
+ * answers are, and they say where the student was. Restored work used to reopen
+ * on row 1 however far through the matrix the student had got (platform quirks
+ * audit PQ-028); it now opens on the first row, in matrix order, with a
+ * dimension still empty. Null when every row is complete.
+ */
+export const firstIncompleteExpressionId = (expressions = [], assignments = {}) => {
+  const list = Array.isArray(expressions) ? expressions : [];
+  const open = list.find((expr) => expr && !EXPRESSION_MEANING_DIMENSIONS.every(
+    (dimension) => String(assignments?.[expr.id]?.[dimension] || '').trim(),
+  ));
+  return open ? open.id : null;
+};

@@ -48,6 +48,7 @@ import {
   SKETCH_LIMITS,
   boundSketchStrokes,
   buildGraphWorkspaceModel,
+  constructionSketchFollowsFunction,
   constructionSketchMatches,
   graphWorkspaceModelFor,
   graphWorkspaceWorkFromState,
@@ -1146,14 +1147,17 @@ test('a points-only plot submitted as placed is graded point by point, once ever
     assert.equal(gradeBothWays(POINT_ONLY, work, `as placed ${JSON.stringify(value)}`).browser.isComplete, false);
   });
 
-  // It is a points-only rule: a construction with a curve through the points
-  // still needs its committed check, whatever the work says.
+  // A construction with a curve is graded as placed too (the next test): the
+  // same right work, drawn through right points, earns exactly what the check
+  // and the snap would have given it — no more.
   const curve = graphWorkspaceWorkFromState(correctSession(QUADRATIC).session.now);
   curve.construction.pointsLocked = false;
   curve.construction.pointsGradedAsPlaced = true;
   const curveGrade = gradeBothWays(QUADRATIC, curve, 'as placed on a curve construction').browser;
-  assert.equal(curveGrade.isComplete, false);
-  assert.equal(curveGrade.parts.filter((part) => part.id.startsWith('point-')).some((part) => part.isCorrect), false);
+  const checked = gradeBothWays(QUADRATIC, graphWorkspaceWorkFromState(correctSession(QUADRATIC).session.now), 'checked and snapped').browser;
+  assert.equal(curveGrade.isComplete, true);
+  assert.equal(curveGrade.isCorrect, true);
+  assert.deepEqual(curveGrade.parts.map((part) => [part.id, part.isCorrect]), checked.parts.map((part) => [part.id, part.isCorrect]));
 
   // It changes when the points are graded, never the marks: with a passed
   // check too, the parts are the same marks.
@@ -1171,6 +1175,107 @@ test('a points-only plot submitted as placed is graded point by point, once ever
   assert.equal(fromState.construction.pointsGradedAsPlaced, true);
   assert.equal(fromState.construction.pointsLocked, false);
   assert.deepEqual(normalizeGraphWorkspaceWork(fromState), fromState);
+});
+
+test('where outcomes are withheld a curve is drawn through the student\'s own points and marked at submission', () => {
+  // A DOL, quiz or test has no "Check Point Placements" and no snap to the
+  // true function — each was an answer oracle (PQ-036). Every point is graded
+  // where it sits; the curve is drawn through the student's OWN points and is
+  // committed (sketchLocked) once it passes through them; it is correct only
+  // when it is also the graph of the function and every point it was drawn
+  // through is right.
+  const model = modelFor(NO_ENDS);
+  const authored = authoredCamera(model);
+  const right = Object.fromEntries(model.tasks.map((task) => [task.id, resolveTaskExpected(task, model.functionSpec, {})]));
+  // A stroke through the placed points, left to right, as a student draws one.
+  const through = (placements, camera) => {
+    const points = Object.values(placements).filter(Array.isArray).sort((a, b) => a[0] - b[0]);
+    const path = points.flatMap((point, index) => (index === 0 ? [point] : Array.from({ length: 12 }, (_, step) => {
+      const t = (step + 1) / 12;
+      return [points[index - 1][0] + (point[0] - points[index - 1][0]) * t, points[index - 1][1] + (point[1] - points[index - 1][1]) * t];
+    })));
+    return trace([path], camera);
+  };
+  const asPlaced = (placements, strokes, label, camera = authored) => gradeBothWays(NO_ENDS, {
+    construction: { placements, pointsGradedAsPlaced: true, strokes, sketchView: camera, sketchLocked: true },
+  }, label).browser;
+  const curve = (grade) => grade.parts.find((part) => part.id === 'graph-curve');
+
+  // Right points, the function traced through them: complete and correct.
+  const traced = asPlaced(right, trace(model.visiblePaths, authored), 'as placed, traced');
+  assert.equal(traced.isComplete, true);
+  assert.equal(traced.isCorrect, true);
+  assert.equal(curve(traced).response, "drawn through the student's points");
+
+  // One point a unit off and the curve drawn through the student's own points:
+  // it is drawn, so the question can be submitted, but it is not the graph.
+  const off = { ...right, 'point-4': [1, 2] };
+  const ownCurve = asPlaced(off, through(off, authored), 'as placed, through a wrong point');
+  assert.equal(ownCurve.isComplete, true);
+  assert.equal(ownCurve.isCorrect, false);
+  assert.deepEqual([curve(ownCurve).isComplete, curve(ownCurve).isCorrect], [true, false]);
+  assert.equal(ownCurve.parts.find((part) => part.id === 'point-4').isCorrect, false);
+  // The function's own graph, drawn through that wrong point as well (the
+  // sketch check is loose enough to pass a unit away): still not credited,
+  // because a point it was drawn through is wrong — what practice requires
+  // before its snap.
+  const looseCurve = asPlaced(off, trace(model.visiblePaths, authored), 'as placed, the true line through a wrong point');
+  assert.deepEqual([curve(looseCurve).isComplete, curve(looseCurve).isCorrect], [true, false]);
+
+  // A lock on strokes that miss the student's points is no curve at all.
+  const forged = asPlaced(right, [[[100, 100], [400, 100], [700, 100]]], 'as placed, forged lock');
+  assert.equal(curve(forged).isComplete, false);
+  assert.equal(forged.isComplete, false);
+  // Until every point is placed nothing counts, the curve included.
+  const { 'point-5': _missing, ...four } = right;
+  const early = asPlaced(four, through(four, authored), 'as placed, a point missing');
+  assert.equal(early.isComplete, false);
+  assert.equal(early.parts.some((part) => part.isCorrect), false);
+
+  // JUDGED IN THE QUESTION'S OWN WINDOW, WHATEVER THE ZOOM (B-20). The check's
+  // tolerance is in viewBox units, so zoomed in it is tighter in graph units:
+  // a line 1.8 units high fails the practice check drawn zoomed in, and passes
+  // it drawn at the authored zoom. At submission it earns the same either way.
+  const zoomed = zoomIn(model, null, 1);
+  const high = model.visiblePaths.map((path) => path.map(([x, y]) => [x, y + 1.8]));
+  const highZoomed = trace(high, zoomed);
+  assert.equal(constructionSketchMatches(model, { strokes: highZoomed, camera: zoomed }), false, 'the zoomed practice check');
+  assert.equal(constructionSketchMatches(model, { strokes: trace(high, authored), camera: authored }), true, 'the authored practice check');
+  assert.equal(constructionSketchFollowsFunction(model, { strokes: highZoomed, camera: zoomed }), true);
+  assert.equal(
+    curve(asPlaced(right, trace(model.visiblePaths, zoomed), 'as placed, drawn zoomed in', zoomed)).isCorrect,
+    curve(traced).isCorrect,
+  );
+
+  // Practice is untouched: without the flag the same strokes need the check
+  // and a snap to the true function, exactly as before.
+  const practice = gradeBothWays(NO_ENDS, { construction: { placements: right, strokes: trace(model.visiblePaths, authored), sketchView: authored, sketchLocked: true } }, 'practice, never checked').browser;
+  assert.equal(practice.isComplete, false);
+  assert.equal(practice.parts.some((part) => part.isCorrect && part.id !== 'graph-curve'), false);
+});
+
+test('where outcomes are withheld the inverse is drawn through the student\'s own reflected points', () => {
+  const model = modelFor(INVERSE);
+  const authored = authoredCamera(model);
+  const placements = Object.fromEntries(model.tasks.map((task) => [task.id, resolveTaskExpected(task, model.functionSpec, {})]));
+  const markerPlacements = Object.fromEntries(model.endpointRequirements.map((requirement) => [requirement.id, { marker: requirement.marker, point: requirement.point }]));
+  const reflected = Object.fromEntries(model.analysisParts.filter((part) => part.kind === 'inversePoint').map((part) => [part.id, part.expected.map((point) => [...point])]));
+  const work = (selections, inverseStrokes) => ({
+    construction: { placements, pointsGradedAsPlaced: true, strokes: trace(model.visiblePaths, authored), sketchView: authored, sketchLocked: true, markerPlacements },
+    analysis: { selections, inverseStrokes, inverseSketchView: authored, inverseSketchLocked: true, answers: { 'inverse-equation': 'y=(x-1)/2' } },
+  });
+  const inversePart = (grade) => grade.parts.find((part) => part.id === 'inverse-line-sketch');
+  const right = gradeBothWays(INVERSE, work(reflected, trace(model.inverseVisiblePaths, authored)), 'inverse as placed').browser;
+  assert.equal(right.isCorrect, true, JSON.stringify(right.parts.filter((part) => !part.isCorrect)));
+  assert.equal(inversePart(right).response, "drawn through the student's points");
+  // One reflected point wrong, the inverse drawn through the student's own
+  // reflected points: drawn, not right.
+  const wrongSelections = { ...reflected, 'inverse-reflect-p1': [[3, 2]] };
+  const [from, to] = Object.values(wrongSelections).flat().sort((a, b) => a[0] - b[0]);
+  const ownLine = trace([Array.from({ length: 25 }, (_, step) => [from[0] + ((to[0] - from[0]) * step) / 24, from[1] + ((to[1] - from[1]) * step) / 24])], authored);
+  const wrong = gradeBothWays(INVERSE, work(wrongSelections, ownLine), 'inverse as placed, a reflected point wrong').browser;
+  assert.deepEqual([inversePart(wrong).isComplete, inversePart(wrong).isCorrect], [true, false]);
+  assert.equal(wrong.isCorrect, false);
 });
 
 test('a sketch counts only once it snapped on screen: Undo after a snap takes the credit back with it', () => {
@@ -1318,11 +1423,13 @@ test('the workspace reports the shared grader, through the server bytes, with no
   assert.match(COMPONENT, /import \{ answerStateFromSharedGrading \} from '\.\/platform\/grading\/sharedAnswerState\.js';/);
   // The work is built from the component's state by the shared mapper (the one
   // place the student's commit becomes `pointsLocked`). On a DOL, quiz or test
-  // a points-only plot has no check: the work says its points are graded as
-  // placed, and the grader counts them once every point is placed — the same
-  // moment the screen opens Submit (pointsCommitted)...
-  assert.match(COMPONENT, /const pointsCommitted = construction\.pointsValidated\s*\|\| \(!revealPointCorrectness && pointOnly && pointParts\.every\(\(part\) => part\.isComplete\)\);/);
-  assert.match(COMPONENT, /const pointsGradedAsPlaced = !revealPointCorrectness && pointOnly;/);
+  // there is no check: the work says it is graded as placed, and the grader
+  // counts the points once every point is placed — the same moment the screen
+  // opens drawing and Submit (pointsCommitted) — and marks a curve drawn
+  // through them at submission...
+  assert.match(COMPONENT, /const outcomesWithheld = !revealPointCorrectness;/);
+  assert.match(COMPONENT, /const pointsCommitted = construction\.pointsValidated\s*\|\| \(\(outcomesWithheld \|\| ownPointsSketch\) && pointParts\.every\(\(part\) => part\.isComplete\)\);/);
+  assert.match(COMPONENT, /const pointsGradedAsPlaced = outcomesWithheld \|\| curveAcceptedOwnPoints;/);
   assert.match(COMPONENT, /graphWorkspaceWorkFromState\(\{ construction: \{ \.\.\.construction, pointsGradedAsPlaced \}, analysis \}\),\s*\[construction, analysis, pointsGradedAsPlaced\],/);
   assert.match(COMPONENT, /const sharedGrade = useMemo\(\(\) => gradeToolCheck\(graphWorkspaceGrader, question, work\), \[question, work\]\);/);
   // ...and the effect reports the shared result as is: no verdict, completeness
@@ -1339,6 +1446,11 @@ test('the workspace reports the shared grader, through the server bytes, with no
   assert.match(drawing, /sketchView: sketchCamera/);
   assert.match(drawing, /inverseSketchMatches\(model, \{ strokes: completed, camera: sketchCamera \}\)/);
   assert.match(drawing, /inverseSketchView: sketchCamera/);
+  // Where outcomes are withheld the stroke is checked against the student's
+  // own points by the grader's function, under the same camera, never against
+  // the true function.
+  assert.match(drawing, /constructionSketchThroughOwnPoints\(model, \{ strokes: completed, camera: sketchCamera, placements: construction\.placements \}\)/);
+  assert.match(drawing, /inverseSketchThroughOwnPoints\(model, \{ strokes: completed, camera: sketchCamera, selections: analysis\.selections \}\)/);
   // No inline verdict code is left.
   assert.doesNotMatch(COMPONENT, /locationCorrect|roughSketchMatchesGraph|pathAnalysisTextMatches|analysisSelectionsAreCorrect|pointSetInputMatches|normalizeAnalysisRequests\s*=/);
   assert.doesNotMatch(COMPONENT, /responseKey: JSON\.stringify/);

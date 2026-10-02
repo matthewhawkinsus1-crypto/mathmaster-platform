@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { normalizeLabDefinition } from '../../platform/labs/labDefinitionSchema.js';
 import { submitModelingLab } from '../../services/modelingLabService.js';
+import { modelingLabResultView } from './modelingLabResultView.js';
 
 const wordCount = (value) => String(value || '').trim().split(/\s+/).filter(Boolean).length;
 
@@ -11,6 +12,9 @@ export const InteractiveModelingLabPlayer = ({
   supportUsage = {},
   disabled = false,
   onServerGraded,
+  // May the submitted lab show its result? QuestionEngine's
+  // showOutcomeFeedback: false on a DOL, quiz or test until it is released.
+  revealEvaluation = true,
 }) => {
   const lab = useMemo(() => normalizeLabDefinition(rawLabSpec || {}), [rawLabSpec]);
   const [paramValues, setParamValues] = useState(() => Object.fromEntries(lab.parameters.map((parameter) => [parameter.id, parameter.defaultValue])));
@@ -57,6 +61,9 @@ export const InteractiveModelingLabPlayer = ({
     }
   };
 
+  // What the submitted lab says about itself (modelingLabResultView.js).
+  const result = modelingLabResultView({ evaluation, revealEvaluation });
+
   return (
     <section className="mathmaster-interactive-lab" style={{ width: '100%', maxWidth: 1100, margin: '0 auto', padding: 'clamp(14px, 3vw, 24px)', boxSizing: 'border-box', textAlign: 'left', background: 'var(--mm-surface)', borderRadius: 12, border: '1px solid #dadce0', touchAction: 'pan-y' }}>
       <header style={{ borderBottom: '2px solid #1a73e8', paddingBottom: 14, marginBottom: 18 }}>
@@ -87,7 +94,7 @@ export const InteractiveModelingLabPlayer = ({
       <div style={{ margin: '5px 0 14px', color: '#5f6368', fontSize: 12 }}>{wordCount(justification)} words · target at least {lab.rubric.minimumJustificationWords} for a complete written explanation.</div>
 
       {error && <div role="alert" style={{ padding: 11, marginBottom: 12, borderRadius: 7, background: '#fce8e6', color: '#a50e0e' }}>{error}</div>}
-      {evaluation ? <div role="status" style={{ padding: 16, borderRadius: 9, background: evaluation.isMastered ? '#e6f4ea' : '#fff4ce', color: '#3c4043' }}><strong>{evaluation.provisional ? 'Sandbox evaluation' : 'Server-graded modeling result'} · {Math.round(Number(evaluation.compositeScore || 0) * 100)}%</strong><p style={{ margin: '6px 0 0' }}>{evaluation.feedback}</p></div> : <button type="button" disabled={disabled || busy || !trialHistory.length || !justification.trim()} onClick={handleSubmit} style={{ width: '100%', minHeight: 48, border: 0, borderRadius: 8, background: disabled || busy || !trialHistory.length || !justification.trim() ? '#dadce0' : '#1a73e8', color: '#fff', fontWeight: 900 }}>{busy ? 'Submitting securely…' : 'Submit Modeling Lab'}</button>}
+      {result ? <div role="status" data-lab-result={result.tone} style={{ padding: 16, borderRadius: 9, background: result.tone === 'mastered' ? '#e6f4ea' : result.tone === 'growth' ? '#fff4ce' : '#e8f0fe', color: '#3c4043' }}><strong>{result.title}</strong><p style={{ margin: '6px 0 0' }}>{result.detail}</p></div> : <button type="button" disabled={disabled || busy || !trialHistory.length || !justification.trim()} onClick={handleSubmit} style={{ width: '100%', minHeight: 48, border: 0, borderRadius: 8, background: disabled || busy || !trialHistory.length || !justification.trim() ? '#dadce0' : '#1a73e8', color: '#fff', fontWeight: 900 }}>{busy ? 'Submitting securely…' : 'Submit Modeling Lab'}</button>}
     </section>
   );
 };

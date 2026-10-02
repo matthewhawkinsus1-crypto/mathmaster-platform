@@ -1,4 +1,4 @@
-import { parse } from 'mathjs';
+import { parse } from './platform/math/mathjs.js';
 import { splitAdditiveTerms } from './algebraAstEngine.js';
 
 const EPS = 1e-9;

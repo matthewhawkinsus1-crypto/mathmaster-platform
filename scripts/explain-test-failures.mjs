@@ -15,110 +15,31 @@
  *
  * So the run tells you which kind you are looking at, instead of leaving it to
  * be guessed.
+ *
+ * One kind is not about the code at all. A checkout that ran the root `npm ci`
+ * but not `npm --prefix functions ci` cannot load the suites that import Cloud
+ * Functions code: firebase-admin, firebase-functions and googleapis live only
+ * in functions/package.json. Those fail with ERR_MODULE_NOT_FOUND before a
+ * single assertion runs, and used to be reported as BEHAVIOURAL — "more likely
+ * than the others to be a genuine defect" — which is the opposite of the truth.
+ * They are now ENVIRONMENT, listed apart, and never counted with the rest. The
+ * run still exits non-zero: the suite did not pass.
+ *
+ * Parsing and classification live in scripts/lib/testFailureClassifier.mjs,
+ * which tests/platform/explainTestFailures.test.mjs imports; this script only
+ * runs the suite and prints.
  */
 
 import { spawn } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import {
+  FUNCTIONS_DEPENDENCIES_NOTE,
+  GUIDANCE,
+  classify,
+  missingFunctionsDependency,
+  parseFailures,
+} from './lib/testFailureClassifier.mjs';
 
 const PLAYBOOK = 'docs/handoffs/SOURCE_CONTRACT_PLAYBOOK.md';
-
-const GUIDANCE = {
-  sourceText: {
-    label: 'PINNED TO SOURCE TEXT',
-    why: 'The assertion matches a literal string or regex against a component\'s source. It fails when code is renamed, reformatted, split into another file, or rewritten — none of which is a regression.',
-    steps: [
-      'Read the comment above the assertion. It names the behaviour; the regex does not.',
-      'Decide whether that behaviour still holds, by reading or running the new code.',
-      'Intact -> rewrite the assertion against the behaviour (assertCapability / region from tests/platform/helpers/sourceContract.mjs), then break the behaviour once and confirm it goes red.',
-      'Genuinely lost -> fix the code. The test was right.',
-    ],
-  },
-  canonicalValue: {
-    label: 'PINNED TO A VALUE SOMETHING CANONICALISES',
-    why: 'The assertion compares a value that a normaliser rewrites on the way through. The authoring-facing name is not the runtime name, so the comparison can never hold regardless of whether the behaviour is correct.',
-    steps: [
-      'Print the value at the point the assertion runs, rather than assuming it.',
-      'Find the normaliser (e.g. normalizeWorkflow, interactionStages aliases) and what it maps the value to.',
-      'Assert the invariant that survives normalisation — an id, a role, a category — not the pre-normalisation spelling.',
-    ],
-  },
-  frozenShape: {
-    label: 'PINNED TO A FROZEN OBJECT SHAPE',
-    why: 'A deepEqual against a whole record fails the moment the record gains a legitimate new field.',
-    steps: [
-      'Check whether the new or missing key is a deliberate addition.',
-      'If it is, add it to the expected object with a comment saying why it exists.',
-      'If the record should not have changed, that is a real finding — investigate the code.',
-    ],
-  },
-  forbiddenInComment: {
-    label: 'FORBIDDEN IDENTIFIER MATCHED IN A COMMENT',
-    why: 'A doesNotMatch assertion means "this code must not touch X", but it runs over the whole file — so it also fires when a COMMENT explains that the code must not touch X. Deleting the explanation is not the fix.',
-    steps: [
-      'Find where the forbidden word actually occurs: grep -n <word> <file>.',
-      'If every occurrence is inside a comment, the code is correct and the assertion is over-scoped.',
-      'Scope it to code: import { executableSource } from ./helpers/sourceContract.mjs and assert against executableSource(source).',
-      'Then confirm it still bites: add a real reference to the forbidden field in code and check the test fails.',
-    ],
-  },
-  versionedConstant: {
-    label: 'PINNED TO A CONSTANT THAT IS MEANT TO CHANGE',
-    why: 'The test hardcodes a value like a schema or repair version that exists precisely so it can be incremented. The fixture usually MEANT "current" — and silently came to mean "stale" the moment the constant advanced, so the test then asserts the opposite of its own name.',
-    steps: [
-      'Read the test name. If it says "current", the fixture must track the constant, not a literal.',
-      'Import the constant and use it: repairVersion: ASSIGNMENT_RUNTIME_REPAIR_VERSION.',
-      'For a deliberately OLD value, write CURRENT - 1 rather than a literal, so it stays old after the next bump.',
-      'Check the counterpart exists: if one test proves a current stamp suppresses work, another should prove a stale one does not.',
-    ],
-  },
-  behavioural: {
-    label: 'BEHAVIOURAL',
-    why: 'This compares computed output, not source text. It is more likely than the others to be a genuine defect — but it can still be pinned to a representation (see the canonical-value case).',
-    steps: [
-      'Reproduce it in isolation with a small node -e probe before changing anything.',
-      'Confirm which side is wrong: the expectation or the implementation.',
-      'If you change the assertion, mutation-test it: break the behaviour and confirm it fails.',
-    ],
-  },
-};
-
-/*
- * Classified from the assertion's own metadata, not its message.
- *
- * node reports the custom message in `error:` and the machinery in `operator:`
- * and `actual:`. A regex assertion against a file shows operator 'match' with
- * `actual` holding the file's text — which is exactly the source-text pin. The
- * message is author-written and says nothing structural, so reading it was why
- * the first version of this called everything behavioural.
- */
-const classify = ({ operator, actual, error }) => {
-  const looksLikeSource = /^\s*(import|const|function|export|\/\*|<)/m.test(String(actual || ''))
-    || /\.jsx?['"]/.test(String(actual || ''));
-
-  if (operator === 'doesNotMatch') {
-    // A forbidden-identifier check that fired only because of prose is the most
-    // misleading failure in this suite: the obvious way to green it is to
-    // delete the comment documenting the safety boundary being enforced.
-    return looksLikeSource ? 'forbiddenInComment' : 'behavioural';
-  }
-  if (operator === 'match') {
-    return looksLikeSource ? 'sourceText' : 'behavioural';
-  }
-  if (operator === 'deepStrictEqual' || operator === 'notDeepStrictEqual') return 'frozenShape';
-  const bare = String(actual || '').trim();
-  const equality = operator === 'strictEqual' || operator === '==';
-  // A small integer on one side of an equality is very often a version or
-  // schema constant that has just been incremented: the fixture said 1 while 1
-  // happened to be current, and stopped meaning "current" on the bump.
-  if (equality && /^\d{1,3}$/.test(bare)) return 'versionedConstant';
-  // A single bare word is usually a canonicalised name — 'functionGraph' where
-  // the test expected 'graphConstruction'. Booleans carry no such signal.
-  if (equality && /^['"]?[a-zA-Z][a-zA-Z0-9_]*['"]?$/.test(bare) && !/^(true|false|null|undefined)$/.test(bare)) {
-    return 'canonicalValue';
-  }
-  if (/did not match the regular expression/i.test(String(error || ''))) return 'sourceText';
-  return 'behavioural';
-};
 
 const run = () => new Promise((resolve) => {
   const child = spawn('node', ['--test', ...process.argv.slice(2).length ? process.argv.slice(2) : ['tests/platform/*.test.mjs']], {
@@ -131,97 +52,48 @@ const run = () => new Promise((resolve) => {
   child.on('close', (code) => resolve({ out, code }));
 });
 
-const parseFailures = (tap) => {
-  const failures = [];
-  const lines = tap.split('\n');
-  lines.forEach((line, index) => {
-    const match = /^not ok \d+ - (.*)$/.exec(line.trim());
-    if (!match) return;
-    /*
-     * Each failure's diagnostic block is bounded by the NEXT test result line,
-     * not by a fixed window or the YAML terminator. A fixed window misses
-     * `operator:` when a failed regex dumps a whole component into `actual:`,
-     * and the terminator is not unique — a deepEqual diff prints its own
-     * "... Skipped lines". Losing `operator:` silently classified every failure
-     * as behavioural, which is the least useful answer available.
-     */
-    let blockEnd = index + 1;
-    while (blockEnd < lines.length && !/^\s*(not ok|ok) \d+/.test(lines[blockEnd])) blockEnd += 1;
-    const block = lines.slice(index, blockEnd);
-    const location = /location: '([^']+)'/.exec(block.join('\n'));
-
-    // Scanned line by line rather than matched as one blob: node's TAP writes
-    // `error: |-` followed by an indented block that ends at the next key, and
-    // a single regex over the whole thing either stops at the first newline or
-    // runs past into the stack. Getting this wrong silently classifies every
-    // failure as behavioural, which is the least useful answer available.
-    let error = '';
-    const start = block.findIndex((line) => /^\s*error:/.test(line));
-    if (start !== -1) {
-      const inline = /^\s*error: ['"]?([^'"]*)['"]?\s*$/.exec(block[start]);
-      if (inline && inline[1] && inline[1] !== '|-') {
-        error = inline[1];
-      } else {
-        const body = [];
-        for (let i = start + 1; i < block.length; i += 1) {
-          if (/^\s*(code|stack|failureType|expected|actual|operator):/.test(block[i])) break;
-          body.push(block[i].trim());
-        }
-        error = body.join('\n').trim();
-      }
-    }
-
-    const joined = block.join('\n');
-    const operator = (/operator: '([^']+)'/.exec(joined) || [])[1] || '';
-    let actual = '';
-    const actualStart = block.findIndex((line) => /^\s*actual:/.test(line));
-    if (actualStart !== -1) {
-      const inlineActual = /^\s*actual: (.+)$/.exec(block[actualStart]);
-      if (inlineActual && inlineActual[1].trim() !== '|-') {
-        actual = inlineActual[1].trim();
-      } else {
-        const body = [];
-        for (let i = actualStart + 1; i < block.length && body.length < 6; i += 1) {
-          if (/^\s*(code|stack|operator|expected):/.test(block[i])) break;
-          body.push(block[i].trim());
-        }
-        actual = body.join('\n');
-      }
-    }
-
-    failures.push({
-      name: match[1],
-      file: location ? location[1].replace(/^.*\/mathmaster-platform\//, '') : null,
-      error,
-      operator,
-      actual,
-    });
-  });
-  return failures;
-};
-
 const { out, code } = await run();
 const failures = parseFailures(out);
 
 if (!failures.length) process.exit(code);
 
 const bar = '='.repeat(78);
-console.log(`\n${bar}`);
-console.log(`HOW TO READ THESE ${failures.length} FAILURE${failures.length === 1 ? '' : 'S'}`);
-console.log(bar);
-console.log(
-  '\nAcross PRs #152 and #155-#166, 26 of 27 failures in this suite were NOT\n'
-  + 'regressions — they were assertions pinned to a representation that a correct\n'
-  + 'refactor had moved. Exactly one was a real bug.\n\n'
-  + 'So do not revert working code to make an assertion match again. On PR #165\n'
-  + 'that would have restored an expression that had itself become the bug the\n'
-  + 'test existed to prevent.\n\n'
-  + `Full procedure: ${PLAYBOOK}`,
-);
+const classified = failures.map((failure) => ({ ...failure, kind: classify(failure) }));
+const environment = classified.filter((failure) => failure.kind === 'functionsDependencies');
+const toRead = classified.filter((failure) => failure.kind !== 'functionsDependencies');
+
+if (environment.length) {
+  console.log(`\n${bar}`);
+  console.log(`ENVIRONMENT, NOT A REGRESSION: ${environment.length} FAILURE${environment.length === 1 ? '' : 'S'}`);
+  console.log(bar);
+  console.log(`\n${FUNCTIONS_DEPENDENCIES_NOTE}`);
+  console.log('These could not load Cloud Functions code: its packages live only in');
+  console.log('functions/package.json. No assertion in them ran, so they say nothing about');
+  console.log('your change, and they are not counted with the failures below.\n');
+  environment.forEach((failure) => {
+    console.log(`  - ${failure.name}  (missing ${missingFunctionsDependency(failure)})`);
+  });
+  console.log('\nInstall them, re-run, and read only what is still red.');
+}
+
+if (toRead.length) {
+  console.log(`\n${bar}`);
+  console.log(`HOW TO READ THESE ${toRead.length} FAILURE${toRead.length === 1 ? '' : 'S'}`);
+  console.log(bar);
+  console.log(
+    '\nAcross PRs #152 and #155-#166, 26 of 27 failures in this suite were NOT\n'
+    + 'regressions — they were assertions pinned to a representation that a correct\n'
+    + 'refactor had moved. Exactly one was a real bug.\n\n'
+    + 'So do not revert working code to make an assertion match again. On PR #165\n'
+    + 'that would have restored an expression that had itself become the bug the\n'
+    + 'test existed to prevent.\n\n'
+    + `Full procedure: ${PLAYBOOK}`,
+  );
+}
 
 const seen = new Set();
-failures.forEach((failure, index) => {
-  const kind = classify(failure);
+toRead.forEach((failure, index) => {
+  const { kind } = failure;
   const g = GUIDANCE[kind];
   console.log(`\n${'-'.repeat(78)}`);
   console.log(`${index + 1}. ${failure.name}`);

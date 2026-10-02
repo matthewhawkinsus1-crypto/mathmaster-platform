@@ -9,7 +9,7 @@ import {
 import { removeQuestionDraftFamily, subscribeToQuestionDrafts } from '../../src/questionDraftStorage.js';
 import { checkSubstitutedStatement, substitutedStatementSides } from '../../src/tools/systemsWorkspace/degenerateSubstitution.js';
 import { planeRelationshipFeedback, planeRelationshipTypes } from '../../src/tools/systemsWorkspace/spatialFeedback.js';
-import { classificationFeedback, planeWorkEarned, statementKindCorrect } from '../../src/tools/systemsWorkspace/algebraicOutcomeModel.js';
+import { classificationFeedback, planeWorkEarned, resolveInterpretationGate, statementKindCorrect } from '../../src/tools/systemsWorkspace/algebraicOutcomeModel.js';
 import { linearEquationForm } from '../../src/tools/systemsWorkspace/algebraicSystemsEngine.js';
 import * as engine from '../../src/tools/systemsWorkspace/eliminationReduction.js';
 import { buildReductionSystem } from '../../src/tools/systemsWorkspace/substitutionReduction.js';
@@ -198,9 +198,20 @@ test('classification needs the right reading of the statement, with misconceptio
   assert.match(nudges[0], /does not fix any coordinate/);
   assert.equal(new Set(nudges).size, nudges.length, 'each confusion gets its own nudge');
   for (const nudge of nudges) assert.doesNotMatch(nudge, /infinitely many|no solution|dependent|inconsistent/i, `nudge names the answer: ${nudge}`);
+  // Where the activity shows outcomes (this workflow's classwork and
+  // practice), a press records the classification only once the statement is
+  // read right. The screen asks the interpretation gate; on a DOL, quiz or
+  // test the gate records what was chosen instead and says nothing about it
+  // (systemsInterpretationOutcomePolicy.test.mjs).
+  const shown = resolveInterpretationGate({ showImmediateFeedback: true, outcome: identity });
+  assert.equal(shown.recordsClassification('identity', 'infinite'), true);
+  assert.equal(shown.recordsClassification('identity', 'none'), true, 'a right reading records, so the meaning can be nudged');
+  assert.equal(shown.recordsClassification('origin', 'unique'), false);
+  assert.equal(shown.recordsClassification('contradiction', 'none'), false);
+  assert.equal(shown.classificationHint('origin', 'unique'), nudges[0]);
   const ui = componentSource('src/tools/systemsWorkspace/AlgebraicOutcome.jsx');
   const submitHandler = region(ui, 'const submitClassification =', 'const hint =', 'classification submit');
-  assert.match(submitHandler, /if \(statementKindCorrect\(outcome, kind\)\) onClassify\(choice\)/);
+  assert.match(submitHandler, /if \(gate\.recordsClassification\(kind, choice\)\) onClassify\(choice, kind\)/);
 });
 
 /* ---------------------------------------------------- plane relationships */
@@ -229,29 +240,54 @@ test('stated plane relationships are re-judged, and wrong ones get a pair-specif
 });
 
 test('an identity or contradiction is complete only after the plane relationships are stated', () => {
+  // Under either policy: nothing is submittable until the classification is
+  // done and every pair of planes is stated and recorded. (Where outcomes are
+  // shown "done" also means right; systemsInterpretationOutcomePolicy covers
+  // the difference.)
+  const question = { equations: INCONSISTENT, variables: XYZ };
+  const statedRight = { '1-2': 'parallel', '1-3': 'coincident', '2-3': 'parallel' };
+  for (const showImmediateFeedback of [true, false]) {
+    const gate = (planeWork) => resolveInterpretationGate({
+      showImmediateFeedback,
+      outcome: { type: 'none', statement: '0 = -3' },
+      classification: { choice: 'none', kind: 'contradiction' },
+      planeWork,
+      questionData: question,
+    });
+    assert.equal(gate(null).readyToSubmit, false, `${showImmediateFeedback}: no planes yet`);
+    assert.equal(gate({ answers: statedRight, checked: false }).readyToSubmit, false, `${showImmediateFeedback}: chosen, not recorded`);
+    assert.equal(gate({ answers: { '1-2': 'parallel' }, checked: true }).readyToSubmit, false, `${showImmediateFeedback}: not every pair`);
+    assert.equal(gate({ answers: statedRight, checked: true }).readyToSubmit, true, `${showImmediateFeedback}: stated`);
+  }
   const parent = componentSource('src/tools/systemsWorkspace/EliminationReductionMode.jsx');
   assert.match(parent, /const readyToSubmit = phase === 'complete' \|\| \(phase === 'classified' && planesEarned\);/);
-  assert.match(parent, /const planesEarned = Boolean\(outcome && classified && planeWorkEarned\(planeWork, planeQuestion\)\);/);
+  assert.match(parent, /const planesEarned = Boolean\(outcome && interpretation\.planesDone\);/);
   // The verdict is the shared grader's — the function the server runs — so
   // Check marks exactly the work it submits, and that work carries the
-  // classification the student recorded and the plane relationships stated.
+  // classification the student recorded, the reading of the statement
+  // recorded with it, and the plane relationships stated.
   const check = region(executableSource(parent), 'const check = () => {', 'mode: \'algebraic\'', 'check');
   assert.match(check, /gradeToolCheck\(systemsWorkspaceGrader, questionData, work\)/);
   assert.match(check, /submit\(\{ isCorrect: result\.isCorrect, score: result\.score \}, work,/);
   const work = region(executableSource(parent), 'const work = {', 'useReportToolWork(work)', 'work');
   assert.match(work, /classificationChoice: recordedClassification/);
+  assert.match(work, /classificationKind: classificationRecord\?\.kind \|\| ''/);
   assert.match(work, /planeWork\?\.answers/);
   // An identity or contradiction is correct only with the classification AND
   // every plane relationship right (it was `interpreted = classified && planesEarned`).
-  const question = { type: 'systemsWorkspace', mode: 'algebraic', method: 'elimination', equations: DEPENDENT };
+  const dependent = { type: 'systemsWorkspace', mode: 'algebraic', method: 'elimination', equations: DEPENDENT };
   const truth = planeRelationshipTypes(DEPENDENT.map((equation) => linearEquationForm(equation, XYZ)), XYZ);
-  const interpret = (outcome) => systemsWorkspaceGrader.grade(question, { dimension: 3, method: 'elimination', outcome });
+  const interpret = (outcome) => systemsWorkspaceGrader.grade(dependent, { dimension: 3, method: 'elimination', outcome });
   const stated = { statement: '0 = 0', classificationChoice: 'infinite', planes: { ...truth } };
   assert.equal(interpret(stated).isCorrect, true);
   assert.equal(interpret({ ...stated, planes: { ...truth, '1-3': truth['1-3'] === 'line' ? 'parallel' : 'line' } }).isCorrect, false, 'a wrong plane relationship is not an interpretation');
   assert.equal(interpret({ ...stated, planes: {} }).isCorrect, false, 'the plane relationships have not been stated');
   assert.equal(interpret({ ...stated, classificationChoice: '' }).isCorrect, false, 'no classification has been recorded');
   assert.equal(interpret({ ...stated, classificationChoice: 'none' }).isCorrect, false, 'the wrong classification');
+  // The reading recorded with the classification is part of it: a DOL, quiz
+  // or test records whatever was chosen, and 0 = 0 is an identity.
+  assert.equal(interpret({ ...stated, classificationKind: 'identity' }).isCorrect, true);
+  assert.equal(interpret({ ...stated, classificationKind: 'origin' }).isCorrect, false, '"true only at (0, 0, 0)" is not an identity');
   const spatial = executableSource(componentSource('src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx'));
   assert.doesNotMatch(spatial, /parallelPlaneRelationships/, 'the model must not caption the relationships the student states');
 });

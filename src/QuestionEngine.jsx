@@ -43,6 +43,7 @@ import { resolveCalculatorPolicy } from './platform/policies/calculatorPolicy';
 import { getToolDefinition } from './tools/toolRegistry';
 import { buildRawPathResponse } from './platform/path/pathToolResponses';
 import { ToolRuntimeProvider } from './tools/shared/ToolRuntimeContext';
+import { createAttemptOutcomeSlots } from './tools/shared/attemptOutcomeSlots.js';
 import { gradeRegistryToolWork, sharedVerdictWithholdsAttempt } from './platform/grading/registryToolGrading.js';
 import { attemptInputsFromGrading } from '../functions/shared/serverGrading/gradingResult.mjs';
 import { buildModelingLabResponse, gradeModelingLabEvaluation } from '../functions/shared/serverGrading/modelingLabGrading.mjs';
@@ -61,7 +62,7 @@ import {
   resolveQuestionMaximumAttempts,
 } from './attemptPolicy';
 import { stableStringify } from './utils/idUtils';
-import { ENTER_TO_CONTINUE_HINT, countAnswerControls, focusFirstAnswerControl, focusForEnter, isTouchPrimaryPointer, nextEmptyAnswerField, resolveQuestionEnterIntent, shouldAdvanceOnEnter, shouldFocusAnswerOnOpen } from './platform/interaction/answerEntryUx.js';
+import { ENTER_TO_CONTINUE_HINT, countAnswerControls, focusFirstAnswerControl, focusForEnter, isTouchPrimaryPointer, nextEmptyAnswerField, resolveQuestionEnterIntent, restoreAnswerFocus, shouldAdvanceOnEnter, shouldFocusAnswerOnOpen } from './platform/interaction/answerEntryUx.js';
 import { AnswerFocusPolicyProvider } from './platform/interaction/answerFocusPolicy.js';
 import { normalizeQuestionWeight } from './platform/grading/questionWeights.js';
 import { resolveTaskContextPresentation } from './platform/workflow/taskContextPresentation.js';
@@ -69,6 +70,7 @@ import { WorkViewCapabilityProvider } from './platform/workView/workViewCapabili
 import { WorkViewUndoProvider } from './platform/workView/useMathUndoHistory.js';
 import { QuestionLifecycleProvider } from './platform/question/QuestionLifecycleContext.jsx';
 import UniversalUndoButton from './components/common/UniversalUndoButton.jsx';
+import { toolSubmissionParts } from './tools/shared/toolSubmissionParts.js';
 import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 import CalculatorIcon from './components/common/CalculatorIcon.jsx';
 import { startPerformanceSpan } from './platform/performance/performanceTelemetry.js';
@@ -203,6 +205,10 @@ export default function QuestionEngine({
   serverGrading = null,
   onResponseStateChange = null,
   onResponseCheckpoint = null,
+  // Set when this mount only shows work a server copy restored after the
+  // question had opened (App.jsx): { position } — where the student's cursor
+  // was, from answerFocusPosition. Such a mount is not an opening.
+  draftRestore = null,
   onSpotlightFrame = null,
   // Support evidence: ({ supportId, eventType }) when a support is on screen
   // ('available'), applied to this item ('provided') or used ('used'). The
@@ -340,7 +346,14 @@ export default function QuestionEngine({
     onSpotlightFrame?.({ question: processedQuestion, answerState });
   }, [answerState, processedQuestion, onSpotlightFrame]);
   const [feedback, setFeedback] = useState(null);
-  const [lastSubmittedResponseKey, setLastSubmittedResponseKey] = useState('');
+  // PQ-022: the verdict areas of the registry tool on screen, and which of
+  // them shows the outcome of which attempt (attemptOutcomeSlots.js). The
+  // owner is tied to the feedback object it was chosen for, so it can never
+  // carry over to another attempt's feedback.
+  const [toolOutcomeSlots] = useState(createAttemptOutcomeSlots);
+  const [toolOutcomeOwner, setToolOutcomeOwner] = useState(null);
+  const toolOutcomeSequenceRef = useRef(0);
+  const [lastSubmittedResponseKey, setLastSubmittedResponseKey] = useState(() => record.lastResponseKey || '');
   const [submitting, setSubmitting] = useState(false);
   const submissionInFlightRef = useRef(false);
   const [requesting, setRequesting] = useState(false);
@@ -426,7 +439,22 @@ export default function QuestionEngine({
     (supportUsage.modifications || []).forEach((modificationId) => reportSupportEvidence(modificationId, 'provided'));
   }, [stableQuestion, supportPresentation.textToSpeech, supportUsage]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /*
+   * A NEW QUESTION STARTS CLEAN — AND A QUESTION THAT HAS JUST OPENED IS NOT RESET.
+   *
+   * Everything below starts at these values, so on mount there is nothing to
+   * reset. Resetting then was not harmless: React runs a child's effects before
+   * its parent's, so this wiped what the response module had already reported
+   * on mounting. Most modules report again on their next render; WorkflowRunner
+   * reports only when an answer changes, so a finished composed question opened
+   * again could not be submitted until the student changed an answer. The
+   * question this state belongs to is remembered, not a first-run flag, so
+   * React's development double mount is not mistaken for a new question.
+   */
+  const resetForQuestionRef = useRef(processedQuestion);
   useEffect(() => {
+    if (resetForQuestionRef.current === processedQuestion) return;
+    resetForQuestionRef.current = processedQuestion;
     setAnswerState(EMPTY_ANSWER_STATE);
     setFeedback(null);
     setLastSubmittedResponseKey(record.lastResponseKey || '');
@@ -453,13 +481,20 @@ export default function QuestionEngine({
   }, [processedQuestion]);
 
   useEffect(() => {
+    // A registry tool reports its work through ATTEMPT_SUBMITTED, never through
+    // `answerState`, whose response key therefore stays '' for it. Compared
+    // with the last response key of a question that already had an attempt on
+    // its record, '' looked like "the answer changed", and the outcome of the
+    // tool's new attempt was cleared the instant it arrived (PQ-022). A tool
+    // clears its own verdict when its work changes.
+    if (missingToolDefinition) return;
     if (
       feedback?.isCorrect === false &&
       answerState.responseKey !== lastSubmittedResponseKey
     ) {
       setFeedback(null);
     }
-  }, [answerState.responseKey, feedback, lastSubmittedResponseKey]);
+  }, [answerState.responseKey, feedback, lastSubmittedResponseKey, missingToolDefinition]);
 
   const registerUndo = useCallback((controller) => {
     setBaseUndoController(controller ? { ...controller, ownerId: 'current-tool' } : null);
@@ -615,7 +650,21 @@ export default function QuestionEngine({
   // if any: it knows whether it has one answer or twelve.
   const answerAutoFocusAllowed = !locked && !scaffoldRequired && !contextScaffoldRequired
     && shouldFocusAnswerOnOpen({ composed: isComposed, narrowViewport: isMobileQuestionViewport(), touchPrimary: isTouchPrimaryPointer() });
+  // A remount that only shows restored work puts the cursor back where the
+  // student had it, or nowhere — never in the first box, where a keystroke
+  // already on its way would land over the restored answer. Read once, and
+  // spent inside the frame (StrictMode runs this effect twice on mount).
+  const draftRestoreRef = useRef(draftRestore);
   useEffect(() => {
+    const restore = draftRestoreRef.current;
+    if (restore) {
+      if (missingToolDefinition) return undefined;
+      const frame = window.requestAnimationFrame(() => {
+        draftRestoreRef.current = null;
+        restoreAnswerFocus(questionEngineRef.current, restore.position);
+      });
+      return () => window.cancelAnimationFrame(frame);
+    }
     if (!answerAutoFocusAllowed || missingToolDefinition) return undefined;
     const frame = window.requestAnimationFrame(() => {
       focusFirstAnswerControl(questionEngineRef.current);
@@ -941,28 +990,24 @@ export default function QuestionEngine({
           toolResponse?.value || JSON.stringify(payload?.response ?? {}),
           { partialCreditPercent: attemptInputs.partialCreditPercent, toolResponse },
         );
-        setFeedback(result || {
+        const gradedFeedback = result || {
           isCorrect: attemptInputs.isCorrect,
           status: attemptInputs.isCorrect ? 'correct' : record.attemptCount + 1 >= resolvedMaximumAttempts ? 'expired' : 'attempted',
           attemptCount: record.attemptCount + 1,
           remainingAttempts: Math.max(0, resolvedMaximumAttempts - record.attemptCount - 1),
           expired: !attemptInputs.isCorrect && record.attemptCount + 1 >= resolvedMaximumAttempts,
           partialCredit: attemptInputs.partialCreditPercent || 0,
-        });
+        };
+        setFeedback(gradedFeedback);
+        // The tool's verdict for this Check mounted when Check was pressed,
+        // before the attempt was graded, so it is the latest slot (PQ-022).
+        toolOutcomeSequenceRef.current += 1;
+        setToolOutcomeOwner({ feedback: gradedFeedback, slot: toolOutcomeSlots.latest(), id: toolOutcomeSequenceRef.current });
         return;
       }
-      const rawParts = payload?.metadata?.parts;
-      const parts = Array.isArray(rawParts)
-        ? rawParts.map((part, index) => ({
-            id: part?.id || `part-${index + 1}`,
-            label: part?.label || `Part ${index + 1}`,
-            isComplete: part?.isComplete !== false,
-            isCorrect: Boolean(part?.isCorrect),
-            response: part?.response ?? '',
-          }))
-        : rawParts && typeof rawParts === 'object'
-          ? Object.entries(rawParts).map(([id, value]) => ({ id, label: id, isComplete: true, isCorrect: Boolean(value), response: '' }))
-          : [];
+      // A mode graded on the device: only the parts this question asked, under
+      // their names (toolSubmissionParts).
+      const parts = toolSubmissionParts(payload?.metadata);
       const score = Number(payload?.score);
       const partialCreditPercent = Number.isFinite(score)
         ? Math.max(0, Math.min(100, Math.round((score <= 1 ? score * 100 : score))))
@@ -979,14 +1024,19 @@ export default function QuestionEngine({
         responseKey,
         { partialCreditPercent, toolResponse },
       );
-      setFeedback(result || {
+      const nextFeedback = result || {
         isCorrect: Boolean(payload?.isCorrect),
         status: payload?.isCorrect ? 'correct' : record.attemptCount + 1 >= resolvedMaximumAttempts ? 'expired' : 'attempted',
         attemptCount: record.attemptCount + 1,
         remainingAttempts: Math.max(0, resolvedMaximumAttempts - record.attemptCount - 1),
         expired: !payload?.isCorrect && record.attemptCount + 1 >= resolvedMaximumAttempts,
         partialCredit: partialCreditPercent || 0,
-      });
+      };
+      setFeedback(nextFeedback);
+      // The tool's verdict for this Check mounted when Check was pressed,
+      // before the attempt was graded, so it is the latest slot (PQ-022).
+      toolOutcomeSequenceRef.current += 1;
+      setToolOutcomeOwner({ feedback: nextFeedback, slot: toolOutcomeSlots.latest(), id: toolOutcomeSequenceRef.current });
     } finally {
       setSubmitting(false);
       stampToolDraftSubmission(draftKey);
@@ -1128,6 +1178,37 @@ export default function QuestionEngine({
   // field means an author cannot switch it on for an exit ticket, and a bank
   // question carried into a DOL loses it automatically.
   const selfCheckAllowed = resolvedActivityPolicy?.hintsAllowed !== false && !locked;
+  // The same permission, handed to every registry tool through
+  // ToolRuntimeContext: their hint panels (and any other hint affordance) are
+  // absent where the activity withholds help, not merely recorded.
+  const toolHintsAllowed = resolvedActivityPolicy?.hintsAllowed !== false;
+  // A hint revealed anywhere — a tool's panel, the Work View Help drawer, the
+  // solver's "Need a strategic hint?" — is recorded the same way.
+  const recordHintUse = () => setHintUsed(true);
+  // The step-algebra solvers carry their own strategic hint: the same
+  // permission, and opening it is reported like any other hint.
+  const stepAlgebraHintProps = {
+    hintsAllowed: toolHintsAllowed,
+    onHintUsed: recordHintUse,
+  };
+  // The algebra solvers are mounted here directly, not through the registry,
+  // but the relation solver embeds a registry tool — its "graph your solution
+  // and write it in interval notation" stage is IntervalNumberLine — which
+  // reads its policy from ToolRuntimeContext. Without a provider it ran on the
+  // context's defaults (verdicts and hints on) on a DOL, quiz or test. The
+  // stage's key is the student's own solved relation, which the solver holds
+  // under server grading too, so — unlike a registry tool — it follows
+  // showOutcomeFeedback alone.
+  const withSolverRuntime = (node) => (
+    <ToolRuntimeProvider
+      showImmediateFeedback={showOutcomeFeedback}
+      hintsAllowed={toolHintsAllowed}
+      onHintUsed={recordHintUse}
+      questionTerminal={locked}
+    >
+      {node}
+    </ToolRuntimeProvider>
+  );
 
   const graphModuleProps = {
     selfCheckAllowed,
@@ -1150,6 +1231,38 @@ export default function QuestionEngine({
     disabled: locked || scaffoldRequired || contextScaffoldRequired || submitting,
   };
 
+  // THE ATTEMPT OUTCOME, WORDED ONCE. The box below the question and a
+  // registry tool's result area show exactly the same words.
+  const attemptOutcomeText = feedback
+    ? (feedback.message || (feedback.isCorrect
+      ? 'Correct! This question is complete.'
+      : isExpired
+        ? `That was the final allowed attempt (${resolvedMaximumAttempts} total). This response is locked.${resolvedActivityPolicy?.allowReplacement ? ' Review the solution, then request a new question to continue.' : ''}`
+        : `Not quite. You have ${remainingAttempts} ${remainingAttempts === 1 ? 'attempt' : 'attempts'} remaining on this version.`))
+    : '';
+  const attemptOutcomeFocus = feedback && !feedback.isCorrect && !isComposed && Array.isArray(feedback.incorrectParts) && feedback.incorrectParts.length > 0
+    ? `Focus on: ${feedback.incorrectParts.join(', ')}.`
+    : '';
+  // WHERE A TOOL'S ATTEMPT OUTCOME IS SHOWN (PQ-022). In the tool's result
+  // area, beside its own verdict, when the tool showed one for this attempt and
+  // the box below would have shown the outcome at all: outcome feedback
+  // allowed (never on a DOL, quiz or test before release), the attempt not
+  // blocked, and the question still open — a correct or final attempt locks
+  // the tool, inert, so the box below announces it as before. Otherwise in the
+  // box. Never both, so it is announced once (PQ-017).
+  const toolOutcomeSlot = toolOutcomeOwner && toolOutcomeOwner.feedback === feedback ? toolOutcomeOwner.slot : null;
+  const outcomeInTool = Boolean(
+    missingToolDefinition && toolOutcomeSlot !== null
+      && feedback && !feedback.blocked && showOutcomeFeedback && !locked,
+  );
+  const toolAttemptOutcome = outcomeInTool ? {
+    id: toolOutcomeOwner.id,
+    slot: toolOutcomeSlot,
+    text: attemptOutcomeText,
+    detail: attemptOutcomeFocus,
+    tone: feedback.isCorrect ? 'correct' : 'incorrect',
+  } : null;
+
   const renderModule = () => {
     if (!processedQuestion) return null;
     // A composed question is defined by its workflow, not by its type name, and
@@ -1160,20 +1273,35 @@ export default function QuestionEngine({
     // the same runtime.
     if (isComposed) {
       return (
-        <WorkflowRunner
-          question={presentationQuestion}
-          onStateChange={commonModuleProps.onStateChange}
-          onProgressChange={(progress) => setWorkflowGuidanceState({
-            ...progress,
-            questionKey: workflowGuidanceQuestionKey,
-          })}
-          disabled={commonModuleProps.disabled}
-          draftKey={draftKey}
-          canonicalSavedAt={canonicalAnswerSavedAt}
-          showPrompt={false}
-          showStagePrompt={false}
-          submissionReview={showOutcomeFeedback ? workflowSubmissionReview : null}
-        />
+        // A composed question's steps are the same tools the registry mounts —
+        // the mapping-diagram stage is RelationMapping, the number-line stage
+        // IntervalNumberLine — and the same graph workspace, so they answer to
+        // the same policy. Without this provider they read the context's
+        // defaults, verdicts on and hints on: "Correct" / "Not yet" and a hint
+        // panel on a mapping step of a DOL, before the question was submitted.
+        // They get exactly what a standalone registry tool gets below.
+        <ToolRuntimeProvider
+          showImmediateFeedback={showOutcomeFeedback && !serverGrading}
+          hintsAllowed={toolHintsAllowed}
+          onHintUsed={recordHintUse}
+          questionTerminal={locked}
+        >
+          <WorkflowRunner
+            question={presentationQuestion}
+            onStateChange={commonModuleProps.onStateChange}
+            onProgressChange={(progress) => setWorkflowGuidanceState({
+              ...progress,
+              questionKey: workflowGuidanceQuestionKey,
+            })}
+            disabled={commonModuleProps.disabled}
+            draftKey={draftKey}
+            canonicalSavedAt={canonicalAnswerSavedAt}
+            showPrompt={false}
+            showStagePrompt={false}
+            submissionReview={showOutcomeFeedback ? workflowSubmissionReview : null}
+            revealCorrectness={showOutcomeFeedback}
+          />
+        </ToolRuntimeProvider>
       );
     }
 
@@ -1185,7 +1313,11 @@ export default function QuestionEngine({
         // for correct work. The server's result is shown below instead.
         <ToolRuntimeProvider
           showImmediateFeedback={showOutcomeFeedback && !serverGrading}
+          hintsAllowed={toolHintsAllowed}
+          onHintUsed={recordHintUse}
           questionTerminal={locked}
+          attemptOutcome={toolAttemptOutcome}
+          attemptOutcomeSlots={toolOutcomeSlots}
           reportWork={locked ? null : handleToolWork}
         >
           {/* THE REGISTRY TOOLS REACH THE PLATFORM UNDO BUTTON THROUGH HERE.
@@ -1220,7 +1352,9 @@ export default function QuestionEngine({
 
     switch (processedQuestion.type) {
       case 'modelingLab':
-        return <InteractiveModelingLabPlayer rawLabSpec={processedQuestion.labDefinition} assignmentId={assignmentId} executionScope={executionScope} supportUsage={supportUsage} disabled={commonModuleProps.disabled} onServerGraded={handleModelingLabGrade} />;
+        // The lab is graded on submit and shows its own result; on a DOL,
+        // quiz or test that waits for release like every other outcome.
+        return <InteractiveModelingLabPlayer rawLabSpec={processedQuestion.labDefinition} assignmentId={assignmentId} executionScope={executionScope} supportUsage={supportUsage} disabled={commonModuleProps.disabled} onServerGraded={handleModelingLabGrade} revealEvaluation={showOutcomeFeedback} />;
       case 'graphing':
         return <GraphLine {...commonModuleProps} />;
       case 'functionGraph':
@@ -1232,14 +1366,14 @@ export default function QuestionEngine({
         // The relation check runs first, so an inequality never reaches the
         // intercept orchestrator by accident (see algebraWorkspaceRoute.js).
         if (algebraWorkspaceRoute.route === ALGEBRA_WORKSPACE_ROUTES.RELATION) {
-          return (
+          return withSolverRuntime(
             <MultiRelationAlgebra
               {...commonModuleProps}
               workspaceActions={workspaceActions}
               questionRecord={record}
               onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
               attemptsDoNotExpire={attemptsDoNotExpire}
-            />
+            />,
           );
         }
         // linearIntercepts keeps its own conceptual zero-substitution stage,
@@ -1254,6 +1388,11 @@ export default function QuestionEngine({
             <LinearInterceptsOrchestrator
               key={draftKey || processedQuestion?.questionId || processedQuestion?.id || generationKey}
               {...commonModuleProps}
+              {...stepAlgebraHintProps}
+              // Not a registry tool, so the policy comes in as a prop: on a
+              // DOL, quiz or test "Check x-intercept" records the point and
+              // says nothing about it, and it is graded at submission.
+              revealCorrectness={showOutcomeFeedback}
               questionRecord={record}
               onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
               maximumAttempts={resolvedMaximumAttempts}
@@ -1261,29 +1400,33 @@ export default function QuestionEngine({
             />
           );
         }
-        return (
+        // StepByStepAlgebra hands a prompt-only inequality to the relation
+        // solver itself, so it gets the same runtime.
+        return withSolverRuntime(
           <StepByStepAlgebra
             {...commonModuleProps}
+            {...stepAlgebraHintProps}
             workspaceActions={workspaceActions}
             questionRecord={record}
             onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
             maximumAttempts={resolvedMaximumAttempts}
             attemptsDoNotExpire={attemptsDoNotExpire}
-          />
+          />,
         );
       case 'algebra':
         // Retired legacy answer-box solver. Older stored test assignments may
         // still carry the old type, so treat it as an alias for the balance
         // workspace instead of reviving the obsolete EquationGrader UI.
-        return (
+        return withSolverRuntime(
           <StepByStepAlgebra
             {...commonModuleProps}
+            {...stepAlgebraHintProps}
             workspaceActions={workspaceActions}
             questionRecord={record}
             onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
             maximumAttempts={resolvedMaximumAttempts}
             attemptsDoNotExpire={attemptsDoNotExpire}
-          />
+          />,
         );
       case 'numberLine':
         return <NumberLine {...commonModuleProps} />;
@@ -1307,16 +1450,17 @@ export default function QuestionEngine({
             </div>
           );
         }
-        return (
+        return withSolverRuntime(
           <StepByStepAlgebra
             {...commonModuleProps}
+            {...stepAlgebraHintProps}
             workspaceActions={workspaceActions}
             question={literalWorkspace.question}
             questionRecord={record}
             onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
             maximumAttempts={resolvedMaximumAttempts}
             attemptsDoNotExpire={attemptsDoNotExpire}
-          />
+          />,
         );
       }
       case 'system':
@@ -1850,21 +1994,19 @@ export default function QuestionEngine({
       {/* role="status": the attempt outcome ("Not quite. You have 2 attempts
           remaining") was the one grading message a screen reader never heard —
           only the Correct overlay was a live region (platform quirks audit).
-          Rendered only when outcome feedback is allowed, so a DOL stays silent. */}
-      {feedback && !feedback.blocked && showOutcomeFeedback && (
+          Rendered only when outcome feedback is allowed, so a DOL stays silent.
+          A registry tool that showed its own verdict shows this outcome beside
+          it instead (`outcomeInTool`, PQ-022): one place, one announcement. */}
+      {feedback && !feedback.blocked && showOutcomeFeedback && !outcomeInTool && (
         <div role="status" style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', backgroundColor: feedback.isCorrect ? '#e6f4ea' : '#fce8e6', color: feedback.isCorrect ? '#137333' : '#c5221f', fontSize: '16px', fontWeight: 'bold' }}>
-          {feedback.message || (feedback.isCorrect
-            ? 'Correct! This question is complete.'
-            : isExpired
-              ? `That was the final allowed attempt (${resolvedMaximumAttempts} total). This response is locked.${resolvedActivityPolicy?.allowReplacement ? ' Review the solution, then request a new question to continue.' : ''}`
-              : `Not quite. You have ${remainingAttempts} ${remainingAttempts === 1 ? 'attempt' : 'attempts'} remaining on this version.`)}
+          {attemptOutcomeText}
           {!feedback.isCorrect && isComposed && workflowSubmissionReview?.parts?.some((part) => part?.graded !== false && !part?.isCorrect) && (
             <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>
               The red steps above are the specific responses that need revision. MathMaster moved you to the first one.
             </div>
           )}
-          {!feedback.isCorrect && !isComposed && Array.isArray(feedback.incorrectParts) && feedback.incorrectParts.length > 0 && (
-            <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>Focus on: {feedback.incorrectParts.join(', ')}.</div>
+          {attemptOutcomeFocus && (
+            <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>{attemptOutcomeFocus}</div>
           )}
         </div>
       )}

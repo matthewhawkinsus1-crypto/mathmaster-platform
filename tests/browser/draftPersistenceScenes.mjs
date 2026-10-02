@@ -10,6 +10,14 @@
  * after a reload and after a close/reopen, and a comparison is only meaningful
  * if the edit was identical each time.
  *
+ * Two optional fields, for work whose open step has an answer:
+ *
+ *   backupMustNotContain  keys that may appear nowhere in the copy the server
+ *                         backup would store (the answer to the open step)
+ *   resume                { edit, expect }: after the browser is reopened the
+ *                         student finishes the step; each expect is
+ *                         { suffix, path, equals } on a stored record
+ *
  * Shared by tests/browser/draftPersistenceMain.jsx (in the page) and
  * tests/browser/draftPersistence.mjs (the driver), so the two can never drift.
  */
@@ -19,6 +27,9 @@ const choose = (index, value) => ({ kind: 'choose', index, value });
 const math = (index, value) => ({ kind: 'math', index, value });
 const plane = (fx, fy) => ({ kind: 'plane', fx, fy });
 const press = (label) => ({ kind: 'press', label });
+// A control found by its accessible name, for one that is not a <button>: an
+// equation side armed for placement is a role="button" region.
+const activate = (name) => ({ kind: 'activate', name });
 
 export const DRAFT_SCENES = [
   {
@@ -114,6 +125,56 @@ export const DRAFT_SCENES = [
     edit: [press('−'), press('Show math tools'), math(0, '5')],
   },
   {
+    id: 'step-algebra-mid-move',
+    label: 'Step Algebra, a move waiting for its cancellation',
+    family: 'StepByStepAlgebra',
+    question: {
+      questionId: 'draft-step-mid-move', type: 'stepAlgebra',
+      prompt: 'Solve 3x + 4 = 19 and show each balanced step.',
+      equation: '3*x + 4 = 19', variable: 'x', answer: '5',
+    },
+    // Subtract 4, placed on each side by the student. The move is made but the
+    // +4 / −4 pair is not yet cancelled: the pending move is the work, and it
+    // has to come back exactly as placed — and reach the server backup, which
+    // refuses a record carrying the equation's solution.
+    edit: [
+      press('−'), press('Show math tools'), math(0, '4'), press('Pick up'),
+      activate('Place Subtract 4 on both sides on the left side'),
+      activate('Place Subtract 4 on both sides on the right side'),
+    ],
+  },
+  {
+    id: 'relation-symbol-pending',
+    label: 'Relation solver, a reversed-symbol step left open',
+    family: 'MultiRelationAlgebra',
+    question: {
+      questionId: 'draft-relation-symbol', type: 'stepAlgebra',
+      prompt: 'Solve −2x + 3 > 7 and show each balanced step.',
+      equation: '-2x + 3 > 7', variable: 'x',
+    },
+    // Divide both sides by −2 and commit: the operation is written and the
+    // student must now reverse the symbol themselves ("Update the relation
+    // symbol(s) yourself"). That step is left open — it is the work in
+    // progress, and it has to come back open.
+    edit: [
+      press('Divide by'), math(0, '-2'),
+      activate('Place divisor'), activate('Place divisor'),
+      press('Commit step'),
+    ],
+    // The reversed symbol is the answer to the open step. It may be derived
+    // again on restore, never saved where the student can read it.
+    backupMustNotContain: ['expectedRelations'],
+    // After the browser is reopened the student finishes the step: choosing
+    // "<" commits it, and the saved step is gone.
+    resume: {
+      edit: [activate('Choose relation symbol'), activate('<')],
+      expect: [
+        { suffix: ':multi-relation', path: ['pendingRelationFlip'], equals: null },
+        { suffix: ':multi-relation', path: ['relationState', 'branches', 0, 'relations'], equals: ['<'] },
+      ],
+    },
+  },
+  {
     id: 'function-operations',
     label: 'Function Operations Workbench',
     family: 'functionOperationsLab',
@@ -180,7 +241,9 @@ export const DRAFT_SCENES = [
       system: { m1: 2, b1: 1, m2: -1, b2: 7 },
       graph: { xMin: -6, xMax: 8, yMin: -6, yMax: 12 },
     },
-    edit: [fill(0, '2'), fill(1, '5')],
+    // The classification opens unanswered, and x and y appear once "Exactly
+    // one solution" is chosen — so it is chosen first, and must come back too.
+    edit: [choose(0, 'one'), fill(0, '2'), fill(1, '5')],
   },
   {
     id: 'transformations',
@@ -230,4 +293,4 @@ export const SCENE_IDS = DRAFT_SCENES.map((scene) => scene.id);
 
 export const sceneById = (id) => DRAFT_SCENES.find((scene) => scene.id === id) || null;
 
-export { fill, choose, math, plane, press };
+export { fill, choose, math, plane, press, activate };

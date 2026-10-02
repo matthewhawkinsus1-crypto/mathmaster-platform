@@ -20,7 +20,10 @@ const check = (condition, message) => {
 };
 
 try {
-  const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+  // An explicit context, so a second tab can share this one's storage — one
+  // Chromebook, two tabs — further down.
+  const context = await browser.newContext({ viewport: { width: 1366, height: 768 } });
+  const page = await context.newPage();
   const open = async () => {
     await page.goto(`${origin}/tests/browser/durableOutboxHarness.html`);
     await page.getByText('Durable outbox ready').waitFor();
@@ -270,6 +273,181 @@ try {
     'the device summary must count the grade-bearing work it is still holding');
   check(Object.keys(summary.blockedReasons).length > 0,
     'the device summary must say WHY a delivery has not succeeded');
+
+  /* ---------------------------------------------------------------------
+   * A SEMESTER OF RETIRED EVIDENCE IS COUNTED ONCE, NOT ON EVERY REPORT.
+   *
+   * `retired` is never pruned, and every device report used to read all of
+   * it. The summary now reads a per-student tally kept in the retirement
+   * transaction. Against real IndexedDB: a Chromebook carrying a semester of
+   * rows from the release before tallies must report exactly what the full
+   * read reported, read those rows ONCE, and never again per report.
+   * ------------------------------------------------------------------- */
+  const SEMESTER_ROWS = 600;
+  const sortedCounts = (counts) => JSON.stringify(Object.fromEntries(Object.entries(counts || {}).sort()));
+  const sameRetiredCounts = (described, oracle) => described.retired === oracle.retired
+    && sortedCounts(described.retiredByDisposition) === sortedCounts(oracle.retiredByDisposition);
+  const describe = (counts) => `${counts.retired} ${sortedCounts(counts.retiredByDisposition)}`;
+  const retiredReads = (calls) => ['getAll', 'openCursor', 'count']
+    .reduce((total, method) => total + (calls[`retired.${method}`] || 0), 0);
+
+  await harness(() => window.outboxHarness.reset());
+  await open();
+  await harness((count) => window.outboxHarness.seedSemesterOfRetiredRows(count), SEMESTER_ROWS);
+  await harness(() => window.outboxHarness.resetIdbCalls());
+  const semesterSummary = await harness(() => window.outboxHarness.summary());
+  const semesterOracle = await harness(() => window.outboxHarness.fullScanRetiredCounts());
+  check(semesterOracle.retired > 400, `the seeded semester must belong mostly to this student (${semesterOracle.retired})`);
+  check(sameRetiredCounts(semesterSummary, semesterOracle),
+    `(1) a device with ${SEMESTER_ROWS} retired rows and no tally must report what the full read reported: ${describe(semesterSummary)} vs ${describe(semesterOracle)}`);
+  const firstSummaryCalls = await harness(() => window.outboxHarness.idbCalls());
+  check(firstSummaryCalls['retired.getAll'] === 1,
+    `(2) the first summary builds the tally from the rows exactly once (retired.getAll = ${firstSummaryCalls['retired.getAll']})`);
+
+  // Every later report, through the real reporter, reads no retired row.
+  await harness(() => window.outboxHarness.resetIdbCalls());
+  for (let index = 0; index < 5; index += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await harness(() => window.outboxHarness.report('applied'));
+  }
+  await harness(() => window.outboxHarness.enqueue('semester-dup', { questionIndex: 31 }));
+  await harness(() => window.outboxHarness.enqueue('semester-sup', { questionIndex: 32 }));
+  await harness(() => window.outboxHarness.enqueue('semester-invalid', { questionIndex: 33 }));
+  await harness(() => window.outboxHarness.enqueue('semester-accepted', { questionIndex: 34 }));
+  await harness(() => window.outboxHarness.drain({
+    script: {
+      'semester-dup': { disposition: 'duplicate', reason: 'already-canonical' },
+      'semester-sup': { disposition: 'superseded', reason: 'newer-canonical-attempt' },
+      'semester-invalid': { disposition: 'permanently-invalid', reason: 'section-closed-at-capture' },
+      'semester-accepted': { disposition: 'accepted' },
+    },
+  }));
+  for (let index = 0; index < 5; index += 1) {
+    // eslint-disable-next-line no-await-in-loop
+    await harness(() => window.outboxHarness.report('applied'));
+  }
+  const afterRetirements = await harness(() => window.outboxHarness.summary());
+  const perReportCalls = await harness(() => window.outboxHarness.idbCalls());
+  check(retiredReads(perReportCalls) === 0,
+    `(2) after the first summary, reports and retirements must not read the retired store: ${JSON.stringify(perReportCalls)}`);
+  const afterRetirementsOracle = await harness(() => window.outboxHarness.fullScanRetiredCounts());
+  check(sameRetiredCounts(afterRetirements, afterRetirementsOracle),
+    `(1) retirements through the real transaction must keep the tally exact: ${describe(afterRetirements)} vs ${describe(afterRetirementsOracle)}`);
+  check(afterRetirements.retired === semesterOracle.retired + 3,
+    'exactly the three retiring outcomes were added; accepted work is removed, not retired');
+
+  // The same action id retired again (a retry of the identical envelope): the
+  // retired row is REPLACED, so its count moves between dispositions.
+  await harness(() => window.outboxHarness.enqueue('semester-dup', { questionIndex: 35 }));
+  await harness(() => window.outboxHarness.drain({
+    script: { 'semester-dup': { disposition: 'permanently-invalid', reason: 'section-closed-at-capture' } },
+  }));
+  const afterReRetire = await harness(() => window.outboxHarness.summary());
+  const afterReRetireOracle = await harness(() => window.outboxHarness.fullScanRetiredCounts());
+  check(afterReRetire.retired === afterRetirements.retired && sameRetiredCounts(afterReRetire, afterReRetireOracle),
+    `(1) a re-retired id must move its count, never add one: ${describe(afterReRetire)} vs ${describe(afterReRetireOracle)}`);
+
+  // A reload reads the tally, plus one count of keys to check it: still no row read.
+  await page.reload();
+  await page.getByText('Durable outbox ready').waitFor();
+  const reloadedSummary = await harness(() => window.outboxHarness.summary());
+  await harness(() => window.outboxHarness.summary());
+  const reloadCalls = await harness(() => window.outboxHarness.idbCalls());
+  const reloadOracle = await harness(() => window.outboxHarness.fullScanRetiredCounts());
+  check(sameRetiredCounts(reloadedSummary, reloadOracle) && sameRetiredCounts(reloadedSummary, afterReRetire),
+    `(1) the tally must survive a reload unchanged: ${describe(reloadedSummary)} vs ${describe(reloadOracle)}`);
+  check(!reloadCalls['retired.getAll'] && !reloadCalls['retired.openCursor'] && reloadCalls['retired.count'] === 1,
+    `(2) after a reload, one key count per page and no row reads: ${JSON.stringify(reloadCalls)}`);
+
+  // A tab still on the previous release retires a row without counting it.
+  // The next page of this release to load finds the disagreement and repairs it.
+  await harness(() => window.outboxHarness.retireTheOldWay('retired-by-previous-release'));
+  await page.reload();
+  await page.getByText('Durable outbox ready').waitFor();
+  const healedSummary = await harness(() => window.outboxHarness.summary());
+  const healedOracle = await harness(() => window.outboxHarness.fullScanRetiredCounts());
+  check(sameRetiredCounts(healedSummary, healedOracle),
+    `a tally left short by the previous release must be repaired on the next page load: ${describe(healedSummary)} vs ${describe(healedOracle)}`);
+
+  /* ---------------------------------------------------------------------
+   * TWO TABS, ONE CHROMEBOOK: ONE TALLY, NOTHING COUNTED TWICE.
+   * ------------------------------------------------------------------- */
+  await harness(() => window.outboxHarness.reset());
+  await open();
+  await harness((count) => window.outboxHarness.seedSemesterOfRetiredRows(count), SEMESTER_ROWS);
+  const secondTab = await context.newPage();
+  await secondTab.goto(`${origin}/tests/browser/durableOutboxHarness.html`);
+  await secondTab.getByText('Durable outbox ready').waitFor();
+  const [tabOne, tabTwo] = await Promise.all([
+    page.evaluate(() => window.outboxHarness.summaryWithCalls()),
+    secondTab.evaluate(() => window.outboxHarness.summaryWithCalls()),
+  ]);
+  const raceOracle = await harness(() => window.outboxHarness.fullScanRetiredCounts());
+  check(sameRetiredCounts(tabOne.summary, raceOracle) && sameRetiredCounts(tabTwo.summary, raceOracle),
+    `two tabs building the missing tally at once must both report the full read: ${describe(tabOne.summary)} / ${describe(tabTwo.summary)} vs ${describe(raceOracle)}`);
+  check((tabOne.calls['retired.getAll'] || 0) + (tabTwo.calls['retired.getAll'] || 0) === 1,
+    `two tabs racing must build ONE tally from ONE read of the rows: ${JSON.stringify([tabOne.calls, tabTwo.calls])}`);
+
+  // Both tabs drain the same queue at once; every row is retired by one of them.
+  for (const actionId of ['both-tabs-0', 'both-tabs-1', 'both-tabs-2', 'both-tabs-3', 'both-tabs-4', 'both-tabs-5']) {
+    // eslint-disable-next-line no-await-in-loop
+    await harness((id) => window.outboxHarness.enqueue(id, { questionIndex: 40 + Number(id.slice(-1)) }), actionId);
+  }
+  const everythingDuplicate = { script: { ordinarySubmission: { disposition: 'duplicate', reason: 'already-canonical' } } };
+  await Promise.all([
+    page.evaluate((options) => window.outboxHarness.drain(options), everythingDuplicate),
+    secondTab.evaluate((options) => window.outboxHarness.drain(options), everythingDuplicate),
+  ]);
+  const afterBothDrains = await harness(() => window.outboxHarness.summary());
+  const afterBothOracle = await harness(() => window.outboxHarness.fullScanRetiredCounts());
+  check(afterBothDrains.retired === raceOracle.retired + 6 && sameRetiredCounts(afterBothDrains, afterBothOracle),
+    `two tabs retiring the same six submissions must count six: ${describe(afterBothDrains)} vs ${describe(afterBothOracle)}`);
+  await secondTab.close();
+
+  /* ---------------------------------------------------------------------
+   * A REPORT THE SERVER ALREADY HOLDS IS NOT SENT AGAIN; A CHANGE ALWAYS IS.
+   *
+   * The real reporter against real IndexedDB, with only the callable stubbed.
+   * ------------------------------------------------------------------- */
+  await harness(() => window.outboxHarness.reset());
+  await open();
+  const firstReport = await harness(() => window.outboxHarness.report('applied'));
+  check(firstReport.sentFromThisPage === 1 && !firstReport.result.skipped, '(3) the first report goes to the server');
+  const repeatReport = await harness(() => window.outboxHarness.report('applied'));
+  check(repeatReport.result.skipped === true && repeatReport.sentFromThisPage === 1,
+    `(3) an unchanged, acknowledged state within the heartbeat must not call the callable again: ${JSON.stringify(repeatReport.result)}`);
+
+  await page.reload();
+  await page.getByText('Durable outbox ready').waitFor();
+  const afterReloadReport = await harness(() => window.outboxHarness.report('applied'));
+  check(afterReloadReport.result.skipped === true && afterReloadReport.sentFromThisPage === 0,
+    '(3) a reload must not resend a report the server already acknowledged');
+
+  // New work is a changed state, so it goes — and here the server never answers.
+  await harness(() => window.outboxHarness.enqueue('dedupe-new-work', { questionIndex: 50 }));
+  const changedReport = await harness(() => window.outboxHarness.report('throw'));
+  check(changedReport.sentFromThisPage === 1 && changedReport.lastWire?.summary?.queued === 1,
+    '(3) a changed state must call the callable, carrying the new state');
+  check(Boolean(changedReport.result.failed), 'that report fails');
+
+  // The work is delivered and the queue is back to exactly the acknowledged
+  // state. The failed "1 queued" may still have reached the server, so this
+  // report must go, even though it matches the last acknowledgement.
+  await harness(() => window.outboxHarness.drain());
+  const afterFailure = await harness(() => window.outboxHarness.report('applied'));
+  check(!afterFailure.result.skipped && afterFailure.sentFromThisPage === 2 && afterFailure.lastWire?.summary?.queued === 0,
+    '(3) after a failed report the next one must go out, even when it matches the acknowledged state');
+  const settledAgain = await harness(() => window.outboxHarness.report('applied'));
+  check(settledAgain.result.skipped === true && settledAgain.sentFromThisPage === 2, 'and once acknowledged, it is skipped again');
+
+  // A report the server IGNORED (a newer one was already stored) is no acknowledgement either.
+  await harness(() => window.outboxHarness.enqueue('dedupe-ignored', { questionIndex: 51 }));
+  const ignoredReport = await harness(() => window.outboxHarness.report('ignored'));
+  check(ignoredReport.sentFromThisPage === 3, '(3) the new work is reported');
+  await harness(() => window.outboxHarness.drain());
+  const afterIgnored = await harness(() => window.outboxHarness.report('applied'));
+  check(!afterIgnored.result.skipped && afterIgnored.sentFromThisPage === 4,
+    '(3) a report the server ignored must not let the next one be skipped');
 
   if (failures.length) {
     console.error(`Chromebook IndexedDB certification failed:\n  - ${failures.join('\n  - ')}`);

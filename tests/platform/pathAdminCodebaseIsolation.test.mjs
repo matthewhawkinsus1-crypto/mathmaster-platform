@@ -23,16 +23,24 @@ test('path-admin is an additive Firebase Functions codebase of its own', () => {
   assert.ok(codebases.includes('default'), 'the mature backend keeps its codebase');
   assert.ok(codebases.includes('path-admin'));
 
+  // Each codebase first stamps the commit it is deployed from (F-REL-3,
+  // tests/platform/functionsDeployProvenance.test.mjs); after that, path-admin
+  // builds its own release and vendors its runtime, and the default codebase
+  // keeps exactly the build it always had.
   const pathAdmin = firebaseConfig.functions.find((entry) => entry.codebase === 'path-admin');
   assert.equal(pathAdmin.source, 'functions-path-admin');
   assert.deepEqual(pathAdmin.predeploy, [
+    'node scripts/write-functions-provenance.mjs --codebase path-admin --dir functions-path-admin',
     'node scripts/build-course-path-release-v2.mjs',
     'node scripts/sync-path-admin-runtime.mjs',
   ]);
 
   const defaultCodebase = firebaseConfig.functions.find((entry) => entry.codebase === 'default');
   assert.equal(defaultCodebase.source, 'functions', 'the default codebase is untouched');
-  assert.deepEqual(defaultCodebase.predeploy, ['node scripts/build-ccmr-v2-1-production-release.mjs --write']);
+  assert.deepEqual(defaultCodebase.predeploy, [
+    'node scripts/write-functions-provenance.mjs --codebase default --dir functions',
+    'node scripts/build-ccmr-v2-1-production-release.mjs --write',
+  ]);
 });
 
 test('discovery of the path-admin entry loads no MathMaster backend module', () => {
@@ -40,8 +48,22 @@ test('discovery of the path-admin entry loads no MathMaster backend module', () 
   // loads platformEntry -> entry -> index.js (12,000 lines) at that moment,
   // which is why discovery has needed FUNCTIONS_DISCOVERY_TIMEOUT=60.
   const code = executableSource(entrySource);
-  const topLevelRequires = [...code.matchAll(/^const \{[^}]*\} = require\("([^"]+)"\)/gm)].map((match) => match[1]);
-  assert.deepEqual(topLevelRequires.sort(), ['firebase-admin/app', 'firebase-functions/v2/https']);
+  // Every require evaluated at load (any `const … = require(…)` at the start of
+  // a line; the lazy accessors below are arrow functions, not evaluated).
+  const topLevelRequires = [...code.matchAll(/^const (?:\{[^}]*\}|\w+) = require\("([^"]+)"\)/gm)].map((match) => match[1]);
+  // The Firebase modules functions are registered with (`v2/options` is
+  // already loaded by `v2/https`), and the one-file deploy provenance reader
+  // whose labels every function carries (F-REL-3).
+  assert.deepEqual(topLevelRequires.sort(), [
+    './lib/deployProvenance', 'firebase-admin/app', 'firebase-functions/v2/https', 'firebase-functions/v2/options',
+  ]);
+
+  // That reader cannot reach the backend either: path, the runtime resolver,
+  // and the shared reader, which needs only fs and path.
+  const requiresIn = (source) => [...executableSource(source).matchAll(/require(?:Runtime)?\("([^"]+)"\)/g)].map((match) => match[1]).sort();
+  assert.deepEqual(requiresIn(read('functions-path-admin/lib/deployProvenance.js')), ['./runtime', 'lib/deployProvenance.js', 'path']);
+  assert.deepEqual(requiresIn(read('functions/lib/deployProvenance.js')), ['fs', 'path']);
+  assert.deepEqual(requiresIn(read('functions-path-admin/lib/runtime.js')), ['fs', 'path']);
 
   ['functions/index.js', './index.js', 'entry.js', 'platformEntry.js', 'googleapis'].forEach((forbidden) => {
     assert.doesNotMatch(code, new RegExp(`require\\(["'][^"']*${forbidden.replace(/[./]/g, '\\$&')}`),
@@ -128,13 +150,9 @@ test('the shared Path runtime travels with the deployment and never forks', () =
 
   // The declared closure must cover everything path-admin actually loads.
   const vendored = new Set(vendoredFilePairs().map((pair) => pair.relative.split(path.sep).join('/')));
-  const loaded = [
-    ...[...read('functions-path-admin/lib/releaseStore.js').matchAll(/(?:requireRuntime|importRuntime)\("([^"]+)"\)/g)],
-    ...[...read('functions-path-admin/lib/releaseArtifact.js').matchAll(/(?:requireRuntime|importRuntime)\("([^"]+)"\)/g)],
-    ...[...read('functions-path-admin/lib/coverage.js').matchAll(/(?:requireRuntime|importRuntime)\("([^"]+)"\)/g)],
-    ...[...read('functions-path-admin/lib/authorization.js').matchAll(/(?:requireRuntime|importRuntime)\("([^"]+)"\)/g)],
-    ...[...read('functions-path-admin/lib/releaseService.js').matchAll(/(?:requireRuntime|importRuntime)\("([^"]+)"\)/g)],
-  ].map((match) => match[1]);
+  const loaded = ['releaseStore.js', 'releaseArtifact.js', 'coverage.js', 'authorization.js', 'releaseService.js', 'deployProvenance.js']
+    .flatMap((file) => [...read(`functions-path-admin/lib/${file}`).matchAll(/(?:requireRuntime|importRuntime)\("([^"]+)"\)/g)])
+    .map((match) => match[1]);
   assert.ok(loaded.length > 0);
   loaded.forEach((relative) => assert.equal(vendored.has(relative), true, `${relative} is loaded but not vendored`));
 });

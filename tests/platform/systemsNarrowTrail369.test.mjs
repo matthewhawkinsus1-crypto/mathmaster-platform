@@ -48,7 +48,7 @@ const rule = (source, selector) => {
 const visuallyHidden = (body) => /clip-path:\s*inset\(50%\)/.test(body) && /position:\s*absolute/.test(body) && !/display:\s*none/.test(body);
 
 test('the trail names the current step and speaks each step’s state', () => {
-  const trail = region(systems, 'export function SystemsWorkTrail', 'const cleanCoefficient', 'SystemsWorkTrail');
+  const trail = region(systems, 'export function SystemsWorkTrail', 'const solvedExpressionFor', 'SystemsWorkTrail');
   assert.match(trail, /aria-current=\{active \? 'step' : undefined\}/);
   assert.match(trail, /stage\.complete \? <span className="mathmaster-systems-work-step-status">, done<\/span> : null/);
   assert.ok(visuallyHidden(rule(css, '.mathmaster-systems-work-step-status')), 'the step state must be read, not shown');

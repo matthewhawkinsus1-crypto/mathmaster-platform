@@ -4,12 +4,12 @@ import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { evaluatePolynomial } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
+import { OWN_CHOICES, UNANSWERED } from '../shared/judgmentChoices.js';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import polynomialWorkshopGrader from '../../../functions/shared/serverGrading/tools/polynomialWorkshop.mjs';
 import {
   POLYNOMIAL_WORKSHOP_DEFAULTS as DEFAULTS,
-  POLYNOMIAL_WORKSHOP_STARTING_SELECTIONS as STARTING,
   coefficientsFromRoots,
   graphConnectionTargetEntry,
   rationalFeatureMap,
@@ -47,7 +47,9 @@ function FactorZero({ questionData, feedback, submit, onAction }) {
   const coefficients = questionData.coefficients || DEFAULTS.factorZero.coefficients;
   const candidateRoot = Number(questionData.candidateRoot ?? DEFAULTS.factorZero.candidateRoot);
   const [value, setValue] = usePersistentToolState('value', '');
-  const [factorChoice, setFactorChoice] = usePersistentToolState('factorChoice', STARTING.factorZero.factorChoice);
+  // Unanswered until chosen (judgmentChoices.js); it opened on "Yes". The
+  // shared grader reads unanswered as no answer — never as "no".
+  const [factorChoice, setFactorChoice] = usePersistentToolState('factorChoice', UNANSWERED);
   // The verdict comes from the shared grader the server runs; this view only
   // shows it. The same work is reported live so a deadline can finalize it.
   const work={value,factorChoice};
@@ -60,7 +62,7 @@ function FactorZero({ questionData, feedback, submit, onAction }) {
     <TaskCard question={questionData} task={'Evaluate the polynomial at the given value, then say whether that gives a factor.'} steps={['Substitute the test value into P(x).', 'Simplify to a single number.', 'Decide what that number tells you about the factor.']} />
     <ToolGrid min={320}>
       <Panel title="Evaluate"><p style={{fontSize:20,fontWeight:800}}>P(x) = {polynomialText(coefficients)}</p><p>Test x = <strong>{candidateRoot}</strong>.</p><label>P({candidateRoot}) = <input value={value} onChange={e=>setValue(e.target.value)} style={{...inputStyle,width:130,marginLeft:8}}/></label></Panel>
-      <Panel title="Interpret"><label>Is (x − {candidateRoot}) a factor?<select value={factorChoice} onChange={e=>setFactorChoice(e.target.value)} style={{...inputStyle,marginTop:6}}><option value="yes">Yes</option><option value="no">No</option></select></label><button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check connection</button><Feedback feedback={feedback} success="Evaluation and factor conclusion agree." retry="Re-evaluate P(r): a factor occurs exactly when P(r)=0."/><HintPanel hints={['The Factor Theorem links evaluating and factoring: they are the same question asked two ways.', '(x − r) is a factor of P(x) exactly when P(r) = 0.', 'So evaluate P at the candidate. A result of zero means it is a factor; anything else means it is not.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
+      <Panel title="Interpret"><label>Is (x − {candidateRoot}) a factor?<select value={factorChoice} onChange={e=>setFactorChoice(e.target.value)} style={{...inputStyle,marginTop:6}}><option value={UNANSWERED}>Choose…</option><option value="yes">Yes</option><option value="no">No</option></select></label><button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check connection</button><Feedback feedback={feedback} success="Evaluation and factor conclusion agree." retry="Re-evaluate P(r): a factor occurs exactly when P(r)=0."/><HintPanel hints={['The Factor Theorem links evaluating and factoring: they are the same question asked two ways.', '(x − r) is a factor of P(x) exactly when P(r) = 0.', 'So evaluate P at the candidate. A result of zero means it is a factor; anything else means it is not.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
     </ToolGrid>
   </ToolShell>;
 }
@@ -127,16 +129,18 @@ function GraphConnection({ questionData, feedback, submit, onAction }) {
   const leadingCoefficient = Number(questionData.leadingCoefficient ?? DEFAULTS.graphConnection.leadingCoefficient);
   const coefficients = useMemo(()=>coefficientsFromRoots(roots,leadingCoefficient),[roots,leadingCoefficient]);
   const targetEntry = graphConnectionTargetEntry(roots, questionData.targetRoot);
-  const [behavior, setBehavior] = usePersistentToolState('behavior', STARTING.graphConnection.behavior); const [end, setEnd] = usePersistentToolState('end', STARTING.graphConnection.end);
+  const [behavior, setBehavior] = usePersistentToolState('behavior', UNANSWERED); const [end, setEnd] = usePersistentToolState('end', UNANSWERED);
   const fn=(x)=>evaluatePolynomial(coefficients,x);
-  const work={behavior,end};
+  // These selects open unanswered, so whatever they hold the student chose
+  // (OWN_CHOICES) — even the options an earlier workshop pre-selected.
+  const work={behavior,end,...OWN_CHOICES};
   useReportToolWork(work);
   const check=()=>{
     const result=gradeToolCheck(polynomialWorkshopGrader,questionData,work);
     submit({ isCorrect: result.isCorrect, score: result.score },work,{mode:'graphConnection',parts:result.parts});
   };
   return <ToolShell title="Polynomial Workshop" subtitle="Connect factors and multiplicity to graph behavior and end behavior." badge="Algebra II · Zeros & Graphs">
-    <TaskCard question={questionData} task={'Say what the graph does at the target zero, and describe its end behaviour.'} steps={['Look at the multiplicity of the target zero.', 'Decide whether the curve passes through or bounces off the axis there.', 'Use the degree and the leading coefficient for the ends.']} /><ToolGrid min={330}><Panel title="Graph from factors"><CoordinatePlane xMin={-6} xMax={6} yMin={-16} yMax={16} functions={[fn]} points={roots.map(r=>[r.root,0])}/><p>Target zero: <strong>x = {targetEntry.root}</strong>, multiplicity {targetEntry.multiplicity}</p></Panel><Panel title="Interpret the graph"><label>At the target zero<select value={behavior} onChange={e=>setBehavior(e.target.value)} style={{...inputStyle,marginTop:5}}><option value="crosses">crosses the x-axis</option><option value="touches">touches and turns</option></select></label><label style={{display:'block',marginTop:10}}>End behavior<select value={end} onChange={e=>setEnd(e.target.value)} style={{...inputStyle,marginTop:5}}>{['both ends rise','both ends fall','left falls, right rises','left rises, right falls'].map(v=><option key={v}>{v}</option>)}</select></label><button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check graph connections</button><Feedback feedback={feedback} success="Multiplicity and leading-term behavior are both correct." retry="Odd multiplicity crosses; even multiplicity touches. Degree parity + leading sign control the ends."/><HintPanel hints={['Multiplicity controls what happens at a zero, and the leading term controls what happens at the far ends.', 'Odd multiplicity crosses the axis. Even multiplicity touches it and turns back.', 'Even degree sends both ends the same way; odd degree sends them opposite ways, and a negative leading coefficient flips both.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel></ToolGrid></ToolShell>;
+    <TaskCard question={questionData} task={'Say what the graph does at the target zero, and describe its end behaviour.'} steps={['Look at the multiplicity of the target zero.', 'Decide whether the curve passes through or bounces off the axis there.', 'Use the degree and the leading coefficient for the ends.']} /><ToolGrid min={330}><Panel title="Graph from factors"><CoordinatePlane xMin={-6} xMax={6} yMin={-16} yMax={16} functions={[fn]} points={roots.map(r=>[r.root,0])}/><p>Target zero: <strong>x = {targetEntry.root}</strong>, multiplicity {targetEntry.multiplicity}</p></Panel><Panel title="Interpret the graph"><label>At the target zero<select value={behavior} onChange={e=>setBehavior(e.target.value)} style={{...inputStyle,marginTop:5}}><option value={UNANSWERED}>Choose…</option><option value="crosses">crosses the x-axis</option><option value="touches">touches and turns</option></select></label><label style={{display:'block',marginTop:10}}>End behavior<select value={end} onChange={e=>setEnd(e.target.value)} style={{...inputStyle,marginTop:5}}><option value={UNANSWERED}>Choose…</option>{['both ends rise','both ends fall','left falls, right rises','left rises, right falls'].map(v=><option key={v}>{v}</option>)}</select></label><button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check graph connections</button><Feedback feedback={feedback} success="Multiplicity and leading-term behavior are both correct." retry="Odd multiplicity crosses; even multiplicity touches. Degree parity + leading sign control the ends."/><HintPanel hints={['Multiplicity controls what happens at a zero, and the leading term controls what happens at the far ends.', 'Odd multiplicity crosses the axis. Even multiplicity touches it and turns back.', 'Even degree sends both ends the same way; odd degree sends them opposite ways, and a negative leading coefficient flips both.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel></ToolGrid></ToolShell>;
 }
 
 function RationalFeatures({ questionData, feedback, submit, onAction }) {
@@ -144,13 +148,13 @@ function RationalFeatures({ questionData, feedback, submit, onAction }) {
   const denominatorRoots=questionData.denominatorRoots || DEFAULTS.rationalFeatures.denominatorRoots;
   const features=useMemo(()=>rationalFeatureMap({numeratorRoots,denominatorRoots}),[numeratorRoots,denominatorRoots]);
   const targetValue=rationalFeatureTargetValue(features, questionData.targetValue);
-  const [choice, setChoice] = usePersistentToolState('choice', STARTING.rationalFeatures.choice);
-  const work={choice};
+  const [choice, setChoice] = usePersistentToolState('choice', UNANSWERED);
+  const work={choice,...OWN_CHOICES};
   useReportToolWork(work);
   const check=()=>{
     const result=gradeToolCheck(polynomialWorkshopGrader,questionData,work);
     submit({ isCorrect: result.isCorrect, score: result.score },work,{mode:'rationalFeatures',parts:result.parts});
   };
   return <ToolShell title="Polynomial Workshop" subtitle="Track common factors to distinguish zeros, holes, and vertical asymptotes." badge="Algebra II · Rational Bridge">
-    <TaskCard question={questionData} task={'Decide what happens to the rational function at the given x-value.'} steps={['Check whether the value is a root of the numerator, the denominator, or both.', 'A factor in both cancels.', 'Choose the feature that survives cancellation.']} /><ToolGrid min={320}><Panel title="Factored structure"><p><strong>Numerator roots:</strong> {numeratorRoots.join(', ')}</p><p><strong>Denominator roots:</strong> {denominatorRoots.join(', ')}</p><p style={{color:'#5f6b7a'}}>A common factor cancels algebraically but remains excluded from the original domain.</p></Panel><Panel title={`What happens at x = ${targetValue}?`}><select value={choice} onChange={e=>setChoice(e.target.value)} style={inputStyle}><option value="hole">Hole</option><option value="verticalAsymptote">Vertical asymptote</option><option value="zero">Zero / x-intercept</option><option value="none">None of these</option></select><button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check feature</button><Feedback feedback={feedback} success="You tracked cancellation and domain restrictions correctly." retry="Compare numerator and denominator multiplicities before and after cancellation."/><HintPanel hints={['Every interesting point on a rational function comes from a factor in the numerator, the denominator, or both.', 'A factor in the denominator only gives a vertical asymptote. A factor in the numerator only gives an x-intercept.', 'A factor in both cancels and leaves a hole — but the value is still excluded from the domain.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel></ToolGrid></ToolShell>;
+    <TaskCard question={questionData} task={'Decide what happens to the rational function at the given x-value.'} steps={['Check whether the value is a root of the numerator, the denominator, or both.', 'A factor in both cancels.', 'Choose the feature that survives cancellation.']} /><ToolGrid min={320}><Panel title="Factored structure"><p><strong>Numerator roots:</strong> {numeratorRoots.join(', ')}</p><p><strong>Denominator roots:</strong> {denominatorRoots.join(', ')}</p><p style={{color:'#5f6b7a'}}>A common factor cancels algebraically but remains excluded from the original domain.</p></Panel><Panel title={`What happens at x = ${targetValue}?`}><select aria-label={`What happens at x = ${targetValue}?`} value={choice} onChange={e=>setChoice(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="hole">Hole</option><option value="verticalAsymptote">Vertical asymptote</option><option value="zero">Zero / x-intercept</option><option value="none">None of these</option></select><button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check feature</button><Feedback feedback={feedback} success="You tracked cancellation and domain restrictions correctly." retry="Compare numerator and denominator multiplicities before and after cancellation."/><HintPanel hints={['Every interesting point on a rational function comes from a factor in the numerator, the denominator, or both.', 'A factor in the denominator only gives a vertical asymptote. A factor in the numerator only gives an x-intercept.', 'A factor in both cancels and leaves a hole — but the value is still excluded from the domain.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel></ToolGrid></ToolShell>;
 }

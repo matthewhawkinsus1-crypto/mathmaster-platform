@@ -692,21 +692,63 @@ test('3×3 elimination parity: a contradiction reached by the rows grades as Eli
     ['right classification and planes', 'none', { answers: truth, checked: true }],
     ['wrong classification recorded', 'infinite', { answers: truth, checked: true }],
     ['right classification, wrong planes', 'none', { answers: { ...truth, '1-2': 'line' }, checked: true }],
+    // The reading of the statement is recorded with the choice: always the
+    // right one where outcomes are shown, whatever was chosen on a DOL (B-24).
+    ['right reading recorded with it', 'none', { answers: truth, checked: true }, 'contradiction'],
+    ['wrong reading recorded (a DOL records it)', 'none', { answers: truth, checked: true }, 'identity'],
   ];
-  for (const [label, choice, planeWork] of scenarios) {
-    const state = E.classifyEliminationOutcome(journey.state, journey.system, choice).state;
+  for (const [label, choice, planeWork, kind] of scenarios) {
+    const state = E.classifyEliminationOutcome(journey.state, journey.system, choice, kind).state;
     // EliminationReductionMode's old inline verdict for an outcome:
     // isCorrect = classified && planesEarned.
     const classified = E.eliminationPhase(state, journey.system) === 'classified';
     const legacy = Boolean(classified && planeWorkEarned(planeWork, planeQuestion));
     // ...and the work it now submits.
+    const recorded = state.classification?.statement === outcome.statement ? state.classification : null;
     const work = interpretationWork({
       statement: outcome.statement,
-      classificationChoice: state.classification?.statement === outcome.statement ? state.classification.choice : '',
+      classificationChoice: recorded?.choice || '',
+      classificationKind: recorded?.kind || '',
       planes: planeWork.answers,
     });
     assert.equal(both(ELIM_INCONSISTENT, work).isCorrect, legacy, label);
   }
+});
+
+test('3×3 interpretation: the recorded reading is judged, and each of the two judgments earns half (B-24)', () => {
+  // On a DOL, quiz or test "Check my classification" records the student's
+  // reading of the statement and their meaning whatever they are, and the
+  // planes open regardless, so an interpretation can be submitted half right.
+  // It is graded from what was recorded: the right meaning read from the
+  // wrong kind of statement is not right, and the classification and the
+  // planes each earn half.
+  const truth = truthFor(INCONSISTENT);
+  const work = (outcome = {}) => interpretationWork({ statement: '0 = 9/2', classificationChoice: 'none', classificationKind: 'contradiction', planes: truth, ...outcome });
+  const right = both(ELIM_INCONSISTENT, work());
+  assert.equal(right.isCorrect, true);
+  assert.equal(right.score, 1);
+  assert.deepEqual(right.parts.map((part) => part.id), ['statement', 'classification', 'planes-1-2', 'planes-1-3', 'planes-2-3']);
+  // A record from before readings were stored is judged on its choice.
+  assert.equal(both(ELIM_INCONSISTENT, work({ classificationKind: '' })).isCorrect, true);
+  for (const kind of ['identity', 'origin']) {
+    const misread = both(ELIM_INCONSISTENT, work({ classificationKind: kind }));
+    assert.equal(misread.isCorrect, false, kind);
+    assert.equal(partsById(misread).classification.isCorrect, false, `${kind}: the right meaning, read wrong`);
+    assert.equal(misread.score, 0.5, `${kind}: the planes still earn their half`);
+  }
+  const planesWrong = both(ELIM_INCONSISTENT, work({ planes: { ...truth, '1-2': 'line' } }));
+  assert.equal(planesWrong.isCorrect, false);
+  assert.equal(planesWrong.score, 0.5, 'the classification earns its half');
+  assert.equal(both(ELIM_INCONSISTENT, work({ classificationChoice: 'infinite', planes: { ...truth, '1-2': 'line' } })).score, 0);
+  const unstated = both(ELIM_INCONSISTENT, work({ planes: { '1-2': truth['1-2'] } }));
+  assert.equal(unstated.isComplete, false);
+  assert.equal(unstated.score, 0.5, 'unstated planes earn nothing; the classification its half');
+  // Nothing is earned for interpreting a statement that is not this system's.
+  const forged = both(ELIM_INCONSISTENT, work({ statement: '0 = 0' }));
+  assert.equal(forged.isCorrect, false);
+  assert.equal(forged.score, 0);
+  // The 2×2 special case and every ordered solution stay all-or-nothing.
+  assert.equal(both(PAIR_DEPENDENT, specialCaseWork('0 = 0', 'true', 'none', 'consistent-dependent')).score, 0);
 });
 
 test('3×3 elimination parity: an identity reached in the reduced 2×2, in the student\'s own numbers', () => {
@@ -825,8 +867,12 @@ test('each screen writes its work under the field names the grader reads', () =>
   assert.match(elimination, /verification: verificationSidesWork\(elimination\.verification\)/);
   assert.match(elimination, /statement: outcome\.statement/);
   assert.match(elimination, /planes: Object\.fromEntries\(planePairs\(3\)\.map\(\(\{ id \}\) => \[id, planeWork\?\.answers\?\.\[id\] \|\| ''\]\)\)/);
-  // The recorded classification is the one the student recorded for THIS statement.
-  const recorded = region(eliminationSource, 'const recordedClassification =', 'const work = {', 'recorded classification');
-  assert.match(recorded, /elimination\.classification\?\.statement === outcome\.statement \? elimination\.classification\?\.choice/);
-  assert.match(recorded, /subsystemClassification\?\.identity === outcomeIdentity \? subsystemClassification\?\.choice/);
+  // The recorded classification is the one the student recorded for THIS
+  // statement: the record the interpretation gate also reads, sent with the
+  // reading of the statement recorded beside the choice.
+  const record = region(eliminationSource, 'const classificationRecord =', 'const planeQuestion', 'classification record');
+  assert.match(record, /elimination\.classification\?\.statement === directOutcome\.statement \? elimination\.classification :/);
+  assert.match(record, /subsystemClassification\?\.identity === outcomeIdentity \? subsystemClassification :/);
+  assert.match(region(eliminationSource, 'const recordedClassification =', 'const work = {', 'recorded classification'), /^const recordedClassification = classificationRecord\?\.choice \|\| '';\s*$/);
+  assert.match(elimination, /classificationKind: classificationRecord\?\.kind \|\| ''/);
 });

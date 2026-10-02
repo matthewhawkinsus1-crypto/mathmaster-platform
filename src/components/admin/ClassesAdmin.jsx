@@ -38,6 +38,8 @@ export default function ClassesAdmin() {
   const [showArchived, setShowArchived] = useState(false);
   const [migration, setMigration] = useState(null);
   const [backfill, setBackfill] = useState(null);
+  const [privacy, setPrivacy] = useState(null);
+  const [readScope, setReadScope] = useState(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -239,6 +241,72 @@ export default function ClassesAdmin() {
             </p>
           </div>
         )}
+      </section>
+
+      {/* Student privacy on shared assignments (PR #407 deep dive F-PRIV-1).
+          Two steps, both reversible: move extension details off the shared
+          documents, then — once this release has been live for a school day —
+          let a student's device list only its own class's assignments. */}
+      <section style={{ ...card, background: privacy?.sharedDocumentsClean ? '#e6f4ea' : '#fef7e0', borderColor: privacy?.sharedDocumentsClean ? '#a8d5b5' : '#f9ab00' }}>
+        <h3 style={{ margin: 0, color: privacy?.sharedDocumentsClean ? '#137333' : '#7a4f00' }}>Student privacy on assignments</h3>
+        <p style={{ margin: '8px 0 14px', color: privacy?.sharedDocumentsClean ? '#137333' : '#7a4f00', lineHeight: 1.55 }}>
+          Every student can read an assignment. Attendance extensions granted before this release also stored the student&apos;s
+          absence dates and the granting teacher there. This moves those details into each student&apos;s private record
+          (their teacher can still see them in the case review) and leaves only the deadline on the assignment. Nothing is
+          deleted, and it is safe to run again.
+        </p>
+        <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
+          <button type="button" style={quiet} disabled={busy === 'privacy-dry'} onClick={() => run(
+            'privacy-dry',
+            async () => { const result = await teacherAdmin.migrateAssignmentPrivacy(true); setPrivacy(result); setReadScope(result.studentListScoped); return result; },
+            (result) => `${result.assignmentsScanned} assignments checked · ${result.extensionsMinimized} extensions would move. Nothing was written.`,
+          )}>
+            {busy === 'privacy-dry' ? 'Checking…' : 'Check without changing anything'}
+          </button>
+          <button type="button" style={primary} disabled={busy === 'privacy'} onClick={() => run(
+            'privacy',
+            async () => { const result = await teacherAdmin.migrateAssignmentPrivacy(false); setPrivacy(result); setReadScope(result.studentListScoped); return result; },
+            (result) => `${result.extensionsMinimized} extensions moved · ${result.grantRecordsCreated} private records created.`,
+          )}>
+            {busy === 'privacy' ? 'Working…' : 'Move extension details'}
+          </button>
+        </div>
+        {privacy && (
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(0,0,0,.12)', fontSize: 13, lineHeight: 1.7 }}>
+            <div>Assignments scanned: <strong>{privacy.assignmentsScanned}</strong></div>
+            <div>Extensions {privacy.dryRun ? 'to move' : 'moved'}: <strong>{privacy.extensionsMinimized}</strong></div>
+            <div>Already private: <strong>{privacy.extensionsAlreadyMinimal}</strong></div>
+            <div>Could not finish: <strong>{privacy.failures?.length || 0}</strong></div>
+            {(privacy.failures || []).length > 0 && (
+              <ul style={{ margin: '6px 0 0', color: '#a50e0e' }}>
+                {privacy.failures.slice(0, 10).map((failure) => <li key={failure.assignmentId}>{failure.assignmentId} — {failure.reason}</li>)}
+              </ul>
+            )}
+          </div>
+        )}
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(0,0,0,.12)' }}>
+          <p style={{ margin: '0 0 10px', color: '#3c4043', lineHeight: 1.55 }}>
+            <strong>Class-scoped assignment lists</strong> — {readScope === true ? 'on' : readScope === false ? 'off' : 'not checked yet'}.
+            When on, a student&apos;s device may list only its own class&apos;s assignments. Turn it on after this release has
+            been live for a full school day (older open tabs still list every assignment); turning it off again needs no deploy.
+          </p>
+          <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
+            <button type="button" style={quiet} disabled={busy === 'scope-read'} onClick={() => run(
+              'scope-read',
+              async () => { const result = await teacherAdmin.setAssignmentReadScope(); setReadScope(result.studentListScoped); return result; },
+              (result) => `Class-scoped assignment lists are ${result.studentListScoped ? 'on' : 'off'}.`,
+            )}>
+              {busy === 'scope-read' ? 'Checking…' : 'Check'}
+            </button>
+            <button type="button" style={readScope ? danger : primary} disabled={busy === 'scope-set'} onClick={() => run(
+              'scope-set',
+              async () => { const result = await teacherAdmin.setAssignmentReadScope(!readScope); setReadScope(result.studentListScoped); return result; },
+              (result) => `Class-scoped assignment lists are now ${result.studentListScoped ? 'on' : 'off'}.`,
+            )}>
+              {busy === 'scope-set' ? 'Saving…' : readScope ? 'Turn off' : 'Turn on'}
+            </button>
+          </div>
+        </div>
       </section>
 
       {/* --- Create / edit a class ------------------------------------------- */}

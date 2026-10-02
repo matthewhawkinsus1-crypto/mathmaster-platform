@@ -64,7 +64,10 @@ test('plotting directions: one line, keyboard help on keyboard focus, once per t
   assert.match(svg, /onBlur=\{\(\) => setKeyboardHelpVisible\(false\)\}/);
   assert.match(plane, /const showPlotHelpHere = usePlotHelpSlot\(interactive && showPlotHelp\);/);
   const shell = read('src/tools/shared/ToolShell.jsx');
-  assert.match(shell, /<div className="mathmaster-tool-shell-body"[^>]*><PlotHelpScope>\{children\}<\/PlotHelpScope><\/div>/);
+  // One scope per tool: everything in the shell's body is inside it. (The body
+  // also provides the tool's description to its TaskCard, PQ-023.)
+  const body = shell.slice(shell.indexOf('<div className="mathmaster-tool-shell-body"'));
+  assert.match(body.slice(0, body.indexOf('</div>')), /^<div className="mathmaster-tool-shell-body"[^>]*>(?:<[A-Za-z.]+[^>]*>)*<PlotHelpScope>\{children\}<\/PlotHelpScope>/);
   // A screen reader keeps its instructions on every plane, deduplicated or not.
   assert.match(svg, /aria-label=\{interactive \? `\$\{ariaLabel\}\. Click to plot, or use the arrow keys to move the crosshair and Enter to plot\.`/);
 });

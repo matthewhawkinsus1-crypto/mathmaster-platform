@@ -62,29 +62,35 @@ test('responsive placement follows usable visual viewport without touching math 
   // and only the offset says so; `keyboardOpen` is what lets the shell give the
   // drawers' height back to the workspace while a field is being typed into.
   // Both are presentation, and neither may reach a response payload.
+  //
+  // `shortHeight` joined the record for PQ-020: on a screen under 460px tall (a
+  // phone on its side) the Work View folds its chrome into two rows so the
+  // active step gets the height. It reads the LAYOUT height, so a keyboard
+  // shrinking the visual viewport never refolds the view under the student —
+  // see the two keyboard-open cases below, which stay false.
   assert.deepEqual(resolveWorkViewLayout({ width:1366, height:768, visualHeight:700 }), {
-    mode:'desktop', orientation:'landscape', usableHeight:700, offsetTop:0, keyboardOpen:false, controlsPlacement:'side',
+    mode:'desktop', orientation:'landscape', shortHeight:false, usableHeight:700, offsetTop:0, keyboardOpen:false, controlsPlacement:'side',
   });
   assert.deepEqual(resolveWorkViewLayout({ width:390, height:844, visualHeight:510 }), {
-    mode:'mobile', orientation:'portrait', usableHeight:510, offsetTop:0, keyboardOpen:true, controlsPlacement:'bottom',
+    mode:'mobile', orientation:'portrait', shortHeight:false, usableHeight:510, offsetTop:0, keyboardOpen:true, controlsPlacement:'bottom',
   });
   // A SHORT LANDSCAPE PHONE KEEPS A SIDE RAIL. This case used to ask for the
   // bottom row every other narrow screen gets, which on a 340px-tall workspace
   // spends the scarcest dimension there is on buttons. Width is what a landscape
   // phone has spare, so the actions cost width instead.
   assert.deepEqual(resolveWorkViewLayout({ width:664, height:390, visualHeight:340 }), {
-    mode:'mobile', orientation:'landscape', usableHeight:340, offsetTop:0, keyboardOpen:false, controlsPlacement:'side',
+    mode:'mobile', orientation:'landscape', shortHeight:true, usableHeight:340, offsetTop:0, keyboardOpen:false, controlsPlacement:'side',
   });
   // Portrait phone with the keyboard up: the visual viewport shrinks and is
   // pushed down, and the panel has to follow both or the student types blind.
   assert.deepEqual(resolveWorkViewLayout({ width:390, height:844, visualHeight:420, offsetTop:90 }), {
-    mode:'mobile', orientation:'portrait', usableHeight:420, offsetTop:90, keyboardOpen:true, controlsPlacement:'bottom',
+    mode:'mobile', orientation:'portrait', shortHeight:false, usableHeight:420, offsetTop:90, keyboardOpen:true, controlsPlacement:'bottom',
   });
   // A PHONE IN LANDSCAPE IS STILL A PHONE. 844x390 is an iPhone on its side, and
   // width alone called it a desktop — which kept the full tool header and the
   // assignment chrome over a 390px-tall workspace.
   assert.deepEqual(resolveWorkViewLayout({ width:844, height:390 }), {
-    mode:'mobile', orientation:'landscape', usableHeight:390, offsetTop:0, keyboardOpen:false, controlsPlacement:'side',
+    mode:'mobile', orientation:'landscape', shortHeight:true, usableHeight:390, offsetTop:0, keyboardOpen:false, controlsPlacement:'side',
   });
   // A collapsing browser bar is not a keyboard. 60px of a 844px window is well
   // inside the tolerance, and treating it as one would flip the layout every

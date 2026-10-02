@@ -3,8 +3,13 @@
 //
 //   ?role=practice|dol|quiz|test   the activity policy (default practice)
 //   ?plot=points                   a point-only plot instead of a curve
+//   ?ends=boundary                 the curve has a finite domain [0, 3), so its
+//                                  ends are a closed and an open circle
 //   ?inverse=1                     a point-only plot, then reflect it across
 //                                  y = x (functionInvestigation)
+//   ?inverse=sketch                as published Algebra II inverse items are:
+//                                  graph the line (points, curve, end markers),
+//                                  then reflect it and DRAW the inverse
 //
 // What the engine would submit lands in window.__mmGraded.
 import React from 'react';
@@ -14,22 +19,29 @@ import '../../src/index.css';
 
 const params = new URLSearchParams(window.location.search);
 const role = params.get('role') || 'practice';
-const inverse = params.get('inverse') === '1';
-const pointOnly = inverse || params.get('plot') === 'points';
-const variant = inverse ? 'inverse' : pointOnly ? 'points' : 'curve';
+const inverseSketch = params.get('inverse') === 'sketch';
+const inverse = inverseSketch || params.get('inverse') === '1';
+const pointOnly = (inverse && !inverseSketch) || params.get('plot') === 'points';
+const boundary = !pointOnly && params.get('ends') === 'boundary';
+const variant = inverse ? `inverse${inverseSketch ? '-sketch' : ''}` : pointOnly ? 'points' : boundary ? 'boundary' : 'curve';
 
 const question = {
   id: `graph-point-check-${variant}`,
   type: inverse ? 'functionInvestigation' : 'functionGraph',
   prompt: 'Graph y = 2x + 1.',
-  functionSpec: { type: 'linear', m: 2, b: 1 },
+  functionSpec: {
+    type: 'linear',
+    m: 2,
+    b: 1,
+    ...(boundary ? { domain: { min: 0, max: 3, minInclusive: true, maxInclusive: false } } : {}),
+  },
   pointOnly,
   pointTasks: [
     { id: 'p1', label: 'Plot the point where x = 0', x: 0, expected: [0, 1] },
     { id: 'p2', label: 'Plot the point where x = 2', x: 2, expected: [2, 5] },
   ],
   ...(inverse ? {
-    inverseReflection: { enabled: true, sourceTaskIds: ['p1', 'p2'], requireInverseSketch: false },
+    inverseReflection: { enabled: true, sourceTaskIds: ['p1', 'p2'], requireInverseSketch: inverseSketch },
     analysisRequests: [
       { id: 'r1', kind: 'inversePoint', sourceTaskId: 'p1', label: 'Reflect the point at x = 0' },
       { id: 'r2', kind: 'inversePoint', sourceTaskId: 'p2', label: 'Reflect the point at x = 2' },

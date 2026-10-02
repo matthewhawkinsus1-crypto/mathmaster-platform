@@ -61,7 +61,15 @@ test('document-level scroll padding is scoped to active student assignments and 
   const scopedDocRule = css.match(/(?:html|body):has\(\.mathmaster-assignment-screen\)[^{]*\{([\s\S]*?)\}/);
   assert.ok(scopedDocRule, 'document scroll-padding is scoped with :has(.mathmaster-assignment-screen)');
   const scopedBlock = scopedDocRule[1];
-  assert.match(scopedBlock, /scroll-padding-top:\s*calc\(var\(--mm-sticky-task-top,\s*208px\)\s*\+\s*140px\);/, 'scoped document clears sticky task header');
+  // The top padding clears the sticky task card by its MEASURED height plus
+  // room for the field's label. A flat 140px guessed an 84px card: with a 184px
+  // card, Enter walked to the next blank and left it 30px under the card
+  // (PQ-031). Before the first measurement it must still clear the old 140px.
+  const clearsCard = /scroll-padding-top:\s*calc\(var\(--mm-sticky-task-top,\s*\d+px\)\s*\+\s*var\(--mm-sticky-task-height,\s*(\d+)px\)\s*\+\s*(\d+)px\);/;
+  const scopedTop = scopedBlock.match(clearsCard);
+  assert.ok(scopedTop, 'scoped document clears the measured sticky task card');
+  assert.ok(Number(scopedTop[1]) + Number(scopedTop[2]) >= 140, 'the unmeasured fallback still clears the old 140px');
+  assert.ok(Number(scopedTop[2]) >= 40, 'a revealed field keeps room for its label below the card');
   // The bottom padding clears the sticky action bar: its MEASURED height plus
   // breathing room (student UX pass, R-1 — a fixed 90px was right for one row
   // and wrong the moment the bar wrapped). The fallback before the first
@@ -74,12 +82,16 @@ test('document-level scroll padding is scoped to active student assignments and 
   // 3. .mathmaster-assignment-screen container also preserves its own scroll padding
   const screenRule = css.match(/\.mathmaster-assignment-screen\s*\{([\s\S]*?)\}/);
   assert.ok(screenRule, 'assignment screen container defines scroll padding');
-  assert.match(screenRule[1], /scroll-padding-top:\s*calc\(var\(--mm-sticky-task-top,\s*208px\)\s*\+\s*140px\);/);
+  assert.match(screenRule[1], clearsCard);
   assert.match(screenRule[1], clearsBar);
 
-  // 4. …and the variable is the bar's own height, published by the bar.
+  // 4. …and the variables are the bar's and the task card's own heights,
+  //    published by each of them.
   const container = read('src/components/student/MobileViewportContainer.jsx');
+  const stickyRefs = read('src/platform/layout/stickyHeightRef.js');
   assert.match(container, /<div ref=\{stickyHeightRef\(ACTION_BAR_HEIGHT_VAR\)\} className="mathmaster-desktop-action-bar">/);
-  assert.match(read('src/platform/layout/stickyHeightRef.js'), /export const ACTION_BAR_HEIGHT_VAR = '--mm-action-bar-height';/);
+  assert.match(stickyRefs, /export const ACTION_BAR_HEIGHT_VAR = '--mm-action-bar-height';/);
+  assert.match(container, /<div ref=\{stickyHeightRef\(STICKY_TASK_HEIGHT_VAR\)\} className=\{`mathmaster-desktop-question-anchor/);
+  assert.match(stickyRefs, /export const STICKY_TASK_HEIGHT_VAR = '--mm-sticky-task-height';/);
 });
 

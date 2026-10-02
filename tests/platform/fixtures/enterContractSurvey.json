@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-30T10:35:39.886Z",
+  "generatedAt": "2026-10-01T13:10:16.993Z",
   "viewport": "1366x900",
   "tools": [
     {
@@ -43,7 +43,7 @@
       "declared": [
         {
           "kind": "submit",
-          "text": "Submit workflow"
+          "text": "Submit my regression"
         }
       ],
       "enters": [

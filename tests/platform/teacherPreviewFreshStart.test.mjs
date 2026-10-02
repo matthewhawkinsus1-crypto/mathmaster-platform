@@ -13,7 +13,11 @@ test('teacher View as Student clears preview-only saved drafts before opening', 
 
   assert.match(preview, /removeAssignmentDrafts\(\{ studentId: 'teacher-preview', assignmentId \}\)/);
   assert.match(preview, /setPreviewTracker\(createEmptyAssignmentTracker\(assignmentQuestions\)\)/);
-  assert.match(preview, /setPreviewScratchpads\(\{\}\)/);
+  // No scratchpad page from an earlier preview survives into this one. The
+  // preview scratchpads are a budgeted store (practiceScratchpadCache.js), and
+  // its empty value is the reset — practiceScratchpadCache.test.mjs proves
+  // every write to that state goes through the store.
+  assert.match(preview, /setPreviewScratchpads\(EMPTY_SCRATCHPAD_CACHE\);/);
   assert.match(preview, /setPreviewSessionId\(\(current\) => current \+ 1\)/);
   // Preview must start from the same current-content projection as students,
   // not from an excluded historical storage row.

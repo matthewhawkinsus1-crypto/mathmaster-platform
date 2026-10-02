@@ -4,11 +4,12 @@
  *
  * Works out what changed since the build that is live, deploys only what that
  * requires, in a safe order, with the Cloud Functions in small paced groups,
- * and writes a report that says what shipped, what did not, how to finish it,
- * and how to roll back.
+ * proves the functions now serve this commit, and writes a report that says
+ * what shipped, what did not, how to finish it, and how to roll back.
  *
  *   node scripts/release-firebase.mjs                     # plan only (default)
  *   node scripts/release-firebase.mjs --execute           # deploy the plan
+ *   node scripts/release-firebase.mjs --whats-live        # which commit each part runs
  *
  * Options
  *   --since <ref|live>    base to diff against (default: live — the gitSha in
@@ -18,17 +19,27 @@
  *   --functions a,b       exact default-codebase functions (implies functions)
  *   --group-size N        functions per group (default 8)
  *   --pause-seconds N     pause between groups (default 45)
- *   --max-attempts N      tries per group before splitting it (default 3)
+ *   --max-attempts N      tries per group (and per verify) before giving up (default 3)
  *   --continue-after-function-failure
  *                         deploy rules/Hosting even if a function did not ship
+ *                         or the functions do not prove the commit
  *   --yes                 do not ask for the project id before executing
  *   --project <id>        default FIREBASE_PROJECT or mathmaster-aleks
+ *   --whats-live          print the commit Hosting, the functions (platformBuildInfo)
+ *                         and, when gcloud is on PATH, every function's mm-git-sha
+ *                         label are from; deploys nothing, needs no diff
  *
- * The plan, the order and the retry rules live in scripts/lib/releasePlan.mjs
- * and scripts/lib/releaseExecutor.mjs and are unit-tested without Firebase
- * (tests/platform/releasePlan.test.mjs). Hosting always goes through
- * `npm run deploy:hosting` (AGENTS.md). Nothing here ever deploys unless
- * --execute is given.
+ * Any release that deploys default-codebase functions also redeploys
+ * platformBuildInfo and then calls it (the callable protocol, no credentials):
+ * if it does not report this checkout's HEAD, the release stops before
+ * path-admin, rules and Hosting exactly as for a function that failed.
+ *
+ * The plan, the order, the verify decision and the retry rules live in
+ * scripts/lib/releasePlan.mjs and scripts/lib/releaseExecutor.mjs and are
+ * unit-tested without Firebase or a network (tests/platform/releasePlan.test.mjs).
+ * The network calls are here, behind callBuildInfo / readLiveBuild, injected
+ * into the executor. Hosting always goes through `npm run deploy:hosting`
+ * (AGENTS.md). Nothing here ever deploys unless --execute is given.
  */
 
 import { spawn, spawnSync } from 'node:child_process';
@@ -37,7 +48,18 @@ import path from 'node:path';
 import readline from 'node:readline/promises';
 import { fileURLToPath } from 'node:url';
 import {
-  RELEASE_TARGETS, buildReleasePlan, classifyChangedFiles, deployCommandFor,
+  BUILD_INFO_FUNCTION,
+  DEFAULT_FUNCTIONS_REGION,
+  RELEASE_TARGETS,
+  TARGET_ALIASES,
+  VERIFY_FUNCTIONS,
+  buildInfoRequest,
+  buildReleasePlan,
+  classifyChangedFiles,
+  deployCommandFor,
+  describeStep,
+  retryCommandFor,
+  summarizeFunctionLabels,
 } from './lib/releasePlan.mjs';
 import { executeReleasePlan } from './lib/releaseExecutor.mjs';
 
@@ -56,15 +78,8 @@ const GROUP_SIZE = Number(option('group-size', 8));
 const PAUSE_SECONDS = Number(option('pause-seconds', 45));
 const MAX_ATTEMPTS = Number(option('max-attempts', 3));
 const STEP_TIMEOUT_SECONDS = Number(process.env.FUNCTION_DEPLOY_TIMEOUT_SECONDS || 900);
-
-const TARGET_ALIASES = {
-  indexes: RELEASE_TARGETS.INDEXES,
-  functions: RELEASE_TARGETS.FUNCTIONS,
-  'path-admin': RELEASE_TARGETS.PATH_ADMIN,
-  rules: RELEASE_TARGETS.RULES,
-  database: RELEASE_TARGETS.DATABASE_RULES,
-  hosting: RELEASE_TARGETS.HOSTING,
-};
+// The Firebase CLI's own default, with the CLI's own override.
+const CLI_DEFAULT_REGION = process.env.FIREBASE_FUNCTIONS_DEFAULT_REGION || DEFAULT_FUNCTIONS_REGION;
 
 const git = (...args) => {
   const result = spawnSync('git', args, { cwd: repoRoot, encoding: 'utf8' });
@@ -72,23 +87,143 @@ const git = (...args) => {
   return result.stdout.trim();
 };
 
-const readLiveBuild = async () => {
-  const url = `https://${PROJECT}.web.app/mathmaster-build.json?ts=${Date.now()}`;
+const fetchLiveBuild = async () => {
+  const url = `https://${PROJECT}.web.app/mathmaster-build.json`;
   try {
-    const response = await fetch(url, { cache: 'no-store' });
-    if (!response.ok) return null;
-    return await response.json();
-  } catch {
-    return null;
+    const response = await fetch(`${url}?ts=${Date.now()}`, { cache: 'no-store', signal: AbortSignal.timeout(20_000) });
+    if (!response.ok) return { url, build: null, error: `HTTP ${response.status}` };
+    return { url, build: await response.json(), error: null };
+  } catch (error) {
+    return { url, build: null, error: String(error?.cause?.code || error?.message || error) };
   }
 };
+
+const readLiveBuild = async () => (await fetchLiveBuild()).build;
+
+/**
+ * Ask a deployed platformBuildInfo which commit it was built from, over the
+ * callable protocol. Never throws: resolves { url, reachable, status, body, error }
+ * for scripts/lib/releasePlan.mjs#assessBuildInfoResponse to judge.
+ */
+const callBuildInfo = async ({ region = CLI_DEFAULT_REGION, name = BUILD_INFO_FUNCTION, timeoutMs = 20_000 } = {}) => {
+  const { url, init } = buildInfoRequest({ project: PROJECT, region, name });
+  try {
+    const response = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+    const text = await response.text();
+    let body = null;
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = null;
+    }
+    return { url, reachable: true, status: response.status, body, error: body ? null : text.trim().slice(0, 200) };
+  } catch (error) {
+    return { url, reachable: false, status: null, body: null, error: String(error?.cause?.code || error?.message || error) };
+  }
+};
+
+/** The default codebase as the CLI sees it; [] when it cannot be loaded here. */
+const loadInventory = async ({ required }) => {
+  try {
+    const { listDeployableFunctions } = await import('./lib/functionsInventory.mjs');
+    return listDeployableFunctions().functions;
+  } catch (error) {
+    if (required) throw error;
+    return [];
+  }
+};
+
+const regionOf = (inventory) => inventory.find((fn) => fn.name === BUILD_INFO_FUNCTION)?.region || CLI_DEFAULT_REGION;
 
 const fail = (message) => {
   console.error(`\nrelease-firebase: ${message}`);
   process.exit(2);
 };
 
+/* ----------------------------------------------------------------------------
+ * --whats-live: read-only. Which commit is Hosting, which are the functions?
+ * ------------------------------------------------------------------------- */
+const listDeployedFunctions = () => {
+  const result = spawnSync('gcloud', ['functions', 'list', '--project', PROJECT, '--format=json', '--quiet'], {
+    cwd: repoRoot, encoding: 'utf8', timeout: 180_000, maxBuffer: 64 * 1024 * 1024,
+  });
+  if (result.error?.code === 'ENOENT') return { available: false, reason: 'gcloud is not on PATH' };
+  if (result.error) return { available: true, functions: null, reason: result.error.message };
+  if (result.status !== 0) {
+    const said = String(result.stderr || '').trim().split('\n').filter(Boolean).slice(-2).join(' ');
+    return { available: true, functions: null, reason: `gcloud exited ${result.status}${said ? `: ${said}` : ''}` };
+  }
+  try {
+    return { available: true, functions: JSON.parse(result.stdout || '[]'), reason: null };
+  } catch (error) {
+    return { available: true, functions: null, reason: `unreadable gcloud output: ${error.message}` };
+  }
+};
+
+const sameCommit = (left, right) => Boolean(left && right && left !== 'unknown' && right !== 'unknown'
+  && (left.startsWith(right) || right.startsWith(left)));
+
+const whatsLive = async () => {
+  let headFull = 'unknown';
+  let dirty = null;
+  try {
+    headFull = git('rev-parse', 'HEAD');
+    dirty = Boolean(git('status', '--porcelain', '--untracked-files=no'));
+  } catch {
+    // Not a checkout: report the live side only.
+  }
+  const region = regionOf(await loadInventory({ required: false }));
+  const [hosting, buildInfo] = await Promise.all([fetchLiveBuild(), callBuildInfo({ region })]);
+
+  const verdictLine = (live) => (headFull === 'unknown' ? '' : sameCommit(live, headFull) ? '  = local HEAD' : '  ≠ local HEAD');
+  console.log(`What is live on ${PROJECT}`);
+  console.log(`  local HEAD  ${headFull === 'unknown' ? 'unknown' : headFull.slice(0, 12)}${dirty === null ? '' : dirty ? ' (uncommitted changes)' : ' (clean)'}`);
+
+  if (hosting.build?.gitSha) {
+    console.log(`  Hosting     ${hosting.build.gitSha}${hosting.build.builtAt ? `  built ${hosting.build.builtAt}` : ''}${hosting.build.gitDirty ? '  (dirty build)' : ''}${verdictLine(hosting.build.gitSha)}`);
+  } else {
+    console.log(`  Hosting     unreadable (${hosting.error || 'no gitSha'}) — ${hosting.url}`);
+  }
+
+  const result = buildInfo.reachable && buildInfo.status >= 200 && buildInfo.status < 300 ? buildInfo.body?.result : null;
+  if (result && typeof result === 'object') {
+    const sha = String(result.gitSha || 'unknown');
+    console.log(`  Functions   ${sha === 'unknown' ? 'unknown' : sha.slice(0, 12)}  ${result.treeClean ? 'clean tree' : 'dirty tree'}${result.writtenAt ? `, stamped ${result.writtenAt}` : ''}  (${BUILD_INFO_FUNCTION}, ${region})${verdictLine(sha)}`);
+  } else {
+    const why = !buildInfo.reachable ? buildInfo.error : `HTTP ${buildInfo.status}${buildInfo.body?.error?.status ? ` ${buildInfo.body.error.status}` : ''}`;
+    console.log(`  Functions   no answer from ${buildInfo.url} (${why}). Not deployed yet, or not reachable from here.`);
+  }
+
+  const deployed = listDeployedFunctions();
+  if (!deployed.available) {
+    console.log(`  Labels      skipped: ${deployed.reason}. Install the Google Cloud SDK (Cloud Shell has it) to see each function's mm-git-sha.`);
+    return;
+  }
+  if (!deployed.functions) {
+    console.log(`  Labels      could not list functions: ${deployed.reason}`);
+    return;
+  }
+  const summary = summarizeFunctionLabels(deployed.functions);
+  console.log(`  Labels      gcloud functions list: ${summary.total} function(s) by mm-git-sha`);
+  summary.bySha.forEach((group) => {
+    const codebases = Object.entries(group.codebases).map(([name, count]) => `${name} ${count}`).join(', ');
+    const sha = group.gitSha ? group.gitSha.slice(0, 12) : '(no label)';
+    const names = group.count <= 6 ? `  ${group.functions.join(', ')}` : '';
+    const note = group.gitSha ? `${group.dirty ? `, ${group.dirty} dirty` : ''}${verdictLine(group.gitSha)}` : ' — last deployed before deploy provenance existed';
+    console.log(`    ${sha.padEnd(14)} ${String(group.count).padStart(4)}  (${codebases})${note}${names}`);
+  });
+};
+
+if (flag('whats-live')) {
+  await whatsLive();
+  process.exit(0);
+}
+
+/* ----------------------------------------------------------------------------
+ * The release: plan, then (with --execute) deploy and verify.
+ * ------------------------------------------------------------------------- */
 const head = git('rev-parse', '--short=12', 'HEAD');
+const headFull = git('rev-parse', 'HEAD');
 const liveBuild = await readLiveBuild();
 let base = option('since', 'live');
 if (base === 'live') {
@@ -107,11 +242,9 @@ const only = list(option('only'))?.map((name) => TARGET_ALIASES[name] || name) |
 const functionNames = list(option('functions'));
 const wantsFunctions = Boolean(functionNames?.length) || (only ? only.includes(RELEASE_TARGETS.FUNCTIONS) : targets.includes(RELEASE_TARGETS.FUNCTIONS));
 
-let inventory = [];
-if (wantsFunctions) {
-  const { listDeployableFunctions } = await import('./lib/functionsInventory.mjs');
-  inventory = listDeployableFunctions().functions.map(({ name }) => name);
-}
+const inventoryEntries = wantsFunctions ? await loadInventory({ required: true }) : [];
+const inventory = inventoryEntries.map(({ name }) => name);
+const BUILD_INFO_REGION = regionOf(inventoryEntries);
 
 let steps;
 try {
@@ -121,6 +254,7 @@ try {
     functionNames,
     only: functionNames?.length ? [...new Set([...(only || targets), RELEASE_TARGETS.FUNCTIONS])] : only,
     groupSize: GROUP_SIZE,
+    expectedGitSha: headFull,
   });
 } catch (error) {
   fail(error.message);
@@ -140,12 +274,14 @@ if (!steps.length) {
 }
 console.log('\nSteps, in order:');
 steps.forEach((step, index) => {
-  const { command, args } = deployCommandFor(step, { project: PROJECT });
-  console.log(`  ${String(index + 1).padStart(2)}. ${step.label.padEnd(24)} ${command} ${args.join(' ')}`);
+  console.log(`  ${String(index + 1).padStart(2)}. ${step.label.padEnd(24)} ${describeStep(step, { project: PROJECT, region: BUILD_INFO_REGION })}`);
 });
 const functionSteps = steps.filter((step) => step.target === RELEASE_TARGETS.FUNCTIONS).length;
 if (functionSteps > 1) {
   console.log(`\n  ${functionSteps} function groups of up to ${GROUP_SIZE}, ${PAUSE_SECONDS}s apart — about ${Math.round((functionSteps * (PAUSE_SECONDS + 90)) / 60)} minutes if nothing is throttled.`);
+}
+if (steps.some((step) => step.target === VERIFY_FUNCTIONS)) {
+  console.log(`  ${BUILD_INFO_FUNCTION} ships in the last group; the verify step then requires it to report ${head} before anything after it deploys.`);
 }
 
 if (!EXECUTE) {
@@ -167,7 +303,7 @@ const gate = (label, command, args) => {
   if (result.status !== 0) fail(`${label} failed; nothing was deployed.`);
 };
 gate('Deploy provenance (HEAD contains origin/main, clean tree)', 'node', ['scripts/check-deploy-provenance.mjs']);
-if (wantsFunctions) gate('Functions load from the real entry point', 'node', ['scripts/verify-functions-discovery.mjs', ...(functionNames || [])]);
+if (wantsFunctions) gate('Functions load from the real entry point', 'node', ['scripts/verify-functions-discovery.mjs', ...(functionNames || []), BUILD_INFO_FUNCTION]);
 
 const deployEnv = {
   ...process.env,
@@ -204,6 +340,7 @@ const startedAt = new Date();
 const outcome = await executeReleasePlan({
   steps,
   runner,
+  verifyBuildInfo: (step) => callBuildInfo({ region: BUILD_INFO_REGION, name: step.function }),
   sleep: (seconds) => new Promise((resolve) => setTimeout(resolve, seconds * 1000)),
   log: (line) => console.log(`\n[release] ${line}`),
   maxAttempts: MAX_ATTEMPTS,
@@ -211,21 +348,22 @@ const outcome = await executeReleasePlan({
   continueAfterFunctionFailure: flag('continue-after-function-failure'),
 });
 
-const retryCommand = outcome.failedFunctions.length
-  ? `node scripts/release-firebase.mjs --execute --functions ${outcome.failedFunctions.map((entry) => entry.name).join(',')}${outcome.stoppedBeforeTargets?.length ? ` && node scripts/release-firebase.mjs --execute --only ${[...new Set(outcome.stoppedBeforeTargets)].map((target) => Object.entries(TARGET_ALIASES).find(([, value]) => value === target)?.[0] || target).join(',')}` : ''}`
-  : null;
+const retryCommand = retryCommandFor(outcome);
 const report = {
   project: PROJECT,
   startedAt: startedAt.toISOString(),
   finishedAt: new Date().toISOString(),
   base,
   head,
+  headSha: headFull,
   liveBuildBefore: liveBuild || null,
-  targets: [...new Set(steps.map((step) => step.target))],
+  targets: [...new Set(steps.map((step) => step.target).filter((target) => target !== VERIFY_FUNCTIONS))],
   reasons,
   ok: outcome.ok,
   results: outcome.results,
   failedFunctions: outcome.failedFunctions,
+  // passed | failed (sha-mismatch | unreachable) | skipped; null when no default-codebase function was deployed.
+  verification: outcome.verification,
   failedStep: outcome.failedStep,
   stoppedBeforeTargets: outcome.stoppedBeforeTargets,
   retryCommand,
@@ -247,6 +385,14 @@ console.log(outcome.ok ? `Release complete: ${report.targets.join(', ')}.` : 'Re
 if (outcome.failedFunctions.length) {
   console.log(`Functions that did not deploy (${outcome.failedFunctions.length}):`);
   outcome.failedFunctions.forEach(({ name, failure }) => console.log(`  ${name}  (${failure})`));
+}
+if (outcome.verification?.status === 'passed') {
+  console.log(`Functions verified: ${outcome.verification.function} serves ${String(outcome.verification.liveGitSha).slice(0, 12)}${outcome.verification.warning ? ` (WARNING: ${outcome.verification.warning})` : ''}.`);
+} else if (outcome.verification?.status === 'failed') {
+  console.log(`Functions NOT verified (${outcome.verification.failure}): ${outcome.verification.detail}`);
+  console.log(`  Asked ${outcome.verification.url}. Check by hand: node scripts/release-firebase.mjs --whats-live`);
+} else if (outcome.verification?.status === 'skipped') {
+  console.log(`Functions verification skipped: ${outcome.verification.reason}.`);
 }
 if (outcome.failedStep) console.log(`Failed step: ${outcome.failedStep}`);
 if (outcome.stoppedBeforeTargets?.length) console.log(`Not deployed: ${[...new Set(outcome.stoppedBeforeTargets)].join(', ')}`);

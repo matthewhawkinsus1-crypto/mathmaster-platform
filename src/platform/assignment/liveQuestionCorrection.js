@@ -11,7 +11,7 @@ import {
   analyzeSafeResponseEntryRepair,
 } from '../../../functions/shared/liveResponseRepairPolicy.mjs';
 import { readComposedQuestion } from '../workflow/questionWorkflow.js';
-import { gradeWorkflow } from '../workflow/workflowGrading.js';
+import { gradeWorkflow, summarizeWorkflowParts } from '../workflow/workflowGrading.js';
 
 export const questionFingerprint = (question) => stableStringify(question ?? null);
 
@@ -180,11 +180,26 @@ const parseStoredWorkflowResponses = (record = {}) => {
   }
 };
 
+const storedPartCredit = (part) => (Number.isFinite(Number(part?.credit))
+  ? Math.max(0, Math.min(1, Number(part.credit)))
+  : (part?.isCorrect === true ? 1 : 0));
+
 /**
  * Re-evaluate the LAST stored workflow response with the current fractional
  * rubric. This is intentionally monotonic: deploying a more granular rubric
  * can recognize work the old coarse rubric missed, but it can never take away
  * credit a student already earned.
+ *
+ * MONOTONIC PART BY PART, NOT ONLY IN TOTAL. The re-marked parts replace the
+ * stored ones, and a stored part may be credited where today's grader would
+ * not credit it — a live correction marked it right, or the grader has grown
+ * stricter since. Replacing it outright turned that part back to wrong in the
+ * very record being "corrected". So each part keeps the better of its stored
+ * and re-marked credit, and the question is summed from those parts by the
+ * same rule gradeWorkflow uses. The trigger (today: a teacher changing a
+ * question's weight in the live editor) can therefore only ever raise a
+ * record, e.g. a relation plot that the grader used to mark wrong however it
+ * was drawn (see gradePlottedPairs) earns its credit once re-marked.
  */
 export const repairQuestionRecordForGranularWorkflowCredit = ({
   record,
@@ -205,29 +220,43 @@ export const repairQuestionRecordForGranularWorkflowCredit = ({
     responses,
     grading: composed.grading,
   });
-  const evaluatedPartial = evaluation.isCorrect
-    ? 100
-    : Math.max(0, Math.min(90, Number(evaluation.partialCreditPercent) || 0));
-  if (evaluatedPartial <= Number(current.bestPartialCredit || 0)) return record;
 
   const oldParts = new Map((current.partGrades || []).map((part) => [String(part.id), part]));
-  const partGrades = (evaluation.parts || []).slice(0, 40).map((part, index) => ({
-    id: String(part?.id ?? `part-${index + 1}`),
-    label: String(part?.label || `Part ${index + 1}`),
-    isComplete: Boolean(part?.isComplete),
-    isCorrect: Boolean(part?.isCorrect),
-    graded: part?.graded !== false,
-    weight: Number.isFinite(Number(part?.weight)) && Number(part.weight) > 0 ? Number(part.weight) : 1,
-    credit: Number.isFinite(Number(part?.credit))
-      ? Math.max(0, Math.min(1, Number(part.credit)))
-      : (part?.isCorrect ? 1 : 0),
-    response: String(oldParts.get(String(part?.id))?.response ?? '').slice(0, 240),
-    granularCreditRegraded: true,
-  }));
+  const partGrades = (evaluation.parts || []).slice(0, 40).map((part, index) => {
+    const id = String(part?.id ?? `part-${index + 1}`);
+    const stored = oldParts.get(id);
+    const regraded = {
+      id,
+      label: String(part?.label || `Part ${index + 1}`),
+      isComplete: Boolean(part?.isComplete),
+      isCorrect: Boolean(part?.isCorrect),
+      graded: part?.graded !== false,
+      weight: Number.isFinite(Number(part?.weight)) && Number(part.weight) > 0 ? Number(part.weight) : 1,
+      credit: Number.isFinite(Number(part?.credit))
+        ? Math.max(0, Math.min(1, Number(part.credit)))
+        : (part?.isCorrect ? 1 : 0),
+      response: String(stored?.response ?? '').slice(0, 240),
+      granularCreditRegraded: true,
+    };
+    if (!stored) return regraded;
+    const isCorrect = regraded.isCorrect || stored.isCorrect === true;
+    return {
+      ...regraded,
+      isComplete: regraded.isComplete || isCorrect,
+      isCorrect,
+      credit: Math.max(regraded.credit, storedPartCredit(stored)),
+    };
+  });
+
+  const summary = summarizeWorkflowParts(partGrades);
+  const evaluatedPartial = summary.isCorrect
+    ? 100
+    : Math.max(0, Math.min(90, Number(summary.partialCreditPercent) || 0));
+  if (evaluatedPartial <= Number(current.bestPartialCredit || 0)) return record;
 
   return {
     ...current,
-    status: evaluation.isCorrect ? 'correct' : current.status,
+    status: summary.isCorrect ? 'correct' : current.status,
     partialCredit: Math.max(Number(current.partialCredit || 0), evaluatedPartial),
     bestPartialCredit: Math.max(Number(current.bestPartialCredit || 0), evaluatedPartial),
     partGrades,

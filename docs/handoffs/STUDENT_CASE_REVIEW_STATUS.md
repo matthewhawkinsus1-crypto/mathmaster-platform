@@ -36,15 +36,21 @@ Branch: `claude/sharp-wozniak-8x3enm` (the session's designated branch; dedicate
 - Java 21 is present for `npm run test:rules`; the Firestore emulator jar may need
   `npx firebase setup:emulators:firestore` first.
 - Teacher harness: `npx vite --config tests/browser/teacherWorkflow/vite.config.mjs` →
-  `http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html?reset=1`. Its fake callables return `{}` for
-  anything not implemented; its fake Firestore has no `startAfter` / `documentId` / `collectionGroup`.
+  `http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html?reset=1` (`TEACHER_HARNESS_PORT` moves it).
+  A callable the harness does not implement rejects with `functions/unimplemented` and every journey reports it
+  (it used to resolve `{}`). The fake Firestore notifies a listener only when its own result changes
+  (`?notify=every-write` for the old stress mode); the app imports no `startAfter` / `documentId` /
+  `collectionGroup`, so the fake has none. `?teacherUid=` signs the teacher in under another account id.
+- Several servers on one machine share `node_modules/.vite`; give each its own `cacheDir` (a wrapper config that
+  spreads the harness config) or one server's dependency optimisation can reload another's pages mid-journey.
 - PR #401's warnings hold: don't edit `src/` while a journey runs (Vite reloads the page); don't run a second
   Vite server from this checkout at the same time; CI runs in UTC — run date tests with `TZ=UTC` and
   `TZ=America/Chicago`.
 - Start the harness server as a long-lived background job (a 30-minute background limit stopped it mid-run
   once; later runs then fail with `ERR_CONNECTION_REFUSED`, which is not an app failure).
-- Journeys: `node tests/browser/teacherWorkflow/caseReviewJourneys.mjs` (C1–C6, default viewports
-  1440x900, 1366x768, 1024x768, 768x1024; `ONLY=` / `VIEWPORTS=` to narrow), then the regressions
+- Journeys: `node tests/browser/teacherWorkflow/caseReviewJourneys.mjs` (C1–C7, default viewports
+  1440x900, 1366x768, 1024x768, 768x1024, 390x844 — add 344x882 for the narrowest phones; `ONLY=` / `VIEWPORTS=`
+  to narrow), then the regressions
   `supportEvidenceJourneys.mjs` (PR #401) and `journeys.mjs` (PR #400). Screenshots land in the git-ignored
   `tests/browser/artifacts/`.
 - Never `git stash` during an unfinished merge: it drops `MERGE_HEAD`. (It happened once here; the merge was
@@ -91,6 +97,11 @@ Full tables: design doc §1. The ones that changed the plan:
 | same | `journeys.mjs` (PR #400: A–K + retry at 1440 and 1024) | 24/24 |
 | same | `caseReviewJourneys.mjs` second run | 22/24 — C2 at 1440x900 and 768x1024: with the selection folded, the Grades tab fits the screen, so the test had nothing to scroll. The test now opens the contribution details first (and checks they are still open after Back) |
 | final | `caseReviewJourneys.mjs` C1–C6 at 1440x900, 1366x768, 1024x768, 768x1024 | **24/24** |
+| Follow-ups after PR #408 (CR-3, CR-4, CR-6, CR-9 / DD-13c) on `2b53096f` | `npm run test:platform` | 7496/7497 — the one failure (`calculatorPanelWiringV3`: it pins `import 'mathlive'`, which `2b53096f` moved into `mathliveRuntime.js`) fails the same way on the untouched base |
+| same | `npm run lint` · `npm run build` | 431 warnings, file by file as on the base, none in a touched file · ✓ |
+| same | `caseReviewJourneys.mjs` C1–C7, default five viewports · again at 390x844 and 344x882 | **35/35** · **14/14** |
+| same | `journeys.mjs` · `supportEvidenceJourneys.mjs` · `enduranceJourneys.mjs` | 24/24 · 14/14 · clean (server ingestion reported as not simulated, by name) |
+| same | Mutation checks | node: CR-3 13, CR-4 5, CR-6 12, CR-9 15 — all red; browser: CR-6 6 (390x844), CR-3 3 (C7), CR-4 2 (C4), CR-9 1 — each turned its journey red |
 
 ## Decisions (for the PR)
 
@@ -98,10 +109,41 @@ Full tables: design doc §1. The ones that changed the plan:
    (teacher of record / roster teacher / root admin) — not a rules change to `evidenceEvents`.
 2. The SIS snapshot is in-memory unless the teacher chooses to save it (`grades/{sid}/sisGradebookSnapshots`,
    staff-only, immutable, one student's rows only).
-3. Teacher-entered next steps are kept in the page only (printed, exported, not saved).
+3. Teacher-entered next steps are kept in the page only (printed, exported, not saved). *Since CR-3: a per-teacher,
+   per-student draft in the tab's sessionStorage — still never saved to MathMaster.*
 4. The production ingestion path is not changed (no misconception pass-through yet; documented as the next
-   step in the catalog header).
+   step in the catalog header). *Superseded by CR-4 below.*
 
 ## Remaining work / known gaps
 
 Tracked in "Phases". Known limits are listed in design doc §1.5.
+
+## Follow-ups after PR #408
+
+- **CR-3 — next steps survive closing and reloading.** A draft per signed-in teacher (uid) per student in the tab's
+  sessionStorage; removed on Clear, on sign-out, when another account opens a case review in the tab, and with the
+  tab. No server home exists for next steps and none was added. Tests: `tests/platform/caseReviewNextStepsDraft.test.mjs`,
+  journey C7.
+- **CR-6 — the case review at 390 px.** Whole review scrolls on a phone (upright, or on its side: under 500 px
+  tall), 44-px controls, upright tables as labelled cards, long paths wrap. Journeys: 390x844 is now in the default
+  run (C1, C2, C3 and C5 add phone checks); 344x882 on request; 844x390 was measured, not journeyed (its wide
+  tables keep their own sideways scroll). Test: `tests/platform/caseReviewPhoneLayout.test.mjs`.
+- **CR-9 / DD-13c — harness fakes.** The fake Firestore notifies a listener only when a write changes its own
+  document or query result (constraints honoured as Firestore does; `?notify=every-write` keeps the old stress mode
+  for the endurance journey). An unimplemented callable now rejects with `functions/unimplemented` and every journey
+  reports it. The journeys reached seven callables that had been answered `{}`; five got fakes mirroring the real
+  function's reads, authorization and response (`getStudentRewards`, `getStudentWeeklyPathGoalSnapshot`,
+  `reportStudentDeviceQueue`, `getWeeklyPathClassroomSync` + `setWeeklyPathClassroomSync`). The other two are server
+  ingestion (`ingestStudentSubmissions`, `reconcileAssignmentActivityProjection`): the durable outbox's server half, not
+  simulated by the harness — a student's answers in the harness stay queued on the device, as they silently did before.
+  The endurance journey names them and counts them instead of failing; any other unimplemented callable is a finding.
+  The app imports no `startAfter` / `documentId` / `collectionGroup`, so the fake adds none (a test fails if it ever
+  does). Test: `tests/platform/teacherHarnessFakes.test.mjs`.
+- **CR-4 — misconception codes are carried.** A catalog id a tool or grader puts on a part
+  (`misconceptionCode`) now survives the QuestionEngine forwarder, the attempt policy's part compaction (so the
+  question record, browser-queued or server-written) and the evidence-event builder
+  (`performance.misconceptionCodes`), which the callable already projected. Additive: a part or event without a code
+  keeps its exact shape; no collection, rule or index changed. Not done (new data design): no classroom tool emits a
+  code yet, and a question-level code has no record slot. `tests/platform/misconceptionCodePassThrough.test.mjs`; in
+  the browser, the harness fixture stores one code (yesterday's Classwork Q2) and journey C4 checks the case review
+  names it there and nowhere else.

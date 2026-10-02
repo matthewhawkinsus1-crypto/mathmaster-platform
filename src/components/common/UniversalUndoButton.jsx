@@ -1,14 +1,18 @@
 import React from 'react';
+import { useFocusSafeDisabled } from './useFocusSafeDisabled.js';
 
 export default function UniversalUndoButton({ controller, disabled = false, style = null, className = '' }) {
   const enabled = Boolean(controller?.canUndo) && !disabled;
+  // The press that takes back the last step leaves nothing to undo; focus stays
+  // here instead of dropping to the page (useFocusSafeDisabled).
+  const availability = useFocusSafeDisabled(enabled);
   return (
     <button
       type="button"
       className={`mathmaster-universal-undo ${className}`.trim()}
       data-undo-owner={controller?.ownerId || 'current-tool'}
-      onClick={() => controller?.onUndo?.()}
-      disabled={!enabled}
+      onClick={() => { if (enabled) controller?.onUndo?.(); }}
+      {...availability}
       title={controller?.label || 'Undo the most recent response change'}
       style={style}
     >

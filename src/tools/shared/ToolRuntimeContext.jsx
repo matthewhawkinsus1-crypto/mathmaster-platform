@@ -9,6 +9,28 @@ const DEFAULT_RUNTIME = {
   // correct for a teacher previewing a tool and ruins the item for a student,
   // so answers stay hidden unless a surface explicitly opts in.
   revealAnswers: false,
+  // WHETHER A TOOL MAY OFFER ITS HINTS AT ALL.
+  //
+  // The activity decides, never the tool or the question: a DOL, quiz or test
+  // carries `hintsAllowed: false` in its policy, and every hint affordance in
+  // a registry tool reads it from here. Recording a hint's use is not enough —
+  // on an exit ticket the hint itself is the help the activity withholds.
+  // Defaults to allowed, so a surface with no activity (the tools lab, a
+  // teacher's bench) keeps the hints it always had.
+  hintsAllowed: true,
+  // Who to tell when a hint is revealed somewhere the tool itself does not
+  // see — the Work View Help drawer. QuestionEngine passes its hint recorder;
+  // outside an activity there is nobody to tell.
+  onHintUsed: null,
+  // THE PLATFORM'S OUTCOME FOR THE LATEST ATTEMPT, SHOWN BESIDE THE TOOL'S OWN
+  // VERDICT (PQ-022; see attemptOutcomeSlots.js). `attemptOutcomeSlots` is the
+  // registry a verdict area joins while mounted; `attemptOutcome` is
+  // { slot, text, detail, tone } when QuestionEngine hands an outcome to one of
+  // them. Both null outside a question (the tools lab), and the outcome is
+  // null whenever QuestionEngine shows it in its own box — or shows nothing,
+  // as on a DOL before feedback is released.
+  attemptOutcome: null,
+  attemptOutcomeSlots: null,
   // The channel a tool reports its LIVE raw work through (see
   // useReportToolWork.js). QuestionEngine turns it into the response a
   // deadline checkpoint carries; outside an assignment it is a no-op.
@@ -17,11 +39,17 @@ const DEFAULT_RUNTIME = {
 
 const ToolRuntimeContext = createContext(DEFAULT_RUNTIME);
 
-export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, reportWork = null, children }) => (
+export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, hintsAllowed = true, onHintUsed = null, attemptOutcome = null, attemptOutcomeSlots = null, reportWork = null, children }) => (
   <ToolRuntimeContext.Provider value={{
     showImmediateFeedback: Boolean(showImmediateFeedback),
     revealAnswers: Boolean(revealAnswers),
     questionTerminal: Boolean(questionTerminal),
+    // Only an explicit `false` withholds hints, the same reading QuestionEngine
+    // gives the policy field (`hintsAllowed !== false`).
+    hintsAllowed: hintsAllowed !== false,
+    onHintUsed: typeof onHintUsed === 'function' ? onHintUsed : null,
+    attemptOutcome: attemptOutcome && typeof attemptOutcome === 'object' ? attemptOutcome : null,
+    attemptOutcomeSlots: attemptOutcomeSlots || null,
     reportWork: typeof reportWork === 'function' ? reportWork : null,
   }}>
     {children}
@@ -33,5 +61,11 @@ export const useToolRuntimeContext = () => useContext(ToolRuntimeContext);
 // Convenience for the many render sites that only care whether the worked
 // answer may be shown. Defaults to hidden outside a provider.
 export const useRevealAnswers = () => useContext(ToolRuntimeContext).revealAnswers === true;
+
+// Convenience for every hint affordance. Defaults to allowed outside a provider.
+export const useHintsAllowed = () => useContext(ToolRuntimeContext).hintsAllowed !== false;
+
+// The activity's hint recorder, or null. Defaults to null outside a provider.
+export const useHintUseReporter = () => useContext(ToolRuntimeContext).onHintUsed || null;
 
 export default ToolRuntimeContext;

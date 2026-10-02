@@ -24,6 +24,11 @@ import {
   normalizeDeliveryPin,
 } from '../functions/shared/questionGenerationIdentity.mjs';
 import { canGenerateDistinctVariants } from '../functions/shared/questionVariability.mjs';
+import {
+  FRACTION_QUESTION_SHAPES,
+  fractionQuestionShape,
+  fractionSumAnswerKey,
+} from '../functions/shared/fractionAnswer.mjs';
 
 const hashString = (value) => {
   let hash = 2166136261;
@@ -133,6 +138,14 @@ const generateStepLinearEquation = (question, random) => {
 };
 
 const generateFraction = (question, random) => {
+  const shape = fractionQuestionShape(question);
+  // The author's numbers ARE the question. Drawing over them showed the
+  // student the authored prompt beside a random "a/b + c/d =" and graded the
+  // random sum, ignoring the authored answer. Neither branch draws.
+  if (shape === FRACTION_QUESTION_SHAPES.AUTHORED_ANSWER) return question;
+  if (shape === FRACTION_QUESTION_SHAPES.OPERANDS) return { ...question, ...fractionSumAnswerKey(question) };
+  // A drill: the same draws, in the same order, from the same key as always,
+  // so a student part-way through an assignment keeps their numbers.
   const generator = question.generator || {};
   const denominators = generator.denominators || [2, 3, 4, 5, 6, 8, 10, 12];
   const d1 = choose(random, denominators);
@@ -541,7 +554,11 @@ const generateQuestionFromKey = (question, generationKey) => {
     if (!generated.question) {
       throw new Error(`Could not generate assignment question: ${generated.reason || 'invalid generator template'}`);
     }
-    return generated.question;
+    // Its numbers were drawn, so the form of a fraction key was too: a key that
+    // came out 2/4 is not an author asking for 2/4 (fractionAnswer.mjs).
+    return generated.question.type === 'fraction'
+      ? { ...generated.question, answerKeyDrawn: true }
+      : generated.question;
   }
 
   if (kind === 'stepLinearEquation') return generateStepLinearEquation(variantQuestion, random);

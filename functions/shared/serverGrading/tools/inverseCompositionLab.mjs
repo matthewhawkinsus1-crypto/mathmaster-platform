@@ -90,8 +90,10 @@ const gradeLab = (question, work) => {
   };
   // A part is complete when its input holds a value — or when the screen shows
   // no input for it at all (the inverse box is replaced by a "no inverse"
-  // notice, the restriction select only appears for a quadratic): there is
-  // nothing left for the student to enter.
+  // notice): there is nothing left for the student to enter. The restriction
+  // select is on screen whenever the restriction is asked (for any f, not only
+  // a quadratic) and opens on "Choose…" (''), which is no choice: neither
+  // complete nor right, never the "No restriction needed" it used to default to.
   const complete = {
     fog: !showComposition || filled(work.fogAnswer),
     gof: !showComposition || filled(work.gofAnswer),

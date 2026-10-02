@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
-import ToolShell, { TaskCard } from '../shared/ToolShell';
+import ToolShell, { AttemptOutcome, TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
@@ -341,7 +341,7 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
           ? 'A correlation value has not been produced.'
           : feedbackParts.some((part) => part.id === 'interpretation') && !stagePassed('interpretation')
             ? 'Check the direction/strength interpretation.'
-            : 'Workflow complete.'
+            : 'Regression complete.'
   );
 
   return (
@@ -689,10 +689,14 @@ export default function RegressionCalculator({ questionData = {}, onAction }) {
       </div>
 
       <div className="regression-submit-row">
+        {/* The student's words, not the platform's: "workflow" is our
+            vocabulary for a sequence of steps, not theirs (PQ-029). */}
         <button className="regression-submit" data-primary-answer-action="true" type="button" onClick={check}>
-          Submit workflow
+          Submit my regression
         </button>
-        {feedbackText ? <p role="status">{feedbackText}</p> : null}
+        {/* Its verdict is already a live region, so the attempt outcome
+            (PQ-022) is read as part of it rather than as a second one. */}
+        {feedbackText ? <p role="status">{feedbackText}<AttemptOutcome inline /></p> : null}
       </div>
     </ToolShell>
   );

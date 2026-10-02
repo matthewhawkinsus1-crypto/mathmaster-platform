@@ -4,7 +4,8 @@ import MathDisplay from './MathDisplay';
 import MathInput from './MathInput';
 import QuestionPrompt from './QuestionPrompt';
 import IntervalNumberLine from './tools/intervalNumberLine/IntervalNumberLine';
-import { inequalitySolutionRepresentationStages } from './platform/curriculum/inequalityRepresentationPolicy.js';
+import { useToolRuntimeContext } from './tools/shared/ToolRuntimeContext';
+import { inequalitySolutionRepresentationStages, solutionRepresentationStageStatus } from './platform/curriculum/inequalityRepresentationPolicy.js';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
 import { normalizeQuestionRecord } from './attemptPolicy';
 import {
@@ -53,6 +54,7 @@ import {
 } from '../functions/shared/serverGrading/stepAlgebraStepVerification.mjs';
 import { relationDistributionCandidates, relationLikeTermCandidates } from './algebraRelationStructureModel.js';
 import { useContentStableValue } from './platform/react/useContentStableValue.js';
+import { persistablePendingFlip, restoredPendingFlip } from './relationPendingFlipDraft.js';
 
 const BASIC_OPERATIONS = [
   { id: 'add', symbol: '+', label: 'Add' },
@@ -104,10 +106,12 @@ const readRelationDraft = (draftKey) => {
     return { relationState: null, pendingRelationFlip: null, candidateChecks: {} };
   }
   const relationState = restorableRelationState(saved.relationState);
-  const pending = saved.pendingRelationFlip;
+  // Saved without its expected symbols; they are derived again here
+  // (relationPendingFlipDraft.js).
+  const pending = restoredPendingFlip(saved.pendingRelationFlip);
   const pendingSound = Boolean(
     relationState
-    && pending && typeof pending === 'object' && !Array.isArray(pending)
+    && pending
     && pendingFlipResultsFor(pending).length
     && pendingFlipResultsFor(pending).every((item) => (
       Number.isInteger(item?.branchIndex)
@@ -651,6 +655,12 @@ export default function MultiRelationAlgebra({
   // The number-line work the student last CHECKED in the nested tool — the
   // representation the shared grader marks. null until they check it.
   const [representationWork, setRepresentationWork] = useState(null);
+  // The activity's policy, from the provider QuestionEngine mounts this solver
+  // in (defaults — outcomes shown, no hint recorder — anywhere else). False on
+  // a DOL, quiz or test: there the number-line stage below is recorded when
+  // the student checks it, not passed only once it is right.
+  const { showImmediateFeedback, onHintUsed: reportHintUse } = useToolRuntimeContext();
+  const representationsWithheld = showImmediateFeedback === false;
   const [candidateChecks, setCandidateChecks] = useState(() => initialCandidateChecksFor(draftKey));
 
   useEffect(() => {
@@ -670,7 +680,12 @@ export default function MultiRelationAlgebra({
     setDragCancellationKey(null);
     setDragStroke(null);
     dragStrokeRef.current = null;
-    setPendingRelationFlip(null);
+    // From the same saved draft as the relation itself. This effect also runs
+    // on mount, and resetting the open symbol step to null here dropped it on
+    // every remount — navigating back, a reload, a reopened Chromebook — while
+    // the relation came back already divided by the negative and still showing
+    // the old symbol, with no step left to reverse it.
+    setPendingRelationFlip(initialPendingRelationFlipFor(draftKey));
     setRelationPicker(null);
     setAbsoluteSplitOpen(false);
     setAbsoluteSplitStructure(null);
@@ -685,7 +700,8 @@ export default function MultiRelationAlgebra({
     writeQuestionDraft(draftKeyFor(draftKey), {
       relationState,
       activeBranch,
-      pendingRelationFlip,
+      // What the student did, never the symbols the open step expects.
+      pendingRelationFlip: persistablePendingFlip(pendingRelationFlip),
       candidateChecks,
     });
   }, [draftKey, relationState, activeBranch, pendingRelationFlip, candidateChecks]);
@@ -763,6 +779,19 @@ export default function MultiRelationAlgebra({
   );
   const requireRepresentations = summary.kind === 'intervals' && solutionRepresentationAsk.length > 0;
   const requiresIntervalNotation = solutionRepresentationAsk.includes('interval');
+  // Where outcomes are shown the graph and notation must be RIGHT before the
+  // question is complete (the number line says "Correct" / "Not yet"). On a
+  // DOL, quiz or test that wait would be the verdict — Submit appearing only
+  // once the graph is right — so there the stage is complete once it has been
+  // checked, which is the shared grader's own completion rule, and its
+  // correctness is graded at submission. The check is read from the shared
+  // grader's representation part: null until a finished Check, then whether
+  // it is right.
+  const representationPart = sharedResult.parts.find((part) => part.id === 'solution-representations') || null;
+  const representationStage = solutionRepresentationStageStatus({
+    showImmediateFeedback,
+    representationCorrect: representationPart?.isComplete ? representationPart.isCorrect : null,
+  });
 
   useEffect(() => {
     const relationText = relationStateToText(relationState);
@@ -772,10 +801,15 @@ export default function MultiRelationAlgebra({
     const shared = answerStateFromSharedGrading(sharedResult, {
       questionDetails: `${summary.solved ? 'Solved relation' : 'Current relation'}: ${relationText}.${candidateDetail}`,
     });
+    // Where outcomes are shown the question also waits for a RIGHT graph
+    // (representationStage); that only ever withholds completion. Otherwise
+    // the shared grader's verdict stands.
+    const finished = shared.isComplete && (!requireRepresentations || representationStage.done);
     onStateChange?.({
       ...shared,
+      ...(finished ? {} : { isComplete: false }),
       // The workspace's own response key; the raw work travels as toolResponse.
-      responseKey: shared.isComplete ? `${relationText}|${JSON.stringify(candidateChecks)}` : '',
+      responseKey: finished ? `${relationText}|${JSON.stringify(candidateChecks)}` : '',
       // The full relation text (never the 240-character part copy), which My
       // Math Path's raw builder reads as the final relation.
       parts: sharedResult.graded
@@ -787,7 +821,9 @@ export default function MultiRelationAlgebra({
     candidateVerification,
     onStateChange,
     relationState,
+    representationStage.done,
     requireCandidateVerification,
+    requireRepresentations,
     sharedResult,
     summary,
   ]);
@@ -2742,7 +2778,10 @@ export default function MultiRelationAlgebra({
             })}
           </div>
 
-          {disabled && candidateVerificationComplete && candidateVerificationCorrect && (
+          {/* Shown only when the candidates were judged right, so it is a
+              verdict: on a DOL, quiz or test the work is locked after Submit
+              but its outcome is still withheld. */}
+          {!representationsWithheld && disabled && candidateVerificationComplete && candidateVerificationCorrect && (
             <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: '#e6f4ea', color: '#137333', fontWeight: 800 }}>
               Verified solution{verifiedSolutions.length === 1 ? '' : 's'}: {verifiedSolutions.join(', ')}
             </div>
@@ -2795,8 +2834,23 @@ export default function MultiRelationAlgebra({
                 // against the intervals of this solved relation.
                 setRepresentationWork(payload?.response ?? null);
               }
+              // Changed after its Check: the checked graph is not the one on
+              // screen any more, so the step waits for the next Check rather
+              // than being graded on the old one.
+              if (action === 'ATTEMPT_WITHDRAWN') setRepresentationWork(null);
+              // A hint revealed in the number line is help like any other:
+              // report it to the activity's hint recorder (none outside one).
+              if (action === 'HINT_USED') reportHintUse?.();
             }}
           />
+          {representationStage.recordedNotice ? (
+            // The same line for a right and a wrong graph.
+            <p role="status" data-representation-recorded="true" style={{ margin: '10px 0 0', color: '#174ea6', fontSize: 13, fontWeight: 700 }}>
+              {requiresIntervalNotation
+                ? 'Your graph and interval notation are recorded. They are graded when you submit — if you change either, press Check again.'
+                : 'Your graph is recorded. It is graded when you submit — if you change it, press Check again.'}
+            </p>
+          ) : null}
         </div>
       )}
     </section>

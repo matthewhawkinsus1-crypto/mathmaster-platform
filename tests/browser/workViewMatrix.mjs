@@ -667,7 +667,14 @@ const makeEdit = async (page, sceneId) => {
     return await typeIntoFirstField(page, 'input[aria-label^="Sequence output"]', '3');
   }
   if (sceneId === 'systems-linear') {
-    return await typeIntoFirstField(page, 'input[type="number"]', '2');
+    // The classification is the student's first choice: it opens unanswered
+    // ("Choose…"), and x and y appear once "Exactly one solution" is chosen.
+    // One choice, so the one Undo below has to take exactly it back — the
+    // select returns to "Choose…" and x and y go away again.
+    const classification = page.locator('.mathmaster-work-view-host[data-open="true"] select').first();
+    if (!(await classification.count())) return null;
+    await classification.selectOption('one');
+    return 'chose "Exactly one solution"';
   }
   if (sceneId === 'transformations-plot' || sceneId === 'graphing2-construct') {
     return (await plotAt(page, 0.62, 0.38)) ? 'plotted a point' : null;

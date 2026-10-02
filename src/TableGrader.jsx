@@ -107,7 +107,11 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
       <p style={{ fontSize: '13px', color: '#80868b', marginTop: '14px' }}>
         {graded.gradedHere
           ? 'Incorrect blanks are outlined after submission so you can focus only on those entries.'
-          : 'These values are checked against the function you wrote, not against a fixed answer key.'}
+          : question.checkedAgainstStudentFunction === false
+            // A table in a multi-step question that is not built from the
+            // student's own function: there is no "function you wrote".
+            ? 'Your values are checked when you submit the whole question.'
+            : 'These values are checked against the function you wrote, not against a fixed answer key.'}
       </p>
     </div>
   );

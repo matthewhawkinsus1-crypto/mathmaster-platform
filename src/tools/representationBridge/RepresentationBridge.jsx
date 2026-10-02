@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ResultPill, TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
+import { useToolRuntimeContext } from '../shared/ToolRuntimeContext';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import representationBridgeGrader from '../../../functions/shared/serverGrading/tools/representationBridge.mjs';
@@ -15,8 +16,11 @@ import {
   bridgeMeaningQuestion,
   deriveLinearBridge,
   REPRESENTATION_BRIDGE_HIGHLIGHTS,
+  representationBridgeStageCompletion,
   resolveFeedbackTiming,
   resolveGraphBounds,
+  resolveRepresentationBridgeStageGate,
+  resolveRequiredComparisons,
   resolveRequiredStages,
 } from './representationBridgeMath.js';
 import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js';
@@ -59,7 +63,10 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
   const derived = useMemo(() => deriveLinearBridge(questionData), [questionData]);
   const requiredStages = useMemo(() => resolveRequiredStages(questionData), [questionData]);
   const feedbackTiming = resolveFeedbackTiming(questionData);
-  const requiredComparisons = Math.max(1, Math.min(Number(questionData.requiredComparisons) || 3, (derived.rows.length * (derived.rows.length - 1)) / 2));
+  // False on a DOL, quiz or test (and under secure grading): there a stage
+  // check may say only whether the stage is finished. See the stage gate.
+  const { showImmediateFeedback } = useToolRuntimeContext();
+  const requiredComparisons = resolveRequiredComparisons(questionData, derived.rows.length);
   const graphBounds = useMemo(() => resolveGraphBounds(questionData, derived), [questionData, derived]);
   const meaningQuestion = useMemo(() => ({
     ...bridgeMeaningQuestion(questionData),
@@ -116,16 +123,31 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
   const liveResult = useMemo(() => ({
     parts: Object.fromEntries(liveGrade.parts.map((part) => [part.id, part.isCorrect === true])),
   }), [liveGrade]);
+  // Whether each stage is FINISHED — every entry made — never whether it is
+  // right. It is all a stage check may report where outcomes are withheld.
+  const stageCompletion = useMemo(() => representationBridgeStageCompletion(questionData, work), [questionData, work]);
+
+  // EVERY PLACE THIS TOOL COULD REVEAL CORRECTNESS BEFORE SUBMIT, DECIDED ONCE:
+  // the stage checks and their results, the stage locks, Submit's readiness and
+  // the highlights. Where the activity shows outcomes at once, this is the
+  // guided/checkpoint behaviour practice always had; where it withholds them,
+  // no stage ever answers "right or wrong" (resolveRepresentationBridgeStageGate).
+  const stageGate = resolveRepresentationBridgeStageGate({
+    feedbackTiming,
+    showImmediateFeedback,
+    requiredStages,
+    stageChecks,
+    parts: liveResult.parts,
+    completion: stageCompletion,
+    submissionFeedbackShown: Boolean(feedback),
+  });
 
   // What is safe to reveal through a highlight: the student's own value for a
   // concept, once their work for it is independently correct. Never the
   // hidden target — a wrong or empty value never gets "corrected" by a
-  // highlight either, it just is not shown yet.
-  const stageRevealAllowed = (stage) => {
-    if (feedbackTiming === 'guided') return true;
-    if (feedbackTiming === 'checkpoint') return stageChecks[stage] === true;
-    return Boolean(feedback);
-  };
+  // highlight either, it just is not shown yet. And because showing it only
+  // once it is right is itself a verdict, never where outcomes are withheld.
+  const stageRevealAllowed = stageGate.revealAllowed;
   const revealed = {
     rate: stageRevealAllowed('rateEvidence') && liveResult.parts.rateEvidence === true,
     start: stageRevealAllowed('generalForm') && liveResult.parts.generalForm === true,
@@ -257,22 +279,48 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
   });
 
   // --- Checkpoint gating ------------------------------------------------------
+  // A press records the stage's verdict where outcomes are shown, and only
+  // whether it is finished where they are withheld (stageGate.recordCheck).
   const checkStage = (stage) => {
-    const passed = Boolean(liveResult.parts[stage]);
-    setStageChecks((current) => ({ ...current, [stage]: passed }));
-    setNotice(passed ? '' : 'That stage needs another look — nothing here has been auto-corrected.');
+    const recorded = stageGate.recordCheck(stage);
+    setStageChecks((current) => ({ ...current, [stage]: recorded }));
+    // The result beside the button says the rest; this line only ever repeats
+    // a verdict, so it exists only where verdicts do.
+    setNotice(stageGate.verdictsShown && !recorded ? 'That stage needs another look — nothing here has been auto-corrected.' : '');
   };
-  const stageBlocked = (stage) => {
-    if (feedbackTiming !== 'checkpoint') return false;
-    const order = ['rateEvidence', 'generalForm', 'factoredForm', 'graph', 'meaning'];
-    const priorRequired = order.slice(0, order.indexOf(stage)).filter((entry) => requiredStages.includes(entry));
-    return priorRequired.some((entry) => stageChecks[entry] !== true || liveResult.parts[entry] !== true);
-  };
+  // Locked only behind a verdict: in checkpoint timing with outcomes shown, a
+  // stage opens once every earlier required stage passes its check. Where
+  // outcomes are withheld nothing is ever locked, since a lock that lifts only
+  // when the stage before is right would itself be the verdict.
+  const stageBlocked = (stage) => stageGate.stageBlocked(stage);
   // A checkpoint remains valid only while the current draft still passes it.
   // If a student edits earlier work after checking it, downstream stages lock
-  // again and final Submit cannot rely on a stale green check.
-  const readyToSubmit = feedbackTiming !== 'checkpoint'
-    || requiredStages.every((stage) => stageChecks[stage] === true && liveResult.parts[stage] === true);
+  // again and final Submit cannot rely on a stale green check. Where outcomes
+  // are withheld, Submit waits only for every required stage to be finished.
+  const readyToSubmit = stageGate.readyToSubmit;
+
+  // The result beside each "Check this stage": its verdict where outcomes are
+  // shown; otherwise only whether the stage is finished — never a colour or a
+  // word that says right or wrong.
+  const stageCheckResult = (stage, correctLabel) => {
+    const report = stageGate.checkReport(stage);
+    if (!report) return null;
+    if (report.kind === 'verdict') {
+      return <ResultPill stageCheck ok={report.passed}>{report.passed ? correctLabel : 'Needs another look'}</ResultPill>;
+    }
+    return (
+      <span
+        role="status"
+        data-stage-completion={report.complete ? 'complete' : 'incomplete'}
+        style={{
+          display: 'inline-flex', alignItems: 'center', borderRadius: 999, padding: '7px 11px', fontWeight: 800,
+          border: '1px solid var(--mm-info-border, #aecbfa)', background: 'var(--mm-info-bg, #e8f0fe)', color: 'var(--mm-info-text, #174ea6)',
+        }}
+      >
+        {report.complete ? 'Stage complete — it is graded when you submit.' : 'Not finished yet — fill in every part of this stage.'}
+      </span>
+    );
+  };
 
   const check = () => {
     const result = gradeToolCheck(representationBridgeGrader, questionData, work);
@@ -427,7 +475,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
           {feedbackTiming !== 'submitOnly' ? (
             <div style={{ marginTop: 12 }}>
               <button data-mm-enter-action="card" type="button" onClick={() => checkStage('rateEvidence')} disabled={!requiredStages.includes('rateEvidence')} style={{ ...button }}>Check this stage</button>
-              {stageChecks.rateEvidence != null ? <ResultPill ok={stageChecks.rateEvidence && liveResult.parts.rateEvidence}>{stageChecks.rateEvidence && liveResult.parts.rateEvidence ? 'Rate evidence correct' : 'Needs another look'}</ResultPill> : null}
+              {stageCheckResult('rateEvidence', 'Rate evidence correct')}
             </div>
           ) : null}
         </Panel>
@@ -454,7 +502,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
             {feedbackTiming !== 'submitOnly' ? (
               <div style={{ marginTop: 10 }}>
                 <button data-mm-enter-action="card" type="button" onClick={() => checkStage('generalForm')} disabled={!requiredStages.includes('generalForm') || stageBlocked('generalForm')} style={{ ...button }}>Check this stage</button>
-                {stageChecks.generalForm != null ? <ResultPill ok={stageChecks.generalForm && liveResult.parts.generalForm}>{stageChecks.generalForm && liveResult.parts.generalForm ? 'General form correct' : 'Needs another look'}</ResultPill> : null}
+                {stageCheckResult('generalForm', 'General form correct')}
               </div>
             ) : null}
           </div>
@@ -480,7 +528,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
             {feedbackTiming !== 'submitOnly' ? (
               <div style={{ marginTop: 10 }}>
                 <button data-mm-enter-action="card" type="button" onClick={() => checkStage('factoredForm')} disabled={!requiredStages.includes('factoredForm') || stageBlocked('factoredForm')} style={{ ...button }}>Check this stage</button>
-                {stageChecks.factoredForm != null ? <ResultPill ok={stageChecks.factoredForm && liveResult.parts.factoredForm}>{stageChecks.factoredForm && liveResult.parts.factoredForm ? 'Factored form correct' : 'Needs another look'}</ResultPill> : null}
+                {stageCheckResult('factoredForm', 'Factored form correct')}
               </div>
             ) : null}
           </div>
@@ -507,7 +555,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
           {feedbackTiming !== 'submitOnly' ? (
             <div style={{ marginTop: 10 }}>
               <button data-mm-enter-action="card" type="button" onClick={() => checkStage('graph')} disabled={!requiredStages.includes('graph') || stageBlocked('graph')} style={{ ...button }}>Check this stage</button>
-              {stageChecks.graph != null ? <ResultPill ok={stageChecks.graph && liveResult.parts.graph}>{stageChecks.graph && liveResult.parts.graph ? 'Graph correct' : 'Needs another look'}</ResultPill> : null}
+              {stageCheckResult('graph', 'Graph correct')}
             </div>
           ) : null}
         </Panel>
@@ -567,7 +615,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
           {feedbackTiming !== 'submitOnly' ? (
             <div style={{ marginTop: 10 }}>
               <button data-mm-enter-action="card" type="button" onClick={() => checkStage('meaning')} disabled={!requiredStages.includes('meaning') || !meaningComplete || stageBlocked('meaning')} style={{ ...button }}>Check this stage</button>
-              {stageChecks.meaning != null ? <ResultPill ok={stageChecks.meaning && liveResult.parts.meaning}>{stageChecks.meaning && liveResult.parts.meaning ? 'Meaning connections correct' : 'Needs another look'}</ResultPill> : null}
+              {stageCheckResult('meaning', 'Meaning connections correct')}
             </div>
           ) : null}
         </Panel>
@@ -589,7 +637,13 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
         </button>
         {feedback ? <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Every representation agrees' : 'Some representations need another look'}</ResultPill> : null}
       </div>
-      {feedbackTiming === 'checkpoint' && !readyToSubmit ? <p style={{ color: '#5f6b7a', fontSize: 13 }}>Check every required stage above before submitting the whole bridge.</p> : null}
+      {feedbackTiming === 'checkpoint' && !readyToSubmit ? (
+        <p style={{ color: '#5f6b7a', fontSize: 13 }}>
+          {stageGate.verdictsShown
+            ? 'Check every required stage above before submitting the whole bridge.'
+            : 'Finish every required stage above before submitting the whole bridge.'}
+        </p>
+      ) : null}
       {notice ? <p role="status" style={{ color: '#5f6b7a' }}>{notice}</p> : null}
       {feedback && !feedback.isCorrect ? (
         <ul style={{ color: '#5f6b7a', lineHeight: 1.55 }}>

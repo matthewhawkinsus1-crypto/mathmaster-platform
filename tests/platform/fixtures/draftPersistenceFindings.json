@@ -1,10 +1,12 @@
 {
-  "generatedAt": "2026-09-15T22:33:40.666Z",
+  "generatedAt": "2026-10-01T19:19:54.365Z",
   "journeys": [
     "navigate",
     "reload",
     "reopen",
-    "replacement"
+    "replacement",
+    "backup",
+    "resume"
   ],
   "budgets": {
     "maxSingleWriteMs": 4,
@@ -18,7 +20,9 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "multi-answer",
@@ -27,7 +31,9 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "table",
@@ -36,7 +42,9 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "composed-workflow",
@@ -45,7 +53,9 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "interactive-graph",
@@ -54,7 +64,9 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "step-algebra",
@@ -63,7 +75,31 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass",
+      "resume": "n/a"
+    },
+    {
+      "id": "step-algebra-mid-move",
+      "label": "Step Algebra, a move waiting for its cancellation",
+      "family": "StepByStepAlgebra",
+      "navigate": "pass",
+      "reload": "pass",
+      "reopen": "pass",
+      "replacement": "n/a",
+      "backup": "pass",
+      "resume": "n/a"
+    },
+    {
+      "id": "relation-symbol-pending",
+      "label": "Relation solver, a reversed-symbol step left open",
+      "family": "MultiRelationAlgebra",
+      "navigate": "pass",
+      "reload": "pass",
+      "reopen": "pass",
+      "replacement": "n/a",
+      "backup": "pass",
+      "resume": "pass"
     },
     {
       "id": "function-operations",
@@ -72,7 +108,9 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "pass"
+      "replacement": "pass",
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "function-investigation",
@@ -81,7 +119,9 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "graphing2",
@@ -90,7 +130,9 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "sequence-explorer",
@@ -99,7 +141,9 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "systems-workspace",
@@ -108,7 +152,9 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "transformations",
@@ -117,7 +163,9 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "interval-number-line",
@@ -126,7 +174,9 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass",
+      "resume": "n/a"
     },
     {
       "id": "data-modeling",
@@ -135,25 +185,27 @@
       "navigate": "pass",
       "reload": "pass",
       "reopen": "pass",
-      "replacement": "n/a"
+      "replacement": "n/a",
+      "backup": "pass",
+      "resume": "n/a"
     }
   ],
   "performance": [
     {
       "probe": "rapid typing",
-      "burstMs": 82,
+      "burstMs": 105,
       "count": 18,
-      "totalMs": 0.7999999998137355,
-      "maxMs": 0.10000000009313226,
-      "share": 0.009756097558704092
+      "totalMs": 0.5999999977648258,
+      "maxMs": 0.10000000149011612,
+      "share": 0.005714285692998341
     },
     {
       "probe": "endpoint drag",
-      "burstMs": 1022,
+      "burstMs": 1018,
       "count": 8,
-      "totalMs": 0.4999999990686774,
-      "maxMs": 0.10000000009313226,
-      "share": 0.0004892367896953791
+      "totalMs": 0.3999999985098839,
+      "maxMs": 0.10000000149011612,
+      "share": 0.0003929273069841688
     }
   ],
   "findings": []

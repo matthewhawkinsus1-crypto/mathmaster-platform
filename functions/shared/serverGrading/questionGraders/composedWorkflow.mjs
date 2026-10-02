@@ -77,12 +77,13 @@ const graphStageVerdict = (resolution, response) => {
  * The responses gradeWorkflow marks: the student's, with every graph stage the
  * student is on replaced by the server's own verdict on its work.
  */
-const withGraphStageVerdicts = ({ composed, responses }) => {
+const withGraphStageVerdicts = ({ composed, responses, outcomesWithheld = false }) => {
   const graphStages = resolveWorkflowGraphStages({
     workflow: composed.workflow,
     content: composed.content,
     grading: composed.grading,
     responses,
+    outcomesWithheld,
   });
   if (!graphStages.size) return responses;
   const marking = { ...responses };
@@ -119,7 +120,7 @@ export const gradeComposedWorkflowWork = (question, work) => {
   if (unsafeStage) return ungradedResult('unsafe-expression', { mode: support.mode, detail: `stage:${unsafeStage}`.slice(0, 120) });
   const marked = gradeWorkflow({
     stages: composed.workflow,
-    responses: withGraphStageVerdicts({ composed, responses }),
+    responses: withGraphStageVerdicts({ composed, responses, outcomesWithheld: work.outcomesWithheld === true }),
     grading: composed.grading,
   });
   const percent = Number(marked.partialCreditPercent);

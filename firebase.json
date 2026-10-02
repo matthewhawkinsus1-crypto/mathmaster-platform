@@ -11,6 +11,7 @@
       "source": "functions",
       "codebase": "default",
       "predeploy": [
+        "node scripts/write-functions-provenance.mjs --codebase default --dir functions",
         "node scripts/build-ccmr-v2-1-production-release.mjs --write"
       ],
       "ignore": [
@@ -25,6 +26,7 @@
       "source": "functions-path-admin",
       "codebase": "path-admin",
       "predeploy": [
+        "node scripts/write-functions-provenance.mjs --codebase path-admin --dir functions-path-admin",
         "node scripts/build-course-path-release-v2.mjs",
         "node scripts/sync-path-admin-runtime.mjs"
       ],

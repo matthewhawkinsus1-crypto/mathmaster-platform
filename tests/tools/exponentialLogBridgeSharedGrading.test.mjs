@@ -115,7 +115,7 @@ test('every view grades its Check through the shared grader, reports the same wo
   assert.match(code, /import \{ gradeToolCheck \} from '\.\.\/shared\/sharedToolGrading\.js';/);
   assert.match(code, /import useReportToolWork from '\.\.\/shared\/useReportToolWork\.js';/);
   for (const [mode, name] of Object.entries(VIEWS)) {
-    const body = region(code, `function ${name}(`, '\nfunction ', name);
+    const body = region(code, `function ${name}(`, '\n}', name);
     const check = region(body, 'const check = () => {', '\n  };', `${name} check`);
     assert.match(body, /const work = \{[^}]+\};/, `${name} builds work at render scope`);
     assert.match(body, /useReportToolWork\(work\);/, `${name} reports live work`);
@@ -410,7 +410,7 @@ test('each view submits exactly its on-screen inputs, and the grader needs every
     composition: [q({ mode: 'composition', function: { a: 2, base: 2, h: 0, k: 3 }, x: 1, y: 7 }), { inverseAfterForward: '1', forwardAfterInverse: '7' }],
   };
   for (const [mode, name] of Object.entries(VIEWS)) {
-    const body = region(code, `function ${name}(`, '\nfunction ', name);
+    const body = region(code, `function ${name}(`, '\n}', name);
     const fields = body.match(/const work = \{ ([^}]+) \};/)[1].split(',').map((field) => field.trim());
     const [question, work] = correct[mode];
     assert.deepEqual([...fields].sort(), Object.keys(work).sort(), `${name} submits exactly the fields its grader reads`);

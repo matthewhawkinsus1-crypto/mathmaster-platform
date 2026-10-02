@@ -17,6 +17,7 @@ import {
   standardEquationParts,
 } from '../../functions/shared/toolMath/parabolaGeometry/parabolaGeometryMath.mjs';
 import { gradeToolCheck } from '../../src/tools/shared/sharedToolGrading.js';
+import { UNANSWERED } from '../../functions/shared/toolMath/shared/judgmentChoices.mjs';
 import { executableSource, region } from '../platform/helpers/sourceContract.mjs';
 
 /*
@@ -110,7 +111,7 @@ test('every view grades its Check through the shared grader and reports the same
   assert.match(code, /import \{ gradeToolCheck \} from '\.\.\/shared\/sharedToolGrading\.js';/);
   assert.match(code, /import useReportToolWork from '\.\.\/shared\/useReportToolWork\.js';/);
   for (const [mode, name] of Object.entries(VIEWS)) {
-    const body = region(code, `function ${name}(`, '\nfunction ', name);
+    const body = region(code, `function ${name}(`, '\n}', name);
     const check = region(body, 'const check=()=>{', '\n  };', `${name} check`);
     assert.match(body, /const work=\{[^}]+\};/, `${name} builds work at render scope`);
     assert.match(body, /useReportToolWork\(work\);/, `${name} reports live work`);
@@ -287,13 +288,44 @@ test('equation: 4p and the opening direction, half credit each', () => {
   assert.deepEqual(failedIds(half), ['opening']);
   assert.equal(half.score, 0.5);
 
-  // Unauthored: vertex (−2, 1), p = 1.5 → 4p = 6, opens up. The select's
-  // default 'up' is right here, exactly as on screen.
+  // Unauthored: vertex (−2, 1), p = 1.5 → 4p = 6, opens up. The select's old
+  // default 'up' is right here, and work holding it grades as it always did.
   const defaults = q({ mode: 'equation' });
   assert.equal(grade(defaults, { coefficient: '6', opening: 'up' }).isCorrect, true);
   const untouched = assertLegacyParity(defaults, { coefficient: '', opening: 'up' }, 'untouched');
   assert.equal(untouched.score, 0.5);
   assert.equal(untouched.isComplete, false);
+});
+
+/*
+ * AN UNANSWERED CHOICE IS NO ANSWER — IN PARTICULAR, A BLANK IS NOT "NO".
+ *
+ * "Is P on the parabola?" and the opening direction open on "Choose…" ('' —
+ * judgmentChoices.mjs) instead of "Yes" / "up". The lab's old Check read
+ * `(onCurve === 'yes') === onParabola`, which marked a blank right for every
+ * point off the curve. The shared grader reads only an option as an answer.
+ */
+test('an unanswered choice is neither complete nor correct, on either path', () => {
+  const offCurve = q({ mode: 'equidistance', h: 0, k: 0, p: 1, point: [3, 4] });
+  assert.equal(grade(offCurve, { focusDistance: '4.243', directrixDistance: '5', onCurve: 'no' }).isCorrect, true);
+  const blank = grade(offCurve, { focusDistance: '4.243', directrixDistance: '5', onCurve: UNANSWERED });
+  assert.deepEqual({ isCorrect: blank.isCorrect, isComplete: blank.isComplete }, { isCorrect: false, isComplete: false }, 'a blank is not "no"');
+  assert.deepEqual(failedIds(blank), ['on-parabola']);
+  assert.equal(blank.score, 2 / 3);
+
+  const opensUp = q({ mode: 'equation' });
+  const noDirection = grade(opensUp, { coefficient: '6', opening: UNANSWERED });
+  assert.deepEqual({ isCorrect: noDirection.isCorrect, isComplete: noDirection.isComplete, score: noDirection.score }, { isCorrect: false, isComplete: false, score: 0.5 });
+  assert.deepEqual(failedIds(noDirection), ['opening']);
+
+  // The screen opens both selects there.
+  for (const [view, field] of [['Equidistance', 'onCurve'], ['EquationMode', 'opening']]) {
+    const body = region(code, `function ${view}(`, '\n}', view);
+    assert.match(body, new RegExp(`usePersistentToolState\\('${field}', UNANSWERED\\)`), `${view} starts ${field} unanswered`);
+    const start = body.indexOf(`value={${field}}`);
+    const options = body.slice(body.indexOf('<option', start), body.indexOf('</select>', start));
+    assert.match(options, /^<option value=\{UNANSWERED\}>Choose…<\/option>/, `${view}'s ${field} select opens on "Choose…"`);
+  }
 });
 
 /* ------------------------------------------------------------------ */
@@ -400,7 +432,7 @@ test('each view submits exactly its on-screen inputs, and the grader needs every
     equation: [q({ mode: 'equation', h: 1, k: 0, p: -0.75, orientation: 'horizontal' }), { coefficient: '-3', opening: 'left' }],
   };
   for (const [mode, name] of Object.entries(VIEWS)) {
-    const body = region(code, `function ${name}(`, '\nfunction ', name);
+    const body = region(code, `function ${name}(`, '\n}', name);
     const fields = body.match(/const work=\{([^}]+)\};/)[1].split(',').map((field) => field.trim());
     const [question, work] = correct[mode];
     assert.deepEqual([...fields].sort(), Object.keys(work).sort(), `${name} submits exactly the fields its grader reads`);

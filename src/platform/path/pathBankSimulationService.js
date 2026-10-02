@@ -1,5 +1,6 @@
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase.js';
+import { createPathBankSnapshotCache } from './pathBankSnapshotCache.js';
 
 // Teacher-only view of the secure My Math Path bank for the Path Simulator.
 //
@@ -15,24 +16,19 @@ import { db } from '../../firebase.js';
 // dead end on remediation. At the current bank size this is comfortably small
 // for a teacher-only QA screen, and the short cache prevents repeat downloads.
 
-const CACHE_MS = 60_000;
-let cache = { at: 0, records: null };
-
-export const clearTeacherPathBankSnapshotCache = () => {
-  cache = { at: 0, records: null };
-};
-
-export const fetchTeacherPathBankSnapshot = async ({ force = false } = {}) => {
-  const now = Date.now();
-  if (!force && cache.records && now - cache.at < CACHE_MS) return cache.records;
-
+const loadActivePathBank = async () => {
   const snapshot = await getDocs(collection(db, 'pathQuestionBank'));
-  const records = snapshot.docs
+  return snapshot.docs
     .map((entry) => ({ id: entry.id, ...entry.data() }))
     .filter((entry) => entry.active !== false);
-
-  cache = { at: now, records };
-  return records;
 };
+
+// Reused for 60 seconds, and released — not merely ignored — when they end:
+// the snapshot holds every bank document's answer key (pathBankSnapshotCache.js).
+const bankSnapshot = createPathBankSnapshotCache({ load: loadActivePathBank });
+
+export const clearTeacherPathBankSnapshotCache = () => bankSnapshot.clear();
+
+export const fetchTeacherPathBankSnapshot = ({ force = false } = {}) => bankSnapshot.fetch({ force });
 
 export default fetchTeacherPathBankSnapshot;

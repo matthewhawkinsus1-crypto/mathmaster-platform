@@ -47,6 +47,10 @@
 }
 
 .mathmaster-work-view-title { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 900; }
+/* The task is the header's heading (PQ-026) and its height is WHOLE LINES:
+   3.2em was two lines and a third cut through the middle of its words. Longer
+   tasks scroll inside it, and the Task button opens the full text. */
+.mathmaster-work-view-persistent-task { max-height: calc(1.35em * 4); overflow-y: auto; }
 .mathmaster-work-view-header button, .mathmaster-work-view-actions button { min-height: 44px; padding: 0 12px; border: 1px solid var(--mm-border); border-radius: 8px; background: var(--mm-surface); color: var(--mm-primary); font-weight: 800; }
 .mathmaster-work-view-header button[disabled], .mathmaster-work-view-actions button[disabled] { opacity: .45; cursor: not-allowed; }
 /* The action that finishes the work (Submit / Check) reads as the primary one once it is available. */
@@ -66,7 +70,11 @@
 [data-open="true"] .mathmaster-work-view-surface { overflow: auto; min-width: 0; min-height: 0; margin: 12px; }
 .mathmaster-work-view-actions { display: none; }
 [data-open="true"] .mathmaster-work-view-actions { display: flex; flex-direction: column; gap: 8px; padding: 12px; overflow: auto; border-left: 1px solid var(--mm-border); background: var(--mm-surface); }
-.mathmaster-work-view-capability { padding: 7px 9px; border-radius: 7px; background: var(--mm-info-bg); color: var(--mm-text-muted); font-size: 12px; font-weight: 750; }
+/* What the view carries, as one line of caption text under the actions
+   (PQ-027). Each label used to be a grey rounded chip the size of a button, and
+   a student read "Pan and zoom" as a button that would not press. */
+.mathmaster-work-view-capabilities { margin: 6px 2px 0; color: var(--mm-text-muted); font-size: 12px; font-weight: 600; line-height: 1.45; }
+.mathmaster-work-view-capabilities-lead { font-weight: 800; }
 
 /* The one sentence saying what this step asks for. It is not a capability chip
    and must not be dropped with them on a narrow screen — the phone is where a
@@ -180,6 +188,29 @@ html[data-mobile-keypad-open="true"] [data-open="true"][data-controls="bottom"] 
 }
 
 /*
+ * SEVEN ACTIONS, NONE BELOW THE EDGE.
+ *
+ * At 740×360 that gutter was not enough: under a 53px header the rail had
+ * 307px, and seven 44px actions with 6px of padding and 2px gutters need 332,
+ * so Graphing 2's "Start over" and Transformations Lab's "Clear" began at
+ * y 335 on a 360px screen and were reached by scrolling the rail (667×375 was
+ * 10px short as well). With seven or more, the rail drops its padding and its
+ * gutters and the header gives up 2px of its padding on each side: 308px of
+ * actions in a 311px rail. Every target is still 44px tall; their borders
+ * meet. Fewer actions keep the roomier rail above.
+ */
+[data-open="true"][data-layout="mobile"][data-controls="side"][data-height="short"]:has(> .mathmaster-work-view-body > .mathmaster-work-view-actions > button:nth-of-type(7)) > .mathmaster-work-view-header {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+[data-open="true"][data-layout="mobile"][data-controls="side"][data-height="short"] .mathmaster-work-view-actions:has(> button:nth-of-type(7)) {
+  gap: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/*
  * A LANDSCAPE KEYPAD DOCKS TO THE RIGHT, WHICH IS WHERE THE RAIL IS.
  *
  * On a phone held sideways the keypad is not a bottom bar — it is a right-hand
@@ -200,7 +231,7 @@ html[data-mobile-keypad-open="true"] [data-open="true"][data-layout="mobile"][da
 
 [data-open="true"][data-layout="mobile"] > .mathmaster-work-view-header { min-height: 44px; }
 [data-open="true"][data-layout="mobile"] .mathmaster-work-view-surface { margin: 6px; padding: 8px; }
-[data-open="true"][data-layout="mobile"] .mathmaster-work-view-capability { display: none; }
+[data-open="true"][data-layout="mobile"] .mathmaster-work-view-capabilities { display: none; }
 
 /* Reference text a tool keeps beside its workspace — the transformation bridge,
    a table of rules. It earns its column on a Chromebook and loses it on a
@@ -670,3 +701,159 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
 [data-open="true"][data-layout="mobile"] .mathmaster-tool-shell-body { padding: 6px !important; }
 [data-open="true"][data-layout="mobile"] .mathmaster-tool-panel { padding: 8px !important; }
 [data-open="true"][data-layout="mobile"] .mathmaster-systems-embedded-step-algebra { padding: 6px 0 0 !important; }
+
+/*
+ * THE STEP'S INSTRUCTION, WHEN IT RIDES IN THE HEADER (PQ-020).
+ *
+ * The same sentence as the boxed instruction above the work, set as a second
+ * line under the task: an accent rule rather than a card, at most two lines.
+ */
+[data-open="true"] .mathmaster-work-view-header .mathmaster-work-view-instruction {
+  margin: 0;
+  padding: 0 0 0 7px;
+  border-left-width: 3px;
+  border-radius: 0;
+  background: none;
+  font-size: 12.5px;
+  line-height: 1.35;
+  max-height: calc(1.35em * 2);
+  overflow-y: auto;
+}
+
+/*
+ * A PHONE ON ITS SIDE: TWO ROWS OF CHROME, THE REST FOR THE STEP (PQ-020).
+ *
+ * At 844x390 the header (57px), the step's instruction (46), the step heading
+ * (41) and the Previous/Next row (48) left the active step a 150px body — 120px
+ * at 740x360 — so half of a 218px plane was on screen in the view opened to
+ * show it. Below 460px of layout height (data-height="short",
+ * workViewViewport.js) the instruction sits in the header under the task, the
+ * step heading sits in the Previous/Next row (WorkflowRunner), and the insets
+ * around the step are trimmed. Nothing is dropped: the task (one line; the Task
+ * button opens all of it), the instruction, the step's name, kind, status and
+ * counter, and both step buttons stay on screen at full tap size.
+ */
+[data-open="true"][data-height="short"] > .mathmaster-work-view-header {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+/* Two left-aligned lines, so the instruction's accent rule sits against its
+   words rather than at the far edge of a centred line. */
+[data-open="true"][data-height="short"] .mathmaster-work-view-heading { text-align: left; }
+
+[data-open="true"][data-height="short"] .mathmaster-work-view-persistent-task {
+  max-height: none;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+[data-open="true"][data-height="short"] .mathmaster-work-view-surface {
+  margin: 4px;
+  padding: 4px !important;
+}
+
+[data-open="true"][data-height="short"] .workflow-focus { gap: 4px; }
+[data-open="true"][data-height="short"] .workflow-focus__workspace { padding: 6px; }
+
+[data-open="true"][data-height="short"] .workflow-focus__footer {
+  flex-wrap: nowrap;
+  gap: 8px;
+  padding: 0 2px;
+}
+
+[data-open="true"][data-height="short"] .workflow-focus__footer > .workflow-focus__workspace-heading {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+[data-open="true"][data-height="short"] .workflow-focus__footer .workflow-focus__workspace-heading-left {
+  flex-wrap: nowrap;
+  overflow: hidden;
+  gap: 6px;
+}
+
+[data-open="true"][data-height="short"] .workflow-focus__footer .workflow-focus__workspace-heading h4 {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 14px;
+}
+
+/* The step's kind and status are whole words or nothing: the name gives way. */
+[data-open="true"][data-height="short"] .workflow-focus__footer .workflow-focus__family,
+[data-open="true"][data-height="short"] .workflow-focus__footer .workflow-focus__review-status {
+  flex: 0 0 auto;
+}
+
+[data-open="true"][data-height="short"] .workflow-focus__footer-group {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+/* "Step 1 · Plot the points … ← →": the step buttons show their arrows, the
+   words stay in the accessibility tree as each button's name, and the targets
+   stay 44px square. */
+[data-open="true"][data-height="short"] .workflow-focus__nav-button {
+  flex: 0 0 auto;
+  min-width: 52px;
+  min-height: 44px;
+}
+
+[data-open="true"][data-height="short"] .workflow-focus__nav-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+[data-open="true"][data-height="short"] .workflow-focus__progress-text { display: none; }
+
+/*
+ * WHAT STARTS UNDER THE OPENER LEAVES IT ROOM (PQ-025).
+ *
+ * "⤢ Enlarge question" floats over the top-right corner of the question. The
+ * tool header and the Guided Notes card already make room for it (above);
+ * these are the other rows a question starts with. At 390px it sat on a staged
+ * question's step chips 3 and 4 and on "Complete Each Pa|rt"; at 1366x768 on
+ * Step Algebra's "Cancellation hints" and "Reset work". EnlargeableFigure
+ * measures the button and publishes --mm-work-view-opener-space on the surface;
+ * the chip row keeps scrolling sideways in the width that is left. Step
+ * Algebra's toolbar only where it IS the question (the path below): Linear
+ * Intercepts and Rewrite Linear Form embed the same toolbar deeper, under a
+ * tool header that already has the room.
+ */
+.mathmaster-work-view-surface[data-enlarged="false"] .workflow-focus__rail,
+.mathmaster-work-view-surface[data-enlarged="false"] .workflow-focus__navigator,
+.mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > fieldset > div > .mathmaster-work-view-nested-surface > section > .algebra-toolbar {
+  margin-right: var(--mm-work-view-opener-space, 176px);
+}
+
+/* A centred heading clears the button on its own wherever it has the width;
+   on a phone it starts at the left and stops before the button. Step Algebra's
+   toolbar WRAPS, and a right margin narrows every row of it — at 344px each
+   chip and button took a row of its own. On a phone its first chip cannot share
+   a row with the button anyway, so the toolbar starts below the button. */
+@media (max-width: 600px) {
+  .mathmaster-work-view-surface[data-enlarged="false"] .mathmaster-multipart-heading {
+    padding-right: var(--mm-work-view-opener-space, 176px);
+    text-align: left;
+  }
+
+  .mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > fieldset > div > .mathmaster-work-view-nested-surface > section > .algebra-toolbar {
+    margin-right: 0;
+    margin-top: var(--mm-work-view-opener-bottom, 52px);
+  }
+}

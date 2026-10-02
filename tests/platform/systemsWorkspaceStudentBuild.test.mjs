@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 import { parseNumericAnswer } from '../../src/tools/shared/toolMath.js';
+import { resolveInequalityBuildGate } from '../../src/tools/systemsWorkspace/inequalityBuildPolicy.js';
 import {
   explicitBooleanAnswerMatches,
   modelingEntryCorrect,
@@ -76,36 +77,87 @@ test('solid/dashed and shading feedback stays neutral on the first miss, per the
   assert.match(executable, /Use a test point or compare the inequality to its boundary\./);
 });
 
+// The decisions below live in resolveInequalityBuildGate (inequalityBuildPolicy.js)
+// since the DOL / quiz / test fix: there a step counts once it is FINISHED and
+// nothing is a verdict (inequalityBuildOutcomePolicy.test.mjs). Where outcomes
+// are shown — practice, warm-up, classwork — they are exactly what these tests
+// always protected.
+const practiceGate = (overrides = {}) => resolveInequalityBuildGate({
+  showImmediateFeedback: true,
+  buildConfig: { boundary: true, lineStyle: true, shading: true },
+  build: [{ boundaryAttempts: 1, styleAttempts: 1, shadeAttempts: 1 }],
+  constraintCount: 1,
+  rewriteVerified: () => true,
+  stepCorrect: () => true,
+  stepFinished: () => true,
+  ...overrides,
+});
+
 test('progress checkmarks and Combine remain locked until the student explicitly checks each enabled construction step', () => {
+  // Right but unchecked work ticks nothing and opens nothing.
+  const unchecked = practiceGate({ build: [{ boundaryAttempts: 1, styleAttempts: 0, shadeAttempts: 1 }] });
+  assert.equal(unchecked.stepDone(0, 'boundary'), true);
+  assert.equal(unchecked.stepDone(0, 'lineStyle'), false, 'the line style was never checked');
+  assert.equal(unchecked.allConstraintsDone, false);
+  assert.equal(practiceGate().allConstraintsDone, true);
   const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
-  // The ✓ marks read the shared step rule (the one the grader marks with):
-  // a step is verified only after the student explicitly checked it.
+  assert.match(mode, /const boundaryVerified = \(index\) => buildGate\.stepDone\(index, 'boundary'\);/);
+  assert.match(mode, /const styleVerified = \(index\) => buildGate\.stepDone\(index, 'lineStyle'\);/);
+  assert.match(mode, /const shadeVerified = \(index\) => buildGate\.stepDone\(index, 'shading'\);/);
+  // Whether a step is RIGHT is the shared step rule (the one the grader marks
+  // with), which the screen hands the gate as stepCorrect.
   assert.match(mode, /const constraintStatus = Array\.from\(\{ length: constraintCount \}, \(_, index\) => studentBuildConstraintStatus\(/);
-  for (const step of ['boundaryVerified', 'styleVerified', 'shadeVerified', 'constraintVerified']) {
+  for (const step of ['boundaryCorrect', 'styleCorrect', 'shadeCorrect']) {
     assert.match(mode, new RegExp(`const ${step} = \\(index\\) => stepStatus\\(index, '${step}'\\);`));
   }
+  assert.match(region(mode, 'const stepCorrect = (index, step) => (', '\n  );', 'step correctness'),
+    /step === 'boundary' \? boundaryCorrect\(index\) : step === 'lineStyle' \? styleCorrect\(index\) : shadeCorrect\(index\)/);
   const allSteps = { rewrite: false, boundary: true, lineStyle: true, shading: true };
   const constraint = { A: -1, B: 1, C: -1, relation: '>=' }; // y >= x + 1
   const right = builtLine(0, 1, 2, 3, { style: 'solid', shadePoint: [0, 5] });
   const status = (entry) => studentBuildConstraintStatus({ buildConfig: allSteps, entry, workingConstraint: constraint, bounds: { xMin: -6, xMax: 8, yMin: -4, yMax: 10 } });
-  const unchecked = status({ ...right, boundaryAttempts: 0 });
-  assert.equal(unchecked.boundaryCorrect, true, 'the boundary itself is right');
-  assert.equal(unchecked.boundaryVerified, false, 'but it is not verified until the student checks it');
-  assert.equal(unchecked.styleVerified, false);
-  assert.equal(unchecked.shadeVerified, false);
-  assert.equal(unchecked.constraintVerified, false);
+  const uncheckedStatus = status({ ...right, boundaryAttempts: 0 });
+  assert.equal(uncheckedStatus.boundaryCorrect, true, 'the boundary itself is right');
+  assert.equal(uncheckedStatus.boundaryVerified, false, 'but it is not verified until the student checks it');
+  assert.equal(uncheckedStatus.styleVerified, false);
+  assert.equal(uncheckedStatus.shadeVerified, false);
+  assert.equal(uncheckedStatus.constraintVerified, false);
   const checked = status({ ...right, styleAttempts: 1, shadeAttempts: 1 });
   assert.deepEqual([checked.boundaryVerified, checked.styleVerified, checked.shadeVerified, checked.constraintVerified], [true, true, true, true]);
+  // So where outcomes are shown a ✓ on screen is exactly the shared
+  // "verified": the gate, fed the shared rule the way the screen feeds it,
+  // agrees on every checked or unchecked, right or wrong step.
+  const STEP_KEYS = { boundary: ['boundaryCorrect', 'boundaryVerified'], lineStyle: ['styleCorrect', 'styleVerified'], shading: ['shadeCorrect', 'shadeVerified'] };
+  for (const entry of [
+    right,
+    { ...right, styleAttempts: 1, shadeAttempts: 1 },
+    { ...right, boundaryAttempts: 0, styleAttempts: 1, shadeAttempts: 1 },
+    { ...right, style: 'dashed', styleAttempts: 1, shadeAttempts: 1 },
+    { ...right, shadePoint: [0, -5], styleAttempts: 1, shadeAttempts: 1 },
+  ]) {
+    const shared = status(entry);
+    const gate = resolveInequalityBuildGate({
+      showImmediateFeedback: true,
+      buildConfig: allSteps,
+      build: [entry],
+      constraintCount: 1,
+      stepCorrect: (index, step) => shared[STEP_KEYS[step][0]] === true,
+      stepFinished: () => true,
+    });
+    for (const [step, [, verified]] of Object.entries(STEP_KEYS)) assert.equal(gate.stepDone(0, step), shared[verified], `${step}: ${JSON.stringify(entry)}`);
+    assert.equal(gate.constraintDone(0), shared.constraintVerified, JSON.stringify(entry));
+  }
   assert.match(mode, /const rewriteVerified = .*verifiedConstraint/);
-  assert.match(mode, /every\(constraintVerified\)/);
-  assert.match(mode, /Boundary \{buildConfig\.boundary \? \(boundaryVerified/);
+  assert.match(mode, /const allConstraintsComplete = buildGate\.allConstraintsDone;/);
+  assert.match(mode, /Boundary \{buildConfig\.boundary \? stepChip\(boundaryVerified\(index\)\)\.mark/);
 });
 
 test('the combined region is locked until every constraint is individually correct, and never renders early', () => {
+  assert.equal(practiceGate({ stepCorrect: (index, step) => step !== 'shading' }).allConstraintsDone, false, 'one wrong step keeps the overlap locked');
+  assert.equal(practiceGate({ constraintCount: 0, build: [] }).allConstraintsDone, false, 'no constraints, no overlap');
   const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
   assert.match(mode, /disabled=\{!allConstraintsComplete\}/, 'Find overlap / Combine regions must be disabled until every constraint checks out.');
   assert.match(mode, /combined\s*&&\s*studentPolygon\.length\s*>=\s*3/, 'the combined polygon must only render after the student explicitly combines, never before.');
-  assert.match(mode, /allConstraintsComplete\s*=\s*constraintCount\s*>\s*0\s*&&/);
 });
 
 test('blank yes/no answers cannot earn accidental credit and requested vertex work requires full vertex coverage', () => {
@@ -192,9 +244,11 @@ test('all new answer-bearing state is draft-backed, and the registry names every
     'studentTestPoint', 'studentPointResponse', 'vertices'].forEach((key) => {
     assert.match(executable, new RegExp(`usePersistentToolState\\('${key}'`), `${key} must be usePersistentToolState-backed so Work View close/reopen and question navigation cannot erase it.`);
   });
-  const registryEntry = region(persistenceSource, 'systemsWorkspace: entry(', ')),', 'systemsWorkspace persistence entry');
+  const registryEntry = region(persistenceSource, 'systemsWorkspace: entry(', 'parabolaGeometryLab: entry(', 'systemsWorkspace persistence entry');
   ['armed', 'teacherPointFeedback', 'studentPointFeedback', 'vertexFeedback'].forEach((key) => {
-    assert.match(registryEntry, new RegExp(key), `${key} is a new raw useState in SystemsWorkspace.jsx and must be named in the persistence contract.`);
+    // Named as a key of the entry: a bare /armed/ also matched `armedToken:` and
+    // the words "currently armed token", so dropping `armed:` itself stayed green.
+    assert.match(registryEntry, new RegExp(`\\b${key}:`), `${key} is a new raw useState in SystemsWorkspace.jsx and must be named in the persistence contract.`);
   });
 });
 
@@ -281,16 +335,30 @@ test('completed rewrites display a clean slope-intercept inequality instead of t
 });
 
 test('rewrite-only work requires verified rewrite evidence and shows it in collapsed progress', () => {
+  // A constraint whose rewrite is not verified is neither done nor graded
+  // right, whatever else is built — under either policy (graded: the shared
+  // grader, below).
+  for (const showImmediateFeedback of [true, false]) {
+    const gate = practiceGate({ showImmediateFeedback, rewriteVerified: () => false });
+    assert.equal(gate.constraintDone(0), false, `${showImmediateFeedback}`);
+  }
   const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
-  // The step rule (shared with the grader) requires a verified rewrite first.
+  const gate = region(mode, 'const buildGate = resolveInequalityBuildGate({', '});', 'build gate');
+  assert.match(gate, /\n\s*rewriteVerified,/);
+  // The step rule (shared with the grader) requires a verified rewrite first,
+  // checked-and-right or as it stands.
   assert.match(mode, /rewriteVerified: rewriteVerified\(index\),/);
   assert.match(adapterExecutable, /constraintVerified: rewriteDone && boundaryVerified && styleVerified && shadeVerified/);
+  assert.match(adapterExecutable, /constraintCorrect: rewriteDone && boundaryCorrect && styleCorrect && shadeCorrect/);
   const rewriteOnly = sw({ studentBuild: { rewrite: true }, sourceConstraints: ['2x + y >= 4'], expectedConstraints: [{ A: 2, B: 1, C: -4, relation: '>=' }] });
   const verified = { relation: 'y >= -2 x + 4', graphingForm: { A: 2, B: 1, C: -4, relation: '>=' } };
-  assert.equal(systemsWorkspaceGrader.grade(rewriteOnly, { build: [{}], rewrite: [verified] }).isCorrect, true);
-  assert.equal(systemsWorkspaceGrader.grade(rewriteOnly, { build: [{}], rewrite: [{ relation: '2x + y >= 4', graphingForm: null }] }).isCorrect, false, 'no verified rewrite, no credit');
-  assert.equal(systemsWorkspaceGrader.grade(rewriteOnly, { build: [{}] }).isCorrect, false, 'missing rewrite evidence earns nothing');
-  assert.match(mode, /Rewrite \{buildConfig\.rewrite \? \(rewriteVerified\(index\) \? '✓' : '…'\) : 'provided'\}/);
+  for (const policy of [{}, { outcomesWithheld: true }]) {
+    const label = JSON.stringify(policy);
+    assert.equal(systemsWorkspaceGrader.grade(rewriteOnly, { build: [{}], rewrite: [verified], ...policy }).isCorrect, true, label);
+    assert.equal(systemsWorkspaceGrader.grade(rewriteOnly, { build: [{}], rewrite: [{ relation: '2x + y >= 4', graphingForm: null }], ...policy }).isCorrect, false, `no verified rewrite, no credit ${label}`);
+    assert.equal(systemsWorkspaceGrader.grade(rewriteOnly, { build: [{}], ...policy }).isCorrect, false, `missing rewrite evidence earns nothing ${label}`);
+  }
+  assert.match(mode, /Rewrite \{buildConfig\.rewrite \? stepChip\(rewriteVerified\(index\)\)\.mark : 'provided'\}/);
 });
 
 test('the student-build workspace is wired into Work View with undo, point editing, and a primary check action', () => {

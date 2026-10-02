@@ -120,6 +120,22 @@ Rules a grader follows:
   shared definition the component reads. QuestionEngine also never checkpoints
   a response the student did not change, but the grader's own rule is what a
   reviewer can test.
+* **A judgment the student is asked to make opens unanswered.** Start every
+  such select or radio on `UNANSWERED` ("Choose…",
+  `toolMath/shared/judgmentChoices.mjs`) and never read it as an answer
+  (`isAnswered`, `yesNoAnswerMatches`): a pre-selected option credits a
+  student who never chose whenever it happens to be right. If an earlier
+  version of the tool pre-selected options, its saved work can still hold
+  them untouched: read work identical to that old start as untouched only
+  when it lacks `OWN_CHOICES`, which today's tool spreads into its work
+  (Data Modeling, the Polynomial Workshop).
+* **Where outcomes are withheld, nobody presses a step check.** On a DOL, quiz
+  or test a step's Check says only whether the step is finished, so a grader
+  that credits a step only once it was checked would give right work nothing.
+  The tool adds `outcomesWithheld: true` to its work there (the Systems
+  Workspace's student-built inequalities, composed questions), and the grader
+  then grades each step as it stands. The flag never makes wrong work right,
+  and a forged one gains nothing a client could not already claim.
 * **Never read a field a student support changes.** A translation replaces
   `prompt` (and `title`) in the browser; reduce-complexity trims `choices`.
   The server grades the authored question, so a grader that needs wording

@@ -4,6 +4,7 @@ import { MISSING_TOOL_IDS, validateToolQuestion } from './tools/toolSchemas.js';
 import { compileAuthoringIntentV5 } from './platform/contract/authoringIntentV5.js';
 import { flattenV5Sections, normalizeAssignmentV5, rebuildV5SectionsFromQuestions } from './platform/contract/assignmentSchemaV5.js';
 import { looksLikeFiniteSetNotation } from '../functions/shared/answerEquivalence.mjs';
+import { parseWrittenNumber } from '../functions/shared/fractionAnswer.mjs';
 import {
   familyResolutionMessage,
   isFamilyBackedQuestion,
@@ -751,6 +752,19 @@ export const validateAssignmentQuestions = (questions, options = {}) => {
       if (!toolValidation.isValid) {
         const which = rendered === question ? '' : ' in its generated version';
         throw new Error(`Question ${index + 1} (${questionType}) is invalid${which}: ${toolValidation.errors.join(' | ')}`);
+      }
+    }
+    // A fraction answer is graded as one written number, so an answer key
+    // that is not one ("three quarters", "3:4", "x/4") could never be matched.
+    // A fraction question with no answer is a drill and stays valid. A family
+    // slot's key is a template ("{{n}}/{{d}}"): the key it generates is judged.
+    if (questionType === 'fraction') {
+      const answerKey = rendered.answer;
+      const hasAnswer = answerKey !== undefined && answerKey !== null && String(answerKey).trim() !== '';
+      if (hasAnswer && !parseWrittenNumber(answerKey)) {
+        const shown = typeof answerKey === 'string' ? answerKey : JSON.stringify(answerKey);
+        const which = rendered === question ? '' : ' in its generated version';
+        throw new Error(`Question ${index + 1} fraction answer "${shown}"${which} is not a number MathMaster can grade (write it like 3/4).`);
       }
     }
     if (questionType === 'modelingLab') {

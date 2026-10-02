@@ -53,6 +53,7 @@ import {
   noVariableStatementType,
   substituteIntoEquation,
 } from './algebraicSystemsEngine.mjs';
+import { STATEMENT_KINDS, statementKindCorrect } from './algebraicOutcomeModel.mjs';
 
 export const ELIMINATION_STATE_VERSION = 2;
 const EPS = 1e-7;
@@ -429,16 +430,32 @@ export const eliminationOutcome = (state, system) => {
   return null;
 };
 
-export const classifyEliminationOutcome = (state, system, choice) => {
+const STATEMENT_KIND_VALUES = STATEMENT_KINDS.map((option) => option.value);
+
+/**
+ * Record the student's classification of the statement their rows produced.
+ *
+ * `kind` is their reading of the statement (identity, contradiction, or the
+ * "true only at the origin" misconception). Where outcomes are shown it is
+ * always the right one — the screen records nothing else — but on a DOL, quiz
+ * or test whatever the student chose is recorded and graded at submission, so
+ * it is kept with the choice. Omitted, the record looks exactly as it did
+ * before kinds were stored.
+ */
+export const classifyEliminationOutcome = (state, system, choice, kind = null) => {
   const outcome = eliminationOutcome(state, system);
   if (!outcome || !['unique', 'infinite', 'none'].includes(choice)) return result(state);
-  return result({ ...state, classification: { choice, statement: outcome.statement } },
+  const recordedKind = STATEMENT_KIND_VALUES.includes(kind) ? kind : null;
+  return result({ ...state, classification: { choice, statement: outcome.statement, ...(recordedKind ? { kind: recordedKind } : {}) } },
     choice === outcome.type ? null : { stage: 'classification', reason: 'reconsider' });
 };
 
+/** Right meaning, for this statement, read right (a record with no kind was made only once it was). */
 export const eliminationClassificationCorrect = (state, system) => {
   const outcome = eliminationOutcome(state, system);
-  return Boolean(outcome && state.classification?.choice === outcome.type && state.classification?.statement === outcome.statement);
+  const kind = state.classification?.kind;
+  return Boolean(outcome && state.classification?.choice === outcome.type && state.classification?.statement === outcome.statement
+    && (kind == null || statementKindCorrect(outcome, kind)));
 };
 
 /* ------------------------------------------------------ back-substitute */
@@ -654,7 +671,7 @@ export const repairEliminationState = (stored, system) => {
   }
   const outcome = eliminationOutcome(state, system);
   if (outcome && stored.classification?.statement === outcome.statement) {
-    state = classifyEliminationOutcome(state, system, stored.classification.choice).state;
+    state = classifyEliminationOutcome(state, system, stored.classification.choice, stored.classification.kind).state;
   }
   return state;
 };

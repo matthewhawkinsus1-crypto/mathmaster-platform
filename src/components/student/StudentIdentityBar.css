@@ -1,0 +1,45 @@
+/*
+ * THE IDENTITY BAR: WHOSE WORK IS ON THIS SCREEN.
+ *
+ * It is pinned over every signed-in student surface on purpose — a teacher
+ * walking past has to be able to see whose work it is — so it stays, on every
+ * screen. What changes on a phone is only how much of the phone it takes.
+ */
+.mm-identity-bar { gap: 12px; }
+.mm-identity-main { gap: 12px; flex-wrap: wrap; }
+.mm-identity-name { overflow-wrap: anywhere; }
+
+/*
+ * ONE LINE ON A PHONE (PQ-021).
+ *
+ * "Claude QA Student • Period 3", the points chip and "Not you? Log Out"
+ * wrapped to two lines at 390px (67px) and three at 344px (86px): about a tenth
+ * of the screen, above the navigator and the task, all the time. Below 480px
+ * the bar keeps all of it on one ~38px line: the name and period are cut with
+ * an ellipsis at the end (the full text stays in the DOM, for a screen reader,
+ * and in the tooltip), the points become "★ 120" (the words "Class Points" are
+ * visually hidden, not removed), and "Not you?" goes — Log Out stays.
+ */
+@media (max-width: 479.98px) {
+  .mm-identity-bar { gap: 8px; }
+  .mm-identity-main { flex: 1 1 auto; flex-wrap: nowrap; gap: 8px; }
+  .mm-identity-name {
+    overflow: hidden;
+    overflow-wrap: normal;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .mm-identity-points-word {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+  .mm-identity-not-you { display: none; }
+}

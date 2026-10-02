@@ -32,7 +32,9 @@ re-run on the merged head.
 | **P3** | 12 | 1 | 10 | 1 |
 
 The one deferred P1 (PQ-036, a DOL correctness leak in the plotting workspace)
-needs an assessment-policy decision; it is first in the recommended next PRs.
+was closed in the 2026-10-01 cleanup of PRs #407/#408, together with the same
+leak in multi-step questions; see its entry. (The counts above are as this
+audit first recorded them; each entry's status line is current.)
 
 | ID | Sev | Status | Finding |
 | --- | --- | --- | --- |
@@ -41,7 +43,9 @@ needs an assessment-policy decision; it is first in the recommended next PRs.
 | PQ-002 | P1 | FIXED | iPad portrait: the "enlarged" plane is smaller than the embedded one |
 | PQ-014 | P1 | FIXED | A tap on a letterboxed plane lands on the wrong coordinate |
 | PQ-015 | P1 | FIXED | Phone in landscape: the tool starts below the fold behind a blank column |
-| PQ-036 | P1 | PARTLY FIXED | In a DOL, the plotting workspace tells the student which points are wrong |
+| PQ-036 | P1 | FIXED (2026-10-01 cleanup) | In a DOL, the plotting workspace tells the student which points are wrong |
+| PQ-041 | P1 | FIXED (2026-10-01 follow-up) | A phone held sideways cannot scroll the question |
+| PQ-044 | P1 | FIXED (2026-10-01 follow-up) | Opening a question on another Chromebook throws the saved work away |
 | PQ-003 | P2 | FIXED | Phone: tap a point card, and the plane is scrolled away |
 | PQ-004 | P2 | FIXED | 1366×768 Work View: the plane is taller than the stage body |
 | PQ-005 | P2 | FIXED | `workViewCertification.mjs` "times out" |
@@ -55,27 +59,29 @@ needs an assessment-policy decision; it is first in the recommended next PRs.
 | PQ-017 | P2 | FIXED | The attempt outcome is not announced to screen readers |
 | PQ-018 | P2 | FIXED | Data Modeling: "Your model" disagrees with the steppers |
 | PQ-038 | P2 | FIXED | "b = 4" in a number box is graded wrong and spends a try |
-| PQ-009 | P2 | PARTLY FIXED | Whole-board Undo |
-| PQ-020 | P2 | DEFERRED | Landscape phone Work View gives the stage 120–150px |
-| PQ-021 | P2 | DEFERRED | Phone identity bar is 67–86px and always pinned |
-| PQ-022 | P2 | DEFERRED | After a tool's Check, the attempt outcome is off-screen |
-| PQ-023 | P2 | DEFERRED | Tool chrome and folded help sit between the task and the mathematics |
-| PQ-024 | P2 | DEFERRED | Point cards say "P1: x = −1" but x is not locked |
+| PQ-009 | P2 | FIXED | Whole-board Undo |
+| PQ-020 | P2 | FIXED (2026-10-01 cleanup) | Landscape phone Work View gives the stage 120–150px |
+| PQ-021 | P2 | FIXED (2026-10-01 cleanup) | Phone identity bar is 67–86px and always pinned |
+| PQ-022 | P2 | FIXED (2026-10-01 cleanup) | After a tool's Check, the attempt outcome is off-screen |
+| PQ-023 | P2 | FIXED (2026-10-01 cleanup; steps 1–2) | Tool chrome and folded help sit between the task and the mathematics |
+| PQ-024 | P2 | FIXED (2026-10-01 cleanup) | Point cards say "P1: x = −1" but x is not locked |
 | PQ-035 | P2 | NOT REPRODUCED | Memory growth over a long session |
 | PQ-039 | P2 | NOT A PRODUCTION ISSUE | Typing latency in the student harness |
 | PQ-040 | P2 | FIXED | Typing "−2/3x + 4" on a keyboard makes −2 over (3x + 4) |
+| PQ-042 | P2 | FIXED (2026-10-01 follow-up) | On a phone, "Next step" can open the next step out of view |
+| PQ-043 | P2 | FIXED (2026-10-01 follow-up) | A composed question with a plotting step is never backed up to the server |
 | PQ-019 | P3 | FIXED | Inverse & Composition writes "1(x − 2)²" and "−1x" |
-| PQ-025 | P3 | DEFERRED | "Enlarge question" sits on top of content on phones |
-| PQ-026 | P3 | DEFERRED | Work View header says "Question Work View" and clips the task |
-| PQ-027 | P3 | DEFERRED | Work View capability chips look like disabled buttons |
-| PQ-028 | P3 | DEFERRED | Expression Meaning reopens on its first row after a reload |
-| PQ-029 | P3 | DEFERRED | Regression Calculator's button says "Submit workflow" |
-| PQ-030 | P3 | DEFERRED | The identity bar's ⭐ is an emoji too |
-| PQ-031 | P3 | NOT REPRODUCED | Scroll padding assumes a 140px task card |
-| PQ-032 | P3 | DEFERRED | Multi-line verdict text in a pill |
-| PQ-033 | P3 | DEFERRED | Dev-server hazards for the browser gates |
-| PQ-034 | P3 | DEFERRED | Three click maps still stretch linearly |
-| PQ-037 | P3 | DEFERRED | Typed stages inside a staged Work View may not scroll above a keypad |
+| PQ-025 | P3 | FIXED (2026-10-01 cleanup) | "Enlarge question" sits on top of content on phones |
+| PQ-026 | P3 | FIXED (2026-10-01 cleanup) | Work View header says "Question Work View" and clips the task |
+| PQ-027 | P3 | FIXED (2026-10-01 cleanup) | Work View capability chips look like disabled buttons |
+| PQ-028 | P3 | FIXED (2026-10-01 cleanup) | Expression Meaning reopens on its first row after a reload |
+| PQ-029 | P3 | FIXED (2026-10-01 cleanup) | Regression Calculator's button says "Submit workflow" |
+| PQ-030 | P3 | FIXED (2026-10-01 cleanup) | The identity bar's ⭐ is an emoji too |
+| PQ-031 | P3 | FIXED (2026-10-01 cleanup) | Scroll padding assumes a 140px task card |
+| PQ-032 | P3 | FIXED (2026-10-01 cleanup) | Multi-line verdict text in a pill |
+| PQ-033 | P3 | FIXED (2026-10-01 cleanup) | Dev-server hazards for the browser gates |
+| PQ-034 | P3 | FIXED (2026-10-01 cleanup) | Three click maps still stretch linearly |
+| PQ-037 | P3 | FIXED (2026-10-01 cleanup) | Typed stages inside a staged Work View may not scroll above a keypad |
 
 ---
 
@@ -94,6 +100,9 @@ needs an assessment-policy decision; it is first in the recommended next PRs.
     way the Work View certification mounts it), so all 24 tools can be opened
     inside the real wrappers in one long session. The harness navigator shows
     section tabs plus the current section's numbers, like App.jsx's.
+  - `?staged=1` (2026-10-01 cleanup) appends a composed question — complete a
+    seven-row table, graph it, give its domain and range — compiled the same
+    way, for the `staged` journey (PQ-020, PQ-026, PQ-037).
 - `tests/browser/assignmentMobile.html` (composed/staged questions),
   `toolOpenAudit.html` (one tool, no chrome), `workViewCertification.html`.
 - Viewports: 344×882, 360×800, 375×812, 390×844, 390×664 (phones, touch);
@@ -412,9 +421,53 @@ updated record back); that is a harness limitation, not a product finding.
   nothing, which is safe.
 - **Scope:** small.
 
-### PQ-009 · Whole-board Undo — **P2 · PARTLY FIXED (blockers 1 and 2)**
+### PQ-009 · Whole-board Undo — **P2 · FIXED (all four blockers)**
 
-- **Update 2026-10-01:** blockers 1 and 2 below are fixed platform-wide. A run of typing in one field is one Undo step (`mathUndoStack.js`), and a math field's own Ctrl+Z no longer replays what a platform Undo removed (`MathInput` `resetUndo()`). Gate: `tests/browser/undoTyping.mjs`. Wiring the whole board (3, 4) is still open; see `platform-engineering-deep-dive-2026-10-01.md`.
+- **Update 2026-10-01, items 3 and 4 — fixed.** The board's platform Undo
+  takes back the student's last edit anywhere on the board, one step at a
+  time, newest first. That covers a typed equation or feature, a table cell, a
+  meaning chosen from a list, a point, a drag and Start over. It runs through
+  one `useMathUndoHistory` history (`ownerId: 'lmr-board'`, `persist: true`).
+  - **3. Verdicts.** The history records `boardUndoState`, which is the
+    board's 18 answer fields and nothing else
+    (`linearMultipleRepresentationsUndo.js`). `checkedCards` and
+    `expandedCards` are not in it. So a Check is not a step. Undo never
+    un-checks a card, and never puts back a verdict for work that was not
+    checked. A card shows its verdict whenever it holds exactly the work that
+    was checked, the same rule a reload follows. Undo does not clear the
+    board's submission result, and it neither spends nor returns an attempt.
+  - **4. Invisible edits.** Each Undo opens the card it changed if that card
+    was folded. It scrolls the changed field, table or plane into view only
+    when it is not already uncovered on screen, and outlines the card for
+    about 2 s. The board's one polite live region says it once, for example
+    "Undid your last change to Graph 2 (slope-intercept)." Keyboard focus
+    stays on Undo, so pressing it again keeps working. The Undo button's
+    title names what the next press will change.
+  - **Each graph's own Undo** reads the same history, filtered to that graph
+    (`undoChangeTo` in `useMathUndoHistory`, `undoMathUndoChange` in
+    `mathUndoStack.js`). It takes back that graph's latest change even when
+    the student typed somewhere else after it. The step is removed from the
+    shared history, so the platform Undo can never replay it.
+  - **A fraction bar no longer splits a typing run.** MathLive turns "/"
+    into `\frac{1}{\placeholder{}}`, which is not a contiguous character edit.
+    Before this change, y = 1/2x − 3 typed into one field took three Undo
+    steps, and one of them handed back a fraction with an empty box.
+    Contiguity is now judged with MathLive's braces, backslashes and empty
+    placeholders stripped (`typingText`). Select-all-and-overwrite and a
+    swapped choice are still separate steps. A character typed and rubbed out
+    within one run no longer leaves an Undo that changes nothing.
+  - **Reload.** The history stays on the device, capped at 12 KB (about 6–10
+    board steps), and never goes in the synced work record. It is dropped if
+    it was recorded for different work. An Undo after a reload takes back
+    one step of the restored work, and Ctrl+Z in a restored math field does
+    not empty it.
+  - **Gates.** `tests/browser/linearMultipleRepresentations.mjs` journeys
+    `undo` (1366×768) and `undo-phone` (390×844, touch), with additions to
+    `dol` and `complete`. Node tests: `mathUndoFilteredChange.test.mjs`,
+    `mathUndoTyping.test.mjs`, `boardPlatformUndo.test.mjs` and
+    `tests/tools/linearMultipleRepresentationsUndo.test.mjs`.
+
+- **Update 2026-10-01:** blockers 1 and 2 below are fixed platform-wide. A run of typing in one field is one Undo step (`mathUndoStack.js`), and a math field's own Ctrl+Z no longer replays what a platform Undo removed (`MathInput` `resetUndo()`). Gate: `tests/browser/undoTyping.mjs`. Wiring the whole board (3, 4) was still open when this note was written; it is fixed since ("items 3 and 4 — fixed", above).
 
 - **Now:** the Multiple Representations board's platform Undo covers its three
   graphs (PR #398, R-14); typed fields keep MathLive's in-field Ctrl+Z; table
@@ -718,13 +771,30 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   leak symptom to chase. See §5.
 - **Scope:** —
 
-### PQ-036 · In a DOL, the plotting workspace tells the student which points are wrong — **P1 · PARTLY FIXED**
+### PQ-036 · In a DOL, the plotting workspace tells the student which points are wrong — **P1 · FIXED (2026-10-01 cleanup)**
+
+- **Fixed (cleanup of PRs #407/#408):** where outcomes are withheld nothing on
+  the plane says whether the work is right, and nothing has to be right to
+  continue. There is no point check and no reflected-point check; the curve is
+  drawn through the student's OWN points and stays as drawn (Clear Sketch frees
+  the points); graph ends offer every symbol, with no pulse and no pull. Each
+  part is graded at submission exactly as practice requires before its snap:
+  the curve counts when every point it was drawn through is right and the
+  sketch follows the function, and a marker counts within the radius practice
+  uses — so a correct DOL graph earns full credit (browser-checked) and a wrong
+  one does not. Multi-step questions follow the same policy in every step: the
+  mapping-diagram and number-line steps no longer say "Correct / Not yet", a
+  graph step built from a table no longer reveals whether the table is right
+  ("do not agree" block, magnet), and later steps show "Your graph" (the
+  student's own points) instead of "Your checked graph" only when right.
+  Practice is unchanged. Gates: `tests/browser/graphPointCheck.mjs`,
+  `tests/browser/composedOutcomePolicy.mjs`, `tests/platform/graphOutcomePolicy.test.mjs`.
 
 - **Update 2026-10-01:** wherever outcomes are not shown immediately (DOL, quiz, test):
   - A point-only plot has no check. Its points are graded as placed and stay movable until submission.
   - The curve and reflection checks still gate drawing, but they name no point and teach no rule.
   - Workflow grading never read `pointsValidated`. Point parts are graded from the placements.
-  - **Still open:** a curve's check is a yes/no that a student can repeat. Counting it as an attempt is the assessment owner's decision.
+  - **Still open when this note was written:** a curve's check was a yes/no that a student could repeat. Fixed since ("Fixed (cleanup of PRs #407/#408)", above): where outcomes are withheld there is no check to repeat, and the curve is graded at submission.
   - Gate: `tests/browser/graphPointCheck.mjs`.
 
 - **Surface:** `InteractiveGraphWorkspace` point tasks (staged `coordinatePlot`
@@ -753,8 +823,41 @@ Measured inside the real wrappers with the identity bar, standard vs wide
 - **Evidence:** `platform-quirks-audit/pq036-dol-point-check.png`.
 - **Scope:** small–medium.
 
-### PQ-037 · Typed stages inside a staged Work View may not scroll above a keypad — **P3 · DEFERRED (source observation, not reproduced)**
+### PQ-037 · Typed stages inside a staged Work View may not scroll above a keypad — **P3 · FIXED (2026-10-01 cleanup)**
 
+- **Fixed (2026-10-01 cleanup):** reproduced first. A seven-row table stage
+  (compiled through the import chain, `studentUxPlatform.html?staged=1`) in
+  phone Work View, number keypad up: at 390×844 row 7 sat at y 547–591 with
+  the keys from 570 and the step body ending at 391, so the digit went into a
+  box nowhere on screen (same at 344×882 and 360×800). The scroller search
+  found the page's `.math-tool-workspace` behind the modal.
+  `.workflow-focus__workspace-body` and `.workflow-focus__active-stage` (the
+  scroller beside a persistent graph) are now in `VERTICAL_SCROLL_SELECTOR`;
+  embedded neither scrolls, so the search passes them as before. Row 7 now
+  lands at 335–379, inside the body and above the keys (344×882: 373–417 vs
+  keys 608; 360×800: 291–335 vs 526). Gates: `studentUxPlatform` `staged`
+  types all seven rows on the keypad after Done and a scroll, as a student
+  does, and fails with the selector removed (rows 3–7 off screen);
+  `numberEntry.test.mjs`. Evidence: `pq037-before-…`, `pq037-after-…`.
+- **Fixed (2026-10-01 follow-up): a small phone with the keypad up.** At
+  390×664 the step body was 28px once the keypad and the two-row action row
+  were up — the regular chrome (a four-line task in an 81px header, the
+  instruction, the step heading, the Previous/Next row) spent the 390px left
+  above the keys — so no scroll could show the 44px box being typed into;
+  16px of it showed (375×667: 31px, 19px). The keypad is MathMaster's own and
+  docked to the bottom, so `resolveWorkViewLayout` now counts its height:
+  with less than 460px left above it, Work View takes its short form, as on a
+  phone held sideways (instruction in a one-line header, heading in the
+  Previous/Next row). The software keyboard still never refolds the view.
+  EnlargeableFigure re-reads the layout when MobileViewportContainer flags the
+  keypad up or down (`data-mobile-keypad-open`). Keypad up: **28 → 158px** at
+  390×664 and **31 → 161px** at 375×667, the row being typed into wholly on
+  screen (44 of 44px); Done restores the regular chrome (302 / 305px). 390×844
+  is unchanged (482px down, 208px up: 570px is left above the keys), and so are
+  iPad 820×1180 (924px; no MathMaster keypad) and Chromebook 1366×768 (509px).
+  Gates: `studentUxPlatform` `keypad-short` (390×664, 375×667, 390×844),
+  `workViewPhoneChrome.test.mjs`. Evidence: `pq037-keypad-before-390x664.png` /
+  `pq037-keypad-after-…`.
 - `mobileFocusViewport.js`'s `VERTICAL_SCROLL_SELECTOR` does not include
   `.workflow-focus__workspace-body`, the only element that scrolls in a staged
   Work View; a focused field there may therefore not be scrolled clear of the
@@ -806,8 +909,37 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   time a denominator grows past a number. Needs care: `1/(2x)` must still be
   typeable. **Scope:** small–medium.
 
-### PQ-020 · Landscape phone Work View gives the stage 120–150px — **P2 · DEFERRED**
+### PQ-020 · Landscape phone Work View gives the stage 120–150px — **P2 · FIXED (2026-10-01 cleanup)**
 
+- **Fixed (2026-10-01 cleanup), as recommended:** below 460px of layout height
+  (`resolveWorkViewLayout().shortHeight` → `data-height="short"`; the layout
+  height, so a keyboard never refolds the view) the step instruction sits
+  under the task in the header, the step heading joins the Previous/Next row
+  ("Step 1. Plot the points · BUILD IT · 1 of 12 ← →"; WorkflowRunner moves it
+  through `workViewPresentation.js` without remounting the stage, and the
+  buttons' words stay their names), and the insets are trimmed. Stage body
+  **150 → 265px** at 844×390, **120 → 235px** at 740×360, **128 → 250px** at
+  667×375; the plotting plane **60 / 50 / 55% → 100%** on screen. Portrait
+  390×844 484 → 499px; 1366×768 unchanged (508 → 509). The open view now
+  re-runs its reveal when the phone turns: a graph stage built from a table was
+  81–88% on screen after turning, 100% now. Gates: `studentUxPlatform` `staged`
+  (≥250 / ≥220px, folded chrome, plane on screen, work intact after turning
+  back), `workViewCertification.mjs` (rotation on every device),
+  `workViewPhoneChrome.test.mjs`. Evidence: `pq020-before-…`, `pq020-after-…`.
+- **Fixed (2026-10-01 follow-up): seven actions fit the rail at 740×360.**
+  Measured first: under a 53px header the rail had 307px, and seven 44px
+  actions with its 6px padding and 2px gutters need 332, so Graphing 2's
+  "Start over" and Transformations Lab's "Clear" sat at y 335–379 on a 360px
+  screen (667×375: 10px short as well; the certification at 740×360 flagged
+  both as clipped, 21 / 23). A rail with seven or more actions on a short
+  phone now has no padding and no gutters and the header 2px of padding a
+  side instead of 4 (`WorkViewShell.css`, `:has(> button:nth-of-type(7))`):
+  308px of actions in a 311px rail, every one 155×44 and on screen (Undo at
+  49–93 … Start over at 313–357) at 740×360, 667×375, 664×390 and 844×390.
+  Rails with fewer actions are unchanged. Gates: the certification gains the
+  740×360 phone (`android-landscape`, 23 / 23, also in CI's matrix) and
+  `workViewPhoneChrome.test.mjs` checks the budget from the rules themselves.
+  Evidence: `pq020-rail-before-740x360.png` / `pq020-rail-after-…`.
 - **Viewport:** 844×390, 740×360 (staged question → Enlarge).
 - **Reproduction:** Work View header (task + Task/Help/Close) ~56px,
   instruction ~50px, step heading ~55px, Previous/Next footer ~60px: the
@@ -822,8 +954,18 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   Needs a design look, and `workViewCertification` covers the rotation.
 - **Scope:** small–medium.
 
-### PQ-021 · Phone identity bar is 67–86px and always pinned — **P2 · DEFERRED (needs product input)**
+### PQ-021 · Phone identity bar is 67–86px and always pinned — **P2 · FIXED (2026-10-01 cleanup)**
 
+- **Fixed (2026-10-01 cleanup), compact rather than hidden (the product
+  decision):** below 480px the bar is one line, **38px** at 344, 360, 375, 390
+  and 479px (was 86 / 67 / 67 / 67 / 67). The name and period end in an
+  ellipsis (the full text stays in the DOM and the tooltip; at 344px it reads
+  "Claude QA Student • Peri…"), the points read "★ 120" with the words "Class
+  Points" visually hidden rather than removed, and "Not you?" gives way to Log
+  Out. It stays sticky and still publishes its height, so the navigator, the
+  task and the phone container move up 29–48px. iPad and Chromebook are
+  unchanged (38px, "Not you?" shown). Gates: `studentUxPlatform` `identity`,
+  `studentIdentityPhone.test.mjs`. Evidence: `pq021-before-…`, `pq021-after-…`.
 - **Viewport:** 390×844 (two lines, **67px**), 344×882 (three lines, **86px**).
 - **Reproduction:** `?identity=1`: "Claude QA Student • Period 3", the ⭐ Class
   Points chip and "Not you? Log Out" wrap. It is `position: sticky` over every
@@ -837,7 +979,7 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   you?" — target 38px.
 - **Scope:** small.
 
-### PQ-022 · After a tool's Check, the attempt outcome is off-screen — **P2 · DEFERRED**
+### PQ-022 · After a tool's Check, the attempt outcome is off-screen — **P2 · FIXED**
 
 - **Reproduction:** Inverse Composition / Function Investigation, wrong Check.
   The tool's own pill ("• Not yet") appears 55–115px below Check (on screen);
@@ -851,8 +993,63 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   result area (via `ToolRuntimeContext`) and keep QuestionEngine's box for
   non-tool questions. PQ-017 already announces it.
 - **Scope:** small.
+- **Reproduced** in a new harness with the real wrappers, the real identity bar
+  and a record that counts attempts the way App.jsx does
+  (`tests/browser/toolAttemptOutcome.mjs`). After a wrong Check the outcome was
+  **357px** (Inverse Composition) and **403px** (Function Investigation) below
+  Check at 1366×768 and **190px** / **147px** below it at 390×844; Regression
+  Calculator's was 133–142px below — off screen in every case. It also found a
+  second, production-only defect: on a question that already had an attempt
+  on its record the outcome was **cleared the instant it arrived** (the engine
+  compared a registry tool's answer key, which a tool never reports and so is
+  always empty, with the recorded one, and read that as "the answer changed").
+- **Fixed:** a tool's verdict area offers a slot. `ResultPill` does unless it
+  reports one stage rather than the attempt (the classic Representation
+  Bridge's stage checks and Inverse Derivation's "y isolated" are marked
+  `stageCheck`); Regression Calculator's verdict, already a live region, takes
+  the outcome inline. QuestionEngine hands the attempt's outcome — the same
+  words its box shows, worded once — through `ToolRuntimeContext` to the slot
+  that mounted with the verdict of the Check just pressed
+  (`attemptOutcomeSlots.js`), and then does not render its box. It hands it
+  over only where the box would have shown it: outcome feedback allowed, not
+  blocked, the question still open. A correct or final attempt locks the tool
+  (inert, so hidden from screen readers), so the box announces those as
+  before; a server-graded tool shows no verdict of its own and keeps the box;
+  composed and non-tool questions keep the box. The live region is mounted,
+  empty and visually hidden, with the verdict, so the sentence arrives as an
+  addition to an existing region; it is scrolled into view only as far as
+  needed (`block: 'nearest'`, once per attempt). The engine no longer clears a
+  registry tool's outcome against an answer key the tool never reports.
+- **After:** 62px below Check at 1366×768 and 59px at 390×844, on screen, for
+  both tools; Regression Calculator on screen on both. One element and one live
+  region carry the outcome every time; the count goes "2 attempts" → "1
+  attempt" → the final-attempt box; a right answer still gets the engine's
+  "Correct!" box, once; DOL, quiz and test show nothing about correctness or
+  attempts, in the tool or below it; the question with an earlier attempt keeps
+  its outcome.
+- **Not changed here:** the representations board
+  (`LinearMultipleRepresentationsBoard`, being edited elsewhere) has no
+  `ResultPill`, so it keeps the engine's box until its verdict renders
+  `<AttemptOutcome />` — one line.
+- **Worth a follow-up:** the box's "Focus on: …" line moved with the sentence,
+  as part of the same outcome. For a registry tool it lists the tool's own
+  part ids — "fog, gof, inverse, restriction" (Inverse Composition, whose
+  restriction mode does not ask for fog or gof), "data-entry,
+  linear-regression, …" (Regression Calculator). The wording is not new; it is
+  now on screen.
+- **Tests:** `tests/browser/toolAttemptOutcome.mjs` (39 checks; 13 red before
+  the fix; with the box rendered beside the tool's outcome it reports "2 shown,
+  2 live", and with the old clearing it reports the revisited outcome gone);
+  `tests/platform/toolAttemptOutcome.test.mjs` (the ownership rule in node and
+  its wiring); `attemptFeedbackAnnounced.test.mjs` rewritten against the
+  behaviour it protects (the box's literal condition moved; announced once,
+  only where outcome feedback is shown, now asserted for both places). Thirteen
+  mutations, all red. One browser mutation survives by design: dropping the
+  feedback-policy condition from the hand-over is invisible in a browser,
+  because under a withheld policy no tool renders a verdict and so no slot
+  exists — the node contract kills it.
 
-### PQ-023 · Tool chrome and folded help sit between the task and the mathematics — **P2 · DEFERRED**
+### PQ-023 · Tool chrome and folded help sit between the task and the mathematics — **P2 · FIXED (steps 1–2; step 3 not taken)**
 
 - **Reproduction (phone 390×844, real stack):** identity 67 → navigator ~110 →
   task ~95 → tries ~50 → **tool header** (two-line title beside "Enlarge
@@ -874,8 +1071,63 @@ Measured inside the real wrappers with the identity bar, standard vs wide
 - **Evidence:** `pq023-phone-first-screen-inverse-composition.png` (390×844,
   real identity bar and a realistic navigator).
 - **Scope:** medium (ToolShell + TaskCard; every tool).
+- **Reproduced** (studentUxPlatform `?identity=1&tools=1`): the same numbers
+  as above — on the phone the tool header was **98–117px** (a 16px name over
+  two lines beside "Enlarge question", "About this tool" on its own row) and
+  "How to do this (3 steps)" was a **60px** two-line pill: a phone rule capped
+  it at 46% of a row it shares with the task prompt, which the assignment
+  hides. At 1366×768 the header was 63px.
+- **Fixed:**
+  1. **One disclosure.** The TaskCard's "How to do this (N steps)" now opens
+     with the tool's one-line description (and, on a phone, its badge), then the
+     directions and the steps. The header's "About this tool" goes once a
+     TaskCard has taken the description; it stays for a tool with no TaskCard
+     (Solution Review, the representations board) and in Work View, which hides
+     the task card. A card with no steps is labelled "About this tool".
+  2. **On a phone the name is a label on the Enlarge row:** 13px, left, at most
+     two lines, in a 58px header level with the 44px opener.
+  3. **The fold takes its row** when the prompt is hidden: one 44px line, and
+     opened, the steps use the full width instead of 46% of it.
+- **First answer control (y, px), before → after:**
 
-### PQ-024 · Point cards say "P1: x = −1" but x is not locked — **P2 · DEFERRED (pedagogy)**
+  | Tool | 390×844 | 1366×768 |
+  | --- | --- | --- |
+  | Inverse Composition | 1359 → **1284** (−75) | 1008 → **1000** (−8) |
+  | Complex Plane | 1042 → **986** (−56) | 571 → **563** (−8) |
+  | Graphing 2 (the plane) | 634 → **578** (−56) | 553 → **545** (−8) |
+  | Function Investigation | 1038 → **963** (−75) | 534 → **526** (−8) |
+  | Parabola Geometry | 920 → **845** (−75) | 493 → **485** (−8) |
+
+  Phone header 98–117 → 58px; the fold 60 → 44px. The Chromebook header is
+  63 → 55px: its height is now set by the badge, and the opener already fits
+  inside it.
+- **The steps stay discoverable:** same label and step count, same place (the
+  first row under the tool's name), still folded, and still remembered by the
+  same key, so a student who had opened them finds them open. The
+  description is in the same fold, first.
+- **Not done:** step 3 (the fold after the first panel's title, or a "?" in the
+  header). It moves the steps away from where students have learned to find
+  them, which is the pedagogy check this entry asks for; it is what the
+  Chromebook would need for a larger gain.
+- **Tests:** two new contracts in `toolShellChrome.test.mjs` (the description
+  opens the fold and the header offers it only where nothing else does; the
+  phone label, row and fold width); three source pins rewritten against their
+  behaviour (the fold's summary moved into a variable); eleven mutations, all
+  red. `toolOpenAudit.mjs` (four devices) and `workViewMatrix.mjs` re-run, see
+  *Tests*.
+
+### PQ-024 · Point cards say "P1: x = −1" but x is not locked — **P2 · FIXED (2026-10-01 cleanup)**
+
+- **Fixed:** the rule follows the card. One predicate (`taskStatesX` in
+  `src/interactiveGraphEngine.js`) decides both what a card prints and what the
+  plane holds: a card that states its x places at that x on every route (click,
+  drag, keyboard, typed coordinate) and the drag guide shows it; the height is
+  the student's. A centre or key point (its x is not on the card — it is part of
+  what the student must find) and an x the student chooses are never held.
+  Cards that state the same x (a relation that is not a function) are matched
+  to their expected points as a set, so a correct plot is correct either way
+  round. Tests: `tests/platform/statedTaskX.test.mjs`; browser:
+  `composedOutcomePolicy.mjs`, `relationPlotGrading.mjs`.
 
 - **Reproduction:** staged plotting stage, tap P1, tap the plane at x = −4 →
   P1 is placed at **(−4, 4)**. The tasks are built with `lockedX: true`
@@ -888,45 +1140,127 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   assessed) or drop the flag and label the card "P1 (x from the table)".
 - **Scope:** tiny either way, once decided.
 
-### PQ-025 · "Enlarge question" sits on top of content on phones — **P3 · DEFERRED**
+### PQ-025 · "Enlarge question" sits on top of content on phones — **P3 · FIXED (2026-10-01 cleanup)**
 
+- **Fixed (2026-10-01 cleanup), by reserving its width** (the task card is
+  another change's file): EnlargeableFigure publishes the opener's measured
+  width and bottom edge on the surface. A staged question's progress rail and
+  step chips end before it (overlap 4,643px² → 0 at 344, 360 and 390px; the
+  row still scrolls), the multi-answer heading stops before it below 600px,
+  and Step Algebra's toolbar ends before it — on a phone it starts below it
+  instead, because that toolbar wraps and a right margin narrowed every row to
+  ~165px at 344px. A survey of all 35 harness questions (the 24 tools
+  included) found content under the opener in **4 / 4 / 1 / 1** questions at
+  390 / 344 / 820 / 1366px — at 1366×768 it covered Step Algebra's "Reset
+  work", a control a Chromebook student could not press — and in **0** at every
+  width after. Gates: `studentUxPlatform` `opener` and `staged`,
+  `workViewPhoneChrome.test.mjs`. Evidence: `pq025-before-…`, `pq025-after-…`.
 - **Viewport:** 390px. The opener is absolutely positioned at the top right of
   the question surface: over the workflow's step-chip row (chips 3–4 hidden at
   rest, reachable by scrolling the row) and over the multi-answer heading
   ("Complete Each Pa|rt", `pq007-after-phone-number-pad.png`). **Next:** reserve the button's width at the end of the chip row, or
   place the opener in the task card's header row. **Scope:** tiny.
 
-### PQ-026 · Work View header says "Question Work View" and clips the task — **P3 · DEFERRED**
+### PQ-026 · Work View header says "Question Work View" and clips the task — **P3 · FIXED (2026-10-01 cleanup)**
 
+- **Fixed (2026-10-01 cleanup), as recommended:** the header shows the title
+  only when there is no task (the dialog keeps its accessible name), and the
+  task's clamp is four whole lines instead of 3.2em. 390×844: header 78 →
+  64px with the whole task shown (11px of it was hidden); 344×882: 78 → 81px
+  with the whole four-line task shown (28px, a line and a half, was hidden);
+  820×1180 and 1366×768: 57px (was 57–58). Gates: `studentUxPlatform`
+  `staged`, `workViewPhoneChrome.test.mjs`. Evidence: `pq026-before-…`,
+  `pq026-after-…`.
 - 390px: the 23px title "Question Work View" (a product term; the button the
   student pressed said "Enlarge question") sits above a task clamped to 3.2em,
   which cut "…describe what it does" mid-word. **Next:** drop the title when a
   task is shown and give the task the line. **Scope:** tiny.
 
-### PQ-027 · Work View capability chips look like disabled buttons — **P3 · DEFERRED**
+### PQ-027 · Work View capability chips look like disabled buttons — **P3 · FIXED (2026-10-01 cleanup)**
 
+- **Fixed (2026-10-01 cleanup), as a caption:** one line of 12px muted text
+  under the actions — "In this view: Pan and zoom · Plot and edit points ·
+  Your line" — with no background, radius or padding (each label was a
+  #e8f0fe chip, 7px radius, 7×9px padding, the width of the buttons above
+  it), still hidden on phones. "In this view" rather than "You can": the
+  labels tools register mix actions and things ("Sequence table", "Your line:
+  y = 2x + 3"). Measured at 820×1180, 1024×768 and 1366×768. Evidence:
+  `pq027-before-…`, `pq027-after-…`.
 - iPad/desktop rail: "Pan and zoom", "Place and move points" are grey
   button-shaped chips under the real actions. **Next:** style as a caption
   ("You can: pan and zoom, place and move points") or remove. **Scope:** tiny.
 
-### PQ-028 · Expression Meaning reopens on its first row after a reload — **P3 · DEFERRED**
+### PQ-028 · Expression Meaning reopens on its first row after a reload — **P3 · FIXED**
 
 - The work restores exactly (PQ-006), but the row being edited is not persisted
   by design, so a student mid-way through row 3 comes back to row 1. **Next:**
   open on the first incomplete row. **Scope:** tiny.
+- **Reproduced** (1366×768, real wrappers): rows 1–2 complete and row 3 begun;
+  after a reload the open row was **"15" (row 1)**, and the same after leaving
+  for another question and coming back.
+- **Fixed:** the open row is still a selection and still not saved; it is now
+  *derived* from the restored answers when the tool opens — the first row, in
+  matrix order, with a choice still empty (`firstIncompleteExpressionId`),
+  falling back to row 1 when every row is done or there is no work. After: the
+  same journey reopens on **"(t − 3)" (row 3)** after a reload and after
+  navigating back; a fresh question still opens on row 1. Nothing new is
+  persisted.
+- **Tests:** `expressionMeaningAdvance.test.mjs` (the helper — no work, mid-row,
+  an earlier gap, all done, a blank choice; and the open-row state is derived
+  from the restored answers — three mutations, all red);
+  `toolDraftSyncSweep.mjs`'s Expression Meaning reload journey now also
+  requires the half-done row to reopen (with the old initializer it reports
+  "reopened on row 1 of 3").
 
-### PQ-029 · Regression Calculator's button says "Submit workflow" — **P3 · DEFERRED**
+### PQ-029 · Regression Calculator's button says "Submit workflow" — **P3 · FIXED (Systems Workspace titles left to its owner)**
 
 - "workflow" is platform vocabulary. **Next:** "Submit my regression". **Scope:** tiny.
+- **Reproduced:** the button read "Submit workflow" and a fully correct
+  submission answered "Workflow complete.". A scan of every rendered string in
+  `src/tools/**` and `src/platform/workflow/**` found three more: a composed
+  question's Undo tooltip and accessible label, "Undo the last workflow
+  response", and three Systems Workspace panel titles ("3×3 substitution
+  workflow", "3×3 elimination workflow", "<method> workflow").
+- **Fixed:** "Submit my regression", "Regression complete.", and "Undo the
+  last answer in these steps". The Systems Workspace titles are **not**
+  changed here: that directory is being edited for the assessment checks in
+  parallel, so they are left to that work (listed as tolerated, not required,
+  in the test). The regression drivers (`regressionCalculatorPhone.mjs`,
+  `captureToolResponses.mjs`) press the new label and now honour
+  `AUDIT_ORIGIN`; the Enter survey fixture was regenerated (only the label and
+  timestamp changed); the captured submission payload is byte-identical.
+- **Tests:** `tests/platform/toolStudentWording.test.mjs` — no rendered string
+  in a registry tool or composed-question stage uses "workflow" as a word (class
+  names such as `workflow-stage` are not words), and the regression button and
+  verdict use the student's words. Five mutations, all red (each old string
+  restored, the tolerated list emptied, a new "Check my workflow" label).
 
-### PQ-030 · The identity bar's ⭐ is an emoji too — **P3 · DEFERRED**
+### PQ-030 · The identity bar's ⭐ is an emoji too — **P3 · FIXED (2026-10-01 cleanup)**
 
+- **Fixed (2026-10-01 cleanup):** `StarIcon.jsx`, an inline SVG in the
+  CalculatorIcon manner (PQ-013), decorative, so the chip still reads "120
+  Class Points". Reproduced on demand by running Chrome with a fontconfig of
+  DejaVu and Liberation only (no font has U+2B50): "□ 120 Class Points"
+  before, a drawn star after, at 1366×768, 390×844 and 344×882. Gates:
+  `studentUxPlatform` `identity` (the chip holds an svg and no ⭐),
+  `studentIdentityPhone.test.mjs`. Evidence: `pq030-before-…`, `pq030-after-…`.
 - Rendered "□" on the emoji-less test machine (U+2B50 is Unicode 5.1, so far
   more widely supported than 🧮). **Next:** reuse the CalculatorIcon approach if
   PQ-021 redesigns the bar. **Scope:** tiny.
 
-### PQ-031 · Scroll padding assumes a 140px task card — **P3 · NOT REPRODUCED**
+### PQ-031 · Scroll padding assumes a 140px task card — **P3 · FIXED (2026-10-01 cleanup)**
 
+- **Reproduced and fixed (2026-10-01 cleanup).** Chrome does show it — not
+  through Tab, which centres the field, but through MathInput's focus signal,
+  which reveals with `scrollIntoView({ block: 'nearest' })`: with the task card
+  at 184px, Enter in the first blank walked to the second and left it **30px
+  under the card** at 1366×768, 1920×1080 and 820×1180. (The fields' own
+  scroll-margin does not help there; Chrome does not apply it to the math
+  field in that reveal.) The padding is now `top + var(--mm-sticky-task-height,
+  84px) + 56px`, the label allowance the fields' scroll-margin uses: the old
+  140px for an 84px card and before the first measurement, and the walked-to
+  blank now lands 56px below a 184px card. Gates: `studentUxPlatform`
+  `sticky-reveal` (fails with the flat 140px), `studentQaLayoutContracts.test.mjs`.
 - `scroll-padding-top: calc(var(--mm-sticky-task-top) + 140px)` guesses the
   task card's height although it is measured (`--mm-sticky-task-height`). With
   the card forced to 158–184px, keyboard focus still never landed a field under
@@ -934,19 +1268,55 @@ Measured inside the real wrappers with the identity bar, standard vs wide
   **Next:** use the measured height (the `data-work-view-focus` scroll-margin
   already does) the next time this CSS is touched. **Scope:** tiny.
 
-### PQ-032 · Multi-line verdict text in a pill — **P3 · DEFERRED**
+### PQ-032 · Multi-line verdict text in a pill — **P3 · FIXED**
 
 - `ResultPill` has a 999px radius; long feedback ("• Odd multiplicity crosses;
   even multiplicity touches…") wraps into a three-line lozenge on phones.
   **Next:** switch to a 10px radius above ~60 characters. **Scope:** tiny.
+- **Reproduced** (a wrong Check in the real wrappers): at 390×844 Complex
+  Plane (74 characters) and Parabola Geometry (77) wrapped to two lines and
+  Polynomial Workshop (101), Exponential/Log (94) and Sequence Explorer (85) to
+  three — 322×60 to 322×84, an effective radius of 30–42px. At 1366×768 the
+  same verdicts were two or three lines too (454×66 to 454×92, 33–46px).
+- **Fixed:** `ResultPill` takes a 10px radius when its text is longer than 60
+  characters or when it actually wraps at the width it is given — measured
+  after layout and re-measured by a ResizeObserver, so a verdict that wraps
+  only on a phone is a card there and a pill on a Chromebook. A short one-line
+  verdict stays a pill. After: all ten long verdicts above are 10px cards at
+  both sizes; "• Not yet" is still a pill; squeezed to 60px wide it becomes a
+  card, and a pill again when released.
+- **Tests:** `tests/platform/verdictShape.test.mjs` — the rule, the rendered
+  text length, the wrap measurement and the pill's wiring (five mutations, all
+  red: a fixed 999px radius, wrapping ignored, the 60-character boundary moved,
+  a three-line wrap threshold, no re-measure on resize).
 
-### PQ-034 · Three click maps still stretch linearly — **P3 · DEFERRED (note)**
+### PQ-034 · Three click maps still stretch linearly — **P3 · FIXED**
 
 - `IntervalNumberLine`, `RelationMapping`, `GraphStory` map clicks linearly.
   Safe today (no height cap on those SVGs); would break the day one is added.
   **Next:** route them through `clientPointToViewBox`. **Scope:** tiny.
+- **Reproduced — and one was already live.** `tests/browser/clickMapLetterbox.mjs`
+  taps where the browser itself draws a value (`getScreenCTM`). Capped to 55%
+  of its natural height (letterboxed): a tap on the drawn **5** of the number
+  line placed **3**; on the drawn **(2, 1)** of the relation plot (522×289 box,
+  430×430 drawing) it plotted **(0, 1)**; a sketch stroke from (200, 300) to
+  (520, 120) was recorded from (271.8, 298.9) to (448.2, 121.1). No cap was
+  needed for the relation plot on a **phone held sideways (844×390)**: the
+  landscape layout's `.mathmaster-tool-panel svg { max-height: 62dvh }` makes
+  it 520×242 for a 430×430 drawing, and a tap on the drawn (2, 1) plotted
+  (0, 1) inside the real QuestionEngine.
+- **Fixed:** the three pointer handlers map through `clientPointToViewBox`, as
+  the plotting workspace and CoordinatePlane do — exact for `meet`, identical to
+  the old stretch whenever the box keeps the drawing's shape. After: the
+  number line places 5, the plot (2, 1) at 1366×768 capped and at 844×390, and
+  the sketch stroke lands within 2 viewBox units (the plane's 2px CSS border,
+  which no plane's mapping subtracts); the uncapped controls are unchanged.
+- **Tests:** `tests/platform/clickMapLetterbox.test.mjs` (each handler goes
+  through the helper with its own viewBox, converts the helper's point, has no
+  stretch, and imports the helper — four mutations, all red);
+  `tests/browser/clickMapLetterbox.mjs` (13 checks; 4 red before the fix).
 
-### PQ-033 · Dev-server hazards for the browser gates — **P3 (test infrastructure) · DEFERRED**
+### PQ-033 · Dev-server hazards for the browser gates — **P3 (test infrastructure) · FIXED (2026-10-01 cleanup)**
 
 - Editing `src/` while a long gate runs hot-reloads the harness mid-scene
   (seen once as `revealWorkViewTarget is not defined` between two of my own
@@ -956,6 +1326,487 @@ Measured inside the real wrappers with the identity bar, standard vs wide
 - **Next:** a `npm run gates:serve` script that starts Vite with `hmr: false`,
   a dedicated `cacheDir` and the fonts directory, used by every
   `tests/browser/*.mjs` header. **Scope:** tiny.
+- **Update — gate server (after PR #407).** The slow cold start had a cause in
+  the harness config itself: five chained `swapFile` plugins each resolved and
+  returned null, so Vite resolved every import 326 times. Vite's dependency
+  scan took 36 s alone and 82–106 s beside a loading page, which is what PR
+  #407's 180 s first-`goto` budget absorbed and why `npm run
+  test:durable-outbox` failed from a cold cache. One swap plugin that returns
+  its own resolution (`tests/browser/emulator/swapModules.mjs`, pinned by
+  `tests/platform/harnessModuleSwap.test.mjs`) brings the scan to ~1 s.
+  `scripts/lib/gateServer.mjs` (`npm run gates:serve -- <gate>`) starts a gate
+  with `hmr: false`, `appType: 'mpa'`, its own `node_modules/.vite-gates/<gate>`
+  cache, `optimizeDeps.entries`/`include` for its harness, MathLive's fonts
+  served where pre-bundled MathLive looks for them (they were answered with
+  `index.html` and a 200, not a 404), and readiness = the harness page, its
+  entry modules and everything they import answer 200. Cold, the draft
+  certification's first page load went from 88–113 s to 1.0–1.4 s and the 180 s
+  budget is gone. Adopted by the draft-persistence and durable-outbox runners;
+  the other `tests/browser/*.mjs` drivers still start Vite themselves.
+- **Closed (2026-10-01 cleanup).** All three hazards have their cause removed:
+  the cold start (one swap plugin, above); the fonts, which MathLive now loads
+  with the editor itself (`src/platform/math/mathliveRuntime.js` imports
+  `mathlive/fonts.css`, so no harness sets `fontsDirectory` and production gets
+  them too — they were missing there, `tests/browser/mathFontsProduction.mjs`);
+  and the mid-run reload, which the gate server cannot do (`hmr: false`). The
+  remaining drivers run against a server their operator starts — in CI a fresh
+  checkout nothing edits — so the rule for a local run is the one the drivers'
+  headers already state: do not edit `src/` while a gate runs, or use
+  `npm run gates:serve`. One late re-bundle was seen while closing this: Vite
+  optimized `firebase/auth` mid-run, which the draft harness never imports
+  (only `index.html` → `main.jsx` reaches it), while other checkouts' runners
+  were active on the machine. The gate server named it as designed, and it did
+  not recur in two further runs, one from a cold cache.
+
+### PQ-041 · A phone held sideways cannot scroll the question — **P1 · FIXED (2026-10-01 follow-up)**
+
+Found by repairing `tests/browser/stagedQuestion.mjs` so it opens each step
+the way a student does (the whole question in QuestionEngine, in App.jsx's
+student screen with its identity bar and navigator; see Tests).
+
+- **Reproduction:** 664×390 and 844×390, any question. On a short landscape
+  phone the assignment screen is one screen tall and its question stage clips
+  (`overflow: hidden`); the prompt column and the work column are meant to
+  scroll inside it. The height rule named the question container but not the
+  question engine between it and the stage, so both grew to their content: a
+  staged question laid itself out **1150px tall in a 287px stage**, neither
+  column scrolled, and a 200px finger drag over the work moved nothing. A
+  student saw the top of step 1 and could reach nothing below it except
+  through "Enlarge question".
+- **Fixed:** `MathToolMobileLayout.css` holds the engine to the stage's height
+  as the portrait rule always did. The work column now scrolls (233px tall at
+  664×390 over 1097px of work; the same drag moves it 279px). Bounded, two more
+  things showed and are fixed with it:
+  - the prompt column's action bar (Undo, Reset, Scratchpad, Calculator,
+    Submit; five full-width buttons) was pinned to the bottom of a 287px
+    column and covered the question above it. It follows the question now, a
+    short scroll down its column (`position: static`); Work View carries the
+    same actions in its rail.
+  - the coordinate plane had no height cap: a blanket `max-height: 100%` for
+    every svg in the phone workspace outranked App.css's screen cap and, on a
+    box with no set height, capped nothing (303px of plane in a 233px column).
+    The rule now leaves `.mathmaster-responsive-canvas` alone, so the plane
+    keeps its cap (150px on a 390px-tall screen, the whole parabola and its
+    zoom buttons on screen). Portrait phones are unaffected (their planes are
+    width-bound well below the cap).
+  - the navigator covered the top of the question on a phone narrower than
+    769px (664×390, 740×360, 667×375). App.css lets the navigator scroll on a
+    short landscape screen only from 769px, and the phone rules are
+    portrait-only, so these kept it sticky 44px from the top inside a screen
+    that does not scroll: it sat at 82–139 over a question starting at 103,
+    covering "Your task" and the attempt strip. The rule now reaches every
+    landscape screen up to 560px tall (`(orientation: landscape) and
+    (max-height: 560px)`); the navigator sits at 38–95, above the question.
+- **After:** every step of the staged question at 664×390 has its question in
+  the left column, its answer control on screen on arriving and nothing over
+  the question's top. With the reveal of PQ-042 in place and these rules
+  undone, the audit reports 23 findings at 664×390 (the question off screen at
+  16 steps, three planes 30–36px on screen and over their cap, plot over its
+  cap) and, with the navigator rule undone alone, "the top of the question
+  opens under" the navigator; 0 now. A finger drag the audit cannot fake was
+  checked by hand: it moved nothing before and scrolls the work column now.
+  Gates: `stagedQuestion.mjs` (phone-landscape), `landscapeQuestionGrid.test.mjs`,
+  `studentJourneyDol2Final.test.mjs` (which screens the navigator rule reaches,
+  evaluated as media queries). Evidence: `pq041-before-664x390.png` /
+  `pq041-after-664x390.png`.
+
+### PQ-042 · On a phone, "Next step" can open the next step out of view — **P2 · FIXED (2026-10-01 follow-up)**
+
+- **Reproduction:** 390×664, the staged function-characteristics question.
+  After a student-initiated step change the desktop page brings the step under
+  the pinned task card (`bringActiveStageIntoView`); a phone was left out ("the
+  sticky stack is a desktop layout"). But the phone's work scrolls in its own
+  box between the task and the action bar (226px here), and Next left that box
+  where the old step had it: "Mark every x-intercept" opened with its plane
+  scrolled out above the box and only "0 of 2 marked." in view, as did the
+  y-intercept and maximum steps; "Where is this function increasing" opened
+  with its choices above the box.
+- **Fixed:** on a phone the active stage (the step's own controls) is brought
+  into whatever scrolls it, as little as possible: a stage in view stays put,
+  one below rises until its last control is in, one above or taller than the
+  view (a plane) lines up its top; on a phone held sideways the page scrolls,
+  under the identity bar. It runs two frames after the tap, because the phone
+  container keeps a focused control in view one frame after focus and, run
+  first, scrolled the box straight back to the Next button
+  (`stageNavigationScroll.js`).
+- **After:** the three planes and the choices are on screen on arriving at
+  390×664 (4 findings → 0); foldable, tablet, Chromebook and desktop were
+  already clean and stay so. Gates: `stagedQuestion.mjs` (phone-portrait),
+  `stageNavigationPhoneReveal.test.mjs` (eight cases). Evidence:
+  `pq042-before-390x664.png` / `pq042-after-390x664.png`.
+
+### PQ-043 · A composed question with a plotting step is never backed up to the server — **P2 · FIXED (2026-10-01 follow-up)**
+
+- **Found** while placing the staged question's five points through the plot
+  step's own controls: the development audit reports `[MathMaster draft sync]
+  The server backup will NOT store "…:workflow-responses": forbidden-key at
+  plot.isCorrect`.
+- **Reproduction:** a composed question with a graph step in the real
+  QuestionEngine, with the real background sync merging into a copy of the
+  server document and App.jsx's restore on open
+  (`tests/browser/composedDraftRestore.html`). The record is refused from the
+  moment the graph step's workspace first reports — when the step OPENS, with
+  `isCorrect: false` — not only after Check Point Placements: 30 refusals over
+  one table → graph → domain → range question. The server copy of the answers
+  stays at the last version before the graph step: `{ table }` there, and
+  nothing at all for the function-characteristics question, whose plot is step
+  1. A second Chromebook with only the server copy got back 1 of 4 steps, and
+  0 of 4.
+- **Root cause:** WorkflowRunner keeps every step's answer in one draft, and a
+  graph step's answer is the plotting workspace's report, `{ isComplete,
+  isCorrect, responseKey, parts }`, every part with its own `isCorrect`. That
+  verdict is what grades the step (`useStageVerdict`; `gradePlottedPairs` when
+  no point can be read) and is finer than anything the grader could rebuild,
+  so the device has to keep it — and `sanitizeWorkspaceDraftValue`, rightly,
+  will not let a student-readable document hold it (on a DOL, quiz or test it
+  would say whether the graph is right before release). One record was serving
+  both, so the guard took the whole record off the server: the PR #397 board
+  failure (`cardChecks.isCorrect`) in another record.
+- **Fixed:** the server copy is a PROJECTION of the device's copy
+  (`serverDraftProjection.js`, `workflowDraftProjection.js`). A graph step
+  travels without its verdict: no `isCorrect`, no part verdicts, no
+  `responseKey` (it repeats the workspace's construction, raw strokes included,
+  which travels in its own `…:graph-construction` draft) — only each part's
+  plain id, label, completeness and response, marked `rederiveOnOpen` with
+  `isComplete: false`. Every other step goes as it is. The sync runs the
+  unchanged guard over exactly what it sends, and the development audit judges
+  the same value. The device's copy is never touched, so the device that did
+  the work grades it exactly as before; and the existing precedence (a server
+  entry is restored only where it is newer than the device's own copy and than
+  the last attempt) means that device never takes the verdict-less copy over
+  its own.
+  On another device the step comes back as a step to finish. It is not an
+  answer (`hasStageResponse`), so it is never graded — `gradeStage` reports it
+  ungraded and incomplete, not wrong — the question cannot be submitted around
+  it, and no later step can close it: the function-characteristics plot closes
+  once the intercept step is in reach, and a closed step never mounts its
+  workspace again. Opening it mounts the workspace, which reports from the
+  student's restored construction: the same artifact, verdict included, byte
+  for byte. In focus mode a calm notice names the steps to open ("Your graph
+  came back from another device. … Open Step 2: Build the graph"); stacked, the
+  step is open with the page and re-derives at once. Getting the verdict back
+  re-baselines the workflow's Undo instead of becoming an entry Undo could
+  never get past. A device still on an older build reads the projected step as
+  unfinished (`isComplete: false`): a step to open, never one to mark wrong.
+- **After:** nothing refused; the server copy holds every step's answer and no
+  verdict-like key anywhere. On a second device the other steps' answers and
+  the workspace's construction come back, Submit is off and the graph step is
+  ungraded until it is opened; then the graph answer is the first device's
+  exactly and the submission grades identically — parts, partial credit and
+  response key — on Practice and on a DOL. The same device opened again keeps
+  its own copy and grades identically. On the code before the fix the same
+  journeys fail at every one of those checks.
+  Gates: `composedDraftRestore.mjs` (the model and function-characteristics
+  questions on Practice and a DOL, a relation graded by its plotted pairs; in
+  CI with the student runtime gates), `workflowDraftProjection.test.mjs` (15),
+  `toolDraftSyncContract.test.mjs` (its wiring assertion rewritten to the
+  capability: the guard judges exactly the value that is queued). Mutation
+  checks, each undone in turn, all red: the sync guarding and queueing the
+  device's copy (4 unit, 22 browser), the projection keeping the step's verdict
+  or the parts' verdicts (10 unit each) or its completeness (1), a passthrough
+  projection (8), a verdict-less answer counted (1) or graded (4 unit, 2
+  browser), only a marked answer waiting (1), Undo not re-baselined (1, 2), no
+  notice (1, 2), a notice reaching past the navigator (1), the audit judging the
+  device's copy (1, 4).
+- **Found on the way, not changed here:**
+  - *In App.jsx's own order — the question mounts, then the server read lands —
+    the second device got nothing back at all*, for any question: PQ-044, fixed
+    in its own commits.
+  - *A finished composed question opened again could not be submitted until
+    an answer changed* — **fixed since in fd739ea2.** QuestionEngine cleared
+    its answer state in a mount effect, which React runs after the children's,
+    so WorkflowRunner's first report was wiped, and WorkflowRunner reports
+    again only when a response changes. QuestionEngine now resets only when the
+    question changes (`tests/browser/composedReopenSubmit.mjs`), and the gate's
+    same-device journey submits the reopened question as it stands.
+  - *Verdict-like fields the guard does not name:*
+    - a table step's `sourceConsistent` / `sourceChecked` (checked against the
+      AUTHORED function when the question has no equation step, so on a DOL it
+      says whether the table is right), and beside them that function itself,
+      `sourceFunctionSpec` — **no longer in the server copy** (follow-up to
+      this fix). Nothing grades from them; the practice-only messages that use
+      them (the plotting step's magnet, "Your table and function do not agree
+      yet") now work the check out where it is shown, from the cells and the
+      question (`tableSourceCheck.js`), and a table that comes back on another
+      Chromebook has it worked out again before the first render, by the same
+      code (a graph step built from the table names its own draft after it),
+      so its answers — and what is submitted — are byte for byte the first
+      device's (`workflowDraftProjection.test.mjs`; `composedDraftRestore.mjs`
+      checks the server copy and the submitted response key, stacked and in
+      focus mode; 6 mutations, all red).
+    - the graph construction's `markerPlacements.*.locationCorrect` (whether a
+      graph-end marker was dropped at the true end, on a DOL too) — **left as
+      it is**, because it is not a stored copy of something the grader works
+      out: grading reads it first (`placement.locationCorrect === true ||` a
+      distance check in graph units), and it is the judgment made when the marker
+      was dropped, within 82 *screen pixels* of the true end on that device's
+      plane. Another Chromebook's plane is another size, so it cannot be worked
+      out again the same way; dropping it from the server copy would change
+      the credit for the same marker after a restore. Closing it means grading
+      the drop in graph units when it is made — a grading change, not a
+      backup change. It is in the device's own storage as well.
+  - The whole tool draft sweep finds no other refused record: every registry
+    tool's records pass, and the QuestionEngine families of the draft
+    certification, driven with their scenes' edits and every Check, pass too
+    (Step Algebra's `pendingMove.analysisBefore.solution`, fixed separately,
+    is not reached by those edits).
+
+### PQ-044 · Opening a question on another Chromebook throws the saved work away — **P1 · FIXED (2026-10-01 follow-up)**
+
+- **Found** proving PQ-043 in App.jsx's own order — the question mounts, then
+  the server read lands and the question is remounted: the second device got
+  nothing back (0 of 4 steps), where applying the server copy before the
+  question rendered (restoreQuestionDrafts' documented contract, which App.jsx
+  never followed) had passed.
+- **Reproduction, in the real App:** the teacher-workflow harness (App.jsx with
+  in-memory Firebase fakes; `?draftReadMs=` makes the server read as slow as
+  school Wi-Fi, `?offline=1` takes it away). Device A types `7` in one question
+  and `−2/3` in the next, and stops. Device B, a fresh browser with only the
+  server copy, signs in and opens the assignment. On `main` (9edd1d04) and on
+  this branch before the fix alike, B shows empty boxes, and 2.5 s later the
+  server copy of the question B opened is `{}`, saved after A's
+  `{"m":"-\frac23"}`: A's work is gone for every device. The same with a 0 ms
+  read, a 400 ms read, a cold or a warm question chunk — whenever the question
+  mounts before the read lands, which in App.jsx it always can. And in every
+  family: in the draft-certification harness, opening any of the 16 families'
+  questions stamps drafts "now" (the eight QuestionEngine families their work
+  drafts, re-stamped on every return and reload; the registry tools the
+  question's coach-panel state).
+- **Root cause:** every draft write was stamped `savedAt = now`, and `savedAt`
+  is what every copy is ordered by — the server merge keeps the newer copy of
+  each key, a restore writes the server's copy only where it is newer than
+  this device's (`selectRestorableDraftEntries`), and a draft older than the
+  last submitted attempt is history. Every workspace writes its draft back
+  when it mounts (useLocalDraftState's and useUndoHistory's effect, Step
+  Algebra's and the relation solver's state effects, a composed question's
+  steps reporting), so opening a question made whatever it showed the newest
+  version of the student's work: (1) the restore found the device's copy newer
+  and restored nothing into the question on screen; (2) the background save
+  carried that copy to the server, over the real work. App.jsx's effect order
+  decides only which writes are sent: children's mount effects run before
+  App's effect subscribes the sync, but the remount that follows a restore
+  (and every later question change) writes back with the sync subscribed.
+- **Fixed — only a student's edit moves a draft forward in time**
+  (`questionDraftStorage.js`):
+  - Each write says whether it is the student's edit. An edit is stamped now.
+    Anything else keeps the time of the last edit the draft carries — or 0,
+    "never edited", on a Chromebook that never saw this work — so it can
+    never look newer than real work, here or on the server. The value is
+    stored either way: reload, question change and reopen on the same device
+    restore exactly what they did. (Expiry still runs 45 days from the last
+    time the device wrote the draft, through a new `touchedAt`; an envelope
+    written before it expires from `savedAt`, as before.)
+  - Who says: the draft hooks (`useLocalDraftState`, `useUndoHistory`) write
+    their value back as not an edit, and their setters are edits once the
+    student has touched the page — a trusted keyboard, pointer or input event —
+    since the hook loaded its draft (a caller may pass `{ edit }`). A registry
+    tool's field (`usePersistentToolState`) measures from when that field
+    mounted, because the parsed record is cached across mounts. A composed
+    question's step measures from when the step appeared (WorkflowRunner's
+    `StageBody`): every step shares one draft, and in focus mode a step mounts
+    on the click that opens it. Anything else is inferred: a write after input
+    since this page read the draft (Step Algebra and the relation solver, whose
+    state effects are their only writer, are judged this way, unchanged). A
+    reset and a submission's re-stamp are edits by definition.
+  - A write that is not an edit never puts back an older copy: if a restore,
+    or this student in another tab, wrote the draft after the page read it, it
+    is dropped until the page reads again (a restore remounts the question).
+  - The background save never stamps anything (`workspaceDraftSync.js`). An
+    edit goes at its own time. A write that is not an edit goes only to give
+    the server an edit it lacks (one made offline, or just before the page
+    closed), so it waits for the assignment's read (`noteServerCopy`) and goes
+    only if the server holds nothing for that key at that time or later; a
+    copy derived from what the server holds can never replace it.
+  - App.jsx reads the server copy again when the device comes back online, and
+    when the page comes back after at least 15 s out of sight (a closed lid;
+    long enough to have used another Chromebook), so a device that opened
+    offline, or slept while the student worked elsewhere, catches up.
+  - No wait on the first render: the question opens from the device at once,
+    and when the read lands with anything newer it is remounted, as it always
+    was. Nothing the student does waits on the network; offline, the device is
+    local-first, and since what it opened with carries no edit time, none of it
+    can reach the server when it reconnects.
+- **After** (`tests/browser/teacherWorkflow/draftCrossDeviceJourneys.mjs`, the
+  real App; before → after on the code before this fix):
+  - *fresh device, quick read and a 2 s read:* the question on screen showed
+    `["", ""]` → A's `["−2/3", ""]` (the other question, not yet mounted when
+    the read landed, came back in both); the server copy after B merely opened
+    the two questions: A's `{"m":"−2/3"}` replaced by `{}` and every key
+    re-stamped → exactly A's, unchanged.
+  - *A's own server copy:* also held the coach panel's state, written on mount
+    → only the two answers A typed.
+  - *offline, then back online:* a fresh device shows its own empty boxes, and
+    back online stays empty → shows A's work; the server copy is untouched.
+  - *A works, B opens and edits, A comes back (reopened):* B's edit saved `{"b":
+    "4"}` alone (A's slope gone) → `{"m":"−2/3","b":"4"}`, newer than A's; A
+    came back to its own older copy `["−2/3", ""]` → B's `["−2/3", "4"]`, and
+    opening it changed nothing on the server; A's next edit is the newest and
+    keeps B's intercept. B, left open and woken after A's edit: its own older
+    `["", "4"]` → A's newest `["−1/2", "4"]`.
+  - *canonical attempts still beat drafts:* reopening the submitted question
+    re-stamped its pre-submission draft after the submission → it keeps the
+    edit's time; a fresh device restored that draft over the submission → does
+    not.
+  - *every certified family* (`tests/browser/draftEditTime.mjs`, the draft
+    certification's harness): opening stamped every draft, and coming back or
+    reloading re-stamped them (32 failures over the 16 families) → no draft is
+    stamped by opening, every draft the student's edit changed carries the
+    edit's time, and it keeps that time through navigation and reload.
+  - *a composed question* (`composedDraftRestore.mjs`, now run with the server
+    copy arriving after the question as well as before it): in App.jsx's order
+    B got 0 of 4 steps and the journey could not open the graph step → every
+    check passes in both orders, and bringing the graph step back is not an
+    edit (the answers keep A's time and the server copy stays A's).
+- **Precedence, every direction:** per draft key the newest student edit wins;
+  a device's own newer edit is never replaced; a server edit newer than the
+  device's last edit replaces it however recently the device opened the
+  question; a draft older than the question's last submitted attempt is not
+  restored. Unchanged in code (`selectRestorableDraftEntries`) for the entries
+  this build saves — what changed is that the times now mean what that rule
+  assumes; entries an older build saved are narrower (the rollout, below).
+- **Gates:** `draftEditTime.test.mjs` (24: the storage rules, what a restore
+  decides, the background save, two Chromebooks and one server, and the wiring
+  in the hooks, WorkflowRunner and App.jsx); the five source contracts that
+  pinned the old write signatures, rewritten to the same capability
+  (`studentAssignmentFocusAndPendingWork`, `studentDraftDurability`,
+  `studentWorkRecovery`, `toolDraftPersistence`, `toolDraftSyncContract`); and
+  the three browser gates above — the journeys in CI beside the teacher
+  journeys, `draftEditTime` and `composedDraftRestore` with the student runtime
+  gates. Mutation checks, each undone in turn, all red: 28 in the unit tests
+  (non-edits stamped now; inference never or always an edit; a script's event
+  counted as the student; an older copy put back over a restore or another
+  tab; a read not remembered; expiry from `savedAt` alone; a reset not an edit;
+  each hook's write-back left to inference or its setter never an edit; a tool
+  field never an edit, measured from its first load, a submission not stamped,
+  a coalesced edit demoted; every step report an edit, or the step's answer
+  dropped; the sync offering an unedited draft, not waiting for the read,
+  replacing what the server holds, stamping with its own clock, or not
+  learning from its own saves; App not telling the sync, not reading again
+  online or on return, or skipping an empty server; the canonical check
+  removed) — and the 11 of them a browser can see, red in the browser too.
+- **The rollout — an edit-time marker** (`workspaceDraftSchema.mjs`, "the
+  edit-time marker"). Until every Chromebook runs this build, server copies are
+  also saved by the build before it, whose time may be when a question was
+  merely opened; nothing in such an entry says which. Measured before the
+  marker: A (this build) types `−2/3`; B (the build before) merely opens the
+  question, and the server copy becomes `{}`, saved later; A coming back showed
+  `["", ""]` — the restore took the newer server copy over A's own, the last
+  copy of the work — where the old build kept `["−2/3", ""]` (its own mount
+  write re-dated it). So this build says it:
+  - Every entry whose time is a student's edit carries `savedAtIsEdit: true`:
+    every edit this build saves, and a copy offered again (an edit made
+    offline) when its own time was an edit's. The local envelope keeps the same
+    flag — set by an edit and by restoring a marked entry, kept by every write
+    that is not an edit — so a copy an older build dated (here, or restored from
+    an unmarked entry) goes back unmarked: the marker never claims an opening's
+    time is an edit's.
+  - Stored, merged and read back with its entry: the copy that wins the merge
+    brings its marker, or its lack of one. An unmarked entry is stored exactly
+    as an older build stores one (no field), so the two mean the same thing.
+  - A **marked** entry follows the precedence below. An **unmarked** (legacy)
+    entry replaces a device's copy only where that device has nothing dated of
+    its own for the draft — a fresh device, or one where it was never edited —
+    which is what the older build did there. A device that holds a dated copy
+    keeps it, as the older build's devices did (opening re-dated it). That is
+    narrower than "no edit of its own": a copy that came from the server copy
+    is kept too, because replacing it would be worse than the older build when
+    the legacy entry is an empty question opened elsewhere.
+  - Old readers keep working: the schema version is unchanged (`1`, which the
+    rules require); Firestore's rules check top-level fields only; an older
+    build reads entries by the fields it knows and ignores the new one; the
+    server's readers (`workspaceDraftRecovery.mjs`, `responseInspector.mjs`)
+    project `key`/`value`/`savedAt` and never see it; the path-admin vendored
+    copy is regenerated and checked by `pathAdminCodebaseIsolation.test.mjs`.
+  - During the rollout an older build that saves to the same document rewrites
+    every entry with the fields it knows, so all markers in that document go:
+    those entries then count as legacy — never worse than the build before.
+  - A device that keeps its own work over a legacy entry does not send it back
+    over it: its copy is the older one, and re-dating it "now" is exactly what
+    made an opening outrank work. The server keeps the legacy copy until the
+    student's next edit there, which is newer and marked, and wins everywhere.
+  - *After* (journeys, the real App; before → after on the code before the
+    marker): A coming back after the older build opened the question showed
+    `["", ""]` → `["−2/3", ""]`, and its next edit (the intercept) was saved as
+    `{"b":"4"}` alone, the slope gone → `{"m":"−2/3","b":"4"}`, marked; a fresh
+    device still takes what the server holds (A's other answer `7`, and the
+    legacy `{}`), as the older build would; the same empty boxes saved as an
+    edit (B cleared the slope, later) do replace A's older work; and B's real
+    edit in `directions` — marked — still replaces A's own older edit.
+- **Known limits, not changed here:**
+  - *The unit is the draft key.* A composed question is ONE record — every
+    step's answer in `…:workflow-responses` — and the newest edit to any step
+    carries the whole record. So two Chromebooks editing different steps of the
+    same question lose one side: B answers step 3 while A, offline and never
+    having read B's copy, then answers step 1 — when A reconnects its record is
+    the newest and replaces the server's whole, B's step-3 answer included (and
+    B gets A's record on its next read). The other way round — A answers step 1
+    offline first, B answers step 3 after — A's answer is the older edit: it
+    loses to B's record on the server, and on A once A reads it. The code
+    before this change did the same per key, with a worse clock: any write
+    dated the record — opening the question included — so merely opening it on
+    a Chromebook that had an older copy, or none, replaced every step's newer
+    answers, with no edit at all. Now only an edit can. Merging per step would
+    need each step's own edit time inside the record and a merge that knows a
+    workflow's structure (a table step feeds the graph step, a later step is
+    built on an earlier answer, so a per-step union can combine answers never
+    on one screen together); not done here.
+  - *A submitted question on another device* shows what it always did when the
+    submitting device had not reopened it: a draft older than the submission is
+    not brought back. Reopening it there used to re-stamp the draft after the
+    submission, so it came back; now it does not.
+- **Practice Mode, the same principle** (post-deadline Practice Mode's progress
+  rides the same server copy; App.jsx).
+  - *Reproduction* (journey `practice`, the real App): the student practises on
+    one device (the Warm-Up, correct: saved `{"0":"correct/1",…}`). Another
+    opens Practice Mode with the server out of reach — and back without the
+    browser noticing (Wi-Fi up, the school's connection down: no `online`
+    event), so the read that failed is not tried again while the background
+    save keeps trying and gets through. The server's practice became every
+    question `unattempted/0`, and the next device showed the Warm-Up "not
+    attempted". (With the `online` event the read lands first and nothing is
+    lost. Over a slow connection the fresh start is saved first and the merged
+    copy a few seconds later, so a tab closed between the two loses it too.)
+  - *Root cause:* every entry into Practice Mode starts a fresh tracker (every
+    question unattempted, the graded variant) and sends it at once, dated
+    "now"; the server merge kept whichever whole tracker was saved last
+    (`practiceUpdatedAt`). The device merged per question only what it read
+    back — when it could read it first. An ordinary assignment's save (no
+    practice in it) cleared the saved practice the same way.
+  - *Fixed — merged per question on the server too:* the save's transaction
+    keeps, per question, the record with more practice progress (later
+    variant, then more attempts, then correct, then the later attempt) — the
+    rule the device already applied, moved to
+    `functions/shared/practiceTrackerMerge.mjs` so both use the one
+    implementation. A fresh start or an ordinary assignment's save changes
+    nothing, in any order; practice done on two devices is kept from both;
+    `practiceUpdatedAt` moves only when progress does. Progress only grows, so
+    "more" is "later". The teacher's case review reads this practice summary
+    (`caseReviewEvidence.mjs`): same shape, and now it is not erased by an
+    opening. An older build's save still replaces the practice whole, as before.
+  - *After:* the unreachable device leaves the saved practice
+    `{"0":"correct/1",…}` (was all `unattempted/0`) and the next device shows
+    the Warm-Up "correct" (was "not attempted"); the `online` case passes before
+    and after.
+- **Gates for the marker and Practice Mode:** `draftEditTime.test.mjs` (now 30:
+  six for the marker — the envelope, a restore, the save, the server copy, the
+  restore decision, and an older build opening the question between two of this
+  build's devices), `practiceDraftMerge.test.mjs` (6), and two updated
+  assertions in `studentWorkRecovery.test.mjs` (a restore test now states which
+  entries are marked; the stale-Practice test uses records a student can have —
+  a correct answer after two tries — since practice is now merged by progress).
+  Journeys: `legacy` and `practice` added, the marker asserted in `A` and
+  `directions` (before → after: 7 of 37 checks failed → 37 of 37; three of the
+  seven only ask for the marker). Mutation checks, each undone in turn, all red
+  in the unit tests: 11 for the marker (stored, read back, the legacy rule
+  removed or made absolute, a write that is not an edit dropping or inventing
+  it, a restore not carrying it, the save marking every copy, no edit, a held
+  copy, or nothing) and 6 for Practice (the old whole-tracker merge, an
+  ordinary save clearing it, an opening dating it, and the per-question rule
+  broken three ways). Nine were also run against the journeys: eight red. The
+  ninth — the save sending an edit unmarked — cannot be seen in the app,
+  because the storage layer already passes the marker with every edit it
+  reports; breaking the path itself (the save sending no marker at all) is red
+  there.
 
 ---
 
@@ -986,6 +1837,8 @@ Measured inside the real wrappers with the identity bar, standard vs wide
 No production data, Firestore rules, Functions or the draft sanitizer changed.
 
 ## 4. Deferred architecture work
+
+*All seven were done in the 2026-10-01 cleanup (PQ-023 steps 1–2; step 3 waits on a pedagogy check). The list below is kept as it was written; the summary table at the top and the cleanup sections give each one's fix.*
 
 - **PQ-009 Whole-board Undo** — coalescing in `useMathUndoHistory`, MathLive
   `resetUndo()` on restore, verdict exclusion, announce-and-reveal. Medium.
@@ -1184,6 +2037,93 @@ that was pending passed on the merged head, 7 / 7 devices (PQ-005).
 
 ---
 
+## Follow-up: six deferred student-experience findings closed
+
+On `claude/close-pr-407-408-findings-90hfdz` at `3132a221`. Not deployed. Each
+item was reproduced in a browser at the viewports its entry names, fixed, and
+re-driven; the entries above (PQ-022, PQ-023, PQ-028, PQ-029, PQ-032, PQ-034)
+carry the numbers.
+
+| Item | What a student sees now | Commits |
+| --- | --- | --- |
+| PQ-022 | "Not quite. You have 2 attempts remaining on this version." appears under the tool's own "Not yet", 59–62px below Check, instead of 147–403px below it, off screen | `d6282f81`, `54030097` |
+| PQ-023 | One "How to do this (3 steps)" fold that opens with the tool's description; on a phone the tool's name is a small label beside "Enlarge question"; the first answer box is 56–75px higher on a phone | `7622fe3c`, `4bc8f2ea` |
+| PQ-028 | Expression Meaning reopens on the row they were working on | `b8a7aca2` |
+| PQ-029 | "Submit my regression"; "Regression complete."; a composed question's Undo tooltip says "Undo the last answer in these steps" | `4d976395` |
+| PQ-032 | A sentence-long verdict is a 10px-cornered card, not a lozenge | `3120650b` |
+| PQ-034 | A tap on the number line, the relation plot or the story sketch lands where it was made, also on a phone held sideways | `570e3aeb` |
+
+**What a teacher will notice:** nothing changes in grading, attempts, records or
+policy. On a DOL, quiz or test, nothing about correctness or attempts appears in
+the tool or below it before feedback is released — unchanged, and now driven by
+a browser gate. The relation plot no longer records a different point from the
+one a student tapped on a phone held sideways.
+
+**Gates (this follow-up's head):**
+
+| Gate | Result |
+| --- | --- |
+| `npm run test:platform` | **7486 / 7487** — the one failure is pre-existing at `3132a221`: `calculatorPanelWiringV3` pins `import 'mathlive'`, and `2b53096f` moved CalculatorPanel to `mathliveRuntime.js` |
+| `node --test tests/tools/*.test.mjs` | **253 / 253** |
+| `npm run lint` | exit 0; the only warning in a touched file is `WorkflowRunner.jsx:444` (`inputColumn`), identical at `3132a221` |
+| `npm run build` | exit 0 (the usual >500 kB chunk notice) |
+| `tests/browser/toolAttemptOutcome.mjs` (new) | **39 / 39** (13 red before the fix) |
+| `tests/browser/clickMapLetterbox.mjs` (new) | **13 / 13** (4 red before the fix) |
+| `toolPolicyGates.mjs` · `composedOutcomePolicy.mjs` | 39 / 39 · 21 / 21 |
+| `enterContractSurvey.mjs` · `mathEntryContract.mjs` | pass (fixture regenerated: only the regression label and timestamp changed) · 17 / 17 |
+| `toolOpenAudit.mjs` chromebook / phone / tablet / phone-landscape | all four pass |
+| `workViewMatrix.mjs` · `studentUxPlatform.mjs` · `linearMultipleRepresentations.mjs` | pass · 9 / 9 · no findings |
+| `toolDraftSyncSweep.mjs` · `regressionCalculatorPhone.mjs` | pass (and the new reopen-row check) · pass |
+| `captureToolResponses.mjs` | **12 / 12** captures after the repair below; before it, 8 of its 11 scripts could not drive their tool — **identically at `3132a221`** |
+
+Every new or changed assertion was broken once and went red: 50 mutations
+across the six items, 49 red; the one survivor is a browser-level mutation
+explained under PQ-022 (its node contract kills it).
+
+**Evidence** (`docs/qa/platform-quirks-audit/`): `pq022-before-phone-390x844.png`
+/ `pq022-after-phone-390x844.png` / `pq022-after-chromebook-1366x768.png`,
+`pq023-before-phone-390x844.png` / `pq023-after-phone-390x844.png`,
+`pq032-before-chromebook-1366x768.png` / `pq032-after-chromebook-1366x768.png`.
+
+**`captureToolResponses.mjs`, repaired.** Its scripts found controls by
+position and by old wording. Three failed only on "the first Submit Answer",
+now the Work View rail's hidden copy; the others met tools that had changed —
+`algebra` is the balance workspace since PR #47 (`4b65b4ee`), the relation
+tool's Yes/No select is four reasons, the number line's switches read
+"● Closed" / "○ Open", and `stepAlgebra` has no Apply button. The scripts now
+go by role and accessible name, and `graphing2`, which never had a script, is
+plotted from the keyboard: **12 / 12** captures, byte-identical on two runs.
+Nine payloads are unchanged; Function Investigation differs only in where the
+student let go of each arrow (`droppedPoint`, not graded here). Two showed
+the server marking real work wrong, both dating from PR #47. `algebra` sent
+`{ value: " x = 4|{}" }`, which the grader could never accept. The relation
+tool sends `isFunction: "yes-definition"`, which the server read as "no", so
+"Is it a function?" was marked wrong on every function and right on every
+non-function, whatever the student chose, in My Math Path and Live Challenge.
+Both are fixed in the cleanup branch. `algebra` now sends the equation the
+workspace ended on (`{ finalEquation: " x = 4" }`), graded by the value it
+isolates. The tool and the grader share one rule for the function question
+(`functions/shared/relationFunctionChoice.mjs`), and a bare yes / no is still
+read. Their true captures are committed.
+
+**Systems Workspace: every mode a Path issues is captured.** The contract
+grades three Systems Workspace modes the one `systemsWorkspace` capture did
+not cover: 3×3 by RREF technology (A2.3B) and inequalities, read from the
+region (A2.3G) or graphed (A.3D, A2.3F). Every such family in the shipped
+bank is issued once its numbers are drawn: the 3×3 matrix family, the 7
+read-the-region families and the 19 graph-it families.
+Each now has a capture, a wrong-answer case and an unanswered case:
+**15 / 15** captures, byte-identical on two runs, all graded correct and none
+refused. The modes with no capture are the ones a Path never issues, and the
+contract test pins that: algebraic 2×2 and 3×3 (the 3×3 interpretation
+`ec2c1fe0` changed), three planes, linear-quadratic, the 2×2 matrix and
+student-built inequalities (B-24). A student-built question that carries a
+test point is issued without its build flags, so the student gets the
+read-the-region workspace. The Data Modeling capture changed only where a
+judgment now opens unanswered: `causation`, `modelChoice` and
+`predictionType` arrive as `""` instead of the lab's old defaults. The
+correlation question asks none of them, so its verdict is unchanged.
+
 ## Tests
 
 All results below are on the **merged head `13ce82c1`** (this branch +
@@ -1242,6 +2182,119 @@ and the one-column rule would have overridden the ≥1050px domain/range layout
 assignment-mobile fixtures were refreshed only after the behaviour they record
 was corrected.
 
+### 2026-10-01 cleanup: PQ-020, PQ-021, PQ-025, PQ-026, PQ-027, PQ-030, PQ-031, PQ-037
+
+On the cleanup branch at `50838f98` plus these commits (first on `4e4b6a84`),
+against a dev server with HMR off and its own dependency cache, on a machine
+shared with other browser runs (load average 4–12 on 4 cores). Re-run after
+integration at `c8279796`, all green: `test:platform` 7678 / 7678, tools
+259 / 259, the 13 journeys, the certification on all seven devices
+(161 / 161), the opener survey (nothing covered at 344, 390, 820 or 1366px),
+lint and build.
+
+| Gate | Result |
+| --- | --- |
+| `npm run test:platform` | **7576 / 7576**; `node --test tests/tools/*.test.mjs` **259 / 259**; new: `workViewPhoneChrome` (9), `studentIdentityPhone` (2), `numberEntry` (+1); rewritten against behaviour: `studentQaLayoutContracts` (scroll padding), `workViewStage3A` (the caption), `workViewCapabilities` (the record gained `shortHeight`, with a comment) |
+| `npm run lint` | exit 0; no new warning in a touched file (`WorkflowRunner.jsx:445` is older) |
+| `npm run build` | exit 0 (the usual >500 kB chunk warning) |
+| `tests/browser/studentUxPlatform.mjs` | **13 / 13** journeys (four new: `identity`, `opener`, `staged`, `sticky-reveal`) |
+| `tests/browser/linearMultipleRepresentations.mjs` | 13 journeys, no findings |
+| `tests/browser/workViewCertification.mjs`, one device per process | **7 / 7 devices, 161 / 161 scenes**, rotation included. Touch devices need the harness fix in this branch: a `<select>`'s native picker blocked `page.screenshot` for 30 s (same on the parent head) |
+| the same at 344×882, 740×360, 820×1180 | 23 / 23, 21 / 23, 23 / 23 — the two at 740×360 are the seven-action rail of Graphing 2 and Transformations Lab, identical before this change (PQ-020) |
+| `workViewMatrix.mjs`, `assignmentMobile.mjs`, `composedOutcomePolicy.mjs`, `workViewTerminalTransition.mjs`, `gradeCenterMobile.mjs` | all pass, no findings |
+| `stagedQuestion.mjs` | 54 "answer control not visible without scrolling" findings on every device, the same 54 on the parent head; its fixture (0) was last recorded 2026-09-23 and the gate is not in CI — repaired in the follow-up below |
+
+**Mutation checks.** 28 at source level (each fix undone in turn, the
+matching node test goes red) and 7 in the browser (each fix undone, its
+journey fails: `staged` ×3, `identity` ×2, `opener`, `sticky-reveal`). The first
+version of `staged` did not catch PQ-037 — with the keypad left open every row
+was scrolled into an already-shrunk step — so it now presses Done and scrolls
+the next row into view before tapping it, as a student does.
+
+### 2026-10-01 follow-up: the staged-question audit, PQ-041, PQ-042, the keypad and the rail
+
+On `b0562e55` plus these commits, same scratch server.
+
+**The audit, repaired.** `tests/browser/stagedQuestion.mjs` measured two
+artifacts: its "answer control" was the first `math-field, textarea, input,
+svg…, button` in the stage, which had become the zero-size button in the
+closed Work View header (control "not visible" even at 1920×1080), and
+`stagedQuestionMain.jsx` mounted WorkflowRunner alone in a bare
+`.mathmaster-question-container`, so on a 390px phone the plotting stage kept
+the desktop two-column grid and drew a 98×70px plane. Now:
+
+- the whole question is mounted in QuestionEngine inside App.jsx's student
+  screen — identity bar, a navigator with App.jsx's markup that folds as
+  App.jsx's does (`shouldCompactAssignmentNavigation`), assignment
+  screen/shell/stage — so the phone layout, the Work View host and the
+  seventeen-step focus mode are the real ones;
+- each step is reached as a student reaches it: step 1 when the question
+  opens; step 2 after the five points are placed through the plot step's own
+  controls and checked; every later step by "Next step" from the one before,
+  with the earlier answers in the question's draft;
+- the control is chosen by kind (the plane, the choices, the field), rendered
+  and inside the active step, and counts as on screen only where it can be
+  seen: in the window, inside every scroller around it, under nothing;
+- new checks: the step counter reads the step meant; a marking plane is at
+  least 240px wide and within App.css's cap; nothing covers the question's top
+  when it opens. Exit 1 on any finding; in CI with the student runtime gates
+  (path filter `tests/browser/stagedQuestion*`, permissions still read-only).
+  The fixture stays `[]`: the audit is genuinely empty now.
+
+On the code before this follow-up the repaired audit found **4** findings at
+390×664 (PQ-042) and **23** at 664×390 (PQ-041; 31 with an unfolded
+navigator), **0** at 344×882, 820×1180, 1366×640 and 1920×1080. Now **0** on
+all six. Noted on every run, not failed: on arriving at a marking step 224 of
+the 234px plane is on screen at 390×664 and **254 of 400px at 1366×640**.
+
+| Gate | Result |
+| --- | --- |
+| `npm run test:platform` | **7693 / 7693** (+15: `stageNavigationPhoneReveal` 8, `landscapeQuestionGrid` +3, `workViewPhoneChrome` +4; the short-landscape test in `studentJourneyDol2Final` now evaluates which screens the rule reaches) |
+| `node --test tests/tools/*.test.mjs` | **259 / 259** |
+| `npm run lint` | exit 0; 423 warnings before and after, none in a touched file |
+| `npm run build` | exit 0 |
+| `stagedQuestion.mjs` | 6 screens × 17 steps, **no findings** |
+| `studentUxPlatform.mjs` | **14 / 14** journeys (new: `keypad-short`) |
+| `workViewCertification.mjs`, one device per process | **8 / 8 devices, 184 / 184 scenes** (new device: `android-landscape`, 740×360, also in CI's matrix; it was 21 / 23 there) |
+| `clickMapLetterbox`, `assignmentMobile`, `workViewMatrix`, `composedOutcomePolicy`, `workViewTerminalTransition`, `toolAttemptOutcome`, `assessmentLeakGates`, `renderStability`, `graphPointCheck`, `relationPlotGrading`, `toolPolicyGates`, `undoTyping`, `mathEntryContract`, `errorRecovery`, `duplicateTabs`, `linearMultipleRepresentations` | all pass, no findings |
+
+**Mutation checks.** 15 at source level and 13 in the browser, each change
+undone in turn: all red but one. The audit itself: the old control selector
+put back ("the measured control is not part of this step" on every step) and
+the bare mount put back ("a 102×72px plane is too small to mark", the question
+off screen). PQ-042: no phone branch, or the reveal run at once instead of two
+frames on (both: three planes "0px of 234px seen"), a tall step aligned by its
+bottom, the identity bar ignored, the desktop reveal run on a phone. PQ-041:
+the engine out of the height rule, the action bar pinned again, the plane cap
+switched off ("303px tall, over its 150px cap"), the navigator pinned on a
+narrow phone ("the top of the question opens under" it). Keypad: ignored by
+the layout, a right-docked keypad counted, Work View not told it moved, a
+change of short alone ignored (the journey: "the chrome did not fold", 28px).
+Rail: the gutters back (certification: "1 controls are clipped" for both
+tools), the header padding back (unit test red; the certification misses it,
+because the seventh action is then 1px over the edge and its clipping check
+allows 1px). One assertion was added after a mutation survived: the identity
+bar case of the phone reveal.
+
+**Still open, measured, not changed:**
+
+- **1366×640 Chromebook, marking a feature:** the plane honours its cap (the
+  smaller of 70% of the screen and the screen less 240px: 400px), but what
+  sits above and below it on arriving — the pinned task card, the step heading,
+  the action bar — is ~385px, not 240, so 254px of it is on screen and the
+  x-axis is below the fold. Fitting it to the measured chrome would make it
+  ~250px tall on that screen — a product decision; the audit notes it on every
+  run.
+- **PQ-043:** fixed since (see its entry): the server copy of a composed
+  question's answers carries a graph step without its verdict, and the step
+  works it out again where it is opened.
+- **PQ-044:** fixed since (see its entry): opening a question no longer makes
+  what it shows newer than the student's saved work, so a second Chromebook
+  gets the work into the question on screen and never overwrites it; entries an
+  older build saved during the rollout cannot take a device's own work away
+  (the edit-time marker); and opening Practice Mode no longer erases the
+  practice saved from another Chromebook.
+
 ## Evidence
 
 `docs/qa/platform-quirks-audit/`:
@@ -1252,10 +2305,22 @@ was corrected.
 | `pq002-before-ipad-820x1180-enlarge.png` / `pq002-after-…` | iPad Work View: 256×182 plane beside the list vs 502×357 (PQ-002) |
 | `pq-landscape-phone-before-844x390.png` / `…-after-…` | Landscape phone: blank right column vs the tool beside the task (PQ-015) |
 | `pq-calculator-icon-before-phone-bar.png` / `…-after-phone-bar.png` / `…-after-work-view.png` | "□" vs the drawn calculator (PQ-013) |
-| `pq-open-landscape-844x390-enlarge.png` | Landscape Work View's 150px stage body (PQ-020, deferred) |
+| `pq-open-landscape-844x390-enlarge.png` | Landscape Work View's 150px stage body (PQ-020, when it was deferred) |
 | `pq007-after-phone-number-pad.png` | The slope box on a phone: "Write a single number.", the number pad and "Needed for this answer: a⁄b" (PQ-007) |
 | `pq036-dol-point-check.png` | A DOL plotting stage answering "Revise: P1, P2, P3, P4, P5." (PQ-036, deferred) |
 | `pq023-phone-first-screen-inverse-composition.png` | A phone's first screen: identity, navigator, task, tries, tool header and two help rows before any mathematics (PQ-023, deferred) |
+| `pq020-before-844x390-work-view.png` / `pq020-after-…` | A staged plotting step on a phone held sideways: 150px body, plane half off screen vs 265px, whole plane, instruction in the header, heading in the step row (PQ-020) |
+| `pq021-before-344x882-identity.png` / `pq021-after-…` | The identity bar at 344px: three lines (86px) vs one (38px) (PQ-021) |
+| `pq030-before-390x844-no-emoji-font.png` / `pq030-after-…` | Without an emoji font: "□ 120 Class Points" vs the drawn star (PQ-030) |
+| `pq025-before-390x844-step-chips.png` / `pq025-after-…` | "Enlarge question" over step chips 3–4 vs beside the chip row (PQ-025) |
+| `pq025-before-1366x768-step-algebra.png` / `pq025-after-…` | Chromebook: the opener over Step Algebra's "Reset work" vs the toolbar ending before it (PQ-025) |
+| `pq026-before-344x882-header.png` / `pq026-after-…` | "Question Work View" over a task cut mid-line vs the whole task (PQ-026) |
+| `pq027-before-1366x768-rail.png` / `pq027-after-…` | Capability chips under the actions vs one caption (PQ-027) |
+| `pq037-before-390x844-row7-keypad.png` / `pq037-after-…` | Typing into row 7 with the keypad up: the box off screen vs above the keys (PQ-037) |
+| `pq037-keypad-before-390x664.png` / `pq037-keypad-after-…` | A small phone typing with the keypad up: a 28px step with the box half shown vs the folded chrome and a 158px step (PQ-037 follow-up) |
+| `pq020-rail-before-740x360.png` / `pq020-rail-after-…` | Graphing 2's rail at 740×360: "Start over" below the edge vs all seven actions on screen (PQ-020 follow-up) |
+| `pq041-before-664x390.png` / `pq041-after-…` | A phone held sideways after Next to "Mark every x-intercept": no question, no plane vs both (PQ-041) |
+| `pq042-before-390x664.png` / `pq042-after-…` | A phone after Next to "Mark every x-intercept": "0 of 2 marked." and no plane vs the plane (PQ-042) |
 
 ## Safe to merge?
 

@@ -30,6 +30,7 @@ import { resolveToolMode } from '../../functions/shared/serverGrading/toolGrader
 import { gradeServerResponse } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { TOOL_RESPONSE_LIMITS, boundToolWork } from '../../functions/shared/serverGrading/toolResponseContract.mjs';
 import { gradeToolCheck } from '../../src/tools/shared/sharedToolGrading.js';
+import { UNANSWERED } from '../../functions/shared/toolMath/shared/judgmentChoices.mjs';
 import { fitAdjustmentPlan } from '../../src/platform/graph/graphScaleService.js';
 import { correlation, linearRegression, parseNumericAnswer, round } from '../../functions/shared/toolMath/shared/toolMath.mjs';
 import {
@@ -40,6 +41,7 @@ import {
 } from '../../functions/shared/toolMath/dataModeling/dataModelingMath.mjs';
 import {
   DATA_MODELING_MODES,
+  DATA_MODELING_PRESELECTED_CHOICES,
   DATA_MODELING_STARTING_CHOICES,
   FIT_PREDICTION_MODELS,
   dataModelingFixedPredictionTarget,
@@ -677,9 +679,56 @@ test('pre-selected choices that happen to be right: graded correct on Check, but
   const plan = fitAdjustmentPlan({ ...exploratoryArgs(lineFit) });
   assert.deepEqual(dataModelingStartingLine('lineFit', lineFit, { regression: linearRegression(DATA.linearNoisy), stepperPlan: plan }), { m: plan.slope.start, b: plan.intercept.start });
   assert.deepEqual({ m: legacyInitialState(lineFit).m, b: legacyInitialState(lineFit).b }, { m: plan.slope.start, b: plan.intercept.start });
-  for (const [field, value] of Object.entries(DATA_MODELING_STARTING_CHOICES)) {
-    assert.equal(legacyInitialState(lineFit)[field], value, `${field} starts as the lab started it`);
+  // The choices the lab used to pre-select are exactly the ones the grader
+  // still reads as untouched (work an earlier client saved can hold them).
+  for (const [field, value] of Object.entries(DATA_MODELING_PRESELECTED_CHOICES)) {
+    assert.equal(legacyInitialState(lineFit)[field], value, `${field} is what the lab pre-selected`);
   }
+});
+
+/*
+ * EVERY JUDGMENT NOW OPENS UNANSWERED, AND UNANSWERED IS NEVER AN ANSWER.
+ *
+ * Direction, strength, causation, the model family and the prediction type
+ * open on "Choose…" ('' — judgmentChoices.mjs), not on positive / moderate /
+ * association / linear / interpolation, which credited a student who never
+ * chose whenever the answer was the default. On the server as on the device,
+ * an unanswered judgment is no box filled in (never complete) and matches no
+ * key (never right) — so the lab as it now opens earns nothing for them, even
+ * where the old pre-selection would have been right.
+ */
+test('the lab\'s unanswered judgments are neither complete nor credited, on either path', () => {
+  for (const value of Object.values(DATA_MODELING_STARTING_CHOICES)) assert.equal(value, UNANSWERED);
+  const opened = (question) => componentWork(question, { ...legacyInitialState(question), ...DATA_MODELING_STARTING_CHOICES });
+
+  // Positive, moderate data: the old pre-selection was the answer.
+  const moderate = [[1, 2], [2, 1], [3, 4], [4, 3], [5, 6], [6, 3], [7, 5]];
+  const association = { type: 'dataModelingLab', mode: 'association', points: moderate };
+  const blank = browserGrade(association, opened(association));
+  assert.deepEqual({ isCorrect: blank.isCorrect, isComplete: blank.isComplete, score: blank.score }, { isCorrect: false, isComplete: false, score: 0 });
+  assert.deepEqual(comparable(serverGrade(blank, association)), comparable(blank));
+  const answered = browserGrade(association, { ...opened(association), direction: 'positive', strength: 'moderate', causation: 'association' });
+  assert.equal(answered.isCorrect, true, 'chosen, the same answer is credited');
+  for (const field of ['direction', 'strength', 'causation']) {
+    const one = browserGrade(association, { ...opened(association), direction: 'positive', strength: 'moderate', causation: 'association', [field]: UNANSWERED });
+    assert.deepEqual({ isCorrect: one.isCorrect, isComplete: one.isComplete }, { isCorrect: false, isComplete: false }, `${field} unanswered`);
+  }
+
+  // Linear data: the old pre-selected family was the answer.
+  const compare = { type: 'dataModelingLab', mode: 'modelCompare', points: [[1, 2], [2, 4], [3, 6], [4, 8], [5, 10]] };
+  const noFamily = browserGrade(compare, opened(compare));
+  assert.deepEqual({ isCorrect: noFamily.isCorrect, isComplete: noFamily.isComplete, score: noFamily.score }, { isCorrect: false, isComplete: false, score: 0 });
+  assert.deepEqual(comparable(serverGrade(noFamily, compare)), comparable(noFamily));
+
+  // A prediction inside the data: "interpolation" was the old pre-selection.
+  const prediction = { type: 'dataModelingLab', mode: 'prediction', points: DATA.linearNoisy, predictionX: 3 };
+  const right = correctState(prediction);
+  assert.equal(right.predictionType, 'interpolation');
+  const typed = browserGrade(prediction, componentWork(prediction, right));
+  assert.equal(typed.isCorrect, true);
+  const untyped = browserGrade(prediction, componentWork(prediction, { ...right, predictionType: UNANSWERED }));
+  assert.deepEqual({ isCorrect: untyped.isCorrect, isComplete: untyped.isComplete, score: untyped.score }, { isCorrect: false, isComplete: false, score: 0 });
+  assert.deepEqual(comparable(serverGrade(untyped, prediction)), comparable(untyped));
 });
 
 const exploratoryArgs = (question) => {
@@ -1074,12 +1123,14 @@ test('the lab reports and submits the same raw work, in the shape the grader rea
   assert.doesNotMatch(block, /Number\(/);
   assert.match(block, /useReportToolWork\(work\);/);
   // The lab starts from the plan's starting line and choices — the state the
-  // grader recognises as untouched.
+  // grader recognises as untouched. Every judgment starts unanswered, which
+  // is what the plan's starting choices say too.
   assert.match(COMPONENT, /const startingLine = dataModelingStartingLine\(mode, questionData, \{ regression, stepperPlan: exploratoryLineFit \? fitControls : null \}\);/);
   assert.match(COMPONENT, /usePersistentToolState\('m', startingLine\.m\)/);
   assert.match(COMPONENT, /usePersistentToolState\('b', startingLine\.b\)/);
-  for (const field of Object.keys(DATA_MODELING_STARTING_CHOICES)) {
-    assert.match(COMPONENT, new RegExp(`usePersistentToolState\\('${field}', DATA_MODELING_STARTING_CHOICES\\.${field}\\)`), `${field} starts from the plan`);
+  for (const [field, value] of Object.entries(DATA_MODELING_STARTING_CHOICES)) {
+    assert.equal(value, UNANSWERED, `the plan starts ${field} unanswered`);
+    assert.match(COMPONENT, new RegExp(`usePersistentToolState\\('${field}', UNANSWERED\\)`), `${field} starts unanswered, as the plan says`);
   }
   // The read-only prediction target is the plan's, the same one the grader uses.
   assert.match(COMPONENT, /const fixedPredictionTarget = dataModelingFixedPredictionTarget\(mode, questionData\);/);

@@ -78,6 +78,44 @@ export const checkedGraphIsPointOnly = ({ graphStage = null, responses = {} } = 
   return mode === 'discrete';
 };
 
+/*
+ * THE POINTS A STUDENT PLOTTED, READ BACK FROM THE GRAPH STEP'S OWN RECORD.
+ *
+ * Where outcomes are withheld (DOL, quiz, test) the later steps cannot show
+ * "Your checked graph": it appeared only when the graph was right, so its
+ * presence was the verdict. They show the student's own points instead, right
+ * or wrong. The graph step records the workspace's own work
+ * (`construction.placements`, workflowGraphStage.mjs workflowGraphArtifact),
+ * so the points are read from there and the stored step keeps exactly the
+ * shape it has: a new field would make every submitted graph look edited
+ * (workflowReviewState compares the step with what was submitted). A step
+ * stored before the work travelled kept each placement as a part instead
+ * ("Point placement: P1" → "(3, -2)", written by gradePointPlacements).
+ */
+const PLACED_POINT = /^\((-?\d+(?:\.\d+)?(?:e[-+]?\d+)?), (-?\d+(?:\.\d+)?(?:e[-+]?\d+)?)\)$/i;
+export const MAX_REFERENCE_POINTS = 60;
+
+const placedPointsFromWork = (graphResponse) => {
+  const placements = graphResponse?.construction?.placements;
+  if (!placements || typeof placements !== 'object' || Array.isArray(placements)) return [];
+  return Object.values(placements)
+    .filter((point) => Array.isArray(point) && point.length >= 2)
+    .map(([x, y]) => [Number(x), Number(y)]);
+};
+
+const placedPointsFromParts = (graphResponse) => (Array.isArray(graphResponse?.parts) ? graphResponse.parts : [])
+  .filter((part) => String(part?.label || '').startsWith('Point placement:'))
+  .map((part) => PLACED_POINT.exec(String(part?.response ?? '').trim()))
+  .filter(Boolean)
+  .map((match) => [Number(match[1]), Number(match[2])]);
+
+export const studentPlottedPoints = (graphResponse = null) => {
+  const fromWork = placedPointsFromWork(graphResponse);
+  return (fromWork.length ? fromWork : placedPointsFromParts(graphResponse))
+    .filter((point) => point.every(Number.isFinite))
+    .slice(0, MAX_REFERENCE_POINTS);
+};
+
 export const workflowEndpointMarkers = ({ evaluate, domain = null, viewWindow = {} } = {}) => {
   if (typeof evaluate !== 'function') return [];
   const view = {

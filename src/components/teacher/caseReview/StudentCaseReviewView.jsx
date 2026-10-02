@@ -9,6 +9,9 @@ import { loadStudentCaseRecords, saveSisSnapshot } from '../../../platform/caseR
 import {
   caseAssignmentsCsv, caseFactsCsv, caseQuestionsCsv, caseReviewFileName, caseReviewJson, TEACHER_AUTHORED_LABEL,
 } from '../../../platform/caseReview/caseReviewExport.js';
+import {
+  NEXT_STEPS_MAX_LENGTH, forgetOtherAccountsDrafts, nextStepsDraftAvailable, readNextStepsDraft, writeNextStepsDraft,
+} from '../../../platform/caseReview/nextStepsDraft.js';
 import CaseSummaryTab from './CaseSummaryTab.jsx';
 import CaseGradesTab from './CaseGradesTab.jsx';
 import CaseQuestionsTab from './CaseQuestionsTab.jsx';
@@ -22,6 +25,7 @@ import CaseNarrativeTab from './CaseNarrativeTab.jsx';
 import CaseAttentionTab from './CaseAttentionTab.jsx';
 import CasePrintView from './CasePrintView.jsx';
 import { day, when } from './CaseReviewParts.jsx';
+import { keepTableCellsLabelled } from './tableCellLabels.js';
 import { acceptStudentName, formatStudentName } from '../../../platform/studentName.js';
 import '../teacherWorkspace.css';
 import '../supportEvidence.css';
@@ -75,6 +79,19 @@ const download = (text, fileName, type) => {
 
 const sameLocation = (a, b) => a.tab === b.tab && a.drill.assignmentId === b.drill.assignmentId && a.drill.storageIndex === b.drill.storageIndex;
 
+// What scrolls the evidence: the body, under a fixed header — or, on a phone,
+// the whole case review, header and tabs included (caseReview.css). Each
+// place's position is remembered on whichever one it is.
+const scrollerOf = (body, shell) => {
+  if (!body) return null;
+  return getComputedStyle(body).overflowY === 'visible' && shell ? shell : body;
+};
+// Where the evidence begins inside that scroller: the top of the body, or
+// below the header and tabs when the whole case review scrolls.
+const evidenceTopIn = (scroller, body) => (scroller && body && scroller !== body
+  ? body.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop
+  : 0);
+
 export default function StudentCaseReviewView({
   open = false,
   student = null,
@@ -83,6 +100,9 @@ export default function StudentCaseReviewView({
   assignments = [],
   gradingPeriodSettings = null,
   teacherEmail = '',
+  // The signed-in teacher's uid: it names their next-steps draft in this tab
+  // (nextStepsDraft.js). Without it the box works for this page only.
+  teacherUid = '',
   onClose,
   onInspectResponse = null,
   onOpenSupportReport = null,
@@ -107,6 +127,9 @@ export default function StudentCaseReviewView({
   const [savedSnapshots, setSavedSnapshots] = useState([]);
   const [saving, setSaving] = useState({ busy: false, error: '' });
   const [nextSteps, setNextSteps] = useState('');
+  // Whether this browser tab is holding the next-steps draft (false where
+  // sessionStorage is blocked, or no teacher is named).
+  const [nextStepsKept, setNextStepsKept] = useState(true);
   const [printing, setPrinting] = useState(false);
   // The selection folds away once a case review is built, so the evidence
   // gets the height on a 768-pixel screen; "Change selection" brings it back.
@@ -119,7 +142,9 @@ export default function StudentCaseReviewView({
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; });
 
-  // A new student (or reopening) starts a fresh case review.
+  // A new student (or reopening) starts a fresh case review — except for the
+  // teacher's own next steps, which come back from this tab's draft. Drafts
+  // another account left in this tab are removed first.
   useEffect(() => {
     if (!open) return;
     setSelection({ ...EMPTY_SELECTION, gradingPeriodId: settings.currentPeriodId || 'all' });
@@ -130,11 +155,13 @@ export default function StudentCaseReviewView({
     setVisited(new Set(['summary']));
     setSis({ snapshot: null, confirmedMatches: {} });
     setSavedSnapshots([]);
-    setNextSteps('');
+    forgetOtherAccountsDrafts({ teacherUid });
+    setNextSteps(readNextStepsDraft({ teacherUid, studentId: student?.id }));
+    setNextStepsKept(nextStepsDraftAvailable({ teacherUid, studentId: student?.id }));
     setSelectionOpen(true);
     scrollByTab.current = {};
     closeRef.current?.focus();
-  }, [open, student?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, student?.id, teacherUid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Escape closes the case review only when it is the top layer: the Response
   // Inspector or the Support Evidence Report opened from here sit above it and
@@ -187,6 +214,7 @@ export default function StudentCaseReviewView({
       practicePassKeys: records.practicePassKeys,
       caseEvidence: records.caseEvidence,
       caseEvidenceError: records.caseEvidenceError,
+      extensionGrants: records.extensionGrants,
       sisSnapshot: sis.snapshot,
       sisConfirmedMatches: sis.confirmedMatches,
       nowValue: records.loadedAtMs,
@@ -205,16 +233,31 @@ export default function StudentCaseReviewView({
   }, [open, student, assignments, gradingPeriodSettings, selection]);
 
   // Per-tab scroll position: restored when the teacher comes back to a tab or
-  // a drill level.
+  // a drill level. A place not yet visited opens at its start, and never
+  // further down than where its evidence begins (on a phone that keeps the
+  // tabs in view when a tab is chosen, and shows a drilled-into question
+  // rather than the header above it).
   const locationKey = `${location.tab}|${location.drill.assignmentId || ''}|${Number.isInteger(location.drill.storageIndex) ? location.drill.storageIndex : ''}`;
   useLayoutEffect(() => {
-    if (bodyRef.current) bodyRef.current.scrollTop = scrollByTab.current[locationKey] || 0;
+    const scroller = scrollerOf(bodyRef.current, shellRef.current);
+    if (!scroller) return;
+    const saved = scrollByTab.current[locationKey];
+    scroller.scrollTop = Number.isFinite(saved) ? saved : Math.min(scroller.scrollTop, evidenceTopIn(scroller, bodyRef.current));
   }, [locationKey]);
+  const rememberScroll = () => {
+    const scroller = scrollerOf(bodyRef.current, shellRef.current);
+    if (scroller) scrollByTab.current[locationKey] = scroller.scrollTop;
+  };
+
+  // On a phone every table row reads as a card whose values carry their
+  // column names (caseReview.css); the names come from the table headers.
+  useEffect(() => keepTableCellsLabelled(bodyRef.current), [open, student?.id]);
 
   const navigate = useCallback((next) => {
     const target = { tab: next.tab, drill: next.drill || {} };
     if (sameLocation(target, location)) return;
-    if (bodyRef.current) scrollByTab.current[locationKey] = bodyRef.current.scrollTop;
+    const scroller = scrollerOf(bodyRef.current, shellRef.current);
+    if (scroller) scrollByTab.current[locationKey] = scroller.scrollTop;
     setTrail((current) => [...current.slice(-40), location]);
     setLocation(target);
     if (target.tab === 'questions') setQuestionsDrill(target.drill);
@@ -223,7 +266,7 @@ export default function StudentCaseReviewView({
 
   const goBack = () => {
     if (!trail.length) { onCloseRef.current?.(); return; }
-    if (bodyRef.current) scrollByTab.current[locationKey] = bodyRef.current.scrollTop;
+    rememberScroll();
     const previous = trail[trail.length - 1];
     setTrail((current) => current.slice(0, -1));
     setLocation(previous);
@@ -287,6 +330,13 @@ export default function StudentCaseReviewView({
     ? drillEntry.questions.find((row) => row.storageIndex === location.drill.storageIndex)
     : null;
   const course = classRecord?.course ? courseLabel(classRecord.course) : '';
+  // The teacher's words are kept in this tab as they type, and removed when
+  // the box is emptied or cleared, so closing the case review or reloading
+  // does not lose them (nextStepsDraft.js).
+  const changeNextSteps = (text) => {
+    setNextSteps(text);
+    setNextStepsKept(writeNextStepsDraft({ teacherUid, studentId: student.id, text }));
+  };
   const exportsFor = (kind) => {
     if (!model) return;
     if (kind === 'json') download(caseReviewJson(model, { nextSteps }), caseReviewFileName(model, '', 'json'), 'application/json');
@@ -327,9 +377,17 @@ export default function StudentCaseReviewView({
             <h2 id="cr-print-controls">Print or export this case review</h2>
             <label className="cr-field">
               <span>Teacher-entered next steps (optional)</span>
-              <textarea className="cr-textarea" value={nextSteps} onChange={(event) => setNextSteps(event.target.value)} aria-describedby="cr-next-steps-note" placeholder="Your own plan or notes. Printed last, labelled as written by you." />
+              <textarea className="cr-textarea" value={nextSteps} maxLength={NEXT_STEPS_MAX_LENGTH} onChange={(event) => changeNextSteps(event.target.value)} aria-describedby="cr-next-steps-note" placeholder="Your own plan or notes. Printed last, labelled as written by you." data-case-next-steps />
             </label>
-            <p className="cr-note" id="cr-next-steps-note">{TEACHER_AUTHORED_LABEL} It is printed and exported apart from the generated evidence and is not saved in MathMaster.</p>
+            <p className="cr-note" id="cr-next-steps-note" data-case-next-steps-note>
+              {TEACHER_AUTHORED_LABEL} It is printed and exported apart from the generated evidence.{' '}
+              {nextStepsKept
+                ? 'It stays in this browser tab while you are signed in, so closing the case review or reloading does not lose it. It is removed when you clear it, sign out or close the tab, and it is never saved to MathMaster.'
+                : 'This browser is not keeping a draft, so it is lost when you close the case review: print or export first. It is never saved to MathMaster.'}
+            </p>
+            {nextSteps && (
+              <div><button type="button" className="tw-btn tw-btn--sm tw-btn--quiet" onClick={() => changeNextSteps('')} data-case-next-steps-clear>Clear next steps</button></div>
+            )}
             <div className="tw-row" style={{ gap: 8, flexWrap: 'wrap' }}>
               <button type="button" className="tw-btn tw-btn--primary tw-btn--sm" onClick={() => setPrinting(true)}>Print / Save PDF</button>
               <button type="button" className="tw-btn tw-btn--sm" onClick={() => exportsFor('assignments')}>Assignments CSV</button>
@@ -351,7 +409,7 @@ export default function StudentCaseReviewView({
 
   return (
     <div className="cr-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onCloseRef.current?.(); }}>
-      <article ref={shellRef} className="cr-shell" role="dialog" aria-modal="true" aria-labelledby="case-review-title" data-case-review={student.id}>
+      <article ref={shellRef} className="cr-shell" role="dialog" aria-modal="true" aria-labelledby="case-review-title" data-case-review={student.id} onScroll={rememberScroll}>
         <header className="cr-header">
           <div className="cr-header__top">
             <div style={{ minWidth: 0 }}>
@@ -460,7 +518,7 @@ export default function StudentCaseReviewView({
           </>
         )}
 
-        <div ref={bodyRef} className="cr-body" onScroll={() => { if (bodyRef.current) scrollByTab.current[locationKey] = bodyRef.current.scrollTop; }}>
+        <div ref={bodyRef} className="cr-body" onScroll={rememberScroll}>
           {!model && !load.loading && (
             <div className="tw-notice">
               Choose the marking period (and dates or assignments, if needed), then build the case review. Only this student&apos;s records for that selection are read.

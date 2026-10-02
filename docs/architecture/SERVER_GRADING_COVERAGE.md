@@ -214,6 +214,25 @@ student only opened (§7); work the server will not mark spends no attempt and
 says so (§7); submit metadata no longer carries answer-key material; attempts
 from tools now record per-part grades.
 
+**Merged with the #407/#408 cleanup.** The cleanup branch changed what several
+surfaces count as answered or right, mostly so that nothing on a DOL, quiz or
+test says whether work is right before it is submitted (its PR, §A–B). Each of
+those rules now lives in the shared grader, so the browser and the server
+apply it alike:
+
+| Surface | Before | After |
+| --- | --- | --- |
+| Graph workspace where outcomes are withheld (DOL, quiz, test) | A curve or an inverse could only snap through the TRUE points, after a check that named them: an answer oracle the question could not be submitted without | Graded as placed (`pointsGradedAsPlaced`): the points where they sit; a curve drawn through the student's own points counts as drawn, and is right only if it is the graph of the function — judged in the question's own window, whatever the zoom — through right points; the inverse likewise |
+| Graph-workspace point cards stating the same x (a relation with two outputs at one input) | Paired in card order: a correct plot was marked wrong, and the practice check never passed | Matched as a set, by the check, the grader and the server's re-check of a committed set |
+| Composed graph step built from a table, where outcomes are withheld | Offered its magnet, or the "table and function do not agree" block, only when the table was right | Neither; the graph is built from the work as it stands (`outcomesWithheld` in the composed work) and both steps are marked at submission |
+| A `{ pairs }` key on a composed graph stage | Compared with the graph as a list of arrows: always wrong | Marked by the stage's verdict (or, where the points can be read, by its points as a set) |
+| Step Algebra relation asking for its solution graphed | A checked wrong graph kept the question unfinished (Submit appeared only once the graph was right; a deadline closed it as unfinished) | Complete once checked with every asked stage answered; the graph part is graded wrong; practice still waits for a right graph |
+| "Is this relation a function?" in My Math Path and Live Challenge | Any "yes-…" or "no-…" reason read as its verdict, so the one-to-one misconception was marked right where the tool marks it wrong | Graded as the tool and its registry grader grade it: only the definition earns the mark (`relationFunctionChoice.mjs`) |
+| Data Modeling, Polynomial Workshop, Parabola Geometry, Inverse & Composition, Constraint Builder, Systems judgments | A judgment the student is asked to make opened pre-selected, and an unanswered graph type read as "continuous" | Every such judgment opens unanswered (`judgmentChoices.mjs`); unanswered is never an answer. Work an older client saved with the old pre-selections in every graded input still reads as untouched; today's Data Modeling and Polynomial Workshop mark their work (`OWN_CHOICES`), so a student who chooses those same options is complete, and a deadline submits it |
+| Systems 3×3 interpretation (elimination reaching 0 = c) | Only a right reading and right plane relationships could be recorded, so the grader ignored the reading and gave all or nothing | Where outcomes are withheld the student's own reading and relationships are recorded (B-24): the reading is judged with the classification (`classificationKind`; records without one are judged on the choice, as before), and the classification and the planes earn half each, nothing without the system's own statement |
+| Systems student-built inequalities, where outcomes are withheld | A constraint counted only once its step Check had been pressed and was right — on a DOL there is no such check, so right work scored zero | The work says so (`outcomesWithheld`) and each constraint is graded from its work as it stands; elsewhere unchanged |
+| Systems 2×2 matrix | An always-earned "technology" part (a 2×2 matrix has no technology step), so a blank or wrong answer earned 1/3, or 1/2 with no unique solution | No technology part on a 2×2 matrix, as the Path contract already graded it; the 3×3 RREF task keeps its technology part |
+
 ## 4. Raw response contracts
 
 A rich tool's work crosses the durable boundary as a **tool response**
@@ -811,7 +830,7 @@ Section Recovery and Pre-Flight called it (§2).
 | `orderedPair` | ordinary | — | shared server grader |  |
 | `system` | ordinary | — | shared server grader |  |
 | `table` | ordinary | — | shared server grader |  |
-| `fraction` | clientGraded | — | client-graded (documented blocker) | Each student's fraction sum is drawn in their browser from a per-student seed, so the stored question does not say which sum was asked. Every stored `fraction` question is regenerated before it renders: problemGenerator.generateQuestionFromKey runs generateFraction for type 'fraction' unconditionally (no `generator` object needed, so the generated-question exclusion never applies), replacing n1/d1/n2/d2 and the key ansNum/ansDen with draws from createRandom(`${generationKey}\|v${generatorVersion}`). generationKey is `assignmentId\|student key\|question index\|variant:N`, where the student key is the student's uid or a shared-version key chosen by the section's variant mode, and a replacement variant is re-rolled until it differs from the previous one. None of that is part of the authoritative question a shared grader receives (it grades (question, work) only), so the server cannot know the delivered sum; the browser verdict (gradeFractionResponse) is kept, bounded by ingestion. To make such an item server-graded, re-author it as a Question Family slot (the server rebuilds its instance from the delivery pin) whose instances are a server-graded type such as `literal`. |
+| `fraction` | clientGraded | — | client-graded (documented blocker) | A fraction drill's sum is drawn in each student's browser from a per-student seed, so the stored question does not say which sum was asked. A drill is a `fraction` question whose author wrote neither the sum nor the answer (fractionAnswer.mjs fractionQuestionShape); one with authored operands or an authored answer is delivered as written. Before it renders, a drill is regenerated: problemGenerator.generateQuestionFromKey runs generateFraction for it (no `generator` object needed, so the generated-question exclusion never applies), replacing n1/d1/n2/d2 and the key ansNum/ansDen with draws from createRandom(`${generationKey}\|v${generatorVersion}`). generationKey is `assignmentId\|student key\|question index\|variant:N`, where the student key is the student's uid or a shared-version key chosen by the section's variant mode, and a replacement variant is re-rolled until it differs from the previous one. None of that is part of the authoritative question a shared grader receives (it grades (question, work) only), so the server cannot know the delivered sum; the browser verdict (gradeFractionResponse) is kept, bounded by ingestion. To make such an item server-graded, re-author it as a Question Family slot (the server rebuilds its instance from the delivery pin) whose instances are a server-graded type such as `literal`. |
 | `numberLine` | clientGraded | — | client-graded (documented blocker) | Each student's target point is drawn in their browser from a per-student seed, so the stored question does not say which point was asked. Every stored `numberLine` question is regenerated before it renders: problemGenerator.generateQuestionFromKey runs generateNumberLine for type 'numberLine' unconditionally (no `generator` object needed, so the generated-question exclusion never applies), replacing the key `target` and the offered `choices` with draws from createRandom(`${generationKey}\|v${generatorVersion}`). generationKey is `assignmentId\|student key\|question index\|variant:N`, where the student key is the student's uid or a shared-version key chosen by the section's variant mode, and a replacement variant is re-rolled until it differs from the previous one. None of that is part of the authoritative question a shared grader receives (it grades (question, work) only), so the server cannot know the delivered target; the browser verdict (gradeNumberLineResponse) is kept, bounded by ingestion. To make such an item server-graded, re-author it as a Question Family slot (the server rebuilds its instance from the delivery pin) whose instances are a server-graded type. |
 | `stepAlgebra` | question | — | shared server grader | A Step Algebra question with no equation the workspace can read (equation, equationAscii, initialEquation, equationLatex or leftExpression/rightExpression; a relation source; or an intercept line) opens "This question could not be loaded" on every device. It produces no work, so there is nothing to grade. |
 | `algebra` | question | — | shared server grader | A Step Algebra question with no equation the workspace can read (equation, equationAscii, initialEquation, equationLatex or leftExpression/rightExpression; a relation source; or an intercept line) opens "This question could not be loaded" on every device. It produces no work, so there is nothing to grade. |
@@ -947,12 +966,17 @@ Section Recovery and Pre-Flight called it (§2).
 Every `client-graded (documented blocker)` row in §10 carries its reason in the
 declaration itself:
 
-* **`fraction` and `numberLine`.** Every stored question of these types is
-  regenerated per student in the browser (`problemGenerator`) from a seed built
-  from the assignment, the student, the question index and the variant, which
-  the server does not reconstruct. The browser's verdict is kept, sanitized and
-  attempt-bounded. Moving such items into a Question Family (rebuilt from its
-  delivery pin) makes them server-graded.
+* **`fraction` and `numberLine`.** Every stored `numberLine` question, and
+  every fraction *drill* (a `fraction` question whose author wrote neither the
+  sum nor the answer), is regenerated per student in the browser
+  (`problemGenerator`) from a seed built from the assignment, the student, the
+  question index and the variant, which the server does not reconstruct. A
+  fraction question with authored operands or an authored answer is delivered
+  as written (since the #407/#408 cleanup; `fractionAnswer.mjs`), but the type
+  is declared as a whole, so it too keeps the device verdict — on its authored
+  numbers. The browser's verdict is kept, sanitized and attempt-bounded. Moving
+  such items into a Question Family (rebuilt from its delivery pin) makes them
+  server-graded.
 * **`stepAlgebra2` / `linearIntercepts`.** Never actually rendered by the
   registry tool: the runtime repair rewrites every such stored question to the
   Step Algebra intercepts route, which *is* server-graded. Declared so the

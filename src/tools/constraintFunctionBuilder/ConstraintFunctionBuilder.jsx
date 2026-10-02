@@ -5,18 +5,22 @@ import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workVie
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useToolSubmission from '../shared/useToolSubmission';
+import { useHintsAllowed, useToolRuntimeContext } from '../shared/ToolRuntimeContext';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import constraintFunctionGrader from '../../../functions/shared/serverGrading/tools/constraintFunctionBuilder.mjs';
 import {
   builderAllowedFamilies,
+  builderAsksGraphType,
   builderEquation,
+  constraintChecklistView,
   effectiveBuilderConstraints,
   evaluateBuilderModel,
   initialBuilderModel,
   normalizeBuilderModel,
   scoreConstraintModel,
 } from './constraintFunctionMath';
+import { UNANSWERED } from '../shared/judgmentChoices.js';
 
 const inputStyle = { width: '100%', minHeight: 42, boxSizing: 'border-box', padding: 9, border: '1px solid #c9d6e8', borderRadius: 8, fontSize: 15, background: 'var(--mm-surface)' };
 const primary = { minHeight: 46, padding: '10px 17px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' };
@@ -36,13 +40,18 @@ const numericField = (label, value, setter, step = 1) => (
 
 export default function ConstraintFunctionBuilder({ questionData = {}, onAction }) {
   // The families on offer, the opening model (an open-construction question
-  // never opens on a valid answer) and the constraints in the checklist all
-  // come from the shared definitions the grader reads.
+  // never opens on a valid answer, and a graph type the question asks about
+  // opens unanswered) and the constraints in the checklist all come from the
+  // shared definitions the grader reads.
   const allowedFamilies = builderAllowedFamilies(questionData);
   const initial = initialBuilderModel(questionData);
+  // Where a constraint asks "continuous or discrete?", the graph type is the
+  // student's judgment: the select offers "Choose…" (judgmentChoices.js).
+  const asksGraphType = builderAsksGraphType(questionData.constraints);
   const [model, setModel] = usePersistentToolState('model', initial);
   const [hasEdited, setHasEdited] = usePersistentToolState('hasEdited', false);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
+  const hintsAllowed = useHintsAllowed();
   // The checklist reads the AUTHORED wording, exactly as the grader does: a
   // translated prompt never changes which constraints are checked.
   const effectiveConstraints = useMemo(
@@ -69,6 +78,9 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
     : [];
   const verticalLines = model.family === 'verticalLine' ? [model.verticalX] : [];
   const liveScore = scoreConstraintModel(model, effectiveConstraints);
+  // Live ticks only where outcomes are shown at once (constraintChecklistView).
+  const { showImmediateFeedback } = useToolRuntimeContext();
+  const checklist = constraintChecklistView({ parts: liveScore.parts, showImmediateFeedback });
 
   /*
    * UNIVERSAL UNDO OVER THE CONSTRUCTED MODEL.
@@ -116,11 +128,13 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
     equationInput: { label: builderEquation(model), studentState: true },
     instruction: { text: 'Adjust the family and its parameters until every constraint in the checklist is satisfied.' },
     task: { text: questionData.prompt || 'Build any relation that satisfies every stated characteristic.' },
-    help: {
+    // The hints ARE this Help: published only where the activity allows them,
+    // so a DOL does not show a Help button over an empty drawer.
+    help: hintsAllowed ? {
       content: (
         <HintPanel hints={questionData.hints || DEFAULT_HINTS} onHintUsed={() => onAction?.('HINT_USED')} />
       ),
-    },
+    } : null,
     primaryActions: [{ id: 'submit-model', label: 'Submit this model', onAction: check, disabled: !hasEdited }],
   };
 
@@ -132,7 +146,9 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
         steps={[
           'Read the characteristics first — identify which families are even possible.',
           'Choose a family, then adjust the coefficients/parameters while watching the graph update.',
-          'Use the constraint checklist as a target, not as an answer key: it tells you which properties are satisfied, not what numbers to choose.',
+          showImmediateFeedback !== false
+            ? 'Use the constraint checklist as a target, not as an answer key: it tells you which properties are satisfied, not what numbers to choose.'
+            : 'Use the constraint checklist as your target: every characteristic on it must be true of your model. It is checked when you submit.',
           'Submit when every constraint is satisfied.',
         ]}
       />
@@ -157,11 +173,12 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
           />
           <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: '#f4f8ff', color: '#174ea6', fontWeight: 900, overflowWrap: 'anywhere' }}>{builderEquation(model)}</div>
           {model.domainMode === 'discrete' && <div style={{ marginTop: 7, fontSize: 12, color: '#5f6b7a' }}>Discrete integer domain shown from {Math.min(model.domainMin, model.domainMax)} through {Math.max(model.domainMin, model.domainMax)}.</div>}
+          {model.domainMode === UNANSWERED && model.family !== 'verticalLine' && <div style={{ marginTop: 7, fontSize: 12, color: '#5f6b7a' }}>Choose a graph type to draw your relation.</div>}
         </Panel>
 
         <Panel title="Build the relation">
           <label style={{ display: 'block', marginBottom: 11, fontSize: 13, fontWeight: 800, color: '#3c4756' }}>Family<select value={model.family} onChange={(event) => set({ family: event.target.value })} style={inputStyle}>{allowedFamilies.map((family) => <option value={family} key={family}>{FAMILY_LABELS[family]}</option>)}</select></label>
-          <label style={{ display: 'block', marginBottom: 11, fontSize: 13, fontWeight: 800, color: '#3c4756' }}>Graph type<select value={model.domainMode} onChange={(event) => set({ domainMode: event.target.value })} style={inputStyle}><option value="continuous">Continuous</option><option value="discrete">Discrete</option></select></label>
+          <label style={{ display: 'block', marginBottom: 11, fontSize: 13, fontWeight: 800, color: '#3c4756' }}>Graph type<select value={model.domainMode} onChange={(event) => set({ domainMode: event.target.value })} style={inputStyle}>{asksGraphType || model.domainMode === UNANSWERED ? <option value={UNANSWERED}>Choose…</option> : null}<option value="continuous">Continuous</option><option value="discrete">Discrete</option></select></label>
 
           {model.family === 'linear' && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>{numericField('Slope m', model.a, (a) => set({ a }), 0.5)}{numericField('y-intercept b', model.k, (k) => set({ k }), 0.5)}</div>}
           {['quadratic', 'absolute'].includes(model.family) && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>{numericField('a', model.a, (a) => set({ a }), 0.5)}{numericField('h', model.h, (h) => set({ h }), 0.5)}{numericField('k', model.k, (k) => set({ k }), 0.5)}</div>}
@@ -172,8 +189,11 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
           <div style={{ marginTop: 15 }}>
             <strong style={{ display: 'block', marginBottom: 8 }}>Constraint checklist</strong>
             <div style={{ display: 'grid', gap: 7 }}>
-              {liveScore.parts.map((part) => <div key={part.id} style={{ padding: '8px 10px', borderRadius: 8, background: part.isCorrect ? '#e6f4ea' : '#f8f9fa', color: part.isCorrect ? '#137333' : '#5f6368', border: `1px solid ${part.isCorrect ? '#a8dab5' : '#d9e2f1'}`, fontWeight: 800 }}>{part.isCorrect ? '✓' : '○'} {part.label}</div>)}
+              {checklist.map((item) => <div key={item.id} data-constraint-satisfied={item.satisfied === null ? 'withheld' : String(item.satisfied)} style={{ padding: '8px 10px', borderRadius: 8, background: item.satisfied ? '#e6f4ea' : '#f8f9fa', color: item.satisfied ? '#137333' : '#5f6368', border: `1px solid ${item.satisfied ? '#a8dab5' : '#d9e2f1'}`, fontWeight: 800 }}>{item.mark} {item.label}</div>)}
             </div>
+            {checklist.length > 0 && checklist[0].satisfied === null ? (
+              <div style={{ marginTop: 7, fontSize: 12, color: '#5f6368' }}>Your model must satisfy every characteristic above. It is checked when you submit.</div>
+            ) : null}
           </div>
 
           <button

@@ -19,18 +19,73 @@ name: Student Runtime Browser Gates
 #                       names a wrong point; a point plot is graded as placed
 #   undoTyping          one platform Undo takes back a run of typing, not one
 #                       character; a math field's own Ctrl+Z agrees with it
+#   composedOutcomePolicy  a multi-step question on a DOL, quiz or test reveals
+#                       nothing in any step (registry-tool steps, table->graph,
+#                       "Your graph"), while practice keeps its feedback
+#   toolPolicyGates     registry tools: no stage verdict and no hint where the
+#                       activity withholds them; hints reveal and record
+#   relationPlotGrading a correct relation plot is graded correct, either way
+#                       round for same-x cards; a DOL plot has no check
+#   mathFontsProduction a PRODUCTION build serves the fonts its math fields
+#                       draw with (the dev server hid that they were missing)
+#   toolAttemptOutcome  after a tool's Check the attempt outcome is beside its
+#                       verdict, on screen, announced once; none on a DOL (PQ-022)
+#   assessmentLeakGates nothing before Submit says whether work is right on a
+#                       DOL, quiz or test (systems, inequalities, intercepts,
+#                       relation solver, constraint builder); practice unchanged
+#   clickMapLetterbox   number line, relation plot and story sketch place a tap
+#                       where it lands on a letterboxed plane (PQ-034)
+#   unansweredChoices   a judgment a tool asks for (how many solutions, direction,
+#                       is it a factor) opens on "Choose…" and earns nothing
+#                       unanswered
+#   graphKeyboardRoute  the graph workspace's analysis fields are named by their
+#                       part, and its keyboard route offers only what is there
+#   stagedQuestion      every step of a staged graph question, reached as a
+#                       student reaches it on six screens: its question and its
+#                       answer control on screen together, a plane big enough
+#                       to mark, zoom offered, no coordinates printed where a
+#                       later step asks for them
+#   composedDraftRestore a composed question with a graph step reaches the
+#                       server backup with no verdict in it, comes back on
+#                       another device (the graph step re-derived when opened)
+#                       and grades exactly as on the first (PQ-043), whether
+#                       the server copy arrives before or after the question
+#   draftEditTime       in every draft-certified family, opening a question
+#                       stamps no draft; the student's edit does, and coming
+#                       back or reloading keeps its time (PQ-044)
+#   fractionTemplateGrading  a fraction key drawn from a template (a Question
+#                       Family version, a Path-style template) is graded by one
+#                       rule for every student: lowest terms or the key's own
+#                       form, never the fraction the question showed (B-57)
 
 on:
   pull_request:
     branches: [main]
     paths:
       - "src/**"
+      - "functions/shared/**"
       - "tests/browser/mathEntryContract*"
       - "tests/browser/renderStability*"
       - "tests/browser/errorRecovery*"
       - "tests/browser/duplicateTabs.mjs"
       - "tests/browser/graphPointCheck*"
       - "tests/browser/undoTyping*"
+      - "tests/browser/composedOutcomePolicy*"
+      - "tests/browser/toolPolicyGates*"
+      - "tests/browser/relationPlotGrading*"
+      - "tests/browser/mathFontsProduction.mjs"
+      - "tests/browser/toolAttemptOutcome*"
+      - "tests/browser/assessmentLeakGates*"
+      - "tests/browser/clickMapLetterbox*"
+      - "tests/browser/stagedQuestion*"
+      - "tests/browser/unansweredChoiceGates*"
+      - "tests/browser/graphKeyboardRoute*"
+      - "tests/browser/composedDraftRestore*"
+      - "tests/browser/draftEditTime.mjs"
+      - "tests/browser/fractionTemplateGrading*"
+      - "tests/browser/draftPersistence*"
+      - "tests/browser/harnessProduction.config.mjs"
+      - "scripts/serve-static-spa.mjs"
       - "tests/browser/studentUxPlatform*"
       - "tests/browser/stepAlgebraDriver.mjs"
       - "package.json"
@@ -48,7 +103,7 @@ concurrency:
 jobs:
   student-runtime:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -96,3 +151,80 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/undoTyping.mjs
+      - name: A composed question follows the feedback policy in every step
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/composedOutcomePolicy.mjs
+      - name: Registry tools follow the feedback and hint policy
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/toolPolicyGates.mjs
+      - name: Relation plots are graded by their points
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/relationPlotGrading.mjs
+      - name: A tool's attempt outcome is shown beside its verdict
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/toolAttemptOutcome.mjs
+      - name: Nothing before Submit reveals correctness on a DOL, quiz or test
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/assessmentLeakGates.mjs
+      - name: Taps land where they are made on a letterboxed plane
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/clickMapLetterbox.mjs
+      - name: Every step of a staged question fits and leaks nothing, on six screens
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/stagedQuestion.mjs
+      - name: A judgment the student is asked to make starts unanswered and earns nothing unanswered
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/unansweredChoiceGates.mjs
+      - name: Graph analysis fields are named, and the keyboard route offers only what is there
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/graphKeyboardRoute.mjs
+      - name: A composed question with a graph step survives a Chromebook swap
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/composedDraftRestore.mjs
+      - name: Opening a question is not an edit, in every certified family
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/draftEditTime.mjs
+      - name: A fraction key drawn from a template is graded by one rule
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/fractionTemplateGrading.mjs
+      - name: A production build serves the math fonts
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/mathFontsProduction.mjs

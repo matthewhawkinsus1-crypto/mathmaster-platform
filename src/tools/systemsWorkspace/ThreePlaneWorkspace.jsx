@@ -15,16 +15,17 @@ import usePersistentToolState from '../shared/usePersistentToolState.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { Panel, HintPanel, ResultPill } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
+import { useToolRuntimeContext } from '../shared/ToolRuntimeContext';
 import MathDisplay from '../../MathDisplay';
 import MathInput from '../../MathInput';
 import { classifyLinearSystem, exactNumberText, linearEquationForm } from './algebraicSystemsEngine.js';
-import { advanceIdleCamera, clipPlaneToCube, cubeCorners, cubeEdges, legibleCamera, planePlaneIntersection, projectPoint, projectPolygon } from './threePlaneGeometry.js';
+import { advanceIdleCamera, clipPlaneToCube, cubeCorners, cubeEdges, idleOrbitPending, idleOrbitPhase, legibleCamera, planePlaneIntersection, projectPoint, projectPolygon, spendIdleOrbitFrame } from './threePlaneGeometry.js';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
 import './AlgebraicSystemMode.css';
 import './ThreePlaneWorkspace.css';
-import { spatialMisconceptionFeedback } from './spatialFeedback.js';
+import { earnedResultCaption, spatialMisconceptionFeedback, threePlaneRevealAvailable } from './spatialFeedback.js';
 
 const DEFAULT_VARIABLES = ['x', 'y', 'z'];
 const PLANE_COLORS = ['#1a73e8', '#ea4335', '#34a853'];
@@ -80,9 +81,20 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
   const [hasInteracted, setHasInteracted] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
   const dragRef = useRef(null);
+  const modelRef = useRef(null);
+  // The orbit's budget (threePlaneGeometry.js): the orbit time already shown,
+  // and whether it is all spent.
+  const orbitShownMsRef = useRef(0);
+  const [orbitBudgetSpent, setOrbitBudgetSpent] = useState(false);
+  // Whether anyone could see the orbit. Without an IntersectionObserver the
+  // model counts as on-screen, and the budget alone bounds the orbit.
+  const [modelOnScreen, setModelOnScreen] = useState(true);
+  const [pageHidden, setPageHidden] = useState(() => typeof document !== 'undefined' && document.hidden === true);
 
   // Gently orbit before the student touches the model so the flat SVG reads
-  // immediately as a 3D object. Stop on first interaction and respect reduced motion.
+  // immediately as a 3D object. Stop on first interaction and respect reduced
+  // motion; otherwise stop for good once the budget is spent, and wait — without
+  // spending it — while the model is off-screen or the tab is hidden.
   useEffect(() => {
     const media = typeof window !== 'undefined' && window.matchMedia
       ? window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -96,27 +108,73 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
   useEffect(() => {
     setCamera(openingCamera);
     setHasInteracted(false);
+    // A different system is a new model to read, so it gets the whole orbit.
+    orbitShownMsRef.current = 0;
+    setOrbitBudgetSpent(false);
   }, [systemIdentity, openingCamera.azimuth, openingCamera.elevation]);
 
+  const orbitPhase = idleOrbitPhase({
+    hasInteracted,
+    reduceMotion,
+    budgetSpent: orbitBudgetSpent,
+    onScreen: modelOnScreen,
+    pageHidden,
+  });
+  const orbitPending = idleOrbitPending(orbitPhase);
+
+  // Visibility is watched only while there is an orbit left to pause.
   useEffect(() => {
-    if (hasInteracted || reduceMotion || typeof window === 'undefined') return undefined;
+    if (!orbitPending || typeof document === 'undefined') return undefined;
+    const sync = () => setPageHidden(document.hidden === true);
+    sync();
+    document.addEventListener('visibilitychange', sync);
+    return () => document.removeEventListener('visibilitychange', sync);
+  }, [orbitPending]);
+
+  useEffect(() => {
+    const model = modelRef.current;
+    if (!orbitPending || !model || typeof window === 'undefined' || typeof window.IntersectionObserver !== 'function') return undefined;
+    const observer = new window.IntersectionObserver((entries) => {
+      const latest = entries[entries.length - 1];
+      if (latest) setModelOnScreen(latest.isIntersecting);
+    });
+    observer.observe(model);
+    return () => observer.disconnect();
+  }, [orbitPending]);
+
+  useEffect(() => {
+    if (orbitPhase !== 'running' || typeof window === 'undefined') return undefined;
     let frameId = null;
     let previous = null;
     const tick = (timestamp) => {
-      if (previous != null) setCamera((current) => advanceIdleCamera(current, timestamp - previous));
+      // The first frame after starting or resuming only sets the clock, so a
+      // pause is never turned into a jump.
+      const frame = spendIdleOrbitFrame(orbitShownMsRef.current, previous == null ? 0 : timestamp - previous);
       previous = timestamp;
+      orbitShownMsRef.current = frame.spentMs;
+      if (frame.stepMs > 0) setCamera((current) => advanceIdleCamera(current, frame.stepMs));
+      if (frame.budgetSpent) {
+        // Done for good: no next frame, and the camera stays where it is.
+        frameId = null;
+        setOrbitBudgetSpent(true);
+        return;
+      }
       frameId = window.requestAnimationFrame(tick);
     };
     frameId = window.requestAnimationFrame(tick);
     return () => {
       if (frameId != null) window.cancelAnimationFrame(frameId);
     };
-  }, [hasInteracted, reduceMotion]);
+  }, [orbitPhase]);
 
   const markInteracted = useCallback(() => setHasInteracted(true), []);
   const [visiblePlanes, setVisiblePlanes] = usePersistentToolState('visiblePlanes', [true, true, true]);
   const [revealed, setRevealed] = usePersistentToolState('solutionRevealed', spatialModel.revealSolution === true);
-  const canReveal = !earnedResult && (spatialModel.revealSolution === true || spatialModel.allowSolutionReveal === true);
+  // A DOL, quiz or test never offers a student-pressed reveal, and the line
+  // under an earned model never names the true outcome there (see both
+  // helpers in spatialFeedback.js).
+  const { showImmediateFeedback, hintsAllowed } = useToolRuntimeContext();
+  const canReveal = threePlaneRevealAvailable({ earnedResult, spatialModel, showImmediateFeedback, hintsAllowed });
   const showResult = Boolean(earnedResult) || (canReveal && revealed);
   const shownType = earnedResult?.type || classification.type;
 
@@ -263,13 +321,17 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
         </div>
 
         <div className="mathmaster-threeplane-viewport">
-          <div className={`mathmaster-threeplane-motion-cue${!hasInteracted && !reduceMotion ? ' is-idle' : ''}`}>
+          {/* Says the model is turning only while the orbit is still to come:
+              never after the student takes over, under reduced motion, or once
+              the budget is spent and the model has stopped. */}
+          <div className={`mathmaster-threeplane-motion-cue${orbitPending ? ' is-idle' : ''}`}>
             <span className="mathmaster-threeplane-motion-dot" aria-hidden="true" />
-            {!hasInteracted && !reduceMotion
+            {orbitPending
               ? 'Auto-rotating to show depth — drag the model to take control.'
               : 'Drag the model to rotate it. Use Reset view to return to the opening angle.'}
           </div>
           <svg
+            ref={modelRef}
             viewBox={`0 0 ${VIEW_SIZE} ${VIEW_SIZE}`}
             role="img"
             aria-label="Interactive 3D view of the three planes. Drag to rotate."
@@ -393,16 +455,19 @@ export default function ThreePlaneWorkspace({ questionData = {}, onAction, earne
                   system. "The three planes meet at exactly one point" was the
                   answer to the very question beside it, nearly word for word
                   (CW3, PR4, DOL2 — #361). */}
-              {shownType === 'unique'
-                ? `Point marked on the model: ${orderedTripleText(shownSolution, variables)}.`
+              {earnedResult
                 // An earned statement speaks of the student's own result — and
                 // still names no plane relationship: which planes coincide or
                 // are parallel is the student's next answer, not a caption (#392).
-                : shownType === 'none'
-                  ? (earnedResult ? 'Your contradiction means no point lies on all three planes. Rotate the model and hide or show each plane to see why.' : 'The three planes share no common point.')
-                  : shownType === 'infinite'
-                    ? (earnedResult ? 'Your identity means the planes share more than one point. Rotate the model and hide or show each plane to see what all three have in common.' : 'The three planes share infinitely many points.')
-                    : 'This system could not be classified.'}
+                // Where outcomes are withheld it names no outcome at all.
+                ? earnedResultCaption({ type: shownType, solutionText: shownType === 'unique' ? orderedTripleText(shownSolution, variables) : '', showImmediateFeedback })
+                : shownType === 'unique'
+                  ? `Point marked on the model: ${orderedTripleText(shownSolution, variables)}.`
+                  : shownType === 'none'
+                    ? 'The three planes share no common point.'
+                    : shownType === 'infinite'
+                      ? 'The three planes share infinitely many points.'
+                      : 'This system could not be classified.'}
             </p>
           ) : null}
         </div>

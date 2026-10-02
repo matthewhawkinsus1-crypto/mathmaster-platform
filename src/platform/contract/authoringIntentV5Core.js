@@ -1297,9 +1297,19 @@ const compileOne = (q, index, repairs) => {
     case 'algebra':
       out = copyCommon(q, { type, equation: q.equation || q.expression, answer: answerOf(q) });
       break;
-    case 'fraction':
+    case 'fraction': {
+      // Everything the fraction runtime grades or shows travels with the
+      // question (functions/shared/fractionAnswer.mjs): the other forms the
+      // author accepts, the math line under the prompt, and an authored sum's
+      // operands. Dropping the operands turned the author's own sum into a
+      // drill that drew random numbers.
       out = copyCommon(q, { type, answer: answerOf(q), generator: q.generator });
+      const accepted = acceptedOf(q);
+      if (accepted != null) out.acceptedAnswers = accepted;
+      if (q.expressionLatex) out.expressionLatex = q.expressionLatex;
+      for (const key of ['n1', 'd1', 'n2', 'd2']) if (q[key] != null) out[key] = q[key];
       break;
+    }
     case 'numberLine':
       out = copyCommon(q, { type, choices: q.choices || q.numberLineChoices, answer: answerOf(q), min: q.min, max: q.max, step: q.step });
       break;

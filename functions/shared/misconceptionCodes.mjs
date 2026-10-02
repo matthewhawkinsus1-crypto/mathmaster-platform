@@ -12,19 +12,30 @@
 //   grades/{sid}.gradesByAssignment[aid][i].partGrades[].misconceptionCode   latest attempt, per part
 //   Test Cycle grading.misconceptionCode   (read by testCycleCorrections.mjs)
 //
-// HOW A FUTURE TOOL EMITS ONE: put catalog ids on the grading result
-// (`misconceptionCodes: ['slope-direction']`, or `misconceptionCode` on a
-// part). Three seams must then carry it, none of which carries it today:
-//   1. part compaction in functions/shared/attemptPolicy.mjs recordQuestionAttempt
-//      (keep `misconceptionCode` on each compact part);
-//   2. functions/shared/attemptEvidenceEvent.mjs buildAttemptEvidenceEvent
-//      (copy normalizeMisconceptionCodes(result.misconceptionCodes) onto
-//      `performance`);
-//   3. src/QuestionEngine.jsx's registry-tool forwarder, which today passes only
-//      `payload.metadata.parts` and `responseKey` (tool categories such as
-//      graphing2's are computed and dropped there).
-// Until a tool does, every case review reads "Error pattern not determinable
-// from stored evidence."
+// HOW A TOOL EMITS ONE: put a catalog id on the PART of its grading result the
+// error concerns — `misconceptionCode: 'slope-direction'` on an entry of a
+// registry tool's `metadata.parts`, or on a grader's `parts`. Every path then
+// carries it, and drops anything that is not a catalog id:
+//   1. src/QuestionEngine.jsx's registry-tool forwarder copies it onto the part
+//      it hands the attempt recorder (composed and step questions hand their
+//      parts over unchanged);
+//   2. functions/shared/attemptPolicy.mjs recordQuestionAttempt keeps it on
+//      the compact part — so it is on the record the browser queues, the record
+//      server ingestion accepts for a type it cannot re-mark, and the record a
+//      server grader's own parts produce (ingestion, the deadline finalizer);
+//   3. functions/shared/attemptEvidenceEvent.mjs buildAttemptEvidenceEvent
+//      copies the attempt's part codes onto `performance.misconceptionCodes`,
+//      which the case review's callable projects (caseReviewEvidence.mjs).
+// A part without a code, and every record and event written before this, keeps
+// exactly its earlier shape. A code for the question as a whole has no slot:
+// the question record stores codes per part only, and the server rebuilds the
+// result of a type it cannot re-mark from that record — so a tool names the
+// part a code concerns. (A question-level slot would be new data design.)
+//
+// No classroom tool or grader sets a code yet (graphing2 reports a
+// construction `category`, for example, which is not a catalog id and is not
+// mapped to one). Until one does, every case review reads "Error pattern not
+// determinable from stored evidence."
 
 export const MISCONCEPTION_CODE_CATALOG = Object.freeze([
   { id: 'sign-error', label: 'Sign error', domain: 'operations' },

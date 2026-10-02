@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusSafeDisabled } from './useFocusSafeDisabled.js';
 import './SolverWorkspaceFrame.css';
 
 const ZOOM_MIN = 0.8;
@@ -55,6 +56,9 @@ export default function SolverWorkspaceFrame({
   const frameRef = useRef(null);
   const returnRef = useRef(null);
   const triggerRef = useRef(null);
+  // Undo keeps the focus on the press that takes back the last step.
+  const undoEnabled = Boolean(workspaceActions?.undo) && !workspaceActions.undo.disabled;
+  const undoAvailability = useFocusSafeDisabled(undoEnabled);
 
   const closeWorkspace = useCallback(() => setMode('normal'), []);
 
@@ -212,8 +216,8 @@ export default function SolverWorkspaceFrame({
                 <button
                   type="button"
                   className="solver-workspace-global-action"
-                  onClick={workspaceActions.undo.onClick}
-                  disabled={workspaceActions.undo.disabled}
+                  onClick={(event) => { if (undoEnabled) workspaceActions.undo.onClick?.(event); }}
+                  {...undoAvailability}
                   title={workspaceActions.undo.title}
                 >
                   {workspaceActions.undo.label || '↶ Undo'}

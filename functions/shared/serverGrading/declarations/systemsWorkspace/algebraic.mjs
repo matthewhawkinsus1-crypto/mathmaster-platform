@@ -23,9 +23,13 @@
  *     specialCase       { statementTruth, solutionCount, classification }
  *     efficiencyReason  optional free text (never graded)
  *   3×3 elimination only:
- *     outcome           { statement, classificationChoice, planes: { '1-2', '1-3', '2-3' } }
+ *     outcome           { statement, classificationChoice, classificationKind,
+ *                         planes: { '1-2', '1-3', '2-3' } }
  *                       the checked statement, the classification the
- *                       student recorded, and how they say each plane pair meets
+ *                       student recorded and their reading of the statement
+ *                       (identity / contradiction / origin; '' in a record
+ *                       from before readings were stored), and how they say
+ *                       each plane pair meets
  *
  * No answer-key material and no verdict ever travels in it.
  */

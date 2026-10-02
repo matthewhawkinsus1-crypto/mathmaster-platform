@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MathInput from '../../MathInput';
 import useLocalDraftState from '../../useLocalDraftState';
+import { studentInputMark, studentInputSince } from '../../questionDraftStorage';
 import MathDisplay from '../../MathDisplay';
 import QuestionPrompt from '../../QuestionPrompt';
 import TableGrader from '../../TableGrader';
@@ -28,13 +29,16 @@ import {
 } from '../../../functions/shared/toolMath/workflow/workflowGraphStage.mjs';
 import { evaluateModelAt } from './modelExpression';
 import { bringActiveStageIntoView } from './stageNavigationScroll.js';
+import { rederiveRestoredTables } from './tableSourceCheck.js';
 import { buildWorkflowSummaryItems, shouldUseWorkflowFocusMode, summarizeStageResponse } from './workflowFocusMode';
 import { stageFamily, stageFamilyLabel } from './stageFamilies';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../interaction/choiceOptions.js';
-import { checkedGraphIsPointOnly, graphWindowOnly, workflowEndpointMarkers, workflowGraphDomainRestriction } from './workflowGraphVisuals.js';
+import { checkedGraphIsPointOnly, graphWindowOnly, studentPlottedPoints, workflowEndpointMarkers, workflowGraphDomainRestriction } from './workflowGraphVisuals.js';
 import { resolveWorkflowTaskPrompt, selectPersistentWorkflowGraph } from './workflowPresentation.js';
 import { buildWorkflowReviewState, firstIncorrectWorkflowIndex } from './workflowReviewState.js';
+import { graphArtifactAwaitsVerdict, stagesAwaitingVerdict } from './workflowDraftProjection.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../workView/useMathUndoHistory.js';
+import { useWorkViewPresentation } from '../workView/workViewPresentation.js';
 import { ToolDraftScopeProvider } from '../../tools/shared/usePersistentToolState.js';
 import './WorkflowFocusMode.css';
 
@@ -431,6 +435,9 @@ const readDelegateResponse = {
 // string "ATTEMPT_SUBMITTED" and never the student's work.
 const toolAction = (onChange) => (actionType, payload) => {
   if (actionType === 'ATTEMPT_SUBMITTED') onChange(payload);
+  // The student changed checked work: the step's answer is no longer what is
+  // on screen, so it waits for the next Check (useToolSubmission).
+  if (actionType === 'ATTEMPT_WITHDRAWN') onChange(null);
 };
 
 // Stages that delegate to an existing component. Each adapter builds the
@@ -487,6 +494,7 @@ const DELEGATES = {
           },
           ruleLatex: rule,
           showRule: Boolean(rule),
+          checkedAgainstStudentFunction: driven,
         }}
         onStateChange={onChange}
         draftKey={draftKey}
@@ -523,7 +531,7 @@ const DELEGATES = {
    * from. `graphStage` is that resolution for this stage, so the graph a
    * student builds is the graph the gradebook marks.
    */
-  coordinatePlot: ({ graphStage, onChange, draftKey }) => {
+  coordinatePlot: ({ graphStage, onChange, draftKey, revealCorrectness = true }) => {
     if (graphStage?.status !== 'ready') return <GraphStageWaiting />;
     return (
       <InteractiveGraphWorkspace
@@ -531,14 +539,17 @@ const DELEGATES = {
         mode="construct"
         onStateChange={onChange}
         draftKey={draftKey}
+        revealPointCorrectness={revealCorrectness}
       />
     );
   },
-  functionGraph: ({ graphStage, onChange, draftKey }) => {
+  functionGraph: ({ graphStage, onChange, draftKey, revealCorrectness = true }) => {
     // The graph must represent the student's own prior work. For a table that
     // came from an equation, contradictory work has no single graph; make that
     // conflict visible and require the student to resolve it rather than
-    // secretly switching to the authored answer key.
+    // secretly switching to the authored answer key. (Never where outcomes
+    // are withheld: resolveWorkflowGraphStages builds those graphs from the
+    // student's work as it stands, because this block is a verdict on it.)
     if (graphStage?.status === 'conflict') {
       return (
         <div style={{ ...waitingPanel, background: '#fff8e1', color: '#7a4f00' }}>
@@ -568,6 +579,7 @@ const DELEGATES = {
         mode="construct"
         onStateChange={onChange}
         draftKey={draftKey}
+        revealPointCorrectness={revealCorrectness}
       />
     );
   },
@@ -590,7 +602,23 @@ const DELEGATES = {
 const NOTATION_PROFILE = { interval: 'interval', inequality: 'inequality', set: 'set' };
 export const ALL_REAL_NUMBERS_RESPONSE = '\\text{All Real Numbers}';
 
-function StageBody({ stage, input, content, value, onChange, disabled, draftKey, canonicalSavedAt = 0, controlsBranch = false, openKeypad = true, showFigure = true, graphStage = null }) {
+function StageBody({ stage, input, content, value, onReport, disabled, draftKey, canonicalSavedAt = 0, controlsBranch = false, openKeypad = true, showFigure = true, revealCorrectness = true, graphStage = null }) {
+  /*
+   * WHAT A STEP REPORTS IS AN EDIT ONLY IF THE STUDENT HAS TOUCHED THE PAGE
+   * SINCE THE STEP APPEARED (PQ-044).
+   *
+   * Every step's answer lives in ONE draft, `workflow-responses`. A plotting
+   * workspace or a table reports its state the moment it mounts — and in focus
+   * mode it mounts when the student moves to its step, which is a click. Judged
+   * from when the workflow loaded its draft, that report would be an "edit": a
+   * student who only paged through a question on a Chromebook that had not yet
+   * received their work would stamp the whole record newer than the work saved
+   * from another one, and the background save would carry it over that work.
+   * Measured from when this step appeared, a report the student did not cause
+   * keeps the record's time (see writeQuestionDraft).
+   */
+  const [inputMark] = useState(studentInputMark);
+  const onChange = (next) => onReport(next, { edit: studentInputSince(inputMark) });
   const delegate = DELEGATES[stage.kind];
   /*
    * A STAGE'S TOOL GETS ITS OWN DRAFT NAMESPACE.
@@ -608,7 +636,7 @@ function StageBody({ stage, input, content, value, onChange, disabled, draftKey,
         scope={`stage-${stage.id || stage.kind}`}
         canonicalSavedAt={canonicalSavedAt}
       >
-        {delegate({ stage, input, content, onChange, draftKey, disabled, graphStage })}
+        {delegate({ stage, input, content, onChange, draftKey, disabled, revealCorrectness, graphStage })}
       </ToolDraftScopeProvider>
     );
   }
@@ -798,7 +826,7 @@ const normalizeWorkflowPoint = (point) => {
   return Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
 };
 
-const checkedGraphReference = ({ workflow, responses, content, grading, activeStageIndex }) => {
+const checkedGraphReference = ({ workflow, responses, content, grading, activeStageIndex, revealCorrectness = true }) => {
   if (!Array.isArray(workflow) || activeStageIndex <= 0) return null;
   let graphIndex = -1;
   for (let index = Math.min(activeStageIndex - 1, workflow.length - 1); index >= 0; index -= 1) {
@@ -811,7 +839,23 @@ const checkedGraphReference = ({ workflow, responses, content, grading, activeSt
 
   const graphStage = workflow[graphIndex];
   const graphResponse = responses?.[graphStage.id];
-  if (graphResponse?.[WORKFLOW_ARTIFACT] !== 'graph' || graphResponse.isComplete !== true || graphResponse.isCorrect !== true) return null;
+  if (graphResponse?.[WORKFLOW_ARTIFACT] !== 'graph' || graphResponse.isComplete !== true) return null;
+
+  // Outcomes withheld: the student's own points, shown to every student who
+  // finished the graph — never the function's curve, never only when right.
+  if (!revealCorrectness) {
+    const ownPoints = studentPlottedPoints(graphResponse);
+    if (!ownPoints.length) return null;
+    return {
+      ...expandGraphWindowToPoints(
+        graphWindowOnly(graphStage.graph || content?.graph || { xMin: -10, xMax: 10, yMin: -10, yMax: 10 }),
+        ownPoints,
+      ),
+      points: ownPoints.map(([x, y]) => ({ x, y })),
+      ariaLabel: 'Your graph',
+    };
+  }
+  if (graphResponse.isCorrect !== true) return null;
 
   const input = resolveStageInput({ stage: graphStage, responses, content });
   const source = input?.from === 'student' ? input.value : null;
@@ -864,6 +908,11 @@ const checkedGraphReference = ({ workflow, responses, content, grading, activeSt
   };
 };
 
+// The stages whose answer is typed in notation on the math keypad. A module
+// constant: declared inside the component it was a new array every render, a
+// dependency the memo that picks the open keypad did not list.
+const KEYPAD_KINDS = ['domainInput', 'rangeInput', 'intervalInput', 'valueSet'];
+
 export default function WorkflowRunner({
   question,
   onStateChange,
@@ -874,9 +923,13 @@ export default function WorkflowRunner({
   showPrompt = true,
   showStagePrompt = true,
   submissionReview = null,
+  // May the steps say whether the work is right before the question is
+  // submitted? QuestionEngine's showOutcomeFeedback: false on a DOL, quiz or
+  // test until feedback is released. Defaults to the practice behaviour.
+  revealCorrectness = true,
 }) {
   const { content, workflow: authoredWorkflow, grading } = useMemo(() => readComposedQuestion(question), [question]);
-  const [responses, setResponses] = useLocalDraftState(
+  const [storedResponses, setResponses] = useLocalDraftState(
     draftKey ? `${draftKey}:workflow-responses` : null,
     {},
   );
@@ -885,6 +938,32 @@ export default function WorkflowRunner({
     0,
   );
 
+  // A table step that came back from the server copy carries only the
+  // student's cells (workflowDraftProjection.js). What the device that did the
+  // work stored beside them is worked out again — from the same cells, by the
+  // same code (tableSourceCheck.js) — BEFORE anything reads it: a graph step
+  // built from the table names its own draft after the table
+  // (dependencyFingerprint), and would look for the student's construction
+  // under the wrong name. So the answers are that device's exactly, a
+  // submission included, from the first render; they are written back as what
+  // they are, not an edit, keeping the time they came back with.
+  const responses = useMemo(
+    () => rederiveRestoredTables({ responses: storedResponses, stages: authoredWorkflow, content }),
+    [storedResponses, authoredWorkflow, content],
+  );
+  useEffect(() => {
+    if (responses === storedResponses) return;
+    setResponses((current) => rederiveRestoredTables({ responses: current, stages: authoredWorkflow, content }), { edit: false });
+  }, [responses, storedResponses, authoredWorkflow, content, setResponses]);
+
+  // Graph steps that came back from the server copy without their verdict
+  // (workflowDraftProjection.js), by id. Always empty on the device that did
+  // the work.
+  const restoredGraphStepIds = Object.entries(isObject(responses) ? responses : {})
+    .filter(([, value]) => graphArtifactAwaitsVerdict(value))
+    .map(([stageId]) => stageId)
+    .join(',');
+
   // Composed questions own mathematical state at the workflow level for simple
   // stages such as domain/range/classification. Register that state with
   // Universal Undo so Work View does not show a permanently disabled Undo.
@@ -892,10 +971,18 @@ export default function WorkflowRunner({
   // when they do, their native mathematical history wins while the parent
   // workflow history remains intact underneath it.
   useMathUndoHistory({
-    label: 'Undo the last workflow response',
+    label: 'Undo the last answer in these steps',
     state: responses,
     onRestore: setResponses,
-    resetKey: questionUndoResetKey(question),
+    // A restored graph step getting its verdict back is its workspace
+    // reporting work the student already did, not an edit, so Undo starts
+    // again from there. Recorded as an edit, one Undo would put the
+    // verdict-less step back, the open workspace would report again, and Undo
+    // could never get past that entry. Where nothing was restored — every
+    // device that did its own work — the key is the question's, as before.
+    resetKey: restoredGraphStepIds
+      ? `${questionUndoResetKey(question)}|restored:${restoredGraphStepIds}`
+      : questionUndoResetKey(question),
     ownerId: 'workflow-responses',
     priority: -1,
   });
@@ -923,19 +1010,23 @@ export default function WorkflowRunner({
    * has no server view, so its graphs read the same work unbounded.
    */
   const serverGraded = useMemo(() => composedWorkflowSupport(question).supported === true, [question]);
+  // Where outcomes are withheld a graph built from a table offers no magnet
+  // and no "do not agree" block: either would say whether the table is right.
   const graphStages = useMemo(() => resolveWorkflowGraphStages({
     workflow: authoredWorkflow,
     content,
     grading,
     responses: workflowStageWorkResponses(responses, { serverGraded }),
-  }), [authoredWorkflow, content, grading, responses, serverGraded]);
+    outcomesWithheld: !revealCorrectness,
+  }), [authoredWorkflow, content, grading, responses, serverGraded, revealCorrectness]);
   // A draft saved before graph stages carried their work holds the old graph
   // artifact (the workspace's verdict plus its state as a string). Upgrade it
   // in place, so the stage is marked from that state as soon as the question
-  // opens — including a plot step a later step has already locked.
+  // opens — including a plot step a later step has already locked. The same
+  // work in a new shape is not an edit, so the draft keeps its time (PQ-044).
   useEffect(() => {
     if (upgradeLegacyGraphResponses(responses) === responses) return;
-    setResponses((current) => upgradeLegacyGraphResponses(current));
+    setResponses((current) => upgradeLegacyGraphResponses(current), { edit: false });
   }, [responses, setResponses]);
   // A primitive signature lets the guidance effect notice a genuinely new
   // composed question without depending on workflow array identity. Include the
@@ -956,6 +1047,11 @@ export default function WorkflowRunner({
   // branch that took the count under the threshold would otherwise flip the
   // whole layout mid-question, which is disorienting in the middle of a graph.
   const focusMode = shouldUseWorkflowFocusMode(authoredWorkflow);
+  // In a Work View on a screen with almost no height (a phone on its side) the
+  // step heading rides in the Previous/Next row rather than taking a row of its
+  // own above the work (PQ-020). Presentation only: the heading moves, the
+  // active stage below it is never remounted.
+  const { shortHeight: headingInFooter } = useWorkViewPresentation();
   // Which steps some other step branches on. Their choice lists are rendered
   // exactly as authored — see ChoiceStage.
   const branchControllerIds = useMemo(() => new Set(
@@ -998,7 +1094,6 @@ export default function WorkflowRunner({
     return ids;
   }, [workflow]);
 
-  const KEYPAD_KINDS = ['domainInput', 'rangeInput', 'intervalInput', 'valueSet'];
   const openKeypadStageId = useMemo(() => {
     const notationStages = (Array.isArray(workflow) ? workflow : [])
       .filter((stage) => KEYPAD_KINDS.includes(stage?.kind));
@@ -1050,13 +1145,13 @@ export default function WorkflowRunner({
   // comparison never matches: each report would be "new", causing a re-render,
   // causing another report. That is an infinite loop, and it is what happens
   // if you take the obvious `Object.is` route here.
-  const setResponse = useCallback((stageId, value) => {
+  const setResponse = useCallback((stageId, value, options) => {
     queueMicrotask(() => {
       setResponses((current) => {
         const sameValue = current[stageId] === value
           || JSON.stringify(current[stageId] ?? null) === JSON.stringify(value ?? null);
         return sameValue ? current : { ...current, [stageId]: value };
-      });
+      }, options);
     });
   }, [setResponses]);
 
@@ -1079,14 +1174,18 @@ export default function WorkflowRunner({
   // runs (questionGraders/composedWorkflow.mjs), and attaches that work as the
   // attempt's toolResponse; a question declared client-graded (a stage key the
   // contract would strip) keeps its device marking.
+  //
+  // Where outcomes are withheld the work says so, and the grader sets the
+  // graph steps up as they were shown (resolveWorkflowGraphStages).
   useEffect(() => {
     onStateChangeRef.current?.(buildWorkflowAnswerState({
       question: questionRef.current,
       stages: workflowRef.current,
       responses,
       grading: gradingRef.current,
+      outcomesWithheld: !revealCorrectness,
     }));
-  }, [responses]);
+  }, [responses, revealCorrectness]);
 
   // Focus Mode makes the current mathematical stage a real UI concept. Guided
   // Notes follows the stage the student is actually viewing; short workflows
@@ -1110,9 +1209,11 @@ export default function WorkflowRunner({
     });
   }, [responses, activeStageIndex, focusMode, workflowGuidanceSignature]);
 
+  // The setter is useLocalDraftState's, stable for a given draft key; when the
+  // key changes (another question), the restored index is clamped again.
   useEffect(() => {
     setActiveStageIndex((current) => Math.min(current, Math.max(0, workflow.length - 1)));
-  }, [workflow.length]);
+  }, [workflow.length, setActiveStageIndex]);
 
   // Only a step change the student asked for moves the page; restoring a
   // draft or jumping to a step that needs revision after a check does not.
@@ -1152,13 +1253,18 @@ export default function WorkflowRunner({
     content,
     grading,
     activeStageIndex: safeActiveIndex,
+    revealCorrectness,
   });
   const graphReference = selectPersistentWorkflowGraph({ content, workflow, checkedGraph });
   const activeStageHasOwnGraphWorkspace = ['graphFeatureSelect', 'coordinatePlot', 'functionGraph'].includes(activeStage?.kind);
   const showPersistentGraphReference = Boolean(graphReference && !activeStageHasOwnGraphWorkspace);
-  const graphReferenceTitle = checkedGraph ? 'Your checked graph' : 'Graph for this question';
+  const graphReferenceTitle = checkedGraph
+    ? (revealCorrectness ? 'Your checked graph' : 'Your graph')
+    : 'Graph for this question';
   const graphReferenceDescription = checkedGraph
-    ? 'Use the graph you just completed while answering the remaining analysis steps.'
+    ? (revealCorrectness
+      ? 'Use the graph you just completed while answering the remaining analysis steps.'
+      : 'The points you plotted, to use in the remaining steps. Your graph is graded when you submit.')
     : 'Keep this graph in view while you answer each analysis step.';
 
   const renderStage = (stage, index, { focused = false } = {}) => {
@@ -1251,7 +1357,7 @@ export default function WorkflowRunner({
               input={input}
               content={content}
               value={responses[stage.id]}
-              onChange={(value) => setResponse(stage.id, (readDelegateResponse[stage.kind] || ((raw) => raw))(value, { stage, input, content }))}
+              onReport={(value, options) => setResponse(stage.id, (readDelegateResponse[stage.kind] || ((raw) => raw))(value, { stage, input, content }), options)}
               disabled={disabled}
               controlsBranch={branchControllerIds.has(stage.id)}
               openKeypad={stage.id === openKeypadStageId}
@@ -1261,6 +1367,7 @@ export default function WorkflowRunner({
               }
               draftKey={draftKey ? `${draftKey}:${stage.id}${stage.sourceStageId && ['functionGraph', 'coordinatePlot'].includes(stage.kind) ? `:${dependencyFingerprint(input.value)}` : ''}` : null}
               canonicalSavedAt={canonicalSavedAt}
+              revealCorrectness={revealCorrectness}
               graphStage={graphStage}
             />
           </>
@@ -1301,11 +1408,34 @@ export default function WorkflowRunner({
 
   const activeFamily = stageFamily(activeStage?.kind);
   const activeReviewStatus = reviewByStageId.get(activeStage?.id)?.status || (activeAnswered ? 'draft' : 'unanswered');
+  // Graph steps restored without their verdict, other than the one on screen
+  // (that one's workspace is open and is already working it out). Opening a
+  // step mounts its workspace, which reports again from the student's own
+  // construction; until then the question cannot be submitted. Only steps the
+  // navigator would open: one after an unfinished step waits its turn, as any
+  // unanswered step does.
+  const restoredGraphSteps = stagesAwaitingVerdict(workflow, responses)
+    .map((stage) => ({ stage, index: workflow.indexOf(stage) }))
+    .filter(({ stage, index }) => stage.id !== activeStage?.id && index <= furthestReachableIndex);
   // Answered steps rather than position, so the rail measures work done, not
   // how far the student has clicked.
   const railPercent = workflow.length
     ? Math.round((progress.answered / workflow.length) * 100)
     : 0;
+
+  // Above the work, or — in a short Work View — in the Previous/Next row.
+  const stepHeading = (
+    <div className="workflow-focus__workspace-heading">
+      <div className="workflow-focus__workspace-heading-left">
+        <h4>Step {safeActiveIndex + 1}. {activeDefinition?.label || activeStage?.kind}</h4>
+        <span className="workflow-focus__family">{stageFamilyLabel(activeStage?.kind)}</span>
+        {activeReviewStatus === 'correct' ? <span className="workflow-focus__review-status workflow-focus__review-status--correct">✓ Checked correct</span> : null}
+        {activeReviewStatus === 'incorrect' ? <span className="workflow-focus__review-status workflow-focus__review-status--incorrect">! Needs revision</span> : null}
+        {activeReviewStatus === 'changed' ? <span className="workflow-focus__review-status workflow-focus__review-status--changed">↻ Edited — check again</span> : null}
+      </div>
+      <span className="workflow-focus__counter">{safeActiveIndex + 1} of {workflow.length}</span>
+    </div>
+  );
 
   return (
     <div ref={focusRootRef} className="workflow-focus" data-family={activeFamily}>
@@ -1391,6 +1521,39 @@ export default function WorkflowRunner({
         </section>
       ) : null}
 
+      {/* WORK THAT CAME BACK FROM ANOTHER DEVICE, WAITING TO BE OPENED.
+          The server copy of a graph step carries no verdict, so the step is
+          not an answer until its workspace has been opened here. Saying so,
+          with the way there, beats a Submit button that is simply off. */}
+      {restoredGraphSteps.length ? (
+        <section className="workflow-focus__restored-notice" role="status" aria-label="Work brought back from another device">
+          <div>
+            <strong>
+              {restoredGraphSteps.length === 1
+                ? 'Your graph came back from another device.'
+                : 'Your graphs came back from another device.'}
+            </strong>
+            <span>
+              {restoredGraphSteps.length === 1
+                ? ' Open its step to finish bringing it back, then you can submit.'
+                : ' Open each of their steps to finish bringing them back, then you can submit.'}
+            </span>
+          </div>
+          <div className="workflow-focus__review-links">
+            {restoredGraphSteps.map(({ stage, index }) => (
+              <button
+                key={stage.id}
+                type="button"
+                className="workflow-focus__restored-link"
+                onClick={() => goToStage(index)}
+              >
+                Open Step {index + 1}: {getStage(stage.kind)?.label || stage.kind}
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       {/* NOTHING TO SHOW MEANS NOTHING ON SCREEN.
           On the first step this strip was 80-94px of a placeholder explaining
           that work would collect here later — on a phone held sideways, a
@@ -1424,16 +1587,7 @@ export default function WorkflowRunner({
       ) : null}
 
       <main className={`workflow-focus__workspace${activeReviewStatus === 'incorrect' ? ' workflow-focus__workspace--incorrect' : activeReviewStatus === 'changed' ? ' workflow-focus__workspace--changed' : ''}`}>
-        <div className="workflow-focus__workspace-heading">
-          <div className="workflow-focus__workspace-heading-left">
-            <h4>Step {safeActiveIndex + 1}. {activeDefinition?.label || activeStage?.kind}</h4>
-            <span className="workflow-focus__family">{stageFamilyLabel(activeStage?.kind)}</span>
-            {activeReviewStatus === 'correct' ? <span className="workflow-focus__review-status workflow-focus__review-status--correct">✓ Checked correct</span> : null}
-            {activeReviewStatus === 'incorrect' ? <span className="workflow-focus__review-status workflow-focus__review-status--incorrect">! Needs revision</span> : null}
-            {activeReviewStatus === 'changed' ? <span className="workflow-focus__review-status workflow-focus__review-status--changed">↻ Edited — check again</span> : null}
-          </div>
-          <span className="workflow-focus__counter">{safeActiveIndex + 1} of {workflow.length}</span>
-        </div>
+        {headingInFooter ? null : stepHeading}
         <div className={showPersistentGraphReference ? 'workflow-focus__workspace-body workflow-focus__workspace-body--with-graph' : 'workflow-focus__workspace-body'}>
           <div className="workflow-focus__active-stage" key={activeStage?.id || safeActiveIndex}>
             {workflow.map((stage, index) => renderStage(stage, index, { focused: index === safeActiveIndex }))}
@@ -1449,6 +1603,7 @@ export default function WorkflowRunner({
       </main>
 
       <footer className="workflow-focus__footer">
+        {headingInFooter ? stepHeading : null}
         <div className="workflow-focus__footer-group">
           <button
             type="button"
@@ -1456,7 +1611,9 @@ export default function WorkflowRunner({
             disabled={!canGoPrevious}
             onClick={() => goToStage((index) => Math.max(0, index - 1))}
           >
-            ← Previous step
+            {/* The words are a label of their own so a short Work View can
+                show the arrows alone and keep them as the button's name. */}
+            <span aria-hidden="true">←</span> <span className="workflow-focus__nav-label">Previous step</span>
           </button>
           <button
             type="button"
@@ -1464,7 +1621,7 @@ export default function WorkflowRunner({
             disabled={!canGoNext}
             onClick={() => goToStage((index) => Math.min(workflow.length - 1, index + 1))}
           >
-            Next step →
+            <span className="workflow-focus__nav-label">Next step</span> <span aria-hidden="true">→</span>
           </button>
         </div>
         <p className="workflow-focus__progress-text">

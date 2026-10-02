@@ -83,15 +83,39 @@ const fullAssignmentRepair = require("./lib/fullAssignmentRepair");
 const assignmentContentVersion = require("./lib/assignmentContentVersion");
 const assignmentContentTrackerMigration = require("./lib/assignmentContentTrackerMigration");
 const teacherQuestionRepair = require("./lib/teacherQuestionRepair");
+const { deployProvenance, deployProvenanceLabels } = require("./lib/deployProvenance");
 
 // HTTPS/callable transport must be reachable by the Firebase client SDK.
 // MathMaster authorization still happens INSIDE each callable through
 // requireStudent/requireTeacher/requireRootAdmin. Source-controlling this
 // prevents a redeploy from silently returning a Cloud Run service to
 // "Require authentication" before Firebase Auth can be inspected.
-setGlobalOptions({ invoker: "public" });
+//
+// Every function this codebase deploys also carries the commit it was built
+// from, as the Cloud labels mm-git-sha and mm-tree (`gcloud functions list`;
+// `node scripts/release-firebase.mjs --whats-live`). The values come from the
+// deploy-provenance.json the first predeploy step writes (firebase.json), read
+// while the CLI discovers the functions. Global options apply to functions
+// defined AFTER this call, which is every function in this codebase: entry.js,
+// platformEntry.js and the Classroom section entry all load this file first.
+setGlobalOptions({ invoker: "public", labels: deployProvenanceLabels });
 
 initializeApp();
+
+// WHICH COMMIT IS LIVE (F-REL-3). Read-only and deliberately unauthenticated:
+// it returns this deployment's provenance and nothing else — no request data,
+// no Firestore, no secret. mathmaster-build.json already publishes the Hosting
+// commit the same way. scripts/release-firebase.mjs redeploys it in every
+// functions release and then calls it to prove the functions now serve the
+// commit it just deployed; `--whats-live` reads it too. Capped at two
+// instances so an anonymous caller cannot scale it into a bill.
+exports.platformBuildInfo = onCall({ maxInstances: 2 }, () => ({
+  codebase: deployProvenance.codebase,
+  gitSha: deployProvenance.gitSha,
+  gitShaShort: deployProvenance.gitShaShort,
+  treeClean: deployProvenance.treeClean,
+  writtenAt: deployProvenance.writtenAt,
+}));
 
 const MAX_CLASSROOM_COURSES_PER_BATCH = 20;
 const PUBLISH_LEASE_MS = 5 * 60 * 1000;
@@ -681,6 +705,9 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
     }
 
     const question = assignment ? runtimeQuestionsFromAssignment(assignment)?.[envelope.questionIndex] || null : null;
+    // The activity this work is judged under: the question's own wherever it
+    // carries one, never Classwork by omission (withAuthoritativeActivityRole).
+    const activityRole = ingestion.withAuthoritativeActivityRole({ envelope, question })?.activityRole || null;
     const canonicalRecord = gradeData?.gradesByAssignment?.[envelope.assignmentId]?.[String(envelope.questionIndex)]
       ?? gradeData?.gradesByAssignment?.[envelope.assignmentId]?.[envelope.questionIndex]
       ?? null;
@@ -704,7 +731,7 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
         ? null
         : Number(envelope.capturedAt || now) > Number(finalCloseAtMs),
       liveSectionAccess: assignment
-        ? ingestion.resolveLiveSectionAccess({ assignment, activityRole: envelope.activityRole, classId })
+        ? ingestion.resolveLiveSectionAccess({ assignment, activityRole, classId })
         : null,
       question,
       canonicalRecord,
@@ -849,7 +876,7 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
       };
     }
 
-    if (envelope.activityRole === "dol" && dolIndices.length) {
+    if (activityRole === "dol" && dolIndices.length) {
       const { dolSectionProjection } = ingestion;
       const authoritativeOverrides =
         gradeData?.teacherGradeOverridesByAssignment?.[assignmentId] || {};
@@ -2578,6 +2605,10 @@ exports.applyStudentAttendanceExtension = onCall(async (request) => {
     }
   }
 
+  const privacy = await import("./shared/assignmentPrivacy.mjs");
+  const { zonedDateKey } = await import("./shared/instructionalCalendar.mjs");
+  const { SCHOOL_TIME_ZONE } = await import("./shared/sectionDeadline.mjs");
+
   return db.runTransaction(async (transaction) => {
     const [gradeSnap, classSnap, assignmentSnap] = await Promise.all([
       transaction.get(gradeRef),
@@ -2607,15 +2638,43 @@ exports.applyStudentAttendanceExtension = onCall(async (request) => {
     if (!validity.valid && !reviewedShortening) throw new HttpsError(validity.reason, validity.message);
 
     const lateDueAtIso = new Date(proposedLateDueAtMs).toISOString();
+    const grantedAtMs = Date.now();
+    /*
+     * THE SHARED DOCUMENT GETS THE DEADLINE; THE STUDENT'S RECORD GETS THE WHY.
+     *
+     * `assignments/{id}` is read by every student, so it carries only what a
+     * deadline reader needs: `lateDueAt` and a stub with the cutoff's date key
+     * (what attendance reconciliation compares) and the grant time. The
+     * absences, meeting counts and granting teacher go into an immutable
+     * private record under the student (shared/assignmentPrivacy.mjs), one per
+     * grant, so a later grant no longer erases the earlier one either.
+     *
+     * The stub's date key must never be empty — reconciliation treats a
+     * missing one as "nothing granted yet" and would grant again — so a
+     * browser that sent none gets the school-calendar date of the cutoff.
+     */
+    const details = privacy.sanitizeExtensionDetails(extension);
+    const dateKey = details.dateKey || zonedDateKey(proposedLateDueAtMs, SCHOOL_TIME_ZONE);
     transaction.update(
       assignmentRef,
       new FieldPath("studentOverrides", studentId, "lateDueAt"), lateDueAtIso,
-      new FieldPath("studentOverrides", studentId, "extension"), {
-        ...extension,
-        grantedByEmail: teacherEmail,
-        grantedAt: Date.now(),
-      },
+      new FieldPath("studentOverrides", studentId, "extension"), privacy.sharedExtensionStub({ dateKey, grantedAt: grantedAtMs }),
     );
+    transaction.set(gradeRef.collection(privacy.ATTENDANCE_EXTENSION_GRANTS_COLLECTION).doc(), {
+      ...privacy.buildExtensionGrantRecord({
+        studentId,
+        classId,
+        assignmentId,
+        details: { ...details, dateKey },
+        lateDueAt: lateDueAtIso,
+        previousCutoffMs: currentEffectiveCutoffMs,
+        grantedByEmail: teacherEmail,
+        teacherOfRecordEmail: classRecord?.teacherOfRecord || studentRecord?.assignedTeacherEmail || null,
+        grantedAtMs,
+        shortenedAfterReview: reviewedShortening,
+      }),
+      grantedAt: FieldValue.serverTimestamp(),
+    });
 
     return { assignmentId, studentId, lateDueAt: lateDueAtIso };
   });
@@ -5194,6 +5253,156 @@ exports.backfillRecordAuthorization = onCall(async (request) => {
 });
 
 /**
+ * Root-admin action: take attendance-extension details off the shared
+ * assignment documents (PR #407 deep dive F-PRIV-1).
+ *
+ * Every student can read `assignments/{id}`; extensions granted before this
+ * release stored the student's absence dates, meeting counts and the granting
+ * teacher there. For each such extension the whole stored object (verbatim)
+ * becomes a private grant record under the student FIRST — in the same
+ * transaction that reduces the shared copy to the deadline stub — so nothing
+ * leaves the shared document without landing in the private one
+ * (shared/assignmentPrivacy.mjs planAssignmentPrivacyMigration).
+ *
+ * `dryRun` (the default) reports without writing. Idempotent: a stub is left
+ * alone and a grant record that already exists is never rewritten, so a second
+ * run plans nothing.
+ */
+exports.migrateAssignmentPrivacy = onCall({ timeoutSeconds: 540 }, async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+  const privacy = await import("./shared/assignmentPrivacy.mjs");
+  const dryRun = request.data?.dryRun !== false;
+  const grantsFor = (studentId) => db.collection("grades").doc(studentId).collection(privacy.ATTENDANCE_EXTENSION_GRANTS_COLLECTION);
+
+  const roster = await db.collection("grades").select("classId", "assignedTeacherEmail").get();
+  const studentsById = Object.fromEntries(roster.docs.map((entry) => [entry.id, entry.data() || {}]));
+  const flagSnapshot = await db.collection(privacy.PLATFORM_FLAGS_COLLECTION).doc(privacy.ASSIGNMENT_READ_SCOPE_FLAG).get();
+
+  const totals = {
+    dryRun,
+    assignmentsScanned: 0,
+    assignmentsWithDetails: 0,
+    extensionsMinimized: 0,
+    extensionsAlreadyMinimal: 0,
+    grantRecordsCreated: 0,
+    failures: [],
+  };
+
+  const PAGE = 200;
+  let cursor = null;
+  for (;;) {
+    let query = db.collection("assignments").orderBy(FieldPath.documentId()).select("studentOverrides").limit(PAGE);
+    if (cursor) query = query.startAfter(cursor);
+    // eslint-disable-next-line no-await-in-loop
+    const page = await query.get();
+    for (const assignmentDoc of page.docs) {
+      totals.assignmentsScanned += 1;
+      const overrides = assignmentDoc.data()?.studentOverrides || {};
+      const candidates = Object.keys(overrides)
+        .filter((studentId) => privacy.extensionNeedsMinimizing(overrides[studentId]?.extension));
+      totals.extensionsAlreadyMinimal += Object.keys(overrides).length - candidates.length;
+      if (!candidates.length) continue;
+      totals.assignmentsWithDetails += 1;
+      try {
+        // Re-read and re-plan inside the transaction: a teacher granting an
+        // extension at the same moment must not have their new stub replaced
+        // by an older one.
+        // eslint-disable-next-line no-await-in-loop
+        const outcome = await db.runTransaction(async (transaction) => {
+          const fresh = await transaction.get(assignmentDoc.ref);
+          const assignment = fresh.data() || {};
+          const freshOverrides = assignment.studentOverrides || {};
+          const ids = Object.keys(freshOverrides)
+            .filter((studentId) => privacy.extensionNeedsMinimizing(freshOverrides[studentId]?.extension));
+          const grantRefs = ids.map((studentId) => grantsFor(studentId).doc(privacy.legacyExtensionGrantId(assignmentDoc.id)));
+          const existing = grantRefs.length ? await transaction.getAll(...grantRefs) : [];
+          const existingGrantIds = new Set(existing.filter((snapshot) => snapshot.exists)
+            .map((snapshot) => `${snapshot.ref.parent.parent.id}/${snapshot.id}`));
+          const plan = privacy.planAssignmentPrivacyMigration({
+            assignmentId: assignmentDoc.id,
+            assignment,
+            studentsById,
+            existingGrantIds,
+          });
+          if (!plan.minimize.length) return { minimized: 0, created: 0 };
+          // A transaction holds 500 writes: one update plus at most 400 grants.
+          const chunk = plan.minimize.slice(0, 400);
+          if (!dryRun) {
+            const fieldsAndValues = [];
+            chunk.forEach((entry) => {
+              if (entry.createGrant) {
+                transaction.create(grantsFor(entry.studentId).doc(entry.grantId), {
+                  ...entry.grantRecord,
+                  migratedAt: FieldValue.serverTimestamp(),
+                });
+              }
+              fieldsAndValues.push(new FieldPath("studentOverrides", entry.studentId, "extension"), entry.stub);
+            });
+            transaction.update(assignmentDoc.ref, ...fieldsAndValues);
+          }
+          return {
+            minimized: chunk.length,
+            created: chunk.filter((entry) => entry.createGrant).length,
+            remaining: plan.minimize.length - chunk.length,
+          };
+        });
+        totals.extensionsMinimized += outcome.minimized;
+        totals.grantRecordsCreated += outcome.created;
+        if (outcome.remaining) totals.failures.push({ assignmentId: assignmentDoc.id, reason: `${outcome.remaining} more extensions — run again` });
+      } catch (error) {
+        totals.failures.push({ assignmentId: assignmentDoc.id, reason: String(error?.message || error).slice(0, 200) });
+      }
+    }
+    if (page.size < PAGE) break;
+    cursor = page.docs[page.docs.length - 1];
+  }
+
+  const report = {
+    ...totals,
+    studentListScoped: flagSnapshot.data()?.[privacy.STUDENT_LIST_SCOPED_FIELD] === true,
+    // The shared documents are clean once a run plans nothing and nothing failed.
+    sharedDocumentsClean: totals.failures.length === 0 && (dryRun ? totals.extensionsMinimized === 0 : true),
+  };
+  if (!dryRun) await writeAdminAudit(db, actor, "assignment_privacy_migrated", "assignments", report);
+  return report;
+});
+
+/**
+ * Root-admin action: turn class-scoped assignment lists for students on or off
+ * (firestore.rules `assignments`; shared/assignmentPrivacy.mjs).
+ *
+ * Off is the state a release ships in, so open student tabs from the previous
+ * release keep their live assignment updates. Turn it on once this release has
+ * been live for a school day; turning it off again is the rollback, and needs
+ * no deploy.
+ */
+exports.setAssignmentReadScope = onCall(async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+  const privacy = await import("./shared/assignmentPrivacy.mjs");
+  const ref = db.collection(privacy.PLATFORM_FLAGS_COLLECTION).doc(privacy.ASSIGNMENT_READ_SCOPE_FLAG);
+  if (typeof request.data?.studentListScoped !== "boolean") {
+    const snapshot = await ref.get();
+    return { studentListScoped: snapshot.data()?.[privacy.STUDENT_LIST_SCOPED_FIELD] === true, changed: false };
+  }
+  const studentListScoped = request.data.studentListScoped;
+  await ref.set({
+    [privacy.STUDENT_LIST_SCOPED_FIELD]: studentListScoped,
+    updatedAt: FieldValue.serverTimestamp(),
+    updatedBy: actor.uid,
+  }, { merge: true });
+  await writeAdminAudit(
+    db,
+    actor,
+    studentListScoped ? "assignment_read_scope_enforced" : "assignment_read_scope_relaxed",
+    privacy.ASSIGNMENT_READ_SCOPE_FLAG,
+    { studentListScoped },
+  );
+  return { studentListScoped, changed: true };
+});
+
+/**
  * Root-admin action: put a student in a class, move them, or take them out.
  *
  * This is the roster operation. It never touches the account and never touches
@@ -5383,6 +5592,38 @@ async function recursiveDeleteDocument(db, ref, deleted, label) {
   await db.recursiveDelete(ref);
   deleted[label] = Number(deleted[label] || 0) + 1;
   return 1;
+}
+
+/*
+ * A STUDENT'S ENTRIES ON SHARED ASSIGNMENT DOCUMENTS.
+ *
+ * Every per-student collection disappears with the student, but an assignment
+ * is shared: it kept `studentOverrides[studentId]` (an extension's dates), the
+ * student's DOL attempt grant and their id inside the DOL recovery audit —
+ * readable by every signed-in user, after the account was gone. Those entries
+ * are removed here; the audit entry stays (it records a teacher's action) with
+ * the id replaced by the deletion receipt (shared/assignmentPrivacy.mjs).
+ *
+ * Deletion is rare and explicit, so reading the collection's two relevant
+ * fields once is acceptable; nothing else is written.
+ */
+async function removeStudentFromAssignmentDocuments(db, studentId, receipt, deleted) {
+  const { planStudentRemovalFromAssignment } = await import("./shared/assignmentPrivacy.mjs");
+  const snapshot = await db.collection("assignments").select("studentOverrides", "dol").get();
+  let updated = 0;
+  for (const assignmentDoc of snapshot.docs) {
+    const plan = planStudentRemovalFromAssignment({ assignment: assignmentDoc.data() || {}, studentId, receipt });
+    if (!plan.deletePaths.length && !plan.recoveryAudit) continue;
+    const fieldsAndValues = [];
+    plan.deletePaths.forEach((segments) => fieldsAndValues.push(new FieldPath(...segments), FieldValue.delete()));
+    if (plan.recoveryAudit) fieldsAndValues.push(new FieldPath("dol", "recoveryAudit"), plan.recoveryAudit);
+    // Sequential for the same reason as recursiveDeleteQuery below.
+    // eslint-disable-next-line no-await-in-loop
+    await assignmentDoc.ref.update(...fieldsAndValues);
+    updated += 1;
+  }
+  if (updated) deleted.assignmentStudentEntries = Number(deleted.assignmentStudentEntries || 0) + updated;
+  return updated;
 }
 
 async function recursiveDeleteQuery(db, query, deleted, label) {
@@ -5932,6 +6173,7 @@ exports.permanentlyDeleteStudent = onCall(async (request) => {
   // Preserve accountability without retaining the deleted student's ID in the
   // audit collection. The short irreversible digest is only a deletion receipt.
   const receipt = crypto.createHash("sha256").update(studentKey).digest("hex").slice(0, 16);
+  await removeStudentFromAssignmentDocuments(db, studentId, receipt, deleted);
   await writeAdminAudit(db, actor, "student_permanently_deleted", `deleted-student:${receipt}`, {
     deletedAuthUsers,
     deletedRecords: deleted,
@@ -17663,6 +17905,7 @@ exports.createAssignmentContentVersion = onCall(async (request) => {
       }
 
       const nextVersion = highestVersion + 1;
+      const { stripAssignmentInstanceState } = await import("./shared/assignmentPrivacy.mjs");
       const preparedRelease = assignmentContentVersion.prepareContentRelease({
         sourceAssignment: stored,
         reviewedAssignment: reviewed.assignment,
@@ -17670,6 +17913,7 @@ exports.createAssignmentContentVersion = onCall(async (request) => {
         nextVersion,
         actorUid: request.auth.uid,
         auditId: auditRef.id,
+        stripInstanceState: stripAssignmentInstanceState,
       });
       const release = {
         ...preparedRelease.release,

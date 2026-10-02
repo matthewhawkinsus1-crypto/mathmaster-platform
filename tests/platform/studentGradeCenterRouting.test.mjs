@@ -209,7 +209,9 @@ test('the Assignment Result screen can always reach the full Grade Center', () =
 });
 
 test('the result screen reads the Grade Center entry rather than recomputing a grade', () => {
-  const appResult = region(app, "activeView === 'assignmentResult'", '<StudentAssignmentResult', 'result branch');
+  // The student result route itself: `activeView === 'assignmentResult'` alone
+  // first matches an unrelated effect near the top of App.jsx.
+  const appResult = region(app, "if (user.role === 'student' && activeView === 'assignmentResult' && assignmentResultRoute) {", '<StudentAssignmentResult', 'result branch');
   assert.match(appResult, /findGradeCenterEntry\(studentGradeCenter, assignmentResultRoute\.assignmentId\)/);
   // The screen renders what it was handed; it imports no grade math.
   assert.doesNotMatch(resultScreen, /splitGrade|calculateGrade|weightedQuestionTotals/);

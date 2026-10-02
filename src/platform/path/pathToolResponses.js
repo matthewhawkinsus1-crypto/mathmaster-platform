@@ -47,7 +47,10 @@ const parseOrderedPair = (value) => {
 };
 
 const BUILDERS = {
-  algebra: ({ parts, responseKey }) => ({ value: String(responseOf(parts, 'x') ?? responseKey ?? '') }),
+  // `algebra` is the retired answer box's question type. QuestionEngine shows
+  // it with the balance workspace, so it reports what `stepAlgebra` reports:
+  // the equation the student finished with, not a typed value.
+  algebra: ({ parts }) => ({ finalEquation: String(responseOf(parts, 'algebra-objective') ?? '') }),
 
   system: ({ parts, responseKey }) => {
     const pair = parseOrderedPair(responseKey);

@@ -89,6 +89,9 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
     camera: 'The three-plane model\'s rotation angle. A viewing angle, not an answer; Reset view restores the default.',
     hasInteracted: 'Whether the student has touched the three-plane model yet, so the pre-interaction idle orbit (#387) stops. Resets for a new system; motion bookkeeping, not an answer.',
     reduceMotion: 'Mirror of the device\'s prefers-reduced-motion setting, read from matchMedia, that suppresses the idle orbit. An accessibility preference, never mathematics.',
+    orbitBudgetSpent: 'Whether the idle orbit has used its ten-second budget and stopped for good (deep dive 2026-10-01 §10.6). Resets for a new system; motion bookkeeping, not an answer.',
+    modelOnScreen: 'Mirror of the IntersectionObserver report on the three-plane model, so the idle orbit pauses while it is scrolled out of view. Viewport bookkeeping, never mathematics.',
+    pageHidden: 'Mirror of document.hidden, so the idle orbit pauses in a hidden tab. Page visibility, never mathematics.',
   }),
   parabolaGeometryLab: entry(['parabolaGeometry/ParabolaGeometryLab.jsx']),
   polynomialWorkshop: entry(['polynomialWorkshop/PolynomialWorkshop.jsx']),
@@ -145,7 +148,7 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
     redoDepth: 'Mirror of the redo stack depth, for enabling a button.',
     enlargedGraph: 'Which graph is currently open in modal enlarged view.',
     confirmSubmit: 'Whether the "some parts are still empty" confirmation is showing. A prompt, not work.',
-    historyVersion: 'Counter that re-renders the graph Undo buttons; the Undo history itself is in-memory only.',
+    undoReveal: 'Which card the last Undo changed, so the board can bring it into view and outline it. Presentation of a change the shared Undo history already made; the history itself is useMathUndoHistory\'s.',
   }),
 });
 
@@ -175,6 +178,9 @@ export const SHARED_TOOL_TRANSIENT_STATE = Object.freeze({
   }),
   'shared/ToolShell.jsx': Object.freeze({
     revealed: 'Whether the hint list is open.',
+    wrapped: 'Whether a verdict pill wraps at its current width, which sets its corner radius (PQ-032). Measured layout.',
+    slot: 'This verdict area\'s token in the question\'s attempt-outcome registry (PQ-022). Which slot shows an outcome is presentation; the outcome itself is the engine\'s grading result.',
+    taskCards: 'How many TaskCards opened their fold with this tool\'s description (PQ-023), which decides whether the header still offers "About this tool". Layout.',
   }),
   'shared/useToolSubmission.js': Object.freeze({
     feedback: 'The verdict for the last submission. A grading result, never a draft.',

@@ -18,6 +18,14 @@
 
 .mathmaster-question-engine-has-anchor .mathmaster-tool-task-card > .mathmaster-quiet-disclosure {
   margin: 0 !important;
+  /* With the prompt hidden the fold is the card's only visible child, so it
+     takes the row, as it does on a laptop. The phone rule that shares the row
+     with the prompt capped it at 46%: "How to do this (3 steps)" wrapped to
+     two lines (60px), and opened, the steps read in a column under half the
+     screen wide (PQ-023). `min-width: 0` lets the opened text wrap. */
+  max-width: none !important;
+  flex: 1 1 auto !important;
+  min-width: 0;
 }
 
 .mathmaster-question-container {
@@ -120,10 +128,20 @@
   -webkit-overflow-scrolling: touch;
 }
 
-.mathmaster-question-container .math-tool-workspace svg,
+/* Not the coordinate plane: App.css caps `.mathmaster-responsive-canvas` by the
+   screen (never taller than 70% of it, or than it less 240px). This rule is
+   more specific, and its `max-height: 100%` of a box with no set height is no
+   limit at all, so inside the phone container it switched the cap off: on a
+   664×390 phone a staged question's plane laid itself out 303px tall in a
+   233px column. The plane keeps its own cap; everything else keeps this one. */
+.mathmaster-question-container .math-tool-workspace svg:not(.mathmaster-responsive-canvas),
 .mathmaster-question-container .math-tool-workspace canvas {
   max-width: 100%;
   max-height: 100%;
+}
+
+.mathmaster-question-container .math-tool-workspace svg.mathmaster-responsive-canvas {
+  max-width: 100%;
 }
 
 .mathmaster-question-container .math-tool-workspace canvas,
@@ -175,8 +193,30 @@
   padding: 12px !important;
 }
 
+/* THE TOOL'S NAME IS A LABEL ON A PHONE (PQ-023).
+   At 16–21px beside the absolutely placed "⤢ Enlarge question" the name wrapped
+   to two lines in a header 98–117px tall, above any mathematics. At label size
+   it shares the opener's row: the header is as tall as the opener's row and the
+   name sits level with it, two lines at most. */
 .mathmaster-question-container .mathmaster-tool-shell-header h2 {
-  font-size: clamp(1rem, 3vw, 1.3rem) !important;
+  font-size: 13px !important;
+  line-height: 1.25;
+  text-align: left;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+/* The opener floats 8px from the top of the question's figure and is 44px
+   tall; WorkViewShell.css already keeps its width clear of the header. */
+.mathmaster-question-container.mode-portrait .mathmaster-work-view-surface[data-enlarged="false"] .mathmaster-tool-shell-header {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 58px;
+  padding-top: 7px !important;
+  padding-bottom: 7px !important;
 }
 
 .mathmaster-question-container .mathmaster-tool-grid {
@@ -488,10 +528,14 @@
     display: none !important;
   }
 
+  /* BELOW THE QUESTION, NOT OVER IT. Pinned to the bottom of a column that
+     is only as tall as the screen allows (287px at 664×390), five full-width
+     buttons covered the question they sit under: the column showed Undo
+     through Submit and two half-hidden lines of the task. They follow the
+     question now, a short scroll down its column; Work View, one tap away,
+     carries the same actions in its own rail. */
   .mathmaster-question-container.mode-landscape .landscape-action-bar {
-    position: sticky;
-    bottom: 0;
-    z-index: 12;
+    position: static;
     margin-top: 12px;
     padding: 8px 0 max(6px, env(safe-area-inset-bottom));
     background: linear-gradient(to bottom, rgba(248,249,250,0), #f8f9fa 22%);
@@ -588,9 +632,19 @@
     overscroll-behavior: contain;
   }
 
+  /* THE QUESTION IS AS TALL AS ITS STAGE, SO ITS COLUMNS SCROLL.
+     The question engine sits between the stage and this container. Left out
+     of the rule, it grew to its content and took the container with it: a
+     staged question laid itself out 1150px tall inside a 287px stage that
+     clips (overflow: hidden), so neither column could scroll and a student
+     on a 664×390 or 844×390 phone could see the top of step 1 and nothing
+     below it — a finger drag moved nothing. Upright, the same rule names
+     both (App.css). */
+  .mathmaster-assignment-screen .mathmaster-question-engine,
   .mathmaster-assignment-screen .mathmaster-question-container {
     height: 100% !important;
     max-height: 100% !important;
+    min-height: 0 !important;
   }
 }
 

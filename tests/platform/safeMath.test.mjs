@@ -16,6 +16,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 import * as defaultMath from 'mathjs';
 
 import {
@@ -102,6 +103,33 @@ const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entr
   const full = path.join(dir, entry.name);
   if (entry.isDirectory()) return entry.name === 'node_modules' ? [] : walk(full);
   return /\.(m?js)$/.test(entry.name) ? [full] : [];
+});
+
+test('the hardened instance is built and locked on first use, never before it reads text', () => {
+  // safeMath.mjs is in the browser's first load. Building its functions and
+  // node classes and locking its namespace at import cost a few hundred ms of
+  // main thread before the sign-in screen on a slow Chromebook (BUNDLE-1), so
+  // all of it waits for the first parse, compile, evaluate or simplify.
+  const code = fs.readFileSync(path.join(ROOT, 'functions/shared/algebra/safeMath.mjs'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  const start = code.indexOf('const hardenedMath = () => {');
+  const end = code.indexOf('\n};', start);
+  assert.ok(start > -1 && end > start, 'the first-use lock');
+  const lock = code.slice(start, end);
+  assert.match(lock, /math\.import\(/);
+  for (const name of ['parse', 'evaluate', 'simplify', 'fraction', 'format']) assert.match(lock, new RegExp(`math\\.${name}\\b`), name);
+  const outside = code.slice(0, start) + code.slice(end);
+  assert.doesNotMatch(outside, /math\.(parse|evaluate|simplify|fraction|format|import)\b/, 'nothing else builds or locks the instance at import');
+  assert.doesNotMatch(outside, /=\s*math;|\}\s*=\s*math\b/, 'no node class is read from the instance at import');
+  // ...and the very first thing a fresh process asks of it is already refused.
+  const first = spawnSync(process.execPath, ['--input-type=module', '-e', `
+    const { evaluate, parse } = await import(${JSON.stringify(path.join(ROOT, 'functions/shared/algebra/safeMath.mjs'))});
+    let refused = false;
+    try { evaluate('createUnit("knot")'); } catch { refused = true; }
+    console.log(JSON.stringify({ refused, ordinary: evaluate('2+3*4'), parsed: parse('x^2 + 1').toString() }));
+  `], { encoding: 'utf8' });
+  assert.equal(first.status, 0, first.stderr);
+  assert.deepEqual(JSON.parse(first.stdout.trim()), { refused: true, ordinary: 14, parsed: 'x ^ 2 + 1' });
 });
 
 test('every functions/shared module reads mathematics through the hardened instance', () => {

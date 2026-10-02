@@ -1,5 +1,6 @@
 import { parse } from '../../algebra/safeMath.mjs';
 import { latexToExpression } from '../../algebra/algebraAstEngine.mjs';
+import { parseOrderedPair } from '../../answerUtils.mjs';
 import { nearlyEqual, round } from '../shared/toolMath.mjs';
 import {
   formatFraction,
@@ -245,6 +246,44 @@ export const shouldShowConceptRedirect = (stage, kind, feedbackTiming = 'delayed
   if (feedbackTiming === 'guided') return true;
   if (feedbackTiming === 'delayed') return (stage?.workHistory?.length || 0) >= 1;
   return false;
+};
+
+/*
+ * WHAT "CHECK x-INTERCEPT" DOES WITH THE POINT THE STUDENT WROTE.
+ *
+ * Whether the point is right is not decided here. The orchestrator asks the
+ * shared grader (serverGrading/stepAlgebraWorkspaceGrading.mjs
+ * checkLinearIntercept, the check the server marks the submission with) and
+ * passes the answer in as `isCorrect`; this decides only what the check may do
+ * with it.
+ *
+ * Where the activity shows outcomes at once (practice, warm-up, classwork)
+ * the check is a verdict: only the right point completes the intercept, a
+ * wrong one is named as wrong ("That point does not match this equation…",
+ * "an x-intercept … its y-coordinate is 0") and costs nothing, and a right one
+ * earns its step credit. That is the same behaviour practice always had.
+ *
+ * On a DOL, quiz or test (QuestionEngine's showOutcomeFeedback false →
+ * `revealCorrectness` false) that free, repeatable check is an answer key. So
+ * there any readable ordered pair is RECORDED — right or wrong, in the same
+ * words — and the workflow moves on; nothing earns step credit before Submit
+ * (credit that arrived only for a right point would itself be the verdict, in
+ * the "% partial credit so far" line); and the point is graded when the
+ * question is submitted, by the same shared grader. Only an unreadable entry
+ * is turned back, and that says nothing about correctness.
+ */
+export const resolveInterceptCheck = ({ revealCorrectness = true, kind = 'x', point = '', isCorrect = false } = {}) => {
+  const pair = parseOrderedPair(point);
+  if (!pair) {
+    return { completes: false, isCorrect: false, earnsStepCredit: false, message: 'Enter the intercept as an ordered pair, such as (3, 0).' };
+  }
+  const right = isCorrect === true;
+  if (revealCorrectness === false) return { completes: true, isCorrect: right, earnsStepCredit: false, message: '' };
+  if (right) return { completes: true, isCorrect: true, earnsStepCredit: true, message: '' };
+  let message = 'That point does not match this equation. Recheck the value you solved for.';
+  if (kind === 'x' && Math.abs(pair[1]) > 1e-6) message = 'An x-intercept is a point on the x-axis, so its y-coordinate is 0.';
+  else if (kind === 'y' && Math.abs(pair[0]) > 1e-6) message = 'A y-intercept is a point on the y-axis, so its x-coordinate is 0.';
+  return { completes: false, isCorrect: false, earnsStepCredit: false, message };
 };
 
 export const conceptualRedirect = (kind) => {

@@ -1,4 +1,4 @@
-import { derivative, parse, simplify } from 'mathjs';
+import { derivative, parse, simplify } from './platform/math/mathjs.js';
 import MathDisplay from './MathDisplay';
 import GraphDisplay from './GraphDisplay';
 import {
@@ -14,6 +14,7 @@ import { normalizeInterpretationConfig } from './contextInterpretationUtils';
 import { getStage } from './platform/workflow/interactionStages';
 import { readComposedQuestion } from './platform/workflow/questionWorkflow';
 import { buildExpressionFunctionSpec, evaluateModelAt, parseIntervalDomainRestriction } from './platform/workflow/modelExpression';
+import { fractionSolutionRepresentations } from './fractionQuestionDisplay.js';
 
 const asText = (value) => String(value ?? '').trim();
 const pointText = (point) => `(${point[0]}, ${point[1]})`;
@@ -69,16 +70,10 @@ const buildRepresentations = (question) => {
         `Point: (${question.target},0)`,
         `The selected number is ${question.target}.`,
       ]).slice(0, 3);
-    case 'fraction': {
-      const numerator = Number(question.ansNum);
-      const denominator = Number(question.ansDen);
-      const decimal = denominator ? numerator / denominator : null;
-      return unique([
-        `\\frac{${numerator}}{${denominator}}`,
-        Number.isFinite(decimal) ? `Decimal: ${Number(decimal.toFixed(6))}` : '',
-        `${numerator}/${denominator}`,
-      ]).slice(0, 3);
-    }
+    case 'fraction':
+      // An authored answer is shown as the author wrote it, stacked, and
+      // nothing they did not write; a drill keeps its fraction/decimal lines.
+      return fractionSolutionRepresentations(question);
     case 'literal':
       return unique(question.acceptedAnswers || []).slice(0, 3);
     case 'system': {

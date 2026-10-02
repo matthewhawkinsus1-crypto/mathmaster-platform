@@ -34,6 +34,7 @@ import { gradeServerResponse } from '../../functions/shared/serverGrading/server
 import { TOOL_GRADERS } from '../../functions/shared/serverGrading/toolGraders.mjs';
 import { TOOL_RESPONSE_LIMITS, boundToolWork, canonicalToolWorkJson } from '../../functions/shared/serverGrading/toolResponseContract.mjs';
 import { buildPrivateToolGrading, gradePathResponse } from '../../functions/shared/pathToolContracts.mjs';
+import { FUNCTION_CHOICES } from '../../functions/shared/relationFunctionChoice.mjs';
 import { gradeToolCheck } from '../../src/tools/shared/sharedToolGrading.js';
 import { executableSource, region } from '../platform/helpers/sourceContract.mjs';
 
@@ -619,13 +620,16 @@ test('the lab shows exactly the parts the grader grades, and offers only choices
   assert.match(executable, /const ask = useMemo\(\(\) => relationAskOf\(questionData\.ask\), \[questionData\.ask\]\);/);
   assert.match(executable, /const analysisFields = useMemo\(\(\) => relationAnalysisFieldsOf\(questionData\.answerFields\), \[questionData\.answerFields\]\);/);
 
-  // The four "Is it a function?" buttons submit the grader's values — a
-  // literal here could never match the key.
+  // The four "Is it a function?" buttons submit the grader's values: the lab
+  // builds them from the one shared list (relationFunctionChoice.mjs), which
+  // holds exactly the values the grader knows — a literal here could never
+  // match the key.
   const choices = region(executable, 'const functionChoiceOptions = useMemo(', 'choiceSeed(', 'the function-status choices');
-  const values = [...choices.matchAll(/value: ([^,}]+),/g)].map((match) => match[1].trim());
+  assert.match(choices, /FUNCTION_CHOICES\.map\(/);
+  assert.doesNotMatch(choices, /value: ['"]/, 'no literal choice value');
   assert.deepEqual(
-    values.sort(),
-    Object.keys(FUNCTION_STATUS_CHOICES).map((key) => `FUNCTION_STATUS_CHOICES.${key}`).sort(),
+    FUNCTION_CHOICES.map((choice) => choice.value).sort(),
+    Object.values(FUNCTION_STATUS_CHOICES).sort(),
   );
 });
 

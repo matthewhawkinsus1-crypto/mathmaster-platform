@@ -28,6 +28,8 @@ export default declareTool({
   //     squareRoot mode   { a, h, k }
   //   always: { r (the typed correlation), direction, strength, causation,
   //             modelChoice, predictionX, predictionY, predictionType }
+  //   from a lab whose judgments open unanswered: choicesOpenUnanswered: true
+  //             (judgmentChoices.mjs OWN_CHOICES); absent from older work
   contractVersion: 1,
   // DataModelingLab.jsx: `questionData.mode || 'full'`. A missing mode is the
   // full lab; an unrecognised one is NOT — it renders its own reduced screen

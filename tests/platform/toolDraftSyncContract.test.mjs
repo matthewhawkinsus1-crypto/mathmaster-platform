@@ -133,13 +133,22 @@ test('the student is never shown the diagnostic', () => {
 test('the write path and the sync are both wired to the reporter', () => {
   const storage = executableSource(read('src/questionDraftStorage.js'));
   const writer = storage.slice(storage.indexOf('export const writeQuestionDraft'), storage.indexOf('export const questionDraftSavedAt'));
-  assert.match(writer, /auditDraftWrite\(key, value\);[\s\S]*notifyDraftWritten\(key, value, savedAt\)/,
+  assert.match(writer, /auditDraftWrite\(key, value\);[\s\S]*notifyDraftWritten\(key, value, savedAt, isEdit\b[^)]*\)/,
     'writeQuestionDraft must audit every draft before it is offered to the sync');
   assert.match(storage, /import \{ auditDraftWrite \} from '\.\/platform\/persistence\/draftSyncDiagnostics\.js'/);
   const sync = executableSource(read('src/platform/persistence/workspaceDraftSync.js'));
-  const record = sync.slice(sync.indexOf('record({'), sync.indexOf('setResume('));
-  assert.match(record, /if \(!sanitizeWorkspaceDraftValue\(value\)\.ok\) \{[\s\S]*reportDraftSyncRejection\(\{ key, explanation/);
-  assert.match(record, /return false;[\s\S]*pending\.set\(key/, 'a refused value must return before it is queued');
+  const record = sync.slice(sync.indexOf('const record = ('), sync.indexOf('setResume('));
+  assert.ok(record.length > 200, 'the sync\'s record() was found');
+  // What the guard judges must be exactly what is queued for the server: the
+  // draft's server projection (serverDraftProjection.js, PQ-043), never the
+  // device's copy in one place and something else in the other.
+  const guarded = record.match(/if \(!sanitizeWorkspaceDraftValue\((\w+)\)\.ok\) \{/)?.[1];
+  assert.ok(guarded, 'the sync must run the guard over the value it would send');
+  assert.match(record, new RegExp(`const ${guarded} = projectDraftForServer\\(key, value\\);`),
+    'the guarded value is the server projection of the offered draft');
+  assert.match(record, new RegExp(`if \\(!sanitizeWorkspaceDraftValue\\(${guarded}\\)\\.ok\\) \\{[\\s\\S]*explainWorkspaceDraftRejection\\(${guarded}\\)[\\s\\S]*reportDraftSyncRejection\\(\\{ key, explanation`));
+  assert.match(record, new RegExp(`return false;[\\s\\S]*pending\\.set\\(key, \\{\\s*key,\\s*value: ${guarded},`),
+    'a refused value must return before it is queued, and only the guarded value is queued');
 });
 
 /* --------------------------------------------- registry-wide source contract */

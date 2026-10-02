@@ -1,4 +1,5 @@
 import { nearlyEqual } from '../shared/toolMath.mjs';
+import { UNANSWERED } from '../shared/judgmentChoices.mjs';
 
 export const trimLeadingZeros = (coefficients = []) => {
   const copy = coefficients.map(Number);
@@ -135,11 +136,29 @@ export const POLYNOMIAL_WORKSHOP_DEFAULTS = Object.freeze({
 });
 
 /*
- * What each <select> holds before the student touches it. PolynomialWorkshop.jsx
- * starts its selects here, and the shared grader reads the same table to tell
- * a view the student only opened from an answer (see its completeness rule).
+ * What each <select> holds before the student touches it: nothing. Every one
+ * of them is a judgment the student is asked to make, so it opens on
+ * "Choose…" (UNANSWERED, judgmentChoices.mjs) — PolynomialWorkshop.jsx starts
+ * its selects there — and unanswered is no option, so it is neither complete
+ * nor correct in the shared grader.
  */
 export const POLYNOMIAL_WORKSHOP_STARTING_SELECTIONS = Object.freeze({
+  factorZero: Object.freeze({ factorChoice: UNANSWERED }),
+  graphConnection: Object.freeze({ behavior: UNANSWERED, end: UNANSWERED }),
+  rationalFeatures: Object.freeze({ choice: UNANSWERED }),
+});
+
+/*
+ * What the selects PRE-SELECTED before they opened unanswered. Work an earlier
+ * client saved at that start — a draft or checkpoint revision, say after Undo
+ * took a view back to it — holds exactly these without the student having
+ * chosen them, so the shared grader still reads such work identical to them as
+ * untouched (not complete: a deadline never submits it), exactly as it did
+ * while they were the start. Work from today's workshop carries OWN_CHOICES
+ * (judgmentChoices.mjs): its choices are the student's, these included. An
+ * explicit Check of such work is graded as always.
+ */
+export const POLYNOMIAL_WORKSHOP_PRESELECTED_SELECTIONS = Object.freeze({
   factorZero: Object.freeze({ factorChoice: 'yes' }),
   graphConnection: Object.freeze({ behavior: 'crosses', end: 'both ends rise' }),
   rationalFeatures: Object.freeze({ choice: 'hole' }),

@@ -6,10 +6,10 @@ import MathDisplay from '../../MathDisplay';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../../platform/interaction/choiceOptions.js';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
+import { clientPointToViewBox } from '../../utils/responsiveCoordinates.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import useReportToolWork from '../shared/useReportToolWork.js';
 import relationMappingGrader, {
-  FUNCTION_STATUS_CHOICES,
   parseList,
   relationAnalysisFieldsOf,
   relationAskOf,
@@ -18,6 +18,7 @@ import relationMappingGrader, {
   uniqueSorted,
 } from '../../../functions/shared/serverGrading/tools/relationMapping.mjs';
 import { givenRelationInstruction } from './relationMappingCopy.js';
+import { FUNCTION_CHOICES } from '../../../functions/shared/relationFunctionChoice.mjs';
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: '#174ea6', border: '1px solid #9bb8e8' };
@@ -45,11 +46,20 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
   const snap = (value) => Number((Math.round(value / step) * step).toFixed(8));
 
   const pointFromEvent = (event) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const svgX = ((event.clientX - rect.left) / rect.width) * PLOT_SIZE;
-    const svgY = ((event.clientY - rect.top) / rect.height) * PLOT_SIZE;
-    const rawX = xMin + ((svgX - PLOT_PAD) / width) * (xMax - xMin);
-    const rawY = yMax - ((svgY - PLOT_PAD) / height) * (yMax - yMin);
+    // Where the tap is in the DRAWING, not in the box. A phone held sideways
+    // caps this plot at 62dvh, so the square is drawn centred in a wider box,
+    // and a straight stretch plotted a tap on the drawn (2, 1) at (0, 1)
+    // (PQ-034).
+    const point = clientPointToViewBox({
+      clientX: event.clientX,
+      clientY: event.clientY,
+      rect: event.currentTarget.getBoundingClientRect(),
+      viewBoxWidth: PLOT_SIZE,
+      viewBoxHeight: PLOT_SIZE,
+    });
+    if (!point) return null;
+    const rawX = xMin + ((point.x - PLOT_PAD) / width) * (xMax - xMin);
+    const rawY = yMax - ((point.y - PLOT_PAD) / height) * (yMax - yMin);
     const x = snap(rawX);
     const y = snap(rawY);
     if (x < xMin || x > xMax || y < yMin || y > yMax) return null;
@@ -190,12 +200,12 @@ export default function RelationMapping({ questionData = {}, onAction }) {
     setPlotY('');
   };
 
-  const functionChoiceOptions = useMemo(() => stableShuffleChoices([
-    { value: FUNCTION_STATUS_CHOICES.YES_DEFINITION, label: 'Yes — every input has exactly one output.' },
-    { value: FUNCTION_STATUS_CHOICES.YES_OUTPUT_RULE, label: 'Yes — every output value is used only once.' },
-    { value: FUNCTION_STATUS_CHOICES.NO_INPUT_REPEAT, label: 'No — at least one input has more than one output.' },
-    { value: FUNCTION_STATUS_CHOICES.NO_OUTPUT_REPEAT, label: 'No — at least one output value repeats.' },
-  ], choiceSeed(questionData.questionId || questionData.prompt, 'relation-function-status')), [questionData.questionId, questionData.prompt]);
+  // The choices and the rule are shared with the server's grader
+  // (functions/shared/relationFunctionChoice.mjs), which grades what this sends.
+  const functionChoiceOptions = useMemo(() => stableShuffleChoices(
+    FUNCTION_CHOICES.map((choice) => ({ ...choice })),
+    choiceSeed(questionData.questionId || questionData.prompt, 'relation-function-status'),
+  ), [questionData.questionId, questionData.prompt]);
 
   const optionsForField = (field) => {
     const authored = Array.isArray(field?.options) ? field.options : [];

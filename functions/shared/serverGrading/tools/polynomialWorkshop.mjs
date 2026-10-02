@@ -13,12 +13,19 @@
  * single all-or-nothing checks).
  *
  * Completeness (what a deadline may submit for the student): every typed box
- * is non-blank and every <select> holds one of its options. The two views made
- * only of selects (graphConnection, rationalFeatures) start filled
- * (POLYNOMIAL_WORKSHOP_STARTING_SELECTIONS), so a view the student only opened
- * would otherwise be complete — and, whenever the starting selection happens
- * to be right, auto-submitted as correct. Work still identical to that
- * starting state is therefore NOT complete. An explicit Check of it is still
+ * is non-blank and every <select> holds one of its options. Every select opens
+ * unanswered (POLYNOMIAL_WORKSHOP_STARTING_SELECTIONS: "Choose…", '' — no
+ * option), and unanswered is neither complete nor correct: in particular a
+ * blank "Is (x − r) a factor?" is not "no". Before that change the two views
+ * made only of selects (graphConnection, rationalFeatures) opened on one of
+ * their options (POLYNOMIAL_WORKSHOP_PRESELECTED_SELECTIONS), and work an
+ * earlier client saved at that start (a draft or checkpoint revision, say
+ * after Undo) still holds them; work still identical to either start is
+ * therefore NOT complete, so a deadline never submits it — or credits it when
+ * the pre-selection happens to be right. Work from today's workshop says its
+ * choices are the student's own (OWN_CHOICES, judgmentChoices.mjs): there
+ * only the unanswered start is untouched, so a student who chose exactly the
+ * old pre-selection is graded like any other. An explicit Check of it is still
  * graded with exactly the verdict and score the workshop always gave.
  * (FactorZero needs no such rule: its P(r) box starts blank.)
  */
@@ -26,8 +33,10 @@ import declaration from '../declarations/polynomialWorkshop.mjs';
 import { bindToolGrader } from '../toolGraderDefinition.mjs';
 import { gradedResult, ungradedResult } from '../gradingResult.mjs';
 import { evaluatePolynomial, matchesNumericAnswer, parseNumericAnswer } from '../../toolMath/shared/toolMath.mjs';
+import { choicesAreOwn } from '../../toolMath/shared/judgmentChoices.mjs';
 import {
   POLYNOMIAL_WORKSHOP_DEFAULTS as DEFAULTS,
+  POLYNOMIAL_WORKSHOP_PRESELECTED_SELECTIONS as PRESELECTED,
   POLYNOMIAL_WORKSHOP_STARTING_SELECTIONS as STARTING,
   coefficientsFromRoots,
   endBehavior,
@@ -73,10 +82,15 @@ const choicePart = (id, label, value, options, expected) => {
 
 /*
  * A view made only of <select>s: complete when every select holds an option
- * AND the student has moved off the starting selections. The verdict and the
+ * AND the student has moved off the starting selections (today's unanswered
+ * start, or the options an earlier workshop pre-selected). The verdict and the
  * score are the workshop's own — every check right, the share of checks
  * right — whether or not the work is complete.
  */
+const holdsSelections = (work, selections) => Object.entries(selections).every(([field, value]) => work[field] === value);
+const untouchedSelections = (work, view) => holdsSelections(work, STARTING[view])
+  || (!choicesAreOwn(work) && holdsSelections(work, PRESELECTED[view]));
+
 const selectionsResult = (parts, untouched) => gradedResult({
   parts,
   isComplete: parts.every((part) => part.isComplete) && !untouched,
@@ -178,7 +192,7 @@ const graphConnection = (question, work) => withKey(
   (key) => selectionsResult([
     choicePart('behavior', 'At the target zero', work.behavior, BEHAVIORS, key.behavior),
     choicePart('end-behavior', 'End behavior', work.end, END_BEHAVIORS, key.end),
-  ], work.behavior === STARTING.graphConnection.behavior && work.end === STARTING.graphConnection.end),
+  ], untouchedSelections(work, 'graphConnection')),
 );
 
 const rationalFeatures = (question, work) => withKey(
@@ -191,7 +205,7 @@ const rationalFeatures = (question, work) => withKey(
   },
   (expected) => selectionsResult(
     [choicePart('feature', 'Feature at the target value', work.choice, RATIONAL_FEATURES, expected)],
-    work.choice === STARTING.rationalFeatures.choice,
+    untouchedSelections(work, 'rationalFeatures'),
   ),
 );
 

@@ -179,9 +179,17 @@ wrong answer alone is never classified, and no LLM is involved. Today no stored 
 so every item reads **"Error pattern not determinable from stored evidence."**; the latest attempt's
 not-correct *part names* (e.g. "y-intercept") are shown as recorded facts, not as a diagnosis.
 
-To emit codes later a tool sets `misconceptionCodes` (catalog ids) on its grading result; the remaining wiring
-is listed in the catalog's header (part compaction in `attemptPolicy.mjs`, the evidence-event builder, and the
-`QuestionEngine` registry-tool forwarder). This PR does not change the production ingestion path.
+A tool names a code by putting a catalog id on the **part** of its grading result it concerns
+(`misconceptionCode` on a part). Since follow-up CR-4 the three seams carry it: the `QuestionEngine` registry-tool
+forwarder copies it onto the part it hands the attempt recorder, `attemptPolicy.mjs` part compaction keeps it
+(catalog ids only, one per part — so it reaches the record the browser queues, the record ingestion accepts for a
+type the server cannot re-mark, and the record a server grader's parts produce), and the evidence-event builder
+copies the attempt's part codes onto `performance.misconceptionCodes`, which `loadStudentCaseEvidence` already
+projects. A part or event without a code keeps its exact earlier shape (no collection, no rule, no index changed).
+Two things remain outside it, both new data design: no classroom tool or grader emits a code yet (graphing2's
+construction `category` is not a catalog id, and mapping categories to codes is a pedagogical decision), and a code
+for a question as a whole has no slot on the question record (codes are stored per part). Until a tool emits one,
+every case review still reads "not determinable". Test: `tests/platform/misconceptionCodePassThrough.test.mjs`.
 
 ### 3.6 Timeline (`caseTimeline.js`)
 PR #401's support timeline entries (profile revisions, support evidence, service, classroom records) plus
@@ -229,7 +237,13 @@ completion · support evidence (PR #401 rows/summary) · timeline · SIS reconci
 attention · evidence gaps · data sources & coverage · legend · limitations. CSV exports: assignment
 contribution rows, question rows and narrative facts (formula-neutralised cells, PR #401's `csvCell`); JSON:
 the whole model. Print: the 12 sections the brief lists, teacher-entered next steps labelled
-"Teacher-authored — written by the teacher, not generated evidence." (kept in the page only; not saved).
+"Teacher-authored — written by the teacher, not generated evidence." Next steps have no server home and are given
+none: since follow-up CR-3 they are a draft in the tab's `sessionStorage`, one per signed-in teacher (uid) per
+student (`src/platform/caseReview/nextStepsDraft.js` over `src/auth/accountTabStorage.js`), so closing the case
+review or reloading no longer loses them. The draft is removed when the teacher clears the box, when any account
+signs out in the tab (`signOutSession`, and `AuthProvider` when a session ends any other way), when another account
+opens a case review in the tab, and when the tab closes; it is bounded (10,000 characters) and never written to
+Firestore or `localStorage`. Print and the JSON export carry whatever the box holds, restored or typed.
 
 Every grade contribution carries a **state** so an unanswered section is never shown as a score:
 `not-started` (no answers, still open for this student → "Not started"), `no-answers-closed` (final cutoff
@@ -298,6 +312,15 @@ Report sit above it). Print renders a portal copy on `<body>` only while printin
 layout and a report printed from above prints alone. Every important fact shows a provenance badge; narrative
 facts open to their sources. Components are one per tab (no giant component); CSS prefix `cr-`, semantic
 tokens only (the print-only black-on-white exception is recorded in `scripts/theme-color-baseline.json`).
+
+On a phone (≤ 600 px wide, or under 500 px tall — a phone on its side; follow-up CR-6, checked at 390×844,
+344×882 and 844×390) the whole case review scrolls, header and tabs included — kept fixed they took half of an
+844-px screen (254 of 390 px on its side) and, with the selection reopened, left the evidence 32 px — and the scroll
+memory follows whichever element scrolls (a new place opens no further down than where its evidence starts). Every
+control is at least 44 px. Upright, every table reads as one card per row, each value beside its column's name: the
+names are copied from the table headers onto the cells (`tableCellLabels.js`), so no table scrolls sideways and none
+repeats its column names in JSX (on a phone on its side the wide tables keep their own sideways scroll). A long record
+path in a narrative fact's sources wraps instead of widening the list.
 
 ## 8. File plan
 

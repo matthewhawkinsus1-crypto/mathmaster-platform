@@ -276,10 +276,10 @@ test('once reversed, the button no longer encourages a second reversal', () => {
 // --- 10: raw student IDs are never the primary teacher-facing label ---
 
 test('the history panel resolves a roster display name for the primary label; it does not render the raw studentId in <strong>', () => {
-  const rowBody = region(historyPanelSource, 'transactions.map((transaction) =>', 'export default function ClassPointsHistoryPanel', 'history row').split('return (')[1] || '';
+  const rowBody = region(historyPanelSource, 'transactions.map((transaction) =>', '})}', 'history row').split('return (')[1] || '';
   // The row's name comes from the roster by studentId — directly, or through
   // the panel's label helper, which adds "· ID x" only when no name is on file.
-  const rowSource = region(historyPanelSource, 'transactions.map((transaction) =>', 'export default function ClassPointsHistoryPanel', 'history row');
+  const rowSource = region(historyPanelSource, 'transactions.map((transaction) =>', '})}', 'history row');
   assertCapability(executableSource(rowSource), [
     /const studentName = resolveRosterStudentName\(\{ studentId: transaction\.studentId, students: roster \}\)/,
     /const studentName = rosterStudentLabel\(transaction\.studentId, roster(?:, '', showStudentId)?\)/,

@@ -31,32 +31,60 @@
  */
 import { all, create } from 'mathjs';
 
+/*
+ * BUILT ON FIRST USE.
+ *
+ * `create(all)` only registers mathjs's factories; each function is built the
+ * first time something asks for it. Building the ones captured below, the
+ * expression-node classes and the locked namespace costs a few hundred
+ * milliseconds of main thread on a slow Chromebook, and this module is in the
+ * browser's first load — so the first load paid it before the sign-in screen
+ * appeared, though nothing parses a student's text until a question is
+ * answered (BUNDLE-1). So the instance is locked the first time anything here
+ * is asked to read, compile, evaluate or simplify (`hardened`, below): still
+ * before any expression is parsed, so no expression ever runs in an unlocked
+ * namespace. The node classes are built when a node is first constructed.
+ */
 const math = create(all);
 
-// Captured before the namespace is locked. Each keeps the dependencies it was
-// created with, so locking the expression namespace does not affect it.
-const rawParse = math.parse;
-const rawEvaluate = math.evaluate;
-const rawSimplify = math.simplify;
-const fraction = math.fraction;
-const format = math.format;
+let hardened = null;
+const hardenedMath = () => {
+  if (hardened) return hardened;
+  // Captured before the namespace is locked. Each keeps the dependencies it
+  // was created with, so locking the expression namespace does not affect it.
+  const captured = {
+    rawParse: math.parse,
+    rawEvaluate: math.evaluate,
+    rawSimplify: math.simplify,
+    fraction: math.fraction,
+    format: math.format,
+  };
+  math.import(
+    // The refusals are module constants (below); this runs after the module has loaded.
+    Object.fromEntries(REFUSED_EXPRESSION_FUNCTIONS.map((name) => [name, refuse(name)])),
+    { override: true },
+  );
+  hardened = captured;
+  return hardened;
+};
 
-export const {
-  AccessorNode,
-  ArrayNode,
-  ConditionalNode,
-  ConstantNode,
-  FunctionNode,
-  IndexNode,
-  Node,
-  ObjectNode,
-  OperatorNode,
-  ParenthesisNode,
-  RangeNode,
-  RelationalNode,
-  SymbolNode,
-  isNode,
-} = math;
+// `new OperatorNode(...)` makes the real mathjs node, its class built on first
+// use: a constructor that returns an object hands `new` that object.
+const nodeClass = (name) => function MathNode(...args) { return new math[name](...args); };
+export const AccessorNode = nodeClass('AccessorNode');
+export const ArrayNode = nodeClass('ArrayNode');
+export const ConditionalNode = nodeClass('ConditionalNode');
+export const ConstantNode = nodeClass('ConstantNode');
+export const FunctionNode = nodeClass('FunctionNode');
+export const IndexNode = nodeClass('IndexNode');
+export const Node = nodeClass('Node');
+export const ObjectNode = nodeClass('ObjectNode');
+export const OperatorNode = nodeClass('OperatorNode');
+export const ParenthesisNode = nodeClass('ParenthesisNode');
+export const RangeNode = nodeClass('RangeNode');
+export const RelationalNode = nodeClass('RelationalNode');
+export const SymbolNode = nodeClass('SymbolNode');
+export const isNode = (value) => math.isNode(value);
 
 /*
  * Names an expression may not call. Re-entrant or process-mutating functions,
@@ -87,10 +115,6 @@ const refuse = (name) => function refusedInStudentExpression() {
   throw new Error(`${name} is not available in an answer.`);
 };
 
-math.import(
-  Object.fromEntries(REFUSED_EXPRESSION_FUNCTIONS.map((name) => [name, refuse(name)])),
-  { override: true },
-);
 
 // Longer than any answer box the contract carries (1,000 characters per string,
 // toolResponseContract.mjs), with room for LaTeX conversion.
@@ -161,6 +185,7 @@ const assertSafeText = (text) => {
 export const parse = (expression, options) => {
   if (Array.isArray(expression)) return expression.map((entry) => parse(entry, options));
   assertSafeText(expression);
+  const { rawParse } = hardenedMath();
   return assertSafeNode(options === undefined ? rawParse(expression) : rawParse(expression, options));
 };
 
@@ -173,6 +198,7 @@ export const compile = (expression) => {
 /** mathjs `evaluate`, through the same checks. */
 export const evaluate = (expression, scope) => {
   if (Array.isArray(expression)) return expression.map((entry) => evaluate(entry, scope));
+  const { rawEvaluate } = hardenedMath();
   if (typeof expression !== 'string') return scope === undefined ? rawEvaluate(expression) : rawEvaluate(expression, scope);
   parse(expression);
   return scope === undefined ? rawEvaluate(expression) : rawEvaluate(expression, scope);
@@ -180,13 +206,16 @@ export const evaluate = (expression, scope) => {
 
 /** mathjs `simplify`, through the same checks (constant folding evaluates). */
 export const simplify = (expression, ...rest) => {
+  const { rawSimplify } = hardenedMath();
   if (typeof expression === 'string') parse(expression);
   else if (expression && typeof expression.traverse === 'function') assertSafeNode(expression);
   return rawSimplify(expression, ...rest);
 };
 
-export { format, fraction };
+/** mathjs `fraction` and `format`, from the locked instance. */
+export const fraction = (...args) => hardenedMath().fraction(...args);
+export const format = (...args) => hardenedMath().format(...args);
 
-/** For tests: the hardened instance itself (never import it to evaluate). */
-export const safeMathInstance = math;
-export { rawEvaluate as unguardedEvaluateForTests };
+/** For tests: the hardened instance itself (never import it to evaluate). Locked on first read. */
+export const safeMathInstance = new Proxy(math, { get: (target, key) => { hardenedMath(); return Reflect.get(target, key); } });
+export const unguardedEvaluateForTests = (...args) => hardenedMath().rawEvaluate(...args);

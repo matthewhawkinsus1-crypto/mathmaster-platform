@@ -704,11 +704,18 @@
   /* The bottom padding is the sticky action bar's MEASURED height
      (--mm-action-bar-height, published by MobileViewportContainer) plus room
      to breathe, so a focused field clears the bar whether it is one row or
-     wraps to two. 72px is the fallback before the first measurement. */
+     wraps to two. 72px is the fallback before the first measurement.
+
+     The top padding is the sticky task card's MEASURED height
+     (--mm-sticky-task-height, stickyHeightRef) plus 56px for the field's label,
+     the same allowance the field's own scroll-margin makes below. It used to be
+     a flat 140px: right for an 84px card, short for a taller one — with a
+     184px task card, Enter walked to the next blank and left it 30px under
+     the card (PQ-031). Unmeasured, it is still 84 + 56 = the old 140px. */
   html:has(.mathmaster-assignment-screen),
   body:has(.mathmaster-assignment-screen) {
     --mm-sticky-task-top: calc(var(--mm-student-identity-stack-offset, 0px) + 6px + var(--mm-assignment-nav-height, 112px) + 4px);
-    scroll-padding-top: calc(var(--mm-sticky-task-top, 208px) + 140px);
+    scroll-padding-top: calc(var(--mm-sticky-task-top, 208px) + var(--mm-sticky-task-height, 84px) + 56px);
     scroll-padding-bottom: calc(var(--mm-action-bar-height, 72px) + 18px);
   }
 
@@ -717,7 +724,7 @@
        published by stickyHeightRef). A fixed 118px put the task card's first
        row underneath the navigator. */
     --mm-sticky-task-top: calc(var(--mm-student-identity-stack-offset, 0px) + 6px + var(--mm-assignment-nav-height, 112px) + 4px);
-    scroll-padding-top: calc(var(--mm-sticky-task-top, 208px) + 140px);
+    scroll-padding-top: calc(var(--mm-sticky-task-top, 208px) + var(--mm-sticky-task-height, 84px) + 56px);
     scroll-padding-bottom: calc(var(--mm-action-bar-height, 72px) + 18px);
   }
 
@@ -2113,6 +2120,18 @@
   margin-left: 0 !important;
 }
 
+/* ONE FOLD FOR THE TOOL'S HELP (PQ-023). When the tool's TaskCard opens with
+   the one-line description, the header's own "About this tool" would be a
+   second fold saying the same thing, so it goes. Work View hides the task
+   card (WorkViewShell.css), so there the header keeps it. */
+.mathmaster-tool-shell-about[data-merged="true"] {
+  display: none !important;
+}
+
+html[data-work-view-open="true"] .mathmaster-tool-shell-about[data-merged="true"] {
+  display: contents !important;
+}
+
 /* TOOL DIRECTIONS ARE ORDINARY CONTENT, NOT A SECOND STICKY TASK.
    The student-facing "Your task" panel is the one persistent source of truth.
    Tool help such as "How to do this" must be allowed to leave the viewport as
@@ -2169,8 +2188,16 @@
    question dots) covered about 350px of the 390 — the question underneath was
    a sliver (live QA, Algebra I DOL #2). On a screen this short the navigator
    and task scroll with the page; the identity bar stays, and Work View is one
-   tap away for focused work. */
-@media (min-width: 769px) and (max-height: 560px) {
+   tap away for focused work.
+
+   Every phone on its side, not only the wide ones. From 769px only, a
+   narrower phone held sideways (667×375, 740×360, 664×390) kept the
+   navigator sticky at 44px from the top inside a screen that does not scroll
+   (MathToolMobileLayout.css), which pushed it 44px down over the question:
+   the top 36px of the question — "Your task" and the attempt strip — sat
+   under it. A screen this short and wider than it is tall is that phone,
+   whatever its width. */
+@media (orientation: landscape) and (max-height: 560px) {
   html:has(.mathmaster-assignment-screen),
   body:has(.mathmaster-assignment-screen),
   .mathmaster-assignment-screen {

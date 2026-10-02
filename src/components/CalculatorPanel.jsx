@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { bindMathFieldFocusHandoff } from '../platform/interaction/mathFieldFocusHandoff.js';
-import 'mathlive';
+import '../platform/math/mathliveRuntime.js';
 import { getCalculatorButtonsForMode, getCalculatorDrawerLabel } from '../platform/policies/calculatorPolicy';
 import { evaluateCalculatorExpression } from '../platform/policies/calculatorExpression';
 import { clampCalculatorPosition, settleCalculatorPosition } from './calculatorPanelGeometry.js';

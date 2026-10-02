@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
-import { ALGEBRA_DRAFT_VERSION, rehydrateAlgebraDraft } from './algebraDraftState';
+import { ALGEBRA_DRAFT_VERSION, makePendingMove, pendingMoveDraft, rehydrateAlgebraDraft } from './algebraDraftState';
 import { advanceCancellationProgress } from './algebraCancellationProgress';
 import { buildCancellationModel } from './algebraCancellationModel';
 import { stageOperationPlacement } from './algebraOperationPlacement';
@@ -18,7 +18,6 @@ import { workspaceNeedsReveal } from './platform/layout/workspaceReveal.js';
 import { extractEquationSymbols, placementInstructionForOperation, semanticPlacementFromTap } from './platform/mobile/mobileInteractionFoundation.js';
 import {
   applyAdditiveOperationAtPlacement,
-  applyBalancedOperation,
   describeOperation,
   equationToLatex,
   expressionToLatex,
@@ -86,6 +85,7 @@ import {
   undoLastPlacement as undoDistributionPlacement,
 } from './algebraDistributionModel';
 import { useContentStableValue } from './platform/react/useContentStableValue.js';
+import { useHintsAllowed, useHintUseReporter } from './tools/shared/ToolRuntimeContext';
 
 const STRUCTURE_TOOL_TITLES = {
   factor: 'Choose terms, write them as primes, and pull out a factor they share',
@@ -335,11 +335,27 @@ export default function StepByStepAlgebra({
   // the step — shares the tool row with the target. The engine is unchanged.
   embedded = false,
   embeddedTitle = null,
+  // The activity's hint permission (QuestionEngine: the policy's
+  // `hintsAllowed`). Where it is false — a DOL, quiz or test — the strategic
+  // hint is not offered at all. Where it is offered, opening it is reported
+  // like every other hint, so the attempt's mastery weight is discounted.
+  hintsAllowed: hintsAllowedProp = true,
+  onHintUsed: onHintUsedProp = null,
   // Which equation this workspace was opened on when a host built it — the
   // intercept orchestrator's `{ zeroVariable }` — so a step's raw work names
   // the equation the server must check it against. Never a verdict.
   stepWorkContext = null,
 }) {
+  // The props are what QuestionEngine passes the solvers it mounts. Every
+  // other host inherits the activity's ToolRuntimeContext instead — a composed
+  // question's algebra step (WorkflowRunner's algebraWorkspace) passes no hint
+  // props at all, and offered "Need a strategic hint?" on a DOL. Either one
+  // withholding hints withholds them; outside any provider the context allows
+  // them and has no recorder, which is exactly the old default.
+  const contextHintsAllowed = useHintsAllowed();
+  const contextHintReporter = useHintUseReporter();
+  const hintsAllowed = hintsAllowedProp !== false && contextHintsAllowed;
+  const onHintUsed = onHintUsedProp || contextHintReporter;
   // Content identity, not object identity: a host that rebuilds an equal
   // question every render must not reset the workspace (useContentStableValue).
   const question = useContentStableValue(questionProp);
@@ -574,7 +590,10 @@ export default function StepByStepAlgebra({
       structureTool,
       workSteps,
       armedTile,
-      pendingMove,
+      // What the student did, not the engine's analysis of it: that carries the
+      // equation's solution, which a student-readable draft must not, and the
+      // server backup refuses it (algebraDraftState.js).
+      pendingMove: pendingMoveDraft(pendingMove),
       crossedSides,
       cancelledPairIds,
       selectedCancellationIndices,
@@ -1548,12 +1567,13 @@ export default function StepByStepAlgebra({
     setMessage(null);
     let move;
     try {
-      const placementBySide = placementBySideOverride || placedOperationPositions;
-      // The move remembers where the student wrote it: the placement shapes
-      // the move's own sides, and a step's raw work reports it so the server
-      // recomputes the same move. (A move rebuilt from a draft has none, and
-      // was computed without one.)
-      move = { ...applyBalancedOperation({ equationState: equation, operation, operand, placementBySide }), placementBySide };
+      // Made the way a restored draft remakes it (algebraDraftState.js), so a
+      // reload brings back this move and not a neighbouring one. The move
+      // remembers where the student wrote it (its own placementBySide, beside
+      // the engine's result): the placement shapes the move's sides, and a
+      // step's raw work reports it so the server recomputes the same move — a
+      // move restored from a draft included.
+      move = makePendingMove({ equation, operation, operand, placementBySide: placementBySideOverride || placedOperationPositions });
     } catch (error) {
       triggerShake();
       setMessage({ tone: 'error', text: error.message });
@@ -2544,7 +2564,10 @@ export default function StepByStepAlgebra({
   return (
     <section className={`${shake ? 'algebra-shake' : ''}${embedded ? ' algebra-embedded' : ''}`} style={{ maxWidth: '1120px', margin: '0 auto', padding: embedded ? '4px 0 8px' : '10px 10px 24px', textAlign: 'left' }}>
       {showPrompt && !embedded ? <QuestionPrompt>{question.prompt || 'Solve the equation by keeping both sides balanced.'}</QuestionPrompt> : null}
-      <div className={embedded ? 'algebra-embedded-toolbar' : undefined} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: embedded ? '8px 12px' : '12px', flexWrap: 'wrap', marginBottom: embedded ? '8px' : '16px' }}>
+      {/* `algebra-toolbar`: the row the question starts with, so the Enlarge
+          button that floats over its right end gets room (WorkViewShell.css,
+          PQ-025) — it sat on "Reset work" at 1366x768. */}
+      <div className={embedded ? 'algebra-embedded-toolbar' : 'algebra-toolbar'} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: embedded ? '8px 12px' : '12px', flexWrap: 'wrap', marginBottom: embedded ? '8px' : '16px' }}>
         {embedded ? (
           <div className="algebra-embedded-heading">
             {embeddedTitle ? <strong>{embeddedTitle}</strong> : null}
@@ -3359,10 +3382,12 @@ export default function StepByStepAlgebra({
           </p>
         </div>
       )}
-      {question.showHint !== false && suggestedMove && !solved && <details style={{ marginTop: '14px', color: '#5f6368' }}><summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Need a strategic hint?</summary><p style={{ margin: '8px 0 0' }}>Look for a move that cancels a term: {describeOperation(suggestedMove.operation, suggestedMove.operand)}.</p></details>}
+      {hintsAllowed && question.showHint !== false && suggestedMove && !solved && <details onToggle={(event) => { if (event.currentTarget.open) onHintUsed?.(); }} style={{ marginTop: '14px', color: '#5f6368' }}><summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Need a strategic hint?</summary><p style={{ margin: '8px 0 0' }}>Look for a move that cancels a term: {describeOperation(suggestedMove.operation, suggestedMove.operand)}.</p></details>}
       {message && <div role="status" style={{ marginTop: '16px', padding: '13px 15px', borderRadius: '10px', background: message.tone === 'success' ? '#e6f4ea' : message.tone === 'growth' ? '#fef7e0' : '#fce8e6', color: message.tone === 'success' ? '#137333' : message.tone === 'growth' ? '#8a5a00' : '#c5221f', fontWeight: 'bold' }}>{message.text}</div>}
       {!embedded && <p style={{ color: '#5f6368', fontSize: '13px', marginTop: '12px' }}>
-        {supportPolicy.description}
+        {/* The level's own sentence promises "Hints are available on request";
+            where the activity withholds hints that is no longer true. */}
+        {hintsAllowed ? supportPolicy.description : supportPolicy.description.replace(/\s*Hints are available on request\./, '')}
         {supportPolicy.inefficientMoveCostsAttempt
           ? attemptsDoNotExpire ? ' Live Challenge work does not expire from intermediate moves.' : ` Attempts remaining: ${attemptsRemaining}. A longer route still counts as correct algebra, but it uses an attempt at this level.`
           : ' A longer route is still correct algebra here and costs nothing.'}

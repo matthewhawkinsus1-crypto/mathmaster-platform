@@ -256,7 +256,7 @@ Ranked by effect on learning and on the student's work, not by ease.
 - **R-3 `MathDisplay` auto-format.** Values containing LaTeX commands are sometimes classified as ASCII math; `(2, -2),\ (4, -1)` then crashes MathLive ("Maximum call stack size exceeded") and renders blank. Treat any `\command` as LaTeX.
 - **R-4 MathLive focus latency.** On a busy main thread focus lands in a clicked field tens of ms late; keys in between go to the previous field (select-all + Backspace wiped a finished answer in this QA). Worth a platform guard (e.g. route keys to the field under the last pointerdown until focus arrives).
 - **R-5 Silent draft-sync refusal.** A single forbidden key or an oversized value stops a tool's whole draft from syncing with no signal. Recommend a dev-time warning and a registry-wide test that runs each tool's maximal record through `sanitizeWorkspaceDraftValue` (as this PR now does for its board).
-- **R-6 Two Undo concepts.** The platform Undo in the action bar is permanently disabled on this board while each graph has its own Undo. Joining `useMathUndoHistory` (in-memory, per the 16 KB draft lesson) would give one Undo.
+- **R-6 Two Undo concepts.** The platform Undo in the action bar is permanently disabled on this board while each graph has its own Undo. Joining `useMathUndoHistory` (in-memory, per the 16 KB draft lesson) would give one Undo. *Done (PQ-009): one history for the whole board; each graph's Undo is that history filtered to the graph.*
 - **R-7 `inputMode="decimal"` for signed values.** Used across tools (e.g. `linearTableWorkbench` slope/rate). An iPhone decimal pad has no minus key.
 - **R-8 One plotting help.** The shared plane prints a 5-line gesture paragraph under every interactive plane; a single "How to plot" disclosure per tool would say it once.
 - **R-9 Clip lines to the plot area** in `CoordinatePlane` (and the representation-match mini graphs).
@@ -286,7 +286,7 @@ Screenshots from the final browser run, in `docs/qa/screenshots/pr397-linear-rep
 
 ## Known limitations
 
-- Graph Undo history is in memory only (histories never go in drafts); after a reload Undo removes the last point.
+- ~~Graph Undo history is in memory only (histories never go in drafts); after a reload Undo removes the last point.~~ Superseded by PQ-009 (2026-10-01): one Undo history for the whole board. It is device-local, size-capped and never in the synced draft, and its most recent steps survive a reload.
 - Student anchors with denominators beyond 1/20 snap to twentieths (plottable within tolerance, not exactly).
 - Browser QA ran on Chrome with touch emulation, not on a physical iPhone/iPad. The iPhone keypad point (P1-4) is standard iOS behaviour and was fixed conservatively.
 - The harness points MathLive at its package fonts because Vite's dev optimizer loses them; production builds are unaffected.

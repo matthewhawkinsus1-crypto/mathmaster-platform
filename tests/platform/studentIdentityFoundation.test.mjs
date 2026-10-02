@@ -58,7 +58,13 @@ test('historical support sessions and events resolve ids through the current ros
 
 test('teacher preview is visibly preview-only and cannot receive student logout treatment', () => {
   const app = read('src/App.jsx');
-  const previewRoute = region(app, 'if (isTeacherPreview)', "if (user.role === 'teacher')", 'teacher preview route');
+  // The preview ROUTE is the branch immediately before the teacher route;
+  // `if (isTeacherPreview)` also guards a dozen handlers earlier in App.jsx,
+  // and the first of those is not this route.
+  const teacherRoute = app.indexOf("if (user.role === 'teacher')");
+  assert.notEqual(teacherRoute, -1, 'the teacher route');
+  const previewRoute = app.slice(app.lastIndexOf('if (isTeacherPreview)', teacherRoute), teacherRoute);
+  assert.ok(previewRoute.startsWith('if (isTeacherPreview)') && previewRoute.length < 400, 'bound to the preview route alone');
   assert.match(previewRoute, /renderStudentIdentityShell\(renderAssignmentWorkspace\(true\), \{ preview: true \}\)/);
 
   const identity = read('src/components/student/StudentIdentityBar.jsx');

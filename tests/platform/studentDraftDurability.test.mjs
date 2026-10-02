@@ -9,8 +9,8 @@ test('multipart draft setters persist during the state transition, not only in a
     read('src/useUndoHistory.js'),
     read('src/useLocalDraftState.js'),
   ]);
-  assert.match(undo, /setValueState\(\(current\)[\s\S]*writeQuestionDraft\(persistenceKey, saved\)/);
-  assert.match(local, /setPersistedValue[\s\S]*writeQuestionDraft\(storageKey, saved\)/);
+  assert.match(undo, /setValueState\(\(current\)[\s\S]*writeQuestionDraft\(persistenceKey, saved\b[^;]*\);\s*return saved/);
+  assert.match(local, /setPersistedValue[\s\S]*writeQuestionDraft\(storageKey, saved\b[^;]*\);\s*return saved/);
 });
 
 test('composed workflow questions restore both responses and active stage', async () => {

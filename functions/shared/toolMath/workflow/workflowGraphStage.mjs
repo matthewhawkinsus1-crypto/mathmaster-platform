@@ -285,7 +285,7 @@ export const coordinateReadout = (stage, content) => (
  * `coordinatePlot`: plot the points. From the student's table, else their
  * equation at the table's inputs, else the authored pairs.
  */
-export const coordinatePlotQuestion = ({ stage, input, content }) => {
+export const coordinatePlotQuestion = ({ stage, input, content, outcomesWithheld = false }) => {
   const source = input?.from === 'student' ? input.value : null;
   const fromTable = source?.[WORKFLOW_ARTIFACT] === 'table' ? source.points : null;
   const equationPoints = typeof source === 'string'
@@ -310,7 +310,11 @@ export const coordinatePlotQuestion = ({ stage, input, content }) => {
     expected: point,
     lockedX: true,
   }));
-  const magneticSnapTargets = source?.[WORKFLOW_ARTIFACT] === 'table'
+  // The magnet is offered only for a table that agrees with its source, so
+  // whether it appears says whether the table is right: where outcomes are
+  // withheld it stays off and the points are placed on the grid like any other.
+  const magneticSnapTargets = !outcomesWithheld
+    && source?.[WORKFLOW_ARTIFACT] === 'table'
     && source.isComplete
     && source.sourceConsistent !== false
     ? buildStudentTableMagneticTargets(pairs)
@@ -354,7 +358,7 @@ export const coordinatePlotQuestion = ({ stage, input, content }) => {
  *                              graph exists, and the runner says so
  *   { status: 'unbuildable' }  no function to graph yet
  */
-export const functionGraphQuestion = ({ stage, input, content }) => {
+export const functionGraphQuestion = ({ stage, input, content, outcomesWithheld = false }) => {
   const source = input?.from === 'student' ? input.value : null;
   const sourceIsTable = source?.[WORKFLOW_ARTIFACT] === 'table';
   const tablePoints = sourceIsTable && Array.isArray(source.points) ? source.points : [];
@@ -375,7 +379,9 @@ export const functionGraphQuestion = ({ stage, input, content }) => {
     }).filter(Boolean);
   })();
   const graphWindow = expandGraphWindowToPoints(authoredGraphWindow, points);
-  const magneticSnapTargets = sourceIsTable
+  // See coordinatePlotQuestion: the magnet's presence would say the table is right.
+  const magneticSnapTargets = !outcomesWithheld
+    && sourceIsTable
     && source.isComplete
     && source.sourceConsistent !== false
     ? buildStudentTableMagneticTargets(points)
@@ -384,7 +390,14 @@ export const functionGraphQuestion = ({ stage, input, content }) => {
   // The graph must represent the student's own prior work. For a table that
   // came from an equation, contradictory work has no single graph; the runner
   // makes that conflict visible rather than secretly switching to the key.
-  if (sourceIsTable && (source.sourceModel || source.sourceFunctionSpec) && source.sourceChecked > 0 && source.sourceConsistent === false) {
+  //
+  // Not where outcomes are withheld (a DOL, quiz or test). "Your table and
+  // function do not agree" is a verdict on the table — against the AUTHORED
+  // function when the table was not built from the student's own equation —
+  // and it could be asked again after every edit. There the graph is built
+  // from the student's own table and function as they stand (never from the
+  // answer key), and both are marked when the question is submitted.
+  if (!outcomesWithheld && sourceIsTable && (source.sourceModel || source.sourceFunctionSpec) && source.sourceChecked > 0 && source.sourceConsistent === false) {
     return { status: 'conflict', question: null };
   }
 
@@ -488,8 +501,10 @@ const sourceView = ({ upstreamStage, upstream, content }) => {
  *
  * `workflow` is the authored, normalized workflow (readComposedQuestion); the
  * student's branch is resolved here, as the runner resolves it.
+ * `outcomesWithheld` is a DOL, quiz or test: no magnet and no conflict block,
+ * whose presence would say whether the student's table is right.
  */
-export const resolveWorkflowGraphStages = ({ workflow = [], content = null, grading = null, responses = {} } = {}) => {
+export const resolveWorkflowGraphStages = ({ workflow = [], content = null, grading = null, responses = {}, outcomesWithheld = false } = {}) => {
   const stages = Array.isArray(workflow) ? workflow : [];
   const resolved = new Map();
   if (!stages.some(isWorkflowGraphStage)) return resolved;
@@ -509,8 +524,8 @@ export const resolveWorkflowGraphStages = ({ workflow = [], content = null, grad
       return;
     }
     const built = stage.kind === 'coordinatePlot'
-      ? coordinatePlotQuestion({ stage: effective, input, content })
-      : functionGraphQuestion({ stage: effective, input, content });
+      ? coordinatePlotQuestion({ stage: effective, input, content, outcomesWithheld })
+      : functionGraphQuestion({ stage: effective, input, content, outcomesWithheld });
     resolved.set(stage.id, { ...built, stage: effective, input });
   });
   return resolved;

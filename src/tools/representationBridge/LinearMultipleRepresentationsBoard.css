@@ -15,3 +15,28 @@
     display: contents !important;
   }
 }
+
+/* WHAT THE LAST UNDO CHANGED (PQ-009). One Undo for the whole board can change
+   a card the student is not looking at; the board brings it into view and the
+   live region names it, and the card is outlined for a moment so a sighted
+   student sees where it happened. Two keyframe names, alternated by the
+   Undo's id, restart the outline when two Undos in a row change the same
+   card. The outline fades — a change of colour, not of position — so it
+   stays under reduced motion. */
+.mm-lmr-undone--odd {
+  animation: mm-lmr-undone-odd 2.4s ease-out forwards;
+}
+
+.mm-lmr-undone--even {
+  animation: mm-lmr-undone-even 2.4s ease-out forwards;
+}
+
+@keyframes mm-lmr-undone-odd {
+  0%, 45% { box-shadow: 0 0 0 2px var(--mm-surface, transparent), 0 0 0 5px var(--mm-primary, #1a73e8); }
+  100% { box-shadow: 0 0 0 2px transparent, 0 0 0 5px transparent; }
+}
+
+@keyframes mm-lmr-undone-even {
+  0%, 45% { box-shadow: 0 0 0 2px var(--mm-surface, transparent), 0 0 0 5px var(--mm-primary, #1a73e8); }
+  100% { box-shadow: 0 0 0 2px transparent, 0 0 0 5px transparent; }
+}

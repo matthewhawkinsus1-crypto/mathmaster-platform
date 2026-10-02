@@ -258,7 +258,7 @@ test('an edit is durable before any cleanup runs', async () => {
   // Persisted inside the state transition, like useLocalDraftState and
   // useUndoHistory. A browser that is closed abruptly never runs an unmount
   // cleanup, so a layer that saved there would lose the last edit every time.
-  assert.match(source, /setValue\(\(current\) => \{[\s\S]*commitField\(keyRef\.current, field, resolved, coalesceMs\)/);
+  assert.match(source, /setValue\(\(current\) => \{[\s\S]*commitField\(keyRef\.current, field, resolved, coalesceMs\b[^;]*\);\s*return resolved/);
   assert.doesNotMatch(source, /useEffect\(\(\) => \(\) => \{[\s\S]*commitField/);
   // Nothing on the student's edit path is awaited.
   const commit = source.slice(source.indexOf('const commitField'), source.indexOf('export const flushToolDrafts') + 400);

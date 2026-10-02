@@ -401,6 +401,11 @@ const addCaseReviewEvidence = ({ fixture, now, Timestamp, student }) => {
     const tracker = { ...fixture[base].gradesByAssignment[assignmentId] };
     plan.forEach((results, questionIndex) => {
       const { suffix, role, code } = QUESTIONS[questionIndex];
+      // One question carries a structured misconception code, stored the way a
+      // tool that names one has it stored (functions/shared/misconceptionCodes.mjs):
+      // on the latest attempt's part, and on that attempt's evidence event. No
+      // classroom tool emits one yet; the case review must name exactly this one.
+      const misconceptionCode = assignmentId === 'a-yesterday' && questionIndex === 2 ? 'substitution-setup-error' : null;
       let lastMs = null;
       results.forEach((isCorrect, attemptIndex) => {
         lastMs = startMs + minute * 60_000;
@@ -414,7 +419,10 @@ const addCaseReviewEvidence = ({ fixture, now, Timestamp, student }) => {
           alignmentKeys: [`texas:${code}`],
           questionSnapshot: { questionId: `${assignmentId}-${suffix}`, questionType: 'freeResponse', variantIndex: 0 },
           source: { kind: 'assignment', assignmentId, activityRole: role, questionIndex },
-          performance: { attemptNumber, isCorrect, partialCredit: isCorrect ? 100 : 0, status: isCorrect ? 'correct' : (attemptNumber === results.length ? 'expired' : 'attempted') },
+          performance: {
+            attemptNumber, isCorrect, partialCredit: isCorrect ? 100 : 0, status: isCorrect ? 'correct' : (attemptNumber === results.length ? 'expired' : 'attempted'),
+            ...(misconceptionCode && attemptNumber === results.length ? { misconceptionCodes: [misconceptionCode] } : {}),
+          },
           supportUsage: { calculatorUsed: assignmentId === 'a-lastweek' && questionIndex === 3 },
         };
       });
@@ -427,6 +435,9 @@ const addCaseReviewEvidence = ({ fixture, now, Timestamp, student }) => {
         lastAttemptAt: iso,
         academicOccurredAt: iso,
         submissionOrigin: 'server-ingestion',
+        ...(misconceptionCode ? {
+          partGrades: [{ id: 'system', label: 'Solution of the system', isComplete: true, isCorrect: false, graded: true, weight: 1, credit: 0, response: '', misconceptionCode }],
+        } : {}),
       };
     });
     fixture[base].gradesByAssignment = { ...fixture[base].gradesByAssignment, [assignmentId]: tracker };

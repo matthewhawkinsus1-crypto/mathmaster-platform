@@ -167,7 +167,11 @@ export const buildNarrativeFacts = (model) => {
     }
     if (entry.attendanceExtension?.finalAtMs) {
       add(`deadline.attendance.${entry.assignmentId}`, 'deadlines', 'attendanceExtension', { title: entry.title, date: fmtDate(entry.attendanceExtension.finalAtMs) }, CASE_PROVENANCE.DIRECT,
-        [caseSource({ label: 'Attendance extension', path: 'assignments/{id}.studentOverrides', ids: [entry.assignmentId] })]);
+        [caseSource({
+          label: 'Attendance extension',
+          path: entry.attendanceExtension.source === 'grant-history' ? 'grades/{student}/attendanceExtensionGrants' : 'assignments/{id}.studentOverrides',
+          ids: [entry.assignmentId],
+        })]);
     }
   });
 

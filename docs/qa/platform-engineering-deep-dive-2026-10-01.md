@@ -14,6 +14,48 @@ areas, it is written up below as a handoff instead.
 
 ---
 
+## Status after the cleanup pass (branch `claude/close-pr-407-408-findings-90hfdz`)
+
+Every finding below was re-investigated and given one disposition. The PR that
+closes them carries the full table, the tests and the deploy steps. In short:
+
+| Deep dive | Finding | Status |
+| --- | --- | --- |
+| §2 (endurance) | Student CDP nodes +2 per round | **Not an app leak.** 20 rounds on a production build: attached DOM, detached DOM and listeners flat; the +2 are MathLive shadow parts held by a `CSSStyleDeclaration` each. Teacher, 9 rounds: flat |
+| §8 | F-REL-3: no record of the Functions commit | **Fixed.** Every function carries `mm-git-sha`/`mm-tree` labels; `platformBuildInfo`; the release tool verifies the commit before rules and Hosting (`--whats-live`) |
+| §8 | F-REL-6: path-admin predeploy dirtied the tree | **Fixed.** Tracked files change only when the certified release does |
+| §8 | Release tool never run against production | **Still true.** Its first `--execute` is an operator step: a small, watched release |
+| §8 | SPA rewrite answers a missing chunk with `index.html` | **Kept.** The client recovers (gated). The same rewrite hid a real defect: production math fields had no math fonts (fixed; `mathFontsProduction.mjs`) |
+| §8 | Rules that remove access break old tabs | **Applied.** The class-scoped `assignments` list rule waits on a root-admin switch (`platformFlags/assignmentReadScope`) |
+| §9 | F-PRIV-1 | **Fixed.** Extension details live in `grades/{sid}/attendanceExtensionGrants` (one record per grant); a student's device lists only its class's assignments; root-admin migration (dry run first) and switch; runbook in `docs/DEPLOY_FROM_CLOUD_SHELL.md` Block 5 |
+| §9 | `classes/*`, `settings/*` readable when signed in | **Kept, verified.** A catalog with no roster, and school configuration with no student data; student screens read both |
+| §10.1 | Student fan-out from `assignments` | **Fixed** by the class scoping above |
+| §10.2 | Outbox `retired` read whole on every report | **Fixed** without the version bump this section said it needed: a per-student tally in the existing `deviceIdentity` store, changed in the retire transaction. Also: an idle device's identical reports (≈12 a minute) now go once per 5 minutes unless something changed |
+| §10.3 | mathjs (634 KB) in the first load | **Its cost is fixed; its bytes remain.** mathjs's prebuilt instance built every function before the sign-in screen: 586 ms of main thread on a 4x-throttled CPU. The client now builds the same instance with `create(all)` (`src/platform/math/mathjs.js`), each function on first use. Production build, 4x CPU, median of 7: sign-in controls appear at 1485 ms instead of 1977 ms, and mathjs takes 108 ms. The 641 KB download stays until the shell split (§15.2) |
+| §10.4 | Teacher session summaries, `limit(1000)` per class | **Kept.** Bounded by design, documented in code, inside the protected support area |
+| §10.5 | Scratchpads held all day | **Fixed.** Budgeted LRU (8 MiB; the open scratchpad never evicted). Found on the way: multi-page scratchpad pages were saved with `dataUrl: undefined`, so graded saves failed |
+| §10.6 | ThreePlaneWorkspace idle orbit at 60 fps | **Fixed.** At most 10 s, paused off-screen and in hidden tabs |
+| §11 | Whole-board Undo (PQ-009) | **Fixed.** One platform Undo for the whole board (answer fields only, so no verdict is ever undone); each Undo reveals and announces the card it changed |
+| §11 | PQ-022 attempt outcome off-screen | **Fixed.** The outcome appears beside the tool's own verdict (62 px below Check on a Chromebook, 59 px on a phone; it was 357–403 px below, off screen), the representations board included |
+| §11 | PQ-020/021 landscape phone stage, pinned identity bar | **Fixed.** A phone on its side gives the step 235–265 px (was 120–150), with the plane fully on screen. The identity bar is one ~38 px line below 480 px |
+| §11 | PQ-023 tool chrome between task and math | **Fixed (steps 1–2):** one help fold; on a phone the tool's name is a label beside Enlarge. Moving the fold below the first panel (step 3) is left for a pedagogy check |
+| §11 | PQ-024 point cards' x not held | **Fixed.** A printed x is held on every route; a key point or student-chosen x never is |
+| §11 | Legacy `fraction` default problem | **Fixed, and larger than recorded:** every `fraction` question drew a random sum over its authored numbers, so an authored answer could never be right. Also the V5 compiler dropped a `fractionAnswer`'s accepted forms, math line and operands |
+| §12 | Why no attempt · somewhere to paste diagnostics · release checklist | **New features**, out of scope for a cleanup |
+| §13 | Manual browser suites | **In CI:** `student-teacher-journeys.yml` (endurance nightly); Work View certification was already in CI |
+| §13 | `exhaustive-deps` off | **Error in `src/platform/`** (13 sites fixed at the cause) |
+| §13 | Fake Firestore notifies every listener | **Fixed.** A fake listener hears only writes that change its own document or query; unimplemented fake callables fail loudly |
+| §13 | No post-deploy smoke test | **Fixed:** the release tool's `platformBuildInfo` verify step |
+| §13 | No class-scale load test | **Fixed for Path** (30 students, racing retries); ingestion and Live Challenge already had theirs |
+| §14 | Live Challenge inline props | **Not touched** (protected; the engine-side defence holds, and #410 has rewritten these screens) |
+| §14 | Seat writes reach every device | **Fixed** by the class scoping |
+| §14 | PQ-036 for the assessment owner | **Fixed:** where outcomes are withheld there is no check; the curve goes through the student's own points and is graded at submission by practice's rule |
+| §15.4 | One feedback-policy context | **Done:** `ToolRuntimeContext` carries `showImmediateFeedback`, `hintsAllowed`, `onHintUsed` and `questionTerminal`, composed questions included. A full audit found and closed 12 more surfaces (systems 2×2/3×3 checks, student-built inequalities, intercepts, the relation solver's number line, the modeling lab's result); `assessmentLeakGates.mjs` covers them |
+| §15.2 | Split `App.jsx` | **Not done.** An architecture change of its own: it would take mathjs's 641 KB and the teacher modules out of a student's first load. The reasons are in the cleanup PR (I-1) |
+| §15.6 | Retire source-text contracts | **Ongoing practice;** eight more were rewritten against behaviour in this pass |
+
+---
+
 ## 1. What changed, in one table
 
 | Area | Problem found (measured) | Change | Proof |
@@ -279,9 +321,12 @@ uses locators.
    recovery evidence. The safe fix keeps a per-disposition counter, updated in
    the retire transaction, so the summary never reads the store. This needs an
    IndexedDB version bump, so it belongs in its own change with the outbox
-   certification.
+   certification. *(Cleanup pass: done without a bump — the counter is a record
+   in the existing `deviceIdentity` store — see the status table above.)*
 3. **mathjs (634 KB) in the first load** through `problemGenerator`. That
-   chain dissolves once the shells split.
+   chain dissolves once the shells split. *(Cleanup pass: its main-thread cost
+   is gone, because each function is built on first use
+   (`src/platform/math/mathjs.js`). The bytes still wait for the shells.)*
 4. **Teacher session summaries.** `studentSupportStore.js` opens one
    `limit(1000)` listener per class. A six-class teacher can hold 6000
    documents live on Home. Bounded, but a paged read would serve the
@@ -293,9 +338,10 @@ uses locators.
 
 ## 11. Student experience opportunities
 
-- Finish whole-board Undo for the representations board (PQ-009 items 3 and
+- ~~Finish whole-board Undo for the representations board (PQ-009 items 3 and
   4): exclude verdict fields, then announce and reveal the card each Undo
-  changed. The platform pieces it needed are in.
+  changed. The platform pieces it needed are in.~~ Done: see PQ-009 in
+  `platform-quirks-audit.md`.
 - PQ-022: after a tool's Check, the attempt outcome is off-screen. Bring it
   into the tool's result area.
 - PQ-020/021: landscape phone Work View gives the stage 120–150 px; the

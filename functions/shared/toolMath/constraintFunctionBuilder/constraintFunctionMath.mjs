@@ -1,6 +1,11 @@
 import { evaluateFunctionSpec, nearlyEqual } from '../shared/toolMath.mjs';
+import { UNANSWERED } from '../shared/judgmentChoices.mjs';
 
 export const BUILDER_FAMILIES = Object.freeze(['linear', 'quadratic', 'exponential', 'absolute', 'verticalLine']);
+
+/** The question asks "continuous or discrete?", so the graph type is the student's judgment. */
+export const builderAsksGraphType = (constraints = []) => (Array.isArray(constraints) ? constraints : [])
+  .some((constraint) => ['continuity', 'domainMode'].includes(constraint?.kind));
 
 export const normalizeBuilderModel = (model = {}) => ({
   family: BUILDER_FAMILIES.includes(model.family) ? model.family : 'linear',
@@ -8,7 +13,12 @@ export const normalizeBuilderModel = (model = {}) => ({
   h: Number.isFinite(Number(model.h)) ? Number(model.h) : 0,
   k: Number.isFinite(Number(model.k)) ? Number(model.k) : 0,
   base: Number.isFinite(Number(model.base)) && Number(model.base) > 0 && !nearlyEqual(Number(model.base), 1) ? Number(model.base) : 2,
-  domainMode: model.domainMode === 'discrete' ? 'discrete' : 'continuous',
+  // An unanswered graph type stays unanswered, so a continuity constraint is
+  // not met before the student chooses — on the screen and on the server,
+  // which normalizes the submitted model through this same function. Anything
+  // else that is not "discrete" (an older model with no graph type) reads as
+  // continuous, as before.
+  domainMode: model.domainMode === 'discrete' ? 'discrete' : model.domainMode === UNANSWERED ? UNANSWERED : 'continuous',
   domainMin: Number.isFinite(Number(model.domainMin)) ? Number(model.domainMin) : -4,
   domainMax: Number.isFinite(Number(model.domainMax)) ? Number(model.domainMax) : 4,
   verticalX: Number.isFinite(Number(model.verticalX)) ? Number(model.verticalX) : 0,
@@ -161,6 +171,27 @@ export const scoreConstraintModel = (model, constraints = []) => {
   return { isCorrect: parts.length > 0 && correctCount === parts.length, score: parts.length ? correctCount / parts.length : 0, parts };
 };
 
+/**
+ * THE CONSTRAINT CHECKLIST, AS THE STUDENT SEES IT WHILE BUILDING.
+ *
+ * Where the activity shows outcomes at once each constraint ticks green the
+ * moment the model satisfies it — a live target to build toward, which is the
+ * point of this tool in practice. But every constraint is a graded part, so on
+ * a DOL, quiz or test (`showImmediateFeedback` false) a live tick is a free
+ * answer key: nudge a parameter until every box is green, then submit. There
+ * the checklist lists what the model must satisfy, the same for every model,
+ * and the model is judged only when it is submitted.
+ */
+export const constraintChecklistView = ({ parts = [], showImmediateFeedback = true } = {}) => {
+  const verdictsShown = showImmediateFeedback !== false;
+  return (Array.isArray(parts) ? parts : []).map((part) => ({
+    id: part.id,
+    label: part.label,
+    satisfied: verdictsShown ? Boolean(part.isCorrect) : null,
+    mark: verdictsShown ? (part.isCorrect ? '✓' : '○') : '•',
+  }));
+};
+
 /*
  * WHAT THE BUILDER'S SCREEN IS SET UP WITH, READ FROM THE QUESTION.
  *
@@ -181,6 +212,11 @@ export const initialBuilderModel = (question = {}) => {
   const hasAuthoredInitialModel = question?.initialModel && typeof question.initialModel === 'object';
   return normalizeBuilderModel({
     family: allowedFamilies[0] || 'linear',
+    // Where a constraint asks "continuous or discrete?", the graph type is the
+    // student's judgment and starts unanswered (judgmentChoices.mjs), not on
+    // "Continuous", which met every continuity constraint before any choice.
+    // An authored initialModel that names a graph type still wins.
+    ...(builderAsksGraphType(question?.constraints) ? { domainMode: UNANSWERED } : {}),
     // An open-construction question must not open on a fully valid answer.
     // A zero leading coefficient intentionally collapses linear/quadratic/
     // absolute/exponential defaults until the student actually constructs one.

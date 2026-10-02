@@ -38,6 +38,7 @@ import {
   parseRelationSource,
 } from '../../functions/shared/toolMath/algebra-relations/algebraRelationFoundation.mjs';
 import { resolveFamilyQuestionInstance } from '../../functions/shared/questionFamilyInstance.mjs';
+import { ALGEBRA_DRAFT_VERSION, makePendingMove, pendingMoveDraft, rehydrateAlgebraDraft } from '../../src/algebraDraftState.js';
 import {
   STEP_ACTIONS,
   STEP_BEYOND_SERVER_BUDGET,
@@ -255,6 +256,42 @@ test('an inequality solve and an intercept check are credited the same way', () 
     countsAttempt: false,
     stepWork: interceptStepWork({ intercept: 'x', point: '(8, 0)' }),
   }, 'x-intercept');
+});
+
+test('a placed move is credited by the server as the browser credits it — and so is the same move restored from a draft', () => {
+  // StepByStepAlgebraCore makes every pending move with makePendingMove, which
+  // keeps where the student wrote it ("−6" dropped before the "+6"; the right
+  // side as a whole); a reload remakes it from the draft (operation, operand,
+  // placement — never the engine's analysis, which holds the solution) through
+  // the same function.
+  const placementBySide = { left: { kind: 'before', termIndex: 1 }, right: 'side' };
+  const equation = parseEquationInput(LINEAR);
+  const placed = makePendingMove({ equation, operation: 'subtract', operand: '6', placementBySide });
+  const draft = { algebraDraftVersion: ALGEBRA_DRAFT_VERSION, equation, pendingMove: pendingMoveDraft(placed) };
+  const restored = rehydrateAlgebraDraft({ draft, initialEquation: equation }).pendingMove;
+  for (const [label, move] of [['placed', placed], ['restored', restored]]) {
+    const s = linearSession();
+    const action = STEP_ACTIONS.BALANCED_MOVE;
+    const after = resolveEquationAfterMove(move, 3, move.requiredCancellationSides);
+    const stepWork = equationStepWork({ action, before: s.equation, after, move, supportLevel: 3 });
+    assert.doesNotMatch(JSON.stringify(stepWork), /solution|analysis/, `${label}: the step's work carries no solved value`);
+    // The server's own recomputation (stepAlgebraStepVerification recomputeMove)
+    // from what reaches it is the move the student made, placement and all.
+    const wire = normalizeStepWork(JSON.parse(JSON.stringify(stepWork)));
+    const rebuilt = applyBalancedOperation({
+      equationState: s.equation,
+      operation: wire.operation.operation,
+      operand: wire.operation.operand,
+      placementBySide: wire.operation.placementBySide || {},
+    });
+    assert.deepEqual(rebuilt.unsimplified, placed.unsimplified, `${label}: the server rebuilds the move the student placed`);
+    honestStep(s, {
+      stepGrade: equationMoveStepGrade({ action, move, supportLevel: 3, before: s.equation, after, question: s.workspaceQuestion }),
+      countsAttempt: stepActionCountsAttempt(action),
+      statePatch: equationStatePatch({ equation: after, supportLevel: 3, stepNumber: 1 }),
+      stepWork,
+    }, label);
+  }
 });
 
 test('a Question Family instance: the steps are checked against the instance the pin rebuilds', () => {
@@ -529,7 +566,7 @@ test('App forwards the step\'s raw work in the durable step submission, and impo
   const app = executableSource(read('src/App.jsx'));
   const handler = region(app, 'const handleStepGrade = async', 'const handleRequestNewQuestion', 'handleStepGrade');
   assert.match(handler, /\(\{[^}]*\bstepWork\b[^}]*\}\)\s*=>/, 'handleStepGrade receives the step work');
-  const payload = region(handler, "kind: 'stepSubmission'", 'enqueueDurableAction', 'the step submission payload');
+  const payload = region(handler, "kind: 'stepSubmission'", 'setStudentOutboxDepth(', 'the step submission payload');
   assert.match(payload, /stepWork:\s*normalizeStepWork\(stepWork\)/, 'the payload carries the bounded step work');
   assert.match(app, /import\s*\{[^}]*\bnormalizeStepWork\b[^}]*\}\s*from\s*'\.\.\/functions\/shared\/submissionEnvelope\.mjs'/, 'normalizeStepWork is imported (a missing import is a runtime ReferenceError no check catches)');
   const builder = region(app, 'const buildSubmissionEnvelopeForAction', '});', 'buildSubmissionEnvelopeForAction');
@@ -556,10 +593,14 @@ test('every step the equation workspace reports carries its raw work, built by t
   calls.forEach((call) => assert.match(call, /^(\{\s*$|\{\s*stepGrade,?|rewriteStepPayload)/, `an onStepGrade call bypasses the shared builders: ${call}`));
   assert.doesNotMatch(core, /earned:\s*\d/, 'no inline credit');
   // The move remembers where it was written (its own property, beside the
-  // engine's result), so the server recomputes the same move.
+  // engine's result), so the server recomputes the same move. The workspace
+  // makes it through makePendingMove, the one route a move restored from a
+  // draft takes too (algebraDraftState.js), which keeps the placement on the
+  // move; "a placed move ... restored from a draft" above runs both through
+  // the server.
   assert.match(
     region(core, 'const attemptMove = async', 'if (!move.preservesSolution)', 'attemptMove'),
-    /move = \{\s*\.\.\.applyBalancedOperation\(\{[^}]*\}\),\s*placementBySide\s*\}/,
+    /move = makePendingMove\(\{[^}]*\bplacementBySide: placementBySideOverride \|\| placedOperationPositions\b[^}]*\}\);/,
   );
 });
 

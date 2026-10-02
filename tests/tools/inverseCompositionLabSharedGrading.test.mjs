@@ -24,6 +24,7 @@ import {
   isLinearInverseSolved,
 } from '../../functions/shared/toolMath/inverseComposition/inverseDerivationMath.mjs';
 import { gradeToolCheck } from '../../src/tools/shared/sharedToolGrading.js';
+import { UNANSWERED } from '../../functions/shared/toolMath/shared/judgmentChoices.mjs';
 import { executableSource, region } from '../platform/helpers/sourceContract.mjs';
 
 /*
@@ -65,6 +66,8 @@ const failedIds = (result) => result.parts.filter((part) => !part.isCorrect).map
 const incompleteIds = (result) => result.parts.filter((part) => !part.isComplete).map((part) => part.id);
 
 // The lab's work, exactly the state its inputs hold (blank boxes stay blank).
+// The restriction is "No restriction needed" unless a test says otherwise; the
+// select itself opens unanswered (see the unanswered-restriction test).
 const labWork = (fields = {}) => ({ x: 2, fogAnswer: '', gofAnswer: '', inverseAnswer: '', restrictionChoice: 'none', ...fields });
 
 // A derivation's work, built by driving the lab's own state machine.
@@ -365,9 +368,41 @@ test('restriction: the branch choice and the inverse are each half the credit', 
   const best = grade(unbranched, labWork({ restrictionChoice: 'required', inverseAnswer: '2' }));
   assert.deepEqual({ isCorrect: best.isCorrect, score: best.score }, { isCorrect: false, score: 0.5 });
 
-  // A non-quadratic needs no restriction: the hidden select's 'none' stands.
+  // A non-quadratic needs no restriction, and saying so is right.
   const linear = grade(q({ mode: 'restriction' }), labWork({ inverseAnswer: '2' }));
   assert.equal(linear.isCorrect, true);
+});
+
+/*
+ * THE RESTRICTION IS THE STUDENT'S JUDGMENT, AND STARTS UNANSWERED.
+ *
+ * The select opened on "No restriction needed" — the right answer for every
+ * function that is not a quadratic — and a restriction question about such a
+ * function did not even show it, so the default answered a part the student
+ * never saw. The select now shows whenever the restriction is asked and opens
+ * on "Choose…" ('' — judgmentChoices.mjs), which is no choice on either path.
+ */
+test('restriction: an unanswered restriction is neither complete nor right, and the select shows whenever it is asked', () => {
+  const linear = q({ mode: 'restriction' });
+  const blank = grade(linear, labWork({ inverseAnswer: '2', restrictionChoice: UNANSWERED }));
+  assert.deepEqual({ isCorrect: blank.isCorrect, isComplete: blank.isComplete, score: blank.score }, { isCorrect: false, isComplete: false, score: 0.5 });
+  assert.deepEqual(failedIds(blank), ['restriction']);
+  assert.deepEqual(incompleteIds(blank), ['restriction']);
+  const quadratic = q({ f: { type: 'quadratic', a: 1, h: 1, k: -2, inverseBranch: 'left' }, x: -1 });
+  const full = grade(quadratic, labWork({ x: -1, fogAnswer: '14', gofAnswer: '2', inverseAnswer: '-1', restrictionChoice: UNANSWERED }));
+  assert.deepEqual(failedIds(full), ['restriction']);
+  assert.equal(full.isComplete, false);
+  // A view that does not ask the restriction is not held back by it.
+  assert.equal(grade(q({ mode: 'inverse' }), labWork({ inverseAnswer: '2', restrictionChoice: UNANSWERED })).isCorrect, true);
+
+  // The screen: the select starts unanswered and is shown for a quadratic or
+  // whenever the shared list of asked parts includes the restriction.
+  assert.match(labCode, /usePersistentToolState\('restrictionChoice', UNANSWERED\)/);
+  assert.match(labCode, /const asksRestriction = inverseLabRequiredParts\(mode, f\)\.includes\('restriction'\);/);
+  assert.match(labCode, /\{f\.type === 'quadratic' \|\| asksRestriction \? <div/);
+  const start = labCode.indexOf('value={restrictionChoice}');
+  const options = labCode.slice(labCode.indexOf('<option', start), labCode.indexOf('</select>', start));
+  assert.match(options, /^<option value=\{UNANSWERED\}>Choose…<\/option>/);
 });
 
 /* ------------------------------------------------------------------ */

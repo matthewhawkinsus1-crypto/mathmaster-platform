@@ -9,13 +9,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { linearEquationForm } from '../../src/tools/systemsWorkspace/algebraicSystemsEngine.js';
 import {
+  IDLE_ORBIT_BUDGET_MS,
+  IDLE_ORBIT_MAX_FRAME_MS,
   advanceIdleCamera,
   clipPlaneToCube,
   cubeCorners,
   cubeEdges,
+  idleOrbitPending,
+  idleOrbitPhase,
   planePlaneIntersection,
   projectPoint,
   projectPolygon,
+  spendIdleOrbitFrame,
   threePlaneCommonPoint,
 } from '../../src/tools/systemsWorkspace/threePlaneGeometry.js';
 
@@ -128,6 +133,107 @@ test('idle camera orbit clamps long frame gaps so returning to the tab never jum
   const advanced = advanceIdleCamera(camera, 5000, 0.25);
   assert.ok(Math.abs(advanced.azimuth - 1.02) < 1e-9, '5000ms gap should clamp to an 80ms visual step');
   assert.equal(advanced.elevation, 0.4);
+});
+
+/* ------------------------------------------- the idle orbit's budget (§10.6) */
+
+// The component's loop, frame by frame: it runs only while the phase is
+// 'running', and the first frame after starting or resuming only sets the clock.
+const simulateIdleOrbit = ({ frames, frameMs = 1000 / 60, seen = () => true, speed = 0.22 }) => {
+  const opening = { azimuth: -0.7, elevation: 0.55 };
+  let camera = opening;
+  let shownMs = 0;
+  let budgetSpent = false;
+  let previous = null;
+  let rendersWhileUnseen = 0;
+  const pendingAt = [];
+  for (let index = 0; index < frames; index += 1) {
+    const timestamp = index * frameMs;
+    const visible = seen(timestamp);
+    const phase = idleOrbitPhase({ budgetSpent, onScreen: visible });
+    pendingAt.push(idleOrbitPending(phase));
+    if (phase !== 'running') {
+      previous = null;
+      continue;
+    }
+    const frame = spendIdleOrbitFrame(shownMs, previous == null ? 0 : timestamp - previous);
+    previous = timestamp;
+    shownMs = frame.spentMs;
+    if (frame.stepMs > 0) {
+      camera = advanceIdleCamera(camera, frame.stepMs, speed);
+      if (!visible) rendersWhileUnseen += 1;
+    }
+    if (frame.budgetSpent) budgetSpent = true;
+  }
+  return { camera, opening, shownMs, budgetSpent, rendersWhileUnseen, pendingAt };
+};
+
+test('the idle orbit has a budget of seconds, long enough to turn the model more than a quarter turn', () => {
+  assert.ok(Number.isFinite(IDLE_ORBIT_BUDGET_MS) && IDLE_ORBIT_BUDGET_MS > 0, 'the orbit must end');
+  assert.ok(IDLE_ORBIT_BUDGET_MS <= 12_000, 'seconds of motion, not the whole class period');
+  assert.ok((IDLE_ORBIT_BUDGET_MS / 1000) * 0.22 > Math.PI / 2, 'at the orbit speed the model turns past a quarter turn before it stops');
+});
+
+test('the orbit stops after its budget and leaves the camera exactly where the budget took it', () => {
+  // Three times the budget's worth of 60 fps frames: the orbit must not run on.
+  const frames = Math.ceil((IDLE_ORBIT_BUDGET_MS / 1000) * 60 * 3);
+  const run = simulateIdleOrbit({ frames });
+  assert.equal(run.budgetSpent, true);
+  assert.equal(run.shownMs, IDLE_ORBIT_BUDGET_MS);
+  const turned = run.camera.azimuth - run.opening.azimuth;
+  assert.ok(Math.abs(turned - (IDLE_ORBIT_BUDGET_MS / 1000) * 0.22) < 1e-9, `the camera turned ${turned} rad, not the budget's worth`);
+  assert.equal(run.camera.elevation, run.opening.elevation);
+  // Pending until the budget runs out, then never again.
+  const lastPending = run.pendingAt.lastIndexOf(true);
+  assert.ok(lastPending > 0 && run.pendingAt.slice(lastPending + 1).every((pending) => pending === false));
+  assert.ok(lastPending < frames / 2, 'the orbit was over long before the simulation ended');
+});
+
+test('time off-screen or in a hidden tab spends none of the budget, and resuming never jumps', () => {
+  // Seen for 3 s, unseen for 20 s, then seen again.
+  const seen = (timestamp) => timestamp < 3000 || timestamp >= 23_000;
+  const run = simulateIdleOrbit({ frames: Math.ceil(40_000 / (1000 / 60)), seen });
+  assert.equal(run.rendersWhileUnseen, 0, 'no frame turns the camera while nobody can see it');
+  assert.equal(run.shownMs, IDLE_ORBIT_BUDGET_MS, 'the full budget is still shown once the model is seen again');
+  const turned = run.camera.azimuth - run.opening.azimuth;
+  assert.ok(Math.abs(turned - (IDLE_ORBIT_BUDGET_MS / 1000) * 0.22) < 1e-9, 'the 20 s pause added no rotation');
+  // While paused the orbit is still to come, so the cue may keep saying so.
+  assert.equal(run.pendingAt[Math.round(10_000 / (1000 / 60))], true);
+});
+
+test('idleOrbitPhase: interaction and reduced motion switch the orbit off before anything else is considered', () => {
+  for (const extra of [{}, { budgetSpent: true }, { onScreen: false }, { pageHidden: true }]) {
+    assert.equal(idleOrbitPhase({ hasInteracted: true, ...extra }), 'off');
+    assert.equal(idleOrbitPhase({ reduceMotion: true, ...extra }), 'off');
+  }
+  assert.equal(idleOrbitPhase({ budgetSpent: true }), 'finished');
+  assert.equal(idleOrbitPhase({ budgetSpent: true, onScreen: false, pageHidden: true }), 'finished', 'a spent budget is not a pause');
+  assert.equal(idleOrbitPhase({ onScreen: false }), 'paused');
+  assert.equal(idleOrbitPhase({ pageHidden: true }), 'paused');
+  assert.equal(idleOrbitPhase({}), 'running', 'with no IntersectionObserver the model counts as on-screen');
+  assert.equal(idleOrbitPhase(), 'running');
+});
+
+test('idleOrbitPending: the cue may claim rotation only while the orbit is under way or waiting to be seen', () => {
+  assert.equal(idleOrbitPending('running'), true);
+  assert.equal(idleOrbitPending('paused'), true);
+  assert.equal(idleOrbitPending('finished'), false);
+  assert.equal(idleOrbitPending('off'), false);
+  assert.equal(idleOrbitPending(idleOrbitPhase({ budgetSpent: true })), false);
+  assert.equal(idleOrbitPending(idleOrbitPhase({ reduceMotion: true })), false);
+});
+
+test('spendIdleOrbitFrame clamps a long gap like the camera does and ends exactly on budget', () => {
+  assert.deepEqual(spendIdleOrbitFrame(0, 16), { stepMs: 16, spentMs: 16, budgetSpent: false });
+  assert.deepEqual(spendIdleOrbitFrame(1000, 5000), { stepMs: IDLE_ORBIT_MAX_FRAME_MS, spentMs: 1000 + IDLE_ORBIT_MAX_FRAME_MS, budgetSpent: false });
+  // The final frame turns only what is left.
+  assert.deepEqual(spendIdleOrbitFrame(IDLE_ORBIT_BUDGET_MS - 10, 16), { stepMs: 10, spentMs: IDLE_ORBIT_BUDGET_MS, budgetSpent: true });
+  assert.deepEqual(spendIdleOrbitFrame(IDLE_ORBIT_BUDGET_MS, 16), { stepMs: 0, spentMs: IDLE_ORBIT_BUDGET_MS, budgetSpent: true });
+  // A clock that runs backwards, or garbage, moves nothing.
+  assert.deepEqual(spendIdleOrbitFrame(500, -40), { stepMs: 0, spentMs: 500, budgetSpent: false });
+  assert.deepEqual(spendIdleOrbitFrame(500, Number.NaN), { stepMs: 0, spentMs: 500, budgetSpent: false });
+  assert.deepEqual(spendIdleOrbitFrame(0, 30, 50), { stepMs: 30, spentMs: 30, budgetSpent: false }, 'the budget is a parameter');
+  assert.deepEqual(spendIdleOrbitFrame(30, 30, 50), { stepMs: 20, spentMs: 50, budgetSpent: true });
 });
 
 test('projectPolygon reports the average depth of its projected vertices', () => {

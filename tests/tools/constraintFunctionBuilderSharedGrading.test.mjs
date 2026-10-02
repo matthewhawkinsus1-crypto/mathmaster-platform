@@ -10,12 +10,14 @@ import { gradeServerResponse } from '../../functions/shared/serverGrading/server
 import { TOOL_RESPONSE_LIMITS, boundToolWork, canonicalToolWorkJson } from '../../functions/shared/serverGrading/toolResponseContract.mjs';
 import {
   BUILDER_FAMILIES,
+  builderAsksGraphType,
   builderEquation,
   effectiveBuilderConstraints,
   initialBuilderModel,
   normalizeBuilderModel,
   scoreConstraintModel,
 } from '../../functions/shared/toolMath/constraintFunctionBuilder/constraintFunctionMath.mjs';
+import { UNANSWERED } from '../../functions/shared/toolMath/shared/judgmentChoices.mjs';
 import { gradeToolCheck } from '../../src/tools/shared/sharedToolGrading.js';
 import { applyStudentSupportToQuestion } from '../../src/studentSupport.js';
 import { executableSource, region } from '../platform/helpers/sourceContract.mjs';
@@ -333,9 +335,10 @@ test('the grader marks exactly what the live checklist shows for a constructed m
 });
 
 test('untouched work is incomplete and earns nothing, even when the opening model fits', () => {
-  // The builder opens on a continuous model; this question asks only for that.
-  const question = q({ constraints: [{ kind: 'continuity', value: 'continuous' }] });
+  // The builder opens on y = 0, which is a function; this question asks only for that.
+  const question = q({ constraints: [{ kind: 'isFunction', value: true }] });
   const opening = { model: initialBuilderModel(question), equation: builderEquation(initialBuilderModel(question)) };
+  assert.equal(scoreConstraintModel(opening.model, question.constraints).isCorrect, true, 'the opening model fits');
   const untouched = grade(question, { ...opening, hasEdited: false });
   assert.deepEqual({ isCorrect: untouched.isCorrect, isComplete: untouched.isComplete, score: untouched.score }, { isCorrect: false, isComplete: false, score: 0 });
   // One real choice makes it the student's model.
@@ -348,8 +351,43 @@ test('untouched work is incomplete and earns nothing, even when the opening mode
   // No part of an untouched model is the student's either: the recorded part
   // grades say "not done", never a tick for a constraint the opening model
   // happens to meet.
-  assert.deepEqual(untouched.parts.map((part) => [part.id, part.isComplete, part.isCorrect]), [['continuity', false, false]]);
-  assert.deepEqual(chosen.parts.map((part) => [part.id, part.isComplete, part.isCorrect]), [['continuity', true, true]]);
+  assert.deepEqual(untouched.parts.map((part) => [part.id, part.isComplete, part.isCorrect]), [['isFunction', false, false]]);
+  assert.deepEqual(chosen.parts.map((part) => [part.id, part.isComplete, part.isCorrect]), [['isFunction', true, true]]);
+});
+
+/*
+ * "CONTINUOUS OR DISCRETE?" IS THE STUDENT'S JUDGMENT, AND STARTS UNANSWERED.
+ *
+ * The builder used to open every model on "Continuous", which met every
+ * `continuity: 'continuous'` constraint before the student chose anything.
+ * Where a constraint asks it, the graph type now opens on "Choose…" ('',
+ * judgmentChoices.mjs), and an unanswered graph type meets neither continuity
+ * value — on the device and on the server, which normalizes the submitted
+ * model through the same normalizeBuilderModel. Any other edit still makes the
+ * model the student's (complete), with the continuity part wrong.
+ */
+test('a graph type the question asks about opens unanswered, and unanswered meets no continuity constraint on either path', () => {
+  const question = q({ constraints: [{ kind: 'continuity', value: 'continuous' }] });
+  const opening = initialBuilderModel(question);
+  assert.equal(opening.domainMode, UNANSWERED, 'the opening model has no graph type');
+  assert.equal(builderAsksGraphType(question.constraints), true);
+  const edited = (domainMode) => built({ ...opening, a: 2, domainMode });
+  const blank = grade(question, edited(UNANSWERED));
+  assert.deepEqual({ isCorrect: blank.isCorrect, isComplete: blank.isComplete, score: blank.score }, { isCorrect: false, isComplete: true, score: 0 });
+  assert.deepEqual(blank.parts.map((part) => [part.id, part.isCorrect]), [['continuity', false]]);
+  // Unanswered is not "discrete" either.
+  assert.equal(grade(q({ constraints: [{ kind: 'domainMode', value: 'discrete' }] }), edited(UNANSWERED)).isCorrect, false);
+  // A chosen graph type is graded as before.
+  assert.equal(grade(question, edited('continuous')).isCorrect, true);
+  assert.equal(grade(question, edited('discrete')).isCorrect, false);
+  // A question that does not ask keeps the builder's continuous opening model,
+  // and a stored model from before the graph type was a question still reads
+  // as continuous: nothing already saved changes meaning.
+  assert.equal(initialBuilderModel(q({ constraints: [{ kind: 'yIntercept', value: 2 }] })).domainMode, 'continuous');
+  const legacy = { model: { family: 'linear', a: 2, h: 0, k: 0, base: 2, domainMin: -4, domainMax: 4, verticalX: 0 }, hasEdited: true };
+  assert.equal(grade(question, legacy).isCorrect, true);
+  // An authored opening model that names a graph type is used as written.
+  assert.equal(initialBuilderModel(q({ constraints: question.constraints, initialModel: { family: 'linear', domainMode: 'discrete' } })).domainMode, 'discrete');
 });
 
 test('the builder opens on a collapsed model unless the question authors one', () => {

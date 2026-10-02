@@ -28,6 +28,7 @@ import declaration from '../declarations/relationMapping.mjs';
 import { bindToolGrader } from '../toolGraderDefinition.mjs';
 import { gradedResult, ungradedResult } from '../gradingResult.mjs';
 import { matchesFieldAnswer } from '../../answerUtils.mjs';
+import { FUNCTION_STATUS_CHOICES, correctFunctionChoice } from '../../relationFunctionChoice.mjs';
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const entry = (value) => (value === null || value === undefined ? '' : String(value));
@@ -39,15 +40,12 @@ const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && 
 export const DEFAULT_RELATION_ASK = Object.freeze(['mapping', 'domain', 'range']);
 
 /**
- * The four "Is this relation a function?" choices, by value. The lab owns the
- * wording and the shuffled order; the grade depends only on the value chosen.
+ * The four "Is this relation a function?" choices, by value, and the one that
+ * is right for a relation: functions/shared/relationFunctionChoice.mjs, the
+ * definition My Math Path's grader reads too. The lab shuffles them; the grade
+ * depends only on the value chosen.
  */
-export const FUNCTION_STATUS_CHOICES = Object.freeze({
-  YES_DEFINITION: 'yes-definition',
-  YES_OUTPUT_RULE: 'yes-output-rule',
-  NO_INPUT_REPEAT: 'no-input-repeat',
-  NO_OUTPUT_REPEAT: 'no-output-repeat',
-});
+export { FUNCTION_STATUS_CHOICES };
 
 export const uniqueSorted = (values) => [...new Set(values.map(Number))].sort((a, b) => a - b);
 
@@ -229,9 +227,7 @@ const gradeRelation = (question, work) => {
   }
   if (ask.includes('isFunction')) {
     const chosen = typedText(work.isFunction);
-    const functionChoice = relationIsFunction(pairs)
-      ? FUNCTION_STATUS_CHOICES.YES_DEFINITION
-      : FUNCTION_STATUS_CHOICES.NO_INPUT_REPEAT;
+    const functionChoice = correctFunctionChoice(relationIsFunction(pairs));
     parts.push({
       id: 'isFunction',
       label: 'Is it a function?',

@@ -110,7 +110,7 @@ test('both views grade their Check through the shared grader, report the same wo
     RadicalCheck: /submit\(\{ isCorrect: result\.isCorrect, score: result\.score \}, work, \{ mode: 'radicalCheck', parts: result\.parts \}\);/,
   };
   for (const [name, submitCall] of Object.entries(views)) {
-    const body = region(code, `function ${name}(`, '\nfunction ', name);
+    const body = region(code, `function ${name}(`, '\n}', name);
     const check = region(body, 'const check = () => {', '\n  };', `${name} check`);
     assert.match(body, /const work = \{ selected \};/, `${name} builds work at render scope`);
     assert.match(body, /useReportToolWork\(work\);/, `${name} reports live work`);

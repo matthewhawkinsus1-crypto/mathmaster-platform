@@ -503,6 +503,14 @@ for (const device of certificationDevices) {
                     const blocker = inputGeometry.blocker || {};
                     problems.push(`active input is covered by ${blocker.tag || 'another surface'}${blocker.className ? `.${String(blocker.className).trim().replace(/\s+/g, '.')}` : ''}${blocker.ariaLabel ? ` [${blocker.ariaLabel}]` : ''}`);
                   }
+                  // A <select> opens the device's own picker on a touch device,
+                  // and an open picker blocks page.screenshot until it closes:
+                  // every touch-device scene whose first field was a select
+                  // timed out after 30 s (2026-10-01, the same with and without
+                  // that day's Work View changes). The geometry above was taken
+                  // with the picker open; it is closed by blurring the select —
+                  // not Escape, which closes Work View — before the picture.
+                  await field.evaluate((element) => { if (element.tagName === 'SELECT') element.blur(); });
                   await page.screenshot({ path: path.join(familyDir, 'active-input.png') });
                   await dismissNumericKeypad(page);
                 } catch (error) {

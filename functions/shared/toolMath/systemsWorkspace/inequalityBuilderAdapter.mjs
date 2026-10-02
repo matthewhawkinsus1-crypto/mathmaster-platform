@@ -357,6 +357,9 @@ export const studentBuildWorkingConstraints = ({ task, modelingEntries = [], mod
  * One constraint's build progress. A step only counts as VERIFIED once the
  * student explicitly checked it (its attempt counter) AND it is right; a step
  * the question does not ask for is provided, so it is always satisfied.
+ * `constraintCorrect` is the same constraint judged from its work as it
+ * stands, checked or not: what it is graded as where the activity withholds
+ * outcomes and a step's Check is no verdict (a DOL, quiz or test).
  */
 export const studentBuildConstraintStatus = ({ buildConfig, entry, workingConstraint, bounds, rewriteVerified = false }) => {
   const boundaryCorrect = !buildConfig.boundary || boundaryLinesMatch(studentBoundaryLineFromEntry(entry), workingConstraint, bounds);
@@ -377,6 +380,7 @@ export const studentBuildConstraintStatus = ({ buildConfig, entry, workingConstr
     styleVerified,
     shadeVerified,
     constraintVerified: rewriteDone && boundaryVerified && styleVerified && shadeVerified,
+    constraintCorrect: rewriteDone && boundaryCorrect && styleCorrect && shadeCorrect,
   };
 };
 

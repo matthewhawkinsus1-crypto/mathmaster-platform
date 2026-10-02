@@ -17,6 +17,7 @@
 
 import { isFamilyBackedQuestion, resolveQuestionFamilyDefinition } from './questionFamilyInstance.mjs';
 import { hasLocalFamilyTemplate } from './questionFamilyTemplate.mjs';
+import { fractionQuestionDrawsNumbers } from './fractionAnswer.mjs';
 
 // The `generator.kind` values src/problemGenerator.js knows how to run.
 export const LEGACY_GENERATOR_KINDS = Object.freeze([
@@ -87,11 +88,19 @@ export const describeQuestionVariability = (question) => {
   if (kind && LEGACY_GENERATOR_KINDS.includes(kind)) {
     return { mode: VARIABILITY.LEGACY_GENERATOR, canVary: true, uniquenessManaged: false, reason: null, kind };
   }
-  if (LEGACY_SELF_GENERATING_TYPES.includes(clean(question.type))) {
+  // A fraction question draws its own numbers only as a drill. Authored
+  // operands or an authored answer are delivered as written to every student
+  // (src/problemGenerator.js generateFraction), whatever generator settings
+  // ride along with them.
+  const isFraction = clean(question.type) === 'fraction';
+  if (LEGACY_SELF_GENERATING_TYPES.includes(clean(question.type)) && (!isFraction || fractionQuestionDrawsNumbers(question))) {
     return { mode: VARIABILITY.LEGACY_SELF_GENERATING, canVary: true, uniquenessManaged: false, reason: null };
   }
   if (objectVariants(question).length >= 2) {
     return { mode: VARIABILITY.VARIANTS, canVary: true, uniquenessManaged: false, reason: null, variantCount: objectVariants(question).length };
+  }
+  if (isFraction) {
+    return { mode: VARIABILITY.STATIC, canVary: false, uniquenessManaged: false, reason: 'authored_fraction' };
   }
   if (isObject(question.generator)) {
     return {

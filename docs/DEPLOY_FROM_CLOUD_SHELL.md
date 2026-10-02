@@ -135,7 +135,65 @@ HTTP 200
 cd ~/mathmaster-platform && echo "--- deployed commit ---" && git log --oneline -1 && echo "--- site ---" && curl -s -o /dev/null -w "HTTP %{http_code}\n" https://mathmaster-aleks.web.app && echo "--- functions ---" && firebase functions:list --project mathmaster-aleks 2>/dev/null | head -12
 ```
 
-Expect `HTTP 200` and a list of functions.
+Expect `HTTP 200` and a list of functions. To see which **commit** each part
+is running, use `--whats-live` (next section).
+
+---
+
+## Which commit is live — Hosting and Functions
+
+Hosting has always published the commit it was built from
+(`https://mathmaster-aleks.web.app/mathmaster-build.json`). Cloud Functions now
+carry theirs too.
+
+```
+cd ~/mathmaster-platform && node scripts/release-firebase.mjs --whats-live
+```
+
+prints your local HEAD, the Hosting commit, the Functions commit (asked of
+`platformBuildInfo`), and — when `gcloud` is on PATH, as it is in Cloud Shell —
+every deployed function grouped by its `mm-git-sha` label. It deploys nothing.
+Without `gcloud` it says so and prints the rest.
+
+How it works:
+
+- **A stamp in every upload.** The first predeploy step of both Functions
+  codebases in `firebase.json` is
+  `node scripts/write-functions-provenance.mjs --codebase <name> --dir <source>`.
+  It writes `deploy-provenance.json` — `{ codebase, gitSha, gitShaShort,
+  treeClean, writtenAt }` — into `functions/` and `functions-path-admin/` just
+  before the CLI uploads them. It runs however you deploy: the release tool,
+  `deploy-functions-in-groups.sh`, or a raw `firebase deploy`. The file is
+  gitignored, and still uploaded, because the CLI packages by the `ignore` list
+  in `firebase.json`, not by `.gitignore`. It is only rewritten when the commit
+  or the clean/dirty state changes, so re-running a deploy of the same commit
+  still lets the CLI skip functions that already landed. No git → `unknown`.
+- **Labels on every function.** Both codebases read that file and label every
+  function they deploy: `mm-git-sha` = the full commit (or `unknown`),
+  `mm-tree` = `clean` or `dirty`. A function with no `mm-git-sha` label was last
+  deployed before this existed; its next deploy labels it.
+- **`platformBuildInfo`.** A read-only callable in the default codebase that
+  returns the stamp to anyone — no sign-in, nothing secret (the Hosting commit
+  is already public). By hand:
+  ```
+  curl -s -X POST -H 'Content-Type: application/json' -d '{"data":{}}' https://us-central1-mathmaster-aleks.cloudfunctions.net/platformBuildInfo
+  ```
+  answers `{"result":{"codebase":"default","gitSha":"…","treeClean":true,…}}`.
+- **The release tool checks it.** Every release that deploys default-codebase
+  functions (`node scripts/release-firebase.mjs`) also redeploys
+  `platformBuildInfo`, in its last group, and then runs a **verify step**: it
+  calls `platformBuildInfo` and requires the commit it reports to be your HEAD.
+  It asks up to three times (`--max-attempts`), waiting 15–40 seconds between
+  tries, because a function created a moment ago can answer 403/404 briefly.
+  A different commit, `unknown`, or no answer is treated exactly like a
+  function that failed to deploy: path-admin, rules and Hosting are **not**
+  deployed, the report in `release-reports/`
+  records what it saw under `verification`, and it prints the command that
+  finishes the release (`--functions platformBuildInfo`, which re-runs the
+  check, then the held-back targets). `--continue-after-function-failure`
+  overrides it, as it does for a failed function. A release with no
+  default-codebase functions has no verify step; the path-admin codebase is
+  covered by its labels, not by a ping.
 
 ---
 
@@ -167,9 +225,56 @@ route.
 
 ---
 
+## Block 5 — student privacy on assignments (once, after the release that adds it)
+
+Every student's device can read an assignment, and attendance extensions
+granted before this release stored the student's absence dates, meeting counts
+and the granting teacher on it (PR #407 deep dive, F-PRIV-1). The release that
+fixes it ships with nothing switched on: new extensions already keep their
+details private, but existing ones stay where they are until you move them, and
+students' devices keep their old read access until you turn it off.
+
+**Step 1 — move the existing extension details (any time after the release).**
+
+1. Sign in as the root administrator → **Administration → Classes** →
+   **Student privacy on assignments**.
+2. **Check without changing anything.** It pages through every assignment and
+   reports how many extensions would move. Nothing is written.
+3. **Move extension details.** Each extension's original details are copied,
+   unchanged, into the student's private record
+   (`grades/{student}/attendanceExtensionGrants/legacy__{assignment}`, field
+   `legacyExtension`) in the same transaction that leaves only the deadline
+   (`lateDueAt`) and `{dateKey, grantedAt}` on the assignment. Deadlines do not
+   move. Expect **Could not finish: 0**; anything listed there was left exactly
+   as it was and can be retried.
+4. **Check without changing anything** again: the card turns green when no
+   assignment carries extension details any more. Running it twice is safe —
+   the second run changes nothing and creates no duplicates.
+
+**Step 2 — class-scoped assignment lists (the next school day).**
+
+Open tabs from the previous release still list every assignment. Once every
+student device has loaded this release — after a full school day — use
+**Class-scoped assignment lists → Turn on**. From then on a student's device may
+list only its own class's assignments (it can still open one by id, which is
+how work from an earlier class keeps loading).
+
+**Rollback.**
+
+- **Turn off** the class-scoped lists on the same card. It takes effect at
+  once and needs no deploy.
+- Rolling the code back does **not** require undoing Step 1. Deadlines and the
+  `{dateKey, grantedAt}` stub that attendance reconciliation reads stay on the
+  assignment; the only earlier screen that showed more was the case review's
+  "N class meetings" note on an extension. The originals stay in the private
+  records — never delete `attendanceExtensionGrants`; it is also where every
+  new grant is kept, one record per grant.
+
+---
+
 ## Nothing else needs updating
 
-No Vercel deploy and no manual database work beyond Block 4. Composite indexes
+No Vercel deploy and no manual database work beyond Blocks 4 and 5. Composite indexes
 do exist (`firestore.indexes.json`); a release that changes them deploys them
 first — `node scripts/release-firebase.mjs` does that for you.
 
@@ -188,6 +293,9 @@ first — `node scripts/release-firebase.mjs` does that for you.
 | Students still see old questions | Re-run the matching Block 4 release button: course, ASVAB, or coordinated SAT/ACT/TSIA2. |
 | **"Functions deploy had errors"** / several functions failed | See the section below — this one is expected occasionally and is not a code problem. |
 | **Hosting upload `ConnectTimeoutError` / `retries exhausted`** | Run `npm run deploy:hosting`. The helper throttles Firebase's upload concurrency and retries transient upload failures automatically. |
+| **`Functions NOT verified (sha-mismatch)`** at the end of a release | The functions are not serving your commit — or report `unknown`, meaning the stamp did not reach the upload (check the first predeploy step and the `ignore` list in `firebase.json`). Run the `Finish with:` command it printed. Rules and Hosting were held back on purpose. |
+| **`Functions NOT verified (unreachable)`** | `platformBuildInfo` did not answer. Check with `node scripts/release-firebase.mjs --whats-live`; if it answers there, run the `Finish with:` command. |
+| Hosting refuses with uncommitted `coursePathReleaseV2.manifest.json` / `pathReleaseManifest.generated.js` | The course Path content changed and the rebuilt release was not committed. Commit both files (the build only rewrites them when the certified release changed), then deploy again. |
 
 ---
 
@@ -195,7 +303,7 @@ first — `node scripts/release-firebase.mjs` does that for you.
 
 This is the common one, and it usually means nothing is wrong with the code.
 
-The project ships **about 150 Cloud Functions from one codebase** (153 on 2026-10-01; `node scripts/lib/functionsInventory.mjs | wc -l` prints today's number). `firebase deploy`
+The project ships **about 160 Cloud Functions from one codebase** (166 on 2026-10-01, after PR #410; `node scripts/lib/functionsInventory.mjs | wc -l` prints today's number). `firebase deploy`
 pushes them in big parallel batches, and Google rate-limits how many function
 updates a project may make per minute. Past that ceiling the extra ones come
 back as failures. Hosting and Firestore rules still went out fine; only some
@@ -234,8 +342,10 @@ That prints the plan — every function, in groups of eight, 45 seconds apart.
 Add `--execute` to run it (it asks you to type the project id). A group that
 hits the quota waits and retries; a group that keeps failing is split in half
 until the one function that is really broken is named, and the rest still
-ship. It finishes with the exact command to retry what is left, and writes a
-report under `release-reports/`. `--functions name1,name2` deploys only those.
+ship. Then it asks `platformBuildInfo` which commit is live and refuses to go
+on unless it is yours (see "Which commit is live"). It finishes with the exact
+command to retry what is left, and writes a report under `release-reports/`.
+`--functions name1,name2` deploys only those (plus `platformBuildInfo`).
 
 ### Step 2 (older script) — deploy them a few at a time
 

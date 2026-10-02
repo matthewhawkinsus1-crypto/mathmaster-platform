@@ -30,7 +30,9 @@
  *                     recomputed (verifyRelationCandidates on the ORIGINAL), and
  *                     the solution representations re-graded from the number
  *                     line work exactly as IntervalNumberLine's shared grader
- *                     grades it, against intervals derived on the server.
+ *                     grades it, against intervals derived on the server (a
+ *                     checked number line with every asked stage answered is
+ *                     complete, right or wrong).
  *   linearIntercepts  each typed ordered pair against expectedInterceptPoint
  *                     of the question's own line, at the orchestrator's 1e-6.
  *
@@ -345,6 +347,24 @@ const representationIsCorrect = ({ intervals, ask, variable, work }) => {
   return checks.length > 0 && checks.every(Boolean);
 };
 
+/*
+ * Has the checked number line answered every asked stage? The same rule
+ * IntervalNumberLine's shared grader completes its parts by: a graph with at
+ * least one piece, a notation or inequality box that is not blank. The number
+ * line's Check submits whatever is on it, empty or not, and an empty stage is
+ * never an answer.
+ */
+const representationIsComplete = ({ ask, work }) => {
+  if (!isObject(work)) return false;
+  const stages = resolveIntervalAsk(ask);
+  const built = Array.isArray(work.intervals) ? work.intervals : [];
+  const answered = [];
+  if (stages.includes('graph')) answered.push(built.length > 0);
+  if (stages.includes('interval')) answered.push(filled(work.notation));
+  if (stages.includes('inequality')) answered.push(filled(work.inequality));
+  return answered.length > 0 && answered.every(Boolean);
+};
+
 export const gradeRelationWorkspace = (question = {}, work = {}) => {
   const relationQuestion = withPromptRelationSource(question);
   const pristine = pristineRelation(relationQuestion);
@@ -379,15 +399,26 @@ export const gradeRelationWorkspace = (question = {}, work = {}) => {
     variable: pristine.variable,
     work: representation,
   });
+  // The number line is FINISHED once the student has checked it with every
+  // asked stage answered — right or wrong; whether it is right is its
+  // correctness, graded in its part and in the question's verdict. Requiring
+  // a right graph before the question could be complete made Submit itself
+  // the verdict on a DOL, quiz or test (it appeared only once the graph was
+  // right) and closed a checked, wrong graph at a deadline as unfinished. In
+  // practice the workspace still holds the question open until the graph is
+  // right — the number line says "Not yet" there — which is feedback, not
+  // grading (MultiRelationAlgebraCore, inequalityRepresentationPolicy.mjs
+  // solutionRepresentationStageStatus).
+  const representationComplete = representationCorrect !== null && representationIsComplete({ ask: stages, work: representation });
 
   const isComplete = !awaitingSymbolDecision
     && summary.solved === true
     && candidatesComplete
-    && (!requireRepresentations || representationCorrect === true);
+    && (!requireRepresentations || representationComplete);
   const relationText = final ? relationStateToText(final) : '';
   return gradedResult({
     isComplete,
-    isCorrect: isComplete && candidatesCorrect && sameSolutions,
+    isCorrect: isComplete && candidatesCorrect && sameSolutions && (!requireRepresentations || representationCorrect === true),
     parts: [
       {
         id: 'relation-work',
@@ -406,7 +437,7 @@ export const gradeRelationWorkspace = (question = {}, work = {}) => {
       ...(requireRepresentations ? [{
         id: 'solution-representations',
         label: stages.includes('interval') ? 'Graph and interval notation' : 'Graph the solution',
-        isComplete: representationCorrect !== null,
+        isComplete: representationComplete,
         isCorrect: representationCorrect === true,
         response: representationCorrect === true ? 'correct' : '',
       }] : []),

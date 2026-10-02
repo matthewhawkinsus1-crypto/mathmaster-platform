@@ -25,11 +25,15 @@
  *                         checkVerification the screen runs, sides already
  *                         written as numbers taken as given).
  *        none / infinite  (elimination only) the checked statement with no
- *                         variable, the classification the student recorded,
- *                         and how they say each pair of planes meets.
+ *                         variable, the classification the student recorded
+ *                         with their reading of that statement, and how they
+ *                         say each pair of planes meets.
  *
- * Every verdict has always been all-or-nothing (score 1 or 0); the parts only
- * say which piece is missing or wrong.
+ * Every verdict but one is all-or-nothing (score 1 or 0); the parts only say
+ * which piece is missing or wrong. The exception is the 3×3 interpretation:
+ * since a DOL, quiz or test records it unjudged (B-24) it can be submitted
+ * half right, and it earns half for the classification and half for the
+ * planes (gradeInterpretation).
  *
  * WHICH RUBRIC APPLIES IS DECIDED BY THE AUTHORED SYSTEM, never by the shape
  * of the work. The screen took the special-case branch when the student's own
@@ -62,7 +66,7 @@ import {
   verificationEntryValid,
   verificationGivenSides,
 } from '../../../toolMath/systemsWorkspace/substitutionReduction.mjs';
-import { SYSTEM_MEANINGS, planeTruthFor } from '../../../toolMath/systemsWorkspace/algebraicOutcomeModel.mjs';
+import { STATEMENT_KINDS, SYSTEM_MEANINGS, planeTruthFor, statementKindCorrect } from '../../../toolMath/systemsWorkspace/algebraicOutcomeModel.mjs';
 import { PLANE_RELATIONSHIP_OPTIONS, planePairs } from '../../../toolMath/systemsWorkspace/spatialFeedback.mjs';
 
 const text = (value) => (value === null || value === undefined ? '' : String(value));
@@ -208,6 +212,7 @@ const gradeTwoByTwo = (question, work) => {
 /* --------------------------------------------------------------------- 3×3 */
 
 const MEANINGS = new Set(SYSTEM_MEANINGS.map((option) => option.value));
+const KINDS = new Set(STATEMENT_KINDS.map((option) => option.value));
 const PLANE_CHOICES = new Set(PLANE_RELATIONSHIP_OPTIONS.map((option) => option.value));
 
 const gradeOrderedTriple = (config, system, key, work) => {
@@ -241,29 +246,48 @@ const gradeInterpretation = (system, key, work) => {
   const outcome = isPlainObject(work.outcome) ? work.outcome : {};
   const statement = statementText(outcome.statement);
   const choice = MEANINGS.has(entered(outcome.classificationChoice)) ? entered(outcome.classificationChoice) : '';
+  // The student's reading of the statement, recorded with the choice. Where
+  // outcomes are shown only the right reading is ever recorded; on a DOL,
+  // quiz or test whatever was chosen is (B-24), so it is judged here: the
+  // right meaning read from the wrong kind of statement is not right. A record
+  // from before readings were stored carries none and is judged on its choice,
+  // as it always was.
+  const kind = KINDS.has(entered(outcome.classificationKind)) ? entered(outcome.classificationKind) : '';
+  const statementRight = plainStatement(statement, system.variables) && noVariableStatementType(statement, system.variables) === key.type;
   // How each pair of the authored planes meets — the planeWorkEarned truth.
   const truth = planeTruthFor({ equations: system.equations.map((equation) => equation.text), variables: system.variables });
-  return allOrNothing([
-    {
-      id: 'statement',
-      label: 'Statement with no variable',
-      isComplete: Boolean(statement),
-      isCorrect: plainStatement(statement, system.variables) && noVariableStatementType(statement, system.variables) === key.type,
-      response: statement,
-    },
-    { id: 'classification', label: 'What the statement means for the system', isComplete: Boolean(choice), isCorrect: choice === key.type, response: choice },
-    ...planePairs(3).map(({ id, first, second }) => {
-      const answer = entered(own(outcome.planes, id));
-      const stated = PLANE_CHOICES.has(answer) ? answer : '';
-      return {
-        id: `planes-${id}`,
-        label: `Planes ${first} and ${second}`,
-        isComplete: Boolean(stated),
-        isCorrect: Boolean(stated) && stated === truth[id],
-        response: stated,
-      };
-    }),
-  ]);
+  const classificationPart = {
+    id: 'classification',
+    label: 'What the statement means for the system',
+    isComplete: Boolean(choice),
+    isCorrect: choice === key.type && (!kind || statementKindCorrect(key, kind)),
+    response: [choice, kind ? `(${kind})` : ''].filter(Boolean).join(' '),
+  };
+  const planeParts = planePairs(3).map(({ id, first, second }) => {
+    const answer = entered(own(outcome.planes, id));
+    const stated = PLANE_CHOICES.has(answer) ? answer : '';
+    return {
+      id: `planes-${id}`,
+      label: `Planes ${first} and ${second}`,
+      isComplete: Boolean(stated),
+      isCorrect: Boolean(stated) && stated === truth[id],
+      response: stated,
+    };
+  });
+  // Two judgments, half the credit each: what the statement means and how
+  // the planes meet. Neither counts unless the statement is the system's own:
+  // without it there is nothing to interpret.
+  const classificationEarned = statementRight && classificationPart.isCorrect;
+  const planesEarned = statementRight && planeParts.every((part) => part.isCorrect);
+  return gradedResult({
+    parts: [
+      { id: 'statement', label: 'Statement with no variable', isComplete: Boolean(statement), isCorrect: statementRight, response: statement },
+      classificationPart,
+      ...planeParts,
+    ],
+    isCorrect: classificationEarned && planesEarned,
+    score: (Number(classificationEarned) + Number(planesEarned)) / 2,
+  });
 };
 
 const gradeThreeByThree = (question, work) => {

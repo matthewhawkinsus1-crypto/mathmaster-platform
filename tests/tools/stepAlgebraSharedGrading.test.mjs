@@ -754,19 +754,35 @@ test('relation: solution representations are re-graded from the checked number l
     ['relation-work', 'Solve the equation or inequality', 'x <= 2'],
     ['solution-representations', 'Graph and interval notation', 'correct'],
   ]);
-  // Not yet checked: incomplete. Checked but wrong: still incomplete (the
-  // workspace only finishes on a correct representation) and the part is wrong.
+  // Not yet checked: incomplete. Checked but wrong: COMPLETE and wrong — the
+  // part is wrong, the question is not correct. (It used to stay incomplete
+  // until the graph was right, so on a DOL, quiz or test Submit appearing was
+  // itself the verdict, and a deadline closed a checked, wrong graph as
+  // unfinished. In practice the workspace still waits for a right graph; that
+  // is feedback, held in MultiRelationAlgebraCore, not grading.)
   assert.equal(parity(REPRESENT, relationWork('x <= 2'), 'unchecked').isComplete, false);
   const openEnd = graphed([{ min: -Infinity, max: 2, minClosed: false, maxClosed: false }], '(-\\infty, 2)');
   const wrong = parity(REPRESENT, relationWork('x <= 2', { representation: openEnd }), 'open endpoint');
-  assert.equal(wrong.isComplete, false);
+  assert.equal(wrong.isComplete, true);
+  assert.equal(wrong.isCorrect, false);
+  assert.equal(wrong.score, 0.5, 'the solved relation keeps its part; the graph earns nothing');
   assert.deepEqual(wrong.parts.map((part) => [part.isComplete, part.isCorrect]), [[true, true], [true, false]]);
+  // A Check with an asked stage left blank answers nothing, exactly as the
+  // number line's own grader leaves that part incomplete.
+  for (const [label, blank] of [['empty', graphed([])], ['no notation', graphed(ray.intervals)], ['no graph', graphed([], ray.notation)]]) {
+    const result = parity(REPRESENT, relationWork('x <= 2', { representation: blank }), label);
+    assert.equal(result.isComplete, false, label);
+    assert.equal(result.parts[1].isComplete, false, label);
+    assert.equal(result.isCorrect, false, label);
+  }
   // Algebra I asks for the graph only.
   const algebraOne = parity(REPRESENT_ALG1, relationWork('x <= 2', { representation: graphed(ray.intervals) }), 'algebra 1');
   assert.equal(algebraOne.isCorrect, true);
   assert.equal(algebraOne.parts[1].label, 'Graph the solution');
   // The representation is graded against THIS solution, never an author's key.
-  assert.equal(parity(REPRESENT, relationWork('x <= 2', { representation: graphed([{ min: -Infinity, max: 3, minClosed: false, maxClosed: true }], '(-\\infty, 3]') }), 'other ray').isComplete, false);
+  const otherRay = parity(REPRESENT, relationWork('x <= 2', { representation: graphed([{ min: -Infinity, max: 3, minClosed: false, maxClosed: true }], '(-\\infty, 3]') }), 'other ray');
+  assert.equal(otherRay.isComplete, true);
+  assert.equal(otherRay.isCorrect, false);
 
   // Pinned to the number line's own shared grader on the same work: the mirror
   // here cannot drift from tools/intervalNumberLine.mjs.
@@ -1034,8 +1050,11 @@ test('MultiRelationAlgebraCore reports the shared verdict, and keeps the nested 
 
 test('LinearInterceptsOrchestrator checks each point and reports completion through the shared grader', () => {
   const orchestrator = executableSource(read(ORCHESTRATOR));
-  const check = region(orchestrator, 'const checkCurrentIntercept = () => {', 'if (!isCorrect) {', 'intercept check');
+  // The point's correctness is the shared grader's; what the Check may say
+  // about it is the activity's (resolveInterceptCheck, interceptOutcomePolicy).
+  const check = region(orchestrator, 'const checkCurrentIntercept = () => {', 'if (!decision.completes) {', 'intercept check');
   assert.match(check, /const isCorrect = checkLinearIntercept\(standard, kind, stage\.point\);/);
+  assert.match(check, /resolveInterceptCheck\(\{[^}]*\bisCorrect\b[^}]*\}\)/, 'the policy is handed the shared verdict');
   const payload = region(orchestrator, 'const interceptCompletionPayload = (finishedWork) => {', 'const progressiveRedirect', 'completion payload');
   assert.match(payload, /gradeToolCheck\(stepAlgebraWorkGrader, question, linearInterceptsWork\(\{ xIntercept, yIntercept \}\)\)/);
   assert.doesNotMatch(payload, /isCorrect: true/);

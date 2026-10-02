@@ -237,6 +237,44 @@
   outline-offset: 1px;
 }
 
+/* A graph step that came back from another device without its verdict
+   (workflowDraftProjection.js). Information, not a mistake: the calm blue of
+   the summary strip, never the review banner's red. */
+.workflow-focus__restored-notice {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #c5d5ef;
+  border-radius: 12px;
+  background: #f8fbff;
+  padding: 12px 14px;
+  color: #174ea6;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.workflow-focus__restored-notice strong {
+  font-size: 14px;
+}
+
+.workflow-focus__restored-link {
+  min-height: 44px;
+  border: 1px solid #1a73e8;
+  border-radius: 999px;
+  background: var(--mm-surface);
+  color: #174ea6;
+  padding: 6px 12px;
+  font: inherit;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.workflow-focus__restored-link:hover,
+.workflow-focus__restored-link:focus-visible {
+  background: #e8f0fe;
+  outline: 2px solid rgba(26, 115, 232, .2);
+  outline-offset: 1px;
+}
+
 .workflow-focus__summary {
   border: 1px solid #d6e0ee;
   border-radius: 12px;

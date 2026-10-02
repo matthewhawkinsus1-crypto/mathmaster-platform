@@ -84,7 +84,7 @@ validation on the way back in: the relation engine had none (fixed here).
 | Question | Where the answer is |
 | --- | --- |
 | When was the draft last saved? | each entry's `savedAt` (device clock) and the document's `updatedAt` (server time) in `studentWorkspaceDrafts` |
-| Which revision is newer? | per-entry `savedAt`; the merge keeps the newer one |
+| Which revision is newer? | per-entry `savedAt` (the time of the student's last edit — PQ-044; `savedAtIsEdit: true` on entries that say so, absent on ones an older build saved); the merge keeps the newer one |
 | Was auto-submit invoked? did the server receive the final state? | the durable outbox queue and its server receipts (`reportStudentDeviceQueue`, ingestion receipts); Response Inspector |
 | Was the assignment reopened afterwards? | the DOL reopen audit written by the recovery controls (#347) |
 | From which device/session? | submissions carry the device identity (`deviceIdentity.js`); **workspace draft entries do not yet** — see follow-up |

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { region } from './helpers/sourceContract.mjs';
 
 const src = fs.readFileSync('src/StepByStepAlgebraCore.jsx', 'utf8');
 
@@ -40,10 +41,18 @@ test('V1.3 freeform add-subtract placement remains', () => {
   // The positions the student chose are honoured by the COMMITTED move: they
   // are handed to the balanced-operation engine, which places the operand at
   // each position. (The workspace itself no longer applies them to draw a
-  // preview inside the equation — issue #341.)
-  const attemptMove = src.slice(src.indexOf('const attemptMove = async'), src.indexOf('if (!move.preservesSolution)'));
-  assert.match(attemptMove, /const placementBySide = placementBySideOverride \|\| placedOperationPositions;/);
-  assert.match(attemptMove, /applyBalancedOperation\(\{[^}]*\bplacementBySide\b[^}]*\}\)/);
+  // preview inside the equation — issue #341.) The workspace makes the move
+  // through makePendingMove, the route a restored draft takes too
+  // (algebraDraftState.js), and that hands the positions to the engine and
+  // keeps them on the move, where a step's raw work reads them so the server
+  // recomputes the same move (algebraPendingMoveDraft.test.mjs runs both).
+  const attempt = region(src, 'const attemptMove = async', 'setPendingMove(move);', 'attemptMove');
+  assert.match(attempt, /makePendingMove\(\{[^}]*placementBySide: placementBySideOverride \|\| placedOperationPositions/);
+  const draftState = fs.readFileSync('src/algebraDraftState.js', 'utf8');
+  const makeMove = region(draftState, 'export const makePendingMove', '\n};', 'makePendingMove');
+  assert.match(makeMove, /applyBalancedOperation\(\{[^}]*placementBySide: placement\b/);
+  assert.match(makeMove, /\n\s*placementBySide: placement,\n/, 'the move keeps the positions it was made with');
+  // The engine moved to functions/shared (src/algebraAstEngine.js re-exports it).
   const engine = fs.readFileSync('functions/shared/algebra/algebraAstEngine.mjs', 'utf8');
   assert.match(engine, /applyOperationToExpression\(equationState\.left, operation, operand\.expression, placementBySide\?\.left\)/);
   assert.match(engine, /applyAdditiveOperationAtPlacement\(expression, operation, operandExpression, placement\)/);

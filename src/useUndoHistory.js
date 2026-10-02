@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
+import { readQuestionDraft, studentInputMark, studentInputSince, writeQuestionDraft } from './questionDraftStorage';
 
 const cloneValue = (value) => {
   if (value === undefined) return value;
@@ -10,6 +10,12 @@ const cloneValue = (value) => {
   }
 };
 
+/*
+ * Writes, as useLocalDraftState makes them (PQ-044): the value written back
+ * on mount or after a change is not an edit; setValue, undo and reset are
+ * edits once the student has touched the page since this hook loaded its
+ * draft (setValue takes `{ edit }` from a caller that knows better).
+ */
 export default function useUndoHistory(
   initialValue,
   maximumEntries = 60,
@@ -18,9 +24,11 @@ export default function useUndoHistory(
   const initialValueRef = useRef(initialValue);
   const activeKeyRef = useRef(persistenceKey);
   const skipNextWriteRef = useRef(false);
-  const [value, setValueState] = useState(() =>
-    cloneValue(readQuestionDraft(persistenceKey, initialValue)),
-  );
+  const inputMarkRef = useRef(0);
+  const [value, setValueState] = useState(() => {
+    inputMarkRef.current = studentInputMark();
+    return cloneValue(readQuestionDraft(persistenceKey, initialValue));
+  });
   const historyRef = useRef([]);
 
   useEffect(() => {
@@ -28,6 +36,7 @@ export default function useUndoHistory(
     activeKeyRef.current = persistenceKey;
     historyRef.current = [];
     skipNextWriteRef.current = true;
+    inputMarkRef.current = studentInputMark();
     setValueState(cloneValue(readQuestionDraft(persistenceKey, initialValueRef.current)));
   }, [persistenceKey]);
 
@@ -36,7 +45,7 @@ export default function useUndoHistory(
       skipNextWriteRef.current = false;
       return;
     }
-    writeQuestionDraft(persistenceKey, value);
+    writeQuestionDraft(persistenceKey, value, { edit: false });
   }, [persistenceKey, value]);
 
   const setValue = useCallback((nextValue, options = {}) => {
@@ -46,7 +55,7 @@ export default function useUndoHistory(
         historyRef.current = [...historyRef.current, cloneValue(current)].slice(-maximumEntries);
       }
       const saved = cloneValue(resolved);
-      writeQuestionDraft(persistenceKey, saved);
+      writeQuestionDraft(persistenceKey, saved, { edit: typeof options.edit === 'boolean' ? options.edit : studentInputSince(inputMarkRef.current) });
       return saved;
     });
   }, [maximumEntries, persistenceKey]);
@@ -57,7 +66,7 @@ export default function useUndoHistory(
     const previous = history[history.length - 1];
     historyRef.current = history.slice(0, -1);
     const saved = cloneValue(previous);
-    writeQuestionDraft(persistenceKey, saved);
+    writeQuestionDraft(persistenceKey, saved, { edit: studentInputSince(inputMarkRef.current) });
     setValueState(saved);
     return true;
   }, [persistenceKey]);
@@ -65,7 +74,7 @@ export default function useUndoHistory(
   const reset = useCallback((nextValue = initialValueRef.current) => {
     historyRef.current = [];
     const saved = cloneValue(nextValue);
-    writeQuestionDraft(persistenceKey, saved);
+    writeQuestionDraft(persistenceKey, saved, { edit: studentInputSince(inputMarkRef.current) });
     setValueState(saved);
   }, [persistenceKey]);
 

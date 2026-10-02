@@ -2,7 +2,7 @@
   "algebra": {
     "pathToolId": "algebra",
     "rawWork": {
-      "value": "4"
+      "finalEquation": " x = 4"
     }
   },
   "system": {
@@ -40,6 +40,8 @@
           -1
         ]
       ],
+      "domainText": "-2, 1, 3",
+      "rangeText": "-1, 2, 3",
       "domain": [
         -2,
         1,
@@ -50,7 +52,8 @@
         2,
         3
       ],
-      "isFunction": "yes"
+      "isFunction": "yes-definition",
+      "fields": []
     }
   },
   "intervalNumberLine": {
@@ -117,29 +120,19 @@
         ]
       },
       "markerPlacements": {
-        "endpoint-0-start": {
-          "marker": "arrow",
-          "point": [
-            -2.665,
-            -4.33
-          ],
-          "droppedPoint": [
-            -3,
-            -5
-          ],
-          "locationCorrect": true
-        },
         "endpoint-0-end": {
           "marker": "arrow",
           "point": [
             2.665,
             6.33
-          ],
-          "droppedPoint": [
-            2,
-            5
-          ],
-          "locationCorrect": true
+          ]
+        },
+        "endpoint-0-start": {
+          "marker": "arrow",
+          "point": [
+            -2.665,
+            -4.33
+          ]
         }
       },
       "answers": {
@@ -154,11 +147,12 @@
       "r": "1",
       "direction": "positive",
       "strength": "strong",
-      "causation": "association",
-      "modelChoice": "linear",
+      "causation": "",
+      "modelChoice": "",
       "predictionX": 5,
       "predictionY": "",
-      "predictionType": "interpolation"
+      "predictionType": "",
+      "choicesOpenUnanswered": true
     }
   },
   "graphing2": {
@@ -308,6 +302,91 @@
         {
           "type": "interpretationSelected",
           "kind": "strength"
+        }
+      ]
+    }
+  },
+  "systemsWorkspaceMatrix3": {
+    "pathToolId": "systemsWorkspace",
+    "rawWork": {
+      "classification": "one",
+      "x": "1",
+      "y": "2",
+      "z": "3",
+      "technologyUsed": true
+    }
+  },
+  "systemsWorkspaceInequalities": {
+    "pathToolId": "systemsWorkspace",
+    "rawWork": {
+      "construction": [
+        {
+          "points": [
+            {
+              "x": null,
+              "y": null
+            },
+            {
+              "x": null,
+              "y": null
+            }
+          ],
+          "boundaryStyle": "",
+          "shade": ""
+        },
+        {
+          "points": [
+            {
+              "x": null,
+              "y": null
+            },
+            {
+              "x": null,
+              "y": null
+            }
+          ],
+          "boundaryStyle": "",
+          "shade": ""
+        }
+      ],
+      "testChoice": "no",
+      "candidate": {
+        "x": 0,
+        "y": 2
+      }
+    }
+  },
+  "systemsWorkspaceInequalityConstruct": {
+    "pathToolId": "systemsWorkspace",
+    "rawWork": {
+      "construction": [
+        {
+          "points": [
+            {
+              "x": 0,
+              "y": 0
+            },
+            {
+              "x": 1,
+              "y": 1
+            }
+          ],
+          "boundaryStyle": "solid",
+          "shade": "above"
+        },
+        {
+          "points": [
+            {
+              "x": 0,
+              "y": 4
+            },
+            {
+              "x": 1,
+              "y": 3
+            }
+          ],
+          "boundaryStyle": "dashed",
+          "shade": "below"
         }
       ]
     }

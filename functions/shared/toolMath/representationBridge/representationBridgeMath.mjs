@@ -22,7 +22,7 @@ import { canonicalFromEquationText, canonicalFromSlopeIntercept, linesEquivalent
 import { buildInitialEquationState, describeRewriteGap } from '../stepAlgebra2/rewriteLinearFormMath.mjs';
 import { lineFromPoints, targetLineFromQuestion } from '../graphing2/graphingMath.mjs';
 import { evaluateConstruction } from '../graphing2/constructionPolicy.mjs';
-import { scoreExpressionMeaning } from '../expressionMeaning/expressionMeaningMath.mjs';
+import { EXPRESSION_MEANING_DIMENSIONS, scoreExpressionMeaning } from '../expressionMeaning/expressionMeaningMath.mjs';
 import {
   deriveLinearMultipleRepresentations,
   scoreLinearMultipleRepresentations,
@@ -58,6 +58,117 @@ export const resolveRequiredStages = (question = {}) => {
 export const resolveFeedbackTiming = (question = {}) => (
   REPRESENTATION_BRIDGE_FEEDBACK_TIMINGS.includes(question.feedbackTiming) ? question.feedbackTiming : 'checkpoint'
 );
+
+/** How many distinct row intervals the rate stage asks for: the authored count
+ * (default 3), never more than the table has pairs, never fewer than one. The
+ * scorer, the stage-completion check and the panel all read this one rule. */
+export const resolveRequiredComparisons = (question = {}, rowCount = 0) => (
+  Math.max(1, Math.min(Number(question.requiredComparisons) || 3, maxDistinctPairs(rowCount)))
+);
+
+const filled = (value) => String(value ?? '').trim() !== '';
+
+/**
+ * WHETHER EACH STAGE IS FINISHED — NEVER WHETHER IT IS RIGHT.
+ *
+ * A stage is finished when every entry it is graded on has been made: the
+ * intervals and their Δx, Δy and rate, the conclusion and m; m, b and the
+ * equation; a, c and the equation; two plotted points; every meaning. Nothing
+ * here is compared with the canonical line, which is what makes it safe to
+ * report where outcomes are withheld (see resolveRepresentationBridgeStageGate).
+ */
+export const representationBridgeStageCompletion = (question = {}, response = {}) => {
+  const rows = normalizeRows(question.source?.rows);
+  const requiredComparisons = resolveRequiredComparisons(question, rows.length);
+  const tableEvidence = Array.isArray(response.tableEvidence) ? response.tableEvidence : [];
+  const distinctPairs = new Set(tableEvidence.map((entry) => pairKey(entry?.i, entry?.j))).size;
+  const general = response.generalForm || {};
+  const factored = response.factoredForm || {};
+  const points = Array.isArray(response.graphConstruction?.points) ? response.graphConstruction.points : [];
+  const meanings = isObject(response.meaningAssignments) ? response.meaningAssignments : {};
+  return {
+    rateEvidence: distinctPairs >= requiredComparisons
+      && tableEvidence.every((entry) => filled(entry?.dx) && filled(entry?.dy) && filled(entry?.rate))
+      && filled(response.rateConclusion)
+      && filled(response.studentSlope),
+    generalForm: filled(general.m) && filled(general.b) && filled(general.equation),
+    factoredForm: filled(factored.a) && filled(factored.c) && filled(factored.equation),
+    graph: points.length >= 2,
+    meaning: Object.keys(REPRESENTATION_BRIDGE_MEANING_ROLES)
+      .every((rowId) => EXPRESSION_MEANING_DIMENSIONS.every((dimension) => filled(meanings[rowId]?.[dimension]))),
+  };
+};
+
+/**
+ * WHAT "CHECK THIS STAGE" MAY SAY, AND WHAT IT MUST HOLD BACK.
+ *
+ * In `checkpoint` timing (the default) each stage check is a verdict that has to
+ * pass before the next stage opens and before Submit. That is good practice. On
+ * an activity that withholds outcomes until submission — a DOL, quiz or test —
+ * it is a free answer key the student can query as often as they like: edit,
+ * check, edit again until it says correct, then spend the one attempt.
+ *
+ * So a verdict exists only where the activity shows outcomes at once
+ * (`showImmediateFeedback`, from ToolRuntimeContext: false on a DOL, quiz or
+ * test, and under secure server grading, where this tool holds no key at all).
+ * Without it a check reports only that the stage is FINISHED, no stage waits on
+ * another being right, the highlights reveal nothing, and Submit waits only for
+ * every required stage to be finished. With it, everything below is exactly
+ * the behaviour practice always had.
+ *
+ * `stageChecks` holds what the last press of a stage's check recorded; a stored
+ * check never stands alone — it counts only while the CURRENT draft still
+ * passes, so editing earlier work re-locks what follows it.
+ */
+export const resolveRepresentationBridgeStageGate = ({
+  feedbackTiming = 'checkpoint',
+  showImmediateFeedback = true,
+  requiredStages = REPRESENTATION_BRIDGE_STAGES,
+  stageChecks = {},
+  parts = {},
+  completion = {},
+  submissionFeedbackShown = false,
+} = {}) => {
+  const verdictsShown = showImmediateFeedback !== false;
+  const checkpoint = feedbackTiming === 'checkpoint';
+  const checks = isObject(stageChecks) ? stageChecks : {};
+  const verdicts = isObject(parts) ? parts : {};
+  const finished = isObject(completion) ? completion : {};
+  const required = Array.isArray(requiredStages) ? requiredStages : REPRESENTATION_BRIDGE_STAGES;
+  const passed = (stage) => checks[stage] === true && verdicts[stage] === true;
+  const complete = (stage) => finished[stage] === true;
+
+  return {
+    verdictsShown,
+    // Whether a stage is locked behind the ones before it. Only a verdict can
+    // lock: without one, locking a stage until the last one "passes" would
+    // itself tell the student the last one is right.
+    stageBlocked: (stage) => {
+      if (!checkpoint || !verdictsShown) return false;
+      const prior = REPRESENTATION_BRIDGE_STAGES.slice(0, REPRESENTATION_BRIDGE_STAGES.indexOf(stage));
+      return prior.filter((entry) => required.includes(entry)).some((entry) => !passed(entry));
+    },
+    readyToSubmit: !checkpoint || (verdictsShown ? required.every(passed) : required.every(complete)),
+    // Whether a highlight may show the student's own value for a concept —
+    // which it does only once that value is right, so it is a verdict too.
+    revealAllowed: (stage) => {
+      if (!verdictsShown) return false;
+      if (feedbackTiming === 'guided') return true;
+      if (checkpoint) return checks[stage] === true;
+      return Boolean(submissionFeedbackShown);
+    },
+    // What one press of the stage's check records in `stageChecks`.
+    recordCheck: (stage) => (verdictsShown ? Boolean(verdicts[stage]) : complete(stage)),
+    // What the result beside a checked stage says: a verdict, or only whether
+    // the stage is finished. Null until the stage has been checked.
+    checkReport: (stage) => {
+      if (checks[stage] == null) return null;
+      return verdictsShown
+        ? { kind: 'verdict', passed: passed(stage) }
+        : { kind: 'completion', complete: complete(stage) };
+    },
+  };
+};
 
 /**
  * THE ONE DERIVATION OF THE CANONICAL LINE.
@@ -195,7 +306,7 @@ export const scoreRepresentationBridge = (question = {}, response = {}) => {
   }
   const derived = deriveLinearBridge(question);
   const requiredStages = resolveRequiredStages(question);
-  const requiredComparisons = Math.max(1, Math.min(Number(question.requiredComparisons) || 3, maxDistinctPairs(derived.rows.length)));
+  const requiredComparisons = resolveRequiredComparisons(question, derived.rows.length);
 
   const parts = {};
   const evidence = {};

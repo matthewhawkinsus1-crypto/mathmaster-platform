@@ -17,5 +17,5 @@ test('the stepper-driven model is shown at the steppers\' precision', () => {
   assert.match(display, /Math\.abs\(Number\(b\)\)\.toFixed\(decimalsForStep\(fitControls\.intercept\.step\)\)/);
   assert.match(source, /: <>y = \{shownSlope\}x \{Number\(b\) >= 0 \? '\+' : '−'\} \{shownInterceptMagnitude\}<\/>\}/);
   // The stepper itself formats the same way.
-  assert.match(region(source, 'const FitStepper', 'const modelFunction'), /const display = Number\(value\)\.toFixed\(decimals\);/);
+  assert.match(region(source, 'const FitStepper', 'const MODE_TASKS', 'FitStepper'), /const display = Number\(value\)\.toFixed\(decimals\);/);
 });

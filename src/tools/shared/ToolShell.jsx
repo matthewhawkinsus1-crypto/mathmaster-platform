@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import MathText from '../../components/common/MathText.jsx';
 import {
   countAnswerControls,
@@ -14,6 +14,8 @@ import { isMobileQuestionViewport } from '../../components/student/MobileViewpor
 import QuietDisclosure from '../../components/common/QuietDisclosure.jsx';
 import { useRenderPerformance } from '../../platform/performance/useRenderPerformance.js';
 import { PlotHelpScope } from './plotHelpScope.js';
+import { useHintsAllowed, useToolRuntimeContext } from './ToolRuntimeContext';
+import { VERDICT_CARD_RADIUS, verdictRadius, verdictTextLength, verdictWraps } from './verdictShape.js';
 
 // A stable key for "this exact block of text", so a student's decision to fold
 // the steps away is remembered per tool without every one of the eighteen tools
@@ -68,11 +70,34 @@ const mayFocusOnOpen = (policy) => (policy
  */
 const WORKSPACE_WIDTHS = { standard: 'min(100%, 1180px)', wide: 'min(100%, 1480px)' };
 
+/*
+ * ONE DISCLOSURE FOR THE TOOL'S HELP, NOT TWO (platform quirks audit PQ-023).
+ *
+ * "About this tool" (a one-line description, in the header) and "How to do
+ * this" (the steps, in the task card) were two folded rows between the task
+ * and the mathematics — on a 390px phone the header alone was 98–117px. The
+ * description now opens as the first line of "How to do this": the shell hands
+ * it to its TaskCard through this context, and the TaskCard says it took it.
+ * A tool with no TaskCard keeps "About this tool" in its header, and so does
+ * Work View, which hides the task card (App.css).
+ */
+const ToolShellContext = createContext(null);
+
 export default function ToolShell({ title, subtitle, badge, children, footer, shellKey = null, widthProfile = 'standard', workspaceWidth = WORKSPACE_WIDTHS[widthProfile] || WORKSPACE_WIDTHS.standard, focusOnOpen = true }) {
   useRenderPerformance('ToolShell');
   const shellRef = useRef(null);
   const focusPolicy = useAnswerFocusPolicy();
   const focusAllowed = focusOnOpen && mayFocusOnOpen(focusPolicy);
+  const [taskCards, setTaskCards] = useState(0);
+  const registerTaskCard = useCallback(() => {
+    setTaskCards((count) => count + 1);
+    return () => setTaskCards((count) => Math.max(0, count - 1));
+  }, []);
+  const shellContext = useMemo(() => ({
+    description: subtitle || null,
+    badge: badge || null,
+    registerTaskCard,
+  }), [subtitle, badge, registerTaskCard]);
 
   useEffect(() => {
     if (!focusAllowed) return undefined;
@@ -141,6 +166,10 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
           <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#172033' }}>{title}</h2>
           {badge ? <span className="mathmaster-tool-shell-badge" style={{ borderRadius: 999, background: '#e8f0fe', color: '#174ea6', padding: '5px 10px', fontWeight: 800, fontSize: 11 }}>{badge}</span> : null}
           {subtitle ? (
+            // `display: contents` keeps the fold itself the header's flex item.
+            // Merged into the TaskCard's "How to do this", it is hidden by
+            // App.css everywhere except Work View.
+            <div className="mathmaster-tool-shell-about" data-merged={taskCards > 0 ? 'true' : undefined} style={{ display: 'contents' }}>
             <QuietDisclosure
               summary="About this tool"
               storageKey={`mm.tool.about.${shellKey || contentKey(`${title}|${subtitle}`)}`}
@@ -156,11 +185,12 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
             ) : null}
             <p style={{ margin: 0, color: '#5f6b7a', lineHeight: 1.45, fontSize: 14 }}>{subtitle}</p>
             </QuietDisclosure>
+            </div>
           ) : null}
         </div>
       </header>
       {/* One set of plotting directions per tool, however many planes it has. */}
-      <div className="mathmaster-tool-shell-body" style={{ padding: 24 }}><PlotHelpScope>{children}</PlotHelpScope></div>
+      <div className="mathmaster-tool-shell-body" style={{ padding: 24 }}><ToolShellContext.Provider value={shellContext}><PlotHelpScope>{children}</PlotHelpScope></ToolShellContext.Provider></div>
       {footer ? <footer style={{ padding: '14px 24px', borderTop: '1px solid #e5e7eb', background: '#fafafa', color: '#5f6b7a', fontSize: 13 }}>{footer}</footer> : null}
     </section>
   );
@@ -220,11 +250,138 @@ export const Panel = ({ title, children, collapsible = false, defaultOpen = true
   );
 };
 
-export const ResultPill = ({ ok, children }) => (
-  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 999, padding: '7px 11px', fontWeight: 800, background: ok ? '#e6f4ea' : '#fce8e6', color: ok ? '#137333' : '#c5221f' }}>
-    {ok ? '✓' : '•'} {children}
-  </span>
-);
+/*
+ * THE PLATFORM'S OUTCOME FOR AN ATTEMPT, WHERE THE STUDENT IS LOOKING (PQ-022).
+ *
+ * A verdict area renders this slot. It joins the question's slot registry
+ * while mounted (attemptOutcomeSlots.js) and shows QuestionEngine's outcome —
+ * "Not quite. You have 2 attempts remaining on this version." — when that
+ * outcome is handed to it, which QuestionEngine does only where it would have
+ * shown the sentence in its own box: outcome feedback allowed, nothing
+ * withheld, the question still open. It is then the one place the outcome
+ * appears, and its live region the one announcement (PQ-017).
+ *
+ * The live region is mounted, empty and visually hidden, with the verdict —
+ * the moment Check is pressed — so the sentence that arrives when the attempt
+ * is graded is an addition to a region that already exists, which screen
+ * readers announce reliably. `inline` renders the bare sentence for a tool
+ * whose verdict is itself a live region (Regression Calculator), so the
+ * outcome joins that announcement instead of starting a second one.
+ */
+const OUTCOME_WAITING_STYLE = {
+  position: 'absolute', width: 1, height: 1, margin: -1, padding: 0, border: 0,
+  overflow: 'hidden', clip: 'rect(0 0 0 0)', clipPath: 'inset(50%)', whiteSpace: 'nowrap',
+};
+const outcomeStyle = (tone) => ({
+  // Its own row in the flex rows some tools put their verdict in.
+  flexBasis: '100%',
+  boxSizing: 'border-box',
+  margin: '8px 0 0',
+  padding: '8px 12px',
+  borderRadius: 10,
+  background: tone === 'correct' ? '#e6f4ea' : '#fce8e6',
+  color: tone === 'correct' ? '#137333' : '#c5221f',
+  fontSize: 14,
+  fontWeight: 800,
+  lineHeight: 1.45,
+  // `nearest` would otherwise stop with the box's edge on the scroller's edge,
+  // a few pixels under a phone's action bar.
+  scrollMarginBottom: 12,
+});
+
+// `showDetail={false}` for a tool whose verdict already lists the parts to
+// revisit (the representations board), so the "Focus on" line is not said twice.
+export const AttemptOutcome = ({ inline = false, showDetail = true }) => {
+  const { attemptOutcome, attemptOutcomeSlots } = useToolRuntimeContext();
+  const [slot, setSlot] = useState(null);
+  const regionRef = useRef(null);
+  useLayoutEffect(() => {
+    if (!attemptOutcomeSlots) return undefined;
+    const token = attemptOutcomeSlots.register();
+    setSlot(token);
+    return () => attemptOutcomeSlots.unregister(token);
+  }, [attemptOutcomeSlots]);
+  const outcome = attemptOutcomeSlots && attemptOutcome && slot !== null && attemptOutcome.slot === slot ? attemptOutcome : null;
+  // Once per attempt, and only as far as needed: Check pressed low on a phone
+  // leaves the verdict at the bottom edge, where the sentence below it could
+  // land under the action bar. `nearest` does nothing when it is already in
+  // view, and the scroll padding (or, on a phone, the scroller ending at the
+  // bar) keeps it clear of the bar.
+  const shownId = outcome ? outcome.id : null;
+  useEffect(() => {
+    if (shownId === null) return;
+    regionRef.current?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }, [shownId]);
+  // Outside a question (the tools lab) there is no attempt to report.
+  if (!attemptOutcomeSlots) return null;
+  if (inline) {
+    return outcome ? (
+      <span ref={regionRef} className="mathmaster-tool-attempt-outcome" data-attempt-outcome="shown" style={{ scrollMarginBottom: 12 }}>
+        {' '}{outcome.text}{showDetail && outcome.detail ? ` ${outcome.detail}` : ''}
+      </span>
+    ) : null;
+  }
+  return (
+    <div
+      ref={regionRef}
+      role="status"
+      className="mathmaster-tool-attempt-outcome"
+      data-attempt-outcome={outcome ? 'shown' : 'waiting'}
+      style={outcome ? outcomeStyle(outcome.tone) : OUTCOME_WAITING_STYLE}
+    >
+      {outcome ? (
+        <>
+          {outcome.text}
+          {showDetail && outcome.detail ? <span style={{ display: 'block', marginTop: 4, fontWeight: 700 }}>{outcome.detail}</span> : null}
+        </>
+      ) : null}
+    </div>
+  );
+};
+
+// The verdict of a Check. `stageCheck` marks a pill that reports one stage or
+// step of the work rather than the attempt ("General form correct", "y
+// isolated"): it is not where an attempt's outcome belongs.
+export const ResultPill = ({ ok, children, stageCheck = false }) => {
+  // PQ-032: a verdict that wraps is a 10px card, not a 999px lozenge. Long
+  // text is known before layout; whether a shorter one wraps depends on the
+  // width it is given, so it is measured, and re-measured when that changes.
+  const pillRef = useRef(null);
+  const [wrapped, setWrapped] = useState(false);
+  useLayoutEffect(() => {
+    const pill = pillRef.current;
+    if (!pill || typeof window === 'undefined') return undefined;
+    const measure = () => {
+      const style = window.getComputedStyle(pill);
+      setWrapped(verdictWraps({
+        height: pill.getBoundingClientRect().height,
+        lineHeight: parseFloat(style.lineHeight),
+        fontSize: parseFloat(style.fontSize),
+        paddingTop: parseFloat(style.paddingTop),
+        paddingBottom: parseFloat(style.paddingBottom),
+      }));
+    };
+    measure();
+    if (typeof ResizeObserver !== 'function') return undefined;
+    const observer = new ResizeObserver(measure);
+    observer.observe(pill);
+    return () => observer.disconnect();
+  }, []);
+  const radius = verdictRadius({ textLength: verdictTextLength(children), wrapped });
+  return (
+    <>
+      <span
+        ref={pillRef}
+        className="mathmaster-result-pill"
+        data-verdict-shape={radius === VERDICT_CARD_RADIUS ? 'card' : 'pill'}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: radius, padding: '7px 11px', fontWeight: 800, background: ok ? '#e6f4ea' : '#fce8e6', color: ok ? '#137333' : '#c5221f' }}
+      >
+        {ok ? '✓' : '•'} {children}
+      </span>
+      {stageCheck ? null : <AttemptOutcome />}
+    </>
+  );
+};
 
 // Every tool leads with the same thing: one sentence naming the task, then the
 // concrete steps. Previously each tool buried its directions in a paragraph
@@ -238,8 +395,22 @@ export const TaskCard = ({ task, steps = [], note = null, question = null, steps
   const authoredPrompt = String(question?.prompt || '').trim();
   const taskText = String(task || '').trim();
   const promptDiffers = Boolean(authoredPrompt && authoredPrompt !== taskText);
+  // The fold's remembered open/closed state stays keyed on the directions and
+  // steps alone, so a student who had opened them still finds them open.
   const supportKey = stepsKey || contentKey([taskText, ...steps, note || ''].filter(Boolean).join('|'));
-  const hasSupport = Boolean((taskText && (!authoredPrompt || promptDiffers)) || steps.length || note);
+  // PQ-023: the tool's one-line description opens the fold, and the shell's
+  // header stops offering it separately once this card has said it took it.
+  const shell = useContext(ToolShellContext);
+  const registerTaskCard = shell?.registerTaskCard;
+  useLayoutEffect(() => (registerTaskCard ? registerTaskCard() : undefined), [registerTaskCard]);
+  const description = shell?.description || null;
+  const showsDirections = Boolean(taskText && (!authoredPrompt || promptDiffers));
+  const hasSupport = Boolean(description || showsDirections || steps.length || note);
+  // Named for what is inside: the steps when there are steps, otherwise the
+  // directions, otherwise only the description of the tool.
+  const summary = steps.length
+    ? `How to do this (${steps.length} step${steps.length === 1 ? '' : 's'})`
+    : showsDirections || note ? 'How to do this' : 'About this tool';
 
   return (
     <div className="mathmaster-tool-task-card" style={{
@@ -254,18 +425,27 @@ export const TaskCard = ({ task, steps = [], note = null, question = null, steps
       ) : null}
       {hasSupport ? (
         <QuietDisclosure
-          summary={steps.length ? `How to do this (${steps.length} step${steps.length === 1 ? '' : 's'})` : 'How to do this'}
+          summary={summary}
           storageKey={`mm.tool.steps.${supportKey}`}
           defaultOpen={false}
           style={{ margin: authoredPrompt ? '8px 0 0' : 0 }}
         >
-          {taskText && (!authoredPrompt || promptDiffers) ? (
-            <div className="mathmaster-tool-task-directions">
+          {description ? (
+            <div className="mathmaster-tool-task-about">
+              {/* The header drops the badge on a phone; it is kept here. */}
+              {shell?.badge ? (
+                <p className="mathmaster-tool-shell-badge-echo" style={{ margin: '0 0 6px', color: '#174ea6', fontWeight: 800, fontSize: 13 }}>{shell.badge}</p>
+              ) : null}
+              <p style={{ margin: 0, color: '#5f6b7a', lineHeight: 1.45, fontSize: 14 }}>{description}</p>
+            </div>
+          ) : null}
+          {showsDirections ? (
+            <div className="mathmaster-tool-task-directions" style={description ? { marginTop: 10 } : undefined}>
               <MathText as="p" style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#172033', lineHeight: 1.45 }}>{taskText}</MathText>
             </div>
           ) : null}
           {steps.length ? (
-            <ol style={{ margin: taskText && (!authoredPrompt || promptDiffers) ? '10px 0 0' : 0, paddingLeft: 20, color: '#3c4756', lineHeight: 1.6 }}>
+            <ol style={{ margin: showsDirections || description ? '10px 0 0' : 0, paddingLeft: 20, color: '#3c4756', lineHeight: 1.6 }}>
               {steps.map((step, index) => <li key={index}><MathText>{step}</MathText></li>)}
             </ol>
           ) : null}
@@ -279,9 +459,19 @@ export const TaskCard = ({ task, steps = [], note = null, question = null, steps
 // Progressive hints: a nudge, then the strategy, then the worked step. Each
 // reveal is reported so attempt scoring can discount mathematical help the same
 // way it does everywhere else in the platform.
+//
+// AND ONLY WHERE THE ACTIVITY ALLOWS HELP. A DOL, quiz or test withholds hints
+// (`hintsAllowed: false`, read from ToolRuntimeContext), and there the panel
+// renders nothing at all — not a disabled button, not a note. That is how the
+// platform's other policy-gated help already behaves: the guided coach renders
+// nothing when it is not enabled, and the graph self-check is simply absent on
+// a DOL. A line saying "hints are not available" on every question of an exit
+// ticket would be noise the student reads instead of the problem, and the
+// activity already states its own rules.
 export const HintPanel = ({ hints = [], onHintUsed }) => {
   const [revealed, setRevealed] = useState(0);
-  if (!hints.length) return null;
+  const hintsAllowed = useHintsAllowed();
+  if (!hintsAllowed || !hints.length) return null;
   const revealNext = () => {
     setRevealed((current) => {
       const next = Math.min(hints.length, current + 1);

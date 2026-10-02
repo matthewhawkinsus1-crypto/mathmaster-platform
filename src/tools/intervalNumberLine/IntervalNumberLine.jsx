@@ -10,6 +10,7 @@ import useReportToolWork from '../shared/useReportToolWork.js';
 import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import intervalNumberLineGrader from '../../../functions/shared/serverGrading/tools/intervalNumberLine.mjs';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
+import { clientPointToViewBox } from '../../utils/responsiveCoordinates.js';
 import {
   intervalsToNotation,
   normalizeIntervals,
@@ -319,11 +320,19 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
   };
 
   const valueFromEvent = (event) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    if (!rect.width) return null;
+    // Where the tap is in the DRAWING, not in the box: capped to a shorter box,
+    // the line is drawn centred and narrower than the box, and a straight
+    // box-to-viewBox stretch put a tap on the drawn 5 at 3 (PQ-034).
+    const point = clientPointToViewBox({
+      clientX: event.clientX,
+      clientY: event.clientY,
+      rect: event.currentTarget.getBoundingClientRect(),
+      viewBoxWidth: WIDTH,
+      viewBoxHeight: HEIGHT,
+    });
+    if (!point) return null;
 
-    const viewBoxX = ((event.clientX - rect.left) / rect.width) * WIDTH;
-    const raw = min + ((viewBoxX - PAD) / (WIDTH - PAD * 2)) * span;
+    const raw = min + ((point.x - PAD) / (WIDTH - PAD * 2)) * span;
     const snapped = tidyNumber(Math.round(raw / snapStep) * snapStep);
 
     return Number.isFinite(snapped)

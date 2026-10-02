@@ -24,9 +24,124 @@ import {
   nextDeviceReportGeneration,
   resolveDeviceId,
 } from '/src/platform/persistence/deviceIdentity.js';
+// The real reporter the student runtime uses; only the callable is stubbed.
+import { reportDeviceQueueUnlessUnchanged } from '/src/platform/persistence/deviceReportDedupe.js';
 
 const STUDENT = 'browser-cert-student';
 const ASSIGNMENT = 'assignment.with`punctuation';
+
+/*
+ * WHAT TOUCHES EACH STORE.
+ *
+ * Every bulk read, cursor and count on an object store or an index is tallied
+ * by the store it reads, so the certification can show what a device report
+ * costs against real IndexedDB — in particular that, once a tally exists, it
+ * never reads the `retired` store at all.
+ */
+const idbCalls = {};
+let countingIdbCalls = true;
+const resetIdbCalls = () => {
+  Object.keys(idbCalls).forEach((key) => { delete idbCalls[key]; });
+  return true;
+};
+const instrument = (prototype, method, storeNameOf) => {
+  const original = prototype[method];
+  prototype[method] = function instrumented(...args) {
+    if (countingIdbCalls) {
+      const key = `${storeNameOf(this)}.${method}`;
+      idbCalls[key] = (idbCalls[key] || 0) + 1;
+    }
+    return original.apply(this, args);
+  };
+};
+['getAll', 'openCursor', 'count'].forEach((method) => {
+  instrument(IDBObjectStore.prototype, method, (store) => store.name);
+  instrument(IDBIndex.prototype, method, (index) => index.objectStore.name);
+});
+
+const openCurrentDatabase = () => new Promise((resolve, reject) => {
+  const request = indexedDB.open('mathmaster-student-actions');
+  request.onerror = () => reject(request.error);
+  request.onsuccess = () => resolve(request.result);
+});
+
+/*
+ * Write rows STRAIGHT INTO `retired`, the way a release before tallies left
+ * them: no tally record is touched. The module opens (and upgrades) the
+ * database first, so the store is there to write into.
+ */
+const seedRetiredRows = async (rows) => {
+  await listDurableActions({ studentId: STUDENT });
+  const database = await openCurrentDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction('retired', 'readwrite');
+    rows.forEach((row) => transaction.objectStore('retired').put(row));
+    transaction.oncomplete = () => { database.close(); resolve(rows.length); };
+    transaction.onerror = () => { database.close(); reject(transaction.error); };
+  });
+};
+
+const SEMESTER_DISPOSITIONS = ['duplicate', 'superseded', 'permanently-invalid', 'duplicate', ''];
+const semesterRow = (index) => {
+  const owner = index % 5 === 0 ? 'browser-cert-classmate' : STUDENT;
+  const row = {
+    schemaVersion: 2,
+    actionId: `semester-${index}`,
+    kind: 'ordinarySubmission',
+    studentId: owner,
+    assignmentId: index % 3 ? ASSIGNMENT : 'another-assignment',
+    questionIndex: index % 30,
+    createdAt: 1757000000000 + index,
+    createdOrder: (1757000000000 + index) * 1000,
+    payload: {
+      previousTotalAttempts: 0,
+      activityRole: 'classwork',
+      record: { totalAttempts: 1, attemptCount: 1, status: 'attempted' },
+      // A response worth deserializing, as a real one is.
+      response: `${index}:`.padEnd(400, 'x'),
+    },
+  };
+  // One row in eleven predates `retirement` being written at all.
+  if (index % 11) {
+    row.retirement = { disposition: SEMESTER_DISPOSITIONS[index % SEMESTER_DISPOSITIONS.length], reason: 'seeded', retiredAt: 1757000000000 + index, receipt: null };
+  }
+  return row;
+};
+
+/*
+ * THE ORACLE: the summary's retired counts exactly as they were computed
+ * before the tally existed — the whole store read and reduced on every
+ * summary. Read through raw IndexedDB, not the module, and not counted.
+ */
+const fullScanRetiredCounts = async (studentId = STUDENT) => {
+  const database = await openCurrentDatabase();
+  const rows = await new Promise((resolve, reject) => {
+    const transaction = database.transaction('retired', 'readonly');
+    countingIdbCalls = false;
+    const read = transaction.objectStore('retired').getAll();
+    countingIdbCalls = true;
+    read.onsuccess = () => resolve(read.result || []);
+    read.onerror = () => reject(read.error);
+  });
+  database.close();
+  const retired = rows.filter((action) => action && (!studentId || action.studentId === studentId));
+  return {
+    retired: retired.length,
+    retiredByDisposition: retired.reduce(
+      (counts, action) => ({ ...counts, [action.retirement?.disposition || 'unknown']: (counts[action.retirement?.disposition || 'unknown'] || 0) + 1 }),
+      {},
+    ),
+  };
+};
+
+// The callable, stubbed: it records what would have gone on the wire.
+let reportsSentFromThisPage = 0;
+let lastWire = null;
+const SERVER_ANSWERS = {
+  applied: () => ({ success: true, applied: true, ignored: false }),
+  ignored: () => ({ success: true, applied: false, ignored: true, reason: 'superseded-by-newer-report' }),
+  throw: () => { throw new Error('The server did not answer in time.'); },
+};
 
 const action = ({ actionId, kind = 'ordinarySubmission', questionIndex = 0, previous = 0, payload = {} }) =>
   createDurableAction({
@@ -107,6 +222,30 @@ window.outboxHarness = {
   list: () => listDurableActions({ studentId: STUDENT }),
   listRetired: () => listRetiredDurableActions({ studentId: STUDENT }),
   summary: () => summarizeDurableOutbox({ studentId: STUDENT }),
+  /** A first summary and exactly what it read, for two tabs racing to build a tally. */
+  summaryWithCalls: async () => {
+    resetIdbCalls();
+    const summary = await summarizeDurableOutbox({ studentId: STUDENT });
+    return { summary, calls: { ...idbCalls } };
+  },
+  idbCalls: () => ({ ...idbCalls }),
+  resetIdbCalls,
+  seedSemesterOfRetiredRows: (count) => seedRetiredRows(Array.from({ length: count }, (_, index) => semesterRow(index))),
+  /** A tab still on the previous release retiring a row: into `retired`, no tally. */
+  retireTheOldWay: (actionId) => seedRetiredRows([{ ...semesterRow(1), actionId, studentId: STUDENT }]),
+  fullScanRetiredCounts: (studentId) => fullScanRetiredCounts(studentId),
+  /** The real device reporter, with the callable answering as `answer` says. */
+  report: async (answer = 'applied') => {
+    const result = await reportDeviceQueueUnlessUnchanged({
+      studentId: STUDENT,
+      transport: async (wire) => {
+        reportsSentFromThisPage += 1;
+        lastWire = wire;
+        return SERVER_ANSWERS[answer]();
+      },
+    }).catch((error) => ({ failed: String(error?.message || error) }));
+    return { result, sentFromThisPage: reportsSentFromThisPage, lastWire };
+  },
   captureThenDeliverInBackground: async (actionId, networkDelayMs) => {
     const startedAt = performance.now();
     await enqueueDurableAction(action({ actionId }));

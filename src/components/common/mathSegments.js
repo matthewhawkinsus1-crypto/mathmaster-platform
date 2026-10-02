@@ -144,6 +144,12 @@ export const normalizePlainMathTypography = (value) => String(value ?? '')
 
 const FRACTION_TOKEN = /\\frac\{[^{}]*\}\{[^{}]*\}/g;
 
+// `stackDivisions` reads digits and dots as one number, which is right for an
+// answer ("3/4." is three over four point nought) but not for prose, where a
+// dot no digit follows ends the sentence. Display only: grading never splits
+// prose.
+const SENTENCE_STOP_IN_DENOMINATOR = /^(\\frac\{[^{}]*\}\{[^{}]*\d)(\.+)\}$/;
+
 const SIMPLE_GROUPED_SLASH_FRACTION = /\(\s*([+-]?(?:\d+(?:\.\d+)?|[A-Za-z]))\s*\/\s*((?:\d+(?:\.\d+)?|[A-Za-z]))\s*\)/g;
 
 // Plain-text authoring often wrapped a slash fraction in parentheses only to
@@ -173,15 +179,24 @@ export const splitProseFractionRuns = (proseText) => {
   if (stacked === text) return [{ text, isFraction: false }];
   const chunks = [];
   let cursor = 0;
+  // A sentence's full stop that `stackDivisions` read into a denominator
+  // ("Simplify 2/6." gives \frac{2}{6.}) goes back to the prose after it.
+  let carried = '';
+  const pushProse = (value) => {
+    if (carried || value) chunks.push({ text: `${carried}${value}`, isFraction: false });
+    carried = '';
+  };
   FRACTION_TOKEN.lastIndex = 0;
   let match = FRACTION_TOKEN.exec(stacked);
   while (match) {
-    if (match.index > cursor) chunks.push({ text: stacked.slice(cursor, match.index), isFraction: false });
-    chunks.push({ text: match[0], isFraction: true });
+    if (match.index > cursor || carried) pushProse(stacked.slice(cursor, match.index));
+    const stop = SENTENCE_STOP_IN_DENOMINATOR.exec(match[0]);
+    chunks.push({ text: stop ? `${stop[1]}}` : match[0], isFraction: true });
+    carried = stop ? stop[2] : '';
     cursor = match.index + match[0].length;
     match = FRACTION_TOKEN.exec(stacked);
   }
-  if (cursor < stacked.length) chunks.push({ text: stacked.slice(cursor), isFraction: false });
+  if (cursor < stacked.length || carried) pushProse(stacked.slice(cursor));
   return chunks.length ? chunks : [{ text, isFraction: false }];
 };
 

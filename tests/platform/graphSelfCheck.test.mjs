@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { region } from './helpers/sourceContract.mjs';
 
 import {
   checkPlottedPoints,
@@ -130,10 +131,18 @@ test('using the check is recorded like a hint, so mastery weight is discounted',
 
 test('a verdict never outlives the point it described', () => {
   // A report about a point the student has since moved reads as the platform
-  // disagreeing with what is on screen.
+  // disagreeing with what is on screen. Pointer, drag and keyboard placements
+  // all go through placeTask, so that is where the report has to be cleared —
+  // after the guard (a refused placement moves nothing, so the report still
+  // describes the screen) and before the point is stored.
   const source = codeOf('src/InteractiveGraphWorkspace.jsx');
-  const place = source.slice(source.indexOf('if (!taskId || !point || construction.pointsValidated) return;'));
-  assert.match(place.slice(0, 200), /setSelfCheckReport\(null\)/);
+  const place = region(source, 'const placeTask = ', 'const nearestEndpoint', 'placeTask');
+  const guard = place.search(/\) return;/);
+  const clear = place.indexOf('setSelfCheckReport(null)');
+  const store = place.indexOf('constructionHistory.setValue');
+  assert.ok(clear > -1, 'placeTask must clear the self-check report');
+  assert.ok(guard > -1 && guard < clear, 'the report is cleared only for a placement that happens');
+  assert.ok(store > clear, 'the report is cleared before the moved point is stored');
 });
 
 test('the student plotted graph is graded evidence in its own right', () => {

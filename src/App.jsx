@@ -26,7 +26,7 @@ import {
   normalizeCheckpointResponse,
   responseFingerprint,
 } from './platform/performance/responseCheckpoint.js';
-import { createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
+import { WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS, createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
 import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
 import { readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
 import { resolveAuthoritativeClose, resolveWarmupInstructionDateKey } from '../functions/shared/sectionDeadline.mjs';
@@ -46,6 +46,12 @@ import {
   scratchpadPageDocId,
 } from './platform/student/scratchpadPages.js';
 import {
+  EMPTY_SCRATCHPAD_CACHE,
+  readCachedScratchpadPage,
+  storeCachedScratchpad,
+  touchCachedScratchpad,
+} from './platform/student/practiceScratchpadCache.js';
+import {
   getAssignmentByLaunchId,
   listClassroomCourseMappings,
   publishAssignmentToClassrooms,
@@ -61,6 +67,15 @@ import { generateQuestion, isPersonalizedBlueprint } from './problemGenerator';
 import { buildStudentFamilyContext, readLocalDeliveryPin, writeLocalDeliveryPin } from './platform/generation/familyDelivery.js';
 import { familySlotKey, isFamilyBackedQuestion } from '../functions/shared/questionFamilyInstance.mjs';
 import { normalizeDeliveryPin } from '../functions/shared/questionGenerationIdentity.mjs';
+import { stripAssignmentInstanceState } from '../functions/shared/assignmentPrivacy.mjs';
+import {
+  fetchAssignmentsById,
+  fetchStudentAssignments,
+  mergeStudentAssignments,
+  priorWorkAssignmentIds,
+  subscribeStudentClassAssignments,
+  workedAssignmentKey,
+} from './platform/assignments/studentAssignmentScope.js';
 import {
   GENERATION_SEATS_VERSION,
   generationSeatPlanSignature,
@@ -100,6 +115,7 @@ import {
   saveResumeAction,
   subscribeToQuestionDrafts,
 } from './questionDraftStorage';
+import { answerFocusPosition } from './platform/interaction/answerEntryUx.js';
 import {
   CLASS_PERIODS,
   DEFAULT_CLASS_SCHEDULE,
@@ -925,12 +941,20 @@ function App() {
   // It is part of the QuestionEngine key, so the workspace remounts and the
   // tools read the recovered work — without the first render having waited.
   const [workspaceDraftGeneration, setWorkspaceDraftGeneration] = useState(0);
+  // Where the student's cursor was when that remount was ordered, and on which
+  // question: the remount puts it back there instead of in the first box (a
+  // keystroke already on its way would otherwise land over the restored work).
+  const [draftRestoreFocus, setDraftRestoreFocus] = useState(null);
+  const currentQuestionIndexRef = useRef(0);
   const workspaceDraftSyncRef = useRef(null);
   const trackerRef = useRef({});
   const [practiceTracker, setPracticeTracker] = useState({});
-  const [practiceScratchpads, setPracticeScratchpads] = useState({});
+  // Practice Mode and "View as Student" scratchpads never reach Firestore, so
+  // they live here — in budgeted, least-recently-used stores, because a page is
+  // an image of up to ~700KB and a day of practice used to keep every one.
+  const [practiceScratchpads, setPracticeScratchpads] = useState(EMPTY_SCRATCHPAD_CACHE);
   const [previewTracker, setPreviewTracker] = useState({});
-  const [previewScratchpads, setPreviewScratchpads] = useState({});
+  const [previewScratchpads, setPreviewScratchpads] = useState(EMPTY_SCRATCHPAD_CACHE);
   const [previewSessionId, setPreviewSessionId] = useState(0);
   const [teacherScratchpadDialog, setTeacherScratchpadDialog] = useState(null);
   const [teacherScratchpadLoading, setTeacherScratchpadLoading] = useState(false);
@@ -941,6 +965,12 @@ function App() {
   const [assignmentNavigationCollapsed, setAssignmentNavigationCollapsed] = useState(false);
   const [assignmentOverviewExpanded, setAssignmentOverviewExpanded] = useState(false);
   const assignmentQuestionStageRef = useRef(null);
+  // A restore's cursor belongs to the question it was read on (draftRestoreFocus):
+  // another question, or another assignment, opens as any question opens.
+  useEffect(() => {
+    currentQuestionIndexRef.current = currentQuestionIndex;
+    setDraftRestoreFocus(null);
+  }, [currentQuestionIndex, activeAssignmentId]);
 
   // Once the student reaches the workspace, the full progress dashboard has
   // done its job. Keep its section/question/previous/next essentials in one
@@ -1713,8 +1743,41 @@ function App() {
     return () => window.clearTimeout(timer);
   }, [user, assignments, classSchedule, now]);
 
+  /*
+   * A STUDENT'S DEVICE LISTENS TO ITS OWN CLASS, NOT THE SCHOOL.
+   *
+   * Students: their class's assignments live, plus — read once, by id — any
+   * assignment they have work on from before a class move
+   * (platform/assignments/studentAssignmentScope.js). Every other class's
+   * assignments, and the per-student entries on them, never reach the device,
+   * and an edit to another class's assignment no longer wakes it.
+   * Teachers keep the whole collection: their screens span classes.
+   */
+  const studentClassAssignmentsRef = useRef([]);
+  const studentPriorWorkAssignmentsRef = useRef([]);
+  const publishStudentAssignments = () => {
+    setAssignments(assignmentsForViewer(mergeStudentAssignments(
+      studentClassAssignmentsRef.current,
+      studentPriorWorkAssignmentsRef.current,
+    )));
+  };
+
   useEffect(() => {
     if (!user) return undefined;
+
+    if (user.role === 'student') {
+      return subscribeStudentClassAssignments({
+        db,
+        classId: user.classId,
+        onChange: (classAssignments) => {
+          studentClassAssignmentsRef.current = classAssignments;
+          publishStudentAssignments();
+          // A teacher DOL unlock is an assignment update; see below.
+          setNow(Date.now());
+        },
+        onError: (error) => console.error('Assignment live update failed:', error),
+      });
+    }
 
     const unsubscribe = onSnapshot(
       collection(db, 'assignments'),
@@ -1737,6 +1800,34 @@ function App() {
 
     return unsubscribe;
   }, [user]);
+
+  // Work a student did under an earlier class: read once per change in the
+  // SET of assignments they have work on (not on every answer), by id.
+  const studentWorkedAssignmentKey = user?.role === 'student' ? workedAssignmentKey(tracker) : '';
+  useEffect(() => {
+    if (user?.role !== 'student' || !studentWorkedAssignmentKey) return undefined;
+    let cancelled = false;
+    const loadedIds = [
+      ...studentClassAssignmentsRef.current,
+      ...studentPriorWorkAssignmentsRef.current,
+    ].map((assignment) => assignment.id);
+    const missing = priorWorkAssignmentIds({
+      gradesByAssignment: Object.fromEntries(studentWorkedAssignmentKey.split('|').map((id) => [id, true])),
+      loadedIds,
+    });
+    if (!missing.length) return undefined;
+    fetchAssignmentsById(db, missing)
+      .then((fetched) => {
+        if (cancelled || !fetched.length) return;
+        studentPriorWorkAssignmentsRef.current = mergeStudentAssignments(studentPriorWorkAssignmentsRef.current, fetched);
+        publishStudentAssignments();
+      })
+      .catch((error) => console.warn('Could not load earlier-class assignments:', error));
+    return () => { cancelled = true; };
+    // publishStudentAssignments reads refs and the current user; the key is
+    // what decides whether there is anything new to read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.role, user?.id, studentWorkedAssignmentKey]);
 
   // Pacing and overrides are advisory: a failure here must not stop a teacher
   // signing in, so it degrades to defaults rather than rejecting the login.
@@ -2754,7 +2845,7 @@ function App() {
     setAssignmentResultRoute(null);
     setActiveView('dashboard');
     setPracticeTracker({});
-    setPracticeScratchpads({});
+    setPracticeScratchpads(EMPTY_SCRATCHPAD_CACHE);
     setPreviewTracker({});
   };
 
@@ -2779,9 +2870,9 @@ function App() {
       setSessionHydrating(true);
       setSessionHydrationError(null);
       try {
-        const fetchedAssignments = await fetchAssignments();
-        if (cancelled) return;
         if (session.role === 'teacher') {
+          await fetchAssignments();
+          if (cancelled) return;
           // Identity and classes first: the roster fetch is scoped by them, so
           // asking for students before they are known would read the school.
           viewerRef.current = { email: session.email || null, isRootAdmin: session.isRootAdmin === true };
@@ -2818,6 +2909,21 @@ function App() {
         const studentSnapshot = await getDoc(doc(db, 'grades', studentId));
         if (!studentSnapshot.exists()) throw new Error('Your student record is not available. Ask your teacher to add you to the roster.');
         const studentData = studentSnapshot.data() || {};
+        // The student's own class, plus anything they have work on from an
+        // earlier one — never the whole collection (studentAssignmentScope.js).
+        const savedResumeTarget = readResumeAction(studentId);
+        const fetchedAssignments = await fetchStudentAssignments({
+          db,
+          classId: studentData.classId || null,
+          gradesByAssignment: studentData.gradesByAssignment || {},
+          extraIds: savedResumeTarget?.assignmentId ? [savedResumeTarget.assignmentId] : [],
+        });
+        if (cancelled) return;
+        studentClassAssignmentsRef.current = fetchedAssignments
+          .filter((assignment) => Array.isArray(assignment.assignedClassIds) && assignment.assignedClassIds.includes(studentData.classId));
+        studentPriorWorkAssignmentsRef.current = fetchedAssignments
+          .filter((assignment) => !studentClassAssignmentsRef.current.includes(assignment));
+        setAssignments(fetchedAssignments);
         const studentProfile = normalizeStudentProfile(studentData.profile || studentData);
         const loadedCourseProfiles = await fetchCourseProfiles();
         await fetchClassSchedule();
@@ -2947,9 +3053,9 @@ function App() {
     setAssignmentResultRoute(null);
     setPendingClassroomLaunch(null);
     setPracticeTracker({});
-    setPracticeScratchpads({});
+    setPracticeScratchpads(EMPTY_SCRATCHPAD_CACHE);
     setPreviewTracker({});
-    setPreviewScratchpads({});
+    setPreviewScratchpads(EMPTY_SCRATCHPAD_CACHE);
     setTeacherScratchpadDialog(null);
     setResumeAction(null);
     setAssignmentActivity({});
@@ -3198,6 +3304,17 @@ function App() {
     }));
   }, [isTeacherPreview, liveTeachingSession?.active, liveTeachingSession?.assignmentId, activeAssignmentId, activeAssignmentData, currentQuestionIndex, activeQuestionRole]);
 
+  // "View as Student" scratchpads are wanted only while the preview is on
+  // screen, or while a Live Teaching session can resume into it
+  // (resumeLiveTeaching keeps them on purpose). Once neither holds — the
+  // teacher left a plain preview, or ended Live Teaching away from it — nothing
+  // is meant to bring them back (a new preview starts empty), so the pages are
+  // released instead of held until sign-out.
+  const previewScratchpadsReachable = isTeacherPreview || Boolean(liveTeachingSession?.active);
+  useEffect(() => {
+    if (!previewScratchpadsReachable) setPreviewScratchpads(EMPTY_SCRATCHPAD_CACHE);
+  }, [previewScratchpadsReachable]);
+
   // All teacher tabs observe the deterministic session document. Writes occur
   // only for commands/navigation; timer seconds are derived from startedAt.
   useEffect(() => {
@@ -3258,10 +3375,21 @@ function App() {
    *   1. canonical grades — already hydrated at sign-in;
    *   2. the durable outbox — already reconciled/overlaid above;
    *   3. this server draft, applied only where it is newer than BOTH this
-   *      device's copy and the question's last canonical attempt;
+   *      device's copy and the question's last canonical attempt (and an
+   *      entry an older build saved, whose time may be an opening's, only
+   *      where this device has no dated copy — see selectRestorableDraftEntries);
    *   4. Practice Mode state, kept in its own structure so it can never reach
-   *      a grade;
+   *      a grade, merged per question here and on the server;
    *   5. the resume position.
+   *
+   * The question does NOT wait for the server's copy (PQ-044). It opens from
+   * this device at once, and its workspaces write back what they read as
+   * what it is — not the student's edit — so that copy keeps the time of the
+   * last real edit (0 on a Chromebook that never saw this work) and cannot
+   * outrank the server's on its way in, nor be sent over it. When the read
+   * lands with anything newer, the question is remounted to show it. A device
+   * that opened offline, or slept while the student worked on another one,
+   * reads again when it is back online or back in front of the student.
    */
   useEffect(() => { trackerRef.current = tracker; }, [tracker]);
 
@@ -3286,49 +3414,91 @@ function App() {
       studentId: user.id,
       assignmentId: activeAssignmentId,
       classId: user.classId || null,
-      flush: ({ document }) => writeWorkspaceDraft(document),
+      // A save that gets through while the server's copy has never been read
+      // means the connection came back without the page hearing of it (no
+      // `online` event). Read it then, so this device shows work done on
+      // another Chromebook and the sync learns what the server holds.
+      flush: async ({ document }) => {
+        const result = await writeWorkspaceDraft(document);
+        if (!serverCopyRead) readServerCopy();
+        return result;
+      },
     });
     workspaceDraftSyncRef.current = sync;
     const unsubscribe = subscribeToQuestionDrafts((event) => sync.record(event));
 
-    readWorkspaceDraft({ studentId: user.id, assignmentId: activeAssignmentId })
-      .then((stored) => {
-        if (cancelled || !stored) return;
-        const assignmentGrades = trackerRef.current?.[activeAssignmentId] || {};
-        const restorable = selectRestorableDraftEntries({
-          entries: readWorkspaceDraftEntries(stored),
-          localSavedAt: (key) => questionDraftSavedAt(key),
-          canonicalSavedAt: (entry) => {
-            const record = normalizeQuestionRecord(assignmentGrades[entry?.questionIndex]);
-            return Date.parse(record.lastAttemptAt || '') || 0;
-          },
-        });
-        if (restoreQuestionDrafts(restorable)) setWorkspaceDraftGeneration((value) => value + 1);
-        if (stored.practice && typeof stored.practice === 'object') {
-          // Per question, the record with more practice progress wins. The
-          // session's tracker is usually a fresh seed with a row for every
-          // question; spreading it over the saved copy erased all saved practice
-          // on every reload (see practiceTrackerMerge.js).
-          setPracticeTracker((current) => ({
-            ...current,
-            [activeAssignmentId]: mergePracticeTrackers(stored.practice || {}, current[activeAssignmentId] || {}),
-          }));
-        }
-      })
-      .catch((error) => {
-        // The device's own drafts are still there. Recovery is best-effort.
-        console.warn('Could not restore saved workspace drafts:', error);
-      });
+    let reading = false;
+    let serverCopyRead = false;
+    const readServerCopy = () => {
+      if (cancelled || reading) return;
+      reading = true;
+      readWorkspaceDraft({ studentId: user.id, assignmentId: activeAssignmentId })
+        .then((stored) => {
+          if (cancelled) return;
+          serverCopyRead = true;
+          const entries = readWorkspaceDraftEntries(stored);
+          const assignmentGrades = trackerRef.current?.[activeAssignmentId] || {};
+          const restorable = selectRestorableDraftEntries({
+            entries,
+            localSavedAt: (key) => questionDraftSavedAt(key),
+            canonicalSavedAt: (entry) => {
+              const record = normalizeQuestionRecord(assignmentGrades[entry?.questionIndex]);
+              return Date.parse(record.lastAttemptAt || '') || 0;
+            },
+          });
+          if (restoreQuestionDrafts(restorable)) {
+            setDraftRestoreFocus({
+              questionIndex: currentQuestionIndexRef.current,
+              position: answerFocusPosition(assignmentQuestionStageRef.current),
+            });
+            setWorkspaceDraftGeneration((value) => value + 1);
+          }
+          // Only now is it known what the server holds — and so whether this
+          // device has an edit it never received (see workspaceDraftSync).
+          sync.noteServerCopy(entries);
+          if (stored?.practice && typeof stored.practice === 'object') {
+            // Per question, the record with more practice progress wins. The
+            // session's tracker is usually a fresh seed with a row for every
+            // question; spreading it over the saved copy erased all saved practice
+            // on every reload (see practiceTrackerMerge.js).
+            setPracticeTracker((current) => ({
+              ...current,
+              [activeAssignmentId]: mergePracticeTrackers(stored.practice || {}, current[activeAssignmentId] || {}),
+            }));
+          }
+        })
+        .catch((error) => {
+          // The device's own drafts are still there. Recovery is best-effort,
+          // and is tried again when the device is back (below).
+          console.warn('Could not restore saved workspace drafts:', error);
+        })
+        .finally(() => { reading = false; });
+    };
+    readServerCopy();
 
     // Leaving the page is the moment a pending draft most needs to be written.
     const flush = () => { void sync.flushNow(); };
-    const flushWhenHidden = () => { if (document.hidden) flush(); };
+    // Coming back is the moment the student may have worked somewhere else:
+    // online again, or in front of the student again after long enough away
+    // to have used another Chromebook.
+    let hiddenAt = 0;
+    const flushWhenHidden = () => {
+      if (document.hidden) {
+        hiddenAt = Date.now();
+        flush();
+        return;
+      }
+      if (hiddenAt && Date.now() - hiddenAt >= WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS) readServerCopy();
+      hiddenAt = 0;
+    };
     window.addEventListener('pagehide', flush);
+    window.addEventListener('online', readServerCopy);
     document.addEventListener('visibilitychange', flushWhenHidden);
     return () => {
       cancelled = true;
       unsubscribe();
       window.removeEventListener('pagehide', flush);
+      window.removeEventListener('online', readServerCopy);
       document.removeEventListener('visibilitychange', flushWhenHidden);
       void sync.flushNow();
       sync.stop();
@@ -5209,7 +5379,7 @@ function App() {
     setAssignmentNavigationCollapsed(false);
     setAssignmentOverviewExpanded(false);
     setPreviewTracker(createEmptyAssignmentTracker(assignmentQuestions));
-    setPreviewScratchpads({});
+    setPreviewScratchpads(EMPTY_SCRATCHPAD_CACHE);
     setActiveView('teacherPreview');
   };
 
@@ -5376,14 +5546,18 @@ function App() {
       (assignment) => assignment.id === activeAssignmentId,
     );
 
+    // Opening a kept scratchpad is a use of it: it moves to the back of the
+    // eviction queue, so the work a student just looked at is not the next to go.
     if (isTeacherPreview) {
-      return loadScratchpadRecord(async (id) => previewScratchpads[id] || null, scratchpadId);
+      setPreviewScratchpads((current) => touchCachedScratchpad(current, scratchpadId));
+      return loadScratchpadRecord(async (id) => readCachedScratchpadPage(previewScratchpads, scratchpadId, id), scratchpadId);
     }
 
     if (getAssignmentLifecycle(scratchpadAssignment, Date.now(), {
       studentId: user?.role === 'student' ? user.id : undefined,
     }).isPracticeOnly) {
-      return loadScratchpadRecord(async (id) => practiceScratchpads[id] || null, scratchpadId);
+      setPracticeScratchpads((current) => touchCachedScratchpad(current, scratchpadId));
+      return loadScratchpadRecord(async (id) => readCachedScratchpadPage(practiceScratchpads, scratchpadId, id), scratchpadId);
     }
 
     if (user?.role !== 'student') return null;
@@ -5442,7 +5616,9 @@ function App() {
     const previousPageCount = Math.max(
       Number(loadedScratchpadPageCounts.current[scratchpadId]) || 0,
       scratchpadPageCount(
-        isTeacherPreview ? previewScratchpads[scratchpadId] : practiceOnly ? practiceScratchpads[scratchpadId] : null,
+        isTeacherPreview
+          ? readCachedScratchpadPage(previewScratchpads, scratchpadId)
+          : practiceOnly ? readCachedScratchpadPage(practiceScratchpads, scratchpadId) : null,
       ),
     );
     const { writes, deletes } = buildScratchpadWrites({
@@ -5453,23 +5629,15 @@ function App() {
     });
     loadedScratchpadPageCounts.current[scratchpadId] = pageList.length;
 
+    // In memory only, and within budget: the least recently used scratchpads
+    // beyond it are dropped whole, never this one — it is the question on screen.
     if (isTeacherPreview) {
-      setPreviewScratchpads((current) => {
-        const next = { ...current };
-        deletes.forEach((id) => { delete next[id]; });
-        writes.forEach((entry) => { next[entry.docId] = entry.data; });
-        return next;
-      });
+      setPreviewScratchpads((current) => storeCachedScratchpad(current, { baseId: scratchpadId, writes, deletes }));
       return;
     }
 
     if (practiceOnly) {
-      setPracticeScratchpads((current) => {
-        const next = { ...current };
-        deletes.forEach((id) => { delete next[id]; });
-        writes.forEach((entry) => { next[entry.docId] = entry.data; });
-        return next;
-      });
+      setPracticeScratchpads((current) => storeCachedScratchpad(current, { baseId: scratchpadId, writes, deletes }));
       return;
     }
 
@@ -8311,13 +8479,17 @@ function App() {
         throw new Error(`The copy cannot be created until MathMaster’s assignment checks are clean:\n${model.errors.join('\n')}`);
       }
       const persistence = canonicalV5PersistencePatch(model.assignmentV5);
+      // A copy carries the content, never the source's instance state:
+      // students' overrides (which the create rule refuses anyway, so any
+      // assignment with an extension could not be duplicated) and each
+      // class's DOL/Warm-Up runtime state (shared/assignmentPrivacy.mjs).
       const {
         id: _id,
         archived: _archived,
         contentLineage: _contentLineage,
         contentUpgrade: _contentUpgrade,
         ...rest
-      } = assignment;
+      } = stripAssignmentInstanceState(assignment);
       await addDoc(collection(db, 'assignments'), {
         ...rest,
         ...persistence,
@@ -10011,7 +10183,7 @@ function App() {
           {lifecycle.isPracticeOnly && !preview && (
             <section className="mathmaster-assignment-banner" style={{ marginBottom: '16px', padding: '18px 22px', borderRadius: '13px', background: '#f1f3f4', border: '2px solid #5f6368', color: '#3c4043', textAlign: 'left' }}>
               <strong style={{ display: 'block', fontSize: '20px' }}>Practice Mode — grading window ended</strong>
-              <span>Your recorded grade is frozen. You may keep practicing with feedback, but these attempts earn no credit and are not written to the teacher gradebook, mastery evidence, Math Path recommendations, or activity analytics. Practice state stays only in memory for this signed-in browser session and is never saved.</span>
+              <span>Your recorded grade is frozen. You may keep practicing with feedback, but these attempts earn no credit and are not written to the teacher gradebook, mastery evidence, Math Path recommendations, or activity analytics. Your practice is saved, so you can pick it up again on another Chromebook, and your teacher can see it when they review your work.</span>
             </section>
           )}
 
@@ -10349,6 +10521,7 @@ function App() {
               && <div aria-label="Instructional phase" style={{ display: 'inline-block', margin: '6px 8px', padding: '5px 10px', borderRadius: 999, background: '#e8f0fe', color: '#174ea6', fontWeight: 950, letterSpacing: '0.08em' }}>{({ iDo: 'I DO', weDo: 'WE DO', youDo: 'YOU DO' })[questions[currentQuestionIndex].instructionalPhase]}</div>}
             <QuestionEngine
               key={`${activeAssignmentId}-${currentQuestionIndex}-${currentRecord.variantIndex}-${preview ? `preview-${previewSessionId}` : lifecycle.status}-draft${workspaceDraftGeneration}`}
+              draftRestore={draftRestoreFocus?.questionIndex === currentQuestionIndex ? draftRestoreFocus : null}
               question={questions[currentQuestionIndex]}
               questionRecord={workingTracker?.[currentQuestionIndex]}
               generationKey={`${activeAssignmentId}|${generationStudentKey}|${currentQuestionIndex}|variant:${currentRecord.variantIndex}`}
@@ -10822,6 +10995,7 @@ function App() {
                 assignments={assignments}
                 gradingPeriodSettings={gradingPeriodSettings}
                 teacherEmail={user?.email || ''}
+                teacherUid={user?.uid || ''}
                 onClose={() => setCaseReviewStudentId(null)}
                 onInspectResponse={(target) => setResponseInspectorTarget(target)}
                 onOpenSupportReport={(studentId) => setSupportReportStudentId(studentId)}

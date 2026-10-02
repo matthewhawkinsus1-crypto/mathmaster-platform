@@ -3,6 +3,8 @@ import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import { WORK_VIEW_INVENTORY } from '../workViewInventory.js';
 import useMobileInteractionMode from '../../platform/mobile/useMobileInteractionMode.js';
 import { useRenderPerformance } from '../../platform/performance/useRenderPerformance.js';
+import { useHintsAllowed, useHintUseReporter } from './ToolRuntimeContext';
+import { HintPanel } from './ToolShell';
 
 // Sentence case for the rail labels: `numericControls` used to read
 // "numeric Controls" to the student.
@@ -36,6 +38,8 @@ export default function RegisteredToolWorkView({ toolId, questionData = {}, chil
   useRenderPerformance('UniversalWorkView', toolId);
   const inventory = WORK_VIEW_INVENTORY[toolId];
   const mobile = useMobileInteractionMode();
+  const hintsAllowed = useHintsAllowed();
+  const reportHintUse = useHintUseReporter();
   if (!inventory || inventory.status !== 'migrated') return children;
 
   const taskText = String(
@@ -45,11 +49,19 @@ export default function RegisteredToolWorkView({ toolId, questionData = {}, chil
       || `Complete the ${toolId} activity.`,
   ).trim();
 
-  const authoredHints = Array.isArray(questionData?.hints)
+  // The question's AUTHORED HINTS are help, not directions. The Work View
+  // Help drawer printed all of them at once, unrecorded, on every activity —
+  // including a DOL, where the tool's own hint panel is withheld. Where the
+  // activity withholds hints, the drawer keeps only the generic directions.
+  const authoredHints = hintsAllowed && Array.isArray(questionData?.hints)
     ? questionData.hints.map((hint) => String(hint || '').trim()).filter(Boolean)
     : [];
+  // Where they are allowed they are offered the way every tool offers hints —
+  // one at a time, each reveal reported — not printed all at once and
+  // unrecorded, which let practice work count as independent after the
+  // student had read every hint.
   const helpText = authoredHints.length
-    ? authoredHints.join(' ')
+    ? <HintPanel hints={authoredHints} onHintUsed={() => reportHintUse?.()} />
     : 'Use the directions and controls in this workspace to complete the current mathematical task. Your work stays in place when you open or close Work View.';
 
   const capabilities = Object.fromEntries(inventory.capabilities

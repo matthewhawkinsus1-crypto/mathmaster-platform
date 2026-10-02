@@ -60,7 +60,10 @@ test('both intercepts checked shows one completion summary and is re-reported af
   const content = region(orchestrator, 'const content = bothInterceptsFound ?', ') : !stage.committed ?', 'completion content');
   assert.match(content, /Both intercepts found\./);
   assert.match(content, /\{!disabled \? .*Submit your answer to finish this question\./s);
-  const restore = region(orchestrator, 'const bothInterceptsFound =', 'if (!standard ||', 'restored completion effect');
+  // Both reports are the same payload — the shared grader's verdict on the
+  // recorded pairs, graded against the question's own line
+  // (interceptOutcomePolicy.test.mjs) — built from the work as it stands.
+  const restore = region(orchestrator, 'const bothInterceptsFound =', 'const standardUsable', 'restored completion effect');
   assert.match(restore, /onStateChange\?\.\(interceptCompletionPayload\(work\)\)/);
   assert.match(restore, /completionReportedRef\.current = true/);
   const check = region(orchestrator, 'const finishedWork = {', 'const activeRedirect', 'final check');
@@ -167,6 +170,11 @@ test('an element that is not pinned on this screen covers nothing but the identi
   assert.equal(pinnedBottom(nav, win), 38);
 });
 
+// A phone does not get this reveal: it has no pinned task card, and the step's
+// answer area is brought into its own scroller instead
+// (stageNavigationPhoneReveal.test.mjs). This root has no active stage, so the
+// phone call has nothing to reveal — and would scroll the window under the
+// anchor if the desktop reveal ever ran there.
 test('student step navigation brings the step card under the task, on desktop only', () => {
   const anchor = box(196, 225);
   const workspace = box(700);
@@ -292,10 +300,32 @@ test('the DOL question note is one quiet line in student words', () => {
   assert.match(engine, /DOL exit ticket · this question counts toward today&apos;s DOL grade\./);
 });
 
+// The media features App.css uses, evaluated the way a browser does, so the
+// test says WHICH screens a rule reaches rather than how its query is spelled.
+const mediaMatches = (query, { width, height }) => query.split(/\s+and\s+/).every((part) => {
+  const [, feature, value] = part.match(/\(\s*([a-z-]+)\s*:\s*([^)]+?)\s*\)/) || [];
+  const px = Number.parseFloat(value);
+  if (feature === 'orientation') return value === (width > height ? 'landscape' : 'portrait');
+  if (feature === 'min-width') return width >= px;
+  if (feature === 'max-width') return width <= px;
+  if (feature === 'min-height') return height >= px;
+  if (feature === 'max-height') return height <= px;
+  throw new Error(`unsupported media feature in ${part}`);
+});
+
 test('short landscape screens let the navigator and task scroll; dark nav text stays readable', () => {
   const css = source('src/App.css');
-  const short = region(css, '@media (min-width: 769px) and (max-height: 560px) {', '/* Short laptop / zoomed classroom view', 'short landscape rule');
+  const short = region(css, 'A PHONE ON ITS SIDE HAS NO ROOM TO PIN ANYTHING.', '/* Short laptop / zoomed classroom view', 'short landscape rule');
   assert.match(short, /\.mathmaster-assignment-unified-nav,[\s\S]*position: relative;/);
+  // Every phone held sideways, not only the ones 769px wide: narrower ones kept
+  // the navigator sticky 44px down, over the top of the question.
+  const query = short.match(/@media ([^{]+)\{/)[1].trim();
+  for (const phone of [{ width: 844, height: 390 }, { width: 740, height: 360 }, { width: 667, height: 375 }, { width: 664, height: 390 }]) {
+    assert.ok(mediaMatches(query, phone), `${phone.width}×${phone.height} keeps a pinned navigator (${query})`);
+  }
+  for (const screen of [{ width: 1366, height: 768 }, { width: 1024, height: 768 }, { width: 820, height: 1180 }, { width: 390, height: 844 }, { width: 390, height: 664 }]) {
+    assert.ok(!mediaMatches(query, screen), `${screen.width}×${screen.height} loses its pinned navigator (${query})`);
+  }
   assert.match(css, /:root\[data-theme='dark'\] \.mathmaster-overview-button,[\s\S]*?color: var\(--mm-primary\);/);
   assert.match(css, /\.mathmaster-current-section-summary strong \{\s*color: #1f2937;/);
 });

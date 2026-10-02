@@ -227,7 +227,7 @@ export default function InverseDerivationLab({ questionData = {}, onAction }) {
         <Panel title="4 · State the inverse">
           {solved ? (
             <>
-              <ResultPill ok>y isolated</ResultPill>
+              <ResultPill stageCheck ok>y isolated</ResultPill>
               <div style={{ marginTop: 12, padding: 15, borderRadius: 10, background: '#e9f7ef', fontSize: 22, fontWeight: 900 }}>
                 f⁻¹(x) = {inverseExpression(derivation)}
               </div>

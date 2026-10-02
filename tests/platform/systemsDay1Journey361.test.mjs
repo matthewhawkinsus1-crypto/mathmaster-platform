@@ -15,6 +15,7 @@ import assert from 'node:assert/strict';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 import { linearEquationForm, normalizeEquationForStepAlgebra, substituteIntoEquation } from '../../src/tools/systemsWorkspace/algebraicSystemsEngine.js';
 import { legibleCamera, planeFacing } from '../../src/tools/systemsWorkspace/threePlaneGeometry.js';
+import { earnedResultCaption } from '../../src/tools/systemsWorkspace/spatialFeedback.js';
 
 const elimination = executableSource(componentSource('src/tools/systemsWorkspace/EliminationReductionMode.jsx'));
 const twoByTwo = executableSource(componentSource('src/tools/systemsWorkspace/AlgebraicSystemMode.jsx'));
@@ -215,9 +216,18 @@ test('a substituted negative value keeps its parentheses on the way into Step Al
 });
 
 test('revealing the point marks and labels it without classifying the system for the student', () => {
-  const reveal = region(threePlanes, "{shownType === 'unique'", "'This system could not be classified.'", 'reveal message');
+  // The caption under the model: a model opened from the student's own result
+  // words it through earnedResultCaption (which also knows the activity's
+  // outcome policy); an authored reveal words it here. Both mark the point and
+  // neither classifies the system.
+  const reveal = region(threePlanes, '{earnedResult', "'This system could not be classified.'", 'reveal message');
   assert.match(reveal, /`Point marked on the model: \$\{orderedTripleText\(shownSolution, variables\)\}\.`/);
+  assert.match(reveal, /earnedResultCaption\(\{ type: shownType, solutionText: shownType === 'unique' \? orderedTripleText\(shownSolution, variables\) : ''/);
   assert.doesNotMatch(reveal, /meet at exactly one point/);
+  for (const showImmediateFeedback of [true, false]) {
+    const caption = earnedResultCaption({ type: 'unique', solutionText: '(−2, 6, −3)', showImmediateFeedback });
+    assert.equal(caption, 'Point marked on the model: (−2, 6, −3).');
+  }
   const marker = region(threePlanes, '{solutionMarker ? (', ') : null}', 'solution marker');
   assert.match(marker, /<circle[\s\S]*?<text[\s\S]*?\{orderedTripleText\(shownSolution, variables\)\}/);
 });

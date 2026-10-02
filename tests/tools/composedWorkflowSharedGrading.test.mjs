@@ -405,7 +405,7 @@ test('bare functionCharacteristics, figureMatch and graphChoicePreview cannot be
   assert.equal(resolveGradingSurfaceId({ ...FEATURES }), 'composedWorkflow');
 });
 
-test('fraction and numberLine are client-graded because every stored instance is regenerated per student', () => {
+test('fraction and numberLine are client-graded because their drills are regenerated per student', () => {
   [fractionDeclaration, numberLineDeclaration].forEach((declaration) => {
     assert.equal(declaration.authority, GRADING_AUTHORITY.CLIENT_GRADED);
     assert.match(declaration.blocker, /generationKey/);
@@ -414,15 +414,23 @@ test('fraction and numberLine are client-graded because every stored instance is
   assert.equal(GRADING_MANIFEST.fraction, fractionDeclaration);
   assert.equal(GRADING_MANIFEST.numberLine, numberLineDeclaration);
 
-  // The blocker, demonstrated: no `generator` object, yet the delivered key
-  // is drawn again for every student, so the stored key is not the one asked.
+  // The blocker, demonstrated: a fraction drill (no authored sum, no authored
+  // answer, no `generator` object) is drawn again for every student, so the
+  // stored question does not say which sum was asked.
+  const drill = { type: 'fraction', prompt: 'Add the fractions.' };
+  const drillKeys = ['a', 'b', 'c', 'd'].map((student) => {
+    const delivered = generateQuestion(drill, `asg|${student}|0|variant:0`);
+    return `${delivered.n1}/${delivered.d1}+${delivered.n2}/${delivered.d2}`;
+  });
+  assert.ok(new Set(drillKeys).size > 1, 'students are asked different sums');
+  // A fraction question whose author wrote the sum is delivered as written to
+  // every student (fractionAnswer.mjs) — it used to be redrawn as well.
   const fraction = { type: 'fraction', prompt: 'Add.', n1: 1, d1: 2, n2: 1, d2: 3, ansNum: 5, ansDen: 6 };
   const fractionKeys = ['a', 'b', 'c', 'd'].map((student) => {
     const delivered = generateQuestion(fraction, `asg|${student}|0|variant:0`);
     return `${delivered.ansNum}/${delivered.ansDen}`;
   });
-  assert.ok(new Set(fractionKeys).size > 1, 'students are asked different sums');
-  assert.ok(fractionKeys.some((key) => key !== '5/6'), 'the stored key is overwritten');
+  assert.deepEqual([...new Set(fractionKeys)], ['5/6'], 'an authored sum is the sum every student is asked');
 
   const numberLine = { type: 'numberLine', prompt: 'Find the target.', target: 3, choices: [1, 2, 3, 4, 5] };
   const targets = ['a', 'b', 'c', 'd'].map((student) => generateQuestion(numberLine, `asg|${student}|1|variant:0`).target);
@@ -921,7 +929,7 @@ test('what a table was built from is rebuilt from the work, never taken from the
 
 test('WorkflowRunner reports its answer state through the shared grader, never its own marking', () => {
   const runner = executableSource(read('src/platform/workflow/WorkflowRunner.jsx'));
-  const effect = region(runner, 'onStateChangeRef.current?.(', '}, [responses]);', 'state-reporting effect');
+  const effect = region(runner, 'onStateChangeRef.current?.(', '}, [responses, revealCorrectness]);', 'state-reporting effect');
   assert.match(effect, /buildWorkflowAnswerState\(\{[\s\S]*question:[\s\S]*stages:[\s\S]*responses[\s\S]*grading:/);
   assert.match(runner, /import \{[^}]*\bbuildWorkflowAnswerState\b[^}]*\} from '\.\/workflowAnswerState\.js';/);
   assert.doesNotMatch(runner, /gradeWorkflow\s*\(/, 'no verdict is computed in the runner itself');
@@ -929,8 +937,8 @@ test('WorkflowRunner reports its answer state through the shared grader, never i
   const answerState = executableSource(read('src/platform/workflow/workflowAnswerState.js'));
   // The check is given the student's responses as composed work (an old
   // draft's graph artifact upgraded first; composedWorkflowGraphStages.test.mjs).
-  assert.match(answerState, /gradeComposedWorkflowCheck\(question, workflowWork\(responses\)\)/);
-  assert.match(answerState, /const workflowWork = \(responses\) => composedWorkflowWork\(upgradeLegacyGraphResponses\(responses\)\);/);
+  assert.match(answerState, /gradeComposedWorkflowCheck\(question, workflowWork\(responses, \{ outcomesWithheld \}\)\)/);
+  assert.match(answerState, /const workflowWork = \(responses, options\) => composedWorkflowWork\(upgradeLegacyGraphResponses\(responses\), options\);/);
   assert.match(answerState, /answerStateFromSharedGrading\(check/);
 
   // The table a student fills is the table the grader requires to be filled.

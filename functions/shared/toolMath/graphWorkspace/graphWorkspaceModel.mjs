@@ -470,6 +470,94 @@ export const inverseSketchMatches = (model, { strokes = [], camera = null } = {}
   });
 };
 
+/** ViewBox units back to graph units through a camera — graphToViewBox reversed. */
+export const viewBoxToGraph = (camera) => {
+  const { width, height, padding } = GRAPH_WORKSPACE_VIEWBOX;
+  const innerWidth = width - padding * 2;
+  const innerHeight = height - padding * 2;
+  return ([x, y]) => [
+    camera.xMin + ((x - padding) / innerWidth) * (camera.xMax - camera.xMin),
+    camera.yMax - ((y - padding) / innerHeight) * (camera.yMax - camera.yMin),
+  ];
+};
+
+/*
+ * WHERE OUTCOMES ARE WITHHELD, A SKETCH IS DRAWN THROUGH THE STUDENT'S OWN POINTS.
+ *
+ * On a DOL, quiz or test nothing on screen may say whether the work is right
+ * (PQ-036). The checks above cannot run while the student draws: a sketch that
+ * may only snap through the TRUE points is an answer oracle, passed or failed
+ * as often as the student likes. So there the student draws through their own
+ * points, and the sketch is accepted — committed, as a snap commits it in
+ * practice — once it passes through them, under the camera it was drawn in
+ * (the browser runs this same function at the end of each stroke). Whether it
+ * is the graph of the function is decided only at submission, by the grader,
+ * and never shown.
+ */
+const sketchThroughPoints = (model, { strokes, camera, points, requiredStrokeCount, limit }) => {
+  const placed = points.map(readGraphPoint).filter(Boolean);
+  if (!placed.length) return false;
+  const toViewBox = graphToViewBox(resolveSketchCamera(model, camera));
+  return roughSketchMatchesGraph({
+    strokes: boundSketchStrokes(strokes, limit),
+    requiredScreenPoints: placed.map(toViewBox),
+    idealScreenPaths: [],
+    requiredStrokeCount,
+    tolerance: SKETCH_TOLERANCE,
+  });
+};
+
+/** Does the construction sketch pass through the student's own placed points (all but a center)? */
+export const constructionSketchThroughOwnPoints = (model, { strokes = [], camera = null, placements = {} } = {}) => (
+  model.constructionEnabled && !model.pointOnly && sketchThroughPoints(model, {
+    strokes,
+    camera,
+    points: model.tasks.filter((task) => task.role !== 'center').map((task) => own(placements, task.id)),
+    requiredStrokeCount: model.requiredStrokeCount,
+    limit: SKETCH_LIMITS.constructionPoints,
+  })
+);
+
+/** Does the inverse sketch pass through the student's own reflected points? */
+export const inverseSketchThroughOwnPoints = (model, { strokes = [], camera = null, selections = {} } = {}) => (
+  model.inverseReflectionEnabled && sketchThroughPoints(model, {
+    strokes,
+    camera,
+    points: model.analysisParts.filter((part) => part.kind === 'inversePoint').flatMap((part) => own(selections, part.id) || []),
+    requiredStrokeCount: 1,
+    limit: SKETCH_LIMITS.inversePoints,
+  })
+);
+
+/*
+ * AT SUBMISSION, JUDGED IN THE QUESTION'S OWN WINDOW.
+ *
+ * The sketch check's tolerance is in viewBox units, so the same curve judged
+ * under a zoomed-in camera is held to a tighter band in graph units. In
+ * practice the student sees that check and can draw again; where outcomes are
+ * withheld nothing told them the zoom mattered. So the silent verdict is taken
+ * in the authored window whatever the zoom while drawing: the strokes are
+ * carried from the camera they were drawn under into it (B-20).
+ */
+const strokesInAuthoredWindow = (model, strokes, camera, limit) => {
+  const toGraph = viewBoxToGraph(resolveSketchCamera(model, camera));
+  const toViewBox = graphToViewBox(resolveSketchCamera(model, null));
+  return boundSketchStrokes(strokes, limit).map((stroke) => stroke.map((point) => toViewBox(toGraph(point))));
+};
+
+/** Is the construction sketch the graph of the function? Judged in the authored window. */
+export const constructionSketchFollowsFunction = (model, { strokes = [], camera = null, chosenXValues = {} } = {}) => constructionSketchMatches(model, {
+  strokes: strokesInAuthoredWindow(model, strokes, camera, SKETCH_LIMITS.constructionPoints),
+  camera: null,
+  chosenXValues,
+});
+
+/** Is the inverse sketch the graph of the inverse? Judged in the authored window. */
+export const inverseSketchFollowsInverse = (model, { strokes = [], camera = null } = {}) => inverseSketchMatches(model, {
+  strokes: strokesInAuthoredWindow(model, strokes, camera, SKETCH_LIMITS.inversePoints),
+  camera: null,
+});
+
 /* ---------------------------------------------------------------------------
  * The student's work.
  * ------------------------------------------------------------------------- */
@@ -535,12 +623,18 @@ const readTrue = (value) => (value === true ? true : undefined);
  * its own re-check of the work passes (gradeGraphWorkspace), so a lock can
  * only withhold credit: a forged `true` on wrong work earns nothing.
  *
- * A PLOT OF POINTS CAN ALSO BE SUBMITTED AS PLACED. On a DOL, quiz or test a
- * points-only plot has no check to pass: every placed point is an answer, and
- * the points stay movable until the student submits. The work says so with
- * `pointsGradedAsPlaced`, and the grader then marks each placed point where it
- * sits — right or wrong — instead of waiting for a commit. It changes when
- * the points are graded, never how: it cannot turn a wrong point right.
+ * WHERE OUTCOMES ARE WITHHELD THE WORK IS GRADED AS PLACED. On a DOL, quiz or
+ * test there is no check to pass: every placed point is an answer, and the
+ * points stay movable until the student submits or draws a curve through them;
+ * a curve is drawn through the student's own points and is committed once it
+ * passes through them (`sketchLocked`, re-checked by
+ * constructionSketchThroughOwnPoints); the inverse likewise. The work says so
+ * with `pointsGradedAsPlaced`, and the grader then marks each placed point
+ * where it sits — right or wrong — instead of waiting for a commit, and marks
+ * the curve and the inverse against the function at submission. It changes
+ * when the work is graded, never how: it cannot turn a wrong point right, and
+ * a curve counts only when it is the graph of the function through right
+ * points.
  *
  * Keeps the `{ construction, analysis }` envelope and the per-id maps My Math
  * Path's raw builder reads (src/platform/path/pathToolResponses.js).
@@ -580,7 +674,7 @@ export const normalizeGraphWorkspaceWork = (raw = {}) => {
  * with "Check Point Placements" (`pointsValidated`) as `pointsLocked`, the
  * snapped sketch (`snapped`) as `sketchLocked`, the snapped inverse sketch
  * (`inverseSnapped`) as `inverseSketchLocked` — and every other flag stays
- * behind. A points-only plot submitted as placed (no check to pass) sets
+ * behind. Work graded as placed (outcomes withheld: no check to pass) sets
  * `pointsGradedAsPlaced` on the state it hands over; the component never
  * keeps it in its history. (`inversePointsValidated` only gates the inverse drawing layer; the
  * reflected points are graded from the selections themselves.)
