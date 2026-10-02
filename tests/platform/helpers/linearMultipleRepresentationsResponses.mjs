@@ -9,12 +9,19 @@
  * The answers are written the way a student types them on the board: plain
  * text for integers, LaTeX \frac for a fractional slope, ordered pairs in
  * parentheses, graph points as [x, y].
+ *
+ * A Process Mode board (interactionMode "process") also carries the process
+ * that established its key facts — a complete, correct process log for THIS
+ * version (keyProcessLog) — because there a typed fact is worth nothing and a
+ * card the facts have not opened holds nothing.
  */
 import {
   deriveLinearMultipleRepresentations,
   gradedContextFields,
   resolveRequiredCards,
 } from '../../../functions/shared/toolMath/representationBridge/linearMultipleRepresentationsMath.mjs';
+import { isProcessModeQuestion } from '../../../functions/shared/toolMath/representationBridge/lmrProcessModel.mjs';
+import { keyProcessLog } from '../../../functions/shared/toolMath/representationBridge/lmrProcessVerify.mjs';
 
 const fractionText = ({ n, d }) => (d === 1 ? String(n) : `${n}/${d}`);
 const fractionLatex = ({ n, d }) => (d === 1 ? String(n) : `${n < 0 ? '-' : ''}\\frac{${Math.abs(n)}}{${d}}`);
@@ -96,6 +103,7 @@ export const correctLinearBoardResponse = (question) => {
     const entry = key === 'domain' ? (context.domain ?? question.domain) : context[key];
     response[field] = typeof entry === 'object' && entry !== null ? String(entry.value ?? '') : String(entry ?? '');
   });
+  if (isProcessModeQuestion(question)) response.processLog = keyProcessLog(question);
   return response;
 };
 
@@ -103,6 +111,16 @@ export const correctLinearBoardResponse = (question) => {
 export const oneWrongLinearBoardResponse = (question) => {
   const response = correctLinearBoardResponse(question);
   const facts = deriveLinearMultipleRepresentations(question);
+  if (isProcessModeQuestion(question)) {
+    // A typed fact is ignored in Process Mode, so the wrong part is a card the
+    // process opened: an equation of another line.
+    const wrongSlope = facts.slopeNumber + 7;
+    if ('slopeInterceptEquation' in response) response.slopeInterceptEquation = `y = ${wrongSlope}x + ${facts.yInterceptNumber}`;
+    else if ('pointSlopeEquation' in response) response.pointSlopeEquation = `y - ${facts.yInterceptNumber} = ${wrongSlope}(x - 0)`;
+    else if ('standardFormEquation' in response) response.standardFormEquation = `${wrongSlope}x - y = ${-facts.yInterceptNumber}`;
+    else if ('graph2Points' in response) response.graph2Points = [[0, facts.yInterceptNumber], [1, facts.yInterceptNumber + wrongSlope]];
+    return response;
+  }
   if ('featureSlope' in response) response.featureSlope = String(facts.slopeNumber + 7);
   else if ('featureYIntercept' in response) response.featureYIntercept = `(0, ${facts.yInterceptNumber + 7})`;
   return response;

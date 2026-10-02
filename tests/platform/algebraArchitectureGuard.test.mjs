@@ -34,6 +34,7 @@ test('the mature equation engine is mounted only by its known hosts', () => {
   assert.deepEqual(mounts('StepByStepAlgebraCore'), [
     'src/LinearInterceptsOrchestrator.jsx',
     'src/StepByStepAlgebra.jsx',
+    'src/tools/representationBridge/process/ProcessAlgebraMethods.jsx',
     'src/tools/stepAlgebra2/RewriteLinearForm.jsx',
     'src/tools/systemsWorkspace/AlgebraicSystemMode.jsx',
   ]);

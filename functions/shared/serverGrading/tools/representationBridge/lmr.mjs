@@ -17,6 +17,19 @@
  *   isComplete  every required card has work and every graded context field
  *               is filled — the board's own "parts are still empty" rule
  *               (unfinishedLinearMultipleRepresentationsParts)
+ *
+ * PROCESS MODE (`interactionMode: "process"`). The key-fact cards — slope,
+ * x-intercept, y-intercept, two points — are not read from boxes at all. The
+ * work carries the student's process log (`processLog`), and
+ * scoreLinearMultipleRepresentationsProcess re-marks every piece of it against
+ * THIS question: a fact counts only when valid work from a method this board
+ * offers established it, and only if it is right. A representation the
+ * student's facts had not opened is marked as empty. Everything else — the
+ * validators, the context, the consistency check, equal weighting — is the
+ * Worksheet board's scoring, run on the board the student earned. Each fact
+ * part's response names the method ("2 — Graph → rise/run between two
+ * points"), so a teacher reads how a fact was established, not just that it
+ * was.
  */
 import { gradedResult } from '../../gradingResult.mjs';
 import {
@@ -28,6 +41,15 @@ import {
   scoreLinearMultipleRepresentations,
   unfinishedLinearMultipleRepresentationsParts,
 } from '../../../toolMath/representationBridge/linearMultipleRepresentationsMath.mjs';
+import { isProcessModeQuestion } from '../../../toolMath/representationBridge/lmrProcessModel.mjs';
+import {
+  establishedPoints,
+  methodLabelFor,
+  processFactText,
+  processPartResponse,
+  scoreLinearMultipleRepresentationsProcess,
+  unfinishedLinearMultipleRepresentationsProcessParts,
+} from '../../../toolMath/representationBridge/lmrProcessVerify.mjs';
 
 const CONSISTENCY_PART = 'crossRepresentationConsistency';
 const GRAPH_FIELDS = Object.freeze(['graph1Points', 'graph2Points', 'graph3Points']);
@@ -37,6 +59,9 @@ const WORK_FIELDS = Object.freeze([
   'tableRows', ...GRAPH_FIELDS,
   'contextIndependent', 'contextDependent', 'contextSlopeMeaning',
   'contextYInterceptMeaning', 'contextXInterceptMeaning', 'contextDomain',
+  // Process Mode: the student's process evidence. Read only for a question
+  // in Process Mode; a Worksheet question never looks at it.
+  'processLog',
 ]);
 // part id -> the card that produces it (graph1 -> graphIntercepts, …)
 const CARD_FOR_PART = Object.freeze(Object.fromEntries(Object.entries(CARD_PART_KEYS).map(([cardId, partId]) => [partId, cardId])));
@@ -68,15 +93,34 @@ const partResponse = (partId, board) => {
   return board[partId] ?? '';
 };
 
+// How each fact was established, in a teacher's words — the evidence a
+// gradebook keeps beside the verdict. Labels only: no ids, no answer key.
+const FACT_LABELS = Object.freeze({ slope: 'Slope', yIntercept: 'y-intercept', xIntercept: 'x-intercept', siEquation: 'Slope-intercept form from their algebra' });
+const processDetail = (scored) => {
+  const process = scored?.process;
+  if (!process) return null;
+  const facts = Object.entries(FACT_LABELS)
+    .filter(([fact]) => process.facts?.[fact])
+    .map(([fact, label]) => ({ label, response: processPartResponse(scored, fact) || '', method: methodLabelFor(process.facts[fact]), verified: process.facts[fact].correct === true, tries: process.facts[fact].tries || 0 }));
+  const points = establishedPoints(process).map((record) => ({ label: 'Point on the line', response: processFactText(record), method: methodLabelFor(record), verified: record.correct === true }));
+  return { interactionMode: 'process', stale: process.stale === true, facts, points, locked: (scored.locked || []).map((cardId) => PART_LABELS[CARD_PART_KEYS[cardId]] || cardId) };
+};
+
 const linearMultipleRepresentations = (question, work) => {
   const board = readBoardWork(work);
-  const scored = scoreLinearMultipleRepresentations(question, board);
+  const processMode = isProcessModeQuestion(question);
+  const scored = processMode ? scoreLinearMultipleRepresentationsProcess(question, board) : scoreLinearMultipleRepresentations(question, board);
   const partIds = Object.keys(scored.parts || {});
   // No line can be derived from the question's source, so there is nothing to
   // mark against — not "incorrect".
   if (scored.error || !partIds.length) return { graded: false, reason: scored.error ? 'invalid-question' : 'no-graded-parts' };
 
-  const unfinished = new Set(unfinishedLinearMultipleRepresentationsParts(question, board));
+  // In Process Mode the board that counts is the one the student EARNED:
+  // established facts in the fact cards, nothing in a card no fact opened.
+  const shown = processMode ? scored.board : board;
+  const unfinished = new Set(processMode
+    ? unfinishedLinearMultipleRepresentationsProcessParts(question, board, scored)
+    : unfinishedLinearMultipleRepresentationsParts(question, board));
   const required = resolveRequiredCards(question);
   const linesUnfinished = LINE_BEARING_CARD_IDS
     .filter((cardId) => required.includes(cardId))
@@ -90,11 +134,12 @@ const linearMultipleRepresentations = (question, work) => {
       // every one of them has work.
       isComplete: id === CONSISTENCY_PART ? !linesUnfinished : !unfinished.has(id),
       isCorrect: scored.parts[id] === true,
-      response: partResponse(id, board),
+      response: (processMode ? processPartResponse(scored, id) : null) ?? partResponse(id, shown),
     })),
     isComplete: unfinished.size === 0,
     isCorrect: scored.isCorrect === true,
     score: scored.score,
+    ...(processMode ? { detail: processDetail(scored) } : {}),
   });
 };
 

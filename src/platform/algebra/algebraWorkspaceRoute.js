@@ -14,6 +14,10 @@
  *   - the registry `stepAlgebra2` shell — RewriteLinearForm (which now hosts
  *     StepByStepAlgebraCore) plus two legacy mini-solvers kept only for stored
  *     compatibility.
+ *   - the Multiple Representations board in Process Mode — its "solve for y"
+ *     and "substitute 0 and solve" methods embed StepByStepAlgebraCore
+ *     (representationBridge/process/ProcessAlgebraMethods.jsx) on exactly the
+ *     equation the shared process marking checks (lmrProcessVerify.mjs).
  *
  * Before this module the choice was made in three files (QuestionEngine's type
  * switch, StepByStepAlgebra's own relation check, the registry lookup) and each

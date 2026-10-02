@@ -86,6 +86,22 @@ family slot is measured on its fixed preview instance. Pre-Flight blocks a slot
 whose versions lose the slot's value, and warns when sampled versions do not
 all need the same work.
 
+### Process Mode boards
+
+A Multiple Representations board in Process Mode (`interactionMode:
+"process"`, see `multiple-representations-process-mode.md`) counts its key
+facts as the work they are: a fact the GIVEN **shows** (the slope of
+y = 2x − 3, a situation's rate) is read — `respond`, worth what typing it was;
+a fact the GIVEN **hides** (the slope of 2x − 4y = 12, a table's intercepts) is
+derived with shown work — `construct`, the size of a solved equation. Which is
+which follows from the GIVEN's kind and the methods the board offers
+(`lmrFactWorkKind`), never its numbers, so every family version is worth the
+same. Everything else on the board counts exactly as in Worksheet Mode. In
+practice a board moves by at most ×0.25 (the family DOL: ×3.25 → ×3.5); a
+y = mx + b board does not move at all. Pre-Flight warns — and changes nothing —
+when a stored automatic value was measured before a board became a Process
+Mode board.
+
 ## 5. No double weighting
 
 - No section multiplier. Warm-Up, Classwork, Practice and DOL already reach the

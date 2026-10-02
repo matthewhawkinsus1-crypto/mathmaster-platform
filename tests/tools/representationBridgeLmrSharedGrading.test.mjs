@@ -743,7 +743,12 @@ test('the board reports the same live work it submits, and asks before submittin
   // doSubmit grades responseRef.current, which is this render's currentResponse.
   assert.match(source, /responseRef\.current = currentResponse;\s*(\/\/[^\n]*\n\s*)*useReportToolWork\(currentResponse\);/);
   const empty = region(source, 'const emptyParts =', ';\n', 'emptyParts');
-  assert.match(empty, /unfinishedLinearMultipleRepresentationsParts\(questionData, currentResponse\)/);
+  // In Process Mode the board that counts is the one the student earned — the
+  // facts their process established, nothing in a card no fact opened — and
+  // that is the board the grader's completeness rule reads too.
+  assert.match(empty, /unfinishedLinearMultipleRepresentationsParts\(questionData, processBoard \|\| currentResponse\)/);
+  const earned = region(source, 'const processBoard = useMemo(', ');', 'the earned board');
+  assert.match(earned, /materializeProcessBoard\(questionData, currentResponse, processState\)\.board/);
   const submit = region(source, 'const handleSubmit = () => {', '};', 'handleSubmit');
   assert.match(submit, /if \(emptyParts\.length && !confirmSubmit\)/);
 });

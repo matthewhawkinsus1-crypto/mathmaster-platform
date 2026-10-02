@@ -15,6 +15,9 @@ name: Student and Teacher Journeys
 #                          and never overwrites it; the newest edit wins)
 #   student UX platform    tests/browser/studentUxPlatform.mjs
 #   representations board  tests/browser/linearMultipleRepresentations.mjs
+#   process mode           tests/browser/lmrProcessMode.mjs
+#                          (the same board's facts established by a process,
+#                          verified, reused, then built on)
 #   endurance (nightly)    tests/browser/teacherWorkflow/enduranceJourneys.mjs
 #
 # Pull requests that touch the app run the journeys; the long endurance run is
@@ -29,6 +32,7 @@ on:
       - "tests/browser/teacherWorkflow/**"
       - "tests/browser/studentUxPlatform*"
       - "tests/browser/linearMultipleRepresentations*"
+      - "tests/browser/lmrProcess*"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/student-teacher-journeys.yml"
@@ -110,3 +114,9 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/linearMultipleRepresentations.mjs
+      - name: Representations board Process Mode journeys
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/lmrProcessMode.mjs

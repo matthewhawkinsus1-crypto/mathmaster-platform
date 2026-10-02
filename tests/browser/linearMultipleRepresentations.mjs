@@ -35,6 +35,9 @@
 //                  versions of CW2, CW3, PR1 and PR2 completed and submitted correct,
 //                  and the DOL submitted once — answers worked out from each
 //                  version's own line; the GIVEN shown is the version's and read-only.
+//                  CW2, CW3, PR1 and the DOL are Process Mode boards: their key facts
+//                  are established through the board's own processes first
+//                  (lmrProcessDriver.mjs), then the cards they open are built.
 //   undo           PQ-009, PR2 (laptop): a checked card, then five edits across four
 //                  cards (a meaning, the table twice, a typed equation, a point);
 //                  the platform Undo takes them back one at a time, newest first,
@@ -50,6 +53,7 @@
 // Exit code 1 on any finding. Screenshots: tests/browser/artifacts/linearMultipleRepresentations/.
 
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { establishProcessFacts } from './lmrProcessDriver.mjs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -975,12 +979,20 @@ journeys.family = async (browser) => {
     const board = familyBoard(delivered);
     note(`${id}: version ${delivered.familyDelivery.fingerprint} — y = ${board.line.m}x + ${board.line.b}, window ${JSON.stringify(delivered.graphBounds)}`);
     const dol = id === 'lmr-dol-1';
+    // Process Mode: the key facts are established first, through the board's
+    // own processes; they are never typed into a card.
+    const processMode = delivered.interactionMode === 'process';
+    if (processMode) {
+      await establishProcessFacts(page, delivered, board.line);
+      check(await page.locator('[data-process-locked]').count() === 0, `${id}: every card opened from the facts the student established`);
+    }
     for (const [key, points] of Object.entries(board.graphs)) {
       check(points.every(Boolean), `${id}: every ${key} point is inside the version's window`);
       for (const point of points) await plot(page, page, key, point);
       if (!dol) { await checkButton(page, GRAPH_CARD[key]).click(); await settle(page); }
     }
     for (const [cardId, value] of Object.entries(board.math)) {
+      if (processMode && ['slope', 'xIntercept', 'yIntercept', 'twoPoints'].includes(cardId)) continue;
       const values = Array.isArray(value) ? value : [value];
       for (const [index, text] of values.entries()) await typeMath(page, mathField(page, cardId, index), text);
       if (!dol) { await page.keyboard.press('Enter'); await settle(page); }

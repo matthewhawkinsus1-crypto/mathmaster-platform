@@ -51,6 +51,7 @@ import {
   CONTEXT_PART_FIELDS,
   gradedContextFields,
 } from './linearMultipleRepresentationsCards.mjs';
+import { lmrProcessConfigProblems, resolveInteractionMode } from './lmrProcessModel.mjs';
 
 // The board's card definitions live in the light module; re-exported so
 // every existing import of this module keeps working.
@@ -645,8 +646,19 @@ export const validateLinearMultipleRepresentationsQuestion = (question = {}) => 
   }
 
   if (Math.abs(derived.slopeNumber) <= 1e-9) {
-    errors.push('representationBridge linearMultipleRepresentations mode requires a nonzero slope so that all forms and intercepts are well-defined.');
-    return errors;
+    // A horizontal line has a slope (0) and a y-intercept a student can
+    // establish — y = 5 is read like any y = mx + b — but no x-intercept.
+    // Process Mode accepts it when the board asks for no x-intercept work;
+    // Worksheet Mode keeps its rule unchanged.
+    if (resolveInteractionMode(question) !== 'process') {
+      errors.push('representationBridge linearMultipleRepresentations mode requires a nonzero slope so that all forms and intercepts are well-defined.');
+      return errors;
+    }
+    const interceptCards = resolveRequiredCards(question).filter((cardId) => ['xIntercept', 'graphIntercepts'].includes(cardId));
+    if (interceptCards.length) {
+      errors.push(`representationBridge linearMultipleRepresentations: this line is horizontal (slope 0), so it never crosses the x-axis, and the board cannot ask for ${interceptCards.map((cardId) => PART_LABELS[CARD_PART_KEYS[cardId]]).join(' or ')}. List requiredCards without xIntercept and graphIntercepts.`);
+      return errors;
+    }
   }
 
   if (question.requiredCards != null) {
@@ -722,6 +734,10 @@ export const validateLinearMultipleRepresentationsQuestion = (question = {}) => 
   }
 
   errors.push(...contextChoiceProblems(question));
+  // interactionMode / process: the mode is known, any method an author names
+  // can work from this GIVEN, and every card the board asks for can be opened
+  // by some pathway (lmrProcessModel.mjs).
+  errors.push(...lmrProcessConfigProblems(question));
   return errors;
 };
 

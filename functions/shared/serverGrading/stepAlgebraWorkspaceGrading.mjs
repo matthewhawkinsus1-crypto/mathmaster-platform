@@ -56,11 +56,8 @@
  */
 import { parse } from '../algebra/safeMath.mjs';
 import {
-  equationToLatex,
   expressionsEquivalent,
-  isSolvedEquation,
   latexToExpression,
-  parseEquationInput,
 } from '../algebra/algebraAstEngine.mjs';
 import { compareOrderedPair, parseOrderedPair } from '../answerUtils.mjs';
 import {
@@ -89,14 +86,13 @@ import { expectedInterceptPoint, resolveStandardCoefficients } from '../toolMath
 import { withPromptRelationSource } from '../runtime/stepAlgebraRelationRouting.mjs';
 import { gradedResult, ungradedResult } from './gradingResult.mjs';
 import {
-  equationMatchesOriginal,
   freeSymbols,
   isSafeStudentExpression,
-  isolatedNumericValue,
   relationMatchesOriginal,
   studentExpressionBudget,
 } from './stepAlgebraEquivalence.mjs';
-import { STEP_ALGEBRA_MODES, hasGeneratedAnswer, resolveStepAlgebraMode } from './stepAlgebraRouting.mjs';
+import { STEP_ALGEBRA_MODES, resolveStepAlgebraMode } from './stepAlgebraRouting.mjs';
+import { gradeEquationObjective, pristineEquation as workspaceEquationAsOpened } from './stepAlgebraEquationVerdict.mjs';
 
 export { STEP_ALGEBRA_MODES, resolveStepAlgebraMode };
 
@@ -168,22 +164,10 @@ export const linearInterceptsWork = ({ xIntercept = '', yIntercept = '' } = {}) 
 
 // --- Equation workspace ----------------------------------------------------------
 
-/** The equation the workspace opened, exactly as StepByStepAlgebraCore read it. */
-const pristineEquation = (question) => {
-  try {
-    const equation = parseEquationInput(question);
-    return equation?.left && equation?.right ? equation : null;
-  } catch {
-    return null;
-  }
-};
-
-const objectiveLabel = (question, pristine) => question.objective?.label || (
-  pristine.objective?.kind === 'slopeIntercept' ? 'Write in slope-intercept form'
-    : pristine.objective?.kind === 'factoredLinear' ? 'Write in factored linear form'
-      : pristine.objective?.kind === 'linearStandardForm' ? 'Write in standard form'
-        : `Isolate ${pristine.objective?.variable || pristine.variable}`
-);
+// The equation the workspace opened, its objective's label and the verdict on
+// the final equation live in stepAlgebraEquationVerdict.mjs — one definition,
+// light enough for a tool that embeds the workspace for one step of its own.
+const pristineEquation = workspaceEquationAsOpened;
 
 // The workspace's own precedence: acceptedExpressions, else acceptedAnswers,
 // else the single acceptedExpression. (A bare string where a list belongs used
@@ -222,57 +206,17 @@ const promptParts = (question, pristine, work) => {
   });
 };
 
-const familyAnswer = (question) => (hasGeneratedAnswer(question) ? Number(question.generatedAnswer) : null);
-
-const equationLatex = (equation) => {
-  try {
-    return equationToLatex(equation);
-  } catch {
-    return `${equation.left} = ${equation.right}`;
-  }
-};
-
 /**
  * Grade the equation workspace's final state against the question.
  * `question` is the question the workspace was opened with.
  */
 export const gradeEquationWorkspace = (question = {}, work = {}) => {
-  const pristine = pristineEquation(question);
-  if (!pristine) return ungradedResult('no-readable-equation');
-  // Only plain algebra, no larger than the question's own equation allows, is
-  // read; anything else (a forged function call, an assignment, a chain long
-  // enough to stall the simplifier, a number where text belongs) is not a
-  // finished equation.
-  const budget = studentExpressionBudget(pristine.left, pristine.right);
-  const readableSide = (value) => typeof value === 'string' && isSafeStudentExpression(value, budget);
-  const submitted = isObject(work?.equation) && readableSide(work.equation.left) && readableSide(work.equation.right)
-    ? { left: work.equation.left, right: work.equation.right }
-    : null;
-  // The objective and variable are the QUESTION's — a forged objective in the
-  // work could otherwise declare any equation finished.
-  const final = submitted ? { ...submitted, variable: pristine.variable, objective: pristine.objective } : null;
-  let solved = false;
-  try {
-    solved = Boolean(final) && isSolvedEquation(final);
-  } catch {
-    solved = false;
-  }
-  const key = familyAnswer(question);
-  const keyApplies = key !== null && (!pristine.objective?.kind || pristine.objective.kind === 'isolate');
-  const value = solved && keyApplies ? isolatedNumericValue(final, pristine.objective?.variable || pristine.variable) : null;
-  const sameSolutions = solved && (keyApplies
-    ? value !== null && Math.abs(value - key) <= 1e-9
-    : equationMatchesOriginal({ original: pristine, final, objective: pristine.objective, variable: pristine.variable }));
+  const objective = gradeEquationObjective(question, work);
+  if (!objective) return ungradedResult('no-readable-equation');
   return gradedResult({
     parts: [
-      {
-        id: 'algebra-objective',
-        label: objectiveLabel(question, pristine),
-        isComplete: solved,
-        isCorrect: solved && sameSolutions,
-        response: final ? equationLatex(final) : '',
-      },
-      ...promptParts(question, pristine, work),
+      objective.part,
+      ...promptParts(question, objective.pristine, work),
     ],
   });
 };
