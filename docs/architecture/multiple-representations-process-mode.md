@@ -330,7 +330,9 @@ demonstrates both modes:
   `point-slope`, `table`, `graph`, `phone`, `keyboard`, `dol`, `family`; and
   `tests/browser/linearMultipleRepresentations.mjs family`, which completes the
   family assignment's Process Mode versions through their processes and
-  submits them correct. Screenshots: `docs/qa/lmr-process-mode/`.
+  submits them correct. Screenshots: `docs/qa/lmr-process-mode/`. Both
+  browser suites run on every pull request that touches the app (the student
+  job of the Student and Teacher Journeys workflow).
 
 ## 13. Known limitations
 
