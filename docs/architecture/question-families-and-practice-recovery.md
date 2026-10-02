@@ -301,6 +301,17 @@ question, and it is never a free skip.
 * Gameplay, scoring and rewards are untouched. The result is written only by
   the server's match finalization (`writeWarmupCreditFromResult`).
 
+### Process Mode boards in a family
+
+A slot's `interactionMode` and `process` settings are slot fields: every
+generated version — first delivery, Practice "New Question", Recovery — keeps
+them, and Pre-Flight blocks a slot whose sampled versions do not. A Process
+Mode board's evidence is bound to its version (`lmrProcessBinding`, a
+fingerprint of the GIVEN's mathematics): facts established on one version
+establish nothing on another, so nothing leaks between classmates, from a DOL
+into its Recovery, or across Practice versions. See
+`multiple-representations-process-mode.md`.
+
 ## 7. Compatibility and what remains legacy
 
 * Questions without `questionFamily` behave exactly as before. This includes
