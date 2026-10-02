@@ -62,7 +62,7 @@ import {
   resolveQuestionMaximumAttempts,
 } from './attemptPolicy';
 import { stableStringify } from './utils/idUtils';
-import { ENTER_TO_CONTINUE_HINT, countAnswerControls, focusFirstAnswerControl, focusForEnter, isTouchPrimaryPointer, nextEmptyAnswerField, resolveQuestionEnterIntent, shouldAdvanceOnEnter, shouldFocusAnswerOnOpen } from './platform/interaction/answerEntryUx.js';
+import { ENTER_TO_CONTINUE_HINT, countAnswerControls, focusFirstAnswerControl, focusForEnter, isTouchPrimaryPointer, nextEmptyAnswerField, resolveQuestionEnterIntent, restoreAnswerFocus, shouldAdvanceOnEnter, shouldFocusAnswerOnOpen } from './platform/interaction/answerEntryUx.js';
 import { AnswerFocusPolicyProvider } from './platform/interaction/answerFocusPolicy.js';
 import { normalizeQuestionWeight } from './platform/grading/questionWeights.js';
 import { resolveTaskContextPresentation } from './platform/workflow/taskContextPresentation.js';
@@ -205,6 +205,10 @@ export default function QuestionEngine({
   serverGrading = null,
   onResponseStateChange = null,
   onResponseCheckpoint = null,
+  // Set when this mount only shows work a server copy restored after the
+  // question had opened (App.jsx): { position } — where the student's cursor
+  // was, from answerFocusPosition. Such a mount is not an opening.
+  draftRestore = null,
   onSpotlightFrame = null,
   // Support evidence: ({ supportId, eventType }) when a support is on screen
   // ('available'), applied to this item ('provided') or used ('used'). The
@@ -646,7 +650,21 @@ export default function QuestionEngine({
   // if any: it knows whether it has one answer or twelve.
   const answerAutoFocusAllowed = !locked && !scaffoldRequired && !contextScaffoldRequired
     && shouldFocusAnswerOnOpen({ composed: isComposed, narrowViewport: isMobileQuestionViewport(), touchPrimary: isTouchPrimaryPointer() });
+  // A remount that only shows restored work puts the cursor back where the
+  // student had it, or nowhere — never in the first box, where a keystroke
+  // already on its way would land over the restored answer. Read once, and
+  // spent inside the frame (StrictMode runs this effect twice on mount).
+  const draftRestoreRef = useRef(draftRestore);
   useEffect(() => {
+    const restore = draftRestoreRef.current;
+    if (restore) {
+      if (missingToolDefinition) return undefined;
+      const frame = window.requestAnimationFrame(() => {
+        draftRestoreRef.current = null;
+        restoreAnswerFocus(questionEngineRef.current, restore.position);
+      });
+      return () => window.cancelAnimationFrame(frame);
+    }
     if (!answerAutoFocusAllowed || missingToolDefinition) return undefined;
     const frame = window.requestAnimationFrame(() => {
       focusFirstAnswerControl(questionEngineRef.current);

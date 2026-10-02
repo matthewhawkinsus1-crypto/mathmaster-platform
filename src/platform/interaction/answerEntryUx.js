@@ -287,9 +287,42 @@ const visibleAnswerControls = (root) => (
 /** How many answer-entry controls a workspace shows — "the" box only when it is one. */
 export const countAnswerControls = (root) => visibleAnswerControls(root).length;
 
+/**
+ * Where the cursor is among a question's answer-entry controls: the box it is
+ * in, by position, and how many boxes there are — or null when it is not in
+ * one of them.
+ *
+ * A server copy that lands after a question opened remounts the question to
+ * show the restored work (App.jsx, PQ-044), and a mount puts the cursor in the
+ * FIRST box. A student who had clicked into the second box and started typing
+ * then typed into the first, over the answer just restored there. Read before
+ * the remount, this puts the cursor back where the student had it.
+ */
+export const answerFocusPosition = (root, active = typeof document !== 'undefined' ? document.activeElement : null) => {
+  if (!active || typeof root?.contains !== 'function' || !root.contains(active)) return null;
+  const controls = visibleAnswerControls(root);
+  const index = controls.findIndex((control) => control === active || control.contains?.(active));
+  return index === -1 ? null : { index, count: controls.length };
+};
+
+/**
+ * After a remount that only shows restored work: the cursor goes back to the
+ * box the student was in, when the question still has the same boxes. Anything
+ * else focuses nothing. Never the first box by default, because a keystroke
+ * already on its way would land there.
+ */
+export const restoreAnswerFocus = (root, position) => {
+  if (!position || !Number.isInteger(position.index) || position.index < 0) return false;
+  if (countAnswerControls(root) !== position.count) return false;
+  return focusAnswerControlAt(root, position.index);
+};
+
 /** Put the cursor in the first real answer-entry control in a question/workspace. */
-export const focusFirstAnswerControl = (root) => {
-  const target = visibleAnswerControls(root)[0];
+export const focusFirstAnswerControl = (root) => focusAnswerControlAt(root, 0);
+
+/** Put the cursor in the answer-entry control at `index` (see focusFirstAnswerControl). */
+function focusAnswerControlAt(root, index) {
+  const target = visibleAnswerControls(root)[index];
   if (!target) return false;
   // A math field's own focus() ignores preventScroll and scrolled the page to
   // the field — past the prompt of a long question the student had not read.
@@ -300,7 +333,7 @@ export const focusFirstAnswerControl = (root) => {
     target.focus();
   }
   return true;
-};
+}
 
 export default {
   countAnswerControls,
@@ -309,6 +342,8 @@ export default {
   resolveQuestionEnterIntent,
   resolveToolEnterAction,
   focusFirstAnswerControl,
+  answerFocusPosition,
+  restoreAnswerFocus,
   isTouchPrimaryPointer,
   shouldFocusAnswerOnOpen,
   isSingleLineAnswerTarget,

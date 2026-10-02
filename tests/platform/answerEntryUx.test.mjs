@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
 import {
+  answerFocusPosition,
   countAnswerControls,
   focusFirstAnswerControl,
+  restoreAnswerFocus,
   isSingleLineAnswerTarget,
   isTouchPrimaryPointer,
   shouldAdvanceOnEnter,
@@ -71,6 +73,54 @@ test('focus helper activates the first eligible answer field', () => {
   assert.equal(focusFirstAnswerControl(root), true);
   assert.equal(firstFocused, 1);
   assert.equal(secondFocused, 0);
+});
+
+/*
+ * A SERVER COPY THAT LANDS AFTER THE QUESTION OPENED REMOUNTS IT (App.jsx,
+ * PQ-044). A mount used to put the cursor in the first box, so a student who
+ * had clicked into the second box typed into the first, over the answer just
+ * restored there. The remount now puts the cursor back where it was, or
+ * nowhere.
+ */
+test('a restore remount puts the cursor back in the student\'s box, or nowhere', () => {
+  const focused = [];
+  const box = (name) => ({ name, hidden: false, getAttribute: () => null, focus: () => focused.push(name), contains: () => false });
+  const first = box('first');
+  const second = box('second');
+  const outside = box('outside');
+  const root = { querySelectorAll: () => [first, second], contains: (node) => node === first || node === second };
+
+  assert.deepEqual(answerFocusPosition(root, second), { index: 1, count: 2 });
+  assert.deepEqual(answerFocusPosition(root, first), { index: 0, count: 2 });
+  assert.equal(answerFocusPosition(root, outside), null, 'focus outside the question is not a box');
+  assert.equal(answerFocusPosition(root, null), null);
+  assert.equal(answerFocusPosition(null, second), null);
+
+  assert.equal(restoreAnswerFocus(root, { index: 1, count: 2 }), true);
+  assert.deepEqual(focused, ['second'], 'back in the second box, not the first');
+  focused.length = 0;
+  assert.equal(restoreAnswerFocus(root, { index: 1, count: 3 }), false, 'the question changed shape: focus nothing');
+  assert.equal(restoreAnswerFocus(root, null), false, 'the cursor was not in a box: focus nothing');
+  assert.equal(restoreAnswerFocus(root, { index: -1, count: 2 }), false);
+  assert.deepEqual(focused, [], 'never the first box by default');
+  assert.equal(focusFirstAnswerControl(root), true, 'an ordinary opening still focuses the first box');
+  assert.deepEqual(focused, ['first']);
+});
+
+test('App records the cursor before a restore remount, for that question only, and QuestionEngine spends it', () => {
+  const app = readFileSync('src/App.jsx', 'utf8');
+  const engine = readFileSync('src/QuestionEngine.jsx', 'utf8');
+  const restoreBranch = app.slice(app.indexOf('if (restoreQuestionDrafts(restorable)) {'), app.indexOf('sync.noteServerCopy(entries);'));
+  assert.match(restoreBranch, /setDraftRestoreFocus\(\{\s*questionIndex: currentQuestionIndexRef\.current,\s*position: answerFocusPosition\(assignmentQuestionStageRef\.current\),\s*\}\);\s*setWorkspaceDraftGeneration\(\(value\) => value \+ 1\);/);
+  assert.match(app, /draftRestore=\{draftRestoreFocus\?\.questionIndex === currentQuestionIndex \? draftRestoreFocus : null\}/);
+  assert.match(app, /currentQuestionIndexRef\.current = currentQuestionIndex;\s*setDraftRestoreFocus\(null\);\s*\}, \[currentQuestionIndex, activeAssignmentId\]\);/);
+  // The restore branch comes first, focuses only through restoreAnswerFocus,
+  // and returns before the opening's autofocus can run.
+  const effect = engine.slice(engine.indexOf('const draftRestoreRef = useRef(draftRestore);'), engine.indexOf('focusFirstAnswerControl(questionEngineRef.current)'));
+  assert.match(effect, /if \(restore\) \{[\s\S]*restoreAnswerFocus\(questionEngineRef\.current, restore\.position\);[\s\S]*return \(\) => window\.cancelAnimationFrame\(frame\);\s*\}\s*if \(!answerAutoFocusAllowed \|\| missingToolDefinition\) return undefined;/);
+  assert.doesNotMatch(effect.slice(0, effect.indexOf('if (!answerAutoFocusAllowed')), /focusFirstAnswerControl/);
+  // Spent inside the frame, so StrictMode's second mount still finds it.
+  assert.match(effect, /requestAnimationFrame\(\(\) => \{\s*draftRestoreRef\.current = null;/);
 });
 
 test('shared student runtimes use the answer-entry behavior', () => {

@@ -34,6 +34,11 @@
 //              older edit — is what A sees and what the server keeps; A edits
 //              again: A's is the newest. B, left open and asleep, is woken: it
 //              shows A's newest work, not its own older copy.
+//   late       the server copy lands after the student has opened the question
+//              on B and clicked into its second box, before typing: the
+//              restore remounts the question with A's work, and the cursor is
+//              back in the second box, so what the student types goes there —
+//              not into the first box, over the slope A wrote.
 //   legacy     the rollout: a build from before the edit-time marker merely
 //              opens the question on another Chromebook after A's work, and
 //              saves its empty boxes dated later, unmarked. A comes back to
@@ -218,7 +223,7 @@ const hidden = (page, value) => page.evaluate((isHidden) => {
 let afterA = null;
 let serverAfterA = null;
 let stateA = null;
-if (['fresh', 'offline', 'directions', 'canonical', 'legacy'].some(wanted)) {
+if (['fresh', 'offline', 'directions', 'late', 'canonical', 'legacy'].some(wanted)) {
   const A = await openDevice('A');
   await openAssignment(A.page);
   await goTo(A.page, Q_FRACTION);
@@ -326,6 +331,32 @@ if (wanted('directions')) {
   check(same(afterWake[LINE_KEY], afterA2[LINE_KEY]), 'directions: waking B changes nothing in the server copy', JSON.stringify(afterWake[LINE_KEY]));
   await A2.context.close();
   await B.context.close();
+}
+
+/* =============================================================== late */
+
+if (wanted('late')) {
+  // The read is slower than the student: B is on the line question, with the
+  // cursor in the intercept box, before A's work arrives.
+  const L = await openDevice('L late read', { server: serverAfterA, params: { draftReadMs: '5000' } });
+  await openAssignment(L.page);
+  await goTo(L.page, Q_LINE);
+  const before = await fields(L.page);
+  check(same(before, ['', '']), 'late: before the read lands, the boxes are this device\'s own (empty)', JSON.stringify(before));
+  await L.page.locator('.mathmaster-question-stage math-field').nth(1).click();
+  const restored = await shows(L.page, ['-\\frac23', ''], 12000);
+  check(same(restored, ['-\\frac23', '']), 'late: the read lands and shows A\'s slope', JSON.stringify(restored));
+  await L.page.waitForTimeout(300);
+  const cursorIn = await L.page.evaluate(() => [...document.querySelectorAll('.mathmaster-question-stage math-field')].indexOf(document.activeElement));
+  check(cursorIn === 1, 'late: the cursor is back in the intercept box the student had clicked', `focused box ${cursorIn}`);
+  // Typing straight on, without clicking again.
+  await L.page.keyboard.type('4', { delay: 25 });
+  await L.page.keyboard.press('Tab');
+  const typed = await shows(L.page, ['-\\frac23', '4'], 4000);
+  check(same(typed, ['-\\frac23', '4']), 'late: what the student types lands in that box; the slope A wrote is untouched', JSON.stringify(typed));
+  const saved = await waitForServer(L.page, (drafts) => drafts[LINE_KEY]?.value?.b === '4');
+  check(saved[LINE_KEY]?.value?.m === '-\\frac23' && saved[LINE_KEY]?.value?.b === '4', 'late: the server copy keeps A\'s slope and the new intercept', JSON.stringify(saved[LINE_KEY]));
+  await L.context.close();
 }
 
 /* ============================================================= legacy */

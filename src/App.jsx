@@ -115,6 +115,7 @@ import {
   saveResumeAction,
   subscribeToQuestionDrafts,
 } from './questionDraftStorage';
+import { answerFocusPosition } from './platform/interaction/answerEntryUx.js';
 import {
   CLASS_PERIODS,
   DEFAULT_CLASS_SCHEDULE,
@@ -940,6 +941,11 @@ function App() {
   // It is part of the QuestionEngine key, so the workspace remounts and the
   // tools read the recovered work — without the first render having waited.
   const [workspaceDraftGeneration, setWorkspaceDraftGeneration] = useState(0);
+  // Where the student's cursor was when that remount was ordered, and on which
+  // question: the remount puts it back there instead of in the first box (a
+  // keystroke already on its way would otherwise land over the restored work).
+  const [draftRestoreFocus, setDraftRestoreFocus] = useState(null);
+  const currentQuestionIndexRef = useRef(0);
   const workspaceDraftSyncRef = useRef(null);
   const trackerRef = useRef({});
   const [practiceTracker, setPracticeTracker] = useState({});
@@ -959,6 +965,12 @@ function App() {
   const [assignmentNavigationCollapsed, setAssignmentNavigationCollapsed] = useState(false);
   const [assignmentOverviewExpanded, setAssignmentOverviewExpanded] = useState(false);
   const assignmentQuestionStageRef = useRef(null);
+  // A restore's cursor belongs to the question it was read on (draftRestoreFocus):
+  // another question, or another assignment, opens as any question opens.
+  useEffect(() => {
+    currentQuestionIndexRef.current = currentQuestionIndex;
+    setDraftRestoreFocus(null);
+  }, [currentQuestionIndex, activeAssignmentId]);
 
   // Once the student reaches the workspace, the full progress dashboard has
   // done its job. Keep its section/question/previous/next essentials in one
@@ -3434,7 +3446,13 @@ function App() {
               return Date.parse(record.lastAttemptAt || '') || 0;
             },
           });
-          if (restoreQuestionDrafts(restorable)) setWorkspaceDraftGeneration((value) => value + 1);
+          if (restoreQuestionDrafts(restorable)) {
+            setDraftRestoreFocus({
+              questionIndex: currentQuestionIndexRef.current,
+              position: answerFocusPosition(assignmentQuestionStageRef.current),
+            });
+            setWorkspaceDraftGeneration((value) => value + 1);
+          }
           // Only now is it known what the server holds — and so whether this
           // device has an edit it never received (see workspaceDraftSync).
           sync.noteServerCopy(entries);
@@ -10503,6 +10521,7 @@ function App() {
               && <div aria-label="Instructional phase" style={{ display: 'inline-block', margin: '6px 8px', padding: '5px 10px', borderRadius: 999, background: '#e8f0fe', color: '#174ea6', fontWeight: 950, letterSpacing: '0.08em' }}>{({ iDo: 'I DO', weDo: 'WE DO', youDo: 'YOU DO' })[questions[currentQuestionIndex].instructionalPhase]}</div>}
             <QuestionEngine
               key={`${activeAssignmentId}-${currentQuestionIndex}-${currentRecord.variantIndex}-${preview ? `preview-${previewSessionId}` : lifecycle.status}-draft${workspaceDraftGeneration}`}
+              draftRestore={draftRestoreFocus?.questionIndex === currentQuestionIndex ? draftRestoreFocus : null}
               question={questions[currentQuestionIndex]}
               questionRecord={workingTracker?.[currentQuestionIndex]}
               generationKey={`${activeAssignmentId}|${generationStudentKey}|${currentQuestionIndex}|variant:${currentRecord.variantIndex}`}
