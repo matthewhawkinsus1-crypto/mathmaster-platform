@@ -14,6 +14,8 @@ import { readFileSync } from 'node:fs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 import { sanitizeWorkspaceDraftValue, MAX_WORKSPACE_DRAFT_VALUE_BYTES, FORBIDDEN_DRAFT_KEYS } from '../../functions/shared/workspaceDraftSchema.mjs';
 import { TOOL_STATE_PERSISTENCE } from '../../src/tools/toolStatePersistence.js';
+import { PROCESS_LOG_LIMITS, normalizeProcessLog } from '../../functions/shared/processFacts/processFactsEngine.mjs';
+import { PROCESS_DRAFT_LIMITS, readProcessDraft } from '../../src/tools/representationBridge/process/processDraft.js';
 import {
   deriveLinearMultipleRepresentations,
   evaluateGraph1Intercepts,
@@ -174,7 +176,36 @@ const maximalDraft = () => ({
     graphPointSlope: '[[[1,-2.5],[3,-1.5]],"y+\\\\frac{5}{2}=\\\\frac{1}{2}\\\\left(x-1\\\\right)"]',
     context: '["time since the candle was lit (hours)","height of the candle (inches)"]',
   },
+  // Process Mode only (interactionMode "process"); a Worksheet board never writes them.
+  processLog: null,
+  processDraft: null,
 });
+
+// Process Mode's two fields at the most they can ever hold: the process log at
+// its serialized budget (PROCESS_LOG_LIMITS) and the work in progress inside
+// the methods at readProcessDraft's.
+const BINDING = 'lmr1-0123456789abcdef';
+const maximalProcessLog = () => normalizeProcessLog({
+  bind: BINDING,
+  entries: Array.from({ length: 40 }, (_, index) => ({
+    id: `solveForY-${index}`,
+    strategy: 'solveForY',
+    from: 'given',
+    target: 'siEquation',
+    at: 1790000000000 + index,
+    tries: 12,
+    ev: { eq: { left: 'y', right: '-\\frac{5}{2}x+\\frac{17}{3}' }, steps: Array.from({ length: 12 }, (_, step) => ({ left: `y${step}`, right: 'x'.repeat(230) })) },
+  })),
+});
+const maximalProcessDraft = () => readProcessDraft({
+  bind: BINDING,
+  open: 'slope',
+  method: { slope: 'riseRun@given', yIntercept: 'extendTable@given', xIntercept: 'substituteZero@facts', point: 'evaluateAtX@facts' },
+  work: Object.fromEntries(Array.from({ length: 12 }, (_, index) => [`slope|method${index}@given`, {
+    rows: Array.from({ length: 12 }, () => ({ x: '9'.repeat(110), y: '9'.repeat(110) })),
+  }])),
+  tries: Object.fromEntries(Array.from({ length: 12 }, (_, index) => [`slope|method${index}@given`, 999])),
+}, BINDING);
 
 test('the whole board record syncs: no forbidden key, and well under the 16 KB cap', () => {
   const persisted = [...board().matchAll(/usePersistentToolState\('([^']+)'/g)].map((match) => match[1]);
@@ -191,6 +222,16 @@ test('the whole board record syncs: no forbidden key, and well under the 16 KB c
   assert.ok(sanitized.bytes < MAX_WORKSPACE_DRAFT_VALUE_BYTES / 4, `${sanitized.bytes} bytes`);
   // Mutation guard: the old record shape is refused.
   assert.equal(sanitizeWorkspaceDraftValue({ ...record, cardChecks: { slope: { checked: true, isCorrect: true } } }).reason, 'forbidden-key');
+  // Process Mode: every field at its most, still synced, still well under the cap.
+  const processLog = maximalProcessLog();
+  const processDraft = maximalProcessDraft();
+  assert.ok(JSON.stringify(processLog).length <= PROCESS_LOG_LIMITS.maxJsonLength);
+  assert.ok(JSON.stringify(processLog).length > PROCESS_LOG_LIMITS.maxJsonLength * 0.8, 'the fixture really is at the log\'s budget');
+  assert.ok(JSON.stringify(processDraft).length <= PROCESS_DRAFT_LIMITS.json);
+  assert.ok(Object.keys(processDraft.work).length > 0, 'the newest work survives the budget');
+  const processRecord = sanitizeWorkspaceDraftValue({ ...record, processLog, processDraft });
+  assert.equal(processRecord.ok, true, processRecord.reason);
+  assert.ok(processRecord.bytes < MAX_WORKSPACE_DRAFT_VALUE_BYTES * 0.75, `${processRecord.bytes} bytes`);
 });
 
 // -----------------------------------------------------------------------------

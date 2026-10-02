@@ -1945,6 +1945,12 @@ const compileOne = (q, index, repairs) => {
         requiredCards: q.requiredCards,
         graphBounds: q.graphBounds,
         feedbackTiming: q.feedbackTiming,
+        // The Multiple Representations board's interaction contract: the
+        // unchanged "worksheet" board, or "process", where key facts are
+        // established with a process before they are reused. Carried as
+        // authored; the tool schema refuses an unknown mode or method.
+        ...(q.interactionMode != null ? { interactionMode: q.interactionMode } : {}),
+        ...(q.process != null ? { process: q.process } : {}),
         ...(domain != null ? { domain } : {}),
         ...(snapStep != null ? { snapStep } : {}),
         ...(q.tolerance != null ? { tolerance: q.tolerance } : {}),

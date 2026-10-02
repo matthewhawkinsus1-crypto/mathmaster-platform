@@ -81,8 +81,12 @@ import {
   relationStateToText,
   validateRelationTransition,
 } from '../toolMath/algebra-relations/algebraRelationFoundation.mjs';
-import { buildSubstitutionState, formatStandardEquation, resolveStandardCoefficients } from '../toolMath/stepAlgebra2/linearInterceptsMath.mjs';
-import { round } from '../toolMath/shared/toolMath.mjs';
+import {
+  formatStandardEquation,
+  interceptSubEquationQuestion,
+  resolveStandardCoefficients,
+  substitutionEquationText,
+} from '../toolMath/stepAlgebra2/linearInterceptsMath.mjs';
 import { serverResponseGradingSupport } from './gradingSupport.mjs';
 import {
   IDENTITY,
@@ -350,45 +354,14 @@ export const prefilledFirstStep = (equation) => {
   }
 };
 
-/**
+/*
  * The one-variable equation the intercept orchestrator hands to the equation
- * workspace once a 0 is substituted. buildSubstitutionState always leaves
- * `constant` at 0, so this is exactly `coefficient * variable = right`.
+ * workspace once a 0 is substituted, and the question it opens it with, live
+ * in ../toolMath/stepAlgebra2/linearInterceptsMath.mjs (light, so a tool that
+ * embeds the same substitution — the Multiple Representations board's Process
+ * Mode — opens exactly this equation without loading the step verifier).
  */
-export const substitutionEquationText = (state) => {
-  const coefficient = round(Number(state.coefficient), 8);
-  const right = round(Number(state.right), 8);
-  if (Math.abs(coefficient - 1) < 1e-9) return `${state.variable} = ${right}`;
-  if (Math.abs(coefficient + 1) < 1e-9) return `-${state.variable} = ${right}`;
-  return `${coefficient}${state.variable} = ${right}`;
-};
-
-/** The question the intercept orchestrator opens the equation workspace with. */
-export const interceptSubEquationQuestion = (question, standard, zeroVariable) => {
-  const solverState = buildSubstitutionState(standard, zeroVariable);
-  if (!solverState) return null;
-  return {
-    ...question,
-    mode: undefined,
-    standard: undefined,
-    equationText: undefined,
-    feedbackTiming: undefined,
-    targetForm: undefined,
-    requireSimplifiedFinalForm: false,
-    objective: undefined,
-    equation: substitutionEquationText(solverState),
-    equationLatex: undefined,
-    leftExpression: undefined,
-    rightExpression: undefined,
-    solveFor: solverState.variable,
-    variable: solverState.variable,
-    prompt: `Solve for ${solverState.variable}.`,
-    // The parent's generated answer (a Question Family instance) is the
-    // answer to the PARENT question. The shared grader marks a sub-solve
-    // against the sub-equation it opened, never against that key.
-    generatedAnswer: undefined,
-  };
-};
+export { interceptSubEquationQuestion, substitutionEquationText };
 
 // --- Server verification ------------------------------------------------------------
 

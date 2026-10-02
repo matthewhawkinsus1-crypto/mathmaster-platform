@@ -45,6 +45,14 @@ const persistedFields = [...BOARD.matchAll(/usePersistentToolState\('([^']+)'/g)
 const NOT_UNDOABLE = {
   checkedCards: 'which work was checked; a verdict is recomputed from it',
   expandedCards: 'which panels are open; presentation',
+  // Process Mode: work the student pressed Check (or Save) on is evidence of a
+  // process, recorded deliberately — like a Check, never an edit to take
+  // back. A fact is re-established (or changed, where outcomes are withheld)
+  // by doing the process again. The work in progress inside a method belongs
+  // to that method's own fields (and an embedded Step Algebra keeps its own
+  // Undo), not to the board's history.
+  processLog: 'the process work Check or Save recorded; established facts are recomputed from it',
+  processDraft: 'the work in progress inside each process method',
 };
 
 const emptyBoard = () => ({

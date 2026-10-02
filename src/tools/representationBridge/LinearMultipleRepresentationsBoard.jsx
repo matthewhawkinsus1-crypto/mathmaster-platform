@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import usePersistentToolState from '../shared/usePersistentToolState.js';
+import usePersistentToolState, { useToolDraftScope } from '../shared/usePersistentToolState.js';
 import ToolShell, { AttemptOutcome } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import useReportToolWork from '../shared/useReportToolWork.js';
@@ -57,6 +57,25 @@ import {
   validateXInterceptEntry,
   validateYInterceptEntry,
 } from './linearMultipleRepresentationsMath.js';
+import {
+  PROCESS_FACT_CARDS,
+  establishedPoints,
+  factDisplay,
+  fractionText,
+  isProcessModeQuestion,
+  lmrCardLabel,
+  lmrFactLabel,
+  lmrMethodsFor,
+  lmrNewlyOpened,
+  lmrProcessEnvironment,
+  lmrProcessSnapStep,
+  lmrRelevantFacts,
+  materializeProcessBoard,
+  resolveLmrProcess,
+} from './lmrProcessMath.js';
+import { optionKeyOf, readProcessDraft, recordProcessEntry } from './process/processDraft.js';
+import ProcessWorkspace from './process/ProcessWorkspace.jsx';
+import { FactsAtHand, KnownPointChips, LockedCardBody, ProcessFactsStrip } from './process/ProcessBoardParts.jsx';
 
 /*
  * FREE-ORDER MULTIPLE REPRESENTATIONS BOARD.
@@ -71,6 +90,16 @@ import {
  * when the question is `guided` AND the runtime shows immediate feedback. In a
  * DOL (feedback after the assignment is submitted) the board shows what is
  * filled in, never what is right.
+ *
+ * PROCESS MODE (`interactionMode: "process"`) is the same board with one
+ * difference in what counts as work: the key facts — slope, intercepts,
+ * points — are not typed into boxes. The student ESTABLISHES each one with a
+ * process of their choosing ("What I know" → Find → a method → Check), and
+ * every card the facts they hold can build opens; a card still waiting says
+ * every way it could open. Nothing is in a fixed order there either. The
+ * mathematics of it is shared with the server (lmrProcessMath.js), and the
+ * process components live in ./process/. Worksheet Mode — the default — is
+ * untouched by any of it.
  */
 
 const touchButton = {
@@ -194,6 +223,21 @@ const GRAPHS = [
   },
 ];
 
+// Process Mode: which established points each graph offers to plot.
+const GRAPH_REUSE = Object.freeze({
+  graph1: (record) => record.fact === 'xIntercept' || record.fact === 'yIntercept',
+  graph2: (record) => record.fact === 'yIntercept',
+  graph3: null,
+});
+
+// Process Mode: the facts each card is built from, kept at hand on it.
+const PROCESS_CARD_FACTS = Object.freeze({
+  standardForm: ['slope', 'yIntercept', 'xIntercept'],
+  slopeIntercept: ['slope', 'yIntercept'],
+  pointSlope: ['slope'],
+  table: ['slope'],
+});
+
 // The answer field each one-box card writes.
 const ONE_FIELD_CARDS = Object.freeze({
   standardForm: 'standardFormEquation',
@@ -216,6 +260,14 @@ const CONTEXT_FIELDS = [
 const pointLatex = (point) => {
   if (!Array.isArray(point)) return '';
   return `(${point.slice(0, 2).map((value) => fractionLatex(toFraction(value))).join(', ')})`;
+};
+
+// A fact a process established, as words a screen reader can say: "1/2", "(0, -3)".
+const factDisplayText = (record) => {
+  if (!record) return '';
+  if (Array.isArray(record.point)) return `(${record.point.map(fractionText).join(', ')})`;
+  if (record.fact === 'siEquation') return `${record.value?.left ?? ''} = ${record.value?.right ?? ''}`;
+  return fractionText(record.value);
 };
 
 // A list of points as separate math elements with plain commas between them.
@@ -521,6 +573,8 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   const feedbackTiming = questionData.feedbackTiming === 'submitOnly' ? 'submitOnly' : 'guided';
   // Checking a card IS feedback. It exists only where the activity allows it.
   const canCheck = feedbackTiming === 'guided' && showImmediateFeedback;
+  // Process Mode: key facts are established with a process, not typed.
+  const processMode = isProcessModeQuestion(questionData);
 
   // Everything a student can answer with is draft-backed.
   const [standardFormEquation, setStandardFormEquation] = usePersistentToolState('standardFormEquation', '');
@@ -545,6 +599,13 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   const [contextYInterceptMeaning, setContextYInterceptMeaning] = usePersistentToolState('contextYInterceptMeaning', '');
   const [contextXInterceptMeaning, setContextXInterceptMeaning] = usePersistentToolState('contextXInterceptMeaning', '');
   const [contextDomain, setContextDomain] = usePersistentToolState('contextDomain', '');
+
+  // Process Mode's work: the process log — each piece of work the student
+  // pressed Check (or Save) on, which the shared marking turns into facts here
+  // and on the server — and the work still in progress inside each method.
+  // Both are the student's mathematics; neither ever holds a verdict.
+  const [processLog, setProcessLog] = usePersistentToolState('processLog', null);
+  const [rawProcessDraft, setRawProcessDraft] = usePersistentToolState('processDraft', null);
 
   // WHICH work the student has pressed Check on — a fingerprint per card, and
   // nothing else. The verdict is never stored: it is recomputed from the
@@ -597,11 +658,14 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     contextYInterceptMeaning,
     contextXInterceptMeaning,
     contextDomain,
+    // Process Mode only: a Worksheet board's work keeps exactly its old shape.
+    ...(processMode ? { processLog } : {}),
   }), [
     standardFormEquation, slopeInterceptEquation, pointSlopeEquation,
     featureSlope, featureXIntercept, featureYIntercept, featurePoint1, featurePoint2,
     tableRows, graph1Points, graph2Points, graph3Points,
     contextIndependent, contextDependent, contextSlopeMeaning, contextYInterceptMeaning, contextXInterceptMeaning, contextDomain,
+    processMode, processLog,
   ]);
   // Enter can arrive before the render that follows the keystroke; checks read
   // the latest work from here rather than from a closure one render behind.
@@ -628,6 +692,40 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     () => (graph3Anchor.point ? expandGraphBoundsForAnchor(graphBounds, graph3Anchor.point, canonicalFacts) : graphBounds),
     [graphBounds, graph3Anchor.point, canonicalFacts],
   );
+
+  // ----------------------------------------------------------- process mode
+  // What the student's process log establishes on THIS question — marked by
+  // the same function the server grades with — and which cards that opens.
+  const processEnv = useMemo(
+    () => (processMode ? lmrProcessEnvironment(questionData, canonicalFacts) : null),
+    [processMode, questionData, canonicalFacts],
+  );
+  const processState = useMemo(
+    () => (processEnv ? resolveLmrProcess(questionData, { processLog }, canonicalFacts, processEnv) : null),
+    [processEnv, questionData, processLog, canonicalFacts],
+  );
+  const processBinding = processEnv?.binding || '';
+  const processDraft = useMemo(() => readProcessDraft(rawProcessDraft, processBinding), [rawProcessDraft, processBinding]);
+  const setProcessDraft = useCallback((updater) => setRawProcessDraft((raw) => {
+    const current = readProcessDraft(raw, processBinding);
+    const next = typeof updater === 'function' ? updater(current) : updater;
+    return readProcessDraft({ ...next, bind: processBinding }, processBinding);
+  }), [setRawProcessDraft, processBinding]);
+  // Work recorded for another question — another version of a Question Family
+  // slot — establishes nothing here, so it is cleared rather than kept.
+  useEffect(() => {
+    if (!processMode) return;
+    if (processState?.stale) setProcessLog(null);
+    if (rawProcessDraft && rawProcessDraft.bind !== processBinding) setRawProcessDraft(null);
+  }, [processMode, processState?.stale, rawProcessDraft, processBinding, setProcessLog, setRawProcessDraft]);
+  const processRelevant = useMemo(() => (processMode ? lmrRelevantFacts(questionData) : []), [processMode, questionData]);
+  const processSnapStep = useMemo(() => (processMode ? lmrProcessSnapStep(questionData, canonicalFacts) : 1), [processMode, questionData, canonicalFacts]);
+  // The embedded algebra workspaces keep their drafts beside this question's,
+  // per question version, so another version never opens on this one's steps.
+  const draftScope = useToolDraftScope();
+  const processDraftKeyBase = draftScope?.draftKey && processBinding ? `${draftScope.draftKey}:lmr-process:${processBinding}` : null;
+  // A required card the student's facts have not opened yet.
+  const processLocked = (cardId) => Boolean(processState) && required.includes(cardId) && !processState.unlocks?.[cardId]?.unlocked;
 
   // Same precedence as scoreLinearMultipleRepresentations, so the meanings on
   // screen are the meanings that are graded.
@@ -741,18 +839,31 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     { id: 'graphs', label: 'Graphs', cards: GRAPHS.map((graph) => graph.cardId).filter(needs) },
   ].filter((category) => category.cards.length);
   const cardDone = (cardId) => (canCheck ? Boolean(verdictFor(cardId)?.isCorrect) : cardHasWork(cardId, currentResponse));
+  // In Process Mode a fact card is done when the fact is established — with
+  // guided feedback only right work is ever recorded, so that is "checked
+  // correct" there; where outcomes are withheld it is "filled in".
+  const processFactDone = (cardId) => (cardId === 'twoPoints'
+    ? establishedPoints(processState).length >= 2
+    : Boolean(processState?.facts?.[cardId]));
+  const partDone = (cardId) => (processState && PROCESS_FACT_CARDS[cardId] ? processFactDone(cardId) : cardDone(cardId));
   const contextDone = (field) => (canCheck
     ? Boolean(contextVerdict?.results?.[field])
     : String(currentResponse[field] ?? '').trim() !== '');
   const progressGroups = [
-    ...partsByCategory.map((category) => ({ ...category, done: category.cards.filter(cardDone).length, total: category.cards.length })),
+    ...partsByCategory.map((category) => ({ ...category, done: category.cards.filter(partDone).length, total: category.cards.length })),
     ...(contextFields.length ? [{ id: 'context', label: 'Meanings', done: contextFields.filter(({ field }) => contextDone(field)).length, total: contextFields.length }] : []),
   ];
   const partsTotal = progressGroups.reduce((sum, group) => sum + group.total, 0);
   const partsDone = progressGroups.reduce((sum, group) => sum + group.done, 0);
+  // The board a Process Mode response amounts to: fact cards from what the
+  // process established, locked cards empty — what the grader scores.
+  const processBoard = useMemo(
+    () => (processState ? materializeProcessBoard(questionData, currentResponse, processState).board : null),
+    [processState, questionData, currentResponse],
+  );
   // The shared grader's own completeness rule: a required card with no work,
   // or a graded meaning left blank. Empty here is exactly isComplete there.
-  const emptyParts = unfinishedLinearMultipleRepresentationsParts(questionData, currentResponse).map((partId) => PART_LABELS[partId] || partId);
+  const emptyParts = unfinishedLinearMultipleRepresentationsParts(questionData, processBoard || currentResponse).map((partId) => PART_LABELS[partId] || partId);
 
   const toggle = (key) => setExpandedCards((prev) => {
     const current = { ...DEFAULT_EXPANDED, ...prev };
@@ -963,6 +1074,93 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     </>
   );
 
+  // ------------------------------------------------- process mode: find a fact
+  // "Find …" opens the process workspace for one fact, under the GIVEN and the
+  // facts strip; Back to board (or establishing the fact) returns the student
+  // to where they pressed it. Which fact is open is part of the draft, so a
+  // refresh reopens the same workspace.
+  const [processNotice, setProcessNotice] = useState(null);
+  const [processScroll, setProcessScroll] = useState(0);
+  const processReturnRef = useRef(null);
+  const openProcess = (target, method = null, origin = null) => {
+    processReturnRef.current = origin;
+    setProcessNotice(null);
+    setProcessDraft((current) => {
+      const next = { ...current, open: target };
+      const preferred = method
+        ? lmrMethodsFor(questionData, processState, target).flatMap((group) => group.sources).find((option) => option.strategy === method)
+        : null;
+      if (preferred) next.method = { ...current.method, [target]: optionKeyOf(preferred) };
+      return next;
+    });
+    setProcessScroll((count) => count + 1);
+  };
+  useEffect(() => {
+    if (!processScroll) return;
+    const workspace = boardRef.current?.querySelector('[data-lmr-card="process"]');
+    if (!workspace) return;
+    if (!uncoveredOnScreen(workspace)) workspace.scrollIntoView?.({ block: 'start', inline: 'nearest' });
+    workspace.focus?.({ preventScroll: true });
+  }, [processScroll]);
+  const returnFromProcess = () => {
+    const origin = processReturnRef.current;
+    processReturnRef.current = null;
+    window.requestAnimationFrame?.(() => {
+      const target = origin?.isConnected ? origin : boardRef.current?.querySelector('[data-process-facts]');
+      if (!target) return;
+      if (!uncoveredOnScreen(target)) target.scrollIntoView?.({ block: 'center', inline: 'nearest' });
+      target.focus?.({ preventScroll: true });
+    });
+  };
+  const closeProcess = () => {
+    setProcessDraft((current) => ({ ...current, open: null }));
+    returnFromProcess();
+  };
+  // Work the student pressed Check (or Save) on joins the log; the fact it
+  // establishes, and every card that opens with it, is said once.
+  const recordProcess = (entry, { target, keepOpen = false }) => {
+    const before = processState;
+    const nextLog = recordProcessEntry(questionData, processLog, entry, before);
+    clearFeedback();
+    setProcessLog(nextLog);
+    const after = resolveLmrProcess(questionData, { processLog: nextLog }, canonicalFacts, processEnv);
+    const established = target === 'point'
+      ? establishedPoints(after).length > establishedPoints(before).length
+      : Boolean(after.facts?.[target]);
+    // Every fact this work established or changed — a reading can establish
+    // two — and every representation card it opened.
+    const known = new Set(establishedPoints(before).map((record) => record.pointKey));
+    const learned = [
+      ...['slope', 'yIntercept', 'xIntercept', 'siEquation']
+        .filter((fact) => after.facts?.[fact] && factDisplayText(after.facts[fact]) !== factDisplayText(before?.facts?.[fact]))
+        .map((fact) => `${fact === 'siEquation' ? 'Your equation' : lmrFactLabel(questionData, fact)}: ${
+          // A situation's initial value is an amount, not a point.
+          fact === 'yIntercept' && givenDescription.kind === 'scenario' ? fractionText(after.facts[fact].value) : factDisplayText(after.facts[fact])
+        }`),
+      ...establishedPoints(after).filter((record) => record.fact === 'point' && !known.has(record.pointKey))
+        .map((record) => `Point: ${factDisplayText(record)}`),
+    ];
+    const factText = learned.length ? (canCheck ? `✓ ${learned.join(' · ')}.` : `Saved — ${learned.join(' · ')}.`) : '';
+    const opened = lmrNewlyOpened(before, after, required.filter((cardId) => !PROCESS_FACT_CARDS[cardId])).map(lmrCardLabel);
+    const openedText = opened.length ? ` Now open: ${opened.join(', ')}.` : '';
+    const noticeText = `${factText}${openedText}`.trim();
+    if (noticeText) {
+      announce(noticeText);
+      setProcessNotice({ text: noticeText, tone: canCheck && factText ? 'success' : 'neutral' });
+    }
+    // Solved for y: the method that reads the slope and y-intercept from the
+    // student's own equation is the next step on that pathway.
+    const bridged = !established && after.facts?.siEquation && !before?.facts?.siEquation
+      ? lmrMethodsFor(questionData, after, target).flatMap((group) => group.sources)
+        .find((option) => option.source === 'siEquation' && option.strategy === 'readSlopeIntercept') || null
+      : null;
+    if (established && target !== 'point' && !keepOpen) {
+      setProcessDraft((current) => ({ ...current, open: null }));
+      returnFromProcess();
+    }
+    return { established, bridged: bridged ? optionKeyOf(bridged) : null };
+  };
+
   // ---------------------------------------------------------------- submit
   // Graded when submitted, not on every keystroke: scoring every card parses
   // every equation, and doing that per key is typing latency on a Chromebook.
@@ -1000,8 +1198,10 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   // answer — so it is recomputed here rather than shipped with the attempt.
   const outliers = useMemo(() => {
     if (!feedback?.response || !canonicalFacts.isValid) return [];
-    return crossRepresentationConsistencyFor(questionData, feedback.response, canonicalFacts).consistency.outliers || [];
-  }, [feedback, questionData, canonicalFacts]);
+    // In Process Mode the facts are the ones the process established.
+    const shown = processMode ? materializeProcessBoard(questionData, feedback.response).board : feedback.response;
+    return crossRepresentationConsistencyFor(questionData, shown, canonicalFacts).consistency.outliers || [];
+  }, [feedback, questionData, canonicalFacts, processMode]);
 
   const allGraphsRequired = GRAPHS.every((graph) => needs(graph.cardId));
   const allGraphsVerified = allGraphsRequired && GRAPHS.every((graph) => verdictFor(graph.cardId)?.isCorrect);
@@ -1012,6 +1212,8 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     if (event.key !== 'Enter' || event.defaultPrevented || event.isComposing) return;
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
     if (!isSingleLineAnswerTarget(event.target)) return;
+    // An embedded Step Algebra workspace owns Enter inside itself.
+    if (event.target.closest?.('[data-process-algebra]')) return;
     event.preventDefault();
     const card = event.target.closest?.('[data-lmr-card]');
     card?.querySelector?.('button[data-card-check="true"]:not([disabled])')?.click();
@@ -1022,7 +1224,35 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   // (`data-lmr-field`): that is what an Undo there brings into view.
   const undoneFor = (cardId) => (undoReveal?.cardId === cardId ? undoReveal : null);
 
+  // Process Mode: a card the student's facts have not opened says what it is
+  // waiting for, with a "Find …" for each missing fact; an open card keeps the
+  // facts it is built from at hand.
+  const lockedCard = (cardId, title) => (
+    <BoardCard key={cardId} cardId={cardId} title={title} hint={null} verdict={null} canCheck={false} onCheck={null} checkLabel="" undone={undoneFor(cardId)}>
+      <LockedCardBody question={questionData} process={processState} cardId={cardId} onFind={openProcess} disabled={questionTerminal} />
+    </BoardCard>
+  );
+  const factsAtHand = (cardId) => (processState ? (
+    <FactsAtHand question={questionData} process={processState} facts={PROCESS_CARD_FACTS[cardId] || []} showPoints={cardId === 'pointSlope' ? 'all' : cardId === 'standardForm'} verified={canCheck} />
+  ) : null);
+  // Solved for y in the process workspace: that equation IS slope-intercept
+  // form, so the student uses it rather than copying their own work out.
+  const ownEquation = processState?.facts?.siEquation || null;
+  const ownEquationButton = ownEquation ? (
+    <button
+      type="button"
+      onClick={() => {
+        clearFeedback();
+        setSlopeInterceptEquation(factDisplay(ownEquation));
+      }}
+      style={touchButton}
+    >
+      Use your equation
+    </button>
+  ) : null;
+
   const equationCard = (cardId, title, value, setValue, placeholder, hint) => {
+    if (processLocked(cardId)) return lockedCard(cardId, title);
     const verdict = verdictFor(cardId);
     return (
       <BoardCard
@@ -1035,7 +1265,9 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
         onCheck={() => runCheck(cardId)}
         checkLabel={`Check ${title}`}
         undone={undoneFor(cardId)}
+        extraControls={cardId === 'slopeIntercept' ? ownEquationButton : null}
       >
+        {factsAtHand(cardId)}
         <div data-lmr-field={ONE_FIELD_CARDS[cardId]} style={{ minWidth: 0 }}>
           <MathInput
             toolProfile="equation"
@@ -1088,7 +1320,8 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
   };
 
   const equationCards = [
-    needs('standardForm') && equationCard('standardForm', 'Standard form', standardFormEquation, setStandardFormEquation, 'Ax + By = C', 'Whole-number coefficients, no common factor, positive x-coefficient.'),
+    // A horizontal line (Process Mode only) has no x-term to make positive.
+    needs('standardForm') && equationCard('standardForm', 'Standard form', standardFormEquation, setStandardFormEquation, 'Ax + By = C', canonicalFacts.slopeNumber === 0 ? 'Whole-number coefficients, no common factor.' : 'Whole-number coefficients, no common factor, positive x-coefficient.'),
     needs('slopeIntercept') && equationCard('slopeIntercept', 'Slope-intercept form', slopeInterceptEquation, setSlopeInterceptEquation, 'y = mx + b', 'Keep fractions exact.'),
     needs('pointSlope') && equationCard('pointSlope', 'Point-slope form', pointSlopeEquation, setPointSlopeEquation, 'y − y₁ = m(x − x₁)', 'Use any point on the line as (x₁, y₁).'),
   ].filter(Boolean);
@@ -1136,7 +1369,20 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
 
   const filledRows = (Array.isArray(tableRows) ? tableRows : []).filter((row) => String(row?.x ?? '').trim() && String(row?.y ?? '').trim());
   const tableVerdict = verdictFor('table');
-  const tableCard = needs('table') ? (
+  // Process Mode: a point the student established goes into the table in one
+  // tap — the first empty row, or a new one — written exactly.
+  const addKnownRow = (point) => {
+    clearFeedback();
+    const row = { x: fractionText(point[0]), y: fractionText(point[1]) };
+    setTableRows((prev) => {
+      const rows = Array.isArray(prev) ? prev : [];
+      const empty = rows.findIndex((entry) => !String(entry?.x ?? '').trim() && !String(entry?.y ?? '').trim());
+      return empty >= 0 ? rows.map((entry, i) => (i === empty ? row : entry)) : [...rows, row];
+    });
+  };
+  const tableHolds = (point) => (Array.isArray(tableRows) ? tableRows : [])
+    .some((row) => String(row?.x ?? '').trim() === fractionText(point[0]) && String(row?.y ?? '').trim() === fractionText(point[1]));
+  const tableCard = !needs('table') ? null : processLocked('table') ? lockedCard('table', 'Table of values') : (
     <BoardCard
       cardId="table"
       title="Table of values"
@@ -1159,6 +1405,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
         </button>
       )}
     >
+      {factsAtHand('table')}
       <table data-lmr-field="tableRows" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <thead>
           <tr>
@@ -1213,10 +1460,31 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
           ))}
         </tbody>
       </table>
+      {processState ? (
+        <KnownPointChips process={processState} verb="Add" onUse={addKnownRow} isUsed={tableHolds} disabled={questionTerminal} />
+      ) : null}
     </BoardCard>
-  ) : null;
+  );
+
+  // Process Mode: a point the student established is plotted in one tap.
+  // Graph 1 is built from the intercepts, Graph 2 starts at the y-intercept,
+  // Graph 3 at any point they know; counting the slope to the next point is
+  // still theirs.
+  const graphHolds = (key, point) => (graphPointsByKey[key] || [])
+    .some((plotted) => Math.abs(plotted[0] - point[0].n / point[0].d) < 1e-9 && Math.abs(plotted[1] - point[1].n / point[1].d) < 1e-9);
+  const graphReuse = (graph) => (processState ? (
+    <KnownPointChips
+      process={processState}
+      verb="Plot"
+      filter={GRAPH_REUSE[graph.key]}
+      disabled={questionTerminal}
+      onUse={(point) => plotPoint(graph.key, point.map((value) => value.n / value.d))}
+      isUsed={(point) => graphHolds(graph.key, point)}
+    />
+  ) : null);
 
   const graphCards = GRAPHS.filter((graph) => needs(graph.cardId)).map((graph) => {
+    if (processLocked(graph.cardId)) return lockedCard(graph.cardId, graph.title);
     const verdict = verdictFor(graph.cardId);
     const open = expandedCards[graph.key];
     const points = graphPointsByKey[graph.key] || [];
@@ -1254,6 +1522,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
               {renderPlane(graph, 440, { panZoom: false, showPlotHelp: false })}
             </div>
             <p style={muted}>{graphStatus(graph)}</p>
+            {graphReuse(graph)}
           </>
         ) : (
           <p style={muted}>
@@ -1324,6 +1593,8 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
       <div data-lmr-card="context" {...undoneProps(undoneFor('context'))} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {expandedCards.context ? (
           <>
+            {/* Process Mode: the facts the meanings are about, at hand. */}
+            {processState ? <FactsAtHand question={questionData} process={processState} facts={['slope', 'yIntercept', 'xIntercept']} verified={canCheck} /> : null}
             {/* Wide tracks: a meaning is a sentence, and a narrow dropdown cuts
                 off the very answer the student is choosing. */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(400px, 100%), 1fr))', gap: 14 }}>
@@ -1388,7 +1659,9 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
       title="Multiple representations"
       // A board of card columns and three graphs: it may use a wide screen.
       widthProfile="wide"
-      subtitle="Start from the GIVEN representation and build the same line every other way: equations, key features, a table and three graphs. Work in any order."
+      subtitle={processMode
+        ? 'Start from the GIVEN. Establish the key facts about the line with methods you choose — each fact you prove opens more of the board. Work in any order.'
+        : 'Start from the GIVEN representation and build the same line every other way: equations, key features, a table and three graphs. Work in any order.'}
     >
       <div ref={boardRef} className="mm-lmr-board" onKeyDown={handleBoardKeyDown} style={{ display: 'flex', flexDirection: 'column', gap: 14, textAlign: 'left' }}>
         <GivenRepresentation description={givenDescription} graphBounds={graphBounds} />
@@ -1409,7 +1682,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
           }}
         >
           <span style={{ fontSize: 14, color: '#172033' }}>
-            <strong>Work in any order.</strong> Nothing is locked.
+            <strong>Work in any order.</strong> {processMode ? 'Each fact you establish opens more of the board.' : 'Nothing is locked.'}
           </span>
           <span style={{ fontSize: 13, color: '#3c4a60' }}>
             {canCheck ? 'Checked correct: ' : 'Filled in: '}
@@ -1428,6 +1701,35 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
             Undo changed the board. A new span per notice, so a repeated
             sentence is announced again. */}
         <p aria-live="polite" className="mm-sr-only" data-lmr-announcer="true"><span key={notice.id}>{notice.text}</span></p>
+
+        {processState ? (
+          <ProcessFactsStrip
+            question={questionData}
+            process={processState}
+            relevant={processRelevant}
+            canCheck={canCheck}
+            disabled={questionTerminal}
+            onFind={openProcess}
+            notice={processNotice}
+          />
+        ) : null}
+        {processState && processDraft.open ? (
+          <ProcessWorkspace
+            key={processDraft.open}
+            question={questionData}
+            process={processState}
+            target={processDraft.open}
+            draft={processDraft}
+            setDraft={setProcessDraft}
+            canCheck={canCheck}
+            disabled={questionTerminal}
+            description={givenDescription}
+            snapStep={processSnapStep}
+            draftKeyBase={processDraftKeyBase}
+            onRecord={recordProcess}
+            onClose={closeProcess}
+          />
+        ) : null}
 
         {isScenario ? contextPanel : null}
 
@@ -1461,7 +1763,8 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
             </div>
           ) : null}
 
-          {featureCards.length || twoPointsCard ? (
+          {/* In Process Mode the key features are the facts in "What I know". */}
+          {!processMode && (featureCards.length || twoPointsCard) ? (
             <BoardPanel title="Key features" open={expandedCards.features} onToggle={() => toggle('features')}>
               {expandedCards.features ? (
                 <>
@@ -1599,7 +1902,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
         </div>
       </div>
 
-      {GRAPHS.filter((graph) => graph.key === enlargedGraph && needs(graph.cardId)).map((graph) => {
+      {GRAPHS.filter((graph) => graph.key === enlargedGraph && needs(graph.cardId) && !processLocked(graph.cardId)).map((graph) => {
         const verdict = verdictFor(graph.cardId);
         return (
           <GraphDialog key={graph.key} graph={graph} open onClose={closeDialog} returnFocusRef={enlargeButtonRefs[graph.key]}>
@@ -1619,6 +1922,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                   </span>
                 </div>
                 <p style={muted}>{graphStatus(graph)}</p>
+                {graphReuse(graph)}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                   {graphControls(graph)}
                   {canCheck ? (

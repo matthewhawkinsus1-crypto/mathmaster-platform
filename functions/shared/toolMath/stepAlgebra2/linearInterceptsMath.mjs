@@ -139,6 +139,46 @@ export const buildSubstitutionState = (standard, placedZeroVariable) => {
   };
 };
 
+/**
+ * The one-variable equation the intercept orchestrator hands to the equation
+ * workspace once a 0 is substituted. buildSubstitutionState always leaves
+ * `constant` at 0, so this is exactly `coefficient * variable = right`.
+ */
+export const substitutionEquationText = (state) => {
+  const coefficient = round(Number(state.coefficient), 8);
+  const right = round(Number(state.right), 8);
+  if (Math.abs(coefficient - 1) < 1e-9) return `${state.variable} = ${right}`;
+  if (Math.abs(coefficient + 1) < 1e-9) return `-${state.variable} = ${right}`;
+  return `${coefficient}${state.variable} = ${right}`;
+};
+
+/** The question the intercept orchestrator opens the equation workspace with. */
+export const interceptSubEquationQuestion = (question, standard, zeroVariable) => {
+  const solverState = buildSubstitutionState(standard, zeroVariable);
+  if (!solverState) return null;
+  return {
+    ...question,
+    mode: undefined,
+    standard: undefined,
+    equationText: undefined,
+    feedbackTiming: undefined,
+    targetForm: undefined,
+    requireSimplifiedFinalForm: false,
+    objective: undefined,
+    equation: substitutionEquationText(solverState),
+    equationLatex: undefined,
+    leftExpression: undefined,
+    rightExpression: undefined,
+    solveFor: solverState.variable,
+    variable: solverState.variable,
+    prompt: `Solve for ${solverState.variable}.`,
+    // The parent's generated answer (a Question Family instance) is the
+    // answer to the PARENT question. The shared grader marks a sub-solve
+    // against the sub-equation it opened, never against that key.
+    generatedAnswer: undefined,
+  };
+};
+
 export const formatSubstitutionEquation = (standard, zeroVariable) => {
   if (!standard || !['x', 'y'].includes(zeroVariable)) return formatStandardEquation(standard);
   const xPart = zeroVariable === 'x'

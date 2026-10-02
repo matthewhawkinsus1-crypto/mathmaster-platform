@@ -15,6 +15,13 @@
  * answer choices come out of the family for the baseline's own numbers. The
  * one deliberate content change is the candle's unit (inches to centimeters),
  * so every version's height is a believable candle.
+ *
+ * Five boards run in PROCESS MODE (interactionMode "process"): the student
+ * establishes the slope, intercepts and points with a process before the
+ * cards that need them open. The candle board stays a Worksheet board, so the
+ * lesson shows both. Process Mode's one effect on values — a fact the GIVEN
+ * hides counts as derived work — is asserted below, slot by slot and section
+ * by section.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -263,11 +270,28 @@ test('every version of every slot is valid, 100% gradable on the browser and ser
   }
 });
 
-test('9/11/13. every version of a slot counts the slot\'s automatic value, which is the baseline\'s value for the same work', () => {
+// PROCESS MODE is the one deliberate change to the lesson's values. On five
+// boards (interactionMode "process") a key fact the GIVEN hides is derived
+// with shown work, and counts as that work (questionValue.mjs: "a fact the
+// GIVEN hides is shown work"); a fact the GIVEN shows is still read, worth
+// what it was. The candle board stays a Worksheet board and keeps its value.
+const PROCESS_SLOTS = ['lmr-cw-1', 'lmr-cw-2', 'lmr-cw-3', 'lmr-pr-1', 'lmr-dol-1'];
+const expectedValueOf = (id) => (slotOf(id).interactionMode === 'process'
+  ? estimateQuestionValue({ ...baselineQuestion(id), interactionMode: 'process' }).value
+  : baselineQuestion(id).questionWeight);
+
+test('9/11/13. every version of a slot counts the slot\'s automatic value: the baseline\'s value for the same work', () => {
+  assert.deepEqual(IDS.filter((id) => slotOf(id).interactionMode === 'process'), PROCESS_SLOTS);
+  assert.equal(slotOf('lmr-pr-2').interactionMode, 'worksheet', 'the candle board is a Worksheet board, said explicitly');
   for (const id of IDS) {
     const slot = slotOf(id);
     assert.equal(slot.questionWeightBasis?.source, 'auto', `${id}: the value was set automatically at import`);
-    assert.equal(slot.questionWeight, baselineQuestion(id).questionWeight, `${id}: the same value as the baseline question`);
+    assert.equal(slot.questionWeight, expectedValueOf(id), `${id}: the baseline question's value for the same work`);
+    // Process Mode never inflates a board: a derived fact adds what shown
+    // work adds, a read fact adds nothing, and nothing is counted twice.
+    const increase = slot.questionWeight - baselineQuestion(id).questionWeight;
+    assert.ok(increase >= 0 && increase <= 0.5, `${id}: ${increase} more than the Worksheet board`);
+    if (id === 'lmr-cw-2') assert.equal(increase, 0, 'y = mx + b SHOWS its slope and y-intercept: reading them is worth what typing them was');
     const values = new Set();
     for (const { question } of allVersions(id)) {
       assert.equal(question.questionWeight, slot.questionWeight, `${id}: a version carries its slot's value`);
@@ -278,7 +302,15 @@ test('9/11/13. every version of a slot counts the slot\'s automatic value, which
   }
   assert.deepEqual(updated.model.questionValues.errors, []);
   assert.deepEqual(updated.model.questionValues.warnings, []);
-  assert.deepEqual(updated.model.questionValues.sections, baseline.model.questionValues.sections, 'section totals are unchanged by the upgrade');
+  // Each section's total moves by exactly its boards' Process Mode values.
+  const increaseIn = (role) => IDS.filter((id) => slotOf(id).activityRole === role)
+    .reduce((sum, id) => sum + slotOf(id).questionWeight - baselineQuestion(id).questionWeight, 0);
+  updated.model.questionValues.sections.forEach((section, index) => {
+    const before = baseline.model.questionValues.sections[index];
+    assert.equal(section.role, before.role);
+    assert.equal(section.questions, before.questions);
+    assert.equal(section.total, before.total + increaseIn(section.role), `${section.role} total`);
+  });
 });
 
 test('Practice gives fresh versions: "New Question" is never one the student has had, nor a classmate\'s while unused versions remain', () => {
@@ -341,6 +373,55 @@ test('22. DOL Recovery is ready, and a student\'s Recovery is a fresh, equivalen
     assert.equal(gradeServerResponse({ question: recovery, response: browser.toolResponse }).isCorrect, true, 'graded by the server');
     assert.equal(gradeToolWork({ toolId: 'representationBridge', question: recovery, work: oneWrongLinearBoardResponse(recovery) }).isCorrect, false);
   }
+});
+
+test('Process Mode: a version\'s facts come only from its own process — typed facts earn nothing, another version\'s process establishes nothing, Recovery starts clean', () => {
+  const partOf = (result, id) => result.parts.find((part) => part.id === id);
+  for (const id of PROCESS_SLOTS) {
+    const mine = deliver(id, STUDENTS[3]);
+    const theirs = deliver(id, STUDENTS[4]);
+    assert.equal(mine.interactionMode, 'process', `${id}: the version keeps its slot's mode`);
+    assert.notEqual(mine.familyDelivery.fingerprint, theirs.familyDelivery.fingerprint);
+    const right = correctLinearBoardResponse(mine);
+    // Every key fact typed into its box, and no process: no fact is credited,
+    // and no card a fact would open holds anything.
+    const { processLog: _ignored, ...typedOnly } = right;
+    const typed = gradeToolWork({ toolId: 'representationBridge', question: mine, work: typedOnly });
+    assert.equal(typed.isCorrect, false, `${id}: typing a fact is not establishing it`);
+    for (const fact of ['slope', 'xIntercept', 'yIntercept']) {
+      if (partOf(typed, fact)) assert.equal(partOf(typed, fact).isCorrect, false, `${id}: ${fact} was typed, not established`);
+    }
+    // A classmate's correct process, on this student's version: it was
+    // written for another line, so it establishes nothing here.
+    const borrowed = gradeToolWork({ toolId: 'representationBridge', question: mine, work: { ...right, processLog: correctLinearBoardResponse(theirs).processLog } });
+    assert.equal(borrowed.isCorrect, false, `${id}: another version's process is not this version's`);
+    const server = gradeServerResponse({ question: mine, response: borrowed.toolResponse });
+    assert.equal(server.isCorrect, false);
+    assert.equal(server.detail?.stale, true, `${id}: the server sees the process belongs to another version`);
+    assert.deepEqual(server.detail?.facts, []);
+    // Its own process, on the server: every fact verified, with its method.
+    const own = gradeServerResponse({ question: mine, response: gradeToolWork({ toolId: 'representationBridge', question: mine, work: right }).toolResponse });
+    assert.equal(own.isCorrect, true, id);
+    assert.ok(own.detail.facts.length >= 2 && own.detail.facts.every((fact) => fact.verified && fact.method), `${id}: ${JSON.stringify(own.detail.facts)}`);
+  }
+  // A DOL Recovery is a fresh version: the original's process is no help on it.
+  const readiness = assessSectionRecoveryReadiness({ assignmentId: ASSIGNMENT_ID, section: 'dol', entries: sectionEntries('dol') });
+  const [dolId] = IDS.filter((id) => slotOf(id).activityRole === 'dol');
+  const student = STUDENTS[11];
+  const original = deliver(dolId, student);
+  const plan = buildRecoveryAssessmentPlan({
+    assignmentId: ASSIGNMENT_ID,
+    section: 'dol',
+    readySlots: readiness.readySlots,
+    questionsByIndex: Object.fromEntries(sectionEntries('dol').map((entry) => [entry.storageIndex, entry.question])),
+    seatInfo: resolveLearnerSeat({ assignment, studentId: student, classId: CLASS_ID }),
+    seenFingerprints: [original.familyDelivery.fingerprint],
+  });
+  const recovery = reproduceFamilyQuestionFromPin({ question: slotOf(dolId), assignmentId: ASSIGNMENT_ID, storageIndex: plan.items[0].storageIndex, pin: plan.items[0].pin }).question;
+  assert.equal(recovery.interactionMode, 'process', 'Recovery keeps Process Mode');
+  const carried = gradeToolWork({ toolId: 'representationBridge', question: recovery, work: { ...correctLinearBoardResponse(recovery), processLog: correctLinearBoardResponse(original).processLog } });
+  assert.equal(carried.isCorrect, false, 'the original DOL\'s process establishes nothing on the Recovery version');
+  assert.equal(gradeServerResponse({ question: recovery, response: carried.toolResponse }).detail?.stale, true);
 });
 
 test('Warm-Up Recovery works for the family-backed Warm-Up: fresh sorts the student has not seen, server-graded', () => {

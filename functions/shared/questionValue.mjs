@@ -66,6 +66,7 @@ import {
   gradedContextFields,
   resolveRequiredCards,
 } from './toolMath/representationBridge/linearMultipleRepresentationsCards.mjs';
+import { isProcessModeQuestion, lmrFactWorkKind } from './toolMath/representationBridge/lmrProcessModel.mjs';
 import { isFamilyBackedQuestion, resolveFamilyPreviewInstance } from './questionFamilyInstance.mjs';
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -230,9 +231,40 @@ const LMR_CARD_WORK = Object.freeze({
   graphPointSlope: () => construct('Graph from point-slope form'),
 });
 
+/*
+ * PROCESS MODE: A FACT THE GIVEN HIDES IS SHOWN WORK, NOT A TYPED VALUE.
+ *
+ * In Process Mode the key-fact cards are established with a process. Where
+ * the GIVEN shows a fact — the slope of y = 2x − 3, the rate in a story, the
+ * crossing on a graph — reading it IS the process, and it counts exactly what
+ * a typed value counts (respond, 1). Where the GIVEN hides it — the slope of
+ * 2x − 4y = 12, either intercept of a table — the student must derive it and
+ * show the derivation (solve for y, substitute 0 and solve, Δy/Δx, rise over
+ * run): work of the size the scale already calls a solved equation shown step
+ * by step (construct, 2). Which is which is read from the GIVEN's KIND and the
+ * strategies the board offers (lmrFactWorkKind), never from the numbers, so
+ * every version of a Question Family slot is worth the same. Nothing else
+ * changes: the representations, meanings and consistency check count as in
+ * Worksheet Mode, two points count as two typed points (they are usually the
+ * student's own intercepts, reused), and no section factor is applied.
+ */
+const processFactWork = (question, fact, label) => (lmrFactWorkKind(question, fact) === 'recognize'
+  ? respond(`${label}, read from the GIVEN`)
+  : construct(`${label}, derived with shown work`));
+
+const LMR_PROCESS_FACT_WORK = Object.freeze({
+  slope: (question) => processFactWork(question, 'slope', 'Slope'),
+  xIntercept: (question) => processFactWork(question, 'xIntercept', 'x-intercept'),
+  yIntercept: (question) => processFactWork(question, 'yIntercept', 'y-intercept'),
+});
+
 const linearMultipleRepresentationsWork = (question) => {
   const required = resolveRequiredCards(question);
-  const items = required.flatMap((card) => (LMR_CARD_WORK[card] ? LMR_CARD_WORK[card]() : []));
+  const processMode = isProcessModeQuestion(question);
+  const items = required.flatMap((card) => {
+    if (processMode && LMR_PROCESS_FACT_WORK[card]) return LMR_PROCESS_FACT_WORK[card](question);
+    return LMR_CARD_WORK[card] ? LMR_CARD_WORK[card]() : [];
+  });
   const context = question?.source?.context || question?.context || {};
   gradedContextFields(question).forEach(({ key }) => {
     const entry = key === 'domain' ? (context.domain ?? question.domain) : context[key];
