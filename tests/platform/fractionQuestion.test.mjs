@@ -55,6 +55,7 @@ const KEYS = [
   'demo-key',
 ];
 const correct = (question, response) => gradeFractionResponse(question, response).isCorrect;
+const gcd = (a, b) => (b === 0 ? Math.abs(a) : gcd(b, a % b));
 
 /* ---------------------------------------------------------------------------
  * Reading a written number.
@@ -294,6 +295,38 @@ test('a form the author listed is accepted even when it is not reduced', () => {
   const twoValues = { type: 'fraction', prompt: 'Name either fraction.', answer: '1/2', acceptedAnswers: ['0.75'] };
   assert.equal(correct(twoValues, '3/4'), true);
   assert.equal(correct(twoValues, '6/8'), false);
+});
+
+test('every version of a templated fraction slot is held to one rule, whatever numbers it drew', () => {
+  // The key {{a}}/{{b}} comes out reduced for one student (1/2) and not for
+  // another (2/4): its form was drawn, not chosen by the author. Drawn by a
+  // Question Family, or by the Path-style template a slot uses without one.
+  const template = {
+    id: 'q-simplify',
+    type: 'fraction',
+    prompt: 'Simplify {{an}}/{{bn}}.',
+    answer: '{{a}}/{{b}}',
+    generator: {
+      parameters: { a: { type: 'int', min: 1, max: 3 }, b: { type: 'int', min: 2, max: 6 }, k: { type: 'int', min: 2, max: 3 } },
+      derived: { an: 'a*k', bn: 'b*k' },
+      constraints: ['a < b'],
+    },
+  };
+  for (const [label, slot] of [['Question Family', { ...template, questionFamily: { scope: 'assignment' } }], ['template', template]]) {
+    const versions = Array.from({ length: 40 }, (_, seat) => generateQuestion(slot, `asg-family|0|student-${seat}`, null, null, { assignmentId: 'asg-family', storageIndex: 0, variant: 0 }));
+    assert.ok(versions.some((version) => isWrittenInLowestTerms(version.answer)), `${label}: some versions drew a reduced key`);
+    assert.ok(versions.some((version) => !isWrittenInLowestTerms(version.answer)), `${label}: some versions drew an unreduced key`);
+    for (const version of versions) {
+      const [a, b] = version.answer.split('/').map(Number);
+      const divisor = gcd(a, b);
+      const shown = version.prompt.match(/^Simplify (\d+\/\d+)\.$/)[1];
+      assert.equal(correct(version, version.answer), true, `${label}: ${version.prompt} accepts its own key ${version.answer}`);
+      assert.equal(correct(version, `${a / divisor}/${b / divisor}`), true, `${label}: ${version.prompt} accepts lowest terms`);
+      assert.equal(correct(version, shown), false, `${label}: ${version.prompt} does not accept the fraction it asked to simplify`);
+    }
+  }
+  // A question the author wrote keeps the author's rule: a 2/4 key asked for no lowest terms.
+  assert.equal(correct({ type: 'fraction', prompt: 'Simplify 4/8.', answer: '2/4' }, '4/8'), true);
 });
 
 test('a drill is graded exactly as before: any answer worth its sum', () => {

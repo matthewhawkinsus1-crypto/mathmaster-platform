@@ -320,10 +320,19 @@ export const fractionSumAnswerKey = (question) => (hasAnswerKeyNumbers(question)
  * Only when the author's own primary answer is: an author who wrote 3/4 for
  * "simplify" asked for it, an author who wrote 6/8 (or 0.75) did not. A
  * drill keeps its long-standing rule — any answer worth the sum.
+ *
+ * A key drawn from a template — a Question Family version (`familyInstance`),
+ * or a Path-style template's (`answerKeyDrawn`, src/problemGenerator.js) — was
+ * not written by the author: whether "{{a}}/{{b}}" came out 1/2 or 2/4 is the
+ * draw's doing. Every version of one slot is held to the same rule, lowest
+ * terms or the version's own key — otherwise "Simplify 4/8" with a drawn key
+ * of 2/4 accepted the 4/8 it showed.
  */
+const answerKeyWasDrawn = (question) => isObject(question.familyInstance) || question.answerKeyDrawn === true;
+
 export const fractionAnswerRequiresLowestTerms = (question) => (
   fractionQuestionShape(question) === FRACTION_QUESTION_SHAPES.AUTHORED_ANSWER
-  && isWrittenInLowestTerms(fractionAnswerCandidates(question)[0])
+  && (answerKeyWasDrawn(question) || isWrittenInLowestTerms(fractionAnswerCandidates(question)[0]))
 );
 
 /**

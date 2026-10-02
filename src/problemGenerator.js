@@ -554,7 +554,11 @@ const generateQuestionFromKey = (question, generationKey) => {
     if (!generated.question) {
       throw new Error(`Could not generate assignment question: ${generated.reason || 'invalid generator template'}`);
     }
-    return generated.question;
+    // Its numbers were drawn, so the form of a fraction key was too: a key that
+    // came out 2/4 is not an author asking for 2/4 (fractionAnswer.mjs).
+    return generated.question.type === 'fraction'
+      ? { ...generated.question, answerKeyDrawn: true }
+      : generated.question;
   }
 
   if (kind === 'stepLinearEquation') return generateStepLinearEquation(variantQuestion, random);

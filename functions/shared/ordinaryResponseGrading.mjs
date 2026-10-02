@@ -141,7 +141,9 @@ export const gradeLiteralResponse = (question = {}, rawAnswer) => {
  * terms it is not sufficient: 6/8 and 0.75 are worth 3/4, but they are not
  * what "a fraction in lowest terms" asked for. So the response must also be
  * written in lowest terms — unless the author listed that very form (a
- * teacher may accept 6/8 on purpose).
+ * teacher may accept 6/8 on purpose). A key drawn from a template (a
+ * Question Family version, say) is always held to this, its own key counting
+ * as a listed form (`fractionAnswerRequiresLowestTerms`).
  */
 const matchesAuthoredFractionAnswer = (question, answer) => {
   const candidates = fractionAnswerCandidates(question);
