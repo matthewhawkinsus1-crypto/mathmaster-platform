@@ -71,6 +71,13 @@ async function questionTypeCatalog() {
 }
 
 const hasValue = (value) => value !== undefined && value !== null && value !== "";
+
+// The grade value fields a retired question hands to its replacement.
+const gradeValueOf = (question) => Object.fromEntries(
+  ["questionWeight", "questionWeightBasis"]
+    .filter((field) => question && Object.prototype.hasOwnProperty.call(question, field))
+    .map((field) => [field, clone(question[field])]),
+);
 const pathValue = (question, path) => path.split(".").reduce((node, key) => (node == null ? undefined : node[key]), question);
 
 // Commit behavior when student history exists: every classification keeps its
@@ -313,6 +320,10 @@ async function buildRepairedAssignment({
         // A brand-new question owns none of the historical question's
         // platform state (fresh attempts, never teacher-excluded).
         ...fields.preservePlatformOwnedFields({}, clone(change.afterQuestion)),
+        // …except its grade value. The replacement takes the retired
+        // question's place in the grade (currentContentProjection), so it is
+        // worth what that question was worth: a repair never re-weights.
+        ...gradeValueOf(question),
         questionId: newQuestionId,
         supersedesQuestionId: questionId,
         activityRole: change.afterQuestion?.activityRole || role,

@@ -407,6 +407,7 @@ export const measureFamilyCapacity = (family, constraintValues = {}, { budget = 
 // would make the server treat an INSTANCE as a template again (and refuse to
 // grade it), or re-enter generation.
 const TEMPLATE_ONLY_FIELDS = ['generator', 'variants', 'questionFamily', 'generatorVersion'];
+const SLOT_GRADE_VALUE_FIELDS = ['questionWeight', 'questionWeightBasis'];
 
 /**
  * The question document for one instance, rendered for one tool.
@@ -453,5 +454,15 @@ export const buildFamilyQuestion = ({ family, instance, constraintValues = {}, a
     }),
   };
   TEMPLATE_ONLY_FIELDS.forEach((field) => { delete question[field]; });
+  // THE GRADE VALUE IS THE SLOT'S. Every student's version of one slot counts
+  // the same in the grade, whatever numbers it drew — so neither a family
+  // builder nor a templated field may give an instance a value of its own.
+  // Grading reads the stored slot (weightedQuestionTotals, Recovery's
+  // recoveryQuestionWeight); the instance carries the same value so that what
+  // a student is told ("Grade weight ×3") is what is counted.
+  SLOT_GRADE_VALUE_FIELDS.forEach((field) => {
+    if (base[field] !== undefined) question[field] = base[field];
+    else delete question[field];
+  });
   return question;
 };

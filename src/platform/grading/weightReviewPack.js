@@ -1,4 +1,5 @@
 import { normalizeQuestionWeight, suggestedQuestionWeight } from './questionWeights.js';
+import { estimateQuestionValue, explicitQuestionValue, teacherQuestionValue } from '../../../functions/shared/questionValue.mjs';
 
 const clean = (value) => String(value ?? '').trim();
 const clone = (value) => JSON.parse(JSON.stringify(value));
@@ -18,9 +19,12 @@ const hashText = (text) => {
   return (hash >>> 0).toString(16).padStart(8, '0');
 };
 
+// The grade value and the record of who set it are what a review changes, so
+// neither is part of the identity a review is checked against.
 const reviewIdentityQuestion = (question = {}, index = 0) => {
   const content = clone(question || {});
   delete content.questionWeight;
+  delete content.questionWeightBasis;
   return { index, content };
 };
 
@@ -50,6 +54,7 @@ const compactQuestionForReview = (question = {}, index = 0) => ({
   scenario: clean(question.scenario),
   currentWeight: normalizeQuestionWeight(question),
   MathMasterWorkloadSuggestion: suggestedQuestionWeight(question),
+  MathMasterWorkloadSummary: estimateQuestionValue(question).summary,
   dok: Number(question?.complexity?.level ?? question?.dok) || null,
   difficultyBand: Number(question?.difficulty?.generatorBand ?? question?.difficultyBand) || null,
   workflow: Array.isArray(question.workflow)
@@ -250,10 +255,12 @@ export const prepareAssignmentWeightReviewPack = ({
   const nextQuestions = currentQuestions.map((question) => {
     if (question?.teacherExcluded === true) return clone(question);
     const proposal = proposed.get(clean(question.questionId));
-    return {
-      ...clone(question),
-      questionWeight: proposal.weight,
-    };
+    // Applying a reviewed value is the teacher's decision. A value the review
+    // left exactly as it was keeps its own record of who set it.
+    const unchanged = explicitQuestionValue(question).valid
+      && Math.abs(normalizeQuestionWeight(question) - proposal.weight) <= 1e-9;
+    if (unchanged) return { ...clone(question), questionWeight: proposal.weight };
+    return teacherQuestionValue(clone(question), proposal.weight);
   });
 
   const changes = included.map((question) => {

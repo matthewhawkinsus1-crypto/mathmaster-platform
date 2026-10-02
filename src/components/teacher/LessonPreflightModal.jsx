@@ -1424,6 +1424,35 @@ export const LessonPreflightModal = ({
         </div>
       )}
 
+      {preflightModel.questionValues?.rows?.length > 0 && (
+        <div data-question-value-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-info-border)', borderRadius: 10, background: 'var(--mm-info-bg)', color: 'var(--mm-text)' }}>
+          <strong style={{ color: 'var(--mm-info-text)' }}>Question values</strong>
+          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.5 }}>
+            How much each question counts toward the assignment grade. ×1 is one standard question; MathMaster set any value the assignment did not, from the work the question asks for. Change a value in the question editor.
+          </p>
+          {preflightModel.questionValues.notes.length > 0 && (
+            <ul style={{ margin: '0 0 8px', paddingLeft: 18, fontSize: 13, lineHeight: 1.5 }}>
+              {preflightModel.questionValues.notes.map((note) => <li key={note}>{note}</li>)}
+            </ul>
+          )}
+          {preflightModel.questionValues.warnings.length > 0 && (
+            <ul data-question-value-warnings="true" style={{ margin: '0 0 8px', paddingLeft: 18, fontSize: 13, lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
+              {preflightModel.questionValues.warnings.map((warning) => <li key={warning}>{warning}</li>)}
+            </ul>
+          )}
+          <details>
+            <summary style={{ cursor: 'pointer', fontSize: 12.5, fontWeight: 800 }}>Every question's value</summary>
+            <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 12.5, lineHeight: 1.5 }}>
+              {preflightModel.questionValues.rows.map((row) => (
+                <li key={`${row.questionIndex}-${row.questionId || ''}`} data-question-value-source={row.source}>
+                  <strong>{row.label}</strong> ×{row.value} — {row.sentence}
+                </li>
+              ))}
+            </ul>
+          </details>
+        </div>
+      )}
+
       {preflightModel.toolContract?.findings?.length > 0 && (
         <div data-tool-contract-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid #aecbfa', borderRadius: 10, background: '#f8fbff' }}>
           <strong style={{ color: '#174ea6' }}>Question and tool check</strong>

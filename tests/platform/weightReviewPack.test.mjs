@@ -72,9 +72,15 @@ test('valid AI weight pack changes only questionWeight', () => {
   assert.equal(prepared.questions[0].questionWeight, 4);
   assert.equal(prepared.questions[1].questionWeight, 1);
 
+  // An approved review records that the TEACHER set the value it changed
+  // (questionWeightBasis travels with questionWeight; questionValue.mjs), so a
+  // later repair or re-import keeps it as an explicit value.
+  assert.deepEqual(prepared.questions[0].questionWeightBasis, { source: 'teacher' });
+
   const originalLong = structuredClone(questions[0]);
   const weightedLong = structuredClone(prepared.questions[0]);
   delete weightedLong.questionWeight;
+  delete weightedLong.questionWeightBasis;
   assert.deepEqual(weightedLong, originalLong);
 });
 

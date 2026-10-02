@@ -9,6 +9,7 @@ import {
   isFamilyBackedQuestion,
   resolveFamilyPreviewInstance,
 } from '../functions/shared/questionFamilyInstance.mjs';
+import { allocateAssignmentQuestionValues } from '../functions/shared/questionValue.mjs';
 
 export const DEFAULT_ASSIGNMENT_BLUEPRINT = `{
   "schemaVersion": 5,
@@ -639,8 +640,11 @@ export const parseAssignmentBlueprintText = (rawValue) => {
       repairs.push('ignored an invalid canonical portableContract marker because one or more questions still require authoring-intent compilation');
     }
     const compiledV5 = isCanonicalPortableExport ? null : compileAuthoringIntentV5(compileSource);
+    // A portable export is not recompiled, but importing it still CREATES an
+    // assignment, so a question without a grade value gets one exactly as a
+    // compiled question does. A value the export carries is kept unchanged.
     const parsed = isCanonicalPortableExport
-      ? normalizeAssignmentV5(source)
+      ? allocateAssignmentQuestionValues(normalizeAssignmentV5(source))
       : compiledV5.package;
     if (isCanonicalPortableExport) {
       repairs.push('preserved MathMaster canonical V5 renderer contracts from a portable export');
