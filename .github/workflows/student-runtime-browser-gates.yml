@@ -53,12 +53,17 @@ name: Student Runtime Browser Gates
 #   draftEditTime       in every draft-certified family, opening a question
 #                       stamps no draft; the student's edit does, and coming
 #                       back or reloading keeps its time (PQ-044)
+#   fractionTemplateGrading  a fraction key drawn from a template (a Question
+#                       Family version, a Path-style template) is graded by one
+#                       rule for every student: lowest terms or the key's own
+#                       form, never the fraction the question showed (B-57)
 
 on:
   pull_request:
     branches: [main]
     paths:
       - "src/**"
+      - "functions/shared/**"
       - "tests/browser/mathEntryContract*"
       - "tests/browser/renderStability*"
       - "tests/browser/errorRecovery*"
@@ -77,6 +82,7 @@ on:
       - "tests/browser/graphKeyboardRoute*"
       - "tests/browser/composedDraftRestore*"
       - "tests/browser/draftEditTime.mjs"
+      - "tests/browser/fractionTemplateGrading*"
       - "tests/browser/draftPersistence*"
       - "tests/browser/harnessProduction.config.mjs"
       - "scripts/serve-static-spa.mjs"
@@ -211,6 +217,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/draftEditTime.mjs
+      - name: A fraction key drawn from a template is graded by one rule
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/fractionTemplateGrading.mjs
       - name: A production build serves the math fonts
         if: always()
         env:
