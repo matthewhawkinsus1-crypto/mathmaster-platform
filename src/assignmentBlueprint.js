@@ -756,13 +756,15 @@ export const validateAssignmentQuestions = (questions, options = {}) => {
     }
     // A fraction answer is graded as one written number, so an answer key
     // that is not one ("three quarters", "3:4", "x/4") could never be matched.
-    // A fraction question with no answer is a drill and stays valid.
+    // A fraction question with no answer is a drill and stays valid. A family
+    // slot's key is a template ("{{n}}/{{d}}"): the key it generates is judged.
     if (questionType === 'fraction') {
-      const authoredAnswer = question.answer;
-      const hasAnswer = authoredAnswer !== undefined && authoredAnswer !== null && String(authoredAnswer).trim() !== '';
-      if (hasAnswer && !parseWrittenNumber(authoredAnswer)) {
-        const shown = typeof authoredAnswer === 'string' ? authoredAnswer : JSON.stringify(authoredAnswer);
-        throw new Error(`Question ${index + 1} fraction answer "${shown}" is not a number MathMaster can grade (write it like 3/4).`);
+      const answerKey = rendered.answer;
+      const hasAnswer = answerKey !== undefined && answerKey !== null && String(answerKey).trim() !== '';
+      if (hasAnswer && !parseWrittenNumber(answerKey)) {
+        const shown = typeof answerKey === 'string' ? answerKey : JSON.stringify(answerKey);
+        const which = rendered === question ? '' : ' in its generated version';
+        throw new Error(`Question ${index + 1} fraction answer "${shown}"${which} is not a number MathMaster can grade (write it like 3/4).`);
       }
     }
     if (questionType === 'modelingLab') {

@@ -356,6 +356,20 @@ test('Create refuses a fraction answer MathMaster could never match', () => {
   }
 });
 
+test('a Question Family fraction slot is judged by the key a student is generated, not its template', () => {
+  const slot = {
+    type: 'fraction',
+    prompt: 'Write {{n}} out of {{d}} as a fraction.',
+    generator: { parameters: { n: { type: 'int', min: 1, max: 5 }, d: { type: 'int', min: 6, max: 9 } } },
+    questionFamily: { scope: 'assignment' },
+  };
+  assert.doesNotThrow(() => validateAssignmentQuestions([{ ...slot, answer: '{{n}}/{{d}}' }]));
+  assert.throws(
+    () => validateAssignmentQuestions([{ ...slot, answer: '{{n}} out of {{d}}' }]),
+    /^Error: Question 1 fraction answer "\d out of \d" in its generated version is not a number MathMaster can grade \(write it like 3\/4\)\.$/,
+  );
+});
+
 test('a prompt-only fraction drill is still a valid question, so library assignments stay reusable', () => {
   assert.doesNotThrow(() => validateAssignmentQuestions([
     { type: 'fraction', prompt: 'Add the fractions.' },
