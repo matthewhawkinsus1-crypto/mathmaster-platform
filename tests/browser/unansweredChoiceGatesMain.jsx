@@ -5,7 +5,9 @@
 //   ?run=<id>           the draft namespace: the same run on a reload restores
 //                       the student's work; a new run starts blank
 //
-// Every graded attempt lands in window.__mmGraded. All data is synthetic.
+// Every graded attempt lands in window.__mmGraded, and every response
+// checkpoint QuestionEngine writes (what a deadline would submit) in
+// window.__mmCheckpoints. All data is synthetic.
 import React from 'react';
 import { MathfieldElement } from 'mathlive';
 import { createRoot } from 'react-dom/client';
@@ -28,6 +30,9 @@ const run = params.get('run') || 'manual';
 const FIXTURES = {
   // r = 1: positive and strong. The lab opened on "Positive".
   'data-correlation': { type: 'dataModelingLab', mode: 'correlation', prompt: 'Calculate and interpret the correlation coefficient.', points: [[1, 3], [2, 5], [3, 7], [4, 9]], correlationTolerance: 0.02 },
+  // Positive, moderate and observational: exactly what the lab used to
+  // pre-select, so only today's marker tells a chosen answer from that start.
+  'data-association': { type: 'dataModelingLab', mode: 'association', prompt: 'Describe the association.', points: [[1, 2], [2, 1], [3, 4], [4, 3], [5, 6], [6, 3], [7, 5]] },
   // Every judgment the full lab asks: association, model family, prediction type.
   'data-full': { type: 'dataModelingLab', mode: 'full', prompt: 'Model the data, then reason about it.', points: [[1, 2.1], [2, 3.9], [3, 6.2], [4, 7.8], [5, 10.1]], predictionX: 3.5, expectedModel: 'linear' },
   // One solution at (2, 5). The workspace opened on "Exactly one solution".
@@ -67,6 +72,7 @@ const FIXTURES = {
 
 const question = FIXTURES[which] ? { questionId: `unanswered-${which}`, ...FIXTURES[which] } : null;
 window.__mmGraded = [];
+window.__mmCheckpoints = [];
 window.__mmFixture = { role, which, run };
 
 const assignmentId = `unanswered-choice-${run}`;
@@ -95,6 +101,9 @@ function Harness() {
         assignmentId={assignmentId}
         executionScope="student"
         studentProfile={{}}
+        onResponseCheckpoint={(state, meta) => {
+          window.__mmCheckpoints.push({ isComplete: state?.isComplete === true, responseKey: state?.responseKey || '', reason: meta?.reason || null });
+        }}
         onGrade={async (isCorrect, details, parts, supportUsage, responseKey, extra) => {
           window.__mmGraded.push({ isCorrect, parts, responseKey, partialCreditPercent: extra?.partialCreditPercent ?? null });
           return { isCorrect, status: isCorrect ? 'correct' : 'attempted', attemptCount: 1, remainingAttempts: 2 };

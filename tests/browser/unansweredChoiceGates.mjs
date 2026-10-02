@@ -19,7 +19,10 @@
 //   refuses a response without it (the systems workspace), not sent at all;
 //   chosen right it is graded right;
 //   a choice survives a reload, and a draft saved before this change comes
-//   back exactly as it was stored.
+//   back exactly as it was stored;
+//   choosing exactly what a tool used to pre-select, without pressing Check,
+//   is finished work a deadline submits (OWN_CHOICES), not the untouched
+//   start an older client saved.
 //
 // Exits non-zero on any failure.
 
@@ -70,6 +73,8 @@ const selectState = (page, name, index = 0) => combo(page, name, index).evaluate
   text: select.options[select.selectedIndex]?.text?.trim() || '',
 }));
 const grades = (page) => page.evaluate(() => window.__mmGraded.slice());
+// What QuestionEngine checkpointed — the response a deadline would submit.
+const checkpoints = (page) => page.evaluate(() => window.__mmCheckpoints.slice());
 const lastGrade = async (page) => (await grades(page)).at(-1) || null;
 const press = async (page, name) => {
   await button(page, name).click();
@@ -316,6 +321,42 @@ const FIXTURES = {
     const { page } = await open('polynomial-rational');
     await startsUnanswered(page, name);
     await blankThenRight(page, { checkLabel: 'Check feature', answer: () => choose(page, name, 'Hole') });
+    await page.close();
+  },
+
+  // A deadline submits only work the shared grader calls finished, through the
+  // checkpoint QuestionEngine writes. The options the lab used to pre-select
+  // read as an older client's untouched start unless today's work says the
+  // student chose them.
+  async 'data-association-deadline'() {
+    const { page } = await open('data-association');
+    const names = ['Direction', 'Strength', 'What can this observational data justify?'];
+    for (const name of names) await startsUnanswered(page, name);
+    await choose(page, 'Direction', 'Positive');
+    await choose(page, 'Strength', 'Moderate');
+    await choose(page, 'What can this observational data justify?', 'An association / relationship');
+    await settle(page, 1700); // past the checkpoint debounce, with no Check pressed
+    const latest = (await checkpoints(page)).at(-1) || null;
+    check(latest?.isComplete === true, `${fixture}: chosen, without Check, it is finished work a deadline submits`, JSON.stringify(latest));
+    check(/"choicesOpenUnanswered":true/.test(latest?.responseKey || '') && /"direction":"positive"/.test(latest?.responseKey || ''),
+      `${fixture}: the checkpoint carries the student's choices, marked as theirs`, latest?.responseKey);
+    check((await grades(page)).length === 0, `${fixture}: and nothing was graded on the way`);
+    await press(page, 'Check data model');
+    check((await lastGrade(page))?.isCorrect === true, `${fixture}: the same choices are graded right`, brief(await lastGrade(page)));
+    await page.close();
+  },
+
+  async 'polynomial-rational-deadline'() {
+    const name = 'What happens at x = 2?';
+    const { page } = await open('polynomial-rational');
+    await startsUnanswered(page, name);
+    await settle(page, 1700);
+    check((await checkpoints(page)).length === 0, `${fixture}: an untouched select writes no checkpoint`);
+    await choose(page, name, 'Hole');
+    await settle(page, 1700);
+    const latest = (await checkpoints(page)).at(-1) || null;
+    check(latest?.isComplete === true && /"choice":"hole"/.test(latest?.responseKey || ''),
+      `${fixture}: "Hole", chosen without Check, is finished work a deadline submits`, JSON.stringify(latest));
     await page.close();
   },
 
