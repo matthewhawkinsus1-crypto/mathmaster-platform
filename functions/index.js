@@ -705,6 +705,9 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
     }
 
     const question = assignment ? runtimeQuestionsFromAssignment(assignment)?.[envelope.questionIndex] || null : null;
+    // The activity this work is judged under: the question's own wherever it
+    // carries one, never Classwork by omission (withAuthoritativeActivityRole).
+    const activityRole = ingestion.withAuthoritativeActivityRole({ envelope, question })?.activityRole || null;
     const canonicalRecord = gradeData?.gradesByAssignment?.[envelope.assignmentId]?.[String(envelope.questionIndex)]
       ?? gradeData?.gradesByAssignment?.[envelope.assignmentId]?.[envelope.questionIndex]
       ?? null;
@@ -728,7 +731,7 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
         ? null
         : Number(envelope.capturedAt || now) > Number(finalCloseAtMs),
       liveSectionAccess: assignment
-        ? ingestion.resolveLiveSectionAccess({ assignment, activityRole: envelope.activityRole, classId })
+        ? ingestion.resolveLiveSectionAccess({ assignment, activityRole, classId })
         : null,
       question,
       canonicalRecord,
@@ -873,7 +876,7 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
       };
     }
 
-    if (envelope.activityRole === "dol" && dolIndices.length) {
+    if (activityRole === "dol" && dolIndices.length) {
       const { dolSectionProjection } = ingestion;
       const authoritativeOverrides =
         gradeData?.teacherGradeOverridesByAssignment?.[assignmentId] || {};
