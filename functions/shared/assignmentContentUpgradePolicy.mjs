@@ -131,7 +131,23 @@ const clarificationOnly = (before = {}, after = {}) => {
   return stable(strip(before)) === stable(strip(after));
 };
 
-export function classifyContentQuestionChange(before = {}, after = {}) {
+/*
+ * `questionWeightBasis` records WHO set a question's grade value (the author,
+ * a teacher, or MathMaster's allocator — functions/shared/questionValue.mjs).
+ * It is provenance, not the scored task: two questions that differ only in it
+ * are the same question with the same value, and must never be classified as
+ * a fundamental change (which retires and replaces a question that already has
+ * student work). The value itself, `questionWeight`, is compared as before.
+ */
+const withoutValueProvenance = (question) => {
+  if (!question || typeof question !== 'object' || !Object.prototype.hasOwnProperty.call(question, 'questionWeightBasis')) return question;
+  const { questionWeightBasis: _basis, ...rest } = question;
+  return rest;
+};
+
+export function classifyContentQuestionChange(beforeQuestion = {}, afterQuestion = {}) {
+  const before = withoutValueProvenance(beforeQuestion) || {};
+  const after = withoutValueProvenance(afterQuestion) || {};
   if (stable(before) === stable(after)) return { classification: 'unchanged', safe: true };
 
   const responseRepair = analyzeSafeResponseEntryRepair(before, after);

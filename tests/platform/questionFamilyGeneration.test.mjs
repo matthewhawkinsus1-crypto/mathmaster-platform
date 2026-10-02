@@ -197,6 +197,88 @@ test('a class larger than the family can serve repeats openly (wrapped), never s
   assert.ok(deliveries.some((delivery) => delivery.wrapped === true), 'the repeat must be reported on the delivery for Pre-Flight and audit');
 });
 
+// A family of exactly six questions, for a class of four: from the second
+// "New Question" on, every request runs past the family's end (wraps).
+const SIX = {
+  questionId: 'q-six',
+  type: 'multiAnswer',
+  prompt: 'What is {{a}} + 1?',
+  generator: { parameters: { a: { type: 'int', min: 1, max: 6 } }, derived: { ans: 'a+1' } },
+  answerFields: [{ id: 'answer', label: 'Answer', inputProfile: 'number', answer: '{{ans}}' }],
+  questionFamily: { scope: 'assignment' },
+};
+
+test('"New Question" past the family\'s end: a student gets every version before any repeats, then the one seen longest ago', () => {
+  const quartet = STUDENTS.slice(0, 4);
+  const assignment = seatedAssignment(quartet, 'asg-six');
+  for (const studentId of quartet) {
+    const shown = [];
+    for (let variant = 0; variant < 6; variant += 1) {
+      const { delivery } = deliver({ assignment, slot: SIX, studentId, variant });
+      assert.equal(shown.includes(delivery.fingerprint), false, `${studentId}'s question ${variant + 1} is one they have not had`);
+      shown.push(delivery.fingerprint);
+    }
+    assert.equal(new Set(shown).size, 6, 'all six versions, before any repeat');
+    // Every version had: start again at the one seen longest ago, never refuse.
+    assert.equal(deliver({ assignment, slot: SIX, studentId, variant: 6 }).delivery.fingerprint, shown[0]);
+    assert.equal(deliver({ assignment, slot: SIX, studentId, variant: 7 }).delivery.fingerprint, shown[1]);
+  }
+});
+
+test('a request past the family\'s end is reported as wrapped even when the walk ends on an unwrapped index', () => {
+  const quartet = STUDENTS.slice(0, 4);
+  const assignment = seatedAssignment(quartet, 'asg-six');
+  for (const studentId of quartet) {
+    for (let variant = 0; variant < 8; variant += 1) {
+      const { delivery } = deliver({ assignment, slot: SIX, studentId, variant });
+      assert.equal(delivery.wrapped, delivery.index >= 6, `${studentId} variant ${variant}: index ${delivery.index} of 6`);
+    }
+  }
+});
+
+test('wrapped deliveries replay from their pins, and a pin from the earlier walk still verifies on the server', () => {
+  // Six versions for four students deal some requests differently than the
+  // earlier walk did; five versions for three students reach requests the
+  // earlier walk refused outright.
+  const FIVE = { ...SIX, questionId: 'q-five', generator: { ...SIX.generator, parameters: { a: { type: 'int', min: 1, max: 5 } } } };
+  let differed = 0;
+  let refusedBefore = 0;
+  for (const [slot, students] of [[SIX, STUDENTS.slice(0, 4)], [FIVE, STUDENTS.slice(0, 3)]]) {
+    const assignment = seatedAssignment(students, `asg-${slot.questionId}`);
+    for (const studentId of students) {
+      const seatInfo = resolveLearnerSeat({ assignment, studentId, classId: CLASS });
+      for (let variant = 0; variant < 12; variant += 1) {
+        const allocation = resolveGenerationAllocation({ seatInfo, variant });
+        const current = resolveFamilyQuestionInstance({ question: slot, assignmentId: assignment.id, storageIndex: 4, allocation });
+        assert.equal(current.error, null, `${slot.questionId} ${studentId} variant ${variant} is always served`);
+        const replay = reproduceFamilyQuestionFromPin({ question: slot, assignmentId: assignment.id, storageIndex: 4, pin: current.delivery });
+        assert.equal(replay.error, null);
+        assert.equal(replay.delivery.fingerprint, current.delivery.fingerprint, 'a reload shows the same question');
+        const verify = (delivery) => resolveFamilyQuestionForGrading({ assignment, question: slot, questionIndex: 4, variantIndex: variant, claimedDelivery: delivery, studentId, classId: CLASS });
+        assert.equal(verify(current.delivery).reason, null, `${studentId} variant ${variant}: the server accepts the pin`);
+        // The walk before this fix excluded earlier versions where each
+        // STARTED. A pin it wrote names a question this student really was
+        // allocated, so it still verifies.
+        const earlier = resolveFamilyQuestionInstance({ question: slot, assignmentId: assignment.id, storageIndex: 4, allocation, legacyWrapExclusion: true });
+        if (earlier.error) {
+          // It excluded so many starts that it refused ("This question could
+          // not be prepared"), and wrote no pin to verify.
+          refusedBefore += 1;
+          continue;
+        }
+        if (earlier.delivery.fingerprint !== current.delivery.fingerprint) differed += 1;
+        assert.equal(verify(earlier.delivery).reason, null, `${studentId} variant ${variant}: a pin from the earlier walk still verifies`);
+      }
+      // A classmate's pin is still refused.
+      const classmate = students.find((other) => other !== studentId);
+      const theirs = deliver({ assignment, slot, studentId: classmate, variant: 0 }).delivery;
+      assert.equal(resolveFamilyQuestionForGrading({ assignment, question: slot, questionIndex: 4, variantIndex: 0, claimedDelivery: theirs, studentId, classId: CLASS }).refused, true);
+    }
+  }
+  assert.ok(differed > 0, 'the earlier walk really did deal differently, so the compatibility path is exercised');
+  assert.ok(refusedBefore > 0, 'and it refused requests this walk now serves');
+});
+
 test('excluding seen questions walks deterministically to an unseen one', () => {
   const assignment = seatedAssignment();
   const slot = SLOTS[2];

@@ -16,6 +16,12 @@ import { analyzeResponseEntryRepair } from './platform/assignment/liveQuestionCo
 import { parseSafeLiveRepairPack, prepareSafeLiveRepairPack } from './platform/assignment/liveRepairPack.js';
 import { normalizeQuestionWeight, suggestedQuestionWeight } from './platform/grading/questionWeights.js';
 import {
+  carryQuestionValue,
+  describeQuestionValue,
+  estimateQuestionValue,
+  teacherQuestionValue,
+} from '../functions/shared/questionValue.mjs';
+import {
   buildAssignmentWeightReviewRequest,
   parseAssignmentWeightReviewPack,
   prepareAssignmentWeightReviewPack,
@@ -138,13 +144,23 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
     }
   };
 
-  const setQuestionWeight = (index, value) => {
+  // A typed value is the teacher's; accepting "Suggest" stores MathMaster's
+  // own estimate, recorded as automatic. Either way the basis travels with the
+  // value, so Pre-Flight and later repairs know who set it.
+  const setQuestionWeight = (index, value, { suggested = false } = {}) => {
     const parsed = Number(value);
     if (!Number.isFinite(parsed) || parsed <= 0) return;
     const nextWeight = Math.max(0.25, Math.min(20, parsed));
-    setQuestions((current) => current.map((question, questionIndex) => (
-      questionIndex === index ? { ...question, questionWeight: nextWeight } : question
-    )));
+    setQuestions((current) => current.map((question, questionIndex) => {
+      if (questionIndex !== index) return question;
+      if (!suggested) return teacherQuestionValue(question, nextWeight);
+      const estimate = estimateQuestionValue(question);
+      return {
+        ...question,
+        questionWeight: nextWeight,
+        questionWeightBasis: { source: estimate.source, rule: estimate.rule, units: estimate.units },
+      };
+    }));
   };
 
   const toggleExcluded = (index) => {
@@ -244,8 +260,9 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
   // whichever one produced the replacement.
   const acceptRepairReplacement = async (replacement) => {
     const existing = questions[repairIndex];
+    // A repair changes content, never the grade value (questionValue.mjs).
     const nextQuestion = {
-      ...replacement,
+      ...carryQuestionValue(existing, replacement),
       questionId: existing.questionId || replacement.questionId || newQuestionId(),
       teacherExcluded: existing.teacherExcluded === true,
     };
@@ -527,7 +544,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                         {metadataSummary.primary.map((code) => <span key={code} style={{ padding: '3px 7px', borderRadius: '999px', background: '#e6f4ea', color: '#137333', fontSize: '10px', fontWeight: 900 }}>TEKS {code}</span>)}
                         {metadataSummary.dok && <span style={{ padding: '3px 7px', borderRadius: '999px', background: '#fff3e0', color: '#8a4f00', fontSize: '10px', fontWeight: 900 }}>DOK {metadataSummary.dok}</span>}
                         <span style={{ padding: '3px 7px', borderRadius: '999px', background: '#f3e8fd', color: '#7b1fa2', fontSize: '10px', fontWeight: 900 }}>{metadataSummary.difficultyLabel}</span>
-                        <span style={{ padding: '3px 7px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6', fontSize: '10px', fontWeight: 900 }}>
+                        <span title={describeQuestionValue(question).sentence} data-question-value-source={describeQuestionValue(question).source || 'legacy'} style={{ padding: '3px 7px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6', fontSize: '10px', fontWeight: 900 }}>
                           GRADE ×{normalizeQuestionWeight(question)}
                           {excluded || totalGradeWeight <= 0 ? '' : ` · ${((normalizeQuestionWeight(question) / totalGradeWeight) * 100).toFixed(1)}%`}
                         </span>
@@ -559,7 +576,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                       {suggestedQuestionWeight(question) !== normalizeQuestionWeight(question) && (
                         <button
                           type="button"
-                          onClick={() => setQuestionWeight(index, suggestedQuestionWeight(question))}
+                          onClick={() => setQuestionWeight(index, suggestedQuestionWeight(question), { suggested: true })}
                           title="Use MathMaster's workload-based suggestion. You can still change it."
                           style={{ color: '#174ea6' }}
                         >

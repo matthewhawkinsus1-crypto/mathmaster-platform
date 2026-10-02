@@ -35,6 +35,9 @@ import {
 import { buildTemplateFamily, templateStructuralIssues } from '../../functions/shared/questionFamilyTemplate.mjs';
 import { evaluateExpression } from '../../functions/shared/pathQuestionGeneration.mjs';
 import { gradeOrdinaryResponse, serverGradingSupport } from '../../functions/shared/ordinaryResponseGrading.mjs';
+import { gradeServerResponse, gradeToolWork } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
+import { buildLinearConnectionCards, linearConnectionsCardKinds, representationSetsFor } from '../../functions/shared/toolMath/representationMatch/representationMath.mjs';
+import { correctLinearBoardResponse, oneWrongLinearBoardResponse } from './helpers/linearMultipleRepresentationsResponses.mjs';
 
 const SAMPLE = 160;
 
@@ -66,6 +69,28 @@ const correctFieldResponses = (question, instance) => {
   throw new Error(`no responder for ${answer.kind}`);
 };
 
+/*
+ * A registry tool's answer is the student's WORK on the tool, marked by the
+ * tool's shared grader: a complete correct board or sort, and the same work
+ * with one part wrong.
+ */
+const REGISTRY_TOOL_WORK = {
+  representationBridge: (question) => ({
+    right: correctLinearBoardResponse(question),
+    wrong: oneWrongLinearBoardResponse(question),
+  }),
+  representationMatch: (question) => {
+    const sets = representationSetsFor(question);
+    const slotOf = Object.fromEntries(sets.map((set, index) => [set.id, index]));
+    const assignments = buildLinearConnectionCards(sets, linearConnectionsCardKinds(question))
+      .map((card) => ({ cardId: card.id, slot: slotOf[card.setId] }));
+    return {
+      right: { assignments },
+      wrong: { assignments: assignments.map((entry, index) => (index === 0 ? { ...entry, slot: 1 - entry.slot } : entry)) },
+    };
+  },
+};
+
 const fieldsResponse = (responses) => ({
   kind: 'fields',
   type: 'multiAnswer',
@@ -84,6 +109,8 @@ test('the registry holds the representative families, each defined under the con
     'absoluteValue.solveEquation',
     'quadratics.identifyVertex',
     'functions.identifyZeros',
+    'linear.multipleRepresentations',
+    'linear.representationSort',
   ]) {
     assert.ok(PLATFORM_FAMILY_IDS.includes(id), `${id} is registered`);
     const family = getPlatformQuestionFamily(id);
@@ -150,6 +177,14 @@ test('every family: the answer key is correct for its own question, on the serve
             evaluateExpression(question.leftExpression, { [question.variable]: x + 1 }),
             evaluateExpression(question.rightExpression, { [question.variable]: x + 1 }),
           );
+          return;
+        }
+        if (REGISTRY_TOOL_WORK[question.type]) {
+          const { right, wrong } = REGISTRY_TOOL_WORK[question.type](question);
+          const browser = gradeToolWork({ toolId: question.type, question, work: right });
+          assert.equal(browser.isCorrect, true, `${family.id}/${toolType}: a complete correct answer is credited`);
+          assert.equal(gradeServerResponse({ question, response: browser.toolResponse }).isCorrect, true, `${family.id}/${toolType}: and the server agrees`);
+          assert.equal(gradeToolWork({ toolId: question.type, question, work: wrong }).isCorrect, false, `${family.id}/${toolType}: wrong work rejected`);
           return;
         }
         assert.equal(serverGradingSupport(question).supported, true, `${family.id}/${toolType} is server-gradable`);

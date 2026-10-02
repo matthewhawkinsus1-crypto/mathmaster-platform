@@ -16,11 +16,13 @@
 import { LINEAR_FAMILIES } from './questionFamiliesLinear.mjs';
 import { SYSTEMS_FAMILIES } from './questionFamiliesSystems.mjs';
 import { NONLINEAR_FAMILIES } from './questionFamiliesNonlinear.mjs';
+import { REPRESENTATION_FAMILIES } from './questionFamiliesRepresentations.mjs';
 
 const REGISTERED = Object.freeze([
   ...LINEAR_FAMILIES,
   ...SYSTEMS_FAMILIES,
   ...NONLINEAR_FAMILIES,
+  ...REPRESENTATION_FAMILIES,
 ]);
 
 const byKey = new Map();

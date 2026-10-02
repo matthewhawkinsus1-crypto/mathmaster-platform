@@ -53,11 +53,21 @@ test('client and server normalize weights identically', () => {
   }
 });
 
+// The suggestion is the platform's question-value allocator
+// (functions/shared/questionValue.mjs): stages are counted by what each one
+// asks the student to do, not by how many there are. Eight modeling
+// constructions (equations, tables, graphs) are still four standard items; a
+// bare stage that names no kind counts as one short answer.
 test('eight-stage modeling work is suggested at four times a simple item', () => {
+  const MODELING_KINDS = ['equationInput', 'tableInput', 'functionGraph', 'coordinatePlot', 'mappingDiagram', 'numberLine', 'algebraWorkspace', 'equationInput'];
   assert.equal(suggestedQuestionWeight({
-    workflow: Array.from({ length: 8 }, (_, index) => ({ id: `stage-${index}` })),
+    workflow: MODELING_KINDS.map((kind, index) => ({ id: `stage-${index}`, kind })),
   }), 4);
   assert.equal(suggestedQuestionWeight({
     answerFields: [{ id: 'answer' }],
   }), 1);
+  assert.ok(
+    suggestedQuestionWeight({ workflow: Array.from({ length: 8 }, (_, index) => ({ id: `stage-${index}` })) }) > 2,
+    'eight stages of any kind are still well above a single answer',
+  );
 });

@@ -1,5 +1,6 @@
 import { getStrandForTEKS } from '../mastery/strandConfig.js';
 import { mapTEKSToExamDomains } from '../assessment/examDomainRegistry.js';
+import { allocateQuestionValue } from '../../../functions/shared/questionValue.mjs';
 
 export const COURSE_LEVELS = Object.freeze({
   STANDARD: 'standard',
@@ -298,7 +299,11 @@ export const summarizeRigorSequence = (assignments = [], classPeriod, { limit = 
   };
 };
 
-export const buildHonorsEnrichmentQuestion = ({ questions = [], course = 'algebra1' } = {}) => {
+// A new question, created here rather than compiled, so it gets its grade
+// value here (questionValue.mjs) like every other created question.
+export const buildHonorsEnrichmentQuestion = ({ questions = [], course = 'algebra1' } = {}) => allocateQuestionValue(buildHonorsEnrichmentContent({ questions, course }));
+
+const buildHonorsEnrichmentContent = ({ questions = [], course = 'algebra1' } = {}) => {
   const firstTeks = questions.flatMap(questionTeks)[0] || null;
   const courseId = normalizeCourseId(course);
   const courseLabel = COURSE_LABELS[courseId];

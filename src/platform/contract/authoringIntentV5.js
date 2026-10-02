@@ -3,6 +3,7 @@ import {
   compileAuthoringIntentV5 as compileAuthoringIntentV5Core,
 } from './authoringIntentV5Core.js';
 import { validateToolQuestion } from '../../tools/toolSchemas.js';
+import { allocateAssignmentQuestionValues } from '../../../functions/shared/questionValue.mjs';
 
 export * from './authoringIntentV5Core.js';
 
@@ -181,10 +182,32 @@ const applyFacadeContracts = (source, compiledResult) => {
   return compiledResult;
 };
 
+/*
+ * EVERY COMPILED QUESTION LEAVES WITH A GRADE VALUE.
+ *
+ * Compiling intent is where a question is CREATED, so this is where it gets
+ * its value: the author's own `questionWeight` when one was written (kept
+ * exactly), otherwise the value MathMaster measures from the work the compiled
+ * question assesses (functions/shared/questionValue.mjs). It runs after the
+ * facade contracts, on the final renderer contract, so the value describes the
+ * tool a student is actually given. Idempotent: recompiling a compiled
+ * assignment finds every value already set and changes none.
+ */
+const allocateCompiledQuestionValues = (compiledResult) => {
+  const before = (compiledResult?.package?.sections || []).flatMap((section) => section?.questions || []);
+  const allocated = allocateAssignmentQuestionValues(compiledResult.package);
+  if (allocated === compiledResult.package) return compiledResult;
+  const after = allocated.sections.flatMap((section) => section?.questions || []);
+  const filled = after.filter((question, index) => question !== before[index] && question?.questionWeightBasis?.source !== 'author').length;
+  compiledResult.package = allocated;
+  if (filled) compiledResult.repairs?.push(`assigned automatic grade values to ${filled} question${filled === 1 ? '' : 's'} from the work each one assesses`);
+  return compiledResult;
+};
+
 export const compileAuthoringIntentV5 = (input = {}) => {
   const prepared = prepareInputForCore(input);
   const compiled = compileAuthoringIntentV5Core(prepared);
-  return applyFacadeContracts(input, compiled);
+  return allocateCompiledQuestionValues(applyFacadeContracts(input, compiled));
 };
 
 export const AUTHORING_INTENT_V5_ACTIONS = Object.freeze([
