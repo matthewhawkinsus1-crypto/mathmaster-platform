@@ -191,6 +191,20 @@ test('the callables the journeys reach answer as their real functions do — sha
   assert.equal(typeof after.updatedAt, 'string');
   await rejectsWith(call('getWeeklyPathClassroomSync', { classId: 'no-such-class' }), 'not-found');
 
+  // listClassJoinCodes (Sign-in Access loads it with listSignInAccess): the
+  // ACTIVE codes of the caller's own classes, in the real function's shape.
+  const ownClass = store.get(`classes/${student.classId}`);
+  assert.ok(ownClass, 'the fixture student\'s class exists');
+  store.set('classJoinCodes/HARNESS-OWN', { active: true, classId: student.classId, className: 'Own class', classPeriod: '3' });
+  store.set('classJoinCodes/HARNESS-OLD', { active: false, classId: student.classId, className: 'Own class', classPeriod: '3' });
+  store.set('classes/harness-other-teacher', { name: 'Someone else\'s class', period: '9', teacherOfRecord: 'someone.else@example.test' });
+  store.set('classJoinCodes/HARNESS-OTHER', { active: true, classId: 'harness-other-teacher', className: 'Someone else\'s class', classPeriod: '9' });
+  store.set('classJoinCodes/HARNESS-NOCLASS', { active: true });
+  const { codes } = await call('listClassJoinCodes', {});
+  assert.deepEqual(codes.filter((entry) => entry.code.startsWith('HARNESS-')),
+    [{ code: 'HARNESS-OWN', classId: student.classId, className: 'Own class', classPeriod: '3' }],
+    'only the active code of a class the caller teaches; never another teacher\'s, never one with no class');
+
   // The student callables need a student session, as requireStudent does.
   await rejectsWith(call('getStudentWeeklyPathGoalSnapshot', { weekKey: '2026-09-28' }), 'permission-denied');
   globalThis.window.location.search = '?reset=1&as=student&studentId=910002';

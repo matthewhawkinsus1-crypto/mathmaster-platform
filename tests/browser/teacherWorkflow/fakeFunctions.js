@@ -96,6 +96,30 @@ const collectionDocs = (name) => harnessStore.paths(`${name}/`).filter((path) =>
 
 const handlers = {
   resolveSignedInRole: () => ({ role: 'teacher' }),
+  // listClassJoinCodes (functions/index.js) as deployed: the ACTIVE codes in
+  // classJoinCodes, each only for a class the caller is teacher of record of;
+  // a code with no class only for a root admin. Sign-in Access loads it with
+  // listSignInAccess, so without it that whole screen fails to load.
+  listClassJoinCodes: () => {
+    const caller = lower(TEACHER_EMAIL);
+    const isRootAdmin = harness.rootAdmin === true;
+    const visibleClassIds = new Set(collectionDocs('classes')
+      .map(({ id, data }) => ({ classId: id, ...data }))
+      .filter((entry) => isRootAdmin || lower(entry.teacherOfRecord) === caller)
+      .map((entry) => String(entry.classId)));
+    return {
+      codes: collectionDocs('classJoinCodes')
+        .filter(({ data }) => data.active === true)
+        .map(({ id, data }) => ({ code: id, ...data }))
+        .filter((entry) => (entry.classId ? visibleClassIds.has(String(entry.classId)) : isRootAdmin))
+        .map((entry) => ({
+          code: entry.code,
+          classId: entry.classId || null,
+          className: entry.className || null,
+          classPeriod: entry.classPeriod || 'Unassigned',
+        })),
+    };
+  },
   // listSignInAccess (functions/index.js) as deployed: grades read through
   // .select(...TEACHER_ROSTER_SELECT_FIELDS) — names (googleName included),
   // class membership, account state, the support profile, never the attempt
