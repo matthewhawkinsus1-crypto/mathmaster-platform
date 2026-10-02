@@ -219,6 +219,18 @@ test('a story fills its numbers everywhere, never states its own answer, and kee
   }
 });
 
+test('a story\'s meanings written on its source are filled from the line too, and graded', () => {
+  for (const { instance, question } of versionsOf(BOARD, { given: 'scenario' }, { source: { ...CANDLE_STORY, context: CANDLE_CONTEXT } }, 12)) {
+    assert.equal(question.context, undefined);
+    assert.equal(question.source.context.domain.max, instance.values.duration);
+    assert.equal(question.source.context.slopeMeaning.value, `The candle gets ${instance.values.rate} centimeters shorter every hour.`);
+    assert.deepEqual(validateLinearMultipleRepresentationsQuestion(question), []);
+    const right = markBothWays('representationBridge', question, correctLinearBoardResponse(question));
+    assert.equal(right.isCorrect, true);
+    assert.ok(right.parts.some((part) => part.id === 'contextSlopeMeaning'), 'the meanings are graded parts');
+  }
+});
+
 test('the board validator refuses a meaning with no correct choice, with two, or with two that read the same', () => {
   const [{ question }] = versionsOf(BOARD, { given: 'scenario' }, { source: CANDLE_STORY, context: CANDLE_CONTEXT }, 1);
   assert.deepEqual(validateLinearMultipleRepresentationsQuestion(question), []);

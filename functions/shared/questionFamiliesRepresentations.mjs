@@ -325,6 +325,9 @@ export const multipleRepresentationsFamily = defineQuestionFamily({
         tokens.given = 'a table of values';
       }
       const fallback = `You are given ${GIVEN_PHRASES[c.given]}${tokens.given && c.given !== 'table' ? ` ${tokens.given}` : ''}. Build every other representation of this same line, in any order you like.`;
+      // Meanings may be written on the source or beside it (the board reads
+      // `source.context` first); either way they are filled from this line.
+      if (isObject(authored?.source?.context)) source.context = fillTokens(authored.source.context, tokens);
       const built = {
         type: 'representationBridge',
         mode: 'linearMultipleRepresentations',
