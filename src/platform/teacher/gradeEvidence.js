@@ -2,6 +2,7 @@ import { normalizeQuestionRecord, getQuestionCredit } from '../../attemptPolicy.
 import { getStoredAssignmentQuestions } from '../contract/storedAssignmentV5.js';
 import { projectCurrentAssignmentContent } from '../assignments/currentContentProjection.js';
 import { weightedQuestionTotals } from '../grading/questionWeights.js';
+import { resolveStudentWorkload } from '../../../functions/shared/reducedWorkload.mjs';
 
 /*
  * TWO NUMBERS BEHIND EVERY GRADE, AND A THIRD ABOUT THE QUESTION ITSELF.
@@ -135,14 +136,48 @@ const splitGradeForIndices = ({ tracker = null, questions = [], indices = [] } =
  * grade. It never adds a score, an attempt, or evidence; see
  * splitGradesBySection for where the waiver is actually shown.
  */
-export const splitGrade = ({ tracker = null, assignment = null, practicePassRedeemed = false } = {}) => {
-  const projection = projectCurrentAssignmentContent(assignment);
-  const waived = practicePassRedeemed ? new Set(practiceIndicesOf(projection)) : null;
-  const included = projection.entries
+/*
+ * THE STUDENT'S REQUIRED ITEMS, FOR A GRADE.
+ *
+ * Current content, minus a Practice Pass waiver, minus what the student's
+ * reduced-item-count accommodation omits (functions/shared/reducedWorkload.mjs,
+ * the same resolver the student runtime and the Classroom passback use). An
+ * omitted item is not "missing" and not zero: it is simply not in the
+ * denominator — the one thing the accommodation may do to a grade, exactly
+ * like a Practice Pass. `supportProfile` is the student's profile
+ * (`grades/{id}.profile`, or the normalized view); without one, nothing is
+ * omitted, so every existing caller keeps its behaviour.
+ */
+const requiredIndicesFor = ({ projection, assignment, tracker, practicePassRedeemed, supportProfile }) => {
+  const waivedList = practicePassRedeemed ? practiceIndicesOf(projection) : [];
+  const waived = new Set(waivedList);
+  const base = projection.entries
     .map((entry) => entry.storageIndex)
-    .filter((index) => !waived || !waived.has(index));
+    .filter((index) => !waived.has(index));
+  if (!supportProfile) return { indices: base, omitted: null, base };
+  const workload = resolveStudentWorkload({
+    assignment,
+    profile: supportProfile,
+    baseIndices: base,
+    tracker,
+    practiceWaived: waivedList,
+  });
+  const omitted = workload.omitted.length ? new Set(workload.omitted) : null;
+  return { indices: omitted ? base.filter((index) => !omitted.has(index)) : base, omitted, base };
+};
+
+export const splitGrade = ({
+  tracker = null, assignment = null, practicePassRedeemed = false, supportProfile = null,
+} = {}) => {
+  const projection = projectCurrentAssignmentContent(assignment);
+  const { indices: included, omitted, base } = requiredIndicesFor({
+    projection, assignment, tracker, practicePassRedeemed, supportProfile,
+  });
   const questions = getStoredAssignmentQuestions(assignment);
-  return splitGradeForIndices({ tracker, questions, indices: included });
+  const split = splitGradeForIndices({ tracker, questions, indices: included });
+  // Only when the accommodation removed something, so a screen can say "15 of
+  // 20" — and every existing split keeps its exact shape.
+  return omitted ? { ...split, reducedFrom: base.length } : split;
 };
 
 /**
@@ -160,12 +195,13 @@ export const splitGrade = ({ tracker = null, assignment = null, practicePassRede
  * split is what the teacher gradebook renders, and nothing about one
  * assignment's own grade needs raw weights.
  */
-export const gradeWeightTotals = ({ tracker = null, assignment = null, practicePassRedeemed = false } = {}) => {
+export const gradeWeightTotals = ({
+  tracker = null, assignment = null, practicePassRedeemed = false, supportProfile = null,
+} = {}) => {
   const projection = projectCurrentAssignmentContent(assignment);
-  const waived = practicePassRedeemed ? new Set(practiceIndicesOf(projection)) : null;
-  const indices = projection.entries
-    .map((entry) => entry.storageIndex)
-    .filter((index) => !waived || !waived.has(index));
+  const { indices } = requiredIndicesFor({
+    projection, assignment, tracker, practicePassRedeemed, supportProfile,
+  });
   const weighted = gradeWeightsForIndices({
     tracker,
     questions: getStoredAssignmentQuestions(assignment),
@@ -189,9 +225,16 @@ export const gradeWeightTotals = ({ tracker = null, assignment = null, practiceP
  * section partitioning. A missing section stays empty rather than borrowing a
  * score from another section.
  */
-export const splitGradesBySection = ({ tracker = null, assignment = null, practicePassRedeemed = false } = {}) => {
+export const splitGradesBySection = ({
+  tracker = null, assignment = null, practicePassRedeemed = false, supportProfile = null,
+} = {}) => {
   const projection = projectCurrentAssignmentContent(assignment);
   const questions = getStoredAssignmentQuestions(assignment);
+  // The reduction is resolved once, over the whole required set, so each
+  // section's total is that section's share of the student's own items.
+  const { omitted } = requiredIndicesFor({
+    projection, assignment, tracker, practicePassRedeemed, supportProfile,
+  });
 
   return Object.fromEntries(SECTION_GRADE_KEYS.map((sectionKey) => {
     const indices = projection.entries
@@ -200,7 +243,9 @@ export const splitGradesBySection = ({ tracker = null, assignment = null, practi
     if (sectionKey === 'practice' && practicePassRedeemed && indices.length) {
       return [sectionKey, excusedGradeSplit(indices.length)];
     }
-    return [sectionKey, splitGradeForIndices({ tracker, questions, indices })];
+    const required = omitted ? indices.filter((index) => !omitted.has(index)) : indices;
+    const split = splitGradeForIndices({ tracker, questions, indices: required });
+    return [sectionKey, required.length < indices.length ? { ...split, reducedFrom: indices.length } : split];
   }));
 };
 

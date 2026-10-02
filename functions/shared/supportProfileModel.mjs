@@ -35,6 +35,13 @@ import {
   supportById,
 } from './supportCatalog.mjs';
 import { DEADLINE_SUPPORT_IDS, normalizeDueDateExtension } from './supportDeadline.mjs';
+import {
+  ITEM_REDUCTION_MODE,
+  REDUCED_WORKLOAD_SUPPORT_ID,
+  itemReductionHistoryRow,
+  itemReductionInputError,
+  normalizeItemReduction,
+} from './reducedWorkload.mjs';
 import { zonedDateKey } from './instructionalCalendar.mjs';
 
 export const SUPPORT_PROFILE_SCHEMA_VERSION = 1;
@@ -57,6 +64,7 @@ export const PROFILE_LIMITS = Object.freeze({
   maxMinutesPerWeek: 3000,
   futureWindows: 3,
   teksCode: 24,
+  itemReductionHistory: 40,
 });
 
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
@@ -95,6 +103,14 @@ const normalizeParams = (entry, rawParams, errors) => {
     if (name === 'dueDateExtension') params.dueDateExtension = normalizeDueDateExtension(raw.dueDateExtension);
     if (name === 'resources') params.resources = normalizeResources(raw.resources, errors, entry.id);
     if (name === 'teksCode') params.teksCode = clean(raw.teksCode).slice(0, PROFILE_LIMITS.teksCode) || null;
+    if (name === 'itemReduction') {
+      // Validated here and only here (reducedWorkload.mjs owns the range). An
+      // out-of-range automatic choice is an error the teacher must fix — never
+      // silently turned into a different percentage or into "recorded only".
+      const problem = itemReductionInputError(raw.itemReduction);
+      if (problem) errors.push(problem);
+      params.itemReduction = normalizeItemReduction(raw.itemReduction);
+    }
     if (name === 'maxDok') {
       const dok = Math.trunc(Number(raw.maxDok));
       params.maxDok = Number.isFinite(dok) && dok >= 1 && dok <= 3 ? dok : null;
@@ -382,6 +398,13 @@ export const buildSupportProjection = ({ revisions = [], todayKey, updatedAt = n
   const futureWindows = [...futureByStart.values()].slice(-PROFILE_LIMITS.futureWindows);
   const windows = [current, ...futureWindows].filter(Boolean).map(windowOf);
   const active = current && current.status !== REVISION_STATUS.INACTIVE ? current : null;
+  // Reduced workload changes which items a student is graded on, so a past
+  // assignment must always resolve under the revision that governed it — even
+  // after that revision has dropped out of `windows`. One compact row per
+  // revision (no labels, notes or other supports), oldest first, bounded.
+  const itemReductionHistory = sortRevisionTimeline(revisions)
+    .map(itemReductionHistoryRow)
+    .slice(-PROFILE_LIMITS.itemReductionHistory);
   const entitled = new Set();
   windows.forEach((window) => {
     if (window.status === REVISION_STATUS.INACTIVE) return;
@@ -397,6 +420,7 @@ export const buildSupportProjection = ({ revisions = [], todayKey, updatedAt = n
       schemaVersion: SUPPORT_PLAN_SCHEMA_VERSION,
       windows,
       entitledIds: [...entitled].sort(),
+      itemReductionHistory,
       updatedAt: updatedAt || new Date().toISOString(),
     },
   };
@@ -520,6 +544,10 @@ export const supportProfileWarnings = (profile, { nowValue = Date.now(), timeZon
   const extraTime = list(plan.accommodations).filter((entry) => DEADLINE_SUPPORT_IDS.includes(entry?.id));
   if (extraTime.some((entry) => normalizeDueDateExtension(entry?.params?.dueDateExtension).mode === 'none')) {
     warnings.push({ code: 'extra-time-unset', message: 'Extra time is on, but no due-date extension is set, so MathMaster does not change this student\'s due dates.' });
+  }
+  const reduced = list(plan.accommodations).find((entry) => entry?.id === REDUCED_WORKLOAD_SUPPORT_ID);
+  if (reduced && normalizeItemReduction(reduced?.params?.itemReduction).mode === ITEM_REDUCTION_MODE.NONE) {
+    warnings.push({ code: 'item-reduction-manual', message: 'Reduced number of items is recorded by staff only. Choose a percentage to have MathMaster assign fewer items automatically.' });
   }
   return warnings;
 };
