@@ -30,6 +30,10 @@
 //   complete       CW2, CW3, PR1 and PR2 finished and submitted correct; CW3 insists on
 //                  its GIVEN anchor (3, 2) for Graph 3.
 //   zoom           CW1 at 1920×1080 (a 1366 laptop at ~70% zoom).
+//   family         The family-backed upgrade (?family=1): this student's generated
+//                  versions of CW2, CW3, PR1 and PR2 completed and submitted correct,
+//                  and the DOL submitted once — answers worked out from each
+//                  version's own line; the GIVEN shown is the version's and read-only.
 //
 // Exit code 1 on any finding. Screenshots: tests/browser/artifacts/linearMultipleRepresentations/.
 
@@ -45,6 +49,7 @@ const PLAYWRIGHT_MODULE = process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node
 const CHROMIUM_PATH = process.env.CHROMIUM_PATH || undefined;
 const { chromium } = await import(PLAYWRIGHT_MODULE);
 const { sanitizeWorkspaceDraftValue } = await import(path.join(ROOT, 'functions/shared/workspaceDraftSchema.mjs'));
+const { deriveLinearMultipleRepresentations, resolveRequiredCards } = await import(path.join(ROOT, 'functions/shared/toolMath/representationBridge/linearMultipleRepresentationsMath.mjs'));
 
 const LAPTOP = { width: 1366, height: 768 };
 const IPAD = { width: 820, height: 1180 };
@@ -61,8 +66,8 @@ const note = (message) => notes.push(`[${journeyName}] ${message}`);
 const settle = (page, ms = 350) => page.waitForTimeout(ms);
 
 // ------------------------------------------------------------------ helpers
-const open = async (page, id, run, { gallery = false } = {}) => {
-  await page.goto(`${ORIGIN}/tests/browser/linearMultipleRepresentations.html?q=${id}&run=${run}${gallery ? '&gallery=1' : ''}`, { timeout: 120000 });
+const open = async (page, id, run, { gallery = false, family = false } = {}) => {
+  await page.goto(`${ORIGIN}/tests/browser/linearMultipleRepresentations.html?q=${id}&run=${run}${gallery ? '&gallery=1' : ''}${family ? '&family=1' : ''}`, { timeout: 120000 });
   await page.locator('[data-question-id]').first().waitFor({ timeout: 120000 });
   await page.locator('.mathmaster-tool-shell').first().waitFor({ timeout: 120000 });
   await settle(page, 1200);
@@ -802,6 +807,123 @@ journeys.complete = async (browser) => {
     check(recorded.length === 1 && recorded[0].isCorrect === true, `${id}: submitted correct (${JSON.stringify(recorded.map((g) => [g.isCorrect, g.partialCreditPercent]))})`);
     await renderAllMath(page);
     await shot(page, `complete-${id}`);
+  }
+  await context.close();
+};
+
+/**
+ * A complete, correct board for a GENERATED version, worked out from that
+ * version's own line the way a student would (integer slopes only), with every
+ * plotted point inside the version's own window.
+ */
+const familyBoard = (question) => {
+  const facts = deriveLinearMultipleRepresentations(question);
+  const m = facts.slopeNumber;
+  const b = facts.yInterceptNumber;
+  const zero = facts.zeroNumber;
+  const term = (k, v) => (k === 1 ? v : k === -1 ? `-${v}` : `${k}${v}`);
+  const signed = (k) => (k < 0 ? `${k}` : `+${k}`);
+  const minus = (k) => (k === 0 ? '-0' : signed(-k));
+  const { A, B, C } = facts.standard;
+  const required = new Set(resolveRequiredCards(question));
+  const bounds = question.graphBounds;
+  const inside = ([x, y]) => x > bounds.xMin && x < bounds.xMax && y > bounds.yMin && y < bounds.yMax;
+  const anchor = question.source.kind === 'pointSlope' ? facts.sourcePoint : [1, m + b];
+  const next = [[anchor[0] + 1, anchor[1] + m], [anchor[0] - 1, anchor[1] - m]].find(inside);
+  const math = {};
+  if (required.has('standardForm')) math.standardForm = `${term(A, 'x')}${B < 0 ? '-' : '+'}${term(Math.abs(B), 'y')}=${C}`;
+  if (required.has('slopeIntercept')) math.slopeIntercept = `y=${term(m, 'x')}${b === 0 ? '' : signed(b)}`;
+  if (required.has('pointSlope')) math.pointSlope = `y${minus(anchor[1])}=${m}(x${minus(anchor[0])})`;
+  if (required.has('slope')) math.slope = String(m);
+  if (required.has('xIntercept')) math.xIntercept = `(${zero},0)`;
+  if (required.has('yIntercept')) math.yIntercept = `(0,${b})`;
+  if (required.has('twoPoints')) math.twoPoints = [`(0,${b})`, `(1,${m + b})`];
+  const graphs = {};
+  if (required.has('graphIntercepts')) graphs.graph1 = [[zero, 0], [0, b]];
+  if (required.has('graphSlopeIntercept')) graphs.graph2 = [[0, b], [1, m + b]];
+  if (required.has('graphPointSlope')) graphs.graph3 = [anchor, next];
+  const context = question.context
+    ? ['independentQuantity', 'dependentQuantity', 'slopeMeaning', 'yInterceptMeaning', 'xInterceptMeaning', 'domain']
+      .filter((key) => question.context[key]).map((key) => question.context[key].value)
+    : null;
+  return {
+    math,
+    table: required.has('table') ? [0, 1, 2, 3].map((x) => [String(x), String(m * x + b)]) : null,
+    graphs,
+    context,
+    line: { m, b, zero },
+  };
+};
+
+journeys.family = async (browser) => {
+  const context = await browser.newContext({ viewport: LAPTOP });
+  const page = await context.newPage();
+  const GIVEN_MATH = {
+    slopeIntercept: (q) => q.source.equation,
+    pointSlope: (q) => q.source.equation,
+  };
+  for (const id of ['lmr-cw-2', 'lmr-cw-3', 'lmr-pr-1', 'lmr-pr-2', 'lmr-dol-1']) {
+    await open(page, id, 'family', { family: true });
+    const delivered = await page.evaluate((qid) => window.__lmr.delivered(qid), id);
+    const template = await page.evaluate((qid) => window.__lmr.question(qid), id);
+    check(Boolean(template?.questionFamily) && Boolean(delivered?.familyDelivery?.fingerprint), `${id}: a family slot, delivered as a generated version`);
+    check((await page.evaluate(() => window.__lmr.preflight())).isValid, 'the family-backed file passed Pre-Flight in the browser chain');
+    const visible = await page.locator('[data-question-id]').first().innerText();
+    check(!/\{\{/.test(visible), `${id}: no {{token}} reaches the page`);
+    // The GIVEN on screen is this version's, and it is read-only.
+    const given = page.locator('[data-lmr-given]');
+    await given.waitFor();
+    await given.scrollIntoViewIfNeeded();
+    await settle(page, 500);
+    const shown = await given.evaluate((root) => ({
+      kind: root.dataset.lmrGiven,
+      math: [...root.querySelectorAll('math-span, math-div')].map((m) => m.textContent).join(' | '),
+      prose: [...root.querySelectorAll('p')].map((p) => p.innerText).join(' '),
+      rows: root.querySelectorAll('tbody tr').length,
+    }));
+    check(shown.kind === delivered.source.kind, `${id}: the GIVEN is a ${delivered.source.kind} (${shown.kind})`);
+    if (GIVEN_MATH[shown.kind]) {
+      const compact = (text) => String(text).replace(/\s+/g, '').replace(/\\left|\\right/g, '');
+      check(compact(shown.math).includes(compact(GIVEN_MATH[shown.kind](delivered))), `${id}: the GIVEN shows this version's equation (${shown.math} vs ${GIVEN_MATH[shown.kind](delivered)})`);
+    }
+    if (shown.kind === 'table') check(shown.rows === delivered.source.rows.length, `${id}: the GIVEN table shows this version's ${delivered.source.rows.length} rows`);
+    if (shown.kind === 'scenario') check(shown.prose.includes(delivered.source.prompt), `${id}: the story is this version's ("${shown.prose.slice(0, 80)}")`);
+    check(await given.locator('input, math-field, button[data-card-check]').count() === 0, `${id}: the GIVEN representation is read-only`);
+    const board = familyBoard(delivered);
+    note(`${id}: version ${delivered.familyDelivery.fingerprint} — y = ${board.line.m}x + ${board.line.b}, window ${JSON.stringify(delivered.graphBounds)}`);
+    const dol = id === 'lmr-dol-1';
+    for (const [key, points] of Object.entries(board.graphs)) {
+      check(points.every(Boolean), `${id}: every ${key} point is inside the version's window`);
+      for (const point of points) await plot(page, page, key, point);
+      if (!dol) { await checkButton(page, GRAPH_CARD[key]).click(); await settle(page); }
+    }
+    for (const [cardId, value] of Object.entries(board.math)) {
+      const values = Array.isArray(value) ? value : [value];
+      for (const [index, text] of values.entries()) await typeMath(page, mathField(page, cardId, index), text);
+      if (!dol) { await page.keyboard.press('Enter'); await settle(page); }
+    }
+    if (board.table) {
+      for (const [index, [x, y]] of board.table.entries()) {
+        await card(page, 'table').locator(`input[aria-label="Row ${index + 1} x"]`).fill(x);
+        await card(page, 'table').locator(`input[aria-label="Row ${index + 1} y"]`).fill(y);
+      }
+      if (!dol) { await checkButton(page, 'table').click(); await settle(page); }
+    }
+    if (board.context) {
+      const selects = page.locator('[data-lmr-card="context"] select');
+      for (const [index, answer] of board.context.entries()) await selects.nth(index).selectOption(answer);
+      if (!dol) { await page.locator('[data-lmr-card="context"] button[data-card-check="true"]').click(); await settle(page); }
+    }
+    const strip = await page.locator('[aria-label="Your progress"]').innerText();
+    const [, done, total] = strip.match(/(\d+) of (\d+)/) || [];
+    check(done && done === total, `${id}: every part ${dol ? 'filled in' : 'checked correct'} before submitting ("${strip.replace(/\n/g, ' ')}")`);
+    if (dol) check(await page.locator('button[data-card-check="true"]').count() === 0, 'the generated DOL has no Check buttons');
+    await page.getByRole('button', { name: 'Submit board' }).click();
+    await settle(page, 1500);
+    const recorded = (await grades(page)).filter((grade) => grade.questionId === id);
+    check(recorded.length === 1 && recorded[0].isCorrect === true, `${id}: submitted correct (${JSON.stringify(recorded.map((g) => [g.isCorrect, g.partialCreditPercent]))})`);
+    await renderAllMath(page);
+    await shot(page, `family-${id}`);
   }
   await context.close();
 };

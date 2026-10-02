@@ -721,7 +721,41 @@ export const validateLinearMultipleRepresentationsQuestion = (question = {}) => 
     }
   }
 
+  errors.push(...contextChoiceProblems(question));
   return errors;
+};
+
+const normalizedChoice = (value) => String(value ?? '').trim().toLowerCase().replace(/[.,!?;:]+$/, '').replace(/\s+/g, ' ');
+
+/*
+ * A context dropdown can be answered only when its correct value is one of the
+ * choices offered, and graded fairly only when no other choice is marked the
+ * same way. Each choice is judged by the grader's own matchers
+ * (validateContextField / validateDomainField), so this check and the score
+ * cannot disagree. It matters most for a Question Family, whose choices are
+ * filled from {{tokens}}: every generated version is checked, so a version in
+ * which two story numbers coincide is refused before a student sees it.
+ */
+const contextChoiceProblems = (question = {}) => {
+  const context = question.source?.context || question.context || {};
+  const problems = [];
+  gradedContextFields(question).forEach(({ key }) => {
+    const entry = key === 'domain' ? (context.domain ?? question.domain) : context[key];
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry) || !Array.isArray(entry.choices)) return;
+    const choices = entry.choices.map((choice) => String(choice ?? ''));
+    const credited = choices.filter((choice) => (key === 'domain'
+      ? validateDomainField(choice, entry).isCorrect
+      : validateContextField(choice, entry).valid));
+    if (!credited.length) {
+      problems.push(`representationBridge context.${key} offers no choice that is its correct answer, so no student could choose it.`);
+    } else if (new Set(credited.map(normalizedChoice)).size > 1) {
+      problems.push(`representationBridge context.${key} has more than one choice that would be marked correct: ${credited.join(' / ')}.`);
+    }
+    if (new Set(choices.map(normalizedChoice)).size !== choices.length) {
+      problems.push(`representationBridge context.${key} offers two choices that read the same.`);
+    }
+  });
+  return problems;
 };
 
 /**

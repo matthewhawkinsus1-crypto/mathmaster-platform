@@ -32,6 +32,9 @@ import { attemptInputsFromGrading } from '../../functions/shared/serverGrading/g
 import { gradeServerResponse, serverResponseGradingSupport } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { TOOL_RESPONSE_LIMITS, boundToolWork, canonicalToolWorkJson } from '../../functions/shared/serverGrading/toolResponseContract.mjs';
 import { allRegisteredQuestionFamilies } from '../../functions/shared/questionFamilyRegistry.mjs';
+import { resolveFamilyConstraints } from '../../functions/shared/questionFamilyContract.mjs';
+import { buildFamilyQuestion, createFamilyInstanceSequence } from '../../functions/shared/questionFamilyEngine.mjs';
+import { correctLinearBoardResponse, oneWrongLinearBoardResponse } from '../platform/helpers/linearMultipleRepresentationsResponses.mjs';
 import {
   deriveLinearMultipleRepresentations,
   parsePointSlopeForm,
@@ -748,10 +751,56 @@ test('the board reports the same live work it submits, and asks before submittin
 // -----------------------------------------------------------------------------
 // Question Families
 // -----------------------------------------------------------------------------
-test('no Question Family builds this board yet — one that does needs instance parity fixtures here', () => {
-  const families = allRegisteredQuestionFamilies().filter((family) => {
-    const tools = family.tools instanceof Set ? [...family.tools] : family.tools instanceof Map ? [...family.tools.keys()] : Object.keys(family.tools || {});
-    return family.defaultTool === 'representationBridge' || tools.includes('representationBridge');
-  });
-  assert.deepEqual(families.map((family) => family.id), [], 'add a family-instance parity test for the Multiple Representations board');
+// Every family that builds this board, with the GIVEN kinds (and authored
+// story) its instance parity is proven on. A new board-building family fails
+// the first assertion until it is added here.
+const BOARD_FAMILY_FIXTURES = {
+  'linear.multipleRepresentations': [
+    [{ given: 'standardForm', slope: 'fraction', standardScale: 2 }, {}],
+    [{ given: 'slopeIntercept' }, {}],
+    [{ given: 'pointSlope', slope: 'fraction' }, {}],
+    [{ given: 'twoPoints' }, {}],
+    [{ given: 'table', tablePattern: 'consecutive' }, {}],
+    [{ given: 'scenario' }, {
+      source: { kind: 'scenario', prompt: 'A tank holds {{start}} liters of water. It drains at a steady rate of {{rate}} liters every minute until it is empty.' },
+      requiredCards: ['slopeIntercept', 'standardForm', 'slope', 'xIntercept', 'yIntercept', 'graphSlopeIntercept'],
+      context: {
+        slopeMeaning: { value: 'The tank loses {{rate}} liters of water every minute.', choices: ['The tank loses {{rate}} liters of water every minute.', 'The tank gains {{rate}} liters of water every minute.'] },
+        domain: { min: 0, max: '{{end}}', value: '0 ≤ x ≤ {{end}}', choices: ['0 ≤ x ≤ {{end}}', '0 ≤ x ≤ {{start}}'] },
+      },
+    }],
+  ],
+};
+
+test('Question Family instances of the board: browser and server mark every generated version identically', () => {
+  const families = allRegisteredQuestionFamilies().filter((family) => (
+    family.defaultTool === 'representationBridge' || Object.keys(family.tools || {}).includes('representationBridge')
+  ));
+  assert.deepEqual(families.map((family) => family.id).sort(), Object.keys(BOARD_FAMILY_FIXTURES).sort(), 'every family that builds the board has instance parity fixtures here');
+  for (const family of families) {
+    for (const [overrides, authored] of BOARD_FAMILY_FIXTURES[family.id]) {
+      const { values } = resolveFamilyConstraints(family, overrides);
+      const sequence = createFamilyInstanceSequence(family, values, `lmr-parity|${JSON.stringify(overrides)}`);
+      for (let index = 0; index < 12; index += 1) {
+        const instance = sequence.instanceAt(index);
+        assert.ok(instance, `${family.id} ${JSON.stringify(overrides)} has 12 versions`);
+        const question = buildFamilyQuestion({
+          family,
+          instance,
+          constraintValues: values,
+          authored: { questionId: 'lmr-family', type: 'representationBridge', mode: MODE, ...clone(authored) },
+        });
+        const label = `${family.id} ${JSON.stringify(overrides)} ${instance.fingerprint}`;
+        assert.equal(serverResponseGradingSupport(question).supported, true, `${label}: the server marks the built version`);
+        const right = graded(question, board(correctLinearBoardResponse(question)), `${label} correct`);
+        assert.equal(right.isCorrect, true, label);
+        assert.equal(right.isComplete, true, label);
+        assert.equal(right.score, 1, label);
+        const wrong = graded(question, board(oneWrongLinearBoardResponse(question)), `${label} one card wrong`);
+        assert.equal(wrong.isCorrect, false, label);
+        assert.ok(wrong.score < 1 && wrong.score > 0, `${label}: partial credit, the same on both paths`);
+        assert.equal(graded(question, board(), `${label} blank`).score, 0, label);
+      }
+    }
+  }
 });

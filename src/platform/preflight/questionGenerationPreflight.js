@@ -33,6 +33,7 @@ import {
   familySlotKey,
 } from '../../../functions/shared/questionFamilyInstance.mjs';
 import { measureFamilyCapacity } from '../../../functions/shared/questionFamilyEngine.mjs';
+import { placeholdersUsed } from '../../../functions/shared/pathQuestionGeneration.mjs';
 import { familyInstanceGradingSupport, familyInstanceServerGradable } from '../../../functions/shared/questionFamilyGrading.mjs';
 // The answer-key self-check below only builds keys for ordinary types and a
 // Step Algebra instance's final answer, so it uses the two LIGHT graders for
@@ -56,7 +57,9 @@ export const SAMPLE_INSTANCES = 6;
 // table width or a derived value can be right for most parameter tuples and
 // wrong for a few, and the student who draws one of those gets a broken
 // question. A platform family is held to its own rules and property tests, so
-// it keeps the smaller sample.
+// it keeps the smaller sample — unless the slot writes its own words around
+// the family's numbers ({{tokens}} in a prompt, story or answer choices):
+// those words were never property-tested, so they get the template sample.
 export const TEMPLATE_VALIDATION_SAMPLE = 32;
 export const CAPACITY_BUDGET = 2048;
 // Used when Pre-Flight does not know the roster yet (a draft with no class).
@@ -133,7 +136,7 @@ const auditFamilySlot = ({ assignmentId, question, storageIndex, capacityMemo })
   let gradingSupport = null;
   let sampled = 0;
   let validated = 0;
-  const validationSample = family.scope === 'assignment'
+  const validationSample = family.scope === 'assignment' || slotWritesFamilyTokens(question)
     ? Math.max(SAMPLE_INSTANCES, TEMPLATE_VALIDATION_SAMPLE)
     : SAMPLE_INSTANCES;
   for (let index = 0; index < validationSample; index += 1) {
@@ -148,7 +151,7 @@ const auditFamilySlot = ({ assignmentId, question, storageIndex, capacityMemo })
     // Every sampled version is judged exactly as a static question would be:
     // the rich tool's own schema, then the platform's semantic validation.
     const problems = generatedVersionProblems(result.question);
-    if (problems.length) invalidVersions.push({ parameters: result.instance.params, problem: problems[0] });
+    if (problems.length) invalidVersions.push({ parameters: result.instance.params, problem: problems[0].text, fix: problems[0].fix });
     if (index >= SAMPLE_INSTANCES || !gradable) continue;
     sampled += 1;
     if (!familyInstanceServerGradable(result.question)) {
@@ -185,6 +188,15 @@ const auditFamilySlot = ({ assignmentId, question, storageIndex, capacityMemo })
  * question (which is no longer a template, so it is judged directly).
  */
 const generatedVersionProblems = (built) => {
+  // A {{token}} the family never filled would reach the student exactly as
+  // written: a misspelled name in an authored prompt, story or choice.
+  const unfilled = [...placeholdersUsed(built)];
+  if (unfilled.length) {
+    return [{
+      text: `This version would show ${unfilled.map((name) => `{{${name}}}`).join(', ')} to the student as written, because the family fills no value by ${unfilled.length === 1 ? 'that name' : 'those names'}`,
+      fix: 'Correct the name, or use one of the values the family fills.',
+    }];
+  }
   const type = clean(built?.toolId || built?.type);
   const problems = [];
   if (MISSING_TOOL_IDS.includes(type)) {
@@ -193,7 +205,13 @@ const generatedVersionProblems = (built) => {
   if (!problems.length) {
     problems.push(...(validateQuestionSemantics(built, { label: 'This version' }).errors || []));
   }
-  return problems;
+  return problems.map((text) => ({ text, fix: null }));
+};
+
+/** Does the slot write its own {{tokens}} around a family's numbers (outside a local template's generator)? */
+const slotWritesFamilyTokens = (question = {}) => {
+  const { generator: _generator, ...authored } = question || {};
+  return placeholdersUsed(authored).size > 0;
 };
 
 const describeParameters = (parameters = {}) => Object.entries(parameters)
@@ -319,7 +337,7 @@ export const auditAssignmentQuestionGeneration = (assignment = {}, questions = [
     if (audit.invalidVersions.length) {
       const [first] = audit.invalidVersions;
       const which = describeParameters(first.parameters);
-      errors.push(`${where}: ${audit.invalidVersions.length} of ${audit.validated} generated versions would be refused if a student were given them (for example the version with ${which || 'its first parameters'}: ${first.problem}). Narrow the template's parameter ranges or constraints so every version is valid.`);
+      errors.push(`${where}: ${audit.invalidVersions.length} of ${audit.validated} generated versions would be refused if a student were given them (for example the version with ${which || 'its first parameters'}: ${first.problem}). ${first.fix || "Narrow the template's parameter ranges or constraints so every version is valid."}`);
     }
     const capacity = audit.capacity.capacity;
     const approx = audit.capacity.exact ? '' : 'about ';
