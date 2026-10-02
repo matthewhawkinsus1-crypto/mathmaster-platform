@@ -587,29 +587,41 @@ test('linear: completeness means a classification plus the point it calls for', 
 // ===========================================================================
 // MATRIX / MATRIX3
 // ===========================================================================
-test('matrix (2×2): the old scoring, technology part included, survives the move', () => {
+test('matrix (2×2): the classification and the solution are graded, and no technology step it never asks for', () => {
   const question = sw({ mode: 'matrix', matrix: { a11: 2, a12: 1, b1: 7, a21: 1, a22: -1, b2: 2 } }); // x = 3, y = 1
   const singular = sw({ mode: 'matrix', matrix: { a11: 1, a12: 2, b1: 3, a21: 2, a22: 4, b2: 6 } }); // infinite
+  // The old Check counted an always-true "technology" part on a 2×2 matrix,
+  // which has no technology step, so a wrong or blank classification still
+  // earned 1/3 (or 1/2 with no unique solution). The verdict is unchanged;
+  // only that phantom share of the score is gone — the Path contract never
+  // had it (pathToolContracts.mjs adds the part for a 3×3 matrix only).
   const fixtures = [
-    [question, { classification: 'one', x: '3', y: '1' }, true, 1],
-    [question, { classification: 'one', x: '3.04', y: '0.96' }, true, 1],
-    [question, { classification: 'one', x: '3', y: '2' }, false, 2 / 3],
-    // NOTE (kept for parity, see report): a 2×2 matrix has no technology
-    // step, yet the old Check counted an always-true "technology" part, so a
-    // wrong classification still earns 1/3.
-    [question, { classification: 'none' }, false, 1 / 3],
-    [singular, { classification: 'infinite' }, true, 1],
-    [singular, { classification: 'none' }, false, 0.5],
-    [sw({ mode: 'matrix' }), { classification: 'one', x: '3', y: '1' }, true, 1], // DEFAULT_MATRIX
+    // [question, state, isCorrect, score, legacy score]
+    [question, { classification: 'one', x: '3', y: '1' }, true, 1, 1],
+    [question, { classification: 'one', x: '3.04', y: '0.96' }, true, 1, 1],
+    [question, { classification: 'one', x: '3', y: '2' }, false, 1 / 2, 2 / 3],
+    [question, { classification: 'none' }, false, 0, 1 / 3],
+    [question, { classification: '' }, false, 0, 1 / 3],
+    [singular, { classification: 'infinite' }, true, 1, 1],
+    [singular, { classification: 'none' }, false, 0, 1 / 2],
+    [singular, { classification: '' }, false, 0, 1 / 2],
+    [sw({ mode: 'matrix' }), { classification: 'one', x: '3', y: '1' }, true, 1, 1], // DEFAULT_MATRIX
   ];
-  for (const [q, state, isCorrect, score] of fixtures) {
+  for (const [q, state, isCorrect, score, legacyScore] of fixtures) {
     const work = matrixWork(q, state);
     const result = gradeBothWays(q, work);
+    const legacy = LEGACY_MATRIX(q, work);
     assert.equal(result.isCorrect, isCorrect, JSON.stringify(state));
+    assert.equal(result.isCorrect, legacy.isCorrect, `${JSON.stringify(state)}: the verdict is the old Check's`);
     close(result.score, score, JSON.stringify(state));
-    agreesWithLegacy(result, LEGACY_MATRIX(q, work), JSON.stringify(state));
+    close(legacy.score, legacyScore, `${JSON.stringify(state)}: the old Check's score`);
   }
-  assert.deepEqual(partIds(gradeBothWays(question, matrixWork(question, { classification: 'one', x: '3', y: '1' }))), ['classification', 'matrix-technology', 'solution']);
+  assert.deepEqual(partIds(gradeBothWays(question, matrixWork(question, { classification: 'one', x: '3', y: '1' }))), ['classification', 'solution']);
+  assert.deepEqual(partIds(gradeBothWays(singular, matrixWork(singular, { classification: 'infinite' }))), ['classification']);
+  // Nothing chosen and nothing typed earns nothing, and is not finished.
+  const blank = gradeBothWays(question, matrixWork(question, { classification: '' }));
+  assert.equal(blank.isComplete, false);
+  close(blank.score, 0, 'blank');
 });
 
 test('matrix3: RREF technology, three coordinates, 3×4 rows read in either stored form', () => {

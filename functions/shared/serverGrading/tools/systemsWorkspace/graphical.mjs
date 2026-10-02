@@ -115,16 +115,14 @@ const matrix = (question, work) => {
   const coordinatesTyped = typed(work.x) && typed(work.y) && (!isMatrix3 || typed(work.z));
   const parts = [
     part('classification', 'Number of solutions', classification === solution.type, classification !== '', SOLUTION_TYPES[classification] || classification),
-    // Kept exactly as the workspace scored it: a 2×2 matrix has no technology
-    // step, so this part is always earned there (see the test file's note).
-    part(
-      'matrix-technology',
-      isMatrix3 ? 'Used the RREF technology' : 'Technology step (not required for 2×2)',
-      !isMatrix3 || technologyUsed,
-      !isMatrix3 || technologyUsed,
-      isMatrix3 ? (technologyUsed ? 'used' : 'not used') : '',
-    ),
   ];
+  // Only the 3×3 task asks for the RREF technology, so only it grades that
+  // step. A 2×2 matrix has no technology step at all: it used to carry an
+  // always-earned "technology" part, which gave a blank or wrong answer 1/3
+  // (or 1/2) of the credit for a step nobody took (see the test file).
+  if (isMatrix3) {
+    parts.push(part('matrix-technology', 'Used the RREF technology', technologyUsed, technologyUsed, technologyUsed ? 'used' : 'not used'));
+  }
   if (solution.type === 'one') {
     parts.push(part(
       'solution',
