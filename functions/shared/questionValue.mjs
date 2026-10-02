@@ -842,6 +842,25 @@ export const carryQuestionValue = (original, replacement) => {
   return next;
 };
 
+/*
+ * A DIFFERENT QUESTION IN THE SAME PLACE.
+ *
+ * When the platform swaps a question for a different one (an audited CCMR
+ * Practice item for an Honors destination), an explicit value the author or
+ * teacher wrote for that place in the grade stays with it; an automatic value
+ * does not, because it measured the old question's work — the new question
+ * keeps the automatic value measured from its own.
+ */
+export const keepExplicitQuestionValue = (original, replacement) => {
+  if (!isObject(replacement)) return replacement;
+  const basis = questionValueBasis(original);
+  if (!basis.explicit || !explicitQuestionValue(original).valid) return replacement;
+  const next = { ...replacement, questionWeight: original.questionWeight };
+  if (isObject(original.questionWeightBasis)) next.questionWeightBasis = original.questionWeightBasis;
+  else delete next.questionWeightBasis;
+  return next;
+};
+
 /**
  * One sentence a teacher reads about a question's value: where it came from,
  * and for an automatic value, what work it counts.

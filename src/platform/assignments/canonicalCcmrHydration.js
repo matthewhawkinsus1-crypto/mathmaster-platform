@@ -1,6 +1,7 @@
 import { compileAuthoringIntentV5 } from '../contract/authoringIntentV5.js';
 import { normalizeAssignmentV5 } from '../contract/assignmentSchemaV5.js';
 import { buildAssignmentV5PreflightModel } from '../preflight/assignmentV5PreflightModel.js';
+import { keepExplicitQuestionValue } from '../../../functions/shared/questionValue.mjs';
 
 const clean = (value) => String(value ?? '').trim();
 
@@ -77,7 +78,9 @@ export const applyCcmrHydrationToCanonicalAssignment = ({
 
         if (!injectedAuditedItem) return baseQuestion;
         replacements += 1;
-        return compiledQuestion;
+        // The audited item was compiled with the automatic value of its own
+        // work; a value the author or teacher wrote for this place stays.
+        return keepExplicitQuestionValue(baseQuestion, compiledQuestion);
       }),
     };
   });

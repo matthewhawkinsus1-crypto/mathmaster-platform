@@ -408,3 +408,40 @@ test('wiring: the Pre-Flight modal lists every value from the model, and the edi
   assert.match(accept, /carryQuestionValue\(existing, replacement\)/, 'an AI repair keeps the value');
   assert.match(editor, /from '\.\.\/functions\/shared\/questionValue\.mjs'/, 'and every helper is imported');
 });
+
+test('a platform swap (an audited CCMR item for Honors) keeps a written value and re-measures an automatic one', async () => {
+  const { applyCcmrHydrationToCanonicalAssignment } = await import('../../src/platform/assignments/canonicalCcmrHydration.js');
+  const base = compileAuthoringIntentV5(intent([
+    choiceQuestion({ questionId: 'pr-written', questionWeight: 3 }),
+    choiceQuestion({ questionId: 'pr-automatic' }),
+  ], 'practice')).package;
+  const [written, automatic] = base.sections[0].questions;
+  assert.equal(questionValueBasisSource(written), 'author');
+  assert.equal(questionValueBasisSource(automatic), 'auto');
+  // The CCMR service swaps both Practice items for audited bank items that ask
+  // for more work (two answers, not one).
+  const audited = (questionId, documentId) => ({
+    questionId,
+    prompt: 'Find the slope and the y-intercept of y = 2x + 5.',
+    studentActions: ['multipleResponses'],
+    answerFields: [
+      { id: 'slope', label: 'Slope', type: 'number', answer: '2' },
+      { id: 'intercept', label: 'y-intercept', type: 'number', answer: '5' },
+    ],
+    alignments: align('A.3A'),
+    ccmrSource: { source: 'auditedBank', documentId },
+  });
+  const hydrated = { ...base, sections: [{ ...base.sections[0], questions: [audited('pr-written', 'bank-1'), audited('pr-automatic', 'bank-2')] }] };
+  const result = applyCcmrHydrationToCanonicalAssignment({ baseAssignmentV5: base, hydratedAssignment: hydrated });
+  assert.equal(result.replacements, 2);
+  const [keptWritten, remeasured] = result.questions;
+  assert.equal(keptWritten.questionWeight, 3, 'the author wrote ×3 for this place in the grade: it stays');
+  assert.equal(questionValueBasisSource(keptWritten), 'author');
+  assert.equal(questionValueBasisSource(remeasured), 'auto', 'an automatic value is re-measured for the new question');
+  assert.equal(remeasured.questionWeight, estimateQuestionValue(remeasured).value);
+  assert.ok(remeasured.questionWeight > automatic.questionWeight, 'from the new question\'s own work');
+});
+
+function questionValueBasisSource(question) {
+  return question?.questionWeightBasis?.source ?? null;
+}
