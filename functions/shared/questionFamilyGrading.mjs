@@ -123,22 +123,29 @@ export const deliveryPinAllocationProblem = ({ assignment = null, question = nul
   if (normalized.index !== allocationIndexFor({ seat: normalized.seat, variant: normalized.variant, stride: normalized.stride })) {
     return 'pin-index-not-allocated';
   }
-  const walked = resolveFamilyQuestionInstance({
-    question,
-    assignmentId,
-    storageIndex: questionIndex,
-    slotKey: slot,
-    support: normalized.support,
-    allocation: {
-      seat: normalized.seat,
-      variant: normalized.variant,
-      stride: normalized.stride,
-      index: normalized.index,
-      basis: normalized.basis,
-    },
-  });
-  if (walked.error || walked.instance?.fingerprint !== normalized.fingerprint) return 'pin-index-not-allocated';
-  return null;
+  const walkLandsOnPin = (legacyWrapExclusion) => {
+    const walked = resolveFamilyQuestionInstance({
+      question,
+      assignmentId,
+      storageIndex: questionIndex,
+      slotKey: slot,
+      support: normalized.support,
+      legacyWrapExclusion,
+      allocation: {
+        seat: normalized.seat,
+        variant: normalized.variant,
+        stride: normalized.stride,
+        index: normalized.index,
+        basis: normalized.basis,
+      },
+    });
+    return !walked.error && walked.instance?.fingerprint === normalized.fingerprint;
+  };
+  // A pin written before wrapped variants excluded the student's earlier
+  // versions as delivered still names a question this student was really
+  // allocated then, so it is verified against that walk too.
+  if (walkLandsOnPin(false) || walkLandsOnPin(true)) return null;
+  return 'pin-index-not-allocated';
 };
 
 /**
