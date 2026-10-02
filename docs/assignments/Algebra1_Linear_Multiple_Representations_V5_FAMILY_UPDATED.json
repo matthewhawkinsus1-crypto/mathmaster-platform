@@ -1,0 +1,363 @@
+{
+  "schemaVersion": 5,
+  "assignment": {
+    "title": "Algebra I — Multiple Representations of Linear Equations",
+    "courseId": "algebra1",
+    "folder": "Algebra I/Linear Functions/Multiple Representations",
+    "instructionalPurpose": "lesson",
+    "gradingPurpose": "classwork"
+  },
+  "variantPolicy": {
+    "mode": "personalized"
+  },
+  "sections": [
+    {
+      "id": "warmup",
+      "role": "warmup",
+      "title": "Warm-Up — Which Representations Belong Together?",
+      "recommendedMinutes": 8,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "lmr-wu-1",
+          "standard": "A.3C",
+          "alignments": [
+            { "framework": "teks", "code": "A.3C", "role": "primary" },
+            { "framework": "teks", "code": "A.2B", "role": "secondary" }
+          ],
+          "type": "representationMatch",
+          "studentActions": ["connectRepresentations"],
+          "difficultyBand": 1,
+          "dok": 2,
+          "questionFamily": {
+            "id": "linear.representationSort",
+            "version": 1,
+            "constraints": { "slopeRange": [1, 3], "interceptRange": [-6, 6] }
+          },
+          "prompt": "Two different lines are hiding in these cards: {{line1}} and {{line2}}. Sort every card into the line it describes.",
+          "representations": {
+            "mode": "linearConnections",
+            "task": "group",
+            "cardKinds": ["slopeIntercept", "standard", "pointSlope", "graph", "xIntercept"],
+            "sets": [
+              { "id": "line-a" },
+              { "id": "line-b" }
+            ]
+          }
+        },
+        {
+          "questionId": "lmr-wu-2",
+          "standard": "A.3B",
+          "alignments": [
+            { "framework": "teks", "code": "A.3B", "role": "primary" },
+            { "framework": "teks", "code": "A.2C", "role": "secondary" }
+          ],
+          "type": "representationMatch",
+          "studentActions": ["connectRepresentations"],
+          "difficultyBand": 1,
+          "dok": 2,
+          "questionFamily": {
+            "id": "linear.representationSort",
+            "version": 1,
+            "constraints": { "slopeRange": [2, 6], "interceptRange": [10, 40] }
+          },
+          "prompt": "One situation grows and one shrinks. Sort each card into the situation it describes.",
+          "representations": {
+            "mode": "linearConnections",
+            "task": "group",
+            "cardKinds": ["context", "slopeIntercept", "graph", "slope", "yIntercept"],
+            "sets": [
+              {
+                "id": "savings",
+                "context": "Maya has ${{start}} saved and adds ${{rate}} every week."
+              },
+              {
+                "id": "tub",
+                "context": "A tub holds {{start}} gallons of water and drains {{rate}} gallons every minute."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "classwork",
+      "role": "classwork",
+      "title": "Classwork — One Line, Many Representations",
+      "recommendedMinutes": 25,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "lmr-cw-1",
+          "standard": "A.2B",
+          "alignments": [
+            { "framework": "teks", "code": "A.2B", "role": "primary" },
+            { "framework": "teks", "code": "A.3A", "role": "secondary" },
+            { "framework": "teks", "code": "A.3C", "role": "secondary" }
+          ],
+          "type": "representationBridge",
+          "mode": "linearMultipleRepresentations",
+          "studentActions": ["connectLinearRepresentations"],
+          "difficultyBand": 2,
+          "dok": 2,
+          "questionFamily": {
+            "id": "linear.multipleRepresentations",
+            "version": 1,
+            "constraints": {
+              "given": "standardForm",
+              "slope": "fraction",
+              "slopeRange": [1, 3],
+              "denominatorRange": [2, 4],
+              "interceptRange": [-6, 6],
+              "standardScale": 2
+            }
+          },
+          "prompt": "You are given the standard form equation {{given}}. Build every other representation of this same line, in any order you like.",
+          "feedbackTiming": "guided"
+        },
+        {
+          "questionId": "lmr-cw-2",
+          "standard": "A.2B",
+          "alignments": [
+            { "framework": "teks", "code": "A.2B", "role": "primary" },
+            { "framework": "teks", "code": "A.3A", "role": "secondary" },
+            { "framework": "teks", "code": "A.3C", "role": "secondary" }
+          ],
+          "type": "representationBridge",
+          "mode": "linearMultipleRepresentations",
+          "studentActions": ["connectLinearRepresentations"],
+          "difficultyBand": 2,
+          "dok": 2,
+          "questionFamily": {
+            "id": "linear.multipleRepresentations",
+            "version": 1,
+            "constraints": {
+              "given": "slopeIntercept",
+              "slope": "integer",
+              "slopeSign": "negative",
+              "interceptRange": [-10, 10],
+              "xInterceptRange": [-10, 10]
+            }
+          },
+          "prompt": "You are given the slope-intercept equation {{given}}. Build every other representation of this same line, in any order you like.",
+          "feedbackTiming": "guided"
+        },
+        {
+          "questionId": "lmr-cw-3",
+          "standard": "A.2B",
+          "alignments": [
+            { "framework": "teks", "code": "A.2B", "role": "primary" },
+            { "framework": "teks", "code": "A.3A", "role": "secondary" },
+            { "framework": "teks", "code": "A.3C", "role": "secondary" }
+          ],
+          "type": "representationBridge",
+          "mode": "linearMultipleRepresentations",
+          "studentActions": ["connectLinearRepresentations"],
+          "difficultyBand": 2,
+          "dok": 2,
+          "questionFamily": {
+            "id": "linear.multipleRepresentations",
+            "version": 1,
+            "constraints": {
+              "given": "pointSlope",
+              "slope": "integer"
+            }
+          },
+          "prompt": "You are given the point-slope equation {{given}}. Build every other representation of this same line, in any order you like.",
+          "feedbackTiming": "guided"
+        }
+      ]
+    },
+    {
+      "id": "practice",
+      "role": "practice",
+      "title": "Practice — Start From a Table or a Story",
+      "recommendedMinutes": 30,
+      "feedbackMode": "immediate",
+      "hintsAllowed": true,
+      "attemptsAllowed": 3,
+      "questions": [
+        {
+          "questionId": "lmr-pr-1",
+          "standard": "A.2C",
+          "alignments": [
+            { "framework": "teks", "code": "A.2C", "role": "primary" },
+            { "framework": "teks", "code": "A.3A", "role": "secondary" },
+            { "framework": "teks", "code": "A.3C", "role": "secondary" }
+          ],
+          "type": "representationBridge",
+          "mode": "linearMultipleRepresentations",
+          "studentActions": ["connectLinearRepresentations"],
+          "difficultyBand": 2,
+          "dok": 2,
+          "questionFamily": {
+            "id": "linear.multipleRepresentations",
+            "version": 1,
+            "constraints": {
+              "given": "table",
+              "slope": "integer",
+              "tablePattern": "spread"
+            }
+          },
+          "prompt": "You are given a table of values for a linear relationship. Build every other representation of this same line, in any order you like.",
+          "feedbackTiming": "guided"
+        },
+        {
+          "questionId": "lmr-pr-2",
+          "standard": "A.3B",
+          "alignments": [
+            { "framework": "teks", "code": "A.3B", "role": "primary" },
+            { "framework": "teks", "code": "A.2C", "role": "secondary" },
+            { "framework": "teks", "code": "A.3C", "role": "secondary" },
+            { "framework": "teks", "code": "A.2A", "role": "secondary" }
+          ],
+          "type": "representationBridge",
+          "mode": "linearMultipleRepresentations",
+          "studentActions": ["connectLinearRepresentations"],
+          "difficultyBand": 3,
+          "dok": 3,
+          "questionFamily": {
+            "id": "linear.multipleRepresentations",
+            "version": 1,
+            "constraints": {
+              "given": "scenario",
+              "rateRange": [2, 6],
+              "durationRange": [3, 15],
+              "startRange": [6, 36]
+            }
+          },
+          "prompt": "Read the candle situation. Decide what x and y stand for, then build every representation of the relationship, in any order you like.",
+          "source": {
+            "kind": "scenario",
+            "prompt": "A candle is {{start}} centimeters tall when it is lit. It burns down {{rate}} centimeters every hour until it is completely gone."
+          },
+          "context": {
+            "independentQuantity": {
+              "value": "time since the candle was lit (hours)",
+              "choices": [
+                "time since the candle was lit (hours)",
+                "height of the candle (centimeters)",
+                "centimeters burned each hour"
+              ]
+            },
+            "dependentQuantity": {
+              "value": "height of the candle (centimeters)",
+              "choices": [
+                "time since the candle was lit (hours)",
+                "height of the candle (centimeters)",
+                "centimeters burned each hour"
+              ]
+            },
+            "slopeMeaning": {
+              "value": "The candle gets {{rate}} centimeters shorter every hour.",
+              "choices": [
+                "The candle gets {{rate}} centimeters shorter every hour.",
+                "The candle gets {{rate}} centimeters taller every hour.",
+                "The candle burns for {{rate}} hours.",
+                "The candle started at {{rate}} centimeters tall."
+              ]
+            },
+            "yInterceptMeaning": {
+              "value": "The candle is {{start}} centimeters tall when it is lit.",
+              "choices": [
+                "The candle is {{start}} centimeters tall when it is lit.",
+                "The candle burns out after {{start}} hours.",
+                "The candle loses {{start}} centimeters every hour.",
+                "The candle is 0 centimeters tall after {{start}} hours."
+              ]
+            },
+            "xInterceptMeaning": {
+              "value": "The candle is completely burned down after {{end}} hours.",
+              "choices": [
+                "The candle is completely burned down after {{end}} hours.",
+                "The candle is {{end}} centimeters tall when it is lit.",
+                "The candle burns {{end}} centimeters every hour.",
+                "After {{end}} hours the candle is {{start}} centimeters tall."
+              ]
+            },
+            "domain": {
+              "min": 0,
+              "max": "{{end}}",
+              "value": "0 ≤ x ≤ {{end}}",
+              "choices": ["0 ≤ x ≤ {{end}}", "0 ≤ x ≤ {{start}}", "x ≥ 0", "−{{rate}} ≤ x ≤ {{start}}"]
+            }
+          },
+          "feedbackTiming": "guided"
+        }
+      ]
+    },
+    {
+      "id": "dol",
+      "role": "dol",
+      "title": "DOL — Draining Tank",
+      "recommendedMinutes": 10,
+      "feedbackMode": "afterAssignmentSubmit",
+      "hintsAllowed": false,
+      "attemptsAllowed": 1,
+      "questions": [
+        {
+          "questionId": "lmr-dol-1",
+          "standard": "A.3B",
+          "alignments": [
+            { "framework": "teks", "code": "A.3B", "role": "primary" },
+            { "framework": "teks", "code": "A.2C", "role": "secondary" },
+            { "framework": "teks", "code": "A.3C", "role": "secondary" },
+            { "framework": "teks", "code": "A.2A", "role": "secondary" }
+          ],
+          "type": "representationBridge",
+          "mode": "linearMultipleRepresentations",
+          "studentActions": ["connectLinearRepresentations"],
+          "difficultyBand": 2,
+          "dok": 2,
+          "questionFamily": {
+            "id": "linear.multipleRepresentations",
+            "version": 1,
+            "constraints": {
+              "given": "scenario",
+              "rateRange": [2, 6],
+              "durationRange": [3, 15],
+              "startRange": [6, 36]
+            }
+          },
+          "prompt": "Show what you know about the draining tank. Complete every part on the board, then submit once.",
+          "source": {
+            "kind": "scenario",
+            "prompt": "A tank holds {{start}} liters of water. It drains at a steady rate of {{rate}} liters every minute until it is empty."
+          },
+          "requiredCards": ["slopeIntercept", "standardForm", "slope", "xIntercept", "yIntercept", "graphSlopeIntercept"],
+          "context": {
+            "slopeMeaning": {
+              "value": "The tank loses {{rate}} liters of water every minute.",
+              "choices": [
+                "The tank loses {{rate}} liters of water every minute.",
+                "The tank gains {{rate}} liters of water every minute.",
+                "The tank is empty after {{rate}} minutes.",
+                "The tank starts with {{rate}} liters of water."
+              ]
+            },
+            "yInterceptMeaning": {
+              "value": "The tank holds {{start}} liters when it starts draining.",
+              "choices": [
+                "The tank holds {{start}} liters when it starts draining.",
+                "The tank is empty after {{start}} minutes.",
+                "The tank drains {{start}} liters every minute.",
+                "The tank holds 0 liters after {{start}} minutes."
+              ]
+            },
+            "domain": {
+              "min": 0,
+              "max": "{{end}}",
+              "value": "0 ≤ x ≤ {{end}}",
+              "choices": ["0 ≤ x ≤ {{end}}", "0 ≤ x ≤ {{start}}", "x ≥ 0", "−{{rate}} ≤ x ≤ {{start}}"]
+            }
+          },
+          "feedbackTiming": "submitOnly"
+        }
+      ]
+    }
+  ]
+}

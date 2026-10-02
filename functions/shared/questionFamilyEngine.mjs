@@ -323,8 +323,17 @@ export const createFamilyInstanceSequence = (family, constraintValues, seedKey) 
 const SEQUENCE_CACHE_LIMIT = 64;
 const sequenceCache = new Map();
 
+/*
+ * A platform family is immutable per (id, version). An assignment-local
+ * family is NOT: its id is its slot (`local:<assignment>|<question>`), and a
+ * teacher can edit the template in place without bumping a version. Its
+ * content hash is therefore part of its identity here — without it, an edited
+ * template in the same session (a Pre-Flight re-run after a repair, a warm
+ * server instance) kept serving the instance list of the template it
+ * replaced, so Pre-Flight re-checked versions that no longer existed.
+ */
 export const familySequenceKey = (family, constraintValues, seedKey) => (
-  `${family.id}|v${family.version}|${JSON.stringify(constraintValues || {})}|${seedKey}`
+  `${family.id}|v${family.version}${family.source?.contentHash ? `|c${family.source.contentHash}` : ''}|${JSON.stringify(constraintValues || {})}|${seedKey}`
 );
 
 export const cachedFamilyInstanceSequence = (family, constraintValues, seedKey) => {
@@ -398,6 +407,7 @@ export const measureFamilyCapacity = (family, constraintValues = {}, { budget = 
 // would make the server treat an INSTANCE as a template again (and refuse to
 // grade it), or re-enter generation.
 const TEMPLATE_ONLY_FIELDS = ['generator', 'variants', 'questionFamily', 'generatorVersion'];
+const SLOT_GRADE_VALUE_FIELDS = ['questionWeight', 'questionWeightBasis'];
 
 /**
  * The question document for one instance, rendered for one tool.
@@ -444,5 +454,15 @@ export const buildFamilyQuestion = ({ family, instance, constraintValues = {}, a
     }),
   };
   TEMPLATE_ONLY_FIELDS.forEach((field) => { delete question[field]; });
+  // THE GRADE VALUE IS THE SLOT'S. Every student's version of one slot counts
+  // the same in the grade, whatever numbers it drew — so neither a family
+  // builder nor a templated field may give an instance a value of its own.
+  // Grading reads the stored slot (weightedQuestionTotals, Recovery's
+  // recoveryQuestionWeight); the instance carries the same value so that what
+  // a student is told ("Grade weight ×3") is what is counted.
+  SLOT_GRADE_VALUE_FIELDS.forEach((field) => {
+    if (base[field] !== undefined) question[field] = base[field];
+    else delete question[field];
+  });
   return question;
 };

@@ -39,94 +39,32 @@ import {
 } from '../../algebra/algebraAstEngine.mjs';
 import { targetLineFromQuestion } from '../graphing2/graphingMath.mjs';
 import { evaluateConstruction } from '../graphing2/constructionPolicy.mjs';
+import {
+  SUPPORTED_SOURCE_KINDS,
+  DEFAULT_BOARD_CATEGORIES,
+  BOARD_CARD_IDS,
+  CARD_PART_KEYS,
+  PART_LABELS,
+  givenCardForQuestion,
+  resolveRequiredCards,
+  LINE_BEARING_CARD_IDS,
+  CONTEXT_PART_FIELDS,
+  gradedContextFields,
+} from './linearMultipleRepresentationsCards.mjs';
 
-export const SUPPORTED_SOURCE_KINDS = Object.freeze([
-  'standardForm',
-  'slopeIntercept',
-  'pointSlope',
-  'twoPoints',
-  'table',
-  'graph',
-  'scenario',
-]);
-
-export const DEFAULT_BOARD_CATEGORIES = Object.freeze({
-  equationForms: ['standardForm', 'slopeIntercept', 'pointSlope'],
-  features: ['slope', 'xIntercept', 'yIntercept', 'twoPoints'],
-  table: ['table'],
-  graphs: ['graphIntercepts', 'graphSlopeIntercept', 'graphPointSlope'],
-});
-
-/** Every card a student can be asked to build, in board order. */
-export const BOARD_CARD_IDS = Object.freeze(Object.values(DEFAULT_BOARD_CATEGORIES).flat());
-
-// The graded part each card produces. The graph parts keep their historical
-// graph1/graph2/graph3 names so stored attempts stay readable.
-export const CARD_PART_KEYS = Object.freeze({
-  standardForm: 'standardForm',
-  slopeIntercept: 'slopeIntercept',
-  pointSlope: 'pointSlope',
-  slope: 'slope',
-  xIntercept: 'xIntercept',
-  yIntercept: 'yIntercept',
-  twoPoints: 'twoPoints',
-  table: 'table',
-  graphIntercepts: 'graph1',
-  graphSlopeIntercept: 'graph2',
-  graphPointSlope: 'graph3',
-});
-
-// Classroom names for every graded part, used wherever a student reads which
-// part needs another look.
-export const PART_LABELS = Object.freeze({
-  standardForm: 'Standard form',
-  slopeIntercept: 'Slope-intercept form',
-  pointSlope: 'Point-slope form',
-  slope: 'Slope',
-  xIntercept: 'x-intercept',
-  yIntercept: 'y-intercept',
-  twoPoints: 'Two points on the line',
-  table: 'Table of values',
-  graph1: 'Graph 1 (intercepts)',
-  graph2: 'Graph 2 (slope-intercept)',
-  graph3: 'Graph 3 (point-slope)',
-  contextIndependent: 'Independent quantity',
-  contextDependent: 'Dependent quantity',
-  contextSlopeMeaning: 'Meaning of the slope',
-  contextYInterceptMeaning: 'Meaning of the y-intercept',
-  contextXInterceptMeaning: 'Meaning of the x-intercept',
-  contextDomain: 'Reasonable domain',
-  crossRepresentationConsistency: 'Every part describes the same line',
-});
-
-// The card a source kind hands the student already built. It is GIVEN, so it
-// is never asked for again and never graded.
-const GIVEN_CARD_BY_KIND = Object.freeze({
-  standardForm: 'standardForm',
-  slopeIntercept: 'slopeIntercept',
-  pointSlope: 'pointSlope',
-  twoPoints: 'twoPoints',
-  table: 'table',
-});
-
-export const givenCardForQuestion = (question = {}) => GIVEN_CARD_BY_KIND[question.source?.kind] || null;
-
-const expandCardIds = (ids) => ids.flatMap((id) => DEFAULT_BOARD_CATEGORIES[id] || [id]);
-
-/**
- * The cards this question asks the student to build, in board order.
- *
- * `requiredCards` lets an author make a shorter board (a DOL, say) from card
- * ids or whole categories (`graphs`, `features`). Absent, every card is asked
- * for. The GIVEN representation is always removed: it is the starting point,
- * not work.
- */
-export const resolveRequiredCards = (question = {}) => {
-  const authored = Array.isArray(question.requiredCards) && question.requiredCards.length
-    ? expandCardIds(question.requiredCards.map(String))
-    : BOARD_CARD_IDS;
-  const given = givenCardForQuestion(question);
-  return BOARD_CARD_IDS.filter((id) => authored.includes(id) && id !== given);
+// The board's card definitions live in the light module; re-exported so
+// every existing import of this module keeps working.
+export {
+  SUPPORTED_SOURCE_KINDS,
+  DEFAULT_BOARD_CATEGORIES,
+  BOARD_CARD_IDS,
+  CARD_PART_KEYS,
+  PART_LABELS,
+  givenCardForQuestion,
+  resolveRequiredCards,
+  LINE_BEARING_CARD_IDS,
+  CONTEXT_PART_FIELDS,
+  gradedContextFields,
 };
 
 const gcd = (a, b) => {
@@ -783,7 +721,41 @@ export const validateLinearMultipleRepresentationsQuestion = (question = {}) => 
     }
   }
 
+  errors.push(...contextChoiceProblems(question));
   return errors;
+};
+
+const normalizedChoice = (value) => String(value ?? '').trim().toLowerCase().replace(/[.,!?;:]+$/, '').replace(/\s+/g, ' ');
+
+/*
+ * A context dropdown can be answered only when its correct value is one of the
+ * choices offered, and graded fairly only when no other choice is marked the
+ * same way. Each choice is judged by the grader's own matchers
+ * (validateContextField / validateDomainField), so this check and the score
+ * cannot disagree. It matters most for a Question Family, whose choices are
+ * filled from {{tokens}}: every generated version is checked, so a version in
+ * which two story numbers coincide is refused before a student sees it.
+ */
+const contextChoiceProblems = (question = {}) => {
+  const context = question.source?.context || question.context || {};
+  const problems = [];
+  gradedContextFields(question).forEach(({ key }) => {
+    const entry = key === 'domain' ? (context.domain ?? question.domain) : context[key];
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry) || !Array.isArray(entry.choices)) return;
+    const choices = entry.choices.map((choice) => String(choice ?? ''));
+    const credited = choices.filter((choice) => (key === 'domain'
+      ? validateDomainField(choice, entry).isCorrect
+      : validateContextField(choice, entry).valid));
+    if (!credited.length) {
+      problems.push(`representationBridge context.${key} offers no choice that is its correct answer, so no student could choose it.`);
+    } else if (new Set(credited.map(normalizedChoice)).size > 1) {
+      problems.push(`representationBridge context.${key} has more than one choice that would be marked correct: ${credited.join(' / ')}.`);
+    }
+    if (new Set(choices.map(normalizedChoice)).size !== choices.length) {
+      problems.push(`representationBridge context.${key} offers two choices that read the same.`);
+    }
+  });
+  return problems;
 };
 
 /**
@@ -1577,21 +1549,6 @@ export const checkCrossRepresentationConsistency = (studentRepresentations = {},
   };
 };
 
-/*
- * The cards whose work describes a whole line, so they can be compared with
- * one another. Slope and the intercepts are numbers or single points: they are
- * graded on their own, never as a line.
- */
-export const LINE_BEARING_CARD_IDS = Object.freeze([
-  'standardForm',
-  'slopeIntercept',
-  'pointSlope',
-  'twoPoints',
-  'table',
-  'graphIntercepts',
-  'graphSlopeIntercept',
-  'graphPointSlope',
-]);
 
 /**
  * Cross-representation consistency of the work THIS board shows.
@@ -1948,27 +1905,6 @@ export const cardHasWork = (cardId, response = {}) => {
   }
 };
 
-/*
- * The context parts this question grades, in board order. A meaning is graded
- * exactly when the author wrote one (source.context wins over a top-level
- * context, as everywhere on this board); the domain when either the context or
- * the question itself supplies one.
- */
-export const CONTEXT_PART_FIELDS = Object.freeze([
-  Object.freeze({ field: 'contextIndependent', key: 'independentQuantity' }),
-  Object.freeze({ field: 'contextDependent', key: 'dependentQuantity' }),
-  Object.freeze({ field: 'contextSlopeMeaning', key: 'slopeMeaning' }),
-  Object.freeze({ field: 'contextYInterceptMeaning', key: 'yInterceptMeaning' }),
-  Object.freeze({ field: 'contextXInterceptMeaning', key: 'xInterceptMeaning' }),
-  Object.freeze({ field: 'contextDomain', key: 'domain' }),
-]);
-
-export const gradedContextFields = (question = {}) => {
-  const context = question.source?.context || question.context || {};
-  return CONTEXT_PART_FIELDS.filter(({ key }) => (
-    key === 'domain' ? (context.domain != null || question.domain != null) : context[key] != null
-  ));
-};
 
 /**
  * The graded parts with nothing in them yet, by part id: every required card

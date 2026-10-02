@@ -5,6 +5,23 @@ const SCOPE = "fullAssignmentAudit";
 const clean = (value) => String(value ?? "").trim();
 const array = (value) => (Array.isArray(value) ? value : []);
 
+/*
+ * A REPAIR CHANGES CONTENT, NEVER THE GRADE VALUE (functions/shared/
+ * questionValue.mjs carryQuestionValue — mirrored here because this module is
+ * synchronous CommonJS). An audit reply that omits `questionWeight` must not
+ * reset the question to the standard ×1, and one that invents a value must
+ * not re-weight it: the value moves only through the teacher's value control.
+ */
+const QUESTION_VALUE_FIELDS = ["questionWeight", "questionWeightBasis"];
+function carryQuestionValue(original, replacement) {
+  const next = { ...replacement };
+  QUESTION_VALUE_FIELDS.forEach((field) => {
+    if (original && Object.prototype.hasOwnProperty.call(original, field)) next[field] = original[field];
+    else delete next[field];
+  });
+  return next;
+}
+
 function repairAuthority(auth = {}) {
   const token = auth.token || {};
   if (token.rootAdmin === true && token.admin === true) return "administrator";
@@ -59,7 +76,7 @@ function prepareCommit({ assignment, request }) {
     if (classifications.get(id) !== "assignmentIssue") throw new Error(`Question "${id}" is not an assignment issue and cannot be changed.`);
     if (!entry.question || clean(entry.question.questionId) !== id) throw new Error(`Replacement identity does not match question "${id}".`);
     if (replacements.has(id)) throw new Error(`Duplicate replacement for question "${id}".`);
-    replacements.set(id, JSON.parse(JSON.stringify(entry.question)));
+    replacements.set(id, carryQuestionValue(existing.get(id).question, JSON.parse(JSON.stringify(entry.question))));
   });
   if (replacements.size !== selected.size) throw new Error("Every selected repair must have exactly one reviewed replacement.");
 
@@ -75,4 +92,4 @@ function prepareCommit({ assignment, request }) {
   return { assignment: next, fromRevision: currentRevision, toRevision: currentRevision + 1, changedQuestionIds, changedQuestions };
 }
 
-module.exports = { VERSION, SCOPE, repairAuthority, requireRepairAuthority, prepareCommit, questionLocations };
+module.exports = { VERSION, SCOPE, repairAuthority, requireRepairAuthority, prepareCommit, questionLocations, carryQuestionValue };

@@ -5,6 +5,11 @@ import {
   normalizeTestCyclePolicy,
 } from '../../../functions/shared/testCyclePolicy.mjs';
 import { TEST_CYCLE_DIAGNOSTIC, TEST_CYCLE_FORBIDDEN_ROLES, inspectTestCycleContract } from '../../../functions/shared/testCyclePreflight.mjs';
+import {
+  MAX_QUESTION_VALUE,
+  MIN_QUESTION_VALUE,
+  explicitQuestionValue,
+} from '../../../functions/shared/questionValue.mjs';
 
 export const ASSIGNMENT_SCHEMA_VERSION = 5;
 export const ASSIGNMENT_SCHEMA_NAME = 'MathMaster Assignment V5';
@@ -297,11 +302,22 @@ export const validateAssignmentV5 = (input = {}, { requireQuestions = true } = {
       } else {
         questionCount += section.questions.length;
         section.questions.forEach((question, questionIndex) => {
-          if (question?.questionWeight === undefined || question?.questionWeight === null || question?.questionWeight === '') return;
-          const weight = Number(question.questionWeight);
-          if (!Number.isFinite(weight) || weight < 0.25 || weight > 20) {
-            errors.push(`Section ${index + 1} Question ${questionIndex + 1} questionWeight must be between 0.25 and 20.`);
-          }
+          // A written value that is unusable is never replaced by an automatic
+          // one (it was somebody's decision); it is refused, in words a teacher
+          // can act on. functions/shared/questionValue.mjs reads values the
+          // same way the grade does.
+          const explicit = explicitQuestionValue(question);
+          if (!explicit.present || explicit.valid) return;
+          const why = explicit.problem === 'templated'
+            ? 'It cannot depend on a Question Family\'s generated numbers: every student\'s version must count the same.'
+            : explicit.problem === 'not-positive'
+              ? 'Zero or a negative value would make the question count for nothing.'
+              : explicit.problem === 'not-a-number'
+                ? 'It has to be a number.'
+                : `It has to be between ${MIN_QUESTION_VALUE} and ${MAX_QUESTION_VALUE}.`;
+          // The field name stays first after the locator: Pre-Flight diagnostics
+          // read it as the machine-readable fieldPath (preflightDiagnostics.js).
+          errors.push(`Section ${index + 1} Question ${questionIndex + 1} questionWeight ${JSON.stringify(explicit.raw)} is not a usable grade value. ${why} A grade value is a number from ${MIN_QUESTION_VALUE} to ${MAX_QUESTION_VALUE}, where 1 is one standard question; correct it, or delete it and MathMaster will set one from the question's work.`);
         });
       }
     });

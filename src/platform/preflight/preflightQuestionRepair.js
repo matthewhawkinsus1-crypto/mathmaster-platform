@@ -1,3 +1,5 @@
+import { carryQuestionValue } from '../../../functions/shared/questionValue.mjs';
+
 const clean = (value) => String(value ?? '').trim();
 
 export const questionIndexFromPreflightMessage = (message, questionCount = Infinity) => {
@@ -47,7 +49,8 @@ export const replaceQuestionAtFlatIndex = (assignmentV5 = {}, flatIndex, replace
       if (current !== flatIndex) return question;
       replaced = true;
       return {
-        ...replacement,
+        // A repair changes content, never the grade value (questionValue.mjs).
+        ...carryQuestionValue(question, replacement),
         questionId: question?.questionId || replacement?.questionId || null,
         teacherExcluded: question?.teacherExcluded === true,
         activityRole: question?.activityRole || section?.role || replacement?.activityRole,

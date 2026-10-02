@@ -33,6 +33,7 @@ import {
   familySlotKey,
 } from '../../../functions/shared/questionFamilyInstance.mjs';
 import { measureFamilyCapacity } from '../../../functions/shared/questionFamilyEngine.mjs';
+import { placeholdersUsed } from '../../../functions/shared/pathQuestionGeneration.mjs';
 import { familyInstanceGradingSupport, familyInstanceServerGradable } from '../../../functions/shared/questionFamilyGrading.mjs';
 // The answer-key self-check below only builds keys for ordinary types and a
 // Step Algebra instance's final answer, so it uses the two LIGHT graders for
@@ -47,8 +48,19 @@ import { describeQuestionVariability, VARIABILITY } from '../../../functions/sha
 import { assessSectionRecoveryReadiness } from '../../../functions/shared/sectionRecoveryReadiness.mjs';
 import { normalizeRecoveryPolicy } from '../../../functions/shared/recoveryPolicy.mjs';
 import { resolveWarmupDelivery, warmupIsNotAssignmentDelivered } from '../../../functions/shared/warmupDelivery.mjs';
+import { MISSING_TOOL_IDS, validateToolQuestion } from '../../tools/toolSchemas.js';
+import { validateQuestionSemantics } from '../contract/semanticValidation.js';
 
 export const SAMPLE_INSTANCES = 6;
+// An assignment-local template is checked against a class's worth of its
+// generated versions, not one preview: a fixed graph window, a hard-coded
+// table width or a derived value can be right for most parameter tuples and
+// wrong for a few, and the student who draws one of those gets a broken
+// question. A platform family is held to its own rules and property tests, so
+// it keeps the smaller sample — unless the slot writes its own words around
+// the family's numbers ({{tokens}} in a prompt, story or answer choices):
+// those words were never property-tested, so they get the template sample.
+export const TEMPLATE_VALIDATION_SAMPLE = 32;
 export const CAPACITY_BUDGET = 2048;
 // Used when Pre-Flight does not know the roster yet (a draft with no class).
 export const REFERENCE_CLASS_SIZE = 32;
@@ -119,10 +131,15 @@ const auditFamilySlot = ({ assignmentId, question, storageIndex, capacityMemo })
   }
   const capacity = capacityMemo.get(capacityKey);
   const keyFailures = [];
+  const invalidVersions = [];
   let gradable = true;
   let gradingSupport = null;
   let sampled = 0;
-  for (let index = 0; index < SAMPLE_INSTANCES; index += 1) {
+  let validated = 0;
+  const validationSample = family.scope === 'assignment' || slotWritesFamilyTokens(question)
+    ? Math.max(SAMPLE_INSTANCES, TEMPLATE_VALIDATION_SAMPLE)
+    : SAMPLE_INSTANCES;
+  for (let index = 0; index < validationSample; index += 1) {
     const result = resolveFamilyQuestionInstance({
       question,
       assignmentId,
@@ -130,6 +147,12 @@ const auditFamilySlot = ({ assignmentId, question, storageIndex, capacityMemo })
       allocation: { seat: index, variant: 0, stride: 1, index, basis: 'preview' },
     });
     if (result.error) break;
+    validated += 1;
+    // Every sampled version is judged exactly as a static question would be:
+    // the rich tool's own schema, then the platform's semantic validation.
+    const problems = generatedVersionProblems(result.question);
+    if (problems.length) invalidVersions.push({ parameters: result.instance.params, problem: problems[0].text, fix: problems[0].fix });
+    if (index >= SAMPLE_INSTANCES || !gradable) continue;
     sampled += 1;
     if (!familyInstanceServerGradable(result.question)) {
       gradable = false;
@@ -137,7 +160,7 @@ const auditFamilySlot = ({ assignmentId, question, storageIndex, capacityMemo })
       // stays on the device, its documented blocker — so the warning says
       // exactly why rather than just "cannot".
       gradingSupport = familyInstanceGradingSupport(result.question);
-      break;
+      continue;
     }
     const response = answerKeyResponse(result.question);
     if (!response) continue;
@@ -145,7 +168,7 @@ const auditFamilySlot = ({ assignmentId, question, storageIndex, capacityMemo })
     if (grading.isCorrect !== true) keyFailures.push(result.instance.answer?.display || result.instance.fingerprint);
   }
   return {
-    error: sampled ? null : 'family_has_no_valid_instances',
+    error: validated ? null : 'family_has_no_valid_instances',
     family,
     capacity,
     toolIssue: definition.toolIssue,
@@ -154,8 +177,46 @@ const auditFamilySlot = ({ assignmentId, question, storageIndex, capacityMemo })
     gradingSupport,
     keyFailures,
     sampled,
+    validated,
+    invalidVersions,
   };
 };
+
+/**
+ * Why a generated version could not be given to a student, or [] when it can:
+ * a registry tool's own schema first, then semantic validation of the built
+ * question (which is no longer a template, so it is judged directly).
+ */
+const generatedVersionProblems = (built) => {
+  // A {{token}} the family never filled would reach the student exactly as
+  // written: a misspelled name in an authored prompt, story or choice.
+  const unfilled = [...placeholdersUsed(built)];
+  if (unfilled.length) {
+    return [{
+      text: `This version would show ${unfilled.map((name) => `{{${name}}}`).join(', ')} to the student as written, because the family fills no value by ${unfilled.length === 1 ? 'that name' : 'those names'}`,
+      fix: 'Correct the name, or use one of the values the family fills.',
+    }];
+  }
+  const type = clean(built?.toolId || built?.type);
+  const problems = [];
+  if (MISSING_TOOL_IDS.includes(type)) {
+    problems.push(...(validateToolQuestion({ ...built, toolId: type }).errors || []));
+  }
+  if (!problems.length) {
+    problems.push(...(validateQuestionSemantics(built, { label: 'This version' }).errors || []));
+  }
+  return problems.map((text) => ({ text, fix: null }));
+};
+
+/** Does the slot write its own {{tokens}} around a family's numbers (outside a local template's generator)? */
+const slotWritesFamilyTokens = (question = {}) => {
+  const { generator: _generator, ...authored } = question || {};
+  return placeholdersUsed(authored).size > 0;
+};
+
+const describeParameters = (parameters = {}) => Object.entries(parameters)
+  .map(([name, value]) => `${name} = ${value}`)
+  .join(', ');
 
 /*
  * WHO WILL MARK THIS STATIC QUESTION?
@@ -273,6 +334,11 @@ export const auditAssignmentQuestionGeneration = (assignment = {}, questions = [
     if (audit.keyFailures.length) {
       errors.push(`${where}: the generated answer key does not grade as correct for ${audit.keyFailures.length} of ${audit.sampled} sampled versions (for example ${audit.keyFailures[0]}). Fix the answer in the template or family before students see it.`);
     }
+    if (audit.invalidVersions.length) {
+      const [first] = audit.invalidVersions;
+      const which = describeParameters(first.parameters);
+      errors.push(`${where}: ${audit.invalidVersions.length} of ${audit.validated} generated versions would be refused if a student were given them (for example the version with ${which || 'its first parameters'}: ${first.problem}). ${first.fix || "Narrow the template's parameter ranges or constraints so every version is valid."}`);
+    }
     const capacity = audit.capacity.capacity;
     const approx = audit.capacity.exact ? '' : 'about ';
     if (mode !== 'shared' && capacity < comparedClassSize) {
@@ -283,7 +349,7 @@ export const auditAssignmentQuestionGeneration = (assignment = {}, questions = [
       role,
       label: where,
       familyBacked: true,
-      ready: audit.keyFailures.length === 0,
+      ready: audit.keyFailures.length === 0 && audit.invalidVersions.length === 0,
       familyId: audit.family.id,
       familyVersion: audit.family.version,
       scope: audit.family.scope,

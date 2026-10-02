@@ -10,6 +10,13 @@
 // ?gallery=1 adds one question per GIVEN source kind the final assignment does
 // not use (two points, graph, coefficient-authored standard form, point + slope,
 // m/b slope-intercept), compiled through the same chain.
+//
+// ?family=1 mounts the family-backed upgrade
+// (docs/assignments/Algebra1_Linear_Multiple_Representations_V5_FAMILY_UPDATED.json)
+// instead, through the same chain. QuestionEngine generates this student's
+// version of each question from its Question Family; window.__lmr.delivered
+// repeats exactly that call so the driver can work out the answers from the
+// version's own line.
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import QuestionEngine from '../../src/QuestionEngine.jsx';
@@ -19,6 +26,10 @@ import { buildPreflightReviewedAssignmentV5 } from '../../src/components/teacher
 import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
 import { flattenV5Sections, rebuildV5SectionsFromQuestions } from '../../src/platform/contract/assignmentSchemaV5.js';
 import FINAL_TEXT from '../../docs/assignments/algebra1-linear-multiple-representations-final-v5.json?raw';
+import FAMILY_TEXT from '../../docs/assignments/Algebra1_Linear_Multiple_Representations_V5_FAMILY_UPDATED.json?raw';
+import { generateQuestion } from '../../src/problemGenerator.js';
+import { prepareQuestionForRuntimeRouting } from '../../src/platform/algebra/algebraWorkspaceRoute.js';
+import { normalizeContextualQuestion } from '../../src/platform/context/wordProblemLayer.js';
 import { MathfieldElement } from 'mathlive';
 import '../../src/index.css';
 import '../../src/App.css';
@@ -29,7 +40,8 @@ import '../../src/App.css';
 MathfieldElement.fontsDirectory = '/node_modules/mathlive/fonts';
 
 const params = new URLSearchParams(window.location.search);
-const ASSIGNMENT = 'pr397-linear-multiple-representations';
+const FAMILY = params.get('family') === '1';
+const ASSIGNMENT = FAMILY ? 'family-linear-multiple-representations' : 'pr397-linear-multiple-representations';
 const STUDENT = `pr397-student-${params.get('run') || 'a'}`;
 
 const bridge = (questionId, prompt, source, extra = {}) => ({
@@ -76,7 +88,8 @@ const compile = (text) => {
   return { sections: rebuildV5SectionsFromQuestions(model.assignmentV5, questions), preflight: model };
 };
 
-const compiled = compile(FINAL_TEXT);
+const compiled = compile(FAMILY ? FAMILY_TEXT : FINAL_TEXT);
+const generationKeyFor = (question) => `${ASSIGNMENT}|${STUDENT}|${question.questionId}|variant:0`;
 const sections = params.get('gallery') ? [...compiled.sections, ...compile(JSON.stringify(GALLERY)).sections] : compiled.sections;
 const allQuestions = sections.flatMap((section, sectionIndex) => section.questions.map((question, index) => ({ section, sectionIndex, question, index })));
 
@@ -125,7 +138,7 @@ function Harness() {
         key={`${ASSIGNMENT}-${question.questionId}-draft0`}
         question={question}
         questionRecord={null}
-        generationKey={`${ASSIGNMENT}|${STUDENT}|${question.questionId}|variant:0`}
+        generationKey={generationKeyFor(question)}
         onGrade={(isCorrect, details, parts, _support, _responseKey, meta) => {
           grades.push({ questionId: question.questionId, isCorrect, details, parts, partialCreditPercent: meta?.partialCreditPercent ?? null });
           return null;
@@ -172,6 +185,12 @@ window.__lmr = {
   },
   grades: () => [...grades],
   question: (questionId) => allQuestions.find((entry) => entry.question.questionId === questionId)?.question || null,
+  // The version QuestionEngine shows this student: the same three calls, in order.
+  delivered: (questionId) => {
+    const question = allQuestions.find((entry) => entry.question.questionId === questionId)?.question;
+    if (!question) return null;
+    return normalizeContextualQuestion(generateQuestion(prepareQuestionForRuntimeRouting(question, { serverGraded: false }), generationKeyFor(question), {}, null, null));
+  },
   preflight: () => ({ isValid: compiled.preflight.isValid, errors: compiled.preflight.errors, warnings: compiled.preflight.warnings }),
 };
 

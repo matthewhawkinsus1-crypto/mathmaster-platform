@@ -185,6 +185,11 @@ export const resolveFamilyQuestionInstance = ({
   // Replay mode: land on `allocation.index` exactly, with no exclusion walk.
   // Only reproduceFamilyQuestionFromPin sets it.
   exact = false,
+  // Verification of a pin written before a wrapped student's earlier versions
+  // were excluded as DELIVERED: walk the way that pin was allocated (earlier
+  // versions excluded where each started). Only deliveryPinAllocationProblem
+  // sets it; no new delivery is ever made this way.
+  legacyWrapExclusion = false,
 } = {}) => {
   const slotKey = clean(providedSlotKey) || familySlotKey({ assignmentId, question, storageIndex });
   const definition = resolveQuestionFamilyDefinition(question, { slotKey, support });
@@ -216,27 +221,54 @@ export const resolveFamilyQuestionInstance = ({
     return { instance: sequence.instanceAt(wrappedIndex), index: wrappedIndex, wrapped: true };
   };
 
-  let located = resolveAt(requestedIndex);
-  if (!located.instance) return { error: FAMILY_RESOLUTION_ERROR.NO_VALID_INSTANCES, issues: [], slotKey };
+  const requested = resolveAt(requestedIndex);
+  if (!requested.instance) return { error: FAMILY_RESOLUTION_ERROR.NO_VALID_INSTANCES, issues: [], slotKey };
 
-  const excluded = new Set(exact ? [] : (Array.isArray(excludeFingerprints) ? excludeFingerprints : []).map(clean).filter(Boolean));
-  // Once indices wrap, a student's own earlier variants are no longer distinct
-  // by construction, so they are excluded explicitly.
-  if (!exact && located.wrapped && variant > 0) {
+  const external = new Set(exact ? [] : (Array.isArray(excludeFingerprints) ? excludeFingerprints : []).map(clean).filter(Boolean));
+  // Forward, deterministically, past every excluded fingerprint.
+  const walkPast = (start, excludedSet) => {
+    let current = start;
+    let walkIndex = start.index;
+    let steps = 0;
+    while (current.instance && excludedSet.has(current.instance.fingerprint) && steps < EXCLUSION_SKIP_LIMIT) {
+      walkIndex += 1;
+      steps += 1;
+      current = resolveAt(walkIndex);
+    }
+    return { located: current, skipped: steps };
+  };
+  const mostRecent = (list, count) => (count > 0 ? list.slice(-count) : []);
+
+  // Once indices wrap, this student's own earlier variants are no longer
+  // distinct by construction, so they are excluded explicitly — each by the
+  // version it DELIVERED. An earlier variant that wrapped walked past its own
+  // exclusions, so where it started is not what the student saw; excluding
+  // starts let a long run of "New Question" cycle through a handful of
+  // versions while the family still had others. At most the latest
+  // (distinct − 1) are excluded: a student who has had every version starts
+  // again at the one seen longest ago instead of being refused a question.
+  const excluded = new Set(external);
+  if (!exact && requested.wrapped && variant > 0 && legacyWrapExclusion) {
     for (let earlier = 0; earlier < variant; earlier += 1) {
       const prior = resolveAt(seat + earlier * stride).instance;
       if (prior) excluded.add(prior.fingerprint);
     }
+  } else if (!exact && requested.wrapped && variant > 0) {
+    const delivered = [];
+    for (let earlier = 0; earlier < variant; earlier += 1) {
+      const start = resolveAt(seat + earlier * stride);
+      if (!start.instance) continue;
+      const earlierExcluded = new Set(external);
+      if (start.wrapped && earlier > 0) {
+        mostRecent(delivered, sequence.distinctFound - 1).forEach((fingerprint) => earlierExcluded.add(fingerprint));
+      }
+      const { located: shown } = walkPast(start, earlierExcluded);
+      if (shown.instance && !earlierExcluded.has(shown.instance.fingerprint)) delivered.push(shown.instance.fingerprint);
+    }
+    mostRecent(delivered, sequence.distinctFound - 1).forEach((fingerprint) => excluded.add(fingerprint));
   }
 
-  let skipped = 0;
-  let walkIndex = located.index;
-  while (excluded.size && excluded.has(located.instance.fingerprint) && skipped < EXCLUSION_SKIP_LIMIT) {
-    walkIndex += 1;
-    skipped += 1;
-    located = resolveAt(walkIndex);
-    if (!located.instance) break;
-  }
+  const { located, skipped } = walkPast(requested, excluded);
   if (!located.instance || excluded.has(located.instance.fingerprint)) {
     return { error: FAMILY_RESOLUTION_ERROR.ALL_INSTANCES_EXCLUDED, issues: [], slotKey };
   }
@@ -264,11 +296,43 @@ export const resolveFamilyQuestionInstance = ({
       basis: allocation?.basis || ALLOCATION_BASIS.ANONYMOUS,
       fingerprint: instance.fingerprint,
       support: definition.support,
-      wrapped: located.wrapped,
+      // The request ran past the family's distinct questions, so this one may
+      // also be a classmate's — even when the walk ended on an unwrapped index.
+      wrapped: requested.wrapped || located.wrapped,
       skippedForExclusion: skipped,
     },
   };
 };
+
+/*
+ * THE QUESTION A VALIDATOR JUDGES FOR A FAMILY SLOT.
+ *
+ * A template is not a question — `"{{m}}"` is not a slope, and a rich tool's
+ * own schema rightly refuses a board whose line cannot be derived. Every check
+ * that asks "could a student be given this?" (semantic validation, a registry
+ * tool's schema, the runtime contract) therefore judges a generated PREVIEW,
+ * from this one fixed allocation, so they all judge the same instance and
+ * agree with each other. `index` walks further previews for a sampled check.
+ *
+ * Never throws: `{ error, issues }` for a slot that cannot generate, which the
+ * caller reports with `familyResolutionMessage` (one wording, so Pre-Flight's
+ * de-duplication folds the runtime-contract and semantic reports together).
+ */
+export const FAMILY_PREVIEW_ASSIGNMENT_ID = 'semantic-check';
+
+export const resolveFamilyPreviewInstance = (question, { index = 0 } = {}) => {
+  const position = Math.max(0, Math.floor(Number(index) || 0));
+  return resolveFamilyQuestionInstance({
+    question,
+    assignmentId: FAMILY_PREVIEW_ASSIGNMENT_ID,
+    storageIndex: 0,
+    allocation: { seat: position, variant: 0, stride: 1, index: position, basis: ALLOCATION_BASIS.PREVIEW },
+  });
+};
+
+export const familyResolutionMessage = (label, preview = {}) => (
+  `${label} references a Question Family that cannot generate questions (${preview.error}${preview.issues?.length ? `: ${preview.issues.join('; ')}` : ''}). Students would see "This question could not be prepared" instead of a question.`
+);
 
 /**
  * Re-create exactly the question a delivery pin describes.

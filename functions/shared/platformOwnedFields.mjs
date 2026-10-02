@@ -26,6 +26,11 @@ export const PLATFORM_OWNED_FIELDS = Object.freeze([
   // Teacher decisions about an existing assignment, not authoring input. A
   // replacement that sets these overrides a choice a person made in the UI.
   'teacherExcluded', 'archived', 'archivedAt',
+  // A question's grade value and the record of who set it. A repair changes
+  // content, never the value: the value moves only through the teacher's
+  // value control, where live grades are recalculated openly. A reply that
+  // omitted it used to reset the question to the standard x1.
+  'questionWeight', 'questionWeightBasis',
 ]);
 
 const isQuestionObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);

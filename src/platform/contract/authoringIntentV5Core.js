@@ -13,6 +13,8 @@ import {
   normalizeAssignmentV5,
   validateAssignmentV5,
 } from './assignmentSchemaV5.js';
+import { normalizeQuestionFamilyReference } from '../../../functions/shared/questionFamilyInstance.mjs';
+import { hasLocalFamilyTemplate, lostTemplatePlaceholders } from '../../../functions/shared/questionFamilyTemplate.mjs';
 
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
@@ -29,6 +31,41 @@ const normalizePointListForStorage = (value) => (
 
 const clean = (value) => String(value ?? '').trim();
 const normalizeToken = (value) => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+// An assignment-local Question Family template writes "{{m}}" where a number
+// will go (functions/shared/questionFamilyTemplate.mjs); the generated
+// question gets the number. Coercing the token here would turn it into NaN
+// before any student's numbers exist, so a whole-field token is carried as
+// written. Every other value is coerced exactly as before.
+const WHOLE_TEMPLATE_TOKEN = /^\{\{\s*[A-Za-z_][A-Za-z0-9_]*\s*\}\}$/;
+const numberOrTemplateToken = (value) => (
+  typeof value === 'string' && WHOLE_TEMPLATE_TOKEN.test(value.trim()) ? value.trim() : Number(value)
+);
+
+/*
+ * A FAMILY TEMPLATE IS COMPILED, NEVER HALF-COMPILED.
+ *
+ * Compiling an assignment-local family template must carry every templated
+ * value into the renderer contract. A placeholder that comes out FEWER times
+ * than it went in means the compiler dropped the field it lived in, or coerced
+ * it — and every student would then be generated a question without that
+ * value. That is refused here, by name, at import, instead of surfacing as a
+ * broken generated question (or Pre-Flight's `template_invalid`) later.
+ *
+ * Only slots that opted into an assignment-local family are checked: a
+ * platform family's `{{equation}}` tokens are the family's to fill, and a
+ * question that never opted in is not a template.
+ */
+const assertFamilyTemplateCompiled = (source, compiled, index) => {
+  if (normalizeQuestionFamilyReference(source)?.scope !== 'assignment' || !hasLocalFamilyTemplate(source)) return;
+  const lost = lostTemplatePlaceholders(source, compiled);
+  if (!lost.length) return;
+  throw new Error(
+    `V5 question ${index + 1} is a Question Family template, but ${compiled?.type || 'its tool'} does not keep the field(s) that use `
+    + `${lost.map((name) => `{{${name}}}`).join(', ')}, so generated versions would lose those values. `
+    + 'Put each {{…}} only in fields this tool shows (prompt, source, context, sets, …), or use a platform Question Family.',
+  );
+};
 const ACTION_ALIASES = Object.freeze({
   solve: 'solveEquation', solveequation: 'solveEquation', answernumeric: 'solveEquation',
   solvebysteps: 'solveStepByStep', solvestepbystep: 'solveStepByStep', showsteps: 'solveStepByStep',
@@ -106,7 +143,23 @@ const copyCommon = (source, target = {}) => {
   // is what makes the slot generate per-student versions (and Recovery). A
   // compiler that dropped it would silently turn the slot back into a
   // template only the legacy generator reads.
-  if (isObject(source.questionFamily)) target.questionFamily = source.questionFamily;
+  //
+  // Its `generator` travels WITH it. An assignment-local family is the opt-in
+  // plus this template; keeping one without the other is the half-compiled
+  // slot Pre-Flight reported as `template_invalid: not_a_template` for every
+  // rich tool whose branch below does not list `generator` itself
+  // (representationMatch, representationBridge, …). A question that has NOT
+  // opted in keeps the legacy behaviour exactly: its type's branch decides.
+  if (isObject(source.questionFamily)) {
+    target.questionFamily = source.questionFamily;
+    if (isObject(source.generator)) target.generator = source.generator;
+  }
+  // An author's grade value is the author's decision. It used to be dropped
+  // here, so a V5 file that set questionWeight imported at the default ×1;
+  // the assignment schema validates the value, and the question-value
+  // allocator fills only the questions that have none.
+  if (source.questionWeight != null && source.questionWeight !== '') target.questionWeight = source.questionWeight;
+  if (isObject(source.questionWeightBasis)) target.questionWeightBasis = source.questionWeightBasis;
   if (source.standard) target.standard = source.standard;
   if (source.primaryStandard) target.primaryStandard = source.primaryStandard;
   if (source.secondaryStandards) target.secondaryStandards = source.secondaryStandards;
@@ -152,8 +205,8 @@ const coreFunctionSpec = (raw = {}) => {
   const family = clean(f.family || f.type || 'linear');
   const type = family === 'line' ? 'linear' : family;
   if (type === 'linear') {
-    const m = Number(f.m ?? f.slope ?? f.a ?? 1);
-    const b = Number(f.b ?? f.intercept ?? f.k ?? 0);
+    const m = numberOrTemplateToken(f.m ?? f.slope ?? f.a ?? 1);
+    const b = numberOrTemplateToken(f.b ?? f.intercept ?? f.k ?? 0);
     return { type: 'linear', m, b, ...(f.domain ? { domain: f.domain } : {}) };
   }
   const out = { type };
@@ -1959,6 +2012,7 @@ export const compileAuthoringIntentV5 = (input = {}) => {
       : question;
     const compiled = compileOne(source, index, repairs);
     const interactionSafe = normalizeQuestionInteractionContracts(compiled);
+    assertFamilyTemplateCompiled(source, interactionSafe, index);
     decisions.push({
       index,
       sectionId,

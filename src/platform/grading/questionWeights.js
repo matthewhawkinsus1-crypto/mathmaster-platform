@@ -1,3 +1,5 @@
+import { estimateQuestionValue } from '../../../functions/shared/questionValue.mjs';
+
 const finitePositive = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
@@ -50,24 +52,12 @@ export const weightedQuestionTotals = ({
   };
 };
 
-export const suggestedQuestionWeight = (question = {}) => {
-  const workflowCount = Array.isArray(question?.workflow) ? question.workflow.length : 0;
-  const recipeCount = Array.isArray(question?.recipe?.ask)
-    ? question.recipe.ask.length
-    : (Array.isArray(question?.ask) ? question.ask.length : 0);
-  const answerFieldCount = Array.isArray(question?.answerFields) ? question.answerFields.length : 0;
-  const actionCount = Array.isArray(question?.studentActions) ? question.studentActions.length : 0;
-
-  const workUnits = Math.max(
-    workflowCount,
-    recipeCount,
-    answerFieldCount,
-    Math.min(8, actionCount),
-    1,
-  );
-  if (workUnits >= 8) return 4;
-  if (workUnits >= 6) return 3;
-  if (workUnits >= 4) return 2;
-  if (workUnits >= 3) return 1.5;
-  return 1;
-};
+/*
+ * The value MathMaster gives a question when it is created — the SAME rule
+ * the authoring compiler stamps, the editor's "Suggest" offers and the AI
+ * weight review is shown (functions/shared/questionValue.mjs). It counts the
+ * work the question's own grader assesses (cards, fields, stages, modes), so a
+ * rich tool's board is no longer measured as one answer because it has no
+ * `answerFields`.
+ */
+export const suggestedQuestionWeight = (question = {}) => estimateQuestionValue(question).value;
