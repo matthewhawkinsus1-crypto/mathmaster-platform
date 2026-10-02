@@ -64,6 +64,25 @@ test('plain grouped scalar fractions lose only their redundant grouping before s
   ]);
 });
 
+test('the full stop after a prose fraction ends the sentence, not the denominator', () => {
+  assert.deepEqual(splitProseFractionRuns('Simplify 2/6.'), [
+    { text: 'Simplify ', isFraction: false },
+    { text: '\\frac{2}{6}', isFraction: true },
+    { text: '.', isFraction: false },
+  ]);
+  assert.deepEqual(splitProseFractionRuns('The slope is 3/4. Graph the line.'), [
+    { text: 'The slope is ', isFraction: false },
+    { text: '\\frac{3}{4}', isFraction: true },
+    { text: '. Graph the line.', isFraction: false },
+  ]);
+  // A decimal keeps its point; only the sentence's stop moves.
+  assert.deepEqual(splitProseFractionRuns('Divide 3/1.5.'), [
+    { text: 'Divide ', isFraction: false },
+    { text: '\\frac{3}{1.5}', isFraction: true },
+    { text: '.', isFraction: false },
+  ]);
+});
+
 test('the pattern carries no state between callers', () => {
   // A module-level /g regex shares lastIndex, so the second caller silently gets
   // a different answer than the first. That bug is why this returns a new one.
