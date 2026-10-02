@@ -49,9 +49,34 @@ so that the browser, Cloud Functions and tests run the same bytes:
 | `recovery` | Whether the family may back Recovery, and its equivalence group (coverage key). |
 
 The platform families live in `questionFamiliesLinear.mjs`,
-`questionFamiliesSystems.mjs` and `questionFamiliesNonlinear.mjs`. They are
-registered in `questionFamilyRegistry.mjs`, and the authoring contract lists
-them from that live registry.
+`questionFamiliesSystems.mjs`, `questionFamiliesNonlinear.mjs` and
+`questionFamiliesRepresentations.mjs`. They are registered in
+`questionFamilyRegistry.mjs`, and the authoring contract lists them from that
+live registry.
+
+**Representation families** (`questionFamiliesRepresentations.mjs`) back the
+rich representation tools:
+
+* `linear.multipleRepresentations` builds the Multiple Representations board
+  (`representationBridge`, mode `linearMultipleRepresentations`). A slot's
+  `constraints.given` chooses the GIVEN (`standardForm`, `slopeIntercept`,
+  `pointSlope`, `twoPoints`, `table`, `scenario`); other knobs choose the
+  slope (integer or fraction, sign, size), intercept ranges, the GIVEN
+  standard form's scale, the table's x-values, a story's rate, duration and
+  starting amount, and a `coordinateRange` that keeps every point a student is
+  given or must plot on a readable grid.
+* `linear.representationSort` builds the two-line card sort
+  (`representationMatch`, `linearConnections`, task `group`): one rising and
+  one falling line whose cards never coincide.
+
+Each draws only the line (or a story's rate and duration) and derives every
+representation, the window and the story's numbers from it, so no two
+representations can disagree. A slot keeps its own prompt, cards, feedback
+timing and context, with `{{tokens}}` filled from the line: `{{given}}` for
+the GIVEN; `{{start}}`, `{{rate}}`, `{{end}}` in a story and its answer
+choices; `{{line1}}`, `{{line2}}` in a sort's prompt; `{{start}}`, `{{rate}}`,
+`{{slope}}` in a sort set's context (set 0 is the rising line). A string that
+is only a token takes the number itself (`"max": "{{end}}"`).
 
 **Assignment-local families** (`questionFamilyTemplate.mjs`) adapt an authored
 `generator` template (parameters, derived values, constraints and
@@ -92,7 +117,20 @@ question does not move anyone's question.
 seat count (at most 64). Classmates' variant 0 instances are therefore
 pairwise distinct, and "New Question" (variant 1) lands on an index no
 classmate holds. When a class is larger than the family's capacity, indices
-wrap. The delivery records `wrapped: true`, and Pre-Flight warned beforehand.
+wrap. The delivery records `wrapped: true` (for any request past the family's
+end, even when the walk below ends on an unwrapped index), and Pre-Flight
+warned beforehand.
+
+Once a request wraps, the student's own earlier versions are excluded
+explicitly — each by the version it **delivered**, not by where its index
+started (an earlier wrapped request may itself have walked). A student keeps
+getting versions they have not had until they have had all of them, then
+starts again at the one seen longest ago (only the latest `distinct − 1` are
+excluded). Excluding where earlier requests *started* let a long run of "New
+Question" cycle through a handful of versions while the family had dozens
+more, or refuse a question outright in a small family. A pin written by that
+earlier walk still verifies on the server (`deliveryPinAllocationProblem`
+tries both walks), and every pin replays from its `resolvedIndex` exactly.
 Shared sections deliberately give everyone seat 0 and say so
 (`basis: 'shared'`).
 
@@ -142,6 +180,14 @@ Pre-Flight modal's "Question versions and Recovery" panel. It checks:
   family slot by a generated preview instead of the template.
 * **Answer key.** A sample of instances per slot is graded with its own key
   through the server contract.
+* **Every sampled version is a valid question.** Each is judged as a static
+  question would be: the rich tool's own schema, then semantic validation. A
+  `{{token}}` the family never fills is refused with the token named. An
+  assignment-local template — and a platform slot that writes its own
+  `{{tokens}}` around a family's numbers — is checked against a class's worth
+  of versions (32), not the platform sample, because those words were never
+  property-tested. On the Multiple Representations board every context
+  dropdown must offer exactly one choice the grader marks correct.
 * **Tool compatibility and constraint fallbacks.**
 * **Capacity against class size.** Class size comes from the roster, or a
   reference of 32.
@@ -263,8 +309,16 @@ question, and it is never a free skip.
 * The authoring compiler passes `questionFamily` through.
 * Representative content:
   * `SAMPLE_QUESTION_FAMILY_RECOVERY.json` is fully family-backed and passes
-    Pre-Flight with both Recoveries ready.
+    Pre-Flight with both Recoveries ready. (It is a runtime-shaped fixture
+    passed straight to Pre-Flight; it does not go through the teacher's JSON
+    import, which asks for `studentActions`.)
   * The Lesson 1 ALEKS bridge's interval template is opted in.
+  * `docs/assignments/Algebra1_Linear_Multiple_Representations_V5_FAMILY_UPDATED.json`
+    is the Multiple Representations lesson with every question family-backed
+    (`linear.representationSort` Warm-Ups, `linear.multipleRepresentations`
+    boards). Each baseline question is one draw of its upgraded slot. It
+    passes the teacher import and Pre-Flight with no errors or warnings, both
+    Recoveries ready. The baseline file is kept unchanged.
 * Everything else in `teacher-import-jsons/` and the stored library remains
   legacy until it is migrated question by question. Pre-Flight shows which
   questions block Recovery.
