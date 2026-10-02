@@ -1,19 +1,19 @@
 import { staticGraphAsymptotes } from '../../graphSpecUtils.js';
-import { parseIntervalDomainRestriction } from './modelExpression.js';
+import { normalizeWorkflowDomain } from '../../../functions/shared/toolMath/workflow/workflowGraphStage.mjs';
+
+// The domain a student-built graph honours and whether its ends must be
+// marked decide what a graph stage MARKS, so they live with the shared
+// sub-question builder (functions/shared/toolMath/workflow/workflowGraphStage
+// .mjs), which the composed-workflow grader runs on the server too.
+export {
+  normalizeWorkflowDomain,
+  workflowGraphDomainRestriction,
+  workflowRequiresEndpointMarkers,
+} from '../../../functions/shared/toolMath/workflow/workflowGraphStage.mjs';
 
 const finiteNumber = (value) => {
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
-};
-
-export const normalizeWorkflowDomain = (domain = null) => {
-  const source = domain && typeof domain === 'object' ? domain : {};
-  return {
-    min: finiteNumber(source.min),
-    max: finiteNumber(source.max),
-    minClosed: source.minClosed !== false && source.minInclusive !== false,
-    maxClosed: source.maxClosed !== false && source.maxInclusive !== false,
-  };
 };
 
 export const restrictEvaluatorToDomain = (evaluate, domain = null) => {
@@ -61,60 +61,6 @@ const sampledVisiblePoints = (evaluate, view, domain) => {
   return rows;
 };
 
-export const workflowRequiresEndpointMarkers = ({ pointOnly = false, authored, domain = null } = {}) => {
-  if (pointOnly) return false;
-  if (typeof authored === 'boolean') return authored;
-  const bounds = normalizeWorkflowDomain(domain);
-  return bounds.min !== null || bounds.max !== null;
-};
-
-const restrictionFromGradingRule = (rule) => {
-  const options = Array.isArray(rule)
-    ? rule
-    : (rule && typeof rule === 'object' && !Array.isArray(rule))
-      ? (Array.isArray(rule.anyOf) ? rule.anyOf : [rule.equals ?? rule])
-      : [rule];
-  for (const option of options) {
-    const parsed = parseIntervalDomainRestriction(option);
-    if (parsed) return parsed;
-  }
-  return null;
-};
-
-/**
- * Resolve the finite domain a student-built graph must honor.
- *
- * A simple workflow historically stored its key at grading.domain. Branched
- * continuity workflows store one key per visible branch instead
- * (domain-continuous / domain-discrete, or any authored stage id). The graph
- * runtime used to look only at grading.domain, so a correct continuous
- * real-world model silently became an unbounded function and demanded arrows.
- *
- * Read the ACTIVE workflow, never a hidden branch. That preserves the
- * assessment: the student's discrete/continuous choice decides which domain
- * stage exists, and only then does the graph receive the matching boundary
- * semantics.
- */
-export const workflowGraphDomainRestriction = ({
-  graphStage = null,
-  workflow = [],
-  grading = null,
-} = {}) => {
-  const authored = parseIntervalDomainRestriction(graphStage?.domainRestriction);
-  if (authored) return authored;
-
-  const rules = grading && typeof grading === 'object' && !Array.isArray(grading) ? grading : {};
-  const direct = restrictionFromGradingRule(rules.domain);
-  if (direct) return direct;
-
-  for (const stage of Array.isArray(workflow) ? workflow : []) {
-    if (stage?.kind !== 'domainInput') continue;
-    const parsed = restrictionFromGradingRule(rules[stage.id]);
-    if (parsed) return parsed;
-  }
-  return null;
-};
-
 /*
  * A DISCRETE MODEL IS REVIEWED AS THE POINTS IT WAS BUILT FROM.
  *
@@ -138,22 +84,37 @@ export const checkedGraphIsPointOnly = ({ graphStage = null, responses = {} } = 
  * Where outcomes are withheld (DOL, quiz, test) the later steps cannot show
  * "Your checked graph": it appeared only when the graph was right, so its
  * presence was the verdict. They show the student's own points instead, right
- * or wrong. The graph step already records each placement as a part
- * ("Point placement: P1" → "(3, -2)", written by gradePointPlacements), so the
- * points are read from there and the stored step keeps exactly the shape it
- * has always had: a new field would make every submitted graph look edited
- * (workflowReviewState compares the step with what was submitted).
+ * or wrong. The graph step records the workspace's own work
+ * (`construction.placements`, workflowGraphStage.mjs workflowGraphArtifact),
+ * so the points are read from there and the stored step keeps exactly the
+ * shape it has: a new field would make every submitted graph look edited
+ * (workflowReviewState compares the step with what was submitted). A step
+ * stored before the work travelled kept each placement as a part instead
+ * ("Point placement: P1" → "(3, -2)", written by gradePointPlacements).
  */
 const PLACED_POINT = /^\((-?\d+(?:\.\d+)?(?:e[-+]?\d+)?), (-?\d+(?:\.\d+)?(?:e[-+]?\d+)?)\)$/i;
 export const MAX_REFERENCE_POINTS = 60;
 
-export const studentPlottedPoints = (graphResponse = null) => (Array.isArray(graphResponse?.parts) ? graphResponse.parts : [])
+const placedPointsFromWork = (graphResponse) => {
+  const placements = graphResponse?.construction?.placements;
+  if (!placements || typeof placements !== 'object' || Array.isArray(placements)) return [];
+  return Object.values(placements)
+    .filter((point) => Array.isArray(point) && point.length >= 2)
+    .map(([x, y]) => [Number(x), Number(y)]);
+};
+
+const placedPointsFromParts = (graphResponse) => (Array.isArray(graphResponse?.parts) ? graphResponse.parts : [])
   .filter((part) => String(part?.label || '').startsWith('Point placement:'))
   .map((part) => PLACED_POINT.exec(String(part?.response ?? '').trim()))
   .filter(Boolean)
-  .map((match) => [Number(match[1]), Number(match[2])])
-  .filter((point) => point.every(Number.isFinite))
-  .slice(0, MAX_REFERENCE_POINTS);
+  .map((match) => [Number(match[1]), Number(match[2])]);
+
+export const studentPlottedPoints = (graphResponse = null) => {
+  const fromWork = placedPointsFromWork(graphResponse);
+  return (fromWork.length ? fromWork : placedPointsFromParts(graphResponse))
+    .filter((point) => point.every(Number.isFinite))
+    .slice(0, MAX_REFERENCE_POINTS);
+};
 
 export const workflowEndpointMarkers = ({ evaluate, domain = null, viewWindow = {} } = {}) => {
   if (typeof evaluate !== 'function') return [];

@@ -1,13 +1,15 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import QuestionPrompt from './QuestionPrompt';
 import PointMeaningBuilder from './PointMeaningBuilder';
 import useUndoHistory from './useUndoHistory';
 import {
-  buildContextInterpretationParts,
   buildNaturalMeaning,
   EMPTY_POINT_MEANING,
 } from './contextInterpretationUtils';
-import { stableStringify } from './scenarioResponseUtils';
+import contextInterpretationGrader from '../functions/shared/serverGrading/tools/contextInterpretation.mjs';
+import { pointMeaningWork } from '../functions/shared/toolMath/scenario/scenarioWork.mjs';
+import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
+import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
 
 export default function ContextInterpretation({
   question,
@@ -19,20 +21,17 @@ export default function ContextInterpretation({
 }) {
   const history = useUndoHistory(EMPTY_POINT_MEANING, 80, draftKey ? `${draftKey}:context-interpretation` : null);
   const values = history.value || EMPTY_POINT_MEANING;
-  const parts = buildContextInterpretationParts(values, question, { prefix: 'meaning' });
-  const isComplete = parts.length > 0 && parts.every((part) => part.isComplete);
-  const isCorrect = isComplete && parts.every((part) => part.isCorrect);
+  // The student's raw work (the seven point-meaning entries). The verdict comes
+  // ONLY from the shared grader the server also runs
+  // (serverGrading/tools/contextInterpretation.mjs).
+  const work = useMemo(() => pointMeaningWork(values), [values]);
+  const grading = useMemo(() => gradeToolCheck(contextInterpretationGrader, question, work), [question, work]);
   const natural = buildNaturalMeaning(values, question);
+  const questionDetails = `${question.prompt || 'Interpret the point.'} Response: ${natural || values.openText || JSON.stringify(values)}`;
 
   useEffect(() => {
-    onStateChange({
-      isComplete,
-      isCorrect,
-      responseKey: stableStringify(values),
-      questionDetails: `${question.prompt || 'Interpret the point.'} Response: ${natural || values.openText || JSON.stringify(values)}`,
-      parts,
-    });
-  }, [history.value, isComplete, isCorrect, natural, onStateChange, question.prompt]);
+    onStateChange(answerStateFromSharedGrading(grading, { questionDetails }));
+  }, [grading, questionDetails, onStateChange]);
 
   useEffect(() => {
     onUndoStateChange?.({ canUndo: history.canUndo && !disabled, onUndo: history.undo, label: 'Undo the last point-meaning entry' });

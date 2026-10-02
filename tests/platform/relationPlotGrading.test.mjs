@@ -8,12 +8,18 @@
  * wrong — credit 0, "The arrows do not match the relation…" — however it was
  * drawn. A relation question that asked for a plot could never be full credit.
  *
- * The grader now marks a graph artifact by the points it holds (its saved
- * placements, else its point parts, else its own verdict), compared with the
- * relation as a set. The recipe still keys the plot with the relation's pairs:
- * the grader can know them, so it should use them, rather than trusting the
- * plotting surface's own point-by-point verdict (which ties P1 to the first
- * pair and so marks a correctly plotted non-function wrong).
+ * The recipe now keys the plot with the plotting surface's verdict
+ * (`useStageVerdict`), and the shared composed grader re-marks that stage from
+ * the student's work with the graph-workspace grader — the server never takes
+ * the browser's word for it. That grader matches cards stating the same x as a
+ * set (interactiveGraphEngine.mjs), so a correctly plotted non-function is
+ * correct however its two same-x points were placed. Like every graph stage,
+ * the plot is marked whole: right, or not.
+ *
+ * A plot keyed by its pairs (an authored `{ pairs }` rule) is marked by the
+ * points it holds — its saved placements, else its point parts, else its own
+ * verdict — compared with the relation as a set (gradePlottedPairs), never as
+ * a list of arrows.
  *
  * Re-marking a stored record (liveQuestionCorrection) can only raise it.
  */
@@ -30,6 +36,8 @@ import {
   summarizeWorkflowParts,
 } from '../../src/platform/workflow/workflowGrading.js';
 import { repairQuestionRecordForGranularWorkflowCredit } from '../../src/platform/assignment/liveQuestionCorrection.js';
+import { gradeComposedWorkflowWork } from '../../functions/shared/serverGrading/questionGraders/composedWorkflow.mjs';
+import { composedWorkflowWork } from '../../functions/shared/toolMath/workflow/composedWorkflowContract.mjs';
 
 const PAIRS = [[-2, 3], [1, 2], [3, -1], [-4, -3]];
 const RELATION = {
@@ -65,6 +73,22 @@ const plotArtifact = (placed, { key = PAIRS, isComplete = true, responseKey = tr
   };
 };
 
+// What the plot stage answers today (workflowGraphStage.mjs workflowGraphArtifact):
+// the workspace's own work, its claims for the screen only. The commit says how
+// the points were committed: the passed check, or graded as placed (a DOL).
+const workArtifact = (placed, commit = {}) => ({
+  __mathmasterWorkflowArtifact: 'graph',
+  isComplete: true,
+  isCorrect: false,
+  construction: { placements: Object.fromEntries(placed.map((point, index) => [`point-${index + 1}`, point])), ...commit },
+  analysis: {},
+});
+// The question as the server marks it (serverGrading/questionGraders/composedWorkflow.mjs).
+const sharedQuestion = (placed, commit, question = RELATION, rest = CORRECT_REST) => (
+  gradeComposedWorkflowWork(question, composedWorkflowWork({ plot: workArtifact(placed, commit), ...rest }))
+);
+const sharedPlot = (...args) => sharedQuestion(...args).parts.find((part) => part.id === 'plot');
+
 const composed = (question = RELATION) => readComposedQuestion(question);
 const markQuestion = (plot, question = RELATION, rest = CORRECT_REST) => {
   const { workflow, grading } = composed(question);
@@ -73,11 +97,11 @@ const markQuestion = (plot, question = RELATION, rest = CORRECT_REST) => {
 const markPlot = (plot, question = RELATION) => markQuestion(plot, question).parts.find((part) => part.id === 'plot');
 
 // ---------------------------------------------------------------- the defect
-test('the recipe keys the plot with the relation\'s pairs, and the plot stage answers with a graph artifact', () => {
+test('the recipe keys the plot with the plotting surface\'s verdict, and the plot stage answers with a graph artifact', () => {
   const { workflow, grading } = composed();
   assert.equal(workflow.find((stage) => stage.id === 'plot').kind, 'coordinatePlot');
-  assert.deepEqual(grading.plot, { pairs: PAIRS });
-  assert.deepEqual(expandRecipe(RELATION).grading.plot, { pairs: PAIRS });
+  assert.deepEqual(grading.plot, { useStageVerdict: true });
+  assert.deepEqual(expandRecipe(RELATION).grading.plot, { useStageVerdict: true });
 });
 
 test('a complete, correct relation plot is marked correct — and the whole question can reach full credit', () => {
@@ -90,30 +114,41 @@ test('a complete, correct relation plot is marked correct — and the whole ques
   assert.equal(whole.partialCreditPercent, 100);
 });
 
-test('a plot with one pair misplaced earns partial credit and a plot-specific message', () => {
-  const plot = markPlot(plotArtifact([[-2, 3], [1, 3], [3, -1], [-4, -3]]));
-  assert.equal(plot.isCorrect, false);
-  assert.equal(plot.credit, 3 / 4);
-  assert.match(plot.detail, /3 of 4 ordered pairs are plotted/);
-  assert.doesNotMatch(plot.detail, /arrow/i);
-  assert.equal(markQuestion(plotArtifact([[-2, 3], [1, 3], [3, -1], [-4, -3]])).isCorrect, false);
+test('a plot with one pair misplaced is not correct, on the server as on the device', () => {
+  const plot = sharedPlot([[-2, 3], [1, 3], [3, -1], [-4, -3]], { pointsGradedAsPlaced: true });
+  assert.deepEqual([plot.isComplete, plot.isCorrect, plot.credit], [true, false, 0], 'a graph stage is marked whole');
+  assert.equal(sharedQuestion([[-2, 3], [1, 3], [3, -1], [-4, -3]], { pointsGradedAsPlaced: true }).isCorrect, false);
+  // The rest of the question still earns its credit.
+  assert.equal(sharedQuestion([[-2, 3], [1, 3], [3, -1], [-4, -3]], { pointsGradedAsPlaced: true }).score, 0.75);
+  // Keyed by its pairs, the same plot earns the share it got right, in words
+  // about points, not arrows.
+  const byPairs = gradePlottedPairs(plotArtifact([[-2, 3], [1, 3], [3, -1], [-4, -3]]), { pairs: PAIRS });
+  assert.equal(byPairs.credit, 3 / 4);
+  assert.match(byPairs.detail, /3 of 4 ordered pairs are plotted/);
+  assert.doesNotMatch(byPairs.detail, /arrow/i);
 });
 
 test('a relation is a set: a non-function plotted with its two same-x points the other way round is correct', () => {
   const key = [[1, 2], [1, 5], [3, 4]];
   const question = { ...RELATION, pairs: key };
+  const rest = { domain: '{1, 3}', range: '{2, 4, 5}', isFunction: 'No' };
   // P1 and P2 are both locked to x = 1; the student gives P1 the 5 and P2 the 2.
-  const swapped = plotArtifact([[1, 5], [1, 2], [3, 4]], { key });
-  assert.equal(swapped.isCorrect, false, 'the plotting surface\'s own per-task verdict calls this wrong');
-  const plot = markQuestion(swapped, question, { domain: '{1, 3}', range: '{2, 4, 5}', isFunction: 'No' }).parts.find((part) => part.id === 'plot');
-  assert.equal(plot.isCorrect, true, 'the same set of ordered pairs is the same relation');
-  assert.equal(plot.credit, 1);
+  // The browser's own per-task claim says wrong; the server re-marks the work.
+  const swapped = [[1, 5], [1, 2], [3, 4]];
+  for (const commit of [{ pointsLocked: true }, { pointsGradedAsPlaced: true }]) {
+    const plot = sharedPlot(swapped, commit, question, rest);
+    assert.equal(plot.isCorrect, true, `the same set of ordered pairs is the same relation (${JSON.stringify(commit)})`);
+    assert.equal(plot.credit, 1);
+  }
+  // Keyed by its pairs, too.
+  assert.equal(gradePlottedPairs(plotArtifact(swapped, { key }), { pairs: key }).isCorrect, true);
 });
 
 test('one point cannot stand for two pairs, and a point outside the relation costs credit', () => {
-  const twice = markPlot(plotArtifact([[-2, 3], [-2, 3], [3, -1], [-4, -3]]));
+  const twice = gradePlottedPairs(plotArtifact([[-2, 3], [-2, 3], [3, -1], [-4, -3]]), { pairs: PAIRS });
   assert.equal(twice.isCorrect, false);
   assert.equal(twice.credit, 3 / 4);
+  assert.equal(sharedPlot([[-2, 3], [-2, 3], [3, -1], [-4, -3]], { pointsGradedAsPlaced: true }).isCorrect, false);
   const stray = gradePlottedPairs(plotArtifact([[-2, 3], [1, 2], [3, -1], [-4, -3], [5, 5]]), { pairs: PAIRS });
   assert.equal(stray.isCorrect, false);
   assert.equal(stray.credit, 4 / 5);

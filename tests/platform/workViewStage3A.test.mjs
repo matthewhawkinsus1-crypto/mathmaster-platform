@@ -240,7 +240,7 @@ for (const { file, label } of MIGRATED) {
     const figure = region(text, `label="${label}"`, '>', 'the Work View registration');
     assert.match(figure, /capabilities=\{workspaceCapabilities\}/);
 
-    const registration = region(text, 'const workspaceCapabilities', 'return (', 'the capability descriptor');
+    const registration = region(text, 'const workspaceCapabilities', '};', 'the capability descriptor');
     // Enlarging has to carry the activity: the task, what to do next, and a way
     // to act on it. A Work View holding only a bigger graph is the failure this
     // stage exists to end.

@@ -74,8 +74,17 @@ test('server roster linking stores Google identity and removes an obsolete passb
   assert.match(server, /linksBeingReplaced/);
   assert.match(server, /FieldValue\.arrayRemove\(cleanCourseId\)/);
   assert.match(server, /googleName: FieldValue\.delete\(\)/);
-  assert.match(server, /googleEmail: item\.email/);
-  assert.match(server, /googleName: item\.name/);
+  // Each linked student's grades row gets the Google identity through the one
+  // validated copy, which writes a name only when it is a real one (a blank
+  // Classroom name never erases the only name a legacy student has).
+  const batch = server.slice(
+    server.indexOf('exports.linkClassroomRosterBatch'),
+    server.indexOf('exports.ensureClassroomTopics'),
+  );
+  assert.match(
+    batch,
+    /db\.doc\(`grades\/\$\{item\.studentId\}`\),\s*\{\s*googleUserId: item\.googleUserId,\s*\.\.\.classroomGoogleIdentityFields\(identity, item, \{ nameField: "googleName", emailField: "googleEmail" \}\)/,
+  );
 });
 
 console.log('classroomRosterIdentityBridge.test.mjs: identity bridge coverage passed');

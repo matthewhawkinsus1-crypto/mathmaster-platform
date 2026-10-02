@@ -8,6 +8,9 @@ import {
   builderAsksGraphType, evaluateConstraint, normalizeBuilderModel, scoreConstraintModel,
 } from '../../src/tools/constraintFunctionBuilder/constraintFunctionMath.js';
 import { buildPrivateToolGrading, gradePathResponse } from '../../functions/shared/pathToolContracts.mjs';
+import { gradeServerResponse } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
+import { buildToolResponse } from '../../functions/shared/serverGrading/toolResponseContract.mjs';
+import { TOOL_GRADING_DECLARATIONS } from '../../functions/shared/serverGrading/gradingManifest.mjs';
 import { executableSource, region } from './helpers/sourceContract.mjs';
 
 // A JUDGMENT THE STUDENT IS ASKED TO MAKE STARTS UNANSWERED, AND UNANSWERED IS
@@ -133,6 +136,57 @@ test('the systems grader never grades an unclassified response, or a blank inequ
   }
 });
 
+// The assignment server grades a registry tool's raw work with the tool's
+// shared grader (functions/shared/serverGrading/tools/) — the same function
+// the tool's own Check runs. An unanswered judgment must earn nothing there
+// either: not complete (a deadline never submits it as an answer) and not
+// right, even where the choice it used to open on is the answer.
+const serverGrade = (question, work) => gradeServerResponse({
+  question,
+  response: JSON.parse(JSON.stringify(buildToolResponse({
+    question,
+    toolId: question.type,
+    contractVersion: TOOL_GRADING_DECLARATIONS[question.type].contractVersion,
+    work,
+  }))),
+});
+
+test('the shared graders the assignment server runs credit no unanswered judgment', () => {
+  const cases = [
+    // Positive, moderate data: "positive" / "moderate" / "association" were the old defaults and the answer.
+    ['data modeling association', { type: 'dataModelingLab', mode: 'association', points: [[1, 2], [2, 1], [3, 4], [4, 3], [5, 6], [6, 3], [7, 5]] },
+      { direction: 'positive', strength: 'moderate', causation: 'association' }, ['direction', 'strength', 'causation']],
+    ['data modeling model family', { type: 'dataModelingLab', mode: 'modelCompare', points: [[1, 2], [2, 4], [3, 6], [4, 8], [5, 10]] },
+      { modelChoice: 'linear' }, ['modelChoice']],
+    // A linear f needs no restriction: the old hidden default was the answer.
+    ['inverse restriction', { type: 'inverseCompositionLab', mode: 'restriction' },
+      { x: 2, inverseAnswer: '2', restrictionChoice: 'none' }, ['restrictionChoice']],
+    // P = (3, 4) is off the parabola x² = 4y: "no" is right, and a blank used to read as "no".
+    ['parabola on the curve', { type: 'parabolaGeometryLab', mode: 'equidistance', h: 0, k: 0, p: 1, point: [3, 4] },
+      { focusDistance: '4.243', directrixDistance: '5', onCurve: 'no' }, ['onCurve']],
+    ['parabola opening', { type: 'parabolaGeometryLab', mode: 'equation' }, { coefficient: '6', opening: 'up' }, ['opening']],
+    // (x − 4) is not a factor of x² − 5x + 6: "no" is right, and a blank used to read as "no".
+    ['polynomial factor', { type: 'polynomialWorkshop', mode: 'factorZero', candidateRoot: 4 }, { value: '2', factorChoice: 'no' }, ['factorChoice']],
+    ['polynomial graph', { type: 'polynomialWorkshop', mode: 'graphConnection', roots: [{ root: 1, multiplicity: 1 }, { root: 2, multiplicity: 1 }] },
+      { behavior: 'crosses', end: 'both ends rise' }, ['behavior', 'end']],
+    ['polynomial rational feature', { type: 'polynomialWorkshop', mode: 'rationalFeatures', targetValue: 2 }, { choice: 'hole' }, ['choice']],
+  ];
+  for (const [label, question, answered, judgments] of cases) {
+    assert.equal(serverGrade(question, answered).isCorrect, true, `${label}: the control, answered, is right`);
+    for (const field of judgments) {
+      const result = serverGrade(question, { ...answered, [field]: UNANSWERED });
+      assert.equal(result.graded, true, `${label}: graded`);
+      assert.equal(result.isCorrect, false, `${label}: an unanswered ${field} was credited`);
+      assert.equal(result.isComplete, false, `${label}: an unanswered ${field} is not finished work`);
+    }
+  }
+  // The constraint builder: an unanswered graph type meets no continuity constraint.
+  const builder = { type: 'constraintFunctionBuilder', constraints: [{ kind: 'continuity', value: 'continuous' }] };
+  const model = (domainMode) => ({ model: { family: 'linear', a: 2, h: 0, k: 1, base: 2, domainMode, domainMin: -4, domainMax: 4, verticalX: 0 }, hasEdited: true });
+  assert.equal(serverGrade(builder, model('continuous')).isCorrect, true);
+  assert.equal(serverGrade(builder, model(UNANSWERED)).isCorrect, false, 'an unanswered graph type was read as continuous');
+});
+
 // --- The tools: every judgment control starts unanswered -----------------------
 
 const TOOL_FILES = (() => {
@@ -206,10 +260,10 @@ test('the systems workspace sends no classification-less response, as its grader
   const matrix = region(systems, 'function MatrixMode', 'export default function SystemsWorkspace', 'MatrixMode');
   const classic = region(systems, 'function ClassicInequalityMode', 'function StudentBuildInequalityMode', 'ClassicInequalityMode');
   for (const [label, mode] of [['linear', linear], ['matrix', matrix]]) {
-    assert.match(region(mode, 'const check = () => {', 'const classCorrect', `${label} check`), /if \(!classified\b/, `${label}: Check returns before an unclassified response is sent`);
+    assert.match(region(mode, 'const check = () => {', 'gradeToolCheck(', `${label} check`), /if \(!classified\b/, `${label}: Check returns before an unclassified response is sent`);
     assert.match(mode, /usePersistentToolState\('classification', UNANSWERED\)/, `${label}: the classification opens unanswered`);
     // Undo back to the start restores "unanswered", not "Exactly one solution".
     assert.match(mode, /setClassification\(value\?\.classification \|\| UNANSWERED\)/, `${label}: Undo restores unanswered`);
   }
-  assert.match(region(classic, 'const check = () => {', 'const parts = []', 'classic check'), /if \(!choicesMade\) return;/);
+  assert.match(region(classic, 'const check = () => {', 'gradeToolCheck(', 'classic check'), /if \(!choicesMade\) return;/);
 });

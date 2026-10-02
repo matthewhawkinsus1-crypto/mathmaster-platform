@@ -795,6 +795,11 @@ const CONTRACTS = {
         parts.push({ id: 'range', isCorrect: sameSet(list(raw.range), definition.range) });
       }
       if (definition.ask.includes('isFunction')) {
+        // The tool answers with a reason ('yes-definition', …); only the
+        // definition earns the mark, exactly as the tool and its registry
+        // grader judge it (relationFunctionChoice.mjs). A bare yes / no /
+        // boolean from an older client is judged on the verdict; no answer is
+        // never right.
         parts.push({ id: 'isFunction', isCorrect: functionAnswerIsCorrect(raw.isFunction, definition.isFunction) });
       }
       return graded(parts.length > 0 && parts.every((part) => part.isCorrect), parts);

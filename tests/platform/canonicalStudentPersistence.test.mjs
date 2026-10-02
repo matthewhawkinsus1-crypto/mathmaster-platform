@@ -740,7 +740,11 @@ test('23. a question the server cannot mark accepts the client record but bounds
   const built = buildIngestedAttempt({
     envelope: inflated,
     assignment: { id: ASSIGNMENT },
-    question: { type: 'functionGraph', activityRole: 'classwork' },
+    // Generated in the browser from a seed the server does not re-run, so the
+    // server cannot mark it. (A graph type used to stand in here; once a
+    // surface has a shared server grader, a submission that withholds its raw
+    // work may not claim `correct` at all — clientRecordSanitizerBounds.test.mjs.)
+    question: { type: 'literal', generator: { kind: 'literalEquation' }, activityRole: 'classwork' },
     canonicalRecord: null,
   });
   assert.equal(built.gradedBy, 'client');

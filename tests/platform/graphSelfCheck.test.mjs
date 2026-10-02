@@ -8,6 +8,9 @@ import {
   describeVerticalMiss,
   summarizeSelfCheck,
 } from '../../src/platform/student/graphSelfCheck.js';
+import graphWorkspaceGrader from '../../functions/shared/serverGrading/tools/graphWorkspace.mjs';
+import { boundSketchStrokes, buildGraphWorkspaceModel, graphToViewBox } from '../../functions/shared/toolMath/graphWorkspace/graphWorkspaceModel.mjs';
+import { gradeToolCheck } from '../../src/tools/shared/sharedToolGrading.js';
 
 const codeOf = (path) => readFileSync(path, 'utf8')
   .replace(/\/\*[\s\S]*?\*\//g, ' ')
@@ -146,11 +149,43 @@ test('the student plotted graph is graded evidence in its own right', () => {
   // Point placements and the snapped curve are graded parts, not scaffolding
   // toward the analysis answers, so a construction the student got right counts
   // even when the analysis is wrong.
+  //
+  // The parts are assembled by the shared grader the workspace reports through
+  // (serverGrading/tools/graphWorkspace.mjs), so the behaviour is asserted on
+  // that grader, and the workspace is held to reporting its result.
+  const question = {
+    type: 'functionInvestigation',
+    functionSpec: { type: 'linear', m: 2, b: -1 },
+    graph: { xMin: -5, xMax: 5, yMin: -10, yMax: 10 },
+    pointTasks: [
+      { id: 'a', label: 'x = 0', x: 0, expected: [0, -1] },
+      { id: 'b', label: 'x = 2', x: 2, expected: [2, 3] },
+    ],
+    requireEndpointMarkers: false,
+    analysisRequests: [{ id: 'slope', kind: 'value', label: 'Slope', expected: '2' }],
+  };
+  const model = buildGraphWorkspaceModel(question);
+  // Traced along the true line, bounded the way the workspace stores a stroke.
+  const traced = boundSketchStrokes(model.visiblePaths.map((path) => path.map(graphToViewBox(model.viewWindow))));
+  // `pointsLocked`: the student committed the placements with "Check Point
+  // Placements", and `sketchLocked`: the sketch snapped on screen — the
+  // workspace counts neither before its commit.
+  const result = gradeToolCheck(graphWorkspaceGrader, question, {
+    construction: { placements: { a: [0, -1], b: [2, 3] }, pointsLocked: true, strokes: traced, sketchLocked: true },
+    analysis: { answers: { slope: '7' } },
+  });
+  const part = (id) => result.parts.find((entry) => entry.id === id);
+  assert.equal(part('a').label, 'Point placement: x = 0');
+  assert.equal(part('a').isCorrect, true);
+  assert.equal(part('b').isCorrect, true);
+  assert.equal(part('graph-curve').isCorrect, true);
+  assert.equal(part('slope').isCorrect, false);
+  assert.equal(result.isCorrect, false);
+  assert.ok(result.score > 0.7, `the correct construction earns its credit (score ${result.score})`);
+
   const source = codeOf('src/InteractiveGraphWorkspace.jsx');
-  assert.match(source, /const constructionParts = constructionEnabled \? \[/);
-  assert.match(source, /label: `Point placement: \$\{part\.label\}`/);
-  assert.match(source, /id: 'graph-curve'/);
-  assert.match(source, /const parts = \[\.\.\.constructionParts/);
+  assert.match(source, /gradeToolCheck\(graphWorkspaceGrader, question, work\)/);
+  assert.match(source, /answerStateFromSharedGrading\(sharedGrade, \{ questionDetails \}\)/);
 });
 
 test('the self-check control clears the Chromebook touch minimum', () => {

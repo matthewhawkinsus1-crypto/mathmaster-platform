@@ -2,13 +2,16 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { HintPanel, Panel, ResultPill, TaskCard, ToolGrid } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import inverseCompositionGrader from '../../../functions/shared/serverGrading/tools/inverseCompositionLab.mjs';
 import {
   applyInverseDerivationOperation,
   createLinearInverseDerivation,
   formatInverseDerivationRelation,
   isLinearInverseSolved,
 } from './inverseDerivationMath';
-import { functionLabel } from './inverseCompositionMath';
+import { DEFAULT_INVERSE_LAB_F, functionLabel } from './inverseCompositionMath';
 
 const inputStyle = {
   width: '100%',
@@ -36,7 +39,7 @@ const inverseExpression = (state) => {
 };
 
 export default function InverseDerivationLab({ questionData = {}, onAction }) {
-  const f = questionData.f || { type: 'linear', a: 2, h: 0, k: 3 };
+  const f = questionData.f || DEFAULT_INVERSE_LAB_F;
   const resetKey = JSON.stringify({ type: f.type, a: f.a, h: f.h, k: f.k });
   const makeInitial = () => createLinearInverseDerivation(f);
   const [derivation, setDerivation] = usePersistentToolState('derivation', makeInitial);
@@ -109,18 +112,19 @@ export default function InverseDerivationLab({ questionData = {}, onAction }) {
     setOperationError('');
   };
 
+  // The student's work, exactly as the shared grader reads it: the current
+  // equation (its coefficients — the verdict depends on nothing else), plus
+  // the equation as written and the number of steps, for the teacher.
+  const work = useMemo(() => ({
+    equation: { left: derivation.left, right: derivation.right },
+    relation: currentRelation,
+    steps: derivation.history?.length || 0,
+  }), [derivation, currentRelation]);
+  useReportToolWork(work);
+
   const check = () => {
-    const parts = { swapped, isolated: solved };
-    const score = (swapped ? 0.4 : 0) + (solved ? 0.6 : 0);
-    submit(
-      { isCorrect: solved, score },
-      {
-        relation: currentRelation,
-        historyLength: derivation.history?.length || 0,
-        inverse: derivation.inverse,
-      },
-      { mode: 'deriveInverse', parts, expected: { linearInverse: true } },
-    );
+    const result = gradeToolCheck(inverseCompositionGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'deriveInverse', parts: result.parts });
   };
 
   const history = [...(derivation.history || []), derivation];

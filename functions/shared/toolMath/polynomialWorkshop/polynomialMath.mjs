@@ -1,0 +1,206 @@
+import { nearlyEqual } from '../shared/toolMath.mjs';
+import { UNANSWERED } from '../shared/judgmentChoices.mjs';
+
+export const trimLeadingZeros = (coefficients = []) => {
+  const copy = coefficients.map(Number);
+  while (copy.length > 1 && nearlyEqual(copy[0], 0)) copy.shift();
+  return copy.length ? copy : [0];
+};
+
+export const polynomialDegree = (coefficients = []) => trimLeadingZeros(coefficients).length - 1;
+
+export const polynomialMultiply = (a = [], b = []) => {
+  const left = trimLeadingZeros(a);
+  const right = trimLeadingZeros(b);
+  const result = Array(left.length + right.length - 1).fill(0);
+  left.forEach((av, i) => right.forEach((bv, j) => { result[i + j] += av * bv; }));
+  return trimLeadingZeros(result);
+};
+
+export const polynomialLongDivide = (dividend = [], divisor = []) => {
+  const numerator = trimLeadingZeros(dividend);
+  const denominator = trimLeadingZeros(divisor);
+  if (denominator.length === 1 && nearlyEqual(denominator[0], 0)) throw new Error('Polynomial divisor cannot be zero.');
+  if (numerator.length < denominator.length) return { quotient: [0], remainder: numerator };
+
+  const working = [...numerator];
+  const quotientLength = numerator.length - denominator.length + 1;
+  const quotient = Array(quotientLength).fill(0);
+
+  for (let i = 0; i < quotientLength; i += 1) {
+    const factor = working[i] / denominator[0];
+    quotient[i] = factor;
+    for (let j = 0; j < denominator.length; j += 1) working[i + j] -= factor * denominator[j];
+  }
+
+  const remainder = working.slice(quotientLength).map((value) => Math.abs(value) < 1e-10 ? 0 : value);
+  return { quotient: trimLeadingZeros(quotient), remainder: trimLeadingZeros(remainder.length ? remainder : [0]) };
+};
+
+export const quadraticRoots = (coefficients = []) => {
+  const [a, b, c] = trimLeadingZeros(coefficients);
+  if (coefficients.length !== 3 || nearlyEqual(a, 0)) return [];
+  const discriminant = b * b - 4 * a * c;
+  if (discriminant < -1e-10) return [];
+  if (Math.abs(discriminant) < 1e-10) return [-b / (2 * a)];
+  const sqrtD = Math.sqrt(discriminant);
+  return [(-b - sqrtD) / (2 * a), (-b + sqrtD) / (2 * a)].sort((x, y) => x - y);
+};
+
+export const integerFactorPairForMonicQuadratic = (coefficients = []) => {
+  const values = trimLeadingZeros(coefficients);
+  if (values.length !== 3 || !nearlyEqual(values[0], 1)) return null;
+  const [, b, c] = values;
+  if (!Number.isInteger(b) || !Number.isInteger(c)) return null;
+  // Trial division up to |c| is unbounded in practice: a constant term of 1e12
+  // is two trillion iterations, which freezes the tab. Classroom quadratics
+  // factor far below this cap; beyond it, "not factorable by inspection".
+  const MAX_FACTOR_SEARCH = 10000;
+  const limit = Math.abs(c);
+  if (!Number.isFinite(limit) || limit > MAX_FACTOR_SEARCH) return null;
+  for (let p = -limit - 1; p <= limit + 1; p += 1) {
+    if (p === 0 && c !== 0) continue;
+    const q = c === 0 ? b - p : c / p;
+    if (Number.isInteger(q) && p + q === b && p * q === c) return [p, q].sort((x, y) => x - y);
+  }
+  return null;
+};
+
+export const factorBehaviorAtRoot = (multiplicity = 1) => Number(multiplicity) % 2 === 0 ? 'touches' : 'crosses';
+
+export const endBehavior = (coefficients = []) => {
+  const values = trimLeadingZeros(coefficients);
+  const degree = values.length - 1;
+  const leading = values[0];
+  const even = degree % 2 === 0;
+  if (even && leading > 0) return { left: 'up', right: 'up', label: 'both ends rise' };
+  if (even && leading < 0) return { left: 'down', right: 'down', label: 'both ends fall' };
+  if (!even && leading > 0) return { left: 'down', right: 'up', label: 'left falls, right rises' };
+  return { left: 'up', right: 'down', label: 'left rises, right falls' };
+};
+
+export const coefficientsFromRoots = (roots = [], leadingCoefficient = 1) => {
+  let coefficients = [Number(leadingCoefficient)];
+  roots.forEach((entry) => {
+    const root = typeof entry === 'number' ? entry : Number(entry.root);
+    const multiplicity = typeof entry === 'number' ? 1 : Number(entry.multiplicity ?? 1);
+    for (let i = 0; i < multiplicity; i += 1) coefficients = polynomialMultiply(coefficients, [1, -root]);
+  });
+  return coefficients;
+};
+
+export const rationalFeatureMap = ({ numeratorRoots = [], denominatorRoots = [] } = {}) => {
+  const numeratorCounts = new Map();
+  const denominatorCounts = new Map();
+  numeratorRoots.forEach((r) => numeratorCounts.set(Number(r), (numeratorCounts.get(Number(r)) || 0) + 1));
+  denominatorRoots.forEach((r) => denominatorCounts.set(Number(r), (denominatorCounts.get(Number(r)) || 0) + 1));
+  const all = [...new Set([...numeratorCounts.keys(), ...denominatorCounts.keys()])].sort((a, b) => a - b);
+  return all.map((root) => {
+    const n = numeratorCounts.get(root) || 0;
+    const d = denominatorCounts.get(root) || 0;
+    const cancelled = Math.min(n, d);
+    const remainingDenominatorMultiplicity = d - cancelled;
+    const remainingNumeratorMultiplicity = n - cancelled;
+    let type = 'none';
+    if (cancelled > 0 && remainingDenominatorMultiplicity === 0) type = 'hole';
+    else if (remainingDenominatorMultiplicity > 0) type = 'verticalAsymptote';
+    else if (remainingNumeratorMultiplicity > 0) type = 'zero';
+    return { root, type, cancelledMultiplicity: cancelled, remainingNumeratorMultiplicity, remainingDenominatorMultiplicity };
+  });
+};
+
+export const sameNumberMultiset = (a = [], b = [], tolerance = 1e-6) => {
+  if (a.length !== b.length) return false;
+  const left = [...a].map(Number).sort((x, y) => x - y);
+  const right = [...b].map(Number).sort((x, y) => x - y);
+  return left.every((value, index) => nearlyEqual(value, right[index], tolerance));
+};
+
+/*
+ * WHAT THE WORKSHOP SHOWS FOR AN UNAUTHORED QUESTION.
+ *
+ * One table, read by PolynomialWorkshop.jsx to draw each view and by the
+ * shared grader to mark it, so the problem on screen and the problem graded
+ * can never drift apart.
+ */
+export const POLYNOMIAL_WORKSHOP_DEFAULTS = Object.freeze({
+  factorZero: Object.freeze({ coefficients: Object.freeze([1, -5, 6]), candidateRoot: 2 }),
+  multiplyArea: Object.freeze({ leftBinomial: Object.freeze([2, 3]), rightBinomial: Object.freeze([1, -4]) }),
+  factorQuadratic: Object.freeze({ coefficients: Object.freeze([1, -5, 6]) }),
+  division: Object.freeze({ dividend: Object.freeze([1, -4, -7, 10]), divisor: Object.freeze([1, -2]) }),
+  graphConnection: Object.freeze({
+    roots: Object.freeze([Object.freeze({ root: -2, multiplicity: 2 }), Object.freeze({ root: 3, multiplicity: 1 })]),
+    leadingCoefficient: 1,
+  }),
+  rationalFeatures: Object.freeze({ numeratorRoots: Object.freeze([2, -1]), denominatorRoots: Object.freeze([2, 4]) }),
+});
+
+/*
+ * What each <select> holds before the student touches it: nothing. Every one
+ * of them is a judgment the student is asked to make, so it opens on
+ * "Choose…" (UNANSWERED, judgmentChoices.mjs) — PolynomialWorkshop.jsx starts
+ * its selects there — and unanswered is no option, so it is neither complete
+ * nor correct in the shared grader.
+ */
+export const POLYNOMIAL_WORKSHOP_STARTING_SELECTIONS = Object.freeze({
+  factorZero: Object.freeze({ factorChoice: UNANSWERED }),
+  graphConnection: Object.freeze({ behavior: UNANSWERED, end: UNANSWERED }),
+  rationalFeatures: Object.freeze({ choice: UNANSWERED }),
+});
+
+/*
+ * What the selects PRE-SELECTED before they opened unanswered. Work an earlier
+ * client saved at that start — a draft or checkpoint revision, say after Undo
+ * took a view back to it — holds exactly these without the student having
+ * chosen them, so the shared grader still reads such work identical to them as
+ * untouched (not complete: a deadline never submits it), exactly as it did
+ * while they were the start. Work from today's workshop carries OWN_CHOICES
+ * (judgmentChoices.mjs): its choices are the student's, these included. An
+ * explicit Check of such work is graded as always.
+ */
+export const POLYNOMIAL_WORKSHOP_PRESELECTED_SELECTIONS = Object.freeze({
+  factorZero: Object.freeze({ factorChoice: 'yes' }),
+  graphConnection: Object.freeze({ behavior: 'crosses', end: 'both ends rise' }),
+  rationalFeatures: Object.freeze({ choice: 'hole' }),
+});
+
+/*
+ * A coefficient list a student typed: comma-separated numbers, highest degree
+ * first. Each piece is read exactly as the workshop always read it — Number()
+ * of the trimmed piece, an unreadable piece skipped, and an EMPTY piece
+ * between two commas ("1,,-4") a 0 coefficient holding its degree's place —
+ * with two exceptions:
+ *
+ *   - a blank box is NO answer, never the list [0]. `Number('')` is 0, so a
+ *     blank remainder box used to read as the remainder 0 and was marked right
+ *     on any exact division without the student entering anything;
+ *   - a stray trailing comma ("1, -2, -11,") adds no coefficient. It used to
+ *     append a 0 and turn a correct list wrong.
+ */
+export const parseCoefficientList = (text) => {
+  const pieces = String(text ?? '').split(',').map((value) => value.trim());
+  while (pieces.length && pieces[pieces.length - 1] === '') pieces.pop();
+  return pieces.map(Number).filter(Number.isFinite);
+};
+
+/** Two coefficient lists name the same polynomial term by term, in order. */
+export const sameCoefficientList = (actual = [], expected = [], tolerance = 0.01) => actual.length === expected.length
+  && actual.every((value, index) => nearlyEqual(value, expected[index], tolerance));
+
+/** The zero the graph-connection view asks about: the authored one, else the first root. */
+export const graphConnectionTargetEntry = (roots = [], targetRoot) => {
+  const target = targetRoot ?? roots[0].root;
+  return roots.find((entry) => nearlyEqual(entry.root, target)) || roots[0];
+};
+
+/** The x-value the rational-features view asks about: the authored one, else the smallest root. */
+export const rationalFeatureTargetValue = (features = [], targetValue) => Number(targetValue ?? features[0]?.root ?? 2);
+
+/*
+ * What happens at x = targetValue: the feature listed there, or `none` when
+ * neither the numerator nor the denominator vanishes at that value — the
+ * function is defined and non-zero there, so "None of these" is the answer.
+ */
+export const rationalFeatureTypeAt = (features = [], targetValue) => (
+  features.find((feature) => nearlyEqual(feature.root, targetValue))?.type ?? 'none'
+);

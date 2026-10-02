@@ -1,5 +1,11 @@
 import { canonicalPresentedAssignmentGrade, projectedAssignmentTrackerFor } from '../grading/canonicalGradeProjection.js';
 import { splitGrade, splitGradesBySection } from './gradeEvidence.js';
+import {
+  STUDENT_NAME_UNAVAILABLE,
+  formatStudentName,
+  resolveRosterStudentName,
+  studentIdentityIndexFor,
+} from '../studentName.js';
 
 export const CONTACT_METHODS = Object.freeze(['phone', 'email', 'text', 'conference', 'voicemail', 'other']);
 export const CONTACT_CATEGORIES = Object.freeze([
@@ -42,21 +48,30 @@ export const validateContactDraft = (draft = {}) => {
   return errors;
 };
 
-/** Canonical studentId is the relationship; names are resolved from the current roster. */
+/**
+ * Canonical studentId is the relationship; names are resolved from the current
+ * roster (googleName and first/last included), then a stored copy that is
+ * really a name, else "Name unavailable" — never the id. The id stays its own
+ * field (and its own CSV column), so two nameless students remain two groups.
+ */
 export const groupContactsByStudent = ({ contacts = [], students = [] } = {}) => {
-  const roster = new Map(list(students).map((student) => [clean(student.id || student.studentId), student]));
+  const index = studentIdentityIndexFor(list(students));
   const groups = new Map();
   list(contacts).forEach((contact) => {
     const studentId = clean(contact.studentId);
     if (!studentId) return;
-    const student = roster.get(studentId);
-    const studentName = clean(student?.displayName || student?.name || student?.studentName || contact.studentName) || 'Student name unavailable';
-    if (!groups.has(studentId)) groups.set(studentId, { studentId, studentName, contacts: [] });
-    groups.get(studentId).contacts.push({ ...contact, studentName });
+    if (!groups.has(studentId)) {
+      const studentName = resolveRosterStudentName({ studentId, index, historicalName: contact.studentName });
+      groups.set(studentId, { studentId, studentName, nameMissing: studentName === STUDENT_NAME_UNAVAILABLE, contacts: [] });
+    }
+    const group = groups.get(studentId);
+    group.contacts.push({ ...contact, studentName: group.studentName });
   });
   return [...groups.values()]
     .map((group) => ({ ...group, contacts: group.contacts.sort((a, b) => time(b.occurredAt) - time(a.occurredAt)) }))
-    .sort((a, b) => a.studentName.localeCompare(b.studentName));
+    .sort((a, b) => (Number(a.nameMissing) - Number(b.nameMissing))
+      || a.studentName.localeCompare(b.studentName, undefined, { sensitivity: 'base' })
+      || a.studentId.localeCompare(b.studentId, undefined, { numeric: true }));
 };
 
 export const contactsCsv = ({ contacts = [], students = [], classes = [] } = {}) => {
@@ -93,7 +108,7 @@ export const buildStudentProgressBrief = ({ student, gradeEntries = [], classGra
   const neutralContext = classMedian == null || current == null ? null : current < classMedian - 5 ? 'below the class median' : current > classMedian + 5 ? 'above the class median' : 'near the class median';
   return {
     studentId,
-    studentName: clean(student?.displayName || student?.name || student?.studentName) || 'Student name unavailable',
+    studentName: formatStudentName(student, { lastFirst: false }),
     assignmentGrades: entries,
     recentGradeTrend: recent.map((entry) => ({ assignment: entry.title || entry.assignmentTitle, grade: entry.grade })),
     completion: { completed: completed.length, assigned: entries.length, rate: entries.length ? completed.length / entries.length : null },
@@ -113,7 +128,7 @@ export const progressBriefText = (brief) => {
   const pct = (value) => value == null ? 'not available' : `${Math.round(value * 100)}%`;
   const summaries = (rows, fallback) => rows.map((entry) => clean(entry.summary || entry.title || entry.assignmentTitle || entry.teksCode || entry.skillId || entry.dateKey || entry.occurredAt)).filter(Boolean).join('; ') || fallback;
   return [
-    `Student Progress Brief — ${brief.studentName}`,
+    `Student Progress Brief — ${brief.studentName}${brief.studentName === STUDENT_NAME_UNAVAILABLE && brief.studentId ? ` (ID ${brief.studentId})` : ''}`,
     `Completion: ${brief.completion.completed}/${brief.completion.assigned} (${pct(brief.completion.rate)}); on time: ${brief.timeliness.onTime}; late: ${brief.timeliness.late}.`,
     `Missing/incomplete: ${brief.missingAssignments.map((entry) => entry.title || entry.assignmentTitle).join(', ') || 'none recorded'}.`,
     `Attempts: ${brief.attempts}; time on task: ${brief.engagementMinutes} minutes.`,

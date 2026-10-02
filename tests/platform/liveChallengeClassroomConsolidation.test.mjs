@@ -8,7 +8,9 @@ import {
   normalizeRoundClosingThreshold,
   recordValidatedSpeedMilestone,
   roundClosingDecision,
+  roundCompressionMayApply,
 } from '../../functions/shared/liveChallenge.mjs';
+import { STEP_ACTIONS, stepActionCountsAttempt } from '../../functions/shared/serverGrading/stepAlgebraStepVerification.mjs';
 import { getChallengeMode } from '../../functions/shared/liveChallengeModes.mjs';
 import { region } from './helpers/sourceContract.mjs';
 
@@ -61,7 +63,14 @@ test('Live Challenge opts rich tools into a real no-expiration policy only in th
   assert.match(student, /<QuestionEngine[\s\S]*attemptsDoNotExpire/);
   assert.doesNotMatch(student, /maximumAttempts=\{1\}/);
   assert.match(engine, /attemptsDoNotExpire=\{attemptsDoNotExpire\}/);
-  assert.match(algebra, /countsAttempt: !attemptsDoNotExpire/);
+  // An inefficient move's attempt honours the host's no-expiration policy:
+  // the workspace reports it as INEFFICIENT_MOVE and asks the shared attempt
+  // rule with the host's flag, and that rule spends nothing when attempts do
+  // not expire (and one when they do).
+  assert.match(algebra, /saveStep\(\{ move, action: STEP_ACTIONS\.INEFFICIENT_MOVE \}\)/);
+  assert.match(algebra, /countsAttempt:\s*stepActionCountsAttempt\(action, \{ attemptsDoNotExpire \}\)/);
+  assert.equal(stepActionCountsAttempt(STEP_ACTIONS.INEFFICIENT_MOVE, { attemptsDoNotExpire: true }), false);
+  assert.equal(stepActionCountsAttempt(STEP_ACTIONS.INEFFICIENT_MOVE, { attemptsDoNotExpire: false }), true);
   assert.match(algebra, /Live Challenge work does not expire from intermediate moves/);
   assert.match(ordinary, /maximumAttempts=\{questionInstance\.attemptsAllowed\}/,
     'ordinary assignment attempt limits remain unchanged');
@@ -96,8 +105,15 @@ test('teacher pacing changes are server-owned and closing is irreversible', () =
   assert.match(update, /roundClosingThreshold/);
   assert.match(update, /maybeCompressLiveChallengeRoundAfterThreshold/);
   const compression = server.slice(server.indexOf('async function maybeCompressLiveChallengeRoundAfterThreshold'), server.indexOf('exports.updateLiveChallengePacing'));
-  assert.match(compression, /if \(latestRoom\.closingStartedAt\) return/);
+  // Closing is irreversible: a room already closing is refused from the room
+  // as read, and the write is conditional on exactly that read — so a close
+  // that started in between is never overwritten or re-shortened.
+  assert.match(compression, /if \(!challenge\.roundCompressionMayApply\(roomAtCount, Date\.now\(\)\)\) return/);
+  assert.match(compression, /\{ lastUpdateTime: roomSnapshot\.updateTime \}/);
   assert.match(compression, /currentEndsAtMs <= targetEndsAtMs/);
+  const later = Date.now() + 60_000;
+  assert.equal(roundCompressionMayApply({ roundClosingThreshold: 70, endsAt: new Date(later) }), true);
+  assert.equal(roundCompressionMayApply({ roundClosingThreshold: 70, endsAt: new Date(later), closingStartedAt: new Date() }), false, 'a closing round is never compressed again');
 });
 
 

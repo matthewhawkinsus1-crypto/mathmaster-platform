@@ -14,7 +14,14 @@
  * different facts, because they are.
  */
 
-import { REWARD_CRITERION, REWARD_KIND, criterionMet, storedRewardPolicy } from './liveChallengeRewardRules.mjs';
+import {
+  REWARD_CRITERION,
+  REWARD_KIND,
+  criterionMet,
+  participationFacts,
+  rewardContextFor,
+  storedRewardPolicy,
+} from './liveChallengeRewardRules.mjs';
 import { getRewardDefinition } from './rewardGrants.mjs';
 
 const ordinal = (value) => {
@@ -60,9 +67,8 @@ export const describeStudentAgainst = (criterion = {}, standing = null, context 
   const scheduled = Number(context.scheduledRoundCount) || 0;
   switch (criterion.kind) {
     case REWARD_CRITERION.PARTICIPATION: {
-      const joinedAt = Number.isInteger(standing.joinedAtRound) ? Math.max(0, standing.joinedAtRound) : 0;
-      const available = Math.max(0, scheduled - joinedAt);
-      const answered = integerRounds(standing.answeredRounds).filter((round) => round >= joinedAt && round < scheduled).length;
+      // The rule's own measure (rounds actually played after joining).
+      const { available, answered } = participationFacts(standing, context);
       return `Answered ${answered} of ${available} round${available === 1 ? '' : 's'}`;
     }
     case REWARD_CRITERION.ACCURACY: {
@@ -126,10 +132,8 @@ export const describeDelivery = (award = null) => {
 export const explainStudentChallengeRewards = ({ matchResult = {}, job = null, studentId } = {}) => {
   const standing = (matchResult.standings || []).find((entry) => entry?.studentId === studentId) || null;
   const policy = storedRewardPolicy(matchResult.rewardPolicy);
-  const context = {
-    scheduledRoundCount: Number(matchResult.scheduledRoundCount) || 0,
-    secondChanceOf: matchResult.secondChanceOf || {},
-  };
+  // The same context the delivery evaluated, so "met" here is what was paid.
+  const context = rewardContextFor({ ...matchResult, scheduledRoundCount: Number(matchResult.scheduledRoundCount) || 0 });
   const awards = (Array.isArray(job?.awards) ? job.awards : []).filter((award) => award?.studentId === studentId);
 
   const rules = policy.rules.map((rule) => {

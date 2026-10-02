@@ -2,39 +2,44 @@ import React, { useMemo } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
-import { matchesNumericAnswer, round } from '../shared/toolMath';
+import { round } from '../shared/toolMath';
 import {
   composeValue,
   evaluateSpecWithDomain,
   functionLabel,
   hasFunctionalInverse,
+  inverseLabFunctions,
+  inverseLabInitialX,
+  inverseLabInputLocked,
+  inverseLabRequiredParts,
   inverseValue,
   restrictionDescription,
 } from './inverseCompositionMath';
 import useToolSubmission from '../shared/useToolSubmission';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import inverseCompositionGrader from '../../../functions/shared/serverGrading/tools/inverseCompositionLab.mjs';
 import { useRevealAnswers } from '../shared/ToolRuntimeContext';
 import { UNANSWERED } from '../shared/judgmentChoices.js';
 
-const DEFAULT_F = { type:'linear', a:2, h:0, k:3 };
-const DEFAULT_G = { type:'linear', a:-1, h:0, k:4 };
 const inputStyle = { width:'100%', boxSizing:'border-box', padding:'9px 10px', border:'1px solid #cfd8e6', borderRadius:8, background:'#fff' };
 const Field = ({ label, children }) => <label style={{ display:'block', fontSize:13, fontWeight:700, color:'#465267' }}>{label}<div style={{marginTop:5}}>{children}</div></label>;
 
-const INVERSE_COMPOSITION_PART_LABELS = Object.freeze({
-  fog: '(f ∘ g)(x)',
-  gof: '(g ∘ f)(x)',
-  inverse: 'f⁻¹(f(x))',
-  restriction: 'Domain restriction',
-});
-
 export default function InverseCompositionLab({ questionData = {}, onAction }) {
-  const f = questionData.f || DEFAULT_F;
-  const g = questionData.g || DEFAULT_G;
+  // f, g (or the lab's defaults) and the input x come from the shared
+  // definitions the grader reads.
+  const { f, g } = inverseLabFunctions(questionData);
   const mode = questionData.mode || 'full';
   const showComposition = mode === 'composition' || mode === 'full';
   const showInverse = mode !== 'composition';
-  const inputLocked = questionData.x !== undefined && questionData.allowInputChange !== true;
-  const [x, setX] = usePersistentToolState('x', questionData.x ?? 2);
+  // A question that asks for the restriction shows its select, whatever f is
+  // (the parts asked come from the same shared list the grader marks).
+  const asksRestriction = inverseLabRequiredParts(mode, f).includes('restriction');
+  const inputLocked = inverseLabInputLocked(questionData);
+  const [draftX, setX] = usePersistentToolState('x', inverseLabInitialX(questionData));
+  // A given input is the question's own x, exactly as the grader reads it —
+  // never a draft left from an earlier version of the question.
+  const x = inputLocked ? inverseLabInitialX(questionData) : draftX;
   const [fogAnswer, setFogAnswer] = usePersistentToolState('fogAnswer', '');
   const [gofAnswer, setGofAnswer] = usePersistentToolState('gofAnswer', '');
   const [inverseAnswer, setInverseAnswer] = usePersistentToolState('inverseAnswer', '');
@@ -52,35 +57,20 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
   const gof = useMemo(() => composeValue(g, f, Number(x)), [f, g, x]);
   const inverseAtFx = useMemo(() => canInvert ? inverseValue(f, fx) : Number.NaN, [canInvert, f, fx]);
 
-  const expectedRestriction = (() => {
-    if (f.type !== 'quadratic') return 'none';
-    const h = Number(f.h ?? 0);
-    if (f.inverseBranch === 'left' || Number(f.domain?.max) === h) return 'left';
-    if (f.inverseBranch === 'right' || Number(f.domain?.min) === h) return 'right';
-    return 'required';
-  })();
-
-  const requiredParts = mode === 'composition' ? ['fog','gof']
-    : mode === 'inverse' ? ['inverse']
-      : mode === 'restriction' ? ['restriction','inverse']
-        : ['fog','gof','inverse', ...(f.type === 'quadratic' ? ['restriction'] : [])];
+  // The student's work, exactly as the shared grader reads it: the boxes as
+  // typed (a blank stays blank) and the input x the lab is using.
+  const work = useMemo(
+    () => ({ x, fogAnswer, gofAnswer, inverseAnswer, restrictionChoice }),
+    [x, fogAnswer, gofAnswer, inverseAnswer, restrictionChoice],
+  );
+  useReportToolWork(work);
 
   const check = () => {
-    const results = {
-      fog: Number.isFinite(fog) && matchesNumericAnswer(fogAnswer, fog, 0.02),
-      gof: Number.isFinite(gof) && matchesNumericAnswer(gofAnswer, gof, 0.02),
-      inverse: canInvert && Number.isFinite(inverseAtFx) && matchesNumericAnswer(inverseAnswer, Number(x), 0.02),
-      restriction: restrictionChoice === expectedRestriction,
-    };
-    const scored = requiredParts.map((part)=>results[part]);
-    const score = scored.filter(Boolean).length / scored.length;
-    submit(
-      { isCorrect: score === 1, score },
-      { x:Number(x), fog:Number(fogAnswer), gof:Number(gofAnswer), inverse:Number(inverseAnswer), restrictionChoice },
-      // Every part is checked, but only the ones this mode asks are recorded,
-      // under names a student and teacher can read (toolSubmissionParts.js).
-      { mode, parts:results, requiredParts, partLabels: INVERSE_COMPOSITION_PART_LABELS, expected:{ fog, gof, inverseAtFx, expectedRestriction } },
-    );
+    // The shared grader marks exactly the parts this view asks for, under the
+    // names the gradebook shows: an inverse-only question records no "fog" or
+    // "gof" it never asked (B-25).
+    const result = gradeToolCheck(inverseCompositionGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode, parts: result.parts });
   };
 
   const graphF = (value) => evaluateSpecWithDomain(f, value);
@@ -103,8 +93,9 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
   }, [baseGraphBounds, showInverse, fx, x, inverseAtFx]);
 
   const feedbackBlock = feedback ? (() => {
-    const parts = feedback.metadata?.parts || {};
-    const missed = requiredParts.filter((part) => !parts[part]);
+    // The shared grader marks exactly the parts this view asks for.
+    const parts = Array.isArray(feedback.metadata?.parts) ? feedback.metadata.parts : [];
+    const missed = parts.filter((part) => !part.isCorrect).map((part) => part.id);
     const explain = feedback.isCorrect
       ? mode === 'composition'
         ? 'Correct — both composition orders are evaluated correctly.'
@@ -224,7 +215,7 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
               quadratic, so a "restriction" question about any other function
               asked a part the student had no control for, which only the old
               "No restriction needed" default answered. */}
-          {f.type === 'quadratic' || requiredParts.includes('restriction') ? <div style={{marginTop:14}}><Field label={f.type === 'quadratic' ? 'Which restriction makes the quadratic one-to-one?' : 'Does f need a restricted domain to have an inverse?'}><select value={restrictionChoice} onChange={(e)=>setRestrictionChoice(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="none">No restriction needed</option><option value="left">Use the left branch (x ≤ vertex x)</option><option value="right">Use the right branch (x ≥ vertex x)</option><option value="required">A restriction is required, but branch is not specified</option></select></Field></div> : null}
+          {f.type === 'quadratic' || asksRestriction ? <div style={{marginTop:14}}><Field label={f.type === 'quadratic' ? 'Which restriction makes the quadratic one-to-one?' : 'Does f need a restricted domain to have an inverse?'}><select value={restrictionChoice} onChange={(e)=>setRestrictionChoice(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="none">No restriction needed</option><option value="left">Use the left branch (x ≤ vertex x)</option><option value="right">Use the right branch (x ≥ vertex x)</option><option value="required">A restriction is required, but branch is not specified</option></select></Field></div> : null}
 
           <button data-mm-enter-action="submit" type="button" onClick={check} style={{marginTop:16,padding:'10px 16px',background:'#1a73e8',color:'#fff',border:0,borderRadius:8,fontWeight:800}}>Check function reasoning</button>
           {feedbackBlock}

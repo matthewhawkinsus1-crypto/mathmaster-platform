@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { describeAuthError, teacherAdmin } from './auth/authService';
-import { compareStudentsByName, formatStudentName, studentSearchText } from './platform/studentName';
+import { validateStudentNameInput } from '../functions/shared/studentIdentity.mjs';
+import {
+  compareStudentsByName,
+  formatStudentLabel,
+  formatStudentName,
+  hasStudentName,
+  studentNameParts,
+  studentSearchText,
+} from './platform/studentName';
 
 const card = {
   border: '1px solid #d8dde6',
@@ -61,7 +69,11 @@ const pill = (background, color) => ({
  * account on day one, and a forgotten PIN is the single most common support
  * request, so both are one click away here.
  */
-export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
+// A student with no usable name on file. listSignInAccess reports it as
+// nameMissing; an older server row without that flag is resolved here.
+const isNameMissing = (student) => student?.nameMissing === true || !hasStudentName(student);
+
+export default function SignInAccess({ signedInEmail, mode = 'teacher', onStudentIdentityChanged = null }) {
   const [access, setAccess] = useState({ students: [], classes: [], teachers: [], bootstrapTeachers: [], authority: {} });
   const [codes, setCodes] = useState([]);
   const [auditEvents, setAuditEvents] = useState([]);
@@ -75,6 +87,8 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
   const [assignmentDrafts, setAssignmentDrafts] = useState({});
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  // The one row whose name is being added or corrected: { studentId, firstName, lastName, error }.
+  const [nameEditor, setNameEditor] = useState(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -144,6 +158,7 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
   }, [access.students, search]);
 
   const needingSetup = access.students.filter((student) => !student.hasPasscode).length;
+  const namelessCount = useMemo(() => access.students.filter(isNameMissing).length, [access.students]);
   const isRootAdmin = access.authority?.isRootAdmin === true;
   const adminMode = mode === 'admin';
   const activeClasses = useMemo(
@@ -161,11 +176,50 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
     const result = await runAction(
       `delete:${studentId}`,
       () => teacherAdmin.permanentlyDeleteStudent(studentId, deleteConfirmation),
-      `${studentId} and its MathMaster data were permanently deleted.`,
+      `${formatStudentLabel(deleteTarget, { includeId: true })} and their MathMaster data were permanently deleted.`,
     );
     if (result) {
       setDeleteTarget(null);
       setDeleteConfirmation('');
+    }
+  };
+
+  const openNameEditor = (student) => {
+    const parts = studentNameParts(student);
+    setNameEditor({ studentId: student.studentId, firstName: parts.firstName, lastName: parts.lastName, error: '' });
+  };
+
+  /**
+   * Add or correct a student's name through the server (setStudentName), then
+   * reload this screen's roster and tell the app, so every teacher screen that
+   * names this student by studentId shows the new name without a full reload.
+   */
+  const saveStudentName = async (event) => {
+    event.preventDefault();
+    if (!nameEditor) return;
+    const { studentId } = nameEditor;
+    const target = access.students.find((entry) => entry.studentId === studentId) || { studentId };
+    const checked = validateStudentNameInput(
+      { firstName: nameEditor.firstName, lastName: nameEditor.lastName },
+      { studentId, sisStudentId: target.sisStudentId || '' },
+    );
+    if (!checked.ok) {
+      setNameEditor((current) => (current ? { ...current, error: checked.error } : current));
+      return;
+    }
+    setPendingAction(`name:${studentId}`);
+    setError(null);
+    setStatus(null);
+    try {
+      const saved = await teacherAdmin.setStudentName({ studentId, firstName: checked.firstName, lastName: checked.lastName });
+      setNameEditor(null);
+      setStatus(`Name saved: ${formatStudentLabel({ studentId, ...saved }, { includeId: true })}.`);
+      await refresh();
+      onStudentIdentityChanged?.();
+    } catch (caught) {
+      setNameEditor((current) => (current?.studentId === studentId ? { ...current, error: describeAuthError(caught) } : current));
+    } finally {
+      setPendingAction(null);
     }
   };
 
@@ -200,7 +254,7 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
           runAction(
             'student:create',
             () => teacherAdmin.createStudentAccount(newStudent),
-            (result) => `${formatStudentName(result)} · ${result.studentId} was created and is ready for sign-in setup.`,
+            (result) => `${formatStudentLabel(result, { includeId: true })} was created and is ready for sign-in setup.`,
           ).then((result) => { if (result) setNewStudent({ studentId: '', firstName: '', lastName: '', classId: '' }); });
         }} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(175px, 1fr))', gap: 10, alignItems: 'end' }}>
           <label style={{ fontSize: 12, fontWeight: 900, color: '#3c4043' }}>District/SIS Student ID<input required inputMode="numeric" pattern="[0-9]{1,20}" maxLength={20} value={newStudent.studentId} onChange={(event) => setNewStudent((current) => ({ ...current, studentId: event.target.value.replace(/\D/g, '').slice(0, 20) }))} placeholder="1500123" style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', marginTop: 5 }} /></label>
@@ -273,6 +327,13 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
             : `${access.students.length} student${access.students.length === 1 ? '' : 's'} on the roster · ${needingSetup} still to set a PIN`}
         </p>
 
+        {!loading && namelessCount > 0 && (
+          <p role="note" style={{ margin: '0 0 12px', padding: '9px 12px', borderRadius: '8px', background: '#fff4ce', color: '#5f4400', fontSize: '13px', lineHeight: 1.5 }}>
+            <strong>{namelessCount} student{namelessCount === 1 ? ' has' : 's have'} no name on file.</strong>{' '}
+            Add {namelessCount === 1 ? 'their name' : 'their names'} so every screen can identify {namelessCount === 1 ? 'them' : 'each one'}. Until then they show as &ldquo;Name unavailable&rdquo; with their ID.
+          </p>
+        )}
+
         <input
           type="search"
           value={search}
@@ -291,6 +352,10 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
             const resetting = pendingAction === `reset:${student.studentId}`;
             const unlinking = pendingAction === `unlink:${student.studentId}`;
             const assigning = pendingAction === `assign:${student.studentId}`;
+            const nameMissing = isNameMissing(student);
+            const editingName = nameEditor?.studentId === student.studentId;
+            const savingName = pendingAction === `name:${student.studentId}`;
+            const studentLabel = formatStudentLabel(student, { includeId: true });
             const assignmentDraft = assignmentDrafts[student.studentId] || {
               classId: student.classId || '',
             };
@@ -309,7 +374,7 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
                 }}
               >
                 <div style={{ minWidth: 0 }}>
-                  <strong style={{ fontSize: '16px' }}>{formatStudentName(student)}</strong><span style={{ color: '#5f6368', fontSize: 13 }}> · ID {student.studentId}</span>
+                  <strong style={{ fontSize: '16px', ...(nameMissing ? { color: '#a15c00', fontStyle: 'italic' } : {}) }}>{formatStudentName(student)}</strong><span style={{ color: '#5f6368', fontSize: 13 }}> · ID {student.studentId}</span>
                   <div style={{ color: '#5f6368', fontSize: '13px', marginTop: '3px', wordBreak: 'break-word' }}>
                     {student.classPeriod}
                     {student.assignedTeacherEmail && <> · Teacher: {student.assignedTeacherEmail}</>}
@@ -319,7 +384,7 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
 
                 {adminMode && isRootAdmin && <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'end', flex: '1 1 390px' }}>
                   <label style={{ fontSize: 10, fontWeight: 900, color: '#5f6368', flex: '1 1 250px' }}>CLASS<select value={assignmentDraft.classId} onChange={(event) => setAssignmentDrafts((current) => ({ ...current, [student.studentId]: { classId: event.target.value } }))} style={{ ...inputStyle, display: 'block', width: '100%', marginTop: 3, minHeight: 36, fontSize: 12 }}><option value="">No class</option>{activeClasses.map((entry) => <option key={entry.classId} value={entry.classId}>{entry.name} · {entry.period}{entry.teacherOfRecord ? ` · ${entry.teacherOfRecord}` : ''}</option>)}</select></label>
-                  <button type="button" disabled={assigning} onClick={() => runAction(`assign:${student.studentId}`, () => teacherAdmin.setStudentClass({ studentId: student.studentId, classId: assignmentDraft.classId }), () => { const target = activeClasses.find((entry) => entry.classId === assignmentDraft.classId); return `${formatStudentName(student)} was ${target ? `moved to ${target.name}` : 'removed from their class'}.`; })} style={{ ...quietButton, minHeight: 36, color: '#174ea6', opacity: assigning ? 0.6 : 1 }}>{assigning ? 'Saving…' : 'Save class'}</button>
+                  <button type="button" disabled={assigning} onClick={() => runAction(`assign:${student.studentId}`, () => teacherAdmin.setStudentClass({ studentId: student.studentId, classId: assignmentDraft.classId }), () => { const target = activeClasses.find((entry) => entry.classId === assignmentDraft.classId); return `${studentLabel} was ${target ? `moved to ${target.name}` : 'removed from their class'}.`; })} style={{ ...quietButton, minHeight: 36, color: '#174ea6', opacity: assigning ? 0.6 : 1 }}>{assigning ? 'Saving…' : 'Save class'}</button>
                 </div>}
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' }}>
@@ -334,6 +399,16 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
 
                   <button
                     type="button"
+                    style={{ ...quietButton, ...(nameMissing ? { borderColor: '#f9ab00', color: '#7a4f00' } : {}) }}
+                    aria-expanded={editingName}
+                    aria-label={`${nameMissing ? 'Add name' : 'Edit name'} for ${studentLabel}`}
+                    onClick={() => (editingName ? setNameEditor(null) : openNameEditor(student))}
+                  >
+                    {nameMissing ? 'Add name' : 'Edit name'}
+                  </button>
+
+                  <button
+                    type="button"
                     style={{ ...quietButton, opacity: resetting ? 0.6 : 1 }}
                     disabled={resetting || !student.hasPasscode}
                     title={student.hasPasscode ? 'Clear this PIN so the student chooses a new one' : 'This student has no PIN to reset'}
@@ -341,7 +416,7 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
                       runAction(
                         `reset:${student.studentId}`,
                         () => teacherAdmin.resetStudentPasscode(student.studentId),
-                        `${student.studentId} can now set a new PIN with the class code.`,
+                        `${studentLabel} can now set a new PIN with the class code.`,
                       )
                     }
                   >
@@ -358,7 +433,7 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
                         runAction(
                           `unlink:${student.studentId}`,
                           () => teacherAdmin.unlinkStudentAccount(student.studentId),
-                          `${student.studentId} is no longer linked to a Google account.`,
+                          `${studentLabel} is no longer linked to a Google account.`,
                         )
                       }
                     >
@@ -369,6 +444,20 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
                     <button type="button" onClick={() => { setDeleteTarget(student); setDeleteConfirmation(''); }} style={{ ...quietButton, borderColor: '#d93025', color: '#b3261e' }}>Permanently delete</button>
                   )}
                 </div>
+
+                {editingName && (
+                  <form
+                    onSubmit={saveStudentName}
+                    aria-label={`${nameMissing ? 'Add name' : 'Edit name'} for ${studentLabel}`}
+                    style={{ flex: '1 1 100%', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end', paddingTop: 4 }}
+                  >
+                    <label style={{ fontSize: 12, fontWeight: 900, color: '#3c4043', flex: '1 1 170px' }}>First name<input required autoFocus value={nameEditor.firstName} onChange={(event) => setNameEditor((current) => ({ ...current, firstName: event.target.value, error: '' }))} maxLength={80} autoComplete="off" style={{ ...inputStyle, display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 4, minHeight: 36 }} /></label>
+                    <label style={{ fontSize: 12, fontWeight: 900, color: '#3c4043', flex: '1 1 170px' }}>Last name<input required value={nameEditor.lastName} onChange={(event) => setNameEditor((current) => ({ ...current, lastName: event.target.value, error: '' }))} maxLength={80} autoComplete="off" style={{ ...inputStyle, display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 4, minHeight: 36 }} /></label>
+                    <button type="submit" disabled={savingName} style={{ ...primaryButton, minHeight: 36, opacity: savingName ? 0.6 : 1 }}>{savingName ? 'Saving…' : 'Save name'}</button>
+                    <button type="button" disabled={savingName} onClick={() => setNameEditor(null)} style={{ ...quietButton, minHeight: 36 }}>Cancel</button>
+                    {nameEditor.error && <p role="alert" style={{ flex: '1 1 100%', margin: 0, color: '#a50e0e', fontSize: 13 }}>{nameEditor.error}</p>}
+                  </form>
+                )}
               </div>
             );
           })}
@@ -473,7 +562,7 @@ export default function SignInAccess({ signedInEmail, mode = 'teacher' }) {
       {deleteTarget && adminMode && isRootAdmin && (
         <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 12000, display: 'grid', placeItems: 'center', padding: 20, background: 'rgba(32,33,36,.72)' }}>
           <section role="dialog" aria-modal="true" aria-label="Permanent student deletion" style={{ width: 'min(560px, 96vw)', padding: 24, borderRadius: 14, background: 'var(--mm-surface)', boxShadow: '0 24px 70px rgba(0,0,0,.3)' }}>
-            <h3 style={{ marginTop: 0, color: '#a50e0e' }}>Permanently delete {deleteTarget.studentId}?</h3>
+            <h3 style={{ marginTop: 0, color: '#a50e0e' }}>Permanently delete {formatStudentLabel(deleteTarget, { includeId: true })}?</h3>
             <p style={{ lineHeight: 1.55 }}>This erases the student&apos;s sign-in identity and MathMaster grades, submissions, mastery/retention state, My Math Path history, labs, secure-exam data, supports, and Classroom linkage records. <strong>This cannot be undone.</strong></p>
             <label style={{ display: 'block', fontWeight: 800 }}>Type <code>DELETE {deleteTarget.studentId}</code> to confirm<input autoFocus value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} style={{ ...inputStyle, width: '100%', marginTop: 7, boxSizing: 'border-box' }} /></label>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}><button type="button" onClick={() => { setDeleteTarget(null); setDeleteConfirmation(''); }} style={quietButton}>Cancel</button><button type="button" disabled={deleteConfirmation !== `DELETE ${deleteTarget.studentId}` || pendingAction === `delete:${deleteTarget.studentId}`} onClick={confirmPermanentDeletion} style={{ ...primaryButton, background: deleteConfirmation === `DELETE ${deleteTarget.studentId}` ? '#b3261e' : '#dadce0' }}>{pendingAction === `delete:${deleteTarget.studentId}` ? 'Deleting…' : 'Permanently Delete Student'}</button></div>

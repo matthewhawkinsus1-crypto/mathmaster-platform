@@ -4,6 +4,7 @@ import { componentSource, executableSource, region } from './helpers/sourceContr
 import { TOOL_STATE_PERSISTENCE } from '../../src/tools/toolStatePersistence.js';
 import { validateToolQuestion } from '../../src/tools/toolSchemas.js';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
+import { twoByTwoVerificationValid } from '../../src/tools/systemsWorkspace/algebraicSystemsEngine.js';
 
 const workspaceSource = executableSource(componentSource('src/tools/systemsWorkspace/SystemsWorkspace.jsx'));
 const modeSource = executableSource(componentSource('src/tools/systemsWorkspace/AlgebraicSystemMode.jsx'));
@@ -65,7 +66,7 @@ test('every embedded Step Algebra stage uses the same inline equation interactio
   const reduceSolver = region(
     modeSource,
     '{reduceInputText && !isDegenerate && !firstSolvedDone ? (',
-    '{isDegenerate ? (',
+    '{statementSides && !firstSolvedDone ? (',
     'systems reduced equation',
   );
   assert.match(reduceSolver, /inlineExpressionTools/);
@@ -180,7 +181,7 @@ test('substitution distribution leaves products unsimplified for the student', (
   const reduceSolver = region(
     modeSource,
     '{reduceInputText && !isDegenerate && !firstSolvedDone ? (',
-    '{isDegenerate ? (',
+    '{statementSides && !firstSolvedDone ? (',
     'substitution reduce solver',
   );
   assert.match(reduceSolver, /autoOpenDistribution=\{effectiveMethod === 'substitution'\}/);
@@ -402,7 +403,7 @@ test('embedded Step Algebra owns universal Undo while a one-variable solve is ac
 });
 
 test('ordered-pair display uses coordinate values rather than x = / y = labels', () => {
-  const orderedPair = region(modeSource, '<strong>Ordered-pair solution:</strong>', '{isDegenerate ? (', 'ordered-pair display');
+  const orderedPair = region(modeSource, '<strong>Ordered-pair solution:</strong>', '{isDegenerate && !subsystem ? (', 'ordered-pair display');
   assert.match(orderedPair, /MathDisplay/);
   assert.match(orderedPair, /solutionExpressions\[variables\[0\]\]/);
   assert.match(orderedPair, /solutionExpressions\[variables\[1\]\]/);
@@ -473,8 +474,13 @@ test('solution verification uses reusable drag tokens instead of Place-value but
 test('verification arithmetic uses MathInput so exact stacked-fraction entries remain available', () => {
   const verifyPanel = region(modeSource, "Verify the ordered pair in both original equations", 'readyToSubmit ? (', 'verification arithmetic');
   assert.match(verifyPanel, /<MathInput/);
-  assert.match(modeSource, /numericVerificationEntry/);
-  assert.match(modeSource, /latexToExpression\(value\)/);
+  // "Check equation n" judges the typed sides with the shared 2×2 rule — the
+  // one the grader re-judges them with — and that rule reads MathInput's
+  // LaTeX, so a stacked fraction is an exact value, not an unreadable entry.
+  const checkVerification = region(modeSource, 'const checkVerification = (index) => {', 'const specialCaseAnswered', 'checkVerification');
+  assert.match(checkVerification, /twoByTwoVerificationValid\(equations\[index\], solution, verification\[index\]\.leftAnswer, verification\[index\]\.rightAnswer\)/);
+  assert.equal(twoByTwoVerificationValid('x - y = 5/3', { x: 7 / 3, y: 2 / 3 }, '\\frac{5}{3}', '\\frac{5}{3}'), true);
+  assert.equal(twoByTwoVerificationValid('x - y = 5/3', { x: 7 / 3, y: 2 / 3 }, '\\frac{4}{3}', '\\frac{5}{3}'), false);
 });
 
 test('the systems work trail compresses completed mathematical decisions instead of keeping every stage full-size', () => {
@@ -554,7 +560,7 @@ test('back-substitution and verification tokens use exact expressions instead of
 });
 
 test('systems work trail renders mathematical summaries as MathDisplay instead of exposing machine syntax', () => {
-  const trail = region(modeSource, 'function SystemsWorkTrail', 'const cleanCoefficient', 'SystemsWorkTrail');
+  const trail = region(modeSource, 'function SystemsWorkTrail', 'const solvedExpressionFor', 'SystemsWorkTrail');
   assert.match(trail, /stage\.summaryMath \|\| stage\.summaryLatex/);
   assert.match(trail, /value=\{stage\.summaryLatex \|\| stage\.summaryMath\}/);
   assert.match(trail, /format=\{stage\.summaryLatex \? 'latex' : 'ascii-math'\}/);
@@ -583,7 +589,7 @@ test('completed systems history carries classroom LaTeX in addition to machine-s
   assert.match(modeSource, /classroomAssignmentLatex/);
   assert.match(modeSource, /summaryMath:/);
   assert.match(modeSource, /summaryLatex:/);
-  const trail = region(modeSource, 'function SystemsWorkTrail', 'const cleanCoefficient', 'SystemsWorkTrail');
+  const trail = region(modeSource, 'function SystemsWorkTrail', 'const solvedExpressionFor', 'SystemsWorkTrail');
   assert.match(trail, /format=\{stage\.summaryLatex \? 'latex' : 'ascii-math'\}/);
 });
 

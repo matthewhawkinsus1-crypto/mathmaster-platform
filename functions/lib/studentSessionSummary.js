@@ -44,6 +44,27 @@ function sessionSummaryIdFor(input = {}) {
 }
 
 /**
+ * The name copied onto a summary: the live tile's name, else the roster's,
+ * else a name the summary already carried — each only when it is a real name
+ * for THIS student — else null. Never the id: a null name is resolved by
+ * studentId against the roster when a teacher screen shows the summary.
+ *
+ * `names` is the shared resolver (functions/shared/studentIdentity.mjs —
+ * acceptStudentName, studentNameForStorage), passed in by index.js because
+ * this file is CommonJS. Without it nothing is copied, which is safe.
+ */
+function summaryStudentName({ live = {}, gradeData = {}, previous = {}, studentId, names = null } = {}) {
+  if (!names || typeof names.acceptStudentName !== "function" || typeof names.studentNameForStorage !== "function") {
+    return null;
+  }
+  const record = { ...gradeData, studentId };
+  const name = names.acceptStudentName(live.name, record)
+    || names.studentNameForStorage(record)
+    || names.acceptStudentName(previous.studentName, record);
+  return name ? clean(name).slice(0, 180) : null;
+}
+
+/**
  * Merge one deleted presence snapshot into the one durable summary for the
  * assignment session. React may delete/recreate presence while changing
  * questions, so every counter is monotonic and the stable session id prevents
@@ -57,6 +78,7 @@ function buildMergedSessionSummary({
   studentId,
   previous = {},
   observedAt = Date.now(),
+  names = null,
 } = {}) {
   const student = clean(studentId || live.studentId);
   const assignmentId = clean(live.assignmentId);
@@ -86,7 +108,7 @@ function buildMergedSessionSummary({
     schemaVersion: 1,
     sessionKey,
     studentId: student,
-    studentName: clean(live.name || gradeData.displayName || student).slice(0, 180),
+    studentName: summaryStudentName({ live, gradeData, previous, studentId: student, names }),
     classId,
     classPeriod: clean(live.classPeriod || gradeData.classPeriod) || null,
     assignmentId,
@@ -116,4 +138,5 @@ module.exports = {
   countLiveQuestionStates,
   sessionKeyFor,
   sessionSummaryIdFor,
+  summaryStudentName,
 };

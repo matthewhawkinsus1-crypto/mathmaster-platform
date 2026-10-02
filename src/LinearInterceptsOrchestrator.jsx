@@ -4,16 +4,27 @@ import MathInput from './MathInput.jsx';
 import StepByStepAlgebraCore from './StepByStepAlgebraCore';
 import EnlargeableFigure from './components/common/EnlargeableFigure';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
-import { round } from './tools/shared/toolMath.js';
+import { parseOrderedPair } from './answerUtils.js';
+import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
+import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
+import {
+  checkLinearIntercept,
+  linearInterceptsWork,
+  stepAlgebraWorkGrader,
+} from '../functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs';
+// The intercept check's credit, its raw work, and the sub-equation each
+// substitution opens: one definition, shared with the server, which derives
+// the same step credit from that work.
+import {
+  interceptStepGrade,
+  interceptStepWork,
+  interceptSubEquationQuestion,
+} from '../functions/shared/serverGrading/stepAlgebraStepVerification.mjs';
 import { InteractiveStandardEquation } from './tools/stepAlgebra2/linearInterceptsConceptualUi.jsx';
 import {
   INTERCEPT_FEEDBACK_TIMINGS,
-  buildSubstitutionState,
   conceptualRedirect,
-  expectedInterceptPoint,
-  formatStandardEquation,
   formatSubstitutionEquation,
-  interceptCompletionPayload,
   resolveInterceptCheck,
   resolveStandardCoefficients,
   shouldShowConceptRedirect,
@@ -60,26 +71,9 @@ const initialStage = () => ({
 
 const initialWork = () => ({ activeKind: 'x', x: initialStage(), y: initialStage() });
 
-// What the host is told once both intercepts are in is built in one place —
-// interceptCompletionPayload in linearInterceptsMath.js — because it is said
-// twice: when the second Check succeeds, and again when a reload restores two
-// finished intercepts that were never submitted. Each part is graded there
-// against the equation, never assumed right.
-
 // Told when a finished intercept is reopened on a DOL, quiz or test: the
 // question is no longer complete, so Submit waits again.
 const INCOMPLETE_PAYLOAD = Object.freeze({ isComplete: false, isCorrect: false, questionDetails: '', responseKey: '', parts: [] });
-
-// The one-variable equation StepByStepAlgebraCore solves after substitution.
-// buildSubstitutionState always leaves `constant` at 0 (see
-// linearInterceptsMath.js), so this is exactly `coefficient * variable = right`.
-const substitutionEquationText = (state) => {
-  const coefficient = round(Number(state.coefficient), 8);
-  const right = round(Number(state.right), 8);
-  if (Math.abs(coefficient - 1) < 1e-9) return `${state.variable} = ${right}`;
-  if (Math.abs(coefficient + 1) < 1e-9) return `-${state.variable} = ${right}`;
-  return `${coefficient}${state.variable} = ${right}`;
-};
 
 export default function LinearInterceptsOrchestrator({
   question = {},
@@ -151,7 +145,22 @@ export default function LinearInterceptsOrchestrator({
     () => (questionRecord ? { ...questionRecord, algebraState: null } : null),
     [questionRecord],
   );
-  const expectedPoint = useMemo(() => expectedInterceptPoint(standard, kind), [standard, kind]);
+  // What the host is told once both intercepts are checked. Built in one place
+  // because it is said twice: when the second Check succeeds, and again when a
+  // reload restores two checked intercepts that were never submitted. The
+  // verdict is the shared grader's — the function the server runs on the same
+  // two ordered pairs — never a hard-coded "correct". On a DOL, quiz or test a
+  // recorded point can be wrong: that part is complete and wrong, earns
+  // nothing, and the question is not correct.
+  const interceptCompletionPayload = (finishedWork) => {
+    const xIntercept = finishedWork.x?.point || '';
+    const yIntercept = finishedWork.y?.point || '';
+    const result = gradeToolCheck(stepAlgebraWorkGrader, question, linearInterceptsWork({ xIntercept, yIntercept }));
+    return {
+      ...answerStateFromSharedGrading(result, { questionDetails: `x-intercept ${xIntercept}, y-intercept ${yIntercept}` }),
+      responseKey: JSON.stringify({ x: parseOrderedPair(xIntercept), y: parseOrderedPair(yIntercept) }),
+    };
+  };
   // There is no per-move workHistory array on this side of the refactor — the
   // balanced-operation steps now live inside the mounted StepByStepAlgebraCore,
   // not on this orchestrator's own stage object. Treat "solved" as the
@@ -215,7 +224,7 @@ export default function LinearInterceptsOrchestrator({
   useEffect(() => {
     if (!bothInterceptsFound || disabled || completionReportedRef.current) return;
     completionReportedRef.current = true;
-    onStateChange?.(interceptCompletionPayload(work, standard));
+    onStateChange?.(interceptCompletionPayload(work));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bothInterceptsFound, disabled]);
 
@@ -260,29 +269,17 @@ export default function LinearInterceptsOrchestrator({
     }));
   };
 
-  const solverState = standardUsable && stage.committed ? buildSubstitutionState(standard, stage.placedZeroVariable) : null;
-  const subEquationQuestion = useMemo(() => {
-    if (!solverState) return null;
-    return {
-      ...question,
-      mode: undefined,
-      standard: undefined,
-      equationText: undefined,
-      feedbackTiming: undefined,
-      targetForm: undefined,
-      requireSimplifiedFinalForm: false,
-      objective: undefined,
-      equation: substitutionEquationText(solverState),
-      equationLatex: undefined,
-      leftExpression: undefined,
-      rightExpression: undefined,
-      solveFor: solverState.variable,
-      variable: solverState.variable,
-      prompt: `Solve for ${solverState.variable}.`,
-    };
+  // The one-variable equation StepByStepAlgebraCore solves after substitution
+  // — built by the shared interceptSubEquationQuestion, the same question the
+  // server checks this sub-solve's steps against.
+  const subEquationQuestion = useMemo(
+    () => (standardUsable && stage.committed ? interceptSubEquationQuestion(question, standard, stage.placedZeroVariable) : null),
     // Rebuild only when the committed substitution itself changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage.committed, stage.placedZeroVariable, kind]);
+    [stage.committed, stage.placedZeroVariable, kind],
+  );
+  // Which equation the sub-solve opened, so its steps' raw work names it.
+  const subSolveStepWorkContext = stage.committed ? { zeroVariable: stage.placedZeroVariable } : null;
 
   // After every hook, never before one: an early return above the useMemo made
   // its call conditional on the question's coefficients.
@@ -306,9 +303,13 @@ export default function LinearInterceptsOrchestrator({
   };
 
   const checkCurrentIntercept = () => {
-    // A verdict where outcomes are shown; on a DOL, quiz or test the point is
-    // recorded as written and graded at submission (resolveInterceptCheck).
-    const decision = resolveInterceptCheck({ revealCorrectness, kind, point: stage.point, expectedPoint });
+    // Whether the point is right is the shared grader's per-intercept check —
+    // the one it applies to the submission. What the check may do with that
+    // is the activity's: a verdict where outcomes are shown; on a DOL, quiz or
+    // test the point is recorded as written and graded at submission
+    // (resolveInterceptCheck).
+    const isCorrect = checkLinearIntercept(standard, kind, stage.point);
+    const decision = resolveInterceptCheck({ revealCorrectness, kind, point: stage.point, isCorrect });
     const nextStage = { ...stage, checked: true, completed: decision.completes };
 
     if (!decision.completes) {
@@ -318,20 +319,16 @@ export default function LinearInterceptsOrchestrator({
     }
 
     setMessage('');
+    // Step credit only where the check is a verdict: on a DOL, quiz or test no
+    // step is reported, so neither the device nor the server credits anything
+    // before Submit.
     if (decision.earnsStepCredit) {
       onStepGrade?.({
-        stepGrade: {
-          kind: 'linear-intercept',
-          label: `Found the ${stageLabel(kind)}`,
-          productive: true,
-          accepted: true,
-          earned: 1,
-          possible: 1,
-          equationBefore: formatStandardEquation(standard),
-          equationAfter: `${stageLabel(kind)} = ${stage.point}`,
-          expectedTotalPoints: 2,
-        },
+        stepGrade: interceptStepGrade({ standard, intercept: kind, point: stage.point }),
         countsAttempt: false,
+        // The raw work: which intercept and the pair as typed. The server
+        // re-checks it against the line and derives the same credit.
+        stepWork: interceptStepWork({ intercept: kind, point: stage.point }),
       });
     }
 
@@ -347,7 +344,7 @@ export default function LinearInterceptsOrchestrator({
     const finishedWork = { ...work, [kind]: nextStage, activeKind: kind };
     setWork(finishedWork);
     completionReportedRef.current = true;
-    onStateChange?.(interceptCompletionPayload(finishedWork, standard));
+    onStateChange?.(interceptCompletionPayload(finishedWork));
   };
 
   // A DOL, quiz or test only: a recorded intercept can be changed until the
@@ -492,6 +489,7 @@ export default function LinearInterceptsOrchestrator({
           questionRecord={solverQuestionRecord}
           onStateChange={handleSubEquationStateChange}
           onStepGrade={onStepGrade}
+          stepWorkContext={subSolveStepWorkContext}
           onUndoStateChange={onUndoStateChange}
           maximumAttempts={maximumAttempts}
           attemptsDoNotExpire={attemptsDoNotExpire}

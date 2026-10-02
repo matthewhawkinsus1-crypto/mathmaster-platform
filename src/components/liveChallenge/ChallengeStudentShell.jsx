@@ -113,6 +113,11 @@ export function StudentRoundResultsCard({ view, presentation, guidance, rushRoun
             {self.matchPointsAwarded > 0 ? `+${self.matchPointsAwarded} championship points` : 'No championship points this round'}
           </div>
         )}
+        {/* A rush round ranks work, and a target found on a graph left
+            unfinished is part of it: say so beside "0 graphs completed". */}
+        {rushRound && self && completed === 0 && self.matchPointsAwarded > 0 && (
+          <p style={{ margin: '8px 0 0', color: '#c3d2ea' }}>Targets you found on a graph you did not finish still count toward your place.</p>
+        )}
         {standing && (
           <div style={{ marginTop: 12, fontWeight: 900, color: '#eef1f6' }}>
             Overall: {standing.place.spoken} · {amountText(standing.score, presentation.total)}
@@ -136,7 +141,7 @@ export function StudentRoundResultsCard({ view, presentation, guidance, rushRoun
 }
 
 /** The end: how you finished, your game, what reached your wallet, and the top of the class. */
-export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows = [], selfKey = null, rewardsSlot = null, rush = false }) {
+export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows = [], selfKey = null, rewardsSlot = null, rush = false, loading = false }) {
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       <section data-mm-student-final="1" style={{ ...card, background: 'linear-gradient(135deg,#14532d,#1c7a44)', border: '1px solid rgba(129,201,149,.4)' }}>
@@ -154,7 +159,13 @@ export function StudentFinalCard({ selfRow, presentation, totalPlayers = 0, rows
                 : ''}
             </div>
           </div>
-        ) : <p style={{ margin: '10px 0 0', color: '#d7f5e1' }}>You joined after the last round.</p>}
+        ) : (
+          // Until the standings arrive (a refresh on the podium) there is no
+          // row to find yet — not a student who missed the game.
+          <p data-mm-final-loading={loading ? '1' : undefined} style={{ margin: '10px 0 0', color: '#d7f5e1' }}>
+            {loading ? 'Loading your final place…' : 'You joined after the last round.'}
+          </p>
+        )}
         <h2 style={{ margin: '12px 0 6px', fontSize: 22, color: '#fff' }}>Final Standings</h2>
         <p style={{ margin: 0, color: '#c9e7d4' }}>Your game score is practice feedback. It does not change your assignment grade.</p>
       </section>

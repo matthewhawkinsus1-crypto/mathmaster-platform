@@ -178,15 +178,17 @@ const VERTEX_DEPTH_LIMIT = Object.freeze({ [EASY]: 6, [STANDARD]: 12, [CHALLENGE
  * (h, k), an opening direction, and zeros at an exact distance from the
  * vertex. Only the distance rule differs (√(−k/a) against −k/a).
  */
-const vertexFamily = ({ id, label, kind, leads, zeroDistance, zeroDepth }) => Object.freeze({
+const vertexFamily = ({ id, label, kind, leads, zeroDistance, zeroDepth, noZerosMeansComplexRoots = false }) => Object.freeze({
   id,
   label,
   kind,
   variants: Object.freeze({
     [F.X_INTERCEPT]: [
       variant('two', { minTier: STANDARD, weight: 2 }),
-      variant('tangent', { minTier: STANDARD, weight: 0.6 }),
-      variant('none', { exists: false, minTier: STANDARD }),
+      // The vertex sits on the axis: the curve touches and turns there.
+      variant('tangent', { minTier: STANDARD, weight: 0.6, flags: { flatZero: true } }),
+      // A parabola that never meets the axis still has two (complex) roots.
+      variant('none', { exists: false, minTier: STANDARD, flags: noZerosMeansComplexRoots ? { nonRealRoots: true } : {} }),
     ],
     [F.Y_INTERCEPT]: [variant('one')],
     [F.VERTEX]: [variant('one')],
@@ -271,6 +273,7 @@ const quadratic = vertexFamily({
   leads: QUADRATIC_LEADS,
   zeroDistance: (ratio) => Q.exactSqrt(ratio),
   zeroDepth: (a, halfSeparation) => Q.mul(a, Q.mul(halfSeparation, halfSeparation)),
+  noZerosMeansComplexRoots: true,
 });
 
 const ABSOLUTE_LEADS = Object.freeze({
@@ -341,9 +344,12 @@ const cubic = Object.freeze({
   variants: Object.freeze({
     [F.X_INTERCEPT]: [
       variant('three', { minTier: STANDARD, weight: 1.6 }),
-      variant('triple', { minTier: STANDARD, weight: 0.5 }),
-      variant('tangent', { minTier: CHALLENGE, weight: 1 }),
-      variant('single', { minTier: CHALLENGE, weight: 0.6 }),
+      // Flat through its zero (a triple root), or touching and turning at
+      // one of them (a double root).
+      variant('triple', { minTier: STANDARD, weight: 0.5, flags: { flatZero: true } }),
+      variant('tangent', { minTier: CHALLENGE, weight: 1, flags: { flatZero: true } }),
+      // One real root; the other two are complex.
+      variant('single', { minTier: CHALLENGE, weight: 0.6, flags: { nonRealRoots: true } }),
     ],
     [F.Y_INTERCEPT]: [variant('one')],
   }),
@@ -783,9 +789,11 @@ const piecewise = Object.freeze({
         }),
       };
     }
-    // y-intercept: any two pieces; the split sometimes sits on the y-axis so
-    // the open/closed endpoint is what decides the answer.
-    const split = tier === CHALLENGE && rng.chance(0.4) ? Q.ZERO : s;
+    // y-intercept: any two pieces. At Challenge the split sometimes sits on
+    // the y-axis, so the open/closed endpoint is what decides the answer;
+    // below Challenge it never does (a split drawn at 0 moves off the axis).
+    const offAxis = Q.eq(s, Q.ZERO) ? Q.rat(rng.pick([-3, -2, -1, 1, 2, 3])) : s;
+    const split = tier === CHALLENGE ? (rng.chance(0.4) ? Q.ZERO : s) : offAxis;
     return {
       s: split,
       pieces: makePieces({

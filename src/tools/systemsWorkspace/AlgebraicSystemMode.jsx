@@ -7,7 +7,10 @@ import { Panel, ResultPill, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import { useHintsAllowed, useToolRuntimeContext } from '../shared/ToolRuntimeContext';
 import { resolveSpecialCaseReport } from './algebraicOutcomeModel.js';
-import { matchesNumericAnswer } from '../shared/toolMath';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
+import { solvedValuesWork, verificationSidesWork } from '../../../functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs';
 import MathDisplay from '../../MathDisplay';
 import MathInput from '../../MathInput';
 import StepByStepAlgebraCore from '../../StepByStepAlgebraCore.jsx';
@@ -38,8 +41,7 @@ import {
   degenerateStatementTruth,
   formatLinearEquation,
   linearEquationCoefficients,
-  solveAlgebraicSystem,
-  evaluateEquationSides,
+  twoByTwoVerificationValid,
   normalizeEquationForStepAlgebra,
   repairPersistedIsolation,
   equationMentionsVariable,
@@ -897,15 +899,6 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     setSlotAttempt(null);
   };
 
-  const parseNumericEntry = (value) => {
-    try {
-      const numeric = Number(evaluate(latexToExpression(value)));
-      return Number.isFinite(numeric) ? numeric : NaN;
-    } catch {
-      return NaN;
-    }
-  };
-
   // Typing never judges: the sides are checked only when the student asks.
   const setStatementAnswer = (key, value) => setStatementWork({ ...statementWork, [key]: value, checked: false });
   const checkStatementWork = () => setStatementWork({ ...statementWork, checked: true });
@@ -1191,16 +1184,11 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
   const setVerificationAnswer = (index, side, value) => {
     setVerification((current) => ({ ...current, [index]: { ...current[index], [side]: value, checked: false } }));
   };
-  const numericVerificationEntry = parseNumericEntry;
-
+  // The same rule the shared grader re-judges the typed sides with, so "Both
+  // sides check out" and the recorded verdict can never disagree.
   const checkVerification = (index) => {
-    const actual = evaluateEquationSides(equations[index], solution);
-    const leftValue = numericVerificationEntry(verification[index].leftAnswer);
-    const rightValue = numericVerificationEntry(verification[index].rightAnswer);
-    const leftOk = Number.isFinite(leftValue) && Math.abs(leftValue - actual.left) <= 0.05;
-    const rightOk = Number.isFinite(rightValue) && Math.abs(rightValue - actual.right) <= 0.05;
-    const equalityHolds = Math.abs(actual.left - actual.right) < 1e-6;
-    setVerification((current) => ({ ...current, [index]: { ...current[index], checked: true, valid: leftOk && rightOk && equalityHolds } }));
+    const valid = twoByTwoVerificationValid(equations[index], solution, verification[index].leftAnswer, verification[index].rightAnswer);
+    setVerification((current) => ({ ...current, [index]: { ...current[index], checked: true, valid } }));
   };
 
   const specialCaseAnswered = specialCase?.isTrueAnswer && specialCase?.solutionsAnswer && specialCase?.classificationAnswer;
@@ -1219,37 +1207,44 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
 
   const readyToSubmit = isDegenerate ? Boolean(!subsystem && specialCaseAnswered) : Boolean(solution && (!config.requireVerification || allVerified));
 
+  /*
+   * THE STUDENT'S WORK, AS THE SHARED GRADER READS IT
+   * (functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs):
+   * the values solved so far, the sides typed in each verification, and — when
+   * the reduction reached a statement with no variable — that statement and
+   * the three readings of it. Never the key, never a checked/valid flag.
+   *
+   * Reported as live work so a deadline can finalize it, and submitted as is
+   * by Check. A reduced subsystem inside a 3×3 reports nothing: its parent
+   * owns the work and the Check.
+   */
+  const work = {
+    dimension: 2,
+    method: effectiveMethod || '',
+    values: solvedValuesWork({
+      ...(firstSolvedDone && survivingVariable ? { [survivingVariable]: firstSolved.value } : {}),
+      ...(secondSolvedDone && removedVariable ? { [removedVariable]: secondSolved.value } : {}),
+    }),
+    verification: verificationSidesWork({ E1: verification[0], E2: verification[1] }),
+    reducedStatement: isDegenerate ? formatLinearEquation(reduceCoefficients, variables) : null,
+    specialCase: {
+      statementTruth: specialCase?.isTrueAnswer || '',
+      solutionCount: specialCase?.solutionsAnswer || '',
+      classification: specialCase?.classificationAnswer || '',
+    },
+    ...(config.askEfficiency ? { efficiencyReason: methodEfficiencyReason || '' } : {}),
+  };
+  useReportToolWork(work, { enabled: !subsystem });
+
   const check = () => {
-    const expected = solveAlgebraicSystem(config.coefficients);
-    const metadata = {
+    const result = gradeToolCheck(systemsWorkspaceGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, {
       mode: 'algebraic',
+      dimension: 2,
       method: effectiveMethod,
-      selection,
-      isolation: effectiveMethod === 'substitution' ? { expression: isolatedExpr, alreadyIsolated } : undefined,
-      substitution: effectiveMethod === 'substitution' ? substitution : undefined,
-      multipliers: effectiveMethod === 'elimination' ? multipliers : undefined,
-      multiplierWork: effectiveMethod === 'elimination' ? multiplierWork : undefined,
-      combinationOperation: effectiveMethod === 'elimination' ? combination.operation : undefined,
-      combinationAttempts: effectiveMethod === 'elimination' ? combination.attempts : undefined,
-      eliminationCancellation: effectiveMethod === 'elimination' ? combination.cancelledRows : undefined,
-      transformedEquations: effectiveMethod === 'elimination' ? [multipliedEq(0)?.text, multipliedEq(1)?.text] : undefined,
-      reducedEquation: reduceInputText,
-      firstSolvedVariable: firstSolved,
-      backSubstitution: { equationIndex: backSub.equationIndex, substitution: backSubEquationText },
-      secondSolvedVariable: secondSolved,
-      solution,
-      specialCase,
-      verification,
-      methodEfficiencyReason: config.askEfficiency ? methodEfficiencyReason : undefined,
-      expected,
-    };
-    const isCorrect = isDegenerate
-      ? Boolean(specialCaseCorrect)
-      : Boolean(solution && expected.type === 'one'
-        && matchesNumericAnswer(solution[variables[0]], expected.x, 0.05)
-        && matchesNumericAnswer(solution[variables[1]], expected.y, 0.05)
-        && (!config.requireVerification || allVerified));
-    submit({ isCorrect, score: isCorrect ? 1 : 0 }, isDegenerate ? specialCase : solution, metadata);
+      ...(effectiveMethod === 'elimination' ? { combinationOperation: combination.operation, combinationAttempts: combination.attempts } : {}),
+      parts: result.parts,
+    });
   };
 
   // --- The elimination board ---------------------------------------------

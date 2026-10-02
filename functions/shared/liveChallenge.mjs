@@ -2,7 +2,7 @@ import { challengeSpeedTier } from './liveChallengeParity.mjs';
 import { scaleLegacySpeedPoints } from './liveChallengeExperience.mjs';
 import { SESSION_STATUS } from './liveChallengeLifecycle.mjs';
 import { RANK_DIRECTION, rankEntries } from './liveChallengeRanking.mjs';
-import { roundReadyToClose } from './liveChallengeTimer.mjs';
+import { roundReadyToClose, timestampToMillis } from './liveChallengeTimer.mjs';
 
 // Pure Live Challenge rules shared by Cloud Functions and tests.
 //
@@ -52,6 +52,26 @@ export const roundClosingDecision = ({ joinedCount = 0, answeredCount = 0, thres
     joinedCount: joined,
     answeredCount: answered,
   };
+};
+
+/*
+ * WHETHER AN ANSWER COULD BE THE ONE THAT STARTS THE CLOSING COUNTDOWN — and so
+ * whether the server should count the class at all. Not when the room's
+ * threshold is off, not once the round is already closing, and not when its
+ * deadline is already inside the closing window (compressing could not bring
+ * it closer). Every answer used to count the class and then open a
+ * transaction on the ROOM document — the one document every other answer in
+ * flight also reads — so a class answering together waited seconds for its
+ * "Correct!" (20 answers at once: 2.4-3.9 s with the threshold on, 0.3 s off).
+ * `room` is the room as the answer's own transaction read it. Same threshold
+ * normalization as roundClosingDecision, so a legacy room keeps its default.
+ */
+export const roundCompressionMayApply = (room = {}, nowMs = Date.now()) => {
+  if (!room || normalizeRoundClosingThreshold(room.roundClosingThreshold) === null) return false;
+  if (room.closingStartedAt) return false;
+  if (normalizeChallengeTimingMode(room.timingMode) === 'pace') return true;
+  const endsAtMs = timestampToMillis(room.endsAt) ?? timestampToMillis(room.roundEndsAt);
+  return Boolean(endsAtMs) && endsAtMs > Number(nowMs) + ROUND_CLOSING_SECONDS * 1000;
 };
 
 // The teacher's selection is a baseline. The secure authored question decides
@@ -294,6 +314,8 @@ export const applyProductiveMilestoneAward = ({
   const receipts = { ...(player.submissionReceipts || {}) };
   const receiptIds = [];
   for (let depth = priorDepth + 1; depth <= targetDepth; depth += 1) {
+    // A milestone never replaces a receipt already in the log under its key.
+    if (receipts[`milestone:${Number(roundVersion)}:${depth}`]) continue;
     const milestone = recordValidatedSpeedMilestone({
       milestones,
       ...secureMilestone,

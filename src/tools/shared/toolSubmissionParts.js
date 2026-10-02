@@ -13,6 +13,11 @@
  * and what to call them (`metadata.partLabels`). Only asked parts are
  * recorded, under those names. A tool that says neither is recorded exactly as
  * before. Records already stored are not rewritten.
+ *
+ * Since server-authoritative grading, a mode with a shared grader records the
+ * grader's parts instead (QuestionEngine, attemptInputsFromGrading) — a list,
+ * already only the asked parts under the names the server stores; both tools
+ * above now report that list. This mapping serves a mode graded on the device.
  */
 export const toolSubmissionParts = (metadata = null) => {
   const rawParts = metadata?.parts;

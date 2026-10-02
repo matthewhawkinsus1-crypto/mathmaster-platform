@@ -1,0 +1,273 @@
+// The finite set of mathematical interactions a question may compose.
+//
+// THIS FILE IS THE BOUNDARY. A question's `workflow` array chooses from these
+// and nothing else. That restriction is what makes the composition safe: an
+// authoring AI gets freedom of ARRANGEMENT without freedom of INVENTION, so a
+// generated question can be validated completely before a student ever sees it.
+// An unknown `kind` fails Preflight; it never renders as an empty box.
+//
+// Adding a primitive here is a deliberate act. Adding one because a single
+// lesson wanted a slightly different worksheet is the mistake this whole layer
+// exists to prevent — the test is whether the interaction is a distinct
+// MATHEMATICAL act, not whether it is a distinct question.
+//
+// Each entry declares:
+//   produces   what a completed stage yields, so a later stage can consume it
+//   consumes   what kinds of upstream output it can be driven by
+//   schema     the fields it accepts, validated strictly
+//
+// Moved from src/platform/workflow/interactionStages.js (now an `export *`
+// shim) so the shared composed-workflow grader
+// (functions/shared/serverGrading/questionGraders/composedWorkflow.mjs) reads
+// a workflow with the same code the browser runs.
+
+export const STAGE_OUTPUT = Object.freeze({
+  EQUATION: 'equation',
+  TABLE: 'table',
+  POINTS: 'points',
+  GRAPH: 'graph',
+  MAPPING: 'mapping',
+  MATCH: 'match',
+  INTERVAL: 'interval',
+  SET: 'set',
+  CHOICE: 'choice',
+  TEXT: 'text',
+  ROLES: 'roles',
+  AXES: 'axes',
+});
+
+const stage = (id, definition) => [id, Object.freeze({ id, ...definition })];
+
+export const INTERACTION_STAGES = Object.freeze(Object.fromEntries([
+  stage('quantityRoles', {
+    label: 'Identify the quantities',
+    studentAction: 'Names which quantity is independent and which is dependent.',
+    produces: STAGE_OUTPUT.ROLES,
+    consumes: [],
+    fields: { prompt: 'string', quantities: 'array', correctIndependentId: 'string', correctDependentId: 'string' },
+  }),
+  stage('axisSetup', {
+    label: 'Label the graph',
+    studentAction: 'Labels the x- and y-axes, assigns units, and chooses a reasonable scale on a physical coordinate graph.',
+    produces: STAGE_OUTPUT.AXES,
+    consumes: [STAGE_OUTPUT.ROLES],
+    fields: {
+      prompt: 'string',
+      quantities: 'array',
+      graph: 'object',
+      requireUnits: 'boolean',
+      requireScale: 'boolean',
+    },
+  }),
+  stage('equationInput', {
+    label: 'Write the equation',
+    studentAction: 'Writes a function or equation for the situation.',
+    produces: STAGE_OUTPUT.EQUATION,
+    consumes: [STAGE_OUTPUT.ROLES],
+    fields: { prompt: 'string', placeholder: 'string' },
+  }),
+  stage('tableInput', {
+    label: 'Complete the table',
+    studentAction: 'Fills in the missing table values.',
+    produces: STAGE_OUTPUT.TABLE,
+    // Driven by the student's own equation where the question asks for it.
+    consumes: [STAGE_OUTPUT.EQUATION],
+    fields: { prompt: 'string', xValues: 'array', columns: 'array' },
+  }),
+  stage('coordinatePlot', {
+    label: 'Plot the points',
+    studentAction: 'Places ordered pairs on a coordinate plane.',
+    produces: STAGE_OUTPUT.POINTS,
+    consumes: [STAGE_OUTPUT.TABLE, STAGE_OUTPUT.EQUATION],
+    fields: { prompt: 'string', graph: 'object', pairs: 'array' },
+  }),
+  stage('functionGraph', {
+    label: 'Build the graph',
+    studentAction: 'Constructs a function graph, using point-only or connected mode when continuity has been decided.',
+    produces: STAGE_OUTPUT.GRAPH,
+    consumes: [STAGE_OUTPUT.EQUATION, STAGE_OUTPUT.TABLE],
+    fields: { prompt: 'string', graph: 'object', graphMode: 'string', continuityStageId: 'string' },
+  }),
+  stage('graphFeatureSelect', {
+    label: 'Locate the feature',
+    studentAction: 'Marks where a named feature of a graph is, or states that the graph has none.',
+    // A DISTINCT MATHEMATICAL ACT, not a second flavour of plotting.
+    //
+    // `coordinatePlot` gives the student the coordinates and asks them to place
+    // them: the work is in the placing. This gives the student a graph and a
+    // FEATURE NAME and asks where it is: the work is in the locating. A student
+    // who can plot (4, 0) accurately may still not know which point on their
+    // parabola is the y-intercept, and that gap is the whole reason this exists.
+    //
+    // It produces POINTS, so a later stage can be driven by what the student
+    // marked rather than by the answer key.
+    produces: STAGE_OUTPUT.POINTS,
+    consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.EQUATION],
+    fields: {
+      prompt: 'string',
+      graph: 'object',
+      feature: 'string',
+      selectionCount: 'number',
+      // "This graph has no x-intercept" must be a first-class ANSWER, not a
+      // dead end. An exponential has no x-intercept and a line has no maximum;
+      // without this the tool forces a wrong click on a correct student.
+      allowNone: 'boolean',
+      noneLabel: 'string',
+    },
+  }),
+  stage('pointInput', {
+    label: 'State the coordinates',
+    studentAction: 'Writes the location of a feature as an ordered pair, or states that it does not exist.',
+    // Separate from `graphFeatureSelect` on purpose: pointing at the vertex and
+    // reading off that it sits at (2, 9) are two different skills, and a
+    // question that asks for both should mark them separately.
+    produces: STAGE_OUTPUT.POINTS,
+    consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.EQUATION],
+    fields: {
+      prompt: 'string',
+      // WHICH feature, named the same way `graphFeatureSelect` names it. Not
+      // used by the renderer — the prompt already says it — but it is what lets
+      // validation see that a question asks a student to WRITE a feature they
+      // were never asked to FIND, which is two skills marked as one.
+      feature: 'string',
+      pointCount: 'number',
+      allowNone: 'boolean',
+      noneLabel: 'string',
+      placeholder: 'string',
+    },
+  }),
+  stage('figureMatch', {
+    label: 'Match each figure to a category',
+    studentAction: 'Sorts every figure shown into one of the named categories.',
+    // Recognising an exponential among four graphs and writing one from scratch
+    // are different skills; this primitive exists so a question can ask for the
+    // first without the second standing in for it.
+    produces: STAGE_OUTPUT.MATCH,
+    consumes: [],
+    // No `label` on an item, and none accepted: see figureMatch.js. The figures
+    // are Figure 1..N in written order so a name can never cue the answer.
+    fields: { prompt: 'string', items: 'array', categories: 'array' },
+  }),
+  stage('mappingDiagram', {
+    label: 'Build the mapping diagram',
+    studentAction: 'Draws the arrows from each input to its output.',
+    produces: STAGE_OUTPUT.MAPPING,
+    consumes: [STAGE_OUTPUT.POINTS],
+    fields: { prompt: 'string', domainLabel: 'string', rangeLabel: 'string' },
+  }),
+  stage('numberLine', {
+    label: 'Graph on a number line',
+    studentAction: 'Shades intervals and places endpoints on a number line.',
+    produces: STAGE_OUTPUT.INTERVAL,
+    consumes: [],
+    fields: { prompt: 'string', min: 'number', max: 'number', step: 'number' },
+  }),
+  stage('domainInput', {
+    label: 'State the domain',
+    studentAction: 'States the domain.',
+    produces: STAGE_OUTPUT.SET,
+    consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.EQUATION],
+    // `graph` is the figure being read. A step that says "state the domain of
+    // the graph shown" with no graph on it is unanswerable, and that is what a
+    // staged domain question was before this field existed.
+    fields: { prompt: 'string', notation: 'string', choices: 'array', graph: 'object' },
+  }),
+  stage('rangeInput', {
+    label: 'State the range',
+    studentAction: 'States the range.',
+    produces: STAGE_OUTPUT.SET,
+    consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.EQUATION],
+    // `graph` is the figure being read. A step that says "state the domain of
+    // the graph shown" with no graph on it is unanswerable, and that is what a
+    // staged domain question was before this field existed.
+    fields: { prompt: 'string', notation: 'string', choices: 'array', graph: 'object' },
+  }),
+  stage('valueSet', {
+    label: 'Write the values',
+    studentAction: 'Writes the specific values that satisfy a condition — the zeros of a function, say — as a set.',
+    // Distinct from `domainInput` on purpose. A domain is every input the
+    // function accepts; the zeros are the particular inputs where it is zero.
+    // A student can state one correctly and the other wrongly, and a question
+    // that asks for both should be able to say which.
+    // Distinct from `pointInput` for the same reason: (4, 0) is the
+    // x-intercept and x = 4 is the zero, and telling those apart is the skill.
+    produces: STAGE_OUTPUT.SET,
+    consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.EQUATION],
+    fields: { prompt: 'string', notation: 'string', placeholder: 'string', choices: 'array', graph: 'object' },
+  }),
+  stage('intervalInput', {
+    label: 'Write the interval',
+    studentAction: 'Writes an interval or union in the requested notation.',
+    produces: STAGE_OUTPUT.INTERVAL,
+    consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.INTERVAL],
+    fields: { prompt: 'string', notation: 'string', graph: 'object' },
+  }),
+  stage('classification', {
+    label: 'Classify',
+    studentAction: 'Chooses between named categories.',
+    produces: STAGE_OUTPUT.CHOICE,
+    consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.EQUATION],
+    // `previewOnGraph` draws whichever option is selected — see choicePreview.js.
+    // Opt-in, because normally the platform does not show a student where an
+    // answer is; here it shows what a symbol MEANS, identically for every
+    // option, so it never says which one is right.
+    //
+    // `graph` is the figure the question is ABOUT, drawn read-only above the
+    // options. A step that asks "does this graph have an x-intercept?" with no
+    // graph on screen is unanswerable, and that is what shipped when the field
+    // was missing here and the authored value was silently dropped.
+    fields: { prompt: 'string', choices: 'array', previewOnGraph: 'object', graph: 'object' },
+  }),
+  stage('multipleChoice', {
+    label: 'Choose an answer',
+    studentAction: 'Selects one supplied option.',
+    produces: STAGE_OUTPUT.CHOICE,
+    consumes: [],
+    fields: { prompt: 'string', choices: 'array', previewOnGraph: 'object', graph: 'object' },
+  }),
+  stage('interpretation', {
+    label: 'Interpret in context',
+    studentAction: 'Explains what a value or feature means in the situation.',
+    produces: STAGE_OUTPUT.TEXT,
+    consumes: [STAGE_OUTPUT.EQUATION, STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.TABLE],
+    fields: { prompt: 'string', feature: 'string' },
+  }),
+  stage('shortResponse', {
+    label: 'Short written answer',
+    studentAction: 'Writes a short answer.',
+    produces: STAGE_OUTPUT.TEXT,
+    consumes: [],
+    fields: { prompt: 'string' },
+  }),
+  stage('algebraWorkspace', {
+    label: 'Solve on the balance workspace',
+    studentAction: 'Performs balanced operations step by step.',
+    produces: STAGE_OUTPUT.EQUATION,
+    consumes: [STAGE_OUTPUT.EQUATION],
+    fields: { prompt: 'string', equation: 'string', workspaceDifficulty: 'number' },
+  }),
+]));
+
+export const STAGE_KINDS = Object.freeze(Object.keys(INTERACTION_STAGES));
+
+// `graphConstruction` reads better in authored JSON than choosing between two
+// graph primitives, so it is accepted and resolved by its mode. It is an alias,
+// not a sixteenth primitive — the whitelist stays the whitelist.
+const ALIASES = Object.freeze({
+  graphConstruction: (raw) => (String(raw?.graphMode || '').toLowerCase() === 'discrete' ? 'coordinatePlot' : 'functionGraph'),
+  scatterPlot: () => 'coordinatePlot',
+  equationBuilder: () => 'equationInput',
+});
+
+export const resolveStageKind = (raw) => {
+  const kind = String(raw?.kind || '');
+  if (INTERACTION_STAGES[kind]) return kind;
+  const alias = ALIASES[kind];
+  return alias ? alias(raw) : null;
+};
+
+export const getStage = (kind) => INTERACTION_STAGES[kind] || null;
+
+export const isKnownStageKind = (kind) => Boolean(INTERACTION_STAGES[kind] || ALIASES[kind]);
+
+export const listStageAliases = () => Object.keys(ALIASES);

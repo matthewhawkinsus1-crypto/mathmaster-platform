@@ -1,4 +1,5 @@
 import { LIVE_FLAGS, LIVE_SEVERITY } from '../../livePresence.js';
+import { acceptStudentName } from '../studentName.js';
 
 export const SUPPORT_EVENT_KIND = Object.freeze({
   WATCH_PRACTICE: 'watchPractice',
@@ -28,6 +29,14 @@ export const SUPPORT_EVENT_STAGE = Object.freeze({
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const clean = (value) => String(value ?? '').trim();
+// A queue entry carries a name only when one is on file — never the id, never
+// a placeholder. The screen resolves a null name by studentId from the roster,
+// and these entries are what a teacher action writes back into history.
+const storedName = (name, studentId) => acceptStudentName(name, { studentId: clean(studentId) }) || null;
+// Named entries alphabetically, then entries with no name (by id).
+const byStoredName = (a, b) => Number(!a.studentName) - Number(!b.studentName)
+  || String(a.studentName || '').localeCompare(String(b.studentName || ''))
+  || clean(a.studentId).localeCompare(clean(b.studentId));
 const num = (value, fallback = 0) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -327,7 +336,7 @@ export const buildWatchPracticeList = ({
 
       return {
         studentId: row.id,
-        studentName: row.name,
+        studentName: row.nameMissing ? null : storedName(row.name, row.id),
         score,
         reasons: [...new Set(reasons)],
         integrity,
@@ -335,7 +344,7 @@ export const buildWatchPracticeList = ({
       };
     })
     .filter((entry) => entry.score >= 3)
-    .sort((a, b) => b.score - a.score || a.studentName.localeCompare(b.studentName))
+    .sort((a, b) => b.score - a.score || byStoredName(a, b))
     .slice(0, Math.max(1, maxStudents));
 };
 
@@ -463,12 +472,12 @@ export const buildParentFollowUpCandidates = ({
   nowValue = Date.now(),
 } = {}) => {
   const map = new Map();
-  const ensure = (studentId, studentName = studentId) => {
+  const ensure = (studentId, studentName = null) => {
     if (!studentId) return null;
     if (!map.has(studentId)) {
       map.set(studentId, {
         studentId,
-        studentName: studentName || studentId,
+        studentName: storedName(studentName, studentId),
         completionSignals: [],
         confirmedProductivityDays: new Set(),
         systemProductivityDays: new Set(),
@@ -477,7 +486,10 @@ export const buildParentFollowUpCandidates = ({
         recentParentContact: false,
       });
     }
-    return map.get(studentId);
+    const entry = map.get(studentId);
+    // A later record may carry the name an earlier one lacked.
+    if (!entry.studentName) entry.studentName = storedName(studentName, studentId);
+    return entry;
   };
 
   list(needsAttention).forEach((alert) => {
@@ -553,7 +565,7 @@ export const buildParentFollowUpCandidates = ({
         && (entry.completionSignals.length >= 1 || entry.systemProductivityDays.length >= 1)) return true;
       return false;
     })
-    .sort((a, b) => b.score - a.score || a.studentName.localeCompare(b.studentName));
+    .sort((a, b) => b.score - a.score || byStoredName(a, b));
 };
 
 export const supportSessionKey = ({

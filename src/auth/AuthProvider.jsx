@@ -17,6 +17,7 @@ import {
 } from './authService';
 import { shouldPromoteClassroomStudentSession } from './classroomSession.js';
 import { clearAccountTabStorage } from './accountTabStorage.js';
+import { acceptStudentName } from '../platform/studentName.js';
 
 const AuthContext = createContext(null);
 
@@ -27,13 +28,24 @@ const AuthContext = createContext(null);
 //   'ready'    – `session` is populated and the app can render
 const INITIAL_STATE = { status: 'loading', session: null, linkRequest: null };
 
+// A student's session name is a NAME or nothing. A passcode session carries no
+// Auth displayName, and the id it used to fall back to became the student's
+// greeting; App.jsx resolves the student's name from the roster record instead
+// (resolveStudentDisplayName), so null here simply means "ask the roster".
+const sessionDisplayName = (firebaseUser, claims) => {
+  if (claims.role === 'student') {
+    return acceptStudentName(firebaseUser.displayName, { studentId: claims.studentId }) || null;
+  }
+  return firebaseUser.displayName || firebaseUser.email || 'MathMaster user';
+};
+
 function toSession(firebaseUser, claims) {
   return {
     uid: firebaseUser.uid,
     role: claims.role,
     studentId: claims.studentId || null,
     email: firebaseUser.email || claims.email || null,
-    displayName: firebaseUser.displayName || claims.studentId || firebaseUser.email || 'MathMaster user',
+    displayName: sessionDisplayName(firebaseUser, claims),
     photoURL: firebaseUser.photoURL || null,
     classPeriod: null,
     accessLevel: claims.rootAdmin === true ? 'rootAdmin' : claims.role,

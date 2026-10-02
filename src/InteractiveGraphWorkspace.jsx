@@ -11,14 +11,10 @@ import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 import QuestionPrompt from './QuestionPrompt';
 import PathQuestionStimulus from './components/student/PathQuestionStimulus.jsx';
 import { FUNCTION_GRAPH_LABELS, evaluateGraphFunction, formatGraphEquationLatex } from './functionGraphUtils';
-import { POINT_FEATURES } from './analysisRequestCatalog';
 import { describeAnswerFormat } from './platform/interaction/answerFormatHints.js';
 import { figureDismissalKey, shouldOpenFigureEnlarged } from './platform/student/figurePresentation.js';
 import { checkPlottedPoints, summarizeSelfCheck } from './platform/student/graphSelfCheck.js';
-import {
-  analysisKeypadProfile,
-  pathAnalysisTextMatches,
-} from '../functions/shared/pathToolContracts.mjs';
+import { analysisKeypadProfile } from '../functions/shared/pathToolContracts.mjs';
 import useUndoHistory from './useUndoHistory';
 import useLocalDraftState from './useLocalDraftState';
 import useMobileInteractionMode from './platform/mobile/useMobileInteractionMode.js';
@@ -27,29 +23,31 @@ import {
   findMagneticSnapTarget,
   normalizeMagneticSnapTargets,
   positiveStep,
-  resolveReachableSnapStep,
   snapValue,
 } from './graphInteractionPrecision';
 import {
-  analysisSelectionsAreCorrect,
-  buildInteractiveGraphWindow,
-  buildInteractivePointTasks,
   buildSmoothGraphPath,
-  getDefaultEndpointRequirements,
-  getDomainRangeAcceptedAnswers,
-  getGraphFeaturePoints,
-  getMonotonicAcceptedAnswers,
   gradePointPlacements,
   placementsMatchTasks,
-  pointDistance,
-  pointSetInputMatches,
-  resolveTaskExpected,
-  roughSketchMatchesGraph,
-  sampleVisibleFunctionPaths,
-  getSignAcceptedAnswers,
   taskStatesX,
   withStatedTaskX,
 } from './interactiveGraphEngine';
+import {
+  GRAPH_WORKSPACE_VIEWBOX,
+  SKETCH_LIMITS,
+  analysisPartResponse,
+  boundSketchStrokes,
+  constructionSketchMatches,
+  constructionSketchThroughOwnPoints,
+  gradeAnalysisPart,
+  graphWorkspaceModelFor,
+  graphWorkspaceWorkFromState,
+  inverseSketchMatches,
+  inverseSketchThroughOwnPoints,
+} from '../functions/shared/toolMath/graphWorkspace/graphWorkspaceModel.mjs';
+import graphWorkspaceGrader from '../functions/shared/serverGrading/tools/graphWorkspace.mjs';
+import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
+import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
 
 // Matched to CoordinatePlane's zoom buttons so the two planes a student meets
 // in one assignment do not have different-looking controls for the same act.
@@ -66,18 +64,11 @@ const ZOOM_BUTTON = {
   lineHeight: 1,
 };
 
-const WIDTH = 760;
-const HEIGHT = 540;
-const PADDING = 56;
-const INNER_WIDTH = WIDTH - PADDING * 2;
-const INNER_HEIGHT = HEIGHT - PADDING * 2;
-
-// Graph coordinates to plot pixels for one window. The component's
-// toScreenX / toScreenY are these, bound to what is on screen.
-const screenXIn = (view, x) => PADDING + ((x - view.xMin) / (view.xMax - view.xMin)) * INNER_WIDTH;
-const screenYIn = (view, y) => PADDING + ((view.yMax - y) / (view.yMax - view.yMin)) * INNER_HEIGHT;
-const graphStrokesOnScreen = (graphStrokes, view) => (Array.isArray(graphStrokes) ? graphStrokes : [])
-  .map((stroke) => (Array.isArray(stroke) ? stroke : []).map(([x, y]) => [screenXIn(view, x), screenYIn(view, y)]));
+// The drawing's own coordinate system. Shared with the grader, because the
+// freehand-sketch check runs in these units on both sides.
+const WIDTH = GRAPH_WORKSPACE_VIEWBOX.width;
+const HEIGHT = GRAPH_WORKSPACE_VIEWBOX.height;
+const PADDING = GRAPH_WORKSPACE_VIEWBOX.padding;
 const POINT_GUIDE_COLOR = '#00a6a6';
 const MARKER_SNAP_PIXELS = 82;
 
@@ -98,16 +89,6 @@ const MARKER_SNAP_PIXELS = 82;
 const buildTicks = (minimum, maximum, step) => majorTicks(minimum, maximum, step);
 
 const pointLabel = ([x, y]) => `(${x}, ${y})`;
-// A sketch drawn through the student's own points is also kept in graph
-// coordinates (sketchGraph, inverseSketchGraph), so a zoom after drawing
-// cannot move the curve that is judged at submission. That copy stays out of
-// the response key: the key is stored with every attempt, the strokes already
-// identify the response, and work saved before the copy existed must keep the
-// key it was submitted under.
-const SKETCH_COPY_FIELDS = new Set(['sketchGraph', 'inverseSketchGraph']);
-const responseKeyState = (state) => Object.fromEntries(
-  Object.entries(state || {}).filter(([key]) => !SKETCH_COPY_FIELDS.has(key)),
-);
 const taskPlacementLabel = (placement) => placement === 'undefined' ? 'Undefined' : Array.isArray(placement) ? pointLabel(placement) : 'Not placed';
 const markerLabels = { arrow: 'Arrow', open: 'Open Circle', closed: 'Closed Circle' };
 const markerExplanations = { arrow: 'Function continues', open: 'Endpoint excluded', closed: 'Endpoint included' };
@@ -164,93 +145,10 @@ const makeMarkerDragImage = (type) => {
   return canvas;
 };
 
-const normalizeAnalysisRequests = (question, spec, viewWindow, allowDefault) => {
-  const provided = Array.isArray(question.analysisRequests) && question.analysisRequests.length ? question.analysisRequests : null;
-  const requests = provided || (allowDefault ? [{ id: 'feature', kind: 'point', feature: question.analysisFeature || 'vertex', label: question.analysisFeatureLabel || question.analysisFeature || 'requested feature' }] : []);
-  return requests.map((request, index) => {
-    const id = String(request.id || `analysis-${index + 1}`);
-    if (request.kind === 'inversePoint') {
-      const sourceTask = (question.pointTasks || []).find((task) => String(task?.id || '') === String(request.sourceTaskId || ''));
-      const sourceX = Number(sourceTask?.x);
-      const sourceY = Number.isFinite(sourceX) ? evaluateGraphFunction(spec, sourceX) : Number.NaN;
-      const expected = Number.isFinite(sourceX) && Number.isFinite(sourceY) ? [[sourceY, sourceX]] : [];
-      return {
-        ...request,
-        id,
-        kind: 'inversePoint',
-        expected,
-        requiredCount: expected.length,
-        allowNone: false,
-        responseMode: request.responseMode || 'click',
-      };
-    }
-    if (request.kind === 'value') {
-      const authoredExpected = Array.isArray(request.expected)
-        ? request.expected
-        : request.expected !== undefined && request.expected !== null
-          ? [request.expected]
-          : [];
-      const authoredAccepted = Array.isArray(request.acceptedAnswers) ? request.acceptedAnswers : [];
-      return {
-        ...request,
-        id,
-        kind: 'value',
-        label: request.label || request.prompt || 'Answer',
-        responseMode: request.responseMode || 'input',
-        acceptedAnswers: authoredAccepted.length ? authoredAccepted : authoredExpected,
-      };
-    }
-    if (['domain', 'range'].includes(request.kind)) {
-      const notation = request.notation || 'interval';
-      return { ...request, id, kind: request.kind, label: request.label || `${request.kind === 'domain' ? 'Domain' : 'Range'} in ${notation} notation`, notation, acceptedAnswers: request.acceptedAnswers || getDomainRangeAcceptedAnswers(spec, request.kind, notation) };
-    }
-    if (['positive', 'negative'].includes(request.kind)) {
-      const notation = request.notation || 'interval';
-      return {
-        ...request, id, kind: request.kind, notation,
-        label: request.label || `Interval(s) where the function is ${request.kind}`,
-        acceptedAnswers: request.acceptedAnswers || getSignAcceptedAnswers(spec, request.kind, notation),
-        // See below: offered on every interval question, not only the empty ones.
-        allowsEmptyAnswer: true,
-      };
-    }
-    if (['increasing', 'decreasing', 'constant'].includes(request.kind)) {
-      const notation = request.notation || 'interval';
-      return {
-        ...request, id, kind: request.kind, notation,
-        label: request.label || `${request.kind[0].toUpperCase()}${request.kind.slice(1)} interval(s)`,
-        acceptedAnswers: request.acceptedAnswers || getMonotonicAcceptedAnswers(spec, request.kind, notation),
-        // "Does not exist" used to appear only on `constant` requests, so a
-        // student asked for the decreasing intervals of y = x³ — which are
-        // empty — had no way to say so and had to guess at typing "none".
-        //
-        // It is now offered on EVERY interval question rather than only on the
-        // ones whose answer is empty. Showing it only where it applies would
-        // announce the answer: the button's presence would be the answer. A
-        // control that is always there carries no information.
-        allowsEmptyAnswer: true,
-      };
-    }
-    // An unrecognised kind used to land here and become a point task named
-    // after the kind — "point", "positive" — with no locatable feature, so the
-    // student saw an empty click target they could never satisfy. Fall back to
-    // the vertex, which every supported function has, rather than to nothing.
-    const requestedFeature = request.feature || request.kind;
-    const feature = POINT_FEATURES.includes(requestedFeature) ? requestedFeature : 'vertex';
-    const expected = request.expected || getGraphFeaturePoints(spec, feature, viewWindow);
-    return {
-      ...request,
-      id,
-      kind: 'point',
-      feature,
-      expected,
-      label: request.label || feature,
-      requiredCount: expected.length,
-      allowNone: request.allowNone !== false,
-      responseMode: request.responseMode || request.answerMode || 'click',
-    };
-  });
-};
+// The analysis requests are resolved by normalizeAnalysisRequests in
+// functions/shared/toolMath/graphWorkspace/graphWorkspaceModel.mjs — moved there
+// so the shared grader derives the same parts and accepted answers this
+// workspace shows.
 
 const stageButtonStyle = (active, disabled = false) => ({
   border: active ? '2px solid #1a73e8' : '1px solid #c5d5ef',
@@ -305,8 +203,6 @@ const analysisAnswerShape = (part) => describeAnswerFormat({
   answerFormat: analysisAnswerFormatFor(part) || analysisKeypadProfile(part),
 });
 
-const NO_FUNCTION_SPEC = Object.freeze({});
-const NO_GRAPH = Object.freeze({});
 
 export default function InteractiveGraphWorkspace({
   question,
@@ -371,18 +267,52 @@ export default function InteractiveGraphWorkspace({
     };
   }, []);
 
-  // Stable fallbacks: a fresh `{}` per render for a question without these
-  // fields changed every memo below it on every render, and the state report
-  // that depends on them looped with the engine.
-  const functionSpec = question.functionSpec || NO_FUNCTION_SPEC;
-  const graph = question.graph || NO_GRAPH;
+  /*
+   * WHAT THE WORKSPACE DERIVES FROM ITS QUESTION — THE SAME MODEL THE GRADER USES.
+   *
+   * Tasks, the authored window, the visible curve, the reachable snap step (and
+   * with it every tolerance), the graph-end requirements and the analysis parts
+   * all come from buildGraphWorkspaceModel (through graphWorkspaceModelFor,
+   * which builds it once per question), the module the shared grader
+   * (functions/shared/serverGrading/tools/graphWorkspace.mjs) builds its model
+   * with. What this screen shows and what the server marks cannot drift apart.
+   */
+  const model = useMemo(
+    () => graphWorkspaceModelFor(question, { analysisMode: mode === 'analysis' }),
+    [question, mode],
+  );
+  const {
+    functionSpec,
+    graph,
+    studentChoosesX,
+    pointOnly,
+    constructionEnabled,
+    inverseReflection,
+    inverseReflectionEnabled,
+    tasks,
+    // NAMED `viewWindow`, NOT `window`.
+    //
+    // It was `window`, which shadowed the global for the whole component — and
+    // the viewport `useState` initializer a few dozen lines above reads
+    // `typeof window`, which runs on first render, before this line initializes.
+    // A `const` in its temporal dead zone throws even under `typeof`, so every
+    // mount of this workspace died with "Cannot access 'window' before
+    // initialization" and the graph never appeared.
+    viewWindow,
+    xGridStep,
+    yGridStep,
+    // Grid spacing is a DISPLAY choice, not an answer-input restriction. The
+    // construction snap is resolved independently (resolveReachableSnapStep, in
+    // the model), so a normal grid with step 1 still accepts (1, 1.5).
+    snapStep,
+    visiblePaths,
+    endpointRequirements,
+    analysisParts,
+    analysisEnabled,
+    inverseVisiblePaths,
+    requiredStrokeCount,
+  } = model;
   const requestedShowCoordinates = question.showCoordinates ?? graph.showCoordinates ?? true;
-  const studentChoosesX = Boolean(question.studentChoosesX || question.chooseXValues);
-  const pointOnly = Boolean(question.pointOnly || question.plotMode === 'points');
-  const constructionEnabled = mode !== 'analysis';
-  const inverseReflection = question.inverseReflection?.enabled ? question.inverseReflection : null;
-  const inverseReflectionEnabled = Boolean(inverseReflection && constructionEnabled);
-  const tasks = useMemo(() => constructionEnabled ? (question.pointTasks || buildInteractivePointTasks(functionSpec, { points: question.graphAnswer?.suggestedPoints, includeUndefinedChecks: question.includeUndefinedChecks, undefinedCount: question.undefinedCount, studentChoosesX })) : [], [question, functionSpec, studentChoosesX, constructionEnabled]);
   // Magnetic targets are NEVER inferred from task.expected. They must be
   // explicitly supplied as student-known coordinates (for example, points from
   // a completed/validated table stage). This keeps magnetic snapping from
@@ -391,39 +321,7 @@ export default function InteractiveGraphWorkspace({
     () => normalizeMagneticSnapTargets(question.magneticSnapTargets, tasks),
     [question.magneticSnapTargets, tasks],
   );
-  const inversePreviewPoints = useMemo(() => {
-    if (!inverseReflectionEnabled) return [];
-    const requested = new Set((inverseReflection.sourceTaskIds || []).map(String));
-    return (question.pointTasks || [])
-      .filter((task) => !requested.size || requested.has(String(task?.id || '')))
-      .map((task) => {
-        const sourceX = Number(task?.x);
-        const sourceY = Number.isFinite(sourceX) ? evaluateGraphFunction(functionSpec, sourceX) : Number.NaN;
-        return Number.isFinite(sourceX) && Number.isFinite(sourceY) ? [sourceY, sourceX] : null;
-      })
-      .filter(Boolean);
-  }, [inverseReflectionEnabled, inverseReflection, question.pointTasks, functionSpec]);
 
-  const baseWindow = useMemo(() => buildInteractiveGraphWindow(functionSpec, tasks, graph), [functionSpec, tasks, graph]);
-  // NAMED `viewWindow`, NOT `window`.
-  //
-  // It was `window`, which shadowed the global for the whole component — and
-  // the viewport `useState` initializer a few dozen lines above reads
-  // `typeof window`, which runs on first render, before this line initializes.
-  // A `const` in its temporal dead zone throws even under `typeof`, so every
-  // mount of this workspace died with "Cannot access 'window' before
-  // initialization" and the graph never appeared.
-  const viewWindow = useMemo(() => {
-    if (!inverseReflectionEnabled || !inversePreviewPoints.length) return baseWindow;
-    const margin = Math.max(1, Number(baseWindow.snapStep || 0.5) * 2);
-    return {
-      ...baseWindow,
-      xMin: Math.min(Number(baseWindow.xMin), ...inversePreviewPoints.map((point) => point[0] - margin)),
-      xMax: Math.max(Number(baseWindow.xMax), ...inversePreviewPoints.map((point) => point[0] + margin)),
-      yMin: Math.min(Number(baseWindow.yMin), ...inversePreviewPoints.map((point) => point[1] - margin)),
-      yMax: Math.max(Number(baseWindow.yMax), ...inversePreviewPoints.map((point) => point[1] + margin)),
-    };
-  }, [baseWindow, inverseReflectionEnabled, inversePreviewPoints]);
   /*
    * PAN AND ZOOM OVER THE AUTHORED DOMAIN.
    *
@@ -447,29 +345,12 @@ export default function InteractiveGraphWorkspace({
   const [zoomView, setZoomView] = useState(null);
   const renderWindow = zoomView || viewWindow;
 
-  const xGridStep = Math.max(0.000001, Number(viewWindow.xStep ?? 1));
-  const yGridStep = Math.max(0.000001, Number(viewWindow.yStep ?? 1));
   const skipCounting = xGridStep > 1 || yGridStep > 1;
-  // Grid spacing is a DISPLAY choice, not an answer-input restriction. The old
-  // code snapped to xStep/yStep, so a normal grid with step 1 made points such
-  // as (1, 1.5) literally impossible to place even though the graph engine's
-  // own default snapStep is 0.5. Honor the construction snap independently and
-  // allow an author to make either axis finer when a task needs it.
-  const requestedSnapStep = graph.snapStep ?? viewWindow.snapStep;
-  const visiblePaths = useMemo(() => pointOnly ? [] : sampleVisibleFunctionPaths(functionSpec, viewWindow), [functionSpec, viewWindow, pointOnly]);
-  // Rule 5 needs to know where the curve actually is, so the samples are taken
-  // before the snap is resolved rather than after.
-  const curveSamples = useMemo(() => visiblePaths.flat(), [visiblePaths]);
-  const snapStep = useMemo(
-    () => resolveReachableSnapStep(requestedSnapStep, tasks, curveSamples),
-    [requestedSnapStep, tasks, curveSamples],
-  );
   // The visible grid and the accepted precision are separate: the graph may
   // accept a quarter without drawing quarter lines everywhere.
   const xSnapStep = Math.min(xGridStep, snapStep, positiveStep(graph.xSnapStep ?? viewWindow.xSnapStep, snapStep));
   const ySnapStep = Math.min(yGridStep, snapStep, positiveStep(graph.ySnapStep ?? viewWindow.ySnapStep, snapStep));
   const showCoordinates = skipCounting ? true : requestedShowCoordinates;
-  const endpointRequirements = useMemo(() => pointOnly ? [] : (constructionEnabled ? (question.endpointRequirements || getDefaultEndpointRequirements(functionSpec, visiblePaths, { ...question, graph: viewWindow })) : getDefaultEndpointRequirements(functionSpec, visiblePaths, { ...question, graph: viewWindow })), [question, functionSpec, visiblePaths, viewWindow, constructionEnabled, pointOnly]);
   const boundaryOnly = endpointRequirements.length > 0 && endpointRequirements.every((requirement) => requirement.marker === 'open' || requirement.marker === 'closed');
   const continuationOnly = endpointRequirements.length > 0 && endpointRequirements.every((requirement) => requirement.marker === 'arrow');
   // Which marker types are offered, and how the ends are described, say
@@ -487,8 +368,6 @@ export default function InteractiveGraphWorkspace({
         ? 'Show that the function continues beyond the visible coordinate plane.'
         : 'Use arrows for continuation and open/closed circles for finite boundaries.';
   const endpointCompletionNoun = !endsDescribedForStudent ? 'end marker' : boundaryOnly ? 'boundary marker' : continuationOnly ? 'continuation arrow' : 'end marker';
-  const analysisParts = useMemo(() => normalizeAnalysisRequests(question, functionSpec, viewWindow, mode === 'analysis'), [question, functionSpec, viewWindow, mode]);
-  const analysisEnabled = mode === 'analysis' || analysisParts.length > 0;
 
   // Parent components often rebuild an equivalent question object while a
   // student is working. Object identity is not a reason to clear selections,
@@ -506,24 +385,24 @@ export default function InteractiveGraphWorkspace({
 
   const initialChosenX = useMemo(() => Object.fromEntries(tasks.filter((task) => Number.isFinite(Number(task.x))).map((task) => [task.id, String(task.x)])), [tasks]);
   const constructionHistory = useUndoHistory(
-    { placements: {}, chosenXValues: initialChosenX, pointsValidated: false, strokes: [], snapped: false, markerPlacements: {} },
+    { placements: {}, chosenXValues: initialChosenX, pointsValidated: false, strokes: [], sketchView: null, snapped: false, markerPlacements: {} },
     60,
     draftKey ? `${draftKey}:graph-construction` : null,
   );
   const analysisHistory = useUndoHistory(
-    { selections: {}, answers: {}, typedPoints: {}, noneSelections: {}, inversePointsValidated: false, inverseStrokes: [], inverseSnapped: false },
+    { selections: {}, answers: {}, typedPoints: {}, noneSelections: {}, inversePointsValidated: false, inverseStrokes: [], inverseSketchView: null, inverseSnapped: false },
     60,
     draftKey ? `${draftKey}:graph-analysis` : null,
   );
   const construction = constructionHistory.value;
   const analysis = analysisHistory.value;
 
-  const innerWidth = INNER_WIDTH;
-  const innerHeight = INNER_HEIGHT;
+  const innerWidth = WIDTH - PADDING * 2;
+  const innerHeight = HEIGHT - PADDING * 2;
   // Screen mapping, ticks and axes follow what is ON SCREEN. Everything else in
   // this component — tasks, keys, clamping — stays on the authored window.
-  const toScreenX = (x) => screenXIn(renderWindow, x);
-  const toScreenY = (y) => screenYIn(renderWindow, y);
+  const toScreenX = (x) => PADDING + ((x - renderWindow.xMin) / (renderWindow.xMax - renderWindow.xMin)) * innerWidth;
+  const toScreenY = (y) => PADDING + ((renderWindow.yMax - y) / (renderWindow.yMax - renderWindow.yMin)) * innerHeight;
   const fromScreenX = (screenX) => renderWindow.xMin + ((screenX - PADDING) / innerWidth) * (renderWindow.xMax - renderWindow.xMin);
   const fromScreenY = (screenY) => renderWindow.yMax - ((screenY - PADDING) / innerHeight) * (renderWindow.yMax - renderWindow.yMin);
   const xTicks = useMemo(() => buildTicks(renderWindow.xMin, renderWindow.xMax, renderWindow.xStep ?? 1), [renderWindow]);
@@ -551,23 +430,13 @@ export default function InteractiveGraphWorkspace({
   const clipId = useMemo(() => `mm-plot-clip-${Math.random().toString(36).slice(2, 9)}`, []);
 
   const idealPaths = useMemo(() => visiblePaths.map((path) => buildSmoothGraphPath(path, toScreenX, toScreenY)), [visiblePaths, renderWindow]);
-  const idealScreenPointPaths = useMemo(() => visiblePaths.map((path) => path.map(([x, y]) => [toScreenX(x), toScreenY(y)])), [visiblePaths, renderWindow]);
-  const inverseVisiblePaths = useMemo(
-    () => inverseReflectionEnabled
-      ? visiblePaths
-        .map((path) => path.map(([x, y]) => [y, x]).filter(([x, y]) => x >= viewWindow.xMin && x <= viewWindow.xMax && y >= viewWindow.yMin && y <= viewWindow.yMax))
-        .filter((path) => path.length > 1)
-      : [],
-    [inverseReflectionEnabled, visiblePaths, viewWindow],
-  );
   const inverseIdealPaths = useMemo(() => inverseVisiblePaths.map((path) => buildSmoothGraphPath(path, toScreenX, toScreenY)), [inverseVisiblePaths, renderWindow]);
-  const inverseIdealScreenPointPaths = useMemo(() => inverseVisiblePaths.map((path) => path.map(([x, y]) => [toScreenX(x), toScreenY(y)])), [inverseVisiblePaths, renderWindow]);
   const reflectionLineMin = Math.max(viewWindow.xMin, viewWindow.yMin);
   const reflectionLineMax = Math.min(viewWindow.xMax, viewWindow.yMax);
-  const resolvedPointTasks = useMemo(() => tasks.map((task) => ({ ...task, resolvedExpected: resolveTaskExpected(task, functionSpec, construction.chosenXValues) })), [tasks, functionSpec, construction.chosenXValues]);
-  const requiredGraphPoints = useMemo(() => resolvedPointTasks.filter((task) => Array.isArray(task.resolvedExpected) && task.role !== 'center').map((task) => [toScreenX(task.resolvedExpected[0]), toScreenY(task.resolvedExpected[1])]), [resolvedPointTasks, renderWindow]);
-  const requiredStrokeCount = functionSpec.type === 'rational' ? 2 : 1;
-  const pointParts = useMemo(() => gradePointPlacements(tasks, construction.placements, functionSpec, construction.chosenXValues, Math.max(0.22, snapStep * 0.48)), [tasks, construction.placements, construction.chosenXValues, functionSpec, snapStep]);
+  // Only for the "Check Point Placements" construction step (which names the
+  // points to revise and unlocks drawing) — the same gradePointPlacements, at
+  // the same tolerance, the shared grader marks the placements with.
+  const pointParts = useMemo(() => gradePointPlacements(tasks, construction.placements, functionSpec, construction.chosenXValues, model.pointTolerance), [tasks, construction.placements, construction.chosenXValues, functionSpec, model]);
   const allMarkersPlaced = endpointRequirements.every((requirement) => Boolean(construction.markerPlacements[requirement.id]));
   /*
    * ON A DOL, QUIZ OR TEST THE STUDENT'S OWN CONSTRUCTION IS THE ANSWER.
@@ -583,8 +452,9 @@ export default function InteractiveGraphWorkspace({
    *   - the curve is accepted when it passes through the student's OWN points,
    *     and stays drawn as the student drew it;
    *   - graph-end markers go where the student puts them, any type;
-   *   - each part is graded at submission from what the student built
-   *     (the curve against the function, silently — see curveCorrect).
+   *   - each part is graded at submission from what the student built, by
+   *     the shared grader (the curve against the function, silently: the
+   *     work says `pointsGradedAsPlaced`, below).
    * Practice, Warm-Up and Classwork keep the checks exactly as before.
    */
   const outcomesWithheld = !revealPointCorrectness;
@@ -607,8 +477,8 @@ export default function InteractiveGraphWorkspace({
 
   useEffect(() => {
     if (!draftKey) {
-      constructionHistory.reset({ placements: {}, chosenXValues: initialChosenX, pointsValidated: false, strokes: [], snapped: false, markerPlacements: {} });
-      analysisHistory.reset({ selections: {}, answers: {}, typedPoints: {}, noneSelections: {}, inversePointsValidated: false, inverseStrokes: [], inverseSnapped: false });
+      constructionHistory.reset({ placements: {}, chosenXValues: initialChosenX, pointsValidated: false, strokes: [], sketchView: null, snapped: false, markerPlacements: {} });
+      analysisHistory.reset({ selections: {}, answers: {}, typedPoints: {}, noneSelections: {}, inversePointsValidated: false, inverseStrokes: [], inverseSketchView: null, inverseSnapped: false });
     }
     setActiveTaskId(null);
     setDraggingTaskId(null);
@@ -655,40 +525,43 @@ export default function InteractiveGraphWorkspace({
     }), { record: false });
   }, [analysisParts, analysis.answers, analysis.selections]);
 
-  const analysisGradeParts = useMemo(() => analysisParts.map((part) => {
-    if (['point', 'inversePoint'].includes(part.kind)) {
-      const selected = analysis.selections[part.id] || [];
-      const noneSelected = Boolean(analysis.noneSelections[part.id]);
-      const typed = String(analysis.typedPoints[part.id] || '');
-      const clickRequired = part.responseMode !== 'input';
-      const inputRequired = part.responseMode !== 'click';
-      const clickComplete = !clickRequired || noneSelected || selected.length === part.expected.length;
-      const inputComplete = !inputRequired || typed.trim() !== '';
-      const clickCorrect = !clickRequired || analysisSelectionsAreCorrect(selected, part.expected, Math.max(0.28, snapStep * 0.58), noneSelected);
-      const inputCorrect = !inputRequired || pointSetInputMatches(typed, part.expected, Math.max(0.28, snapStep * 0.58));
-      return { id: part.id, label: part.label, isComplete: clickComplete && inputComplete, isCorrect: clickCorrect && inputCorrect, response: `${noneSelected ? 'Does not exist' : selected.map(pointLabel).join(', ')}${typed ? `; typed: ${typed}` : ''}` };
-    }
-    const response = String(analysis.answers[part.id] || '');
-    return {
-      id: part.id,
-      label: part.label,
-      isComplete: response.trim() !== '',
-      isCorrect: response.trim() !== '' && pathAnalysisTextMatches(
-        response,
-        part.acceptedAnswers,
-        { kind: part.kind, notation: part.notation, tolerance: Math.max(0.28, snapStep * 0.58) },
-      ),
-      response,
-    };
-  }), [analysisParts, analysis, snapStep]);
+  /*
+   * THE STUDENT'S RAW WORK, AND THE ONE VERDICT ON IT.
+   *
+   * `work` is exactly what the server grades: placements, chosen x-values,
+   * whether they were committed with "Check Point Placements" (pointsLocked),
+   * the sketch strokes with the camera they were checked under and whether
+   * the sketch snapped on screen (sketchLocked), each end marker's symbol and
+   * dropped point, and the analysis answers with the inverse sketch, its
+   * camera and its snap (inverseSketchLocked). The commits travel because
+   * this screen counted nothing before them — Undo after a snap keeps the
+   * strokes but shows the sketch as not snapped — and each one can only
+   * withhold credit: the grader re-checks the work behind it. No verdict
+   * (inversePointsValidated, a marker's location verdict) is in it. The
+   * verdict, parts and partial credit come from the shared grader through the
+   * same bytes the server will read, so what this workspace reports is what
+   * the gradebook records.
+   */
+  // The points count once the check passed — or, on a DOL, quiz or test, the
+  // construction is graded as placed: there is no check to pass, each point is
+  // marked where it sits once all of them are placed (pointsCommitted, above),
+  // and a curve drawn through the student's own points is marked against the
+  // function at submission. The grader decides when that is; the work only
+  // says which rule. A curve drawn that way keeps the rule after feedback is
+  // released, so the work reads as what it was when it was submitted.
+  const pointsGradedAsPlaced = outcomesWithheld || curveAcceptedOwnPoints;
+  const work = useMemo(
+    () => graphWorkspaceWorkFromState({ construction: { ...construction, pointsGradedAsPlaced }, analysis }),
+    [construction, analysis, pointsGradedAsPlaced],
+  );
+  const sharedGrade = useMemo(() => gradeToolCheck(graphWorkspaceGrader, question, work), [question, work]);
 
   const inversePointParts = useMemo(() => analysisParts.filter((part) => part.kind === 'inversePoint'), [analysisParts]);
-  const inversePointGrades = useMemo(() => inversePointParts.map((part) => analysisGradeParts.find((grade) => grade.id === part.id)).filter(Boolean), [inversePointParts, analysisGradeParts]);
+  // "Check Reflected Points" gates the inverse sketch on the same part grader
+  // the shared grader applies to these parts.
+  const inversePointGrades = useMemo(() => inversePointParts.map((part) => gradeAnalysisPart(part, work.analysis, model.analysisTolerance)), [inversePointParts, work, model]);
   const inversePointsComplete = inversePointGrades.length > 0 && inversePointGrades.every((part) => part.isComplete);
   const inversePointsCorrect = inversePointGrades.length > 0 && inversePointGrades.every((part) => part.isCorrect);
-  const inverseRequiredGraphPoints = useMemo(() => inversePointParts.flatMap((part) => part.expected || []).map(([x, y]) => [toScreenX(x), toScreenY(y)]), [inversePointParts, renderWindow]);
-  const inverseSketchRequired = Boolean(inverseReflectionEnabled && inverseReflection?.requireInverseSketch !== false);
-  const inverseSketchComplete = !inverseSketchRequired || Boolean(analysis.inverseSnapped);
   // The same rules for the inverse as for the original curve (see outcomesWithheld).
   const inverseAcceptedOwnPoints = Boolean(analysis.inverseSnapped) && !analysis.inversePointsValidated;
   const inverseOwnPointsSketch = !analysis.inversePointsValidated
@@ -696,47 +569,6 @@ export default function InteractiveGraphWorkspace({
   const inversePointsCommitted = analysis.inversePointsValidated
     || ((outcomesWithheld || inverseOwnPointsSketch) && inversePointsComplete);
   const inversePointsLocked = analysis.inversePointsValidated || inverseOwnPointsSketch;
-
-  /*
-   * GRADED, NEVER SHOWN: is the student's own curve the graph of the function?
-   *
-   * Exactly what practice demands before its curve may snap, judged at
-   * submission instead: every point the curve was drawn through is right (the
-   * points cannot move while the curve is drawn, so these are those points),
-   * and the sketch follows the true function by the same rough-sketch test the
-   * practice snap uses. The sketch test alone is not enough — its tolerance is
-   * for tracing points already known to be right, and it accepts a line drawn
-   * through a point a whole grid unit off. The sketch is kept in graph
-   * coordinates so a zoom after drawing cannot move it, and it is judged in
-   * the question's own window: the test's tolerance is in pixels, so judging
-   * it at the current zoom would grade a student who happened to be zoomed in
-   * more strictly than practice does. A curve that snapped after a passed
-   * check is correct as before (the only way it could snap).
-   */
-  const sketchFollowsFunction = useMemo(() => (curveAcceptedOwnPoints
-    ? roughSketchMatchesGraph({
-      strokes: graphStrokesOnScreen(construction.sketchGraph, viewWindow),
-      requiredScreenPoints: graphStrokesOnScreen([
-        resolvedPointTasks.filter((task) => Array.isArray(task.resolvedExpected) && task.role !== 'center').map((task) => task.resolvedExpected),
-      ], viewWindow)[0],
-      idealScreenPaths: graphStrokesOnScreen(visiblePaths, viewWindow),
-      requiredStrokeCount,
-      tolerance: 68,
-    })
-    : null), [curveAcceptedOwnPoints, construction.sketchGraph, viewWindow, resolvedPointTasks, visiblePaths, requiredStrokeCount]);
-  const curveCorrect = construction.snapped
-    && (!curveAcceptedOwnPoints || (sketchFollowsFunction === true && pointParts.every((part) => part.isCorrect)));
-  const inverseSketchFollowsInverse = useMemo(() => (inverseAcceptedOwnPoints
-    ? roughSketchMatchesGraph({
-      strokes: graphStrokesOnScreen(analysis.inverseSketchGraph, viewWindow),
-      requiredScreenPoints: graphStrokesOnScreen([inversePointParts.flatMap((part) => part.expected || [])], viewWindow)[0],
-      idealScreenPaths: graphStrokesOnScreen(inverseVisiblePaths, viewWindow),
-      requiredStrokeCount: 1,
-      tolerance: 68,
-    })
-    : null), [inverseAcceptedOwnPoints, analysis.inverseSketchGraph, viewWindow, inversePointParts, inverseVisiblePaths]);
-  const inverseCurveCorrect = Boolean(analysis.inverseSnapped)
-    && (!inverseAcceptedOwnPoints || (inverseSketchFollowsInverse === true && inversePointsCorrect));
 
   const checkInversePoints = () => {
     if (!inversePointsComplete) {
@@ -754,16 +586,6 @@ export default function InteractiveGraphWorkspace({
     analysisHistory.setValue((current) => ({ ...current, inversePointsValidated: true, inverseStrokes: [], inverseSnapped: false }));
     setDrawFeedback('Both reflected points are correct. Now draw the inverse line through them.');
   };
-
-  const markerParts = useMemo(() => endpointRequirements.flatMap((requirement, index) => {
-    const placement = construction.markerPlacements[requirement.id];
-    const point = markerPoint(placement);
-    const locationCorrect = Boolean(placement) && (typeof placement === 'string' || placement.locationCorrect === true || (point && pointDistance(point, requirement.point) <= Math.max(0.55, snapStep * 1.8)));
-    return [
-      { id: `${requirement.id}-placement`, label: `Graph end ${index + 1}: symbol placement`, isComplete: Boolean(placement), isCorrect: locationCorrect, response: point ? pointLabel(point) : placement ? 'snapped to endpoint' : '' },
-      { id: `${requirement.id}-type`, label: `Graph end ${index + 1}: symbol type`, isComplete: Boolean(placement), isCorrect: markerValue(placement) === requirement.marker, response: markerValue(placement) },
-    ];
-  }), [endpointRequirements, construction.markerPlacements, snapStep]);
 
   useEffect(() => {
     if (!feedback || feedback.isCorrect !== false || !Array.isArray(feedback.partGrades)) return;
@@ -787,27 +609,16 @@ export default function InteractiveGraphWorkspace({
   }, [feedback, constructionHistory]);
 
   useEffect(() => {
-    const constructionParts = constructionEnabled ? [
-      ...pointParts.map((part) => ({ ...part, label: `Point placement: ${part.label}`, isComplete: pointsCommitted && part.isComplete, isCorrect: pointsCommitted && part.isCorrect })),
-      ...(pointOnly ? [] : [{ id: 'graph-curve', label: 'Freehand curve and snap', isComplete: construction.snapped, isCorrect: curveCorrect, response: construction.snapped ? (curveAcceptedOwnPoints ? 'drawn through the student\'s points' : 'snapped') : 'not snapped' }]),
-      ...(pointOnly ? [] : markerParts),
-    ] : [];
-    const inverseSketchPart = inverseSketchRequired
-      ? [{ id: 'inverse-line-sketch', label: 'Draw the inverse through the reflected points', isComplete: Boolean(analysis.inverseSnapped), isCorrect: inverseCurveCorrect, response: analysis.inverseSnapped ? (inverseAcceptedOwnPoints ? 'drawn through the student\'s points' : 'snapped') : 'not complete' }]
-      : [];
-    const parts = [...constructionParts, ...(analysisEnabled ? [...analysisGradeParts, ...inverseSketchPart] : [])];
-    const constructionComplete = !constructionEnabled || (pointsCommitted && (pointOnly || (construction.snapped && allMarkersPlaced)));
-    const analysisComplete = !analysisEnabled || (analysisGradeParts.length > 0 && analysisGradeParts.every((part) => part.isComplete) && inverseSketchComplete);
-    const complete = constructionComplete && analysisComplete;
-    const correct = complete && parts.every((part) => part.isCorrect);
-    onStateChange({
-      isComplete: complete,
-      isCorrect: correct,
-      responseKey: JSON.stringify({ construction: responseKeyState(construction), analysis: responseKeyState(analysis) }),
-      questionDetails: `${question.prompt || (pointOnly ? 'Plot the table points.' : 'Investigate the function.')} Points: ${Object.entries(construction.placements).map(([id, value]) => `${id}=${taskPlacementLabel(value)}`).join('; ') || 'not required'}. ${pointOnly ? 'Point-only graph.' : `Curve: ${construction.snapped ? 'complete' : 'incomplete'}. Graph boundaries/continuation: ${Object.entries(construction.markerPlacements).map(([id, value]) => `${id}=${markerValue(value)}`).join('; ') || 'not entered'}.`} Analysis: ${analysisGradeParts.map((part) => `${part.label}=${part.response || 'blank'}`).join('; ') || 'not required'}.`,
-      parts,
-    });
-  }, [construction, pointsCommitted, analysis, constructionEnabled, analysisEnabled, pointParts, markerParts, analysisGradeParts, allMarkersPlaced, pointOnly, question, onStateChange, inverseSketchRequired, inverseSketchComplete, curveCorrect, curveAcceptedOwnPoints, inverseCurveCorrect, inverseAcceptedOwnPoints]);
+    /*
+     * The answer state IS the shared grader's result — completeness (which
+     * still opens Submit only after the points are committed, the sketch has
+     * snapped and every end is marked), verdict, parts and partial credit —
+     * reported through the mapping the server applies to the same work
+     * (answerStateFromSharedGrading), with the raw work as `toolResponse`.
+     */
+    const questionDetails = `${question.prompt || (pointOnly ? 'Plot the table points.' : 'Investigate the function.')} Points: ${Object.entries(construction.placements).map(([id, value]) => `${id}=${taskPlacementLabel(value)}`).join('; ') || 'not required'}. ${pointOnly ? 'Point-only graph.' : `Curve: ${construction.snapped ? 'complete' : 'incomplete'}. Graph boundaries/continuation: ${Object.entries(construction.markerPlacements).map(([id, value]) => `${id}=${markerValue(value)}`).join('; ') || 'not entered'}.`} Analysis: ${analysisParts.map((part) => `${part.label}=${analysisPartResponse(part, work.analysis) || 'blank'}`).join('; ') || 'not required'}.`;
+    onStateChange(answerStateFromSharedGrading(sharedGrade, { questionDetails }));
+  }, [sharedGrade, work, construction.snapped, construction.placements, construction.markerPlacements, analysisParts, pointOnly, question, onStateChange]);
 
   const eventToScreenPoint = (event) => {
     const svg = svgRef.current;
@@ -918,17 +729,19 @@ export default function InteractiveGraphWorkspace({
     const nearest = nearestEndpoint(point);
     if (!nearest) return;
     // The pull is toward the TRUE graph end, so on a DOL, quiz or test it is
-    // an answer finder: the marker stays exactly where the student put it.
-    // Where it counts as "at the end" does not change, though: the same radius
-    // the pull uses in practice, judged silently, so a marker dropped at the
-    // end of a correct curve earns what it would have earned in practice.
-    const nearTheEnd = nearest.distance <= MARKER_SNAP_PIXELS;
-    const magnetic = !outcomesWithheld && nearTheEnd;
+    // an answer finder: the marker stays exactly where the student put it, and
+    // the grader judges that point against the end, as it judges any marker
+    // that did not snap (within its marker tolerance, in graph units, so the
+    // same on every screen and zoom).
+    const magnetic = !outcomesWithheld && nearest.distance <= MARKER_SNAP_PIXELS;
     constructionHistory.setValue((current) => ({
       ...current,
       markerPlacements: {
         ...current.markerPlacements,
-        [nearest.requirement.id]: { marker: markerType, point: magnetic ? nearest.requirement.point : point, droppedPoint: point, locationCorrect: nearTheEnd },
+        // The symbol and where it landed — a magnetic drop lands exactly on the
+        // graph end. Whether that location is right is the grader's to decide
+        // from the point; no verdict about it is stored here.
+        [nearest.requirement.id]: { marker: markerType, point: magnetic ? nearest.requirement.point : point },
       },
     }));
     setActiveMarker(null);
@@ -1067,7 +880,7 @@ export default function InteractiveGraphWorkspace({
   };
 
   const checkPoints = () => {
-    const correct = placementsMatchTasks(tasks, construction.placements, Math.max(0.22, snapStep * 0.48), functionSpec, construction.chosenXValues);
+    const correct = placementsMatchTasks(tasks, construction.placements, model.pointTolerance, functionSpec, construction.chosenXValues);
     if (correct) {
       constructionHistory.setValue((current) => ({ ...current, pointsValidated: true }));
       // Only reachable where outcomes are shown (the check is not offered
@@ -1129,37 +942,38 @@ export default function InteractiveGraphWorkspace({
     if (finished.length < 2) return;
     strokeJustEndedRef.current = true;
 
-    const toGraphStroke = (stroke) => stroke.map(([x, y]) => [Number(fromScreenX(x).toFixed(4)), Number(fromScreenY(y).toFixed(4))]);
-
-    if (stage === 'analysis' && inverseReflectionEnabled && outcomesWithheld && !analysis.inversePointsValidated) {
-      // Through the student's own reflected points; judged at submission.
-      const completed = [...(analysis.inverseStrokes || []), finished];
-      const ownPoints = inversePointParts.flatMap((part) => analysis.selections[part.id] || []).map(([x, y]) => [toScreenX(x), toScreenY(y)]);
-      const passes = roughSketchMatchesGraph({ strokes: completed, requiredScreenPoints: ownPoints, idealScreenPaths: [], requiredStrokeCount: 1, tolerance: 68 });
-      analysisHistory.setValue((current) => ({
-        ...current,
-        inverseStrokes: completed,
-        inverseSketchGraph: completed.map(toGraphStroke),
-        inverseSnapped: passes,
-      }));
-      setDrawFeedback(passes
-        ? 'Your inverse passes through your reflected points. It is graded when you submit. Finish the inverse equation.'
-        : 'Draw the inverse through each of your reflected points. Use Clear Inverse Sketch to start again.');
-      return;
-    }
+    /*
+     * THE SNAP CHECK IS THE GRADER'S. A stroke is stored the way it travels
+     * with the work — whole viewBox units, bounded (boundSketchStrokes) — and
+     * checked under the camera on screen right now, which is stored with it.
+     * The shared grader re-runs this same check on those same strokes and that
+     * same camera, so "it snapped" on screen is "the curve is correct" on the
+     * server. Where outcomes are withheld the check is the student's own
+     * points instead (constructionSketchThroughOwnPoints), and the grader
+     * marks the curve against the function at submission, never here.
+     */
+    const sketchCamera = {
+      xMin: Number(renderWindow.xMin),
+      xMax: Number(renderWindow.xMax),
+      yMin: Number(renderWindow.yMin),
+      yMax: Number(renderWindow.yMax),
+    };
 
     if (stage === 'analysis' && inverseReflectionEnabled) {
-      const completed = [...(analysis.inverseStrokes || []), finished];
-      analysisHistory.setValue((current) => ({ ...current, inverseStrokes: completed }));
-      const matches = roughSketchMatchesGraph({
-        strokes: completed,
-        requiredScreenPoints: inverseRequiredGraphPoints,
-        idealScreenPaths: inverseIdealScreenPointPaths,
-        requiredStrokeCount: 1,
-        tolerance: 68,
-      });
+      const completed = boundSketchStrokes([...(analysis.inverseStrokes || []), finished], SKETCH_LIMITS.inversePoints);
+      if (outcomesWithheld && !analysis.inversePointsValidated) {
+        // Through the student's own reflected points; judged at submission.
+        const passes = inverseSketchThroughOwnPoints(model, { strokes: completed, camera: sketchCamera, selections: analysis.selections });
+        analysisHistory.setValue((current) => ({ ...current, inverseStrokes: completed, inverseSketchView: sketchCamera, inverseSnapped: passes }));
+        setDrawFeedback(passes
+          ? 'Your inverse passes through your reflected points. It is graded when you submit. Finish the inverse equation.'
+          : 'Draw the inverse through each of your reflected points. Use Clear Inverse Sketch to start again.');
+        return;
+      }
+      analysisHistory.setValue((current) => ({ ...current, inverseStrokes: completed, inverseSketchView: sketchCamera }));
+      const matches = inverseSketchMatches(model, { strokes: completed, camera: sketchCamera });
       if (matches) {
-        analysisHistory.setValue((current) => ({ ...current, inverseStrokes: completed, inverseSnapped: true }));
+        analysisHistory.setValue((current) => ({ ...current, inverseStrokes: completed, inverseSketchView: sketchCamera, inverseSnapped: true }));
         setDrawFeedback('The inverse sketch passed through both reflected points and snapped to the exact inverse. Finish the inverse equation.');
       } else {
         setDrawFeedback('The inverse line must pass through both reflected points. Clear the inverse sketch and try again.');
@@ -1167,29 +981,25 @@ export default function InteractiveGraphWorkspace({
       return;
     }
 
-    const completed = [...construction.strokes, finished];
-    constructionHistory.setValue((current) => ({ ...current, strokes: completed }));
+    const completed = boundSketchStrokes([...construction.strokes, finished], SKETCH_LIMITS.constructionPoints);
+    constructionHistory.setValue((current) => ({ ...current, strokes: completed, sketchView: sketchCamera }));
     if (completed.length < requiredStrokeCount) {
       setDrawFeedback(`Draw ${requiredStrokeCount - completed.length} more branch before the graph can snap.`);
       return;
     }
     if (outcomesWithheld && !construction.pointsValidated) {
-      // Through the student's own points; judged against the function at
-      // submission (curveCorrect), never here.
-      const ownPoints = resolvedPointTasks
-        .filter((task) => task.role !== 'center' && Array.isArray(construction.placements[task.id]))
-        .map((task) => construction.placements[task.id])
-        .map(([x, y]) => [toScreenX(x), toScreenY(y)]);
-      const passes = roughSketchMatchesGraph({ strokes: completed, requiredScreenPoints: ownPoints, idealScreenPaths: [], requiredStrokeCount, tolerance: 68 });
-      constructionHistory.setValue((current) => ({ ...current, strokes: completed, sketchGraph: completed.map(toGraphStroke), snapped: passes }));
+      // Through the student's own points; marked against the function by the
+      // grader at submission, never here.
+      const passes = constructionSketchThroughOwnPoints(model, { strokes: completed, camera: sketchCamera, placements: construction.placements });
+      constructionHistory.setValue((current) => ({ ...current, strokes: completed, sketchView: sketchCamera, snapped: passes }));
       setDrawFeedback(passes
         ? `Your curve passes through your points. It is graded when you submit.${endpointRequirements.length ? ` Add the ${endpointCompletionNoun}${endpointRequirements.length === 1 ? '' : 's'} at the ends of your curve.` : ''}`
         : 'Draw the curve through each of your plotted points. Use Clear Sketch to start again.');
       return;
     }
-    const matches = roughSketchMatchesGraph({ strokes: completed, requiredScreenPoints: requiredGraphPoints, idealScreenPaths: idealScreenPointPaths, requiredStrokeCount, tolerance: 68 });
+    const matches = constructionSketchMatches(model, { strokes: completed, camera: sketchCamera, chosenXValues: construction.chosenXValues });
     if (matches) {
-      constructionHistory.setValue((current) => ({ ...current, strokes: completed, snapped: true }));
+      constructionHistory.setValue((current) => ({ ...current, strokes: completed, sketchView: sketchCamera, snapped: true }));
       setDrawFeedback(endpointRequirements.length ? `The sketch passed through the validated points and snapped to the exact function. Add the required ${endpointCompletionNoun}${endpointRequirements.length === 1 ? '' : 's'}.` : 'The sketch passed through the validated points and snapped to the exact function.');
     } else setDrawFeedback('The sketch must travel through the plotted points. Use Undo or Clear Sketch and trace the function again.');
   };
@@ -1680,14 +1490,14 @@ export default function InteractiveGraphWorkspace({
               points can be cleared even once accepted: that is how a point is
               moved again, and the markers placed on it go with it. */}
           {stage === 'construct' && ownPointsSketch && (
-            <button type="button" onClick={() => { constructionHistory.setValue((current) => ({ ...current, strokes: [], sketchGraph: [], snapped: false, markerPlacements: {} })); setDrawFeedback(''); }} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}>Clear Sketch</button>
+            <button type="button" onClick={() => { constructionHistory.setValue((current) => ({ ...current, strokes: [], sketchView: null, snapped: false, markerPlacements: {} })); setDrawFeedback(''); }} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}>Clear Sketch</button>
           )}
 
           {stage === 'analysis' && inverseReflectionEnabled && analysis.inversePointsValidated && !analysis.inverseSnapped && (
             <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, inverseStrokes: [], inverseSnapped: false }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 'bold' }}>Clear Inverse Sketch</button>
           )}
           {stage === 'analysis' && inverseReflectionEnabled && inverseOwnPointsSketch && (
-            <button type="button" onClick={() => { analysisHistory.setValue((current) => ({ ...current, inverseStrokes: [], inverseSketchGraph: [], inverseSnapped: false })); setDrawFeedback(''); }} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 'bold' }}>Clear Inverse Sketch</button>
+            <button type="button" onClick={() => { analysisHistory.setValue((current) => ({ ...current, inverseStrokes: [], inverseSketchView: null, inverseSnapped: false })); setDrawFeedback(''); }} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 'bold' }}>Clear Inverse Sketch</button>
           )}
 
           <button
@@ -1702,6 +1512,7 @@ export default function InteractiveGraphWorkspace({
                   noneSelections: {},
                   inversePointsValidated: false,
                   inverseStrokes: [],
+                  inverseSketchView: null,
                   inverseSnapped: false,
                 });
                 setDrawFeedback('');
@@ -1712,6 +1523,7 @@ export default function InteractiveGraphWorkspace({
                   chosenXValues: initialChosenX,
                   pointsValidated: false,
                   strokes: [],
+                  sketchView: null,
                   snapped: false,
                   markerPlacements: {},
                 });

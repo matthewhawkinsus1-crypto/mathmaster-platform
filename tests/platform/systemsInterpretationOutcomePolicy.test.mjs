@@ -18,11 +18,15 @@
  * The policy now lives in pure functions (resolveInterpretationGate and
  * resolveSpecialCaseReport in algebraicOutcomeModel.js; threePlaneRevealAvailable
  * and earnedResultCaption in spatialFeedback.js), tested here as behaviour. The
+ * grade is the workspace's shared grader's — the function the server runs
+ * (functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs) — tested
+ * here on the work the screen sends for the same recorded answers. The
  * components are held to them by the source contracts at the bottom, and the
  * real screens by tests/browser/assessmentLeakGates.mjs.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import systemsWorkspaceGrader from '../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
 import * as engine from '../../src/tools/systemsWorkspace/eliminationReduction.js';
 import { buildReductionSystem } from '../../src/tools/systemsWorkspace/substitutionReduction.js';
 import {
@@ -54,6 +58,30 @@ const gateFor = ({ showImmediateFeedback, classification = null, planeWork = nul
   questionData: question,
 });
 
+// What a submission of one recorded interpretation is graded: the shared
+// grader on the work EliminationReductionMode sends (the recorded choice and
+// reading, the stated planes), read back as its two judgments.
+const gradeRecorded = (classification, planeWork) => {
+  const result = systemsWorkspaceGrader.grade({ type: 'systemsWorkspace', mode: 'algebraic', method: 'elimination', equations: inconsistent }, {
+    dimension: 3,
+    method: 'elimination',
+    values: {},
+    verification: {},
+    outcome: {
+      statement: outcome.statement,
+      classificationChoice: classification?.choice || '',
+      classificationKind: classification?.kind || '',
+      planes: planeWork?.answers || {},
+    },
+  });
+  const parts = Object.fromEntries(result.parts.map((part) => [part.id, part]));
+  return {
+    ...result,
+    classification: parts.classification?.isCorrect,
+    planes: ['planes-1-2', 'planes-1-3', 'planes-2-3'].every((id) => parts[id]?.isCorrect === true),
+  };
+};
+
 // Everything on screen that could depend on correctness, for one recorded
 // interpretation. The summaries echo the student's own choices by design, so
 // they are compared through their shape, not their words.
@@ -71,10 +99,10 @@ const observable = (gate, { kind, choice }) => ({
 // ---------------------------------------------------------------- fixtures sanity
 test('the fixtures are what they claim: one interpretation right everywhere, one wrong everywhere', () => {
   assert.deepEqual(truth, { '1-2': 'parallel', '1-3': 'coincident', '2-3': 'parallel' });
-  const right = gateFor({ showImmediateFeedback: true, classification: rightClassification, planeWork: rightPlanes });
-  assert.equal(right.grade.isCorrect, true);
-  const wrong = gateFor({ showImmediateFeedback: false, classification: wrongClassification, planeWork: wrongPlanes });
-  assert.deepEqual(wrong.grade.parts.map((part) => part.isCorrect), [false, false]);
+  assert.equal(gateFor({ showImmediateFeedback: true, classification: rightClassification, planeWork: rightPlanes }).readyToSubmit, true);
+  assert.equal(gradeRecorded(rightClassification, rightPlanes).isCorrect, true);
+  const wrong = gradeRecorded(wrongClassification, wrongPlanes);
+  assert.deepEqual([wrong.classification, wrong.planes], [false, false]);
 });
 
 // ---------------------------------------------------------------- withheld outcomes
@@ -118,27 +146,26 @@ test('where outcomes are withheld, the summaries are the student\'s own answers 
 });
 
 test('where outcomes are withheld, the submission is graded from the recorded answers', () => {
-  const grade = (classification, planeWork) => gateFor({ showImmediateFeedback: false, classification, planeWork }).grade;
-  assert.deepEqual(grade(rightClassification, rightPlanes), {
-    isCorrect: true,
-    score: 1,
-    parts: [
-      { id: 'classification', label: 'What your result means', isComplete: true, isCorrect: true },
-      { id: 'planes', label: 'How the planes meet', isComplete: true, isCorrect: true },
-    ],
-  });
-  const wrong = grade(wrongClassification, wrongPlanes);
+  // Whatever the gate recorded is what the shared grader marks: the same
+  // function on the device and on the server.
+  const right = gradeRecorded(rightClassification, rightPlanes);
+  assert.equal(right.isCorrect, true);
+  assert.equal(right.isComplete, true);
+  assert.equal(right.score, 1);
+  assert.deepEqual([right.classification, right.planes], [true, true]);
+  const wrong = gradeRecorded(wrongClassification, wrongPlanes);
   assert.equal(wrong.isCorrect, false);
   assert.equal(wrong.score, 0);
-  const half = grade(rightClassification, wrongPlanes);
+  const half = gradeRecorded(rightClassification, wrongPlanes);
   assert.equal(half.isCorrect, false);
   assert.equal(half.score, 0.5);
-  assert.deepEqual(half.parts.map((part) => part.isCorrect), [true, false]);
+  assert.deepEqual([half.classification, half.planes], [true, false]);
   // The right meaning read from the wrong kind of statement is not right.
-  const misread = grade({ choice: 'none', kind: 'origin' }, rightPlanes);
-  assert.deepEqual(misread.parts.map((part) => part.isCorrect), [false, true]);
+  const misread = gradeRecorded({ choice: 'none', kind: 'origin' }, rightPlanes);
+  assert.deepEqual([misread.classification, misread.planes], [false, true]);
+  assert.equal(misread.score, 0.5);
   // A forged "checked" flag on wrong planes earns nothing.
-  assert.equal(grade(rightClassification, { ...wrongPlanes, checked: true }).parts[1].isCorrect, false);
+  assert.equal(gradeRecorded(rightClassification, { answers: { ...wrongPlanes.answers, checked: true }, checked: true }).planes, false);
 });
 
 // ---------------------------------------------------------------- shown outcomes: unchanged practice
@@ -170,7 +197,7 @@ test('where outcomes are shown, the checks are the verdicts practice always had'
 test('where outcomes are shown, a record from before kinds were stored still counts (its reading was checked)', () => {
   const legacy = gateFor({ showImmediateFeedback: true, classification: { choice: 'none' } });
   assert.equal(legacy.classified, true);
-  assert.equal(legacy.grade.parts[0].isCorrect, true);
+  assert.equal(gradeRecorded({ choice: 'none' }, rightPlanes).classification, true, 'and it is graded on its choice');
 });
 
 test('the default is outcomes shown: a host that never set the flag keeps the practice behaviour', () => {
@@ -276,7 +303,7 @@ test('the interpretation screen asks the gate what a press records and what to s
   assert.doesNotMatch(outcomeUi, /statementKindCorrect|planeWorkEarned|classificationFeedback|planeRelationshipFeedback/, 'no verdict is computed in the component');
 });
 
-test('the elimination screen derives classification, readiness and the grade from one gate fed by the runtime policy', () => {
+test('the elimination screen derives classification and readiness from one gate fed by the runtime policy, and submits the record it reads', () => {
   assert.match(parent, /import \{ useToolRuntimeContext \} from '\.\.\/shared\/ToolRuntimeContext';/);
   assert.match(parent, /\n\s*const \{ showImmediateFeedback \} = useToolRuntimeContext\(\);/);
   const gate = region(parent, 'const interpretation = useMemo(() => resolveInterpretationGate({', '}), [', 'interpretation gate');
@@ -286,12 +313,19 @@ test('the elimination screen derives classification, readiness and the grade fro
   assert.match(parent, /\n\s*const classified = interpretation\.classified;/);
   assert.match(parent, /\n\s*const planesEarned = Boolean\(outcome && interpretation\.planesDone\);/);
   assert.match(parent, /\n\s*const readyToSubmit = phase === 'complete' \|\| \(phase === 'classified' && planesEarned\);/);
+  // The grade is the shared grader's, on the work — never on the fact that a
+  // classification was recorded, which on a DOL is all "classified" means.
   const check = region(parent, 'const check = () => {', 'mode: \'algebraic\'', 'check handler');
-  assert.match(check, /const interpreted = Boolean\(outcome\) && interpretation\.grade\.isCorrect;/);
-  assert.match(check, /score: outcome \? interpretation\.grade\.score : \(isCorrect \? 1 : 0\)/);
-  assert.match(check, /\.\.\.\(outcome \? \{ parts: interpretation\.grade\.parts \} : \{\}\)/);
-  assert.match(check, /classification: classificationRecord\?\.choice \|\| ''/, 'the response is what the student chose, not the true type');
-  assert.doesNotMatch(check, /classification: outcome\.type/);
+  assert.match(check, /const result = gradeToolCheck\(systemsWorkspaceGrader, questionData, work\);/);
+  assert.match(check, /submit\(\{ isCorrect: result\.isCorrect, score: result\.score \}, work,/);
+  assert.doesNotMatch(check, /interpretation\.|classified/, 'no verdict of the gate reaches the grade');
+  // ...and the work carries the record the gate reads: the choice and the
+  // reading the student recorded, not the true type.
+  const work = region(parent, 'const recordedClassification =', 'useReportToolWork(work);', 'interpretation work');
+  assert.match(work, /^const recordedClassification = classificationRecord\?\.choice \|\| '';/);
+  assert.match(work, /\n\s*classificationChoice: recordedClassification,/);
+  assert.match(work, /\n\s*classificationKind: classificationRecord\?\.kind \|\| '',/);
+  assert.doesNotMatch(work, /outcome\.type/, 'the response is what the student chose, not the true type');
   assert.match(parent, /onClassify=\{\(choice, kind\) => directOutcome\s*\? apply\(classifyEliminationOutcome\(elimination, system, choice, kind\)\)\s*: setSubsystemClassification\(\{ identity: outcomeIdentity, choice, kind \}\)\}/);
   assert.match(parent, /interpretation=\{interpretation\}/);
 });
@@ -310,8 +344,21 @@ test('the 2×2 statement shows its verdict only through the report', () => {
   assert.match(trail, /complete: specialCaseReport\.stageComplete,/);
   assert.match(twoByTwo, /summary: specialCaseReport\.showsCorrect\s*\?/);
   assert.match(twoByTwo, /background: specialCaseReport\.showsCorrect \? '#f0fbf4' : '#f3f4f6'/);
-  // The grade itself is unchanged: right only when all three answers are.
-  assert.match(twoByTwo, /\? Boolean\(specialCaseCorrect\)/);
+  // The grade itself is unchanged: right only when all three answers are. It
+  // is the shared grader's, which the screen's Check submits through.
+  assert.match(region(twoByTwo, 'const check = () => {', '\n  };', '2×2 check'), /const result = gradeToolCheck\(systemsWorkspaceGrader, questionData, work\);/);
+  // The leak-gate 2×2: x + y = 3 and x + y = 5 eliminate to 0 = −2.
+  const special = { type: 'systemsWorkspace', mode: 'algebraic', method: 'elimination', equations: ['x + y = 3', 'x + y = 5'], variables: ['x', 'y'] };
+  const interpretation = (statementTruth, solutionCount, classification) => systemsWorkspaceGrader.grade(special, {
+    dimension: 2, method: 'elimination', values: {}, verification: {}, reducedStatement: '0 = -2',
+    specialCase: { statementTruth, solutionCount, classification },
+  });
+  assert.equal(interpretation('false', 'none', 'inconsistent').isCorrect, true);
+  for (const answers of [['true', 'none', 'inconsistent'], ['false', 'infinite', 'inconsistent'], ['false', 'none', 'consistent-dependent']]) {
+    const result = interpretation(...answers);
+    assert.equal(result.isCorrect, false, answers.join(' / '));
+    assert.equal(result.score, 0, `${answers.join(' / ')}: all three or nothing`);
+  }
 });
 
 test('the 3D model reads the runtime policy for its reveal and its earned caption', () => {

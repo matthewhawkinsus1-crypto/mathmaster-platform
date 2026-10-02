@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useRef } from 'react';
-import { formatStudentName } from '../../platform/studentName.js';
+import { STUDENT_SELF_NEUTRAL_LABEL, formatStudentName } from '../../platform/studentName.js';
 import StarIcon from '../common/StarIcon.jsx';
 import './StudentIdentityBar.css';
 
@@ -22,9 +22,11 @@ const periodLabel = (value) => {
  */
 export default function StudentIdentityBar({ student = null, preview = false, classPointsBalance = null, onLogout = null }) {
   const barRef = useRef(null);
+  // The student's own name, or the neutral "Student" — never their id and
+  // never the teacher-facing "Name unavailable".
   const name = preview
     ? 'Teacher Preview'
-    : formatStudentName(student, { lastFirst: false });
+    : formatStudentName(student, { lastFirst: false, neutralLabel: STUDENT_SELF_NEUTRAL_LABEL });
   const context = preview ? 'Student View' : periodLabel(student?.classPeriod);
 
   useLayoutEffect(() => {

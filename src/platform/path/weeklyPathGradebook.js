@@ -1,5 +1,6 @@
 import { GRADING_POLICY, buildTeacherWeeklyView, normalizeGradingPolicy } from './weeklyPathGoal.js';
 import { finiteNumber } from '../utils/numeric.js';
+import { formatStudentName } from '../studentName.js';
 
 /*
  * THE WEEKLY PATH GRADE, AS A GRADEBOOK LINE — AND AS A THING A TEACHER
@@ -50,7 +51,9 @@ export const weeklyPathGradebookRows = ({
 } = {}) => buildTeacherWeeklyView(
   list(students).map((student) => ({
     studentId: student.id,
-    studentName: student.displayName || student.name || String(student.id),
+    // The resolved human name (googleName and first/last included), or
+    // "Name unavailable" — never the id. The row keeps studentId beside it.
+    studentName: formatStudentName(student, { lastFirst: false }),
     goal: goalsByStudentId[student.id]
       // A student whose plan has not been built yet still needs a row, so the
       // teacher sees "not started" rather than a student who has vanished.

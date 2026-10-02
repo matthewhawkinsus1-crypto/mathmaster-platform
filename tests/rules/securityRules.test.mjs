@@ -815,8 +815,10 @@ test('no client can CREATE a grades row with a Test Cycle grade already in it', 
    * projection whether Classroom is linked or not.
    */
   const forged = { 'assignment-1': { recordedGrade: 100, originalTestGrade: 100 } };
+  // No name fields: a student's name is server-owned and no client may create
+  // a row carrying one (tests/rules/studentIdentityRules.test.mjs).
   const roster = {
-    displayName: 'Student New', classId: 'class-a', classPeriod: 'Period 1',
+    classId: 'class-a', classPeriod: 'Period 1',
     assignedTeacherEmail: TEACHER_A, status: 'active', gradesByAssignment: {},
   };
   // The owner of the row that does not exist yet — `ownsStudent` is token-bound,
@@ -873,8 +875,9 @@ test('no client can write a Practice-based Recovery record or the Live Challenge
 });
 
 test('no client can CREATE a grades row that already holds a Recovery record or Warm-Up credit', async () => {
+  // No name fields: names are server-owned (studentIdentityRules.test.mjs).
   const roster = {
-    displayName: 'Student New', classId: 'class-a', classPeriod: 'Period 1',
+    classId: 'class-a', classPeriod: 'Period 1',
     assignedTeacherEmail: TEACHER_A, status: 'active', gradesByAssignment: {},
   };
   const studentNew = () => env.authenticatedContext('uid-new-recovery', { role: 'student', studentId: 'STUDENT_NEW_R' }).firestore();
@@ -1147,8 +1150,8 @@ test('clients cannot create a grades row that already contains teacher overrides
     'uid-new-override',
     { role: 'student', studentId: 'STUDENT_OVERRIDE_NEW' },
   ).firestore();
+  // No name fields: names are server-owned (studentIdentityRules.test.mjs).
   const roster = {
-    displayName: 'Student Override New',
     classId: 'class-a',
     classPeriod: 'Period 1',
     assignedTeacherEmail: TEACHER_A,

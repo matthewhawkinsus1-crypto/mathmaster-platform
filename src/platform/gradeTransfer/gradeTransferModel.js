@@ -1,3 +1,10 @@
+import { studentNameForStorage } from '../../../functions/shared/studentIdentity.mjs';
+import {
+  STUDENT_NAME_UNAVAILABLE,
+  formatStudentLabel,
+  resolveRosterStudentName,
+} from '../studentName.js';
+
 export const TRANSFER_STATE = Object.freeze({
   WAITING_FOR_FINALIZATION: 'WAITING_FOR_FINALIZATION',
   READY_TO_EXPORT: 'READY_TO_EXPORT',
@@ -18,6 +25,30 @@ export const SECTION_TRANSFER_LABELS = Object.freeze({
 });
 
 const text = (value) => String(value ?? '').trim();
+
+// Held-back, excused and problem rows name the student so a teacher can act on
+// them, and the withheld list is persisted inside every export snapshot. They
+// carry the studentId plus a REAL name or null — never the id standing in for
+// a name (a nameless Classroom-linked student used to be listed as '101410').
+// Screens and the MANIFEST resolve the label at display time.
+const transferPerson = (student, fields) => ({
+  studentId: text(student?.id ?? student?.studentId),
+  name: studentNameForStorage({ ...student, studentId: text(student?.id ?? student?.studentId) }),
+  ...fields,
+});
+
+/**
+ * How a held-back/excused/problem row names its student: the current roster
+ * name when an identity index (Map studentId -> roster record) is given, then
+ * the row's stored name if it is really a name, else
+ * "Name unavailable · ID 101410". Legacy snapshots that stored the id as the
+ * name read as unavailable, not as a name.
+ */
+export const transferStudentLabel = (row = {}, index = null) => {
+  const studentId = text(row?.studentId);
+  const name = resolveRosterStudentName({ studentId, index: index instanceof Map ? index : new Map(), historicalName: row?.name });
+  return name === STUDENT_NAME_UNAVAILABLE ? formatStudentLabel(studentId) : name;
+};
 const time = (value) => {
   if (!value) return null;
   if (typeof value?.toMillis === 'function') return value.toMillis();
@@ -113,12 +144,10 @@ export const buildTransferUnit = ({
     const extensionActive = ordinaryFinal && individualDeadline !== null && effectiveDeadline !== null && now < effectiveDeadline;
 
     if (reopenedActive || extensionActive) {
-      withheld.push({
-        studentId: text(student.id),
-        name: text(student.displayName || student.name || student.id),
+      withheld.push(transferPerson(student, {
         reason: reopenedActive ? 'Student explicitly reopened' : 'Active individual extension',
         deadline: effectiveDeadline !== null ? new Date(effectiveDeadline).toISOString() : null,
-      });
+      }));
       continue;
     }
     if (effectiveDeadline === null || now < effectiveDeadline) continue;
@@ -136,19 +165,15 @@ export const buildTransferUnit = ({
       // consequences, which intentionally outrank the waiver.
       if (sectionKey === 'practice' && practicePassRedeemed) {
         finalizedStudentIds.add(text(student.id));
-        excused.push({
-          studentId: text(student.id),
-          name: text(student.displayName || student.name || student.id),
-          reason: 'Practice Pass',
-        });
+        excused.push(transferPerson(student, { reason: 'Practice Pass' }));
         continue;
       }
-      problems.push({ studentId: text(student.id), name: text(student.displayName || student.name || student.id), reason: 'No finalized canonical grade' });
+      problems.push(transferPerson(student, { reason: 'No finalized canonical grade' }));
       continue;
     }
     const numericGrade = Number(projectedGrade);
     if (!Number.isFinite(numericGrade)) {
-      problems.push({ studentId: text(student.id), name: text(student.displayName || student.name || student.id), reason: 'Canonical grade needs review' });
+      problems.push(transferPerson(student, { reason: 'Canonical grade needs review' }));
       continue;
     }
     const grade = Math.max(0, Math.min(100, Math.round(numericGrade)));
@@ -156,7 +181,7 @@ export const buildTransferUnit = ({
 
     const sisStudentId = authoritativeSisStudentId(student);
     if (!validSisStudentId(sisStudentId)) {
-      problems.push({ studentId: text(student.id), name: text(student.displayName || student.name || student.id), reason: 'Missing or invalid SIS Student ID' });
+      problems.push(transferPerson(student, { reason: 'Missing or invalid SIS Student ID' }));
       continue;
     }
     const row = {
@@ -261,8 +286,8 @@ export const packageManifest = (units) => ['MathMaster Gradebook Package', '', .
   ...(unit.sectionKey ? [`Section: ${unit.sectionLabel || unit.sectionKey}`, `Folder: ${transferAssignmentFolderName(unit)}`] : []),
   `File: ${transferPackagePath(unit)}`,
   `Student grades: ${unit.rows.length}`,
-  `Excused/no numeric TEAMS row: ${unit.excused?.length || 0}${unit.excused?.length ? ` (${unit.excused.map((row) => row.name).join(', ')})` : ''}`,
-  `Withheld for active extensions: ${unit.withheld.length}${unit.withheld.length ? ` (${unit.withheld.map((row) => row.name).join(', ')})` : ''}`,
+  `Excused/no numeric TEAMS row: ${unit.excused?.length || 0}${unit.excused?.length ? ` (${unit.excused.map((row) => transferStudentLabel(row)).join(', ')})` : ''}`,
+  `Withheld for active extensions: ${unit.withheld.length}${unit.withheld.length ? ` (${unit.withheld.map((row) => transferStudentLabel(row)).join(', ')})` : ''}`,
   `Export: ${unit.reexport ? 'full re-export of current grades' : unit.exportKind === 'delta' ? 'update' : 'initial'}`,
   // A re-export may land on top of grades the SIS already holds, so it must
   // overwrite exactly like an update does.

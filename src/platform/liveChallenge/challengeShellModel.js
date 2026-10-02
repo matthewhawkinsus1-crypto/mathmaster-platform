@@ -234,7 +234,12 @@ export const hostPrimaryAction = ({
     case MATCH_STATE.COUNTDOWN:
       return Object.freeze({ command: null, label: null, disabled: true, hint: `Round ${counts.roundNumber} is about to start.` });
     case MATCH_STATE.ROUND_ACTIVE:
-    case MATCH_STATE.ROUND_PAUSED:
+    case MATCH_STATE.ROUND_PAUSED: {
+      // A question-set round (Graph Feature Rush) has more graphs than anyone
+      // can finish: it ends on the clock, never because everyone answered.
+      if (roomRunsQuestionSets(room)) {
+        return Object.freeze({ command: null, label: null, disabled: true, hint: 'Students solve as many graphs as they can until time runs out. Results show automatically.' });
+      }
       return Object.freeze({
         command: null,
         label: null,
@@ -243,6 +248,7 @@ export const hostPrimaryAction = ({
           ? 'Everyone has finished. Results are coming up.'
           : 'The round ends when time runs out or everyone has answered. Results show automatically.',
       });
+    }
     case MATCH_STATE.ROUND_LOCKED:
       return Object.freeze({ command: null, label: null, disabled: true, hint: 'Time! Collecting the last answers, then the results.' });
     case MATCH_STATE.ROUND_RESULTS: {

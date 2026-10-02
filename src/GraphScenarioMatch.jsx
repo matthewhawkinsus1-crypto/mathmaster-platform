@@ -2,7 +2,10 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import QuestionPrompt from './QuestionPrompt';
 import GraphDisplay from './GraphDisplay';
 import useUndoHistory from './useUndoHistory';
-import { stableStringify } from './scenarioResponseUtils';
+import graphScenarioMatchGrader from '../functions/shared/serverGrading/tools/graphScenarioMatch.mjs';
+import { scenarioMatchWork } from '../functions/shared/toolMath/scenario/scenarioWork.mjs';
+import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
+import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
 import './GraphScenarioMatch.css';
 import useMobileInteractionMode from './platform/mobile/useMobileInteractionMode.js';
 
@@ -26,7 +29,6 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
     () => (Array.isArray(question.graphs) ? question.graphs.filter((item) => item?.id && item?.graph) : []),
     [question.graphs],
   );
-  const correctMatches = question.correctMatches || Object.fromEntries(scenarios.map((scenario) => [scenario.id, scenario.graphId]));
   const history = useUndoHistory({}, 80, draftKey ? `${draftKey}:graph-scenario-match` : null);
   // A restored draft of `null` must not become a new `{}` per render: the
   // connector layout effect depends on `matches` and sets state every time.
@@ -65,26 +67,17 @@ export default function GraphScenarioMatch({ question, onStateChange, onUndoStat
     setSelectedGraphId('');
   }, [history]);
 
-  const parts = scenarios.map((scenario) => ({
-    id: `match:${scenario.id}`,
-    label: scenario.title || scenario.id,
-    isComplete: Boolean(matches[scenario.id]),
-    isCorrect: matches[scenario.id] === correctMatches[scenario.id],
-    response: matches[scenario.id] || '',
-  }));
-  const isComplete = parts.length > 0 && parts.every((part) => part.isComplete);
-  const isCorrect = isComplete && parts.every((part) => part.isCorrect);
-  const matchedCount = parts.filter((part) => part.isComplete).length;
+  // The student's raw work. Each scenario's verdict comes ONLY from the shared
+  // grader the server also runs (serverGrading/tools/graphScenarioMatch.mjs),
+  // which reads the key from the question — never from this board.
+  const work = useMemo(() => scenarioMatchWork(matches), [matches]);
+  const grading = useMemo(() => gradeToolCheck(graphScenarioMatchGrader, question, work), [question, work]);
+  const matchedCount = grading.parts.filter((part) => part.isComplete).length;
+  const questionDetails = `${question.prompt || 'Match each scenario to a graph.'} Matches: ${JSON.stringify(matches)}`;
 
   useEffect(() => {
-    onStateChange({
-      isComplete,
-      isCorrect,
-      responseKey: stableStringify(matches),
-      questionDetails: `${question.prompt || 'Match each scenario to a graph.'} Matches: ${JSON.stringify(matches)}`,
-      parts,
-    });
-  }, [isComplete, isCorrect, matches, onStateChange, question.prompt]);
+    onStateChange(answerStateFromSharedGrading(grading, { questionDetails }));
+  }, [grading, questionDetails, onStateChange]);
 
   useEffect(() => {
     onUndoStateChange?.({ canUndo: history.canUndo, onUndo: history.undo, label: 'Undo the last graph match' });

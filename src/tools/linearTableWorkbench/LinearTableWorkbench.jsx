@@ -2,13 +2,19 @@ import React, { useMemo, useRef, useState } from 'react';
 import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ResultPill, TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import {
   intervalTruth,
   normalizeRows,
   pairKey,
-  scoreLinearTableWorkbench,
 } from './linearTableWorkbenchMath.js';
+import linearTableWorkbenchGrader, {
+  linearTableEvidenceChecks,
+  linearTableRequiredComparisons,
+} from '../../../functions/shared/serverGrading/tools/linearTableWorkbench.mjs';
+import { resolveLinearTableWorkbenchMode } from '../../../functions/shared/serverGrading/declarations/linearTableWorkbench.mjs';
 import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js';
 
 const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid #c9d6e8', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
@@ -19,8 +25,10 @@ const emptyState = { evidence: [], classification: '', repairRowIndex: null, rep
 
 export default function LinearTableWorkbench({ questionData = {}, onAction }) {
   const rows = useMemo(() => normalizeRows(questionData.rows), [questionData.rows]);
-  const mode = questionData.mode || 'constantRate';
-  const requiredComparisons = Math.max(1, Number(questionData.requiredComparisons) || 3);
+  // The view, resolved by the same function the grading declaration uses, so
+  // the shared grader always marks the screen the student is looking at.
+  const mode = resolveLinearTableWorkbenchMode(questionData);
+  const requiredComparisons = linearTableRequiredComparisons(questionData);
 
   const [evidence, setEvidence] = usePersistentToolState('evidence', []);
   const [classification, setClassification] = usePersistentToolState('classification', '');
@@ -51,6 +59,14 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
   );
   const mathematicalStateRef = useRef(mathematicalState);
   mathematicalStateRef.current = mathematicalState;
+  // The student's work: exactly what Check submits and what a deadline
+  // checkpoints (the recorded intervals travel as `intervals`). Staging boxes
+  // and row selection are not work until the student records the interval.
+  const work = useMemo(
+    () => ({ intervals: evidence, classification, repairRowIndex, repairedValue, m, b, equation }),
+    [evidence, classification, repairRowIndex, repairedValue, m, b, equation],
+  );
+  useReportToolWork(work);
 
   const applyState = (next) => {
     const value = next || emptyState;
@@ -190,27 +206,16 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
   const readyToClassify = distinctPairCount >= requiredComparisons;
 
   const check = () => {
-    const response = { evidence, classification, repairRowIndex, repairedValue, m, b, equation };
-    const result = scoreLinearTableWorkbench(questionData, response);
-    const parts = Object.entries(result.parts).map(([id, isCorrect]) => ({ id, label: partLabel(id), isCorrect, isComplete: true }));
+    // The verdict is the shared grader's — the one the server records. The
+    // per-interval detail (which box of which interval to recheck, never its
+    // value) comes from the same scorer call the grader makes.
+    const result = gradeToolCheck(linearTableWorkbenchGrader, questionData, work);
     submit(
       { isCorrect: result.isCorrect, score: result.score },
-      response,
-      { parts, evidenceCorrectness: result.evidenceCorrectness },
+      work,
+      { mode, parts: result.parts, evidenceCorrectness: linearTableEvidenceChecks(questionData, work) },
     );
   };
-
-  const partLabel = (id) => ({
-    evidenceCount: `At least ${requiredComparisons} distinct recorded intervals`,
-    evidenceAccuracy: 'Δx, Δy, and rate for every recorded interval',
-    nonconstantRateEvidence: 'Recorded intervals show that the rate changes',
-    classification: 'Linear vs. nonlinear classification',
-    repairIndex: 'Identified offending row',
-    repairValue: 'Corrected value',
-    slope: 'Slope (m)',
-    intercept: 'y-intercept (b)',
-    equation: 'Equation y = mx + b',
-  }[id] || id);
 
   const feedbackParts = feedback?.metadata?.parts || [];
   const firstWrong = feedbackParts.find((part) => !part.isCorrect);

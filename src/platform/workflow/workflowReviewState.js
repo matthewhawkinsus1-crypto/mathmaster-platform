@@ -10,18 +10,47 @@
 // "changed" until the next whole-question check.
 
 import { hasStageResponse } from './questionWorkflow.js';
+import { composedWorkflowStageWork } from '../../../functions/shared/toolMath/workflow/composedWorkflowContract.mjs';
+import { boundToolWork } from '../../../functions/shared/serverGrading/toolResponseContract.mjs';
+import { stableStringify } from '../../../functions/shared/idUtils.mjs';
 
 const safeJson = (value) => {
   try { return JSON.stringify(value ?? null); } catch { return String(value ?? ''); }
 };
 
-export const parseSubmittedWorkflowResponses = (responseKey) => {
-  if (typeof responseKey !== 'string' || !responseKey.trim()) return {};
+const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+/*
+ * A submitted responseKey comes in two shapes. A question marked by the shared
+ * grader submits its canonical work, `{"responses":{...}}` — each stage's
+ * response as student work, bounded and key-sorted (composedWorkflowContract
+ * .mjs). A question still marked on the device submits the raw map of stage
+ * responses. Both are read; each is compared in its own form.
+ */
+const readSubmittedWorkflow = (responseKey) => {
+  if (typeof responseKey !== 'string' || !responseKey.trim()) return { responses: {}, canonical: false };
   try {
     const parsed = JSON.parse(responseKey);
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    if (!isPlainObject(parsed)) return { responses: {}, canonical: false };
+    const keys = Object.keys(parsed);
+    if (keys.length === 1 && keys[0] === 'responses' && isPlainObject(parsed.responses)) {
+      return { responses: parsed.responses, canonical: true };
+    }
+    return { responses: parsed, canonical: false };
   } catch {
-    return {};
+    return { responses: {}, canonical: false };
+  }
+};
+
+export const parseSubmittedWorkflowResponses = (responseKey) => readSubmittedWorkflow(responseKey).responses;
+
+// One stage's response in the form the shared grader received it, so a live
+// response compares equal to its own submitted copy.
+const canonicalStageJson = (value) => {
+  try {
+    return stableStringify(boundToolWork(composedWorkflowStageWork(value ?? null)).work);
+  } catch {
+    return safeJson(value);
   }
 };
 
@@ -30,7 +59,10 @@ export const buildWorkflowReviewState = ({
   responses = {},
   review = null,
 } = {}) => {
-  const submitted = parseSubmittedWorkflowResponses(review?.responseKey);
+  const { responses: submitted, canonical } = readSubmittedWorkflow(review?.responseKey);
+  const sameResponse = (live, sent) => (canonical
+    ? canonicalStageJson(live) === canonicalStageJson(sent)
+    : safeJson(live) === safeJson(sent));
   const partsById = new Map(
     (Array.isArray(review?.parts) ? review.parts : [])
       .filter((part) => part?.id)
@@ -49,7 +81,7 @@ export const buildWorkflowReviewState = ({
       return { id, index, status: 'draft', part: partsById.get(id) || null };
     }
 
-    if (safeJson(responses?.[id]) !== safeJson(submitted[id])) {
+    if (!sameResponse(responses?.[id], submitted[id])) {
       return { id, index, status: 'changed', part: partsById.get(id) || null };
     }
 

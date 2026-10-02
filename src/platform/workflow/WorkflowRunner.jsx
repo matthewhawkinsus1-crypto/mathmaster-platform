@@ -17,15 +17,23 @@ import { previewFigures } from './choicePreview';
 import RelationMapping from '../../tools/relationMapping/RelationMapping';
 import { getStage } from './interactionStages';
 import { activeStages, hasStageResponse, lockedStageIds, readComposedQuestion, resolveStageInput, stageControlsLaterGraphConstruction, summarizeWorkflowProgress } from './questionWorkflow';
-import { gradeWorkflow } from './workflowGrading';
-import { buildExpressionFunctionSpec, evaluateModelAt, evaluateNumericValue } from './modelExpression';
+import { buildWorkflowAnswerState, workflowStageWorkResponses } from './workflowAnswerState.js';
+import { workflowTableLayout } from '../../../functions/shared/toolMath/workflow/workflowStageWork.mjs';
+import { composedWorkflowSupport } from '../../../functions/shared/toolMath/workflow/composedWorkflowContract.mjs';
+import {
+  expandGraphWindowToPoints,
+  resolveWorkflowGraphStages,
+  upgradeLegacyGraphResponses,
+  workflowGraphArtifact,
+  workflowTableArtifact,
+} from '../../../functions/shared/toolMath/workflow/workflowGraphStage.mjs';
+import { evaluateModelAt } from './modelExpression';
 import { bringActiveStageIntoView } from './stageNavigationScroll.js';
-import { rederiveRestoredTables, tableSourceCheck, tableSourceFields } from './tableSourceCheck.js';
-import { buildStudentTableMagneticTargets } from '../../graphInteractionPrecision';
+import { rederiveRestoredTables } from './tableSourceCheck.js';
 import { buildWorkflowSummaryItems, shouldUseWorkflowFocusMode, summarizeStageResponse } from './workflowFocusMode';
 import { stageFamily, stageFamilyLabel } from './stageFamilies';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../interaction/choiceOptions.js';
-import { checkedGraphIsPointOnly, graphWindowOnly, studentPlottedPoints, workflowEndpointMarkers, workflowGraphDomainRestriction, workflowRequiresEndpointMarkers } from './workflowGraphVisuals.js';
+import { checkedGraphIsPointOnly, graphWindowOnly, studentPlottedPoints, workflowEndpointMarkers, workflowGraphDomainRestriction } from './workflowGraphVisuals.js';
 import { resolveWorkflowTaskPrompt, selectPersistentWorkflowGraph } from './workflowPresentation.js';
 import { buildWorkflowReviewState, firstIncorrectWorkflowIndex } from './workflowReviewState.js';
 import { graphArtifactAwaitsVerdict, stagesAwaitingVerdict } from './workflowDraftProjection.js';
@@ -56,57 +64,6 @@ const panel = {
 const stageHeading = { margin: '0 0 8px', fontSize: 13, fontWeight: 900, color: '#174ea6' };
 const waitingPanel = { ...panel, background: '#f8f9fa', borderStyle: 'dashed', color: '#5f6368' };
 
-
-const niceGridStep = (range, fallback = 1) => {
-  const safeRange = Math.abs(Number(range));
-  const safeFallback = Number(fallback);
-  if (!Number.isFinite(safeRange) || safeRange <= 0) return Number.isFinite(safeFallback) && safeFallback > 0 ? safeFallback : 1;
-  const raw = safeRange / 10;
-  const power = 10 ** Math.floor(Math.log10(raw || 1));
-  const scaled = raw / power;
-  const multiplier = scaled <= 1 ? 1 : scaled <= 2 ? 2 : scaled <= 5 ? 5 : 10;
-  return multiplier * power;
-};
-
-// The authored viewport is a minimum useful window, not a cage. A dependent
-// graph must always be able to display the points the student actually made.
-// Expand only when upstream work falls outside the authored bounds; never
-// silently clip a table point just because the original answer key fit.
-const expandGraphWindowToPoints = (graph = {}, points = []) => {
-  const base = {
-    xMin: Number.isFinite(Number(graph.xMin)) ? Number(graph.xMin) : -10,
-    xMax: Number.isFinite(Number(graph.xMax)) ? Number(graph.xMax) : 10,
-    yMin: Number.isFinite(Number(graph.yMin)) ? Number(graph.yMin) : -10,
-    yMax: Number.isFinite(Number(graph.yMax)) ? Number(graph.yMax) : 10,
-    ...graph,
-  };
-  const valid = (Array.isArray(points) ? points : [])
-    .filter((point) => Array.isArray(point) && point.length === 2 && point.every((entry) => Number.isFinite(Number(entry))))
-    .map(([x, y]) => [Number(x), Number(y)]);
-  if (!valid.length) return base;
-
-  const xs = valid.map(([x]) => x);
-  const ys = valid.map(([, y]) => y);
-  const baseXRange = Math.max(1, Number(base.xMax) - Number(base.xMin));
-  const baseYRange = Math.max(1, Number(base.yMax) - Number(base.yMin));
-  const xPad = Math.max(Number(base.xStep) || 0, baseXRange * 0.08, 0.5);
-  const yPad = Math.max(Number(base.yStep) || 0, baseYRange * 0.08, 0.5);
-
-  const expanded = {
-    ...base,
-    xMin: Math.min(Number(base.xMin), Math.min(...xs) < Number(base.xMin) ? Math.min(...xs) - xPad : Number(base.xMin)),
-    xMax: Math.max(Number(base.xMax), Math.max(...xs) > Number(base.xMax) ? Math.max(...xs) + xPad : Number(base.xMax)),
-    yMin: Math.min(Number(base.yMin), Math.min(...ys) < Number(base.yMin) ? Math.min(...ys) - yPad : Number(base.yMin)),
-    yMax: Math.max(Number(base.yMax), Math.max(...ys) > Number(base.yMax) ? Math.max(...ys) + yPad : Number(base.yMax)),
-  };
-  const xRange = expanded.xMax - expanded.xMin;
-  const yRange = expanded.yMax - expanded.yMin;
-  const currentXStep = Number(base.xStep) || 1;
-  const currentYStep = Number(base.yStep) || 1;
-  if (xRange / currentXStep > 20) expanded.xStep = niceGridStep(xRange, currentXStep);
-  if (yRange / currentYStep > 20) expanded.yStep = niceGridStep(yRange, currentYStep);
-  return expanded;
-};
 
 const chipRow = { display: 'flex', gap: 8, flexWrap: 'wrap' };
 const choiceChip = (active) => ({
@@ -440,48 +397,18 @@ const parseResponseKey = (payload) => {
   }
 };
 
-const numericTablePoints = ({ stage, cells }) => {
-  const columns = Array.isArray(stage.columns) && stage.columns.length
-    ? stage.columns
-    : [{ key: 'x', label: 'x' }, { key: 'y', label: 'f(x)' }];
-  const inputColumn = stage.inputColumn || columns[0]?.key || 'x';
-  const responseColumn = stage.responseColumn || columns[columns.length - 1]?.key || 'y';
-  const xValues = Array.isArray(stage.xValues) ? stage.xValues : [];
-  return xValues.map((x, rowIndex) => {
-    const rawY = cells?.[`${rowIndex}:${responseColumn}`];
-    if (String(rawY ?? '').trim() === '') return null;
-    const numericX = evaluateNumericValue(x);
-    const y = evaluateNumericValue(rawY);
-    return numericX !== null && y !== null ? [numericX, y] : null;
-  }).filter(Boolean);
-};
-
-const tableArtifact = (payload, { stage, input, content }) => {
-  const cells = parseResponseKey(payload);
-  const sourceModel = typeof input?.value === 'string'
-    ? input.value
-    : input?.value?.sourceModel || null;
-
-  return {
-    [WORKFLOW_ARTIFACT]: 'table',
-    isComplete: Boolean(payload?.isComplete),
-    cells,
-    xValues: Array.isArray(stage.xValues) ? stage.xValues : [],
-    points: numericTablePoints({ stage, cells }),
-    sourceModel,
-    // Whether the cells agree with their source, and the function they were
-    // checked against: worked out by tableSourceCheck.js, here and wherever
-    // they are needed again (the server copy does not carry them).
-    ...tableSourceFields({ cells, stage, sourceModel, content }),
-  };
-};
-
-const graphArtifact = (payload) => ({
-  [WORKFLOW_ARTIFACT]: 'graph',
+// The table's artifact — its cells plus the points, model and consistency the
+// workflow derives from them — and the graph's artifact — the workspace's own
+// raw work — are built by the shared module the composed-workflow grader reads
+// them with (functions/shared/toolMath/workflow/workflowGraphStage.mjs).
+const tableArtifact = (payload, { stage, input, content }) => workflowTableArtifact({
+  stage,
+  cells: parseResponseKey(payload),
   isComplete: Boolean(payload?.isComplete),
-  isCorrect: Boolean(payload?.isCorrect),
-  responseKey: payload?.responseKey || '',
-  parts: Array.isArray(payload?.parts) ? payload.parts : [],
+  sourceModel: typeof input?.value === 'string'
+    ? input.value
+    : input?.value?.sourceModel || null,
+  content,
 });
 
 // Delegated components report a STATUS object — isComplete, isCorrect,
@@ -496,8 +423,9 @@ const readDelegateResponse = {
   // and put the student's work in `payload.response`.
   numberLine: (payload) => payload?.response?.intervals ?? payload?.response ?? null,
   mappingDiagram: (payload) => payload?.response?.arrows ?? payload?.response ?? null,
-  coordinatePlot: (payload) => graphArtifact(payload),
-  functionGraph: (payload) => graphArtifact(payload),
+  // The workspace's raw work (what the server re-marks), never its verdict.
+  coordinatePlot: (payload) => workflowGraphArtifact(payload),
+  functionGraph: (payload) => workflowGraphArtifact(payload),
   algebraWorkspace: (payload) => payload?.responseKey ?? payload?.equation ?? null,
 };
 
@@ -514,34 +442,24 @@ const toolAction = (onChange) => (actionType, payload) => {
 
 // Stages that delegate to an existing component. Each adapter builds the
 // sub-question that component expects; nothing here reimplements a renderer.
-/*
- * Does the plotting surface print what the student is aiming at?
- *
- * Normally yes: a student told to plot (3, -2) is marked on placing it, not on
- * reading it back, and the readout stops a slip of the finger costing a point.
- * A question that LATER asks them to write a coordinate turns it off, because
- * by then reading the plane is the thing being assessed.
- *
- * NOTE FOR AUTHORS: InteractiveGraphWorkspace forces the readout back on when
- * the grid is drawn coarser than one unit, since a value you cannot count to is
- * a value you cannot read. Suppressing coordinates on a grid stepped by 2 does
- * nothing at all.
- */
-const coordinateReadout = (stage, content) => (
-  stage?.showCoordinates
-  ?? stage?.graph?.showCoordinates
-  ?? content?.graph?.showCoordinates
-  ?? true
-);
+// A graph stage whose source the student has reopened (an unfinished table,
+// an unanswered continuity choice) is not built until that work is finished
+// again — the renderer normally says so before reaching the delegate.
+function GraphStageWaiting() {
+  return (
+    <div style={waitingPanel}>
+      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55 }}>
+        Finish the earlier steps first — this graph is built from what you write there.
+      </p>
+    </div>
+  );
+}
 
 const DELEGATES = {
   tableInput: ({ stage, input, content, onChange, draftKey }) => {
-    const xValues = Array.isArray(stage.xValues) ? stage.xValues : [];
-    const columns = Array.isArray(stage.columns) && stage.columns.length
-      ? stage.columns
-      : [{ key: 'x', label: 'x' }, { key: 'y', label: 'f(x)' }];
-    const inputColumn = stage.inputColumn || columns[0]?.key || 'x';
-    const responseColumn = stage.responseColumn || columns[columns.length - 1]?.key || 'y';
+    // One layout, shared with the grader: the cells rendered editable here are
+    // exactly the cells it requires before the table counts as finished.
+    const { columns, inputColumn, xValues, blanks } = workflowTableLayout(stage);
     const rows = xValues.map((x) => ({ [inputColumn]: x }));
 
     // Driven by the student's own function: every response cell is editable and
@@ -572,7 +490,7 @@ const DELEGATES = {
             // Day 2 Q8). Keeping editability separate from answer ownership
             // fixes that class of question without exposing a key in the UI.
             answers: {},
-            blanks: xValues.map((_, rowIndex) => `${rowIndex}:${responseColumn}`),
+            blanks,
           },
           ruleLatex: rule,
           showRule: Boolean(rule),
@@ -601,67 +519,23 @@ const DELEGATES = {
       onAction={toolAction(onChange)}
     />
   ),
-  coordinatePlot: ({ stage, input, content, onChange, draftKey, revealCorrectness = true }) => {
-    const source = input?.from === 'student' ? input.value : null;
-    const fromTable = source?.[WORKFLOW_ARTIFACT] === 'table' ? source.points : null;
-    const equationPoints = typeof source === 'string'
-      ? (Array.isArray(content?.tableXValues) && content.tableXValues.length ? content.tableXValues : [0, 1, 2, 3, 4])
-        .map((x) => {
-          const y = evaluateModelAt(source, Number(x));
-          return y === null ? null : [Number(x), y];
-        }).filter(Boolean)
-      : [];
-    const rawPairs = Array.isArray(fromTable) && fromTable.length
-      ? fromTable
-      : (equationPoints.length ? equationPoints : (stage.pairs || content?.pairs || []));
-    const pairs = (Array.isArray(rawPairs) ? rawPairs : []).map((pair) => {
-      if (Array.isArray(pair)) return [Number(pair[0]), Number(pair[1])];
-      return [Number(pair?.x), Number(pair?.y)];
-    }).filter((pair) => pair.every(Number.isFinite));
-    const pointTasks = pairs.map((point, index) => ({
-      id: `point-${index + 1}`,
-      label: `P${index + 1}`,
-      role: 'point',
-      x: point[0],
-      expected: point,
-      lockedX: true,
-    }));
-    // The magnet is offered only for a table that agrees with its source, so
-    // whether it appears says whether the table is right: on a DOL, quiz or
-    // test it stays off and the points are placed on the grid like any other.
-    const magneticSnapTargets = revealCorrectness
-      && source?.[WORKFLOW_ARTIFACT] === 'table'
-      && source.isComplete
-      && input?.sourceCheck?.consistent !== false
-      ? buildStudentTableMagneticTargets(pairs)
-      : [];
-
+  /*
+   * THE TWO GRAPH STAGES RENDER THE SUB-QUESTION THE SERVER MARKS.
+   *
+   * What the workspace is given — the points from the student's table (or
+   * their equation, or the authored pairs), the function they wrote, the
+   * window widened to show their points, the snap targets their table earns,
+   * the points-only choice, the boundary rule — is built by
+   * resolveWorkflowGraphStages (shared/toolMath/workflow/workflowGraphStage
+   * .mjs) from the same bounded work the composed-workflow grader rebuilds it
+   * from. `graphStage` is that resolution for this stage, so the graph a
+   * student builds is the graph the gradebook marks.
+   */
+  coordinatePlot: ({ graphStage, onChange, draftKey, revealCorrectness = true }) => {
+    if (graphStage?.status !== 'ready') return <GraphStageWaiting />;
     return (
       <InteractiveGraphWorkspace
-        question={{
-          // THE STAGE PROMPT, NOT AN EMPTY STRING.
-          //
-          // The workspace shows its own title and a fallback question card only
-          // when it believes nobody else is showing a prompt — which is what an
-          // empty string told it. But the stage prompt is rendered directly
-          // above it by renderStage, so a student read the same instruction
-          // three times: the step heading, the stage prompt, then "Plot the
-          // Points" over "YOUR QUESTION: Plot every point from your table."
-          //
-          // The workspace renders nothing for a non-empty prompt — it only uses
-          // it to know somebody else has this covered — so passing the real one
-          // removes the duplicates and the ~130px they cost above the plane.
-          prompt: stage.prompt || '',
-          graph: expandGraphWindowToPoints(stage.graph || content?.graph || { xMin: -10, xMax: 10, yMin: -10, yMax: 10 }, pairs),
-          plotMode: 'points',
-          pointOnly: true,
-          pointTasks,
-          stimulus: stage.stimulus || content?.stimulus,
-          magneticSnapTargets,
-          functionSpec: { type: 'expression', expression: '0', variable: 'x', referencePoints: pairs },
-          showCoordinates: coordinateReadout(stage, content),
-          requireEndpointMarkers: false,
-        }}
+        question={graphStage.question}
         mode="construct"
         onStateChange={onChange}
         draftKey={draftKey}
@@ -669,47 +543,14 @@ const DELEGATES = {
       />
     );
   },
-  functionGraph: ({ stage, input, content, onChange, draftKey, revealCorrectness = true }) => {
-    const source = input?.from === 'student' ? input.value : null;
-    const sourceIsTable = source?.[WORKFLOW_ARTIFACT] === 'table';
-    const tablePoints = sourceIsTable && Array.isArray(source.points) ? source.points : [];
-    const sourceModel = sourceIsTable ? source.sourceModel : (typeof source === 'string' ? source : null);
-    const sourceFunctionSpec = sourceIsTable ? source.sourceFunctionSpec : null;
-    const resolvedGraphMode = String(stage.resolvedGraphMode || stage.graphMode || 'continuous').toLowerCase();
-    const pointOnly = resolvedGraphMode === 'discrete';
-    const authoredGraphWindow = stage.graph || content?.graph || { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
-    const points = tablePoints.length ? tablePoints : (() => {
-      if (!sourceModel) return [];
-      const xMin = Number(authoredGraphWindow.xMin);
-      const xMax = Number(authoredGraphWindow.xMax);
-      if (!Number.isFinite(xMin) || !Number.isFinite(xMax) || xMax <= xMin) return [];
-      const candidates = Array.from({ length: 5 }, (_, index) => xMin + (index / 4) * (xMax - xMin));
-      return candidates.map((x) => {
-        const y = evaluateModelAt(sourceModel, x);
-        return y === null ? null : [Number(x.toFixed(6)), Number(y.toFixed(6))];
-      }).filter(Boolean);
-    })();
-    const graphWindow = expandGraphWindowToPoints(authoredGraphWindow, points);
-    // See coordinatePlot: the magnet's presence would say the table is right.
-    const magneticSnapTargets = revealCorrectness
-      && sourceIsTable
-      && source.isComplete
-      && input?.sourceCheck?.consistent !== false
-      ? buildStudentTableMagneticTargets(points)
-      : [];
-
-    // The graph must represent the student's own prior work.  For a table that
+  functionGraph: ({ graphStage, onChange, draftKey, revealCorrectness = true }) => {
+    // The graph must represent the student's own prior work. For a table that
     // came from an equation, contradictory work has no single graph; make that
     // conflict visible and require the student to resolve it rather than
-    // secretly switching to the authored answer key.
-    //
-    // Not where outcomes are withheld. "Your table and function do not agree"
-    // is a verdict on the table — against the AUTHORED function when the table
-    // was not built from the student's own equation — and it could be asked
-    // again after every edit, on an exit ticket. There the step is built from
-    // the student's own table and function as they stand (never from the
-    // answer key) and both are graded when the question is submitted.
-    if (revealCorrectness && sourceIsTable && input?.sourceCheck && input.sourceCheck.checked > 0 && input.sourceCheck.consistent === false) {
+    // secretly switching to the authored answer key. (Never where outcomes
+    // are withheld: resolveWorkflowGraphStages builds those graphs from the
+    // student's work as it stands, because this block is a verdict on it.)
+    if (graphStage?.status === 'conflict') {
       return (
         <div style={{ ...waitingPanel, background: '#fff8e1', color: '#7a4f00' }}>
           <strong>Your table and function do not agree yet.</strong>
@@ -720,17 +561,7 @@ const DELEGATES = {
       );
     }
 
-    const fallbackFunctionSpec = sourceFunctionSpec || content?.functionSpec;
-    const functionSpec = sourceModel
-      ? buildExpressionFunctionSpec(sourceModel, { referencePoints: points, domain: stage.domainRestriction || null })
-      : (fallbackFunctionSpec
-        ? {
-            ...fallbackFunctionSpec,
-            ...(stage.domainRestriction ? { domain: stage.domainRestriction } : {}),
-          }
-        : null);
-
-    if (!functionSpec) {
+    if (graphStage?.status === 'unbuildable') {
       return (
         <div style={{ ...waitingPanel, background: '#fff8e1', color: '#7a4f00' }}>
           <strong>Your model cannot be graphed yet.</strong>
@@ -741,40 +572,10 @@ const DELEGATES = {
       );
     }
 
+    if (graphStage?.status !== 'ready') return <GraphStageWaiting />;
     return (
       <InteractiveGraphWorkspace
-        question={{
-          // THE STAGE PROMPT, NOT AN EMPTY STRING.
-          //
-          // The workspace shows its own title and a fallback question card only
-          // when it believes nobody else is showing a prompt — which is what an
-          // empty string told it. But the stage prompt is rendered directly
-          // above it by renderStage, so a student read the same instruction
-          // three times: the step heading, the stage prompt, then "Plot the
-          // Points" over "YOUR QUESTION: Plot every point from your table."
-          //
-          // The workspace renders nothing for a non-empty prompt — it only uses
-          // it to know somebody else has this covered — so passing the real one
-          // removes the duplicates and the ~130px they cost above the plane.
-          prompt: stage.prompt || '',
-          graph: graphWindow,
-          functionSpec,
-          equationLatex: sourceModel || undefined,
-          graphAnswer: points.length ? { suggestedPoints: points } : undefined,
-          magneticSnapTargets,
-          showCoordinates: coordinateReadout(stage, content),
-          studentChoosesX: false,
-          pointOnly,
-          plotMode: pointOnly ? 'points' : undefined,
-          // A restricted relationship needs explicit visual boundaries. The
-          // domain stage still asks the student to STATE the domain, but the
-          // graph itself is incomplete until its open/closed endpoints are shown.
-          requireEndpointMarkers: workflowRequiresEndpointMarkers({
-            pointOnly,
-            authored: stage.requireEndpointMarkers,
-            domain: stage.domainRestriction,
-          }),
-        }}
+        question={graphStage.question}
         mode="construct"
         onStateChange={onChange}
         draftKey={draftKey}
@@ -801,7 +602,7 @@ const DELEGATES = {
 const NOTATION_PROFILE = { interval: 'interval', inequality: 'inequality', set: 'set' };
 export const ALL_REAL_NUMBERS_RESPONSE = '\\text{All Real Numbers}';
 
-function StageBody({ stage, input, content, value, onReport, disabled, draftKey, canonicalSavedAt = 0, controlsBranch = false, openKeypad = true, showFigure = true, revealCorrectness = true }) {
+function StageBody({ stage, input, content, value, onReport, disabled, draftKey, canonicalSavedAt = 0, controlsBranch = false, openKeypad = true, showFigure = true, revealCorrectness = true, graphStage = null }) {
   /*
    * WHAT A STEP REPORTS IS AN EDIT ONLY IF THE STUDENT HAS TOUCHED THE PAGE
    * SINCE THE STEP APPEARED (PQ-044).
@@ -835,7 +636,7 @@ function StageBody({ stage, input, content, value, onReport, disabled, draftKey,
         scope={`stage-${stage.id || stage.kind}`}
         canonicalSavedAt={canonicalSavedAt}
       >
-        {delegate({ stage, input, content, onChange, draftKey, disabled, revealCorrectness })}
+        {delegate({ stage, input, content, onChange, draftKey, disabled, revealCorrectness, graphStage })}
       </ToolDraftScopeProvider>
     );
   }
@@ -1196,6 +997,37 @@ export default function WorkflowRunner({
     () => activeStages(authoredWorkflow, responses),
     [authoredWorkflow, responses],
   );
+  /*
+   * THE GRAPH STAGES, BUILT FROM THE WORK THE SERVER READS.
+   *
+   * Each graph-construction stage's sub-question comes from the student's
+   * responses in the form they cross to the server (bounded, every table's
+   * points, model and consistency rebuilt from its cells), through the same
+   * function the composed-workflow grader rebuilds it with. A table whose
+   * function changed while the table step was closed is therefore graphed
+   * from the function as it is now — the one the table is marked against.
+   * A question the shared grader declines (a stage key the contract strips)
+   * has no server view, so its graphs read the same work unbounded.
+   */
+  const serverGraded = useMemo(() => composedWorkflowSupport(question).supported === true, [question]);
+  // Where outcomes are withheld a graph built from a table offers no magnet
+  // and no "do not agree" block: either would say whether the table is right.
+  const graphStages = useMemo(() => resolveWorkflowGraphStages({
+    workflow: authoredWorkflow,
+    content,
+    grading,
+    responses: workflowStageWorkResponses(responses, { serverGraded }),
+    outcomesWithheld: !revealCorrectness,
+  }), [authoredWorkflow, content, grading, responses, serverGraded, revealCorrectness]);
+  // A draft saved before graph stages carried their work holds the old graph
+  // artifact (the workspace's verdict plus its state as a string). Upgrade it
+  // in place, so the stage is marked from that state as soon as the question
+  // opens — including a plot step a later step has already locked. The same
+  // work in a new shape is not an edit, so the draft keeps its time (PQ-044).
+  useEffect(() => {
+    if (upgradeLegacyGraphResponses(responses) === responses) return;
+    setResponses((current) => upgradeLegacyGraphResponses(current), { edit: false });
+  }, [responses, setResponses]);
   // A primitive signature lets the guidance effect notice a genuinely new
   // composed question without depending on workflow array identity. Include the
   // authored question key because two recipe-generated questions may have the
@@ -1334,15 +1166,26 @@ export default function WorkflowRunner({
   workflowRef.current = workflow;
   const gradingRef = useRef(grading);
   gradingRef.current = grading;
+  const questionRef = useRef(question);
+  questionRef.current = question;
 
+  // THE VERDICT IS THE SHARED GRADER'S. buildWorkflowAnswerState marks the
+  // student's work through the same bytes and the same function the server
+  // runs (questionGraders/composedWorkflow.mjs), and attaches that work as the
+  // attempt's toolResponse; a question declared client-graded (a stage key the
+  // contract would strip) keeps its device marking.
+  //
+  // Where outcomes are withheld the work says so, and the grader sets the
+  // graph steps up as they were shown (resolveWorkflowGraphStages).
   useEffect(() => {
-    const stages = workflowRef.current;
-    onStateChangeRef.current?.(gradeWorkflow({
-      stages,
+    onStateChangeRef.current?.(buildWorkflowAnswerState({
+      question: questionRef.current,
+      stages: workflowRef.current,
       responses,
       grading: gradingRef.current,
+      outcomesWithheld: !revealCorrectness,
     }));
-  }, [responses]);
+  }, [responses, revealCorrectness]);
 
   // Focus Mode makes the current mathematical stage a real UI concept. Guided
   // Notes follows the stage the student is actually viewing; short workflows
@@ -1427,40 +1270,14 @@ export default function WorkflowRunner({
   const renderStage = (stage, index, { focused = false } = {}) => {
     const definition = getStage(stage.kind);
     const reviewStatus = reviewByStageId.get(stage.id)?.status || 'unanswered';
-    // If this modelling workflow has an authored finite domain, give only
-    // its boundary semantics to the graph primitive. This lets the student
-    // explicitly mark open/closed endpoints instead of leaving a stopped
-    // segment visually ambiguous. The later domain stage remains separate.
-    const domainRestriction = stage.kind === 'functionGraph'
-      ? workflowGraphDomainRestriction({
-          graphStage: stage,
-          workflow,
-          grading,
-        })
-      : null;
-    const baseEffectiveStage = domainRestriction && !stage.domainRestriction
-      ? { ...stage, domainRestriction }
-      : stage;
-    const effectiveStage = stage.continuityStageId
-      ? {
-          ...baseEffectiveStage,
-          resolvedGraphMode: String(responses?.[stage.continuityStageId] || '').toLowerCase(),
-        }
-      : baseEffectiveStage;
-    const resolvedInput = resolveStageInput({ stage, responses, content });
-    // A step built from a table is told whether that table agrees with its
-    // source as it stands now (tableSourceCheck), never from a stored verdict.
-    const input = resolvedInput.from === 'student'
-      ? {
-          ...resolvedInput,
-          sourceCheck: tableSourceCheck({
-            table: resolvedInput.value,
-            tableStage: workflow.find((entry) => entry.id === stage.sourceStageId)
-              || (Array.isArray(authoredWorkflow) ? authoredWorkflow : []).find((entry) => entry?.id === stage.sourceStageId),
-            content,
-          }),
-        }
-      : resolvedInput;
+    // A graph stage is rendered exactly as the server rebuilds it: with its
+    // finite domain's boundary semantics (so the student marks open/closed
+    // endpoints instead of leaving a stopped segment ambiguous) and with the
+    // student's own discrete/continuous choice as its mode — both resolved in
+    // workflowGraphStage.mjs (effectiveWorkflowGraphStage).
+    const graphStage = graphStages.get(stage.id) || null;
+    const effectiveStage = graphStage?.stage || stage;
+    const input = resolveStageInput({ stage, responses, content });
     const continuityReady = !stage.continuityStageId || hasStageResponse(responses?.[stage.continuityStageId]);
     const waiting = (Boolean(stage.sourceStageId) && !input.ready) || !continuityReady;
     const waitingStageId = !continuityReady ? stage.continuityStageId : stage.sourceStageId;
@@ -1551,6 +1368,7 @@ export default function WorkflowRunner({
               draftKey={draftKey ? `${draftKey}:${stage.id}${stage.sourceStageId && ['functionGraph', 'coordinatePlot'].includes(stage.kind) ? `:${dependencyFingerprint(input.value)}` : ''}` : null}
               canonicalSavedAt={canonicalSavedAt}
               revealCorrectness={revealCorrectness}
+              graphStage={graphStage}
             />
           </>
         )}

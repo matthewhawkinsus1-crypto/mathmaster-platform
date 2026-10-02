@@ -427,6 +427,21 @@ for (const [room, expectPass] of [['qa-room-1', false], ['qa-room-2', false], ['
   // eslint-disable-next-line no-await-in-loop
   await challengePage.screenshot({ path: path.join(shots, `13-challenge-${room}-phone.png`), fullPage: true });
 }
+// A match that gave this student nothing says what it offered — so nobody
+// waits for a reward that is not coming — and a match that offered no
+// rewards shows no rewards card at all.
+await challengePage.goto(url(`view=challenge&student=${STUDENT}&room=qa-room-none&offered=${encodeURIComponent('Top 3: Practice Pass each')}`));
+await check('a match that gave this student nothing says what it offered', async () => {
+  await challengePage.getByRole('heading', { name: 'Rewards earned' }).waitFor({ timeout: 10000 });
+  await challengePage.getByText(/This game.s rewards: Top 3: Practice Pass each\./).waitFor({ timeout: 10000 });
+});
+await challengePage.screenshot({ path: path.join(shots, '13-challenge-nothing-earned-phone.png'), fullPage: true });
+await challengePage.goto(url(`view=challenge&student=${STUDENT}&room=qa-room-none&offered=`));
+await check('a match that offered no rewards shows no rewards card', async () => {
+  await challengePage.locator('[data-qa="challenge-view"]').waitFor({ timeout: 10000 });
+  await challengePage.waitForTimeout(1500);
+  assert.equal(await challengePage.getByRole('heading', { name: 'Rewards earned' }).count(), 0);
+});
 await challengePage.goto(url('view=create'));
 await challengePage.screenshot({ path: path.join(shots, '14-challenge-reward-choice-phone.png'), fullPage: true });
 

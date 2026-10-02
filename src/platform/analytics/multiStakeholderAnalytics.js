@@ -2,6 +2,7 @@ import { TEKS_STRANDS } from '../mastery/strandConfig.js';
 import { predictExamScoresFromMastery } from '../assessment/examScorePredictor.js';
 import { EXAM_TYPES } from '../assessment/examDomainRegistry.js';
 import { toDisplayCode } from '../../utils/teksUtils.js';
+import { acceptStudentName, formatStudentName } from '../studentName.js';
 
 export const USER_ROLES = Object.freeze({
   DISTRICT_ADMIN: 'district_admin',
@@ -56,7 +57,10 @@ export const buildTeacherTierGroupings = (studentProfiles = []) => {
     const mastery = masteryMapForStudent(student);
     const needsAttention = Object.values(mastery).filter((profile) => profile?.mastery?.status === 'Needs Attention' || Number(profile?.mastery?.estimate) < 50).length;
     const hasRetentionConcern = retentionConcern(student, mastery);
-    const row = { id: student.studentId || student.id, name: student.studentName || student.displayName || student.studentId || student.id, focusCount: needsAttention, retentionConcern: hasRetentionConcern };
+    // A caller-resolved studentName when it is really a name, else the
+    // record's own resolved name, else "Name unavailable" — never the id.
+    const name = acceptStudentName(student.studentName, student) || formatStudentName(student, { lastFirst: false });
+    const row = { id: student.studentId || student.id, name, focusCount: needsAttention, retentionConcern: hasRetentionConcern };
     if (needsAttention >= 4) groups.tier3.push(row);
     else if (needsAttention >= 1 || hasRetentionConcern) groups.tier2.push(row);
     else groups.tier1.push(row);

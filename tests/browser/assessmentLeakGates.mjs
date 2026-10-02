@@ -184,9 +184,11 @@ const systems3x3 = async () => {
       await settle(page, 800);
       const grade = await lastGrade(page);
       const parts = partsOf(grade);
-      check(grade?.isCorrect === false && parts.classification === false && parts.planes === false && grade.partialCreditPercent === 0,
+      // The shared grader marks each plane pair; WRONG_PLANES gets Planes 1
+      // and 2 wrong, so that pair is wrong and the relationships earn nothing.
+      check(grade?.isCorrect === false && parts.classification === false && parts['planes-1-2'] === false && grade.partialCreditPercent === 0,
         'dol systems-3x3: the wrong interpretation is graded wrong, part by part', brief(grade));
-      check(/"kind":"identity"/.test(grade?.responseKey || '') && /"classification":"none"/.test(grade?.responseKey || ''), 'dol systems-3x3: the response is what the student chose', grade?.responseKey);
+      check(/"classificationKind":"identity"/.test(grade?.responseKey || '') && /"classificationChoice":"none"/.test(grade?.responseKey || ''), 'dol systems-3x3: the response is what the student chose', grade?.responseKey);
     });
   }
 

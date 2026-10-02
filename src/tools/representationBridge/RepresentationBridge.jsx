@@ -3,6 +3,9 @@ import usePersistentToolState from '../shared/usePersistentToolState.js';
 import ToolShell, { Panel, ResultPill, TaskCard } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import { useToolRuntimeContext } from '../shared/ToolRuntimeContext';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import representationBridgeGrader from '../../../functions/shared/serverGrading/tools/representationBridge.mjs';
 import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workView/useMathUndoHistory.js';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import LinearMultipleRepresentationsBoard from './LinearMultipleRepresentationsBoard.jsx';
@@ -19,7 +22,6 @@ import {
   resolveRepresentationBridgeStageGate,
   resolveRequiredComparisons,
   resolveRequiredStages,
-  scoreRepresentationBridge,
 } from './representationBridgeMath.js';
 import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js';
 
@@ -99,7 +101,10 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
 
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
 
-  const response = useMemo(() => ({
+  // The student's work, exactly as the shared grader reads it
+  // (functions/shared/serverGrading/declarations/representationBridge/linear.mjs).
+  // Stage checks, selected rows and the staging boxes are not work.
+  const work = useMemo(() => ({
     tableEvidence,
     studentSlope,
     rateConclusion,
@@ -108,14 +113,19 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
     graphConstruction: { points: graphPoints },
     meaningAssignments,
   }), [tableEvidence, studentSlope, rateConclusion, generalM, generalB, generalEquation, factoredA, factoredC, factoredEquation, graphPoints, meaningAssignments]);
+  useReportToolWork(work);
 
-  // The SAME grading function submission uses, called on the current draft so
-  // "guided"/"checkpoint" panels can show real feedback before Submit — never
-  // a second, looser approximation of correctness.
-  const liveResult = useMemo(() => scoreRepresentationBridge(questionData, response), [questionData, response]);
+  // The SAME shared grader Submit and the server use, called on the current
+  // draft through the same bytes, so "guided"/"checkpoint" panels show real
+  // feedback before Submit — never a second, looser approximation of
+  // correctness. `liveResult.parts` is each stage's verdict by part id.
+  const liveGrade = useMemo(() => gradeToolCheck(representationBridgeGrader, questionData, work), [questionData, work]);
+  const liveResult = useMemo(() => ({
+    parts: Object.fromEntries(liveGrade.parts.map((part) => [part.id, part.isCorrect === true])),
+  }), [liveGrade]);
   // Whether each stage is FINISHED — every entry made — never whether it is
   // right. It is all a stage check may report where outcomes are withheld.
-  const stageCompletion = useMemo(() => representationBridgeStageCompletion(questionData, response), [questionData, response]);
+  const stageCompletion = useMemo(() => representationBridgeStageCompletion(questionData, work), [questionData, work]);
 
   // EVERY PLACE THIS TOOL COULD REVEAL CORRECTNESS BEFORE SUBMIT, DECIDED ONCE:
   // the stage checks and their results, the stage locks, Submit's readiness and
@@ -313,11 +323,8 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
   };
 
   const check = () => {
-    submit(
-      { isCorrect: liveResult.isCorrect, score: liveResult.score },
-      response,
-      { parts: liveResult.parts, evidence: liveResult.evidence, requiredStages },
-    );
+    const result = gradeToolCheck(representationBridgeGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode: 'linear', requiredStages, parts: result.parts });
   };
 
   const highlightControls = (
@@ -640,7 +647,7 @@ function ClassicRepresentationBridge({ questionData = {}, onAction }) {
       {notice ? <p role="status" style={{ color: '#5f6b7a' }}>{notice}</p> : null}
       {feedback && !feedback.isCorrect ? (
         <ul style={{ color: '#5f6b7a', lineHeight: 1.55 }}>
-          {Object.entries(feedback.metadata?.parts || {}).filter(([, ok]) => !ok).map(([id]) => (
+          {(Array.isArray(feedback.metadata?.parts) ? feedback.metadata.parts : []).filter((part) => !part.isCorrect).map(({ id }) => (
             <li key={id}>{id === 'crossRepresentationConsistency' ? 'Your representations do not all describe the same line — recheck them against each other.' : `Recheck: ${id}.`}</li>
           ))}
         </ul>

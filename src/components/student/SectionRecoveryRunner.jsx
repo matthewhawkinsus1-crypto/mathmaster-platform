@@ -199,13 +199,16 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
     setNotice('');
   }, [entry.section, onRecord]);
 
-  const handleGrade = useCallback(async (unusedLocalVerdict, unusedDetails, parts, supportUsage, responseKey) => {
+  const handleGrade = useCallback(async (unusedLocalVerdict, unusedDetails, parts, supportUsage, responseKey, attemptMetadata = {}) => {
     if (!item) return null;
     const rendered = renderedRef.current[item.pin.fingerprint];
     if (!rendered) {
       return { blocked: true, message: 'This question is still loading. Try Submit again in a moment.' };
     }
-    const response = normalizeCheckpointResponse(rendered, { parts, responseKey, isComplete: true });
+    // A registry tool's structured work travels as itself, so the server can
+    // mark it with the tool's shared grader rather than refusing an opaque
+    // string.
+    const response = normalizeCheckpointResponse(rendered, { parts, responseKey, isComplete: true, toolResponse: attemptMetadata?.toolResponse || null });
     try {
       const result = await submitRecoveryPracticeItem({
         assignmentId: assignment.id,
@@ -372,12 +375,12 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
   const maximumAttempts = resolveQuestionMaximumAttempts({ question: currentQuestion, activityPolicy: policy });
   const answeredCount = items.filter((item) => responses[item.itemId] && !isOver(stepRecords[item.itemId])).length;
 
-  const handleGrade = useCallback(async (unusedLocalVerdict, unusedDetails, parts, unusedSupportUsage, responseKey) => {
+  const handleGrade = useCallback(async (unusedLocalVerdict, unusedDetails, parts, unusedSupportUsage, responseKey, attemptMetadata = {}) => {
     if (!current) return null;
     if (isOver(stepRecords[current.itemId])) return null;
     const rendered = renderedRef.current[current.pin.fingerprint];
     if (!rendered) return { blocked: true, message: 'This question is still loading. Try again in a moment.' };
-    const response = normalizeCheckpointResponse(rendered, { parts, responseKey, isComplete: true });
+    const response = normalizeCheckpointResponse(rendered, { parts, responseKey, isComplete: true, toolResponse: attemptMetadata?.toolResponse || null });
     setResponses((previous) => {
       const next = { ...previous, [current.itemId]: response };
       writeSaved(responsesKey, next);

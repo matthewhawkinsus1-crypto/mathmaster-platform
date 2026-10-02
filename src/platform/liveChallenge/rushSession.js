@@ -356,7 +356,7 @@ export const feedbackMessage = (feedback, question) => {
     case RUSH_FEEDBACK.AUTO_SKIPPED:
       return 'Too many misses on this one — moving on.';
     case RUSH_FEEDBACK.RESYNCED:
-      return 'Caught up with the server.';
+      return 'Synced with your saved progress.';
     default:
       return '';
   }

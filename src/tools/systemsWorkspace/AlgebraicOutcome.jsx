@@ -24,7 +24,8 @@ import {
  * Whether either check may say "right or wrong" is decided by the caller's
  * `interpretation` (resolveInterpretationGate in algebraicOutcomeModel.js),
  * because the caller also decides from it when the question can be submitted
- * and how it is graded: where the activity shows outcomes at once a
+ * (the grade is the shared grader's, from what was recorded): where the
+ * activity shows outcomes at once a
  * classification is recorded only once the statement is read right and the
  * planes stay open until they are right; on a DOL, quiz or test each check
  * only records the student's answer and the next step opens regardless.

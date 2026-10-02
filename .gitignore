@@ -41,3 +41,9 @@ release-reports
 # by those lists, not by this file, and the deployed functions read it.
 functions/deploy-provenance.json
 functions-path-admin/deploy-provenance.json
+
+# Student identity audit/backfill reports (scripts/student-identity-repair.mjs).
+# Counts-only by default, but --list-ids adds student ids and --include-names
+# adds student names: never commit them. Runbook:
+# docs/handoffs/STUDENT_IDENTITY_REPAIR_RUNBOOK.md
+identity-reports/

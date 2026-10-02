@@ -11,6 +11,7 @@ import {
   buildSupportEvidenceReport, selectReportAssignments, supportReportCsv, supportReportFileName, supportReportJson,
 } from '../../platform/supportEvidence/supportEvidenceReport.js';
 import { SupportClassificationTag } from './SupportProfileEditor.jsx';
+import { acceptStudentName, formatStudentName } from '../../platform/studentName.js';
 import './teacherWorkspace.css';
 import './supportEvidence.css';
 
@@ -218,7 +219,7 @@ export default function SupportEvidenceReportView({
           <div>
             <h1 id="support-report-title">Student Support Evidence Report</h1>
             <div className="tw-small tw-muted">
-              {studentName || student.id} · {classRecord?.name || classRecord?.period || 'No class'} · {report ? `${report.meta.gradingPeriodLabel} · ${report.meta.fromDateKey} to ${report.meta.toDateKey}` : periodLabel}
+              {acceptStudentName(studentName, student) || formatStudentName(student, { lastFirst: false })} · ID {student.id} · {classRecord?.name || classRecord?.period || 'No class'} · {report ? `${report.meta.gradingPeriodLabel} · ${report.meta.fromDateKey} to ${report.meta.toDateKey}` : periodLabel}
             </div>
             {report && <div className="tw-small tw-muted">Generated {when(report.meta.generatedAtMs)}{report.meta.generatedByEmail ? ` by ${report.meta.generatedByEmail}` : ''} · a factual summary of MathMaster records, not a compliance determination.</div>}
           </div>

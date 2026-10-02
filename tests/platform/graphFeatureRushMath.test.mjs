@@ -30,6 +30,7 @@ import {
   QUESTION_TIER_ORDER,
   featureWordings,
 } from '../../functions/shared/graphFeatureRegistry.mjs';
+import { GRAPH_FEATURE_RUSH_PRESETS, normalizeGraphFeatureRushConfig } from '../../functions/shared/graphFeatureRushConfig.mjs';
 import {
   DOES_NOT_EXIST_SHARE,
   SCHEDULE_BLOCK_SIZE,
@@ -349,6 +350,114 @@ test('wording is classroom vocabulary, and "roots" belongs to polynomials only',
   }
 });
 
+test('a polynomial with non-real roots is only ever asked for its x-intercepts', () => {
+  // A parabola that never meets the axis still has two complex roots, and a
+  // cubic with one real root has two more: "Find all roots" (or zeros)
+  // answered "Does Not Exist" — or with one point — would teach something
+  // false. Decided from the graph itself, not from the generator's labels.
+  const nonRealRoots = (question) => (question.family === 'quadratic' && question.targets.length === 0)
+    || (question.family === 'cubic' && question.graph.quadratic
+      && question.graph.quadratic.p * question.graph.quadratic.p - 4 * question.graph.quadratic.q < 0);
+  let checked = 0;
+  for (const preset of GRAPH_FEATURE_RUSH_PRESETS) {
+    const config = normalizeGraphFeatureRushConfig({ presetId: preset.id });
+    for (let student = 0; student < 12; student += 1) {
+      for (let questionIndex = 0; questionIndex < 60; questionIndex += 1) {
+        const question = generateRushQuestion({ seed: `roots-${preset.id}`, studentKey: `s${student}`, roundIndex: student % 3, questionIndex, config });
+        if (question.feature !== GRAPH_FEATURE.X_INTERCEPT || !nonRealRoots(question)) continue;
+        checked += 1;
+        assert.equal(question.prompt, 'Find all x-intercepts', `${question.prompt}: ${JSON.stringify(question.graph)}`);
+      }
+    }
+  }
+  assert.ok(checked >= 40, `only ${checked} such questions were drawn`);
+  for (const slot of ALL_SLOTS.filter((entry) => entry.flags?.nonRealRoots)) {
+    generateAll(slot).forEach((question) => assert.equal(question.wording, 'xIntercepts', `${slot.family}/${slot.variant}`));
+  }
+});
+
+test('where the curve meets the x-axis is where the zero is', () => {
+  // The stretch around each zero where the drawn curve lies ON the axis
+  // (within 1.5% of the height — a few pixels) is short and centred on the
+  // zero. For a crossing it stays inside a phone's tap tolerance (7% of the
+  // width), so wherever the curve visibly meets the axis is a hit. A curve
+  // that touches and turns (a double root) or flattens through its zero (a
+  // triple root) is flat there by nature: its stretch may reach 10%, still
+  // centred. Measured on the curve alone, never from the generator's rules.
+  const contact = (question, zero) => {
+    const { graph, view } = question;
+    const xSpan = view.xMax - view.xMin;
+    const band = 0.015 * (view.yMax - view.yMin);
+    const step = xSpan / 4000;
+    const onAxis = (x) => Number.isFinite(evaluateGraph(graph, x)) && Math.abs(evaluateGraph(graph, x)) < band;
+    let left = zero;
+    while (left - step >= view.xMin && onAxis(left - step)) left -= step;
+    let right = zero;
+    while (right + step <= view.xMax && onAxis(right + step)) right += step;
+    return {
+      reach: Math.max(zero - left, right - zero) / xSpan,
+      offCentre: Math.abs((left + right) / 2 - zero) / xSpan,
+      toTheEdge: left - step < view.xMin || right + step > view.xMax,
+    };
+  };
+  let checked = 0;
+  for (const slot of ALL_SLOTS.filter((entry) => entry.feature === GRAPH_FEATURE.X_INTERCEPT && entry.exists)) {
+    const flat = ['tangent', 'triple'].includes(slot.variant);
+    for (const question of generateAll(slot)) {
+      for (const target of question.targets) {
+        const seen = contact(question, target.x);
+        const where = `${slot.family}/${slot.variant}/${slot.tier}: ${JSON.stringify(question.graph)} in ${JSON.stringify(question.view)}`;
+        assert.equal(seen.toTheEdge, false, `the curve runs along the axis off the view: ${where}`);
+        assert.ok(seen.reach <= (flat ? 0.1 : 0.07) + 1e-3, `on the axis ${(seen.reach * 100).toFixed(1)}% of the width from the zero: ${where}`);
+        assert.ok(seen.offCentre <= 0.021, `contact centred ${(seen.offCentre * 100).toFixed(1)}% off the zero: ${where}`);
+        checked += 1;
+      }
+    }
+  }
+  assert.ok(checked > 1000, `${checked} zeros checked`);
+});
+
+test('a lopsided Challenge window is never too small to read a curve in', () => {
+  // A 2-by-2 window flattened a cubic into a line along the axis.
+  for (const slot of ALL_SLOTS.filter((entry) => entry.tier === QUESTION_TIER.CHALLENGE)) {
+    for (const question of generateAll(slot)) {
+      const { view } = question;
+      assert.ok(view.xMax - view.xMin >= 6 && view.yMax - view.yMin >= 6, `${slot.family}/${slot.feature}/${slot.variant}: ${JSON.stringify(view)}`);
+    }
+  }
+});
+
+test('below Challenge, a piecewise y-intercept is never decided by which dot is filled', () => {
+  // A split ON the y-axis makes the open/closed endpoint the whole question:
+  // a Challenge skill, never asked at Standard.
+  for (let seed = 0; seed < 120; seed += 1) {
+    const question = generateQuestionForSlot({ slot: { family: 'piecewise', feature: 'yIntercept', variant: 'one', tier: QUESTION_TIER.STANDARD }, seedText: `split|${seed}` });
+    const onAxis = graphMarkers(question.graph, question.view).filter((marker) => marker.x === 0);
+    assert.deepEqual(onAxis, [], `split on the y-axis: ${JSON.stringify(question.graph)}`);
+  }
+});
+
+test('two questions in a row are never the same graph asked the same way', () => {
+  // On a small catalog an identical next graph looked like a tap that did nothing.
+  const configs = [
+    ...GRAPH_FEATURE_RUSH_PRESETS.map((preset) => normalizeGraphFeatureRushConfig({ presetId: preset.id })),
+    normalizeGraphFeatureRushConfig({ families: ['linear'], features: ['xIntercept'], difficulty: 'easy' }),
+    normalizeGraphFeatureRushConfig({ families: ['linear'], features: ['xIntercept', 'yIntercept'], difficulty: 'easy' }),
+    normalizeGraphFeatureRushConfig({ families: ['exponential'], features: ['xIntercept'], difficulty: 'standard' }),
+  ];
+  for (const config of configs) {
+    for (let student = 0; student < 16; student += 1) {
+      let previous = null;
+      for (let questionIndex = 0; questionIndex < 48; questionIndex += 1) {
+        const question = generateRushQuestion({ seed: 'repeat-room', studentKey: `s${student}`, roundIndex: 0, questionIndex, config });
+        const signature = `${question.feature}|${JSON.stringify(question.graph)}`;
+        assert.notEqual(signature, previous, `question ${questionIndex} repeats question ${questionIndex - 1} for s${student}: ${signature}`);
+        previous = signature;
+      }
+    }
+  }
+});
+
 test('generation is deterministic, individual, and never ships the variant name', () => {
   const config = { families: ['linear', 'quadratic', 'absolute'], features: ['xIntercept', 'yIntercept', 'vertex'], difficulty: 'standard' };
   const ask = (studentKey, questionIndex) => generateRushQuestion({ seed: 'room-secret', studentKey, roundIndex: 0, questionIndex, config });
@@ -403,6 +512,22 @@ test('"Does Not Exist" is the answer at the tier\'s share — never at Easy', ()
     });
   }
   assert.ok(Math.abs(absentDrawn / drawn - DOES_NOT_EXIST_SHARE.challenge) < 0.05, `drawn share ${absentDrawn / drawn}`);
+  // Narrow configs hold it too. A maximum-only game, where most families have
+  // no maximum, drew "Does Not Exist" for two answers in five once avoiding a
+  // repeated family inside a block used up the ones that have one.
+  for (const feature of ['maximum', 'minimum', 'xIntercept']) {
+    for (const difficulty of ['standard', 'challenge']) {
+      let absent = 0;
+      let total = 0;
+      for (let blockIndex = 0; blockIndex < 400; blockIndex += 1) {
+        roundBlockTemplate({ seed: `share-${feature}`, roundIndex: 0, blockIndex, config: { families: [...GRAPH_FAMILY_IDS], features: [feature], difficulty } }).forEach((slot) => {
+          total += 1;
+          if (!familyVariants(slot.family, slot.feature, slot.tier).find((entry) => entry.id === slot.variant).exists) absent += 1;
+        });
+      }
+      assert.ok(Math.abs(absent / total - DOES_NOT_EXIST_SHARE[difficulty]) < 0.04, `${feature}/${difficulty}: drawn share ${(absent / total).toFixed(3)}`);
+    }
+  }
   // A feature only lines can ask (their maximum) never makes a whole game of "Does Not Exist".
   const linesOnly = slotCatalog({ families: ['linear'], features: ['maximum'] }, 'standard');
   assert.deepEqual(linesOnly, [], 'no existing answer means no catalog — the config is refused upstream');

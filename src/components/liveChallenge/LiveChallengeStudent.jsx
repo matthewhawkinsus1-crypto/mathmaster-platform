@@ -7,7 +7,7 @@ import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mj
 import { calculateStepPartialCredit, emptyQuestionRecord, recordQuestionStep } from '../../attemptPolicy.js';
 import { hasMeaningfulRawPathResponse, questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
 import { CHALLENGE_STAGE, GO_FLASH_MS, studentGuidance } from '../../platform/liveChallenge/challengeShellModel.js';
-import { roundResultsView, scorePresentation, shortPlaceText, standingsRows } from '../../platform/liveChallenge/challengeStandingsModel.js';
+import { rewardSummaryLines, roundResultsView, scorePresentation, shortPlaceText, standingsRows } from '../../platform/liveChallenge/challengeStandingsModel.js';
 import { useChallengeClock, usePreviousRoundSummary, useRoundSummary } from '../../platform/liveChallenge/challengeHooks.js';
 import { studentConnectionState } from '../../platform/liveChallenge/challengePresenceModel.js';
 import LiveChallengeFieldQuestion from './LiveChallengeFieldQuestion.jsx';
@@ -510,7 +510,7 @@ export function ChallengeRound({
       </div>
       </div>
 
-      {pending && !result && <div aria-live="assertive" style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>Answer locked · waiting for secure server confirmation…</div>}
+      {pending && !result && <div aria-live="assertive" style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>Answer locked in · checking it…</div>}
 
       {submitError && <div role="alert" style={{ padding: 11, borderRadius: 9, background: '#4a3708', color: '#ffe9a8', border: '1px solid #f9ab00' }}>{submitError}</div>}
       {pending && !result && <button type="button" onClick={retryPending}>Retry locked answer</button>}
@@ -601,9 +601,10 @@ const exitButton = { minHeight: 44, padding: '11px 20px', border: 0, borderRadiu
  *   completed     how you finished, what reached your wallet, the top of the class
  *   cancelled     the challenge ended; nothing is recorded
  *
- * `renderMatchRewards(roomId)` is the host's rewards card for a finished match
- * (what reached the wallet). It is a slot, not game logic: the game's own
- * placement and points beside it are unchanged and never read rewards.
+ * `renderMatchRewards(roomId, { offered })` is the host's rewards card for a
+ * finished match (what reached the wallet; `offered` is what the game put up,
+ * in words). It is a slot, not game logic: the game's own placement and
+ * points beside it are unchanged and never read rewards.
  */
 export default function LiveChallengeStudent({ invite, studentProfile = {}, onExit, exitLabel = 'Back to Dashboard', renderMatchRewards = null }) {
   const [room, setRoom] = useState(null);
@@ -611,6 +612,9 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   // unreachable), and whether a server copy has arrived since the screen opened.
   const [roomFromCache, setRoomFromCache] = useState(false);
   const [everInSync, setEverInSync] = useState(false);
+  // The server says the room does not exist (an invite to a game that was
+  // removed): the screen says so and offers the way out, never "Opening…" forever.
+  const [roomMissing, setRoomMissing] = useState(false);
   const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine !== false));
   const [players, setPlayers] = useState([]);
   // True once the standings listener has delivered since it last (re)started.
@@ -639,6 +643,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
     setError('');
     setRoomFromCache(false);
     setEverInSync(false);
+    setRoomMissing(false);
     setJoinedAtRound(null);
     if (!roomId) return undefined;
     return watchLiveChallengeRoom(roomId, (next, { fromCache = false } = {}) => {
@@ -647,7 +652,10 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
         roundEndsAtMs: timestampMillis(next?.endsAt || next?.roundEndsAt),
       }, Date.now() + clockOffsetRef.current);
       setRoomFromCache(fromCache);
-      if (!fromCache) setEverInSync(true);
+      if (!fromCache) {
+        setEverInSync(true);
+        setRoomMissing(!next);
+      }
       setRoom((current) => acceptChallengeSnapshot(current, next ? { ...next, phase } : null));
     }, (watchError) => setError(watchError?.message || 'Could not load the Live Challenge.'), { includeMetadataChanges: true });
   }, [roomId]);
@@ -788,11 +796,19 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
     return <div style={{ padding: 40, textAlign: 'center' }}><h2>No Live Challenge is waiting.</h2><button type="button" onClick={onExit}>{exitLabel}</button></div>;
   }
 
-  if (!room) {
+  if (!room || roomMissing) {
     return (
-      <div style={{ minHeight: '100vh', padding: 40, background: 'radial-gradient(120% 90% at 50% 0%, #1f2a44 0%, #131722 55%, #0d1017 100%)', color: '#eef1f6', textAlign: 'center', fontFamily: '"Segoe UI", sans-serif' }}>
-        <h2 style={{ color: '#fff' }}>Opening {invite.title || 'Live Challenge'}…</h2>
-        {error && <p style={{ color: '#ffb4ab' }}>{error}</p>}
+      <div data-mm-student-room={roomMissing ? 'missing' : 'opening'} style={{ minHeight: '100vh', padding: 40, background: 'radial-gradient(120% 90% at 50% 0%, #1f2a44 0%, #131722 55%, #0d1017 100%)', color: '#eef1f6', textAlign: 'center', fontFamily: '"Segoe UI", sans-serif' }}>
+        {roomMissing ? (
+          <>
+            <h2 style={{ color: '#fff' }}>This Live Challenge is no longer available.</h2>
+            <p>Your teacher may have closed it. Nothing was lost — head back to your dashboard.</p>
+          </>
+        ) : <h2 style={{ color: '#fff' }}>Opening {invite.title || 'Live Challenge'}…</h2>}
+        {error && <p role="alert" style={{ color: '#ffb4ab' }}>{error}</p>}
+        {(roomMissing || error) && (
+          <button type="button" onClick={onExit} style={{ marginTop: 12, minHeight: 44, padding: '10px 18px', borderRadius: 10, border: '1px solid rgba(255,255,255,.3)', background: 'rgba(255,255,255,.08)', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>{exitLabel}</button>
+        )}
       </div>
     );
   }
@@ -850,8 +866,8 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
 
         {roundOpen && room.currentQuestion && !clockReady && (
           <section aria-live="polite" style={{ padding: 26, borderRadius: 16, background: '#17365f', textAlign: 'center' }}>
-            <h2>Synchronizing round clock…</h2>
-            <p>Your round uses the teacher's server-authored deadline and will catch up automatically.</p>
+            <h2>Getting the round ready…</h2>
+            <p>Your screen is catching up with your teacher's timer. This only takes a moment.</p>
           </section>
         )}
 
@@ -881,7 +897,7 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
             beforeQuestion={(
               <>
                 {lateJoinNote}
-                {clock.quality === 'degraded' ? <div role="status">Clock sync is unavailable. You can still answer; speed will use conservative server timing.</div> : null}
+                {clock.quality === 'degraded' ? <div role="status">Your connection is slow right now. You can still answer — your time is taken when your answer arrives.</div> : null}
               </>
             )}
           />
@@ -901,7 +917,8 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
               rows={finalRows}
               selfKey={invite.playerKey}
               rush={rushRoom}
-              rewardsSlot={renderMatchRewards && invite?.roomId ? renderMatchRewards(invite.roomId) : null}
+              rewardsSlot={renderMatchRewards && invite?.roomId ? renderMatchRewards(invite.roomId, { offered: rewardSummaryLines(room.rewardSummary) }) : null}
+              loading={!playersFresh}
             />
             <button type="button" onClick={onExit} style={{ ...exitButton, justifySelf: 'center' }}>{exitLabel}</button>
           </div>

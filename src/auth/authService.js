@@ -240,6 +240,17 @@ export const teacherAdmin = {
       teacherEmail,
     }).then((result) => result.data || {});
   },
+  /**
+   * Set or correct a student's name (first + last, both required). The server
+   * validates it, checks the caller is the root admin or the student's teacher
+   * of record, and writes only the canonical name fields.
+   */
+  setStudentName: ({ studentId, firstName = '', lastName = '' }) =>
+    callable('setStudentName')({
+      studentId: String(studentId || '').trim(),
+      firstName: String(firstName || '').trim(),
+      lastName: String(lastName || '').trim(),
+    }).then((result) => result.data || {}),
   assignStudentToTeacher: ({ studentId, teacherEmail = '', classPeriod = 'Unassigned' }) =>
     callable('assignStudentToTeacher')({ studentId, teacherEmail, classPeriod }).then((result) => result.data || {}),
   setTeacherAccess: (email, active) =>

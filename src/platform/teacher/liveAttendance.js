@@ -1,3 +1,5 @@
+import { formatStudentName } from '../studentName.js';
+
 export const LIVE_ATTENDANCE_EVENT_KIND = 'liveAttendance';
 
 export const LIVE_ATTENDANCE_MARK = Object.freeze({
@@ -98,7 +100,9 @@ export const buildLiveAttendanceEvent = ({
     throw new Error(`Unsupported live attendance mark: ${normalizedMark || 'blank'}`);
   }
 
-  const studentName = clean(student?.displayName || student?.name || student?.studentName || studentId);
+  // The student's name or null — never the id. Readers resolve a null name
+  // by studentId against the roster at display time.
+  const studentName = formatStudentName(student, { lastFirst: false, fallbackToNeutral: false }) || null;
   const resolvedPeriod = clean(classPeriod || student?.classPeriod || student?.profile?.classPeriod) || null;
   const label = normalizedMark === LIVE_ATTENDANCE_MARK.ABSENT
     ? 'Absent'

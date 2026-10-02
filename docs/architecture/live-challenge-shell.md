@@ -213,7 +213,16 @@ long (what the server last heard — a browser cannot report that it closed),
 who **reconnected**, who is on **two devices**, and during a round who is done
 and who is still working. A "show game names" switch (off by default; keep it
 off while the console is projected) adds each alias. Names never reach the
-projector: it is not handed the roster and never asks for it.
+projector: it is not handed the roster and never asks for it. The roster
+outlives the game: after the end (and after a refresh on the podium, once the
+room's private state is gone) the callable answers from the match result, and
+the console's final standings can show each name beside its game name, behind
+the same switch — so the teacher can see who won and who earned what.
+
+**What the hint says** during a round depends on how the round ends: a
+classic round "ends when time runs out or everyone has answered"; a Graph
+Feature Rush round has more graphs than anyone can finish and ends on the
+clock only, and says so.
 
 **One command at a time.** Every lifecycle control — console and projector,
 primary and secondary, and the confirmation's own button — is disabled while
@@ -223,7 +232,11 @@ same button in two tabs, opens one round.
 
 **Confirmations** for what cannot be undone, and only those: End Game, End
 Round Now, and Cancel Session once anyone has joined (an empty lobby cancels
-at once). Start and Next Round never ask.
+at once). Start and Next Round never ask. The dialog keeps keyboard focus
+where the teacher puts it while the console updates underneath (its
+handlers are read through a ref, so a student's progress arriving never
+re-runs its focus effect), Tab and Shift+Tab wrap inside it, and Escape is
+"Keep playing".
 
 **Recovery.** The server's active-room pointer reopens a live game after a
 refresh, on a second device, or after a dropped connection — "Reconnected to
@@ -256,7 +269,11 @@ places, from the room's reward summary). Host controls run along the bottom.
   scrolls sideways and the standings stay readable (QA harness).
 - **Large classes**: the top of the board, then "and N more players" — never
   the bottom of the class singled out. The lobby lists every alias that fits
-  (chips shrink before anyone is hidden).
+  (chips shrink before anyone is hidden). Under the final podium the standings
+  show only the rows that fit whole in the space left (measured, not guessed
+  from the viewport), with "Everyone sees their own final place on their
+  device" whenever anyone is left out — moved into the podium's heading when
+  not even that line fits (150% zoom).
 - **Optional full screen** (a refusal leaves the CSS full-viewport view), and
   an exit back to the console.
 - **Privacy**: aliases only (unless the teacher chose a name display), no
@@ -279,10 +296,24 @@ places, from the room's reward summary). Host controls run along the bottom.
   their overall place and movement, the top five (and their own row when they
   are outside it), and what comes next.
 - **Final**: their place ("T-2nd of 24"), their total, then what reached their
-  wallet (`renderMatchRewards` — the app's `ChallengeRewardsEarned`, read from
-  the wallet, never computed here), then the top of the class. A podium
-  finish gets confetti, which reduced motion turns off.
+  wallet (`renderMatchRewards(roomId, { offered })` — the app's
+  `ChallengeRewardsEarned`, read from the wallet, never computed here; with
+  nothing earned it says what the game offered, and a game that offered
+  nothing shows no rewards card), then the top of the class. Until the
+  standings arrive (a refresh on the podium) the card says "Loading your
+  final place…", never "You joined after the last round". A podium finish
+  gets confetti, which reduced motion turns off.
 - **Header**: their live score in the room's unit and their place.
+
+**Plain words.** What a student reads never carries the server's vocabulary:
+an answer sent before GO is told "This round has not started yet. Wait for
+GO, then answer."; a late one "Time was up before your answer arrived, so it
+was not counted."; a stale screen "That round has changed since your screen
+loaded it…"; a locked answer "Answer locked in · checking it…"; a slow clock
+"Your connection is slow right now. You can still answer…". An invite to a
+room the server no longer has (its word, not a cached copy) shows "This Live
+Challenge is no longer available." with the way back, never "Opening…"
+forever.
 
 **Honest connection status.** The room listener asks for metadata changes, so
 the screen knows when the SDK is serving its cache because the server is
@@ -304,7 +335,9 @@ game stops calibrating.
 ## 10. Joining, leaving, coming back
 
 - **Who can join**: the class roster at create time (`createLiveChallenge`
-  invites each student; nobody else can join a room).
+  invites each student; nobody else can join a room). Game names are handed
+  out in a shuffled order, so a name's number says nothing about who holds
+  it, and a Warm-Up link must be one of the class's own assignments.
 - **Late join**: a rostered student who arrives after the start joins at once
   and plays from the round that is open now — the server records
   `joinedAtRound`, a round that already closed is not counted against them,
@@ -370,7 +403,12 @@ the registry).
 
 Every listener is released by its effect (`listenerLifecycleGuard` holds it);
 a round's result is watched only while its results are on screen, and the
-round before is read once and cached (bounded).
+round before is read once and cached (bounded). The shell QA's endurance run
+(`SHELL_QA_SCENARIOS=endurance node tests/browser/liveChallengeShellQa.mjs`)
+counts the listeners each page has open after every one of five games —
+Standard, Rush (Correct Count), Rush (Grand Prix), Solver Race, Rush — and
+holds the count, the event listeners, the DOM and the heap (after a forced
+GC) flat across them.
 
 ---
 

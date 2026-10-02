@@ -7,6 +7,8 @@ import {
   finalizationEffectSettled,
   finalizationEffectsState,
   matchResultStanding,
+  openRoundStartedAt,
+  playedRoundCountAt,
   playerTotalsAfterRound,
   publicRoundSummary,
   roundPlacementRank,
@@ -205,6 +207,34 @@ test('a match result ranks the players who played and keeps the ones who did not
   assert.ok(result.standings.every((row) => !('participantId' in row) && !('liveScore' in row)), 'ranking scaffolding is not persisted');
   assert.equal(matchResultStanding(result, 'c-tied').rank, 2);
   assert.equal(matchResultStanding(result, 'nobody'), null);
+});
+
+/*
+ * A ROUND ENDED DURING ITS COUNTDOWN WAS NEVER PLAYED. The host opened round 4
+ * (Next Round) and the teacher pressed End Game while the class still saw
+ * 3-2-1: the server refuses every arrival before startsAt, so nobody could
+ * answer it. Counting it as played measured every student against it.
+ */
+test('a round ended during its 3-2-1 countdown is not counted as played', () => {
+  const startsAt = new Date(1_700_000_010_000);
+  const counting = { status: 'running', roundState: 'open', currentRound: 3, startsAt, endsAt: new Date(1_700_000_040_000) };
+  // Ended 2 s before the round's start: three rounds were played, not four.
+  assert.equal(openRoundStartedAt(counting, 1_700_000_008_000), false);
+  assert.equal(playedRoundCountAt(counting, 1_700_000_008_000), 3);
+  // Ended once it had started: that round counts, as it always did.
+  assert.equal(playedRoundCountAt(counting, 1_700_000_012_000), 4);
+  // A closed round, or no clock to read, or no instant: counted as before.
+  assert.equal(playedRoundCountAt({ ...counting, roundState: 'closed' }, 1_700_000_008_000), 4);
+  assert.equal(playedRoundCountAt({ status: 'running', roundState: 'open', currentRound: 3 }, 1_700_000_008_000), 4);
+  assert.equal(playedRoundCountAt(counting, null), 4);
+  assert.equal(playedRoundCountAt({ status: 'lobby', currentRound: -1 }, 1_700_000_008_000), 0);
+  // The durable result carries it.
+  const result = buildMatchResult({
+    roomId: 'countdown-end', room: { ...counting, roundCount: 10, scoringStrategyId: 'accuracyFirst' },
+    privateState: { scheduledRoundCount: 10 }, players: [player('a', { x: response(0) })], status: 'finished',
+    finalizedAtMs: 1_700_000_008_000,
+  });
+  assert.equal(result.playedRoundCount, 3, 'the round still counting down was not played');
 });
 
 test('a Grand Prix match result is ranked as a championship', () => {

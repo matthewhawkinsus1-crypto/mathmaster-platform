@@ -356,6 +356,29 @@ test('relations: arrows, sets and functionhood, each on its own', () => {
   assert.equal(grade('relationMapping', { ...right, range: [-1, 2, 3] }).isCorrect, true);
 });
 
+test('relations: the Mapping Diagram answers functionhood with a reason, and Path reads it as the tool does', () => {
+  // The tool's own vocabulary (relationFunctionChoice.mjs, which its registry
+  // grader re-exports as FUNCTION_STATUS_CHOICES). Path once read only
+  // 'yes'/'true', so every function relation answered on the real tool was
+  // graded "not a function". Two of the four reasons are the one-to-one
+  // misconception ("every output used once", "an output repeats"): the tool
+  // and its registry grader mark them wrong, and so does Path — only the
+  // definition earns the mark.
+  const right = { arrows: [[1, 2], [-2, 3], [3, -1]], domain: [-2, 1, 3], range: [3, 2, -1] };
+  assert.equal(grade('relationMapping', { ...right, isFunction: 'yes-definition' }).isCorrect, true);
+  ['yes-output-rule', 'no-input-repeat', 'no-output-repeat', ''].forEach((isFunction) => {
+    assert.equal(grade('relationMapping', { ...right, isFunction }).isCorrect, false, isFunction || 'blank');
+  });
+  // A relation that is NOT a function: the definition's 'no' is right, the
+  // repeated-output reason is not, and leaving the classification blank is not
+  // the same as answering "no".
+  const repeat = buildPrivateToolGrading({ type: 'relationMapping', toolId: 'relationMapping', pairs: [{ x: 1, y: 2 }, { x: 1, y: 3 }], ask: ['isFunction'] });
+  assert.equal(gradePathResponse({ privateGrading: repeat, raw: { isFunction: 'no-input-repeat' } }).isCorrect, true);
+  assert.equal(gradePathResponse({ privateGrading: repeat, raw: { isFunction: 'no-output-repeat' } }).isCorrect, false);
+  assert.equal(gradePathResponse({ privateGrading: repeat, raw: { isFunction: 'yes-definition' } }).isCorrect, false);
+  assert.equal(gradePathResponse({ privateGrading: repeat, raw: { isFunction: '' } }).isCorrect, false);
+});
+
 test('number line: the graph and the notation must agree with the key', () => {
   const right = { intervals: [{ start: -4, end: 2, startClosed: true, endClosed: false }], notation: '[-4, 2)' };
   assert.equal(grade('intervalNumberLine', right).isCorrect, true);

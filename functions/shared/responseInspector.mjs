@@ -1,8 +1,16 @@
-import { gradeOrdinaryResponse, serverGradingSupport } from './ordinaryResponseGrading.mjs';
+// Replay marks a stored response with the SAME shared grading registry that
+// ingestion, the deadline finalizer and Recovery use (server-only module), so
+// "Apply Corrected Grade" can never disagree with how the attempt would be
+// marked today — for an ordinary type, a rich tool or a Question Family.
+import { gradeServerResponse, serverResponseGradingSupport } from './serverGrading/serverResponseGrading.mjs';
+import { deliveredQuestionForGrading } from './serverGrading/deliveredQuestion.mjs';
+import { resolveServerGradingQuestion } from './questionFamilyGrading.mjs';
+import { isFamilyBackedQuestion } from './questionFamilyInstance.mjs';
 import { answerCandidatesForField, matchesFieldAnswer, normalizeMathAnswer, parseNumericAnswer } from './answerUtils.mjs';
 import { getQuestionCredit, normalizeQuestionRecord } from './attemptPolicy.mjs';
 import { dolSectionProjection } from './assignmentProjections.mjs';
 import { readWorkspaceDraftEntries } from './workspaceDraftSchema.mjs';
+import { STUDENT_NAME_UNAVAILABLE, studentIdLabel, studentNameForStorage } from './studentIdentity.mjs';
 
 export const GRADER_VERSION = 'ordinary-response-v3';
 export const GRADING_EVIDENCE_VERSION = 3;
@@ -277,7 +285,44 @@ export const authoritativeQuestionForInspection = ({ question, evidence } = {}) 
   return { authoritative: true, question, source: 'identity-delivered-assignment-question' };
 };
 
-export const replayResponse = ({ question, attemptRecord, gradingEvidence } = {}) => {
+/*
+ * The question to replay against: a delivered instance the evidence stored;
+ * a Question Family instance rebuilt from the record's validated delivery pin
+ * (when the caller supplies the assignment); or the stored question with the
+ * runtime repair QuestionEngine applies — exactly what ingestion graded.
+ */
+const replayQuestion = ({ question, attemptRecord, evidence, assignment, questionIndex, studentId, classId }) => {
+  const authority = authoritativeQuestionForInspection({ question, evidence });
+  if (authority.authoritative) {
+    return {
+      ...authority,
+      question: authority.source === 'stored-delivered-instance' ? authority.question : deliveredQuestionForGrading(authority.question),
+    };
+  }
+  if (assignment && isFamilyBackedQuestion(question) && attemptRecord?.familyDelivery) {
+    const family = resolveServerGradingQuestion({
+      assignment,
+      question,
+      questionIndex: Number(questionIndex) || 0,
+      variantIndex: Number(attemptRecord?.variantIndex) || 0,
+      canonicalRecord: attemptRecord,
+      studentId,
+      classId,
+    });
+    if (family.question) return { authoritative: true, question: family.question, source: 'family-delivery-pin' };
+  }
+  return authority;
+};
+
+export const replayResponse = ({
+  question,
+  attemptRecord,
+  gradingEvidence,
+  assignment = null,
+  questionIndex = null,
+  studentId = null,
+  classId = null,
+} = {}) => {
   const evidence = gradingEvidence || null;
   if (!evidence?.submittedResponse) {
     return {
@@ -286,7 +331,7 @@ export const replayResponse = ({ question, attemptRecord, gradingEvidence } = {}
       reason: 'The historical submitted response snapshot is unavailable, so exact replay is unavailable.',
     };
   }
-  const authority = authoritativeQuestionForInspection({ question, evidence });
+  const authority = replayQuestion({ question, attemptRecord, evidence, assignment, questionIndex, studentId, classId });
   if (!authority.authoritative) {
     return {
       available: false,
@@ -295,7 +340,7 @@ export const replayResponse = ({ question, attemptRecord, gradingEvidence } = {}
     };
   }
   const deliveredQuestion = authority.question;
-  const support = serverGradingSupport(deliveredQuestion);
+  const support = serverResponseGradingSupport(deliveredQuestion);
   if (!support.supported) {
     return {
       available: false,
@@ -303,15 +348,15 @@ export const replayResponse = ({ question, attemptRecord, gradingEvidence } = {}
       reason: `Replay unavailable for this question type or delivery mode (${support.reason}). Stored response and grading evidence remain inspectable.`,
     };
   }
-  const currentResult = gradeOrdinaryResponse({
+  const currentResult = gradeServerResponse({
     question: deliveredQuestion,
     response: evidence.submittedResponse,
   });
   if (!currentResult.graded) {
     return {
       available: false,
-      adapter: 'ordinary-response',
-      reason: `The ordinary grader could not replay this response (${currentResult.reason || 'unknown reason'}).`,
+      adapter: 'shared-grading-registry',
+      reason: `The shared grader could not replay this response (${currentResult.reason || 'unknown reason'}).`,
     };
   }
   const originalResult = evidence.automaticResult || null;
@@ -329,7 +374,8 @@ export const replayResponse = ({ question, attemptRecord, gradingEvidence } = {}
     }));
   return {
     available: true,
-    adapter: 'ordinary-response',
+    adapter: 'shared-grading-registry',
+    questionSource: authority.source || null,
     originalResult,
     originalScore,
     currentResult,
@@ -344,10 +390,22 @@ export const replayResponse = ({ question, attemptRecord, gradingEvidence } = {}
   };
 };
 
-export const replayStoredResponse = ({ question, record, gradingEvidence = null } = {}) => replayResponse({
+export const replayStoredResponse = ({
+  question,
+  record,
+  gradingEvidence = null,
+  assignment = null,
+  questionIndex = null,
+  studentId = null,
+  classId = null,
+} = {}) => replayResponse({
   question,
   attemptRecord: record,
   gradingEvidence,
+  assignment,
+  questionIndex,
+  studentId,
+  classId,
 });
 
 const submittedFieldMap = (submitted) => {
@@ -498,6 +556,7 @@ export const expectedAnswers = ({ question, evidence } = {}) => {
 export const buildInspectorModel = ({
   assignment,
   question,
+  questionIndex = null,
   section,
   student,
   record,
@@ -508,7 +567,15 @@ export const buildInspectorModel = ({
 } = {}) => {
   const evidence = gradingEvidence || null;
   const authority = authoritativeQuestionForInspection({ question, evidence });
-  const replay = replayStoredResponse({ question, record, gradingEvidence: evidence });
+  const replay = replayStoredResponse({
+    question,
+    record,
+    gradingEvidence: evidence,
+    assignment,
+    questionIndex,
+    studentId: student?.id || null,
+    classId: student?.classId || null,
+  });
   const legacy = evidence?.submittedResponse ? null : legacyRecordedResponse(record);
   const teacherTrace = evidence?.submittedResponse && authority.authoritative
     ? buildGradingTrace({
@@ -532,9 +599,12 @@ export const buildInspectorModel = ({
       prompt: question?.prompt || 'Unavailable',
       type: question?.type || question?.toolId || 'Unavailable',
     },
+    // The student's name, or the explicit 'Name unavailable' — never the id,
+    // which is reported separately (idLabel) for the screen to show as an id.
     student: {
       id: student?.id || null,
-      name: student?.displayName || student?.name || 'Unavailable',
+      name: studentNameForStorage({ ...student, studentId: student?.id }) || STUDENT_NAME_UNAVAILABLE,
+      idLabel: studentIdLabel(student?.id) || null,
     },
     attemptNumber: Number(record?.totalAttempts || record?.attemptCount) || null,
     automaticScore: evidence?.automaticScore ?? automaticQuestionScore(record),

@@ -275,7 +275,12 @@ test('the bridge reads whether outcomes are shown from the runtime context and h
   assert.match(gate, /\n\s*parts: liveResult\.parts,/);
   assert.match(gate, /\n\s*completion: stageCompletion,/);
   assert.match(gate, /\n\s*stageChecks,/);
-  assert.match(classic, /const stageCompletion = useMemo\(\(\) => representationBridgeStageCompletion\(questionData, response\)/);
+  // Completion is read from the same work the shared grader marks — live for
+  // the stage verdicts, and on Submit — never from a separate copy of it.
+  assert.match(classic, /const stageCompletion = useMemo\(\(\) => representationBridgeStageCompletion\(questionData, work\), \[questionData, work\]\);/);
+  assert.match(classic, /\n\s*const work = useMemo\(\(\) => \(\{/);
+  assert.match(classic, /const liveGrade = useMemo\(\(\) => gradeToolCheck\(representationBridgeGrader, questionData, work\), \[questionData, work\]\);/);
+  assert.match(region(classic, 'const check = () => {', '\n  };', 'the bridge Submit'), /gradeToolCheck\(representationBridgeGrader, questionData, work\)/);
 });
 
 test('every stage lock, the Submit gate, the highlights and each check press come from the gate', () => {

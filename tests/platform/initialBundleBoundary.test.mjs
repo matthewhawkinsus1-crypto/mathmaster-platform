@@ -82,15 +82,18 @@ for (const [pkg, why] of [
   });
 }
 
-// mathjs is still in the first load (App.jsx reaches it through nine
-// imports), but only as factories: src/platform/math/mathjs.js builds each
-// function on first use. Importing 'mathjs' anywhere else in the first load
+// mathjs is still in the first load (the shared tool mathematics reaches it),
+// but only as factories: the client's instance (src/platform/math/mathjs.js)
+// builds each function on first use, and the hardened instance the shared
+// modules read through (functions/shared/algebra/safeMath.mjs) is built and
+// locked on first use too. Importing 'mathjs' anywhere else in the first load
 // brings back its prebuilt instance, about 0.5 s more of main thread before
 // the sign-in screen on a 4x-throttled CPU (tests/platform/mathjsInstance.test.mjs).
-test('the first load reaches mathjs only through the lazily built instance', () => {
+const LAZY_MATHJS_INSTANCES = ['functions/shared/algebra/safeMath.mjs', 'src/platform/math/mathjs.js'];
+test('the first load reaches mathjs only through the lazily built instances', () => {
   const importers = [...graph.keys()]
     .filter((file) => !file.startsWith('pkg:') && /\.(m?jsx?)$/.test(file))
     .filter((file) => staticImports(file).some((specifier) => specifier === 'mathjs' || specifier.startsWith('mathjs/')))
     .map((file) => path.relative(repo, file));
-  assert.deepEqual(importers, ['src/platform/math/mathjs.js']);
+  assert.deepEqual(importers.filter((file) => !LAZY_MATHJS_INSTANCES.includes(file)), []);
 });

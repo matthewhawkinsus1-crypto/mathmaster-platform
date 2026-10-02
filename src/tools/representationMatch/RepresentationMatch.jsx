@@ -10,22 +10,29 @@ import CoordinatePlane from '../shared/CoordinatePlane';
 import MathDisplay from '../../MathDisplay';
 import { evaluateFunctionSpec } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import representationMatchGrader from '../../../functions/shared/serverGrading/tools/representationMatch.mjs';
 import {
-  buildDefaultRepresentationSets,
   buildLinearConnectionCards,
   describeLinearCard,
+  linearConnectionsCardKinds,
+  linearConnectionsTask,
   linearGroupLabels,
   linearGroupNoun,
-  findTableMismatchIndexes,
-  LINEAR_CARD_KINDS,
+  LINEAR_EQUATION_KINDS,
+  linearMismatchSetFor,
+  linearPlacementsFromAssignments,
   mixedRepresentationCards,
-  mismatchedRepresentationKinds,
+  REPRESENTATION_MATCH_MODES,
   representationById,
-  scoreLinearConnectionGrouping,
-  scoreLinearMismatchSelection,
-  scoreRepresentationMatch,
+  representationMatchMode,
+  representationMixedSet,
+  representationSetsFor,
+  representationTargetId,
   shuffleLinearConnectionCards,
-  tableRowsForFunction,
+  tableAuditFunction,
+  tableAuditRows,
 } from './representationMath';
 
 const inputStyle = { display: 'block', width: '100%', padding: 10, marginTop: 5, border: '1px solid #cdd6e4', borderRadius: 8 };
@@ -114,29 +121,28 @@ const MODE_HINTS = {
 };
 
 export default function RepresentationMatch({ questionData = {}, onAction }) {
-  const mode = questionData.mode || 'completeSet';
-  // linearConnections questions must never fall back to the generic
-  // quadratic/exponential demo relationships — an authoring mistake there
-  // should surface as an empty board, not a silently wrong linear question.
-  const sets = useMemo(() => {
-    if (mode === 'linearConnections') return questionData.sets || [];
-    return questionData.sets?.length ? questionData.sets : buildDefaultRepresentationSets();
-  }, [questionData.sets, mode]);
-  const targetId = questionData.targetId || sets[0]?.id;
+  /*
+   * Everything this screen shows is resolved from the question by the same
+   * helpers the shared grader reads (representationMath.mjs), so the board the
+   * student sees is the board the server grades — including the demo sets,
+   * targetId, mixedSet, table function and default-row fallbacks.
+   * linearConnections never falls back to the demo relationships: an authoring
+   * mistake there surfaces as an empty board, not a silently wrong linear
+   * question.
+   */
+  const mode = representationMatchMode(questionData);
+  const sets = useMemo(() => representationSetsFor({ mode, sets: questionData.sets }), [questionData.sets, mode]);
+  const targetId = representationTargetId(questionData, sets);
   const graphMatchBounds = useMemo(() => graphMatchBoundsFor(sets, questionData.graphBounds), [sets, questionData.graphBounds]);
   const choices = useMemo(() => [...sets].reverse(), [sets]);
-  const fallbackMismatchId = sets.find((item) => item.id !== targetId)?.id || targetId;
-  const mixed = questionData.mixedSet || { equationId: targetId, tableId: fallbackMismatchId, contextId: targetId };
-  const tableSpec = questionData.function || { type: 'quadratic', a: 1, h: 0, k: 0 };
-  const tableRows = useMemo(() => {
-    // Stored Path rows are Firestore-safe `{ cells: [...] }` maps; authored and
-    // preview content still uses plain arrays. Read both.
-    if (questionData.rows?.length) {
-      return questionData.rows.map((row) => (Array.isArray(row) ? row : (Array.isArray(row?.cells) ? row.cells : [])));
-    }
-    const rows = tableRowsForFunction(tableSpec, [-2, -1, 0, 1, 2]);
-    return rows.map((row, index) => index === Math.min(2, rows.length - 1) ? [row[0], row[1] + 2] : row);
-  }, [questionData.rows, tableSpec.type, tableSpec.a, tableSpec.h, tableSpec.k, tableSpec.base]);
+  const mixed = representationMixedSet(questionData, sets, targetId);
+  const tableSpec = tableAuditFunction(questionData);
+  // Stored Path rows are Firestore-safe `{ cells: [...] }` maps; authored and
+  // preview content still uses plain arrays. tableAuditRows reads both.
+  const tableRows = useMemo(
+    () => tableAuditRows({ rows: questionData.rows }, tableSpec),
+    [questionData.rows, tableSpec.type, tableSpec.a, tableSpec.h, tableSpec.k, tableSpec.base],
+  );
   const [equation, setEquation] = usePersistentToolState('equation', '');
   const [table, setTable] = usePersistentToolState('table', '');
   const [context, setContext] = usePersistentToolState('context', '');
@@ -146,16 +152,16 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
   const { feedback, submit } = useToolSubmission(onAction);
 
   // --- linearConnections ------------------------------------------------
-  const linearTask = questionData.task === 'findMismatch' ? 'findMismatch' : 'group';
-  const linearCardKinds = questionData.cardKinds?.length ? questionData.cardKinds : LINEAR_CARD_KINDS;
+  const linearTask = linearConnectionsTask(questionData);
+  const linearCardKinds = linearConnectionsCardKinds(questionData);
   const linearGroupCards = useMemo(
     () => (mode === 'linearConnections' && linearTask === 'group' ? shuffleLinearConnectionCards(buildLinearConnectionCards(sets, linearCardKinds)) : []),
     [mode, linearTask, sets, linearCardKinds],
   );
-  const mismatchSet = useMemo(() => sets.find((set) => set.id === questionData.mismatchSetId) || null, [sets, questionData.mismatchSetId]);
+  const mismatchSet = useMemo(() => linearMismatchSetFor({ mismatchSetId: questionData.mismatchSetId }, sets), [sets, questionData.mismatchSetId]);
   const linearMismatchCards = useMemo(
     () => (mode === 'linearConnections' && linearTask === 'findMismatch' && mismatchSet
-      ? buildLinearConnectionCards([mismatchSet], ['slopeIntercept', 'factoredLinear', 'pointSlope', 'standard'])
+      ? buildLinearConnectionCards([mismatchSet], LINEAR_EQUATION_KINDS)
       : []),
     [mode, linearTask, mismatchSet],
   );
@@ -178,44 +184,34 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
     });
   };
 
-  const checkLinearGroup = () => {
-    const result = scoreLinearConnectionGrouping(linearGroupCards, linearAssignments);
-    submit({ isCorrect: result.isCorrect, score: result.score }, { assignments: linearAssignments }, { mode, task: 'group', correctPairs: result.correctPairs, totalPairs: result.totalPairs });
-  };
+  /*
+   * THE STUDENT'S WORK FOR THE VIEW ON SCREEN — exactly what its inputs hold,
+   * and nothing of the key (no targetId, mixedSet, expected row or card).
+   * Reported live so a deadline can finalize it; Check submits the same object.
+   * An unrecognised mode renders no answer controls, so it has no work.
+   */
+  const work = !REPRESENTATION_MATCH_MODES.includes(mode) ? null
+    : mode === 'completeSet' ? { equation, table, context }
+      : mode === 'findMismatch' ? { mismatchKind }
+        : mode === 'tableAudit' ? { rowIndex: badRow }
+          : mode === 'graphMatch' ? { graphId }
+            : linearTask === 'findMismatch' ? { selectedId: mismatchSelection, correctionChoice }
+              : { assignments: linearPlacementsFromAssignments(linearAssignments) };
+  useReportToolWork(work, { enabled: work !== null });
 
-  const checkLinearMismatch = () => {
-    const result = scoreLinearMismatchSelection(linearMismatchCards, mismatchSelection);
-    const correctionOptions = questionData.correctionOptions || [];
-    const correctionSatisfied = !correctionOptions.length || correctionChoice === questionData.correctionAnswerId;
-    const isCorrect = result.ok && correctionSatisfied;
+  /*
+   * THE VERDICT IS THE SHARED GRADER'S (functions/shared/serverGrading/tools/
+   * representationMatch.mjs), through the same bounded bytes the server
+   * re-grades. Every Check button below calls this; only the mode, the linear
+   * task and the grader's per-part results ride along as metadata.
+   */
+  const check = () => {
+    const result = gradeToolCheck(representationMatchGrader, questionData, work);
     submit(
-      { isCorrect, score: isCorrect ? 1 : result.ok ? 0.6 : 0 },
-      { selectedId: mismatchSelection, correctionChoice },
-      { mode, task: 'findMismatch', expectedId: result.expectedId },
+      { isCorrect: result.isCorrect, score: result.score },
+      work,
+      { mode, ...(mode === 'linearConnections' ? { task: linearTask } : {}), parts: result.parts },
     );
-  };
-
-  const checkCompleteSet = () => {
-    const response = { equation, table, context };
-    const result = scoreRepresentationMatch(targetId, response);
-    submit({ isCorrect: result.isCorrect, score: result.score }, response, { mode, targetId });
-  };
-
-  const checkMismatch = () => {
-    const expected = mismatchedRepresentationKinds(targetId, mixed);
-    const ok = expected.length === 1 && mismatchKind === expected[0];
-    submit({ isCorrect: ok, score: ok ? 1 : 0 }, { mismatchKind }, { mode, targetId, sourceIds: mixed });
-  };
-
-  const checkTable = () => {
-    const expected = findTableMismatchIndexes(tableSpec, tableRows, Number(questionData.tolerance ?? 0.01));
-    const ok = expected.length === 1 && Number(badRow) === expected[0];
-    submit({ isCorrect: ok, score: ok ? 1 : 0 }, { rowIndex: badRow }, { mode, expectedMismatchCount: expected.length });
-  };
-
-  const checkGraph = () => {
-    const ok = graphId === targetId;
-    submit({ isCorrect: ok, score: ok ? 1 : 0 }, { graphId }, { mode, targetId });
   };
 
   const selectRepresentation = (label, value, setter) => {
@@ -353,25 +349,25 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
           {selectRepresentation('Equation', equation, setEquation)}
           {selectRepresentation('Table', table, setTable)}
           {selectRepresentation('Context', context, setContext)}
-          <button type="button" onClick={checkCompleteSet} style={buttonStyle}>Check set</button>
+          <button type="button" onClick={check} style={buttonStyle}>Check set</button>
         </> : null}
 
         {mode === 'findMismatch' ? <>
           <p>Two of these cards describe the same relationship. Select the one that does not belong.</p>
           <div style={{ display: 'grid', gap: 10 }}>{cards.map((card) => <button type="button" key={card.kind} onClick={() => setMismatchKind(card.kind)} style={{ textAlign: 'left', padding: 12, borderRadius: 10, border: mismatchKind === card.kind ? '2px solid #1a73e8' : '1px solid #d9e2f1', background: mismatchKind === card.kind ? '#eef4ff' : '#fff', cursor: 'pointer' }}><strong style={{ textTransform: 'capitalize' }}>{card.kind}</strong><div style={{ marginTop: 5, color: '#44536a' }}>{card.kind === 'equation' ? <MathDisplay value={card.value} format="ascii-math" inline /> : card.value}</div></button>)}</div>
-          <button type="button" onClick={checkMismatch} disabled={!mismatchKind} style={{ ...buttonStyle, marginTop: 12, opacity: mismatchKind ? 1 : .55 }}>Check mismatch</button>
+          <button type="button" onClick={check} disabled={!mismatchKind} style={{ ...buttonStyle, marginTop: 12, opacity: mismatchKind ? 1 : .55 }}>Check mismatch</button>
         </> : null}
 
         {mode === 'tableAudit' ? <>
           <p>Exactly one row does not satisfy the relationship. Select it.</p>
           <div style={{ display: 'grid', gap: 8 }}>{tableRows.map((row, index) => <button type="button" key={index} onClick={() => setBadRow(index)} style={{ padding: 10, borderRadius: 9, border: badRow === index ? '2px solid #1a73e8' : '1px solid #d9e2f1', background: badRow === index ? '#eef4ff' : '#fff', fontWeight: 700, cursor: 'pointer' }}>Row {index + 1}: ({row[0]}, {row[1]})</button>)}</div>
-          <button type="button" onClick={checkTable} disabled={badRow == null} style={{ ...buttonStyle, marginTop: 12, opacity: badRow == null ? .55 : 1 }}>Check row</button>
+          <button type="button" onClick={check} disabled={badRow == null} style={{ ...buttonStyle, marginTop: 12, opacity: badRow == null ? .55 : 1 }}>Check row</button>
         </> : null}
 
         {mode === 'graphMatch' ? <>
           <p><strong>Target equation:</strong> {targetSet?.equation ? <MathDisplay value={targetSet.equation} format="ascii-math" inline /> : 'Match the target relationship.'}</p>
           <div style={{ display: 'grid', gap: 12 }}>{sets.map((item, index) => <button type="button" key={item.id} onClick={() => setGraphId(item.id)} style={{ textAlign: 'left', padding: 10, borderRadius: 12, border: graphId === item.id ? '2px solid #1a73e8' : '1px solid #d9e2f1', background: graphId === item.id ? '#eef4ff' : '#fff', cursor: 'pointer' }}><strong>Graph {String.fromCharCode(65 + index)}</strong><div style={{ marginTop: 8 }}><CoordinatePlane enlargeable={false} width={420} height={230} {...graphMatchBounds} functions={[x => evaluateFunctionSpec(item.graphSpec || {}, x)]} /></div></button>)}</div>
-          <button type="button" onClick={checkGraph} disabled={!graphId} style={{ ...buttonStyle, marginTop: 12, opacity: graphId ? 1 : .55 }}>Check graph</button>
+          <button type="button" onClick={check} disabled={!graphId} style={{ ...buttonStyle, marginTop: 12, opacity: graphId ? 1 : .55 }}>Check graph</button>
         </> : null}
 
         {mode === 'linearConnections' && linearTask === 'group' ? <div className="mathmaster-line-sort" style={{ textAlign: 'left' }}>
@@ -441,7 +437,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
               );
             })}
           </div>
-          <button type="button" onClick={checkLinearGroup} style={{ ...buttonStyle, marginTop: 12 }}>Check groups</button>
+          <button type="button" onClick={check} style={{ ...buttonStyle, marginTop: 12 }}>Check groups</button>
         </div> : null}
 
         {mode === 'linearConnections' && linearTask === 'findMismatch' ? <>
@@ -469,7 +465,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
               </select>
             </label>
           ) : null}
-          <button type="button" onClick={checkLinearMismatch} disabled={!mismatchSelection} style={{ ...buttonStyle, marginTop: 12, opacity: mismatchSelection ? 1 : .55 }}>Check answer</button>
+          <button type="button" onClick={check} disabled={!mismatchSelection} style={{ ...buttonStyle, marginTop: 12, opacity: mismatchSelection ? 1 : .55 }}>Check answer</button>
         </> : null}
 
         {feedback ? (() => {
@@ -484,7 +480,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                   : mode === 'graphMatch'
                     ? 'That graph does not match. Check the y-intercept first, then the overall shape.'
                     : mode === 'linearConnections' && linearTask === 'group'
-                      ? `${feedback.metadata?.correctPairs ?? 0} of ${feedback.metadata?.totalPairs ?? 0} card pairings are correct so far. Convert each card to slope-intercept form and compare.`
+                      ? `${(feedback.metadata?.parts || []).find((part) => part.id === 'pairings')?.response || '0 of 0'} card pairings are correct so far. Convert each card to slope-intercept form and compare.`
                       : 'That card is actually consistent with the others. Recheck each card’s slope and intercept against the others.';
           return <div style={{ marginTop: 14 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{ margin: '9px 0 0', color: '#3c4756', lineHeight: 1.55 }}>{message}</p></div>;
         })() : null}

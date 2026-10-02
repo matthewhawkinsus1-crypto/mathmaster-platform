@@ -147,6 +147,9 @@ export const summarizePlayers = ({ players = [], totalRounds = 0 } = {}) => {
 export const buildChallengeReport = ({
   room = {},
   scheduledRoundCount = 0,
+  // Scheduled rounds the game actually played (fewer when the teacher ended
+  // it early); null when unknown, which reads as the whole schedule.
+  playedRoundCount = null,
   roundMisses = {},
   roundStandards = {},
   secondChanceOf = {},
@@ -176,6 +179,9 @@ export const buildChallengeReport = ({
     finishedAt: finishedAt || null,
 
     scheduledRoundCount: Math.max(0, Math.floor(Number(scheduledRoundCount) || 0)),
+    playedRoundCount: Number.isFinite(Number(playedRoundCount)) && playedRoundCount !== null
+      ? Math.max(0, Math.min(Math.floor(Number(scheduledRoundCount) || 0), Math.floor(Number(playedRoundCount))))
+      : Math.max(0, Math.floor(Number(scheduledRoundCount) || 0)),
     secondChanceRoundCount: replays,
 
     playedCount: played.length,

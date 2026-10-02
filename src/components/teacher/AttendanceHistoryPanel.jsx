@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { formatStudentName } from '../../platform/studentName';
+import { STUDENT_NAME_UNAVAILABLE, formatStudentLabel, formatStudentName } from '../../platform/studentName';
 import { studentsInClass } from '../../../functions/shared/classModel.mjs';
 import { classifySchoolDay, localDateKeyOf, MEETING_STATUS } from '../../platform/attendance/classMeetings.js';
 import {
@@ -151,11 +151,15 @@ export default function AttendanceHistoryPanel({
     supportEvents: scopedEvents, classId, dateKey,
   }), [scopedEvents, classId, dateKey]);
 
-  const sortedRoster = useMemo(() => [...roster].sort((a, b) => (
-    formatStudentName(a, { lastFirst: false, fallbackToId: false }).localeCompare(
-      formatStudentName(b, { lastFirst: false, fallbackToId: false }),
-    )
-  )), [roster]);
+  // Named students by name; any with no name on file after them, by id.
+  const sortedRoster = useMemo(() => roster
+    .map((student) => ({
+      student,
+      id: String(student?.id || student?.studentId || ''),
+      name: formatStudentName(student, { lastFirst: false, fallbackToNeutral: false }),
+    }))
+    .sort((a, b) => Number(!a.name) - Number(!b.name) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+    .map((entry) => entry.student), [roster]);
 
   const submitCorrection = async (student, mark) => {
     if (!onRecordCorrection) return;
@@ -221,7 +225,9 @@ export default function AttendanceHistoryPanel({
         <div style={{ display: 'grid', gap: 8 }}>
           {sortedRoster.map((student) => {
             const id = String(student?.id || student?.studentId || '');
-            const name = formatStudentName(student, { lastFirst: false, fallbackToId: false }) || 'Student';
+            // The name, or "Name unavailable" — the id is the secondary line
+            // below, labelled as an id, never the name.
+            const name = formatStudentName(student, { lastFirst: false, fallbackToNeutral: false }) || STUDENT_NAME_UNAVAILABLE;
             const effective = effectiveByStudentId[id] || null;
             const style = effective ? MARK_STYLE[effective.mark] || {} : { color: '#80868b', background: '#f1f3f4' };
             const expanded = expandedStudentId === id;
@@ -238,7 +244,7 @@ export default function AttendanceHistoryPanel({
                 return (
                   <div key={reviewKey} style={{ padding: '9px 11px', borderRadius: 9, border: '2px solid #d9a400', background: '#fff8df', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                     <div style={{ fontSize: 12, color: '#6a4900' }}>
-                      <strong>Review needed for {name}</strong> · {assignment.title || 'Untitled assignment'}: a correction would shorten the extension from {resolution.existing?.dateKey} to {resolution.proposed?.dateKey}.
+                      <strong>Review needed for {formatStudentLabel(student, { lastFirst: false })}</strong> · {assignment.title || 'Untitled assignment'}: a correction would shorten the extension from {resolution.existing?.dateKey} to {resolution.proposed?.dateKey}.
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button

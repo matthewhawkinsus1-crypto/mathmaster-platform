@@ -28,6 +28,11 @@ import useMathUndoHistory, { WorkViewUndoProvider, questionUndoResetKey, useActi
 import { Panel, ResultPill, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
 import { useToolRuntimeContext } from '../shared/ToolRuntimeContext';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import systemsWorkspaceGrader from '../../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
+import { solvedValuesWork, verificationSidesWork } from '../../../functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs';
+import { planePairs } from './spatialFeedback.js';
 import MathDisplay from '../../MathDisplay';
 import AlgebraicSystemMode, {
   EmbeddedStepAlgebra,
@@ -235,9 +240,10 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
   // After classifying, the student states how the planes meet (#392): the
   // geometry the combined Day 2 items used to ask is answered, not captioned.
   const planeQuestion = useMemo(() => ({ ...questionData, equations: system.equations.map((equation) => equation.text), variables: system.variables }), [questionData, system]);
-  // EVERY PLACE INTERPRETING THE RESULT COULD SAY "RIGHT OR WRONG", DECIDED
-  // ONCE: when the classification counts as done, when the planes do, what
-  // the checks say, and how the submission is graded.
+  // EVERY PLACE INTERPRETING THE RESULT COULD SAY "RIGHT OR WRONG" BEFORE
+  // SUBMIT, DECIDED ONCE: when the classification counts as done, when the
+  // planes do, and what the checks say. The grade is the shared grader's, from
+  // the work below (check).
   const interpretation = useMemo(() => resolveInterpretationGate({
     showImmediateFeedback,
     outcome,
@@ -291,33 +297,42 @@ export default function EliminationReductionMode({ questionData = {}, onAction, 
     if (value != null) apply(recordEliminationBackSolve(elimination, value, text));
   }, [apply, elimination, variable]);
 
+  /*
+   * THE STUDENT'S WORK, AS THE SHARED GRADER READS IT
+   * (functions/shared/serverGrading/tools/systemsWorkspace/algebraic.mjs):
+   * every value found so far and the sides typed in each original-equation
+   * check; or, once the algebra reaches a statement with no variable, that
+   * checked statement, the classification the student RECORDED for it (never
+   * the outcome type the rows imply) with their reading of the statement, and
+   * how they say each pair of planes meets. The record is classificationRecord,
+   * the one the interpretation gate reads. Never the key, never a
+   * checked/valid flag. Reported live so a deadline can finalize it; Check
+   * submits this same object.
+   */
+  const recordedClassification = classificationRecord?.choice || '';
+  const work = {
+    dimension: config.dimension,
+    method: 'elimination',
+    values: solvedValuesWork(solution),
+    verification: verificationSidesWork(elimination.verification),
+    outcome: outcome ? {
+      statement: outcome.statement,
+      classificationChoice: recordedClassification,
+      classificationKind: classificationRecord?.kind || '',
+      planes: Object.fromEntries(planePairs(3).map(({ id }) => [id, planeWork?.answers?.[id] || ''])),
+    } : null,
+  };
+  useReportToolWork(work);
+
   const readyToSubmit = phase === 'complete' || (phase === 'classified' && planesEarned);
   const check = () => {
-    const key = answerKey;
-    // An interpretation is graded from the answers the student recorded —
-    // never from the fact that they were recorded, which on a DOL is all
-    // "classified" means.
-    const interpreted = Boolean(outcome) && interpretation.grade.isCorrect;
-    const valuesCorrect = interpreted || Boolean(fullSolution && key.type === 'unique'
-      && system.variables.every((name) => Number.isFinite(fullSolution[name]) && Math.abs(fullSolution[name] - key.solution[name]) <= 1e-6 * Math.max(1, Math.abs(key.solution[name]))));
-    const verified = interpreted || !config.requireVerification || allVerified;
-    const isCorrect = valuesCorrect && verified;
-    submit({ isCorrect, score: outcome ? interpretation.grade.score : (isCorrect ? 1 : 0) }, outcome ? { classification: classificationRecord?.choice || '', kind: classificationRecord?.kind || '', statement: outcome.statement, planes: planeWork?.answers || {} } : fullSolution, {
-      ...(outcome ? { parts: interpretation.grade.parts } : {}),
+    const result = gradeToolCheck(systemsWorkspaceGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, {
       mode: 'algebraic',
       dimension: config.dimension,
       method: 'elimination',
-      elimination: {
-        variable,
-        round1: elimination.rounds.round1,
-        round2: elimination.rounds.round2,
-      },
-      reducedSystem: reduced ? { variables: reduced.variables, equations: reduced.equations.map((equation) => equation.text) } : null,
-      subsystem: subsystemState?.detail || null,
-      backSubstitution: { ...elimination.back, equation: backEquation },
-      verification: elimination.verification,
-      solution: fullSolution,
-      expected: key,
+      eliminatedVariable: variable,
+      parts: result.parts,
     });
   };
 

@@ -294,7 +294,7 @@ export const planLifecycleCommand = ({
       const versionMatches = expected?.roundVersion == null || integerOr(expected.roundVersion, null) === current.roundVersion;
       const tokenMatches = expected?.roundToken == null || String(expected.roundToken) === String(current.roundToken || '');
       if (!versionMatches || !tokenMatches) {
-        return reject(LIFECYCLE_REJECTION.STALE_ROUND, 'That submission belongs to a stale round version.');
+        return reject(LIFECYCLE_REJECTION.STALE_ROUND, 'That round has changed since your screen loaded it, so this answer was not counted.');
       }
       if (roundState !== ROUND_STATE.OPEN) {
         return reject(LIFECYCLE_REJECTION.ROUND_NOT_OPEN, 'That Live Challenge round is no longer active.');

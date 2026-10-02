@@ -43,12 +43,17 @@ test('V1.3 freeform add-subtract placement remains', () => {
   // each position. (The workspace itself no longer applies them to draw a
   // preview inside the equation — issue #341.) The workspace makes the move
   // through makePendingMove, the route a restored draft takes too
-  // (algebraDraftState.js), and that hands the positions to the engine.
+  // (algebraDraftState.js), and that hands the positions to the engine and
+  // keeps them on the move, where a step's raw work reads them so the server
+  // recomputes the same move (algebraPendingMoveDraft.test.mjs runs both).
   const attempt = region(src, 'const attemptMove = async', 'setPendingMove(move);', 'attemptMove');
   assert.match(attempt, /makePendingMove\(\{[^}]*placementBySide: placementBySideOverride \|\| placedOperationPositions/);
   const draftState = fs.readFileSync('src/algebraDraftState.js', 'utf8');
-  assert.match(region(draftState, 'export const makePendingMove', '\n};', 'makePendingMove'), /applyBalancedOperation\(\{[^}]*placementBySide: placement\b/);
-  const engine = fs.readFileSync('src/algebraAstEngine.js', 'utf8');
+  const makeMove = region(draftState, 'export const makePendingMove', '\n};', 'makePendingMove');
+  assert.match(makeMove, /applyBalancedOperation\(\{[^}]*placementBySide: placement\b/);
+  assert.match(makeMove, /\n\s*placementBySide: placement,\n/, 'the move keeps the positions it was made with');
+  // The engine moved to functions/shared (src/algebraAstEngine.js re-exports it).
+  const engine = fs.readFileSync('functions/shared/algebra/algebraAstEngine.mjs', 'utf8');
   assert.match(engine, /applyOperationToExpression\(equationState\.left, operation, operand\.expression, placementBySide\?\.left\)/);
   assert.match(engine, /applyAdditiveOperationAtPlacement\(expression, operation, operandExpression, placement\)/);
 });

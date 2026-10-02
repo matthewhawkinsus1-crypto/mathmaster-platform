@@ -60,13 +60,14 @@ test('both intercepts checked shows one completion summary and is re-reported af
   const content = region(orchestrator, 'const content = bothInterceptsFound ?', ') : !stage.committed ?', 'completion content');
   assert.match(content, /Both intercepts found\./);
   assert.match(content, /\{!disabled \? .*Submit your answer to finish this question\./s);
-  // The payload grades each intercept against the equation, so it needs the
-  // equation (interceptOutcomePolicy.test.mjs).
-  const restore = region(orchestrator, 'const bothInterceptsFound =', 'if (!standard ||', 'restored completion effect');
-  assert.match(restore, /onStateChange\?\.\(interceptCompletionPayload\(work, standard\)\)/);
+  // Both reports are the same payload — the shared grader's verdict on the
+  // recorded pairs, graded against the question's own line
+  // (interceptOutcomePolicy.test.mjs) — built from the work as it stands.
+  const restore = region(orchestrator, 'const bothInterceptsFound =', 'const standardUsable', 'restored completion effect');
+  assert.match(restore, /onStateChange\?\.\(interceptCompletionPayload\(work\)\)/);
   assert.match(restore, /completionReportedRef\.current = true/);
   const check = region(orchestrator, 'const finishedWork = {', 'const activeRedirect', 'final check');
-  assert.match(check, /onStateChange\?\.\(interceptCompletionPayload\(finishedWork, standard\)\)/);
+  assert.match(check, /onStateChange\?\.\(interceptCompletionPayload\(finishedWork\)\)/);
 });
 
 test('intercept controls use student words, never staging vocabulary', () => {

@@ -231,8 +231,14 @@ export const moveCursor = (view = {}, cursor = {}, key, { large = false } = {}) 
 export const describeCursor = (question, cursor) => {
   if (!question?.graph) return '';
   const curveY = evaluateGraph(question.graph, cursor.x);
-  const curve = Number.isFinite(curveY)
-    ? `The curve is at y ${formatCoordinate(Math.round(curveY * 100) / 100)}.`
-    : 'The curve does not reach this x.';
+  const rounded = Math.round(curveY * 100) / 100;
+  let curve = 'The curve does not reach this x.';
+  // A curve hugging the axis is not on it: rounding 0.003 to "y 0" would
+  // announce an x-intercept that is not there.
+  if (Number.isFinite(curveY) && rounded === 0 && Math.abs(curveY) > 1e-9) {
+    curve = `The curve is just ${curveY > 0 ? 'above' : 'below'} y 0.`;
+  } else if (Number.isFinite(curveY)) {
+    curve = `The curve is at y ${formatCoordinate(rounded)}.`;
+  }
   return `Pointer at ${formatPoint(cursor)}. ${curve}`;
 };

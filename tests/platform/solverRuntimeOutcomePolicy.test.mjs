@@ -30,6 +30,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { solutionRepresentationStageStatus } from '../../src/platform/curriculum/inequalityRepresentationPolicy.js';
+import { parseRelationSource } from '../../src/algebraRelationFoundation.js';
+import { relationWorkspaceWork, stepAlgebraWorkGrader } from '../../functions/shared/serverGrading/stepAlgebraWorkspaceGrading.mjs';
 import { constraintChecklistView, scoreConstraintModel } from '../../src/tools/constraintFunctionBuilder/constraintFunctionMath.js';
 import { modelingLabResultView } from '../../src/components/labs/modelingLabResultView.js';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
@@ -57,25 +59,56 @@ test('where outcomes are shown the stage is done only once its check passed — 
   assert.equal(solutionRepresentationStageStatus({ representationCorrect: false }).done, false, 'default: outcomes shown');
 });
 
+// The relation solver's verdict is the shared grader's (the function the
+// server runs on the same work): 2x + 3 <= 7 solved to x <= 2, then graphed
+// and written in interval notation in the embedded number line.
+const REPRESENT = { type: 'stepAlgebra', prompt: 'Solve and graph.', equation: '2x + 3 <= 7' };
+const graphed = (representation) => stepAlgebraWorkGrader.grade(
+  REPRESENT,
+  relationWorkspaceWork({ relationState: parseRelationSource('x <= 2', 'x'), representation }),
+);
+const ray = { intervals: [{ min: -Infinity, max: 2, minClosed: false, maxClosed: true }], notation: '(-\\infty, 2]', inequality: '' };
+const openEnd = { intervals: [{ min: -Infinity, max: 2, minClosed: false, maxClosed: false }], notation: '(-\\infty, 2)', inequality: '' };
+const representationPart = (result) => result.parts.find((part) => part.id === 'solution-representations');
+
+test('the shared grader finishes the stage once the number line is checked, and grades the graph right or wrong', () => {
+  const right = graphed(ray);
+  const wrong = graphed(openEnd);
+  assert.deepEqual([right.isComplete, right.isCorrect, representationPart(right).isCorrect], [true, true, true]);
+  assert.equal(wrong.isComplete, true, 'a wrong graph no longer holds the question open: Submit is not the verdict');
+  assert.equal(wrong.isCorrect, false, 'it is still graded wrong');
+  assert.deepEqual([representationPart(wrong).isComplete, representationPart(wrong).isCorrect], [true, false]);
+  assert.equal(graphed(null).isComplete, false, 'unchecked is unfinished');
+  assert.equal(graphed({ intervals: [], notation: '', inequality: '' }).isComplete, false, 'a Check of an empty number line is not an answer');
+  assert.equal(graphed({ ...ray, notation: '' }).isComplete, false, 'nor is one with an asked stage left blank');
+});
+
 const relation = executableSource(componentSource('src/MultiRelationAlgebraCore.jsx'));
 const engine = executableSource(componentSource('src/QuestionEngine.jsx'));
 
 test('the relation solver decides completion and correctness of the stage through the status, fed by the runtime policy', () => {
   assert.match(relation, /import \{ useToolRuntimeContext \} from '\.\/tools\/shared\/ToolRuntimeContext';/);
   assert.match(relation, /\n\s*const \{ showImmediateFeedback, onHintUsed: reportHintUse \} = useToolRuntimeContext\(\);/);
-  assert.match(relation, /\n\s*const representationStage = solutionRepresentationStageStatus\(\{ showImmediateFeedback, representationCorrect \}\);/);
-  const complete = region(relation, 'const fullyComplete = !pendingRelationFlip', 'useEffect(', 'completion');
-  assert.match(complete, /&& \(!requireRepresentations \|\| representationStage\.done\);/);
-  assert.match(complete, /const fullyCorrect = fullyComplete && candidateVerificationCorrect\s*&& \(!requireRepresentations \|\| representationStage\.correct\);/);
-  assert.doesNotMatch(complete, /representationCorrect === true/, 'no second, ungated completion rule');
-  // The part sent with the attempt is still graded from the check's verdict.
-  const part = region(relation, "id: 'solution-representations',", 'response:', 'representation part');
-  assert.match(part, /isCorrect: representationCorrect === true,/);
+  // The stage status reads the shared grader's own representation part.
+  const status = region(relation, 'const representationPart = ', 'useEffect(', 'stage status');
+  assert.match(status, /sharedResult\.parts\.find\(\(part\) => part\.id === 'solution-representations'\)/);
+  assert.match(status, /const representationStage = solutionRepresentationStageStatus\(\{\s*showImmediateFeedback,\s*representationCorrect: representationPart\?\.isComplete \? representationPart\.isCorrect : null,\s*\}\);/);
+  assert.doesNotMatch(relation, /setRepresentationCorrect|representationCorrect ===/, 'no second, local verdict on the graph');
+  // The report is the shared grader's verdict; where outcomes are shown it
+  // also waits for a right graph, by withholding completion — never granting it.
+  const report = region(relation, 'const relationText = relationStateToText(relationState);', 'onRelationDisplayChange?.(relationStateToLatex', 'state report');
+  assert.match(report, /const finished = shared\.isComplete && \(!requireRepresentations \|\| representationStage\.done\);/);
+  assert.match(report, /\.\.\.\(finished \? \{\} : \{ isComplete: false \}\),/);
+  assert.match(report, /responseKey: finished \?/);
+  assert.doesNotMatch(report, /isComplete:(?!\s*false\b)/);
 });
 
 test('the relation solver records number-line hints and words the withheld stage neutrally', () => {
   const stage = region(relation, '<IntervalNumberLine', '</section>', 'number line stage');
-  assert.match(stage, /if \(action === 'ATTEMPT_SUBMITTED'\) \{\s*setRepresentationCorrect\(Boolean\(payload\?\.isCorrect\)\);/);
+  // The checked WORK is kept for the shared grader, and dropped when the
+  // student changes it after its Check (ATTEMPT_WITHDRAWN).
+  assert.match(stage, /if \(action === 'ATTEMPT_SUBMITTED'\) \{\s*setRepresentationWork\(payload\?\.response \?\? null\);/);
+  assert.match(stage, /if \(action === 'ATTEMPT_WITHDRAWN'\) setRepresentationWork\(null\);/);
   assert.match(stage, /if \(action === 'HINT_USED'\) reportHintUse\?\.\(\);/);
   assert.match(stage, /\{representationStage\.recordedNotice \? \(/);
   const notice = region(stage, '{representationStage.recordedNotice ? (', ') : null}', 'recorded notice');

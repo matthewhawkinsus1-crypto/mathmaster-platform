@@ -25,6 +25,11 @@
  *     is on one of the student's OWN lines, never because it is on a true one;
  *   - each constraint is graded at submission from the work as it stands.
  *
+ * Nothing here grades. The grade is the workspace's shared grader's, the
+ * function the server runs (serverGrading/tools/systemsWorkspace/graphical.mjs):
+ * the screen's work carries `outcomesWithheld` where they are withheld, and the
+ * grader then marks each constraint as it stands instead of checked-and-right.
+ *
  * With outcomes shown, everything below is exactly the behaviour practice had.
  * No React here, so it is tested in node (tests/platform/inequalityBuildOutcomePolicy).
  */
@@ -71,12 +76,6 @@ export const resolveInequalityBuildGate = ({
     constraintDone,
     // Whether "Find overlap / Combine regions" is open.
     allConstraintsDone: indices.length > 0 && indices.every(constraintDone),
-    // What a constraint is GRADED as at submission. Where outcomes are shown
-    // that stays "checked and right" (practice never changed); where they are
-    // withheld nothing needs checking, so it is the work as it stands.
-    constraintCorrect: (index) => (verdictsShown
-      ? constraintDone(index)
-      : Boolean(rewriteVerified(index)) && INEQUALITY_BUILD_STEPS.every((step) => !enabled(step) || Boolean(stepCorrect(index, step)))),
     // The line under a step's Check, once pressed: a verdict, or only whether
     // the step is finished.
     stepReport: (index, step) => {

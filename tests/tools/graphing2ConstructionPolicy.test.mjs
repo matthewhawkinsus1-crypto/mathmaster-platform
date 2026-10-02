@@ -131,3 +131,59 @@ test('factoredLinear supports negative and rational values and minimumPoints 3',
     assert.equal(evaluateConstruction(points, question, targetLineFromQuestion(question)).isCorrect, true);
   }
 });
+
+// --- Additive exports the shared grader and the component both read --------
+
+test('evaluateConstructionDetail carries exactly evaluateConstruction\'s result, plus its checks', async () => {
+  const { evaluateConstructionDetail } = await import('../../src/tools/graphing2/constructionPolicy.js');
+  const cases = [
+    [{ mode: 'slopeIntercept', line: { m: 2, b: -1 } }, [[3, 5], [5, 9]]],
+    [{ mode: 'slopeIntercept', line: { m: 2, b: -1 } }, [[0, -1], [0, -1]]],
+    [{ mode: 'slopeIntercept', line: { m: 2, b: -1 }, constructionPolicy: { strategy: 'formAware' } }, [[3, 5], [5, 9]]],
+    [{ mode: 'standardForm', standard: { A: 2, B: 1, C: 4 }, constructionPolicy: { strategy: 'formAware' } }, [[2, 0], [0, 4]]],
+    [{ mode: 'factoredLinear', factored: { a: 5, c: 6 }, constructionPolicy: { strategy: 'formAware', minimumPoints: 3 } }, [[6, 0], [7, 5], [7, 5]]],
+  ];
+  for (const [question, points] of cases) {
+    const target = targetLineFromQuestion(question);
+    const detail = evaluateConstructionDetail(points, question, target);
+    assert.deepEqual(detail.evidence, evaluateConstruction(points, question, target));
+    assert.equal(detail.legacy, detail.evidence.strategy !== 'formAware');
+  }
+  const coincident = evaluateConstructionDetail([[0, -1], [0, -1]], { mode: 'slopeIntercept', line: { m: 2, b: -1 } }, { kind: 'slopeIntercept', m: 2, b: -1 });
+  assert.equal(coincident.coincident, true);
+  assert.equal(coincident.evidence.score, 0.25);
+  const formAware = evaluateConstructionDetail([[3, 5], [5, 9]], { mode: 'slopeIntercept', line: { m: 2, b: -1 }, constructionPolicy: { strategy: 'formAware' } }, { kind: 'slopeIntercept', m: 2, b: -1 });
+  assert.deepEqual([formAware.lineCorrect, formAware.hasMinimumPoints, formAware.requiredAdditional], [true, true, 1]);
+  assert.deepEqual(formAware.anchorPointIndex, [-1]);
+});
+
+test('the Check gate: required points, and a line through the first two', async () => {
+  const { constructionReadyToCheck, requiredConstructionPointCount, constructionToleranceFor } = await import('../../src/tools/graphing2/constructionPolicy.js');
+  const line = { mode: 'slopeIntercept', line: { m: 2, b: -1 } };
+  const three = { ...line, constructionPolicy: { strategy: 'formAware', minimumPoints: 3 } };
+  assert.equal(requiredConstructionPointCount(line), 2);
+  assert.equal(requiredConstructionPointCount({ ...line, constructionPolicy: { strategy: 'equivalentLine', minimumPoints: 3 } }), 2);
+  assert.equal(requiredConstructionPointCount(three), 3);
+  assert.equal(requiredConstructionPointCount({ mode: 'throughPoints', constructionPolicy: { strategy: 'formAware', minimumPoints: 3 } }), 3);
+  assert.equal(constructionReadyToCheck([], line), false);
+  assert.equal(constructionReadyToCheck([[0, 0]], line), false);
+  assert.equal(constructionReadyToCheck([[0, 0], [0, 0]], line), false);
+  assert.equal(constructionReadyToCheck([[0, 0], [1, 5]], line), true);
+  assert.equal(constructionReadyToCheck([[0, -1], [1, 1]], three), false);
+  assert.equal(constructionReadyToCheck([[0, -1], [0, -1], [1, 1]], three), false);
+  assert.equal(constructionReadyToCheck([[0, -1], [1, 1], [2, 3]], three), true);
+  assert.equal(constructionToleranceFor(line), 0.12);
+  assert.equal(constructionToleranceFor({ tolerance: 0.5 }), 0.5);
+  assert.equal(constructionToleranceFor({ tolerance: '0.3' }), 0.3);
+});
+
+test('the target line after the tool\'s own default: y = 1.5x - 2 only for an unauthored slope-intercept question', async () => {
+  const { graphingTargetLine, withDefaultTargetLine } = await import('../../src/tools/graphing2/graphingMath.js');
+  assert.deepEqual(graphingTargetLine({}), { kind: 'slopeIntercept', m: 1.5, b: -2 });
+  assert.deepEqual(graphingTargetLine({ mode: 'slopeIntercept' }), { kind: 'slopeIntercept', m: 1.5, b: -2 });
+  assert.deepEqual(graphingTargetLine({ line: { m: 1, b: 4 } }), { kind: 'slopeIntercept', m: 1, b: 4 });
+  assert.equal(graphingTargetLine({ mode: 'unknown' }), null, 'no default outside slopeIntercept');
+  assert.equal(graphingTargetLine({ mode: 'slopeIntercept', line: {} }), null, 'an authored but empty line is not replaced');
+  const authored = { mode: 'pointSlope', point: [2, 3], slope: -1 };
+  assert.equal(withDefaultTargetLine(authored), authored);
+});

@@ -31,11 +31,15 @@ const DEFAULT_RUNTIME = {
   // as on a DOL before feedback is released.
   attemptOutcome: null,
   attemptOutcomeSlots: null,
+  // The channel a tool reports its LIVE raw work through (see
+  // useReportToolWork.js). QuestionEngine turns it into the response a
+  // deadline checkpoint carries; outside an assignment it is a no-op.
+  reportWork: null,
 };
 
 const ToolRuntimeContext = createContext(DEFAULT_RUNTIME);
 
-export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, hintsAllowed = true, onHintUsed = null, attemptOutcome = null, attemptOutcomeSlots = null, children }) => (
+export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswers = false, questionTerminal = false, hintsAllowed = true, onHintUsed = null, attemptOutcome = null, attemptOutcomeSlots = null, reportWork = null, children }) => (
   <ToolRuntimeContext.Provider value={{
     showImmediateFeedback: Boolean(showImmediateFeedback),
     revealAnswers: Boolean(revealAnswers),
@@ -46,6 +50,7 @@ export const ToolRuntimeProvider = ({ showImmediateFeedback = true, revealAnswer
     onHintUsed: typeof onHintUsed === 'function' ? onHintUsed : null,
     attemptOutcome: attemptOutcome && typeof attemptOutcome === 'object' ? attemptOutcome : null,
     attemptOutcomeSlots: attemptOutcomeSlots || null,
+    reportWork: typeof reportWork === 'function' ? reportWork : null,
   }}>
     {children}
   </ToolRuntimeContext.Provider>

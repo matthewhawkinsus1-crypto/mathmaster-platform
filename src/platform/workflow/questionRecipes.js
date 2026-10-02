@@ -316,7 +316,10 @@ const RELATION_REPRESENTATIONS = {
     if (!pairs.length) return {};
     const rules = {};
     if (asked.has('mapping')) rules.mapping = { pairs };
-    if (asked.has('plot')) rules.plot = { pairs };
+    // The plotting surface marks itself against exactly these pairs (its point
+    // tasks). A { pairs } rule compared the graph with a list of arrows, which
+    // a graph response never is, so every plot was marked wrong.
+    if (asked.has('plot')) rules.plot = { useStageVerdict: true };
     if (asked.has('domain')) rules.domain = { set: uniqueSorted(pairs.map(([x]) => x)) };
     if (asked.has('range')) rules.range = { set: uniqueSorted(pairs.map(([, y]) => y)) };
     if (asked.has('isFunction')) rules.isFunction = relationIsFunction(pairs) ? 'Yes' : 'No';

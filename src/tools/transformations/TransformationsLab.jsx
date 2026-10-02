@@ -6,20 +6,17 @@ import useMathUndoHistory, { questionUndoResetKey } from '../../platform/workVie
 import useViewportWidth from '../../platform/mobile/useViewportWidth.js';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
-import { matchesNumericAnswer, parseNumericAnswer } from '../shared/toolMath';
 import useToolSubmission from '../shared/useToolSubmission';
+import useReportToolWork from '../shared/useReportToolWork.js';
+import { gradeToolCheck } from '../shared/sharedToolGrading.js';
+import transformationsGrader from '../../../functions/shared/serverGrading/tools/transformationsLab.mjs';
 import {
-  TRANSFORMATION_FAMILIES,
   TRANSFORMATION_FAMILY_LABELS,
   evaluateParentFunction,
   evaluateTransformedFunction,
-  mapParentPoint,
-  mappedPointIsCorrect,
-  normalizeTransformationSpec,
-  transformationDescriptor,
-  transformationGraphScore,
-  transformationParameterScore,
-  transformedAnchor,
+  resolveTransformationsQuestion,
+  studentTransformationSpec,
+  transformedSourcePoints,
 } from './transformationsMath';
 
 const inputStyle = { width: '100%', padding: 9, marginTop: 5, border: '1px solid #cdd6e4', borderRadius: 8 };
@@ -71,14 +68,15 @@ const parameterFields = (values, setters, keys) => (
 export default function TransformationsLab({ questionData = {}, onAction }) {
   const viewportWidth = useViewportWidth();
   const mode = questionData.mode || 'match';
-  const requestedFamily = questionData.family || questionData.function?.type || questionData.type;
-  const family = TRANSFORMATION_FAMILIES.includes(requestedFamily) ? requestedFamily : 'quadratic';
-  const targetSpec = normalizeTransformationSpec({ type: family, ...questionData.target }, family);
-  const investigationSpec = normalizeTransformationSpec({ type: family, ...(questionData.function || questionData.target) }, family);
-  const [a, setA] = usePersistentToolState('a', String(questionData.initial?.a ?? 1));
-  const [b, setB] = usePersistentToolState('b', String(questionData.initial?.b ?? 1));
-  const [h, setH] = usePersistentToolState('h', String(questionData.initial?.h ?? 0));
-  const [k, setK] = usePersistentToolState('k', String(questionData.initial?.k ?? 0));
+  // The same reading of the question the shared grader marks against: the
+  // graph drawn here is, by construction, the graph the server grades.
+  const {
+    family, targetSpec, investigationSpec, anchor, parentPoint, sourcePoints, graphBounds, showB, startingValues,
+  } = resolveTransformationsQuestion(questionData);
+  const [a, setA] = usePersistentToolState('a', startingValues.a);
+  const [b, setB] = usePersistentToolState('b', startingValues.b);
+  const [h, setH] = usePersistentToolState('h', startingValues.h);
+  const [k, setK] = usePersistentToolState('k', startingValues.k);
   const [mappedX, setMappedX] = usePersistentToolState('mappedX', '');
   const [mappedY, setMappedY] = usePersistentToolState('mappedY', '');
   const [anchorX, setAnchorX] = usePersistentToolState('anchorX', '');
@@ -149,108 +147,72 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
     resetKey: questionUndoResetKey(questionData),
   });
 
-  const studentSpec = useMemo(() => normalizeTransformationSpec({ type: family, a, b, h, k, base: targetSpec.base }, family), [family, a, b, h, k, targetSpec.base]);
-  const descriptor = transformationDescriptor(investigationSpec);
-  const anchor = transformedAnchor(investigationSpec);
-  const parentPoint = questionData.parentPoint || anchor.parentPoint;
-  const expectedMappedPoint = mapParentPoint(parentPoint, investigationSpec);
-  const sourcePoints = Array.isArray(questionData.sourcePoints) ? questionData.sourcePoints : [];
-  const expectedTransformedPoints = sourcePoints.map((point) => mapParentPoint(point, investigationSpec)).filter(Boolean);
+  const studentSpec = useMemo(() => studentTransformationSpec({ family, base: targetSpec.base }, { a, b, h, k }), [family, a, b, h, k, targetSpec.base]);
+  // Only its length is shown (how many points to plot); the grader computes
+  // its own copy from the question.
+  const expectedTransformedPoints = transformedSourcePoints(sourcePoints, investigationSpec);
   const familyLabel = mode === 'plotTransform'
     ? (questionData.sourceLabel || 'General graph')
     : (TRANSFORMATION_FAMILY_LABELS[family] || family);
-  const graphBounds = questionData.graphBounds || { xMin: -7, xMax: 7, yMin: -7, yMax: 9 };
-  const showB = questionData.includeHorizontalScale === true
-    || questionData.target?.b != null
-    || questionData.function?.b != null
-    || questionData.initial?.b != null;
   const parameterKeys = showB ? ['a', 'b', 'h', 'k'] : ['a', 'h', 'k'];
   const parameterValues = showB ? [a, b, h, k] : [a, h, k];
   const parameterSetters = showB ? [setA, setB, setH, setK] : [setA, setH, setK];
 
-  const checkParameters = (expected) => {
-    const student = { a: Number(a), b: Number(b), h: Number(h), k: Number(k) };
-    const result = mode === 'match'
-      ? transformationGraphScore(studentSpec, expected, { xMin: graphBounds.xMin, xMax: graphBounds.xMax, tolerance: 0.02 })
-      : transformationParameterScore(student, expected, 0.01);
-    submit({ isCorrect: result.isCorrect, score: result.score }, student, { mode, family, graphEquivalent: mode === 'match' });
-  };
+  /*
+   * THE STUDENT'S WORK, EXACTLY AS THE SHARED GRADER READS IT.
+   *
+   * Per mode, the raw state of the inputs that mode shows: the parameter
+   * boxes (b only when there is a b box), the mapped coordinates, the plotted
+   * points in plotting order, the ten descriptions, or the feature's
+   * coordinates. A mode this lab does not recognise shows no panel, and its
+   * one Check (the Work View action) is the defining-feature check, so its
+   * work is the anchor boxes. The verdict comes from the grader the server
+   * runs; the same work is reported live so a deadline can finalize it.
+   */
+  const parameterWork = showB ? { a, b, h, k } : { a, h, k };
+  const work = mode === 'match' || mode === 'identify'
+    ? parameterWork
+    : mode === 'pointMap'
+      ? { mappedX, mappedY }
+      : mode === 'plotTransform'
+        ? { plottedPoints }
+        : mode === 'describe'
+          ? {
+            reflection, scaleKind, scaleFactor,
+            horizontalReflection, horizontalScaleKind, horizontalScaleFactor,
+            horizontalDirection, horizontalDistance,
+            verticalDirection, verticalDistance,
+          }
+          : { anchorX, anchorY };
+  useReportToolWork(work);
 
-  const checkPointMap = () => {
-    const response = [parseNumericAnswer(mappedX), parseNumericAnswer(mappedY)];
-    const bothEntered = response.every((value) => value != null);
-    const checks = bothEntered && expectedMappedPoint
-      ? [matchesNumericAnswer(mappedX, expectedMappedPoint[0], 0.01), matchesNumericAnswer(mappedY, expectedMappedPoint[1], 0.01)]
-      : [false, false];
-    submit(
-      { isCorrect: bothEntered && mappedPointIsCorrect(response, parentPoint, investigationSpec, 0.01), score: checks.filter(Boolean).length / 2 },
-      { parentPoint, mappedPoint: response },
-      { mode, family, checks },
-    );
-  };
-
-  const checkPlotTransform = () => {
-    const expectedCount = expectedTransformedPoints.length;
-    const matched = plottedPoints.reduce((count, point, index) => {
-      const expected = expectedTransformedPoints[index];
-      const correct = expected
-        && Math.abs(Number(point?.[0]) - Number(expected?.[0])) <= 0.01
-        && Math.abs(Number(point?.[1]) - Number(expected?.[1])) <= 0.01;
-      return count + (correct ? 1 : 0);
-    }, 0);
-    const isCorrect = expectedCount > 0 && plottedPoints.length === expectedCount && matched === expectedCount;
-    submit(
-      { isCorrect, score: expectedCount ? matched / expectedCount : 0 },
-      { sourcePoints, plottedPoints },
-      { mode, family, matched, expectedCount },
-    );
-  };
-
-  const checkDescription = () => {
-    const checks = [
-      reflection === (descriptor.reflection ? 'yes' : 'no'),
-      scaleKind === descriptor.verticalScaleKind,
-      matchesNumericAnswer(scaleFactor, descriptor.verticalScale, 0.01),
-      horizontalReflection === (descriptor.horizontalReflection ? 'yes' : 'no'),
-      horizontalScaleKind === descriptor.horizontalScaleKind,
-      matchesNumericAnswer(horizontalScaleFactor, descriptor.horizontalScale, 0.01),
-      horizontalDirection === descriptor.horizontalDirection,
-      matchesNumericAnswer(horizontalDistance, descriptor.horizontalDistance, 0.01),
-      verticalDirection === descriptor.verticalDirection,
-      matchesNumericAnswer(verticalDistance, descriptor.verticalDistance, 0.01),
-    ];
-    submit(
-      { isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length },
-      { reflection, scaleKind, scaleFactor: parseNumericAnswer(scaleFactor), horizontalReflection, horizontalScaleKind, horizontalScaleFactor: parseNumericAnswer(horizontalScaleFactor), horizontalDirection, horizontalDistance: parseNumericAnswer(horizontalDistance), verticalDirection, verticalDistance: parseNumericAnswer(verticalDistance) },
-      { mode, family, checks },
-    );
-  };
-
-  const checkAnchor = () => {
-    const checks = [matchesNumericAnswer(anchorX, anchor.point[0], 0.01), matchesNumericAnswer(anchorY, anchor.point[1], 0.01)];
-    submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 }, { x: parseNumericAnswer(anchorX), y: parseNumericAnswer(anchorY), feature: anchor.label }, { mode, family, checks });
+  const check = () => {
+    const result = gradeToolCheck(transformationsGrader, questionData, work);
+    submit({ isCorrect: result.isCorrect, score: result.score }, work, { mode, family, parts: result.parts });
   };
 
   // `enlargeable={false}`: this lab wraps its WHOLE split in Work View, so a
   // second enlarge button on the plane inside it would open a shell within a
   // shell and leave the parameter fields behind the inner backdrop.
   const graph = (functions, points = []) => <CoordinatePlane {...graphBounds} functions={functions} points={points} enlargeable={false} />;
+  const feedbackParts = Array.isArray(feedback?.metadata?.parts) ? feedback.metadata.parts : [];
+  const feedbackPartCorrect = (id) => feedbackParts.some((part) => part.id === id && part.isCorrect);
+  const feedbackPartsCorrect = feedbackParts.filter((part) => part.isCorrect).length;
   const feedbackMessage = () => {
     if (feedback.isCorrect) return 'Correct — every transformation feature matches.';
     if (mode === 'pointMap') {
-      const checks = feedback.metadata?.checks || [];
-      if (checks[0] && !checks[1]) return 'The x-coordinate is right. The y-coordinate is not: a scales the height and k shifts it, so apply both.';
-      if (!checks[0] && checks[1]) return 'The y-coordinate is right. The x-coordinate is not: only h moves a point horizontally.';
+      const xRight = feedbackPartCorrect('mapped-x');
+      const yRight = feedbackPartCorrect('mapped-y');
+      if (xRight && !yRight) return 'The x-coordinate is right. The y-coordinate is not: a scales the height and k shifts it, so apply both.';
+      if (!xRight && yRight) return 'The y-coordinate is right. The x-coordinate is not: only h moves a point horizontally.';
       return `Map the point one coordinate at a time. Start from (${parentPoint[0]}, ${parentPoint[1]}) and apply h to x, then a and k to y.`;
     }
     if (mode === 'plotTransform') {
-      const matched = Number(feedback.metadata?.matched || 0);
-      const expectedCount = Number(feedback.metadata?.expectedCount || expectedTransformedPoints.length || 0);
-      return `${matched} of ${expectedCount} defining points are in the correct transformed locations. Use x/b + h for x and ay + k for y.`;
+      const expectedCount = Number(feedbackParts.length || expectedTransformedPoints.length || 0);
+      return `${feedbackPartsCorrect} of ${expectedCount} defining points are in the correct transformed locations. Use x/b + h for x and ay + k for y.`;
     }
     if (mode === 'anchor') {
-      const checks = feedback.metadata?.checks || [];
-      if (checks.filter(Boolean).length === 1) return `One coordinate of the ${anchor.label} is right. Check the other — h moves it sideways and k moves it up or down.`;
+      if (feedbackPartsCorrect === 1) return `One coordinate of the ${anchor.label} is right. Check the other — h moves it sideways and k moves it up or down.`;
       return `Locate the ${anchor.label} on the graph and count gridlines: across for x first, then up or down for y.`;
     }
     if (mode === 'describe') return 'At least one description is off. Use “x\'s lie, y\'s tell the truth”: a acts directly on y; b acts oppositely/reciprocally on x; h and k give the translations.';
@@ -271,17 +233,19 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
    */
   const plotTransformIncomplete = !expectedTransformedPoints.length
     || plottedPoints.length !== expectedTransformedPoints.length;
+  // One Check for every mode: the shared grader resolves the mode exactly as
+  // this chain does (an unrecognised mode is the defining-feature check).
   const primaryAction = mode === 'match'
-    ? { id: 'check-transformation', label: 'Check transformation', onAction: () => checkParameters(targetSpec) }
+    ? { id: 'check-transformation', label: 'Check transformation', onAction: check }
     : mode === 'identify'
-      ? { id: 'check-parameters', label: 'Check parameters', onAction: () => checkParameters(investigationSpec) }
+      ? { id: 'check-parameters', label: 'Check parameters', onAction: check }
       : mode === 'pointMap'
-        ? { id: 'check-mapped-point', label: 'Check mapped point', onAction: checkPointMap }
+        ? { id: 'check-mapped-point', label: 'Check mapped point', onAction: check }
         : mode === 'plotTransform'
-          ? { id: 'check-graph', label: 'Check graph', onAction: checkPlotTransform, disabled: plotTransformIncomplete }
+          ? { id: 'check-graph', label: 'Check graph', onAction: check, disabled: plotTransformIncomplete }
           : mode === 'describe'
-            ? { id: 'check-description', label: 'Check description', onAction: checkDescription }
-            : { id: 'check-anchor', label: 'Check defining feature', onAction: checkAnchor };
+            ? { id: 'check-description', label: 'Check description', onAction: check }
+            : { id: 'check-anchor', label: 'Check defining feature', onAction: check };
   const clearPlottedPoints = () => { setPlottedPoints([]); resetFeedback(); };
   const workspaceCapabilities = {
     undo: undoHistory.capability,
@@ -332,21 +296,21 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
             <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 5 }} aria-hidden="true"><line x1="0" y1="4" x2="26" y2="4" stroke="#1a73e8" strokeWidth="3" /></svg><strong>Your graph</strong> — solid blue</span>
             <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 5 }} aria-hidden="true"><line x1="0" y1="4" x2="26" y2="4" stroke="#d93025" strokeWidth="3" strokeDasharray="8 5" /></svg><strong>Target</strong> — dashed red</span>
           </div>
-          <button type="button" onClick={() => checkParameters(targetSpec)} style={{ ...buttonStyle, marginTop: 12 }}>Check transformation</button>
+          <button type="button" onClick={check} style={{ ...buttonStyle, marginTop: 12 }}>Check transformation</button>
         </> : null}
 
         {mode === 'identify' ? <>
           <p>Read the transformed graph and recover its <strong>{parameterKeys.join(', ')}</strong> parameters.</p>
           {graph([x => evaluateTransformedFunction(investigationSpec, x)])}
           <div style={{ marginTop: 14 }}>{parameterFields(parameterValues, parameterSetters, parameterKeys)}</div>
-          <button type="button" onClick={() => checkParameters(investigationSpec)} style={{ ...buttonStyle, marginTop: 12 }}>Check parameters</button>
+          <button type="button" onClick={check} style={{ ...buttonStyle, marginTop: 12 }}>Check parameters</button>
         </> : null}
 
         {mode === 'pointMap' ? <>
           <p>Map the parent-function point <strong>({parentPoint[0]}, {parentPoint[1]})</strong> through the transformation.</p>
           {graph([x => evaluateParentFunction(family, x, investigationSpec.base), x => evaluateTransformedFunction(investigationSpec, x)], [{ x: parentPoint[0], y: parentPoint[1], label: 'parent' }])}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}><label>Transformed x<input type="number" value={mappedX} onChange={(event) => { setMappedX(event.target.value); resetFeedback(); }} style={inputStyle} /></label><label>Transformed y<input type="number" value={mappedY} onChange={(event) => { setMappedY(event.target.value); resetFeedback(); }} style={inputStyle} /></label></div>
-          <button data-mm-enter-action="submit" type="button" onClick={checkPointMap} style={{ ...buttonStyle, marginTop: 12 }}>Check mapped point</button>
+          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ ...buttonStyle, marginTop: 12 }}>Check mapped point</button>
         </> : null}
 
         {mode === 'plotTransform' ? <>
@@ -391,7 +355,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
               one press — so it stays. */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
             <button type="button" onClick={clearPlottedPoints} disabled={!plottedPoints.length} style={{ ...buttonStyle, background: 'var(--mm-surface)', color: '#5f6368', border: '1px solid #dadce0' }}>Clear</button>
-            <button data-mm-enter-action="submit" type="button" onClick={checkPlotTransform} disabled={plotTransformIncomplete} style={{ ...buttonStyle, opacity: plotTransformIncomplete ? 0.55 : 1 }}>Check graph</button>
+            <button data-mm-enter-action="submit" type="button" onClick={check} disabled={plotTransformIncomplete} style={{ ...buttonStyle, opacity: plotTransformIncomplete ? 0.55 : 1 }}>Check graph</button>
           </div>
           <p style={{ marginBottom: 0, color: '#5f6b7a', fontSize: 13 }}>{plottedPoints.length} of {expectedTransformedPoints.length} defining points plotted.</p>
         </> : null}
@@ -409,14 +373,14 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
           <label style={{ display: 'block', marginTop: 10 }}>Horizontal shift (units)<input type="number" step="0.5" min="0" value={horizontalDistance} onChange={(event) => setHorizontalDistance(event.target.value)} style={inputStyle} placeholder="0 if none" /></label>
           <label style={{ display: 'block', marginTop: 10 }}>Vertical translation<select value={verticalDirection} onChange={(event) => setVerticalDirection(event.target.value)} style={inputStyle}><option value="">Choose…</option><option value="up">Up</option><option value="down">Down</option><option value="none">None</option></select></label>
           <label style={{ display: 'block', marginTop: 10 }}>Vertical shift (units)<input type="number" step="0.5" min="0" value={verticalDistance} onChange={(event) => setVerticalDistance(event.target.value)} style={inputStyle} placeholder="0 if none" /></label>
-          <button data-mm-enter-action="submit" type="button" onClick={checkDescription} style={{ ...buttonStyle, marginTop: 12 }}>Check description</button>
+          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ ...buttonStyle, marginTop: 12 }}>Check description</button>
         </> : null}
 
         {mode === 'anchor' ? <>
           {graph([x => evaluateTransformedFunction(investigationSpec, x)])}
           <p>Identify the transformed <strong>{anchor.label}</strong>{anchor.isOnGraph ? '.' : '. This is structural and is not a point on the rational graph.'}</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><label>x-coordinate<input type="number" value={anchorX} onChange={(event) => setAnchorX(event.target.value)} style={inputStyle} /></label><label>y-coordinate<input type="number" value={anchorY} onChange={(event) => setAnchorY(event.target.value)} style={inputStyle} /></label></div>
-          <button data-mm-enter-action="submit" type="button" onClick={checkAnchor} style={{ ...buttonStyle, marginTop: 12 }}>Check defining feature</button>
+          <button data-mm-enter-action="submit" type="button" onClick={check} style={{ ...buttonStyle, marginTop: 12 }}>Check defining feature</button>
         </> : null}
         {feedbackBlock}
         <HintPanel hints={HINTS[mode] || HINTS.match} onHintUsed={() => onAction?.('HINT_USED')} />

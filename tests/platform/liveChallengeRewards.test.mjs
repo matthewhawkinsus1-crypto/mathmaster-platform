@@ -28,9 +28,11 @@ import {
   criterionMet,
   evaluateRewardPolicy,
   normalizeRewardPolicy,
+  participationFacts,
   rewardAwardIdentity,
   storedRewardPolicy,
 } from '../../functions/shared/liveChallengeRewardRules.mjs';
+import { explainStudentChallengeRewards } from '../../functions/shared/rewardDiagnostics.mjs';
 import { buildMatchResult } from '../../functions/shared/liveChallengeResults.mjs';
 
 /*
@@ -61,6 +63,34 @@ test('Finisher: answering at least 80% of the rounds a student could play', () =
 });
 
 /* ---------- Strong Accuracy (+3) ---------- */
+
+/*
+ * A GAME ENDED EARLY MEASURES STUDENTS AGAINST THE ROUNDS IT PLAYED. A teacher
+ * who ends a ten-round game after round three (the bell) used to deny the
+ * Finisher reward to every student who answered all three: 3 of 10 is 30%.
+ * The rule asks for most of the rounds a student COULD play.
+ */
+test('Finisher: a game ended early measures students against the rounds actually played', () => {
+  const standing = (studentId, answeredRounds, joinedAtRound = 0) => ({ studentId, joined: true, joinedAtRound, answeredRounds, roundsAnswered: answeredRounds.length });
+  const result = {
+    roomId: 'ended-early', status: 'finished', scheduledRoundCount: 10, playedRoundCount: 3, secondChanceOf: {},
+    standings: [standing('all-three', [0, 1, 2]), standing('two-of-three', [0, 2]), standing('late', [2], 2)],
+  };
+  const finishers = evaluateRewardPolicy({ matchResult: result }).filter((award) => award.ruleId === 'challengeFinisher').map((award) => award.studentId);
+  assert.deepEqual(finishers, ['all-three'], 'all three played rounds answered is a finish; 2 of 3 (67%) is not');
+  assert.deepEqual(participationFacts(result.standings[0], { scheduledRoundCount: 10, playedRoundCount: 3 }), { available: 3, answered: 3 });
+  // One played round left for the late arrival: below the two-round minimum, as before.
+  assert.deepEqual(participationFacts(result.standings[2], { scheduledRoundCount: 10, playedRoundCount: 3 }), { available: 1, answered: 1 });
+  // Second Chance replays push playedRoundCount past the schedule; they never count.
+  assert.deepEqual(participationFacts(standing('r', [0, 1, 2, 3, 10]), { scheduledRoundCount: 4, playedRoundCount: 6 }), { available: 4, answered: 4 });
+  // A result written before playedRoundCount existed is measured as it was then.
+  assert.deepEqual(participationFacts(standing('old', [0, 1, 2]), { scheduledRoundCount: 10 }), { available: 10, answered: 3 });
+  // The teacher's diagnostics say exactly what delivery decided.
+  const explained = explainStudentChallengeRewards({ matchResult: result, job: null, studentId: 'all-three' });
+  const finisher = explained.rules.find((rule) => rule.ruleId === 'challengeFinisher');
+  assert.equal(finisher.met, true);
+  assert.match(finisher.measured, /Answered 3 of 3 rounds/);
+});
 
 test('Strong Accuracy: at least 80% correct across at least 3 original rounds', () => {
   const strong = achievements({ joined: true, submissionReceipts: { r0: receipt(0, true), r1: receipt(1, true), r2: receipt(2, true), r3: receipt(3, true) } }, 5);

@@ -262,7 +262,7 @@ export const INTERACTIVE_CAPABILITIES = Object.freeze([
     requires: 'elimination',
     wiring: [
       { file: 'src/tools/systemsWorkspace/Algebraic3SystemMode.jsx', pattern: /<EliminationReductionMode/ },
-      { file: 'src/tools/systemsWorkspace/eliminationReduction.js', pattern: /checkEliminationCombination/ },
+      { file: 'functions/shared/toolMath/systemsWorkspace/eliminationReduction.mjs', pattern: /checkEliminationCombination/ },
     ],
     browser: { harness: 'tests/browser/algebraicSystems3x3.mjs', journey: 'student-3x3' },
   },
@@ -346,7 +346,7 @@ export const INTERACTIVE_CAPABILITIES = Object.freeze([
     expectedRoute: 'relation',
     requires: 'inequalitySignReversal',
     wiring: [
-      { file: 'src/platform/assignments/assignmentRuntimeRepair.js', pattern: /openSignAnalyzerWithoutFactors\(repaired\)/ },
+      { file: 'functions/shared/runtime/assignmentRuntimeRepair.mjs', pattern: /openSignAnalyzerWithoutFactors\(repaired\)/ },
     ],
     browser: { harness: 'tests/browser/capabilityCertification.mjs', journey: 'prompt-tool-match' },
   },

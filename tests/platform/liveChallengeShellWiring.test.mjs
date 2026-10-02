@@ -54,7 +54,14 @@ test('a live round says what comes next — its results — and when you finishe
 test('the student\'s connection status comes from the listener itself, honestly', () => {
   const listener = region(studentMain, '    return watchLiveChallengeRoom(roomId,', '}, [roomId]);', 'room listener');
   assert.match(listener, /\{ includeMetadataChanges: true \}/);
-  assert.match(listener, /setRoomFromCache\(fromCache\);\s*if \(!fromCache\) setEverInSync\(true\);/);
+  // Only the server's word counts: a cached copy proves neither that the
+  // device is in sync nor that the room is gone.
+  assert.match(listener, /setRoomFromCache\(fromCache\);\s*if \(!fromCache\) \{\s*setEverInSync\(true\);\s*setRoomMissing\(!next\);\s*\}/);
+  // A room the server says does not exist is said so in words, with the way
+  // out — never "Opening…" forever.
+  const missing = region(studentMain, '  if (!room || roomMissing) {', '\n  }\n', 'missing room screen');
+  assert.match(missing, /This Live Challenge is no longer available\./);
+  assert.match(missing, /\(roomMissing \|\| error\) && \(\s*<button type="button" onClick=\{onExit\}/);
   assert.match(studentMain, /const connection = studentConnectionState\(\{ online, fromCache: roomFromCache, everInSync \}\);/);
   assert.match(studentMain, /<ConnectionPill state=\{connection\} look="student" \/>/);
   const onlineEffect = region(studentMain, "window.addEventListener('online', update);", '}, []);', 'online listener');
@@ -86,6 +93,11 @@ test('a finished game: your place, then what reached your wallet, then the top o
   assert.deepEqual([...order].sort((left, right) => left - right), order, 'in that order');
   assert.match(finalCard, /selfRow\.tied \? `tied for \$\{ordinal\(selfRow\.rank\)\} ` : ''/, 'a shared place says so');
   assert.match(finalCard, /It does not change your assignment grade\./);
+  // Until the standings arrive (a refresh on the podium) the card waits in
+  // words; it never tells a player who was there that they joined too late.
+  assert.match(finalCard, /\{loading \? 'Loading your final place…' : 'You joined after the last round\.'\}/);
+  const finished = region(studentMain, "{room.status === 'finished' && (", "{room.status === 'cancelled' && (", 'finished view');
+  assert.match(finished, /loading=\{!playersFresh\}/);
 });
 
 /* ------------------------------ the boards themselves ------------------------------ */
@@ -136,6 +148,19 @@ test('destructive host actions are confirmed once; harmless ones never ask', () 
   assert.doesNotMatch(primary, /setConfirming/, 'Start and Next Round never ask');
 });
 
+test('a confirmation keeps keyboard focus where the teacher put it, and Tab inside it', () => {
+  const dialog = region(parts, 'export function ConfirmDialog(', '\nconst CONFETTI_COLORS', 'confirm dialog');
+  // The console hands a new onCancel every time a student's progress arrives:
+  // read through a ref, it can never re-run the focus effect (which put focus
+  // back on "Keep playing" under a teacher tabbing to the red button).
+  assert.match(dialog, /const onCancelRef = useLatest\(onCancel\);/);
+  assert.match(dialog, /\}, \[open, onCancelRef\]\);/);
+  assert.doesNotMatch(dialog, /\[open, onCancel\]/);
+  // aria-modal is kept: Tab and Shift+Tab wrap inside the dialog.
+  assert.match(dialog, /if \(event\.key !== 'Tab'\) return;/);
+  assert.match(dialog, /\(event\.shiftKey \? last : first\)\.focus\(\);/);
+});
+
 test('Play Again is a fresh match with the same settings; its name settings are secured or it is cancelled', () => {
   const replay = region(teacher, 'const playAgain = async () => {', '\n  };', 'play again');
   assert.match(replay, /const request = replayRequestFromRoom\(room, \{ rewardPolicy: buildChallengeRewardPolicy\(rewardChoice\) \}\);/);
@@ -147,11 +172,29 @@ test('Play Again is a fresh match with the same settings; its name settings are 
   assert.match(replay, /setRoomId\(result\.roomId\);/);
 });
 
-test('names reach the console only, and only while the game is live', () => {
-  const rosterEffect = region(teacher, '  // The names behind the game aliases, once per room, for this console.', '}, [roomId, roomLive]);', 'roster read');
-  assert.match(rosterEffect, /if \(!roomId \|\| !roomLive\) return undefined;/);
+/*
+ * NAMES ON THE CONSOLE — IN THE LOBBY, DURING THE GAME AND AFTER IT. The final
+ * standings are when a teacher most needs to know who "Algebra Hawk 91" is;
+ * the roster used to be read only while the game was live (a refresh on the
+ * podium lost it for good). Never for a cancelled game, asked again a few
+ * times while it knows fewer names than the room invited, and released on
+ * unmount. The projector is never handed names.
+ */
+test('names reach the console only — in the lobby, during the game and after it', () => {
+  assert.match(teacher, /const rosterWanted = Boolean\(room\) && room\.status !== 'cancelled';/);
+  const rosterEffect = region(teacher, '  // The names behind the game aliases, for this console:', '}, [roomId, rosterWanted, eligibleRef]);', 'roster read');
+  assert.match(rosterEffect, /if \(!roomId \|\| !rosterWanted\) return undefined;/);
   assert.match(rosterEffect, /getLiveChallengeHostRoster\(\{ roomId \}\)/);
-  assert.match(rosterEffect, /return \(\) => \{ cancelled = true; \};/);
+  assert.match(rosterEffect, /names\.length < eligibleRef\.current && attempts < 4/);
+  assert.match(rosterEffect, /return \(\) => \{ cancelled = true; window\.clearTimeout\(timer\); \};/);
+  // The final standings pair names with places only behind the console's
+  // "keep off while projected" switch.
+  const finished = region(teacher, '      {finished && (', '      {cancelled && (', 'finished stage');
+  assert.match(finished, /namesByKey=\{showAliases \? rosterNameByKey : null\}/);
+  // The projector receives neither the roster nor a name map.
+  const projectorCall = region(teacher, '    return <ChallengeProjector\n      room={room}', '/>;', 'projector render');
+  assert.doesNotMatch(projectorCall, /roster|namesByKey|rosterName/i);
+  assert.doesNotMatch(executableSource(projector), /getLiveChallengeHostRoster|namesByKey|rosterNames/);
 });
 
 test('the host reopens what it was hosting: a live game from the server, a finished one from this tab', () => {
@@ -174,6 +217,23 @@ test('the projector shows one view per stage, from the room\'s own clock', () =>
   // Full screen is offered, never required; a refusal leaves the CSS viewport.
   assert.match(component, /try \{ await shellRef\.current\?\.requestFullscreen\?\.\(\); \} catch \{ setNativeFullscreen\(false\); \}/);
   assert.match(component, /aria-pressed=\{audioMuted\} onClick=\{onToggleMute\}/, 'sound can always be muted');
+});
+
+test('the final standings under the podium show only rows that fit whole, and the note under them', () => {
+  // The viewport's row budget asked for five rows at 1366×768 where three
+  // fit; the rest, and "Everyone sees their own final place", were cut off.
+  const finale = region(projector, 'function FinalPodium(', '\nfunction LobbyView(', 'final podium');
+  assert.match(finale, /const fit = useRowsThatFit\(boardRef, Math\.min\(remaining\.length, Math\.max\(0, rows - 1\)\)\);/);
+  assert.match(finale, /const shownBelow = fit\.room \? remaining\.slice\(0, fit\.rows\) : \[\];/);
+  assert.match(finale, /<div ref=\{boardRef\} style=\{\{ minHeight: 0, overflow: 'hidden'/);
+  // With no room under the podium at all (150% zoom), the note moves into
+  // the podium's heading rather than vanishing.
+  assert.match(finale, /\{!fit\.room && someoneUnseen && <span data-mm-final-more="header">/);
+  const fit = region(projector, 'function useRowsThatFit(', '\nfunction FinalPodium(', 'row fit');
+  assert.match(fit, /Math\.floor\(\(space - FINAL_NOTE_PX \+ 6\) \/ rowHeight\)/);
+  assert.match(fit, /const room = space >= FINAL_NOTE_PX;/);
+  assert.match(fit, /new ResizeObserver\(measure\)/);
+  assert.match(fit, /return \(\) => observer\.disconnect\(\);/);
 });
 
 test('the podium handles ties and shows what placement earns', () => {

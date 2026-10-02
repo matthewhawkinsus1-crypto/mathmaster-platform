@@ -7,22 +7,35 @@
  * a relation a function, and a repeated output does not stop one. Only the
  * definition earns the mark.
  *
- * The tool and the server grader (pathToolContracts.mjs, relationMapping) both
- * read this file. They used to keep separate vocabularies: the tool sent
- * "yes-definition", the server knew only yes / no, so in My Math Path and Live
- * Challenge every function was marked wrong and every non-function right,
- * whatever the student chose.
+ * The tool, its registry grader (serverGrading/tools/relationMapping.mjs) and
+ * My Math Path's grader (pathToolContracts.mjs, relationMapping) all read this
+ * file. They used to keep separate vocabularies: the tool sent
+ * "yes-definition", the Path grader knew only yes / no, so in My Math Path and
+ * Live Challenge every function was marked wrong and every non-function
+ * right, whatever the student chose. Reading any "yes-…" as yes would mark the
+ * misconception right there while the tool marks it wrong, so every grader
+ * applies the one rule below.
  */
 
+/** The four choices, by value. The registry grader re-exports these. */
+export const FUNCTION_STATUS_CHOICES = Object.freeze({
+  YES_DEFINITION: 'yes-definition',
+  YES_OUTPUT_RULE: 'yes-output-rule',
+  NO_INPUT_REPEAT: 'no-input-repeat',
+  NO_OUTPUT_REPEAT: 'no-output-repeat',
+});
+
 export const FUNCTION_CHOICES = Object.freeze([
-  Object.freeze({ value: 'yes-definition', label: 'Yes — every input has exactly one output.' }),
-  Object.freeze({ value: 'yes-output-rule', label: 'Yes — every output value is used only once.' }),
-  Object.freeze({ value: 'no-input-repeat', label: 'No — at least one input has more than one output.' }),
-  Object.freeze({ value: 'no-output-repeat', label: 'No — at least one output value repeats.' }),
+  Object.freeze({ value: FUNCTION_STATUS_CHOICES.YES_DEFINITION, label: 'Yes — every input has exactly one output.' }),
+  Object.freeze({ value: FUNCTION_STATUS_CHOICES.YES_OUTPUT_RULE, label: 'Yes — every output value is used only once.' }),
+  Object.freeze({ value: FUNCTION_STATUS_CHOICES.NO_INPUT_REPEAT, label: 'No — at least one input has more than one output.' }),
+  Object.freeze({ value: FUNCTION_STATUS_CHOICES.NO_OUTPUT_REPEAT, label: 'No — at least one output value repeats.' }),
 ]);
 
 /** The one choice that is right for this relation. */
-export const correctFunctionChoice = (isFunction) => (isFunction ? 'yes-definition' : 'no-input-repeat');
+export const correctFunctionChoice = (isFunction) => (isFunction
+  ? FUNCTION_STATUS_CHOICES.YES_DEFINITION
+  : FUNCTION_STATUS_CHOICES.NO_INPUT_REPEAT);
 
 // The verdict alone: the Yes / No select the tool had before the reasons, and
 // content or older clients that send a boolean.

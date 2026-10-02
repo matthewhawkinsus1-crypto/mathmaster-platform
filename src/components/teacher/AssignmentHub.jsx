@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { assignmentIsForStudent, formatDateTime, getAssignmentLifecycle } from '../../assignmentLifecycle.js';
 import { studentsInClass } from '../../../functions/shared/classModel.mjs';
-import { formatStudentName } from '../../platform/studentName.js';
+import { formatStudentLabel } from '../../platform/studentName.js';
 import { projectCurrentAssignmentContent } from '../../platform/assignments/currentContentProjection.js';
 import { resolveAssignmentGradingPeriod } from '../../platform/student/gradingPeriods.js';
 import { describeClassLesson } from '../../platform/teacher/classLessonControls.js';
@@ -47,6 +47,11 @@ const statusPill = (lifecycle, assigned) => {
   if (lifecycle.isClosed) return { label: 'Closed · practice only', tone: 'neutral' };
   return { label: 'Open', tone: 'success' };
 };
+
+// Who-has-done-what lists name each student, or say "Name unavailable · ID x"
+// so two nameless students stay distinguishable and no id reads as a name.
+// Module-level so the support layer's memos see a stable function.
+const hubStudentName = (student) => formatStudentLabel(student);
 
 function NameList({ rows, onOpenStudent, onOpenStudentWork, detail }) {
   if (!rows.length) return <div className="tw-small tw-muted">Nobody.</div>;
@@ -180,7 +185,7 @@ export default function AssignmentHub({
   const sections = SECTION_ORDER.filter(([key]) => roleCounts[key]).map(([key, label]) => `${label} ${roleCounts[key]}`);
   const lesson = classContext ? describeClassLesson({ assignment, classContext, schedule: classSchedule, nowValue }) : null;
   const roster = classContext ? studentsInClass({ students, classes, classId: classContext.classId }) : [];
-  const nameOf = (student) => formatStudentName(student);
+  const nameOf = hubStudentName;
   const live = classContext ? classLiveProgress({ assignment, roster, presenceById, nowValue, nameOf }) : null;
   const fetched = classContext ? loadedGrades[classContext.classId] || null : null;
   const grades = !classContext

@@ -91,7 +91,12 @@ test('nothing is drawn before an option is chosen', () => {
 test('the preview never consults the answer key', () => {
   // Structural guarantee. previewFigures takes a label and nothing else; if it
   // could see which option was correct, it could draw that one differently.
-  const source = readFileSync('src/platform/workflow/choicePreview.js', 'utf8');
+  // The implementation lives in functions/shared (the server reads workflows
+  // with it too); the browser path is a re-export of that same module, so the
+  // source asserted here is the source the student's screen runs.
+  const shim = readFileSync('src/platform/workflow/choicePreview.js', 'utf8');
+  assert.match(shim, /export \* from '\.\.\/\.\.\/\.\.\/functions\/shared\/toolMath\/workflow\/choicePreview\.mjs'/);
+  const source = readFileSync('functions/shared/toolMath/workflow/choicePreview.mjs', 'utf8');
   const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
   // Named identifiers, not the word "answer" — that appears in a validation
   // message, which is prose rather than state.

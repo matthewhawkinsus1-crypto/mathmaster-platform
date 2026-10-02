@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { PRINT_OUTPUT_MODES } from '../../platform/resources/assignmentWorksheetPdfModel.js';
-import { compareStudentsByName, formatStudentName } from '../../platform/studentName.js';
+import { compareStudentsByName, formatStudentLabel } from '../../platform/studentName.js';
 
 const MODE_OPTIONS = [
   {
@@ -98,7 +98,7 @@ export default function TeacherAssignmentPdfDialog({
               {!requiresStudent && <option value="">Shared version / blank student fields</option>}
               {sortedStudents.map((student) => (
                 <option key={student.id} value={student.id}>
-                  {formatStudentName(student)}{student.classPeriod ? ' · ' + student.classPeriod : ''}
+                  {formatStudentLabel(student)}{student.classPeriod ? ' · ' + student.classPeriod : ''}
                 </option>
               ))}
             </select>

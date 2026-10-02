@@ -4,6 +4,16 @@ import { readFileSync } from 'node:fs';
 
 import { region, executableSource } from './helpers/sourceContract.mjs';
 import { MAX_REFERENCE_POINTS, studentPlottedPoints } from '../../src/platform/workflow/workflowGraphVisuals.js';
+import {
+  buildGraphWorkspaceModel,
+  constructionSketchMatches,
+  constructionSketchThroughOwnPoints,
+  graphToViewBox,
+} from '../../functions/shared/toolMath/graphWorkspace/graphWorkspaceModel.mjs';
+import { gradeGraphWorkspace } from '../../functions/shared/serverGrading/tools/graphWorkspace.mjs';
+import { resolveTaskExpected } from '../../functions/shared/toolMath/graphWorkspace/interactiveGraphEngine.mjs';
+
+const LINE = { type: 'functionGraph', functionSpec: { type: 'linear', m: 2, b: -1 }, requireEndpointMarkers: false };
 
 // ON A DOL, QUIZ OR TEST NO GRAPH SURFACE SAYS WHETHER THE WORK IS RIGHT
 // BEFORE IT IS SUBMITTED (PQ-036 and the composed-question leaks found with it).
@@ -34,6 +44,21 @@ test('the later steps read the student\'s own points back from the graph step\'s
   assert.deepEqual(points, [[0, 1], [-2.5, 1e-7]]);
 });
 
+test('the read-back reads the graph step\'s own work first: its placements, as the workspace left them', () => {
+  // The graph step's artifact carries the workspace's work
+  // (workflowGraphStage.mjs workflowGraphArtifact); parts are only a fallback
+  // for a step stored before that.
+  const artifact = {
+    __mathmasterWorkflowArtifact: 'graph',
+    isComplete: true,
+    isCorrect: false,
+    construction: { placements: { 'point-1': [0, 1], 'point-2': 'undefined', 'point-3': [-2.5, 4] } },
+    analysis: {},
+  };
+  assert.deepEqual(studentPlottedPoints(artifact), [[0, 1], [-2.5, 4]]);
+  assert.deepEqual(studentPlottedPoints({ ...artifact, construction: { placements: {} }, parts: [{ label: 'Point placement: P1', response: '(3, 3)' }] }), [[3, 3]]);
+});
+
 test('the read-back matches exactly what the graph workspace writes for a placement', () => {
   // gradePointPlacements formats a placement as `(${x}, ${y})`; anything it
   // can produce for a finite placement must come back as the same numbers.
@@ -62,39 +87,45 @@ test('the graph workspace takes its policy from the activity, and offers no chec
 });
 
 test('a curve drawn where outcomes are withheld is accepted through the student\'s own points, never the function', () => {
-  const branch = region(workspace, 'if (outcomesWithheld && !construction.pointsValidated) {', 'const matches = roughSketchMatchesGraph', 'own-points acceptance');
-  assert.match(branch, /requiredScreenPoints: ownPoints/);
-  assert.match(branch, /idealScreenPaths: \[\]/);
+  const branch = region(workspace, 'if (outcomesWithheld && !construction.pointsValidated) {', 'const matches = constructionSketchMatches', 'own-points acceptance');
+  assert.match(branch, /constructionSketchThroughOwnPoints\(model, \{ strokes: completed, camera: sketchCamera, placements: construction\.placements \}\)/);
   // Consulting the function here is exactly the oracle being removed: a curve
   // that would only be accepted through the right points.
-  assert.doesNotMatch(branch, /requiredGraphPoints|idealScreenPointPaths|functionSpec/);
-  const inverse = region(workspace, "if (stage === 'analysis' && inverseReflectionEnabled && outcomesWithheld", "if (stage === 'analysis' && inverseReflectionEnabled) {", 'inverse own-points acceptance');
-  assert.match(inverse, /idealScreenPaths: \[\]/);
-  assert.doesNotMatch(inverse, /inverseRequiredGraphPoints|inverseIdealScreenPointPaths/);
+  assert.doesNotMatch(branch, /constructionSketchMatches|functionSpec/);
+  const inverse = region(workspace, 'if (outcomesWithheld && !analysis.inversePointsValidated) {', 'const matches = inverseSketchMatches', 'inverse own-points acceptance');
+  assert.match(inverse, /inverseSketchThroughOwnPoints\(model, \{ strokes: completed, camera: sketchCamera, selections: analysis\.selections \}\)/);
+  assert.doesNotMatch(inverse, /inverseSketchMatches\(/);
+  // And the check itself knows nothing of the function: a straight stroke
+  // through wrong points passes it, the true curve through them does not.
+  const model = buildGraphWorkspaceModel(LINE);
+  const authored = { xMin: model.viewWindow.xMin, xMax: model.viewWindow.xMax, yMin: model.viewWindow.yMin, yMax: model.viewWindow.yMax };
+  const wrong = Object.fromEntries(model.tasks.map((task) => [task.id, [Number(task.x), 0]]));
+  const flat = [[...Array(25)].map((_, step) => graphToViewBox(authored)([authored.xMin + ((authored.xMax - authored.xMin) * step) / 24, 0]))];
+  assert.equal(constructionSketchThroughOwnPoints(model, { strokes: flat, camera: authored, placements: wrong }), true);
+  assert.equal(constructionSketchMatches(model, { strokes: flat, camera: authored }), false);
 });
 
 test('that curve is graded at submission as practice would have required before its snap', () => {
-  const verdict = region(workspace, 'const sketchFollowsFunction = useMemo', 'const inverseSketchFollowsInverse', 'curve verdict');
-  // Against the function — its required points and its sampled paths...
-  assert.match(verdict, /requiredScreenPoints: graphStrokesOnScreen\(\[\s*resolvedPointTasks\.filter\([^\n]*task\.role !== 'center'\)\.map\(\(task\) => task\.resolvedExpected\),?\s*\], viewWindow\)\[0\]/);
-  assert.match(verdict, /idealScreenPaths: graphStrokesOnScreen\(visiblePaths, viewWindow\)/);
-  // ...in the question's own window, never the zoomed one: the sketch test's
-  // tolerance is in pixels, so a student zoomed in at Submit would be graded
-  // more strictly than practice (tests/browser/graphPointCheck.mjs zooms in).
-  assert.match(verdict, /strokes: graphStrokesOnScreen\(construction\.sketchGraph, viewWindow\)/);
-  assert.doesNotMatch(verdict, /renderWindow|zoomView|toScreen[XY]/);
-  // ...and through right points, because the sketch tolerance alone accepts a
-  // line through a point a grid unit off.
-  assert.match(verdict, /const curveCorrect = construction\.snapped\s*&& \(!curveAcceptedOwnPoints \|\| \(sketchFollowsFunction === true && pointParts\.every\(\(part\) => part\.isCorrect\)\)\)/);
-  const inverseVerdict = region(workspace, 'const inverseSketchFollowsInverse', 'const checkInversePoints', 'inverse verdict');
-  assert.match(inverseVerdict, /requiredScreenPoints: graphStrokesOnScreen\(\[inversePointParts\.flatMap\(\(part\) => part\.expected \|\| \[\]\)\], viewWindow\)\[0\]/);
-  assert.match(inverseVerdict, /idealScreenPaths: graphStrokesOnScreen\(inverseVisiblePaths, viewWindow\)/);
-  assert.match(inverseVerdict, /strokes: graphStrokesOnScreen\(analysis\.inverseSketchGraph, viewWindow\)/);
-  assert.doesNotMatch(inverseVerdict, /renderWindow|zoomView|toScreen[XY]/);
-  assert.match(inverseVerdict, /inverseSketchFollowsInverse === true && inversePointsCorrect/);
-  const report = region(workspace, 'const constructionParts = constructionEnabled ? [', 'const parts = [', 'graded parts');
-  assert.match(report, /id: 'graph-curve'[^\n]*isCorrect: curveCorrect/);
-  assert.match(report, /id: 'inverse-line-sketch'[^\n]*isCorrect: inverseCurveCorrect/);
+  // The verdict is the shared grader's (serverGrading/tools/graphWorkspace.mjs,
+  // pinned in detail by tests/tools/graphWorkspaceSharedGrading.test.mjs): the
+  // work says the construction is graded as placed, and the grader marks the
+  // curve against the function in the question's own window, through right
+  // points. The workspace keeps the rule after feedback is released for a
+  // curve drawn that way, so the work reads as what was submitted.
+  assert.match(workspace, /const pointsGradedAsPlaced = outcomesWithheld \|\| curveAcceptedOwnPoints;/);
+  assert.match(workspace, /graphWorkspaceWorkFromState\(\{ construction: \{ \.\.\.construction, pointsGradedAsPlaced \}, analysis \}\)/);
+  const model = buildGraphWorkspaceModel(LINE);
+  const authored = { xMin: model.viewWindow.xMin, xMax: model.viewWindow.xMax, yMin: model.viewWindow.yMin, yMax: model.viewWindow.yMax };
+  const right = Object.fromEntries(model.tasks.map((task) => [task.id, resolveTaskExpected(task, model.functionSpec, {})]));
+  const traced = model.visiblePaths.map((path) => path.map(graphToViewBox(authored)));
+  const work = (placements) => ({ construction: { placements, pointsGradedAsPlaced: true, strokes: traced, sketchView: authored, sketchLocked: true } });
+  const curve = (grade) => grade.parts.find((part) => part.id === 'graph-curve');
+  assert.equal(curve(gradeGraphWorkspace(LINE, work(right))).isCorrect, true);
+  // The same true line, but drawn through a point a unit off: still not
+  // credited, because the sketch tolerance alone accepts that.
+  const [firstTask] = model.tasks;
+  const off = { ...right, [firstTask.id]: [right[firstTask.id][0], right[firstTask.id][1] + 1] };
+  assert.deepEqual([curve(gradeGraphWorkspace(LINE, work(off))).isComplete, curve(gradeGraphWorkspace(LINE, work(off))).isCorrect], [true, false]);
 });
 
 test('whether a curve was drawn through the student\'s own points is read from the work, not the policy', () => {
@@ -105,12 +136,12 @@ test('whether a curve was drawn through the student\'s own points is read from t
   assert.match(workspace, /const showPredrawnGraph = [^\n]*!curveAcceptedOwnPoints/);
 });
 
-test('graph ends: no pull, no pulse, no symbol hint where outcomes are withheld — and the same reach as practice', () => {
+test('graph ends: no pull, no pulse, no symbol hint where outcomes are withheld — the drop is judged where it lands', () => {
   const place = region(workspace, 'const placeMarkerAt = ', 'const handleGridClick', 'placeMarkerAt');
-  assert.match(place, /const magnetic = !outcomesWithheld && nearTheEnd;/);
-  // Where the marker counts as "at the end" is unchanged: practice's radius.
-  assert.match(place, /const nearTheEnd = nearest\.distance <= MARKER_SNAP_PIXELS;/);
-  assert.match(place, /locationCorrect: nearTheEnd/);
+  assert.match(place, /const magnetic = !outcomesWithheld && nearest\.distance <= MARKER_SNAP_PIXELS;/);
+  // No verdict about the drop is stored: the grader judges the dropped point
+  // against the end, as it judges any marker that did not snap.
+  assert.doesNotMatch(place, /locationCorrect/);
   assert.match(workspace, /\{!placement && !outcomesWithheld && <><circle[^\n]*mathmaster-endpoint-pulse/);
   assert.match(workspace, /const endsDescribedForStudent = revealPointCorrectness;/);
   assert.match(workspace, /const availableMarkerTypes = !endsDescribedForStudent \? \['arrow', 'open', 'closed'\]/);
@@ -118,7 +149,7 @@ test('graph ends: no pull, no pulse, no symbol hint where outcomes are withheld 
 });
 
 test('the click that ends a stroke is not also a placement', () => {
-  const click = region(workspace, 'const handleGridClick = (event) => {', 'const eventToGraphPoint', 'handleGridClick');
+  const click = region(workspace, 'const handleGridClick = (event) => {', 'const placeAtCoordinate', 'handleGridClick');
   const guard = click.indexOf('if (strokeJustEndedRef.current)');
   assert.ok(guard > -1 && guard < click.indexOf('eventToGraphPoint(event)'), 'the guard runs before anything is placed');
   const end = region(workspace, 'const endDrawing = (event) => {', 'const showPredrawnGraph', 'endDrawing');
@@ -126,11 +157,14 @@ test('the click that ends a stroke is not also a placement', () => {
   assert.match(region(workspace, 'const beginDrawing = (event) => {', 'const continueDrawing', 'beginDrawing'), /strokeJustEndedRef\.current = false;/);
 });
 
-test('the graph-coordinate copy of a sketch stays out of the response key', () => {
-  // The key is stored with every attempt; work saved before the copy existed
-  // must keep the key it was submitted under.
-  assert.match(workspace, /const SKETCH_COPY_FIELDS = new Set\(\['sketchGraph', 'inverseSketchGraph'\]\);/);
-  assert.match(workspace, /responseKey: JSON\.stringify\(\{ construction: responseKeyState\(construction\), analysis: responseKeyState\(analysis\) \}\)/);
+test('a zoom after drawing cannot move the curve judged at submission: each stroke travels with its camera', () => {
+  // The strokes are stored in the drawing's own units with the window they
+  // were drawn under (sketchView), in both branches of every stroke's end, and
+  // the grader carries them from that camera into the question's own window.
+  const end = region(workspace, 'const endDrawing = (event) => {', 'const showPredrawnGraph', 'endDrawing');
+  assert.equal((end.match(/sketchView: sketchCamera/g) || []).length >= 3, true, 'construction: drawn, own points, snapped');
+  assert.equal((end.match(/inverseSketchView: sketchCamera/g) || []).length >= 3, true, 'inverse: own points, drawn, snapped');
+  assert.doesNotMatch(workspace, /sketchGraph|inverseSketchGraph/, 'no second copy of the sketch');
 });
 
 test('a multi-step question\'s graph steps get the activity policy', () => {
@@ -143,13 +177,16 @@ test('a multi-step question\'s graph steps get the activity policy', () => {
 });
 
 test('a multi-step question reveals nothing about a table through the graph step built from it', () => {
-  const magnets = runner.match(/const magneticSnapTargets = revealCorrectness\s*&&/g) || [];
-  assert.equal(magnets.length, 2, 'the magnet (on only for an agreeing table) is off where outcomes are withheld, in both graph steps');
-  const block = region(runner, '<strong>Your table and function do not agree yet.</strong>', null, 'disagreement block');
-  assert.ok(block);
-  // The check is worked out from the table as it stands (tableSourceCheck.js),
-  // and only consulted where outcomes are revealed.
-  assert.match(runner, /if \(revealCorrectness && sourceIsTable && input\?\.sourceCheck && input\.sourceCheck\.checked > 0 && input\.sourceCheck\.consistent === false\)/);
+  // The runner sets its graph steps up through the shared module, told when
+  // outcomes are withheld; there the magnet (on only for an agreeing table)
+  // and the "do not agree" block are never offered (behaviour:
+  // tests/platform/workflowDraftProjection.test.mjs).
+  assert.match(runner, /resolveWorkflowGraphStages\(\{[\s\S]*?outcomesWithheld: !revealCorrectness,/);
+  const stageModule = readFileSync('functions/shared/toolMath/workflow/workflowGraphStage.mjs', 'utf8');
+  assert.equal((stageModule.match(/const magneticSnapTargets = !outcomesWithheld\s*&&/g) || []).length, 2, 'both graph steps');
+  assert.match(stageModule, /if \(!outcomesWithheld && sourceIsTable && \(source\.sourceModel \|\| source\.sourceFunctionSpec\) && source\.sourceChecked > 0 && source\.sourceConsistent === false\)/);
+  // The submitted work says so, so the server sets the steps up the same way.
+  assert.match(runner, /buildWorkflowAnswerState\(\{[\s\S]*?outcomesWithheld: !revealCorrectness,/);
 });
 
 test('the later-step graph is the student\'s own where outcomes are withheld, and never only when right', () => {

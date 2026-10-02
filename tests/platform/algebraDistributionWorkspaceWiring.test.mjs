@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { STEP_ACTIONS, stepActionCountsAttempt } from '../../functions/shared/serverGrading/stepAlgebraStepVerification.mjs';
 
 const source = fs.readFileSync(new URL('../../src/StepByStepAlgebraCore.jsx', import.meta.url), 'utf8');
 
@@ -19,7 +20,16 @@ test('committing a distribution records real step evidence and never consumes an
     source.indexOf('const resetQuestionWork'),
   );
   assert.match(commitRegion, /kind:\s*'distribution'/);
-  assert.match(commitRegion, /countsAttempt:\s*false/);
+  // The step is reported through the workspace's shared rewrite payload, and
+  // a rewrite's attempt use is the shared rule's — which never spends one.
+  // (The same payload carries the step's raw work to the server.)
+  assert.match(commitRegion, /onStepGrade\(rewriteStepPayload\(equation, nextEquation, \{\s*kind:\s*'distribution'/);
+  const rewritePayload = source.slice(
+    source.indexOf('const rewriteStepPayload'),
+    source.indexOf('const persistStudentRewrite'),
+  );
+  assert.match(rewritePayload, /countsAttempt:\s*stepActionCountsAttempt\(STEP_ACTIONS\.REWRITE\)/);
+  assert.equal(stepActionCountsAttempt(STEP_ACTIONS.REWRITE), false, 'a rewrite never consumes an attempt');
   // The first argument is the PRE-commit equation (the Undo snapshot); a second
   // argument describes the step for the work history.
   assert.match(commitRegion, /pushCommittedEquation\(equation[,)]/);

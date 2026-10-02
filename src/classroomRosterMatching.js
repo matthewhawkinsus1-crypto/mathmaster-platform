@@ -1,6 +1,8 @@
 // Pure matching helpers for Google Classroom -> MathMaster roster linking.
 // No Firestore or React imports so the same rules can be unit-tested.
 
+import { STUDENT_NAME_UNAVAILABLE, acceptStudentName, resolveStudentIdentity } from './platform/studentName.js';
+
 const clean = (value) => String(value || '').trim();
 const lower = (value) => clean(value).toLowerCase();
 
@@ -23,20 +25,20 @@ const studentEmails = (student = {}) => [
   student.profile?.schoolEmail,
 ].map(normalizeEmail).filter(Boolean);
 
+// The MathMaster side of a link: "Last, First" when the parts are stored (on
+// the record or, for older records, its profile), else the resolved full name
+// (displayName, googleName, legacy fields), else "Name unavailable". Never the
+// id — the picker shows the id beside this as "· ID x", labelled as an id.
 export const mathMasterStudentLabel = (student = {}) => {
-  const first = clean(student.firstName || student.profile?.firstName);
-  const last = clean(student.lastName || student.profile?.lastName);
-  if (first || last) return [last, first].filter(Boolean).join(', ');
-  return clean(
-    student.displayName
-    || student.name
-    || student.googleName
-    || student.profile?.displayName
-    || student.profile?.name
-    || student.profile?.googleName
-    || student.id
-    || 'Student'
-  );
+  const record = student && typeof student === 'object' ? student : {};
+  const identity = resolveStudentIdentity({
+    ...record,
+    firstName: record.firstName || record.profile?.firstName,
+    lastName: record.lastName || record.profile?.lastName,
+  });
+  if (!identity.hasName) return STUDENT_NAME_UNAVAILABLE;
+  if (identity.nameSource === 'structured') return [identity.lastName, identity.firstName].filter(Boolean).join(', ');
+  return identity.displayName;
 };
 
 const studentNameKeys = (student = {}) => {
@@ -48,7 +50,10 @@ const studentNameKeys = (student = {}) => {
     labels.add(normalizePersonName(`${last} ${first}`));
     labels.add(normalizePersonName(`${last}, ${first}`));
   }
+  // Only real names: an id or placeholder stored where a name belongs must
+  // never match a Classroom student's name.
   [student.displayName, student.name, student.googleName, student.profile?.displayName, student.profile?.googleName]
+    .map((value) => acceptStudentName(value, student))
     .filter(Boolean)
     .forEach((value) => labels.add(normalizePersonName(value)));
   return [...labels].filter(Boolean);

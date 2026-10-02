@@ -14,7 +14,10 @@
  *
  * The policy lives in resolveInequalityBuildGate (inequalityBuildPolicy.js),
  * tested here as behaviour; the screen is held to it by the source contracts
- * at the bottom and by tests/browser/assessmentLeakGates.mjs.
+ * at the bottom and by tests/browser/assessmentLeakGates.mjs. The grade at
+ * submission is the workspace's shared grader's — the function the server
+ * runs (functions/shared/serverGrading/tools/systemsWorkspace/graphical.mjs) —
+ * which the screen's work tells when outcomes were withheld; tested here too.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -24,10 +27,29 @@ import {
   REASONING_COMPLETION_TEXT,
   resolveInequalityBuildGate,
 } from '../../src/tools/systemsWorkspace/inequalityBuildPolicy.js';
+import systemsWorkspaceGrader from '../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
 import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 
 const allSteps = { boundary: true, lineStyle: true, shading: true };
 const checkedEntry = { boundaryAttempts: 1, styleAttempts: 1, shadeAttempts: 1 };
+
+// The same mode as the shared grader marks it: x ≥ 1 (solid, shaded right)
+// and y < 3 (dashed, shaded below), every step built by the student — the
+// browser gate's fixture. RIGHT_BUILD is right and was never checked.
+const SYSTEM = {
+  type: 'systemsWorkspace',
+  mode: 'inequalities',
+  inequalities: [{ orientation: 'vertical', x: 1, relation: '>=' }, { orientation: 'horizontal', y: 3, relation: '<' }],
+  studentBuild: allSteps,
+  graph: { xMin: -6, xMax: 8, yMin: -4, yMax: 10 },
+};
+const RIGHT_BUILD = [
+  { method: 'vertical', constant: '1', style: 'solid', shadePoint: [5, 0], boundaryAttempts: 0, styleAttempts: 0, shadeAttempts: 0 },
+  { method: 'horizontal', constant: '3', style: 'dashed', shadePoint: [0, -2], boundaryAttempts: 0, styleAttempts: 0, shadeAttempts: 0 },
+];
+const WITHHELD = { outcomesWithheld: true };
+const constraintGrades = (question, build, policy = {}) => systemsWorkspaceGrader.grade(question, { build, regionClassification: '', vertices: [], ...policy })
+  .parts.filter((part) => part.id.startsWith('constraint-')).map((part) => part.isCorrect);
 
 // Two constraints, every step finished and checked once. `rightness` says
 // whether each step's work is right; finishing is the same either way.
@@ -76,27 +98,16 @@ test('where outcomes are withheld, a step is done once it is finished — no Che
 });
 
 test('where outcomes are withheld, each constraint is graded from the work as it stands', () => {
-  assert.equal(gateFor({ showImmediateFeedback: false, right: true, build: [{}, {}] }).constraintCorrect(0), true, 'right work is right without a press');
-  assert.equal(gateFor({ showImmediateFeedback: false, right: false }).constraintCorrect(0), false);
-  const oneWrong = resolveInequalityBuildGate({
-    showImmediateFeedback: false,
-    buildConfig: allSteps,
-    build: [{}, {}],
-    constraintCount: 2,
-    stepCorrect: (index, step) => !(index === 1 && step === 'lineStyle'),
-    stepFinished: () => true,
-  });
-  assert.deepEqual([oneWrong.constraintCorrect(0), oneWrong.constraintCorrect(1)], [true, false]);
-  // A step the question does not ask the student to build is never held against them.
-  const provided = resolveInequalityBuildGate({
-    showImmediateFeedback: false,
-    buildConfig: { boundary: false, lineStyle: false, shading: true },
-    build: [{}],
-    constraintCount: 1,
-    stepCorrect: (index, step) => step === 'shading',
-    stepFinished: () => true,
-  });
-  assert.equal(provided.constraintCorrect(0), true);
+  // By the shared grader, which the work tells that no Check was a verdict.
+  assert.deepEqual(constraintGrades(SYSTEM, RIGHT_BUILD, WITHHELD), [true, true], 'right work is right without a press');
+  const allWrong = [{ ...RIGHT_BUILD[0], style: 'dashed' }, { ...RIGHT_BUILD[1], shadePoint: [0, 5] }];
+  assert.deepEqual(constraintGrades(SYSTEM, allWrong.map((entry) => ({ ...entry, ...checkedEntry })), WITHHELD), [false, false], 'checked or not, wrong work is wrong');
+  const oneWrong = [RIGHT_BUILD[0], { ...RIGHT_BUILD[1], style: 'solid' }];
+  assert.deepEqual(constraintGrades(SYSTEM, oneWrong, WITHHELD), [true, false]);
+  // A step the question does not ask the student to build is never held
+  // against them: here only the shading is theirs, so a "wrong" style is not.
+  const shadingOnly = { ...SYSTEM, studentBuild: { boundary: false, lineStyle: false, shading: true } };
+  assert.deepEqual(constraintGrades(shadingOnly, [{ style: 'dashed', shadePoint: [5, 0] }, { shadePoint: [0, -2] }], WITHHELD), [true, true]);
 });
 
 test('where outcomes are shown, the checks, chips and lock are the verdicts practice always had', () => {
@@ -112,12 +123,13 @@ test('where outcomes are shown, the checks, chips and lock are the verdicts prac
   assert.equal(right.allConstraintsDone, true);
   assert.deepEqual(right.stepReport(1, 'shading'), { kind: 'verdict', passed: true });
 
-  // Right but never checked is not done — and is not graded right either.
+  // Right but never checked is not done — and is not graded right either
+  // (the shared grader, given no `outcomesWithheld`).
   const unchecked = gateFor({ showImmediateFeedback: true, right: true, build: [{}, {}] });
   assert.equal(unchecked.allConstraintsDone, false);
   assert.equal(unchecked.stepReport(0, 'boundary'), null);
-  assert.equal(unchecked.constraintCorrect(0), false, 'practice grading still needs each step checked');
-  assert.equal(right.constraintCorrect(0), true);
+  assert.deepEqual(constraintGrades(SYSTEM, RIGHT_BUILD), [false, false], 'practice grading still needs each step checked');
+  assert.deepEqual(constraintGrades(SYSTEM, RIGHT_BUILD.map((entry) => ({ ...entry, ...checkedEntry }))), [true, true]);
 });
 
 test('the default is outcomes shown, and a question with no constraints never opens the overlap', () => {
@@ -153,7 +165,7 @@ test('the student-build screen feeds the gate the runtime policy and the work as
   assert.doesNotMatch(finished, /Correct\(|workingConstraints|expected/, 'completion never consults the answer');
 });
 
-test('every chip, the overlap lock, each step line and the grade come from the gate', () => {
+test('every chip, the overlap lock and each step line come from the gate, and the grade from the shared grader told the policy', () => {
   assert.match(mode, /const boundaryVerified = \(index\) => buildGate\.stepDone\(index, 'boundary'\);/);
   assert.match(mode, /const styleVerified = \(index\) => buildGate\.stepDone\(index, 'lineStyle'\);/);
   assert.match(mode, /const shadeVerified = \(index\) => buildGate\.stepDone\(index, 'shading'\);/);
@@ -171,7 +183,12 @@ test('every chip, the overlap lock, each step line and the grade come from the g
     assert.ok(withheld > -1, `${name} answers from the gate where outcomes are withheld`);
     assert.ok(message.indexOf(verdict) > withheld, `${name}: the verdict comes only after the withheld return`);
   }
-  assert.match(mode, /constraintCorrect: hasBuildSteps \? buildGate\.constraintCorrect\(index\) : null,/);
+  // The final check submits the work to the shared grader, and the work says
+  // when no step Check was a verdict, so each constraint is graded as it stands.
+  const work = region(mode, 'const work = {', 'useReportToolWork(work);', 'student-build work');
+  assert.match(work, /\n\s*\.\.\.\(buildGate\.verdictsShown \? \{\} : \{ outcomesWithheld: true \}\),/);
+  assert.match(region(mode, 'const finalCheck = () => {', '\n  };', 'final check'),
+    /const result = gradeToolCheck\(systemsWorkspaceGrader, questionData, work\);\s*submit\(\{ isCorrect: result\.isCorrect, score: result\.score \}, work,/);
 });
 
 test('the reasoning checks and the vertex magnet ask the gate before judging anything', () => {

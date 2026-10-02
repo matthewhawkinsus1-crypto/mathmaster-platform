@@ -179,7 +179,11 @@ export const resolveOccurrenceIso = (occurredAt) => {
 const clampPercent = (value) =>
   Math.max(0, Math.min(100, Number.isFinite(Number(value)) ? Number(value) : 0));
 
-const compactStepStateKey = (value) => String(value || '')
+// The identity of an algebra state in step credit: one state, however it was
+// spaced or dashed. Exported (unchanged) so the server's step verification
+// (serverGrading/stepAlgebraStepVerification.mjs) recognizes a state the way
+// calculateStepPartialCredit below does.
+export const compactStepStateKey = (value) => String(value || '')
   .replace(/\s+/g, '')
   .replace(/[−–—]/g, '-');
 

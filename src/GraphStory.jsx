@@ -1,8 +1,15 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import QuestionPrompt from './QuestionPrompt';
 import GraphDisplay from './GraphDisplay';
 import useUndoHistory from './useUndoHistory';
-import { stableStringify } from './scenarioResponseUtils';
+import graphStoryGrader from '../functions/shared/serverGrading/tools/graphStory.mjs';
+import {
+  graphStoryHasSourceGraph,
+  graphStoryRequiresSketch,
+  graphStoryWork,
+} from '../functions/shared/toolMath/scenario/graphStoryMath.mjs';
+import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
+import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
 import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 import { clientPointToViewBox } from './utils/responsiveCoordinates.js';
 
@@ -45,29 +52,20 @@ export default function GraphStory({ question, onStateChange, onUndoStateChange,
   const values = history.value;
   const drawingRef = useRef(false);
 
-  const hasSourceGraph = Boolean(question?.graph && typeof question.graph === 'object');
-  const requireSketch = question.requireSketch === true || !hasSourceGraph;
-  const parts = [
-    { id: 'scenario', label: 'Scenario', isComplete: values.scenario.trim().length >= Number(question.minimumScenarioCharacters || 20), isCorrect: values.scenario.trim().length >= Number(question.minimumScenarioCharacters || 20), response: values.scenario },
-    { id: 'independent', label: 'Independent quantity', isComplete: Boolean(values.independent.trim()), isCorrect: Boolean(values.independent.trim()), response: values.independent },
-    { id: 'dependent', label: 'Dependent quantity', isComplete: Boolean(values.dependent.trim()), isCorrect: Boolean(values.dependent.trim()), response: values.dependent },
-    { id: 'axis-labels', label: 'Axis labels and units', isComplete: [values.xLabel, values.xUnit, values.yLabel, values.yUnit].every((value) => value.trim()), isCorrect: [values.xLabel, values.xUnit, values.yLabel, values.yUnit].every((value) => value.trim()), response: `${values.xLabel} (${values.xUnit}); ${values.yLabel} (${values.yUnit})` },
-    ...(requireSketch ? [{ id: 'graph-sketch', label: 'Graph sketch', isComplete: values.strokes.some((stroke) => stroke.length >= 3), isCorrect: values.strokes.some((stroke) => stroke.length >= 3), response: `${values.strokes.length} stroke(s)` }] : []),
-    { id: 'explanation', label: 'Explanation of the graph', isComplete: values.explanation.trim().length >= Number(question.minimumExplanationCharacters || 20), isCorrect: values.explanation.trim().length >= Number(question.minimumExplanationCharacters || 20), response: values.explanation },
-  ];
-  const isComplete = parts.every((part) => part.isComplete);
-  const isCorrect = isComplete; // Open-ended graph stories earn completion credit and remain visible for teacher review.
+  const hasSourceGraph = graphStoryHasSourceGraph(question);
+  const requireSketch = graphStoryRequiresSketch(question);
+  // The student's raw work: the eight texts and a bounded sketch that keeps the
+  // ">= 3 points in some stroke" rule exact (graphStoryMath.mjs). The
+  // completion verdict comes ONLY from the shared grader the server also runs
+  // (serverGrading/tools/graphStory.mjs). Open-ended graph stories earn
+  // completion credit and remain visible for teacher review.
+  const work = useMemo(() => graphStoryWork(values), [values]);
+  const grading = useMemo(() => gradeToolCheck(graphStoryGrader, question, work), [question, work]);
+  const questionDetails = `${question.prompt || 'Create a graph story.'} Scenario: ${values.scenario}. Independent: ${values.independent}. Dependent: ${values.dependent}. Axes: ${values.xLabel} (${values.xUnit}) and ${values.yLabel} (${values.yUnit}). Explanation: ${values.explanation}. Sketch strokes: ${values.strokes.length}.`;
 
   useEffect(() => {
-    const compact = { ...values, strokes: values.strokes.map((stroke) => stroke.filter((_, index) => index % 4 === 0).slice(0, 60)) };
-    onStateChange({
-      isComplete,
-      isCorrect,
-      responseKey: stableStringify(compact),
-      questionDetails: `${question.prompt || 'Create a graph story.'} Scenario: ${values.scenario}. Independent: ${values.independent}. Dependent: ${values.dependent}. Axes: ${values.xLabel} (${values.xUnit}) and ${values.yLabel} (${values.yUnit}). Explanation: ${values.explanation}. Sketch strokes: ${values.strokes.length}.`,
-      parts,
-    });
-  }, [isComplete, isCorrect, onStateChange, question.prompt, values]);
+    onStateChange(answerStateFromSharedGrading(grading, { questionDetails }));
+  }, [grading, questionDetails, onStateChange]);
 
   useEffect(() => {
     onUndoStateChange?.({ canUndo: history.canUndo, onUndo: history.undo, label: 'Undo the last graph-story edit or stroke' });

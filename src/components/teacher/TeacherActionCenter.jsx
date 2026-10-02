@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { buildTeacherActionItems, openTeacherActionCount, resolveTeacherActionState, TEACHER_ACTION_KIND } from '../../platform/teacher/teacherActionCenter.js';
 import { resolveReturnCheckIns } from '../../platform/attendance/returnCheckIn.js';
 import { localDateKeyOf } from '../../platform/attendance/classMeetings.js';
+import { STUDENT_NAME_UNAVAILABLE, resolveRosterStudentName, studentIdLabel, studentIdentityIndexFor } from '../../platform/studentName.js';
 
 const kindLabels = {
   [TEACHER_ACTION_KIND.PARENT_FOLLOW_UP]: 'Parent follow-up',
@@ -36,6 +37,18 @@ export default function TeacherActionCenter({ students = [], classes = [], assig
   const items = projectedItems || derivedItems;
   useEffect(() => { onOpenCountChange?.(openTeacherActionCount(items)); }, [items, onOpenCountChange]);
   const visible = resolveTeacherActionState(items, { classId, kind, status });
+  // A row is about a student (studentId) or about a class. A student row is
+  // named from the roster by id — projected items may carry no name — and a
+  // student with no name on file reads "Name unavailable" with the id beneath.
+  const identityIndex = useMemo(() => studentIdentityIndexFor(students), [students]);
+  const studentCell = (item) => {
+    if (!item.studentId) return <strong>{item.studentName || 'Class-wide'}</strong>;
+    const name = resolveRosterStudentName({ studentId: item.studentId, index: identityIndex, historicalName: item.studentName });
+    return <>
+      <strong>{name}</strong>
+      {name === STUDENT_NAME_UNAVAILABLE && <div style={{ color: '#5f6368', fontSize: 11 }}>{studentIdLabel(String(item.studentId))}</div>}
+    </>;
+  };
 
   return <section aria-labelledby="teacher-action-heading" style={{ padding: 22 }}>
     <h2 id="teacher-action-heading" style={{ margin: 0 }}>Action Center</h2>
@@ -48,7 +61,7 @@ export default function TeacherActionCenter({ students = [], classes = [], assig
     {!visible.length ? <p>No {status} actions match these filters.</p> : <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}>
       <thead><tr><th>Student</th><th>Class / period</th><th>Reason</th><th>Date / due</th><th>Status</th><th>Authoritative workflow</th></tr></thead>
       <tbody>{visible.map((item) => <tr key={item.id} style={{ borderTop: '1px solid #dadce0' }}>
-        <td style={{ padding: 10 }}><strong>{item.studentName || 'Class-wide'}</strong></td><td>{item.classLabel || '—'}</td>
+        <td style={{ padding: 10 }}>{studentCell(item)}</td><td>{item.classLabel || '—'}</td>
         <td><strong>{item.title}</strong><div style={{ color: '#5f6368', fontSize: 12 }}>{item.summary}</div>{item.context?.map((entry) => <div key={entry} style={{ fontSize: 12, color: '#b06000' }}>{entry}</div>)}</td>
         <td>{displayActionDate(item.dueAt || item.createdAt)}</td><td>{item.status}</td>
         <td style={{ padding: 8 }}><button type="button" style={button} onClick={() => onOpenWorkflow?.(item)}>{item.kind === TEACHER_ACTION_KIND.GRADE_UPLOAD ? 'Open Grade Transfer' : item.kind === TEACHER_ACTION_KIND.RETURN_FROM_ABSENCE || item.kind === TEACHER_ACTION_KIND.EXTENSION_RECONCILIATION ? 'Open Attendance' : item.kind === TEACHER_ACTION_KIND.RETEST_RECOVERY ? 'Open retest workflow' : 'Open Parent Contacts'}</button>{item.availableActions.includes('resolveReturnCheckIn') && <button type="button" style={{ ...button, marginLeft: 6, background: '#e6f4ea' }} onClick={() => onResolveReturnCheckIn?.(returnCheckIns.find((candidate) => candidate.key === item.sourceId))}>Resolve check-in</button>}</td>

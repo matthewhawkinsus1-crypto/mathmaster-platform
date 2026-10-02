@@ -12,7 +12,7 @@ import ClassPointsAwardDialog from './ClassPointsAwardDialog.jsx';
 import ClassPointsHistoryPanel from './ClassPointsHistoryPanel.jsx';
 import { classPointsBalanceFor, watchClassPointAccounts } from '../../platform/classPointsClient.js';
 import DOLCountdown from '../student/DOLCountdown.jsx';
-import { formatStudentName } from '../../platform/studentName';
+import { STUDENT_NAME_UNAVAILABLE, formatStudentLabel, formatStudentName } from '../../platform/studentName';
 import {
   assignmentIsForStudent,
   getDOLState,
@@ -161,8 +161,11 @@ function StudentTile({
   pathInterventionBusy = false,
   onSpotlight = null,
   classPoints = null,
+  showStudentId = true,
 }) {
   const style = SEVERITY_STYLE[row.severity] || SEVERITY_STYLE[LIVE_SEVERITY.OK];
+  // One line for assistive tech: the name, or "Name unavailable · ID 101410".
+  const tileLabel = formatStudentLabel({ studentId: row.id, displayName: row.nameMissing ? '' : row.name }, { lastFirst: false });
   const live = row.live;
   const glyph = REPRESENTATION_GLYPH[live?.representation] || REPRESENTATION_GLYPH.text;
 
@@ -180,12 +183,18 @@ function StudentTile({
         borderRadius: 12, background: style.background, cursor: onOpenStudent ? 'pointer' : 'default',
         display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0,
       }}
-      aria-label={`${row.name}: ${row.headline}`}
+      aria-label={`${tileLabel}: ${row.headline}`}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
         <span style={{ fontWeight: 700, color: 'var(--mm-text-strong)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.name}</span>
         <span style={{ fontSize: 12, fontWeight: 700, color: style.chip, whiteSpace: 'nowrap' }}>{row.headline}</span>
       </div>
+      {/* No name on file: the teacher sees which student this is, labelled as
+          an id. The room view may be projected to the class, so it never
+          shows a student id — only "Name unavailable". */}
+      {row.nameMissing && showStudentId && row.idLabel && (
+        <div data-student-id-label="true" style={{ fontSize: 11, color: '#5f6368' }}>{row.idLabel}</div>
+      )}
 
       <div style={{ marginTop: 5 }}>
         <StudentPerformanceBadge profile={profile} size="small" showEngagement={false} studentName={row.name} />
@@ -290,7 +299,10 @@ function WalkthroughCard({ row, onChecked, onOpenStudent, classPoints = null }) 
   return (
     <div style={{ padding: '12px 14px', borderRadius: 12, border: `2px solid ${style.border}`, background: style.background, display: 'grid', gap: 7 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-        <strong style={{ color: 'var(--mm-text-strong)' }}>{row.name}</strong>
+        <strong style={{ color: 'var(--mm-text-strong)' }}>
+          {row.name}
+          {row.nameMissing && row.idLabel && <span data-student-id-label="true" style={{ marginLeft: 6, fontSize: 11, fontWeight: 600, color: '#5f6368' }}>{row.idLabel}</span>}
+        </strong>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {attendanceMark === LIVE_ATTENDANCE_MARK.LATE && <span style={{ fontSize: 10.5, fontWeight: 900, color: '#7a4f00', background: '#fff4ce', borderRadius: 999, padding: '2px 6px' }}>Late arrival</span>}
           <span style={{ fontSize: 11, fontWeight: 900, color: style.color }}>{style.label}</span>
@@ -395,8 +407,15 @@ function LiveTeachingPanel({
 }
 
 function AttendancePanel({ roster, attendanceByStudentId, onMark, busyStudentId = null }) {
-  const attendanceName = (student) => formatStudentName(student, { lastFirst: false, fallbackToId: false });
-  const sorted = [...roster].sort((a, b) => attendanceName(a).localeCompare(attendanceName(b)));
+  // Named students by name, then any with no name on file (by id). The id is
+  // always the secondary line here, never the name.
+  const sorted = roster
+    .map((student) => ({
+      student,
+      id: String(student?.id || student?.studentId || ''),
+      name: formatStudentName(student, { lastFirst: false, fallbackToNeutral: false }),
+    }))
+    .sort((a, b) => Number(!a.name) - Number(!b.name) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
   return (
     <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '1px solid #c9ced6', background: '#f8f9fa' }}>
       <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)' }}>Today&apos;s Live Attendance</div>
@@ -404,9 +423,8 @@ function AttendancePanel({ roster, attendanceByStudentId, onMark, busyStudentId 
         Absent students are removed from live monitoring for today only. Mark Present or Late if a student arrives; their saved assignment work is never changed.
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 7 }}>
-        {sorted.map((student) => {
-          const id = String(student?.id || student?.studentId || '');
-          const name = formatStudentName(student, { lastFirst: false, fallbackToId: false }) || 'Student';
+        {sorted.map(({ student, id, name: resolvedName }) => {
+          const name = resolvedName || STUDENT_NAME_UNAVAILABLE;
           const mark = normalizeLiveAttendance(attendanceByStudentId[id]).mark || LIVE_ATTENDANCE_MARK.PRESENT;
           const busy = busyStudentId === id;
           return (
@@ -445,7 +463,7 @@ function AttendancePanel({ roster, attendanceByStudentId, onMark, busyStudentId 
 // A prominent-but-compact "welcome back" banner. It lives here, not behind a
 // settings toggle, because the whole point is that a teacher taking
 // attendance sees it at the moment the student is standing in front of them.
-function ReturnCheckInPanel({ candidates, onCheckIn, onCheckInAll, onOpenStudent, busyKey }) {
+function ReturnCheckInPanel({ candidates, onCheckIn, onCheckInAll, onOpenStudent, busyKey, showStudentId = true }) {
   const open = candidates.filter((candidate) => candidate.status === 'open');
   if (!open.length) return null;
 
@@ -467,7 +485,7 @@ function ReturnCheckInPanel({ candidates, onCheckIn, onCheckInAll, onOpenStudent
           return (
             <div key={candidate.key} style={{ background: 'var(--mm-surface)', border: '1px solid #c5d5ef', borderRadius: 9, padding: '9px 11px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               <div>
-                <strong style={{ fontSize: 13 }}>{candidate.studentName} is back today</strong>
+                <strong style={{ fontSize: 13 }}>{showStudentId ? candidate.studentLabel : candidate.studentName || STUDENT_NAME_UNAVAILABLE} is back today</strong>
                 <div style={{ fontSize: 11.5, color: '#5f6368', marginTop: 2 }}>
                   {candidate.meetingsMissed > 1 ? `Back after ${candidate.meetingsMissed} missed class meetings` : 'Absent last class'}
                   {' · '}Missed: {missedLabel}
@@ -531,6 +549,10 @@ export default function LiveClassMonitor({
   }, [focusKey, focusAssignmentId]);
   const [mode, setMode] = useState('room');
   const [roomMode, setRoomMode] = useState(false);
+  // Large room tiles are what a teacher puts on the projector: no student id
+  // is shown there. The ordinary Room view is the teacher's own screen, so a
+  // nameless student keeps the labelled 'ID x' line that tells them apart.
+  const projecting = mode === 'room' && roomMode;
   const [teacherQuestionIndex, setTeacherQuestionIndex] = useState(0);
   const [walkthroughFilter, setWalkthroughFilter] = useState('needsCheck');
   const [checkedStudentIds, setCheckedStudentIds] = useState([]);
@@ -632,11 +654,14 @@ export default function LiveClassMonitor({
       return;
     }
     const requestRef = doc(collection(db, SPOTLIGHT_REQUEST_COLLECTION));
-    const student = roster.find((entry) => String(entry.id || entry.studentId) === String(row.id)) || row;
+    // The public label is built from the ROSTER record only. The live row's
+    // name is a teacher-screen display string ("Name unavailable"), and this
+    // label is shown to the class — never fall back to it, or to the id.
+    const student = roster.find((entry) => String(entry.id || entry.studentId) === String(row.id)) || null;
     try {
       await setDoc(requestRef, {
         schemaVersion: 1, requestId: requestRef.id, classId: activeClassId,
-        studentId: row.id, studentLabel: publicStudentLabel(student),
+        studentId: row.id, studentLabel: publicStudentLabel(student || {}),
         teacherUid, teacherEmail,
         teacherLabel: String(teacherLabel || 'Your teacher').slice(0, 80),
         status: SPOTLIGHT_STATUS.REQUESTED, assignmentId: row.live.assignmentId,
@@ -915,7 +940,8 @@ export default function LiveClassMonitor({
       : 'Teacher added the student to Parent Follow-Up for review.';
 
     onRecordSupportEvent({
-      kind, stage, studentId: row.id, studentName: row.name,
+      // A name only when one is on file; readers resolve null by studentId.
+      kind, stage, studentId: row.id, studentName: row.nameMissing ? null : row.name,
       classId: activeClassId || live.classId || null,
       classPeriod: row.classPeriod || live.classPeriod || null,
       assignmentId: live.assignmentId || null,
@@ -932,7 +958,12 @@ export default function LiveClassMonitor({
   const classPointsForRow = (row) => (activeClassId ? {
     balance: classPointsBalanceFor(classPointBalances, row.id),
     unavailable: classPointsUnavailable,
-    onAward: (studentRow) => setAwardDialogStudent({ id: studentRow.id, name: studentRow.name }),
+    onAward: (studentRow) => setAwardDialogStudent({
+      id: studentRow.id,
+      name: studentRow.nameMissing ? null : studentRow.name,
+      // The award dialog opened from the room view may be on the projector.
+      showStudentId: !projecting,
+    }),
   } : null);
 
   const switchMode = (nextMode) => {
@@ -1035,6 +1066,7 @@ export default function LiveClassMonitor({
         onCheckInAll={handleCheckInAllReturns}
         onOpenStudent={onOpenStudent}
         busyKey={returnCheckInBusyKey}
+        showStudentId={!projecting}
       />
 
       {showAttendance && (
@@ -1047,7 +1079,7 @@ export default function LiveClassMonitor({
       )}
 
       {showClassPoints && activeClassId && (
-        <ClassPointsHistoryPanel classId={activeClassId} teacherEmail={teacherEmail} roster={roster} />
+        <ClassPointsHistoryPanel classId={activeClassId} teacherEmail={teacherEmail} roster={roster} showStudentId={!projecting} />
       )}
 
       {activeSectionTimers.length > 0 && (
@@ -1100,7 +1132,7 @@ export default function LiveClassMonitor({
 
             {walkthrough.visitNext && (
               <div style={{ padding: '12px 14px', borderRadius: 12, border: '2px solid #d93025', background: '#fff5f4', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-                <div><strong style={{ color: '#b3261e' }}>Visit Next → {walkthrough.visitNext.name}</strong><div style={{ marginTop: 3, fontSize: 12, color: '#5f6368' }}>{walkthrough.visitNext.reason}</div></div>
+                <div><strong style={{ color: '#b3261e' }}>Visit Next → {walkthrough.visitNext.name}</strong>{walkthrough.visitNext.nameMissing && walkthrough.visitNext.idLabel && <span data-student-id-label="true" style={{ marginLeft: 6, fontSize: 11, color: '#5f6368' }}>{walkthrough.visitNext.idLabel}</span>}<div style={{ marginTop: 3, fontSize: 12, color: '#5f6368' }}>{walkthrough.visitNext.reason}</div></div>
                 <div style={{ display: 'flex', gap: 6 }}>
                   {onOpenStudent && <button type="button" onClick={() => onOpenStudent(walkthrough.visitNext.id)} style={smallButtonStyle}>View work</button>}
                   <button type="button" onClick={() => setCheckedStudentIds((ids) => ids.includes(walkthrough.visitNext.id) ? ids : [...ids, walkthrough.visitNext.id])} style={{ ...smallButtonStyle, borderColor: '#188038', background: '#e6f4ea', color: '#137333' }}>Checked</button>
@@ -1147,9 +1179,10 @@ export default function LiveClassMonitor({
               profile={learningProfilesByStudentId[row.id] || null}
               suggestion={suggestions[row.id] || null}
               roomMode={roomMode && mode === 'room'}
+              showStudentId={!projecting}
               integritySignal={integrityByStudentId[row.id] || null}
               onSupportAction={(kind, stage, signal, extra) => handleSupportAction(row, kind, stage, signal, extra)}
-              onRecommendPath={onRecommendPersonalPath ? (teksCode) => onRecommendPersonalPath({ studentId: row.id, studentName: row.name, teksCode, classId: activeClassId || row.live?.classId || null, classPeriod: row.classPeriod || row.live?.classPeriod || null, assignmentId: row.live?.assignmentId || null, assignmentTitle: row.live?.assignmentTitle || null }) : null}
+              onRecommendPath={onRecommendPersonalPath ? (teksCode) => onRecommendPersonalPath({ studentId: row.id, studentName: row.nameMissing ? null : row.name, teksCode, classId: activeClassId || row.live?.classId || null, classPeriod: row.classPeriod || row.live?.classPeriod || null, assignmentId: row.live?.assignmentId || null, assignmentTitle: row.live?.assignmentTitle || null }) : null}
               pathInterventionBusy={pathInterventionBusyStudentId === row.id}
               onAdjustPath={onOpenWeeklyPath ? () => onOpenWeeklyPath(row.id) : null}
               onSpotlight={activeClassId && !activeSpotlight ? requestSpotlight : null}

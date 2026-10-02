@@ -183,7 +183,7 @@ test('grade delivery has one canonical writer and hydration reports before and a
   assert.match(cycle, /reconcileWithDeviceReports\(\{[\s\S]*report: reportStudentOutbox[\s\S]*drain: \(\) => drainStudentOutbox\(options\)/);
   assert.doesNotMatch(executableSource(cycle), /await\s+reportStudentOutbox\(/);
   assert.match(app, /import \{[\s\S]*reconcileWithDeviceReports[\s\S]*\} from '\.\/platform\/persistence\/deviceReportCoordinator\.js'/);
-  const passback = region(functionsSource, 'exports.syncGradeToClassroom', 'exports.getClassroomSyncHealth', 'Classroom passback');
+  const passback = region(functionsSource, 'exports.syncGradeToClassroom', 'exports.queueReleasedAssessmentGrades', 'Classroom passback');
   assert.match(passback, /!isTestCycleAssignment && isFinal/);
   assert.match(passback, /status: "sync-pending"[\s\S]*isFinal: false/);
   assert.match(passback, /if \(persistenceState\.persistencePending\)[\s\S]*continue;/);

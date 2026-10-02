@@ -11,7 +11,7 @@ const workViewCss = read('src/components/common/WorkViewShell.css');
 
 test('every sequence mode owns one complete Work View rather than a graph-only shell', () => {
   for (const name of ['AnalyzeSequence', 'FullSequenceBridge', 'RuleBridge', 'MissingTerm', 'PartialSum', 'CompareSequences']) {
-    const body = region(sequences, `function ${name}`, name === 'CompareSequences' ? undefined : '\nfunction ', { label: name });
+    const body = region(sequences, `function ${name}`, name === 'CompareSequences' ? undefined : '\nfunction ', name);
     assert.match(body, /<EnlargeableFigure/);
     assert.match(body, /undo:\s*undoHistory\.capability/);
   }
@@ -21,7 +21,7 @@ test('every sequence mode owns one complete Work View rather than a graph-only s
 
 test('every systems workspace mode carries equations, controls and Universal Undo', () => {
   for (const [name, end] of [['LinearMode', 'InequalityMode'], ['InequalityMode', 'LinearQuadraticMode'], ['LinearQuadraticMode', 'MatrixMode'], ['MatrixMode', 'MODE_TASKS']]) {
-    const body = region(systems, `function ${name}`, `\nfunction ${end}`.replace('function MODE_TASKS', 'const MODE_TASKS'), { label: name });
+    const body = region(systems, `function ${name}`, `\nfunction ${end}`.replace('function MODE_TASKS', 'const MODE_TASKS'), name);
     assert.match(body, /<EnlargeableFigure/);
     assert.match(body, /undo:\s*undoHistory\.capability/);
     assert.match(body, /equationInput:/);

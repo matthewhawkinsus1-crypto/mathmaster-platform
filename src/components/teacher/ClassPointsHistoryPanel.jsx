@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { db } from '../../firebase.js';
-import { resolveRosterStudentName } from '../../platform/studentName.js';
+import { STUDENT_NAME_UNAVAILABLE, formatStudentLabel, resolveRosterStudentName } from '../../platform/studentName.js';
 import {
   DEFAULT_REVERSAL_REASON,
   buildReversalPayload,
@@ -12,6 +12,15 @@ import {
   sourceTypeLabel,
   watchClassPointHistory,
 } from '../../platform/classPointsClient.js';
+
+// The roster name, or "Name unavailable · ID x" so two nameless students stay
+// distinguishable — never the bare id standing in for a name.
+// While the room tiles are projected (showStudentId false) no id is shown.
+const rosterStudentLabel = (studentId, students, historicalName = '', showStudentId = true) => {
+  const name = resolveRosterStudentName({ studentId, students, historicalName });
+  if (name !== STUDENT_NAME_UNAVAILABLE || !showStudentId) return name;
+  return formatStudentLabel(String(studentId ?? ''));
+};
 
 // Compact, bounded recent-activity panel for the active class. It reads only
 // classPointTransactions through the shared, indexed teacher query — never an
@@ -93,7 +102,7 @@ function ReversalControl({ transaction }) {
   );
 }
 
-export default function ClassPointsHistoryPanel({ classId, teacherEmail, roster = [] }) {
+export default function ClassPointsHistoryPanel({ classId, teacherEmail, roster = [], showStudentId = true }) {
   const [transactions, setTransactions] = useState([]);
   const [unavailable, setUnavailable] = useState(false);
 
@@ -125,7 +134,7 @@ export default function ClassPointsHistoryPanel({ classId, teacherEmail, roster 
       ) : (
         <div style={{ display: 'grid', gap: 7 }}>
           {transactions.map((transaction) => {
-            const studentName = resolveRosterStudentName({ studentId: transaction.studentId, students: roster });
+            const studentName = rosterStudentLabel(transaction.studentId, roster, '', showStudentId);
             const amount = Number(transaction.amount) || 0;
             return (
               <div key={transaction.id} style={rowStyle}>

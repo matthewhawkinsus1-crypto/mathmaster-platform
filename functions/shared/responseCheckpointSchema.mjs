@@ -14,6 +14,9 @@
  * below refuses to construct a payload that contains any of it.
  */
 
+import { normalizeDeliveryPin } from './questionGenerationIdentity.mjs';
+import { normalizeToolResponse } from './serverGrading/toolResponseContract.mjs';
+
 export const RESPONSE_CHECKPOINT_SCHEMA_VERSION = 2;
 
 /**
@@ -131,7 +134,16 @@ const normalizeSupportUsage = (supportUsage = {}) => ({
  * reproduce marking. No correctness for any part — a browser's opinion about a
  * part is exactly as untrusted as its opinion about the whole.
  */
-export const normalizeStoredResponse = (response = {}) => ({
+export const normalizeStoredResponse = (response = {}) => {
+  // A registry tool's structured work (serverGrading/toolResponseContract.mjs)
+  // keeps its own, larger bound and its tool identity. It is re-bounded here
+  // because the device that built it is not trusted to have run the builder.
+  const tool = normalizeToolResponse(response);
+  if (tool) return tool;
+  return normalizeOrdinaryStoredResponse(response);
+};
+
+const normalizeOrdinaryStoredResponse = (response = {}) => ({
   kind: ['scalar', 'fields', 'opaque'].includes(response?.kind) ? response.kind : 'opaque',
   type: text(response?.type),
   value: text(response?.value).slice(0, MAX_RESPONSE_VALUE_LENGTH),
@@ -165,6 +177,11 @@ export const buildResponseCheckpointPayload = ({
   capturedAt = Date.now(),
   serverGradingSupported = true,
   unsupportedReason = null,
+  // Which instance of a Question Family slot this work answers. Without it a
+  // deadline could not rebuild — and so could not grade — a family question
+  // the student had not yet submitted once. A pin names a question; it holds
+  // no answer.
+  familyDelivery = null,
 } = {}) => {
   const documentId = checkpointDocumentId(identity);
   const payload = {
@@ -184,6 +201,7 @@ export const buildResponseCheckpointPayload = ({
     // completed one that came before it.
     response: normalizeStoredResponse(response),
     isComplete: isComplete === true,
+    familyDelivery: normalizeDeliveryPin(familyDelivery),
     supportUsage: normalizeSupportUsage(supportUsage),
     // What the canonical record looked like BEFORE this response. The server
     // compares it with the live grade row, which is what makes a manual Submit

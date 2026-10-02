@@ -46,6 +46,7 @@ import {
 } from '../../src/platform/workflow/workflowDraftProjection.js';
 import { projectDraftForServer } from '../../src/platform/persistence/serverDraftProjection.js';
 import { rederiveRestoredTables, tableAwaitsRederivation, tableSourceCheck, tableSourceFields } from '../../src/platform/workflow/tableSourceCheck.js';
+import { resolveWorkflowGraphStages } from '../../functions/shared/toolMath/workflow/workflowGraphStage.mjs';
 import { createWorkspaceDraftSync } from '../../src/platform/persistence/workspaceDraftSync.js';
 import {
   auditDraftWrite,
@@ -469,25 +470,52 @@ test('WorkflowRunner re-baselines Undo when a restored step gets its verdict bac
   assert.match(runner, /const restoredGraphStepIds = Object\.entries\([\s\S]*?graphArtifactAwaitsVerdict\(value\)[\s\S]*?\.join\(','\);/);
   const notice = region(runner, 'const restoredGraphSteps = stagesAwaitingVerdict(workflow, responses)', 'const railPercent', 'the restored-steps notice data');
   assert.match(notice, /stage\.id !== activeStage\?\.id && index <= furthestReachableIndex/);
-  const banner = region(runner, '{restoredGraphSteps.length ? (', '{/* NOTHING TO SHOW MEANS NOTHING ON SCREEN.', 'the restored-steps notice');
+  const banner = region(runner, '{restoredGraphSteps.length ? (', '{summaryItems.length ? (', 'the restored-steps notice');
   assert.match(banner, /onClick=\{\(\) => goToStage\(index\)\}/);
 });
 
 test('whether a table agrees with its source is worked out where it is used, never read back from a stored answer', () => {
   const runner = executableSource(read('src/platform/workflow/WorkflowRunner.jsx'));
-  // One computation (tableSourceCheck.js), when the step reports...
-  const artifact = region(runner, 'const tableArtifact = (payload, { stage, input, content }) => {', 'const graphArtifact', 'the table step\'s report');
-  assert.match(artifact, /\.\.\.tableSourceFields\(\{ cells, stage, sourceModel, content \}\),/);
+  // One computation (workflowTableArtifact, shared with the composed grader),
+  // when the step reports...
+  const artifact = region(runner, 'const tableArtifact = (payload, { stage, input, content }) =>', '});', 'the table step\'s report');
+  assert.match(artifact, /workflowTableArtifact\(\{/);
+  assert.match(read('src/platform/workflow/tableSourceCheck.js'), /import \{ workflowTableArtifact \} from '\.\.\/\.\.\/\.\.\/functions\/shared\/toolMath\/workflow\/workflowGraphStage\.mjs';/);
   assert.doesNotMatch(runner, /const (checkTableAgainstFunctionSpec|tableSourceConsistency|tableSourceCheck) =/, 'no second copy of the check');
   // ...when a table comes back from the server copy: before the first render
   // reads it (a graph step's draft is named after its table), and written back
   // as what it is, not an edit...
   assert.match(runner, /const responses = useMemo\(\s*\(\) => rederiveRestoredTables\(\{ responses: storedResponses, stages: authoredWorkflow, content \}\),/);
   assert.match(runner, /if \(responses === storedResponses\) return;\s*setResponses\(\(current\) => rederiveRestoredTables\(\{ responses: current, stages: authoredWorkflow, content \}\), \{ edit: false \}\);/);
-  // ...and every later step is handed the check as it stands...
-  assert.match(runner, /sourceCheck: tableSourceCheck\(\{\s*table: resolvedInput\.value,/);
-  // ...and nothing reads the stored one (practice-only messages included).
+  // ...and every step built from the table is set up from the cells as they
+  // stand (resolveWorkflowGraphStages rebuilds the table from its cells), told
+  // whether outcomes are withheld; nothing in the runner reads a stored check.
+  assert.match(runner, /resolveWorkflowGraphStages\(\{[\s\S]*?outcomesWithheld: !revealCorrectness,[\s\S]*?\}\), \[/);
   assert.doesNotMatch(runner, /source\??\.sourceConsistent|source\??\.sourceChecked/);
-  assert.equal((runner.match(/input\?\.sourceCheck\?\.consistent !== false/g) || []).length, 2, 'both plotting steps gate their magnet on the worked-out check');
-  assert.match(runner, /input\?\.sourceCheck && input\.sourceCheck\.checked > 0 && input\.sourceCheck\.consistent === false/);
 });
+
+test('where outcomes are withheld a graph built from a table offers no magnet and no "do not agree" block', () => {
+  // Either one's presence says whether the table is right — against the
+  // AUTHORED function when the table was not built from the student's own
+  // equation — and could be asked again after every edit on an exit ticket.
+  const { workflow, content, grading } = readComposedQuestion(MODEL);
+  const tableStage = workflow.find((stage) => stage.id === 'table');
+  const graphStage = workflow.find((stage) => ['functionGraph', 'coordinatePlot'].includes(stage.kind) && stage.sourceStageId === 'table');
+  assert.ok(graphStage, 'MODEL builds a graph from its table');
+  const withTable = (cells) => {
+    const responses = modelResponses();
+    responses.table = { [WORKFLOW_ARTIFACT]: 'table', isComplete: true, cells, xValues: tableStage.xValues, points: [], sourceModel: null, ...tableSourceFields({ cells, stage: tableStage, sourceModel: null, content }) };
+    return responses;
+  };
+  const resolve = (responses, outcomesWithheld) => resolveWorkflowGraphStages({ workflow, content, grading, responses, outcomesWithheld }).get(graphStage.id);
+  const right = withTable({ '0:y': '1', '1:y': '3', '2:y': '5' });
+  assert.ok(resolve(right, false).question.magneticSnapTargets.length > 0, 'practice: a right table earns the magnet');
+  assert.deepEqual(resolve(right, true).question.magneticSnapTargets, [], 'withheld: no magnet, right table or wrong');
+  const wrong = withTable({ '0:y': '1', '1:y': '4', '2:y': '5' });
+  if (graphStage.kind === 'functionGraph') {
+    assert.equal(resolve(wrong, false).status, 'conflict', 'practice: the conflict is shown');
+    assert.equal(resolve(wrong, true).status, 'ready', 'withheld: the graph is built from the work as it stands');
+  }
+  assert.deepEqual(resolve(wrong, true).question.magneticSnapTargets, []);
+});
+

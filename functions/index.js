@@ -644,7 +644,7 @@ function authoritativeStudentClassId(gradeData) {
  * together — so a teacher never sees a grade without its evidence, and a
  * deadline can never turn one response into two attempts.
  */
-async function ingestOneSubmission({ db, studentId, envelope, now }) {
+async function ingestOneSubmission({ db, studentId, envelope, now, serverGradingSettings = {} }) {
   const ingestion = await submissionIngestion();
   const dispositions = await submissionDisposition();
   const { assignmentFinalCloseAt } = await import("./shared/sectionDeadline.mjs");
@@ -809,6 +809,43 @@ async function ingestOneSubmission({ db, studentId, envelope, now }) {
       }
     }
 
+    /*
+     * A MODELING LAB ATTEMPT IS RECORDED FROM THE SERVER'S OWN EVALUATION.
+     *
+     * Read here, inside the transaction and before any write, from the marker
+     * `submitModelingLab` wrote — by the exact submission the attempt names,
+     * or (for an attempt queued by an older client that named none) the
+     * newest evaluation of this lab for this student. Identities are checked
+     * against the authoritative question, never the envelope.
+     */
+    let modelingLabMarker = null;
+    if (question?.type === "modelingLab") {
+      const labGrading = await import("./shared/serverGrading/modelingLabGrading.mjs");
+      const labId = labGrading.modelingLabIdFor(question);
+      const reference = labGrading.modelingLabSubmissionReference(envelope.response);
+      let markers = [];
+      if (labId && reference?.submissionId) {
+        const markerSnapshot = await transaction.get(db.collection("modelingLabSubmissions").doc(
+          mathPath.opaqueId("labsub", studentId, envelope.assignmentId, labId, reference.submissionId),
+        ));
+        markers = markerSnapshot.exists ? [markerSnapshot.data()] : [];
+      } else if (labId) {
+        const markerQuery = await transaction.get(db.collection("modelingLabSubmissions")
+          .where("studentId", "==", studentId)
+          .where("assignmentId", "==", envelope.assignmentId)
+          .where("labId", "==", labId)
+          .limit(50));
+        markers = markerQuery.docs.map((doc) => doc.data());
+      }
+      modelingLabMarker = labGrading.selectModelingLabMarker({
+        markers,
+        studentId,
+        assignmentId: envelope.assignmentId,
+        question,
+        reference,
+      });
+    }
+
     const classworkIndices = runtimeIncludedQuestionIndicesForSection(assignment, "classwork");
     const dolIndices = runtimeIncludedQuestionIndicesForSection(assignment, "dol");
     const built = ingestion.buildIngestedAttempt({
@@ -819,6 +856,8 @@ async function ingestOneSubmission({ db, studentId, envelope, now }) {
       gradeDocument: gradeData,
       classworkIndices,
       dolIndices,
+      modelingLabMarker,
+      requireStepWork: serverGradingSettings.requireStepWork === true,
       // `now` is when the SERVER heard about this, which is the receipt's
       // business. The academic time is resolved from the capture, bounded by
       // the assignment's release and by this moment.
@@ -946,6 +985,11 @@ async function ingestOneSubmission({ db, studentId, envelope, now }) {
   });
 }
 
+// Ingestion stops starting new envelopes after this long, well inside the
+// callable's 60-second limit (the slowest single step verification measured
+// about 3 seconds).
+const INGESTION_CALL_BUDGET_MS = 40_000;
+
 exports.ingestStudentSubmissions = onCall(async (request) => {
   const { studentId } = requireStudent(request);
   const ingestion = await submissionIngestion();
@@ -959,8 +1003,23 @@ exports.ingestStudentSubmissions = onCall(async (request) => {
 
   const db = getFirestore();
   const now = Date.now();
+  // Platform switches for server grading (settings/serverGrading), read once
+  // per call. `requireStepWork` retires the legacy Step Algebra step path once
+  // queues from clients built before step work existed have drained.
+  const serverGradingSettings = (await db.collection("settings").doc("serverGrading").get()).data() || {};
   const receipts = [];
   for (const raw of incoming) {
+    // A wall-clock budget for the whole call: verifying a crafted step can
+    // cost seconds, and a batch of them must not time out the honest work
+    // queued beside it. Whatever is not reached is retried on the next call.
+    if (Date.now() - now > INGESTION_CALL_BUDGET_MS) {
+      receipts.push({
+        actionId: String(raw?.actionId || "").slice(0, 200) || null,
+        disposition: dispositions.SUBMISSION_DISPOSITION.RETRYABLE,
+        reason: "ingestion-call-time-budget",
+      });
+      continue;
+    }
     const envelope = ingestion.normalizeSubmissionEnvelope(raw);
     if (!envelope) {
       // Unreadable is not "discard": the device keeps its copy and the teacher
@@ -975,7 +1034,7 @@ exports.ingestStudentSubmissions = onCall(async (request) => {
     // The envelope never gets to say whose work it is.
     envelope.studentId = studentId;
     try {
-      receipts.push(await ingestOneSubmission({ db, studentId, envelope, now }));
+      receipts.push(await ingestOneSubmission({ db, studentId, envelope, now, serverGradingSettings }));
     } catch (error) {
       logger.error("Could not ingest a student submission", {
         studentId, actionId: envelope.actionId, message: error.message,
@@ -1009,7 +1068,14 @@ exports.ingestStudentSubmissions = onCall(async (request) => {
 let sectionRecoveryServiceModule = null;
 async function sectionRecoveryService() {
   if (!sectionRecoveryServiceModule) {
-    sectionRecoveryServiceModule = await import("./shared/sectionRecoveryService.mjs");
+    // The context builder (shared with the student app) and the grading
+    // actions (server-only: they load every shared tool grader) are two
+    // modules so the browser never downloads the graders it does not run.
+    const [service, actions] = await Promise.all([
+      import("./shared/sectionRecoveryService.mjs"),
+      import("./shared/sectionRecoveryActions.mjs"),
+    ]);
+    sectionRecoveryServiceModule = { ...service, ...actions };
   }
   return sectionRecoveryServiceModule;
 }
@@ -1422,6 +1488,7 @@ exports.inspectStudentResponse = onCall(async (request) => {
 
   const inspector = await import("./shared/responseInspector.mjs");
   const { workspaceDraftDocumentId } = await import("./shared/workspaceDraftSchema.mjs");
+  const identity = await studentIdentity();
   const inspectionEvidenceRef = gradeRef
     .collection(RESPONSE_INSPECTION_EVIDENCE_COLLECTION)
     .doc(inspector.responseInspectionEvidenceDocumentId({ assignmentId, questionIndex }));
@@ -1454,10 +1521,14 @@ exports.inspectStudentResponse = onCall(async (request) => {
   return inspector.buildInspectorModel({
     assignment,
     question,
+    questionIndex,
     section,
+    // The real name or null — never the id. The inspector labels a missing
+    // name explicitly and shows the id separately.
     student: {
       id: studentId,
-      displayName: student.displayName || student.name || studentId,
+      classId: student.classId || null,
+      displayName: identity.studentNameForStorage(studentIdentityRecord(identity, studentId, student)),
     },
     record,
     workspace,
@@ -1670,6 +1741,12 @@ exports.overrideStudentResponseGrade = onCall(async (request) => {
             question,
             record,
             gradingEvidence,
+            // A Question Family attempt is replayed against the instance its
+            // validated delivery pin rebuilds, never the template.
+            assignment,
+            questionIndex,
+            studentId,
+            classId: gradeData.classId || null,
           });
           if (!replay.available) throw new Error(replay.reason);
           score = replay.currentScore;
@@ -1843,6 +1920,7 @@ exports.overrideStudentAssignmentGrade = onCall(async (request) => {
   const gradeRef = db.collection("grades").doc(studentId);
   const assignmentRef = db.collection("assignments").doc(assignmentId);
   const nowIso = new Date().toISOString();
+  const identity = await studentIdentity();
 
   return db.runTransaction(async (transaction) => {
     const [gradeSnap, assignmentSnap] = await Promise.all([transaction.get(gradeRef), transaction.get(assignmentRef)]);
@@ -1905,7 +1983,10 @@ exports.overrideStudentAssignmentGrade = onCall(async (request) => {
       newOverride: nextOverride, overrideActiveAfter: action === "issueZero" });
 
     if (action === "issueZero") {
-      const commonEvent = { schemaVersion: 1, studentId, studentName: gradeData.displayName || studentId,
+      // studentName is the real name or null — never the id. Teacher screens
+      // resolve a null name by studentId against the roster at display time.
+      const commonEvent = { schemaVersion: 1, studentId,
+        studentName: identity.studentNameForStorage(studentIdentityRecord(identity, studentId, gradeData)),
         classId: gradeData.classId || null, assignmentId, assignmentTitle: assignment.title || null,
         originClassId: gradeData.classId || null, originTeacherEmail: teacherEmail,
         createdByEmail: teacherEmail, authorizedTeacherEmails: [teacherEmail], createdAt: nowIso, createdAtServer: FieldValue.serverTimestamp(),
@@ -2106,7 +2187,8 @@ exports.awardClassPoints = onCall(async (request) => {
       const announcementRef = classRef.collection(CLASS_POINT_ANNOUNCEMENTS_COLLECTION).doc();
       const announcement = points.buildAnnouncement({
         classId,
-        publicStudentLabel: points.publicStudentLabel(studentRecord),
+        // The id travels with the record so a name that only repeats it is refused.
+        publicStudentLabel: points.publicStudentLabel({ ...studentRecord, studentId }),
         amount,
         reasonLabel,
         awardTransactionId: transactionRef.id,
@@ -2819,6 +2901,28 @@ async function classModel() {
   return classModelModule;
 }
 
+// What a student's NAME is — and that an id never is one. Shared with the
+// browser (src/platform/studentName.js) so the roster projection, every server
+// name copy and every screen resolve a name the same way.
+let studentIdentityModule = null;
+async function studentIdentity() {
+  if (!studentIdentityModule) studentIdentityModule = await import("./shared/studentIdentity.mjs");
+  return studentIdentityModule;
+}
+
+/**
+ * The identity-bearing fields of one grades document, plus its id — what the
+ * shared resolver needs and nothing from the attempt history. The identifiers
+ * travel with it so a name that merely repeats one of them is refused.
+ */
+function studentIdentityRecord(identity, studentId, data = {}) {
+  const record = { studentId: String(studentId || "") };
+  [...identity.STUDENT_IDENTITY_FIELDS, "profile", "sisStudentId", "googleUserId"].forEach((field) => {
+    if (data?.[field] !== undefined) record[field] = data[field];
+  });
+  return record;
+}
+
 let authorizationModule = null;
 async function authorizationContext() {
   if (!authorizationModule) authorizationModule = await import("./shared/authorizationContext.mjs");
@@ -2997,27 +3101,22 @@ async function writeAdminAudit(db, actor, action, target, details = {}) {
   });
 }
 
-/** Creates the `grades` document a student's whole dashboard hangs off of. */
-async function ensureStudentRecord(db, studentId, { classId = null, classPeriod = null, assignedTeacherEmail = null } = {}) {
-  const ref = db.collection("grades").doc(studentId);
-  const snapshot = await ref.get();
-  if (snapshot.exists) return snapshot.data() || {};
-
-  const seed = {
-    ...(classId ? { classId } : {}),
-    classPeriod: classPeriod || "Unassigned",
-    ...(assignedTeacherEmail ? { assignedTeacherEmail } : {}),
-    profile: {},
-    gradesByAssignment: {},
-    assignmentActivity: {},
-    dolGradesByAssignment: {},
-    classworkGradesByAssignment: {},
-    supportUsageByAssignment: {},
-    createdAt: FieldValue.serverTimestamp(),
-  };
-  await ref.set(seed);
-  return seed;
+/**
+ * The roster record a signed-in student's dashboard hangs off of — read, never
+ * created. Signing in used to create a missing `grades` document, and every
+ * one it created was a nameless roster row a teacher then saw as a bare ID.
+ * Roster rows are created only by createStudentAccount, with a name. A field
+ * mask keeps this read from loading the student's attempt history.
+ */
+async function readStudentRosterPresence(db, studentId) {
+  const [snapshot] = await db.getAll(
+    db.collection("grades").doc(String(studentId)),
+    { fieldMask: ["classPeriod", "status"] },
+  );
+  return snapshot.exists ? { exists: true, classPeriod: snapshot.data()?.classPeriod || null } : { exists: false };
 }
+
+const STUDENT_NOT_ON_ROSTER_MESSAGE = "This MathMaster student account is no longer on a class roster. Ask your teacher.";
 
 async function resolveJoinCodeMembership(db, joinCode = {}) {
   const classId = String(joinCode.classId || "").trim();
@@ -3091,8 +3190,11 @@ exports.resolveSignedInRole = onCall(async (request) => {
   const { uid, token } = request.auth;
 
   // Students who signed in with a custom token already carry their claims.
+  // A token whose roster row is gone fails closed: the client shows this
+  // message and signs out, and no empty roster row is created.
   if (token.role === "student" && token.studentId) {
-    const record = await ensureStudentRecord(db, token.studentId);
+    const record = await readStudentRosterPresence(db, token.studentId);
+    if (!record.exists) throw new HttpsError("failed-precondition", STUDENT_NOT_ON_ROSTER_MESSAGE);
     return { role: "student", studentId: token.studentId, classPeriod: record.classPeriod || "Unassigned" };
   }
 
@@ -3132,7 +3234,11 @@ exports.resolveSignedInRole = onCall(async (request) => {
     const directory = await db.collection(authLib.DIRECTORY_COLLECTION).doc(email).get();
     const studentId = directory.exists ? directory.data()?.studentId : null;
     if (studentId) {
-      const record = await ensureStudentRecord(db, studentId);
+      const record = await readStudentRosterPresence(db, studentId);
+      // A Google link to a roster row that no longer exists grants nothing
+      // and creates nothing: the account goes back through linking, where
+      // linkGoogleAccount accepts only an ID that is on the roster.
+      if (!record.exists) return { role: null, needsLink: true, email };
       if (token.role !== "student" || token.studentId !== studentId) {
         await assignClaims(uid, { role: "student", studentId });
       }
@@ -3356,7 +3462,9 @@ exports.studentSignIn = onCall(async (request) => {
     await assignClaims(uid, claims);
   } catch (error) {
     if (error?.code !== "auth/user-not-found") throw error;
-    await getAuth().createUser({ uid, displayName: studentId });
+    // No displayName: the student ID is not a name, and an Auth profile that
+    // calls the student '101410' is one more place for the ID to surface as one.
+    await getAuth().createUser({ uid });
     await assignClaims(uid, claims);
   }
 
@@ -3422,7 +3530,15 @@ exports.unlinkStudentAccount = onCall(async (request) => {
       if (uid) await assignClaims(uid, {}).catch(() => {});
     }),
   );
-  await db.collection("grades").doc(studentId).set({ linkedEmail: FieldValue.delete() }, { merge: true });
+  // update() on a row that exists, never set(merge): clearing the link on an
+  // ID with no roster row must not create one — a ghost row with no name that
+  // the roster would then show as a bare ID.
+  // FOLLOW-UP: like resetStudentPasscode, this asks only for a teacher, not
+  // for this student's teacher of record (see setStudentSisId for the check).
+  const rosterRow = await readStudentRosterPresence(db, studentId);
+  if (rosterRow.exists) {
+    await db.collection("grades").doc(studentId).update({ linkedEmail: FieldValue.delete() });
+  }
 
   return { studentId, unlinked: links.size };
 });
@@ -3529,20 +3645,19 @@ exports.listSignInAccess = onCall(async (request) => {
   const db = getFirestore();
   const isRootAdmin = request.auth?.token?.rootAdmin === true
     && authLib.isRootAdminEmail(callerEmail(request));
+  const identity = await studentIdentity();
   const [roster, credentials, directory, aliases, teachers, classes] = await Promise.all([
-    // Only these fields — the rest of a grades document is the student's
+    // Only the shared roster fields — names (every field the name resolver
+    // reads, googleName included), class membership, account state and the
+    // small support profile. The rest of a grades document is the student's
     // entire attempt history and has no business in this payload.
-    db.collection("grades").select(
-      "classPeriod", "classId", "status", "linkedEmail", "assignedTeacherEmail",
-      "displayName", "firstName", "lastName", "profile", "sisStudentId",
-    ).get(),
+    db.collection("grades").select(...identity.TEACHER_ROSTER_SELECT_FIELDS).get(),
     db.collection(authLib.CREDENTIALS_COLLECTION).get(),
     db.collection(authLib.DIRECTORY_COLLECTION).get(),
     db.collection(authLib.ALIAS_COLLECTION).get(),
     db.collection(authLib.TEACHER_COLLECTION).get(),
     loadClasses(db),
   ]);
-  const model = await classModel();
   const canonicalByKey = {};
   aliases.docs.forEach((aliasDoc) => {
     canonicalByKey[aliasDoc.id] = aliasDoc.data()?.studentId || aliasDoc.id;
@@ -3558,51 +3673,19 @@ exports.listSignInAccess = onCall(async (request) => {
     credentialByStudent[studentId] = credentialDoc.data() || {};
   });
 
-  // MathMaster structured student names / class-centric account creation v1
-  // Structured names are preferred. Old roster rows that only have
-  // displayName remain sortable by treating the last word as the surname.
-  const sortParts = (student) => {
-    const firstName = String(student.firstName || "").trim();
-    const lastName = String(student.lastName || "").trim();
-    if (firstName || lastName) return { firstName, lastName };
-    const parts = String(student.displayName || "").trim().split(/\s+/).filter(Boolean);
-    return {
-      firstName: parts.length > 1 ? parts.slice(0, -1).join(" ") : (parts[0] || ""),
-      lastName: parts.length > 1 ? parts.at(-1) : "",
-    };
-  };
-
+  // One row per student from the shared projection: the name is resolved from
+  // every name field on file (a Classroom-linked legacy student whose only
+  // name is googleName keeps it) and never from the id. A student with no name
+  // on file says so (nameMissing) and sorts after the named ones.
   const caller = callerEmail(request);
   const students = roster.docs
     .filter((rosterDoc) => rosterDoc.id !== "test_connection")
     .filter((rosterDoc) => isRootAdmin || String(rosterDoc.data()?.assignedTeacherEmail || "").trim().toLowerCase() === caller)
-    .map((rosterDoc) => {
-      const credential = credentialByStudent[rosterDoc.id];
-      const data = rosterDoc.data() || {};
-      return {
-        studentId: rosterDoc.id,
-        firstName: data.firstName || null,
-        lastName: data.lastName || null,
-        displayName: data.displayName || null,
-        classId: data.classId || null,
-        classPeriod: data.classPeriod || "Unassigned",
-        status: data.status === model.ACCOUNT_STATUS.DISABLED ? model.ACCOUNT_STATUS.DISABLED : model.ACCOUNT_STATUS.ACTIVE,
-        assignedTeacherEmail: data.assignedTeacherEmail || null,
-        sisStudentId: data.sisStudentId || null,
-        profile: data.profile && typeof data.profile === "object" ? data.profile : {},
-        hasPasscode: Boolean(credential?.hash) && credential?.resetRequired !== true,
-        resetRequired: credential?.resetRequired === true,
-        linkedEmail: emailByStudent[rosterDoc.id] || data.linkedEmail || null,
-      };
-    })
-    .sort((a, b) => {
-      const aName = sortParts(a);
-      const bName = sortParts(b);
-      const options = { sensitivity: "base", numeric: true };
-      return aName.lastName.localeCompare(bName.lastName, undefined, options)
-        || aName.firstName.localeCompare(bName.firstName, undefined, options)
-        || a.studentId.localeCompare(b.studentId, undefined, options);
-    });
+    .map((rosterDoc) => identity.buildTeacherRosterSummaryRow(rosterDoc.id, rosterDoc.data() || {}, {
+      credential: credentialByStudent[rosterDoc.id],
+      linkedEmail: emailByStudent[rosterDoc.id],
+    }))
+    .sort(identity.compareStudentIdentities);
 
   return {
     students,
@@ -3671,10 +3754,18 @@ exports.createStudentAccount = onCall(async (request) => {
     if (!firstName) firstName = parts.length > 1 ? parts.slice(0, -1).join(" ") : (parts[0] || "");
     if (!lastName && parts.length > 1) lastName = parts.at(-1);
   }
-  if ((request.data?.firstName || request.data?.lastName) && (!firstName || !lastName)) {
-    throw new HttpsError("invalid-argument", "Enter both the student's first name and last name.");
-  }
-  const displayName = cleanName([firstName, lastName].filter(Boolean).join(" ") || legacyDisplayName, 120);
+  // Every new student has a real first and last name. A nameless account is
+  // how '101410' ended up where a child's name belonged, so a request with no
+  // name — or with the ID, an email or a placeholder typed as one — is refused
+  // here, not only in the form.
+  const identity = await studentIdentity();
+  const validatedName = identity.validateStudentNameInput(
+    { firstName, lastName },
+    { studentId, sisStudentId: studentId },
+  );
+  if (!validatedName.ok) throw new HttpsError("invalid-argument", validatedName.error);
+  ({ firstName, lastName } = validatedName);
+  const { displayName } = validatedName;
 
   const model = await classModel();
   // A new student is placed by CLASS. The class carries the period and the
@@ -6399,6 +6490,7 @@ exports.listClassroomRosterLinks = onCall(async (request) => {
   const courseId = String(request.data?.courseId || "").trim();
   if (!courseId) throw new HttpsError("invalid-argument", "courseId is required.");
 
+  const identity = await studentIdentity();
   // Query by teacher only so this does not require a fragile composite index.
   // A teacher has a small bounded set of roster links; course scoping happens
   // in memory and the client receives only the selected course.
@@ -6419,10 +6511,40 @@ exports.listClassroomRosterLinks = onCall(async (request) => {
         studentId: entry.studentId || null,
         googleUserId: entry.googleUserId || null,
         email: entry.email || null,
-        name: entry.name || null,
+        // A stored copy that is an id or a placeholder is not a name.
+        name: identity.acceptStudentName(entry.name, entry) || null,
       })),
   };
 });
+
+/**
+ * The Google identity a Classroom link copies onto grades/{studentId} and onto
+ * the classroomRosterLinks record.
+ *
+ * googleName is the ONLY name some legacy students have, so a roster entry
+ * with no usable name (blank, an email address, an id) never erases one: the
+ * name and the email are written only when the new value is real. The one
+ * exception is a link that moves the record to a DIFFERENT Google account —
+ * the name and email on file then belong to someone else and are removed, for
+ * the same reason the replaced-link cleanup in linkClassroomRosterBatch
+ * removes them from a student who loses a link.
+ */
+function classroomGoogleIdentityFields(
+  identity,
+  { studentId, googleUserId, name, email, previousGoogleUserId = null },
+  { nameField, emailField },
+) {
+  const acceptedName = identity.acceptStudentName(name, { studentId, googleUserId });
+  const cleanEmail = typeof email === "string" ? email.trim().slice(0, 320) : "";
+  const previous = String(previousGoogleUserId || "").trim();
+  const accountChanged = Boolean(previous) && previous !== String(googleUserId);
+  const fields = {};
+  if (acceptedName) fields[nameField] = acceptedName;
+  else if (accountChanged) fields[nameField] = FieldValue.delete();
+  if (cleanEmail) fields[emailField] = cleanEmail;
+  else if (accountChanged) fields[emailField] = FieldValue.delete();
+  return fields;
+}
 
 exports.linkStudentToClassroom = onCall(async (request) => {
   const teacherUid = await requireTeacher(request);
@@ -6444,28 +6566,40 @@ exports.linkStudentToClassroom = onCall(async (request) => {
     );
   }
   const cleanStudentId = String(studentId).trim();
-  await assertMappedStudent(db, teacherUid, String(courseId), effectiveClassId, cleanStudentId);
+  const { student } = await assertMappedStudent(db, teacherUid, String(courseId), effectiveClassId, cleanStudentId);
 
   const rosterLinkId = rosterLinkDocumentId(String(courseId), cleanStudentId);
-  await db.doc(`classroomRosterLinks/${rosterLinkId}`).set(
+  const rosterLinkRef = db.doc(`classroomRosterLinks/${rosterLinkId}`);
+  const identity = await studentIdentity();
+  const cleanGoogleUserId = String(googleUserId);
+  const existingLink = await rosterLinkRef.get();
+  // Only a real name/email is copied; a blank one never erases what is on file.
+  const linkInput = { studentId: cleanStudentId, googleUserId: cleanGoogleUserId, name, email };
+  await rosterLinkRef.set(
     {
       rosterLinkId,
       teacherUid,
       classId: effectiveClassId,
       courseId: String(courseId),
       studentId: cleanStudentId,
-      googleUserId: String(googleUserId),
-      email: email || null,
-      name: name || null,
+      googleUserId: cleanGoogleUserId,
+      ...classroomGoogleIdentityFields(
+        identity,
+        { ...linkInput, previousGoogleUserId: existingLink.exists ? existingLink.data()?.googleUserId : null },
+        { nameField: "name", emailField: "email" },
+      ),
       updatedAt: FieldValue.serverTimestamp(),
     },
     { merge: true }
   );
   await db.doc(`grades/${cleanStudentId}`).set(
     {
-      googleUserId: String(googleUserId),
-      googleEmail: email || null,
-      googleName: name || null,
+      googleUserId: cleanGoogleUserId,
+      ...classroomGoogleIdentityFields(
+        identity,
+        { ...linkInput, previousGoogleUserId: student?.googleUserId },
+        { nameField: "googleName", emailField: "googleEmail" },
+      ),
       classroomCourseIds: FieldValue.arrayUnion(String(courseId)),
     },
     { merge: true }
@@ -6526,8 +6660,11 @@ exports.linkClassroomRosterBatch = onCall(async (request) => {
     prepared.push({
       studentId,
       googleUserId,
-      email: item.email || null,
-      name: item.name || null,
+      // Raw Classroom values; classroomGoogleIdentityFields decides what is
+      // a real name/email before anything is written.
+      email: item.email,
+      name: item.name,
+      previousGoogleUserId: studentSnap.data()?.googleUserId || null,
     });
   }
 
@@ -6597,8 +6734,12 @@ exports.linkClassroomRosterBatch = onCall(async (request) => {
     );
   }
 
+  const identity = await studentIdentity();
+  const existingLinkById = new Map(existingLinks.map((entry) => [entry.id, entry]));
   for (const item of prepared) {
     const rosterLinkId = rosterLinkDocumentId(cleanCourseId, item.studentId);
+    // Only a real name/email is copied; a blank one never erases what is on
+    // file (googleName is the only name some legacy students have).
     batch.set(
       db.doc(`classroomRosterLinks/${rosterLinkId}`),
       {
@@ -6608,8 +6749,11 @@ exports.linkClassroomRosterBatch = onCall(async (request) => {
         courseId: cleanCourseId,
         studentId: item.studentId,
         googleUserId: item.googleUserId,
-        email: item.email,
-        name: item.name,
+        ...classroomGoogleIdentityFields(
+          identity,
+          { ...item, previousGoogleUserId: existingLinkById.get(rosterLinkId)?.googleUserId || null },
+          { nameField: "name", emailField: "email" },
+        ),
         updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true }
@@ -6618,8 +6762,7 @@ exports.linkClassroomRosterBatch = onCall(async (request) => {
       db.doc(`grades/${item.studentId}`),
       {
         googleUserId: item.googleUserId,
-        googleEmail: item.email,
-        googleName: item.name,
+        ...classroomGoogleIdentityFields(identity, item, { nameField: "googleName", emailField: "googleEmail" }),
         classroomCourseIds: FieldValue.arrayUnion(cleanCourseId),
       },
       { merge: true }
@@ -9754,6 +9897,36 @@ async function recoverTeacherActiveChallenge(db, { teacherEmail, challenge }) {
   return recovery;
 }
 
+/*
+ * A room that was created but must never be played: it lost the race for the
+ * teacher's active-room pointer, or its roster could not be written. It is
+ * marked cancelled the way stale sessions are (so nothing can join or reopen
+ * it) and its private state, which no match result will ever need, is removed.
+ */
+async function retireUnusedChallengeRoom(db, { roomRef, privateRef, teacherEmail = null, invitesMayExist = false }) {
+  await roomRef.set({
+    status: "cancelled",
+    phase: "finished",
+    staleSession: true,
+    currentQuestion: null,
+    startsAt: null,
+    endsAt: null,
+    roundStartedAt: null,
+    roundEndsAt: null,
+    roundToken: null,
+    finishedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  if (invitesMayExist && teacherEmail) {
+    await updateLiveChallengeInvitesByRoom(db, {
+      roomId: roomRef.id,
+      teacherEmail,
+      fields: { status: "cancelled", staleSession: true, updatedAt: FieldValue.serverTimestamp() },
+    });
+  }
+  await db.recursiveDelete(privateRef);
+}
+
 async function requireOwnedChallenge(db, request, roomId) {
   await requireTeacher(request);
   const teacherEmail = callerEmail(request);
@@ -9818,6 +9991,13 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
         "failed-precondition",
         "Turn on the Warm-Up Live Challenge for this assignment before launching it from the Warm-Up.",
       );
+    }
+    // The game writes its Warm-Up credit onto this class's students under this
+    // assignment, so an assignment that names its classes must name this one.
+    // (One assigned to no class in particular is accepted, as before.)
+    const audience = assignmentAudience(assignmentSnapshot.data() || {});
+    if (audience.classIds.length && !(classId && audience.classIds.includes(String(classId)))) {
+      throw new HttpsError("failed-precondition", "That assignment is not assigned to this class. Choose one of this class's assignments for the Warm-Up.");
     }
   }
 
@@ -9907,8 +10087,12 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   const roomRef = db.collection(LIVE_CHALLENGE_ROOMS).doc();
   const privateRef = db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomRef.id);
   const aliasSeed = parseInt(crypto.createHash("sha256").update(roomRef.id).digest("hex").slice(0, 6), 16);
-  const sortedRoster = [...roster].sort((a, b) => a.studentId.localeCompare(b.studentId));
-  const playerRecords = sortedRoster.map((student, index) => ({
+  // Code names are handed out over a RANDOM order. Sorted by student id, the
+  // numbers ran consecutively in roster order — so a classmate could recover
+  // the order, and the same position carried the same name pattern from game
+  // to game. Nothing else depends on this order.
+  const aliasOrder = shuffleChallengeItems(roster);
+  const playerRecords = aliasOrder.map((student, index) => ({
     studentId: student.studentId,
     playerKey: crypto.randomUUID(),
     alias: challenge.challengeAlias(index, aliasSeed),
@@ -9956,7 +10140,7 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
     endsAt: null,
     roundStartedAt: null,
     roundEndsAt: null,
-    eligibleCount: sortedRoster.length,
+    eligibleCount: aliasOrder.length,
     engineVersion: 1,
     modeVersion: mode.version,
     scoringStrategyId,
@@ -10015,57 +10199,96 @@ exports.createLiveChallenge = onCall({ memory: "512MiB" }, async (request) => {
   });
   await rootBatch.commit();
 
+  // CLAIM THE TEACHER'S ONE ACTIVE ROOM BEFORE ANYONE IS INVITED. Two creates
+  // racing — two tabs, or Play Again pressed on two screens — both pass the
+  // recovery check above. Both used to build a lobby: the invites went to
+  // whichever batch wrote last, the pointer to whichever wrote last, and one
+  // tab sat on a lobby no student could ever join, left in "lobby" forever.
+  // The pointer is claimed in a transaction instead; the create that loses
+  // retires its own room before it has invited anybody and answers like any
+  // second create, naming the room that won (the console reopens it).
+  const claim = await db.runTransaction(async (transaction) => {
+    const pointer = await transaction.get(activePointerRef);
+    const otherRoomId = pointer.exists ? String(pointer.data()?.roomId || "").trim() : "";
+    if (otherRoomId && otherRoomId !== roomRef.id) {
+      const other = await transaction.get(db.collection(LIVE_CHALLENGE_ROOMS).doc(otherRoomId));
+      const otherRoom = other.exists ? (other.data() || {}) : {};
+      if (other.exists && otherRoom.teacherEmail === teacherEmail
+        && [challenge.LIVE_CHALLENGE_STATUS.LOBBY, challenge.LIVE_CHALLENGE_STATUS.RUNNING].includes(otherRoom.status)) {
+        return { claimed: false, roomId: otherRoomId };
+      }
+    }
+    transaction.set(activePointerRef, { roomId: roomRef.id, teacherEmail, classId, classPeriod, updatedAt: FieldValue.serverTimestamp() });
+    return { claimed: true };
+  });
+  if (!claim.claimed) {
+    await retireUnusedChallengeRoom(db, { roomRef, privateRef });
+    throw new HttpsError(
+      "failed-precondition",
+      "Finish or cancel your current Live Challenge before creating another one.",
+      { roomId: claim.roomId },
+    );
+  }
+
   // Keep identity-bearing player state in one private document per student.
   // Public player documents are created only after students join and contain
   // anonymous aliases/statistics only. This avoids every student contending on
   // one giant room/leaderboard document when a whole class answers together.
-  for (let start = 0; start < playerRecords.length; start += 200) {
-    const batch = db.batch();
-    playerRecords.slice(start, start + 200).forEach((player) => {
-      batch.set(privateRef.collection("players").doc(player.studentId), {
-        playerKey: player.playerKey,
-        alias: player.alias,
-        joined: false,
-        score: 0,
-        correctCount: 0,
-        roundsAnswered: 0,
-        streak: 0,
-        answeredRound: -1,
-        updatedAt: FieldValue.serverTimestamp(),
+  try {
+    for (let start = 0; start < playerRecords.length; start += 200) {
+      const batch = db.batch();
+      playerRecords.slice(start, start + 200).forEach((player) => {
+        batch.set(privateRef.collection("players").doc(player.studentId), {
+          playerKey: player.playerKey,
+          alias: player.alias,
+          joined: false,
+          score: 0,
+          correctCount: 0,
+          roundsAnswered: 0,
+          streak: 0,
+          answeredRound: -1,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        batch.set(db.collection(LIVE_CHALLENGE_INVITES).doc(player.studentId), {
+          roomId: roomRef.id,
+          title,
+          teacherEmail,
+          // The Warm-Up link travels to the student on the invite, because the
+          // invite is the only challenge document a student is allowed to read
+          // before joining. Null for a standalone challenge, which is what stops
+          // one taking over an unrelated assignment's Warm-Up.
+          assignmentId,
+          classId,
+          classPeriod,
+          className: className || null,
+          courseId,
+          alias: player.alias,
+          playerKey: player.playerKey,
+          status: "invited",
+          updatedAt: FieldValue.serverTimestamp(),
+        });
       });
-      batch.set(db.collection(LIVE_CHALLENGE_INVITES).doc(player.studentId), {
-        roomId: roomRef.id,
-        title,
-        teacherEmail,
-        // The Warm-Up link travels to the student on the invite, because the
-        // invite is the only challenge document a student is allowed to read
-        // before joining. Null for a standalone challenge, which is what stops
-        // one taking over an unrelated assignment's Warm-Up.
-        assignmentId,
-        classId,
-        classPeriod,
-        className: className || null,
-        courseId,
-        alias: player.alias,
-        playerKey: player.playerKey,
-        status: "invited",
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-    });
-    // eslint-disable-next-line no-await-in-loop
-    await batch.commit();
+      // eslint-disable-next-line no-await-in-loop
+      await batch.commit();
+    }
+  } catch (error) {
+    // A setup that failed part-way must not trap the teacher behind a pointer
+    // to an unusable lobby: release it (only if it is still this room's),
+    // retire the room and any invites already written, then report the error.
+    await db.runTransaction(async (transaction) => {
+      const pointer = await transaction.get(activePointerRef);
+      if (pointer.exists && pointer.data()?.roomId === roomRef.id) transaction.delete(activePointerRef);
+    }).catch((releaseError) => logger.error("liveChallenge.create.releasePointer.failed", { roomId: roomRef.id, message: releaseError?.message }));
+    await retireUnusedChallengeRoom(db, { roomRef, privateRef, teacherEmail, invitesMayExist: true })
+      .catch((retireError) => logger.error("liveChallenge.create.retire.failed", { roomId: roomRef.id, message: retireError?.message }));
+    throw error;
   }
-
-  // The recover-after-refresh pointer is written only after the lobby roster
-  // and invitations exist, so a partial setup failure cannot trap the teacher
-  // behind a pointer to an unusable room.
-  await activePointerRef.set({ roomId: roomRef.id, teacherEmail, classId, classPeriod, updatedAt: FieldValue.serverTimestamp() });
 
   return {
     roomId: roomRef.id,
     roundCount: actualRoundCount,
     requestedRoundCount,
-    eligibleCount: sortedRoster.length,
+    eligibleCount: aliasOrder.length,
     trimmed: actualRoundCount < requestedRoundCount,
   };
 });
@@ -10737,6 +10960,7 @@ async function writeLiveChallengeReportFromResult(db, result) {
   const report = reportRules.buildChallengeReport({
     room: result,
     scheduledRoundCount: Number(result.scheduledRoundCount) || 0,
+    playedRoundCount: typeof result.playedRoundCount === "number" ? result.playedRoundCount : null,
     roundMisses: derivedTallies.roundMisses,
     roundStandards: result.roundStandards || {},
     answeredCounts: derivedTallies.roundAnswers,
@@ -10996,8 +11220,12 @@ async function finalizeLiveChallengeMatch(db, { roomRef, room, command, status }
     const nowMs = Date.now();
     const privateState = privateSnapshot.data() || {};
     let players = playersFromSnapshot(playersSnapshot);
-    // Ending mid-round still counts the round for everyone who answered it.
-    if (plan.closeCurrentRound && status === lifecycle.SESSION_STATUS.FINISHED) {
+    // Ending mid-round still counts the round for everyone who answered it —
+    // but a round still in its 3-2-1 countdown (Next Round, then End Game) was
+    // never answerable: it is not ranked, and the match result does not count
+    // it as played (results.playedRoundCountAt).
+    if (plan.closeCurrentRound && status === lifecycle.SESSION_STATUS.FINISHED
+      && engine.results.openRoundStartedAt(currentRoom, nowMs)) {
       players = applyLiveChallengeRoundClose(transaction, {
         engine, roomRef, privateRef, room: currentRoom, privateState, players, roundIndex: plan.roundIndex, nowMs,
       }).players;
@@ -11136,28 +11364,52 @@ exports.calibrateLiveChallengeClock = onCall(async (request) => {
  * gone quiet, or who was signed in twice. This read-only callable gives the
  * room's own teacher the names for their CONSOLE — never the projector — and
  * nothing else: no student ids, no scores (the public rows carry those).
- * A finished room's private state is deleted by its effects; its roster is
- * then empty, and the console falls back to the game aliases.
+ *
+ * After the game. A finished room's private state is deleted by its effects,
+ * which used to leave the roster empty — so the final standings, the moment a
+ * teacher most wants to know who "Algebra Hawk 91" is, showed game names only,
+ * and a refresh lost the names for good. The durable match result (server-only,
+ * written in the finishing transaction) still knows who played under which
+ * key, so the roster is read from it then.
  */
 exports.getLiveChallengeHostRoster = onCall(async (request) => {
   const roomId = String(request.data?.roomId || "").trim();
   if (!roomId) throw new HttpsError("invalid-argument", "roomId is required.");
   const db = getFirestore();
   await requireOwnedChallenge(db, request, roomId);
-  const players = await loadPrivateChallengePlayers(db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId));
+  let players = await loadPrivateChallengePlayers(db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId));
+  if (!players.length) {
+    const result = await db.collection(LIVE_CHALLENGE_MATCH_RESULTS).doc(roomId).get();
+    players = result.exists
+      ? (Array.isArray(result.data()?.standings) ? result.data().standings : [])
+        .filter((standing) => standing?.studentId && standing?.playerKey)
+        .map((standing) => ({ studentId: String(standing.studentId), playerKey: standing.playerKey, alias: standing.alias, joined: standing.joined === true }))
+      : [];
+  }
+  // Only players with a key can be shown, and the names are read for exactly
+  // those, in the same order: filtering AFTER the read once paired every name
+  // after a keyless record with the next student's.
+  players = players.filter((player) => player.playerKey && player.studentId);
   if (!players.length) return { roomId, players: [] };
   const { experience } = await liveChallengeEngine();
-  const grades = await db.getAll(...players.map((player) => db.collection("grades").doc(player.studentId)));
+  const identity = await studentIdentity();
+  // Names only: the field mask keeps every player's attempt history out of
+  // this read, exactly like the teacher roster projection.
+  const grades = await db.getAll(
+    ...players.map((player) => db.collection("grades").doc(player.studentId)),
+    { fieldMask: [...identity.STUDENT_IDENTITY_FIELDS, "profile", "sisStudentId"] },
+  );
   return {
     roomId,
     players: players
-      .filter((player) => player.playerKey)
       .map((player, index) => ({
         playerKey: String(player.playerKey),
         name: experience.displayAliasForStudent({
-          student: grades[index]?.exists ? grades[index].data() || {} : {},
+          // With its id, so a name field holding the student's own id is never
+          // shown as the student's name.
+          student: { ...(grades[index]?.exists ? grades[index].data() || {} : {}), studentId: String(player.studentId || "") },
           mode: "fullName",
-          codeAlias: "Student",
+          codeAlias: identity.STUDENT_NAME_UNAVAILABLE,
         }),
         alias: String(player.alias || ""),
         joined: player.joined === true,
@@ -11567,6 +11819,10 @@ exports.reportLiveChallengeProgress = onCall(async (request) => {
       || Number(latestRoom.roundVersion || 0) !== requestedVersion
       || String(latestRoom.roundToken || "") !== requestedToken
       || Number(latestPlayer.answeredRound) === roundIndex
+      // Only inside the round's own window, like an answer: progress "made"
+      // during the 3-2-1 (the question is in the room before startsAt) was
+      // paid a milestone's full speed.
+      || !engine.timer.timerAcceptsArrival(engine.timer.timerFromRoom(latestRoom), Date.now()).accepted
     ) return { recorded: false, milestoneSpeedPoints: 0 };
 
     const milestone = challenge.applyProductiveMilestoneAward({
@@ -11630,28 +11886,34 @@ async function maybeCompressLiveChallengeRoundAfterThreshold(db, { roomRef, roun
   const decision = challenge.roundClosingDecision({ joinedCount, answeredCount, threshold: roomAtCount.roundClosingThreshold });
   const { thresholdCount } = decision;
   if (!decision.shouldClose) return { compressed: false, ...decision };
+  // Already closing (another answer got there first), or nothing left to
+  // shorten: answer from this read, without a transaction on the room.
+  if (!challenge.roundCompressionMayApply(roomAtCount, Date.now())) return { compressed: false, ...decision };
 
+  // ONE WRITER, NO TRANSACTION. Every answer that crossed the threshold at the
+  // same instant reaches this point, and each used to open a read-then-write
+  // transaction on the room: they aborted one another and retried with
+  // backoff, and the class waited 2-4 s for its feedback. The write is instead
+  // conditional on the room being exactly as read above — the same atomicity,
+  // checked by Firestore — so the first answer shortens the clock and every
+  // other one is refused at once (the room has changed) and moves on.
+  if (
+    !roomSnapshot.exists
+    || roomAtCount.status !== "running"
+    // A closed round's clock is over; nothing is left to compress.
+    || roomAtCount.roundState === "closed"
+    || Number(roomAtCount.currentRound) !== Number(roundIndex)
+    || Number(roomAtCount.roundVersion || 0) !== Number(roundVersion || 0)
+  ) return { compressed: false, answeredCount, joinedCount, thresholdCount };
   const targetEndsAtMs = Date.now() + 5000;
+  const currentEndsAtMs = toDate(roomAtCount.endsAt || roomAtCount.roundEndsAt)?.getTime() || 0;
+  const paceMode = challenge.normalizeChallengeTimingMode(roomAtCount.timingMode) === "pace";
+  if (!paceMode && (!currentEndsAtMs || currentEndsAtMs <= targetEndsAtMs)) return { compressed: false, answeredCount, joinedCount, thresholdCount };
+
+  const shortenedEndsAt = new Date(targetEndsAtMs);
   let compressed = false;
-  await db.runTransaction(async (transaction) => {
-    const latestRoomSnapshot = await transaction.get(roomRef);
-    if (!latestRoomSnapshot.exists) return;
-    const latestRoom = latestRoomSnapshot.data() || {};
-    if (
-      latestRoom.status !== "running"
-      // A closed round's clock is over; nothing is left to compress.
-      || latestRoom.roundState === "closed"
-      || Number(latestRoom.currentRound) !== Number(roundIndex)
-      || Number(latestRoom.roundVersion || 0) !== Number(roundVersion || 0)
-    ) return;
-
-    if (latestRoom.closingStartedAt) return;
-    const currentEndsAtMs = toDate(latestRoom.endsAt || latestRoom.roundEndsAt)?.getTime() || 0;
-    const paceMode = challenge.normalizeChallengeTimingMode(latestRoom.timingMode) === "pace";
-    if (!paceMode && (!currentEndsAtMs || currentEndsAtMs <= targetEndsAtMs)) return;
-
-    const shortenedEndsAt = new Date(targetEndsAtMs);
-    transaction.set(roomRef, {
+  try {
+    await roomRef.update({
       endsAt: shortenedEndsAt,
       roundEndsAt: shortenedEndsAt,
       roundCompressionReason: `${decision.threshold}-percent-answered`,
@@ -11659,9 +11921,13 @@ async function maybeCompressLiveChallengeRoundAfterThreshold(db, { roomRef, roun
       closingStartedAt: FieldValue.serverTimestamp(),
       roundCompressedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
+    }, { lastUpdateTime: roomSnapshot.updateTime });
     compressed = true;
-  });
+  } catch (error) {
+    // FAILED_PRECONDITION: the room changed since it was read — another answer
+    // already started the closing countdown, or the round moved on.
+    if (error?.code !== 9 && !/FAILED_PRECONDITION|precondition/i.test(String(error?.message || ""))) throw error;
+  }
 
   return { compressed, answeredCount, joinedCount, thresholdCount };
 }
@@ -11689,6 +11955,19 @@ exports.updateLiveChallengePacing = onCall(async (request) => {
   return { roomId, roundClosingThreshold };
 });
 
+// A device's answer id: the alphabet of a UUID, never a server receipt key.
+const LIVE_CHALLENGE_SUBMISSION_ID = /^[A-Za-z0-9_-]{1,100}$/;
+
+// What a student reads when an answer arrives outside its round's window: an
+// answer sent before GO is told to wait for GO, a late one that time was up.
+const liveChallengeArrivalRefusal = (arrival) => new HttpsError("deadline-exceeded", arrival?.reason === "round_not_started"
+  ? "This round has not started yet. Wait for GO, then answer."
+  : "Time was up before your answer arrived, so it was not counted.", { reason: arrival?.reason || null });
+
+// A round whose question can no longer be rebuilt cannot check answers. Rare
+// (the question was deleted mid-game); the student is told what happens next.
+const LIVE_CHALLENGE_QUESTION_UNAVAILABLE = "This round's question could not be checked, so answers to it are not counted. Your teacher can move on to the next round.";
+
 exports.submitLiveChallengeResponse = onCall(async (request) => {
   const requestArrivedAt = Date.now();
   const { studentId } = requireStudent(request);
@@ -11704,7 +11983,12 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   const submissionId = String(request.data?.submissionId || `legacy-${crypto.randomUUID()}`).trim();
   const requestedVersion = request.data?.roundVersion == null ? null : Number(request.data.roundVersion);
   const requestedToken = request.data?.roundToken == null ? null : String(request.data.roundToken).trim();
-  if (!roomId || !Number.isInteger(submittedRound) || submittedRound < 0 || (requestedVersion != null && !Number.isInteger(requestedVersion)) || submissionId.length > 100) {
+  // The id keys this answer's receipt in the student's own receipt log, beside
+  // keys the SERVER writes (`milestone:<version>:<depth>`). An id shaped like
+  // one of those overwrote a server receipt — "answering" round 0 with id
+  // `milestone:2:1` let a later progress report erase a wrong answer from the
+  // record the Strong Accuracy reward reads. Honest devices send UUIDs.
+  if (!roomId || !Number.isInteger(submittedRound) || submittedRound < 0 || (requestedVersion != null && !Number.isInteger(requestedVersion)) || !LIVE_CHALLENGE_SUBMISSION_ID.test(submissionId)) {
     throw new HttpsError("invalid-argument", "roomId, roundIndex, roundVersion, and submissionId are required.");
   }
 
@@ -11733,7 +12017,7 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   const submitPlan = lifecycle.planLifecycleCommand({ command: lifecycle.LIFECYCLE_COMMAND.SUBMIT, room, expected: expectedRound });
   if (submitPlan.outcome !== lifecycle.LIFECYCLE_OUTCOME.APPLY) throw new HttpsError("failed-precondition", submitPlan.message);
   const initialArrival = roundTimer.timerAcceptsArrival(roundTimer.timerFromRoom(room), requestArrivedAt);
-  if (!initialArrival.accepted) throw new HttpsError("deadline-exceeded", "The bounded delivery window for this round has ended.");
+  if (!initialArrival.accepted) throw liveChallengeArrivalRefusal(initialArrival);
   if (!currentPlayer.joined) throw new HttpsError("failed-precondition", "Join the Live Challenge before answering.");
   // The response model decides whether this question can take another
   // attempt. A classic round is one question completed by one response:
@@ -11751,13 +12035,13 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   const questionId = privateState.questionIds?.[submittedRound];
   const privateAuthored = privateState.roundQuestions?.[submittedRound] || null;
   const questionSnapshot = !privateAuthored && questionId ? await db.collection("pathQuestionBank").doc(questionId).get() : null;
-  if (!privateAuthored && !questionSnapshot?.exists) throw new HttpsError("failed-precondition", "This round's secure question is unavailable.");
+  if (!privateAuthored && !questionSnapshot?.exists) throw new HttpsError("failed-precondition", LIVE_CHALLENGE_QUESTION_UNAVAILABLE);
   const authored = privateAuthored || questionSnapshot.data() || {};
   const seedKey = `challenge|${roomId}|${submittedRound}|${questionId}`;
   const instantiated = await mathPath.instantiateQuestion(authored, seedKey);
-  if (!instantiated.question) throw new HttpsError("failed-precondition", "This round's question could not be regenerated securely.");
+  if (!instantiated.question) throw new HttpsError("failed-precondition", LIVE_CHALLENGE_QUESTION_UNAVAILABLE);
   const plan = await mathPath.buildIssuePlan(instantiated.question);
-  if (!plan.issuable) throw new HttpsError("failed-precondition", "This round can no longer be securely graded.");
+  if (!plan.issuable) throw new HttpsError("failed-precondition", LIVE_CHALLENGE_QUESTION_UNAVAILABLE);
   const grading = await mathPath.gradePathToolResponse(plan.privateGrading, request.data?.responsePayload || {});
   if (grading?.rejected) throw new HttpsError("failed-precondition", grading.reason || "The response could not be graded.");
 
@@ -11765,12 +12049,15 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
   let finalScore = null;
   let duplicateReceipt = null;
   let scoringStrategyId = null;
+  // The room as the committing attempt read it: what the pacing check below needs.
+  let roomAtSubmit = null;
   await db.runTransaction(async (transaction) => {
     const [latestRoomSnapshot, latestPlayerSnapshot] = await Promise.all([
       transaction.get(roomRef), transaction.get(privatePlayerRef),
     ]);
     if (!latestRoomSnapshot.exists || !latestPlayerSnapshot.exists) throw new HttpsError("not-found", "That Live Challenge ended before the response could be saved.");
     const latestRoom = latestRoomSnapshot.data() || {};
+    roomAtSubmit = latestRoom;
     const player = latestPlayerSnapshot.data() || {};
     if (player.submissionReceipts?.[submissionId]) {
       duplicateReceipt = player.submissionReceipts[submissionId];
@@ -11783,7 +12070,7 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
     const latestStartsAtMs = latestTimer.startsAtMs || 0;
     const nowMs = Date.now();
     const arrival = roundTimer.timerAcceptsArrival(latestTimer, requestArrivedAt);
-    if (!arrival.accepted) throw new HttpsError("deadline-exceeded", "The bounded delivery window for this round has ended.");
+    if (!arrival.accepted) throw liveChallengeArrivalRefusal(arrival);
     if (!player.joined) throw new HttpsError("failed-precondition", "Join the Live Challenge before answering.");
     if (Number(player.answeredRound) === submittedRound || attemptPlanFor(player).decision === responses.ATTEMPT_DECISION.REJECT) {
       throw new HttpsError("already-exists", "You already answered this round.");
@@ -11945,19 +12232,24 @@ exports.submitLiveChallengeResponse = onCall(async (request) => {
 
   if (duplicateReceipt) return { ...duplicateReceipt, duplicate: true };
 
-  // Classroom pacing: once 80% of the students who actually joined this round
-  // have answered, any longer remaining timer is compressed to five seconds.
-  // This happens after the authoritative score write, and failures here never
-  // invalidate a student's accepted answer.
-  await maybeCompressLiveChallengeRoundAfterThreshold(db, {
-    roomRef,
-    roundIndex: submittedRound,
-    roundVersion: submittedVersion,
-  }).catch((error) => logger.error("liveChallenge.roundCompression.failed", {
-    roomId,
-    roundIndex: submittedRound,
-    message: error?.message || String(error),
-  }));
+  // Classroom pacing: once the room's threshold of the students who actually
+  // joined this round have answered, any longer remaining timer is compressed
+  // to five seconds. This happens after the authoritative score write, and
+  // failures here never invalidate a student's accepted answer. Only an answer
+  // that could cross the threshold counts the class (roundCompressionMayApply):
+  // the student's feedback waits on this, and the room is the class's hot
+  // document.
+  if (challenge.roundCompressionMayApply(roomAtSubmit, Date.now())) {
+    await maybeCompressLiveChallengeRoundAfterThreshold(db, {
+      roomRef,
+      roundIndex: submittedRound,
+      roundVersion: submittedVersion,
+    }).catch((error) => logger.error("liveChallenge.roundCompression.failed", {
+      roomId,
+      roundIndex: submittedRound,
+      message: error?.message || String(error),
+    }));
+  }
 
   return {
     isCorrect: grading?.isCorrect === true,
@@ -16381,6 +16673,8 @@ async function archiveStudentPresenceSnapshot({
   const gradeData = grade.exists ? (grade.data() || {}) : {};
   const ref = db.collection(STUDENT_SESSION_SUMMARY_COLLECTION).doc(summaryId);
   const endedAt = Number(observedAt) || Number(live.updatedAt) || Date.now();
+  // The shared name resolver: the summary keeps a real name or null, never the id.
+  const names = await studentIdentity();
 
   await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
@@ -16391,6 +16685,7 @@ async function archiveStudentPresenceSnapshot({
       studentId,
       previous,
       observedAt: endedAt,
+      names,
     });
     if (!summary) return;
 
@@ -18656,6 +18951,7 @@ async function buildStudentRecoveryRow({
   const recovery = await workspaceDraftRecovery();
   const { resolveAuthoritativeClose } = await import("./shared/sectionDeadline.mjs");
   const { normalizeQuestionRecord } = await import("./shared/attemptPolicy.mjs");
+  const identity = await studentIdentity();
 
   const questions = runtimeQuestionsFromAssignment(assignment) || [];
   const tracker = gradeData?.gradesByAssignment?.[assignmentId] || {};
@@ -18786,7 +19082,9 @@ async function buildStudentRecoveryRow({
 
   return {
     studentId,
-    studentName: String(gradeData?.displayName || studentId).slice(0, 180),
+    // The real name or null — never the id; the report resolves a null name
+    // against the teacher's roster by studentId.
+    studentName: identity.studentNameForStorage(studentIdentityRecord(identity, studentId, gradeData))?.slice(0, 180) || null,
     canonicalAttempted,
     canonicalAttemptedByRole: attemptedByRole,
     expectedQuestionCount: runtimeIncludedQuestionIndices(assignment).length,
@@ -19013,6 +19311,7 @@ exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (req
   const { recoveryPreviewToken, previewTokenSetsMatch } = await import("./shared/recoveryPreviewToken.mjs");
   const ingestion = await submissionIngestion();
   const { resolveAuthoritativeClose } = await import("./shared/sectionDeadline.mjs");
+  const identity = await studentIdentity();
 
   const [assignmentSnapshot, scheduleSnapshot] = await Promise.all([
     db.collection("assignments").doc(assignmentId).get(),
@@ -19070,7 +19369,8 @@ exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (req
       const question = questions[Number(entry.questionIndex)] || null;
       const proposal = {
         studentId,
-        studentName: String(gradeData.displayName || studentId).slice(0, 180),
+        // Real name or null — never the id (resolved by studentId on screen).
+        studentName: identity.studentNameForStorage(studentIdentityRecord(identity, studentId, gradeData))?.slice(0, 180) || null,
         questionIndex: Number(entry.questionIndex),
         questionNumber: Number(entry.questionIndex) + 1,
         questionId: question?.questionId || question?.id || null,
@@ -19385,6 +19685,85 @@ exports.setStudentSisId = onCall(async (request) => {
     { sisStudentId, classId: classId || null },
   );
   return { studentId, sisStudentId };
+});
+
+/**
+ * Teacher action: set or correct a student's name.
+ *
+ * This is how a student whose roster record has no usable name (an account
+ * created before names were required, or a legacy row whose only name was a
+ * Google Classroom copy) gets one, and how a misspelling is fixed. The people
+ * who may set the SIS Student ID may set the name: the root administrator, the
+ * student's roster teacher, or the teacher of record of the student's class.
+ *
+ * It writes ONLY the canonical name fields and their provenance — never an
+ * attempt, a grade, an identifier or class membership — and reads the roster
+ * record through a field mask, so the attempt history is never loaded.
+ * Removing identityBackfill marks the name as a person's decision, so rolling
+ * back an automated backfill can never undo it.
+ */
+exports.setStudentName = onCall(async (request) => {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const identity = await studentIdentity();
+  const studentId = String(request.data?.studentId || "").trim();
+  if (!studentId || studentId.length > 180 || studentId.includes("/")) {
+    throw new HttpsError("invalid-argument", "studentId is required.");
+  }
+  const email = callerEmail(request);
+  const isRootAdmin = request.auth?.token?.rootAdmin === true && authLib.isRootAdminEmail(email);
+  const studentRef = db.collection("grades").doc(studentId);
+  const auditRef = db.collection(authLib.ADMIN_AUDIT_COLLECTION).doc();
+  const readMask = [...identity.STUDENT_IDENTITY_FIELDS, "assignedTeacherEmail", "classId", "sisStudentId", "status"];
+  const storedText = (value) => (typeof value === "string" ? value : null);
+
+  return db.runTransaction(async (transaction) => {
+    const [snapshot] = await transaction.getAll(studentRef, { fieldMask: readMask });
+    if (!snapshot.exists) throw new HttpsError("not-found", "That student is not on the MathMaster roster.");
+    const student = snapshot.data() || {};
+
+    let authorized = isRootAdmin
+      || String(student.assignedTeacherEmail || "").trim().toLowerCase() === email;
+    const classId = String(student.classId || "").trim();
+    if (!authorized && classId) {
+      const classSnapshot = await transaction.get(db.collection(CLASS_COLLECTION).doc(classId));
+      authorized = classSnapshot.exists
+        && String(classSnapshot.data()?.teacherOfRecord || "").trim().toLowerCase() === email;
+    }
+    if (!authorized) throw new HttpsError("permission-denied", "Only this student's teacher of record can change the student's name.");
+
+    const validatedName = identity.validateStudentNameInput(
+      { firstName: request.data?.firstName, lastName: request.data?.lastName },
+      { studentId, sisStudentId: student.sisStudentId || "" },
+    );
+    if (!validatedName.ok) throw new HttpsError("invalid-argument", validatedName.error);
+    const next = {
+      firstName: validatedName.firstName,
+      lastName: validatedName.lastName,
+      displayName: validatedName.displayName,
+    };
+    const previous = {
+      firstName: storedText(student.firstName),
+      lastName: storedText(student.lastName),
+      displayName: storedText(student.displayName),
+    };
+
+    transaction.update(studentRef, {
+      ...next,
+      nameUpdatedAt: FieldValue.serverTimestamp(),
+      nameUpdatedBy: email,
+      identityBackfill: FieldValue.delete(),
+    });
+    transaction.set(auditRef, {
+      actorUid: request.auth?.uid || null,
+      actorEmail: email,
+      action: "student_name_set",
+      target: studentId,
+      details: { previous, next },
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return { studentId, ...next };
+  });
 });
 
 

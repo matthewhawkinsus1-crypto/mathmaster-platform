@@ -4,6 +4,9 @@ import QuestionPrompt from './QuestionPrompt';
 import GraphDisplay from './GraphDisplay';
 import QuestionVisual from './QuestionVisual';
 import useUndoHistory from './useUndoHistory';
+import graphingGrader from '../functions/shared/serverGrading/tools/graphing.mjs';
+import { gradeToolCheck } from './tools/shared/sharedToolGrading.js';
+import { answerStateFromSharedGrading } from './platform/grading/sharedAnswerState.js';
 
 export default function GraphLine({ question, onStateChange, onUndoStateChange, feedback, draftKey }) {
   const { m, b, prompt, equationLatex, showEquation = true, showGraph = false } = question;
@@ -17,16 +20,16 @@ export default function GraphLine({ question, onStateChange, onUndoStateChange, 
     if (showGraph) return { xMin: -10, xMax: 10, yMin: -10, yMax: 10, functions: [{ type: 'line', m, b }], ariaLabel: `Graph of ${generatedEquation}` };
     return null;
   }, [question.graph, question.visual, showGraph, m, b, generatedEquation]);
-  const parts = [
-    { id: 'slope', label: 'Slope', isComplete: slope !== '', isCorrect: slope !== '' && Number(slope) === m, response: slope },
-    { id: 'intercept', label: 'Y-intercept', isComplete: intercept !== '', isCorrect: intercept !== '' && Number(intercept) === b, response: intercept },
-  ];
-  const isComplete = parts.every((part) => part.isComplete);
-  const isCorrect = isComplete && parts.every((part) => part.isCorrect);
+  // The student's raw work. The verdict, parts and partial credit come ONLY
+  // from the shared grader the server also runs, through the exact bytes the
+  // server will read (functions/shared/serverGrading/tools/graphing.mjs).
+  const work = useMemo(() => ({ slope, intercept }), [slope, intercept]);
+  const grading = useMemo(() => gradeToolCheck(graphingGrader, question, work), [question, work]);
+  const questionDetails = `${prompt || `Identify the slope and y-intercept for ${generatedEquation}`} Responses: m=${slope}, b=${intercept}.`;
 
   useEffect(() => {
-    onStateChange({ isComplete, isCorrect, responseKey: `${slope}|${intercept}`, questionDetails: `${prompt || `Identify the slope and y-intercept for ${generatedEquation}`} Responses: m=${slope}, b=${intercept}.`, parts });
-  }, [slope, intercept, isComplete, isCorrect, prompt, generatedEquation, onStateChange]);
+    onStateChange(answerStateFromSharedGrading(grading, { questionDetails }));
+  }, [grading, questionDetails, onStateChange]);
 
   useEffect(() => {
     onUndoStateChange?.({ canUndo: history.canUndo, onUndo: history.undo, label: 'Undo the last line-feature entry' });

@@ -81,12 +81,20 @@ export const assertCapability = (source, alternatives, message) => {
  * for an unrelated reason, so the assertion passes while the behaviour it
  * stands for can be deleted. Bind assertions to the handler, memo or call site
  * that must contain them.
+ *
+ * An end marker that is given must be found after the start, just as the start
+ * must be found. Falling back to the end of the file would let a stale end
+ * marker bind the assertion to everything after the start, which is the
+ * unbound match this helper exists to prevent. Leave the end marker out only
+ * when the region really does run to the end of the file.
  */
 export const region = (source, startNeedle, endNeedle, label = 'region') => {
   const start = source.indexOf(startNeedle);
   assert.notEqual(start, -1, `could not find the start of ${label}: ${startNeedle}`);
-  const end = endNeedle ? source.indexOf(endNeedle, start + startNeedle.length) : -1;
-  return source.slice(start, end === -1 ? source.length : end);
+  if (!endNeedle) return source.slice(start);
+  const end = source.indexOf(endNeedle, start + startNeedle.length);
+  assert.notEqual(end, -1, `could not find the end of ${label}: ${endNeedle}`);
+  return source.slice(start, end);
 };
 
 

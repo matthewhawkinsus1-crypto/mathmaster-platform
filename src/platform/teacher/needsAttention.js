@@ -1,5 +1,5 @@
 import { ENGAGEMENT, INSTRUCTIONAL_BAND } from '../profile/studentLearningProfile.js';
-import { formatStudentName } from '../studentName.js';
+import { acceptStudentName, formatStudentLabel, formatStudentName } from '../studentName.js';
 
 /*
  * ONE QUEUE, AND A HIGH BAR FOR ENTERING IT.
@@ -108,6 +108,9 @@ const pct = (value) => `${Math.round((Number(value) || 0) * 100)}%`;
 export const academicFindingsFor = ({ studentId, studentName, profile, classId = null }) => {
   const findings = [];
   if (!profile) return findings;
+  // A sentence names the student only by a real name — "Name unavailable" or
+  // an id is not a subject; the queue row shows the id beside the label.
+  const subject = acceptStudentName(studentName, { studentId }) || 'This student';
   if (THRESHOLDS.requireEstablishedBaseline && !profile.baseline?.established) return findings;
 
   const push = (rule, urgency, headline, detail) => findings.push({
@@ -129,7 +132,7 @@ export const academicFindingsFor = ({ studentId, studentName, profile, classId =
       'foundationGap',
       URGENCY.THIS_WEEK,
       'Prerequisite gaps are blocking grade-level work',
-      `${studentName} has confirmed gaps ${profile.foundationGapDepth} levels below this course. Foundation Bridge work is already in their weekly path; a short conference would help more than another grade-level assignment.`,
+      `${subject} has confirmed gaps ${profile.foundationGapDepth} levels below this course. Foundation Bridge work is already in their weekly path; a short conference would help more than another grade-level assignment.`,
     );
   } else if (profile.instructionalBand === INSTRUCTIONAL_BAND.BELOW) {
     push(
@@ -273,7 +276,7 @@ export const systemFindings = ({
       'unplaceableStudents',
       URGENCY.TODAY,
       `${unplaceable.length} student${unplaceable.length === 1 ? '' : 's'} on no class roster`,
-      `${unplaceable.map((student) => formatStudentName(student, { lastFirst: false })).slice(0, 6).join(', ')}${unplaceable.length > 6 ? ` and ${unplaceable.length - 6} more` : ''}. Their class period is used by more than one class, so MathMaster cannot tell which one they belong to.`,
+      `${unplaceable.map((student) => formatStudentLabel(student, { lastFirst: false })).slice(0, 6).join(', ')}${unplaceable.length > 6 ? ` and ${unplaceable.length - 6} more` : ''}. Their class period is used by more than one class, so MathMaster cannot tell which one they belong to.`,
     );
   }
 
@@ -395,9 +398,10 @@ export const filterQueue = (queue = [], {
       if (!named) return false;
     }
     if (needle) {
+      // Ids are searchable too: a student with no name on file is found by id.
       const haystack = [
-        alert.headline, alert.detail, alert.studentName,
-        ...list(alert.students).map((entry) => entry.studentName),
+        alert.headline, alert.detail, alert.studentName, alert.studentId,
+        ...list(alert.students).flatMap((entry) => [entry.studentName, entry.studentId]),
       ].filter(Boolean).join(' ').toLowerCase();
       if (!haystack.includes(needle)) return false;
     }

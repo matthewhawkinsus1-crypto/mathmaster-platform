@@ -13,6 +13,7 @@ import { classificationFeedback, planeWorkEarned, resolveInterpretationGate, sta
 import { linearEquationForm } from '../../src/tools/systemsWorkspace/algebraicSystemsEngine.js';
 import * as engine from '../../src/tools/systemsWorkspace/eliminationReduction.js';
 import { buildReductionSystem } from '../../src/tools/systemsWorkspace/substitutionReduction.js';
+import systemsWorkspaceGrader from '../../functions/shared/serverGrading/tools/systemsWorkspace.mjs';
 
 const DEPENDENT = ['2x + y - 3z = 5', 'x + 2y - 4z = 7', '6x + 3y - 9z = 15'];
 const INCONSISTENT = ['3x - y - 2z = 4', '6x - 2y - 4z = 11', '9x - 3y - 6z = 12'];
@@ -261,8 +262,32 @@ test('an identity or contradiction is complete only after the plane relationship
   const parent = componentSource('src/tools/systemsWorkspace/EliminationReductionMode.jsx');
   assert.match(parent, /const readyToSubmit = phase === 'complete' \|\| \(phase === 'classified' && planesEarned\);/);
   assert.match(parent, /const planesEarned = Boolean\(outcome && interpretation\.planesDone\);/);
-  const check = region(parent, 'const check = () => {', 'mode: \'algebraic\'', 'check');
-  assert.match(check, /const interpreted = Boolean\(outcome\) && interpretation\.grade\.isCorrect;/);
+  // The verdict is the shared grader's — the function the server runs — so
+  // Check marks exactly the work it submits, and that work carries the
+  // classification the student recorded, the reading of the statement
+  // recorded with it, and the plane relationships stated.
+  const check = region(executableSource(parent), 'const check = () => {', 'mode: \'algebraic\'', 'check');
+  assert.match(check, /gradeToolCheck\(systemsWorkspaceGrader, questionData, work\)/);
+  assert.match(check, /submit\(\{ isCorrect: result\.isCorrect, score: result\.score \}, work,/);
+  const work = region(executableSource(parent), 'const work = {', 'useReportToolWork(work)', 'work');
+  assert.match(work, /classificationChoice: recordedClassification/);
+  assert.match(work, /classificationKind: classificationRecord\?\.kind \|\| ''/);
+  assert.match(work, /planeWork\?\.answers/);
+  // An identity or contradiction is correct only with the classification AND
+  // every plane relationship right (it was `interpreted = classified && planesEarned`).
+  const dependent = { type: 'systemsWorkspace', mode: 'algebraic', method: 'elimination', equations: DEPENDENT };
+  const truth = planeRelationshipTypes(DEPENDENT.map((equation) => linearEquationForm(equation, XYZ)), XYZ);
+  const interpret = (outcome) => systemsWorkspaceGrader.grade(dependent, { dimension: 3, method: 'elimination', outcome });
+  const stated = { statement: '0 = 0', classificationChoice: 'infinite', planes: { ...truth } };
+  assert.equal(interpret(stated).isCorrect, true);
+  assert.equal(interpret({ ...stated, planes: { ...truth, '1-3': truth['1-3'] === 'line' ? 'parallel' : 'line' } }).isCorrect, false, 'a wrong plane relationship is not an interpretation');
+  assert.equal(interpret({ ...stated, planes: {} }).isCorrect, false, 'the plane relationships have not been stated');
+  assert.equal(interpret({ ...stated, classificationChoice: '' }).isCorrect, false, 'no classification has been recorded');
+  assert.equal(interpret({ ...stated, classificationChoice: 'none' }).isCorrect, false, 'the wrong classification');
+  // The reading recorded with the classification is part of it: a DOL, quiz
+  // or test records whatever was chosen, and 0 = 0 is an identity.
+  assert.equal(interpret({ ...stated, classificationKind: 'identity' }).isCorrect, true);
+  assert.equal(interpret({ ...stated, classificationKind: 'origin' }).isCorrect, false, '"true only at (0, 0, 0)" is not an identity');
   const spatial = executableSource(componentSource('src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx'));
   assert.doesNotMatch(spatial, /parallelPlaneRelationships/, 'the model must not caption the relationships the student states');
 });

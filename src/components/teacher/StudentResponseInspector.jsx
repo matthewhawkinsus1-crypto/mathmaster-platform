@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { inspectStudentResponse, overrideStudentResponseGrade } from '../../services/responseInspectorService.js';
+import { STUDENT_NAME_UNAVAILABLE, resolveRosterStudentName, studentIdLabel } from '../../platform/studentName.js';
 
 const show = (value) => value === null || value === undefined ? 'Unavailable' : typeof value === 'string' ? value || 'Unavailable' : JSON.stringify(value);
 const reasons = ['Correct response was incorrectly graded', 'Equivalent answer accepted by teacher', 'Partial credit awarded', 'Platform/grader issue', 'Other'];
@@ -12,7 +13,7 @@ const workspaceValue = (workspace, fieldId) => {
   return workspace.entries?.length === 1 ? workspace.entries[0].value : workspace.entries?.map((entry) => ({ scope: entry.scope, value: entry.value }));
 };
 
-export default function StudentResponseInspector({ studentId, assignmentId, questionIndex, onClose, onChanged }) {
+export default function StudentResponseInspector({ studentId, assignmentId, questionIndex, onClose, onChanged, studentIdentityIndex = null }) {
   const [model, setModel] = useState(null); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
   const [reason, setReason] = useState(reasons[0]); const [note, setNote] = useState(''); const [manualScore, setManualScore] = useState('');
   const load = async () => { setBusy(true); setError(''); try { setModel(await inspectStudentResponse({ studentId, assignmentId, questionIndex })); } catch (cause) { setError(cause?.message || 'Response inspection failed.'); } finally { setBusy(false); } };
@@ -21,12 +22,19 @@ export default function StudentResponseInspector({ studentId, assignmentId, ques
   const parts = model?.automaticResult?.parts || [];
   const submitted = fieldMap(model?.states?.submitted); const legacy = fieldMap(model?.states?.legacyRecorded);
   const traces = new Map((model?.states?.gradingTrace?.fields || []).map((field) => [String(field.id), field]));
+  // The roster name by id first, then the report's copy if it is really a
+  // name; with neither, "Name unavailable" and the id labelled as an id.
+  const inspectedStudentId = String(model?.student?.id || studentId || '');
+  const inspectedStudentName = resolveRosterStudentName({
+    studentId: inspectedStudentId, index: studentIdentityIndex instanceof Map ? studentIdentityIndex : null,
+    historicalName: model?.student?.name, lastFirst: false,
+  });
   return <div role="dialog" aria-modal="true" aria-label="Student Response Inspector" style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(32,33,36,.62)', overflowY: 'auto', padding: 24 }}>
     <main style={{ maxWidth: 1180, margin: '0 auto', background: 'var(--mm-surface)', borderRadius: 14, padding: 24, color: 'var(--mm-text-strong)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}><h2 style={{ margin: 0 }}>Student Response Inspector &amp; Grade Override</h2><button onClick={onClose}>Close</button></div>
       {error && <p role="alert" style={{ color: '#b3261e', fontWeight: 700 }}>{error}</p>}
       {busy && !model ? <p>Loading response evidence…</p> : model && <>
-        <section><h3>Response Summary</h3><p><strong>{model.student.name}</strong> · {model.assignment.title} ({show(model.assignment.id)})</p><p>{model.section.title} · {model.section.role} · Question {show(model.question.id)} · Attempt {show(model.attemptNumber)}</p><p>{model.question.prompt}</p><p><strong>Automatic result:</strong> {model.automaticResult?.isCorrect ? 'Correct' : 'Incorrect'} / {model.automaticScore}% · <strong>Teacher-assigned result:</strong> {model.effectiveStatus.status === 'correct' ? 'Correct' : model.effectiveStatus.status === 'partial' ? 'Partial credit' : 'Incorrect'} / {model.assignedScore}% {model.override ? '· Override active' : ''}</p></section>
+        <section><h3>Response Summary</h3><p><strong>{inspectedStudentName}</strong>{inspectedStudentName === STUDENT_NAME_UNAVAILABLE && inspectedStudentId ? <span style={{ color: '#5f6368' }}> · {studentIdLabel(inspectedStudentId)}</span> : null} · {model.assignment.title} ({show(model.assignment.id)})</p><p>{model.section.title} · {model.section.role} · Question {show(model.question.id)} · Attempt {show(model.attemptNumber)}</p><p>{model.question.prompt}</p><p><strong>Automatic result:</strong> {model.automaticResult?.isCorrect ? 'Correct' : 'Incorrect'} / {model.automaticScore}% · <strong>Teacher-assigned result:</strong> {model.effectiveStatus.status === 'correct' ? 'Correct' : model.effectiveStatus.status === 'partial' ? 'Partial credit' : 'Incorrect'} / {model.assignedScore}% {model.override ? '· Override active' : ''}</p></section>
         <section><h3>Field Comparison</h3><p style={{ color: '#5f6368' }}>Saved Workspace is the latest server-backed graded-session workspace. Submitted Snapshot is immutable when available. Legacy values are historical grader-recorded fields and are not claimed as exact snapshots.</p>
           <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr><th>Part</th><th>Saved Workspace</th><th>Submitted Snapshot</th><th>Recorded grader response (legacy)</th><th>Normalized/comparison trace</th><th>Expected</th><th>Automatic Result</th></tr></thead><tbody>{(parts.length ? parts : [{ id: 'response' }]).map((part) => { const trace = traces.get(String(part.id)); return <tr key={part.id} style={{ borderTop: '1px solid #dadce0' }}><td>{part.label || part.id}</td><td>{show(workspaceValue(model.states.workspace, part.id))}</td><td>{show(submitted?.[part.id] ?? submitted)}</td><td>{show(legacy?.[part.id] ?? legacy)}</td><td>{trace?.normalizedAvailable ? show(trace.normalized) : trace?.normalizedUnavailableReason || 'Unavailable — grader does not expose normalized representation'}</td><td>{show(model.expectedAvailable === false ? model.expectedUnavailableReason : (trace?.expected ?? model.expected?.[part.id] ?? model.expected))}</td><td>{part.isCorrect ? 'Correct' : 'Incorrect'} · {part.credit ?? (part.isCorrect ? 1 : 0)}</td></tr>; })}</tbody></table></div>
           <p><strong>Workspace timing:</strong> {model.states.workspace?.available ? `${model.states.workspace.relationToSubmission} relative to submission · variant ${model.states.workspace.variantIndex} · saved ${show(model.timestamps.workspaceSavedAt)}` : model.states.workspace?.reason || 'Unavailable'}</p>

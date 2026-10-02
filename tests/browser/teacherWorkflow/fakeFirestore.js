@@ -110,13 +110,32 @@ const remove = (path) => {
 const versionOf = (path) => versions.get(path) || 0;
 
 const listeners = new Set();
-// What the app asked of "Firestore", for the endurance journeys: document
-// reads by path, listeners opened by path, snapshots delivered to listeners by
-// path, and how many listeners are open right now.
-const stats = { reads: new Map(), subscriptions: new Map(), notifications: new Map() };
-const bump = (map, key) => map.set(key, (map.get(key) || 0) + 1);
+// What the app asked of "Firestore", for the endurance journeys and the
+// identity performance probe: document reads by path (getDoc and transaction
+// reads), one-shot queries by collection path (getDocs), listeners opened by
+// path, how many are open right now (and on which path), snapshots delivered
+// to listeners by path (notifications), every document handed to the app
+// (docsDelivered, by onSnapshot emissions and getDocs results), and the
+// callables the app invoked with the byte size of each one's latest response
+// (fakeFunctions.js reports them here, so one stats() call covers the whole
+// fake backend).
+const stats = {
+  reads: new Map(),
+  queries: new Map(),
+  subscriptions: new Map(),
+  notifications: new Map(),
+  docsDelivered: new Map(),
+  callables: new Map(),
+  callableBytes: new Map(),
+};
+const bump = (map, key, by = 1) => map.set(key, (map.get(key) || 0) + by);
 const targetPath = (target) => (target?.type === 'query' ? target.collectionPath : target?.path) || '';
 const notifyEveryWrite = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('notify') === 'every-write';
+/** fakeFunctions.js: one callable invocation, and the JSON size of its latest response. */
+export const recordHarnessCallable = (name, responseBytes = null) => {
+  bump(stats.callables, name);
+  if (Number.isFinite(responseBytes)) stats.callableBytes.set(name, responseBytes);
+};
 
 const persist = () => {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...store.entries()].map(([path, data]) => [path, serialize(data)]))); } catch { /* quota: harness only */ }
@@ -282,7 +301,12 @@ const draftNetwork = async (path) => {
 };
 
 export const getDoc = async (ref) => { await draftNetwork(ref.path); bump(stats.reads, ref.path); return docSnapshot(ref.path); };
-export const getDocs = async (target) => runQuery(target);
+export const getDocs = async (target) => {
+  const result = runQuery(target);
+  bump(stats.queries, targetPath(target));
+  bump(stats.docsDelivered, targetPath(target), result.size);
+  return result;
+};
 
 export const onSnapshot = (target, ...rest) => {
   const handlers = rest.filter((entry) => typeof entry === 'function');
@@ -292,6 +316,7 @@ export const onSnapshot = (target, ...rest) => {
     // is always delivered (an empty result included).
     signature: null,
     delivered: new Map(),
+    path: targetPath(target),
     emit: () => {
       // An unsubscribed listener hears nothing more, not even its first snapshot.
       if (!listeners.has(listener)) return;
@@ -303,11 +328,14 @@ export const onSnapshot = (target, ...rest) => {
         listener.signature = signature;
         bump(stats.notifications, targetPath(target));
         if (target.type === 'document') {
-          onNext?.(docSnapshot(target.path));
+          const snapshot = docSnapshot(target.path);
+          bump(stats.docsDelivered, listener.path, Number(snapshot.exists()));
+          onNext?.(snapshot);
           return;
         }
         const changes = first ? null : changesBetween(listener.delivered, paths);
         listener.delivered = new Map(paths.map((path) => [path, versionOf(path)]));
+        bump(stats.docsDelivered, listener.path, paths.length);
         onNext?.(querySnapshot(paths, changes));
       } catch (error) { onError?.(error); }
     },
@@ -379,7 +407,7 @@ export const writeBatch = () => {
 
 export const runTransaction = async (_db, fn) => {
   const tx = {
-    get: async (ref) => { await draftNetwork(ref.path); return docSnapshot(ref.path); },
+    get: async (ref) => { await draftNetwork(ref.path); bump(stats.reads, ref.path); return docSnapshot(ref.path); },
     set: (ref, data, options) => { writeSet(ref, data, options); return tx; },
     update: (ref, ...args) => { writeUpdate(ref, args); return tx; },
     delete: (ref) => { remove(ref.path); return tx; },
@@ -397,15 +425,25 @@ export const harnessStore = {
   remove: (path) => { remove(path); notify(); },
   paths: (prefix = '') => [...store.keys()].filter((path) => path.startsWith(prefix)),
   reset: () => { localStorage.removeItem(STORAGE_KEY); window.location.search = '?reset=1'; },
-  stats: () => ({
-    openListeners: listeners.size,
-    reads: Object.fromEntries(stats.reads),
-    subscriptions: Object.fromEntries(stats.subscriptions),
-    // Snapshots delivered to listeners, by the path they listen to.
-    notifications: Object.fromEntries(stats.notifications),
-    notifyEveryWrite,
-  }),
-  resetStats: () => { stats.reads.clear(); stats.subscriptions.clear(); stats.notifications.clear(); },
+  stats: () => {
+    const openByPath = new Map();
+    listeners.forEach((listener) => bump(openByPath, listener.path));
+    return {
+      openListeners: listeners.size,
+      openListenersByPath: Object.fromEntries(openByPath),
+      reads: Object.fromEntries(stats.reads),
+      queries: Object.fromEntries(stats.queries),
+      subscriptions: Object.fromEntries(stats.subscriptions),
+      // Snapshots delivered to listeners, by the path they listen to.
+      notifications: Object.fromEntries(stats.notifications),
+      notifyEveryWrite,
+      docsDelivered: [...stats.docsDelivered.values()].reduce((total, count) => total + count, 0),
+      docsDeliveredByPath: Object.fromEntries(stats.docsDelivered),
+      callables: Object.fromEntries(stats.callables),
+      callableBytes: Object.fromEntries(stats.callableBytes),
+    };
+  },
+  resetStats: () => { Object.values(stats).forEach((map) => map.clear()); },
   // One document as stored, and back: how the draft journeys carry what one
   // "device" (browser context) saved to the server into another device's
   // already-open page, Timestamps intact.

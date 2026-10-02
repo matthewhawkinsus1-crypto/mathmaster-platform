@@ -168,6 +168,14 @@ test('the keyboard cursor moves on the half grid, stays in view, and can land on
   }
   assert.match(describeCursor({ graph: { kind: 'linear', m: 2, b: 1 } }, { x: 1, y: 0 }), /Pointer at \(1, 0\)\. The curve is at y 3\./);
   assert.match(describeCursor({ graph: { kind: 'squareRoot', a: 1, s: 1, h: 2, k: 0 } }, { x: -1, y: 0 }), /does not reach/);
+  // A curve hugging the x-axis is never announced as ON it: y = 2·(1/3)^(x+1)
+  // is 0.0027 at x = 5, which rounds to 0 — and "y 0" there would announce an
+  // x-intercept the graph does not have.
+  const hugging = { graph: { kind: 'exponential', a: 2, base: [1, 3], h: -1, k: 0 } };
+  assert.match(describeCursor(hugging, { x: 5, y: 0 }), /The curve is just above y 0\.$/);
+  assert.match(describeCursor({ graph: { ...hugging.graph, a: -2 } }, { x: 5, y: 0 }), /The curve is just below y 0\.$/);
+  // A real zero is still a zero.
+  assert.match(describeCursor({ graph: { kind: 'linear', m: 2, b: -2 } }, { x: 1, y: 0 }), /The curve is at y 0\.$/);
 });
 
 /* ------------------------------ the session ------------------------------ */

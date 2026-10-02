@@ -176,6 +176,37 @@ service cloud.firestore {
     }
 
     /*
+     * A STUDENT'S NAME IS SERVER-OWNED.
+     *
+     * The canonical name (firstName, lastName, displayName), every legacy and
+     * Google Classroom copy the name resolver reads, the Google identity a
+     * Classroom link copies, and the provenance of a correction or backfill are
+     * written only by audited Admin SDK callables (createStudentAccount,
+     * setStudentName, the Classroom link callables, the identity backfill),
+     * which bypass these rules. A browser that could rewrite them could rename
+     * a student, put an ID where a name belongs, or erase the only name a
+     * legacy record has. No client writes any of them.
+     *
+     * The list mirrors SERVER_OWNED_IDENTITY_FIELDS in
+     * functions/shared/studentIdentity.mjs; a parity test keeps them equal
+     * (tests/platform/studentIdentityServerContract.test.mjs).
+     */
+    function serverOwnedIdentityFields() {
+      return [
+        'firstName', 'lastName', 'displayName', 'googleName', 'name', 'studentName',
+        'googleEmail', 'googleUserId', 'identityBackfill', 'nameUpdatedAt', 'nameUpdatedBy'
+      ];
+    }
+
+    function studentIdentityUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(serverOwnedIdentityFields());
+    }
+
+    function studentIdentityAbsentOnClientCreate() {
+      return !request.resource.data.keys().hasAny(serverOwnedIdentityFields());
+    }
+
+    /*
      * THE SUPPORT PROFILE IS STAFF-AUTHORED.
      *
      * `profile` is the student-readable projection of their support plan
@@ -483,6 +514,7 @@ service cloud.firestore {
       allow update: if (rootAdmin() || teachesStudent() || (ownsStudent(studentId) && supportProfileUnchanged()))
         && rosterAuthorizationUnchanged()
         && sisIdentityUnchanged()
+        && studentIdentityUnchanged()
         && testCycleGradesUnchanged()
         && teacherGradeOverridesUnchanged()
         && serverRecoveryFieldsUnchanged();
@@ -493,6 +525,7 @@ service cloud.firestore {
       // someone deletes and recreates the row, or creates it for the first time.
       allow create: if (teacher() || (ownsStudent(studentId) && supportProfileAbsentOnStudentCreate()))
         && sisIdentityAbsentOnClientCreate()
+        && studentIdentityAbsentOnClientCreate()
         && testCycleGradesAbsentOnCreate()
         && teacherGradeOverridesAbsentOnCreate()
         && serverRecoveryFieldsAbsentOnCreate();
