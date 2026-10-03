@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { SUPPORT, SUPPORT_FOR_CATALOG_ID } from '../../../functions/shared/supportEntitlements.mjs';
+import { SUPPORT } from '../../../functions/shared/supportEntitlements.mjs';
 import { speakAloud, speechTextFor } from '../../platform/language/speechText.js';
-import { toolsEntitlementFromPath } from '../../platform/language/supportToolsEntitlement.js';
+import { pathDeliveryFact, toolsEntitlementFromPath } from '../../platform/language/supportToolsEntitlement.js';
 import { StudentSupportTray } from './StudentSupportTools.jsx';
 
 // The supports a student is entitled to, on the Path, actually rendered.
@@ -93,14 +93,12 @@ export default function PathSupportBar({
   // facts travel with the attempt, where the server intersects them with what
   // it authorized (supportEntitlements.mjs reconcileSupportDelivery).
   const onTrayEvidence = useCallback((record) => {
-    const canonical = SUPPORT_FOR_CATALOG_ID[record?.supportId];
-    if (!canonical) return;
-    if (record.eventType === 'available' || record.eventType === 'provided') {
-      setTrayPresented((current) => (current.includes(canonical) ? current : [...current, canonical]));
-    } else if (record.eventType === 'used') {
-      setUsed((current) => (current.includes(canonical) ? current : [...current, canonical]));
-    }
-  }, []);
+    const fact = pathDeliveryFact(record, applicable);
+    if (!fact) return;
+    const add = (current) => (current.includes(fact.supportId) ? current : [...current, fact.supportId]);
+    if (fact.field === 'presented') setTrayPresented(add);
+    else setUsed(add);
+  }, [applicable]);
 
   const speechAvailable = typeof window !== 'undefined' && Boolean(window.speechSynthesis);
   const wantsTts = applicable.includes(SUPPORT.TEXT_TO_SPEECH);

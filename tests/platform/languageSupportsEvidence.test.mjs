@@ -135,7 +135,7 @@ test('the tray is wired into questions, Work View and the Path, and loads lazily
   assert.match(tools, /const SupportToolsTray = lazy\(\(\) => import\('\.\/supportTools\/SupportToolsTray\.jsx'\)\);/);
   assert.match(tools, /if \(!entitlement\?\.tools\?\.length\) return null;/);
   const engine = executableSource(readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8'));
-  assert.match(engine, /const languageTools = useMemo\(\(\) => toolsEntitlementFromProfile\(stableStudentProfile\), \[stableStudentProfile\]\);/);
+  assert.match(engine, /supportEntitlement \|\| toolsEntitlementFromProfile\(stableStudentProfile, \{ activityRole \}\)/);
   assert.match(engine, /supportTray=\{supportTrayFor\('assignment'\)\}/);
   assert.match(engine, /supports: languageTools\.tools\.length \? \{ label: 'Support tools', render: \(\) => supportTrayFor\('enlarged'\) \} : null,/);
   assert.match(engine, /onEvidence=\{reportToolEvidence\}/);
@@ -148,6 +148,7 @@ test('the tray is wired into questions, Work View and the Path, and loads lazily
   assert.match(bar, /surface="path"/);
   const player = readFileSync(new URL('../../src/components/student/PathSessionPlayer.jsx', import.meta.url), 'utf8');
   const mount = region(player, '<PathSupportBar', '/>', 'Path support bar mount');
-  assert.match(mount, /supportLanguage=\{questionInstance\?\.supportLanguage \|\| null\}/);
+  assert.match(mount, /supportLanguage=\{supportLanguage\}/);
+  assert.match(player, /const supportLanguage = questionInstance\?\.supportLanguage \|\| null;/);
   assert.match(mount, /prompt=\{questionInstance\?\.prompt \|\| ''\}/);
 });

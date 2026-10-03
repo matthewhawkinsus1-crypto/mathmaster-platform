@@ -154,7 +154,10 @@ export default function SupportToolsTray({
   className = '',
 }) {
   const [speech] = useState(() => speechAvailable());
-  const [translation, setTranslation] = useState(null);
+  // Kept with the item and language it was resolved for: on the render where
+  // the item changes, the previous item's translation must not reach the
+  // model (or its evidence) before the reset below runs.
+  const [resolved, setResolved] = useState(null);
   const [openTool, setOpenTool] = useState(null);
   const [stepsOpen, setStepsOpen] = useState(true);
   const [speechFailed, setSpeechFailed] = useState(false);
@@ -174,17 +177,18 @@ export default function SupportToolsTray({
     setStepsOpen(true);
     setSpeechFailed(false);
     setGlossaryFailed(false);
-    setTranslation(null);
     stopSpeaking();
   }, [itemKey]);
 
+  const translationKey = `${itemKey}|${entitlement?.language || ''}`;
   useEffect(() => {
     if (!wantsTranslation) return undefined;
     let alive = true;
     resolveTranslation({ question, text: originalPrompt, language: entitlement.language })
-      .then((result) => { if (alive) setTranslation(result); });
+      .then((result) => { if (alive) setResolved({ key: translationKey, result }); });
     return () => { alive = false; };
-  }, [itemKey, wantsTranslation, entitlement?.language]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [translationKey, wantsTranslation]); // eslint-disable-line react-hooks/exhaustive-deps
+  const translation = resolved?.key === translationKey ? resolved.result : null;
 
   const model = useMemo(() => {
     const base = supportToolsForItem({ entitlement, prompt, question, toolType, speech: speech && !speechFailed });

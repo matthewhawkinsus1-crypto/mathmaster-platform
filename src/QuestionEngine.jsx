@@ -217,6 +217,9 @@ export default function QuestionEngine({
   // caller filters to supports the student is entitled to and de-duplicates.
   // Student assignment work only; previews pass nothing.
   onSupportEvidence = null,
+  // Which language Support tools to offer, when the caller already knows
+  // (supportToolsEntitlement.js toolsEntitlementFromPath on My Math Path).
+  supportEntitlement = null,
 }) {
   useRenderPerformance('QuestionEngine', String(question?.toolId || question?.type || 'question'));
   const resolvedActivityPolicy = activityPolicy || getEffectiveActivityPolicy(activityRole);
@@ -453,7 +456,12 @@ export default function QuestionEngine({
   // every other support, shown only when entitled and backed by a resource
   // (platform/language/supportToolsModel.js). Nothing at all for a student
   // without one: the tray and its language data are a lazily loaded chunk.
-  const languageTools = useMemo(() => toolsEntitlementFromProfile(stableStudentProfile), [stableStudentProfile]);
+  // My Math Path passes the server's own list instead (`supportEntitlement`):
+  // the Path client never decides from a profile it read itself.
+  const languageTools = useMemo(
+    () => supportEntitlement || toolsEntitlementFromProfile(stableStudentProfile, { activityRole }),
+    [supportEntitlement, stableStudentProfile, activityRole],
+  );
   const supportItemKey = `${processedQuestion?.questionId ?? processedQuestion?.id ?? ''}|${record.variantIndex ?? 0}`;
   const reportToolEvidence = useCallback((evidence) => onSupportEvidenceRef.current?.(evidence), []);
   const supportTrayFor = (surface) => (languageTools.tools.length ? (

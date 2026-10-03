@@ -274,15 +274,27 @@ export const mathTokensOf = (input, { language = 'en' } = {}) => segmentMathText
   .map((segment) => segment.value.replace(/\s+/g, ''))
   .filter(Boolean);
 
+// Multi-letter names written in capitals — points, segments, triangles and
+// angles (AB, ABC, ∠DEF's "DEF", AB′) — read as prose to the segmenter, but
+// they are as mathematical as "x": a translation must carry them unchanged.
+const IDENTIFIER = /(?<![A-Za-zÀ-ÖØ-öø-ÿ])[A-Z]{2,}['′’]*(?![A-Za-zÀ-ÖØ-öø-ÿ])/g;
+const identifiersOf = (input) => (String(input ?? '').match(IDENTIFIER) || []).map((name) => name.replace(/[’′]/g, "'"));
+
+const sameTokens = (a, b) => {
+  const left = [...a].sort();
+  const right = [...b].sort();
+  return left.length === right.length && left.every((token, index) => token === right[index]);
+};
+
 /**
  * Does `candidate` carry exactly the mathematics of `original` (same tokens,
- * any order)? The guard every language provider's output must pass.
+ * any order, and the same capital-letter names)? The guard every language
+ * provider's output must pass.
  */
-export const preservesMath = (original, candidate, { language = 'en' } = {}) => {
-  const a = mathTokensOf(original).sort();
-  const b = mathTokensOf(candidate, { language }).sort();
-  return a.length === b.length && a.every((token, index) => token === b[index]);
-};
+export const preservesMath = (original, candidate, { language = 'en' } = {}) => (
+  sameTokens(mathTokensOf(original), mathTokensOf(candidate, { language }))
+  && sameTokens(identifiersOf(original), identifiersOf(candidate))
+);
 
 /** Sentences of a text, keeping math (and decimals inside it) intact. */
 export const splitSentences = (input, { language = 'en' } = {}) => {

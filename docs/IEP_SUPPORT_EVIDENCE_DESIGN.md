@@ -488,12 +488,18 @@ directions worth breaking down (12.5), an explanation to frame (12.6). A tool ap
 true; otherwise it is recorded as `not-applicable` (nothing to offer here) or `unavailable` (it should have been
 there and was not — an implementation gap).
 
+A support the profile limits to some activities (`appliesTo`, e.g. quizzes and tests only) is offered only in those:
+`toolsEntitlementFromProfile(profile, { activityRole })` filters with `supportAppliesToRole`, as the launch records do.
+
 ### 12.4 Translation providers (no external service)
 
 `translationProviders.js resolveTranslation` tries, in order:
 
-1. **authored** — `question.translations[lang]` (applied to the prompt by `applyStudentSupportToQuestion`, as before),
-   used only if it carries the authored prompt's mathematics exactly;
+1. **authored** — `question.translations[lang]`, falling back to the base language (`es-MX` → `es`), applied to the
+   prompt by `applyStudentSupportToQuestion` and read by Translate through one lookup and one rule
+   (`authoredTranslation.js`): used only if it carries the authored prompt's mathematics exactly — numbers, symbols
+   and capital-letter names of points, segments and figures (`AB`, `ABC`, `AB′`). An item with no authored prompt
+   keeps its mathematics in its tool, so its translation is shown;
 2. **curated** — a built-in language pack, loaded on demand (`packs/es.js`: 127 direction sentences and 40 answer
    choices drawn from the most frequent directions in MathMaster's Algebra I/II banks and generators). Mathematics is
    masked into slots by `mathSafeText.js` and restored exactly; any output that does not carry every slot exactly
@@ -540,7 +546,9 @@ mathematics.
   fields, graphs, Step Algebra or the calculator. Read aloud stays the work-bar "Read" button.
 - **Work View** (enlarged rich tools): a header **Support tools** drawer (capability `supports`, rendered only while
   open) with the same tools, Read aloud included.
-- **My Math Path**: `PathSupportBar` renders the same tray from the server's applicable list; what it showed and what
+- **My Math Path**: `PathSupportBar` renders the same tray from the server's applicable list. A tool question renders
+  `QuestionEngine` instead, which is handed the same server list (`supportEntitlement`) and folds its tray facts into
+  the attempt for that question instance (`foldPathDelivery`). On both routes, what the tray showed and what
   the student opened travel with the attempt (`supportsPresented` / `supportsUsed`), which the server intersects with
   what it authorized (`reconcileSupportDelivery`).
 

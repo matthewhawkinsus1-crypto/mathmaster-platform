@@ -1,5 +1,5 @@
 import { derivedSupportEntries, effectiveFlatSupportProfile, resolveEffectiveSupportPlan } from '../functions/shared/supportProfileModel.mjs';
-import { preservesMath } from './platform/language/mathSafeText.js';
+import { authoredTranslationEntry, authoredTranslationKeepsMath } from './platform/language/authoredTranslation.js';
 import { studentFacingLabel } from '../functions/shared/supportCatalog.mjs';
 import { fractionQuestionDrawsNumbers } from '../functions/shared/fractionAnswer.mjs';
 
@@ -165,14 +165,16 @@ export const applyStudentSupportToQuestion = (question, profile) => {
     ...trustedQuestion,
     generator: question?.generator ? { ...question.generator } : question?.generator,
   };
-  const translation = normalized.translationLanguage && normalized.translationLanguage !== 'en'
-    ? question?.translations?.[normalized.translationLanguage]
+  // The same lookup the Translate tool uses (exact tag, then base language),
+  // so the tool never assumes a translation the task does not show.
+  const translation = normalized.translationLanguage && !/^en(-|$)/i.test(normalized.translationLanguage)
+    ? authoredTranslationEntry(question, normalized.translationLanguage)
     : null;
   // An authored translation is shown only if it carries the item's
   // mathematics exactly (platform/language/mathSafeText.js): a translated
   // prompt whose equation differs would be a different question.
   const translationKeepsMath = translation && typeof translation?.prompt === 'string'
-    ? preservesMath(typeof question?.prompt === 'string' ? question.prompt : '', translation.prompt, { language: normalized.translationLanguage })
+    ? authoredTranslationKeepsMath(typeof question?.prompt === 'string' ? question.prompt : '', translation.prompt, normalized.translationLanguage)
     : true;
   if (translation && typeof translation === 'object' && !Array.isArray(translation) && translationKeepsMath) {
     // The authored prompt is kept beside the translation: a grader that reads

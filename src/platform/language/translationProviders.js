@@ -25,6 +25,7 @@
  * behind the same contract, after that decision is made.
  */
 import { maskMath, preservesMath, splitSentences, unmaskMath } from './mathSafeText.js';
+import { authoredTranslationEntry, authoredTranslationKeepsMath } from './authoredTranslation.js';
 
 export const TRANSLATION_COVERAGE = Object.freeze({
   FULL: 'full',
@@ -174,13 +175,13 @@ export const translateWithPack = (input, pack, { language = pack?.language } = {
  */
 export const authoredTranslationOf = (question, language) => {
   const code = String(language || '').trim().toLowerCase();
-  const entry = question?.translations?.[code] || question?.translations?.[baseLanguage(code)];
-  if (!entry || typeof entry !== 'object' || Array.isArray(entry) || typeof entry.prompt !== 'string' || !entry.prompt.trim()) return null;
+  const entry = authoredTranslationEntry(question, code);
+  if (!entry || typeof entry.prompt !== 'string' || !entry.prompt.trim()) return null;
   const original = typeof question?.authoredPrompt === 'string' ? question.authoredPrompt : String(question?.prompt ?? '');
   return {
     text: entry.prompt,
     original,
-    keepsMath: preservesMath(original, entry.prompt, { language: code }),
+    keepsMath: authoredTranslationKeepsMath(original, entry.prompt, code),
   };
 };
 
