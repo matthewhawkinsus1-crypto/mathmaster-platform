@@ -24,6 +24,7 @@ import {
   linearMismatchSetFor,
   linearPlacementsFromAssignments,
   mixedRepresentationCards,
+  normalizeLinearAssignmentsDraft,
   REPRESENTATION_MATCH_MODES,
   representationById,
   representationMatchMode,
@@ -170,7 +171,16 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
   // "Line A" otherwise (linearGroupLabels).
   const groupNoun = useMemo(() => linearGroupNoun(questionData, sets), [questionData, sets]);
   const lineLabels = useMemo(() => linearGroupLabels(questionData, sets), [questionData, sets]);
-  const [linearAssignments, setLinearAssignments] = usePersistentToolState('linearAssignments', {});
+  // The saved sort is checked against THIS board before it renders: a card it
+  // no longer deals, a slot with no group button, or a map that is not a map
+  // (a persisted `null` crashed lmr-wu-1 for everyone who had one) is dropped,
+  // and the rest of the student's sort comes back (normalizeLinearAssignmentsDraft).
+  const [linearAssignments, setLinearAssignments] = usePersistentToolState('linearAssignments', {}, {
+    normalize: (saved) => normalizeLinearAssignmentsDraft(saved, {
+      cardIds: linearGroupCards.map((card) => card.id),
+      slotCount: sets.length,
+    }),
+  });
   const [activeLineSlot, setActiveLineSlot] = useState(0);
   const [mismatchSelection, setMismatchSelection] = usePersistentToolState('linearMismatchSelection', '');
   const [correctionChoice, setCorrectionChoice] = usePersistentToolState('linearCorrectionChoice', '');

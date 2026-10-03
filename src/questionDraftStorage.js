@@ -385,6 +385,90 @@ export const resetQuestionDraftFamily = (prefix) => {
   return keys.size;
 };
 
+/*
+ * A DRAFT THAT BREAKS ITS QUESTION IS SET ASIDE, NOT DELETED.
+ *
+ * When a question's module throws while rendering what was saved, the student
+ * needs the question back and support needs to see what broke it. Quarantine
+ * does both: every draft in the question's family is copied, envelope and all,
+ * under `QUARANTINE_PREFIX`, and then the family is reset exactly as Start over
+ * resets it — tombstones through the normal channel, so the server backup does
+ * not bring the broken draft back on the next device either.
+ *
+ * Bounded (the newest QUARANTINE_LIMIT copies), and local only: a quarantined
+ * draft is diagnostic material, never restored automatically and never sent.
+ */
+const QUARANTINE_PREFIX = 'mathmaster:draft-quarantine:v1:';
+const QUARANTINE_LIMIT = 20;
+
+const quarantineKeys = () => {
+  const keys = [];
+  if (!storageAvailable()) return keys;
+  try {
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (key?.startsWith(QUARANTINE_PREFIX)) keys.push(key);
+    }
+  } catch {
+    // Enumeration is best-effort.
+  }
+  return keys;
+};
+
+export const quarantineQuestionDraftFamily = (prefix, { reason = 'unusable-draft' } = {}) => {
+  if (!prefix) return 0;
+  const quarantinedAt = Date.now();
+  let copied = 0;
+  if (storageAvailable()) {
+    try {
+      // Collected first: writing the copies while walking by index would
+      // reorder the very keys being walked.
+      const family = [];
+      for (let index = 0; index < window.localStorage.length; index += 1) {
+        const key = window.localStorage.key(index);
+        if (key === prefix || key?.startsWith(`${prefix}:`)) family.push(key);
+      }
+      for (const key of family) {
+        const raw = window.localStorage.getItem(key);
+        if (raw === null) continue;
+        window.localStorage.setItem(`${QUARANTINE_PREFIX}${quarantinedAt}:${key}`, JSON.stringify({
+          key, reason: String(reason), quarantinedAt, raw,
+        }));
+        copied += 1;
+      }
+      const stored = quarantineKeys()
+        .map((key) => ({ key, at: Number(key.slice(QUARANTINE_PREFIX.length).split(':')[0]) || 0 }))
+        .sort((left, right) => right.at - left.at);
+      stored.slice(QUARANTINE_LIMIT).forEach(({ key }) => window.localStorage.removeItem(key));
+    } catch {
+      // Out of quota: the reset below still gives the student the question back.
+    }
+  }
+  resetQuestionDraftFamily(prefix);
+  return copied;
+};
+
+/** The copies quarantine kept for one question family (or all), newest first. */
+export const readQuarantinedDrafts = (prefix = null) => quarantineKeys()
+  .map((storageKey) => safeParse(window.localStorage.getItem(storageKey)))
+  .filter((entry) => entry && typeof entry === 'object' && typeof entry.key === 'string')
+  .filter((entry) => !prefix || entry.key === prefix || entry.key.startsWith(`${prefix}:`))
+  .map((entry) => ({ key: entry.key, reason: entry.reason, quarantinedAt: entry.quarantinedAt, envelope: safeParse(entry.raw) }))
+  .sort((left, right) => (right.quarantinedAt || 0) - (left.quarantinedAt || 0));
+
+/** The envelope version of a stored draft, for diagnostics: a number, 'none' or 'unreadable'. */
+export const questionDraftEnvelopeVersion = (key) => {
+  if (!key || !storageAvailable()) return 'none';
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (raw === null) return 'none';
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && parsed.version !== undefined ? parsed.version : 'unreadable';
+  } catch {
+    return 'unreadable';
+  }
+};
+
 export const removeAssignmentDrafts = ({ studentId, assignmentId }) => {
   const studentPart = normalizeKeyPart(studentId || 'anonymous');
   const assignmentPart = normalizeKeyPart(assignmentId || 'assignment');

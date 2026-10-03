@@ -29,7 +29,7 @@ import {
 import { WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS, createWorkspaceDraftSync } from './platform/persistence/workspaceDraftSync.js';
 import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
 import { readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
-import { resolveAuthoritativeClose, resolveWarmupInstructionDateKey } from '../functions/shared/sectionDeadline.mjs';
+import { applyWarmupTeacherControl, resolveAuthoritativeClose, resolveWarmupInstructionDateKey } from '../functions/shared/sectionDeadline.mjs';
 import { withStudentSupportDates } from '../functions/shared/supportDeadline.mjs';
 import useEngagementLedger from './platform/supportEvidence/useEngagementLedger.js';
 import StudentSupportTools from './components/student/StudentSupportTools.jsx';
@@ -8287,49 +8287,23 @@ function App() {
     const busyKey = `${assignment.id}:${classKey}`;
     setWarmupControlBusyKey(busyKey);
     try {
-      const changedAt = new Date().toISOString();
-      const dateKey = localDateKey(Date.now());
-      const teacherIdentity = user?.email || user?.id || 'teacher';
-      const warmup = {
-        ...(assignment.warmup || {}),
-        enabled: true,
-        minutesBeforeStart: Math.max(0, Number(assignment?.warmup?.minutesBeforeStart ?? 7)),
-        closeMinutesAfterStart: Math.max(1, Number(assignment?.warmup?.closeMinutesAfterStart ?? 10)),
-      };
-      const closedByClassId = { ...(assignment.warmup?.closedByClassId || {}) };
-      const autoCloseByClassId = { ...(assignment.warmup?.autoCloseByClassId || {}) };
-      const instructionDatesByClassId = { ...(assignment.warmup?.instructionDatesByClassId || {}) };
-
-      if (action === 'close') {
-        closedByClassId[classId] = { dateKey, closedAt: changedAt, closedBy: teacherIdentity };
-        delete autoCloseByClassId[classId];
-      } else if (action === 'reopen') {
-        // Reopening is an explicit live-teacher decision. Pin today's date to
-        // this real class id so a reused assignment or sibling period cannot
-        // make the control disappear again. A manual reopen overrides the
-        // normal ten-minute Warm-Up cutoff and stays open until this class ends
-        // unless the teacher chooses a shorter timer.
-        instructionDatesByClassId[classId] = dateKey;
-        delete closedByClassId[classId];
-        autoCloseByClassId[classId] = {
-          dateKey,
-          closesAt: state.window.end.toISOString(),
-          setAt: changedAt,
-          setBy: teacherIdentity,
-          reason: 'manual-reopen-until-class-end',
-        };
-      } else {
-        instructionDatesByClassId[classId] = dateKey;
-        delete closedByClassId[classId];
-        autoCloseByClassId[classId] = {
-          dateKey,
-          closesAt: timerClosesAt.toISOString(),
-          setAt: changedAt,
-          setBy: teacherIdentity,
-        };
-      }
-
-      warmup.instructionDatesByClassId = instructionDatesByClassId;
+      // The Close / Reopen / Timer record itself is shared and tested
+      // (applyWarmupTeacherControl): a reopen pins today's date to this real
+      // class id, lifts a manual close, and stays open until this class ends
+      // unless the teacher chose a timer. Student work is never touched.
+      const changedAtMs = Date.now();
+      const dateKey = localDateKey(changedAtMs);
+      const { warmup, changedAt } = applyWarmupTeacherControl({
+        assignment,
+        classId,
+        action,
+        nowMs: changedAtMs,
+        dateKey,
+        windowEndMs: state.window.end.getTime(),
+        // The close the confirmation showed the teacher.
+        timerClosesAtMs: timerClosesAt ? timerClosesAt.getTime() : null,
+        teacherIdentity: user?.email || user?.id || 'teacher',
+      });
       // Opening a Warm-Up on another day moves this class's Warm-Up day. Keep
       // the day it replaces (once, on the first override) so the class page can
       // say "originally …" — the same rule the DOL follows.
@@ -8344,8 +8318,6 @@ function App() {
           },
         };
       }
-      warmup.closedByClassId = closedByClassId;
-      warmup.autoCloseByClassId = autoCloseByClassId;
       await updateDoc(doc(db, 'assignments', assignment.id), { warmup, updatedAt: changedAt });
 
       if (action === 'timer') {
@@ -9950,6 +9922,11 @@ function App() {
     const currentRecord = normalizeQuestionRecord(workingTracker?.[currentQuestionIndex]);
     const currentIsDOL = !lifecycle.isPracticeOnly && activeQuestionRole === 'dol' && dolState.enabled && (dolState.questionIndices || [dolState.questionIndex]).includes(currentQuestionIndex);
     const currentIsWarmup = !lifecycle.isPracticeOnly && activeQuestionRole === 'warmup' && warmupState.enabled;
+    // A finalization receipt ("Time ended…") describes a close. When the
+    // teacher reopens the Warm-Up (or recovers the DOL), the section is open
+    // again and the receipt from the earlier window no longer describes it.
+    const currentSectionOpenNow = (currentIsWarmup && warmupState.status === 'active')
+      || (currentIsDOL && dolState.status === 'active');
     const currentManualSectionState = getSectionAccessState({
       assignment,
       activityRole: activeQuestionRole,
@@ -10731,13 +10708,13 @@ function App() {
                 Device reporting unavailable ({studentReportingError}); locally saved work is unchanged.
               </p>
             )}
-            {!preview && ['warmup', 'dol'].includes(runtimeActivityRole) && !currentCheckpointOutcome && (
+            {!preview && ['warmup', 'dol'].includes(runtimeActivityRole) && (!currentCheckpointOutcome || currentSectionOpenNow) && (
               <p style={{ margin: '8px 4px 0', color: '#5f6368', fontSize: 12 }}>Your latest completed response will be submitted automatically when time ends.</p>
             )}
             {/* AFTER THE CLOSE, SAY WHAT ACTUALLY HAPPENED.
                 Never "submitted" for a response that was not complete — the
                 status comes from the server's own finalization receipt. */}
-            {!preview && currentCheckpointOutcome && (
+            {!preview && currentCheckpointOutcome && !currentSectionOpenNow && (
               <p role="status" aria-live="polite" style={{ margin: '8px 4px 0', color: '#5f6368', fontSize: 12 }}>
                 {currentCheckpointOutcome === 'auto-submitted'
                   ? 'Time ended. Your latest completed response was submitted automatically.'

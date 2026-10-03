@@ -37,8 +37,10 @@
 //                question recovers to a usable board, the rest of the
 //                assignment stays reachable.
 //   cycles       close / reopen / close / reopen: deterministic, the work kept.
-//   bridge       the scope audit: the Linear Multiple Representations board in
-//                the same Warm-Up, partly built, through the same close/reopen.
+//   bridge       the scope audit: the Linear Multiple Representations board
+//                (Process Mode) in the same Warm-Up, a slope process started,
+//                through the same close / reopen / refresh.
+//   bridge-corrupt  the malformed-draft audit on that second family.
 //
 // `--slow` adds 4× CPU throttling and a slow network: the Chromebook.
 // Exit code 1 on any failure.
@@ -55,6 +57,11 @@ const STUDENT_A = '910004';
 const STUDENT_B = '910005';
 const VIEWPORT = { width: 1366, height: 768 };
 const SAVED_MS = 4500; // workspaceDraftSync's debounce is 2.5 s
+// NOT SIMULATED, AND SAID SO (as in enduranceJourneys.mjs): the harness has no
+// server ingestion, so a Submit stays queued on the device. What a journey reads
+// as "submitted" is the attempt count the student's own question card shows,
+// which App.jsx updates from the device's tracker as the submission is queued.
+const NOT_SIMULATED = /\[teacher harness\] callable "(ingestStudentSubmissions|reconcileAssignmentActivityProjection)" is not implemented/;
 
 const launch = { args: ['--no-sandbox'] };
 if (process.env.CHROMIUM_PATH) launch.executablePath = process.env.CHROMIUM_PATH;
@@ -141,9 +148,32 @@ const toolDraft = (page, studentId, index = 0) => page.evaluate(([student, assig
   return raw ? JSON.parse(raw) : null;
 }, [studentId, ASSIGNMENT, index]);
 
-const record = (page, studentId, index = 0) => page.evaluate(([student, assignment, questionIndex]) => (
-  window.__mmHarnessStore.get(`students/${student}`)?.gradesByAssignment?.[assignment]?.[questionIndex] || null
-), [studentId, ASSIGNMENT, index]);
+// Attempts used on the question on screen (the Warm-Up allows 3), from the
+// question's own attempt strip: "You have 2 attempts remaining…".
+const MAX_ATTEMPTS = 3;
+const attempts = (page) => page.evaluate((max) => {
+  const text = document.querySelector('.mathmaster-question-stage')?.innerText || '';
+  const match = /You have (\d+) attempts? remaining/i.exec(text);
+  return match ? max - Number(match[1]) : 0;
+}, MAX_ATTEMPTS);
+const attemptStrip = (page) => page.evaluate(() => ((document.querySelector('.mathmaster-question-stage')?.innerText || '').match(/[^.\n]*attempt[^.\n]*/gi) || []).join(' | '));
+
+// Sort the whole board correctly: place each card in group A, read from the
+// draft which line it belongs to, and move it to group B when it is line B.
+const sortCorrectly = async (page, studentId) => {
+  const total = await cards(page).count();
+  for (let index = 0; index < total; index += 1) {
+    const before = (await toolDraft(page, studentId))?.value?.linearAssignments || {};
+    await groupButton(page, 0).click();
+    await cards(page).nth(index).click();
+    const after = (await toolDraft(page, studentId))?.value?.linearAssignments || {};
+    const placed = Object.keys(after).find((cardId) => !(cardId in before));
+    if (placed && placed.startsWith('line-b:')) {
+      await groupButton(page, 1).click();
+      await cards(page).nth(index).click();
+    }
+  }
+};
 
 const teacher = (page, action, options = {}) => page.evaluate(async ([assignmentId, act, opts]) => {
   const deadline = await import('/functions/shared/sectionDeadline.mjs');
@@ -173,7 +203,7 @@ const crashed = async (page) => {
   return /Something went wrong|MathMaster hit a problem|Reload MathMaster|unexpected error/i.test(text) || !(await stage(page).count());
 };
 const noErrors = (device, where) => {
-  const relevant = device.errors.filter((entry) => !/Could not read response checkpoint receipts|ERR_/.test(entry));
+  const relevant = device.errors.filter((entry) => !NOT_SIMULATED.test(entry) && !/Failed to load resource|Failed to decode downloaded font|OTS parsing error/.test(entry));
   check(relevant.length === 0, `${device.label}: no exception ${where}`, relevant.join('\n---\n'));
   device.errors.length = 0;
 };
@@ -199,7 +229,7 @@ const journeyInProgress = async () => {
   check(await lockedNow(b.page), 'B: Q1 locks when the Warm-Up timer ends');
   const frozen = (await toolDraft(b.page, STUDENT_B))?.value?.linearAssignments || null;
   check(JSON.stringify(frozen) === JSON.stringify(before), 'B: the close kept the draft exactly (frozen, not cleared)', { before, frozen });
-  check((await record(b.page, STUDENT_B)) === null || (await record(b.page, STUDENT_B))?.totalAttempts === 0, 'B: the close recorded no attempt', await record(b.page, STUDENT_B));
+  check((await attempts(b.page)) === 0, 'B: the close recorded no attempt', String(await attempts(b.page)));
   noErrors(b, 'at the close');
 
   await b.page.clock.fastForward('02:00');
@@ -249,8 +279,7 @@ const journeyInProgress = async () => {
   }
   await b.page.getByRole('button', { name: /Check groups/i }).click();
   await b.page.waitForTimeout(2500);
-  const submitted = await record(b.page, STUDENT_B);
-  check(submitted && submitted.totalAttempts === 1, 'B: one submission recorded after the reopen', submitted);
+  check((await attempts(b.page)) === 1, 'B: one submission recorded after the reopen', String(await attempts(b.page)));
   noErrors(b, 'after submitting');
   await b.context.close();
 };
@@ -259,25 +288,22 @@ const journeySubmitted = async () => {
   console.log('\n== submitted: A submits before the close; B in progress; reopen');
   const a = await openDevice('A', { studentId: STUDENT_A });
   await openTodayWarmup(a.page);
-  const total = await cards(a.page).count();
-  for (let index = 0; index < total; index += 1) {
-    await groupButton(a.page, index % 2).click();
-    await cards(a.page).nth(index).click();
-  }
+  await sortCorrectly(a.page, STUDENT_A);
   await a.page.getByRole('button', { name: /Check groups/i }).click();
   await a.page.waitForTimeout(2500);
-  const submitted = await record(a.page, STUDENT_A);
-  check(submitted && submitted.totalAttempts === 1, 'A: submitted once before the close', submitted);
+  const lockedBefore = await lockedNow(a.page);
+  const stripBefore = await attemptStrip(a.page);
+  check(lockedBefore && /Correct/i.test(await stageText(a.page)), 'A: submitted a correct sort before the close (final)', stripBefore);
   await a.page.clock.fastForward('10:00');
   await a.page.waitForTimeout(1000);
   await a.page.clock.fastForward('02:00');
   await teacher(a.page, 'reopen');
   await a.page.waitForTimeout(1500);
   noErrors(a, 'after the reopen');
-  const after = await record(a.page, STUDENT_A);
-  check(after && after.totalAttempts === submitted?.totalAttempts && after.lastAttemptAt === submitted?.lastAttemptAt,
-    'A: the reopen neither added nor rewrote an attempt', { submitted, after });
-  check(after?.questionId === undefined || after?.questionId === submitted?.questionId, 'A: question identity unchanged');
+  check((await attemptStrip(a.page)) === stripBefore, 'A: the reopen neither added nor rewrote an attempt', await attemptStrip(a.page));
+  // A correct sort is final: the reopen does not make it editable again.
+  check(lockedBefore && (await lockedNow(a.page)), 'A: a submitted (correct) Q1 stays locked after the reopen');
+  check(/Two different lines/.test(await stageText(a.page)), 'A: still the same question (lmr-wu-1)');
   await a.context.close();
 };
 
@@ -321,7 +347,9 @@ const journeyCorrupt = async () => {
     check(!(await crashed(d.page)), `D [${name}]: the assignment survives`);
     check((await cards(d.page).count()) > 0, `D [${name}]: Q1 shows a usable board`, String(await cards(d.page).count()));
     if (name === 'stale card + bad slots') {
-      check((await sortedOnScreen(d.page)) === 1, `D [${name}]: the one valid placement is salvaged`, String(await sortedOnScreen(d.page)));
+      // line-a:standard → 1 is valid and line-b:standard → '1' is that same
+      // slot written as text; the unknown card and slot 7 are dropped.
+      check((await sortedOnScreen(d.page)) === 2, `D [${name}]: the two valid placements are salvaged`, String(await sortedOnScreen(d.page)));
     }
     noErrors(d, `with a ${name} draft`);
     // Neighbouring questions stay reachable.
@@ -356,40 +384,80 @@ const journeyCycles = async () => {
   await e.context.close();
 };
 
+// The Linear Multiple Representations board (representationBridge, Process
+// Mode) — Warm-Up Q3 in this fixture. Student 910003's Q1 is already correct.
+const openBridge = async (device) => {
+  await openTodayWarmup(device.page);
+  for (let step = 0; step < 4 && !/Build every other representation/i.test(await stageText(device.page)); step += 1) {
+    await device.page.getByRole('button', { name: 'Next question' }).first().click();
+    await device.page.waitForTimeout(900);
+  }
+  await device.page.locator('.mathmaster-question-stage [data-lmr-card]').first().waitFor({ timeout: 30000 });
+  await device.page.waitForTimeout(600);
+};
+const bridgeWork = async (page, studentId) => page.evaluate(([student, assignment]) => {
+  const raw = window.localStorage.getItem(`mathmaster:draft:v2::${student}:${assignment}:2:0:student:work:tool`);
+  return raw ? JSON.parse(raw).value : null;
+}, [studentId, ASSIGNMENT]);
+const processOpen = (page) => page.evaluate(() => /Undo step/.test(document.querySelector('.mathmaster-question-stage')?.innerText || ''));
+
 const journeyBridge = async () => {
-  console.log('\n== bridge: the Linear Multiple Representations board through the same close/reopen');
+  console.log('\n== bridge: the Linear Multiple Representations board (Process Mode) through the same close/reopen');
   const f = await openDevice('F', { studentId: '910003' });
-  await openTodayWarmup(f.page);
-  // Q1 is already correct for this student (fixture: warmupOnly) — go to the board, Q3.
-  for (let step = 0; step < 4 && !/slope|y-intercept|Build/i.test(await stageText(f.page)); step += 1) {
-    await f.page.getByRole('button', { name: 'Next question' }).first().click();
-    await f.page.waitForTimeout(700);
-  }
-  const field = f.page.locator('.mathmaster-question-stage math-field').first();
-  const hasField = await field.count();
-  check(hasField > 0, 'F: the board has an answer field');
-  if (hasField) {
-    await field.click();
-    await f.page.keyboard.type('3', { delay: 25 });
-    await f.page.keyboard.press('Tab');
-  }
-  await f.page.waitForTimeout(800);
-  const index = await f.page.evaluate(() => Number((window.location.search.match(/q=(\d+)/) || [])[1] ?? 2));
-  void index;
-  const before = await f.page.evaluate(() => Object.keys(window.localStorage).filter((key) => key.includes(':a-today:2:')).sort());
-  check(before.length > 0, 'F: the board keeps a draft', before);
+  await openBridge(f);
+  check(!(await lockedNow(f.page)), 'F: the board is open while the Warm-Up runs');
+  await f.page.getByRole('button', { name: 'Find the slope' }).first().click();
+  await f.page.waitForTimeout(1200);
+  const before = await bridgeWork(f.page, '910003');
+  check(before?.processDraft?.open === 'slope', 'F: the started slope process is saved', before);
+  check(await processOpen(f.page), 'F: the slope workspace is open');
   await f.page.clock.fastForward('10:00');
-  await f.page.waitForTimeout(800);
-  check(await lockedNow(f.page), 'F: locks at the close');
+  await f.page.waitForTimeout(1200);
+  check(await lockedNow(f.page), 'F: the board locks at the close');
+  check(JSON.stringify(await bridgeWork(f.page, '910003')) === JSON.stringify(before), 'F: the close kept the board draft exactly');
   await f.page.clock.fastForward('02:00');
   await teacher(f.page, 'reopen');
-  await f.page.waitForTimeout(1200);
+  await f.page.waitForTimeout(1500);
   check(!(await crashed(f.page)), 'F: the board survives the reopen');
-  check(!(await lockedNow(f.page)), 'F: unlocked');
-  const values = await f.page.evaluate(() => [...document.querySelectorAll('.mathmaster-question-stage math-field')].map((node) => node.value));
-  check(values.includes('3'), 'F: the typed value is back', values);
+  check(!(await lockedNow(f.page)), 'F: the board is unlocked by the reopen');
+  check(await processOpen(f.page), 'F: the slope workspace is still open after the reopen');
+  await f.refresh();
+  await openBridge(f);
+  check(!(await crashed(f.page)), 'F: the board opens after a refresh');
+  check((await bridgeWork(f.page, '910003'))?.processDraft?.open === 'slope', 'F: the started process survives a refresh');
+  check(await processOpen(f.page), 'F: the slope workspace reopens after a refresh');
   noErrors(f, 'on the board');
   await f.context.close();
+};
+
+// The same malformed-draft audit on the second family. A value the board's
+// fields never hold, written where its saved work lives.
+const BRIDGE_CORRUPTIONS = {
+  'point list null': { graph1Points: null },
+  'point list a map': { graph2Points: { 0: [1, 2] } },
+  'table rows null': { tableRows: null },
+  'process draft a string': { processDraft: 'slope' },
+  'process log a map': { processLog: { slope: true } },
+};
+
+const journeyBridgeCorrupt = async () => {
+  console.log('\n== bridge-corrupt: malformed drafts for the board');
+  for (const [name, value] of Object.entries(BRIDGE_CORRUPTIONS)) {
+    const g = await openDevice(`G [${name}]`, { studentId: '910003' });
+    await g.page.evaluate(([student, assignment, stored]) => {
+      window.localStorage.setItem(
+        `mathmaster:draft:v2::${student}:${assignment}:2:0:student:work:tool`,
+        JSON.stringify({ version: 2, savedAt: Date.now(), touchedAt: Date.now(), savedAtIsEdit: true, value: stored }),
+      );
+    }, ['910003', ASSIGNMENT, value]);
+    await g.refresh();
+    let opened = true;
+    try { await openBridge(g); } catch { opened = false; }
+    const panel = /This question could not be displayed/.test(await stageText(g.page));
+    check(opened && !panel && !(await crashed(g.page)), `G [${name}]: the board opens`, panel ? (await stageText(g.page)).slice(0, 240) : '');
+    noErrors(g, `with a ${name} draft`);
+    await g.context.close();
+  }
 };
 
 if (wanted('inprogress')) await journeyInProgress();
@@ -398,6 +466,7 @@ if (wanted('pristine')) await journeyPristine();
 if (wanted('corrupt')) await journeyCorrupt();
 if (wanted('cycles')) await journeyCycles();
 if (wanted('bridge')) await journeyBridge();
+if (wanted('bridge-corrupt')) await journeyBridgeCorrupt();
 
 await browser.close();
 console.log(failures.length ? `\n${failures.length} failure(s):\n- ${failures.join('\n- ')}` : '\nall Warm-Up reopen journeys passed');

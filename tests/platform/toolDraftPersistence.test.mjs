@@ -343,5 +343,7 @@ test('the shared hook refreshes question-specific initializers before a draft-ke
   const effect = source.indexOf('useEffect(() => {', assign);
   assert.ok(assign >= 0, 'the hook must keep the latest initializer');
   assert.ok(effect > assign, 'the latest initializer must be available before key-change restoration');
-  assert.match(source.slice(effect, effect + 1400), /restoreField\(key, field, initialRef\.current, canonicalSavedAt\)/);
+  // The restore reads the LATEST initializer (initialRef.current), whatever
+  // else it is handed after the canonical time (a field's normaliser).
+  assert.match(source.slice(effect, effect + 1400), /restoreField\(key, field, initialRef\.current, canonicalSavedAt(?:, [^)]*)?\)/);
 });

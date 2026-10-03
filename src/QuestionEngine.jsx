@@ -33,7 +33,7 @@ import ContextInterpretation from './ContextInterpretation';
 import MathDisplay from './MathDisplay';
 import { generateQuestion } from './problemGenerator';
 import { buildSupportUsage, getStudentSupportPresentation } from './studentSupport';
-import { removeQuestionDraftFamily, resetQuestionDraftFamily } from './questionDraftStorage';
+import { quarantineQuestionDraftFamily, removeQuestionDraftFamily, resetQuestionDraftFamily } from './questionDraftStorage';
 import CalculatorPanel from './components/CalculatorPanel';
 import ProblemUnderstandingPanel from './components/ProblemUnderstandingPanel';
 import MobileViewportContainer, { isMobileQuestionViewport } from './components/student/MobileViewportContainer';
@@ -371,6 +371,9 @@ export default function QuestionEngine({
   // render following its keystroke (see the Enter handler).
   const enterFreshRef = useRef(null);
   const [questionResetVersion, setQuestionResetVersion] = useState(0);
+  // How many times this question's module has been restarted from a fresh
+  // workspace after it failed to render (QuestionModuleBoundary). Once.
+  const [moduleRecoveries, setModuleRecoveries] = useState(0);
   const [resettingQuestion, setResettingQuestion] = useState(false);
   const [solverWorkspaceMode, setSolverWorkspaceMode] = useState('normal');
   const solverWorkspaceActive = solverWorkspaceMode !== 'normal';
@@ -1143,6 +1146,30 @@ export default function QuestionEngine({
     } finally {
       setRequesting(false);
     }
+  };
+
+  /*
+   * THE WAY BACK FROM A QUESTION THAT CANNOT OPEN ITS SAVED WORK.
+   *
+   * QuestionModuleBoundary calls this when the student chooses "Start this
+   * question fresh". The question's drafts are set aside — a copy is kept on
+   * this device, and the family is tombstoned so the server backup cannot
+   * bring the same draft back elsewhere — and the module remounts clean.
+   *
+   * No confirmation and no lock check, unlike Reset: the work it sets aside is
+   * already unusable, and a locked (closed) question still has to be viewable.
+   * It never submits, never grades and never touches the attempt record.
+   */
+  const handleRecoverQuestionModule = () => {
+    quarantineQuestionDraftFamily(draftKey, { reason: 'question-module-error' });
+    forgetToolDrafts(draftKey);
+    setAnswerState(EMPTY_ANSWER_STATE);
+    setFeedback(null);
+    setWorkflowSubmissionReview(null);
+    setBaseUndoController(null);
+    setUndoController(null);
+    setModuleRecoveries((current) => current + 1);
+    setQuestionResetVersion((current) => current + 1);
   };
 
   const handleResetQuestion = async () => {
@@ -1936,6 +1963,15 @@ export default function QuestionEngine({
               key={`${generationKey}|${record.variantIndex}|reset-${questionResetVersion}`}
               questionType={processedQuestion?.type}
               resetKey={`${generationKey}|${record.variantIndex}|reset-${questionResetVersion}`}
+              context={{
+                assignmentId,
+                questionId: processedQuestion?.questionId ?? processedQuestion?.id ?? null,
+                family: processedQuestion?.questionFamily?.id ?? question?.questionFamily?.id ?? familyDelivery?.familyId ?? null,
+                activityRole,
+                lifecycle: assignmentLocked ? 'section-locked' : isCorrect ? 'correct' : isExpired ? 'expired' : 'open',
+                draftKey,
+              }}
+              onRecover={draftKey && moduleRecoveries < 1 ? handleRecoverQuestionModule : null}
             >
               {renderModule()}
             </QuestionModuleBoundary>

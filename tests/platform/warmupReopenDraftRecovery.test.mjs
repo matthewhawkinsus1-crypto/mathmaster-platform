@@ -357,7 +357,7 @@ test('the card sort normaliser recovers every malformed shape to a usable board'
   // A submitted response's placements, not a draft's map: salvaged.
   assert.deepEqual(
     normalizeSort([{ cardId: 'line-a:graph', slot: 0 }, { cardId: 'line-b:standard', slot: 1 }, { cardId: 'nope', slot: 0 }, null]),
-    { value: { 'line-a:graph': 0, 'line-b:standard': 1 }, issues: ['placements-list', 'stale-card', 'invalid-placement'] },
+    { value: { 'line-a:graph': 0, 'line-b:standard': 1 }, issues: ['placements-list', 'invalid-placement', 'stale-card'] },
   );
 });
 
@@ -517,7 +517,9 @@ test('the question boundary logs who/what/where without PII, and offers a fresh 
   assert.match(recover, /setQuestionResetVersion/);
   // Recovery never submits and never touches the attempt record.
   assert.doesNotMatch(recover, /onGrade|handleSubmit|setRecord|recordQuestionAttempt/);
-  assert.match(engine, /<QuestionModuleBoundary[\s\S]*?onRecover=\{handleRecoverQuestionModule\}/);
+  // Offered once per question: a question that still throws after a fresh
+  // start is a content or code fault, and the panel says so instead.
+  assert.match(engine, /<QuestionModuleBoundary[\s\S]*?onRecover=\{draftKey && moduleRecoveries < 1 \? handleRecoverQuestionModule : null\}/);
 });
 
 test('the card sort reads its draft through the normaliser', () => {

@@ -151,6 +151,21 @@ export const resolveWarmupClose = ({ assignment, window, classId = null, todayKe
  * The `warmup` object a teacher's live Close / Reopen / Timer writes for one
  * class. Pure: the caller supplies the clock, the date key and the end of the
  * class period, and writes the result to the assignment.
+ *
+ * Only the Warm-Up's own controls change: no question, no section, no student
+ * record and no draft. `timerClosesAtMs` is the close the teacher was shown
+ * when they confirmed a timer (default: `nowMs` + `timerMinutes`, never past
+ * the end of the period).
+ *
+ * WHY THERE IS NO WINDOW "GENERATION". A reopen is a new `closesAt` (and lifts
+ * a manual close); it does not start a new numbered window that only begins at
+ * `setAt`. Every reader resolves the current window at the current time — the
+ * student gate, the deadline finalizer (which reschedules a checkpoint whose
+ * close moved later) — and ingestion judges a submission by the section state
+ * the device recorded at capture, so a timer or a checkpoint from the earlier
+ * window cannot act on the reopened one. Gating the new window on `setAt`
+ * would instead hide a reopen from every Chromebook whose clock runs behind
+ * the teacher's (tests/platform/warmupReopenDraftRecovery.test.mjs).
  */
 export const applyWarmupTeacherControl = ({
   assignment,
@@ -160,6 +175,7 @@ export const applyWarmupTeacherControl = ({
   dateKey,
   windowEndMs,
   timerMinutes = 5,
+  timerClosesAtMs = null,
   teacherIdentity = 'teacher',
 } = {}) => {
   const changedAt = new Date(nowMs).toISOString();
@@ -191,7 +207,9 @@ export const applyWarmupTeacherControl = ({
     delete closedByClassId[classId];
     autoCloseByClassId[classId] = {
       dateKey,
-      closesAt: new Date(Math.min(windowEndMs, nowMs + Math.max(1, Number(timerMinutes) || 5) * 60_000)).toISOString(),
+      closesAt: new Date(Number.isFinite(timerClosesAtMs)
+        ? timerClosesAtMs
+        : Math.min(windowEndMs, nowMs + Math.max(1, Number(timerMinutes) || 5) * 60_000)).toISOString(),
       setAt: changedAt,
       setBy: teacherIdentity,
     };

@@ -7,6 +7,7 @@ import {
 } from '../../functions/shared/studentSubmissionDisposition.mjs';
 import { region } from './helpers/sourceContract.mjs';
 import { describeWarmupControl } from '../../src/platform/teacher/classLessonControls.js';
+import { applyWarmupTeacherControl } from '../../functions/shared/sectionDeadline.mjs';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
@@ -54,9 +55,20 @@ test('class workspace exposes the same manual Warm-Up open control', () => {
 });
 
 test('manual Warm-Up open is scoped to the real class and today', () => {
+  // The record the teacher's Open / Reopen writes is the shared
+  // applyWarmupTeacherControl, which App.jsx's handler calls — so the rule is
+  // exercised here rather than spelled.
+  const assignment = { warmup: { instructionDatesByClassId: { 'class-3': '2026-08-24', 'class-5': '2026-08-24' } } };
+  for (const action of ['reopen', 'timer']) {
+    const { warmup } = applyWarmupTeacherControl({
+      assignment, classId: 'class-3', action, nowMs: new Date(2026, 7, 31, 8, 5).getTime(), dateKey: '2026-08-31', windowEndMs: warmupWindow.end.getTime(),
+    });
+    assert.equal(warmup.instructionDatesByClassId['class-3'], '2026-08-31', `${action} makes today this class's Warm-Up day`);
+    assert.equal(warmup.instructionDatesByClassId['class-5'], '2026-08-24', `${action} leaves the sibling class alone`);
+  }
   const app = read('src/App.jsx');
-  assert.match(app, /instructionDatesByClassId/);
-  assert.match(app, /instructionDatesByClassId\[classId\] = dateKey/);
+  const handler = region(app, 'const handleToggleWarmupForClass', 'const handleToggleSectionAccessForClass', 'teacher Warm-Up handler');
+  assert.match(handler, /applyWarmupTeacherControl\(\{[\s\S]*?classId,[\s\S]*?dateKey,/);
   assert.match(app, /needsOpenToday/);
   assert.match(app, /Open Warm-Up Today/);
 });
@@ -157,5 +169,11 @@ test('a Warm-Up the teacher reopened keeps credit when the assignment closes aga
 test('new assignments persist the ten-minute Warm-Up close default', () => {
   const app = read('src/App.jsx');
   assert.match(app, /closeMinutesAfterStart: 10/);
-  assert.match(app, /manual-reopen-until-class-end/);
+  // A manual reopen runs to the end of the class period, and says so.
+  const { warmup } = applyWarmupTeacherControl({
+    assignment: { warmup: {} }, classId: 'class-3', action: 'reopen', nowMs: new Date(2026, 7, 31, 8, 20).getTime(), dateKey: '2026-08-31', windowEndMs: warmupWindow.end.getTime(),
+  });
+  assert.equal(warmup.closeMinutesAfterStart, 10);
+  assert.equal(warmup.autoCloseByClassId['class-3'].reason, 'manual-reopen-until-class-end');
+  assert.equal(warmup.autoCloseByClassId['class-3'].closesAt, warmupWindow.end.toISOString());
 });

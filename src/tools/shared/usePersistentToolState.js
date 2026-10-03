@@ -31,6 +31,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   parseQuestionDraftKey,
+  questionDraftEnvelopeVersion,
   questionDraftRestoreGeneration,
   questionDraftSavedAt,
   readQuestionDraft,
@@ -39,6 +40,7 @@ import {
   studentInputSince,
   writeQuestionDraft,
 } from '../../questionDraftStorage.js';
+import { recordClientDiagnostic } from '../../platform/runtime/clientDiagnostics.js';
 
 /*
  * `${draftKey}:work:${scope}` — one entry per tool workspace per question.
@@ -244,13 +246,86 @@ const acquireRecord = (key, canonicalSavedAt) => {
 
 const resolveInitial = (initialValue) => (typeof initialValue === 'function' ? initialValue() : initialValue);
 
-const restoreField = (key, field, initialValue, canonicalSavedAt) => {
-  const record = acquireRecord(key, canonicalSavedAt);
+/*
+ * A DRAFT IS READ BACK AS A CLAIM, NOT A FACT.
+ *
+ * What a field held when it was saved is whatever some build, on some device,
+ * persisted — this one, an older one, another Chromebook through the server
+ * backup. A tool renders from it the moment it mounts, so a shape it does not
+ * expect is not a wrong answer, it is an exception: Warm-Up Question 1
+ * (lmr-wu-1) threw `Cannot read properties of null` on a persisted `null`
+ * where its card map belonged, on every reload and every device, because the
+ * draft was still there each time.
+ *
+ * Two checks, both before the tool sees the value:
+ *
+ *   - the field's own `normalize` (usePersistentToolState's option), when the
+ *     tool gives one. It knows the question — which cards exist, which slots —
+ *     so it can keep the valid part of a draft and drop the rest. It returns
+ *     `{ value, issues }`.
+ *   - for EVERY draft-backed field, the collection-shape guard: a field that
+ *     starts as a map ({}) restores only a map, and one that starts as a list
+ *     ([]) only a list. Every such field in src/tools keeps its kind for life
+ *     (no setter assigns one a scalar), so anything else is damage, and the
+ *     field starts from its initial value instead. Scalar fields are left to
+ *     the tool: `null` becoming a number is an ordinary edit there.
+ *
+ * `restored` is false when the initial value is used. `issues` is empty for a
+ * clean draft. The stored record is not rewritten here: the next real edit
+ * saves the repaired value, and until then the original stays where support
+ * can read it.
+ */
+const isPlainMap = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+const collectionKind = (value) => (Array.isArray(value) ? 'list' : isPlainMap(value) ? 'map' : null);
+
+export const hydrateToolDraftField = ({ record, field, initialValue, normalize = null } = {}) => {
+  const fallback = () => resolveInitial(initialValue);
   // `hasOwnProperty`, never a falsy test. A student who typed 12, deleted it and
   // navigated away must come back to an EMPTY box: the cleared value is their
   // work, and `record[field] || fallback` would hand them the 12 back.
-  if (record && Object.prototype.hasOwnProperty.call(record, field)) return record[field];
-  return resolveInitial(initialValue);
+  if (!isPlainMap(record) || !Object.prototype.hasOwnProperty.call(record, field)) {
+    return { value: fallback(), restored: false, issues: [] };
+  }
+  let value = record[field];
+  const issues = [];
+  if (typeof normalize === 'function') {
+    try {
+      const result = normalize(value);
+      value = result?.value;
+      (Array.isArray(result?.issues) ? result.issues : []).forEach((issue) => issues.push(String(issue)));
+    } catch {
+      return { value: fallback(), restored: false, issues: ['normalize-failed'] };
+    }
+  }
+  const initial = fallback();
+  const expected = collectionKind(initial);
+  if (expected && collectionKind(value) !== expected) {
+    return { value: initial, restored: false, issues: [...issues, `expected-${expected}`] };
+  }
+  return { value, restored: true, issues };
+};
+
+/*
+ * Say once, without the student, that a draft had to be repaired. The key
+ * names the student, so only the assignment, the question's position and the
+ * field go into the diagnostic (clientDiagnostics.js scrubs and bounds it).
+ */
+const reportDraftRepair = (key, field, issues) => {
+  if (!issues.length) return;
+  const identity = parseQuestionDraftKey(key);
+  const where = identity
+    ? `assignment ${identity.assignmentId} q${identity.questionIndex} v${identity.variantIndex} ${identity.toolSuffix}`
+    : 'unscoped';
+  const message = `${field}: ${issues.join(', ')} (${where}, draft v${questionDraftEnvelopeVersion(key)})`;
+  console.warn(`MathMaster repaired a saved draft before showing it — ${message}`);
+  recordClientDiagnostic({ kind: 'draft-repaired', source: 'tool-draft', message });
+};
+
+const restoreField = (key, field, initialValue, canonicalSavedAt, normalize = null) => {
+  const record = acquireRecord(key, canonicalSavedAt);
+  const result = hydrateToolDraftField({ record, field, initialValue, normalize });
+  reportDraftRepair(key, field, result.issues);
+  return result.value;
 };
 
 /**
@@ -384,7 +459,7 @@ export const useToolDraftScope = () => useContext(ToolDraftScopeContext);
  * the student's work, and stay in plain `useState`.
  */
 export default function usePersistentToolState(field, initialValue, options = {}) {
-  const { coalesceMs = 0, enabled = true } = options;
+  const { coalesceMs = 0, enabled = true, normalize = null } = options;
   const scope = useToolDraftScope();
   const key = enabled ? scope?.key || null : null;
   const canonicalSavedAt = scope?.canonicalSavedAt || 0;
@@ -394,6 +469,10 @@ export default function usePersistentToolState(field, initialValue, options = {}
   // questions without remounting the tool, the new key must not fall back to
   // the previous question's defaults.
   initialRef.current = initialValue;
+  // The field's own check of a restored value (see hydrateToolDraftField). It
+  // usually closes over the question on screen, so the latest one is kept.
+  const normalizeRef = useRef(normalize);
+  normalizeRef.current = normalize;
   // Where "has the student touched the page since this field loaded?" is
   // measured from — per mounted field, because the parsed record is cached
   // across mounts and a tool that comes back after a question change has not
@@ -401,7 +480,7 @@ export default function usePersistentToolState(field, initialValue, options = {}
   const inputMarkRef = useRef(0);
   const [value, setValue] = useState(() => {
     inputMarkRef.current = studentInputMark();
-    return restoreField(key, field, initialRef.current, canonicalSavedAt);
+    return restoreField(key, field, initialRef.current, canonicalSavedAt, normalizeRef.current);
   });
 
   // The question can change UNDER a mounted tool: PathSessionPlayer renders one
@@ -414,7 +493,7 @@ export default function usePersistentToolState(field, initialValue, options = {}
     inputMarkRef.current = studentInputMark();
     // `setValue`, not the persisting setter: reading a draft back is not an
     // edit and must not write it out again.
-    setValue(restoreField(key, field, initialRef.current, canonicalSavedAt));
+    setValue(restoreField(key, field, initialRef.current, canonicalSavedAt, normalizeRef.current));
   }, [key, field, canonicalSavedAt]);
 
   const setPersistentValue = useCallback((next) => {
