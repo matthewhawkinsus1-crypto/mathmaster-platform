@@ -52,10 +52,16 @@ const PAGE = `${ORIGIN}/tests/browser/teacherWorkflow/index.html`;
 const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
 const SLOW = process.argv.includes('--slow');
 const ASSIGNMENT = 'a-today';
+const TODAY_TITLE = 'Systems of Equations — Lesson 3: Elimination';
 const DB_KEY = 'mm-teacher-workflow-harness-db-v1';
 const STUDENT_A = '910004';
 const STUDENT_B = '910005';
 const VIEWPORT = { width: 1366, height: 768 };
+// Every device's fake clock starts at 10:00 today. The fixture builds the bell
+// schedule relative to the clock and clamps Period 3 to end by 23:55, so a run
+// started late in the evening would see the class period END during the
+// journey (correctly read-only) — a time-of-day dependency, not a finding.
+const SCHOOL_MORNING = (() => { const morning = new Date(); morning.setHours(10, 0, 0, 0); return morning.getTime(); })();
 // Waits stretch on the throttled Chromebook: lazy screens and tool chunks come
 // from the dev server over the slowed network.
 const SLOW_FACTOR = SLOW ? 4 : 1;
@@ -97,7 +103,7 @@ const openDevice = async (label, { studentId, server = null, storageState = null
     const text = message.text();
     if (message.type() === 'error' && !/Download the React DevTools|favicon/i.test(text)) errors.push(`console.error: ${text}`);
   });
-  await page.clock.install({ time: startMs ?? Date.now() });
+  await page.clock.install({ time: startMs ?? SCHOOL_MORNING });
   // `--slow`: the CPU is slow from the start; the network once the app is up
   // (the dev server's unbundled modules are not what a Chromebook downloads).
   const cdp = SLOW ? await context.newCDPSession(page) : null;
@@ -125,8 +131,26 @@ const cards = (page) => page.locator('.mathmaster-question-stage .mathmaster-lin
 const groupButton = (page, index) => page.locator('.mathmaster-question-stage [role="radio"]').nth(index);
 
 const openTodayWarmup = async (page) => {
-  // The dashboard's card for today's lesson.
-  const start = page.getByRole('button', { name: /^(Continue|Resume Question|Start)/ }).first();
+  // The Continue / Start button of TODAY's lesson card (fixture.js: a-today),
+  // not whichever card happens to paint first on a slow device.
+  await page.getByText(TODAY_TITLE).first().waitFor({ timeout: 60000 * SLOW_FACTOR });
+  const marked = await page.evaluate((title) => {
+    const buttons = [...document.querySelectorAll('button')].filter((node) => /^(Continue|Resume Question|Start)/.test((node.innerText || '').trim()) && !node.disabled);
+    let best = null;
+    let bestDepth = Infinity;
+    buttons.forEach((button) => {
+      let depth = 0;
+      for (let node = button.parentElement; node; node = node.parentElement, depth += 1) {
+        if ((node.innerText || '').includes(title)) {
+          if (depth < bestDepth) { best = button; bestDepth = depth; }
+          break;
+        }
+      }
+    });
+    if (best) best.setAttribute('data-journey-open', 'today');
+    return Boolean(best);
+  }, TODAY_TITLE);
+  const start = marked ? page.locator('[data-journey-open="today"]') : page.getByRole('button', { name: /^(Continue|Resume Question|Start)/ }).first();
   await start.click({ timeout: 60000 * SLOW_FACTOR });
   await stage(page).waitFor({ timeout: 60000 * SLOW_FACTOR });
   await page.waitForFunction(() => !document.body.textContent.includes('Opening Work View…'), null, { timeout: 60000 * SLOW_FACTOR });
@@ -138,7 +162,8 @@ const sortedOnScreen = (page) => cards(page).evaluateAll((nodes) => nodes
   .filter((label) => !/In not sorted yet/i.test(label)).length);
 
 const sortPartially = async (page) => {
-  await cards(page).first().waitFor({ timeout: 30000 * SLOW_FACTOR });
+  const appeared = await cards(page).first().waitFor({ timeout: 30000 * SLOW_FACTOR }).then(() => true, () => false);
+  if (!appeared) throw new Error(`no card sort on screen; the stage shows: ${(await stageText(page)).slice(0, 400)}`);
   await groupButton(page, 0).click();
   for (const index of [0, 2, 4]) await cards(page).nth(index).click();
   await groupButton(page, 1).click();
@@ -391,9 +416,24 @@ const journeyCycles = async () => {
 // Mode) — Warm-Up Q3 in this fixture. Student 910003's Q1 is already correct.
 const openBridge = async (device) => {
   await openTodayWarmup(device.page);
-  for (let step = 0; step < 4 && !/Build every other representation/i.test(await stageText(device.page)); step += 1) {
-    await device.page.getByRole('button', { name: 'Next question' }).first().click();
-    await device.page.waitForTimeout(900 * SLOW_FACTOR);
+  // One move at a time: wait for each Next to land (the prompt changes and the
+  // Work View has loaded) before deciding whether another is needed — on a
+  // throttled CPU the board paints late, and a second click would overshoot.
+  const target = /Build every other representation/i;
+  // "Continue" may resume right on the board; let it paint before deciding.
+  await device.page.waitForFunction((source) => new RegExp(source, 'i').test(document.querySelector('.mathmaster-question-stage')?.innerText || ''), target.source, { timeout: 8000 * SLOW_FACTOR }).catch(() => {});
+  for (let step = 0; step < 4 && !target.test(await stageText(device.page)); step += 1) {
+    const before = await stageText(device.page);
+    const next = device.page.getByRole('button', { name: 'Next question' }).first();
+    if (await next.isDisabled()) {
+      throw new Error(`openBridge: Next is disabled on: ${before.slice(0, 400)}`);
+    }
+    await next.click();
+    await device.page.waitForFunction((previous) => {
+      const text = (document.querySelector('.mathmaster-question-stage')?.innerText || '').replace(/\s+/g, ' ');
+      return text !== previous && !document.body.textContent.includes('Opening Work View…');
+    }, before, { timeout: 30000 * SLOW_FACTOR });
+    await device.page.waitForFunction((source) => new RegExp(source, 'i').test(document.querySelector('.mathmaster-question-stage')?.innerText || ''), target.source, { timeout: 5000 * SLOW_FACTOR }).catch(() => {});
   }
   await device.page.locator('.mathmaster-question-stage [data-lmr-card]').first().waitFor({ timeout: 30000 * SLOW_FACTOR });
   await device.page.waitForTimeout(600 * SLOW_FACTOR);
