@@ -29,6 +29,17 @@
 // It lives in functions/shared/ because the SERVER has to be the authority.
 // An entitlement that changes attempts, grading, or mastery cannot be decided
 // by the browser.
+//
+// THE VERSIONED PROFILE. Since support profiles became dated revisions
+// (supportProfileModel.mjs), the stored flat keys describe only the revision
+// current when the profile was last SAVED. This adapter therefore reads a
+// versioned profile through supportProfileModel.mjs effectiveFlatSupportProfile
+// — the same function src/studentSupport.js normalizeStudentProfile uses — so
+// a future-dated revision switches on (and an inactive one off) on My Math Path
+// on the same day it does on an assignment. It is a bridge, not a third
+// resolver: the structured SIS shape below is the only thing it reads itself.
+
+import { effectiveFlatSupportProfile, translationLanguageOf } from './supportProfileModel.mjs';
 
 /** Legacy kebab-case accommodation ids, as the teacher UI writes them. */
 export const LEGACY_ACCOMMODATIONS = Object.freeze({
@@ -47,6 +58,8 @@ export const LEGACY_ACCOMMODATIONS = Object.freeze({
   GRAPHIC_ORGANIZER: 'graphic-organizer',
   REDUCED_CHOICES: 'reduced-choices',
   EXTRA_ATTEMPTS: 'extra-attempts',
+  CHUNKED_DIRECTIONS: 'chunked-directions',
+  SENTENCE_FRAMES: 'sentence-frames',
 });
 
 /**
@@ -73,7 +86,37 @@ export const SUPPORT = Object.freeze({
   EXTENDED_TIME: 'extendedTime',
   EXTRA_ATTEMPTS: 'extraAttempts',
   ALGEBRA_AUTO_APPLY: 'algebraAutoApply',
+  CHUNKED_DIRECTIONS: 'chunkedDirections',
+  SENTENCE_FRAMES: 'sentenceFrames',
 });
+
+/**
+ * Canonical support → the catalog id evidence and reports use
+ * (functions/shared/supportCatalog.mjs). The one place the two vocabularies
+ * meet, so a Path delivery record and an assignment record name a support the
+ * same way.
+ */
+export const CATALOG_ID_FOR_SUPPORT = Object.freeze({
+  [SUPPORT.TEXT_TO_SPEECH]: 'text-to-speech',
+  [SUPPORT.TRANSLATION]: 'translation',
+  [SUPPORT.GLOSSARY]: 'glossary-lookup',
+  [SUPPORT.HIGH_CONTRAST]: 'high-contrast',
+  [SUPPORT.LARGE_TEXT]: 'large-text',
+  [SUPPORT.VISUAL_CHUNKING]: 'visual-chunking',
+  [SUPPORT.DECLUTTER]: 'declutter-ui',
+  [SUPPORT.GRAPHIC_ORGANIZER]: 'graphic-organizer',
+  [SUPPORT.CALCULATOR]: 'calculator',
+  [SUPPORT.REDUCED_CHOICES]: 'reduced-choices',
+  [SUPPORT.EXTENDED_TIME]: 'extra-time',
+  [SUPPORT.EXTRA_ATTEMPTS]: 'extra-attempts',
+  [SUPPORT.ALGEBRA_AUTO_APPLY]: 'algebra-auto-apply',
+  [SUPPORT.CHUNKED_DIRECTIONS]: 'chunked-directions',
+  [SUPPORT.SENTENCE_FRAMES]: 'sentence-frames',
+});
+
+export const SUPPORT_FOR_CATALOG_ID = Object.freeze(Object.fromEntries(
+  Object.entries(CATALOG_ID_FOR_SUPPORT).map(([support, catalogId]) => [catalogId, support]),
+));
 
 /**
  * Every canonical support that is ACCESS rather than mathematical help.
@@ -87,6 +130,8 @@ export const ACCESS_SUPPORTS = Object.freeze(new Set([
   SUPPORT.HIGH_CONTRAST, SUPPORT.LARGE_TEXT, SUPPORT.VISUAL_CHUNKING,
   SUPPORT.DECLUTTER, SUPPORT.GRAPHIC_ORGANIZER, SUPPORT.EXTENDED_TIME,
   SUPPORT.EXTRA_ATTEMPTS, SUPPORT.CALCULATOR, SUPPORT.REDUCED_CHOICES,
+  // Language access: the words around the task, never the task.
+  SUPPORT.CHUNKED_DIRECTIONS, SUPPORT.SENTENCE_FRAMES,
 ]));
 
 /**
@@ -123,9 +168,12 @@ const isStructured = (profile) => Boolean(
  * student cannot be given a support by a broken document, and a missing
  * document cannot crash a session.
  */
-export const resolveSupportEntitlements = (rawProfile = null) => {
-  const profile = rawProfile && typeof rawProfile === 'object' && !Array.isArray(rawProfile) ? rawProfile : {};
-  const structured = isStructured(profile);
+export const resolveSupportEntitlements = (rawProfile = null, { nowValue = Date.now() } = {}) => {
+  const stored = rawProfile && typeof rawProfile === 'object' && !Array.isArray(rawProfile) ? rawProfile : {};
+  const structured = isStructured(stored);
+  // A flat or versioned profile is read through the shared effective view
+  // (header); only the structured SIS shape is read directly.
+  const profile = structured ? stored : effectiveFlatSupportProfile(stored, { nowValue });
 
   const flatAccommodations = new Set(list(profile.accommodations).map((entry) => String(entry)));
   const flatModifications = new Set(list(profile.modifications).map((entry) => String(entry)));
@@ -140,7 +188,7 @@ export const resolveSupportEntitlements = (rawProfile = null) => {
     ? (bool(accommodations.spanishTranslation)
       ? (profile.programEligibility?.ebLanguage || 'es')
       : null)
-    : (String(profile.translationLanguage || '').trim().toLowerCase() || null);
+    : translationLanguageOf(profile.translationLanguage);
 
   const granted = {
     [SUPPORT.TEXT_TO_SPEECH]: has(LEGACY_ACCOMMODATIONS.TEXT_TO_SPEECH, accommodations.textToSpeech),
@@ -157,6 +205,8 @@ export const resolveSupportEntitlements = (rawProfile = null) => {
     // implied by inclusion status: a student with large text should not
     // silently acquire an algebra shortcut nobody assigned them.
     [SUPPORT.ALGEBRA_AUTO_APPLY]: has(LEGACY_ACCOMMODATIONS.ALGEBRA_AUTO_APPLY, accommodations.algebraAutoApply),
+    [SUPPORT.CHUNKED_DIRECTIONS]: has(LEGACY_ACCOMMODATIONS.CHUNKED_DIRECTIONS, accommodations.chunkedDirections),
+    [SUPPORT.SENTENCE_FRAMES]: has(LEGACY_ACCOMMODATIONS.SENTENCE_FRAMES, accommodations.sentenceFrames),
   };
 
   // Numeric supports. In the legacy shape these are presence-only, so a

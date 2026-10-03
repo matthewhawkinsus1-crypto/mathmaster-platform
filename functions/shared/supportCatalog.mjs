@@ -115,6 +115,49 @@ const entries = [
     evidence: ['available', 'used'],
   },
 
+  // --- Language access (src/platform/language/) -----------------------------
+  // Language access is never easier mathematics: each of these changes the
+  // words around a task, never its numbers, expressions or expectations.
+  {
+    // DERIVED, NEVER TICKED. A revision's language (`translationLanguage`)
+    // authorizes translated content by itself; a second "Translation" checkbox
+    // could only disagree with it. supportProfileModel.mjs derivedSupportIds
+    // adds this id wherever a revision's supports are listed (entitlements,
+    // evidence, the report), and the editor never offers it. It is `available`
+    // only where translated content actually exists for the item in that
+    // language — never merely because a language is set.
+    id: 'translation', classification: A, category: C.PRESENTATION, automation: OFFER,
+    label: 'Translated content (the profile language)', studentLabel: 'Translate',
+    evidence: ['available', 'used'], derivedFrom: 'translationLanguage',
+  },
+  {
+    // Was adult-delivered only (manual, `documented`). It is now a platform
+    // tool — the student's bilingual math vocabulary — so it is `available`
+    // where the item or tool has vocabulary to show and `used` when opened.
+    // `formerlyManual`: work from before the student's first platform record
+    // of it is "predates recording", never a platform gap, and a staff record
+    // still proves it (`documented` stays in its evidence list).
+    id: 'glossary-lookup', classification: A, category: C.PRESENTATION, automation: OFFER,
+    label: 'Glossary / vocabulary support', studentLabel: 'Vocabulary',
+    evidence: ['available', 'used', 'documented'], legacy: true, formerlyManual: true,
+  },
+  {
+    // Not `visual-chunking` (one step of a multi-step task at a time — layout)
+    // and not `directions-multiple-ways` (an adult re-presenting directions).
+    // This is the platform restating the item's DIRECTIONS as short numbered
+    // steps from curated rules; the mathematics and what is asked are
+    // unchanged. Shown by itself under the directions, so it is `provided`.
+    id: 'chunked-directions', classification: A, category: C.PRESENTATION, automation: AUTO,
+    label: 'Directions broken into short steps (same mathematics)', studentLabel: 'Break it down', evidence: ['provided'],
+  },
+  {
+    // Sentence starters for explaining reasoning. A frame never contains an
+    // answer, a value, or which method to choose; it is offered only where the
+    // item asks the student to explain, justify or describe.
+    id: 'sentence-frames', classification: A, category: C.RESPONSE, automation: OFFER,
+    label: 'Sentence frames for explaining (no answers)', studentLabel: 'Help me say it', evidence: ['available', 'used'],
+  },
+
   // --- Accommodations the platform applies by itself ------------------------
   {
     id: 'extra-time', classification: A, category: C.TIMING, automation: AUTO,
@@ -178,10 +221,6 @@ const entries = [
   },
   // Legacy structured-shape accommodations: persisted by some profiles, kept
   // so they keep meaning something and appear in reports.
-  {
-    id: 'glossary-lookup', classification: A, category: C.PRESENTATION, automation: MANUAL,
-    label: 'Glossary / vocabulary support', studentLabel: null, evidence: ['documented'], legacy: true,
-  },
   {
     id: 'graphic-organizer', classification: A, category: C.ORGANIZATION, automation: MANUAL,
     label: 'Graphic organizer', studentLabel: null, evidence: ['documented'], legacy: true,
@@ -303,6 +342,8 @@ export const SUPPORT_CATALOG = Object.freeze(entries.map((entry) => Object.freez
   serviceLoggable: false,
   parentId: null,
   automaticWithParam: null,
+  derivedFrom: null,
+  formerlyManual: false,
   ...entry,
   evidence: Object.freeze([...(entry.evidence || [])]),
   params: Object.freeze([...(entry.params || [])]),
@@ -355,6 +396,9 @@ export const supportAutomationFor = (id, params = null) => {
   return entry.automation;
 };
 
+/** A support no teacher ticks: it follows from another profile field (`derivedFrom`). */
+export const isDerivedSupport = (id) => Boolean(supportById(id)?.derivedFrom);
+
 export const isAccommodation = (id) => supportById(id)?.classification === SUPPORT_CLASSIFICATION.ACCOMMODATION;
 export const isModification = (id) => supportById(id)?.classification === SUPPORT_CLASSIFICATION.MODIFICATION;
 export const isService = (id) => supportById(id)?.classification === SUPPORT_CLASSIFICATION.SERVICE;
@@ -399,6 +443,10 @@ const SHORT_LABELS = Object.freeze({
   'reteach-resources': 'Reteach materials',
   'study-sheet': 'Study sheet',
   'graph-paper': 'Graph paper',
+  translation: 'Translation',
+  'glossary-lookup': 'Vocabulary',
+  'chunked-directions': 'Break it down',
+  'sentence-frames': 'Sentence frames',
   'extra-time': 'Extra time',
   'extra-time-written-response': 'Extra time (written)',
   'visual-chunking': 'Chunked presentation',

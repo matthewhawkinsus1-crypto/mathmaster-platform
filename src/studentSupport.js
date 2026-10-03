@@ -1,10 +1,9 @@
-import { flatSupportIds, resolveEffectiveSupportPlan } from '../functions/shared/supportProfileModel.mjs';
+import { derivedSupportEntries, effectiveFlatSupportProfile, resolveEffectiveSupportPlan } from '../functions/shared/supportProfileModel.mjs';
+import { preservesMath } from './platform/language/mathSafeText.js';
 import { studentFacingLabel } from '../functions/shared/supportCatalog.mjs';
 import { fractionQuestionDrawsNumbers } from '../functions/shared/fractionAnswer.mjs';
 
 const unique = (values) => [...new Set((Array.isArray(values) ? values : []).map(String))];
-
-const hasSupportPlan = (profile) => Array.isArray(profile?.supportPlan?.windows) && profile.supportPlan.windows.length > 0;
 
 /**
  * The flat support view every runtime reader uses.
@@ -23,25 +22,25 @@ export const normalizeStudentProfile = (profile = {}, { nowValue = Date.now() } 
   const safeProfile = profile && typeof profile === 'object' && !Array.isArray(profile)
     ? profile
     : {};
-
-  if (hasSupportPlan(safeProfile)) {
-    const plan = resolveEffectiveSupportPlan(safeProfile, { nowValue });
-    const ids = flatSupportIds(plan);
+  // One flat view for every reader, here and in the entitlement adapter the
+  // Path server uses (functions/shared/supportProfileModel.mjs).
+  const flat = effectiveFlatSupportProfile(safeProfile, { nowValue });
+  if (flat.source === 'plan') {
     return {
-      inclusionStatus: plan.inclusionStatus === true,
-      accommodations: unique(ids.accommodations),
-      modifications: unique(ids.modifications),
-      translationLanguage: String(plan.translationLanguage || '').trim().toLowerCase() || null,
+      inclusionStatus: flat.inclusionStatus,
+      accommodations: unique(flat.accommodations),
+      modifications: unique(flat.modifications),
+      translationLanguage: flat.translationLanguage,
       supportPlan: safeProfile.supportPlan,
-      supportRevisionId: plan.revisionId || null,
+      supportRevisionId: flat.supportRevisionId,
     };
   }
 
   return {
-    inclusionStatus: Boolean(safeProfile.inclusionStatus),
-    accommodations: unique(safeProfile.accommodations),
-    modifications: unique(safeProfile.modifications),
-    translationLanguage: String(safeProfile.translationLanguage || '').trim().toLowerCase() || null,
+    inclusionStatus: flat.inclusionStatus,
+    accommodations: unique(flat.accommodations),
+    modifications: unique(flat.modifications),
+    translationLanguage: flat.translationLanguage,
   };
 };
 
@@ -97,6 +96,11 @@ export const studentSupportTools = (profile, { nowValue = Date.now() } = {}) => 
       tools.push({ supportId: entry.id, label });
     }
   });
+  // Translation follows from the profile language; it is never ticked.
+  derivedSupportEntries(plan).forEach((entry) => {
+    const label = studentFacingLabel(entry.id);
+    if (label) tools.push({ supportId: entry.id, label });
+  });
   return { tools, resources, any: tools.length > 0 || resources.length > 0 };
 };
 
@@ -146,7 +150,13 @@ export const applyStudentSupportToQuestion = (question, profile) => {
   const translation = normalized.translationLanguage && normalized.translationLanguage !== 'en'
     ? question?.translations?.[normalized.translationLanguage]
     : null;
-  if (translation && typeof translation === 'object' && !Array.isArray(translation)) {
+  // An authored translation is shown only if it carries the item's
+  // mathematics exactly (platform/language/mathSafeText.js): a translated
+  // prompt whose equation differs would be a different question.
+  const translationKeepsMath = translation && typeof translation?.prompt === 'string'
+    ? preservesMath(typeof question?.prompt === 'string' ? question.prompt : '', translation.prompt, { language: normalized.translationLanguage })
+    : true;
+  if (translation && typeof translation === 'object' && !Array.isArray(translation) && translationKeepsMath) {
     // The authored prompt is kept beside the translation: a grader that reads
     // the wording (a legacy constraint rewrite, for one) must judge the
     // question as authored, exactly as the server does, never the translation.
