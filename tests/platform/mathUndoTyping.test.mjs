@@ -105,6 +105,26 @@ test('a fraction bar or a bracket typed into a math field does not split the run
   assert.equal(singleTextEditPath({ a: 'x\\le5' }, { a: 'x\\ge5' }), null, 'a swapped relation');
 });
 
+// The same kind of typing on a slower Chromebook: MathLive reported the "/" and
+// the denominator that followed it as ONE change (y-10=-4 straight to
+// y-10=-\frac42), so the empty-box state above never appears. Read from the
+// representations board's undo journey on a ChromeOS machine.
+const MATHLIVE_POINT_SLOPE_BATCHED = ['y', 'y-', 'y-1', 'y-10', 'y-10=', 'y-10=-', 'y-10=-4', 'y-10=-\\frac42',
+  'y-10=-\\frac42\\left(\\right)', 'y-10=-\\frac42\\left(x\\right)', 'y-10=-\\frac42\\left(x-\\right)', 'y-10=-\\frac42\\left(x-4\\right)'];
+
+test('a fraction bar and its denominator arriving as one change do not split the run (slow device)', () => {
+  // Compared with \frac still in the text, -4 → -frac42 is two insertions, not
+  // one, so the run broke there and the next keystroke broke it again: one
+  // equation became three Undo steps on a Chromebook and one on a fast laptop.
+  const states = [{ eq: '' }, ...MATHLIVE_POINT_SLOPE_BATCHED.map((eq) => ({ eq }))];
+  assert.deepEqual(undoAll(play(states)), [{ eq: '' }], 'typing y − 10 = −4/2 (x − 4) is one step however the keys arrive');
+  assert.equal(singleTextEditPath({ a: 'y-10=-4' }, { a: 'y-10=-\\frac42' }), '/a', 'a batched fraction bar and denominator');
+  assert.equal(singleTextEditPath({ a: 'y=1' }, { a: 'y=\\dfrac{1}{2}' }), '/a', 'a display fraction too');
+  // A relation is a symbol, not a wrapper: swapping it is still its own act.
+  assert.equal(singleTextEditPath({ a: 'x\\le5' }, { a: 'x\\ge5' }), null, 'a swapped relation');
+  assert.equal(singleTextEditPath({ a: 'x\\lt5' }, { a: 'x\\le5' }), null, 'a swapped inequality');
+});
+
 test('typing a character and rubbing it out leaves no Undo that does nothing', () => {
   // The run's entry would restore exactly what is on screen: a press that
   // visibly does nothing. The step before it is the next Undo instead.
