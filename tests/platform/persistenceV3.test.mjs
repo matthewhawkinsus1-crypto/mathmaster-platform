@@ -166,8 +166,13 @@ test('grade delivery has one canonical writer and hydration reports before and a
     readFile(new URL('../../functions/index.js', import.meta.url), 'utf8'),
   ]);
   const dispatcher = region(app, 'const reconcileDurableStudentAction', 'const drainStudentOutbox', 'durable dispatcher');
-  assert.match(dispatcher, /if \(INGESTIBLE_KINDS\.includes\(action\.kind\)\)[\s\S]*return \{[\s\S]*disposition: SUBMISSION_DISPOSITION\.RETRYABLE/);
-  assert.match(dispatcher, /\/\/ Checkpoints and elapsed-time progress are non-grade background state\.[\s\S]*return reconcileThroughClientTransaction\(action\)/);
+  // Graded work — and elapsed time, which lands on the same server-owned
+  // canonical record — goes to server ingestion, and an unreachable callable
+  // leaves it queued as retryable. There is no browser fallback.
+  assert.match(dispatcher, /const elapsedTime = PROGRESS_KINDS\.includes\(action\.kind\);\s*if \(INGESTIBLE_KINDS\.includes\(action\.kind\) \|\| elapsedTime\)[\s\S]*return \{[\s\S]*disposition: SUBMISSION_DISPOSITION\.RETRYABLE/);
+  // Only non-grade response checkpoints fall through to the direct path, and
+  // that path refuses anything else (tests/platform/gradeDocumentAuthority.test.mjs).
+  assert.match(executableSource(dispatcher), /\}\s*return reconcileThroughClientTransaction\(action\);/);
   assert.doesNotMatch(dispatcher, /falling back|studentIngestionFallback/);
   const hydration = region(app, 'const recoverAndReconcileQueuedStudentWork', 'const reconcileQueuedStudentWork', 'hydration reconciliation');
   assert.match(hydration, /await reconcileAndReportStudentOutbox\(\)/);

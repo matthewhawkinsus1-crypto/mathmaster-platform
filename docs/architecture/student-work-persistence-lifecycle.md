@@ -25,7 +25,8 @@ evidence may delete a draft until the evidence has committed.**
 | Resume position ("where you left off") | `saveResumeAction` + draft sync `resume` | localStorage + the same Firestore document | per student | device switch |
 | Submitted attempts (Submit / Step grade) | QuestionEngine → IndexedDB durable outbox → `ingestStudentSubmissions` | IndexedDB queue, then canonical question records (server-written) | action id; receipt document | network loss (queued, retried), tab close |
 | Response checkpoints (answer state between submissions, for Response Inspector) | `onResponseCheckpoint`, debounced `CHECKPOINT_DEBOUNCE_MS` | server via `finalizeStudentResponseCheckpoints` | per question | — |
-| Attempt counts, status, grades, completion | **server only** (ingestion, reconciliation) | canonical question records, projections | — | — |
+| Elapsed time on a question (Next) | `questionProgress` row → IndexedDB durable outbox → `ingestStudentSubmissions` (progress envelope; raises `timeSpent` only) | the canonical question record's `timeSpent` (server-written) | action id; no receipt | network loss (queued, retried) |
+| Attempt counts, status, grades, completion | **server only** (ingestion, reconciliation) — enforced by `firestore.rules`: a student's client may change only `assignmentActivity` on its grade document | canonical question records, projections | — | — |
 | Work View open/closed, enlarged state | component state (intentionally transient) | — | — | not persisted; the work inside it is |
 
 ## Precedence on restore

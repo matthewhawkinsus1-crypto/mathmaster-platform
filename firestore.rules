@@ -77,19 +77,20 @@ service cloud.firestore {
     // Client updates may change student work fields, but moving a student or
     // changing their teacher must go through the audited Admin SDK callables.
     /*
-     * THE RECORDED TEST CYCLE GRADE IS SERVER-DERIVED, ON A CLIENT-WRITABLE DOC.
+     * THE RECORDED TEST CYCLE GRADE IS SERVER-DERIVED.
      *
-     * `grades/{studentId}` is updatable by the student who owns it — that is
-     * how ordinary assignment work is saved, and it is correct. But the Test
+     * `grades/{studentId}` is updatable by the teacher of record (the repair
+     * flows their client runs) and, for one engagement field only, by the
+     * student who owns it (studentChangesOnlyClientOwnedFields below). The Test
      * Cycle projection written there is different in kind: it is the single
      * source the Grade Center, the teacher gradebook and Google Classroom
      * passback all read, it is written ONLY by the secure release path, and
      * writing it is what wakes `syncGradeToClassroom`.
      *
-     * Left open, a student with a console could set their own recorded grade
-     * and have the platform post it to Google Classroom on their behalf. So the
-     * map is pinned from the client exactly the way the roster fields are. The
-     * Admin SDK bypasses rules, so the server release path is unaffected.
+     * Left open, a client with a console could set a recorded grade and have
+     * the platform post it to Google Classroom on the student's behalf. So the
+     * map is pinned from EVERY client exactly the way the roster fields are.
+     * The Admin SDK bypasses rules, so the server release path is unaffected.
      */
     function testCycleGradesUnchanged() {
       return request.resource.data.get('testCycleGrades', {})
@@ -138,11 +139,12 @@ service cloud.firestore {
     /*
      * TEACHER GRADE OVERRIDES ARE SERVER-AUTHORITATIVE.
      *
-     * Ordinary grade documents remain client-writable for existing student and
-     * teacher workflows, so an override cannot live inside a question record
-     * that a browser may rewrite. The server stores the active override in this
-     * top-level map and every client update must preserve it byte-for-byte.
-     * Admin SDK callables bypass rules and are the only writers.
+     * Canonical question records remain client-writable for the teacher of
+     * record's existing repair workflows, so an override cannot live inside a
+     * question record that a browser may rewrite. The server stores the active
+     * override in this top-level map and every client update must preserve it
+     * byte-for-byte. The audited Admin SDK callables (overrideStudentResponseGrade,
+     * overrideStudentAssignmentGrade) bypass rules and are the only writers.
      */
     function teacherGradeOverridesUnchanged() {
       return request.resource.data.get('teacherGradeOverridesByAssignment', {})
@@ -151,6 +153,79 @@ service cloud.firestore {
 
     function teacherGradeOverridesAbsentOnCreate() {
       return request.resource.data.get('teacherGradeOverridesByAssignment', {}) == {};
+    }
+
+    /*
+     * A STUDENT'S DEVICE MAY CHANGE EXACTLY ONE FIELD OF THEIR GRADE DOCUMENT.
+     *
+     * The grade document holds the canonical question records
+     * (`gradesByAssignment`) and every projection the server derives from
+     * them — Classwork completion, the DOL projection, support usage, the
+     * Classroom release signals and receipts. Google Classroom passback, the
+     * Grade Center, the teacher gradebook, Grade Transfer and server
+     * ingestion's own attempt policy all read them. Since Student Persistence
+     * V3 and server grading (#247, #412) every one of them is written by the
+     * server, so a student's client has no business writing any of them —
+     * and while the old rule ("the owner may update, except these pinned
+     * maps") let it, a console could mark questions correct, reset an
+     * exhausted attempt count, or force a final Classroom release.
+     *
+     * So the student branch is an ALLOW-LIST, not a list of pinned fields.
+     * The only field a student's own client may change is `assignmentActivity`:
+     * engagement time, which only the browser can measure. Everything else —
+     * a canonical record or any field inside one, a projection, a release
+     * signal, a receipt, or a field nothing reads yet — is refused, whether
+     * the write is an update, a merge, a batch or a transaction, and whatever
+     * the field path is spelled as. A value re-sent unchanged is not a change.
+     *
+     * Ordinary work still reaches the record: the durable outbox delivers it
+     * to `ingestStudentSubmissions`, which authenticates the student, grades
+     * the raw response and applies the attempt policy on the server.
+     *
+     * Mirrors STUDENT_CLIENT_OWNED_GRADE_FIELDS in
+     * functions/shared/gradeDocumentAuthority.mjs; a parity test keeps them
+     * equal (tests/platform/gradeDocumentAuthority.test.mjs).
+     */
+    function studentClientOwnedGradeFields() {
+      return ['assignmentActivity'];
+    }
+
+    function studentChangesOnlyClientOwnedFields() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(studentClientOwnedGradeFields());
+    }
+
+    /*
+     * A row a student creates for themselves may not be born holding grade
+     * state: before the row exists, an owner's `setDoc` would otherwise be a
+     * blank cheque for exactly the fields the update rule protects.
+     *
+     * Create gets the same allow-list idea as update — there is just no prior
+     * document to diff against. A student's create may carry only the roster
+     * placement it has always carried (pinned from then on by the update
+     * rule), the support-profile slot (empty), the engagement field, and the
+     * grade maps — and those must be empty. Mirrors STUDENT_CREATE_FIELDS and
+     * GRADE_FIELDS_EMPTY_ON_STUDENT_CREATE (the Test Cycle, override and
+     * Recovery maps also have their own create checks below, for every creator).
+     */
+    function studentCreateFields() {
+      return [
+        'classId', 'classPeriod', 'assignedTeacherEmail', 'status', 'profile', 'assignmentActivity',
+        'gradesByAssignment', 'classworkGradesByAssignment', 'dolGradesByAssignment', 'supportUsageByAssignment',
+        'classroomReleaseSignals', 'classroomSyncStatusByAssignment', 'classroomSectionSyncStatusByAssignment',
+        'testCycleGrades', 'teacherGradeOverridesByAssignment', 'sectionRecoveryByAssignment', 'warmupChallengeByAssignment'
+      ];
+    }
+
+    function serverOwnedGradeStateAbsentOnStudentCreate() {
+      return request.resource.data.keys().hasOnly(studentCreateFields())
+        && request.resource.data.get('gradesByAssignment', {}) == {}
+        && request.resource.data.get('classworkGradesByAssignment', {}) == {}
+        && request.resource.data.get('dolGradesByAssignment', {}) == {}
+        && request.resource.data.get('supportUsageByAssignment', {}) == {}
+        && request.resource.data.get('classroomReleaseSignals', {}) == {}
+        && request.resource.data.get('classroomSyncStatusByAssignment', {}) == {}
+        && request.resource.data.get('classroomSectionSyncStatusByAssignment', {}) == {};
     }
 
     function rosterAuthorizationUnchanged() {
@@ -564,14 +639,16 @@ service cloud.firestore {
         && d.minutes.toSet().difference(resource.data.minutes.toSet()).hasOnly([minute, minute - 1]);
     }
 
-    // Student work: students read/update only their own document; a teacher
-    // only their own students; the root administrator the school. Permanent
-    // account deletion is never a client permission — even the root
+    // Student work: students read only their own document and change only its
+    // client-owned engagement field (studentChangesOnlyClientOwnedFields); a
+    // teacher only their own students; the root administrator the school.
+    // Permanent account deletion is never a client permission — even the root
     // administrator must use the audited server callable that removes the
     // student's complete cross-collection footprint.
     match /grades/{studentId} {
       allow read: if rootAdmin() || ownsStudent(studentId) || teachesStudent();
-      allow update: if (rootAdmin() || teachesStudent() || (ownsStudent(studentId) && supportProfileUnchanged()))
+      allow update: if (rootAdmin() || teachesStudent()
+          || (ownsStudent(studentId) && supportProfileUnchanged() && studentChangesOnlyClientOwnedFields()))
         && rosterAuthorizationUnchanged()
         && sisIdentityUnchanged()
         && studentIdentityUnchanged()
@@ -583,7 +660,8 @@ service cloud.firestore {
       // "No work yet" is enforced, not assumed, for the one field that is
       // server-derived — otherwise the update rule's guarantee lasts only until
       // someone deletes and recreates the row, or creates it for the first time.
-      allow create: if (teacher() || (ownsStudent(studentId) && supportProfileAbsentOnStudentCreate()))
+      allow create: if (teacher()
+          || (ownsStudent(studentId) && supportProfileAbsentOnStudentCreate() && serverOwnedGradeStateAbsentOnStudentCreate()))
         && sisIdentityAbsentOnClientCreate()
         && studentIdentityAbsentOnClientCreate()
         && testCycleGradesAbsentOnCreate()
@@ -1328,9 +1406,10 @@ service cloud.firestore {
      * runs on the Admin SDK and bypasses these rules after checking that the
      * caller is the teacher of record for the class the student is actually in.
      *
-     * This is also why the flag does not live on `grades/{studentId}`: a
-     * student may write parts of their own grade document, and no field a
-     * student can reach may ever release a final grade.
+     * This is also why the flag does not live on `grades/{studentId}`: the
+     * teacher of record's client may write parts of that document, a student
+     * may write its engagement field, and no field a client can reach may
+     * ever release a final grade.
      *
      * Reads are for the audited teacher recovery report, which likewise runs
      * on the Admin SDK; a student may read their own so a device can explain

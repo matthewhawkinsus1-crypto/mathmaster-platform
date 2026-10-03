@@ -1042,6 +1042,56 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
   });
 }
 
+/*
+ * ELAPSED TIME ON A QUESTION, RECORDED BY THE SERVER.
+ *
+ * The student's Next button used to write the whole canonical record back
+ * from the browser with a new `timeSpent`. Those records are server-owned now
+ * (firestore.rules lets a student's client change only its engagement time),
+ * so the reading arrives here as a `questionProgress` envelope and this is
+ * its only writer. Identity is the caller's, the class is the roster's, the
+ * question must exist on the authoritative assignment, and the write is
+ * `questionProgressRecord`: raise `timeSpent`, leave every other field of the
+ * record exactly as the server last wrote it. No attempt, no grade, no
+ * receipt, no evidence — and so nothing here can be used to move one.
+ */
+async function recordOneQuestionProgress({ db, studentId, envelope }) {
+  const ingestion = await submissionIngestion();
+  const gradeRef = db.collection("grades").doc(studentId);
+  const assignmentRef = db.collection("assignments").doc(envelope.assignmentId);
+  const questionKey = String(envelope.questionIndex);
+
+  return db.runTransaction(async (transaction) => {
+    const [assignmentSnapshot, gradeSnapshot] = await Promise.all([
+      transaction.get(assignmentRef),
+      transaction.get(gradeRef),
+    ]);
+    const assignment = assignmentSnapshot.exists
+      ? { id: assignmentSnapshot.id, ...assignmentSnapshot.data() }
+      : null;
+    const gradeData = gradeSnapshot.exists ? gradeSnapshot.data() || {} : null;
+    const decision = ingestion.decideQuestionProgress({
+      envelope,
+      assignmentExists: assignmentSnapshot.exists,
+      gradeRecordExists: gradeSnapshot.exists,
+      secureAssignment: Boolean(assignment && (secureAssignmentMode(assignment) || assignment.secure === true)),
+      authorizedForClass: assignment
+        ? studentMatchesAssignmentAudience({ assignment, classId: authoritativeStudentClassId(gradeData) })
+        : null,
+      question: assignment ? runtimeQuestionsFromAssignment(assignment)?.[envelope.questionIndex] || null : null,
+      canonicalRecord: gradeData?.gradesByAssignment?.[envelope.assignmentId]?.[questionKey] ?? null,
+    });
+    if (decision.record) {
+      transaction.update(
+        gradeRef,
+        new FieldPath("gradesByAssignment", envelope.assignmentId, questionKey),
+        decision.record,
+      );
+    }
+    return { actionId: envelope.actionId, disposition: decision.disposition, reason: decision.reason };
+  });
+}
+
 // Ingestion stops starting new envelopes after this long, well inside the
 // callable's 60-second limit (the slowest single step verification measured
 // about 3 seconds).
@@ -1075,6 +1125,24 @@ exports.ingestStudentSubmissions = onCall(async (request) => {
         disposition: dispositions.SUBMISSION_DISPOSITION.RETRYABLE,
         reason: "ingestion-call-time-budget",
       });
+      continue;
+    }
+    // Elapsed time is not graded work: it takes its own, narrower path.
+    const progress = ingestion.normalizeProgressEnvelope(raw);
+    if (progress) {
+      progress.studentId = studentId;
+      try {
+        receipts.push(await recordOneQuestionProgress({ db, studentId, envelope: progress }));
+      } catch (error) {
+        logger.error("Could not record question progress", {
+          studentId, actionId: progress.actionId, message: error.message,
+        });
+        receipts.push({
+          actionId: progress.actionId,
+          disposition: dispositions.SUBMISSION_DISPOSITION.RETRYABLE,
+          reason: `ingestion-error:${String(error.message || "unknown").slice(0, 120)}`,
+        });
+      }
       continue;
     }
     const envelope = ingestion.normalizeSubmissionEnvelope(raw);

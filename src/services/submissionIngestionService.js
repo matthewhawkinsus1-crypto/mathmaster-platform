@@ -19,11 +19,33 @@ import { measurePerformanceOperation } from '../platform/performance/performance
 import { reportDeviceQueueUnlessUnchanged } from '../platform/persistence/deviceReportDedupe.js';
 import {
   MAX_ENVELOPES_PER_CALL,
+  PROGRESS_KINDS,
   SUBMISSION_DISPOSITION,
-  normalizeSubmissionEnvelope,
+  buildProgressEnvelope,
+  normalizeIngestionEnvelope,
 } from '../../functions/shared/submissionEnvelope.mjs';
 
-export { MAX_ENVELOPES_PER_CALL };
+export { MAX_ENVELOPES_PER_CALL, PROGRESS_KINDS };
+
+/*
+ * ELAPSED TIME ON A QUESTION GOES TO THE SERVER TOO.
+ *
+ * A `questionProgress` row used to be applied by a direct Firestore
+ * transaction that rewrote the whole canonical question record with a new
+ * `timeSpent`. That record is server-owned now (firestore.rules), so the
+ * reading is delivered through the same ingestion callable as graded work —
+ * identity and one number, nothing the server could mistake for a verdict.
+ */
+export const buildProgressEnvelopeForAction = (action) => buildProgressEnvelope({
+  actionId: action?.actionId,
+  kind: action?.kind,
+  studentId: action?.studentId,
+  assignmentId: action?.assignmentId,
+  questionIndex: action?.questionIndex,
+  activityRole: action?.payload?.activityRole || null,
+  capturedAt: Number(action?.createdAt) || Date.now(),
+  timeSpentSeconds: Number(action?.payload?.timeSpent) || 0,
+});
 
 /*
  * HOW LONG THE COURIER MAY BE AWAY.
@@ -55,7 +77,7 @@ const withTimeout = (promise, timeoutMs) => {
  */
 export const ingestStudentSubmissions = async (envelopes, { timeoutMs = INGEST_TIMEOUT_MS } = {}) => {
   const submissions = (Array.isArray(envelopes) ? envelopes : [])
-    .map(normalizeSubmissionEnvelope)
+    .map(normalizeIngestionEnvelope)
     .filter(Boolean)
     .slice(0, MAX_ENVELOPES_PER_CALL);
   if (!submissions.length) return new Map();

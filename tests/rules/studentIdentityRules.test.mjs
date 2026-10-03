@@ -124,8 +124,11 @@ test('erasing a name, or adding one a row did not have, is a change too', async 
 });
 
 test('ordinary work on the same document still saves, and the name is untouched', async () => {
+  // A student's client saves its engagement time here; its graded work
+  // reaches the canonical record through server ingestion, never directly
+  // (tests/rules/gradeAuthorityRules.test.mjs).
   await assertSucceeds(updateDoc(doc(studentNamed(), 'grades/S_NAMED'), {
-    gradesByAssignment: { 'assignment-1': { 0: { status: 'correct' } } },
+    'assignmentActivity.assignment-1': { totalTimeSeconds: 45 },
   }));
   await assertSucceeds(updateDoc(doc(studentLegacy(), 'grades/S_LEGACY'), {
     'assignmentActivity.assignment-1': { totalTimeSeconds: 30 },

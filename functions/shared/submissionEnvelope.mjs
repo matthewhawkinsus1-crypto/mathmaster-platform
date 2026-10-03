@@ -17,6 +17,24 @@ export const SUBMISSION_ENVELOPE_SCHEMA_VERSION = 1;
 /** Kinds that carry academic credit and are therefore ingested here. */
 export const INGESTIBLE_KINDS = Object.freeze(['ordinarySubmission', 'stepSubmission', 'questionReplacement']);
 
+/*
+ * ELAPSED TIME ON A QUESTION — DELIVERED HERE, NEVER A GRADE.
+ *
+ * Moving to another question records how long the student spent on the one
+ * they left. That time lives on the canonical question record (`timeSpent`),
+ * which the browser used to write back whole, straight to Firestore. The
+ * record is server-owned now (firestore.rules allows a student's client only
+ * its engagement field), so the reading travels to the same ingestion
+ * callable as a `questionProgress` envelope: identity and one number. It is
+ * not ingestible work — it earns nothing, spends no attempt, mints no receipt
+ * or evidence — and the server applies it as "raise timeSpent, touch nothing
+ * else" (submissionIngestion.mjs questionProgressRecord).
+ */
+export const PROGRESS_KINDS = Object.freeze(['questionProgress']);
+
+/** A day is the most time one question can claim; the same bound a submission's own time has. */
+export const MAX_QUESTION_TIME_SECONDS = 86_400;
+
 /** One call carries a whole stalled queue without becoming a write amplifier. */
 export const MAX_ENVELOPES_PER_CALL = 25;
 
@@ -430,5 +448,70 @@ export const normalizeSubmissionEnvelope = (raw) => {
     stepWork: trimmed(raw.kind) === 'stepSubmission' ? normalizeStepWork(raw.stepWork) : null,
   };
 };
+
+/** Elapsed time on one question, as the server records it: 0..MAX_QUESTION_TIME_SECONDS. */
+export const boundedQuestionSeconds = (value) => Math.max(0, Math.min(MAX_QUESTION_TIME_SECONDS, finite(value, 0)));
+
+/**
+ * Build the envelope a device sends for elapsed time on one question.
+ *
+ * Identity and a time. There is no record, no status and no attempt count to
+ * send, because there is nothing for the server to take from the device but
+ * the reading itself.
+ */
+export const buildProgressEnvelope = ({
+  actionId,
+  kind = 'questionProgress',
+  studentId,
+  assignmentId,
+  questionIndex,
+  activityRole = null,
+  capturedAt = Date.now(),
+  timeSpentSeconds = 0,
+} = {}) => {
+  if (!PROGRESS_KINDS.includes(kind)) throw new Error('Only elapsed-time progress travels in a progress envelope.');
+  if (!trimmed(actionId)) throw new Error('A progress envelope requires its durable action id.');
+  if (!trimmed(studentId) || !trimmed(assignmentId) || !Number.isInteger(Number(questionIndex)) || Number(questionIndex) < 0) {
+    throw new Error('A progress envelope requires student, assignment and question identity.');
+  }
+  return {
+    schemaVersion: SUBMISSION_ENVELOPE_SCHEMA_VERSION,
+    actionId: trimmed(actionId),
+    kind,
+    studentId: trimmed(studentId),
+    assignmentId: trimmed(assignmentId),
+    questionIndex: Number(questionIndex),
+    activityRole: trimmed(activityRole).toLowerCase() || null,
+    capturedAt: finite(capturedAt, Date.now()),
+    timeSpentSeconds: boundedQuestionSeconds(timeSpentSeconds),
+  };
+};
+
+/**
+ * Read a progress envelope off the wire, keeping identity and the time and
+ * NOTHING else. A record, a status, a verdict, an attempt count or a `secure`
+ * flag riding along is not refused — it is simply never read, so it cannot
+ * reach the record. Whether the assignment is secure is the server's to read
+ * from the assignment itself (decideQuestionProgress), never the envelope's.
+ */
+export const normalizeProgressEnvelope = (raw) => {
+  if (!raw || typeof raw !== 'object') return null;
+  if (!PROGRESS_KINDS.includes(trimmed(raw.kind))) return null;
+  if (!trimmed(raw.actionId) || !trimmed(raw.assignmentId)) return null;
+  if (!Number.isInteger(Number(raw.questionIndex)) || Number(raw.questionIndex) < 0) return null;
+  return {
+    schemaVersion: finite(raw.schemaVersion, 1),
+    actionId: trimmed(raw.actionId).slice(0, 200),
+    kind: trimmed(raw.kind),
+    assignmentId: trimmed(raw.assignmentId),
+    questionIndex: Number(raw.questionIndex),
+    activityRole: trimmed(raw.activityRole).toLowerCase() || null,
+    capturedAt: finite(raw.capturedAt, 0) || null,
+    timeSpentSeconds: boundedQuestionSeconds(raw.timeSpentSeconds),
+  };
+};
+
+/** Any envelope the ingestion callable accepts: graded work or elapsed time. */
+export const normalizeIngestionEnvelope = (raw) => normalizeProgressEnvelope(raw) || normalizeSubmissionEnvelope(raw);
 
 export { SUBMISSION_DISPOSITION };

@@ -252,12 +252,18 @@ test('teacher and student clients cannot rewrite roster authorization fields', a
     classPeriod: 'Period 2',
   }, { merge: true }));
 
-  // Ordinary work/profile fields are still writable by the identities that
-  // already own this roster row.
+  // The roster pins do not stop the identities that own this row from their
+  // ordinary saves: the teacher of record's client, and the student's own
+  // engagement time — the one field a student's client may change. Any other
+  // field from a student, even one nothing reads yet, is refused
+  // (tests/rules/gradeAuthorityRules.test.mjs).
   await assertSucceeds(setDoc(doc(teacherA(), 'grades/STUDENT_A'), {
     teacherNoteMarker: 'allowed',
   }, { merge: true }));
   await assertSucceeds(setDoc(doc(studentA(), 'grades/STUDENT_A'), {
+    assignmentActivity: { 'assignment-roster-test': { totalTimeSeconds: 60 } },
+  }, { merge: true }));
+  await assertFails(setDoc(doc(studentA(), 'grades/STUDENT_A'), {
     studentProgressMarker: 'allowed',
   }, { merge: true }));
 });
@@ -799,8 +805,14 @@ test('no client can write the recorded Test Cycle grade, not even the student wh
   // Removing it is no more allowed than rewriting it.
   await assertFails(updateDoc(doc(studentA(), 'grades/STUDENT_A'), { testCycleGrades: {} }));
 
-  // And ordinary work still saves, which is what the document is for.
+  // The pin does not lock the document: the student's own engagement time,
+  // the one field their client writes, still saves. (Their graded work
+  // reaches `gradesByAssignment` through server ingestion, never directly —
+  // tests/rules/gradeAuthorityRules.test.mjs.)
   await assertSucceeds(updateDoc(doc(studentA(), 'grades/STUDENT_A'), {
+    'assignmentActivity.assignment-1': { totalTimeSeconds: 120 },
+  }));
+  await assertFails(updateDoc(doc(studentA(), 'grades/STUDENT_A'), {
     gradesByAssignment: { 'assignment-1': { 0: { status: 'correct' } } },
   }));
 });
@@ -868,8 +880,12 @@ test('no client can write a Practice-based Recovery record or the Live Challenge
   // Removing a Recovery is no more allowed than rewriting it.
   await assertFails(updateDoc(doc(studentA(), 'grades/STUDENT_A'), { sectionRecoveryByAssignment: {} }));
 
-  // Ordinary work still saves, which is what the document is for.
+  // The pin does not lock the document: the student's engagement time still
+  // saves, and the canonical record stays the server's (gradeAuthorityRules).
   await assertSucceeds(updateDoc(doc(studentA(), 'grades/STUDENT_A'), {
+    'assignmentActivity.assignment-1': { totalTimeSeconds: 120 },
+  }));
+  await assertFails(updateDoc(doc(studentA(), 'grades/STUDENT_A'), {
     gradesByAssignment: { 'assignment-1': { 0: { status: 'correct' } } },
   }));
 });
@@ -1131,9 +1147,14 @@ test('no client can forge, change, or remove a teacher grade override projection
     teacherGradeOverridesByAssignment: {},
   }));
 
-  // Existing legitimate client-writable work remains writable so the new
-  // protection does not break the ordinary assignment persistence contract.
+  // The protection does not break the ordinary persistence contract: the
+  // student's client-owned engagement field still saves. Their attempts reach
+  // `gradesByAssignment` only through server ingestion, so a direct write of
+  // one is refused like the forged override above.
   await assertSucceeds(updateDoc(doc(studentA(), 'grades/STUDENT_A'), {
+    'assignmentActivity.assignment-ordinary-write': { totalTimeSeconds: 300 },
+  }));
+  await assertFails(updateDoc(doc(studentA(), 'grades/STUDENT_A'), {
     gradesByAssignment: {
       'assignment-ordinary-write': {
         0: { status: 'attempted', attemptCount: 1, totalAttempts: 1 },
