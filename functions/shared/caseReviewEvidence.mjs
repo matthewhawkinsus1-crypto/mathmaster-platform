@@ -22,7 +22,7 @@
 // inspect a response: the root administrator, the teacher of record of the
 // student's current class, or the student's roster teacher
 // (`assignedTeacherEmail`). A student token is never enough.
-import { normalizeMisconceptionCodes } from './misconceptionCodes.mjs';
+import { trustedMisconceptionFindings } from './misconceptionCodes.mjs';
 
 export const CASE_EVIDENCE_LIMITS = Object.freeze({
   maxAssignments: 200,
@@ -87,7 +87,9 @@ export const projectAttemptEvent = (event = {}, id = '') => {
   const performance = event?.performance || {};
   const snapshot = event?.questionSnapshot || {};
   const usage = event?.supportUsage || {};
-  const codes = normalizeMisconceptionCodes(performance.misconceptionCodes);
+  // Server-classified findings only, through the registry's trust gate: a
+  // bare code list (or anything without server provenance) is not evidence.
+  const findings = trustedMisconceptionFindings(performance);
   return {
     eventKey: clean(event.eventKey || id),
     occurredAt: millisOf(event.occurredAt),
@@ -110,7 +112,19 @@ export const projectAttemptEvent = (event = {}, id = '') => {
       isCorrect: performance.isCorrect === true,
       partialCredit: Math.max(0, Math.min(100, finite(performance.partialCredit) ?? 0)),
       status: clean(performance.status) || null,
-      ...(codes.length ? { misconceptionCodes: codes } : {}),
+      ...(findings.length ? {
+        misconceptionCodes: findings.map((finding) => finding.code),
+        // What a teacher needs to see why — the code, the graded parts it
+        // concerns, and which classifier at which version, no response text —
+        // in the stored shape, so the case review re-applies the same gate.
+        misconceptionEvidence: {
+          registryVersion: performance.misconceptionEvidence.registryVersion,
+          source: performance.misconceptionEvidence.source,
+          classifier: findings[0].classifier,
+          classifierVersion: findings[0].classifierVersion,
+          findings: findings.map(({ code, codeVersion, parts }) => ({ code, codeVersion, parts })),
+        },
+      } : {}),
     },
     supportUsage: Object.fromEntries(SUPPORT_FLAGS.map((key) => [key, usage[key] === true])),
   };
@@ -202,7 +216,15 @@ export const buildCaseEvidenceResponse = ({
   request, events = [], receipts = [], drafts = {}, audits = [], nowMs = Date.now(),
 } = {}) => {
   const wanted = new Set(list(request?.assignmentIds));
+  const studentId = clean(request?.studentId);
   const projected = list(events)
+    // The events are read from this student's own subcollection; an event that
+    // names a different student is never projected into this case (a
+    // classmate's evidence stays theirs).
+    .filter((entry) => {
+      const owner = clean((entry?.data || entry)?.studentId);
+      return !owner || !studentId || owner === studentId;
+    })
     .map((entry) => projectAttemptEvent(entry?.data || entry, entry?.id))
     .filter((event) => event && wanted.has(event.source.assignmentId));
   const practice = {};

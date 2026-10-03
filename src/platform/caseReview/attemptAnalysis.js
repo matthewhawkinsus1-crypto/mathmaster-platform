@@ -35,7 +35,7 @@ import {
 import { getEffectiveActivityPolicy, isActivityRole, normalizeActivityRole } from '../../../functions/shared/activityPolicies.mjs';
 import { normalizeQuestionStandards, normalizeQuestionComplexity } from '../../../functions/shared/questionMetadata.mjs';
 import { toDisplayCode } from '../../../functions/shared/teksUtils.mjs';
-import { normalizeMisconceptionCodes } from '../../../functions/shared/misconceptionCodes.mjs';
+import { trustedMisconceptionFindings } from '../../../functions/shared/misconceptionCodes.mjs';
 import { projectCurrentAssignmentContent } from '../assignments/currentContentProjection.js';
 import { projectedAssignmentTrackerFor } from '../grading/canonicalGradeProjection.js';
 import { studentOmittedIndices } from '../../../functions/shared/reducedWorkload.mjs';
@@ -356,11 +356,19 @@ export const analyzeAssignmentQuestions = ({
           id: clean(part.id), label: clean(part.label), isCorrect: part.isCorrect === true, isComplete: part.isComplete !== false,
         }))
         : [],
-      // Structured misconception codes, only where a tool stored one.
-      misconceptionCodes: [...new Set([
-        ...questionEvents.flatMap((event) => normalizeMisconceptionCodes(event?.performance?.misconceptionCodes)),
-        ...list(record.partGrades).flatMap((part) => normalizeMisconceptionCodes(part?.misconceptionCode)),
-      ])],
+      // Misconception evidence, only where a SERVER classifier proved it on
+      // this question's own attempt events (misconceptionCodes.mjs
+      // trustedMisconceptionFindings). The question record is student-writable,
+      // so a code on its parts is never read; neither is a bare code list.
+      misconceptionFindings: questionEvents.flatMap((event) => trustedMisconceptionFindings(event?.performance).map((finding) => ({
+        code: finding.code,
+        parts: finding.parts,
+        classifier: finding.classifier,
+        classifierVersion: finding.classifierVersion,
+        attemptNumber: Number.isFinite(Number(event?.performance?.attemptNumber)) ? Number(event.performance.attemptNumber) : null,
+        occurredAt: Number.isFinite(Number(event?.occurredAt)) ? Number(event.occurredAt) : null,
+      }))),
+      misconceptionCodes: [...new Set(questionEvents.flatMap((event) => trustedMisconceptionFindings(event?.performance).map((finding) => finding.code)))],
     };
   });
 

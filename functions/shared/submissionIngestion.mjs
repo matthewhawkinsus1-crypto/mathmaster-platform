@@ -81,6 +81,7 @@ import {
 import { resolveServerGradingQuestion } from './questionFamilyGrading.mjs';
 import { deliveredQuestionForGrading } from './serverGrading/deliveredQuestion.mjs';
 import { normalizeDeliveryPin } from './questionGenerationIdentity.mjs';
+import { classifyMisconceptions } from './misconceptionClassifiers.mjs';
 
 export {
   FORBIDDEN_ENVELOPE_FIELDS,
@@ -310,6 +311,12 @@ export const envelopeResetsRecord = ({ envelope, canonicalRecord }) => replaceme
   claimed: stripNonCanonicalInspectionFields(normalizeQuestionRecord(envelope?.record)),
 });
 
+const withoutClaimedMisconceptionCodes = (partGrades) => list(partGrades).map((part) => {
+  if (!part || typeof part !== 'object' || !('misconceptionCode' in part)) return part;
+  const { misconceptionCode: _dropped, ...kept } = part;
+  return kept;
+});
+
 export const sanitizeClientAttemptRecord = ({
   envelope,
   canonicalRecord,
@@ -371,6 +378,10 @@ export const sanitizeClientAttemptRecord = ({
   return normalizeQuestionRecord({
     ...canonical,
     ...claimed,
+    // A browser's record is never misconception evidence: any code it put on
+    // a part is dropped here (misconceptionCodes.mjs — only the server's own
+    // classification of work it graded is stored, on the evidence event).
+    partGrades: withoutClaimedMisconceptionCodes(claimed.partGrades),
     status,
     attemptCount,
     totalAttempts: Math.max(totalAttempts, finite(canonical.totalAttempts, 0)),
@@ -495,6 +506,7 @@ export const buildIngestedAttempt = ({
   let result;
   let gradedBy;
   let serverGrading = null;
+  let misconception = null;
   /*
    * A MODELING LAB IS GRADED BY ITS OWN SERVER SUBSYSTEM.
    *
@@ -605,6 +617,18 @@ export const buildIngestedAttempt = ({
       return { blocked: true, reason: grading.reason || 'server-grading-failed' };
     }
     serverGrading = grading;
+    // MISCONCEPTION EVIDENCE, FROM THE SAME AUTHORITATIVE WORK — NEVER A GRADE.
+    // Classified from the question the server graded, the raw response and the
+    // server's own result (and a family instance's server-reproduced
+    // parameters). It is computed on the side: nothing below hands it to the
+    // attempt policy, so the record, score and attempts are identical with or
+    // without it. It reaches only the evidence event.
+    misconception = classifyMisconceptions({
+      question: gradingQuestion,
+      response: envelope.response,
+      grading,
+      familyValues: family.instanceValues || null,
+    });
     // The same mapping the browser used when the student pressed Check, so
     // one raw response produces one record whichever path delivered it.
     const attemptInputs = attemptInputsFromGrading(grading);
@@ -752,6 +776,7 @@ export const buildIngestedAttempt = ({
     attemptResult: result,
     supportUsage: stamped.supportUsage || {},
     occurredAt: academicAt,
+    misconceptionEvidence: misconception?.evidence || null,
   });
 
   return {

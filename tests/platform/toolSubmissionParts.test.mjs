@@ -58,15 +58,18 @@ test('a tool that says neither is recorded exactly as before', () => {
   assert.deepEqual(toolSubmissionParts({ parts: 'x' }), []);
 });
 
-test('a list of parts keeps its shape, its defaults and its misconception codes', () => {
+// A misconception code a tool puts on a part is NOT forwarded: the browser is
+// never the authority for one (functions/shared/misconceptionCodes.mjs — the
+// server classifies the raw work itself).
+test('a list of parts keeps its shape and its defaults, and drops a tool-supplied misconception code', () => {
   assert.deepEqual(toolSubmissionParts({
     parts: [
-      { id: 'slope', label: 'Slope', isCorrect: false, response: '-2', misconceptionCode: 'slope-direction' },
+      { id: 'slope', label: 'Slope', isCorrect: false, response: '-2', misconceptionCode: 'slope-sign-reversed' },
       { isComplete: false },
     ],
     requiredParts: ['ignored for a list'],
   }), [
-    { id: 'slope', label: 'Slope', isComplete: true, isCorrect: false, response: '-2', misconceptionCode: 'slope-direction' },
+    { id: 'slope', label: 'Slope', isComplete: true, isCorrect: false, response: '-2' },
     { id: 'part-2', label: 'Part 2', isComplete: false, isCorrect: false, response: '' },
   ]);
 });

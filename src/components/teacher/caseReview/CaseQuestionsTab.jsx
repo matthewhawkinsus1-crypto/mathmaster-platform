@@ -73,7 +73,7 @@ function Overview({ model, onDrill }) {
       <section className="cr-section" aria-labelledby="cr-error-patterns">
         <h2 id="cr-error-patterns">Error patterns</h2>
         <p className="cr-lead"><strong>{errorPatterns.statement}</strong> {errorPatterns.determinable ? <Prov level={CASE_PROVENANCE.DIRECT} /> : <Prov level={CASE_PROVENANCE.NOT_RECORDED} />}</p>
-        {errorPatterns.codes.length > 0 && <ul className="cr-lines">{errorPatterns.codes.map((entry) => <li key={entry.code}>{entry.label}: {entry.questions} question{entry.questions === 1 ? '' : 's'}</li>)}</ul>}
+        {errorPatterns.codes.length > 0 && <ul className="cr-lines">{errorPatterns.codes.map((entry) => <li key={entry.code} data-misconception-code={entry.code} data-recurrence={entry.recurrence}>{entry.description} <span className="cr-note">{entry.meaning}</span></li>)}</ul>}
         {errorPatterns.notCorrectParts.length > 0 && (
           <>
             <p className="cr-note">{errorPatterns.partNote}</p>
@@ -167,7 +167,9 @@ function QuestionDetail({ entry, question, studentId, onInspectResponse }) {
         Last answer time: {question.lastAttemptAtMs ? `${when(question.lastAttemptAtMs)} (${CASE_PROVENANCE_LABEL[question.lastAttemptTimeProvenance]})` : 'not recorded'}.
       </p>
       <h3>Error pattern</h3>
-      <p className="cr-lead">{pattern.determinable ? pattern.codes.map((code) => code.label).join(', ') : pattern.statement}</p>
+      {pattern.determinable
+        ? <ul className="cr-lines">{pattern.codes.map((code) => <li key={code.code} data-misconception-code={code.code}><strong>{code.label}</strong>{code.attempts > 1 ? ` (on ${code.attempts} attempts)` : ''} <span className="cr-note">{code.meaning}</span></li>)}</ul>
+        : <p className="cr-lead">{pattern.statement}</p>}
       {namedParts.length > 0 && (
         <p className="cr-note">Latest attempt, as the grader recorded it: {namedParts.map((part) => `${part.label} ${part.isCorrect ? 'correct' : 'not correct'}`).join(' · ')}. A recorded result, not a diagnosis.</p>
       )}
