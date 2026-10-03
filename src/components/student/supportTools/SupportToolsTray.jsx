@@ -119,7 +119,7 @@ function SayItPanel({ tool, language }) {
 function StepsBox({ tool, open, onToggle }) {
   const steps = tool.chunks?.steps || [];
   return (
-    <div data-support-steps style={{ marginTop: 8, padding: '8px 12px', borderRadius: 10, border: '1px solid #c5d5ef', background: 'var(--mm-info-bg, #eef4ff)', textAlign: 'left' }}>
+    <div data-support-steps style={{ marginTop: 8, padding: '8px 12px', borderRadius: 10, border: '1px solid #c5d5ef', background: 'var(--mm-info-bg, #eef4ff)', textAlign: 'left', fontSize: 14, lineHeight: 1.5 }}>
       <button type="button" onClick={onToggle} aria-expanded={open} style={{ ...BUTTON, minHeight: 32, padding: '3px 10px', fontSize: 12.5 }}>
         {open ? 'Hide steps ▴' : `${tool.label} ▾`}
       </button>

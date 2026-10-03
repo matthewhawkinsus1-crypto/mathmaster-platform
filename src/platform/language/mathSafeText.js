@@ -86,12 +86,10 @@ const groupIsMath = (inner) => {
   return sawMath;
 };
 
-const CLOSE_FOR = { '(': ')', '[': ']' };
 const OPENERS = new Set(['(', '[']);
 
 /** The matching close for the bracket at `start`, or -1. Same line only. */
 const matchingClose = (text, start) => {
-  const open = text[start];
   let depth = 0;
   for (let index = start; index < text.length; index += 1) {
     const char = text[index];

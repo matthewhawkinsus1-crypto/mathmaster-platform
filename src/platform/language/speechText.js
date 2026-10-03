@@ -101,9 +101,9 @@ const plainMathToSpeech = (raw, w) => {
     .replace(/([A-Za-z0-9.)]+)\s*\/\s*(\d+(?:\.\d+)?|[A-Za-z]|\([^()]*\))/g, ` $1 ${w.over} $2 `)
     .replace(/\+/g, ` ${w.plus} `)
     // Products with brackets: 2(x + 1), x(x - 3), (x + 2)(x + 3).
-    .replace(/\)\s*\(/g, ')\u0001(')
-    .replace(/([A-Za-z0-9])\s*\(/g, '$1\u0001(')
-    .replace(/\u0001/g, ` ${w.times} `)
+    .replace(/\)\s*\(/g, ')\uE000(')
+    .replace(/([A-Za-z0-9])\s*\(/g, '$1\uE000(')
+    .replace(/\uE000/g, ` ${w.times} `)
     .replace(/\(/g, ` ${w.quantity} `);
   // A minus sign is "negative" where it starts a quantity (start, after an
   // operator word or an opening bracket) and "minus" between two quantities.

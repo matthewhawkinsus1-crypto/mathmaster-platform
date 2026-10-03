@@ -31,6 +31,13 @@
 //       with target/original/assigned/actual; nothing names a program
 //   T7  the teacher sees the configuration and "Fewer items · 9 of 12"
 //       (S2/T7 seed their scenario with `&reduced=1`; nothing else changes)
+//   S3  language supports with 25% fewer items: neutral Support tools under the
+//       task (Translate shows the Spanish directions with the mathematics
+//       intact, Vocabulary is bilingual, Break it down shows the steps, Help
+//       me say it shows frames), never over the answer area; the same tools
+//       in Work View; what was on screen is recorded once, use when opened
+//   T8  the teacher sees Translation (from the language) and the records
+//       (S3/T8 seed their scenario with `&eb=1`)
 //
 // Exit code 1 on any finding. Screenshots in
 // tests/browser/artifacts/supportEvidence/ (git-ignored).
@@ -364,6 +371,94 @@ const journeys = {
     await page.screenshot({ path: path.join(ARTIFACTS, `reduced-student-${page.viewportSize().width}.png`) });
   },
 
+  async S3(page) {
+    const STUDENT = '910960';
+    const TITLE = 'One-Variable Equations — Explain Your Thinking';
+    await page.goto(`${ORIGIN}/tests/browser/teacherWorkflow/index.html?reset=1&eb=1&as=student&studentId=${STUDENT}`, { timeout: 180000 });
+    await page.getByText('Log Out').first().waitFor({ timeout: 120000 });
+    await page.waitForTimeout(2500);
+    const home = await text(page.locator('body'));
+    expect('S3', /0 of 3 questions finished/.test(home), `25% fewer items still applies with language supports (${(home.match(/\d+ of \d+ questions? finished/g) || []).join('; ')})`);
+    const card = page.locator('article, section, li, div').filter({ hasText: TITLE }).filter({ has: page.getByRole('button', { name: /Start|Open|Continue|Resume/ }) }).last();
+    await card.getByRole('button', { name: /Start|Open|Continue|Resume/ }).first().click();
+    const tray = page.locator('[data-student-support-tray="assignment"]').first();
+    await tray.waitFor({ timeout: 60000 });
+    await page.waitForTimeout(2500);
+    const said = await text(page.locator('body'));
+    expect('S3', !/\b(IEP|504|EB|emergent bilingual|accommodation|modification|ELL|LEP)\b/i.test(said), 'nothing on the student\'s screen names a program or a classification');
+    const toolNames = await tray.locator('[data-support-tool]').evaluateAll((buttons) => buttons.map((button) => button.getAttribute('data-support-tool')));
+    expect('S3', ['translate', 'vocabulary', 'say-it'].every((tool) => toolNames.includes(tool)), `Translate, Vocabulary and Help me say it are offered (${toolNames.join(', ')})`);
+    const steps = await text(page.locator('[data-support-steps]').first());
+    expect('S3', /Solve \dx = \d+ for x\./.test(steps) && /Explain how you know\./.test(steps), `Break it down shows the item's own steps (${steps})`);
+
+    // The tray sits under the task, never over the work. On a phone it lives in
+    // the task panel, which scrolls inside its own capped height, so what can
+    // cover anything is the part of it that is actually visible.
+    const layout = await page.evaluate(() => {
+      const trayElement = document.querySelector('[data-student-support-tray="assignment"]');
+      const work = document.querySelector('.math-tool-workspace');
+      let clip = null;
+      for (let node = trayElement?.parentElement; node; node = node.parentElement) {
+        const { overflowY } = getComputedStyle(node);
+        if (['auto', 'scroll', 'hidden'].includes(overflowY) && node.scrollHeight > node.clientHeight) { clip = node; break; }
+      }
+      const trayRect = trayElement.getBoundingClientRect();
+      const visibleBottom = clip ? Math.min(trayRect.bottom, clip.getBoundingClientRect().bottom) : trayRect.bottom;
+      return { visibleBottom, workTop: work.getBoundingClientRect().top, clipped: Boolean(clip) };
+    });
+    expect('S3', layout.visibleBottom <= layout.workTop + 1, `the tray never covers the workspace (${JSON.stringify(layout)})`);
+
+    await tray.locator('[data-support-tool="translate"]').click();
+    const translated = await text(page.locator('[data-support-panel="translate"]').first());
+    expect('S3', /Despeja x en \dx = \d+\./.test(translated) && /Explica cómo lo sabes\./.test(translated), `Translate shows the Spanish directions with the mathematics intact (${translated})`);
+    await tray.locator('[data-support-tool="vocabulary"]').click();
+    await page.locator('[data-support-panel="vocabulary"] dt').first().waitFor({ timeout: 20000 });
+    const vocabulary = await text(page.locator('[data-support-panel="vocabulary"]').first());
+    expect('S3', /solution/i.test(vocabulary) && /solución/.test(vocabulary), `Vocabulary is bilingual (${vocabulary.slice(0, 160)})`);
+    await tray.locator('[data-support-tool="say-it"]').click();
+    const frames = await text(page.locator('[data-support-panel="say-it"]').first());
+    expect('S3', /I know _____ because _____\./.test(frames) && /Sé que _____ porque _____\./.test(frames), `Help me say it shows frames, never answers (${frames.slice(0, 160)})`);
+    expect('S3', !/\b2\b/.test(frames), 'no frame carries a value');
+    await noSidewaysScroll('S3', page, 'Support tools open');
+
+    // The same tools in Work View.
+    const enlarge = page.getByRole('button', { name: /Enlarge question/ }).first();
+    if (await enlarge.count()) {
+      await enlarge.click();
+      await page.locator('[data-work-view-supports]').first().click();
+      const enlarged = page.locator('[data-student-support-tray="enlarged"]').first();
+      await enlarged.waitFor({ timeout: 20000 });
+      expect('S3', await enlarged.locator('[data-support-tool="translate"]').count() > 0, 'Work View carries the same Support tools');
+      await page.getByRole('button', { name: /Close/ }).first().click();
+    } else {
+      expect('S3', false, 'the question offers Work View');
+    }
+
+    await page.waitForTimeout(2500);
+    const records = under(await db(page), `grades/${STUDENT}/supportEvidence/`).map(([, value]) => value);
+    const kinds = records.map((value) => `${value.eventType}:${value.supportId}`);
+    ['available:translation', 'available:glossary-lookup', 'provided:chunked-directions', 'available:sentence-frames',
+      'used:translation', 'used:glossary-lookup', 'used:sentence-frames', 'provided:reduced-item-count-same-rigor']
+      .forEach((kind) => expect('S3', kinds.includes(kind), `${kind} is recorded (${kinds.join(', ')})`));
+    const translation = records.find((value) => value.eventType === 'available' && value.supportId === 'translation');
+    expect('S3', translation?.details?.language === 'es' && translation?.details?.coverage === 'full' && translation?.details?.provider === 'curated',
+      `translation records its language, coverage and source (${JSON.stringify(translation?.details || {})})`);
+    expect('S3', !kinds.includes('used:chunked-directions'), 'an automatic support has no "used"');
+    const availableTwice = kinds.filter((kind) => kind === 'available:translation').length;
+    expect('S3', availableTwice === 1, `made-available is recorded once per assignment, not per render (${availableTwice})`);
+    records.forEach((value) => expect('S3', value.note === '' && value.actorEmail === null && value.source === 'automatic-telemetry', 'platform telemetry only'));
+    await page.screenshot({ path: path.join(ARTIFACTS, `language-student-${page.viewportSize().width}.png`) });
+  },
+
+  async T8(page) {
+    const panel = await openStudent(page, 'Sam', 'Example, Sam');
+    const said = await text(panel);
+    expect('T8', /Translation · es/.test(said), `the profile shows Translation from the language (${said.slice(0, 240)})`);
+    expect('T8', /Vocabulary/.test(said) && /Break it down/.test(said), 'Vocabulary and Break it down are listed');
+    await noSidewaysScroll('T8', page, 'student drawer (language)');
+    await page.screenshot({ path: path.join(ARTIFACTS, `language-teacher-${page.viewportSize().width}.png`) });
+  },
+
   async T7(page) {
     const panel = await openStudent(page, 'Rory', 'Sample, Rory');
     const said = await text(panel);
@@ -386,7 +481,7 @@ for (const viewport of VIEWPORTS) {
     const label = `${name} @ ${viewport.width}x${viewport.height}`;
     try {
       if (!name.startsWith('S')) {
-        await page.goto(name === 'T7' ? `${PAGE}&reduced=1` : PAGE, { timeout: 180000 });
+        await page.goto(name === 'T7' ? `${PAGE}&reduced=1` : name === 'T8' ? `${PAGE}&eb=1` : PAGE, { timeout: 180000 });
         await page.getByText('Instructor Dashboard').first().waitFor({ timeout: 120000 });
         await page.waitForTimeout(2500);
       }

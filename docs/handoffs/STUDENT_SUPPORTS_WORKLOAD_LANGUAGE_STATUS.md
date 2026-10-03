@@ -5,8 +5,8 @@ Brief: extend the existing versioned support profile / support evidence architec
 
 | PR | Branch | Scope | Status |
 | --- | --- | --- | --- |
-| A | `ai/claude-reduced-workload-20261002` | Automatic `reduced-item-count-same-rigor` (design §11) | ready for review |
-| B | `ai/claude-language-supports-20261002` (based on A) | Language-access supports through Support tools (design §12) | in progress |
+| A | `ai/claude-reduced-workload-20261002` (PR #418) | Automatic `reduced-item-count-same-rigor` (design §11) | ready for review |
+| B | `ai/claude-language-supports-20261002` (based on A) | Language-access supports through Support tools (design §12) | ready for review after A |
 
 > Privacy: every example, fixture and screenshot is synthetic.
 
@@ -47,4 +47,18 @@ ingestion filter, dashboard omission, App closure (S2 journey: 7 findings), `stu
 
 ## PR B — language-access supports
 
-See design §12 (added with PR B).
+**What changed (one sentence each).**
+- One effective profile: `effectiveFlatSupportProfile` read by both the student runtime and the Path's entitlement
+  adapter (future-dated revisions switch on the same day on the Path); explicit bridge tests.
+- Catalog: `translation` derived from the language (never ticked), `glossary-lookup` → Vocabulary platform tool,
+  new `chunked-directions` (Break it down, automatic) and `sentence-frames` (Help me say it).
+- `src/platform/language/` — math-safe text, math-aware speech, translation providers (authored, then a lazy
+  curated Spanish pack; no external service), bilingual vocabulary (lazy), steps, frames, the tools model.
+- Student UI — `StudentSupportTray` (lazy) under each question, a Work View "Support tools" drawer, and the same tray
+  on My Math Path (whose payload now carries the student's applicable supports and language).
+- Evidence/report — per-question facts (available/provided/not-applicable/unavailable with language, provider,
+  coverage, surface), "used" on first open; rules accept them only for entitled supports; report headline
+  "Available in X of Y eligible", use supplemental; Vocabulary's staff history preserved.
+- Editor — the language field explains what it gives the student (no separate Translation box).
+
+**Known limits.** See design §12.11.

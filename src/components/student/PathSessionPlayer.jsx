@@ -604,6 +604,9 @@ export const PathSessionPlayer = ({
           questionInstanceId={instanceId}
           onDelivery={setSupportDelivery}
           disabled={isSubmitting}
+          prompt={questionInstance?.prompt || ''}
+          toolType={questionInstance?.pathToolId || questionInstance?.questionType || ''}
+          supportLanguage={questionInstance?.supportLanguage || null}
         />
 
         {questionInstance.isDevelopmentSandbox && (
