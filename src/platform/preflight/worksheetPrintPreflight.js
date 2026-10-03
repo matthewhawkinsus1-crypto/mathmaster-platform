@@ -194,7 +194,7 @@ export const auditWorksheetPrintQuestion = (question = {}, {
   };
 };
 
-export const auditAssignmentWorksheetPrintability = (assignmentV5 = {}, questions = []) => {
+export const auditAssignmentWorksheetPrintability = (assignmentV5 = {}, questions = [], { deliveredOnly = false } = {}) => {
   const errors = [];
   const warnings = [];
   const profiles = enabledWorksheetProfiles(assignmentV5?.outputProfiles || {});
@@ -202,6 +202,8 @@ export const auditAssignmentWorksheetPrintability = (assignmentV5 = {}, question
 
   const teacherCopyEnabled = profiles.includes('teacherWorksheetPdf');
   asArray(questions).forEach((question, index) => {
+    // An excluded question is not printed (the export reads current content).
+    if (deliveredOnly && question?.teacherExcluded === true) return;
     const result = auditWorksheetPrintQuestion(question, {
       label: `Question ${index + 1}`,
       teacherCopyEnabled,

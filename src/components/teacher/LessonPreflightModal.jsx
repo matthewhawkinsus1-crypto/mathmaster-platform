@@ -16,7 +16,13 @@ import {
   resolveTestCycleStage,
 } from '../../platform/assessment/testCycle.js';
 import InteractiveModelingLabPlayer from '../labs/InteractiveModelingLabPlayer.jsx';
-import { buildHonorsEnrichmentQuestion, inspectHonorsRigor } from '../../platform/rigor/courseRigor.js';
+import { inspectHonorsRigor } from '../../platform/rigor/courseRigor.js';
+import {
+  buildDeterministicHonorsExtension,
+  certifyHonorsExtensionQuestion,
+  selectHonorsExtensionRecipe,
+  withHonorsExtension,
+} from '../../platform/rigor/honorsExtensionRecipes.js';
 import {
   applyHonorsDepthAiSections,
   buildHonorsDepthAiRepairRequest,
@@ -321,6 +327,13 @@ export const LessonPreflightModal = ({
       ccmr: activity.labDefinition?.ccmr === true,
     }] : []),
   ]), [activities]);
+  // Whether a vetted no-AI Honors recipe exists for this assignment's concept
+  // and course, known before the teacher clicks: an unavailable extension is
+  // explained on the screen, never replaced by a generic one.
+  const localHonorsRecipe = useMemo(() => selectHonorsExtensionRecipe({
+    questions: sourceRigorQuestions,
+    assignmentCourseId: effectiveAssignmentV5?.assignment?.courseId,
+  }), [sourceRigorQuestions, effectiveAssignmentV5]);
   const honorsReport = useMemo(
     () => inspectHonorsRigor(
       [...sourceRigorQuestions, ...(honorsEnrichmentQuestion ? [honorsEnrichmentQuestion] : [])],
@@ -581,6 +594,10 @@ export const LessonPreflightModal = ({
     }
   };
 
+  // No-AI Honors depth comes only from a vetted recipe for THIS assignment's
+  // concept and course (honorsExtensionRecipes.js). The Honors class's own
+  // course setting never chooses the content; when there is no recipe, the
+  // teacher is told so and nothing is added.
   const addLocalHonorsDepth = () => {
     if (!allowQuestionRepair) {
       setHonorsAiMessage('Student records already exist for this assignment. Duplicate it before adding an Honors extension.');
@@ -588,20 +605,40 @@ export const LessonPreflightModal = ({
     }
     try {
       const firstHonorsClass = selectedClassChoices.find((entry) => entry.courseLevel === 'honors');
-      const localQuestion = buildHonorsEnrichmentQuestion({
+      const built = buildDeterministicHonorsExtension({
         questions: sourceRigorQuestions,
-        course: firstHonorsClass?.course || 'algebra1',
+        assignmentCourseId: effectiveAssignmentV5?.assignment?.courseId,
+        destinationCourseId: firstHonorsClass?.course || null,
       });
+      if (built.status !== 'ready') {
+        setHonorsAiMessage(built.teacherMessage);
+        return;
+      }
+      const localQuestion = built.question;
+      // The same gate every other repair passes: the extension on its own,
+      // then the whole assignment with it in place.
+      const certification = certifyHonorsExtensionQuestion(localQuestion);
+      if (!certification.ok) {
+        throw new Error(`The no-AI Honors extension did not pass MathMaster's checks, so nothing was added:\n${certification.errors.join('\n')}`);
+      }
+      const candidateModel = buildAssignmentV5PreflightModel(withHonorsExtension(effectiveAssignmentV5, localQuestion));
+      const newErrors = newlyIntroducedPreflightErrors(validationErrors, candidateModel.errors);
+      if (newErrors.length) {
+        throw new Error(`The no-AI Honors extension would add an assignment blocker, so nothing was added:\n${newErrors.join('\n')}`);
+      }
       const localReport = inspectHonorsRigor(
         [...sourceRigorQuestions, localQuestion],
         { allowNarrowCheckpoint: true },
       );
       if (!nonCcmrHonorsReady(localReport)) {
         const unresolved = nonCcmrHonorsMissing(localReport);
-        throw new Error(`The no-AI extension cannot safely resolve enough Honors depth: ${honorsMissingLabels(unresolved).join(', ')}. Use the outside-AI import option instead.`);
+        throw new Error(`The no-AI extension cannot safely resolve enough Honors depth: ${honorsMissingLabels(unresolved).join(', ')}. Nothing was added; use the outside-AI import option instead.`);
       }
       setHonorsEnrichmentQuestion(localQuestion);
-      setHonorsAiMessage('No-AI MathMaster Honors extension added. It supplies the missing multiple-representation, justification, modeling/application, and DOK depth supported by this lesson. Audited CCMR Practice will still be sourced at publish.');
+      setHonorsAiMessage([
+        `No-AI MathMaster Honors extension added: ${built.recipe.title.charAt(0).toLowerCase()}${built.recipe.title.slice(1)}, on the lesson's own Multiple Representations board (DOK ${localQuestion.dok}, self-graded, a different version for each student). It passed Pre-Flight. Audited CCMR Practice will still be sourced at publish.`,
+        ...built.notes,
+      ].join(' '));
     } catch (error) {
       setHonorsAiMessage(error.message);
     }
@@ -1021,13 +1058,15 @@ export const LessonPreflightModal = ({
               <div style={{ padding: '10px 11px', borderRadius: 9, background: '#f6f8ff', border: '1px solid #c7d5ef' }}>
                 <strong style={{ color: '#174ea6' }}>Fastest option — no AI required</strong>
                 <div style={{ marginTop: 4, color: '#4b5563', fontSize: 12.5, lineHeight: 1.5 }}>
-                  MathMaster can add one TEKS-preserving Honors extension that supplies multiple representations, justification, modeling/application, and DOK 3 depth. It does not change the existing questions.
+                  {localHonorsRecipe.status === 'ready'
+                    ? `MathMaster has a vetted Honors extension for this lesson's concept: ${localHonorsRecipe.recipe.title.charAt(0).toLowerCase()}${localHonorsRecipe.recipe.title.slice(1)}. It uses the lesson's own self-graded tool at higher DOK and harder mathematics, and does not change the existing questions.`
+                    : localHonorsRecipe.teacherMessage}
                 </div>
                 <button
                   type="button"
-                  disabled={!allowQuestionRepair || honorsAiBusy}
+                  disabled={!allowQuestionRepair || honorsAiBusy || localHonorsRecipe.status !== 'ready'}
                   onClick={addLocalHonorsDepth}
-                  style={{ marginTop: 8, minHeight: 42, padding: '8px 13px', border: '1px solid #6f2da8', borderRadius: 8, background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 900, cursor: !allowQuestionRepair || honorsAiBusy ? 'not-allowed' : 'pointer' }}
+                  style={{ marginTop: 8, minHeight: 44, padding: '8px 13px', border: '1px solid #6f2da8', borderRadius: 8, background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 900, cursor: !allowQuestionRepair || honorsAiBusy || localHonorsRecipe.status !== 'ready' ? 'not-allowed' : 'pointer' }}
                 >
                   Add built-in Honors extension (no AI)
                 </button>
@@ -1071,7 +1110,7 @@ export const LessonPreflightModal = ({
             {honorsAiMessage}
           </div>
         )}
-        {honorsEnrichmentQuestion && <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: '#e6f4ea', color: '#137333', fontSize: 12 }}><strong>MathMaster depth extension prepared.</strong> It strengthens modeling/justification for the Honors destination, but it does not substitute for an authentic CCMR-style Practice item.</div>}
+        {honorsEnrichmentQuestion && <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: '#e6f4ea', color: '#137333', fontSize: 12 }}><strong>MathMaster depth extension prepared.</strong> It adds self-graded Honors depth for the Honors destination, but it does not substitute for an authentic CCMR-style Practice item.</div>}
         {honorsSelected && honorsReport.isHonorsReady && !honorsReport.isNarrowCheckpoint && !honorsEnrichmentQuestion && <div style={{ marginTop: 10, color: '#137333', fontWeight: 800, fontSize: 12 }}>✓ Source assignment already satisfies the Honors contract; MathMaster will not rewrite it.</div>}
       </fieldset>
     </section>

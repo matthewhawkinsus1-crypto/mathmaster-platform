@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import {
-  buildHonorsEnrichmentQuestion,
   defaultCourseProfiles,
   deriveDomainReadiness,
   inspectHonorsRigor,
@@ -12,6 +11,7 @@ import {
   summarizeRigorSequence,
   splitClassPeriodsByRigor,
 } from '../../src/platform/rigor/courseRigor.js';
+import { buildDeterministicHonorsExtension } from '../../src/platform/rigor/honorsExtensionRecipes.js';
 import { createDemoSeed, DEMO_STORAGE_KEY } from '../../src/demo/demoExperienceData.js';
 import { assignmentLibrarySource } from './helpers/splitComponentSource.mjs';
 
@@ -40,25 +40,37 @@ test('course rigor is class-level and defaults safely to Standard', () => {
 });
 
 test('Honors contract requires authentic exam-style Practice and keeps depth enrichment separate', () => {
-  const source = [{ type: 'algebra', teks: ['A.5A'], dok: 1, activityRole: 'practice', prompt: 'Solve 3x + 4 = 40.', generator: { kind: 'linear' } }];
-  const before = inspectHonorsRigor(source);
+  const equationLesson = [{ type: 'algebra', teks: ['A.5A'], dok: 1, activityRole: 'practice', prompt: 'Solve 3x + 4 = 40.', generator: { kind: 'linear' } }];
+  const before = inspectHonorsRigor(equationLesson);
   assert.equal(before.isHonorsReady, false);
   assert.equal(before.checks.ccmrEnrichment, false);
+  // No vetted no-AI recipe covers this concept, so the built-in extension
+  // declines instead of inventing a free-response question.
+  const declined = buildDeterministicHonorsExtension({ questions: equationLesson, assignmentCourseId: 'algebra1' });
+  assert.equal(declined.status, 'unavailable');
+  assert.equal(declined.question, null);
 
-  // A MathMaster-generated depth extension can strengthen Honors rigor, but it
-  // must not masquerade as direct SAT/ACT/TSIA2/ASVAB practice.
-  const enrichment = buildHonorsEnrichmentQuestion({ questions: source, course: 'algebra1' });
-  assert.equal(enrichment.type, 'graphStory');
+  // A lesson whose concept has a vetted recipe: a MathMaster-generated depth
+  // extension can strengthen Honors rigor, but it must not masquerade as
+  // direct SAT/ACT/TSIA2/ASVAB practice.
+  const source = [{
+    questionId: 'lmr-1', type: 'representationBridge', mode: 'linearMultipleRepresentations', activityRole: 'practice', dok: 1,
+    standard: 'A.3C', alignments: [{ framework: 'teks', code: 'A.3C', role: 'primary' }],
+    prompt: 'You are given {{given}}. Build every other representation of this same line.',
+    questionFamily: { id: 'linear.multipleRepresentations', version: 1, constraints: { given: 'slopeIntercept' } },
+  }];
+  const enrichment = buildDeterministicHonorsExtension({ questions: source, assignmentCourseId: 'algebra1' }).question;
+  assert.equal(enrichment.type, 'representationBridge', 'a self-graded rich tool, not a free response');
   assert.equal(enrichment.ccmr, undefined);
   assert.equal(enrichment.activityRole, 'classwork');
-  assert.equal(enrichment.variants.length >= 2, true);
+  assert.equal(enrichment.questionFamily.id, 'linear.multipleRepresentations', 'a fresh version for each student');
   const depthOnly = inspectHonorsRigor([...source, enrichment]);
   assert.equal(depthOnly.checks.ccmrEnrichment, false);
   assert.equal(depthOnly.isHonorsReady, false);
 
   // A keyword or legacy flag is not authentic exam-style practice.
   const fakeSat = {
-    type: 'response', activityRole: 'practice', teks: ['A.5A'], dok: 2,
+    type: 'response', activityRole: 'practice', teks: ['A.3C'], dok: 2,
     ccmr: true, prompt: 'SAT-style: solve the equation.',
   };
   assert.equal(inspectHonorsRigor([...source, enrichment, fakeSat]).checks.ccmrEnrichment, false);
@@ -67,7 +79,7 @@ test('Honors contract requires authentic exam-style Practice and keeps depth enr
     type: 'response', activityRole: 'practice', dok: 2,
     prompt: 'If $f(x)=3x+4$, what is $f(12)$?',
     alignments: [
-      { framework: 'teks', code: 'A.5A', role: 'primary' },
+      { framework: 'teks', code: 'A.3C', role: 'primary' },
       { framework: 'digitalSAT', domainId: 'algebra', role: 'secondary', evidenceMode: 'direct' },
     ],
     assessmentContext: { framework: 'digitalSAT', examStyle: true },
@@ -84,16 +96,17 @@ test('Honors contract requires authentic exam-style Practice and keeps depth enr
   const wrongDomain = {
     ...directSat,
     alignments: [
-      { framework: 'teks', code: 'A.5A', role: 'primary' },
+      { framework: 'teks', code: 'A.3C', role: 'primary' },
       { framework: 'digitalSAT', domainId: 'advancedMath', role: 'secondary', evidenceMode: 'direct' },
     ],
   };
   assert.equal(inspectHonorsRigor([...source, enrichment, wrongDomain]).checks.ccmrEnrichment, false, 'valid domain ids still must match the TEKS crosswalk');
 
+  // A.5A is not taught by this lesson or its extension.
   const unrelatedLessonTeks = {
     ...directSat,
     alignments: [
-      { framework: 'teks', code: 'A.2B', role: 'primary' },
+      { framework: 'teks', code: 'A.5A', role: 'primary' },
       { framework: 'digitalSAT', domainId: 'algebra', role: 'secondary', evidenceMode: 'direct' },
     ],
   };

@@ -39,6 +39,7 @@ import {
 import { inspectHonorsRigor } from '../../src/platform/rigor/courseRigor.js';
 import { isFamilyBackedQuestion, resolveFamilyQuestionInstance } from '../../functions/shared/questionFamilyInstance.mjs';
 import { resolveServerGradingQuestion } from '../../functions/shared/questionFamilyGrading.mjs';
+import { planSeatAdditions, resolveGenerationAllocation, resolveLearnerSeat } from '../../functions/shared/questionGenerationIdentity.mjs';
 import { gradeServerResponse, gradeToolWork } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { executableSource } from './helpers/sourceContract.mjs';
 import { correctLinearBoardResponse } from './helpers/linearMultipleRepresentationsResponses.mjs';
@@ -174,17 +175,24 @@ test('2. linear.multipleRepresentations receives a self-graded rich-tool extensi
     assert.ok(question.context[key], `the board grades ${key}`);
   }
 
-  // Thirty students, thirty different versions, each marked by the SERVER exactly as the browser marks it.
+  // Thirty students, seated the way the teacher app seats a class: thirty
+  // different versions, each marked by the SERVER exactly as the browser marks it.
+  const students = Array.from({ length: 30 }, (_, index) => `student-${index + 1}`);
   const assignment = { id: 'asg-honors', schemaVersion: 5, assignedClassIds: ['p4'], sections: [{ id: 'cw', role: 'classwork', questions: [{ ...question, questionId: 'honors-ext' }] }] };
+  assignment.generationSeats = { byClassId: { p4: planSeatAdditions({ assignment, classId: 'p4', studentIds: students }) } };
   const slot = assignment.sections[0].questions[0];
   const fingerprints = new Set();
-  for (let seat = 0; seat < 30; seat += 1) {
-    const delivered = resolveFamilyQuestionInstance({ question: slot, assignmentId: assignment.id, allocation: { seat, variant: 0, stride: 30, index: seat, basis: 'seated' } });
+  for (const studentId of students) {
+    const seatInfo = resolveLearnerSeat({ assignment, studentId, classId: 'p4' });
+    const allocation = resolveGenerationAllocation({ sectionMode: 'personalized', seatInfo, variant: 0 });
+    const delivered = resolveFamilyQuestionInstance({ question: slot, assignmentId: assignment.id, allocation });
     assert.equal(delivered.error, null);
     fingerprints.add(delivered.instance.fingerprint);
     const browser = gradeToolWork({ toolId: 'representationBridge', question: delivered.question, work: correctLinearBoardResponse(delivered.question) });
     assert.equal(browser.isCorrect, true);
-    const forGrading = resolveServerGradingQuestion({ assignment, question: slot, questionIndex: 0, variantIndex: 0, claimedDelivery: delivered.delivery, studentId: `s-${seat}`, classId: 'p4' });
+    const forGrading = resolveServerGradingQuestion({ assignment, question: slot, questionIndex: 0, variantIndex: 0, claimedDelivery: delivered.delivery, studentId, classId: 'p4' });
+    assert.equal(forGrading.familyBacked, true);
+    assert.equal(forGrading.question.familyInstance.fingerprint, delivered.instance.fingerprint, 'the server rebuilds the version the student saw');
     assert.equal(gradeServerResponse({ question: forGrading.question, response: browser.toolResponse }).isCorrect, true, 'the server marks it: self-graded, no teacher scoring');
   }
   assert.equal(fingerprints.size, 30);
@@ -200,7 +208,9 @@ test('3. the extension is not a graphStory, an open response, or any character-c
   assert.doesNotMatch(String(question.familyId || ''), /^honors-modeling-/, 'the grading family is the rich tool\'s, not a label');
   // The generic generator is gone from the platform, not merely unused.
   const rigorSource = executableSource(readFileSync(new URL('../../src/platform/rigor/courseRigor.js', import.meta.url), 'utf8'));
-  assert.doesNotMatch(rigorSource, /graphStory|minimumScenarioCharacters|honors-modeling-/, 'courseRigor no longer writes a free-response extension');
+  // (inspectHonorsRigor still RECOGNISES teacher-authored graphStory questions;
+  // what is gone is the code that CREATED one as the no-AI extension.)
+  assert.doesNotMatch(rigorSource, /buildHonorsEnrichment|type:\s*['"]graphStory['"]|minimumScenarioCharacters|honors-modeling-/, 'courseRigor no longer writes a free-response extension');
   const recipeSource = executableSource(readFileSync(new URL('../../src/platform/rigor/honorsExtensionRecipes.js', import.meta.url), 'utf8'));
   assert.doesNotMatch(recipeSource, /['"](?:graphStory|openResponse)['"]/, 'and the recipe module has no fallback type to reach for');
 });

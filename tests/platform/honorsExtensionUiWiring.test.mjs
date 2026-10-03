@@ -39,7 +39,8 @@ test('the no-AI button asks the recipe registry with the assignment\'s course, a
 });
 
 test('publish uses the extension the teacher reviewed, never regenerates per destination course, and certifies it', () => {
-  assert.match(app, /import\s*\{[^}]*buildDeterministicHonorsExtension[^}]*certifyHonorsExtensionQuestion[^}]*\}\s*from\s*'\.\/platform\/rigor\/honorsExtensionRecipes\.js'|import\s*\{[^}]*certifyHonorsExtensionQuestion[^}]*buildDeterministicHonorsExtension[^}]*\}\s*from\s*'\.\/platform\/rigor\/honorsExtensionRecipes\.js'/);
+  // Imported next to its call: App.jsx is .jsx, so a call with no import passes every check and fails at runtime.
+  assert.match(app, /import\s*\{[^}]*certifyHonorsExtensionQuestion[^}]*\}\s*from\s*'\.\/platform\/rigor\/honorsExtensionRecipes\.js'/);
   assert.doesNotMatch(app, /buildHonorsEnrichmentQuestion/);
   const split = region(app, 'const destinationVariants = destinationGroups.map', 'const createdAssignments = []', 'honors destination split');
   assert.doesNotMatch(split, /course:\s*destination\.course/, 'the extension is never rebuilt from a destination class\'s course');

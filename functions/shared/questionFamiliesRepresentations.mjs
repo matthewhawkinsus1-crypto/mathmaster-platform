@@ -39,6 +39,19 @@
  *                              in `source.prompt` (the story) and `context`
  *                              (its answer and choices). A string that is only
  *                              a token ("{{end}}") becomes the number itself.
+ *     A READING story (constraint `scenarioStart: "fromReading"`) states its
+ *     rate as {{rate}} lost every {{per}} steps and ONE LATER READING —
+ *     {{readAmount}} left after {{readTime}} steps — instead of the starting
+ *     amount, so the y-intercept is found, not read. It also fills
+ *     {{start}} {{end}} (the answers, for choices only), {{remaining}} (steps
+ *     from the reading to empty, the classic "measured from the reading"
+ *     error), {{unitRate}} (rate/per, the slope's size) and {{inverseRate}}
+ *     (per/rate). It is the shape the deterministic Honors recipe draws from
+ *     (src/platform/rigor/honorsExtensionRecipes.js). With `slope: "fraction"`
+ *     the unit rate is a genuine fraction (3 every 2); with `slope:
+ *     "integer"` (a reduce-complexity support) it is whole (6 every 2).
+ *     A slot that does not ask for it keeps the stated-start story, and draws
+ *     exactly the versions it always drew.
  *   linear.representationSort
  *     {{line1}} {{line2}}      the two lines' slope-intercept equations (prompt)
  *     {{start}} {{rate}} {{slope}}  per set, in that set's `context`
@@ -145,6 +158,10 @@ const GIVEN_PHRASES = Object.freeze({
 });
 
 const DEFAULT_STORY = 'A tank holds {{start}} liters of water. It drains at a steady rate of {{rate}} liters every minute until it is empty.';
+const DEFAULT_READING_STORY = 'A tank drains at a steady rate of {{rate}} liters every {{per}} minutes. After {{readTime}} minutes it holds {{readAmount}} liters. It keeps draining at the same rate until it is empty.';
+
+export const SCENARIO_STARTS = Object.freeze(['stated', 'fromReading']);
+const isReadingStory = (c) => c.given === 'scenario' && c.scenarioStart === 'fromReading';
 
 /** The canonical line of an instance: slope n/d (reduced, d > 0) and intercept b. */
 const lineOf = (values) => ({ n: values.n, d: values.d, b: values.b, zero: values.zero });
@@ -188,6 +205,10 @@ export const multipleRepresentationsFamily = defineQuestionFamily({
     // A story's starting amount sets the height of its graph. Bounding it keeps
     // every version's graph on a grid as easy to plot on as every other's.
     startRange: rangeKnob([6, 36], { limits: [2, 200], label: 'Story: starting amount' }),
+    // Opt-in. "fromReading" states a rate per several steps and a later
+    // reading instead of the starting amount; the per-step count comes from
+    // denominatorRange. Absent, a story is exactly what it always was.
+    scenarioStart: choiceKnob('stated', SCENARIO_STARTS, { label: 'Story: starting amount stated, or found from a later reading' }),
     // Every point a student is given or must plot (both intercepts, a slope
     // step, a GIVEN point) stays inside this range, so no version needs a
     // larger, finer graph than the rest.
@@ -200,6 +221,15 @@ export const multipleRepresentationsFamily = defineQuestionFamily({
     'reduce-complexity': { slope: 'integer', standardScale: 1 },
   },
   parameters: (c) => {
+    if (isReadingStory(c)) {
+      return {
+        rate: intDomain(c.rateRange[0], c.rateRange[1], { exclude: [0] }),
+        per: intDomain(c.denominatorRange[0], c.denominatorRange[1]),
+        // Runs out after `blocks` periods of `per` steps; read after `reading`.
+        blocks: intDomain(2, 15),
+        reading: intDomain(1, 14),
+      };
+    }
     if (c.given === 'scenario') {
       return {
         rate: intDomain(c.rateRange[0], c.rateRange[1], { exclude: [0] }),
@@ -217,6 +247,26 @@ export const multipleRepresentationsFamily = defineQuestionFamily({
     };
   },
   derive: (params, c) => {
+    if (isReadingStory(c)) {
+      // Lost `rate` every `per` steps: slope −rate/per in lowest terms. Whole
+      // periods keep every amount and time an integer: it starts at rate·blocks,
+      // is empty at per·blocks, and holds rate·(blocks − reading) at the reading.
+      const { rate, per, blocks, reading } = params;
+      const divisor = gcd(rate, per) || 1;
+      const start = rate * blocks;
+      const zero = per * blocks;
+      const readTime = per * reading;
+      return {
+        n: -rate / divisor,
+        d: per / divisor,
+        b: start,
+        zero,
+        start,
+        readTime,
+        readAmount: rate * (blocks - reading),
+        remaining: zero - readTime,
+      };
+    }
     if (c.given === 'scenario') {
       const { rate, duration } = params;
       return { n: -rate, d: 1, b: rate * duration, zero: duration, start: rate * duration };
@@ -235,6 +285,23 @@ export const multipleRepresentationsFamily = defineQuestionFamily({
     const { n, d, zero } = values;
     if (d > 1 && gcd(Math.abs(n), d) !== 1) issues.push(FAMILY_ISSUE.DEGENERATE_INSTANCE);
     if (c.integerXIntercept && !Number.isInteger(zero)) issues.push(FAMILY_ISSUE.UNINTENDED_FRACTION);
+    if (isReadingStory(c)) {
+      const { rate, per, blocks, reading, start, readTime, readAmount, remaining } = values;
+      // A fractional story states its rate in lowest terms (3 every 2, never
+      // 6 every 4) and is genuinely fractional; an integer one is a whole
+      // amount per step stated per several steps (6 every 2).
+      if (c.slope === 'fraction' && (gcd(rate, per) !== 1 || d === 1)) issues.push(FAMILY_ISSUE.DEGENERATE_INSTANCE);
+      if (c.slope !== 'fraction' && rate % per !== 0) issues.push(FAMILY_ISSUE.UNINTENDED_FRACTION);
+      // rate = per would make the unit rate and its reciprocal the same choice.
+      if (rate === per) issues.push(FAMILY_ISSUE.TRIVIAL_INSTANCE);
+      if (reading >= blocks) issues.push(FAMILY_ISSUE.VALUE_OUT_OF_RANGE);
+      if (start < c.startRange[0] || start > c.startRange[1]) issues.push(FAMILY_ISSUE.VALUE_OUT_OF_RANGE);
+      if (zero < c.durationRange[0] || zero > c.durationRange[1]) issues.push(FAMILY_ISSUE.VALUE_OUT_OF_RANGE);
+      // Every number a choice can name is a different number, so a "wrong
+      // meaning" choice is never accidentally true and no two choices read alike.
+      if (new Set([start, zero, readTime, readAmount, remaining]).size < 5) issues.push(FAMILY_ISSUE.TRIVIAL_INSTANCE);
+      return issues;
+    }
     if (c.given === 'scenario') {
       // The story's three numbers name three different things (start, rate,
       // time to empty); if two were equal a "wrong meaning" choice would be
@@ -289,7 +356,27 @@ export const multipleRepresentationsFamily = defineQuestionFamily({
       const m = n / d;
       const tokens = {};
       let source;
-      if (c.given === 'scenario') {
+      if (isReadingStory(c)) {
+        // The slope's size as a rate per ONE step, and its reciprocal (the
+        // classic inverted-rate error). n/d is already in lowest terms.
+        Object.assign(tokens, {
+          start: values.start,
+          rate: values.rate,
+          per: values.per,
+          end: values.zero,
+          readTime: values.readTime,
+          readAmount: values.readAmount,
+          remaining: values.remaining,
+          unitRate: fractionText(-n, d),
+          inverseRate: fractionText(d, -n),
+        });
+        source = {
+          kind: 'scenario',
+          prompt: fillTokens(String(authored?.source?.prompt || DEFAULT_READING_STORY), tokens),
+          m,
+          b,
+        };
+      } else if (c.given === 'scenario') {
         Object.assign(tokens, { start: values.start, rate: values.rate, end: values.duration });
         source = {
           kind: 'scenario',

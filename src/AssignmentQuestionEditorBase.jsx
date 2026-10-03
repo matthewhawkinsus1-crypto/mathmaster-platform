@@ -10,7 +10,12 @@ import {
   assignmentAiFallbackRecommended,
   repairQuestionWithAI,
 } from './services/assignmentAiService.js';
-import { getStoredAssignmentQuestions, storedAssignmentToV5 } from './platform/contract/storedAssignmentV5.js';
+import { getStoredAssignmentQuestions, inferStoredAssignmentCourseId, storedAssignmentToV5 } from './platform/contract/storedAssignmentV5.js';
+import {
+  honorsExtensionActionFor,
+  planHonorsExtensionSwap,
+  withAppendedQuestionSections,
+} from './platform/rigor/honorsExtensionSwap.js';
 import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
 import { analyzeResponseEntryRepair } from './platform/assignment/liveQuestionCorrection.js';
 import { parseSafeLiveRepairPack, prepareSafeLiveRepairPack } from './platform/assignment/liveRepairPack.js';
@@ -55,6 +60,15 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
   );
   const [questions, setQuestions] = useState(() => originalQuestions.map(cloneQuestion));
   const [liveRepairs, setLiveRepairs] = useState([]);
+  // Sections an Honors swap appended for its replacements (each holds one new
+  // question after every stored section, so no stored index moves). Every save
+  // and every candidate check rebuilds the assignment with them.
+  const [appendedSections, setAppendedSections] = useState([]);
+  const assignmentCourseId = useMemo(() => inferStoredAssignmentCourseId(assignment), [assignment]);
+  const candidateSource = useMemo(
+    () => withAppendedQuestionSections(assignment, appendedSections),
+    [assignment, appendedSections],
+  );
   const [repairIndex, setRepairIndex] = useState(null);
   const [metadataEditingIndex, setMetadataEditingIndex] = useState(null);
   const [repairInstruction, setRepairInstruction] = useState('');
@@ -278,7 +292,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
     const candidateQuestions = questions.map((question, index) => (
       index === repairIndex ? nextQuestion : question
     ));
-    const candidateV5 = storedAssignmentToV5(assignment, {
+    const candidateV5 = storedAssignmentToV5(candidateSource, {
       titleOverride: title.trim() || assignment.title,
       questions: candidateQuestions,
     });
@@ -386,7 +400,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
         currentQuestions: questions,
         historicalQuestions: originalQuestions,
       });
-      const candidateV5 = storedAssignmentToV5(assignment, {
+      const candidateV5 = storedAssignmentToV5(candidateSource, {
         titleOverride: title.trim() || assignment.title,
         questions: prepared.questions,
       });
@@ -409,12 +423,64 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
         title: title.trim(),
         questions: prepared.questions,
         liveRepairs: prepared.liveRepairs,
+        appendedSections,
       });
     } catch (packError) {
       setError(packError.message || 'MathMaster could not import this Safe Live Repair Pack.');
     } finally {
       setRepairBusy(false);
       setSaving(false);
+    }
+  };
+
+  // Swap / Replace with Current Honors Extension. Only a vetted recipe for this
+  // assignment's concept and course can supply the replacement. On a live
+  // assignment the historical extension is never rewritten: it is retired in
+  // place (responses stay attached) and a new question with a new id takes
+  // its place. The whole candidate passes Pre-Flight before the editor shows it.
+  const swapHonorsExtension = async (index) => {
+    const question = questions[index];
+    const action = honorsExtensionActionFor({ question, questions, assignmentCourseId });
+    if (!action.available) {
+      setError(action.explanation);
+      return;
+    }
+    const historical = hasLiveProtection && originalQuestionById.has(question?.questionId);
+    const proceed = await confirmAction({
+      title: action.kind === 'replaceLegacy' ? 'Replace with the current Honors extension?' : 'Swap this Honors extension?',
+      message: historical
+        ? 'Students already have records on this assignment. MathMaster will keep this extension exactly as it is — excluded from future work, with every response still attached — and add a new self-graded Honors extension with its own question ID in its place.'
+        : 'No student has worked on this extension, so MathMaster will replace it in place with a different vetted, self-graded Honors extension.',
+      confirmLabel: action.label,
+    });
+    if (!proceed) return;
+    setError('');
+    try {
+      const plan = planHonorsExtensionSwap({
+        questions,
+        questionId: question.questionId,
+        assignmentCourseId,
+        protectHistory: hasLiveProtection && originalQuestionById.has(question.questionId),
+        mintQuestionId: newQuestionId,
+      });
+      if (plan.status !== 'ready') {
+        setError(plan.teacherMessage);
+        return;
+      }
+      const nextAppendedSections = [...appendedSections, ...plan.appendedSections];
+      const candidateV5 = storedAssignmentToV5(withAppendedQuestionSections(assignment, nextAppendedSections), {
+        titleOverride: title.trim() || assignment.title,
+        questions: plan.questions,
+      });
+      const model = buildAssignmentV5PreflightModel(candidateV5);
+      if (!model.isValid) {
+        throw new Error(`MathMaster did not swap this Honors extension because the result would not pass Pre-Flight. Nothing was changed:\n${model.errors.join('\n')}`);
+      }
+      setQuestions(plan.questions);
+      setAppendedSections(nextAppendedSections);
+      toastSuccess?.(action.label, [plan.teacherMessage, ...(plan.notes || [])].join(' '));
+    } catch (swapError) {
+      setError(swapError.message || 'MathMaster could not swap this Honors extension.');
     }
   };
 
@@ -458,7 +524,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
     setSaving(true);
     setError('');
     try {
-      await onSave({ title: title.trim(), questions, liveRepairs });
+      await onSave({ title: title.trim(), questions, liveRepairs, appendedSections });
     } catch (saveError) {
       setError(saveError.message || 'The assignment could not be saved.');
     } finally {
@@ -534,6 +600,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
             {questions.map((question, index) => {
               const excluded = question.teacherExcluded === true;
               const metadataSummary = getQuestionMetadataSummary(question);
+              const honorsAction = excluded ? null : honorsExtensionActionFor({ question, questions, assignmentCourseId });
               return (
                 <article key={question.questionId || index} style={{ padding: '15px', borderRadius: '11px', border: `2px solid ${excluded ? '#c7cbd1' : '#c6d8f1'}`, background: excluded ? '#f1f3f4' : '#fbfcff', opacity: excluded ? 0.78 : 1 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -598,6 +665,24 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                       <button type="button" onClick={() => removeQuestion(index)} style={{ color: '#d93025' }}>{hasLiveProtection ? 'Throw Out Safely' : 'Remove'}</button>
                     </div>
                   </div>
+                  {honorsAction && honorsAction.kind && (
+                    <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: '#f5effc', border: '1px solid #d8c2ef', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <p style={{ flex: '1 1 240px', margin: 0, color: '#5b2788', fontSize: 13, lineHeight: 1.45 }}>
+                        <strong>{honorsAction.legacy ? 'Legacy Honors extension. ' : 'MathMaster Honors extension. '}</strong>
+                        {honorsAction.explanation}
+                      </p>
+                      {honorsAction.available && (
+                        <button
+                          type="button"
+                          onClick={() => swapHonorsExtension(index)}
+                          disabled={saving || repairBusy}
+                          style={{ minHeight: 44, padding: '8px 14px', border: 0, borderRadius: 8, background: '#6f2da8', color: '#fff', fontWeight: 900, cursor: saving || repairBusy ? 'not-allowed' : 'pointer' }}
+                        >
+                          {honorsAction.label}
+                        </button>
+                      )}
+                    </div>
+                  )}
                   {repairIndex === index && (
                     <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #d9dfe7' }}>
                       <div style={{ padding: '12px 13px', borderRadius: '9px', background: '#f8fbff', border: '1px solid #c6d8f1' }}>

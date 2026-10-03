@@ -163,8 +163,8 @@ test('every Honors reading-story version is a valid board, graded 100% on both p
     assert.equal(facts.isValid, true, label);
     assert.deepEqual([facts.slopeFraction.n, facts.slopeFraction.d], [n, d], `${label}: the board's slope is the story's rate`);
     assert.equal(facts.yInterceptNumber, b, `${label}: the board's y-intercept is the starting amount`);
-    assert.equal(facts.zeroNumber, zero, `${label}: and its x-intercept is when it runs out`);
-    assert.equal(readAmount, b + (n / d) * readTime, `${label}: the reading lies on the line`);
+    assert.deepEqual([facts.zeroFraction.n, facts.zeroFraction.d], [zero, 1], `${label}: and its x-intercept is when it runs out`);
+    assert.equal(readAmount * d, b * d + n * readTime, `${label}: the reading lies on the line`);
     assert.ok(readTime > 0 && readTime < zero, `${label}: the reading is taken while the tank is draining`);
     assert.deepEqual(validateLinearMultipleRepresentationsQuestion(question), [], label);
     assert.deepEqual(validateToolQuestion({ ...question, toolId: question.type }).errors, [], label);

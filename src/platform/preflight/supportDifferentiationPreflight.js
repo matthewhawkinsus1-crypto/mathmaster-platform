@@ -263,7 +263,7 @@ const auditQuestionPolicyLeaks = (question, index, errors) => {
   }
 };
 
-export const auditAssignmentSupportDifferentiation = (assignmentV5 = {}, questions = []) => {
+export const auditAssignmentSupportDifferentiation = (assignmentV5 = {}, questions = [], { deliveredOnly = false } = {}) => {
   const errors = [];
   const warnings = [];
 
@@ -276,6 +276,7 @@ export const auditAssignmentSupportDifferentiation = (assignmentV5 = {}, questio
 
   asArray(questions).forEach((question, index) => {
     if (!isObject(question)) return;
+    if (deliveredOnly && question.teacherExcluded === true) return;
     auditQuestionPolicyLeaks(question, index, errors);
     const role = clean(question.activityRole || question.purpose || 'practice').toLowerCase();
     const variationMode = sectionModes[role] || defaultVariation;

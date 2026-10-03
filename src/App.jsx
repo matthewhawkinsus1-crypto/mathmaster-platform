@@ -436,11 +436,12 @@ import { LIVE_ATTENDANCE_EVENT_KIND } from './platform/teacher/liveAttendance.js
 import { ATTENDANCE_HISTORY_EVENT_KIND } from './platform/attendance/attendanceHistory.js';
 import { applyStudentAttendanceExtension } from './platform/attendance/extensionClient.js';
 import {
-  buildHonorsEnrichmentQuestion,
   defaultCourseProfiles,
   inspectHonorsRigor,
   normalizeCourseProfiles,
 } from './platform/rigor/courseRigor.js';
+import { certifyHonorsExtensionQuestion } from './platform/rigor/honorsExtensionRecipes.js';
+import { withAppendedQuestionSections } from './platform/rigor/honorsExtensionSwap.js';
 import LoginScreen from './LoginScreen.jsx';
 import { useAuth } from './auth/AuthProvider.jsx';
 import { watchLiveChallengeInvite } from './platform/liveChallenge/liveChallengeService.js';
@@ -6961,10 +6962,17 @@ function App() {
             if (!teacherReview?.honorsEnrichmentQuestion) {
               throw new Error('This Honors destination still needs additional Honors depth. Return to preflight and choose Build Honors Depth with MathMaster AI.');
             }
-            const firstHonorsDestination = destinationGroups.find((entry) => entry.courseLevel === 'honors');
-            enrichmentQuestion = destination.course === firstHonorsDestination?.course
-              ? teacherReview.honorsEnrichmentQuestion
-              : buildHonorsEnrichmentQuestion({ questions: honorsParsedQuestions, course: destination.course });
+            // The extension the teacher reviewed in Pre-Flight extends THIS
+            // assignment's mathematics, so every Honors destination gets that
+            // same one, whatever course a destination class profile names. It
+            // was rebuilt per destination course once, which is how an Algebra I
+            // lesson was given an "Algebra II" extension. Certified again here:
+            // publish never stores an extension Pre-Flight would refuse.
+            enrichmentQuestion = teacherReview.honorsEnrichmentQuestion;
+            const certification = certifyHonorsExtensionQuestion(enrichmentQuestion);
+            if (!certification.ok) {
+              throw new Error(`The Honors extension cannot be published because it does not pass MathMaster's checks. Return to Pre-Flight and add it again:\n${certification.errors.join('\n')}`);
+            }
           }
           destinationQuestions = normalizeAssignmentQuestions([
             ...honorsParsedQuestions,
@@ -7274,13 +7282,17 @@ function App() {
     setQuestionEditorAssignment(assignment);
   };
 
-  const saveQuestionEditor = async ({ title, questions, liveRepairs = [] }) => {
+  const saveQuestionEditor = async ({ title, questions, liveRepairs = [], appendedSections = [] }) => {
     if (!questionEditorAssignment?.id) return;
     const normalizedQuestions = normalizeAssignmentQuestions(questions);
     const included = normalizedQuestions.filter(questionIsIncluded);
     if (!included.length) throw new Error('At least one included question is required.');
 
-    const candidateV5 = storedAssignmentToV5(questionEditorAssignment, {
+    // The FINAL candidate is what is judged: a swap's replacement goes in its
+    // own appended section (so no stored index moves), and Pre-Flight judges
+    // every question that stays active while setting aside the ones the
+    // teacher excluded or retired (assignmentV5PreflightModel).
+    const candidateV5 = storedAssignmentToV5(withAppendedQuestionSections(questionEditorAssignment, appendedSections), {
       titleOverride: title,
       questions: normalizedQuestions,
     });
