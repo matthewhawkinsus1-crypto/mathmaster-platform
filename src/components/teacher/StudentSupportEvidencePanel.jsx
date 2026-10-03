@@ -7,6 +7,7 @@ import {
   resolveEffectiveSupportPlan, revisionEffectiveOn, supportProfileWarnings,
 } from '../../../functions/shared/supportProfileModel.mjs';
 import { describeDueDateExtension } from '../../../functions/shared/supportDeadline.mjs';
+import { ITEM_REDUCTION_MODE, normalizeItemReduction } from '../../../functions/shared/reducedWorkload.mjs';
 import {
   EVIDENCE_EVENT_TYPE, PROVIDER_ROLE_LABEL, summarizeServiceMinutes, weekStartOf,
 } from '../../../functions/shared/supportEvidenceModel.mjs';
@@ -42,6 +43,13 @@ const EVENT_TYPE_LABEL = {
   'provider-documented': 'Provider documented',
   declined: 'Declined',
   'not-applicable': 'Not applicable',
+  unavailable: 'Could not be provided',
+};
+// The one parameter a teacher most needs to see at a glance on a chip.
+const supportParamSuffix = (entry) => {
+  if (entry?.id !== 'reduced-item-count-same-rigor') return '';
+  const reduction = normalizeItemReduction(entry?.params?.itemReduction);
+  return reduction.mode === ITEM_REDUCTION_MODE.PERCENT ? ` · ${reduction.value}% (automatic)` : ' · recorded by staff';
 };
 const whenText = (ms) => (Number.isFinite(ms) ? new Date(ms).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'time not recorded');
 
@@ -146,7 +154,7 @@ export default function StudentSupportEvidencePanel({
           </div>
           <div className="se-chips" aria-label="Accommodations in effect">
             {plan.accommodations.map((entry) => (
-              <span key={entry.id} className="tw-pill" data-tone="primary">{supportShortLabel(entry.id)}</span>
+              <span key={entry.id} className="tw-pill" data-tone="primary">{supportShortLabel(entry.id)}{supportParamSuffix(entry)}</span>
             ))}
             {plan.inclusionStatus && INCLUSION_IMPLIED_SUPPORT_IDS.filter((id) => !plan.accommodations.some((entry) => entry.id === id)).map((id) => (
               <span key={id} className="tw-pill" data-tone="neutral" title="Implied by inclusion status">{supportShortLabel(id)}</span>

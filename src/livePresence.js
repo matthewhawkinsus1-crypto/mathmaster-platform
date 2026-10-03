@@ -262,8 +262,16 @@ export const classifyLiveStudent = (student, { classStats = null, nowValue = Dat
   if (clampInt(live.currentAttempts) >= STUCK_ATTEMPTS) flags.push(LIVE_FLAGS.STUCK);
 
   if (classStats) {
+    // A student whose reduced-item-count accommodation omits some items ('n')
+    // is compared by the share of their OWN items answered, scaled to the
+    // class's question count; for everyone else this is just `answered`.
+    const stateCount = String(live.questionStates || '').length;
+    const requiredCount = stateCount - counts.notRequired;
+    const paceAnswered = counts.notRequired > 0 && requiredCount > 0
+      ? (counts.answered / requiredCount) * stateCount
+      : counts.answered;
     if (classStats.medianAnswered >= PACE_QUESTION_GAP
-      && counts.answered <= classStats.medianAnswered - PACE_QUESTION_GAP) {
+      && paceAnswered <= classStats.medianAnswered - PACE_QUESTION_GAP) {
       flags.push(LIVE_FLAGS.BEHIND_PACE);
     }
     if (counts.answered >= MIN_ANSWERED_FOR_ACCURACY

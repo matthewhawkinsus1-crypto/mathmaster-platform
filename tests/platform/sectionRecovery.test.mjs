@@ -852,8 +852,11 @@ test('the Live Challenge Warm-Up grade reaches the student Grade Center and both
   const { readFile } = await import('node:fs/promises');
   const app = componentSource('src/App.jsx');
   const display = region(app, 'const gradeDisplayTracker = useMemo(', '\n  );', 'student grade display memo');
-  assert.match(display, /projectSectionRecoveriesForDisplay\([\s\S]*warmupChallengeByAssignment,\s*\)/);
-  assert.match(display, /\[tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, assignments, warmupChallengeByAssignment\]/);
+  // The challenge map is passed (then the student's own profile, so a
+  // Recovery never credits an item their reduced-item-count accommodation
+  // omits), and a change to it recomputes the display.
+  assert.match(display, /projectSectionRecoveriesForDisplay\([\s\S]*warmupChallengeByAssignment,\s*(\/\/[^\n]*\n\s*)*(user\?\.role === 'student' \? user\.profile \|\| null : null,\s*)?\)/);
+  assert.match(display, /\[tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, assignments, warmupChallengeByAssignment(, [^\]]+)?\]/);
   assert.match(app, /setWarmupChallengeByAssignment\(snapshot\.data\(\)\?\.warmupChallengeByAssignment \|\| \{\}\);/, 'a finished match reaches the Grade Center without a reload');
   const index = await readFile(new URL('../../functions/index.js', import.meta.url), 'utf8');
   const sync = region(index, 'exports.syncGradeToClassroom', 'exports.queueReleasedAssessmentGrades', 'whole-assignment passback');

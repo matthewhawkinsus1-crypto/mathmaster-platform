@@ -9,7 +9,9 @@ export const WALKTHROUGH_STATUS = Object.freeze({
   ELSEWHERE: 'elsewhere',
 });
 
-const TERMINAL_STATES = new Set(['c', 'x']);
+// 'n': not this student's work (their reduced-item-count accommodation omits
+// it), so there is nothing for them to finish on the teacher's question.
+const TERMINAL_STATES = new Set(['c', 'x', 'n']);
 const ABSENT_MARKS = new Set(['absent', 'excused', 'unexcused']);
 
 const toMillis = (value) => {
@@ -33,9 +35,11 @@ const stateAt = (live, teacherQuestionIndex) => (
   String(live?.classworkQuestionStates || '')[teacherQuestionIndex] || '.'
 );
 
-const reasonFor = ({ status, behindBy, inactive, offline, live, attendance }) => {
+const reasonFor = ({ status, behindBy, inactive, offline, live, attendance, questionState = '.' }) => {
   if (live?.helpRequestedAt || live?.helpRequested) return 'Help requested';
-  if (status === WALKTHROUGH_STATUS.DONE) return 'Teacher question completed';
+  if (status === WALKTHROUGH_STATUS.DONE) {
+    return questionState === 'n' ? 'Not required for this student (fewer items)' : 'Teacher question completed';
+  }
   if (status === WALKTHROUGH_STATUS.ON_QUESTION) return attendance.mark === 'late' ? 'Late arrival · on this question' : 'On this question';
   if (status === WALKTHROUGH_STATUS.AHEAD) return attendance.mark === 'late' ? 'Late arrival · working ahead' : 'Working ahead';
   if (status === WALKTHROUGH_STATUS.ELSEWHERE) return 'Working another assignment';
@@ -126,7 +130,7 @@ export function buildWalkthroughMonitor({
       helpRequested: Boolean(live?.helpRequestedAt || live?.helpRequested),
       reason: '',
     };
-    row.reason = reasonFor({ status, behindBy, inactive, offline, live, attendance });
+    row.reason = reasonFor({ status, behindBy, inactive, offline, live, attendance, questionState });
     all.push(row);
   }
 

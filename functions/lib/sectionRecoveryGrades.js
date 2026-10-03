@@ -20,6 +20,7 @@
  */
 
 const { runtimeIncludedQuestionIndicesForSection } = require("./assignmentRuntime");
+const { studentRequiredIndices } = require("./studentWorkloadIndices");
 
 const RECOVERY_SECTIONS = ["warmup", "dol"];
 
@@ -78,6 +79,12 @@ function recoveryChangedAssignmentIds(afterData = {}, beforeData = {}) {
  * `gradeProgress(tracker, indices, questions, overrides)` is the caller's own
  * grade function, so the original section score is computed exactly the way
  * that caller computes every other grade.
+ *
+ * `omittedIndices` is the Set of items the student's reduced-item-count
+ * accommodation omits (functions/lib/studentWorkloadIndices.js). The section
+ * original is then the student's own required items — the same denominator
+ * the caller grades with — and a Recovery credits only those. Without it every
+ * included item counts, as before.
  */
 async function projectRecoveredGradeInputs({
   assignment = {},
@@ -87,6 +94,7 @@ async function projectRecoveredGradeInputs({
   recoveryForAssignment = null,
   challengeCredit = null,
   gradeProgress,
+  omittedIndices = null,
 } = {}) {
   const hasChallenge = warmupChallengeCreditSignature(challengeCredit) !== null;
   if ((!recoveryForAssignment && !hasChallenge) || typeof gradeProgress !== "function") return { tracker, overrides, states: {} };
@@ -98,7 +106,7 @@ async function projectRecoveredGradeInputs({
   const sectionIndices = {};
   const sectionOriginals = {};
   [...new Set([...sections, ...(hasChallenge ? ["warmup"] : [])])].forEach((section) => {
-    const indices = runtimeIncludedQuestionIndicesForSection(assignment, section);
+    const indices = studentRequiredIndices(runtimeIncludedQuestionIndicesForSection(assignment, section), omittedIndices);
     sectionIndices[section] = indices;
     const progress = gradeProgress(tracker, indices, questions, overrides || {});
     sectionOriginals[section] = { score: progress.total ? progress.grade : null, attempted: progress.attempted };

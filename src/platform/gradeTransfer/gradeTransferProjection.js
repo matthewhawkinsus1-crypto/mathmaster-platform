@@ -1,7 +1,11 @@
 import { assignmentIsForStudent } from '../../assignmentLifecycle.js';
 import { isTestCycleAssignment } from '../assessment/testCycle.js';
 import { projectCurrentAssignmentContent } from '../assignments/currentContentProjection.js';
-import { canonicalPresentedAssignmentGrade, canonicalPresentedSectionGrade } from '../grading/canonicalGradeProjection.js';
+import {
+  canonicalPresentedAssignmentGrade,
+  canonicalPresentedSectionGrade,
+  sectionNotRequiredForStudent,
+} from '../grading/canonicalGradeProjection.js';
 import { SECTION_GRADE_KEYS } from '../teacher/gradeEvidence.js';
 import { resolveStudentFinalDeadlineFromAssignment } from './studentDeadlineResolver.js';
 import { authorizedGradeTransferClasses, gradeTransferRoster } from './gradeTransferScope.js';
@@ -119,6 +123,13 @@ export const projectGradeTransferUnits = ({
           sectionLabel: SECTION_TRANSFER_LABELS[sectionKey],
           projectCanonicalGrade: (args) => canonicalPresentedSectionGrade({ ...args, sectionKey }),
           hasAuthoritativePracticePass: ({ student }) => practicePasses.has(`${student.id}__${classRecord.classId}__${assignment.id}`),
+          // The canonical grades above already read each student's own
+          // required items (a reduced-item-count accommodation shrinks the
+          // denominator, never adds zeros); this only names the degenerate
+          // case where a section holds none of them.
+          isSectionNotRequired: ({ student, practicePassRedeemed }) => sectionNotRequiredForStudent({
+            student, assignment, sectionKey, practicePassRedeemed,
+          }),
           resolveStudentFinalDeadline,
           confirmedSnapshots: history.filter((item) => item.uploadConfirmedAt),
           latestExport: history[0],

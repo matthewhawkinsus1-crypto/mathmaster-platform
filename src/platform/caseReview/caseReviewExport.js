@@ -57,6 +57,9 @@ export const caseAssignmentsCsv = (model) => {
     'Assignment', 'Assignment ID', 'Type', 'Category / weight', 'Assigned', 'Class due', 'Individualized due', 'Final cutoff for this student',
     'Completed on (last answer)', 'Status', 'Completed after due', 'Condition', 'MathMaster grade contribution', 'Warm-Up', 'Classwork', 'Practice', 'DOL',
     'Points (question weight)', 'Attempts', 'Export status', 'Changed since export', 'Practice Pass', 'Teacher overrides',
+    // "15 of 20" when a reduced-item-count accommodation removed items (fewer
+    // items, same rigor); empty otherwise.
+    'Required items',
   ];
   const sectionGrade = (row, key) => gradeItemLabel(list(row.gradeItems).find((entry) => entry.key === key));
   return csv(header, list(model?.assignments).map((row) => [
@@ -65,6 +68,7 @@ export const caseAssignmentsCsv = (model) => {
     row.score ?? '', sectionGrade(row, 'warmup'), sectionGrade(row, 'classwork'), sectionGrade(row, 'practice'), sectionGrade(row, 'dol'),
     row.points ? `${row.points.earned} / ${row.points.possible}` : '', row.attempts, row.exportSummary, row.changedSinceExport ? 'yes' : '',
     row.credits?.practicePass ? 'yes' : '', (row.credits?.assignmentOverride ? 1 : 0) + (row.credits?.questionOverrides || 0),
+    row.requiredItems ? `${row.requiredItems.required} of ${row.requiredItems.of}` : '',
   ]));
 };
 

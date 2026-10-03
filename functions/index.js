@@ -34,6 +34,9 @@ function driveResources() {
 const { runtimeIncludedQuestionIndices, runtimeIncludedQuestionIndicesForSection, runtimeQuestionsFromAssignment } = require("./lib/assignmentRuntime");
 const { weightedQuestionTotals } = require("./lib/questionWeights");
 const sectionRecoveryGrades = require("./lib/sectionRecoveryGrades");
+// The reduced-item-count accommodation, loaded once (lazily) by this lib.
+const studentWorkloadIndices = require("./lib/studentWorkloadIndices");
+const { studentRequiredIndices } = studentWorkloadIndices;
 const challengeSampling = require("./lib/challengeSampling");
 const { encryptLaunchPayload, decryptLaunchToken } = require("./lib/linkToken");
 const {
@@ -253,6 +256,37 @@ async function resolveCheckpointClassPeriod(db, classId, gradeData, cache) {
   return period || String(gradeData?.classPeriod || "") || null;
 }
 
+/*
+ * THE ITEMS A REDUCED-ITEM-COUNT ACCOMMODATION OMITS FOR THIS STUDENT.
+ *
+ * `reduced-item-count-same-rigor` with a percentage makes a student
+ * responsible for fewer items (functions/shared/reducedWorkload.mjs). Every
+ * server path here that turns a tracker into a denominator — the Classroom
+ * passback, the classwork completion rule, the DOL projection, Recovery —
+ * filters its indices with this Set (`studentRequiredIndices`), so the server
+ * counts exactly the items the browser shows the student. Empty for everyone
+ * without the accommodation; empty, and logged, if anything goes wrong, so a
+ * malformed profile can only ever mean "grade every included item".
+ *
+ * `gradeData` is the student's `grades/{id}` document (profile + tracker).
+ * `answeredIndex` is the question an attempt being recorded right now
+ * answers: answered work is always required, so an attempt on an omitted item
+ * is accepted and counted like any other.
+ */
+async function studentOmittedFor({ assignment, gradeData, assignmentId, answeredIndex = null, nowValue = Date.now() }) {
+  return studentWorkloadIndices.studentOmittedFor({
+    assignment,
+    gradeData,
+    assignmentId,
+    answeredIndex,
+    nowValue,
+    onError: (error) => logger.warn("Reduced-workload projection failed; counting every included item", {
+      assignmentId: String(assignmentId || ""),
+      message: String(error?.message || error),
+    }),
+  });
+}
+
 async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCache, now }) {
   const {
     decideCheckpointFinalization,
@@ -356,9 +390,14 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
     // and which are DOL; the RULE that turns them into a completion score is
     // shared with the browser.
     const { dolSectionProjection } = await responseCheckpointFinalizer();
-    const classworkIndices = runtimeIncludedQuestionIndicesForSection(assignment, "classwork");
-    const dolIndices = runtimeIncludedQuestionIndicesForSection(assignment, "dol");
     const assignmentId = String(checkpoint.assignmentId);
+    // Classwork completion and the DOL score count the student's own required
+    // items (a reduced-item-count accommodation omits some; see studentOmittedFor).
+    const studentOmitted = await studentOmittedFor({
+      assignment, gradeData, assignmentId, answeredIndex: checkpoint.questionIndex, nowValue: now,
+    });
+    const classworkIndices = studentRequiredIndices(runtimeIncludedQuestionIndicesForSection(assignment, "classwork"), studentOmitted);
+    const dolIndices = studentRequiredIndices(runtimeIncludedQuestionIndicesForSection(assignment, "dol"), studentOmitted);
     const authoritativeOverrides =
       gradeData?.teacherGradeOverridesByAssignment?.[assignmentId] || {};
     const finalization = buildCheckpointFinalization({
@@ -849,8 +888,15 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
       });
     }
 
-    const classworkIndices = runtimeIncludedQuestionIndicesForSection(assignment, "classwork");
-    const dolIndices = runtimeIncludedQuestionIndicesForSection(assignment, "dol");
+    // Classwork completion and the DOL score count the student's own required
+    // items (a reduced-item-count accommodation omits some; see
+    // studentOmittedFor). A response to an omitted item is NOT refused: it is
+    // accepted like any other, and as answered work it becomes required.
+    const studentOmitted = await studentOmittedFor({
+      assignment, gradeData, assignmentId, answeredIndex: envelope.questionIndex, nowValue: now,
+    });
+    const classworkIndices = studentRequiredIndices(runtimeIncludedQuestionIndicesForSection(assignment, "classwork"), studentOmitted);
+    const dolIndices = studentRequiredIndices(runtimeIncludedQuestionIndicesForSection(assignment, "dol"), studentOmitted);
     const built = ingestion.buildIngestedAttempt({
       envelope,
       assignment,
@@ -1159,7 +1205,10 @@ exports.advanceSectionRecovery = onCall(async (request) => {
       }
 
       const questions = runtimeQuestionsFromAssignment(assignment);
-      const sectionIndices = runtimeIncludedQuestionIndicesForSection(assignment, section);
+      // The section original is the student's own required items — the same
+      // denominator the Classroom passback recovers (see studentOmittedFor).
+      const studentOmitted = await studentOmittedFor({ assignment, gradeData, assignmentId });
+      const sectionIndices = studentRequiredIndices(runtimeIncludedQuestionIndicesForSection(assignment, section), studentOmitted);
       const tracker = gradeData.gradesByAssignment?.[assignmentId] || {};
       const overrides = gradeData.teacherGradeOverridesByAssignment?.[assignmentId] || {};
       const original = assignmentGradeProgress(tracker, sectionIndices, questions, overrides);
@@ -1794,7 +1843,11 @@ exports.overrideStudentResponseGrade = onCall(async (request) => {
       },
     ];
 
-    const classworkIndices = runtimeIncludedQuestionIndicesForSection(assignment, "classwork");
+    // The corrected classwork rule and DOL score count the student's own
+    // required items (see studentOmittedFor). The corrected question was
+    // answered, and answered work is always required.
+    const studentOmitted = await studentOmittedFor({ assignment, gradeData, assignmentId });
+    const classworkIndices = studentRequiredIndices(runtimeIncludedQuestionIndicesForSection(assignment, "classwork"), studentOmitted);
     if (classworkIndices.includes(questionIndex)) {
       const completion = projections.evaluateClassworkCompletionRule({
         classworkIndices,
@@ -1817,7 +1870,7 @@ exports.overrideStudentResponseGrade = onCall(async (request) => {
       }
     }
 
-    const dolIndices = runtimeIncludedQuestionIndicesForSection(assignment, "dol");
+    const dolIndices = studentRequiredIndices(runtimeIncludedQuestionIndicesForSection(assignment, "dol"), studentOmitted);
     if (dolIndices.includes(questionIndex)) {
       const totals = weightedQuestionTotals({
         tracker,
@@ -8791,6 +8844,21 @@ exports.syncGradeToClassroom = onDocumentWritten(
           }
         }
       }
+      /*
+       * A REDUCED-ITEM-COUNT ACCOMMODATION REMOVES THE ITEMS IT OMITS FROM
+       * THIS SAME DENOMINATOR, after the Practice Pass (the two commute; the
+       * plan is content-only). An omitted item is not missing and never a
+       * zero: Classroom receives the grade MathMaster shows over the student's
+       * own required items (see studentOmittedFor). A secure Test Cycle is
+       * never reshaped.
+       */
+      // Persistence safety (below) keeps counting every included item.
+      const includedQuestionIndices = questionIndices;
+      const studentOmitted = isTestCycleAssignment
+        ? new Set()
+        // eslint-disable-next-line no-await-in-loop
+        : await studentOmittedFor({ assignment, gradeData: afterData, assignmentId });
+      questionIndices = studentRequiredIndices(questionIndices, studentOmitted);
       if (!isTestCycleAssignment && !questionIndices.length) continue;
 
       const assignmentTracker = afterByAssignment[assignmentId] || {};
@@ -8812,6 +8880,8 @@ exports.syncGradeToClassroom = onDocumentWritten(
           // A Live Challenge Warm-Up result is the Warm-Up grade.
           challengeCredit: afterData.warmupChallengeByAssignment?.[assignmentId] || null,
           gradeProgress: assignmentGradeProgress,
+          // A recovered section's original is the student's required items too.
+          omittedIndices: studentOmitted,
         });
       let progress = isTestCycleAssignment
         ? {
@@ -8857,6 +8927,15 @@ exports.syncGradeToClassroom = onDocumentWritten(
 
       const grade = progress.grade;
       const isFinal = ["final-complete", "final-deadline"].includes(stage);
+      // Persistence safety counts canonical attempts over EVERY included item,
+      // as it did before the accommodation narrowed the grade's denominator
+      // (an assignment-level override still counts as at least one attempt).
+      const canonicalAttempted = studentOmitted.size
+        ? Math.max(
+          progress.attempted,
+          includedQuestionIndices.filter((index) => questionWasAttempted(recoveredInputs.tracker?.[index])).length,
+        )
+        : progress.attempted;
       // A final-looking partial grade is more dangerous than a delayed grade.
       // Ordinary assignments consult known queue/checkpoint/session evidence;
       // Secure Test Cycle retains its separate release authority unchanged.
@@ -8866,7 +8945,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
           db,
           studentId: event.params.studentId,
           assignmentId,
-          canonicalAttempted: progress.attempted,
+          canonicalAttempted,
           secureTestCycle: false,
           // The workspace-draft signal is assessed against the real assignment
           // and the real canonical tracker, exactly as the recovery report
@@ -18545,8 +18624,11 @@ exports.reconcileAssignmentActivityProjection = onCall(async (request) => {
   }
 
   const { classworkGradeProjection, evaluateClassworkCompletionRule } = await import("./shared/assignmentProjections.mjs");
+  // The student's own required classwork (a reduced-item-count accommodation
+  // omits some; see studentOmittedFor) — what ingestion would have counted.
+  const studentOmitted = await studentOmittedFor({ assignment, gradeData, assignmentId });
   const completion = evaluateClassworkCompletionRule({
-    classworkIndices: runtimeIncludedQuestionIndicesForSection(assignment, "classwork"),
+    classworkIndices: studentRequiredIndices(runtimeIncludedQuestionIndicesForSection(assignment, "classwork"), studentOmitted),
     // THE CANONICAL TRACKER. Not the caller's, and not a merge of the two.
     assignmentTracker: gradeData?.gradesByAssignment?.[assignmentId] || {},
     totalTimeSeconds: Number(gradeData?.assignmentActivity?.[assignmentId]?.totalTimeSeconds) || 0,

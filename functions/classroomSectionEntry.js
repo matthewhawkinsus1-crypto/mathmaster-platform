@@ -31,6 +31,7 @@ const {
 } = require("./lib/publication");
 const { runtimeQuestionsFromAssignment } = require("./lib/assignmentRuntime");
 const { classroomPublicationGrade } = require("./lib/classroomSectionGrade");
+const { studentOmittedFor } = require("./lib/studentWorkloadIndices");
 const {
   assignmentGradeProgress,
   releaseSignalReason,
@@ -609,6 +610,21 @@ const syncSectionGradeToClassroom = onDocumentWritten(
       const assignment = assignmentSnapshot.data() || {};
       if (assignmentFeedbackIsHeld(assignment)) continue;
       const questions = runtimeQuestionsFromAssignment(assignment);
+      // A reduced-item-count accommodation omits items from this student's
+      // work; every section column (and the Recovery original inside it) is
+      // graded over the student's own required items, never with the omitted
+      // ones as zeros (functions/lib/studentWorkloadIndices.js). Empty for
+      // everyone else. (This path does not apply a Practice Pass; that is
+      // unchanged here.)
+      // eslint-disable-next-line no-await-in-loop
+      const studentOmitted = await studentOmittedFor({
+        assignment,
+        gradeData: afterData,
+        assignmentId,
+        onError: (error) => logger.warn("Reduced-workload projection failed; grading every included item", {
+          assignmentId, studentId: event.params.studentId, message: String(error?.message || error),
+        }),
+      });
       // A completed Recovery credits its section at the recorded score in the
       // same section grade (functions/lib/sectionRecoveryGrades.js). This path
       // grades without teacher overrides, so the original is read the same way.
@@ -622,6 +638,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
         // A Live Challenge Warm-Up result is the Warm-Up grade.
         challengeCredit: afterData.warmupChallengeByAssignment?.[assignmentId] || null,
         gradeProgress: (gradeTracker, indices, gradeQuestions) => assignmentGradeProgress(gradeTracker, indices, gradeQuestions),
+        omittedIndices: studentOmitted,
       });
       const releaseSignal = signaledSet.has(assignmentId) ? afterSignals[assignmentId] : null;
       const signalReason = releaseSignalReason(releaseSignal);
@@ -654,6 +671,7 @@ const syncSectionGradeToClassroom = onDocumentWritten(
             tracker,
             questions,
             gradeProgress: assignmentGradeProgress,
+            omittedIndices: studentOmitted,
           });
         } catch (error) {
           // eslint-disable-next-line no-await-in-loop

@@ -56,7 +56,7 @@ const PROFILE_A = {
   supportPlan: {
     schemaVersion: 1,
     windows: [{ revisionId: 'r1', revision: 1, status: 'active', effectiveStart: '2026-08-17', effectiveEnd: null }],
-    entitledIds: ['calculator', 'extra-time', 'graph-paper', 'reduce-complexity', 'text-to-speech'],
+    entitledIds: ['calculator', 'extra-time', 'graph-paper', 'reduce-complexity', 'reduced-item-count-same-rigor', 'text-to-speech'],
     updatedAt: '2026-09-01T12:00:00.000Z',
   },
 };
@@ -225,6 +225,32 @@ test('a student cannot forge staff facts, unentitled supports, another teacher, 
   await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/f-time'), studentEvent({ occurredAt: Timestamp.fromMillis(Date.parse('2026-09-01T12:00:00Z')) })));
   await assertFails(setDoc(doc(studentA(), 'grades/S_B/supportEvidence/f-other'), studentEvent({ studentId: 'S_B', classId: 'class-b', authorizedTeacherEmails: [TEACHER_B] })));
   await assertFails(setDoc(doc(studentB(), 'grades/S_A/supportEvidence/f-cross'), studentEvent()));
+});
+
+test('a student records what a reduced item count delivered, and gaps, with bounded details — entitled supports only', async () => {
+  const workload = {
+    targetPercent: 25, originalCount: 20, assignedCount: 15, actualPercentTenths: 250, variance: ['rounding'],
+    contentFingerprint: 'abcd1234', algorithmVersion: 1, omittedIndices: [1, 5, 9, 12, 17],
+  };
+  const reduced = (overrides = {}, input = {}) => studentEvent(overrides, {
+    supportId: 'reduced-item-count-same-rigor', eventType: 'provided', activityRole: null, questionIndex: null, details: workload, ...input,
+  });
+  await assertSucceeds(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-provided'), reduced()));
+  await assertSucceeds(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-na'), reduced({}, { eventType: 'not-applicable', details: { ...workload, assignedCount: 1, originalCount: 1, reason: 'too-few-items' } })));
+  await assertSucceeds(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/tts-gap'), studentEvent({}, { eventType: 'unavailable', details: { reason: 'browser-no-speech', surface: 'enlarged', toolType: 'stepAlgebra' } })));
+  // Details are a bounded, typed map: nothing unlisted, nothing out of range.
+  await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-text'), reduced({ details: { ...workload, prompt: 'Solve 2x = 4' } })));
+  await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-range'), reduced({ details: { ...workload, targetPercent: 101 } })));
+  await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-type'), reduced({ details: { ...workload, assignedCount: '15' } })));
+  await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-enum'), reduced({ details: { coverage: 'complete' } })));
+  await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-list'), reduced({ details: { omittedIndices: Array.from({ length: 201 }, (_, i) => i) } })));
+  await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-long'), reduced({ details: { reason: 'x'.repeat(49) } })));
+  await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-notmap'), reduced({ details: 'everything was fine' })));
+  // A gap, like any record, only for a support the student is entitled to.
+  await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/gap-unentitled'), studentEvent({}, { supportId: 'calculator-override-computation', eventType: 'unavailable', details: { reason: 'x' } })));
+  await assertFails(setDoc(doc(studentB(), 'grades/S_B/supportEvidence/rw-unentitled'), reduced({ studentId: 'S_B', classId: 'class-b', authorizedTeacherEmails: [TEACHER_B] }, { studentId: 'S_B', classId: 'class-b', assignedTeacherEmail: TEACHER_B })));
+  // Staff records carry a note, never platform details.
+  await assertFails(setDoc(doc(teacherA(), 'grades/S_A/supportEvidence/staff-details'), staffEvent({ details: { reason: 'staff cannot' } })));
 });
 
 test('evidence is immutable, a relaunch cannot duplicate it, and a student cannot read staff evidence', async () => {

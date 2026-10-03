@@ -17,13 +17,19 @@ const list = (value) => (Array.isArray(value) ? value : []);
 const csv = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`;
 const time = (value) => Date.parse(value || '') || 0;
 
-/** Build the same override-aware assignment rows the production Grade Center displays. */
+/**
+ * Build the same override-aware assignment rows the production Grade Center
+ * displays. Status and section grades are over the student's own required
+ * items (`student.profile`): an item their reduced-item-count accommodation
+ * omits is never "missing" or "incomplete" work in a brief sent home.
+ */
 export const projectProgressBriefGrades = ({ student = {}, assignments = [] } = {}) => {
+  const supportProfile = student?.profile || null;
   return list(assignments).map((assignment) => {
     const tracker = projectedAssignmentTrackerFor({ student, assignment });
     const grade = canonicalPresentedAssignmentGrade({ student, assignment });
     if (!tracker && grade == null) return null;
-    const split = tracker ? splitGrade({ tracker, assignment }) : null;
+    const split = tracker ? splitGrade({ tracker, assignment, supportProfile }) : null;
     const records = tracker ? Object.values(tracker).filter((entry) => entry && typeof entry === 'object') : [];
     const attempts = records.reduce((sum, entry) => sum + (Number(entry.totalAttempts ?? entry.attemptCount) || 0), 0);
     const updated = records.map((entry) => entry.completedAt || entry.lastAttemptAt || entry.academicOccurredAt).filter(Boolean).sort().at(-1) || null;
@@ -32,7 +38,7 @@ export const projectProgressBriefGrades = ({ student = {}, assignments = [] } = 
       status: grade != null && (split?.shape === 'complete' || !tracker) ? 'complete' : (split?.shape || 'incomplete'),
       attempts, completedAt: updated, updatedAt: updated,
       late: records.some((entry) => entry.late === true),
-      sectionGrades: tracker ? splitGradesBySection({ tracker, assignment }) : null,
+      sectionGrades: tracker ? splitGradesBySection({ tracker, assignment, supportProfile }) : null,
     };
   }).filter(Boolean);
 };

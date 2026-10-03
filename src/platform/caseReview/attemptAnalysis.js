@@ -38,6 +38,7 @@ import { toDisplayCode } from '../../../functions/shared/teksUtils.mjs';
 import { normalizeMisconceptionCodes } from '../../../functions/shared/misconceptionCodes.mjs';
 import { projectCurrentAssignmentContent } from '../assignments/currentContentProjection.js';
 import { projectedAssignmentTrackerFor } from '../grading/canonicalGradeProjection.js';
+import { studentOmittedIndices } from '../../../functions/shared/reducedWorkload.mjs';
 import { CASE_PROVENANCE } from './caseProvenance.js';
 
 export const QUESTION_OUTCOME = Object.freeze({
@@ -49,7 +50,21 @@ export const QUESTION_OUTCOME = Object.freeze({
   LEFT_WITH_ATTEMPTS: 'left-with-attempts-remaining',
   SKIPPED: 'skipped',
   NOT_ATTEMPTED: 'not-attempted',
+  // Not part of this student's work: their reduced-item-count accommodation
+  // omitted it (functions/shared/reducedWorkload.mjs). Never scored, never
+  // "not attempted", never a reason to call an earlier question skipped.
+  NOT_REQUIRED: 'not-required',
 });
+
+/**
+ * Outcomes that are not scored work: nothing was answered. NOT_REQUIRED is
+ * neither scored nor unanswered — it is not this student's work at all — so
+ * every summary leaves it out (see `isRequiredQuestion`).
+ */
+export const UNANSWERED_OUTCOMES = Object.freeze([QUESTION_OUTCOME.NOT_ATTEMPTED, QUESTION_OUTCOME.SKIPPED]);
+
+/** A question row that is this student's work (not omitted by an accommodation). */
+export const isRequiredQuestion = (row) => row?.outcome !== QUESTION_OUTCOME.NOT_REQUIRED;
 
 export const QUESTION_OUTCOME_LABEL = Object.freeze({
   'correct-first-attempt': 'Correct on the first attempt',
@@ -60,6 +75,7 @@ export const QUESTION_OUTCOME_LABEL = Object.freeze({
   'left-with-attempts-remaining': 'Left with attempts remaining when the assignment closed',
   skipped: 'Skipped (a later question in the section was attempted)',
   'not-attempted': 'Not attempted',
+  'not-required': 'Not required (fewer items, same rigor)',
 });
 
 export const SECTION_ROLE_LABEL = Object.freeze({
@@ -227,6 +243,9 @@ export const analyzeAssignmentQuestions = ({
   const events = eventsByQuestion(attemptEventsForAssignment(attemptEvents, assignmentId));
   const supportUses = list(supportEvidence).filter((event) => clean(event?.assignmentId) === assignmentId && event?.eventType === 'used');
   const entries = projectCurrentAssignmentContent(assignment).entries;
+  // What the student's reduced-item-count accommodation omits, from their own
+  // answers (answered work is never omitted). Empty without the support.
+  const notRequired = studentOmittedIndices({ assignment, profile: student?.profile || null, tracker: rawTracker });
 
   const rows = entries.map((entry, overallIndex) => {
     const question = entry.question || {};
@@ -263,7 +282,8 @@ export const analyzeAssignmentQuestions = ({
     const lastAtMs = millis(record.academicOccurredAt || record.lastAttemptAt);
 
     let outcome;
-    if (!attempted) outcome = QUESTION_OUTCOME.NOT_ATTEMPTED;
+    if (!attempted && notRequired.has(index)) outcome = QUESTION_OUTCOME.NOT_REQUIRED;
+    else if (!attempted) outcome = QUESTION_OUTCOME.NOT_ATTEMPTED;
     else if (record.status === 'correct') {
       if ((Number(record.totalAttempts) || 0) === 0) outcome = QUESTION_OUTCOME.CORRECT_ATTEMPTS_UNKNOWN;
       else if (replacements === 0 && Number(record.totalAttempts) === 1) outcome = QUESTION_OUTCOME.CORRECT_FIRST;
@@ -309,7 +329,9 @@ export const analyzeAssignmentQuestions = ({
       attemptsSource: source,
       outcome,
       outcomeLabel: QUESTION_OUTCOME_LABEL[outcome],
-      finalResult: !attempted ? 'not-attempted' : record.status === 'correct' ? 'correct' : finalCredit > 0 ? 'partial' : 'incorrect',
+      finalResult: !attempted
+        ? (outcome === QUESTION_OUTCOME.NOT_REQUIRED ? 'not-required' : 'not-attempted')
+        : record.status === 'correct' ? 'correct' : finalCredit > 0 ? 'partial' : 'incorrect',
       finalCredit,
       gradedCredit: graded.status === 'unattempted' && !raw ? null : Math.round(getQuestionCredit(graded) * 100),
       teacherOverride: Boolean(graded.teacherGradeOverrideDisplay),
@@ -343,9 +365,10 @@ export const analyzeAssignmentQuestions = ({
   });
 
   // "Skipped": no attempt while a later question in the same section has one.
+  // A not-required question is not an attempt.
   const lastAttemptedBySection = new Map();
   rows.forEach((row) => {
-    if (row.outcome !== QUESTION_OUTCOME.NOT_ATTEMPTED) lastAttemptedBySection.set(row.section, row.number);
+    if (row.outcome !== QUESTION_OUTCOME.NOT_ATTEMPTED && isRequiredQuestion(row)) lastAttemptedBySection.set(row.section, row.number);
   });
   rows.forEach((row) => {
     if (row.outcome === QUESTION_OUTCOME.NOT_ATTEMPTED && (lastAttemptedBySection.get(row.section) || 0) > row.number) {
@@ -365,11 +388,17 @@ const FINISHED = new Set([
   QUESTION_OUTCOME.EXHAUSTED,
 ]);
 
-/** Deterministic counts over any set of question rows (one assignment, a section, a standard, a period). */
+/**
+ * Deterministic counts over any set of question rows (one assignment, a
+ * section, a standard, a period). `questions` counts the student's required
+ * questions; `notRequired` how many their reduced-item-count accommodation
+ * omitted (0 without it).
+ */
 export const summarizeQuestionOutcomes = (questions = []) => {
-  const rows = list(questions);
+  const all = list(questions);
+  const rows = all.filter(isRequiredQuestion);
   const count = (outcome) => rows.filter((row) => row.outcome === outcome).length;
-  const scoredRows = rows.filter((row) => ![QUESTION_OUTCOME.NOT_ATTEMPTED, QUESTION_OUTCOME.SKIPPED].includes(row.outcome));
+  const scoredRows = rows.filter((row) => !UNANSWERED_OUTCOMES.includes(row.outcome));
   const scored = scoredRows.length;
   const firstKnown = scoredRows.filter((row) => row.firstAttemptCorrect !== null);
   const firstAttemptCorrect = firstKnown.filter((row) => row.firstAttemptCorrect).length;
@@ -389,6 +418,7 @@ export const summarizeQuestionOutcomes = (questions = []) => {
     openIncorrect: count(QUESTION_OUTCOME.OPEN_INCORRECT),
     skipped: count(QUESTION_OUTCOME.SKIPPED),
     notAttempted: count(QUESTION_OUTCOME.NOT_ATTEMPTED),
+    notRequired: all.length - rows.length,
     finalCorrect: correct,
     improved: scoredRows.filter((row) => row.improved).length,
     replaced: scoredRows.filter((row) => row.replacements > 0).length,

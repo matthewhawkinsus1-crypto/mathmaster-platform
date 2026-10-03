@@ -46,7 +46,9 @@ test('the teacher read authorizes before it reads anything about the student', (
 });
 
 test('an undone Practice Pass stops excusing Practice in ingestion and in Classroom passback', () => {
-  const ingestion = region(index, 'A REDEEMED PRACTICE PASS RETIRES A CREDIT-BEARING PRACTICE RESPONSE', 'const classworkIndices = runtimeIncludedQuestionIndicesForSection', 'ingestion waiver check');
+  // Ends where ingestion computes its classwork indices (now the student's own
+  // required items: studentRequiredIndices(...)); the waiver check precedes it.
+  const ingestion = region(index, 'A REDEEMED PRACTICE PASS RETIRES A CREDIT-BEARING PRACTICE RESPONSE', 'const classworkIndices = ', 'ingestion waiver check');
   assert.match(executableSource(ingestion), /if \(rewards\.isActivePracticePassRedemption\(redemptionSnap\.exists \? redemptionSnap\.data\(\) : null\)\)/);
   const passback = region(index, 'A REDEEMED PRACTICE PASS REMOVES PRACTICE FROM THIS SAME DENOMINATOR', 'if (!isTestCycleAssignment && !questionIndices.length) continue;', 'passback waiver check');
   assert.match(executableSource(passback), /if \(rewards\.isActivePracticePassRedemption\(redemptionSnap\.exists \? redemptionSnap\.data\(\) : null\)\)/);
@@ -62,8 +64,10 @@ test('the browser waiver map holds only live waivers; history gets every record'
 
 test("the teacher's gradebook, Assignment Hub and student drawer all pass the waiver through", () => {
   const gradebookRow = region(app, 'const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const practicePassRedeemed', 'const gradeExplanation', 'gradebook row');
-  assert.match(gradebookRow, /calculateGrade\(grades, selectedAssignment, \{ practicePassRedeemed \}\)/);
-  assert.match(gradebookRow, /splitGradesBySection\(\{ tracker: grades, assignment: selectedAssignment, practicePassRedeemed \}\)/);
+  // (`supportProfile` beside the waiver: the student's reduced-item-count
+  // accommodation narrows the same denominator.)
+  assert.match(gradebookRow, /calculateGrade\(grades, selectedAssignment, \{ practicePassRedeemed(, supportProfile)? \}\)/);
+  assert.match(gradebookRow, /splitGradesBySection\(\{ tracker: grades, assignment: selectedAssignment, practicePassRedeemed(, supportProfile)? \}\)/);
   assert.match(app, /classGradeProgress\(\{ assignment: selectedAssignment,[^\n]*hasPracticePass: gradebookHasPracticePass \}\)/);
   assert.match(app, /import \{ useClassPracticePasses \} from '\.\/platform\/rewards\/useClassPracticePasses\.js';/);
 

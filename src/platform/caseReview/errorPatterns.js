@@ -15,7 +15,7 @@
  * the part has a real name (not "Part 1").
  */
 import { misconceptionLabel } from '../../../functions/shared/misconceptionCodes.mjs';
-import { QUESTION_OUTCOME } from './attemptAnalysis.js';
+import { QUESTION_OUTCOME, isRequiredQuestion } from './attemptAnalysis.js';
 
 export const ERROR_PATTERN_NOT_DETERMINABLE = 'Error pattern not determinable from stored evidence.';
 
@@ -40,7 +40,9 @@ export const errorPatternForQuestion = (row) => {
 
 /** Across a set of question rows: structured codes, and named parts marked not correct. */
 export const analyzeErrorPatterns = ({ questions = [] } = {}) => {
-  const rows = list(questions).filter((row) => !UNSCORED.has(row.outcome));
+  // Scored work only; a question the student's accommodation omitted is
+  // neither scored nor unscored — it is not their work.
+  const rows = list(questions).filter((row) => isRequiredQuestion(row) && !UNSCORED.has(row.outcome));
   const notCorrect = rows.filter((row) => row.finalResult !== 'correct');
   const byCode = new Map();
   rows.forEach((row) => {

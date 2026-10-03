@@ -23,7 +23,8 @@
  *
  * Pure: every input is passed in, so node tests exercise it directly.
  */
-import { supportById, supportLabel, SUPPORT_AUTOMATION, SUPPORT_CLASSIFICATION } from '../../../functions/shared/supportCatalog.mjs';
+import { supportAutomationFor, supportById, supportLabel, SUPPORT_AUTOMATION, SUPPORT_CLASSIFICATION } from '../../../functions/shared/supportCatalog.mjs';
+import { describeItemReduction } from '../../../functions/shared/reducedWorkload.mjs';
 import {
   LEGACY_REVISION_ID, REVISION_STATUS, legacyProfileToRevision, revisionEffectiveOn, sortRevisionTimeline, toMillis,
 } from '../../../functions/shared/supportProfileModel.mjs';
@@ -160,12 +161,19 @@ const gradeImpactFor = ({ row, assignment, student, classId, snapshots }) => {
 
 const describeEntries = (entries) => list(entries).map((entry) => {
   const catalog = supportById(entry?.id);
+  let detail = '';
+  if (entry?.params?.dueDateExtension) detail = describeDueDateExtension(entry.params.dueDateExtension);
+  else if (catalog?.params?.includes('itemReduction')) detail = describeItemReduction(entry?.params?.itemReduction);
   return {
     id: entry.id,
     label: catalog?.label || entry.id,
     classification: catalog?.classification || 'unknown',
-    automation: catalog?.automation || null,
-    detail: entry?.params?.dueDateExtension ? describeDueDateExtension(entry.params.dueDateExtension) : '',
+    // Under THIS revision's parameters (an automatic reduced item count is
+    // the platform's to prove; a recorded-only one is staff-delivered).
+    automation: supportAutomationFor(entry?.id, entry?.params || null) || catalog?.automation || null,
+    detail,
+    // Kept so every later reader can resolve the same parameters.
+    params: entry?.params && typeof entry.params === 'object' ? entry.params : {},
     appliesTo: list(entry?.appliesTo),
     affectsIndependence: catalog?.affectsIndependence === true,
   };

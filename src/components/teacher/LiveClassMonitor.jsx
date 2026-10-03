@@ -81,6 +81,9 @@ const STATE_COLOR = {
   [QUESTION_STATE_CHARS.INCORRECT]: '#d93025',
   [QUESTION_STATE_CHARS.ATTEMPTED]: '#f9ab00',
   [QUESTION_STATE_CHARS.UNTOUCHED]: '#dadce0',
+  // Not this student's work (reduced-item-count accommodation): a faint
+  // placeholder that keeps positions aligned with the class's questions.
+  [QUESTION_STATE_CHARS.NOT_REQUIRED]: 'var(--mm-divider, #eef0f2)',
 };
 
 const WALKTHROUGH_STYLE = {
@@ -216,7 +219,8 @@ function StudentTile({
           </div>
           <ProgressStrip questionStates={live.questionStates} questionIndex={live.questionIndex} />
           <div style={{ fontSize: 11, color: '#80868b', marginTop: 6 }}>
-            {row.counts.answered} of {live.questionCount || row.counts.answered} answered
+            {row.counts.answered} of {Math.max(0, (live.questionCount || row.counts.answered) - (row.counts.notRequired || 0))} answered
+            {row.counts.notRequired > 0 && ' · fewer items'}
             {row.counts.accuracy !== null && ` · ${row.counts.accuracy}% correct`}
             {live.currentAttempts > 0 && ` · ${live.currentAttempts} attempt${live.currentAttempts === 1 ? '' : 's'} here`}
             {live.currentTeksCode && ` · TEKS ${live.currentTeksCode}`}

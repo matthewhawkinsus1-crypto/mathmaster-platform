@@ -27,7 +27,7 @@
  */
 import { getTexasStandard } from '../../../functions/shared/texasStandards.mjs';
 import { getWithinCoursePrerequisites } from '../../../functions/shared/pathCoursePrerequisites.mjs';
-import { QUESTION_OUTCOME } from './attemptAnalysis.js';
+import { QUESTION_OUTCOME, isRequiredQuestion } from './attemptAnalysis.js';
 
 export const MIN_SCORED_FOR_SKILL_FINDING = 3;
 export const STRONG_THRESHOLD = 80;
@@ -58,11 +58,14 @@ export const sectionGroupOf = (section) => {
 
 /** Accuracy figures over a set of question rows. */
 export const accuracyOf = (rows = []) => {
-  const scored = list(rows).filter((row) => !UNSCORED.has(row.outcome));
+  // `questions` counts the student's own required questions: one their
+  // reduced-item-count accommodation omitted is neither scored nor unscored.
+  const required = list(rows).filter(isRequiredQuestion);
+  const scored = required.filter((row) => !UNSCORED.has(row.outcome));
   const firstKnown = scored.filter((row) => row.firstAttemptCorrect !== null && row.firstAttemptCorrect !== undefined);
   const credit = scored.reduce((sum, row) => sum + (Number(row.finalCredit) || 0), 0);
   return {
-    questions: list(rows).length,
+    questions: required.length,
     attempted: scored.length,
     finalCreditAverage: scored.length ? Math.round(credit / scored.length) : null,
     finalCorrect: scored.filter((row) => row.finalResult === 'correct').length,
@@ -112,7 +115,7 @@ const describeStandard = (code) => {
  * assignment's `condition`: 'standard' | 'modified') by standard.
  */
 export const analyzeSkills = ({ questions = [] } = {}) => {
-  const rows = list(questions);
+  const rows = list(questions).filter(isRequiredQuestion);
   const byCode = new Map();
   const untaggedRows = [];
   const inferredRows = [];

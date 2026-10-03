@@ -494,3 +494,41 @@ test('a plan never touches the shared assignment', () => {
 test('projectStudentWorkload without a plan is the base set, in the base order', () => {
   assert.deepEqual(projectStudentWorkload({ plan: null, baseIndices: [3, 1, 2] }).indices, [3, 1, 2]);
 });
+
+test('the runtime repair renaming a tool version does not change the plan the server computes', () => {
+  // The student runtime renders a repaired copy (stepAlgebra2 → stepAlgebra);
+  // the Cloud Functions grade the stored document. Same plan either way.
+  const build = (type) => {
+    questionCounter = 500;
+    return assignmentOf([['practice', [
+      ...Array.from({ length: 6 }, () => q({ type, standard: undefined })),
+      ...Array.from({ length: 2 }, () => q({ type: 'graphing', standard: undefined })),
+    ]]]);
+  };
+  const stored = planFor(build('stepAlgebra2'));
+  const repaired = planFor(build('stepAlgebra'));
+  assert.deepEqual(repaired.removed, stored.removed);
+  assert.equal(repaired.fingerprint, stored.fingerprint);
+});
+
+test('editor: a newly ticked reduced item count starts automatic at 25%; one already on the profile keeps what it has', async () => {
+  const { draftFromCurrent, draftItemReduction, inputFromDraft, toggleDraftSupport, editorGroups } = await import('../../src/platform/supportEvidence/supportProfileDraft.js');
+  const empty = draftFromCurrent({ revisions: [], profile: {}, todayKey: '2026-10-01' });
+  const ticked = toggleDraftSupport(empty, 'accommodations', ID);
+  assert.deepEqual(ticked.accommodations[ID].params.itemReduction, { mode: 'percent', value: 25 });
+  assert.equal(draftItemReduction(ticked.accommodations[ID].params).valid, true);
+  const saved = normalizeSupportRevisionInput({ ...inputFromDraft(ticked), sourceLabel: 'IEP' });
+  assert.deepEqual(saved.errors, []);
+  assert.deepEqual(saved.revision.accommodations[0].params.itemReduction, { mode: 'percent', value: 25 });
+
+  // A bare entry carried from an older revision stays "recorded by staff".
+  const legacy = draftFromCurrent({ revisions: [revision({ bare: true })], profile: {}, todayKey: '2026-10-01' });
+  assert.equal(draftItemReduction(legacy.accommodations[ID].params).mode, 'none');
+  const resaved = normalizeSupportRevisionInput({ ...inputFromDraft(legacy), sourceLabel: 'IEP' });
+  assert.deepEqual(resaved.revision.accommodations[0].params.itemReduction, { mode: 'none', value: 0 });
+
+  // An out-of-range percentage is shown as invalid and refused on save.
+  assert.equal(draftItemReduction({ itemReduction: { mode: 'percent', value: 75 } }).valid, false);
+  // Listed with the supports MathMaster can apply by itself.
+  assert.ok(editorGroups().platformAccommodations.some((group) => group.items.some((entry) => entry.id === ID)));
+});

@@ -354,7 +354,11 @@ export const workloadCoverageKey = (question = {}) => {
   if (skill) return `skill:${skill.toLowerCase()}`;
   const family = clean(question?.questionFamily?.id || question?.questionFamily?.familyId);
   if (family) return `family:${family}`;
-  return `type:${clean(question.type || question.toolId || question.questionType || 'item').toLowerCase()}`;
+  // A tool's version suffix is dropped: the runtime repair renames a saved
+  // `stepAlgebra2` to `stepAlgebra` in the browser, while the server grades
+  // the stored document, and both must reach the same plan.
+  const type = clean(question.type || question.toolId || question.questionType || 'item').toLowerCase().replace(/\d+$/, '');
+  return `type:${type || 'item'}`;
 };
 
 /** DOK first, then the instructional difficulty band: a sortable rigor level. */

@@ -144,5 +144,9 @@ test('both student date displays read the student\'s lifecycle, not the class da
   assert.match(dashboard, /const dates = studentDueDateLines\(assignment, lifecycle\);/);
   assert.match(dashboard, /studentDueDateLines\(resumeAssignment, resumeLifecycle\)\.dueText/);
   assert.match(app, /const dates = studentDueDateLines\(assignment, lifecycle\); return <>\{dates\.dueLabel\}: \{dates\.dueText\}<br \/>\{dates\.finalLabel\}: \{dates\.finalText\}<\/>;/);
-  assert.match(app, /studentDueDateLines,\n\} from '\.\/assignmentLifecycle';/, 'App.jsx imports what it calls');
+  // The name is in App's import block from assignmentLifecycle (wherever in
+  // the list): a call with no import passes every other gate (AGENTS.md).
+  const lifecycleImport = app.match(/import \{([^}]*)\} from '\.\/assignmentLifecycle';/);
+  assert.ok(lifecycleImport, 'App.jsx imports from assignmentLifecycle');
+  assert.match(lifecycleImport[1], /\bstudentDueDateLines,/, 'App.jsx imports what it calls');
 });

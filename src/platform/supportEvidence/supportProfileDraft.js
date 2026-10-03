@@ -21,6 +21,12 @@ import {
   revisionEffectiveOn,
 } from '../../../functions/shared/supportProfileModel.mjs';
 import { normalizeDueDateExtension } from '../../../functions/shared/supportDeadline.mjs';
+import {
+  ITEM_REDUCTION_LIMITS,
+  ITEM_REDUCTION_MODE,
+  REDUCED_WORKLOAD_SUPPORT_ID,
+  normalizeItemReduction,
+} from '../../../functions/shared/reducedWorkload.mjs';
 
 const clean = (value) => String(value ?? '').trim();
 const list = (value) => (Array.isArray(value) ? value : []);
@@ -50,8 +56,11 @@ export const extensionForPresetKey = (key) => (
 /** Catalog entries the editor offers, grouped for display. */
 export const editorGroups = () => {
   const accommodations = SUPPORT_CATALOG.filter((entry) => entry.classification === SUPPORT_CLASSIFICATION.ACCOMMODATION);
-  const platform = accommodations.filter((entry) => entry.automation !== SUPPORT_AUTOMATION.MANUAL);
-  const staff = accommodations.filter((entry) => entry.automation === SUPPORT_AUTOMATION.MANUAL);
+  // A support MathMaster can apply by itself under a parameter (a reduced
+  // item count with a percentage) is listed with the platform supports.
+  const platformCapable = (entry) => entry.automation !== SUPPORT_AUTOMATION.MANUAL || Boolean(entry.automaticWithParam);
+  const platform = accommodations.filter(platformCapable);
+  const staff = accommodations.filter((entry) => !platformCapable(entry));
   const byCategory = (entries) => {
     const groups = new Map();
     entries.forEach((entry) => {
@@ -104,13 +113,49 @@ export const draftFromCurrent = ({ revisions = [], profile = null, todayKey } = 
   };
 };
 
+/*
+ * What a support starts with when a teacher NEWLY ticks it in the editor.
+ * Reduced number of items starts automatic at 25% — the choice is visible
+ * (and changeable) before saving. A support that is already on the profile
+ * keeps exactly what it has, so a bare entry saved before automatic
+ * reduction existed stays "recorded by staff" until a teacher changes it.
+ */
+export const DEFAULT_PARAMS_WHEN_SELECTED = Object.freeze({
+  [REDUCED_WORKLOAD_SUPPORT_ID]: Object.freeze({
+    itemReduction: Object.freeze({ mode: ITEM_REDUCTION_MODE.PERCENT, value: ITEM_REDUCTION_LIMITS.defaultPercent }),
+  }),
+});
+
 export const toggleDraftSupport = (draft, group, supportId) => {
   const current = draft[group] || {};
   const entry = current[supportId];
   const next = { ...current };
   if (entry?.selected) next[supportId] = { ...entry, selected: false };
-  else next[supportId] = { params: entry?.params || {}, appliesTo: entry?.appliesTo || [], selected: true };
+  else {
+    const params = entry?.params && Object.keys(entry.params).length
+      ? entry.params
+      : { ...DEFAULT_PARAMS_WHEN_SELECTED[supportId] };
+    next[supportId] = { params, appliesTo: entry?.appliesTo || [], selected: true };
+  }
   return { ...draft, [group]: next };
+};
+
+/** The editor's two delivery choices for a reduced item count. */
+export const ITEM_REDUCTION_CHOICES = Object.freeze([
+  { key: ITEM_REDUCTION_MODE.PERCENT, label: 'MathMaster assigns fewer items automatically' },
+  { key: ITEM_REDUCTION_MODE.NONE, label: 'Recorded by staff (MathMaster does not choose the items)' },
+]);
+
+/** Percent presets offered beside the number box. */
+export const ITEM_REDUCTION_PRESETS = Object.freeze([25, 30, 40, 50]);
+
+/** The draft's reduction as the editor shows it (mode + raw value). */
+export const draftItemReduction = (params) => {
+  const raw = params?.itemReduction;
+  if (raw && typeof raw === 'object' && String(raw.mode || '').toLowerCase() === ITEM_REDUCTION_MODE.PERCENT) {
+    return { mode: ITEM_REDUCTION_MODE.PERCENT, value: raw.value ?? ITEM_REDUCTION_LIMITS.defaultPercent, valid: normalizeItemReduction(raw).mode === ITEM_REDUCTION_MODE.PERCENT };
+  }
+  return { mode: ITEM_REDUCTION_MODE.NONE, value: null, valid: true };
 };
 
 export const setDraftSupportParam = (draft, group, supportId, name, value) => {

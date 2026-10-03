@@ -1248,8 +1248,11 @@ function App() {
       sectionRecoveryByAssignment,
       Object.fromEntries(assignments.map((assignment) => [assignment.id, assignment])),
       warmupChallengeByAssignment,
+      // A Recovery credits only this student's own items (never one their
+      // reduced-item-count accommodation omits).
+      user?.role === 'student' ? user.profile || null : null,
     ),
-    [tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, assignments, warmupChallengeByAssignment],
+    [tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, assignments, warmupChallengeByAssignment, user?.role, user?.profile],
   );
 
   // Recovery for the assignment whose result is open. The original section is
@@ -5006,11 +5009,14 @@ function App() {
     const warmupCanBeViewed = ['active', 'closed', 'ended'].includes(warmupState.status);
     const honors = String(user?.profile?.courseLevel || '').toLowerCase() === 'honors';
     const printableEntries = [];
+    // The printed copy is the student's own required items (a reduced-item-count
+    // accommodation omits some), exactly what the screen shows.
+    const printOmitted = lifecycle.isPracticeOnly ? new Set() : new Set(studentRequiredFor(assignmentData).omitted);
 
     for (const entry of projectCurrentAssignmentContent(assignmentData).entries) {
       const index = entry.storageIndex;
       const question = assignmentQuestions[index];
-      if (!question || !questionIsIncluded(question)) continue;
+      if (!question || !questionIsIncluded(question) || printOmitted.has(index)) continue;
       const sectionRole = entry.logicalRole;
       const timedDol = sectionRole === 'dol'
         && dolState.enabled

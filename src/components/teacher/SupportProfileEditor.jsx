@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { db } from '../../firebase.js';
 import {
-  INCLUSION_IMPLIED_SUPPORT_IDS, SUPPORT_AUTOMATION, supportById, supportLabel,
+  INCLUSION_IMPLIED_SUPPORT_IDS, SUPPORT_AUTOMATION, supportAutomationFor, supportById, supportLabel,
 } from '../../../functions/shared/supportCatalog.mjs';
+import {
+  ITEM_REDUCTION_LIMITS, ITEM_REDUCTION_MODE, describeItemReduction,
+} from '../../../functions/shared/reducedWorkload.mjs';
 import {
   resolveEffectiveSupportPlan, supportProfileWarnings, sortRevisionTimeline,
 } from '../../../functions/shared/supportProfileModel.mjs';
 import { describeDueDateExtension } from '../../../functions/shared/supportDeadline.mjs';
 import { zonedDateKey } from '../../../functions/shared/instructionalCalendar.mjs';
 import {
-  DUE_DATE_EXTENSION_PRESETS, describeRevision, draftFromCurrent, editorGroups, extensionForPresetKey,
-  inputFromDraft, presetKeyForExtension, setDraftSupportParam, setDraftSupportRoles, toggleDraftSupport,
+  DUE_DATE_EXTENSION_PRESETS, ITEM_REDUCTION_CHOICES, ITEM_REDUCTION_PRESETS, describeRevision, draftFromCurrent,
+  draftItemReduction, editorGroups, extensionForPresetKey, inputFromDraft, presetKeyForExtension, setDraftSupportParam,
+  setDraftSupportRoles, toggleDraftSupport,
 } from '../../platform/supportEvidence/supportProfileDraft.js';
 import { fetchSupportProfileRevisions, saveSupportProfileRevision } from '../../platform/supportEvidence/supportEvidenceStore.js';
 import './teacherWorkspace.css';
@@ -99,6 +103,70 @@ function ResourceRows({ resources = [], onChange, supportId }) {
   );
 }
 
+/*
+ * Reduced number of items: delivered by MathMaster (with the percentage) or
+ * recorded by staff. The percentage is validated centrally
+ * (functions/shared/reducedWorkload.mjs); an out-of-range number is shown as
+ * an error here and refused on save, never silently changed.
+ */
+function ItemReductionControl({ supportId, params, onChange }) {
+  const reduction = draftItemReduction(params);
+  const automatic = reduction.mode === ITEM_REDUCTION_MODE.PERCENT;
+  const inputId = `${supportId}-percent`;
+  return (
+    <div className="se-stack" style={{ gap: 6 }} data-item-reduction-control>
+      <label className="se-field">
+        <span>How it is delivered</span>
+        <select
+          className="tw-select"
+          value={reduction.mode}
+          onChange={(event) => onChange(event.target.value === ITEM_REDUCTION_MODE.PERCENT
+            ? { mode: ITEM_REDUCTION_MODE.PERCENT, value: ITEM_REDUCTION_LIMITS.defaultPercent }
+            : { mode: ITEM_REDUCTION_MODE.NONE, value: 0 })}
+        >
+          {ITEM_REDUCTION_CHOICES.map((choice) => <option key={choice.key} value={choice.key}>{choice.label}</option>)}
+        </select>
+      </label>
+      {automatic && (
+        <div className="se-field">
+          <label htmlFor={inputId}><span>Fewer items by</span></label>
+          <div className="tw-row" style={{ gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              id={inputId}
+              className="tw-input"
+              style={{ width: 80 }}
+              type="number"
+              inputMode="numeric"
+              min={ITEM_REDUCTION_LIMITS.minPercent}
+              max={ITEM_REDUCTION_LIMITS.maxPercent}
+              step={1}
+              aria-invalid={!reduction.valid || undefined}
+              value={reduction.value ?? ''}
+              onChange={(event) => onChange({ mode: ITEM_REDUCTION_MODE.PERCENT, value: event.target.value === '' ? '' : Number(event.target.value) })}
+            />
+            <span>%</span>
+            {ITEM_REDUCTION_PRESETS.map((preset) => (
+              <button key={preset} type="button" className="tw-chip" aria-pressed={Number(reduction.value) === preset} onClick={() => onChange({ mode: ITEM_REDUCTION_MODE.PERCENT, value: preset })}>
+                {preset}%
+              </button>
+            ))}
+          </div>
+          {!reduction.valid && (
+            <div className="tw-notice" data-tone="warning" role="alert">
+              Choose a whole number from {ITEM_REDUCTION_LIMITS.minPercent} to {ITEM_REDUCTION_LIMITS.maxPercent}.
+            </div>
+          )}
+        </div>
+      )}
+      <div className="se-hint">
+        {automatic && reduction.valid
+          ? `${describeItemReduction({ mode: ITEM_REDUCTION_MODE.PERCENT, value: Number(reduction.value) })}. Every TEKS in a section keeps at least one item, linked questions stay together, answered work is never removed, and a one-question DOL stays one question. Applies to assignments due on or after the effective date; the shared assignment is never changed.`
+          : 'Staff deliver the shorter assignment and record it; MathMaster does not choose or remove items.'}
+      </div>
+    </div>
+  );
+}
+
 function SupportOption({ entry, group, draft, setDraft }) {
   const state = draft[group]?.[entry.id];
   const checked = Boolean(state?.selected);
@@ -110,7 +178,7 @@ function SupportOption({ entry, group, draft, setDraft }) {
         {entry.label}
         {entry.affectsIndependence && <span className="tw-small tw-muted"> · affects independence evidence</span>}
       </label>
-      <div className="se-option__meta">{AUTOMATION_HINT[entry.automation]}{entry.studentLabel ? ` · students see “${entry.studentLabel}”` : ''}</div>
+      <div className="se-option__meta">{AUTOMATION_HINT[supportAutomationFor(entry.id, state?.params) || entry.automation]}{entry.studentLabel ? ` · students see “${entry.studentLabel}”` : ''}</div>
       {checked && (entry.params.length > 0 || entry.automation !== SUPPORT_AUTOMATION.MANUAL) && (
         <div className="se-option__params">
           {entry.params.includes('dueDateExtension') && (
@@ -149,7 +217,14 @@ function SupportOption({ entry, group, draft, setDraft }) {
               </select>
             </label>
           )}
-          {entry.automation !== SUPPORT_AUTOMATION.MANUAL && (
+          {entry.params.includes('itemReduction') && (
+            <ItemReductionControl
+              supportId={entry.id}
+              params={state?.params}
+              onChange={(value) => setDraft((current) => setDraftSupportParam(current, group, entry.id, 'itemReduction', value))}
+            />
+          )}
+          {supportAutomationFor(entry.id, state?.params) !== SUPPORT_AUTOMATION.MANUAL && (
             <div className="se-field">
               <span>Applies to</span>
               <RoleChips value={state?.appliesTo || []} label={`Activities ${entry.label} applies to`} onChange={(roles) => setDraft((current) => setDraftSupportRoles(current, group, entry.id, roles))} />

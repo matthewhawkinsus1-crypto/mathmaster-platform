@@ -15,7 +15,7 @@
  * two numbers. Why the numbers differ is not something the records show, and
  * this module never says.
  */
-import { QUESTION_OUTCOME } from './attemptAnalysis.js';
+import { QUESTION_OUTCOME, isRequiredQuestion } from './attemptAnalysis.js';
 import { accuracyOf, sectionGroupOf } from './skillAnalysis.js';
 
 export const SUBSTANTIAL_DIFFERENCE_POINTS = 15;
@@ -104,7 +104,9 @@ const comparePair = (rows, from, to, condition) => {
  * grade, which has no question rows here).
  */
 export const compareSections = ({ questions = [], assignmentRows = [] } = {}) => {
-  const rows = list(questions);
+  // A question the student's reduced-item-count accommodation omitted is not
+  // their work: it is in no section's count, scored or unscored.
+  const rows = list(questions).filter(isRequiredQuestion);
   const standard = rows.filter((row) => row.condition !== 'modified');
   const modified = rows.filter((row) => row.condition === 'modified');
 
