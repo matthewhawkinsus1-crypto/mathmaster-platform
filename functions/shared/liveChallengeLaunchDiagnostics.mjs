@@ -1,7 +1,7 @@
 /*
  * Bounded launch telemetry for the one transition that is hardest to diagnose
- * after a classroom has moved on.  Events are server-timestamped and folded
- * into one per-player document; they are not an event log.
+ * after a classroom has moved on. The browser batches these milestones; the
+ * server folds them into one per-player summary, never an event log.
  */
 
 export const LAUNCH_EVENT = Object.freeze({
@@ -15,36 +15,54 @@ export const LAUNCH_EVENT = Object.freeze({
 });
 
 export const LAUNCH_EVENTS = Object.freeze(Object.values(LAUNCH_EVENT));
+export const MAX_LAUNCH_EVENTS = LAUNCH_EVENTS.length;
 
-const FIRST_AT_FIELD = Object.freeze({
-  [LAUNCH_EVENT.LISTENER_ATTACHED]: 'listenerAttachedAtMs',
-  [LAUNCH_EVENT.COUNTDOWN_RECEIVED]: 'countdownReceivedAtMs',
-  [LAUNCH_EVENT.RUNNING_RECEIVED]: 'runningReceivedAtMs',
-  [LAUNCH_EVENT.GAME_MOUNTED]: 'gameMountedAtMs',
-  [LAUNCH_EVENT.CONNECTION_LOST]: 'firstConnectionLostAtMs',
-  [LAUNCH_EVENT.CONNECTION_RESTORED]: 'firstConnectionRestoredAtMs',
-  [LAUNCH_EVENT.LISTENER_ERROR]: 'firstListenerErrorAtMs',
-});
+const cleanMilestone = (value = {}) => {
+  const clientAtMs = Number(value.clientAtMs);
+  if (!Number.isFinite(clientAtMs) || clientAtMs <= 0) return null;
+  const milestone = { clientAtMs };
+  if (['lobby', 'running', 'finished', 'cancelled'].includes(value.roomStatus)) milestone.roomStatus = value.roomStatus;
+  if (Number.isInteger(Number(value.roundIndex)) && Number(value.roundIndex) >= 0) milestone.roundIndex = Number(value.roundIndex);
+  return milestone;
+};
 
-export const normalizeLaunchEvent = (value) => (LAUNCH_EVENTS.includes(value) ? value : null);
+/** Sanitize one browser batch to the fixed event vocabulary and size. */
+export function normalizeLaunchReport(report = {}) {
+  const input = report?.milestones && typeof report.milestones === 'object' ? report.milestones : {};
+  const milestones = {};
+  for (const event of LAUNCH_EVENTS) {
+    const milestone = cleanMilestone(input[event]);
+    if (milestone) milestones[event] = milestone;
+  }
+  return Object.freeze({ milestones: Object.freeze(milestones) });
+}
 
-/** Fold a report into a small, idempotent summary. Repeated snapshots do not grow storage. */
-export function nextLaunchDiagnostic(previous = {}, { event, nowMs, roomStatus = null, roundIndex = null } = {}) {
-  const kind = normalizeLaunchEvent(event);
+/**
+ * Merge a batch into a small summary. The first client observation is kept;
+ * receivedAtMs proves when Firebase first received it. Duplicate batches do
+ * not grow storage or counters.
+ */
+export function nextLaunchDiagnostic(previous = {}, { report, nowMs } = {}) {
   const now = Number(nowMs);
-  if (!kind || !Number.isFinite(now)) return Object.freeze({});
-  const field = FIRST_AT_FIELD[kind];
-  const previousFirst = Number(previous?.[field]);
-  const patch = {
-    [field]: Number.isFinite(previousFirst) && previousFirst > 0 ? previousFirst : now,
-    lastLaunchEvent: kind,
-    lastLaunchEventAtMs: now,
-  };
-  if (kind === LAUNCH_EVENT.CONNECTION_LOST) patch.connectionLossCount = Math.min(99, Math.max(0, Number(previous?.connectionLossCount) || 0) + 1);
-  if (kind === LAUNCH_EVENT.CONNECTION_RESTORED) patch.connectionRestoreCount = Math.min(99, Math.max(0, Number(previous?.connectionRestoreCount) || 0) + 1);
-  if (kind === LAUNCH_EVENT.LISTENER_ERROR) patch.listenerErrorCount = Math.min(99, Math.max(0, Number(previous?.listenerErrorCount) || 0) + 1);
-  if (['lobby', 'running', 'finished', 'cancelled'].includes(roomStatus)) patch.lastObservedRoomStatus = roomStatus;
-  if (Number.isInteger(Number(roundIndex)) && Number(roundIndex) >= 0) patch.lastObservedRound = Number(roundIndex);
-  return Object.freeze(patch);
+  if (!Number.isFinite(now)) return Object.freeze({});
+  const normalized = normalizeLaunchReport(report);
+  if (!Object.keys(normalized.milestones).length) return Object.freeze({});
+  const prior = previous?.launchMilestones && typeof previous.launchMilestones === 'object'
+    ? previous.launchMilestones
+    : {};
+  const merged = {};
+  for (const event of LAUNCH_EVENTS) {
+    const oldMilestone = cleanMilestone(prior[event]);
+    const incoming = normalized.milestones[event];
+    if (oldMilestone) merged[event] = { ...oldMilestone, receivedAtMs: Number(prior[event]?.receivedAtMs) || now };
+    else if (incoming) merged[event] = { ...incoming, receivedAtMs: now };
+  }
+  const latest = Object.entries(merged).sort((left, right) => right[1].clientAtMs - left[1].clientAtMs)[0];
+  return Object.freeze({
+    launchMilestones: Object.freeze(merged),
+    lastLaunchEvent: latest?.[0] || null,
+    lastLaunchClientAtMs: latest?.[1]?.clientAtMs || null,
+    launchDiagnosticUpdatedAtMs: now,
+  });
 }
 

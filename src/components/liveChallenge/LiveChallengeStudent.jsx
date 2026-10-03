@@ -573,6 +573,21 @@ function StudentRoundResults({ room, playerKey, guidance, presentation, rushRoun
 // One id per browser tab, kept across a refresh of that tab: the teacher's
 // roster counts game screens, and a refresh is the same screen coming back.
 const CHALLENGE_SESSION_KEY = 'mm-live-challenge-session';
+const launchDiagnosticKey = (roomId) => `mm-live-challenge-launch-${roomId}`;
+const readLaunchDiagnostics = (roomId) => {
+  if (!roomId) return { milestones: {}, reported: {} };
+  try {
+    const parsed = JSON.parse(window.sessionStorage.getItem(launchDiagnosticKey(roomId)) || '{}');
+    return {
+      milestones: parsed?.milestones && typeof parsed.milestones === 'object' ? parsed.milestones : {},
+      reported: parsed?.reported && typeof parsed.reported === 'object' ? parsed.reported : {},
+    };
+  } catch { return { milestones: {}, reported: {} }; }
+};
+const writeLaunchDiagnostics = (roomId, report) => {
+  if (!roomId) return;
+  try { window.sessionStorage.setItem(launchDiagnosticKey(roomId), JSON.stringify(report)); } catch { /* memory copy still retries */ }
+};
 const challengeSessionId = () => {
   const fresh = () => globalThis.crypto?.randomUUID?.() || `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
   try {
@@ -635,16 +650,45 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   // the standings listener is paused, so "am I on the board?" cannot be asked.
   const joinedRoomRef = useRef(null);
   const sessionId = useMemo(() => challengeSessionId(), []);
-  const reportedLaunchEventsRef = useRef(new Set());
-  const reportLaunchEvent = (launchEvent, observedRoom = room) => {
-    const key = `${sessionId}:${launchEvent}`;
-    if (!roomId || reportedLaunchEventsRef.current.has(key)) return;
-    reportedLaunchEventsRef.current.add(key);
-    calibrateLiveChallengeClock({
-      roomId, sessionId, launchEvent,
+  const launchDiagnosticsRef = useRef({ roomId: null, milestones: {}, reported: {} });
+  const launchDiagnosticInFlightRef = useRef(false);
+  const collectLaunchEvent = (launchEvent, observedRoom = room) => {
+    if (!roomId) return;
+    if (launchDiagnosticsRef.current.roomId !== roomId) {
+      launchDiagnosticsRef.current = { roomId, ...readLaunchDiagnostics(roomId) };
+    }
+    // One bounded entry per event. First observation is the useful one.
+    if (launchDiagnosticsRef.current.milestones[launchEvent] || launchDiagnosticsRef.current.reported[launchEvent]) return;
+    launchDiagnosticsRef.current.milestones[launchEvent] = {
+      clientAtMs: Date.now(),
       roomStatus: observedRoom?.status || null,
       roundIndex: Number.isInteger(Number(observedRoom?.currentRound)) ? Number(observedRoom.currentRound) : null,
-    }).catch(() => { reportedLaunchEventsRef.current.delete(key); });
+    };
+    writeLaunchDiagnostics(roomId, launchDiagnosticsRef.current);
+  };
+  const sendLaunchDiagnostics = async (extra = {}) => {
+    if (!roomId || launchDiagnosticInFlightRef.current) return null;
+    const pending = launchDiagnosticsRef.current.roomId === roomId
+      ? launchDiagnosticsRef.current.milestones
+      : readLaunchDiagnostics(roomId).milestones;
+    if (!Object.keys(pending).length) {
+      return extra.quality ? calibrateLiveChallengeClock({ roomId, sessionId, ...extra }) : null;
+    }
+    const sent = { milestones: { ...pending } };
+    launchDiagnosticInFlightRef.current = true;
+    try {
+      const reply = await calibrateLiveChallengeClock({ roomId, sessionId, ...extra, launchReport: sent });
+      for (const [event, milestone] of Object.entries(sent.milestones)) {
+        if (launchDiagnosticsRef.current.milestones[event]?.clientAtMs === milestone.clientAtMs) {
+          launchDiagnosticsRef.current.reported[event] = milestone.clientAtMs;
+          delete launchDiagnosticsRef.current.milestones[event];
+        }
+      }
+      writeLaunchDiagnostics(roomId, launchDiagnosticsRef.current);
+      return reply;
+    } finally {
+      launchDiagnosticInFlightRef.current = false;
+    }
   };
 
   useEffect(() => {
@@ -656,9 +700,9 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
     setEverInSync(false);
     setRoomMissing(false);
     setJoinedAtRound(null);
-    reportedLaunchEventsRef.current.clear();
     if (!roomId) return undefined;
-    reportLaunchEvent('listener_attached', null);
+    launchDiagnosticsRef.current = { roomId, ...readLaunchDiagnostics(roomId) };
+    collectLaunchEvent('listener_attached', null);
     return watchLiveChallengeRoom(roomId, (next, { fromCache = false } = {}) => {
       const phase = challengePhaseAt({
         ...next,
@@ -671,11 +715,13 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
       }
       setRoom((current) => acceptChallengeSnapshot(current, next ? { ...next, phase } : null));
       if (next?.status === 'running') {
-        reportLaunchEvent('running_received', next);
-        if (timestampMillis(next.startsAt || next.roundStartedAt) > Date.now() + clockOffsetRef.current) reportLaunchEvent('countdown_received', next);
+        collectLaunchEvent('running_received', next);
+        if (timestampMillis(next.startsAt || next.roundStartedAt) > Date.now() + clockOffsetRef.current) collectLaunchEvent('countdown_received', next);
       }
     }, (watchError) => {
-      reportLaunchEvent('listener_error');
+      collectLaunchEvent('listener_error');
+      // A screen that never mounts still reports the failure when reachable.
+      window.setTimeout(() => { sendLaunchDiagnostics().catch(() => {}); }, 1_000);
       setError(watchError?.message || 'Could not load the Live Challenge.');
     }, { includeMetadataChanges: true });
   }, [roomId]);
@@ -684,7 +730,8 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
     const update = () => {
       const isOnline = navigator.onLine !== false;
       setOnline(isOnline);
-      reportLaunchEvent(isOnline ? 'connection_restored' : 'connection_lost');
+      collectLaunchEvent(isOnline ? 'connection_restored' : 'connection_lost');
+      if (isOnline) window.setTimeout(() => { sendLaunchDiagnostics().catch(() => {}); }, 1_000);
     };
     window.addEventListener('online', update);
     window.addEventListener('offline', update);
@@ -716,7 +763,12 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
         if (!stopped) setClock(estimate);
         // The report is this screen's heartbeat on the teacher's roster: its
         // quality, and which tab it is (two tabs are two devices).
-        await calibrateLiveChallengeClock({ roomId, quality: estimate.quality, sessionId }).catch(() => {});
+        // Piggyback anything collected so far on the normal presence heartbeat;
+        // this adds no diagnostic request. A failed send leaves the bounded
+        // sessionStorage report intact for reconnect or the next heartbeat.
+        await sendLaunchDiagnostics({ quality: estimate.quality }).catch(() => (
+          calibrateLiveChallengeClock({ roomId, quality: estimate.quality, sessionId }).catch(() => {})
+        ));
         if (!stopped) timer = window.setTimeout(sample, 30000);
       } catch {
         failures += 1;
@@ -762,7 +814,12 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   const stageClock = useChallengeClock(room, clock.offsetMs);
   const stage = stageClock.stage;
   useEffect(() => {
-    if (room?.status === 'running' && stage === CHALLENGE_STAGE.ROUND_ACTIVE) reportLaunchEvent('game_mounted', room);
+    if (room?.status !== 'running' || stage !== CHALLENGE_STAGE.ROUND_ACTIVE) return undefined;
+    collectLaunchEvent('game_mounted', room);
+    // One best-effort batch after the critical transition. Gameplay never
+    // awaits it; all earlier milestones travel in this same small report.
+    const timer = window.setTimeout(() => { sendLaunchDiagnostics().catch(() => {}); }, 1_000);
+    return () => window.clearTimeout(timer);
   }, [room?.status, room?.currentRound, stage]); // eslint-disable-line react-hooks/exhaustive-deps
   // In-progress ("working…") points belong on the board only while the round
   // takes answers; after the buzzer the board is what was banked.

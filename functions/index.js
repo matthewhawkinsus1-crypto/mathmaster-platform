@@ -11330,7 +11330,7 @@ exports.calibrateLiveChallengeClock = onCall(async (request) => {
   if (isTeacher) await requireTeacher(request);
   const serverAt = Date.now();
   const roomId = String(request.data?.roomId || "").trim();
-  if (studentId && roomId && (request.data?.quality || request.data?.launchEvent)) {
+  if (studentId && roomId && (request.data?.quality || request.data?.launchReport)) {
     const db = getFirestore();
     const privatePlayer = await db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId).collection("players").doc(studentId).get();
     if (privatePlayer.exists && privatePlayer.data()?.playerKey) {
@@ -11353,12 +11353,17 @@ exports.calibrateLiveChallengeClock = onCall(async (request) => {
           nowMs: serverAt,
         }) : {};
         const launch = launchDiagnostics.nextLaunchDiagnostic(previousData, {
-          event: request.data.launchEvent,
+          report: request.data.launchReport,
           nowMs: serverAt,
-          roomStatus: request.data.roomStatus,
-          roundIndex: request.data.roundIndex,
         });
-        const fields = { ...report, ...launch, connectionUpdatedAt: FieldValue.serverTimestamp() };
+        // connectionUpdatedAt means "presence heartbeat heard" throughout the
+        // teacher roster. A launch-only diagnostic must not make an offline
+        // student look connected.
+        const fields = {
+          ...report,
+          ...launch,
+          ...(request.data?.quality ? { connectionUpdatedAt: FieldValue.serverTimestamp() } : {}),
+        };
         transaction.set(diagnosticsRef, fields, { mergeFields: Object.keys(fields) });
       });
     }

@@ -65,17 +65,44 @@ Each student screen now folds a bounded set of server-received milestones into
 its existing teacher-only diagnostics row: listener attached, countdown room
 received, running room received, active game mounted, first connection loss and
 restore, and listener error. First milestone times are preserved; duplicate
-snapshots only replace a few scalar “last” fields and counters are capped. No
+snapshots cannot grow the fixed seven-key summary. No
 student-visible name or answer is logged. The existing teacher roster joins
 these rows to student names, so support can compare a stuck student's last
 milestone without exposing IDs to the teacher.
 
+### Telemetry load review
+
+The first implementation sent four independent requests in an ordinary launch
+(`listener_attached`, `countdown_received`, `running_received`, and
+`game_mounted`): 40/80/120/160/200/256 additional callable requests and
+diagnostic writes for 10/20/30/40/50/64 students. Connectivity and error events
+could add more.
+
+The revised client keeps at most one in-memory/session-storage entry for each of
+the seven event types, preserving its client timestamp and observed room state.
+Events collected during calibration ride on its existing presence heartbeat at
+no additional request cost. After the active UI mounts, any remaining events
+are sent as one best-effort batch. Thus the conservative ordinary-launch
+maximum is one **additional** callable and one per-player diagnostic write per
+student: 10/20/30/40/50/64 at those class sizes (50 requests + 50 writes for 50;
+64 + 64 for 64). Usually the earlier milestones are already piggybacked, but the
+bound does not depend on that optimization. An actual failed request may retry
+after connectivity returns; retries are not launch traffic and are required to
+recover the evidence.
+
+No render, countdown, question fetch, join, score, or recovery path awaits this
+report. Failed reports retain the bounded local summary and are retried by a
+later normal heartbeat, listener-error recovery, or `online` event. Launch-only
+reports write launch timestamps only: they do **not** update
+`connectionUpdatedAt`, whose existing meaning remains the last successful
+presence/quality heartbeat.
+
 Interpretation:
 
-- no `listenerAttachedAtMs`: the game bundle/screen never initialized (hosting,
+- no `launchMilestones.listener_attached`: the game bundle/screen never initialized (hosting,
   routing, authentication, or content filtering);
-- attached but no `runningReceivedAtMs`: Firestore delivery/connectivity failed;
-- running received but no `gameMountedAtMs`: client rendering/clock logic failed;
+- attached but no `launchMilestones.running_received`: Firestore delivery/connectivity failed;
+- running received but no `launchMilestones.game_mounted`: client rendering/clock logic failed;
 - mounted with later connection loss: launch succeeded and a subsequent network
   failure is the issue.
 
