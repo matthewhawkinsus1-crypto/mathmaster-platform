@@ -4,6 +4,8 @@ export const WORK_VIEW_CAPABILITIES = Object.freeze([
   'undo', 'redo', 'fitView', 'panZoom', 'pointEditing', 'numericControls',
   'equationInput', 'tableData', 'instruction', 'task', 'help',
   'primaryActions', 'secondaryActions',
+  // The student's Support tools (language tools), as a header drawer.
+  'supports',
 ]);
 
 const WorkViewCapabilityContext = createContext(Object.freeze({}));

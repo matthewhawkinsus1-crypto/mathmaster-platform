@@ -1,5 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { SUPPORT } from '../../../functions/shared/supportEntitlements.mjs';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { SUPPORT, SUPPORT_FOR_CATALOG_ID } from '../../../functions/shared/supportEntitlements.mjs';
+import { speakAloud, speechTextFor } from '../../platform/language/speechText.js';
+import { toolsEntitlementFromPath } from '../../platform/language/supportToolsEntitlement.js';
+import { StudentSupportTray } from './StudentSupportTools.jsx';
 
 // The supports a student is entitled to, on the Path, actually rendered.
 //
@@ -15,52 +18,13 @@ import { SUPPORT } from '../../../functions/shared/supportEntitlements.mjs';
 // set before believing any of it.
 
 /**
- * Speak text that a human would recognise as mathematics.
- *
- * Reading raw LaTeX aloud produces "backslash frac brace 3 brace brace 4"
- * which is worse than silence. This is not a full MathML reader — it turns the
- * notation this platform actually authors into spoken English and leaves the
- * rest alone.
+ * Speak text that a human would recognise as mathematics — the one reader the
+ * assignment's Read button uses too (platform/language/speechText.js).
+ * Re-exported under its long-standing name.
  */
-export const speechTextFor = (raw) => {
-  let text = String(raw || '');
-  if (!text.trim()) return '';
-  text = text
-    .replace(/\$\$?/g, ' ')
-    .replace(/\\dfrac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g, ' $1 over $2 ')
-    .replace(/\\frac\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g, ' $1 over $2 ')
-    .replace(/\\sqrt\[3\]\s*\{([^{}]+)\}/g, ' the cube root of $1 ')
-    .replace(/\\sqrt\s*\{([^{}]+)\}/g, ' the square root of $1 ')
-    .replace(/\\log_\{?(\w+)\}?/g, ' log base $1 of ')
-    .replace(/\^\{?\(?-1\)?\}?/g, ' inverse ')
-    .replace(/\^\{?2\}?/g, ' squared ')
-    .replace(/\^\{?3\}?/g, ' cubed ')
-    .replace(/\^\{([^{}]+)\}/g, ' to the power $1 ')
-    .replace(/\^(-?\d+)/g, ' to the power $1 ')
-    .replace(/\\le\b|<=/g, ' is less than or equal to ')
-    .replace(/\\ge\b|>=/g, ' is greater than or equal to ')
-    .replace(/\\ne\b|!=/g, ' is not equal to ')
-    .replace(/\\pm\b/g, ' plus or minus ')
-    .replace(/\\infty/g, ' infinity ')
-    .replace(/\\cdot|\\times/g, ' times ')
-    .replace(/\\div/g, ' divided by ')
-    .replace(/\\left|\\right/g, ' ')
-    .replace(/\\[a-zA-Z]+/g, ' ')
-    .replace(/[{}]/g, ' ')
-    .replace(/\|([^|]+)\|/g, ' the absolute value of $1 ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return text;
-};
+export { speechTextFor };
 
-const speak = (text) => {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return false;
-  const spoken = speechTextFor(text);
-  if (!spoken) return false;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(new window.SpeechSynthesisUtterance(spoken));
-  return true;
-};
+const speak = (text) => speakAloud(text, { language: 'en' });
 
 const BUTTON = {
   minHeight: 40, padding: '8px 13px', borderRadius: 999,
@@ -101,6 +65,11 @@ export default function PathSupportBar({
   questionInstanceId = '',
   onDelivery = null,
   disabled = false,
+  // The language Support tools (translation, vocabulary, Break it down, Help
+  // me say it) use the same tray as assignments, from the same server list.
+  prompt = '',
+  toolType = '',
+  supportLanguage = null,
 }) {
   const applicable = useMemo(
     () => (Array.isArray(applicableSupports) ? applicableSupports : []),
@@ -108,11 +77,30 @@ export default function PathSupportBar({
   );
   const [used, setUsed] = useState([]);
   const [ttsUnavailable, setTtsUnavailable] = useState(false);
+  // What the language tray actually showed for this question (canonical ids).
+  const [trayPresented, setTrayPresented] = useState([]);
   const deliveryRef = useRef(onDelivery);
   deliveryRef.current = onDelivery;
 
   // A new question is a fresh delivery record.
-  useEffect(() => { setUsed([]); setTtsUnavailable(false); }, [questionInstanceId]);
+  useEffect(() => { setUsed([]); setTtsUnavailable(false); setTrayPresented([]); }, [questionInstanceId]);
+
+  const languageTools = useMemo(
+    () => toolsEntitlementFromPath({ applicableSupports: applicable, translationLanguage: supportLanguage }),
+    [applicable, supportLanguage],
+  );
+  // The tray reports each tool's state and each first use; on the Path those
+  // facts travel with the attempt, where the server intersects them with what
+  // it authorized (supportEntitlements.mjs reconcileSupportDelivery).
+  const onTrayEvidence = useCallback((record) => {
+    const canonical = SUPPORT_FOR_CATALOG_ID[record?.supportId];
+    if (!canonical) return;
+    if (record.eventType === 'available' || record.eventType === 'provided') {
+      setTrayPresented((current) => (current.includes(canonical) ? current : [...current, canonical]));
+    } else if (record.eventType === 'used') {
+      setUsed((current) => (current.includes(canonical) ? current : [...current, canonical]));
+    }
+  }, []);
 
   const speechAvailable = typeof window !== 'undefined' && Boolean(window.speechSynthesis);
   const wantsTts = applicable.includes(SUPPORT.TEXT_TO_SPEECH);
@@ -123,10 +111,12 @@ export default function PathSupportBar({
   // point: an administrator needs to find that, not have it papered over.
   const presented = useMemo(() => applicable.filter((supportId) => {
     if (supportId === SUPPORT.TEXT_TO_SPEECH) return speechAvailable && Boolean(speechText);
+    // Language tools: only what the tray actually showed for this question.
+    if (trayPresented.includes(supportId)) return true;
     // Presentation supports are applied to the card itself below.
     return [SUPPORT.LARGE_TEXT, SUPPORT.HIGH_CONTRAST, SUPPORT.DECLUTTER, SUPPORT.VISUAL_CHUNKING]
       .includes(supportId);
-  }), [applicable, speechAvailable, speechText]);
+  }), [applicable, speechAvailable, speechText, trayPresented]);
 
   useEffect(() => {
     deliveryRef.current?.({ presented, used });
@@ -138,7 +128,21 @@ export default function PathSupportBar({
 
   if (!applicable.length) return null;
 
+  const tray = languageTools.tools.length ? (
+    <StudentSupportTray
+      entitlement={languageTools}
+      prompt={prompt}
+      toolType={toolType}
+      surface="path"
+      itemKey={questionInstanceId}
+      // The bar's own "Read this to me" reads the whole card, choices included.
+      includeReadAloud={false}
+      onEvidence={onTrayEvidence}
+    />
+  ) : null;
+
   return (
+    <>
     <div
       role="group"
       aria-label="Your learning supports"
@@ -177,5 +181,7 @@ export default function PathSupportBar({
         </span>
       )}
     </div>
+    {tray && <div style={{ marginBottom: 12 }}>{tray}</div>}
+    </>
   );
 }

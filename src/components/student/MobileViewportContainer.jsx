@@ -54,6 +54,9 @@ export const MobileViewportContainer = ({
   taskMeta = null,
   taskContextPanel = null,
   contextPanel = null,
+  // The student's language Support tools for this item (StudentSupportTray):
+  // inline under the task, never over the answer fields or the tool.
+  supportTray = null,
   toolWorkspace,
   actionButtons = null,
   workBar = null,
@@ -437,6 +440,7 @@ export const MobileViewportContainer = ({
                   {taskContextPanel && <div className="mathmaster-question-task-context">{taskContextPanel}</div>}
                 </div>
               )}
+              {supportTray && <div className="mathmaster-question-support-tray">{supportTray}</div>}
               {responseFields && <div className="response-inputs-section">{responseFields}</div>}
               {isLandscape && (actionButtons || workBar) && (
                 <div className="landscape-action-bar">{workBar}{actionButtons}</div>
@@ -482,11 +486,15 @@ export const MobileViewportContainer = ({
               with the page instead of riding in the sticky anchor, where they
               floated over the tool's own buttons (live QA). */}
           {!workspaceActive && !isPromptCollapsed && taskMeta && <div className="mathmaster-question-task-meta mathmaster-desktop-task-meta">{taskMeta}</div>}
+          {!workspaceActive && supportTray && <div className="mathmaster-question-support-tray">{supportTray}</div>}
           {!workspaceActive && contextPanel}
           {responseFields}
         </>
       )}
 
+      {/* A focused solver workspace hides the task panel; the Support tools
+          stay reachable above the work. */}
+      {workspaceActive && supportTray && <div className="mathmaster-question-support-tray">{supportTray}</div>}
       <main className="math-tool-workspace">
         <React.Fragment key="math-tool-workspace">
           {toolWorkspace}

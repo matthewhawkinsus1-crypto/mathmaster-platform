@@ -493,6 +493,19 @@ function buildSanitizedQuestion(question, { questionInstanceId, attemptsAllowed,
     context: sanitizeContext(question.context),
     attemptsAllowed,
     attemptsUsed,
+    // THE STUDENT'S OWN SUPPORTS THAT APPLY HERE — canonical ids decided by the
+    // server at issue time (supportEntitlements.mjs applicableSupports), never
+    // a program or plan label, so the Path support bar can render what was
+    // authorized without reading a profile. Without this the bar received an
+    // empty list and no support reached the student on the Path.
+    applicableSupports: (Array.isArray(question.applicableSupports) ? question.applicableSupports : [])
+      .map((id) => String(id || '').trim())
+      .filter((id) => /^[A-Za-z]{2,32}$/.test(id))
+      .slice(0, 20),
+    // The language translated content should be in (a language tag only).
+    supportLanguage: /^[a-z]{2,3}(-[a-z0-9]{2,8})?$/.test(String(question.supportEntitlements?.translationLanguage || ''))
+      ? String(question.supportEntitlements.translationLanguage)
+      : null,
     adaptiveRigor: question.adaptiveRigor ? {
       courseLevel: question.adaptiveRigor.courseLevel,
       readiness: question.adaptiveRigor.readiness,

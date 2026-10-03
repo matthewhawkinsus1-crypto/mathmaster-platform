@@ -14,6 +14,9 @@ test('the registry covers every platform Work View capability', () => {
     'undo', 'redo', 'fitView', 'panZoom', 'pointEditing', 'numericControls',
     'equationInput', 'tableData', 'instruction', 'task', 'help',
     'primaryActions', 'secondaryActions',
+    // The student's Support tools, as a header drawer (a render function, so
+    // the tray mounts only while the drawer is open).
+    'supports',
   ]);
 });
 
