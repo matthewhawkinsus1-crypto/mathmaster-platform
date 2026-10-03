@@ -312,10 +312,18 @@ students still have the recorded-only form.
 ### 11.2 Which revision governs an assignment
 
 The revision in effect on the assignment's class due date (else release date, else today) — the same anchor the
-evidence report already uses (`governingProfileForAssignment`). The projection keeps a compact
-`supportPlan.itemReductionHistory` (one row per revision: id, number, start, status, percent, appliesTo; ≤ 40 rows,
-no labels or notes) so a past assignment always resolves under the revision that governed it even after that revision
-has left `windows`. A later revision therefore never changes the required items — or the grade — of work already due.
+evidence report already uses (`governingProfileForAssignment`) — **among the revisions MathMaster had saved by that
+date**. A revision saved today with an earlier effective start documents the support for the paperwork, but it does not
+reshape or regrade work that was already due: MathMaster keeps the item count it applied then, and the evidence report
+says so (`backdated-profile`, and `automatic-saved-after-due` on the reduced-item row). A revision governs work due on
+the day it was saved.
+
+The projection keeps a compact `supportPlan.itemReductionHistory` (`itemReductionTimeline`): a step function over
+due dates, one row each time the policy changes (revision id and number, first due date governed, status, percent,
+appliesTo; no labels or notes). Revisions that change other supports add no rows, so a past assignment resolves under
+its governing revision even after that revision has left `windows`. The bound is 40 policy changes; past it, the oldest
+changes fold into one undated baseline row (the latest of them) instead of disappearing. A test checks the stored
+history against the revision timeline on every date for 60 randomized histories.
 
 ### 11.3 The pipeline (composition order)
 
@@ -423,7 +431,8 @@ mirrored in the rules), and the aggregation ignores any other client negative, s
 "no staff record" gap. A recorded-only support records nothing from the platform (staff document it). The
 aggregation recomputes the projection from the student's canonical records and marks a record *verified* when it
 matches; a worked assignment under automatic reduction with no record is an `automatic-not-recorded` gap (never
-"not provided"), or `automatic-predates-revision` when the work was done before that revision was saved.
+"not provided"), or `automatic-predates-revision` when the work was done before that revision was saved, or
+`automatic-saved-after-due` when the revision was saved after the work was due (MathMaster kept the earlier count).
 
 The report's headline is "Provided/Available in X of Y eligible" only for supports MathMaster records on every opened
 assignment either way (`RECORDED_ON_EVERY_OPENED_ASSIGNMENT`); Y counts opened assignments whose governing revision

@@ -490,10 +490,17 @@ export const buildAssignmentEvidenceRow = ({
         // rather than report a missing record.
         const revisionSavedAt = toMillis(governing.revision?.createdAtMs ?? governing.revision?.createdAt);
         const predatesRevision = Number.isFinite(revisionSavedAt) && work.lastAtMs !== null && work.lastAtMs < revisionSavedAt;
+        // A revision saved after the due date documents the reduction for this
+        // work, but MathMaster keeps the item count — and the grade — it had
+        // when the work was due (supportProfileModel.mjs itemReductionTimeline).
+        const savedAfterDue = governing.backdated
+          && (!workload || workload.status === WORKLOAD_STATUS.NONE || workload.status === WORKLOAD_STATUS.MANUAL);
         gaps.push({
-          code: predatesRevision ? 'automatic-predates-revision' : 'automatic-not-recorded',
+          code: savedAfterDue ? 'automatic-saved-after-due' : predatesRevision ? 'automatic-predates-revision' : 'automatic-not-recorded',
           supportId: support.supportId,
-          message: predatesRevision
+          message: savedAfterDue
+            ? `${support.label}: the revision that made the reduction automatic was saved after this work was due, so MathMaster kept the item count in effect then.`
+            : predatesRevision
             ? `${support.label}: this work was done before the revision that made the reduction automatic was saved.`
             : beforeRecording
               ? `${support.label}: this work predates support recording.`

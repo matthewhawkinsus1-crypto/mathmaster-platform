@@ -377,6 +377,60 @@ const windowOf = (revision) => ({
 
 const idsOf = (entries) => list(entries).map((entry) => entry?.id).filter(Boolean);
 
+// Two rows grade the same way: both off (inactive or not configured), or the
+// same percentage over the same roles (0 = recorded by staff only).
+const itemReductionPolicyKey = (row) => (
+  row.status === REVISION_STATUS.INACTIVE || !row.configured ? 'off' : `${row.percent}|${row.appliesTo.join(',')}`
+);
+
+/**
+ * The reduced item count MathMaster applies to an assignment due on each
+ * school date, as a step function (`supportPlan.itemReductionHistory`; rows
+ * oldest first, `effectiveStart` = the first due date the row governs, null =
+ * every earlier date).
+ *
+ * On a date, the governing revision is the one documented in effect then
+ * (revisionEffectiveOn) among the revisions MathMaster had already saved by
+ * that date. A revision saved today with an earlier start date therefore
+ * never reshapes — or regrades — work that was already due; the evidence
+ * report shows that work as `backdated-profile` ("MathMaster applied the
+ * earlier revision"). A revision governs work due on the day it was saved.
+ *
+ * A row is written only where the policy changes, so revisions that change
+ * other supports add none. Past the bound, the oldest rows fold into one
+ * undated baseline (the latest of them) instead of being dropped.
+ */
+export const itemReductionTimeline = (revisions = [], { timeZone = PROFILE_TIME_ZONE } = {}) => {
+  const timeline = sortRevisionTimeline(revisions);
+  const startOf = (revision) => (isDateKey(revision.effectiveStart) ? revision.effectiveStart : '');
+  // '' = no timestamp (a legacy profile): held before any versioned save.
+  const savedOn = timeline.map((revision) => {
+    const recorded = recordedAtOf(revision);
+    return Number.isFinite(recorded) ? zonedDateKey(recorded, timeZone) : '';
+  });
+  // The policy can only change on a start date or a save date ('' = before
+  // every date).
+  const days = [...new Set(timeline.flatMap((revision, index) => [startOf(revision), savedOn[index]]))].sort();
+  const rows = [];
+  days.forEach((day) => {
+    // The timeline is in compareForTimeline order, so the last revision that
+    // had started and been saved by `day` is the one revisionEffectiveOn picks.
+    let governing = null;
+    timeline.forEach((revision, index) => {
+      if (startOf(revision) <= day && savedOn[index] <= day) governing = revision;
+    });
+    if (!governing) return;
+    const row = { ...itemReductionHistoryRow(governing), effectiveStart: day || null };
+    const previous = rows[rows.length - 1];
+    if (previous && itemReductionPolicyKey(previous) === itemReductionPolicyKey(row)) return;
+    rows.push(row);
+  });
+  const limit = PROFILE_LIMITS.itemReductionHistory;
+  if (rows.length <= limit) return rows;
+  const kept = rows.slice(-(limit - 1));
+  return [{ ...rows[rows.length - limit], effectiveStart: null }, ...kept];
+};
+
 /**
  * The `profile` field to write alongside a new revision (one batch).
  *
@@ -400,11 +454,8 @@ export const buildSupportProjection = ({ revisions = [], todayKey, updatedAt = n
   const active = current && current.status !== REVISION_STATUS.INACTIVE ? current : null;
   // Reduced workload changes which items a student is graded on, so a past
   // assignment must always resolve under the revision that governed it — even
-  // after that revision has dropped out of `windows`. One compact row per
-  // revision (no labels, notes or other supports), oldest first, bounded.
-  const itemReductionHistory = sortRevisionTimeline(revisions)
-    .map(itemReductionHistoryRow)
-    .slice(-PROFILE_LIMITS.itemReductionHistory);
+  // after that revision has dropped out of `windows`.
+  const itemReductionHistory = itemReductionTimeline(revisions);
   const entitled = new Set();
   windows.forEach((window) => {
     if (window.status === REVISION_STATUS.INACTIVE) return;

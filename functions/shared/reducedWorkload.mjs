@@ -204,9 +204,10 @@ const instantOf = (value) => {
  * due date, else the release date, else today — the same anchor the support
  * evidence report uses for "the profile in effect for this assignment"
  * (src/platform/supportEvidence/evidenceAggregation.js
- * governingProfileForAssignment). A later profile revision therefore never
- * changes the required items — and so the grade — of work that was already
- * due under an earlier revision.
+ * governingProfileForAssignment). The stored history only lets a revision
+ * govern work due on or after the day it was saved, so a later revision —
+ * even one dated earlier — never changes the required items, and so the
+ * grade, of work that was already due.
  */
 export const workloadAnchorDateKey = (assignment = {}, { nowValue = Date.now(), timeZone = REDUCED_WORKLOAD_TIME_ZONE } = {}) => {
   const anchor = instantOf(assignment?.dueAt ?? assignment?.dueDate)
@@ -233,9 +234,10 @@ const latestOnOrBefore = (entries, dateKey) => {
 };
 
 /**
- * The history the projection keeps so a past assignment is always resolved
- * under the revision that governed it (supportProfileModel.mjs
- * buildSupportProjection writes it): one compact row per revision.
+ * One revision's reduced-item policy, compactly (no labels, notes or other
+ * supports): the rows of the history the projection keeps so a past
+ * assignment is always resolved under the revision that governed it
+ * (supportProfileModel.mjs itemReductionTimeline writes it).
  */
 export const itemReductionHistoryRow = (revision = {}) => {
   const entry = list(revision?.accommodations).find((item) => item?.id === REDUCED_WORKLOAD_SUPPORT_ID) || null;
