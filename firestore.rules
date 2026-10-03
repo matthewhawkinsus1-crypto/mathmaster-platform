@@ -416,7 +416,9 @@ service cloud.firestore {
         && d.eventType in ['available', 'provided', 'activated', 'used', 'not-applicable', 'unavailable']
         // Only the platform's own evaluations can be negative facts: a client
         // must never silence a "no staff record" gap for any other support.
-        && (!(d.eventType in ['not-applicable', 'unavailable']) || d.supportId in ['reduced-item-count-same-rigor'])
+        && (!(d.eventType in ['not-applicable', 'unavailable']) || d.supportId in [
+          'reduced-item-count-same-rigor', 'text-to-speech', 'translation', 'glossary-lookup', 'chunked-directions', 'sentence-frames'
+        ])
         && d.source == 'automatic-telemetry'
         && d.actorType in ['student', 'system']
         && d.get('actorEmail', null) == null
@@ -430,6 +432,11 @@ service cloud.firestore {
           d.supportId in profile.get('accommodations', [])
           || d.supportId in profile.get('modifications', [])
           || d.supportId in profile.get('supportPlan', {}).get('entitledIds', [])
+          // A pre-versioning profile authorizes translation by its language
+          // alone (a versioned one lists it in entitledIds).
+          || (d.supportId == 'translation' && profile.get('translationLanguage', null) is string
+            && profile.get('translationLanguage', '').matches('^[a-z]{2,3}(-[a-z0-9]{2,8})?$')
+            && !profile.get('translationLanguage', '').matches('^en(-.*)?$'))
           || (profile.get('inclusionStatus', false) == true && d.supportId in [
             'declutter-ui', 'visual-chunking', 'high-contrast', 'large-text', 'no-countdown', 'disable-idle-timer'
           ])

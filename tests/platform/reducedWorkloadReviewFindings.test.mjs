@@ -267,7 +267,8 @@ test('a "not applicable" record never occupies the id a later "provided" needs',
 });
 
 test('a student\'s client may record a negative fact only for a support the platform evaluates', () => {
-  assert.deepEqual([...PLATFORM_EVALUATED_SUPPORT_IDS], [ID]);
+  // The reduced item count, and (language supports) the per-question tools.
+  assert.deepEqual([...PLATFORM_EVALUATED_SUPPORT_IDS].sort(), [ID, 'chunked-directions', 'glossary-lookup', 'sentence-frames', 'text-to-speech', 'translation'].sort());
   const event = (supportId, eventType) => buildStudentEvidenceEvent({
     studentId: 'S', classId: 'C', assignmentId: 'A', supportId, eventType, assignedTeacherEmail: 't@example.test',
   });

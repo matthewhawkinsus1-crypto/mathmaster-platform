@@ -4,7 +4,7 @@ import {
   INCLUSION_IMPLIED_SUPPORT_IDS, supportById, supportShortLabel,
 } from '../../../functions/shared/supportCatalog.mjs';
 import {
-  resolveEffectiveSupportPlan, revisionEffectiveOn, supportProfileWarnings,
+  derivedSupportEntries, resolveEffectiveSupportPlan, revisionEffectiveOn, supportProfileWarnings,
 } from '../../../functions/shared/supportProfileModel.mjs';
 import { describeDueDateExtension } from '../../../functions/shared/supportDeadline.mjs';
 import { ITEM_REDUCTION_MODE, normalizeItemReduction } from '../../../functions/shared/reducedWorkload.mjs';
@@ -15,6 +15,7 @@ import { zonedDateKey } from '../../../functions/shared/instructionalCalendar.mj
 import { assignmentIsForStudent } from '../../assignmentLifecycle.js';
 import { activeEvidence, isStaffEvent } from '../../platform/supportEvidence/evidenceAggregation.js';
 import { fetchServiceLog, fetchSupportEvidence, fetchSupportProfileRevisions } from '../../platform/supportEvidence/supportEvidenceStore.js';
+import { describeEvidenceDetails } from '../../platform/supportEvidence/supportEvidenceReport.js';
 import SupportQuickActions from './SupportQuickActions.jsx';
 import ServiceLogDialog from './ServiceLogDialog.jsx';
 import SupportProfileEditor, { SupportClassificationTag } from './SupportProfileEditor.jsx';
@@ -156,6 +157,9 @@ export default function StudentSupportEvidencePanel({
             {plan.accommodations.map((entry) => (
               <span key={entry.id} className="tw-pill" data-tone="primary">{supportShortLabel(entry.id)}{supportParamSuffix(entry)}</span>
             ))}
+            {derivedSupportEntries(plan).map((entry) => (
+              <span key={entry.id} className="tw-pill" data-tone="primary" title="From the profile language">{supportShortLabel(entry.id)} · {entry.params.language}</span>
+            ))}
             {plan.inclusionStatus && INCLUSION_IMPLIED_SUPPORT_IDS.filter((id) => !plan.accommodations.some((entry) => entry.id === id)).map((id) => (
               <span key={id} className="tw-pill" data-tone="neutral" title="Implied by inclusion status">{supportShortLabel(id)}</span>
             ))}
@@ -233,6 +237,7 @@ export default function StudentSupportEvidencePanel({
                       {event.providerRole ? ` · ${PROVIDER_ROLE_LABEL[event.providerRole] || event.providerRole}` : ''}
                       {event.assignmentId && titleOf(event.assignmentId) ? ` · ${titleOf(event.assignmentId)}` : ''}
                     </div>
+                    {describeEvidenceDetails(event) && <div className="tw-small tw-muted" data-evidence-details>{describeEvidenceDetails(event)}</div>}
                     {event.note && <div className="tw-small">{event.note}</div>}
                   </li>
                 );

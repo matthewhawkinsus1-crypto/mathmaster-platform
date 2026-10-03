@@ -77,6 +77,10 @@ export const STUDENT_EVIDENCE_EVENT_TYPES = Object.freeze([
  */
 export const PLATFORM_EVALUATED_SUPPORT_IDS = Object.freeze([
   'reduced-item-count-same-rigor',
+  // The per-question tools (src/platform/language/supportToolsModel.js): the
+  // platform knows whether the item had translated content, vocabulary, steps
+  // or an explanation to frame, and whether the browser could speak.
+  'text-to-speech', 'translation', 'glossary-lookup', 'chunked-directions', 'sentence-frames',
 ]);
 
 export const NEGATIVE_EVIDENCE_EVENT_TYPES = Object.freeze([

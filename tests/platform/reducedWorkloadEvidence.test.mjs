@@ -168,7 +168,7 @@ test('an "unavailable" record is shown as an implementation gap with its reason'
     assignment, student: studentWith(assignment, profile, [0]), revisions: [automatic],
     evidence: [providedEvent(assignment, { reason: 'projection-not-resolved' }, { eventType: 'unavailable' })], nowValue: NOW,
   });
-  assert.ok(row.gaps.some((gap) => gap.code === 'support-unavailable' && /projection-not-resolved/.test(gap.message)));
+  assert.ok(row.gaps.some((gap) => gap.code === 'support-unavailable' && /the reduced item set could not be worked out/.test(gap.message)));
   assert.equal(workloadFactFor({ assignment, student: studentWith(assignment, profile, []), events: [] }).status, 'applied');
 });
 

@@ -46,6 +46,9 @@ const studentA = () => env.authenticatedContext('uid-sa', { role: 'student', stu
 const studentB = () => env.authenticatedContext('uid-sb', { role: 'student', studentId: 'S_B' }).firestore();
 const studentInclusion = () => env.authenticatedContext('uid-si', { role: 'student', studentId: 'S_INC' }).firestore();
 const studentNew = () => env.authenticatedContext('uid-sn', { role: 'student', studentId: 'S_NEW' }).firestore();
+const studentEb = () => env.authenticatedContext('uid-seb', { role: 'student', studentId: 'S_EB' }).firestore();
+const studentEbLegacy = () => env.authenticatedContext('uid-sebl', { role: 'student', studentId: 'S_EBL' }).firestore();
+const studentEnglish = () => env.authenticatedContext('uid-sen', { role: 'student', studentId: 'S_EN' }).firestore();
 const anonymous = () => env.unauthenticatedContext().firestore();
 
 const PROFILE_A = {
@@ -57,6 +60,21 @@ const PROFILE_A = {
     schemaVersion: 1,
     windows: [{ revisionId: 'r1', revision: 1, status: 'active', effectiveStart: '2026-08-17', effectiveEnd: null }],
     entitledIds: ['calculator', 'extra-time', 'graph-paper', 'reduce-complexity', 'reduced-item-count-same-rigor', 'text-to-speech'],
+    updatedAt: '2026-09-01T12:00:00.000Z',
+  },
+};
+
+// A versioned profile whose language derives `translation` (listed in
+// entitledIds, never in accommodations) plus the language tools.
+const PROFILE_EB = {
+  inclusionStatus: false,
+  accommodations: ['glossary-lookup', 'chunked-directions', 'sentence-frames'],
+  modifications: [],
+  translationLanguage: 'es',
+  supportPlan: {
+    schemaVersion: 1,
+    windows: [{ revisionId: 'r1', revision: 1, status: 'active', effectiveStart: '2026-08-17', effectiveEnd: null }],
+    entitledIds: ['chunked-directions', 'glossary-lookup', 'sentence-frames', 'translation'],
     updatedAt: '2026-09-01T12:00:00.000Z',
   },
 };
@@ -76,6 +94,9 @@ before(async () => {
     await setDoc(doc(db, 'grades/S_A'), { classId: 'class-a', classPeriod: 'Period 1', assignedTeacherEmail: TEACHER_A, status: 'active', gradesByAssignment: {}, profile: PROFILE_A });
     await setDoc(doc(db, 'grades/S_B'), { classId: 'class-b', classPeriod: 'Period 2', assignedTeacherEmail: TEACHER_B, status: 'active', gradesByAssignment: {}, profile: {} });
     await setDoc(doc(db, 'grades/S_INC'), { classId: 'class-a', classPeriod: 'Period 1', assignedTeacherEmail: TEACHER_A, status: 'active', gradesByAssignment: {}, profile: { inclusionStatus: true, accommodations: [], modifications: [] } });
+    await setDoc(doc(db, 'grades/S_EB'), { classId: 'class-a', classPeriod: 'Period 1', assignedTeacherEmail: TEACHER_A, status: 'active', gradesByAssignment: {}, profile: PROFILE_EB });
+    await setDoc(doc(db, 'grades/S_EBL'), { classId: 'class-a', classPeriod: 'Period 1', assignedTeacherEmail: TEACHER_A, status: 'active', gradesByAssignment: {}, profile: { inclusionStatus: false, accommodations: [], modifications: [], translationLanguage: 'es' } });
+    await setDoc(doc(db, 'grades/S_EN'), { classId: 'class-a', classPeriod: 'Period 1', assignedTeacherEmail: TEACHER_A, status: 'active', gradesByAssignment: {}, profile: { inclusionStatus: false, accommodations: [], modifications: [], translationLanguage: 'en' } });
     await setDoc(doc(db, 'grades/S_UNPLACED'), { classId: null, classPeriod: 'Unassigned', assignedTeacherEmail: null, status: 'active', gradesByAssignment: {} });
     await setDoc(doc(db, 'grades/S_A/supportEvidence/seeded'), { studentId: 'S_A', authorizedTeacherEmails: [TEACHER_A] });
     await setDoc(doc(db, 'grades/S_A/supportServiceLog/seeded'), { studentId: 'S_A', authorizedTeacherEmails: [TEACHER_A] });
@@ -241,8 +262,11 @@ test('a student records what a reduced item count delivered, and gaps, with boun
   // A negative fact only for a support the platform evaluates itself: an
   // entitled support whose applicability is a staff judgment cannot be
   // silenced from the student's client.
-  await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/tts-gap'), studentEvent({}, { eventType: 'unavailable', details: { reason: 'browser-no-speech', surface: 'enlarged', toolType: 'stepAlgebra' } })));
-  await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/tts-na'), studentEvent({}, { eventType: 'not-applicable' })));
+  // Read aloud is evaluated by the platform (could this browser speak?).
+  await assertSucceeds(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/tts-gap'), studentEvent({}, { eventType: 'unavailable', details: { reason: 'speech-engine-missing', surface: 'enlarged', toolType: 'stepAlgebra' } })));
+  // The calculator's applicability is not the client's to declare.
+  await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/calc-na'), studentEvent({}, { supportId: 'calculator', eventType: 'not-applicable' })));
+  await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/calc-un'), studentEvent({}, { supportId: 'calculator', eventType: 'unavailable', details: { reason: 'x' } })));
   // Details are a bounded, typed map: nothing unlisted, nothing out of range.
   await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-text'), reduced({ details: { ...workload, prompt: 'Solve 2x = 4' } })));
   await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-range'), reduced({ details: { ...workload, targetPercent: 101 } })));
@@ -398,4 +422,31 @@ test('the author may add a note once, soon after, and nothing else about the rec
     });
   });
   await assertFails(updateDoc(doc(teacherA(), 'grades/S_A/supportEvidence/stale-click'), { note: 'late note', noteAddedAt: serverTimestamp() }));
+});
+
+test('language tools: what was on screen, for the supports the profile authorizes — the language alone authorizes translation', async () => {
+  const eb = (studentId, input = {}) => ({
+    ...buildStudentEvidenceEvent({
+      studentId, classId: 'class-a', assignmentId: 'A1', supportId: 'translation', eventType: 'available',
+      assignedTeacherEmail: TEACHER_A, profileRevisionId: 'r1', activityRole: 'classwork', questionIndex: 2, ...input,
+    }).payload,
+    occurredAt: serverTimestamp(),
+  });
+  const translated = { language: 'es', provider: 'curated', coverage: 'full', surface: 'rich-tool', toolType: 'graphing2', deliveryMode: 'on-demand' };
+  await assertSucceeds(setDoc(doc(studentEb(), 'grades/S_EB/supportEvidence/tr-available'), eb('S_EB', { details: translated })));
+  await assertSucceeds(setDoc(doc(studentEb(), 'grades/S_EB/supportEvidence/tr-used'), eb('S_EB', { eventType: 'used', details: { surface: 'assignment' } })));
+  await assertSucceeds(setDoc(doc(studentEb(), 'grades/S_EB/supportEvidence/tr-missing'), eb('S_EB', { eventType: 'unavailable', details: { language: 'es', reason: 'no-translation-resource', surface: 'path' } })));
+  await assertSucceeds(setDoc(doc(studentEb(), 'grades/S_EB/supportEvidence/gl-na'), eb('S_EB', { supportId: 'glossary-lookup', eventType: 'not-applicable', details: { reason: 'no-vocabulary', surface: 'assignment' } })));
+  await assertSucceeds(setDoc(doc(studentEb(), 'grades/S_EB/supportEvidence/steps'), eb('S_EB', { supportId: 'chunked-directions', eventType: 'provided', details: { deliveryMode: 'automatic', itemCount: 3, surface: 'enlarged' } })));
+  await assertSucceeds(setDoc(doc(studentEb(), 'grades/S_EB/supportEvidence/frames'), eb('S_EB', { supportId: 'sentence-frames', eventType: 'available', details: { itemCount: 4 } })));
+  // Bounded facts only: no translated text rides along.
+  await assertFails(setDoc(doc(studentEb(), 'grades/S_EB/supportEvidence/tr-text'), { ...eb('S_EB'), details: { ...translated, text: 'Resuelve 2x = 4' } }));
+  await assertFails(setDoc(doc(studentEb(), 'grades/S_EB/supportEvidence/tr-coverage'), { ...eb('S_EB'), details: { coverage: 'most' } }));
+  // A pre-versioning profile with a language authorizes translation; English does not.
+  await assertSucceeds(setDoc(doc(studentEbLegacy(), 'grades/S_EBL/supportEvidence/tr-legacy'), eb('S_EBL', { details: translated })));
+  await assertFails(setDoc(doc(studentEnglish(), 'grades/S_EN/supportEvidence/tr-english'), eb('S_EN', { details: translated })));
+  // A student without the language support records none of it.
+  await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/tr-unentitled'), studentEvent({}, { supportId: 'translation', eventType: 'available' })));
+  await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/gl-unentitled'), studentEvent({}, { supportId: 'glossary-lookup', eventType: 'used' })));
+  await assertFails(setDoc(doc(studentEbLegacy(), 'grades/S_EBL/supportEvidence/gl-legacy'), eb('S_EBL', { supportId: 'glossary-lookup', eventType: 'available' })));
 });
