@@ -11417,7 +11417,7 @@ exports.calibrateLiveChallengeClock = onCall(async (request) => {
   if (isTeacher) await requireTeacher(request);
   const serverAt = Date.now();
   const roomId = String(request.data?.roomId || "").trim();
-  if (studentId && roomId && request.data?.quality) {
+  if (studentId && roomId && (request.data?.quality || request.data?.launchReport)) {
     const db = getFirestore();
     const privatePlayer = await db.collection(LIVE_CHALLENGE_PRIVATE).doc(roomId).collection("players").doc(studentId).get();
     if (privatePlayer.exists && privatePlayer.data()?.playerKey) {
@@ -11427,18 +11427,30 @@ exports.calibrateLiveChallengeClock = onCall(async (request) => {
       // each other. The device map is replaced, not merged, so a session
       // aged out of it really leaves.
       const presence = await import("./shared/liveChallengePresence.mjs");
+      const launchDiagnostics = await import("./shared/liveChallengeLaunchDiagnostics.mjs");
       const diagnosticsRef = db.collection(LIVE_CHALLENGE_ROOMS).doc(roomId).collection("diagnostics").doc(privatePlayer.data().playerKey);
       await db.runTransaction(async (transaction) => {
         const previous = await transaction.get(diagnosticsRef);
         const previousData = previous.exists ? previous.data() || {} : {};
-        const report = presence.nextConnectionReport({
+        const report = request.data?.quality ? presence.nextConnectionReport({
           previousHeardMs: toDate(previousData.connectionUpdatedAt)?.getTime() || null,
           previousSessions: previousData.sessions || null,
           quality: request.data.quality,
           sessionId: request.data.sessionId,
           nowMs: serverAt,
+        }) : {};
+        const launch = launchDiagnostics.nextLaunchDiagnostic(previousData, {
+          report: request.data.launchReport,
+          nowMs: serverAt,
         });
-        const fields = { ...report, connectionUpdatedAt: FieldValue.serverTimestamp() };
+        // connectionUpdatedAt means "presence heartbeat heard" throughout the
+        // teacher roster. A launch-only diagnostic must not make an offline
+        // student look connected.
+        const fields = {
+          ...report,
+          ...launch,
+          ...(request.data?.quality ? { connectionUpdatedAt: FieldValue.serverTimestamp() } : {}),
+        };
         transaction.set(diagnosticsRef, fields, { mergeFields: Object.keys(fields) });
       });
     }

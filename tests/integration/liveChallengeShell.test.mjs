@@ -227,6 +227,24 @@ test("a game screen's heartbeat says which tab it is and when it came back", asy
   assert.ok(Number(row.reconnectedAt) >= before - 1_000, 'the reconnect is recorded');
   assert.ok(millis(row.connectionUpdatedAt) >= before - 1_000);
 
+  // Launch evidence is a separate clock from presence. A delayed batch keeps
+  // its individual client observations but cannot make a quiet device appear
+  // freshly connected on the teacher roster.
+  const presenceAt = millis(row.connectionUpdatedAt);
+  await call('calibrateLiveChallengeClock', student(S1, {
+    roomId: G1,
+    launchReport: { milestones: {
+      listener_attached: { clientAtMs: before - 500 },
+      running_received: { clientAtMs: before, roomStatus: 'running', roundIndex: 0 },
+      game_mounted: { clientAtMs: before + 25, roomStatus: 'running', roundIndex: 0 },
+    } },
+  }));
+  row = await diagnosticsOf(G1, key);
+  assert.equal(millis(row.connectionUpdatedAt), presenceAt, 'launch-only telemetry is not a presence heartbeat');
+  assert.equal(row.launchMilestones.listener_attached.clientAtMs, before - 500);
+  assert.equal(row.launchMilestones.game_mounted.roundIndex, 0);
+  assert.ok(row.launchMilestones.running_received.receivedAtMs >= before);
+
   // A student's own device can never read the diagnostics (rules: teacher only)
   // — and a calibration without a quality writes nothing at all.
   const untouched = JSON.stringify(await diagnosticsOf(G1, await playerKeyOf(G1, S2)));
