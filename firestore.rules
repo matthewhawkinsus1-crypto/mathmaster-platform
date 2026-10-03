@@ -323,8 +323,14 @@ service cloud.firestore {
         && optionalIntIn(details, 'actualPercentTenths', 0, 1000)
         && optionalIntIn(details, 'algorithmVersion', 0, 99)
         && optionalIntIn(details, 'itemCount', 0, 1000)
-        && (details.get('variance', null) == null || (details.get('variance', []) is list && details.get('variance', []).size() <= 8))
-        && (details.get('omittedIndices', null) == null || (details.get('omittedIndices', []) is list && details.get('omittedIndices', []).size() <= 200))
+        && (details.get('variance', null) == null || (details.get('variance', []) is list && details.get('variance', []).size() <= 8
+          && details.get('variance', []).hasOnly([
+            'rounding', 'too-few-items', 'coverage', 'indivisible-group', 'answered-before-reduction',
+            'practice-pass', 'limited-to-activities', 'secure-assessment'
+          ])))
+        // At most 200 indices of up to three digits, as "1,5,9".
+        && (details.get('omittedIndices', null) == null || (details.get('omittedIndices', '') is string
+          && details.get('omittedIndices', '').matches('^[0-9]{1,3}(,[0-9]{1,3}){0,199}$')))
         && optionalString(details, 'contentFingerprint', 16)
         && optionalString(details, 'language', 12)
         && optionalString(details, 'provider', 32)
@@ -408,6 +414,9 @@ service cloud.firestore {
       let profile = roster.get('profile', {});
       return ownsStudent(studentId)
         && d.eventType in ['available', 'provided', 'activated', 'used', 'not-applicable', 'unavailable']
+        // Only the platform's own evaluations can be negative facts: a client
+        // must never silence a "no staff record" gap for any other support.
+        && (!(d.eventType in ['not-applicable', 'unavailable']) || d.supportId in ['reduced-item-count-same-rigor'])
         && d.source == 'automatic-telemetry'
         && d.actorType in ['student', 'system']
         && d.get('actorEmail', null) == null

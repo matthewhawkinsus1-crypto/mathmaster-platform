@@ -219,7 +219,7 @@ export const recordStudentSupportEvidence = async ({ db, event, deterministic = 
   const evidence = collection(db, 'grades', payload.studentId, SUPPORT_EVIDENCE_SUBCOLLECTION);
   const ref = deterministic
     ? doc(evidence, availabilityEventId({
-      assignmentId: payload.assignmentId, profileRevisionId: payload.profileRevisionId, supportId: payload.supportId, variant,
+      assignmentId: payload.assignmentId, profileRevisionId: payload.profileRevisionId, supportId: payload.supportId, variant, eventType: payload.eventType,
     }))
     : doc(evidence);
   try {

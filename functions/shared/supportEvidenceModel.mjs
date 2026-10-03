@@ -17,6 +17,7 @@
 // The builders here mirror the Firestore rules field-for-field; the rules tests
 // and these validators must agree (tests/rules/supportEvidenceRules.test.mjs).
 import { supportById, SUPPORT_CLASSIFICATION } from './supportCatalog.mjs';
+import { WORKLOAD_VARIANCE } from './reducedWorkload.mjs';
 
 export const SUPPORT_EVIDENCE_SCHEMA_VERSION = 1;
 export const SUPPORT_EVIDENCE_SUBCOLLECTION = 'supportEvidence';
@@ -66,6 +67,25 @@ export const STUDENT_EVIDENCE_EVENT_TYPES = Object.freeze([
   EVIDENCE_EVENT_TYPE.NOT_APPLICABLE,
   EVIDENCE_EVENT_TYPE.UNAVAILABLE,
 ]);
+
+/**
+ * The supports whose applicability the PLATFORM itself evaluates, and so the
+ * only ones a student's client may record as `not-applicable` or
+ * `unavailable`. Any other support's applicability is a staff judgment: a
+ * client record must never be able to silence a "no staff record" gap.
+ * Mirrored in firestore.rules studentSupportEvidenceValid.
+ */
+export const PLATFORM_EVALUATED_SUPPORT_IDS = Object.freeze([
+  'reduced-item-count-same-rigor',
+]);
+
+export const NEGATIVE_EVIDENCE_EVENT_TYPES = Object.freeze([
+  EVIDENCE_EVENT_TYPE.NOT_APPLICABLE,
+  EVIDENCE_EVENT_TYPE.UNAVAILABLE,
+]);
+
+/** May a student's client record this negative fact about this support? */
+export const studentMayRecordNegative = (supportId) => PLATFORM_EVALUATED_SUPPORT_IDS.includes(clean(supportId));
 
 /** What staff record. `provided` is here too: "I handed the student graph paper". */
 export const STAFF_EVIDENCE_EVENT_TYPES = Object.freeze([
@@ -165,16 +185,21 @@ export const EVIDENCE_DELIVERY_MODES = Object.freeze(['automatic', 'on-demand'])
 export const EVIDENCE_SURFACES = Object.freeze(['assignment', 'path', 'rich-tool', 'enlarged']);
 
 /** Every key a `details` map may hold, with its type and bound. */
+/** The variance codes a reduced-item record may carry (reducedWorkload.mjs). */
+export const EVIDENCE_VARIANCE_CODES = Object.freeze(Object.values(WORKLOAD_VARIANCE));
+
 export const EVIDENCE_DETAIL_FIELDS = Object.freeze({
   // Reduced number of items (functions/shared/reducedWorkload.mjs summary).
   targetPercent: { type: 'int', min: 0, max: 100 },
   originalCount: { type: 'int', min: 0, max: 1000 },
   assignedCount: { type: 'int', min: 0, max: 1000 },
   actualPercentTenths: { type: 'int', min: 0, max: 1000 },
-  variance: { type: 'list', maxItems: 8, maxLength: 32 },
+  variance: { type: 'codeList', maxItems: 8, values: EVIDENCE_VARIANCE_CODES },
   contentFingerprint: { type: 'string', maxLength: 16 },
   algorithmVersion: { type: 'int', min: 0, max: 99 },
-  omittedIndices: { type: 'intList', maxItems: 200, min: 0, max: 999 },
+  // "1,5,9" — a string the rules can bound element by element (a list's
+  // elements cannot be checked there).
+  omittedIndices: { type: 'indexString', maxItems: 200, min: 0, max: 999 },
   // Language access and other platform tools.
   language: { type: 'string', maxLength: 12 },
   provider: { type: 'string', maxLength: 32 },
@@ -208,10 +233,14 @@ export const normalizeEvidenceDetails = (raw) => {
     } else if (field.type === 'list') {
       const items = (Array.isArray(value) ? value : []).map((item) => clean(item).slice(0, field.maxLength)).filter(Boolean);
       if (items.length) details[key] = [...new Set(items)].slice(0, field.maxItems);
-    } else if (field.type === 'intList') {
-      const items = (Array.isArray(value) ? value : []).map(Number)
-        .filter((number) => Number.isInteger(number) && number >= field.min && number <= field.max);
+    } else if (field.type === 'codeList') {
+      const items = (Array.isArray(value) ? value : []).map(clean).filter((item) => field.values.includes(item));
       if (items.length) details[key] = [...new Set(items)].slice(0, field.maxItems);
+    } else if (field.type === 'indexString') {
+      const items = (Array.isArray(value) ? value : String(value).split(',')).map((item) => Number(String(item).trim()))
+        .filter((number) => Number.isInteger(number) && number >= field.min && number <= field.max);
+      const unique = [...new Set(items)].sort((a, b) => a - b).slice(0, field.maxItems);
+      if (unique.length) details[key] = unique.join(',');
     }
   });
   return Object.keys(details).length ? details : null;
@@ -304,6 +333,9 @@ export const buildStudentEvidenceEvent = ({
   if (!event.studentId) errors.push('A student is required.');
   if (!event.classification) errors.push(`Unknown support "${clean(supportId)}".`);
   if (!STUDENT_EVIDENCE_EVENT_TYPES.includes(type)) errors.push(`"${type}" is not a student evidence type.`);
+  if (NEGATIVE_EVIDENCE_EVENT_TYPES.includes(type) && !studentMayRecordNegative(event.supportId || supportId)) {
+    errors.push(`"${type}" is recorded by the platform only for supports it evaluates itself.`);
+  }
   if (!teacherEmail) errors.push('The student has no teacher of record.');
   const seconds = Math.trunc(Number(durationSeconds));
   const payload = {
@@ -328,11 +360,20 @@ export const buildStudentEvidenceEvent = ({
  * assignment and revision. A relaunch or a second tab writes the same id,
  * which the rules refuse as an update — harmless, and never a duplicate.
  */
-export const availabilityEventId = ({ assignmentId, profileRevisionId, supportId, variant = null }) => (
+// A negative fact is its own record: "not applicable" (a Practice Pass left
+// nothing to reduce) must never occupy the id a later "provided" needs (the
+// pass was undone). Positive types keep the id they have always had.
+const EVENT_ID_SUFFIX = Object.freeze({ 'not-applicable': 'na', unavailable: 'un' });
+
+export const availabilityEventId = ({ assignmentId, profileRevisionId, supportId, variant = null, eventType = null }) => (
   // `variant` distinguishes a record that must exist once per VERSION of
   // something, e.g. a reduced-item projection per content fingerprint: a
   // revised assignment is a new fact, the same content is not.
-  ['avail', cleanId(assignmentId), cleanId(profileRevisionId) || 'none', cleanId(supportId), ...(clean(variant) ? [cleanId(variant)] : [])]
+  [
+    'avail', cleanId(assignmentId), cleanId(profileRevisionId) || 'none', cleanId(supportId),
+    ...(clean(variant) ? [cleanId(variant)] : []),
+    ...(EVENT_ID_SUFFIX[clean(eventType)] ? [EVENT_ID_SUFFIX[clean(eventType)]] : []),
+  ]
     .join('__')
     .replace(/[^A-Za-z0-9_.-]/g, '-')
     .slice(0, 400)

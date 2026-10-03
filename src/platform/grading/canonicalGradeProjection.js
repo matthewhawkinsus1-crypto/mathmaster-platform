@@ -36,6 +36,10 @@ export const projectTeacherOverridesForDisplay = (gradesByAssignment = {}, overr
       const score = Math.max(0, Math.min(100, Number(override.score)));
       nextTracker[questionIndex] = {
         ...record,
+        // What the student's own record said. A reduced-item projection pins
+        // only work the student actually answered (functions/shared/
+        // reducedWorkload.mjs answeredOf), never a display-only status.
+        trackerStatusBeforeOverride: record.status ?? null,
         status: score >= 100 ? 'correct' : (record.status === 'correct' || record.status === 'expired' ? 'expired' : 'attempted'),
         partialCredit: score,
         bestPartialCredit: score,

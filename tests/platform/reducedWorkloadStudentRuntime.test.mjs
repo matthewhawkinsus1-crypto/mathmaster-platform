@@ -102,6 +102,20 @@ test('Home: resume goes to the first unanswered item that is the student\'s own'
   assert.ok(mine.includes(dashboard.resumeQuestionIndex), `resume index ${dashboard.resumeQuestionIndex} is required`);
 });
 
+test('Home: a Practice Pass holder without the support sees exactly the card grade they saw before', () => {
+  const assignment = { ...practice20(), id: 'PP1', sections: [
+    { id: 'c', role: 'classwork', questions: practice20().sections[0].questions.slice(0, 6).map((question) => ({ ...question, activityRole: 'classwork' })) },
+    { id: 'p', role: 'practice', questions: practice20().sections[0].questions.slice(6, 10) },
+  ] };
+  const tracker = { [assignment.id]: answered([0, 1, 2, 3, 4, 5]) };
+  const dashboard = buildStudentDashboardModel({
+    assignments: [assignment], classId: 'class-1', classPeriod: 'Period 1', nowValue: NOW, tracker,
+    practicePassRedemptionsByAssignment: { [assignment.id]: { redeemedAt: '2026-10-20' } }, providers: PROVIDERS,
+  });
+  // The card grade is computed over every item, as before this change (60%).
+  assert.equal(dashboard.allEntries[0].recordedGrade, 60);
+});
+
 test('Grades tab: the denominator is 15, an omitted item is never a zero, the status is Graded', () => {
   const assignment = practice20();
   const center = buildStudentGradeCenter({
@@ -122,6 +136,8 @@ const code = executableSource(app);
 test('App asks one closure, which reads only a real student\'s own profile', () => {
   const closure = executableSource(region(app, 'const studentRequiredFor = (assignmentData', '\n  );\n', 'closure'));
   assert.match(closure, /profile: forStudent && user\?\.role === 'student' \? user\.profile : null,/);
+  // Planned on the stored document, as the server and teacher views plan it.
+  assert.match(closure, /assignment: assignments\.find\(\(entry\) => entry\.id === assignmentData\?\.id\) \|\| assignmentData \|\| \{\},/);
   const lifecycleImport = app.match(/import \{([^}]*)\} from '\.\/assignmentLifecycle';/);
   assert.match(lifecycleImport[1], /\bstudentRequiredQuestions,/);
 });
@@ -134,14 +150,19 @@ test('every student-runtime site reads the closure', () => {
   const workspace = executableSource(region(app, 'const renderAssignmentWorkspace = (preview = false) => {', 'const visibleQuestionEntries', 'workspace head'));
   assert.match(workspace, /studentRequiredFor\(assignment, \{ hasPracticePass \}\)/);
   assert.match(workspace, /\.filter\(\(entry\) => !studentRequiredSet \|\| studentRequiredSet\.has\(entry\.storageIndex\)\)/);
-  assert.match(workspace, /calculateGrade\(recordedTracker, assignment, \{ practicePassRedeemed: hasPracticePass, supportProfile: workspaceSupportProfile \}\)/);
+  // Only the student's own profile is added: a Practice Pass keeps its
+  // existing workspace treatment (no waiver here, exactly as before).
+  assert.match(workspace, /calculateGrade\(recordedTracker, assignment, \{ supportProfile: officialSupportProfile \}\)/);
+  // The recorded grade is the real grade in post-deadline Practice Mode too.
+  assert.match(workspace, /const officialSupportProfile = !preview && user\?\.role === 'student' \? user\.profile : null;/);
   assert.match(code, /const sectionPosition = studentRequiredSet \? requiredSectionPosition\.get\(index\) : entry\.logicalPosition;/, 'numbering inside a reduced section');
-  assert.match(code, /splitGradesBySection\(\{ tracker: recordedTracker, assignment, practicePassRedeemed: hasPracticePass, supportProfile: workspaceSupportProfile \}\)/);
+  assert.match(code, /splitGradesBySection\(\{ tracker: recordedTracker, assignment, supportProfile: officialSupportProfile \}\)/);
 
   const change = executableSource(region(app, 'const changeQuestion = async (newIndex) => {', 'if (isTeacherPreview) {', 'changeQuestion guard'));
   assert.match(change, /if \(required\.omitted\.includes\(newIndex\)\) return;/);
 
-  assert.match(code, /const questionIndices = \(dolState\.questionIndices \|\| \[dolState\.questionIndex\]\)\.filter\(\(index\) => !studentDolOmitted\.has\(index\)\);/, 'DOL close scores the student\'s DOL');
+  assert.match(code, /const ownDolIndices = allDolIndices\.filter\(\(index\) => !studentDolOmitted\.has\(index\)\);/, 'DOL close scores the student\'s DOL');
+  assert.match(code, /const questionIndices = ownDolIndices\.length \? ownDolIndices : allDolIndices;/, 'never a DOL over nothing');
   assert.match(code, /questionIndices: studentDolIndices,/, 'the live DOL projection');
   assert.match(code, /&& !warmupOmitted\.has\(index\)/, 'Warm-Up reminder');
   assert.match(code, /&& !bannerOmitted\.has\(index\)/, 'Warm-Up banner');

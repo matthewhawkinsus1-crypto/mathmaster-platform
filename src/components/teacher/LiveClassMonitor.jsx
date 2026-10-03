@@ -102,8 +102,12 @@ const ATTENDANCE_LABEL = {
   unexcused: 'Absent',
 };
 
-function ProgressStrip({ questionStates, questionIndex }) {
-  const states = String(questionStates || '');
+function ProgressStrip({ questionStates, questionIndex, conceal = false }) {
+  // On the projector (Large room tiles) an omitted item is drawn exactly like
+  // an untouched one: a classmate must not be able to see who has fewer items.
+  const states = conceal
+    ? String(questionStates || '').replaceAll(QUESTION_STATE_CHARS.NOT_REQUIRED, QUESTION_STATE_CHARS.UNTOUCHED)
+    : String(questionStates || '');
   if (!states) return null;
   return (
     <div style={{ display: 'flex', gap: 2, marginTop: 8 }} aria-hidden="true">
@@ -217,10 +221,14 @@ function StudentTile({
             <span aria-hidden="true" style={{ marginRight: 6 }}>{glyph}</span>
             {String(live.activityRole || 'activity').toUpperCase()} Q{Number(live.sectionQuestionIndex ?? live.questionIndex ?? 0) + 1} · {live.questionLabel || live.assignmentTitle || 'Working'}
           </div>
-          <ProgressStrip questionStates={live.questionStates} questionIndex={live.questionIndex} />
+          <ProgressStrip questionStates={live.questionStates} questionIndex={live.questionIndex} conceal={roomMode} />
           <div style={{ fontSize: 11, color: '#80868b', marginTop: 6 }}>
-            {row.counts.answered} of {Math.max(0, (live.questionCount || row.counts.answered) - (row.counts.notRequired || 0))} answered
-            {row.counts.notRequired > 0 && ' · fewer items'}
+            {/* A support is the teacher's to see, never the room's: projected
+                tiles count every class question and never say "fewer items". */}
+            {row.counts.answered} of {roomMode
+              ? (live.questionCount || row.counts.answered)
+              : Math.max(0, (live.questionCount || row.counts.answered) - (row.counts.notRequired || 0))} answered
+            {!roomMode && row.counts.notRequired > 0 && ' · fewer items'}
             {row.counts.accuracy !== null && ` · ${row.counts.accuracy}% correct`}
             {live.currentAttempts > 0 && ` · ${live.currentAttempts} attempt${live.currentAttempts === 1 ? '' : 's'} here`}
             {live.currentTeksCode && ` · TEKS ${live.currentTeksCode}`}

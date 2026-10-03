@@ -230,20 +230,28 @@ test('a student cannot forge staff facts, unentitled supports, another teacher, 
 test('a student records what a reduced item count delivered, and gaps, with bounded details — entitled supports only', async () => {
   const workload = {
     targetPercent: 25, originalCount: 20, assignedCount: 15, actualPercentTenths: 250, variance: ['rounding'],
-    contentFingerprint: 'abcd1234', algorithmVersion: 1, omittedIndices: [1, 5, 9, 12, 17],
+    contentFingerprint: 'abcd1234', algorithmVersion: 1, omittedIndices: '1,5,9,12,17',
   };
   const reduced = (overrides = {}, input = {}) => studentEvent(overrides, {
     supportId: 'reduced-item-count-same-rigor', eventType: 'provided', activityRole: null, questionIndex: null, details: workload, ...input,
   });
   await assertSucceeds(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-provided'), reduced()));
   await assertSucceeds(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-na'), reduced({}, { eventType: 'not-applicable', details: { ...workload, assignedCount: 1, originalCount: 1, reason: 'too-few-items' } })));
-  await assertSucceeds(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/tts-gap'), studentEvent({}, { eventType: 'unavailable', details: { reason: 'browser-no-speech', surface: 'enlarged', toolType: 'stepAlgebra' } })));
+  await assertSucceeds(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-gap'), reduced({}, { eventType: 'unavailable', details: { reason: 'projection-not-resolved' } })));
+  // A negative fact only for a support the platform evaluates itself: an
+  // entitled support whose applicability is a staff judgment cannot be
+  // silenced from the student's client.
+  await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/tts-gap'), studentEvent({}, { eventType: 'unavailable', details: { reason: 'browser-no-speech', surface: 'enlarged', toolType: 'stepAlgebra' } })));
+  await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/tts-na'), studentEvent({}, { eventType: 'not-applicable' })));
   // Details are a bounded, typed map: nothing unlisted, nothing out of range.
   await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-text'), reduced({ details: { ...workload, prompt: 'Solve 2x = 4' } })));
   await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-range'), reduced({ details: { ...workload, targetPercent: 101 } })));
   await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-type'), reduced({ details: { ...workload, assignedCount: '15' } })));
   await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-enum'), reduced({ details: { coverage: 'complete' } })));
-  await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-list'), reduced({ details: { omittedIndices: Array.from({ length: 201 }, (_, i) => i) } })));
+  await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-list'), reduced({ details: { omittedIndices: Array.from({ length: 201 }, (_, i) => i).join(',') } })));
+  await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-list-type'), reduced({ details: { omittedIndices: [1, 5, 9] } })));
+  await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-list-text'), reduced({ details: { omittedIndices: '1,5,Solve 2x = 4' } })));
+  await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-variance'), reduced({ details: { variance: ['Solve 2x = 4 because the answer is x = 2'] } })));
   await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-long'), reduced({ details: { reason: 'x'.repeat(49) } })));
   await assertFails(setDoc(doc(studentA(), 'grades/S_A/supportEvidence/rw-notmap'), reduced({ details: 'everything was fine' })));
   // A gap, like any record, only for a support the student is entitled to.

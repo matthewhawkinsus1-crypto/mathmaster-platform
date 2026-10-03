@@ -17,6 +17,7 @@ import { region } from './helpers/sourceContract.mjs';
 import { INCLUSION_IMPLIED_SUPPORT_IDS, serviceTypes } from '../../functions/shared/supportCatalog.mjs';
 import {
   ACTIVITY_ROLES, EVIDENCE_COVERAGE, EVIDENCE_DELIVERY_MODES, EVIDENCE_DETAIL_FIELDS, EVIDENCE_DETAIL_KEYS,
+  NEGATIVE_EVIDENCE_EVENT_TYPES, PLATFORM_EVALUATED_SUPPORT_IDS,
   EVIDENCE_SURFACES, PROVIDER_ROLES, STAFF_EVIDENCE_EVENT_TYPES, STUDENT_EVIDENCE_EVENT_TYPES,
   buildServiceLogEntry, buildStaffEvidenceEvent, buildStudentEvidenceEvent,
 } from '../../functions/shared/supportEvidenceModel.mjs';
@@ -65,6 +66,9 @@ test('service types, provider roles and event types match their owning modules',
   assert.deepEqual(sorted(listAfter(staffRule, "d.get('providerRole', null) in")), sorted(PROVIDER_ROLES));
   const studentRule = fn('studentSupportEvidenceValid');
   assert.deepEqual(sorted(listAfter(studentRule, 'd.eventType in')), sorted(STUDENT_EVIDENCE_EVENT_TYPES));
+  // A client's negative facts: only the types and supports the model allows.
+  assert.deepEqual(sorted(listAfter(studentRule, '!(d.eventType in')), sorted(NEGATIVE_EVIDENCE_EVENT_TYPES));
+  assert.deepEqual(sorted(listAfter(studentRule, "'unavailable']) || d.supportId in")), sorted(PLATFORM_EVALUATED_SUPPORT_IDS));
   assert.deepEqual(sorted(listAfter(studentRule, "profile.get('inclusionStatus', false) == true && d.supportId in")), sorted(INCLUSION_IMPLIED_SUPPORT_IDS));
   assert.deepEqual(sorted(listAfter(fn('supportEvidenceCommonValid'), "d.get('activityRole', null) in")), sorted(ACTIVITY_ROLES));
 });
@@ -89,7 +93,12 @@ test('the evidence details allow-list, bounds and enums match the model that bui
   Object.entries(EVIDENCE_DETAIL_FIELDS).forEach(([key, field]) => {
     if (field.type === 'int') assert.ok(rule.includes(`optionalIntIn(details, '${key}', ${field.min}, ${field.max})`), key);
     if (field.type === 'string') assert.ok(rule.includes(`optionalString(details, '${key}', ${field.maxLength})`), key);
-    if (field.type === 'list' || field.type === 'intList') assert.ok(rule.includes(`details.get('${key}', []).size() <= ${field.maxItems}`), key);
+    if (field.type === 'list' || field.type === 'codeList') assert.ok(rule.includes(`details.get('${key}', []).size() <= ${field.maxItems}`), key);
+    if (field.type === 'codeList') assert.deepEqual(sorted(listAfter(rule, `details.get('${key}', []).hasOnly(`)), sorted(field.values), key);
+    if (field.type === 'indexString') {
+      assert.ok(rule.includes(`details.get('${key}', '').matches('^[0-9]{1,3}(,[0-9]{1,3}){0,${field.maxItems - 1}}$')`), key);
+      assert.equal(String(field.max).length, 3, 'three digits per index');
+    }
   });
   // The common rule calls it, and a staff record may not carry details.
   assert.match(fn('supportEvidenceCommonValid'), /&& evidenceDetailsValid\(d\)/);

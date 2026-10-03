@@ -338,23 +338,33 @@ reductions the plan placed in Practice do not move to other sections.
 ### 11.4 Choosing items
 
 - **Cell** = one coverage group inside one section: section role + primary TEKS (else authored skill/objective, else
-  question family, else tool type with any version suffix dropped). Every cell keeps at least one unit, so no TEKS a
-  section assesses disappears from it.
+  question family, else tool FAMILY — the version suffix is dropped and a tool the runtime repair retypes shares its
+  target's family, so the stored and the repaired copy of an assignment plan alike). The browser plans on the STORED
+  document, exactly as the server and the teacher views do. The timed DOL is its own cell wherever it lives: a
+  question flagged `isDOL`, or the question an enabled legacy DOL points at, has role `dol` (mirroring
+  `resolveDOLQuestionIndices`), so a one-question DOL is never omitted.
+- **Coverage** = every (section, coverage key) any unit carries keeps at least one kept unit. A linked group is filed
+  under its first question's key but carries the keys of ALL its questions, so a TEKS only Part B assesses never
+  disappears with the group.
 - **Unit** = one question, or every question sharing an authored `itemGroup` (new optional field: a dependent
   sequence — Part C is never kept without Part B). A multipart question stored as one record (composed workflow,
   multi-answer) is one unit and is never split: removing a part would change the question, which is a modification.
 - **Anchor** = a unit with `coreItem: true` (new optional field) is never omitted.
-- Removals are allocated one at a time to the cell with the most redundancy left (D'Hondt: size ÷ (removed + 1));
-  ties go to Practice, then Classwork, then Warm-Up, assessment sections last. Inside a cell the next unit comes from
-  the most-represented DOK/difficulty level (a lone harder item goes last), spread across positions by a
-  low-discrepancy order seeded by the assignment id — never "the last 25%". All students with the same percentage on
-  the same assignment get the same items (coherent whole-class review); different assignments omit different positions.
+- **One removal order, independent of the percentage.** Units are ordered one at a time from the cell with the most
+  redundancy left (D'Hondt: size ÷ (removed + 1)); ties go to Practice, then Classwork, then Warm-Up, assessment
+  sections last; single questions first, linked groups after; never a unit whose removal would break coverage. Inside
+  a cell the next unit comes from the most-represented DOK/difficulty level (a lone harder item goes last), spread
+  across positions by a low-discrepancy order seeded by the assignment id — never "the last 25%". The plan for a
+  percentage is the **longest prefix of that order that fits the target**: it stops at a linked group too large for
+  what is left (`indivisible-group`) rather than skipping past it, so a higher percentage always omits a superset of a
+  lower one and raising it never hands back an item the student was never shown. All students with the same
+  percentage on the same assignment get the same items (coherent whole-class review).
 - Secure Test Cycles are never reshaped (`secure-assessment`); `appliesTo` limits the reduction to chosen activities.
 
 ### 11.5 Rounding and minimum workload (one rule)
 
-Target removal = round-half-down(applicable items × percent ÷ 100): the nearest whole item, ties keep the work. A unit
-is never removed if it would overshoot the target, so a student never gets more reduction than the rounded target.
+Target removal = round-half-down(applicable items × percent ÷ 100): the nearest whole item, ties keep the work. The
+plan never overshoots the target, so a student never gets more reduction than the rounded target.
 
 | Items (25%) | Removed | Assigned | Actual | Variance recorded |
 | --- | --- | --- | --- | --- |
@@ -373,9 +383,14 @@ is never removed if it would overshoot the target, so a student never gets more 
 The plan is a pure function of the stored assignment and the stored profile, so every device, the teacher's screens
 and the Cloud Functions compute the same items — nothing depends on one device's storage. Answering a required item
 never changes the set (the compensation for pinned answers always takes the first unanswered units in a cell's fixed
-order). When content is legitimately revised, the plan is recomputed (new `contentFingerprint`), answered work stays
-required, and the same cell gives up its next unanswered unit instead, so the student keeps the reduction where it is
-possible. A higher percentage removes a superset of a lower one.
+order, never breaking coverage). "Answered" is the student's own canonical record: a teacher-override display
+projection (a section zero shown as attempted) keeps the record's own status (`trackerStatusBeforeOverride`) and pins
+nothing; an authorized replacement that resets a question is read as reset by the server at ingestion, exactly as
+every later read sees it. When content is legitimately revised, the plan is recomputed (new `contentFingerprint`),
+answered work stays required, and the same cell gives up its next unanswered unit instead. A higher percentage removes
+a superset of a lower one. A revision a teacher saves mid-session reaches the student's open session through the
+live `grades/{id}` listener (the profile the server grades with), not at the next sign-in. Two revisions recorded
+with the same start and number resolve to the later-recorded one, as everywhere else.
 
 ### 11.7 Grading, completion and every reader
 
@@ -383,20 +398,38 @@ The denominator is the student's required items everywhere: `splitGrade`/`splitG
 (`supportProfile`), the canonical gradebook/TEAMS projection, Grade Center, Home, progress, parent brief, Case Review
 (`not-required` outcome, never "skipped"), Recovery (never credits an omitted item), live monitor (`n` state at the
 class position), worksheets, Classroom passback (whole and section), classwork completion (prerequisite gate) and the
-DOL projection. Persistence safety keeps counting every included item.
+DOL projection. Persistence safety keeps counting every included item. The recorded (official) grade on the
+assignment screen uses the student's own items in post-deadline Practice Mode too, so it always equals the Grade
+Center and Classroom. A Practice Pass keeps its existing treatment on every screen (this change adds only the
+student's own profile). A DOL is never finalized over no items (the full DOL is scored instead). On the projected
+Live Classroom room view an omitted item is drawn like an untouched one and the tile never says "fewer items" — a
+classmate must not be able to tell who has the support.
 
 ### 11.8 Evidence
 
-At launch the student's client records, once per assignment × governing revision × content fingerprint:
+At launch the student's client records, once per assignment × GOVERNING revision × content fingerprint (the revision
+that governs the assignment's dates, even when today's revision no longer reduces — the projection's `entitledIds`
+carry the support while any recorded revision made it automatic, so the rules accept it):
 
 - `provided` — only when items were actually omitted — with `details` {targetPercent, originalCount, assignedCount,
-  actualPercentTenths, variance, contentFingerprint, algorithmVersion, omittedIndices};
-- `not-applicable` with the reason (e.g. a one-question DOL);
+  actualPercentTenths, variance (known codes only), contentFingerprint, algorithmVersion, omittedIndices ("1,5,9")};
+- `not-applicable` with the decisive reason (secure assessment, too few items, coverage… — never merely rounding);
 - `unavailable` (`projection-not-resolved`) if resolving threw — an implementation gap, never "provided".
 
-A recorded-only support records nothing from the platform (staff document it). The aggregation recomputes the
-projection and marks a record *verified* when it matches; a worked assignment under automatic reduction with no record
-is an `automatic-not-recorded` gap (never "not provided").
+The record describes the accommodation over the assignment's content; a Practice Pass is a separate projection. A
+negative record has its own id, so "not applicable" never blocks a later "provided". A student's client may record
+`not-applicable`/`unavailable` only for supports the platform evaluates itself (`PLATFORM_EVALUATED_SUPPORT_IDS`,
+mirrored in the rules), and the aggregation ignores any other client negative, so it can never silence a
+"no staff record" gap. A recorded-only support records nothing from the platform (staff document it). The
+aggregation recomputes the projection from the student's canonical records and marks a record *verified* when it
+matches; a worked assignment under automatic reduction with no record is an `automatic-not-recorded` gap (never
+"not provided"), or `automatic-predates-revision` when the work was done before that revision was saved.
+
+The report's headline is "Provided/Available in X of Y eligible" only for supports MathMaster records on every opened
+assignment either way (`RECORDED_ON_EVERY_OPENED_ASSIGNMENT`); Y counts opened assignments whose governing revision
+made the support automatic or platform-available and where it was not recorded as not applicable, and X is counted
+over those same rows. A support that applies only to some content (a countdown to hide, a Step Algebra item, a moved
+due date) is reported as a count.
 
 ### 11.9 Known limits
 

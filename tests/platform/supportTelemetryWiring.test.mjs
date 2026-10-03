@@ -70,7 +70,7 @@ test('launch records come from the shared rules, and every called module is impo
   assert.match(launch, /workload = studentRequiredFor\(activeAssignmentData, \{ hasPracticePass: hasPracticePassFor\(activeAssignmentId\) \}\);/);
   assert.match(launch, /workload = \{ failed: true,/, 'a projection that throws is recorded as unavailable, never as provided');
   assert.match(launch, /const presentedQuestions = activeQuestions\.filter\(\(_, index\) => required\.has\(index\)\);/);
-  assert.match(launch, /launchSupportRecords\(\{ profile: user\.profile, assignment: activeAssignmentData, roles, questions: presentedQuestions, workload \}\)/);
+  assert.match(launch, /launchSupportRecords\(\{ profile: user\.profile, assignment: activeAssignmentData, roles, questions: presentedQuestions, workload: accommodation \}\)/);
   // The roster teacher email the rules compare against is loaded verbatim.
   assert.match(executableSource(app), /assignedTeacherEmail: studentData\.assignedTeacherEmail \|\| null,/);
 });

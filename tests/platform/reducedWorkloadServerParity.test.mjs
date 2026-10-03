@@ -156,7 +156,9 @@ test('functions/index.js loads the helper once and filters at every grade/comple
     assert.match(body, /studentRequiredIndices\(runtimeIncludedQuestionIndicesForSection\(assignment, "(classwork|warmup|dol)"\)|studentRequiredIndices\(runtimeIncludedQuestionIndicesForSection\(assignment, section\)/, `${label} filters its section indices`);
   });
   const ingestion = executableSource(region(index, 'async function ingestOneSubmission(', '\nexports.', 'ingestion'));
-  assert.match(ingestion, /answeredIndex: envelope\.questionIndex/, 'the attempt being recorded counts as answered');
+  assert.match(ingestion, /const resetsRecord = ingestion\.envelopeResetsRecord\(\{ envelope, canonicalRecord \}\);/);
+  assert.match(ingestion, /answeredIndex: resetsRecord \? null : envelope\.questionIndex,/, 'the attempt being recorded counts as answered');
+  assert.match(ingestion, /resetIndex: resetsRecord \? envelope\.questionIndex : null,/, 'an authorized replacement reads as reset');
   const sync = executableSource(region(index, 'exports.syncGradeToClassroom', 'exports.queueReleasedAssessmentGrades', 'whole-assignment passback'));
   assert.match(sync, /questionIndices = studentRequiredIndices\(questionIndices, studentOmitted\);/);
   assert.match(sync, /omittedIndices: studentOmitted,/, 'recovered sections use the same items');

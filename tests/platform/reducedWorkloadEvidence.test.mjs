@@ -108,8 +108,11 @@ test('details are bounded: no question text, no answers, nothing unlisted', () =
     omittedIndices: Array.from({ length: 500 }, (_, i) => i), variance: ['rounding', 'rounding', 'x'.repeat(80)],
   });
   assert.deepEqual(Object.keys(details).sort(), ['assignedCount', 'omittedIndices', 'originalCount', 'targetPercent', 'variance']);
-  assert.equal(details.omittedIndices.length, 200);
-  assert.ok(details.variance.every((code) => code.length <= 32));
+  // A compact "0,1,2,…" string of at most 200 indices (the rules check each).
+  assert.equal(details.omittedIndices.split(',').length, 200);
+  assert.match(details.omittedIndices, /^[0-9]{1,3}(,[0-9]{1,3}){0,199}$/);
+  // Only known variance codes, once each.
+  assert.deepEqual(details.variance, ['rounding']);
   assert.equal(normalizeEvidenceDetails({}), null);
 });
 
