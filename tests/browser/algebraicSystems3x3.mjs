@@ -128,10 +128,38 @@ const step = async (page, journey, name, action) => {
   }
 };
 
-const dragTokenOnto = async (page, token, target) => {
+const dragTokenOnto = async (page, token, target, journey = 'drag') => {
+  // A drop target near the bottom edge can sit under the floating work bar
+  // (Undo, Reset Question, Scratchpad, Calculator). In CI the reduced 2×2's
+  // R₁/R₂ targets did: the drop landed on the bar and the journey timed out
+  // waiting for a solver that never opened. When something covers the target,
+  // scroll the page just enough to lift it clear, as a student would.
+  const coverOf = () => target.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const x = box.left + box.width / 2;
+    const y = box.top + box.height / 2;
+    const hit = document.elementFromPoint(x, y);
+    if (!hit || element.contains(hit)) return null;
+    const over = hit.getBoundingClientRect();
+    const fromBottom = (over.top + over.bottom) / 2 > window.innerHeight / 2;
+    return {
+      by: (hit.closest('[class]')?.className || hit.tagName).toString().slice(0, 80),
+      // Down lifts the target above a bar at the bottom; up drops it below one at the top.
+      dy: fromBottom ? Math.ceil(y - over.top) + 24 : -Math.ceil(over.bottom - y) - 24,
+    };
+  });
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const cover = await coverOf();
+    if (!cover) break;
+    await page.evaluate((dy) => window.scrollBy(0, dy), cover.dy);
+    await settle(page, 200);
+  }
+  const still = await coverOf();
+  expect(journey, still === null, `the drop target is still covered by "${still?.by}" — the drop would land there instead`);
   await token.dragTo(target);
   await settle(page, 500);
 };
+
 
 /**
  * While a token is over a variable, that variable — and only that one — is
@@ -236,7 +264,7 @@ const solveReducedSubsystem = async (page, journey, { pauseMidSolve = null } = {
   await token.waitFor();
   const tokenBox = await token.boundingBox();
   expect(journey, tokenBox && tokenBox.height <= 64 && tokenBox.width <= 320, `subsystem token is not compact: ${JSON.stringify(tokenBox)}`);
-  await dragTokenOnto(page, token, sub.locator('[aria-label^="R₂: choose where"] [data-variable="z"]'));
+  await dragTokenOnto(page, token, sub.locator('[aria-label^="R₂: choose where"] [data-variable="z"]'), journey);
   host = solver(page);
   await host.waitFor({ timeout: 15000 });
   if (pauseMidSolve) await pauseMidSolve();

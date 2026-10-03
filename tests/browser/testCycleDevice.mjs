@@ -24,6 +24,10 @@
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
+// One cold dev-server start per run; see the first page.goto below.
+const COLD_SERVER_BUDGET_MS = 180000;
+let coldServer = true;
+
 const origin = process.env.AUDIT_ORIGIN || 'http://localhost:5202';
 const MIN_TAP = 44;
 
@@ -116,7 +120,13 @@ for (const device of DEVICES) {
     page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
     page.on('pageerror', (error) => consoleErrors.push(String(error?.message || error)));
 
-    await page.goto(`${origin}/tests/browser/testCycleDevice.html?stage=${stage.id}`, { waitUntil: 'load' });
+    // The first navigation waits for a cold dev server: Vite scans and
+    // pre-bundles dependencies before it answers (18-94 s measured on a
+    // Chromebook; CI's runner timed out at 30 s on most releases since #404).
+    // That is compile time, not the certification's subject, so it gets its own
+    // budget, as draftPersistence.mjs does; every later page keeps 30 s.
+    await page.goto(`${origin}/tests/browser/testCycleDevice.html?stage=${stage.id}`, { waitUntil: 'load', timeout: coldServer ? COLD_SERVER_BUDGET_MS : 30000 });
+    coldServer = false;
     await page.waitForSelector('[data-test-cycle-stage]', { timeout: 8000 });
     const result = await measure(page, stage);
 
