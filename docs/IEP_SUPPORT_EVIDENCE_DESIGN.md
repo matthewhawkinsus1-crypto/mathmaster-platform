@@ -284,3 +284,123 @@ The four decisions below were implemented as proposed. They are listed in the PR
 3. Legacy `extra-time` does not start moving deadlines until a teacher sets the extension.
 4. Providers without a MathMaster teacher-of-record account are recorded by the teacher of record with a
    provider role/label (no new provider role in this build).
+
+## 11. Automatic reduced number of items (same TEKS, same rigor)
+
+Status: built on `ai/claude-reduced-workload-20261002`. Shared logic: `functions/shared/reducedWorkload.mjs`.
+
+### 11.1 The parameter, and why no existing profile changes
+
+`reduced-item-count-same-rigor` keeps its id, classification (accommodation) and evidence list. Its revision entry gains
+one parameter, validated in exactly one place (`normalizeItemReduction`):
+
+```js
+{ id: 'reduced-item-count-same-rigor', params: { itemReduction: { mode: 'percent', value: 25 } }, appliesTo: [] }
+```
+
+- `mode: 'percent'` with a whole number from 10 to 50 → MathMaster applies it (`supportAutomationFor` → `automatic`).
+- Anything else — including the bare entry every profile saved before this build carries — normalizes to
+  `{ mode: 'none' }` and keeps its old meaning: **recorded by staff, MathMaster does not choose items**.
+
+**Migration strategy: none needed, by construction.** Nothing is rewritten. A legacy flat profile can only ever resolve
+to `manual`; a versioned revision without the parameter is `manual`; a projection written before
+`itemReductionHistory` existed has no percentage anywhere. A teacher turns automation on by saving a new dated
+revision in the editor (a newly ticked support starts at "automatic, 25%", visibly; an entry carried from an older
+revision keeps "recorded by staff" until changed). The drawer warns `item-reduction-manual` so a teacher can see which
+students still have the recorded-only form.
+
+### 11.2 Which revision governs an assignment
+
+The revision in effect on the assignment's class due date (else release date, else today) — the same anchor the
+evidence report already uses (`governingProfileForAssignment`). The projection keeps a compact
+`supportPlan.itemReductionHistory` (one row per revision: id, number, start, status, percent, appliesTo; ≤ 40 rows,
+no labels or notes) so a past assignment always resolves under the revision that governed it even after that revision
+has left `windows`. A later revision therefore never changes the required items — or the grade — of work already due.
+
+### 11.3 The pipeline (composition order)
+
+```
+assignment content
+  → teacher inclusion (teacherExcluded, replacements)   current content
+  → REDUCTION PLAN, from the content alone               planReducedWorkload (cached per assignment object)
+  → Practice Pass waiver (the whole Practice section)    studentAssignmentIndicesWithPracticePass
+  → answered work is never dropped                       projectStudentWorkload
+  = the student's required items                         studentRequiredQuestions (browser)
+                                                         studentOmittedFor + studentRequiredIndices (Cloud Functions)
+```
+
+Because the plan depends only on content and policy, the Practice Pass and the reduction **commute**: redeeming or
+undoing a pass never reshuffles Warm-Up, Classwork or DOL, and a section-level reader (classwork completion rule, DOL
+projection, Recovery, a Classroom section column) filters its own indices without knowing anything else about the
+student. Consequence, documented and shown in evidence (`practice-pass` variance): if a pass waives Practice, the
+reductions the plan placed in Practice do not move to other sections.
+
+### 11.4 Choosing items
+
+- **Cell** = one coverage group inside one section: section role + primary TEKS (else authored skill/objective, else
+  question family, else tool type with any version suffix dropped). Every cell keeps at least one unit, so no TEKS a
+  section assesses disappears from it.
+- **Unit** = one question, or every question sharing an authored `itemGroup` (new optional field: a dependent
+  sequence — Part C is never kept without Part B). A multipart question stored as one record (composed workflow,
+  multi-answer) is one unit and is never split: removing a part would change the question, which is a modification.
+- **Anchor** = a unit with `coreItem: true` (new optional field) is never omitted.
+- Removals are allocated one at a time to the cell with the most redundancy left (D'Hondt: size ÷ (removed + 1));
+  ties go to Practice, then Classwork, then Warm-Up, assessment sections last. Inside a cell the next unit comes from
+  the most-represented DOK/difficulty level (a lone harder item goes last), spread across positions by a
+  low-discrepancy order seeded by the assignment id — never "the last 25%". All students with the same percentage on
+  the same assignment get the same items (coherent whole-class review); different assignments omit different positions.
+- Secure Test Cycles are never reshaped (`secure-assessment`); `appliesTo` limits the reduction to chosen activities.
+
+### 11.5 Rounding and minimum workload (one rule)
+
+Target removal = round-half-down(applicable items × percent ÷ 100): the nearest whole item, ties keep the work. A unit
+is never removed if it would overshoot the target, so a student never gets more reduction than the rounded target.
+
+| Items (25%) | Removed | Assigned | Actual | Variance recorded |
+| --- | --- | --- | --- | --- |
+| 20 | 5 | 15 | 25% | — |
+| 10 | 2 | 8 | 20% | rounding |
+| 5 | 1 | 4 | 20% | rounding |
+| 4 (one TEKS) | 1 | 3 | 25% | — |
+| 4 (four TEKS) | 0 | 4 | 0% | coverage |
+| 3 | 1 | 2 | 33.3% | rounding |
+| 2 | 0 | 2 | 0% | too-few-items |
+| 1 (DOL) | 0 | 1 | 0% | too-few-items |
+| one multipart record | 0 | 1 | 0% | too-few-items |
+
+### 11.6 Determinism, persistence, revisions
+
+The plan is a pure function of the stored assignment and the stored profile, so every device, the teacher's screens
+and the Cloud Functions compute the same items — nothing depends on one device's storage. Answering a required item
+never changes the set (the compensation for pinned answers always takes the first unanswered units in a cell's fixed
+order). When content is legitimately revised, the plan is recomputed (new `contentFingerprint`), answered work stays
+required, and the same cell gives up its next unanswered unit instead, so the student keeps the reduction where it is
+possible. A higher percentage removes a superset of a lower one.
+
+### 11.7 Grading, completion and every reader
+
+The denominator is the student's required items everywhere: `splitGrade`/`splitGradesBySection`/`gradeWeightTotals`
+(`supportProfile`), the canonical gradebook/TEAMS projection, Grade Center, Home, progress, parent brief, Case Review
+(`not-required` outcome, never "skipped"), Recovery (never credits an omitted item), live monitor (`n` state at the
+class position), worksheets, Classroom passback (whole and section), classwork completion (prerequisite gate) and the
+DOL projection. Persistence safety keeps counting every included item.
+
+### 11.8 Evidence
+
+At launch the student's client records, once per assignment × governing revision × content fingerprint:
+
+- `provided` — only when items were actually omitted — with `details` {targetPercent, originalCount, assignedCount,
+  actualPercentTenths, variance, contentFingerprint, algorithmVersion, omittedIndices};
+- `not-applicable` with the reason (e.g. a one-question DOL);
+- `unavailable` (`projection-not-resolved`) if resolving threw — an implementation gap, never "provided".
+
+A recorded-only support records nothing from the platform (staff document it). The aggregation recomputes the
+projection and marks a record *verified* when it matches; a worked assignment under automatic reduction with no record
+is an `automatic-not-recorded` gap (never "not provided").
+
+### 11.9 Known limits
+
+- A profile change does not by itself re-send Classroom grades; the next grade write on that assignment does.
+  MathMaster's gradebook and TEAMS export reflect it immediately.
+- Secure Test Cycles are not reduced.
+- Parts inside one question record are not reduced (see 11.4).

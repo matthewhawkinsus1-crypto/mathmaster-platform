@@ -26,6 +26,11 @@
 //   T6  the report: real assignments only, never "0 min", CSV, print
 //   S1  the student sees their own due date (Home "Do this next", Resume,
 //       Assignments, Grades, result, header) and Support tools; use is recorded
+//   S2  reduced number of items (25%): the student is assigned 9 of 12, the
+//       same 9 after a reload and on another device; "provided" is recorded
+//       with target/original/assigned/actual; nothing names a program
+//   T7  the teacher sees the configuration and "Fewer items · 9 of 12"
+//       (S2/T7 seed their scenario with `&reduced=1`; nothing else changes)
 //
 // Exit code 1 on any finding. Screenshots in
 // tests/browser/artifacts/supportEvidence/ (git-ignored).
@@ -304,6 +309,70 @@ const journeys = {
     await noSidewaysScroll('S1', page, 'student assignment');
     await page.screenshot({ path: path.join(ARTIFACTS, `student-${page.viewportSize().width}.png`) });
   },
+
+  async S2(page, context) {
+    const STUDENT = '910950';
+    const TITLE = 'Two-Step Equations — Practice Set';
+    const openReduced = async (target, reset) => {
+      const base = `${ORIGIN}/tests/browser/teacherWorkflow/index.html?${reset ? 'reset=1&' : ''}reduced=1&as=student&studentId=${STUDENT}`;
+      await target.goto(base, { timeout: 180000 });
+      await target.getByText('Log Out').first().waitFor({ timeout: 120000 });
+      await target.waitForTimeout(2500);
+      return text(target.locator('body'));
+    };
+    const shownQuestions = async (target) => {
+      const card = target.locator('article, section, li, div').filter({ hasText: TITLE }).filter({ has: target.getByRole('button', { name: /Start|Open|Continue|Resume/ }) }).last();
+      await card.getByRole('button', { name: /Start|Open|Continue|Resume/ }).first().click();
+      const picker = target.locator('select[aria-label="Choose a question"]').first();
+      await picker.waitFor({ state: 'attached', timeout: 60000 });
+      await target.waitForTimeout(1500);
+      return picker.locator('option').evaluateAll((options) => options.map((option) => ({ value: Number(option.value), label: option.textContent.trim() })));
+    };
+
+    const home = await openReduced(page, true);
+    expect('S2', /0 of 9 questions finished/.test(home), `Home counts the student's own 9 items (${(home.match(/\d+ of \d+ questions? finished/g) || []).join('; ')})`);
+    expect('S2', !/\b(IEP|504|modification|accommodation|reduced|fewer items)\b/i.test(home), 'nothing on the student\'s screen names a program, a classification or the reduction');
+    const first = await shownQuestions(page);
+    expect('S2', first.length === 9, `the student is assigned 9 of 12 (${first.length})`);
+    expect('S2', first.at(-1)?.label === 'Practice Q9', `numbering counts the student's own items (${first.at(-1)?.label})`);
+    const workspace = await text(page.locator('body'));
+    expect('S2', !/\b(IEP|504|accommodation|reduced|fewer items)\b/i.test(workspace), 'the workspace names nothing either');
+    await page.waitForTimeout(3000);
+    const records = under(await db(page), `grades/${STUDENT}/supportEvidence/`).map(([, value]) => value)
+      .filter((value) => value.supportId === 'reduced-item-count-same-rigor');
+    const provided = records.find((value) => value.eventType === 'provided');
+    expect('S2', Boolean(provided), `"provided" is recorded once the projection applied (${records.map((value) => value.eventType).join(', ')})`);
+    expect('S2', provided?.details?.originalCount === 12 && provided?.details?.assignedCount === 9 && provided?.details?.actualPercentTenths === 250 && provided?.details?.targetPercent === 25,
+      `the record carries target/original/assigned/actual (${JSON.stringify(provided?.details || {})})`);
+    expect('S2', provided?.source === 'automatic-telemetry' && provided?.note === '' && provided?.actorEmail === null, 'a platform record, never a staff fact');
+    expect('S2', records.length === 1, `one record, not one per render (${records.length})`);
+
+    // The same 9 after a reload on this Chromebook (no reset: the stored state)…
+    await openReduced(page, false);
+    const reloaded = await shownQuestions(page);
+    expect('S2', JSON.stringify(reloaded.map((entry) => entry.value)) === JSON.stringify(first.map((entry) => entry.value)), 'the same items after a reload');
+    const recordsAfterReload = under(await db(page), `grades/${STUDENT}/supportEvidence/`).filter(([, value]) => value.supportId === 'reduced-item-count-same-rigor');
+    expect('S2', recordsAfterReload.length === 1, `a relaunch does not duplicate the record (${recordsAfterReload.length})`);
+    // …and on another device (a fresh browser profile, nothing stored locally).
+    const other = await context.browser().newContext({ viewport: page.viewportSize() });
+    const otherPage = await other.newPage();
+    await openReduced(otherPage, true);
+    const elsewhere = await shownQuestions(otherPage);
+    expect('S2', JSON.stringify(elsewhere.map((entry) => entry.value)) === JSON.stringify(first.map((entry) => entry.value)), 'the same items on another device');
+    await other.close();
+    await noSidewaysScroll('S2', page, 'reduced assignment');
+    await page.screenshot({ path: path.join(ARTIFACTS, `reduced-student-${page.viewportSize().width}.png`) });
+  },
+
+  async T7(page) {
+    const panel = await openStudent(page, 'Rory', 'Sample, Rory');
+    const said = await text(panel);
+    expect('T7', /Fewer items, same rigor · 25% \(automatic\)/.test(said), `the drawer shows the configuration (${said.slice(0, 200)})`);
+    const drawer = await text(page.locator('[data-student-profile-drawer]').first());
+    expect('T7', /Fewer items · 9 of 12/.test(drawer), 'the student\'s assignment row shows 9 of 12 items');
+    await noSidewaysScroll('T7', page, 'student drawer (reduced)');
+    await page.screenshot({ path: path.join(ARTIFACTS, `reduced-teacher-${page.viewportSize().width}.png`) });
+  },
 };
 
 for (const viewport of VIEWPORTS) {
@@ -316,13 +385,13 @@ for (const viewport of VIEWPORTS) {
     const unimplemented = watchUnimplementedCallables(page);
     const label = `${name} @ ${viewport.width}x${viewport.height}`;
     try {
-      if (name !== 'S1') {
-        await page.goto(PAGE, { timeout: 180000 });
+      if (!name.startsWith('S')) {
+        await page.goto(name === 'T7' ? `${PAGE}&reduced=1` : PAGE, { timeout: 180000 });
         await page.getByText('Instructor Dashboard').first().waitFor({ timeout: 120000 });
         await page.waitForTimeout(2500);
       }
       const before = findings.length;
-      await run(page);
+      await run(page, context);
       expect(name, pageErrors.length === 0, `no page errors (${pageErrors.slice(0, 2).join(' | ')})`);
       expect(name, !unimplemented().length, `reached a callable the harness does not implement: ${unimplemented().join(', ')}`);
       if (findings.length === before) passed.push(label);

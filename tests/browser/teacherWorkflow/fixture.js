@@ -290,7 +290,72 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
 
   addSupportEvidence({ fixture, now, Timestamp, supported: p3[1], legacy: p3[4] });
   addCaseReviewEvidence({ fixture, now, Timestamp, student: p3[1] });
+  // Opt-in (`&reduced=1`) so every other journey sees the school unchanged.
+  if (params?.get?.('reduced') === '1') addReducedWorkloadScenario({ fixture, now, Timestamp, classRecord: byId['c-alg1-p5'] });
   return fixture;
+};
+
+/*
+ * REDUCED NUMBER OF ITEMS — synthetic (supportEvidenceJourneys.mjs S2/T7).
+ *
+ * `910950` ("Sample, Rory") has a versioned profile with the reduced item
+ * count set to 25%, and `a-reduced` is a 12-item practice set on one TEKS, so
+ * the student is assigned 9 and three are omitted. A classmate keeps all 12.
+ */
+export const REDUCED_STUDENT_ID = '910950';
+export const REDUCED_ASSIGNMENT_ID = 'a-reduced';
+const addReducedWorkloadScenario = ({ fixture, now, Timestamp, classRecord }) => {
+  fixture[`assignments/${REDUCED_ASSIGNMENT_ID}`] = {
+    title: 'Two-Step Equations — Practice Set',
+    schemaVersion: 5,
+    assignmentType: 'practice',
+    contentVersion: 1,
+    assignedClassIds: [classRecord.classId],
+    assignedClassPeriods: [classRecord.period],
+    releaseAt: startOfDay(now),
+    dueAt: endOfDay(now + 2 * DAY),
+    lateDueAt: endOfDay(now + 6 * DAY),
+    gradingPeriod: { id: 'mp2', label: '2nd Marking Period', order: 2 },
+    createdAt: new Date(now - DAY).toISOString(),
+    sections: [{
+      id: 'reduced-pr', role: 'practice', title: 'Practice',
+      questions: Array.from({ length: 12 }, (_, index) => ({
+        questionId: `reduced-p${index + 1}`,
+        activityRole: 'practice',
+        type: 'literal',
+        prompt: `Item ${index + 1}: solve ${index + 2}x = ${2 * (index + 2)} for x.`,
+        solveFor: 'x',
+        acceptedAnswers: ['2'],
+        standards: ONE_VARIABLE,
+      })),
+    }],
+  };
+  const revision = normalizeSupportRevisionInput({
+    effectiveStart: dateKey(now - 20 * DAY),
+    sourceLabel: 'IEP annual review (synthetic)',
+    accommodations: [{ id: 'reduced-item-count-same-rigor', params: { itemReduction: { mode: 'percent', value: 25 } } }],
+  }).revision;
+  const document = {
+    ...buildRevisionDocument({ revision, studentId: REDUCED_STUDENT_ID, classId: classRecord.classId, revisionNumber: 1, createdByEmail: TEACHER_EMAIL }),
+    createdAt: Timestamp.fromMillis(now - 20 * DAY),
+  };
+  fixture[`grades/${REDUCED_STUDENT_ID}/supportProfileRevisions/rev-reduced-1`] = document;
+  fixture[`grades/${REDUCED_STUDENT_ID}`] = {
+    firstName: 'Rory',
+    lastName: 'Sample',
+    displayName: 'Rory Sample',
+    classId: classRecord.classId,
+    classPeriod: classRecord.period,
+    assignedTeacherEmail: TEACHER_EMAIL,
+    status: 'active',
+    profile: buildSupportProjection({
+      revisions: [{ ...document, id: 'rev-reduced-1', revisionId: 'rev-reduced-1', createdAtMs: now - 20 * DAY }],
+      todayKey: dateKey(now),
+      updatedAt: new Date(now - 20 * DAY).toISOString(),
+    }),
+    gradesByAssignment: {},
+    assignmentActivity: {},
+  };
 };
 
 /*
