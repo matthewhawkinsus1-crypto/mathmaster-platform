@@ -635,6 +635,17 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   // the standings listener is paused, so "am I on the board?" cannot be asked.
   const joinedRoomRef = useRef(null);
   const sessionId = useMemo(() => challengeSessionId(), []);
+  const reportedLaunchEventsRef = useRef(new Set());
+  const reportLaunchEvent = (launchEvent, observedRoom = room) => {
+    const key = `${sessionId}:${launchEvent}`;
+    if (!roomId || reportedLaunchEventsRef.current.has(key)) return;
+    reportedLaunchEventsRef.current.add(key);
+    calibrateLiveChallengeClock({
+      roomId, sessionId, launchEvent,
+      roomStatus: observedRoom?.status || null,
+      roundIndex: Number.isInteger(Number(observedRoom?.currentRound)) ? Number(observedRoom.currentRound) : null,
+    }).catch(() => { reportedLaunchEventsRef.current.delete(key); });
+  };
 
   useEffect(() => {
     // A different room is a different game. Nothing from the previous one —
@@ -645,7 +656,9 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
     setEverInSync(false);
     setRoomMissing(false);
     setJoinedAtRound(null);
+    reportedLaunchEventsRef.current.clear();
     if (!roomId) return undefined;
+    reportLaunchEvent('listener_attached', null);
     return watchLiveChallengeRoom(roomId, (next, { fromCache = false } = {}) => {
       const phase = challengePhaseAt({
         ...next,
@@ -657,11 +670,22 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
         setRoomMissing(!next);
       }
       setRoom((current) => acceptChallengeSnapshot(current, next ? { ...next, phase } : null));
-    }, (watchError) => setError(watchError?.message || 'Could not load the Live Challenge.'), { includeMetadataChanges: true });
+      if (next?.status === 'running') {
+        reportLaunchEvent('running_received', next);
+        if (timestampMillis(next.startsAt || next.roundStartedAt) > Date.now() + clockOffsetRef.current) reportLaunchEvent('countdown_received', next);
+      }
+    }, (watchError) => {
+      reportLaunchEvent('listener_error');
+      setError(watchError?.message || 'Could not load the Live Challenge.');
+    }, { includeMetadataChanges: true });
   }, [roomId]);
 
   useEffect(() => {
-    const update = () => setOnline(navigator.onLine !== false);
+    const update = () => {
+      const isOnline = navigator.onLine !== false;
+      setOnline(isOnline);
+      reportLaunchEvent(isOnline ? 'connection_restored' : 'connection_lost');
+    };
     window.addEventListener('online', update);
     window.addEventListener('offline', update);
     return () => {
@@ -737,6 +761,9 @@ export default function LiveChallengeStudent({ invite, studentProfile = {}, onEx
   // each boundary (a countdown step, the start, the deadline) — not on a timer.
   const stageClock = useChallengeClock(room, clock.offsetMs);
   const stage = stageClock.stage;
+  useEffect(() => {
+    if (room?.status === 'running' && stage === CHALLENGE_STAGE.ROUND_ACTIVE) reportLaunchEvent('game_mounted', room);
+  }, [room?.status, room?.currentRound, stage]); // eslint-disable-line react-hooks/exhaustive-deps
   // In-progress ("working…") points belong on the board only while the round
   // takes answers; after the buzzer the board is what was banked.
   const activeRound = room && stage === CHALLENGE_STAGE.ROUND_ACTIVE ? Number(room.currentRound) : null;
