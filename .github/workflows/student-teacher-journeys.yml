@@ -13,6 +13,11 @@ name: Student and Teacher Journeys
 #   cross-device drafts    tests/browser/teacherWorkflow/draftCrossDeviceJourneys.mjs
 #                          (a fresh, slow or offline Chromebook gets the work
 #                          and never overwrites it; the newest edit wins)
+#   Warm-Up reopen         tests/browser/teacherWorkflow/warmupReopenJourneys.mjs
+#                          (lmr-wu-1: partial work, timer close, teacher reopen,
+#                          resume, submit; malformed drafts; a second board;
+#                          throttled nightly) and, on QuestionEngine alone,
+#                          tests/browser/warmupReopenDraft.mjs
 #   student UX platform    tests/browser/studentUxPlatform.mjs
 #   representations board  tests/browser/linearMultipleRepresentations.mjs
 #   process mode           tests/browser/lmrProcessMode.mjs
@@ -33,6 +38,7 @@ on:
       - "tests/browser/studentUxPlatform*"
       - "tests/browser/linearMultipleRepresentations*"
       - "tests/browser/lmrProcess*"
+      - "tests/browser/warmupReopenDraft*"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/student-teacher-journeys.yml"
@@ -82,6 +88,16 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/draftCrossDeviceJourneys.mjs
+      - name: Warm-Up close and reopen under unfinished work
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/warmupReopenJourneys.mjs
+      - name: Warm-Up close and reopen, throttled Chromebook (nightly and on demand)
+        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/warmupReopenJourneys.mjs --slow
       - name: Endurance (nightly and on demand)
         if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         env:
@@ -120,3 +136,11 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/lmrProcessMode.mjs
+      - name: Warm-Up reopen on QuestionEngine (final and family-backed lmr-wu-1)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: |
+          node tests/browser/warmupReopenDraft.mjs
+          node tests/browser/warmupReopenDraft.mjs --family

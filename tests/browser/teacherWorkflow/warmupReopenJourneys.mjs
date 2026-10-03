@@ -56,7 +56,10 @@ const DB_KEY = 'mm-teacher-workflow-harness-db-v1';
 const STUDENT_A = '910004';
 const STUDENT_B = '910005';
 const VIEWPORT = { width: 1366, height: 768 };
-const SAVED_MS = 4500; // workspaceDraftSync's debounce is 2.5 s
+// Waits stretch on the throttled Chromebook: lazy screens and tool chunks come
+// from the dev server over the slowed network.
+const SLOW_FACTOR = SLOW ? 4 : 1;
+const SAVED_MS = 4500 * SLOW_FACTOR; // workspaceDraftSync's debounce is 2.5 s
 // NOT SIMULATED, AND SAID SO (as in enduranceJourneys.mjs): the harness has no
 // server ingestion, so a Submit stays queued on the device. What a journey reads
 // as "submitted" is the attempt count the student's own question card shows,
@@ -95,23 +98,23 @@ const openDevice = async (label, { studentId, server = null, storageState = null
     if (message.type() === 'error' && !/Download the React DevTools|favicon/i.test(text)) errors.push(`console.error: ${text}`);
   });
   await page.clock.install({ time: startMs ?? Date.now() });
-  if (SLOW) {
-    const cdp = await context.newCDPSession(page);
-    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
-    await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 150, downloadThroughput: 1.5e6 / 8, uploadThroughput: 750e3 / 8 });
-  }
+  // `--slow`: the CPU is slow from the start; the network once the app is up
+  // (the dev server's unbundled modules are not what a Chromebook downloads).
+  const cdp = SLOW ? await context.newCDPSession(page) : null;
+  if (cdp) await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
   const search = new URLSearchParams({ as: 'student', studentId, questions: 'lmr', p3StartMin: '2' });
   if (!server && !storageState) search.set('reset', '1');
   await page.goto(`${PAGE}?${search}`, { timeout: 180000 });
   await page.getByText('Log Out').first().waitFor({ timeout: 180000 });
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(800 * SLOW_FACTOR);
+  if (cdp) await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 150, downloadThroughput: 1.5e6 / 8, uploadThroughput: 750e3 / 8 });
   // A refresh must NOT carry `?reset=1`: that reseeds the whole school (the
   // server copy of every draft, and the teacher's reopen with it).
   search.delete('reset');
   const refresh = async () => {
-    await page.goto(`${PAGE}?${search}`, { timeout: 180000 });
+    await page.goto(`${PAGE}?${search}`, { timeout: 300000 });
     await page.getByText('Log Out').first().waitFor({ timeout: 180000 });
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(800 * SLOW_FACTOR);
   };
   return { label, context, page, errors, refresh };
 };
@@ -124,10 +127,10 @@ const groupButton = (page, index) => page.locator('.mathmaster-question-stage [r
 const openTodayWarmup = async (page) => {
   // The dashboard's card for today's lesson.
   const start = page.getByRole('button', { name: /^(Continue|Resume Question|Start)/ }).first();
-  await start.click({ timeout: 60000 });
-  await stage(page).waitFor({ timeout: 60000 });
-  await page.waitForFunction(() => !document.body.textContent.includes('Opening Work View…'), null, { timeout: 60000 });
-  await page.waitForTimeout(600);
+  await start.click({ timeout: 60000 * SLOW_FACTOR });
+  await stage(page).waitFor({ timeout: 60000 * SLOW_FACTOR });
+  await page.waitForFunction(() => !document.body.textContent.includes('Opening Work View…'), null, { timeout: 60000 * SLOW_FACTOR });
+  await page.waitForTimeout(600 * SLOW_FACTOR);
 };
 
 const sortedOnScreen = (page) => cards(page).evaluateAll((nodes) => nodes
@@ -135,7 +138,7 @@ const sortedOnScreen = (page) => cards(page).evaluateAll((nodes) => nodes
   .filter((label) => !/In not sorted yet/i.test(label)).length);
 
 const sortPartially = async (page) => {
-  await cards(page).first().waitFor({ timeout: 30000 });
+  await cards(page).first().waitFor({ timeout: 30000 * SLOW_FACTOR });
   await groupButton(page, 0).click();
   for (const index of [0, 2, 4]) await cards(page).nth(index).click();
   await groupButton(page, 1).click();
@@ -225,7 +228,7 @@ const journeyInProgress = async () => {
 
   // The Warm-Up's ten-minute cutoff (Period 3 began two minutes ago).
   await b.page.clock.fastForward('10:00');
-  await b.page.waitForTimeout(1500);
+  await b.page.waitForTimeout(1500 * SLOW_FACTOR);
   check(await lockedNow(b.page), 'B: Q1 locks when the Warm-Up timer ends');
   const frozen = (await toolDraft(b.page, STUDENT_B))?.value?.linearAssignments || null;
   check(JSON.stringify(frozen) === JSON.stringify(before), 'B: the close kept the draft exactly (frozen, not cleared)', { before, frozen });
@@ -234,7 +237,7 @@ const journeyInProgress = async () => {
 
   await b.page.clock.fastForward('02:00');
   await teacher(b.page, 'reopen');
-  await b.page.waitForTimeout(1500);
+  await b.page.waitForTimeout(1500 * SLOW_FACTOR);
   check(!(await crashed(b.page)), 'B: still on the question after the reopen (mounted)');
   noErrors(b, 'after the reopen (mounted)');
   check(!(await lockedNow(b.page)), 'B: Q1 unlocked by the reopen');
@@ -242,7 +245,7 @@ const journeyInProgress = async () => {
 
   // The callback armed for the ORIGINAL close has fired by now; a minute later the window is still open.
   await b.page.clock.fastForward('01:00');
-  await b.page.waitForTimeout(800);
+  await b.page.waitForTimeout(800 * SLOW_FACTOR);
   check(!(await lockedNow(b.page)), 'B: the previous window\'s timer did not close the reopened Warm-Up');
 
   // Refresh.
@@ -258,7 +261,7 @@ const journeyInProgress = async () => {
   const server = await serverDb(b.page);
   const b2 = await openDevice('B (second Chromebook)', { studentId: STUDENT_B, server, startMs: await b.page.evaluate(() => Date.now()) });
   await openTodayWarmup(b2.page);
-  await b2.page.waitForTimeout(2000);
+  await b2.page.waitForTimeout(2000 * SLOW_FACTOR);
   check(!(await crashed(b2.page)), 'B2: Q1 opens on another device after the reopen');
   noErrors(b2, 'on another device');
   check((await sortedOnScreen(b2.page)) === 5, 'B2: the server copy brings back the five', {
@@ -278,7 +281,7 @@ const journeyInProgress = async () => {
     await cards(b.page).nth(index).click();
   }
   await b.page.getByRole('button', { name: /Check groups/i }).click();
-  await b.page.waitForTimeout(2500);
+  await b.page.waitForTimeout(2500 * SLOW_FACTOR);
   check((await attempts(b.page)) === 1, 'B: one submission recorded after the reopen', String(await attempts(b.page)));
   noErrors(b, 'after submitting');
   await b.context.close();
@@ -290,15 +293,15 @@ const journeySubmitted = async () => {
   await openTodayWarmup(a.page);
   await sortCorrectly(a.page, STUDENT_A);
   await a.page.getByRole('button', { name: /Check groups/i }).click();
-  await a.page.waitForTimeout(2500);
+  await a.page.waitForTimeout(2500 * SLOW_FACTOR);
   const lockedBefore = await lockedNow(a.page);
   const stripBefore = await attemptStrip(a.page);
   check(lockedBefore && /Correct/i.test(await stageText(a.page)), 'A: submitted a correct sort before the close (final)', stripBefore);
   await a.page.clock.fastForward('10:00');
-  await a.page.waitForTimeout(1000);
+  await a.page.waitForTimeout(1000 * SLOW_FACTOR);
   await a.page.clock.fastForward('02:00');
   await teacher(a.page, 'reopen');
-  await a.page.waitForTimeout(1500);
+  await a.page.waitForTimeout(1500 * SLOW_FACTOR);
   noErrors(a, 'after the reopen');
   check((await attemptStrip(a.page)) === stripBefore, 'A: the reopen neither added nor rewrote an attempt', await attemptStrip(a.page));
   // A correct sort is final: the reopen does not make it editable again.
@@ -311,10 +314,10 @@ const journeyPristine = async () => {
   console.log('\n== pristine: never opened Q1 before the close');
   const c = await openDevice('C', { studentId: '910006' });
   await c.page.clock.fastForward('10:00');
-  await c.page.waitForTimeout(600);
+  await c.page.waitForTimeout(600 * SLOW_FACTOR);
   await c.page.clock.fastForward('01:00');
   await teacher(c.page, 'reopen');
-  await c.page.waitForTimeout(800);
+  await c.page.waitForTimeout(800 * SLOW_FACTOR);
   await openTodayWarmup(c.page);
   check(!(await crashed(c.page)), 'C: Q1 opens after the reopen');
   check((await sortedOnScreen(c.page)) === 0, 'C: an untouched board', await sortedOnScreen(c.page));
@@ -343,7 +346,7 @@ const journeyCorrupt = async () => {
     }, ['910007', ASSIGNMENT, value]);
     await d.refresh();
     await openTodayWarmup(d.page);
-    await d.page.waitForTimeout(600);
+    await d.page.waitForTimeout(600 * SLOW_FACTOR);
     check(!(await crashed(d.page)), `D [${name}]: the assignment survives`);
     check((await cards(d.page).count()) > 0, `D [${name}]: Q1 shows a usable board`, String(await cards(d.page).count()));
     if (name === 'stale card + bad slots') {
@@ -354,7 +357,7 @@ const journeyCorrupt = async () => {
     noErrors(d, `with a ${name} draft`);
     // Neighbouring questions stay reachable.
     await d.page.getByRole('button', { name: 'Next question' }).first().click();
-    await d.page.waitForTimeout(800);
+    await d.page.waitForTimeout(800 * SLOW_FACTOR);
     check(/Two different situations|Sort every card|situation/i.test(await stageText(d.page)), `D [${name}]: Q2 reachable`);
     await d.context.close();
   }
@@ -365,16 +368,16 @@ const journeyCycles = async () => {
   const e = await openDevice('E', { studentId: '910008' });
   await openTodayWarmup(e.page);
   await sortPartially(e.page);
-  await e.page.waitForTimeout(800);
+  await e.page.waitForTimeout(800 * SLOW_FACTOR);
   const before = (await toolDraft(e.page, '910008'))?.value?.linearAssignments;
   for (let cycle = 1; cycle <= 2; cycle += 1) {
     await e.page.clock.fastForward('01:00');
     await teacher(e.page, 'close');
-    await e.page.waitForTimeout(800);
+    await e.page.waitForTimeout(800 * SLOW_FACTOR);
     check(await lockedNow(e.page), `E: cycle ${cycle} closed`);
     await e.page.clock.fastForward('01:00');
     await teacher(e.page, 'reopen');
-    await e.page.waitForTimeout(800);
+    await e.page.waitForTimeout(800 * SLOW_FACTOR);
     check(!(await lockedNow(e.page)), `E: cycle ${cycle} reopened`);
     check((await sortedOnScreen(e.page)) === 5, `E: cycle ${cycle} work intact`, String(await sortedOnScreen(e.page)));
   }
@@ -390,10 +393,10 @@ const openBridge = async (device) => {
   await openTodayWarmup(device.page);
   for (let step = 0; step < 4 && !/Build every other representation/i.test(await stageText(device.page)); step += 1) {
     await device.page.getByRole('button', { name: 'Next question' }).first().click();
-    await device.page.waitForTimeout(900);
+    await device.page.waitForTimeout(900 * SLOW_FACTOR);
   }
-  await device.page.locator('.mathmaster-question-stage [data-lmr-card]').first().waitFor({ timeout: 30000 });
-  await device.page.waitForTimeout(600);
+  await device.page.locator('.mathmaster-question-stage [data-lmr-card]').first().waitFor({ timeout: 30000 * SLOW_FACTOR });
+  await device.page.waitForTimeout(600 * SLOW_FACTOR);
 };
 const bridgeWork = async (page, studentId) => page.evaluate(([student, assignment]) => {
   const raw = window.localStorage.getItem(`mathmaster:draft:v2::${student}:${assignment}:2:0:student:work:tool`);
@@ -407,17 +410,17 @@ const journeyBridge = async () => {
   await openBridge(f);
   check(!(await lockedNow(f.page)), 'F: the board is open while the Warm-Up runs');
   await f.page.getByRole('button', { name: 'Find the slope' }).first().click();
-  await f.page.waitForTimeout(1200);
+  await f.page.waitForTimeout(1200 * SLOW_FACTOR);
   const before = await bridgeWork(f.page, '910003');
   check(before?.processDraft?.open === 'slope', 'F: the started slope process is saved', before);
   check(await processOpen(f.page), 'F: the slope workspace is open');
   await f.page.clock.fastForward('10:00');
-  await f.page.waitForTimeout(1200);
+  await f.page.waitForTimeout(1200 * SLOW_FACTOR);
   check(await lockedNow(f.page), 'F: the board locks at the close');
   check(JSON.stringify(await bridgeWork(f.page, '910003')) === JSON.stringify(before), 'F: the close kept the board draft exactly');
   await f.page.clock.fastForward('02:00');
   await teacher(f.page, 'reopen');
-  await f.page.waitForTimeout(1500);
+  await f.page.waitForTimeout(1500 * SLOW_FACTOR);
   check(!(await crashed(f.page)), 'F: the board survives the reopen');
   check(!(await lockedNow(f.page)), 'F: the board is unlocked by the reopen');
   check(await processOpen(f.page), 'F: the slope workspace is still open after the reopen');

@@ -52,12 +52,17 @@ page.on('console', (message) => { if (message.type() === 'error') consoleErrors.
 page.on('pageerror', (error) => consoleErrors.push(`pageerror: ${error.stack || error.message}`));
 await page.clock.install({ time: schoolTime('09:02') });
 
-if (SLOW) {
-  const cdp = await context.newCDPSession(page);
+// The CPU is slow from the start. The network is slowed once the page is up:
+// the dev server serves hundreds of unbundled modules, which a production
+// bundle does not, and what this run stresses is persistence timing.
+const cdp = SLOW ? await context.newCDPSession(page) : null;
+if (cdp) {
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 6 });
-  await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 150, downloadThroughput: 1.5e6 / 8, uploadThroughput: 750e3 / 8 });
-  step('throttled: 6× CPU, slow 3G-class network');
+  step('throttled: 6× CPU (and a slow 3G-class network once loaded)');
 }
+const slowNetwork = async () => {
+  if (cdp) await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 150, downloadThroughput: 1.5e6 / 8, uploadThroughput: 750e3 / 8 });
+};
 
 const url = `${ORIGIN}/tests/browser/warmupReopenDraft.html?q=${QUESTION}${FAMILY ? '&family=1' : ''}`;
 const ready = async () => {
@@ -89,8 +94,9 @@ const checkErrors = async (where) => {
 };
 
 console.log(`Warm-Up reopen journey (${FAMILY ? 'family-backed' : 'final'} assignment${SLOW ? ', throttled' : ''})`);
-await page.goto(url);
+await page.goto(url, { timeout: 300000 });
 await ready();
+await slowNetwork();
 const opening = await status();
 if (opening.status !== 'active') fail('Warm-Up should be active at 09:02', opening);
 else step(`Warm-Up active until ${opening.endsAt}`);
@@ -141,7 +147,7 @@ else step('reopened window survives the old window\'s timers');
 await wu((w) => w.remount());
 await page.waitForTimeout(400);
 await checkErrors('after remount');
-await page.reload();
+await page.reload({ timeout: 300000 });
 await ready();
 await checkErrors('after refresh');
 const restored = await placements();
@@ -163,6 +169,8 @@ for (let index = 0; index < total; index += 1) {
   await card.click();
 }
 await page.locator('button', { hasText: /Check groups/i }).click();
+// Grading is asynchronous, and slow on a throttled CPU: wait for the record.
+await page.waitForFunction(() => Object.keys(window.__wu.tracker()).length > 0, null, { timeout: 20000 }).catch(() => {});
 await page.waitForTimeout(500);
 const afterSubmit = await wu((w) => w.tracker());
 const record = Object.values(afterSubmit)[0];
