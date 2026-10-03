@@ -56,19 +56,10 @@ const student = (studentId, data) => ({
   data,
   rawRequest: { headers: {} },
 });
-// See liveChallengeEngine.test.mjs: the emulator can close a transaction under
-// the parallel suites' load; every lifecycle command is safe to resend.
-const emulatorClosedTransaction = (error) => error?.code === 3 && /Transaction is invalid or closed/i.test(String(error?.message || ''));
-const call = async (name, request) => {
-  for (let attempt = 1; ; attempt += 1) {
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      return await functionsIndex[name].run(request);
-    } catch (error) {
-      if (name === 'createLiveChallenge' || attempt >= 3 || !emulatorClosedTransaction(error)) throw error;
-    }
-  }
-};
+// A command that hits the emulator's closed-transaction error is re-run by the
+// transaction itself (tests/integration/support/emulatorTransactions.mjs), as
+// production re-runs an expired one; the suite calls each command once.
+const call = (name, request) => functionsIndex[name].run(request);
 const failureOf = (promise) => promise.then(() => null, (error) => error);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
