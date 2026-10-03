@@ -294,14 +294,57 @@ service cloud.firestore {
         && classMatchesRoster(d, studentId);
     }
 
+    function optionalIntIn(data, key, minValue, maxValue) {
+      return data.get(key, null) == null
+        || (data.get(key, null) is int && data.get(key, minValue) >= minValue && data.get(key, maxValue) <= maxValue);
+    }
+
+    function optionalStringIn(data, key, values) {
+      return data.get(key, null) == null || data.get(key, '') in values;
+    }
+
+    // A record's compact, typed facts (functions/shared/supportEvidenceModel.mjs
+    // EVIDENCE_DETAIL_FIELDS): what a reduced-item projection delivered, which
+    // language resource a translation came from, why a support was
+    // unavailable. Bounded so no record can carry question text, answers or a
+    // copy of the profile.
+    function evidenceDetailsValid(d) {
+      let details = d.get('details', null);
+      return details == null || (
+        details is map
+        && details.keys().hasOnly([
+          'targetPercent', 'originalCount', 'assignedCount', 'actualPercentTenths', 'variance',
+          'contentFingerprint', 'algorithmVersion', 'omittedIndices', 'language', 'provider',
+          'coverage', 'deliveryMode', 'surface', 'toolType', 'reason', 'itemCount'
+        ])
+        && optionalIntIn(details, 'targetPercent', 0, 100)
+        && optionalIntIn(details, 'originalCount', 0, 1000)
+        && optionalIntIn(details, 'assignedCount', 0, 1000)
+        && optionalIntIn(details, 'actualPercentTenths', 0, 1000)
+        && optionalIntIn(details, 'algorithmVersion', 0, 99)
+        && optionalIntIn(details, 'itemCount', 0, 1000)
+        && (details.get('variance', null) == null || (details.get('variance', []) is list && details.get('variance', []).size() <= 8))
+        && (details.get('omittedIndices', null) == null || (details.get('omittedIndices', []) is list && details.get('omittedIndices', []).size() <= 200))
+        && optionalString(details, 'contentFingerprint', 16)
+        && optionalString(details, 'language', 12)
+        && optionalString(details, 'provider', 32)
+        && optionalString(details, 'toolType', 40)
+        && optionalString(details, 'reason', 48)
+        && optionalStringIn(details, 'coverage', ['full', 'partial', 'none'])
+        && optionalStringIn(details, 'deliveryMode', ['automatic', 'on-demand'])
+        && optionalStringIn(details, 'surface', ['assignment', 'path', 'rich-tool', 'enlarged'])
+      );
+    }
+
     function supportEvidenceCommonValid(studentId) {
       let d = request.resource.data;
       return d.keys().hasOnly([
           'schemaVersion', 'studentId', 'classId', 'assignmentId', 'activityRole', 'questionIndex',
           'supportId', 'classification', 'profileRevisionId', 'eventType', 'source', 'actorType',
-          'actorEmail', 'providerRole', 'note', 'durationSeconds', 'voidsEventId', 'authorizedTeacherEmails',
-          'occurredAt'
+          'actorEmail', 'providerRole', 'note', 'durationSeconds', 'voidsEventId', 'details',
+          'authorizedTeacherEmails', 'occurredAt'
         ])
+        && evidenceDetailsValid(d)
         && d.keys().hasAll([
           'schemaVersion', 'studentId', 'supportId', 'classification', 'eventType', 'source',
           'actorType', 'authorizedTeacherEmails', 'occurredAt'
@@ -351,6 +394,7 @@ service cloud.firestore {
           'related-service-provider', 'other'
         ])
         && (d.actorType != 'provider' || d.get('providerRole', null) != null)
+        && d.get('details', null) == null
         && optionalString(d, 'note', 280)
         && (d.get('voidsEventId', null) == null || voidTargetIsOwnStaffRecord(studentId, d.get('voidsEventId', '')))
         && classMatchesRoster(d, studentId);
@@ -363,7 +407,7 @@ service cloud.firestore {
       let roster = rosterRow(studentId);
       let profile = roster.get('profile', {});
       return ownsStudent(studentId)
-        && d.eventType in ['available', 'provided', 'activated', 'used']
+        && d.eventType in ['available', 'provided', 'activated', 'used', 'not-applicable', 'unavailable']
         && d.source == 'automatic-telemetry'
         && d.actorType in ['student', 'system']
         && d.get('actorEmail', null) == null

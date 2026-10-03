@@ -16,7 +16,8 @@ import { readFileSync } from 'node:fs';
 import { region } from './helpers/sourceContract.mjs';
 import { INCLUSION_IMPLIED_SUPPORT_IDS, serviceTypes } from '../../functions/shared/supportCatalog.mjs';
 import {
-  ACTIVITY_ROLES, PROVIDER_ROLES, STAFF_EVIDENCE_EVENT_TYPES, STUDENT_EVIDENCE_EVENT_TYPES,
+  ACTIVITY_ROLES, EVIDENCE_COVERAGE, EVIDENCE_DELIVERY_MODES, EVIDENCE_DETAIL_FIELDS, EVIDENCE_DETAIL_KEYS,
+  EVIDENCE_SURFACES, PROVIDER_ROLES, STAFF_EVIDENCE_EVENT_TYPES, STUDENT_EVIDENCE_EVENT_TYPES,
   buildServiceLogEntry, buildStaffEvidenceEvent, buildStudentEvidenceEvent,
 } from '../../functions/shared/supportEvidenceModel.mjs';
 import { buildRevisionDocument, normalizeSupportRevisionInput } from '../../functions/shared/supportProfileModel.mjs';
@@ -76,4 +77,28 @@ test('the student roster row pins the profile, and attempt evidence has no clien
   assert.match(evidence, /allow create, update, delete: if false;/);
   const source = readFileSync(new URL('../../src/platform/history/evidencePersistence.js', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /\bsetDoc\b|\baddDoc\b/, 'the client module only reads attempt evidence');
+});
+
+test('the evidence details allow-list, bounds and enums match the model that builds them', () => {
+  const rule = fn('evidenceDetailsValid');
+  assert.deepEqual(sorted(listAfter(rule, 'details.keys().hasOnly(')), sorted(EVIDENCE_DETAIL_KEYS));
+  assert.deepEqual(sorted(listAfter(rule, "optionalStringIn(details, 'coverage',")), sorted(EVIDENCE_COVERAGE));
+  assert.deepEqual(sorted(listAfter(rule, "optionalStringIn(details, 'deliveryMode',")), sorted(EVIDENCE_DELIVERY_MODES));
+  assert.deepEqual(sorted(listAfter(rule, "optionalStringIn(details, 'surface',")), sorted(EVIDENCE_SURFACES));
+  // Every bounded int and string in the model has the same bound in the rule.
+  Object.entries(EVIDENCE_DETAIL_FIELDS).forEach(([key, field]) => {
+    if (field.type === 'int') assert.ok(rule.includes(`optionalIntIn(details, '${key}', ${field.min}, ${field.max})`), key);
+    if (field.type === 'string') assert.ok(rule.includes(`optionalString(details, '${key}', ${field.maxLength})`), key);
+    if (field.type === 'list' || field.type === 'intList') assert.ok(rule.includes(`details.get('${key}', []).size() <= ${field.maxItems}`), key);
+  });
+  // The common rule calls it, and a staff record may not carry details.
+  assert.match(fn('supportEvidenceCommonValid'), /&& evidenceDetailsValid\(d\)/);
+  assert.match(fn('staffSupportEvidenceValid'), /d\.get\('details', null\) == null/);
+  // The builders: a student record carries only validated details; staff none.
+  const student = buildStudentEvidenceEvent({
+    studentId: 'S1', supportId: 'reduced-item-count-same-rigor', eventType: 'provided', assignedTeacherEmail: 't@x.test',
+    details: { targetPercent: 25, originalCount: 20, assignedCount: 15, prompt: 'never stored' },
+  }).payload;
+  assert.deepEqual(student.details, { targetPercent: 25, originalCount: 20, assignedCount: 15 });
+  assert.equal(buildStaffEvidenceEvent({ studentId: 'S1', supportId: 'check-for-understanding', actorEmail: 't@x.test' }).payload.details, null);
 });

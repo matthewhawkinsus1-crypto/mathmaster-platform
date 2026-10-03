@@ -303,6 +303,14 @@ export const buildStudentGradeCenter = ({
    * assignment (see PRACTICE_PASS_INELIGIBLE_CODES.ALREADY_REDEEMED).
    */
   practicePassRedemptionsByAssignment = {},
+  /*
+   * THE STUDENT'S OWN SUPPORT PROFILE (`user.profile`). A reduced-item-count
+   * accommodation removes items from this student's denominator exactly the
+   * way a Practice Pass removes Practice (functions/shared/reducedWorkload.mjs,
+   * through gradeEvidence.js) — the Grades tab, the gradebook and Classroom
+   * therefore agree on the same number.
+   */
+  supportProfile = null,
   providers = {},
 } = {}) => {
   const {
@@ -320,9 +328,9 @@ export const buildStudentGradeCenter = ({
     const assignmentTracker = tracker?.[assignment.id] || null;
     const lifecycle = getAssignmentLifecycle(assignment, nowValue, { studentId });
     const practicePassRedeemed = Boolean(practicePassRedemptionsByAssignment?.[assignment.id]);
-    const overall = splitGrade({ tracker: assignmentTracker, assignment, practicePassRedeemed });
-    const sections = splitGradesBySection({ tracker: assignmentTracker, assignment, practicePassRedeemed });
-    const weights = gradeWeightTotals({ tracker: assignmentTracker, assignment, practicePassRedeemed });
+    const overall = splitGrade({ tracker: assignmentTracker, assignment, practicePassRedeemed, supportProfile });
+    const sections = splitGradesBySection({ tracker: assignmentTracker, assignment, practicePassRedeemed, supportProfile });
+    const weights = gradeWeightTotals({ tracker: assignmentTracker, assignment, practicePassRedeemed, supportProfile });
     const excused = assignmentIsExcusedForStudent(assignment, studentId);
     const reopened = assignmentIsReopenedForStudent(assignment, studentId);
     const feedbackHeld = !lifecycle.isPracticeOnly && assignmentHasHeldTeacherFeedback(assignment) === true;

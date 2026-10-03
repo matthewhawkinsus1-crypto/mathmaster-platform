@@ -213,12 +213,14 @@ export const addNoteToStaffSupportEvidence = async ({ db, studentId, eventId, no
  * or second tab cannot duplicate them; the second write is refused by the
  * rules as an update, which is expected and swallowed.
  */
-export const recordStudentSupportEvidence = async ({ db, event, deterministic = false } = {}) => {
+export const recordStudentSupportEvidence = async ({ db, event, deterministic = false, variant = null } = {}) => {
   const { payload, errors } = buildStudentEvidenceEvent(event);
   if (errors.length) throw new SupportRecordError(errors);
   const evidence = collection(db, 'grades', payload.studentId, SUPPORT_EVIDENCE_SUBCOLLECTION);
   const ref = deterministic
-    ? doc(evidence, availabilityEventId({ assignmentId: payload.assignmentId, profileRevisionId: payload.profileRevisionId, supportId: payload.supportId }))
+    ? doc(evidence, availabilityEventId({
+      assignmentId: payload.assignmentId, profileRevisionId: payload.profileRevisionId, supportId: payload.supportId, variant,
+    }))
     : doc(evidence);
   try {
     await setDoc(ref, { ...payload, occurredAt: serverTimestamp() });

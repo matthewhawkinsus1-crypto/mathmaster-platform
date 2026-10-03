@@ -59,7 +59,14 @@ test('launch records come from the shared rules, and every called module is impo
   assert.match(app, /import \{ launchSupportRecords, studentMayRecordSupport, usedRecordKey \} from '\.\/platform\/supportEvidence\/studentSupportTelemetry\.js';/);
   const launch = region(app, 'const launchedSupportKeyRef = useRef', '// eslint-disable-line', 'launch effect');
   assert.match(launch, /if \(!isStudentAssignment \|\| !activeAssignmentData \|\| isPracticeMode\) return;/);
-  assert.match(launch, /launchSupportRecords\(\{ profile: user\.profile, assignment: activeAssignmentData, roles, questions: activeQuestions \}\)/);
+  // The launch records describe what THIS student received: the questions in
+  // their own required set (a reduced-item accommodation omits some) and the
+  // resolved reduced-item projection, so "provided" is recorded only when
+  // items were actually omitted (studentSupportTelemetry.js).
+  assert.match(launch, /workload = studentRequiredFor\(activeAssignmentData, \{ hasPracticePass: hasPracticePassFor\(activeAssignmentId\) \}\);/);
+  assert.match(launch, /workload = \{ failed: true,/, 'a projection that throws is recorded as unavailable, never as provided');
+  assert.match(launch, /const presentedQuestions = activeQuestions\.filter\(\(_, index\) => required\.has\(index\)\);/);
+  assert.match(launch, /launchSupportRecords\(\{ profile: user\.profile, assignment: activeAssignmentData, roles, questions: presentedQuestions, workload \}\)/);
   // The roster teacher email the rules compare against is loaded verbatim.
   assert.match(executableSource(app), /assignedTeacherEmail: studentData\.assignedTeacherEmail \|\| null,/);
 });

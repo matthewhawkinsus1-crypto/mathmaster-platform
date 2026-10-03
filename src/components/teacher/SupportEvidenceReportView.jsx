@@ -50,12 +50,29 @@ function SupportCell({ support }) {
   if (support.provided) parts.push(`provided (${support.provided})`);
   if (support.used) parts.push(`used ${support.used}×`);
   if (support.documented) parts.push(`staff-documented ${support.documented}×`);
-  if (support.notApplicable) parts.push('marked not applicable');
+  if (support.notApplicable) parts.push('not applicable here');
+  if (support.unavailable) parts.push('could not be provided (implementation gap)');
   const measurableUse = support.measurable.includes('used');
-  const note = !support.used && !support.documented && !support.provided && !support.available
+  const note = !support.used && !support.documented && !support.provided && !support.available && !support.notApplicable && !support.unavailable
     ? 'Not recorded'
-    : (measurableUse && !support.used ? 'no recorded use' : '');
+    // Not using an on-demand support is the student's choice, not a gap.
+    : (measurableUse && support.available && !support.used ? 'not used (optional)' : '');
   return <span>{parts.join(' · ') || '—'}{note ? <em className="tw-muted"> · {note}</em> : null}</span>;
+}
+
+/*
+ * The implementation headline: made available (on-demand tools) or provided
+ * (automatic supports) out of the eligible work — assignments under a profile
+ * that configured the support and that the student opened. Use is shown in
+ * its own column and never lowers this figure.
+ */
+export function supportHeadline(support) {
+  const eligible = Number(support.assignmentsEligible) || 0;
+  if (support.automation === 'manual') return 'Delivered by staff';
+  if (support.automation === 'platform-available' || support.measurable.includes('available')) {
+    return `Available in ${support.assignmentsAvailable} of ${eligible} eligible`;
+  }
+  return `Provided in ${support.assignmentsProvided} of ${eligible} eligible`;
 }
 
 function AssignmentCard({ row, expanded }) {
@@ -74,10 +91,28 @@ function AssignmentCard({ row, expanded }) {
         <div><dt>Last work</dt><dd>{Number.isFinite(row.attempts.lastAtMs) ? when(row.attempts.lastAtMs) : 'Time not recorded'} · {row.attempts.total} attempt{row.attempts.total === 1 ? '' : 's'}</dd></div>
         <div><dt>Active time</dt><dd>{row.engagement.activeMinutes !== null ? `${row.engagement.activeMinutes} min` : 'Not recorded'} <Prov level={row.engagement.provenance} /></dd></div>
         <div><dt>Condition</dt><dd>{row.condition.value === 'modified' ? `Modified: ${row.condition.modifications.map(supportLabel).join(', ') || 'recorded as modified'}` : 'Standard (grade-level)'} <Prov level={row.condition.provenance} /></dd></div>
+        {row.workload && (
+          <div data-report-workload>
+            <dt>Fewer items, same rigor</dt>
+            <dd>
+              {row.workload.recorded?.eventType === 'unavailable'
+                ? `Could not be applied${row.workload.recorded.reason ? ` (${row.workload.recorded.reason})` : ''}`
+                : (() => {
+                  const fact = row.workload.recorded || row.workload.current;
+                  if (!fact) return 'Not recorded';
+                  const actual = Number(fact.actualPercentTenths || 0) / 10;
+                  return `${fact.assignedCount} of ${fact.originalCount} items assigned · ${Number.isInteger(actual) ? actual : actual.toFixed(1)}% fewer (target ${fact.targetPercent}%)`;
+                })()}
+              {' '}<Prov level={row.workload.provenance} />
+              {row.workload.recorded && (row.workload.verified ? ' · matches MathMaster\'s projection' : ' · differs from today\'s projection (content or answers changed since)')}
+            </dd>
+          </div>
+        )}
         <div><dt>Profile governing this work</dt><dd>{row.governing.revision !== null ? `Revision ${row.governing.revision}${row.governing.sourceLabel ? ` · ${row.governing.sourceLabel}` : ''}` : 'None recorded'} <Prov level={row.governing.provenance} /></dd></div>
         {!row.assignedToClass && <div><dt>Assignment</dt><dd>Work recorded under an earlier class</dd></div>}
       </dl>
       {row.condition.note && <p className="se-report__note">{row.condition.note}</p>}
+      {row.workload?.varianceText?.length > 0 && <p className="se-report__note">{row.workload.varianceText.join(' ')}</p>}
       {row.engagement.note && <p className="se-report__note">{row.engagement.note}</p>}
       <div className="se-scroll-x" style={{ marginTop: 8 }}>
         <table className="se-table">
@@ -294,16 +329,16 @@ export default function SupportEvidenceReportView({
               {report.summary.supports.length > 0 && (
                 <div className="se-scroll-x">
                   <table className="se-table">
-                    <thead><tr><th>Support</th><th>Type</th><th>Configured</th><th>Assignments available</th><th>Assignments provided</th><th>Uses</th><th>Staff records</th></tr></thead>
+                    <thead><tr><th>Support</th><th>Type</th><th>Configured</th><th>Made available / provided</th><th>Used (optional)</th><th>Not applicable · could not be provided</th><th>Staff records</th></tr></thead>
                     <tbody>
                       {report.summary.supports.map((support) => (
-                        <tr key={support.supportId}>
+                        <tr key={support.supportId} data-report-support={support.supportId}>
                           <td>{support.label}</td>
                           <td><SupportClassificationTag supportId={support.supportId} classification={support.classification} /></td>
                           <td>{support.configured ? 'Yes' : 'No'}</td>
-                          <td>{support.measurable.includes('available') ? support.assignmentsAvailable : 'n/a'}</td>
-                          <td>{support.measurable.includes('provided') ? support.assignmentsProvided : 'n/a'}</td>
-                          <td>{support.measurable.includes('used') ? support.uses : 'n/a'}</td>
+                          <td>{supportHeadline(support)}</td>
+                          <td>{support.tracksUse ? `${support.assignmentsUsed} assignment${support.assignmentsUsed === 1 ? '' : 's'} · ${support.uses} use${support.uses === 1 ? '' : 's'}` : 'n/a'}</td>
+                          <td>{`${support.assignmentsNotApplicable || 0} · ${support.assignmentsUnavailable || 0}`}</td>
                           <td>{support.staffRecords}</td>
                         </tr>
                       ))}

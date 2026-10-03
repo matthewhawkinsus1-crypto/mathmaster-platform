@@ -22,6 +22,7 @@ import {
   nextRecoveryPracticeItem,
 } from '../../../functions/shared/sectionRecoveryService.mjs';
 import { buildSectionRecoveryGradeState } from '../../../functions/shared/sectionRecoveryGrade.mjs';
+import { studentOmittedIndices } from '../../../functions/shared/reducedWorkload.mjs';
 
 export const SECTION_RECOVERY_LABEL = Object.freeze({ dol: 'DOL Recovery', warmup: 'Warm-Up Recovery' });
 
@@ -76,10 +77,14 @@ export const buildStudentRecoverySummary = ({
   if (!assignment?.id || !studentId) return [];
   const questions = getStoredAssignmentQuestions(assignment);
   const entries = projectCurrentAssignmentContent(assignment).entries;
-  const sections = splitGradesBySection({ tracker, assignment });
+  // The original is this student's own section: a reduced-item-count
+  // accommodation's omitted items are neither in the grade nor in Recovery
+  // (the server's advanceSectionRecovery filters the same way).
+  const sections = splitGradesBySection({ tracker, assignment, supportProfile: studentProfile });
+  const omitted = studentOmittedIndices({ assignment, profile: studentProfile, tracker, nowValue });
   return ['warmup', 'dol'].map((section) => {
     const sectionEntries = entries
-      .filter((entry) => entry.logicalRole === section)
+      .filter((entry) => entry.logicalRole === section && !omitted.has(entry.storageIndex))
       .map((entry) => ({ storageIndex: entry.storageIndex, question: questions[entry.storageIndex] }));
     if (!sectionEntries.length) return null;
     const original = sections[section] || {};

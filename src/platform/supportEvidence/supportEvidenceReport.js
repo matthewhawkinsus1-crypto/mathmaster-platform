@@ -37,7 +37,7 @@ import { normalizeGradingPeriodSettings, resolveAssignmentGradingPeriod } from '
 import { lastExportedRowsByStudent, snapshotsForPart } from '../gradeTransfer/gradeTransferHistory.js';
 import { canonicalPresentedAssignmentGrade } from '../grading/canonicalGradeProjection.js';
 import {
-  ASSIGNMENT_STATUS, SCHOOL_TIME_ZONE, activeEvidence, buildAssignmentEvidenceRow, configuredSupportIds,
+  ASSIGNMENT_STATUS, SCHOOL_TIME_ZONE, activeEvidence, buildAssignmentEvidenceRow, configuredSupportIds, supportAutomationUnder,
   distinctUses, evidenceRecordingStartMs, isStaffEvent,
 } from './evidenceAggregation.js';
 import { acceptStudentName, formatStudentName } from '../studentName.js';
@@ -364,21 +364,36 @@ export const buildSupportEvidenceReport = ({
   // provided / uses / staff records — kept apart.
   const supportIds = [...new Set([...configured.accommodations, ...periodEvidence.map((event) => event.supportId)])]
     .filter((id) => supportById(id)?.classification !== SUPPORT_CLASSIFICATION.MODIFICATION);
+  // ELIGIBLE: assignments in the period whose governing revision configured
+  // the support and that the student opened or worked on — the only work in
+  // which MathMaster could make it available. Available / provided are
+  // counted out of these; use is supplemental and never lowers the figure (a
+  // student choosing not to use an on-demand support is not a gap).
+  const opened = (row) => row.progress.attempted > 0 || row.status === ASSIGNMENT_STATUS.COMPLETED
+    || activeEvidence(evidence).some((event) => event.assignmentId === row.assignmentId && !isStaffEvent(event));
   const supports = supportIds.map((supportId) => {
     const catalog = supportById(supportId);
     const events = periodEvidence.filter((event) => event.supportId === supportId);
     const assignmentsWith = (types) => new Set(events.filter((event) => types.includes(event.eventType) && event.assignmentId).map((event) => event.assignmentId)).size;
+    const eligibleRows = rows.filter((row) => row.supports.some((support) => support.supportId === supportId && support.configured) && opened(row));
+    const automation = supportAutomationUnder(profile.current, supportId) || catalog?.automation || null;
     return {
       supportId,
       label: catalog?.label || supportId,
       classification: catalog?.classification || 'unknown',
-      automation: catalog?.automation || null,
+      automation,
       configured: configured.accommodations.includes(supportId),
+      assignmentsEligible: eligibleRows.length,
       assignmentsAvailable: assignmentsWith(['available']),
       assignmentsProvided: assignmentsWith(['provided']),
+      assignmentsNotApplicable: assignmentsWith(['not-applicable']),
+      assignmentsUnavailable: assignmentsWith(['unavailable']),
+      assignmentsUsed: new Set(distinctUses(events).map((event) => event.assignmentId).filter(Boolean)).size,
       uses: distinctUses(events).length,
       staffRecords: events.filter(isStaffEvent).length,
       measurable: catalog?.evidence || [],
+      // "Used" is reported only where the catalog says use is observable.
+      tracksUse: (catalog?.evidence || []).includes('used'),
     };
   });
 
@@ -486,7 +501,15 @@ export const supportReportCsv = (report) => {
     'Assignment', 'Assignment ID', 'Class due', 'Individualized due', 'Final cutoff', 'Status', 'Completed after due',
     'MathMaster grade', 'Condition', 'Modifications applied', 'Warm-Up', 'Classwork', 'Practice', 'DOL', 'Attempts',
     'Active minutes', 'Active time source', 'Supports used', 'Staff records', 'Export status', 'Evidence gaps',
+    // Appended (not inserted) so existing column positions are unchanged.
+    'Required items (fewer items, same rigor)',
   ];
+  const workloadCell = (row) => {
+    const fact = row.workload?.recorded || row.workload?.current;
+    if (!row.workload || !fact) return '';
+    if (row.workload.recorded?.eventType === 'unavailable') return 'Could not be applied';
+    return `${fact.assignedCount} of ${fact.originalCount} (${Number(fact.actualPercentTenths || 0) / 10}% fewer; target ${fact.targetPercent}%)${row.workload.recorded ? '' : ' [derived]'}`;
+  };
   const sectionScore = (row, key) => row.sections.find((section) => section.key === key)?.score ?? '';
   const iso = (ms) => (Number.isFinite(ms) ? new Date(ms).toISOString() : '');
   const lines = [header.map(csvCell).join(',')];
@@ -503,6 +526,7 @@ export const supportReportCsv = (report) => {
       row.staffEvents.length,
       list(row.gradeImpact?.items).map((item) => `${item.label}: ${item.exportStatus?.label || ''}`).join('; '),
       row.gaps.map((gap) => gap.message).join(' '),
+      workloadCell(row),
     ].map(csvCell).join(','));
   });
   return `${lines.join('\r\n')}\r\n`;
