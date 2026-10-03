@@ -76,6 +76,9 @@ import CalculatorIcon from './components/common/CalculatorIcon.jsx';
 import { startPerformanceSpan } from './platform/performance/performanceTelemetry.js';
 import { useRenderPerformance } from './platform/performance/useRenderPerformance.js';
 import { useActiveWorkTab } from './platform/persistence/activeWorkTab.js';
+import { StudentSupportTray } from './components/student/StudentSupportTools.jsx';
+import { toolsEntitlementFromProfile } from './platform/language/supportToolsEntitlement.js';
+import { speakAloud, speechAvailable } from './platform/language/speechText.js';
 
 const WorkViewReadySignal = ({ span }) => {
   useEffect(() => {
@@ -143,11 +146,10 @@ const useDeepStableValue = (value) => {
   return ref.current.value;
 };
 
-const speakText = (text) => {
-  if (typeof window === 'undefined' || !window.speechSynthesis || !text) return;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(new SpeechSynthesisUtterance(String(text).replace(/[$\\]/g, ' ')));
-};
+// Read aloud, with the mathematics spoken as mathematics
+// (platform/language/speechText.js — the same reader My Math Path uses).
+// True only when the browser actually spoke.
+const speakText = (text, language = 'en') => Boolean(text) && speakAloud(text, { language });
 
 export default function QuestionEngine({
   question,
@@ -215,6 +217,9 @@ export default function QuestionEngine({
   // caller filters to supports the student is entitled to and de-duplicates.
   // Student assignment work only; previews pass nothing.
   onSupportEvidence = null,
+  // Which language Support tools to offer, when the caller already knows
+  // (supportToolsEntitlement.js toolsEntitlementFromPath on My Math Path).
+  supportEntitlement = null,
 }) {
   useRenderPerformance('QuestionEngine', String(question?.toolId || question?.type || 'question'));
   const resolvedActivityPolicy = activityPolicy || getEffectiveActivityPolicy(activityRole);
@@ -431,13 +436,47 @@ export default function QuestionEngine({
   // fire when the ITEM changes, not on every render.
   const onSupportEvidenceRef = useRef(onSupportEvidence);
   useEffect(() => { onSupportEvidenceRef.current = onSupportEvidence; });
-  const reportSupportEvidence = (supportId, eventType) => onSupportEvidenceRef.current?.({ supportId, eventType });
+  const reportSupportEvidence = (supportId, eventType, details = null) => onSupportEvidenceRef.current?.({ supportId, eventType, ...(details ? { details } : {}) });
+  // Read aloud is offered only where this browser can actually speak; where it
+  // cannot, that is recorded as unavailable — never as available.
+  const [readAloudReady] = useState(() => speechAvailable());
+  const readAloudOffered = supportPresentation.textToSpeech && readAloudReady;
+  // The prompt is in the student's language when an authored translation was
+  // applied (src/studentSupport.js), and is read in that language.
+  const readAloudLanguage = processedQuestion?.authoredPrompt !== undefined ? (supportPresentation.translationLanguage || 'en') : 'en';
   useEffect(() => {
-    // Read aloud is on screen for this item.
-    if (supportPresentation.textToSpeech) reportSupportEvidence('text-to-speech', 'available');
+    // Read aloud is on screen for this item (or could not be).
+    if (supportPresentation.textToSpeech && readAloudReady) reportSupportEvidence('text-to-speech', 'available');
+    else if (supportPresentation.textToSpeech) reportSupportEvidence('text-to-speech', 'unavailable', { reason: 'speech-engine-missing', surface: 'assignment' });
     // A modification that actually changed this item (never one that did not).
     (supportUsage.modifications || []).forEach((modificationId) => reportSupportEvidence(modificationId, 'provided'));
   }, [stableQuestion, supportPresentation.textToSpeech, supportUsage]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // LANGUAGE SUPPORT TOOLS for this item — from the same effective profile as
+  // every other support, shown only when entitled and backed by a resource
+  // (platform/language/supportToolsModel.js). Nothing at all for a student
+  // without one: the tray and its language data are a lazily loaded chunk.
+  // My Math Path passes the server's own list instead (`supportEntitlement`):
+  // the Path client never decides from a profile it read itself.
+  const languageTools = useMemo(
+    () => supportEntitlement || toolsEntitlementFromProfile(stableStudentProfile, { activityRole }),
+    [supportEntitlement, stableStudentProfile, activityRole],
+  );
+  const supportItemKey = `${processedQuestion?.questionId ?? processedQuestion?.id ?? ''}|${record.variantIndex ?? 0}`;
+  const reportToolEvidence = useCallback((evidence) => onSupportEvidenceRef.current?.(evidence), []);
+  const supportTrayFor = (surface) => (languageTools.tools.length ? (
+    <StudentSupportTray
+      entitlement={languageTools}
+      prompt={processedQuestion?.prompt || ''}
+      question={processedQuestion}
+      toolType={processedQuestion?.type || ''}
+      surface={surface}
+      itemKey={supportItemKey}
+      // The work bar already carries Read aloud on the question; Work View does not.
+      includeReadAloud={surface === 'enlarged' && readAloudOffered}
+      onEvidence={reportToolEvidence}
+    />
+  ) : null);
 
   /*
    * A NEW QUESTION STARTS CLEAN — AND A QUESTION THAT HAS JUST OPENED IS NOT RESET.
@@ -1665,8 +1704,8 @@ export default function QuestionEngine({
           ? <><CalculatorIcon /><span className="mathmaster-action-label"> Calculator</span></>
           : <><CalculatorIcon unavailable /><span className="mathmaster-action-label"> Calculator</span></>}
       </button>
-      {supportPresentation.textToSpeech && (
-        <button type="button" className="mathmaster-work-bar-tool" aria-label="Read aloud" onClick={() => { speakText(referenceSpeechText); reportSupportEvidence('text-to-speech', 'used'); }} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}><span aria-hidden="true">🔊</span><span className="mathmaster-action-label"> Read</span></button>
+      {readAloudOffered && (
+        <button type="button" className="mathmaster-work-bar-tool" aria-label="Read aloud" onClick={() => { if (speakText(referenceSpeechText, readAloudLanguage)) reportSupportEvidence('text-to-speech', 'used'); }} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}><span aria-hidden="true">🔊</span><span className="mathmaster-action-label"> Read</span></button>
       )}
     </>
   );
@@ -1827,6 +1866,7 @@ export default function QuestionEngine({
         taskMeta={questionAlignmentPanel}
         taskContextPanel={questionReferencePanel}
         contextPanel={solverWorkspaceActive ? null : questionContextPanel}
+        supportTray={supportTrayFor('assignment')}
         workspaceMode={solverWorkspaceMode}
         workBar={questionWorkBar}
         toolWorkspace={(
@@ -1838,6 +1878,9 @@ export default function QuestionEngine({
           text: 'Use the task directions and the controls in this workspace. Your mathematical work stays in place when you open or close Work View.',
         },
         instruction: taskContextPresentation.currentStagePrompt ? { text:taskContextPresentation.currentStagePrompt } : null,
+        // The same Support tools inside Work View, so an enlarged tool never
+        // loses them (rendered only while that drawer is open).
+        supports: languageTools.tools.length ? { label: 'Support tools', render: () => supportTrayFor('enlarged') } : null,
         primaryActions: workspaceActions.submit ? [{ ...workspaceActions.submit, onAction:workspaceActions.submit.onClick }] : [],
         secondaryActions: [
           { ...workspaceActions.reset, onAction:workspaceActions.reset.onClick },

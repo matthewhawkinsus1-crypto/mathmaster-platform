@@ -13,8 +13,8 @@ import { describeDueDateExtension } from '../../../functions/shared/supportDeadl
 import { zonedDateKey } from '../../../functions/shared/instructionalCalendar.mjs';
 import {
   DUE_DATE_EXTENSION_PRESETS, ITEM_REDUCTION_CHOICES, ITEM_REDUCTION_PRESETS, describeRevision, draftFromCurrent,
-  draftItemReduction, editorGroups, extensionForPresetKey, inputFromDraft, presetKeyForExtension, setDraftSupportParam,
-  setDraftSupportRoles, toggleDraftSupport,
+  draftItemReduction, editorGroups, extensionForPresetKey, inputFromDraft, LANGUAGE_CHOICES, languageCoverageNote,
+  presetKeyForExtension, setDraftSupportParam, setDraftSupportRoles, toggleDraftSupport,
 } from '../../platform/supportEvidence/supportProfileDraft.js';
 import { fetchSupportProfileRevisions, saveSupportProfileRevision } from '../../platform/supportEvidence/supportEvidenceStore.js';
 import './teacherWorkspace.css';
@@ -471,9 +471,13 @@ export default function SupportProfileEditor({
             <ServiceRows rows={draft.serviceExpectations} services={groups.services} onChange={(rows) => setDraft((current) => ({ ...current, serviceExpectations: rows }))} />
           </fieldset>
 
-          <label className="se-field" style={{ maxWidth: 280 }}>
-            <span>Translation language code (optional)</span>
-            <input className="tw-input" maxLength={12} placeholder="e.g. es" value={draft.translationLanguage} onChange={(event) => setDraft((current) => ({ ...current, translationLanguage: event.target.value }))} />
+          <label className="se-field" style={{ maxWidth: 520 }}>
+            <span>Language for translated content (optional)</span>
+            <input className="tw-input" maxLength={12} placeholder="e.g. es" list="se-language-codes" data-language-input style={{ maxWidth: 160 }} value={draft.translationLanguage} onChange={(event) => setDraft((current) => ({ ...current, translationLanguage: event.target.value }))} />
+            <datalist id="se-language-codes">
+              {LANGUAGE_CHOICES.map((choice) => <option key={choice.code} value={choice.code}>{choice.label}</option>)}
+            </datalist>
+            <span className="se-hint" data-language-coverage>{languageCoverageNote(draft.translationLanguage)}</span>
           </label>
 
           {errors.length > 0 && (

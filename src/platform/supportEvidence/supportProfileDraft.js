@@ -15,10 +15,12 @@ import {
   SUPPORT_CATEGORY_LABEL,
   supportById,
 } from '../../../functions/shared/supportCatalog.mjs';
+import { LANGUAGE_NAMES, hasCuratedPack } from '../language/translationProviders.js';
 import {
   legacyProfileToRevision,
   resolveEffectiveSupportPlan,
   revisionEffectiveOn,
+  translationLanguageOf,
 } from '../../../functions/shared/supportProfileModel.mjs';
 import { normalizeDueDateExtension } from '../../../functions/shared/supportDeadline.mjs';
 import {
@@ -55,7 +57,9 @@ export const extensionForPresetKey = (key) => (
 
 /** Catalog entries the editor offers, grouped for display. */
 export const editorGroups = () => {
-  const accommodations = SUPPORT_CATALOG.filter((entry) => entry.classification === SUPPORT_CLASSIFICATION.ACCOMMODATION);
+  // A derived support (translation, from the language field) is never a box
+  // to tick: the language below authorizes it.
+  const accommodations = SUPPORT_CATALOG.filter((entry) => entry.classification === SUPPORT_CLASSIFICATION.ACCOMMODATION && !entry.derivedFrom);
   // A support MathMaster can apply by itself under a parameter (a reduced
   // item count with a percentage) is listed with the platform supports.
   const platformCapable = (entry) => entry.automation !== SUPPORT_AUTOMATION.MANUAL || Boolean(entry.automaticWithParam);
@@ -148,6 +152,25 @@ export const ITEM_REDUCTION_CHOICES = Object.freeze([
 
 /** Percent presets offered beside the number box. */
 export const ITEM_REDUCTION_PRESETS = Object.freeze([25, 30, 40, 50]);
+
+/** Suggested language codes for the editor (any valid tag is accepted). */
+export const LANGUAGE_CHOICES = Object.freeze(Object.entries(LANGUAGE_NAMES).map(([code, label]) => ({ code, label })));
+
+/**
+ * What a language on the profile gives the student, said plainly. The
+ * language alone authorizes translated content — there is no second
+ * "Translation" box — and MathMaster records translation as available only
+ * where translated content actually exists.
+ */
+export const languageCoverageNote = (value) => {
+  const code = translationLanguageOf(value);
+  if (!clean(value)) return 'No translated content. Setting a language is enough to offer it — there is no separate Translation box.';
+  if (!code) return clean(value).toLowerCase().startsWith('en') ? 'English is not a translation.' : 'Enter a language code such as es or vi.';
+  const name = LANGUAGE_NAMES[code.split('-')[0]] || code;
+  return hasCuratedPack(code)
+    ? `${name}: items with an authored translation are shown in this language; elsewhere common directions and answer choices are translated where MathMaster has them, and the Vocabulary and Help me say it tools are bilingual. Where no translated content exists, that is recorded — never counted as provided.`
+    : `${name}: only items with an authored translation can be shown in this language. Where none exists, that is recorded — never counted as provided.`;
+};
 
 /** The draft's reduction as the editor shows it (mode + raw value). */
 export const draftItemReduction = (params) => {

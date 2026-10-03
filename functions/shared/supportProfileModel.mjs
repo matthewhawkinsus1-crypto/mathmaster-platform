@@ -45,6 +45,36 @@ import {
 import { zonedDateKey } from './instructionalCalendar.mjs';
 
 export const SUPPORT_PROFILE_SCHEMA_VERSION = 1;
+
+// --- Language: one field, one derived support ------------------------------------
+
+export const TRANSLATION_SUPPORT_ID = 'translation';
+
+/**
+ * The language a revision's `translationLanguage` asks for, or null. English
+ * (and an English variant) is not a translation; anything that is not a
+ * language tag is ignored rather than guessed at.
+ */
+export const translationLanguageOf = (value) => {
+  const code = String(value ?? '').trim().toLowerCase();
+  if (!/^[a-z]{2,3}(-[a-z0-9]{2,8})?$/.test(code)) return null;
+  if (code === 'en' || code.startsWith('en-')) return null;
+  return code;
+};
+
+/**
+ * Supports a revision (or a resolved plan, or a window) carries WITHOUT a
+ * teacher ticking them: today only `translation`, from the language field.
+ * Listed wherever a revision's supports are listed — the projection's
+ * `entitledIds`, the evidence row, the report — so translation takes part in
+ * the same evidence model as every other support, configured once.
+ */
+export const derivedSupportEntries = (source) => {
+  const language = translationLanguageOf(source?.translationLanguage);
+  return language ? [{ id: TRANSLATION_SUPPORT_ID, params: { language }, appliesTo: [], derived: true }] : [];
+};
+
+export const derivedSupportIds = (source) => derivedSupportEntries(source).map((entry) => entry.id);
 export const SUPPORT_PLAN_SCHEMA_VERSION = 1;
 export const SUPPORT_REVISIONS_SUBCOLLECTION = 'supportProfileRevisions';
 export const LEGACY_REVISION_ID = 'legacy-unversioned';
@@ -137,6 +167,8 @@ const normalizeSupportGroup = (raw, classification, errors) => {
       if (clean(rawId)) errors.push(`Unknown support "${clean(rawId)}".`);
       return;
     }
+    // Never stored as a ticked support: it follows from its field (above).
+    if (entry.derivedFrom) return;
     const allowed = classification === SUPPORT_CLASSIFICATION.ACCOMMODATION
       ? [SUPPORT_CLASSIFICATION.ACCOMMODATION, SUPPORT_CLASSIFICATION.SERVICE]
       : [SUPPORT_CLASSIFICATION.MODIFICATION];
@@ -459,7 +491,7 @@ export const buildSupportProjection = ({ revisions = [], todayKey, updatedAt = n
   const entitled = new Set();
   windows.forEach((window) => {
     if (window.status === REVISION_STATUS.INACTIVE) return;
-    [...idsOf(window.accommodations), ...idsOf(window.modifications)].forEach((id) => entitled.add(id));
+    [...idsOf(window.accommodations), ...idsOf(window.modifications), ...derivedSupportIds(window)].forEach((id) => entitled.add(id));
     if (window.inclusionStatus) INCLUSION_IMPLIED_SUPPORT_IDS.forEach((id) => entitled.add(id));
   });
   // A reduced item count governs an assignment by its due date, so a revision
@@ -562,13 +594,49 @@ export const flatSupportIds = (plan) => ({
 });
 
 export const planHasSupport = (plan, supportId) => (
-  [...idsOf(plan?.accommodations), ...idsOf(plan?.modifications)].includes(clean(supportId))
+  [...idsOf(plan?.accommodations), ...idsOf(plan?.modifications), ...derivedSupportIds(plan)].includes(clean(supportId))
   || (plan?.inclusionStatus === true && INCLUSION_IMPLIED_SUPPORT_IDS.includes(clean(supportId)))
 );
 
 export const planSupportEntry = (plan, supportId) => (
-  [...list(plan?.accommodations), ...list(plan?.modifications)].find((entry) => entry?.id === clean(supportId)) || null
+  [...list(plan?.accommodations), ...list(plan?.modifications), ...derivedSupportEntries(plan)]
+    .find((entry) => entry?.id === clean(supportId)) || null
 );
+
+/**
+ * THE ONE FLAT VIEW of a stored profile, in either shape, on one day.
+ *
+ * Every legacy-shaped reader asks this — the student runtime
+ * (src/studentSupport.js normalizeStudentProfile) and the entitlement adapter
+ * the Path server uses (supportEntitlements.mjs resolveSupportEntitlements) —
+ * so a future-dated revision switches on, and an inactive one switches off, at
+ * the same moment on an assignment, in a rich tool and on My Math Path. The
+ * flat keys stored beside `supportPlan` describe the revision current when it
+ * was SAVED and are read only for a profile with no plan.
+ */
+export const effectiveFlatSupportProfile = (profile, { nowValue = Date.now(), dateKey = null } = {}) => {
+  const plan = resolveEffectiveSupportPlan(profile, { nowValue, dateKey });
+  if (plan.source === 'plan') {
+    const ids = flatSupportIds(plan);
+    return {
+      source: 'plan',
+      inclusionStatus: plan.inclusionStatus === true,
+      accommodations: [...new Set(ids.accommodations.map(String))],
+      modifications: [...new Set(ids.modifications.map(String))],
+      translationLanguage: clean(plan.translationLanguage).toLowerCase() || null,
+      supportRevisionId: plan.revisionId || null,
+    };
+  }
+  const safe = profile && typeof profile === 'object' && !Array.isArray(profile) ? profile : {};
+  return {
+    source: plan.source,
+    inclusionStatus: Boolean(safe.inclusionStatus),
+    accommodations: [...new Set(list(safe.accommodations).map(String))],
+    modifications: [...new Set(list(safe.modifications).map(String))],
+    translationLanguage: clean(safe.translationLanguage).toLowerCase() || null,
+    supportRevisionId: null,
+  };
+};
 
 /** Does a support apply to an activity role under this plan? */
 export const supportAppliesToRole = (plan, supportId, activityRole) => {

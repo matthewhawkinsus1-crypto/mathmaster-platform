@@ -292,7 +292,77 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   addCaseReviewEvidence({ fixture, now, Timestamp, student: p3[1] });
   // Opt-in (`&reduced=1`) so every other journey sees the school unchanged.
   if (params?.get?.('reduced') === '1') addReducedWorkloadScenario({ fixture, now, Timestamp, classRecord: byId['c-alg1-p5'] });
+  if (params?.get?.('eb') === '1') addLanguageSupportScenario({ fixture, now, Timestamp, classRecord: byId['c-alg1-p5'] });
   return fixture;
+};
+
+/*
+ * LANGUAGE SUPPORTS — synthetic (supportEvidenceJourneys.mjs S3/T8).
+ *
+ * `910960` ("Example, Sam") has one versioned revision: language Spanish
+ * (translation follows from it), Vocabulary, Break it down, Help me say it,
+ * Read aloud — and 25% fewer items, so both supports run together. `a-eb` is
+ * four Classwork items on one TEKS whose directions the built-in Spanish pack
+ * translates fully, so the student is assigned three.
+ */
+export const LANGUAGE_STUDENT_ID = '910960';
+export const LANGUAGE_ASSIGNMENT_ID = 'a-eb';
+const addLanguageSupportScenario = ({ fixture, now, Timestamp, classRecord }) => {
+  fixture[`assignments/${LANGUAGE_ASSIGNMENT_ID}`] = {
+    title: 'One-Variable Equations — Explain Your Thinking',
+    schemaVersion: 5,
+    assignmentType: 'practice',
+    contentVersion: 1,
+    assignedClassIds: [classRecord.classId],
+    assignedClassPeriods: [classRecord.period],
+    releaseAt: startOfDay(now),
+    dueAt: endOfDay(now + 2 * DAY),
+    lateDueAt: endOfDay(now + 6 * DAY),
+    gradingPeriod: { id: 'mp2', label: '2nd Marking Period', order: 2 },
+    createdAt: new Date(now - DAY).toISOString(),
+    sections: [{
+      id: 'eb-cw', role: 'classwork', title: 'Classwork',
+      questions: [2, 3, 4, 5].map((coefficient, index) => ({
+        questionId: `eb-c${index + 1}`,
+        activityRole: 'classwork',
+        type: 'literal',
+        prompt: `Solve ${coefficient}x = ${2 * coefficient} for x. Explain how you know.`,
+        solveFor: 'x',
+        acceptedAnswers: ['2'],
+        standards: ONE_VARIABLE,
+      })),
+    }],
+  };
+  const revision = normalizeSupportRevisionInput({
+    effectiveStart: dateKey(now - 20 * DAY),
+    sourceLabel: 'Language support plan (synthetic)',
+    translationLanguage: 'es',
+    accommodations: [
+      { id: 'glossary-lookup' }, { id: 'chunked-directions' }, { id: 'sentence-frames' }, { id: 'text-to-speech' },
+      { id: 'reduced-item-count-same-rigor', params: { itemReduction: { mode: 'percent', value: 25 } } },
+    ],
+  }).revision;
+  const document = {
+    ...buildRevisionDocument({ revision, studentId: LANGUAGE_STUDENT_ID, classId: classRecord.classId, revisionNumber: 1, createdByEmail: TEACHER_EMAIL }),
+    createdAt: Timestamp.fromMillis(now - 20 * DAY),
+  };
+  fixture[`grades/${LANGUAGE_STUDENT_ID}/supportProfileRevisions/rev-eb-1`] = document;
+  fixture[`grades/${LANGUAGE_STUDENT_ID}`] = {
+    firstName: 'Sam',
+    lastName: 'Example',
+    displayName: 'Sam Example',
+    classId: classRecord.classId,
+    classPeriod: classRecord.period,
+    assignedTeacherEmail: TEACHER_EMAIL,
+    status: 'active',
+    profile: buildSupportProjection({
+      revisions: [{ ...document, id: 'rev-eb-1', revisionId: 'rev-eb-1', createdAtMs: now - 20 * DAY }],
+      todayKey: dateKey(now),
+      updatedAt: new Date(now - 20 * DAY).toISOString(),
+    }),
+    gradesByAssignment: {},
+    assignmentActivity: {},
+  };
 };
 
 /*

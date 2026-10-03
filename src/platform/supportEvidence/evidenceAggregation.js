@@ -32,6 +32,7 @@ import {
 import {
   LEGACY_REVISION_ID,
   REVISION_STATUS,
+  derivedSupportIds,
   governingRevisionsAt,
   legacyProfileToRevision,
   revisionEffectiveOn,
@@ -123,6 +124,21 @@ export const distinctUses = (events = []) => {
     return true;
   });
 };
+
+/** Why a platform tool was unavailable or not applicable, in a teacher's words. */
+export const EVIDENCE_REASON_TEXT = Object.freeze({
+  'no-translation-resource': 'no translated content for this item',
+  'no-language-pack': 'no content in this language',
+  'language-pack-failed': 'the language content did not load',
+  'math-mismatch': 'an authored translation changed the mathematics, so it was not shown',
+  'speech-engine-missing': 'this browser could not read aloud',
+  'glossary-load-failed': 'the vocabulary did not load',
+  'no-vocabulary': 'no vocabulary on this item',
+  'single-step': 'the directions are one step',
+  'no-explanation-asked': 'the item does not ask for an explanation',
+  'no-words-to-translate': 'nothing but mathematics to translate',
+  'projection-not-resolved': 'the reduced item set could not be worked out',
+});
 
 /** Counts per support. `documented` = staff records of delivery. */
 export const countEvidenceBySupport = (events = []) => {
@@ -271,6 +287,8 @@ export const configuredSupportIds = (revision) => {
     accommodations: unique([
       ...list(active.accommodations).map((entry) => entry?.id),
       ...(active.inclusionStatus ? INCLUSION_IMPLIED_SUPPORT_IDS : []),
+      // Translation, from the revision's language (supportProfileModel.mjs).
+      ...derivedSupportIds(active),
     ]),
     modifications: unique(list(active.modifications).map((entry) => entry?.id)),
   };
@@ -451,6 +469,14 @@ export const buildAssignmentEvidenceRow = ({
   // Supports: configured ∪ anything with a record for this assignment.
   const supportIds = unique([...configured.accommodations, ...[...counts.keys()].filter((id) => supportById(id)?.classification !== SUPPORT_CLASSIFICATION.MODIFICATION)]);
   const beforeRecording = recordingStartMs !== null && finalAt !== null && finalAt < recordingStartMs;
+  // The student's first platform (non-staff) record of a support, anywhere.
+  const firstPlatformRecordMs = (supportId) => {
+    const times = activeEvidence(evidence)
+      .filter((event) => event?.supportId === supportId && !isStaffEvent(event))
+      .map((event) => (Number.isFinite(event.occurredAtMs) ? event.occurredAtMs : toMillis(event.occurredAt)))
+      .filter(Number.isFinite);
+    return times.length ? Math.min(...times) : null;
+  };
   const supports = supportIds.map((supportId) => {
     const entry = supportById(supportId);
     const count = counts.get(supportId) || { available: 0, provided: 0, activated: 0, used: 0, documented: 0, declined: 0, notApplicable: 0, unavailable: 0, lastAtMs: null };
@@ -476,7 +502,7 @@ export const buildAssignmentEvidenceRow = ({
       gaps.push({
         code: 'support-unavailable',
         supportId: support.supportId,
-        message: `${support.label}: MathMaster could not provide it in this work${reason ? ` (${reason})` : ''}.`,
+        message: `${support.label}: MathMaster could not provide it ${support.available + support.provided > 0 ? 'on some items' : 'in this work'}${reason ? ` (${EVIDENCE_REASON_TEXT[reason] || reason})` : ''}.`,
       });
     }
     if (!support.configured || support.notApplicable > 0 || support.unavailable > 0) return;
@@ -512,11 +538,19 @@ export const buildAssignmentEvidenceRow = ({
     if (support.automation === SUPPORT_AUTOMATION.MANUAL && support.documented === 0 && worked) {
       gaps.push({ code: 'no-staff-record', supportId: support.supportId, message: `No staff record of: ${support.label}.` });
     }
-    if (support.automation === SUPPORT_AUTOMATION.PLATFORM_AVAILABLE && worked && support.available + support.used === 0) {
+    if (support.automation === SUPPORT_AUTOMATION.PLATFORM_AVAILABLE && worked && support.available + support.used + support.provided === 0) {
+      // A support that used to be adult-delivered (glossary-lookup) became a
+      // platform tool: a staff record still proves it, and work from before
+      // the student's first platform record of it predates that recording —
+      // it is not a platform gap.
+      const formerlyManual = supportById(support.supportId)?.formerlyManual === true;
+      if (formerlyManual && support.documented > 0) return;
+      const firstPlatformMs = formerlyManual ? firstPlatformRecordMs(support.supportId) : null;
+      const predatesTool = formerlyManual && (firstPlatformMs === null || (finalAt !== null && finalAt < firstPlatformMs));
       gaps.push({
         code: 'availability-not-recorded',
         supportId: support.supportId,
-        message: beforeRecording
+        message: beforeRecording || predatesTool
           ? `${support.label}: this work predates support recording.`
           : `${support.label}: no record that it was on screen for this assignment.`,
       });

@@ -446,3 +446,139 @@ due date) is reported as a count.
   MathMaster's gradebook and TEAMS export reflect it immediately.
 - Secure Test Cycles are not reduced.
 - Parts inside one question record are not reduced (see 11.4).
+
+## 12. Language access through Support tools (Translate, Vocabulary, Read aloud, Break it down, Help me say it)
+
+Language access is never easier mathematics. Every tool here changes the words around a task — never its numbers,
+expressions, coordinates, answer expressions, or what is asked. There is no "EB mode", no EB-only profile and no
+second evidence store: the tools are supports in the same catalog, resolved from the same effective revision,
+recorded in the same `supportEvidence` collection, and reported in the same report.
+
+### 12.1 One effective profile everywhere (the bridge)
+
+`supportProfileModel.mjs effectiveFlatSupportProfile(profile, { nowValue })` is the one flat view of a stored profile
+on a day. `src/studentSupport.js normalizeStudentProfile` (assignments, rich tools, Work View) and
+`supportEntitlements.mjs resolveSupportEntitlements` (the My Math Path server) both call it, so a future-dated
+revision switches on — and an inactive one off — on the Path the same day it does on an assignment (before, the Path
+read the flat keys saved with the projection, which describe the revision current when it was *saved*). The
+structured SIS shape is still read by the adapter itself. `CATALOG_ID_FOR_SUPPORT` / `SUPPORT_FOR_CATALOG_ID` map the
+adapter's canonical ids to catalog ids. Tests: `tests/platform/supportEntitlementsBridge.test.mjs`.
+
+My Math Path's student payload (`mathPath.buildSanitizedQuestion`) now carries the student's own
+`applicableSupports` (canonical ids, never a program or plan label) and `supportLanguage` (a language tag). Before,
+the Path support bar received an empty list and no support reached the student on the Path.
+
+### 12.2 Catalog
+
+| Support | Student label | Delivery | Evidence | Notes |
+| --- | --- | --- | --- | --- |
+| `translation` | Translate | on demand | available · used · unavailable | **Derived** from the revision's `translationLanguage`; never ticked (`derivedFrom`), never in the editor, listed in `entitledIds`, configured supports and the report. English is not a translation. |
+| `glossary-lookup` | Vocabulary | on demand | available · used · documented | Was adult-delivered (manual). `formerlyManual`: a staff record still proves it; work before the student's first platform record of it "predates recording", never a platform gap. |
+| `text-to-speech` | Read aloud | on demand | available · used · unavailable | Unchanged support id. Offered only where the browser can speak; "used" only when it actually spoke; speech text is math-aware (`speechText.js`, also used by the Path). |
+| `chunked-directions` | Break it down | **automatic** | provided | New. Not `visual-chunking` (layout) and not `directions-multiple-ways` (an adult); both keep their meaning. |
+| `sentence-frames` | Help me say it | on demand | available · used | New. Frames never contain an answer, a value or which method to use; offered only where an item asks for words. |
+
+### 12.3 Entitled AND backed
+
+`src/platform/language/supportToolsEntitlement.js` decides what a student is entitled to (from the profile, or on the
+Path from the server's applicable list). `supportToolsModel.js` decides, per item and tool, whether the resource
+exists: translated content (12.4), vocabulary in the prose or the tool's own controls (`TOOL_VOCABULARY`: Step Algebra,
+graphing, systems, regression, data modeling, function investigation, sequences, transformations…), words to read,
+directions worth breaking down (12.5), an explanation to frame (12.6). A tool appears as a button only when both are
+true; otherwise it is recorded as `not-applicable` (nothing to offer here) or `unavailable` (it should have been
+there and was not — an implementation gap).
+
+A support the profile limits to some activities (`appliesTo`, e.g. quizzes and tests only) is offered only in those:
+`toolsEntitlementFromProfile(profile, { activityRole })` filters with `supportAppliesToRole`, as the launch records do.
+
+### 12.4 Translation providers (no external service)
+
+`translationProviders.js resolveTranslation` tries, in order:
+
+1. **authored** — `question.translations[lang]`, falling back to the base language (`es-MX` → `es`), applied to the
+   prompt by `applyStudentSupportToQuestion` and read by Translate through one lookup and one rule
+   (`authoredTranslation.js`): used only if it carries the authored prompt's mathematics exactly — numbers, symbols
+   and capital-letter names of points, segments and figures (`AB`, `ABC`, `AB′`). An item with no authored prompt
+   keeps its mathematics in its tool, so its translation is shown;
+2. **curated** — a built-in language pack, loaded on demand (`packs/es.js`: 127 direction sentences and 40 answer
+   choices drawn from the most frequent directions in MathMaster's Algebra I/II banks and generators). Mathematics is
+   masked into slots by `mathSafeText.js` and restored exactly; any output that does not carry every slot exactly
+   once is refused.
+
+Coverage is a fact: `full`, `partial` (untranslated sentences stay in English, marked), `none` (recorded
+`unavailable` with `no-translation-resource`, `no-language-pack`, `math-mismatch` or `language-pack-failed`) or
+`not-applicable` (only mathematics). There is deliberately **no machine-translation provider**: sending items to an
+external (paid) service is a privacy and cost decision, not an implementation detail. `registerTranslationProvider`
+is the seam for a reviewed one later.
+
+Measured on the seed Path banks (4,200 prompts): full 9%, partial 19%, none 72% — most Path word problems have no
+Spanish content yet, and the report says so per assignment rather than claiming translation.
+
+### 12.5 Break it down
+
+`directionChunks.js`: authored `question.directionSteps` first (they may not introduce a number or expression the item
+does not contain), then a tiny curated library (the brief's correlation example), then the item's own sentences, with
+a joined second instruction ("…, then state the range", "… and justify your conclusion") split into its own step and a
+short list of choices shown as bullets. Rule-based steps must use the item's own words in order and its mathematics
+exactly. A one-step direction is `not-applicable`.
+
+### 12.6 Help me say it
+
+`sentenceFrames.js`: topic frames (correlation, residual/model, system solution, transformation, error analysis, rate
+of change, intercept, domain/range, inequality, sequence, exponential, equivalence, comparison) plus general frames,
+English with Spanish beneath. Offered only where the prose asks to explain/justify/describe/interpret/find an error,
+or the item has a written-response field.
+
+### 12.7 Vocabulary
+
+`mathVocabulary.js` is the small index (83 Algebra I/II terms, their English forms, and per-tool vocabulary) that
+decides availability without loading definitions. `glossary/mathGlossaryEntries.js` (lazy) holds the student-friendly
+definition, a generic example, and the Spanish term and definition. A definition explains a word and never solves the
+item (dashed/solid explain the lines, not which symbol needs which). Terms are found in prose only, never inside
+mathematics.
+
+### 12.8 Where the tools appear
+
+- **Questions** (every assignment question, rich tools included): `QuestionEngine` renders
+  `StudentSupportTray` (exported from `StudentSupportTools.jsx`; the tray itself is a lazily loaded chunk) inline
+  under the task — inside the task panel on a phone (which scrolls within its own capped height), under the task on
+  tablets and Chromebooks, and above the work when a focused solver workspace hides the task. Never over the answer
+  fields, graphs, Step Algebra or the calculator. Read aloud stays the work-bar "Read" button.
+- **Work View** (enlarged rich tools): a header **Support tools** drawer (capability `supports`, rendered only while
+  open) with the same tools, Read aloud included.
+- **My Math Path**: `PathSupportBar` renders the same tray from the server's applicable list. A tool question renders
+  `QuestionEngine` instead, which is handed the same server list (`supportEntitlement`) and folds its tray facts into
+  the attempt for that question instance (`foldPathDelivery`). On both routes, what the tray showed and what
+  the student opened travel with the attempt (`supportsPresented` / `supportsUsed`), which the server intersects with
+  what it authorized (`reconcileSupportDelivery`).
+
+Labels are neutral ("Support tools"); nothing names a program or a classification.
+
+### 12.9 Evidence and reporting
+
+Per question, once per assignment × revision × fact (deterministic ids; "used" once per question per minute):
+`available` (with `language`, `provider`, `coverage`, `surface`, `toolType`, `itemCount`), `provided`
+(`deliveryMode: 'automatic'`), `not-applicable` and `unavailable` (with a reason), and `used` when the student first
+opens a tool on an item. Hovering or reopening records nothing. The language tools and Read aloud join
+`PLATFORM_EVALUATED_SUPPORT_IDS` (a client may record their negative facts; rules mirror it) and
+`RECORDED_ON_EVERY_OPENED_ASSIGNMENT` (so the report gives "X of Y eligible"). The rules authorize `translation` from
+`entitledIds` (versioned) or a valid non-English `translationLanguage` (pre-versioning).
+
+The report reads, for example: *Translated content — Available in 18 of 18 eligible (some items untranslated in 3) ·
+Used in 11*; *Directions broken into short steps — Provided in 18 of 18 eligible* (no "used" column for an automatic
+support). Use never lowers the headline. An item with no translated content is an implementation gap with its
+reason in plain words. No figure is a compliance claim.
+
+### 12.10 Performance
+
+A student without a language support loads none of it: entitlement is decided by a small module; the tray, the
+chunker, the frames, the vocabulary index, the Spanish pack (10 kB) and the glossary (19 kB) are lazy chunks. No new
+listener: the tray reads the profile the session already holds. Evidence is a handful of deterministic records per
+assignment.
+
+### 12.11 Known limits
+
+- Built-in content is Spanish only; any other language shows authored translations only (recorded where none exists).
+- Rich tools' own button labels and hints are English; the tray offers vocabulary for them, not a translated UI.
+- Read aloud speaks the prompt (and on the Path the choices); it does not read what a canvas tool draws.
+- Most Path items have no Spanish content yet (12.4); the report shows it per assignment.

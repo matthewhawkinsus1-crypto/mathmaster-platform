@@ -417,8 +417,9 @@ export default function EnlargeableFigure({
   const shellActionNames = ['undo', 'redo', 'fitView'].filter(
     (name) => registeredCapabilities[name]?.onAction || registeredCapabilities[name]?.onClick,
   );
+  const supports = registeredCapabilities.supports?.render ? registeredCapabilities.supports : null;
   const capabilityNames = workViewCapabilitySummary(registeredCapabilities)
-    .filter((name) => !['task', 'help', 'instruction', 'primaryActions', 'secondaryActions'].includes(name))
+    .filter((name) => !['task', 'help', 'instruction', 'primaryActions', 'secondaryActions', 'supports'].includes(name))
     .filter((name) => !shellActionNames.includes(name));
   const shellActions = [
     registeredCapabilities.undo,
@@ -576,6 +577,7 @@ export default function EnlargeableFigure({
         </div>
         {task ? <button type="button" aria-expanded={drawer === 'task'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'task'))}>Task</button> : null}
         {help ? <button type="button" aria-expanded={drawer === 'help'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'help'))}>Help</button> : null}
+        {supports ? <button type="button" data-work-view-supports aria-expanded={drawer === 'supports'} onClick={() => setDrawer((value) => toggleWorkViewDrawer(value, 'supports'))}>{supports.label || 'Support tools'}</button> : null}
         <button ref={closeRef} type="button" onClick={close}>{openEnlarged ? 'Close full screen ✕' : 'Close ✕'}</button>
       </header>
       <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'task' ? 'true' : 'false'} aria-label="Original task">
@@ -584,6 +586,11 @@ export default function EnlargeableFigure({
       <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'help' ? 'true' : 'false'} aria-label="Help and instructions">
         {help || null}
       </section>
+      {supports ? (
+        <section className="mathmaster-work-view-drawer" data-open={enlarged && drawer === 'supports' ? 'true' : 'false'} aria-label="Support tools">
+          {enlarged && drawer === 'supports' ? supports.render() : null}
+        </section>
+      ) : null}
       <div className="mathmaster-work-view-body">
         {figure}
         <aside ref={actionsRef} className="mathmaster-work-view-actions" aria-label="Work View controls">

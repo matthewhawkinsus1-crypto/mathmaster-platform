@@ -26,8 +26,9 @@
 import { supportAutomationFor, supportById, supportLabel, SUPPORT_AUTOMATION, SUPPORT_CLASSIFICATION } from '../../../functions/shared/supportCatalog.mjs';
 import { describeItemReduction } from '../../../functions/shared/reducedWorkload.mjs';
 import {
-  LEGACY_REVISION_ID, REVISION_STATUS, legacyProfileToRevision, revisionEffectiveOn, sortRevisionTimeline, toMillis,
+  LEGACY_REVISION_ID, REVISION_STATUS, derivedSupportEntries, legacyProfileToRevision, revisionEffectiveOn, sortRevisionTimeline, toMillis,
 } from '../../../functions/shared/supportProfileModel.mjs';
+import { LANGUAGE_NAMES } from '../language/translationProviders.js';
 import {
   EVIDENCE_LEGEND, PROVENANCE, PROVIDER_ROLE_LABEL, REPORT_LIMITATIONS, summarizeServiceMinutes,
 } from '../../../functions/shared/supportEvidenceModel.mjs';
@@ -39,7 +40,7 @@ import { lastExportedRowsByStudent, snapshotsForPart } from '../gradeTransfer/gr
 import { canonicalPresentedAssignmentGrade } from '../grading/canonicalGradeProjection.js';
 import {
   ASSIGNMENT_STATUS, SCHOOL_TIME_ZONE, activeEvidence, buildAssignmentEvidenceRow, configuredSupportIds, supportAutomationUnder,
-  distinctUses, evidenceRecordingStartMs, isStaffEvent,
+  EVIDENCE_REASON_TEXT, distinctUses, evidenceRecordingStartMs, isStaffEvent,
 } from './evidenceAggregation.js';
 import { acceptStudentName, formatStudentName } from '../studentName.js';
 
@@ -53,9 +54,33 @@ export const TIMELINE_LIMIT = 400;
 export const RECORDED_ON_EVERY_OPENED_ASSIGNMENT = Object.freeze(new Set([
   'reduced-item-count-same-rigor', 'declutter-ui', 'visual-chunking', 'high-contrast', 'large-text',
   'disable-idle-timer', 'word-processor-response', 'graph-paper', 'reteach-resources', 'study-sheet',
+  // Every question records these either way: available/provided where the
+  // item backs them, not-applicable/unavailable where it does not.
+  'text-to-speech', 'translation', 'glossary-lookup', 'chunked-directions', 'sentence-frames',
 ]));
 // Supports with no assignment-level record at all (My Math Path only).
 export const NOT_RECORDED_IN_ASSIGNMENTS = Object.freeze(new Set(['extra-attempts']));
+
+const SURFACE_TEXT = Object.freeze({ assignment: 'on a question', path: 'on My Math Path', 'rich-tool': 'in a math tool', enlarged: 'in Work View' });
+
+/**
+ * The compact facts a platform record carries, in a teacher's words — never
+ * item text. "" when there is nothing to add.
+ */
+export const describeEvidenceDetails = (event) => {
+  const details = event?.details;
+  if (!details || typeof details !== 'object') return '';
+  const parts = [];
+  if (details.language) parts.push(LANGUAGE_NAMES[String(details.language).split('-')[0]] || details.language);
+  if (details.coverage === 'full') parts.push(details.provider === 'authored' ? 'authored translation' : 'translated');
+  if (details.coverage === 'partial') parts.push('partly translated');
+  if (event?.supportId === 'chunked-directions' && details.itemCount) parts.push(`${details.itemCount} steps`);
+  if (event?.supportId === 'glossary-lookup' && details.itemCount) parts.push(`${details.itemCount} terms`);
+  if (event?.supportId === 'sentence-frames' && details.itemCount) parts.push(`${details.itemCount} frames`);
+  if (details.reason) parts.push(EVIDENCE_REASON_TEXT[details.reason] || details.reason);
+  if (details.surface && SURFACE_TEXT[details.surface]) parts.push(SURFACE_TEXT[details.surface]);
+  return parts.join(' · ');
+};
 
 /**
  * The implementation headline for one support: made available (on-demand
@@ -69,7 +94,9 @@ export const supportHeadline = (support) => {
   const delivered = Number(support.assignmentsDelivered) || 0;
   // A ratio only where MathMaster records the support on every opened
   // assignment; elsewhere it applies to some content only, so a count.
-  if (support.denominatorKnown) return `${verb} in ${delivered} of ${Number(support.assignmentsEligible) || 0} eligible`;
+  const partial = Number(support.assignmentsPartial) || 0;
+  const partialNote = partial ? ` (some items untranslated in ${partial})` : '';
+  if (support.denominatorKnown) return `${verb} in ${delivered} of ${Number(support.assignmentsEligible) || 0} eligible${partialNote}`;
   return `${verb} in ${delivered} assignment${delivered === 1 ? '' : 's'} where it applied`;
 };
 
@@ -192,6 +219,10 @@ const describeEntries = (entries) => list(entries).map((entry) => {
   let detail = '';
   if (entry?.params?.dueDateExtension) detail = describeDueDateExtension(entry.params.dueDateExtension);
   else if (catalog?.params?.includes('itemReduction')) detail = describeItemReduction(entry?.params?.itemReduction);
+  else if (catalog?.derivedFrom === 'translationLanguage') {
+    const code = String(entry?.params?.language || '');
+    detail = `From the profile language: ${LANGUAGE_NAMES[code.split('-')[0]] || code}`;
+  }
   return {
     id: entry.id,
     label: catalog?.label || entry.id,
@@ -243,8 +274,11 @@ const profileSection = ({ revisions, profile, fromDateKey, toDateKey }) => {
       sourceLabel: atEnd.sourceLabel || null,
       sourceNote: atEnd.sourceNote || '',
       inclusionStatus: atEnd.inclusionStatus === true,
-      accommodations: describeEntries(atEnd.accommodations),
+      // Translation follows from the language field (never ticked), so it is
+      // listed beside the supports it sits with.
+      accommodations: describeEntries([...list(atEnd.accommodations), ...derivedSupportEntries(atEnd)]),
       modifications: describeEntries(atEnd.modifications),
+      translationLanguage: atEnd.translationLanguage || null,
       serviceExpectations: list(atEnd.serviceExpectations).map((row) => ({ ...row, label: supportLabel(row.serviceType) })),
       recordedAtMs: atEnd.createdAtMs ?? toMillis(atEnd.createdAt),
       recordedBy: atEnd.createdByEmail || null,
@@ -441,6 +475,12 @@ export const buildSupportEvidenceReport = ({
       assignmentsProvided: assignmentsWith(['provided']),
       assignmentsNotApplicable: notApplicableRows.length,
       assignmentsUnavailable: eligibleRows.filter(({ support }) => support.unavailable > 0).length,
+      // Translation: assignments where some item was only partly translated
+      // or had no translated content (a fact, beside the headline).
+      assignmentsPartial: supportId === 'translation'
+        ? eligibleRows.filter(({ row }) => events.some((event) => event.assignmentId === row.assignmentId
+          && ((event.eventType === 'available' && event.details?.coverage === 'partial') || event.eventType === 'unavailable'))).length
+        : 0,
       assignmentsUsed: new Set(distinctUses(events).map((event) => event.assignmentId).filter(Boolean)).size,
       uses: distinctUses(events).length,
       staffRecords: events.filter(isStaffEvent).length,

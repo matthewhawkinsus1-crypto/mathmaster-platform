@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import CalculatorPanel from '../CalculatorPanel.jsx';
 import ProblemUnderstandingPanel from '../ProblemUnderstandingPanel.jsx';
 import QuestionEngine from '../../QuestionEngine.jsx';
@@ -11,6 +11,7 @@ import { getEffectiveActivityPolicy } from '../../platform/policies/activityPoli
 import { resolveCalculatorPolicy } from '../../platform/policies/calculatorPolicy.js';
 import PathSupportBar, { speechTextFor, supportPresentationStyle } from './PathSupportBar.jsx';
 import { questionFromToolPayload } from '../../platform/path/pathToolResponses.js';
+import { foldPathDelivery, toolsEntitlementFromPath } from '../../platform/language/supportToolsEntitlement.js';
 import { describeSkill, teksSkillId } from '../../platform/path/skillGraph.js';
 import { toDisplayCode } from '../../utils/teksUtils.js';
 import StandardBadge from '../common/StandardBadge.jsx';
@@ -358,6 +359,22 @@ export const PathSessionPlayer = ({
     [questionInstance],
   );
 
+  // A tool question renders QuestionEngine, not the support bar. Its Support
+  // tools come from the same server list, and what its tray showed and what
+  // the student opened travel with the attempt exactly like the bar's —
+  // keyed to this question instance, so one question's facts never ride on
+  // the next.
+  const supportLanguage = questionInstance?.supportLanguage || null;
+  const engineSupportTools = useMemo(
+    () => toolsEntitlementFromPath({ applicableSupports, translationLanguage: supportLanguage }),
+    [applicableSupports, supportLanguage],
+  );
+  const [engineDelivery, setEngineDelivery] = useState({ key: '', presented: [], used: [] });
+  const onEngineSupportEvidence = useCallback((record) => {
+    setEngineDelivery((current) => foldPathDelivery(current, record, { key: instanceId, applicableSupports }));
+  }, [applicableSupports, instanceId]);
+  const engineSupports = engineDelivery.key === instanceId ? engineDelivery : { presented: [], used: [] };
+
   // Everything a student would need read to them, in the order they meet it.
   // Deliberately excludes anything the server holds back — a read-aloud button
   // must never become a way to hear the answer.
@@ -502,6 +519,8 @@ export const PathSessionPlayer = ({
             attemptCount: questionInstance.attemptsUsed || 0,
           }}
           studentProfile={studentProfile}
+          supportEntitlement={engineSupportTools}
+          onSupportEvidence={onEngineSupportEvidence}
           maximumAttempts={questionInstance.attemptsAllowed}
           activityRole={questionInstance.activityRole || 'practice'}
           showStandardBadge={false}
@@ -512,7 +531,12 @@ export const PathSessionPlayer = ({
             pathToolId: questionInstance.pathToolId,
             submit: async (rawWork, supportUsage, meta) => onSubmitAnswer?.(
               { raw: rawWork, responseKey: meta?.responseKey || '' },
-              { ...supportUsage, calculatorUsed: supportUsage?.calculatorUsed ?? calculatorUsed },
+              {
+                ...supportUsage,
+                calculatorUsed: supportUsage?.calculatorUsed ?? calculatorUsed,
+                supportsPresented: engineSupports.presented,
+                supportsUsed: engineSupports.used,
+              },
             ),
           } : null}
           onGrade={async (isCorrect, questionDetails, parts, supportUsage) => {
@@ -521,7 +545,12 @@ export const PathSessionPlayer = ({
             // independently.
             await onSubmitAnswer?.(
               { responses: parts, questionDetails },
-              { ...supportUsage, calculatorUsed: supportUsage?.calculatorUsed ?? calculatorUsed },
+              {
+                ...supportUsage,
+                calculatorUsed: supportUsage?.calculatorUsed ?? calculatorUsed,
+                supportsPresented: engineSupports.presented,
+                supportsUsed: engineSupports.used,
+              },
               { isCorrect },
             );
             return null;
@@ -604,6 +633,9 @@ export const PathSessionPlayer = ({
           questionInstanceId={instanceId}
           onDelivery={setSupportDelivery}
           disabled={isSubmitting}
+          prompt={questionInstance?.prompt || ''}
+          toolType={questionInstance?.pathToolId || questionInstance?.questionType || ''}
+          supportLanguage={supportLanguage}
         />
 
         {questionInstance.isDevelopmentSandbox && (

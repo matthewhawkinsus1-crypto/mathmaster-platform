@@ -37,8 +37,14 @@ import { EVIDENCE_EVENT_TYPE } from '../../../functions/shared/supportEvidenceMo
 const list = (value) => (Array.isArray(value) ? value : []);
 const TIMED_ROLES = new Set(['warmup', 'dol', 'quiz', 'test']);
 
-// Recorded per question when the tool is on screen, not at launch.
-const RECORDED_IN_QUESTION = new Set(['text-to-speech', 'calculator', 'calculator-override-computation']);
+// Recorded per question when the tool is on screen, not at launch. The
+// language tools are recorded only where the item or tool actually has the
+// resource behind them (src/platform/language/supportToolsModel.js) — a
+// language on the profile is not translated content on the screen.
+const RECORDED_IN_QUESTION = new Set([
+  'text-to-speech', 'calculator', 'calculator-override-computation',
+  'translation', 'glossary-lookup', 'chunked-directions', 'sentence-frames',
+]);
 // Not a platform fact in an assignment.
 const NOT_RECORDED_AT_LAUNCH = new Set(['extra-attempts']);
 

@@ -1,5 +1,9 @@
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { studentSupportTools } from '../../studentSupport.js';
+
+// The per-question tray (language tools) is its own chunk: a student with no
+// language support never downloads it, its vocabulary or its language packs.
+const SupportToolsTray = lazy(() => import('./supportTools/SupportToolsTray.jsx'));
 
 /*
  * SUPPORT TOOLS — what this student can use, in plain words.
@@ -15,7 +19,29 @@ const WHERE = {
   'text-to-speech': 'Use 🔊 Read on any question.',
   calculator: 'Use 🧮 Calculator when a question allows it.',
   'graph-paper': 'Open ✎ Scratchpad — it opens on graph paper.',
+  translation: 'Use 文A Translate under a question when it is ready in your language.',
+  'glossary-lookup': 'Use 📖 Vocabulary under a question to see what math words mean.',
+  'chunked-directions': 'Directions are shown as short steps under each question.',
+  'sentence-frames': 'Use 💬 Help me say it when a question asks you to explain.',
 };
+
+/**
+ * SUPPORT TOOLS FOR ONE QUESTION — the same neutral surface, per item.
+ *
+ * `entitlement` comes from platform/language/supportToolsEntitlement.js (from
+ * the student's own profile, or on My Math Path from the server's applicable
+ * list). Renders nothing — and loads nothing — when the student has no
+ * language tool. Each tool appears only where this item or tool actually has
+ * the resource behind it (see the tray).
+ */
+export function StudentSupportTray({ entitlement = null, ...props }) {
+  if (!entitlement?.tools?.length) return null;
+  return (
+    <Suspense fallback={null}>
+      <SupportToolsTray entitlement={entitlement} {...props} />
+    </Suspense>
+  );
+}
 
 export default function StudentSupportTools({ profile = null, onResourceOpened = null, nowValue = null, className = '' }) {
   const [open, setOpen] = useState(false);

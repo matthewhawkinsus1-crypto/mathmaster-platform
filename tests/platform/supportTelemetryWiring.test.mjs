@@ -29,13 +29,17 @@ test('a configured modification that changes nothing leaves the item at grade le
 
 test('the question engine reports read-aloud use at the button and calculator use on every open path', () => {
   const readAloud = region(engine, 'aria-label="Read aloud"', '</button>', 'Read aloud button');
-  assert.match(readAloud, /onClick=\{\(\) => \{ speakText\(referenceSpeechText\); reportSupportEvidence\('text-to-speech', 'used'\); \}\}/);
+  // "Used" only when the browser actually spoke, in the language on screen.
+  assert.match(readAloud, /onClick=\{\(\) => \{ if \(speakText\(referenceSpeechText, readAloudLanguage\)\) reportSupportEvidence\('text-to-speech', 'used'\); \}\}/);
+  assert.match(engine, /\{readAloudOffered && \(/, 'offered only where speech works');
   const control = region(engine, 'const handleCalculatorControl = () => {', '\n  };', 'calculator control');
   assert.match(control, /markCalculatorOpened\(\);\n    setCalculatorOpen\(true\);/);
   const marker = region(engine, 'const markCalculatorOpened = () => {', '};', 'markCalculatorOpened');
   assert.match(marker, /reportSupportEvidence\('calculator', 'used'\)/);
   assert.match(engine, /onCalculatorOpened=\{markCalculatorOpened\}/);
-  const itemEffect = region(engine, "if (supportPresentation.textToSpeech) reportSupportEvidence('text-to-speech', 'available');", '}, [', 'item evidence effect');
+  const itemEffect = region(engine, "if (supportPresentation.textToSpeech && readAloudReady) reportSupportEvidence('text-to-speech', 'available');", '}, [', 'item evidence effect');
+  // A browser that cannot speak records an implementation gap, never "available".
+  assert.match(itemEffect, /else if \(supportPresentation\.textToSpeech\) reportSupportEvidence\('text-to-speech', 'unavailable', \{ reason: 'speech-engine-missing', surface: 'assignment' \}\);/);
   assert.match(itemEffect, /\(supportUsage\.modifications \|\| \[\]\)\.forEach\(\(modificationId\) => reportSupportEvidence\(modificationId, 'provided'\)\)/);
   assert.match(engine, /if \(calculatorPolicy\?\.available\) reportSupportEvidence\('calculator', 'available'\);/);
 });

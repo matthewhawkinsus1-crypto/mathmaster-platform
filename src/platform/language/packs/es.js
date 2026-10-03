@@ -1,0 +1,210 @@
+/*
+ * CURATED SPANISH — the first built-in language pack (loaded on demand by
+ * ../translationProviders.js; never in a student's initial bundle).
+ *
+ * Each entry pairs an English sentence TEMPLATE with its Spanish rendering.
+ * `{1}`, `{2}`, … are SLOTS: each stands for one piece of mathematics the
+ * sentence carries (an equation, a coordinate, a variable, a number), found by
+ * ../mathSafeText.js. A slot is copied through untouched — the pack never
+ * sees, translates, reorders or re-spells the mathematics inside it — and the
+ * provider refuses any output that does not carry every slot exactly once.
+ *
+ * Coverage is honest: a sentence the pack does not know stays in English and
+ * the item is reported as `partial`. Templates come from the direction
+ * sentences that recur most across MathMaster's Algebra I / II banks and
+ * generators (and the brief's own examples); they are curated, not machine
+ * translated, and they are deliberately plain.
+ *
+ * `sentences` match a whole sentence; `choices` match the text of one answer
+ * choice after its letter ("B) No solution").
+ */
+
+export const LANGUAGE = 'es';
+export const LANGUAGE_NAME = 'Español';
+
+export const sentences = [
+  // --- Answer formats --------------------------------------------------------
+  ['Type {1}, {2}, {3}, or {4}.', 'Escribe {1}, {2}, {3} o {4}.'],
+  ['Type {1}, {2}, or {3}.', 'Escribe {1}, {2} o {3}.'],
+  ['Enter {1}.', 'Escribe {1}.'],
+  ['Enter the fraction.', 'Escribe la fracción.'],
+  ['Enter your answer.', 'Escribe tu respuesta.'],
+  ['Enter the solution as an ordered pair.', 'Escribe la solución como un par ordenado.'],
+  ['Enter all three regression coefficients.', 'Escribe los tres coeficientes de regresión.'],
+  ['Select all that apply.', 'Selecciona todas las opciones correctas.'],
+  ['Choose the best answer.', 'Elige la mejor respuesta.'],
+  ['Choose one.', 'Elige una opción.'],
+  ['Round to the nearest tenth.', 'Redondea a la décima más cercana.'],
+  ['Round to the nearest hundredth.', 'Redondea a la centésima más cercana.'],
+  ['Round to the nearest whole number.', 'Redondea al número entero más cercano.'],
+  ['Show your work.', 'Muestra tu trabajo.'],
+  ['Explain your reasoning.', 'Explica tu razonamiento.'],
+  ['Justify your answer.', 'Justifica tu respuesta.'],
+  ['Explain how you know.', 'Explica cómo lo sabes.'],
+  ['Do not solve.', 'No lo resuelvas.'],
+
+  // --- Solving and simplifying -----------------------------------------------
+  ['Solve {1}.', 'Resuelve {1}.'],
+  ['Solve for {1}.', 'Resuelve para {1}.'],
+  ['Solve {1} for {2}.', 'Despeja {2} en {1}.'],
+  ['Solve step by step.', 'Resuelve paso a paso.'],
+  ['Solve the equation.', 'Resuelve la ecuación.'],
+  ['Solve the inequality.', 'Resuelve la desigualdad.'],
+  ['Solve the system.', 'Resuelve el sistema.'],
+  ['Solve the system {1} and {2}.', 'Resuelve el sistema {1} y {2}.'],
+  ['Solve the system by substitution.', 'Resuelve el sistema por sustitución.'],
+  ['Solve the system by elimination.', 'Resuelve el sistema por eliminación.'],
+  ['Simplify.', 'Simplifica.'],
+  ['Simplify {1}.', 'Simplifica {1}.'],
+  ['Simplify {1} completely.', 'Simplifica {1} por completo.'],
+  ['Factor {1}.', 'Factoriza {1}.'],
+  ['Factor {1} completely.', 'Factoriza {1} por completo.'],
+  ['Expand {1}.', 'Desarrolla {1}.'],
+  ['Add {1}.', 'Suma {1}.'],
+  ['Multiply {1}.', 'Multiplica {1}.'],
+  ['Divide {1} by {2}.', 'Divide {1} entre {2}.'],
+  ['Compute {1}.', 'Calcula {1}.'],
+  ['Evaluate {1}.', 'Evalúa {1}.'],
+  ['Find {1}.', 'Halla {1}.'],
+  ['If {1}, find {2}.', 'Si {1}, halla {2}.'],
+  ['Find the inverse of {1}.', 'Halla la inversa de {1}.'],
+  ['Rewrite {1} in slope-intercept form.', 'Reescribe {1} en la forma pendiente-intersección.'],
+  ['Write {1} in factored form.', 'Escribe {1} en forma factorizada.'],
+  ['Write {1} in vertex form.', 'Escribe {1} en forma de vértice.'],
+  ['Write an equation of the line.', 'Escribe una ecuación de la recta.'],
+  ['Write the equation in slope-intercept form.', 'Escribe la ecuación en la forma pendiente-intersección.'],
+  ['Add {1} and {2}, then simplify.', 'Suma {1} y {2}; luego simplifica.'],
+  ['Multiply {1} and {2}, then simplify.', 'Multiplica {1} y {2}; luego simplifica.'],
+  ['Subtract {1} from {2}, then simplify.', 'Resta {1} de {2}; luego simplifica.'],
+
+  // --- Questions -------------------------------------------------------------
+  ['What is the value of {1}?', '¿Cuál es el valor de {1}?'],
+  ['What is {1}?', '¿Cuánto es {1}?'],
+  ['What is {1} when {2}?', '¿Cuánto es {1} cuando {2}?'],
+  ['If {1}, what is the value of {2}?', 'Si {1}, ¿cuál es el valor de {2}?'],
+  ['For {1}, what is the value of {2}?', 'Para {1}, ¿cuál es el valor de {2}?'],
+  ['What value of {1} satisfies {2}?', '¿Qué valor de {1} satisface {2}?'],
+  ['Which value of {1} makes {2} true?', '¿Qué valor de {1} hace verdadera {2}?'],
+  ['What is the solution to {1}?', '¿Cuál es la solución de {1}?'],
+  ['What is their solution?', '¿Cuál es su solución?'],
+  ['Which expression is equivalent to {1}?', '¿Qué expresión es equivalente a {1}?'],
+  ['For {1}, which expression is equivalent to {2}?', 'Para {1}, ¿qué expresión es equivalente a {2}?'],
+  ['Which statement is true?', '¿Qué afirmación es verdadera?'],
+  ['Which statement is wrong?', '¿Qué afirmación es incorrecta?'],
+  ['Which row is wrong?', '¿Qué fila es incorrecta?'],
+  ['What is wrong?', '¿Qué está mal?'],
+  ['What went wrong?', '¿Qué salió mal?'],
+  ['What is the correction?', '¿Cuál es la corrección?'],
+  ['Which equation represents the relationship?', '¿Qué ecuación representa la relación?'],
+  ['Which equation defines the function?', '¿Qué ecuación define la función?'],
+  ['Which equation defines {1}?', '¿Qué ecuación define {1}?'],
+  ['Which inequality represents it?', '¿Qué desigualdad la representa?'],
+  ['Which graph represents {1}?', '¿Qué gráfica representa {1}?'],
+  ['Which point is a solution to {1}?', '¿Qué punto es una solución de {1}?'],
+  ['Which ordered pair lies on the relationship?', '¿Qué par ordenado está en la relación?'],
+  ['Which function fits?', '¿Qué función se ajusta?'],
+  ['Which model is appropriate?', '¿Qué modelo es apropiado?'],
+  ['Which model is most appropriate?', '¿Qué modelo es el más apropiado?'],
+  ['Which model is correct?', '¿Qué modelo es correcto?'],
+  ['What is the slope of the line?', '¿Cuál es la pendiente de la recta?'],
+  ['What is its slope?', '¿Cuál es su pendiente?'],
+  ['Find its slope.', 'Halla su pendiente.'],
+  ['What is the y-intercept of the line shown?', '¿Cuál es la intersección con el eje y de la recta que se muestra?'],
+  ['What is the vertex of {1}?', '¿Cuál es el vértice de {1}?'],
+  ['What is its volume?', '¿Cuál es su volumen?'],
+  ['Find its volume.', 'Halla su volumen.'],
+  ['How tall is it?', '¿Qué altura tiene?'],
+  ['Find the {1}th term.', 'Halla el término número {1}.'],
+  ['What does this rate of change mean?', '¿Qué significa esta tasa de cambio?'],
+  ['How should the linear association be described?', '¿Cómo se debe describir la asociación lineal?'],
+  ['Where do the lines meet?', '¿Dónde se cruzan las rectas?'],
+  ['What is the residual for {1}?', '¿Cuál es el residuo para {1}?'],
+
+  // --- Givens ----------------------------------------------------------------
+  ['Let {1} and {2}.', 'Sean {1} y {2}.'],
+  ['Use {1}.', 'Usa {1}.'],
+  ['Use the graph of {1}.', 'Usa la gráfica de {1}.'],
+  ['Use the graph to answer each part.', 'Usa la gráfica para responder cada parte.'],
+  ['Use the graph to complete each part.', 'Usa la gráfica para completar cada parte.'],
+  ['Use the model to predict {1} when {2}.', 'Usa el modelo para predecir {1} cuando {2}.'],
+  ['Use it to predict {1} when {2}.', 'Úsalo para predecir {1} cuando {2}.'],
+  ['A line passes through {1} and {2}.', 'Una recta pasa por {1} y {2}.'],
+  ['Line {1} passes through {2} and {3}.', 'La recta {1} pasa por {2} y {3}.'],
+  ['A line has slope {1} and passes through {2}.', 'Una recta tiene pendiente {1} y pasa por {2}.'],
+  ['A student writes {1}.', 'Un estudiante escribe {1}.'],
+  ['A student writes {1} as {2}.', 'Un estudiante escribe {1} como {2}.'],
+  ['A student factors {1} as {2}.', 'Un estudiante factoriza {1} como {2}.'],
+  ['A quadratic has vertex {1} and passes through {2}.', 'Una función cuadrática tiene vértice {1} y pasa por {2}.'],
+  ['A quadratic has zeros {1} and {2}.', 'Una función cuadrática tiene ceros {1} y {2}.'],
+  ['A monic quadratic has zeros {1} and {2}.', 'Una función cuadrática mónica tiene ceros {1} y {2}.'],
+  ['The lines {1} and {2} are graphed.', 'Las rectas {1} y {2} están graficadas.'],
+  ['Compared with {1}, what does {2} do?', 'Comparada con {1}, ¿qué hace {2}?'],
+  ['Compared with {1}, how is {2} transformed?', 'Comparada con {1}, ¿cómo se transforma {2}?'],
+
+  // --- Graphs, tables and tools ---------------------------------------------
+  ['Graph {1}.', 'Grafica {1}.'],
+  ['Graph the line.', 'Grafica la recta.'],
+  ['Graph the inequality.', 'Grafica la desigualdad.'],
+  ['Graph the function.', 'Grafica la función.'],
+  ['Graph the system.', 'Grafica el sistema.'],
+  ['Complete the table for {1}.', 'Completa la tabla para {1}.'],
+  ['Complete the missing values in the table.', 'Completa los valores que faltan en la tabla.'],
+  ['Write the coordinates of the plotted point.', 'Escribe las coordenadas del punto marcado.'],
+  ['Compare the two lines.', 'Compara las dos rectas.'],
+  ['Match each story to its graph.', 'Relaciona cada situación con su gráfica.'],
+  ['Investigate this function.', 'Investiga esta función.'],
+  ['Find the domain and range.', 'Halla el dominio y el rango.'],
+  ['State the domain and range.', 'Indica el dominio y el rango.'],
+  ['Find the x- and y-intercepts of {1}.', 'Halla las intersecciones con el eje x y con el eje y de {1}.'],
+  ['Find the slope of the line through {1} and {2}.', 'Halla la pendiente de la recta que pasa por {1} y {2}.'],
+  ['Describe the correlation.', 'Describe la correlación.'],
+  [
+    'Determine whether the relationship represented by the data demonstrates a positive, negative, or no correlation and justify your conclusion.',
+    'Determina si la relación representada por los datos muestra una correlación positiva, negativa o ninguna correlación, y justifica tu conclusión.',
+  ],
+];
+
+export const choices = [
+  ['No solution', 'No tiene solución'],
+  ['Infinitely many solutions', 'Infinitas soluciones'],
+  ['One solution', 'Una solución'],
+  ['all real numbers', 'todos los números reales'],
+  ['integers only', 'solo números enteros'],
+  ['{1} only', 'solo {1}'],
+  ['{1} and {2}', '{1} y {2}'],
+  ['{1} or {2}', '{1} o {2}'],
+  ['Yes', 'Sí'],
+  ['No', 'No'],
+  ['linear', 'lineal'],
+  ['quadratic', 'cuadrática'],
+  ['exponential', 'exponencial'],
+  ['constant', 'constante'],
+  ['inverse variation', 'variación inversa'],
+  ['positive', 'positiva'],
+  ['negative', 'negativa'],
+  ['none', 'ninguna'],
+  ['positive correlation', 'correlación positiva'],
+  ['negative correlation', 'correlación negativa'],
+  ['no correlation', 'ninguna correlación'],
+  ['perfect positive', 'positiva perfecta'],
+  ['perfect negative', 'negativa perfecta'],
+  ['no association', 'ninguna asociación'],
+  ['causation is proven', 'se demuestra causalidad'],
+  ['Shifts {1} units up.', 'Se desplaza {1} unidades hacia arriba.'],
+  ['Shifts {1} units down.', 'Se desplaza {1} unidades hacia abajo.'],
+  ['Shifts {1} units right.', 'Se desplaza {1} unidades hacia la derecha.'],
+  ['Shifts {1} units left.', 'Se desplaza {1} unidades hacia la izquierda.'],
+  ['Shifts it {1} units up.', 'La desplaza {1} unidades hacia arriba.'],
+  ['Shifts it {1} units down.', 'La desplaza {1} unidades hacia abajo.'],
+  ['The graph shifts {1} units up.', 'La gráfica se desplaza {1} unidades hacia arriba.'],
+  ['The graph shifts {1} units down.', 'La gráfica se desplaza {1} unidades hacia abajo.'],
+  ['Reflects it across the x-axis.', 'La refleja sobre el eje x.'],
+  ['Reflects it across the y-axis.', 'La refleja sobre el eje y.'],
+  ['Changes the slope to {1}.', 'Cambia la pendiente a {1}.'],
+  ['Removes the asymptote.', 'Elimina la asíntota.'],
+  ['The starting value is {1}.', 'El valor inicial es {1}.'],
+  ['The x-intercept is {1}.', 'La intersección con el eje x es {1}.'],
+  ['The y-intercept is {1}.', 'La intersección con el eje y es {1}.'],
+];
+
+export default { LANGUAGE, LANGUAGE_NAME, sentences, choices };
