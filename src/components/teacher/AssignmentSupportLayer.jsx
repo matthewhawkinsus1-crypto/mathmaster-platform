@@ -168,11 +168,17 @@ export default function AssignmentSupportLayer({
                         {' · active time: '}
                         {row.engagement.activeMinutes !== null ? `${row.engagement.activeMinutes} min` : PROVENANCE_LABEL['not-recorded']}
                         {row.staffEvents.length ? ` · ${row.staffEvents.length} staff record${row.staffEvents.length === 1 ? '' : 's'}` : ''}
+                        {(() => {
+                          // Reduced number of items: what this student was assigned.
+                          const fact = row.workload?.recorded || row.workload?.current;
+                          if (!row.workload || !fact || fact.assignedCount === undefined || fact.assignedCount === null) return '';
+                          return ` · fewer items: ${fact.assignedCount} of ${fact.originalCount}${row.workload.recorded ? '' : ' (not yet recorded)'}`;
+                        })()}
                       </div>
                       <div className="se-chips">
-                        {row.supports.filter((support) => support.used || support.available || support.provided || support.documented).map((support) => (
+                        {row.supports.filter((support) => support.used || support.available || support.provided || support.documented || support.notApplicable || support.unavailable).map((support) => (
                           <span key={support.supportId} className="tw-pill" data-tone="primary" title={support.label}>
-                            {supportShortLabel(support.supportId)}: {[support.used ? `used ${support.used}×` : null, support.available ? 'available' : null, support.provided ? 'provided' : null, support.documented ? `documented ${support.documented}×` : null].filter(Boolean).join(', ')}
+                            {supportShortLabel(support.supportId)}: {[support.used ? `used ${support.used}×` : null, support.available ? 'available' : null, support.provided ? 'provided' : null, support.notApplicable ? 'not applicable' : null, support.unavailable ? 'could not be provided' : null, support.documented ? `documented ${support.documented}×` : null].filter(Boolean).join(', ')}
                           </span>
                         ))}
                         {row.condition.modifications.map((id) => <SupportClassificationTag key={id} supportId={id} />)}

@@ -34,6 +34,8 @@ export default function StudentAssignmentsList({
   onOpenStudentWork = null,
   emptyText = 'No assignments are assigned to this student’s class yet.',
   // Assignments where this student used a Practice Pass (Practice excused).
+  // A reduced-item-count accommodation needs no prop: it comes from the
+  // student's own `profile`, read by studentAssignmentProgress.
   excusedAssignmentIds = null,
 }) {
   if (!student) return null;
@@ -67,6 +69,13 @@ export default function StudentAssignmentsList({
                   <span className="tw-row" style={{ gap: 6 }}>
                     <span className="tw-pill" data-tone={status.tone}>{status.label}</span>
                     {progress?.practicePassExcused && <span className="tw-pill" data-tone="neutral" title="The student used a Practice Pass. Practice is excused: not scored, not required.">Practice excused · Pass</span>}
+                    {/* The student's reduced-item-count accommodation: the
+                        progress total is already their required items. */}
+                    {progress?.reducedFrom > 0 && (
+                      <span className="tw-pill" data-tone="neutral" data-reduced-workload="true" title={`Accommodation: fewer items, same TEKS and rigor. ${progress.total} of ${progress.reducedFrom} items are this student's work; the others are not scored and never missing.`}>
+                        Fewer items · {progress.total} of {progress.reducedFrom}
+                      </span>
+                    )}
                     {onOpenStudentWork && (!progress || progress.state !== PROGRESS_STATE.NOT_STARTED) && (
                       <button type="button" className="tw-btn tw-btn--sm" onClick={() => onOpenStudentWork(classId, assignment.id, student.id)}>Work</button>
                     )}

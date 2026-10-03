@@ -139,8 +139,10 @@ import {
   questionIsIncluded,
   studentAssignmentIndicesWithPracticePass,
   studentDueDateLines,
+  studentRequiredQuestions,
 } from './assignmentLifecycle';
 import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './livePresence';
+import { describeWorkloadSummary } from '../functions/shared/reducedWorkload.mjs';
 import {
   SPOTLIGHT_FRAME_COLLECTION,
   SPOTLIGHT_REQUEST_COLLECTION,
@@ -158,6 +160,7 @@ import {
   buildSupportUsage,
   getStudentSupportPresentation,
   normalizeStudentProfile,
+  sameStudentProfile,
 } from './studentSupport';
 
 
@@ -771,6 +774,27 @@ function App() {
     user?.role === 'student' && Boolean(studentClassPoints.redemptionsByAssignment?.[assignmentId])
   );
 
+  /*
+   * THE ONE PLACE THE STUDENT RUNTIME ASKS "WHICH QUESTIONS ARE MINE?"
+   *
+   * Current content, minus a Practice Pass waiver, minus what this student's
+   * reduced-item-count accommodation omits (assignmentLifecycle.js
+   * studentRequiredQuestions → functions/shared/reducedWorkload.mjs). Only a
+   * real student's own profile is ever read: Teacher Preview and voluntary
+   * post-deadline Practice Mode pass `forStudent: false` and see everything.
+   */
+  // Planned on the STORED document — the copy the Grade Center, the teacher
+  // views and the Cloud Functions read — never on the runtime-repaired view,
+  // so every reader omits the same items (positions are unchanged by repair).
+  const studentRequiredFor = (assignmentData, { hasPracticePass = false, forStudent = true, assignmentTracker = null } = {}) => (
+    studentRequiredQuestions({
+      assignment: assignments.find((entry) => entry.id === assignmentData?.id) || assignmentData || {},
+      hasPracticePass,
+      profile: forStudent && user?.role === 'student' ? user.profile : null,
+      tracker: assignmentTracker ?? tracker?.[assignmentData?.id] ?? null,
+    })
+  );
+
   // Google Classroom launches preserve the server-verified publication and
   // section identity all the way into the browser. Legacy whole-assignment
   // links still parse as sectionKey="whole" and follow the original behavior.
@@ -1228,8 +1252,11 @@ function App() {
       sectionRecoveryByAssignment,
       Object.fromEntries(assignments.map((assignment) => [assignment.id, assignment])),
       warmupChallengeByAssignment,
+      // A Recovery credits only this student's own items (never one their
+      // reduced-item-count accommodation omits).
+      user?.role === 'student' ? user.profile || null : null,
     ),
-    [tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, assignments, warmupChallengeByAssignment],
+    [tracker, teacherGradeOverridesByAssignment, sectionRecoveryByAssignment, assignments, warmupChallengeByAssignment, user?.role, user?.profile],
   );
 
   // Recovery for the assignment whose result is open. The original section is
@@ -1310,6 +1337,7 @@ function App() {
       gradingPeriodSettings,
       classroomSyncStatusByAssignment,
       practicePassRedemptionsByAssignment: studentClassPoints.redemptionsByAssignment,
+      supportProfile: user.profile || null,
       providers: { assignmentHasHeldTeacherFeedback, prerequisiteAccess },
     });
   }, [
@@ -3087,9 +3115,9 @@ function App() {
       : `${remainingSeconds}s`;
   };
 
-  const calculateGrade = (assignmentTracker, assignmentData, { practicePassRedeemed = false } = {}) => {
+  const calculateGrade = (assignmentTracker, assignmentData, { practicePassRedeemed = false, supportProfile = null } = {}) => {
     if (!assignmentTracker || !getStoredAssignmentQuestions(assignmentData).length) return 0;
-    return splitGrade({ tracker: assignmentTracker, assignment: assignmentData, practicePassRedeemed }).score ?? 0;
+    return splitGrade({ tracker: assignmentTracker, assignment: assignmentData, practicePassRedeemed, supportProfile }).score ?? 0;
   };
 
   const calculatePracticeProgress = (assignmentTracker, assignmentData, { hasPracticePass = false } = {}) => {
@@ -3247,19 +3275,22 @@ function App() {
   // "used" is de-duplicated to once per question per minute. A failed write is
   // dropped: evidence telemetry must never interrupt a student's work.
   const supportEvidenceSeenRef = useRef(new Set());
-  const recordStudentSupportEvidence = ({ supportId, eventType, questionIndex = null, activityRole = null }) => {
+  const recordStudentSupportEvidence = ({
+    supportId, eventType, questionIndex = null, activityRole = null, details = null, variant = null, profileRevisionId = null,
+  }) => {
     if (user?.role !== 'student' || !user.id || !activeAssignmentId || isPracticeMode) return;
     if (!studentMayRecordSupport(user.profile, supportId)) return;
-    const revisionId = user.profile?.supportRevisionId || 'legacy-unversioned';
+    const revisionId = profileRevisionId || user.profile?.supportRevisionId || 'legacy-unversioned';
     const deterministic = eventType !== 'used';
     const key = deterministic
-      ? `${activeAssignmentId}|${revisionId}|${supportId}|${eventType}`
+      ? `${activeAssignmentId}|${revisionId}|${supportId}|${eventType}|${variant || ''}`
       : usedRecordKey({ assignmentId: activeAssignmentId, questionIndex, supportId });
     if (supportEvidenceSeenRef.current.has(key)) return;
     supportEvidenceSeenRef.current.add(key);
     saveStudentSupportEvidence({
       db,
       deterministic,
+      variant,
       event: {
         studentId: user.id,
         classId: user.classId || null,
@@ -3270,6 +3301,7 @@ function App() {
         eventType,
         profileRevisionId: revisionId,
         assignedTeacherEmail: user.assignedTeacherEmail,
+        details,
       },
     }).catch(() => { supportEvidenceSeenRef.current.delete(key); });
   };
@@ -3279,8 +3311,24 @@ function App() {
     const launchKey = `${activeAssignmentId}|${user?.profile?.supportRevisionId || 'legacy'}`;
     if (launchedSupportKeyRef.current === launchKey) return;
     launchedSupportKeyRef.current = launchKey;
-    const roles = activeQuestions.map((question) => resolveQuestionActivityRole({ question, assignment: activeAssignmentData }));
-    launchSupportRecords({ profile: user.profile, assignment: activeAssignmentData, roles, questions: activeQuestions })
+    // What this student actually received: their own required items, and the
+    // reduced-item projection (or the fact that it could not be resolved).
+    let workload;
+    let accommodation;
+    try {
+      workload = studentRequiredFor(activeAssignmentData, { hasPracticePass: hasPracticePassFor(activeAssignmentId) });
+      // The reduction's own record is over the assignment's content — what the
+      // teacher's report recomputes to verify it. A Practice Pass is a separate
+      // projection with its own record.
+      accommodation = studentRequiredFor(activeAssignmentData);
+    } catch {
+      workload = { failed: true, indices: activeQuestions.map((_, index) => index) };
+      accommodation = { failed: true };
+    }
+    const required = new Set(workload.indices);
+    const presentedQuestions = activeQuestions.filter((_, index) => required.has(index));
+    const roles = presentedQuestions.map((question) => resolveQuestionActivityRole({ question, assignment: activeAssignmentData }));
+    launchSupportRecords({ profile: user.profile, assignment: activeAssignmentData, roles, questions: presentedQuestions, workload: accommodation })
       .records.forEach((record) => recordStudentSupportEvidence(record));
   }, [isStudentAssignment, activeAssignmentId, activeAssignmentData, isPracticeMode, user?.profile?.supportRevisionId]); // eslint-disable-line react-hooks/exhaustive-deps
   const activeDOLState = getDOLState({ assignment: activeAssignmentData, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
@@ -3631,12 +3679,12 @@ function App() {
     if (!activeQuestions.length) return;
     // Teacher Preview has no student redemption to read and must keep seeing
     // every current-content question exactly as authored.
-    const included = studentAssignmentIndicesWithPracticePass({
-      assignment: activeAssignmentData,
+    const included = studentRequiredFor(activeAssignmentData, {
       hasPracticePass: !isTeacherPreview
         && !isPracticeMode
         && hasPracticePassFor(activeAssignmentId),
-    });
+      forStudent: !isTeacherPreview && !isPracticeMode,
+    }).indices;
     if (!included.length) return;
     if (!included.includes(currentQuestionIndex)) {
       const resolved = resolveCurrentContentStorageIndex(activeAssignmentData, currentQuestionIndex);
@@ -3652,6 +3700,7 @@ function App() {
     isTeacherPreview,
     isPracticeMode,
     studentClassPoints.redemptionsByAssignment,
+    user?.profile,
   ]);
 
   // A question change should feel like changing pages, not like loading the
@@ -3736,10 +3785,17 @@ function App() {
 
     // This effect already runs only for a real signed-in student (guarded
     // above), so a granted Practice Pass for this assignment always applies.
-    const included = studentAssignmentIndicesWithPracticePass({
-      assignment: activeAssignmentData,
+    // Positions and counts stay in the class's question order (the teacher's
+    // walkthrough compares section positions with its own); an item this
+    // student's reduced-item-count accommodation omits is marked 'n' in
+    // `questionStates`, so it reads as neither done nor still to do.
+    const liveRequired = studentRequiredFor(activeAssignmentData, {
       hasPracticePass: !isPracticeMode && hasPracticePassFor(activeAssignmentId),
+      forStudent: !isPracticeMode,
+      assignmentTracker: activeWorkingTracker,
     });
+    const included = liveRequired.baseIndices;
+    const notRequired = new Set(liveRequired.omitted);
     if (liveSessionAttemptBaselineRef.current.assignmentId !== activeAssignmentId) {
       liveSessionAttemptBaselineRef.current = {
         assignmentId: activeAssignmentId,
@@ -3804,7 +3860,7 @@ function App() {
         sectionQuestionCount: sectionIndices.length,
         questionLabel: String(question?.prompt || '').slice(0, 80),
         representation: getQuestionRepresentation(question),
-        questionStates: encodeQuestionStates(activeWorkingTracker, included),
+        questionStates: encodeQuestionStates(activeWorkingTracker, included, { notRequired }),
         currentAttempts: record.attemptCount,
         focusLossCount,
         answeredCount: rapid.answered,
@@ -4451,6 +4507,11 @@ function App() {
         setWarmupChallengeByAssignment(snapshot.data()?.warmupChallengeByAssignment || {});
         setDolGradesByAssignment(snapshot.data()?.dolGradesByAssignment || {});
         setClassworkGradesByAssignment(snapshot.data()?.classworkGradesByAssignment || {});
+        // The profile the server grades with: a revision a teacher saves while
+        // this student is working reaches their required items now, not at
+        // the next sign-in.
+        const liveProfile = normalizeStudentProfile(snapshot.data()?.profile || snapshot.data());
+        setUser((current) => (current && !sameStudentProfile(current.profile, liveProfile) ? { ...current, profile: liveProfile } : current));
 
         Object.entries(next).forEach(([assignmentId, receipt]) => {
           const notificationId = receipt?.notificationId;
@@ -4583,9 +4644,12 @@ function App() {
       if (warmupState.status !== 'active') return;
 
       const questions = getStoredAssignmentQuestions(assignment);
+      // Only this student's own Warm-Up items (an omitted one is not unfinished).
+      const warmupOmitted = new Set(studentRequiredFor(assignment).omitted);
       const warmupIndices = questions.reduce((indices, question, index) => {
         if (
           questionIsIncluded(question)
+          && !warmupOmitted.has(index)
           && resolveQuestionActivityRole({ question, assignment }) === 'warmup'
         ) indices.push(index);
         return indices;
@@ -4631,7 +4695,14 @@ function App() {
       const dateKey = dolState.instructionDateKey || fallbackDateKey;
       if (dolGradesByAssignment?.[assignment.id]?.[dateKey]?.finalized) return;
       if (previousStatus && !['active', 'waiting', 'beforeClass'].includes(previousStatus)) return;
-      const questionIndices = dolState.questionIndices || [dolState.questionIndex];
+      // This student's own DOL items (a reduced-item-count accommodation may
+      // omit one; the server finalizer filters the same way).
+      const studentDolOmitted = new Set(studentRequiredFor(assignment, { assignmentTracker: tracker?.[assignment.id] || null }).omitted);
+      const allDolIndices = dolState.questionIndices || [dolState.questionIndex];
+      const ownDolIndices = allDolIndices.filter((index) => !studentDolOmitted.has(index));
+      // Never a DOL with no items (the plan keeps one; the server never empties
+      // a list either): scoring the whole DOL beats finalizing a 0 over nothing.
+      const questionIndices = ownDolIndices.length ? ownDolIndices : allDolIndices;
       closes.push({
         assignmentId: assignment.id,
         dateKey,
@@ -4850,6 +4921,12 @@ function App() {
     const localAssignment = assignments.find((item) => item.id === activeAssignmentId);
     const localQuestions = getStoredAssignmentQuestions(localAssignment);
     if (localQuestions.length && !questionIsIncluded(localQuestions[newIndex])) return;
+    // A student never lands on an item their reduced-item-count accommodation
+    // omits (the navigation never offers one; this also covers deep links).
+    if (isStudentAssignment && !isPracticeMode && localAssignment) {
+      const required = studentRequiredFor(localAssignment, { hasPracticePass: hasPracticePassFor(activeAssignmentId) });
+      if (required.omitted.includes(newIndex)) return;
+    }
 
     if (isTeacherPreview) {
       setPreviewTracker((current) => ({
@@ -4951,11 +5028,14 @@ function App() {
     const warmupCanBeViewed = ['active', 'closed', 'ended'].includes(warmupState.status);
     const honors = String(user?.profile?.courseLevel || '').toLowerCase() === 'honors';
     const printableEntries = [];
+    // The printed copy is the student's own required items (a reduced-item-count
+    // accommodation omits some), exactly what the screen shows.
+    const printOmitted = lifecycle.isPracticeOnly ? new Set() : new Set(studentRequiredFor(assignmentData).omitted);
 
     for (const entry of projectCurrentAssignmentContent(assignmentData).entries) {
       const index = entry.storageIndex;
       const question = assignmentQuestions[index];
-      if (!question || !questionIsIncluded(question)) continue;
+      if (!question || !questionIsIncluded(question) || printOmitted.has(index)) continue;
       const sectionRole = entry.logicalRole;
       const timedDol = sectionRole === 'dol'
         && dolState.enabled
@@ -5174,7 +5254,14 @@ function App() {
       : hasPracticePass
         ? currentContent.entries.filter((entry) => entry.logicalRole !== 'practice')
         : currentContent.entries;
-    const includedQuestionIndices = stageEntries.map((entry) => entry.storageIndex);
+    // A reduced-item-count accommodation leaves this student fewer required
+    // items (never in a Test Cycle stage, a preview or voluntary practice).
+    const studentRequired = !cycleStage && user?.role === 'student' && !lifecycle.isPracticeOnly
+      ? new Set(studentRequiredFor(assignmentData, { hasPracticePass }).indices)
+      : null;
+    const includedQuestionIndices = stageEntries
+      .map((entry) => entry.storageIndex)
+      .filter((index) => !studentRequired || studentRequired.has(index));
     if (!includedQuestionIndices.length) {
       toastWarning('Nothing to show yet', 'This assignment does not currently contain any included questions.');
       return;
@@ -5186,7 +5273,7 @@ function App() {
     // on a waived Practice question (e.g. resuming exactly where a Classroom
     // link or the Grade Center last left off) even when no section was
     // explicitly requested. Never open one for a real student who holds the pass.
-    if (hasPracticePass && !includedQuestionIndices.includes(safeQuestionIndex)) {
+    if ((hasPracticePass || studentRequired) && !includedQuestionIndices.includes(safeQuestionIndex)) {
       safeQuestionIndex = includedQuestionIndices[0];
     }
 
@@ -5927,6 +6014,8 @@ function App() {
     if (activeQuestionRole === 'dol' && dolState.status === 'active' && (dolState.questionIndices || [dolState.questionIndex]).includes(currentQuestionIndex)) {
       const date = new Date();
       const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      const dolOmitted = new Set(studentRequiredFor(assignment, { assignmentTracker: updatedTracker?.[activeAssignmentId] || null }).omitted);
+      const studentDolIndices = (dolState.questionIndices || [dolState.questionIndex]).filter((index) => !dolOmitted.has(index));
       updatedDOLGrades = {
         ...dolGradesByAssignment,
         [activeAssignmentId]: {
@@ -5938,11 +6027,11 @@ function App() {
                 updatedTracker,
                 teacherGradeOverridesByAssignment,
               )[activeAssignmentId] || {},
-              dolState.questionIndices || [dolState.questionIndex],
+              studentDolIndices,
               assignment,
             ),
-            questionIndex: (dolState.questionIndices || [dolState.questionIndex])[0] ?? currentQuestionIndex,
-            questionIndices: dolState.questionIndices || [dolState.questionIndex],
+            questionIndex: studentDolIndices[0] ?? currentQuestionIndex,
+            questionIndices: studentDolIndices,
             recordedAt: new Date().toISOString(),
             status: 'section-in-progress',
           },
@@ -9175,9 +9264,11 @@ function App() {
         });
         if (state.status !== 'active') return null;
         const questions = getStoredAssignmentQuestions(assignment);
+        const bannerOmitted = new Set(studentRequiredFor(assignment).omitted);
         const questionIndices = questions.reduce((indices, question, index) => {
           if (
             questionIsIncluded(question)
+            && !bannerOmitted.has(index)
             && resolveQuestionActivityRole({ question, assignment }) === 'warmup'
           ) indices.push(index);
           return indices;
@@ -9810,20 +9901,33 @@ function App() {
      * non-credit tracker (`workingTracker` below), and must remain unchanged.
      */
     const hasPracticePass = !preview && !lifecycle.isPracticeOnly && hasPracticePassFor(assignment.id);
-    const projectedEntries = activeClassroomSectionKey
+    // This student's own required items: a reduced-item-count accommodation
+    // omits some (never in a preview or voluntary practice). Omitted items are
+    // not shown, not counted and never "left to do".
+    const studentRequired = !preview && !lifecycle.isPracticeOnly
+      ? studentRequiredFor(assignment, { hasPracticePass })
+      : null;
+    const studentRequiredSet = studentRequired?.omitted?.length ? new Set(studentRequired.indices) : null;
+    const projectedEntries = (activeClassroomSectionKey
       ? currentContent.entries.filter((entry) => entry.logicalRole === activeClassroomSectionKey)
       : hasPracticePass
         ? currentContent.entries.filter((entry) => entry.logicalRole !== 'practice')
-        : currentContent.entries;
+        : currentContent.entries)
+      .filter((entry) => !studentRequiredSet || studentRequiredSet.has(entry.storageIndex));
     const includedQuestionIndices = projectedEntries.map((entry) => entry.storageIndex);
+    const workspaceSupportProfile = !preview && !lifecycle.isPracticeOnly && user?.role === 'student' ? user.profile : null;
+    // The RECORDED grade is the student's real grade in every mode, so it is
+    // over their own required items even in post-deadline Practice Mode — the
+    // number the Grade Center and Classroom show.
+    const officialSupportProfile = !preview && user?.role === 'student' ? user.profile : null;
     const recordedTracker = tracker[activeAssignmentId] || {};
     const workingTracker = preview
       ? previewTracker
       : lifecycle.isPracticeOnly
         ? practiceTracker[activeAssignmentId] || createPracticeAssignmentTracker(questions, recordedTracker)
         : recordedTracker;
-    const recordedGrade = calculateGrade(recordedTracker, assignment);
-    const gradeSplit = splitGrade({ tracker: recordedTracker, assignment });
+    const recordedGrade = calculateGrade(recordedTracker, assignment, { supportProfile: officialSupportProfile });
+    const gradeSplit = splitGrade({ tracker: recordedTracker, assignment, supportProfile: officialSupportProfile });
     const classroomReceipt = !preview ? classroomSyncStatusByAssignment?.[assignment.id] || null : null;
     const classroomReceiptStage = String(classroomReceipt?.stage || '');
     const classroomReceiptFinal = classroomReceipt?.isFinal === true || classroomReceiptStage.startsWith('final-');
@@ -9941,11 +10045,23 @@ function App() {
       quiz: { label: 'Quiz', background: '#fce8e6', color: '#a50e0e', border: '#d93025' },
       test: { label: 'Test', background: '#fce8e6', color: '#a50e0e', border: '#d93025' },
     };
+    // With fewer required items, "Question 3 of 6" counts this student's own
+    // items in the section, not the class's (never "Question 5 of 3").
+    const requiredSectionPosition = new Map();
+    if (studentRequiredSet) {
+      const seen = new Map();
+      projectedEntries.forEach((entry) => {
+        const position = seen.get(entry.logicalRole) || 0;
+        requiredSectionPosition.set(entry.storageIndex, position);
+        seen.set(entry.logicalRole, position + 1);
+      });
+    }
     const visibleQuestionEntries = projectedEntries.map((entry, visiblePosition) => {
       const index = entry.storageIndex;
       const question = questions[index];
       const isTimedDOLQuestion = dolState.enabled && (dolState.questionIndices || [dolState.questionIndex]).includes(index);
-      return { index, visiblePosition, sectionPosition: entry.logicalPosition, question, role: entry.logicalRole, isTimedDOLQuestion };
+      const sectionPosition = studentRequiredSet ? requiredSectionPosition.get(index) : entry.logicalPosition;
+      return { index, visiblePosition, sectionPosition, question, role: entry.logicalRole, isTimedDOLQuestion };
     });
     const sectionQuestionIsComplete = (index) => ['correct', 'expired'].includes(normalizeQuestionRecord(workingTracker?.[index]).status);
     const sectionQuestionIsCorrect = (index) => normalizeQuestionRecord(workingTracker?.[index]).status === 'correct';
@@ -9973,8 +10089,8 @@ function App() {
     const currentSectionQuestionCount = currentNavigationSection?.entries.length || 1;
     const currentSectionCompletedCount = currentNavigationSection?.entries.filter((entry) => sectionQuestionIsComplete(entry.index)).length || 0;
     const currentSectionRemainingCount = Math.max(0, currentSectionQuestionCount - currentSectionCompletedCount);
-    const currentSectionGrades = splitGradesBySection({ tracker: workingTracker, assignment });
-    const currentSectionOfficialGrades = splitGradesBySection({ tracker: recordedTracker, assignment });
+    const currentSectionGrades = splitGradesBySection({ tracker: workingTracker, assignment, supportProfile: workspaceSupportProfile });
+    const currentSectionOfficialGrades = splitGradesBySection({ tracker: recordedTracker, assignment, supportProfile: officialSupportProfile });
     const currentSectionGrade = currentSectionGrades[activeQuestionRole] || null;
     const currentSectionOfficialGrade = currentSectionOfficialGrades[activeQuestionRole] || null;
     const warmupCanBeViewed = ['active', 'closed', 'ended'].includes(warmupState.status);
@@ -11765,7 +11881,7 @@ function App() {
                 )}
 
                 {selectedGradebookPeriod && selectedAssignment && !gradebookFilter.student && (
-                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ padding: '12px' }}>Student</th><th>Overall</th><th>Warm-Up</th><th>Classwork</th><th>Practice</th><th>DOL</th><th>Instructional condition</th><th>Activity</th><th></th></tr></thead><tbody>{gradebookVisibleStudents.map((student) => { const grades = projectedAssignmentTrackerFor({ student, assignment: selectedAssignment }) || undefined; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const practicePassRedeemed = gradebookHasPracticePass(student, selectedAssignment); const score = assignmentOverride ? assignmentOverride.score : grades ? calculateGrade(grades, selectedAssignment, { practicePassRedeemed }) : null; const sectionGrades = splitGradesBySection({ tracker: grades, assignment: selectedAssignment, practicePassRedeemed }); const recoveredSections = completedRecoverySections(student, selectedAssignment.id); const challengeWarmup = warmupChallengeCounts(student, selectedAssignment.id); const recoveredMark = (section) => (<>{section === 'warmup' && challengeWarmup ? <span data-warmup-challenge-mark="true" title="The Warm-Up grade is this student's Live Challenge result. Open Details for the rounds." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>LC</span> : null}{recoveredSections.has(section) ? <span data-recovered-section={section} title="Includes a completed Practice-based Recovery. Open Details for Original, Recovery and Final." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>R</span> : null}</>); const gradeSplit = splitGrade({ tracker: grades, assignment: selectedAssignment, practicePassRedeemed }); const gradeExplanation = grades ? explainGrade(gradeSplit) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <tr key={student.id} style={{ borderBottom: '1px solid #e8eaed' }}><td style={{ padding: '12px' }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} showMissingId={false} profile={teacherLearningProfiles[student.id]} onOpen={setProfileDrawerStudentId} showBadge /><div style={{ marginTop: 3, color: '#5f6368', fontSize: 11 }}>ID {student.id}</div></td><td><strong style={{ color: modified ? '#6f2da8' : score >= 70 ? '#188038' : '#202124' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: '#efe4ff', color: '#6f2da8', fontWeight: 900, fontSize: '11px' }}>MOD</span>}
+                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: '#f8f9fa' }}><th style={{ padding: '12px' }}>Student</th><th>Overall</th><th>Warm-Up</th><th>Classwork</th><th>Practice</th><th>DOL</th><th>Instructional condition</th><th>Activity</th><th></th></tr></thead><tbody>{gradebookVisibleStudents.map((student) => { const grades = projectedAssignmentTrackerFor({ student, assignment: selectedAssignment }) || undefined; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const practicePassRedeemed = gradebookHasPracticePass(student, selectedAssignment); const supportProfile = student.profile || null; const score = assignmentOverride ? assignmentOverride.score : grades ? calculateGrade(grades, selectedAssignment, { practicePassRedeemed, supportProfile }) : null; const sectionGrades = splitGradesBySection({ tracker: grades, assignment: selectedAssignment, practicePassRedeemed, supportProfile }); const recoveredSections = completedRecoverySections(student, selectedAssignment.id); const challengeWarmup = warmupChallengeCounts(student, selectedAssignment.id); const recoveredMark = (section) => (<>{section === 'warmup' && challengeWarmup ? <span data-warmup-challenge-mark="true" title="The Warm-Up grade is this student's Live Challenge result. Open Details for the rounds." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>LC</span> : null}{recoveredSections.has(section) ? <span data-recovered-section={section} title="Includes a completed Practice-based Recovery. Open Details for Original, Recovery and Final." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>R</span> : null}</>); const gradeSplit = splitGrade({ tracker: grades, assignment: selectedAssignment, practicePassRedeemed, supportProfile }); const gradeExplanation = grades ? explainGrade(gradeSplit) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <tr key={student.id} style={{ borderBottom: '1px solid #e8eaed' }}><td style={{ padding: '12px' }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} showMissingId={false} profile={teacherLearningProfiles[student.id]} onOpen={setProfileDrawerStudentId} showBadge /><div style={{ marginTop: 3, color: '#5f6368', fontSize: 11 }}>ID {student.id}</div></td><td><strong style={{ color: modified ? '#6f2da8' : score >= 70 ? '#188038' : '#202124' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: '#efe4ff', color: '#6f2da8', fontWeight: 900, fontSize: '11px' }}>MOD</span>}
                     {/*
                       COMPLETION AND PERFORMANCE, VISUALLY APART.
                       The grade above is unchanged. These two lines are what a
@@ -11790,7 +11906,7 @@ function App() {
                     {gradeExplanation && <div style={{ marginTop: 4, fontSize: 11, color: '#5f6368', lineHeight: 1.4, maxWidth: 280 }}>{gradeExplanation}</div>}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.warmup.attempted ? `${sectionGrades.warmup.score}%` : '—'}{recoveredMark('warmup')}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.classwork.attempted ? `${sectionGrades.classwork.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.practice?.excused ? <span title="The student used a Practice Pass: Practice is excused — not scored and not required." style={{ color: '#6a1b9a' }}>Excused (Pass)</span> : sectionGrades.practice.attempted ? `${sectionGrades.practice.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.dol.attempted ? `${sectionGrades.dol.score}%` : '—'}{recoveredMark('dol')}</td><td style={{ fontSize: '12px' }}>{modified ? `Modified: ${(usage.modifications || []).join(', ')}` : (usage.accommodations || []).length ? `Accommodated: ${usage.accommodations.join(', ')}` : 'Standard'}</td><td style={{ fontSize: '12px', lineHeight: 1.45 }}>{activity.totalTimeSeconds ? <>Total {formatTime(activity.totalTimeSeconds)}<br />On time {formatTime(activity.onTimeSeconds || 0)} · Late {formatTime(activity.lateSeconds || 0)}</> : 'Time not recorded'}<br />Last on-time: {formatTimeStamp(activity.lastActiveBeforeDue)}<br />Last late: {formatTimeStamp(activity.lastActiveLate)}</td><td><button onClick={() => setGradebookFilter((current) => ({ ...current, student }))} style={{ padding: '8px 12px', border: 0, borderRadius: '6px', background: '#1a73e8', color: '#fff', fontWeight: 'bold' }}>Details</button></td></tr>; })}</tbody></table></div>
                 )}
 
-                {gradebookFilter.student && selectedAssignment && (() => { const student = allStudents.find((entry) => entry.id === gradebookFilter.student.id) || gradebookFilter.student; const studentGrades = projectedAssignmentTrackerFor({ student, assignment: selectedAssignment }) || {}; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const displayedAssignmentScore = assignmentOverride ? assignmentOverride.score : Object.keys(studentGrades).length ? calculateGrade(studentGrades, selectedAssignment) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{displayedAssignmentScore === null ? '—' : `${displayedAssignmentScore}%`}</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>{activity.totalTimeSeconds ? `Total engagement ${formatTime(activity.totalTimeSeconds)} · Late engagement ${formatTime(activity.lateSeconds || 0)}` : 'Engagement time not recorded (see the support evidence report for server-timed minutes)'}</div><AssignmentGradeOverrideControls student={student} assignment={selectedAssignment} onChanged={() => setGradebookFilter((current) => ({ ...current, student: null }))} /><SectionRecoveryAuditTrail student={student} assignment={selectedAssignment} />{selectedAssignment?.dol?.enabled && (() => { const recovery = summarizeStudentRecovery({ assignment: selectedAssignment, classId: student.classId || activeClass?.classId || null, studentId: student.id }); const busy = dolAttemptGrantBusyKey === `${selectedAssignment.id}:students:${student.id}`; return <div data-dol-student-recovery={student.id} style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, fontSize: 12.5, color: '#3c4043' }}><span>Teacher-granted DOL attempts: <strong>{recovery.extraAttempts}</strong>{recovery.studentExtraAttempts ? ` (${recovery.studentExtraAttempts} for this student)` : ''}</span><button type="button" disabled={busy} onClick={() => handleGrantDOLAttemptForStudents(selectedAssignment, [student])} style={{ padding: '6px 10px', border: '1px solid #1a73e8', borderRadius: 6, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, cursor: busy ? 'wait' : 'pointer' }}>{busy ? 'Granting…' : 'Grant +1 DOL attempt'}</button></div>; })()}{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid #d8dde6' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: 'var(--mm-text-strong)' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 900 }}>Support evidence report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{getStoredAssignmentQuestions(selectedAssignment).map((question, index) => { if (!questionIsIncluded(question)) return null; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type} · Grade ×{normalizeQuestionWeight(question)}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.teacherGradeOverrideDisplay?.active ? (credit >= 100 ? 'Teacher assigned · Correct ✓' : `Teacher assigned · ${credit}%`) : record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button>{studentGrades[index] && <button type="button" onClick={() => setResponseInspectorTarget({ studentId: student.id, assignmentId: selectedAssignment.id, questionIndex: index })} style={{ marginTop: '8px', marginLeft: '8px', padding: '8px 11px', border: '1px solid #1a73e8', borderRadius: '6px', background: '#e8f0fe', color: '#174ea6', fontWeight: 'bold' }}>Inspect Response / Override Grade</button>}</article>; })}</div></div>; })()}
+                {gradebookFilter.student && selectedAssignment && (() => { const student = allStudents.find((entry) => entry.id === gradebookFilter.student.id) || gradebookFilter.student; const studentGrades = projectedAssignmentTrackerFor({ student, assignment: selectedAssignment }) || {}; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const drillRequired = studentRequiredQuestions({ assignment: selectedAssignment, profile: student.profile || null, tracker: student.gradesByAssignment?.[selectedAssignment.id] || null }); const drillOmitted = new Set(drillRequired.omitted); const displayedAssignmentScore = assignmentOverride ? assignmentOverride.score : Object.keys(studentGrades).length ? calculateGrade(studentGrades, selectedAssignment, { supportProfile: student.profile || null }) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? '#efe4ff' : '#e8f0fe', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{displayedAssignmentScore === null ? '—' : `${displayedAssignmentScore}%`}</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>{activity.totalTimeSeconds ? `Total engagement ${formatTime(activity.totalTimeSeconds)} · Late engagement ${formatTime(activity.lateSeconds || 0)}` : 'Engagement time not recorded (see the support evidence report for server-timed minutes)'}</div><AssignmentGradeOverrideControls student={student} assignment={selectedAssignment} onChanged={() => setGradebookFilter((current) => ({ ...current, student: null }))} /><SectionRecoveryAuditTrail student={student} assignment={selectedAssignment} />{selectedAssignment?.dol?.enabled && (() => { const recovery = summarizeStudentRecovery({ assignment: selectedAssignment, classId: student.classId || activeClass?.classId || null, studentId: student.id }); const busy = dolAttemptGrantBusyKey === `${selectedAssignment.id}:students:${student.id}`; return <div data-dol-student-recovery={student.id} style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, fontSize: 12.5, color: '#3c4043' }}><span>Teacher-granted DOL attempts: <strong>{recovery.extraAttempts}</strong>{recovery.studentExtraAttempts ? ` (${recovery.studentExtraAttempts} for this student)` : ''}</span><button type="button" disabled={busy} onClick={() => handleGrantDOLAttemptForStudents(selectedAssignment, [student])} style={{ padding: '6px 10px', border: '1px solid #1a73e8', borderRadius: 6, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, cursor: busy ? 'wait' : 'pointer' }}>{busy ? 'Granting…' : 'Grant +1 DOL attempt'}</button></div>; })()}{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid #d8dde6' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: 'var(--mm-text-strong)' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 900 }}>Support evidence report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '14px' }}>{drillRequired.workload?.status === 'applied' && <div data-reduced-workload-summary style={{ gridColumn: '1 / -1', padding: '9px 11px', borderRadius: 8, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 12.5, fontWeight: 700 }}>Fewer items, same rigor: {describeWorkloadSummary(drillRequired.workload)}</div>}{getStoredAssignmentQuestions(selectedAssignment).map((question, index) => { if (!questionIsIncluded(question)) return null; if (drillOmitted.has(index)) return <article key={index} data-not-required-question={index} style={{ padding: '16px', borderRadius: '9px', background: 'var(--mm-surface)', border: '1px dashed #c4c9d0', textAlign: 'left', color: '#5f6368' }}><strong>Question {index + 1} · {question.type}</strong><div style={{ margin: '8px 0', fontSize: '15px', fontWeight: 800 }}>Not required for this student</div><div style={{ fontSize: '12px' }}>Fewer items, same rigor — not counted in the score.</div></article>; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? '#e6f4ea' : record.status === 'expired' && credit < 50 ? '#fce8e6' : credit >= 50 ? '#fff4ce' : '#f1f3f4', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type} · Grade ×{normalizeQuestionWeight(question)}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.teacherGradeOverrideDisplay?.active ? (credit >= 100 ? 'Teacher assigned · Correct ✓' : `Teacher assigned · ${credit}%`) : record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? '#137333' : '#b3261e' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid #aeb8c6', borderRadius: '6px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}>View Student Work</button>{studentGrades[index] && <button type="button" onClick={() => setResponseInspectorTarget({ studentId: student.id, assignmentId: selectedAssignment.id, questionIndex: index })} style={{ marginTop: '8px', marginLeft: '8px', padding: '8px 11px', border: '1px solid #1a73e8', borderRadius: '6px', background: '#e8f0fe', color: '#174ea6', fontWeight: 'bold' }}>Inspect Response / Override Grade</button>}</article>; })}</div></div>; })()}
 
                 {/*
                   Settings and the separate weekly Path grade stay one click
@@ -11947,6 +12063,7 @@ function App() {
       classSchedule,
       resumeAction,
       practicePassRedemptionsByAssignment: studentClassPoints.redemptionsByAssignment,
+      supportProfile: user.profile || null,
       providers: {
         assignmentIsForStudent,
         // Wrapped so the dashboard's own lifecycle bucketing (Do Now / In

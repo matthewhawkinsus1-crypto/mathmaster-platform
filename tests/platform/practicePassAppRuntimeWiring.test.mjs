@@ -73,13 +73,35 @@ test('the practice-progress readout is passed the same hasPracticePass flag the 
 });
 
 test('live presence and the active-question correction effect read the practice-pass-aware index helper, not the raw current-content one', () => {
+  // Both sites now ask App's one required-items closure, `studentRequiredFor`,
+  // which is the Practice-Pass helper plus the student's reduced-item
+  // accommodation (assignmentLifecycle.js studentRequiredQuestions →
+  // studentAssignmentIndicesWithPracticePass). Asserted at both ends: the
+  // closure reaches the Practice-Pass helper, and each site hands it the
+  // Practice Pass.
+  const closure = executableSource(region(
+    source,
+    'const studentRequiredFor = (assignmentData',
+    '\n  );\n',
+    'studentRequiredFor closure',
+  ));
+  assert.match(closure, /studentRequiredQuestions\(\{[\s\S]*hasPracticePass,/);
+  const lifecycle = executableSource(region(
+    fs.readFileSync('src/assignmentLifecycle.js', 'utf8'),
+    'export const studentRequiredQuestions = (',
+    '\n};\n',
+    'studentRequiredQuestions',
+  ));
+  assert.match(lifecycle, /studentAssignmentIndicesWithPracticePass\(\{ assignment, hasPracticePass \}\)/);
+
   const presenceRegion = executableSource(region(
     source,
     "// Live class monitoring. Presence stays ephemeral: one tiny document per",
     'const payload = {',
     'live presence effect',
   ));
-  assert.match(presenceRegion, /studentAssignmentIndicesWithPracticePass\(\{\s*\n\s*assignment: activeAssignmentData,\s*\n\s*hasPracticePass: !isPracticeMode && hasPracticePassFor\(activeAssignmentId\),/);
+  assert.match(presenceRegion, /studentRequiredFor\(activeAssignmentData, \{\s*\n\s*hasPracticePass: !isPracticeMode && hasPracticePassFor\(activeAssignmentId\),/);
+  assert.match(presenceRegion, /const included = liveRequired\.baseIndices;/);
 
   const correctionRegion = executableSource(region(
     source,
@@ -87,6 +109,6 @@ test('live presence and the active-question correction effect read the practice-
     '  ]);\n\n  // A question change should feel like changing pages',
     'active-question correction effect',
   ));
-  assert.match(correctionRegion, /hasPracticePass: !isTeacherPreview\s*\n\s*&& !isPracticeMode\s*\n\s*&& hasPracticePassFor\(activeAssignmentId\)/);
+  assert.match(correctionRegion, /studentRequiredFor\(activeAssignmentData, \{\s*\n\s*hasPracticePass: !isTeacherPreview\s*\n\s*&& !isPracticeMode\s*\n\s*&& hasPracticePassFor\(activeAssignmentId\)/);
   assert.match(correctionRegion, /studentClassPoints\.redemptionsByAssignment/);
 });

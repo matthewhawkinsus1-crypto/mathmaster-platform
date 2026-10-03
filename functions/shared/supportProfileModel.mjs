@@ -35,6 +35,13 @@ import {
   supportById,
 } from './supportCatalog.mjs';
 import { DEADLINE_SUPPORT_IDS, normalizeDueDateExtension } from './supportDeadline.mjs';
+import {
+  ITEM_REDUCTION_MODE,
+  REDUCED_WORKLOAD_SUPPORT_ID,
+  itemReductionHistoryRow,
+  itemReductionInputError,
+  normalizeItemReduction,
+} from './reducedWorkload.mjs';
 import { zonedDateKey } from './instructionalCalendar.mjs';
 
 export const SUPPORT_PROFILE_SCHEMA_VERSION = 1;
@@ -57,6 +64,7 @@ export const PROFILE_LIMITS = Object.freeze({
   maxMinutesPerWeek: 3000,
   futureWindows: 3,
   teksCode: 24,
+  itemReductionHistory: 40,
 });
 
 const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
@@ -95,6 +103,14 @@ const normalizeParams = (entry, rawParams, errors) => {
     if (name === 'dueDateExtension') params.dueDateExtension = normalizeDueDateExtension(raw.dueDateExtension);
     if (name === 'resources') params.resources = normalizeResources(raw.resources, errors, entry.id);
     if (name === 'teksCode') params.teksCode = clean(raw.teksCode).slice(0, PROFILE_LIMITS.teksCode) || null;
+    if (name === 'itemReduction') {
+      // Validated here and only here (reducedWorkload.mjs owns the range). An
+      // out-of-range automatic choice is an error the teacher must fix — never
+      // silently turned into a different percentage or into "recorded only".
+      const problem = itemReductionInputError(raw.itemReduction);
+      if (problem) errors.push(problem);
+      params.itemReduction = normalizeItemReduction(raw.itemReduction);
+    }
     if (name === 'maxDok') {
       const dok = Math.trunc(Number(raw.maxDok));
       params.maxDok = Number.isFinite(dok) && dok >= 1 && dok <= 3 ? dok : null;
@@ -361,6 +377,60 @@ const windowOf = (revision) => ({
 
 const idsOf = (entries) => list(entries).map((entry) => entry?.id).filter(Boolean);
 
+// Two rows grade the same way: both off (inactive or not configured), or the
+// same percentage over the same roles (0 = recorded by staff only).
+const itemReductionPolicyKey = (row) => (
+  row.status === REVISION_STATUS.INACTIVE || !row.configured ? 'off' : `${row.percent}|${row.appliesTo.join(',')}`
+);
+
+/**
+ * The reduced item count MathMaster applies to an assignment due on each
+ * school date, as a step function (`supportPlan.itemReductionHistory`; rows
+ * oldest first, `effectiveStart` = the first due date the row governs, null =
+ * every earlier date).
+ *
+ * On a date, the governing revision is the one documented in effect then
+ * (revisionEffectiveOn) among the revisions MathMaster had already saved by
+ * that date. A revision saved today with an earlier start date therefore
+ * never reshapes — or regrades — work that was already due; the evidence
+ * report shows that work as `backdated-profile` ("MathMaster applied the
+ * earlier revision"). A revision governs work due on the day it was saved.
+ *
+ * A row is written only where the policy changes, so revisions that change
+ * other supports add none. Past the bound, the oldest rows fold into one
+ * undated baseline (the latest of them) instead of being dropped.
+ */
+export const itemReductionTimeline = (revisions = [], { timeZone = PROFILE_TIME_ZONE } = {}) => {
+  const timeline = sortRevisionTimeline(revisions);
+  const startOf = (revision) => (isDateKey(revision.effectiveStart) ? revision.effectiveStart : '');
+  // '' = no timestamp (a legacy profile): held before any versioned save.
+  const savedOn = timeline.map((revision) => {
+    const recorded = recordedAtOf(revision);
+    return Number.isFinite(recorded) ? zonedDateKey(recorded, timeZone) : '';
+  });
+  // The policy can only change on a start date or a save date ('' = before
+  // every date).
+  const days = [...new Set(timeline.flatMap((revision, index) => [startOf(revision), savedOn[index]]))].sort();
+  const rows = [];
+  days.forEach((day) => {
+    // The timeline is in compareForTimeline order, so the last revision that
+    // had started and been saved by `day` is the one revisionEffectiveOn picks.
+    let governing = null;
+    timeline.forEach((revision, index) => {
+      if (startOf(revision) <= day && savedOn[index] <= day) governing = revision;
+    });
+    if (!governing) return;
+    const row = { ...itemReductionHistoryRow(governing), effectiveStart: day || null };
+    const previous = rows[rows.length - 1];
+    if (previous && itemReductionPolicyKey(previous) === itemReductionPolicyKey(row)) return;
+    rows.push(row);
+  });
+  const limit = PROFILE_LIMITS.itemReductionHistory;
+  if (rows.length <= limit) return rows;
+  const kept = rows.slice(-(limit - 1));
+  return [{ ...rows[rows.length - limit], effectiveStart: null }, ...kept];
+};
+
 /**
  * The `profile` field to write alongside a new revision (one batch).
  *
@@ -382,12 +452,22 @@ export const buildSupportProjection = ({ revisions = [], todayKey, updatedAt = n
   const futureWindows = [...futureByStart.values()].slice(-PROFILE_LIMITS.futureWindows);
   const windows = [current, ...futureWindows].filter(Boolean).map(windowOf);
   const active = current && current.status !== REVISION_STATUS.INACTIVE ? current : null;
+  // Reduced workload changes which items a student is graded on, so a past
+  // assignment must always resolve under the revision that governed it — even
+  // after that revision has dropped out of `windows`.
+  const itemReductionHistory = itemReductionTimeline(revisions);
   const entitled = new Set();
   windows.forEach((window) => {
     if (window.status === REVISION_STATUS.INACTIVE) return;
     [...idsOf(window.accommodations), ...idsOf(window.modifications)].forEach((id) => entitled.add(id));
     if (window.inclusionStatus) INCLUSION_IMPLIED_SUPPORT_IDS.forEach((id) => entitled.add(id));
   });
+  // A reduced item count governs an assignment by its due date, so a revision
+  // that has since been superseded can still be the one the student's work is
+  // reduced under — and recorded under.
+  if (itemReductionHistory.some((row) => row.status !== REVISION_STATUS.INACTIVE && row.percent > 0)) {
+    entitled.add(REDUCED_WORKLOAD_SUPPORT_ID);
+  }
   return {
     inclusionStatus: active?.inclusionStatus === true,
     accommodations: idsOf(active?.accommodations),
@@ -397,6 +477,7 @@ export const buildSupportProjection = ({ revisions = [], todayKey, updatedAt = n
       schemaVersion: SUPPORT_PLAN_SCHEMA_VERSION,
       windows,
       entitledIds: [...entitled].sort(),
+      itemReductionHistory,
       updatedAt: updatedAt || new Date().toISOString(),
     },
   };
@@ -520,6 +601,10 @@ export const supportProfileWarnings = (profile, { nowValue = Date.now(), timeZon
   const extraTime = list(plan.accommodations).filter((entry) => DEADLINE_SUPPORT_IDS.includes(entry?.id));
   if (extraTime.some((entry) => normalizeDueDateExtension(entry?.params?.dueDateExtension).mode === 'none')) {
     warnings.push({ code: 'extra-time-unset', message: 'Extra time is on, but no due-date extension is set, so MathMaster does not change this student\'s due dates.' });
+  }
+  const reduced = list(plan.accommodations).find((entry) => entry?.id === REDUCED_WORKLOAD_SUPPORT_ID);
+  if (reduced && normalizeItemReduction(reduced?.params?.itemReduction).mode === ITEM_REDUCTION_MODE.NONE) {
+    warnings.push({ code: 'item-reduction-manual', message: 'Reduced number of items is recorded by staff only. Choose a percentage to have MathMaster assign fewer items automatically.' });
   }
   return warnings;
 };

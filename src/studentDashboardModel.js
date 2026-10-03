@@ -4,6 +4,7 @@ import {
 } from './platform/contract/storedAssignmentV5.js';
 import { resolveQuestionActivityRole } from './platform/policies/activityPolicies.js';
 import { studentDueDates } from './assignmentLifecycle.js';
+import { filterStudentRequiredIndices, studentOmittedIndices } from '../functions/shared/reducedWorkload.mjs';
 
 // What a student's assignment dashboard actually contains, computed once.
 //
@@ -115,6 +116,13 @@ export const buildStudentDashboardModel = ({
    * touches Warm-Up/Classwork/DOL.
    */
   practicePassRedemptionsByAssignment = {},
+  /*
+   * THE STUDENT'S OWN SUPPORT PROFILE (`user.profile`): a reduced-item-count
+   * accommodation leaves fewer required items (functions/shared/
+   * reducedWorkload.mjs). Omitted items are never "left to do", never resume
+   * targets and never keep an assignment out of Finished.
+   */
+  supportProfile = null,
   providers = {},
 } = {}) => {
   const {
@@ -145,12 +153,24 @@ export const buildStudentDashboardModel = ({
    * resolver `activeWarmups`/`activeDols` already use below keeps one
    * inclusion rule in this file rather than introducing a second projection.
    */
+  const withoutOmitted = (assignment, indices) => (supportProfile
+    ? filterStudentRequiredIndices(indices, studentOmittedIndices({
+      assignment, profile: supportProfile, tracker: tracker?.[assignment?.id] || null, nowValue,
+    }))
+    : indices);
   const requiredIndicesFor = (assignment) => {
     const included = getIncludedQuestionIndices(assignment);
-    if (!hasPracticePassFor(assignment?.id)) return included;
+    if (!hasPracticePassFor(assignment?.id)) return withoutOmitted(assignment, included);
     const questions = getStoredAssignmentQuestions(assignment);
-    return included.filter((index) => resolveQuestionActivityRole({ question: questions[index], assignment }) !== 'practice');
+    return withoutOmitted(
+      assignment,
+      included.filter((index) => resolveQuestionActivityRole({ question: questions[index], assignment }) !== 'practice'),
+    );
   };
+  // The grade a card shows counts the student's own required items (the
+  // reduced-item denominator). A Practice Pass keeps its existing card
+  // treatment; this change does not alter it.
+  const gradeOptionsFor = () => ({ supportProfile });
 
   /*
    * RESUME MEANS "TAKE ME TO WORK I CAN ACTUALLY DO NOW."
@@ -211,7 +231,7 @@ export const buildStudentDashboardModel = ({
     return Number(record.totalAttempts || record.attemptCount || 0) > 0
       || record.status !== 'unattempted';
   }).length;
-  const resumeRecordedGrade = resumeAssignment ? calculateGrade(resumeTracker, resumeAssignment) : 0;
+  const resumeRecordedGrade = resumeAssignment ? calculateGrade(resumeTracker, resumeAssignment, gradeOptionsFor(resumeAssignment)) : 0;
   const resumeFeedbackHeld = resumeAssignment ? assignmentHasHeldTeacherFeedback(resumeAssignment) : false;
   const requestedResumeIndex = Number(resumeAction?.questionIndex) || 0;
   const resumeQuestionIndex = savedResume
@@ -221,8 +241,10 @@ export const buildStudentDashboardModel = ({
   const activeDols = visible
     .map((assignment) => {
       const state = getDOLState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue });
-      const records = (state.questionIndices || [state.questionIndex])
-        .filter((index) => Number.isInteger(index) && index >= 0)
+      // Only this student's own DOL items: one their accommodation omits is
+      // not unfinished work that keeps the DOL card up.
+      const records = withoutOmitted(assignment, (state.questionIndices || [state.questionIndex])
+        .filter((index) => Number.isInteger(index) && index >= 0))
         .map((index) => normalizeQuestionRecord(tracker?.[assignment.id]?.[index]));
       return {
         assignment,
@@ -239,13 +261,13 @@ export const buildStudentDashboardModel = ({
       .map((assignment) => {
         const state = getWarmupState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue });
         const questions = getStoredAssignmentQuestions(assignment);
-        const questionIndices = questions.reduce((indices, question, index) => {
+        const questionIndices = withoutOmitted(assignment, questions.reduce((indices, question, index) => {
           if (
             questionIsIncluded(question)
             && resolveQuestionActivityRole({ question, assignment }) === 'warmup'
           ) indices.push(index);
           return indices;
-        }, []);
+        }, []));
         const records = questionIndices.map((index) => normalizeQuestionRecord(tracker?.[assignment.id]?.[index]));
         return {
           assignment,
@@ -305,7 +327,7 @@ export const buildStudentDashboardModel = ({
       const isAttempted = Boolean(assignmentTracker);
       const lifecycle = getAssignmentLifecycle(assignment, nowValue);
       const access = prerequisiteAccess({ assignment, classworkGradesByAssignment, nowValue });
-      const recordedGrade = calculateGrade(assignmentTracker, assignment);
+      const recordedGrade = calculateGrade(assignmentTracker, assignment, gradeOptionsFor(assignment));
       const activity = assignmentActivity[assignment.id] || {};
       const classwork = classworkGradesByAssignment[assignment.id];
       const dol = getDOLState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue });

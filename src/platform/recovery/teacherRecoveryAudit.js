@@ -53,12 +53,17 @@ export const buildTeacherRecoveryAudit = ({ student = null, assignment = null, n
     student?.gradesByAssignment || {},
     student?.teacherGradeOverridesByAssignment || {},
   )?.[assignment.id] || {};
-  const originals = splitGradesBySection({ tracker: correctedTracker, assignment });
+  // The Original is over this student's required items: an item their
+  // reduced-item-count accommodation omits is neither in the original nor
+  // credited by the Recovery (the same resolver every grade surface uses).
+  const supportProfile = student?.profile || null;
+  const originals = splitGradesBySection({ tracker: correctedTracker, assignment, supportProfile });
   const { states } = projectSectionRecoveryForAssignment({
     tracker: correctedTracker,
     assignment,
     recoveryByAssignment: student.sectionRecoveryByAssignment,
     challengeByAssignment: student.warmupChallengeByAssignment || null,
+    supportProfile,
   });
   return ['warmup', 'dol'].map((section) => {
     const record = normalizeRecoveryRecord(records[section], section);
@@ -111,7 +116,7 @@ export const buildTeacherWarmupChallengeAudit = ({ student = null, assignment = 
     student?.gradesByAssignment || {},
     student?.teacherGradeOverridesByAssignment || {},
   )?.[assignment.id] || {};
-  const authored = splitGradesBySection({ tracker: correctedTracker, assignment }).warmup || {};
+  const authored = splitGradesBySection({ tracker: correctedTracker, assignment, supportProfile: student?.profile || null }).warmup || {};
   const state = buildWarmupChallengeGradeState({ credit, originalScore: authored.attempted ? authored.score : null });
   if (!state) return null;
   return {

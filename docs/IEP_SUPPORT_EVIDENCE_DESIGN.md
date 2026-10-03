@@ -284,3 +284,165 @@ The four decisions below were implemented as proposed. They are listed in the PR
 3. Legacy `extra-time` does not start moving deadlines until a teacher sets the extension.
 4. Providers without a MathMaster teacher-of-record account are recorded by the teacher of record with a
    provider role/label (no new provider role in this build).
+
+## 11. Automatic reduced number of items (same TEKS, same rigor)
+
+Status: built on `ai/claude-reduced-workload-20261002`. Shared logic: `functions/shared/reducedWorkload.mjs`.
+
+### 11.1 The parameter, and why no existing profile changes
+
+`reduced-item-count-same-rigor` keeps its id, classification (accommodation) and evidence list. Its revision entry gains
+one parameter, validated in exactly one place (`normalizeItemReduction`):
+
+```js
+{ id: 'reduced-item-count-same-rigor', params: { itemReduction: { mode: 'percent', value: 25 } }, appliesTo: [] }
+```
+
+- `mode: 'percent'` with a whole number from 10 to 50 → MathMaster applies it (`supportAutomationFor` → `automatic`).
+- Anything else — including the bare entry every profile saved before this build carries — normalizes to
+  `{ mode: 'none' }` and keeps its old meaning: **recorded by staff, MathMaster does not choose items**.
+
+**Migration strategy: none needed, by construction.** Nothing is rewritten. A legacy flat profile can only ever resolve
+to `manual`; a versioned revision without the parameter is `manual`; a projection written before
+`itemReductionHistory` existed has no percentage anywhere. A teacher turns automation on by saving a new dated
+revision in the editor (a newly ticked support starts at "automatic, 25%", visibly; an entry carried from an older
+revision keeps "recorded by staff" until changed). The drawer warns `item-reduction-manual` so a teacher can see which
+students still have the recorded-only form.
+
+### 11.2 Which revision governs an assignment
+
+The revision in effect on the assignment's class due date (else release date, else today) — the same anchor the
+evidence report already uses (`governingProfileForAssignment`) — **among the revisions MathMaster had saved by that
+date**. A revision saved today with an earlier effective start documents the support for the paperwork, but it does not
+reshape or regrade work that was already due: MathMaster keeps the item count it applied then, and the evidence report
+says so (`backdated-profile`, and `automatic-saved-after-due` on the reduced-item row). A revision governs work due on
+the day it was saved.
+
+The projection keeps a compact `supportPlan.itemReductionHistory` (`itemReductionTimeline`): a step function over
+due dates, one row each time the policy changes (revision id and number, first due date governed, status, percent,
+appliesTo; no labels or notes). Revisions that change other supports add no rows, so a past assignment resolves under
+its governing revision even after that revision has left `windows`. The bound is 40 policy changes; past it, the oldest
+changes fold into one undated baseline row (the latest of them) instead of disappearing. A test checks the stored
+history against the revision timeline on every date for 60 randomized histories.
+
+### 11.3 The pipeline (composition order)
+
+```
+assignment content
+  → teacher inclusion (teacherExcluded, replacements)   current content
+  → REDUCTION PLAN, from the content alone               planReducedWorkload (cached per assignment object)
+  → Practice Pass waiver (the whole Practice section)    studentAssignmentIndicesWithPracticePass
+  → answered work is never dropped                       projectStudentWorkload
+  = the student's required items                         studentRequiredQuestions (browser)
+                                                         studentOmittedFor + studentRequiredIndices (Cloud Functions)
+```
+
+Because the plan depends only on content and policy, the Practice Pass and the reduction **commute**: redeeming or
+undoing a pass never reshuffles Warm-Up, Classwork or DOL, and a section-level reader (classwork completion rule, DOL
+projection, Recovery, a Classroom section column) filters its own indices without knowing anything else about the
+student. Consequence, documented and shown in evidence (`practice-pass` variance): if a pass waives Practice, the
+reductions the plan placed in Practice do not move to other sections.
+
+### 11.4 Choosing items
+
+- **Cell** = one coverage group inside one section: section role + primary TEKS (else authored skill/objective, else
+  question family, else tool FAMILY — the version suffix is dropped and a tool the runtime repair retypes shares its
+  target's family, so the stored and the repaired copy of an assignment plan alike). The browser plans on the STORED
+  document, exactly as the server and the teacher views do. The timed DOL is its own cell wherever it lives: a
+  question flagged `isDOL`, or the question an enabled legacy DOL points at, has role `dol` (mirroring
+  `resolveDOLQuestionIndices`), so a one-question DOL is never omitted.
+- **Coverage** = every (section, coverage key) any unit carries keeps at least one kept unit. A linked group is filed
+  under its first question's key but carries the keys of ALL its questions, so a TEKS only Part B assesses never
+  disappears with the group.
+- **Unit** = one question, or every question sharing an authored `itemGroup` (new optional field: a dependent
+  sequence — Part C is never kept without Part B). A multipart question stored as one record (composed workflow,
+  multi-answer) is one unit and is never split: removing a part would change the question, which is a modification.
+- **Anchor** = a unit with `coreItem: true` (new optional field) is never omitted.
+- **One removal order, independent of the percentage.** Units are ordered one at a time from the cell with the most
+  redundancy left (D'Hondt: size ÷ (removed + 1)); ties go to Practice, then Classwork, then Warm-Up, assessment
+  sections last; single questions first, linked groups after; never a unit whose removal would break coverage. Inside
+  a cell the next unit comes from the most-represented DOK/difficulty level (a lone harder item goes last), spread
+  across positions by a low-discrepancy order seeded by the assignment id — never "the last 25%". The plan for a
+  percentage is the **longest prefix of that order that fits the target**: it stops at a linked group too large for
+  what is left (`indivisible-group`) rather than skipping past it, so a higher percentage always omits a superset of a
+  lower one and raising it never hands back an item the student was never shown. All students with the same
+  percentage on the same assignment get the same items (coherent whole-class review).
+- Secure Test Cycles are never reshaped (`secure-assessment`); `appliesTo` limits the reduction to chosen activities.
+
+### 11.5 Rounding and minimum workload (one rule)
+
+Target removal = round-half-down(applicable items × percent ÷ 100): the nearest whole item, ties keep the work. The
+plan never overshoots the target, so a student never gets more reduction than the rounded target.
+
+| Items (25%) | Removed | Assigned | Actual | Variance recorded |
+| --- | --- | --- | --- | --- |
+| 20 | 5 | 15 | 25% | — |
+| 10 | 2 | 8 | 20% | rounding |
+| 5 | 1 | 4 | 20% | rounding |
+| 4 (one TEKS) | 1 | 3 | 25% | — |
+| 4 (four TEKS) | 0 | 4 | 0% | coverage |
+| 3 | 1 | 2 | 33.3% | rounding |
+| 2 | 0 | 2 | 0% | too-few-items |
+| 1 (DOL) | 0 | 1 | 0% | too-few-items |
+| one multipart record | 0 | 1 | 0% | too-few-items |
+
+### 11.6 Determinism, persistence, revisions
+
+The plan is a pure function of the stored assignment and the stored profile, so every device, the teacher's screens
+and the Cloud Functions compute the same items — nothing depends on one device's storage. Answering a required item
+never changes the set (the compensation for pinned answers always takes the first unanswered units in a cell's fixed
+order, never breaking coverage). "Answered" is the student's own canonical record: a teacher-override display
+projection (a section zero shown as attempted) keeps the record's own status (`trackerStatusBeforeOverride`) and pins
+nothing; an authorized replacement that resets a question is read as reset by the server at ingestion, exactly as
+every later read sees it. When content is legitimately revised, the plan is recomputed (new `contentFingerprint`),
+answered work stays required, and the same cell gives up its next unanswered unit instead. A higher percentage removes
+a superset of a lower one. A revision a teacher saves mid-session reaches the student's open session through the
+live `grades/{id}` listener (the profile the server grades with), not at the next sign-in. Two revisions recorded
+with the same start and number resolve to the later-recorded one, as everywhere else.
+
+### 11.7 Grading, completion and every reader
+
+The denominator is the student's required items everywhere: `splitGrade`/`splitGradesBySection`/`gradeWeightTotals`
+(`supportProfile`), the canonical gradebook/TEAMS projection, Grade Center, Home, progress, parent brief, Case Review
+(`not-required` outcome, never "skipped"), Recovery (never credits an omitted item), live monitor (`n` state at the
+class position), worksheets, Classroom passback (whole and section), classwork completion (prerequisite gate) and the
+DOL projection. Persistence safety keeps counting every included item. The recorded (official) grade on the
+assignment screen uses the student's own items in post-deadline Practice Mode too, so it always equals the Grade
+Center and Classroom. A Practice Pass keeps its existing treatment on every screen (this change adds only the
+student's own profile). A DOL is never finalized over no items (the full DOL is scored instead). On the projected
+Live Classroom room view an omitted item is drawn like an untouched one and the tile never says "fewer items" — a
+classmate must not be able to tell who has the support.
+
+### 11.8 Evidence
+
+At launch the student's client records, once per assignment × GOVERNING revision × content fingerprint (the revision
+that governs the assignment's dates, even when today's revision no longer reduces — the projection's `entitledIds`
+carry the support while any recorded revision made it automatic, so the rules accept it):
+
+- `provided` — only when items were actually omitted — with `details` {targetPercent, originalCount, assignedCount,
+  actualPercentTenths, variance (known codes only), contentFingerprint, algorithmVersion, omittedIndices ("1,5,9")};
+- `not-applicable` with the decisive reason (secure assessment, too few items, coverage… — never merely rounding);
+- `unavailable` (`projection-not-resolved`) if resolving threw — an implementation gap, never "provided".
+
+The record describes the accommodation over the assignment's content; a Practice Pass is a separate projection. A
+negative record has its own id, so "not applicable" never blocks a later "provided". A student's client may record
+`not-applicable`/`unavailable` only for supports the platform evaluates itself (`PLATFORM_EVALUATED_SUPPORT_IDS`,
+mirrored in the rules), and the aggregation ignores any other client negative, so it can never silence a
+"no staff record" gap. A recorded-only support records nothing from the platform (staff document it). The
+aggregation recomputes the projection from the student's canonical records and marks a record *verified* when it
+matches; a worked assignment under automatic reduction with no record is an `automatic-not-recorded` gap (never
+"not provided"), or `automatic-predates-revision` when the work was done before that revision was saved, or
+`automatic-saved-after-due` when the revision was saved after the work was due (MathMaster kept the earlier count).
+
+The report's headline is "Provided/Available in X of Y eligible" only for supports MathMaster records on every opened
+assignment either way (`RECORDED_ON_EVERY_OPENED_ASSIGNMENT`); Y counts opened assignments whose governing revision
+made the support automatic or platform-available and where it was not recorded as not applicable, and X is counted
+over those same rows. A support that applies only to some content (a countdown to hide, a Step Algebra item, a moved
+due date) is reported as a count.
+
+### 11.9 Known limits
+
+- A profile change does not by itself re-send Classroom grades; the next grade write on that assignment does.
+  MathMaster's gradebook and TEAMS export reflect it immediately.
+- Secure Test Cycles are not reduced.
+- Parts inside one question record are not reduced (see 11.4).

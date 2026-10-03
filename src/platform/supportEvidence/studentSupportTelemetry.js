@@ -22,8 +22,10 @@ import {
   INCLUSION_IMPLIED_SUPPORT_IDS,
   SUPPORT_AUTOMATION,
   SUPPORT_CLASSIFICATION,
+  supportAutomationFor,
   supportById,
 } from '../../../functions/shared/supportCatalog.mjs';
+import { REDUCED_WORKLOAD_SUPPORT_ID, WORKLOAD_STATUS, WORKLOAD_VARIANCE } from '../../../functions/shared/reducedWorkload.mjs';
 import {
   planHasSupport,
   resolveEffectiveSupportPlan,
@@ -38,7 +40,77 @@ const TIMED_ROLES = new Set(['warmup', 'dol', 'quiz', 'test']);
 // Recorded per question when the tool is on screen, not at launch.
 const RECORDED_IN_QUESTION = new Set(['text-to-speech', 'calculator', 'calculator-override-computation']);
 // Not a platform fact in an assignment.
-const NOT_RECORDED_AT_LAUNCH = new Set(['extra-attempts', 'reduced-item-count-same-rigor']);
+const NOT_RECORDED_AT_LAUNCH = new Set(['extra-attempts']);
+
+/**
+ * The compact, checkable facts a reduced-item record carries (the summary
+ * functions/shared/reducedWorkload.mjs resolveStudentWorkload returns).
+ */
+export const workloadEvidenceDetails = (summary = {}) => ({
+  targetPercent: summary.targetPercent,
+  originalCount: summary.originalCount,
+  assignedCount: summary.assignedCount,
+  actualPercentTenths: summary.actualPercentTenths,
+  variance: summary.variance,
+  contentFingerprint: summary.contentFingerprint,
+  algorithmVersion: summary.algorithmVersion,
+  omittedIndices: summary.omittedIndices,
+});
+
+// Why nothing was reduced, most decisive cause first. Rounding or a limit to
+// some activities never by itself leaves nothing to reduce.
+const NOT_APPLICABLE_REASON_ORDER = [
+  WORKLOAD_VARIANCE.SECURE_ASSESSMENT,
+  WORKLOAD_VARIANCE.PRACTICE_PASS,
+  WORKLOAD_VARIANCE.ANSWERED_BEFORE_REDUCTION,
+  WORKLOAD_VARIANCE.TOO_FEW_ITEMS,
+  WORKLOAD_VARIANCE.COVERAGE,
+  WORKLOAD_VARIANCE.INDIVISIBLE_GROUP,
+  WORKLOAD_VARIANCE.LIMITED_TO_ACTIVITIES,
+  WORKLOAD_VARIANCE.ROUNDING,
+];
+export const notApplicableReason = (variance = []) => (
+  NOT_APPLICABLE_REASON_ORDER.find((code) => list(variance).includes(code)) || 'nothing-to-reduce'
+);
+
+/**
+ * The reduced-item record for one opened assignment, from the student's
+ * resolved projection (`studentRequiredQuestions` → `{ status, workload }`,
+ * or `{ failed: true }`). Only a projection that actually omitted items is
+ * "provided"; one that could not be resolved is "unavailable" when today's
+ * plan makes the reduction automatic (the governing revision is unknown then).
+ */
+const reducedWorkloadRecord = ({ workload, plan }) => {
+  if (!workload || workload.failed) {
+    const entry = list(plan?.accommodations).find((item) => item?.id === REDUCED_WORKLOAD_SUPPORT_ID) || null;
+    return plan?.active && entry && supportAutomationFor(REDUCED_WORKLOAD_SUPPORT_ID, entry.params) === SUPPORT_AUTOMATION.AUTOMATIC
+      ? { supportId: REDUCED_WORKLOAD_SUPPORT_ID, eventType: EVIDENCE_EVENT_TYPE.UNAVAILABLE, details: { reason: 'projection-not-resolved' } }
+      : null;
+  }
+  const summary = workload.workload;
+  if (!summary) return null;
+  if (workload.status === WORKLOAD_STATUS.APPLIED) {
+    return {
+      supportId: REDUCED_WORKLOAD_SUPPORT_ID,
+      eventType: EVIDENCE_EVENT_TYPE.PROVIDED,
+      details: workloadEvidenceDetails(summary),
+      variant: summary.contentFingerprint || null,
+      profileRevisionId: summary.revisionId || null,
+    };
+  }
+  if (workload.status === WORKLOAD_STATUS.NOT_APPLICABLE) {
+    return {
+      supportId: REDUCED_WORKLOAD_SUPPORT_ID,
+      eventType: EVIDENCE_EVENT_TYPE.NOT_APPLICABLE,
+      details: { ...workloadEvidenceDetails(summary), reason: notApplicableReason(summary.variance) },
+      variant: summary.contentFingerprint || null,
+      profileRevisionId: summary.revisionId || null,
+    };
+  }
+  // 'none' / 'manual': automatic reduction does not govern THIS assignment's
+  // dates — no claim either way.
+  return null;
+};
 
 /**
  * Records to make when a student opens an assignment.
@@ -51,23 +123,41 @@ export const launchSupportRecords = ({
   assignment,
   roles = [],
   questions = [],
+  // This student's resolved reduced-item projection for the assignment
+  // (assignmentLifecycle.js studentRequiredQuestions → `{ status, workload }`),
+  // or `{ failed: true }` when resolving it threw. Only a projection that
+  // actually omitted items is "provided".
+  workload = null,
   nowValue = Date.now(),
 } = {}) => {
   const plan = resolveEffectiveSupportPlan(profile, { nowValue });
-  if (!plan.active) return { revisionId: plan.revisionId, records: [] };
+  // The reduced-item record follows the revision that GOVERNS this assignment
+  // (its due date — reducedWorkload.mjs resolveItemReductionPolicy), which is
+  // not always today's: a late assignment from September is reduced under
+  // September's revision even if October's dropped the percentage.
+  const reduced = reducedWorkloadRecord({ workload, plan });
+  if (!plan.active) return { revisionId: plan.revisionId, records: reduced ? [reduced] : [] };
   const presentRoles = [...new Set(list(roles).map((role) => String(role || '').toLowerCase()).filter(Boolean))];
   const ids = [
     ...list(plan.accommodations).map((entry) => entry.id),
     ...(plan.inclusionStatus ? INCLUSION_IMPLIED_SUPPORT_IDS : []),
   ];
   const records = new Map();
-  const add = (supportId, eventType) => { if (!records.has(supportId)) records.set(supportId, { supportId, eventType }); };
+  const add = (supportId, eventType, extra = {}) => { if (!records.has(supportId)) records.set(supportId, { supportId, eventType, ...extra }); };
+  if (reduced) records.set(REDUCED_WORKLOAD_SUPPORT_ID, reduced);
 
   [...new Set(ids)].forEach((supportId) => {
     const entry = supportById(supportId);
     if (!entry || entry.classification !== SUPPORT_CLASSIFICATION.ACCOMMODATION) return;
-    if (entry.automation === SUPPORT_AUTOMATION.MANUAL) return;
+    // Under THIS revision's parameters: a recorded-only reduced item count is
+    // adult-delivered, an automatic one is the platform's to prove.
+    const planEntry = list(plan.accommodations).find((item) => item.id === supportId) || null;
+    const automation = supportAutomationFor(supportId, planEntry?.params);
+    if (automation === SUPPORT_AUTOMATION.MANUAL) return;
     if (RECORDED_IN_QUESTION.has(supportId) || NOT_RECORDED_AT_LAUNCH.has(supportId)) return;
+
+    // Decided above from the governing revision (reducedWorkloadRecord).
+    if (supportId === REDUCED_WORKLOAD_SUPPORT_ID) return;
     if (presentRoles.length && !presentRoles.some((role) => supportAppliesToRole(plan, supportId, role))) return;
 
     if (entry.params.includes('dueDateExtension')) {
@@ -97,10 +187,18 @@ export const launchSupportRecords = ({
   return { revisionId: plan.revisionId, records: [...records.values()] };
 };
 
-/** Is the student entitled to record this support at all (mirrors the rules)? */
+/**
+ * Is the student entitled to record this support at all? Mirrors the rules
+ * (firestore.rules studentSupportEvidenceValid): today's plan, or the
+ * projection's `entitledIds` — which also carries a reduced-item support any
+ * recorded revision made automatic, so an assignment governed by an earlier
+ * revision can still be recorded.
+ */
 export const studentMayRecordSupport = (profile, supportId, { nowValue = Date.now() } = {}) => {
   const plan = resolveEffectiveSupportPlan(profile, { nowValue });
-  return plan.active && planHasSupport(plan, supportId);
+  if (plan.active && planHasSupport(plan, supportId)) return true;
+  const entitled = profile?.supportPlan?.entitledIds;
+  return Array.isArray(entitled) && entitled.includes(String(supportId ?? '').trim());
 };
 
 // Kept beside the transformation it mirrors (src/studentSupport.js).

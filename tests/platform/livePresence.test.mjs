@@ -16,8 +16,14 @@ test('question states compress a whole assignment into a few bytes', () => {
   const counts = countQuestionStates('ccxa..');
   assert.deepEqual(
     { ...counts },
-    { correct: 2, incorrect: 1, attempted: 1, untouched: 2, answered: 3, accuracy: 67 },
+    // `notRequired`: items a student's reduced-item-count accommodation omits
+    // ('n'); counted as neither answered nor untouched.
+    { correct: 2, incorrect: 1, attempted: 1, untouched: 2, notRequired: 0, answered: 3, accuracy: 67 },
   );
+  const reduced = countQuestionStates('cn.nx');
+  assert.equal(reduced.notRequired, 2);
+  assert.equal(reduced.untouched, 1, 'an omitted item is not work still to do');
+  assert.equal(reduced.answered, 2);
   assert.equal(countQuestionStates('').accuracy, null, 'no answers means no accuracy, not zero');
   assert.equal(countQuestionStates(null).untouched, 0);
 });

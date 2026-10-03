@@ -25,7 +25,9 @@ test('live weight changes preserve trackers and signal Classroom reconciliation'
 test('app and server both use weighted assignment scoring', () => {
   // calculateGrade also passes a Practice Pass waiver through; the weighted
   // split is still the one source of the number.
-  assert.match(app, /return splitGrade\(\{ tracker: assignmentTracker, assignment: assignmentData(, practicePassRedeemed)? \}\)\.score \?\? 0/);
+  // ...and the student's own required items (supportProfile: a
+  // reduced-item-count accommodation), never a second denominator.
+  assert.match(app, /return splitGrade\(\{ tracker: assignmentTracker, assignment: assignmentData(, practicePassRedeemed)?(, supportProfile)? \}\)\.score \?\? 0/);
   assert.match(functionsIndex, /weightedQuestionTotals/);
   assert.match(functionsIndex, /runtimeQuestionsFromAssignment\(assignment\)/);
 });

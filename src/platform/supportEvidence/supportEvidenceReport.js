@@ -23,7 +23,8 @@
  *
  * Pure: every input is passed in, so node tests exercise it directly.
  */
-import { supportById, supportLabel, SUPPORT_AUTOMATION, SUPPORT_CLASSIFICATION } from '../../../functions/shared/supportCatalog.mjs';
+import { supportAutomationFor, supportById, supportLabel, SUPPORT_AUTOMATION, SUPPORT_CLASSIFICATION } from '../../../functions/shared/supportCatalog.mjs';
+import { describeItemReduction } from '../../../functions/shared/reducedWorkload.mjs';
 import {
   LEGACY_REVISION_ID, REVISION_STATUS, legacyProfileToRevision, revisionEffectiveOn, sortRevisionTimeline, toMillis,
 } from '../../../functions/shared/supportProfileModel.mjs';
@@ -37,13 +38,41 @@ import { normalizeGradingPeriodSettings, resolveAssignmentGradingPeriod } from '
 import { lastExportedRowsByStudent, snapshotsForPart } from '../gradeTransfer/gradeTransferHistory.js';
 import { canonicalPresentedAssignmentGrade } from '../grading/canonicalGradeProjection.js';
 import {
-  ASSIGNMENT_STATUS, SCHOOL_TIME_ZONE, activeEvidence, buildAssignmentEvidenceRow, configuredSupportIds,
+  ASSIGNMENT_STATUS, SCHOOL_TIME_ZONE, activeEvidence, buildAssignmentEvidenceRow, configuredSupportIds, supportAutomationUnder,
   distinctUses, evidenceRecordingStartMs, isStaffEvent,
 } from './evidenceAggregation.js';
 import { acceptStudentName, formatStudentName } from '../studentName.js';
 
 export const SUPPORT_REPORT_SCHEMA_VERSION = 1;
 export const TIMELINE_LIMIT = 400;
+// Supports MathMaster records on EVERY opened assignment where they are
+// configured — provided/available, or an explicit not-applicable/unavailable —
+// so "X of Y eligible" is a fact. Every other platform support applies only to
+// some content (a countdown to hide, a Step Algebra item, a due date that
+// moved, a question that allows a calculator) and is reported as a count.
+export const RECORDED_ON_EVERY_OPENED_ASSIGNMENT = Object.freeze(new Set([
+  'reduced-item-count-same-rigor', 'declutter-ui', 'visual-chunking', 'high-contrast', 'large-text',
+  'disable-idle-timer', 'word-processor-response', 'graph-paper', 'reteach-resources', 'study-sheet',
+]));
+// Supports with no assignment-level record at all (My Math Path only).
+export const NOT_RECORDED_IN_ASSIGNMENTS = Object.freeze(new Set(['extra-attempts']));
+
+/**
+ * The implementation headline for one support: made available (on-demand
+ * tools) or provided (automatic supports) out of the eligible work. Use is
+ * shown in its own column and never lowers this figure.
+ */
+export const supportHeadline = (support) => {
+  if (support.automation === 'manual') return 'Delivered by staff';
+  if (support.recordedInAssignments === false) return 'Not recorded in assignments (My Math Path)';
+  const verb = support.automation === 'platform-available' || (support.measurable || []).includes('available') ? 'Available' : 'Provided';
+  const delivered = Number(support.assignmentsDelivered) || 0;
+  // A ratio only where MathMaster records the support on every opened
+  // assignment; elsewhere it applies to some content only, so a count.
+  if (support.denominatorKnown) return `${verb} in ${delivered} of ${Number(support.assignmentsEligible) || 0} eligible`;
+  return `${verb} in ${delivered} assignment${delivered === 1 ? '' : 's'} where it applied`;
+};
+
 const DAY_MS = 86400000;
 
 const list = (value) => (Array.isArray(value) ? value : []);
@@ -160,12 +189,19 @@ const gradeImpactFor = ({ row, assignment, student, classId, snapshots }) => {
 
 const describeEntries = (entries) => list(entries).map((entry) => {
   const catalog = supportById(entry?.id);
+  let detail = '';
+  if (entry?.params?.dueDateExtension) detail = describeDueDateExtension(entry.params.dueDateExtension);
+  else if (catalog?.params?.includes('itemReduction')) detail = describeItemReduction(entry?.params?.itemReduction);
   return {
     id: entry.id,
     label: catalog?.label || entry.id,
     classification: catalog?.classification || 'unknown',
-    automation: catalog?.automation || null,
-    detail: entry?.params?.dueDateExtension ? describeDueDateExtension(entry.params.dueDateExtension) : '',
+    // Under THIS revision's parameters (an automatic reduced item count is
+    // the platform's to prove; a recorded-only one is staff-delivered).
+    automation: supportAutomationFor(entry?.id, entry?.params || null) || catalog?.automation || null,
+    detail,
+    // Kept so every later reader can resolve the same parameters.
+    params: entry?.params && typeof entry.params === 'object' ? entry.params : {},
     appliesTo: list(entry?.appliesTo),
     affectsIndependence: catalog?.affectsIndependence === true,
   };
@@ -364,21 +400,53 @@ export const buildSupportEvidenceReport = ({
   // provided / uses / staff records — kept apart.
   const supportIds = [...new Set([...configured.accommodations, ...periodEvidence.map((event) => event.supportId)])]
     .filter((id) => supportById(id)?.classification !== SUPPORT_CLASSIFICATION.MODIFICATION);
+  // ELIGIBLE: opened assignments in the period whose GOVERNING revision
+  // configured the support as something MathMaster delivers (automatic or
+  // platform-available under that revision) and where it was not recorded as
+  // not applicable. "Made available / provided" is counted over those same
+  // rows, so X never exceeds Y; use is supplemental and never lowers it (a
+  // student choosing not to use an on-demand support is not a gap). Where
+  // MathMaster does not record a support on every opened assignment (it
+  // applies only to some content), the report gives a count, not a ratio.
+  const openedByStudent = new Set(activeEvidence(evidence).filter((event) => !isStaffEvent(event)).map((event) => event.assignmentId).filter(Boolean));
+  const opened = (row) => row.progress.attempted > 0 || row.status === ASSIGNMENT_STATUS.COMPLETED || openedByStudent.has(row.assignmentId);
+  const openedRows = rows.filter(opened);
   const supports = supportIds.map((supportId) => {
     const catalog = supportById(supportId);
     const events = periodEvidence.filter((event) => event.supportId === supportId);
     const assignmentsWith = (types) => new Set(events.filter((event) => types.includes(event.eventType) && event.assignmentId).map((event) => event.assignmentId)).size;
+    const configuredHere = openedRows
+      .map((row) => ({ row, support: row.supports.find((entry) => entry.supportId === supportId && entry.configured) }))
+      .filter(({ support }) => support && support.automation !== SUPPORT_AUTOMATION.MANUAL);
+    const delivered = ({ support }) => support.available + support.provided > 0;
+    const notApplicableRows = configuredHere.filter((entry) => entry.support.notApplicable > 0 && !delivered(entry));
+    const eligibleRows = configuredHere.filter((entry) => !notApplicableRows.includes(entry));
+    const automation = supportAutomationUnder(profile.current, supportId) || catalog?.automation || null;
+    const currentEntry = list(profile.current?.accommodations).find((entry) => entry?.id === supportId) || null;
     return {
       supportId,
       label: catalog?.label || supportId,
       classification: catalog?.classification || 'unknown',
-      automation: catalog?.automation || null,
+      automation,
       configured: configured.accommodations.includes(supportId),
+      // A ratio only where every opened assignment gets a record either way.
+      denominatorKnown: RECORDED_ON_EVERY_OPENED_ASSIGNMENT.has(supportId) && !list(currentEntry?.appliesTo).length,
+      recordedInAssignments: !NOT_RECORDED_IN_ASSIGNMENTS.has(supportId),
+      assignmentsEligible: eligibleRows.length,
+      // The headline's numerator: eligible rows where it was made available
+      // or provided (never more than the denominator).
+      assignmentsDelivered: eligibleRows.filter(delivered).length,
+      // Raw counts over the period's records, as before (case review tables).
       assignmentsAvailable: assignmentsWith(['available']),
       assignmentsProvided: assignmentsWith(['provided']),
+      assignmentsNotApplicable: notApplicableRows.length,
+      assignmentsUnavailable: eligibleRows.filter(({ support }) => support.unavailable > 0).length,
+      assignmentsUsed: new Set(distinctUses(events).map((event) => event.assignmentId).filter(Boolean)).size,
       uses: distinctUses(events).length,
       staffRecords: events.filter(isStaffEvent).length,
       measurable: catalog?.evidence || [],
+      // "Used" is reported only where the catalog says use is observable.
+      tracksUse: (catalog?.evidence || []).includes('used'),
     };
   });
 
@@ -486,7 +554,15 @@ export const supportReportCsv = (report) => {
     'Assignment', 'Assignment ID', 'Class due', 'Individualized due', 'Final cutoff', 'Status', 'Completed after due',
     'MathMaster grade', 'Condition', 'Modifications applied', 'Warm-Up', 'Classwork', 'Practice', 'DOL', 'Attempts',
     'Active minutes', 'Active time source', 'Supports used', 'Staff records', 'Export status', 'Evidence gaps',
+    // Appended (not inserted) so existing column positions are unchanged.
+    'Required items (fewer items, same rigor)',
   ];
+  const workloadCell = (row) => {
+    const fact = row.workload?.recorded || row.workload?.current;
+    if (!row.workload || !fact) return '';
+    if (row.workload.recorded?.eventType === 'unavailable') return 'Could not be applied';
+    return `${fact.assignedCount} of ${fact.originalCount} (${Number(fact.actualPercentTenths || 0) / 10}% fewer; target ${fact.targetPercent}%)${row.workload.recorded ? '' : ' [derived]'}`;
+  };
   const sectionScore = (row, key) => row.sections.find((section) => section.key === key)?.score ?? '';
   const iso = (ms) => (Number.isFinite(ms) ? new Date(ms).toISOString() : '');
   const lines = [header.map(csvCell).join(',')];
@@ -503,6 +579,7 @@ export const supportReportCsv = (report) => {
       row.staffEvents.length,
       list(row.gradeImpact?.items).map((item) => `${item.label}: ${item.exportStatus?.label || ''}`).join('; '),
       row.gaps.map((gap) => gap.message).join(' '),
+      workloadCell(row),
     ].map(csvCell).join(','));
   });
   return `${lines.join('\r\n')}\r\n`;

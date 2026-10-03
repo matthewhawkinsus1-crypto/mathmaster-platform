@@ -343,7 +343,9 @@ A cloud session picked this up from the handoff below and finished it on `ai/cla
 - **No provider role.** Providers are recorded by the teacher of record, with a provider role and label.
 - **A former teacher's list queries use current-teacher access.**
 - **Profile resolution lag in My Math Path.** Its entitlements (`functions/shared/supportEntitlements.mjs`) use the flat keys written at save time. A future-dated revision switches on in the student client and for deadlines automatically, but in Path only at the next save.
-- **"Reduced item count, same rigor" is recorded, not automated.** It is recorded as a teacher-documented accommodation; the platform does not pick the items.
+- ~~**"Reduced item count, same rigor" is recorded, not automated.**~~ Superseded: automatic, percentage-based reduction is
+  built on `ai/claude-reduced-workload-20261002` (design §11). A bare entry is still recorded-only; see
+  `docs/handoffs/STUDENT_SUPPORTS_WORKLOAD_LANGUAGE_STATUS.md`.
 - **Offline one-click timestamps reflect server receipt.**
 
 **Pre-existing, backlog:** the student assignment view logs React "Maximum update depth exceeded" in the harness. It was confirmed on untouched `main`.

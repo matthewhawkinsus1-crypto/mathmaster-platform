@@ -45,6 +45,24 @@ export const normalizeStudentProfile = (profile = {}, { nowValue = Date.now() } 
   };
 };
 
+/**
+ * Do two normalized profiles say the same thing? Compares the whole (small,
+ * bounded) plan — windows, parameters and history — so a re-saved revision
+ * that changes only a parameter (a percentage) is still a change. Lets a live
+ * listener replace a session's profile only when it changed.
+ */
+export const sameStudentProfile = (a, b) => {
+  const key = (profile) => JSON.stringify([
+    profile?.supportPlan || null,
+    profile?.supportRevisionId || null,
+    Boolean(profile?.inclusionStatus),
+    profile?.accommodations || [],
+    profile?.modifications || [],
+    profile?.translationLanguage || null,
+  ]);
+  return key(a) === key(b);
+};
+
 export const studentHasSupport = (profile, value) => {
   const normalized = normalizeStudentProfile(profile);
   return normalized.accommodations.includes(value) || normalized.modifications.includes(value);

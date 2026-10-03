@@ -20,8 +20,15 @@ import {
   INCLUSION_IMPLIED_SUPPORT_IDS,
   SUPPORT_AUTOMATION,
   SUPPORT_CLASSIFICATION,
+  supportAutomationFor,
   supportById,
 } from '../../../functions/shared/supportCatalog.mjs';
+import {
+  REDUCED_WORKLOAD_SUPPORT_ID,
+  WORKLOAD_STATUS,
+  WORKLOAD_VARIANCE_LABEL,
+  resolveStudentWorkload,
+} from '../../../functions/shared/reducedWorkload.mjs';
 import {
   LEGACY_REVISION_ID,
   REVISION_STATUS,
@@ -34,7 +41,9 @@ import { planWindowOn, resolveStudentSupportDeadline } from '../../../functions/
 import {
   ACTOR_TYPE,
   EVIDENCE_EVENT_TYPE,
+  NEGATIVE_EVIDENCE_EVENT_TYPES,
   PROVENANCE,
+  studentMayRecordNegative,
   summarizeEngagementMinutes,
 } from '../../../functions/shared/supportEvidenceModel.mjs';
 import { parseInstant, zonedDateKey } from '../../../functions/shared/instructionalCalendar.mjs';
@@ -124,11 +133,16 @@ export const countEvidenceBySupport = (events = []) => {
     if (event?.eventType === EVIDENCE_EVENT_TYPE.USED && !countedUses.has(event)) return;
     const supportId = clean(event?.supportId);
     if (!supportId) return;
+    // A client's "not applicable" / "unavailable" counts only for a support
+    // the platform evaluates itself (the rules refuse the rest); it can never
+    // silence a "no staff record" gap.
+    if (NEGATIVE_EVIDENCE_EVENT_TYPES.includes(event.eventType) && !isStaffEvent(event) && !studentMayRecordNegative(supportId)) return;
     const bucket = counts.get(supportId) || {
-      supportId, available: 0, provided: 0, activated: 0, used: 0, documented: 0, declined: 0, notApplicable: 0, lastAtMs: null,
+      supportId, available: 0, provided: 0, activated: 0, used: 0, documented: 0, declined: 0, notApplicable: 0, unavailable: 0, lastAtMs: null,
     };
     const type = event.eventType;
     if (type === EVIDENCE_EVENT_TYPE.AVAILABLE) bucket.available += 1;
+    else if (type === EVIDENCE_EVENT_TYPE.UNAVAILABLE) bucket.unavailable += 1;
     else if (type === EVIDENCE_EVENT_TYPE.PROVIDED && !isStaffEvent(event)) bucket.provided += 1;
     else if (type === EVIDENCE_EVENT_TYPE.ACTIVATED) bucket.activated += 1;
     else if (type === EVIDENCE_EVENT_TYPE.USED) bucket.used += 1;
@@ -187,6 +201,69 @@ export const governingProfileForAssignment = ({ assignment, revisions = [], prof
 
 const activeRevision = (revision) => (revision && revision.status !== REVISION_STATUS.INACTIVE ? revision : null);
 
+/**
+ * How a support is delivered under ONE revision (its own parameters): a
+ * reduced item count is automatic only where that revision set a percentage.
+ * Gap rules ask this, so a recorded-only support is never a platform gap and
+ * an automatic one never needs a staff record.
+ */
+export const supportAutomationUnder = (revision, supportId) => {
+  const entry = list(activeRevision(revision)?.accommodations).find((item) => item?.id === supportId) || null;
+  return supportAutomationFor(supportId, entry?.params || null) || supportById(supportId)?.automation || null;
+};
+
+/**
+ * What the reduced-item accommodation did on one assignment: the record the
+ * student's own client wrote when the work opened (target, original,
+ * assigned, actual, why they differ), checked against the projection
+ * MathMaster computes from the same inputs now. "Verified" means the two
+ * agree; a later content revision or a pinned answer can make them differ,
+ * and that is shown, not hidden.
+ */
+export const workloadFactFor = ({ assignment, student, events = [], nowValue = Date.now() } = {}) => {
+  // Recomputed exactly as the student's client recorded it: over the
+  // assignment's content (a Practice Pass is a separate projection), pinning
+  // answered work from the student's own canonical records — never from a
+  // teacher-override display projection.
+  const tracker = student?.gradesByAssignment?.[assignment?.id] || null;
+  let current = null;
+  try {
+    current = resolveStudentWorkload({ assignment, profile: student?.profile || null, tracker, nowValue });
+  } catch {
+    current = null;
+  }
+  const records = list(events)
+    .filter((event) => event?.supportId === REDUCED_WORKLOAD_SUPPORT_ID && !isStaffEvent(event))
+    .filter((event) => [EVIDENCE_EVENT_TYPE.PROVIDED, EVIDENCE_EVENT_TYPE.NOT_APPLICABLE, EVIDENCE_EVENT_TYPE.UNAVAILABLE].includes(event.eventType))
+    .map((event) => ({ ...event, occurredAtMs: event.occurredAtMs ?? toMillis(event.occurredAt) }))
+    .sort((a, b) => (b.occurredAtMs || 0) - (a.occurredAtMs || 0));
+  const recorded = records[0] || null;
+  const status = current?.status || WORKLOAD_STATUS.NONE;
+  if (!recorded && (status === WORKLOAD_STATUS.NONE || status === WORKLOAD_STATUS.MANUAL)) return null;
+  const details = recorded?.details || null;
+  const verified = Boolean(recorded && details && current?.summary
+    && details.contentFingerprint === current.summary.contentFingerprint
+    && Number(details.assignedCount) === Number(current.summary.assignedCount));
+  return {
+    recorded: recorded ? {
+      eventType: recorded.eventType,
+      occurredAtMs: recorded.occurredAtMs || null,
+      targetPercent: details?.targetPercent ?? null,
+      originalCount: details?.originalCount ?? null,
+      assignedCount: details?.assignedCount ?? null,
+      actualPercentTenths: details?.actualPercentTenths ?? null,
+      variance: list(details?.variance),
+      reason: details?.reason || null,
+      contentFingerprint: details?.contentFingerprint || null,
+    } : null,
+    current: current?.summary || null,
+    status,
+    verified,
+    provenance: recorded ? PROVENANCE.RECORDED : PROVENANCE.DERIVED,
+    varianceText: list(details?.variance || current?.summary?.variance).map((code) => WORKLOAD_VARIANCE_LABEL[code]).filter(Boolean),
+  };
+};
+
 export const configuredSupportIds = (revision) => {
   const active = activeRevision(revision);
   if (!active) return { accommodations: [], modifications: [] };
@@ -241,7 +318,8 @@ const workTimestamps = (student, assignmentId) => {
 
 const sectionScores = (student, assignment) => {
   const projected = projectTeacherOverridesForDisplay(student?.gradesByAssignment || {}, student?.teacherGradeOverridesByAssignment || {});
-  const split = splitGradesBySection({ tracker: projected?.[assignment?.id] || null, assignment }) || {};
+  // The student's own items: a reduced-item accommodation shrinks the totals.
+  const split = splitGradesBySection({ tracker: projected?.[assignment?.id] || null, assignment, supportProfile: student?.profile || null }) || {};
   return SECTION_KEYS
     .filter((key) => Number(split?.[key]?.total) > 0)
     .map((key) => ({
@@ -250,6 +328,7 @@ const sectionScores = (student, assignment) => {
       score: canonicalPresentedSectionGrade({ student, assignment, sectionKey: key }),
       attempted: Number(split?.[key]?.attempted) || 0,
       total: Number(split?.[key]?.total) || 0,
+      reducedFrom: Number(split?.[key]?.reducedFrom) || null,
       excused: split?.[key]?.excused === true,
     }));
 };
@@ -374,12 +453,12 @@ export const buildAssignmentEvidenceRow = ({
   const beforeRecording = recordingStartMs !== null && finalAt !== null && finalAt < recordingStartMs;
   const supports = supportIds.map((supportId) => {
     const entry = supportById(supportId);
-    const count = counts.get(supportId) || { available: 0, provided: 0, activated: 0, used: 0, documented: 0, declined: 0, notApplicable: 0, lastAtMs: null };
+    const count = counts.get(supportId) || { available: 0, provided: 0, activated: 0, used: 0, documented: 0, declined: 0, notApplicable: 0, unavailable: 0, lastAtMs: null };
     return {
       supportId,
       label: entry?.label || supportId,
       classification: entry?.classification || 'unknown',
-      automation: entry?.automation || null,
+      automation: supportAutomationUnder(governing.revision, supportId),
       configured: configured.accommodations.includes(supportId),
       measurable: entry?.evidence || [],
       affectsIndependence: entry?.affectsIndependence === true,
@@ -390,8 +469,46 @@ export const buildAssignmentEvidenceRow = ({
   // Gaps — facts about the record, never a verdict.
   const gaps = [];
   const worked = work.hasTracker || progress.attempted > 0;
+  const workload = workloadFactFor({ assignment, student, events, nowValue: now });
   supports.forEach((support) => {
-    if (!support.configured || support.notApplicable > 0) return;
+    if (support.configured && support.unavailable > 0) {
+      const reason = activeEvidence(events).find((event) => event.supportId === support.supportId && event.eventType === EVIDENCE_EVENT_TYPE.UNAVAILABLE)?.details?.reason;
+      gaps.push({
+        code: 'support-unavailable',
+        supportId: support.supportId,
+        message: `${support.label}: MathMaster could not provide it in this work${reason ? ` (${reason})` : ''}.`,
+      });
+    }
+    if (!support.configured || support.notApplicable > 0 || support.unavailable > 0) return;
+    if (support.supportId === REDUCED_WORKLOAD_SUPPORT_ID && support.automation === SUPPORT_AUTOMATION.AUTOMATIC) {
+      // Automatic: the student's client records the projection when the work
+      // opens. No record on worked assignments means it was not recorded —
+      // never that it was not applied.
+      if (worked && support.provided === 0) {
+        // Work finished before the revision that made the reduction automatic
+        // was even saved could not have been reduced or recorded: say so,
+        // rather than report a missing record.
+        const revisionSavedAt = toMillis(governing.revision?.createdAtMs ?? governing.revision?.createdAt);
+        const predatesRevision = Number.isFinite(revisionSavedAt) && work.lastAtMs !== null && work.lastAtMs < revisionSavedAt;
+        // A revision saved after the due date documents the reduction for this
+        // work, but MathMaster keeps the item count — and the grade — it had
+        // when the work was due (supportProfileModel.mjs itemReductionTimeline).
+        const savedAfterDue = governing.backdated
+          && (!workload || workload.status === WORKLOAD_STATUS.NONE || workload.status === WORKLOAD_STATUS.MANUAL);
+        gaps.push({
+          code: savedAfterDue ? 'automatic-saved-after-due' : predatesRevision ? 'automatic-predates-revision' : 'automatic-not-recorded',
+          supportId: support.supportId,
+          message: savedAfterDue
+            ? `${support.label}: the revision that made the reduction automatic was saved after this work was due, so MathMaster kept the item count in effect then.`
+            : predatesRevision
+            ? `${support.label}: this work was done before the revision that made the reduction automatic was saved.`
+            : beforeRecording
+              ? `${support.label}: this work predates support recording.`
+              : `${support.label}: no record of the reduction for this work (MathMaster computes ${workload?.current ? `${workload.current.assignedCount} of ${workload.current.originalCount} items` : 'it'} now).`,
+        });
+      }
+      return;
+    }
     if (support.automation === SUPPORT_AUTOMATION.MANUAL && support.documented === 0 && worked) {
       gaps.push({ code: 'no-staff-record', supportId: support.supportId, message: `No staff record of: ${support.label}.` });
     }
@@ -455,6 +572,7 @@ export const buildAssignmentEvidenceRow = ({
     },
     configured,
     supports,
+    workload,
     staffEvents,
     engagement: engagementFact,
     gaps,

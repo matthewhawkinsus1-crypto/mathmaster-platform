@@ -14,6 +14,7 @@ import { projectCurrentAssignmentContent } from '../assignments/currentContentPr
 import { buildAssignmentWorksheetModel, PRINT_OUTPUT_MODES } from './assignmentWorksheetPdfModel.js';
 import { buildStudentFamilyContext } from '../generation/familyDelivery.js';
 import { formatStudentLabel } from '../studentName.js';
+import { studentOmittedIndices } from '../../../functions/shared/reducedWorkload.mjs';
 
 const activityTitleForRole = (role) => ({
   warmup: 'Warm-Up',
@@ -82,11 +83,18 @@ export const buildTeacherAssignmentWorksheetModel = ({
       || '',
   ).toLowerCase() === 'honors';
   const assignmentTracker = student?.gradesByAssignment?.[runtimeAssignment.id] || {};
+  // This student's own items: a reduced-item-count accommodation omits some
+  // (functions/shared/reducedWorkload.mjs), and the printed copy matches what
+  // the student sees on screen. Empty for everyone else.
+  const omitted = student?.id
+    ? studentOmittedIndices({ assignment: runtimeAssignment, profile: resolvedProfile, tracker: assignmentTracker })
+    : new Set();
 
   for (const entry of projectCurrentAssignmentContent(runtimeAssignment).entries) {
     const index = entry.storageIndex;
     const question = questions[index];
     if (!question) continue;
+    if (omitted.has(index)) continue;
 
     const sectionRole = entry.logicalRole;
     const sectionVariantMode = getSectionVariantMode(runtimeAssignment, sectionRole);

@@ -24,7 +24,7 @@
  */
 import { zonedDateKey } from '../../../functions/shared/instructionalCalendar.mjs';
 import { CASE_PROVENANCE, fromSupportProvenance } from './caseProvenance.js';
-import { QUESTION_OUTCOME } from './attemptAnalysis.js';
+import { QUESTION_OUTCOME, isRequiredQuestion } from './attemptAnalysis.js';
 
 export const SESSION_GAP_MINUTES = 20;
 const SCHOOL_TIME_ZONE = 'America/Chicago';
@@ -93,7 +93,10 @@ export const analyzeAssignmentCompletion = ({
 } = {}) => {
   const now = Number(nowValue);
   const status = row?.status;
-  const attempted = list(questions).filter((question) => ![QUESTION_OUTCOME.NOT_ATTEMPTED, QUESTION_OUTCOME.SKIPPED].includes(question.outcome));
+  // The student's own required questions: one their reduced-item-count
+  // accommodation omitted was never theirs to start or finish.
+  const required = list(questions).filter(isRequiredQuestion);
+  const attempted = required.filter((question) => ![QUESTION_OUTCOME.NOT_ATTEMPTED, QUESTION_OUTCOME.SKIPPED].includes(question.outcome));
   const events = list(attemptEvents).filter((event) => clean(event?.performance?.status) !== 'unattempted');
   const eventTimes = events.map((event) => finite(event.occurredAt)).filter(Number.isFinite);
   const recordTimes = attempted.map((question) => question.lastAttemptAtMs).filter(Number.isFinite);
@@ -111,7 +114,7 @@ export const analyzeAssignmentCompletion = ({
   ];
   const firstOpen = earliest(openCandidates);
   const openedRecorded = Boolean(firstOpen) || attempted.length > 0;
-  const started = attempted.length > 0 || list(questions).some((question) => question.viewed);
+  const started = attempted.length > 0 || required.some((question) => question.viewed);
 
   // Completed on: the last recorded answer, when the gradebook calls it complete.
   const completed = status === 'completed';

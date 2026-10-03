@@ -25,6 +25,7 @@ import {
 } from '../functions/shared/sectionDeadline.mjs';
 import { parseInstant, zonedDateKey } from '../functions/shared/instructionalCalendar.mjs';
 import { evaluateClassworkCompletionRule } from '../functions/shared/assignmentProjections.mjs';
+import { WORKLOAD_STATUS, resolveStudentWorkload } from '../functions/shared/reducedWorkload.mjs';
 
 export const CLASS_PERIODS = SHARED_CLASS_PERIODS;
 
@@ -78,6 +79,51 @@ export const studentAssignmentIndicesWithPracticePass = ({ assignment = {}, hasP
   if (!hasPracticePass) return included;
   const waived = new Set(practicePassWaivedIndices(assignment));
   return included.filter((index) => !waived.has(index));
+};
+
+/**
+ * THE ONE ANSWER TO "WHICH QUESTIONS IS THIS STUDENT RESPONSIBLE FOR?"
+ *
+ *   current content (teacher inclusion, replacements)
+ *   → Practice Pass waiver                         studentAssignmentIndicesWithPracticePass
+ *   → reduced-item-count accommodation             functions/shared/reducedWorkload.mjs
+ *   = `indices`, in the order the student meets them
+ *
+ * The reduction plan comes from the content alone, so it composes with a
+ * Practice Pass by plain set difference in either order, and answered work is
+ * never dropped from it. Navigation, completion, presence, the dashboard and
+ * the Grade Center all read this one result (grades read the same resolver
+ * through gradeEvidence.js `supportProfile`), so "what counts as required"
+ * cannot drift between them.
+ *
+ * `profile` is the student's own support profile. Teacher Preview and
+ * post-deadline voluntary Practice Mode pass none — they show every question.
+ * `workload` is the factual summary the support evidence records (target,
+ * original, assigned, actual, why they differ), or null without the support.
+ */
+export const studentRequiredQuestions = ({
+  assignment = {},
+  hasPracticePass = false,
+  profile = null,
+  tracker = null,
+  nowValue = Date.now(),
+} = {}) => {
+  const baseIndices = studentAssignmentIndicesWithPracticePass({ assignment, hasPracticePass });
+  const practiceWaived = hasPracticePass ? practicePassWaivedIndices(assignment) : [];
+  if (!profile) {
+    return { indices: baseIndices, baseIndices, practiceWaived, omitted: [], status: WORKLOAD_STATUS.NONE, workload: null };
+  }
+  const resolved = resolveStudentWorkload({
+    assignment, profile, baseIndices, tracker, practiceWaived, nowValue,
+  });
+  return {
+    indices: resolved.indices,
+    baseIndices,
+    practiceWaived,
+    omitted: resolved.omitted,
+    status: resolved.status,
+    workload: resolved.summary,
+  };
 };
 
 export const DEFAULT_CLASS_SCHEDULE = SHARED_DEFAULT_CLASS_SCHEDULE;

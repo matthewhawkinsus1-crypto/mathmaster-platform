@@ -15,6 +15,8 @@
 // `grades/{id}.profile.accommodations/modifications` keep their exact spelling,
 // so every stored profile keeps meaning what it meant.
 
+import { ITEM_REDUCTION_MODE, normalizeItemReduction } from './reducedWorkload.mjs';
+
 export const SUPPORT_CLASSIFICATION = Object.freeze({
   ACCOMMODATION: 'accommodation',
   MODIFICATION: 'modification',
@@ -163,8 +165,16 @@ const entries = [
     affectsIndependence: true, legacy: true,
   },
   {
+    // MANUAL by default — a bare entry (every profile saved before automatic
+    // reduction existed) keeps meaning "a teacher handed over a shorter
+    // assignment and records it". It becomes AUTOMATIC only when its revision
+    // carries an explicit percentage (`params.itemReduction`, validated in
+    // functions/shared/reducedWorkload.mjs); see supportAutomationFor below.
+    // `provided` is then recorded only after MathMaster actually omitted items.
     id: 'reduced-item-count-same-rigor', classification: A, category: C.ORGANIZATION, automation: MANUAL,
+    automaticWithParam: 'itemReduction',
     label: 'Reduced number of items — same TEKS and rigor', studentLabel: null, evidence: ['provided', 'documented'],
+    params: ['itemReduction'],
   },
   // Legacy structured-shape accommodations: persisted by some profiles, kept
   // so they keep meaning something and appear in reports.
@@ -292,6 +302,7 @@ export const SUPPORT_CATALOG = Object.freeze(entries.map((entry) => Object.freez
   legacy: false,
   serviceLoggable: false,
   parentId: null,
+  automaticWithParam: null,
   ...entry,
   evidence: Object.freeze([...(entry.evidence || [])]),
   params: Object.freeze([...(entry.params || [])]),
@@ -324,6 +335,25 @@ export const supportById = (id) => {
 };
 
 export const canonicalSupportId = (id) => supportById(id)?.id || null;
+
+/*
+ * How a support is delivered UNDER ONE REVISION'S PARAMETERS. Most supports
+ * have one automation level; a support with `automaticWithParam` is automatic
+ * only when that parameter is explicitly set to an automatic mode (today:
+ * `reduced-item-count-same-rigor` with `itemReduction: { mode: 'percent' }`).
+ * Reports and gap detection ask this, never the static catalog field, so a
+ * recorded-only support is never shown as a platform gap and an automatic one
+ * is never shown as "no staff record".
+ */
+export const supportAutomationFor = (id, params = null) => {
+  const entry = supportById(id);
+  if (!entry) return null;
+  if (entry.automaticWithParam === 'itemReduction'
+    && normalizeItemReduction(params?.itemReduction).mode === ITEM_REDUCTION_MODE.PERCENT) {
+    return SUPPORT_AUTOMATION.AUTOMATIC;
+  }
+  return entry.automation;
+};
 
 export const isAccommodation = (id) => supportById(id)?.classification === SUPPORT_CLASSIFICATION.ACCOMMODATION;
 export const isModification = (id) => supportById(id)?.classification === SUPPORT_CLASSIFICATION.MODIFICATION;

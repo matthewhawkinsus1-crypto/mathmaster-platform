@@ -17,6 +17,7 @@
 // The builders here mirror the Firestore rules field-for-field; the rules tests
 // and these validators must agree (tests/rules/supportEvidenceRules.test.mjs).
 import { supportById, SUPPORT_CLASSIFICATION } from './supportCatalog.mjs';
+import { WORKLOAD_VARIANCE } from './reducedWorkload.mjs';
 
 export const SUPPORT_EVIDENCE_SCHEMA_VERSION = 1;
 export const SUPPORT_EVIDENCE_SUBCOLLECTION = 'supportEvidence';
@@ -32,6 +33,11 @@ export const EVIDENCE_EVENT_TYPE = Object.freeze({
   PROVIDER_DOCUMENTED: 'provider-documented',
   DECLINED: 'declined',
   NOT_APPLICABLE: 'not-applicable',
+  // The support was authorized and should have applied here, but the platform
+  // could not provide it (no translated version of this question, the speech
+  // engine missing, a reduction that failed to resolve). An implementation
+  // gap, recorded as such — never as provided, and never blamed on the student.
+  UNAVAILABLE: 'unavailable',
 });
 
 export const EVIDENCE_SOURCE = Object.freeze({
@@ -55,7 +61,31 @@ export const STUDENT_EVIDENCE_EVENT_TYPES = Object.freeze([
   EVIDENCE_EVENT_TYPE.PROVIDED,
   EVIDENCE_EVENT_TYPE.ACTIVATED,
   EVIDENCE_EVENT_TYPE.USED,
+  // Platform facts about applicability, computed by the same deterministic
+  // code that applies the support: "nothing to reduce in a one-question DOL"
+  // (not-applicable) and "should have applied but could not" (unavailable).
+  EVIDENCE_EVENT_TYPE.NOT_APPLICABLE,
+  EVIDENCE_EVENT_TYPE.UNAVAILABLE,
 ]);
+
+/**
+ * The supports whose applicability the PLATFORM itself evaluates, and so the
+ * only ones a student's client may record as `not-applicable` or
+ * `unavailable`. Any other support's applicability is a staff judgment: a
+ * client record must never be able to silence a "no staff record" gap.
+ * Mirrored in firestore.rules studentSupportEvidenceValid.
+ */
+export const PLATFORM_EVALUATED_SUPPORT_IDS = Object.freeze([
+  'reduced-item-count-same-rigor',
+]);
+
+export const NEGATIVE_EVIDENCE_EVENT_TYPES = Object.freeze([
+  EVIDENCE_EVENT_TYPE.NOT_APPLICABLE,
+  EVIDENCE_EVENT_TYPE.UNAVAILABLE,
+]);
+
+/** May a student's client record this negative fact about this support? */
+export const studentMayRecordNegative = (supportId) => PLATFORM_EVALUATED_SUPPORT_IDS.includes(clean(supportId));
 
 /** What staff record. `provided` is here too: "I handed the student graph paper". */
 export const STAFF_EVIDENCE_EVENT_TYPES = Object.freeze([
@@ -122,7 +152,9 @@ export const EVIDENCE_LEGEND = Object.freeze([
   { term: 'Configured', meaning: 'The support is listed in the student\'s support profile in MathMaster. Configuration alone does not show the support was made available or used.' },
   { term: 'Available', meaning: 'MathMaster made the support available to the student in an assignment, recorded automatically when the student opened it.' },
   { term: 'Provided', meaning: 'MathMaster applied the support automatically (for example a decluttered screen or an individualized due date), or a staff member recorded providing it.' },
-  { term: 'Used', meaning: 'The student activated or used the support (for example pressed Read aloud or opened the calculator), recorded at the moment of use.' },
+  { term: 'Used', meaning: 'The student activated or used the support (for example pressed Read aloud or opened the calculator), recorded at the moment of use. Not using an on-demand support is the student\'s choice; it does not mean the support was missing.' },
+  { term: 'Not applicable', meaning: 'MathMaster determined the support had nothing to act on in this work (for example a one-question DOL cannot have fewer items). Recorded with the reason.' },
+  { term: 'Unavailable', meaning: 'The support was authorized and should have applied, but MathMaster could not provide it here (for example no translated version of the question exists). An implementation gap, recorded with the reason — not something the student did.' },
   { term: 'Teacher documented', meaning: 'A teacher recorded delivering the support, with the time it was recorded.' },
   { term: 'Provider documented', meaning: 'Staff recorded support or service delivered by a provider (for example an inclusion teacher), with the provider\'s role.' },
   { term: 'Derived', meaning: 'Worked out from other stored records (for example chunk completion from saved answers). The record it came from is named.' },
@@ -139,6 +171,80 @@ export const REPORT_LIMITATIONS = Object.freeze([
 const clean = (value) => String(value ?? '').trim();
 const cleanId = (value) => clean(value).slice(0, EVIDENCE_LIMITS.id);
 const lower = (value) => clean(value).toLowerCase();
+
+// --- Compact details -----------------------------------------------------------------
+//
+// A few typed facts that make a platform record checkable without a second
+// audit store: what a reduced-item-count projection delivered, which language
+// resource a translation came from, why a support was unavailable. Bounded on
+// purpose (firestore.rules evidenceDetailsValid mirrors every key and limit):
+// no question text, no student answers, no profile copy.
+
+export const EVIDENCE_COVERAGE = Object.freeze(['full', 'partial', 'none']);
+export const EVIDENCE_DELIVERY_MODES = Object.freeze(['automatic', 'on-demand']);
+export const EVIDENCE_SURFACES = Object.freeze(['assignment', 'path', 'rich-tool', 'enlarged']);
+
+/** Every key a `details` map may hold, with its type and bound. */
+/** The variance codes a reduced-item record may carry (reducedWorkload.mjs). */
+export const EVIDENCE_VARIANCE_CODES = Object.freeze(Object.values(WORKLOAD_VARIANCE));
+
+export const EVIDENCE_DETAIL_FIELDS = Object.freeze({
+  // Reduced number of items (functions/shared/reducedWorkload.mjs summary).
+  targetPercent: { type: 'int', min: 0, max: 100 },
+  originalCount: { type: 'int', min: 0, max: 1000 },
+  assignedCount: { type: 'int', min: 0, max: 1000 },
+  actualPercentTenths: { type: 'int', min: 0, max: 1000 },
+  variance: { type: 'codeList', maxItems: 8, values: EVIDENCE_VARIANCE_CODES },
+  contentFingerprint: { type: 'string', maxLength: 16 },
+  algorithmVersion: { type: 'int', min: 0, max: 99 },
+  // "1,5,9" — a string the rules can bound element by element (a list's
+  // elements cannot be checked there).
+  omittedIndices: { type: 'indexString', maxItems: 200, min: 0, max: 999 },
+  // Language access and other platform tools.
+  language: { type: 'string', maxLength: 12 },
+  provider: { type: 'string', maxLength: 32 },
+  coverage: { type: 'enum', values: EVIDENCE_COVERAGE },
+  deliveryMode: { type: 'enum', values: EVIDENCE_DELIVERY_MODES },
+  surface: { type: 'enum', values: EVIDENCE_SURFACES },
+  toolType: { type: 'string', maxLength: 40 },
+  reason: { type: 'string', maxLength: 48 },
+  itemCount: { type: 'int', min: 0, max: 1000 },
+});
+export const EVIDENCE_DETAIL_KEYS = Object.freeze(Object.keys(EVIDENCE_DETAIL_FIELDS));
+
+/**
+ * The validated `details` map for a record, or null when there is nothing to
+ * keep. Unknown keys and out-of-range values are dropped, never stored.
+ */
+export const normalizeEvidenceDetails = (raw) => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const details = {};
+  Object.entries(EVIDENCE_DETAIL_FIELDS).forEach(([key, field]) => {
+    const value = raw[key];
+    if (value === undefined || value === null || value === '') return;
+    if (field.type === 'int') {
+      const number = Number(value);
+      if (Number.isInteger(number) && number >= field.min && number <= field.max) details[key] = number;
+    } else if (field.type === 'string') {
+      const text = clean(value).slice(0, field.maxLength);
+      if (text) details[key] = text;
+    } else if (field.type === 'enum') {
+      if (field.values.includes(clean(value))) details[key] = clean(value);
+    } else if (field.type === 'list') {
+      const items = (Array.isArray(value) ? value : []).map((item) => clean(item).slice(0, field.maxLength)).filter(Boolean);
+      if (items.length) details[key] = [...new Set(items)].slice(0, field.maxItems);
+    } else if (field.type === 'codeList') {
+      const items = (Array.isArray(value) ? value : []).map(clean).filter((item) => field.values.includes(item));
+      if (items.length) details[key] = [...new Set(items)].slice(0, field.maxItems);
+    } else if (field.type === 'indexString') {
+      const items = (Array.isArray(value) ? value : String(value).split(',')).map((item) => Number(String(item).trim()))
+        .filter((number) => Number.isInteger(number) && number >= field.min && number <= field.max);
+      const unique = [...new Set(items)].sort((a, b) => a - b).slice(0, field.maxItems);
+      if (unique.length) details[key] = unique.join(',');
+    }
+  });
+  return Object.keys(details).length ? details : null;
+};
 
 const baseEvent = ({
   studentId, classId = null, assignmentId = null, activityRole = null, questionIndex = null,
@@ -197,6 +303,8 @@ export const buildStaffEvidenceEvent = ({
     note: clean(note).slice(0, EVIDENCE_LIMITS.note),
     durationSeconds: null,
     voidsEventId: cleanId(voidsEventId) || null,
+    // Platform-computed facts only; a staff record carries its note instead.
+    details: null,
     authorizedTeacherEmails: [email],
   };
   return { payload, errors };
@@ -214,6 +322,7 @@ export const buildStudentEvidenceEvent = ({
   studentId, classId, assignmentId, activityRole, questionIndex, supportId,
   eventType = EVIDENCE_EVENT_TYPE.USED,
   profileRevisionId = null, assignedTeacherEmail, durationSeconds = null,
+  details = null,
 } = {}) => {
   const errors = [];
   const event = baseEvent({ studentId, classId, assignmentId, activityRole, questionIndex, supportId, profileRevisionId });
@@ -224,6 +333,9 @@ export const buildStudentEvidenceEvent = ({
   if (!event.studentId) errors.push('A student is required.');
   if (!event.classification) errors.push(`Unknown support "${clean(supportId)}".`);
   if (!STUDENT_EVIDENCE_EVENT_TYPES.includes(type)) errors.push(`"${type}" is not a student evidence type.`);
+  if (NEGATIVE_EVIDENCE_EVENT_TYPES.includes(type) && !studentMayRecordNegative(event.supportId || supportId)) {
+    errors.push(`"${type}" is recorded by the platform only for supports it evaluates itself.`);
+  }
   if (!teacherEmail) errors.push('The student has no teacher of record.');
   const seconds = Math.trunc(Number(durationSeconds));
   const payload = {
@@ -237,6 +349,7 @@ export const buildStudentEvidenceEvent = ({
     note: '',
     durationSeconds: Number.isFinite(seconds) && seconds > 0 ? Math.min(EVIDENCE_LIMITS.maxDurationSeconds, seconds) : null,
     voidsEventId: null,
+    details: normalizeEvidenceDetails(details),
     authorizedTeacherEmails: teacherEmail ? [teacherEmail] : [],
   };
   return { payload, errors };
@@ -247,8 +360,20 @@ export const buildStudentEvidenceEvent = ({
  * assignment and revision. A relaunch or a second tab writes the same id,
  * which the rules refuse as an update — harmless, and never a duplicate.
  */
-export const availabilityEventId = ({ assignmentId, profileRevisionId, supportId }) => (
-  ['avail', cleanId(assignmentId), cleanId(profileRevisionId) || 'none', cleanId(supportId)]
+// A negative fact is its own record: "not applicable" (a Practice Pass left
+// nothing to reduce) must never occupy the id a later "provided" needs (the
+// pass was undone). Positive types keep the id they have always had.
+const EVENT_ID_SUFFIX = Object.freeze({ 'not-applicable': 'na', unavailable: 'un' });
+
+export const availabilityEventId = ({ assignmentId, profileRevisionId, supportId, variant = null, eventType = null }) => (
+  // `variant` distinguishes a record that must exist once per VERSION of
+  // something, e.g. a reduced-item projection per content fingerprint: a
+  // revised assignment is a new fact, the same content is not.
+  [
+    'avail', cleanId(assignmentId), cleanId(profileRevisionId) || 'none', cleanId(supportId),
+    ...(clean(variant) ? [cleanId(variant)] : []),
+    ...(EVENT_ID_SUFFIX[clean(eventType)] ? [EVENT_ID_SUFFIX[clean(eventType)]] : []),
+  ]
     .join('__')
     .replace(/[^A-Za-z0-9_.-]/g, '-')
     .slice(0, 400)

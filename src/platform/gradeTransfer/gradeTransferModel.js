@@ -109,6 +109,11 @@ export const canonicalGradeVersion = ({ student, assignmentId, sectionKey = '', 
 export const buildTransferUnit = ({
   classRecord, assignment, students, now = Date.now(), projectCanonicalGrade,
   hasAuthoritativePracticePass = () => false,
+  // ({ student, assignment, classRecord, sectionKey, practicePassRedeemed })
+  // => true when none of this section is the student's required work because
+  // of their reduced-item-count accommodation (canonicalGradeProjection.js
+  // sectionNotRequiredForStudent). Absent → never.
+  isSectionNotRequired = () => false,
   resolveStudentFinalDeadline = () => null,
   confirmedSnapshots = null, confirmedSnapshot = null, latestExport = null,
   sectionKey = '', sectionLabel = '',
@@ -166,6 +171,15 @@ export const buildTransferUnit = ({
       if (sectionKey === 'practice' && practicePassRedeemed) {
         finalizedStudentIds.add(text(student.id));
         excused.push(transferPerson(student, { reason: 'Practice Pass' }));
+        continue;
+      }
+      // The accommodation can leave a section with nothing required of this
+      // student only in a degenerate case (the plan keeps an item in every
+      // coverage cell). That is an excusal with no numeric TEAMS row, exactly
+      // like a Practice Pass — not a grade for the teacher to repair.
+      if (sectionKey && isSectionNotRequired({ student, assignment, classRecord, sectionKey, practicePassRedeemed }) === true) {
+        finalizedStudentIds.add(text(student.id));
+        excused.push(transferPerson(student, { reason: 'Not required (fewer items, same rigor)' }));
         continue;
       }
       problems.push(transferPerson(student, { reason: 'No finalized canonical grade' }));

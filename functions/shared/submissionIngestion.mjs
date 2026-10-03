@@ -299,6 +299,17 @@ const replacementResetIsAuthorized = ({ envelope, canonical, claimed }) => (
   && finite(claimed.variantIndex, 0) > finite(canonical.variantIndex, 0)
 );
 
+/**
+ * Will this envelope reset its question to "unattempted" (an authorized
+ * replacement)? Readers that must see the tracker as it will read once the
+ * envelope lands — the reduced-item projection — ask this rather than guess.
+ */
+export const envelopeResetsRecord = ({ envelope, canonicalRecord }) => replacementResetIsAuthorized({
+  envelope: envelope || {},
+  canonical: stripNonCanonicalInspectionFields(normalizeQuestionRecord(canonicalRecord)),
+  claimed: stripNonCanonicalInspectionFields(normalizeQuestionRecord(envelope?.record)),
+});
+
 export const sanitizeClientAttemptRecord = ({
   envelope,
   canonicalRecord,

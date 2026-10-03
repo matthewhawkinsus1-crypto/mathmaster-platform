@@ -36,11 +36,17 @@ export const PASSING_DISPLAY_THRESHOLD = 70;
  * student's Grade Center and the Classroom passback already remove it. The
  * teacher's view must not call that student incomplete for work they were
  * excused from.
+ *
+ * A reduced-item-count accommodation (the student's own `profile`) works the
+ * same way: the items it omits are not this student's work, so "complete"
+ * means every REQUIRED item answered and `total` is the required count. When
+ * it removed something, `reducedFrom` is the count before the reduction (for
+ * "15 of 20"); otherwise the result keeps its exact shape.
  */
 export const studentAssignmentProgress = ({ student, assignment, practicePassRedeemed = false }) => {
   const override = assignmentGradeOverrideFor(student, assignment?.id);
   const tracker = projectedAssignmentTrackerFor({ student, assignment });
-  const split = splitGrade({ tracker, assignment, practicePassRedeemed });
+  const split = splitGrade({ tracker, assignment, practicePassRedeemed, supportProfile: student?.profile || null });
   const score = canonicalPresentedAssignmentGrade({ student, assignment, practicePassRedeemed });
   let state = PROGRESS_STATE.IN_PROGRESS;
   if (override || split.shape === GRADE_SHAPE.COMPLETE || split.shape === GRADE_SHAPE.EXCUSED) state = PROGRESS_STATE.COMPLETE;
@@ -53,6 +59,7 @@ export const studentAssignmentProgress = ({ student, assignment, practicePassRed
     creditOnAttempted: split.creditOnAttempted ?? null,
     teacherOverride: Boolean(override),
     practicePassExcused: Boolean(practicePassRedeemed),
+    ...(Number(split.reducedFrom) > 0 ? { reducedFrom: split.reducedFrom } : {}),
   };
 };
 

@@ -24,7 +24,7 @@ import { zonedDateKey } from '../../../functions/shared/instructionalCalendar.mj
 import {
   canonicalPresentedAssignmentGrade, canonicalPresentedSectionGrade, projectedAssignmentTrackerFor, assignmentGradeOverrideFor,
 } from '../grading/canonicalGradeProjection.js';
-import { gradeWeightTotals } from '../teacher/gradeEvidence.js';
+import { gradeWeightTotals, splitGrade, splitGradesBySection } from '../teacher/gradeEvidence.js';
 import { isTestCycleAssignment } from '../assessment/testCycle.js';
 import { getStoredAssignmentTypeProjection } from '../contract/storedAssignmentV5.js';
 import { CASE_PROVENANCE, CASE_PROVENANCE_LEGEND, fromSupportProvenance } from './caseProvenance.js';
@@ -105,7 +105,20 @@ const gradeItemState = ({ excused, answered, questions, closed, graded }) => {
   return GRADE_ITEM_STATE.GRADED;
 };
 
-const gradeItemsFor = ({ row, assignment, student, classId, snapshots, practicePassRedeemed, closed, isTestCycle }) => {
+/*
+ * A reduced-item-count accommodation (the student's own `profile`) makes a
+ * section's question count the student's REQUIRED items. `requiredSections`
+ * is the canonical section split over those items (null without the
+ * support); a section it reduced reports its required total, so "answered 15
+ * of 15" is complete rather than "15 of 20". Answered work is never omitted,
+ * so the answered count itself is unchanged.
+ */
+const requiredSectionTotal = (section, requiredSections) => {
+  const required = requiredSections?.[section?.key];
+  return required && Number(required.reducedFrom) > 0 ? required.total : (section?.total ?? 0);
+};
+
+const gradeItemsFor = ({ row, assignment, student, classId, snapshots, practicePassRedeemed, closed, isTestCycle, requiredSections = null }) => {
   const sections = list(row.sections);
   if (!sections.length) {
     const grade = canonicalPresentedAssignmentGrade({ student, assignment, practicePassRedeemed });
@@ -123,7 +136,7 @@ const gradeItemsFor = ({ row, assignment, student, classId, snapshots, practiceP
     const excused = section.excused === true || (practicePassRedeemed && section.key === 'practice');
     const grade = excused ? null : canonicalPresentedSectionGrade({ student, assignment, sectionKey: section.key, practicePassRedeemed });
     const answered = section.attempted ?? 0;
-    const questions = section.total ?? 0;
+    const questions = requiredSectionTotal(section, requiredSections);
     return {
       key: section.key,
       label: section.label,
@@ -187,6 +200,7 @@ export const buildStudentCaseReview = ({
   const assignmentById = new Map(list(assignments).map((assignment) => [assignment.id, assignment]));
   const passes = practicePassKeySet(practicePassKeys);
   const evidenceLoaded = Boolean(caseEvidence);
+  const supportProfile = student?.profile || null;
 
   // --- Per assignment ------------------------------------------------------------------------
   const entries = support.assignments.map((row) => {
@@ -199,12 +213,22 @@ export const buildStudentCaseReview = ({
       : analyzeAssignmentQuestions({ assignment, student, attemptEvents: events, supportEvidence: evidence, closedForStudent });
     const questions = analysis.questions.map((question) => ({ ...question, condition: row.condition.value, title: row.title }));
     const practicePassRedeemed = passes.has(`${student?.id}__${classId}__${row.assignmentId}`);
-    const gradeItems = gradeItemsFor({ row, assignment, student, classId, snapshots: exportSnapshots, practicePassRedeemed, closed: closedForStudent, isTestCycle });
+    const tracker = projectedAssignmentTrackerFor({ student, assignment });
+    // The student's own required items (reduced-item-count accommodation),
+    // resolved by the same function every grade surface uses.
+    const workload = supportProfile && !isTestCycle
+      ? {
+        overall: splitGrade({ tracker, assignment, practicePassRedeemed, supportProfile }),
+        sections: splitGradesBySection({ tracker, assignment, practicePassRedeemed, supportProfile }),
+      }
+      : null;
+    const gradeItems = gradeItemsFor({
+      row, assignment, student, classId, snapshots: exportSnapshots, practicePassRedeemed, closed: closedForStudent, isTestCycle, requiredSections: workload?.sections || null,
+    });
     const score = isTestCycle
       ? canonicalPresentedAssignmentGrade({ student, assignment })
       : canonicalPresentedAssignmentGrade({ student, assignment, practicePassRedeemed });
-    const tracker = projectedAssignmentTrackerFor({ student, assignment });
-    const weights = !isTestCycle && tracker ? gradeWeightTotals({ tracker, assignment, practicePassRedeemed }) : null;
+    const weights = !isTestCycle && tracker ? gradeWeightTotals({ tracker, assignment, practicePassRedeemed, supportProfile }) : null;
     const completion = analyzeAssignmentCompletion({
       row,
       questions,
@@ -249,7 +273,16 @@ export const buildStudentCaseReview = ({
       points: weights && Number.isFinite(weights.possibleWeight) && weights.possibleWeight > 0
         ? { earned: Math.round(weights.earnedWeight * 100) / 100, possible: Math.round(weights.possibleWeight * 100) / 100 }
         : null,
-      sections: list(row.sections).map((section) => ({ ...section, excused: section.excused || (practicePassRedeemed && section.key === 'practice') })),
+      sections: list(row.sections).map((section) => ({
+        ...section,
+        total: requiredSectionTotal(section, workload?.sections),
+        excused: section.excused || (practicePassRedeemed && section.key === 'practice'),
+      })),
+      // "15 of 20": the required items when the accommodation removed some,
+      // else null. Omitted items are never counted as missing or zero.
+      requiredItems: Number(workload?.overall?.reducedFrom) > 0
+        ? { required: workload.overall.total, of: workload.overall.reducedFrom }
+        : null,
       gradeItems,
       exportSummary: describeExport(gradeItems),
       changedSinceExport: gradeItems.some((item) => item.exportStatus?.state === 'changed-since-export'),

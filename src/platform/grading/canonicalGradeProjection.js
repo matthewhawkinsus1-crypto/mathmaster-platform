@@ -36,6 +36,10 @@ export const projectTeacherOverridesForDisplay = (gradesByAssignment = {}, overr
       const score = Math.max(0, Math.min(100, Number(override.score)));
       nextTracker[questionIndex] = {
         ...record,
+        // What the student's own record said. A reduced-item projection pins
+        // only work the student actually answered (functions/shared/
+        // reducedWorkload.mjs answeredOf), never a display-only status.
+        trackerStatusBeforeOverride: record.status ?? null,
         status: score >= 100 ? 'correct' : (record.status === 'correct' || record.status === 'expired' ? 'expired' : 'attempted'),
         partialCredit: score,
         bestPartialCredit: score,
@@ -45,6 +49,19 @@ export const projectTeacherOverridesForDisplay = (gradesByAssignment = {}, overr
     return [assignmentId, nextTracker];
   }))
 );
+
+/*
+ * THE STUDENT'S OWN REQUIRED ITEMS.
+ *
+ * Every grade below is over the questions this student is responsible for:
+ * current content, minus a Practice Pass waiver, minus what their
+ * reduced-item-count accommodation omits (functions/shared/reducedWorkload.mjs,
+ * through gradeEvidence.js `supportProfile`). The profile is the student's own
+ * `profile` — teacher roster records carry it normalized
+ * (normalizeStudentProfile passes `supportPlan` through). A student without
+ * that support resolves to "nothing omitted", so their grade is unchanged.
+ */
+const supportProfileOf = (student) => student?.profile || null;
 
 /**
  * ONE STUDENT, ONE ASSIGNMENT: THE TRACKER EVERY GRADE IS COMPUTED FROM.
@@ -67,6 +84,7 @@ export const projectedAssignmentTrackerFor = ({ student = null, assignment = nul
     assignment,
     recoveryByAssignment: student?.sectionRecoveryByAssignment || null,
     challengeByAssignment: student?.warmupChallengeByAssignment || null,
+    supportProfile: supportProfileOf(student),
   }).tracker;
 };
 
@@ -93,7 +111,7 @@ export const canonicalPresentedAssignmentGrade = ({ student, assignment, practic
   // Overrides, then any completed Practice-based Recovery.
   const tracker = projectedAssignmentTrackerFor({ student, assignment });
   if (!tracker) return null;
-  return splitGrade({ tracker, assignment, practicePassRedeemed }).score ?? null;
+  return splitGrade({ tracker, assignment, practicePassRedeemed, supportProfile: supportProfileOf(student) }).score ?? null;
 };
 
 /**
@@ -117,6 +135,7 @@ export const canonicalPresentedSectionGrade = ({
     tracker,
     assignment,
     practicePassRedeemed,
+    supportProfile: supportProfileOf(student),
   })?.[sectionKey];
 
   if (!section || section.total <= 0) return null;
@@ -129,4 +148,23 @@ export const canonicalPresentedSectionGrade = ({
   if (!tracker) return null;
   if (section.excused === true) return null;
   return section.score ?? null;
+};
+
+/**
+ * True when this lesson section has content but NONE of it is this student's
+ * required work because of their reduced-item-count accommodation. The plan
+ * keeps at least one item in every coverage cell, so a section the class was
+ * given cannot normally become empty for a student; should it ever, Grade
+ * Transfer treats the student as excused for that section (no numeric row),
+ * like a Practice Pass — never as a grade problem to fix.
+ */
+export const sectionNotRequiredForStudent = ({ student, assignment, sectionKey, practicePassRedeemed = false }) => {
+  if (!supportProfileOf(student) || !sectionKey || isTestCycleAssignment(assignment)) return false;
+  const section = splitGradesBySection({
+    tracker: projectedAssignmentTrackerFor({ student, assignment }),
+    assignment,
+    practicePassRedeemed,
+    supportProfile: supportProfileOf(student),
+  })?.[sectionKey];
+  return Boolean(section && section.excused !== true && section.total === 0 && Number(section.reducedFrom) > 0);
 };
