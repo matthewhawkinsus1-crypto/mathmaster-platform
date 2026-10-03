@@ -24,6 +24,7 @@ import {
 } from '../../src/platform/language/supportToolsModel.js';
 import * as esPack from '../../src/platform/language/packs/es.js';
 import { buildSupportProjection } from '../../functions/shared/supportProfileModel.mjs';
+import { applyStudentSupportToQuestion } from '../../src/studentSupport.js';
 
 const NOW = Date.parse('2026-10-06T15:00:00Z');
 
@@ -271,4 +272,38 @@ test('a tool is shown only where the item backs it, and the evidence says what w
     presented: ['translation', 'glossary', 'textToSpeech', 'chunkedDirections', 'sentenceFrames'], used: ['glossary'],
   });
   assert.ok(Object.values(SUPPORT_TOOL).every((tool) => typeof tool === 'string'));
+});
+
+// --- Every language step refuses to change the mathematics -------------------------------------------
+
+test('a pack sentence that would drop, repeat or add mathematics stays in English', () => {
+  // A defective pack (a slot dropped, a slot repeated, a variable written into
+  // the translation) must never reach a student.
+  const pack = {
+    language: 'es',
+    sentences: compileTemplates([['Solve {0}.', 'Resuelve.'], ['Graph {0}.', 'Grafica {0} y {0}.'], ['Find the value.', 'Encuentra el valor de x.']]),
+    choices: [],
+  };
+  const added = translateWithPack('Find the value.', pack);
+  assert.deepEqual([added.coverage, added.text], [TRANSLATION_COVERAGE.NONE, 'Find the value.']);
+  const solve = translateWithPack('Solve 3x = 12.', pack);
+  assert.deepEqual([solve.coverage, solve.text], [TRANSLATION_COVERAGE.NONE, 'Solve 3x = 12.']);
+  const graph = translateWithPack('Graph y = 2x - 1.', pack);
+  assert.deepEqual([graph.coverage, graph.text], [TRANSLATION_COVERAGE.NONE, 'Graph y = 2x - 1.']);
+});
+
+test('break it down never hands back steps whose mathematics differs from the item', () => {
+  // From the seed Path banks: "a" is the coefficient here, and a step ending
+  // "Determine a." would read it differently than the item does.
+  const prompt = 'A quadratic has vertex $(2,3)$ and passes through the point one unit to the right, $(3,5)$. Determine a and write the complete equation in vertex form.';
+  const steps = chunkDirections(prompt);
+  assert.ok(steps === null || preservesMath(prompt, steps.steps.map((step) => step.text).join(' ')), JSON.stringify(steps));
+});
+
+test('an authored translation whose mathematics differs is never shown on an assignment', () => {
+  const profile = { accommodations: [], modifications: [], translationLanguage: 'es' };
+  const kept = applyStudentSupportToQuestion({ prompt: 'Solve x + 2 = 5.', translations: { es: { prompt: 'Resuelve x + 2 = 5.' } } }, profile);
+  assert.equal(kept.question.prompt, 'Resuelve x + 2 = 5.');
+  const wrong = applyStudentSupportToQuestion({ prompt: 'Solve x + 2 = 5.', translations: { es: { prompt: 'Resuelve x + 3 = 5.' } } }, profile);
+  assert.equal(wrong.question.prompt, 'Solve x + 2 = 5.');
 });
