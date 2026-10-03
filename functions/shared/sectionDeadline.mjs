@@ -147,6 +147,61 @@ export const resolveWarmupClose = ({ assignment, window, classId = null, todayKe
   };
 };
 
+/**
+ * The `warmup` object a teacher's live Close / Reopen / Timer writes for one
+ * class. Pure: the caller supplies the clock, the date key and the end of the
+ * class period, and writes the result to the assignment.
+ */
+export const applyWarmupTeacherControl = ({
+  assignment,
+  classId,
+  action,
+  nowMs,
+  dateKey,
+  windowEndMs,
+  timerMinutes = 5,
+  teacherIdentity = 'teacher',
+} = {}) => {
+  const changedAt = new Date(nowMs).toISOString();
+  const warmup = {
+    ...assignment?.warmup,
+    enabled: true,
+    minutesBeforeStart: Math.max(0, Number(assignment?.warmup?.minutesBeforeStart ?? 7)),
+    closeMinutesAfterStart: Math.max(1, Number(assignment?.warmup?.closeMinutesAfterStart ?? 10)),
+  };
+  const closedByClassId = { ...assignment?.warmup?.closedByClassId };
+  const autoCloseByClassId = { ...assignment?.warmup?.autoCloseByClassId };
+  const instructionDatesByClassId = { ...assignment?.warmup?.instructionDatesByClassId };
+
+  if (action === 'close') {
+    closedByClassId[classId] = { dateKey, closedAt: changedAt, closedBy: teacherIdentity };
+    delete autoCloseByClassId[classId];
+  } else if (action === 'reopen') {
+    instructionDatesByClassId[classId] = dateKey;
+    delete closedByClassId[classId];
+    autoCloseByClassId[classId] = {
+      dateKey,
+      closesAt: new Date(windowEndMs).toISOString(),
+      setAt: changedAt,
+      setBy: teacherIdentity,
+      reason: 'manual-reopen-until-class-end',
+    };
+  } else {
+    instructionDatesByClassId[classId] = dateKey;
+    delete closedByClassId[classId];
+    autoCloseByClassId[classId] = {
+      dateKey,
+      closesAt: new Date(Math.min(windowEndMs, nowMs + Math.max(1, Number(timerMinutes) || 5) * 60_000)).toISOString(),
+      setAt: changedAt,
+      setBy: teacherIdentity,
+    };
+  }
+  warmup.instructionDatesByClassId = instructionDatesByClassId;
+  warmup.closedByClassId = closedByClassId;
+  warmup.autoCloseByClassId = autoCloseByClassId;
+  return { warmup, changedAt };
+};
+
 /*
  * A TEACHER MAY CLOSE AN OPEN DOL EARLY FOR ONE CLASS — AND THE LATEST TEACHER
  * ACTION WINS.

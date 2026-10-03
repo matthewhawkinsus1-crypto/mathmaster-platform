@@ -20,6 +20,7 @@ import {
   buildServiceLogEntry, buildStaffEvidenceEvent, buildStudentEvidenceEvent, engagementDocId, epochMinuteOf, utcDayOf,
 } from '../../../functions/shared/supportEvidenceModel.mjs';
 import { WORKSPACE_DRAFT_SCHEMA_VERSION, workspaceDraftDocumentId } from '../../../functions/shared/workspaceDraftSchema.mjs';
+import { LMR_BRIDGE_QUESTION, LMR_WARMUP_QUESTIONS } from './lmrWarmupFixture.js';
 
 export const TEACHER_EMAIL = 'teacher@harness.example';
 
@@ -60,6 +61,20 @@ const realLessonSections = (id) => ([
   ] },
   { id: `${id}-dol`, role: 'dol', title: 'DOL', questions: [{ questionId: `${id}-d1`, activityRole: 'dol', type: 'literal', prompt: 'Solve 5x − 5 = 20 for x.', solveFor: 'x', acceptedAnswers: ['5'] }] },
 ]);
+
+// `?questions=lmr`: today's Warm-Up is the production lmr-wu-1 / lmr-wu-2 card
+// sorts (family-backed), then a Linear Multiple Representations board, so the
+// Warm-Up close / reopen journeys run on the questions of the incident.
+const lmrLessonSections = (id) => {
+  const real = realLessonSections(id);
+  return [
+    {
+      id: `${id}-wu`, role: 'warmup', title: 'Warm-Up', feedbackMode: 'immediate', hintsAllowed: true, attemptsAllowed: 3,
+      questions: [...LMR_WARMUP_QUESTIONS, LMR_BRIDGE_QUESTION].map((question) => ({ ...JSON.parse(JSON.stringify(question)), activityRole: 'warmup' })),
+    },
+    ...real.slice(1),
+  ];
+};
 
 const lessonSections = (id) => ([
   { id: `${id}-wu`, role: 'warmup', title: 'Warm-Up', questions: [{ questionId: `${id}-w1`, activityRole: 'warmup', type: 'freeResponse', prompt: 'Solve 2x + 3 = 11.', expected: '4', standards: ONE_VARIABLE }] },
@@ -108,7 +123,12 @@ export const IDENTITY_EDGE_IDS = IDENTITY_EDGE_STUDENTS.map((entry) => entry.id)
 export const IDENTITY_NAME_TO_ADD = Object.freeze({ firstName: 'Ellery', lastName: 'Mockingworth' });
 
 export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, params = null } = {}) => {
-  const sectionsFor = params?.get?.('questions') === 'real' ? realLessonSections : lessonSections;
+  const questionSet = params?.get?.('questions');
+  const sectionsFor = questionSet === 'real' ? realLessonSections : questionSet === 'lmr' ? lmrLessonSections : lessonSections;
+  // `?p3StartMin=<n>`: Period 3 began n minutes ago (default 40). Under 10, the
+  // Warm-Up is still inside its default ten-minute window.
+  const p3StartMin = Number(params?.get?.('p3StartMin'));
+  const p3StartMs = now - (Number.isFinite(p3StartMin) && p3StartMin >= 0 ? p3StartMin : 40) * 60_000;
   const todayKey = dateKey(now);
   const yesterday = previousSchoolDay(now);
   const fixture = {};
@@ -117,7 +137,7 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   const clampStart = (ms) => (sameDay(ms, now) ? ms : new Date(new Date(now).setHours(0, 5, 0, 0)).getTime());
   const clampEnd = (ms) => (sameDay(ms, now) ? ms : new Date(new Date(now).setHours(23, 55, 0, 0)).getTime());
   const todayPeriods = {
-    'Period 3': { enabled: true, start: hhmm(clampStart(now - 40 * 60_000)), end: hhmm(clampEnd(now + 50 * 60_000)) },
+    'Period 3': { enabled: true, start: hhmm(clampStart(p3StartMs)), end: hhmm(clampEnd(now + 50 * 60_000)) },
   };
   if (sameDay(now - 4 * 3600_000, now)) todayPeriods['Period 1'] = { enabled: true, start: hhmm(now - 4 * 3600_000), end: hhmm(now - 3 * 3600_000) };
   if (sameDay(now + 3 * 3600_000, now)) todayPeriods['Period 5'] = { enabled: true, start: hhmm(now + 2 * 3600_000), end: hhmm(now + 3 * 3600_000) };
