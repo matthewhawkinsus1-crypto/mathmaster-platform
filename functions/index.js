@@ -273,12 +273,13 @@ async function resolveCheckpointClassPeriod(db, classId, gradeData, cache) {
  * answers: answered work is always required, so an attempt on an omitted item
  * is accepted and counted like any other.
  */
-async function studentOmittedFor({ assignment, gradeData, assignmentId, answeredIndex = null, nowValue = Date.now() }) {
+async function studentOmittedFor({ assignment, gradeData, assignmentId, answeredIndex = null, resetIndex = null, nowValue = Date.now() }) {
   return studentWorkloadIndices.studentOmittedFor({
     assignment,
     gradeData,
     assignmentId,
     answeredIndex,
+    resetIndex,
     nowValue,
     onError: (error) => logger.warn("Reduced-workload projection failed; counting every included item", {
       assignmentId: String(assignmentId || ""),
@@ -891,9 +892,16 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
     // Classwork completion and the DOL score count the student's own required
     // items (a reduced-item-count accommodation omits some; see
     // studentOmittedFor). A response to an omitted item is NOT refused: it is
-    // accepted like any other, and as answered work it becomes required.
+    // accepted like any other, and as answered work it becomes required. An
+    // authorized replacement resets its question instead, and is read that way.
+    const resetsRecord = ingestion.envelopeResetsRecord({ envelope, canonicalRecord });
     const studentOmitted = await studentOmittedFor({
-      assignment, gradeData, assignmentId, answeredIndex: envelope.questionIndex, nowValue: now,
+      assignment,
+      gradeData,
+      assignmentId,
+      answeredIndex: resetsRecord ? null : envelope.questionIndex,
+      resetIndex: resetsRecord ? envelope.questionIndex : null,
+      nowValue: now,
     });
     const classworkIndices = studentRequiredIndices(runtimeIncludedQuestionIndicesForSection(assignment, "classwork"), studentOmitted);
     const dolIndices = studentRequiredIndices(runtimeIncludedQuestionIndicesForSection(assignment, "dol"), studentOmitted);

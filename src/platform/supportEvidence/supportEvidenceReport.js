@@ -45,6 +45,34 @@ import { acceptStudentName, formatStudentName } from '../studentName.js';
 
 export const SUPPORT_REPORT_SCHEMA_VERSION = 1;
 export const TIMELINE_LIMIT = 400;
+// Supports MathMaster records on EVERY opened assignment where they are
+// configured — provided/available, or an explicit not-applicable/unavailable —
+// so "X of Y eligible" is a fact. Every other platform support applies only to
+// some content (a countdown to hide, a Step Algebra item, a due date that
+// moved, a question that allows a calculator) and is reported as a count.
+export const RECORDED_ON_EVERY_OPENED_ASSIGNMENT = Object.freeze(new Set([
+  'reduced-item-count-same-rigor', 'declutter-ui', 'visual-chunking', 'high-contrast', 'large-text',
+  'disable-idle-timer', 'word-processor-response', 'graph-paper', 'reteach-resources', 'study-sheet',
+]));
+// Supports with no assignment-level record at all (My Math Path only).
+export const NOT_RECORDED_IN_ASSIGNMENTS = Object.freeze(new Set(['extra-attempts']));
+
+/**
+ * The implementation headline for one support: made available (on-demand
+ * tools) or provided (automatic supports) out of the eligible work. Use is
+ * shown in its own column and never lowers this figure.
+ */
+export const supportHeadline = (support) => {
+  if (support.automation === 'manual') return 'Delivered by staff';
+  if (support.recordedInAssignments === false) return 'Not recorded in assignments (My Math Path)';
+  const verb = support.automation === 'platform-available' || (support.measurable || []).includes('available') ? 'Available' : 'Provided';
+  const delivered = Number(support.assignmentsDelivered) || 0;
+  // A ratio only where MathMaster records the support on every opened
+  // assignment; elsewhere it applies to some content only, so a count.
+  if (support.denominatorKnown) return `${verb} in ${delivered} of ${Number(support.assignmentsEligible) || 0} eligible`;
+  return `${verb} in ${delivered} assignment${delivered === 1 ? '' : 's'} where it applied`;
+};
+
 const DAY_MS = 86400000;
 
 const list = (value) => (Array.isArray(value) ? value : []);
@@ -372,30 +400,47 @@ export const buildSupportEvidenceReport = ({
   // provided / uses / staff records — kept apart.
   const supportIds = [...new Set([...configured.accommodations, ...periodEvidence.map((event) => event.supportId)])]
     .filter((id) => supportById(id)?.classification !== SUPPORT_CLASSIFICATION.MODIFICATION);
-  // ELIGIBLE: assignments in the period whose governing revision configured
-  // the support and that the student opened or worked on — the only work in
-  // which MathMaster could make it available. Available / provided are
-  // counted out of these; use is supplemental and never lowers the figure (a
-  // student choosing not to use an on-demand support is not a gap).
-  const opened = (row) => row.progress.attempted > 0 || row.status === ASSIGNMENT_STATUS.COMPLETED
-    || activeEvidence(evidence).some((event) => event.assignmentId === row.assignmentId && !isStaffEvent(event));
+  // ELIGIBLE: opened assignments in the period whose GOVERNING revision
+  // configured the support as something MathMaster delivers (automatic or
+  // platform-available under that revision) and where it was not recorded as
+  // not applicable. "Made available / provided" is counted over those same
+  // rows, so X never exceeds Y; use is supplemental and never lowers it (a
+  // student choosing not to use an on-demand support is not a gap). Where
+  // MathMaster does not record a support on every opened assignment (it
+  // applies only to some content), the report gives a count, not a ratio.
+  const openedByStudent = new Set(activeEvidence(evidence).filter((event) => !isStaffEvent(event)).map((event) => event.assignmentId).filter(Boolean));
+  const opened = (row) => row.progress.attempted > 0 || row.status === ASSIGNMENT_STATUS.COMPLETED || openedByStudent.has(row.assignmentId);
+  const openedRows = rows.filter(opened);
   const supports = supportIds.map((supportId) => {
     const catalog = supportById(supportId);
     const events = periodEvidence.filter((event) => event.supportId === supportId);
     const assignmentsWith = (types) => new Set(events.filter((event) => types.includes(event.eventType) && event.assignmentId).map((event) => event.assignmentId)).size;
-    const eligibleRows = rows.filter((row) => row.supports.some((support) => support.supportId === supportId && support.configured) && opened(row));
+    const configuredHere = openedRows
+      .map((row) => ({ row, support: row.supports.find((entry) => entry.supportId === supportId && entry.configured) }))
+      .filter(({ support }) => support && support.automation !== SUPPORT_AUTOMATION.MANUAL);
+    const delivered = ({ support }) => support.available + support.provided > 0;
+    const notApplicableRows = configuredHere.filter((entry) => entry.support.notApplicable > 0 && !delivered(entry));
+    const eligibleRows = configuredHere.filter((entry) => !notApplicableRows.includes(entry));
     const automation = supportAutomationUnder(profile.current, supportId) || catalog?.automation || null;
+    const currentEntry = list(profile.current?.accommodations).find((entry) => entry?.id === supportId) || null;
     return {
       supportId,
       label: catalog?.label || supportId,
       classification: catalog?.classification || 'unknown',
       automation,
       configured: configured.accommodations.includes(supportId),
+      // A ratio only where every opened assignment gets a record either way.
+      denominatorKnown: RECORDED_ON_EVERY_OPENED_ASSIGNMENT.has(supportId) && !list(currentEntry?.appliesTo).length,
+      recordedInAssignments: !NOT_RECORDED_IN_ASSIGNMENTS.has(supportId),
       assignmentsEligible: eligibleRows.length,
+      // The headline's numerator: eligible rows where it was made available
+      // or provided (never more than the denominator).
+      assignmentsDelivered: eligibleRows.filter(delivered).length,
+      // Raw counts over the period's records, as before (case review tables).
       assignmentsAvailable: assignmentsWith(['available']),
       assignmentsProvided: assignmentsWith(['provided']),
-      assignmentsNotApplicable: assignmentsWith(['not-applicable']),
-      assignmentsUnavailable: assignmentsWith(['unavailable']),
+      assignmentsNotApplicable: notApplicableRows.length,
+      assignmentsUnavailable: eligibleRows.filter(({ support }) => support.unavailable > 0).length,
       assignmentsUsed: new Set(distinctUses(events).map((event) => event.assignmentId).filter(Boolean)).size,
       uses: distinctUses(events).length,
       staffRecords: events.filter(isStaffEvent).length,

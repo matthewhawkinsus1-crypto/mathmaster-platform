@@ -167,12 +167,10 @@ export const buildStudentDashboardModel = ({
       included.filter((index) => resolveQuestionActivityRole({ question: questions[index], assignment }) !== 'practice'),
     );
   };
-  // The grade a card shows is the Grade Center's grade: the same Practice Pass
-  // waiver and the same reduced-item denominator.
-  const gradeOptionsFor = (assignment) => ({
-    practicePassRedeemed: hasPracticePassFor(assignment?.id),
-    supportProfile,
-  });
+  // The grade a card shows counts the student's own required items (the
+  // reduced-item denominator). A Practice Pass keeps its existing card
+  // treatment; this change does not alter it.
+  const gradeOptionsFor = () => ({ supportProfile });
 
   /*
    * RESUME MEANS "TAKE ME TO WORK I CAN ACTUALLY DO NOW."

@@ -41,7 +41,9 @@ import { planWindowOn, resolveStudentSupportDeadline } from '../../../functions/
 import {
   ACTOR_TYPE,
   EVIDENCE_EVENT_TYPE,
+  NEGATIVE_EVIDENCE_EVENT_TYPES,
   PROVENANCE,
+  studentMayRecordNegative,
   summarizeEngagementMinutes,
 } from '../../../functions/shared/supportEvidenceModel.mjs';
 import { parseInstant, zonedDateKey } from '../../../functions/shared/instructionalCalendar.mjs';
@@ -131,6 +133,10 @@ export const countEvidenceBySupport = (events = []) => {
     if (event?.eventType === EVIDENCE_EVENT_TYPE.USED && !countedUses.has(event)) return;
     const supportId = clean(event?.supportId);
     if (!supportId) return;
+    // A client's "not applicable" / "unavailable" counts only for a support
+    // the platform evaluates itself (the rules refuse the rest); it can never
+    // silence a "no staff record" gap.
+    if (NEGATIVE_EVIDENCE_EVENT_TYPES.includes(event.eventType) && !isStaffEvent(event) && !studentMayRecordNegative(supportId)) return;
     const bucket = counts.get(supportId) || {
       supportId, available: 0, provided: 0, activated: 0, used: 0, documented: 0, declined: 0, notApplicable: 0, unavailable: 0, lastAtMs: null,
     };
@@ -215,7 +221,11 @@ export const supportAutomationUnder = (revision, supportId) => {
  * and that is shown, not hidden.
  */
 export const workloadFactFor = ({ assignment, student, events = [], nowValue = Date.now() } = {}) => {
-  const tracker = projectTeacherOverridesForDisplay(student?.gradesByAssignment || {}, student?.teacherGradeOverridesByAssignment || {})?.[assignment?.id] || null;
+  // Recomputed exactly as the student's client recorded it: over the
+  // assignment's content (a Practice Pass is a separate projection), pinning
+  // answered work from the student's own canonical records — never from a
+  // teacher-override display projection.
+  const tracker = student?.gradesByAssignment?.[assignment?.id] || null;
   let current = null;
   try {
     current = resolveStudentWorkload({ assignment, profile: student?.profile || null, tracker, nowValue });
@@ -475,12 +485,19 @@ export const buildAssignmentEvidenceRow = ({
       // opens. No record on worked assignments means it was not recorded —
       // never that it was not applied.
       if (worked && support.provided === 0) {
+        // Work finished before the revision that made the reduction automatic
+        // was even saved could not have been reduced or recorded: say so,
+        // rather than report a missing record.
+        const revisionSavedAt = toMillis(governing.revision?.createdAtMs ?? governing.revision?.createdAt);
+        const predatesRevision = Number.isFinite(revisionSavedAt) && work.lastAtMs !== null && work.lastAtMs < revisionSavedAt;
         gaps.push({
-          code: 'automatic-not-recorded',
+          code: predatesRevision ? 'automatic-predates-revision' : 'automatic-not-recorded',
           supportId: support.supportId,
-          message: beforeRecording
-            ? `${support.label}: this work predates support recording.`
-            : `${support.label}: no record of the reduction for this work (MathMaster computes ${workload?.current ? `${workload.current.assignedCount} of ${workload.current.originalCount} items` : 'it'} now).`,
+          message: predatesRevision
+            ? `${support.label}: this work was done before the revision that made the reduction automatic was saved.`
+            : beforeRecording
+              ? `${support.label}: this work predates support recording.`
+              : `${support.label}: no record of the reduction for this work (MathMaster computes ${workload?.current ? `${workload.current.assignedCount} of ${workload.current.originalCount} items` : 'it'} now).`,
         });
       }
       return;

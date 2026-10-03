@@ -40,7 +40,8 @@ const isObject = (value) => Boolean(value) && typeof value === "object" && !Arra
  * question an attempt being recorded right now answers: answered work is
  * always required, so the projection is computed as it will read once that
  * attempt lands — the same answer the browser reaches from the written
- * tracker. `onError` is told about a failure that was absorbed.
+ * tracker. `resetIndex` names a question an authorized replacement is about to
+ * reset to unattempted. `onError` is told about a failure that was absorbed.
  *
  * Never throws; resolves to an empty Set when nothing is omitted.
  */
@@ -49,6 +50,7 @@ async function studentOmittedFor({
   gradeData = null,
   assignmentId = null,
   answeredIndex = null,
+  resetIndex = null,
   nowValue = Date.now(),
   onError = null,
 } = {}) {
@@ -64,6 +66,10 @@ async function studentOmittedFor({
       const status = typeof current === "string" ? current : current?.status;
       if (!status || status === "unattempted") tracker[String(answered)] = { status: "attempted" };
     }
+    // An authorized replacement writes its question back as unattempted, so
+    // the projection reads it that way too (exactly as every later read will).
+    const reset = resetIndex === null || resetIndex === undefined ? NaN : Number(resetIndex);
+    if (Number.isInteger(reset) && reset >= 0) tracker[String(reset)] = { status: "unattempted" };
     const { studentOmittedIndices } = await reducedWorkload();
     // The plan is seeded by the assignment id, exactly as the browser's
     // `{ id: snapshot.id, ...snapshot.data() }` carries it.

@@ -411,6 +411,12 @@ export const buildSupportProjection = ({ revisions = [], todayKey, updatedAt = n
     [...idsOf(window.accommodations), ...idsOf(window.modifications)].forEach((id) => entitled.add(id));
     if (window.inclusionStatus) INCLUSION_IMPLIED_SUPPORT_IDS.forEach((id) => entitled.add(id));
   });
+  // A reduced item count governs an assignment by its due date, so a revision
+  // that has since been superseded can still be the one the student's work is
+  // reduced under — and recorded under.
+  if (itemReductionHistory.some((row) => row.status !== REVISION_STATUS.INACTIVE && row.percent > 0)) {
+    entitled.add(REDUCED_WORKLOAD_SUPPORT_ID);
+  }
   return {
     inclusionStatus: active?.inclusionStatus === true,
     accommodations: idsOf(active?.accommodations),

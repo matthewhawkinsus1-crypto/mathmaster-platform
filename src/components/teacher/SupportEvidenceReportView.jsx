@@ -8,7 +8,7 @@ import { fetchStudentSupportHistory } from '../../platform/teacher/studentSuppor
 import { loadTeacherGradeTransferState } from '../../platform/gradeTransfer/gradeTransferStore.js';
 import { fetchStudentGradeRecord, loadStudentSupportRecords } from '../../platform/supportEvidence/supportEvidenceStore.js';
 import {
-  buildSupportEvidenceReport, selectReportAssignments, supportReportCsv, supportReportFileName, supportReportJson,
+  buildSupportEvidenceReport, selectReportAssignments, supportHeadline, supportReportCsv, supportReportFileName, supportReportJson,
 } from '../../platform/supportEvidence/supportEvidenceReport.js';
 import { SupportClassificationTag } from './SupportProfileEditor.jsx';
 import { acceptStudentName, formatStudentName } from '../../platform/studentName.js';
@@ -58,21 +58,6 @@ function SupportCell({ support }) {
     // Not using an on-demand support is the student's choice, not a gap.
     : (measurableUse && support.available && !support.used ? 'not used (optional)' : '');
   return <span>{parts.join(' · ') || '—'}{note ? <em className="tw-muted"> · {note}</em> : null}</span>;
-}
-
-/*
- * The implementation headline: made available (on-demand tools) or provided
- * (automatic supports) out of the eligible work — assignments under a profile
- * that configured the support and that the student opened. Use is shown in
- * its own column and never lowers this figure.
- */
-export function supportHeadline(support) {
-  const eligible = Number(support.assignmentsEligible) || 0;
-  if (support.automation === 'manual') return 'Delivered by staff';
-  if (support.automation === 'platform-available' || support.measurable.includes('available')) {
-    return `Available in ${support.assignmentsAvailable} of ${eligible} eligible`;
-  }
-  return `Provided in ${support.assignmentsProvided} of ${eligible} eligible`;
 }
 
 function AssignmentCard({ row, expanded }) {

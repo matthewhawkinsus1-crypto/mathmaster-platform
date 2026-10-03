@@ -223,7 +223,11 @@ const latestOnOrBefore = (entries, dateKey) => {
     if (start && dateKey && start > dateKey) return;
     if (!best) { best = entry; return; }
     const bestStart = DATE_KEY.test(clean(best.effectiveStart)) ? best.effectiveStart : '';
-    if (start > bestStart || (start === bestStart && Number(entry.revision) > Number(best.revision))) best = entry;
+    // Rows arrive in timeline order (oldest recorded first), so on a full tie
+    // — same start, same revision number, e.g. two tabs saving at once — the
+    // later-recorded row wins, exactly as supportProfileModel.mjs
+    // revisionEffectiveOn decides the governing revision.
+    if (start > bestStart || (start === bestStart && Number(entry.revision) >= Number(best.revision))) best = entry;
   });
   return best;
 };
@@ -310,12 +314,29 @@ export const workloadItemsFromAssignment = (assignment = {}) => {
       storageIndex += 1;
     });
   });
+  // The timed DOL is not always a 'dol' section (src/assignmentLifecycle.js
+  // resolveDOLQuestionIndices): a question can be flagged `isDOL`, and an
+  // enabled DOL with no authored DOL points at one question. Those items are
+  // the DOL here too, so the plan treats them as their own assessment cell —
+  // a one-question DOL is never omitted.
+  const flagged = items.filter((item) => item.question?.isDOL === true || item.role === 'dol');
+  if (flagged.length) {
+    flagged.forEach((item) => { item.role = 'dol'; });
+  } else if (assignment?.dol?.enabled === true && items.length) {
+    const explicit = Number(assignment?.dol?.questionIndex ?? assignment?.dolQuestionIndex);
+    const target = items.find((item) => item.storageIndex === explicit)
+      || items.find((item) => ['intro', 'mid', 'medium'].includes(clean(item.question?.difficulty).toLowerCase()))
+      || items[Math.max(0, Math.floor((items.length - 1) / 2))];
+    if (target) target.role = 'dol';
+  }
   return items;
 };
 
 // --- Coverage ------------------------------------------------------------------------
 
 const TEKS_CODE = /^[A-Z0-9]{1,4}\.\d{1,2}[A-Z]?$/i;
+// Tool types the runtime repair can turn into another type (see below).
+const TYPE_FAMILY = Object.freeze({ signsolutionanalyzer: 'stepalgebra' });
 const teksCodesOf = (question = {}) => {
   // The shapes questionMetadata.mjs normalizeQuestionStandards reads, without
   // its registry lookup (the server must not load the TEKS registry for this).
@@ -354,11 +375,14 @@ export const workloadCoverageKey = (question = {}) => {
   if (skill) return `skill:${skill.toLowerCase()}`;
   const family = clean(question?.questionFamily?.id || question?.questionFamily?.familyId);
   if (family) return `family:${family}`;
-  // A tool's version suffix is dropped: the runtime repair renames a saved
-  // `stepAlgebra2` to `stepAlgebra` in the browser, while the server grades
-  // the stored document, and both must reach the same plan.
+  // The runtime repair (functions/shared/runtime/assignmentRuntimeRepair.mjs)
+  // retypes some saved questions in the browser only — `stepAlgebra2` and a
+  // factor-less `signSolutionAnalyzer` both open as `stepAlgebra` — while the
+  // server and the teacher views read the stored document. Both copies must
+  // reach the same plan, so the fallback names the tool FAMILY: the version
+  // suffix is dropped and the repaired tools share their target's family.
   const type = clean(question.type || question.toolId || question.questionType || 'item').toLowerCase().replace(/\d+$/, '');
-  return `type:${type || 'item'}`;
+  return `type:${TYPE_FAMILY[type] || type || 'item'}`;
 };
 
 /** DOK first, then the instructional difficulty band: a sortable rigor level. */
@@ -443,18 +467,26 @@ export const planReducedWorkload = ({ items = [], percent = 0, appliesTo = [], s
     const group = clean(item.question?.itemGroup);
     const key = group ? `${role}|group:${group}` : `${role}|index:${item.storageIndex}`;
     const unit = unitsByKey.get(key) || {
-      key, role, indices: [], anchor: false, firstIndex: item.storageIndex, coverageKey: null, level: 0,
+      key, role, indices: [], anchor: false, firstIndex: item.storageIndex, coverageKey: null, coverageKeys: new Set(), level: 0,
     };
     unit.indices.push(item.storageIndex);
     unit.anchor = unit.anchor || item.question?.coreItem === true;
     unit.firstIndex = Math.min(unit.firstIndex, item.storageIndex);
-    // A group is covered by what its first question assesses, and is as
-    // demanding as its most demanding question.
-    if (unit.coverageKey === null) unit.coverageKey = workloadCoverageKey(item.question || {});
+    // A group is filed under what its first question assesses, but it COVERS
+    // what every one of its questions assesses (a TEKS only its Part B carries
+    // must not vanish with it), and is as demanding as its hardest question.
+    const coverage = workloadCoverageKey(item.question || {});
+    if (unit.coverageKey === null) unit.coverageKey = coverage;
+    unit.coverageKeys.add(coverage);
     unit.level = Math.max(unit.level, rigorLevelOf(item.question || {}));
     unitsByKey.set(key, unit);
   });
-  const units = [...unitsByKey.values()].map((unit) => ({ ...unit, indices: unit.indices.sort((a, b) => a - b), size: unit.indices.length }));
+  const units = [...unitsByKey.values()].map((unit) => ({
+    ...unit,
+    indices: unit.indices.sort((a, b) => a - b),
+    size: unit.indices.length,
+    coverageKeys: [...unit.coverageKeys].sort(),
+  }));
 
   const cellsByKey = new Map();
   units.forEach((unit) => {
@@ -474,33 +506,54 @@ export const planReducedWorkload = ({ items = [], percent = 0, appliesTo = [], s
   const exactRemoval = (applicableCount * value) / 100;
   const targetRemoval = value > 0 ? targetRemovalCount(applicableCount, value) : 0;
 
-  // D'Hondt across cells: the most redundant cell gives up the next unit.
-  // A cell always keeps at least one unit (anchors count as kept).
+  // ONE REMOVAL ORDER, INDEPENDENT OF THE TARGET. D'Hondt across cells (the
+  // most redundant cell gives up the next unit), single questions first and
+  // linked groups after, never taking a unit whose removal would leave one of
+  // the coverage keys it carries with no kept unit in its section. The plan
+  // for a percentage is the longest prefix of this order that fits the
+  // target — so a higher percentage always omits a SUPERSET of a lower one,
+  // and raising it never hands back an item the student was never shown.
+  const keptByCoverage = new Map();
+  units.forEach((unit) => unit.coverageKeys.forEach((coverage) => {
+    const key = `${unit.role}|${coverage}`;
+    keptByCoverage.set(key, (keptByCoverage.get(key) || 0) + 1);
+  }));
+  const coverageAllows = (unit) => unit.coverageKeys.every((coverage) => keptByCoverage.get(`${unit.role}|${coverage}`) > 1);
+  const ordered = new Set();
+  const order = [];
+  const orderedItemsByCell = new Map(cells.map((cell) => [cell.key, 0]));
+  [(unit) => unit.size === 1, (unit) => unit.size > 1].forEach((inPhase) => {
+    for (;;) {
+      let best = null;
+      cells.forEach((cell) => {
+        const next = cell.sequence.find((unit) => !ordered.has(unit.key) && inPhase(unit) && coverageAllows(unit));
+        if (!next) return;
+        const quotient = cell.itemCount / (orderedItemsByCell.get(cell.key) + 1);
+        const priority = ROLE_PRIORITY[cell.role] ?? 2;
+        if (!best
+          || quotient > best.quotient
+          || (quotient === best.quotient && priority < best.priority)
+          || (quotient === best.quotient && priority === best.priority && cell.firstIndex < best.cell.firstIndex)) {
+          best = { cell, next, quotient, priority };
+        }
+      });
+      if (!best) break;
+      ordered.add(best.next.key);
+      order.push(best.next);
+      orderedItemsByCell.set(best.cell.key, orderedItemsByCell.get(best.cell.key) + best.next.size);
+      best.next.coverageKeys.forEach((coverage) => {
+        const key = `${best.next.role}|${coverage}`;
+        keptByCoverage.set(key, keptByCoverage.get(key) - 1);
+      });
+    }
+  });
   const removedUnits = new Set();
-  const removedItemsByCell = new Map(cells.map((cell) => [cell.key, 0]));
-  const removedUnitsByCell = new Map(cells.map((cell) => [cell.key, 0]));
-  const mayRemoveFrom = (cell) => cell.units.length - removedUnitsByCell.get(cell.key) > 1;
   let removedCount = 0;
-  for (;;) {
-    let best = null;
-    cells.forEach((cell) => {
-      if (!mayRemoveFrom(cell)) return;
-      const next = cell.sequence.find((unit) => !removedUnits.has(unit.key) && unit.size <= targetRemoval - removedCount);
-      if (!next) return;
-      const quotient = cell.itemCount / (removedItemsByCell.get(cell.key) + 1);
-      const priority = ROLE_PRIORITY[cell.role] ?? 2;
-      if (!best
-        || quotient > best.quotient
-        || (quotient === best.quotient && priority < best.priority)
-        || (quotient === best.quotient && priority === best.priority && cell.firstIndex < best.cell.firstIndex)) {
-        best = { cell, next, quotient, priority };
-      }
-    });
-    if (!best) break;
-    removedUnits.add(best.next.key);
-    removedItemsByCell.set(best.cell.key, removedItemsByCell.get(best.cell.key) + best.next.size);
-    removedUnitsByCell.set(best.cell.key, removedUnitsByCell.get(best.cell.key) + 1);
-    removedCount += best.next.size;
+  let stoppedAt = null;
+  for (const unit of order) {
+    if (removedCount + unit.size > targetRemoval) { stoppedAt = unit; break; }
+    removedUnits.add(unit.key);
+    removedCount += unit.size;
   }
   const removed = units.filter((unit) => removedUnits.has(unit.key)).flatMap((unit) => unit.indices).sort((a, b) => a - b);
 
@@ -509,11 +562,10 @@ export const planReducedWorkload = ({ items = [], percent = 0, appliesTo = [], s
     if (targetRemoval === 0 && exactRemoval > 0) variance.push(WORKLOAD_VARIANCE.TOO_FEW_ITEMS);
     else if (targetRemoval !== exactRemoval) variance.push(WORKLOAD_VARIANCE.ROUNDING);
     if (removedCount < targetRemoval) {
-      // Stopped short. If some cell could still give up a unit under the
-      // coverage rule, only size stopped it: a linked group too large for what
-      // was left. Otherwise coverage (or core items) stopped it.
-      const sizeBlocked = cells.some((cell) => mayRemoveFrom(cell) && cell.sequence.some((unit) => !removedUnits.has(unit.key)));
-      variance.push(sizeBlocked ? WORKLOAD_VARIANCE.INDIVISIBLE_GROUP : WORKLOAD_VARIANCE.COVERAGE);
+      // Stopped short: either the next unit in the order is a linked group
+      // too large for what was left, or nothing more can go without losing
+      // coverage (or core items).
+      variance.push(stoppedAt ? WORKLOAD_VARIANCE.INDIVISIBLE_GROUP : WORKLOAD_VARIANCE.COVERAGE);
     }
   }
   if (roles.length && applicable.length < all.length) variance.push(WORKLOAD_VARIANCE.LIMITED_TO_ACTIVITIES);
@@ -522,7 +574,7 @@ export const planReducedWorkload = ({ items = [], percent = 0, appliesTo = [], s
     REDUCED_WORKLOAD_ALGORITHM_VERSION, value, roles, clean(seedKey),
     all.map((item) => {
       const unit = units.find((entry) => entry.indices.includes(item.storageIndex));
-      return [item.storageIndex, clean(item.question?.questionId), clean(item.role).toLowerCase(), unit?.key || '-', unit?.coverageKey || '-', unit?.anchor ? 1 : 0, unit?.level || 0];
+      return [item.storageIndex, clean(item.question?.questionId), clean(item.role).toLowerCase(), unit?.key || '-', (unit?.coverageKeys || []).join('+') || '-', unit?.anchor ? 1 : 0, unit?.level || 0];
     }),
   ])));
 
@@ -541,14 +593,25 @@ export const planReducedWorkload = ({ items = [], percent = 0, appliesTo = [], s
     fingerprint,
     // Kept for the student layer: which unit an index belongs to, and each
     // cell's full removal order (answered work is kept; see below).
-    units: units.map((unit) => ({ key: unit.key, indices: unit.indices, anchor: unit.anchor, cellKey: `${unit.role}|${unit.coverageKey}` })),
+    units: units.map((unit) => ({
+      key: unit.key,
+      role: unit.role,
+      indices: unit.indices,
+      anchor: unit.anchor,
+      cellKey: `${unit.role}|${unit.coverageKey}`,
+      coverageKeys: unit.coverageKeys,
+    })),
+    // Each cell's units in the order the plan gives them up (the global order
+    // restricted to the cell); a unit coverage never lets go is not listed.
     cells: cells.map((cell) => ({
       key: cell.key,
       role: cell.role,
       coverageKey: cell.key.slice(cell.role.length + 1),
       itemCount: cell.itemCount,
-      sequence: cell.sequence.map((unit) => unit.key),
+      sequence: order.filter((unit) => `${unit.role}|${unit.coverageKey}` === cell.key).map((unit) => unit.key),
     })),
+    // The whole target-independent order (unit keys).
+    order: order.map((unit) => unit.key),
   };
 };
 
@@ -584,7 +647,13 @@ const answeredOf = (tracker) => {
   const answered = new Set();
   if (!isObject(tracker)) return answered;
   Object.entries(tracker).forEach(([index, record]) => {
-    const status = typeof record === 'string' ? clean(record) : clean(isObject(record) ? record.status : '');
+    // A teacher-override display projection keeps the record's own status
+    // (canonicalGradeProjection.js trackerStatusBeforeOverride): a section
+    // consequence shown as "attempted" is not work the student answered.
+    const own = isObject(record) && Object.prototype.hasOwnProperty.call(record, 'trackerStatusBeforeOverride')
+      ? record.trackerStatusBeforeOverride
+      : record?.status;
+    const status = typeof record === 'string' ? clean(record) : clean(isObject(record) ? own : '');
     if (status && status !== 'unattempted' && Number.isInteger(Number(index))) answered.add(Number(index));
   });
   return answered;
@@ -624,10 +693,24 @@ export const projectStudentWorkload = ({ plan, baseIndices = [], tracker = null 
   const omittedUnits = new Set();
   const keptAnswered = [];
   const compensated = [];
+  // Coverage, as the plan kept it: a compensating unit may not take away the
+  // last kept unit of any coverage key it carries.
+  const keptByCoverage = new Map();
+  const coverageOf = (unit) => list(unit.coverageKeys).map((coverage) => `${unit.role}|${coverage}`);
+  plan.units.forEach((unit) => coverageOf(unit).forEach((key) => keptByCoverage.set(key, (keptByCoverage.get(key) || 0) + 1)));
+  const omitUnit = (key) => {
+    omittedUnits.add(key);
+    coverageOf(unitByKey.get(key)).forEach((coverage) => keptByCoverage.set(coverage, keptByCoverage.get(coverage) - 1));
+  };
+  const pinnedByCell = new Map();
   plan.cells.forEach((cell) => {
     const removedInCell = cell.sequence.filter((key) => removedUnitKeys.has(key));
     const pinned = removedInCell.filter((key) => unitAnswered(unitByKey.get(key)));
-    removedInCell.filter((key) => !pinned.includes(key)).forEach((key) => omittedUnits.add(key));
+    removedInCell.filter((key) => !pinned.includes(key)).forEach(omitUnit);
+    pinnedByCell.set(cell.key, pinned);
+  });
+  plan.cells.forEach((cell) => {
+    const pinned = pinnedByCell.get(cell.key) || [];
     let owed = pinned.reduce((sum, key) => sum + unitByKey.get(key).indices.length, 0);
     pinned.forEach((key) => keptAnswered.push(...unitByKey.get(key).indices));
     if (!owed) return;
@@ -636,7 +719,8 @@ export const projectStudentWorkload = ({ plan, baseIndices = [], tracker = null 
       if (removedUnitKeys.has(key)) continue;
       const unit = unitByKey.get(key);
       if (unitAnswered(unit) || unit.indices.length > owed) continue;
-      omittedUnits.add(key);
+      if (!coverageOf(unit).every((coverage) => keptByCoverage.get(coverage) > 1)) continue;
+      omitUnit(key);
       compensated.push(...unit.indices);
       owed -= unit.indices.length;
     }
