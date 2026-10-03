@@ -891,10 +891,18 @@ journeys.complete = async (browser) => {
     const recorded = (await grades(page)).filter((grade) => grade.questionId === id);
     check(recorded.length === 1 && recorded[0].isCorrect === true, `${id}: submitted correct (${JSON.stringify(recorded.map((g) => [g.isCorrect, g.partialCreditPercent]))})`);
     // A finished question is final: the Undo that walks the board back cannot reopen it.
-    // Looked up without waiting: if the board is no longer on the page, say what
-    // replaced it instead of timing out and losing every later board's checks.
-    const submitBoard = page.getByRole('button', { name: 'Submit board' });
+    // QuestionEngine locks a correct question by making the whole tool `inert`,
+    // which takes the board out of the accessibility tree. A role lookup then
+    // finds no Submit button at all in some Playwright versions (1.55, as CI
+    // pins) and the disabled one in others, so look the button up by its text,
+    // which sees inert content, and check that it cannot be used: disabled, or
+    // inside the inert lock. Still looked up without waiting, and if it is
+    // truly gone, say what the page shows instead.
+    const submitBoard = page.locator('button', { hasText: 'Submit board' }).first();
     const submitShown = await submitBoard.count();
+    const submitState = submitShown
+      ? await submitBoard.evaluate((element) => ({ disabled: element.matches(':disabled'), inert: Boolean(element.closest('[inert]')) }))
+      : null;
     if (!submitShown) {
       const onScreen = await page.evaluate(() => ({
         boardCards: document.querySelectorAll('[data-lmr-card]').length,
@@ -905,7 +913,7 @@ journeys.complete = async (browser) => {
       }));
       check(false, `${id}: after a correct submission the board's Submit button is not on the page — on screen: ${JSON.stringify(onScreen)}`);
     }
-    check(!(await platformUndo(page).isEnabled()) && (!submitShown || await submitBoard.first().isDisabled()), `${id}: after a correct submission Undo is off and the board cannot be resubmitted`);
+    check(!(await platformUndo(page).isEnabled()) && Boolean(submitState) && (submitState.disabled || submitState.inert), `${id}: after a correct submission Undo is off and the board cannot be resubmitted (${JSON.stringify(submitState)})`);
     await renderAllMath(page);
     await shot(page, `complete-${id}`);
   }
