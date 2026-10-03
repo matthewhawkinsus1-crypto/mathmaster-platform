@@ -68,7 +68,7 @@ ingestion filter, dashboard omission, App closure (S2 journey: 7 findings), `stu
 
 | Command | Result |
 | --- | --- |
-| `node --test tests/platform/*.test.mjs` | 8241/8241 |
+| `node --test tests/platform/*.test.mjs` | 8247/8247 |
 | `npm run test:rules` | 225/225 + 110/110 |
 | `npm run test:authoring-v5` · `node --test tests/tools/*.test.mjs` | 686/686 · 1175/1175 |
 | `npm run lint` · `npm run build` | no warnings on added lines · pass (tray 8.9 kB gzip, `es` pack 10 kB, glossary 19 kB, all lazy) |
@@ -82,3 +82,9 @@ authored-translation check, tools shown without a resource, frames everywhere, R
 evidence (partial note, Vocabulary staff record and history, language tools recorded at launch), plus the rules'
 English-is-not-a-translation clause (emulator). Three guards first survived and gained tests: the curated pack, Break
 it down (a real seed-bank prompt, "Determine a and write…"), and authored translations on assignments.
+
+Review of #419 (Codex, 5 findings, all fixed in `fix(supports): Support tools review findings…`, pinned by
+`languageSupportsReviewFindings.test.mjs`, 16 mutations each seen red): Path tool questions take the server's list and
+record delivery; activity-role scope honoured; translations keyed to their item; capital-letter names guarded; one
+authored-translation lookup and rule for regional languages. Re-verified after the fixes: platform 8247/8247, build,
+support-evidence journeys 22/22 (+ S3/T8 at 390, 768, 1366), studentUxPlatform and renderStability gates.
