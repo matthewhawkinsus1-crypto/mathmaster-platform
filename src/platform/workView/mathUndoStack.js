@@ -108,9 +108,20 @@ const TEXT_DIFF_LIMIT = 2;
  * braces, backslashes and empty placeholders. Selecting a whole answer and
  * typing over it (`y=\frac12x` → `5`) is still a different act, as is a
  * swapped choice.
+ *
+ * The wrappers' NAMES go too. On a slower device MathLive can report the "/"
+ * and the denominator typed after it as one change (`y-10=-4` straight to
+ * `y-10=-\frac42`); with `frac` left in, that reads as two insertions and the
+ * run broke there, turning one equation into three Undo steps on a Chromebook.
+ * Only wrappers are removed — `\frac`, `\left`, `\right` — never a symbol such
+ * as `\le` or `\cdot`, so swapping `\le` for `\ge` stays its own act.
  */
 const EMPTY_PLACEHOLDER = /\\placeholder(?:\[[^\]]*\])?\{\}/g;
-export const typingText = (value) => String(value ?? '').replace(EMPTY_PLACEHOLDER, '').replace(/[{}\\]/g, '');
+const STRUCTURAL_COMMAND = /\\(?:[dt]?frac|left|right)(?![a-zA-Z])/g;
+export const typingText = (value) => String(value ?? '')
+  .replace(EMPTY_PLACEHOLDER, '')
+  .replace(STRUCTURAL_COMMAND, '')
+  .replace(/[{}\\]/g, '');
 
 // One insertion or one deletion in one place — what a keystroke, a Backspace or
 // a paste at the caret does. Swapping "yes" for "no", or selecting a whole
