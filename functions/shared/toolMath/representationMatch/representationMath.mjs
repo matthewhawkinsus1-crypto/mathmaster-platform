@@ -123,6 +123,61 @@ export const linearPlacementsFromAssignments = (assignments = {}) => Object.keys
   .map((cardId) => ({ cardId, slot: assignments[cardId] }));
 
 /*
+ * A SAVED CARD SORT, READ BACK SAFELY.
+ *
+ * The board keeps `{ [cardId]: slot }` in its draft. A draft is whatever was
+ * persisted — by this build, an older one, another Chromebook, a damaged
+ * backup — so it is checked against the board on screen before the board
+ * renders from it. A persisted `null` here took Warm-Up Question 1 (lmr-wu-1)
+ * down for every student who had one: the render dereferences the map once
+ * per card.
+ *
+ * What is kept is exactly what the shared grader would read as placed
+ * (serverGrading/tools/representationMatch.mjs, `readAssignments`): a card the
+ * board deals, in a slot 0 … slotCount − 1. Everything else is dropped, never
+ * guessed at, except two lossless repairs:
+ *   - a slot written as a whole-number string ("1") is that slot;
+ *   - a list of `{ cardId, slot }` placements (the submitted response's shape)
+ *     is the same sort.
+ *
+ * Returns `{ value, issues }`. `issues` names what was repaired or dropped, in
+ * first-seen order, for the client diagnostic; it is empty for a clean draft.
+ * `undefined` (no draft) is a clean empty board.
+ */
+export const normalizeLinearAssignmentsDraft = (value, { cardIds = [], slotCount = 0 } = {}) => {
+  const issues = [];
+  const note = (issue) => { if (!issues.includes(issue)) issues.push(issue); };
+  if (value === undefined) return { value: {}, issues };
+  const known = new Set(cardIds);
+  const entries = [];
+  if (Array.isArray(value)) {
+    note('placements-list');
+    value.forEach((placement) => {
+      if (placement && typeof placement === 'object' && !Array.isArray(placement) && typeof placement.cardId === 'string') {
+        entries.push([placement.cardId, placement.slot]);
+      } else {
+        note('invalid-placement');
+      }
+    });
+  } else if (value && typeof value === 'object') {
+    entries.push(...Object.entries(value));
+  } else {
+    note('not-a-map');
+    return { value: {}, issues };
+  }
+  const normalized = {};
+  entries.forEach(([cardId, slot]) => {
+    if (!known.has(cardId)) { note('stale-card'); return; }
+    let resolved = slot;
+    if (typeof slot === 'string' && /^\d+$/.test(slot.trim())) resolved = Number(slot.trim());
+    if (!Number.isInteger(resolved) || resolved < 0 || resolved >= slotCount) { note('invalid-slot'); return; }
+    if (resolved !== slot) note('repaired-slot');
+    normalized[cardId] = resolved;
+  });
+  return { value: normalized, issues };
+};
+
+/*
  * A TABLE CARD (student UX pass, R-9).
  *
  * A compact, read-only x/y table is the representation a warm-up most wants
