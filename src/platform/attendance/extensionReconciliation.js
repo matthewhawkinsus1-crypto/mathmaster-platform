@@ -46,6 +46,7 @@ import { extensionMeetingsFor, summarizeAssignmentAbsences } from './absencePoli
 import { attendanceMarksForStudentRange } from './attendanceHistory.js';
 import { assignmentIsForStudent } from '../../assignmentLifecycle.js';
 import { attendanceCorrectionReviewIsResolved } from './returnCheckIn.js';
+import { resolveStudentOverride } from '../../../functions/shared/studentAssignmentOverrides.mjs';
 
 /** The class's own authoritative final/credit cutoff — never the ordinary due date. */
 const originalFinalCutoff = (assignment) => (
@@ -65,6 +66,8 @@ export const resolveStudentExtension = ({
   classPeriod = null,
   nonInstructionalKeys = null,
   policy = null,
+  // The student's private override record, when the caller holds it.
+  privateOverride = undefined,
 } = {}) => {
   const finalCutoff = originalFinalCutoff(assignment);
   // Which absences "bear on" this assignment is still about the ordinary
@@ -75,7 +78,9 @@ export const resolveStudentExtension = ({
   const absences = summarizeAssignmentAbsences({ marks, fromDateKey, toDateKey });
   const extensionMeetings = extensionMeetingsFor({ absences, policy });
 
-  const existing = assignment?.studentOverrides?.[studentId]?.extension || null;
+  // What is already on file for this student: the extension stub in their
+  // private controls (or a shared copy not yet migrated), via the one resolver.
+  const existing = resolveStudentOverride({ assignment, studentId, privateOverride })?.extension || null;
 
   if (!finalCutoff || !classPeriod) {
     return {

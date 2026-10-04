@@ -25,6 +25,7 @@ import { decideCheckpointFinalization } from '../../functions/shared/responseChe
 import { CHECKPOINT_STATUS } from '../../functions/shared/responseCheckpointSchema.mjs';
 import { buildResponseCheckpointAction } from '../../src/platform/performance/responseCheckpoint.js';
 import { assignmentCreditLifecycle, evaluatePracticePassEligibility } from '../../functions/shared/classPointRewards.mjs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const CLASS_ID = 'class-a';
 const CLASS_PERIOD = 'Period 3';
@@ -169,14 +170,26 @@ test('Practice Pass eligibility (assignmentCreditLifecycle) also recognizes the 
 });
 
 test('Google Classroom grade passback resolves stage against the per-student final cutoff, not only the class one', () => {
-  const source = fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
-  // The stage resolver reads a shared per-student cutoff helper...
-  assert.match(source, /function studentLateDueAt\(assignment, studentId\)/);
-  assert.match(source, /const lateDueAt = studentLateDueAt\(assignment, studentId\);/);
-  // ...and syncGradeToClassroom actually passes the student id into it, so a
-  // Classroom "final" grade can never be posted for an extended student
-  // before their own authorized cutoff arrives.
-  assert.match(source, /resolveClassroomGradeStage\(\{\s*\n\s*assignment,\s*\n\s*progress,\s*\n\s*releaseSignal,\s*\n\s*nowValue: Date\.now\(\),\s*\n\s*studentId: event\.params\.studentId,/);
+  const source = executableSource(fs.readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8'));
+  // The stage is "final" only at the LATER of the class cutoff and the
+  // student's own…
+  const helper = region(source, 'function studentLateDueAt(', 'async function resolvedStudentFinalCutoff(', 'studentLateDueAt');
+  assert.match(helper, /const studentFinal = toDate\(studentFinalCutoff\);/);
+  assert.match(helper, /return studentFinal\.getTime\(\) > classFinal\.getTime\(\) \? studentFinal : classFinal;/);
+  const stage = region(source, 'function resolveClassroomGradeStage(', 'if (progress.complete)', 'resolveClassroomGradeStage');
+  assert.match(stage, /const lateDueAt = studentLateDueAt\(assignment, studentFinalCutoff\);/);
+  // …the student's own cutoff is read from THEIR private controls, with the
+  // server's authority (studentAssignmentOverrides.mjs), merged with any copy
+  // still on the shared document…
+  const reader = region(source, 'async function resolvedStudentFinalCutoff(', 'function resolveClassroomGradeStage(', 'resolvedStudentFinalCutoff');
+  assert.match(reader, /await studentOverrideRef\(db, studentId, assignmentId\)/);
+  assert.match(reader, /overrides\.resolveStudentOverride\(\{[\s\S]*privateOverride: privateOverrideFrom\(snapshot\)/);
+  // …and syncGradeToClassroom passes exactly that for the student whose grade
+  // changed, so a Classroom "final" grade can never be posted for an extended
+  // student before their own authorized cutoff arrives.
+  const sync = region(source, 'exports.syncGradeToClassroom = onDocumentWritten(', 'exports.queueReleasedAssessmentGrades', 'syncGradeToClassroom');
+  assert.match(sync, /await resolvedStudentFinalCutoff\(db, assignmentId, assignment, event\.params\.studentId\)/);
+  assert.match(sync, /resolveClassroomGradeStage\(\{[^}]*studentFinalCutoff,\s*\}\)/);
 });
 
 test('evaluatePracticePassEligibility threads studentId through to the lifecycle check', () => {

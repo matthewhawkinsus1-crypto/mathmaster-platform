@@ -15,6 +15,8 @@ const STUDENT_QUERY_COLLECTIONS = Object.freeze([
   "examIntegrityEvents",
   "studentSupportEvents",
   "studentSessionSummaries",
+  // A student's private assignment controls (shared/studentAssignmentOverrides.mjs).
+  "studentAssignmentOverrides",
   "studentPathInterventionAudit",
   "liveSpotlightRequests",
   "liveSpotlightFrames",

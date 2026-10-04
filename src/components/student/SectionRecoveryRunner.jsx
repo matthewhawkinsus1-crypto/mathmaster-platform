@@ -43,6 +43,9 @@ import {
   submitSectionRecovery,
 } from '../../services/sectionRecoveryService.js';
 import { RecoveryMasteryMeter } from './SectionRecoveryPanel.jsx';
+import { QuestionResolutionFailure } from '../../QuestionResolutionBoundary.jsx';
+import { QUESTION_RESOLUTION_FAILURE, recoveryForFailure } from '../../platform/generation/familyPinReplay.js';
+import { normalizeDeliveryPin } from '../../../functions/shared/questionGenerationIdentity.mjs';
 
 // Practice's own attempt policy for step tools; the final answer is still one
 // server-graded submission per item.
@@ -138,18 +141,36 @@ function PinnedQuestion({
   onGrade,
   onStepGrade,
 }) {
+  // A stored plan item whose pin did not survive normalizeRecoveryRecord (a
+  // pin from another build, a damaged record) is null here. Reading
+  // `item.pin.variant` threw while rendering and replaced the whole app; it is
+  // this item's failure, classified like any pin that cannot replay, and the
+  // Recovery's navigation and other items stay usable.
+  const pin = normalizeDeliveryPin(item?.pin);
   const familyContext = useMemo(() => ({
     assignmentId,
     storageIndex: item.storageIndex,
-    variant: item.pin.variant,
-    pin: item.pin,
+    variant: pin?.variant ?? 0,
+    pin,
     requirePin: true,
-  }), [assignmentId, item]);
+  }), [assignmentId, item, pin]);
+  if (!pin) {
+    return (
+      <QuestionResolutionFailure
+        failure={{
+          classification: QUESTION_RESOLUTION_FAILURE.PIN_MALFORMED,
+          recovery: recoveryForFailure(QUESTION_RESOLUTION_FAILURE.PIN_MALFORMED),
+          diagnostics: { pinKind: 'recovery', detail: 'recovery-plan-pin-unreadable' },
+        }}
+        context={{ assignmentId, questionId: item?.questionId || null, familyId: question?.questionFamily?.id || null, activityRole }}
+      />
+    );
+  }
   return (
     <QuestionEngine
-      key={item.pin.fingerprint}
+      key={pin.fingerprint}
       question={question}
-      generationKey={`${assignmentId}|${section}-recovery|${item.storageIndex}|variant:${item.pin.variant}`}
+      generationKey={`${assignmentId}|${section}-recovery|${item.storageIndex}|variant:${pin.variant}`}
       familyContext={familyContext}
       onFamilyDelivery={(delivery, rendered) => onRendered(delivery, rendered)}
       onGrade={onGrade}

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import QuestionStandardsEditor from './QuestionStandardsEditor';
 import { getQuestionMetadataSummary } from './questionMetadata.js';
 import { useToast } from './ui/Toast';
@@ -16,6 +16,16 @@ import {
   planHonorsExtensionSwap,
   withAppendedQuestionSections,
 } from './platform/rigor/honorsExtensionSwap.js';
+import {
+  describeQuestionSupersession,
+  detachSupersessionLinksTo,
+  findSupersessionConflicts,
+  keepSupersessionLink,
+  planQuestionInclusion,
+  resolveQuestionLineages,
+  supersessionCardSummary,
+  withoutSupersessionLink,
+} from './platform/assignments/questionSupersession.js';
 import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
 import { analyzeResponseEntryRepair } from './platform/assignment/liveQuestionCorrection.js';
 import { parseSafeLiveRepairPack, prepareSafeLiveRepairPack } from './platform/assignment/liveRepairPack.js';
@@ -46,6 +56,15 @@ const ensureQuestionIds = (questions = []) => questions.map((question, index) =>
 const promptSummary = (question) => String(
   question.prompt || question.scenario || question.title || question.mathDisplay?.value || 'No prompt supplied',
 ).replace(/\s+/g, ' ').trim();
+
+// The colours of a supersession notice, from the theme's semantic tokens so
+// it reads in dark mode too.
+const SUPERSESSION_TONES = Object.freeze({
+  error: { background: 'var(--mm-error-bg)', border: 'var(--mm-error-border)', text: 'var(--mm-error-text)' },
+  warning: { background: 'var(--mm-warning-bg)', border: 'var(--mm-warning-border)', text: 'var(--mm-warning-text)' },
+  info: { background: 'var(--mm-info-bg)', border: 'var(--mm-info-border)', text: 'var(--mm-info-text)' },
+  muted: { background: 'var(--mm-surface-muted)', border: 'var(--mm-border)', text: 'var(--mm-text-muted)' },
+});
 
 export default function AssignmentQuestionEditor({ assignment, hasLiveProtection, onSave, onClose }) {
   const { confirm: confirmAction, toastSuccess } = useToast();
@@ -78,6 +97,12 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
   const repairPackInputRef = useRef(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  // A refused Include, shown on the card where the teacher pressed it.
+  const [inclusionNotice, setInclusionNotice] = useState(null);
+  const inclusionAlertRef = useRef(null);
+  const cardRefs = useRef(new Map());
+  // Which questions are versions of one another (supersession links), once per edit.
+  const lineages = useMemo(() => resolveQuestionLineages(questions), [questions]);
   const includedCount = useMemo(() => questions.filter((question) => question.teacherExcluded !== true).length, [questions]);
   const totalGradeWeight = useMemo(
     () => questions
@@ -177,8 +202,40 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
     }));
   };
 
+  // Exclude always retires. Include belongs to the supersession guard: while
+  // another version of this question is active (its replacement, or the
+  // version it replaced), including it would give students both, so the guard
+  // refuses, the reason appears on this card, and nothing changes.
   const toggleExcluded = (index) => {
-    setQuestions((current) => current.map((question, questionIndex) => questionIndex === index ? { ...question, teacherExcluded: question.teacherExcluded !== true } : question));
+    const question = questions[index];
+    if (!question) return;
+    if (question.teacherExcluded !== true) {
+      setInclusionNotice(null);
+      setQuestions((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, teacherExcluded: true } : item)));
+      return;
+    }
+    const plan = planQuestionInclusion({ questions, index });
+    if (plan.status !== 'ready') {
+      setInclusionNotice({ questionId: question.questionId, message: plan.teacherMessage });
+      return;
+    }
+    setInclusionNotice(null);
+    setQuestions(plan.questions);
+  };
+
+  // A refused Include is explained in full where it was pressed: on a phone
+  // the explanation would otherwise start under the dialog's footer.
+  useEffect(() => {
+    if (inclusionNotice) inclusionAlertRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+  }, [inclusionNotice]);
+
+  // Bring another card into view (the active version of a replaced question,
+  // or the question a replacement replaced) and move focus to it.
+  const showQuestion = (index) => {
+    const card = cardRefs.current.get(index);
+    if (!card) return;
+    card.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    card.focus?.({ preventScroll: true });
   };
 
   const removeQuestion = async (index) => {
@@ -200,12 +257,18 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
       tone: 'danger',
     });
     if (!proceed) return;
-    setQuestions((current) => current.filter((_, itemIndex) => itemIndex !== index));
+    // No student history, so nothing needs the removed id kept: a question
+    // that replaced it becomes an ordinary question, never a link to nothing.
+    setQuestions((current) => detachSupersessionLinksTo(
+      current.filter((_, itemIndex) => itemIndex !== index),
+      question?.questionId,
+    ));
   };
 
   const duplicateQuestion = (index) => {
+    // A copy is a new question: it never claims to replace what its source replaced.
     const duplicate = {
-      ...cloneQuestion(questions[index]),
+      ...withoutSupersessionLink(cloneQuestion(questions[index])),
       questionId: newQuestionId(),
       teacherExcluded: false,
     };
@@ -274,9 +337,10 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
   // whichever one produced the replacement.
   const acceptRepairReplacement = async (replacement) => {
     const existing = questions[repairIndex];
-    // A repair changes content, never the grade value (questionValue.mjs).
+    // A repair changes content, never the grade value (questionValue.mjs), and
+    // never which question this one replaces: the link is the existing one.
     const nextQuestion = {
-      ...carryQuestionValue(existing, replacement),
+      ...keepSupersessionLink(existing, carryQuestionValue(existing, replacement)),
       questionId: existing.questionId || replacement.questionId || newQuestionId(),
       teacherExcluded: existing.teacherExcluded === true,
     };
@@ -400,6 +464,11 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
         currentQuestions: questions,
         historicalQuestions: originalQuestions,
       });
+      // This import saves directly, so it holds the same line as Save does.
+      const supersessionConflicts = findSupersessionConflicts(prepared.questions);
+      if (supersessionConflicts.length) {
+        throw new Error(supersessionConflicts.map((conflict) => conflict.message).join('\n'));
+      }
       const candidateV5 = storedAssignmentToV5(candidateSource, {
         titleOverride: title.trim() || assignment.title,
         questions: prepared.questions,
@@ -507,6 +576,17 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
       setError('At least one included question is required.');
       return;
     }
+    // Two active versions of one question would both be given to students,
+    // however they came to be active (a record written before the Include
+    // guard, or edited outside the editor). Saving waits until one is excluded.
+    const supersessionConflicts = findSupersessionConflicts(questions);
+    if (supersessionConflicts.length) {
+      setError(supersessionConflicts.map((conflict) => conflict.message).join('\n'));
+      // Save sits in the footer; take the teacher to the first conflicting
+      // card, which explains itself, rather than leave Save looking broken.
+      showQuestion(supersessionConflicts[0].activeIndexes[0]);
+      return;
+    }
 
     const changedWeights = questions.filter((question) => {
       const historical = originalQuestionById.get(question.questionId);
@@ -601,11 +681,23 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
               const excluded = question.teacherExcluded === true;
               const metadataSummary = getQuestionMetadataSummary(question);
               const honorsAction = excluded ? null : honorsExtensionActionFor({ question, questions, assignmentCourseId });
+              // Is this question one version of another (a replacement, or a
+              // retired original)? Which version is active, and may it be included?
+              const supersession = describeQuestionSupersession(questions, index, lineages);
+              const supersessionSummary = supersessionCardSummary(supersession);
+              const supersessionTone = SUPERSESSION_TONES[supersessionSummary?.tone] || SUPERSESSION_TONES.muted;
+              const includeBlocked = excluded && supersession.includeBlocked;
               return (
-                <article key={question.questionId || index} style={{ padding: '15px', borderRadius: '11px', border: `2px solid ${excluded ? 'var(--mm-border)' : 'var(--mm-tint-border)'}`, background: excluded ? 'var(--mm-surface-control)' : 'var(--mm-surface)', opacity: excluded ? 0.78 : 1 }}>
+                <article
+                  key={question.questionId || index}
+                  ref={(node) => { if (node) cardRefs.current.set(index, node); else cardRefs.current.delete(index); }}
+                  tabIndex={-1}
+                  data-question-card={index + 1}
+                  style={{ padding: '15px', borderRadius: '11px', border: `2px solid ${excluded ? 'var(--mm-border)' : 'var(--mm-tint-border)'}`, background: excluded ? 'var(--mm-surface-control)' : 'var(--mm-surface)', opacity: excluded ? 0.78 : 1 }}
+                >
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                     <div style={{ flex: '1 1 430px' }}>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}><strong style={{ fontSize: '16px' }}>Question {index + 1}</strong><span style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: '11px', fontWeight: 900 }}>{question.type}</span>{excluded && <span style={{ padding: '3px 7px', borderRadius: '999px', background: '#5f6368', color: '#fff', fontSize: '11px', fontWeight: 900 }}>EXCLUDED</span>}</div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}><strong style={{ fontSize: '16px' }}>Question {index + 1}</strong><span style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: '11px', fontWeight: 900 }}>{question.type}</span>{excluded && <span style={{ padding: '3px 7px', borderRadius: '999px', background: '#5f6368', color: '#fff', fontSize: '11px', fontWeight: 900 }}>EXCLUDED</span>}{supersessionSummary?.badge && <span data-supersession-badge style={{ padding: '3px 7px', borderRadius: '999px', background: supersessionTone.background, color: supersessionTone.text, border: `1px solid ${supersessionTone.border}`, fontSize: '11px', fontWeight: 900 }}>{supersessionSummary.badge}</span>}</div>
                       <p style={{ margin: '8px 0 0', color: 'var(--mm-text)', lineHeight: 1.45 }}>{promptSummary(question).slice(0, 240)}</p>
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '9px' }}>
                         {metadataSummary.primary.map((code) => <span key={code} style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: '10px', fontWeight: 900 }}>TEKS {code}</span>)}
@@ -661,10 +753,39 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                           : 'Describe the problem in plain English and use AI to return a checked replacement.'}
                       >{hasLiveProtection && originalQuestionById.has(question.questionId) ? 'Safe Live Repair' : 'Repair / Rewrite with AI'}</button>
                       <button type="button" onClick={() => { setRepairIndex(null); setMetadataEditingIndex(metadataEditingIndex === index ? null : index); setError(''); }} style={{ color: 'var(--mm-primary-text)' }}>Standards & Difficulty</button>
-                      <button type="button" onClick={() => toggleExcluded(index)} style={{ color: excluded ? 'var(--mm-success-text)' : 'var(--mm-warning-text)' }}>{excluded ? 'Include' : 'Exclude'}</button>
+                      <button
+                        type="button"
+                        onClick={() => toggleExcluded(index)}
+                        aria-disabled={includeBlocked ? 'true' : undefined}
+                        aria-describedby={includeBlocked ? `supersession-note-${index}` : undefined}
+                        style={{ minHeight: 44, padding: '0 12px', color: includeBlocked ? 'var(--mm-text-muted)' : excluded ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', cursor: includeBlocked ? 'not-allowed' : 'pointer' }}
+                      >{excluded ? 'Include' : 'Exclude'}</button>
                       <button type="button" onClick={() => removeQuestion(index)} style={{ color: 'var(--mm-danger)' }}>{hasLiveProtection ? 'Throw Out Safely' : 'Remove'}</button>
                     </div>
                   </div>
+                  {supersession.isVersioned && supersessionSummary && (
+                    <div
+                      id={`supersession-note-${index}`}
+                      data-supersession-notice={supersessionSummary.tone}
+                      style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: supersessionTone.background, border: `1px solid ${supersessionTone.border}`, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}
+                    >
+                      <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+                        <p style={{ margin: 0, color: supersessionTone.text, fontSize: 13, lineHeight: 1.45, overflowWrap: 'anywhere' }}>{supersessionSummary.text}</p>
+                        {inclusionNotice?.questionId === question.questionId && includeBlocked && (
+                          <p ref={inclusionAlertRef} role="alert" style={{ margin: '8px 0 0', color: supersessionTone.text, fontSize: 13, lineHeight: 1.45, fontWeight: 800, overflowWrap: 'anywhere' }}>{inclusionNotice.message}</p>
+                        )}
+                      </div>
+                      {supersessionSummary.showQuestion && (
+                        <button
+                          type="button"
+                          onClick={() => showQuestion(supersessionSummary.showQuestion.index)}
+                          style={{ minHeight: 44, padding: '8px 14px', borderRadius: 8, border: `1px solid ${supersessionTone.border}`, background: 'var(--mm-surface)', color: supersessionTone.text, fontWeight: 900, cursor: 'pointer' }}
+                        >
+                          Show Question {supersessionSummary.showQuestion.index + 1}
+                        </button>
+                      )}
+                    </div>
+                  )}
                   {honorsAction && honorsAction.kind && (
                     <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: 'var(--mm-accent-soft)', border: '1px solid var(--mm-accent-border)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                       <p style={{ flex: '1 1 240px', margin: 0, color: 'var(--mm-accent-text)', fontSize: 13, lineHeight: 1.45 }}>

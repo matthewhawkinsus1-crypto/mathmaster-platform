@@ -51,6 +51,7 @@ import { ToolDraftScopeProvider, forgetToolDrafts, stampToolDraftSubmission } fr
 import InteractiveModelingLabPlayer from './components/labs/InteractiveModelingLabPlayer.jsx';
 import { useToast } from './ui/Toast';
 import QuestionModuleBoundary from './QuestionModuleBoundary';
+import QuestionResolutionBoundary, { QuestionResolutionFailure, recordQuestionResolutionDiagnostic } from './QuestionResolutionBoundary';
 import StandardBadge from './components/common/StandardBadge.jsx';
 import { questionAssessmentFramework } from './platform/student/questionAlignmentInfo.js';
 import { normalizeQuestionStandards } from './questionMetadata';
@@ -151,7 +152,7 @@ const useDeepStableValue = (value) => {
 // True only when the browser actually spoke.
 const speakText = (text, language = 'en') => Boolean(text) && speakAloud(text, { language });
 
-export default function QuestionEngine({
+function QuestionEngineBody({
   question,
   onGrade,
   onStepGrade,
@@ -220,6 +221,9 @@ export default function QuestionEngine({
   // Which language Support tools to offer, when the caller already knows
   // (supportToolsEntitlement.js toolsEntitlementFromPath on My Math Path).
   supportEntitlement = null,
+  // Supplied by the QuestionEngine wrapper: prepare this question again from
+  // scratch (a remount). Offered only for a failure a retry can clear.
+  onResolutionRetry = null,
 }) {
   useRenderPerformance('QuestionEngine', String(question?.toolId || question?.type || 'question'));
   const resolvedActivityPolicy = activityPolicy || getEffectiveActivityPolicy(activityRole);
@@ -259,6 +263,19 @@ export default function QuestionEngine({
     // Reported once per distinct delivery, not once per render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [familyDeliverySignature]);
+  // A device pin that could not be used (familyPinReplay.js): the question on
+  // screen is a fresh allocation, and support can see which pin was dropped.
+  const familyPinNotice = processedQuestion?.familyPinNotice || null;
+  useEffect(() => {
+    if (!familyPinNotice) return;
+    recordQuestionResolutionDiagnostic({
+      kind: 'family-pin-superseded',
+      context: { assignmentId, questionId: familyPinNotice.questionId, familyId: familyPinNotice.familyId, familyVersion: familyPinNotice.familyVersion, activityRole, executionScope },
+      failure: { classification: familyPinNotice.classification, recovery: 'fresh-allocation', diagnostics: familyPinNotice },
+    });
+    // Once per distinct notice.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [familyPinNotice?.classification, familyPinNotice?.pinFingerprint, familyDeliverySignature]);
   // Which algebra workspace this question opens — decided once, by the same
   // React-free resolver the capability certification tests call.
   const algebraWorkspaceRoute = useMemo(
@@ -1548,14 +1565,7 @@ export default function QuestionEngine({
       case 'contextInterpretation':
         return <ContextInterpretation {...commonModuleProps} />;
       case 'platformQuestionError':
-        return (
-          <div role="alert" style={{ padding: '22px 24px', margin: '0 auto', maxWidth: '640px', borderRadius: '12px', background: 'var(--mm-warning-bg)', border: '1px solid #f9ab00', textAlign: 'left' }}>
-            <h3 style={{ margin: 0, color: 'var(--mm-warning-text)' }}>This question is temporarily unavailable</h3>
-            <p style={{ margin: '10px 0 0', lineHeight: 1.55 }}>
-              MathMaster could not prepare this question correctly. You can continue with the rest of the assignment; this item will not trap you on this screen.
-            </p>
-          </div>
-        );
+        return resolutionFailurePanel;
       default:
         // Batch A-D interactive tools never reach this switch: they resolve
         // through the shared registry above, so a new tool becomes
@@ -1573,6 +1583,32 @@ export default function QuestionEngine({
         );
     }
   };
+
+  /*
+   * A QUESTION THAT COULD NOT BE PREPARED — most importantly a Question
+   * Family pin that will not replay, which is never swapped for another
+   * instance (src/platform/generation/familyPinReplay.js). Rendered OUTSIDE
+   * the locked fieldset below: an already-answered or closed question is
+   * still a question the student must be able to move on from. No Submit is
+   * offered (shouldShowSubmit), so no attempt or grade can follow.
+   */
+  const resolutionFailurePanel = processedQuestion?.type === 'platformQuestionError' ? (
+    <QuestionResolutionFailure
+      failure={processedQuestion.platformError}
+      context={{
+        assignmentId,
+        questionId: processedQuestion.questionId ?? question?.questionId ?? question?.id ?? null,
+        familyId: processedQuestion.platformError?.diagnostics?.familyId ?? null,
+        familyVersion: processedQuestion.platformError?.diagnostics?.familyVersion ?? null,
+        activityRole,
+      }}
+      executionScope={executionScope}
+      onRetry={onResolutionRetry}
+      onNextQuestion={onNextQuestion}
+      nextQuestionLabel={nextQuestionLabel}
+      hasRecordedWork={(Number(record.totalAttempts) || 0) > 0 || ['correct', 'expired'].includes(record.status)}
+    />
+  ) : null;
 
   const submitDisabled = !answerState.isComplete || submitting || locked || scaffoldRequired || contextScaffoldRequired || pausedByAnotherTab;
   const shouldShowSubmit = !missingToolDefinition && processedQuestion?.type !== 'modelingLab' && processedQuestion?.type !== 'platformQuestionError' && (processedQuestion?.type !== 'stepAlgebra' || answerState.isComplete);
@@ -1953,6 +1989,7 @@ export default function QuestionEngine({
             </button>
           </div>
         ) : null}
+        {resolutionFailurePanel || (
         <fieldset disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting || pausedByAnotherTab} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           {/* `inert` must be a boolean: React 19 reads inert="" as false, which
               left a completed answer's math field focused and editable (and
@@ -1977,6 +2014,7 @@ export default function QuestionEngine({
             </QuestionModuleBoundary>
           </div>
         </fieldset>
+        )}
 
         {scaffoldRequired && (
           <div role="dialog" aria-modal="true" aria-label="Productive struggle scaffold" style={{ position: 'absolute', inset: 0, zIndex: 35, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', background: 'rgba(232,240,254,0.78)' }}>
@@ -2199,5 +2237,52 @@ export default function QuestionEngine({
     </div>
     </WorkViewUndoProvider>
     </QuestionLifecycleProvider>
+  );
+}
+
+/*
+ * THE QUESTION-LEVEL BOUNDARY AROUND EVERYTHING THE ENGINE PREPARES.
+ *
+ * The body above resolves the question before any module renders: runtime
+ * repair, the Question Family instance (replayed from its delivery pin), the
+ * word-problem layer, and every memo derived from them. A throw there used to
+ * escape to AppErrorBoundary and take down the whole assignment.
+ * QuestionResolutionBoundary contains it to this question; navigation, the
+ * neighbouring questions and the grade display all live outside it. "Try
+ * again" remounts the body, which prepares the question from scratch —
+ * always safe, because preparing a question writes nothing.
+ */
+export default function QuestionEngine(props) {
+  const [resolutionAttempt, setResolutionAttempt] = useState(0);
+  const retry = useCallback(() => setResolutionAttempt((value) => value + 1), []);
+  const { question, generationKey, assignmentId, activityRole, executionScope, onNextQuestion, nextQuestionLabel, questionRecord } = props;
+  const record = questionRecord && typeof questionRecord === 'object' ? questionRecord : {};
+  let family = null;
+  try {
+    family = question?.questionFamily && typeof question.questionFamily === 'object' ? question.questionFamily : null;
+  } catch {
+    family = null;
+  }
+  const questionId = (() => {
+    try { return question?.questionId ?? question?.id ?? null; } catch { return null; }
+  })();
+  return (
+    <QuestionResolutionBoundary
+      resetKey={`${generationKey ?? ''}|${questionId ?? ''}|${resolutionAttempt}`}
+      context={{
+        assignmentId: assignmentId ?? null,
+        questionId,
+        familyId: (() => { try { return family?.id || family?.familyId || (family ? 'assignment-template' : null); } catch { return null; } })(),
+        familyVersion: (() => { try { return Number.isInteger(Number(family?.version)) ? Number(family.version) : null; } catch { return null; } })(),
+        activityRole: activityRole ?? 'practice',
+      }}
+      executionScope={executionScope ?? 'student'}
+      onRetry={retry}
+      onNextQuestion={onNextQuestion}
+      nextQuestionLabel={nextQuestionLabel}
+      hasRecordedWork={(Number(record.totalAttempts) || 0) > 0}
+    >
+      <QuestionEngineBody key={resolutionAttempt} {...props} onResolutionRetry={retry} />
+    </QuestionResolutionBoundary>
   );
 }

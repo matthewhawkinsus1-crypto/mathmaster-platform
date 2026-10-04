@@ -31,6 +31,8 @@
 // re-read because some OTHER assignment changed. Console errors and React
 // warnings fail the run. Exit code 1 on any finding.
 
+import { newSchoolContext } from './schoolClock.mjs';
+
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
 const ORIGIN = process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188';
@@ -57,7 +59,7 @@ const finding = (journey, message) => { findings.push(`[${journey}] ${message}`)
 const settle = (page, ms = 400) => page.waitForTimeout(ms);
 
 const openPage = async (query) => {
-  const context = await browser.newContext({ viewport: { width: 1366, height: 768 } });
+  const context = await newSchoolContext(browser, { viewport: { width: 1366, height: 768 } });
   const page = await context.newPage();
   const consoleProblems = [];
   const notSimulated = new Map();

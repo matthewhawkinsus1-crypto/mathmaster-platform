@@ -39,6 +39,7 @@ import {
   toMillis,
 } from '../../../functions/shared/supportProfileModel.mjs';
 import { planWindowOn, resolveStudentSupportDeadline } from '../../../functions/shared/supportDeadline.mjs';
+import { resolveStudentOverride } from '../../../functions/shared/studentAssignmentOverrides.mjs';
 import {
   ACTOR_TYPE,
   EVIDENCE_EVENT_TYPE,
@@ -367,6 +368,8 @@ export const buildAssignmentEvidenceRow = ({
   engagement = [],
   recordingStartMs = null,
   nowValue = Date.now(),
+  // The student's private override record, when the caller holds it.
+  privateOverride = undefined,
 } = {}) => {
   const assignmentId = clean(assignment?.id);
   const studentId = clean(student?.id);
@@ -381,8 +384,10 @@ export const buildAssignmentEvidenceRow = ({
     { endOfDay: true, timeZone: SCHOOL_TIME_ZONE },
   );
   const releaseAtMs = parseInstant(assignment?.releaseAt || assignment?.releaseDate, { timeZone: SCHOOL_TIME_ZONE });
-  const override = assignment?.studentOverrides?.[studentId] || null;
-  const attendanceFinalAtMs = parseInstant(override?.lateDueAt || override?.dueAt, { endOfDay: true, timeZone: SCHOOL_TIME_ZONE });
+  // The student's own controls (individual cutoff, excused), as the one
+  // override resolver answers them — private record merged with any shared copy.
+  const override = resolveStudentOverride({ assignment, studentId, privateOverride });
+  const attendanceFinalAtMs = parseInstant(override?.lateDueAt, { endOfDay: true, timeZone: SCHOOL_TIME_ZONE });
   const supportDeadline = deadlineUnderRevision(assignment, governing.revision);
   const effectiveDueAtMs = Math.max(...[classDueAtMs, supportDeadline?.supportDueAtMs].filter(Number.isFinite), -Infinity);
   const effectiveFinalAtMs = Math.max(...[classFinalAtMs, attendanceFinalAtMs, supportDeadline?.supportFinalAtMs].filter(Number.isFinite), -Infinity);

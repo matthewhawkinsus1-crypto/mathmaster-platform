@@ -43,6 +43,7 @@ import { planSeatAdditions, resolveGenerationAllocation, resolveLearnerSeat } fr
 import { gradeServerResponse, gradeToolWork } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { executableSource } from './helpers/sourceContract.mjs';
 import { correctLinearBoardResponse } from './helpers/linearMultipleRepresentationsResponses.mjs';
+import { anchorLessonFor } from './helpers/honorsRecipeLessons.mjs';
 import {
   PRODUCTION_LEGACY_HONORS_QUESTION,
   editorQuestionsOf,
@@ -86,20 +87,32 @@ test('the production case: an Algebra I MR lesson going to an "Algebra II" Honor
 });
 
 test('1. an Algebra I assignment can never receive an Algebra II deterministic extension', () => {
-  // Offered one registered recipe at a time, an Algebra I context selects it
-  // only if that recipe serves Algebra I.
+  // Offered one registered recipe at a time, an Algebra I lesson on that
+  // recipe's own anchor concept selects it only if that recipe serves Algebra I.
+  // (Each recipe meets a lesson about ITS concept: with one recipe in the
+  // registry this used the Multiple Representations lesson for all of them.)
   for (const recipe of HONORS_RECIPE_REGISTRY) {
-    const selection = selectHonorsExtensionRecipe({ questions: LESSON_QUESTIONS, assignmentCourseId: 'algebra1', registry: [recipe] });
-    if (selection.status === HONORS_RECIPE_STATUS.READY) assert.ok(selection.recipe.supportedCourses.includes('algebra1'), recipe.id);
-    else assert.equal(recipe.supportedCourses.includes('algebra1'), false, `${recipe.id} serves Algebra I but was refused: ${selection.code}`);
+    for (const familyId of recipe.anchor.familyIds) {
+      const selection = selectHonorsExtensionRecipe({ questions: anchorLessonFor(familyId, 'algebra1'), assignmentCourseId: 'algebra1', registry: [recipe] });
+      if (selection.status === HONORS_RECIPE_STATUS.READY) assert.ok(selection.recipe.supportedCourses.includes('algebra1'), recipe.id);
+      else assert.equal(recipe.supportedCourses.includes('algebra1'), false, `${recipe.id} serves Algebra I but was refused: ${selection.code}`);
+    }
   }
 
   // A registry that ONLY has an Algebra II recipe on the very same family.
+  // (An Algebra II recipe is aligned to Algebra II TEKS: defineHonorsRecipe
+  // refuses one that would carry Algebra I standards into Algebra II.)
   const algebra2Only = defineHonorsRecipe({
     ...HONORS_RECIPE_REGISTRY[0],
     id: 'honors.test.algebra2Only',
     supportedCourses: ['algebra2'],
+    question: { ...HONORS_RECIPE_REGISTRY[0].question, standard: 'A2.2A', alignments: [{ framework: 'teks', code: 'A2.2A', role: 'primary' }] },
   });
+  assert.throws(
+    () => defineHonorsRecipe({ ...HONORS_RECIPE_REGISTRY[0], id: 'honors.test.leaky', supportedCourses: ['algebra2'] }),
+    /TEKS alignments belong to Algebra I, but it is written for Algebra II/,
+    'an Algebra II recipe carrying Algebra I TEKS never enters the registry',
+  );
   const refused = selectHonorsExtensionRecipe({ questions: LESSON_QUESTIONS, assignmentCourseId: 'algebra1', registry: [algebra2Only] });
   assert.equal(refused.status, HONORS_RECIPE_STATUS.UNAVAILABLE);
   assert.equal(refused.code, HONORS_RECIPE_UNAVAILABLE.COURSE_NOT_SUPPORTED);

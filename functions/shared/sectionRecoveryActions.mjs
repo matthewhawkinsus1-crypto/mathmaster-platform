@@ -27,7 +27,7 @@ import {
 } from './sectionRecoveryRecord.mjs';
 import { reproduceFamilyQuestionFromPin } from './questionFamilyInstance.mjs';
 import { normalizeDeliveryPin } from './questionGenerationIdentity.mjs';
-import { deliveredQuestionForGrading } from './serverGrading/deliveredQuestion.mjs';
+import { deliveredQuestionForGrading, runtimeRepairedQuestion } from './serverGrading/deliveredQuestion.mjs';
 import { gradeFamilyInstanceResponse } from './serverGrading/serverResponseGrading.mjs';
 import {
   RECOVERY_ACTION,
@@ -39,10 +39,12 @@ import {
 /**
  * The instance a pin names, built exactly as QuestionEngine builds it: from
  * the runtime-repaired template, then normalized by the word-problem layer.
+ * (The template itself is NOT normalized first: the plan dealt this pin from
+ * the stored template, and a local template's fingerprint covers `context`.)
  */
 const reproduceDeliveredFamilyQuestion = ({ question, assignmentId, storageIndex, pin }) => {
   const reproduced = reproduceFamilyQuestionFromPin({
-    question: deliveredQuestionForGrading(question),
+    question: runtimeRepairedQuestion(question),
     assignmentId,
     storageIndex,
     pin,

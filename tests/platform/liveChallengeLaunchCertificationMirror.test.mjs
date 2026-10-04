@@ -1,5 +1,5 @@
-// The launch certification (tests/integration/liveChallengeLaunchCertification
-// .test.mjs) runs every decision a student device makes through the same pure
+// The launch certification (tests/integration/liveChallengeLaunch/
+// liveChallengeLaunchCertification.test.mjs) runs every decision a student device makes through the same pure
 // modules the student screen uses, but a few behaviours live inline in
 // LiveChallengeStudent.jsx, which node cannot render. The certification's
 // simulated device (tests/integration/support/liveChallengeSimStudent.mjs)

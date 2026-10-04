@@ -1,7 +1,7 @@
 import { supportDatesFromOverride, withStudentSupportDates } from '../../../functions/shared/supportDeadline.mjs';
+import { resolveStudentOverride } from '../../../functions/shared/studentAssignmentOverrides.mjs';
 
 const clean = (value) => String(value ?? '').trim();
-const list = (value) => (Array.isArray(value) ? value : []);
 const millis = (value) => {
   if (!value) return null;
   const parsed = new Date(value).getTime();
@@ -12,21 +12,19 @@ const millis = (value) => {
  * Read the platform's canonical per-student assignment controls without
  * recalculating attendance extensions inside Grade Transfer.
  *
- * Attendance/reopen workflows write assignment.studentOverrides[studentId].
- * dueAt/lateDueAt and the explicit reopened flag. reopenedStudentIds is kept as
- * a compatibility authority because the Grade Center recognizes it too.
+ * A student's individual final cutoff and reopened flag are resolved by the
+ * one override resolver (functions/shared/studentAssignmentOverrides.mjs):
+ * their private record (`privateOverride`, when the caller holds it) merged with any
+ * copy on the shared document, including the `reopenedStudentIds` form the
+ * Grade Center also recognizes.
  */
-export const resolveStudentFinalDeadlineFromAssignment = ({ student, assignment } = {}) => {
+export const resolveStudentFinalDeadlineFromAssignment = ({ student, assignment, privateOverride = undefined } = {}) => {
   const studentId = clean(student?.id || student?.studentId);
   if (!studentId) return { deadline: null, reopened: false };
 
-  const overrides = assignment?.studentOverrides;
-  const override = overrides && typeof overrides === 'object' && !Array.isArray(overrides)
-    ? overrides[studentId]
-    : null;
-  const reopened = override?.reopened === true
-    || list(assignment?.reopenedStudentIds).map(clean).includes(studentId);
-  const attendanceDeadline = override?.lateDueAt || override?.dueAt || null;
+  const controls = resolveStudentOverride({ assignment, studentId, privateOverride });
+  const reopened = controls?.reopened === true;
+  const attendanceDeadline = controls?.lateDueAt || null;
 
   // An individualized extra-time deadline, derived from the student's pinned
   // profile (never stored on the assignment). The grade waits for the later

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { SOURCE_TYPES } from './classPoints.mjs';
+import { resolveStudentOverride } from './studentAssignmentOverrides.mjs';
 
 // Class Points Phase 5A: the first spendable reward. A Practice Pass lets a
 // student EXCUSE the Practice section of one eligible assignment — it is a
@@ -133,18 +134,19 @@ const toInstant = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-export const assignmentCreditLifecycle = (assignment = {}, nowValue = Date.now(), studentId = null) => {
+export const assignmentCreditLifecycle = (assignment = {}, nowValue = Date.now(), studentId = null, { privateOverride = undefined } = {}) => {
   const now = Number(nowValue instanceof Date ? nowValue.getTime() : nowValue) || Date.now();
   const releaseAt = toInstant(assignment?.releaseAt || assignment?.releaseDate);
   const dueAt = toInstant(assignment?.dueAt || assignment?.dueDate);
-  // Same per-student final-cutoff fallback as src/assignmentLifecycle.js and
-  // functions/shared/sectionDeadline.mjs — an attendance extension must not
-  // be invisible to Practice Pass eligibility either.
-  const override = studentId ? assignment?.studentOverrides?.[studentId] : null;
+  // Which per-student cutoff applies is decided by the one override resolver
+  // (studentAssignmentOverrides.mjs) that src/assignmentLifecycle.js and
+  // functions/shared/sectionDeadline.mjs read — an attendance extension must
+  // not be invisible to Practice Pass eligibility either, wherever it is stored.
+  const override = studentId ? resolveStudentOverride({ assignment, studentId, privateOverride }) : null;
   const classLateDueAt = toInstant(
     assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate,
   );
-  const studentLateDueAt = toInstant(override?.lateDueAt || override?.dueAt);
+  const studentLateDueAt = toInstant(override?.lateDueAt);
   const lateDueAt = classLateDueAt === null
     ? studentLateDueAt
     : studentLateDueAt === null
@@ -230,6 +232,10 @@ export const evaluatePracticePassEligibility = ({
   balance = 0,
   nowValue = Date.now(),
   studentId = null,
+  // The student's private override record (studentAssignmentOverrides),
+  // read by the server in the same transaction — an extension stored there
+  // keeps the assignment credit-eligible for them exactly as before.
+  privateOverride = undefined,
   // A pass the student already holds is paid for; only a Class Points
   // purchase needs the balance.
   paymentMethod = PRACTICE_PASS_PAYMENT.CLASS_POINTS,
@@ -287,7 +293,7 @@ export const evaluatePracticePassEligibility = ({
     return fail(PRACTICE_PASS_INELIGIBLE_CODES.TEST_ASSIGNMENT, 'A Practice Pass cannot be used on a test.');
   }
 
-  const lifecycle = assignmentCreditLifecycle(assignment, nowValue, studentId);
+  const lifecycle = assignmentCreditLifecycle(assignment, nowValue, studentId, { privateOverride });
   if (lifecycle.isScheduled) {
     return fail(
       PRACTICE_PASS_INELIGIBLE_CODES.ASSIGNMENT_SCHEDULED,

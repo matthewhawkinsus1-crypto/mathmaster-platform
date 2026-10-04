@@ -272,9 +272,69 @@ how work from an earlier class keeps loading).
 
 ---
 
+## Block 6 — students' own assignment controls (once, after the release that adds it)
+
+A student's extension, excusal, reopen and extra DOL attempts used to be stored
+on the shared assignment, where every student's device can read them. This
+release adds a private record per student and assignment
+(`studentAssignmentOverrides`, readable only by that student, their teacher and
+you). The server now decides deadlines and attempts from it. Design and stages:
+`docs/architecture/student-assignment-overrides.md`.
+
+**Deploy as usual (Block 2), plus the indexes.** Block 2 deploys Functions,
+then rules, then Hosting. This release also adds two composite indexes for
+the next release's teacher screens. Nothing queries them yet, so deploy them
+now and they will be built in advance:
+
+```
+cd ~/mathmaster-platform && firebase deploy --only firestore:indexes --project mathmaster-aleks
+```
+
+(`node scripts/release-firebase.mjs --execute` does this for you: it deploys
+indexes first.) Every step works with previous-release tabs still open:
+
+- the new functions keep the shared copy **in step** with the private records
+  (the "mirror"), so an old screen reads exactly what it read before;
+- a teacher's old tab may still grant a DOL attempt the old way: it is copied
+  into the private record within seconds;
+- the new rules only add the private collections; nothing that worked is
+  refused while the shared copy is kept in step.
+
+No student or teacher screen changes in this release.
+
+**Step 1 — copy existing controls into private records (any time after the deploy).**
+
+1. Sign in as the root administrator → **Administration → Classes** →
+   **Students' own assignment controls**.
+2. **Check without changing anything.** It pages through every assignment and
+   reports how many private records it would create. Nothing is written.
+3. **Copy into private records.** Each student's controls become their
+   private record, with a history entry naming the value it came from.
+   Extension reasons still on an assignment move into the student's private
+   grant record, as in Block 5. The assignments are not changed. Expect
+   **Could not finish: 0**; anything listed was left exactly as it was. If the
+   page closes part-way, press it again: it carries on from where it stopped.
+4. **Check without changing anything** again. The card turns green when there
+   is nothing left to copy. Running it twice is safe: the second run writes
+   nothing.
+5. **Check status** should say *kept in step for older screens* and *Last full
+   copy: finished*.
+
+**Step 2 — nothing else in this release.** Removing the shared copy (so
+students stop receiving classmates' controls at all) needs the next release,
+whose screens read the private records. That release adds the switch to this
+card. Do not use it until that release has been live for a full school day.
+
+**Rollback.** Redeploy the previous release. The shared copy is still
+complete, so it behaves exactly as before; the private records are simply not
+read. After returning to this release, run Step 1 again: it picks up anything
+granted while the previous release was live.
+
+---
+
 ## Nothing else needs updating
 
-No Vercel deploy and no manual database work beyond Blocks 4 and 5. Composite indexes
+No Vercel deploy and no manual database work beyond Blocks 4, 5 and 6. Composite indexes
 do exist (`firestore.indexes.json`); a release that changes them deploys them
 first — `node scripts/release-firebase.mjs` does that for you.
 

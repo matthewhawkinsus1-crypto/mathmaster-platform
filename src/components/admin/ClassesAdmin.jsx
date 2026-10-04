@@ -22,6 +22,10 @@ const danger = { ...quiet, color: 'var(--mm-danger)', borderColor: 'var(--mm-err
 const pill = (background, color) => ({ display: 'inline-block', padding: '3px 9px', borderRadius: 999, background, color, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '.04em' });
 const field = { fontSize: 11, fontWeight: 900, color: 'var(--mm-text-muted)', display: 'block' };
 
+// What a private-controls backfill report wrote (or, as a dry run, would write).
+const overrideRecordsWritten = (report) => (report?.recordsCreated || 0) + (report?.recordsUpdated || 0)
+  + (report?.auditCopiesCreated || 0) + (report?.extensionDetailsMoved || 0);
+
 const EMPTY_CLASS = { classId: '', name: '', course: 'algebra1', courseLevel: 'standard', period: 'Period 1', teacherOfRecord: '' };
 
 export default function ClassesAdmin() {
@@ -40,6 +44,8 @@ export default function ClassesAdmin() {
   const [backfill, setBackfill] = useState(null);
   const [privacy, setPrivacy] = useState(null);
   const [readScope, setReadScope] = useState(null);
+  const [overrideCopy, setOverrideCopy] = useState(null);
+  const [overrideStorage, setOverrideStorage] = useState(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -118,6 +124,12 @@ export default function ClassesAdmin() {
   ).then((result) => { if (result) setDraft(EMPTY_CLASS); });
 
   const removalKinds = describeRemovalKinds();
+
+  // The private-controls card: green once a full copy finished cleanly, or a
+  // check finds nothing left to copy.
+  const overridesCopied = Boolean(overrideCopy?.done && !(overrideCopy.failures || []).length
+    && (!overrideCopy.dryRun || overrideRecordsWritten(overrideCopy) === 0));
+  const overrideLastRun = overrideStorage?.migration?.backfill;
 
   return (
     <div>
@@ -307,6 +319,71 @@ export default function ClassesAdmin() {
             </button>
           </div>
         </div>
+      </section>
+
+      {/* Students' own assignment controls, step 2 of the staged move
+          (docs/architecture/student-assignment-overrides.md): copy each
+          student's extension, excusal, reopen and DOL attempts from the shared
+          assignment into a private record. This release keeps the shared copy
+          in step, so no screen changes; retiring it waits for the release
+          whose screens read the private records. */}
+      <section style={{ ...card, background: overridesCopied ? 'var(--mm-success-bg)' : 'var(--mm-warning-bg)', borderColor: overridesCopied ? 'var(--mm-success-border)' : '#f9ab00' }}>
+        <h3 style={{ margin: 0, color: overridesCopied ? 'var(--mm-success-text)' : 'var(--mm-warning-text)' }}>Students&apos; own assignment controls</h3>
+        <p style={{ margin: '8px 0 14px', color: overridesCopied ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', lineHeight: 1.55 }}>
+          A student&apos;s extension, excusal, reopen and extra DOL attempts were stored on the assignment itself, where every
+          student&apos;s device can read them. This copies each one into a private record only that student and their teacher
+          can open. The assignments keep their copy for now, so nothing any screen shows changes. It is safe to run again —
+          a second run copies nothing — and a run that stops part-way picks up where it left off.
+        </p>
+        <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap' }}>
+          <button type="button" style={quiet} disabled={busy === 'overrides-dry'} onClick={() => run(
+            'overrides-dry',
+            async () => { const result = await teacherAdmin.backfillStudentAssignmentOverrides({ dryRun: true, onPage: setOverrideCopy }); setOverrideCopy(result); return result; },
+            (result) => `${result.assignmentsScanned} assignments checked · ${overrideRecordsWritten(result)} private records would be written. Nothing was written.`,
+          )}>
+            {busy === 'overrides-dry' ? 'Checking…' : 'Check without changing anything'}
+          </button>
+          <button type="button" style={primary} disabled={busy === 'overrides'} onClick={() => run(
+            'overrides',
+            async () => { const result = await teacherAdmin.backfillStudentAssignmentOverrides({ dryRun: false, onPage: setOverrideCopy }); setOverrideCopy(result); return result; },
+            (result) => `${result.recordsCreated} private records created · ${result.recordsUpdated} brought up to date · ${result.failures.length} could not finish.`,
+          )}>
+            {busy === 'overrides' ? 'Copying…' : 'Copy into private records'}
+          </button>
+          <button type="button" style={quiet} disabled={busy === 'overrides-status'} onClick={() => run(
+            'overrides-status',
+            async () => { const result = await teacherAdmin.readAssignmentOverrideStorage(); setOverrideStorage(result); return result; },
+            (result) => (result.sharedRetired ? 'The shared copy is retired.' : 'The shared copy is kept in step for older screens.'),
+          )}>
+            {busy === 'overrides-status' ? 'Checking…' : 'Check status'}
+          </button>
+        </div>
+        {overrideCopy && (
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(0,0,0,.12)', fontSize: 13, lineHeight: 1.7 }}>
+            {overrideCopy.resumedFrom && <div>Resumed after assignment <strong>{overrideCopy.resumedFrom}</strong></div>}
+            <div>Assignments checked: <strong>{overrideCopy.assignmentsScanned || 0}</strong>{overrideCopy.done ? '' : ' so far'}</div>
+            <div>With a student&apos;s controls on them: <strong>{overrideCopy.assignmentsWithSharedStudentData || 0}</strong> ({overrideCopy.sharedStudentEntries || 0} students)</div>
+            <div>Private records {overrideCopy.dryRun ? 'to create' : 'created'}: <strong>{overrideCopy.recordsCreated || 0}</strong></div>
+            <div>{overrideCopy.dryRun ? 'To bring up to date' : 'Brought up to date'}: <strong>{overrideCopy.recordsUpdated || 0}</strong></div>
+            <div>Already private: <strong>{overrideCopy.recordsUnchanged || 0}</strong></div>
+            <div>History entries {overrideCopy.dryRun ? 'to copy' : 'copied'} (a student&apos;s share of the DOL recovery log): <strong>{overrideCopy.auditCopiesCreated || 0}</strong></div>
+            <div>Could not finish: <strong>{(overrideCopy.failures || []).length}</strong></div>
+            {(overrideCopy.failures || []).length > 0 && (
+              <ul style={{ margin: '6px 0 0', color: 'var(--mm-error-text)' }}>
+                {overrideCopy.failures.slice(0, 10).map((failure) => <li key={failure.assignmentId}>{failure.assignmentId} — {failure.reason}</li>)}
+              </ul>
+            )}
+          </div>
+        )}
+        {overrideStorage && (
+          <p style={{ margin: '12px 0 0', color: 'var(--mm-text)', lineHeight: 1.55, fontSize: 13 }}>
+            Shared copy: <strong>{overrideStorage.sharedRetired ? 'retired' : 'kept in step for older screens'}</strong>.
+            {' '}Last full copy: <strong>{!overrideLastRun?.lastRun ? 'never run'
+              : overrideLastRun.done ? 'finished'
+                : overrideLastRun.cursor ? `stopped after ${overrideLastRun.cursor} — run it again to continue`
+                  : 'some assignments could not be copied — run it again'}</strong>.
+          </p>
+        )}
       </section>
 
       {/* --- Create / edit a class ------------------------------------------- */}

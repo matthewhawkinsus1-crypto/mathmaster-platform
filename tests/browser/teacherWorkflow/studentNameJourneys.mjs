@@ -50,6 +50,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { IDENTITY_EDGE_IDS, IDENTITY_NAME_TO_ADD, TEACHER_EMAIL } from './fixture.js';
+import { newSchoolContext } from './schoolClock.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -625,7 +626,7 @@ const journeys = {
 
 for (const viewport of VIEWPORTS) {
   for (const [name, run] of Object.entries(journeys).filter(([key]) => !ONLY || ONLY.includes(key))) {
-    const context = await browser.newContext({ viewport, acceptDownloads: true });
+    const context = await newSchoolContext(browser, { viewport, acceptDownloads: true });
     const page = await context.newPage();
     const pageErrors = [];
     page.on('pageerror', (error) => pageErrors.push(String(error.message || error).split('\n')[0]));
