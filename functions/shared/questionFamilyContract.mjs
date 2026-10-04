@@ -82,7 +82,9 @@
  *                      and the engine interleaves the lists so every block
  *                      of consecutive seats covers every stratum once
  *                      (questionFamilyEngine.mjs). `parameters` then receives
- *                      the stratum as its second argument.
+ *                      the stratum as its second argument. `balance` names
+ *                      the key a mixed slot is balanced on first ("case"),
+ *                      so cases stay in equal shares when shapes also vary.
  *   instanceFields     fields only an instance may carry (an answer key, the
  *                      generated equation); removed from the authored slot
  *                      before the family's fields are merged in.
@@ -239,6 +241,13 @@ const resolveKnob = (knob, requested) => {
   return { value: knob.default, issue: 'constraint_unknown_kind' };
 };
 
+/**
+ * A constraint name with case, spaces, hyphens and underscores ignored:
+ * "solution_case", "SolutionCase" and "solutioncase" all mean solutionCase,
+ * and an issue says so instead of only listing the family's constraints.
+ */
+export const constraintNameKey = (name) => clean(name).toLowerCase().replace(/[^a-z0-9]/g, '');
+
 /** What a knob accepts, for a message a teacher (or an AI author) can act on. */
 export const describeKnobAllowance = (knob) => {
   if (knob?.kind === 'range') return { kind: 'range', limits: [...knob.limits], default: [...knob.default] };
@@ -274,7 +283,9 @@ export const resolveFamilyConstraints = (family, overrides = {}) => {
   });
   Object.keys(requested).forEach((name) => {
     if (!Object.prototype.hasOwnProperty.call(family?.constraints || {}, name)) {
-      issues.push({ constraint: name, code: 'constraint_unknown', requested: requested[name], known: Object.keys(family?.constraints || {}) });
+      const known = Object.keys(family?.constraints || {});
+      const closest = known.find((candidate) => constraintNameKey(candidate) === constraintNameKey(name)) || null;
+      issues.push({ constraint: name, code: 'constraint_unknown', requested: requested[name], known, ...(closest ? { closest } : {}) });
     }
   });
   const fatal = family?.constraintPolicy === CONSTRAINT_POLICY.STRICT && issues.length > 0;
@@ -297,7 +308,11 @@ export const describeConstraintIssue = (issue = {}, familyLabel = 'this family')
   const asked = JSON.stringify(issue.requested);
   if (issue.code === 'constraint_unknown') {
     const known = Array.isArray(issue.known) && issue.known.length ? issue.known.join(', ') : 'none';
-    return `"${name}" is not a constraint of ${familyLabel} (its constraints are: ${known})`;
+    const closest = clean(issue.closest);
+    return `"${name}" is not a constraint of ${familyLabel} (${closest ? `did you mean "${closest}"? ` : ''}its constraints are: ${known})`;
+  }
+  if (issue.code === 'tool_not_supported') {
+    return `${familyLabel} cannot be answered in the ${asked} tool; use ${allowanceText(issue.allowed)}`;
   }
   return `"${name}": ${asked} is not allowed by ${familyLabel}; use ${allowanceText(issue.allowed)}`;
 };
@@ -425,6 +440,9 @@ export const defineQuestionFamily = (spec = {}) => {
   if (spec.strata !== undefined && (!isObject(spec.strata) || typeof spec.strata.values !== 'function')) {
     fail(id, '`strata.values` must be a function of the constraints.');
   }
+  if (spec.strata?.balance !== undefined && !clean(spec.strata.balance)) {
+    fail(id, '`strata.balance` names the stratum key a mixed slot is balanced on (e.g. "case").');
+  }
 
   const family = Object.freeze({
     contractVersion: QUESTION_FAMILY_CONTRACT_VERSION,
@@ -466,7 +484,7 @@ export const defineQuestionFamily = (spec = {}) => {
     // pre-fill: they are removed from the template before the merge, so a
     // stale answer key copied into a slot cannot reach an instance.
     instanceFields: Object.freeze((Array.isArray(spec.instanceFields) ? spec.instanceFields : []).map(clean).filter(Boolean)),
-    strata: spec.strata ? Object.freeze({ values: spec.strata.values }) : null,
+    strata: spec.strata ? Object.freeze({ values: spec.strata.values, ...(clean(spec.strata.balance) ? { balance: clean(spec.strata.balance) } : {}) }) : null,
     capabilities: deepFreeze(isObject(spec.capabilities) ? JSON.parse(JSON.stringify(spec.capabilities)) : {}),
   });
 

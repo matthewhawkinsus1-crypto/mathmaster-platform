@@ -38,7 +38,7 @@
  * Pure: no Firestore, no clock.
  */
 
-import { describeConstraintIssue, resolveFamilyConstraints } from './questionFamilyContract.mjs';
+import { CONSTRAINT_POLICY, describeConstraintIssue, resolveFamilyConstraints } from './questionFamilyContract.mjs';
 import { buildFamilyQuestion, cachedFamilyInstanceSequence } from './questionFamilyEngine.mjs';
 import { getPlatformQuestionFamily, hasPlatformQuestionFamily } from './questionFamilyRegistry.mjs';
 import { buildTemplateFamily, hasLocalFamilyTemplate } from './questionFamilyTemplate.mjs';
@@ -62,8 +62,9 @@ export const FAMILY_RESOLUTION_ERROR = Object.freeze({
   ALL_INSTANCES_EXCLUDED: 'all_instances_excluded',
   PIN_MISMATCH: 'pin_mismatch',
   // A strict family (constraintPolicy 'strict') was asked for something it
-  // cannot honour exactly. It generates nothing rather than the default: a
-  // slot that asked for "no solution" must never quietly ask for one.
+  // cannot honour exactly — a constraint value, or a tool it cannot fill. It
+  // generates nothing rather than the default: a slot that asked for "no
+  // solution" must never quietly ask for one.
   CONSTRAINT_INVALID: 'constraint_invalid',
 });
 
@@ -150,6 +151,24 @@ export const resolveQuestionFamilyDefinition = (question, { slotKey = '', suppor
   }
 
   const requestedTool = reference.tool;
+  // A strict family answers only in the tools it declares: asking for another
+  // is refused like any other constraint it cannot honour, never quietly
+  // opened in its default tool.
+  if (requestedTool && !family.tools[requestedTool] && family.constraintPolicy === CONSTRAINT_POLICY.STRICT) {
+    const toolIssue = {
+      constraint: 'tool',
+      code: 'tool_not_supported',
+      requested: requestedTool,
+      allowed: { kind: 'choice', values: Object.keys(family.tools), default: family.defaultTool },
+    };
+    return {
+      error: FAMILY_RESOLUTION_ERROR.CONSTRAINT_INVALID,
+      reference,
+      family,
+      constraintIssues: [toolIssue],
+      issues: [describeConstraintIssue(toolIssue, `${family.id} v${family.version}`)],
+    };
+  }
   const slotType = clean(question?.type);
   const tool = requestedTool && family.tools[requestedTool]
     ? requestedTool

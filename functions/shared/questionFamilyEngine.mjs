@@ -283,10 +283,13 @@ export const createFamilyInstanceSequence = (family, constraintValues, seedKey) 
  *
  *   D[k] = S_order(B)[k mod m] [B]       B = floor(k / m), m = number of strata
  *
- * where order(B) is a seeded shuffle of the strata for block B. So
+ * where order(B) is a seeded shuffle of the strata for block B — balanced
+ * by case when the family names `strata.balance` (blockOrder). So
  *
  *   - every m consecutive allocation indices starting at a multiple of m cover
- *     every stratum exactly once — 30 seats over 3 cases are exactly 10 each;
+ *     every stratum exactly once, and with a balance key every run of g
+ *     indices starting a round covers every case once — 30 seats over 3
+ *     cases are exactly 10 each, whatever else the strata vary;
  *   - a student's later variants (index + variant·stride, and the stride is
  *     the class size, often a multiple of m) do NOT keep landing on the same
  *     stratum, because the order changes from block to block;
@@ -333,11 +336,46 @@ export const familyStrata = (family, constraintValues = {}) => {
 export const instanceStratum = (family, constraintValues, instance) => (familyStrata(family, constraintValues) || [])
   .find((stratum) => Object.entries(stratum).every(([name, value]) => JSON.stringify(instance?.params?.[name]) === JSON.stringify(value))) || null;
 
-const blockOrder = (family, seedKey, block, count) => {
-  const order = Array.from({ length: count }, (_, index) => index);
-  for (let index = count - 1; index > 0; index -= 1) {
-    const swap = hashString32(`${family.id}|v${family.version}|${seedKey}|block:${block}|${index}`) % (index + 1);
-    [order[index], order[swap]] = [order[swap], order[index]];
+/**
+ * The order of the strata in block B.
+ *
+ * Plain: one seeded shuffle of the block. Balanced — the family names
+ * `strata.balance` (the solution case): the strata are grouped by that key
+ * and the block runs in rounds, each round one stratum of EVERY group in a
+ * seeded order. So every run of g seats that starts a round (g = number of
+ * cases) covers every case once, however many shapes each case has — a class
+ * of 30 over three cases is exactly 10 each, with or without distribution
+ * mixed in — and every whole block still covers every stratum once. Groups
+ * of unequal size are not balanced (plain shuffle).
+ */
+const blockOrder = (family, strata, seedKey, block) => {
+  const shuffled = (items, salt) => {
+    const order = [...items];
+    for (let index = order.length - 1; index > 0; index -= 1) {
+      const swap = hashString32(`${family.id}|v${family.version}|${seedKey}|block:${block}|${salt}${index}`) % (index + 1);
+      [order[index], order[swap]] = [order[swap], order[index]];
+    }
+    return order;
+  };
+  const plain = () => shuffled(strata.map((_, index) => index), '');
+  const balance = family.strata?.balance;
+  if (!balance) return plain();
+  const groups = [];
+  strata.forEach((stratum, index) => {
+    const key = JSON.stringify(stratum[balance]);
+    let group = groups.find((entry) => entry.key === key);
+    if (!group) {
+      group = { key, members: [] };
+      groups.push(group);
+    }
+    group.members.push(index);
+  });
+  const size = groups[0]?.members.length || 0;
+  if (groups.length < 2 || groups.some((group) => group.members.length !== size)) return plain();
+  const members = groups.map((group, position) => shuffled(group.members, `group:${position}|`));
+  const order = [];
+  for (let round = 0; round < size; round += 1) {
+    shuffled(groups.map((_, position) => position), `round:${round}|`).forEach((position) => order.push(members[position][round]));
   }
   return order;
 };
@@ -348,7 +386,7 @@ const createStratifiedSequence = (family, constraintValues, seedKey) => {
   const count = subs.length;
   const orders = new Map();
   const orderFor = (block) => {
-    if (!orders.has(block)) orders.set(block, blockOrder(family, seedKey, block, count));
+    if (!orders.has(block)) orders.set(block, blockOrder(family, strata, seedKey, block));
     return orders.get(block);
   };
   const entryAt = (index, budget) => {

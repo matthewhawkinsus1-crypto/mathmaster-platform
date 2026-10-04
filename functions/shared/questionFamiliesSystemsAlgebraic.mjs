@@ -79,8 +79,13 @@ const COEFFICIENT_LIMIT = 12;
 // The second equation of a special system is the first times one of these:
 // never ±1, which would only repeat (or negate) the first equation's left side.
 const MULTIPLIERS = Object.freeze([-4, -3, -2, 2, 3, 4]);
-// The first equation's constant in a special system.
-const SPECIAL_CONSTANTS = Object.freeze({ low: -24, high: 24 });
+// The constants of a special system scale with its coefficients, so a
+// smaller coefficient range (reduced complexity) is smaller arithmetic too:
+// the first equation's constant within ±4·M and a parallel line's within
+// ±10·M (M the largest coefficient allowed) — ±24 and ±60 by default.
+const largestCoefficient = (c) => Math.max(Math.abs(c.coefficientRange[0]), Math.abs(c.coefficientRange[1]));
+const firstConstantBound = (c) => 4 * largestCoefficient(c);
+const parallelConstantBound = (c) => Math.min(CONSTANT_LIMIT, 10 * largestCoefficient(c));
 // Fractional coordinates: halves, thirds and quarters.
 const FRACTION_DENOMINATORS = Object.freeze([2, 3, 4]);
 
@@ -137,7 +142,13 @@ export const systemSolutionKey = (classified) => {
   return Object.freeze({ outcome: 'point', x, y, classification: 'consistent-independent', display: `(${x}, ${y})` });
 };
 
-export const algebraicSystemFamily = defineQuestionFamily({
+/**
+ * The family, built from a table of case constructors. The registered family
+ * uses SYSTEM_CASE_CONSTRUCTORS; the mutation tests build it from a broken
+ * table and require the independent classification to refuse every system
+ * the broken constructor makes.
+ */
+export const defineAlgebraicSystemFamily = ({ constructors = SYSTEM_CASE_CONSTRUCTORS } = {}) => defineQuestionFamily({
   id: 'systems.algebraic2x2',
   version: 1,
   title: 'System of two linear equations (algebraic: one, none or infinitely many)',
@@ -155,7 +166,7 @@ export const algebraicSystemFamily = defineQuestionFamily({
     coefficientRange: rangeKnob([-6, 6], { limits: [-12, 12], label: 'Coefficient range' }),
   },
   conceptConstraints: ['solutionCase', 'solutionForm'],
-  strata: { values: (c) => casesFor(c.solutionCase).map((solutionCase) => ({ case: solutionCase })) },
+  strata: { balance: 'case', values: (c) => casesFor(c.solutionCase).map((solutionCase) => ({ case: solutionCase })) },
   parameters: (c, stratum) => {
     if (!stratum) return {};
     const coefficient = intDomain(c.coefficientRange[0], c.coefficientRange[1], { exclude: [0] });
@@ -166,10 +177,10 @@ export const algebraicSystemFamily = defineQuestionFamily({
     const domains = {
       a1: coefficient,
       b1: coefficient,
-      c1: intDomain(SPECIAL_CONSTANTS.low, SPECIAL_CONSTANTS.high, { exclude: [0] }),
+      c1: intDomain(-firstConstantBound(c), firstConstantBound(c), { exclude: [0] }),
       k: choiceDomain(MULTIPLIERS),
     };
-    if (stratum.case === SYSTEM_CASE.NONE) domains.c2 = intDomain(-CONSTANT_LIMIT, CONSTANT_LIMIT, { exclude: [0] });
+    if (stratum.case === SYSTEM_CASE.NONE) domains.c2 = intDomain(-parallelConstantBound(c), parallelConstantBound(c), { exclude: [0] });
     return domains;
   },
   // Smaller numbers only; the case and the intersection form are concepts.
@@ -180,7 +191,7 @@ export const algebraicSystemFamily = defineQuestionFamily({
     const numbers = Object.fromEntries(Object.entries(params)
       .filter(([name]) => name !== 'case')
       .map(([name, value]) => [name, toRational(value)]));
-    const rows = SYSTEM_CASE_CONSTRUCTORS[params.case](numbers);
+    const rows = constructors[params.case](numbers);
     return {
       rows,
       point: params.case === SYSTEM_CASE.ONE ? { x: numbers.x0, y: numbers.y0 } : null,
@@ -270,5 +281,7 @@ export const algebraicSystemFamily = defineQuestionFamily({
     independentVerification: 'questionFamilyExact.classifyLinearSystem2x2 (determinant and augmented minors) on the displayed rows',
   },
 });
+
+export const algebraicSystemFamily = defineAlgebraicSystemFamily();
 
 export const SYSTEMS_ALGEBRAIC_FAMILIES = Object.freeze([algebraicSystemFamily]);

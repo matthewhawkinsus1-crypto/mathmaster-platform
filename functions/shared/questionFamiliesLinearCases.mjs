@@ -349,14 +349,14 @@ const multiStepParameters = (c, stratum) => {
   return domains;
 };
 
-const multiStepDerive = (params, c) => {
+const multiStepDerive = (constructors) => (params, c) => {
   const shape = MULTI_STEP_SHAPES[params.shape];
   const p = toRational(params.p);
   const q = toRational(params.q);
   const r = toRational(params.r);
   const { A, B } = shape.simplified({ p, q, r });
   const intendedSolution = params.case === LINEAR_CASE.ONE && params.x !== undefined ? toRational(params.x) : null;
-  const right = MULTI_STEP_CASE_CONSTRUCTORS[params.case]({
+  const right = constructors[params.case]({
     A,
     B,
     s: params.s === undefined ? null : toRational(params.s),
@@ -375,7 +375,13 @@ const multiStepDerive = (params, c) => {
   };
 };
 
-export const multiStepEquationV2Family = defineQuestionFamily({
+/**
+ * The family, built from a table of case constructors. The registered family
+ * uses MULTI_STEP_CASE_CONSTRUCTORS; the mutation tests build it from a
+ * broken table and require the independent verification to refuse every
+ * instance the broken constructor makes.
+ */
+export const defineMultiStepEquationV2 = ({ constructors = MULTI_STEP_CASE_CONSTRUCTORS } = {}) => defineQuestionFamily({
   id: 'linear.multiStepEquation',
   version: 2,
   title: 'Linear equation with variables on both sides (special cases)',
@@ -398,6 +404,9 @@ export const multiStepEquationV2Family = defineQuestionFamily({
   },
   conceptConstraints: ['solutionCase', 'distribute', 'solutionForm', 'coefficientForm'],
   strata: {
+    // A mixed slot is balanced on the case first: a class of 30 gets 10 of
+    // each whether or not distribution is mixed in too.
+    balance: 'case',
     values: (c) => casesFor(c.solutionCase).flatMap((solutionCase) => shapesFor(c.distribute, MULTI_STEP_SHAPES)
       .map((shape) => ({ case: solutionCase, shape }))),
   },
@@ -407,7 +416,7 @@ export const multiStepEquationV2Family = defineQuestionFamily({
   supportConstraints: {
     'reduce-complexity': { coefficientRange: [-6, 6], constantRange: [-10, 10], solutionRange: [-6, 6] },
   },
-  derive: multiStepDerive,
+  derive: multiStepDerive(constructors),
   rules: (values, c) => {
     const issues = verifyLinearCandidate({ values, constraints: c, intendedSolution: values.intendedSolution });
     if (issues.includes(FAMILY_ISSUE.CASE_MISMATCH)) return issues;
@@ -441,6 +450,8 @@ export const multiStepEquationV2Family = defineQuestionFamily({
   recovery: { eligible: true },
   capabilities: linearCapabilities({ solutionCases: [...SOLUTION_CASE_CHOICES], shapes: Object.keys(MULTI_STEP_SHAPES) }),
 });
+
+export const multiStepEquationV2Family = defineMultiStepEquationV2();
 
 /* ---------------------------------------------------------------------------
  * linear.twoStepEquation v2
