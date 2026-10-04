@@ -5,7 +5,8 @@
 //
 //   (TEACHER_HARNESS_ORIGIN=<origin> if not http://127.0.0.1:5188;
 //    PLAYWRIGHT_MODULE=<path to playwright/index.mjs> and CHROMIUM_PATH=<chrome>
-//    when the defaults are not installed; MODES=mirror,retired; VIEWPORTS=1440x900,390x844.)
+//    when the defaults are not installed; MODES=mirror,retired; VIEWPORTS=1440x900,390x844 —
+//    CI runs 1440x900,1366x768,820x1180,390x844; under 1024 wide is a touch device.)
 //
 // Same harness as journeys.mjs: the real App.jsx with `firebase/*` replaced by
 // in-memory fakes. `?controls=mirror|retired` (fixture.js PRIVATE_CONTROLS)
@@ -53,6 +54,11 @@ const PAGE = `${ORIGIN}/tests/browser/teacherWorkflow/index.html`;
 const MODES = (process.env.MODES || 'mirror,retired').split(',').map((entry) => entry.trim()).filter(Boolean);
 const VIEWPORTS = (process.env.VIEWPORTS || '1440x900,390x844')
   .split(',').map((entry) => entry.split('x').map(Number)).map(([width, height]) => ({ width, height }));
+// A phone or an iPad is a touch device; a Chromebook or desktop is not.
+const deviceContext = (viewport) => browser.newContext({
+  viewport,
+  ...(viewport.width < 1024 ? { hasTouch: true, isMobile: true } : {}),
+});
 
 rmSync(ARTIFACTS, { recursive: true, force: true });
 mkdirSync(ARTIFACTS, { recursive: true });
@@ -204,7 +210,7 @@ const home = async (page) => {
 
 const studentJourney = async (mode, viewport) => {
   const label = `P1 ${mode} ${viewport.width}`;
-  const context = await browser.newContext({ viewport });
+  const context = await deviceContext(viewport);
   const { page, errors, unimplemented } = await openStudent(context, mode, A);
   const start = await stats(page);
   expect(label, start.openListenersByPath[CONTROLS] === 1, `one own-controls listener (${start.openListenersByPath[CONTROLS]})`);
@@ -292,7 +298,7 @@ const sharedChromebookJourney = async (mode, viewport) => {
   const slow = '&authDelayMs=1200&controlsLatencyMs=900';
   {
     const label = `P2 sign-out ${mode} ${viewport.width}`;
-    const context = await browser.newContext({ viewport });
+    const context = await deviceContext(viewport);
     const { page, errors } = await openStudent(context, mode, A, slow);
     expect(label, (await text(page.locator('body'))).includes(LAST_DAY), 'A sees their own extension first (the marker is real)');
     await page.getByText('Log Out').first().click();
@@ -312,7 +318,7 @@ const sharedChromebookJourney = async (mode, viewport) => {
   }
   {
     const label = `P2 switch ${mode} ${viewport.width}`;
-    const context = await browser.newContext({ viewport });
+    const context = await deviceContext(viewport);
     const { page, errors } = await openStudent(context, mode, A, slow);
     await watchFor(page, A_MARKERS);
     // Another tab signed B in on this device: no signed-out moment between.
@@ -323,7 +329,7 @@ const sharedChromebookJourney = async (mode, viewport) => {
   }
   {
     const label = `P2 cached ${mode} ${viewport.width}`;
-    const context = await browser.newContext({ viewport });
+    const context = await deviceContext(viewport);
     const { page } = await openStudent(context, mode, B, `&leakForeignControls=${A}&controlsLatencyMs=600`);
     const body = await text(page.locator('body'));
     expect(label, !body.includes(LAST_DAY), 'a cached snapshot carrying A\'s records changes nothing B sees');
@@ -348,7 +354,7 @@ const sidebar = (page, name) => page.locator('nav, aside').getByRole('button', {
 
 const teacherJourney = async (mode, viewport) => {
   const label = `P3 ${mode} ${viewport.width}`;
-  const context = await browser.newContext({ viewport });
+  const context = await deviceContext(viewport);
   const { page, errors, unimplemented } = await openTeacher(context, mode);
   const atHome = await stats(page);
   expect(label, atHome.openListenersByPath[CONTROLS] === 1, `one controls listener for the class on screen (${atHome.openListenersByPath[CONTROLS]})`);
@@ -395,7 +401,7 @@ const teacherJourney = async (mode, viewport) => {
 
 const dolJourney = async (mode, viewport) => {
   const label = `P4 ${mode} ${viewport.width}`;
-  const context = await browser.newContext({ viewport });
+  const context = await deviceContext(viewport);
   const { page, errors, unimplemented } = await openTeacher(context, mode, '&controlsCallMs=800');
   await sidebar(page, /Classes$/);
   await page.getByRole('button', { name: /Algebra II — Period 3/ }).first().click();
@@ -440,7 +446,7 @@ const dolJourney = async (mode, viewport) => {
 
 const adminJourney = async (viewport) => {
   const label = `P5 ${viewport.width}`;
-  const context = await browser.newContext({ viewport });
+  const context = await deviceContext(viewport);
   const { page, errors, unimplemented } = await openTeacher(context, 'mirror', '&rootAdmin=1');
   await page.locator('[aria-label="Root administrator workspace"]').getByRole('button', { name: 'Administration' }).click();
   await page.getByRole('heading', { name: 'MathMaster Administration' }).waitFor({ timeout: 15_000 });
