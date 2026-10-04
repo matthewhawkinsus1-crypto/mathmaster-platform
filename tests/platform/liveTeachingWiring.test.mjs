@@ -38,7 +38,9 @@ test('Walkthrough launch gives resume lookup only a tiny budget and falls back t
 test('Restart Fresh bypasses resume lookup and explicitly requests a clean session', () => {
   const teach = region(app, 'const teachAssignmentLive = ', 'const resumeLiveTeaching = ', 'teachAssignmentLive');
   assert.match(teach, /if \(forceRestart\) \{\s*startFresh\(\);\s*return;/);
-  assert.match(monitor, /onTeach\(liveTeachingAssignmentId, \{ forceRestart: true \}\)/);
+  // The restart also names the class the panel is showing (so App files the
+  // session under that class); what matters here is forceRestart: true.
+  assert.match(monitor, /onTeach\(liveTeachingAssignmentId, \{ forceRestart: true(?:, classId: activeClassId)? \}\)/);
 });
 
 test('resuming teaching re-enters the runtime WITHOUT resetting the tracker, scratchpads, or preview session', () => {
@@ -103,9 +105,13 @@ test('TeacherHome forwards the Live Teaching session and actions down to Live Cl
 });
 
 test('Live Classroom only offers lessons actually assigned to the active class', () => {
-  const region_ = region(monitor, 'const teachableAssignments = useMemo(', '}, [assignments, activeClassId]);', 'teachableAssignments');
-  assert.match(region_, /if \(!activeClassId\) return \[\];/);
-  assert.match(region_, /assignmentIsForStudent\(assignment, \{ classId: activeClassId \}\)/);
+  // The offerable list is the shared class-scoped availability rule
+  // (assignmentAvailability.js: walkthroughAssignmentsForClass returns [] with
+  // no class and checks assignedClassIds via assignmentIsForStudent — its
+  // behaviour is asserted in walkthroughEligibleAssignments.test.mjs).
+  const region_ = region(monitor, 'const eligibleAssignments = useMemo(() => walkthroughAssignmentsForClass({', 'const teachableAssignments = eligibleAssignments;', 'teachableAssignments');
+  assert.match(region_, /classId: activeClassId,/);
+  assert.match(monitor, /const teachableAssignments = eligibleAssignments;/);
 });
 
 test('Live Classroom UI names the exemplar assignment and its Classwork pace, and offers Resume/Restart/End', () => {
@@ -136,6 +142,7 @@ test('Walkthrough pace follows the Live Teaching session only after the teacher 
 
 test('the assignment being walked through follows the Live Teaching session while active, and the manual dropdown is locked', () => {
   const region_ = region(monitor, 'const displayAssignmentId = ', 'const selectedClasswork', 'displayAssignmentId');
-  assert.match(region_, /liveTeachingActiveForClass \? liveTeachingSession\.assignmentId : assignmentId/);
+  // The manual choice is the still-eligible selection (manualAssignmentId).
+  assert.match(region_, /liveTeachingActiveForClass \? liveTeachingSession\.assignmentId : manualAssignmentId/);
   assert.match(monitor, /disabled=\{liveTeachingActiveForClass\}/);
 });

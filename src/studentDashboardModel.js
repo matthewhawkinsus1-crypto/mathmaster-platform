@@ -4,6 +4,7 @@ import {
 } from './platform/contract/storedAssignmentV5.js';
 import { resolveQuestionActivityRole } from './platform/policies/activityPolicies.js';
 import { studentDueDates } from './assignmentLifecycle.js';
+import { studentAssignmentAvailability } from './platform/assignments/assignmentAvailability.js';
 import { filterStudentRequiredIndices, studentOmittedIndices } from '../functions/shared/reducedWorkload.mjs';
 
 // What a student's assignment dashboard actually contains, computed once.
@@ -197,12 +198,20 @@ export const buildStudentDashboardModel = ({
     });
   };
 
-  const canResume = (assignment) => {
-    const lifecycle = getAssignmentLifecycle(assignment, nowValue);
-    if (lifecycle.isPracticeOnly) return false;
-    const access = prerequisiteAccess({ assignment, classworkGradesByAssignment, nowValue });
-    return access.open && (!lifecycle.isScheduled || access.reason === 'prerequisiteMet');
-  };
+  // "Locked" and "can resume" come from the one availability rule Live
+  // Classroom's Walkthrough also uses (platform/assignments/assignmentAvailability.js),
+  // fed the providers this model was handed so its tests can still inject them.
+  const availabilityOf = (assignment) => studentAssignmentAvailability({
+    assignment,
+    classId,
+    classPeriod,
+    nowValue,
+    classworkGradesByAssignment,
+    isForStudent: assignmentIsForStudent,
+    lifecycleOf: getAssignmentLifecycle,
+    prerequisiteOf: prerequisiteAccess,
+  });
+  const canResume = (assignment) => availabilityOf(assignment).workable;
 
   const savedResume = visible.find((assignment) => assignment.id === resumeAction?.assignmentId && canResume(assignment));
   const fallbackResume = visible.find((assignment) => {
@@ -325,13 +334,13 @@ export const buildStudentDashboardModel = ({
     .map((assignment) => {
       const assignmentTracker = tracker[assignment.id];
       const isAttempted = Boolean(assignmentTracker);
-      const lifecycle = getAssignmentLifecycle(assignment, nowValue);
-      const access = prerequisiteAccess({ assignment, classworkGradesByAssignment, nowValue });
+      const availability = availabilityOf(assignment);
+      const { lifecycle, access } = availability;
       const recordedGrade = calculateGrade(assignmentTracker, assignment, gradeOptionsFor(assignment));
       const activity = assignmentActivity[assignment.id] || {};
       const classwork = classworkGradesByAssignment[assignment.id];
       const dol = getDOLState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue });
-      const disabled = (lifecycle.isScheduled && access.reason !== 'prerequisiteMet') || !access.open;
+      const disabled = availability.locked;
       const done = isDone(assignment, assignmentTracker, lifecycle);
       const feedbackHeld = assignmentHasHeldTeacherFeedback(assignment);
       const dueSoon = matchesSmartView(assignment, 'today', { nowValue });

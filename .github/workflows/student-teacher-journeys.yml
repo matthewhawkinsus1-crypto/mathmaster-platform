@@ -10,6 +10,9 @@ name: Student and Teacher Journeys
 #                          DOL fire drill, moving classwork, exports)
 #   support evidence       tests/browser/teacherWorkflow/supportEvidenceJourneys.mjs
 #   case review            tests/browser/teacherWorkflow/caseReviewJourneys.mjs
+#   walkthrough scope      tests/browser/teacherWorkflow/walkthroughJourneys.mjs
+#                          (only the selected class's live assignments; class
+#                          switch; empty state; a stale saved session retired)
 #   cross-device drafts    tests/browser/teacherWorkflow/draftCrossDeviceJourneys.mjs
 #                          (a fresh, slow or offline Chromebook gets the work
 #                          and never overwrites it; the newest edit wins)
@@ -83,6 +86,11 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/caseReviewJourneys.mjs
+      - name: Walkthrough offers only the selected class's live work
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/walkthroughJourneys.mjs
       - name: Unfinished work across Chromebooks
         if: always()
         env:
