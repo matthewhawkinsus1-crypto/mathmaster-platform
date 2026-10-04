@@ -111,14 +111,30 @@ test('ingestion, the finalizer and every recovery callable pass the student\'s p
 });
 
 test('the student client injects its own dates wherever assignments are loaded, and imports what it calls', () => {
-  assert.match(app, /import \{ withStudentSupportDates \} from '\.\.\/functions\/shared\/supportDeadline\.mjs';/);
-  const helper = region(app, 'const assignmentsForViewer = (list) =>', ';\n', 'assignmentsForViewer');
-  assert.match(helper, /user\?\.role === 'student'/);
-  assert.match(helper, /withStudentSupportDates\(assignment, user\.id, user\.profile\)/);
-  const listener = region(app, "collection(db, 'assignments'),\n      (snapshot) => {", '(error) =>', 'assignment listener');
-  assert.match(listener, /setAssignments\(assignmentsForViewer\(liveAssignments\)\)/);
-  const fetcher = region(app, 'const fetchAssignments = async () => {', 'return fetchedAssignments;', 'fetchAssignments');
-  assert.match(fetcher, /setAssignments\(assignmentsForViewer\(fetchedAssignments\)\)/);
+  // ONE projection for a student's lessons (src/platform/assignments/
+  // studentAssignmentControls.js): their own view of the shared lesson (with
+  // no staff names on its class-wide DOL data), then their individualized
+  // dates, in memory.
+  const projection = readFileSync(new URL('../../src/platform/assignments/studentAssignmentControls.js', import.meta.url), 'utf8');
+  assert.match(projection, /import \{ withStudentSupportDates \} from '\.\.\/\.\.\/\.\.\/functions\/shared\/supportDeadline\.mjs';/);
+  const project = region(projection, 'export const projectStudentAssignments =', '\n};', 'projectStudentAssignments');
+  assert.match(project, /withStudentSupportDates\(\s*studentFacingDol\(studentAssignmentView\(assignment, \{ studentId: owner, privateOverride: privateOverrideFor\(own, assignment\.id\) \}\)\),\s*owner,\s*profile,\s*\)/);
+  // App imports it, and every path that puts a student's lessons into state
+  // goes through it: the live class listener and the prior-work fetch
+  // (publishStudentAssignments), sign-in hydration, and a changed control or
+  // profile (the re-projection effect).
+  assert.match(app, /import \{ EMPTY_STUDENT_CONTROLS, projectStudentAssignments \} from '\.\/platform\/assignments\/studentAssignmentControls\.js';/);
+  const publish = region(app, 'const publishStudentAssignments = () => {', '\n  };', 'publishStudentAssignments');
+  assert.match(publish, /setAssignments\(projectStudentAssignments\(\{[\s\S]*studentId,[\s\S]*profile,[\s\S]*controls: studentControlsRef\.current/);
+  const listener = executableSource(region(app, "if (user.role === 'student') {\n      return subscribeStudentClassAssignments({", '(error) =>', 'student assignment listener'));
+  assert.match(listener, /publishStudentAssignments\(\);/);
+  const hydrate = executableSource(region(app, 'const hydrateSession = async', 'hydrateSession();', 'hydrateSession'));
+  const studentHydrate = hydrate.slice(hydrate.indexOf("if (session.role !== 'student'"));
+  assert.match(studentHydrate, /const projectedAssignments = projectStudentAssignments\(\{[\s\S]*profile: studentProfile/);
+  assert.match(studentHydrate, /setAssignments\(projectedAssignments\);/);
+  assert.doesNotMatch(studentHydrate, /setAssignments\(fetchedAssignments\)/, 'never the lessons as Firestore sent them');
+  const reproject = executableSource(region(app, "if (user?.role === 'student' && user.id) {\n      studentViewerRef.current", '}, [user?.role, user?.id, user?.profile', 're-projection'));
+  assert.match(reproject, /studentViewerRef\.current = \{ studentId: user\.id, profile: user\.profile \|\| null \};\s*publishStudentAssignments\(\);/);
 });
 
 // --- What the student is SHOWN -----------------------------------------------------------------

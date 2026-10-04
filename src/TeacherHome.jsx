@@ -27,7 +27,7 @@ const greetingFor = (date) => {
 // Landing tab for teachers: today's classes at a glance, so a period's
 // status and roster are one click away instead of hunting through the
 // class-period dropdown on Grades or scrolling the full Classes grid.
-export default function TeacherHome({ allStudents = [], studentIdentityIndex = null, assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onGrantDOLAttempt = null, dolAttemptGrantBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, needsAttentionAcademicCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [], teacherUid = '', teacherEmail = '', teacherLabel = 'Your teacher', isRootAdmin = false, studentSupportEvents = [], studentSessionSummaries = [], onRecordStudentSupportEvent = null, onRecommendPersonalPath = null, pathInterventionBusyStudentId = null, liveTeachingSession = null, onTeachAssignment = null, onResumeTeaching = null, onEndLiveTeaching = null, onDolControl = null, dolControlBusyKey = null, onOpenAssignment = null, onSelectClass = null, liveFocus = null, gradingPeriodSettings = null }) {
+export default function TeacherHome({ allStudents = [], studentIdentityIndex = null, assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onGrantDOLAttempt = null, dolAttemptGrantBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, needsAttentionAcademicCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [], teacherUid = '', teacherEmail = '', teacherLabel = 'Your teacher', isRootAdmin = false, studentSupportEvents = [], studentSessionSummaries = [], onRecordStudentSupportEvent = null, onRecommendPersonalPath = null, pathInterventionBusyStudentId = null, liveTeachingSession = null, onTeachAssignment = null, onResumeTeaching = null, onEndLiveTeaching = null, onDolControl = null, dolControlBusyKey = null, onOpenAssignment = null, onSelectClass = null, liveFocus = null, gradingPeriodSettings = null, onLiveClassChange = null }) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
   const [recoveryClassId, setRecoveryClassId] = useState('');
   const [recoveryAssignmentId, setRecoveryAssignmentId] = useState('');
@@ -92,6 +92,17 @@ export default function TeacherHome({ allStudents = [], studentIdentityIndex = n
     ? { classId: classIdInSession, classPeriod: periodInSession }
     : null;
   const liveClassLabel = currentClass?.name || periodInSession;
+
+  // Live Classroom can show a class other than the one the teacher is working
+  // in (the class in session, or a "Live view" focus). Its students' own
+  // controls ("Extension through …") are read for that class too
+  // (platform/teacher/teacherClassControls.js).
+  useEffect(() => {
+    if (typeof onLiveClassChange === 'function') onLiveClassChange(classIdInSession);
+  }, [classIdInSession, onLiveClassChange]);
+  useEffect(() => () => {
+    if (typeof onLiveClassChange === 'function') onLiveClassChange(null);
+  }, [onLiveClassChange]);
 
   // The live period is a useful default, not an access requirement. Once a
   // teacher chooses a class, keep that choice for this Teacher Home session.

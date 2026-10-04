@@ -263,38 +263,104 @@ sends each of those forgeries. It also runs every server path with the
 student's controls in the shared copy alone, in both stores, and in the
 private record alone, and requires the same answer in all three.
 
-## 9. Browsers: this release and the client follow-up
+## 9. Browsers: the client cutover
 
-**This release changes no student or teacher screen.** With the mirror on, the
-shared copy stays complete, so every screen reads what it read before; every
-reader already goes through the resolver.
+PR #432 shipped private storage with every screen still reading the mirrored
+shared copy. The client cutover (this section) moves every student and
+teacher screen onto private storage, in the six steps #432 named. Nothing a
+browser holds or writes carries another student's controls.
 
-The follow-up, after #428 merges and on top of it, is the smallest change to
-`App.jsx`:
+1. **Student: one own-controls listener, one projection.**
+   `useStudentAssignmentControls` (`src/platform/assignments/`) opens exactly
+   one listener per signed-in student: `where('studentId', '==', me)` on
+   `studentAssignmentOverrides`, the only list the rules allow a student. Its
+   documents become one map, assignment id → that student's record,
+   allow-listed to the controls (final cutoff, extension stub, excused,
+   reopened, DOL attempts and the student-facing grant `{ extraAttempts,
+   changedAt }`); no teacher account, reason or authorization list. A document
+   for anyone else is dropped even if a cache handed it over. Every lesson the
+   device holds goes through ONE projection, `projectStudentAssignments`:
 
-1. **Student:** one listener, `where('studentId', '==', me)`, on
-   `studentAssignmentOverrides`. Each received lesson becomes
-   `studentAssignmentView(assignment, { studentId, privateOverride })` before
-   `withStudentSupportDates`: their own entry only, every classmate's form
-   removed. One listener per device, whatever the class size.
-2. **Teacher:** one listener per viewed class (`authorizedTeacherEmails`
-   contains me, and `classId ==`), feeding
-   `teacherAssignmentView(assignment, privateByStudentId)`. That view
-   replaces only `studentOverrides`, never `dol`, which teacher actions write
-   back whole.
-3. The DOL grant (`handleGrantDOLAttemptForStudents`) calls
-   `setStudentAssignmentControls` instead of writing the `dol` map.
-4. Teacher save paths that send a whole assignment must keep sending it
-   without per-student fields (`stripAssignmentInstanceState`). The rules
-   refuse a write that changes `studentOverrides`.
-5. A student's DOL recovery history (`recoveryHistory`) reads that student's
-   `assignmentOverrideEvents`.
-6. The admin card gains the Stage 4 controls: the switch, the strip and the
-   restore.
+   `studentAssignmentView(lesson, { studentId, privateOverride })` → class-wide
+   DOL data without staff names → `withStudentSupportDates`
 
-The follow-up's tests must pin exactly one override listener per student
-device and one per teacher class view, and re-run the phone and Chromebook
-journeys.
+   Dashboard cards, Resume/Open, the lifecycle, due and final dates,
+   extensions, excused, reopened, the DOL attempt budget, the Grade Center,
+   Recovery, Practice Pass and make-up all read those objects; no screen
+   decides a precedence. Until the listener answers, the student's own shared
+   entry stands (the mirror keeps it complete); once retired, a lesson without
+   a record is simply the class's.
+
+   **No classmate's data in the student's JavaScript.** The one door from a
+   snapshot into the app (`studentScopedAssignment`) reduces every lesson to
+   that student's view before anything stores it. No state, ref or model holds
+   another student's `studentOverrides` entry, `excusedStudentIds`,
+   `reopenedStudentIds`, `dol.attemptGrantsByStudentId` or students-scope
+   recovery entry — even while the shared copy still physically carries them.
+   Class-wide DOL data (the class grant, its windows, the class-scoped log)
+   keeps every count and date and loses the staff names (`changedBy`,
+   `openedBy`, `unlockedBy`, `closedBy`, `teacherId`). The browser journey reads
+   React's state from the root fiber to prove it (P1, P2).
+2. **Teacher: one class-scoped listener.** `useTeacherClassControls` keeps ONE
+   listener: `authorizedTeacherEmails array-contains me` and `classId in [...]`
+   — the active class first, then any class an open surface shows (Live
+   Class, the assignment hub, Attendance History, a case review or support
+   report) and, on the cross-class tabs (Grade Export, Action Center, Parent
+   Contacts), the classes the teacher teaches (at most 30). It never preloads
+   the school. A changed scope is followed once it has held for 150 ms, so one
+   class switch replaces the listener once; signing out, or another viewer,
+   applies at once. `projectTeacherAssignments` feeds
+   `teacherAssignmentView`, which replaces only `studentOverrides` — never
+   `dol`. The root administrator's scope is `classId in [...]` alone.
+3. **DOL grants through the callable.** "+1 DOL attempt" for selected students
+   is `setStudentAssignmentControls`: grouped by each student's own class, at
+   most 60 per call, at most one request in flight per set of students
+   (`dolAttemptGrantClient.js`). Every class-level DOL action writes only the
+   `dol` fields it changed, as dotted paths (`classDolFieldPatch`), and that
+   helper refuses to carry `attemptGrantsByStudentId` — so neither this
+   release nor a stale tab of it can write a student's grant. The shared
+   confirmation ignores a backdrop press within 500 ms of opening (the second
+   half of the double-click that opened it), so a double-click asks once and
+   grants once.
+4. **Save paths** are unchanged: a whole-assignment save still goes through
+   `stripAssignmentInstanceState`, and the rules refuse a write that changes
+   `studentOverrides` (or, once retired, any per-student shared field).
+5. **History.** A student's grant history is read by staff, on request, from
+   `grades/{sid}/assignmentOverrideEvents` (`fetchStudentOverrideHistory`, one
+   bounded query; the rules refuse it to students). The record a student
+   reads names the kind of actor (`teacher`, `rootAdmin`, `migration`,
+   `absorber`, `system`), never the account; the account, the reason and each
+   student's share of the old shared log stay in the staff-only history.
+6. **Admin.** The Stage 4 workflow (§11, §15).
+
+### Shared Chromebooks: sign-out, account change, cache
+
+* **In-app state.** At sign-out (`handleLogout`) and at any account change
+  (the session effect), the lessons and every copy they were projected from
+  are dropped before the next account hydrates. The controls hooks are keyed
+  by account (the student id; the teacher's email, root flag and classes) and
+  return nothing for any other account on any render. `AuthProvider` ends
+  the previous session the moment another uid appears, without waiting for
+  the new account's claims, and the app renders signed-in screens only while
+  `auth.session.uid === user.uid`. The browser journey (P2) checks the screen
+  at every React commit during the switch, with slow claims and slow private
+  controls: removing the render guard shows one committed frame with the
+  previous student's name and extension; removing AuthProvider's reset leaves
+  the previous screen up for the claims round trip. Both are caught.
+* **Rules.** The next student can neither list nor fetch the previous
+  student's records, cached or not (`tests/rules/studentControlsClientRules.test.mjs`).
+* **Cache.** Firestore's persistent cache (IndexedDB, multi-tab) stays on:
+  offline work depends on it, and the evidence did not show a need to turn it
+  off. A query never returns a cached document it does not match, so the next
+  student's `studentId == them` listener cannot be handed the previous
+  student's records; the projection would drop one anyway (P2 "cached"). The
+  cache is per browser profile, not per account, and was before this
+  release: it holds what the previous account's listeners received (lessons,
+  grades, and now private records). That device-level exposure — someone
+  with developer tools on a shared profile — predates this release and is not
+  widened by it. A follow-up could clear the persistence on an explicit
+  "shared device" sign-out; separate browser profiles per student are the
+  district-level answer.
 
 ## 10. Copies
 
@@ -312,8 +378,8 @@ by the original assignment id, so a copy starts with none (test 16).
 | --- | --- | --- | --- |
 | **1. Private storage + dual read** | Deploy. Every server reader reads the private record and merges the shared copy; new grants write both (mirror on). | — | Redeploy the previous release. It reads the shared copy, which the mirror kept complete. |
 | **2. Backfill** | Admin → Classes → *Students' own assignment controls*: **Check without changing anything**, then **Copy into private records**. Each student's shared controls become their private record, in the same transaction as their history entry. Pre-#415 reasons go to `attendanceExtensionGrants`. Idempotent; one bounded page per call; each assignment commits on its own; the cursor is kept server-side, so a stopped run resumes. | Stage 1 live | Nothing to undo: records are additive, and the previous release ignores them. After a rollback, run the backfill again once the new release is back; the absorber does not see writes made while it was not deployed. |
-| **3. Writers on private storage** | Already true for every server writer in Stage 1. Previous-release browsers' writes are absorbed within seconds. The client follow-up moves the last browser writer (the DOL grant) onto the callable. | — | As Stage 1 |
-| **4. Students stop receiving classmates' controls** | Client follow-up live for a school day → `setAssignmentOverrideStorage({ sharedRetired: true })` (mirror off, lock on) → strip, dry run first. In the same transaction as the removal, the strip verifies that every student it names is exactly represented in private storage, and archives the verbatim content first. | Follow-up live ≥ 1 school day; full backfill done, 0 failures | Switch off (`sharedRetired: false`), then `restore`, which writes every private record back onto the shared copy in mirror form, so a previous-release client reads the same again. Rehearsed in `scripts/rehearse-student-assignment-overrides-migration.mjs`. |
+| **3. Writers on private storage** | Every server writer since Stage 1; the client cutover (§9) moves the last browser writer (the DOL grant) onto the callable. Previous-release browsers' writes are absorbed within seconds. | — | As Stage 1 |
+| **4. Students stop receiving classmates' controls** | Admin card, one deliberate step at a time (§15): **Record this release as live** → after one full school day, **Retire the shared copy** (typed `RETIRE SHARED COPY` + the school-day attestation) → **Strip dry run** → separately, **Strip shared copies** (typed `STRIP SHARED COPIES`). Retiring turns the mirror off and the rules lock on. In the same transaction as each removal, the strip verifies that every student it names is exactly represented in private storage, and it archives the verbatim content first. | The server's gate (`functions/shared/overrideRetirementGate.mjs`), re-checked in the transaction that flips the switch: the client cutover deployed; live one full school day; a full backfill pass completed; zero failures. A strip also needs a dry run of the same scope, finished after the retirement, with no failures. | **Keep the shared copy in step again** (never gated; it sets the cutover record aside, so retiring again starts over), then **Restore** (dry run first; typed `RESTORE SHARED COPIES`), which writes every private record back onto the shared copy in mirror form, so a previous-release client reads the same again. Rehearsed end to end in `scripts/rehearse-student-assignment-overrides-migration.mjs`. |
 | **5. Legacy retired** | See §13 | §13 | — |
 
 ## 12. Cost: before and after, 30 and 60 students
@@ -341,10 +407,38 @@ with an extension, 10% excused, 5% reopened, 10% with extra DOL attempts.
 | After the strip (Stage 4) | **2 documents, 1.1 KB** | **2 documents, 1.1 KB** |
 
 **Listeners.** A student device keeps its lesson listener and adds one listener
-for its own controls. A teacher adds one per viewed class. Neither depends on
-class size or lesson count, and there are no per-student or per-lesson
-listeners. Initial teacher read: one document per (student, lesson) that has
-any control — 16 for this lesson at 30 students, 30 at 60.
+for its own controls. A teacher adds ONE, for the classes on screen (§9.2).
+Neither depends on class size or lesson count, and there are no per-student or
+per-lesson listeners. Initial teacher read: one document per (student,
+lesson) that has any control.
+
+**Measured on the devices** (`scripts/certify-student-controls-client-cost.mjs`:
+the real client modules as every student device of the class and its teacher,
+one Firestore client each, under the real rules; a school of four classes,
+three lessons each, the same lesson and control spread as above):
+
+| | 30, mirror | 30, retired | 60, mirror | 60, retired |
+| --- | --- | --- | --- | --- |
+| Student listeners | 2 | 2 | 2 | 2 |
+| Student initial reads (KB) | 5 (136) | 5 (129) | 5 (141) | 5 (129) |
+| Classmates in what Firestore delivered / in the app | 15 / **0** | 0 / **0** | 30 / **0** | 0 / **0** |
+| Student app state | 129 KB | 129 KB | 129 KB | 129 KB |
+| Teacher listeners (assignments + controls) | 2 | 2 | 2 | 2 |
+| Teacher initial reads (the school's 12 lessons + the class's records) | 60 | 60 | 102 | 102 |
+| One extension: reads, KB, devices that hear it | 33, 1,401, 31 | **2, 1.2, 2** | 63, 2,858, 61 | **2, 1.2, 2** |
+| One extra DOL attempt | 33, 1,401, 31 | **2, 1.3, 2** | 63, 2,859, 61 | **2, 1.3, 2** |
+| Lesson re-sent by that one change | 31× | **0** | 61× | **0** |
+| Teacher class switch (×10): reads each | 48–50 | 48–50 | 90–92 | 90–92 |
+| Cross-class view (4 classes, one listener): reads | 134 | 134 | 218 | 218 |
+| Assignment switches (×20): listeners opened, reads | 0, 0 | 0, 0 | 0, 0 | 0, 0 |
+| Sign-out → next student: listeners after, then reads | 0 → 2, 6 | 0 → 2, 6 | 0 → 2, 6 | 0 → 2, 6 |
+| Node heap per simulated device (indicative) | 1.6 MB | 1.3 MB | 1.5 MB | 1.3 MB |
+
+Class-switch reads are without a persistent cache; in a browser, a class
+switched back to within 30 minutes resumes from its cached results. In the
+real app (the teacher-workflow harness) one class switch opens one controls
+listener, and Grades, Classes, Grade Export, Action Center and back leave the
+same listeners open (P3).
 
 **Server reads per operation** (writes in brackets)
 
@@ -360,8 +454,12 @@ any control — 16 for this lesson at 30 students, 30 at 60.
 | Grant a DOL attempt, 5 students | browser write [1] + lesson re-sent to all | 13 [11] | 13 [10] |
 | Classroom passback | 6 [2] | 7 [2] | 7 [2] |
 | Absorber on an ordinary edit | — | 0 [0] | 0 [0] |
-| Backfill of two lessons | — | 77 [72] at 30; 139 [134] at 60 | — |
-| Strip of two lessons | — | — | 113 [6] at 30; 203 [6] at 60 |
+| Backfill of two lessons | — | 78 [72] at 30; 140 [134] at 60 | — |
+| Strip dry run of two lessons | — | — | 114 [1] at 30; 204 [1] at 60 |
+| Strip of two lessons | — | — | 115 [6] at 30; 205 [6] at 60 |
+
+(Each migration page reads and writes the server's pass record once — what
+the retirement gate counts, §15.)
 
 Every server path that decides access reads exactly **one** more document,
 the student's own record. A grant costs a few more reads and writes, plus a
@@ -378,11 +476,18 @@ before, as separate documents of ~535 B each.
 completion, and it holds when **all** of these are true:
 
 1. `setAssignmentOverrideStorage` reports `sharedRetired: true`;
-2. the last full strip reported `assignmentsWithSharedStudentData: 0`,
-   `assignmentsAwaitingAbsorption: 0` and no failures;
-3. that has held for 30 consecutive days, so any restore has been ruled out;
+2. the last full strip (or its dry run) reported
+   `assignmentsWithSharedStudentData: 0`, `assignmentsAwaitingAbsorption: 0`,
+   `studentsAwaitingAbsorption: 0` and no failures, after the retirement;
+3. that has held for 30 consecutive days with no restore since, so any
+   restore has been ruled out;
 4. no previous-release client is still being served: the release before the
-   client follow-up is no longer deployed or rolled back to.
+   client cutover is no longer deployed or rolled back to.
+
+The server computes 1–3 (`readiness.legacyIgnore`: `cleanSinceMs`,
+`earliestMs`, `eligibleByTime`), and the admin card shows it; a canary
+(prefixed) strip never starts the clock, and a restore resets it. Condition
+4 is the operator's to confirm. Nothing deletes on its own.
 
 From then on the merge's shared side is always empty. A later change may stop
 reading it.
@@ -399,8 +504,53 @@ student, as before.
 
 ## 14. Tools
 
-* `scripts/certify-student-assignment-overrides-cost.mjs` — the numbers in §12.
-* `scripts/rehearse-student-assignment-overrides-migration.mjs` — every
-  stage, on every legacy shape, with effective access checked after each.
-* Admin → Classes → *Students' own assignment controls* — the Stage 2 card.
-  It is read-only for the switch in this release.
+* `scripts/certify-student-assignment-overrides-cost.mjs` — the server's
+  numbers in §12.
+* `scripts/certify-student-controls-client-cost.mjs` — the devices' numbers in
+  §12 (listeners, reads, bytes, memory, switching, sign-out/in).
+* `scripts/rehearse-student-assignment-overrides-migration.mjs` — the
+  operator's whole sequence (§15), full passes, on every legacy shape, with
+  effective access checked after each step.
+* `tests/browser/teacherWorkflow/privateControlsJourneys.mjs` — the real app
+  in both storage states, desktop and phone (P1–P5).
+* Admin → Classes → *Students' own assignment controls* — the staged card.
+
+## 15. The Stage 4 gate and the operator's record
+
+`setAssignmentOverrideStorage` takes `{ action }`: `status`,
+`confirmClientCutover`, `retire`, `mirror` (`{ sharedRetired }`, #432's shape,
+means retire / mirror). The flag document every signed-in client reads carries
+`sharedRetired` and `updatedAt` only; who acted, when and on what evidence go
+to the root-only migration record (`platformMigrations/studentAssignmentOverrides`:
+`cutover`, `retirement`, `previousCutover`, the passes) and the admin audit log
+(`student_assignment_overrides_*`).
+
+What the server proves, and what it cannot — said, not pretended:
+
+* **Deployed.** The server reads the live build manifest itself
+  (`mathmaster-build.json`, served no-cache), which the build stamps with
+  `privateAssignmentControlsClient: 1`. A manifest without it blocks. A
+  manifest the server cannot read (an emulator, a network failure) proves
+  nothing, so recording the cutover then needs the administrator's explicit
+  attestation, which is recorded.
+* **Live one full school day.** Counted from the server-stamped moment the
+  cutover was recorded (never a time a browser sends): the first whole
+  weekday after it, midnight to midnight in America/Chicago, must be over.
+  The server cannot see holidays or staff days, so retiring also needs the
+  administrator's attestation that students used the release for a full
+  school day; the card names that day from the district calendar.
+* **Full backfill, zero failures.** Counted by the server page by page as one
+  pass: a pass completes only when every page from the first ran in order,
+  and its failures are the sum over all of them. A canary (prefixed) pass
+  never counts.
+* **Re-checked** in the transaction that flips the switch; the refusal names
+  every failing gate and is audited.
+* **Rollback** is never gated, and it sets the cutover record aside: retiring
+  again needs the release recorded as live again and another full school day.
+
+The card's steps are separate, deliberate actions — a dry run and the strip
+are never one click: Mirrored → Backfill incomplete → Backfill complete,
+waiting for the safety period → Ready to retire → Retired. The strip's dry run
+reports assignments scanned, assignments with shared student data, records
+confirmed private, students awaiting absorption (copied in first by the real
+strip), failures, and archives that would be written.

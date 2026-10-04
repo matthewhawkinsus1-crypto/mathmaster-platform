@@ -48,18 +48,39 @@ import {
   STUDENT_ASSIGNMENT_OVERRIDES_COLLECTION,
   ASSIGNMENT_OVERRIDE_EVENTS_COLLECTION,
   ASSIGNMENT_OVERRIDE_ARCHIVES_COLLECTION,
+  MAX_TEACHER_GRANTED_ATTEMPTS,
+  OVERRIDE_MIGRATION_ID,
+  OVERRIDE_STORAGE_FLAG,
+  PLATFORM_MIGRATIONS_COLLECTION,
   legacyStudentIds,
   resolveStudentOverride,
   sharedAssignmentIsClean,
   studentAssignmentOverrideId,
 } from '../../functions/shared/studentAssignmentOverrides.mjs';
 import { stripAssignment } from '../../functions/shared/studentAssignmentOverrideStore.mjs';
+import {
+  OVERRIDE_MIGRATION_STAGE,
+  RESTORE_CONFIRMATION,
+  RETIRE_CONFIRMATION,
+  RETIREMENT_GATE,
+  STRIP_CONFIRMATION,
+} from '../../functions/shared/overrideRetirementGate.mjs';
 import { assignmentFinalCloseAt } from '../../functions/shared/sectionDeadline.mjs';
 import { resolveTeacherGrantedExtraAttempts } from '../../functions/shared/attemptPolicy.mjs';
+import {
+  MAX_STUDENTS_PER_CONTROLS_CALL,
+  classDolFieldPatch,
+  controlsRequestKey,
+  createControlsRequestGate,
+  planStudentDolGrant,
+  runStudentControlsCalls,
+} from '../../src/platform/assessment/dolAttemptGrantClient.js';
 
 const require = createRequire(import.meta.url);
 const { ROOT_ADMIN_EMAIL } = require(path.join(repo, 'functions/shared/rolePolicyIdentity.cjs'));
 const { rosterLinkDocumentId } = require(path.join(repo, 'functions/lib/publication.js'));
+const { ADMIN_AUDIT_COLLECTION } = require(path.join(repo, 'functions/lib/auth.js'));
+const { FieldValue } = require(path.join(repo, 'functions/node_modules/firebase-admin')).firestore;
 
 const P = 'sao-';
 const TEACHER_A = 'sao.teacher.a@desotoisd.org';
@@ -73,6 +94,12 @@ const CLOSED = `${P}closed`; // class final cutoff passed yesterday
 const OPEN = `${P}open`; // open now, with a DOL question
 const DAY = 86_400_000;
 const NOW = Date.now();
+// A class of 61 for the DOL grants at scale (one more than a request carries),
+// and a second class of the same teacher.
+const CLASS_DOL = `${P}class-dol`;
+const CLASS_DOL_2 = `${P}class-dol-2`;
+const DOL_ROSTER = Array.from({ length: 61 }, (_, index) => ({ id: `${P}dol-${String(index).padStart(2, '0')}`, classId: CLASS_DOL }));
+const DOL_ROSTER_2 = [{ id: `${P}dol2-a`, classId: CLASS_DOL_2 }, { id: `${P}dol2-b`, classId: CLASS_DOL_2 }];
 
 const rootRequest = (data) => ({
   auth: { uid: 'sao-root', token: { role: 'teacher', admin: true, rootAdmin: true, email: ROOT_ADMIN_EMAIL, email_verified: true } },
@@ -145,7 +172,23 @@ const readOverride = async (studentId, assignmentId) => (await overrideDoc(stude
 const readAssignment = async (assignmentId) => (await db.collection('assignments').doc(assignmentId).get()).data() || {};
 const readRecord = async (studentId, assignmentId, index) => ((await db.collection('grades').doc(studentId).get()).data()?.gradesByAssignment?.[assignmentId]?.[String(index)]) || {};
 const events = async (studentId) => (await db.collection('grades').doc(studentId).collection(ASSIGNMENT_OVERRIDE_EVENTS_COLLECTION).get()).docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-const setStorage = (sharedRetired) => fns.setAssignmentOverrideStorage.run(rootRequest({ sharedRetired }));
+const storage = (data) => fns.setAssignmentOverrideStorage.run(rootRequest(data));
+// #432's shape. `true` is now the gated retire (below); `false`, the rollback, is never gated.
+const setStorage = (sharedRetired) => storage({ sharedRetired });
+const progressRef = () => db.collection(PLATFORM_MIGRATIONS_COLLECTION).doc(OVERRIDE_MIGRATION_ID);
+const readProgress = async () => (await progressRef().get()).data() || {};
+const readFlag = async () => (await db.collection('platformFlags').doc(OVERRIDE_STORAGE_FLAG).get()).data() || null;
+const auditsFor = async (action) => (await db.collection(ADMIN_AUDIT_COLLECTION).where('action', '==', action).get()).docs.map((doc) => doc.data());
+/** A refusal with the gate rows the callable attached to it. */
+const refusedWith = async (promise) => {
+  try {
+    await promise;
+    return null;
+  } catch (error) {
+    return { code: error?.code || null, message: String(error?.message || error), details: error?.details ?? null };
+  }
+};
+const failingGates = (refused) => (refused?.details?.gates || []).filter((gate) => !gate.ok).map((gate) => gate.id).sort();
 const migrate = (data) => fns.migrateStudentAssignmentOverrides.run(rootRequest({ assignmentIdPrefix: P, ...data }));
 const controls = (data) => fns.setStudentAssignmentControls.run(teacherRequest({ assignmentId: OPEN, classId: CLASS_A, ...data }, TEACHER_A));
 
@@ -158,11 +201,17 @@ const teardown = async () => {
       .filter((doc) => doc.id.startsWith(P) || doc.id.includes(`:${P}`) || String(doc.data()?.studentId || '').startsWith(P) || String(doc.data()?.assignmentId || '').startsWith(P))
       .map((doc) => doc.ref.delete()));
   }
-  for (const id of [S1, S2, S3, `${P}moved`, `${P}deleted`]) {
+  for (const id of [S1, S2, S3, `${P}moved`, `${P}deleted`, ...DOL_ROSTER.map((student) => student.id), ...DOL_ROSTER_2.map((student) => student.id)]) {
     // eslint-disable-next-line no-await-in-loop
     await db.recursiveDelete(db.collection('grades').doc(id)).catch(() => {});
   }
   await db.collection('platformFlags').doc('assignmentOverrideStorage').delete().catch(() => {});
+  // The migration record (cutover, retirement, passes) and this suite's audit
+  // entries: only this suite writes either.
+  await progressRef().delete().catch(() => {});
+  const audit = await db.collection(ADMIN_AUDIT_COLLECTION)
+    .where('action', '>=', 'student_assignment_overrides_').where('action', '<', 'student_assignment_overrides_~').get();
+  await Promise.all(audit.docs.map((doc) => doc.ref.delete()));
 };
 
 before(async () => {
@@ -179,6 +228,14 @@ before(async () => {
   }
   await db.collection('assignments').doc(CLOSED).set(closedAssignment());
   await db.collection('assignments').doc(OPEN).set(openAssignment());
+  const roster = db.batch();
+  roster.set(db.collection('classes').doc(CLASS_DOL), { name: 'SAO DOL', period: 'Period 3', teacherOfRecord: TEACHER_A, status: 'active', course: 'algebra1' });
+  roster.set(db.collection('classes').doc(CLASS_DOL_2), { name: 'SAO DOL 2', period: 'Period 4', teacherOfRecord: TEACHER_A, status: 'active', course: 'algebra1' });
+  [...DOL_ROSTER, ...DOL_ROSTER_2].forEach(({ id, classId }) => roster.set(db.collection('grades').doc(id), {
+    displayName: id, classId, classPeriod: classId === CLASS_DOL ? 'Period 3' : 'Period 4',
+    assignedTeacherEmail: TEACHER_A, status: 'active', gradesByAssignment: {},
+  }));
+  await roster.commit();
 });
 
 after(async () => {
@@ -408,6 +465,214 @@ test('Classroom passback calls the extended student\'s grade final only at their
   assert.ok(patchGradeCalls().every((call) => call.courseWorkId === `${P}coursework`));
 });
 
+/* ------------------------- DOL grants for selected students, from the browser */
+
+// The browser's "+1 DOL attempt" (App.jsx handleGrantDOLAttemptForStudents) is
+// planned and sent by src/platform/assessment/dolAttemptGrantClient.js; here
+// that same code sends its requests to the real callable. Each lesson is
+// created fresh and removed afterwards, so the migration below sees only its
+// own fixtures.
+
+const dolLesson = (id) => ({ ...openAssignment(id), assignedClassIds: [CLASS_DOL, CLASS_DOL_2] });
+
+/** "+N DOL attempt" for these students, exactly as the browser plans and sends it. */
+const grantFromTheBrowser = async ({ assignmentId, students, email = TEACHER_A, increment = 1 }) => {
+  const { calls, unplaced } = planStudentDolGrant({ assignmentId, students, increment });
+  const sent = [];
+  const outcome = await runStudentControlsCalls({
+    calls,
+    call: async (request) => {
+      sent.push(request);
+      return fns.setStudentAssignmentControls.run(email === ROOT_ADMIN_EMAIL ? rootRequest(request) : teacherRequest(request, email));
+    },
+  });
+  return { ...outcome, sent, unplaced };
+};
+
+const withLesson = async (assignmentId, run) => {
+  await db.collection('assignments').doc(assignmentId).set(dolLesson(assignmentId));
+  try {
+    return await run();
+  } finally {
+    await Promise.all([
+      db.collection('assignments').doc(assignmentId).delete(),
+      ...[...DOL_ROSTER, ...DOL_ROSTER_2, { id: S1 }, { id: S2 }].map(({ id }) => overrideDoc(id, assignmentId).delete()),
+    ]);
+  }
+};
+
+const grantsOn = async (assignmentId, roster = DOL_ROSTER) => (await db.getAll(...roster.map(({ id }) => overrideDoc(id, assignmentId))))
+  .map((snapshot) => (snapshot.exists ? snapshot.data().dolExtraAttempts : null));
+
+const historyOn = async (studentId, assignmentId) => (await events(studentId))
+  .filter((event) => event.assignmentId === assignmentId)
+  .sort((a, b) => a.revision - b.revision);
+
+test('DOL "+1 attempt" for 1, 5, 30 and 60 students: one request, each chosen student granted exactly once, nobody else', async () => {
+  for (const count of [1, 5, 30, MAX_STUDENTS_PER_CONTROLS_CALL]) {
+    const assignmentId = `${P}dol-n${count}`;
+    // eslint-disable-next-line no-await-in-loop
+    await withLesson(assignmentId, async () => {
+      const chosen = DOL_ROSTER.slice(0, count);
+      const before = await db.collection('assignments').doc(assignmentId).get();
+      const outcome = await grantFromTheBrowser({ assignmentId, students: chosen });
+      assert.equal(outcome.sent.length, 1, `${count} students: one request`);
+      assert.deepEqual(outcome.failures, []);
+      assert.deepEqual(outcome.students.map((row) => [row.studentId, row.dolExtraAttempts]), chosen.map(({ id }) => [id, 1]));
+      const grants = await grantsOn(assignmentId);
+      assert.deepEqual(grants, DOL_ROSTER.map((_, index) => (index < count ? 1 : null)), 'the chosen students have one extra attempt; the rest of the class has no record');
+      // One history entry for each student, naming who granted it.
+      for (const { id } of [chosen[0], chosen[chosen.length - 1]]) {
+        // eslint-disable-next-line no-await-in-loop
+        assert.deepEqual((await historyOn(id, assignmentId)).map((event) => [event.kind, event.revision, event.actorEmail]), [['dolAttempts', 1, TEACHER_A]]);
+      }
+      // While the switch is off the grant is mirrored for the previous release —
+      // which rewrites the shared assignment (every listener on it receives the
+      // whole document again). Nothing class-wide moved.
+      const after = await db.collection('assignments').doc(assignmentId).get();
+      assert.equal(after.updateTime.isEqual(before.updateTime), false);
+      assert.deepEqual(Object.keys(after.data().dol.attemptGrantsByStudentId).sort(), chosen.map(({ id }) => id).sort());
+      assert.deepEqual(after.data().dol.attemptGrantsByClassId ?? null, before.data().dol.attemptGrantsByClassId ?? null);
+    });
+  }
+});
+
+test('DOL: 63 students in two classes — the browser splits by class and by 60, and every one is granted', async () => {
+  const assignmentId = `${P}dol-split`;
+  await withLesson(assignmentId, async () => {
+    const outcome = await grantFromTheBrowser({ assignmentId, students: [...DOL_ROSTER_2, ...DOL_ROSTER] });
+    assert.deepEqual(outcome.sent.map((request) => [request.classId, request.studentIds.length]), [[CLASS_DOL, 60], [CLASS_DOL, 1], [CLASS_DOL_2, 2]]);
+    assert.deepEqual(outcome.failures, []);
+    assert.equal(outcome.students.length, 63);
+    assert.deepEqual(await grantsOn(assignmentId, [...DOL_ROSTER, ...DOL_ROSTER_2]), Array(63).fill(1));
+  });
+});
+
+test('DOL: a double-click sends one request; a click after it settles is a second grant', async () => {
+  const assignmentId = `${P}dol-double`;
+  await withLesson(assignmentId, async () => {
+    const chosen = DOL_ROSTER.slice(0, 3);
+    const gate = createControlsRequestGate();
+    const key = controlsRequestKey({ assignmentId, studentIds: chosen.map(({ id }) => id), kind: 'dolAttempts' });
+    const click = () => gate.run(key, () => grantFromTheBrowser({ assignmentId, students: chosen }));
+    const first = click();
+    const second = click();
+    assert.equal(first.duplicate, false);
+    assert.equal(second.duplicate, true);
+    assert.equal(second.promise, first.promise, 'the second click waits on the first request');
+    assert.equal((await first.promise).sent.length, 1);
+    assert.deepEqual((await grantsOn(assignmentId)).slice(0, 4), [1, 1, 1, null]);
+    const third = click();
+    assert.equal(third.duplicate, false);
+    await third.promise;
+    assert.deepEqual((await grantsOn(assignmentId)).slice(0, 4), [2, 2, 2, null]);
+  });
+});
+
+test('DOL: the teacher of record in two tabs and the root administrator at once — no grant is lost', async () => {
+  const assignmentId = `${P}dol-race`;
+  await withLesson(assignmentId, async () => {
+    const chosen = DOL_ROSTER.slice(0, 2);
+    const request = { assignmentId, classId: CLASS_DOL, studentIds: chosen.map(({ id }) => id), change: { kind: 'dolAttempts', increment: 1 } };
+    const results = await Promise.all([
+      fns.setStudentAssignmentControls.run(teacherRequest(request, TEACHER_A)),
+      fns.setStudentAssignmentControls.run(teacherRequest(request, TEACHER_A)),
+      fns.setStudentAssignmentControls.run(rootRequest(request)),
+      fns.setStudentAssignmentControls.run(rootRequest(request)),
+    ]);
+    assert.equal(results.length, 4);
+    for (const { id } of chosen) {
+      // eslint-disable-next-line no-await-in-loop
+      const record = await readOverride(id, assignmentId);
+      assert.equal(record.dolExtraAttempts, 4, `${id}: four grants, four attempts`);
+      assert.equal(record.revision, 4);
+      // eslint-disable-next-line no-await-in-loop
+      const history = await historyOn(id, assignmentId);
+      assert.deepEqual(history.map((event) => event.revision), [1, 2, 3, 4]);
+      assert.deepEqual(history.map((event) => event.actorEmail).sort(), [ROOT_ADMIN_EMAIL, ROOT_ADMIN_EMAIL, TEACHER_A, TEACHER_A].sort());
+      // Each change built on the one before it (the first had no record yet).
+      assert.deepEqual(history.map((event) => [event.before?.dolExtraAttempts ?? 0, event.after.dolExtraAttempts]), [[0, 1], [1, 2], [2, 3], [3, 4]]);
+    }
+    assert.equal((await readAssignment(assignmentId)).dol.attemptGrantsByStudentId[chosen[0].id].extraAttempts, 4);
+  });
+});
+
+test('DOL: a class grant and a student\'s own grant add up — on the server, up to the cap — and a stale tab loses neither', async () => {
+  const assignmentId = `${P}dol-both`;
+  await withLesson(assignmentId, async () => {
+    const [student, classmate] = DOL_ROSTER;
+    // The class grant, as the browser now writes it: only the field it changed.
+    const stale = (await readAssignment(assignmentId)).dol;
+    const classGrant = { ...stale, attemptGrantsByClassId: { [CLASS_DOL]: { extraAttempts: 1, reason: 'teacher-dol-recovery' } } };
+    const patch = classDolFieldPatch(stale, classGrant, { deleteValue: FieldValue.delete() });
+    assert.deepEqual(Object.keys(patch), ['dol.attemptGrantsByClassId']);
+    await db.collection('assignments').doc(assignmentId).update(patch);
+    await grantFromTheBrowser({ assignmentId, students: [student] });
+    const resolved = async (studentId) => resolveTeacherGrantedExtraAttempts({
+      assignment: await readAssignment(assignmentId), activityRole: 'dol', classId: CLASS_DOL, studentId, privateOverride: await readOverride(studentId, assignmentId),
+    });
+    assert.equal(await resolved(student.id), 2, 'class 1 + their own 1');
+    assert.equal(await resolved(classmate.id), 1, 'the class grant alone');
+
+    // Ingestion allows exactly that: the DOL's one attempt plus two for the student…
+    const dolAttempt = (studentId, n) => ingest(studentId, [envelope({
+      actionId: `${assignmentId}-${studentId}-${n}`, assignmentId, questionIndex: 0, activityRole: 'dol', value: '8', previousTotalAttempts: n - 1,
+    })]);
+    for (const n of [1, 2]) {
+      // eslint-disable-next-line no-await-in-loop
+      assert.equal((await dolAttempt(student.id, n))[0].disposition, 'accepted');
+      // eslint-disable-next-line no-await-in-loop
+      assert.equal((await readRecord(student.id, assignmentId, 0)).status, 'attempted', `attempt ${n}: more remain`);
+    }
+    await dolAttempt(student.id, 3);
+    assert.deepEqual([(await readRecord(student.id, assignmentId, 0)).status, (await readRecord(student.id, assignmentId, 0)).totalAttempts], ['expired', 3]);
+    // …plus one for the classmate.
+    await dolAttempt(classmate.id, 1);
+    assert.equal((await readRecord(classmate.id, assignmentId, 0)).status, 'attempted');
+    await dolAttempt(classmate.id, 2);
+    assert.equal((await readRecord(classmate.id, assignmentId, 0)).status, 'expired');
+
+    // A stale tab of this release changes the class grant from the snapshot it
+    // loaded before the student's grant: its write names only the class field.
+    const staleClassChange = classDolFieldPatch(classGrant, { ...classGrant, attemptGrantsByClassId: { [CLASS_DOL]: { extraAttempts: 2 } } }, { deleteValue: FieldValue.delete() });
+    await db.collection('assignments').doc(assignmentId).update(staleClassChange);
+    assert.equal((await readOverride(student.id, assignmentId)).dolExtraAttempts, 1);
+    assert.equal((await readAssignment(assignmentId)).dol.attemptGrantsByStudentId[student.id].extraAttempts, 1, 'the mirrored grant is still there');
+    // A previous-release tab writes the WHOLE dol map from that old snapshot
+    // (no student grants in it): the absorber keeps the student's grant.
+    const before = await db.collection('assignments').doc(assignmentId).get();
+    await db.collection('assignments').doc(assignmentId).update({ dol: { ...classGrant, attemptGrantsByClassId: { [CLASS_DOL]: { extraAttempts: 2 } } } });
+    const after = await db.collection('assignments').doc(assignmentId).get();
+    await fns.absorbSharedStudentControls.run({ params: { assignmentId }, data: { before, after } });
+    assert.equal((await readOverride(student.id, assignmentId)).dolExtraAttempts, 1, 'never lost');
+
+    // The cap: a student's own grant stops at MAX_TEACHER_GRANTED_ATTEMPTS, and so does the sum.
+    await grantFromTheBrowser({ assignmentId, students: [student], increment: 25 });
+    assert.equal((await readOverride(student.id, assignmentId)).dolExtraAttempts, MAX_TEACHER_GRANTED_ATTEMPTS);
+    await grantFromTheBrowser({ assignmentId, students: [student] });
+    assert.equal((await readOverride(student.id, assignmentId)).dolExtraAttempts, MAX_TEACHER_GRANTED_ATTEMPTS);
+    assert.equal(await resolved(student.id), MAX_TEACHER_GRANTED_ATTEMPTS, 'class 2 + their own 20, capped');
+  });
+});
+
+test('DOL: another class\'s teacher, a student, and nobody signed in cannot grant one — nothing is written', async () => {
+  const assignmentId = `${P}dol-refused`;
+  await withLesson(assignmentId, async () => {
+    const chosen = DOL_ROSTER.slice(0, 2);
+    const outcome = await grantFromTheBrowser({ assignmentId, students: chosen, email: TEACHER_B });
+    assert.deepEqual(outcome.students, []);
+    assert.deepEqual(outcome.failures.map((failure) => [failure.classId, failure.code, failure.studentIds.length]), [[CLASS_DOL, 'permission-denied', 2]]);
+    const request = { assignmentId, classId: CLASS_DOL, studentIds: [chosen[0].id], change: { kind: 'dolAttempts', increment: 1 } };
+    assert.equal((await refusal(fns.setStudentAssignmentControls.run(studentRequest(chosen[0].id, request))))?.code, 'permission-denied');
+    assert.equal((await refusal(fns.setStudentAssignmentControls.run({ auth: null, data: request, rawRequest: { headers: {} } })))?.code, 'unauthenticated');
+    // A student of another class in the same request: refused for all of them.
+    assert.equal((await refusal(fns.setStudentAssignmentControls.run(teacherRequest({ ...request, studentIds: [chosen[0].id, S3] }, TEACHER_A))))?.code, 'failed-precondition');
+    assert.deepEqual((await grantsOn(assignmentId)).slice(0, 2), [null, null]);
+    assert.equal(await readOverride(S3, assignmentId), null);
+    assert.equal((await readAssignment(assignmentId)).dol.attemptGrantsByStudentId, undefined, 'and nothing reached the shared copy');
+  });
+});
+
 /* --------------------------- one answer, whichever store holds the control */
 
 // Every assignment passes through three storage states: the shared copy alone
@@ -582,7 +847,17 @@ test('migration: only the root administrator can run it', async () => {
     assert.equal((await refusal(fns.migrateStudentAssignmentOverrides.run(who)))?.code, 'permission-denied');
     // eslint-disable-next-line no-await-in-loop
     assert.equal((await refusal(fns.setAssignmentOverrideStorage.run(who)))?.code, 'permission-denied');
+    for (const data of [
+      { action: 'confirmClientCutover', attestHostingDeployed: true },
+      { action: 'retire', confirmation: RETIRE_CONFIRMATION, attestFullSchoolDay: true },
+      { action: 'mirror' },
+    ]) {
+      // eslint-disable-next-line no-await-in-loop
+      assert.equal((await refusal(fns.setAssignmentOverrideStorage.run({ ...who, data })))?.code, 'permission-denied', data.action);
+    }
   }
+  assert.equal(await readFlag(), null, 'nothing was switched');
+  assert.equal((await readProgress()).cutover, undefined, 'and no cutover recorded');
 });
 
 test('migration: a dry run (the default) reports and writes nothing', async () => {
@@ -652,17 +927,152 @@ test('14. a second backfill writes nothing', async () => {
 });
 
 test('the strip is refused while previous-release clients still read the shared copy', async () => {
-  const refused = await refusal(migrate({ mode: 'strip', dryRun: false }));
+  // Its dry run may run any time and changes nothing…
+  const sharedBefore = await readAssignment(`${L}2`);
+  const dry = await migrate({ mode: 'strip' });
+  assert.equal(dry.dryRun, true);
+  assert.deepEqual(dry.failures, []);
+  assert.deepEqual(await readAssignment(`${L}2`), sharedBefore);
+  // …but the strip itself is a deliberate action of its own: typed…
+  assert.equal((await refusal(migrate({ mode: 'strip', dryRun: false })))?.code, 'invalid-argument');
+  // …and, typed, still refused until the shared copy is retired.
+  const refused = await refusal(migrate({ mode: 'strip', dryRun: false, confirm: STRIP_CONFIRMATION }));
   assert.equal(refused?.code, 'failed-precondition');
   assert.equal(sharedAssignmentIsClean(await readAssignment(`${L}2`)), false);
 });
 
+/* ------------------------------------------- the retirement gate (Stage 4) */
+
+// What the server records over real days, written here as fixtures: the
+// cutover confirmed a week ago (the only way a test can let a school day
+// pass), and FULL migration passes, which cannot run in this database the
+// integration suites share (every pass in this file is a canary on `sao-`).
+const CUTOVER_FIXTURE_AT = NOW - 7 * DAY;
+const fullPassFixture = (extra = {}) => ({
+  passId: 'fixture-full-pass', startedAtMs: CUTOVER_FIXTURE_AT + DAY, completedAtMs: CUTOVER_FIXTURE_AT + DAY + 60_000,
+  pages: 3, nextCursor: null, assignmentsScanned: 240, failureCount: 0, failures: [], ...extra,
+});
+const retire = (extra = {}) => storage({ action: 'retire', confirmation: RETIRE_CONFIRMATION, attestFullSchoolDay: true, ...extra });
+const ALL_GATES = Object.values(RETIREMENT_GATE).sort();
+
+test('retirement gate: with nothing recorded the switch refuses, names every gate, and audits the refusal — a canary backfill is not the full pass', async () => {
+  const status = await storage({ action: 'status' });
+  assert.equal(status.sharedRetired, false);
+  assert.equal(status.readiness.stage, OVERRIDE_MIGRATION_STAGE.BACKFILL_INCOMPLETE);
+  assert.deepEqual(status.readiness.gates.filter((gate) => !gate.ok).map((gate) => gate.id).sort(), ALL_GATES);
+  const progress = await readProgress();
+  assert.ok(progress.canaryPasses?.backfill?.[P]?.lastCompletedPass, 'the canary backfill above completed a pass of its own');
+  assert.equal(progress.backfill?.lastCompletedPass, undefined, 'which is never the full pass the gate reads');
+
+  const refused = await refusedWith(retire());
+  assert.equal(refused?.code, 'failed-precondition');
+  assert.deepEqual(failingGates(refused), ALL_GATES);
+  // #432's `{ sharedRetired: true }` is the same gated action.
+  assert.equal((await refusedWith(setStorage(true)))?.code, 'failed-precondition');
+  assert.notEqual((await readFlag())?.sharedRetired, true);
+  assert.equal((await auditsFor('student_assignment_overrides_retire_refused')).length, 2);
+});
+
+test('retirement gate: recording the client cutover — the emulator cannot read the live build, so it must be attested; the server stamps the time', async () => {
+  assert.equal((await refusedWith(storage({ action: 'confirmClientCutover' })))?.code, 'invalid-argument');
+  assert.equal((await readProgress()).cutover, undefined);
+  const before = Date.now();
+  const confirmed = await storage({
+    action: 'confirmClientCutover', attestHostingDeployed: true,
+    // A browser's claims: kept as evidence, never trusted for the clock.
+    confirmedAtMs: 0, clientBuild: { gitSha: 'abc1234', builtAt: '2026-10-01T00:00:00.000Z' },
+  });
+  const after = Date.now();
+  const { cutover } = await readProgress();
+  assert.ok(cutover.confirmedAtMs >= before && cutover.confirmedAtMs <= after, 'the server\'s clock, not the request\'s');
+  assert.equal(cutover.hosting.state, 'unverified');
+  assert.equal(cutover.hostingVerified, false);
+  assert.equal(cutover.hostingAttested, true);
+  assert.equal(cutover.confirmedByEmail, ROOT_ADMIN_EMAIL);
+  assert.deepEqual(cutover.clientBuild, { gitSha: 'abc1234', builtAt: '2026-10-01T00:00:00.000Z' });
+  assert.equal((await auditsFor('student_assignment_overrides_client_cutover_confirmed')).length, 1);
+  const gates = Object.fromEntries(confirmed.readiness.gates.map((gate) => [gate.id, gate.ok]));
+  assert.equal(gates[RETIREMENT_GATE.CLIENT_CUTOVER_DEPLOYED], true);
+  assert.equal(gates[RETIREMENT_GATE.LIVE_ONE_FULL_SCHOOL_DAY], false, 'the school-day clock starts now');
+  const refused = await refusedWith(retire());
+  assert.deepEqual(failingGates(refused), [RETIREMENT_GATE.BACKFILL_ZERO_FAILURES, RETIREMENT_GATE.FULL_BACKFILL_COMPLETED, RETIREMENT_GATE.LIVE_ONE_FULL_SCHOOL_DAY].sort());
+});
+
+test('retirement gate: a school day later, a full pass with failures still blocks, and so does a newer pass left unfinished', async () => {
+  const progress = await readProgress();
+  await progressRef().set({
+    ...progress,
+    cutover: { ...progress.cutover, confirmedAtMs: CUTOVER_FIXTURE_AT },
+    backfill: { pass: fullPassFixture({ failureCount: 2 }), lastCompletedPass: fullPassFixture({ failureCount: 2 }) },
+  });
+  assert.deepEqual(failingGates(await refusedWith(retire())), [RETIREMENT_GATE.BACKFILL_ZERO_FAILURES]);
+  assert.equal((await storage({ action: 'status' })).readiness.stage, OVERRIDE_MIGRATION_STAGE.BACKFILL_INCOMPLETE);
+  await progressRef().set({
+    ...(await readProgress()),
+    backfill: {
+      lastCompletedPass: fullPassFixture(),
+      pass: { ...fullPassFixture(), passId: 'newer', startedAtMs: NOW - DAY, completedAtMs: null, nextCursor: `${P}somewhere` },
+    },
+  });
+  assert.deepEqual(failingGates(await refusedWith(retire())), [RETIREMENT_GATE.BACKFILL_ZERO_FAILURES, RETIREMENT_GATE.FULL_BACKFILL_COMPLETED].sort());
+  assert.notEqual((await readFlag())?.sharedRetired, true);
+});
+
+test('retirement gate: every gate passes — the switch still needs the typed phrase and the school-day attestation, then retires, audited, naming nobody on the flag', async () => {
+  await progressRef().set({ ...(await readProgress()), backfill: { pass: fullPassFixture(), lastCompletedPass: fullPassFixture() } });
+  const ready = await storage({ action: 'status' });
+  assert.equal(ready.readiness.stage, OVERRIDE_MIGRATION_STAGE.READY_TO_RETIRE);
+  assert.equal(ready.readiness.canRetire, true);
+  for (const [why, request] of [
+    ['no typed phrase', { action: 'retire', attestFullSchoolDay: true }],
+    ['not the exact phrase', { action: 'retire', confirmation: 'retire', attestFullSchoolDay: true }],
+    ['no school-day attestation', { action: 'retire', confirmation: RETIRE_CONFIRMATION }],
+    ['#432\'s bare switch', { sharedRetired: true }],
+  ]) {
+    // eslint-disable-next-line no-await-in-loop
+    assert.equal((await refusedWith(storage(request)))?.code, 'invalid-argument', why);
+  }
+  assert.notEqual((await readFlag())?.sharedRetired, true);
+
+  const retired = await retire();
+  assert.equal(retired.sharedRetired, true);
+  assert.equal(retired.mirrorShared, false);
+  assert.equal(retired.changed, true);
+  assert.equal(retired.readiness.stage, OVERRIDE_MIGRATION_STAGE.RETIRED);
+  assert.deepEqual(Object.keys(await readFlag()).sort(), ['sharedRetired', 'updatedAt'], 'every signed-in client reads the flag: it names nobody');
+  const { retirement } = await readProgress();
+  assert.equal(retirement.retiredByEmail, ROOT_ADMIN_EMAIL);
+  assert.equal(retirement.attestedFullSchoolDay, true);
+  assert.equal(retirement.cutoverConfirmedAtMs, CUTOVER_FIXTURE_AT);
+  assert.deepEqual(retirement.gates.map((gate) => [gate.id, gate.ok]).sort(), ALL_GATES.map((id) => [id, true]));
+  assert.equal((await auditsFor('student_assignment_overrides_shared_retired')).length, 1);
+  // Idempotent; a cutover can no longer be recorded; an unknown action is refused.
+  assert.equal((await retire()).changed, false);
+  assert.equal((await refusedWith(storage({ action: 'confirmClientCutover', attestHostingDeployed: true })))?.code, 'failed-precondition');
+  assert.equal((await refusedWith(storage({ action: 'retireNow' })))?.code, 'invalid-argument');
+});
+
 test('Stage 4: retire the shared copy and strip — archived first, every student\'s access unchanged', async () => {
-  assert.deepEqual(await setStorage(true), { sharedRetired: true, mirrorShared: false, changed: true });
+  assert.equal((await readFlag()).sharedRetired, true, 'retired through the gate above');
+  // The dry run from before the retirement is no basis for the strip.
+  assert.equal((await refusal(migrate({ mode: 'strip', dryRun: false, confirm: STRIP_CONFIRMATION })))?.code, 'failed-precondition');
+  const archivesOf = async () => (await db.collection(ASSIGNMENT_OVERRIDE_ARCHIVES_COLLECTION).where('assignmentId', '>=', P).where('assignmentId', '<', `${P}~`).get()).size;
+  const archivesBefore = await archivesOf();
+  const sharedBefore = await readAssignment(`${L}2`);
   const dry = await migrate({ mode: 'strip' });
   // Legacy 1 and 2, and the closed/open lessons the earlier tests mirrored onto.
   assert.equal(dry.assignmentsStripped, 4, JSON.stringify(dry));
-  const run = await migrate({ mode: 'strip', dryRun: false });
+  // What the operator reads before the strip (StudentControlsMigrationCard).
+  assert.equal(dry.assignmentsWithSharedStudentData, 4);
+  assert.equal(dry.studentsAwaitingAbsorption, 0, 'the backfill already copied every student in');
+  assert.ok(dry.recordsConfirmedPrivate >= 5, JSON.stringify(dry));
+  assert.equal(dry.archivesToWrite, 4);
+  assert.deepEqual(dry.failures, []);
+  assert.deepEqual(await readAssignment(`${L}2`), sharedBefore, 'a dry run changes nothing');
+  assert.equal(await archivesOf(), archivesBefore, 'and writes no archive');
+  // The strip is its own action, typed.
+  assert.equal((await refusal(migrate({ mode: 'strip', dryRun: false })))?.code, 'invalid-argument');
+  const run = await migrate({ mode: 'strip', dryRun: false, confirm: STRIP_CONFIRMATION });
   assert.deepEqual(run.failures, []);
   assert.equal(run.assignmentsStripped, 4);
   for (const id of Object.keys(legacyDocs())) {
@@ -682,9 +1092,43 @@ test('Stage 4: retire the shared copy and strip — archived first, every studen
   // Every student sees exactly what they saw before the migration.
   assert.deepEqual(await effectiveAccess(true), accessBefore);
   // A second strip finds nothing.
-  const again = await migrate({ mode: 'strip', dryRun: false });
+  const again = await migrate({ mode: 'strip', dryRun: false, confirm: STRIP_CONFIRMATION });
   assert.equal(again.assignmentsStripped, 0);
   assert.equal(again.archivesWritten, 0);
+  // The 30-day clock to ignoring the legacy side starts only from a FULL clean strip pass.
+  assert.equal((await storage({ action: 'status' })).readiness.legacyIgnore.cleanSinceMs, null);
+});
+
+test('the full strip needs the full dry run — after the retirement, with no failures; a canary\'s does not count', async () => {
+  // Scoped past every document, so even a wrongly accepted request could strip nothing.
+  const full = (extra = {}) => fns.migrateStudentAssignmentOverrides.run(rootRequest({
+    mode: 'strip', dryRun: false, confirm: STRIP_CONFIRMATION, startAfter: '\uf8ff\uf8ff', maxAssignments: 1, ...extra,
+  }));
+  assert.equal((await refusal(full()))?.code, 'failed-precondition');
+  const progress = await readProgress();
+  const { retiredAtMs } = progress.retirement;
+  for (const dryPass of [fullPassFixture({ completedAtMs: retiredAtMs + 1000, failureCount: 1 }), fullPassFixture({ completedAtMs: retiredAtMs - 1000 })]) {
+    // eslint-disable-next-line no-await-in-loop
+    await progressRef().set({ ...progress, strip: { ...progress.strip, lastCompletedDryRunPass: dryPass } });
+    // eslint-disable-next-line no-await-in-loop
+    assert.equal((await refusal(full()))?.code, 'failed-precondition', JSON.stringify(dryPass));
+  }
+  await progressRef().set(progress);
+});
+
+test('retired: a grant writes only the student\'s private record — the shared assignment is not rewritten, so nobody else\'s listener receives anything', async () => {
+  const assignmentId = `${P}dol-retired`;
+  await withLesson(assignmentId, async () => {
+    const before = await db.collection('assignments').doc(assignmentId).get();
+    const outcome = await grantFromTheBrowser({ assignmentId, students: DOL_ROSTER.slice(0, 30) });
+    assert.equal(outcome.students.length, 30);
+    assert.deepEqual(outcome.failures, []);
+    await controls({ assignmentId, classId: CLASS_DOL, studentIds: [DOL_ROSTER[0].id], change: { kind: 'excused', value: true } });
+    const after = await db.collection('assignments').doc(assignmentId).get();
+    assert.equal(after.updateTime.isEqual(before.updateTime), true, 'the shared document was not written at all');
+    assert.deepEqual(await grantsOn(assignmentId, DOL_ROSTER.slice(0, 31)), [...Array(30).fill(1), null]);
+    assert.equal((await readOverride(DOL_ROSTER[0].id, assignmentId)).excused, true);
+  });
 });
 
 test('the strip itself refuses a document whose students are not all in private storage — nothing leaves unabsorbed', async () => {
@@ -726,9 +1170,32 @@ test('a write while retired deletes the student\'s shared entries instead of mir
 });
 
 test('rollback: restore is refused while retired; after the switch is off it writes the shared copy back', async () => {
-  assert.equal((await refusal(migrate({ mode: 'restore', dryRun: false })))?.code, 'failed-precondition');
-  await setStorage(false);
-  const run = await migrate({ mode: 'restore', dryRun: false });
+  assert.equal((await refusal(migrate({ mode: 'restore', dryRun: false })))?.code, 'invalid-argument', 'typed, like the strip');
+  assert.equal((await refusal(migrate({ mode: 'restore', dryRun: false, confirm: RESTORE_CONFIRMATION })))?.code, 'failed-precondition');
+  // Turning the switch off is never gated (#432's shape and the action alike).
+  const mirrored = await setStorage(false);
+  assert.equal(mirrored.sharedRetired, false);
+  assert.equal(mirrored.mirrorShared, true);
+  const rolledBack = await readProgress();
+  assert.equal(typeof rolledBack.retirement.mirroredAgainAtMs, 'number');
+  assert.equal((await auditsFor('student_assignment_overrides_shared_mirrored')).length, 1);
+  // Retiring again starts over: the cutover is set aside, so the release must
+  // be recorded as live again and stay live one more full school day.
+  assert.equal(rolledBack.cutover, null);
+  assert.equal(rolledBack.previousCutover.confirmedAtMs, CUTOVER_FIXTURE_AT);
+  assert.deepEqual(
+    mirrored.readiness.gates.filter((gate) => !gate.ok).map((gate) => gate.id).sort(),
+    [RETIREMENT_GATE.CLIENT_CUTOVER_DEPLOYED, RETIREMENT_GATE.LIVE_ONE_FULL_SCHOOL_DAY].sort(),
+  );
+  assert.equal((await refusedWith(retire()))?.code, 'failed-precondition');
+  // Turning it off again is a no-op that sets nothing else aside.
+  assert.equal((await storage({ action: 'mirror' })).sharedRetired, false);
+  assert.equal((await readProgress()).previousCutover.confirmedAtMs, CUTOVER_FIXTURE_AT);
+  // Its dry run reports and writes nothing.
+  const dry = await migrate({ mode: 'restore' });
+  assert.ok(dry.assignmentsRestored >= 2, JSON.stringify(dry));
+  assert.equal(sharedAssignmentIsClean(await readAssignment(`${L}2`)), true);
+  const run = await migrate({ mode: 'restore', dryRun: false, confirm: RESTORE_CONFIRMATION });
   assert.deepEqual(run.failures, []);
   assert.ok(run.assignmentsRestored >= 2);
   // A previous-release client reading only the shared copy sees the same access again.

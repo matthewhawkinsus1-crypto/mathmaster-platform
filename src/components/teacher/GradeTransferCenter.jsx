@@ -80,6 +80,11 @@ export default function GradeTransferCenter({
   initialScope = null,
   onOpenGrades = null,
   onOpenAssignment = null,
+  // (classIds) => void. The classes this screen can export right now (the
+  // class filter, or every authorized class), so each student's own controls
+  // — a reopen holds the row, an individual cutoff withholds it — are read for
+  // exactly those classes (platform/teacher/teacherClassControls.js).
+  onClassScopeChange = null,
 }) {
   const [snapshots, setSnapshots] = useState([]);
   const [stateLoaded, setStateLoaded] = useState(false);
@@ -115,6 +120,13 @@ export default function GradeTransferCenter({
     () => authorizedClasses.map((entry) => entry.classId),
     [authorizedClasses],
   );
+  const exportableClassKey = (classFilter.size ? authorizedClassIds.filter((classId) => classFilter.has(classId)) : authorizedClassIds).join('|');
+  useEffect(() => {
+    if (typeof onClassScopeChange === 'function') onClassScopeChange(exportableClassKey ? exportableClassKey.split('|') : []);
+  }, [exportableClassKey, onClassScopeChange]);
+  useEffect(() => () => {
+    if (typeof onClassScopeChange === 'function') onClassScopeChange([]);
+  }, [onClassScopeChange]);
 
   const projectedStudents = useMemo(
     () => (students || []).map((student) => (

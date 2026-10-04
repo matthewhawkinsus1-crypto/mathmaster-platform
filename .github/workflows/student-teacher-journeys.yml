@@ -13,6 +13,11 @@ name: Student and Teacher Journeys
 #   walkthrough scope      tests/browser/teacherWorkflow/walkthroughJourneys.mjs
 #                          (only the selected class's live assignments; class
 #                          switch; empty state; a stale saved session retired)
+#   private controls       tests/browser/teacherWorkflow/privateControlsJourneys.mjs
+#                          (its own job: one own-controls listener per student,
+#                          one class listener per teacher; a shared Chromebook
+#                          A -> B; DOL grants through the callable; the staged
+#                          Stage 4 migration; desktop, Chromebook, iPad, phone)
 #   cross-device drafts    tests/browser/teacherWorkflow/draftCrossDeviceJourneys.mjs
 #                          (a fresh, slow or offline Chromebook gets the work
 #                          and never overwrites it; the newest edit wins)
@@ -133,6 +138,30 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/enduranceJourneys.mjs
+
+  # Its own runner: the teacher job is near its time limit, and these journeys
+  # run every device size in both storage states (mirrored, retired).
+  private-controls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false playwright@1.55.0
+      - run: npx playwright install --with-deps chromium
+      - name: Start the teacher harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/teacher-harness.log; exit 1
+      - name: Students' private assignment controls (listeners, shared Chromebook, DOL, staged migration)
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          # Desktop, Chromebook, iPad and phone (the last two as touch devices).
+          VIEWPORTS: "1440x900,1366x768,820x1180,390x844"
+        run: node tests/browser/teacherWorkflow/privateControlsJourneys.mjs
 
   student:
     runs-on: ubuntu-latest

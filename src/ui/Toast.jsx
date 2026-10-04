@@ -18,6 +18,11 @@ const ToastContext = createContext(null);
 
 const DEFAULT_DURATIONS = { error: 10000, warning: 8000, success: 5000, info: 5000 };
 
+// A double-click on a button that asks for confirmation opens the dialog with
+// its first press; its second press lands on the backdrop a moment later. That
+// press is not a decision, so the backdrop cancels only after this long.
+const CONFIRM_BACKDROP_GRACE_MS = 500;
+
 let nextToastId = 0;
 
 export function ToastProvider({ children }) {
@@ -26,6 +31,7 @@ export function ToastProvider({ children }) {
   const timersRef = useRef(new Map());
   const confirmButtonRef = useRef(null);
   const previouslyFocusedRef = useRef(null);
+  const confirmOpenedAtRef = useRef(0);
 
   const dismissToast = useCallback((id) => {
     setToasts((current) => current.filter((toast) => toast.id !== id));
@@ -67,6 +73,7 @@ export function ToastProvider({ children }) {
 
   const confirm = useCallback((options = {}) => new Promise((resolve) => {
     previouslyFocusedRef.current = document.activeElement;
+    confirmOpenedAtRef.current = Date.now();
     setConfirmState({
       title: options.title || 'Are you sure?',
       message: options.message || '',
@@ -138,7 +145,11 @@ export function ToastProvider({ children }) {
         // the answer (live QA, Algebra I DOL #2).
         <div
           role="presentation"
-          onMouseDown={(event) => { if (event.target === event.currentTarget) closeConfirm(false); }}
+          onMouseDown={(event) => {
+            if (event.target !== event.currentTarget) return;
+            if (Date.now() - confirmOpenedAtRef.current < CONFIRM_BACKDROP_GRACE_MS) return;
+            closeConfirm(false);
+          }}
           style={{
             position: 'fixed', inset: 0, zIndex: 2147483500, background: 'rgba(32,33,36,0.72)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',

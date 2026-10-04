@@ -46,7 +46,11 @@ test('reviewed policy and output fields persist on existing assignment save', ()
   assert.match(block, /sectionAccess:/);
   assert.match(block, /guidedNotesBySection:/);
   assert.match(block, /publicationSettings:/);
-  assert.match(block, /await updateDoc\(doc\(db, 'assignments', existing\.id\), patch\)/);
+  // The whole reviewed patch is written; its `dol` as the fields this edit
+  // changed (classDolFieldPatch), never the tab's whole map — which would
+  // carry students' DOL grants with it (platform/assessment/dolAttemptGrantClient.js).
+  assert.match(block, /const \{ dol: editedDol, \.\.\.patchWithoutDol \} = patch;/);
+  assert.match(block, /await updateDoc\(doc\(db, 'assignments', existing\.id\), \{\s*\.\.\.patchWithoutDol,\s*\.\.\.classDolFieldPatch\(existing\.dol, editedDol, \{ deleteValue: deleteField\(\) \}\),\s*\}\)/);
 });
 
 test('library template cannot be silently assigned through setup editing', () => {

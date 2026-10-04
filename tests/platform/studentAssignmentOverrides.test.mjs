@@ -190,7 +190,13 @@ test('13. the backfill converts each legacy shape into exactly the controls it m
   assert.deepEqual(controls(LEGACY_V4_FLAGS), { lateDueAt: null, extension: null, excused: true, reopened: true, dolExtraAttempts: 0 });
   assert.deepEqual(controls(LEGACY_V5_ARRAYS), { lateDueAt: null, extension: null, excused: true, reopened: true, dolExtraAttempts: 0 });
   assert.equal(controls(LEGACY_V6_DOL_OBJECT).dolExtraAttempts, 2);
-  assert.deepEqual(records[LEGACY_V6_DOL_OBJECT].dolAttemptGrant, { extraAttempts: 2, changedAt: '2026-09-16T15:05:00.000Z', changedBy: 'uid-t', reason: 'teacher-dol-recovery' });
+  // The grant keeps its count, time and reason; the student-readable record
+  // names a ROLE, never the granting account (the client follow-up's rule:
+  // a student never receives granting-teacher metadata). The verbatim legacy
+  // value, account included, is kept in the staff-only history entry.
+  assert.deepEqual(records[LEGACY_V6_DOL_OBJECT].dolAttemptGrant, { extraAttempts: 2, changedAt: '2026-09-16T15:05:00.000Z', changedBy: 'teacher', reason: 'teacher-dol-recovery' });
+  const v6Plan = planStudentAbsorption({ assignmentId: 'A1', assignment: legacyAssignment(), studentId: LEGACY_V6_DOL_OBJECT, existingPrivate: null, authorization: authorization(LEGACY_V6_DOL_OBJECT) });
+  assert.equal(v6Plan.event.legacy.attemptGrant.changedBy, 'uid-t', 'who granted it is still on record, for staff');
   assert.equal(controls(LEGACY_V7_DOL_NUMBER).dolExtraAttempts, 3);
   assert.deepEqual(controls(LEGACY_V8_EVERYTHING), {
     lateDueAt: '2026-10-09T23:59:59.000Z', extension: { dateKey: '2026-10-09', grantedAt: 1758200000000 }, excused: true, reopened: true, dolExtraAttempts: 1,
@@ -451,7 +457,13 @@ test('7. a teacher grants an extension, a reopen, an excusal and an attempt — 
     change: { kind: OVERRIDE_CHANGE.DOL_ATTEMPTS, increment: 1 }, authorization: authorization(LEGACY_V6_DOL_OBJECT), actor, nowMs: 1759000002000, storageMode: STORAGE_MIRROR,
   });
   assert.equal(attempt.record.dolExtraAttempts, 3, 'the grant still only on the shared copy is the base — it is never lost');
-  assert.equal(attempt.record.dolAttemptGrant.changedBy, 'uid-t', 'the grant names a teacher id, never an email');
+  // Never an account on the record the student reads (not an email, not a
+  // uid): a role. The account is in the staff-only history entry.
+  assert.equal(attempt.record.dolAttemptGrant.changedBy, 'teacher', 'the student-readable grant names a role, never the granting account');
+  assert.equal(attempt.record.updatedBy, 'teacher');
+  assert.equal(JSON.stringify(attempt.record).includes('uid-t'), false, 'no actor uid anywhere on the student-readable record');
+  assert.equal(attempt.event.actorUid, 'uid-t', 'who granted it is in the staff history');
+  assert.equal(attempt.event.actorEmail, TEACHER);
   assert.deepEqual(attempt.sharedWrites.map((write) => write.path.join('.')), [`dol.attemptGrantsByStudentId.${LEGACY_V6_DOL_OBJECT}`]);
 
   const excuse = planStudentOverrideChange({

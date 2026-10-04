@@ -61,15 +61,30 @@ export function AuthProvider({ children }) {
   // Guards the role-resolution round trip so a token refresh cannot start a
   // second one for the same user while the first is still in flight.
   const resolvingRef = useRef(null);
+  // The account the current session belongs to.
+  const sessionUidRef = useRef(null);
 
   const applyFirebaseUser = useCallback(async (firebaseUser) => {
     if (!firebaseUser) {
       resolvingRef.current = null;
+      sessionUidRef.current = null;
       // However the session ended (here, in another tab, or by expiry), no
       // account's tab drafts outlive it (accountTabStorage.js).
       clearAccountTabStorage();
       setState({ status: 'signedOut', session: null, linkRequest: null });
       return;
+    }
+
+    // A DIFFERENT account replaced the signed-in one with no signed-out moment
+    // between (another tab signed someone else in on this shared device).
+    // The previous account's session ends now, not when the new account's
+    // claims finish resolving: until then the app renders a loading screen,
+    // never the previous account's.
+    if (sessionUidRef.current && sessionUidRef.current !== firebaseUser.uid) {
+      sessionUidRef.current = null;
+      resolvingRef.current = null;
+      clearAccountTabStorage();
+      setState({ status: 'loading', session: null, linkRequest: null });
     }
 
     // A temporary Classroom lease uses local Firebase persistence only so a
@@ -123,6 +138,7 @@ export function AuthProvider({ children }) {
       }
 
       writeLoginHints({ role: claims.role });
+      sessionUidRef.current = firebaseUser.uid;
       setState({ status: 'ready', session: toSession(firebaseUser, claims), linkRequest: null });
     } catch (caught) {
       console.error('Could not establish the MathMaster session:', caught);

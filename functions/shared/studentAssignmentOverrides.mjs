@@ -528,8 +528,21 @@ export const overrideEntryFor = (override) => {
 };
 
 /**
+ * A grant as the student it belongs to may hold it: how many attempts (the
+ * resolved total) and when. Who granted it (`changedBy`) and the teacher's
+ * reason stay with staff (grades/{sid}/assignmentOverrideEvents); an older
+ * shared copy can still carry them, so they are dropped here rather than
+ * trusted to be absent.
+ */
+const studentFacingGrant = (grant, extraAttempts) => ({
+  extraAttempts: grantCount(extraAttempts ?? grant?.extraAttempts),
+  changedAt: grant?.changedAt ? String(grant.changedAt) : null,
+});
+
+/**
  * ONE STUDENT'S VIEW of a shared assignment: every classmate's entry gone,
- * this student's resolved controls in the places the runtime reads them.
+ * this student's resolved controls in the places the runtime reads them, and
+ * nothing about who granted them.
  *
  * Safe to build on a student's device and nowhere else: students cannot write
  * assignments, so nothing here can be written back. A teacher's in-memory copy
@@ -541,6 +554,7 @@ export const studentAssignmentView = (assignment, { studentId = null, privateOve
   const id = clean(studentId);
   const resolved = id ? resolveStudentOverride({ assignment, studentId: id, privateOverride }) : null;
   const entry = overrideEntryFor(resolved);
+  if (entry?.dolAttemptGrant) entry.dolAttemptGrant = studentFacingGrant(entry.dolAttemptGrant, entry.dolExtraAttempts);
   const view = { ...assignment };
   delete view.studentOverrides;
   delete view.excusedStudentIds;
@@ -549,7 +563,7 @@ export const studentAssignmentView = (assignment, { studentId = null, privateOve
   if (isObject(view.dol)) {
     const dol = { ...view.dol };
     delete dol.attemptGrantsByStudentId;
-    if (entry?.dolExtraAttempts) dol.attemptGrantsByStudentId = { [id]: entry.dolAttemptGrant || { extraAttempts: entry.dolExtraAttempts } };
+    if (entry?.dolExtraAttempts) dol.attemptGrantsByStudentId = { [id]: entry.dolAttemptGrant || studentFacingGrant(null, entry.dolExtraAttempts) };
     if (Array.isArray(dol.recoveryAudit)) dol.recoveryAudit = dol.recoveryAudit.filter((auditEntry) => !isStudentScopedAuditEntry(auditEntry));
     view.dol = dol;
   }
@@ -629,10 +643,29 @@ export const overrideAuthorizationContext = ({ existing = null, studentId, class
   };
 };
 
+/*
+ * WHO CHANGED A STUDENT-READABLE RECORD: A ROLE, NEVER AN ACCOUNT.
+ *
+ * The student reads their own record, so `updatedBy` and a DOL grant's
+ * `changedBy` say only what KIND of actor wrote it. The account (uid and
+ * email) is in the staff-only history entry written in the same transaction
+ * (buildOverrideEvent: actorUid, actorEmail), and a migrated grant's original
+ * value is kept verbatim there (`legacy`). Anything that is not one of these
+ * markers — a teacher uid an older release put on the shared copy — is
+ * recorded as the teacher it was.
+ */
+export const OVERRIDE_ACTOR_MARKERS = Object.freeze(['teacher', 'rootAdmin', 'migration', 'absorber', 'system']);
+export const overrideActorMarker = (value, fallback = 'teacher') => {
+  const marker = clean(value);
+  if (OVERRIDE_ACTOR_MARKERS.includes(marker)) return marker;
+  return marker ? fallback : null;
+};
+
 /**
  * The private record as it is stored. Only the controls and their authority:
- * a student reads their own record, so no reason, no email and no support
- * data is ever put on it (the staff-only event carries who and why).
+ * a student reads their own record, so no reason, no email, no actor account
+ * and no support data is ever put on it (the staff-only event carries who and
+ * why).
  */
 export const buildStudentOverrideRecord = ({
   studentId,
@@ -644,6 +677,7 @@ export const buildStudentOverrideRecord = ({
   updatedBy = null,
 } = {}) => {
   const controls = controlsOf(override);
+  const grant = controls.dolExtraAttempts > 0 && override?.dolAttemptGrant ? dolAttemptGrant(override.dolAttemptGrant) : null;
   return {
     schemaVersion: STUDENT_ASSIGNMENT_OVERRIDE_SCHEMA_VERSION,
     studentId: clean(studentId),
@@ -657,10 +691,10 @@ export const buildStudentOverrideRecord = ({
     excused: controls.excused,
     reopened: controls.reopened,
     dolExtraAttempts: controls.dolExtraAttempts,
-    dolAttemptGrant: controls.dolExtraAttempts > 0 && override?.dolAttemptGrant ? dolAttemptGrant(override.dolAttemptGrant) : null,
+    dolAttemptGrant: grant ? { ...grant, changedBy: overrideActorMarker(grant.changedBy) } : null,
     revision: Math.max(1, Math.floor(Number(revision) || 1)),
     source: clean(source) || 'server',
-    updatedBy: updatedBy ? clean(updatedBy) : null,
+    updatedBy: overrideActorMarker(updatedBy, 'system'),
   };
 };
 
@@ -770,7 +804,7 @@ export const planSharedCopyWrites = ({ assignment = null, studentId, override = 
 
 const iso = (ms) => new Date(ms).toISOString();
 
-const applyChange = ({ base, change, actorUid, nowMs }) => {
+const applyChange = ({ base, change, actorRole, nowMs }) => {
   const next = { ...controlsAndGrant(base || {}) };
   switch (change?.kind) {
     case OVERRIDE_CHANGE.ATTENDANCE_EXTENSION: {
@@ -785,8 +819,10 @@ const applyChange = ({ base, change, actorUid, nowMs }) => {
       next.dolAttemptGrant = {
         extraAttempts,
         changedAt: iso(nowMs),
-        // Never an email: the shared copy of a grant is readable by the class.
-        changedBy: clean(actorUid) || 'teacher',
+        // Never an account: the student reads this record, and while the
+        // shared copy is mirrored the whole class reads it there. The actor's
+        // uid and email are in the staff-only history entry.
+        changedBy: overrideActorMarker(actorRole),
         reason: clean(change.reason) || 'teacher-dol-recovery',
       };
       return next;
@@ -820,12 +856,12 @@ export const planStudentOverrideChange = ({
   storageMode,
 } = {}) => {
   const before = resolveStudentOverride({ assignment, studentId, privateOverride: existingPrivate ?? null });
-  const after = applyChange({ base: before, change, actorUid: actor.uid, nowMs });
+  const after = applyChange({ base: before, change, actorRole: actor.role || 'teacher', nowMs });
   const revision = Math.max(0, Math.floor(Number(existingPrivate?.revision) || 0)) + 1;
   const record = buildStudentOverrideRecord({
     studentId, assignmentId, override: after, authorization, revision,
     source: `change:${change.kind}`,
-    updatedBy: actor.uid || actor.role || 'teacher',
+    updatedBy: actor.role || 'teacher',
   });
   return {
     before,

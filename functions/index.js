@@ -5924,8 +5924,31 @@ exports.setStudentAssignmentControls = onCall(async (request) => {
 exports.migrateStudentAssignmentOverrides = onCall({ timeoutSeconds: 540 }, async (request) => {
   const actor = await requireRootAdmin(request);
   const store = await studentOverrideStore();
+  const gate = await overrideRetirementGate();
   const dryRun = request.data?.dryRun !== false;
   const mode = String(request.data?.mode || "backfill");
+  const prefix = String(request.data?.assignmentIdPrefix || "").slice(0, 160).trim();
+  // The destructive steps are deliberate actions of their own: a typed
+  // confirmation, never just `dryRun: false` (a strip removes the shared copy;
+  // a restore writes it back).
+  if (!dryRun && mode === "strip" && String(request.data?.confirm || "") !== gate.STRIP_CONFIRMATION) {
+    throw new HttpsError("invalid-argument", `Type "${gate.STRIP_CONFIRMATION}" to strip the shared copies. Run the dry run first.`);
+  }
+  if (!dryRun && mode === "restore" && String(request.data?.confirm || "") !== gate.RESTORE_CONFIRMATION) {
+    throw new HttpsError("invalid-argument", `Type "${gate.RESTORE_CONFIRMATION}" to write the shared copies back.`);
+  }
+  // A strip only after a dry run of the same scope — run to the end, with no
+  // failures, since the shared copy was retired (a canary's own dry run for a
+  // canary strip; the full dry run for the full strip).
+  if (!dryRun && mode === "strip") {
+    const progress = await store.readOverrideMigrationProgress({ db: getFirestore() });
+    const passes = prefix ? progress?.canaryPasses?.strip?.[prefix] : progress?.strip;
+    const dry = passes?.lastCompletedDryRunPass || null;
+    const retiredAtMs = Number(progress?.retirement?.retiredAtMs) || 0;
+    if (!dry || Number(dry.failureCount) > 0 || (Number(dry.completedAtMs) || 0) < retiredAtMs) {
+      throw new HttpsError("failed-precondition", "Run the strip's dry run to the end first — after retiring the shared copy, with no failures.");
+    }
+  }
   try {
     const report = await store.runOverrideMigration({
       db: getFirestore(),
@@ -5934,7 +5957,7 @@ exports.migrateStudentAssignmentOverrides = onCall({ timeoutSeconds: 540 }, asyn
       startAfter: request.data?.startAfter || null,
       maxAssignments: request.data?.maxAssignments,
       migrationRunId: String(request.data?.migrationRunId || "").slice(0, 80) || null,
-      assignmentIdPrefix: String(request.data?.assignmentIdPrefix || "").slice(0, 160) || null,
+      assignmentIdPrefix: prefix || null,
       actor,
     });
     if (!dryRun) {
@@ -5949,40 +5972,229 @@ exports.migrateStudentAssignmentOverrides = onCall({ timeoutSeconds: 540 }, asyn
   }
 });
 
+let overrideRetirementGateModule = null;
+async function overrideRetirementGate() {
+  if (!overrideRetirementGateModule) overrideRetirementGateModule = await import("./shared/overrideRetirementGate.mjs");
+  return overrideRetirementGateModule;
+}
+
 /**
- * Root-admin action: the storage switch (platformFlags/assignmentOverrideStorage).
- * `sharedRetired: true` once the release that reads private storage has been
- * live for a school day; `false` is the rollback. Called without a boolean it
- * reports the current value and where the migration stands.
+ * What Hosting serves right now, read the way the release script reads it
+ * (mathmaster-build.json is served no-cache): evidence for the retirement
+ * gate's first condition, read by the server itself — never a browser's
+ * claim. Unreachable (the emulator, a network failure) is reported as such;
+ * the gate then needs the operator's explicit attestation instead.
+ */
+async function liveHostingBuild() {
+  const gate = await overrideRetirementGate();
+  if (process.env.FIRESTORE_EMULATOR_HOST || process.env.FUNCTIONS_EMULATOR === "true") return { checked: false, reason: "emulator" };
+  const project = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || "";
+  if (!project) return { checked: false, reason: "no-project" };
+  if (typeof fetch !== "function") return { checked: false, reason: "no-fetch" };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4000);
+  try {
+    const response = await fetch(`https://${project}.web.app/mathmaster-build.json?ts=${Date.now()}`, {
+      signal: controller.signal,
+      headers: { "cache-control": "no-cache" },
+    });
+    if (!response.ok) return { checked: false, reason: `http-${response.status}` };
+    const manifest = await response.json();
+    return {
+      checked: true,
+      gitSha: String(manifest?.gitSha || "") || null,
+      builtAt: String(manifest?.builtAt || "") || null,
+      capability: Number(manifest?.[gate.CLIENT_CUTOVER_CAPABILITY]) || 0,
+    };
+  } catch (error) {
+    return { checked: false, reason: error?.name === "AbortError" ? "timeout" : "unreachable" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** A short, client-reported build stamp: kept as evidence, never trusted for the gate. */
+const reportedBuild = (value) => (value && typeof value === "object" ? {
+  gitSha: String(value.gitSha || "").slice(0, 40) || null,
+  builtAt: String(value.builtAt || "").slice(0, 40) || null,
+} : null);
+
+/**
+ * Root-admin action: the storage switch (platformFlags/assignmentOverrideStorage)
+ * and the cutover record it depends on. `{ action }`:
+ *
+ *   status                 (default) the switch, the migration's progress and
+ *                          the retirement gate, evaluated now;
+ *   confirmClientCutover   record that the client release reading private
+ *                          records is live — the server reads the live build
+ *                          manifest itself; where it cannot, the request must
+ *                          carry `attestHostingDeployed: true`. Stamped with the
+ *                          SERVER's clock: the school-day clock starts here;
+ *   retire                 `sharedRetired: true` — refused unless every gate in
+ *                          shared/overrideRetirementGate.mjs passes (deployed;
+ *                          live one full school day; a full backfill pass;
+ *                          zero failures), re-checked in the transaction that
+ *                          flips it, and only with `confirmation` typed and
+ *                          `attestFullSchoolDay: true`;
+ *   mirror                 `sharedRetired: false` — the rollback, never gated.
+ *
+ * `{ sharedRetired: true|false }` (the #432 shape) means retire / mirror.
+ * Who acted and on what evidence goes to the root-only migration record and the
+ * admin audit log — never onto the flag, which every signed-in client can read.
  */
 exports.setAssignmentOverrideStorage = onCall(async (request) => {
   const actor = await requireRootAdmin(request);
   const db = getFirestore();
   const overrides = await studentOverrides();
-  const store = await studentOverrideStore();
-  const ref = db.collection("platformFlags").doc(overrides.OVERRIDE_STORAGE_FLAG);
-  if (typeof request.data?.sharedRetired !== "boolean") {
-    const snapshot = await ref.get();
-    return {
-      ...overrides.resolveOverrideStorageMode(snapshot.exists ? snapshot.data() : null),
-      changed: false,
-      migration: await store.readOverrideMigrationProgress({ db }),
-    };
+  const gate = await overrideRetirementGate();
+  const flagRef = db.collection("platformFlags").doc(overrides.OVERRIDE_STORAGE_FLAG);
+  const progressRef = db.collection(overrides.PLATFORM_MIGRATIONS_COLLECTION).doc(overrides.OVERRIDE_MIGRATION_ID);
+  const data = request.data && typeof request.data === "object" ? request.data : {};
+  const action = typeof data.action === "string" && data.action
+    ? data.action
+    : typeof data.sharedRetired === "boolean" ? (data.sharedRetired ? "retire" : "mirror") : "status";
+  const nowMs = Date.now();
+  const readState = async () => {
+    const [flagSnap, progressSnap] = await Promise.all([flagRef.get(), progressRef.get()]);
+    return { storage: flagSnap.exists ? flagSnap.data() : null, migration: progressSnap.exists ? progressSnap.data() || {} : {} };
+  };
+  const report = (state, hosting, changed) => ({
+    ...overrides.resolveOverrideStorageMode(state.storage),
+    changed,
+    migration: state.migration,
+    readiness: gate.evaluateRetirementReadiness({ storage: state.storage, migration: state.migration, hosting, nowMs }),
+  });
+  const gateSummary = (readiness) => readiness.gates.map(({ id, ok, detail }) => ({ id, ok, detail }));
+
+  if (action === "status") {
+    return report(await readState(), await liveHostingBuild(), false);
   }
-  const sharedRetired = request.data.sharedRetired;
-  await ref.set({
-    [overrides.SHARED_RETIRED_FIELD]: sharedRetired,
-    updatedAt: FieldValue.serverTimestamp(),
-    updatedBy: actor.uid,
-  }, { merge: true });
-  await writeAdminAudit(
-    db,
-    actor,
-    sharedRetired ? "student_assignment_overrides_shared_retired" : "student_assignment_overrides_shared_mirrored",
-    overrides.OVERRIDE_STORAGE_FLAG,
-    { sharedRetired },
-  );
-  return { ...overrides.resolveOverrideStorageMode({ sharedRetired }), changed: true };
+
+  if (action === "confirmClientCutover") {
+    const hosting = await liveHostingBuild();
+    const evidence = gate.hostingCutoverEvidence(hosting);
+    if (evidence.state === "notDeployed") {
+      await writeAdminAudit(db, actor, "student_assignment_overrides_cutover_refused", overrides.OVERRIDE_STORAGE_FLAG, { hosting: evidence });
+      throw new HttpsError("failed-precondition", `Hosting still serves a build that does not read students' private records (${evidence.gitSha || "unknown build"}). Deploy this release's Hosting, then record it.`);
+    }
+    const attested = data.attestHostingDeployed === true;
+    if (evidence.state !== "deployed" && !attested) {
+      throw new HttpsError("invalid-argument", `MathMaster could not read the live build (${evidence.reason}). Confirm that this release's Hosting is deployed and live for everyone.`);
+    }
+    await db.runTransaction(async (transaction) => {
+      const [flagSnap, progressSnap] = await Promise.all([transaction.get(flagRef), transaction.get(progressRef)]);
+      if (flagSnap.exists && flagSnap.data()?.[overrides.SHARED_RETIRED_FIELD] === true) {
+        throw new HttpsError("failed-precondition", "The shared copy is already retired.");
+      }
+      const current = progressSnap.exists ? progressSnap.data() || {} : {};
+      transaction.set(progressRef, {
+        ...current,
+        cutover: {
+          confirmedAtMs: nowMs,
+          confirmedAt: FieldValue.serverTimestamp(),
+          confirmedByUid: actor.uid,
+          confirmedByEmail: actor.email || null,
+          hosting: evidence,
+          hostingVerified: evidence.state === "deployed",
+          hostingAttested: evidence.state !== "deployed" && attested,
+          clientBuild: reportedBuild(data.clientBuild),
+          servedBuildSeenByBrowser: reportedBuild(data.servedBuild),
+          functionsBuild: { gitSha: deployProvenance.gitSha || null, treeClean: deployProvenance.treeClean ?? null },
+          previousConfirmedAtMs: Number(current.cutover?.confirmedAtMs) || null,
+        },
+      });
+    });
+    await writeAdminAudit(db, actor, "student_assignment_overrides_client_cutover_confirmed", overrides.OVERRIDE_STORAGE_FLAG, {
+      hosting: evidence,
+      hostingAttested: evidence.state !== "deployed" && attested,
+      clientBuild: reportedBuild(data.clientBuild),
+      functionsGitSha: deployProvenance.gitSha || null,
+    });
+    return report(await readState(), hosting, true);
+  }
+
+  if (action === "retire") {
+    const hosting = await liveHostingBuild();
+    const before = await readState();
+    if (before.storage?.[overrides.SHARED_RETIRED_FIELD] === true) return report(before, hosting, false);
+    const readiness = gate.evaluateRetirementReadiness({ storage: before.storage, migration: before.migration, hosting, nowMs });
+    const refusal = gate.retirementRefusal({
+      readiness,
+      confirmation: data.confirmation,
+      attestFullSchoolDay: data.attestFullSchoolDay === true,
+    });
+    if (refusal) {
+      await writeAdminAudit(db, actor, "student_assignment_overrides_retire_refused", overrides.OVERRIDE_STORAGE_FLAG, {
+        reason: refusal.message,
+        gates: gateSummary(readiness),
+      });
+      throw new HttpsError(refusal.code, refusal.message, { gates: gateSummary(readiness) });
+    }
+    // Re-evaluated in the transaction that flips the switch: a backfill pass
+    // or a cutover record that changed in between is decided on, not missed.
+    const retired = await db.runTransaction(async (transaction) => {
+      const [flagSnap, progressSnap] = await Promise.all([transaction.get(flagRef), transaction.get(progressRef)]);
+      const current = progressSnap.exists ? progressSnap.data() || {} : {};
+      const fresh = gate.evaluateRetirementReadiness({ storage: flagSnap.exists ? flagSnap.data() : null, migration: current, hosting, nowMs });
+      if (fresh.sharedRetired) return fresh;
+      if (!fresh.canRetire) {
+        throw new HttpsError("failed-precondition", "The retirement gate changed while retiring. Check the status and try again.", { gates: gateSummary(fresh) });
+      }
+      transaction.set(flagRef, {
+        [overrides.SHARED_RETIRED_FIELD]: true,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      transaction.set(progressRef, {
+        ...current,
+        retirement: {
+          retiredAtMs: nowMs,
+          retiredAt: FieldValue.serverTimestamp(),
+          retiredByUid: actor.uid,
+          retiredByEmail: actor.email || null,
+          attestedFullSchoolDay: true,
+          gates: gateSummary(fresh),
+          hosting: fresh.hosting,
+          cutoverConfirmedAtMs: fresh.confirmedAtMs,
+          mirroredAgainAtMs: null,
+        },
+      });
+      return fresh;
+    });
+    await writeAdminAudit(db, actor, "student_assignment_overrides_shared_retired", overrides.OVERRIDE_STORAGE_FLAG, {
+      sharedRetired: true,
+      gates: gateSummary(retired),
+      hosting: retired.hosting,
+      attestedFullSchoolDay: true,
+    });
+    return report(await readState(), hosting, true);
+  }
+
+  if (action === "mirror") {
+    // The rollback: never gated. Writers mirror again from their next change;
+    // `restore` writes the shared copy back for previous-release clients.
+    // Rolling back a retirement also sets its cutover record aside: retiring
+    // again starts over — the release recorded as live again, on fresh
+    // evidence, and live one more full school day.
+    await db.runTransaction(async (transaction) => {
+      const [flagSnap, progressSnap] = await Promise.all([transaction.get(flagRef), transaction.get(progressRef)]);
+      const wasRetired = flagSnap.exists && flagSnap.data()?.[overrides.SHARED_RETIRED_FIELD] === true;
+      const current = progressSnap.exists ? progressSnap.data() || {} : {};
+      transaction.set(flagRef, { [overrides.SHARED_RETIRED_FIELD]: false, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      if (wasRetired) {
+        const next = { ...current };
+        if (current.retirement && typeof current.retirement === "object") next.retirement = { ...current.retirement, mirroredAgainAtMs: nowMs };
+        if (current.cutover && typeof current.cutover === "object") {
+          next.previousCutover = { ...current.cutover, supersededAtMs: nowMs };
+          next.cutover = null;
+        }
+        transaction.set(progressRef, next);
+      }
+    });
+    await writeAdminAudit(db, actor, "student_assignment_overrides_shared_mirrored", overrides.OVERRIDE_STORAGE_FLAG, { sharedRetired: false });
+    return report(await readState(), null, true);
+  }
+
+  throw new HttpsError("invalid-argument", "Unknown action. Use status, confirmClientCutover, retire or mirror.");
 });
 
 /**

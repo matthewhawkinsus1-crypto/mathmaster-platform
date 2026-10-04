@@ -12,6 +12,14 @@
  * id — a second teacher account using the same browser tab — so what an
  * account keeps in the tab (the case review's next-steps draft) can be shown
  * not to reach another account.
+ *
+ * THE NEXT ACCOUNT ON A SHARED DEVICE (privateControlsJourneys.mjs).
+ * `window.__mmHarnessAuth.signInStudent(id)` signs a student in on this very
+ * page — same tab, same storage, same running app — the way the next student
+ * uses a school Chromebook: after the app's own Log Out, or straight over the
+ * signed-in account (another tab signed someone else in). `?authDelayMs=<ms>`
+ * makes resolving an account's claims that slow, so what the app shows while
+ * the next account is still resolving can be observed.
  */
 import { TEACHER_EMAIL } from './fixture.js';
 
@@ -30,15 +38,22 @@ const teacher = {
   getIdToken: async () => 'harness-token',
 };
 const params = new URLSearchParams(window.location.search);
-const studentId = params.get('as') === 'student' ? (params.get('studentId') || '910002') : null;
-const student = studentId ? {
-  uid: `harness-student-${studentId}`,
+const authDelayMs = Math.max(0, Number(params.get('authDelayMs')) || 0);
+const slowly = async (value) => {
+  if (authDelayMs) await new Promise((resolve) => { setTimeout(resolve, authDelayMs); });
+  return value;
+};
+const studentAccount = (id) => ({
+  uid: `harness-student-${id}`,
   email: null,
   displayName: null,
   photoURL: null,
-  getIdTokenResult: async () => ({ claims: { role: 'student', studentId } }),
+  harnessStudentId: id,
+  getIdTokenResult: async () => slowly({ claims: { role: 'student', studentId: id } }),
   getIdToken: async () => 'harness-token',
-} : null;
+});
+const studentId = params.get('as') === 'student' ? (params.get('studentId') || '910002') : null;
+const student = studentId ? studentAccount(studentId) : null;
 const signedInUser = student || teacher;
 let current = params.get('signedOut') ? null : signedInUser;
 const observers = new Set();
@@ -62,3 +77,17 @@ export const signInWithCustomToken = signIn;
 export const getRedirectResult = async () => null;
 export const sendPasswordResetEmail = async () => {};
 export const signOut = async () => { current = null; observers.forEach((fn) => fn(null)); };
+
+if (typeof window !== 'undefined') {
+  window.__mmHarnessAuth = {
+    signInStudent: (id) => {
+      current = studentAccount(String(id));
+      observers.forEach((fn) => fn(current));
+      return current.uid;
+    },
+    signOut: () => { current = null; observers.forEach((fn) => fn(null)); },
+    currentUid: () => current?.uid || null,
+    // The student the fake callables act for: whoever is signed in now.
+    currentStudentId: () => current?.harnessStudentId || null,
+  };
+}

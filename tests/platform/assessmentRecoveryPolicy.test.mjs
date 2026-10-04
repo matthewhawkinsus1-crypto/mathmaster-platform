@@ -145,8 +145,16 @@ test('the teacher controls and the server are wired to the one model', () => {
   assert.doesNotMatch(dolControl, /(closedByClassId|recoveryByClassId|instructionDatesByClassId)\s*[:=]/);
   assert.match(region(app, 'const handleUnlockDOLForClass = async', 'const handleGrantDOLAttemptForClass'), /buildDolWindowOpening\(\{/);
   assert.match(region(app, 'const handleGrantDOLAttemptForClass = async', 'const handleGrantDOLAttemptForStudents'), /buildDolAttemptGrant\(\{[\s\S]*?scope: \{ type: 'class', classId \}/);
-  assert.match(region(app, 'const handleGrantDOLAttemptForStudents = async', 'const handleToggleWarmupForClass'), /scope: \{ type: 'students', studentIds:/);
-  assert.match(app, /onClick=\{\(\) => handleGrantDOLAttemptForStudents\(selectedAssignment, \[student\]\)\}/);
+  // The per-student grant is for the SELECTED students only — now a request to
+  // the server (setStudentAssignmentControls), which changes each student's
+  // private record; the browser writes no assignment for it
+  // (platform/assessment/dolAttemptGrantClient.js, tests/platform/dolAttemptGrantCutover.test.mjs).
+  const perStudent = region(app, 'const handleGrantDOLAttemptForStudents = async', 'const handleDolControlForClass');
+  assert.match(perStudent, /planStudentDolGrant\(\{[\s\S]*?students: chosen/);
+  assert.match(perStudent, /runStudentControlsCalls\(\{ call: setStudentAssignmentControls, calls \}\)/);
+  assert.doesNotMatch(perStudent, /updateDoc\(|buildDolAttemptGrant\(/);
+  // …offered beside each student in the gradebook's student detail.
+  assert.match(app, /(onClick|onGrant)=\{\(\) => handleGrantDOLAttemptForStudents\(selectedAssignment, \[student\]\)\}/);
   assert.match(region(app, 'A REOPENED DOL OR AN EXTRA ATTEMPT MUST REACH THE STUDENT', '// Warm-Up reminders'), /summarizeStudentRecovery\(\{ assignment, classId: user\.classId \|\| null, studentId: user\.id/);
   // Every student-side maximum includes this student's own grant.
   assert.equal((app.match(/studentId: user\?\.role === 'student' \? user\.id : null,/g) || []).length, 4);
