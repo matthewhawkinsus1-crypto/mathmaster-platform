@@ -196,6 +196,8 @@ import {
   overlayDurableActionsOnGrades,
 } from './platform/performance/durableActionOutbox.js';
 import {
+  PROGRESS_KINDS,
+  buildProgressEnvelopeForAction,
   callableDeliveryDiagnostic,
   ingestOneSubmission,
   reconcileAssignmentActivityProjection,
@@ -2703,13 +2705,19 @@ function App() {
   };
 
   /**
-   * Direct Firestore is restricted to non-grade background state: checkpoints
-   * and elapsed-time progress. The guard is intentional defense in depth; a
-   * future dispatcher edit cannot turn this back into a second grade writer.
+   * Direct Firestore is restricted to response checkpoints: drafts that carry
+   * no grade (firestore.rules) and that the server finalizer re-grades. Graded
+   * work AND elapsed-time progress go to server ingestion, because the
+   * canonical question record is server-owned — the rules refuse this
+   * student's client any write to it. The guard is intentional defense in
+   * depth; a future dispatcher edit cannot turn this back into a grade writer.
    */
   const reconcileThroughClientTransaction = async (action) => {
     if (INGESTIBLE_KINDS.includes(action.kind)) {
       throw new Error('Grade-bearing actions require server ingestion.');
+    }
+    if (action.kind !== 'responseCheckpoint') {
+      throw new Error('Only response checkpoints are written directly; elapsed time requires server ingestion.');
     }
     const assignmentRef = doc(db, 'assignments', action.assignmentId);
     const gradesRef = doc(db, 'grades', action.studentId);
@@ -2724,46 +2732,31 @@ function App() {
         ? { id: assignmentSnapshot.id, ...assignmentSnapshot.data() }
         : null;
       const saved = gradesSnapshot.exists() ? gradesSnapshot.data() || {} : null;
-      const currentRecord = normalizeQuestionRecord(
-        saved?.gradesByAssignment?.[action.assignmentId]?.[action.questionIndex],
-      );
 
-      if (action.kind === 'responseCheckpoint') {
-        // A checkpoint is stored whatever the section's CURRENT state is: it is
-        // a draft, and whether the work counts is the finalizer's decision,
-        // made from the server acknowledgement time against the real close. A
-        // response that only reaches MathMaster after the deadline therefore
-        // stays recoverable history and changes no grade.
-        if (!assignment || !saved) {
-          classification = { disposition: SUBMISSION_DISPOSITION.RETRYABLE, reason: 'context-unreadable' };
-          return;
-        }
-        if (!assignmentIsForStudent(assignment, { classId: user.classId || null, classPeriod: user.classPeriod })) {
-          classification = { disposition: SUBMISSION_DISPOSITION.RETRYABLE, reason: 'assignment-not-assigned-to-class' };
-          return;
-        }
-        transaction.set(doc(db, 'studentResponseCheckpoints', action.payload.documentId), {
-          ...action.payload,
-          studentId: action.studentId,
-          assignmentId: action.assignmentId,
-          questionIndex: action.questionIndex,
-          classId: user.classId || null,
-          serverAcknowledgedAt: serverTimestamp(),
-          candidateFinalizeAt: action.payload.candidateFinalizeAt ? new Date(action.payload.candidateFinalizeAt) : null,
-          status: 'active',
-        });
-        classification = { disposition: SUBMISSION_DISPOSITION.ACCEPTED, reason: null };
+      // A checkpoint is stored whatever the section's CURRENT state is: it is
+      // a draft, and whether the work counts is the finalizer's decision,
+      // made from the server acknowledgement time against the real close. A
+      // response that only reaches MathMaster after the deadline therefore
+      // stays recoverable history and changes no grade.
+      if (!assignment || !saved) {
+        classification = { disposition: SUBMISSION_DISPOSITION.RETRYABLE, reason: 'context-unreadable' };
         return;
       }
-
-      // Progress actions never replace an answer. They merge only elapsed time
-      // into the latest canonical record, so a pending Next cannot undo a
-      // concurrently reconciled submission.
-      transaction.update(
-        gradesRef,
-        new FieldPath('gradesByAssignment', action.assignmentId, String(action.questionIndex)),
-        { ...currentRecord, timeSpent: Math.max(Number(currentRecord.timeSpent) || 0, Number(action.payload.timeSpent) || 0) },
-      );
+      if (!assignmentIsForStudent(assignment, { classId: user.classId || null, classPeriod: user.classPeriod })) {
+        classification = { disposition: SUBMISSION_DISPOSITION.RETRYABLE, reason: 'assignment-not-assigned-to-class' };
+        return;
+      }
+      transaction.set(doc(db, 'studentResponseCheckpoints', action.payload.documentId), {
+        ...action.payload,
+        studentId: action.studentId,
+        assignmentId: action.assignmentId,
+        questionIndex: action.questionIndex,
+        classId: user.classId || null,
+        serverAcknowledgedAt: serverTimestamp(),
+        candidateFinalizeAt: action.payload.candidateFinalizeAt ? new Date(action.payload.candidateFinalizeAt) : null,
+        status: 'active',
+      });
+      classification = { disposition: SUBMISSION_DISPOSITION.ACCEPTED, reason: null };
     });
 
     return classification;
@@ -2776,9 +2769,14 @@ function App() {
       return { disposition: SUBMISSION_DISPOSITION.RETRYABLE, reason: 'not-this-student' };
     }
 
-    if (INGESTIBLE_KINDS.includes(action.kind)) {
+    // Graded work, and elapsed time on a question, both land on the canonical
+    // question record, which only the server writes.
+    const elapsedTime = PROGRESS_KINDS.includes(action.kind);
+    if (INGESTIBLE_KINDS.includes(action.kind) || elapsedTime) {
       try {
-        const receipt = await ingestOneSubmission(buildSubmissionEnvelopeForAction(action));
+        const receipt = elapsedTime
+          ? await ingestOneSubmission(buildProgressEnvelopeForAction(action))
+          : await ingestOneSubmission(buildSubmissionEnvelopeForAction(action));
         return { disposition: receipt.disposition, reason: receipt.reason || null, receipt };
       } catch (error) {
         const diagnostic = callableDeliveryDiagnostic(error);
@@ -2790,7 +2788,7 @@ function App() {
         };
       }
     }
-    // Checkpoints and elapsed-time progress are non-grade background state.
+    // Response checkpoints are non-grade drafts the server finalizer re-grades.
     return reconcileThroughClientTransaction(action);
   };
   /*
@@ -2997,16 +2995,15 @@ function App() {
             courseLevel: courseContext.courseLevel,
           },
         });
-        const repairedStudentGrades = repairGradesByAssignmentWithCurrentGrader({
-          gradesByAssignment: studentData.gradesByAssignment || {},
-          assignmentList: fetchedAssignments,
-        });
-        if (repairedStudentGrades.changed) {
-          await updateDoc(doc(db, 'grades', studentId), {
-            gradesByAssignment: repairedStudentGrades.gradesByAssignment,
-          });
-        }
-        setTracker(repairedStudentGrades.gradesByAssignment || {});
+        // THE STUDENT SEES THE CANONICAL RECORD, AND NEVER REWRITES IT.
+        //
+        // Sign-in used to re-grade stored records with the current grader and
+        // write the result back from this browser. A student's device authors
+        // no grade state now (firestore.rules), so that write would be refused
+        // — and refusing it here would fail the whole sign-in. The one-time
+        // current-grader correction still lands, with the teacher of record's
+        // authority, when their gradebook loads (persistCurrentGraderCreditRepairs).
+        setTracker(studentData.gradesByAssignment || {});
         setTeacherGradeOverridesByAssignment(studentData.teacherGradeOverridesByAssignment || {});
         setSectionRecoveryByAssignment(studentData.sectionRecoveryByAssignment || {});
         setWarmupChallengeByAssignment(studentData.warmupChallengeByAssignment || {});
@@ -4723,37 +4720,27 @@ function App() {
     });
     if (!closes.length) return;
 
-    // CLIENT DOL CLOSE IS IMMEDIATE FEEDBACK, NOT NEWER AUTHORITY.
+    // CLIENT DOL CLOSE IS IMMEDIATE FEEDBACK, NOT AUTHORITY.
     //
-    // A pre-cutoff response checkpoint can be finalized by the server seconds
-    // after this timer fires. Read the canonical DOL entry inside a transaction:
-    // if the server already finalized/corrected it, use that value and never
-    // overwrite it with the browser's stale tracker. If the browser wins the
-    // race, the server may still correct this final score later while keeping
-    // the DOL closed.
+    // The DOL projection is server-owned: ingestion records it as each answer
+    // lands, and the checkpoint finalizer finalizes it for a response still
+    // pending at the cutoff, with no browser mounted. This browser used to
+    // write its own close — a score computed from its local tracker — onto
+    // the grade document. It now only closes the DOL on this screen; a
+    // projection the server has already finalized is never replaced, even
+    // locally. (No grade reads the projection: every DOL score is computed
+    // from the canonical question records.)
     closes.forEach(({ assignmentId, dateKey, record }) => {
-      const gradeRef = doc(db, 'grades', user.id);
-      void runTransaction(db, async (transaction) => {
-        const snapshot = await transaction.get(gradeRef);
-        if (!snapshot.exists()) return null;
-        const current = snapshot.data()?.dolGradesByAssignment?.[assignmentId]?.[dateKey] || null;
-        if (current?.finalized === true) return current;
-        transaction.update(
-          gradeRef,
-          new FieldPath('dolGradesByAssignment', assignmentId, dateKey),
-          record,
-        );
-        return record;
-      }).then((canonicalRecord) => {
-        if (!canonicalRecord) return;
-        setDolGradesByAssignment((current) => ({
+      setDolGradesByAssignment((current) => {
+        if (current?.[assignmentId]?.[dateKey]?.finalized === true) return current;
+        return {
           ...current,
           [assignmentId]: {
             ...(current?.[assignmentId] || {}),
-            [dateKey]: canonicalRecord,
+            [dateKey]: record,
           },
-        }));
-      }).catch((error) => console.error('Could not finalize DOL grades:', error));
+        };
+      });
     });
   }, [now, user, assignments, classSchedule, gradeDisplayTracker, dolGradesByAssignment]);
 

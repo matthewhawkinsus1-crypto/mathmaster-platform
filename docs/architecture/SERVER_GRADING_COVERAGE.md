@@ -89,7 +89,7 @@ graders on the same work and found divergent verdicts for all six.
 | My Math Path's `relationMapping` contract cannot read the component's `isFunction` vocabulary (`'yes-function'`, `'no-function'`), so every correct Path and Live Challenge relation answer was marked wrong. | `pathToolContracts.mjs` | **Fixed**: the contract reads the component's own values (and still accepts booleans and `yes`/`true`); a blank choice is never correct. |
 | Path's `systemsWorkspace` treats every mode other than inequalities and matrix3 as `linear`; Path data-modeling and graph contracts diverge from the browser. | `pathToolContracts.mjs` | Recorded, not changed (§12): Path is its own subsystem, and changing these contracts changes live Path scores. |
 | The content-upgrade tracker regrade marked a Data Modeling question that also asked for a prediction (`linearFitPrediction`, or a line fit with `predictionX`) correct on the fit alone, crediting wrong predictions in full. | `assignmentContentTrackerMigration.js` | **Fixed**: such a question is not regraded by the upgrade; the record stays as it was and the teacher can correct it from the Inspector. |
-| Students can update their own `grades/{studentId}` document, including `gradesByAssignment`. | `firestore.rules` | Recorded as the main remaining trust-boundary limitation (§12). |
+| Students can update their own `grades/{studentId}` document, including `gradesByAssignment`. | `firestore.rules` | Recorded as the main remaining trust-boundary limitation (§12); closed by the grade trust boundary change (2026-10-03). |
 
 The complete list, with evidence, is `crossCuttingFindings` and `baselineClaims`
 in the audit JSON.
@@ -1002,13 +1002,19 @@ My Math Path and Live Challenge.
 
 ## 12. Known limitations outside this change
 
-* **Students can write their own grade document.** `firestore.rules` lets a
-  student update `grades/{studentId}` except for roster, SIS, Test Cycle,
-  teacher-override, Recovery and Warm-Up fields; the browser writes
-  `gradesByAssignment` directly in several places (`App.jsx`). Server grading
-  makes the server's record correct; it cannot stop a hostile client from
-  overwriting it. Closing that needs every gradebook write to move behind the
-  server, which is a separate project with offline-first consequences.
+* **~~Students can write their own grade document.~~ Closed (grade trust
+  boundary, 2026-10-03).** A student's client may now change exactly one field
+  of `grades/{studentId}` — `assignmentActivity`, its engagement time — by an
+  allow-list in `firestore.rules` (`studentChangesOnlyClientOwnedFields`,
+  mirrored by `functions/shared/gradeDocumentAuthority.mjs`). The browser's
+  remaining direct writes moved behind the server or were dropped (elapsed
+  time now travels to `ingestStudentSubmissions` as a progress envelope), so
+  the record server grading produces can no longer be overwritten from a
+  student's console. Attack matrix: `tests/rules/gradeAuthorityRules.test.mjs`;
+  end to end: `tests/integration/gradeAuthorityEndToEnd.test.mjs`;
+  details and deploy order: `docs/handoffs/GRADE_TRUST_BOUNDARY_2026-10-03.md`.
+  The device-graded surfaces in §11 still reach the record through
+  ingestion's sanitized, attempt-bounded client record, unchanged.
 * **My Math Path and Live Challenge contracts diverge from the tools.** Path
   is its own server-authoritative subsystem, and migrating its contracts to
   the shared graders would change live Path scores, so it is left to a

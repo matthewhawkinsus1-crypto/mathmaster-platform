@@ -1083,17 +1083,22 @@ test('valid pre-cutoff checkpoint corrects an earlier browser-finalized DOL with
 });
 
 test('browser DOL close cannot overwrite a DOL the server already finalized', () => {
-  const marker = appSource.indexOf('CLIENT DOL CLOSE IS IMMEDIATE FEEDBACK, NOT NEWER AUTHORITY');
+  /*
+   * The race this guarded: the browser's DOL timer and the server finalizer
+   * both closing the same DOL, with the browser's stale tracker winning. The
+   * DOL projection is server-owned now (firestore.rules allows a student's
+   * client no write to it), so the browser cannot overwrite it at all — its
+   * close is local feedback only, and even locally it never replaces a
+   * projection the server has already finalized.
+   */
+  const marker = appSource.indexOf('CLIENT DOL CLOSE IS IMMEDIATE FEEDBACK');
   assert.ok(marker >= 0, 'browser/server DOL race guard is documented in the close effect');
   const block = appSource.slice(
     marker,
     appSource.indexOf('}, [now, user, assignments, classSchedule, gradeDisplayTracker, dolGradesByAssignment]);', marker),
   );
-  assert.match(block, /runTransaction\(db, async \(transaction\) => \{/);
-  assert.match(block, /transaction\.get\(gradeRef\)/);
-  assert.match(block, /if \(current\?\.finalized === true\) return current;/);
-  assert.match(block, /new FieldPath\('dolGradesByAssignment', assignmentId, dateKey\)/);
-  assert.doesNotMatch(block, /updateDoc\(doc\(db, 'grades'/);
+  assert.doesNotMatch(block, /runTransaction\(|updateDoc\(|setDoc\(|FieldPath\('dolGradesByAssignment'/);
+  assert.match(block, /if \(current\?\.\[assignmentId\]\?\.\[dateKey\]\?\.finalized === true\) return current;/);
 });
 
 test('server checkpoint finalizer explicitly writes an authoritative final DOL projection', () => {

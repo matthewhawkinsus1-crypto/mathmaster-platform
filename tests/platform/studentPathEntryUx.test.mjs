@@ -14,10 +14,12 @@ test('student dashboard hydrates identity from roster name, then session name, t
     /import \{[^}]*resolveStudentDisplayName[^}]*\} from ['"]\.\/platform\/studentName['"]/,
     'App must import the resolver it calls so JSX cannot ship a free-identifier runtime error',
   );
+  // Ends where the canonical tracker is loaded, right after the session user
+  // (and its display name) is set.
   const hydration = region(
     appSource,
     'const studentDisplayName = resolveStudentDisplayName(',
-    'const repairedStudentGrades =',
+    'setTracker(',
     'student identity hydration',
   );
   assert.match(hydration, /rosterStudent: \{ \.\.\.studentData, id: studentId \}/);

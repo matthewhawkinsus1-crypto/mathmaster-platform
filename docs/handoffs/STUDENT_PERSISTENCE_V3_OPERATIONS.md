@@ -31,6 +31,25 @@ through `prerequisiteAccess`. The browser's tracker is the local overlay and
 contains attempts still queued on that device, so a completion computed there
 could unlock work on evidence the gradebook has never seen.
 
+**The rules now enforce this** (grade trust boundary, 2026-10-03). A student's
+client may change exactly one field of `grades/{studentId}`:
+`assignmentActivity`. Every other field — the canonical question records,
+every projection, the Classroom release signals and receipts — is refused to
+it, by an allow-list rather than a list of pinned fields
+(`functions/shared/gradeDocumentAuthority.mjs`, `firestore.rules`
+`studentChangesOnlyClientOwnedFields`). The three browser writes that remained
+moved behind the server or were dropped:
+
+| Before | Now |
+| --- | --- |
+| `questionProgress` (Next) rewrote the whole canonical record with a new `timeSpent` in a client transaction | the same queued row is delivered to `ingestStudentSubmissions` as a progress envelope; the server raises `timeSpent` and touches nothing else (`questionProgressRecord`) |
+| sign-in re-graded stored records with the current grader and wrote them back | the student sees the canonical record; the correction is written when the teacher of record's Grades tab loads (`persistCurrentGraderCreditRepairs`) |
+| the DOL timer wrote a client-computed, finalized DOL projection | the close is local feedback only; ingestion and the checkpoint finalizer own the projection |
+
+Submit is unchanged: it waits only for the IndexedDB outbox, never for the
+network. Deploy order matters for clients still running the previous build:
+see `docs/handoffs/GRADE_TRUST_BOUNDARY_2026-10-03.md`.
+
 ## Diagnostics never delay a grade
 
 `reportStudentDeviceQueue` is a diagnostic and `ingestStudentSubmissions`

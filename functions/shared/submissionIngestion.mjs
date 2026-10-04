@@ -12,13 +12,16 @@
  * browser still acknowledges locally and instantly; a durable envelope is sent
  * in the background and answered with a receipt.
  *
- * THE TRUST MODEL DOES NOT MOVE.
+ * THIS IS THE ONLY WAY STUDENT WORK REACHES THE RECORD.
  *
- * `grades/{studentId}` is student-writable today — that is how ordinary
- * assignment work has always been saved, and the Firestore rules pin the parts
- * that are not (roster authorization, the Test Cycle projection). So accepting
- * an attempt envelope here is exactly the authority the client already had, and
- * NOT a new one. Where the server can do better it does:
+ * `grades/{studentId}` used to be student-writable apart from a few pinned
+ * maps, so this path started out as no more authority than the client already
+ * had. It is now the only one: firestore.rules lets a student's client change
+ * nothing on its grade document but its engagement time
+ * (functions/shared/gradeDocumentAuthority.mjs), so the canonical record this
+ * module reads as its baseline — attempts, status, credit, submission
+ * identity — is the server's own, and what it writes cannot be rewritten from
+ * the student's console afterwards. On the envelope itself:
  *
  *   - for a question the shared grading registry can mark — an ordinary type,
  *     a registry tool mode with a shared grader (serverGrading/), or a
@@ -83,14 +86,21 @@ import { deliveredQuestionForGrading } from './serverGrading/deliveredQuestion.m
 import { normalizeDeliveryPin } from './questionGenerationIdentity.mjs';
 import { classifyMisconceptions } from './misconceptionClassifiers.mjs';
 
+import { PROGRESS_KINDS, boundedQuestionSeconds } from './submissionEnvelope.mjs';
+
 export {
   FORBIDDEN_ENVELOPE_FIELDS,
   INGESTIBLE_KINDS,
   MAX_ENVELOPES_PER_CALL,
+  MAX_QUESTION_TIME_SECONDS,
+  PROGRESS_KINDS,
   SUBMISSION_ENVELOPE_SCHEMA_VERSION,
   assertEnvelopeCarriesNoSecureData,
+  buildProgressEnvelope,
   buildSubmissionEnvelope,
   captureSectionAccessProof,
+  normalizeIngestionEnvelope,
+  normalizeProgressEnvelope,
   normalizeSubmissionEnvelope,
   resolveLiveSectionAccess,
 } from './submissionEnvelope.mjs';
@@ -234,6 +244,62 @@ export const decideSubmissionIngestion = ({
     return { disposition: SUBMISSION_DISPOSITION.NEEDS_REVIEW, reason: identity.reason };
   }
   return { disposition: SUBMISSION_DISPOSITION.ACCEPTED, reason: null };
+};
+
+/*
+ * ELAPSED TIME ON A QUESTION: THE ONE THING A PROGRESS READING MAY CHANGE.
+ *
+ * The record to write for a `questionProgress` envelope, or null when it would
+ * change nothing. An existing record keeps every field byte-for-byte —
+ * status, attempts, credit, parts, `lastSubmissionId`, a family pin — and only
+ * its `timeSpent` rises; a smaller or equal reading (an older tab, a replay)
+ * writes nothing, so delivery order and duplicates do not matter. A question
+ * with no record yet gets the empty record the browser used to write, which
+ * is how "viewed but not answered" reads in the teacher's case review.
+ */
+export const questionProgressRecord = ({ canonicalRecord = null, timeSpentSeconds = 0 } = {}) => {
+  const seconds = boundedQuestionSeconds(timeSpentSeconds);
+  const existing = canonicalRecord && typeof canonicalRecord === 'object' && !Array.isArray(canonicalRecord)
+    ? canonicalRecord
+    : null;
+  const recorded = Math.max(0, finite(existing?.timeSpent, 0));
+  if (seconds <= recorded) return null;
+  // A legacy string record ('attempted') becomes the object the browser wrote
+  // for it; it never reads as more than it did.
+  return existing ? { ...existing, timeSpent: seconds } : { ...normalizeQuestionRecord(canonicalRecord), timeSpent: seconds };
+};
+
+/**
+ * Decide what one progress envelope does, from authoritative context the
+ * caller has already read. Elapsed time is not academic evidence, so anything
+ * that proves it can never be recorded retires the queue row rather than
+ * keeping a device retrying it; only a roster row that has not been written
+ * yet is worth waiting for.
+ */
+export const decideQuestionProgress = ({
+  envelope,
+  assignmentExists,
+  gradeRecordExists,
+  secureAssignment = false,
+  authorizedForClass,
+  question = null,
+  canonicalRecord = null,
+} = {}) => {
+  const outcome = (disposition, reason, record = null) => ({ disposition, reason, record });
+  if (!envelope || !PROGRESS_KINDS.includes(envelope.kind)) {
+    return outcome(SUBMISSION_DISPOSITION.PERMANENTLY_INVALID, 'unreadable-envelope');
+  }
+  if (gradeRecordExists === false) return outcome(SUBMISSION_DISPOSITION.RETRYABLE, 'grade-record-missing');
+  if (assignmentExists === false) return outcome(SUBMISSION_DISPOSITION.PERMANENTLY_INVALID, 'assignment-missing');
+  if (secureAssignment === true) return outcome(SUBMISSION_DISPOSITION.PERMANENTLY_INVALID, 'secure-assignment-excluded');
+  if (authorizedForClass !== true) {
+    return outcome(SUBMISSION_DISPOSITION.PERMANENTLY_INVALID, 'assignment-not-assigned-to-class');
+  }
+  if (!question || typeof question !== 'object') {
+    return outcome(SUBMISSION_DISPOSITION.PERMANENTLY_INVALID, 'question-index-not-found');
+  }
+  const record = questionProgressRecord({ canonicalRecord, timeSpentSeconds: envelope.timeSpentSeconds });
+  return outcome(SUBMISSION_DISPOSITION.ACCEPTED, record ? null : 'time-already-recorded', record);
 };
 
 /*

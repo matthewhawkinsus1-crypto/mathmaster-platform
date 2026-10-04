@@ -208,16 +208,17 @@ const KNOWN_GRADES_DOCUMENT_ACCESS = {
     persistCurrentGraderCreditRepairs: 1,
     // THE one full-data listener's source: the teacher's whole class, one query.
     studentGradeSourceForViewer: 2,
-    // The signed-in STUDENT's own record: queued action reconciliation…
+    // The signed-in STUDENT's own record: the response-checkpoint transaction
+    // reads it to confirm the roster row exists…
     reconcileThroughClientTransaction: 1,
-    // …session hydration (read, and its credit-repair write)…
-    'useEffect: let cancelled = false;': 2,
-    // …engagement time…
+    // …session hydration reads it (and no longer writes a credit repair back:
+    // a student's client authors no grade state)…
+    'useEffect: let cancelled = false;': 1,
+    // …engagement time, the one field the student's client still writes…
     flushAssignmentActivity: 1,
-    // …the receipt listener on their own document…
+    // …and the receipt listener on their own document. (Closing a DOL no
+    // longer touches the document: the DOL projection is server-owned.)
     "useEffect: if (user?.role !== 'student' || !user.id) {": 1,
-    // …and closing their own DOL entry.
-    "useEffect: if (user?.role !== 'student' || !user.classPeriod) return;": 1,
     // A teacher saving a question-weight change migrates the affected grades in one transaction.
     saveQuestionEditor: 1,
     // The profile drawer: ONE student, when a teacher opens them.

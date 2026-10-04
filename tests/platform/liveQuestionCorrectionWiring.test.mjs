@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { assignmentQuestionEditorSource } from './helpers/splitComponentSource.mjs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const app = fs.readFileSync('src/App.jsx', 'utf8');
 
@@ -53,9 +54,16 @@ test('current grader corrections remain automatic without making teacher login r
   // listener does not depend on (and resubscribe for) every assignment write.
   assert.match(app, /persistCurrentGraderCreditRepairs\(studentData, (?:assignments|assignmentsRef\.current)\)/);
 
-  // Student self-repair still happens during student hydration.
-  assert.match(app, /repairedStudentGrades\.changed/);
-  assert.match(app, /gradesByAssignment: repairedStudentGrades\.gradesByAssignment/);
+  // The teacher of record's gradebook is the one place the correction is
+  // written. A student's sign-in used to re-grade and write its own records;
+  // a student's client authors no grade state now (firestore.rules), so the
+  // student sees the canonical record and the correction lands when their
+  // teacher's Grades tab loads.
+  const studentHydration = region(
+    app, "const studentSnapshot = await getDoc(doc(db, 'grades', studentId));", 'setTeacherGradeOverridesByAssignment(studentData', 'student hydration',
+  );
+  assert.doesNotMatch(executableSource(studentHydration), /repairGradesByAssignmentWithCurrentGrader\(|updateDoc\(/);
+  assert.match(studentHydration, /setTracker\(studentData\.gradesByAssignment \|\| \{\}\)/);
 });
 
 test('automatic grader repair is monotonic and does not require another student attempt', () => {

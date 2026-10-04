@@ -75,7 +75,10 @@ test('service types, provider roles and event types match their owning modules',
 
 test('the student roster row pins the profile, and attempt evidence has no client writer', () => {
   const grades = region(rules, 'match /grades/{studentId} {', 'match /supportProfileRevisions/', 'grades rules');
-  assert.match(grades, /allow update: if \(rootAdmin\(\) \|\| teachesStudent\(\) \|\| \(ownsStudent\(studentId\) && supportProfileUnchanged\(\)\)\)/);
+  // The owner's branch of the update pins the profile; the grade-authority
+  // allow-list rides the same branch (tests/platform/gradeDocumentAuthority.test.mjs).
+  const update = region(grades, 'allow update:', ';', 'grades update rule');
+  assert.match(update, /^allow update: if \(rootAdmin\(\) \|\| teachesStudent\(\)\s*\|\| \(ownsStudent\(studentId\) && supportProfileUnchanged\(\)( && [A-Za-z]+\(\))*\)\)/);
   assert.match(grades, /ownsStudent\(studentId\) && supportProfileAbsentOnStudentCreate\(\)/);
   const evidence = region(rules, 'match /evidenceEvents/{eventId} {', '}', 'evidenceEvents rules');
   assert.match(evidence, /allow create, update, delete: if false;/);
