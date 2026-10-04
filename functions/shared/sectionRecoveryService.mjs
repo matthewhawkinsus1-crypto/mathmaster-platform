@@ -33,7 +33,13 @@ import {
   recoveryRecordFingerprints,
 } from './sectionRecoveryRecord.mjs';
 import { isFamilyBackedQuestion, resolveFamilyQuestionInstance } from './questionFamilyInstance.mjs';
-import { normalizeDeliveryPin, resolveGenerationAllocation, resolveLearnerSeat } from './questionGenerationIdentity.mjs';
+import {
+  learnerToken,
+  normalizeDeliveryPin,
+  readGenerationSeats,
+  resolveGenerationAllocation,
+  resolveLearnerSeat,
+} from './questionGenerationIdentity.mjs';
 
 const clean = (value) => String(value ?? '').trim();
 const list = (value) => (Array.isArray(value) ? value : []);
@@ -137,6 +143,15 @@ export const buildSectionRecoveryContext = ({
     ? resolveRecoveryAttendance({ supportEvents, studentId, classId, classPeriod, dateKey: opportunity.instructionDateKey || null })
     : { excused: false, known: false };
   const seatInfo = studentId ? resolveLearnerSeat({ assignment, studentId, classId }) : null;
+  // Every seat this student holds on this assignment, in any class. A seat map
+  // is append-only, so a seat a Practice item was dealt on stays theirs while
+  // the class grows (sectionRecoveryActions.mjs practicePinIsOwn).
+  const token = studentId ? learnerToken(assignment?.id || '', studentId) : null;
+  const heldSeats = token
+    ? [...new Set(Object.values(readGenerationSeats(assignment).byClassId)
+      .filter((seats) => Object.prototype.hasOwnProperty.call(seats, token))
+      .map((seats) => seats[token]))]
+    : [];
   const requiredCoverage = [...new Set(readiness.readySlots.map((slot) => slot.coverageKey).filter(Boolean))];
   const mastery = evaluateRecentPracticeMastery({
     outcomes: normalizedRecord?.practice?.items || [],
@@ -170,6 +185,7 @@ export const buildSectionRecoveryContext = ({
     warmupDelivery,
     attendance,
     seatInfo,
+    heldSeats,
     requiredCoverage,
     mastery,
     eligibility,

@@ -39,7 +39,8 @@ so that the browser, Cloud Functions and tests run the same bytes:
 | --- | --- |
 | `id`, `version` | Stable identity. A delivered question pins both. An unpinned reference means v1, so shipping v2 never moves a live question. |
 | `skill`, `difficulty` | What is assessed and at what rigor. Recovery equivalence reads these. |
-| `constraints` | The knobs an assignment may turn: ranges, variable letter. Each has a default and hard bounds. Out-of-bounds requests fall back to the default and are reported. |
+| `constraints` | The knobs an assignment may turn: ranges, variable letter. Each has a default and hard bounds. Out-of-bounds requests fall back to the default and are reported — or, for a family with `constraintPolicy: "strict"`, make the slot unresolvable with a message naming what is allowed. |
+| `conceptConstraints`, `strata` | The knobs that decide what is assessed (a solution case, distribution, a number form), which no support may override; and the strata a mixed slot balances (see [question-family-special-cases.md](question-family-special-cases.md)). |
 | `parameters` | **Finite** domains, so capacity is countable. |
 | `derive`, `rules` | Derived values, plus the issue codes an instance violates. Built-in rules include divide by zero, unintended decimals or fractions, a degenerate, parallel or coincident system, a duplicate root, and a feature outside the window. |
 | `fingerprint` | The normalized mathematical identity. It ignores presentation: equation order in a system, a scaled equation, and answer-choice order. |
@@ -49,8 +50,10 @@ so that the browser, Cloud Functions and tests run the same bytes:
 | `recovery` | Whether the family may back Recovery, and its equivalence group (coverage key). |
 
 The platform families live in `questionFamiliesLinear.mjs`,
-`questionFamiliesSystems.mjs`, `questionFamiliesNonlinear.mjs` and
-`questionFamiliesRepresentations.mjs`. They are registered in
+`questionFamiliesLinearCases.mjs` (equation special cases, v2),
+`questionFamiliesSystems.mjs`, `questionFamiliesSystemsAlgebraic.mjs` (2×2
+systems with one, none or infinitely many solutions),
+`questionFamiliesNonlinear.mjs` and `questionFamiliesRepresentations.mjs`. They are registered in
 `questionFamilyRegistry.mjs`, and the authoring contract lists them from that
 live registry.
 
@@ -209,10 +212,12 @@ the same functions.
 | --- | --- |
 | `recoveryPolicy.mjs` | Defaults and per-assignment overrides (`gradingPolicy.recovery`), all bounded. |
 | `practiceMastery.mjs` | The gate: the most recent window of **unique** Practice items, counting **independent** answers given before any solution was shown, with **skill coverage**. |
-| `sectionRecoveryEligibility.mjs` | Original-opportunity resolution from the existing deadline rules, plus the state machine `hidden → unavailable / notNeeded / locked → unlocked → inProgress → completed`. |
+| `sectionRecoveryEligibility.mjs` | Original-opportunity resolution from the existing deadline rules, plus the state machine `hidden → unavailable / notNeeded / locked → unlocked → inProgress → completed`, or `inProgress → held` when MathMaster could not grade enough of it (below). |
 | `sectionRecoveryReadiness.mjs` | Whether each Warm-Up/DOL question can back a fresh, server-gradable Recovery. |
 | `sectionRecoveryPlan.mjs` | Practice items and the Recovery assessment as **pins**, on recovery-specific slot keys, excluding every fingerprint the student has seen. |
 | `sectionRecoveryRecord.mjs` | The record and its transitions. History is append-only. |
+| `sectionRecoveryEvidence.mjs` | What a Recovery question's result can be, the sufficient-evidence rule and the denominator rule for a question MathMaster could not grade (below). |
+| `sectionRecoveryResolution.mjs` | A teacher's resolution of a held Recovery (a replacement question, finalize from the graded questions, or keep the original), and the correction of one completed under the old rule. |
 | `sectionRecoveryService.mjs` | Context building and actions (`status`, `practice`, `unlock`, `start`, `submit`). |
 | `sectionRecoveryGrade.mjs` | `final = max(original, min(recovery, cap))`. An excused make-up has cap 100. The cap is frozen on the record at start. |
 | `sectionRecoveryProjection.mjs` | Folds a completed Recovery into the **existing** grade calculation. |
@@ -243,7 +248,10 @@ Policy defaults:
    panel: Locked or Unlocked, with Practice Mastery as a percentage.
 3. Each Practice answer goes to the `advanceSectionRecovery` callable. The
    server rebuilds the instance from its pin and marks it. Mastery unlocks
-   Recovery in the same write.
+   Recovery in the same write. The pin must be the student's own: its seat
+   one they hold, its index that seat's allocation for the pin's own variant
+   and stride (the stride grows as classmates are seated, so an item dealt
+   earlier stays valid). A classmate's pin is refused.
 4. Start makes the server build and pin the fresh plan: one instance per DOL
    question, or 2–3 instances for a Warm-Up. The same family, constraints and
    tool are used, and the student has seen none of them.
@@ -268,8 +276,93 @@ question, and it is never a free skip.
   that the Recovery is compared against.
 * The same projection drives the student Grade Center, the teacher gradebook,
   Grade Transfer (TEAMS export), parent contact summaries and both Classroom
-  passback triggers. The triggers wake only when a completed Recovery or a
-  Live Challenge result changes.
+  passback triggers. The triggers wake only when a completed or held
+  Recovery or a Live Challenge result changes.
+
+**When MathMaster cannot grade a Recovery question.**
+
+The invariant: a MathMaster platform failure is never evidence that the
+student was mathematically wrong, and never silently awards credit the
+student did not earn. Every submitted Recovery question gets one of five
+results (`sectionRecoveryEvidence.mjs`):
+
+| Result | When | Score |
+| --- | --- | --- |
+| `correct` / `incorrect` | The server rebuilt the question from its pin and marked the answer. | Full weight, as always. |
+| `unanswered` | No answer, or a blank or incomplete one: the student's own. | 0, full weight, as always. |
+| `platform-unavailable` | The server cannot rebuild or mark the question, whatever the student sent: the pin does not replay (PR #430's classifications — fingerprint, family or slot mismatch, unknown or newer family version, malformed pin, unknown or unsatisfiable family, generation failure, a throw), the question left the section, or the server cannot mark that kind of question. | Never counted. |
+| `needs-review` | Something only the payload decides: the grader could not read the answer or threw on it, or the device said it could not show a question the server CAN rebuild. | Never counted, never excused: always held. |
+
+The sufficient-evidence rule decides whether the questions MathMaster could
+grade still assess what the Recovery was built to assess. The Recovery is
+HELD when any of these holds:
+
+1. some question needs review;
+2. no question was graded;
+3. a skill the plan assesses (a family's `recovery.equivalenceGroup`, else
+   its family, else the question itself) has no graded question;
+4. the graded questions carry less than half of the planned weight;
+5. fewer questions were graded than the section may ask (a Warm-Up never
+   finalizes on fewer than its minimum of two).
+
+Otherwise the Recovery is scored over exactly the graded questions: an
+excluded question's weight leaves the denominator and is not redistributed
+(DOL weights 4 / 3 / 3, Q3 excluded, Q1 and Q2 right: 7 / 7 = 100%, recorded
+at the cap). The record keeps `evidence` (what was excluded and why) and the
+student reads "MathMaster could not grade 1 Recovery question. It did not
+count against your score."
+
+A **held** Recovery has no Recovery score and replaces no grade. The original
+stands everywhere, and nothing reads it as final: the student's Grade Center
+shows Pending Grade and the Recovery says "Your completed Recovery work has
+been saved. MathMaster could not grade one or more required questions, so
+your Recovery is being held for review."; the gradebook marks the section
+Held; both Classroom passback triggers send nothing and write a
+`recovery-held` audit row instead; Grade Transfer lists the student as a
+problem, not a row; Case Review lists it for attention. It cannot be started
+or resubmitted, and the opportunity is not reported as a 0% Recovery.
+
+The teacher of record (or a root admin) resolves it in the gradebook's
+student detail, which says per question what happened and why, whether the
+evidence was enough, and what to do next — never the pin, the generated
+values or the answer key (`resolveHeldSectionRecovery`, audited in
+`grades/{studentId}/gradeOverrideAudits`):
+
+* **Issue a replacement question.** A new item with a new identity, dealt
+  from the assignment as it is now, from the student's own seat, excluding
+  every instance they have seen. The old item keeps its pin, result and
+  answer and is marked `supersededBy`; the student answers only the new
+  question, and the graded answers are never asked again. The Recovery stays
+  **held** while the student answers (Pending Grade, Classroom waiting), and
+  reads as in progress for the student until their final submission date;
+  past it, it waits for the teacher again — finalize or keep the original —
+  with nothing thrown away. One replacement at a time. Refused while the
+  question still cannot produce an instance (fix it first) or after the
+  student's final submission date.
+* **Finalize from the graded questions.** Scored over the graded questions
+  only, even below the automatic thresholds — the teacher's decision,
+  recorded as theirs.
+* **Keep the original score.** Completed with no Recovery score.
+
+Nothing about the original attempt changes on any of these paths: question
+ids, delivery pins, attempt history, the original answers and earlier grading
+stay exactly as they were. Each settled hold moves to `holdHistory` with the
+evidence it was decided on. An assignment-level teacher override still
+decides the whole grade while a section's Recovery is held.
+
+**Recoveries completed before this policy.** The old rule stored an
+unreproducible question as `{ graded: false, reason: 'question-unavailable',
+credit: 0 }` and counted its weight. Such a record is read as what it was —
+a platform failure scored as 0 — and the teacher's student detail says so,
+with what the Recovery would be without the zero. The teacher may re-score it
+over the questions MathMaster graded (the same callable, audited as a
+`legacyCorrection`). Its stored results and plan are not touched; only the
+score derived from them changes, once. Nothing is re-scored automatically.
+
+**Why a replacement keeps the record held.** Code that predates replacements
+(a rollback) reads a held record as finished, so it can never re-mark the
+graded answers or score the replaced question 0; and the grade, Classroom
+and Grade Transfer stay paused until the Recovery is really settled.
 
 **Data and security.**
 

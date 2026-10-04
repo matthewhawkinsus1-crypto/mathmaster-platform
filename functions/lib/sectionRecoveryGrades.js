@@ -41,19 +41,27 @@ function warmupChallengeCreditSignature(credit) {
   return `${Math.round(correct)}/${Math.round(available)}`;
 }
 
+// A Recovery score that exists: Number(null) is 0, and null means "none".
+function recoveryScoreOf(record) {
+  const raw = record?.rawScore;
+  return raw === null || raw === undefined || raw === "" || !Number.isFinite(Number(raw)) ? null : Number(raw);
+}
+
 function completedRecoverySignature(entry) {
   return JSON.stringify(RECOVERY_SECTIONS.map((section) => {
     const record = entry?.[section];
+    if (record?.status === "held") return [section, "held"];
     return record?.status === "completed"
-      ? [section, Number(record.rawScore), Number(record.cap), String(record.type || "")]
+      ? [section, recoveryScoreOf(record), Number(record.cap), String(record.type || "")]
       : null;
   }));
 }
 
 /**
- * Assignments whose COMPLETED Recovery changed in this write. Practice and
- * in-progress updates do not wake the Classroom triggers; a completion (or a
- * change to a completed record) does.
+ * Assignments whose COMPLETED or HELD Recovery changed in this write. Practice
+ * and in-progress updates do not wake the Classroom triggers; a completion, a
+ * hold (so the triggers record that the grade is held) and a teacher's
+ * resolution of a hold do.
  */
 function recoveryChangedAssignmentIds(afterData = {}, beforeData = {}) {
   const after = afterData?.sectionRecoveryByAssignment || {};
@@ -134,9 +142,47 @@ async function projectRecoveredGradeInputs({
   return { tracker: applied.tracker, overrides: remainingOverrides, states: applied.states, challenge: applied.challenge || null };
 }
 
+/** The sections of one assignment whose Recovery is HELD for a teacher. */
+function heldRecoverySections(recoveryForAssignment = null) {
+  return RECOVERY_SECTIONS.filter((section) => recoveryForAssignment?.[section]?.status === "held");
+}
+
+/*
+ * IS THIS CLASSROOM COLUMN WAITING ON A HELD RECOVERY?
+ *
+ * A held Recovery is a submitted Recovery MathMaster could not grade well
+ * enough to score (functions/shared/sectionRecoveryEvidence.mjs). Its section
+ * may still move — a teacher can finalize it, replace a question, or keep the
+ * original — so neither trigger may send that section's grade, or the whole
+ * assignment's, to Google Classroom as if it were settled: not as a zero, not
+ * as the original, and never as final. Each trigger asks this BEFORE any
+ * Classroom write, records a `recovery-held` audit row instead, and resumes on
+ * its own when the record changes (recoveryChangedAssignmentIds wakes it).
+ *
+ *   sectionKey "whole"     held when ANY section's Recovery is held — unless
+ *                          an assignment-level teacher override already
+ *                          decided the whole grade (it outranks a Recovery)
+ *   "warmup" / "dol"       held when that section's Recovery is held
+ *   any other section      never held: a Recovery does not touch it
+ */
+function recoveryPassbackHold({ recoveryForAssignment = null, sectionKey = "whole", assignmentGradeOverride = null } = {}) {
+  const held = heldRecoverySections(recoveryForAssignment);
+  if (!held.length) return { held: false, sections: [] };
+  const key = String(sectionKey || "whole").trim().toLowerCase();
+  if (key === "whole") {
+    return assignmentGradeOverride ? { held: false, sections: [] } : { held: true, sections: held };
+  }
+  return held.includes(key) ? { held: true, sections: [key] } : { held: false, sections: [] };
+}
+
+const RECOVERY_HELD_SYNC_MESSAGE = "A Practice-based Recovery is held for teacher review: MathMaster could not grade one or more of its questions. Classroom passback waits until the teacher resolves it.";
+
 module.exports = {
+  RECOVERY_HELD_SYNC_MESSAGE,
   RECOVERY_SECTIONS,
+  heldRecoverySections,
   projectRecoveredGradeInputs,
   recoveryChangedAssignmentIds,
+  recoveryPassbackHold,
   warmupChallengeCreditSignature,
 };

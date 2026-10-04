@@ -8,7 +8,11 @@
  *
  *   2×2  AlgebraicSystemMode.jsx
  *        one solution     each value within 0.05 of the true value
- *                         (matchesNumericAnswer), and — unless the question
+ *                         (matchesNumericAnswer) — or, for a question that
+ *                         declares `exactSolution: true` (a generated
+ *                         Question Family system, whose intersection may be
+ *                         13/7), within 1e-6 relative, the 3×3 rule — and,
+ *                         unless the question
  *                         turns verification off — each original equation's
  *                         typed sides within 0.05 of the true sides at those
  *                         values with the two sides equal
@@ -155,14 +159,25 @@ const specialCaseChoice = (work, field) => {
   return SPECIAL_CASE_CHOICES[field].includes(value) ? value : '';
 };
 
-const gradeOrderedPair = (config, expected, work) => {
+/*
+ * The workspace's solved values come from the embedded Step Algebra solve, so
+ * they are exact (13/7 as the float nearest 13/7, never a rounded 1.86). A
+ * hand-authored 2×2 keeps the 0.05 tolerance it has always been graded with;
+ * a question that declares `exactSolution` is matched the way the 3×3 is, so
+ * a nearby wrong fraction (15/8 for 13/7) is never credited.
+ */
+const valueMatches = (value, target, exact) => (exact
+  ? value !== null && reductionValueMatches(value, target)
+  : matchesNumericAnswer(value, target, 0.05));
+
+const gradeOrderedPair = (config, expected, work, { exact = false } = {}) => {
   const { variables, equations } = config;
   const values = readValues(work.values, variables);
   const targets = [expected.x, expected.y];
   const parts = variables.map((name, index) => valuePart(
     name,
     values[name],
-    matchesNumericAnswer(values[name], targets[index], 0.05),
+    valueMatches(values[name], targets[index], exact),
   ));
   if (config.requireVerification) {
     const solved = allSolved(values, variables);
@@ -205,7 +220,7 @@ const gradeSpecialCase = (config, isTrue, work) => {
 const gradeTwoByTwo = (question, work) => {
   const config = normalizeAlgebraicSystemConfig(question);
   const expected = solveAlgebraicSystem(config.coefficients);
-  if (expected.type === 'one') return gradeOrderedPair(config, expected, work);
+  if (expected.type === 'one') return gradeOrderedPair(config, expected, work, { exact: question?.exactSolution === true });
   return gradeSpecialCase(config, expected.type === 'infinite', work);
 };
 

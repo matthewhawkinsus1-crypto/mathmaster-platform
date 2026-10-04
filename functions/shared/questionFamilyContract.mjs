@@ -61,6 +61,38 @@
  *   recovery           whether the family may back an automatic Recovery
  *                      question, and which families count as equivalent.
  *
+ * Added for families that generate special cases (no solution, all reals)
+ * and exact rational answers — every one optional, so a family written
+ * before them is defined, generated and fingerprinted exactly as before:
+ *
+ *   constraintPolicy   'fallback' (the default above: a bad request falls
+ *                      back to the default with a reported issue) or
+ *                      'strict': ANY constraint issue — an unknown name, a
+ *                      value that is not allowed, a range out of bounds — is
+ *                      a resolution error. A slot that asked for "no
+ *                      solution" and silently got "one solution" would be
+ *                      assessing something its author never wrote.
+ *   conceptConstraints the knobs that decide WHAT is assessed (the solution
+ *                      case, distribution, the number forms). A student
+ *                      support may narrow how big the numbers are; it may
+ *                      never override one of these (refused at definition).
+ *   strata             a function of the constraints listing the strata a
+ *                      slot balances — e.g. { case: 'none' }. Each stratum
+ *                      fixes those parameters, gets its own instance list,
+ *                      and the engine interleaves the lists so every block
+ *                      of consecutive seats covers every stratum once
+ *                      (questionFamilyEngine.mjs). `parameters` then receives
+ *                      the stratum as its second argument. `balance` names
+ *                      the key a mixed slot is balanced on first ("case"),
+ *                      so cases stay in equal shares when shapes also vary.
+ *   instanceFields     fields only an instance may carry (an answer key, the
+ *                      generated equation); removed from the authored slot
+ *                      before the family's fields are merged in.
+ *   capabilities       descriptive metadata (solution cases, number forms,
+ *                      target tool and mode) that Pre-Flight, the authoring
+ *                      contract and the capability report read. It never
+ *                      changes generation.
+ *
  * Pure by construction: no Firestore, no network, no clock.
  */
 
@@ -96,6 +128,16 @@ export const FAMILY_ISSUE = Object.freeze({
   DEGENERATE_INSTANCE: 'degenerate_instance',
   DUPLICATE_ROOT: 'duplicate_root',
   INVALID_PARAMETERS: 'invalid_parameters',
+  // The family's independent check of the DISPLAYED question found a
+  // different solution case (or solution) from the one it set out to build.
+  CASE_MISMATCH: 'case_mismatch',
+  // A slot asked for a fractional answer and this candidate's is an integer.
+  UNINTENDED_INTEGER: 'unintended_integer',
+});
+
+export const CONSTRAINT_POLICY = Object.freeze({
+  FALLBACK: 'fallback',
+  STRICT: 'strict',
 });
 
 export class QuestionFamilyDefinitionError extends Error {
@@ -200,6 +242,21 @@ const resolveKnob = (knob, requested) => {
 };
 
 /**
+ * A constraint name with case, spaces, hyphens and underscores ignored:
+ * "solution_case", "SolutionCase" and "solutioncase" all mean solutionCase,
+ * and an issue says so instead of only listing the family's constraints.
+ */
+export const constraintNameKey = (name) => clean(name).toLowerCase().replace(/[^a-z0-9]/g, '');
+
+/** What a knob accepts, for a message a teacher (or an AI author) can act on. */
+export const describeKnobAllowance = (knob) => {
+  if (knob?.kind === 'range') return { kind: 'range', limits: [...knob.limits], default: [...knob.default] };
+  if (knob?.kind === 'choice') return { kind: 'choice', values: [...knob.values], default: knob.default };
+  if (knob?.kind === 'boolean') return { kind: 'boolean', values: [true, false], default: knob.default };
+  return { kind: 'unknown' };
+};
+
+/**
  * The constraint values an instance is generated under.
  *
  * Returns the resolved values plus every issue, keyed by knob, so Pre-Flight
@@ -207,6 +264,11 @@ const resolveKnob = (knob, requested) => {
  * [-25, 25], so the default [2, 9] is being used" instead of failing silently.
  * Unknown knobs are reported too: a misspelled constraint that did nothing is
  * exactly the silent failure this contract exists to prevent.
+ *
+ * Each issue says what the knob allows (`allowed`), or — for an unknown name
+ * — which constraints the family does have (`known`). `fatal` is true when the
+ * family's policy is strict and anything was wrong: the caller must then
+ * refuse to generate rather than use the defaults.
  */
 export const resolveFamilyConstraints = (family, overrides = {}) => {
   const requested = isObject(overrides) ? overrides : {};
@@ -215,14 +277,44 @@ export const resolveFamilyConstraints = (family, overrides = {}) => {
   Object.entries(family?.constraints || {}).forEach(([name, knob]) => {
     const resolved = resolveKnob(knob, requested[name]);
     values[name] = resolved.value;
-    if (resolved.issue) issues.push({ constraint: name, code: resolved.issue, requested: requested[name] });
+    if (resolved.issue) {
+      issues.push({ constraint: name, code: resolved.issue, requested: requested[name], allowed: describeKnobAllowance(knob) });
+    }
   });
   Object.keys(requested).forEach((name) => {
     if (!Object.prototype.hasOwnProperty.call(family?.constraints || {}, name)) {
-      issues.push({ constraint: name, code: 'constraint_unknown', requested: requested[name] });
+      const known = Object.keys(family?.constraints || {});
+      const closest = known.find((candidate) => constraintNameKey(candidate) === constraintNameKey(name)) || null;
+      issues.push({ constraint: name, code: 'constraint_unknown', requested: requested[name], known, ...(closest ? { closest } : {}) });
     }
   });
-  return { values: Object.freeze(values), issues };
+  const fatal = family?.constraintPolicy === CONSTRAINT_POLICY.STRICT && issues.length > 0;
+  return { values: Object.freeze(values), issues, fatal };
+};
+
+const allowanceText = (allowance = {}) => {
+  if (allowance.kind === 'range') return `a whole-number range inside [${allowance.limits.join(', ')}]`;
+  if (allowance.kind === 'choice' || allowance.kind === 'boolean') return `one of ${allowance.values.map((value) => JSON.stringify(value)).join(', ')}`;
+  return 'a value the family declares';
+};
+
+/**
+ * One sentence per issue: what was asked, why it cannot be honoured, and what
+ * would be accepted. Pre-Flight, the resolution error and the authoring
+ * report all use this wording.
+ */
+export const describeConstraintIssue = (issue = {}, familyLabel = 'this family') => {
+  const name = clean(issue.constraint);
+  const asked = JSON.stringify(issue.requested);
+  if (issue.code === 'constraint_unknown') {
+    const known = Array.isArray(issue.known) && issue.known.length ? issue.known.join(', ') : 'none';
+    const closest = clean(issue.closest);
+    return `"${name}" is not a constraint of ${familyLabel} (${closest ? `did you mean "${closest}"? ` : ''}its constraints are: ${known})`;
+  }
+  if (issue.code === 'tool_not_supported') {
+    return `${familyLabel} cannot be answered in the ${asked} tool; use ${allowanceText(issue.allowed)}`;
+  }
+  return `"${name}": ${asked} is not allowed by ${familyLabel}; use ${allowanceText(issue.allowed)}`;
 };
 
 /* ---------------------------------------------------------------------------
@@ -324,7 +416,35 @@ export const defineQuestionFamily = (spec = {}) => {
     });
   });
 
-  return Object.freeze({
+  const constraintPolicy = spec.constraintPolicy === undefined ? CONSTRAINT_POLICY.FALLBACK : clean(spec.constraintPolicy);
+  if (!Object.values(CONSTRAINT_POLICY).includes(constraintPolicy)) {
+    fail(id, '`constraintPolicy` must be "fallback" or "strict".');
+  }
+
+  // A support may make the numbers smaller; it may not change what is
+  // assessed. "No solution" stays "no solution" for a student with a
+  // reduced-complexity modification, and so does a distributive step or a
+  // fractional answer the lesson is about.
+  const conceptConstraints = (Array.isArray(spec.conceptConstraints) ? spec.conceptConstraints : []).map(clean);
+  conceptConstraints.forEach((name) => {
+    if (!Object.prototype.hasOwnProperty.call(constraints, name)) fail(id, `conceptConstraints names "${name}", which is not one of its constraints.`);
+  });
+  Object.entries(supportConstraints).forEach(([modification, overrides]) => {
+    Object.keys(overrides).forEach((name) => {
+      if (conceptConstraints.includes(name)) {
+        fail(id, `supportConstraints.${modification}.${name} would change what is assessed; a support may narrow the numbers, never a concept constraint.`);
+      }
+    });
+  });
+
+  if (spec.strata !== undefined && (!isObject(spec.strata) || typeof spec.strata.values !== 'function')) {
+    fail(id, '`strata.values` must be a function of the constraints.');
+  }
+  if (spec.strata?.balance !== undefined && !clean(spec.strata.balance)) {
+    fail(id, '`strata.balance` names the stratum key a mixed slot is balanced on (e.g. "case").');
+  }
+
+  const family = Object.freeze({
     contractVersion: QUESTION_FAMILY_CONTRACT_VERSION,
     id,
     version,
@@ -358,8 +478,38 @@ export const defineQuestionFamily = (spec = {}) => {
     // Assignment-local families carry the template they were adapted from so
     // Pre-Flight can point at the authored question.
     source: spec.source || null,
+    constraintPolicy,
+    conceptConstraints: Object.freeze([...conceptConstraints]),
+    // Fields the family's builders write that an authored slot must never
+    // pre-fill: they are removed from the template before the merge, so a
+    // stale answer key copied into a slot cannot reach an instance.
+    instanceFields: Object.freeze((Array.isArray(spec.instanceFields) ? spec.instanceFields : []).map(clean).filter(Boolean)),
+    strata: spec.strata ? Object.freeze({ values: spec.strata.values, ...(clean(spec.strata.balance) ? { balance: clean(spec.strata.balance) } : {}) }) : null,
+    capabilities: deepFreeze(isObject(spec.capabilities) ? JSON.parse(JSON.stringify(spec.capabilities)) : {}),
   });
+
+  // A strict family resolves every support's overrides exactly as it resolves
+  // an assignment's, so a support that asks for something the family does not
+  // allow would make every supported student's question fail to generate.
+  // That is caught here, when the platform loads, not in front of a student.
+  if (constraintPolicy === CONSTRAINT_POLICY.STRICT) {
+    Object.entries(supportConstraints).forEach(([modification, overrides]) => {
+      const resolved = resolveFamilyConstraints(family, overrides);
+      if (resolved.issues.length) {
+        fail(id, `supportConstraints.${modification} is not valid: ${resolved.issues.map((issue) => describeConstraintIssue(issue, id)).join('; ')}.`);
+      }
+    });
+  }
+  return family;
 };
+
+function deepFreeze(value) {
+  if (value && typeof value === 'object') {
+    Object.values(value).forEach(deepFreeze);
+    Object.freeze(value);
+  }
+  return value;
+}
 
 export const isQuestionFamily = (value) => (
   isObject(value)

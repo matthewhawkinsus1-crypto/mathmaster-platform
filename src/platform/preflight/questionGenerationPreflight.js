@@ -33,7 +33,9 @@ import {
   familySlotKey,
 } from '../../../functions/shared/questionFamilyInstance.mjs';
 import { measureFamilyCapacity } from '../../../functions/shared/questionFamilyEngine.mjs';
-import { placeholdersUsed } from '../../../functions/shared/pathQuestionGeneration.mjs';
+import { constraintNameKey, describeConstraintIssue } from '../../../functions/shared/questionFamilyContract.mjs';
+import { allRegisteredQuestionFamilies } from '../../../functions/shared/questionFamilyRegistry.mjs';
+import { evaluateExpression, placeholdersUsed } from '../../../functions/shared/pathQuestionGeneration.mjs';
 import { familyInstanceGradingSupport, familyInstanceServerGradable } from '../../../functions/shared/questionFamilyGrading.mjs';
 // The answer-key self-check below only builds keys for ordinary types and a
 // Step Algebra instance's final answer, so it uses the two LIGHT graders for
@@ -77,21 +79,64 @@ const sectionModeFor = (assignment, role) => {
   return ['shared', 'personalized', 'adaptive'].includes(mode) ? mode : 'personalized';
 };
 
-/** The response a student who answered with the key would send. */
-/** Does the generated answer key grade correct? (Ordinary types and Step Algebra only.) */
-const selfCheckAnswerKey = (question, response) => (
-  clean(question?.type) === 'stepAlgebra'
-    ? gradeStepAlgebraFinalAnswer({ question, responseValue: response.value })
-    : gradeOrdinaryResponse({ question, response })
-);
+const EXACT_KEY_VALUE = /^\s*(-?\d+)\s*(?:\/\s*(\d+))?\s*$/;
+const KEY_SAMPLES = Object.freeze([-3.7, -1, 0, 1.3, 2, 5.9]);
+const nearlyEqual = (left, right) => Math.abs(left - right) <= 1e-9 * Math.max(1, Math.abs(left), Math.abs(right));
+
+/**
+ * An exact key (linear.multiStepEquation v2 and later: a fraction, "No
+ * solution" or "All real numbers") checked against the equation the student
+ * is shown, with the same light evaluator the final-answer grader uses — not
+ * against itself. x = 7/3 must make the two sides equal without the equation
+ * being an identity; "No solution" must leave them a constant, nonzero
+ * distance apart; "All real numbers" must make them equal everywhere.
+ */
+const exactKeyHolds = (question) => {
+  const key = question?.solutionKey;
+  const variable = clean(question?.variable || question?.objective?.variable || 'x');
+  const gap = (value) => {
+    const left = evaluateExpression(question?.leftExpression, { [variable]: value });
+    const right = evaluateExpression(question?.rightExpression, { [variable]: value });
+    return Number.isFinite(left) && Number.isFinite(right) ? left - right : null;
+  };
+  const samples = KEY_SAMPLES.map(gap);
+  if (samples.some((value) => value === null)) return false;
+  if (key?.outcome === 'allReals') return samples.every((value) => nearlyEqual(value, 0));
+  if (key?.outcome === 'noSolution') return !nearlyEqual(samples[0], 0) && samples.every((value) => nearlyEqual(value, samples[0]));
+  const exact = key?.outcome === 'value' ? EXACT_KEY_VALUE.exec(String(key.value ?? '')) : null;
+  if (!exact || Number(exact[2] ?? 1) <= 0) return false;
+  const atKey = gap(Number(exact[1]) / Number(exact[2] ?? 1));
+  return atKey !== null && nearlyEqual(atKey, 0) && !samples.every((value) => nearlyEqual(value, 0));
+};
+
+/**
+ * Does the generated answer key grade correct? (Ordinary types and Step
+ * Algebra only.) Pre-Flight is on the app's startup path, so this uses the
+ * light graders: the final-answer grader reads the key as a student's
+ * finished answer, and an exact key must also hold for the shown equation.
+ */
+const selfCheckAnswerKey = (question, response) => {
+  if (clean(question?.type) !== 'stepAlgebra') return gradeOrdinaryResponse({ question, response });
+  const finalAnswer = gradeStepAlgebraFinalAnswer({ question, responseValue: response.value });
+  if (Number.isFinite(Number(question.generatedAnswer)) || !question.solutionKey) return finalAnswer;
+  return { ...finalAnswer, isCorrect: finalAnswer.isCorrect === true && exactKeyHolds(question) };
+};
 
 export const answerKeyResponse = (question = {}) => {
   const type = clean(question?.type);
   if (type === 'stepAlgebra') {
     const variable = clean(question.variable || question.objective?.variable || 'x');
-    return Number.isFinite(Number(question.generatedAnswer))
-      ? { kind: 'opaque', type, value: `${variable}=${question.generatedAnswer}`, fields: [] }
-      : null;
+    if (Number.isFinite(Number(question.generatedAnswer))) {
+      return { kind: 'opaque', type, value: `${variable}=${question.generatedAnswer}`, fields: [] };
+    }
+    // A Question Family instance with an exact key (linear.multiStepEquation
+    // v2 and later): a fraction, or a special outcome, written as the
+    // workspace writes a finished solve.
+    const key = question.solutionKey;
+    if (key?.outcome === 'value' && clean(key.value)) return { kind: 'opaque', type, value: `${variable}=${clean(key.value)}`, fields: [] };
+    if (key?.outcome === 'noSolution') return { kind: 'opaque', type, value: 'No solution', fields: [] };
+    if (key?.outcome === 'allReals') return { kind: 'opaque', type, value: 'All real numbers', fields: [] };
+    return null;
   }
   if (type === 'system' && Array.isArray(question.solution)) {
     return { kind: 'scalar', type, value: `(${question.solution[0]}, ${question.solution[1]})`, fields: [] };
@@ -170,6 +215,8 @@ const auditFamilySlot = ({ assignmentId, question, storageIndex, capacityMemo })
   return {
     error: validated ? null : 'family_has_no_valid_instances',
     family,
+    constraintValues,
+    tool: definition.tool,
     capacity,
     toolIssue: definition.toolIssue,
     constraintIssues: definition.constraintIssues || [],
@@ -212,6 +259,30 @@ const generatedVersionProblems = (built) => {
 const slotWritesFamilyTokens = (question = {}) => {
   const { generator: _generator, ...authored } = question || {};
   return placeholdersUsed(authored).size > 0;
+};
+
+const CASE_WORDS = Object.freeze({ one: 'one solution', none: 'no solution', infinite: 'infinitely many solutions' });
+
+/** The solution cases a stratified slot interleaves, in the family's order. */
+const solutionCasesOf = (capacity) => [...new Set((capacity?.strata || []).map((entry) => entry.stratum?.case).filter(Boolean))];
+
+/**
+ * The oldest registered version of this platform family, newer than it, that
+ * declares `constraint` — spelled exactly, or differing only in case and
+ * separators ("solution_case") — with the name that version uses; null if none.
+ */
+const newerVersionDeclaring = (family, constraint) => {
+  if (family?.scope !== 'platform') return null;
+  const key = constraintNameKey(constraint);
+  const matches = allRegisteredQuestionFamilies()
+    .filter((candidate) => candidate.id === family.id && candidate.version > family.version)
+    .map((candidate) => ({
+      version: candidate.version,
+      name: Object.keys(candidate.constraints || {}).find((name) => name === constraint || constraintNameKey(name) === key),
+    }))
+    .filter((match) => match.name)
+    .sort((left, right) => left.version - right.version);
+  return matches.length ? matches[0] : null;
 };
 
 const describeParameters = (parameters = {}) => Object.entries(parameters)
@@ -328,7 +399,18 @@ export const auditAssignmentQuestionGeneration = (assignment = {}, questions = [
       warnings.push(`${where} asks for the ${audit.toolIssue.requested} tool, which ${audit.family.id} cannot fill; it will open in ${audit.toolIssue.used} instead.`);
     }
     audit.constraintIssues.forEach((issue) => {
-      warnings.push(`${where}: constraint "${issue.constraint}" (${JSON.stringify(issue.requested)}) is not something ${audit.family.id} allows, so its default is used (${issue.code}).`);
+      // A constraint only a NEWER version of this family understands (e.g.
+      // `solutionCase` on a slot that is unpinned, so version 1) is not a
+      // typo: the author asked for mathematics this version cannot make, and
+      // every student would silently get the old version's questions. That
+      // blocks; anything else keeps its long-standing warning.
+      const newer = issue.code === 'constraint_unknown' ? newerVersionDeclaring(audit.family, issue.constraint) : null;
+      if (newer !== null) {
+        const named = newer.name === issue.constraint ? `"${issue.constraint}" is` : `"${issue.constraint}" looks like "${newer.name}",`;
+        errors.push(`${where}: ${named} a constraint of ${audit.family.id} version ${newer.version}, but this question uses version ${audit.family.version}, which ignores it — every student would get version ${audit.family.version}'s questions instead of the ones asked for. Set "version": ${newer.version} in its questionFamily${newer.name === issue.constraint ? '' : ` and spell the constraint "${newer.name}"`}.`);
+        return;
+      }
+      warnings.push(`${where}: constraint "${issue.constraint}" (${JSON.stringify(issue.requested)}) is not something ${audit.family.id} allows, so its default is used (${issue.code}). ${describeConstraintIssue(issue, audit.family.id)}.`);
     });
     if (!audit.gradable) {
       const why = audit.gradingSupport?.blocker || audit.gradingSupport?.reason || '';
@@ -347,6 +429,18 @@ export const auditAssignmentQuestionGeneration = (assignment = {}, questions = [
     if (mode !== 'shared' && capacity < comparedClassSize) {
       warnings.push(`${where} can produce only ${approx}${capacity} distinct question${capacity === 1 ? '' : 's'} — fewer than ${knownClassSize ? `this class of ${knownClassSize}` : `a class of ${REFERENCE_CLASS_SIZE}`}, so some students will share a question. Widen the family's ranges to give everyone their own.`);
     }
+    const cases = solutionCasesOf(audit.capacity);
+    if (cases.length > 1) {
+      const shares = cases.map((entry) => audit.capacity.strata.filter((stratum) => stratum.stratum?.case === entry).length);
+      const equal = shares.every((share) => share === shares[0]);
+      const split = equal ? 'in equal shares' : `in the proportion ${shares.join(' : ')}`;
+      // The groups the engine guarantees, counted from the first seat: one
+      // round of cases when it balances on the case (questionFamilyEngine
+      // blockOrder), else one whole block of strata. Any other run of
+      // adjacent seats is not guaranteed to cover every case.
+      const group = equal && audit.family.strata?.balance === 'case' ? cases.length : audit.capacity.strata.length;
+      notes.push(`${where} mixes ${cases.map((entry) => CASE_WORDS[entry] || entry).join(', ')} ${split} as students are seated (counting from the first seat, each group of ${group} seats covers every case), and the workspace does not tell a student which case they drew.`);
+    }
     slots.push({
       questionIndex: flatIndex,
       role,
@@ -356,6 +450,12 @@ export const auditAssignmentQuestionGeneration = (assignment = {}, questions = [
       familyId: audit.family.id,
       familyVersion: audit.family.version,
       scope: audit.family.scope,
+      constraintPolicy: audit.family.constraintPolicy,
+      // The concept settings this slot delivers (solution case, distribution,
+      // number forms): what no student support may change.
+      concepts: Object.fromEntries((audit.family.conceptConstraints || []).map((name) => [name, audit.constraintValues[name]])),
+      solutionCases: cases.length ? cases : null,
+      tool: audit.tool,
       mode,
       capacity,
       capacityExact: audit.capacity.exact,

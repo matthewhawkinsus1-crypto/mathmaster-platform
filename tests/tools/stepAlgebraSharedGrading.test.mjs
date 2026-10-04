@@ -722,6 +722,24 @@ test('relation: square roots, no solution and all real numbers are judged agains
   assert.equal(parity(INEQUALITY, relationWorkspaceWork({ relationState: { special: 'allReals', branches: [] } }), 'false claim').isCorrect, false);
 });
 
+test('relation: "All real numbers" for a polynomial identity is decided exactly — not by probes far out where a coefficient like 5/3 rounds', () => {
+  // Generated identities with fraction coefficients (linear.multiStepEquation
+  // v2) reach the relation workspace; probed at ±1e11 they used to read false.
+  const identity = (equation) => ({ type: 'stepAlgebra', prompt: 'Solve.', equation, relationWorkspace: true });
+  const allReals = relationWorkspaceWork({ relationState: { special: 'allReals', branches: [] } });
+  const noSolution = relationWorkspaceWork({ relationState: { special: 'noSolution', branches: [] } });
+  const FRACTION_IDENTITY = identity('-(5/4) * x + 12 - (5/3) * x = -(35/12) * x + 12');
+  const SQUARE_IDENTITY = identity('(x + 1)^2 = x^2 + 2 * x + 1');
+  const NEAR_IDENTITY = identity('-(5/4) * x + 12 - (5/3) * x = -(35/12) * x + 11');
+  assert.equal(parity(FRACTION_IDENTITY, allReals, 'fraction identity').isCorrect, true);
+  assert.equal(parity(SQUARE_IDENTITY, allReals, 'polynomial identity').isCorrect, true);
+  assert.equal(parity(FRACTION_IDENTITY, noSolution, 'an identity is not "no solution"').isCorrect, false);
+  assert.equal(parity(NEAR_IDENTITY, allReals, 'a contradiction is not an identity').isCorrect, false);
+  assert.equal(parity(NEAR_IDENTITY, noSolution, 'and is "no solution"').isCorrect, true);
+  // A value for an identity is still not its solution set.
+  assert.equal(parity(FRACTION_IDENTITY, relationWork('x = 3'), 'one value').isCorrect, false);
+});
+
 test('relation: a literal absolute-value equation split on the workspace is correct — each value solves one sign branch', () => {
   // |x - h| = k reversed on the workspace becomes x - h = k OR x - h = -(k),
   // solved as x = k + h OR x = -k + h. Substituted back, |k| = k holds only

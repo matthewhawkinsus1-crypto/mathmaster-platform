@@ -85,6 +85,12 @@ const confirmedHistory = ({ confirmedSnapshots, confirmedSnapshot }) => {
 
 export const validSisStudentId = (value) => /^\d{1,20}$/.test(text(value));
 
+// A held Practice-based Recovery (canonicalGradeProjection.js recoveryHoldFor):
+// the grade is not settled, so no TEAMS row leaves for this student. Named,
+// so the teacher knows exactly what to resolve (the gradebook's Recovery
+// details), and never confused with "no grade".
+export const RECOVERY_HELD_TRANSFER_REASON = 'Recovery held for teacher review';
+
 // TEAMS requires the district/SIS number, not MathMaster's internal account key.
 // Existing all-digit roster document ids remain a safe compatibility fallback,
 // while legacy email/alphanumeric account keys must be repaired by storing a
@@ -114,6 +120,10 @@ export const buildTransferUnit = ({
   // of their reduced-item-count accommodation (canonicalGradeProjection.js
   // sectionNotRequiredForStudent). Absent → never.
   isSectionNotRequired = () => false,
+  // ({ student, assignment, classRecord, sectionKey }) => true while this
+  // student's grade for this unit waits on a held Practice-based Recovery
+  // (canonicalGradeProjection.js recoveryHoldFor). Absent → never.
+  recoveryHeldFor = () => false,
   resolveStudentFinalDeadline = () => null,
   confirmedSnapshots = null, confirmedSnapshot = null, latestExport = null,
   sectionKey = '', sectionLabel = '',
@@ -156,6 +166,14 @@ export const buildTransferUnit = ({
       continue;
     }
     if (effectiveDeadline === null || now < effectiveDeadline) continue;
+
+    // Not settled: MathMaster could not grade this student's Recovery well
+    // enough to score it, and a teacher has not resolved it yet. Exporting
+    // the original now would hand TEAMS a "final" grade that can still move.
+    if (recoveryHeldFor({ student, assignment, classRecord, sectionKey }) === true) {
+      problems.push(transferPerson(student, { reason: RECOVERY_HELD_TRANSFER_REASON }));
+      continue;
+    }
 
     const practicePassRedeemed = hasAuthoritativePracticePass({ student, assignment, classRecord });
     const projectedGrade = projectCanonicalGrade({

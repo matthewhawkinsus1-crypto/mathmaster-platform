@@ -1417,6 +1417,214 @@ exports.advanceSectionRecovery = onCall(async (request) => {
   }
 });
 
+/*
+ * A TEACHER RESOLVES A HELD PRACTICE-BASED RECOVERY.
+ *
+ * A Recovery is HELD when MathMaster could not grade enough of it to score it
+ * (functions/shared/sectionRecoveryEvidence.mjs): no Recovery score exists,
+ * the original stands, and neither Classroom passback nor Grade Transfer
+ * treats the grade as settled. Only this student's teacher of record (or a
+ * root admin) may release it, in one of three ways
+ * (functions/shared/sectionRecoveryResolution.mjs):
+ *
+ *   finalizeGraded     score it over the questions MathMaster could grade
+ *   keepOriginal       record no Recovery score; the original stands
+ *   issueReplacement   a NEW question for each one MathMaster could not
+ *                      grade, built HERE from the student's own seat — never
+ *                      one a browser chose (PR #430) — the old pin and result
+ *                      kept exactly as they were
+ *
+ * None of them counts a question MathMaster could not grade against the
+ * student. Each is appended to the record's history and written to
+ * gradeOverrideAudits, and signals the Classroom triggers to re-run.
+ */
+exports.resolveHeldSectionRecovery = onCall(async (request) => {
+  const teacherUid = await requireTeacher(request);
+  const teacherEmail = callerEmail(request);
+  const studentId = String(request.data?.studentId || "").trim();
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  const section = String(request.data?.section || "").trim().toLowerCase();
+  const action = String(request.data?.action || "").trim();
+  const note = String(request.data?.note || "").trim().slice(0, 500);
+  if (!studentId || !assignmentId || !RECOVERY_SECTION_KEYS.has(section)) {
+    throw new HttpsError("invalid-argument", "A student, an assignment and a Warm-Up or DOL section are required.");
+  }
+  if (!teacherEmail) throw new HttpsError("permission-denied", "A verified teacher email is required.");
+  const [service, resolution, recoveryPlan] = await Promise.all([
+    sectionRecoveryService(),
+    import("./shared/sectionRecoveryResolution.mjs"),
+    import("./shared/sectionRecoveryPlan.mjs"),
+  ]);
+  if (!resolution.isHeldRecoveryAction(action)) {
+    throw new HttpsError("invalid-argument", "Choose how to resolve this Recovery.");
+  }
+
+  const db = getFirestore();
+  const gradeRef = db.collection("grades").doc(studentId);
+  const assignmentRef = db.collection("assignments").doc(assignmentId);
+  const overrideRef = await studentOverrideRef(db, studentId, assignmentId);
+  const [scheduleSnapshot, preGrade] = await Promise.all([
+    db.collection("settings").doc("classSchedule").get(),
+    gradeRef.get(),
+  ]);
+  const schedule = scheduleSnapshot.exists ? scheduleSnapshot.data() : null;
+  const preGradeData = preGrade.exists ? preGrade.data() || {} : {};
+  const classPeriod = await resolveCheckpointClassPeriod(db, authoritativeStudentClassId(preGradeData), preGradeData, new Map());
+  const nowIso = new Date().toISOString();
+
+  try {
+    return await db.runTransaction(async (transaction) => {
+      const [gradeSnap, assignmentSnap, overrideSnapshot] = await Promise.all([
+        transaction.get(gradeRef),
+        transaction.get(assignmentRef),
+        overrideRef ? transaction.get(overrideRef) : Promise.resolve(null),
+      ]);
+      if (!gradeSnap.exists || !assignmentSnap.exists) throw new HttpsError("not-found", "The student or assignment was not found.");
+      const gradeData = gradeSnap.data() || {};
+      const classId = authoritativeStudentClassId(gradeData);
+      const classSnap = classId ? await transaction.get(db.collection("classes").doc(String(classId))) : null;
+      const ownsClass = classSnap?.exists
+        && String(classSnap.data()?.teacherOfRecord || "").trim().toLowerCase() === teacherEmail;
+      if (!authLib.isRootAdminEmail(teacherEmail) && !ownsClass) {
+        throw new HttpsError("permission-denied", "Only this student's teacher of record may resolve this Recovery.");
+      }
+      const assignment = { id: assignmentSnap.id, ...assignmentSnap.data() };
+      if (!authLib.isRootAdminEmail(teacherEmail) && !studentMatchesAssignmentAudience({ assignment, classId })) {
+        throw new HttpsError("permission-denied", "This assignment is not assigned to the student's current class.");
+      }
+      const stored = gradeData.sectionRecoveryByAssignment?.[assignmentId]?.[section] || null;
+      // The one gate (sectionRecoveryResolution.mjs heldRecoveryActionsFor): a
+      // held Recovery, or one completed under the old rule with a platform
+      // failure scored as 0; and only the resolutions that record allows.
+      const allowed = resolution.heldRecoveryActionsFor(stored, section);
+      if (!allowed.length) {
+        throw new HttpsError("failed-precondition", "This Recovery is not waiting for a teacher.");
+      }
+      if (!allowed.includes(action)) {
+        throw new HttpsError(
+          "failed-precondition",
+          action === resolution.HELD_RECOVERY_ACTION.ISSUE_REPLACEMENT
+            ? "A replacement question is already waiting for this student, or there is nothing left to replace."
+            : "That is not available for this Recovery.",
+          { code: "recovery-resolution-unavailable" },
+        );
+      }
+
+      // The same inputs advanceSectionRecovery decides with: the student's own
+      // required items (reduced-item-count accommodation), the original after
+      // teacher corrections, their seat, their final cutoff.
+      const questions = runtimeQuestionsFromAssignment(assignment);
+      const studentOmitted = await studentOmittedFor({ assignment, gradeData, assignmentId });
+      const sectionIndices = studentRequiredIndices(runtimeIncludedQuestionIndicesForSection(assignment, section), studentOmitted);
+      const tracker = gradeData.gradesByAssignment?.[assignmentId] || {};
+      const overrides = gradeData.teacherGradeOverridesByAssignment?.[assignmentId] || {};
+      const original = assignmentGradeProgress(tracker, sectionIndices, questions, overrides);
+      const context = service.buildSectionRecoveryContext({
+        assignment,
+        section,
+        sectionEntries: sectionIndices.map((storageIndex) => ({ storageIndex, question: questions[storageIndex] })),
+        questions,
+        tracker,
+        sectionOriginal: { score: original.total ? original.grade : null, attempted: original.attempted, total: original.total },
+        record: stored,
+        studentId,
+        classId,
+        classPeriod,
+        schedule,
+        supportEvents: null,
+        challengeCredit: gradeData.warmupChallengeByAssignment?.[assignmentId] || null,
+        studentProfile: gradeData.profile || null,
+        privateOverride: privateOverrideFrom(overrideSnapshot),
+        sectionModeFor: (role) => serverSectionVariantMode(assignment, role),
+        nowValue: Date.now(),
+      });
+      const actor = { uid: teacherUid, email: teacherEmail, name: request.auth?.token?.name || null };
+
+      let replacements = null;
+      if (action === resolution.HELD_RECOVERY_ACTION.ISSUE_REPLACEMENT) {
+        if (context.opportunity?.recoveryWindowEnded) {
+          throw new HttpsError(
+            "failed-precondition",
+            "This student's final submission date has passed, so they could not answer a replacement question. Extend their date first, finalize from the graded questions, or keep the original score.",
+            { code: "recovery-window-ended" },
+          );
+        }
+        const built = recoveryPlan.buildRecoveryReplacementItems({
+          assignmentId,
+          section,
+          record: context.record,
+          itemIds: resolution.heldRecoveryItemIds(context.record),
+          questionsByIndex: context.questionsByIndex,
+          seatInfo: context.seatInfo,
+          seenFingerprints: context.seenFingerprints,
+          issuedAt: nowIso,
+          issueReasonFor: (itemId) => context.record.results?.[itemId]?.classification || null,
+        });
+        if (built.error) {
+          throw new HttpsError(
+            "failed-precondition",
+            "MathMaster cannot make a replacement for this question until the question itself is fixed. Fix it in the assignment, finalize from the graded questions, or keep the original score.",
+            { code: built.error, itemId: built.itemId || null, classification: built.classification || null },
+          );
+        }
+        replacements = built.items;
+      }
+
+      const applied = resolution.applyHeldRecoveryResolution({
+        record: context.record,
+        section,
+        action,
+        actor,
+        note,
+        replacements,
+        policy: context.policy,
+        originalScore: context.sectionOriginal?.score ?? null,
+        originalAttempted: Number(context.sectionOriginal?.attempted) > 0,
+        at: Date.now(),
+      });
+      transaction.update(
+        gradeRef,
+        new FieldPath("sectionRecoveryByAssignment", assignmentId, section),
+        applied.record,
+        new FieldPath("classroomReleaseSignals", assignmentId),
+        { requestedAt: nowIso, reason: "manual-retry", source: "teacher-recovery-resolution" },
+      );
+      transaction.set(gradeRef.collection("gradeOverrideAudits").doc(), {
+        scope: "sectionRecovery",
+        sectionRole: section,
+        assignmentId,
+        questionIndex: null,
+        action,
+        note: note || null,
+        actor,
+        at: nowIso,
+        // A correction of a Recovery completed under the old rule, or the
+        // resolution of a hold.
+        kind: resolution.recoveryNeedsLegacyCorrection(stored, section) ? "legacyCorrection" : "heldResolution",
+        holdReason: stored.hold?.reason || null,
+        heldItemIds: Array.isArray(stored.hold?.itemIds) ? stored.hold.itemIds.slice(0, 20) : [],
+        statusAfter: applied.record.status,
+        rawScoreAfter: applied.record.rawScore ?? null,
+        recordedScoreAfter: applied.gradeState?.recordedScore ?? null,
+        replacements: (replacements || []).map((item) => ({ from: item.replaces, to: item.itemId })),
+      });
+      return {
+        status: applied.record.status,
+        rawScore: applied.record.rawScore ?? null,
+        recordedScore: applied.gradeState?.recordedScore ?? null,
+        replacements: (replacements || []).map((item) => ({ from: item.replaces, to: item.itemId })),
+      };
+    });
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    if (error?.name === "RecoveryTransitionError") {
+      throw new HttpsError("failed-precondition", error.message || error.code, { code: error.code });
+    }
+    logger.error("Held Recovery resolution failed", { studentId, assignmentId, section, action, message: error?.message });
+    throw new HttpsError("internal", "The Recovery could not be updated. Nothing was changed; try again.");
+  }
+});
+
 const studentMatchesAssignmentAudience = ({ assignment = {}, classId = null } = {}) => {
   const audience = assignmentAudience(assignment);
   return Boolean(classId && audience.classIds.includes(String(classId)));
@@ -9559,6 +9767,44 @@ exports.syncGradeToClassroom = onDocumentWritten(
         (doc) => doc.data().status === "published" && doc.data().courseworkId
       );
       if (publications.length === 0) continue;
+
+      // A HELD Practice-based Recovery: MathMaster could not grade enough of
+      // it to score it, so this grade is not settled — not as a zero, not as
+      // the original, never as final. Nothing goes to Classroom until the
+      // teacher resolves it (functions/lib/sectionRecoveryGrades.js); an
+      // assignment-level teacher override already decided the whole grade.
+      const recoveryHold = isTestCycleAssignment
+        ? { held: false, sections: [] }
+        : sectionRecoveryGrades.recoveryPassbackHold({
+          recoveryForAssignment: afterData.sectionRecoveryByAssignment?.[assignmentId] || null,
+          sectionKey: "whole",
+          assignmentGradeOverride,
+        });
+      if (recoveryHold.held) {
+        for (const publicationDoc of publications) {
+          const publication = publicationDoc.data() || {};
+          // Only the columns this trigger sends to (the loop below skips the
+          // rest): a split section's column is the section trigger's, and it
+          // records its own hold for its own section only.
+          if (publication.gradePassbackEnabled === false || !String(publication.courseId || "")) continue;
+          // eslint-disable-next-line no-await-in-loop
+          await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            assignmentId,
+            courseId: String(publication.courseId || ""),
+            courseworkId: publication.courseworkId || null,
+            status: "recovery-held",
+            stage: "recovery-held",
+            // No number: a held row must never read as a grade that was sent.
+            grade: null,
+            isFinal: false,
+            recoveryHeldSections: recoveryHold.sections,
+            studentVisible: false,
+            returnedToStudent: false,
+            message: sectionRecoveryGrades.RECOVERY_HELD_SYNC_MESSAGE,
+          });
+        }
+        continue;
+      }
 
       if (persistenceState.persistencePending) {
         for (const publicationDoc of publications) {

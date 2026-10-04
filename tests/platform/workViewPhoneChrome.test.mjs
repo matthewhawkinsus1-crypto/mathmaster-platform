@@ -157,14 +157,17 @@ test('the Enlarge button says how big it is, and the rows it floats over leave i
   const reserve = region(css, '.mathmaster-work-view-surface[data-enlarged="false"] .workflow-focus__rail,', '}', 'the reservation rule');
   assert.match(reserve, /\.workflow-focus__navigator/, 'a staged question\'s step chips');
   assert.match(reserve, /> fieldset > div > \.mathmaster-work-view-nested-surface > section > \.algebra-toolbar/, 'Step Algebra\'s toolbar, where it is the question');
+  assert.match(reserve, /> fieldset > div > \.mathmaster-work-view-nested-surface > section > \.algebra-relation-toolbar/, 'the relation workspace\'s toolbar too');
   assert.match(reserve, /margin-right:\s*var\(--mm-work-view-opener-space/);
   const phone = region(css, '@media (max-width: 600px) {\n  .mathmaster-work-view-surface[data-enlarged="false"] .mathmaster-multipart-heading', '\n}\n', 'the phone reservations');
   assert.match(phone, /\.mathmaster-multipart-heading \{[^}]*padding-right:\s*var\(--mm-work-view-opener-space/);
-  assert.match(phone, /\.algebra-toolbar \{[^}]*margin-right:\s*0;[^}]*margin-top:\s*var\(--mm-work-view-opener-bottom/, 'a wrapping toolbar starts below the button on a phone');
+  assert.match(phone, /\.algebra-toolbar(?:,[^{]*)? \{[^}]*margin-right:\s*0;[^}]*margin-top:\s*var\(--mm-work-view-opener-bottom/, 'a wrapping toolbar starts below the button on a phone');
+  assert.match(phone, /\.algebra-relation-toolbar \{[^}]*margin-right:\s*0;[^}]*margin-top:\s*var\(--mm-work-view-opener-bottom/, 'and so does the relation workspace\'s');
 
   // The hooks the rules need exist where the rows are drawn.
   assert.match(read('src/MultiAnswerGrader.jsx'), /<h2 className="mathmaster-multipart-heading"/);
   assert.match(read('src/StepByStepAlgebraCore.jsx'), /className=\{embedded \? 'algebra-embedded-toolbar' : 'algebra-toolbar'\}/);
+  assert.match(read('src/MultiRelationAlgebraCore.jsx'), /<div\s+className="algebra-relation-toolbar"/);
 });
 
 /* ------------------------------------------------- PQ-037: with the keypad */

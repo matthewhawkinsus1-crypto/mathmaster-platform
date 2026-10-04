@@ -1814,6 +1814,7 @@ export default function MultiRelationAlgebra({
       <QuestionPrompt>{question.prompt || 'Solve the equation or inequality.'}</QuestionPrompt>
 
       <div
+        className="algebra-relation-toolbar"
         style={{
           display: 'flex',
           justifyContent: 'space-between',

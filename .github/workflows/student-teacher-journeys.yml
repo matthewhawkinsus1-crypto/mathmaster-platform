@@ -26,6 +26,12 @@ name: Student and Teacher Journeys
 #                          resume, submit; malformed drafts; a second board;
 #                          throttled nightly) and, on QuestionEngine alone,
 #                          tests/browser/warmupReopenDraft.mjs
+#   held Recovery         tests/browser/teacherWorkflow/recoveryHoldJourneys.mjs
+#                          (a Recovery question MathMaster could not grade:
+#                          never counted wrong, left out or held, Pending
+#                          Grade; the teacher finalizes or issues a
+#                          replacement; Chromebook, iPad, phone; throttled
+#                          nightly)
 #   family pin containment tests/browser/familyPinContainment.mjs
 #                          (a Question Family pin that will not replay is one
 #                          question's failure: never a substitute question,
@@ -117,6 +123,16 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/warmupReopenJourneys.mjs --slow
+      - name: Held Recovery — a question MathMaster could not grade
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/recoveryHoldJourneys.mjs
+      - name: Held Recovery, throttled Chromebook (nightly and on demand)
+        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: VIEWPORTS=1366x768 node tests/browser/teacherWorkflow/recoveryHoldJourneys.mjs --slow
       - name: Endurance (nightly and on demand)
         if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         env:

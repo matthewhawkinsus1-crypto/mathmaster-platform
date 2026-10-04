@@ -18,6 +18,8 @@ import {
   resolveAssignmentGradingPeriod,
 } from './gradingPeriods.js';
 import { resolveStudentOverride } from '../../../functions/shared/studentAssignmentOverrides.mjs';
+import { heldSectionRecoveries } from '../../../functions/shared/sectionRecoveryProjection.mjs';
+import { assignmentGradeOverrideFor } from '../grading/canonicalGradeProjection.js';
 
 /*
  * THE STUDENT GRADE CENTER, AS A MODEL.
@@ -125,6 +127,9 @@ export const EXCLUSION_REASON = Object.freeze({
   PRACTICE_ONLY: 'practiceOnly',
   EXCUSED: 'excused',
   NOT_GRADEABLE: 'notGradeable',
+  // A Practice-based Recovery is held for the teacher: MathMaster could not
+  // grade part of it, so this grade can still move.
+  RECOVERY_HELD: 'recoveryHeld',
 });
 
 export const EXCLUSION_REASON_TEXT = Object.freeze({
@@ -133,6 +138,7 @@ export const EXCLUSION_REASON_TEXT = Object.freeze({
   [EXCLUSION_REASON.PRACTICE_ONLY]: 'Not counted — this closed with no recorded work, so it is practice only now.',
   [EXCLUSION_REASON.EXCUSED]: 'Not counted — your teacher excused this assignment.',
   [EXCLUSION_REASON.NOT_GRADEABLE]: 'Not counted — this assignment has no gradeable questions.',
+  [EXCLUSION_REASON.RECOVERY_HELD]: 'Not counted yet — your Recovery work is saved, and your teacher is reviewing it because MathMaster could not grade part of it.',
 });
 
 /*
@@ -306,6 +312,21 @@ export const buildStudentGradeCenter = ({
    * therefore agree on the same number.
    */
   supportProfile = null,
+  /*
+   * PRACTICE-BASED RECOVERY RECORDS, READ AND NEVER RECOMPUTED.
+   *
+   * `grades/{studentId}.sectionRecoveryByAssignment` (server-written). A
+   * completed Recovery already reached `tracker` through the display
+   * projection; this is read only to know whether one is HELD — submitted,
+   * not gradable enough to score, waiting for the teacher. A held Recovery's
+   * assignment is Pending Grade: a status word, never a percentage, and not
+   * in the period average, exactly like a grade a teacher is holding.
+   */
+  sectionRecoveryByAssignment = {},
+  // The student's teacher overrides: an assignment-level one decides the whole
+  // grade, so a held Recovery does not make that assignment Pending Grade
+  // (as for Classroom and Grade Transfer — canonicalGradeProjection.js).
+  teacherGradeOverridesByAssignment = {},
   providers = {},
 } = {}) => {
   const {
@@ -329,6 +350,8 @@ export const buildStudentGradeCenter = ({
     const excused = assignmentIsExcusedForStudent(assignment, studentId);
     const reopened = assignmentIsReopenedForStudent(assignment, studentId);
     const feedbackHeld = !lifecycle.isPracticeOnly && assignmentHasHeldTeacherFeedback(assignment) === true;
+    const recoveryHeld = Object.keys(heldSectionRecoveries(sectionRecoveryByAssignment?.[assignment.id])).length > 0
+      && !assignmentGradeOverrideFor({ teacherGradeOverridesByAssignment }, assignment.id);
     const access = prerequisiteAccess
       ? prerequisiteAccess({ assignment, classworkGradesByAssignment, nowValue })
       : { open: true, reason: null };
@@ -389,12 +412,17 @@ export const buildStudentGradeCenter = ({
     const status = resolveGradeStatus({
       overall: effectiveOverall,
       lifecycle,
-      feedbackHeld: feedbackHeld || cycleFeedbackHeld,
+      // A held Recovery is a grade waiting on the teacher, like held feedback.
+      feedbackHeld: feedbackHeld || cycleFeedbackHeld || recoveryHeld,
       excused,
       reopened,
       locked,
     });
-    const { counts, reason } = gradeCountsTowardPeriod({ status, overall: effectiveOverall, weights: effectiveWeights });
+    const counted = gradeCountsTowardPeriod({ status, overall: effectiveOverall, weights: effectiveWeights });
+    const counts = counted.counts;
+    const reason = recoveryHeld && status === GRADE_STATUS.PENDING_GRADE && !feedbackHeld && !cycleFeedbackHeld
+      ? EXCLUSION_REASON.RECOVERY_HELD
+      : counted.reason;
 
     return {
       assignment,
@@ -420,6 +448,7 @@ export const buildStudentGradeCenter = ({
       exclusionReason: reason,
       exclusionText: reason ? EXCLUSION_REASON_TEXT[reason] : null,
       feedbackHeld: feedbackHeld || cycleFeedbackHeld,
+      recoveryHeld,
       excused,
       reopened,
       locked,

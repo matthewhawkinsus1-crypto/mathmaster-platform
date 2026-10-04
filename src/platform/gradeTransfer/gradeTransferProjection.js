@@ -4,6 +4,7 @@ import { projectCurrentAssignmentContent } from '../assignments/currentContentPr
 import {
   canonicalPresentedAssignmentGrade,
   canonicalPresentedSectionGrade,
+  recoveryHoldFor,
   sectionNotRequiredForStudent,
 } from '../grading/canonicalGradeProjection.js';
 import { SECTION_GRADE_KEYS } from '../teacher/gradeEvidence.js';
@@ -103,6 +104,8 @@ export const projectGradeTransferUnits = ({
           students: eligible,
           projectCanonicalGrade: canonicalPresentedAssignmentGrade,
           hasAuthoritativePracticePass: ({ student }) => practicePasses.has(`${student.id}__${classRecord.classId}__${assignment.id}`),
+          // A held Practice-based Recovery: the whole grade is not settled.
+          recoveryHeldFor: ({ student }) => Boolean(recoveryHoldFor({ student, assignment })),
           resolveStudentFinalDeadline,
           confirmedSnapshots: history.filter((item) => item.uploadConfirmedAt),
           latestExport: history[0],
@@ -130,6 +133,8 @@ export const projectGradeTransferUnits = ({
           isSectionNotRequired: ({ student, practicePassRedeemed }) => sectionNotRequiredForStudent({
             student, assignment, sectionKey, practicePassRedeemed,
           }),
+          // A held Practice-based Recovery holds its own section's row only.
+          recoveryHeldFor: ({ student }) => Boolean(recoveryHoldFor({ student, assignment, sectionKey })),
           resolveStudentFinalDeadline,
           confirmedSnapshots: history.filter((item) => item.uploadConfirmedAt),
           latestExport: history[0],

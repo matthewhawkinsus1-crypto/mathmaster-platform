@@ -140,6 +140,9 @@ function PinnedQuestion({
   onRendered,
   onGrade,
   onStepGrade,
+  // Told when this question cannot be shown here (classified), so the
+  // Recovery can tell the server it was never the student's to answer.
+  onUnavailable = null,
 }) {
   // A stored plan item whose pin did not survive normalizeRecoveryRecord (a
   // pin from another build, a damaged record) is null here. Reading
@@ -154,6 +157,11 @@ function PinnedQuestion({
     pin,
     requirePin: true,
   }), [assignmentId, item, pin]);
+  useEffect(() => {
+    if (!pin && typeof onUnavailable === 'function') {
+      onUnavailable({ classification: QUESTION_RESOLUTION_FAILURE.PIN_MALFORMED, recovery: recoveryForFailure(QUESTION_RESOLUTION_FAILURE.PIN_MALFORMED) });
+    }
+  }, [pin, onUnavailable]);
   if (!pin) {
     return (
       <QuestionResolutionFailure
@@ -163,6 +171,7 @@ function PinnedQuestion({
           diagnostics: { pinKind: 'recovery', detail: 'recovery-plan-pin-unreadable' },
         }}
         context={{ assignmentId, questionId: item?.questionId || null, familyId: question?.questionFamily?.id || null, activityRole }}
+        technicalDetails={false}
       />
     );
   }
@@ -173,6 +182,10 @@ function PinnedQuestion({
       generationKey={`${assignmentId}|${section}-recovery|${item.storageIndex}|variant:${pin.variant}`}
       familyContext={familyContext}
       onFamilyDelivery={(delivery, rendered) => onRendered(delivery, rendered)}
+      onResolutionFailure={onUnavailable}
+      // The student reads UNAVAILABLE_QUESTION_NOTICE: never a classification
+      // code or a pin reference (the teacher sees the classification).
+      resolutionTechnicalDetails={false}
       onGrade={onGrade}
       onStepGrade={onStepGrade}
       onLoadScratchpad={async () => null}
@@ -259,6 +272,14 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
         setNotice('That question was already answered. Here is a fresh one.');
         return { blocked: true, message: 'That question was already answered.' };
       }
+      // The item is no longer this Recovery's as dealt (seating moved a
+      // provisional seat, or the question changed): retrying cannot help, so
+      // move on to the next item the record deals.
+      if (code === 'practice-pin-invalid') {
+        setOutcome({ isCorrect: null, unlocked: false });
+        setNotice('That question is no longer available. Here is a fresh one.');
+        return { blocked: true, message: 'That question is no longer available.' };
+      }
       if (code === 'practice-response-ungradable') {
         return { blocked: true, message: 'MathMaster could not read that answer. Check it and press Submit again.' };
       }
@@ -293,7 +314,7 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
       });
       recordOutcome(result);
     } catch (error) {
-      if (recoveryErrorCode(error) === 'practice-item-repeated') setOutcome({ isCorrect: null, unlocked: false });
+      if (['practice-item-repeated', 'practice-pin-invalid'].includes(recoveryErrorCode(error))) setOutcome({ isCorrect: null, unlocked: false });
       else setNotice('That could not be saved right now. Try again in a moment.');
     } finally {
       setForfeiting(false);
@@ -376,25 +397,62 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
   );
 }
 
+// The brief's words for a question MathMaster could not show or grade. It is
+// true on every path: the server never counts such a question against the
+// student — it leaves it out of the score, or holds the Recovery for the
+// teacher (functions/shared/sectionRecoveryEvidence.mjs).
+export const UNAVAILABLE_QUESTION_NOTICE = 'MathMaster could not grade this Recovery question. It will not count against your score.';
+
 function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit, onRecord }) {
   const { confirm } = useToast();
   const plan = entry.plan;
+  // Never a question a teacher replaced: the summary passes the active plan.
   const items = useMemo(() => (Array.isArray(plan?.items) ? plan.items : []), [plan]);
+  // Answered and graded before a teacher replaced another question: kept,
+  // never asked again.
+  const submittedIds = useMemo(() => new Set(Array.isArray(entry.submittedItemIds) ? entry.submittedItemIds : []), [entry.submittedItemIds]);
   const keyArgs = { studentId, assignmentId: assignment.id, section: entry.section, opportunity: plan?.opportunity || 1 };
   const responsesKey = storageKeyFor({ kind: 'responses', ...keyArgs });
   const stepsKey = storageKeyFor({ kind: 'steps', ...keyArgs });
+  const unavailableKey = storageKeyFor({ kind: 'unavailable', ...keyArgs });
   const [responses, setResponses] = useState(() => readSaved(responsesKey));
   const [stepRecords, setStepRecords] = useState(() => readSaved(stepsKey));
-  const [position, setPosition] = useState(0);
+  const [position, setPosition] = useState(() => Math.max(0, items.findIndex((item) => !submittedIds.has(item.itemId))));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  // itemId -> classification, for each question this device could not show.
+  // Kept on the device like the answers, so leaving and coming back still
+  // reports it (and the Submit warning never calls it incorrect).
+  const [unavailable, setUnavailable] = useState(() => readSaved(unavailableKey));
   const renderedRef = useRef({});
   const policy = useMemo(() => assessmentPolicy(entry.section), [entry.section]);
 
   const current = items[Math.min(position, Math.max(0, items.length - 1))] || null;
   const currentQuestion = current ? entry.questionsByIndex?.[current.storageIndex] : null;
   const maximumAttempts = resolveQuestionMaximumAttempts({ question: currentQuestion, activityPolicy: policy });
-  const answeredCount = items.filter((item) => responses[item.itemId] && !isOver(stepRecords[item.itemId])).length;
+  const openItems = items.filter((item) => !submittedIds.has(item.itemId));
+  const answeredCount = openItems.filter((item) => responses[item.itemId] && !isOver(stepRecords[item.itemId])).length;
+  const unavailableCount = openItems.filter((item) => unavailable[item.itemId] && !responses[item.itemId]).length;
+
+  const currentItemId = current?.itemId || null;
+  const markUnavailable = useCallback((failure) => {
+    if (!currentItemId) return;
+    const classification = String(failure?.classification || 'unclassified');
+    setUnavailable((previous) => {
+      if (previous[currentItemId] === classification) return previous;
+      const next = { ...previous, [currentItemId]: classification };
+      writeSaved(unavailableKey, next);
+      return next;
+    });
+  }, [currentItemId, unavailableKey]);
+  const markShown = useCallback((itemId) => {
+    setUnavailable((previous) => {
+      if (!previous[itemId]) return previous;
+      const { [itemId]: _shown, ...rest } = previous;
+      writeSaved(unavailableKey, rest);
+      return rest;
+    });
+  }, [unavailableKey]);
 
   const handleGrade = useCallback(async (unusedLocalVerdict, unusedDetails, parts, unusedSupportUsage, responseKey, attemptMetadata = {}) => {
     if (!current) return null;
@@ -433,11 +491,16 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
 
   const submitAll = async () => {
     if (submitting) return;
-    const unanswered = items.length - answeredCount;
+    // Only the student's own unanswered questions "count as incorrect". A
+    // question MathMaster could not show is never one of them.
+    const unanswered = items.filter((item) => !submittedIds.has(item.itemId)
+      && !(responses[item.itemId] && !isOver(stepRecords[item.itemId]))
+      && !unavailable[item.itemId]).length;
     if (unanswered > 0) {
       const proceed = await confirm({
         title: `Submit ${entry.label}?`,
-        message: `${unanswered} question${unanswered === 1 ? ' has' : 's have'} no saved answer and will count as incorrect.`,
+        message: `${unanswered} question${unanswered === 1 ? ' has' : 's have'} no saved answer and will count as incorrect.`
+          + (unavailableCount ? ` MathMaster could not grade ${unavailableCount === 1 ? 'one other question' : `${unavailableCount} other questions`}, and ${unavailableCount === 1 ? 'it' : 'they'} will not count against your score.` : ''),
         confirmLabel: 'Submit anyway',
         cancelLabel: 'Keep working',
       });
@@ -446,18 +509,27 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
     setSubmitting(true);
     setError('');
     try {
-      const sendable = Object.fromEntries(Object.entries(responses).filter(([itemId]) => !isOver(stepRecords[itemId])));
-      const result = await submitSectionRecovery({ assignmentId: assignment.id, section: entry.section, responses: sendable });
+      const sendable = Object.fromEntries(Object.entries(responses)
+        .filter(([itemId]) => !isOver(stepRecords[itemId]) && !submittedIds.has(itemId)));
+      // The questions this device could not show travel with the submission:
+      // the server re-checks each one and never counts it against the student.
+      const unavailableItems = Object.fromEntries(Object.entries(unavailable)
+        .filter(([itemId]) => !sendable[itemId] && !submittedIds.has(itemId))
+        .map(([itemId, classification]) => [itemId, { classification }]));
+      const result = await submitSectionRecovery({ assignmentId: assignment.id, section: entry.section, responses: sendable, unavailableItems });
       if (result?.record) onRecord(entry.section, result.record);
       clearSaved(responsesKey);
       clearSaved(stepsKey);
+      clearSaved(unavailableKey);
     } catch (submitError) {
       const code = recoveryErrorCode(submitError);
       setError(code === 'recovery-not-in-progress'
         ? 'This Recovery was already submitted.'
         : code === 'recovery-window-ended'
           ? 'The final submission date has passed, so this Recovery can no longer be submitted. Your original score stands.'
-          : 'Your Recovery could not be submitted right now. Your answers are saved here — try again.');
+          : code === 'recovery-held'
+            ? 'Your final submission date has passed, so your teacher will finish your Recovery. The answers you already submitted are kept.'
+            : 'Your Recovery could not be submitted right now. Your answers are saved here — try again.');
     } finally {
       setSubmitting(false);
     }
@@ -476,6 +548,25 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
               <div><dt style={{ color: 'var(--mm-text-muted)' }}>Final</dt><dd style={{ margin: 0, fontWeight: 900, fontSize: 18 }}>{entry.result.final}</dd></div>
             </dl>
           )}
+          {entry.note && <p data-recovery-note="true" style={{ margin: 0, color: 'var(--mm-text-muted)' }}>{entry.note}</p>}
+          <div><button type="button" onClick={onExit} style={actionButton(true)}>Done</button></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Submitted, but MathMaster could not grade enough of it to score it. The
+  // work is saved and a teacher decides; there is no score to show, and
+  // nothing here can resubmit it.
+  if (entry.state === 'held') {
+    return (
+      <div style={shellStyle} data-recovery-runner="held" data-recovery-section={entry.section}>
+        <RecoveryHeader label={entry.label} subtitle="Recovery submitted." onExit={onExit} />
+        <div role="status" style={{ ...panelStyle, display: 'grid', gap: 10 }}>
+          <p style={{ margin: 0, fontWeight: 700 }}>{entry.message}</p>
+          <p style={{ margin: 0, color: 'var(--mm-text-muted)' }}>
+            Nothing you did caused this, and nothing MathMaster could not grade will count against you. Your teacher will let you know what happens next.
+          </p>
           <div><button type="button" onClick={onExit} style={actionButton(true)}>Done</button></div>
         </div>
       </div>
@@ -504,6 +595,8 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
   }
 
   const currentOver = isOver(stepRecords[current.itemId]);
+  const currentSubmitted = submittedIds.has(current.itemId);
+  const currentUnavailable = Boolean(unavailable[current.itemId]) && !responses[current.itemId];
   return (
     <div style={shellStyle} data-recovery-runner="assessment" data-recovery-section={entry.section}>
       <RecoveryHeader
@@ -511,17 +604,22 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
         subtitle="Fresh questions on the same skills. Save each answer, then submit when you are done."
         onExit={onExit}
       />
+      {entry.note && <p role="status" data-recovery-note="true" style={{ ...panelStyle, margin: 0 }}>{entry.note}</p>}
       <nav aria-label="Recovery questions" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {items.map((item, index) => {
           const active = item.itemId === current.itemId;
           const over = isOver(stepRecords[item.itemId]);
           const saved = Boolean(responses[item.itemId]) && !over;
+          const submitted = submittedIds.has(item.itemId);
+          const notShown = Boolean(unavailable[item.itemId]) && !saved;
           return (
             <button
               key={item.itemId}
               type="button"
+              data-recovery-item={item.itemId}
+              data-recovery-item-state={submitted ? 'submitted' : notShown ? 'unavailable' : saved ? 'saved' : over ? 'over' : 'open'}
               aria-current={active ? 'step' : undefined}
-              aria-label={`Question ${index + 1}${saved ? ', answer saved' : over ? ', no tries left' : ''}`}
+              aria-label={`Question ${index + 1}${submitted ? ', already submitted' : notShown ? ', MathMaster could not grade this question' : saved ? ', answer saved' : over ? ', no tries left' : ''}`}
               onClick={() => setPosition(index)}
               style={{
                 minWidth: 40,
@@ -541,27 +639,47 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
       </nav>
       <p aria-live="polite" style={{ margin: 0, fontSize: 13.5, color: 'var(--mm-text-muted)' }}>
         Question {position + 1} of {items.length}
-        {currentOver
-          ? ' · Every try on this question is used, so it will count as incorrect.'
-          : responses[current.itemId] ? ' · Answer saved — you can change it until you submit.' : ''}
+        {currentSubmitted
+          ? ' · Already submitted.'
+          : currentOver
+            ? ' · Every try on this question is used, so it will count as incorrect.'
+            : responses[current.itemId] ? ' · Answer saved — you can change it until you submit.' : ''}
       </p>
-      <PinnedQuestion
-        item={current}
-        question={currentQuestion}
-        assignmentId={assignment.id}
-        section={entry.section}
-        studentId={studentId}
-        studentProfile={studentProfile}
-        draftNamespace={`recovery~${entry.section}~o${plan?.opportunity || 1}`}
-        draftIndex={position}
-        activityRole={entry.section}
-        activityPolicy={policy}
-        maximumAttempts={maximumAttempts}
-        questionRecord={stepRecords[current.itemId] || null}
-        onRendered={(delivery, rendered) => { renderedRef.current[delivery.fingerprint] = rendered; }}
-        onGrade={handleGrade}
-        onStepGrade={handleStepGrade}
-      />
+      {currentUnavailable && (
+        <p role="status" data-recovery-unavailable={current.itemId} style={{ ...panelStyle, margin: 0, fontWeight: 700 }}>
+          {UNAVAILABLE_QUESTION_NOTICE}
+        </p>
+      )}
+      {currentSubmitted ? (
+        <p data-recovery-submitted={current.itemId} style={{ ...panelStyle, margin: 0 }}>
+          Your answer to this question is already saved. You do not need to answer it again.
+        </p>
+      ) : (
+        <PinnedQuestion
+          item={current}
+          question={currentQuestion}
+          assignmentId={assignment.id}
+          section={entry.section}
+          studentId={studentId}
+          studentProfile={studentProfile}
+          // A replacement question takes the replaced one's place (same
+          // storage index, same position), so it gets its own draft: the old
+          // question's saved answer must never pre-fill a different question.
+          draftNamespace={`recovery~${entry.section}~o${plan?.opportunity || 1}${current.replaces ? `~${current.itemId}` : ''}`}
+          draftIndex={position}
+          activityRole={entry.section}
+          activityPolicy={policy}
+          maximumAttempts={maximumAttempts}
+          questionRecord={stepRecords[current.itemId] || null}
+          onRendered={(delivery, rendered) => {
+            renderedRef.current[delivery.fingerprint] = rendered;
+            markShown(current.itemId);
+          }}
+          onUnavailable={markUnavailable}
+          onGrade={handleGrade}
+          onStepGrade={handleStepGrade}
+        />
+      )}
       {error && <p role="alert" style={{ margin: 0, color: 'var(--mm-error-text)', fontWeight: 700 }}>{error}</p>}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -573,7 +691,7 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
           </button>
         </div>
         <button type="button" disabled={submitting} onClick={submitAll} style={actionButton(true, submitting)}>
-          {submitting ? 'Submitting…' : `Submit ${entry.label} (${answeredCount}/${items.length} saved)`}
+          {submitting ? 'Submitting…' : `Submit ${entry.label} (${answeredCount}/${openItems.length} saved)`}
         </button>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { buildTestCycleGradeState, isTestCycleAssignment } from '../assessment/testCycle.js';
 import { splitGrade, splitGradesBySection } from '../teacher/gradeEvidence.js';
 import { projectSectionRecoveryForAssignment } from './sectionRecoveryGrades.js';
+import { heldSectionRecoveries } from '../../../functions/shared/sectionRecoveryProjection.mjs';
 
 export const ASSIGNMENT_GRADE_OVERRIDE_KEY = '__assignment';
 
@@ -86,6 +87,32 @@ export const projectedAssignmentTrackerFor = ({ student = null, assignment = nul
     challengeByAssignment: student?.warmupChallengeByAssignment || null,
     supportProfile: supportProfileOf(student),
   }).tracker;
+};
+
+/*
+ * IS THIS GRADE WAITING ON A HELD RECOVERY?
+ *
+ * A held Recovery (functions/shared/sectionRecoveryEvidence.mjs) is a
+ * submitted Recovery MathMaster could not grade well enough to score. The
+ * grade every surface shows meanwhile is the ORIGINAL — the Recovery replaced
+ * nothing — but it is not settled: the teacher may finalize the Recovery,
+ * replace a question, or keep the original. So nothing that exports or
+ * finalizes a grade (Grade Transfer, the Grade Center's period average) may
+ * treat it as final. Null when nothing is held, when the section is one a
+ * Recovery never touches, or when an assignment-level teacher override has
+ * already decided the whole grade; otherwise { sections }.
+ *
+ *   sectionKey ''               the whole assignment: any held section
+ *   sectionKey 'warmup' | 'dol' that section
+ */
+export const recoveryHoldFor = ({ student = null, assignment = null, sectionKey = '' } = {}) => {
+  if (!assignment?.id || isTestCycleAssignment(assignment)) return null;
+  const held = Object.keys(heldSectionRecoveries(student?.sectionRecoveryByAssignment?.[assignment.id]));
+  if (!held.length) return null;
+  if (assignmentGradeOverrideFor(student, assignment.id)) return null;
+  const key = String(sectionKey || '').trim().toLowerCase();
+  if (!key || key === 'whole') return { sections: held };
+  return held.includes(key) ? { sections: [key] } : null;
 };
 
 /**
