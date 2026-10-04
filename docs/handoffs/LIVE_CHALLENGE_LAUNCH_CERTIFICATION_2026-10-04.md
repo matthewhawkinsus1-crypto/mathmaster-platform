@@ -55,6 +55,15 @@ later round. That is a new milestone, so it may send one more batch. The
 budget reads this from the device's own diagnostic row, so a redundant request
 still fails it.
 
+**No closing countdown, and the whole class.** The certification's games use
+90 s rounds and `roundClosingThreshold: 'off'`. At the default 70% threshold, a
+64-student class compresses each round to its last 5 s within seconds of the
+start. The late listener then raced that window, not the durable room: on CI,
+round 1 locked while it was still joining. The host's close also waits for
+every student in the class to have joined and answered, not only those already
+joined, so a device still joining is never closed out. Compression keeps its
+own tests.
+
 **What is real.** Every callable, under each student's own identity. Every
 listener: each device loads the production `liveChallengeService.js` with its
 own Firebase app and Firestore connection (`support/clientFirebase.mjs`), so

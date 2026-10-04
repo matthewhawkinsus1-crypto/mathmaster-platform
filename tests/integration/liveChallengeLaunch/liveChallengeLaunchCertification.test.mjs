@@ -143,6 +143,13 @@ const createGame = async (entry, extra = {}) => (await teacherCall(entry, 'creat
   // Long rounds: the host closes each one as soon as everyone has answered,
   // so this only gives a loaded CI machine room, and weakens no check.
   roundSeconds: 90,
+  // ...and no closing countdown. At the default 70% threshold a class this
+  // size compresses each round to its last 5 s within seconds of the start, so
+  // a device that attaches after zero (the late listener, on a loaded machine)
+  // raced that window instead of the durable room this certifies, and on CI
+  // lost it: round 1 locked with it still joining. Compression is its own
+  // rule, with its own tests; it is not part of the launch contract.
+  roundClosingThreshold: 'off',
   ...extra,
 })).roomId;
 
@@ -152,17 +159,23 @@ const viewDump = (views) => JSON.stringify([...views.values()].slice(0, 5).map((
   rounds: Object.keys(view.seen[view.roomId]?.rounds || {}), errors: view.errors, roomLagMaxMs: view.stats.roomLagMaxMs,
 })));
 
-// The host closes a round once everyone joined has answered: NOT forced, so
-// the close itself proves that every joined student's answer reached the
-// server. It also waits for every answer still on its way (a deliberate second
+// The host closes a round once the whole class has joined and answered: NOT
+// forced, so the close itself proves that every student's answer reached the
+// server. Every student in these scenarios plays every round, so one still
+// joining (the late listener on a loaded machine) is waited for, never closed
+// out. It also waits for every answer still on its way (a deliberate second
 // answer included) to settle: closing first would race the student — the
 // server would rightly refuse the late one — and test nothing about the server.
+const answeredRound = (rows, studentId, roundIndex) => rows.some((row) => row.studentId === studentId && row.joined && Number(row.answeredRound) === roundIndex);
 const closeWhenAllAnswered = async (entry, farm, roomId, roundIndex, timeoutMs = 25_000) => {
   await waitUntil(async () => {
     const rows = await privatePlayers(roomId);
     const room = await roomOf(roomId);
-    return `round ${roundIndex + 1}: still waiting on ${rows.filter((row) => row.joined && Number(row.answeredRound) !== roundIndex).map((row) => row.studentId).join(', ')}; server room ${JSON.stringify({ round: room.currentRound, state: room.roundState, version: room.roundVersion, startsAt: millis(room.startsAt), endsAt: millis(room.endsAt), now: Date.now() })}; devices ${viewDump(await farm.views())}`;
-  }, async () => (await privatePlayers(roomId)).filter((row) => row.joined).every((row) => Number(row.answeredRound) === roundIndex), timeoutMs, 250);
+    return `round ${roundIndex + 1}: still waiting on ${entry.students.filter((studentId) => !answeredRound(rows, studentId, roundIndex)).join(', ')}; server room ${JSON.stringify({ round: room.currentRound, state: room.roundState, version: room.roundVersion, startsAt: millis(room.startsAt), endsAt: millis(room.endsAt), now: Date.now() })}; devices ${viewDump(await farm.views())}`;
+  }, async () => {
+    const rows = await privatePlayers(roomId);
+    return entry.students.every((studentId) => answeredRound(rows, studentId, roundIndex));
+  }, timeoutMs, 250);
   await waitUntil(async () => `round ${roundIndex + 1}: answers still in flight on ${[...(await farm.views()).values()].filter((view) => view.answering).map((view) => view.studentId).join(', ')}`,
     async () => [...(await farm.views()).values()].every((view) => !view.answering), 15_000, 100);
   const room = await roomOf(roomId);
