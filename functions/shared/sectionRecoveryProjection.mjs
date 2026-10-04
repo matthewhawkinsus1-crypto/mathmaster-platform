@@ -37,15 +37,42 @@ import { WARMUP_GRADE_SOURCE, buildWarmupChallengeGradeState } from './warmupCha
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
-/** The completed Recovery records for one assignment, by section. */
+/** A Recovery score that exists. `null` is "no score", and Number(null) is 0. */
+const hasRecoveryScore = (record) => record?.rawScore !== null
+  && record?.rawScore !== undefined
+  && record?.rawScore !== ''
+  && Number.isFinite(Number(record.rawScore));
+
+/**
+ * The completed Recovery records for one assignment, by section — only those
+ * with a Recovery score. A HELD Recovery is not here (nothing was scored), and
+ * neither is one a teacher closed keeping the original: in both the original
+ * section score stands, exactly as if no Recovery had been taken.
+ */
 export const completedSectionRecoveries = (recoveriesForAssignment = null) => {
   const found = {};
   if (!isObject(recoveriesForAssignment)) return found;
   ['warmup', 'dol'].forEach((section) => {
     const record = normalizeRecoveryRecord(recoveriesForAssignment[section], section);
-    if (record?.status === RECOVERY_RECORD_STATUS.COMPLETED && Number.isFinite(Number(record.rawScore))) {
+    if (record?.status === RECOVERY_RECORD_STATUS.COMPLETED && hasRecoveryScore(record)) {
       found[section] = record;
     }
+  });
+  return found;
+};
+
+/**
+ * The HELD Recovery records for one assignment, by section: submitted, not
+ * gradable enough to score, waiting for a teacher. Every surface that would
+ * otherwise treat the assignment's grade as finished — Classroom passback,
+ * Grade Transfer, the student's Grade Center — asks this first.
+ */
+export const heldSectionRecoveries = (recoveriesForAssignment = null) => {
+  const found = {};
+  if (!isObject(recoveriesForAssignment)) return found;
+  ['warmup', 'dol'].forEach((section) => {
+    const record = normalizeRecoveryRecord(recoveriesForAssignment[section], section);
+    if (record?.status === RECOVERY_RECORD_STATUS.HELD) found[section] = record;
   });
   return found;
 };

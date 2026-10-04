@@ -224,6 +224,13 @@ function QuestionEngineBody({
   // Supplied by the QuestionEngine wrapper: prepare this question again from
   // scratch (a remount). Offered only for a failure a retry can clear.
   onResolutionRetry = null,
+  // Optional: told when this question could not be prepared (a classified
+  // failure), with its classification. Recovery reports it to the server so
+  // the question is never counted against the student.
+  onResolutionFailure = null,
+  // false: the failure panel shows no classification code and no copyable
+  // report (Recovery says what happened in its own words).
+  resolutionTechnicalDetails = true,
 }) {
   useRenderPerformance('QuestionEngine', String(question?.toolId || question?.type || 'question'));
   const resolvedActivityPolicy = activityPolicy || getEffectiveActivityPolicy(activityRole);
@@ -276,6 +283,17 @@ function QuestionEngineBody({
     // Once per distinct notice.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [familyPinNotice?.classification, familyPinNotice?.pinFingerprint, familyDeliverySignature]);
+  // A classified failure, reported to a host that asked (Recovery), once per
+  // distinct failure. Never thrown back into this question.
+  const platformFailure = processedQuestion?.type === 'platformQuestionError' ? processedQuestion.platformError || {} : null;
+  const platformFailureSignature = platformFailure ? `${platformFailure.classification || 'unclassified'}|${platformFailure.recovery || ''}` : '';
+  useEffect(() => {
+    if (!platformFailureSignature || typeof onResolutionFailure !== 'function') return;
+    try {
+      onResolutionFailure({ classification: platformFailure.classification || null, recovery: platformFailure.recovery || null });
+    } catch { /* the host's problem, never this question's */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [platformFailureSignature]);
   // Which algebra workspace this question opens — decided once, by the same
   // React-free resolver the capability certification tests call.
   const algebraWorkspaceRoute = useMemo(
@@ -1607,6 +1625,7 @@ function QuestionEngineBody({
       onNextQuestion={onNextQuestion}
       nextQuestionLabel={nextQuestionLabel}
       hasRecordedWork={(Number(record.totalAttempts) || 0) > 0 || ['correct', 'expired'].includes(record.status)}
+      technicalDetails={resolutionTechnicalDetails !== false}
     />
   ) : null;
 
@@ -2281,6 +2300,8 @@ export default function QuestionEngine(props) {
       onNextQuestion={onNextQuestion}
       nextQuestionLabel={nextQuestionLabel}
       hasRecordedWork={(Number(record.totalAttempts) || 0) > 0}
+      onResolutionFailure={props.onResolutionFailure}
+      technicalDetails={props.resolutionTechnicalDetails !== false}
     >
       <QuestionEngineBody key={resolutionAttempt} {...props} onResolutionRetry={retry} />
     </QuestionResolutionBoundary>

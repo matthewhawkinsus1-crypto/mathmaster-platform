@@ -24,7 +24,9 @@
  */
 
 import { resolveFamilyQuestionInstance } from './questionFamilyInstance.mjs';
+import { familyInstanceServerGradable } from './questionFamilyGrading.mjs';
 import { resolveGenerationAllocation } from './questionGenerationIdentity.mjs';
+import { RECOVERY_GRADING_FAILURE, classifyFamilyGenerationError } from './sectionRecoveryEvidence.mjs';
 
 const clean = (value) => String(value ?? '').trim();
 
@@ -127,4 +129,107 @@ export const buildRecoveryAssessmentPlan = ({
     opportunity: Math.max(1, Number(opportunity) || 1),
     items,
   };
+};
+
+/*
+ * A TEACHER'S REPLACEMENT FOR QUESTIONS MATHMASTER COULD NOT GRADE.
+ *
+ * Never a re-roll of the old question and never chosen by a browser (PR #430:
+ * the client must not pick a replacement for an authoritative pin). For each
+ * held item the server builds a NEW item:
+ *
+ *   - a new item id (`r3-replacement-1`) that names the one it replaces;
+ *   - a new slot key, so its identity is its own — not the next instance on
+ *     the failed pin's list;
+ *   - allocated from the student's own seat, from the question's CURRENT
+ *     content (the teacher may have fixed it), skipping every question the
+ *     student has seen — the failed pins included.
+ *
+ * The old item stays in the plan with its pin byte-identical (the caller
+ * marks it `supersededBy`); its result is never rewritten.
+ *
+ * If the question still cannot produce a gradable instance, nothing is issued
+ * and the classification says why — the teacher fixes the question first.
+ *
+ * Returns { error: null, items } or { error, itemId, classification }.
+ */
+const REPLACEMENT_KIND = 'recoveryReplacement';
+
+const rootItemId = (items, itemId) => {
+  let current = items.find((item) => item.itemId === itemId);
+  const visited = new Set();
+  while (current?.replaces && !visited.has(current.itemId)) {
+    visited.add(current.itemId);
+    const replaced = current.replaces;
+    current = items.find((item) => item.itemId === replaced) || { itemId: replaced };
+  }
+  return current?.itemId || itemId;
+};
+
+export const buildRecoveryReplacementItems = ({
+  assignmentId = '',
+  section = 'dol',
+  record = null,
+  itemIds = [],
+  questionsByIndex = {},
+  seatInfo = null,
+  seenFingerprints = [],
+  issuedAt = null,
+  issueReasonFor = () => null,
+} = {}) => {
+  const planItems = Array.isArray(record?.plan?.items) ? record.plan.items : [];
+  const opportunity = Math.max(1, Number(record?.plan?.opportunity) || 1);
+  const seen = new Set((Array.isArray(seenFingerprints) ? seenFingerprints : []).map(clean).filter(Boolean));
+  planItems.forEach((item) => { if (clean(item?.pin?.fingerprint)) seen.add(clean(item.pin.fingerprint)); });
+  const usedIds = new Set(planItems.map((item) => item.itemId));
+  const items = [];
+  for (const itemId of (Array.isArray(itemIds) ? itemIds : [])) {
+    const original = planItems.find((item) => item.itemId === itemId);
+    if (!original) return { error: 'replacement-item-unknown', itemId, classification: null };
+    const question = questionsByIndex?.[original.storageIndex] || null;
+    if (!question) return { error: 'replacement-unavailable', itemId, classification: RECOVERY_GRADING_FAILURE.QUESTION_REMOVED };
+    const root = rootItemId(planItems, itemId);
+    let generation = 1;
+    while (usedIds.has(`${root}-replacement-${generation}`)) generation += 1;
+    const newItemId = `${root}-replacement-${generation}`;
+    usedIds.add(newItemId);
+    let result;
+    try {
+      result = resolveFamilyQuestionInstance({
+        question,
+        assignmentId,
+        storageIndex: original.storageIndex,
+        slotKey: recoverySlotKey({
+          assignmentId,
+          section,
+          kind: REPLACEMENT_KIND,
+          opportunity,
+          questionId: `${original.questionId || `index-${original.storageIndex}`}#${newItemId}`,
+        }),
+        allocation: resolveGenerationAllocation({ seatInfo, variant: 0 }),
+        excludeFingerprints: [...seen],
+      });
+    } catch {
+      return { error: 'replacement-unavailable', itemId, classification: 'resolution-exception' };
+    }
+    if (result.error) {
+      return { error: 'replacement-unavailable', itemId, classification: classifyFamilyGenerationError({ question, error: result.error }) };
+    }
+    if (!familyInstanceServerGradable(result.question)) {
+      return { error: 'replacement-unavailable', itemId, classification: RECOVERY_GRADING_FAILURE.GRADER_UNAVAILABLE };
+    }
+    seen.add(result.delivery.fingerprint);
+    items.push({
+      itemId: newItemId,
+      storageIndex: original.storageIndex,
+      questionId: original.questionId,
+      familyId: result.family.id,
+      coverageKey: result.family.recovery?.equivalenceGroup || result.family.id,
+      pin: result.delivery,
+      replaces: itemId,
+      issuedAt: clean(issuedAt) || null,
+      issueReason: clean(issueReasonFor(itemId)).slice(0, 80) || null,
+    });
+  }
+  return { error: null, items };
 };

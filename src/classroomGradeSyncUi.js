@@ -23,6 +23,9 @@ export function gradeSyncStatusLabel(sync = {}) {
   if (status === 'failed') return 'Failed';
   if (status === 'synced') return 'Synced';
   if (status === 'not-yet-synced') return 'Not yet synced';
+  // A Practice-based Recovery MathMaster could not grade is waiting for the
+  // teacher; nothing was sent, on purpose (functions/lib/sectionRecoveryGrades.js).
+  if (status === 'recovery-held') return 'Held: Recovery needs review';
   return status ? status.replaceAll('-', ' ') : 'Unknown';
 }
 

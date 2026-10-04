@@ -10,6 +10,7 @@ const RECOVERABLE_LABEL = {
   'open-until': 'Still open for this student',
   'attempts-remain': 'Attempts remain on incorrect questions',
   'recovery-in-progress': 'Recovery in progress',
+  'recovery-held': 'Recovery held for your review — MathMaster could not grade part of it',
 };
 
 function Rule({ children }) {

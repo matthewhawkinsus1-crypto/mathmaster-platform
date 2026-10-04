@@ -17,16 +17,28 @@ const cardStyle = {
   gap: 8,
 };
 
-const badgeStyle = (state) => ({
-  display: 'inline-block',
-  padding: '3px 9px',
-  borderRadius: 999,
-  fontSize: 12,
-  fontWeight: 900,
-  background: state === 'unlocked' || state === 'completed' ? 'var(--mm-success-bg)' : state === 'inProgress' ? 'var(--mm-info-bg)' : 'var(--mm-surface-muted)',
-  color: state === 'unlocked' || state === 'completed' ? 'var(--mm-success-text)' : state === 'inProgress' ? 'var(--mm-info-text)' : 'var(--mm-text-muted)',
-  border: `1px solid ${state === 'unlocked' || state === 'completed' ? 'var(--mm-success-border)' : state === 'inProgress' ? 'var(--mm-info-border)' : 'var(--mm-border)'}`,
+// "Under review" (held) reads as information, not as an error: nothing the
+// student did is wrong, and their work is saved.
+const BADGE_TONE = Object.freeze({
+  unlocked: 'success',
+  completed: 'success',
+  inProgress: 'info',
+  held: 'info',
 });
+
+const badgeStyle = (state) => {
+  const tone = BADGE_TONE[state] || null;
+  return {
+    display: 'inline-block',
+    padding: '3px 9px',
+    borderRadius: 999,
+    fontSize: 12,
+    fontWeight: 900,
+    background: tone ? `var(--mm-${tone}-bg)` : 'var(--mm-surface-muted)',
+    color: tone ? `var(--mm-${tone}-text)` : 'var(--mm-text-muted)',
+    border: `1px solid ${tone ? `var(--mm-${tone}-border)` : 'var(--mm-border)'}`,
+  };
+};
 
 const buttonStyle = (primary) => ({
   padding: '9px 14px',
@@ -90,6 +102,9 @@ export default function SectionRecoveryPanel({ summary = [], busySection = null,
                 <div><dt style={{ color: 'var(--mm-text-muted)' }}>Recovery</dt><dd style={{ margin: 0, fontWeight: 900 }}>{entry.result.recovery}</dd></div>
                 <div><dt style={{ color: 'var(--mm-text-muted)' }}>Final</dt><dd style={{ margin: 0, fontWeight: 900 }}>{entry.result.final}</dd></div>
               </dl>
+            )}
+            {entry.note && (
+              <p data-recovery-note="true" style={{ margin: 0, fontSize: 12.5, color: 'var(--mm-text-muted)' }}>{entry.note}</p>
             )}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {entry.canPractice && (

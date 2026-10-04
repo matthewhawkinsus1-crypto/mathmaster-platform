@@ -8,11 +8,23 @@
  * callable writes it, by applying one of the pure transitions below.
  *
  *   practicing -> unlocked -> inProgress -> completed
+ *                                       \-> held -> (a teacher) -> completed
+ *                                                              \-> held, awaiting the student's answer
+ *                                                                  to a replacement question -> completed | held
+ *
+ * HELD is a submitted Recovery MathMaster could not grade well enough to
+ * score (sectionRecoveryEvidence.mjs): the student's work is kept, no
+ * Recovery score exists, and nothing downstream — the recorded grade,
+ * Classroom, Grade Transfer — treats it as finished until a teacher resolves
+ * it (sectionRecoveryResolution.mjs).
  *
  * What it keeps, because the brief asks that it be kept:
  *   - the Practice items answered for the gate (unique fingerprints, server-
  *     graded, independence recorded) and the mastery snapshot that unlocked it
- *   - the Recovery plan (delivery pins) and the per-item results
+ *   - the Recovery plan (delivery pins) and the per-item results. A pin is
+ *     kept EXACTLY as stored, even one this build cannot read; a replaced
+ *     question stays in the plan, marked `supersededBy`, with its pin and
+ *     result untouched
  *   - the raw Recovery score, the cap and type it was recorded under
  *   - timestamps and an audit history
  * What it never keeps: the original section score as a grade. The original is
@@ -27,6 +39,18 @@ import { evaluateRecentPracticeMastery } from './practiceMastery.mjs';
 import { RECOVERY_TYPE, normalizeRecoveryPolicy, recoveryCapFor } from './recoveryPolicy.mjs';
 import { RECOVERY_HISTORY_EVENT, appendRecoveryHistory, buildSectionRecoveryGradeState } from './sectionRecoveryGrade.mjs';
 import { normalizeDeliveryPin } from './questionGenerationIdentity.mjs';
+import {
+  RECOVERY_HOLD_REASON,
+  RECOVERY_ITEM_STATUS,
+  evaluateRecoveryEvidence,
+  isGradedItemStatus,
+  isLegacyUnavailableResult,
+  isRecoveryItemStatus,
+  itemWeight,
+  keptResponse,
+  recoveryAwaitsReplacementAnswer,
+  scoreRecoveryEvidence,
+} from './sectionRecoveryEvidence.mjs';
 
 export const SECTION_RECOVERY_FIELD = 'sectionRecoveryByAssignment';
 export const RECOVERY_RECORD_SCHEMA_VERSION = 1;
@@ -36,6 +60,8 @@ export const RECOVERY_RECORD_STATUS = Object.freeze({
   UNLOCKED: 'unlocked',
   IN_PROGRESS: 'inProgress',
   COMPLETED: 'completed',
+  // Submitted, but MathMaster could not grade enough of it to score it.
+  HELD: 'held',
 });
 
 const STATUSES = new Set(Object.values(RECOVERY_RECORD_STATUS));
@@ -85,6 +111,33 @@ const normalizePracticeItem = (raw) => {
   };
 };
 
+const normalizePlanItem = (item) => {
+  const pin = normalizeDeliveryPin(item.pin);
+  const supersededBy = clean(item.supersededBy).slice(0, 80);
+  const replaces = clean(item.replaces).slice(0, 80);
+  return {
+    itemId: clean(item.itemId),
+    storageIndex: Math.max(0, Number(item.storageIndex) || 0),
+    questionId: clean(item.questionId),
+    familyId: clean(item.familyId) || null,
+    coverageKey: clean(item.coverageKey) || null,
+    // HISTORY IS NOT NORMALIZED AWAY. A pin this build cannot read (truncated,
+    // or from a shape it does not know) is kept exactly as stored: it is the
+    // record of what the student was given, and writing back `null` in its
+    // place would erase it. Readers normalize it themselves and treat it as
+    // the classified failure it is (pin-malformed).
+    pin: pin || (item.pin === undefined ? null : item.pin),
+    // A question a teacher replaced stays in the plan, pointing at the new one.
+    ...(supersededBy ? { supersededBy } : {}),
+    // A replacement names the question it replaced, when, and why.
+    ...(replaces ? {
+      replaces,
+      issuedAt: clean(item.issuedAt) || null,
+      issueReason: clean(item.issueReason).slice(0, 80) || null,
+    } : {}),
+  };
+};
+
 /** The stored record, validated; null when absent. */
 export const normalizeRecoveryRecord = (raw, section = null) => {
   if (!isObject(raw)) return null;
@@ -96,14 +149,7 @@ export const normalizeRecoveryRecord = (raw, section = null) => {
       opportunity: Math.max(1, Number(raw.plan.opportunity) || 1),
       items: raw.plan.items
         .filter((item) => isObject(item) && clean(item.itemId))
-        .map((item) => ({
-          itemId: clean(item.itemId),
-          storageIndex: Math.max(0, Number(item.storageIndex) || 0),
-          questionId: clean(item.questionId),
-          familyId: clean(item.familyId) || null,
-          coverageKey: clean(item.coverageKey) || null,
-          pin: normalizeDeliveryPin(item.pin),
-        })),
+        .map(normalizePlanItem),
     }
     : null;
   return {
@@ -120,8 +166,16 @@ export const normalizeRecoveryRecord = (raw, section = null) => {
     plan,
     results: isObject(raw.results) ? raw.results : {},
     history: list(raw.history),
+    // Present only on a Recovery that was ever held or partly graded, so an
+    // ordinary record keeps exactly the shape it always had.
+    ...(raw.hold !== undefined ? { hold: isObject(raw.hold) ? raw.hold : null } : {}),
+    ...(raw.evidence !== undefined ? { evidence: isObject(raw.evidence) ? raw.evidence : null } : {}),
+    ...(raw.holdHistory !== undefined ? { holdHistory: list(raw.holdHistory).filter(isObject).slice(-HOLD_HISTORY_LIMIT) } : {}),
   };
 };
+
+/** The plan items that count: everything a teacher has not replaced. */
+export const activeRecoveryPlanItems = (record) => list(record?.plan?.items).filter((item) => !clean(item?.supersededBy));
 
 export const recoveryRecordFor = (gradeData, assignmentId, section) => normalizeRecoveryRecord(
   gradeData?.[SECTION_RECOVERY_FIELD]?.[clean(assignmentId)]?.[section],
@@ -291,12 +345,116 @@ export const applyRecoveryStart = ({
   };
 };
 
-/**
- * Complete: per-item server results -> raw score -> recorded score state.
+/*
+ * ONE PER-ITEM RESULT, AS STORED.
  *
- * `results` = [{ itemId, isCorrect, credit (0-1), weight }]. Items missing a
- * result count as zero — a submitted Recovery with a blank question is a
- * submitted Recovery, exactly like an unanswered DOL question.
+ *   status              sectionRecoveryEvidence.mjs RECOVERY_ITEM_STATUS
+ *   isCorrect / credit  the verdict — null when MathMaster has none, never a
+ *                       "false" or a 0 it did not earn
+ *   weight              the question's weight, kept for the audit even when
+ *                       the question is left out of the score
+ *   countsTowardScore   whether its weight is in the denominator
+ *   attempted           whether this question cost the student an answer
+ *   classification      why MathMaster could not grade it (PR #430's names)
+ *
+ * A caller that predates `status` (a result of { isCorrect, credit, weight,
+ * graded, reason }) is read the way it always was, except that the old
+ * marker for an unreproducible question — graded:false with
+ * reason 'question-unavailable' — is the platform failure it always meant.
+ */
+export const itemStatusOf = (entry) => {
+  if (!entry) return RECOVERY_ITEM_STATUS.UNANSWERED;
+  if (isRecoveryItemStatus(entry.status)) return entry.status;
+  if (isLegacyUnavailableResult(entry)) return RECOVERY_ITEM_STATUS.PLATFORM_UNAVAILABLE;
+  const credit = Number(entry.credit ?? (entry.isCorrect ? 1 : 0)) || 0;
+  return entry.isCorrect === true || credit >= 1 ? RECOVERY_ITEM_STATUS.CORRECT : RECOVERY_ITEM_STATUS.INCORRECT;
+};
+
+const storedItemResult = (entry, at) => {
+  const status = itemStatusOf(entry);
+  const graded = isGradedItemStatus(status);
+  const credit = status === RECOVERY_ITEM_STATUS.CORRECT || status === RECOVERY_ITEM_STATUS.INCORRECT
+    ? Math.max(0, Math.min(1, Number(entry?.credit ?? (entry?.isCorrect ? 1 : 0)) || 0))
+    : status === RECOVERY_ITEM_STATUS.UNANSWERED ? 0 : null;
+  return {
+    status,
+    isCorrect: graded ? status === RECOVERY_ITEM_STATUS.CORRECT || (credit !== null && credit >= 1) : null,
+    credit,
+    weight: itemWeight(entry?.weight),
+    countsTowardScore: graded,
+    graded,
+    attempted: status === RECOVERY_ITEM_STATUS.CORRECT || status === RECOVERY_ITEM_STATUS.INCORRECT,
+    reason: clean(entry?.reason).slice(0, 120) || null,
+    classification: clean(entry?.classification).slice(0, 80) || null,
+    recovery: clean(entry?.recovery).slice(0, 40) || null,
+    ...(clean(entry?.reportedClassification) ? { reportedClassification: clean(entry.reportedClassification).slice(0, 80) } : {}),
+    answeredAt: iso(at),
+  };
+};
+
+/** The evidence view of a stored result (for the sufficient-evidence rule and the score). */
+export const recoveryEvidenceItem = (planItem, stored) => ({
+  itemId: planItem.itemId,
+  coverageKey: planItem.coverageKey,
+  familyId: planItem.familyId,
+  questionId: planItem.questionId,
+  storageIndex: planItem.storageIndex,
+  weight: stored?.weight,
+  status: stored ? itemStatusOf(stored) : RECOVERY_ITEM_STATUS.UNANSWERED,
+  credit: stored?.credit ?? null,
+});
+
+const compactEvidence = (evidence) => ({
+  policyVersion: evidence.policyVersion,
+  sufficient: evidence.sufficient,
+  reason: evidence.reason,
+  plannedCount: evidence.plannedCount,
+  gradedCount: evidence.gradedCount,
+  plannedWeight: evidence.plannedWeight,
+  gradedWeight: evidence.gradedWeight,
+  weightShare: evidence.weightShare,
+  plannedSkills: evidence.plannedSkills,
+  coveredSkills: evidence.coveredSkills,
+  missingSkills: evidence.missingSkills,
+  minimumGradedItems: evidence.minimumGradedItems,
+  minimumWeightShare: evidence.minimumWeightShare,
+  unavailableItemIds: evidence.unavailableItemIds,
+  reviewItemIds: evidence.reviewItemIds,
+  excludedItemIds: evidence.excludedItemIds,
+});
+
+const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
+
+/** How many settled holds a record keeps (each needs a teacher and a resubmission). */
+export const HOLD_HISTORY_LIMIT = 10;
+
+/** A hold as it is archived: with the evidence it was decided on. */
+export const archivedRecoveryHold = (record) => ({
+  ...record?.hold,
+  ...(record?.evidence ? { evidence: record.evidence } : {}),
+});
+
+const HOLD_DETAIL = Object.freeze({
+  [RECOVERY_HOLD_REASON.NEEDS_REVIEW]: 'MathMaster has work it could not grade, so a teacher must review it',
+  [RECOVERY_HOLD_REASON.NO_GRADED_ITEMS]: 'MathMaster could not grade any question',
+  [RECOVERY_HOLD_REASON.SKILL_WITHOUT_EVIDENCE]: 'a skill this Recovery assesses has no question MathMaster could grade',
+  [RECOVERY_HOLD_REASON.TOO_LITTLE_EVIDENCE]: 'the questions MathMaster could grade carry less than half of the Recovery\'s weight',
+  [RECOVERY_HOLD_REASON.TOO_FEW_QUESTIONS]: 'too few questions could be graded for this section',
+});
+
+/**
+ * Complete: per-item server results -> the sufficient-evidence rule -> a raw
+ * score over the graded questions -> the recorded score state. Or a HOLD.
+ *
+ * `results` = [{ itemId, status, isCorrect, credit (0-1), weight, reason,
+ * classification, response?, carried? }]. A plan item with no result is an
+ * unanswered question — a submitted Recovery with a blank question is a
+ * submitted Recovery, exactly like an unanswered DOL question. A result marked
+ * `carried` (an answer graded before a teacher replaced another question)
+ * keeps the stored result byte-for-byte.
+ *
+ * Returns { record, gradeState, held }. A held Recovery has no gradeState: no
+ * Recovery score was recorded, and the original stands.
  */
 export const applyRecoveryCompletion = ({
   record: rawRecord = null,
@@ -308,29 +466,73 @@ export const applyRecoveryCompletion = ({
   at = Date.now(),
 } = {}) => {
   const record = normalizeRecoveryRecord(rawRecord, section);
-  if (!record || record.status !== RECOVERY_RECORD_STATUS.IN_PROGRESS) {
+  // In progress, or held while the student answers the replacement questions
+  // a teacher issued (sectionRecoveryEvidence.mjs recoveryAwaitsReplacementAnswer).
+  if (!record || (record.status !== RECOVERY_RECORD_STATUS.IN_PROGRESS && !recoveryAwaitsReplacementAnswer(record))) {
     refuse('recovery-not-in-progress', 'There is no Recovery in progress to submit.');
   }
+  // The hold this submission settles stays on the record, with the evidence
+  // it was decided on: history, never overwritten.
+  const settledHold = record.hold
+    ? { holdHistory: [...list(record.holdHistory), archivedRecoveryHold(record)].slice(-HOLD_HISTORY_LIMIT) }
+    : {};
   const byItem = new Map(list(results).map((entry) => [clean(entry?.itemId), entry]));
-  let earned = 0;
-  let possible = 0;
-  const stored = {};
-  record.plan.items.forEach((item) => {
+  // A replaced question's result stays exactly as it was: history.
+  const stored = { ...record.results };
+  const keptResponses = {};
+  const evidenceItems = [];
+  activeRecoveryPlanItems(record).forEach((item) => {
     const entry = byItem.get(item.itemId) || null;
-    const weight = Number.isFinite(Number(entry?.weight)) && Number(entry.weight) > 0 ? Number(entry.weight) : 1;
-    const credit = Math.max(0, Math.min(1, Number(entry?.credit ?? (entry?.isCorrect ? 1 : 0)) || 0));
-    earned += credit * weight;
-    possible += weight;
-    stored[item.itemId] = {
-      isCorrect: entry?.isCorrect === true,
-      credit,
-      weight,
-      graded: entry?.graded !== false,
-      reason: entry?.reason || null,
-      answeredAt: iso(at),
-    };
+    const prior = record.results?.[item.itemId];
+    if (entry?.carried === true && prior) {
+      evidenceItems.push(recoveryEvidenceItem(item, prior));
+      return;
+    }
+    const result = storedItemResult(entry, at);
+    stored[item.itemId] = result;
+    if (!result.graded && entry && entry.response !== undefined) {
+      const kept = keptResponse(entry.response);
+      if (kept) keptResponses[item.itemId] = kept;
+    }
+    evidenceItems.push(recoveryEvidenceItem(item, result));
   });
-  const rawScore = possible > 0 ? Math.round((earned / possible) * 100) : 0;
+  const evidence = evaluateRecoveryEvidence({ section, items: evidenceItems });
+  const allGraded = !evidence.unavailableItemIds.length && !evidence.reviewItemIds.length;
+
+  if (!evidence.sufficient) {
+    const itemIds = [...evidence.unavailableItemIds, ...evidence.reviewItemIds];
+    const detail = `Held for review: ${HOLD_DETAIL[evidence.reason] || 'MathMaster could not grade this Recovery'} (`
+      + `${plural(evidence.gradedCount, 'question')} of ${evidence.plannedCount} graded). `
+      + 'Nothing was scored as wrong; no Recovery score is recorded until a teacher resolves it.';
+    return {
+      record: {
+        ...record,
+        status: RECOVERY_RECORD_STATUS.HELD,
+        results: stored,
+        rawScore: null,
+        evidence: compactEvidence(evidence),
+        ...settledHold,
+        hold: {
+          reason: evidence.reason,
+          heldAt: iso(at),
+          itemIds,
+          ...(Object.keys(keptResponses).length ? { responses: keptResponses } : {}),
+          resolution: null,
+        },
+        originalScoreAtSubmit: Number.isFinite(Number(originalScore)) && originalScore !== null ? Number(originalScore) : null,
+        submittedAt: iso(at),
+        history: appendRecoveryHistory(record.history, {
+          at: iso(at),
+          event: RECOVERY_HISTORY_EVENT.HELD,
+          detail,
+        }),
+      },
+      gradeState: null,
+      held: true,
+    };
+  }
+
+  const { rawScore } = scoreRecoveryEvidence(evidenceItems);
   const state = buildSectionRecoveryGradeState({
     section,
     originalScore,
@@ -339,12 +541,21 @@ export const applyRecoveryCompletion = ({
     type: record.type || RECOVERY_TYPE.RECOVERY,
     policy,
   });
+  const excluded = evidence.excludedItemIds.length;
+  const detail = excluded
+    ? `${state.reason} ${plural(excluded, 'question')} MathMaster could not grade ${excluded === 1 ? 'was' : 'were'} left out of the score.`
+    : state.reason;
   return {
     record: {
       ...record,
       status: RECOVERY_RECORD_STATUS.COMPLETED,
       results: stored,
       rawScore,
+      // Only a Recovery the evidence rule actually had to decide carries it;
+      // an ordinary one keeps exactly the shape it always had.
+      ...(allGraded && !record.evidence ? {} : { evidence: compactEvidence(evidence) }),
+      ...(Object.keys(keptResponses).length ? { keptResponses } : {}),
+      ...(record.hold ? { ...settledHold, hold: null } : {}),
       originalScoreAtCompletion: Number.isFinite(Number(originalScore)) ? Number(originalScore) : null,
       originalAttemptedAtCompletion: originalAttempted !== false,
       recordedScoreAtCompletion: state.recordedScore,
@@ -352,10 +563,11 @@ export const applyRecoveryCompletion = ({
       history: appendRecoveryHistory(record.history, {
         at: iso(at),
         event: RECOVERY_HISTORY_EVENT.COMPLETED,
-        detail: state.reason,
+        detail,
         recordedScore: state.recordedScore,
       }),
     },
     gradeState: state,
+    held: false,
   };
 };

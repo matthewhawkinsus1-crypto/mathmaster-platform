@@ -1095,7 +1095,7 @@ export default function ClassroomManagerV2({
                         </div>
                       </td>
                       <td style={{ padding: 7 }}>
-                        <span style={sync.status === 'synced' ? okPill : sync.status?.startsWith('skipped') ? warnPill : badPill}>{statusLabel}</span>
+                        <span style={sync.status === 'synced' ? okPill : sync.status?.startsWith('skipped') || sync.status === 'recovery-held' ? warnPill : badPill}>{statusLabel}</span>
                       </td>
                       <td style={{ padding: 7 }}>
                         {sync.status === 'skipped-unlinked' ? (
