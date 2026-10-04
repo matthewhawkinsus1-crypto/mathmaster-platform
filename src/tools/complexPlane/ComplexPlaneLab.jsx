@@ -23,7 +23,7 @@ import {
   toComplex,
 } from './complexMath';
 
-const inputStyle = { width: '100%', padding: 9, border: '1px solid #cfd8e6', borderRadius: 8, boxSizing: 'border-box' };
+const inputStyle = { width: '100%', padding: 9, border: '1px solid var(--mm-tint-border)', borderRadius: 8, boxSizing: 'border-box' };
 const actionStyle = { marginTop: 14, padding: '10px 16px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer' };
 const hintProps = (onAction, hints) => ({ hints, onHintUsed: () => onAction?.('HINT_USED') });
 
@@ -51,7 +51,7 @@ function ComplexVisual({ values = [], title = 'Complex plane' }) {
       {({ sx, sy }) => <>{items.map((item) => <line key={item.label} x1={sx(0)} y1={sy(0)} x2={sx(item.value.re)} y2={sy(item.value.im)} stroke={item.color} strokeWidth="2" opacity="0.7" />)}</>}
     </CoordinatePlane>
     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>{items.map((item) => <span key={item.label} style={{ color: item.color, fontWeight: 800 }}>{item.label} = {formatComplex(item.value)}</span>)}</div>
-    <p style={{ marginBottom: 0, color: '#5f6b7a' }}>Real part → horizontal coordinate; imaginary part → vertical coordinate.</p>
+    <p style={{ marginBottom: 0, color: 'var(--mm-text-muted)' }}>Real part → horizontal coordinate; imaginary part → vertical coordinate.</p>
   </Panel>;
 }
 
@@ -85,7 +85,7 @@ function Features({ questionData, feedback, submit, onAction }) {
       <ComplexVisual values={[{ value: z, label: 'z' }, { value: conjugate, label: 'z̄', color: '#8a3ffc', isAnswer: true }]} title="z and its conjugate" />
       <Panel title="Analyze z">
         <p><strong>z = {formatComplex(z)}</strong></p>
-        <p style={{ color: '#5f6b7a' }}>Its direction angle is approximately {Number.isFinite(angle) ? `${round(angle, 1)}°` : 'undefined at the origin'}. The conjugate reflects z across the real axis.</p>
+        <p style={{ color: 'var(--mm-text-muted)' }}>Its direction angle is approximately {Number.isFinite(angle) ? `${round(angle, 1)}°` : 'undefined at the origin'}. The conjugate reflects z across the real axis.</p>
         <label>|z|<input value={magnitudeAnswer} onChange={(event) => setMagnitudeAnswer(event.target.value)} style={inputStyle} /></label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}><label>Re(z̄)<input value={conjugateRe} onChange={(event) => setConjugateRe(event.target.value)} style={inputStyle} /></label><label>Im(z̄)<input value={conjugateIm} onChange={(event) => setConjugateIm(event.target.value)} style={inputStyle} /></label></div>
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check features</button>
@@ -116,7 +116,7 @@ function Operations({ questionData, feedback, submit, onAction }) {
       <ComplexVisual values={[{ value: z, label: 'z' }, { value: w, label: 'w', color: '#d93025' }, { value: expected, label: 'result', color: '#137333', isAnswer: true }]} title="Operands + result geometry" />
       <Panel title="Compute the result">
         <p style={{ fontSize: 20, fontWeight: 900 }}>({formatComplex(z)}) {symbol} ({formatComplex(w)})</p>
-        {operation === 'multiply' ? <p style={{ color: '#5f6b7a' }}>Use i² = −1 when combining the cross-products.</p> : null}
+        {operation === 'multiply' ? <p style={{ color: 'var(--mm-text-muted)' }}>Use i² = −1 when combining the cross-products.</p> : null}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><label>Real part<input value={real} onChange={(event) => setReal(event.target.value)} style={inputStyle} /></label><label>Imaginary part<input value={imaginary} onChange={(event) => setImaginary(event.target.value)} style={inputStyle} /></label></div>
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check operation</button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? `Result: ${formatComplex(expected)}.` : 'Keep real terms and imaginary terms organized; replace i² with −1.'}</ResultPill></div> : null}
@@ -146,7 +146,7 @@ function Division({ questionData, feedback, submit, onAction }) {
       <ComplexVisual values={[{ value: z, label: 'numerator' }, { value: w, label: 'denominator', color: '#d93025' }, { value: quotient, label: 'quotient', color: '#137333', isAnswer: true }]} title="Division on the complex plane" />
       <Panel title="Rationalize and divide">
         <p style={{ fontSize: 19, fontWeight: 900 }}>({formatComplex(z)}) ÷ ({formatComplex(w)})</p>
-        <p style={{ color: '#5f6b7a' }}>Multiply numerator and denominator by the denominator’s conjugate. Then w·w̄ = |w|² is real.</p>
+        <p style={{ color: 'var(--mm-text-muted)' }}>Multiply numerator and denominator by the denominator’s conjugate. Then w·w̄ = |w|² is real.</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><label>Re(w̄)<input value={conjugateRe} onChange={(event) => setConjugateRe(event.target.value)} style={inputStyle} /></label><label>Im(w̄)<input value={conjugateIm} onChange={(event) => setConjugateIm(event.target.value)} style={inputStyle} /></label><label>Quotient real part<input value={real} onChange={(event) => setReal(event.target.value)} style={inputStyle} /></label><label>Quotient imaginary part<input value={imaginary} onChange={(event) => setImaginary(event.target.value)} style={inputStyle} /></label></div>
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check division</button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? `The quotient is ${formatComplex(quotient)}.` : 'First conjugate the divisor correctly, then divide both real and imaginary numerator parts by |w|².'}</ResultPill></div> : null}
@@ -175,7 +175,7 @@ function Powers({ questionData, feedback, submit, onAction }) {
       <ComplexVisual values={[{ value: z, label: 'z' }, { value: expected, label: `z^${exponent}`, color: '#137333', isAnswer: true }]} title="Base and power" />
       <Panel title={`Compute z^${exponent}`}>
         <p style={{ fontSize: 20, fontWeight: 900 }}>z = {formatComplex(z)}</p>
-        <p style={{ color: '#5f6b7a' }}>For integer powers, multiply complex factors carefully. Magnitudes multiply too: |zⁿ| = |z|ⁿ.</p>
+        <p style={{ color: 'var(--mm-text-muted)' }}>For integer powers, multiply complex factors carefully. Magnitudes multiply too: |zⁿ| = |z|ⁿ.</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><label>Real part<input value={real} onChange={(event) => setReal(event.target.value)} style={inputStyle} /></label><label>Imaginary part<input value={imaginary} onChange={(event) => setImaginary(event.target.value)} style={inputStyle} /></label></div>
         <label style={{ display: 'block', marginTop: 10 }}>|z<sup>{exponent}</sup>|<input value={magnitude} onChange={(event) => setMagnitude(event.target.value)} style={inputStyle} /></label>
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check power</button>
@@ -205,7 +205,7 @@ function Rotation({ questionData, feedback, submit, onAction }) {
       <ComplexVisual values={[{ value: z, label: 'z' }, { value: expected, label: `i^${quarterTurns}z`, color: '#8a3ffc', isAnswer: true }]} title="Before and after rotation" />
       <Panel title={`Multiply by i^${quarterTurns}`}>
         <p><strong>Starting point:</strong> {formatComplex(z)}</p>
-        <p style={{ color: '#5f6b7a' }}>Powers of i cycle every four turns. One multiplication by i is a 90° counterclockwise rotation.</p>
+        <p style={{ color: 'var(--mm-text-muted)' }}>Powers of i cycle every four turns. One multiplication by i is a 90° counterclockwise rotation.</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><label>Result real part<input value={real} onChange={(event) => setReal(event.target.value)} style={inputStyle} /></label><label>Result imaginary part<input value={imaginary} onChange={(event) => setImaginary(event.target.value)} style={inputStyle} /></label></div>
         <label style={{ display: 'block', marginTop: 10 }}>Net rotation<select value={rotation} onChange={(event) => setRotation(event.target.value)} style={inputStyle}><option value="">Choose…</option><option value="0">No net rotation</option><option value="1">90° counterclockwise</option><option value="2">180°</option><option value="3">90° clockwise</option></select></label>
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check rotation</button>
@@ -235,7 +235,7 @@ function QuadraticRoots({ questionData, feedback, submit, onAction }) {
       <Panel title="Solve the quadratic">
         <p style={{ fontSize: 20, fontWeight: 900 }}>{quadratic.a}x² {quadratic.b >= 0 ? '+' : '−'} {Math.abs(quadratic.b)}x {quadratic.c >= 0 ? '+' : '−'} {Math.abs(quadratic.c)} = 0</p>
         <p><strong>Discriminant:</strong> {discriminant}</p>
-        <p style={{ color: '#5f6b7a' }}>Enter both roots as a + bi. Their order does not matter.</p>
+        <p style={{ color: 'var(--mm-text-muted)' }}>Enter both roots as a + bi. Their order does not matter.</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><label>Root 1 real<input value={r1Re} onChange={(event) => setR1Re(event.target.value)} style={inputStyle} /></label><label>Root 1 imaginary<input value={r1Im} onChange={(event) => setR1Im(event.target.value)} style={inputStyle} /></label><label>Root 2 real<input value={r2Re} onChange={(event) => setR2Re(event.target.value)} style={inputStyle} /></label><label>Root 2 imaginary<input value={r2Im} onChange={(event) => setR2Im(event.target.value)} style={inputStyle} /></label></div>
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check both roots</button>
         {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Both quadratic roots are correct.' : 'Use √(−d) = i√d and keep the ± pair; root order does not matter.'}</ResultPill></div> : null}

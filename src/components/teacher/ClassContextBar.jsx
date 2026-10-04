@@ -27,9 +27,12 @@ const surface = {
   gap: 12,
   flexWrap: 'wrap',
   padding: '10px 14px',
-  border: '1px solid #d8dde6',
+  border: '1px solid var(--mm-border)',
   borderRadius: 10,
-  background: '#f8f9fa',
+  background: 'var(--mm-surface-sunken)',
+  // The class list anchors to the bar, not to the trigger: on a phone the
+  // trigger sits ~100px in, and a 280px list from there ran off the screen.
+  position: 'relative',
 };
 
 const chip = (background, color) => ({
@@ -95,7 +98,7 @@ export default function ClassContextBar({
 
   if (!active.length) {
     return (
-      <div style={{ ...surface, color: '#5f6368' }}>
+      <div style={{ ...surface, color: 'var(--mm-text-muted)' }}>
         <span style={{ fontWeight: 800 }}>No classes yet.</span>
         <span style={{ fontSize: 13 }}>Create a class in Administration so rosters, pacing and grades have somewhere to live.</span>
       </div>
@@ -104,11 +107,11 @@ export default function ClassContextBar({
 
   return (
     <div style={surface}>
-      <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.09em', textTransform: 'uppercase', color: '#5f6368' }}>
+      <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
         Class
       </span>
 
-      <div style={{ position: 'relative' }}>
+      <div>
         <button
           type="button"
           ref={buttonRef}
@@ -121,7 +124,7 @@ export default function ClassContextBar({
             alignItems: 'baseline',
             gap: 9,
             padding: '7px 12px',
-            border: '1px solid #c7cdd6',
+            border: '1px solid var(--mm-border)',
             borderRadius: 8,
             background: 'var(--mm-surface)',
             color: 'var(--mm-text-strong)',
@@ -131,8 +134,8 @@ export default function ClassContextBar({
           }}
         >
           <span>{selected ? (selected.name || selected.period) : 'All classes'}</span>
-          {selected?.period && <span style={{ fontSize: 12, fontWeight: 600, color: '#5f6368' }}>{selected.period}</span>}
-          {switchable && <span aria-hidden="true" style={{ fontSize: 11, color: '#5f6368' }}>▾</span>}
+          {selected?.period && <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--mm-text-muted)' }}>{selected.period}</span>}
+          {switchable && <span aria-hidden="true" style={{ fontSize: 11, color: 'var(--mm-text-muted)' }}>▾</span>}
         </button>
 
         {open && (
@@ -142,13 +145,14 @@ export default function ClassContextBar({
               position: 'absolute',
               zIndex: 30,
               top: 'calc(100% + 6px)',
-              left: 0,
-              minWidth: 280,
+              left: 14,
+              width: 'min(360px, calc(100% - 28px))',
+              boxSizing: 'border-box',
               margin: 0,
               padding: 6,
               listStyle: 'none',
               background: 'var(--mm-surface)',
-              border: '1px solid #c7cdd6',
+              border: '1px solid var(--mm-border)',
               borderRadius: 10,
               boxShadow: '0 8px 24px rgba(0,0,0,.14)',
             }}
@@ -162,7 +166,7 @@ export default function ClassContextBar({
                   onClick={() => choose(null)}
                   style={{
                     display: 'block', width: '100%', textAlign: 'left', padding: '9px 11px',
-                    border: 0, borderRadius: 7, background: !selected ? '#e8f0fe' : 'transparent',
+                    border: 0, borderRadius: 7, background: !selected ? 'var(--mm-primary-soft)' : 'transparent',
                     color: 'var(--mm-text-strong)', fontWeight: 800, cursor: 'pointer',
                   }}
                 >
@@ -180,12 +184,12 @@ export default function ClassContextBar({
                   style={{
                     display: 'block', width: '100%', textAlign: 'left', padding: '9px 11px',
                     border: 0, borderRadius: 7,
-                    background: entry.classId === activeClassId ? '#e8f0fe' : 'transparent',
+                    background: entry.classId === activeClassId ? 'var(--mm-primary-soft)' : 'transparent',
                     color: 'var(--mm-text-strong)', cursor: 'pointer',
                   }}
                 >
                   <span style={{ fontWeight: 800 }}>{entry.name || entry.period}</span>
-                  <span style={{ display: 'block', fontSize: 12, color: '#5f6368', marginTop: 1 }}>
+                  <span style={{ display: 'block', fontSize: 12, color: 'var(--mm-text-muted)', marginTop: 1 }}>
                     {entry.period} · {courseLabel(entry.course)} · {courseLevelLabel(entry.courseLevel)} · {rosterCounts[entry.classId] || 0} student{(rosterCounts[entry.classId] || 0) === 1 ? '' : 's'}
                   </span>
                 </button>
@@ -197,22 +201,22 @@ export default function ClassContextBar({
 
       {selected && (
         <>
-          <span style={chip('#e8f0fe', '#174ea6')}>{courseLabel(selected.course)}</span>
-          {selected.courseLevel === 'honors' && <span style={chip('#f3e8fd', '#6f2da8')}>Honors</span>}
-          <span style={{ color: '#5f6368', fontSize: 13 }}>
+          <span style={chip('var(--mm-primary-soft)', 'var(--mm-primary-text)')}>{courseLabel(selected.course)}</span>
+          {selected.courseLevel === 'honors' && <span style={chip('var(--mm-accent-soft)', 'var(--mm-accent-text)')}>Honors</span>}
+          <span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>
             {rosterCounts[selected.classId] || 0} student{(rosterCounts[selected.classId] || 0) === 1 ? '' : 's'}
           </span>
         </>
       )}
 
       {scopeLabel && (
-        <span style={{ marginLeft: 'auto', color: '#5f6368', fontSize: 12 }}>
+        <span style={{ marginLeft: 'auto', color: 'var(--mm-text-muted)', fontSize: 12 }}>
           {selected ? `${scopeLabel} for this class` : `${scopeLabel} across all classes`}
         </span>
       )}
 
       {unplaceable.length > 0 && (
-        <div style={{ flexBasis: '100%', marginTop: 2, padding: '9px 11px', borderRadius: 8, background: '#fff4ce', color: '#6b4c00', fontSize: 12.5 }}>
+        <div style={{ flexBasis: '100%', marginTop: 2, padding: '9px 11px', borderRadius: 8, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 12.5 }}>
           <strong>{unplaceable.length} student{unplaceable.length === 1 ? ' is' : 's are'} not on any class roster.</strong>{' '}
           Their class period is used by more than one class, so MathMaster cannot tell which one they belong to.
           Give them a class in Administration and they will appear again.

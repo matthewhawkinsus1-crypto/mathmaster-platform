@@ -83,9 +83,9 @@ export default function AssignmentCardMenu({ items, ariaLabel = 'More actions' }
       } : undefined}
     >
       {layout?.mode === 'sheet' && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '5px 6px 8px', borderBottom: '1px solid #eef0f2', marginBottom: 4 }}>
-          <strong style={{ color: '#3c4043' }}>Assignment actions</strong>
-          <button type="button" onClick={() => setOpen(false)} aria-label="Close assignment actions" style={{ width: 44, height: 44, border: 0, borderRadius: 9, background: '#f1f3f4', fontWeight: 900 }}>×</button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '5px 6px 8px', borderBottom: '1px solid var(--mm-border-soft)', marginBottom: 4 }}>
+          <strong style={{ color: 'var(--mm-text)' }}>Assignment actions</strong>
+          <button type="button" onClick={() => setOpen(false)} aria-label="Close assignment actions" style={{ width: 44, height: 44, border: 0, borderRadius: 9, background: 'var(--mm-surface-control)', fontWeight: 900 }}>×</button>
         </div>
       )}
       {items.map((item) => {
@@ -106,12 +106,12 @@ export default function AssignmentCardMenu({ items, ariaLabel = 'More actions' }
               border: 'none',
               borderRadius: '7px',
               background: 'transparent',
-              color: item.disabled ? '#bdc1c6' : item.tone === 'danger' ? '#d93025' : '#3c4043',
+              color: item.disabled ? '#bdc1c6' : item.tone === 'danger' ? 'var(--mm-danger)' : 'var(--mm-text)',
               fontWeight: item.tone === 'danger' ? 'bold' : 600,
               fontSize: mobileInteraction.isMobile ? '15px' : '13px',
               cursor: item.disabled ? 'not-allowed' : 'pointer',
             }}
-            onMouseEnter={(event) => { if (!item.disabled) event.currentTarget.style.background = '#f1f3f4'; }}
+            onMouseEnter={(event) => { if (!item.disabled) event.currentTarget.style.background = 'var(--mm-surface-hover)'; }}
             onMouseLeave={(event) => { event.currentTarget.style.background = 'transparent'; }}
           >
             {label}
@@ -132,10 +132,10 @@ export default function AssignmentCardMenu({ items, ariaLabel = 'More actions' }
         style={{
           width: '44px',
           height: '44px',
-          border: '1px solid #dadce0',
+          border: '1px solid var(--mm-border)',
           borderRadius: '8px',
-          background: open ? '#e8f0fe' : '#fff',
-          color: '#3c4043',
+          background: open ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+          color: 'var(--mm-text)',
           fontSize: '18px',
           fontWeight: 900,
           cursor: 'pointer',

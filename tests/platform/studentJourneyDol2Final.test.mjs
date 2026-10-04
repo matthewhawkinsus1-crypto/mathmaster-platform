@@ -326,6 +326,17 @@ test('short landscape screens let the navigator and task scroll; dark nav text s
   for (const screen of [{ width: 1366, height: 768 }, { width: 1024, height: 768 }, { width: 820, height: 1180 }, { width: 390, height: 844 }, { width: 390, height: 664 }]) {
     assert.ok(!mediaMatches(query, screen), `${screen.width}×${screen.height} loses its pinned navigator (${query})`);
   }
-  assert.match(css, /:root\[data-theme='dark'\] \.mathmaster-overview-button,[\s\S]*?color: var\(--mm-primary\);/);
-  assert.match(css, /\.mathmaster-current-section-summary strong \{\s*color: #1f2937;/);
+  // Dark nav text stays readable: the controls take a THEMED text token (one
+  // with a designed dark value in theme/tokens.css), never a literal blue that
+  // measured 2.1:1 on the dark surface. Dark Mode 2.0 made the base rule themed,
+  // so the old dark-only override is no longer needed.
+  const navControls = region(css, '.mathmaster-unified-nav-back,\n.mathmaster-overview-button,', '}', 'unified nav control colors');
+  const navColor = navControls.match(/\bcolor:\s*var\((--mm-[a-z-]+)\)/)?.[1];
+  assert.ok(navColor, 'nav controls must use a color token');
+  const darkTokens = region(source('src/theme/tokens.css'), "@media screen", '\n}\n', 'dark token block');
+  assert.match(darkTokens, new RegExp(`${navColor}:\\s*#`), `${navColor} needs a dark-theme value`);
+  // The section title sits on the navigator: its color and the navigator's
+  // surface must be a themed pair, so neither can leave the other behind.
+  assert.match(css, /\.mathmaster-current-section-summary strong \{\s*color: var\(--mm-text-strong\);/);
+  assert.match(region(css, '.mathmaster-assignment-unified-nav {', '}', 'navigator surface'), /background: var\(--mm-surface/);
 });

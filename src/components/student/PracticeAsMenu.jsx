@@ -9,13 +9,13 @@ import { resolveAssessmentPracticeStage } from '../../platform/ccmr/assessmentFi
 // the CCMR explorer, but this menu only offers a door the server can open.
 
 const STATUS_NOTE = {
-  [READINESS.TRANSFER_GAP]: { text: 'Worth a look', color: '#a50e0e', background: '#fce8e6' },
-  [READINESS.STRENGTHEN]: { text: 'Keep working', color: '#7a4f00', background: '#fef7e0' },
-  [READINESS.STRONG]: { text: 'Going well', color: '#137333', background: '#e6f4ea' },
-  [READINESS.CHALLENGE_READY]: { text: 'Challenge ready', color: '#5b21b6', background: '#f3ecfd' },
-  [READINESS.MAINTENANCE]: { text: 'Challenge complete', color: '#137333', background: '#e6f4ea' },
-  [READINESS.NOT_PRACTICED]: { text: 'New', color: '#174ea6', background: '#e8f0fe' },
-  [READINESS.READY]: { text: 'Ready', color: '#3c4043', background: '#f1f3f4' },
+  [READINESS.TRANSFER_GAP]: { text: 'Worth a look', color: 'var(--mm-error-text)', background: 'var(--mm-error-bg)' },
+  [READINESS.STRENGTHEN]: { text: 'Keep working', color: 'var(--mm-warning-text)', background: 'var(--mm-warning-bg)' },
+  [READINESS.STRONG]: { text: 'Going well', color: 'var(--mm-success-text)', background: 'var(--mm-success-bg)' },
+  [READINESS.CHALLENGE_READY]: { text: 'Challenge ready', color: 'var(--mm-accent-text)', background: 'var(--mm-accent-soft)' },
+  [READINESS.MAINTENANCE]: { text: 'Challenge complete', color: 'var(--mm-success-text)', background: 'var(--mm-success-bg)' },
+  [READINESS.NOT_PRACTICED]: { text: 'New', color: 'var(--mm-primary-text)', background: 'var(--mm-primary-soft)' },
+  [READINESS.READY]: { text: 'Ready', color: 'var(--mm-text)', background: 'var(--mm-surface-control)' },
 };
 
 export default function PracticeAsMenu({
@@ -41,21 +41,21 @@ export default function PracticeAsMenu({
 
   return (
     <div style={{ marginTop: 12 }}>
-      <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4, color: '#5f6368' }}>
+      <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--mm-text-muted)' }}>
         {options.masteredAndBranchable ? 'Apply your mastery' : 'Practice this skill as…'}
       </p>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: 8 }}>
         <button
           type="button"
           onClick={() => choose('course')}
           style={{
             textAlign: 'left', padding: '11px 13px', borderRadius: 10, minHeight: 70,
-            border: `2px solid ${activeFramework === 'course' ? '#1a73e8' : '#dadce0'}`,
-            background: activeFramework === 'course' ? '#e8f0fe' : '#fff', cursor: 'pointer',
+            border: `2px solid ${activeFramework === 'course' ? '#1a73e8' : 'var(--mm-border)'}`,
+            background: activeFramework === 'course' ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', cursor: 'pointer',
           }}
         >
           <span style={{ display: 'block', fontWeight: 800, color: 'var(--mm-text-strong)', fontSize: 14 }}>Course Practice</span>
-          <span style={{ display: 'block', color: '#5f6368', fontSize: 12, marginTop: 2 }}>The usual way this skill appears in class.</span>
+          <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 12, marginTop: 2 }}>The usual way this skill appears in class.</span>
         </button>
 
         {available.map((pathway) => {
@@ -64,7 +64,7 @@ export default function PracticeAsMenu({
           const expanded = expandedFramework === pathway.framework;
           const stage = pathway.practiceStage || resolveAssessmentPracticeStage(pathway.evidence);
           return (
-            <div key={pathway.framework} style={{ border: `2px solid ${activeFramework === pathway.framework ? '#1a73e8' : '#dadce0'}`, borderRadius: 10, background: activeFramework === pathway.framework ? '#e8f0fe' : '#fff', overflow: 'hidden' }}>
+            <div key={pathway.framework} style={{ border: `2px solid ${activeFramework === pathway.framework ? '#1a73e8' : 'var(--mm-border)'}`, borderRadius: 10, background: activeFramework === pathway.framework ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', overflow: 'hidden' }}>
               <button
                 type="button"
                 onClick={() => choose(pathway.framework)}
@@ -76,18 +76,18 @@ export default function PracticeAsMenu({
                     {note.text}
                   </span>
                 </span>
-                <span style={{ display: 'block', color: '#5f6368', fontSize: 12, marginTop: 2 }}>{pathway.blurb}</span>
+                <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 12, marginTop: 2 }}>{pathway.blurb}</span>
                 {primary && (
-                  <span style={{ display: 'block', color: '#5b21b6', fontSize: 11.5, marginTop: 5, fontWeight: 850 }}>
+                  <span style={{ display: 'block', color: 'var(--mm-accent-text)', fontSize: 11.5, marginTop: 5, fontWeight: 850 }}>
                     {referenceLabel(primary)}
                   </span>
                 )}
-                <span style={{ display: 'block', color: '#3c4043', fontSize: 11, marginTop: 4, fontWeight: 700 }}>
+                <span style={{ display: 'block', color: 'var(--mm-text)', fontSize: 11, marginTop: 4, fontWeight: 700 }}>
                   {pathway.practised && pathway.proficiency != null
                     ? `${Math.round(pathway.proficiency * 100)}% in this format`
                     : 'Not practised in this format yet'}
                 </span>
-                <span style={{ display: 'block', color: pathway.status === READINESS.MAINTENANCE ? '#137333' : '#5b21b6', fontSize: 11, marginTop: 4, fontWeight: 850 }}>
+                <span style={{ display: 'block', color: pathway.status === READINESS.MAINTENANCE ? 'var(--mm-success-text)' : 'var(--mm-accent-text)', fontSize: 11, marginTop: 4, fontWeight: 850 }}>
                   {stage.actionLabel}
                 </span>
               </button>
@@ -96,7 +96,7 @@ export default function PracticeAsMenu({
                   <button
                     type="button"
                     onClick={() => setExpandedFramework(expanded ? null : pathway.framework)}
-                    style={{ padding: 0, border: 0, background: 'transparent', color: '#174ea6', fontSize: 11.5, fontWeight: 850, cursor: 'pointer' }}
+                    style={{ padding: 0, border: 0, background: 'transparent', color: 'var(--mm-primary-text)', fontSize: 11.5, fontWeight: 850, cursor: 'pointer' }}
                   >
                     {expanded ? 'Hide standard connection' : 'See standard connection'}
                   </button>

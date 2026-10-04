@@ -147,7 +147,7 @@ export default function RewriteLinearForm({ questionData = {}, onAction, draftKe
   const goalChip = (done, label) => (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 11px', borderRadius: 999,
-      background: done ? '#e6f4ea' : '#f1f3f4', color: done ? '#137333' : '#5f6b7a', fontWeight: 800, fontSize: 12,
+      background: done ? 'var(--mm-success-bg)' : 'var(--mm-surface-control)', color: done ? 'var(--mm-success-text)' : 'var(--mm-text-muted)', fontWeight: 800, fontSize: 12,
     }}>
       {done ? '✓' : '○'} {label}
     </span>
@@ -205,13 +205,13 @@ export default function RewriteLinearForm({ questionData = {}, onAction, draftKe
       {feedback ? (
         <div style={{ marginTop: 12 }}>
           <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
-          <p style={{ margin: '9px 0 0', color: '#3c4756', lineHeight: 1.55 }}>{feedbackMessage()}</p>
+          <p style={{ margin: '9px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{feedbackMessage()}</p>
         </div>
       ) : null}
 
       <Panel title="Your steps">
         {history.length ? <AlgebraWorkSteps steps={history} /> : (
-          <p style={{ color: '#5f6b7a', margin: 0 }}>
+          <p style={{ color: 'var(--mm-text-muted)', margin: 0 }}>
             Each committed step appears here in words and as an equation. Undo removes the latest one together with its equation.
           </p>
         )}

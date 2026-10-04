@@ -30,7 +30,7 @@ import {
  */
 
 const card = {
-  border: '1px solid #d5dae1',
+  border: '1px solid var(--mm-border)',
   borderRadius: 12,
   padding: 12,
   background: 'var(--mm-surface)',
@@ -45,16 +45,16 @@ const heading = {
   fontWeight: 800,
   letterSpacing: '0.04em',
   textTransform: 'uppercase',
-  color: '#4a5261',
+  color: 'var(--mm-text-muted)',
 };
 
 const chip = (selected) => ({
   minHeight: 44,
   padding: '9px 14px',
   borderRadius: 999,
-  border: selected ? '2px solid #1a4fd6' : '1px solid #b7bec8',
-  background: selected ? '#e8efff' : '#fff',
-  color: selected ? '#123a9e' : '#22262d',
+  border: selected ? '2px solid #1a4fd6' : '1px solid var(--mm-border)',
+  background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+  color: selected ? 'var(--mm-primary-text)' : 'var(--mm-text-strong)',
   fontWeight: 800,
   fontSize: 14,
   cursor: 'pointer',
@@ -135,7 +135,7 @@ export default function FigureMatchStage({ stage, value, onChange, disabled = fa
           display: 'grid',
           // One column on a phone; the cards only sit side by side once there
           // is room for a readable plane in each.
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
           gap: 12,
         }}
       >
@@ -180,7 +180,7 @@ export default function FigureMatchStage({ stage, value, onChange, disabled = fa
           );
         })}
       </div>
-      <p style={{ margin: 0, fontSize: 13, color: '#4a5261' }}>
+      <p style={{ margin: 0, fontSize: 13, color: 'var(--mm-text-muted)' }}>
         {answered} of {items.length} figures matched.
       </p>
     </div>

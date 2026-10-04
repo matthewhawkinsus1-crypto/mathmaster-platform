@@ -31,23 +31,23 @@ export default function QuestionPrompt({
       className={`mathmaster-question-prompt ${isProminent ? 'mathmaster-question-prompt-prominent' : 'mathmaster-question-prompt-plain'}`}
       style={{
         fontSize: isTask ? '17px' : isProminent ? '20px' : '18px',
-        color: isProminent ? '#202124' : '#5f6368',
+        color: isProminent ? 'var(--mm-text-strong)' : 'var(--mm-text-muted)',
         fontWeight: isTask ? 720 : isProminent ? 760 : 400,
         lineHeight: isTask ? 1.45 : isProminent ? 1.5 : 1.65,
         margin: isTask ? '0 auto 10px' : '0 auto 18px',
         maxWidth: isProminent ? '860px' : '820px',
         padding: isTask ? '11px 15px 12px' : isProminent ? '16px 18px 17px' : 0,
         borderRadius: isProminent ? '12px' : 0,
-        border: isTask ? '1px solid #c7d8f4' : isProminent ? '2px solid #c7d8f4' : 0,
+        border: isTask ? '1px solid var(--mm-tint-border)' : isProminent ? '2px solid var(--mm-tint-border)' : 0,
         borderLeft: isTask ? '5px solid #5f8fd8' : isProminent ? '7px solid #1a73e8' : 0,
-        background: isTask ? '#fbfdff' : isProminent ? '#f8fbff' : 'transparent',
+        background: isTask ? 'var(--mm-surface)' : isProminent ? 'var(--mm-surface-tint)' : 'transparent',
         boxShadow: isTask ? 'none' : isProminent ? '0 4px 12px rgba(26,115,232,0.08)' : 'none',
         textAlign: isProminent ? 'left' : undefined,
         ...style,
       }}
     >
       {isProminent && (
-        <div style={{ marginBottom: '7px', color: '#174ea6', fontSize: '11px', fontWeight: 950, letterSpacing: '0.09em', textTransform: 'uppercase' }}>
+        <div style={{ marginBottom: '7px', color: 'var(--mm-primary-text)', fontSize: '11px', fontWeight: 950, letterSpacing: '0.09em', textTransform: 'uppercase' }}>
           {isTask ? 'Your task' : 'Your question'}
         </div>
       )}

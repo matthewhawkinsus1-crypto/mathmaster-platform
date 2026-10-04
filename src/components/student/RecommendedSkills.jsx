@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { describeSkill } from '../../platform/path/skillGraph';
 import { buildStudentPathOptions } from '../../platform/path/studentPathOptions';
 import { curateStudentPanel, resolveChoiceState } from '../../platform/path/studentPanel';
+import { toneTextColor } from '../../theme/themeColorRoles.js';
 
 // "Recommended for You" — the student's independent path.
 //
@@ -14,11 +15,11 @@ import { curateStudentPanel, resolveChoiceState } from '../../platform/path/stud
 // district calendar or the class's open assignment TEKS.
 
 const SLOT_STYLE = {
-  best: { border: '#1a73e8', background: '#e8f0fe', chip: '#174ea6', mark: '★' },
-  strengthen: { border: '#f9ab00', background: '#fef7e0', chip: '#7a4f00', mark: '↑' },
-  choice: { border: '#dadce0', background: 'var(--mm-surface)', chip: '#3c4043', mark: '◇' },
-  challenge: { border: '#137333', background: '#e6f4ea', chip: '#137333', mark: '◆' },
-  required: { border: '#4a148c', background: '#f5edfc', chip: '#4a148c', mark: '●' },
+  best: { border: '#1a73e8', background: 'var(--mm-primary-soft)', chip: '#174ea6', mark: '★' },
+  strengthen: { border: '#f9ab00', background: 'var(--mm-warning-bg)', chip: '#7a4f00', mark: '↑' },
+  choice: { border: 'var(--mm-border)', background: 'var(--mm-surface)', chip: '#3c4043', mark: '◇' },
+  challenge: { border: '#137333', background: 'var(--mm-success-bg)', chip: '#137333', mark: '◆' },
+  required: { border: '#4a148c', background: 'var(--mm-accent-soft)', chip: '#4a148c', mark: '●' },
 };
 
 function SkillCard({ card, label, onChoose, disabled }) {
@@ -37,13 +38,13 @@ function SkillCard({ card, label, onChoose, disabled }) {
         display: 'block',
       }}
     >
-      <span style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', color: style.chip, letterSpacing: 0.4 }}>
+      <span style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', color: toneTextColor(style.chip), letterSpacing: 0.4 }}>
         <span aria-hidden="true">{style.mark}</span> {label}
       </span>
       <span style={{ display: 'block', fontWeight: 800, color: 'var(--mm-text-strong)', margin: '4px 0 2px', fontSize: 15 }}>
         {card.description || card.title}
       </span>
-      <span style={{ display: 'block', color: '#5f6368', fontSize: 13, lineHeight: 1.5 }}>{card.reason}</span>
+      <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5 }}>{card.reason}</span>
     </button>
   );
 }
@@ -80,13 +81,13 @@ export default function RecommendedSkills({
   return (
     <section style={{ marginTop: 28, textAlign: 'left' }}>
       <h3 style={{ margin: '0 0 4px', fontSize: 18, color: 'var(--mm-text-strong)' }}>Recommended for you</h3>
-      <p style={{ margin: '0 0 14px', color: '#5f6368', fontSize: 13, lineHeight: 1.55 }}>
+      <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55 }}>
         {panel.confidence.message}
         {panel.confidence.level === 'low' && ' MathMaster gets better at this as you work.'}
       </p>
 
       {!choiceAllowed && (
-        <div role="status" style={{ padding: '11px 14px', marginBottom: 14, borderRadius: 10, background: '#f5edfc', color: '#4a148c', fontWeight: 700, fontSize: 13, lineHeight: 1.5 }}>
+        <div role="status" style={{ padding: '11px 14px', marginBottom: 14, borderRadius: 10, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontWeight: 700, fontSize: 13, lineHeight: 1.5 }}>
           {reason}
         </div>
       )}
@@ -107,7 +108,7 @@ export default function RecommendedSkills({
         <button
           type="button"
           onClick={() => setShowAll((current) => !current)}
-          style={{ marginTop: 12, minHeight: 44, padding: '9px 14px', borderRadius: 8, border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, cursor: 'pointer' }}
+          style={{ marginTop: 12, minHeight: 44, padding: '9px 14px', borderRadius: 8, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer' }}
           aria-expanded={showAll}
         >
           {showAll ? 'Show fewer' : `See all ${allSkills.length} available skills`}
@@ -122,7 +123,7 @@ export default function RecommendedSkills({
                 type="button"
                 onClick={() => onChooseSkill?.({ skillId: row.skillId, title: describeSkill(row.skillId).studentLabel, slot: 'all' })}
                 disabled={!choiceAllowed}
-                style={{ border: 0, background: 'none', padding: 0, color: '#1a73e8', fontWeight: 700, cursor: choiceAllowed ? 'pointer' : 'not-allowed', textAlign: 'left' }}
+                style={{ border: 0, background: 'none', padding: 0, color: 'var(--mm-primary)', fontWeight: 700, cursor: choiceAllowed ? 'pointer' : 'not-allowed', textAlign: 'left' }}
               >
                 {/* `label` is code-prefixed ("A.5A — Solve linear…"), which is
                     the teacher/report form. The student list shows the name of
@@ -138,7 +139,7 @@ export default function RecommendedSkills({
         // Honest rather than hidden: the student is not shown jargon, but the
         // claim "this matches what your class is learning" is softened while
         // the underlying calendar is a placeholder.
-        <p style={{ marginTop: 12, color: '#80868b', fontSize: 12, lineHeight: 1.5 }}>
+        <p style={{ marginTop: 12, color: 'var(--mm-text-subtle)', fontSize: 12, lineHeight: 1.5 }}>
           Your teacher is still setting up the course calendar, so these suggestions are a starting point.
         </p>
       )}

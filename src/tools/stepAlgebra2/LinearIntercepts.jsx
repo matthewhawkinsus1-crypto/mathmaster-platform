@@ -25,7 +25,7 @@ import {
 } from './linearInterceptsMath.js';
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
-const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: '#174ea6', border: '1px solid #9bb8e8' };
+const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)' };
 
 const OPERATIONS = {
   add: { label: 'Add', preposition: 'to' },
@@ -92,7 +92,7 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
     return (
       <ToolShell title="Find Intercepts Algebraically" subtitle="Set one variable to zero, solve, and write the intercept as a point." badge="Linear intercepts">
         <Panel title="This question needs repair">
-          <p style={{ margin: 0, color: '#a50e0e', lineHeight: 1.55 }}>
+          <p style={{ margin: 0, color: 'var(--mm-error-text)', lineHeight: 1.55 }}>
             This intercept workbench requires a two-variable linear equation with nonzero x- and y-coefficients. Use the vertical/horizontal graphing mode for a one-variable line.
           </p>
         </Panel>
@@ -292,10 +292,10 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
       />
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-        <span style={{ padding: '6px 10px', borderRadius: 999, background: work.x?.completed ? '#e6f4ea' : kind === 'x' ? '#e8f0fe' : '#f1f3f4', color: work.x?.completed ? '#137333' : '#3c4756', fontWeight: 850 }}>
+        <span style={{ padding: '6px 10px', borderRadius: 999, background: work.x?.completed ? 'var(--mm-success-bg)' : kind === 'x' ? 'var(--mm-primary-soft)' : 'var(--mm-surface-control)', color: work.x?.completed ? 'var(--mm-success-text)' : 'var(--mm-text)', fontWeight: 850 }}>
           {work.x?.completed ? '✓' : kind === 'x' ? '→' : '○'} x-intercept
         </span>
-        <span style={{ padding: '6px 10px', borderRadius: 999, background: work.y?.completed ? '#e6f4ea' : kind === 'y' ? '#e8f0fe' : '#f1f3f4', color: work.y?.completed ? '#137333' : '#3c4756', fontWeight: 850 }}>
+        <span style={{ padding: '6px 10px', borderRadius: 999, background: work.y?.completed ? 'var(--mm-success-bg)' : kind === 'y' ? 'var(--mm-primary-soft)' : 'var(--mm-surface-control)', color: work.y?.completed ? 'var(--mm-success-text)' : 'var(--mm-text)', fontWeight: 850 }}>
           {work.y?.completed ? '✓' : kind === 'y' ? '→' : '○'} y-intercept
         </span>
       </div>
@@ -318,7 +318,7 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
                     style={{
                       ...secondaryButton,
                       border: stage.conceptualZeroChoice === variable ? '2px solid #174ea6' : secondaryButton.border,
-                      background: stage.conceptualZeroChoice === variable ? '#e8f0fe' : '#fff',
+                      background: stage.conceptualZeroChoice === variable ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
                     }}
                   >
                     {variable} = 0
@@ -341,9 +341,9 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
                     width: 52,
                     height: 52,
                     borderRadius: 14,
-                    border: zeroArmed ? '3px solid #174ea6' : '2px solid #9bb8e8',
-                    background: zeroArmed ? '#e8f0fe' : '#fff',
-                    color: '#174ea6',
+                    border: zeroArmed ? '3px solid #174ea6' : '2px solid var(--mm-primary-border)',
+                    background: zeroArmed ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+                    color: 'var(--mm-primary-text)',
                     fontSize: 26,
                     fontWeight: 950,
                     cursor: 'grab',
@@ -351,7 +351,7 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
                 >
                   0
                 </button>
-                <span style={{ color: '#5f6b7a', lineHeight: 1.45, flex: '1 1 220px' }}>
+                <span style={{ color: 'var(--mm-text-muted)', lineHeight: 1.45, flex: '1 1 220px' }}>
                   Drag the 0 onto x or y. On a touch screen, tap the 0 and then tap the variable.
                 </span>
               </div>
@@ -365,13 +365,13 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
               />
 
               {stage.placedZeroVariable && (
-                <div style={{ marginTop: 10, padding: 10, borderRadius: 9, background: '#f7faff', color: '#3c4756' }}>
+                <div style={{ marginTop: 10, padding: 10, borderRadius: 9, background: 'var(--mm-surface-tint)', color: 'var(--mm-text)' }}>
                   Your substitution: <strong>{formatSubstitutionEquation(standard, stage.placedZeroVariable)}</strong>
                 </div>
               )}
 
               {statusMessage && (
-                <div role="status" aria-live="polite" style={{ marginTop: 10, padding: 10, borderRadius: 9, background: mismatch ? '#fff4e5' : '#f7faff', color: mismatch ? '#7a4b00' : '#3c4756', lineHeight: 1.5 }}>
+                <div role="status" aria-live="polite" style={{ marginTop: 10, padding: 10, borderRadius: 9, background: mismatch ? 'var(--mm-warning-bg)' : 'var(--mm-surface-tint)', color: mismatch ? 'var(--mm-warning-text)' : 'var(--mm-text)', lineHeight: 1.5 }}>
                   {statusMessage}
                 </div>
               )}
@@ -387,25 +387,25 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
             </>
           ) : (
             <>
-              <div style={{ padding: 11, borderRadius: 9, background: '#f7faff', color: '#3c4756', marginBottom: 10 }}>
+              <div style={{ padding: 11, borderRadius: 9, background: 'var(--mm-surface-tint)', color: 'var(--mm-text)', marginBottom: 10 }}>
                 <strong>Substitution:</strong> {formatSubstitutionEquation(standard, stage.placedZeroVariable)}
               </div>
-              <div data-math-state={formatSolverEquation(stage.solverState)} style={{ fontSize: 30, fontWeight: 850, textAlign: 'center', padding: 18, borderRadius: 12, border: `2px solid ${solverSolved ? '#a8dab5' : '#d9e2f1'}`, background: 'var(--mm-surface)' }}>
+              <div data-math-state={formatSolverEquation(stage.solverState)} style={{ fontSize: 30, fontWeight: 850, textAlign: 'center', padding: 18, borderRadius: 12, border: `2px solid ${solverSolved ? 'var(--mm-success-border)' : 'var(--mm-tint-border)'}`, background: 'var(--mm-surface)' }}>
                 {formatSolverEquation(stage.solverState)}
               </div>
 
               {statusMessage && (
-                <div role="status" aria-live="polite" style={{ marginTop: 10, padding: 10, borderRadius: 9, background: activeRedirect ? '#fff4e5' : '#f7faff', color: activeRedirect ? '#7a4b00' : '#3c4756', lineHeight: 1.5 }}>
+                <div role="status" aria-live="polite" style={{ marginTop: 10, padding: 10, borderRadius: 9, background: activeRedirect ? 'var(--mm-warning-bg)' : 'var(--mm-surface-tint)', color: activeRedirect ? 'var(--mm-warning-text)' : 'var(--mm-text)', lineHeight: 1.5 }}>
                   {statusMessage}
                 </div>
               )}
 
               {!solverSolved ? (
                 <>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 0.8fr) minmax(150px, 1.2fr)', gap: 10, marginTop: 14 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 0.8fr) minmax(min(100%, 150px), 1.2fr)', gap: 10, marginTop: 14 }}>
                     <label style={{ fontSize: 13, fontWeight: 750 }}>
                       Operation
-                      <select value={operation} onChange={(event) => setOperation(event.target.value)} style={{ width: '100%', minHeight: 44, marginTop: 5, borderRadius: 9, border: '1px solid #cdd6e4', fontSize: 16, padding: 8 }}>
+                      <select value={operation} onChange={(event) => setOperation(event.target.value)} style={{ width: '100%', minHeight: 44, marginTop: 5, borderRadius: 9, border: '1px solid var(--mm-tint-border)', fontSize: 16, padding: 8 }}>
                         {Object.entries(OPERATIONS).map(([value, spec]) => <option key={value} value={value}>{spec.label}</option>)}
                       </select>
                     </label>
@@ -421,13 +421,13 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
                       />
                     </label>
                   </div>
-                  {operationBlocked && <div role="alert" style={{ marginTop: 8, color: '#a50e0e', fontSize: 13 }}>{operationBlocked}</div>}
+                  {operationBlocked && <div role="alert" style={{ marginTop: 8, color: 'var(--mm-error-text)', fontSize: 13 }}>{operationBlocked}</div>}
                   <button type="button" onClick={applyOperation} disabled={operandValue == null || Boolean(operationBlocked)} style={{ ...primaryButton, width: '100%', marginTop: 10, opacity: operandValue == null || operationBlocked ? 0.5 : 1 }}>
                     Apply to both sides
                   </button>
                 </>
               ) : (
-                <div style={{ marginTop: 14, padding: 12, borderRadius: 10, background: '#e6f4ea', color: '#137333', fontWeight: 800 }}>
+                <div style={{ marginTop: 14, padding: 12, borderRadius: 10, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontWeight: 800 }}>
                   The variable is isolated. Now turn that value into the intercept point.
                 </div>
               )}
@@ -437,7 +437,7 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
               </button>
 
               {solverSolved && (
-                <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid #e2e8f0' }}>
+                <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--mm-tint-border)' }}>
                   <strong>Write the {stageLabel(kind)} as an ordered pair.</strong>
                   <div style={{ display: 'grid', gridTemplateColumns: 'auto minmax(90px, 1fr) auto minmax(90px, 1fr) auto', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 24, fontWeight: 900 }}>
                     <span>(</span>
@@ -460,16 +460,16 @@ export default function LinearIntercepts({ questionData = {}, onAction }) {
           {stage.workHistory?.length ? (
             <ol style={{ margin: 0, paddingLeft: 20 }}>
               {stage.workHistory.map((step, index) => (
-                <li key={index} style={{ padding: '8px 0', borderBottom: index === stage.workHistory.length - 1 ? 'none' : '1px solid #edf1f6' }}>
+                <li key={index} style={{ padding: '8px 0', borderBottom: index === stage.workHistory.length - 1 ? 'none' : '1px solid var(--mm-tint-border)' }}>
                   <strong>{step.description}</strong>
-                  <div style={{ marginTop: 3, color: '#5f6b7a', fontSize: 13 }}>
+                  <div style={{ marginTop: 3, color: 'var(--mm-text-muted)', fontSize: 13 }}>
                     {formatSolverEquation(step.before)} → {formatSolverEquation(step.after)}
                   </div>
                 </li>
               ))}
             </ol>
           ) : (
-            <p style={{ color: '#5f6b7a' }}>
+            <p style={{ color: 'var(--mm-text-muted)' }}>
               Your substitution and each balanced algebra step will stay here while you work.
             </p>
           )}

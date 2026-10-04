@@ -48,9 +48,9 @@ function ResponseBadge({ readiness }) {
         minHeight: 26,
         padding: '3px 9px',
         borderRadius: 999,
-        background: bad ? '#fce8e6' : '#e8f0fe',
-        color: bad ? '#b3261e' : '#174ea6',
-        border: `1px solid ${bad ? '#f4b8b2' : '#c6dafc'}`,
+        background: bad ? 'var(--mm-error-bg)' : 'var(--mm-primary-soft)',
+        color: bad ? 'var(--mm-error-text)' : 'var(--mm-primary-text)',
+        border: `1px solid ${bad ? 'var(--mm-error-border-soft)' : 'var(--mm-tint-border)'}`,
         fontSize: 12,
         fontWeight: 900,
       }}
@@ -68,7 +68,7 @@ function ChoiceField({ question, field, value, disabled, onChange }) {
         <MathText as="span">{`${field.label || 'Choose an answer'}${field.unit ? ` (${field.unit})` : ''}`}</MathText>
       </legend>
       {field.responseHint && (
-        <MathText as="div" style={{ margin: '-2px 0 9px', color: '#667085', fontSize: 13 }}>
+        <MathText as="div" style={{ margin: '-2px 0 9px', color: 'var(--mm-text-muted)', fontSize: 13 }}>
           {field.responseHint}
         </MathText>
       )}
@@ -90,8 +90,8 @@ function ChoiceField({ question, field, value, disabled, onChange }) {
                 minHeight: 48,
                 padding: '10px 13px',
                 borderRadius: 10,
-                border: selected ? '3px solid #1a73e8' : '2px solid #c7ccd1',
-                background: selected ? '#e8f0fe' : '#fff',
+                border: selected ? '3px solid #1a73e8' : '2px solid var(--mm-border)',
+                background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
                 color: 'var(--mm-text-strong)',
                 textAlign: 'left',
                 fontSize: 17,
@@ -118,7 +118,7 @@ function MathField({ field, value, disabled, onChange, onSubmit }) {
         <MathText as="span">{`${field.label || 'Answer'}${field.unit ? ` (${field.unit})` : ''}`}</MathText>
       </div>
       {field.responseHint && (
-        <MathText as="div" style={{ color: '#667085', fontSize: 13 }}>
+        <MathText as="div" style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>
           {field.responseHint}
         </MathText>
       )}
@@ -146,7 +146,7 @@ function TextField({ field, value, disabled, onChange, onSubmit, autoFocus }) {
     <label style={{ fontWeight: 800 }}>
       <MathText as="span">{`${field.label || 'Answer'}${field.unit ? ` (${field.unit})` : ''}`}</MathText>
       {field.responseHint && (
-        <MathText as="div" style={{ marginTop: 5, color: '#667085', fontSize: 13, fontWeight: 500 }}>
+        <MathText as="div" style={{ marginTop: 5, color: 'var(--mm-text-muted)', fontSize: 13, fontWeight: 500 }}>
           {field.responseHint}
         </MathText>
       )}
@@ -158,7 +158,7 @@ function TextField({ field, value, disabled, onChange, onSubmit, autoFocus }) {
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={(event) => { if (event.key === 'Enter') onSubmit(); }}
-        style={{ display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 6, padding: 12, border: '2px solid #c7ccd1', borderRadius: 8, fontSize: 18 }}
+        style={{ display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 6, padding: 12, border: '2px solid var(--mm-border)', borderRadius: 8, fontSize: 18 }}
       />
     </label>
   );
@@ -193,13 +193,13 @@ function LiveChallengeFieldQuestionView({ question, disabled, onSubmit }) {
     return (
       <section style={{ padding: 20, borderRadius: 14, background: 'var(--mm-surface)', border: '2px solid #d93025', textAlign: 'left' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <div style={{ color: '#174ea6', fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>{question?.teksCode || 'Live Challenge'}</div>
+          <div style={{ color: 'var(--mm-primary-text)', fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>{question?.teksCode || 'Live Challenge'}</div>
           <ResponseBadge readiness={readiness} />
         </div>
         <MathText as="h2" style={{ margin: '8px 0 14px', whiteSpace: 'pre-wrap', lineHeight: 1.45, fontSize: 22 }}>
           {question?.prompt}
         </MathText>
-        <div role="alert" style={{ padding: 13, borderRadius: 9, background: '#fce8e6', color: '#8c1d18', fontWeight: 900 }}>
+        <div role="alert" style={{ padding: 13, borderRadius: 9, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', fontWeight: 900 }}>
           This question cannot be answered safely in Live Challenge. Replace this round before students play.
         </div>
       </section>
@@ -207,9 +207,9 @@ function LiveChallengeFieldQuestionView({ question, disabled, onSubmit }) {
   }
 
   return (
-    <section className="mathmaster-question-container" style={{ padding: 20, borderRadius: 14, background: 'var(--mm-surface)', border: '1px solid #d8dde6', textAlign: 'left' }}>
+    <section className="mathmaster-question-container" style={{ padding: 20, borderRadius: 14, background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', textAlign: 'left' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <div style={{ color: '#174ea6', fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>{question?.teksCode || 'Live Challenge'}</div>
+        <div style={{ color: 'var(--mm-primary-text)', fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>{question?.teksCode || 'Live Challenge'}</div>
         <ResponseBadge readiness={readiness} />
       </div>
       <MathText as="h2" style={{ margin: '8px 0 18px', whiteSpace: 'pre-wrap', lineHeight: 1.45, fontSize: 22 }}>

@@ -53,12 +53,12 @@ export default function StudentSupportTools({ profile = null, onResourceOpened =
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
-        style={{ minHeight: 36, padding: '6px 12px', borderRadius: 999, border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, cursor: 'pointer' }}
+        style={{ minHeight: 36, padding: '6px 12px', borderRadius: 999, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer' }}
       >
         Support tools {open ? '▴' : '▾'}
       </button>
       {open && (
-        <div role="region" aria-label="Support tools" style={{ marginTop: 8, padding: '10px 12px', borderRadius: 10, border: '1px solid #d8dde6', background: 'var(--mm-surface)', display: 'grid', gap: 8, textAlign: 'left', maxWidth: 520 }}>
+        <div role="region" aria-label="Support tools" style={{ marginTop: 8, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', display: 'grid', gap: 8, textAlign: 'left', maxWidth: 520 }}>
           {tools.map((tool) => (
             <div key={tool.supportId} style={{ fontSize: 13 }}>
               <strong>{tool.label}</strong>{WHERE[tool.supportId] ? ` — ${WHERE[tool.supportId]}` : ''}
@@ -73,7 +73,7 @@ export default function StudentSupportTools({ profile = null, onResourceOpened =
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => onResourceOpened?.(resource.supportId)}
-                  style={{ fontSize: 13, fontWeight: 800, color: '#174ea6' }}
+                  style={{ fontSize: 13, fontWeight: 800, color: 'var(--mm-primary-text)' }}
                 >
                   {resource.group}: {resource.label} ↗
                 </a>

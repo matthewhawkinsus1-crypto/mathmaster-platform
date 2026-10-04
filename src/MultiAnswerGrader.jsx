@@ -152,7 +152,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
           aria-label="Candidate graphs"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
             gap: 16,
             margin: '18px 0 4px',
           }}
@@ -161,19 +161,19 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
             <div
               key={candidate?.id || index}
               style={{
-                border: '2px solid #dfe3e7',
+                border: '2px solid var(--mm-border)',
                 borderRadius: 12,
                 background: 'var(--mm-surface)',
                 padding: 12,
               }}
             >
-              <div style={{ marginBottom: 8, fontWeight: 900, color: '#174ea6', textAlign: 'center' }}>
+              <div style={{ marginBottom: 8, fontWeight: 900, color: 'var(--mm-primary-text)', textAlign: 'center' }}>
                 {candidate?.label || `Graph ${candidate?.id || String.fromCharCode(65 + index)}`}
               </div>
               {candidate?.graph ? (
                 <GraphDisplay graph={candidate.graph} title={candidate?.label || `Graph ${candidate?.id || String.fromCharCode(65 + index)}`} />
               ) : (
-                <div style={{ padding: 24, textAlign: 'center', color: '#5f6368' }}>
+                <div style={{ padding: 24, textAlign: 'center', color: 'var(--mm-text-muted)' }}>
                   Graph unavailable
                 </div>
               )}
@@ -181,7 +181,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
           ))}
         </div>
       )}
-      <div className="mathmaster-multipart-fields" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginTop: '24px' }}>
+      <div className="mathmaster-multipart-fields" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '20px', marginTop: '24px' }}>
         {safeFields.map((field) => {
           const grade = feedback?.partGrades?.find((part) => part.id === field.id);
           const choiceOptions = choiceOptionsForField(field, choiceSeed(question.questionId || question.prompt, field.id));
@@ -196,8 +196,8 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
           // identical and reject each other's answers.
           const answerShape = describeAnswerFormat(field);
           return (
-            <div key={field.id} style={{ padding: '16px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#dfe3e7'}`, borderRadius: '10px', background: grade && !grade.isCorrect ? '#fff8f7' : '#fbfcfe' }}>
-              <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: '#3c4043' }}>
+            <div key={field.id} style={{ padding: '16px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : 'var(--mm-border)'}`, borderRadius: '10px', background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : 'var(--mm-surface)' }}>
+              <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: 'var(--mm-text)' }}>
                 {(() => {
                   const text = field.label || field.id;
                   const format = resolveLabelFormat(text, { latexFlag: field.labelLatex, explicitFormat: field.labelFormat });
@@ -208,7 +208,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                 })()}
               </label>
               {answerShape.hint && !choiceOptions && (
-                <p style={{ margin: '-4px 0 10px', fontSize: '13px', lineHeight: 1.4, color: '#5f6368', fontWeight: 600 }}>
+                <p style={{ margin: '-4px 0 10px', fontSize: '13px', lineHeight: 1.4, color: 'var(--mm-text-muted)', fontWeight: 600 }}>
                   {answerShape.hint}
                 </p>
               )}
@@ -234,8 +234,8 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                           minHeight: '46px',
                           padding: '10px 12px',
                           borderRadius: '8px',
-                          border: `2px solid ${selected ? '#1a73e8' : grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#bdc7d6'}`,
-                          background: selected ? '#e8f0fe' : '#fff',
+                          border: `2px solid ${selected ? '#1a73e8' : grade ? (grade.isCorrect ? '#188038' : '#d93025') : 'var(--mm-border)'}`,
+                          background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
                           color: 'var(--mm-text-strong)',
                           fontSize: '16px',
                           textAlign: 'left',
@@ -263,7 +263,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                     boxSizing: 'border-box',
                     borderRadius: '8px',
                     border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#1a73e8'}`,
-                    background: grade && !grade.isCorrect ? '#fff8f7' : grade?.isCorrect ? '#f4fbf5' : '#fff',
+                    background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : grade?.isCorrect ? 'var(--mm-success-subtle)' : 'var(--mm-surface)',
                     color: 'var(--mm-text-strong)',
                     fontSize: '18px',
                     fontFamily: 'inherit',

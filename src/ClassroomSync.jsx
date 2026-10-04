@@ -14,19 +14,19 @@ import { assertPublishable, isLibraryAssignment } from './assignmentDestinations
 import { SYNC_STATUS, summarizeAssignmentSync } from './classroomSyncState';
 
 const card = { background: 'var(--mm-surface)', borderRadius: '12px', padding: '5px' };
-const label = { display: 'block', fontSize: '13px', fontWeight: 'bold', color: '#5f6368', marginBottom: '6px' };
-const input = { width: '100%', padding: '10px', fontSize: '14px', borderRadius: '6px', border: '1px solid #dadce0', boxSizing: 'border-box' };
+const label = { display: 'block', fontSize: '13px', fontWeight: 'bold', color: 'var(--mm-text-muted)', marginBottom: '6px' };
+const input = { width: '100%', padding: '10px', fontSize: '14px', borderRadius: '6px', border: '1px solid var(--mm-border)', boxSizing: 'border-box' };
 const button = { padding: '10px 18px', fontSize: '14px', fontWeight: 'bold', borderRadius: '8px', border: 'none', cursor: 'pointer' };
 const primaryButton = { ...button, background: '#1a73e8', color: '#fff' };
-const secondaryButton = { ...button, background: '#f1f3f4', color: 'var(--mm-text-strong)' };
+const secondaryButton = { ...button, background: 'var(--mm-surface-control)', color: 'var(--mm-text-strong)' };
 const courseCard = (selected) => ({
   display: 'flex',
   alignItems: 'flex-start',
   gap: '10px',
   padding: '11px',
   borderRadius: '8px',
-  border: selected ? '2px solid #1a73e8' : '1px solid #dadce0',
-  background: selected ? '#e8f0fe' : '#fff',
+  border: selected ? '2px solid #1a73e8' : '1px solid var(--mm-border)',
+  background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
   cursor: 'pointer',
 });
 
@@ -256,18 +256,18 @@ export default function ClassroomSync({ assignments = [] }) {
   return (
     <div style={card}>
       <h2 style={{ margin: '0 0 5px 0', color: 'var(--mm-text-strong)', fontSize: '20px' }}>Google Classroom Sync</h2>
-      <p style={{ margin: '0 0 20px 0', color: '#5f6368', fontSize: '14px' }}>
+      <p style={{ margin: '0 0 20px 0', color: 'var(--mm-text-muted)', fontSize: '14px' }}>
         Publish one MathMaster assignment to several Classroom courses. Each course receives its own
         publication record, coursework ID, roster links, and grade-passback route.
       </p>
 
       {statusMessage && (
-        <div style={{ marginBottom: '15px', padding: '10px 14px', background: '#e6f4ea', color: '#188038', borderRadius: '8px', fontSize: '14px' }}>
+        <div style={{ marginBottom: '15px', padding: '10px 14px', background: 'var(--mm-success-bg)', color: 'var(--mm-success)', borderRadius: '8px', fontSize: '14px' }}>
           {statusMessage}
         </div>
       )}
       {error && (
-        <div style={{ marginBottom: '15px', padding: '10px 14px', background: '#fce8e6', color: '#c5221f', borderRadius: '8px', fontSize: '14px' }}>
+        <div style={{ marginBottom: '15px', padding: '10px 14px', background: 'var(--mm-error-bg)', color: 'var(--mm-danger)', borderRadius: '8px', fontSize: '14px' }}>
           {error}
         </div>
       )}
@@ -284,11 +284,11 @@ export default function ClassroomSync({ assignments = [] }) {
           </div>
 
           {diagnostics && (
-            <div style={{ marginTop: '16px', padding: '14px', border: '1px solid #dadce0', borderRadius: '10px', textAlign: 'left' }}>
-              <strong style={{ color: diagnostics.ok ? '#188038' : '#c5221f' }}>
+            <div style={{ marginTop: '16px', padding: '14px', border: '1px solid var(--mm-border)', borderRadius: '10px', textAlign: 'left' }}>
+              <strong style={{ color: diagnostics.ok ? 'var(--mm-success)' : 'var(--mm-danger)' }}>
                 {diagnostics.ok ? 'Connection configuration passed' : 'Connection configuration needs attention'}
               </strong>
-              <div style={{ marginTop: '10px', display: 'grid', gap: '5px', color: '#5f6368', fontSize: '13px' }}>
+              <div style={{ marginTop: '10px', display: 'grid', gap: '5px', color: 'var(--mm-text-muted)', fontSize: '13px' }}>
                 <span>OAuth client ID: {diagnostics.checks?.clientIdConfigured ? 'Configured' : 'Missing'}</span>
                 <span>OAuth client secret: {diagnostics.checks?.clientSecretConfigured ? 'Configured' : 'Missing'}</span>
                 <span>Redirect URI: {diagnostics.checks?.redirectUri || 'Missing'}</span>
@@ -305,14 +305,14 @@ export default function ClassroomSync({ assignments = [] }) {
           <div style={{ marginBottom: '25px' }}>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
               <button style={secondaryButton} onClick={handleLoadCourses} disabled={busy}>Load Active Courses</button>
-              <span style={{ color: '#5f6368', fontSize: '13px' }}>
+              <span style={{ color: 'var(--mm-text-muted)', fontSize: '13px' }}>
                 {courses.length ? `${courses.length} active course${courses.length === 1 ? '' : 's'} loaded` : 'Load courses before publishing.'}
               </span>
             </div>
           </div>
 
           {courses.length > 0 && (
-            <div style={{ marginBottom: '25px', padding: '16px', background: '#f8f9fa', borderRadius: '10px' }}>
+            <div style={{ marginBottom: '25px', padding: '16px', background: 'var(--mm-surface-sunken)', borderRadius: '10px' }}>
               <h3 style={{ margin: '0 0 12px 0', fontSize: '15px', color: 'var(--mm-text-strong)' }}>Import and Link a Course Roster</h3>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                 <div style={{ flex: '1 1 300px' }}>
@@ -336,13 +336,13 @@ export default function ClassroomSync({ assignments = [] }) {
           {roster.length > 0 && (
             <div style={{ marginBottom: '25px' }}>
               <h3 style={{ fontSize: '15px', color: 'var(--mm-text-strong)' }}>Link This Course Roster to MathMaster IDs</h3>
-              <p style={{ color: '#5f6368', fontSize: '13px' }}>
+              <p style={{ color: 'var(--mm-text-muted)', fontSize: '13px' }}>
                 Roster links are course-specific. Link the same student separately in every Classroom course that should receive grade passback.
               </p>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
                   <thead>
-                    <tr style={{ textAlign: 'left', color: '#5f6368' }}>
+                    <tr style={{ textAlign: 'left', color: 'var(--mm-text-muted)' }}>
                       <th style={{ padding: '8px' }}>Classroom Student</th>
                       <th style={{ padding: '8px' }}>MathMaster Student ID</th>
                       <th style={{ padding: '8px' }}></th>
@@ -350,8 +350,8 @@ export default function ClassroomSync({ assignments = [] }) {
                   </thead>
                   <tbody>
                     {roster.map((student) => (
-                      <tr key={student.googleUserId} style={{ borderTop: '1px solid #f1f3f4' }}>
-                        <td style={{ padding: '8px' }}>{student.name} <span style={{ color: '#80868b' }}>({student.email})</span></td>
+                      <tr key={student.googleUserId} style={{ borderTop: '1px solid var(--mm-border-soft)' }}>
+                        <td style={{ padding: '8px' }}>{student.name} <span style={{ color: 'var(--mm-text-subtle)' }}>({student.email})</span></td>
                         <td style={{ padding: '8px' }}>
                           <input
                             style={input}
@@ -375,7 +375,7 @@ export default function ClassroomSync({ assignments = [] }) {
           )}
 
           {courses.length > 0 && (
-            <div style={{ marginBottom: '18px', padding: '16px', border: '1px solid #dadce0', borderRadius: '10px' }}>
+            <div style={{ marginBottom: '18px', padding: '16px', border: '1px solid var(--mm-border)', borderRadius: '10px' }}>
               <h3 style={{ margin: '0 0 12px 0', fontSize: '15px', color: 'var(--mm-text-strong)' }}>Publish One Assignment to Multiple Courses</h3>
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '15px' }}>
                 <div style={{ flex: '1 1 300px' }}>
@@ -401,7 +401,7 @@ export default function ClassroomSync({ assignments = [] }) {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '10px', marginBottom: '18px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: '10px', marginBottom: '18px' }}>
                 {courses.map((course) => {
                   const selected = selectedCourseIds.includes(String(course.id));
                   return (
@@ -414,7 +414,7 @@ export default function ClassroomSync({ assignments = [] }) {
                       />
                       <span>
                         <strong style={{ display: 'block', color: 'var(--mm-text-strong)' }}>{course.name}</strong>
-                        <span style={{ color: '#5f6368', fontSize: '12px' }}>{[course.section, course.room].filter(Boolean).join(' · ') || `Course ${course.id}`}</span>
+                        <span style={{ color: 'var(--mm-text-muted)', fontSize: '12px' }}>{[course.section, course.room].filter(Boolean).join(' · ') || `Course ${course.id}`}</span>
                       </span>
                     </label>
                   );
@@ -445,7 +445,7 @@ export default function ClassroomSync({ assignments = [] }) {
           <h3 style={{ fontSize: '15px', color: 'var(--mm-text-strong)' }}>Latest Publish Results</h3>
           <div style={{ display: 'grid', gap: '8px' }}>
             {publishResults.map((result) => (
-              <div key={`${result.courseId}-${result.publicationId || result.status}`} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '10px 12px', border: '1px solid #e0e3e7', borderRadius: '8px' }}>
+              <div key={`${result.courseId}-${result.publicationId || result.status}`} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '10px 12px', border: '1px solid var(--mm-border)', borderRadius: '8px' }}>
                 <span>{result.courseName || result.courseId}</span>
                 <span style={{ color: statusColor(result.status), fontWeight: 'bold' }}>
                   {result.status}{result.error ? ` — ${result.error}` : ''}
@@ -459,17 +459,17 @@ export default function ClassroomSync({ assignments = [] }) {
       {syncByAssignment.length > 0 && (
         <div style={{ marginTop: '25px' }}>
           <h3 style={{ fontSize: '15px', color: 'var(--mm-text-strong)' }}>Google Classroom sync</h3>
-          <p style={{ color: '#5f6368', fontSize: '12px', margin: '0 0 10px', lineHeight: 1.55 }}>
+          <p style={{ color: 'var(--mm-text-muted)', fontSize: '12px', margin: '0 0 10px', lineHeight: 1.55 }}>
             Changing a due date in MathMaster saves immediately but never touches Classroom on its own.
             When a post is behind, update it here.
           </p>
           <div style={{ display: 'grid', gap: '10px' }}>
             {syncByAssignment.map(({ assignment, sync }) => (
-              <div key={assignment.id} style={{ border: `1px solid ${sync.needsUpdate ? '#f9ab00' : '#e0e3e7'}`, borderRadius: '10px', padding: '12px 14px', background: sync.needsUpdate ? '#fffdf5' : '#fff' }}>
+              <div key={assignment.id} style={{ border: `1px solid ${sync.needsUpdate ? '#f9ab00' : 'var(--mm-border)'}`, borderRadius: '10px', padding: '12px 14px', background: sync.needsUpdate ? 'var(--mm-warning-subtle)' : 'var(--mm-surface)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
                   <div style={{ flex: '1 1 260px' }}>
                     <strong style={{ fontSize: '14px' }}>{assignment.title}</strong>
-                    <div style={{ color: sync.needsUpdate ? '#7a4f00' : '#5f6368', fontSize: '12px', marginTop: '3px' }}>{sync.message}</div>
+                    <div style={{ color: sync.needsUpdate ? 'var(--mm-warning-text)' : 'var(--mm-text-muted)', fontSize: '12px', marginTop: '3px' }}>{sync.message}</div>
                   </div>
                   {sync.needsUpdate && (
                     <button
@@ -487,9 +487,9 @@ export default function ClassroomSync({ assignments = [] }) {
                     const failed = result?.status === 'failed';
                     return (
                       <div key={entry.courseId} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', fontSize: '12px', flexWrap: 'wrap' }}>
-                        <span style={{ color: '#3c4043' }}>{entry.courseName}</span>
+                        <span style={{ color: 'var(--mm-text)' }}>{entry.courseName}</span>
                         <span style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 'bold', color: failed ? '#a50e0e' : entry.status === SYNC_STATUS.DUE_DATE_CHANGED ? '#7a4f00' : entry.status === SYNC_STATUS.FAILED ? '#a50e0e' : '#137333' }}>
+                          <span style={{ fontWeight: 'bold', color: failed ? 'var(--mm-error-text)' : entry.status === SYNC_STATUS.DUE_DATE_CHANGED ? 'var(--mm-warning-text)' : entry.status === SYNC_STATUS.FAILED ? 'var(--mm-error-text)' : 'var(--mm-success-text)' }}>
                             {failed ? `Update failed — ${result.error}` : result?.status === 'updated' ? 'Updated' : entry.label}
                           </span>
                           {/* Retry one course without re-patching the ones that worked. */}
@@ -519,7 +519,7 @@ export default function ClassroomSync({ assignments = [] }) {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
               <thead>
-                <tr style={{ textAlign: 'left', color: '#5f6368' }}>
+                <tr style={{ textAlign: 'left', color: 'var(--mm-text-muted)' }}>
                   <th style={{ padding: '8px' }}>Assignment</th>
                   <th style={{ padding: '8px' }}>Course</th>
                   <th style={{ padding: '8px' }}>Due</th>
@@ -529,14 +529,14 @@ export default function ClassroomSync({ assignments = [] }) {
               </thead>
               <tbody>
                 {links.map((link) => (
-                  <tr key={link.id} style={{ borderTop: '1px solid #f1f3f4' }}>
+                  <tr key={link.id} style={{ borderTop: '1px solid var(--mm-border-soft)' }}>
                     <td style={{ padding: '8px' }}>{link.title || link.assignmentId}</td>
                     <td style={{ padding: '8px' }}>{link.courseName || link.courseId || '—'}</td>
                     <td style={{ padding: '8px' }}>{link.dueAt ? new Date(link.dueAt).toLocaleString() : '—'}</td>
                     <td style={{ padding: '8px', color: statusColor(link.status), fontWeight: 'bold' }}>{link.status}</td>
                     <td style={{ padding: '8px' }}>
                       {link.classroomUrl ? (
-                        <a href={link.classroomUrl} target="_blank" rel="noreferrer" style={{ color: '#1a73e8', fontWeight: 'bold' }}>Open</a>
+                        <a href={link.classroomUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--mm-primary)', fontWeight: 'bold' }}>Open</a>
                       ) : null}
                     </td>
                   </tr>
@@ -548,7 +548,7 @@ export default function ClassroomSync({ assignments = [] }) {
       )}
 
       {connected && courses.length > 0 && selectedCourses.length > 0 && (
-        <p style={{ marginTop: '16px', color: '#5f6368', fontSize: '12px' }}>
+        <p style={{ marginTop: '16px', color: 'var(--mm-text-muted)', fontSize: '12px' }}>
           Selected destinations: {selectedCourses.map((course) => course.name).join(', ')}.
         </p>
       )}

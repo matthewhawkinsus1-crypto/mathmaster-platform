@@ -23,6 +23,7 @@ import { ENTER_TO_CONTINUE_HINT, shouldAdvanceOnEnter } from '../../platform/int
 import { gradingClosesQuestion, latestAttemptCount } from '../../platform/path/pathProgression.js';
 import { coursePathLevelName } from '../../platform/path/pathPassPresentation.js';
 import { PURPOSE_LABEL } from '../../platform/path/recommendationV2.js';
+import { toneTextColor } from '../../theme/themeColorRoles.js';
 
 // Three ways a path question can arrive, in order of preference.
 //
@@ -62,7 +63,7 @@ const TOOL_WRAPPER = { ...WRAPPER, maxWidth: 1180 };
 
 const CARD = {
   padding: '18px 18px 20px',
-  border: '1px solid #dadce0',
+  border: '1px solid var(--mm-border)',
   borderRadius: 14,
   background: 'var(--mm-surface)',
   textAlign: 'left',
@@ -70,11 +71,11 @@ const CARD = {
 };
 
 const DECISION_TONE = {
-  support: { background: '#fef7e0', color: '#7a4f00', border: '#f0d489' },
-  return: { background: '#e8f0fe', color: '#174ea6', border: '#c0d5f5' },
-  challenge: { background: '#f3ecfd', color: '#5b21b6', border: '#d9c9f7' },
-  retention: { background: '#e6f4ea', color: '#137333', border: '#b7e0c4' },
-  teacher: { background: '#fce8e6', color: '#a50e0e', border: '#f2bcb8' },
+  support: { background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', border: 'var(--mm-warning-border-soft)' },
+  return: { background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', border: 'var(--mm-primary-border)' },
+  challenge: { background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', border: 'var(--mm-accent-border)' },
+  retention: { background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', border: 'var(--mm-success-border)' },
+  teacher: { background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', border: 'var(--mm-error-border-soft)' },
 };
 
 /** The skill a student is working on, named the way a student names it. */
@@ -159,32 +160,32 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
             style={{
               appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
               minHeight: 44, padding: '8px 2px', border: 0, background: 'transparent',
-              color: '#174ea6', fontWeight: 800, fontSize: 13.5, cursor: 'pointer',
+              color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 13.5, cursor: 'pointer',
             }}
           >
             ← Back to My Math Path
           </button>
-          <span style={{ display: 'block', color: '#5f6368', fontSize: 11.5, lineHeight: 1.45 }}>
+          <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 11.5, lineHeight: 1.45 }}>
             Your work so far is saved. You can pick this session up again.
           </span>
         </div>
       )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-        <strong style={{ color: '#174ea6', fontSize: 16 }}>
+        <strong style={{ color: 'var(--mm-primary-text)', fontSize: 16 }}>
           {isRetention ? 'Quick retention check' : skillNameFor(questionInstance, session)}
         </strong>
-        <span style={{ color: '#5f6368', fontSize: 13 }}>
+        <span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>
           Question {current} of {total}
           {attemptsAllowed > 1 && attemptsLeft > 0 ? ` · ${attemptsLeft} ${attemptsLeft === 1 ? 'try' : 'tries'} left` : ''}
         </span>
       </div>
       {session?.weeklySlotKey && (
-        <div role="status" style={{ marginTop: 8, padding: '9px 11px', borderRadius: 9, background: '#e6f4ea', border: '1px solid #b7e0c4', color: '#12633a', fontSize: 12.5, fontWeight: 850, lineHeight: 1.45 }}>
+        <div role="status" style={{ marginTop: 8, padding: '9px 11px', borderRadius: 9, background: 'var(--mm-success-bg)', border: '1px solid var(--mm-success-border)', color: 'var(--mm-success-text)', fontSize: 12.5, fontWeight: 850, lineHeight: 1.45 }}>
           WEEKLY PATH · {weeklyPurposeLabel || 'Assigned practice'} · Session {session?.weeklySlot || '?'}{weeklyGoalRequired ? ` of ${weeklyGoalRequired}` : ''} · Completing this session counts toward your weekly target.
         </div>
       )}
       {courseChallengeIntent && (
-        <div role="status" style={{ margin: '9px 0 0', padding: '9px 11px', width: 'fit-content', maxWidth: '100%', borderRadius: 9, background: '#f3ecfd', border: '1px solid #d9c9f7', color: '#5b21b6', fontSize: 12.5, fontWeight: 900, lineHeight: 1.45 }}>
+        <div role="status" style={{ margin: '9px 0 0', padding: '9px 11px', width: 'fit-content', maxWidth: '100%', borderRadius: 9, background: 'var(--mm-accent-soft)', border: '1px solid var(--mm-accent-border)', color: 'var(--mm-accent-text)', fontSize: 12.5, fontWeight: 900, lineHeight: 1.45 }}>
           MY MATH PATH · Challenge · Ahead of your class, and earned
         </div>
       )}
@@ -197,9 +198,9 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
             width: 'fit-content',
             maxWidth: '100%',
             borderRadius: 9,
-            background: coursePassLevel >= 3 ? '#f3ecfd' : '#eef3fb',
-            border: `1px solid ${coursePassLevel >= 3 ? '#d9c9f7' : '#c9daf8'}`,
-            color: coursePassLevel >= 3 ? '#5b21b6' : '#174ea6',
+            background: coursePassLevel >= 3 ? 'var(--mm-accent-soft)' : 'var(--mm-primary-subtle)',
+            border: `1px solid ${coursePassLevel >= 3 ? 'var(--mm-accent-border)' : 'var(--mm-tint-border)'}`,
+            color: coursePassLevel >= 3 ? 'var(--mm-accent-text)' : 'var(--mm-primary-text)',
             fontSize: 12.5,
             fontWeight: 900,
             lineHeight: 1.45,
@@ -213,37 +214,37 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
           role="status"
           style={{
             margin: '9px 0 0', padding: '11px 13px', borderRadius: 11,
-            background: challengeTier >= 2 ? '#f3ecfd' : '#e8f0fe',
+            background: challengeTier >= 2 ? 'var(--mm-accent-soft)' : 'var(--mm-primary-soft)',
             border: `2px solid ${challengeTier >= 2 ? '#7e57c2' : '#1a73e8'}`,
             color: 'var(--mm-text-strong)', lineHeight: 1.45,
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' }}>
-            <strong style={{ color: challengeTier >= 2 ? '#5b21b6' : '#174ea6', fontSize: 13, letterSpacing: 0.35 }}>
+            <strong style={{ color: challengeTier >= 2 ? 'var(--mm-accent-text)' : 'var(--mm-primary-text)', fontSize: 13, letterSpacing: 0.35 }}>
               {experience?.shortLabel || FRAMEWORK_LABELS[directFramework] || directFramework} · {challenge.shortLabel}
             </strong>
-            <span style={{ color: '#5f6368', fontSize: 11.5, fontWeight: 800 }}>
+            <span style={{ color: 'var(--mm-text-muted)', fontSize: 11.5, fontWeight: 800 }}>
               {assessmentItemTypeLabel(questionInstance || {})}
             </span>
           </div>
           {primaryAssessmentReference && (
-            <div style={{ marginTop: 4, color: '#5b21b6', fontWeight: 850, fontSize: 12 }}>
+            <div style={{ marginTop: 4, color: 'var(--mm-accent-text)', fontWeight: 850, fontSize: 12 }}>
               {referenceLabel(primaryAssessmentReference)}
             </div>
           )}
-          <div style={{ marginTop: 5, display: 'flex', flexWrap: 'wrap', gap: '4px 12px', color: '#5f6368', fontSize: 11.5 }}>
+          <div style={{ marginTop: 5, display: 'flex', flexWrap: 'wrap', gap: '4px 12px', color: 'var(--mm-text-muted)', fontSize: 11.5 }}>
             <span>{experience?.calculatorSummary || (questionInstance?.calculatorPolicy === 'none' ? 'No calculator' : 'Calculator policy follows the assessment')}</span>
             <span>{challenge.label}</span>
           </div>
           {challengeTier >= 2 && (
-            <div style={{ marginTop: 5, color: '#5b21b6', fontSize: 11.5, fontWeight: 750 }}>
+            <div style={{ marginTop: 5, color: 'var(--mm-accent-text)', fontSize: 11.5, fontWeight: 750 }}>
               {challenge.explanation}
             </div>
           )}
         </div>
       )}
       {bridgeFramework && (
-        <p role="status" style={{ margin: '6px 0 0', padding: '7px 10px', width: 'fit-content', maxWidth: '100%', borderRadius: 8, background: '#fef7e0', border: '1px solid #f0d489', color: '#7a4f00', fontSize: 12.5, fontWeight: 800, lineHeight: 1.45 }}>
+        <p role="status" style={{ margin: '6px 0 0', padding: '7px 10px', width: 'fit-content', maxWidth: '100%', borderRadius: 8, background: 'var(--mm-warning-bg)', border: '1px solid var(--mm-warning-border-soft)', color: 'var(--mm-warning-text)', fontSize: 12.5, fontWeight: 800, lineHeight: 1.45 }}>
           Foundation bridge for {FRAMEWORK_LABELS[bridgeFramework] || bridgeFramework} practice · strengthen this math first, then return to exam-format questions.
         </p>
       )}
@@ -265,7 +266,7 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
               flex: 1,
               height: 6,
               borderRadius: 999,
-              background: index < done ? '#1a73e8' : index === done ? '#a8c7fa' : '#e3e6ea',
+              background: index < done ? '#1a73e8' : index === done ? '#a8c7fa' : 'var(--mm-surface-control)',
             }}
           />
         ))}
@@ -287,7 +288,7 @@ function DecisionBanner({ notice }) {
         borderRadius: 10,
         border: `1px solid ${tone.border}`,
         background: tone.background,
-        color: tone.color,
+        color: toneTextColor(tone.color),
         fontSize: 13.5,
         lineHeight: 1.55,
       }}
@@ -484,7 +485,7 @@ export const PathSessionPlayer = ({
   }, [lastGradingResult, onContinue, isAdvancing]);
 
   if (!questionInstance) {
-    return <div style={{ padding: 50, textAlign: 'center', color: '#5f6368' }}>Preparing the next question…</div>;
+    return <div style={{ padding: 50, textAlign: 'center', color: 'var(--mm-text-muted)' }}>Preparing the next question…</div>;
   }
 
   const attemptsUsed = latestAttemptCount(questionInstance, lastGradingResult);
@@ -608,10 +609,10 @@ export const PathSessionPlayer = ({
   };
 
   const feedbackTone = lastGradingResult?.isCorrect
-    ? { background: '#e6f4ea', color: '#137333' }
+    ? { background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' }
     : finalized
-      ? { background: '#f1f3f4', color: '#3c4043' }
-      : { background: '#fff4ce', color: '#7a4f00' };
+      ? { background: 'var(--mm-surface-control)', color: 'var(--mm-text)' }
+      : { background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' };
 
   return (
     <main ref={workspaceRef} style={WRAPPER}>
@@ -639,7 +640,7 @@ export const PathSessionPlayer = ({
         />
 
         {questionInstance.isDevelopmentSandbox && (
-          <p style={{ margin: '0 0 12px', padding: '8px 11px', borderRadius: 8, background: '#fce8e6', color: '#a50e0e', fontSize: 12, fontWeight: 800 }}>
+          <p style={{ margin: '0 0 12px', padding: '8px 11px', borderRadius: 8, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', fontSize: 12, fontWeight: 800 }}>
             Developer sandbox — this is not authored MathMaster content.
           </p>
         )}
@@ -672,7 +673,7 @@ export const PathSessionPlayer = ({
         {lastSupport?.hint && !finalized && (
           <div style={{ marginTop: 14 }}>
             {hintOpen ? (
-              <div style={{ padding: '11px 13px', borderRadius: 9, background: '#f4f8ff', border: '1px solid #c5d5ef', color: '#174ea6', fontSize: 14, lineHeight: 1.6 }}>
+              <div style={{ padding: '11px 13px', borderRadius: 9, background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)', color: 'var(--mm-primary-text)', fontSize: 14, lineHeight: 1.6 }}>
                 <strong style={{ display: 'block', marginBottom: 3 }}>Something to think about</strong>
                 <MathText>{lastSupport.hint}</MathText>
               </div>
@@ -680,7 +681,7 @@ export const PathSessionPlayer = ({
               <button
                 type="button"
                 onClick={() => setHintOpen(true)}
-                style={{ minHeight: 40, padding: '0 14px', border: '1px solid #c5d5ef', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, cursor: 'pointer' }}
+                style={{ minHeight: 40, padding: '0 14px', border: '1px solid var(--mm-tint-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer' }}
               >
                 Show me something to think about
               </button>
@@ -768,7 +769,7 @@ const ContinueAction = ({ onContinue, pending = false, label = 'Next question' }
     >
       {pending ? 'Loading next question…' : label}
     </button>
-    <p style={{ margin: '7px 0 0', textAlign: 'center', color: '#5f6368', fontSize: 12.5, fontWeight: 750 }}>
+    <p style={{ margin: '7px 0 0', textAlign: 'center', color: 'var(--mm-text-muted)', fontSize: 12.5, fontWeight: 750 }}>
       {ENTER_TO_CONTINUE_HINT}
     </p>
   </div>

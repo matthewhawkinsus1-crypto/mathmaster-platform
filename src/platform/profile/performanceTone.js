@@ -31,24 +31,24 @@ import {
  */
 
 export const BAND_TONE = Object.freeze({
-  [INSTRUCTIONAL_BAND.BELOW]: { bg: '#fdf1ec', fg: '#9a3412', border: '#f6d4c4' },
-  [INSTRUCTIONAL_BAND.ON]: { bg: '#eef3fb', fg: '#174ea6', border: '#c9daf8' },
-  [INSTRUCTIONAL_BAND.ABOVE]: { bg: '#eefaf1', fg: '#12633a', border: '#c3e8d1' },
-  [BASELINE]: { bg: '#f3f4f6', fg: '#4b5563', border: '#dcdfe4' },
+  [INSTRUCTIONAL_BAND.BELOW]: { bg: 'var(--mm-warning-subtle)', fg: 'var(--mm-warning-text)', border: 'var(--mm-warning-border-soft)' },
+  [INSTRUCTIONAL_BAND.ON]: { bg: 'var(--mm-primary-subtle)', fg: 'var(--mm-primary-text)', border: 'var(--mm-tint-border)' },
+  [INSTRUCTIONAL_BAND.ABOVE]: { bg: 'var(--mm-success-subtle)', fg: 'var(--mm-success-text)', border: 'var(--mm-success-border)' },
+  [BASELINE]: { bg: 'var(--mm-surface-control)', fg: 'var(--mm-text-muted)', border: 'var(--mm-border)' },
 });
 
 export const PROJECTION_TONE = Object.freeze({
-  [PERFORMANCE_PROJECTION.DID_NOT_MEET]: { bg: '#fdecec', fg: '#9f1239', border: '#f6cdcd' },
-  [PERFORMANCE_PROJECTION.APPROACHES]: { bg: '#fdf6e3', fg: '#854d0e', border: '#f0e0b4' },
-  [PERFORMANCE_PROJECTION.MEETS]: { bg: '#eef3fb', fg: '#174ea6', border: '#c9daf8' },
-  [PERFORMANCE_PROJECTION.MASTERS]: { bg: '#eefaf1', fg: '#12633a', border: '#c3e8d1' },
-  [BASELINE]: { bg: '#f3f4f6', fg: '#4b5563', border: '#dcdfe4' },
+  [PERFORMANCE_PROJECTION.DID_NOT_MEET]: { bg: 'var(--mm-error-bg)', fg: 'var(--mm-error-text)', border: 'var(--mm-error-border-soft)' },
+  [PERFORMANCE_PROJECTION.APPROACHES]: { bg: 'var(--mm-warning-bg)', fg: 'var(--mm-warning-text)', border: 'var(--mm-warning-border-soft)' },
+  [PERFORMANCE_PROJECTION.MEETS]: { bg: 'var(--mm-primary-subtle)', fg: 'var(--mm-primary-text)', border: 'var(--mm-tint-border)' },
+  [PERFORMANCE_PROJECTION.MASTERS]: { bg: 'var(--mm-success-subtle)', fg: 'var(--mm-success-text)', border: 'var(--mm-success-border)' },
+  [BASELINE]: { bg: 'var(--mm-surface-control)', fg: 'var(--mm-text-muted)', border: 'var(--mm-border)' },
 });
 
 export const ENGAGEMENT_TONE = Object.freeze({
-  [ENGAGEMENT.ON_TRACK]: { bg: '#fff', fg: '#3c4043', border: '#dcdfe4' },
-  [ENGAGEMENT.INCONSISTENT]: { bg: '#fff', fg: '#854d0e', border: '#f0e0b4' },
-  [ENGAGEMENT.NEEDS_FOLLOW_UP]: { bg: '#fff', fg: '#9f1239', border: '#f6cdcd' },
+  [ENGAGEMENT.ON_TRACK]: { bg: 'var(--mm-surface)', fg: 'var(--mm-text)', border: 'var(--mm-border)' },
+  [ENGAGEMENT.INCONSISTENT]: { bg: 'var(--mm-surface)', fg: 'var(--mm-warning-text)', border: 'var(--mm-warning-border-soft)' },
+  [ENGAGEMENT.NEEDS_FOLLOW_UP]: { bg: 'var(--mm-surface)', fg: 'var(--mm-error-text)', border: 'var(--mm-error-border-soft)' },
 });
 
 /**

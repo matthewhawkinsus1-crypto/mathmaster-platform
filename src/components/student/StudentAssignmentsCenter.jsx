@@ -28,26 +28,26 @@ import { formatDateTime, formatRemainingTime } from '../../assignmentLifecycle';
  */
 
 const STATUS_TONE = {
-  graded: { bg: '#e6f4ea', color: '#12633a' },
-  completed: { bg: '#e6f4ea', color: '#12633a' },
-  inProgress: { bg: '#e8f0fe', color: '#174ea6' },
-  pendingGrade: { bg: '#e8f0fe', color: '#174ea6' },
-  late: { bg: '#fff4ce', color: '#7a4f00' },
-  missing: { bg: '#fce8e6', color: '#a50e0e' },
-  practiceOnly: { bg: '#f5f3ff', color: '#5b21b6' },
-  excused: { bg: '#f1f3f4', color: '#3c4043' },
-  reopened: { bg: '#fff4ce', color: '#7a4f00' },
-  locked: { bg: '#f1f3f4', color: '#3c4043' },
-  notStarted: { bg: '#f1f3f4', color: '#3c4043' },
+  graded: { bg: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' },
+  completed: { bg: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' },
+  inProgress: { bg: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' },
+  pendingGrade: { bg: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' },
+  late: { bg: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' },
+  missing: { bg: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' },
+  practiceOnly: { bg: 'var(--mm-primary-subtle)', color: 'var(--mm-accent-text)' },
+  excused: { bg: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
+  reopened: { bg: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' },
+  locked: { bg: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
+  notStarted: { bg: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
 };
 
 const control = (primary) => ({
   appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
   minHeight: MIN_TOUCH_TARGET_PX, padding: '10px 16px', borderRadius: 10,
   fontWeight: 900, fontSize: 14, cursor: 'pointer', flex: '1 1 auto',
-  border: primary ? 0 : '2px solid #c9ced6',
-  background: primary ? '#1a73e8' : '#fff',
-  color: primary ? '#fff' : '#3c4043',
+  border: primary ? 0 : '2px solid var(--mm-border)',
+  background: primary ? '#1a73e8' : 'var(--mm-surface)',
+  color: primary ? '#fff' : 'var(--mm-text)',
 });
 
 function AssignmentRow({ row, onContinue, onOpenResult, onPractice }) {
@@ -55,7 +55,7 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice }) {
   return (
     <article
       style={{
-        background: 'var(--mm-surface)', borderRadius: 12, border: '1px solid #d8dde6',
+        background: 'var(--mm-surface)', borderRadius: 12, border: '1px solid var(--mm-border)',
         padding: 16, marginBottom: 12, textAlign: 'left', minWidth: 0,
       }}
     >
@@ -66,11 +66,11 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice }) {
               four stages listed as four assignments starts asking which of
               them counts. */}
           {row.isTestCycle && (
-            <div style={{ marginTop: 4, fontSize: 11, fontWeight: 900, letterSpacing: .3, textTransform: 'uppercase', color: '#5b21b6' }}>
+            <div style={{ marginTop: 4, fontSize: 11, fontWeight: 900, letterSpacing: .3, textTransform: 'uppercase', color: 'var(--mm-accent-text)' }}>
               Test Cycle · Review → Test → Corrections → Retest
             </div>
           )}
-          <div style={{ marginTop: 4, fontSize: 12, color: '#5f6368', overflowWrap: 'anywhere' }}>
+          <div style={{ marginTop: 4, fontSize: 12, color: 'var(--mm-text-muted)', overflowWrap: 'anywhere' }}>
             Due {formatDateTime(row.dueAt)}
             {row.frozen
               ? ` · Closed ${formatDateTime(row.lateDueAt)}`
@@ -123,7 +123,7 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice }) {
         {/* A locked assignment with nothing to open says why, rather than
             offering a button that does nothing. */}
         {!row.canContinue && !row.canViewResults && !row.canPractice && (
-          <span style={{ fontSize: 13, color: '#5f6368' }}>Opens when your teacher releases it.</span>
+          <span style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>Opens when your teacher releases it.</span>
         )}
       </div>
     </article>
@@ -157,7 +157,7 @@ export default function StudentAssignmentsCenter({
       className={`${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`}
       style={{
         fontFamily: '"Segoe UI", sans-serif',
-        background: supportPresentation.highContrast ? '#fff' : '#f0f2f5',
+        background: supportPresentation.highContrast ? 'var(--mm-surface)' : 'var(--mm-surface-control)',
         minHeight: '100vh', padding: '20px 14px 48px',
         fontSize: supportPresentation.largeText ? '120%' : undefined,
       }}
@@ -171,8 +171,8 @@ export default function StudentAssignmentsCenter({
         />
 
         <header style={{ marginBottom: 14, textAlign: 'left' }}>
-          <h1 style={{ margin: 0, fontSize: 'clamp(20px, 6vw, 26px)', color: '#174ea6' }}>My Assignments</h1>
-          <p style={{ margin: '4px 0 0', fontSize: 13, color: '#5f6368' }}>
+          <h1 style={{ margin: 0, fontSize: 'clamp(20px, 6vw, 26px)', color: 'var(--mm-primary-text)' }}>My Assignments</h1>
+          <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--mm-text-muted)' }}>
             Everything your teacher has assigned you — {totalCount} assignment{totalCount === 1 ? '' : 's'}, including finished and closed work.
           </p>
         </header>
@@ -189,7 +189,7 @@ export default function StudentAssignmentsCenter({
             placeholder="Search all assignments by title…"
             style={{
               flex: '1 1 220px', minWidth: 0, minHeight: MIN_TOUCH_TARGET_PX,
-              padding: '9px 13px', borderRadius: 10, border: '2px solid #c9ced6',
+              padding: '9px 13px', borderRadius: 10, border: '2px solid var(--mm-border)',
               fontSize: 14, fontFamily: 'inherit',
             }}
           />
@@ -202,7 +202,7 @@ export default function StudentAssignmentsCenter({
             onChange={(event) => setPeriodId(event.target.value)}
             style={{
               flex: '1 1 180px', minWidth: 0, minHeight: MIN_TOUCH_TARGET_PX,
-              padding: '9px 11px', borderRadius: 10, border: '2px solid #c9ced6',
+              padding: '9px 11px', borderRadius: 10, border: '2px solid var(--mm-border)',
               fontSize: 14, fontFamily: 'inherit', background: 'var(--mm-surface)',
             }}
           >
@@ -218,7 +218,7 @@ export default function StudentAssignmentsCenter({
         </div>
 
         {isSearching ? (
-          <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 800, color: '#174ea6' }}>
+          <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 800, color: 'var(--mm-primary-text)' }}>
             {/* Search deliberately reaches past the tabs and the period filter,
                 so it says so — otherwise the counts above look wrong. */}
             {visibleEntries.length} result{visibleEntries.length === 1 ? '' : 's'} across every tab and marking period.
@@ -237,9 +237,9 @@ export default function StudentAssignmentsCenter({
                   style={{
                     appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
                     minHeight: MIN_TOUCH_TARGET_PX, padding: '9px 14px', borderRadius: 999,
-                    border: `2px solid ${active ? '#1a73e8' : '#d8dde6'}`,
-                    background: active ? '#1a73e8' : '#fff',
-                    color: active ? '#fff' : '#3c4043',
+                    border: `2px solid ${active ? '#1a73e8' : 'var(--mm-border)'}`,
+                    background: active ? '#1a73e8' : 'var(--mm-surface)',
+                    color: active ? '#fff' : 'var(--mm-text)',
                     fontWeight: 900, fontSize: 13, cursor: 'pointer',
                   }}
                 >
@@ -251,7 +251,7 @@ export default function StudentAssignmentsCenter({
         )}
 
         {!isSearching && activeGroup?.hint && (
-          <p style={{ margin: '0 0 12px', fontSize: 12, lineHeight: 1.5, color: '#5f6368' }}>{activeGroup.hint}</p>
+          <p style={{ margin: '0 0 12px', fontSize: 12, lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>{activeGroup.hint}</p>
         )}
 
         {visibleEntries.length === 0 ? (

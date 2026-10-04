@@ -62,7 +62,8 @@ harness.unimplementedCalls = [];
 // The signed-in teacher is a teacher of record, not the root administrator.
 // `window.__mmHarness.rootAdmin = true` widens the roster the way the real
 // callable does for a root admin.
-harness.rootAdmin = harness.rootAdmin === true;
+harness.rootAdmin = harness.rootAdmin === true
+  || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('rootAdmin') === '1');
 // `?rosterSelect=legacy` replays the roster projection production shipped
 // before the shared identity contract (PR #314's select, which had no
 // googleName, and its copied row) — for reproducing the "numeric id where a

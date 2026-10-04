@@ -39,7 +39,7 @@ export default function StudentSpotlightView({ request, frame, onStop }) {
           <h2 style={{ margin: '6px 0 2px', fontSize: 30 }}>{request?.studentLabel || 'Student'}</h2>
           <div style={{ color: '#d8d2df' }}>{frame?.assignmentTitle || 'Waiting for current MathMaster work…'}</div>
         </div>
-        <button type="button" onClick={onStop} style={{ padding: '9px 13px', borderRadius: 7, border: '1px solid #f28b82', background: 'var(--mm-surface)', color: '#b3261e', fontWeight: 800, cursor: 'pointer' }}>Stop Spotlight</button>
+        <button type="button" onClick={onStop} style={{ padding: '9px 13px', borderRadius: 7, border: '1px solid var(--mm-error-border-soft)', background: 'var(--mm-surface)', color: 'var(--mm-error-text)', fontWeight: 800, cursor: 'pointer' }}>Stop Spotlight</button>
       </div>
       {frame ? (
         <div style={{ marginTop: 24, display: 'grid', gap: 16 }}>

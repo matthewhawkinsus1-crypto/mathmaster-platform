@@ -27,13 +27,13 @@ export const DOMAIN_STATE = Object.freeze({
 });
 
 export const DOMAIN_STATE_PRESENTATION = Object.freeze({
-  [DOMAIN_STATE.NO_ALIGNMENT]: { label: 'No alignment yet', color: '#dadce0', text: '#5f6368' },
-  [DOMAIN_STATE.PREREQUISITE_NEEDED]: { label: 'Math prerequisite needed', color: '#f9ab00', text: '#7a4f00' },
-  [DOMAIN_STATE.TRANSFER_GAP]: { label: 'Transfer gap', color: '#d93025', text: '#a50e0e' },
-  [DOMAIN_STATE.RECOMMENDED]: { label: 'Recommended', color: '#1a73e8', text: '#174ea6' },
-  [DOMAIN_STATE.READY_NOT_PRACTISED]: { label: 'Ready — not yet practised', color: '#9aa0a6', text: '#3c4043' },
-  [DOMAIN_STATE.DEVELOPING]: { label: 'Developing', color: '#fbbc04', text: '#7a4f00' },
-  [DOMAIN_STATE.STRONG]: { label: 'Strong', color: '#1e8e3e', text: '#137333' },
+  [DOMAIN_STATE.NO_ALIGNMENT]: { label: 'No alignment yet', color: '#dadce0', text: 'var(--mm-text-muted)' },
+  [DOMAIN_STATE.PREREQUISITE_NEEDED]: { label: 'Math prerequisite needed', color: '#f9ab00', text: 'var(--mm-warning-text)' },
+  [DOMAIN_STATE.TRANSFER_GAP]: { label: 'Transfer gap', color: '#d93025', text: 'var(--mm-error-text)' },
+  [DOMAIN_STATE.RECOMMENDED]: { label: 'Recommended', color: '#1a73e8', text: 'var(--mm-primary-text)' },
+  [DOMAIN_STATE.READY_NOT_PRACTISED]: { label: 'Ready — not yet practised', color: '#9aa0a6', text: 'var(--mm-text)' },
+  [DOMAIN_STATE.DEVELOPING]: { label: 'Developing', color: '#fbbc04', text: 'var(--mm-warning-text)' },
+  [DOMAIN_STATE.STRONG]: { label: 'Strong', color: '#1e8e3e', text: 'var(--mm-success-text)' },
 });
 
 // A domain counts as strong when most of what has been practised in it is

@@ -16,6 +16,7 @@ import { PATH_TOOL_IDS } from '../../../functions/shared/pathToolContracts.mjs';
 import { SUPPORT } from '../../../functions/shared/supportEntitlements.mjs';
 import { ROOT_ADMIN_EMAIL } from '../../../functions/shared/rolePolicy.mjs';
 import { buildAssessmentCoverageAudit, ASSESSMENT_COVERAGE_MISMATCH } from '../../platform/ccmr/assessmentCoverageAudit.js';
+import { toneTextColor } from '../../theme/themeColorRoles.js';
 
 // Which standards My Math Path can actually teach.
 //
@@ -27,15 +28,15 @@ import { buildAssessmentCoverageAudit, ASSESSMENT_COVERAGE_MISMATCH } from '../.
 // same issuability check the runtime uses — so a number here is a promise the
 // Path can keep, not an inventory of files.
 
-const card = { border: '1px solid #d8dde6', borderRadius: 12, padding: '20px 22px', marginBottom: 20, textAlign: 'left', background: 'var(--mm-surface)' };
+const card = { border: '1px solid var(--mm-border)', borderRadius: 12, padding: '20px 22px', marginBottom: 20, textAlign: 'left', background: 'var(--mm-surface)' };
 const primary = { minHeight: 42, padding: '0 16px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer' };
-const quiet = { minHeight: 38, padding: '0 13px', border: '1px solid #c7cdd6', borderRadius: 8, background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 700, cursor: 'pointer' };
+const quiet = { minHeight: 38, padding: '0 13px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 700, cursor: 'pointer' };
 
 const STATE_STYLE = {
-  [COVERAGE_STATE.ADEQUATE]: { background: '#e6f4ea', color: '#137333' },
-  [COVERAGE_STATE.MINIMAL]: { background: '#fef7e0', color: '#7a4f00' },
-  [COVERAGE_STATE.AUTHORED_UNUSABLE]: { background: '#fce8e6', color: '#a50e0e' },
-  [COVERAGE_STATE.NONE]: { background: '#f1f3f4', color: '#3c4043' },
+  [COVERAGE_STATE.ADEQUATE]: { background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' },
+  [COVERAGE_STATE.MINIMAL]: { background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' },
+  [COVERAGE_STATE.AUTHORED_UNUSABLE]: { background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' },
+  [COVERAGE_STATE.NONE]: { background: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
 };
 
 const pill = (state) => ({
@@ -48,11 +49,11 @@ const pill = (state) => ({
 // get different colours. A standard can be green on the left (a session will
 // run) and amber on the right (what it will run is placeholders).
 const CONTENT_STATE_STYLE = {
-  [CONTENT_STATE.PRODUCTION_READY]: { background: '#e6f4ea', color: '#137333' },
-  [CONTENT_STATE.CANDIDATE]: { background: '#e8f0fe', color: '#174ea6' },
-  [CONTENT_STATE.MINIMUM_OPERATIONAL]: { background: '#fef7e0', color: '#7a4f00' },
-  [CONTENT_STATE.AUTHORED_UNUSABLE]: { background: '#fce8e6', color: '#a50e0e' },
-  [CONTENT_STATE.NONE]: { background: '#f1f3f4', color: '#3c4043' },
+  [CONTENT_STATE.PRODUCTION_READY]: { background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' },
+  [CONTENT_STATE.CANDIDATE]: { background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' },
+  [CONTENT_STATE.MINIMUM_OPERATIONAL]: { background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' },
+  [CONTENT_STATE.AUTHORED_UNUSABLE]: { background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' },
+  [CONTENT_STATE.NONE]: { background: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
 };
 
 const contentPill = (state) => ({
@@ -319,17 +320,17 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
 
   return (
     <div>
-      {error && <div role="alert" style={{ ...card, background: '#fce8e6', borderColor: '#f0b4b2', color: '#a50e0e' }}>{error}</div>}
+      {error && <div role="alert" style={{ ...card, background: 'var(--mm-error-bg)', borderColor: 'var(--mm-error-border-soft)', color: 'var(--mm-error-text)' }}>{error}</div>}
 
-      <section style={{ ...card, background: runtimeError || (runtimeStatus?.release && runtimeStatus.release !== PATH_WEB_RELEASE) ? '#fef7e0' : '#f8fbff' }}>
+      <section style={{ ...card, background: runtimeError || (runtimeStatus?.release && runtimeStatus.release !== PATH_WEB_RELEASE) ? 'var(--mm-warning-bg)' : 'var(--mm-surface-tint)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <div>
             <h3 style={{ margin: 0 }}>Path deployment status</h3>
-            <p style={{ margin: '6px 0 0', color: '#5f6368', fontSize: 13, lineHeight: 1.5 }}>
+            <p style={{ margin: '6px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5 }}>
               Web release: <strong>{PATH_WEB_RELEASE}</strong> · Server release: <strong>{runtimeStatus?.release || 'not verified'}</strong>
             </p>
             {runtimeStatus && (
-              <p style={{ margin: '4px 0 0', color: '#5f6368', fontSize: 13 }}>
+              <p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)', fontSize: 13 }}>
                 Secure bank: <strong>{runtimeStatus.bankCount ?? 0}</strong> questions · Built-in starter: <strong>{runtimeStatus.starterAvailable ? `${runtimeStatus.starterCount} available` : 'unavailable'}</strong>
               </p>
             )}
@@ -340,13 +341,13 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
             execution-mode variable used to serve students a sandbox question
             silently; now it refuses, and this is where an administrator sees
             why before a class does. */}
-        <p style={{ margin: '10px 0 0', color: executionMode.mode === 'misconfigured' ? '#a50e0e' : '#5f6368', fontSize: 13, lineHeight: 1.5, fontWeight: executionMode.mode === 'misconfigured' ? 800 : 400 }}>
+        <p style={{ margin: '10px 0 0', color: executionMode.mode === 'misconfigured' ? 'var(--mm-error-text)' : 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5, fontWeight: executionMode.mode === 'misconfigured' ? 800 : 400 }}>
           This web build runs My Math Path in <strong>{executionMode.mode}</strong> mode ({String(executionMode.reason).replace(/_/g, ' ')}).
           {executionMode.message ? ` ${executionMode.message}` : ''}
         </p>
-        {runtimeError && <p role="alert" style={{ margin: '12px 0 0', color: '#a50e0e', fontWeight: 800, lineHeight: 1.5 }}>{runtimeError}</p>}
+        {runtimeError && <p role="alert" style={{ margin: '12px 0 0', color: 'var(--mm-error-text)', fontWeight: 800, lineHeight: 1.5 }}>{runtimeError}</p>}
         {runtimeStatus?.release && runtimeStatus.release !== PATH_WEB_RELEASE && (
-          <p role="alert" style={{ margin: '12px 0 0', color: '#a50e0e', fontWeight: 800, lineHeight: 1.5 }}>
+          <p role="alert" style={{ margin: '12px 0 0', color: 'var(--mm-error-text)', fontWeight: 800, lineHeight: 1.5 }}>
             Firebase Hosting and Cloud Functions are on different Path releases. Do not troubleshoot question content yet. Deploy both from the same GitHub main commit.
           </p>
         )}
@@ -354,7 +355,7 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
 
       <section style={card}>
         <h3 style={{ margin: 0 }}>Accommodation delivery by tool</h3>
-        <p style={{ margin: '6px 0 12px', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 760 }}>
+        <p style={{ margin: '6px 0 12px', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55, maxWidth: 760 }}>
           Which authorized supports each Path interaction can actually deliver. This is worked out from the tool
           contracts and the solution-review builder, not from a per-tool setting — a support a tool cannot honour
           should be findable here, before a student meets the question.
@@ -367,15 +368,15 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
               supportMatrix.blockers.length ? '#a50e0e' : '#137333'],
             ['Support gaps', supportMatrix.gaps.length, supportMatrix.gaps.length ? '#7a4f00' : '#137333'],
           ].map(([label, value, tone]) => (
-            <div key={label} style={{ flex: '1 1 150px', padding: '11px 13px', border: '1px solid #dadce0', borderRadius: 9, background: 'var(--mm-surface)' }}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: '#5f6368', textTransform: 'uppercase' }}>{label}</div>
-              <div style={{ marginTop: 3, fontSize: 20, fontWeight: 900, color: tone }}>{value}</div>
+            <div key={label} style={{ flex: '1 1 150px', padding: '11px 13px', border: '1px solid var(--mm-border)', borderRadius: 9, background: 'var(--mm-surface)' }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--mm-text-muted)', textTransform: 'uppercase' }}>{label}</div>
+              <div style={{ marginTop: 3, fontSize: 20, fontWeight: 900, color: toneTextColor(tone) }}>{value}</div>
             </div>
           ))}
         </div>
 
         {supportMatrix.blockers.length > 0 && (
-          <p role="alert" style={{ margin: '0 0 12px', padding: '10px 12px', borderRadius: 8, background: '#fce8e6', color: '#a50e0e', fontSize: 13, lineHeight: 1.5 }}>
+          <p role="alert" style={{ margin: '0 0 12px', padding: '10px 12px', borderRadius: 8, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', fontSize: 13, lineHeight: 1.5 }}>
             <strong>These interactions need a mouse.</strong>{' '}
             {supportMatrix.blockers.map((row) => row.toolId).join(', ')} — a student who cannot use a trackpad
             accurately cannot answer these questions at all.
@@ -387,7 +388,7 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
             <thead>
               <tr>
                 {['Interaction', 'Keyboard', 'Read aloud', 'Contrast / large text', 'Calculator', 'Solution review'].map((heading) => (
-                  <th key={heading} style={{ textAlign: 'left', padding: '7px 8px', borderBottom: '2px solid #dadce0', color: '#5f6368', fontSize: 11, textTransform: 'uppercase' }}>{heading}</th>
+                  <th key={heading} style={{ textAlign: 'left', padding: '7px 8px', borderBottom: '2px solid var(--mm-border)', color: 'var(--mm-text-muted)', fontSize: 11, textTransform: 'uppercase' }}>{heading}</th>
                 ))}
               </tr>
             </thead>
@@ -397,16 +398,16 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
                   const tone = state === COMPAT.NEEDS_WORK ? '#a50e0e'
                     : state === COMPAT.UNSAFE ? '#7a4f00'
                       : state === COMPAT.NOT_APPLICABLE ? '#5f6368' : '#137333';
-                  return <td style={{ padding: '7px 8px', borderBottom: '1px solid #f1f3f4', color: tone, fontWeight: state === COMPAT.NEEDS_WORK ? 800 : 600 }}>{COMPAT_LABEL[state]}</td>;
+                  return <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--mm-border-soft)', color: toneTextColor(tone), fontWeight: state === COMPAT.NEEDS_WORK ? 800 : 600 }}>{COMPAT_LABEL[state]}</td>;
                 };
                 return (
                   <tr key={row.toolId}>
-                    <td style={{ padding: '7px 8px', borderBottom: '1px solid #f1f3f4', fontWeight: 800 }}>{row.toolId}</td>
+                    <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--mm-border-soft)', fontWeight: 800 }}>{row.toolId}</td>
                     {cell(row.keyboard)}
                     {cell(row.supports[SUPPORT.TEXT_TO_SPEECH])}
                     {cell(row.supports[SUPPORT.HIGH_CONTRAST])}
                     {cell(row.supports[SUPPORT.CALCULATOR])}
-                    <td style={{ padding: '7px 8px', borderBottom: '1px solid #f1f3f4', color: row.hasSolutionReview ? '#137333' : '#7a4f00', fontWeight: 600 }}>
+                    <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--mm-border-soft)', color: row.hasSolutionReview ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', fontWeight: 600 }}>
                       {row.hasSolutionReview ? 'Tool-generated' : 'From authored content'}
                     </td>
                   </tr>
@@ -416,57 +417,57 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
           </table>
         </div>
 
-        <p style={{ margin: '10px 0 0', fontSize: 12, color: '#5f6368', lineHeight: 1.55 }}>
+        <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>
           <strong>Unsafe here</strong> is not a defect. A calculator on the balance workspace would perform the
           operation the question exists to assess — that is a construct decision, not a missing feature.
         </p>
       </section>
 
-      <section style={{ ...card, background: '#f8fbff' }}>
+      <section style={{ ...card, background: 'var(--mm-surface-tint)' }}>
         <h3 style={{ margin: 0 }}>What coverage means now</h3>
-        <p style={{ margin: '7px 0 0', color: '#3c4043', fontSize: 13, lineHeight: 1.6, maxWidth: 820 }}>
+        <p style={{ margin: '7px 0 0', color: 'var(--mm-text)', fontSize: 13, lineHeight: 1.6, maxWidth: 820 }}>
           <strong>Teacher assignments do not create, remove, or map My Math Path coverage.</strong> The source of truth is:
           the canonical Texas standards registry → the secure <code>pathQuestionBank</code> → the same server issuer/grader that prepares a student question.
           This page only reports that server-owned result.
         </p>
-        <p style={{ margin: '8px 0 0', color: '#5f6368', fontSize: 12, lineHeight: 1.55, maxWidth: 820 }}>
+        <p style={{ margin: '8px 0 0', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.55, maxWidth: 820 }}>
           “Recompute” rebuilds the report from those three sources. It does not inspect class assignments, and it does not publish assignment questions into the Path bank.
           Grade 6, 7, 8, Algebra I, and Algebra II are mapped from the canonical standards registry on the server, not from a browser wheel.
         </p>
       </section>
 
 
-      <section style={{ ...card, background: !assessmentCoverageAudit.known ? '#fef7e0' : assessmentCoverageAudit.rows.length ? '#fff8f0' : assessmentCoverageAudit.gaps?.length ? '#fef7e0' : '#e6f4ea' }}>
+      <section style={{ ...card, background: !assessmentCoverageAudit.known ? 'var(--mm-warning-bg)' : assessmentCoverageAudit.rows.length ? 'var(--mm-warning-subtle)' : assessmentCoverageAudit.gaps?.length ? 'var(--mm-warning-bg)' : 'var(--mm-success-bg)' }}>
         <h3 style={{ margin: 0 }}>Assessment publication coverage</h3>
-        <p style={{ margin: '6px 0 10px', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 820 }}>
+        <p style={{ margin: '6px 0 10px', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55, maxWidth: 820 }}>
           Crosswalk relevance and published practice are checked separately. A student only gets an assessment launch when both agree.
           A hard mismatch means authored bank content disagrees with publication or mapping. Crosswalk-only relationships are tracked separately and do not fail the release.
         </p>
         {!assessmentCoverageAudit.known ? (
-          <p style={{ margin: 0, color: '#7a4f00', fontWeight: 800, fontSize: 13 }}>
+          <p style={{ margin: 0, color: 'var(--mm-warning-text)', fontWeight: 800, fontSize: 13 }}>
             Recompute coverage from the secure bank to build the framework-aware publication audit.
           </p>
         ) : (
           <>
             {assessmentCoverageAudit.rows.length === 0 ? (
-              <p style={{ margin: 0, color: '#137333', fontWeight: 800, fontSize: 13 }}>
+              <p style={{ margin: 0, color: 'var(--mm-success-text)', fontWeight: 800, fontSize: 13 }}>
                 No authored-bank publication defects were found for this course.
               </p>
             ) : (
               <>
-                <p role="alert" style={{ margin: '0 0 10px', color: '#a50e0e', fontWeight: 850, fontSize: 13 }}>
+                <p role="alert" style={{ margin: '0 0 10px', color: 'var(--mm-error-text)', fontWeight: 850, fontSize: 13 }}>
                   {assessmentCoverageAudit.rows.length} authored-bank publication mismatch{assessmentCoverageAudit.rows.length === 1 ? '' : 'es'} need review.
                 </p>
                 <div style={{ display: 'grid', gap: 8 }}>
                   {assessmentCoverageAudit.rows.map((row) => (
-                    <div key={`${row.teksCode}:${row.framework}`} style={{ padding: '10px 12px', border: '1px solid #f0d2b5', borderRadius: 9, background: 'var(--mm-surface)' }}>
+                    <div key={`${row.teksCode}:${row.framework}`} style={{ padding: '10px 12px', border: '1px solid var(--mm-warning-border-soft)', borderRadius: 9, background: 'var(--mm-surface)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                         <strong>{row.teksCode} · {row.frameworkLabel}</strong>
                         <button type="button" style={quiet} onClick={() => runDiagnostic(row.teksCode, row.framework)} disabled={diagnosticBusy}>
                           Diagnose
                         </button>
                       </div>
-                      <div style={{ marginTop: 4, color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
+                      <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>
                         {row.mismatch === ASSESSMENT_COVERAGE_MISMATCH.CROSSWALK_WITHOUT_PUBLISHED_PRACTICE
                           ? `The bank contains ${row.authoredCount} authored item(s) for this pair, but none are currently publishable.`
                           : `The active secure bank has ${row.familyCount} published family/families, but the authored crosswalk says this assessment does not apply.`}
@@ -477,7 +478,7 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
               </>
             )}
             {assessmentCoverageAudit.gaps?.length ? (
-              <p style={{ margin: assessmentCoverageAudit.rows.length ? '10px 0 0' : '8px 0 0', color: '#7a4f00', fontWeight: 700, fontSize: 12, lineHeight: 1.5 }}>
+              <p style={{ margin: assessmentCoverageAudit.rows.length ? '10px 0 0' : '8px 0 0', color: 'var(--mm-warning-text)', fontWeight: 700, fontSize: 12, lineHeight: 1.5 }}>
                 {assessmentCoverageAudit.gaps.length} crosswalk relationship{assessmentCoverageAudit.gaps.length === 1 ? '' : 's'} have no authored bank content in this release. They remain unavailable to students, but they are informational coverage gaps rather than publication defects.
               </p>
             ) : null}
@@ -489,7 +490,7 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <div>
             <h3 style={{ margin: 0 }}>My Math Path content coverage</h3>
-            <p style={{ margin: '6px 0 0', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 720 }}>
+            <p style={{ margin: '6px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55, maxWidth: 720 }}>
               A standard counts as covered only when the secure question bank holds a question the server can both issue
               and grade. Matching the TEKS is not enough — a question whose tool has no server grader cannot teach anyone,
               and students are never routed to a standard that has none.
@@ -501,7 +502,7 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
           </div>
         </div>
 
-        <p style={{ margin: '12px 0 0', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
+        <p style={{ margin: '12px 0 0', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>
           <strong>Recompute from bank does not create questions.</strong> It only rebuilds the coverage index from content already stored in the secure Path bank. If the bank count above is 0, initialize the starter bank first.
         </p>
 
@@ -514,9 +515,9 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
               onClick={() => setCourseId(id)}
               style={{
                 minHeight: 38, padding: '7px 14px', borderRadius: 999, cursor: 'pointer', fontWeight: 800, fontSize: 13,
-                border: `1px solid ${courseId === id ? '#1a73e8' : '#c5d5ef'}`,
-                background: courseId === id ? '#e8f0fe' : '#fff',
-                color: courseId === id ? '#174ea6' : '#3c4043',
+                border: `1px solid ${courseId === id ? '#1a73e8' : 'var(--mm-tint-border)'}`,
+                background: courseId === id ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+                color: courseId === id ? 'var(--mm-primary-text)' : 'var(--mm-text)',
               }}
             >
               {COURSES.find((course) => course.id === id)?.label || id}
@@ -537,7 +538,7 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
 
       <section style={card}>
         <h3 style={{ margin: 0 }}>Activate built-in Path content</h3>
-        <p style={{ margin: '6px 0 14px', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 760 }}>
+        <p style={{ margin: '6px 0 14px', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55, maxWidth: 760 }}>
           Assessment frameworks keep their own release-safe refreshes. ASVAB and the coordinated Digital SAT / ACT /
           TSIA2 release are intentionally independent so one refresh cannot overwrite another framework. Every package
           is validated by the production issuer before Firestore changes. Course Path content is published above.
@@ -550,15 +551,15 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
             {busy ? 'Working…' : 'Refresh SAT / ACT / TSIA2 release'}
           </button>
         </div>
-        <p style={{ margin: '0 0 14px', color: '#5f6368', fontSize: 12, lineHeight: 1.5, maxWidth: 760 }}>
+        <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5, maxWidth: 760 }}>
           Recommended existing-install order after deployment: <strong>course Path release → ASVAB → SAT/ACT/TSIA2</strong>.
           The SAT/ACT/TSIA2 action is atomic and preserves the independently tracked ASVAB release.
         </p>
         <details style={{ marginBottom: 14 }}>
-          <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#7a4f00' }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 800, color: 'var(--mm-warning-text)' }}>
             Deprecated: one-shot course refresh
           </summary>
-          <p style={{ margin: '8px 0 10px', color: '#5f6368', fontSize: 12, lineHeight: 1.5, maxWidth: 760 }}>
+          <p style={{ margin: '8px 0 10px', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5, maxWidth: 760 }}>
             <strong>Superseded by the certified course Path release above.</strong> This is the old one-shot refresh:
             it revalidates the whole built-in package on every run, rewrites every course document whether or not it
             changed, and cannot be resumed if it stops part way. It remains here only as a recovery route while V2 is
@@ -569,8 +570,8 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
           </button>
         </details>
         <details style={{ marginBottom: 14 }}>
-          <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#3c4043' }}>Fresh installation only</summary>
-          <p style={{ margin: '8px 0 10px', color: '#5f6368', fontSize: 12, lineHeight: 1.5, maxWidth: 720 }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 800, color: 'var(--mm-text)' }}>Fresh installation only</summary>
+          <p style={{ margin: '8px 0 10px', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5, maxWidth: 720 }}>
             Use this only when the secure Path bank is empty. On an existing installation the server refuses this operation.
           </p>
           <button type="button" style={quiet} onClick={initializeStarter} disabled={busy || (runtimeStatus?.bankCount ?? 0) > 0}>
@@ -578,8 +579,8 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
           </button>
         </details>
         <details style={{ marginBottom: 10 }}>
-          <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#3c4043' }}>Import a different seed package instead</summary>
-          <p style={{ margin: '8px 0 12px', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 720 }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 800, color: 'var(--mm-text)' }}>Import a different seed package instead</summary>
+          <p style={{ margin: '8px 0 12px', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55, maxWidth: 720 }}>
             Custom imports are for course/custom content only; release-managed SAT, ACT, TSIA2, and ASVAB are blocked here.
             Select one or more JSON files. A package split across course files must be selected together. An array, or an object
             with <code>documents</code>, <code>items</code> or <code>questions</code>, is accepted.
@@ -629,23 +630,23 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
           style={{ fontSize: 14 }}
         />
         </details>
-        {seedPhase && <p style={{ marginTop: 12, color: '#174ea6', fontWeight: 700 }}>{seedPhase}</p>}
+        {seedPhase && <p style={{ marginTop: 12, color: 'var(--mm-primary-text)', fontWeight: 700 }}>{seedPhase}</p>}
         {seed && (
           <div style={{ marginTop: 14, fontSize: 13, lineHeight: 1.7 }}>
             <div>Documents supplied: <strong>{seed.documentCount ?? seed.received ?? 0}</strong></div>
-            <div>Validated / stored: <strong style={{ color: seed.imported ? '#137333' : '#a50e0e' }}>{seed.imported ? seed.accepted : `${seed.wouldAccept ?? 0} would pass`}</strong></div>
+            <div>Validated / stored: <strong style={{ color: seed.imported ? 'var(--mm-success-text)' : 'var(--mm-error-text)' }}>{seed.imported ? seed.accepted : `${seed.wouldAccept ?? 0} would pass`}</strong></div>
             <div>Standards represented: <strong>{seed.standards?.length || 0}</strong></div>
             {seed.removedSuperseded !== undefined && <div>Superseded built-in documents removed: <strong>{seed.removedSuperseded}</strong></div>}
             {!seed.imported && (
-              <p style={{ margin: '10px 0 0', fontWeight: 900, color: '#a50e0e' }}>
+              <p style={{ margin: '10px 0 0', fontWeight: 900, color: 'var(--mm-error-text)' }}>
                 Nothing was written. Validation failed before the write phase, so the existing secure bank was left intact.
               </p>
             )}
 
             {(seed.rejectionSummary?.total || 0) > 0 && (
-              <div style={{ marginTop: 12, padding: 12, border: '1px solid #f0b4b2', borderRadius: 9, background: '#fff8f7' }}>
-                <strong style={{ color: '#a50e0e' }}>Why the package was rejected</strong>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12, marginTop: 10 }}>
+              <div style={{ marginTop: 12, padding: 12, border: '1px solid var(--mm-error-border-soft)', borderRadius: 9, background: 'var(--mm-error-subtle)' }}>
+                <strong style={{ color: 'var(--mm-error-text)' }}>Why the package was rejected</strong>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: 12, marginTop: 10 }}>
                   {[
                     ['By reason', seed.rejectionSummary.byReason, true],
                     ['By question type', seed.rejectionSummary.byQuestionType, false],
@@ -653,9 +654,9 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
                     ['By course', seed.rejectionSummary.byCourse, false],
                   ].map(([label, groups, explain]) => (
                     <div key={label}>
-                      <div style={{ fontWeight: 900, fontSize: 12, color: '#3c4043' }}>{label}</div>
+                      <div style={{ fontWeight: 900, fontSize: 12, color: 'var(--mm-text)' }}>{label}</div>
                       {sortedGroups(groups).slice(0, 12).map(([key, count]) => (
-                        <div key={key} style={{ marginTop: 4, fontSize: 12, color: '#5f6368' }}>
+                        <div key={key} style={{ marginTop: 4, fontSize: 12, color: 'var(--mm-text-muted)' }}>
                           <strong>{count}</strong> · {explain ? humanizeReason(key) : key}
                         </div>
                       ))}
@@ -667,10 +668,10 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
 
             {(seed.rejected?.length || 0) > 0 && (
               <details style={{ marginTop: 10 }} open>
-                <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#a50e0e' }}>{seed.rejected.length} rejected document{seed.rejected.length === 1 ? '' : 's'}</summary>
+                <summary style={{ cursor: 'pointer', fontWeight: 800, color: 'var(--mm-error-text)' }}>{seed.rejected.length} rejected document{seed.rejected.length === 1 ? '' : 's'}</summary>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ marginTop: 8, borderCollapse: 'collapse', fontSize: 12, minWidth: 920, width: '100%' }}>
-                    <thead><tr style={{ textAlign: 'left', background: '#f1f3f4' }}>
+                    <thead><tr style={{ textAlign: 'left', background: 'var(--mm-surface-control)' }}>
                       <th style={{ padding: 6 }}>Question ID</th><th style={{ padding: 6 }}>Family</th>
                       <th style={{ padding: 6 }}>Standard</th><th style={{ padding: 6 }}>Type</th>
                       <th style={{ padding: 6 }}>Tool</th><th style={{ padding: 6 }}>Reason</th>
@@ -678,13 +679,13 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
                     </tr></thead>
                     <tbody>
                       {seed.rejected.slice(0, 100).map((entry, position) => (
-                        <tr key={`${entry.id}-${position}`} style={{ borderBottom: '1px solid #e8eaed' }}>
+                        <tr key={`${entry.id}-${position}`} style={{ borderBottom: '1px solid var(--mm-border-soft)' }}>
                           <td style={{ padding: 6 }}>{entry.id || '(no id)'}</td>
                           <td style={{ padding: 6 }}>{entry.familyId || '—'}</td>
                           <td style={{ padding: 6 }}>{(entry.standards || []).join(', ') || '—'}</td>
                           <td style={{ padding: 6 }}>{entry.questionType || '—'}</td>
                           <td style={{ padding: 6 }}>{entry.pathToolId || 'field-graded'}</td>
-                          <td style={{ padding: 6, color: '#a50e0e' }} title={entry.detail || ''}>{humanizeReason(entry.reason)}</td>
+                          <td style={{ padding: 6, color: 'var(--mm-error-text)' }} title={entry.detail || ''}>{humanizeReason(entry.reason)}</td>
                           {/* A storage-shape rejection names the exact authored property, so a
                               content lead can open the file at that path instead of reading logs. */}
                           <td style={{ padding: 6, fontFamily: 'monospace', fontSize: 11 }}>{entry.propertyPath || '—'}</td>
@@ -696,14 +697,14 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
                 </div>
               </details>
             )}
-            {seed.imported && <p style={{ margin: '10px 0 0', color: '#137333', fontWeight: 800 }}>Import complete. Built-in documents were replaced cleanly, superseded built-ins were retired, and canonical course coverage was rebuilt on the server.</p>}
+            {seed.imported && <p style={{ margin: '10px 0 0', color: 'var(--mm-success-text)', fontWeight: 800 }}>Import complete. Built-in documents were replaced cleanly, superseded built-ins were retired, and canonical course coverage was rebuilt on the server.</p>}
           </div>
         )}
       </section>
 
       <section style={card}>
         <h3 style={{ margin: 0 }}>Why won’t this skill start?</h3>
-        <p style={{ margin: '6px 0 12px', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 820 }}>
+        <p style={{ margin: '6px 0 12px', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55, maxWidth: 820 }}>
           Diagnose one standard against the live secure bank. This shows how many documents match, how many the production
           issuer can grade, which question types/tools are being rejected, and whether the stored coverage report is stale.
           It never returns prompts, answers, generator parameters, or private grading data.
@@ -711,11 +712,11 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end' }}>
           <label style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 800 }}>
             Standard
-            <input value={diagnosticTarget} onChange={(event) => setDiagnosticTarget(event.target.value)} placeholder="A.5A or 8.5I" style={{ minHeight: 38, minWidth: 180, border: '1px solid #bdc1c6', borderRadius: 8, padding: '0 10px' }} />
+            <input value={diagnosticTarget} onChange={(event) => setDiagnosticTarget(event.target.value)} placeholder="A.5A or 8.5I" style={{ minHeight: 38, minWidth: 180, border: '1px solid var(--mm-border)', borderRadius: 8, padding: '0 10px' }} />
           </label>
           <label style={{ display: 'grid', gap: 4, fontSize: 12, fontWeight: 800 }}>
             Practice format
-            <select value={diagnosticFramework} onChange={(event) => setDiagnosticFramework(event.target.value)} style={{ minHeight: 38, border: '1px solid #bdc1c6', borderRadius: 8, padding: '0 9px', background: 'var(--mm-surface)' }}>
+            <select value={diagnosticFramework} onChange={(event) => setDiagnosticFramework(event.target.value)} style={{ minHeight: 38, border: '1px solid var(--mm-border)', borderRadius: 8, padding: '0 9px', background: 'var(--mm-surface)' }}>
               <option value="">Course practice</option>
               <option value="digitalSAT">Digital SAT</option>
               <option value="act">ACT</option>
@@ -727,22 +728,22 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
         </div>
 
         {diagnostic && (
-          <div style={{ marginTop: 14, padding: 14, borderRadius: 10, border: `1px solid ${diagnostic.launchable ? '#81c995' : '#f0b4b2'}`, background: diagnostic.launchable ? '#f4fbf5' : '#fff8f7' }}>
+          <div style={{ marginTop: 14, padding: 14, borderRadius: 10, border: `1px solid ${diagnostic.launchable ? '#81c995' : 'var(--mm-error-border-soft)'}`, background: diagnostic.launchable ? 'var(--mm-success-subtle)' : 'var(--mm-error-subtle)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
               <strong>{diagnostic.displayCode} · {diagnostic.assessmentFramework || 'Course practice'}</strong>
-              <strong style={{ color: diagnostic.launchable ? '#137333' : '#a50e0e' }}>{diagnostic.launchable ? 'LIVE BANK CAN LAUNCH' : 'LIVE BANK CANNOT LAUNCH'}</strong>
+              <strong style={{ color: diagnostic.launchable ? 'var(--mm-success-text)' : 'var(--mm-error-text)' }}>{diagnostic.launchable ? 'LIVE BANK CAN LAUNCH' : 'LIVE BANK CANNOT LAUNCH'}</strong>
             </div>
-            <p style={{ margin: '8px 0 0', fontSize: 13, color: '#3c4043' }}>
+            <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--mm-text)' }}>
               Bank matches <strong>{diagnostic.totalBankMatches}</strong> · active <strong>{diagnostic.activeMatches}</strong> · format matches <strong>{diagnostic.frameworkMatches}</strong> · issuable documents <strong>{diagnostic.issuableDocuments}</strong> · issuable families <strong>{diagnostic.issuableFamilies}</strong>.
             </p>
             {diagnostic.storedCoverage && diagnostic.liveCoverage && diagnostic.storedCoverage.studentReady !== diagnostic.liveCoverage.studentReady && (
-              <p style={{ margin: '8px 0 0', color: '#a50e0e', fontWeight: 900 }}>Stored coverage is stale: the live bank and the saved coverage document disagree. Press Recompute from bank.</p>
+              <p style={{ margin: '8px 0 0', color: 'var(--mm-error-text)', fontWeight: 900 }}>Stored coverage is stale: the live bank and the saved coverage document disagree. Press Recompute from bank.</p>
             )}
             {(diagnostic.rejectionSummary?.total || 0) > 0 && (
               <div style={{ marginTop: 10 }}>
                 <strong style={{ fontSize: 12 }}>Rejected documents:</strong>
                 {sortedGroups(diagnostic.rejectionSummary.byReason).map(([reason, count]) => (
-                  <div key={reason} style={{ marginTop: 4, color: '#a50e0e', fontSize: 12 }}><strong>{count}</strong> · {humanizeReason(reason)}</div>
+                  <div key={reason} style={{ marginTop: 4, color: 'var(--mm-error-text)', fontSize: 12 }}><strong>{count}</strong> · {humanizeReason(reason)}</div>
                 ))}
               </div>
             )}
@@ -750,8 +751,8 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
               <details style={{ marginTop: 10 }}>
                 <summary style={{ cursor: 'pointer', fontWeight: 800 }}>Show rejected IDs / types / tools</summary>
                 {diagnostic.rejected.slice(0, 40).map((entry) => (
-                  <div key={entry.id} style={{ marginTop: 5, fontSize: 12, color: '#5f6368' }}>
-                    <code>{entry.id}</code> · {entry.questionType || 'response'} · {entry.pathToolId || 'field-graded'} · <span style={{ color: '#a50e0e' }}>{humanizeReason(entry.reason)}</span>{entry.diagnosticId ? ` · diagnostic ${entry.diagnosticId}` : ''}
+                  <div key={entry.id} style={{ marginTop: 5, fontSize: 12, color: 'var(--mm-text-muted)' }}>
+                    <code>{entry.id}</code> · {entry.questionType || 'response'} · {entry.pathToolId || 'field-graded'} · <span style={{ color: 'var(--mm-error-text)' }}>{humanizeReason(entry.reason)}</span>{entry.diagnosticId ? ` · diagnostic ${entry.diagnosticId}` : ''}
                   </div>
                 ))}
               </details>
@@ -761,9 +762,9 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
       </section>
 
       {!loading && !index && (
-        <section style={{ ...card, background: '#fef7e0', borderColor: '#f9ab00' }}>
-          <h3 style={{ margin: 0, color: '#7a4f00' }}>Coverage has never been computed for this course</h3>
-          <p style={{ margin: '8px 0 0', color: '#7a4f00', lineHeight: 1.55 }}>
+        <section style={{ ...card, background: 'var(--mm-warning-bg)', borderColor: '#f9ab00' }}>
+          <h3 style={{ margin: 0, color: 'var(--mm-warning-text)' }}>Coverage has never been computed for this course</h3>
+          <p style={{ margin: '8px 0 0', color: 'var(--mm-warning-text)', lineHeight: 1.55 }}>
             Until it is, My Math Path treats every standard as unavailable rather than guessing. Press
             <strong> Recompute from bank</strong> above.
           </p>
@@ -771,7 +772,7 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
       )}
 
       {summary && (
-        <section style={{ ...card, background: summary.fullyCovered ? '#e6f4ea' : '#fff' }}>
+        <section style={{ ...card, background: summary.fullyCovered ? 'var(--mm-success-bg)' : 'var(--mm-surface)' }}>
           <div style={{ display: 'flex', gap: 26, flexWrap: 'wrap' }}>
             {[
               ['Wheel standards', summary.wheelSkills],
@@ -787,17 +788,17 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
             ].map(([label, value]) => (
               <div key={label}>
                 <div style={{ fontSize: 26, fontWeight: 900, color: 'var(--mm-text-strong)' }}>{value}</div>
-                <div style={{ fontSize: 12, color: '#5f6368', fontWeight: 700 }}>{label}</div>
+                <div style={{ fontSize: 12, color: 'var(--mm-text-muted)', fontWeight: 700 }}>{label}</div>
               </div>
             ))}
           </div>
-          <p style={{ margin: '14px 0 0', fontWeight: 900, color: summary.fullyCovered ? '#137333' : '#a50e0e', lineHeight: 1.5 }}>
+          <p style={{ margin: '14px 0 0', fontWeight: 900, color: summary.fullyCovered ? 'var(--mm-success-text)' : 'var(--mm-error-text)', lineHeight: 1.5 }}>
             {summary.fullyCovered
               ? 'Every canonical course standard has launchable practice content.'
               : `${summary.wheelSkills - summary.studentReady} standard${summary.wheelSkills - summary.studentReady === 1 ? '' : 's'} cannot be practised yet, and ${summary.wheelSkills - summary.studentReady === 1 ? 'is' : 'are'} hidden from students until content exists.`}
           </p>
           {summary.quality && (
-            <p style={{ margin: '10px 0 0', color: '#5f6368', fontSize: 13, lineHeight: 1.6 }}>
+            <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.6 }}>
               Content quality across this course: <strong>{summary.quality.productionReady}</strong> production ·{' '}
               <strong>{summary.quality.candidate}</strong> candidate ·{' '}
               <strong>{summary.quality.minimumOperational}</strong> operational placeholders ·{' '}
@@ -807,7 +808,7 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
             </p>
           )}
           {index?.generatedAt && (
-            <p style={{ margin: '6px 0 0', color: '#5f6368', fontSize: 12 }}>
+            <p style={{ margin: '6px 0 0', color: 'var(--mm-text-muted)', fontSize: 12 }}>
               Last computed {new Date(index.generatedAt).toLocaleString()}.
             </p>
           )}
@@ -818,7 +819,7 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
         <section style={card}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
             <h3 style={{ margin: 0 }}>By standard</h3>
-            <label style={{ fontSize: 13, color: '#3c4043', display: 'flex', gap: 6, alignItems: 'center' }}>
+            <label style={{ fontSize: 13, color: 'var(--mm-text)', display: 'flex', gap: 6, alignItems: 'center' }}>
               <input type="checkbox" checked={onlyGaps} onChange={(event) => setOnlyGaps(event.target.checked)} />
               Show only unfinished standards
             </label>
@@ -826,7 +827,7 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
               <thead>
-                <tr style={{ background: '#f1f3f4', textAlign: 'left' }}>
+                <tr style={{ background: 'var(--mm-surface-control)', textAlign: 'left' }}>
                   <th style={{ padding: 9 }}>Standard</th>
                   <th style={{ padding: 9 }}>Issuable</th>
                   <th style={{ padding: 9 }}>Production</th>
@@ -843,19 +844,19 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
                   const quality = row.quality || null;
                   return (
                     <React.Fragment key={row.displayCode}>
-                      <tr style={{ borderBottom: quality?.warnings?.length || quality?.blockers?.length ? 0 : '1px solid #e8eaed' }}>
+                      <tr style={{ borderBottom: quality?.warnings?.length || quality?.blockers?.length ? 0 : '1px solid var(--mm-border-soft)' }}>
                         <td style={{ padding: 9, fontWeight: 900 }}>{row.displayCode}</td>
-                        <td style={{ padding: 9, fontWeight: 900, color: row.issuableCount ? '#137333' : '#a50e0e' }}>{row.issuableCount}</td>
-                        <td style={{ padding: 9, fontWeight: 900, color: (quality?.productionCount || 0) >= 5 ? '#137333' : '#7a4f00' }}>{quality?.productionCount ?? 0}</td>
-                        <td style={{ padding: 9, color: '#5f6368', fontSize: 12 }}>{listOrDash(quality?.representations)}</td>
-                        <td style={{ padding: 9, color: '#5f6368', fontSize: 12 }}>{listOrDash(quality?.taskTypes)}</td>
-                        <td style={{ padding: 9, color: '#5f6368', fontSize: 12 }}>
+                        <td style={{ padding: 9, fontWeight: 900, color: row.issuableCount ? 'var(--mm-success-text)' : 'var(--mm-error-text)' }}>{row.issuableCount}</td>
+                        <td style={{ padding: 9, fontWeight: 900, color: (quality?.productionCount || 0) >= 5 ? 'var(--mm-success-text)' : 'var(--mm-warning-text)' }}>{quality?.productionCount ?? 0}</td>
+                        <td style={{ padding: 9, color: 'var(--mm-text-muted)', fontSize: 12 }}>{listOrDash(quality?.representations)}</td>
+                        <td style={{ padding: 9, color: 'var(--mm-text-muted)', fontSize: 12 }}>{listOrDash(quality?.taskTypes)}</td>
+                        <td style={{ padding: 9, color: 'var(--mm-text-muted)', fontSize: 12 }}>
                           {Object.keys(row.byBand).length
                             ? Object.entries(row.byBand).sort().map(([band, count]) => `B${band}×${count}`).join(' · ')
                             : '—'}
                           {quality?.dokLevels?.length ? ` / DOK ${quality.dokLevels.join(',')}` : ''}
                         </td>
-                        <td style={{ padding: 9, color: '#5f6368', fontSize: 12 }}>
+                        <td style={{ padding: 9, color: 'var(--mm-text-muted)', fontSize: 12 }}>
                           {quality ? `${quality.solutionReviewCount}/${quality.issuableCount}` : '—'}
                           {quality ? ` · ${quality.toolBackedCount} tool` : ''}
                         </td>
@@ -864,13 +865,13 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
                         <td style={{ padding: 9 }}><button type="button" style={{ ...quiet, minHeight: 32, padding: '0 9px', fontSize: 11 }} onClick={() => { setDiagnosticTarget(row.displayCode); setDiagnosticFramework(''); runDiagnostic(row.displayCode, ''); }} disabled={diagnosticBusy}>Check</button></td>
                       </tr>
                       {(quality?.blockers?.length || quality?.warnings?.length) ? (
-                        <tr style={{ borderBottom: '1px solid #e8eaed' }}>
+                        <tr style={{ borderBottom: '1px solid var(--mm-border-soft)' }}>
                           <td colSpan={10} style={{ padding: '0 9px 10px 9px' }}>
                             {quality.blockers.map((line, position) => (
-                              <div key={`b-${position}`} style={{ color: '#a50e0e', fontSize: 12, lineHeight: 1.55 }}>■ {line}</div>
+                              <div key={`b-${position}`} style={{ color: 'var(--mm-error-text)', fontSize: 12, lineHeight: 1.55 }}>■ {line}</div>
                             ))}
                             {quality.warnings.slice(0, 6).map((line, position) => (
-                              <div key={`w-${position}`} style={{ color: '#7a4f00', fontSize: 12, lineHeight: 1.55 }}>▲ {line}</div>
+                              <div key={`w-${position}`} style={{ color: 'var(--mm-warning-text)', fontSize: 12, lineHeight: 1.55 }}>▲ {line}</div>
                             ))}
                           </td>
                         </tr>
@@ -879,7 +880,7 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
                   );
                 })}
                 {rows.length === 0 && (
-                  <tr><td colSpan={10} style={{ padding: 14, color: '#137333', fontWeight: 700 }}>No gaps — every canonical course standard has launchable practice content.</td></tr>
+                  <tr><td colSpan={10} style={{ padding: 14, color: 'var(--mm-success-text)', fontWeight: 700 }}>No gaps — every canonical course standard has launchable practice content.</td></tr>
                 )}
               </tbody>
             </table>

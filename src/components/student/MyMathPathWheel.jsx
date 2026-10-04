@@ -71,13 +71,13 @@ export const MyMathPathWheel = ({
           const passColor = passCount >= 3 ? '#5b21b6' : '#137333';
           return (
             <g key={entry.code} role="button" tabIndex="0" aria-label={`${studentLabelForTeks(entry.code)}: ${status}${passCount ? ` · Path Pass ${Math.min(passCount, 3)} complete` : ''}`} onClick={() => onSelectTEKS?.(entry.code)} onFocus={() => setFocusedTeks(entry.code)} onBlur={() => setFocusedTeks(null)} onMouseEnter={() => setFocusedTeks(entry.code)} onMouseLeave={() => setFocusedTeks(null)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelectTEKS?.(entry.code); } }} style={{ cursor: 'pointer' }}>
-              <path d={describeArc(center, center, innerRadius, active ? outerRadius + 5 : outerRadius, startAngle, endAngle)} fill={MASTERY_STATUS_COLORS[status] || MASTERY_STATUS_COLORS['Not Enough Evidence']} opacity={active ? 1 : 0.9} stroke={passCount ? passColor : '#fff'} strokeWidth={passCount ? 3 : 2} />
-              {passCount > 0 && <circle cx={passBadge.x} cy={passBadge.y} r="4.5" fill={passColor} stroke="#fff" strokeWidth="1.5" />}
-              {retentionConcern && <circle cx={badge.x} cy={badge.y} r="5" fill="#d93025" stroke="#fff" strokeWidth="2" />}
+              <path d={describeArc(center, center, innerRadius, active ? outerRadius + 5 : outerRadius, startAngle, endAngle)} fill={MASTERY_STATUS_COLORS[status] || MASTERY_STATUS_COLORS['Not Enough Evidence']} opacity={active ? 1 : 0.9} style={{ stroke: passCount ? passColor : 'var(--mm-surface)' }} strokeWidth={passCount ? 3 : 2} />
+              {passCount > 0 && <circle cx={passBadge.x} cy={passBadge.y} r="4.5" fill={passColor} style={{ stroke: 'var(--mm-surface)' }} strokeWidth="1.5" />}
+              {retentionConcern && <circle cx={badge.x} cy={badge.y} r="5" fill="#d93025" style={{ stroke: 'var(--mm-surface)' }} strokeWidth="2" />}
             </g>
           );
         })}
-        <circle cx={center} cy={center} r={innerRadius - 4} fill="#fff" />
+        <circle cx={center} cy={center} r={innerRadius - 4} style={{ fill: 'var(--mm-surface)' }} />
         {/* The name of the mathematics, not its catalogue number. The code is
             still the wheel's internal key and still what `onSelectTEKS` hands
             back — it is simply not what a student is asked to read. */}

@@ -34,27 +34,27 @@ export const SecureExamQuestionPlayer = ({ examType, question, initialResponsePa
     });
   };
 
-  if (!question) return <div style={{ padding: 36, textAlign: 'center', color: '#5f6368' }}>Preparing the next secure item…</div>;
+  if (!question) return <div style={{ padding: 36, textAlign: 'center', color: 'var(--mm-text-muted)' }}>Preparing the next secure item…</div>;
   return (
     <main style={{ width: 'min(820px, 100%)', margin: '0 auto', padding: '28px 18px 64px', boxSizing: 'border-box' }}>
-      <section style={{ background: 'var(--mm-surface)', border: '1px solid #dadce0', borderRadius: 14, padding: 'clamp(18px, 4vw, 30px)', boxShadow: '0 5px 22px rgba(0,0,0,.07)' }}>
-        <div style={{ color: '#5f6368', fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }}>Secure exam question</div>
+      <section style={{ background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: 14, padding: 'clamp(18px, 4vw, 30px)', boxShadow: '0 5px 22px rgba(0,0,0,.07)' }}>
+        <div style={{ color: 'var(--mm-text-muted)', fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }}>Secure exam question</div>
         {/* Secure mode deliberately hides TEKS/domain labels while answering,
             but the mathematics itself must still render exactly as authored. */}
         <MathText as="h1" style={{ color: 'var(--mm-text-strong)', fontSize: 'clamp(20px, 4vw, 27px)', lineHeight: 1.45, margin: '10px 0 24px', fontWeight: 760 }}>{question.prompt}</MathText>
-        {question.formulaLatex && <div style={{ background: '#f8f9fa', padding: 12, borderRadius: 8, marginBottom: 18, overflowX: 'auto' }}><MathDisplay value={question.formulaLatex} /></div>}
+        {question.formulaLatex && <div style={{ background: 'var(--mm-surface-sunken)', padding: 12, borderRadius: 8, marginBottom: 18, overflowX: 'auto' }}><MathDisplay value={question.formulaLatex} /></div>}
         <PathQuestionStimulus stimulus={question.stimulus} />
         <form onSubmit={submit}>
           <div style={{ display: 'grid', gap: 15 }}>
             {fields.map((field, fieldIndex) => (
               <fieldset key={field.id} style={{ border: 0, padding: 0, margin: 0 }}>
-                <legend style={{ fontSize: 13, fontWeight: 900, color: '#3c4043', marginBottom: 7 }}>
+                <legend style={{ fontSize: 13, fontWeight: 900, color: 'var(--mm-text)', marginBottom: 7 }}>
                   <MathText>{field.label || `Response ${fieldIndex + 1}`}{field.unit ? ` (${field.unit})` : ''}</MathText>
                 </legend>
                 {choices.length && fields.length === 1 ? choices.map((choice) => {
                   const selected = responses[field.id] === choice.id;
                   return (
-                    <label key={choice.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 13px', marginBottom: 8, border: selected ? '2px solid #1a73e8' : '1px solid #c7ccd1', borderRadius: 9, cursor: 'pointer', background: selected ? '#eef4ff' : '#fff', boxShadow: selected ? '0 0 0 1px rgba(26,115,232,.08)' : 'none' }}>
+                    <label key={choice.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 13px', marginBottom: 8, border: selected ? '2px solid #1a73e8' : '1px solid var(--mm-border)', borderRadius: 9, cursor: 'pointer', background: selected ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', boxShadow: selected ? '0 0 0 1px rgba(26,115,232,.08)' : 'none' }}>
                       <input type="radio" name={field.id} value={choice.id} checked={selected} onChange={(event) => updateResponse(field.id, event.target.value)} style={{ marginTop: 3 }} />
                       <MathText style={{ lineHeight: 1.5 }}>{choice.label}</MathText>
                     </label>
@@ -71,7 +71,7 @@ export const SecureExamQuestionPlayer = ({ examType, question, initialResponsePa
                     value={responses[field.id] ?? ''}
                     onChange={(event) => updateResponse(field.id, event.target.value)}
                     aria-label={field.label || `Response ${fieldIndex + 1}`}
-                    style={{ width: '100%', minHeight: 48, padding: '10px 12px', border: '2px solid #c7ccd1', borderRadius: 8, boxSizing: 'border-box', fontSize: 17 }}
+                    style={{ width: '100%', minHeight: 48, padding: '10px 12px', border: '2px solid var(--mm-border)', borderRadius: 8, boxSizing: 'border-box', fontSize: 17 }}
                   />
                 )}
               </fieldset>

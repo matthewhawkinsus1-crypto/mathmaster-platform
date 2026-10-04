@@ -23,8 +23,8 @@ body.mathmaster-solver-workspace-open::before {
   padding: clamp(8px, 1.2vw, 18px) !important;
   overflow: auto !important;
   overscroll-behavior: contain;
-  background: #f7f9fc !important;
-  border: 1px solid #cad8ec;
+  background: var(--mm-surface-sunken) !important;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 18px;
   box-shadow: 0 24px 80px rgba(15, 23, 42, .36);
 }
@@ -43,9 +43,9 @@ body.mathmaster-solver-workspace-open::before {
   min-height: 46px;
   margin: 0 0 10px;
   padding: 6px 8px;
-  border: 1px solid #d7e2f3;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 13px;
-  background: #f8fbff;
+  background: var(--mm-surface-tint);
 }
 
 .solver-workspace-frame[data-workspace-mode="enlarged"] .solver-workspace-modebar,
@@ -74,7 +74,7 @@ body.mathmaster-solver-workspace-open::before {
 
 .solver-workspace-modebar__context strong {
   flex: 0 0 auto;
-  color: #174ea6;
+  color: var(--mm-primary-text);
   font-size: 13px;
   font-weight: 900;
 }
@@ -82,7 +82,7 @@ body.mathmaster-solver-workspace-open::before {
 .solver-workspace-modebar__context span {
   min-width: 0;
   overflow: hidden;
-  color: #3c4043;
+  color: var(--mm-text);
   font-size: 13px;
   font-weight: 700;
   text-overflow: ellipsis;
@@ -100,10 +100,10 @@ body.mathmaster-solver-workspace-open::before {
 .solver-workspace-modebar button {
   min-height: 36px;
   padding: 6px 10px;
-  border: 1px solid #b8c8e3;
+  border: 1px solid var(--mm-primary-border);
   border-radius: 9px;
   background: var(--mm-surface);
-  color: #174ea6;
+  color: var(--mm-primary-text);
   font-size: 12px;
   font-weight: 850;
   cursor: pointer;
@@ -112,12 +112,12 @@ body.mathmaster-solver-workspace-open::before {
 .solver-workspace-modebar button:hover:not(:disabled),
 .solver-workspace-modebar button:focus-visible {
   border-color: #1a73e8;
-  background: #eef5ff;
+  background: var(--mm-primary-subtle);
 }
 
 .solver-workspace-modebar button.is-active {
   border: 2px solid #1a73e8;
-  background: #e8f0fe;
+  background: var(--mm-primary-soft);
 }
 
 .solver-workspace-modebar button:disabled {
@@ -134,8 +134,8 @@ body.mathmaster-solver-workspace-open::before {
 
 .solver-workspace-return {
   border-color: #8aa5cf !important;
-  background: #fff !important;
-  color: #174ea6 !important;
+  background: var(--mm-surface) !important;
+  color: var(--mm-primary-text) !important;
 }
 
 .solver-workspace-global-action {
@@ -150,7 +150,7 @@ body.mathmaster-solver-workspace-open::before {
   margin: -4px 0 10px;
   padding: 10px 12px;
   overflow: auto;
-  border: 1px solid #c8d5ea;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 12px;
   background: var(--mm-surface);
   box-shadow: 0 8px 24px rgba(31, 73, 125, .12);
@@ -161,7 +161,7 @@ body.mathmaster-solver-workspace-open::before {
   width: 1px;
   height: 28px;
   margin: 0 2px;
-  background: #d4deed;
+  background: var(--mm-primary-soft);
 }
 
 .solver-workspace-zoom {
@@ -169,7 +169,7 @@ body.mathmaster-solver-workspace-open::before {
   align-items: center;
   gap: 4px;
   padding: 3px;
-  border: 1px solid #d7e2f3;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 10px;
   background: var(--mm-surface);
 }
@@ -183,7 +183,7 @@ body.mathmaster-solver-workspace-open::before {
 
 .solver-workspace-zoom output {
   min-width: 44px;
-  color: #3c4043;
+  color: var(--mm-text);
   font-size: 11px;
   font-weight: 850;
   text-align: center;
@@ -217,7 +217,7 @@ body.mathmaster-solver-workspace-open::before {
 /* FOCUS WORKSPACE: the same mounted solver, but the central work surface grows
    and a collapsible work-history rail becomes available. */
 .solver-workspace-frame[data-workspace-mode="focus"] .solver-workspace-layout {
-  grid-template-columns: minmax(0, 1fr) minmax(250px, 310px);
+  grid-template-columns: minmax(0, 1fr) minmax(min(100%, 250px), 310px);
   align-items: start;
 }
 
@@ -236,7 +236,7 @@ body.mathmaster-solver-workspace-open::before {
   max-height: calc(100vh - 105px);
   overflow: auto;
   padding: 12px;
-  border: 1px solid #c8d5ea;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 13px;
   background: var(--mm-surface);
   box-shadow: 0 6px 18px rgba(31, 73, 125, .08);
@@ -322,8 +322,8 @@ body.mathmaster-solver-workspace-open::before {
   min-height: 24px;
   padding: 3px 10px;
   border-radius: 999px;
-  background: #eef4ff;
-  color: #5f6368;
+  background: var(--mm-primary-subtle);
+  color: var(--mm-text-muted);
   font-size: 11px;
   font-weight: 950;
   letter-spacing: .04em;
@@ -371,13 +371,13 @@ body.mathmaster-solver-workspace-open::before {
 
 .solver-work-history h3 {
   margin: 0 0 4px;
-  color: #174ea6;
+  color: var(--mm-primary-text);
   font-size: 15px;
 }
 
 .solver-work-history > p {
   margin: 0 0 10px;
-  color: #5f6368;
+  color: var(--mm-text-muted);
   font-size: 11px;
   line-height: 1.4;
 }
@@ -391,9 +391,9 @@ body.mathmaster-solver-workspace-open::before {
 
 .solver-work-history li {
   padding: 8px 9px;
-  border: 1px solid #e0e7f2;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 9px;
-  background: #f8fbff;
+  background: var(--mm-surface-tint);
   color: var(--mm-text-strong);
 }
 
@@ -416,7 +416,7 @@ body.mathmaster-solver-workspace-open::before {
 
 @media (max-width: 1020px) {
   .solver-workspace-frame[data-workspace-mode="focus"] .solver-workspace-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
+    grid-template-columns: minmax(0, 1fr) minmax(min(100%, 220px), 260px);
   }
 
   .solver-workspace-modebar__context span {

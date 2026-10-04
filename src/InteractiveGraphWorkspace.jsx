@@ -55,10 +55,10 @@ const ZOOM_BUTTON = {
   minWidth: 44,
   minHeight: 44,
   padding: '9px 14px',
-  border: '1px solid #c5d5ef',
+  border: '1px solid var(--mm-tint-border)',
   borderRadius: '8px',
   background: 'var(--mm-surface)',
-  color: '#174ea6',
+  color: 'var(--mm-primary-text)',
   fontWeight: 'bold',
   fontSize: 18,
   lineHeight: 1,
@@ -151,9 +151,9 @@ const makeMarkerDragImage = (type) => {
 // workspace shows.
 
 const stageButtonStyle = (active, disabled = false) => ({
-  border: active ? '2px solid #1a73e8' : '1px solid #c5d5ef',
-  background: active ? '#e8f0fe' : '#fff',
-  color: active ? '#174ea6' : '#5f6368',
+  border: active ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)',
+  background: active ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+  color: active ? 'var(--mm-primary-text)' : 'var(--mm-text-muted)',
   borderRadius: '999px',
   padding: '8px 14px',
   fontWeight: 'bold',
@@ -1122,14 +1122,14 @@ export default function InteractiveGraphWorkspace({
           authored the question WHY the coordinate setting was forced, and a
           student reading it learns nothing they can act on — the same class of
           leak as an authoring field printed in a prompt. */}
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px 14px', flexWrap: 'wrap', marginBottom: '12px', fontSize: '12px', fontWeight: 700, color: '#5f6368' }}>
-        <span style={{ color: '#174ea6' }}>{pointOnly ? 'Table points' : (FUNCTION_GRAPH_LABELS[functionSpec.type] || 'Function')}</span>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px 14px', flexWrap: 'wrap', marginBottom: '12px', fontSize: '12px', fontWeight: 700, color: 'var(--mm-text-muted)' }}>
+        <span style={{ color: 'var(--mm-primary-text)' }}>{pointOnly ? 'Table points' : (FUNCTION_GRAPH_LABELS[functionSpec.type] || 'Function')}</span>
         <span aria-hidden="true">·</span>
-        <span style={{ color: showCoordinates ? '#137333' : '#5f6368' }}>Coordinates {showCoordinates ? 'shown' : 'hidden'}</span>
+        <span style={{ color: showCoordinates ? 'var(--mm-success-text)' : 'var(--mm-text-muted)' }}>Coordinates {showCoordinates ? 'shown' : 'hidden'}</span>
         {studentChoosesX && constructionEnabled && (
           <>
             <span aria-hidden="true">·</span>
-            <span style={{ color: '#681da8' }}>Choose your own x-values</span>
+            <span style={{ color: 'var(--mm-accent-text)' }}>Choose your own x-values</span>
           </>
         )}
       </div>
@@ -1163,8 +1163,8 @@ export default function InteractiveGraphWorkspace({
             width: 'fit-content',
             maxWidth: 'calc(100% - 48px)',
             borderRadius: 8,
-            background: '#f8fbff',
-            color: '#174ea6',
+            background: 'var(--mm-surface-tint)',
+            color: 'var(--mm-primary-text)',
             fontSize: 20,
             fontWeight: 800,
             boxSizing: 'border-box',
@@ -1173,24 +1173,24 @@ export default function InteractiveGraphWorkspace({
           <MathDisplay value={graphEquationLatex} format="latex" inline />
         </div>
       )}
-      <div className={`mathmaster-function-workspace-grid${domainRangeOnly ? ' mathmaster-domain-range-only' : ''}`} style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 220px) minmax(0, 1fr)', gap: '16px', justifyContent: 'center', alignItems: 'start' }}>
-        <aside className="mathmaster-function-workspace-sidebar" style={{ border: '1px solid #dfe3e7', borderRadius: '12px', background: '#f8fbff', padding: '12px' }}>
+      <div className={`mathmaster-function-workspace-grid${domainRangeOnly ? ' mathmaster-domain-range-only' : ''}`} style={{ display: 'grid', gridTemplateColumns: 'minmax(min(100%, 180px), 220px) minmax(0, 1fr)', gap: '16px', justifyContent: 'center', alignItems: 'start' }}>
+        <aside className="mathmaster-function-workspace-sidebar" style={{ border: '1px solid var(--mm-border)', borderRadius: '12px', background: 'var(--mm-surface-tint)', padding: '12px' }}>
           {stage === 'construct' ? (
             <>
-              <h3 style={{ margin: '0 0 8px', fontSize: '16px', color: '#174ea6' }}>
+              <h3 style={{ margin: '0 0 8px', fontSize: '16px', color: 'var(--mm-primary-text)' }}>
                 {construction.snapped && endpointRequirements.length > 0 ? endpointSectionTitle : 'Plotting Points'}
               </h3>
               {!construction.snapped && (
                 <>
-                  <p style={{ margin: '0 0 10px', color: '#5f6368', fontSize: '12px' }}>{mobileInteraction.isMobile ? 'Tap a point card, then tap its location on the coordinate plane.' : 'Drag a point, or select it and click the coordinate plane. Colored guides show the exact location.'}</p>
-                  {magneticSnapTargets.length > 0 && <p style={{ margin: '0 0 10px', padding: '7px 8px', borderRadius: '7px', background: '#e6f4ea', color: '#137333', fontSize: '12px', lineHeight: 1.4 }}><strong>Magnetic placement is on.</strong> Points from your completed table will gently snap to the exact coordinate when you get close.</p>}
+                  <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', fontSize: '12px' }}>{mobileInteraction.isMobile ? 'Tap a point card, then tap its location on the coordinate plane.' : 'Drag a point, or select it and click the coordinate plane. Colored guides show the exact location.'}</p>
+                  {magneticSnapTargets.length > 0 && <p style={{ margin: '0 0 10px', padding: '7px 8px', borderRadius: '7px', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: '12px', lineHeight: 1.4 }}><strong>Magnetic placement is on.</strong> Points from your completed table will gently snap to the exact coordinate when you get close.</p>}
                   <div style={{ display: 'grid', gap: '8px' }}>
                 {tasks.map((task) => {
                   const placement = construction.placements[task.id];
                   const active = activeTaskId === task.id;
                   const xValue = construction.chosenXValues[task.id] ?? '';
                   const canPlace = task.expected === 'undefined' || Number.isFinite(Number(xValue));
-                  return <div key={task.id} style={{ border: active ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '9px', background: placement ? '#eef5ff' : '#fff', padding: '9px' }}>
+                  return <div key={task.id} style={{ border: active ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', borderRadius: '9px', background: placement ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', padding: '9px' }}>
                     <button type="button" draggable={!mobileInteraction.isMobile && !pointsLocked && canPlace} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-point', task.id); event.dataTransfer.setDragImage(makePointDragImage(), 22, 22); setDraggingTaskId(task.id); }} onDragEnd={() => { setDraggingTaskId(null); setDropCandidate(null); setDropMagneticTarget(null); }} aria-pressed={active}
                     aria-label={`${toPlainMath(task.label)}${active ? ` — selected. Move the cursor on the plane and press Enter${typedRouteOffer()}.` : ''}`}
                     onClick={() => { if (!pointsLocked && canPlace) { setActiveTaskId(task.id); setKeyboardAnnouncement(`${toPlainMath(task.label)} selected. Use the arrow keys on the plane and press Enter${typedRouteOffer(' below')}.`); if (mobileInteraction.isMobile) revealPlaneForPlacement(); } }} style={{ width: '100%', textAlign: 'left', border: 'none', background: 'transparent', padding: 0, cursor: pointsLocked || !canPlace ? 'default' : 'grab' }}>
@@ -1199,13 +1199,13 @@ export default function InteractiveGraphWorkspace({
                           a screen reader should hear the source, not markup — but
                           the visible label is mathematics and renders as such. */}
                       <strong style={{ color: 'var(--mm-text-strong)' }}><MathText>{task.label}</MathText>{taskStatesX(task) ? `: x = ${task.x}` : ''}</strong>
-                      <span style={{ display: 'block', color: placement ? '#174ea6' : '#5f6368', fontSize: '12px', marginTop: '3px' }}>{taskPlacementLabel(placement)}</span>
+                      <span style={{ display: 'block', color: placement ? 'var(--mm-primary-text)' : 'var(--mm-text-muted)', fontSize: '12px', marginTop: '3px' }}>{taskPlacementLabel(placement)}</span>
                     </button>
-                    {task.studentChoosesX && <label style={{ display: 'block', marginTop: '7px', fontSize: '12px', fontWeight: 'bold', color: '#5f6368' }}>Choose x<input type="number" step={xSnapStep} value={xValue} onChange={(event) => constructionHistory.setValue((current) => ({ ...current, chosenXValues: { ...current.chosenXValues, [task.id]: event.target.value }, placements: { ...current.placements, [task.id]: undefined } }))} style={{ width: '100%', marginTop: '4px', padding: '7px', boxSizing: 'border-box', borderRadius: '6px', border: '1px solid #9fb8dd' }} /></label>}
+                    {task.studentChoosesX && <label style={{ display: 'block', marginTop: '7px', fontSize: '12px', fontWeight: 'bold', color: 'var(--mm-text-muted)' }}>Choose x<input type="number" step={xSnapStep} value={xValue} onChange={(event) => constructionHistory.setValue((current) => ({ ...current, chosenXValues: { ...current.chosenXValues, [task.id]: event.target.value }, placements: { ...current.placements, [task.id]: undefined } }))} style={{ width: '100%', marginTop: '4px', padding: '7px', boxSizing: 'border-box', borderRadius: '6px', border: '1px solid var(--mm-primary-border)' }} /></label>}
                   </div>;
                 })}
                   </div>
-                  {tasks.some((task) => task.expected === 'undefined') && <button type="button" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); placeTask(event.dataTransfer.getData('application/x-mathmaster-point') || activeTaskId, 'undefined'); }} onClick={() => activeTaskId && placeTask(activeTaskId, 'undefined')} style={{ width: '100%', marginTop: '12px', minHeight: '72px', border: '2px dashed #9334e6', borderRadius: '10px', background: '#f8f0ff', color: '#6f2da8', fontWeight: 'bold' }}>Not Real / Undefined</button>}
+                  {tasks.some((task) => task.expected === 'undefined') && <button type="button" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); placeTask(event.dataTransfer.getData('application/x-mathmaster-point') || activeTaskId, 'undefined'); }} onClick={() => activeTaskId && placeTask(activeTaskId, 'undefined')} style={{ width: '100%', marginTop: '12px', minHeight: '72px', border: '2px dashed #9334e6', borderRadius: '10px', background: 'var(--mm-accent-subtle)', color: 'var(--mm-accent-text)', fontWeight: 'bold' }}>Not Real / Undefined</button>}
                   {/* CHECK YOUR OWN WORK BEFORE SPENDING AN ATTEMPT.
                       On paper a student checks a point against the rule; here
                       there was nothing between guessing and committing. This
@@ -1218,17 +1218,17 @@ export default function InteractiveGraphWorkspace({
                         onClick={runSelfCheck}
                         disabled={!Object.keys(construction.placements).length}
                         title="Compares your plotted points with the function. Recorded for your teacher, like a hint."
-                        style={{ width: '100%', minHeight: 44, padding: '10px', border: '1px solid #e0a800', borderRadius: '8px', background: '#fffaf0', color: '#7a4f01', fontWeight: 800, opacity: Object.keys(construction.placements).length ? 1 : 0.5 }}
+                        style={{ width: '100%', minHeight: 44, padding: '10px', border: '1px solid #e0a800', borderRadius: '8px', background: 'var(--mm-warning-subtle)', color: 'var(--mm-warning-text)', fontWeight: 800, opacity: Object.keys(construction.placements).length ? 1 : 0.5 }}
                       >
                         Check my points
                       </button>
-                      <span style={{ display: 'block', marginTop: '4px', fontSize: '11px', color: '#7a6027' }}>Recorded for your teacher</span>
+                      <span style={{ display: 'block', marginTop: '4px', fontSize: '11px', color: 'var(--mm-warning-text)' }}>Recorded for your teacher</span>
                       {selfCheckReport && (
-                        <div role="status" style={{ marginTop: '8px', padding: '9px 10px', borderRadius: '8px', border: '1px solid #f0d9a8', background: '#fffaf0' }}>
-                          <strong style={{ display: 'block', fontSize: '12px', color: '#7a4f01' }}>{summarizeSelfCheck(selfCheckReport)}</strong>
-                          <ul style={{ margin: '6px 0 0', paddingLeft: 16, fontSize: '11.5px', lineHeight: 1.5, color: '#5f4400' }}>
+                        <div role="status" style={{ marginTop: '8px', padding: '9px 10px', borderRadius: '8px', border: '1px solid var(--mm-warning-border-soft)', background: 'var(--mm-warning-subtle)' }}>
+                          <strong style={{ display: 'block', fontSize: '12px', color: 'var(--mm-warning-text)' }}>{summarizeSelfCheck(selfCheckReport)}</strong>
+                          <ul style={{ margin: '6px 0 0', paddingLeft: 16, fontSize: '11.5px', lineHeight: 1.5, color: 'var(--mm-warning-text)' }}>
                             {selfCheckReport.results.map((entry) => (
-                              <li key={entry.id} style={{ color: entry.correct ? '#137333' : '#5f4400' }}>
+                              <li key={entry.id} style={{ color: entry.correct ? 'var(--mm-success-text)' : 'var(--mm-warning-text)' }}>
                                 {pointLabel(entry.point)} — {entry.text}
                               </li>
                             ))}
@@ -1238,7 +1238,7 @@ export default function InteractiveGraphWorkspace({
                     </div>
                   )}
                   {!construction.pointsValidated && outcomesWithheld && (
-                    <p data-points-graded-on-submit style={{ margin: '12px 0 0', fontSize: '12px', lineHeight: 1.45, color: '#5f6368' }}>
+                    <p data-points-graded-on-submit style={{ margin: '12px 0 0', fontSize: '12px', lineHeight: 1.45, color: 'var(--mm-text-muted)' }}>
                       {pointOnly
                         ? 'Your points are graded when you submit. You can move any of them until then.'
                         : 'Your points and your curve are graded when you submit. Place every point, then draw your curve through them. Clear Sketch lets you move a point again.'}
@@ -1249,18 +1249,18 @@ export default function InteractiveGraphWorkspace({
                 </>
               )}
               {construction.snapped && endpointRequirements.length > 0 && <div style={{ marginTop: '4px' }}>
-                <p style={{ margin: '0 0 8px', fontSize: '11px', color: '#5f6368', lineHeight: 1.45 }}>{endpointInstruction} {outcomesWithheld
+                <p style={{ margin: '0 0 8px', fontSize: '11px', color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>{endpointInstruction} {outcomesWithheld
                   ? (mobileInteraction.isMobile ? 'Tap a marker, then tap the end of your curve.' : 'Drag or select a marker, then place it at the end of your curve.')
                   : (mobileInteraction.isMobile ? 'Tap a marker, then tap near a graph end; a generous magnetic area helps it snap into place.' : 'Drag or select a marker, then place it near a graph end; a generous magnetic area helps it snap into place.')}</p>
                 {availableMarkerTypes.map((type) => { const label = markerLabels[type]; return <button key={type} type="button" draggable={!mobileInteraction.isMobile} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-marker', type); event.dataTransfer.setDragImage(makeMarkerDragImage(type), 26, 26); setDraggingMarkerType(type); }} onDragEnd={() => { setDraggingMarkerType(null); setDropCandidate(null); setDropMagneticTarget(null); }} aria-pressed={activeMarker === type}
-                  onClick={() => { setActiveMarker(type); setKeyboardAnnouncement(`${label} selected. Use the arrow keys on the plane and press Enter${typedRouteOffer(' below')}.`); }} style={{ width: '100%', marginTop: '6px', padding: '9px', border: activeMarker === type ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '8px', background: 'var(--mm-surface)', fontWeight: 'bold', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ fontSize: '23px', color: '#1a73e8' }}>{markerSymbols[type]}</span><span><span style={{ display: 'block' }}>{label}</span><span style={{ display: 'block', fontSize: '11px', color: '#5f6368', fontWeight: 400 }}>{markerExplanations[type]}</span></span></button>; })}
-                <div style={{ marginTop: '10px', display: 'grid', gap: '5px' }}>{endpointRequirements.map((requirement, index) => { const placement = construction.markerPlacements[requirement.id]; return <div key={requirement.id} style={{ fontSize: '12px', color: placement ? '#174ea6' : '#5f6368' }}>{boundaryOnly && endsDescribedForStudent ? 'Boundary' : 'End'} {index + 1}: {placement ? markerLabels[markerValue(placement)] : 'not placed'}</div>; })}</div>
+                  onClick={() => { setActiveMarker(type); setKeyboardAnnouncement(`${label} selected. Use the arrow keys on the plane and press Enter${typedRouteOffer(' below')}.`); }} style={{ width: '100%', marginTop: '6px', padding: '9px', border: activeMarker === type ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', borderRadius: '8px', background: 'var(--mm-surface)', fontWeight: 'bold', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ fontSize: '23px', color: 'var(--mm-primary)' }}>{markerSymbols[type]}</span><span><span style={{ display: 'block' }}>{label}</span><span style={{ display: 'block', fontSize: '11px', color: 'var(--mm-text-muted)', fontWeight: 400 }}>{markerExplanations[type]}</span></span></button>; })}
+                <div style={{ marginTop: '10px', display: 'grid', gap: '5px' }}>{endpointRequirements.map((requirement, index) => { const placement = construction.markerPlacements[requirement.id]; return <div key={requirement.id} style={{ fontSize: '12px', color: placement ? 'var(--mm-primary-text)' : 'var(--mm-text-muted)' }}>{boundaryOnly && endsDescribedForStudent ? 'Boundary' : 'End'} {index + 1}: {placement ? markerLabels[markerValue(placement)] : 'not placed'}</div>; })}</div>
               </div>}
             </>
           ) : (
             <>
-              <h3 className="mathmaster-analysis-title" style={{ margin: '0 0 8px', fontSize: '16px', color: '#174ea6' }}>{inverseReflectionEnabled ? 'Build the Inverse' : 'Analysis Parts'}</h3>
-              {inverseReflectionEnabled && <p style={{ margin: '0 0 10px', color: '#5f6368', fontSize: '12px', lineHeight: 1.5 }}>Reflect both {revealPointCorrectness ? 'validated' : 'plotted'} points across <strong>y=x</strong>. {revealPointCorrectness ? 'After both reflected points are correct, draw' : 'Then draw'} the inverse through them and write <strong>f⁻¹(x)</strong>.</p>}
+              <h3 className="mathmaster-analysis-title" style={{ margin: '0 0 8px', fontSize: '16px', color: 'var(--mm-primary-text)' }}>{inverseReflectionEnabled ? 'Build the Inverse' : 'Analysis Parts'}</h3>
+              {inverseReflectionEnabled && <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', fontSize: '12px', lineHeight: 1.5 }}>Reflect both {revealPointCorrectness ? 'validated' : 'plotted'} points across <strong>y=x</strong>. {revealPointCorrectness ? 'After both reflected points are correct, draw' : 'Then draw'} the inverse through them and write <strong>f⁻¹(x)</strong>.</p>}
               {analysisParts.map((part) => {
                 if (inverseReflectionEnabled && part.id === inverseReflection?.equationPartId && !analysis.inverseSnapped) return null;
                 const grade = feedback?.partGrades?.find((item) => item.id === part.id);
@@ -1269,21 +1269,21 @@ export default function InteractiveGraphWorkspace({
                 const offersAllRealNumbers = ['domain', 'range'].includes(part.kind)
                   && String(part.notation || '').toLowerCase() === 'inequality';
                 const answerShape = analysisAnswerShape(part);
-                return <div key={part.id} className={`mathmaster-analysis-part mathmaster-analysis-part-${part.kind}`} style={{ marginTop: '9px', padding: '10px', borderRadius: '9px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : activeAnalysisPartId === part.id ? '#1a73e8' : '#d9e2f1'}`, background: grade && !grade.isCorrect ? '#fff8f7' : '#fff' }}>
+                return <div key={part.id} className={`mathmaster-analysis-part mathmaster-analysis-part-${part.kind}`} style={{ marginTop: '9px', padding: '10px', borderRadius: '9px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : activeAnalysisPartId === part.id ? '#1a73e8' : 'var(--mm-tint-border)'}`, background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : 'var(--mm-surface)' }}>
                   <button type="button" onClick={() => setActiveAnalysisPartId(part.id)} style={{ width: '100%', border: 'none', background: 'transparent', textAlign: 'left', fontWeight: 'bold', color: 'var(--mm-text-strong)' }}><MathText>{part.label}</MathText></button>
                   {answerShape.hint && !['point', 'inversePoint'].includes(part.kind) && (
-                    <p style={{ margin: '5px 0 0', fontSize: '11.5px', lineHeight: 1.4, color: '#5f6368' }}>
+                    <p style={{ margin: '5px 0 0', fontSize: '11.5px', lineHeight: 1.4, color: 'var(--mm-text-muted)' }}>
                       {answerShape.hint}
-                      {answerShape.example ? <> For example <strong style={{ color: '#3c4043' }}>{answerShape.example}</strong>.</> : null}
+                      {answerShape.example ? <> For example <strong style={{ color: 'var(--mm-text)' }}>{answerShape.example}</strong>.</> : null}
                     </p>
                   )}
                   {['point', 'inversePoint'].includes(part.kind) ? <>
-                    {part.responseMode !== 'input' && <div style={{ marginTop: '5px', fontSize: '12px', color: '#5f6368' }}>{noneSelected ? 'Marked: does not exist' : `${selected.length}/${part.expected.length || 1} selected`}</div>}
-                    {part.allowNone && part.responseMode !== 'input' && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, noneSelections: { ...current.noneSelections, [part.id]: !current.noneSelections[part.id] }, selections: { ...current.selections, [part.id]: [] } }))} style={{ marginTop: '7px', padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: noneSelected ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}
+                    {part.responseMode !== 'input' && <div style={{ marginTop: '5px', fontSize: '12px', color: 'var(--mm-text-muted)' }}>{noneSelected ? 'Marked: does not exist' : `${selected.length}/${part.expected.length || 1} selected`}</div>}
+                    {part.allowNone && part.responseMode !== 'input' && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, noneSelections: { ...current.noneSelections, [part.id]: !current.noneSelections[part.id] }, selections: { ...current.selections, [part.id]: [] } }))} style={{ marginTop: '7px', padding: '6px 9px', borderRadius: '7px', border: '1px solid var(--mm-tint-border)', background: noneSelected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>Does not exist</button>}
                     {part.responseMode !== 'click' && <div style={{ marginTop: '8px' }}><MathInput value={analysis.typedPoints[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, typedPoints: { ...current.typedPoints, [part.id]: value } }))} ariaLabel={toPlainMath(part.label)} placeholder={part.expected.length > 1 ? '(x₁, y₁), (x₂, y₂)' : '(x, y) or DNE'} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} /></div>}
                   </> : <div style={{ marginTop: '8px' }}>
                     <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', marginBottom: (part.allowsEmptyAnswer || offersAllRealNumbers) ? '7px' : 0 }}>
-                      {part.allowsEmptyAnswer && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: 'does not exist' } }))} style={{ padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: String(analysis.answers[part.id] || '').toLowerCase().includes('exist') ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}
+                      {part.allowsEmptyAnswer && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: 'does not exist' } }))} style={{ padding: '6px 9px', borderRadius: '7px', border: '1px solid var(--mm-tint-border)', background: String(analysis.answers[part.id] || '').toLowerCase().includes('exist') ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>Does not exist</button>}
                       {offersAllRealNumbers && <button
                         type="button"
                         onClick={() => {
@@ -1297,9 +1297,9 @@ export default function InteractiveGraphWorkspace({
                         style={{
                           padding: '6px 9px',
                           borderRadius: '7px',
-                          border: '1px solid #9bb8e8',
-                          background: /all\s*real/i.test(String(analysis.answers[part.id] || '')) ? '#e8f0fe' : '#fff',
-                          color: '#174ea6',
+                          border: '1px solid var(--mm-primary-border)',
+                          background: /all\s*real/i.test(String(analysis.answers[part.id] || '')) ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+                          color: 'var(--mm-primary-text)',
                           fontWeight: 'bold',
                         }}
                       >
@@ -1323,8 +1323,8 @@ export default function InteractiveGraphWorkspace({
                   Check Reflected Points
                 </button>
               )}
-              {inverseReflectionEnabled && inversePointsCommitted && !analysis.inverseSnapped && <p style={{ margin: '12px 0 0', color: '#6f2da8', fontSize: '12px', lineHeight: 1.5, fontWeight: 'bold' }}>{analysis.inversePointsValidated ? 'Both reflected points are correct. Draw f⁻¹ directly on the coordinate plane through both points.' : 'Draw f⁻¹ directly on the coordinate plane through both of your reflected points. They are graded when you submit.'}</p>}
-              {inverseReflectionEnabled && analysis.inverseSnapped && <p style={{ margin: '12px 0 0', color: '#137333', fontSize: '12px', lineHeight: 1.5, fontWeight: 'bold' }}>Inverse graph complete. Finish the equation field above.</p>}
+              {inverseReflectionEnabled && inversePointsCommitted && !analysis.inverseSnapped && <p style={{ margin: '12px 0 0', color: 'var(--mm-accent-text)', fontSize: '12px', lineHeight: 1.5, fontWeight: 'bold' }}>{analysis.inversePointsValidated ? 'Both reflected points are correct. Draw f⁻¹ directly on the coordinate plane through both points.' : 'Draw f⁻¹ directly on the coordinate plane through both of your reflected points. They are graded when you submit.'}</p>}
+              {inverseReflectionEnabled && analysis.inverseSnapped && <p style={{ margin: '12px 0 0', color: 'var(--mm-success-text)', fontSize: '12px', lineHeight: 1.5, fontWeight: 'bold' }}>Inverse graph complete. Finish the equation field above.</p>}
             </>
           )}
         </aside>
@@ -1332,7 +1332,7 @@ export default function InteractiveGraphWorkspace({
         {/* data-work-view-reveal: enlarging the question brings this plane fully
             into view (workViewReveal.js). Read only by the Work View shell, so
             the embedded page does not move. */}
-        <figure className="mathmaster-function-workspace-graph" data-work-view-reveal="true" style={{ margin: 0, width: '100%', padding: '10px', border: '1px solid #dfe3e7', borderRadius: '12px', background: 'var(--mm-surface)', boxSizing: 'border-box' }}>
+        <figure className="mathmaster-function-workspace-graph" data-work-view-reveal="true" style={{ margin: 0, width: '100%', padding: '10px', border: '1px solid var(--mm-border)', borderRadius: '12px', background: 'var(--mm-surface)', boxSizing: 'border-box' }}>
           <svg ref={svgRef} className="mathmaster-responsive-canvas mathmaster-touch-surface" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="xMidYMid meet" role="application"
             aria-label="Coordinate plane. Use the arrow keys to move the cursor, hold Shift to move faster, and press Enter to place at the cursor."
             tabIndex={0}
@@ -1376,7 +1376,7 @@ export default function InteractiveGraphWorkspace({
                 <rect x={PADDING} y={PADDING} width={innerWidth} height={innerHeight} />
               </clipPath>
             </defs>
-            <rect x={PADDING} y={PADDING} width={innerWidth} height={innerHeight} fill="#fff" stroke={(draggingTaskId || draggingMarkerType) && dropCandidate ? POINT_GUIDE_COLOR : '#cfd4da'} strokeWidth={(draggingTaskId || draggingMarkerType) && dropCandidate ? 4 : 1} />
+            <rect data-mm-intentional-light="graph paper: its grid, axes and canvas overlay share a fixed light drawing palette" x={PADDING} y={PADDING} width={innerWidth} height={innerHeight} fill="#fff" stroke={(draggingTaskId || draggingMarkerType) && dropCandidate ? POINT_GUIDE_COLOR : '#cfd4da'} strokeWidth={(draggingTaskId || draggingMarkerType) && dropCandidate ? 4 : 1} />
             {xTicks.map((tick) => { const x = toScreenX(tick); return <g key={`x-${tick}`}><line x1={x} y1={PADDING} x2={x} y2={HEIGHT - PADDING} stroke="#eceff1" /><text x={x} y={axisX + 20} textAnchor="middle" fontSize="12" fill="#5f6368">{tick}</text></g>; })}
             {yTicks.map((tick) => { const y = toScreenY(tick); return <g key={`y-${tick}`}><line x1={PADDING} y1={y} x2={WIDTH - PADDING} y2={y} stroke="#eceff1" />{tick !== 0 && <text x={axisY - 9} y={y + 4} textAnchor="end" fontSize="12" fill="#5f6368">{tick}</text>}</g>; })}
             <line x1={PADDING} y1={axisX} x2={WIDTH - PADDING} y2={axisX} stroke="#5f6368" strokeWidth="2" /><line x1={axisY} y1={PADDING} x2={axisY} y2={HEIGHT - PADDING} stroke="#5f6368" strokeWidth="2" />
@@ -1415,7 +1415,7 @@ export default function InteractiveGraphWorkspace({
             {showCoordinates && hoverPoint && <g pointerEvents="none"><rect x={Math.min(WIDTH - 132, toScreenX(hoverPoint[0]) + 10)} y={Math.max(12, toScreenY(hoverPoint[1]) - 35)} width="116" height="27" rx="6" fill="#202124" opacity="0.66" /><text x={Math.min(WIDTH - 122, toScreenX(hoverPoint[0]) + 20)} y={Math.max(31, toScreenY(hoverPoint[1]) - 16)} fontSize="13" fill="#fff">{pointLabel(hoverPoint)}</text></g>}
             </g>
           </svg>
-          <figcaption style={{ color: '#5f6368', fontSize: '13px', padding: '8px 4px 0' }}>{pointOnly ? 'Plot each ordered pair from your completed table.' : !endsDescribedForStudent ? 'Arrows show continuation; open and closed circles show finite-domain boundaries.' : boundaryOnly ? 'This relationship has a finite domain. Its graph must stop at explicit open or closed boundary markers.' : continuationOnly ? 'Arrows show that the function continues beyond the visible coordinate plane.' : 'Arrows show continuation; open and closed circles show finite-domain boundaries.'}</figcaption>
+          <figcaption style={{ color: 'var(--mm-text-muted)', fontSize: '13px', padding: '8px 4px 0' }}>{pointOnly ? 'Plot each ordered pair from your completed table.' : !endsDescribedForStudent ? 'Arrows show continuation; open and closed circles show finite-domain boundaries.' : boundaryOnly ? 'This relationship has a finite domain. Its graph must stop at explicit open or closed boundary markers.' : continuationOnly ? 'Arrows show that the function continues beyond the visible coordinate plane.' : 'Arrows show continuation; open and closed circles show finite-domain boundaries.'}</figcaption>
         </figure>
       </div>
       </EnlargeableFigure>
@@ -1423,27 +1423,27 @@ export default function InteractiveGraphWorkspace({
       {(stage === 'construct' || (stage === 'analysis' && inverseReflectionEnabled)) && <div style={{ maxWidth: '960px', margin: '14px auto 0', textAlign: 'center' }}>
         {stage === 'construct' ? (
           <>
-            {pointFeedback && <p style={{ margin: '8px 0', color: construction.pointsValidated ? '#137333' : '#8a5a00', fontWeight: 'bold' }}>{pointFeedback}</p>}
-            {!pointOnly && pointsCommitted && !construction.snapped && <p style={{ margin: '8px 0', color: '#174ea6', fontWeight: 'bold' }}>{construction.pointsValidated ? 'Draw through all validated points.' : 'Draw your curve through all of your points.'} {requiredStrokeCount === 2 ? 'Draw both rational branches as separate strokes.' : ''}</p>}
-            {drawFeedback && <p style={{ margin: '8px 0', color: curveAcceptedOwnPoints ? '#174ea6' : construction.snapped ? '#137333' : '#8a5a00', fontWeight: 'bold' }}>{drawFeedback}</p>}
+            {pointFeedback && <p style={{ margin: '8px 0', color: construction.pointsValidated ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', fontWeight: 'bold' }}>{pointFeedback}</p>}
+            {!pointOnly && pointsCommitted && !construction.snapped && <p style={{ margin: '8px 0', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>{construction.pointsValidated ? 'Draw through all validated points.' : 'Draw your curve through all of your points.'} {requiredStrokeCount === 2 ? 'Draw both rational branches as separate strokes.' : ''}</p>}
+            {drawFeedback && <p style={{ margin: '8px 0', color: curveAcceptedOwnPoints ? 'var(--mm-primary-text)' : construction.snapped ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', fontWeight: 'bold' }}>{drawFeedback}</p>}
           </>
         ) : (
           <>
-            <p style={{ margin: '8px 0', color: '#6f2da8', fontWeight: 'bold' }}>
+            <p style={{ margin: '8px 0', color: 'var(--mm-accent-text)', fontWeight: 'bold' }}>
               {!inversePointsCommitted
                 ? 'Reflect both original points across y=x. Select each reflected-point card, then place its image on the plane.'
                 : !analysis.inverseSnapped
                   ? `${analysis.inversePointsValidated ? 'Both reflected points are correct. ' : ''}${inverseReflection?.inverseLineLabel || 'Draw the inverse graph through the reflected points.'}`
                   : 'The inverse graph is complete. Finish the inverse equation.'}
             </p>
-            {drawFeedback && <p style={{ margin: '8px 0', color: inverseAcceptedOwnPoints ? '#174ea6' : analysis.inverseSnapped ? '#137333' : '#8a5a00', fontWeight: 'bold' }}>{drawFeedback}</p>}
+            {drawFeedback && <p style={{ margin: '8px 0', color: inverseAcceptedOwnPoints ? 'var(--mm-primary-text)' : analysis.inverseSnapped ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', fontWeight: 'bold' }}>{drawFeedback}</p>}
           </>
         )}
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: '9px', flexWrap: 'wrap', marginTop: '10px' }}>
           {exactEntryAvailable && (
             <div style={{ display: 'flex', gap: '7px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-              <label style={{ fontSize: '12px', fontWeight: 700, color: '#3c4043' }}>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--mm-text)' }}>
                 x
                 <input
                   type="number"
@@ -1451,10 +1451,10 @@ export default function InteractiveGraphWorkspace({
                   value={typedX}
                   onChange={(event) => setTypedX(event.target.value)}
                   onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('graph-exact-place')?.click(); } }}
-                  style={{ display: 'block', width: '84px', minHeight: '40px', marginTop: '3px', padding: '6px 8px', border: '1px solid #c9ced6', borderRadius: '7px' }}
+                  style={{ display: 'block', width: '84px', minHeight: '40px', marginTop: '3px', padding: '6px 8px', border: '1px solid var(--mm-border)', borderRadius: '7px' }}
                 />
               </label>
-              <label style={{ fontSize: '12px', fontWeight: 700, color: '#3c4043' }}>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--mm-text)' }}>
                 y
                 <input
                   type="number"
@@ -1462,7 +1462,7 @@ export default function InteractiveGraphWorkspace({
                   value={typedY}
                   onChange={(event) => setTypedY(event.target.value)}
                   onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('graph-exact-place')?.click(); } }}
-                  style={{ display: 'block', width: '84px', minHeight: '40px', marginTop: '3px', padding: '6px 8px', border: '1px solid #c9ced6', borderRadius: '7px' }}
+                  style={{ display: 'block', width: '84px', minHeight: '40px', marginTop: '3px', padding: '6px 8px', border: '1px solid var(--mm-border)', borderRadius: '7px' }}
                 />
               </label>
               <button
@@ -1476,7 +1476,7 @@ export default function InteractiveGraphWorkspace({
                   }
                   if (placeAtCoordinate(point)) { setTypedX(''); setTypedY(''); }
                 }}
-                style={{ minHeight: '40px', padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}
+                style={{ minHeight: '40px', padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}
               >
                 Place at this coordinate
               </button>
@@ -1484,20 +1484,20 @@ export default function InteractiveGraphWorkspace({
           )}
 
           {stage === 'construct' && !pointOnly && construction.pointsValidated && !construction.snapped && (
-            <button type="button" onClick={() => constructionHistory.setValue((current) => ({ ...current, strokes: [] }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}>Clear Sketch</button>
+            <button type="button" onClick={() => constructionHistory.setValue((current) => ({ ...current, strokes: [] }))} style={{ padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>Clear Sketch</button>
           )}
           {/* Where outcomes are withheld a sketch through the student's own
               points can be cleared even once accepted: that is how a point is
               moved again, and the markers placed on it go with it. */}
           {stage === 'construct' && ownPointsSketch && (
-            <button type="button" onClick={() => { constructionHistory.setValue((current) => ({ ...current, strokes: [], sketchView: null, snapped: false, markerPlacements: {} })); setDrawFeedback(''); }} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}>Clear Sketch</button>
+            <button type="button" onClick={() => { constructionHistory.setValue((current) => ({ ...current, strokes: [], sketchView: null, snapped: false, markerPlacements: {} })); setDrawFeedback(''); }} style={{ padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>Clear Sketch</button>
           )}
 
           {stage === 'analysis' && inverseReflectionEnabled && analysis.inversePointsValidated && !analysis.inverseSnapped && (
-            <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, inverseStrokes: [], inverseSnapped: false }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 'bold' }}>Clear Inverse Sketch</button>
+            <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, inverseStrokes: [], inverseSnapped: false }))} style={{ padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 'bold' }}>Clear Inverse Sketch</button>
           )}
           {stage === 'analysis' && inverseReflectionEnabled && inverseOwnPointsSketch && (
-            <button type="button" onClick={() => { analysisHistory.setValue((current) => ({ ...current, inverseStrokes: [], inverseSketchView: null, inverseSnapped: false })); setDrawFeedback(''); }} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 'bold' }}>Clear Inverse Sketch</button>
+            <button type="button" onClick={() => { analysisHistory.setValue((current) => ({ ...current, inverseStrokes: [], inverseSketchView: null, inverseSnapped: false })); setDrawFeedback(''); }} style={{ padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 'bold' }}>Clear Inverse Sketch</button>
           )}
 
           <button
@@ -1529,7 +1529,7 @@ export default function InteractiveGraphWorkspace({
                 });
               }
             }}
-            style={{ padding: '9px 14px', border: '1px solid #e0b4b0', borderRadius: '8px', background: 'var(--mm-surface)', color: '#a50e0e', fontWeight: 'bold' }}
+            style={{ padding: '9px 14px', border: '1px solid var(--mm-error-border-soft)', borderRadius: '8px', background: 'var(--mm-surface)', color: 'var(--mm-error-text)', fontWeight: 'bold' }}
           >
             {stage === 'analysis' && inverseReflectionEnabled ? 'Reset Inverse' : 'Reset Graph'}
           </button>
@@ -1561,14 +1561,14 @@ export default function InteractiveGraphWorkspace({
             type="button"
             onClick={resetZoom}
             disabled={!zoomed}
-            style={{ padding: '9px 14px', minHeight: 44, border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', opacity: zoomed ? 1 : 0.45 }}
+            style={{ padding: '9px 14px', minHeight: 44, border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', opacity: zoomed ? 1 : 0.45 }}
           >
             Reset view
           </button>
         </div>
 
         {stage === 'construct' && !pointOnly && construction.snapped && endpointRequirements.length > 0 && (
-          <p style={{ margin: '12px 0 0', color: allMarkersPlaced ? '#137333' : '#6f2da8', fontWeight: 'bold' }}>
+          <p style={{ margin: '12px 0 0', color: allMarkersPlaced ? 'var(--mm-success-text)' : 'var(--mm-accent-text)', fontWeight: 'bold' }}>
             {allMarkersPlaced
               ? (analysisEnabled
                 ? 'All ' + endpointCompletionNoun + (endpointRequirements.length === 1 ? '' : 's') + ' are entered. Continue to ' + (inverseReflectionEnabled ? 'Build Inverse' : 'Analyze Function') + '; each placement and symbol will be graded separately.'
@@ -1579,11 +1579,11 @@ export default function InteractiveGraphWorkspace({
       </div>}
       {/* Everything the keyboard route does, said out loud. Without this a
           screen-reader student presses Enter and receives silence. */}
-      <p role="status" aria-live="polite" style={{ margin: '8px 0 0', fontSize: '13px', color: '#174ea6', minHeight: '18px', textAlign: 'center' }}>
+      <p role="status" aria-live="polite" style={{ margin: '8px 0 0', fontSize: '13px', color: 'var(--mm-primary-text)', minHeight: '18px', textAlign: 'center' }}>
         {keyboardAnnouncement}
       </p>
 
-      {stage === 'analysis' && activePointPart && activePointPart.responseMode !== 'input' && !(inverseReflectionEnabled && inversePointsLocked) && <div style={{ textAlign: 'center', marginTop: '12px' }}><p style={{ color: '#174ea6', fontWeight: 'bold' }}>Active part: {activePointPart.label}. Select {activePointPart.expected.length || 1} location(s){activePointPart.allowNone ? ', or choose “Does not exist.”' : '.'}</p>{(analysis.selections[activePointPart.id] || []).length > 0 && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, selections: { ...current.selections, [activePointPart.id]: [] }, inversePointsValidated: false, inverseStrokes: [], inverseSnapped: false }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}>Clear This Selection</button>}</div>}
+      {stage === 'analysis' && activePointPart && activePointPart.responseMode !== 'input' && !(inverseReflectionEnabled && inversePointsLocked) && <div style={{ textAlign: 'center', marginTop: '12px' }}><p style={{ color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>Active part: {activePointPart.label}. Select {activePointPart.expected.length || 1} location(s){activePointPart.allowNone ? ', or choose “Does not exist.”' : '.'}</p>{(analysis.selections[activePointPart.id] || []).length > 0 && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, selections: { ...current.selections, [activePointPart.id]: [] }, inversePointsValidated: false, inverseStrokes: [], inverseSnapped: false }))} style={{ padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>Clear This Selection</button>}</div>}
     </div>
   );
 }

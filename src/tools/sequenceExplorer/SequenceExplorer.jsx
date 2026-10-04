@@ -36,7 +36,7 @@ import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js'
  * term for (0, 2.5, NaN) fails before the screen draws, as it always has,
  * rather than showing a question that can never be answered.
  */
-const inputStyle = { width: '100%', padding: 9, border: '1px solid #cfd8e6', borderRadius: 8, boxSizing: 'border-box' };
+const inputStyle = { width: '100%', padding: 9, border: '1px solid var(--mm-tint-border)', borderRadius: 8, boxSizing: 'border-box' };
 const actionStyle = { marginTop: 14, padding: '10px 16px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer' };
 const numberText = (value) => `${round(value, 4)}`;
 
@@ -84,7 +84,7 @@ function SequenceVisual({ spec, count = 7, title = 'Table + discrete graph' }) {
         <tbody><tr><th style={{ padding: 6 }}>aₙ</th>{rows.map((row) => <td key={row.n} style={{ padding: 6, textAlign: 'center' }}>{numberText(row.value)}</td>)}</tr></tbody>
       </table>
     </div>
-    <p style={{ marginBottom: 0, color: '#5f6b7a' }}>A sequence is a function with discrete term-number inputs. The graph keeps those inputs visually separate.</p>
+    <p style={{ marginBottom: 0, color: 'var(--mm-text-muted)' }}>A sequence is a function with discrete term-number inputs. The graph keeps those inputs visually separate.</p>
   </Panel>;
 }
 
@@ -281,7 +281,7 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
             </tbody>
           </table>
         </div>
-        <p style={{ margin: '0 0 12px', color: '#5f6b7a', lineHeight: 1.45 }}>
+        <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>
           The term number <strong>n is the domain input</strong>. Each sequence value aₙ is the output paired with that input.
           A sequence graph is discrete, so plot only the individual ordered pairs — do not connect them.
         </p>
@@ -308,14 +308,14 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
               type="button"
               onClick={() => setPlottedPoints([])}
               disabled={!plottedPoints.length}
-              style={{ ...actionStyle, marginTop: 0, background: 'var(--mm-surface)', color: '#174ea6', border: '1px solid #aecbfa' }}
+              style={{ ...actionStyle, marginTop: 0, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)' }}
             >
               Clear graph
             </button>
-            <span style={{ color: '#5f6b7a', fontSize: 13 }}>{plottedPoints.length}/{rows.length} term inputs plotted</span>
+            <span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>{plottedPoints.length}/{rows.length} term inputs plotted</span>
           </div>
         )}
-        {plotMessage && <p style={{ margin: '8px 0 0', color: '#b06000', fontWeight: 700 }}>{plotMessage}</p>}
+        {plotMessage && <p style={{ margin: '8px 0 0', color: 'var(--mm-warning-text)', fontWeight: 700 }}>{plotMessage}</p>}
       </Panel>
 
       <Panel title="2. Analyze and write the rules">
@@ -491,8 +491,8 @@ function MissingTerm({ questionData, feedback, submit, onAction }) {
     <EnlargeableFigure label="Missing term workspace" enlargeLabel="Enlarge sequence workspace" style={{ width: '100%' }} capabilities={{ undo: undoHistory.capability, tableData: { label: 'Sequence with a gap' }, numericControls: { label: 'Missing term controls', studentState: true }, instruction: { text: 'Recover the missing term and classify the sequence.' }, primaryActions: [{ id: 'check-missing', label: 'Check missing term', onAction: check }] }}>
     <ToolGrid min={320}>
       <Panel title="Sequence with a gap">
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{rows.map((row) => <div key={row.n} style={{ minWidth: 66, padding: '10px 12px', textAlign: 'center', borderRadius: 10, border: '1px solid #d9e2f1', background: row.n === missingIndex ? '#fff7e6' : '#fff' }}><div style={{ fontSize: 11, color: '#667085' }}>a{row.n}</div><strong>{row.n === missingIndex ? '?' : numberText(row.value)}</strong></div>)}</div>
-        <p style={{ color: '#5f6b7a' }}>Use the terms on both sides of the gap. A valid common change must work across the entire sequence.</p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{rows.map((row) => <div key={row.n} style={{ minWidth: 66, padding: '10px 12px', textAlign: 'center', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: row.n === missingIndex ? 'var(--mm-warning-bg)' : 'var(--mm-surface)' }}><div style={{ fontSize: 11, color: 'var(--mm-text-muted)' }}>a{row.n}</div><strong>{row.n === missingIndex ? '?' : numberText(row.value)}</strong></div>)}</div>
+        <p style={{ color: 'var(--mm-text-muted)' }}>Use the terms on both sides of the gap. A valid common change must work across the entire sequence.</p>
       </Panel>
       <Panel title="Recover the structure">
         <label>Missing value a<sub>{missingIndex}</sub><input value={termAnswer} onChange={(event) => setTermAnswer(event.target.value)} style={inputStyle} /></label>
@@ -639,7 +639,7 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
       <Panel title={requirePlot ? 'Plot the two sequences' : 'Two discrete models'}>
         {requirePlot && (
           <>
-            <p style={{ marginTop: 0, color: '#5f6b7a' }}>
+            <p style={{ marginTop: 0, color: 'var(--mm-text-muted)' }}>
               Choose a sequence, then click each ordered pair on the graph. Switching sequences changes which model receives the next point.
             </p>
             <div role="group" aria-label="Sequence to plot" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
@@ -650,8 +650,8 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
                 style={{
                   ...actionStyle,
                   marginTop: 0,
-                  background: activeSeries === 'A' ? '#1a73e8' : '#fff',
-                  color: activeSeries === 'A' ? '#fff' : '#174ea6',
+                  background: activeSeries === 'A' ? '#1a73e8' : 'var(--mm-surface)',
+                  color: activeSeries === 'A' ? '#fff' : 'var(--mm-primary-text)',
                   border: '2px solid #1a73e8',
                 }}
               >
@@ -664,8 +664,8 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
                 style={{
                   ...actionStyle,
                   marginTop: 0,
-                  background: activeSeries === 'B' ? '#d93025' : '#fff',
-                  color: activeSeries === 'B' ? '#fff' : '#b3261e',
+                  background: activeSeries === 'B' ? '#d93025' : 'var(--mm-surface)',
+                  color: activeSeries === 'B' ? '#fff' : 'var(--mm-error-text)',
                   border: '2px solid #d93025',
                 }}
               >
@@ -691,7 +691,7 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
           ariaLabel={requirePlot ? 'Interactive graph for plotting two discrete sequences' : 'Graph comparing two discrete sequences'}
           enlargeable={false}
         />
-        <p><span style={{ color: '#1a73e8', fontWeight: 900 }}>● {leftLabel}</span> &nbsp; <span style={{ color: '#d93025', fontWeight: 900 }}>● {rightLabel}</span></p>
+        <p><span style={{ color: 'var(--mm-primary)', fontWeight: 900 }}>● {leftLabel}</span> &nbsp; <span style={{ color: 'var(--mm-danger)', fontWeight: 900 }}>● {rightLabel}</span></p>
         {requirePlot ? (
           <>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
@@ -699,7 +699,7 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
                 type="button"
                 onClick={() => setLeftPlottedPoints([])}
                 disabled={!leftPlottedPoints.length}
-                style={{ ...actionStyle, marginTop: 0, background: 'var(--mm-surface)', color: '#174ea6', border: '1px solid #aecbfa' }}
+                style={{ ...actionStyle, marginTop: 0, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)' }}
               >
                 Clear {leftLabel}
               </button>
@@ -707,7 +707,7 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
                 type="button"
                 onClick={() => setRightPlottedPoints([])}
                 disabled={!rightPlottedPoints.length}
-                style={{ ...actionStyle, marginTop: 0, background: 'var(--mm-surface)', color: '#b3261e', border: '1px solid #f2b8b5' }}
+                style={{ ...actionStyle, marginTop: 0, background: 'var(--mm-surface)', color: 'var(--mm-error-text)', border: '1px solid var(--mm-error-border-soft)' }}
               >
                 Clear {rightLabel}
               </button>
@@ -715,21 +715,21 @@ function CompareSequences({ questionData, feedback, submit, onAction }) {
                 type="button"
                 onClick={() => { setLeftPlottedPoints([]); setRightPlottedPoints([]); }}
                 disabled={!leftPlottedPoints.length && !rightPlottedPoints.length}
-                style={{ ...actionStyle, marginTop: 0, background: 'var(--mm-surface)', color: '#5f6b7a', border: '1px solid #cfd8e6' }}
+                style={{ ...actionStyle, marginTop: 0, background: 'var(--mm-surface)', color: 'var(--mm-text-muted)', border: '1px solid var(--mm-tint-border)' }}
               >
                 Clear both
               </button>
-              <span style={{ color: '#5f6b7a', fontSize: 13 }}>
+              <span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>
                 {leftLabel}: {leftPlottedPoints.length}/{leftRows.length} · {rightLabel}: {rightPlottedPoints.length}/{rightRows.length}
               </span>
             </div>
-            {plotMessage && <p style={{ margin: '8px 0 0', color: '#b06000', fontWeight: 700 }}>{plotMessage}</p>}
-            <p style={{ color: '#5f6b7a', marginBottom: 0 }}>
+            {plotMessage && <p style={{ margin: '8px 0 0', color: 'var(--mm-warning-text)', fontWeight: 700 }}>{plotMessage}</p>}
+            <p style={{ color: 'var(--mm-text-muted)', marginBottom: 0 }}>
               Term number n is the domain input. Plot separate points only; a sequence graph is discrete.
             </p>
           </>
         ) : (
-          <p style={{ color: '#5f6b7a' }}>Do not decide from the first few terms alone; compare both rules at the requested index.</p>
+          <p style={{ color: 'var(--mm-text-muted)' }}>Do not decide from the first few terms alone; compare both rules at the requested index.</p>
         )}
       </Panel>
       <Panel title={`Compare at n = ${compareN}`}>

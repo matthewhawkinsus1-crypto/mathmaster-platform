@@ -55,15 +55,15 @@ const FEEDBACK_CATEGORIES = [
   'Student experience', 'Accessibility', 'Other',
 ];
 
-const panel = { border: '1px solid #dadce0', borderRadius: 12, background: 'var(--mm-surface)', padding: 16, marginBottom: 16 };
-const heading = { margin: '0 0 10px', fontSize: 15, fontWeight: 900, color: '#174ea6' };
+const panel = { border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)', padding: 16, marginBottom: 16 };
+const heading = { margin: '0 0 10px', fontSize: 15, fontWeight: 900, color: 'var(--mm-primary-text)' };
 const smallButton = {
-  minHeight: 40, padding: '8px 12px', borderRadius: 8, border: '1px solid #c5d5ef',
-  background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, fontSize: 13, cursor: 'pointer',
+  minHeight: 40, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--mm-tint-border)',
+  background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 13, cursor: 'pointer',
 };
 const input = {
   width: '100%', minHeight: 44, fontSize: 15, padding: '9px 10px', marginTop: 6,
-  border: '1px solid #c9ced6', borderRadius: 8, boxSizing: 'border-box', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)',
+  border: '1px solid var(--mm-border)', borderRadius: 8, boxSizing: 'border-box', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)',
 };
 
 // Plain English for the selector's own reason codes. Teacher-facing only.
@@ -96,11 +96,11 @@ const pill = (color) => ({
 });
 
 const DECISION_COLOR = {
-  Remediation: '#a50e0e',
-  'Acceleration available': '#137333',
-  'Gather more evidence': '#7a4f00',
-  'Continue at grade level': '#174ea6',
-  'No decision': '#5f6368',
+  Remediation: 'var(--mm-error-text)',
+  'Acceleration available': 'var(--mm-success-text)',
+  'Gather more evidence': 'var(--mm-warning-text)',
+  'Continue at grade level': 'var(--mm-primary-text)',
+  'No decision': 'var(--mm-text-muted)',
 };
 
 export default function PathSimulator({ assignments = [], teacherId = 'teacher', onCopyText }) {
@@ -503,9 +503,9 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
             aria-pressed={mode === id}
             style={{
               minHeight: 44, padding: '9px 16px', borderRadius: 999, cursor: 'pointer',
-              border: `1px solid ${mode === id ? '#1a73e8' : '#c5d5ef'}`,
-              background: mode === id ? '#e8f0fe' : '#fff',
-              color: mode === id ? '#174ea6' : '#3c4043', fontWeight: 900, fontSize: 14,
+              border: `1px solid ${mode === id ? '#1a73e8' : 'var(--mm-tint-border)'}`,
+              background: mode === id ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+              color: mode === id ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: 900, fontSize: 14,
             }}
           >
             {label}
@@ -514,7 +514,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
       </div>
 
       {slotNotice && (
-        <div role="status" style={{ padding: '10px 14px', marginBottom: 12, borderRadius: 8, background: '#e8f0fe', color: '#174ea6', fontWeight: 800, fontSize: 13 }}>
+        <div role="status" style={{ padding: '10px 14px', marginBottom: 12, borderRadius: 8, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 13 }}>
           {slotNotice}
         </div>
       )}
@@ -523,17 +523,17 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
         <div>
           <div style={{ ...panel, marginBottom: 14 }}>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-              <label style={{ fontSize: 12.5, fontWeight: 800, color: '#3c4043' }}>
+              <label style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--mm-text)' }}>
                 Starting profile
                 <select
                   value={profileId}
                   onChange={(event) => startSession(event.target.value)}
-                  style={{ display: 'block', marginTop: 4, minHeight: 44, padding: '9px 10px', border: '1px solid #c9ced6', borderRadius: 8, fontSize: 15 }}
+                  style={{ display: 'block', marginTop: 4, minHeight: 44, padding: '9px 10px', border: '1px solid var(--mm-border)', borderRadius: 8, fontSize: 15 }}
                 >
                   {STARTING_PROFILES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                 </select>
               </label>
-              <label style={{ fontSize: 12.5, fontWeight: 800, color: '#3c4043' }}>
+              <label style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--mm-text)' }}>
                 Course
                 <select
                   value={simulationCourseId}
@@ -543,7 +543,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                     setSimulationTargetTeks(getWheelTeksForCourse(nextCourse)[0] || '');
                     setSession(null);
                   }}
-                  style={{ display: 'block', marginTop: 4, minHeight: 44, padding: '9px 10px', border: '1px solid #c9ced6', borderRadius: 8, fontSize: 15 }}
+                  style={{ display: 'block', marginTop: 4, minHeight: 44, padding: '9px 10px', border: '1px solid var(--mm-border)', borderRadius: 8, fontSize: 15 }}
                 >
                   {COURSES.map((course) => <option key={course.id} value={course.id}>{course.label}</option>)}
                 </select>
@@ -554,7 +554,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                 </button>
               )}
             </div>
-            <p style={{ color: '#5f6368', fontSize: 13, lineHeight: 1.55, margin: '12px 0 0' }}>
+            <p style={{ color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55, margin: '12px 0 0' }}>
               {STARTING_PROFILES.find((item) => item.id === profileId)?.description}
             </p>
           </div>
@@ -568,7 +568,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
       )}
 
       {mode === 'experience' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(260px, 320px)', gap: 16, alignItems: 'start' }} className="mm-simulator-split">
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 260px), 320px)', gap: 16, alignItems: 'start' }} className="mm-simulator-split">
           <div style={{ ...panel, minWidth: 0 }}>
             {session ? (
               <SimulatedStudentExperience
@@ -620,7 +620,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
             ) : (
               <div style={{ textAlign: 'left' }}>
                 <h3 style={heading}>Start as a fresh student</h3>
-                <p style={{ color: '#5f6368', fontSize: 14, lineHeight: 1.6, margin: '0 0 14px' }}>
+                <p style={{ color: 'var(--mm-text-muted)', fontSize: 14, lineHeight: 1.6, margin: '0 0 14px' }}>
                   This shows the student&apos;s own dashboard, Path and CCMR screens for an isolated
                   simulated learner. Everything you do to them here stays here.
                 </p>
@@ -681,7 +681,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                 style={input}
               />
             </label>
-            <p style={{ margin: '6px 0 14px', fontSize: 12, color: '#5f6368', lineHeight: 1.5 }}>
+            <p style={{ margin: '6px 0 14px', fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
               {describeSimulatedDate(activeSlot)}. The real calendar applies at this date, so what is
               current, upcoming and open all move with it. Nothing about your classes changes.
             </p>
@@ -689,7 +689,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
             {session && (
               <>
                 <p style={{ margin: '0 0 6px', fontWeight: 800, fontSize: 13 }}>Force an outcome</p>
-                <p style={{ margin: '0 0 8px', fontSize: 12, color: '#5f6368', lineHeight: 1.5 }}>
+                <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
                   {assignment && question
                     ? `Question Bench: ${assignment.title || 'selected assignment'}, question ${questionIndex + 1}${teksCodes.length ? ` · ${teksCodes.join(', ')}` : ''}.`
                     : `Path-only simulation · ${simulationTargetTeks || 'choose a starting skill'}. Whole-skill force controls remain available without an assignment.`}
@@ -697,7 +697,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                 {!teksCodes.length && !simulationTargetTeks && (
                   // Forcing a skill state needs a skill. Without this the two
                   // skill buttons would appear to work and change nothing.
-                  <p style={{ margin: '0 0 8px', padding: '8px 10px', borderRadius: 8, background: '#fef7e0', color: '#7a4f00', fontSize: 12, lineHeight: 1.5 }}>
+                  <p style={{ margin: '0 0 8px', padding: '8px 10px', borderRadius: 8, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 12, lineHeight: 1.5 }}>
                     Choose a Path starting skill or an aligned Question Bench item before forcing a whole-skill state.
                   </p>
                 )}
@@ -720,14 +720,14 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                   ))}
                 </div>
 
-                <div style={{ margin: '0 0 14px', padding: 11, border: '1px solid #d2e3fc', borderRadius: 9, background: '#f8fbff' }}>
-                  <p style={{ margin: '0 0 7px', fontWeight: 900, fontSize: 13, color: '#174ea6' }}>Current Path question QA</p>
-                  <p style={{ margin: '0 0 8px', fontSize: 11, color: '#5f6368', lineHeight: 1.45 }}>
+                <div style={{ margin: '0 0 14px', padding: 11, border: '1px solid var(--mm-tint-border)', borderRadius: 9, background: 'var(--mm-surface-tint)' }}>
+                  <p style={{ margin: '0 0 7px', fontWeight: 900, fontSize: 13, color: 'var(--mm-primary-text)' }}>Current Path question QA</p>
+                  <p style={{ margin: '0 0 8px', fontSize: 11, color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>
                     Bank quality: {pathBankQuality.ready} ready · {pathBankQuality.candidate} candidates · {pathBankQuality.blocked} blocked · {pathBankQuality.total} total
                   </p>
                   {pathController?.question ? (
                     <>
-                      <div style={{ fontSize: 12, lineHeight: 1.5, color: '#3c4043' }}>
+                      <div style={{ fontSize: 12, lineHeight: 1.5, color: 'var(--mm-text)' }}>
                         <strong>{pathController.question.teksCode || pathController.question.alignmentKey || 'Current skill'}</strong>
                         {pathController.question.sourceBankQuestionId && <> · <code>{pathController.question.sourceBankQuestionId}</code></>}
                       </div>
@@ -748,16 +748,16 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                         pathController.question.selectedTaskType,
                         pathController.question.contentQuality,
                       ].some((value) => value !== null && value !== undefined) && (
-                        <dl style={{ margin: '8px 0 0', padding: '8px 9px', borderRadius: 7, background: 'var(--mm-surface)', border: '1px solid #e0e4e9', fontSize: 11, lineHeight: 1.5, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '3px 8px' }}>
+                        <dl style={{ margin: '8px 0 0', padding: '8px 9px', borderRadius: 7, background: 'var(--mm-surface)', border: '1px solid var(--mm-border-soft)', fontSize: 11, lineHeight: 1.5, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '3px 8px' }}>
                           {pathController.question.selectionReason && (
                             <>
-                              <dt style={{ fontWeight: 800, color: '#5f6368' }}>Chosen because</dt>
+                              <dt style={{ fontWeight: 800, color: 'var(--mm-text-muted)' }}>Chosen because</dt>
                               <dd style={{ margin: 0 }}>{SELECTION_REASON_LABEL[pathController.question.selectionReason] || pathController.question.selectionReason.replace(/_/g, ' ')}</dd>
                             </>
                           )}
                           {pathController.question.selectedBand !== null && pathController.question.selectedBand !== undefined && (
                             <>
-                              <dt style={{ fontWeight: 800, color: '#5f6368' }}>Band</dt>
+                              <dt style={{ fontWeight: 800, color: 'var(--mm-text-muted)' }}>Band</dt>
                               <dd style={{ margin: 0 }}>
                                 {pathController.question.selectedBand}
                                 {pathController.question.preferredBand !== null && pathController.question.preferredBand !== undefined
@@ -767,25 +767,25 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                           )}
                           {pathController.question.representation && (
                             <>
-                              <dt style={{ fontWeight: 800, color: '#5f6368' }}>Representation</dt>
+                              <dt style={{ fontWeight: 800, color: 'var(--mm-text-muted)' }}>Representation</dt>
                               <dd style={{ margin: 0 }}>{pathController.question.representation}</dd>
                             </>
                           )}
                           {pathController.question.selectedTaskType && (
                             <>
-                              <dt style={{ fontWeight: 800, color: '#5f6368' }}>Thinking</dt>
+                              <dt style={{ fontWeight: 800, color: 'var(--mm-text-muted)' }}>Thinking</dt>
                               <dd style={{ margin: 0 }}>{pathController.question.selectedTaskType}</dd>
                             </>
                           )}
                           {pathController.question.contentQuality && (
                             <>
-                              <dt style={{ fontWeight: 800, color: '#5f6368' }}>Content state</dt>
+                              <dt style={{ fontWeight: 800, color: 'var(--mm-text-muted)' }}>Content state</dt>
                               <dd style={{ margin: 0 }}>{pathController.question.contentQuality}</dd>
                             </>
                           )}
                           {pathController.question.unusedFamiliesRemaining !== null && pathController.question.unusedFamiliesRemaining !== undefined && (
                             <>
-                              <dt style={{ fontWeight: 800, color: '#5f6368' }}>Unused families left</dt>
+                              <dt style={{ fontWeight: 800, color: 'var(--mm-text-muted)' }}>Unused families left</dt>
                               <dd style={{ margin: 0 }}>
                                 {pathController.question.unusedFamiliesRemaining}
                                 {pathController.question.isRepeatFamily ? ' · this one is a repeat' : ''}
@@ -795,7 +795,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                         </dl>
                       )}
                       {activeBankQuestion?.responseFields?.some((field) => Object.prototype.hasOwnProperty.call(field || {}, 'expected')) && (
-                        <div style={{ marginTop: 8, padding: '8px 9px', borderRadius: 7, background: 'var(--mm-surface)', border: '1px solid #e0e4e9', fontSize: 12 }}>
+                        <div style={{ marginTop: 8, padding: '8px 9px', borderRadius: 7, background: 'var(--mm-surface)', border: '1px solid var(--mm-border-soft)', fontSize: 12 }}>
                           <strong>Secure expected answer</strong>
                           {activeBankQuestion.responseFields.filter((field) => Object.prototype.hasOwnProperty.call(field || {}, 'expected')).map((field) => (
                             <div key={field.id || field.label} style={{ marginTop: 4 }}>{field.label || field.id || 'Answer'}: <code>{String(field.expected)}</code></div>
@@ -803,7 +803,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                         </div>
                       )}
                       {activeQuestionAudit?.issues?.length > 0 && (
-                        <ul style={{ margin: '8px 0 0', paddingLeft: 17, fontSize: 11, color: '#5f6368', lineHeight: 1.45 }}>
+                        <ul style={{ margin: '8px 0 0', paddingLeft: 17, fontSize: 11, color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>
                           {activeQuestionAudit.issues.slice(0, 4).map((issue) => <li key={issue.code}>{issue.message}</li>)}
                         </ul>
                       )}
@@ -827,24 +827,24 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                       )}
                     </>
                   ) : (
-                    <p style={{ margin: 0, fontSize: 12, color: '#5f6368' }}>Start practice to inspect the exact secure bank item being shown.</p>
+                    <p style={{ margin: 0, fontSize: 12, color: 'var(--mm-text-muted)' }}>Start practice to inspect the exact secure bank item being shown.</p>
                   )}
                 </div>
 
-                <div style={{ margin: '0 0 14px', padding: 11, border: '1px solid #dadce0', borderRadius: 9, background: 'var(--mm-surface)' }}>
-                  <p style={{ margin: '0 0 7px', fontWeight: 900, fontSize: 13, color: '#174ea6' }}>Simulation event log</p>
+                <div style={{ margin: '0 0 14px', padding: 11, border: '1px solid var(--mm-border)', borderRadius: 9, background: 'var(--mm-surface)' }}>
+                  <p style={{ margin: '0 0 7px', fontWeight: 900, fontSize: 13, color: 'var(--mm-primary-text)' }}>Simulation event log</p>
                   {simulationEvents.length ? (
                     <ol style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 7 }}>
                       {simulationEvents.slice(0, 6).map((event) => (
-                        <li key={event.id} style={{ padding: '7px 8px', borderRadius: 7, background: event.kind === 'error' ? '#fce8e6' : event.isCorrect === true ? '#e6f4ea' : '#f8f9fa', fontSize: 11, lineHeight: 1.45 }}>
-                          <strong style={{ color: event.kind === 'error' ? '#a50e0e' : event.isCorrect === true ? '#137333' : '#3c4043' }}>{event.label}</strong>
-                          <div style={{ color: '#5f6368', marginTop: 2 }}>{event.detail}</div>
-                          {event.decision?.explanation && <div style={{ color: '#174ea6', marginTop: 3 }}><strong>Why next:</strong> {event.decision.explanation}</div>}
+                        <li key={event.id} style={{ padding: '7px 8px', borderRadius: 7, background: event.kind === 'error' ? 'var(--mm-error-bg)' : event.isCorrect === true ? 'var(--mm-success-bg)' : 'var(--mm-surface-sunken)', fontSize: 11, lineHeight: 1.45 }}>
+                          <strong style={{ color: event.kind === 'error' ? 'var(--mm-error-text)' : event.isCorrect === true ? 'var(--mm-success-text)' : 'var(--mm-text)' }}>{event.label}</strong>
+                          <div style={{ color: 'var(--mm-text-muted)', marginTop: 2 }}>{event.detail}</div>
+                          {event.decision?.explanation && <div style={{ color: 'var(--mm-primary-text)', marginTop: 3 }}><strong>Why next:</strong> {event.decision.explanation}</div>}
                         </li>
                       ))}
                     </ol>
                   ) : (
-                    <p style={{ margin: 0, fontSize: 12, color: '#5f6368' }}>Answer a Path question or use a force control. Every result and route decision will appear here.</p>
+                    <p style={{ margin: 0, fontSize: 12, color: 'var(--mm-text-muted)' }}>Answer a Path question or use a force control. Every result and route decision will appear here.</p>
                   )}
                 </div>
 
@@ -864,7 +864,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                     </li>
                   ))}
                   {!(activeSlot.snapshots || []).length && (
-                    <li style={{ fontSize: 12, color: '#5f6368' }}>None yet. Save one before a branch you want to come back to.</li>
+                    <li style={{ fontSize: 12, color: 'var(--mm-text-muted)' }}>None yet. Save one before a branch you want to come back to.</li>
                   )}
                 </ul>
 
@@ -882,7 +882,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
       {mode === 'bench' && !runnableAssignments.length && (
         <div style={panel}>
           <h3 style={heading}>Question Bench</h3>
-          <p style={{ margin: 0, color: '#5f6368', lineHeight: 1.6 }}>
+          <p style={{ margin: 0, color: 'var(--mm-text-muted)', lineHeight: 1.6 }}>
             No classroom assignment exists yet. That does <strong>not</strong> block My Math Path — switch to Student experience to run the secure Path bank.
             Question Bench appears after you create an assignment because its job is to QA a particular authored assignment question.
           </p>
@@ -893,7 +893,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
       {mode === 'bench' && runnableAssignments.length > 0 && (
       <div style={panel}>
         <h3 style={heading}>1. Choose what to simulate</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))', gap: 14 }}>
           <label style={{ fontWeight: 800 }}>Assignment
             <select value={assignmentId} onChange={(event) => { setAssignmentId(event.target.value); setQuestionIndex(0); setSession(null); }} style={input}>
               {runnableAssignments.map((item) => <option key={item.id} value={item.id}>{item.title || 'Untitled'}</option>)}
@@ -912,7 +912,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
             </select>
           </label>
         </div>
-        <p style={{ color: '#5f6368', fontSize: 13, lineHeight: 1.55, margin: '10px 0 0' }}>
+        <p style={{ color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55, margin: '10px 0 0' }}>
           {STARTING_PROFILES.find((item) => item.id === profileId)?.description}
           {teksCodes.length
             ? ` Seeded against ${teksCodes.join(', ')}.`
@@ -932,10 +932,10 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 0 }}>
           <div style={panel}>
             <h3 style={heading}>2. One question, in the real renderer</h3>
-            <p style={{ color: '#5f6368', fontSize: 12, margin: '0 0 12px' }}>
+            <p style={{ color: 'var(--mm-text-muted)', fontSize: 12, margin: '0 0 12px' }}>
               This is the student question renderer itself, not a teacher copy of it.
             </p>
-            <p style={{ color: '#5f6368', fontSize: 12, margin: '0 0 12px' }}>
+            <p style={{ color: 'var(--mm-text-muted)', fontSize: 12, margin: '0 0 12px' }}>
               Answer it as a student would. Submitting records a real attempt against the simulated
               learner through the attempt policy — the force controls below are shortcuts for the
               same thing, not a different thing.
@@ -976,11 +976,11 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
 
           <div style={panel}>
             <h3 style={heading}>3. Simulation Controls</h3>
-            <p style={{ color: '#5f6368', fontSize: 12, margin: '0 0 12px', lineHeight: 1.55 }}>
+            <p style={{ color: 'var(--mm-text-muted)', fontSize: 12, margin: '0 0 12px', lineHeight: 1.55 }}>
               These do not change the screen. Each one records real attempts through the attempt
               policy, then the mastery and routing engines re-evaluate from that evidence.
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: 8 }}>
               {OUTCOME_CONTROLS.map((control) => (
                 <button key={control.id} type="button" onClick={() => runOutcome(control.id)} title={control.hint} style={smallButton}>
                   {control.label}
@@ -993,7 +993,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
             <div style={{ ...panel, borderLeft: `5px solid ${DECISION_COLOR[explanation.decision] || '#5f6368'}` }}>
               <h3 style={heading}>4. Why this next?</h3>
               {evaluated?.learningProfile && <div style={{ marginBottom: 12 }}><StudentPerformanceBadge profile={evaluated.learningProfile} studentName={session?.learner?.name || 'Simulated student'} /></div>}
-              <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'minmax(150px, auto) 1fr', gap: '7px 14px', fontSize: 14, lineHeight: 1.5 }}>
+              <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'minmax(min(100%, 150px), auto) 1fr', gap: '7px 14px', fontSize: 14, lineHeight: 1.5 }}>
                 <dt style={{ fontWeight: 800 }}>Current skill</dt><dd style={{ margin: 0 }}>{explanation.currentSkill}</dd>
                 <dt style={{ fontWeight: 800 }}>Performance</dt><dd style={{ margin: 0 }}>{explanation.performanceLabel}{explanation.performanceScore != null ? ` · ${explanation.performanceScore}` : ''} from {explanation.evidenceCount} item{explanation.evidenceCount === 1 ? '' : 's'}</dd>
                 <dt style={{ fontWeight: 800 }}>Detected difficulty</dt><dd style={{ margin: 0 }}>{explanation.detectedDifficulty}</dd>
@@ -1003,12 +1003,12 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                 <dt style={{ fontWeight: 800 }}>Exit condition</dt><dd style={{ margin: 0 }}>{explanation.exitCondition}</dd>
               </dl>
 
-              <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, alignItems: 'end' }}>
+              <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 12, alignItems: 'end' }}>
                 <label style={{ fontWeight: 800, fontSize: 13 }}>I expect this to route to
                   <input value={expectedRoute} onChange={(event) => setExpectedRoute(event.target.value)} placeholder="e.g. A.2A" style={input} />
                 </label>
                 {expectedRoute && (
-                  <div style={{ padding: '10px 12px', borderRadius: 8, fontWeight: 900, background: mismatch ? '#fce8e6' : '#e6f4ea', color: mismatch ? '#a50e0e' : '#137333' }}>
+                  <div style={{ padding: '10px 12px', borderRadius: 8, fontWeight: 900, background: mismatch ? 'var(--mm-error-bg)' : 'var(--mm-success-bg)', color: mismatch ? 'var(--mm-error-text)' : 'var(--mm-success-text)' }}>
                     {mismatch ? 'ROUTING MISMATCH' : 'Routing matches your expectation'}
                   </div>
                 )}
@@ -1018,7 +1018,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                 {showDeveloperDetails ? '▾' : '▸'} Developer details
               </button>
               {showDeveloperDetails && (
-                <pre style={{ marginTop: 10, padding: 12, background: '#f8f9fa', borderRadius: 8, fontSize: 12, overflowX: 'auto' }}>
+                <pre style={{ marginTop: 10, padding: 12, background: 'var(--mm-surface-sunken)', borderRadius: 8, fontSize: 12, overflowX: 'auto' }}>
                   {JSON.stringify(explanation.developerDetails, null, 2)}
                 </pre>
               )}
@@ -1027,13 +1027,13 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
 
           <div style={panel}>
             <h3 style={heading}>5. Graph inspection</h3>
-            <p style={{ color: '#5f6368', fontSize: 12, margin: '0 0 12px', lineHeight: 1.55 }}>
+            <p style={{ color: 'var(--mm-text-muted)', fontSize: 12, margin: '0 0 12px', lineHeight: 1.55 }}>
               What is actually holding a skill closed, and what would open it. Only <strong>required</strong>{' '}
               prerequisites can lock — helpful and related ones change ranking and support, never access.
               Pacing is held neutral here so the answer is about readiness alone.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 14 }}>
               <label style={{ fontWeight: 800, fontSize: 13 }}>Skill
                 <select value={activeSkillId} onChange={(event) => { setInspectSkillId(event.target.value); setWhatIfSkillId(''); }} style={input}>
                   {courseSkills.map((skill) => (
@@ -1054,7 +1054,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
             </div>
 
             {whatIf && (
-              <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 8, fontWeight: 800, fontSize: 13, lineHeight: 1.5, background: whatIf.opened ? '#e6f4ea' : '#f1f3f4', color: whatIf.opened ? '#137333' : '#3c4043' }}>
+              <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 8, fontWeight: 800, fontSize: 13, lineHeight: 1.5, background: whatIf.opened ? 'var(--mm-success-bg)' : 'var(--mm-surface-control)', color: whatIf.opened ? 'var(--mm-success-text)' : 'var(--mm-text)' }}>
                 {whatIf.summary}
               </div>
             )}
@@ -1062,7 +1062,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
             {lockExplanation && (
               <div style={{ marginTop: 14 }}>
                 <p style={{ margin: '0 0 8px', fontWeight: 800, fontSize: 13 }}>Why is this locked?</p>
-                <p style={{ margin: '0 0 10px', color: '#3c4043', fontSize: 13, lineHeight: 1.55 }}>{lockExplanation.summary}</p>
+                <p style={{ margin: '0 0 10px', color: 'var(--mm-text)', fontSize: 13, lineHeight: 1.55 }}>{lockExplanation.summary}</p>
                 <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.65 }}>
                   {lockExplanation.blocking.map((entry) => (
                     <li key={entry.skillId}>
@@ -1091,7 +1091,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                 <p style={{ margin: '0 0 8px', fontWeight: 800, fontSize: 13 }}>
                   If this student struggled here: {REMEDIATION_LABEL[remediation.action] || remediation.action}
                 </p>
-                <p style={{ margin: 0, color: '#3c4043', fontSize: 13, lineHeight: 1.55 }}>
+                <p style={{ margin: 0, color: 'var(--mm-text)', fontSize: 13, lineHeight: 1.55 }}>
                   {remediation.explanation}
                   {remediation.target ? ` Target: ${remediation.target.label}.` : ''}
                 </p>
@@ -1099,7 +1099,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
             )}
 
             {branchImpact && (
-              <p style={{ margin: '14px 0 0', color: '#5f6368', fontSize: 12, lineHeight: 1.55 }}>
+              <p style={{ margin: '14px 0 0', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.55 }}>
                 Remediating this skill would hold back {branchImpact.blockedSkillIds.length} of{' '}
                 {branchImpact.blockedSkillIds.length + branchImpact.unrelatedSkillIds.length} other skills in this course.
                 The other {branchImpact.unrelatedSkillIds.length} stay open — a student in remediation keeps working elsewhere.
@@ -1109,14 +1109,14 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
 
           <div style={panel}>
             <h3 style={heading}>6. CCMR pathways</h3>
-            <p style={{ color: '#5f6368', fontSize: 12, margin: '0 0 12px', lineHeight: 1.55 }}>
+            <p style={{ color: 'var(--mm-text-muted)', fontSize: 12, margin: '0 0 12px', lineHeight: 1.55 }}>
               The same skill seen through each assessment. Set a framework proficiency to check the
               routing — core mastery is a separate record and will not move, which is how a
               <strong> transfer gap</strong> (strong course performance, weak assessment format) becomes visible.
             </p>
 
-            <div style={{ marginBottom: 14, padding: '12px 13px', borderRadius: 10, background: '#f8fbff', border: '1px solid #d9e2f1' }}>
-              <label style={{ display: 'block', fontWeight: 850, fontSize: 12.5, color: '#3c4043' }}>Search CCMR standards and official assessment skills
+            <div style={{ marginBottom: 14, padding: '12px 13px', borderRadius: 10, background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}>
+              <label style={{ display: 'block', fontWeight: 850, fontSize: 12.5, color: 'var(--mm-text)' }}>Search CCMR standards and official assessment skills
                 <input
                   value={ccmrStandardSearch}
                   onChange={(event) => setCcmrStandardSearch(event.target.value)}
@@ -1131,15 +1131,15 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                       key={`ccmr-search:${skill.skillId}`}
                       type="button"
                       onClick={() => { setInspectSkillId(skill.skillId); setWhatIfSkillId(''); }}
-                      style={{ textAlign: 'left', padding: '9px 10px', borderRadius: 8, border: '1px solid #c5d5ef', background: skill.skillId === activeSkillId ? '#e8f0fe' : '#fff', cursor: 'pointer' }}
+                      style={{ textAlign: 'left', padding: '9px 10px', borderRadius: 8, border: '1px solid var(--mm-tint-border)', background: skill.skillId === activeSkillId ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', cursor: 'pointer' }}
                     >
                       <strong style={{ display: 'block', color: 'var(--mm-text-strong)', fontSize: 12.5 }}>{skill.skillId.replace('teks:', '')} — {skill.title || skill.label}</strong>
-                      <span style={{ display: 'block', marginTop: 3, color: '#5b21b6', fontSize: 11.5, lineHeight: 1.45 }}>
+                      <span style={{ display: 'block', marginTop: 3, color: 'var(--mm-accent-text)', fontSize: 11.5, lineHeight: 1.45 }}>
                         {skill.references.slice(0, 4).map(({ framework, reference }) => `${FRAMEWORK_LABELS[framework]}: ${referenceLabel(reference)}`).join(' · ')}
                       </span>
                     </button>
                   )) : (
-                    <p style={{ margin: 0, color: '#5f6368', fontSize: 12 }}>No skill in this course matches that CCMR reference.</p>
+                    <p style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 12 }}>No skill in this course matches that CCMR reference.</p>
                   )}
                 </div>
               )}
@@ -1177,7 +1177,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
               {showInspector ? '▾' : '▸'} Inspect question
             </button>
             {showInspector && question && (
-              <dl style={{ margin: '12px 0 0', display: 'grid', gridTemplateColumns: 'minmax(140px, auto) 1fr', gap: '6px 14px', fontSize: 13, lineHeight: 1.5 }}>
+              <dl style={{ margin: '12px 0 0', display: 'grid', gridTemplateColumns: 'minmax(min(100%, 140px), auto) 1fr', gap: '6px 14px', fontSize: 13, lineHeight: 1.5 }}>
                 <dt style={{ fontWeight: 800 }}>Type</dt><dd style={{ margin: 0 }}>{question.toolId || question.type}</dd>
                 <dt style={{ fontWeight: 800 }}>Primary TEKS</dt><dd style={{ margin: 0 }}>{teksCodes.map((code) => `${code} — ${getTexasStandard(code)?.description || 'unknown'}`).join('; ') || 'none'}</dd>
                 <dt style={{ fontWeight: 800 }}>DOK</dt><dd style={{ margin: 0 }}>{question.dok ?? 'not set'}</dd>
@@ -1186,7 +1186,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                 <dt style={{ fontWeight: 800 }}>Adaptive mode</dt><dd style={{ margin: 0 }}>{evaluated?.differentiation?.question?.adaptiveMeta?.mode || 'recommend'} · target band {evaluated?.differentiation?.targetBand ?? '—'}</dd>
                 <dt style={{ fontWeight: 800 }}>Question JSON</dt>
                 <dd style={{ margin: 0 }}>
-                  <pre style={{ margin: 0, padding: 10, background: '#f8f9fa', borderRadius: 8, fontSize: 11, maxHeight: 220, overflow: 'auto' }}>{JSON.stringify(question, null, 2)}</pre>
+                  <pre style={{ margin: 0, padding: 10, background: 'var(--mm-surface-sunken)', borderRadius: 8, fontSize: 11, maxHeight: 220, overflow: 'auto' }}>{JSON.stringify(question, null, 2)}</pre>
                 </dd>
               </dl>
             )}
@@ -1210,9 +1210,9 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
                 <button type="button" onClick={copyDebugPackage} style={{ ...smallButton, background: '#1a73e8', color: '#fff', border: 0, minHeight: 44 }}>
                   Copy Debug Package for AI
                 </button>
-                {copied && <span style={{ color: '#137333', fontWeight: 800, fontSize: 13 }}>{copied}</span>}
+                {copied && <span style={{ color: 'var(--mm-success-text)', fontWeight: 800, fontSize: 13 }}>{copied}</span>}
               </div>
-              <p style={{ color: '#5f6368', fontSize: 12, margin: 0, lineHeight: 1.55 }}>
+              <p style={{ color: 'var(--mm-text-muted)', fontSize: 12, margin: 0, lineHeight: 1.55 }}>
                 The package carries the question JSON, the mastery and routing state that produced
                 this decision, and the path history — so whoever fixes it gets the cause rather than
                 a description of the symptom.

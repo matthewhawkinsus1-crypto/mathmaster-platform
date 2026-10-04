@@ -7,7 +7,7 @@
 .mathmaster-algebraic-system-layout {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(250px, .72fr) minmax(0, 1.55fr);
+  grid-template-columns: minmax(min(100%, 250px), .72fr) minmax(0, 1.55fr);
   gap: 18px;
   align-items: start;
 }
@@ -39,7 +39,7 @@
 /* The equation cards' grid is inline-styled as one column. */
 .mathmaster-algebraic-system-layout.has-active-solver .mathmaster-algebraic-system-givens > .mathmaster-tool-panel > div {
   flex: 1 1 360px;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)) !important;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)) !important;
   gap: 8px !important;
 }
 
@@ -54,7 +54,7 @@
   width: 100%;
   min-width: 0;
   padding: 10px 0 0;
-  border-top: 1px solid #d5e1f5;
+  border-top: 1px solid var(--mm-tint-border);
   box-sizing: border-box;
 }
 
@@ -78,20 +78,20 @@
   display: grid;
   gap: 10px;
   padding: 12px;
-  border: 1px solid #c7d7f4;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 12px;
-  background: #f8fbff;
+  background: var(--mm-surface-tint);
 }
 
 .mathmaster-systems-substitution-direction {
   margin: 0;
-  color: #3c4756;
+  color: var(--mm-text);
   font-size: 14px;
   line-height: 1.45;
 }
 
 .mathmaster-systems-substitution-direction span {
-  color: #6b7280;
+  color: var(--mm-text-muted);
   font-size: 12px;
 }
 
@@ -106,7 +106,7 @@
   border: 1.5px solid #6f96d6;
   border-radius: 10px;
   background: var(--mm-surface);
-  color: #172033;
+  color: var(--mm-text-strong);
   cursor: grab;
   box-shadow: 0 2px 6px rgba(23, 78, 166, .09);
   font-weight: 800;
@@ -122,14 +122,14 @@
 }
 
 .mathmaster-systems-token-label {
-  color: #174ea6;
+  color: var(--mm-primary-text);
   font-size: 12px;
   font-weight: 900;
   white-space: nowrap;
 }
 
 .mathmaster-systems-token-grip {
-  color: #6f7782;
+  color: var(--mm-text-subtle);
   font-size: 16px;
   line-height: 1;
 }
@@ -141,10 +141,10 @@
   flex-wrap: wrap;
   gap: 2px;
   padding: 12px 14px;
-  border: 2px dashed #b8cdf0;
+  border: 2px dashed var(--mm-primary-border);
   border-radius: 12px;
   background: var(--mm-surface);
-  color: #172033;
+  color: var(--mm-text-strong);
   font-family: "Cambria Math", "STIX Two Math", Georgia, serif;
   font-size: 25px;
   line-height: 1.3;
@@ -161,7 +161,7 @@
   border: 2px solid transparent;
   border-radius: 9px;
   background: transparent;
-  color: #172033;
+  color: var(--mm-text-strong);
   font: inherit;
   font-style: italic;
   cursor: pointer;
@@ -170,23 +170,23 @@
 .mathmaster-systems-variable-drop:hover,
 .mathmaster-systems-variable-drop:focus-visible,
 .mathmaster-systems-variable-drop.is-armed {
-  border-color: #8ab4f8;
-  background: #eef4ff;
+  border-color: var(--mm-primary-border);
+  background: var(--mm-primary-subtle);
   outline: none;
 }
 
 .mathmaster-systems-variable-drop.is-drag-over {
   border-color: #174ea6;
-  background: #dbeafe;
+  background: var(--mm-primary-soft);
   box-shadow: 0 0 0 4px rgba(26, 115, 232, .18), 0 4px 12px rgba(23, 78, 166, .16);
   transform: scale(1.08);
-  color: #174ea6;
+  color: var(--mm-primary-text);
 }
 
 .mathmaster-systems-variable-drop.is-filled {
-  border-color: #9ccfac;
-  background: #f0fbf4;
-  color: #137333;
+  border-color: var(--mm-success-border);
+  background: var(--mm-success-subtle);
+  color: var(--mm-success-text);
   font-style: normal;
   font-weight: 800;
 }
@@ -198,7 +198,7 @@
 }
 
 .mathmaster-systems-substitution-feedback.is-error {
-  color: #a02020;
+  color: var(--mm-error-text);
 }
 
 .mathmaster-systems-backsub-equations {
@@ -209,7 +209,7 @@
 
 .mathmaster-systems-backsub-equation-label {
   margin-bottom: 4px;
-  color: #5f6b7a;
+  color: var(--mm-text-muted);
   font-size: 12px;
   font-weight: 800;
 }
@@ -277,9 +277,9 @@
 .mathmaster-systems-work-trail {
   margin: 12px 0 4px;
   padding: 10px;
-  border: 1px solid #dbe3ef;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 12px;
-  background: #fbfcff;
+  background: var(--mm-surface);
 }
 
 /* Wraps rather than scrolling sideways: seven elimination steps are 700px in
@@ -298,10 +298,10 @@
   align-items: center;
   gap: 6px;
   padding: 6px 9px;
-  border: 1px solid #d6dfec;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 999px;
   background: var(--mm-surface);
-  color: #6b7280;
+  color: var(--mm-text-muted);
   font-size: 12px;
 }
 
@@ -311,24 +311,24 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #edf1f7;
+  background: var(--mm-primary-subtle);
   font-size: 11px;
   font-weight: 900;
 }
 
 .mathmaster-systems-work-step.is-complete {
-  color: #137333;
-  border-color: #b7dfc2;
-  background: #f4fbf6;
+  color: var(--mm-success-text);
+  border-color: var(--mm-success-border);
+  background: var(--mm-success-subtle);
 }
 
 .mathmaster-systems-work-step.is-complete > span {
-  background: #dff3e5;
+  background: var(--mm-success-bg);
 }
 
 .mathmaster-systems-work-step.is-active {
-  color: #174ea6;
-  border-color: #8ab4f8;
+  color: var(--mm-primary-text);
+  border-color: var(--mm-primary-border);
   box-shadow: 0 0 0 2px rgba(26, 115, 232, .08);
 }
 
@@ -357,8 +357,8 @@
   max-width: 100%;
   padding: 5px 8px;
   border-radius: 8px;
-  background: #eef7f0;
-  color: #315f3e;
+  background: var(--mm-success-subtle);
+  color: var(--mm-success-text);
   font-size: 11px;
   line-height: 1.3;
 }
@@ -399,8 +399,8 @@
 }
 
 .mathmaster-systems-check-combination:disabled {
-  background: #d7dde7;
-  color: #7b8493;
+  background: var(--mm-primary-soft);
+  color: var(--mm-text-subtle);
   cursor: not-allowed;
 }
 
@@ -424,7 +424,7 @@
 
 .mathmaster-systems-student-combination-heading span {
   margin-top: 3px;
-  color: #6b5b35;
+  color: var(--mm-warning-text);
   font-size: 12px;
   line-height: 1.4;
 }
@@ -439,7 +439,7 @@
 }
 
 .mathmaster-systems-student-combination-equals {
-  color: #172033;
+  color: var(--mm-text-strong);
   font-size: 25px;
   font-weight: 800;
 }
@@ -452,7 +452,7 @@
 }
 
 .mathmaster-systems-combination-feedback.is-error {
-  color: #a02020;
+  color: var(--mm-error-text);
 }
 
 .mathmaster-systems-operation-rail {
@@ -465,10 +465,10 @@
   min-width: 0;
   min-height: 40px;
   padding: 4px;
-  border: 1px solid #9ebcf0;
+  border: 1px solid var(--mm-primary-border);
   border-radius: 999px;
   background: var(--mm-surface);
-  color: #174ea6;
+  color: var(--mm-primary-text);
   font-family: "Cambria Math", "STIX Two Math", Georgia, serif;
   font-size: 22px;
   font-weight: 900;
@@ -479,7 +479,7 @@
 .mathmaster-systems-operation-rail button:focus-visible,
 .mathmaster-systems-operation-rail button.is-selected {
   border-color: #174ea6;
-  background: #e8f0fe;
+  background: var(--mm-primary-soft);
   outline: none;
 }
 
@@ -487,7 +487,7 @@
   display: grid;
   place-items: center;
   min-height: 40px;
-  color: #172033;
+  color: var(--mm-text-strong);
   font-family: "Cambria Math", "STIX Two Math", Georgia, serif;
   font-size: 25px;
   font-weight: 900;
@@ -499,9 +499,9 @@
   gap: 10px;
   margin-top: 14px;
   padding: 12px;
-  border: 1px solid #c7d7f4;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 12px;
-  background: #f8fbff;
+  background: var(--mm-surface-tint);
 }
 
 .mathmaster-systems-verification-heading strong,
@@ -511,7 +511,7 @@
 
 .mathmaster-systems-verification-heading span {
   margin-top: 3px;
-  color: #5f6b7a;
+  color: var(--mm-text-muted);
   font-size: 12px;
 }
 
@@ -532,14 +532,14 @@
   display: grid;
   gap: 8px;
   padding: 10px;
-  border: 1px solid #dbe3ef;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 11px;
   background: var(--mm-surface);
 }
 
 .mathmaster-systems-verification-card.is-valid {
-  border-color: #9ccfac;
-  background: #f5fbf6;
+  border-color: var(--mm-success-border);
+  background: var(--mm-surface-sunken);
 }
 
 .mathmaster-systems-verification-substitution {
@@ -547,11 +547,11 @@
   gap: 5px;
   padding: 9px;
   border-radius: 9px;
-  background: #f8fbff;
+  background: var(--mm-surface-tint);
 }
 
 .mathmaster-systems-verification-substitution > span {
-  color: #5f6b7a;
+  color: var(--mm-text-muted);
   font-size: 11px;
   font-weight: 900;
 }
@@ -573,7 +573,7 @@
   display: grid;
   align-content: start;
   gap: 5px;
-  color: #465267;
+  color: var(--mm-text-muted);
   font-size: 13px;
   font-weight: 700;
 }
@@ -584,8 +584,8 @@
   min-height: 44px;
   padding: 0 10px;
   border-radius: 9px;
-  background: #f3f6fb;
-  color: #172033;
+  background: var(--mm-primary-subtle);
+  color: var(--mm-text-strong);
   font-size: 20px;
 }
 
@@ -596,11 +596,11 @@
 }
 
 .mathmaster-systems-verification-feedback.is-valid {
-  color: #137333;
+  color: var(--mm-success-text);
 }
 
 .mathmaster-systems-verification-feedback.is-error {
-  color: #a02020;
+  color: var(--mm-error-text);
 }
 
 @media (max-width: 980px) {
@@ -676,13 +676,13 @@
 .mathmaster-reduction-layout {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(240px, .62fr) minmax(0, 1.7fr);
+  grid-template-columns: minmax(min(100%, 240px), .62fr) minmax(0, 1.7fr);
   gap: 18px;
   align-items: start;
 }
 
 .mathmaster-reduction-layout.has-active-solver {
-  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  grid-template-columns: minmax(min(100%, 220px), 280px) minmax(0, 1fr);
 }
 
 .mathmaster-reduction-reference,
@@ -699,7 +699,7 @@
 
 .mathmaster-reduction-reference-heading {
   margin-top: 4px;
-  color: #465267;
+  color: var(--mm-text-muted);
   font-size: 12px;
   font-weight: 900;
   letter-spacing: .02em;
@@ -711,37 +711,37 @@
   gap: 2px;
   min-width: 0;
   padding: 7px 10px;
-  border: 1px solid #dbe3ef;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 9px;
   background: var(--mm-surface);
   font-size: 15px;
 }
 
 .mathmaster-reduction-equation-card.is-source {
-  border-color: #8ab4f8;
-  background: #f5f9ff;
+  border-color: var(--mm-primary-border);
+  background: var(--mm-surface-tint);
 }
 
 .mathmaster-reduction-equation-card.is-derived {
   border-style: dashed;
-  background: #fbfcfe;
+  background: var(--mm-surface);
 }
 
 .mathmaster-reduction-equation-card.is-reduced {
   border-style: solid;
-  border-color: #9ccfac;
-  background: #f4fbf6;
+  border-color: var(--mm-success-border);
+  background: var(--mm-success-subtle);
 }
 
 .mathmaster-reduction-equation-label {
-  color: #5f6b7a;
+  color: var(--mm-text-muted);
   font-size: 12px;
   font-weight: 800;
 }
 
 .mathmaster-reduction-lineage-from {
   font-weight: 600;
-  color: #7a8594;
+  color: var(--mm-text-subtle);
 }
 
 .mathmaster-reduction-lineage-chip {
@@ -749,8 +749,8 @@
   max-width: 100%;
   padding: 1px 8px;
   border-radius: 999px;
-  background: #e8f0fe;
-  color: #174ea6;
+  background: var(--mm-primary-soft);
+  color: var(--mm-primary-text);
   font-size: 13px;
   font-weight: 800;
 }
@@ -764,8 +764,8 @@
 .mathmaster-reduction-value-chip {
   padding: 3px 10px;
   border-radius: 999px;
-  background: #e6f4ea;
-  color: #137333;
+  background: var(--mm-success-bg);
+  color: var(--mm-success-text);
   font-weight: 800;
   font-size: 14px;
 }
@@ -773,7 +773,7 @@
 .mathmaster-reduction-ordered-triple {
   padding: 8px 10px;
   border-radius: 8px;
-  background: #f0fbf4;
+  background: var(--mm-success-subtle);
 }
 
 .mathmaster-reduction-stage {
@@ -796,7 +796,7 @@
 
 .mathmaster-reduction-source-row > span {
   min-width: 82px;
-  color: #5f6b7a;
+  color: var(--mm-text-muted);
   font-size: 13px;
 }
 
@@ -804,19 +804,19 @@
   display: grid;
   gap: 8px;
   padding: 12px 14px;
-  border: 1px solid #dbe3ef;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 10px;
   background: var(--mm-surface);
 }
 
 .mathmaster-reduction-ready-card p {
   margin: 0;
-  color: #3c4756;
+  color: var(--mm-text);
   line-height: 1.5;
 }
 
 .mathmaster-reduction-ready-title {
-  color: #174ea6;
+  color: var(--mm-primary-text);
   font-size: 13px;
   font-weight: 800;
 }
@@ -831,7 +831,7 @@
 .mathmaster-reduction-field {
   display: grid;
   gap: 5px;
-  color: #465267;
+  color: var(--mm-text-muted);
   font-size: 13px;
   font-weight: 700;
 }
@@ -840,15 +840,15 @@
   width: fit-content;
   padding: 3px 10px;
   border-radius: 999px;
-  background: #eef4ff;
-  color: #174ea6;
+  background: var(--mm-primary-subtle);
+  color: var(--mm-primary-text);
   font-size: 12px;
   font-weight: 900;
 }
 
 .mathmaster-reduction-target-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 10px;
 }
 
@@ -861,7 +861,7 @@
 
 .mathmaster-reduction-target-card.is-substituted {
   padding: 10px 12px;
-  border: 1px dashed #b8cdf0;
+  border: 1px dashed var(--mm-primary-border);
   border-radius: 12px;
   background: var(--mm-surface);
   font-size: 18px;
@@ -876,8 +876,8 @@
   margin: 0;
   padding: 5px 10px;
   border-radius: 8px;
-  background: #f4fbf6;
-  color: #1c7a3d;
+  background: var(--mm-success-subtle);
+  color: var(--mm-success);
   font-size: 12px;
   font-weight: 800;
   width: fit-content;
@@ -887,7 +887,7 @@
   display: grid;
   gap: 8px;
   padding: 10px 12px;
-  border: 1px dashed #b8cdf0;
+  border: 1px dashed var(--mm-primary-border);
   border-radius: 12px;
   background: var(--mm-surface);
 }
@@ -918,13 +918,13 @@
 .mathmaster-algebraic3-method-label {
   font-size: 13px;
   font-weight: 800;
-  color: #465267;
+  color: var(--mm-text-muted);
 }
 
 .mathmaster-reduction-target-card.is-reduced {
   border-style: solid;
-  border-color: #9ccfac;
-  background: #f4fbf6;
+  border-color: var(--mm-success-border);
+  background: var(--mm-success-subtle);
 }
 
 .mathmaster-reduction-carry {
@@ -932,7 +932,7 @@
   padding: 4px 8px;
   border: 0;
   background: transparent;
-  color: #5f6b7a;
+  color: var(--mm-text-muted);
   font-size: 12px;
   font-weight: 700;
   text-decoration: underline;
@@ -940,13 +940,13 @@
 }
 
 .mathmaster-reduction-done {
-  color: #137333;
+  color: var(--mm-success-text);
   font-size: 13px;
   font-weight: 800;
 }
 
 .mathmaster-reduction-working {
-  color: #174ea6;
+  color: var(--mm-primary-text);
   font-size: 13px;
   font-weight: 800;
 }
@@ -969,7 +969,7 @@
 }
 
 .mathmaster-reduction-subsystem-heading span {
-  color: #5f6b7a;
+  color: var(--mm-text-muted);
   font-size: 13px;
 }
 
@@ -978,15 +978,15 @@
 }
 
 .mathmaster-reduction-verification-grid {
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
 }
 
 .mathmaster-reduction-unsupported {
   padding: 14px 16px;
   border-radius: 10px;
-  background: #fef7e0;
+  background: var(--mm-warning-bg);
   border: 1px solid #f9ab00;
-  color: #7a4f00;
+  color: var(--mm-warning-text);
 }
 
 .mathmaster-reduction-unsupported p {
@@ -1012,14 +1012,14 @@
   align-items: baseline;
   gap: 8px;
   padding: 6px 12px;
-  border: 1px solid #9ccfac;
+  border: 1px solid var(--mm-success-border);
   border-radius: 9px;
-  background: #f4fbf6;
+  background: var(--mm-success-subtle);
   font-size: 17px;
 }
 
 .mathmaster-algebraic-subsystem-equation > span {
-  color: #137333;
+  color: var(--mm-success-text);
   font-size: 13px;
   font-weight: 900;
 }
@@ -1032,7 +1032,7 @@
 
   .mathmaster-reduction-reference {
     position: static;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
   }
 
   .mathmaster-reduction-reference-heading,
@@ -1084,9 +1084,9 @@
   display: grid;
   gap: 10px;
   padding: 12px;
-  border: 1px solid #d5e1f4;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 12px;
-  background: #fff;
+  background: var(--mm-surface);
   text-align: left;
   container-type: inline-size;
 }
@@ -1094,8 +1094,8 @@
 .mathmaster-elim-round.is-complete {
   gap: 6px;
   padding: 10px 12px;
-  border-color: #b7dfc2;
-  background: linear-gradient(180deg, rgba(230, 244, 234, .45), #fff 70%);
+  border-color: var(--mm-success-border);
+  background: linear-gradient(180deg, rgba(230, 244, 234, .45), var(--mm-surface) 70%);
 }
 
 .mathmaster-elim-round-header {
@@ -1107,17 +1107,17 @@
 }
 
 .mathmaster-elim-round-header strong {
-  color: #1f2a3c;
+  color: var(--mm-text-strong);
   font-size: 14px;
 }
 
 .mathmaster-elim-header-button {
   min-height: 34px;
   padding: 6px 11px;
-  border: 1px solid #b8cdf0;
+  border: 1px solid var(--mm-primary-border);
   border-radius: 8px;
-  background: #fff;
-  color: #174ea6;
+  background: var(--mm-surface);
+  color: var(--mm-primary-text);
   font-size: 12px;
   font-weight: 800;
   cursor: pointer;
@@ -1125,7 +1125,7 @@
 
 .mathmaster-elim-direction {
   margin: 0;
-  color: #3c4756;
+  color: var(--mm-text);
   font-size: 13px;
   font-weight: 700;
 }
@@ -1142,7 +1142,7 @@
   grid-template-columns: 58px 96px repeat(var(--elim-vars, 3), minmax(56px, 84px)) 26px minmax(52px, 84px);
   align-items: center;
   column-gap: 6px;
-  color: #172033;
+  color: var(--mm-text-strong);
   font-family: "Cambria Math", "STIX Two Math", Georgia, serif;
   font-size: 23px;
 }
@@ -1167,7 +1167,7 @@
   align-items: flex-start;
   gap: 3px;
   min-width: 0;
-  color: #5f6b7a;
+  color: var(--mm-text-muted);
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   font-size: 11px;
   font-weight: 900;
@@ -1178,8 +1178,8 @@
 .mathmaster-elim-badge {
   padding: 2px 7px;
   border-radius: 999px;
-  background: #e8f0fe;
-  color: #174ea6;
+  background: var(--mm-primary-soft);
+  color: var(--mm-primary-text);
   font-size: 12px;
   letter-spacing: 0;
   text-transform: none;
@@ -1190,7 +1190,7 @@
   padding: 2px 0;
   border: 0;
   background: none;
-  color: #1a57c9;
+  color: var(--mm-primary-text);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0;
@@ -1259,7 +1259,7 @@
 
 .mathmaster-elim-term.is-eliminated {
   justify-content: center;
-  color: #9aa3b1;
+  color: var(--mm-text-subtle);
 }
 
 .mathmaster-elim-rule {
@@ -1286,9 +1286,9 @@
   gap: 8px;
   margin-left: 64px;
   padding: 8px 10px;
-  border: 1px dashed #b8cdf0;
+  border: 1px dashed var(--mm-primary-border);
   border-radius: 10px;
-  background: #f5f8fe;
+  background: var(--mm-surface-tint);
 }
 
 .mathmaster-elim-factor-field {
@@ -1301,14 +1301,14 @@
   display: grid;
   gap: 6px;
   padding: 8px 0;
-  border: 1px dashed #b8cdf0;
+  border: 1px dashed var(--mm-primary-border);
   border-radius: 10px;
-  background: #f5f8fe;
+  background: var(--mm-surface-tint);
 }
 
 .mathmaster-elim-hint {
   margin: 0 10px;
-  color: #3c4756;
+  color: var(--mm-text);
   font-size: 12px;
   font-weight: 700;
   line-height: 1.4;
@@ -1328,10 +1328,10 @@
   justify-content: space-between;
   gap: 10px;
   padding: 10px 12px;
-  border: 1px solid #b7dfc2;
+  border: 1px solid var(--mm-success-border);
   border-radius: 10px;
-  background: #f3faf5;
-  color: #1f3b2a;
+  background: var(--mm-success-subtle);
+  color: var(--mm-success-text);
   font-size: 14px;
 }
 
@@ -1382,7 +1382,7 @@
 
   .mathmaster-elim-entry-label {
     display: block;
-    color: #3c4756;
+    color: var(--mm-text);
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     font-size: 12px;
     font-weight: 800;
@@ -1391,16 +1391,16 @@
 
 .mathmaster-algebraic3-choice-system {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
   gap: 8px;
   margin-bottom: 12px;
 }
 
-.mathmaster-algebraic-outcome { margin-top: 18px; padding: 16px; border: 1px solid #b8cdf0; border-radius: 10px; }
+.mathmaster-algebraic-outcome { margin-top: 18px; padding: 16px; border: 1px solid var(--mm-primary-border); border-radius: 10px; }
 .mathmaster-algebraic-outcome form { display: grid; gap: 12px; }
 .mathmaster-algebraic-outcome select { display: block; width: 100%; min-height: 44px; margin-top: 8px; padding: 8px; }
-.mathmaster-algebraic-outcome button { min-height: 44px; margin: 8px 0; padding: 10px 14px; border: 1px solid #b8cdf0; border-radius: 8px; background: #eef4ff; color: #174ea6; font-weight: 700; }
+.mathmaster-algebraic-outcome button { min-height: 44px; margin: 8px 0; padding: 10px 14px; border: 1px solid var(--mm-primary-border); border-radius: 8px; background: var(--mm-primary-subtle); color: var(--mm-primary-text); font-weight: 700; }
 .mathmaster-algebraic-outcome button:disabled { opacity: .5; }
-.mathmaster-algebraic-outcome-planes { display: grid; gap: 10px; margin: 12px 0 0; padding: 12px; border: 1px solid #b8cdf0; border-radius: 10px; min-width: 0; }
+.mathmaster-algebraic-outcome-planes { display: grid; gap: 10px; margin: 12px 0 0; padding: 12px; border: 1px solid var(--mm-primary-border); border-radius: 10px; min-width: 0; }
 .mathmaster-algebraic-outcome-planes legend { padding: 0 6px; font-weight: 700; }
 .mathmaster-algebraic-outcome-planes label, .mathmaster-algebraic-outcome form label { display: grid; gap: 6px; font-weight: 700; min-width: 0; }

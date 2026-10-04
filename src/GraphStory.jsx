@@ -95,40 +95,40 @@ export default function GraphStory({ question, onStateChange, onUndoStateChange,
   const endStroke = () => { drawingRef.current = false; };
 
   const gridLines = [];
-  for (let x = PAD; x <= WIDTH - PAD; x += 42) gridLines.push(<line key={`vx-${x}`} x1={x} y1={PAD} x2={x} y2={HEIGHT - PAD} stroke="#e5e9ef" />);
-  for (let y = PAD; y <= HEIGHT - PAD; y += 42) gridLines.push(<line key={`hy-${y}`} x1={PAD} y1={y} x2={WIDTH - PAD} y2={y} stroke="#e5e9ef" />);
+  for (let x = PAD; x <= WIDTH - PAD; x += 42) gridLines.push(<line key={`vx-${x}`} x1={x} y1={PAD} x2={x} y2={HEIGHT - PAD} style={{ stroke: 'var(--mm-graph-grid-minor)' }} />);
+  for (let y = PAD; y <= HEIGHT - PAD; y += 42) gridLines.push(<line key={`hy-${y}`} x1={PAD} y1={y} x2={WIDTH - PAD} y2={y} style={{ stroke: 'var(--mm-graph-grid-minor)' }} />);
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto', textAlign: 'left' }}>
       <h2 style={{ textAlign: 'center', marginTop: 0 }}>{hasSourceGraph ? 'Read the Graph and Tell Its Story' : 'Write a Scenario and Sketch Its Graph'}</h2>
       <QuestionPrompt>{question.prompt || 'Write a real-world scenario, sketch a graph, and explain how the graph tells the story.'}</QuestionPrompt>
       {hasSourceGraph && <div style={{ maxWidth: '760px', margin: '18px auto' }}><GraphDisplay graph={question.graph} title={question.graphTitle || 'Graph to interpret'} /></div>}
-      <p style={{ padding: '10px 14px', borderRadius: '9px', background: '#e8f0fe', color: '#174ea6', fontWeight: 700 }}>This open-ended question earns completion credit when every required part is present. The teacher can review the written response and saved work in the gradebook.</p>
+      <p style={{ padding: '10px 14px', borderRadius: '9px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 700 }}>This open-ended question earns completion credit when every required part is present. The teacher can review the written response and saved work in the gradebook.</p>
       <label style={{ display: 'block', fontWeight: 800 }}>Scenario
-        <textarea value={values.scenario} onChange={(event) => setField('scenario', event.target.value)} placeholder="Describe a possible trip, cost, distance, height, or another changing relationship." style={{ width: '100%', minHeight: '110px', marginTop: '7px', padding: '12px', boxSizing: 'border-box', borderRadius: '9px', border: '2px solid #bdc7d6', font: 'inherit' }} />
+        <textarea value={values.scenario} onChange={(event) => setField('scenario', event.target.value)} placeholder="Describe a possible trip, cost, distance, height, or another changing relationship." style={{ width: '100%', minHeight: '110px', marginTop: '7px', padding: '12px', boxSizing: 'border-box', borderRadius: '9px', border: '2px solid var(--mm-border)', font: 'inherit' }} />
       </label>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginTop: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '12px', marginTop: '16px' }}>
         {[
           ['independent', 'Independent quantity'], ['dependent', 'Dependent quantity'],
           ['xLabel', 'X-axis label'], ['xUnit', 'X-axis unit'], ['yLabel', 'Y-axis label'], ['yUnit', 'Y-axis unit'],
-        ].map(([field, label]) => <label key={field} style={{ fontWeight: 800 }}>{label}<input value={values[field]} onChange={(event) => setField(field, event.target.value)} style={{ display: 'block', width: '100%', marginTop: '6px', padding: '10px', boxSizing: 'border-box', borderRadius: '8px', border: '2px solid #bdc7d6', fontSize: '16px' }} /></label>)}
+        ].map(([field, label]) => <label key={field} style={{ fontWeight: 800 }}>{label}<input value={values[field]} onChange={(event) => setField(field, event.target.value)} style={{ display: 'block', width: '100%', marginTop: '6px', padding: '10px', boxSizing: 'border-box', borderRadius: '8px', border: '2px solid var(--mm-border)', fontSize: '16px' }} /></label>)}
       </div>
       {requireSketch && <section style={{ marginTop: '22px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}><h3 style={{ margin: 0 }}>Graph sketch</h3><button type="button" onClick={() => setField('strokes', [])} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #d93025', background: 'var(--mm-surface)', color: '#d93025', fontWeight: 800 }}>Clear graph</button></div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}><h3 style={{ margin: 0 }}>Graph sketch</h3><button type="button" onClick={() => setField('strokes', [])} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #d93025', background: 'var(--mm-surface)', color: 'var(--mm-danger)', fontWeight: 800 }}>Clear graph</button></div>
         <EnlargeableFigure label="Graph story plane" enlargeLabel="Enlarge plane" style={{ width: '100%' }}>
-        <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} onPointerDown={startStroke} onPointerMove={continueStroke} onPointerUp={endStroke} onPointerCancel={endStroke} style={{ display: 'block', width: '100%', marginTop: '10px', border: '2px solid #9fb3cc', borderRadius: '12px', background: 'var(--mm-surface)', touchAction: 'none', cursor: 'crosshair' }} role="img" aria-label="Blank coordinate plane for graph story">
-          <rect x={PAD} y={PAD} width={WIDTH - PAD * 2} height={HEIGHT - PAD * 2} fill="#fff" stroke="#c7ced8" />
+        <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} onPointerDown={startStroke} onPointerMove={continueStroke} onPointerUp={endStroke} onPointerCancel={endStroke} style={{ display: 'block', width: '100%', marginTop: '10px', border: '2px solid var(--mm-primary-border)', borderRadius: '12px', background: 'var(--mm-surface)', touchAction: 'none', cursor: 'crosshair' }} role="img" aria-label="Blank coordinate plane for graph story">
+          <rect x={PAD} y={PAD} width={WIDTH - PAD * 2} height={HEIGHT - PAD * 2} style={{ fill: 'var(--mm-graph-bg)', stroke: 'var(--mm-graph-grid)' }} />
           {gridLines}
-          <line x1={PAD} y1={HEIGHT - PAD} x2={WIDTH - PAD} y2={HEIGHT - PAD} stroke="#3c4043" strokeWidth="3" />
-          <line x1={PAD} y1={PAD} x2={PAD} y2={HEIGHT - PAD} stroke="#3c4043" strokeWidth="3" />
-          <text x={WIDTH - PAD - 8} y={HEIGHT - PAD - 10} textAnchor="end" fontSize="17" fill="#3c4043">{values.xLabel || 'x'}</text>
-          <text x={PAD + 10} y={PAD + 20} fontSize="17" fill="#3c4043">{values.yLabel || 'y'}</text>
+          <line x1={PAD} y1={HEIGHT - PAD} x2={WIDTH - PAD} y2={HEIGHT - PAD} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="3" />
+          <line x1={PAD} y1={PAD} x2={PAD} y2={HEIGHT - PAD} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="3" />
+          <text x={WIDTH - PAD - 8} y={HEIGHT - PAD - 10} textAnchor="end" fontSize="17" style={{ fill: 'var(--mm-graph-label)' }}>{values.xLabel || 'x'}</text>
+          <text x={PAD + 10} y={PAD + 20} fontSize="17" style={{ fill: 'var(--mm-graph-label)' }}>{values.yLabel || 'y'}</text>
           {values.strokes.map((stroke, index) => <polyline key={index} points={stroke.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#1a73e8" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />)}
         </svg>
         </EnlargeableFigure>
       </section>}
       <label style={{ display: 'block', marginTop: '20px', fontWeight: 800 }}>Explain what the points, segments, or smooth curve represent
-        <textarea value={values.explanation} onChange={(event) => setField('explanation', event.target.value)} style={{ width: '100%', minHeight: '110px', marginTop: '7px', padding: '12px', boxSizing: 'border-box', borderRadius: '9px', border: `2px solid ${feedback?.partGrades?.find((part) => part.id === 'explanation' && !part.isCorrect) ? '#d93025' : '#bdc7d6'}`, font: 'inherit' }} />
+        <textarea value={values.explanation} onChange={(event) => setField('explanation', event.target.value)} style={{ width: '100%', minHeight: '110px', marginTop: '7px', padding: '12px', boxSizing: 'border-box', borderRadius: '9px', border: `2px solid ${feedback?.partGrades?.find((part) => part.id === 'explanation' && !part.isCorrect) ? '#d93025' : 'var(--mm-border)'}`, font: 'inherit' }} />
       </label>
     </div>
   );

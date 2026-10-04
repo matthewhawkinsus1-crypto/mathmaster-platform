@@ -62,11 +62,11 @@ export default function ClassroomSyncReview({ proposal = null, students = [], on
   return (
     <div style={OVERLAY} role="presentation" onClick={(event) => { if (event.target === event.currentTarget) onClose?.(); }}>
       <div style={SHEET} role="dialog" aria-modal="true" aria-label="Review weekly Path grades before publishing">
-        <header style={{ padding: '18px 22px 14px', borderBottom: '1px solid #eef0f2' }}>
+        <header style={{ padding: '18px 22px 14px', borderBottom: '1px solid var(--mm-border-soft)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'flex-start' }}>
             <div>
               <h2 style={{ margin: 0, fontSize: 19 }}>Weekly Path grades · week of {proposal.weekKey}</h2>
-              <p style={{ margin: '5px 0 0', color: '#5f6368', fontSize: 13 }}>
+              <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 13 }}>
                 {proposal.grades.length} student{proposal.grades.length === 1 ? '' : 's'} · {proposal.policy.description}
               </p>
             </div>
@@ -74,13 +74,13 @@ export default function ClassroomSyncReview({ proposal = null, students = [], on
               type="button"
               ref={closeRef}
               onClick={() => onClose?.()}
-              style={{ padding: '7px 12px', border: '1px solid #dadce0', borderRadius: 8, background: 'var(--mm-surface)', fontWeight: 900, cursor: 'pointer' }}
+              style={{ padding: '7px 12px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)', fontWeight: 900, cursor: 'pointer' }}
             >
               Close
             </button>
           </div>
 
-          <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: '#fff4ce', color: '#6b4c00', fontSize: 12.5, lineHeight: 1.5 }}>
+          <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 12.5, lineHeight: 1.5 }}>
             <strong>Nothing has been sent.</strong> These grades stay in MathMaster until you publish them through
             your existing Google Classroom publication flow, which is where your linked courses, your permissions
             and the audit record live. This screen exists so you can see the exact numbers first.
@@ -90,7 +90,7 @@ export default function ClassroomSyncReview({ proposal = null, students = [], on
         <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr style={{ background: '#f8f9fa', textAlign: 'left' }}>
+              <tr style={{ background: 'var(--mm-surface-sunken)', textAlign: 'left' }}>
                 <th style={{ padding: '10px 22px' }}>Student</th>
                 <th style={{ padding: '10px 12px', textAlign: 'right' }}>Sessions</th>
                 <th style={{ padding: '10px 22px', textAlign: 'right' }}>Grade</th>
@@ -98,12 +98,12 @@ export default function ClassroomSyncReview({ proposal = null, students = [], on
             </thead>
             <tbody>
               {proposal.grades.map((grade) => (
-                <tr key={grade.studentId} style={{ borderTop: '1px solid #eef0f2' }}>
+                <tr key={grade.studentId} style={{ borderTop: '1px solid var(--mm-border-soft)' }}>
                   <td style={{ padding: '9px 22px' }}>{rosterStudentLabel(grade.studentId, students, grade.studentName)}</td>
-                  <td style={{ padding: '9px 12px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#5f6368' }}>
+                  <td style={{ padding: '9px 12px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--mm-text-muted)' }}>
                     {grade.completed} / {grade.required}
                   </td>
-                  <td style={{ padding: '9px 22px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 900, color: grade.passing ? '#12633a' : '#9a3412' }}>
+                  <td style={{ padding: '9px 22px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 900, color: grade.passing ? 'var(--mm-success-text)' : 'var(--mm-warning-text)' }}>
                     {grade.score == null ? '—' : `${grade.score}%`} / {grade.outOf}
                   </td>
                 </tr>
@@ -112,15 +112,15 @@ export default function ClassroomSyncReview({ proposal = null, students = [], on
           </table>
         </div>
 
-        <footer style={{ display: 'flex', gap: 9, padding: '13px 22px', borderTop: '1px solid #eef0f2', background: '#f8f9fa', flexWrap: 'wrap', alignItems: 'center' }}>
+        <footer style={{ display: 'flex', gap: 9, padding: '13px 22px', borderTop: '1px solid var(--mm-border-soft)', background: 'var(--mm-surface-sunken)', flexWrap: 'wrap', alignItems: 'center' }}>
           <button
             type="button"
             onClick={download}
-            style={{ padding: '9px 13px', border: '1px solid #1a73e8', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 900, cursor: 'pointer' }}
+            style={{ padding: '9px 13px', border: '1px solid #1a73e8', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 900, cursor: 'pointer' }}
           >
             Download these grades
           </button>
-          <span style={{ color: '#5f6368', fontSize: 12, flex: 1, minWidth: 200 }}>
+          <span style={{ color: 'var(--mm-text-muted)', fontSize: 12, flex: 1, minWidth: 200 }}>
             Includes the grading policy, so the numbers can be explained later.
           </span>
         </footer>

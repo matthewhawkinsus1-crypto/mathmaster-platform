@@ -112,7 +112,7 @@ test('the relation solver records number-line hints and words the withheld stage
   assert.match(stage, /if \(action === 'HINT_USED'\) reportHintUse\?\.\(\);/);
   assert.match(stage, /\{representationStage\.recordedNotice \? \(/);
   const notice = region(stage, '{representationStage.recordedNotice ? (', ') : null}', 'recorded notice');
-  assert.doesNotMatch(notice, /orrect|#137333|#e6f4ea/, 'the notice carries no verdict word or colour');
+  assert.doesNotMatch(notice, /orrect|#137333|#e6f4ea|--mm-success/, 'the notice carries no verdict word or colour');
   const verified = region(relation, '{!representationsWithheld && disabled && candidateVerificationComplete && candidateVerificationCorrect && (', ')}', 'verified box');
   assert.match(verified, /Verified solution/);
   assert.equal((relation.match(/Verified solution\{/g) || []).length, 1, 'no second, ungated copy');
@@ -171,7 +171,8 @@ test('the builder renders the checklist from the view, fed by the runtime policy
   assert.match(builder, /\n\s*const checklist = constraintChecklistView\(\{ parts: liveScore\.parts, showImmediateFeedback \}\);/);
   const list = region(builder, 'Constraint checklist</strong>', 'Submit this model', 'checklist');
   assert.match(list, /\{checklist\.map\(\(item\) => <div key=\{item\.id\}/);
-  assert.match(list, /background: item\.satisfied \? '#e6f4ea'/);
+  // Satisfied reads as the success container (a themed token since Dark Mode 2.0).
+  assert.match(list, /background: item\.satisfied \? 'var\(--mm-success-bg\)'/);
   assert.doesNotMatch(list, /liveScore|part\.isCorrect/, 'nothing in the list reads the live score directly');
 });
 

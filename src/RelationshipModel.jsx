@@ -23,8 +23,8 @@ const selectStyle = (status) => ({
   width: '100%',
   padding: '10px',
   borderRadius: '8px',
-  border: `2px solid ${status === 'correct' ? '#188038' : status === 'incorrect' ? '#d93025' : '#bdc7d6'}`,
-  background: status === 'incorrect' ? '#fff8f7' : '#fff',
+  border: `2px solid ${status === 'correct' ? '#188038' : status === 'incorrect' ? '#d93025' : 'var(--mm-border)'}`,
+  background: status === 'incorrect' ? 'var(--mm-error-subtle)' : 'var(--mm-surface)',
   fontSize: '16px',
 });
 
@@ -131,7 +131,7 @@ export default function RelationshipModel({
     <div style={{ textAlign: 'left', maxWidth: '920px', margin: '0 auto' }}>
       <h2 style={{ marginTop: 0, textAlign: 'center' }}>Quantities and Their Relationship</h2>
       <QuestionPrompt>{question.prompt || 'Identify and describe the relationship.'}</QuestionPrompt>
-      {question.scenario && !question.suppressScenarioDisplay && <div style={{ padding: '18px', borderRadius: '12px', background: '#f8fbff', border: '1px solid #cbd9ec', lineHeight: 1.6, fontSize: '17px' }}>{question.scenario}</div>}
+      {question.scenario && !question.suppressScenarioDisplay && <div style={{ padding: '18px', borderRadius: '12px', background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)', lineHeight: 1.6, fontSize: '17px' }}>{question.scenario}</div>}
 
       {showDragAxisEditor && (
         <GraphAxisEditor
@@ -148,7 +148,7 @@ export default function RelationshipModel({
       {requirements.quantities && (
         <section style={{ marginTop: '22px' }}>
           <h3>1. Identify the quantities</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '14px' }}>
             <label style={{ fontWeight: 800 }}>Independent quantity
               <select disabled={disabled} value={values.independentId} onChange={(event) => setField('independentId', event.target.value)} style={{ ...selectStyle(statusFor(feedback, 'independent')), display: 'block', marginTop: '7px' }}>
                 <option value="">Choose a quantity</option>
@@ -170,7 +170,7 @@ export default function RelationshipModel({
           <h3>2. Decide whether the relationship is discrete or continuous</h3>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             {['discrete', 'continuous'].map((kind) => (
-              <label key={kind} style={{ padding: '10px 15px', borderRadius: '999px', border: `2px solid ${values.relationshipType === kind ? '#1a73e8' : '#cbd3df'}`, background: values.relationshipType === kind ? '#e8f0fe' : '#fff', fontWeight: 800, textTransform: 'capitalize' }}>
+              <label key={kind} style={{ padding: '10px 15px', borderRadius: '999px', border: `2px solid ${values.relationshipType === kind ? '#1a73e8' : 'var(--mm-border)'}`, background: values.relationshipType === kind ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', fontWeight: 800, textTransform: 'capitalize' }}>
                 <input disabled={disabled} type="radio" name="relationship-type" checked={values.relationshipType === kind} onChange={() => setField('relationshipType', kind)} /> {kind}
               </label>
             ))}
@@ -181,7 +181,7 @@ export default function RelationshipModel({
       {requirements.axes && axisInputMode !== 'drag' && (
         <section style={{ marginTop: '22px' }}>
           <h3>3. Label the axes and units</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: '12px' }}>
             {[
               ['xLabel', 'X-axis quantity', 'x-label'],
               ['xUnit', 'X-axis unit', 'x-unit'],
@@ -194,7 +194,7 @@ export default function RelationshipModel({
             ))}
           </div>
           {axisSetup.applyToGraph === true && (
-            <div style={{ marginTop: '9px', color: '#5f6368', fontSize: '13px' }}>
+            <div style={{ marginTop: '9px', color: 'var(--mm-text-muted)', fontSize: '13px' }}>
               Your labels and units appear on the graph as you enter them.
             </div>
           )}
@@ -202,7 +202,7 @@ export default function RelationshipModel({
       )}
 
       {requirements.axes && axisInputMode === 'drag' && (
-        <section style={{ marginTop: '18px', padding: '12px 14px', borderRadius: '10px', background: '#f8fbff', color: '#3c4043' }}>
+        <section style={{ marginTop: '18px', padding: '12px 14px', borderRadius: '10px', background: 'var(--mm-surface-tint)', color: 'var(--mm-text)' }}>
           <strong>Axis setup:</strong> Drag the quantity and unit cards directly to the graph. Your choices appear on the graph immediately.
         </section>
       )}
@@ -210,7 +210,7 @@ export default function RelationshipModel({
       {requirements.scale && (
         <section style={{ marginTop: '22px' }}>
           <h3>4. Choose a reasonable scale</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: '12px' }}>
             <label style={{ fontWeight: 800 }}>X-axis count-by value
               <input disabled={disabled} type="number" min="0" step="any" value={values.xStep} onChange={(event) => setField('xStep', event.target.value)} style={{ ...selectStyle(statusFor(feedback, 'x-step')), display: 'block', marginTop: '7px', boxSizing: 'border-box' }} />
             </label>
@@ -219,7 +219,7 @@ export default function RelationshipModel({
             </label>
           </div>
           {axisSetup.applyToGraph === true && (
-            <div style={{ marginTop: '9px', color: '#5f6368', fontSize: '13px' }}>
+            <div style={{ marginTop: '9px', color: 'var(--mm-text-muted)', fontSize: '13px' }}>
               Each positive count-by value immediately changes that axis on the graph. Hidden numbers appear only after you choose a scale.
             </div>
           )}
@@ -230,7 +230,7 @@ export default function RelationshipModel({
         <section style={{ marginTop: '22px' }}>
           <h3>5. Interpret the starting point</h3>
           {originMode === 'open' ? (
-            <textarea disabled={disabled} value={values.originMeaning} onChange={(event) => setField('originMeaning', event.target.value)} placeholder="Explain what the starting point means in the situation." style={{ width: '100%', minHeight: '105px', padding: '12px', boxSizing: 'border-box', borderRadius: '9px', border: `2px solid ${statusFor(feedback, 'origin') === 'incorrect' ? '#d93025' : statusFor(feedback, 'origin') === 'correct' ? '#188038' : '#bdc7d6'}`, font: 'inherit' }} />
+            <textarea disabled={disabled} value={values.originMeaning} onChange={(event) => setField('originMeaning', event.target.value)} placeholder="Explain what the starting point means in the situation." style={{ width: '100%', minHeight: '105px', padding: '12px', boxSizing: 'border-box', borderRadius: '9px', border: `2px solid ${statusFor(feedback, 'origin') === 'incorrect' ? '#d93025' : statusFor(feedback, 'origin') === 'correct' ? '#188038' : 'var(--mm-border)'}`, font: 'inherit' }} />
           ) : (
             <PointMeaningBuilder
               config={originConfig}

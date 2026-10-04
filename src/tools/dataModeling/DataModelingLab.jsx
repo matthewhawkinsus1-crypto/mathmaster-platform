@@ -28,13 +28,13 @@ import {
 import { fitAdjustmentPlan, fitDataBounds, interactionIncrements, residualScale, stepFitControl } from '../../platform/graph/graphScaleService.js';
 
 const Field = ({ label, children }) => (
-  <label style={{ display:'block', fontSize:13, color:'#465267', fontWeight:700 }}>
+  <label style={{ display:'block', fontSize:13, color:'var(--mm-text-muted)', fontWeight:700 }}>
     {label}
     <div style={{ marginTop:5 }}>{children}</div>
   </label>
 );
 
-const inputStyle = { width:'100%', boxSizing:'border-box', padding:'9px 10px', border:'1px solid #cfd8e6', borderRadius:8, background:'#fff' };
+const inputStyle = { width:'100%', boxSizing:'border-box', padding:'9px 10px', border:'1px solid var(--mm-tint-border)', borderRadius:8, background:'var(--mm-surface)' };
 
 const decimalsForStep = (step) => {
   const value = Math.abs(Number(step));
@@ -49,18 +49,18 @@ const FitStepper = ({ label, value, control, onChange }) => {
   const upperDisabled = Number(value) >= Number(control?.max) - Number(control?.step) * 0.25;
   const change = (direction) => onChange(stepFitControl(value, direction, control));
   return (
-    <div role="group" aria-label={label} style={{ border:'1px solid #cfd8e6', borderRadius:10, padding:10, background:'#fff' }}>
-      <div style={{ fontSize:13, color:'#465267', fontWeight:800, marginBottom:7 }}>{label}</div>
+    <div role="group" aria-label={label} style={{ border:'1px solid var(--mm-tint-border)', borderRadius:10, padding:10, background:'var(--mm-surface)' }}>
+      <div style={{ fontSize:13, color:'var(--mm-text-muted)', fontWeight:800, marginBottom:7 }}>{label}</div>
       <div style={{ display:'grid', gridTemplateColumns:'52px minmax(86px,1fr) 52px', gap:8, alignItems:'center' }}>
         <button type="button" aria-label={`Decrease ${label}`} disabled={lowerDisabled} onClick={() => change(-1)}
-          style={{ minHeight:48, border:'1px solid #b9c8dc', borderRadius:9, background:'#eef4ff', color:'#174ea6', fontSize:24, fontWeight:900 }}>−</button>
-        <output aria-live="polite" style={{ minHeight:48, display:'grid', placeItems:'center', borderRadius:9, background:'#f8fafc', color:'#172033', fontWeight:900, fontVariantNumeric:'tabular-nums', fontSize:18 }}>
+          style={{ minHeight:48, border:'1px solid var(--mm-primary-border)', borderRadius:9, background:'var(--mm-primary-subtle)', color:'var(--mm-primary-text)', fontSize:24, fontWeight:900 }}>−</button>
+        <output aria-live="polite" style={{ minHeight:48, display:'grid', placeItems:'center', borderRadius:9, background:'var(--mm-surface-sunken)', color:'var(--mm-text-strong)', fontWeight:900, fontVariantNumeric:'tabular-nums', fontSize:18 }}>
           {display}
         </output>
         <button type="button" aria-label={`Increase ${label}`} disabled={upperDisabled} onClick={() => change(1)}
-          style={{ minHeight:48, border:'1px solid #b9c8dc', borderRadius:9, background:'#eef4ff', color:'#174ea6', fontSize:24, fontWeight:900 }}>+</button>
+          style={{ minHeight:48, border:'1px solid var(--mm-primary-border)', borderRadius:9, background:'var(--mm-primary-subtle)', color:'var(--mm-primary-text)', fontSize:24, fontWeight:900 }}>+</button>
       </div>
-      <div style={{ marginTop:6, color:'#6b7280', fontSize:12 }}>Each tap changes the value by {Number(control?.step).toFixed(decimals)}.</div>
+      <div style={{ marginTop:6, color:'var(--mm-text-muted)', fontSize:12 }}>Each tap changes the value by {Number(control?.step).toFixed(decimals)}.</div>
     </div>
   );
 };
@@ -323,12 +323,12 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                   {lineFitRegressionTechnology ? (
                     <section
                       aria-label="Linear regression technology"
-                      style={{ gridColumn:'1 / -1', border:'1px solid #b9c8dc', borderRadius:10, padding:11, background:'#f8fbff' }}
+                      style={{ gridColumn:'1 / -1', border:'1px solid var(--mm-primary-border)', borderRadius:10, padding:11, background:'var(--mm-surface-tint)' }}
                     >
                       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, flexWrap:'wrap' }}>
                         <div>
-                          <strong style={{ color:'#174ea6' }}>Regression technology</strong>
-                          <div style={{ marginTop:3, color:'#5f6b7a', fontSize:12 }}>After making your estimate, run linear regression on the full data set. Its line becomes your model.</div>
+                          <strong style={{ color:'var(--mm-primary-text)' }}>Regression technology</strong>
+                          <div style={{ marginTop:3, color:'var(--mm-text-muted)', fontSize:12 }}>After making your estimate, run linear regression on the full data set. Its line becomes your model.</div>
                         </div>
                         <button
                           type="button"
@@ -353,12 +353,12 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                       </div>
                       {regressionTechnologyRun ? (
                         <div data-line-fit-regression-result style={{ marginTop:10, display:'flex', alignItems:'center', justifyContent:'space-between', gap:10, flexWrap:'wrap' }}>
-                          <output aria-live="polite" style={{ fontWeight:850, color:'#172033' }}>
+                          <output aria-live="polite" style={{ fontWeight:850, color:'var(--mm-text-strong)' }}>
                             y = {round(regression.m, 3)}x {regression.b >= 0 ? '+' : '−'} {Math.abs(round(regression.b, 3))}
-                            <span style={{ marginLeft:10, color:'#5f6b7a', fontWeight:700 }}>r ≈ {formatCorrelation(r)}</span>
+                            <span style={{ marginLeft:10, color:'var(--mm-text-muted)', fontWeight:700 }}>r ≈ {formatCorrelation(r)}</span>
                           </output>
                           {regressionEstimate ? (
-                            <span style={{ color:'#5f6b7a', fontSize:13 }}>
+                            <span style={{ color:'var(--mm-text-muted)', fontSize:13 }}>
                               Your estimate was y = {regressionEstimate.m}x {Number(regressionEstimate.b) >= 0 ? '+' : '−'} {Math.abs(Number(regressionEstimate.b))}
                             </span>
                           ) : null}
@@ -366,7 +366,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                             <button
                               type="button"
                               onClick={() => { setM(round(regression.m, 3)); setB(round(regression.b, 3)); clearFeedback(); }}
-                              style={{ minHeight:40, border:'1px solid #b9c8dc', borderRadius:9, background:'#fff', color:'#174ea6', padding:'7px 11px', fontWeight:850 }}
+                              style={{ minHeight:40, border:'1px solid var(--mm-primary-border)', borderRadius:9, background:'var(--mm-surface)', color:'var(--mm-primary-text)', padding:'7px 11px', fontWeight:850 }}
                             >
                               Use regression model
                             </button>
@@ -383,7 +383,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                 </div>
               )}
               {studentModelReady ? (
-                <div style={{ marginTop:12, borderRadius:10, padding:11, background:'#f3f7ff', color:'#344563' }}>
+                <div style={{ marginTop:12, borderRadius:10, padding:11, background:'var(--mm-primary-subtle)', color:'var(--mm-primary-text)' }}>
                   <strong>Your model:</strong>{' '}
                   {(mode === 'quadraticFitPrediction' || mode === 'quadraticFit')
                     ? <>y = {quadraticA}x² {Number(quadraticB) >= 0 ? '+' : '−'} {Math.abs(Number(quadraticB))}x {Number(quadraticC) >= 0 ? '+' : '−'} {Math.abs(Number(quadraticC))}</>
@@ -395,11 +395,11 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                   <br/><span style={{ fontSize:13 }}>Current MAE: {Number.isFinite(studentMetrics.mae) ? round(studentMetrics.mae, 2) : '—'} · RMSE: {Number.isFinite(studentMetrics.rmse) ? round(studentMetrics.rmse, 2) : '—'}</span>
                 </div>
               ) : (
-                <p style={{margin:'10px 0 0',fontSize:13,color:'#5f6b7a'}}>Enter every coefficient from your regression result to draw and evaluate your model.</p>
+                <p style={{margin:'10px 0 0',fontSize:13,color:'var(--mm-text-muted)'}}>Enter every coefficient from your regression result to draw and evaluate your model.</p>
               )}
             </>
           ) : (
-            <p style={{margin:'12px 0 0',fontSize:13,color:'#5f6b7a'}}>Use the scatter plot and data values for the task. No fitted model is preloaded.</p>
+            <p style={{margin:'12px 0 0',fontSize:13,color:'var(--mm-text-muted)'}}>Use the scatter plot and data values for the task. No fitted model is preloaded.</p>
           )}
         </Panel>
 
@@ -417,12 +417,12 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                   style={inputStyle}
                 />
               </Field>
-              <p style={{ margin:'7px 0 0', color:'#5f6b7a', fontSize:13 }}>
+              <p style={{ margin:'7px 0 0', color:'var(--mm-text-muted)', fontSize:13 }}>
                 Calculate r from the x- and y-data using statistical technology. The lab intentionally does not display r in this mode.
               </p>
             </div>
           ) : (
-            <p style={{ marginTop:0, color:'#4b5563' }}>Correlation coefficient: <strong>r ≈ {formatCorrelation(r)}</strong></p>
+            <p style={{ marginTop:0, color:'var(--mm-text-muted)' }}>Correlation coefficient: <strong>r ≈ {formatCorrelation(r)}</strong></p>
           )}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
             <Field label="Direction"><select value={direction} onChange={(e)=>setDirection(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="positive">Positive</option><option value="negative">Negative</option><option value="none">No clear direction</option></select></Field>
@@ -437,7 +437,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
               </select>
             </Field>
           ) : null}
-          <div style={{ marginTop:14, padding:12, borderRadius:10, background:'#fff8e6', color:'#6d4c00', fontSize:13 }}>
+          <div style={{ marginTop:14, padding:12, borderRadius:10, background:'var(--mm-warning-bg)', color:'var(--mm-warning-text)', fontSize:13 }}>
             {mode === 'correlation'
               ? 'Interpret r by its sign (direction) and magnitude (strength).'
               : 'A large |r| describes strength of linear association. It does not, by itself, prove causation.'}
@@ -448,44 +448,44 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
           {studentModelReady ? (
             <div>
               <ResidualPlot rows={studentResiduals} xMin={xMin} xMax={xMax} />
-              <div style={{ maxHeight:185, overflow:'auto', border:'1px solid #e5e7eb', borderRadius:8, marginTop:10 }}>
+              <div style={{ maxHeight:185, overflow:'auto', border:'1px solid var(--mm-border-soft)', borderRadius:8, marginTop:10 }}>
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
-                  <thead><tr style={{ background:'#f7f9fc' }}><th style={{padding:6}}>x</th><th>y</th><th>ŷ</th><th>residual</th></tr></thead>
+                  <thead><tr style={{ background:'var(--mm-surface-sunken)' }}><th style={{padding:6}}>x</th><th>y</th><th>ŷ</th><th>residual</th></tr></thead>
                   <tbody>{studentResiduals.map((row, index)=><tr key={`${row.x}-${index}`}><td style={{padding:6,textAlign:'center'}}>{row.x}</td><td style={{textAlign:'center'}}>{row.y}</td><td style={{textAlign:'center'}}>{round(row.predicted,2)}</td><td style={{textAlign:'center'}}>{round(row.residual,2)}</td></tr>)}</tbody>
                 </table>
               </div>
-              <p style={{ color:'#5f6b7a', fontSize:13, marginBottom:0 }}>A good residual plot should look randomly scattered around 0 rather than forming a clear curve or pattern.</p>
+              <p style={{ color:'var(--mm-text-muted)', fontSize:13, marginBottom:0 }}>A good residual plot should look randomly scattered around 0 rather than forming a clear curve or pattern.</p>
             </div>
           ) : (
-            <p style={{margin:0,color:'#5f6b7a'}}>Enter the complete fitted function first. Residual evidence will appear after your model can be evaluated.</p>
+            <p style={{margin:0,color:'var(--mm-text-muted)'}}>Enter the complete fitted function first. Residual evidence will appear after your model can be evaluated.</p>
           )}
         </Panel> : null}
 
         {showModelComparePanel ? <Panel title={`${panelNumbers.compare} · Compare model families`}>
           <div style={{ display:'grid', gap:8 }}>
             {candidateModels.map((entry) => (
-              <label key={entry.id} style={{ display:'grid', gridTemplateColumns:'auto 1fr', gap:10, alignItems:'center', padding:10, border:'1px solid #dde5f0', borderRadius:10, background:modelChoice===entry.id?'#eef4ff':'#fff' }}>
+              <label key={entry.id} style={{ display:'grid', gridTemplateColumns:'auto 1fr', gap:10, alignItems:'center', padding:10, border:'1px solid var(--mm-tint-border)', borderRadius:10, background:modelChoice===entry.id?'var(--mm-primary-subtle)':'var(--mm-surface)' }}>
                 <input type="radio" name="modelChoice" checked={modelChoice===entry.id} onChange={()=>setModelChoice(entry.id)} />
-                <span><strong>{entry.label}</strong><br/><span style={{fontSize:12,color:'#667085'}}>RMSE {round(entry.metrics.rmse,2)} · MAE {round(entry.metrics.mae,2)}</span></span>
+                <span><strong>{entry.label}</strong><br/><span style={{fontSize:12,color:'var(--mm-text-muted)'}}>RMSE {round(entry.metrics.rmse,2)} · MAE {round(entry.metrics.mae,2)}</span></span>
               </label>
             ))}
           </div>
-          <p style={{ color:'#5f6b7a', fontSize:13 }}>Pick the model with the smaller residual error <em>and</em> a shape that makes sense for what the data describes. A model that fits these points slightly better but predicts something impossible is the wrong choice.</p>
+          <p style={{ color:'var(--mm-text-muted)', fontSize:13 }}>Pick the model with the smaller residual error <em>and</em> a shape that makes sense for what the data describes. A model that fits these points slightly better but predicts something impossible is the wrong choice.</p>
         </Panel> : null}
 
         {showPredictionPanel ? <Panel title={`${panelNumbers.prediction} · ${asksPredictionType ? 'Prediction and reasonableness' : 'Prediction'}`}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-            <Field label="Predict at x ="><input type="number" value={predictionX} readOnly={fixedPredictionTarget} aria-readonly={fixedPredictionTarget} onChange={(e)=>{if (!fixedPredictionTarget) setPredictionX(e.target.value);}} style={{...inputStyle, background:fixedPredictionTarget?'#f1f3f4':'#fff'}}/></Field>
+            <Field label="Predict at x ="><input type="number" value={predictionX} readOnly={fixedPredictionTarget} aria-readonly={fixedPredictionTarget} onChange={(e)=>{if (!fixedPredictionTarget) setPredictionX(e.target.value);}} style={{...inputStyle, background:fixedPredictionTarget?'var(--mm-surface-control)':'var(--mm-surface)'}}/></Field>
             <Field label="Predicted y"><input type="number" step="0.1" value={predictionY} onChange={(e)=>setPredictionY(e.target.value)} style={inputStyle}/></Field>
           </div>
           {asksPredictionType ? <Field label="This prediction is..."><select value={predictionType} onChange={(e)=>setPredictionType(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="interpolation">Interpolation</option><option value="extrapolation">Extrapolation</option></select></Field> : null}
-          {asksPredictionType ? <div style={{ marginTop:12, padding:11, borderRadius:10, background:'#f8fbff', color:'#4b5563', fontSize:13 }}>
+          {asksPredictionType ? <div style={{ marginTop:12, padding:11, borderRadius:10, background:'var(--mm-surface-tint)', color:'var(--mm-text-muted)', fontSize:13 }}>
             Interpolation predicts inside the observed x-range. Extrapolation goes beyond the data and should be treated more cautiously.
           </div> : null}
         </Panel> : null}
 
         <Panel title="Submit model reasoning">
-          <p style={{ marginTop:0, color:'#5f6b7a' }}>Each part of your reasoning is graded separately, so getting some of it right still earns credit.</p>
+          <p style={{ marginTop:0, color:'var(--mm-text-muted)' }}>Each part of your reasoning is graded separately, so getting some of it right still earns credit.</p>
           <button data-mm-enter-action="submit" type="button" onClick={check} style={{ padding:'11px 18px', border:0, borderRadius:9, background:'#1a73e8', color:'#fff', fontWeight:800, cursor:'pointer' }}>Check data model</button>
           <HintPanel hints={HINTS[mode] || HINTS.full} onHintUsed={() => onAction?.('HINT_USED')} />
           {feedback ? (
@@ -498,9 +498,9 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                 const text = feedback.isCorrect
                   ? 'Every part of your modelling reasoning holds up.'
                   : `Still to fix: ${missed.map((part) => label[part] || part).join(', ')}. Everything else is right.`;
-                return <p style={{ margin:'9px 0 0', color:'#3c4756', lineHeight:1.55 }}>{text}</p>;
+                return <p style={{ margin:'9px 0 0', color:'var(--mm-text)', lineHeight:1.55 }}>{text}</p>;
               })()}
-              <div style={{ marginTop:12, padding:12, borderRadius:10, background:'#f7f9fc', fontSize:13, color:'#44516a' }}>
+              <div style={{ marginTop:12, padding:12, borderRadius:10, background:'var(--mm-surface-sunken)', fontSize:13, color:'var(--mm-text-muted)' }}>
                 <strong>Reference after submit:</strong> linear regression y ≈ {round(regression.m,2)}x {regression.b>=0?'+':'−'} {Math.abs(round(regression.b,2))}; best candidate by {questionData.modelMetric || 'RMSE'}: {bestModel?.label || '—'}.
               </div>
             </div>

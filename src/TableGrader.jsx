@@ -73,7 +73,7 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
         <QuestionPrompt>{prompt || 'Complete all missing values in the table.'}</QuestionPrompt>
       )}
       {showRule && ruleLatex && (
-        <div style={{ margin: '22px auto', padding: '14px 20px', width: 'fit-content', background: '#f8f9fa', borderRadius: '10px', color: '#1a73e8', fontSize: '25px', fontWeight: 'bold' }}>
+        <div style={{ margin: '22px auto', padding: '14px 20px', width: 'fit-content', background: 'var(--mm-surface-sunken)', borderRadius: '10px', color: 'var(--mm-primary)', fontSize: '25px', fontWeight: 'bold' }}>
           <MathDisplay value={ruleLatex} format="ascii-math" />
         </div>
       )}
@@ -82,7 +82,7 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
       <QuestionVisual question={question} includeTable={false} />
       <div style={{ overflowX: 'auto', marginTop: '22px' }}>
         <table style={{ margin: '0 auto', borderCollapse: 'collapse', minWidth: '320px', background: 'var(--mm-surface)' }}>
-          <thead><tr>{columns.map((column) => <th key={column.key} style={{ padding: '12px 24px', border: '1px solid #cfd4da', background: '#e8f0fe', fontSize: '20px' }}>{(() => { const text = column.label || column.key; const format = resolveLabelFormat(text); return format ? <MathDisplay value={text} format={format} inline /> : text; })()}</th>)}</tr></thead>
+          <thead><tr>{columns.map((column) => <th key={column.key} style={{ padding: '12px 24px', border: '1px solid var(--mm-border)', background: 'var(--mm-primary-soft)', fontSize: '20px' }}>{(() => { const text = column.label || column.key; const format = resolveLabelFormat(text); return format ? <MathDisplay value={text} format={format} inline /> : text; })()}</th>)}</tr></thead>
           <tbody>
             {rows.map((row, rowIndex) => (
               <tr key={`row-${rowIndex}`}>
@@ -92,9 +92,9 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
                     || blanks.includes(answerKey);
                   const grade = gradeFor(answerKey);
                   return (
-                    <td key={answerKey} style={{ padding: '12px 20px', border: '1px solid #cfd4da', textAlign: 'center', fontSize: '19px' }}>
+                    <td key={answerKey} style={{ padding: '12px 20px', border: '1px solid var(--mm-border)', textAlign: 'center', fontSize: '19px' }}>
                       {isBlank ? (
-                        <input {...FRACTION_ENTRY_PROPS} value={studentAnswers[answerKey] || ''} onChange={(event) => updateAnswer(answerKey, event.target.value)} aria-label={`Row ${rowIndex + 1}, ${column.label || column.key}`} style={{ width: '82px', padding: '8px', textAlign: 'center', fontSize: '18px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#1a73e8'}`, borderRadius: '6px', background: grade && !grade.isCorrect ? '#fff8f7' : '#fff' }} />
+                        <input {...FRACTION_ENTRY_PROPS} value={studentAnswers[answerKey] || ''} onChange={(event) => updateAnswer(answerKey, event.target.value)} aria-label={`Row ${rowIndex + 1}, ${column.label || column.key}`} style={{ width: '82px', padding: '8px', textAlign: 'center', fontSize: '18px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#1a73e8'}`, borderRadius: '6px', background: grade && !grade.isCorrect ? 'var(--mm-error-subtle)' : 'var(--mm-surface)' }} />
                       ) : <MathDisplay value={String(row[column.key])} inline />}
                     </td>
                   );
@@ -104,7 +104,7 @@ export default function TableGrader({ question, onStateChange, onUndoStateChange
           </tbody>
         </table>
       </div>
-      <p style={{ fontSize: '13px', color: '#80868b', marginTop: '14px' }}>
+      <p style={{ fontSize: '13px', color: 'var(--mm-text-subtle)', marginTop: '14px' }}>
         {graded.gradedHere
           ? 'Incorrect blanks are outlined after submission so you can focus only on those entries.'
           : question.checkedAgainstStudentFunction === false

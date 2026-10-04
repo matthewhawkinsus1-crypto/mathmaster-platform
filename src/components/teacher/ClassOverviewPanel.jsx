@@ -59,9 +59,9 @@ export default function ClassOverviewPanel({
   }), [className, students, profilesByStudentId, masteryProfilesByStudentId, evidenceByStudentId, openAssignments, needsAttentionCount]);
 
   return (
-    <section style={{ border: '1px solid #d8dde6', borderRadius: 11, background: 'var(--mm-surface)', marginBottom: 20, overflow: 'hidden' }}>
+    <section style={{ border: '1px solid var(--mm-border)', borderRadius: 11, background: 'var(--mm-surface)', marginBottom: 20, overflow: 'hidden' }}>
       <div style={{ padding: '16px 18px' }}>
-        <h3 style={{ margin: 0, fontSize: 12, fontWeight: 900, letterSpacing: '.09em', textTransform: 'uppercase', color: '#5f6368' }}>
+        <h3 style={{ margin: 0, fontSize: 12, fontWeight: 900, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
           Class overview
         </h3>
         {/* Level one: the whole class in one sentence. */}
@@ -71,15 +71,15 @@ export default function ClassOverviewPanel({
       </div>
 
       {onLoadDeliveredRigor && !Object.keys(evidenceByStudentId).length && (
-        <div style={{ display: 'flex', gap: 11, alignItems: 'center', flexWrap: 'wrap', padding: '11px 18px', borderTop: '1px solid #eef0f2', background: '#f8f9fa' }}>
-          <span style={{ color: '#5f6368', fontSize: 12.5 }}>
+        <div style={{ display: 'flex', gap: 11, alignItems: 'center', flexWrap: 'wrap', padding: '11px 18px', borderTop: '1px solid var(--mm-border-soft)', background: 'var(--mm-surface-sunken)' }}>
+          <span style={{ color: 'var(--mm-text-muted)', fontSize: 12.5 }}>
             Delivered rigor is not loaded. It answers whether adaptive assignments are actually varying what this class receives.
           </span>
           <button
             type="button"
             onClick={onLoadDeliveredRigor}
             disabled={rigorLoading}
-            style={{ marginLeft: 'auto', padding: '7px 12px', border: '1px solid #dadce0', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, fontSize: 12.5, cursor: rigorLoading ? 'wait' : 'pointer' }}
+            style={{ marginLeft: 'auto', padding: '7px 12px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 12.5, cursor: rigorLoading ? 'wait' : 'pointer' }}
           >
             {rigorLoading ? 'Reading delivery history…' : 'Check delivered rigor'}
           </button>
@@ -93,19 +93,19 @@ export default function ClassOverviewPanel({
             const expanded = openFinding === key;
             const hasStudents = finding.students.length > 0;
             return (
-              <li key={key} style={{ borderTop: '1px solid #eef0f2' }}>
+              <li key={key} style={{ borderTop: '1px solid var(--mm-border-soft)' }}>
                 <div style={{ display: 'flex', gap: 12, padding: '13px 18px', alignItems: 'flex-start' }}>
                   <span
                     aria-hidden="true"
                     style={{ flex: '0 0 3px', alignSelf: 'stretch', borderRadius: 3, background: SECTION_TONE[finding.section] || '#5f6368' }}
                   />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 10.5, fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase', color: '#5f6368', marginBottom: 3 }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mm-text-muted)', marginBottom: 3 }}>
                       {SECTION_LABEL[finding.section]}
                     </div>
                     {/* Level two: the finding, one sentence. */}
                     <div style={{ fontWeight: 800, fontSize: 14.5 }}>{finding.headline}</div>
-                    <p style={{ margin: '4px 0 0', color: '#4d5b58', fontSize: 13, lineHeight: 1.5, maxWidth: '66ch' }}>
+                    <p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5, maxWidth: '66ch' }}>
                       {finding.detail}
                     </p>
 
@@ -115,7 +115,7 @@ export default function ClassOverviewPanel({
                         {finding.students.map((entry) => (
                           <span
                             key={entry.studentId}
-                            style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, padding: '5px 9px', border: '1px solid #dadce0', borderRadius: 8, background: 'var(--mm-surface)' }}
+                            style={{ display: 'inline-flex', alignItems: 'baseline', gap: 5, padding: '5px 9px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)' }}
                           >
                             <StudentNameLink
                               studentId={entry.studentId}
@@ -124,7 +124,7 @@ export default function ClassOverviewPanel({
                               onOpen={onOpenStudent}
                               style={{ fontSize: 12.5 }}
                             />
-                            {entry.note && <span style={{ color: '#5f6368', fontSize: 11.5 }}>{entry.note}</span>}
+                            {entry.note && <span style={{ color: 'var(--mm-text-muted)', fontSize: 11.5 }}>{entry.note}</span>}
                           </span>
                         ))}
                       </div>
@@ -136,7 +136,7 @@ export default function ClassOverviewPanel({
                       type="button"
                       onClick={() => setOpenFinding(expanded ? null : key)}
                       aria-expanded={expanded}
-                      style={{ alignSelf: 'center', padding: '7px 11px', border: '1px solid #dadce0', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, fontSize: 12.5, whiteSpace: 'nowrap', cursor: 'pointer' }}
+                      style={{ alignSelf: 'center', padding: '7px 11px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 12.5, whiteSpace: 'nowrap', cursor: 'pointer' }}
                     >
                       {expanded ? 'Hide' : `Who (${finding.students.length})`}
                     </button>

@@ -49,7 +49,7 @@ export const describeCoursePathPass = (raw = {}, { mastered = false } = {}) => {
       nextLabel: 'Mastered · review anytime',
       buttonLabel: 'Review skill',
       tone: '#137333',
-      background: '#e6f4ea',
+      background: 'var(--mm-success-bg)',
     };
   }
 
@@ -62,7 +62,7 @@ export const describeCoursePathPass = (raw = {}, { mastered = false } = {}) => {
       nextLabel: 'First pass · build the foundation',
       buttonLabel: 'Start Level 1',
       tone: '#174ea6',
-      background: '#e8f0fe',
+      background: 'var(--mm-primary-soft)',
     };
   }
 
@@ -75,7 +75,7 @@ export const describeCoursePathPass = (raw = {}, { mastered = false } = {}) => {
       nextLabel: 'Next: Level 2 · Deeper practice',
       buttonLabel: 'Start Level 2',
       tone: '#137333',
-      background: '#e6f4ea',
+      background: 'var(--mm-success-bg)',
     };
   }
 
@@ -88,7 +88,7 @@ export const describeCoursePathPass = (raw = {}, { mastered = false } = {}) => {
       nextLabel: 'Next: Level 3 · Mastery challenge',
       buttonLabel: 'Start Level 3',
       tone: '#5b21b6',
-      background: '#f3ecfd',
+      background: 'var(--mm-accent-soft)',
     };
   }
 
@@ -100,7 +100,7 @@ export const describeCoursePathPass = (raw = {}, { mastered = false } = {}) => {
     nextLabel: 'Advanced practice · mastery evidence still building',
     buttonLabel: 'Continue advanced practice',
     tone: '#5b21b6',
-    background: '#f3ecfd',
+    background: 'var(--mm-accent-soft)',
   };
 };
 

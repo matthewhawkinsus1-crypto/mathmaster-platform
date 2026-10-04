@@ -16,7 +16,7 @@ import {
 const inputStyle = {
   width: '100%',
   padding: 10,
-  border: '1px solid #cfd8e6',
+  border: '1px solid var(--mm-tint-border)',
   borderRadius: 8,
   boxSizing: 'border-box',
   fontSize: 17,
@@ -134,7 +134,7 @@ export default function FunctionOperationsLab({ questionData = {}, onAction }) {
                     placeholder="Example: 2, -5"
                     aria-label="Excluded denominator values"
                   />
-                  <span style={{ display: 'block', marginTop: 5, color: '#5f6b7a', fontWeight: 500, fontSize: 13 }}>
+                  <span style={{ display: 'block', marginTop: 5, color: 'var(--mm-text-muted)', fontWeight: 500, fontSize: 13 }}>
                     Enter all values excluded by the original denominator, separated by commas. Leave blank only when there are none.
                   </span>
                 </label>

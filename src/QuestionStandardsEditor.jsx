@@ -26,7 +26,7 @@ const fieldStyle = {
   width: '100%',
   boxSizing: 'border-box',
   padding: '9px 10px',
-  border: '1px solid #bdc7d6',
+  border: '1px solid var(--mm-border)',
   borderRadius: '7px',
   background: 'var(--mm-surface)',
 };
@@ -87,13 +87,13 @@ export default function QuestionStandardsEditor({ question, onApply, onCancel })
   };
 
   return (
-    <section style={{ marginTop: '14px', padding: '15px', borderRadius: '10px', background: '#f8fbff', border: '1px solid #c6d8f1' }}>
+    <section style={{ marginTop: '14px', padding: '15px', borderRadius: '10px', background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start', marginBottom: '14px', flexWrap: 'wrap' }}>
         <div>
-          <h4 style={{ margin: 0, color: '#174ea6' }}>Texas Standards & Difficulty</h4>
-          <p style={{ margin: '5px 0 0', color: '#5f6368', fontSize: '12px' }}>Tag grade-level targets and earlier-course prerequisites separately. JSON and the editor use the same canonical metadata.</p>
+          <h4 style={{ margin: 0, color: 'var(--mm-primary-text)' }}>Texas Standards & Difficulty</h4>
+          <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: '12px' }}>Tag grade-level targets and earlier-course prerequisites separately. JSON and the editor use the same canonical metadata.</p>
         </div>
-        <span style={{ padding: '4px 8px', borderRadius: '999px', background: '#e6f4ea', color: '#137333', fontWeight: 800, fontSize: '11px' }}>TEKS · DOK · VERTICAL ALIGNMENT</span>
+        <span style={{ padding: '4px 8px', borderRadius: '999px', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontWeight: 800, fontSize: '11px' }}>TEKS · DOK · VERTICAL ALIGNMENT</span>
       </div>
 
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '12px' }}>
@@ -101,14 +101,14 @@ export default function QuestionStandardsEditor({ question, onApply, onCancel })
         <select value={browseCourseId} onChange={(event) => setBrowseCourseId(event.target.value)} style={{ ...fieldStyle, width: '190px' }}>
           {TEXAS_MATH_ACTIVE_COURSES.map((course) => <option key={course.id} value={course.id}>{course.label}</option>)}
         </select>
-        <span style={{ color: '#5f6368', fontSize: '11px' }}>{browseStandards.length} loaded expectations</span>
+        <span style={{ color: 'var(--mm-text-muted)', fontSize: '11px' }}>{browseStandards.length} loaded expectations</span>
       </div>
 
       <datalist id="texas-math-teks-codes">
         {browseStandards.map((standard) => <option key={standard.code} value={standard.code}>{standard.description}</option>)}
       </datalist>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(225px, 1fr))', gap: '12px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 225px), 1fr))', gap: '12px' }}>
         <label style={{ fontWeight: 800, fontSize: '13px' }}>Primary grade-level TEKS
           <input list="texas-math-teks-codes" value={primaryCodes} onChange={(event) => setPrimaryCodes(event.target.value)} placeholder={coursePlaceholder(browseCourseId, 'primary')} style={{ ...fieldStyle, marginTop: '5px' }} />
         </label>
@@ -123,7 +123,7 @@ export default function QuestionStandardsEditor({ question, onApply, onCancel })
         <label style={{ fontWeight: 800, fontSize: '13px' }}>Prerequisite TEKS — may be earlier course
           <div style={{ display: 'flex', gap: '6px', marginTop: '5px' }}>
             <input value={prerequisiteCodes} onChange={(event) => setPrerequisiteCodes(event.target.value)} placeholder={coursePlaceholder(browseCourseId, 'prerequisite')} style={fieldStyle} />
-            {suggestedPrerequisites.length > 0 && <button type="button" onClick={() => setPrerequisiteCodes(unique([...splitCodes(prerequisiteCodes), ...suggestedPrerequisites]).join(', '))} title="Add MathMaster vertical-alignment suggestions" style={{ border: '1px solid #bdc7d6', background: 'var(--mm-surface)', borderRadius: '7px', whiteSpace: 'nowrap' }}>Add prior</button>}
+            {suggestedPrerequisites.length > 0 && <button type="button" onClick={() => setPrerequisiteCodes(unique([...splitCodes(prerequisiteCodes), ...suggestedPrerequisites]).join(', '))} title="Add MathMaster vertical-alignment suggestions" style={{ border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', borderRadius: '7px', whiteSpace: 'nowrap' }}>Add prior</button>}
           </div>
         </label>
       </div>
@@ -134,22 +134,22 @@ export default function QuestionStandardsEditor({ question, onApply, onCancel })
             const [background, color, label] = standardBadge(standard);
             const vertical = getTexasVerticalAlignment(standard.code);
             return (
-              <div key={standard.code} style={{ padding: '9px 10px', borderRadius: '8px', background: 'var(--mm-surface)', border: '1px solid #d9e2ef', fontSize: '12px' }}>
+              <div key={standard.code} style={{ padding: '9px 10px', borderRadius: '8px', background: 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)', fontSize: '12px' }}>
                 <div style={{ display: 'flex', gap: '7px', alignItems: 'center', flexWrap: 'wrap' }}>
                   <strong>{standard.code}</strong>
-                  <span style={{ color: '#5f6368' }}>{standard.course}</span>
+                  <span style={{ color: 'var(--mm-text-muted)' }}>{standard.course}</span>
                   <span style={{ padding: '2px 6px', borderRadius: '999px', background, color, fontSize: '10px', fontWeight: 900 }}>{label}</span>
-                  {standard.reportingCategory ? <span style={{ color: '#5f6368' }}>RC {standard.reportingCategory}</span> : null}
+                  {standard.reportingCategory ? <span style={{ color: 'var(--mm-text-muted)' }}>RC {standard.reportingCategory}</span> : null}
                 </div>
-                <div style={{ color: '#5f6368', marginTop: '4px' }}>{standard.description}</div>
-                {vertical.prior.length > 0 && <div style={{ marginTop: '5px', color: '#7a4f00' }}><strong>Prior-course links:</strong> {vertical.prior.map((item) => item.code).join(', ')}</div>}
+                <div style={{ color: 'var(--mm-text-muted)', marginTop: '4px' }}>{standard.description}</div>
+                {vertical.prior.length > 0 && <div style={{ marginTop: '5px', color: 'var(--mm-warning-text)' }}><strong>Prior-course links:</strong> {vertical.prior.map((item) => item.code).join(', ')}</div>}
               </div>
             );
           })}
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px', marginTop: '14px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: '12px', marginTop: '14px' }}>
         <label style={{ fontWeight: 800, fontSize: '13px' }}>Cognitive complexity
           <select value={dok} onChange={(event) => setDok(Number(event.target.value))} style={{ ...fieldStyle, marginTop: '5px' }}>
             {DOK_LEVELS.map((entry) => <option key={entry.level} value={entry.level}>{entry.label}</option>)}
@@ -168,7 +168,7 @@ export default function QuestionStandardsEditor({ question, onApply, onCancel })
         <label style={{ fontWeight: 800, fontSize: '13px' }}>Evidence weight
           <div style={{ display: 'flex', gap: '6px', marginTop: '5px' }}>
             <input type="number" min="0" max="2" step="0.05" value={evidenceWeight} onChange={(event) => setEvidenceWeight(event.target.value)} style={fieldStyle} />
-            <button type="button" onClick={() => setEvidenceWeight(purposeDefinition.defaultWeight)} title="Use recommended weight" style={{ border: '1px solid #bdc7d6', background: 'var(--mm-surface)', borderRadius: '7px', whiteSpace: 'nowrap' }}>Default</button>
+            <button type="button" onClick={() => setEvidenceWeight(purposeDefinition.defaultWeight)} title="Use recommended weight" style={{ border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', borderRadius: '7px', whiteSpace: 'nowrap' }}>Default</button>
           </div>
         </label>
         <label style={{ fontWeight: 800, fontSize: '13px' }}>Differentiation
@@ -180,7 +180,7 @@ export default function QuestionStandardsEditor({ question, onApply, onCancel })
         </label>
       </div>
 
-      <div style={{ marginTop: '12px', padding: '9px 10px', borderRadius: '8px', background: '#fff8e1', color: '#704d00', fontSize: '11px', lineHeight: 1.45 }}>
+      <div style={{ marginTop: '12px', padding: '9px 10px', borderRadius: '8px', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: '11px', lineHeight: 1.45 }}>
         <strong>Vertical differentiation rule:</strong> the primary TEKS remains the grade-level learning target. Earlier-course TEKS are stored as prerequisite evidence and may drive intervention or prerequisite practice; they do not silently replace the target standard.
       </div>
 

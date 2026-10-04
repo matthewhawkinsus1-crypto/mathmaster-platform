@@ -32,9 +32,9 @@ const button = {
   minHeight: 40,
   padding: '8px 12px',
   borderRadius: 8,
-  border: '1px solid #b7c7de',
+  border: '1px solid var(--mm-primary-border)',
   background: 'var(--mm-surface)',
-  color: '#174ea6',
+  color: 'var(--mm-primary-text)',
   fontWeight: 900,
   cursor: 'pointer',
 };
@@ -45,7 +45,7 @@ const textarea = {
   minHeight: 120,
   boxSizing: 'border-box',
   padding: 10,
-  border: '1px solid #bdc7d6',
+  border: '1px solid var(--mm-border)',
   borderRadius: 8,
   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
   fontSize: 12,
@@ -453,31 +453,31 @@ export default function IncompleteAssignmentRepairCenter({
   const stagedValidation = stagedImport?.validation || null;
 
   return (
-    <section aria-label="Incomplete Assignment Repair Center" style={{ marginTop: 12, padding: 14, border: '1px solid #b7c7de', borderRadius: 10, background: '#f8fbff' }}>
+    <section aria-label="Incomplete Assignment Repair Center" style={{ marginTop: 12, padding: 14, border: '1px solid var(--mm-primary-border)', borderRadius: 10, background: 'var(--mm-surface-tint)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div>
-          <h4 style={{ margin: 0, color: '#174ea6', fontSize: 17 }}>Repair Center</h4>
-          <div style={{ marginTop: 4, color: '#5f6368', fontSize: 12 }}>
+          <h4 style={{ margin: 0, color: 'var(--mm-primary-text)', fontSize: 17 }}>Repair Center</h4>
+          <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 12 }}>
             Revision {revision} · {repairCenterModel.summary.totalQuestions} questions · {repairCenterModel.summary.needsRepair} need repair · {repairCenterModel.summary.teacherFlagged} teacher flagged
           </div>
         </div>
         <button type="button" onClick={onClose} disabled={busy} style={button}>Close Repair Center</button>
       </div>
 
-      <p style={{ margin: '10px 0', color: '#3c4043', fontSize: 12.5, lineHeight: 1.5 }}>
+      <p style={{ margin: '10px 0', color: 'var(--mm-text)', fontSize: 12.5, lineHeight: 1.5 }}>
         Fix one question or a selected batch without replacing the assignment. Pasted AI output is staged first; MathMaster verifies the immutable questionId, shows the before/after changes, reruns Preflight, and only then enables Apply.
       </p>
 
-      <div style={{ marginTop: 10, padding: 10, borderRadius: 9, background: '#e8f0fe', color: '#174ea6', fontSize: 12.5, lineHeight: 1.45 }}>
+      <div style={{ marginTop: 10, padding: 10, borderRadius: 9, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 12.5, lineHeight: 1.45 }}>
         <strong>Student preview available.</strong> The blocking issues below prevent Library publication, but a parseable V5 draft can still be opened in Student Preview / Review so you can inspect exactly what students would see while you repair it.
       </div>
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 12, padding: 10, borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid #d9e2f1' }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 12, padding: 10, borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)' }}>
         <span style={{ fontWeight: 900, fontSize: 12.5 }}>Blockers by what you can do about them:</span>
         <span style={{ fontSize: 12.5 }}><strong>{triage.summary.technicalBlockers}</strong> technical</span>
         <span style={{ fontSize: 12.5 }}><strong>{triage.summary.qualityBlockers}</strong> quality</span>
         <span style={{ fontSize: 12.5 }}><strong>{triage.summary.platformIssues}</strong> platform</span>
-        <span style={{ fontSize: 12.5, color: '#5f6368' }}>{triage.summary.warnings} warning{triage.summary.warnings === 1 ? '' : 's'}</span>
+        <span style={{ fontSize: 12.5, color: 'var(--mm-text-muted)' }}>{triage.summary.warnings} warning{triage.summary.warnings === 1 ? '' : 's'}</span>
         <button type="button" disabled={busy} onClick={repairAllSafe} style={{ ...button, marginLeft: 'auto' }}>
           Repair All Safe Technical Issues
         </button>
@@ -488,13 +488,13 @@ export default function IncompleteAssignmentRepairCenter({
           const focused = row.questionId === actualFocusedQuestionId;
           const selected = validSelectedQuestionIdSet.has(clean(row.questionId));
           return (
-            <article key={row.questionId || row.questionIndex} style={{ padding: 10, border: focused ? '2px solid #1a73e8' : '1px solid #d9e2f1', borderRadius: 8, background: 'var(--mm-surface)' }}>
+            <article key={row.questionId || row.questionIndex} style={{ padding: 10, border: focused ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', borderRadius: 8, background: 'var(--mm-surface)' }}>
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                 <input type="checkbox" checked={selected} disabled={!clean(row.questionId)} onChange={() => toggleSelected(row.questionId)} aria-label={`Select question ${row.questionNumber} for batch repair`} />
                 <button type="button" onClick={() => setFocusedQuestionId(row.questionId)} style={{ flex: 1, textAlign: 'left', border: 0, background: 'transparent', padding: 0, cursor: 'pointer' }}>
                   <strong>Question {row.questionNumber} · {row.sectionTitle || row.sectionRole || row.sectionId}</strong>
-                  <div style={{ marginTop: 2, color: '#5f6368', fontSize: 11 }}>Stable ID: <code>{row.questionId}</code> · status: {row.status}</div>
-                  <div style={{ marginTop: 5, color: '#3c4043', fontSize: 12.5 }}>{clean(row.question?.prompt || row.question?.scenario || row.question?.title).replace(/\s+/g, ' ').slice(0, 220) || 'Question content'}</div>
+                  <div style={{ marginTop: 2, color: 'var(--mm-text-muted)', fontSize: 11 }}>Stable ID: <code>{row.questionId}</code> · status: {row.status}</div>
+                  <div style={{ marginTop: 5, color: 'var(--mm-text)', fontSize: 12.5 }}>{clean(row.question?.prompt || row.question?.scenario || row.question?.title).replace(/\s+/g, ' ').slice(0, 220) || 'Question content'}</div>
                 </button>
               </div>
               {row.automatedFindings.length > 0 && (
@@ -511,7 +511,7 @@ export default function IncompleteAssignmentRepairCenter({
                           ? 'Quality blocker'
                           : 'Warning';
                     return (
-                      <div key={`${finding.code || 'finding'}-${index}`} style={{ padding: 7, borderRadius: 7, background: overridden ? '#f1f3f4' : platform ? '#eef3ff' : '#fff4f3', color: overridden ? '#5f6368' : platform ? '#174ea6' : '#8a1c13', fontSize: 11.5, lineHeight: 1.45 }}>
+                      <div key={`${finding.code || 'finding'}-${index}`} style={{ padding: 7, borderRadius: 7, background: overridden ? 'var(--mm-surface-control)' : platform ? 'var(--mm-primary-subtle)' : 'var(--mm-error-subtle)', color: overridden ? 'var(--mm-text-muted)' : platform ? 'var(--mm-primary-text)' : 'var(--mm-error-text)', fontSize: 11.5, lineHeight: 1.45 }}>
                         <strong>{triageLabel} · {finding.code || 'diagnostic'}</strong>
                         {finding.source ? ` · ${finding.source}` : ''}
                         {finding.fieldPath ? ` · ${finding.fieldPath}` : ''}
@@ -538,7 +538,7 @@ export default function IncompleteAssignmentRepairCenter({
                               value={overrideReason}
                               onChange={(event) => setOverrideReason(event.target.value)}
                               placeholder="The validator is applying the wrong rule to this representation."
-                              style={{ padding: 7, border: '1px solid #b7bec8', borderRadius: 7 }}
+                              style={{ padding: 7, border: '1px solid var(--mm-border)', borderRadius: 7 }}
                             />
                             <button type="button" disabled={busy || !clean(overrideReason)} onClick={() => overrideFalsePositive(finding)} style={{ ...button, justifySelf: 'start' }}>
                               Override false positive
@@ -551,7 +551,7 @@ export default function IncompleteAssignmentRepairCenter({
                 </div>
               )}
               {row.teacherFlags.filter(teacherFlagNeedsReview).map((flag) => (
-                <div key={flag.id} style={{ marginTop: 7, padding: 7, borderRadius: 7, background: '#fff8e1', color: '#7a4f00', fontSize: 11.5 }}>
+                <div key={flag.id} style={{ marginTop: 7, padding: 7, borderRadius: 7, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 11.5 }}>
                   <strong>Teacher note:</strong> {flag.note || 'Review requested'}
                 </div>
               ))}
@@ -561,21 +561,21 @@ export default function IncompleteAssignmentRepairCenter({
       </div>
 
       {focusedRow && (
-        <fieldset style={{ marginTop: 14, padding: 12, border: '1px solid #d8dde6', borderRadius: 9 }}>
+        <fieldset style={{ marginTop: 14, padding: 12, border: '1px solid var(--mm-border)', borderRadius: 9 }}>
           <legend style={{ fontWeight: 900 }}>Teacher review · Question {focusedRow.questionNumber}</legend>
           <label style={{ display: 'block', fontSize: 12.5, fontWeight: 800, marginBottom: 8 }}>
             Review scope
             <select
               value={reviewScope}
               onChange={(event) => setReviewScope(event.target.value)}
-              style={{ display: 'block', marginTop: 6, padding: '6px 8px', borderRadius: 7, border: '1px solid #d8dde6', fontSize: 13, fontWeight: 600 }}
+              style={{ display: 'block', marginTop: 6, padding: '6px 8px', borderRadius: 7, border: '1px solid var(--mm-border)', fontSize: 13, fontWeight: 600 }}
             >
               <option value="question">This question only</option>
               <option value="section">Every question in this section</option>
               <option value="assignment">The whole assignment</option>
             </select>
           </label>
-          <p style={{ margin: '0 0 8px', fontSize: 11.5, color: '#5f6368' }}>
+          <p style={{ margin: '0 0 8px', fontSize: 11.5, color: 'var(--mm-text-muted)' }}>
             {reviewScope === 'question'
               ? 'The note becomes a repair constraint on this question.'
               : reviewScope === 'section'
@@ -594,7 +594,7 @@ export default function IncompleteAssignmentRepairCenter({
       )}
 
       {focusedRow && (
-        <fieldset style={{ marginTop: 14, padding: 12, border: '1px solid #d8dde6', borderRadius: 9 }}>
+        <fieldset style={{ marginTop: 14, padding: 12, border: '1px solid var(--mm-border)', borderRadius: 9 }}>
           <legend style={{ fontWeight: 900 }}>Revision history · Question {focusedRow.questionNumber}</legend>
           {(() => {
             // Only this question's recorded versions. History is question-scoped,
@@ -605,7 +605,7 @@ export default function IncompleteAssignmentRepairCenter({
               .reverse();
 
             if (!entries.length) {
-              return <p style={{ margin: 0, color: '#5f6368', fontSize: 12.5 }}>No recorded versions of this question yet. A version is recorded each time a repair changes it.</p>;
+              return <p style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 12.5 }}>No recorded versions of this question yet. A version is recorded each time a repair changes it.</p>;
             }
 
             return (
@@ -613,12 +613,12 @@ export default function IncompleteAssignmentRepairCenter({
                 {entries.map(({ entry, index }) => {
                   const recorded = list(entry.questions).find((q) => clean(q?.questionId) === actualFocusedQuestionId);
                   return (
-                    <article key={`${entry.committedAt || 'entry'}-${index}`} style={{ padding: 9, borderRadius: 8, border: '1px solid #e3e7ee', background: 'var(--mm-surface)' }}>
-                      <div style={{ fontSize: 12, color: '#5f6368' }}>
+                    <article key={`${entry.committedAt || 'entry'}-${index}`} style={{ padding: 9, borderRadius: 8, border: '1px solid var(--mm-border-soft)', background: 'var(--mm-surface)' }}>
+                      <div style={{ fontSize: 12, color: 'var(--mm-text-muted)' }}>
                         Revision {entry.fromRevision} → {entry.toRevision}
                         {entry.committedAt ? ` · ${String(entry.committedAt).replace('T', ' ').replace('Z', '')}` : ''}
                       </div>
-                      <div style={{ marginTop: 4, fontSize: 12.5, color: '#3c4043' }}>
+                      <div style={{ marginTop: 4, fontSize: 12.5, color: 'var(--mm-text)' }}>
                         {brief(recorded?.beforeQuestion?.prompt || recorded?.beforeQuestion?.scenario || 'Recorded version')}
                       </div>
                       <button type="button" disabled={busy} onClick={() => stageHistoryRestore(entry)} style={{ ...button, marginTop: 7 }}>
@@ -633,7 +633,7 @@ export default function IncompleteAssignmentRepairCenter({
         </fieldset>
       )}
 
-      <fieldset style={{ marginTop: 14, padding: 12, border: '1px solid #d8dde6', borderRadius: 9 }}>
+      <fieldset style={{ marginTop: 14, padding: 12, border: '1px solid var(--mm-border)', borderRadius: 9 }}>
         <legend style={{ fontWeight: 900 }}>Outside-AI repair handoff</legend>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 9 }}>
           <button type="button" onClick={() => setSelectedQuestionIds(needsRepairQuestionIds)} disabled={busy || !needsRepairQuestionIds.length} style={button}>Select questions needing repair</button>
@@ -643,11 +643,11 @@ export default function IncompleteAssignmentRepairCenter({
           <button type="button" onClick={() => setSelectedQuestionIds([])} disabled={busy} style={button}>Clear selection</button>
           <button type="button" onClick={copySelectedRepairRequest} disabled={busy || !validSelectedQuestionIds.length} style={button}>Copy selected AI repair request</button>
         </div>
-        <div style={{ color: '#5f6368', fontSize: 11.5, marginBottom: 10 }}>
+        <div style={{ color: 'var(--mm-text-muted)', fontSize: 11.5, marginBottom: 10 }}>
           {validSelectedQuestionIds.length} selected. The request includes only those questions, their diagnostics, and teacher constraints—not the full assignment.
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 12 }}>
           <label style={{ display: 'block', fontSize: 12.5, fontWeight: 900 }}>
             Paste repaired question JSON
             <textarea value={singleJson} onChange={(event) => setSingleJson(event.target.value)} placeholder="Paste one repaired question object here. Keep questionId unchanged." style={{ ...textarea, marginTop: 6 }} />
@@ -663,17 +663,17 @@ export default function IncompleteAssignmentRepairCenter({
       </fieldset>
 
       {stagedImport && (
-        <section style={{ marginTop: 14, padding: 12, border: `2px solid ${stagedImport.canCommit ? '#81c995' : '#f1a5a0'}`, borderRadius: 9, background: stagedImport.canCommit ? '#f6fff8' : '#fff8f7' }}>
+        <section style={{ marginTop: 14, padding: 12, border: `2px solid ${stagedImport.canCommit ? '#81c995' : 'var(--mm-error-border-soft)'}`, borderRadius: 9, background: stagedImport.canCommit ? 'var(--mm-success-subtle)' : 'var(--mm-error-subtle)' }}>
           <h5 style={{ margin: 0, fontSize: 15 }}>Before / after changes</h5>
           {stagedDiff.length === 0 ? (
-            <p style={{ color: '#5f6368', fontSize: 12 }}>The staged replacement is identical to the saved question.</p>
+            <p style={{ color: 'var(--mm-text-muted)', fontSize: 12 }}>The staged replacement is identical to the saved question.</p>
           ) : (
             <div style={{ display: 'grid', gap: 7, marginTop: 9 }}>
               {stagedDiff.slice(0, 80).map((change, index) => (
-                <div key={`${change.questionId}-${change.path}-${index}`} style={{ padding: 8, border: '1px solid #dfe5ee', borderRadius: 7, background: 'var(--mm-surface)', fontSize: 11.5 }}>
+                <div key={`${change.questionId}-${change.path}-${index}`} style={{ padding: 8, border: '1px solid var(--mm-tint-border)', borderRadius: 7, background: 'var(--mm-surface)', fontSize: 11.5 }}>
                   <strong>{change.questionId} · {change.path || '(question)'}</strong>
-                  <div style={{ marginTop: 4 }}><span style={{ color: '#a50e0e', fontWeight: 800 }}>Before:</span> {brief(change.before)}</div>
-                  <div style={{ marginTop: 2 }}><span style={{ color: '#137333', fontWeight: 800 }}>After:</span> {brief(change.after)}</div>
+                  <div style={{ marginTop: 4 }}><span style={{ color: 'var(--mm-error-text)', fontWeight: 800 }}>Before:</span> {brief(change.before)}</div>
+                  <div style={{ marginTop: 2 }}><span style={{ color: 'var(--mm-success-text)', fontWeight: 800 }}>After:</span> {brief(change.after)}</div>
                 </div>
               ))}
             </div>
@@ -687,7 +687,7 @@ export default function IncompleteAssignmentRepairCenter({
             <span>New blockers: <strong>{stagedValidation?.newBlockingDiagnostics?.length ?? 0}</strong></span>
           </div>
           {list(stagedValidation?.newBlockingDiagnostics).length > 0 && (
-            <ul style={{ color: '#a50e0e', fontSize: 12 }}>
+            <ul style={{ color: 'var(--mm-error-text)', fontSize: 12 }}>
               {stagedValidation.newBlockingDiagnostics.map((finding, index) => <li key={`${finding.code}-${index}`}>{finding.message}</li>)}
             </ul>
           )}
@@ -699,7 +699,7 @@ export default function IncompleteAssignmentRepairCenter({
             </div>
           )}
           {list(stagedImport.platformIssues).length > 0 && (
-            <div style={{ marginTop: 9, padding: 8, borderRadius: 7, background: '#e8f0fe', color: '#174ea6', fontSize: 12 }}>
+            <div style={{ marginTop: 9, padding: 8, borderRadius: 7, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 12 }}>
               <strong>Platform issues reported — questions were not rewritten.</strong>
               {/*
                 Each report gets its own action. Joining them into a sentence
@@ -737,27 +737,27 @@ export default function IncompleteAssignmentRepairCenter({
             </div>
           )}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 11 }}>
-            <button type="button" onClick={applyStaged} disabled={busy || !stagedImport.canCommit} style={{ ...button, background: stagedImport.canCommit ? '#188038' : '#dadce0', borderColor: stagedImport.canCommit ? '#188038' : '#dadce0', color: '#fff', cursor: stagedImport.canCommit ? 'pointer' : 'not-allowed' }}>Apply staged repair</button>
+            <button type="button" onClick={applyStaged} disabled={busy || !stagedImport.canCommit} style={{ ...button, background: stagedImport.canCommit ? '#188038' : '#dadce0', borderColor: stagedImport.canCommit ? '#188038' : 'var(--mm-border)', color: '#fff', cursor: stagedImport.canCommit ? 'pointer' : 'not-allowed' }}>Apply staged repair</button>
             <button type="button" onClick={() => setStagedImport(null)} disabled={busy} style={button}>Discard staged repair</button>
           </div>
         </section>
       )}
 
       {pendingVerificationFlags.length > 0 && (
-        <section style={{ marginTop: 14, padding: 12, border: '2px solid #f0c36d', borderRadius: 9, background: '#fff8e1' }}>
-          <h5 style={{ margin: 0, color: '#7a4f00', fontSize: 15 }}>Teacher verification required</h5>
-          <p style={{ margin: '5px 0 9px', color: '#5f4b20', fontSize: 12.5 }}>The repair may have addressed these teacher-raised concerns, but MathMaster will not close them for you.</p>
+        <section style={{ marginTop: 14, padding: 12, border: '2px solid #f0c36d', borderRadius: 9, background: 'var(--mm-warning-bg)' }}>
+          <h5 style={{ margin: 0, color: 'var(--mm-warning-text)', fontSize: 15 }}>Teacher verification required</h5>
+          <p style={{ margin: '5px 0 9px', color: 'var(--mm-warning-text)', fontSize: 12.5 }}>The repair may have addressed these teacher-raised concerns, but MathMaster will not close them for you.</p>
           {pendingVerificationFlags.map((flag) => (
             <div key={flag.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', padding: 8, marginTop: 7, borderRadius: 7, background: 'var(--mm-surface)' }}>
-              <div style={{ fontSize: 12.5 }}><strong>{flag.note || 'Teacher review flag'}</strong><div style={{ color: '#5f6368', fontSize: 11 }}>Flag {flag.id} · potentially addressed by revision {flag.potentiallyAddressedByRevision || revision}</div></div>
-              <button type="button" onClick={() => verifyFlagFixed(flag.id)} disabled={busy} style={{ ...button, color: '#137333', borderColor: '#81c995' }}>Verify fixed</button>
+              <div style={{ fontSize: 12.5 }}><strong>{flag.note || 'Teacher review flag'}</strong><div style={{ color: 'var(--mm-text-muted)', fontSize: 11 }}>Flag {flag.id} · potentially addressed by revision {flag.potentiallyAddressedByRevision || revision}</div></div>
+              <button type="button" onClick={() => verifyFlagFixed(flag.id)} disabled={busy} style={{ ...button, color: 'var(--mm-success-text)', borderColor: '#81c995' }}>Verify fixed</button>
             </div>
           ))}
         </section>
       )}
 
       {message && (
-        <div role="status" style={{ marginTop: 12, padding: 9, borderRadius: 7, background: 'var(--mm-surface)', border: '1px solid #d9e2f1', color: '#3c4043', fontSize: 12.5, lineHeight: 1.45 }}>{message}</div>
+        <div role="status" style={{ marginTop: 12, padding: 9, borderRadius: 7, background: 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)', color: 'var(--mm-text)', fontSize: 12.5, lineHeight: 1.45 }}>{message}</div>
       )}
     </section>
   );

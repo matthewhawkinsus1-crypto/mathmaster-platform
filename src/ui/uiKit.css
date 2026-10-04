@@ -3,53 +3,12 @@
  *
  * Before this file the dashboard hardcoded the same dozen hex values inline in
  * hundreds of places (#1a73e8 for every primary action, #5f6368 for every muted
- * label, ...). The tokens below are those exact values, named. New UI uses the
- * tokens; existing inline styles keep working untouched, so this is additive
- * rather than a risky repaint of every screen at once.
+ * label, ...). Those values are now named, with a designed dark value each, in
+ * theme/tokens.css; this file holds only the component classes that use them.
  */
 
-:root {
-  /* Brand + interactive */
-  --mm-primary: #1a73e8;
-  --mm-primary-dark: #174ea6;
-  --mm-primary-soft: #e8f0fe;
-  --mm-primary-border: #aecbfa;
+/* Tokens moved to theme/tokens.css — one definition per theme. */
 
-  /* Status */
-  --mm-success: #188038;
-  --mm-success-text: #137333;
-  --mm-success-soft: #e6f4ea;
-  --mm-danger: #d93025;
-  --mm-danger-text: #a50e0e;
-  --mm-danger-soft: #fce8e6;
-  --mm-warning: #f9ab00;
-  --mm-warning-text: #7a4f00;
-  --mm-warning-soft: #fef7e0;
-  --mm-accent: #6f2da8;
-  --mm-accent-text: #681da8;
-  --mm-accent-soft: #efe4ff;
-
-  /* Neutrals */
-  --mm-ink: #202124;
-  --mm-ink-muted: #5f6368;
-  --mm-ink-subtle: #80868b;
-  --mm-surface: #ffffff;
-  --mm-surface-sunken: #f8f9fa;
-  --mm-surface-raised: #ffffff;
-  --mm-border: #dadce0;
-  --mm-border-soft: #e8eaed;
-
-  /* Shape + depth */
-  --mm-radius-sm: 7px;
-  --mm-radius: 10px;
-  --mm-radius-lg: 16px;
-  --mm-shadow-sm: 0 1px 2px rgba(60, 64, 67, 0.16);
-  --mm-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  --mm-shadow-lg: 0 24px 70px rgba(0, 0, 0, 0.3);
-
-  /* The smallest comfortable tap target. Everything interactive meets this. */
-  --mm-tap: 44px;
-}
 
 /* ---------------------------------------------------------------- Toasts */
 
@@ -151,7 +110,7 @@
 .mm-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .mm-btn:focus-visible { outline: 3px solid var(--mm-primary); outline-offset: 2px; }
 
-.mm-btn--primary { background: var(--mm-primary); color: #fff; }
+.mm-btn--primary { background: var(--mm-primary); color: var(--mm-on-primary); }
 .mm-btn--primary:hover:not(:disabled) { background: var(--mm-primary-dark); }
 
 .mm-btn--secondary {
@@ -288,7 +247,9 @@
   padding: 12px 16px;
   margin-bottom: 14px;
   border-radius: var(--mm-radius);
-  background: var(--mm-primary-dark);
+  /* A saturated bar with white text reads on both themes; the themed
+     --mm-primary-text turns light in dark mode and would lose the white text. */
+  background: #174ea6;
   color: #fff;
   box-shadow: var(--mm-shadow);
 }

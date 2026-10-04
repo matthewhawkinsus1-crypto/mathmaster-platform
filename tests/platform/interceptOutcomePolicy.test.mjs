@@ -188,12 +188,13 @@ test('where outcomes are withheld the finished state is neutral and stays change
   const withheld = content.slice(content.indexOf(') : ('));
   assert.match(practice, /Both intercepts found\./);
   assert.match(withheld, /Both intercepts recorded\./);
-  assert.doesNotMatch(withheld, /#e6f4ea|#137333|found/, 'no green, no "found"');
+  // Green is a token since Dark Mode 2.0 (--mm-success-*); either spelling is a verdict colour.
+  assert.doesNotMatch(withheld, /#e6f4ea|#137333|--mm-success|found/, 'no green, no "found"');
   assert.match(withheld, /onClick=\{\(\) => reopenIntercept\('x'\)\}/);
   assert.match(withheld, /onClick=\{\(\) => reopenIntercept\('y'\)\}/);
   const chip = region(orchestrator, "const doneLook = revealCorrectness", ';', 'chip look');
-  assert.match(chip, /\? \{ background: '#e6f4ea', color: '#137333', mark: '✓', suffix: '' \}/);
-  assert.match(chip, /: \{ background: '#e8f0fe', color: '#174ea6', mark: '•', suffix: ' recorded' \}/);
+  assert.match(chip, /\? \{ background: 'var\(--mm-success-bg\)', color: 'var\(--mm-success-text\)', mark: '✓', suffix: '' \}/);
+  assert.match(chip, /: \{ background: 'var\(--mm-primary-soft\)', color: 'var\(--mm-primary-text\)', mark: '•', suffix: ' recorded' \}/);
   const reopen = region(orchestrator, 'const reopenIntercept = (target) => {', '\n  };', 'reopen');
   assert.match(reopen, /if \(bothInterceptsFound\) \{\s*completionReportedRef\.current = false;\s*onStateChange\?\.\(INCOMPLETE_PAYLOAD\);/, 'Submit waits again for the changed intercept');
   assert.match(orchestrator, /\{!revealCorrectness && !bothInterceptsFound && !disabled && \['x', 'y'\]\.filter/, 'reopen is offered only where outcomes are withheld');

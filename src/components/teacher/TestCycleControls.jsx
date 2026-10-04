@@ -36,12 +36,12 @@ const rosterStudentLabel = (studentId, students, historicalName = '') => {
   return name === STUDENT_NAME_UNAVAILABLE ? formatStudentLabel(String(studentId ?? '')) : name;
 };
 
-const cell = { padding: '8px 10px', fontSize: 13, borderBottom: '1px solid #e3e6ea', textAlign: 'left' };
+const cell = { padding: '8px 10px', fontSize: 13, borderBottom: '1px solid var(--mm-border-soft)', textAlign: 'left' };
 const button = (tone) => ({
   minHeight: 36, padding: '6px 11px', borderRadius: 7, fontWeight: 800, fontSize: 12, cursor: 'pointer',
-  border: tone === 'primary' ? 0 : '1px solid #aeb8c6',
-  background: tone === 'primary' ? '#1a73e8' : '#fff',
-  color: tone === 'primary' ? '#fff' : '#3c4043',
+  border: tone === 'primary' ? 0 : '1px solid var(--mm-border-strong)',
+  background: tone === 'primary' ? '#1a73e8' : 'var(--mm-surface)',
+  color: tone === 'primary' ? '#fff' : 'var(--mm-text)',
 });
 
 const percent = (value) => (value === null || value === undefined ? '—' : `${value}%`);
@@ -89,9 +89,9 @@ export const TestCycleControls = ({ assignment, classId = null, students = [] })
   const blocked = preflight?.blocked === true;
 
   return (
-    <section style={{ padding: 18, border: '1px solid #dadce0', borderRadius: 12, background: 'var(--mm-surface)' }}>
+    <section style={{ padding: 18, border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)' }}>
       <h2 style={{ marginTop: 0 }}>Test Cycle · {assignment.title}</h2>
-      <p style={{ color: '#5f6368', lineHeight: 1.5, marginTop: 0 }}>
+      <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.5, marginTop: 0 }}>
         Review → secure Test → Corrections → secure Retest, as one assignment and one Google Classroom
         grade item. A retest can raise the recorded grade to at most the policy cap; it can never lower it.
       </p>
@@ -99,22 +99,22 @@ export const TestCycleControls = ({ assignment, classId = null, students = [] })
       {/* Preflight is shown before the assign button, because a Test Cycle that
           cannot issue equivalent secure coverage must not reach a classroom. */}
       {preflight && (
-        <div style={{ margin: '12px 0', padding: '11px 13px', borderRadius: 9, background: blocked ? '#fce8e6' : '#e6f4ea', border: `1px solid ${blocked ? '#f5b5ae' : '#a8dab5'}` }}>
-          <strong style={{ fontSize: 13, color: blocked ? '#b3261e' : '#0d652d' }}>
+        <div style={{ margin: '12px 0', padding: '11px 13px', borderRadius: 9, background: blocked ? 'var(--mm-error-bg)' : 'var(--mm-success-bg)', border: `1px solid ${blocked ? 'var(--mm-error-border-soft)' : 'var(--mm-success-border)'}` }}>
+          <strong style={{ fontSize: 13, color: blocked ? 'var(--mm-error-text)' : 'var(--mm-success-text)' }}>
             {blocked ? 'Cannot be assigned securely yet' : 'Secure preflight passed'}
           </strong>
           <ul style={{ margin: '7px 0 0', paddingLeft: 18, fontSize: 12.5, lineHeight: 1.5 }}>
             {(preflight.checks || []).map((check) => (
-              <li key={check.id} style={{ color: check.passed ? '#3c4043' : '#b3261e' }}>
+              <li key={check.id} style={{ color: check.passed ? 'var(--mm-text)' : 'var(--mm-error-text)' }}>
                 {check.passed ? '✓' : '✗'} {check.label}
               </li>
             ))}
           </ul>
           {(preflight.errors || []).map((error) => (
-            <p key={error} style={{ margin: '6px 0 0', fontSize: 12.5, color: '#b3261e' }}>{error}</p>
+            <p key={error} style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--mm-error-text)' }}>{error}</p>
           ))}
           {(preflight.warnings || []).map((warning) => (
-            <p key={warning} style={{ margin: '6px 0 0', fontSize: 12.5, color: '#7a4f00' }}>{warning}</p>
+            <p key={warning} style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--mm-warning-text)' }}>{warning}</p>
           ))}
         </div>
       )}
@@ -131,14 +131,14 @@ export const TestCycleControls = ({ assignment, classId = null, students = [] })
         {busy ? 'Working…' : 'Open secure Test sessions for this class'}
       </button>
 
-      {message && <p role="status" style={{ fontSize: 13, fontWeight: 700, color: '#174ea6' }}>{message}</p>}
+      {message && <p role="status" style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-primary-text)' }}>{message}</p>}
 
       <div style={{ overflowX: 'auto', marginTop: 16 }}>
         <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 720 }}>
           <thead>
             <tr>
               {['Student', 'Stage', 'Original Test', 'Retest raw', 'Retest capped', 'Recorded', 'Actions'].map((heading) => (
-                <th key={heading} style={{ ...cell, fontSize: 11, textTransform: 'uppercase', color: '#5f6368' }}>{heading}</th>
+                <th key={heading} style={{ ...cell, fontSize: 11, textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>{heading}</th>
               ))}
             </tr>
           </thead>
@@ -209,7 +209,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [] })
           answering three questions about A.5A?" needs an answer that is not
           "the algorithm decided". */}
       {plans && (
-        <div style={{ marginTop: 18, padding: 14, borderRadius: 10, background: '#f8f9fa', border: '1px solid #e3e6ea' }}>
+        <div style={{ marginTop: 18, padding: 14, borderRadius: 10, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border-soft)' }}>
           <h3 style={{ marginTop: 0, fontSize: 15 }}>Generated plans · {rosterStudentLabel(plans.studentId, students, plans.studentName)}</h3>
           {plans.corrections ? (
             <>
@@ -217,13 +217,13 @@ export const TestCycleControls = ({ assignment, classId = null, students = [] })
               {plans.corrections.targets.map((target) => (
                 <div key={target.correctionId} style={{ fontSize: 12.5, lineHeight: 1.55, marginBottom: 7 }}>
                   <strong>{target.label}</strong> · {target.diagnosisDetail}
-                  <div style={{ color: '#5f6368' }}>
+                  <div style={{ color: 'var(--mm-text-muted)' }}>
                     Missed {target.missed} of {target.attempted} · instances {(target.evidence || []).map((item) => item.questionInstanceId).filter(Boolean).join(', ') || '—'}
                   </div>
                 </div>
               ))}
             </>
-          ) : <p style={{ fontSize: 12.5, color: '#5f6368' }}>No correction plan — this student did not fail the Test.</p>}
+          ) : <p style={{ fontSize: 12.5, color: 'var(--mm-text-muted)' }}>No correction plan — this student did not fail the Test.</p>}
           {plans.retest ? (
             <>
               <h4 style={{ marginBottom: 4, fontSize: 13 }}>Retest targeting</h4>
@@ -234,7 +234,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [] })
                 against {plans.retest.audit.originalQuestionCount} on the original Test.
               </p>
             </>
-          ) : <p style={{ fontSize: 12.5, color: '#5f6368' }}>No retest plan has been generated yet.</p>}
+          ) : <p style={{ fontSize: 12.5, color: 'var(--mm-text-muted)' }}>No retest plan has been generated yet.</p>}
         </div>
       )}
     </section>

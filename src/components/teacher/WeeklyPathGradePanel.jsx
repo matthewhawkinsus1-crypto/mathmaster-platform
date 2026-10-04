@@ -27,9 +27,9 @@ import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
  */
 
 const STATE_TONE = {
-  [SYNC_STATE.READY_FOR_REVIEW]: { bg: '#eefaf1', fg: '#12633a', border: '#c3e8d1' },
-  [SYNC_STATE.NOT_READY]: { bg: '#f8f9fa', fg: '#5f6368', border: '#e8eaed' },
-  [SYNC_STATE.BLOCKED]: { bg: '#fdf1ec', fg: '#9a3412', border: '#f6d4c4' },
+  [SYNC_STATE.READY_FOR_REVIEW]: { bg: 'var(--mm-success-subtle)', fg: 'var(--mm-success-text)', border: 'var(--mm-success-border)' },
+  [SYNC_STATE.NOT_READY]: { bg: 'var(--mm-surface-sunken)', fg: 'var(--mm-text-muted)', border: 'var(--mm-border-soft)' },
+  [SYNC_STATE.BLOCKED]: { bg: 'var(--mm-warning-subtle)', fg: 'var(--mm-warning-text)', border: 'var(--mm-warning-border-soft)' },
 };
 
 export default function WeeklyPathGradePanel({
@@ -73,10 +73,10 @@ export default function WeeklyPathGradePanel({
   if (!students.length) return null;
 
   return (
-    <section style={{ border: '1px solid #d8dde6', borderRadius: 10, background: 'var(--mm-surface)', marginBottom: 22, overflow: 'hidden' }}>
-      <header style={{ padding: '15px 18px 12px', borderBottom: '1px solid #eef0f2' }}>
+    <section style={{ border: '1px solid var(--mm-border)', borderRadius: 10, background: 'var(--mm-surface)', marginBottom: 22, overflow: 'hidden' }}>
+      <header style={{ padding: '15px 18px 12px', borderBottom: '1px solid var(--mm-border-soft)' }}>
         <h3 style={{ margin: 0, fontSize: 16 }}>Weekly learning path{weekKey ? ` · week of ${weekKey}` : ''}</h3>
-        <p style={{ margin: '5px 0 0', color: '#5f6368', fontSize: 13, lineHeight: 1.5, maxWidth: '70ch' }}>
+        <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5, maxWidth: '70ch' }}>
           A separate grade from assignment work: 80% for completing the week&apos;s assigned sessions, 20% for how
           they went. A student who completes every session scores at least 80%, whatever the quality — this grade
           is about doing the practice, and it must not punish a student for finding it hard.
@@ -91,7 +91,7 @@ export default function WeeklyPathGradePanel({
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
-            <tr style={{ background: '#f8f9fa', textAlign: 'left' }}>
+            <tr style={{ background: 'var(--mm-surface-sunken)', textAlign: 'left' }}>
               <th style={{ padding: 11 }}>Student</th>
               <th style={{ padding: 11, textAlign: 'right' }}>Sessions</th>
               <th style={{ padding: 11, textAlign: 'right' }}>Path grade</th>
@@ -101,7 +101,7 @@ export default function WeeklyPathGradePanel({
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.studentId} style={{ borderTop: '1px solid #eef0f2' }}>
+              <tr key={row.studentId} style={{ borderTop: '1px solid var(--mm-border-soft)' }}>
                 <td style={{ padding: 11 }}>
                   <StudentNameLink
                     studentId={row.studentId}
@@ -112,9 +112,9 @@ export default function WeeklyPathGradePanel({
                 </td>
                 <td style={{ padding: 11, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                   {!progressKnown ? '—' : row.goal > 0 ? `${row.complete} / ${row.goal}` : '—'}
-                  {row.overdue && <span style={{ marginLeft: 6, color: '#9a3412', fontWeight: 800, fontSize: 11 }}>OVERDUE</span>}
+                  {row.overdue && <span style={{ marginLeft: 6, color: 'var(--mm-warning-text)', fontWeight: 800, fontSize: 11 }}>OVERDUE</span>}
                 </td>
-                <td style={{ padding: 11, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 900, color: progressKnown && row.goal > 0 ? (row.passing ? '#12633a' : '#9a3412') : '#5f6368' }}>
+                <td style={{ padding: 11, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 900, color: progressKnown && row.goal > 0 ? (row.passing ? 'var(--mm-success-text)' : 'var(--mm-warning-text)') : 'var(--mm-text-muted)' }}>
                   {!progressKnown ? (progressState === 'loading' ? 'Loading…' : 'Unavailable') : row.goal > 0 ? `${Math.round(row.grade)}%` : 'No goal yet'}
                 </td>
                 <td style={{ padding: 11 }}>
@@ -131,7 +131,7 @@ export default function WeeklyPathGradePanel({
         </table>
       </div>
 
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', padding: '12px 18px', borderTop: '1px solid #eef0f2', background: tone.bg }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', padding: '12px 18px', borderTop: '1px solid var(--mm-border-soft)', background: tone.bg }}>
         <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 11, fontWeight: 900, background: 'var(--mm-surface)', color: tone.fg, border: `1px solid ${tone.border}` }}>
           GOOGLE CLASSROOM
         </span>
@@ -144,10 +144,10 @@ export default function WeeklyPathGradePanel({
           }))}
           style={{
             padding: '8px 13px',
-            border: `1px solid ${readiness.state === SYNC_STATE.READY_FOR_REVIEW ? '#1a73e8' : '#dadce0'}`,
+            border: `1px solid ${readiness.state === SYNC_STATE.READY_FOR_REVIEW ? '#1a73e8' : 'var(--mm-border)'}`,
             borderRadius: 8,
             background: 'var(--mm-surface)',
-            color: readiness.state === SYNC_STATE.READY_FOR_REVIEW ? '#174ea6' : '#9aa0a6',
+            color: readiness.state === SYNC_STATE.READY_FOR_REVIEW ? 'var(--mm-primary-text)' : 'var(--mm-text-subtle)',
             fontWeight: 900,
             fontSize: 12.5,
             cursor: readiness.state === SYNC_STATE.READY_FOR_REVIEW && onReviewClassroomSync ? 'pointer' : 'not-allowed',

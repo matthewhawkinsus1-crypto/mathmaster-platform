@@ -36,7 +36,7 @@ import {
   tableAuditRows,
 } from './representationMath';
 
-const inputStyle = { display: 'block', width: '100%', padding: 10, marginTop: 5, border: '1px solid #cdd6e4', borderRadius: 8 };
+const inputStyle = { display: 'block', width: '100%', padding: 10, marginTop: 5, border: '1px solid var(--mm-tint-border)', borderRadius: 8 };
 const buttonStyle = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 
 // Internal set ids ("linear", "quadratic") were rendered straight into the
@@ -246,8 +246,8 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                     padding: '10px 12px',
                     textAlign: 'left',
                     borderRadius: 9,
-                    border: selected ? '2px solid #1a73e8' : '1px solid #cdd6e4',
-                    background: selected ? '#eef4ff' : '#fff',
+                    border: selected ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)',
+                    background: selected ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)',
                     color: 'var(--mm-text-strong)',
                     cursor: 'pointer',
                   }}
@@ -355,7 +355,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                 : 'Match the graph'
       }>
         {mode === 'completeSet' ? <>
-          <p style={{ color: '#5f6b7a' }}>All three of your choices must describe the same <strong>{familyLabel(targetId)}</strong> relationship.</p>
+          <p style={{ color: 'var(--mm-text-muted)' }}>All three of your choices must describe the same <strong>{familyLabel(targetId)}</strong> relationship.</p>
           {selectRepresentation('Equation', equation, setEquation)}
           {selectRepresentation('Table', table, setTable)}
           {selectRepresentation('Context', context, setContext)}
@@ -364,26 +364,26 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
 
         {mode === 'findMismatch' ? <>
           <p>Two of these cards describe the same relationship. Select the one that does not belong.</p>
-          <div style={{ display: 'grid', gap: 10 }}>{cards.map((card) => <button type="button" key={card.kind} onClick={() => setMismatchKind(card.kind)} style={{ textAlign: 'left', padding: 12, borderRadius: 10, border: mismatchKind === card.kind ? '2px solid #1a73e8' : '1px solid #d9e2f1', background: mismatchKind === card.kind ? '#eef4ff' : '#fff', cursor: 'pointer' }}><strong style={{ textTransform: 'capitalize' }}>{card.kind}</strong><div style={{ marginTop: 5, color: '#44536a' }}>{card.kind === 'equation' ? <MathDisplay value={card.value} format="ascii-math" inline /> : card.value}</div></button>)}</div>
+          <div style={{ display: 'grid', gap: 10 }}>{cards.map((card) => <button type="button" key={card.kind} onClick={() => setMismatchKind(card.kind)} style={{ textAlign: 'left', padding: 12, borderRadius: 10, border: mismatchKind === card.kind ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: mismatchKind === card.kind ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', cursor: 'pointer' }}><strong style={{ textTransform: 'capitalize' }}>{card.kind}</strong><div style={{ marginTop: 5, color: 'var(--mm-text-muted)' }}>{card.kind === 'equation' ? <MathDisplay value={card.value} format="ascii-math" inline /> : card.value}</div></button>)}</div>
           <button type="button" onClick={check} disabled={!mismatchKind} style={{ ...buttonStyle, marginTop: 12, opacity: mismatchKind ? 1 : .55 }}>Check mismatch</button>
         </> : null}
 
         {mode === 'tableAudit' ? <>
           <p>Exactly one row does not satisfy the relationship. Select it.</p>
-          <div style={{ display: 'grid', gap: 8 }}>{tableRows.map((row, index) => <button type="button" key={index} onClick={() => setBadRow(index)} style={{ padding: 10, borderRadius: 9, border: badRow === index ? '2px solid #1a73e8' : '1px solid #d9e2f1', background: badRow === index ? '#eef4ff' : '#fff', fontWeight: 700, cursor: 'pointer' }}>Row {index + 1}: ({row[0]}, {row[1]})</button>)}</div>
+          <div style={{ display: 'grid', gap: 8 }}>{tableRows.map((row, index) => <button type="button" key={index} onClick={() => setBadRow(index)} style={{ padding: 10, borderRadius: 9, border: badRow === index ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: badRow === index ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', fontWeight: 700, cursor: 'pointer' }}>Row {index + 1}: ({row[0]}, {row[1]})</button>)}</div>
           <button type="button" onClick={check} disabled={badRow == null} style={{ ...buttonStyle, marginTop: 12, opacity: badRow == null ? .55 : 1 }}>Check row</button>
         </> : null}
 
         {mode === 'graphMatch' ? <>
           <p><strong>Target equation:</strong> {targetSet?.equation ? <MathDisplay value={targetSet.equation} format="ascii-math" inline /> : 'Match the target relationship.'}</p>
-          <div style={{ display: 'grid', gap: 12 }}>{sets.map((item, index) => <button type="button" key={item.id} onClick={() => setGraphId(item.id)} style={{ textAlign: 'left', padding: 10, borderRadius: 12, border: graphId === item.id ? '2px solid #1a73e8' : '1px solid #d9e2f1', background: graphId === item.id ? '#eef4ff' : '#fff', cursor: 'pointer' }}><strong>Graph {String.fromCharCode(65 + index)}</strong><div style={{ marginTop: 8 }}><CoordinatePlane enlargeable={false} width={420} height={230} {...graphMatchBounds} functions={[x => evaluateFunctionSpec(item.graphSpec || {}, x)]} /></div></button>)}</div>
+          <div style={{ display: 'grid', gap: 12 }}>{sets.map((item, index) => <button type="button" key={item.id} onClick={() => setGraphId(item.id)} style={{ textAlign: 'left', padding: 10, borderRadius: 12, border: graphId === item.id ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: graphId === item.id ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', cursor: 'pointer' }}><strong>Graph {String.fromCharCode(65 + index)}</strong><div style={{ marginTop: 8 }}><CoordinatePlane enlargeable={false} width={420} height={230} {...graphMatchBounds} functions={[x => evaluateFunctionSpec(item.graphSpec || {}, x)]} /></div></button>)}</div>
           <button type="button" onClick={check} disabled={!graphId} style={{ ...buttonStyle, marginTop: 12, opacity: graphId ? 1 : .55 }}>Check graph</button>
         </> : null}
 
         {mode === 'linearConnections' && linearTask === 'group' ? <div className="mathmaster-line-sort" style={{ textAlign: 'left' }}>
-          <p style={{ margin: '0 0 10px', color: '#44536a', lineHeight: 1.5 }}>Choose a {groupNoun.toLowerCase()}, then tap every card that belongs to it. Tap a card again to take it back out.</p>
+          <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>Choose a {groupNoun.toLowerCase()}, then tap every card that belongs to it. Tap a card again to take it back out.</p>
           <fieldset style={{ border: 0, padding: 0, margin: '0 0 12px' }}>
-            <legend style={{ fontWeight: 800, marginBottom: 7, color: '#24324a' }}>Sorting cards into:</legend>
+            <legend style={{ fontWeight: 800, marginBottom: 7, color: 'var(--mm-text)' }}>Sorting cards into:</legend>
             <div role="radiogroup" aria-label={`${groupNoun} to sort cards into`} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {lineLabels.map((label, index) => (
                 <button
@@ -395,13 +395,13 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 8,
                     padding: '9px 16px', minHeight: 44, borderRadius: 999, cursor: 'pointer', fontWeight: 800,
-                    border: activeLineSlot === index ? `2px solid ${groupColor(index)}` : '1px solid #cdd6e4',
-                    background: activeLineSlot === index ? '#f4f8ff' : '#fff', color: 'var(--mm-text-strong)',
+                    border: activeLineSlot === index ? `2px solid ${groupColor(index)}` : '1px solid var(--mm-tint-border)',
+                    background: activeLineSlot === index ? 'var(--mm-surface-tint)' : 'var(--mm-surface)', color: 'var(--mm-text-strong)',
                   }}
                 >
                   <span aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 999, background: groupColor(index), flex: '0 0 auto' }} />
                   {label}
-                  <span style={{ fontWeight: 700, fontSize: 12, color: '#5f6b7a' }}>
+                  <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--mm-text-muted)' }}>
                     · {linearGroupCards.filter((card) => linearAssignments[card.id] === index).length}
                   </span>
                 </button>
@@ -429,14 +429,14 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                         aria-label={`${LINEAR_KIND_LABELS[card.kind]}: ${describeLinearCard(card, { bounds: linearGraphBounds })}. In ${assignedLabel}. Tap to ${assignedSlot === activeLineSlot ? 'take it out of' : 'put it in'} ${lineLabels[activeLineSlot]}.`}
                         style={{
                           textAlign: 'left', padding: 10, borderRadius: 10, cursor: 'pointer', minHeight: 64,
-                          border: assigned ? `2px solid ${groupColor(assignedSlot)}` : '1px solid #d9e2f1',
+                          border: assigned ? `2px solid ${groupColor(assignedSlot)}` : '1px solid var(--mm-tint-border)',
                           boxShadow: assigned ? `inset 5px 0 0 ${groupColor(assignedSlot)}` : 'none',
-                          background: assigned ? '#fbfcff' : '#fff',
+                          background: assigned ? 'var(--mm-surface)' : 'var(--mm-surface)',
                         }}
                       >
-                        <div style={{ fontSize: 11, fontWeight: 800, color: '#5f6b7a', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>{LINEAR_KIND_LABELS[card.kind]}</div>
+                        <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>{LINEAR_KIND_LABELS[card.kind]}</div>
                         {renderLinearCardBody(card)}
-                        <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800, color: assigned ? groupColor(assignedSlot) : '#8a94a6' }}>
+                        <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800, color: assigned ? groupColor(assignedSlot) : 'var(--mm-text-subtle)' }}>
                           {assigned ? <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: 999, background: groupColor(assignedSlot) }} /> : null}
                           {assigned ? lineLabels[assignedSlot] : 'Not sorted yet'}
                         </div>
@@ -459,10 +459,10 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                 key={card.id}
                 onClick={() => setMismatchSelection(card.id)}
                 aria-pressed={mismatchSelection === card.id}
-                style={{ textAlign: 'left', padding: 12, borderRadius: 10, border: mismatchSelection === card.id ? '2px solid #1a73e8' : '1px solid #d9e2f1', background: mismatchSelection === card.id ? '#eef4ff' : '#fff', cursor: 'pointer' }}
+                style={{ textAlign: 'left', padding: 12, borderRadius: 10, border: mismatchSelection === card.id ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: mismatchSelection === card.id ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', cursor: 'pointer' }}
               >
                 <strong>{LINEAR_KIND_LABELS[card.kind]}</strong>
-                <div style={{ marginTop: 5, color: '#44536a' }}>{renderLinearCardBody(card)}</div>
+                <div style={{ marginTop: 5, color: 'var(--mm-text-muted)' }}>{renderLinearCardBody(card)}</div>
               </button>
             ))}
           </div>
@@ -492,7 +492,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
                     : mode === 'linearConnections' && linearTask === 'group'
                       ? `${(feedback.metadata?.parts || []).find((part) => part.id === 'pairings')?.response || '0 of 0'} card pairings are correct so far. Convert each card to slope-intercept form and compare.`
                       : 'That card is actually consistent with the others. Recheck each card’s slope and intercept against the others.';
-          return <div style={{ marginTop: 14 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{ margin: '9px 0 0', color: '#3c4756', lineHeight: 1.55 }}>{message}</p></div>;
+          return <div style={{ marginTop: 14 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{ margin: '9px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{message}</p></div>;
         })() : null}
         <HintPanel hints={MODE_HINTS[mode] || MODE_HINTS.completeSet} onHintUsed={() => onAction?.('HINT_USED')} />
       </Panel>
@@ -501,7 +501,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
           bullets at the left edge and each sentence in the middle. */}
       <Panel title="Representation reasoning" collapsible>
         <ul style={{ lineHeight: 1.8, paddingLeft: 20, marginTop: 0, textAlign: 'left' }}><li>An equation encodes the rule.</li><li>A table samples input-output pairs.</li><li>A graph shows shape, rate, and defining features.</li><li>A context gives quantities meaning and units.</li></ul>
-        <p style={{ color: '#5f6b7a', marginBottom: 0, textAlign: 'left' }}>None of these is the “real” version of the relationship. Each one shows something the others hide, which is why you check them against each other.</p>
+        <p style={{ color: 'var(--mm-text-muted)', marginBottom: 0, textAlign: 'left' }}>None of these is the “real” version of the relationship. Each one shows something the others hide, which is why you check them against each other.</p>
       </Panel>
     </Layout>
   </ToolShell>;

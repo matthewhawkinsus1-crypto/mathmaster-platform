@@ -54,8 +54,8 @@ export default function StudentIdentityBar({ student = null, preview = false, cl
       data-student-identity={preview ? 'preview' : 'authenticated'}
       style={{
         position: 'sticky', top: 0, zIndex: STUDENT_IDENTITY_Z_INDEX, boxSizing: 'border-box', width: '100%',
-        minHeight: 38, padding: '7px clamp(10px, 3vw, 22px)', background: preview ? '#fef7e0' : '#17365d',
-        color: preview ? '#6b4c00' : '#fff', borderBottom: preview ? '1px solid #f9ab00' : '1px solid #0d2948',
+        minHeight: 38, padding: '7px clamp(10px, 3vw, 22px)', background: preview ? 'var(--mm-warning-bg)' : '#17365d',
+        color: preview ? 'var(--mm-warning-text)' : '#fff', borderBottom: preview ? '1px solid #f9ab00' : '1px solid #0d2948',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         fontFamily: '"Segoe UI", sans-serif', fontSize: 13, lineHeight: 1.25,
       }}
@@ -67,7 +67,7 @@ export default function StudentIdentityBar({ student = null, preview = false, cl
         {/* The star is drawn: ⭐ was a box on devices without an emoji font
             (PQ-030). On a phone the words "Class Points" are visually hidden,
             not removed, so the chip still reads "120 Class Points". */}
-        {!preview && Number.isFinite(classPointsBalance) && <span aria-label={`${classPointsBalance} Class Points`} className="mm-identity-points" style={{ flexShrink: 0, padding: '3px 8px', borderRadius: 999, background: '#fff3c4', color: '#5f4400', fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap' }}><StarIcon /> {classPointsBalance}<span className="mm-identity-points-word"> Class Points</span></span>}
+        {!preview && Number.isFinite(classPointsBalance) && <span aria-label={`${classPointsBalance} Class Points`} className="mm-identity-points" style={{ flexShrink: 0, padding: '3px 8px', borderRadius: 999, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap' }}><StarIcon /> {classPointsBalance}<span className="mm-identity-points-word"> Class Points</span></span>}
       </div>
       {!preview && onLogout && (
         <span className="mm-identity-logout" style={{ flexShrink: 0 }}>

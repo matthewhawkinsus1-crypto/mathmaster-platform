@@ -19,9 +19,9 @@ import { getMathMasterBuildInfo } from '../../platform/runtime/buildInfo.js';
  */
 
 const TONES = {
-  updated: { bg: 'var(--mm-info-bg, #e8f0fe)', border: 'var(--mm-info-border, #aecbfa)', text: 'var(--mm-info-text, #174ea6)' },
-  offline: { bg: 'var(--mm-warning-bg, #fef7e0)', border: 'var(--mm-warning-border, #f9ab00)', text: 'var(--mm-warning-text, #7a4f00)' },
-  error: { bg: 'var(--mm-warning-bg, #fef7e0)', border: 'var(--mm-warning-border, #f9ab00)', text: 'var(--mm-warning-text, #7a4f00)' },
+  updated: { bg: 'var(--mm-info-bg, var(--mm-primary-soft))', border: 'var(--mm-info-border, var(--mm-primary-border))', text: 'var(--mm-info-text, var(--mm-primary-text))' },
+  offline: { bg: 'var(--mm-warning-bg)', border: 'var(--mm-warning-border, #f9ab00)', text: 'var(--mm-warning-text)' },
+  error: { bg: 'var(--mm-warning-bg)', border: 'var(--mm-warning-border, #f9ab00)', text: 'var(--mm-warning-text)' },
 };
 
 const buttonStyle = {
@@ -38,8 +38,8 @@ const buttonStyle = {
 const secondaryButtonStyle = {
   ...buttonStyle,
   background: 'var(--mm-surface, transparent)',
-  color: 'var(--mm-primary, #174ea6)',
-  border: '1px solid var(--mm-border, #c5d5ef)',
+  color: 'var(--mm-primary, var(--mm-primary-text))',
+  border: '1px solid var(--mm-border, var(--mm-tint-border))',
 };
 
 export default function RecoveryPanel({
@@ -82,7 +82,7 @@ export default function RecoveryPanel({
         borderRadius: 14,
         border: `1px solid ${colors.border}`,
         background: colors.bg,
-        color: 'var(--mm-text-strong, #1f2937)',
+        color: 'var(--mm-text-strong)',
         textAlign: 'left',
         lineHeight: 1.55,
       }}
@@ -107,7 +107,7 @@ export default function RecoveryPanel({
         </pre>
       ) : null}
       {technicalMessage ? (
-        <details style={{ marginTop: 12, fontSize: 12, color: 'var(--mm-text-muted, #5f6368)' }}>
+        <details style={{ marginTop: 12, fontSize: 12, color: 'var(--mm-text-muted)' }}>
           <summary style={{ cursor: 'pointer' }}>Technical details</summary>
           <p style={{ margin: '6px 0 0', overflowWrap: 'anywhere' }}>{technicalMessage}</p>
           <p style={{ margin: '4px 0 0' }}>Build {build?.gitSha && build.gitSha !== 'unknown' ? String(build.gitSha).slice(0, 7) : 'dev'}</p>

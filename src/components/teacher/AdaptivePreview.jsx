@@ -16,8 +16,8 @@ import { buildAdaptivePreview } from '../../platform/assignments/adaptivePreview
  */
 
 const VARY_TONE = {
-  true: { bg: '#f3e8fd', fg: '#6f2da8', border: '#e0c8f5' },
-  false: { bg: '#f1f3f4', fg: '#5f6368', border: '#e0e3e7' },
+  true: { bg: 'var(--mm-accent-soft)', fg: 'var(--mm-accent-text)', border: 'var(--mm-accent-border)' },
+  false: { bg: 'var(--mm-surface-control)', fg: 'var(--mm-text-muted)', border: 'var(--mm-border)' },
 };
 
 export default function AdaptivePreview({
@@ -35,21 +35,21 @@ export default function AdaptivePreview({
 
   if (!preview.rows.length) {
     return (
-      <section style={{ padding: '15px 17px', border: '1px solid #d8dde6', borderRadius: 10, background: 'var(--mm-surface)' }}>
+      <section style={{ padding: '15px 17px', border: '1px solid var(--mm-border)', borderRadius: 10, background: 'var(--mm-surface)' }}>
         <h4 style={{ margin: 0, fontSize: 15 }}>Adaptive preview</h4>
-        <p style={{ margin: '5px 0 0', color: '#5f6368', fontSize: 13 }}>{preview.summary.headline}</p>
+        <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 13 }}>{preview.summary.headline}</p>
       </section>
     );
   }
 
   return (
-    <section style={{ border: '1px solid #d8dde6', borderRadius: 10, background: 'var(--mm-surface)', overflow: 'hidden' }}>
-      <header style={{ padding: '15px 17px 12px', borderBottom: '1px solid #eef0f2' }}>
+    <section style={{ border: '1px solid var(--mm-border)', borderRadius: 10, background: 'var(--mm-surface)', overflow: 'hidden' }}>
+      <header style={{ padding: '15px 17px 12px', borderBottom: '1px solid var(--mm-border-soft)' }}>
         <h4 style={{ margin: 0, fontSize: 15 }}>Adaptive preview</h4>
         <p style={{ margin: '5px 0 0', fontSize: 13.5, color: 'var(--mm-text-strong)', lineHeight: 1.5, maxWidth: '68ch' }}>
           {preview.summary.headline}
         </p>
-        <p style={{ margin: '6px 0 0', fontSize: 12, color: '#5f6368', lineHeight: 1.5, maxWidth: '68ch' }}>
+        <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.5, maxWidth: '68ch' }}>
           Run through the real adaptation engine against three simulated students, not a demonstration.
           If this preview shows nothing changing, nothing will change for your class either.
         </p>
@@ -57,7 +57,7 @@ export default function AdaptivePreview({
           {preview.students.map((student) => (
             <div key={student.id} style={{ fontSize: 12 }}>
               <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)' }}>{student.label}</div>
-              <div style={{ color: '#5f6368', maxWidth: 210, lineHeight: 1.4 }}>{student.note}</div>
+              <div style={{ color: 'var(--mm-text-muted)', maxWidth: 210, lineHeight: 1.4 }}>{student.note}</div>
             </div>
           ))}
         </div>
@@ -66,7 +66,7 @@ export default function AdaptivePreview({
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, minWidth: 620 }}>
           <thead>
-            <tr style={{ background: '#f8f9fa', textAlign: 'left' }}>
+            <tr style={{ background: 'var(--mm-surface-sunken)', textAlign: 'left' }}>
               <th style={{ padding: '9px 11px' }}>Question</th>
               <th style={{ padding: '9px 11px' }}>Authored</th>
               {preview.students.map((student) => (
@@ -83,17 +83,17 @@ export default function AdaptivePreview({
                 // A real Fragment, because a bare <> cannot carry the key React
                 // needs for a two-row group.
                 <Fragment key={row.questionId}>
-                  <tr style={{ borderTop: '1px solid #eef0f2', background: row.varies ? '#fff' : '#fcfcfd' }}>
+                  <tr style={{ borderTop: '1px solid var(--mm-border-soft)', background: row.varies ? 'var(--mm-surface)' : 'var(--mm-surface)' }}>
                     <td style={{ padding: '9px 11px', maxWidth: 240 }}>
                       <div style={{ fontWeight: 800 }}>
                         Q{row.index + 1} · {row.activityRole}
                       </div>
-                      <div style={{ color: '#5f6368', fontSize: 11.5, lineHeight: 1.4 }}>{row.prompt || '—'}</div>
+                      <div style={{ color: 'var(--mm-text-muted)', fontSize: 11.5, lineHeight: 1.4 }}>{row.prompt || '—'}</div>
                       <span style={{ display: 'inline-block', marginTop: 4, padding: '2px 7px', borderRadius: 999, background: tone.bg, color: tone.fg, border: `1px solid ${tone.border}`, fontSize: 10, fontWeight: 900 }}>
                         {row.varies ? 'VARIES' : 'SAME FOR ALL'}
                       </span>
                     </td>
-                    <td style={{ padding: '9px 11px', color: '#5f6368', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '9px 11px', color: 'var(--mm-text-muted)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                       DOK {row.assignedDok} · Band {row.assignedBand}
                       <div style={{ fontSize: 10.5, marginTop: 2 }}>{row.variationMode}</div>
                     </td>
@@ -105,7 +105,7 @@ export default function AdaptivePreview({
                           fontVariantNumeric: 'tabular-nums',
                           whiteSpace: 'nowrap',
                           fontWeight: delivery.adapted ? 900 : 400,
-                          color: delivery.adapted ? '#6f2da8' : '#3c4043',
+                          color: delivery.adapted ? 'var(--mm-accent-text)' : 'var(--mm-text)',
                         }}
                       >
                         DOK {delivery.dok} · Band {delivery.difficultyBand}
@@ -116,21 +116,21 @@ export default function AdaptivePreview({
                         type="button"
                         onClick={() => setOpenRow(expanded ? null : row.questionId)}
                         aria-expanded={expanded}
-                        style={{ padding: '5px 9px', border: '1px solid #dadce0', borderRadius: 7, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' }}
+                        style={{ padding: '5px 9px', border: '1px solid var(--mm-border)', borderRadius: 7, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' }}
                       >
                         {expanded ? 'Hide' : 'Why'}
                       </button>
                     </td>
                   </tr>
                   {expanded && (
-                    <tr style={{ background: '#fbfbfd' }}>
+                    <tr style={{ background: 'var(--mm-surface-sunken)' }}>
                       <td colSpan={3 + preview.students.length} style={{ padding: '11px 13px' }}>
                         <div style={{ display: 'grid', gap: 7 }}>
                           {row.deliveries.map((delivery) => (
                             <div key={delivery.studentId} style={{ fontSize: 12, lineHeight: 1.5 }}>
                               <strong>{delivery.label}:</strong>{' '}
                               {/* The engine's own words, not a rewrite of them. */}
-                              <span style={{ color: '#4d5b58' }}>{delivery.reason || 'Delivered exactly as authored.'}</span>
+                              <span style={{ color: 'var(--mm-text-muted)' }}>{delivery.reason || 'Delivered exactly as authored.'}</span>
                             </div>
                           ))}
                         </div>

@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { runAssignmentAiSelfTest } from '../../services/assignmentAiService.js';
 
 const panel = {
-  border: '1px solid #dadce0',
+  border: '1px solid var(--mm-border)',
   borderRadius: 12,
   padding: '20px 22px',
   marginBottom: 18,
@@ -22,7 +22,7 @@ const REMEDIES = Object.freeze({
   internal: 'OpenAI answered with something MathMaster could not use. The exact provider status is in the diagnostics below and in Cloud Logging.',
 });
 
-const rowStyle = { display: 'flex', gap: 10, padding: '5px 0', borderBottom: '1px solid #f1f3f4', fontSize: 13 };
+const rowStyle = { display: 'flex', gap: 10, padding: '5px 0', borderBottom: '1px solid var(--mm-border-soft)', fontSize: 13 };
 
 export default function AssignmentAiHealth() {
   const [busy, setBusy] = useState(false);
@@ -54,7 +54,7 @@ export default function AssignmentAiHealth() {
   return (
     <section style={panel}>
       <h2 style={{ margin: 0, fontSize: 19 }}>Assignment AI health</h2>
-      <p style={{ margin: '6px 0 14px', color: '#5f6368', fontSize: 13.5, lineHeight: 1.5 }}>
+      <p style={{ margin: '6px 0 14px', color: 'var(--mm-text-muted)', fontSize: 13.5, lineHeight: 1.5 }}>
         Makes one very small real request to the AI provider and reports exactly what came back.
         It proves the server credential, the model entitlement, the billing quota and the network
         path in a single check, so &ldquo;the AI is not working&rdquo; resolves to one specific cause.
@@ -71,10 +71,10 @@ export default function AssignmentAiHealth() {
       </button>
 
       {error && (
-        <div style={{ marginTop: 14, padding: '12px 14px', border: '1px solid #f28b82', borderRadius: 9, background: '#fce8e6', color: '#a50e0e', fontSize: 13.5, lineHeight: 1.5 }}>
+        <div style={{ marginTop: 14, padding: '12px 14px', border: '1px solid var(--mm-error-border-soft)', borderRadius: 9, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', fontSize: 13.5, lineHeight: 1.5 }}>
           <strong>The self-test could not run.</strong>
           <div style={{ marginTop: 5 }}>{error}</div>
-          <div style={{ marginTop: 7, color: '#7a1c1c' }}>
+          <div style={{ marginTop: 7, color: 'var(--mm-error-text)' }}>
             If this says the function was not found, deploy it:
             {' '}<code>firebase deploy --only functions:assignmentAiSelfTest --project mathmaster-aleks</code>
           </div>
@@ -86,10 +86,10 @@ export default function AssignmentAiHealth() {
           style={{
             marginTop: 14,
             padding: '13px 15px',
-            border: `1px solid ${result.ok ? '#a8dab5' : '#f6c26b'}`,
+            border: `1px solid ${result.ok ? 'var(--mm-success-border)' : '#f6c26b'}`,
             borderRadius: 9,
-            background: result.ok ? '#e6f4ea' : '#fef7e0',
-            color: result.ok ? '#137333' : '#7a4f00',
+            background: result.ok ? 'var(--mm-success-bg)' : 'var(--mm-warning-bg)',
+            color: result.ok ? 'var(--mm-success-text)' : 'var(--mm-warning-text)',
             fontSize: 13.5,
             lineHeight: 1.5,
           }}
@@ -102,8 +102,8 @@ export default function AssignmentAiHealth() {
 
       {(diagnostics || result) && (
         <div style={{ marginTop: 14 }}>
-          <h3 style={{ margin: '0 0 6px', fontSize: 14, color: '#3c4043' }}>Diagnostics</h3>
-          <div style={{ border: '1px solid #e8eaed', borderRadius: 9, padding: '4px 13px' }}>
+          <h3 style={{ margin: '0 0 6px', fontSize: 14, color: 'var(--mm-text)' }}>Diagnostics</h3>
+          <div style={{ border: '1px solid var(--mm-border-soft)', borderRadius: 9, padding: '4px 13px' }}>
             {[
               ['Configured model', result?.requestedModel],
               ['Model that answered', diagnostics?.servedModel],
@@ -117,12 +117,12 @@ export default function AssignmentAiHealth() {
               .filter(([, value]) => value !== null && value !== undefined && value !== '')
               .map(([label, value]) => (
                 <div key={label} style={rowStyle}>
-                  <span style={{ minWidth: 190, color: '#5f6368' }}>{label}</span>
+                  <span style={{ minWidth: 190, color: 'var(--mm-text-muted)' }}>{label}</span>
                   <span style={{ fontWeight: 700, color: 'var(--mm-text-strong)' }}>{String(value)}</span>
                 </div>
               ))}
           </div>
-          <p style={{ margin: '10px 0 0', color: '#5f6368', fontSize: 12.5, lineHeight: 1.5 }}>
+          <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.5 }}>
             Every teacher-facing AI failure is now recorded the same way, in Cloud Logging under
             {' '}<code>Integrated assignment AI failed</code> and in the <code>assignmentAiAudit</code> collection.
           </p>

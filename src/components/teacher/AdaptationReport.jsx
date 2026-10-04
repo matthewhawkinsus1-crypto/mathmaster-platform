@@ -12,9 +12,9 @@ import React, { useMemo } from 'react';
 // explain a question the student answered in October, and quietly change its
 // story as the student improved. The reason was written down at the time.
 
-const panel = { border: '1px solid #dadce0', borderRadius: 12, background: 'var(--mm-surface)', padding: 16, marginBottom: 16 };
-const heading = { margin: '0 0 4px', fontSize: 15, fontWeight: 900, color: '#174ea6' };
-const note = { color: '#5f6368', fontSize: 13, lineHeight: 1.55, margin: '0 0 14px' };
+const panel = { border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)', padding: 16, marginBottom: 16 };
+const heading = { margin: '0 0 4px', fontSize: 15, fontWeight: 900, color: 'var(--mm-primary-text)' };
+const note = { color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55, margin: '0 0 14px' };
 const mono = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12.5, fontVariantNumeric: 'tabular-nums' };
 
 const chip = (background, color) => ({
@@ -95,13 +95,13 @@ export default function AdaptationReport({
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
           <thead>
-            <tr style={{ background: '#f8f9fa' }}>
+            <tr style={{ background: 'var(--mm-surface-sunken)' }}>
               {['Standard', 'Assigned', 'Received', 'Why', 'Result'].map((head) => (
                 <th
                   key={head}
                   style={{
                     textAlign: 'left', padding: '8px 10px', fontSize: 10.5, fontWeight: 900,
-                    letterSpacing: '.07em', textTransform: 'uppercase', color: '#5f6368',
+                    letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--mm-text-muted)',
                   }}
                 >
                   {head}
@@ -111,29 +111,29 @@ export default function AdaptationReport({
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.key} style={{ borderTop: '1px solid #eef0f2' }}>
+              <tr key={row.key} style={{ borderTop: '1px solid var(--mm-border-soft)' }}>
                 <td style={{ padding: '10px', fontWeight: 800 }}>
                   {row.code}
-                  <span style={{ display: 'block', color: '#5f6368', fontSize: 11, fontWeight: 600 }}>
+                  <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 11, fontWeight: 600 }}>
                     {row.title} · {row.role}
                   </span>
                 </td>
-                <td style={{ padding: '10px', ...mono, color: '#5f6368' }}>
+                <td style={{ padding: '10px', ...mono, color: 'var(--mm-text-muted)' }}>
                   DOK {row.assignedDok} · Band {row.assignedBand}
                 </td>
-                <td style={{ padding: '10px', ...mono, color: row.adapted ? '#174ea6' : '#5f6368', fontWeight: row.adapted ? 700 : 400 }}>
+                <td style={{ padding: '10px', ...mono, color: row.adapted ? 'var(--mm-primary-text)' : 'var(--mm-text-muted)', fontWeight: row.adapted ? 700 : 400 }}>
                   DOK {row.deliveredDok} · Band {row.deliveredBand}
                   {!row.adapted && <span style={{ display: 'block', fontSize: 10.5, fontFamily: 'inherit' }}>as assigned</span>}
                 </td>
-                <td style={{ padding: '10px', color: '#3c4043', maxWidth: 340 }}>
+                <td style={{ padding: '10px', color: 'var(--mm-text)', maxWidth: 340 }}>
                   {row.adapted
                     ? (row.reason || 'Adapted — reason not recorded.')
-                    : <span style={{ color: '#5f6368' }}>—</span>}
+                    : <span style={{ color: 'var(--mm-text-muted)' }}>—</span>}
                 </td>
                 <td style={{ padding: '10px' }}>
                   {row.correct
-                    ? <span style={chip('#e6f4ea', '#137333')}>Correct</span>
-                    : <span style={chip('#fce8e6', '#a50e0e')}>Not yet</span>}
+                    ? <span style={chip('var(--mm-success-bg)', 'var(--mm-success-text)')}>Correct</span>
+                    : <span style={chip('var(--mm-error-bg)', 'var(--mm-error-text)')}>Not yet</span>}
                 </td>
               </tr>
             ))}

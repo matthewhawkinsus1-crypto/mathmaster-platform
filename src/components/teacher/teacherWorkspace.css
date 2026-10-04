@@ -39,7 +39,7 @@
 .tw-btn--danger { color: var(--mm-error-text); border-color: var(--mm-error-border); }
 .tw-btn--sm { min-height: 32px; padding: 0 10px; font-size: 12.5px; }
 .tw-link {
-  padding: 0; border: 0; background: none; font: inherit; color: var(--mm-primary);
+  padding: 0; border: 0; background: none; font: inherit; color: var(--mm-primary-text);
   font-weight: 800; cursor: pointer; text-align: left;
 }
 .tw-link:hover { text-decoration: underline; }

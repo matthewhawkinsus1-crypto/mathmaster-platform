@@ -8,15 +8,15 @@ const CHIP = {
   borderRadius: 999, fontSize: 11, fontWeight: 900, letterSpacing: '.02em',
   lineHeight: 1.55, cursor: 'pointer',
 };
-const STANDARD_CHIP = { ...CHIP, background: '#eef3fb', color: '#174ea6', border: '1px solid #c9daf8' };
-const CCMR_CHIP = { ...CHIP, background: '#f7f2fd', color: '#5b21b6', border: '1px solid #ddcff3' };
+const STANDARD_CHIP = { ...CHIP, background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-tint-border)' };
+const CCMR_CHIP = { ...CHIP, background: 'var(--mm-accent-subtle)', color: 'var(--mm-accent-text)', border: '1px solid var(--mm-accent-border)' };
 const ACTIVE_CHIP = { ...CHIP, background: '#5b21b6', color: '#fff', border: '1px solid #5b21b6' };
 const buttonReset = (style) => ({ appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit', ...style });
 
 const TAB = (active) => ({
   appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
   border: 0, borderBottom: `3px solid ${active ? '#1a73e8' : 'transparent'}`,
-  background: 'transparent', color: active ? '#174ea6' : '#5f6368',
+  background: 'transparent', color: active ? 'var(--mm-primary-text)' : 'var(--mm-text-muted)',
   padding: '9px 4px 8px', fontWeight: 900, cursor: 'pointer',
 });
 
@@ -50,27 +50,27 @@ const formulaSummary = (profile) => {
 function SkillDetails({ info, onShowConnections }) {
   return (
     <>
-      <div style={{ marginTop: 16, padding: '15px 16px', borderRadius: 12, background: '#f8fbff', border: '1px solid #d9e2f1' }}>
-        <div style={{ fontSize: 11, fontWeight: 950, letterSpacing: '.07em', textTransform: 'uppercase', color: '#174ea6' }}>The skill to remember</div>
+      <div style={{ marginTop: 16, padding: '15px 16px', borderRadius: 12, background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}>
+        <div style={{ fontSize: 11, fontWeight: 950, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>The skill to remember</div>
         <div style={{ marginTop: 4, color: 'var(--mm-text-strong)', fontSize: 18, fontWeight: 900 }}>{info.studentLabel || info.description}</div>
-        <div style={{ marginTop: 5, color: '#5f6368', fontSize: 12.5, lineHeight: 1.5 }}>
+        <div style={{ marginTop: 5, color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.5 }}>
           TEKS {info.displayCode} is the teacher/reporting code for this skill. The mathematics above is what you are actually building.
         </div>
       </div>
 
       <div style={{ marginTop: 16 }}>
-        <div style={{ fontSize: 11, fontWeight: 950, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5f6368' }}>Texas learning target</div>
-        <p style={{ margin: '6px 0 0', color: '#30343b', lineHeight: 1.65, fontSize: 14.5 }}>{info.description}</p>
+        <div style={{ fontSize: 11, fontWeight: 950, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>Texas learning target</div>
+        <p style={{ margin: '6px 0 0', color: 'var(--mm-text)', lineHeight: 1.65, fontSize: 14.5 }}>{info.description}</p>
       </div>
 
       {(info.course || info.strandLabel) && (
         <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {info.course && <span style={{ padding: '5px 8px', borderRadius: 999, background: '#f1f3f4', color: '#3c4043', fontSize: 11.5, fontWeight: 800 }}>{info.course}</span>}
-          {info.strandLabel && <span style={{ padding: '5px 8px', borderRadius: 999, background: '#f1f3f4', color: '#3c4043', fontSize: 11.5, fontWeight: 800 }}>{info.strandLabel}</span>}
+          {info.course && <span style={{ padding: '5px 8px', borderRadius: 999, background: 'var(--mm-surface-control)', color: 'var(--mm-text)', fontSize: 11.5, fontWeight: 800 }}>{info.course}</span>}
+          {info.strandLabel && <span style={{ padding: '5px 8px', borderRadius: 999, background: 'var(--mm-surface-control)', color: 'var(--mm-text)', fontSize: 11.5, fontWeight: 800 }}>{info.strandLabel}</span>}
         </div>
       )}
 
-      <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 10, background: 'var(--mm-surface)', border: '1px solid #e0e4ea', color: '#3c4043', fontSize: 13, lineHeight: 1.55 }}>
+      <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 10, background: 'var(--mm-surface)', border: '1px solid var(--mm-border-soft)', color: 'var(--mm-text)', fontSize: 13, lineHeight: 1.55 }}>
         <strong>Why this appears here:</strong> this question is aligned to this exact skill, so the code is not just a label pasted onto the problem. It tells you what mathematics the question is asking you to strengthen.
       </div>
 
@@ -78,7 +78,7 @@ function SkillDetails({ info, onShowConnections }) {
         <button
           type="button"
           onClick={onShowConnections}
-          style={buttonReset({ marginTop: 14, width: '100%', minHeight: 42, borderRadius: 9, border: '1px solid #c9b5ec', background: '#faf7ff', color: '#5b21b6', fontWeight: 900, cursor: 'pointer' })}
+          style={buttonReset({ marginTop: 14, width: '100%', minHeight: 42, borderRadius: 9, border: '1px solid var(--mm-accent-border)', background: 'var(--mm-accent-subtle)', color: 'var(--mm-accent-text)', fontWeight: 900, cursor: 'pointer' })}
         >
           See where this math appears after this course ({info.connections.length})
         </button>
@@ -90,7 +90,7 @@ function SkillDetails({ info, onShowConnections }) {
 function CcmrDetails({ info }) {
   return (
     <>
-      <div style={{ marginTop: 16, padding: '13px 14px', borderRadius: 11, background: info.isExamStyle ? '#f3ecfd' : '#f8fbff', color: '#3c4043', border: `1px solid ${info.isExamStyle ? '#d9c9f7' : '#d9e2f1'}`, lineHeight: 1.55, fontSize: 13 }}>
+      <div style={{ marginTop: 16, padding: '13px 14px', borderRadius: 11, background: info.isExamStyle ? 'var(--mm-accent-soft)' : 'var(--mm-surface-tint)', color: 'var(--mm-text)', border: `1px solid ${info.isExamStyle ? 'var(--mm-accent-border)' : 'var(--mm-tint-border)'}`, lineHeight: 1.55, fontSize: 13 }}>
         {info.isExamStyle ? (
           <><strong>You are practicing this in {info.activeFrameworkLabel} format right now.</strong> This question was selected from that assessment pathway, not merely tagged because the math overlaps.</>
         ) : (
@@ -100,24 +100,24 @@ function CcmrDetails({ info }) {
 
       {info.connections.length > 0 ? (
         <div style={{ marginTop: 18 }}>
-          <div style={{ fontSize: 11, fontWeight: 950, letterSpacing: '.07em', textTransform: 'uppercase', color: '#5f6368', marginBottom: 8 }}>College, career &amp; military connections</div>
+          <div style={{ fontSize: 11, fontWeight: 950, letterSpacing: '.07em', textTransform: 'uppercase', color: 'var(--mm-text-muted)', marginBottom: 8 }}>College, career &amp; military connections</div>
           <div style={{ display: 'grid', gap: 10 }}>
             {info.connections.map((connection) => {
               const profile = getAssessmentProfile(connection.framework);
               const facts = [calculatorSummary(profile), timingSummary(profile), formulaSummary(profile)].filter(Boolean);
               return (
-                <div key={connection.framework} style={{ padding: '13px 14px', borderRadius: 11, border: `1px solid ${connection.active ? '#c5a7ea' : '#e0e4ea'}`, background: connection.active ? '#faf7ff' : '#fff' }}>
+                <div key={connection.framework} style={{ padding: '13px 14px', borderRadius: 11, border: `1px solid ${connection.active ? 'var(--mm-accent-border)' : 'var(--mm-border-soft)'}`, background: connection.active ? 'var(--mm-accent-subtle)' : 'var(--mm-surface)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' }}>
-                    <strong style={{ color: connection.active ? '#5b21b6' : '#202124', fontSize: 14 }}>{connection.label}</strong>
-                    {connection.domainTitle && <span style={{ color: '#5f6368', fontSize: 12, fontWeight: 700 }}>{connection.domainTitle}</span>}
+                    <strong style={{ color: connection.active ? 'var(--mm-accent-text)' : 'var(--mm-text-strong)', fontSize: 14 }}>{connection.label}</strong>
+                    {connection.domainTitle && <span style={{ color: 'var(--mm-text-muted)', fontSize: 12, fontWeight: 700 }}>{connection.domainTitle}</span>}
                   </div>
-                  <div style={{ marginTop: 5, color: '#3c4043', fontSize: 12.5, lineHeight: 1.5 }}>{coverageText(connection)}</div>
+                  <div style={{ marginTop: 5, color: 'var(--mm-text)', fontSize: 12.5, lineHeight: 1.5 }}>{coverageText(connection)}</div>
                   {connection.coverage === 'partial' && connection.allowedAspects.length > 0 && (
-                    <div style={{ marginTop: 6, color: '#3c4043', fontSize: 12.5, lineHeight: 1.5 }}><strong>What overlaps:</strong> {connection.allowedAspects.join('; ')}</div>
+                    <div style={{ marginTop: 6, color: 'var(--mm-text)', fontSize: 12.5, lineHeight: 1.5 }}><strong>What overlaps:</strong> {connection.allowedAspects.join('; ')}</div>
                   )}
                   {facts.length > 0 && (
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 9 }}>
-                      {facts.map((fact) => <span key={fact} style={{ padding: '4px 7px', borderRadius: 999, background: '#f1f3f4', color: '#3c4043', fontSize: 10.5, fontWeight: 800 }}>{fact}</span>)}
+                      {facts.map((fact) => <span key={fact} style={{ padding: '4px 7px', borderRadius: 999, background: 'var(--mm-surface-control)', color: 'var(--mm-text)', fontSize: 10.5, fontWeight: 800 }}>{fact}</span>)}
                     </div>
                   )}
                   <div style={{ marginTop: 10 }}>
@@ -129,7 +129,7 @@ function CcmrDetails({ info }) {
           </div>
         </div>
       ) : (
-        <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 10, background: '#f8f9fa', border: '1px solid #e0e4ea', color: '#5f6368', fontSize: 13, lineHeight: 1.55 }}>
+        <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 10, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border-soft)', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55 }}>
           This skill does not currently have a direct Digital SAT, ACT, TSIA2, or ASVAB crosswalk. That is useful information too: MathMaster will not pretend an assessment connection exists when it does not.
         </div>
       )}
@@ -157,13 +157,13 @@ function AlignmentDetailsDialog({ info, onClose, titleId, initialView = 'skill' 
       <section role="dialog" aria-modal="true" aria-labelledby={titleId} style={{ width: 'min(660px,100%)', maxHeight: 'min(84vh,760px)', overflowY: 'auto', padding: 22, borderRadius: 16, background: 'var(--mm-surface)', textAlign: 'left', boxShadow: '0 24px 70px rgba(0,0,0,.28)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 950, letterSpacing: '.08em', textTransform: 'uppercase', color: view === 'ccmr' ? '#5b21b6' : '#174ea6' }}>{view === 'ccmr' ? 'Where this math shows up' : 'What you are learning'}</div>
+            <div style={{ fontSize: 11, fontWeight: 950, letterSpacing: '.08em', textTransform: 'uppercase', color: view === 'ccmr' ? 'var(--mm-accent-text)' : 'var(--mm-primary-text)' }}>{view === 'ccmr' ? 'Where this math shows up' : 'What you are learning'}</div>
             <h2 id={titleId} style={{ margin: '5px 0 0', color: 'var(--mm-text-strong)', fontSize: 21 }}>{info.studentLabel || `TEKS ${info.displayCode}`}</h2>
           </div>
-          <button type="button" autoFocus aria-label="Close standards details" onClick={onClose} style={buttonReset({ border: 0, background: 'transparent', fontSize: 22, lineHeight: 1, cursor: 'pointer', color: '#5f6368' })}>✕</button>
+          <button type="button" autoFocus aria-label="Close standards details" onClick={onClose} style={buttonReset({ border: 0, background: 'transparent', fontSize: 22, lineHeight: 1, cursor: 'pointer', color: 'var(--mm-text-muted)' })}>✕</button>
         </div>
 
-        <div role="tablist" aria-label="Skill and assessment details" style={{ display: 'flex', gap: 18, marginTop: 12, borderBottom: '1px solid #e0e4ea' }}>
+        <div role="tablist" aria-label="Skill and assessment details" style={{ display: 'flex', gap: 18, marginTop: 12, borderBottom: '1px solid var(--mm-border-soft)' }}>
           <button type="button" role="tab" aria-selected={view === 'skill'} onClick={() => setView('skill')} style={TAB(view === 'skill')}>Skill</button>
           <button type="button" role="tab" aria-selected={view === 'ccmr'} onClick={() => setView('ccmr')} style={TAB(view === 'ccmr')}>CCMR connections{info.connections.length ? ` (${info.connections.length})` : ''}</button>
         </div>
@@ -233,7 +233,7 @@ export default function StandardBadge({ code, framework = null, domainId = null,
         ) : (
           <button ref={triggerRef} type="button" onClick={() => openDetails('skill')} aria-label={`Open learning target for TEKS ${info.displayCode}`} style={buttonReset(STANDARD_CHIP)}>TEKS {info.displayCode} <span aria-hidden="true">›</span></button>
         )}
-        {showName && info.studentLabel && <span style={{ fontSize: 12, color: '#5f6368', lineHeight: 1.5 }}>{info.studentLabel}</span>}
+        {showName && info.studentLabel && <span style={{ fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>{info.studentLabel}</span>}
         {info.activeFramework && (
           <button type="button" onClick={() => openDetails('ccmr')} aria-label={`Open ${info.activeFrameworkLabel} alignment details`} style={buttonReset(ACTIVE_CHIP)}>
             {info.activeFrameworkLabel} practice{info.activeSkillLabel ? ` · ${info.activeSkillLabel}` : activeReference ? ` · ${activeReference.officialCode || activeReference.title}` : activeConnection?.domainTitle ? ` · ${activeConnection.domainTitle}` : ''} <span aria-hidden="true">›</span>

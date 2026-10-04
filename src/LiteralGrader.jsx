@@ -35,12 +35,12 @@ export default function LiteralGrader({ question, onStateChange, onUndoStateChan
     <div>
       <h2 style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>Literal Equations</h2>
       <QuestionPrompt>{prompt || `Given the formula below, solve for $${displayedSolveFor}$.`}</QuestionPrompt>
-      <div style={{ fontSize: '28px', fontWeight: 'bold', margin: '28px auto', color: '#1a73e8', background: '#f8f9fa', padding: '18px 24px', borderRadius: '10px', width: 'fit-content', maxWidth: '100%', boxSizing: 'border-box' }}>
+      <div style={{ fontSize: '28px', fontWeight: 'bold', margin: '28px auto', color: 'var(--mm-primary)', background: 'var(--mm-surface-sunken)', padding: '18px 24px', borderRadius: '10px', width: 'fit-content', maxWidth: '100%', boxSizing: 'border-box' }}>
         <MathDisplay value={displayedFormula} format={formulaLatex ? 'latex' : 'ascii-math'} ariaLabel={`Formula ${formula || formulaLatex || ''}`} />
       </div>
       <QuestionVisual question={question} />
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '20px' }}>
-        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#5f6368' }}>
+        <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--mm-text-muted)' }}>
           <MathDisplay value={`${displayedSolveFor} =`} format={solveForLatex ? 'latex' : 'ascii-math'} inline ariaLabel={`${solveFor} equals`} />
         </div>
         <MathInput value={answer} onChange={setAnswer} placeholder={`type expression for ${solveFor}`} onUndoStateChange={onUndoStateChange} inputStatus={lastPart ? (lastPart.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />

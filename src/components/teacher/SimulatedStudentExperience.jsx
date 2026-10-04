@@ -250,9 +250,9 @@ export default function SimulatedStudentExperience({
             aria-pressed={view === id}
             style={{
               minHeight: 40, padding: '8px 14px', borderRadius: 999, cursor: 'pointer',
-              border: `1px solid ${view === id ? '#1a73e8' : '#c5d5ef'}`,
-              background: view === id ? '#e8f0fe' : '#fff',
-              color: view === id ? '#174ea6' : '#3c4043', fontWeight: 800, fontSize: 13,
+              border: `1px solid ${view === id ? '#1a73e8' : 'var(--mm-tint-border)'}`,
+              background: view === id ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+              color: view === id ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: 800, fontSize: 13,
             }}
           >
             {label}
@@ -285,18 +285,18 @@ export default function SimulatedStudentExperience({
       )}
 
       {view === 'path' && pathBankError && (
-        <div role="alert" style={{ padding: 18, border: '1px solid #f0b4b2', borderRadius: 10, background: '#fce8e6', color: '#a50e0e', lineHeight: 1.55 }}>
+        <div role="alert" style={{ padding: 18, border: '1px solid var(--mm-error-border-soft)', borderRadius: 10, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', lineHeight: 1.55 }}>
           <strong>Could not load the secure Path bank.</strong><br />{pathBankError}
         </div>
       )}
 
       {view === 'path' && !pathBankError && !runtime && (
-        <div style={{ padding: 32, textAlign: 'center', color: '#174ea6', fontWeight: 800 }}>Loading the secure My Math Path question bank…</div>
+        <div style={{ padding: 32, textAlign: 'center', color: 'var(--mm-primary-text)', fontWeight: 800 }}>Loading the secure My Math Path question bank…</div>
       )}
 
       {view === 'path' && runtime && (
         <>
-          <div style={{ marginBottom: 10, padding: '9px 11px', borderRadius: 8, background: pathBankQuestions.length ? '#e6f4ea' : '#fef7e0', color: pathBankQuestions.length ? '#137333' : '#7a4f00', fontSize: 12, lineHeight: 1.45 }}>
+          <div style={{ marginBottom: 10, padding: '9px 11px', borderRadius: 8, background: pathBankQuestions.length ? 'var(--mm-success-bg)' : 'var(--mm-warning-bg)', color: pathBankQuestions.length ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', fontSize: 12, lineHeight: 1.45 }}>
             <strong>Production Path-bank simulation.</strong> {pathBankQuestions.length
               ? `${pathBankQuestions.length} active secure bank questions loaded. Classroom assignments are evidence only; they are not the Path content source.`
               : 'The secure Path bank is empty. Initialize it in Administration → Path content coverage before expecting students to have Path practice.'}

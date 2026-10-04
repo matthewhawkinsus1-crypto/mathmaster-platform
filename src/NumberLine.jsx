@@ -29,11 +29,11 @@ export default function NumberLine({ question, onStateChange, onUndoStateChange,
     <div>
       <h2 style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>Number Line</h2>
       <QuestionPrompt>{prompt || 'Select the correct point on the number line.'}</QuestionPrompt>
-      <div style={{ fontSize: '24px', fontWeight: 'bold', margin: '20px 0', color: '#1a73e8' }}>Target: <MathDisplay value={String(target)} inline /></div>
+      <div style={{ fontSize: '24px', fontWeight: 'bold', margin: '20px 0', color: 'var(--mm-primary)' }}>Target: <MathDisplay value={String(target)} inline /></div>
       <QuestionVisual question={question} />
-      <div style={{ display: 'flex', justifyContent: 'center', margin: '50px 0', position: 'relative', overflowX: 'auto', padding: '0 20px 12px', borderRadius: '10px', background: wrong ? '#fff8f7' : 'transparent' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', margin: '50px 0', position: 'relative', overflowX: 'auto', padding: '0 20px 12px', borderRadius: '10px', background: wrong ? 'var(--mm-error-subtle)' : 'transparent' }}>
         <div style={{ position: 'absolute', top: '10px', left: '10%', right: '10%', height: '4px', background: '#dadce0', zIndex: 0 }} />
-        {choices.map((number) => <button type="button" key={number} onClick={() => history.setValue(Number(number))} aria-label={`Select ${number}`} style={{ margin: '0 20px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, border: 'none', background: 'transparent', padding: 0 }}><span style={{ width: '24px', height: '24px', borderRadius: '50%', background: selectedPoint === Number(number) ? '#1a73e8' : '#fff', marginBottom: '8px', border: selectedPoint === Number(number) ? '3px solid #0b5394' : '3px solid #dadce0', boxSizing: 'border-box' }} /><span style={{ fontWeight: 'bold', color: '#5f6368' }}><MathDisplay value={String(number)} inline /></span></button>)}
+        {choices.map((number) => <button type="button" key={number} onClick={() => history.setValue(Number(number))} aria-label={`Select ${number}`} style={{ margin: '0 20px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', zIndex: 1, border: 'none', background: 'transparent', padding: 0 }}><span style={{ width: '24px', height: '24px', borderRadius: '50%', background: selectedPoint === Number(number) ? '#1a73e8' : 'var(--mm-surface)', marginBottom: '8px', border: selectedPoint === Number(number) ? '3px solid #0b5394' : '3px solid var(--mm-border)', boxSizing: 'border-box' }} /><span style={{ fontWeight: 'bold', color: 'var(--mm-text-muted)' }}><MathDisplay value={String(number)} inline /></span></button>)}
       </div>
     </div>
   );

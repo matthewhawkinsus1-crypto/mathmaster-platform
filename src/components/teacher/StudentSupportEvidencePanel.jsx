@@ -132,7 +132,7 @@ export default function StudentSupportEvidencePanel({
   const expectations = revisionEffectiveOn(revisions, todayKey)?.serviceExpectations || [];
 
   return (
-    <section className="se-stack" style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid var(--mm-divider, #eef0f2)' }} aria-labelledby={`supports-evidence-${studentId}`} data-student-support-evidence={studentId}>
+    <section className="se-stack" style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid var(--mm-divider, var(--mm-border-soft))' }} aria-labelledby={`supports-evidence-${studentId}`} data-student-support-evidence={studentId}>
       <div className="tw-row" style={{ justifyContent: 'space-between' }}>
         <h3 id={`supports-evidence-${studentId}`} style={{ margin: 0, fontSize: 16 }}>Supports &amp; evidence</h3>
         <div className="tw-row">

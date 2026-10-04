@@ -14,13 +14,13 @@ import {
 // audited admin callables — the browser cannot touch the classes collection
 // directly, so what is rendered here is what the server agreed to.
 
-const card = { border: '1px solid #d8dde6', borderRadius: 12, padding: '20px 22px', marginBottom: 20, textAlign: 'left', background: 'var(--mm-surface)' };
-const input = { minHeight: 42, padding: '0 12px', border: '1px solid #c7cdd6', borderRadius: 8, fontSize: 15, minWidth: 0, boxSizing: 'border-box' };
+const card = { border: '1px solid var(--mm-border)', borderRadius: 12, padding: '20px 22px', marginBottom: 20, textAlign: 'left', background: 'var(--mm-surface)' };
+const input = { minHeight: 42, padding: '0 12px', border: '1px solid var(--mm-border)', borderRadius: 8, fontSize: 15, minWidth: 0, boxSizing: 'border-box' };
 const primary = { minHeight: 42, padding: '0 16px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer' };
-const quiet = { minHeight: 38, padding: '0 13px', border: '1px solid #c7cdd6', borderRadius: 8, background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 700, cursor: 'pointer' };
-const danger = { ...quiet, color: '#c5221f', borderColor: '#f0b4b2' };
+const quiet = { minHeight: 38, padding: '0 13px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 700, cursor: 'pointer' };
+const danger = { ...quiet, color: 'var(--mm-danger)', borderColor: 'var(--mm-error-border-soft)' };
 const pill = (background, color) => ({ display: 'inline-block', padding: '3px 9px', borderRadius: 999, background, color, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '.04em' });
-const field = { fontSize: 11, fontWeight: 900, color: '#5f6368', display: 'block' };
+const field = { fontSize: 11, fontWeight: 900, color: 'var(--mm-text-muted)', display: 'block' };
 
 const EMPTY_CLASS = { classId: '', name: '', course: 'algebra1', courseLevel: 'standard', period: 'Period 1', teacherOfRecord: '' };
 
@@ -121,16 +121,16 @@ export default function ClassesAdmin() {
 
   return (
     <div>
-      {error && <div role="alert" style={{ ...card, background: '#fce8e6', borderColor: '#f0b4b2', color: '#a50e0e', marginBottom: 14 }}>{error}</div>}
-      {status && <div role="status" style={{ ...card, background: '#e6f4ea', borderColor: '#a8d5b5', color: '#137333', marginBottom: 14 }}>{status}</div>}
+      {error && <div role="alert" style={{ ...card, background: 'var(--mm-error-bg)', borderColor: 'var(--mm-error-border-soft)', color: 'var(--mm-error-text)', marginBottom: 14 }}>{error}</div>}
+      {status && <div role="status" style={{ ...card, background: 'var(--mm-success-bg)', borderColor: 'var(--mm-success-border)', color: 'var(--mm-success-text)', marginBottom: 14 }}>{status}</div>}
 
       {/* The migration is the deployment gate for the scoped security rule, so
           it reports rather than just runs, and it can be re-run safely. */}
-      <section style={{ ...card, background: migration?.readyForScopedRule ? '#e6f4ea' : '#fef7e0', borderColor: migration?.readyForScopedRule ? '#a8d5b5' : '#f9ab00' }}>
-        <h3 style={{ margin: 0, color: migration?.readyForScopedRule ? '#137333' : '#7a4f00' }}>
+      <section style={{ ...card, background: migration?.readyForScopedRule ? 'var(--mm-success-bg)' : 'var(--mm-warning-bg)', borderColor: migration?.readyForScopedRule ? 'var(--mm-success-border)' : '#f9ab00' }}>
+        <h3 style={{ margin: 0, color: migration?.readyForScopedRule ? 'var(--mm-success-text)' : 'var(--mm-warning-text)' }}>
           {classes.length === 0 ? 'No classes exist yet' : 'Roster migration check'}
         </h3>
-        <p style={{ margin: '8px 0 14px', color: migration?.readyForScopedRule ? '#137333' : '#7a4f00', lineHeight: 1.55 }}>
+        <p style={{ margin: '8px 0 14px', color: migration?.readyForScopedRule ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', lineHeight: 1.55 }}>
           MathMaster previously organised students by period alone. This creates one class per existing period and places
           every student who already has a period, then reports anything it could not resolve. It is safe to run again —
           a second run over a migrated database changes nothing.
@@ -166,7 +166,7 @@ export default function ClassesAdmin() {
                   ['Active students with no teacher', migration.activeStudentsMissingTeacherAfterMigration?.length || 0],
                 ].map(([label, value]) => (
                   <tr key={label}>
-                    <td style={{ padding: '3px 16px 3px 0', color: '#3c4043' }}>{label}</td>
+                    <td style={{ padding: '3px 16px 3px 0', color: 'var(--mm-text)' }}>{label}</td>
                     <td style={{ padding: '3px 0', fontWeight: 900 }}>{value}</td>
                   </tr>
                 ))}
@@ -174,13 +174,13 @@ export default function ClassesAdmin() {
             </table>
 
             {/* The one sentence the deployment decision hangs on. */}
-            <p style={{ margin: '12px 0 0', fontWeight: 900, color: migration.readyForScopedRule ? '#137333' : '#a50e0e', lineHeight: 1.5 }}>
+            <p style={{ margin: '12px 0 0', fontWeight: 900, color: migration.readyForScopedRule ? 'var(--mm-success-text)' : 'var(--mm-error-text)', lineHeight: 1.5 }}>
               {migration.readyForScopedRule
                 ? 'Every active student has a teacher of record. The scoped grades security rule is safe to deploy.'
                 : 'Do NOT deploy the scoped grades rule yet — these students would become invisible to every teacher:'}
             </p>
             {!migration.readyForScopedRule && (
-              <ul style={{ margin: '8px 0 0', color: '#a50e0e', fontSize: 13, lineHeight: 1.6 }}>
+              <ul style={{ margin: '8px 0 0', color: 'var(--mm-error-text)', fontSize: 13, lineHeight: 1.6 }}>
                 {(migration.activeStudentsMissingTeacherAfterMigration || []).slice(0, 25).map((studentId) => (
                   <li key={studentId}>
                     {reportStudentLabel(studentId)} — {(migration.unresolvedStudents || []).find((entry) => entry.studentId === studentId)?.reason?.replace(/_/g, ' ') || 'no teacher of record'}
@@ -191,8 +191,8 @@ export default function ClassesAdmin() {
             )}
             {(migration.conflicts || []).length > 0 && (
               <details style={{ marginTop: 12 }}>
-                <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#7a4f00' }}>{migration.conflicts.length} conflicting record{migration.conflicts.length === 1 ? '' : 's'}</summary>
-                <ul style={{ margin: '8px 0 0', fontSize: 13, lineHeight: 1.6, color: '#3c4043' }}>
+                <summary style={{ cursor: 'pointer', fontWeight: 800, color: 'var(--mm-warning-text)' }}>{migration.conflicts.length} conflicting record{migration.conflicts.length === 1 ? '' : 's'}</summary>
+                <ul style={{ margin: '8px 0 0', fontSize: 13, lineHeight: 1.6, color: 'var(--mm-text)' }}>
                   {migration.conflicts.slice(0, 25).map((conflict, index) => (
                     <li key={`${conflict.studentId}-${index}`}>{reportStudentLabel(conflict.studentId)} — {conflict.reason.replace(/_/g, ' ')}</li>
                   ))}
@@ -205,9 +205,9 @@ export default function ClassesAdmin() {
 
       {/* The second gate. A student's history goes dark under the scoped child
           rules unless every existing record carries its authorization context. */}
-      <section style={{ ...card, background: backfill?.readyForScopedChildRules ? '#e6f4ea' : '#fef7e0', borderColor: backfill?.readyForScopedChildRules ? '#a8d5b5' : '#f9ab00' }}>
-        <h3 style={{ margin: 0, color: backfill?.readyForScopedChildRules ? '#137333' : '#7a4f00' }}>Evidence &amp; mastery access</h3>
-        <p style={{ margin: '8px 0 14px', color: backfill?.readyForScopedChildRules ? '#137333' : '#7a4f00', lineHeight: 1.55 }}>
+      <section style={{ ...card, background: backfill?.readyForScopedChildRules ? 'var(--mm-success-bg)' : 'var(--mm-warning-bg)', borderColor: backfill?.readyForScopedChildRules ? 'var(--mm-success-border)' : '#f9ab00' }}>
+        <h3 style={{ margin: 0, color: backfill?.readyForScopedChildRules ? 'var(--mm-success-text)' : 'var(--mm-warning-text)' }}>Evidence &amp; mastery access</h3>
+        <p style={{ margin: '8px 0 14px', color: backfill?.readyForScopedChildRules ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', lineHeight: 1.55 }}>
           Every piece of evidence, every mastery profile and every scratchpad records who may open it. Records written
           before that existed carry nothing, so no teacher could open them. Run this after the roster migration and before
           deploying the scoped rules. Safe to run again.
@@ -234,7 +234,7 @@ export default function ClassesAdmin() {
             <div>Records scanned: <strong>{backfill.recordsScanned}</strong></div>
             <div>Records {backfill.dryRun ? 'that need updating' : 'updated'}: <strong>{backfill.recordsUpdated}</strong></div>
             <div>Active students whose class has no teacher: <strong>{backfill.studentsWithNoTeacher?.length || 0}</strong></div>
-            <p style={{ margin: '10px 0 0', fontWeight: 900, color: backfill.readyForScopedChildRules ? '#137333' : '#a50e0e' }}>
+            <p style={{ margin: '10px 0 0', fontWeight: 900, color: backfill.readyForScopedChildRules ? 'var(--mm-success-text)' : 'var(--mm-error-text)' }}>
               {backfill.readyForScopedChildRules
                 ? 'Every record can be opened by the right teacher. The scoped evidence and mastery rules are safe to deploy.'
                 : 'Not ready — finish assigning teachers of record, then run this again.'}
@@ -247,9 +247,9 @@ export default function ClassesAdmin() {
           Two steps, both reversible: move extension details off the shared
           documents, then — once this release has been live for a school day —
           let a student's device list only its own class's assignments. */}
-      <section style={{ ...card, background: privacy?.sharedDocumentsClean ? '#e6f4ea' : '#fef7e0', borderColor: privacy?.sharedDocumentsClean ? '#a8d5b5' : '#f9ab00' }}>
-        <h3 style={{ margin: 0, color: privacy?.sharedDocumentsClean ? '#137333' : '#7a4f00' }}>Student privacy on assignments</h3>
-        <p style={{ margin: '8px 0 14px', color: privacy?.sharedDocumentsClean ? '#137333' : '#7a4f00', lineHeight: 1.55 }}>
+      <section style={{ ...card, background: privacy?.sharedDocumentsClean ? 'var(--mm-success-bg)' : 'var(--mm-warning-bg)', borderColor: privacy?.sharedDocumentsClean ? 'var(--mm-success-border)' : '#f9ab00' }}>
+        <h3 style={{ margin: 0, color: privacy?.sharedDocumentsClean ? 'var(--mm-success-text)' : 'var(--mm-warning-text)' }}>Student privacy on assignments</h3>
+        <p style={{ margin: '8px 0 14px', color: privacy?.sharedDocumentsClean ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', lineHeight: 1.55 }}>
           Every student can read an assignment. Attendance extensions granted before this release also stored the student&apos;s
           absence dates and the granting teacher there. This moves those details into each student&apos;s private record
           (their teacher can still see them in the case review) and leaves only the deadline on the assignment. Nothing is
@@ -278,14 +278,14 @@ export default function ClassesAdmin() {
             <div>Already private: <strong>{privacy.extensionsAlreadyMinimal}</strong></div>
             <div>Could not finish: <strong>{privacy.failures?.length || 0}</strong></div>
             {(privacy.failures || []).length > 0 && (
-              <ul style={{ margin: '6px 0 0', color: '#a50e0e' }}>
+              <ul style={{ margin: '6px 0 0', color: 'var(--mm-error-text)' }}>
                 {privacy.failures.slice(0, 10).map((failure) => <li key={failure.assignmentId}>{failure.assignmentId} — {failure.reason}</li>)}
               </ul>
             )}
           </div>
         )}
         <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(0,0,0,.12)' }}>
-          <p style={{ margin: '0 0 10px', color: '#3c4043', lineHeight: 1.55 }}>
+          <p style={{ margin: '0 0 10px', color: 'var(--mm-text)', lineHeight: 1.55 }}>
             <strong>Class-scoped assignment lists</strong> — {readScope === true ? 'on' : readScope === false ? 'off' : 'not checked yet'}.
             When on, a student&apos;s device may list only its own class&apos;s assignments. Turn it on after this release has
             been live for a full school day (older open tabs still list every assignment); turning it off again needs no deploy.
@@ -312,11 +312,11 @@ export default function ClassesAdmin() {
       {/* --- Create / edit a class ------------------------------------------- */}
       <section style={card}>
         <h3 style={{ margin: '0 0 4px' }}>{draft.classId ? 'Edit class' : 'Create a class'}</h3>
-        <p style={{ margin: '0 0 16px', color: '#5f6368', fontSize: 13, lineHeight: 1.55 }}>
+        <p style={{ margin: '0 0 16px', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55 }}>
           The class decides the course and rigor its students learn under, and the teacher who sees them. Two teachers may
           each have a third-period class — the period is a schedule label, not the class's identity.
         </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12, alignItems: 'end' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: 12, alignItems: 'end' }}>
           <label style={field}>CLASS NAME
             <input style={{ ...input, width: '100%', marginTop: 4 }} value={draft.name} placeholder="Algebra I — 3rd Period" onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
           </label>
@@ -348,7 +348,7 @@ export default function ClassesAdmin() {
             {busy === 'save-class' ? 'Saving…' : draft.classId ? 'Save changes' : 'Create class'}
           </button>
           {draft.classId && <button type="button" style={quiet} onClick={() => setDraft(EMPTY_CLASS)}>Cancel</button>}
-          {!teachers.length && <span style={{ alignSelf: 'center', color: '#7a4f00', fontSize: 13 }}>Add a teacher under Sign-in access before assigning one.</span>}
+          {!teachers.length && <span style={{ alignSelf: 'center', color: 'var(--mm-warning-text)', fontSize: 13 }}>Add a teacher under Sign-in access before assigning one.</span>}
         </div>
       </section>
 
@@ -357,7 +357,7 @@ export default function ClassesAdmin() {
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
           <h3 style={{ margin: 0 }}>Classes</h3>
           <div style={{ display: 'flex', gap: 9, alignItems: 'center', flexWrap: 'wrap' }}>
-            <label style={{ fontSize: 13, color: '#3c4043', display: 'flex', gap: 6, alignItems: 'center' }}>
+            <label style={{ fontSize: 13, color: 'var(--mm-text)', display: 'flex', gap: 6, alignItems: 'center' }}>
               <input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} />
               Show archived
             </label>
@@ -365,26 +365,26 @@ export default function ClassesAdmin() {
           </div>
         </div>
 
-        {loading && <p style={{ color: '#5f6368' }}>Loading classes…</p>}
-        {!loading && visibleClasses.length === 0 && <p style={{ color: '#5f6368' }}>No classes yet. Create one above.</p>}
+        {loading && <p style={{ color: 'var(--mm-text-muted)' }}>Loading classes…</p>}
+        {!loading && visibleClasses.length === 0 && <p style={{ color: 'var(--mm-text-muted)' }}>No classes yet. Create one above.</p>}
 
         <div style={{ display: 'grid', gap: 10 }}>
           {visibleClasses.map((entry) => {
             const count = countsByClass[entry.classId] || 0;
             const archived = entry.status === 'archived';
             return (
-              <div key={entry.classId} style={{ padding: '13px 15px', border: `1px solid ${selectedClassId === entry.classId ? '#1a73e8' : '#e0e4ea'}`, borderRadius: 10, background: archived ? '#f8f9fa' : '#fff' }}>
+              <div key={entry.classId} style={{ padding: '13px 15px', border: `1px solid ${selectedClassId === entry.classId ? '#1a73e8' : 'var(--mm-border-soft)'}`, borderRadius: 10, background: archived ? 'var(--mm-surface-sunken)' : 'var(--mm-surface)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
                   <div style={{ minWidth: 0 }}>
                     <strong style={{ fontSize: 16 }}>{entry.name}</strong>
-                    <div style={{ color: '#5f6368', fontSize: 13, marginTop: 3 }}>
+                    <div style={{ color: 'var(--mm-text-muted)', fontSize: 13, marginTop: 3 }}>
                       {courseLabel(entry.course)} · {courseLevelLabel(entry.courseLevel)} · {entry.period} ·{' '}
-                      {entry.teacherOfRecord || <span style={{ color: '#a50e0e' }}>no teacher of record</span>} · {count} student{count === 1 ? '' : 's'}
+                      {entry.teacherOfRecord || <span style={{ color: 'var(--mm-error-text)' }}>no teacher of record</span>} · {count} student{count === 1 ? '' : 's'}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
-                    {archived && <span style={pill('#f1f3f4', '#3c4043')}>Archived</span>}
-                    {entry.courseLevel === 'honors' && <span style={pill('#f3e8fd', '#6f2da8')}>Honors</span>}
+                    {archived && <span style={pill('var(--mm-surface-control)', 'var(--mm-text)')}>Archived</span>}
+                    {entry.courseLevel === 'honors' && <span style={pill('var(--mm-accent-soft)', 'var(--mm-accent-text)')}>Honors</span>}
                     <button type="button" style={quiet} onClick={() => setSelectedClassId(selectedClassId === entry.classId ? '' : entry.classId)}>
                       {selectedClassId === entry.classId ? 'Hide roster' : 'Manage roster'}
                     </button>
@@ -397,9 +397,9 @@ export default function ClassesAdmin() {
                 </div>
 
                 {selectedClassId === entry.classId && (
-                  <div style={{ marginTop: 14, paddingTop: 13, borderTop: '1px solid #e8eaed' }}>
+                  <div style={{ marginTop: 14, paddingTop: 13, borderTop: '1px solid var(--mm-border-soft)' }}>
                     <h4 style={{ margin: '0 0 9px', fontSize: 14 }}>Roster · {entry.name}</h4>
-                    {roster.length === 0 && <p style={{ color: '#5f6368', fontSize: 13 }}>No students in this class yet. Add one from the unassigned list below, or move one from another class.</p>}
+                    {roster.length === 0 && <p style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>No students in this class yet. Add one from the unassigned list below, or move one from another class.</p>}
                     <div style={{ display: 'grid', gap: 7 }}>
                       {roster.map((student) => (
                         <StudentRow
@@ -427,11 +427,11 @@ export default function ClassesAdmin() {
       {/* --- Students nobody has placed --------------------------------------- */}
       <section style={card}>
         <h3 style={{ margin: '0 0 4px' }}>Students without a class{unassigned.length ? ` (${unassigned.length})` : ''}</h3>
-        <p style={{ margin: '0 0 14px', color: '#5f6368', fontSize: 13, lineHeight: 1.55 }}>
+        <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55 }}>
           A student with no class receives no assignments and has no course, so My Math Path cannot tell whether they are an
           Algebra I or Algebra II learner. These need resolving.
         </p>
-        {unassigned.length === 0 && <p style={{ color: '#137333', fontWeight: 700 }}>Every student is in a class.</p>}
+        {unassigned.length === 0 && <p style={{ color: 'var(--mm-success-text)', fontWeight: 700 }}>Every student is in a class.</p>}
         <div style={{ display: 'grid', gap: 7 }}>
           {unassigned.map((student) => (
             <StudentRow
@@ -452,20 +452,20 @@ export default function ClassesAdmin() {
 
       {/* What each removal actually costs, stated once rather than in a dialog
           nobody reads. */}
-      <section style={{ ...card, background: '#f8f9fa' }}>
+      <section style={{ ...card, background: 'var(--mm-surface-sunken)' }}>
         <h3 style={{ margin: '0 0 10px', fontSize: 15 }}>What each removal means</h3>
         <div style={{ display: 'grid', gap: 9 }}>
           {removalKinds.map((kind) => (
             <div key={kind.id} style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
               <strong style={{ minWidth: 150 }}>{kind.label}</strong>
-              <span style={{ color: '#3c4043', fontSize: 13, flex: '1 1 320px', lineHeight: 1.5 }}>{kind.summary}</span>
+              <span style={{ color: 'var(--mm-text)', fontSize: 13, flex: '1 1 320px', lineHeight: 1.5 }}>{kind.summary}</span>
               {kind.destroysHistory
-                ? <span style={pill('#fce8e6', '#a50e0e')}>Cannot be undone</span>
-                : <span style={pill('#e6f4ea', '#137333')}>Reversible</span>}
+                ? <span style={pill('var(--mm-error-bg)', 'var(--mm-error-text)')}>Cannot be undone</span>
+                : <span style={pill('var(--mm-success-bg)', 'var(--mm-success-text)')}>Reversible</span>}
             </div>
           ))}
         </div>
-        <p style={{ margin: '12px 0 0', color: '#5f6368', fontSize: 13 }}>
+        <p style={{ margin: '12px 0 0', color: 'var(--mm-text-muted)', fontSize: 13 }}>
           Permanent deletion lives with the student account under Sign-in access, and asks for the student ID to be typed.
         </p>
       </section>
@@ -479,11 +479,11 @@ function StudentRow({ student, classes, busy, onMove, onRemove, onSetActive, con
   const disabled = student.status === 'disabled';
   const confirmKey = `deactivate:${student.studentId}`;
   return (
-    <div data-student-row={student.studentId} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center', padding: '10px 12px', border: '1px solid #e0e4ea', borderRadius: 9, background: disabled ? '#f8f9fa' : '#fff' }}>
+    <div data-student-row={student.studentId} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center', padding: '10px 12px', border: '1px solid var(--mm-border-soft)', borderRadius: 9, background: disabled ? 'var(--mm-surface-sunken)' : 'var(--mm-surface)' }}>
       <div style={{ minWidth: 0 }}>
-        <strong>{formatStudentName(student)}</strong><span style={{ color: '#5f6368', fontSize: 12 }}> · ID {student.studentId}</span>
-        {disabled && <span style={{ ...pill('#f1f3f4', '#3c4043'), marginLeft: 8 }}>Deactivated</span>}
-        <div style={{ color: '#5f6368', fontSize: 12, marginTop: 2 }}>{student.classPeriod}{student.assignedTeacherEmail ? ` · ${student.assignedTeacherEmail}` : ''}</div>
+        <strong>{formatStudentName(student)}</strong><span style={{ color: 'var(--mm-text-muted)', fontSize: 12 }}> · ID {student.studentId}</span>
+        {disabled && <span style={{ ...pill('var(--mm-surface-control)', 'var(--mm-text)'), marginLeft: 8 }}>Deactivated</span>}
+        <div style={{ color: 'var(--mm-text-muted)', fontSize: 12, marginTop: 2 }}>{student.classPeriod}{student.assignedTeacherEmail ? ` · ${student.assignedTeacherEmail}` : ''}</div>
       </div>
       <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center' }}>
         <label style={{ ...field, fontSize: 10 }}>MOVE TO
@@ -501,7 +501,7 @@ function StudentRow({ student, classes, busy, onMove, onRemove, onSetActive, con
         {/* Deactivation is reversible, but it does stop a child signing in, so
             it asks once rather than firing on a single stray click. */}
         {disabled ? (
-          <button type="button" style={{ ...quiet, minHeight: 34, color: '#137333' }} disabled={changing} onClick={() => onSetActive(true)}>Reactivate</button>
+          <button type="button" style={{ ...quiet, minHeight: 34, color: 'var(--mm-success-text)' }} disabled={changing} onClick={() => onSetActive(true)}>Reactivate</button>
         ) : confirming === confirmKey ? (
           <>
             <button type="button" style={{ ...danger, minHeight: 34 }} disabled={changing} onClick={() => { setConfirming(null); onSetActive(false); }}>Confirm deactivate</button>

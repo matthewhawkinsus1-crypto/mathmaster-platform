@@ -22,8 +22,8 @@ import inverseCompositionGrader from '../../../functions/shared/serverGrading/to
 import { useRevealAnswers } from '../shared/ToolRuntimeContext';
 import { UNANSWERED } from '../shared/judgmentChoices.js';
 
-const inputStyle = { width:'100%', boxSizing:'border-box', padding:'9px 10px', border:'1px solid #cfd8e6', borderRadius:8, background:'#fff' };
-const Field = ({ label, children }) => <label style={{ display:'block', fontSize:13, fontWeight:700, color:'#465267' }}>{label}<div style={{marginTop:5}}>{children}</div></label>;
+const inputStyle = { width:'100%', boxSizing:'border-box', padding:'9px 10px', border:'1px solid var(--mm-tint-border)', borderRadius:8, background:'var(--mm-surface)' };
+const Field = ({ label, children }) => <label style={{ display:'block', fontSize:13, fontWeight:700, color:'var(--mm-text-muted)' }}>{label}<div style={{marginTop:5}}>{children}</div></label>;
 
 export default function InverseCompositionLab({ questionData = {}, onAction }) {
   // f, g (or the lab's defaults) and the input x come from the shared
@@ -111,7 +111,7 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
             : missed.includes('restriction')
               ? 'The arithmetic is right, but the domain restriction is not. A parabola only becomes one-to-one when you keep a single side of its vertex.'
               : 'The inverse value is off. f⁻¹ undoes f, so f⁻¹(f(x)) has to give you back the x you started with.';
-    return <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'#3c4756',lineHeight:1.55}}>{explain}</p></div>;
+    return <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'var(--mm-text)',lineHeight:1.55}}>{explain}</p></div>;
   })() : null;
 
   const modeHints = mode === 'composition' ? [
@@ -156,30 +156,30 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
       <ToolGrid min={350}>
         <Panel title="1 · Function definitions">
           <div style={{display:'grid',gap:10}}>
-            <div style={{padding:13,borderRadius:10,background:'#eef4ff',fontWeight:800}}>{functionLabel(f,'f')}</div>
-            {showComposition ? <div style={{padding:13,borderRadius:10,background:'#f5f0ff',fontWeight:800}}>{functionLabel(g,'g')}</div> : null}
+            <div style={{padding:13,borderRadius:10,background:'var(--mm-primary-subtle)',fontWeight:800}}>{functionLabel(f,'f')}</div>
+            {showComposition ? <div style={{padding:13,borderRadius:10,background:'var(--mm-accent-subtle)',fontWeight:800}}>{functionLabel(g,'g')}</div> : null}
           </div>
-          {showInverse && f.type === 'quadratic' ? <div style={{marginTop:12,padding:12,borderRadius:10,background:'#fff8e6',color:'#6d4c00'}}><strong>Inverse condition:</strong> {restrictionDescription(f)}</div> : null}
+          {showInverse && f.type === 'quadratic' ? <div style={{marginTop:12,padding:12,borderRadius:10,background:'var(--mm-warning-bg)',color:'var(--mm-warning-text)'}}><strong>Inverse condition:</strong> {restrictionDescription(f)}</div> : null}
           {inputLocked
-            ? <div style={{marginTop:12,padding:11,borderRadius:9,background:'#f8f9fa',border:'1px solid #dfe3e7',fontSize:13,color:'#465267'}}><strong>Given input:</strong> x = {x}</div>
+            ? <div style={{marginTop:12,padding:11,borderRadius:9,background:'var(--mm-surface-sunken)',border:'1px solid var(--mm-border)',fontSize:13,color:'var(--mm-text-muted)'}}><strong>Given input:</strong> x = {x}</div>
             : <Field label="Choose input x"><input type="number" step="0.1" value={x} onChange={(e)=>setX(e.target.value)} style={inputStyle}/></Field>}
           <div style={{display:'grid',gridTemplateColumns:showComposition?'1fr 1fr':'1fr',gap:10,marginTop:12}}>
-            <div style={{padding:12,borderRadius:10,background:'#f8fbff'}}><strong>f(x)</strong><div style={{fontSize:24,fontWeight:900,marginTop:4}}>{Number.isFinite(fx)?round(fx,3):'undefined'}</div></div>
-            {showComposition ? <div style={{padding:12,borderRadius:10,background:'#f8fbff'}}><strong>g(x)</strong><div style={{fontSize:24,fontWeight:900,marginTop:4}}>{Number.isFinite(gx)?round(gx,3):'undefined'}</div></div> : null}
+            <div style={{padding:12,borderRadius:10,background:'var(--mm-surface-tint)'}}><strong>f(x)</strong><div style={{fontSize:24,fontWeight:900,marginTop:4}}>{Number.isFinite(fx)?round(fx,3):'undefined'}</div></div>
+            {showComposition ? <div style={{padding:12,borderRadius:10,background:'var(--mm-surface-tint)'}}><strong>g(x)</strong><div style={{fontSize:24,fontWeight:900,marginTop:4}}>{Number.isFinite(gx)?round(gx,3):'undefined'}</div></div> : null}
           </div>
         </Panel>
 
         {showComposition ? <Panel title="2 · Function-machine composition">
           <div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr auto 1fr',alignItems:'center',gap:7,textAlign:'center',marginBottom:14}}>
-            <div style={{padding:11,borderRadius:10,background:'#eef4ff'}}>{x}</div><strong>→ g →</strong><div style={{padding:11,borderRadius:10,background:'#f5f0ff'}}>{Number.isFinite(gx)?round(gx,2):'undefined'}</div><strong>→ f →</strong><div style={{padding:11,borderRadius:10,background:'#e9f7ef',fontWeight:800}}>{revealAnswers?(Number.isFinite(fog)?round(fog,2):'undefined'):'?'}</div>
+            <div style={{padding:11,borderRadius:10,background:'var(--mm-primary-subtle)'}}>{x}</div><strong>→ g →</strong><div style={{padding:11,borderRadius:10,background:'var(--mm-accent-subtle)'}}>{Number.isFinite(gx)?round(gx,2):'undefined'}</div><strong>→ f →</strong><div style={{padding:11,borderRadius:10,background:'var(--mm-success-bg)',fontWeight:800}}>{revealAnswers?(Number.isFinite(fog)?round(fog,2):'undefined'):'?'}</div>
           </div>
           <Field label={`Enter (f ∘ g)(${x})`}><input type="number" step="0.1" value={fogAnswer} onChange={(e)=>setFogAnswer(e.target.value)} style={inputStyle}/></Field>
           <div style={{height:10}}/>
           <div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr auto 1fr',alignItems:'center',gap:7,textAlign:'center',marginBottom:14}}>
-            <div style={{padding:11,borderRadius:10,background:'#eef4ff'}}>{x}</div><strong>→ f →</strong><div style={{padding:11,borderRadius:10,background:'#f5f0ff'}}>{Number.isFinite(fx)?round(fx,2):'undefined'}</div><strong>→ g →</strong><div style={{padding:11,borderRadius:10,background:'#e9f7ef',fontWeight:800}}>{revealAnswers?(Number.isFinite(gof)?round(gof,2):'undefined'):'?'}</div>
+            <div style={{padding:11,borderRadius:10,background:'var(--mm-primary-subtle)'}}>{x}</div><strong>→ f →</strong><div style={{padding:11,borderRadius:10,background:'var(--mm-accent-subtle)'}}>{Number.isFinite(fx)?round(fx,2):'undefined'}</div><strong>→ g →</strong><div style={{padding:11,borderRadius:10,background:'var(--mm-success-bg)',fontWeight:800}}>{revealAnswers?(Number.isFinite(gof)?round(gof,2):'undefined'):'?'}</div>
           </div>
           <Field label={`Enter (g ∘ f)(${x})`}><input type="number" step="0.1" value={gofAnswer} onChange={(e)=>setGofAnswer(e.target.value)} style={inputStyle}/></Field>
-          <p style={{fontSize:13,color:'#5f6b7a',marginBottom:0}}>Composition order matters: the function written closest to x acts first.</p>
+          <p style={{fontSize:13,color:'var(--mm-text-muted)',marginBottom:0}}>Composition order matters: the function written closest to x acts first.</p>
           {mode === 'composition' ? <>
             <button data-mm-enter-action="submit" type="button" onClick={check} style={{marginTop:16,padding:'10px 16px',background:'#1a73e8',color:'#fff',border:0,borderRadius:8,fontWeight:800}}>Check compositions</button>
             {feedbackBlock}
@@ -199,9 +199,9 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
             ] : []}
           />
           <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginTop:10,fontSize:12}}>
-            <div style={{padding:8,borderRadius:8,background:'#eef4ff'}}><strong>f</strong> — solid blue</div>
-            <div style={{padding:8,borderRadius:8,background:'#fce8e6'}}><strong>f⁻¹</strong> — dashed red</div>
-            <div style={{padding:8,borderRadius:8,background:'#f2f4f7'}}><strong>y = x</strong> — grey mirror line</div>
+            <div style={{padding:8,borderRadius:8,background:'var(--mm-primary-subtle)'}}><strong>f</strong> — solid blue</div>
+            <div style={{padding:8,borderRadius:8,background:'var(--mm-error-bg)'}}><strong>f⁻¹</strong> — dashed red</div>
+            <div style={{padding:8,borderRadius:8,background:'var(--mm-surface-control)'}}><strong>y = x</strong> — grey mirror line</div>
           </div>
         </Panel> : null}
 
@@ -209,7 +209,7 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
           {canInvert && Number.isFinite(fx) ? <>
             <p style={{marginTop:0}}>Because f({x}) = <strong>{round(fx,3)}</strong>, the inverse should undo that output.</p>
             <Field label={`f⁻¹(${round(fx,3)}) =`}><input type="number" step="0.1" value={inverseAnswer} onChange={(e)=>setInverseAnswer(e.target.value)} style={inputStyle}/></Field>
-          </> : <div style={{padding:12,borderRadius:10,background:'#fce8e6',color:'#8a1c13'}}>On its full domain this function is not one-to-one, so it has no inverse function. Your teacher needs to restrict its domain before an inverse can be found.</div>}
+          </> : <div style={{padding:12,borderRadius:10,background:'var(--mm-error-bg)',color:'var(--mm-error-text)'}}>On its full domain this function is not one-to-one, so it has no inverse function. Your teacher needs to restrict its domain before an inverse can be found.</div>}
 
           {/* Also shown whenever the question asks it. It used to need a
               quadratic, so a "restriction" question about any other function

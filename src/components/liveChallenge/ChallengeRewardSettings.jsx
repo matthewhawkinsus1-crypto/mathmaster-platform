@@ -10,7 +10,7 @@ import {
  * create panel only gains one element and one payload field; the policy it
  * implies is built by challengeRewardPolicy.js and validated by the server.
  */
-const field = { width: '100%', boxSizing: 'border-box', minHeight: 44, marginTop: 6, padding: '9px 10px', borderRadius: 8, border: '1px solid #c9ced6', fontSize: 14 };
+const field = { width: '100%', boxSizing: 'border-box', minHeight: 44, marginTop: 6, padding: '9px 10px', borderRadius: 8, border: '1px solid var(--mm-border)', fontSize: 14 };
 
 export default function ChallengeRewardSettings({ choice, onChange }) {
   const set = (patch) => onChange({ ...choice, ...patch });
@@ -18,9 +18,9 @@ export default function ChallengeRewardSettings({ choice, onChange }) {
   // own options too ("Practice Pass forNobody1st place…") by screen readers.
   const id = useId();
   return (
-    <fieldset style={{ marginTop: 16, padding: 14, borderRadius: 12, border: '1px solid #d6b8f5', background: 'var(--mm-surface)' }}>
+    <fieldset style={{ marginTop: 16, padding: 14, borderRadius: 12, border: '1px solid var(--mm-accent-border)', background: 'var(--mm-surface)' }}>
       <legend style={{ fontWeight: 900, padding: '0 6px' }}>🎟️ Rewards</legend>
-      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))' }}>
         <div style={{ fontWeight: 800 }}>
           <label htmlFor={`${id}-places`}>Practice Pass for</label>
           <select id={`${id}-places`} value={choice.passPlaces} onChange={(event) => set({ passPlaces: Number(event.target.value) })} style={field}>
@@ -40,7 +40,7 @@ export default function ChallengeRewardSettings({ choice, onChange }) {
           Champion badge for 1st place
         </label>
       </div>
-      <ul style={{ margin: '10px 0 0', paddingLeft: 18, color: '#5f6368', fontSize: 13, lineHeight: 1.5 }}>
+      <ul style={{ margin: '10px 0 0', paddingLeft: 18, color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5 }}>
         {describeChallengeRewardChoice(choice).map((line) => <li key={line}>{line}</li>)}
       </ul>
     </fieldset>

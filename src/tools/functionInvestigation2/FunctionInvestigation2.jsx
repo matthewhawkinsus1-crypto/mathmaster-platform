@@ -20,7 +20,7 @@ import {
   relationLabel,
 } from './functionInvestigationMath';
 
-const inputStyle = { display: 'block', width: '100%', padding: 11, marginTop: 5, border: '1px solid #cdd6e4', borderRadius: 9, fontSize: 15, minHeight: 44 };
+const inputStyle = { display: 'block', width: '100%', padding: 11, marginTop: 5, border: '1px solid var(--mm-tint-border)', borderRadius: 9, fontSize: 15, minHeight: 44 };
 const buttonStyle = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 const domainChoices = ['allReal', 'xGteH', 'xGtH', 'xNotH'];
 const rangeChoices = ['allReal', 'yGteK', 'yLteK', 'yGtK', 'yLtK', 'yNotK'];
@@ -279,16 +279,16 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
 
           {mode === 'compare' ? (
             <>
-              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 10, fontSize: 13, color: '#3c4756' }}>
+              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 10, fontSize: 13, color: 'var(--mm-text)' }}>
                 <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 5 }}><line x1="0" y1="4" x2="26" y2="4" stroke="#1a73e8" strokeWidth="3" /></svg><strong>f(x)</strong> — solid blue</span>
                 <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 5 }}><line x1="0" y1="4" x2="26" y2="4" stroke="#d93025" strokeWidth="3" strokeDasharray="8 5" /></svg><strong>g(x)</strong> — dashed red</span>
               </div>
-              <p style={{ color: '#5f6b7a', marginBottom: 0, marginTop: 8 }}>The dashed purple vertical line marks x = {compareX}. Compare both function values at that same input.</p>
+              <p style={{ color: 'var(--mm-text-muted)', marginBottom: 0, marginTop: 8 }}>The dashed purple vertical line marks x = {compareX}. Compare both function values at that same input.</p>
             </>
           ) : (
             <>
               <p style={{ margin: '10px 0 0' }}><strong>Family:</strong> {FUNCTION_FAMILY_LABELS[spec.type]}</p>
-              <p style={{ color: '#5f6b7a', marginBottom: 0 }}>
+              <p style={{ color: 'var(--mm-text-muted)', marginBottom: 0 }}>
                 {features.anchor.label === 'asymptote intersection'
                   ? 'The purple dashed lines are asymptotes. Their intersection organizes the two branches but is not itself a point on the graph.'
                   : 'The defining feature comes from this family and its parameters, not from a fixed position on the screen.'}
@@ -301,33 +301,33 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
           {mode === 'features' ? <>
             <p><strong>{featurePrompt}:</strong> {features.anchor.label}</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <label style={{ fontSize: 13, fontWeight: 700, color: '#3c4756' }}>x-coordinate<input type="number" inputMode="decimal" value={anchorX} onChange={(event) => setAnchorX(event.target.value)} style={inputStyle} /></label>
-              <label style={{ fontSize: 13, fontWeight: 700, color: '#3c4756' }}>y-coordinate<input type="number" inputMode="decimal" value={anchorY} onChange={(event) => setAnchorY(event.target.value)} style={inputStyle} /></label>
+              <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}>x-coordinate<input type="number" inputMode="decimal" value={anchorX} onChange={(event) => setAnchorX(event.target.value)} style={inputStyle} /></label>
+              <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}>y-coordinate<input type="number" inputMode="decimal" value={anchorY} onChange={(event) => setAnchorY(event.target.value)} style={inputStyle} /></label>
             </div>
-            {features.verticalAsymptotes.length ? <label style={{ display: 'block', marginTop: 10, fontSize: 13, fontWeight: 700, color: '#3c4756' }}>Vertical asymptote x =<input type="number" inputMode="decimal" value={verticalAsymptote} onChange={(event) => setVerticalAsymptote(event.target.value)} style={inputStyle} /></label> : null}
-            {features.horizontalAsymptotes.length ? <label style={{ display: 'block', marginTop: 10, fontSize: 13, fontWeight: 700, color: '#3c4756' }}>Horizontal asymptote y =<input type="number" inputMode="decimal" value={horizontalAsymptote} onChange={(event) => setHorizontalAsymptote(event.target.value)} style={inputStyle} /></label> : null}
+            {features.verticalAsymptotes.length ? <label style={{ display: 'block', marginTop: 10, fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}>Vertical asymptote x =<input type="number" inputMode="decimal" value={verticalAsymptote} onChange={(event) => setVerticalAsymptote(event.target.value)} style={inputStyle} /></label> : null}
+            {features.horizontalAsymptotes.length ? <label style={{ display: 'block', marginTop: 10, fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}>Horizontal asymptote y =<input type="number" inputMode="decimal" value={horizontalAsymptote} onChange={(event) => setHorizontalAsymptote(event.target.value)} style={inputStyle} /></label> : null}
             <button data-mm-enter-action="submit" type="button" onClick={checkFeatures} style={{ ...buttonStyle, marginTop: 14 }}>Check features</button>
           </> : null}
 
           {mode === 'domainRange' ? <>
-            <label style={{ fontSize: 13, fontWeight: 700, color: '#3c4756' }}>Domain — the x-values this function accepts
+            <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}>Domain — the x-values this function accepts
               <select value={domainCode} onChange={(event) => setDomainCode(event.target.value)} style={inputStyle}><option value="">Choose…</option>{domainChoices.map((code) => <option value={code} key={code}>{relationLabel(code, spec)}</option>)}</select>
             </label>
-            <label style={{ display: 'block', marginTop: 12, fontSize: 13, fontWeight: 700, color: '#3c4756' }}>Range — the y-values this function produces
+            <label style={{ display: 'block', marginTop: 12, fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}>Range — the y-values this function produces
               <select value={rangeCode} onChange={(event) => setRangeCode(event.target.value)} style={inputStyle}><option value="">Choose…</option>{rangeChoices.map((code) => <option value={code} key={code}>{relationLabel(code, spec)}</option>)}</select>
             </label>
             <button data-mm-enter-action="submit" type="button" onClick={checkDomainRange} style={{ ...buttonStyle, marginTop: 14 }}>Check domain and range</button>
           </> : null}
 
           {mode === 'intercepts' ? <>
-            <p style={{ color: '#5f6b7a', fontSize: 13 }}>Separate multiple x-intercepts with commas. Type <strong>none</strong> when an intercept does not exist.</p>
-            <label style={{ fontSize: 13, fontWeight: 700, color: '#3c4756' }}>x-intercept values<input value={xIntercepts} onChange={(event) => setXIntercepts(event.target.value)} placeholder="Example: -2, 3 or none" style={inputStyle} aria-label="x-intercept values" /></label>
-            <label style={{ display: 'block', marginTop: 12, fontSize: 13, fontWeight: 700, color: '#3c4756' }}>y-intercept value<input value={yIntercept} onChange={(event) => setYIntercept(event.target.value)} placeholder="Example: 4 or none" style={inputStyle} aria-label="y-intercept value" /></label>
+            <p style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>Separate multiple x-intercepts with commas. Type <strong>none</strong> when an intercept does not exist.</p>
+            <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}>x-intercept values<input value={xIntercepts} onChange={(event) => setXIntercepts(event.target.value)} placeholder="Example: -2, 3 or none" style={inputStyle} aria-label="x-intercept values" /></label>
+            <label style={{ display: 'block', marginTop: 12, fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}>y-intercept value<input value={yIntercept} onChange={(event) => setYIntercept(event.target.value)} placeholder="Example: 4 or none" style={inputStyle} aria-label="y-intercept value" /></label>
             <button data-mm-enter-action="submit" type="button" onClick={checkIntercepts} style={{ ...buttonStyle, marginTop: 14 }}>Check intercepts</button>
           </> : null}
 
           {mode === 'behavior' ? <>
-            <label style={{ fontSize: 13, fontWeight: 700, color: '#3c4756' }}>Which statement best describes this function?
+            <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}>Which statement best describes this function?
               <select value={behavior} onChange={(event) => setBehavior(event.target.value)} style={inputStyle}><option value="">Choose…</option>{behaviorChoices.map((code) => <option value={code} key={code}>{behaviorLabel(code)}</option>)}</select>
             </label>
             <button data-mm-enter-action="submit" type="button" onClick={checkBehavior} style={{ ...buttonStyle, marginTop: 14 }}>Check behavior</button>
@@ -348,7 +348,7 @@ export default function FunctionInvestigation2({ questionData = {}, onAction }) 
           {feedback ? (
             <div style={{ marginTop: 14 }}>
               <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
-              <p style={{ margin: '9px 0 0', color: '#3c4756', lineHeight: 1.55 }}>{feedbackMessage()}</p>
+              <p style={{ margin: '9px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{feedbackMessage()}</p>
             </div>
           ) : null}
 

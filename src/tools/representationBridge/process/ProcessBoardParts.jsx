@@ -30,19 +30,19 @@ const chipStyle = {
   boxSizing: 'border-box',
   padding: '6px 12px',
   borderRadius: 12,
-  border: '1px solid #b9dcc4',
-  background: '#f3faf5',
-  color: '#10223f',
+  border: '1px solid var(--mm-success-border)',
+  background: 'var(--mm-success-subtle)',
+  color: 'var(--mm-text-strong)',
   fontSize: 15,
 };
 
-const savedChipStyle = { ...chipStyle, border: '1px solid #c5d3e8', background: '#f6f8fb' };
+const savedChipStyle = { ...chipStyle, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface-sunken)' };
 
 const findStyle = {
   ...touchButton,
   border: '1px dashed #6f8fc4',
   background: 'var(--mm-surface)',
-  color: '#123c8c',
+  color: 'var(--mm-primary-text)',
 };
 
 const isScenario = (question) => question?.source?.kind === 'scenario';
@@ -50,7 +50,7 @@ const isScenario = (question) => question?.source?.kind === 'scenario';
 // A tick a screen reader says as a word.
 const Verified = () => (
   <>
-    <span aria-hidden="true" style={{ color: '#137333', fontWeight: 900 }}>✓</span>
+    <span aria-hidden="true" style={{ color: 'var(--mm-success-text)', fontWeight: 900 }}>✓</span>
     <span className="mm-sr-only">verified</span>
   </>
 );
@@ -70,7 +70,7 @@ function FactChip({ question, fact, record, verified, onChange }) {
       {showLabel ? <strong style={{ fontSize: 14 }}>{label} =</strong> : null}
       <Latex value={factValueLatex(question, fact, record)} />
       {verified ? <Verified /> : null}
-      <span style={{ fontSize: 12, color: '#5f6b7a' }}>{studentMethodLabel(record)}</span>
+      <span style={{ fontSize: 12, color: 'var(--mm-text-muted)' }}>{studentMethodLabel(record)}</span>
       {onChange ? (
         <button type="button" onClick={onChange} style={{ ...touchButton, minHeight: 36, padding: '4px 10px', fontSize: 13 }} aria-label={`Change ${label}`}>
           Change
@@ -94,10 +94,10 @@ export function ProcessFactsStrip({ question, process, relevant, canCheck, disab
       aria-label="What I know"
       data-process-facts="true"
       tabIndex={-1}
-      style={{ padding: '12px 14px', background: '#fbfdff', border: '1px solid #dde5f0', borderRadius: 14, display: 'flex', flexDirection: 'column', gap: 10 }}
+      style={{ padding: '12px 14px', background: 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)', borderRadius: 14, display: 'flex', flexDirection: 'column', gap: 10 }}
     >
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px 12px', flexWrap: 'wrap' }}>
-        <h3 style={{ margin: 0, fontSize: 16, color: '#10223f' }}>What I know</h3>
+        <h3 style={{ margin: 0, fontSize: 16, color: 'var(--mm-text-strong)' }}>What I know</h3>
         <span style={muted}>
           {canCheck
             ? 'Find each fact with a method you choose. A checked fact is yours to reuse, and it opens more of the board.'
@@ -152,7 +152,7 @@ export function ProcessFactsStrip({ question, process, relevant, canCheck, disab
           </li>
         ) : null}
       </ul>
-      {notice ? <p role="status" style={{ margin: 0, fontSize: 14, color: notice.tone === 'success' ? '#137333' : '#174ea6', fontWeight: 700 }}>{notice.text}</p> : null}
+      {notice ? <p role="status" style={{ margin: 0, fontSize: 14, color: notice.tone === 'success' ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', fontWeight: 700 }}>{notice.text}</p> : null}
     </section>
   );
 }
@@ -175,7 +175,7 @@ export function LockedCardBody({ question, process, cardId, onFind, disabled }) 
   const phraseOf = (way) => way.map((need) => need.phrase).join(' and ');
   return (
     <div data-process-locked={cardId} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <p style={{ ...muted, color: '#3c4a60' }}>
+      <p style={{ ...muted, color: 'var(--mm-text)' }}>
         <span aria-hidden="true">🔒 </span>
         Opens when you know {ways.map(phraseOf).join(' — or ')}.
       </p>
@@ -204,7 +204,7 @@ export function FactsAtHand({ question, process, facts: wanted = [], showPoints 
     <span key={fact} style={{ display: 'inline-flex', gap: 4, alignItems: 'baseline' }}>
       {fact === 'slope' && !isScenario(question) ? null : <span>{lmrFactLabel(question, fact)} =</span>}
       <MathDisplay value={factValueLatex(question, fact, facts[fact])} inline />
-      {verified ? <span aria-hidden="true" style={{ color: '#137333' }}>✓</span> : null}
+      {verified ? <span aria-hidden="true" style={{ color: 'var(--mm-success-text)' }}>✓</span> : null}
     </span>
   ));
   if (showPoints) {
@@ -230,7 +230,7 @@ export function FactsAtHand({ question, process, facts: wanted = [], showPoints 
   }
   if (!items.length) return null;
   return (
-    <p data-process-at-hand="true" style={{ ...muted, color: '#24324a', display: 'flex', gap: '4px 12px', flexWrap: 'wrap' }}>
+    <p data-process-at-hand="true" style={{ ...muted, color: 'var(--mm-text)', display: 'flex', gap: '4px 12px', flexWrap: 'wrap' }}>
       <span>You know:</span>
       {items}
     </p>

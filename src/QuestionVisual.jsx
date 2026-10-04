@@ -52,8 +52,8 @@ export default function QuestionVisual({ question, includeGraph = true, includeT
         <div
           style={{
             fontSize: '26px',
-            color: '#1a73e8',
-            background: '#f8f9fa',
+            color: 'var(--mm-primary)',
+            background: 'var(--mm-surface-sunken)',
             borderRadius: '10px',
             padding: '16px 20px',
             margin: '22px auto',
@@ -79,7 +79,7 @@ export default function QuestionVisual({ question, includeGraph = true, includeT
             style={{ borderCollapse: 'collapse', margin: '0 auto', minWidth: '260px', fontSize: '17px' }}
           >
             {question?.tableCaption && (
-              <caption style={{ captionSide: 'top', padding: '0 0 10px', color: '#3c4043', fontWeight: 600 }}>
+              <caption style={{ captionSide: 'top', padding: '0 0 10px', color: 'var(--mm-text)', fontWeight: 600 }}>
                 {question.tableCaption}
               </caption>
             )}
@@ -89,7 +89,7 @@ export default function QuestionVisual({ question, includeGraph = true, includeT
                   <th
                     key={column.key}
                     scope="col"
-                    style={{ border: '1px solid #dadce0', background: '#f1f3f4', padding: '10px 18px', color: 'var(--mm-text-strong)', textAlign: 'center' }}
+                    style={{ border: '1px solid var(--mm-border)', background: 'var(--mm-surface-control)', padding: '10px 18px', color: 'var(--mm-text-strong)', textAlign: 'center' }}
                   >
                     {column.label}
                   </th>
@@ -102,7 +102,7 @@ export default function QuestionVisual({ question, includeGraph = true, includeT
                   {row.map((cell, cellIndex) => (
                     <td
                       key={displayTable.columns[cellIndex].key}
-                      style={{ border: '1px solid #dadce0', padding: '10px 18px', textAlign: 'center', color: 'var(--mm-text-strong)', background: 'var(--mm-surface)' }}
+                      style={{ border: '1px solid var(--mm-border)', padding: '10px 18px', textAlign: 'center', color: 'var(--mm-text-strong)', background: 'var(--mm-surface)' }}
                     >
                       {displayCell(cell)}
                     </td>

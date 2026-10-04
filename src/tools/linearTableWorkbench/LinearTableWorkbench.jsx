@@ -17,8 +17,8 @@ import linearTableWorkbenchGrader, {
 import { resolveLinearTableWorkbenchMode } from '../../../functions/shared/serverGrading/declarations/linearTableWorkbench.mjs';
 import { FRACTION_ENTRY_PROPS } from '../../platform/interaction/numberEntry.js';
 
-const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid #c9d6e8', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
-const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid #c9d6e8', borderRadius: 8, fontSize: 15 };
+const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
+const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid var(--mm-tint-border)', borderRadius: 8, fontSize: 15 };
 const formatCoord = (value) => (Number.isInteger(value) ? String(value) : String(Math.round(value * 1000) / 1000));
 
 const emptyState = { evidence: [], classification: '', repairRowIndex: null, repairedValue: '', m: '', b: '', equation: '' };
@@ -301,11 +301,11 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
                 style={{
                   ...button,
                   minHeight: 56,
-                  border: selected ? '3px solid #1a73e8' : isRepairTarget ? '3px solid #b06000' : '1px solid #c9d6e8',
-                  background: selected ? '#eef4ff' : '#fff',
+                  border: selected ? '3px solid #1a73e8' : isRepairTarget ? '3px solid #b06000' : '1px solid var(--mm-tint-border)',
+                  background: selected ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)',
                 }}
               >
-                <div style={{ fontSize: 11, color: '#5f6b7a', fontWeight: 700 }}>Row {index + 1}</div>
+                <div style={{ fontSize: 11, color: 'var(--mm-text-muted)', fontWeight: 700 }}>Row {index + 1}</div>
                 <div>({formatCoord(row.x)}, {formatCoord(row.y)})</div>
               </button>
             );
@@ -315,7 +315,7 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
 
       {truth ? (
         <Panel title={`Interval: Row ${i + 1} → Row ${j + 1}`}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 10 }}>
             <label>
               <span style={{ fontWeight: 800, fontSize: 13 }}>Δx</span>
               <input style={input} {...FRACTION_ENTRY_PROPS} value={stagingDx} onChange={(event) => { setStagingDx(event.target.value); clearFeedback(); }} aria-label="Change in x for this interval" />
@@ -330,7 +330,7 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
             </label>
           </div>
           <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button type="button" onClick={recordInterval} disabled={alreadyRecorded} style={{ ...button, background: alreadyRecorded ? '#f1f3f4' : '#1a73e8', color: alreadyRecorded ? '#5f6368' : '#fff', border: 0 }}>
+            <button type="button" onClick={recordInterval} disabled={alreadyRecorded} style={{ ...button, background: alreadyRecorded ? 'var(--mm-surface-control)' : '#1a73e8', color: alreadyRecorded ? 'var(--mm-text-muted)' : '#fff', border: 0 }}>
               {alreadyRecorded ? 'Already recorded' : editingEvidenceIndex != null ? 'Save interval changes' : 'Record this interval'}
             </button>
             {editingEvidenceIndex != null ? (
@@ -338,12 +338,12 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
             ) : null}
           </div>
           {editingEvidenceIndex != null ? (
-            <p style={{ color: '#174ea6', fontSize: 13, marginBottom: 0 }}>You are editing recorded interval {editingEvidenceIndex + 1}. Saving replaces that interval; it does not add a duplicate.</p>
+            <p style={{ color: 'var(--mm-primary-text)', fontSize: 13, marginBottom: 0 }}>You are editing recorded interval {editingEvidenceIndex + 1}. Saving replaces that interval; it does not add a duplicate.</p>
           ) : null}
-          {alreadyRecorded ? <p style={{ color: '#7a4f01', fontSize: 13 }}>That row pair is already recorded elsewhere. Keep this interval unique or edit the existing one.</p> : null}
+          {alreadyRecorded ? <p style={{ color: 'var(--mm-warning-text)', fontSize: 13 }}>That row pair is already recorded elsewhere. Keep this interval unique or edit the existing one.</p> : null}
         </Panel>
       ) : selectedRows.length === 1 ? (
-        <p style={{ color: '#5f6b7a' }}>Row {selectedRows[0] + 1} selected. Tap a second row to form an interval.</p>
+        <p style={{ color: 'var(--mm-text-muted)' }}>Row {selectedRows[0] + 1} selected. Tap a second row to form an interval.</p>
       ) : null}
 
       <Panel title={`Recorded intervals (${evidence.length}, need ${requiredComparisons})`}>
@@ -358,25 +358,25 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
                 check.rateCorrect === false ? 'rate' : null,
               ].filter(Boolean) : [];
               return (
-                <li key={`${entry.i}-${entry.j}-${index}`} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', border: needsAttention ? '2px solid #d93025' : editingEvidenceIndex === index ? '2px solid #1a73e8' : '1px solid #dde5f0', background: needsAttention ? '#fff7f6' : editingEvidenceIndex === index ? '#f5f9ff' : '#fff', borderRadius: 8, padding: '8px 10px' }}>
+                <li key={`${entry.i}-${entry.j}-${index}`} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', border: needsAttention ? '2px solid #d93025' : editingEvidenceIndex === index ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: needsAttention ? 'var(--mm-error-subtle)' : editingEvidenceIndex === index ? 'var(--mm-surface-tint)' : 'var(--mm-surface)', borderRadius: 8, padding: '8px 10px' }}>
                   <span style={{ fontWeight: 800 }}>Row {entry.i + 1} → Row {entry.j + 1}</span>
                   <span>Δx = {entry.dx || '—'}</span>
                   <span>Δy = {entry.dy || '—'}</span>
                   <span>rate = {entry.rate || '—'}</span>
                   {needsAttention ? (
-                    <span role="status" style={{ color: '#b3261e', fontSize: 12, fontWeight: 900 }}>
+                    <span role="status" style={{ color: 'var(--mm-error-text)', fontSize: 12, fontWeight: 900 }}>
                       {check.duplicate ? 'Check: repeated row pair' : `Check: ${fieldsToCheck.join(', ') || 'this interval'}`}
                     </span>
                   ) : null}
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-                    <button type="button" onClick={() => editEvidence(index)} aria-label={`Edit interval between row ${entry.i + 1} and row ${entry.j + 1}`} style={{ ...button, minHeight: 32, padding: '4px 10px', color: '#174ea6' }}>Edit</button>
+                    <button type="button" onClick={() => editEvidence(index)} aria-label={`Edit interval between row ${entry.i + 1} and row ${entry.j + 1}`} style={{ ...button, minHeight: 32, padding: '4px 10px', color: 'var(--mm-primary-text)' }}>Edit</button>
                     <button type="button" onClick={() => removeEvidence(index)} aria-label={`Remove interval between row ${entry.i + 1} and row ${entry.j + 1}`} style={{ ...button, minHeight: 32, padding: '4px 9px' }}>Remove</button>
                   </div>
                 </li>
               );
             })}
           </ul>
-        ) : <p style={{ color: '#80868b' }}>No intervals recorded yet.</p>}
+        ) : <p style={{ color: 'var(--mm-text-subtle)' }}>No intervals recorded yet.</p>}
       </Panel>
 
       <Panel title="Classification">
@@ -388,19 +388,19 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
               disabled={!readyToClassify}
               onClick={() => { setClassification(option); clearFeedback(); }}
               aria-pressed={classification === option}
-              style={{ ...button, background: classification === option ? '#1a73e8' : '#fff', color: classification === option ? '#fff' : '#172033', opacity: readyToClassify ? 1 : 0.5 }}
+              style={{ ...button, background: classification === option ? '#1a73e8' : 'var(--mm-surface)', color: classification === option ? '#fff' : 'var(--mm-text-strong)', opacity: readyToClassify ? 1 : 0.5 }}
             >
               {option === 'linear' ? 'Constant rate (linear)' : 'Not a constant rate (nonlinear)'}
             </button>
           ))}
         </div>
-        {!readyToClassify ? <p style={{ color: '#5f6b7a', fontSize: 13 }}>Record {requiredComparisons - distinctPairCount} more interval(s) before classifying.</p> : null}
+        {!readyToClassify ? <p style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>Record {requiredComparisons - distinctPairCount} more interval(s) before classifying.</p> : null}
       </Panel>
 
       {mode === 'repairValue' ? (
         <Panel title="Repair the table">
-          <p style={{ marginTop: 0, color: '#3c4756' }}>One row breaks the pattern. Tap the offending row above, then enter its corrected y-value.</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
+          <p style={{ marginTop: 0, color: 'var(--mm-text)' }}>One row breaks the pattern. Tap the offending row above, then enter its corrected y-value.</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: 10 }}>
             <label>
               <span style={{ fontWeight: 800, fontSize: 13 }}>Offending row</span>
               <select style={input} value={repairRowIndex ?? ''} onChange={(event) => { setRepairRowIndex(event.target.value === '' ? null : Number(event.target.value)); clearFeedback(); }}>
@@ -418,7 +418,7 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
 
       {mode === 'deriveEquation' ? (
         <Panel title="Determine the equation">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 10 }}>
             <label>
               <span style={{ fontWeight: 800, fontSize: 13 }}>m</span>
               <input style={input} {...FRACTION_ENTRY_PROPS} value={m} onChange={(event) => { setM(event.target.value); clearFeedback(); }} aria-label="Slope m" />
@@ -451,9 +451,9 @@ export default function LinearTableWorkbench({ questionData = {}, onAction }) {
         </button>
         {feedback ? <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Needs another look'}</ResultPill> : null}
       </div>
-      {notice ? <p role="status" style={{ color: '#5f6b7a' }}>{notice} <button type="button" onClick={undo}>Restore</button></p> : null}
+      {notice ? <p role="status" style={{ color: 'var(--mm-text-muted)' }}>{notice} <button type="button" onClick={undo}>Restore</button></p> : null}
       {feedback && !feedback.isCorrect && feedbackGuidance ? (
-        <p role="status" style={{ color: '#5f6b7a', lineHeight: 1.55 }}>
+        <p role="status" style={{ color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>
           <strong>Where to check:</strong> {feedbackGuidance} MathMaster points you to the location of the issue without giving away the correct value.
         </p>
       ) : null}

@@ -39,23 +39,23 @@
   box-sizing: inherit;
 }
 
-@media (prefers-color-scheme: dark) {
-  .mm-login {
-    --mm-bg: #0d1117;
-    --mm-surface: #161b24;
-    --mm-surface-muted: #1d2430;
-    --mm-ink: #eef2f8;
-    --mm-ink-soft: #a4b0c2;
-    --mm-line: #2c3543;
-    --mm-brand: #6f9bff;
-    --mm-brand-ink: #08101f;
-    --mm-brand-soft: #1b2740;
-    --mm-danger: #ff9d94;
-    --mm-danger-soft: #3a1d1a;
-    --mm-success: #6ede9f;
-    --mm-focus: #8fb3ff;
-  }
+/* Keyed to the app's resolved theme (theme/tokens.css), like every other screen. */
+:root[data-theme='dark'] .mm-login {
+  --mm-bg: #0d1117;
+  --mm-surface: #161b24;
+  --mm-surface-muted: #1d2430;
+  --mm-ink: #eef2f8;
+  --mm-ink-soft: #a4b0c2;
+  --mm-line: #2c3543;
+  --mm-brand: #6f9bff;
+  --mm-brand-ink: #08101f;
+  --mm-brand-soft: #1b2740;
+  --mm-danger: #ff9d94;
+  --mm-danger-soft: #3a1d1a;
+  --mm-success: #6ede9f;
+  --mm-focus: #8fb3ff;
 }
+
 
 /* ---------- Brand panel ---------- */
 
@@ -182,11 +182,11 @@
   box-shadow: 0 22px 50px rgba(15, 26, 48, 0.1);
 }
 
-@media (prefers-color-scheme: dark) {
-  .mm-login__card {
-    box-shadow: 0 22px 50px rgba(0, 0, 0, 0.5);
-  }
+/* Keyed to the app's resolved theme (theme/tokens.css), like every other screen. */
+:root[data-theme='dark'] .mm-login__card {
+  box-shadow: 0 22px 50px rgba(0, 0, 0, 0.5);
 }
+
 
 .mm-login__compact-brand {
   display: none;
@@ -515,12 +515,12 @@
   text-align: center;
 }
 
-@media (prefers-color-scheme: dark) {
-  .mm-auth-splash {
-    background: #0d1117;
-    color: #a4b0c2;
-  }
+/* Keyed to the app's resolved theme (theme/tokens.css), like every other screen. */
+:root[data-theme='dark'] .mm-auth-splash {
+  background: #0d1117;
+  color: #a4b0c2;
 }
+
 
 .mm-auth-splash__spinner {
   width: 34px;

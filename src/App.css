@@ -203,9 +203,9 @@
 .algebra-mirror-chip {
   padding: 7px 11px;
   border-radius: 999px;
-  background: #e8f0fe;
-  color: #174ea6;
-  border: 1px solid #9fb8dd;
+  background: var(--mm-primary-soft);
+  color: var(--mm-primary-text);
+  border: 1px solid var(--mm-primary-border);
   font-size: 13px;
   font-weight: 800;
   animation: algebraMirrorSlide 0.28s ease-out;
@@ -323,7 +323,7 @@
   font-family: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
   font-weight: 800;
   font-size: 0.6em;
-  color: #174ea6;
+  color: var(--mm-primary-text);
   padding: 0 6px;
 }
 
@@ -340,7 +340,7 @@
   font-family: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
   font-size: 0.55em;
   font-weight: 800;
-  color: #174ea6;
+  color: var(--mm-primary-text);
   text-align: center;
 }
 
@@ -356,8 +356,8 @@
 }
 
 .mathmaster-support-high-contrast {
-  color: #000;
-  background: #fff !important;
+  color: var(--mm-text-strong);
+  background: var(--mm-surface) !important;
 }
 
 .mathmaster-support-high-contrast button,
@@ -401,7 +401,7 @@
     flex-direction: row !important;
     overflow-x: auto;
     border-right: none !important;
-    border-bottom: 1px solid var(--mm-border-soft, #e8eaed);
+    border-bottom: 1px solid var(--mm-border-soft);
     border-radius: 12px 12px 0 0 !important;
     padding: 8px !important;
     gap: 6px;
@@ -432,6 +432,19 @@
   /* The collapse toggle is meaningless once the rail is horizontal. */
   .mm-dashboard-nav .mm-nav-collapse {
     display: none !important;
+  }
+
+  /* The build stamp sits at the end of the strip on one line. Squeezed to a
+     few pixels wide with overflow-wrap:anywhere it wrapped one character per
+     line and stretched the whole strip to ~190px tall — the oversized
+     navigation container on phones. */
+  .mm-dashboard-nav > [data-mathmaster-build] {
+    flex: 0 0 auto;
+    align-self: center;
+    margin: 0 6px !important;
+    padding-top: 0 !important;
+    white-space: nowrap;
+    overflow-wrap: normal !important;
   }
 
   .mm-dashboard-content {
@@ -547,7 +560,7 @@
    unchanged, and narrower devices keep the existing stacked layout. */
 @media (min-width: 1050px) {
   [data-enlarged="true"] .mathmaster-function-workspace-grid.mathmaster-domain-range-only {
-    grid-template-columns: minmax(190px, 230px) minmax(0, 1fr) minmax(190px, 230px) !important;
+    grid-template-columns: minmax(min(100%, 190px), 230px) minmax(0, 1fr) minmax(min(100%, 190px), 230px) !important;
     gap: 14px !important;
     align-items: start;
   }
@@ -736,9 +749,9 @@
     padding: 2px 0 1px;
     background: linear-gradient(
       to bottom,
-      rgba(240, 242, 245, 0.98) 0%,
-      rgba(240, 242, 245, 0.94) 82%,
-      rgba(240, 242, 245, 0) 100%
+      var(--mm-sticky-fade-strong) 0%,
+      var(--mm-sticky-fade) 82%,
+      var(--mm-sticky-fade-clear) 100%
     );
   }
 
@@ -761,7 +774,7 @@
     max-width: 860px;
     margin: 6px auto 0;
     padding: 8px 14px 9px;
-    border: 1px solid #d7e2f3;
+    border: 1px solid var(--mm-tint-border);
     border-radius: 10px;
     background: var(--mm-surface);
     box-shadow: 0 5px 14px rgba(32, 33, 36, 0.1);
@@ -794,7 +807,7 @@
   max-width: 860px;
   margin: 0 auto 5px;
   padding: 0 4px;
-  color: #5f6368;
+  color: var(--mm-text-muted);
   font-size: 11px;
   font-weight: 850;
   text-transform: uppercase;
@@ -804,10 +817,10 @@
 .mathmaster-desktop-task-toggle-row button {
   min-height: 30px;
   padding: 4px 10px;
-  border: 1px solid #bdc7d6;
+  border: 1px solid var(--mm-border);
   border-radius: 999px;
   background: var(--mm-surface);
-  color: #174ea6;
+  color: var(--mm-primary-text);
   font: inherit;
   font-size: 11px;
   font-weight: 900;
@@ -883,14 +896,14 @@
   top: 8px;
   z-index: 80;
   display: grid;
-  grid-template-columns: auto minmax(130px, 1fr) auto minmax(150px, 220px) auto;
+  grid-template-columns: auto minmax(130px, 1fr) auto minmax(min(100%, 150px), 220px) auto;
   align-items: center;
   gap: 8px;
   margin: 0 0 14px;
   padding: 9px 10px;
-  border: 1px solid #d7e1f0;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.97);
+  background: var(--mm-surface-frosted);
   box-shadow: 0 5px 18px rgba(32, 33, 36, 0.12);
   backdrop-filter: blur(10px);
 }
@@ -898,10 +911,10 @@
 .mathmaster-assignment-compact-nav button,
 .mathmaster-assignment-compact-nav select {
   min-height: 42px;
-  border: 1px solid #bdc7d6;
+  border: 1px solid var(--mm-border);
   border-radius: 8px;
   background: var(--mm-surface);
-  color: #174ea6;
+  color: var(--mm-primary-text);
   font-weight: 850;
   font-size: 14px;
 }
@@ -912,9 +925,9 @@
 }
 
 .mathmaster-assignment-compact-nav button:disabled {
-  color: #9aa0a6;
-  background: #f1f3f4;
-  border-color: #dadce0;
+  color: var(--mm-text-subtle);
+  background: var(--mm-surface-control);
+  border-color: var(--mm-border);
   cursor: not-allowed;
 }
 
@@ -940,13 +953,13 @@
 
 .mathmaster-assignment-compact-nav .mathmaster-compact-nav-current > span {
   margin-top: 2px;
-  color: #5f6368;
+  color: var(--mm-text-muted);
   font-size: 11px;
   font-weight: 750;
 }
 
 .mathmaster-assignment-compact-nav .mathmaster-compact-nav-alert {
-  color: #681da8 !important;
+  color: var(--mm-accent-text) !important;
   font-weight: 900 !important;
 }
 
@@ -1087,9 +1100,9 @@
   gap: 8px;
   margin: 0 0 14px;
   padding: 9px 10px;
-  border: 1px solid #d7e1f0;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.97);
+  background: var(--mm-surface-frosted);
   box-shadow: 0 5px 18px rgba(32, 33, 36, 0.12);
   backdrop-filter: blur(10px);
 }
@@ -1118,33 +1131,17 @@
 .mathmaster-unified-question-controls button,
 .mathmaster-unified-question-controls select {
   min-height: 38px;
-  border: 1px solid #bdc7d6;
+  border: 1px solid var(--mm-border);
   border-radius: 8px;
   background: var(--mm-surface);
-  color: #174ea6;
+  color: var(--mm-primary-text);
   font-weight: 850;
   font-size: 13px;
 }
 
-/* The surface above follows the theme; the literal blue did not, and on the
-   dark surface it measured 2.1:1. Dark themes take the primary token. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .mathmaster-unified-nav-back,
-  :root:not([data-theme='light']) .mathmaster-overview-button,
-  :root:not([data-theme='light']) .mathmaster-focus-view-button,
-  :root:not([data-theme='light']) .mathmaster-unified-question-controls button,
-  :root:not([data-theme='light']) .mathmaster-unified-question-controls select {
-    color: var(--mm-primary);
-  }
-}
-
-:root[data-theme='dark'] .mathmaster-unified-nav-back,
-:root[data-theme='dark'] .mathmaster-overview-button,
-:root[data-theme='dark'] .mathmaster-focus-view-button,
-:root[data-theme='dark'] .mathmaster-unified-question-controls button,
-:root[data-theme='dark'] .mathmaster-unified-question-controls select {
-  color: var(--mm-primary);
-}
+/* The color above is the themed primary-TEXT token, so these controls read
+   on both themes without a dark-mode override (the literal blue they used to
+   carry measured 2.1:1 on the dark surface). */
 
 .mathmaster-unified-nav-back,
 .mathmaster-overview-button,
@@ -1178,7 +1175,7 @@
   align-items: baseline;
   justify-content: center;
   gap: 8px;
-  color: #3c4043;
+  color: var(--mm-text);
   text-align: center;
 }
 
@@ -1189,7 +1186,7 @@
 .mathmaster-collapsed-current-location span {
   font-size: 11px;
   font-weight: 800;
-  color: #6f7782;
+  color: var(--mm-text-subtle);
 }
 
 .mathmaster-assignment-unified-nav.is-collapsed {
@@ -1256,10 +1253,10 @@
 .mathmaster-section-tab {
   min-height: 40px;
   padding: 5px 10px;
-  border: 1px solid var(--section-border, #bdc7d6);
+  border: 1px solid var(--section-border, var(--mm-border));
   border-radius: 999px;
-  background: var(--section-bg, #f8fbff);
-  color: var(--section-color, #174ea6);
+  background: var(--section-bg, var(--mm-surface-tint));
+  color: var(--section-color, var(--mm-primary-text));
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -1286,15 +1283,15 @@
 
 .mathmaster-section-tab.is-complete {
   border-color: #188038;
-  background: #e6f4ea;
-  color: #137333;
+  background: var(--mm-success-bg);
+  color: var(--mm-success-text);
 }
 
 .mathmaster-section-tab.is-locked,
 .mathmaster-section-tab:disabled {
-  border-color: #dadce0;
-  background: #f1f3f4;
-  color: #80868b;
+  border-color: var(--mm-border);
+  background: var(--mm-surface-control);
+  color: var(--mm-text-subtle);
   cursor: not-allowed;
   box-shadow: none;
   transform: none;
@@ -1304,7 +1301,7 @@
 .mathmaster-assignment-unified-bottom {
   justify-content: space-between;
   padding-top: 7px;
-  border-top: 1px solid #edf1f6;
+  border-top: 1px solid var(--mm-tint-border);
 }
 
 .mathmaster-current-section-inline {
@@ -1324,25 +1321,26 @@
   line-height: 1.15;
 }
 
-/* The navigator is a light surface in both themes (its background is a literal
-   near-white), so its text is dark in both, like the lines beneath it. On the
-   dark-theme token the section title turned near-white on near-white and
-   disappeared (live QA, Algebra I DOL #2). */
+/* The navigator's surface and its text are a matched token pair
+   (--mm-surface-frosted under --mm-text-*). It used to be a literal near-white
+   in both themes, and on the dark-theme text token the section title turned
+   near-white on near-white and disappeared (live QA, Algebra I DOL #2); with
+   both sides themed that cannot recur. */
 .mathmaster-current-section-summary strong {
-  color: #1f2937;
+  color: var(--mm-text-strong);
   font-size: 14px;
 }
 
 .mathmaster-current-section-summary span {
   margin-top: 2px;
-  color: #3c4043;
+  color: var(--mm-text);
   font-size: 11px;
   font-weight: 800;
 }
 
 .mathmaster-current-section-summary small {
   margin-top: 2px;
-  color: #6f7782;
+  color: var(--mm-text-subtle);
   font-size: 9px;
   font-weight: 750;
   text-transform: uppercase;
@@ -1363,7 +1361,7 @@
   border: 2px solid var(--section-border, #1a73e8);
   border-radius: 999px;
   background: var(--mm-surface);
-  color: var(--section-color, #174ea6);
+  color: var(--section-color, var(--mm-primary-text));
   font-size: 11px;
   font-weight: 950;
   line-height: 1;
@@ -1371,7 +1369,7 @@
 }
 
 .mathmaster-question-number.is-current {
-  background: var(--section-bg, #e8f0fe);
+  background: var(--section-bg, var(--mm-primary-soft));
   box-shadow: 0 0 0 3px var(--section-bg, #e8f0fe);
   transform: scale(1.08);
 }
@@ -1384,15 +1382,15 @@
 
 .mathmaster-question-number.is-attempted:not(.is-correct) {
   border-color: #f9ab00;
-  background: #fff4ce;
-  color: #7a4f00;
+  background: var(--mm-warning-soft);
+  color: var(--mm-warning-text);
 }
 
 .mathmaster-question-number.is-locked,
 .mathmaster-question-number:disabled {
-  border-color: #dadce0;
-  background: #f1f3f4;
-  color: #9aa0a6;
+  border-color: var(--mm-border);
+  background: var(--mm-surface-control);
+  color: var(--mm-text-subtle);
   cursor: not-allowed;
   box-shadow: none;
   transform: none;
@@ -1411,9 +1409,9 @@
 }
 
 .mathmaster-unified-question-controls button:disabled {
-  color: #9aa0a6;
-  background: #f1f3f4;
-  border-color: #dadce0;
+  color: var(--mm-text-subtle);
+  background: var(--mm-surface-control);
+  border-color: var(--mm-border);
   cursor: not-allowed;
 }
 
@@ -1425,8 +1423,8 @@
 .mathmaster-unified-nav-alert {
   padding: 6px 9px;
   border-radius: 8px;
-  background: #f3e8fd;
-  color: #681da8;
+  background: var(--mm-accent-soft);
+  color: var(--mm-accent-text);
   font-size: 11px;
   font-weight: 900;
   text-align: center;
@@ -1622,7 +1620,7 @@
   border-radius: 999px;
   background: #a66b00;
   color: #fff;
-  border: 2px solid #fff8d6;
+  border: 2px solid var(--mm-warning-border-soft);
   box-shadow: 0 0 0 2px #d9a514;
   font-size: 14px;
   font-weight: 950;
@@ -1633,8 +1631,8 @@
   min-height: 46px;
   padding: 6px 13px;
   border: 3px solid #c58a00;
-  background: #fff4ce;
-  color: #5f4400;
+  background: var(--mm-warning-soft);
+  color: var(--mm-warning-text);
   box-shadow: 0 3px 10px rgba(166, 107, 0, 0.24), inset 0 0 0 1px #ffe08a;
 }
 
@@ -1659,12 +1657,12 @@
   padding: 6px 10px;
   border-radius: 10px;
   border: 2px solid #d9a514;
-  background: #fff8df;
+  background: var(--mm-warning-bg);
 }
 
 .mathmaster-current-section-inline.is-complete .mathmaster-current-section-summary strong,
 .mathmaster-current-section-inline.is-complete .mathmaster-current-section-summary span {
-  color: #5f4400;
+  color: var(--mm-warning-text);
 }
 
 @keyframes mathmasterSectionMilestoneIn {
@@ -1685,8 +1683,8 @@
   gap: 16px;
   border: 4px solid #c58a00;
   border-radius: 18px;
-  background: #fff4ce;
-  color: #5f4400;
+  background: var(--mm-warning-soft);
+  color: var(--mm-warning-text);
   box-shadow: 0 10px 28px rgba(166, 107, 0, 0.20);
   text-align: left;
 }
@@ -1703,7 +1701,7 @@
   border-radius: 999px;
   background: #a66b00;
   color: #fff;
-  border: 4px solid #fff8d6;
+  border: 4px solid var(--mm-warning-border-soft);
   box-shadow: 0 0 0 3px #d9a514;
   font-size: 34px;
   font-weight: 950;
@@ -1716,7 +1714,7 @@
 
 .mathmaster-section-completion-copy > span {
   display: block;
-  color: #7a5500;
+  color: var(--mm-warning-text);
   font-size: 10px;
   font-weight: 950;
   letter-spacing: 0.11em;
@@ -1734,7 +1732,7 @@
 .mathmaster-section-completion-copy small {
   display: block;
   margin-top: 4px;
-  color: #6d520d;
+  color: var(--mm-warning-text);
   font-size: 13px;
   font-weight: 750;
 }
@@ -1765,9 +1763,9 @@
   max-width: 190px;
   padding: 8px 10px;
   border-radius: 10px;
-  background: #fff8df;
+  background: var(--mm-warning-bg);
   border: 1px solid #d9a514;
-  color: #6d520d;
+  color: var(--mm-warning-text);
   font-size: 12px;
   font-weight: 850;
   text-align: center;
@@ -1975,9 +1973,9 @@
   /* An iPad in landscape reports a bottom safe area (the home indicator);
      the bar's buttons stay above it. */
   padding: 10px 14px max(10px, env(safe-area-inset-bottom));
-  border-top: 1px solid #d9e2f1;
+  border-top: 1px solid var(--mm-tint-border);
   border-radius: 14px 14px 0 0;
-  background: rgba(255, 255, 255, 0.97);
+  background: var(--mm-surface-frosted);
   backdrop-filter: blur(6px);
   box-shadow: 0 -6px 18px rgba(32, 33, 36, 0.1);
 }

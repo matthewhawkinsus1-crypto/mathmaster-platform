@@ -58,24 +58,24 @@ import './WorkflowFocusMode.css';
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
 
 const panel = {
-  border: '1px solid #dadce0', borderRadius: 12, background: 'var(--mm-surface)',
+  border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)',
   padding: 16, marginBottom: 12, textAlign: 'left',
 };
-const stageHeading = { margin: '0 0 8px', fontSize: 13, fontWeight: 900, color: '#174ea6' };
-const waitingPanel = { ...panel, background: '#f8f9fa', borderStyle: 'dashed', color: '#5f6368' };
+const stageHeading = { margin: '0 0 8px', fontSize: 13, fontWeight: 900, color: 'var(--mm-primary-text)' };
+const waitingPanel = { ...panel, background: 'var(--mm-surface-sunken)', borderStyle: 'dashed', color: 'var(--mm-text-muted)' };
 
 
 const chipRow = { display: 'flex', gap: 8, flexWrap: 'wrap' };
 const choiceChip = (active) => ({
   padding: '10px 16px', minHeight: 44, borderRadius: 999, cursor: 'pointer',
-  border: `2px solid ${active ? '#1a73e8' : '#c9ced6'}`,
-  background: active ? '#e8f0fe' : '#fff',
-  color: active ? '#174ea6' : '#3c4043', fontWeight: 800, fontSize: 14,
+  border: `2px solid ${active ? '#1a73e8' : 'var(--mm-border)'}`,
+  background: active ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+  color: active ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: 800, fontSize: 14,
 });
 
 const textArea = {
   width: '100%', minHeight: 84, fontSize: 15, padding: '10px', resize: 'vertical',
-  border: '1px solid #c9ced6', borderRadius: 8, boxSizing: 'border-box',
+  border: '1px solid var(--mm-border)', borderRadius: 8, boxSizing: 'border-box',
 };
 
 /**
@@ -89,7 +89,7 @@ function StageSource({ input, stages }) {
   const upstream = stages.find((entry) => entry.id === input.sourceStageId);
   const label = getStage(upstream?.kind)?.label || input.sourceStageId;
   return (
-    <p style={{ margin: '0 0 8px', fontSize: 12, color: '#5f6368', lineHeight: 1.5 }}>
+    <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
       Built from your answer to <strong>{label}</strong>
       {typeof input.value === 'string' && input.value ? <> — <MathDisplay value={input.value} inline /></> : null}
     </p>
@@ -121,7 +121,7 @@ function PointInputStage({ stage, value, onChange, disabled }) {
           leaving it mounted behind the toggle would let a student type a pair
           that the answer no longer includes. */}
       {none ? (
-        <p style={{ margin: 0, padding: '10px 12px', borderRadius: 8, background: '#f1f3f4', fontWeight: 700 }}>
+        <p style={{ margin: 0, padding: '10px 12px', borderRadius: 8, background: 'var(--mm-surface-control)', fontWeight: 700 }}>
           {noneLabel}
         </p>
       ) : (
@@ -135,7 +135,7 @@ function PointInputStage({ stage, value, onChange, disabled }) {
         />
       )}
       {pointCount > 1 && !none ? (
-        <p style={{ margin: '6px 0 0', fontSize: 13, color: '#5f6b7a' }}>
+        <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--mm-text-muted)' }}>
           There are {pointCount}. Separate them with a comma between the pairs.
         </p>
       ) : null}
@@ -208,7 +208,7 @@ function ChoicePreviewGraph({ stage, value }) {
         horizontalLines={figures.horizontalLines}
         ariaLabel={value ? `Graph showing the option you selected, ${value}` : 'Graph'}
       />
-      <p style={{ margin: '6px 0 0', fontSize: 13, color: '#5f6b7a' }} aria-live="polite">
+      <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--mm-text-muted)' }} aria-live="polite">
         {value
           ? `Showing ${value} on the graph. Try another option to see what it looks like.`
           : 'Choose an option to see it drawn on the graph.'}
@@ -352,7 +352,7 @@ function QuantityRolesStage({ stage, value, onChange, disabled }) {
   // for controls that do not exist.
   if (quantities.length < 2) {
     return (
-      <div role="alert" style={{ padding: 12, border: '1px solid #f1a5a0', borderRadius: 8, background: '#fce8e6', color: '#a50e0e', lineHeight: 1.5 }}>
+      <div role="alert" style={{ padding: 12, border: '1px solid var(--mm-error-border-soft)', borderRadius: 8, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', lineHeight: 1.5 }}>
         This question is missing the quantity choices needed to identify the input and output. Your teacher needs to repair this item before it can be answered.
       </div>
     );
@@ -362,7 +362,7 @@ function QuantityRolesStage({ stage, value, onChange, disabled }) {
     <div style={{ display: 'grid', gap: 12 }}>
       {[['independent', 'Independent (input)'], ['dependent', 'Dependent (output)']].map(([role, label]) => (
         <div key={role}>
-          <p style={{ margin: '0 0 6px', fontSize: 12, fontWeight: 800, color: '#5f6368' }}>{label}</p>
+          <p style={{ margin: '0 0 6px', fontSize: 12, fontWeight: 800, color: 'var(--mm-text-muted)' }}>{label}</p>
           <div style={chipRow}>
             {quantities.map((quantity) => (
               <button
@@ -552,7 +552,7 @@ const DELEGATES = {
     // student's work as it stands, because this block is a verdict on it.)
     if (graphStage?.status === 'conflict') {
       return (
-        <div style={{ ...waitingPanel, background: '#fff8e1', color: '#7a4f00' }}>
+        <div style={{ ...waitingPanel, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>
           <strong>Your table and function do not agree yet.</strong>
           <p style={{ margin: '6px 0 0', lineHeight: 1.5 }}>
             Fix the table or the function first. Once they describe the same relationship, MathMaster will build this graphing step from your work.
@@ -563,7 +563,7 @@ const DELEGATES = {
 
     if (graphStage?.status === 'unbuildable') {
       return (
-        <div style={{ ...waitingPanel, background: '#fff8e1', color: '#7a4f00' }}>
+        <div style={{ ...waitingPanel, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>
           <strong>Your model cannot be graphed yet.</strong>
           <p style={{ margin: '6px 0 0', lineHeight: 1.5 }}>
             Revise the function so it is a complete equation, then finish the table. This graph is generated from those answers, not from a hidden answer key.
@@ -742,7 +742,7 @@ function StageBody({ stage, input, content, value, onReport, disabled, draftKey,
       // Validation rejects unknown kinds at Preflight, so reaching here means a
       // known kind with no renderer yet. Say so rather than showing a blank.
       return (
-        <p style={{ margin: 0, color: '#7a4f00', fontSize: 13 }}>
+        <p style={{ margin: 0, color: 'var(--mm-warning-text)', fontSize: 13 }}>
           This step type ({stage.kind}) is not available in this workspace yet.
         </p>
       );
@@ -1292,9 +1292,9 @@ export default function WorkflowRunner({
       ? `workflow-stage workflow-focus__stage-shell${focused ? ' workflow-focus__stage-shell--active' : ''}${reviewClass}`
       : `workflow-stage${reviewClass}`;
     const stagePanelStyle = reviewStatus === 'incorrect'
-      ? { ...panel, border: '2px solid #d93025', background: '#fff8f7' }
+      ? { ...panel, border: '2px solid #d93025', background: 'var(--mm-error-subtle)' }
       : reviewStatus === 'changed'
-        ? { ...panel, border: '2px solid #f9ab00', background: '#fffdf6' }
+        ? { ...panel, border: '2px solid #f9ab00', background: 'var(--mm-warning-subtle)' }
         : panel;
 
     // Focus Mode visually shows one stage, so an inactive delegated tool must
@@ -1318,7 +1318,7 @@ export default function WorkflowRunner({
       return (
         <section key={stage.id} className={shellClass} style={focusMode ? undefined : waitingPanel}>
           <div style={focusMode ? waitingPanel : undefined}>
-            <h4 style={{ ...stageHeading, color: '#5f6368' }}>
+            <h4 style={{ ...stageHeading, color: 'var(--mm-text-muted)' }}>
               Step {index + 1}. {definition?.label || stage.kind}
             </h4>
             <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55 }}>
@@ -1379,12 +1379,12 @@ export default function WorkflowRunner({
   const promptAndScenario = (
     <>
       {showPrompt && content?.prompt && (
-        <div style={{ ...panel, background: '#f8fbff', borderColor: '#c5d5ef' }}>
+        <div style={{ ...panel, background: 'var(--mm-surface-tint)', borderColor: 'var(--mm-tint-border)' }}>
           <QuestionPrompt>{content.prompt}</QuestionPrompt>
         </div>
       )}
       {showPrompt && content?.scenario && !question?.suppressScenarioDisplay && content.scenario !== content?.prompt && (
-        <div style={{ ...panel, background: '#f8f9fa' }}>
+        <div style={{ ...panel, background: 'var(--mm-surface-sunken)' }}>
           <QuestionPrompt variant="plain">{content.scenario}</QuestionPrompt>
         </div>
       )}
@@ -1396,7 +1396,7 @@ export default function WorkflowRunner({
       <div style={{ textAlign: 'left' }}>
         {promptAndScenario}
         {workflow.map((stage, index) => renderStage(stage, index))}
-        <p style={{ color: '#5f6368', fontSize: 12, margin: '4px 2px 0' }}>
+        <p style={{ color: 'var(--mm-text-muted)', fontSize: 12, margin: '4px 2px 0' }}>
           {progress.answered} of {progress.total} steps answered. Each step is marked on its own.
         </p>
       </div>

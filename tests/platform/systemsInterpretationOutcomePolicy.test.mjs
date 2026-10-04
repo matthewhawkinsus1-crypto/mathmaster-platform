@@ -343,7 +343,8 @@ test('the 2×2 statement shows its verdict only through the report', () => {
   const trail = region(twoByTwo, "id: 'interpret',", 'summary:', 'interpret trail stage');
   assert.match(trail, /complete: specialCaseReport\.stageComplete,/);
   assert.match(twoByTwo, /summary: specialCaseReport\.showsCorrect\s*\?/);
-  assert.match(twoByTwo, /background: specialCaseReport\.showsCorrect \? '#f0fbf4' : '#f3f4f6'/);
+  // Success wash vs. neutral, now as themed tokens (Dark Mode 2.0).
+  assert.match(twoByTwo, /background: specialCaseReport\.showsCorrect \? 'var\(--mm-success-subtle\)' : 'var\(--mm-surface-control\)'/);
   // The grade itself is unchanged: right only when all three answers are. It
   // is the shared grader's, which the screen's Check submits through.
   assert.match(region(twoByTwo, 'const check = () => {', '\n  };', '2×2 check'), /const result = gradeToolCheck\(systemsWorkspaceGrader, questionData, work\);/);
