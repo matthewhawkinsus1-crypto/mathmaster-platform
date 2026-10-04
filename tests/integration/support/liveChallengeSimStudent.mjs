@@ -1,0 +1,593 @@
+/*
+ * ONE SIMULATED STUDENT DEVICE FOR THE LIVE CHALLENGE LAUNCH CERTIFICATION.
+ *
+ * What is REAL here:
+ *   - the room / players / invite listeners: the production client service
+ *     (src/platform/liveChallenge/liveChallengeService.js), loaded per device
+ *     with its own Firebase app and Firestore connection (clientFirebase.mjs);
+ *   - every decision the student screen makes from what those listeners
+ *     deliver, through the same pure modules LiveChallengeStudent.jsx uses:
+ *     acceptChallengeSnapshot + challengePhaseAt (which snapshot to keep),
+ *     challengeClock (the stage at calibrated server time),
+ *     calibrateChallengeClock (the clock), publicLeaderboard (the board and
+ *     "am I joined?"), studentConnectionState (the connection pill);
+ *   - every server call: the real callables, under this student's identity,
+ *     against the emulator (the caller supplies `call`).
+ *
+ * What is MIRRORED from LiveChallengeStudent.jsx, because a React component
+ * cannot run in node: when it joins, when it calibrates (five samples, then a
+ * heartbeat every 30 s), how it collects and batches launch milestones (one
+ * entry per event per room, piggybacked on the heartbeat, one batch one
+ * second after the game mounts), how it retries a locked answer with the same
+ * submission id, and when the round counts as on screen (status running, the
+ * round open, a question, a ready clock, stage roundActive). The device never
+ * learns the stage from a countdown event: it re-derives it from the room it
+ * holds and its clock, on its own render tick.
+ *
+ * Device behaviour is a profile: render tick (a backgrounded Chromebook
+ * renders about once a second), extra latency on every request, delay on
+ * every snapshot (late, and therefore sometimes out of order), freezing,
+ * going offline, refreshing, answering late or twice.
+ */
+import { calibrateChallengeClock, acceptChallengeSnapshot, challengePhaseAt } from '../../../functions/shared/liveChallengeParity.mjs';
+import { publicLeaderboard } from '../../../functions/shared/liveChallenge.mjs';
+import { leaderboardOptionsFor } from '../../../functions/shared/liveChallengeScoring.mjs';
+import { RUSH_MODE_ID } from '../../../functions/shared/graphFeatureRushRules.mjs';
+import { CHALLENGE_STAGE, challengeClock } from '../../../src/platform/liveChallenge/challengeShellModel.js';
+import { studentConnectionState } from '../../../src/platform/liveChallenge/challengePresenceModel.js';
+
+const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, Math.max(0, ms)); });
+let deviceSeq = 0;
+
+/** Every device's open listeners, by kind: a leak shows up as a count that never comes back down. */
+export const openListeners = { room: 0, players: 0, invite: 0 };
+export const listenerTotal = () => Object.values(openListeners).reduce((sum, count) => sum + count, 0);
+
+const counted = (kind, stop) => {
+  openListeners[kind] += 1;
+  let stopped = false;
+  return () => {
+    if (stopped) return;
+    stopped = true;
+    openListeners[kind] -= 1;
+    stop?.();
+  };
+};
+
+// Plain data, so a profile can be sent to a worker thread (deviceFarm.mjs).
+export const DEFAULT_PROFILE = Object.freeze({
+  tickMs: 100, // how often the screen re-derives its stage
+  rttMs: 0, // added to every request, each way
+  deliveryFixedMs: 0, // added to every snapshot
+  deliveryJitterMs: 0, // plus up to this much more, per snapshot (so snapshots can arrive out of order)
+  heartbeatMs: 30_000, // LiveChallengeStudent: re-calibrate every 30 s
+  answer: 'correct', // 'correct' | 'wrong' | 'none'
+  answerJitterMs: 300, // a student takes up to this long to answer once the question shows
+  lostReply: false, // the server takes the first answer but the reply never arrives; the device resends the same envelope
+  secondAnswer: false, // after the first answer settles, try another one for the round
+});
+
+// A small seeded generator per device, so a run's jitter is repeatable.
+const seededRandom = (text) => {
+  let seed = [...String(text)].reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) % 2147483647, 7) || 7;
+  return () => ((seed = (seed * 48271) % 2147483647) / 2147483647);
+};
+
+/**
+ * @param {object} options
+ * @param {string} options.studentId
+ * @param {(name: string, studentId: string, data: object) => Promise<object>} options.call  the real callable
+ * @param {(roomId: string, roundIndex: number, correct: boolean) => Promise<object>} options.responseFor
+ * @param {Map} [options.storage]  this student's localStorage/sessionStorage; survives a refresh
+ */
+export function createSimStudent({ studentId, call, responseFor, profile: profileOverrides = {}, storage = new Map(), stats = null }) {
+  const profile = { ...DEFAULT_PROFILE, ...profileOverrides };
+  const random = seededRandom(studentId);
+  const deliveryDelayMs = () => profile.deliveryFixedMs + Math.round(random() * profile.deliveryJitterMs);
+  const answerDelayMs = () => Math.round(random() * profile.answerJitterMs);
+  const tally = stats || { requests: {}, launchOnlyRequests: 0, heartbeatRequests: 0, diagnosticWrites: 0, snapshots: 0 };
+  const device = {
+    studentId,
+    profile,
+    storage,
+    stats: tally,
+    service: null,
+    firebase: null,
+    deviceId: null,
+    roomId: null,
+    invite: null,
+    room: null,
+    roomFromCache: false,
+    everInSync: false,
+    roomMissing: false,
+    players: [],
+    online: true,
+    frozen: false,
+    closed: false,
+    joining: false,
+    joinedRoomId: null,
+    joinRefusedFor: null,
+    clock: { offsetMs: 0, rttMs: 0, jitterMs: 0, quality: 'reconnecting', sampleCount: 0 },
+    errors: [],
+    // Per room: rounds this device had on screen as roundActive, with when.
+    seen: {},
+    stops: { room: null, players: null, invite: null },
+    timers: new Set(),
+    queued: [],
+    launchInFlight: false,
+    // Answers this device is still sending (a host that moves the round on
+    // first is racing the student, not testing the server).
+    answering: 0,
+    scheduledAnswers: 0,
+  };
+
+  const later = (fn, ms) => {
+    const timer = setTimeout(() => {
+      device.timers.delete(timer);
+      if (device.closed) return;
+      // A frozen tab runs no JavaScript: its timers fire when it wakes.
+      if (device.frozen) device.queued.push(fn);
+      else fn();
+    }, Math.max(0, ms));
+    device.timers.add(timer);
+    return timer;
+  };
+
+  /* ------------------------------ transport ------------------------------ */
+
+  const request = async (name, data) => {
+    tally.requests[name] = (tally.requests[name] || 0) + 1;
+    if (!device.online) {
+      const error = new Error('Simulated network outage.');
+      error.code = 'functions/unavailable';
+      throw error;
+    }
+    await sleep(profile.rttMs);
+    try {
+      return await call(name, studentId, data);
+    } catch (error) {
+      // The shape httpsCallable throws.
+      const wrapped = new Error(error?.message || name);
+      wrapped.code = `functions/${error?.code || 'internal'}`;
+      wrapped.details = error?.details;
+      throw wrapped;
+    } finally {
+      await sleep(profile.rttMs);
+    }
+  };
+
+  /* --------------------- launch milestones (as #417) --------------------- */
+
+  const launchKey = (roomId) => `mm-live-challenge-launch-${roomId}`;
+  const launchState = () => {
+    const key = launchKey(device.roomId);
+    if (!storage.has(key)) storage.set(key, { milestones: {}, reported: {} });
+    return storage.get(key);
+  };
+  const collectLaunchEvent = (event, observedRoom = device.room) => {
+    if (!device.roomId) return;
+    const state = launchState();
+    if (state.milestones[event] || state.reported[event]) return;
+    state.milestones[event] = {
+      clientAtMs: Date.now(),
+      roomStatus: observedRoom?.status || null,
+      roundIndex: Number.isInteger(Number(observedRoom?.currentRound)) ? Number(observedRoom.currentRound) : null,
+    };
+  };
+  const calibrate = (data) => {
+    if (data.quality || data.launchReport) tally.diagnosticWrites += 1;
+    if (data.launchReport && !data.quality) tally.launchOnlyRequests += 1;
+    if (data.quality) tally.heartbeatRequests += 1;
+    return request('calibrateLiveChallengeClock', data);
+  };
+  const sendLaunchDiagnostics = async (extra = {}) => {
+    const roomId = device.roomId;
+    if (!roomId || device.launchInFlight) return null;
+    const state = launchState();
+    if (!Object.keys(state.milestones).length) {
+      return extra.quality ? calibrate({ roomId, sessionId: device.sessionId, ...extra }) : null;
+    }
+    const sent = { milestones: { ...state.milestones } };
+    device.launchInFlight = true;
+    try {
+      const reply = await calibrate({ roomId, sessionId: device.sessionId, ...extra, launchReport: sent });
+      for (const [event, milestone] of Object.entries(sent.milestones)) {
+        if (state.milestones[event]?.clientAtMs === milestone.clientAtMs) {
+          state.reported[event] = milestone.clientAtMs;
+          delete state.milestones[event];
+        }
+      }
+      return reply;
+    } finally {
+      device.launchInFlight = false;
+    }
+  };
+
+  /* -------------------------------- clock -------------------------------- */
+
+  let calibrationRun = 0;
+  const startCalibration = () => {
+    const run = (calibrationRun += 1);
+    let failures = 0;
+    const sample = async () => {
+      if (device.closed || run !== calibrationRun || !calibrating()) return;
+      try {
+        const samples = [];
+        for (let index = 0; index < 5; index += 1) {
+          const clientSentAt = Date.now();
+          // eslint-disable-next-line no-await-in-loop
+          const reply = await request('calibrateLiveChallengeClock', { roomId: device.roomId });
+          samples.push({ clientSentAt, clientReceivedAt: Date.now(), serverAt: reply.serverAt });
+        }
+        const estimate = calibrateChallengeClock(samples);
+        failures = 0;
+        if (run !== calibrationRun) return;
+        device.clock = estimate;
+        await sendLaunchDiagnostics({ quality: estimate.quality }).catch(() => (
+          calibrate({ roomId: device.roomId, quality: estimate.quality, sessionId: device.sessionId }).catch(() => {})
+        ));
+        later(sample, profile.heartbeatMs);
+      } catch {
+        failures += 1;
+        if (run !== calibrationRun) return;
+        device.clock = { ...device.clock, quality: 'degraded' };
+        later(sample, failures > 5 ? 10_000 : 2_000);
+      }
+    };
+    sample();
+  };
+  const calibrating = () => !device.room || device.room.status === 'lobby' || device.room.status === 'running';
+
+  /* ------------------------------ the screen ------------------------------ */
+
+  const roomKey = () => device.roomId;
+  const seenFor = () => {
+    if (!device.seen[roomKey()]) device.seen[roomKey()] = { rounds: {}, stages: new Set(), countdownSeen: new Set(), answers: {} };
+    return device.seen[roomKey()];
+  };
+  const leaderboard = () => publicLeaderboard(device.players, { activeRound: null, ...leaderboardOptionsFor(device.room?.scoringStrategyId || null) });
+  const stage = () => (device.room ? challengeClock(device.room, Date.now() + device.clock.offsetMs).stage : null);
+  const clockReady = () => device.clock.sampleCount > 0 || device.clock.quality === 'degraded';
+
+  const onRoom = (next, { fromCache = false } = {}) => {
+    tally.snapshots += 1;
+    // How long after the server wrote the room this device heard it.
+    const writtenAt = next?.updatedAt?.toMillis?.();
+    if (writtenAt && !fromCache) tally.roomLagMaxMs = Math.max(tally.roomLagMaxMs || 0, Date.now() - writtenAt);
+    const deliver = () => {
+      if (device.closed || (next && next.roomId !== device.roomId)) return;
+      if (device.frozen) { device.queued.push(() => deliver()); return; }
+      const phase = challengePhaseAt({ ...next, roundEndsAtMs: device.service.timestampMillis(next?.endsAt || next?.roundEndsAt) }, Date.now() + device.clock.offsetMs);
+      device.roomFromCache = fromCache;
+      if (!fromCache) {
+        device.everInSync = true;
+        device.roomMissing = !next;
+      }
+      device.room = acceptChallengeSnapshot(device.room, next ? { ...next, phase } : null);
+      if (next?.status === 'running') {
+        collectLaunchEvent('running_received', next);
+        if (device.service.timestampMillis(next.startsAt || next.roundStartedAt) > Date.now() + device.clock.offsetMs) {
+          collectLaunchEvent('countdown_received', next);
+          seenFor().countdownSeen.add(Number(next.currentRound));
+        }
+      }
+      syncPlayersListener();
+      render();
+    };
+    const delay = deliveryDelayMs();
+    if (delay > 0) later(deliver, delay);
+    else deliver();
+  };
+
+  // The standings listener pauses while a rush round is open (as the screen does).
+  let playersListenerFor = null;
+  const syncPlayersListener = () => {
+    const rushRoundOpen = device.room?.challengeMode === RUSH_MODE_ID && device.room?.status === 'running' && device.room?.roundState !== 'closed';
+    const wanted = device.roomId && !rushRoundOpen ? device.roomId : null;
+    if (wanted === playersListenerFor) return;
+    device.stops.players?.();
+    device.stops.players = null;
+    playersListenerFor = wanted;
+    if (!wanted) return;
+    device.stops.players = counted('players', device.service.watchLiveChallengePlayers(wanted, (rows) => {
+      if (device.closed || wanted !== device.roomId) return;
+      device.players = rows;
+      render();
+    }, (error) => device.errors.push(`players: ${error?.message}`)));
+  };
+
+  const maybeJoin = () => {
+    const { room } = device;
+    if (!device.roomId || device.joining || !room || room.roomId !== device.roomId || !['lobby', 'running'].includes(room.status)) return;
+    if (device.joinRefusedFor === device.roomId || device.joinedRoomId === device.roomId) return;
+    if (leaderboard().some((entry) => entry.playerKey === device.invite?.playerKey)) return;
+    device.joining = true;
+    const roomId = device.roomId;
+    request('joinLiveChallenge', { roomId })
+      .then((reply) => {
+        if (roomId !== device.roomId) return;
+        device.joinedRoomId = roomId;
+        seenFor().joinReply = reply;
+      })
+      .catch((error) => {
+        if (/permission-denied|failed-precondition|not-found|invalid-argument/.test(String(error?.code || ''))) device.joinRefusedFor = roomId;
+        device.errors.push(`join: ${error?.code} ${error?.message}`);
+      })
+      .finally(() => { device.joining = false; });
+  };
+
+  // An answer is locked and kept (with its submission id) until the server
+  // has it: as ChallengeRound's pending envelope, in this student's storage.
+  const pendingKey = (roomId, roundIndex, roundVersion) => `live-challenge-pending-${roomId}-${roundIndex}-${roundVersion || 0}`;
+  const resultKey = (roomId, roundIndex, roundVersion) => `live-challenge-result-${roomId}-${roundIndex}-${roundVersion || 0}`;
+  // `kind`: 'first' (the answer), 'resend' (the same envelope again, after a
+  // lost reply or a reconnect) or 'second' (a different answer for a round
+  // already answered, which the server must never score).
+  const sendAnswer = async (capture, kind = 'first') => {
+    const seen = seenFor();
+    const record = (seen.answers[capture.roundIndex] ||= { attempts: 0, accepted: [], refused: [] });
+    record.attempts += 1;
+    const sentAt = Date.now();
+    try {
+      const grading = await request('submitLiveChallengeResponse', capture);
+      if (profile.lostReply && !capture.replyLostOnce) {
+        // The answer reached the server; its reply did not reach the device.
+        capture.replyLostOnce = true;
+        const lost = new Error('Simulated lost reply.');
+        lost.code = 'functions/unavailable';
+        throw lost;
+      }
+      record.accepted.push({ kind, ms: Date.now() - sentAt, submissionId: capture.submissionId, duplicate: grading.duplicate === true, pointsAwarded: Number(grading.pointsAwarded) || 0, totalScore: Number(grading.totalScore) || 0, isCorrect: grading.isCorrect === true });
+      storage.set(resultKey(capture.roomId, capture.roundIndex, capture.roundVersion), grading);
+      storage.delete(pendingKey(capture.roomId, capture.roundIndex, capture.roundVersion));
+      return grading;
+    } catch (error) {
+      record.refused.push({ kind, ms: Date.now() - sentAt, submissionId: capture.submissionId, code: error.code, message: error.message });
+      // A refusal settles the envelope (already-exists: the first answer is
+      // recorded; a closed or missing round: the screen has caught up). A
+      // dropped connection keeps it, with its id, for the retry.
+      if (/already-exists|failed-precondition|deadline-exceeded|not-found|permission-denied|invalid-argument/.test(String(error.code))) {
+        storage.delete(pendingKey(capture.roomId, capture.roundIndex, capture.roundVersion));
+      }
+      return null;
+    }
+  };
+  const retryPending = () => {
+    for (const [key, capture] of storage) {
+      if (typeof key === 'string' && key.startsWith(`live-challenge-pending-${device.roomId}-`) && capture && !capture.inFlight) {
+        capture.inFlight = true;
+        sendAnswer(capture, 'resend').finally(() => { capture.inFlight = false; });
+      }
+    }
+  };
+  const answerRound = async (room) => {
+    device.answering += 1;
+    try {
+      await answerRoundNow(room);
+    } finally {
+      device.answering -= 1;
+    }
+  };
+  const answerRoundNow = async (room) => {
+    const roundIndex = Number(room.currentRound);
+    const roundVersion = Number(room.roundVersion) || 0;
+    const pKey = pendingKey(room.roomId, roundIndex, roundVersion);
+    if (profile.answer === 'none' || storage.has(pKey) || storage.has(resultKey(room.roomId, roundIndex, roundVersion))) return;
+    const self = device.players.find((row) => row.playerKey === device.invite?.playerKey);
+    if (Number(self?.answeredRound) === roundIndex) return; // answered on another device, or before a refresh
+    const capture = {
+      roomId: room.roomId,
+      roundIndex,
+      roundVersion,
+      roundToken: room.roundToken || '',
+      submissionId: globalThis.crypto.randomUUID(),
+      responsePayload: await responseFor(room.roomId, roundIndex, profile.answer === 'correct'),
+      humanElapsedMs: 1_000,
+      connectionQuality: device.clock.quality,
+      timingDegraded: device.clock.quality === 'degraded',
+      autoFinalizedAtRoundEnd: false,
+    };
+    storage.set(pKey, capture);
+    capture.inFlight = true;
+    await sendAnswer(capture);
+    capture.inFlight = false;
+    // The screen still holds the locked envelope after a lost reply; the
+    // student's Retry (or the next 'online' event) sends that same envelope.
+    if (storage.has(pKey)) {
+      await sleep(300);
+      capture.inFlight = true;
+      await sendAnswer(capture, 'resend');
+      capture.inFlight = false;
+    }
+    if (profile.secondAnswer) await sendAnswer({ ...capture, submissionId: globalThis.crypto.randomUUID() }, 'second');
+  };
+
+  const fetchRushGraphs = async (room) => {
+    const seen = seenFor();
+    const round = seen.rounds[room.currentRound];
+    let delay = 600;
+    for (let attempt = 0; attempt < 12 && !device.closed && room.roomId === device.roomId; attempt += 1) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const reply = await request('getGraphFeatureRushRound', { roomId: room.roomId, roundIndex: Number(room.currentRound), roundVersion: Number(room.roundVersion) || 0, roundToken: room.roundToken || '', count: 6 });
+        if (reply?.joined === false) { await sleep(400); continue; } // eslint-disable-line no-await-in-loop
+        round.rushGraphs = (reply?.questions || []).length;
+        round.rushPayloadBytes = JSON.stringify(reply?.questions || []).length;
+        return;
+      } catch {
+        await sleep(delay); // eslint-disable-line no-await-in-loop
+        delay = Math.min(5_000, delay * 2);
+      }
+    }
+  };
+
+  const render = () => {
+    if (device.closed || device.frozen || !device.room || device.room.roomId !== device.roomId) return;
+    const { room } = device;
+    maybeJoin();
+    const current = stage();
+    const seen = seenFor();
+    seen.stages.add(current);
+    seen.connection = studentConnectionState({ online: device.online, fromCache: device.roomFromCache, everInSync: device.everInSync });
+    const roundOpen = room.status === 'running' && room.roundState !== 'closed';
+    const playable = roundOpen && room.currentQuestion && clockReady() && current === CHALLENGE_STAGE.ROUND_ACTIVE;
+    if (!playable) return;
+    const roundIndex = Number(room.currentRound);
+    if (seen.rounds[roundIndex]) return;
+    seen.rounds[roundIndex] = { at: Date.now(), startsAtMs: device.service.timestampMillis(room.startsAt || room.roundStartedAt), roundVersion: Number(room.roundVersion) || 0 };
+    // game_mounted, then one best-effort batch a second later (never awaited).
+    collectLaunchEvent('game_mounted', room);
+    later(() => { sendLaunchDiagnostics().catch(() => {}); }, 1_000);
+    if (room.challengeMode === RUSH_MODE_ID) fetchRushGraphs(room);
+    else retryPending(); // a locked answer from before a refresh is sent again, same id
+    if (room.challengeMode !== RUSH_MODE_ID) { device.answering += 1; device.scheduledAnswers += 1; }
+    if (room.challengeMode !== RUSH_MODE_ID) later(() => { device.answering -= 1; device.scheduledAnswers -= 1; answerRound(room).catch((error) => device.errors.push(`answer: ${error?.message}`)); }, answerDelayMs());
+  };
+
+  let tickTimer = null;
+  const startTicking = () => {
+    if (tickTimer) return;
+    const tick = () => { render(); tickTimer = later(tick, profile.tickMs); };
+    tickTimer = later(tick, profile.tickMs);
+  };
+
+  /* ----------------------------- the lifecycle ----------------------------- */
+
+  const loadDevice = async () => {
+    deviceSeq += 1;
+    device.deviceId = `${studentId}-${deviceSeq}`;
+    device.service = await import(`../../../src/platform/liveChallenge/liveChallengeService.js?mmClient=${device.deviceId}`);
+    device.firebase = await import(`./clientFirebase.mjs?mmClient=${device.deviceId}`);
+    if (!storage.has('mm-live-challenge-session')) storage.set('mm-live-challenge-session', globalThis.crypto.randomUUID());
+    device.sessionId = storage.get('mm-live-challenge-session');
+  };
+
+  const openRoom = (roomId) => {
+    device.stops.room?.();
+    device.stops.room = null;
+    // A different room is a different game: nothing of the last one stays.
+    device.room = null;
+    device.players = [];
+    device.roomFromCache = false;
+    device.everInSync = false;
+    device.roomMissing = false;
+    device.joinedRoomId = null;
+    device.joinRefusedFor = null;
+    device.roomId = roomId;
+    playersListenerFor = null;
+    device.stops.players?.();
+    device.stops.players = null;
+    if (!roomId) return;
+    collectLaunchEvent('listener_attached', null);
+    device.stops.room = counted('room', device.service.watchLiveChallengeRoom(roomId, onRoom, (error) => {
+      collectLaunchEvent('listener_error');
+      later(() => { sendLaunchDiagnostics().catch(() => {}); }, 1_000);
+      device.errors.push(`room: ${error?.message}`);
+    }, { includeMetadataChanges: true }));
+    syncPlayersListener();
+    startCalibration();
+  };
+
+  return Object.assign(device, {
+    /** Open the game screen for an invite ({ roomId, playerKey }), as App does. */
+    async open(invite) {
+      if (!device.service) await loadDevice();
+      device.invite = invite;
+      openRoom(invite?.roomId || null);
+      startTicking();
+    },
+    /** Follow this student's invite pointer: a new game moves the screen to it, unrefreshed. */
+    async followInvites() {
+      if (!device.service) await loadDevice();
+      device.stops.invite?.();
+      device.stops.invite = counted('invite', device.service.watchLiveChallengeInvite(studentId, (invite) => {
+        if (device.closed || !invite?.roomId || invite.roomId === device.roomId) return;
+        device.invite = invite;
+        openRoom(invite.roomId);
+      }, (error) => device.errors.push(`invite: ${error?.message}`)));
+      startTicking();
+    },
+    stage,
+    leaderboard,
+    clockReady,
+    /** What the device holds, as plain data (for a worker's report). */
+    view() {
+      const plainSeen = (seen) => Object.fromEntries(Object.entries(seen || {}).map(([roomId, entry]) => [roomId, {
+        ...entry, stages: [...entry.stages], countdownSeen: [...entry.countdownSeen],
+      }]));
+      const room = device.room;
+      return {
+        studentId,
+        roomId: device.roomId,
+        invite: device.invite ? { roomId: device.invite.roomId, playerKey: device.invite.playerKey } : null,
+        room: room ? { roomId: room.roomId, status: room.status, currentRound: room.currentRound, roundState: room.roundState, roundVersion: room.roundVersion, phase: room.phase } : null,
+        stage: stage(),
+        clockReady: clockReady(),
+        clock: device.clock,
+        online: device.online,
+        frozen: device.frozen,
+        answering: device.answering,
+        playerCount: device.players.length,
+        board: leaderboard().map((row) => [row.playerKey, row.rank]),
+        seen: plainSeen(device.seen),
+        seenBeforeRefresh: plainSeen(device.seenBeforeRefresh),
+        stats: tally,
+        errors: device.errors.slice(-5),
+      };
+    },
+    seenIn: (roomId) => device.seen[roomId] || null,
+    async goOffline() {
+      device.online = false;
+      collectLaunchEvent('connection_lost');
+      const { disableNetwork } = await import('firebase/firestore');
+      await disableNetwork(device.firebase.db);
+    },
+    async goOnline() {
+      const { enableNetwork } = await import('firebase/firestore');
+      await enableNetwork(device.firebase.db);
+      device.online = true;
+      collectLaunchEvent('connection_restored');
+      later(() => { sendLaunchDiagnostics().catch(() => {}); }, 1_000);
+      retryPending();
+    },
+    freeze() { device.frozen = true; },
+    thaw() {
+      device.frozen = false;
+      const queued = device.queued.splice(0);
+      queued.forEach((fn) => fn());
+      render(); // visibilitychange: re-derive at once
+    },
+    /** A refresh: this tab's page is gone and a new one opens with the same storage. */
+    async refresh() {
+      const invite = device.invite;
+      const following = Boolean(device.stops.invite);
+      await this.shutdown({ keepStorage: true });
+      device.closed = false;
+      // The new page starts with nothing on screen; what the old page saw is kept for the report.
+      device.seenBeforeRefresh = device.seen;
+      device.seen = {};
+      device.service = null;
+      device.clock = { offsetMs: 0, rttMs: 0, jitterMs: 0, quality: 'reconnecting', sampleCount: 0 };
+      await loadDevice();
+      if (following) await this.followInvites();
+      device.invite = invite;
+      openRoom(invite?.roomId || null);
+      tickTimer = null;
+      startTicking();
+    },
+    async shutdown() {
+      device.closed = true;
+      calibrationRun += 1;
+      for (const timer of device.timers) clearTimeout(timer);
+      device.timers.clear();
+      // An answer this page scheduled but never sent leaves with the page.
+      device.answering -= device.scheduledAnswers;
+      device.scheduledAnswers = 0;
+      tickTimer = null;
+      Object.values(device.stops).forEach((stop) => stop?.());
+      device.stops = { room: null, players: null, invite: null };
+      playersListenerFor = null;
+      await device.firebase?.shutdown?.();
+    },
+  });
+}
