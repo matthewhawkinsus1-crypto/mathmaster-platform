@@ -39,7 +39,8 @@ so that the browser, Cloud Functions and tests run the same bytes:
 | --- | --- |
 | `id`, `version` | Stable identity. A delivered question pins both. An unpinned reference means v1, so shipping v2 never moves a live question. |
 | `skill`, `difficulty` | What is assessed and at what rigor. Recovery equivalence reads these. |
-| `constraints` | The knobs an assignment may turn: ranges, variable letter. Each has a default and hard bounds. Out-of-bounds requests fall back to the default and are reported. |
+| `constraints` | The knobs an assignment may turn: ranges, variable letter. Each has a default and hard bounds. Out-of-bounds requests fall back to the default and are reported — or, for a family with `constraintPolicy: "strict"`, make the slot unresolvable with a message naming what is allowed. |
+| `conceptConstraints`, `strata` | The knobs that decide what is assessed (a solution case, distribution, a number form), which no support may override; and the strata a mixed slot balances (see [question-family-special-cases.md](question-family-special-cases.md)). |
 | `parameters` | **Finite** domains, so capacity is countable. |
 | `derive`, `rules` | Derived values, plus the issue codes an instance violates. Built-in rules include divide by zero, unintended decimals or fractions, a degenerate, parallel or coincident system, a duplicate root, and a feature outside the window. |
 | `fingerprint` | The normalized mathematical identity. It ignores presentation: equation order in a system, a scaled equation, and answer-choice order. |
@@ -49,8 +50,10 @@ so that the browser, Cloud Functions and tests run the same bytes:
 | `recovery` | Whether the family may back Recovery, and its equivalence group (coverage key). |
 
 The platform families live in `questionFamiliesLinear.mjs`,
-`questionFamiliesSystems.mjs`, `questionFamiliesNonlinear.mjs` and
-`questionFamiliesRepresentations.mjs`. They are registered in
+`questionFamiliesLinearCases.mjs` (equation special cases, v2),
+`questionFamiliesSystems.mjs`, `questionFamiliesSystemsAlgebraic.mjs` (2×2
+systems with one, none or infinitely many solutions),
+`questionFamiliesNonlinear.mjs` and `questionFamiliesRepresentations.mjs`. They are registered in
 `questionFamilyRegistry.mjs`, and the authoring contract lists them from that
 live registry.
 

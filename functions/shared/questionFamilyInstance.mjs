@@ -38,7 +38,7 @@
  * Pure: no Firestore, no clock.
  */
 
-import { resolveFamilyConstraints } from './questionFamilyContract.mjs';
+import { CONSTRAINT_POLICY, describeConstraintIssue, resolveFamilyConstraints } from './questionFamilyContract.mjs';
 import { buildFamilyQuestion, cachedFamilyInstanceSequence } from './questionFamilyEngine.mjs';
 import { getPlatformQuestionFamily, hasPlatformQuestionFamily } from './questionFamilyRegistry.mjs';
 import { buildTemplateFamily, hasLocalFamilyTemplate } from './questionFamilyTemplate.mjs';
@@ -61,6 +61,11 @@ export const FAMILY_RESOLUTION_ERROR = Object.freeze({
   NO_VALID_INSTANCES: 'family_has_no_valid_instances',
   ALL_INSTANCES_EXCLUDED: 'all_instances_excluded',
   PIN_MISMATCH: 'pin_mismatch',
+  // A strict family (constraintPolicy 'strict') was asked for something it
+  // cannot honour exactly — a constraint value, or a tool it cannot fill. It
+  // generates nothing rather than the default: a slot that asked for "no
+  // solution" must never quietly ask for one.
+  CONSTRAINT_INVALID: 'constraint_invalid',
 });
 
 /** Is this slot opted into the question family engine at all? */
@@ -135,8 +140,35 @@ export const resolveQuestionFamilyDefinition = (question, { slotKey = '', suppor
     ? family.supportConstraints[supportKey]
     : null;
   const constraints = resolveFamilyConstraints(family, { ...reference.constraints, ...supportOverrides });
+  if (constraints.fatal) {
+    return {
+      error: FAMILY_RESOLUTION_ERROR.CONSTRAINT_INVALID,
+      reference,
+      family,
+      constraintIssues: constraints.issues,
+      issues: constraints.issues.map((issue) => describeConstraintIssue(issue, `${family.id} v${family.version}`)),
+    };
+  }
 
   const requestedTool = reference.tool;
+  // A strict family answers only in the tools it declares: asking for another
+  // is refused like any other constraint it cannot honour, never quietly
+  // opened in its default tool.
+  if (requestedTool && !family.tools[requestedTool] && family.constraintPolicy === CONSTRAINT_POLICY.STRICT) {
+    const toolIssue = {
+      constraint: 'tool',
+      code: 'tool_not_supported',
+      requested: requestedTool,
+      allowed: { kind: 'choice', values: Object.keys(family.tools), default: family.defaultTool },
+    };
+    return {
+      error: FAMILY_RESOLUTION_ERROR.CONSTRAINT_INVALID,
+      reference,
+      family,
+      constraintIssues: [toolIssue],
+      issues: [describeConstraintIssue(toolIssue, `${family.id} v${family.version}`)],
+    };
+  }
   const slotType = clean(question?.type);
   const tool = requestedTool && family.tools[requestedTool]
     ? requestedTool

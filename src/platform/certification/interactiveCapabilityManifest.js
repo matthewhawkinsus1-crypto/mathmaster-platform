@@ -442,6 +442,20 @@ export const CERTIFICATION_SUITES = Object.freeze([
     artifacts: 'tests/browser/artifacts/algebraicSystems3x3',
   },
   {
+    // Every special case a Question Family generates, finished through the
+    // real controls on a Chromebook, an iPad and a phone, and re-graded on the
+    // server path. Runs on its own workflow for the code it depends on
+    // (question-family-cases-browser.yml); here before a release and nightly.
+    id: 'question-family-cases',
+    label: 'Generated equation special cases and algebraic 2×2 systems, solved and server-regraded',
+    subsystem: 'STEPALGEBRA',
+    tier: 'release',
+    server: true,
+    command: ['node', 'tests/browser/questionFamilyCases.mjs'],
+    artifacts: 'tests/browser/artifacts/questionFamilyCases',
+    timeoutMinutes: 60,
+  },
+  {
     id: 'draft-persistence',
     label: 'Unfinished work survives navigation, reload and reopen',
     subsystem: 'PERSISTENCE',

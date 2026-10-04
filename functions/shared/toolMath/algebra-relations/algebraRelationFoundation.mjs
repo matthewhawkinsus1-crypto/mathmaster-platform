@@ -21,6 +21,7 @@ import {
   splitAdditiveTerms,
   splitMultiplicativeFactors,
 } from '../../algebra/algebraAstEngine.mjs';
+import { exactRationalFromExpression } from '../../algebra/algebraExactRational.mjs';
 import { needsMultiRelationWorkspace, relationSourceFromQuestion } from '../../serverGrading/stepAlgebraRouting.mjs';
 
 const RELATION_LATEX = { '=': '=', '<': '<', '<=': '\\le', '>': '>', '>=': '\\ge' };
@@ -1405,9 +1406,64 @@ export const relationSolutionSummary = (state) => {
   return intervals.length ? { solved: true, kind: 'intervals', intervals } : { solved: false };
 };
 
+/*
+ * A RELATION WITH NO VARIABLE LEFT IS A STATEMENT: TRUE OR FALSE.
+ *
+ * When the student's own balanced moves cancel the variable — 3x + 7 = 3x + 2
+ * becomes 7 = 2, and 2(x + 3) = 2x + 6 becomes 6 = 6 — what is left no longer
+ * mentions x: it is false for every x (no solution) or true for every x (all
+ * real numbers). The same holds for an inequality (5 < 3, 3 < 5).
+ *
+ * Only a branch the student has reduced to numbers counts. A relation that
+ * still contains the variable — or any other letter — is not a statement, so
+ * the "No solution" / "All real numbers" conclusion still has to be earned by
+ * the algebra; the workspace only commits balanced, solution-preserving moves
+ * (and never multiplies by zero), so a statement reached here is the original
+ * relation's own verdict. Numbers are compared exactly where they are
+ * rational (1/3 + 2/3 = 1 is true, not 0.9999999999999999 ≠ 1).
+ */
+const STATEMENT_TOLERANCE = 1e-10;
+
+const statementValue = (expression) => {
+  const numeric = numericValue(expression);
+  if (numeric === null) return null;
+  return { exact: exactRationalFromExpression(expression), numeric };
+};
+
+const compareStatementValues = (left, right) => {
+  if (left.exact && right.exact) {
+    const difference = left.exact.n * right.exact.d - right.exact.n * left.exact.d;
+    return Math.sign(difference);
+  }
+  const scale = Math.max(1, Math.abs(left.numeric), Math.abs(right.numeric));
+  if (Math.abs(left.numeric - right.numeric) <= STATEMENT_TOLERANCE * scale) return 0;
+  return Math.sign(left.numeric - right.numeric);
+};
+
+const STATEMENT_HOLDS = {
+  '=': (order) => order === 0,
+  '<': (order) => order < 0,
+  '<=': (order) => order <= 0,
+  '>': (order) => order > 0,
+  '>=': (order) => order >= 0,
+};
+
+/** true / false for a variable-free branch, null for anything else. */
+export const constantRelationTruth = (branch) => {
+  const expressions = Array.isArray(branch?.expressions) ? branch.expressions : [];
+  const relations = Array.isArray(branch?.relations) ? branch.relations : [];
+  if (expressions.length < 2 || relations.length !== expressions.length - 1) return null;
+  if (!relations.every((relation) => STATEMENT_HOLDS[relation])) return null;
+  const values = expressions.map(statementValue);
+  if (values.some((value) => value === null)) return null;
+  return relations.every((relation, index) => STATEMENT_HOLDS[relation](compareStatementValues(values[index], values[index + 1])));
+};
+
 export const obviousSpecialClaim = (state) => {
   if (state?.special) return state.special;
   if (!state || state.branches?.length !== 1) return null;
+  const statement = constantRelationTruth(state.branches[0]);
+  if (statement !== null) return statement ? 'allReals' : 'noSolution';
   const oriented = orientAbsoluteBranch(state.branches[0]);
   if (!oriented || Math.abs(oriented.abs.coefficient - 1) > 1e-12) return null;
   const value = numericValue(oriented.bound);

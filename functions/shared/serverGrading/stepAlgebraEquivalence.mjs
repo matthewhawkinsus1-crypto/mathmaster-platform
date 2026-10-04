@@ -626,6 +626,52 @@ const compareTruth = (original, final, variable, points) => {
 
 const withinScan = (value) => isFiniteNumber(value) && Math.abs(value) <= MAX_SOLUTION_MAGNITUDE;
 
+const POLYNOMIAL_OPERATORS = new Set(['add', 'subtract', 'multiply', 'unaryMinus', 'unaryPlus']);
+const MAX_POLYNOMIAL_EXPONENT = 10;
+
+/**
+ * Is this expression a polynomial in `variable`: numbers, the variable,
+ * + − ×, division only BY a number, and whole-number powers? Then it is
+ * defined for every real number, and two such expressions agree everywhere
+ * exactly when they are identically equal.
+ */
+const isPolynomialIn = (node, variable) => {
+  let polynomial = true;
+  node.traverse((child) => {
+    if (!polynomial) return;
+    if (child.isConstantNode) polynomial = typeof child.value === 'number';
+    else if (child.isSymbolNode) polynomial = child.name === variable;
+    else if (child.isParenthesisNode) polynomial = true;
+    else if (child.isOperatorNode && POLYNOMIAL_OPERATORS.has(child.fn)) polynomial = true;
+    else if (child.isOperatorNode && child.fn === 'divide') polynomial = freeSymbols(child.args[1]).length === 0;
+    else if (child.isOperatorNode && child.fn === 'pow') {
+      const exponent = child.args[1]?.isConstantNode ? child.args[1].value : null;
+      polynomial = Number.isInteger(exponent) && exponent >= 0 && exponent <= MAX_POLYNOMIAL_EXPONENT;
+    } else polynomial = false;
+  });
+  return polynomial;
+};
+
+/**
+ * "All real numbers" for an equation between polynomials: true exactly when
+ * its sides are identically equal; null when the relation is not one (an
+ * inequality, an absolute value, a variable in a denominator…), which keeps
+ * the region scan below. Judged this way rather than by that scan's far
+ * probes (±1e11), where floating error in a coefficient such as 5/3 makes
+ * −(5/4)x − (5/3)x = −(35/12)x read false.
+ */
+const polynomialIdentity = (original, variable) => {
+  const branches = original?.branches || [];
+  if (branches.length !== 1) return null;
+  const [branch] = branches;
+  if (!(branch.relations || []).length || !branch.relations.every((relation) => relation === '=')) return null;
+  const nodes = (branch.expressions || []).map(parseNode);
+  if (nodes.some((node) => !node || !isPolynomialIn(node, variable))) return null;
+  const verdicts = nodes.slice(0, -1).map((node, index) => compareIdentically(node, nodes[index + 1]));
+  if (verdicts.includes(IDENTITY.UNKNOWN)) return null;
+  return verdicts.every((verdict) => verdict === IDENTITY.EQUAL);
+};
+
 /**
  * Does the final relation state have exactly the original relation's solution
  * set? `summary` is relationSolutionSummary(final).
@@ -688,6 +734,11 @@ export const relationMatchesOriginal = ({ original, final, summary } = {}) => {
     if (points.some((point) => solves(point) && nearest(solutions, point) === null)) return false;
     // Isolated values: the original must hold nowhere between them.
     return probesAround(mergedPoints([...points, ...values])).every((probe) => verifyRelationCandidate(original, probe, variable) !== true);
+  }
+
+  if (summary.kind === 'special' && summary.special === 'allReals' && !hasAbsolute) {
+    const identity = polynomialIdentity(original, variable);
+    if (identity !== null) return identity;
   }
 
   if (summary.kind === 'intervals' || summary.kind === 'special') {

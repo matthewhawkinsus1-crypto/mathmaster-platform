@@ -14,13 +14,20 @@
  */
 
 import { LINEAR_FAMILIES } from './questionFamiliesLinear.mjs';
+import { LINEAR_CASE_FAMILIES } from './questionFamiliesLinearCases.mjs';
 import { SYSTEMS_FAMILIES } from './questionFamiliesSystems.mjs';
+import { SYSTEMS_ALGEBRAIC_FAMILIES } from './questionFamiliesSystemsAlgebraic.mjs';
 import { NONLINEAR_FAMILIES } from './questionFamiliesNonlinear.mjs';
 import { REPRESENTATION_FAMILIES } from './questionFamiliesRepresentations.mjs';
 
+// Order matters only for listing. A family's later versions follow its first
+// (linear.multiStepEquation v2, linear.twoStepEquation v2 — special cases,
+// distribution and exact fractions); an unpinned reference still means v1.
 const REGISTERED = Object.freeze([
   ...LINEAR_FAMILIES,
+  ...LINEAR_CASE_FAMILIES,
   ...SYSTEMS_FAMILIES,
+  ...SYSTEMS_ALGEBRAIC_FAMILIES,
   ...NONLINEAR_FAMILIES,
   ...REPRESENTATION_FAMILIES,
 ]);

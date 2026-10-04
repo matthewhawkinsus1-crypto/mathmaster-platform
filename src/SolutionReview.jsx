@@ -144,6 +144,34 @@ const buildRepresentations = (question) => {
       ]).slice(0, 3);
     }
     case 'stepAlgebra': {
+      // A Question Family instance with an exact key (linear equations v2):
+      // a special outcome is never "x = …", and a fraction stays a fraction.
+      // Each line is either plain prose or plain LaTeX (isProseRepresentation
+      // decides how a line is drawn).
+      const key = question.solutionKey;
+      const letter = asText(question.variable) || 'x';
+      if (key?.outcome === 'noSolution') {
+        return [
+          'No solution: no value of the variable makes the equation true.',
+          `${letter} \\in \\varnothing`,
+          'The variable terms cancel and the constants that remain are not equal.',
+        ];
+      }
+      if (key?.outcome === 'allReals') {
+        return [
+          'All real numbers: every value of the variable makes the equation true.',
+          `${letter} \\in \\mathbb{R}`,
+          'Both sides simplify to the same expression, so the equation is an identity.',
+        ];
+      }
+      if (key?.outcome === 'value' && question.generatedAnswer === undefined && asText(key.latex || key.value)) {
+        const value = asText(key.latex || key.value);
+        return unique([
+          `${question.variable || 'x'}=${value}`,
+          `Solution set: \\{${value}\\}`,
+          `Check: substitute ${value} into both sides.`,
+        ]).slice(0, 3);
+      }
       if (question.generatedAnswer !== undefined) {
         return unique([
           `${question.variable || 'x'}=${question.generatedAnswer}`,

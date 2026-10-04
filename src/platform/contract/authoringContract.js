@@ -45,11 +45,24 @@ const GENERATOR_FIELDS = Object.freeze([
   { field: 'generator.seedNote', shape: 'string', note: 'author note only; never affects generation' },
 ]);
 
+const knobSummary = ([name, knob]) => {
+  if (knob?.kind === 'choice') return `${name} (${knob.values.map((value) => JSON.stringify(value)).join(' | ')})`;
+  if (knob?.kind === 'boolean') return `${name} (true | false)`;
+  if (knob?.kind === 'range') return `${name} ([min, max] within [${knob.limits.join(', ')}])`;
+  return name;
+};
+
 // The platform Question Families an assignment may reference, read from the
-// live registry so the contract can never list one that does not exist.
+// live registry so the contract can never list one that does not exist. A
+// strict version lists every constraint it accepts: anything else is refused.
 const questionFamilyCatalogLines = () => allRegisteredQuestionFamilies()
   .filter((family) => family.scope !== 'assignment')
-  .map((family) => `- \`${family.id}\` (v${family.version}) — ${String(family.skill?.label || family.skill?.objective || family.id).replace(/\.$/, '')}; tools: ${Object.keys(family.tools).join(', ')}`);
+  .map((family) => {
+    const line = `- \`${family.id}\` (v${family.version}) — ${String(family.skill?.label || family.skill?.objective || family.id).replace(/\.$/, '')}; tools: ${Object.keys(family.tools).join(', ')}`;
+    return family.constraintPolicy === 'strict'
+      ? `${line}; strict constraints: ${Object.entries(family.constraints || {}).map(knobSummary).join(', ')}`
+      : line;
+  });
 
 const RESPONSE_TYPES = Object.freeze([
   { id: 'numeric', note: 'a single number' },
@@ -601,6 +614,8 @@ export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = nu
   '- Platform family: `"questionFamily": { "id": "linear.twoStepEquation", "version": 1, "constraints": { "solutionRange": [-8, 8] } }` on a question that still has its own prompt, studentActions and alignment. The family writes the numbers, the answer key and the answer fields; do not author them. `{{equation}}` / `{{points}}` in the prompt are replaced with the generated mathematics.',
   '- Assignment-local family: keep the question\'s `generator` (finite integer `parameters`, `derived`, `constraints`) and `{{placeholders}}`, and add `"questionFamily": { "scope": "assignment" }`. Every parameter needs a finite min/max so MathMaster can count the distinct versions.',
   '- A family writes QUESTIONS only: never solution steps, hints or worked solutions, and it never makes a tool show more than it otherwise would.',
+  '- An unpinned reference always means version 1. A constraint only a later version has (`solutionCase`, `distribute`, `coefficientForm` on linear.multiStepEquation v2) needs that `"version"`; Pre-Flight blocks a constraint the referenced version would ignore. A version listed with strict constraints refuses any constraint, value or tool it cannot honour instead of using a default.',
+  '- Special cases: `"questionFamily": { "id": "linear.multiStepEquation", "version": 2, "constraints": { "solutionCase": "mixed", "distribute": true } }` gives each student an equation with one solution, no solution or infinitely many (answered "No solution" / "All real numbers" in Step Algebra); `"questionFamily": { "id": "systems.algebraic2x2", "version": 1, "constraints": { "solutionCase": "none" } }` on a systemsWorkspace question gives parallel systems (add `"method": "substitution"` or `"elimination"` to the question to require a method; otherwise the student chooses). `"mixed"` gives the cases in equal shares across a class.',
   '- Platform families available now:',
   ...questionFamilyCatalogLines(),
   '',

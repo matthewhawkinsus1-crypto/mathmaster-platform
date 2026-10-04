@@ -24,6 +24,7 @@ import {
   createIndexPermutation,
   evaluateFamilyCandidate,
   featuresInsideWindow,
+  instanceStratum,
   measureFamilyCapacity,
 } from '../../functions/shared/questionFamilyEngine.mjs';
 import {
@@ -38,6 +39,7 @@ import { gradeOrdinaryResponse, serverGradingSupport } from '../../functions/sha
 import { gradeServerResponse, gradeToolWork } from '../../functions/shared/serverGrading/serverResponseGrading.mjs';
 import { buildLinearConnectionCards, linearConnectionsCardKinds, representationSetsFor } from '../../functions/shared/toolMath/representationMatch/representationMath.mjs';
 import { correctLinearBoardResponse, oneWrongLinearBoardResponse } from './helpers/linearMultipleRepresentationsResponses.mjs';
+import { correctAlgebraicSystemWork, wrongAlgebraicSystemWork } from './helpers/algebraicSystemWork.mjs';
 
 const SAMPLE = 160;
 
@@ -78,6 +80,12 @@ const REGISTRY_TOOL_WORK = {
   representationBridge: (question) => ({
     right: correctLinearBoardResponse(question),
     wrong: oneWrongLinearBoardResponse(question),
+  }),
+  // The Systems Workspace's algebraic screen: the solved values and both
+  // verifications, or the no-variable statement and the three readings of it.
+  systemsWorkspace: (question) => ({
+    right: correctAlgebraicSystemWork(question),
+    wrong: wrongAlgebraicSystemWork(question),
   }),
   representationMatch: (question) => {
     const sets = representationSetsFor(question);
@@ -132,12 +140,18 @@ test('every family: each instance obeys its rules, its window and its constraint
   for (const family of allRegisteredQuestionFamilies()) {
     const { instances, values } = sampleInstances(family);
     assert.ok(instances.length >= 40, `${family.id} produced ${instances.length} instances`);
-    const space = buildParameterSpace(family, values);
     instances.forEach((instance) => {
       const replay = evaluateFamilyCandidate(family, values, instance.params);
       assert.equal(replay.valid, true, `${family.id} instance re-validates`);
+      // A stratified family's instance came from its stratum's own space.
+      const stratum = family.strata ? instanceStratum(family, values, instance) : undefined;
+      if (family.strata) assert.ok(stratum, `${family.id} instance belongs to one of its strata`);
+      const space = buildParameterSpace(family, values, stratum);
+      assert.ok(space.names.length > 0, `${family.id} has parameters to check`);
       space.names.forEach((name, position) => {
-        assert.ok(space.values[position].includes(instance.params[name]), `${family.id}.${name} stays inside its constrained domain`);
+        // By value: a domain of exact rationals holds objects, not numbers.
+        const inside = space.values[position].some((value) => JSON.stringify(value) === JSON.stringify(instance.params[name]));
+        assert.ok(inside, `${family.id}.${name} stays inside its constrained domain`);
       });
       if (family.graphWindow) {
         const { window, features } = family.graphWindow(instance.values, values);
