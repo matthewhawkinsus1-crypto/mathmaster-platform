@@ -240,8 +240,30 @@ test('permanently deleting a student removes their entries from shared assignmen
   // An entry that never named students gains no fields (Firestore refuses undefined).
   assert.deepEqual(plan.recoveryAudit[1], assignment.dol.recoveryAudit[1]);
   assert.equal(JSON.stringify(plan.recoveryAudit).includes('"S_A"'), false);
-  // A student with no entries changes nothing.
-  assert.deepEqual(planStudentRemovalFromAssignment({ assignment, studentId: 'S_Z', receipt: 'r' }), { deletePaths: [], recoveryAudit: null });
+  // A student with no entries changes nothing. (`arrayRemovals` is the
+  // excused/reopened list forms, added with the private-controls migration.)
+  assert.deepEqual(planStudentRemovalFromAssignment({ assignment, studentId: 'S_Z', receipt: 'r' }), { deletePaths: [], recoveryAudit: null, arrayRemovals: [] });
+});
+
+test('deletion also clears the excused/reopened lists and the student ids an audit entry id embedded', () => {
+  // A students-scope grant made with no active class built its id from the
+  // ids it named (assessmentRecovery.js auditEntry: `${action}:students:A+B:<at>`).
+  const assignment = {
+    excusedStudentIds: ['S_A', 'S_B'],
+    reopenedStudentIds: ['S_A'],
+    dol: {
+      recoveryAudit: [
+        { id: 'grantAttempts:students:S_A+S_B:2026-10-08T15:00:00.000Z', action: 'grantAttempts', scope: { type: 'students', studentIds: ['S_A', 'S_B'], classId: null } },
+      ],
+    },
+  };
+  const plan = planStudentRemovalFromAssignment({ assignment, studentId: 'S_A', receipt: 'abc123' });
+  assert.deepEqual(plan.arrayRemovals, ['excusedStudentIds', 'reopenedStudentIds']);
+  assert.equal(plan.recoveryAudit[0].id, 'grantAttempts:students:deleted-student:abc123+S_B:2026-10-08T15:00:00.000Z');
+  assert.equal(JSON.stringify(plan.recoveryAudit).includes('S_A'), false, 'no trace of the deleted id may remain in the audit');
+  // An id that merely contains the student id as a substring is not touched.
+  const lookalike = planStudentRemovalFromAssignment({ assignment: { dol: { recoveryAudit: [{ id: 'grantAttempts:students:S_AB:t', scope: { type: 'students', studentIds: ['S_AB'] } }] } }, studentId: 'S_A', receipt: 'r' });
+  assert.equal(lookalike.recoveryAudit, null);
 });
 
 test('a student device reads its class plus earlier-class work by id, each once', () => {
@@ -282,12 +304,19 @@ test('the case review reads why a deadline moved from the private grants, oldest
 // --- Wiring: the places that must apply the rule. Anchored to the code that
 // does the work, not to names anywhere in a large file (AGENTS.md).
 
-test('the extension callable writes the stub to the shared document and the details to a private grant', () => {
+test('the extension callable writes the deadline to the student\'s private controls and the details to a private grant', () => {
   const callable = executableSource(region(read('functions/index.js'), 'exports.applyStudentAttendanceExtension', 'function trustedResponseInspectionEvidence', 'applyStudentAttendanceExtension'));
-  assert.match(callable, /new FieldPath\("studentOverrides", studentId, "extension"\), privacy\.sharedExtensionStub\(/);
+  // The deadline and its stub are planned as a change to the student's private
+  // record (studentAssignmentOverrides.mjs), which writes the record and —
+  // only while previous-release clients still read it — the shared copy.
+  // What lands where is proven against Firestore in
+  // tests/integration/studentAssignmentOverrides.test.mjs.
+  assert.match(callable, /overrides\.planStudentOverrideChange\(\{[\s\S]*kind: overrides\.OVERRIDE_CHANGE\.ATTENDANCE_EXTENSION/);
+  assert.match(callable, /transaction\.set\(overrideRef, \{ \.\.\.plan\.record/);
+  assert.match(callable, /applySharedCopyWrites\(transaction, assignmentRef, plan\.sharedWrites\)/);
   assert.match(callable, /gradeRef\.collection\(privacy\.ATTENDANCE_EXTENSION_GRANTS_COLLECTION\)\.doc\(\)/);
   assert.match(callable, /privacy\.buildExtensionGrantRecord\(/);
-  // The browser's object is never spread onto the shared document again.
+  // The browser's object is never spread onto any document.
   assert.doesNotMatch(callable, /\.\.\.extension,/);
 });
 

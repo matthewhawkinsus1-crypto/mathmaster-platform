@@ -21,6 +21,7 @@
 import { buildSupportEvidenceReport, exportStatusFor } from '../supportEvidence/supportEvidenceReport.js';
 import { EVIDENCE_LEGEND, REPORT_LIMITATIONS } from '../../../functions/shared/supportEvidenceModel.mjs';
 import { zonedDateKey } from '../../../functions/shared/instructionalCalendar.mjs';
+import { staffOverrideEntryFor } from '../../../functions/shared/studentAssignmentOverrides.mjs';
 import {
   canonicalPresentedAssignmentGrade, canonicalPresentedSectionGrade, projectedAssignmentTrackerFor, assignmentGradeOverrideFor,
 } from '../grading/canonicalGradeProjection.js';
@@ -238,7 +239,9 @@ export const buildStudentCaseReview = ({
       supportEvidence: evidence,
       practice: evidenceLoaded ? (caseEvidence.practice?.[row.assignmentId] ?? null) : undefined,
       receipts: evidenceLoaded ? (caseEvidence.receipts?.[row.assignmentId] ?? null) : undefined,
-      studentOverride: assignment?.studentOverrides?.[student?.id] || null,
+      // The student's own controls on this assignment, via the one resolver
+      // (with a pre-#415 extension's reasons kept for staff, for the fallback below).
+      studentOverride: staffOverrideEntryFor(assignment, student?.id),
       extensionGrants,
       recovery: student?.sectionRecoveryByAssignment?.[row.assignmentId] || null,
       challenge: student?.warmupChallengeByAssignment?.[row.assignmentId] || null,

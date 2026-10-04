@@ -136,15 +136,23 @@ export const legacyExtensionGrantId = (assignmentId) => `legacy__${String(assign
  * WHAT A COPY OF AN ASSIGNMENT MUST NOT CARRY.
  *
  * Duplicate and the content-release callable both start from the stored
- * document. Per-student state (overrides, unique-question seats) and every
- * class's DOL/Warm-Up runtime state (closures, early unlocks, moved dates,
- * attempt grants, the recovery audit, section-access overrides) belong to that
- * one assigned instance. Carried into a copy they publish students' records
- * again, and the copy, once assigned to the same class, would open closed or
- * on the wrong day. Authored configuration (minutes, instruction dates per
- * period, Live Challenge settings, section-access defaults) is kept.
+ * document. Per-student state (overrides, the excused/reopened lists,
+ * unique-question seats) and every class's DOL/Warm-Up runtime state
+ * (closures, early unlocks, moved dates, attempt grants, the recovery audit,
+ * section-access overrides) belong to that one assigned instance. Carried
+ * into a copy they publish students' records again, and the copy, once
+ * assigned to the same class, would open closed or on the wrong day.
+ * Authored configuration (minutes, instruction dates per period, Live
+ * Challenge settings, section-access defaults) is kept.
+ *
+ * A student's controls now live in their own private record keyed by the
+ * ASSIGNMENT id (studentAssignmentOverrides.mjs), so a copy — a new id — can
+ * never inherit one; these fields cover the shared copy still on older
+ * documents.
  */
-export const PER_STUDENT_ASSIGNMENT_FIELDS = Object.freeze(['studentOverrides', 'generationSeats']);
+export const PER_STUDENT_ASSIGNMENT_FIELDS = Object.freeze([
+  'studentOverrides', 'excusedStudentIds', 'reopenedStudentIds', 'generationSeats',
+]);
 
 export const SECTION_RUNTIME_STATE_FIELDS = Object.freeze({
   dol: Object.freeze([
@@ -266,12 +274,15 @@ export const planAssignmentPrivacyMigration = ({ assignmentId, assignment, stude
  */
 export const planStudentRemovalFromAssignment = ({ assignment, studentId, receipt }) => {
   const id = String(studentId || '');
-  if (!id || !isObject(assignment)) return { deletePaths: [], recoveryAudit: null };
+  if (!id || !isObject(assignment)) return { deletePaths: [], recoveryAudit: null, arrayRemovals: [] };
   const deletePaths = [];
   if (isObject(assignment.studentOverrides) && id in assignment.studentOverrides) deletePaths.push(['studentOverrides', id]);
   if (isObject(assignment.dol?.attemptGrantsByStudentId) && id in assignment.dol.attemptGrantsByStudentId) {
     deletePaths.push(['dol', 'attemptGrantsByStudentId', id]);
   }
+  // The array forms of excused/reopened name the student too.
+  const arrayRemovals = ['excusedStudentIds', 'reopenedStudentIds']
+    .filter((field) => Array.isArray(assignment[field]) && assignment[field].map((entry) => String(entry ?? '').trim()).includes(id));
   let recoveryAudit = null;
   const audit = Array.isArray(assignment.dol?.recoveryAudit) ? assignment.dol.recoveryAudit : null;
   if (audit) {
@@ -292,6 +303,12 @@ export const planStudentRemovalFromAssignment = ({ assignment, studentId, receip
     const next = audit.map((entry) => {
       if (!isObject(entry)) return entry;
       const out = { ...entry };
+      // A students-scope entry's id was built from the ids it named
+      // (`grantAttempts:students:<id>+<id>:<time>`), so the id is scrubbed too.
+      if (typeof out.id === 'string' && out.id.split(/[:+]/).includes(id)) {
+        changed = true;
+        out.id = out.id.split(':').map((part) => part.split('+').map((piece) => (piece === id ? replacement : piece)).join('+')).join(':');
+      }
       if (isObject(out.scope) && Array.isArray(out.scope.studentIds)) {
         out.scope = { ...out.scope, studentIds: swapIds(out.scope.studentIds) };
       }
@@ -304,5 +321,5 @@ export const planStudentRemovalFromAssignment = ({ assignment, studentId, receip
     });
     if (changed) recoveryAudit = next;
   }
-  return { deletePaths, recoveryAudit };
+  return { deletePaths, recoveryAudit, arrayRemovals };
 };

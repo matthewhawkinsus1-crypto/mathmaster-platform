@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { region } from './helpers/sourceContract.mjs';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
@@ -150,7 +151,12 @@ test('the teacher subscribes to persistent support history and archived session 
 
 test('student reassignment carries support and session history to the new teacher without rewriting origin', () => {
   const functionsIndex = read('functions/index.js');
-  assert.match(functionsIndex, /\["studentSupportEvents", "studentSessionSummaries", "parentContactLogs"\]/);
+  // The top-level collections reauthorized by studentId (a student's private
+  // assignment controls joined the list with studentAssignmentOverrides.mjs).
+  const reauthorized = region(functionsIndex, 'async function reauthorizeStudentRecords(', '// Class Points accounts and transactions', 'reauthorizeStudentRecords');
+  const topLevel = reauthorized.match(/for \(const collectionName of (\[[^\]]*\])\)/)?.[1] || '';
+  ['studentSupportEvents', 'studentSessionSummaries', 'parentContactLogs', 'studentAssignmentOverrides']
+    .forEach((name) => assert.ok(topLevel.includes(`"${name}"`), `${name} must be reauthorized on a class move`));
   assert.match(functionsIndex, /reauthorizeContext\(entry\.data\(\).*classRecord/s);
   const store = read('src/platform/teacher/studentSupportStore.js');
   assert.match(store, /originClassId/);

@@ -17,6 +17,7 @@ import {
   normalizeGradingPeriodSettings,
   resolveAssignmentGradingPeriod,
 } from './gradingPeriods.js';
+import { resolveStudentOverride } from '../../../functions/shared/studentAssignmentOverrides.mjs';
 
 /*
  * THE STUDENT GRADE CENTER, AS A MODEL.
@@ -140,29 +141,23 @@ export const EXCLUSION_REASON_TEXT = Object.freeze({
  * "Excused" changes what a grade means and "reopened" changes what a student is
  * allowed to do. Guessing either from dates or from an empty tracker would put
  * words in a teacher's mouth, so both are read only from explicit per-student
- * platform data. No such data means neither state, which is the truthful answer
- * until a teacher records one.
+ * platform data — the student's own controls as the one override resolver
+ * (functions/shared/studentAssignmentOverrides.mjs) answers them, from their
+ * private record and any copy still on the shared document, in every form a
+ * teacher's flag has been stored. No such data means neither state, which is
+ * the truthful answer until a teacher records one.
  */
-const studentOverrideFor = (assignment, studentId) => {
-  const id = clean(studentId);
-  if (!id) return {};
-  const overrides = assignment?.studentOverrides;
-  return (overrides && typeof overrides === 'object' && overrides[id]) || {};
-};
+const studentControlsFor = (assignment, studentId, privateOverride) => (
+  clean(studentId) ? resolveStudentOverride({ assignment, studentId: clean(studentId), privateOverride }) : null
+);
 
-export const assignmentIsExcusedForStudent = (assignment, studentId) => {
-  const id = clean(studentId);
-  if (!id) return false;
-  if (list(assignment?.excusedStudentIds).map(clean).includes(id)) return true;
-  return studentOverrideFor(assignment, studentId).excused === true;
-};
+export const assignmentIsExcusedForStudent = (assignment, studentId, privateOverride = undefined) => (
+  studentControlsFor(assignment, studentId, privateOverride)?.excused === true
+);
 
-export const assignmentIsReopenedForStudent = (assignment, studentId) => {
-  const id = clean(studentId);
-  if (!id) return false;
-  if (list(assignment?.reopenedStudentIds).map(clean).includes(id)) return true;
-  return studentOverrideFor(assignment, studentId).reopened === true;
-};
+export const assignmentIsReopenedForStudent = (assignment, studentId, privateOverride = undefined) => (
+  studentControlsFor(assignment, studentId, privateOverride)?.reopened === true
+);
 
 /**
  * One assignment's status, decided once so no component decides it again.

@@ -26,6 +26,7 @@
  */
 
 import { resolveDolInstructionDateKey } from '../../../functions/shared/sectionDeadline.mjs';
+import { resolveStudentDolExtraAttempts } from '../../../functions/shared/studentAssignmentOverrides.mjs';
 
 export const RECOVERY_AUDIT_LIMIT = 500;
 export const MAX_TEACHER_GRANTED_ATTEMPTS = 20;
@@ -300,9 +301,13 @@ export const buildDolScheduleRestore = ({ assignment = {}, classId, todayKey = n
  * What a student should be told: is their DOL reopened (and until when), and
  * how many extra attempts have they been given.
  */
-export const summarizeStudentRecovery = ({ assignment = {}, classId = null, studentId = null, now = Date.now() } = {}) => {
-  const classExtraAttempts = classId ? grantCount(assignment?.dol?.attemptGrantsByClassId?.[classId]) : 0;
-  const studentExtraAttempts = studentId ? grantCount(assignment?.dol?.attemptGrantsByStudentId?.[studentId]) : 0;
+export const summarizeStudentRecovery = ({ assignment = {}, classId = null, studentId = null, now = Date.now(), privateOverride = undefined } = {}) => {
+  // The class grant from the assignment; the student's own from their private
+  // controls (functions/shared/studentAssignmentOverrides.mjs) — the same
+  // resolver ingestion and the deadline finalizer count attempts with.
+  const attempts = resolveStudentDolExtraAttempts({ assignment, classId, studentId, privateOverride });
+  const classExtraAttempts = attempts.classGrant;
+  const studentExtraAttempts = attempts.studentGrant;
   const recovery = classId ? assignment?.dol?.recoveryByClassId?.[classId] : null;
   const opened = recovery?.openedAt ? new Date(recovery.openedAt).getTime() : NaN;
   const closes = recovery?.closesAt ? new Date(recovery.closesAt).getTime() : NaN;
