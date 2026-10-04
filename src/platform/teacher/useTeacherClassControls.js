@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { stableStringify } from '../../../functions/shared/studentAssignmentOverrides.mjs';
 import {
   EMPTY_TEACHER_CONTROLS,
   TEACHER_CONTROLS_STATUS,
@@ -68,6 +69,9 @@ export default function useTeacherClassControls({ db, scopeKey }) {
     }
     let active = true;
     setControls((previous) => {
+      // The same scope listening again (React re-running the effect) keeps
+      // what it holds until the new snapshot answers.
+      if (previous?.scopeKey === listenKey && previous.status !== TEACHER_CONTROLS_STATUS.LOADING) return previous;
       const previousScope = previous?.scopeKey ? decodeTeacherControlsScope(previous.scopeKey) : null;
       const sameViewer = previousScope
         && previousScope.email === scope.email
@@ -80,7 +84,13 @@ export default function useTeacherClassControls({ db, scopeKey }) {
       scopeKey: listenKey,
       onChange: ({ byAssignment, recordCount }) => {
         if (!active) return;
-        setControls({ scopeKey: listenKey, status: TEACHER_CONTROLS_STATUS.READY, classIds: scope.classIds, byAssignment, recordCount });
+        // A snapshot that says what is already held changes nothing.
+        setControls((previous) => (previous?.scopeKey === listenKey
+          && previous.status === TEACHER_CONTROLS_STATUS.READY
+          && previous.recordCount === recordCount
+          && stableStringify(previous.byAssignment) === stableStringify(byAssignment)
+          ? previous
+          : { scopeKey: listenKey, status: TEACHER_CONTROLS_STATUS.READY, classIds: scope.classIds, byAssignment, recordCount }));
       },
       onError: (error) => {
         if (!active) return;

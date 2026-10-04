@@ -103,6 +103,31 @@ test('15 / 11. sign-out and a change of account drop the lessons and the previou
   assert.match(provider, /sessionUidRef\.current = firebaseUser\.uid;\s*setState\(\{ status: 'ready'/);
 });
 
+test('nothing new, nothing projected: re-running an effect (React re-runs them, e.g. when a lesson\'s code loads) moves no lesson object', () => {
+  // The same student listening again keeps the controls it holds; a snapshot
+  // that says the same thing keeps the same state object…
+  const student = executableSource(read('src/platform/assignments/useStudentAssignmentControls.js'));
+  assert.match(student, /setControls\(\(previous\) => \(previous\.ownerId === owner\s*\? previous\s*:/);
+  assert.match(student, /previous\.status === STUDENT_CONTROLS_STATUS\.READY[\s\S]{0,120}sameControls\(previous\.byAssignmentId, byAssignmentId\)\s*\? previous/);
+  const teacher = executableSource(read('src/platform/teacher/useTeacherClassControls.js'));
+  assert.match(teacher, /if \(previous\?\.scopeKey === listenKey && previous\.status !== TEACHER_CONTROLS_STATUS\.LOADING\) return previous;/);
+  assert.match(teacher, /stableStringify\(previous\.byAssignment\) === stableStringify\(byAssignment\)\s*\? previous/);
+  // …and a publish whose inputs are the ones last published projects nothing
+  // (every projection makes new lesson objects; an open question would remount).
+  const publishStudent = region(code, 'const publishStudentAssignments = () => {', '\n  };', 'publishStudentAssignments');
+  assert.match(publishStudent, /if \(lastPublishedRef\.current && inputs\.every\(\(input, index\) => input === lastPublishedRef\.current\[index\]\)\) return;/);
+  const publishTeacher = region(code, 'const publishTeacherAssignments = () => {', '\n  };', 'publishTeacherAssignments');
+  assert.match(publishTeacher, /if \(lastPublishedRef\.current && inputs\.every\(\(input, index\) => input === lastPublishedRef\.current\[index\]\)\) return;/);
+  assert.match(region(code, 'const clearSignedInAssignments = () => {', '\n  };', 'clearSignedInAssignments'), /lastPublishedRef\.current = null;/);
+});
+
+test('a resume restored from the server is projected with the controls held when it arrives', () => {
+  const hydrate = executableSource(region(code, 'const hydrateSession = async', 'hydrateSession();', 'hydrateSession'));
+  const resume = hydrate.slice(hydrate.indexOf('readLatestWorkspaceResume(studentId)'));
+  assert.match(resume, /const \[assignment\] = projectStudentAssignments\(\{[\s\S]*controls: studentControlsRef\.current,/);
+  assert.doesNotMatch(resume.slice(0, resume.indexOf('setResumeAction({')), /projectedAssignments\.find/);
+});
+
 test('the student\'s lessons are re-projected — not re-listened — when their controls or profile change', () => {
   const effect = region(code, "if (user?.role === 'student' && user.id) {\n      studentViewerRef.current", '}, [user?.role, user?.id, user?.profile, studentAssignmentControls, teacherClassControls]);', 're-projection');
   assert.match(effect, /publishStudentAssignments\(\);[\s\S]*publishTeacherAssignments\(\);/);

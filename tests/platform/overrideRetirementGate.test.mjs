@@ -295,6 +295,9 @@ test('23. the strip and the restore are separate, typed actions; a strip needs i
   assert.match(card, /teacherAdmin\.retireSharedStudentControls\(\{ confirmation: retireText\.trim\(\), attestFullSchoolDay: attestSchoolDay \}\)/);
   assert.match(card, /runPass\('restore', \{ mode: 'restore', dryRun: false, confirm: restoreText\.trim\(\) \}/);
   assert.equal(STRIP_CONFIRMATION !== RESTORE_CONFIRMATION && STRIP_CONFIRMATION !== RETIRE_CONFIRMATION, true);
+  // Only the newest status is shown: a slow read never replaces what a later action returned.
+  assert.match(card, /const ticket = statusTicket\.current;[\s\S]*if \(ticket === statusTicket\.current\) setStatus\(value\);/);
+  assert.doesNotMatch(card.slice(card.indexOf('return (')), /setStatus\(result\)/, 'actions show their result through showStatus');
   // The admin page shows the card.
   const admin = read('src/components/admin/ClassesAdmin.jsx');
   assert.match(admin, /import StudentControlsMigrationCard from '\.\/StudentControlsMigrationCard\.jsx';/);

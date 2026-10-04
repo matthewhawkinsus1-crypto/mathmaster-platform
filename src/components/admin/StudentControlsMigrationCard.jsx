@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { describeAuthError, teacherAdmin } from '../../auth/authService';
 import { getMathMasterBuildInfo } from '../../platform/runtime/buildInfo.js';
 import {
@@ -107,9 +107,19 @@ export default function StudentControlsMigrationCard() {
     }
   };
 
+  // Only the newest status is shown: a slow read started earlier never
+  // replaces what a later action returned.
+  const statusTicket = useRef(0);
+  const showStatus = useCallback((value) => {
+    statusTicket.current += 1;
+    setStatus(value);
+  }, []);
   const refresh = useCallback(async () => {
+    statusTicket.current += 1;
+    const ticket = statusTicket.current;
     try {
-      setStatus(await teacherAdmin.readAssignmentOverrideStorage());
+      const value = await teacherAdmin.readAssignmentOverrideStorage();
+      if (ticket === statusTicket.current) setStatus(value);
     } catch (caught) {
       setError(describeAuthError(caught) || caught?.message || 'The migration status could not be read.');
     }
@@ -216,7 +226,7 @@ export default function StudentControlsMigrationCard() {
             clientBuild: getMathMasterBuildInfo(),
             servedBuild: await readServedBuild(),
           });
-          setStatus(result);
+          showStatus(result);
           return result;
         }, 'The release is recorded as live. The school-day clock has started.')}>
           {busy === 'cutover' ? 'Recording…' : cutover ? 'Record it again (restarts the clock)' : 'Record this release as live'}
@@ -261,7 +271,7 @@ export default function StudentControlsMigrationCard() {
             <div>
               <button type="button" style={danger} disabled={Boolean(busy) || !attestSchoolDay || retireText.trim() !== RETIRE_CONFIRMATION} onClick={() => run('retire', async () => {
                 const result = await teacherAdmin.retireSharedStudentControls({ confirmation: retireText.trim(), attestFullSchoolDay: attestSchoolDay });
-                setStatus(result);
+                showStatus(result);
                 setRetireText('');
                 return result;
               }, 'The shared copy is retired. Run the strip’s dry run next.')}>
@@ -324,7 +334,7 @@ export default function StudentControlsMigrationCard() {
             </label>
             <button type="button" style={quiet} disabled={Boolean(busy) || !confirmMirror} onClick={() => run('mirror', async () => {
               const result = await teacherAdmin.mirrorSharedStudentControls();
-              setStatus(result);
+              showStatus(result);
               setConfirmMirror(false);
               return result;
             }, 'The shared copy is kept in step again. Run the restore to write it back.')}>

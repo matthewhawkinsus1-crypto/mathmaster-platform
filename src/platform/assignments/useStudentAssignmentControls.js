@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { stableStringify } from '../../../functions/shared/studentAssignmentOverrides.mjs';
 import {
   EMPTY_STUDENT_CONTROLS,
   STUDENT_CONTROLS_STATUS,
@@ -7,6 +8,7 @@ import {
 } from './studentAssignmentControls.js';
 
 const clean = (value) => String(value ?? '').trim();
+const sameControls = (left, right) => stableStringify(left || {}) === stableStringify(right || {});
 
 /**
  * The signed-in student's own assignment controls, live: exactly one listener
@@ -28,13 +30,25 @@ export default function useStudentAssignmentControls({ db, studentId }) {
       return undefined;
     }
     let active = true;
-    setControls({ ownerId: owner, status: STUDENT_CONTROLS_STATUS.LOADING, byAssignmentId: {}, fromCache: false });
+    // The same student listening again (React re-running the effect, a
+    // re-subscription) keeps the controls already held until the new snapshot
+    // answers; only a different student starts from nothing.
+    setControls((previous) => (previous.ownerId === owner
+      ? previous
+      : { ownerId: owner, status: STUDENT_CONTROLS_STATUS.LOADING, byAssignmentId: {}, fromCache: false }));
     const unsubscribe = subscribeStudentAssignmentControls({
       db,
       studentId: owner,
       onChange: ({ byAssignmentId, fromCache }) => {
         if (!active) return;
-        setControls({ ownerId: owner, status: STUDENT_CONTROLS_STATUS.READY, byAssignmentId, fromCache });
+        // A snapshot that says what is already held changes nothing, so the
+        // lessons are not projected again for it.
+        setControls((previous) => (previous.ownerId === owner
+          && previous.status === STUDENT_CONTROLS_STATUS.READY
+          && previous.fromCache === fromCache
+          && sameControls(previous.byAssignmentId, byAssignmentId)
+          ? previous
+          : { ownerId: owner, status: STUDENT_CONTROLS_STATUS.READY, byAssignmentId, fromCache }));
       },
       onError: (error) => {
         if (!active) return;

@@ -1833,8 +1833,14 @@ function App() {
   const studentViewerRef = useRef({ studentId: null, profile: null });
   const studentControlsRef = useRef(EMPTY_STUDENT_CONTROLS);
   studentControlsRef.current = studentAssignmentControls;
+  // What was last projected into state, so re-running an effect with nothing
+  // new projects nothing again (every projection makes new lesson objects).
+  const lastPublishedRef = useRef(null);
   const publishStudentAssignments = () => {
     const { studentId, profile } = studentViewerRef.current;
+    const inputs = [studentClassAssignmentsRef.current, studentPriorWorkAssignmentsRef.current, studentId, profile, studentControlsRef.current];
+    if (lastPublishedRef.current && inputs.every((input, index) => input === lastPublishedRef.current[index])) return;
+    lastPublishedRef.current = inputs;
     setAssignments(projectStudentAssignments({
       assignments: mergeStudentAssignments(studentClassAssignmentsRef.current, studentPriorWorkAssignmentsRef.current),
       studentId,
@@ -1886,6 +1892,9 @@ function App() {
   const teacherControlsRef = useRef(EMPTY_TEACHER_CONTROLS);
   teacherControlsRef.current = teacherClassControls;
   const publishTeacherAssignments = () => {
+    const inputs = [teacherSharedAssignmentsRef.current, teacherControlsRef.current];
+    if (lastPublishedRef.current && inputs.every((input, index) => input === lastPublishedRef.current[index])) return;
+    lastPublishedRef.current = inputs;
     setAssignments(projectTeacherAssignments({
       assignments: teacherSharedAssignmentsRef.current,
       controls: teacherControlsRef.current,
@@ -1901,6 +1910,7 @@ function App() {
     studentPriorWorkAssignmentsRef.current = [];
     studentViewerRef.current = { studentId: null, profile: null };
     teacherSharedAssignmentsRef.current = [];
+    lastPublishedRef.current = null;
     setAssignments([]);
   };
 
@@ -3187,9 +3197,15 @@ function App() {
           readLatestWorkspaceResume(studentId)
             .then((serverResume) => {
               if (cancelled || !serverResume) return;
-              // The projected lesson: its lifecycle includes the student's own
-              // extension, read from their private controls.
-              const assignment = projectedAssignments.find((entry) => entry.id === serverResume.assignmentId);
+              // The lesson projected with the controls held NOW (the own-controls
+              // listener has usually answered by the time this read returns):
+              // its lifecycle includes the student's own extension.
+              const [assignment] = projectStudentAssignments({
+                assignments: fetchedAssignments.filter((entry) => entry.id === serverResume.assignmentId),
+                studentId,
+                profile: studentProfile,
+                controls: studentControlsRef.current,
+              });
               if (!assignment) return;
               setResumeAction({
                 assignmentId: assignment.id,
