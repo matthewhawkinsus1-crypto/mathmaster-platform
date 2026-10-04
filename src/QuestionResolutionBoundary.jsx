@@ -94,6 +94,12 @@ export function QuestionResolutionFailure({
   onNextQuestion = null,
   nextQuestionLabel = '',
   hasRecordedWork = false,
+  // false where the host already tells the student what happened in its own
+  // words (a Recovery question MathMaster could not grade): no classification
+  // code and no copyable report on the student's screen — the teacher reads
+  // the server-verified classification instead. The diagnostic is still
+  // recorded.
+  technicalDetails = true,
 }) {
   const recovery = failure?.recovery || QUESTION_RESOLUTION_RECOVERY.NEEDS_REPAIR;
   const signatureContext = { ...context, executionScope };
@@ -155,7 +161,8 @@ export function QuestionResolutionFailure({
         primaryLabel={panel.primaryLabel || ''}
         onPrimary={panel.onPrimary || null}
         {...next}
-        technicalMessage={technicalMessage}
+        technicalMessage={technicalDetails || teacherView ? technicalMessage : ''}
+        offerReport={technicalDetails || teacherView}
       >
         <p style={{ margin: 0 }}>{panel.body}</p>
         {teacherView ? (
@@ -183,15 +190,20 @@ export default class QuestionResolutionBoundary extends Component {
     const context = { ...this.props.context, executionScope: this.props.executionScope };
     const chunk = isChunkLoadError(error);
     console.error('Question could not be prepared:', context, error, info);
+    const failure = {
+      classification: chunk ? 'chunk-load' : QUESTION_RESOLUTION_FAILURE.RESOLUTION_EXCEPTION,
+      recovery: chunk ? QUESTION_RESOLUTION_RECOVERY.RELOAD : QUESTION_RESOLUTION_RECOVERY.RETRY,
+    };
     recordQuestionResolutionDiagnostic({
       kind: chunk ? 'chunk-load' : 'question-resolution-error',
       context,
-      failure: {
-        classification: chunk ? 'chunk-load' : QUESTION_RESOLUTION_FAILURE.RESOLUTION_EXCEPTION,
-        recovery: chunk ? QUESTION_RESOLUTION_RECOVERY.RELOAD : QUESTION_RESOLUTION_RECOVERY.RETRY,
-        diagnostics: { detail: `${error?.name || 'Error'}: ${String(error?.message || error).slice(0, 60)}` },
-      },
+      failure: { ...failure, diagnostics: { detail: `${error?.name || 'Error'}: ${String(error?.message || error).slice(0, 60)}` } },
     });
+    // A host that must know this question could not be shown (a Recovery tells
+    // the server, so it is never counted against the student).
+    if (typeof this.props.onResolutionFailure === 'function') {
+      try { this.props.onResolutionFailure(failure); } catch { /* the host's problem, never this question's */ }
+    }
   }
 
   componentDidUpdate(previousProps) {
@@ -219,6 +231,7 @@ export default class QuestionResolutionBoundary extends Component {
         onNextQuestion={this.props.onNextQuestion}
         nextQuestionLabel={this.props.nextQuestionLabel}
         hasRecordedWork={this.props.hasRecordedWork}
+        technicalDetails={this.props.technicalDetails !== false}
       />
     );
   }

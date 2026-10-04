@@ -22,6 +22,11 @@ export const QUESTION_FAMILY_RECOVERY_FUNCTIONS = Object.freeze([
     why: 'New: server-graded Recovery Practice, unlock, start (pinned plan) and submit.',
   }),
   Object.freeze({
+    name: 'resolveHeldSectionRecovery',
+    browserCallable: true,
+    why: 'New: the teacher of record resolves a Recovery held because MathMaster could not grade it (finalize, keep original, replacement question).',
+  }),
+  Object.freeze({
     name: 'ingestStudentSubmissions',
     browserCallable: true,
     why: 'Re-grades family-backed answers from their delivery pins and persists the pin.',
@@ -34,12 +39,12 @@ export const QUESTION_FAMILY_RECOVERY_FUNCTIONS = Object.freeze([
   Object.freeze({
     name: 'syncGradeToClassroom',
     browserCallable: false,
-    why: 'Whole-assignment passback applies a completed Recovery and wakes when one completes.',
+    why: 'Whole-assignment passback applies a completed Recovery, wakes when one completes, and withholds the grade while one is held.',
   }),
   Object.freeze({
     name: 'syncSectionGradeToClassroom',
     browserCallable: false,
-    why: 'Section passback applies a completed Recovery to its Warm-Up/DOL section.',
+    why: 'Section passback applies a completed Recovery to its Warm-Up/DOL section, and withholds that section while its Recovery is held.',
   }),
 ]);
 

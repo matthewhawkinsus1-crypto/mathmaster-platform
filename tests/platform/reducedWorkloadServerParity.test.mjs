@@ -147,6 +147,7 @@ test('functions/index.js loads the helper once and filters at every grade/comple
     ['async function finalizeOneResponseCheckpoint(', 'function ', 'checkpoint finalizer'],
     ['async function ingestOneSubmission(', '\nexports.', 'ingestion'],
     ['exports.advanceSectionRecovery = onCall(', '\nexports.', 'Recovery'],
+    ['exports.resolveHeldSectionRecovery = onCall(', '\nexports.', 'held Recovery resolution'],
     ['exports.overrideStudentResponseGrade = onCall(', '\nexports.', 'teacher response override'],
     ['exports.reconcileAssignmentActivityProjection = onCall(', '\nexports.', 'classwork reconcile'],
   ];

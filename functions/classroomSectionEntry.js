@@ -687,6 +687,36 @@ const syncSectionGradeToClassroom = onDocumentWritten(
           continue;
         }
 
+        // A HELD Practice-based Recovery in this column's section (or any, for
+        // a whole-assignment column): the section grade is not settled, so
+        // nothing is sent until the teacher resolves the hold
+        // (functions/lib/sectionRecoveryGrades.js). This path grades without
+        // teacher overrides, so none can stand in for the resolution here.
+        const recoveryHold = sectionRecoveryGrades.recoveryPassbackHold({
+          recoveryForAssignment: afterData.sectionRecoveryByAssignment?.[assignmentId] || null,
+          sectionKey: gradeResult.sectionKey,
+        });
+        if (recoveryHold.held) {
+          // eslint-disable-next-line no-await-in-loop
+          await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
+            assignmentId,
+            courseId: publication.courseId || null,
+            courseworkId: publication.courseworkId || null,
+            sectionKey: gradeResult.sectionKey,
+            sectionLabel: gradeResult.sectionLabel,
+            status: "recovery-held",
+            stage: "recovery-held",
+            // No number: a held row must never read as a grade that was sent.
+            grade: null,
+            isFinal: false,
+            recoveryHeldSections: recoveryHold.sections,
+            studentVisible: false,
+            returnedToStudent: false,
+            message: sectionRecoveryGrades.RECOVERY_HELD_SYNC_MESSAGE,
+          });
+          continue;
+        }
+
         const stage = resolveClassroomGradeStage({
           assignment,
           progress: gradeResult,

@@ -21,7 +21,7 @@ export const ATTENTION_RULES = Object.freeze({
   skills: 'Grade-level standards with persistent errors first (most questions not correct at the end), then those below 70% final accuracy.',
   lowestDols: 'DOL section grades (MathMaster grade contributions) on DOLs the student answered, lowest first; at most five.',
   exhausted: 'Questions not correct after all available attempts, most recent assignment first.',
-  recoverable: 'Work whose final cutoff for this student has not passed, questions with attempts remaining, and Recovery in progress.',
+  recoverable: 'Work whose final cutoff for this student has not passed, questions with attempts remaining, Recovery in progress, and any Recovery held for your review.',
   addressFirst: 'Standards ranked by: DOL at least 15 points below instruction on the same standard; then most questions not correct at the end; then lowest final accuracy. A ranking of recorded results, not a diagnosis.',
 });
 
@@ -85,6 +85,11 @@ export const buildAttentionSummary = (model, { nowValue = Date.now() } = {}) => 
     }
     list(entry.recoveries).filter((recovery) => OPEN_RECOVERY.has(recovery.status)).forEach((recovery) => {
       recoverable.push({ assignmentId: entry.assignmentId, title: entry.title, reason: 'recovery-in-progress', section: recovery.section, untilMs: entry.finalAtMs });
+    });
+    // MathMaster could not grade part of a submitted Recovery: it waits for
+    // the teacher whatever the date (functions/shared/sectionRecoveryEvidence.mjs).
+    list(entry.recoveries).filter((recovery) => recovery.status === 'held').forEach((recovery) => {
+      recoverable.push({ assignmentId: entry.assignmentId, title: entry.title, reason: 'recovery-held', section: recovery.section, untilMs: null });
     });
   });
 

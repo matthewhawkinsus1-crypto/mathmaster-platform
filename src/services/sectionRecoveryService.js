@@ -28,12 +28,31 @@ export const submitRecoveryPracticeItem = ({ assignmentId, section, pin, practic
 
 export const startSectionRecovery = ({ assignmentId, section }) => run({ assignmentId, section, action: 'start' });
 
-export const submitSectionRecovery = ({ assignmentId, section, responses }) => run({
+// `unavailableItems`: { [itemId]: { classification } } for each question this
+// device could not show. The server re-checks every one; a question it can
+// rebuild is held for the teacher, never excused or marked on this claim.
+export const submitSectionRecovery = ({ assignmentId, section, responses, unavailableItems = null }) => run({
   assignmentId,
   section,
   action: 'submit',
-  payload: { responses },
+  payload: {
+    responses,
+    ...(unavailableItems && Object.keys(unavailableItems).length ? { unavailableItems } : {}),
+  },
 });
+
+/*
+ * THE TEACHER'S LINE: RESOLVE A HELD RECOVERY.
+ *
+ * `action`: 'finalizeGraded' | 'keepOriginal' | 'issueReplacement'
+ * (functions/shared/sectionRecoveryResolution.mjs). The callable checks the
+ * caller is this student's teacher of record, builds any replacement question
+ * itself, and audits the decision.
+ */
+export const resolveHeldSectionRecovery = async ({ studentId, assignmentId, section, action, note = '' }) => {
+  const response = await httpsCallable(functions, 'resolveHeldSectionRecovery')({ studentId, assignmentId, section, action, note });
+  return response?.data || null;
+};
 
 /** A refusal's code (e.g. "practice-item-repeated"), when the server gave one. */
 export const recoveryErrorCode = (error) => String(error?.details?.code || error?.code || '').replace(/^functions\//, '');

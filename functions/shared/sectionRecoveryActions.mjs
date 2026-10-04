@@ -13,6 +13,10 @@
  * student's QuestionEngine rendered (runtime repair applied to the template,
  * then the word-problem layer) — never from a verdict a browser sends.
  *
+ * A question MathMaster cannot rebuild or mark is classified, never scored:
+ * see sectionRecoveryEvidence.mjs for the item statuses and the
+ * sufficient-evidence rule that decides between a score and a hold.
+ *
  * Pure: no Firestore, no clock (`at` is a parameter).
  */
 import { RECOVERY_TYPE } from './recoveryPolicy.mjs';
@@ -20,15 +24,26 @@ import { RECOVERY_STATE } from './sectionRecoveryEligibility.mjs';
 import { buildRecoveryAssessmentPlan } from './sectionRecoveryPlan.mjs';
 import {
   RecoveryTransitionError,
+  activeRecoveryPlanItems,
   applyRecoveryCompletion,
   applyRecoveryPracticeAttempt,
   applyRecoveryStart,
   applyRecoveryUnlock,
 } from './sectionRecoveryRecord.mjs';
+import {
+  PIN_REPLAY_FAILURE,
+  RECOVERY_GRADING_FAILURE,
+  RECOVERY_ITEM_STATUS,
+  classifyRecoveryReproductionFailure,
+  isGradedItemStatus,
+  isUnansweredGradingReason,
+  recoveryHintForClassification,
+  sanitizeReportedClassification,
+} from './sectionRecoveryEvidence.mjs';
 import { reproduceFamilyQuestionFromPin } from './questionFamilyInstance.mjs';
-import { normalizeDeliveryPin } from './questionGenerationIdentity.mjs';
+import { normalizeDeliveryPin, resolveGenerationAllocation } from './questionGenerationIdentity.mjs';
 import { deliveredQuestionForGrading, runtimeRepairedQuestion } from './serverGrading/deliveredQuestion.mjs';
-import { gradeFamilyInstanceResponse } from './serverGrading/serverResponseGrading.mjs';
+import { gradeFamilyInstanceResponse, serverResponseGradingSupport } from './serverGrading/serverResponseGrading.mjs';
 import {
   RECOVERY_ACTION,
   attemptWasIndependent,
@@ -56,6 +71,115 @@ const refuse = (code, message) => { throw new RecoveryTransitionError(code, mess
 
 const expectedPracticeSlotPrefix = (context) => `${context.assignmentId}|recoveryPractice:${context.section}:o`;
 
+/*
+ * WHOSE PRACTICE QUESTION IS THIS?
+ *
+ * A Practice pin's slot names the assignment and section but not the student,
+ * so a classmate's pin used to pass every check: it replayed (it is a real
+ * question), it was graded, and it counted toward THIS student's mastery. A
+ * Practice item is allocated from the student's own seat
+ * (sectionRecoveryPlan.mjs buildRecoveryPracticeItem), so the pin must carry
+ * exactly the allocation this student's seat produces for its variant.
+ */
+const practicePinIsOwn = (pin, context) => {
+  const own = resolveGenerationAllocation({ seatInfo: context.seatInfo, variant: pin.variant });
+  return pin.seat === own.seat && pin.basis === own.basis && pin.stride === own.stride && pin.index === own.index;
+};
+
+/*
+ * ONE PINNED RECOVERY QUESTION, GRADED — OR CLASSIFIED.
+ *
+ * In this order, so a student's payload can never decide that a question was
+ * MathMaster's failure:
+ *
+ *   1. Rebuild the instance from its own pin. Any failure (or a throw) is a
+ *      platform failure, classified in PR #430's vocabulary.
+ *   2. Ask whether the server can mark this question at all — about the
+ *      question, never the answer. No means a platform failure.
+ *   3. Only now read the answer. None, or a blank/incomplete one, is the
+ *      student's unanswered question (worth zero, as always). One the grader
+ *      cannot read, or that makes it throw, needs a teacher: the server cannot
+ *      tell a platform bug from a tampered payload there. The device saying
+ *      it could not show a question the server CAN rebuild is the same.
+ */
+const gradeRecoveryItem = ({ context, item, response, reported }) => {
+  const question = context.questionsByIndex[item.storageIndex] || null;
+  const weight = recoveryQuestionWeight(question);
+  const unavailable = (classification, reason) => ({
+    itemId: item.itemId,
+    status: RECOVERY_ITEM_STATUS.PLATFORM_UNAVAILABLE,
+    weight,
+    reason,
+    classification,
+    recovery: recoveryHintForClassification(classification),
+    ...(reported ? { reportedClassification: reported } : {}),
+    response,
+  });
+  const review = (classification, reason) => ({
+    itemId: item.itemId,
+    status: RECOVERY_ITEM_STATUS.NEEDS_REVIEW,
+    weight,
+    reason,
+    classification,
+    recovery: 'needs-repair',
+    ...(reported ? { reportedClassification: reported } : {}),
+    response,
+  });
+
+  if (!question) return unavailable(RECOVERY_GRADING_FAILURE.QUESTION_REMOVED, 'question-not-in-section');
+  let reproduced;
+  try {
+    reproduced = reproduceDeliveredFamilyQuestion({ question, assignmentId: context.assignmentId, storageIndex: item.storageIndex, pin: item.pin });
+  } catch (error) {
+    return unavailable(PIN_REPLAY_FAILURE.RESOLUTION_EXCEPTION, `reproduction-threw:${String(error?.name || 'Error').slice(0, 40)}`);
+  }
+  if (reproduced.error) {
+    let classification = PIN_REPLAY_FAILURE.GENERATION_FAILED;
+    try {
+      classification = classifyRecoveryReproductionFailure({ question, pin: item.pin, error: reproduced.error, issues: reproduced.issues });
+    } catch { /* an unreadable question is still this question's platform failure */ }
+    return unavailable(classification, `family-${reproduced.error}`);
+  }
+  const support = serverResponseGradingSupport(reproduced.question);
+  if (!support?.supported) return unavailable(RECOVERY_GRADING_FAILURE.GRADER_UNAVAILABLE, String(support?.reason || 'not-server-gradable').slice(0, 120));
+
+  if (!response) {
+    return reported
+      ? review(RECOVERY_GRADING_FAILURE.REPORTED_UNAVAILABLE, 'device-could-not-show')
+      : { itemId: item.itemId, status: RECOVERY_ITEM_STATUS.UNANSWERED, weight, reason: 'no-answer' };
+  }
+  let grading;
+  try {
+    grading = gradeFamilyInstanceResponse({ question: reproduced.question, response });
+  } catch (error) {
+    return review(RECOVERY_GRADING_FAILURE.GRADING_EXCEPTION, `grading-threw:${String(error?.name || 'Error').slice(0, 40)}`);
+  }
+  if (grading?.graded === false) {
+    return isUnansweredGradingReason(grading.reason)
+      ? { itemId: item.itemId, status: RECOVERY_ITEM_STATUS.UNANSWERED, weight, reason: grading.reason }
+      : review(RECOVERY_GRADING_FAILURE.RESPONSE_UNREADABLE, String(grading.reason || 'ungradable').slice(0, 120));
+  }
+  const isCorrect = grading?.isCorrect === true;
+  return {
+    itemId: item.itemId,
+    status: isCorrect ? RECOVERY_ITEM_STATUS.CORRECT : RECOVERY_ITEM_STATUS.INCORRECT,
+    isCorrect,
+    credit: isCorrect ? 1 : 0,
+    weight,
+    reason: null,
+  };
+};
+
+/** The questions the student's device reported it could not show, bounded to this plan. */
+const reportedUnavailableItems = (payload, planItemIds) => {
+  const raw = payload?.unavailableItems && typeof payload.unavailableItems === 'object' && !Array.isArray(payload.unavailableItems)
+    ? payload.unavailableItems
+    : {};
+  return Object.fromEntries(Object.entries(raw)
+    .filter(([itemId]) => planItemIds.has(itemId))
+    .map(([itemId, value]) => [itemId, sanitizeReportedClassification(value?.classification ?? value)]));
+};
+
 /**
  * Apply one student action. Returns { record, changed, gradeChanged, response }.
  * Throws RecoveryTransitionError (with a code) for anything not allowed.
@@ -82,6 +206,7 @@ export const runSectionRecoveryAction = ({ context, action, payload = {}, at = D
     if (!pin || !pin.slot.startsWith(expectedPracticeSlotPrefix(context))) refuse('practice-pin-invalid');
     const slot = context.readiness.readySlots.find((candidate) => pin.slot.endsWith(`|${candidate.questionId || `index-${candidate.storageIndex}`}`));
     if (!slot) refuse('practice-pin-invalid', 'That practice question does not belong to this Recovery.');
+    if (!practicePinIsOwn(pin, context)) refuse('practice-pin-invalid', 'That practice question does not belong to this Recovery.');
     if (context.seenFingerprints.includes(pin.fingerprint)) refuse('practice-item-repeated', 'That practice question was already answered.');
     const reproduced = reproduceDeliveredFamilyQuestion({
       question: context.questionsByIndex[slot.storageIndex],
@@ -144,6 +269,9 @@ export const runSectionRecoveryAction = ({ context, action, payload = {}, at = D
     if (eligibility.state === RECOVERY_STATE.IN_PROGRESS) {
       return { record: context.record, changed: false, gradeChanged: false, response: { plan: context.record.plan } };
     }
+    if (eligibility.state === RECOVERY_STATE.HELD) {
+      refuse('recovery-held', 'Your Recovery is being held for review by your teacher.');
+    }
     if (eligibility.state !== RECOVERY_STATE.UNLOCKED) refuse('recovery-locked', 'This Recovery is not unlocked.');
     let record = context.record;
     if (!record || record.status === 'practicing') {
@@ -179,24 +307,19 @@ export const runSectionRecoveryAction = ({ context, action, payload = {}, at = D
       refuse('recovery-not-in-progress', 'There is no Recovery in progress to submit.');
     }
     const responses = payload.responses && typeof payload.responses === 'object' ? payload.responses : {};
-    const results = context.record.plan.items.map((item) => {
-      const question = context.questionsByIndex[item.storageIndex];
-      const reproduced = question && item.pin
-        ? reproduceDeliveredFamilyQuestion({ question, assignmentId: context.assignmentId, storageIndex: item.storageIndex, pin: item.pin })
-        : { error: 'missing' };
-      if (reproduced.error) {
-        return { itemId: item.itemId, isCorrect: false, credit: 0, weight: recoveryQuestionWeight(question), graded: false, reason: 'question-unavailable' };
-      }
-      const response = responses[item.itemId] || null;
-      const grading = response ? gradeFamilyInstanceResponse({ question: reproduced.question, response }) : { graded: true, isCorrect: false };
-      return {
-        itemId: item.itemId,
-        isCorrect: grading.isCorrect === true,
-        credit: grading.isCorrect === true ? 1 : 0,
-        weight: recoveryQuestionWeight(question),
-        graded: grading.graded !== false,
-        reason: grading.graded === false ? grading.reason || 'ungradable' : null,
-      };
+    const active = activeRecoveryPlanItems(context.record);
+    const reported = reportedUnavailableItems(payload, new Set(active.map((item) => item.itemId)));
+    const prior = context.record.results || {};
+    const results = active.map((item) => {
+      // Graded before a teacher replaced another question: kept as it was —
+      // never asked again, never re-marked.
+      if (isGradedItemStatus(prior[item.itemId]?.status)) return { itemId: item.itemId, carried: true };
+      return gradeRecoveryItem({
+        context,
+        item,
+        response: responses[item.itemId] || null,
+        reported: reported[item.itemId] || null,
+      });
     });
     const applied = applyRecoveryCompletion({
       record: context.record,
@@ -207,17 +330,31 @@ export const runSectionRecoveryAction = ({ context, action, payload = {}, at = D
       originalAttempted: Number(context.sectionOriginal?.attempted) > 0,
       at,
     });
+    const excludedCount = applied.record.evidence?.excludedItemIds?.length || 0;
     return {
       record: applied.record,
       changed: true,
-      gradeChanged: true,
-      response: {
-        rawScore: applied.record.rawScore,
-        recordedScore: applied.gradeState.recordedScore,
-        cap: applied.gradeState.cap,
-        type: applied.record.type,
-        reason: applied.gradeState.reason,
-      },
+      // A hold changes no grade: nothing was scored, the original stands.
+      gradeChanged: !applied.held,
+      response: applied.held
+        ? {
+          held: true,
+          holdReason: applied.record.hold.reason,
+          rawScore: null,
+          recordedScore: null,
+          cap: applied.record.cap ?? null,
+          type: applied.record.type,
+          reason: 'Your Recovery is being held for review.',
+        }
+        : {
+          held: false,
+          excludedCount,
+          rawScore: applied.record.rawScore,
+          recordedScore: applied.gradeState.recordedScore,
+          cap: applied.gradeState.cap,
+          type: applied.record.type,
+          reason: applied.gradeState.reason,
+        },
     };
   }
 

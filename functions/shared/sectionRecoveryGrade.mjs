@@ -138,6 +138,8 @@ export const RECOVERY_HISTORY_EVENT = Object.freeze({
   UNLOCKED: 'unlocked',
   STARTED: 'started',
   COMPLETED: 'completed',
+  // Submitted, and held for a teacher: MathMaster could not grade enough of it.
+  HELD: 'held',
   TEACHER_OVERRIDE: 'teacherOverride',
 });
 

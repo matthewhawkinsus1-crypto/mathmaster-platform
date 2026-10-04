@@ -461,8 +461,19 @@ test('the server refuses a repeated, foreign or unreadable Practice item', () =>
     if (!candidate.error && candidate.delivery.fingerprint === originalZeros.delivery.fingerprint) collision = candidate;
   }
   assert.ok(collision, 'the Practice list holds the original question somewhere');
+  // That pin was forged onto another seat's allocation to reach the original's
+  // numbers, so it is refused before anything else: it is not this student's
+  // Practice question at all (PR: a classmate's pin used to be accepted).
   assert.throws(
     () => runSectionRecoveryAction({ context: after, action: RECOVERY_ACTION.PRACTICE, payload: { pin: collision.delivery, response: correctResponse(collision) }, at: NOW + 4 }),
+    (error) => ['practice-item-repeated', 'practice-pin-invalid'].includes(error.code),
+  );
+  // And a GENUINE Practice pin of this student's is refused as already seen
+  // the moment its question is one they have been shown.
+  const genuine = nextRecoveryPracticeItem(after);
+  const shown = { ...after, seenFingerprints: [...after.seenFingerprints, genuine.pin.fingerprint] };
+  assert.throws(
+    () => runSectionRecoveryAction({ context: shown, action: RECOVERY_ACTION.PRACTICE, payload: { pin: genuine.pin, practiceIndex: genuine.practiceIndex, response: correctResponse(reproduce(assignment, genuine)) }, at: NOW + 5 }),
     (error) => error.code === 'practice-item-repeated',
   );
 });
@@ -869,11 +880,21 @@ test('the Live Challenge Warm-Up grade reaches the student Grade Center and both
 test('the gradebook detail renders the Recovery audit trail and the section marker, each imported', () => {
   const app = componentSource('src/App.jsx');
   assert.match(app, /^import SectionRecoveryAuditTrail from '\.\/components\/teacher\/SectionRecoveryAuditTrail\.jsx';$/m);
-  assert.match(app, /^import \{ completedRecoverySections, warmupChallengeCounts \} from '\.\/platform\/recovery\/teacherRecoveryAudit\.js';$/m);
+  // Every helper the gradebook row calls is imported where it is used: a call
+  // with no import is a runtime ReferenceError no check catches (AGENTS.md).
+  const auditImport = app.match(/^import \{([^}]*)\} from '\.\/platform\/recovery\/teacherRecoveryAudit\.js';$/m);
+  assert.ok(auditImport, 'the gradebook imports the Recovery audit helpers');
+  ['completedRecoverySections', 'warmupChallengeCounts', 'heldRecoverySections'].forEach((name) => {
+    assert.match(auditImport[1], new RegExp(`\\b${name}\\b`), `${name} is imported`);
+  });
   assert.match(app, /const challengeWarmup = warmupChallengeCounts\(student, selectedAssignment\.id\);/);
   assert.match(app, /<SectionRecoveryAuditTrail student=\{student\} assignment=\{selectedAssignment\} \/>/);
   assert.match(app, /const recoveredSections = completedRecoverySections\(student, selectedAssignment\.id\);/);
   assert.match(app, /\{recoveredMark\('dol'\)\}/);
+  // A held Recovery is marked in the same cell, so the teacher sees which
+  // student is waiting on them without opening every row.
+  assert.match(app, /const heldSections = heldRecoverySections\(student, selectedAssignment\.id\);/);
+  assert.match(app, /heldSections\.has\(section\) \? <span data-held-recovery-section=\{section\}/);
 });
 
 test('the Recovery runner requires the pinned question and keeps its drafts apart from the assignment', () => {
@@ -915,7 +936,9 @@ test('the release deploy surface names every function this release changes, and 
     assert.ok(exported, `${name} is in the deploy list but is not an exported Cloud Function`);
   });
   assert.equal(new Set(names).size, names.length);
-  assert.deepEqual(surface.browserCallableServiceIds().sort(), ['advancesectionrecovery', 'ingeststudentsubmissions']);
+  // The teacher's resolution of a held Recovery ships with the scoring that
+  // can hold one: a hold no teacher could release would strand the grade.
+  assert.deepEqual(surface.browserCallableServiceIds().sort(), ['advancesectionrecovery', 'ingeststudentsubmissions', 'resolveheldsectionrecovery']);
   // The browser calls exactly the callable this release deploys.
   const callable = region(index, 'exports.advanceSectionRecovery = onCall(', '\n});', 'advanceSectionRecovery');
   assert.match(callable, /studentProfile: gradeData\.profile \|\| null,/, 'individualized deadlines reach the server decision');

@@ -23,6 +23,12 @@ import {
   STUDENT_IDENTITY_FIELDS, TEACHER_ROSTER_SELECT_FIELDS,
   buildTeacherRosterSummaryRow, compareStudentIdentities, validateStudentNameInput,
 } from '../../../functions/shared/studentIdentity.mjs';
+import { runSectionRecoveryAction } from '../../../functions/shared/sectionRecoveryActions.mjs';
+import {
+  HELD_RECOVERY_ACTION, applyHeldRecoveryResolution, heldRecoveryItemIds, isHeldRecoveryAction,
+} from '../../../functions/shared/sectionRecoveryResolution.mjs';
+import { buildRecoveryReplacementItems } from '../../../functions/shared/sectionRecoveryPlan.mjs';
+import { recoveryContextFor } from './recoveryFixture.js';
 
 const iso = (value) => (value instanceof Timestamp ? value.toDate().toISOString() : value || null);
 const harness = (typeof window !== 'undefined' && (window.__mmHarness = window.__mmHarness || {})) || {};
@@ -95,7 +101,107 @@ const rosterPaths = () => harnessStore.paths('grades/').filter((path) => path.sp
 const collectionDocs = (name) => harnessStore.paths(`${name}/`).filter((path) => path.split('/').length === 2)
   .map((path) => ({ id: path.split('/')[1], data: harnessStore.get(path) || {} }));
 
+/*
+ * PRACTICE-BASED RECOVERY, AS THE TWO CALLABLES DECIDE IT.
+ *
+ * Both run the REAL shared modules the Cloud Functions run
+ * (sectionRecoveryActions.mjs, sectionRecoveryResolution.mjs,
+ * sectionRecoveryPlan.mjs) against the in-memory grades and assignment, with
+ * the context built the way advanceSectionRecovery builds it (the harness has
+ * no attendance events, so no excused make-up). The callables themselves —
+ * authorization, transactions, the audit row — are certified against the
+ * Firestore emulator in tests/integration/sectionRecoveryPlatformFailure.test.mjs.
+ */
+const recoveryRefusal = (error) => (error?.name === 'RecoveryTransitionError'
+  ? Object.assign(new Error(error.message || error.code), { code: 'functions/failed-precondition', details: { code: error.code } })
+  : error);
+const writeRecoveryRecord = ({ studentId, assignmentId, section, record }) => {
+  const path = `grades/${studentId}`;
+  const grade = harnessStore.get(path) || {};
+  const byAssignment = { ...grade.sectionRecoveryByAssignment };
+  byAssignment[assignmentId] = { ...byAssignment[assignmentId], [section]: record };
+  harnessStore.set(path, { ...grade, sectionRecoveryByAssignment: byAssignment });
+};
+const harnessRecoveryContext = ({ studentId, assignmentId, section }) => {
+  const stored = harnessStore.get(`assignments/${assignmentId}`);
+  if (!stored) throw rejection('not-found', 'That assignment is no longer available.');
+  const gradeData = harnessStore.get(`grades/${studentId}`) || {};
+  return recoveryContextFor({
+    assignment: { id: assignmentId, ...stored },
+    gradeData,
+    studentId,
+    section,
+    schedule: harnessStore.get('settings/classSchedule') || null,
+    nowValue: Date.now(),
+  });
+};
+
 const handlers = {
+  advanceSectionRecovery: ({ assignmentId, section, action = 'status', payload = {} } = {}) => {
+    const studentId = requireStudent();
+    const context = harnessRecoveryContext({ studentId, assignmentId, section });
+    let outcome;
+    try {
+      outcome = runSectionRecoveryAction({ context, action, payload: payload || {}, at: Date.now() });
+    } catch (error) {
+      throw recoveryRefusal(error);
+    }
+    if (outcome.changed) writeRecoveryRecord({ studentId, assignmentId, section, record: outcome.record });
+    return { action, section, state: context.eligibility.state, reason: context.eligibility.reason, record: outcome.record, ...outcome.response };
+  },
+  resolveHeldSectionRecovery: ({ studentId, assignmentId, section, action, note = '' } = {}) => {
+    if (signedInStudentId()) throw rejection('permission-denied', 'Only a teacher can make this change.');
+    const grade = harnessStore.get(`grades/${studentId}`);
+    if (!grade) throw rejection('not-found', 'The student or assignment was not found.');
+    requireClassTeacher(grade.classId);
+    if (!isHeldRecoveryAction(action)) throw rejection('invalid-argument', 'Choose how to resolve this Recovery.');
+    const context = harnessRecoveryContext({ studentId, assignmentId, section });
+    if (context.record?.status !== 'held') throw rejection('failed-precondition', 'This Recovery is not waiting for a teacher.');
+    let replacements = null;
+    if (action === HELD_RECOVERY_ACTION.ISSUE_REPLACEMENT) {
+      const built = buildRecoveryReplacementItems({
+        assignmentId,
+        section,
+        record: context.record,
+        itemIds: heldRecoveryItemIds(context.record),
+        questionsByIndex: context.questionsByIndex,
+        seatInfo: context.seatInfo,
+        seenFingerprints: context.seenFingerprints,
+        issuedAt: new Date().toISOString(),
+        issueReasonFor: (itemId) => context.record.results?.[itemId]?.classification || null,
+      });
+      if (built.error) throw Object.assign(rejection('failed-precondition', 'MathMaster cannot make a replacement for this question until the question itself is fixed.'), { details: { code: built.error, classification: built.classification } });
+      replacements = built.items;
+    }
+    let applied;
+    try {
+      applied = applyHeldRecoveryResolution({
+        record: context.record,
+        section,
+        action,
+        actor: { uid: 'harness-teacher-uid', email: TEACHER_EMAIL, name: 'Harness Teacher' },
+        note,
+        replacements,
+        policy: context.policy,
+        originalScore: context.sectionOriginal?.score ?? null,
+        originalAttempted: Number(context.sectionOriginal?.attempted) > 0,
+        at: Date.now(),
+      });
+    } catch (error) {
+      throw recoveryRefusal(error);
+    }
+    writeRecoveryRecord({ studentId, assignmentId, section, record: applied.record });
+    harnessStore.set(`grades/${studentId}/gradeOverrideAudits/recovery-${Date.now()}`, {
+      scope: 'sectionRecovery', sectionRole: section, assignmentId, action, note: note || null,
+      actor: { email: TEACHER_EMAIL }, at: new Date().toISOString(), statusAfter: applied.record.status,
+    });
+    return {
+      status: applied.record.status,
+      rawScore: applied.record.rawScore ?? null,
+      recordedScore: applied.gradeState?.recordedScore ?? null,
+      replacements: (replacements || []).map((item) => ({ from: item.replaces, to: item.itemId })),
+    };
+  },
   resolveSignedInRole: () => ({ role: 'teacher' }),
   // listClassJoinCodes (functions/index.js) as deployed: the ACTIVE codes in
   // classJoinCodes, each only for a class the caller is teacher of record of;

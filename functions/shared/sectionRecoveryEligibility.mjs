@@ -20,6 +20,10 @@
  *   unlocked      mastery shown; the student may start
  *   inProgress    started, not submitted
  *   completed     the one automatic opportunity has been used
+ *   held          submitted, but MathMaster could not grade enough of it to
+ *                 score it (sectionRecoveryEvidence.mjs). No Recovery score
+ *                 exists; a teacher resolves it. Never closed by the end
+ *                 date: the student submitted in time
  *   closed        started but not submitted before the Recovery end date —
  *                 the assignment's final submission date for this student.
  *                 After that date a Recovery never started is simply hidden.
@@ -59,6 +63,9 @@ export const RECOVERY_STATE = Object.freeze({
   UNLOCKED: 'unlocked',
   IN_PROGRESS: 'inProgress',
   COMPLETED: 'completed',
+  // Submitted, and waiting for a teacher: MathMaster could not grade enough of
+  // it to record a score (sectionRecoveryEvidence.mjs). The original stands.
+  HELD: 'held',
   // Started, but not submitted before the assignment's final submission date
   // (the Recovery end date). The original score stands.
   CLOSED: 'closed',
@@ -69,6 +76,7 @@ const STUDENT_VISIBLE = new Set([
   RECOVERY_STATE.UNLOCKED,
   RECOVERY_STATE.IN_PROGRESS,
   RECOVERY_STATE.COMPLETED,
+  RECOVERY_STATE.HELD,
   RECOVERY_STATE.CLOSED,
 ]);
 
@@ -195,6 +203,9 @@ export const evaluateSectionRecoveryEligibility = ({
 
   // A finished Recovery is reported whatever else changed.
   if (record?.status === 'completed') return result(RECOVERY_STATE.COMPLETED, 'recovery-completed', base);
+  // So is a held one — before the end date is consulted: it was submitted in
+  // time, and a teacher may resolve it after the date has passed.
+  if (record?.status === 'held') return result(RECOVERY_STATE.HELD, 'recovery-held', base);
   // The final submission date is the Recovery end date. One started and not
   // submitted is closed (the original stands); one never started simply
   // stops being offered.
