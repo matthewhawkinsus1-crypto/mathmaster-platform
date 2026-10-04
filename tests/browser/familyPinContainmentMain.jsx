@@ -16,7 +16,9 @@
  *   ?mode=preview    the same assignment as a teacher preview: Q1 references a
  *                    family this build does not have, Q3 throws (fault).
  *   ?mode=recovery   a DOL Recovery assessment whose first pinned item will not
- *                    replay; items 2 and 3 are fine.
+ *                    replay; items 2 and 3 are fine (`&nullPin=1`: item 2's
+ *                    stored pin was dropped as unreadable).
+ *   ?mode=recovery-practice  Practice with no next item to offer.
  *
  * The family context comes from buildStudentFamilyContext and the device pin
  * from writeLocalDeliveryPin, the functions App.jsx calls. Driven by
@@ -211,7 +213,8 @@ const recoveryEntry = () => {
       opportunity: 1,
       items: [
         { itemId: 'item-1', storageIndex: 0, questionId: twoStep.questionId, pin: { ...normalizeDeliveryPin(p0), fingerprint: 'linear.twoStepEquation:1|1|1' } },
-        { itemId: 'item-2', storageIndex: 1, questionId: intercepts.questionId, pin: normalizeDeliveryPin(slot(intercepts, 1)) },
+        // `&nullPin=1`: a plan item whose pin normalizeRecoveryRecord dropped.
+        { itemId: 'item-2', storageIndex: 1, questionId: intercepts.questionId, pin: params.get('nullPin') === '1' ? null : normalizeDeliveryPin(slot(intercepts, 1)) },
         { itemId: 'item-3', storageIndex: 2, questionId: area.questionId, pin: normalizeDeliveryPin(slot(area, 2)) },
       ],
     },
@@ -221,11 +224,14 @@ const recoveryEntry = () => {
 
 function RecoveryHarness() {
   const [entry] = useState(recoveryEntry);
+  // ?mode=recovery-practice: Practice whose family has nothing unseen left,
+  // so the server offers no next item (nextPracticeItem: null).
+  const practice = MODE === 'recovery-practice';
   return (
     <SectionRecoveryRunner
-      mode="assessment"
+      mode={practice ? 'practice' : 'assessment'}
       assignment={assignment}
-      entry={entry}
+      entry={practice ? { ...entry, state: 'locked', masteryPercent: 40, nextPracticeItem: null } : entry}
       studentId={STUDENT}
       studentProfile={{}}
       onExit={() => { window.__exited = true; }}
@@ -250,4 +256,4 @@ window.__pins = {
 createRoot(document.getElementById('root'), {
   onUncaughtError: (error, info) => noteError('react.uncaught', error, { componentStack: info?.componentStack || '' }),
   onCaughtError: (error) => noteError('react.caught', error),
-}).render(MODE === 'recovery' ? <RecoveryHarness /> : <StudentHarness preview={MODE === 'preview'} />);
+}).render(MODE.startsWith('recovery') ? <RecoveryHarness /> : <StudentHarness preview={MODE === 'preview'} />);

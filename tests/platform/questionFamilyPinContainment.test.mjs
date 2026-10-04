@@ -31,6 +31,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { generateQuestion } from '../../src/problemGenerator.js';
+import { resolveQuestionMaximumAttempts } from '../../src/attemptPolicy.js';
 import { normalizeContextualQuestion } from '../../src/platform/context/wordProblemLayer.js';
 import {
   ALLOCATION_BASIS,
@@ -535,6 +536,17 @@ test('a local template WITH a word-problem context replays on the server and in 
     at: Date.parse('2026-10-01T15:00:00Z'),
   });
   assert.equal(outcome.response.isCorrect, true, 'graded against the instance the student was dealt');
+});
+
+test('the Recovery runner never throws on a missing question or an unreadable plan pin', () => {
+  // PracticeRunner asks for the attempt limit of a question that is not there
+  // yet (no next practice item); a null question threw and replaced the app.
+  assert.doesNotThrow(() => resolveQuestionMaximumAttempts({ question: null, activityPolicy: { attempts: 3 } }));
+  const runner = executableSource(readFileSync(new URL('../../src/components/student/SectionRecoveryRunner.jsx', import.meta.url), 'utf8'));
+  const pinned = region(runner, 'function PinnedQuestion(', 'function PracticeRunner(');
+  assert.match(pinned, /const pin = normalizeDeliveryPin\(item\?\.pin\);/);
+  assert.match(pinned, /if \(!pin\) \{\s*return \(\s*<QuestionResolutionFailure\b/, 'an unreadable plan pin is this item\'s classified failure');
+  assert.doesNotMatch(pinned, /item\.pin\./, 'nothing dereferences the raw plan pin while rendering');
 });
 
 /* ------------------------------------- QuestionEngine wiring (source contract) */

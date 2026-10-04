@@ -181,6 +181,31 @@ async function recoveryJourney() {
   await context.close();
 }
 
+async function recoveryUnreadablePinJourney() {
+  console.log(`\nRecovery assessment — item 2's stored pin is unreadable (null after normalization)${SLOW ? ' [6× CPU]' : ''}`);
+  const { context, page } = await open('mode=recovery&nullPin=1');
+  await page.waitForSelector('[data-recovery-runner="assessment"]', { timeout: 120000 });
+  await settle(page);
+  await page.getByRole('button', { name: /^Question 2/ }).click();
+  await settle(page);
+  expect(await failurePanel(page).getAttribute('data-question-resolution-failure') === 'pin-malformed', 'item 2 is a contained pin-malformed panel (on main: item.pin.variant threw and replaced the app)');
+  await noCrash(page, 'on an unreadable plan pin');
+  await page.getByRole('button', { name: /^Question 3/ }).click();
+  await settle(page);
+  expect(await failurePanel(page).count() === 0 && await page.locator('input, math-field').count() > 0, 'item 3 renders');
+  await context.close();
+}
+
+async function recoveryPracticeEmptyJourney() {
+  console.log(`\nRecovery Practice with nothing left to offer (nextPracticeItem: null)${SLOW ? ' [6× CPU]' : ''}`);
+  const { context, page } = await open('mode=recovery-practice');
+  await page.waitForSelector('[data-recovery-runner="practice"]', { timeout: 120000 });
+  await settle(page);
+  expect(/no practice question to show/i.test(await page.locator('body').innerText()), 'the runner says so (on main: resolveQuestionMaximumAttempts(null) threw and replaced the app)');
+  expect(!(await uncaught(page)).length, 'no uncaught error');
+  await context.close();
+}
+
 async function damagedContextJourney() {
   console.log(`\nReal data: Q3's authored word-problem context holds a null quantity${SLOW ? ' [6× CPU]' : ''}`);
   const { context, page } = await open('mode=student&context=null-quantity&start=2');
@@ -191,7 +216,7 @@ async function damagedContextJourney() {
   await context.close();
 }
 
-const journeys = { student: () => studentJourney('attempted'), correct: () => studentJourney('correct'), fault: faultJourney, preview: previewJourney, recovery: recoveryJourney, context: damagedContextJourney };
+const journeys = { student: () => studentJourney('attempted'), correct: () => studentJourney('correct'), fault: faultJourney, preview: previewJourney, recovery: recoveryJourney, 'recovery-null-pin': recoveryUnreadablePinJourney, 'recovery-practice': recoveryPracticeEmptyJourney, context: damagedContextJourney };
 for (const [name, run] of Object.entries(journeys)) {
   if (ONLY && ONLY !== name) continue;
   try {
