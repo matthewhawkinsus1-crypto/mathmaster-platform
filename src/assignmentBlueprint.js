@@ -728,8 +728,14 @@ export const validateAssignmentQuestions = (questions, options = {}) => {
   }
 
   const supportedTypes = new Set(SUPPORTED_QUESTION_TYPES);
+  // Pre-Flight passes `deliveredOnly`: a question the teacher excluded is kept
+  // for history and never delivered, so it is not judged as a deliverable
+  // question. Every other caller judges every question, as before. Labels keep
+  // each question's stored position either way.
+  const deliveredOnly = options?.deliveredOnly === true;
 
   questions.forEach((question, index) => {
+    if (deliveredOnly && question?.teacherExcluded === true) return;
     // A Question Family slot is a TEMPLATE: "{{m}}" is not a slope, and a rich
     // tool's schema rightly refuses a board whose line cannot be derived. The
     // renderer contract is judged on the question a student is generated —

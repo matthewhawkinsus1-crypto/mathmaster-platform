@@ -614,10 +614,12 @@ const validateBuiltQuestionSemantics = (question = {}, { label = 'Question' } = 
   return { errors, warnings };
 };
 
-export const validateQuestionsSemantics = (questions = []) => {
+export const validateQuestionsSemantics = (questions = [], { deliveredOnly = false } = {}) => {
   const errors = [];
   const warnings = [];
   (Array.isArray(questions) ? questions : []).forEach((question, index) => {
+    // Pre-Flight judges delivered questions only (assignmentV5PreflightModel).
+    if (deliveredOnly && question?.teacherExcluded === true) return;
     const result = validateQuestionSemantics(question, { label: `Question ${index + 1}` });
     errors.push(...result.errors);
     warnings.push(...result.warnings);

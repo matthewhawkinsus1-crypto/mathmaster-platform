@@ -23,7 +23,9 @@ test('assignment creation persists canonical V5 sections and policy metadata', (
 
 test('question edits and duplication pass through canonical V5 reconstruction', () => {
   const source = fs.readFileSync('src/App.jsx', 'utf8');
-  assert.match(source, /storedAssignmentToV5\(questionEditorAssignment/);
+  // The stored editor assignment is reconstructed through canonical V5 — with
+  // any section an Honors swap appended (honorsExtensionSwap.js).
+  assert.match(source, /storedAssignmentToV5\((?:withAppendedQuestionSections\()?questionEditorAssignment/);
   assert.match(source, /canonicalV5PersistencePatch\(model\.assignmentV5\)/);
   assert.match(source, /storedAssignmentToV5\(assignment/);
 });

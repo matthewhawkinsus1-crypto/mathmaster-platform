@@ -374,10 +374,11 @@ export const validateQuestionInteractionContracts = (question = {}, { label = 'Q
   return { errors: [...new Set(errors)], warnings: [...new Set(warnings)] };
 };
 
-export const validateAssignmentInteractionContracts = (questions = []) => {
+export const validateAssignmentInteractionContracts = (questions = [], { deliveredOnly = false } = {}) => {
   const errors = [];
   const warnings = [];
   asArray(questions).forEach((question, index) => {
+    if (deliveredOnly && question?.teacherExcluded === true) return;
     const result = validateQuestionInteractionContracts(question, { label: `Question ${index + 1}` });
     errors.push(...result.errors);
     warnings.push(...result.warnings);

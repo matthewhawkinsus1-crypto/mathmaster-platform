@@ -52,7 +52,9 @@ test('live or student-data protected assignments permit only guarded response-en
 test('unsafe live rewrites are still rejected before save', () => {
   assert.match(editor, /MathMaster blocked this live rewrite/);
   assert.match(editor, /if \(hasLiveProtection && historicalQuestion\)/);
-  assert.match(editor, /onSave\(\{ title: title\.trim\(\), questions, liveRepairs \}\)/);
+  // The save still carries the guarded live repairs; it also carries any
+  // section an Honors swap appended (honorsExtensionSwap.js).
+  assert.match(editor, /onSave\(\{ title: title\.trim\(\), questions, liveRepairs(?:, appendedSections)? \}\)/);
 });
 
 console.log('assignmentQuestionEditorNoCode.test.mjs: all assertions passed');

@@ -1,6 +1,5 @@
 import { getStrandForTEKS } from '../mastery/strandConfig.js';
 import { mapTEKSToExamDomains } from '../assessment/examDomainRegistry.js';
-import { allocateQuestionValue } from '../../../functions/shared/questionValue.mjs';
 
 export const COURSE_LEVELS = Object.freeze({
   STANDARD: 'standard',
@@ -299,37 +298,11 @@ export const summarizeRigorSequence = (assignments = [], classPeriod, { limit = 
   };
 };
 
-// A new question, created here rather than compiled, so it gets its grade
-// value here (questionValue.mjs) like every other created question.
-export const buildHonorsEnrichmentQuestion = ({ questions = [], course = 'algebra1' } = {}) => allocateQuestionValue(buildHonorsEnrichmentContent({ questions, course }));
-
-const buildHonorsEnrichmentContent = ({ questions = [], course = 'algebra1' } = {}) => {
-  const firstTeks = questions.flatMap(questionTeks)[0] || null;
-  const courseId = normalizeCourseId(course);
-  const courseLabel = COURSE_LABELS[courseId];
-  const basePrompt = `${courseLabel} Honors extension: Create a realistic situation connected to ${firstTeks ? `TEKS ${firstTeks}` : 'the mathematics in this assignment'}. Define the quantities, represent their relationship with a graph, and justify why the graph is reasonable. Then explain what one important feature of the model means in context.`;
-  return {
-    type: 'graphStory',
-    familyId: `honors-modeling-${courseId}`,
-    activityRole: 'classwork',
-    dok: 3,
-    difficultyBand: 4,
-    teks: firstTeks ? [firstTeks] : [],
-    tags: ['honors', 'modeling', 'multiple-representations', 'justification'],
-    honorsEnrichment: {
-      generatedBy: 'MathMaster',
-      contractVersion: 1,
-      source: 'deterministic-policy',
-    },
-    prompt: basePrompt,
-    variants: [
-      { prompt: basePrompt },
-      { prompt: `${courseLabel} Honors extension: Design a different real-world model connected to ${firstTeks ? `TEKS ${firstTeks}` : 'this assignment'}. Identify the independent and dependent quantities, sketch and label a graph, justify its important features, and explain what one important feature of your representation means in context.` },
-    ],
-    minimumScenarioCharacters: 35,
-    minimumExplanationCharacters: 45,
-  };
-};
+// The no-AI Honors extension is no longer written here. A generic
+// free-response question labelled with the destination class's course could
+// not be self-graded, could not pass Pre-Flight, and leaked Algebra II content
+// into Algebra I assignments. It now comes only from a vetted, course- and
+// family-checked recipe: see ./honorsExtensionRecipes.js.
 
 const performanceFromTeksSummary = (summary = {}) => {
   const score = Number(summary.score ?? summary.mastery?.estimate ?? 0);

@@ -267,7 +267,7 @@ const DEVICE_GRADED_LISTED = 6;
  * The audit. `questions` are the flattened runtime questions, in order (the
  * flat index is the "Question N" every other Pre-Flight message uses).
  */
-export const auditAssignmentQuestionGeneration = (assignment = {}, questions = [], { classSize = null } = {}) => {
+export const auditAssignmentQuestionGeneration = (assignment = {}, questions = [], { classSize = null, deliveredOnly = false } = {}) => {
   const list = Array.isArray(questions) ? questions : [];
   const assignmentId = clean(assignment?.id || assignment?.assignment?.id) || 'preflight';
   const knownClassSize = Number.isInteger(Number(classSize)) && Number(classSize) > 0 ? Number(classSize) : null;
@@ -284,6 +284,9 @@ export const auditAssignmentQuestionGeneration = (assignment = {}, questions = [
   list.forEach((question, flatIndex) => {
     const role = clean(question?.activityRole).toLowerCase() || 'classwork';
     positionInSection[role] = (positionInSection[role] || 0) + 1;
+    // Counted above so later labels keep their stored positions; an excluded
+    // question generates nothing for anyone, so there is no slot to audit.
+    if (deliveredOnly && question?.teacherExcluded === true) return;
     const where = `Question ${flatIndex + 1} (${sectionLabel(role)} Q${positionInSection[role]})`;
     const mode = sectionModeFor(assignment, role);
     const variability = describeQuestionVariability(question);
@@ -373,6 +376,7 @@ export const auditAssignmentQuestionGeneration = (assignment = {}, questions = [
   ['warmup', 'dol'].forEach((section) => {
     const entries = list
       .map((question, storageIndex) => ({ question, storageIndex }))
+      .filter((entry) => !(deliveredOnly && entry.question?.teacherExcluded === true))
       .filter((entry) => clean(entry.question?.activityRole).toLowerCase() === section);
     if (!entries.length) return;
     const label = `${sectionLabel(section)} Recovery`;

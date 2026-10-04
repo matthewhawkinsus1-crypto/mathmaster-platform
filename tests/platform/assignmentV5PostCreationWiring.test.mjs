@@ -32,7 +32,9 @@ test('new V5 persistence stores courseId for later reconstruction and export', (
 });
 
 test('question editor runs native V5 Preflight before saving changes', () => {
-  assert.match(app, /storedAssignmentToV5\(questionEditorAssignment/);
+  // Reconstructed from the stored editor assignment (plus any section an
+  // Honors swap appended) before Pre-Flight judges it.
+  assert.match(app, /storedAssignmentToV5\((?:withAppendedQuestionSections\()?questionEditorAssignment/);
   assert.match(app, /const model = buildAssignmentV5PreflightModel\(candidateV5\)/);
   assert.match(app, /These question edits cannot be saved until MathMaster’s assignment checks are clean/);
   assert.match(app, /canonicalV5PersistencePatch\(model\.assignmentV5\)/);

@@ -103,22 +103,44 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   const persistenceSections = (source.sections || []).map(withRuntimeSectionMetadata);
 
   const questions = flattenV5Sections({ ...runtimeSource, sections });
+
+  // PRE-FLIGHT JUDGES WHAT STUDENTS WILL BE GIVEN.
+  //
+  // A question the teacher excluded (Exclude, Throw Out Safely, or a swap that
+  // retires it) stays in the record so student history keeps its meaning, but
+  // it is never delivered or graded. Judging it as deliverable is what
+  // deadlocked the Question Editor: the defect that made the teacher retire a
+  // question blocked the very save that retired it. So the delivery checks
+  // below skip retired questions — and only those: every question that stays
+  // active is judged exactly as before, labelled by its stored position, and
+  // re-including a retired question puts it back under every check. What the
+  // record must be to be SAVED (Firestore safety, the V5 schema, grade values)
+  // is still judged on everything stored.
+  const retiredQuestions = questions.flatMap((question, index) => (
+    question?.teacherExcluded === true
+      ? [{ questionId: clean(question?.questionId) || null, questionNumber: index + 1 }]
+      : []
+  ));
+  const deliveredQuestions = questions.filter((question) => question?.teacherExcluded !== true);
+  const deliveredOnly = { deliveredOnly: true };
+
   const runtimeContractErrors = [];
   try {
     validateAssignmentQuestions(questions, {
       variantMode: runtimeSource?.variantPolicy?.mode,
+      ...deliveredOnly,
     });
   } catch (error) {
     runtimeContractErrors.push(String(error?.message || error));
   }
-  const semantic = validateQuestionsSemantics(questions);
-  const interaction = validateAssignmentInteractionContracts(questions);
-  const worksheetPrint = auditAssignmentWorksheetPrintability({ ...runtimeSource, sections }, questions);
-  const supportDifferentiation = auditAssignmentSupportDifferentiation({ ...runtimeSource, sections }, questions);
+  const semantic = validateQuestionsSemantics(questions, deliveredOnly);
+  const interaction = validateAssignmentInteractionContracts(questions, deliveredOnly);
+  const worksheetPrint = auditAssignmentWorksheetPrintability({ ...runtimeSource, sections }, questions, deliveredOnly);
+  const supportDifferentiation = auditAssignmentSupportDifferentiation({ ...runtimeSource, sections }, questions, deliveredOnly);
   const classworkPacing = analyzeClassworkPlannedTime({ ...runtimeSource, sections });
   // Question families, per-student uniqueness and Recovery readiness, judged
   // on the runtime view students will actually be given.
-  const questionGeneration = auditAssignmentQuestionGeneration({ ...runtimeSource, sections }, questions, { classSize });
+  const questionGeneration = auditAssignmentQuestionGeneration({ ...runtimeSource, sections }, questions, { classSize, ...deliveredOnly });
   // Question values: will the grade be computed the way the teacher expects?
   // Read-only, like every audit here — it never sets a value.
   const questionValues = auditAssignmentQuestionValues({ ...runtimeSource, sections }, questions);
@@ -142,6 +164,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
   const alignmentProvenanceWarnings = [];
 
   questions.forEach((question, index) => {
+    if (question?.teacherExcluded === true) return;
     const alignment = validateAlignments(question, { label: `Question ${index + 1}` });
     alignmentErrors.push(...asMessages(alignment.errors));
     alignmentWarnings.push(...asMessages(alignment.warnings));
@@ -153,7 +176,7 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
       alignmentProvenanceWarnings.push(`Question ${index + 1} is direct ${assessmentContext.framework} practice but is not sourced from the audited CCMR V2.1 assignment bank. Its alignment can still validate, but MathMaster cannot label its provenance as bank-backed.`);
     }
   });
-  const alignmentSpecificityWarnings = asMessages(auditAlignmentSpecificity(questions).warnings);
+  const alignmentSpecificityWarnings = asMessages(auditAlignmentSpecificity(deliveredQuestions).warnings);
 
   const diagnosticGroups = [
     { source: 'persistence', severity: 'blocking', messages: persistenceErrors },
@@ -216,6 +239,8 @@ export const buildAssignmentV5PreflightModel = (input = {}, { titleOverride = nu
     questionGeneration,
     questionValues,
     processMode,
+    // Excluded questions Pre-Flight kept but did not judge for delivery.
+    retiredQuestions,
     errors: uniqueErrors,
     warnings: uniqueWarnings,
     diagnostics,
