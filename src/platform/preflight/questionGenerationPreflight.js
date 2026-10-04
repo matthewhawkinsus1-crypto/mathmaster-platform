@@ -33,6 +33,8 @@ import {
   familySlotKey,
 } from '../../../functions/shared/questionFamilyInstance.mjs';
 import { measureFamilyCapacity } from '../../../functions/shared/questionFamilyEngine.mjs';
+import { describeConstraintIssue } from '../../../functions/shared/questionFamilyContract.mjs';
+import { allRegisteredQuestionFamilies } from '../../../functions/shared/questionFamilyRegistry.mjs';
 import { placeholdersUsed } from '../../../functions/shared/pathQuestionGeneration.mjs';
 import { familyInstanceGradingSupport, familyInstanceServerGradable } from '../../../functions/shared/questionFamilyGrading.mjs';
 // The answer-key self-check below only builds keys for ordinary types and a
@@ -89,9 +91,17 @@ export const answerKeyResponse = (question = {}) => {
   const type = clean(question?.type);
   if (type === 'stepAlgebra') {
     const variable = clean(question.variable || question.objective?.variable || 'x');
-    return Number.isFinite(Number(question.generatedAnswer))
-      ? { kind: 'opaque', type, value: `${variable}=${question.generatedAnswer}`, fields: [] }
-      : null;
+    if (Number.isFinite(Number(question.generatedAnswer))) {
+      return { kind: 'opaque', type, value: `${variable}=${question.generatedAnswer}`, fields: [] };
+    }
+    // A Question Family instance with an exact key (linear.multiStepEquation
+    // v2 and later): a fraction, or a special outcome, written as the
+    // workspace writes a finished solve.
+    const key = question.solutionKey;
+    if (key?.outcome === 'value' && clean(key.value)) return { kind: 'opaque', type, value: `${variable}=${clean(key.value)}`, fields: [] };
+    if (key?.outcome === 'noSolution') return { kind: 'opaque', type, value: 'No solution', fields: [] };
+    if (key?.outcome === 'allReals') return { kind: 'opaque', type, value: 'All real numbers', fields: [] };
+    return null;
   }
   if (type === 'system' && Array.isArray(question.solution)) {
     return { kind: 'scalar', type, value: `(${question.solution[0]}, ${question.solution[1]})`, fields: [] };
@@ -214,6 +224,18 @@ const slotWritesFamilyTokens = (question = {}) => {
   return placeholdersUsed(authored).size > 0;
 };
 
+/** The oldest registered version of this platform family, newer than it, that declares `constraint`; null if none. */
+const newerVersionDeclaring = (family, constraint) => {
+  if (family?.scope !== 'platform') return null;
+  const versions = allRegisteredQuestionFamilies()
+    .filter((candidate) => candidate.id === family.id
+      && candidate.version > family.version
+      && Object.prototype.hasOwnProperty.call(candidate.constraints || {}, constraint))
+    .map((candidate) => candidate.version)
+    .sort((left, right) => left - right);
+  return versions.length ? versions[0] : null;
+};
+
 const describeParameters = (parameters = {}) => Object.entries(parameters)
   .map(([name, value]) => `${name} = ${value}`)
   .join(', ');
@@ -328,7 +350,17 @@ export const auditAssignmentQuestionGeneration = (assignment = {}, questions = [
       warnings.push(`${where} asks for the ${audit.toolIssue.requested} tool, which ${audit.family.id} cannot fill; it will open in ${audit.toolIssue.used} instead.`);
     }
     audit.constraintIssues.forEach((issue) => {
-      warnings.push(`${where}: constraint "${issue.constraint}" (${JSON.stringify(issue.requested)}) is not something ${audit.family.id} allows, so its default is used (${issue.code}).`);
+      // A constraint only a NEWER version of this family understands (e.g.
+      // `solutionCase` on a slot that is unpinned, so version 1) is not a
+      // typo: the author asked for mathematics this version cannot make, and
+      // every student would silently get the old version's questions. That
+      // blocks; anything else keeps its long-standing warning.
+      const newer = issue.code === 'constraint_unknown' ? newerVersionDeclaring(audit.family, issue.constraint) : null;
+      if (newer !== null) {
+        errors.push(`${where}: "${issue.constraint}" is a constraint of ${audit.family.id} version ${newer}, but this question uses version ${audit.family.version}, which ignores it — every student would get version ${audit.family.version}'s questions instead of the ones asked for. Set "version": ${newer} in its questionFamily.`);
+        return;
+      }
+      warnings.push(`${where}: constraint "${issue.constraint}" (${JSON.stringify(issue.requested)}) is not something ${audit.family.id} allows, so its default is used (${issue.code}). ${describeConstraintIssue(issue, audit.family.id)}.`);
     });
     if (!audit.gradable) {
       const why = audit.gradingSupport?.blocker || audit.gradingSupport?.reason || '';

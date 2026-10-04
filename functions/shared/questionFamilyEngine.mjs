@@ -30,7 +30,7 @@
  * Pure: no Firestore, no clock, no Math.random.
  */
 
-import { FAMILY_ISSUE, domainValues, isQuestionFamily } from './questionFamilyContract.mjs';
+import { FAMILY_ISSUE, choiceDomain, domainValues, isQuestionFamily } from './questionFamilyContract.mjs';
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
@@ -70,13 +70,22 @@ const mix32 = (value) => {
  *
  * Names are sorted so the numbering never depends on the order a family author
  * happened to list them in.
+ *
+ * For a stratified family, `stratum` (e.g. { case: 'none' }) is passed to
+ * `parameters` and its entries join the space as single-value parameters, so
+ * every instance records the stratum it came from. Without one the family's
+ * `parameters` is called exactly as it always was.
  */
-export const buildParameterSpace = (family, constraintValues = {}) => {
+export const buildParameterSpace = (family, constraintValues = {}, stratum = undefined) => {
   let domains = {};
   try {
-    domains = family.parameters(constraintValues) || {};
+    domains = (stratum === undefined ? family.parameters(constraintValues) : family.parameters(constraintValues, stratum)) || {};
   } catch {
     domains = {};
+  }
+  if (stratum !== undefined) {
+    domains = { ...domains };
+    Object.entries(stratum).forEach(([name, value]) => { domains[name] = choiceDomain([value]); });
   }
   const names = Object.keys(domains).sort();
   const values = names.map((name) => domainValues(domains[name]));
@@ -256,7 +265,139 @@ const MIN_EXAMINE_BUDGET = 2000;
  */
 export const createFamilyInstanceSequence = (family, constraintValues, seedKey) => {
   if (!isQuestionFamily(family)) throw new TypeError('createFamilyInstanceSequence needs a defined question family.');
-  const space = buildParameterSpace(family, constraintValues);
+  if (family.strata) return createStratifiedSequence(family, constraintValues, seedKey);
+  return createPlainSequence(family, constraintValues, seedKey);
+};
+
+/* ---------------------------------------------------------------------------
+ * STRATIFIED SEQUENCES — A MIX THAT IS A MIX FOR EVERY CLASS.
+ *
+ * A slot that asks for "mixed" solution cases must actually hand a class all
+ * of them. Drawing the case like any other parameter would not: the share of
+ * each case would follow how many valid instances each happens to have, and a
+ * class of 30 could get two identities and no contradictions. So a stratified
+ * family lists its strata (one per case, say), each stratum gets its own
+ * distinct instance list S_s (a plain sequence over the stratum's own
+ * parameters, seeded by the slot and the stratum), and the slot's list
+ * interleaves them in blocks:
+ *
+ *   D[k] = S_order(B)[k mod m] [B]       B = floor(k / m), m = number of strata
+ *
+ * where order(B) is a seeded shuffle of the strata for block B. So
+ *
+ *   - every m consecutive allocation indices starting at a multiple of m cover
+ *     every stratum exactly once — 30 seats over 3 cases are exactly 10 each;
+ *   - a student's later variants (index + variant·stride, and the stride is
+ *     the class size, often a multiple of m) do NOT keep landing on the same
+ *     stratum, because the order changes from block to block;
+ *   - distinct indices are distinct questions: within a stratum by its own
+ *     list, across strata because no instance can belong to two of them
+ *     (a family keeps its strata disjoint — a solution case is a property of
+ *     the equation itself).
+ *
+ * D[k] must depend on k alone, never on which indices were asked for first,
+ * or a pin could stop replaying. So a block exists only when EVERY stratum
+ * reaches it: the list ends, cleanly, after the last whole block, and a slot
+ * past the end wraps exactly as an unstratified family does.
+ * ------------------------------------------------------------------------- */
+
+/** "case=\"none\",shape=\"likeTerms\"" — a stratum's stable name. */
+export const stratumKey = (stratum) => Object.keys(stratum || {}).sort()
+  .map((name) => `${name}=${JSON.stringify(stratum[name])}`)
+  .join(',');
+
+const MAX_STRATA = 16;
+
+/** The strata a slot balances, de-duplicated and validated; null when the family is not stratified. */
+export const familyStrata = (family, constraintValues = {}) => {
+  if (!family?.strata) return null;
+  let listed;
+  try {
+    listed = family.strata.values(constraintValues);
+  } catch {
+    listed = [];
+  }
+  const seen = new Set();
+  const strata = [];
+  (Array.isArray(listed) ? listed : []).forEach((stratum) => {
+    if (!isObject(stratum) || !Object.keys(stratum).length) return;
+    const key = stratumKey(stratum);
+    if (seen.has(key) || strata.length >= MAX_STRATA) return;
+    seen.add(key);
+    strata.push(Object.freeze({ ...stratum }));
+  });
+  return Object.freeze(strata);
+};
+
+/** The stratum an instance of a stratified family came from (its fixed parameters). */
+export const instanceStratum = (family, constraintValues, instance) => (familyStrata(family, constraintValues) || [])
+  .find((stratum) => Object.entries(stratum).every(([name, value]) => JSON.stringify(instance?.params?.[name]) === JSON.stringify(value))) || null;
+
+const blockOrder = (family, seedKey, block, count) => {
+  const order = Array.from({ length: count }, (_, index) => index);
+  for (let index = count - 1; index > 0; index -= 1) {
+    const swap = hashString32(`${family.id}|v${family.version}|${seedKey}|block:${block}|${index}`) % (index + 1);
+    [order[index], order[swap]] = [order[swap], order[index]];
+  }
+  return order;
+};
+
+const createStratifiedSequence = (family, constraintValues, seedKey) => {
+  const strata = familyStrata(family, constraintValues);
+  const subs = strata.map((stratum) => createPlainSequence(family, constraintValues, `${seedKey}|stratum:${stratumKey(stratum)}`, stratum));
+  const count = subs.length;
+  const orders = new Map();
+  const orderFor = (block) => {
+    if (!orders.has(block)) orders.set(block, blockOrder(family, seedKey, block, count));
+    return orders.get(block);
+  };
+  const entryAt = (index, budget) => {
+    if (!count) return null;
+    const position = Math.max(0, Math.floor(Number(index) || 0));
+    const block = Math.floor(position / count);
+    // Ask every stratum (no short cut): each one fills as far as this block,
+    // which is what lets `distinctFound` say exactly where the list ends.
+    const reached = subs.map((sub) => sub.instanceAt(block, { budget }));
+    if (reached.some((instance) => !instance)) return null;
+    return reached[orderFor(block)[position % count]];
+  };
+  return Object.freeze({
+    familyId: family.id,
+    familyVersion: family.version,
+    spaceSize: subs.reduce((sum, sub) => sum + sub.spaceSize, 0),
+    strata,
+    instanceAt(index, { budget = null } = {}) {
+      return entryAt(index, budget);
+    },
+    exhaust(budget = MIN_EXAMINE_BUDGET * 10) {
+      const each = count ? Math.max(1, Math.floor(budget / count)) : 0;
+      const results = subs.map((sub) => sub.exhaust(each));
+      const blocks = count ? Math.min(...results.map((result) => result.instances.length)) : 0;
+      const instances = [];
+      for (let index = 0; index < blocks * count; index += 1) instances.push(entryAt(index, null));
+      return {
+        instances,
+        complete: results.every((result) => result.complete),
+        examined: results.reduce((sum, result) => sum + result.examined, 0),
+        strata: strata.map((stratum, position) => ({ stratum, distinct: results[position].instances.length, complete: results[position].complete })),
+      };
+    },
+    get examined() { return subs.reduce((sum, sub) => sum + sub.examined, 0); },
+    // Whole blocks every stratum has reached. After a failed instanceAt every
+    // stratum has been filled to that block, so this is then exactly where
+    // the list ends — the count a wrap is taken modulo.
+    get distinctFound() { return count ? count * Math.min(...subs.map((sub) => sub.distinctFound)) : 0; },
+    get complete() { return subs.every((sub) => sub.complete); },
+    rejections: () => subs.reduce((all, sub) => {
+      Object.entries(sub.rejections()).forEach(([issue, total]) => { all[issue] = (all[issue] || 0) + total; });
+      return all;
+    }, {}),
+  });
+};
+
+/** One unstratified list, or one stratum's list: the original engine, unchanged. */
+const createPlainSequence = (family, constraintValues, seedKey, stratum = undefined) => {
+  const space = buildParameterSpace(family, constraintValues, stratum);
   const permute = createIndexPermutation(space.size, `${family.id}|v${family.version}|${seedKey}`);
   const found = [];
   const fingerprints = new Set();
@@ -370,6 +511,7 @@ export const EXACT_CAPACITY_LIMIT = 250000;
  * labelled `exact: false` so nobody mistakes it for a guarantee.
  */
 export const measureFamilyCapacity = (family, constraintValues = {}, { budget = EXACT_CAPACITY_LIMIT } = {}) => {
+  if (family?.strata) return measureStratifiedCapacity(family, constraintValues, { budget });
   const space = buildParameterSpace(family, constraintValues);
   if (!space.size) {
     return { capacity: 0, exact: true, spaceSize: 0, examined: 0, validRatio: 0, rejections: {} };
@@ -399,6 +541,47 @@ export const measureFamilyCapacity = (family, constraintValues = {}, { budget = 
   };
 };
 
+/**
+ * Capacity of a stratified family: each stratum measured on its own list, and
+ * the slot's capacity is the balanced part — m whole blocks' worth of the
+ * smallest stratum — because that is where its interleaved list ends.
+ * `strata` reports every stratum, so Pre-Flight can say which case runs out.
+ */
+const measureStratifiedCapacity = (family, constraintValues, { budget }) => {
+  const strata = familyStrata(family, constraintValues) || [];
+  const measured = strata.map((stratum) => {
+    const space = buildParameterSpace(family, constraintValues, stratum);
+    if (!space.size) return { stratum, capacity: 0, exact: true, spaceSize: 0, examined: 0, found: 0, rejections: {} };
+    const sequence = createPlainSequence(family, constraintValues, `capacity|stratum:${stratumKey(stratum)}`, stratum);
+    const result = sequence.exhaust(Math.min(budget, space.size));
+    const ratio = result.examined ? result.instances.length / result.examined : 0;
+    return {
+      stratum,
+      capacity: result.complete ? result.instances.length : Math.floor(ratio * space.size),
+      exact: result.complete,
+      spaceSize: space.size,
+      examined: result.examined,
+      found: result.instances.length,
+      rejections: sequence.rejections(),
+    };
+  });
+  const examined = measured.reduce((sum, entry) => sum + entry.examined, 0);
+  const distinct = measured.reduce((sum, entry) => sum + entry.capacity, 0);
+  return {
+    capacity: measured.length ? measured.length * Math.min(...measured.map((entry) => entry.capacity)) : 0,
+    exact: measured.every((entry) => entry.exact),
+    spaceSize: measured.reduce((sum, entry) => sum + entry.spaceSize, 0),
+    examined,
+    validRatio: examined ? measured.reduce((sum, entry) => sum + entry.found, 0) / examined : 0,
+    rejections: measured.reduce((all, entry) => {
+      Object.entries(entry.rejections).forEach(([issue, total]) => { all[issue] = (all[issue] || 0) + total; });
+      return all;
+    }, {}),
+    distinctTotal: distinct,
+    strata: measured.map(({ stratum, capacity, exact, spaceSize }) => ({ stratum, capacity, exact, spaceSize })),
+  };
+};
+
 /* ---------------------------------------------------------------------------
  * Building the question a student sees.
  * ------------------------------------------------------------------------- */
@@ -422,6 +605,7 @@ export const buildFamilyQuestion = ({ family, instance, constraintValues = {}, a
   const builder = family.tools[toolType];
   const base = { ...(isObject(authored) ? authored : {}) };
   TEMPLATE_ONLY_FIELDS.forEach((field) => { delete base[field]; });
+  (family.instanceFields || []).forEach((field) => { delete base[field]; });
 
   const built = builder(instance.values, {
     constraints: constraintValues,

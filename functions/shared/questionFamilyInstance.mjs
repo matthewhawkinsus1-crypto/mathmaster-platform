@@ -38,7 +38,7 @@
  * Pure: no Firestore, no clock.
  */
 
-import { resolveFamilyConstraints } from './questionFamilyContract.mjs';
+import { describeConstraintIssue, resolveFamilyConstraints } from './questionFamilyContract.mjs';
 import { buildFamilyQuestion, cachedFamilyInstanceSequence } from './questionFamilyEngine.mjs';
 import { getPlatformQuestionFamily, hasPlatformQuestionFamily } from './questionFamilyRegistry.mjs';
 import { buildTemplateFamily, hasLocalFamilyTemplate } from './questionFamilyTemplate.mjs';
@@ -61,6 +61,10 @@ export const FAMILY_RESOLUTION_ERROR = Object.freeze({
   NO_VALID_INSTANCES: 'family_has_no_valid_instances',
   ALL_INSTANCES_EXCLUDED: 'all_instances_excluded',
   PIN_MISMATCH: 'pin_mismatch',
+  // A strict family (constraintPolicy 'strict') was asked for something it
+  // cannot honour exactly. It generates nothing rather than the default: a
+  // slot that asked for "no solution" must never quietly ask for one.
+  CONSTRAINT_INVALID: 'constraint_invalid',
 });
 
 /** Is this slot opted into the question family engine at all? */
@@ -135,6 +139,15 @@ export const resolveQuestionFamilyDefinition = (question, { slotKey = '', suppor
     ? family.supportConstraints[supportKey]
     : null;
   const constraints = resolveFamilyConstraints(family, { ...reference.constraints, ...supportOverrides });
+  if (constraints.fatal) {
+    return {
+      error: FAMILY_RESOLUTION_ERROR.CONSTRAINT_INVALID,
+      reference,
+      family,
+      constraintIssues: constraints.issues,
+      issues: constraints.issues.map((issue) => describeConstraintIssue(issue, `${family.id} v${family.version}`)),
+    };
+  }
 
   const requestedTool = reference.tool;
   const slotType = clean(question?.type);
