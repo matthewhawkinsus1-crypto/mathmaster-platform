@@ -54,7 +54,7 @@ body.mathmaster-solver-workspace-open::before {
   top: 0;
   z-index: 80;
   justify-content: space-between;
-  background: rgba(248, 251, 255, .97);
+  background: var(--mm-surface-frosted);
   box-shadow: 0 4px 16px rgba(31, 73, 125, .1);
   backdrop-filter: blur(8px);
 }

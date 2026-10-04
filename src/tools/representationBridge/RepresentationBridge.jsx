@@ -46,7 +46,7 @@ const emptyState = {
 // value. `revealed` says, per concept, whether the student's own work for it
 // is already individually correct.
 const highlightBorder = (active, matches) => (active && matches ? '3px solid #b06000' : undefined);
-const highlightBackground = (active, matches) => (active && matches ? '#fff6e5' : undefined);
+const highlightBackground = (active, matches) => (active && matches ? 'var(--mm-warning-subtle)' : undefined);
 
 // A DISPATCHER, AND NOTHING ELSE. Each mode is its own component so the hooks
 // below run in the same order on every render: an early return in front of

@@ -520,8 +520,8 @@
   gap:10px;
   min-height:42px;
   padding:4px 10px;
-  border-bottom:1px solid #e6c75a;
-  background:#fff1ad;
+  border-bottom:1px solid var(--mm-warning-border-soft);
+  background:var(--mm-warning-bg);
   color:var(--mm-text);
   font-weight:700;
 }
