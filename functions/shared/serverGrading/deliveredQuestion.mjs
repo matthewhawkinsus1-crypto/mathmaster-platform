@@ -38,16 +38,28 @@ import { normalizeContextualQuestion } from '../runtime/wordProblemLayer.mjs';
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
-export const deliveredQuestionForGrading = (question) => {
+/**
+ * Transform 1 alone. A Question Family TEMPLATE is resolved from this, never
+ * from the normalized form: QuestionEngine repairs, then generates, then
+ * normalizes the generated instance. A local template's fingerprint covers
+ * its whole document, `context` included, so rebuilding it from a
+ * context-normalized template hashed a different document — every pin for a
+ * template with a word-problem context failed to replay here (and in
+ * Recovery grading), and the student's work was held instead of graded.
+ */
+export const runtimeRepairedQuestion = (question) => {
   if (!isObject(question)) return question;
-  let repaired = question;
   try {
     const result = repairQuestionForCurrentRuntime(question, { source: 'serverGrading' });
-    if (isObject(result?.question)) repaired = result.question;
+    if (isObject(result?.question)) return result.question;
   } catch {
     // The repair fails closed to the stored question, exactly as the browser
     // runtime does (QuestionEngine keeps the literal question on a throw).
-    repaired = question;
   }
-  return normalizeContextualQuestion(repaired);
+  return question;
+};
+
+export const deliveredQuestionForGrading = (question) => {
+  if (!isObject(question)) return question;
+  return normalizeContextualQuestion(runtimeRepairedQuestion(question));
 };
