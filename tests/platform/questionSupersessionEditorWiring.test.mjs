@@ -73,15 +73,24 @@ test('no editor action can create a second version: Duplicate drops the link, a 
 
 test('the card shows that a question was replaced, by which question, and why Include is unavailable', () => {
   const cards = region(editorBase, '{questions.map((question, index) => {', '{repairIndex === index', 'question cards');
-  assert.match(cards, /describeQuestionSupersession\(questions,\s*index\)/);
-  assertCapability(cards, ['Replaced by Question', /REPLACED/], 'a replaced question is labelled as replaced');
-  assertCapability(cards, ['Replaces Question', /REPLACEMENT/], 'an active replacement names what it replaced');
-  // The Include control is marked unavailable for assistive technology, and
-  // the reason is visible text on the card, not a hover tooltip.
+  // Every card is described by the guard, from the one lineage resolution of this edit.
+  assert.match(cards, /describeQuestionSupersession\(questions,\s*index(?:,\s*lineages)?\)/);
+  // The words ("Replaced by Question 9 …", "Replaces Question 3 …") are the
+  // guard's own (asserted in questionSupersessionGuard.test.mjs); the card
+  // renders them as visible text and a badge, never as a hover tooltip.
+  assert.match(cards, /supersessionCardSummary\(supersession\)/);
+  assertCapability(cards, [/\{supersessionSummary\.text\}/], 'the notice text is rendered on the card');
+  assertCapability(cards, [/\{supersessionSummary\.badge\}/], 'the badge (REPLACED, REPLACEMENT, …) is rendered beside EXCLUDED');
+  // The Include control is marked unavailable for assistive technology and
+  // pointed at the notice that explains why.
   assert.match(cards, /aria-disabled=\{[^}]*includeBlocked/);
-  assert.match(cards, /includeBlockedReason/);
-  assert.match(cards, /role="alert"/, 'a refused Include is announced where the teacher pressed it');
-  assert.match(cards, /inclusionNotice/);
+  assert.match(cards, /aria-describedby=\{[^}]*includeBlocked/);
+  // A refused Include is announced on that card, in the guard's words.
+  const alert = /<p role="alert"[^>]*>\{inclusionNotice\.message\}<\/p>/;
+  assert.match(cards, alert, 'a refused Include is announced where the teacher pressed it');
+  assert.match(cards, /inclusionNotice\?\.questionId === question\.questionId/);
+  // And the teacher can jump to the version the notice names.
+  assert.match(cards, /onClick=\{\(\) => showQuestion\(supersessionSummary\.showQuestion\.index\)\}/);
 });
 
 test('20. the new card controls stay usable on phones, iPads and Chromebooks', () => {

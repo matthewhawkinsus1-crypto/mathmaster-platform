@@ -31,6 +31,7 @@ import {
   keepSupersessionLink,
   planQuestionInclusion,
   resolveQuestionLineages,
+  supersessionCardSummary,
   withoutSupersessionLink,
 } from '../../src/platform/assignments/questionSupersession.js';
 import { projectCurrentAssignmentContent } from '../../src/platform/assignments/currentContentProjection.js';
@@ -316,6 +317,41 @@ test('4. history stays attached to historical ids: no id, storage index or link 
   assert.equal(projection.byQuestionId.get(original).storageIndex, indexOf(storage, original));
   assert.equal(projection.byQuestionId.get(original).source, 'stored');
   assert.equal(projection.byQuestionId.has(replacement), false);
+});
+
+test('every card says plainly what happened: replaced by which question, what a replacement replaces, and when two are active', () => {
+  const { stored, original, replacement } = liveSwap();
+  const questions = editorQuestionsOf(stored);
+  const lineages = resolveQuestionLineages(questions);
+  const card = (list, questionId, shared = null) => supersessionCardSummary(describeQuestionSupersession(list, indexOf(list, questionId), shared));
+  const originalNumber = indexOf(questions, original) + 1;
+  const replacementNumber = indexOf(questions, replacement) + 1;
+
+  const retired = card(questions, original, lineages);
+  assert.equal(retired.badge, 'REPLACED');
+  assert.match(retired.text, new RegExp(`^Replaced by Question ${replacementNumber}\\.`));
+  assert.match(retired.text, /responses students gave this version stay attached to it/);
+  assert.equal(retired.showQuestion.questionId, replacement, 'the card can take the teacher to the replacement');
+
+  const active = card(questions, replacement, lineages);
+  assert.equal(active.badge, 'REPLACEMENT');
+  assert.match(active.text, new RegExp(`^Replaces Question ${originalNumber}\\.`));
+  assert.equal(active.showQuestion.questionId, original);
+
+  const doubled = questions.map((question) => (question.questionId === original ? { ...question, teacherExcluded: false } : question));
+  const conflict = card(doubled, original);
+  assert.equal(conflict.tone, 'error');
+  assert.equal(conflict.badge, '2 VERSIONS ACTIVE');
+  assert.match(conflict.text, new RegExp(`^Question ${replacementNumber} is also an active version of this question, so students would be given both`));
+
+  const noneActive = questions.map((question) => (question.questionId === replacement ? { ...question, teacherExcluded: true } : question));
+  assert.equal(card(noneActive, original).badge, 'NO ACTIVE VERSION');
+  const restored = noneActive.map((question) => (question.questionId === original ? { ...question, teacherExcluded: false } : question));
+  const retiredReplacement = card(restored, replacement);
+  assert.equal(retiredReplacement.badge, 'RETIRED REPLACEMENT');
+  assert.match(retiredReplacement.text, new RegExp(`replaced Question ${originalNumber}, which is active again`));
+
+  assert.equal(card(questions, questions[0].questionId), null, 'an ordinary question has no notice');
 });
 
 /* ------------------------------ save and other paths ------------------------------ */
