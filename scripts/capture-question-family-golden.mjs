@@ -3,14 +3,16 @@
  * Capture the golden snapshot of every registered Question Family version.
  *
  *   node scripts/capture-question-family-golden.mjs            print a summary
- *   node scripts/capture-question-family-golden.mjs --write    write the fixture
+ *   node scripts/capture-question-family-golden.mjs --write --note "<what shipped them>"
+ *                                                              append new versions
  *
  * The fixture is a RECORD of what shipped, not something to regenerate: it was
  * written from main at 9396a77, before any family gained special cases, and
  * tests/platform/questionFamilyHistoricalPins.test.mjs holds every later build
  * to it. Re-writing it from a newer build would erase exactly the evidence it
  * exists to keep, so --write refuses to overwrite a family version the fixture
- * already records. A NEW family version is added with --write (it appends);
+ * already records. A NEW family version is added with --write (it appends,
+ * and says when and with what it was recorded under `recordedLater`);
  * changing a recorded one is never done here.
  */
 import fs from 'node:fs';
@@ -50,10 +52,22 @@ if (!pending.length) {
     console.log(`${key}: ${entry.sequences['golden|slot-a'].length} sequence entries, capacity ${entry.capacity?.capacity}${entry.capacity?.exact ? '' : ' (estimate)'}`);
   });
   if (process.argv.includes('--write')) {
+    const noteAt = process.argv.indexOf('--note');
+    const note = noteAt > 0 ? String(process.argv[noteAt + 1] || '').trim() : '';
+    if (existing && !note) {
+      console.error('Appending to a recorded fixture: pass --note "<the change that ships these versions>".');
+      process.exit(1);
+    }
     const next = {
       note: 'Recorded output of each Question Family version. Never regenerate a recorded entry: see scripts/capture-question-family-golden.mjs.',
       recordedAt: existing?.recordedAt || { commit: '9396a77', date: '2026-10-04' },
-      families: { ...(existing?.families || {}), ...snapshot },
+      ...(existing && {
+        recordedLater: [
+          ...(existing.recordedLater || []),
+          { versions: Object.keys(snapshot), date: new Date().toISOString().slice(0, 10), with: note },
+        ],
+      }),
+      families: { ...existing?.families, ...snapshot },
     };
     fs.mkdirSync(path.dirname(GOLDEN_FIXTURE), { recursive: true });
     fs.writeFileSync(GOLDEN_FIXTURE, `${stringifyToDepth(next, 4)}\n`);

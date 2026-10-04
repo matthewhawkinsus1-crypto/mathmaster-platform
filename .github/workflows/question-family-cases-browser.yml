@@ -1,0 +1,95 @@
+name: Question Family Special Cases (Browser)
+
+# Generated equation special cases (linear.multiStepEquation v2,
+# linear.twoStepEquation v2) and algebraic 2x2 systems (systems.algebraic2x2)
+# solved through the real Step Algebra and Systems Workspace controls in
+# Chromium — on a Chromebook, an iPad and a phone — and every response
+# re-graded on the server path, which must agree with the browser. A
+# generated question is supported only if a student can finish it.
+# See tests/browser/questionFamilyCases.mjs.
+
+on:
+  pull_request:
+    paths:
+      - "functions/shared/questionFamil*.mjs"
+      - "functions/shared/questionGenerationIdentity.mjs"
+      - "functions/shared/toolMath/algebra-relations/**"
+      - "functions/shared/toolMath/systemsWorkspace/**"
+      - "functions/shared/serverGrading/stepAlgebra*.mjs"
+      - "functions/shared/serverGrading/tools/systemsWorkspace/**"
+      - "functions/shared/serverGrading/questionGraders/stepAlgebra.mjs"
+      - "src/StepByStepAlgebraCore.jsx"
+      - "src/MultiRelationAlgebraCore.jsx"
+      - "src/StepByStepAlgebra.css"
+      - "src/AlgebraTermRow.jsx"
+      - "src/algebraAstEngine.js"
+      - "src/QuestionEngine.jsx"
+      - "src/tools/systemsWorkspace/**"
+      - "src/components/common/EnlargeableFigure.jsx"
+      - "src/components/common/WorkViewShell.css"
+      - "src/platform/generation/**"
+      - "tests/browser/questionFamilyCases*"
+      - "tests/browser/relationWorkspaceDriver.mjs"
+      - "tests/browser/equationWorkspacePlanner.mjs"
+      - "tests/browser/systemsWorkspaceDriver.mjs"
+      - "tests/browser/stepAlgebraDriver.mjs"
+      - ".github/workflows/question-family-cases-browser.yml"
+  workflow_dispatch:
+
+# Reads the repository and uploads artifacts; never writes.
+permissions:
+  contents: read
+
+concurrency:
+  group: question-family-cases-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  journeys:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install application dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start browser harness
+        run: |
+          npx vite --host 127.0.0.1 --port 5199 --strictPort > /tmp/mathmaster-vite.log 2>&1 &
+          for i in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:5199/tests/browser/questionFamilyCases.html >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/mathmaster-vite.log
+          exit 1
+
+      - name: Solve every generated case in Chromium and re-grade it on the server path
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: http://127.0.0.1:5199
+        run: node tests/browser/questionFamilyCases.mjs
+
+      - name: Publish the report and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: question-family-cases-browser
+          path: tests/browser/artifacts/questionFamilyCases
+          if-no-files-found: warn
+          retention-days: 14

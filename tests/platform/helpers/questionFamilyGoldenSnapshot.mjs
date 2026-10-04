@@ -23,6 +23,12 @@
  *   recovery      the Recovery plan pins the real planner writes after each
  *                 of the first students' originals
  *   capacity      what Pre-Flight reports for the default constraints
+ *   profiles      (a family with concept constraints only — solutionCase,
+ *                 distribute, the number forms) the same for each concept
+ *                 setting a slot can ask for beyond the default: its
+ *                 instance list, every seated student's pin and the built
+ *                 bytes. A version 1 family has none, so its record is
+ *                 exactly what was captured at 9396a77.
  *
  * Pure apart from the hash.
  */
@@ -54,6 +60,8 @@ const SUPPORT_LENGTH = 24;
 const VARIANTS = Object.freeze([0, 1, 2]);
 const BUILT_INSTANCES = 8;
 const RECOVERY_STUDENTS = 6;
+const PROFILE_LENGTH = 24;
+const PROFILE_BUILT = 4;
 
 const sha256 = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
@@ -64,6 +72,25 @@ export const goldenSlotFor = (family) => ({
   prompt: 'Answer the question.',
   activityRole: 'dol',
   questionFamily: { id: family.id, version: family.version },
+});
+
+/**
+ * The concept settings a slot can ask for beyond the defaults — each other
+ * value of every concept choice (solutionCase "none", distribute: true, …).
+ */
+export const goldenConceptProfiles = (family) => (family.conceptConstraints || []).flatMap((name) => {
+  const knob = family.constraints?.[name];
+  const values = knob?.kind === 'choice' ? knob.values : knob?.kind === 'boolean' ? [true, false] : [];
+  return values
+    .filter((value) => JSON.stringify(value) !== JSON.stringify(knob.default))
+    .map((value) => ({ label: `${name}=${JSON.stringify(value)}`, constraints: { [name]: value } }));
+});
+
+/** The slot that asks for one concept setting. */
+export const goldenProfileSlotFor = (family, profile) => ({
+  ...goldenSlotFor(family),
+  questionId: `golden-${family.id}-v${family.version}-${profile.label}`,
+  questionFamily: { id: family.id, version: family.version, constraints: profile.constraints },
 });
 
 const goldenAssignment = (slots) => {
@@ -109,11 +136,11 @@ const supportFingerprints = (family, slot) => {
   return fingerprints;
 };
 
-const builtHashes = (family, values) => {
+const builtHashes = (family, values, count = BUILT_INSTANCES) => {
   const sequence = createFamilyInstanceSequence(family, values, SEQUENCE_SEEDS[0]);
   return Object.fromEntries(Object.keys(family.tools).sort().map((tool) => {
     const hashes = [];
-    for (let index = 0; index < BUILT_INSTANCES; index += 1) {
+    for (let index = 0; index < count; index += 1) {
       const instance = sequence.instanceAt(index);
       if (!instance) break;
       hashes.push(sha256(buildFamilyQuestion({
@@ -125,6 +152,32 @@ const builtHashes = (family, values) => {
       })));
     }
     return [tool, hashes];
+  }));
+};
+
+/** Every concept setting's list, seat pins and built bytes; null for a family without concept constraints. */
+const profileSnapshots = (family, assignment) => {
+  const profiles = goldenConceptProfiles(family);
+  if (!profiles.length) return null;
+  return Object.fromEntries(profiles.map((profile) => {
+    const { values } = resolveFamilyConstraints(family, profile.constraints);
+    const slot = goldenProfileSlotFor(family, profile);
+    const seats = Object.fromEntries(GOLDEN_STUDENTS.map((studentId) => {
+      const seatInfo = resolveLearnerSeat({ assignment, studentId, classId: GOLDEN_CLASS_ID });
+      const result = resolveFamilyQuestionInstance({
+        question: slot,
+        assignmentId: GOLDEN_ASSIGNMENT_ID,
+        storageIndex: 0,
+        allocation: resolveGenerationAllocation({ sectionMode: 'personalized', seatInfo, variant: 0 }),
+      });
+      return [studentId, result.error ? { error: result.error } : normalizeDeliveryPin(result.delivery)];
+    }));
+    return [profile.label, {
+      constraints: profile.constraints,
+      sequence: sequenceFingerprints(family, values, SEQUENCE_SEEDS[0], PROFILE_LENGTH),
+      seats,
+      built: builtHashes(family, values, PROFILE_BUILT),
+    }];
   }));
 };
 
@@ -175,6 +228,8 @@ export const computeQuestionFamilyGoldenSnapshot = (families, { measureCapacity 
       recovery,
       ...(measureCapacity ? { capacity: measureFamilyCapacity(family, values) } : {}),
     };
+    const profiles = profileSnapshots(family, assignment);
+    if (profiles) snapshot[`${family.id}@${family.version}`].profiles = profiles;
   });
   return snapshot;
 };
