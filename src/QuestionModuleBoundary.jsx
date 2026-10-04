@@ -134,7 +134,7 @@ export default class QuestionModuleBoundary extends Component {
             <button
               type="button"
               onClick={() => this.props.onRecover()}
-              style={{ marginTop: '12px', minHeight: '44px', padding: '10px 18px', border: 'none', borderRadius: '999px', background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer' }}
+              style={{ marginTop: '12px', minHeight: '44px', padding: '10px 18px', border: 'none', borderRadius: '999px', background: 'var(--mm-primary, #1a73e8)', color: 'var(--mm-on-primary, #ffffff)', fontWeight: 800, cursor: 'pointer' }}
             >
               Start this question fresh
             </button>
