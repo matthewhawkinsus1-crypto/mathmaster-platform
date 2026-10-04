@@ -26,7 +26,7 @@
 //   C3  official gradebook: a synthetic CSV, one student kept, compared, a
 //       match confirmed, saved (only that student's rows), contribution
 //       reconstructed from the file's own weights
-//   C4  the one stored misconception code is named, there and only there;
+//   C4  the one server-classified misconception code is named, there and only there;
 //       narrative facts with provenance and sources, no forbidden conclusion;
 //       what needs attention, and a drill from it
 //   C5  print (12 sections, teacher-authored next steps, only the case review
@@ -419,20 +419,23 @@ const journeys = {
     const review = await openCaseReview(page);
     await build(page, review, { period: 'all' });
 
-    // The one structured misconception code in the records — on yesterday's
-    // Classwork Q2, stored on its latest part and attempt event as a tool that
-    // names one would store it — is named, there and nowhere else.
+    // The one server-classified misconception code in the records — on
+    // yesterday's Classwork Q2, stored with provenance on its attempt event —
+    // is named, there and nowhere else. The code a client wrote on the
+    // question record's part is not.
     await tab(page, review, 'Questions & attempts');
     const overview = await text(panel(review, 'questions'));
-    expect('C4', /1 structured error code was stored by MathMaster tools in this selection\./.test(overview) && /Substitution setup error: 1 question/.test(overview),
-      `a stored code is reported with its catalog label (${overview.match(/Error patterns.{0,160}/)?.[0]})`);
+    expect('C4', /1 isolated misconception identified by MathMaster's server-side classifiers in this selection\./.test(overview)
+      && /Isolated misconception: Solution satisfies only one equation \(1 question\)/.test(overview)
+      && !/Ordered pair written as/.test(overview),
+      `a server-classified code is reported with its registry label (${overview.match(/Error patterns.{0,200}/)?.[0]})`);
     await panel(review, 'questions').getByRole('button', { name: 'Systems of Equations — Lesson 2: Substitution' }).first().click();
     const lesson = review.locator('[data-case-assignment-detail="a-yesterday"]');
     await lesson.waitFor({ timeout: 10000 });
     await lesson.locator('[data-case-question="2"]').getByRole('button').first().click();
     const coded = review.locator('[data-case-question-detail="2"]');
     await coded.waitFor({ timeout: 10000 });
-    expect('C4', /Error pattern Substitution setup error/.test(await text(coded)), 'the question shows the code that was stored for it');
+    expect('C4', /Error pattern Solution satisfies only one equation/.test(await text(coded)), 'the question shows the code the server stored for it');
 
     await tab(page, review, 'Narrative facts');
     const facts = panel(review, 'facts').locator('[data-fact-key]');

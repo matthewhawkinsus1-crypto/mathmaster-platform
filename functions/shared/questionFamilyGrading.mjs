@@ -35,6 +35,7 @@ import {
 // The graders themselves are in serverGrading/serverResponseGrading.mjs,
 // which this module must not import — the student app imports this file.
 import { serverResponseGradingSupport } from './serverGrading/gradingSupport.mjs';
+import { getPlatformQuestionFamily } from './questionFamilyRegistry.mjs';
 import { deliveredQuestionForGrading } from './serverGrading/deliveredQuestion.mjs';
 import { gradeStepAlgebraFinalAnswer } from './serverGrading/stepAlgebraFinalAnswer.mjs';
 
@@ -198,6 +199,13 @@ export const resolveFamilyQuestionForGrading = ({
       question: reproduced.question,
       pin,
       reason: null,
+      // The generated parameters of the instance the SERVER reproduced, for a
+      // registered platform family only (a teacher's assignment template has
+      // no fixed parameter names). Read by the misconception classifiers
+      // (misconceptionClassifiers.mjs) — never by grading.
+      instanceValues: getPlatformQuestionFamily(reproduced.family?.id, reproduced.family?.version) === reproduced.family
+        ? reproduced.instance?.values || null
+        : null,
       verification: verifyDeliveryPinSeat({ assignment, studentId, classId, pin }),
       changedFromCanonical: Boolean(canonical && canonical.variant === variant && canonical.fingerprint !== pin.fingerprint),
     };

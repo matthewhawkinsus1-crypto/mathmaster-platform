@@ -1,5 +1,3 @@
-import { normalizeMisconceptionCodes } from './misconceptionCodes.mjs';
-
 export const MAX_ATTEMPTS_PER_QUESTION = 3;
 const MAX_STORED_STEP_GRADES = 80;
 
@@ -462,11 +460,6 @@ export const recordQuestionAttempt = ({
         const credit = Number.isFinite(suppliedCredit)
           ? Math.max(0, Math.min(1, suppliedCredit))
           : (part?.isCorrect ? 1 : 0);
-        // A structured misconception code the grader put on this part
-        // (functions/shared/misconceptionCodes.mjs): one catalog id, or
-        // nothing — free text is dropped, never guessed into a code. A part
-        // without one keeps exactly the shape it always had.
-        const [misconceptionCode] = normalizeMisconceptionCodes(part?.misconceptionCode);
         return {
           id: String(part?.id ?? `part-${index + 1}`),
           label: String(part?.label || `Part ${index + 1}`),
@@ -476,7 +469,10 @@ export const recordQuestionAttempt = ({
           weight,
           credit,
           response: String(part?.response ?? '').slice(0, 240),
-          ...(misconceptionCode ? { misconceptionCode } : {}),
+          // No misconception code is kept on a part. This record is
+          // student-writable, so a code here could never be evidence; a code
+          // exists only on the server-written attempt evidence event
+          // (functions/shared/misconceptionCodes.mjs).
         };
       })
     : [];

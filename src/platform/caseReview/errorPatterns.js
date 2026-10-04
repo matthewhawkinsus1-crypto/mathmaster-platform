@@ -1,23 +1,47 @@
 /*
- * ERROR PATTERNS — ONLY WHERE A TOOL STORED ONE.
+ * ERROR PATTERNS — ONLY WHERE THE SERVER PROVED ONE.
  *
- * MathMaster names an error pattern only from a structured misconception code
- * a tool stored on the record (functions/shared/misconceptionCodes.mjs lists
- * the codes and where they may be stored). A wrong answer is never classified
- * here, by rule or by a language model. Today no classroom tool stores a code,
- * so the honest answer for every question is:
+ * MathMaster names an error pattern only from misconception evidence a SERVER
+ * classifier stored on an attempt's evidence event, from the authoritative
+ * question, the student's raw work and the server's own grading
+ * (functions/shared/misconceptionCodes.mjs is the registry and the trust gate;
+ * functions/shared/misconceptionClassifiers.mjs the classifiers). A wrong
+ * answer is never classified here, by rule or by a language model. Where no
+ * classifier proved a pattern, the honest answer is:
  *
  *   "Error pattern not determinable from stored evidence."
  *
- * What the records DO hold is which named parts of a question the grader
- * marked not correct on the latest attempt (for example "y-intercept"). Those
- * are listed as recorded results — what was marked, not why — and only where
- * the part has a real name (not "Part 1").
+ * Where one did, the pattern is RECURRING when the same code was proved on two
+ * or more different questions, and ISOLATED when it was proved on one (however
+ * many attempts of that one question showed it). A code is evidence about
+ * mathematical thinking, never a grade and never a judgement of the student.
+ *
+ * What the records DO hold besides is which named parts of a question the
+ * grader marked not correct on the latest attempt (for example "y-intercept").
+ * Those are listed as recorded results — what was marked, not why — and only
+ * where the part has a real name (not "Part 1").
  */
-import { misconceptionLabel } from '../../../functions/shared/misconceptionCodes.mjs';
+import { getMisconceptionCode, misconceptionLabel } from '../../../functions/shared/misconceptionCodes.mjs';
 import { QUESTION_OUTCOME, isRequiredQuestion } from './attemptAnalysis.js';
 
 export const ERROR_PATTERN_NOT_DETERMINABLE = 'Error pattern not determinable from stored evidence.';
+
+export const MISCONCEPTION_RECURRENCE = Object.freeze({
+  RECURRING: 'recurring',
+  ISOLATED: 'isolated',
+});
+export const RECURRING_MIN_QUESTIONS = 2;
+
+const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
+
+/** How a teacher reads one code's entry: "Recurring misconception: … (3 questions, 2 assignments)". */
+export const describeMisconceptionEntry = (entry) => {
+  const kind = entry.recurrence === MISCONCEPTION_RECURRENCE.RECURRING ? 'Recurring misconception' : 'Isolated misconception';
+  const where = entry.questions === 1
+    ? (entry.attempts > 1 ? `1 question, on ${entry.attempts} attempts` : '1 question')
+    : `${plural(entry.questions, 'question')}, ${plural(entry.assignmentIds.length, 'assignment')}`;
+  return `${kind}: ${entry.label} (${where})`;
+};
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const clean = (value) => String(value ?? '').trim();
@@ -31,9 +55,20 @@ export const isNamedPart = (label) => {
 
 /** The error-pattern answer for one question row. */
 export const errorPatternForQuestion = (row) => {
-  const codes = list(row?.misconceptionCodes);
+  // Registry codes only: a code this build does not know is not shown.
+  const codes = list(row?.misconceptionCodes).filter((code) => misconceptionLabel(code));
   if (codes.length) {
-    return { determinable: true, codes: codes.map((code) => ({ code, label: misconceptionLabel(code) || code })), statement: '' };
+    const findings = list(row?.misconceptionFindings);
+    return {
+      determinable: true,
+      codes: codes.map((code) => ({
+        code,
+        label: misconceptionLabel(code),
+        meaning: getMisconceptionCode(code).teacherMeaning,
+        attempts: new Set(findings.filter((finding) => finding.code === code).map((finding) => finding.attemptNumber)).size || 1,
+      })),
+      statement: '',
+    };
   }
   return { determinable: false, codes: [], statement: ERROR_PATTERN_NOT_DETERMINABLE };
 };
@@ -46,11 +81,19 @@ export const analyzeErrorPatterns = ({ questions = [] } = {}) => {
   const notCorrect = rows.filter((row) => row.finalResult !== 'correct');
   const byCode = new Map();
   rows.forEach((row) => {
+    const findings = list(row.misconceptionFindings);
     list(row.misconceptionCodes).forEach((code) => {
-      const entry = byCode.get(code) || { code, label: misconceptionLabel(code) || code, questions: 0, assignmentIds: new Set(), questionRefs: [] };
+      const label = misconceptionLabel(code);
+      // A code this build's registry does not know degrades to nothing.
+      if (!label) return;
+      const entry = byCode.get(code) || {
+        code, label, meaning: getMisconceptionCode(code).teacherMeaning, questions: 0, attempts: 0, assignmentIds: new Set(), questionRefs: [],
+      };
+      const attempts = new Set(findings.filter((finding) => finding.code === code).map((finding) => finding.attemptNumber)).size || 1;
       entry.questions += 1;
+      entry.attempts += attempts;
       entry.assignmentIds.add(row.assignmentId);
-      entry.questionRefs.push({ assignmentId: row.assignmentId, storageIndex: row.storageIndex });
+      entry.questionRefs.push({ assignmentId: row.assignmentId, storageIndex: row.storageIndex, attempts });
       byCode.set(code, entry);
     });
   });
@@ -70,13 +113,21 @@ export const analyzeErrorPatterns = ({ questions = [] } = {}) => {
     });
   });
   const finish = (entry) => ({ ...entry, assignmentIds: [...entry.assignmentIds] });
-  const codes = [...byCode.values()].map(finish).sort((a, b) => b.questions - a.questions);
+  const codes = [...byCode.values()].map(finish).map((entry) => {
+    const recurrence = entry.questions >= RECURRING_MIN_QUESTIONS ? MISCONCEPTION_RECURRENCE.RECURRING : MISCONCEPTION_RECURRENCE.ISOLATED;
+    const withRecurrence = { ...entry, recurrence };
+    return { ...withRecurrence, description: describeMisconceptionEntry(withRecurrence) };
+  }).sort((a, b) => b.questions - a.questions || b.attempts - a.attempts || a.code.localeCompare(b.code));
+  const recurring = codes.filter((entry) => entry.recurrence === MISCONCEPTION_RECURRENCE.RECURRING).length;
+  const isolated = codes.length - recurring;
   return {
     determinable: codes.length > 0,
     statement: codes.length
-      ? `${codes.reduce((sum, entry) => sum + entry.questions, 0)} structured error code${codes.length === 1 && codes[0].questions === 1 ? ' was' : 's were'} stored by MathMaster tools in this selection.`
+      ? `${[recurring ? plural(recurring, 'recurring misconception') : null, isolated ? plural(isolated, 'isolated misconception') : null].filter(Boolean).join(' and ')} identified by MathMaster's server-side classifiers in this selection.`
       : ERROR_PATTERN_NOT_DETERMINABLE,
     codes,
+    recurring,
+    isolated,
     notCorrectParts: [...byPart.values()].map(finish).sort((a, b) => b.questions - a.questions || a.label.localeCompare(b.label)),
     partNote: 'Named parts the grader marked not correct on each question\'s latest attempt. These are recorded results, not a diagnosis of why.',
     coverage: {

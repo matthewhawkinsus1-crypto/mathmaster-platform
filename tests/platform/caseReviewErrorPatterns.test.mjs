@@ -1,12 +1,12 @@
-// Error patterns: named only from a structured code a tool stored. A wrong
-// answer alone is never classified.
+// Error patterns: named only from misconception evidence a server classifier
+// stored. A wrong answer alone is never classified.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { ERROR_PATTERN_NOT_DETERMINABLE, analyzeErrorPatterns, errorPatternForQuestion, isNamedPart } from '../../src/platform/caseReview/errorPatterns.js';
 import { QUESTION_OUTCOME } from '../../src/platform/caseReview/attemptAnalysis.js';
-import { MISCONCEPTION_CODE_CATALOG, isMisconceptionCode, normalizeMisconceptionCodes } from '../../functions/shared/misconceptionCodes.mjs';
+import { MISCONCEPTION_REGISTRY, isMisconceptionCode, normalizeMisconceptionCodes } from '../../functions/shared/misconceptionCodes.mjs';
 
 const row = (extra = {}) => ({
   assignmentId: 'a1', storageIndex: 0, outcome: QUESTION_OUTCOME.EXHAUSTED, finalResult: 'incorrect', misconceptionCodes: [], latestParts: [], ...extra,
@@ -20,22 +20,27 @@ test('with no stored code, every wrong answer reads "not determinable" — the b
   assert.equal(errorPatternForQuestion(row()).statement, ERROR_PATTERN_NOT_DETERMINABLE);
 });
 
-test('a stored catalog code is reported with its label and where it occurred', () => {
+test('a stored registry code is reported with its label, where it occurred, and whether it recurs', () => {
   const analysis = analyzeErrorPatterns({ questions: [
-    row({ misconceptionCodes: ['slope-direction'] }),
-    row({ assignmentId: 'a2', storageIndex: 3, misconceptionCodes: ['slope-direction', 'sign-error'] }),
+    row({ misconceptionCodes: ['slope-sign-reversed'] }),
+    row({ assignmentId: 'a2', storageIndex: 3, misconceptionCodes: ['slope-sign-reversed', 'inverse-operation-sign'] }),
   ] });
   assert.equal(analysis.determinable, true);
-  assert.deepEqual(analysis.codes.map((entry) => [entry.code, entry.questions]), [['slope-direction', 2], ['sign-error', 1]]);
-  assert.equal(analysis.codes[0].label, 'Incorrect slope direction');
+  assert.deepEqual(analysis.codes.map((entry) => [entry.code, entry.questions, entry.recurrence]), [['slope-sign-reversed', 2, 'recurring'], ['inverse-operation-sign', 1, 'isolated']]);
+  assert.equal(analysis.codes[0].label, 'Slope sign reversed');
   assert.deepEqual(analysis.codes[0].assignmentIds, ['a1', 'a2']);
+  assert.equal(analysis.statement, '1 recurring misconception and 1 isolated misconception identified by MathMaster\'s server-side classifiers in this selection.');
 });
 
-test('only catalog codes are accepted; free text or a guess never becomes a code', () => {
-  assert.deepEqual(normalizeMisconceptionCodes(['slope-direction', 'the student is confused', 'SIGN-ERROR', 'slope-direction']), ['slope-direction']);
-  assert.ok(MISCONCEPTION_CODE_CATALOG.length >= 8);
-  ['sign-error', 'slope-direction', 'intercept-confusion', 'equation-form-confusion', 'distribution-error', 'graph-endpoint-error', 'inequality-boundary-error', 'substitution-setup-error', 'elimination-setup-error']
-    .forEach((code) => assert.equal(isMisconceptionCode(code), true, code));
+test('only registry codes are accepted; free text or a guess never becomes a code', () => {
+  assert.deepEqual(normalizeMisconceptionCodes(['slope-sign-reversed', 'the student is confused', 'SLOPE-SIGN-REVERSED', 'slope-sign-reversed']), ['slope-sign-reversed']);
+  assert.ok(MISCONCEPTION_REGISTRY.length >= 8);
+  // The generic pre-registry ids no classifier can prove are not codes.
+  ['sign-error', 'distribution-error', 'slope-direction', 'graph-endpoint-error'].forEach((code) => assert.equal(isMisconceptionCode(code), false, code));
+  // A row carrying an id this build does not know shows nothing for it.
+  const analysis = analyzeErrorPatterns({ questions: [row({ misconceptionCodes: ['a-code-from-a-future-registry'] })] });
+  assert.equal(analysis.determinable, false);
+  assert.equal(errorPatternForQuestion(row({ misconceptionCodes: ['a-code-from-a-future-registry'] })).statement, ERROR_PATTERN_NOT_DETERMINABLE);
 });
 
 test('named parts marked not correct are listed as recorded results; generic "Part 1" labels are not', () => {

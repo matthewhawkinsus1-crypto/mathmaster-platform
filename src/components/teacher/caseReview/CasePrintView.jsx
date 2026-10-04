@@ -169,6 +169,7 @@ export default function CasePrintView({ model, nextSteps = '' }) {
         <p>Grade-level work: {model.attemptSummaryText.standard}</p>
         {model.attemptSummaryText.modified && <p>Modified work: {model.attemptSummaryText.modified}</p>}
         <p>{model.errorPatterns.statement}</p>
+        {model.errorPatterns.codes.length > 0 && <ul>{model.errorPatterns.codes.map((entry) => <li key={entry.code}>{entry.description}</li>)}</ul>}
         {model.attention.exhaustedQuestions.length > 0 && (
           <table>
             <thead><tr><th>Not correct after all available attempts</th><th>Question</th><th>Standards</th><th>Attempts</th></tr></thead>

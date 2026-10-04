@@ -147,3 +147,13 @@ Tracked in "Phases". Known limits are listed in design doc §1.5.
   code yet, and a question-level code has no record slot. `tests/platform/misconceptionCodePassThrough.test.mjs`; in
   the browser, the harness fixture stores one code (yesterday's Classwork Q2) and journey C4 checks the case review
   names it there and nowhere else.
+- **CR-5 — misconception codes are server-authoritative evidence.** CR-4's pass-through let any browser-supplied
+  catalog code become teacher evidence (the question record is student-writable, and the sanitized ingestion path
+  copied claimed parts). That path is closed: the forwarder, the attempt policy and ingestion no longer carry a part
+  code, and the case review reads codes only from server-written evidence events, through the registry's trust gate
+  (`trustedMisconceptionFindings`). The server classifies work it grades itself — 9 Question Family classifiers and 4
+  tool-mode classifiers (`functions/shared/misconceptionClassifiers.mjs`), 18 codes in a versioned registry — and the
+  case review reports each code as recurring (2+ questions) or isolated. Grades are untouched. Design and limits:
+  `docs/architecture/MISCONCEPTION_EVIDENCE.md`. Tests: `misconceptionEvidence`, `misconceptionClassifierMutation`,
+  `misconceptionCodePassThrough` (now: the pass-through is closed); journey C4 now names a server-classified code
+  and ignores a code written on the question record.

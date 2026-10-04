@@ -556,11 +556,12 @@ const addCaseReviewEvidence = ({ fixture, now, Timestamp, student }) => {
     const tracker = { ...fixture[base].gradesByAssignment[assignmentId] };
     plan.forEach((results, questionIndex) => {
       const { suffix, role, code } = QUESTIONS[questionIndex];
-      // One question carries a structured misconception code, stored the way a
-      // tool that names one has it stored (functions/shared/misconceptionCodes.mjs):
-      // on the latest attempt's part, and on that attempt's evidence event. No
-      // classroom tool emits one yet; the case review must name exactly this one.
-      const misconceptionCode = assignmentId === 'a-yesterday' && questionIndex === 2 ? 'substitution-setup-error' : null;
+      // One question carries a misconception code, stored the way the server
+      // stores one (functions/shared/misconceptionCodes.mjs): on that attempt's
+      // evidence event, with the classifier's provenance. The question record
+      // also carries a code on its part, as a modified client could write it —
+      // the case review must ignore that one and name exactly the server's.
+      const misconceptionCode = assignmentId === 'a-yesterday' && questionIndex === 2 ? 'system-point-on-one-line-only' : null;
       let lastMs = null;
       results.forEach((isCorrect, attemptIndex) => {
         lastMs = startMs + minute * 60_000;
@@ -576,7 +577,16 @@ const addCaseReviewEvidence = ({ fixture, now, Timestamp, student }) => {
           source: { kind: 'assignment', assignmentId, activityRole: role, questionIndex },
           performance: {
             attemptNumber, isCorrect, partialCredit: isCorrect ? 100 : 0, status: isCorrect ? 'correct' : (attemptNumber === results.length ? 'expired' : 'attempted'),
-            ...(misconceptionCode && attemptNumber === results.length ? { misconceptionCodes: [misconceptionCode] } : {}),
+            ...(misconceptionCode && attemptNumber === results.length ? {
+              misconceptionCodes: [misconceptionCode],
+              misconceptionEvidence: {
+                registryVersion: 1,
+                source: 'server-grading',
+                classifier: 'family:systems.substitution@1',
+                classifierVersion: 1,
+                findings: [{ code: misconceptionCode, codeVersion: 1, parts: ['system-x', 'system-y'] }],
+              },
+            } : {}),
           },
           supportUsage: { calculatorUsed: assignmentId === 'a-lastweek' && questionIndex === 3 },
         };
@@ -591,7 +601,7 @@ const addCaseReviewEvidence = ({ fixture, now, Timestamp, student }) => {
         academicOccurredAt: iso,
         submissionOrigin: 'server-ingestion',
         ...(misconceptionCode ? {
-          partGrades: [{ id: 'system', label: 'Solution of the system', isComplete: true, isCorrect: false, graded: true, weight: 1, credit: 0, response: '', misconceptionCode }],
+          partGrades: [{ id: 'system', label: 'Solution of the system', isComplete: true, isCorrect: false, graded: true, weight: 1, credit: 0, response: '', misconceptionCode: 'ordered-pair-reversed' }],
         } : {}),
       };
     });

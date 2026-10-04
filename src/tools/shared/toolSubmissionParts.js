@@ -28,10 +28,9 @@ export const toolSubmissionParts = (metadata = null) => {
       isComplete: part?.isComplete !== false,
       isCorrect: Boolean(part?.isCorrect),
       response: part?.response ?? '',
-      // A structured misconception code the tool put on this part goes on to
-      // the attempt record; the attempt policy keeps catalog ids only
-      // (functions/shared/misconceptionCodes.mjs).
-      ...(part?.misconceptionCode ? { misconceptionCode: part.misconceptionCode } : {}),
+      // A misconception code a tool puts on a part is not forwarded: the
+      // browser is never the authority for one. The server classifies the
+      // raw work itself (functions/shared/misconceptionClassifiers.mjs).
     }));
   }
   if (!rawParts || typeof rawParts !== 'object') return [];
