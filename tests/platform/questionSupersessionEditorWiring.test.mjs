@@ -54,6 +54,8 @@ test('the save refuses two active versions of one question, before anything is w
   const write = save.indexOf('onSave(');
   assert.ok(check > 0 && write > check, 'conflicts are checked before onSave');
   assert.match(save.slice(check, write), /return;/);
+  // Save is in the footer: the refusal takes the teacher to the first conflicting card.
+  assert.match(save.slice(check, write), /showQuestion\(supersessionConflicts\[0\]\.activeIndexes\[0\]\)/);
   // The Safe Repair Pack import saves directly, so it is guarded too.
   const pack = region(editorBase, 'const importSafeRepairPack', 'const swapHonorsExtension', 'importSafeRepairPack');
   const packCheck = pack.indexOf('findSupersessionConflicts(');
@@ -86,8 +88,11 @@ test('the card shows that a question was replaced, by which question, and why In
   assert.match(cards, /aria-disabled=\{[^}]*includeBlocked/);
   assert.match(cards, /aria-describedby=\{[^}]*includeBlocked/);
   // A refused Include is announced on that card, in the guard's words.
-  const alert = /<p role="alert"[^>]*>\{inclusionNotice\.message\}<\/p>/;
+  const alert = /<p\b[^>]*\brole="alert"[^>]*>\{inclusionNotice\.message\}<\/p>/;
   assert.match(cards, alert, 'a refused Include is announced where the teacher pressed it');
+  // …in full: the announcement scrolls itself clear of the dialog's footer.
+  assert.match(cards, /<p\b[^>]*\bref=\{inclusionAlertRef\}[^>]*\brole="alert"/);
+  assert.match(editorBase, /useEffect\(\(\) => \{\s*if \(inclusionNotice\) inclusionAlertRef\.current\?\.scrollIntoView/);
   assert.match(cards, /inclusionNotice\?\.questionId === question\.questionId/);
   // And the teacher can jump to the version the notice names.
   assert.match(cards, /onClick=\{\(\) => showQuestion\(supersessionSummary\.showQuestion\.index\)\}/);

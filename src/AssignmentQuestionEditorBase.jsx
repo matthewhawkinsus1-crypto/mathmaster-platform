@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import QuestionStandardsEditor from './QuestionStandardsEditor';
 import { getQuestionMetadataSummary } from './questionMetadata.js';
 import { useToast } from './ui/Toast';
@@ -99,6 +99,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
   const [saving, setSaving] = useState(false);
   // A refused Include, shown on the card where the teacher pressed it.
   const [inclusionNotice, setInclusionNotice] = useState(null);
+  const inclusionAlertRef = useRef(null);
   const cardRefs = useRef(new Map());
   // Which questions are versions of one another (supersession links), once per edit.
   const lineages = useMemo(() => resolveQuestionLineages(questions), [questions]);
@@ -221,6 +222,12 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
     setInclusionNotice(null);
     setQuestions(plan.questions);
   };
+
+  // A refused Include is explained in full where it was pressed: on a phone
+  // the explanation would otherwise start under the dialog's footer.
+  useEffect(() => {
+    if (inclusionNotice) inclusionAlertRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+  }, [inclusionNotice]);
 
   // Bring another card into view (the active version of a replaced question,
   // or the question a replacement replaced) and move focus to it.
@@ -575,6 +582,9 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
     const supersessionConflicts = findSupersessionConflicts(questions);
     if (supersessionConflicts.length) {
       setError(supersessionConflicts.map((conflict) => conflict.message).join('\n'));
+      // Save sits in the footer; take the teacher to the first conflicting
+      // card, which explains itself, rather than leave Save looking broken.
+      showQuestion(supersessionConflicts[0].activeIndexes[0]);
       return;
     }
 
@@ -762,7 +772,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                       <div style={{ flex: '1 1 240px', minWidth: 0 }}>
                         <p style={{ margin: 0, color: supersessionTone.text, fontSize: 13, lineHeight: 1.45, overflowWrap: 'anywhere' }}>{supersessionSummary.text}</p>
                         {inclusionNotice?.questionId === question.questionId && includeBlocked && (
-                          <p role="alert" style={{ margin: '8px 0 0', color: supersessionTone.text, fontSize: 13, lineHeight: 1.45, fontWeight: 800, overflowWrap: 'anywhere' }}>{inclusionNotice.message}</p>
+                          <p ref={inclusionAlertRef} role="alert" style={{ margin: '8px 0 0', color: supersessionTone.text, fontSize: 13, lineHeight: 1.45, fontWeight: 800, overflowWrap: 'anywhere' }}>{inclusionNotice.message}</p>
                         )}
                       </div>
                       {supersessionSummary.showQuestion && (

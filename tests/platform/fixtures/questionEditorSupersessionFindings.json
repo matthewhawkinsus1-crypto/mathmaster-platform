@@ -1,0 +1,26 @@
+{
+  "harness": "tests/browser/questionEditorSupersession.mjs",
+  "checks": [
+    "SEES",
+    "REFUSED",
+    "RESTORES",
+    "CANNOT SAVE",
+    "SIDEWAYS",
+    "TAP"
+  ],
+  "devices": [
+    {
+      "device": "phone-390",
+      "viewport": "390x844"
+    },
+    {
+      "device": "ipad-820",
+      "viewport": "820x1180"
+    },
+    {
+      "device": "chromebook-1366",
+      "viewport": "1366x768"
+    }
+  ],
+  "findings": []
+}
