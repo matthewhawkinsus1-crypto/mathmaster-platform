@@ -19,6 +19,7 @@ import {
   getWarmupState,
 } from '../../assignmentLifecycle.js';
 import { buildWalkthroughMonitor, WALKTHROUGH_STATUS } from '../../platform/teacher/walkthroughMonitor.js';
+import { resolveWalkthroughSelection, walkthroughAssignmentsForClass } from '../../platform/assignments/assignmentAvailability.js';
 import { classworkModel, describeClassworkPace } from '../../platform/teacher/classworkModel.js';
 import {
   LIVE_ATTENDANCE_MARK,
@@ -131,7 +132,9 @@ function ProgressStrip({ questionStates, questionIndex, conceal = false }) {
 }
 
 const smallButtonStyle = { padding: '5px 8px', borderRadius: 7, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' };
-const controlStyle = { padding: '8px 10px', borderRadius: 8, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontSize: 14 };
+// maxWidth: a select is as wide as its longest option; a long lesson title
+// pushed the control past a phone's right edge.
+const controlStyle = { padding: '8px 10px', borderRadius: 8, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontSize: 14, maxWidth: '100%', minWidth: 0 };
 
 // Compact, teacher-only Class Points control shown on a student tile. The
 // balance shown is always the authoritative account projection handed down
@@ -360,6 +363,7 @@ function WalkthroughCard({ row, onChecked, onOpenStudent, classPoints = null }) 
 // the active class and never a library assignment the class was not given.
 function LiveTeachingPanel({
   activeClassId,
+  activeClassLabel = '',
   teachableAssignments,
   liveTeachingActive,
   liveTeachingAssignmentId,
@@ -369,7 +373,10 @@ function LiveTeachingPanel({
   onResume,
   onEndTeaching,
 }) {
-  const [choiceId, setChoiceId] = useState('');
+  const [requestedChoiceId, setChoiceId] = useState('');
+  // A choice made for another class (or a lesson that has since closed) is
+  // not offered, so it is not selected either.
+  const choiceId = resolveWalkthroughSelection({ eligibleAssignments: teachableAssignments, selectedId: requestedChoiceId }) || '';
 
   if (!activeClassId) {
     return (
@@ -388,7 +395,7 @@ function LiveTeachingPanel({
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <button type="button" onClick={onResume} style={{ ...smallButtonStyle, borderColor: '#188038', background: 'var(--mm-surface)', color: 'var(--mm-success-text)' }}>Resume Teaching</button>
-          <button type="button" onClick={() => onTeach(liveTeachingAssignmentId, { forceRestart: true })} style={smallButtonStyle}>Restart Fresh</button>
+          <button type="button" onClick={() => onTeach(liveTeachingAssignmentId, { forceRestart: true, classId: activeClassId })} style={smallButtonStyle}>Restart Fresh</button>
           <button type="button" onClick={onEndTeaching} style={{ ...smallButtonStyle, borderColor: '#d93025', background: 'var(--mm-surface)', color: 'var(--mm-error-text)' }}>End Teaching</button>
         </div>
       </div>
@@ -399,9 +406,9 @@ function LiveTeachingPanel({
     <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface-tint)', display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
       <div style={{ fontWeight: 900, color: 'var(--mm-primary-text)' }}>Live Teaching</div>
       {teachableAssignments.length === 0 ? (
-        <span style={{ fontSize: 12.5, color: 'var(--mm-text-muted)' }}>No lessons are assigned to this class yet.</span>
+        <span style={{ fontSize: 12.5, color: 'var(--mm-text-muted)' }}>No active assignments for {activeClassLabel || 'this class'}.</span>
       ) : (
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', minWidth: 0, maxWidth: '100%' }}>
           <select value={choiceId} onChange={(event) => setChoiceId(event.target.value)} style={controlStyle} aria-label="Lesson to teach">
             <option value="">Choose a lesson…</option>
             {teachableAssignments.map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.title || 'Untitled'}</option>)}
@@ -409,7 +416,7 @@ function LiveTeachingPanel({
           <button
             type="button"
             disabled={!choiceId}
-            onClick={() => onTeach(choiceId)}
+            onClick={() => onTeach(choiceId, { classId: activeClassId })}
             style={{ ...smallButtonStyle, borderColor: '#1a73e8', background: choiceId ? 'var(--mm-primary-soft)' : 'var(--mm-surface-control)', color: 'var(--mm-primary-text)', cursor: choiceId ? 'pointer' : 'not-allowed' }}
           >
             Teach This Lesson
@@ -555,12 +562,13 @@ export default function LiveClassMonitor({
   // focusKey re-applies it even when the same assignment is chosen again.
   focusAssignmentId = null,
   focusKey = null,
+  // Marking periods decide whether an assignment is current work
+  // (assignmentAvailability.js). Missing settings resolve to the single
+  // default "current" bucket, exactly as the Grade Center reads them.
+  gradingPeriodSettings = null,
 }) {
   const [classPeriod, setClassPeriod] = useState(initialClassPeriod || 'all');
   const [assignmentId, setAssignmentId] = useState(() => focusAssignmentId || 'all');
-  useEffect(() => {
-    if (focusKey && focusAssignmentId) setAssignmentId(focusAssignmentId);
-  }, [focusKey, focusAssignmentId]);
   const [mode, setMode] = useState('room');
   const [roomMode, setRoomMode] = useState(false);
   // Large room tiles are what a teacher puts on the projector: no student id
@@ -705,21 +713,75 @@ export default function LiveClassMonitor({
     return students.filter((student) => classPeriod === 'all' || (student?.classPeriod || student?.profile?.classPeriod) === classPeriod);
   }, [students, classes, activeClassId, classPeriod]);
 
-  // A lesson only ever appears here when it is actually assigned to the
-  // active class — the same membership check the assignment lifecycle uses
-  // everywhere else, so a library item that merely exists never shows up.
-  const teachableAssignments = useMemo(() => {
-    if (!activeClassId) return [];
-    return assignments.filter((assignment) => assignmentIsForStudent(assignment, { classId: activeClassId }));
-  }, [assignments, activeClassId]);
+  // THE ONE LIST OF ASSIGNMENTS THIS ROOM MAY OFFER — Walkthrough, Live
+  // Teaching and the room's assignment filter all read it. It is the selected
+  // class's live work only: assigned to THIS class id, current marking period,
+  // published, not archived, released, and not past its final cutoff — the
+  // same availability rule the student dashboard uses, so anything listed is
+  // something every student in this class can open. No class, no list: there
+  // is deliberately no fallback to the teacher's whole library.
+  const activeClassEntry = useMemo(() => (
+    activeClassId ? classes.find((entry) => String(entry?.classId || '') === String(activeClassId)) || null : null
+  ), [activeClassId, classes]);
+  const activeClassPeriodLabel = activeClassEntry?.period || null;
+  // The class name first: two classes can share a period label.
+  const activeClassLabel = activeClassEntry?.name || activeClassEntry?.period || '';
+  // Availability changes on the minute (release, final cutoff), not on every
+  // clock tick, so the list is recomputed once a minute rather than per tick.
+  const eligibilityMinute = Math.floor(Number(nowValue) / 60_000);
+  const eligibleAssignments = useMemo(() => walkthroughAssignmentsForClass({
+    assignments,
+    classId: activeClassId,
+    classPeriod: activeClassPeriodLabel,
+    nowValue: eligibilityMinute * 60_000,
+    gradingPeriodSettings,
+  }), [assignments, activeClassId, activeClassPeriodLabel, eligibilityMinute, gradingPeriodSettings]);
+  const eligibleAssignmentIds = useMemo(() => new Set(eligibleAssignments.map((assignment) => String(assignment.id))), [eligibleAssignments]);
+  const teachableAssignments = eligibleAssignments;
+
+  // Switching class starts the room over: no assignment, question position or
+  // "checked" mark from the previous class may carry into this one. The
+  // derived guards below also hold during the render before this runs.
+  //
+  // One effect, because an assignment's "Live view" changes the class AND asks
+  // for an assignment in the same commit: the focus must win over the reset.
+  // A focused assignment is still only shown if it is live work for the class.
+  const previousClassIdRef = useRef(activeClassId);
+  const appliedFocusKeyRef = useRef(focusKey);
+  useEffect(() => {
+    const classChanged = previousClassIdRef.current !== activeClassId;
+    previousClassIdRef.current = activeClassId;
+    const newFocus = Boolean(focusKey && focusAssignmentId && focusKey !== appliedFocusKeyRef.current);
+    if (newFocus) appliedFocusKeyRef.current = focusKey;
+    if (classChanged) {
+      setTeacherQuestionIndex(0);
+      setCheckedStudentIds([]);
+      setAttendanceOverrides({});
+    }
+    if (newFocus) setAssignmentId(focusAssignmentId);
+    else if (classChanged) setAssignmentId('all');
+  }, [activeClassId, focusKey, focusAssignmentId]);
 
   // Pace must follow the teacher's REAL exemplar position while Live
   // Teaching is active for this class, not a disconnected manual counter.
-  const liveTeachingActiveForClass = Boolean(liveTeachingSession?.active)
+  // A saved session is followed only while its assignment is still live work
+  // for THIS class. A stale one (archived, closed, last marking period, never
+  // assigned here) is not restored into the room; App retires the record.
+  const liveTeachingSessionForClass = Boolean(liveTeachingSession?.active)
     && String(liveTeachingSession.classId || '') === String(activeClassId || '');
+  const liveTeachingActiveForClass = liveTeachingSessionForClass
+    && eligibleAssignmentIds.has(String(liveTeachingSession.assignmentId || ''));
+  const liveTeachingStale = liveTeachingSessionForClass && !liveTeachingActiveForClass;
 
-  const displayAssignmentId = liveTeachingActiveForClass ? liveTeachingSession.assignmentId : assignmentId;
-  const selectedAssignment = useMemo(() => assignments.find((assignment) => String(assignment.id) === String(displayAssignmentId)) || null, [assignments, displayAssignmentId]);
+  // The manual choice survives only while it is still offered for this class.
+  // With no choice, Walkthrough follows this class's most relevant live
+  // assignment (the list is already in teacher order), so switching class
+  // mid-Walkthrough lands on that class's lesson, never the previous one's.
+  const manualAssignmentId = resolveWalkthroughSelection({ eligibleAssignments, selectedId: assignmentId === 'all' ? null : assignmentId })
+    || (mode === 'walkthrough' ? eligibleAssignments[0]?.id : null)
+    || 'all';
+  const displayAssignmentId = liveTeachingActiveForClass ? liveTeachingSession.assignmentId : manualAssignmentId;
+  const selectedAssignment = useMemo(() => eligibleAssignments.find((assignment) => String(assignment.id) === String(displayAssignmentId)) || null, [eligibleAssignments, displayAssignmentId]);
   const selectedClasswork = useMemo(() => classworkModel(selectedAssignment), [selectedAssignment]);
 
   // A Live Teaching session has NO Classwork pace until the teacher actually
@@ -982,8 +1044,11 @@ export default function LiveClassMonitor({
 
   const switchMode = (nextMode) => {
     setMode(nextMode);
-    if (nextMode === 'walkthrough' && assignmentId === 'all' && assignments.length) {
-      setAssignmentId(assignments[0].id);
+    // Entering Walkthrough with nothing chosen picks this class's most
+    // relevant live assignment — never another class's, and nothing at all
+    // when the class has no live work (the empty state says so).
+    if (nextMode === 'walkthrough' && manualAssignmentId === 'all' && eligibleAssignments.length) {
+      setAssignmentId(eligibleAssignments[0].id);
       setTeacherQuestionIndex(0);
       setCheckedStudentIds([]);
     }
@@ -1029,8 +1094,15 @@ export default function LiveClassMonitor({
         ))}
       </div>
 
+      {liveTeachingStale && (
+        <div role="status" data-walkthrough-stale-session style={{ margin: '-4px 0 10px', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-warning-border)', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 12.5, fontWeight: 700 }}>
+          The saved Live Teaching lesson is no longer available to this class, so it was not restored.
+        </div>
+      )}
+
       <LiveTeachingPanel
         activeClassId={activeClassId}
+        activeClassLabel={activeClassLabel}
         teachableAssignments={teachableAssignments}
         liveTeachingActive={liveTeachingActiveForClass}
         liveTeachingAssignmentId={liveTeachingSession?.assignmentId || null}
@@ -1056,12 +1128,11 @@ export default function LiveClassMonitor({
           aria-label="Assignment"
           title={liveTeachingActiveForClass ? 'Following the Live Teaching exemplar assignment' : undefined}
         >
-          <option value="all">Any assignment</option>
-          {/* Only this class's open assignments when a class is chosen: the
-              list used to carry every open copy for every class, so the same
-              title appeared a dozen times with nothing to tell them apart. */}
-          {(activeClassId ? assignments.filter((assignment) => assignmentIsForStudent(assignment, { classId: activeClassId }) || String(assignment.id) === String(displayAssignmentId)) : assignments)
-            .map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.title || 'Untitled'}</option>)}
+          <option value="all">{mode === 'walkthrough' ? 'Choose an assignment…' : 'Any assignment'}</option>
+          {/* This class's live work only (eligibleAssignments): never every
+              open copy for every class, never last marking period, and a
+              selection from a previous class is not kept in the list. */}
+          {eligibleAssignments.map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.title || 'Untitled'}</option>)}
         </select>
         {mode === 'room' && <button type="button" onClick={() => setRoomMode((current) => !current)} aria-pressed={roomMode} style={{ ...controlStyle, cursor: 'pointer', fontWeight: 700, background: roomMode ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', borderColor: roomMode ? '#1a73e8' : 'var(--mm-border)', color: roomMode ? 'var(--mm-primary-text)' : 'var(--mm-text-strong)' }}>Large room tiles</button>}
         <button type="button" onClick={() => setShowAttendance((current) => !current)} aria-expanded={showAttendance} style={{ ...controlStyle, cursor: 'pointer', fontWeight: 800, background: showAttendance ? 'var(--mm-warning-soft)' : 'var(--mm-surface)', borderColor: showAttendance ? '#d9a400' : 'var(--mm-border)', color: showAttendance ? 'var(--mm-warning-text)' : 'var(--mm-text-strong)' }}>
@@ -1107,7 +1178,16 @@ export default function LiveClassMonitor({
       )}
 
       {mode === 'walkthrough' ? (
-        !selectedAssignment ? (
+        !activeClassId ? (
+          <div data-walkthrough-empty="no-class" style={{ padding: 20, border: '1px dashed var(--mm-border)', borderRadius: 12, color: 'var(--mm-text-muted)' }}>Choose a class to walk through its active assignment.</div>
+        ) : eligibleAssignments.length === 0 ? (
+          // Intentional: an empty list is the truth for this class. Showing
+          // the teacher's other assignments here would recreate the bug.
+          <div role="status" data-walkthrough-empty="no-active-work" style={{ padding: 20, border: '1px dashed var(--mm-border)', borderRadius: 12, color: 'var(--mm-text-muted)' }}>
+            <strong style={{ color: 'var(--mm-text-strong)' }}>No active assignments for {activeClassLabel || 'this class'}.</strong>
+            <div style={{ marginTop: 4, fontSize: 12.5 }}>Walkthrough lists only work assigned to this class that its students can open right now, in the current marking period.</div>
+          </div>
+        ) : !selectedAssignment ? (
           <div style={{ padding: 20, border: '1px dashed var(--mm-border)', borderRadius: 12, color: 'var(--mm-text-muted)' }}>Choose the classwork assignment you are walking through.</div>
         ) : selectedClasswork.questions.length === 0 ? (
           <div style={{ padding: 20, border: '1px dashed var(--mm-border)', borderRadius: 12, color: 'var(--mm-text-muted)' }}>This assignment has no Classwork questions to walk through.</div>

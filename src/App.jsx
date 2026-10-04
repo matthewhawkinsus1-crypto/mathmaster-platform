@@ -230,6 +230,7 @@ import {
   endLiveTeachingSession,
   startLiveTeachingSession,
 } from './platform/teacher/liveTeachingSession.js';
+import { validatePersistedWalkthroughSession, walkthroughEligibility } from './platform/assignments/assignmentAvailability.js';
 import { describeClassworkPace } from './platform/teacher/classworkModel.js';
 import { assignmentFolderMatches, normalizeFolderPath, normalizeFolderPaths, renameFolderPath, titleOrFolderMatches } from './assignmentFolders';
 import {
@@ -3366,15 +3367,38 @@ function App() {
   useEffect(() => {
     if (user?.role !== 'teacher' || !liveTeachingSession?.sessionId) return undefined;
     const sessionRef = doc(db, 'walkthroughSessions', liveTeachingSession.sessionId);
+    const expected = { classId: liveTeachingSession.classId, assignmentId: liveTeachingSession.assignmentId };
     return onSnapshot(sessionRef, (snapshot) => {
       if (!snapshot.exists()) return;
       const remote = snapshot.data();
+      // The document id encodes teacher + class + assignment; a record whose
+      // body names a different class or assignment is not this session.
+      if (String(remote?.classId || '') !== String(expected.classId || '')
+        || String(remote?.assignmentId || '') !== String(expected.assignmentId || '')) return;
       if (Number(remote.updatedAt) > Number(walkthroughWriteRef.current || 0)) {
         walkthroughWriteRef.current = Number(remote.updatedAt) || 0;
         setLiveTeachingSession(remote);
       }
     });
   }, [user?.role, liveTeachingSession?.sessionId]);
+
+  // An active session stays only while its assignment is still live work for
+  // its class (assignmentAvailability.js). Archived, moved to another marking
+  // period, past its final cutoff, unassigned from the class, or deleted: the
+  // session is ended and its record retired, so it cannot come back. Checked
+  // once a minute and whenever assignments or marking periods change.
+  const liveTeachingValidityMinute = Math.floor(Number(now) / 60_000);
+  useEffect(() => {
+    if (user?.role !== 'teacher' || !liveTeachingSession?.active) return;
+    const check = validatePersistedWalkthroughSession({
+      session: liveTeachingSession,
+      classId: liveTeachingSession.classId,
+      assignments,
+      nowValue: liveTeachingValidityMinute * 60_000,
+      gradingPeriodSettings,
+    });
+    if (!check.valid) endLiveTeaching();
+  }, [user?.role, liveTeachingSession?.active, liveTeachingSession?.classId, liveTeachingSession?.assignmentId, assignments, gradingPeriodSettings, liveTeachingValidityMinute]);
 
   useEffect(() => {
     if (user?.role !== 'teacher' || !liveTeachingSession?.sessionId) return;
@@ -5468,11 +5492,17 @@ function App() {
    * can be the teacher's real position instead of a disconnected manual
    * counter. See platform/teacher/liveTeachingSession.js.
    */
-  const teachAssignmentLive = async (assignmentId, { forceRestart = false } = {}) => {
-    const classId = activeClass?.classId || null;
+  const teachAssignmentLive = async (assignmentId, { forceRestart = false, classId: requestedClassId = null } = {}) => {
+    // The class the Live Classroom panel was showing when the teacher chose the
+    // lesson. Home can show the class in session while App's activeClass is a
+    // different one; teaching must never be filed under the wrong class.
+    const classId = requestedClassId || activeClass?.classId || null;
     if (!classId || !assignmentId) return;
     const assignmentData = assignments.find((assignment) => assignment.id === assignmentId);
     if (!assignmentData) return;
+    // Only live work for THIS class can be taught (assignmentAvailability.js) —
+    // the same rule that decides what the panel offers.
+    if (!walkthroughEligibility({ assignment: assignmentData, classId, nowValue: Date.now(), gradingPeriodSettings }).eligible) return;
     const startIndex = getCurrentContentQuestionIndices(assignmentData)[0] ?? 0;
     const startRole = resolveQuestionActivityRole({
       question: getStoredAssignmentQuestions(assignmentData)[startIndex],
@@ -5509,8 +5539,24 @@ function App() {
         getDoc(doc(db, 'walkthroughSessions', sessionId)),
         new Promise((resolve) => window.setTimeout(() => resolve(null), 180)),
       ]);
-      if (lookup?.exists() && lookup.data()?.active) {
-        const resumed = lookup.data();
+      const saved = lookup?.exists() ? lookup.data() : null;
+      const savedCheck = saved ? validatePersistedWalkthroughSession({
+        session: saved,
+        classId,
+        assignmentId,
+        teacherUid: user?.id || null,
+        assignments,
+        nowValue: Date.now(),
+        gradingPeriodSettings,
+      }) : null;
+      if (saved?.active && !savedCheck?.valid) {
+        // A saved session this class can no longer use is retired, not
+        // restored; the teacher gets a fresh start below.
+        setDoc(doc(db, 'walkthroughSessions', sessionId), { ...saved, active: false, updatedAt: Date.now() })
+          .catch((error) => console.warn('Could not retire a stale Walkthrough session:', error));
+      }
+      if (savedCheck?.valid) {
+        const resumed = saved;
         walkthroughWriteRef.current = Number(resumed.updatedAt) || 0;
         setLiveTeachingSession(resumed);
         setActiveAssignmentId(assignmentId);
@@ -11618,6 +11664,7 @@ function App() {
                 // throw the teacher into the Gradebook, losing whatever they
                 // were doing on Home.
                 onOpenStudent={setProfileDrawerStudentId}
+                gradingPeriodSettings={gradingPeriodSettings}
                 liveTeachingSession={liveTeachingSession}
                 onTeachAssignment={teachAssignmentLive}
                 onResumeTeaching={resumeLiveTeaching}
