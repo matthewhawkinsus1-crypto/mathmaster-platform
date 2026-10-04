@@ -72,6 +72,7 @@ const MUTANTS = [
   { name: 'relation: only the domain box checked', find: 'return sameSet(typedDomain, range) && sameSet(typedRange, domain)', replace: 'return sameSet(typedDomain, range)' },
   { name: 'relation: a non-number token silently dropped', find: 'return numbers.every((number) => Number.isFinite(number)) ? numbers : null;', replace: 'return numbers.filter((number) => Number.isFinite(number));' },
   // Constructed graphs.
+  { name: 'graph: the grader\'s line verdict ignored', find: "if (!line || line.isCorrect === true) return [];\n  const work = toolWork(response);\n  if (!work || !Array.isArray(work.points)) return [];", replace: "const work = toolWork(response);\n  if (!work || !Array.isArray(work.points)) return [];" },
   { name: 'graph: the anchor no longer required', find: 'if (!anchors.some(({ point }) => Array.isArray(point) && onStudentLine(point.map(Number)))) return [];', replace: '' },
   { name: 'graph: a third point off the line ignored', find: 'if (!distinct.every(onStudentLine)) return [];', replace: '' },
   { name: 'graph: the −1/m blocker removed', find: "    { code: 'slope-sign-reversed', value: -m },\n    { code: null, value: ratio(-1, m) },", replace: "    { code: 'slope-sign-reversed', value: -m }," },

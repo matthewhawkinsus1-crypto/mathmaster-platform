@@ -697,7 +697,11 @@ const authoredGraphSlope = (question, mode) => {
   }
   return Number.NaN;
 };
-const classifyConstructedSlope = ({ question, response }) => {
+const classifyConstructedSlope = ({ question, response, grading }) => {
+  // The grader's own verdict on the line (graded or reported): a line it
+  // judged right is never read for a slope error.
+  const line = partsById(grading).get('line');
+  if (!line || line.isCorrect === true) return [];
   const work = toolWork(response);
   if (!work || !Array.isArray(work.points)) return [];
   const points = work.points.filter((point) => Array.isArray(point) && point.length === 2 && point.every((value) => typeof value === 'number' && Number.isFinite(value)));

@@ -205,6 +205,17 @@ export const MISCONCEPTION_PROBES = Object.freeze([
     },
   },
   {
+    // A constructed line the grader judged right (within its tolerance) is
+    // never read for a slope error, even where the points alone would say 1/m.
+    name: 'graph: a line the grader marked right is not read',
+    holds: (classify) => {
+      const fixture = MISCONCEPTION_FIXTURES.find((entry) => entry.name === 'graph: reciprocal slope from the right y-intercept');
+      const graded = gradeServerResponse({ question: fixture.question, response: fixture.response });
+      const grading = { ...graded, parts: graded.parts.map((part) => (part.id === 'line' ? { ...part, isCorrect: true } : part)) };
+      return classify({ question: fixture.question, response: fixture.response, grading, familyValues: null }).evidence === null;
+    },
+  },
+  {
     name: 'a verdict of correct is never classified, whatever its parts say',
     holds: (classify) => {
       const fixture = MISCONCEPTION_FIXTURES.find((entry) => entry.name === 'slope: run over rise');
