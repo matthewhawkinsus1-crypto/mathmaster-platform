@@ -29,6 +29,8 @@
 // older tree): counters that harness does not keep are null, and callable
 // counts fall back to window.__mmHarness.calls, so before/after runs compare.
 
+import { newSchoolContext } from './schoolClock.mjs';
+
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
 const ORIGIN = process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188';
@@ -39,7 +41,7 @@ const launchOptions = { args: ['--no-sandbox', '--js-flags=--expose-gc'] };
 if (process.env.CHROMIUM_PATH) launchOptions.executablePath = process.env.CHROMIUM_PATH;
 else if (!process.env.PLAYWRIGHT_MODULE) launchOptions.executablePath = '/opt/pw-browsers/chromium';
 const browser = await chromium.launch(launchOptions);
-const context = await browser.newContext({ viewport: { width: 1366, height: 768 } });
+const context = await newSchoolContext(browser, { viewport: { width: 1366, height: 768 } });
 const page = await context.newPage();
 const consoleProblems = [];
 page.on('console', (message) => {

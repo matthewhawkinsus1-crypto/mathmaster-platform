@@ -59,6 +59,8 @@
 //
 // Exit code 1 on any failure.
 
+import { newSchoolContext, schoolNow } from './schoolClock.mjs';
+
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
 const ORIGIN = process.env.TEACHER_HARNESS_ORIGIN || 'http://127.0.0.1:5188';
@@ -101,7 +103,7 @@ const wanted = (name) => !ONLY || ONLY.includes(name);
  * `storageState`: this device's own browser storage, when it comes back.
  */
 const openDevice = async (label, { server = null, storageState = null, params = {} } = {}) => {
-  const context = await browser.newContext({ viewport: VIEWPORT, ...(storageState ? { storageState } : {}) });
+  const context = await newSchoolContext(browser, { viewport: VIEWPORT, ...(storageState ? { storageState } : {}) });
   if (server) {
     await context.addInitScript(([key, value]) => {
       // Once per tab: a reload keeps what this device has saved since.
@@ -367,7 +369,7 @@ if (wanted('legacy')) {
   // boxes is dated when it opened — later than A's edit — and carries no
   // marker (openedElsewhere). That build kept whatever copy a device already
   // had (opening re-dated it); this one must not do worse.
-  const openedAt = Date.now();
+  const openedAt = schoolNow(); // the devices' clock (schoolClock.mjs)
   const legacyServer = openedElsewhere(serverAfterA, openedAt);
 
   const A3 = await openDevice('A after an older build', { storageState: comingBack(stateA, legacyServer), params: { draftReadMs: '600' } });
