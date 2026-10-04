@@ -322,8 +322,7 @@ No student or teacher screen changes in this release.
 
 **Step 2 — nothing else in this release.** Removing the shared copy (so
 students stop receiving classmates' controls at all) needs the next release,
-whose screens read the private records. That release adds the switch to this
-card. Do not use it until that release has been live for a full school day.
+whose screens read the private records: Block 7.
 
 **Rollback.** Redeploy the previous release. The shared copy is still
 complete, so it behaves exactly as before; the private records are simply not
@@ -332,9 +331,102 @@ granted while the previous release was live.
 
 ---
 
+## Block 7 — students' controls: the client cutover, then Stage 4 (once)
+
+The release after Block 6 makes every student and teacher screen read the
+private records: a student's device keeps one listener for its own controls
+and holds no classmate's; a teacher's keeps one for the classes on screen; the
+"+1 DOL attempt" goes through the server. It also adds the Stage 4 controls to
+the card — each a separate, deliberate step that the server refuses until its
+conditions hold. Design: `docs/architecture/student-assignment-overrides.md`
+§9, §11, §15. **Nothing in this block runs by itself; nothing deletes data.**
+
+**Deploy (Block 2), and check three things.**
+
+1. The teacher screens' index (added by Block 6's release) exists and is
+   built. If Block 6's index step was skipped, deploy it now and wait until it
+   says READY:
+
+   ```
+   cd ~/mathmaster-platform && firebase deploy --only firestore:indexes --project mathmaster-aleks
+   gcloud firestore indexes composite list --project mathmaster-aleks --format="table(collectionGroup,state)" | grep studentAssignmentOverrides
+   ```
+
+   Until it is READY a teacher's screen quietly uses the shared copy, which is
+   still kept in step — never retire before it is.
+2. Block 2 deploys Functions first, then rules, then Hosting. No rules change
+   in this release.
+3. The live site declares the new client:
+
+   ```
+   curl -s "https://mathmaster-aleks.web.app/mathmaster-build.json?ts=$(date +%s)" | grep -E '"gitSha"|privateAssignmentControlsClient'
+   ```
+
+   Expect this release's commit and `"privateAssignmentControlsClient": 1`.
+
+**The same day — record the release as live.** As the root administrator:
+**Administration → Classes & rosters → Students' own assignment controls.**
+
+1. **Check status.** The stage reads *Backfill incomplete* until a full pass
+   is counted by this release's server — passes run before it are not, so run
+   it again:
+2. **Check without changing anything**, then **Copy into private records.**
+   Expect *Could not finish: 0* and *Last full pass: finished … 0 failures*.
+   If the page closes part-way, press **Copy into private records** again: it
+   resumes the same pass.
+3. **Record this release as live.** MathMaster reads the live build itself.
+   If it says it could not, tick *I confirm this release's Hosting is
+   deployed and live for everyone* (only if Step 3 above showed the new
+   commit) — that statement is recorded with your name. The school-day clock
+   starts now, stamped by the server.
+4. The card now reads *Backfill complete — waiting for the safety period* and
+   names the first full school day by the district calendar.
+
+**After that full school day has ended — Stage 4.**
+
+1. Make sure no older screen can still be open: the release has been live a
+   whole school day (every Chromebook has reloaded), and no one has rolled
+   Hosting back since (Block 3's `--whats-live` shows this release).
+2. **Check status.** All four conditions show ✓ and the stage reads *Ready to
+   retire*. If one does not, the card says which and why; fix that first.
+3. Tick *Students used this release for a full school day* (only if true —
+   MathMaster cannot see holidays or staff days), type `RETIRE SHARED COPY`,
+   press **Retire the shared copy.** The stage reads *Retired*; the shared
+   copy is no longer kept in step and the rules lock per-student data off
+   shared assignments.
+4. **Strip dry run.** Read the six numbers: assignments scanned, with shared
+   student data, records confirmed private, awaiting absorption (the strip
+   copies those in first), failures (expect 0), archives that would be
+   written. Nothing is changed.
+5. Type `STRIP SHARED COPIES`, press **Strip shared copies.** Every shared
+   assignment loses its per-student data only after MathMaster confirms each
+   student's private record says the same, and only after archiving it
+   verbatim. If it reports any *to run again*, run the dry run and the strip
+   again.
+6. **Strip dry run** once more: *Assignments with shared student data: 0*. The
+   card's *30-day condition* now shows *Clean since …*: the clock in
+   `docs/architecture/student-assignment-overrides.md` §13 has started.
+
+**Rollback.**
+
+- *Before Stage 4:* redeploy the previous release (Block 2 from its commit).
+  The shared copy is still complete, so older screens read exactly what they
+  did. Then run the backfill again when this release is back.
+- *After retiring (with or without the strip):* tick *Turn retirement off
+  (rollback)* → **Keep the shared copy in step again** (never refused). Then
+  **Restore dry run** → type `RESTORE SHARED COPIES` → **Restore shared
+  copies**: every private record is written back onto the shared assignments,
+  so an older screen reads the same controls again. Only then redeploy an
+  older release, if you need to. Retiring again later starts over: record the
+  release as live again and wait one more full school day.
+- Never redeploy a release older than Block 6's after the strip without the
+  restore first: it reads only the shared copy.
+
+---
+
 ## Nothing else needs updating
 
-No Vercel deploy and no manual database work beyond Blocks 4, 5 and 6. Composite indexes
+No Vercel deploy and no manual database work beyond Blocks 4, 5, 6 and 7. Composite indexes
 do exist (`firestore.indexes.json`); a release that changes them deploys them
 first — `node scripts/release-firebase.mjs` does that for you.
 

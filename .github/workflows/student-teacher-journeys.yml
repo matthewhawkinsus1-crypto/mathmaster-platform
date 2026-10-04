@@ -97,6 +97,11 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: playwright
         run: node tests/browser/teacherWorkflow/walkthroughJourneys.mjs
+      - name: Students' private assignment controls (listeners, shared Chromebook, DOL, staged migration)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/privateControlsJourneys.mjs
       - name: Unfinished work across Chromebooks
         if: always()
         env:
