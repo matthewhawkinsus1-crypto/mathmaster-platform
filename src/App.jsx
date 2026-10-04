@@ -30,13 +30,20 @@ import { WORKSPACE_DRAFT_REREAD_AFTER_HIDDEN_MS, createWorkspaceDraftSync } from
 import { readLatestWorkspaceResume, readWorkspaceDraft, writeWorkspaceDraft } from './platform/persistence/workspaceDraftStore.js';
 import { readWorkspaceDraftEntries, selectRestorableDraftEntries } from '../functions/shared/workspaceDraftSchema.mjs';
 import { applyWarmupTeacherControl, resolveAuthoritativeClose, resolveWarmupInstructionDateKey } from '../functions/shared/sectionDeadline.mjs';
-import { withStudentSupportDates } from '../functions/shared/supportDeadline.mjs';
 import useEngagementLedger from './platform/supportEvidence/useEngagementLedger.js';
 import StudentSupportTools from './components/student/StudentSupportTools.jsx';
 import SupportEvidenceReportView from './components/teacher/SupportEvidenceReportView.jsx';
 import { recordStudentSupportEvidence as saveStudentSupportEvidence } from './platform/supportEvidence/supportEvidenceStore.js';
 import { launchSupportRecords, studentMayRecordSupport, usedRecordKey } from './platform/supportEvidence/studentSupportTelemetry.js';
 import { buildDolAttemptGrant, buildDolClose, buildDolDateMove, buildDolExtension, buildDolScheduleRestore, buildDolWindowOpening, scheduledDolDateFor, summarizeStudentRecovery } from './platform/assessment/assessmentRecovery.js';
+import {
+  classDolFieldPatch,
+  controlsRequestKey,
+  createControlsRequestGate,
+  planStudentDolGrant,
+  runStudentControlsCalls,
+} from './platform/assessment/dolAttemptGrantClient.js';
+import { setStudentAssignmentControls } from './services/studentAssignmentControlsService.js';
 import { PRESENCE_FLUSH_MS, applyKeyedChanges, createKeyedUpdateBuffer } from './platform/performance/coalescedKeyedUpdates.js';
 import { teacherAdmin } from './auth/authService';
 import {
@@ -76,6 +83,15 @@ import {
   subscribeStudentClassAssignments,
   workedAssignmentKey,
 } from './platform/assignments/studentAssignmentScope.js';
+import { EMPTY_STUDENT_CONTROLS, projectStudentAssignments } from './platform/assignments/studentAssignmentControls.js';
+import useStudentAssignmentControls from './platform/assignments/useStudentAssignmentControls.js';
+import {
+  EMPTY_TEACHER_CONTROLS,
+  projectTeacherAssignments,
+  teacherControlsClassIds,
+  teacherControlsScopeKey,
+} from './platform/teacher/teacherClassControls.js';
+import useTeacherClassControls from './platform/teacher/useTeacherClassControls.js';
 import {
   GENERATION_SEATS_VERSION,
   generationSeatPlanSignature,
@@ -327,6 +343,7 @@ import { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
 import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
 import SectionRecoveryPanel from './components/student/SectionRecoveryPanel.jsx';
 import SectionRecoveryAuditTrail from './components/teacher/SectionRecoveryAuditTrail.jsx';
+import StudentDolRecoveryRow from './components/teacher/StudentDolRecoveryRow.jsx';
 import { completedRecoverySections, warmupChallengeCounts } from './platform/recovery/teacherRecoveryAudit.js';
 import { buildStudentRecoverySummary } from './platform/recovery/studentRecoveryModel.js';
 import { recoveryErrorCode, startSectionRecovery } from './services/sectionRecoveryService.js';
@@ -400,7 +417,7 @@ import {
   mappedCourseIdsForAssignment,
   shouldAutoPublishClassroomPackage,
 } from './platform/classroom/automaticClassroomPublishing.js';
-import { resolveStudentCourseContext, studentsInClass, unplaceableStudents } from '../functions/shared/classModel.mjs';
+import { classIdsForTeacher, resolveStudentCourseContext, studentsInClass, unplaceableStudents } from '../functions/shared/classModel.mjs';
 import { buildNeedsAttentionQueue } from './platform/teacher/needsAttention.js';
 import {
   SUPPORT_EVENT_KIND,
@@ -662,6 +679,11 @@ const TEACHER_FULL_STUDENT_DATA_TABS = new Set([
 ]);
 const TEACHER_SUPPORT_STREAM_TABS = new Set(['home', 'classesWorkspace', 'attendanceHistory', 'actionCenter', 'parentContacts']);
 const TEACHER_PARENT_CONTACT_STREAM_TABS = new Set(['parentContacts', 'actionCenter']);
+// Tabs that work across every class a teacher teaches by design (Grade
+// Export's units, the Action Center's queue, Parent Contacts' roster): their
+// students' private controls are read for all of those classes, in the one
+// controls listener (platform/teacher/teacherClassControls.js).
+const TEACHER_CROSS_CLASS_TABS = new Set(['gradeTransfer', 'actionCenter', 'parentContacts']);
 const TEACHER_SESSION_SUMMARY_TABS = new Set(['home', 'classesWorkspace', 'parentContacts']);
 
 function App() {
@@ -1784,22 +1806,124 @@ function App() {
    * assignments, and the per-student entries on them, never reach the device,
    * and an edit to another class's assignment no longer wakes it.
    * Teachers keep the whole collection: their screens span classes.
+   *
+   * AND ITS OWN CONTROLS, NOBODY ELSE'S. Each lesson arrives already reduced
+   * to this student's view (no classmate's extension, excusal, reopen, DOL
+   * grant or recovery-log entry survives the snapshot), and is then projected
+   * once with the student's private controls — exactly one more listener per
+   * device (platform/assignments/studentAssignmentControls.js). Every student
+   * reader (cards, Resume/Open, lifecycle, Grade Center, Recovery, Practice
+   * Pass, make-up, the DOL attempt budget) reads those projected lessons.
+   *
+   * Teachers: one more listener too — their students' controls for the
+   * classes on screen (platform/teacher/teacherClassControls.js) — merged into
+   * each lesson's `studentOverrides` by teacherAssignmentView, never into the
+   * `dol`, `warmup` or `sectionAccess` that teacher actions write back.
    */
+  const studentAssignmentControls = useStudentAssignmentControls({
+    db,
+    // The SESSION's student, so the listener opens beside sign-in hydration
+    // rather than after it; owner-checked on every projection.
+    studentId: auth.status === 'ready' && auth.session?.role === 'student' ? auth.session.studentId : null,
+  });
   const studentClassAssignmentsRef = useRef([]);
   const studentPriorWorkAssignmentsRef = useRef([]);
+  // Whose lessons these are, for the projection: set from the session before
+  // the first lesson reaches state, and cleared with the lessons themselves.
+  const studentViewerRef = useRef({ studentId: null, profile: null });
+  const studentControlsRef = useRef(EMPTY_STUDENT_CONTROLS);
+  studentControlsRef.current = studentAssignmentControls;
   const publishStudentAssignments = () => {
-    setAssignments(assignmentsForViewer(mergeStudentAssignments(
-      studentClassAssignmentsRef.current,
-      studentPriorWorkAssignmentsRef.current,
-    )));
+    const { studentId, profile } = studentViewerRef.current;
+    setAssignments(projectStudentAssignments({
+      assignments: mergeStudentAssignments(studentClassAssignmentsRef.current, studentPriorWorkAssignmentsRef.current),
+      studentId,
+      profile,
+      controls: studentControlsRef.current,
+    }));
   };
 
+  // Which classes' controls a teacher's screens need right now: the class
+  // they are working in, any other class a visible surface shows, and on the
+  // cross-class tabs the classes they teach (teacherControlsClassIds).
+  const [teacherSurfaceClasses, setTeacherSurfaceClasses] = useState({ live: null, hub: null, attendance: null, exportClassIds: [] });
+  const reportTeacherSurfaceClass = useCallback((surface, value) => {
+    setTeacherSurfaceClasses((current) => {
+      const next = surface === 'exportClassIds'
+        ? (Array.isArray(value) ? value.filter(Boolean).map(String) : [])
+        : (value ? String(value) : null);
+      const same = surface === 'exportClassIds' ? current.exportClassIds.join('|') === next.join('|') : current[surface] === next;
+      return same ? current : { ...current, [surface]: next };
+    });
+  }, []);
+  const reportLiveClass = useCallback((classId) => reportTeacherSurfaceClass('live', classId), [reportTeacherSurfaceClass]);
+  const reportHubClass = useCallback((classId) => reportTeacherSurfaceClass('hub', classId), [reportTeacherSurfaceClass]);
+  const reportAttendanceClass = useCallback((classId) => reportTeacherSurfaceClass('attendance', classId), [reportTeacherSurfaceClass]);
+  const reportExportClasses = useCallback((classIds) => reportTeacherSurfaceClass('exportClassIds', classIds), [reportTeacherSurfaceClass]);
+  const teacherControlsScope = useMemo(() => {
+    if (user?.role !== 'teacher') return '';
+    const studentClass = (studentId) => (studentId ? allStudents.find((student) => student.id === studentId)?.classId || null : null);
+    return teacherControlsScopeKey({
+      email: user.email,
+      isRootAdmin: user.isRootAdmin === true,
+      classIds: teacherControlsClassIds({
+        activeClassId: activeClass.classId,
+        surfaceClassIds: [
+          teacherTab === 'home' ? teacherSurfaceClasses.live : null,
+          assignmentHubTarget ? teacherSurfaceClasses.hub || assignmentHubTarget.classId : null,
+          teacherTab === 'attendanceHistory' ? teacherSurfaceClasses.attendance : null,
+          studentClass(caseReviewStudentId),
+          studentClass(supportReportStudentId),
+          ...(teacherTab === 'gradeTransfer' ? teacherSurfaceClasses.exportClassIds : []),
+        ],
+        crossClassTab: TEACHER_CROSS_CLASS_TABS.has(teacherTab),
+        taughtClassIds: classIdsForTeacher(classes.filter((entry) => entry?.status !== 'archived'), user.email),
+      }),
+    });
+  }, [user?.role, user?.email, user?.isRootAdmin, activeClass.classId, teacherTab, teacherSurfaceClasses, assignmentHubTarget, caseReviewStudentId, supportReportStudentId, allStudents, classes]);
+  const teacherClassControls = useTeacherClassControls({ db, scopeKey: teacherControlsScope });
+  const teacherSharedAssignmentsRef = useRef([]);
+  const teacherControlsRef = useRef(EMPTY_TEACHER_CONTROLS);
+  teacherControlsRef.current = teacherClassControls;
+  const publishTeacherAssignments = () => {
+    setAssignments(projectTeacherAssignments({
+      assignments: teacherSharedAssignmentsRef.current,
+      controls: teacherControlsRef.current,
+    }));
+  };
+  // Nothing one account's screens held survives into the next account's: the
+  // lessons (with that account's own controls projected into them) and every
+  // copy they were projected from go at sign-out and at any change of account.
+  // The controls listeners themselves are keyed by account and torn down with it.
+  const hydratedSessionUidRef = useRef(null);
+  const clearSignedInAssignments = () => {
+    studentClassAssignmentsRef.current = [];
+    studentPriorWorkAssignmentsRef.current = [];
+    studentViewerRef.current = { studentId: null, profile: null };
+    teacherSharedAssignmentsRef.current = [];
+    setAssignments([]);
+  };
+
+  // A changed control, a newly read scope, or a profile revision re-projects
+  // the lessons already held: no listener is re-opened for it.
   useEffect(() => {
-    if (!user) return undefined;
+    if (user?.role === 'student' && user.id) {
+      studentViewerRef.current = { studentId: user.id, profile: user.profile || null };
+      publishStudentAssignments();
+    } else if (user?.role === 'teacher') {
+      publishTeacherAssignments();
+    }
+    // The publishers read refs; these are what change their answer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.role, user?.id, user?.profile, studentAssignmentControls, teacherClassControls]);
+
+  useEffect(() => {
+    if (!user?.role || !user.id) return undefined;
 
     if (user.role === 'student') {
       return subscribeStudentClassAssignments({
         db,
+        studentId: user.id,
         classId: user.classId,
         onChange: (classAssignments) => {
           studentClassAssignmentsRef.current = classAssignments;
@@ -1821,7 +1945,8 @@ function App() {
         liveAssignments.sort((a, b) =>
           String(a.dueAt || a.dueDate || '').localeCompare(String(b.dueAt || b.dueDate || '')),
         );
-        setAssignments(assignmentsForViewer(liveAssignments));
+        teacherSharedAssignmentsRef.current = liveAssignments;
+        publishTeacherAssignments();
         // A teacher DOL unlock is an assignment update. Refresh the logical
         // clock with the snapshot so students do not wait for the next 30s
         // lifecycle tick before seeing an early release.
@@ -1831,7 +1956,10 @@ function App() {
     );
 
     return unsubscribe;
-  }, [user]);
+    // Who is signed in and their class decide the listener; a profile
+    // revision re-projects (above) without re-opening it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.role, user?.id, user?.classId]);
 
   // Work a student did under an earlier class: read once per change in the
   // SET of assignments they have work on (not on every answer), by id.
@@ -1848,7 +1976,7 @@ function App() {
       loadedIds,
     });
     if (!missing.length) return undefined;
-    fetchAssignmentsById(db, missing)
+    fetchAssignmentsById(db, missing, { studentId: user.id })
       .then((fetched) => {
         if (cancelled || !fetched.length) return;
         studentPriorWorkAssignmentsRef.current = mergeStudentAssignments(studentPriorWorkAssignmentsRef.current, fetched);
@@ -2149,15 +2277,15 @@ function App() {
     }
   };
 
-  // A student's own individualized (extra-time) deadlines, derived from their
-  // pinned support profile and injected IN MEMORY into their override entry,
-  // so every lifecycle reader honours them. Students cannot write assignments
-  // and teachers never receive these copies, so nothing here is persisted —
-  // and nothing about one student's supports reaches the shared document.
-  const assignmentsForViewer = (list) => (user?.role === 'student' && user?.id
-    ? list.map((assignment) => withStudentSupportDates(assignment, user.id, user.profile))
-    : list);
-
+  // A student's own individualized (extra-time) deadlines are derived from
+  // their pinned support profile and injected IN MEMORY by
+  // projectStudentAssignments (withStudentSupportDates, after the student's
+  // view), so every lifecycle reader honours them; nothing is persisted, and
+  // nothing about one student's supports reaches the shared document.
+  //
+  // The whole collection, for a TEACHER's screens (a student's device reads
+  // its class only — studentAssignmentScope.js). Held as stored and projected
+  // with the students' controls for the classes on screen.
   const fetchAssignments = async () => {
     const querySnapshot = await getDocs(collection(db, 'assignments'));
     const fetchedAssignments = [];
@@ -2165,7 +2293,8 @@ function App() {
       fetchedAssignments.push({ id: assignmentDoc.id, ...assignmentDoc.data() });
     });
     fetchedAssignments.sort((a, b) => String(a.dueAt || a.dueDate || '').localeCompare(String(b.dueAt || b.dueDate || '')));
-    setAssignments(assignmentsForViewer(fetchedAssignments));
+    teacherSharedAssignmentsRef.current = fetchedAssignments;
+    publishTeacherAssignments();
     return fetchedAssignments;
   };
 
@@ -2882,6 +3011,8 @@ function App() {
     const session = auth.session;
     if (auth.status !== 'ready' || !session) {
       setUser(null);
+      hydratedSessionUidRef.current = null;
+      clearSignedInAssignments();
       setAllStudents([]);
       setTeacherRosterSummaries([]);
       setTeacherStudentDataMode('summary');
@@ -2893,6 +3024,15 @@ function App() {
       setSessionHydrating(auth.status === 'loading');
       return () => { cancelled = true; };
     }
+
+    // Another account replaced this one without a signed-out moment between
+    // (a second tab signing someone else in): drop the first account's
+    // screens before anything of the second is read.
+    if (hydratedSessionUidRef.current && hydratedSessionUidRef.current !== session.uid) {
+      setUser(null);
+      clearSignedInAssignments();
+    }
+    hydratedSessionUidRef.current = session.uid;
 
     const hydrateSession = async () => {
       setSessionHydrating(true);
@@ -2940,19 +3080,30 @@ function App() {
         // The student's own class, plus anything they have work on from an
         // earlier one — never the whole collection (studentAssignmentScope.js).
         const savedResumeTarget = readResumeAction(studentId);
+        // Each lesson arrives as THIS student's view (studentAssignmentScope.js)
+        // and reaches state only projected with their own controls — never
+        // the shared document as stored.
         const fetchedAssignments = await fetchStudentAssignments({
           db,
+          studentId,
           classId: studentData.classId || null,
           gradesByAssignment: studentData.gradesByAssignment || {},
           extraIds: savedResumeTarget?.assignmentId ? [savedResumeTarget.assignmentId] : [],
         });
         if (cancelled) return;
+        const studentProfile = normalizeStudentProfile(studentData.profile || studentData);
         studentClassAssignmentsRef.current = fetchedAssignments
           .filter((assignment) => Array.isArray(assignment.assignedClassIds) && assignment.assignedClassIds.includes(studentData.classId));
         studentPriorWorkAssignmentsRef.current = fetchedAssignments
           .filter((assignment) => !studentClassAssignmentsRef.current.includes(assignment));
-        setAssignments(fetchedAssignments);
-        const studentProfile = normalizeStudentProfile(studentData.profile || studentData);
+        studentViewerRef.current = { studentId, profile: studentProfile };
+        const projectedAssignments = projectStudentAssignments({
+          assignments: fetchedAssignments,
+          studentId,
+          profile: studentProfile,
+          controls: studentControlsRef.current,
+        });
+        setAssignments(projectedAssignments);
         const loadedCourseProfiles = await fetchCourseProfiles();
         await fetchClassSchedule();
         await fetchGradingPeriodSettings();
@@ -3036,7 +3187,9 @@ function App() {
           readLatestWorkspaceResume(studentId)
             .then((serverResume) => {
               if (cancelled || !serverResume) return;
-              const assignment = fetchedAssignments.find((entry) => entry.id === serverResume.assignmentId);
+              // The projected lesson: its lifecycle includes the student's own
+              // extension, read from their private controls.
+              const assignment = projectedAssignments.find((entry) => entry.id === serverResume.assignmentId);
               if (!assignment) return;
               setResumeAction({
                 assignmentId: assignment.id,
@@ -3072,6 +3225,11 @@ function App() {
   const handleLogout = async () => {
     await stopStudentSpotlight?.();
     setUser(null);
+    // At once, not when the auth listener catches up: the lessons carried
+    // this account's own controls (a shared Chromebook's next student must
+    // never be handed them, even for a frame).
+    hydratedSessionUidRef.current = null;
+    clearSignedInAssignments();
     setActiveView('dashboard');
     setTeacherTab('home');
     setTeacherWorkspaceMode('teacher');
@@ -7269,7 +7427,13 @@ function App() {
     };
 
     assertFirestoreSafeAssignmentPayload({ ...existing, ...patch });
-    await updateDoc(doc(db, 'assignments', existing.id), patch);
+    // `dol` as the fields this edit changed, not the whole map from this tab's
+    // copy (which would carry students' grants with it).
+    const { dol: editedDol, ...patchWithoutDol } = patch;
+    await updateDoc(doc(db, 'assignments', existing.id), {
+      ...patchWithoutDol,
+      ...classDolFieldPatch(existing.dol, editedDol, { deleteValue: deleteField() }),
+    });
 
     if (!isLibraryAssignment(existing) && shouldAutoPublishClassroomPackage({ ...existing, ...patch })) {
       try {
@@ -7992,7 +8156,8 @@ function App() {
         now: writeNow,
       });
 
-      await updateDoc(doc(db, 'assignments', assignment.id), { dol: opening.dol, updatedAt: openedAt });
+      // Only the class's DOL fields this opening changed; never a student's grant.
+      await updateDoc(doc(db, 'assignments', assignment.id), { ...classDolFieldPatch(assignment.dol, opening.dol, { deleteValue: deleteField() }), updatedAt: openedAt });
       if (recoveryNow) {
         toastSuccess('DOL reopened', `${assignment.title} has a fresh ${durationMinutes}-minute recovery window for ${classLabel}. Existing work and attempt history were preserved.`);
       } else if (canRestart) {
@@ -8034,7 +8199,8 @@ function App() {
         teacherId: user?.id || null,
         now: nowMs,
       });
-      await updateDoc(doc(db, 'assignments', assignment.id), { dol, updatedAt: changedAt });
+      // The class grant only (`dol.attemptGrantsByClassId`, its audit entry).
+      await updateDoc(doc(db, 'assignments', assignment.id), { ...classDolFieldPatch(assignment.dol, dol, { deleteValue: deleteField() }), updatedAt: changedAt });
       toastSuccess('Extra DOL attempt granted', `${classLabel} now has ${Math.min(20, currentBonus + 1)} teacher-granted extra DOL attempt${Math.min(20, currentBonus + 1) === 1 ? '' : 's'}.`);
     } catch (error) {
       console.error(error);
@@ -8047,11 +8213,22 @@ function App() {
   /*
    * ONE MORE DOL ATTEMPT FOR SELECTED STUDENTS — an absent student, a device
    * that died mid-DOL. Adds to any class grant; prior attempts and scores are
-   * untouched, and the grant is recorded in the assignment's recovery audit.
+   * untouched. A student's grant is THEIR control: the server changes their
+   * private record (setStudentAssignmentControls), from the count it holds —
+   * not this tab's — and records who granted it in the staff-only history.
+   * This browser never writes `dol.attemptGrantsByStudentId`
+   * (platform/assessment/dolAttemptGrantClient.js). Students are grouped by
+   * their own class, at most 60 per call; one request per set of students is
+   * in flight at a time, so a double-click grants once.
    */
+  const studentControlsGateRef = useRef(null);
+  if (!studentControlsGateRef.current) studentControlsGateRef.current = createControlsRequestGate();
   const handleGrantDOLAttemptForStudents = async (assignment, students = []) => {
     const chosen = (students || []).filter((student) => student?.id);
     if (!assignment?.id || !chosen.length) return;
+    const requestKey = controlsRequestKey({ assignmentId: assignment.id, studentIds: chosen.map((student) => student.id), kind: 'dolAttempts' });
+    // The first click is still on its way to the server: nothing to confirm twice.
+    if (studentControlsGateRef.current.pending(requestKey)) return;
     const names = chosen.map((student) => formatStudentName(student)).join(', ');
     const proceed = await confirmAction({
       title: chosen.length === 1 ? `Grant one more DOL attempt to ${names}?` : `Grant one more DOL attempt to ${chosen.length} students?`,
@@ -8062,15 +8239,29 @@ function App() {
     const busyKey = `${assignment.id}:students:${chosen.map((student) => student.id).join('+')}`;
     setDolAttemptGrantBusyKey(busyKey);
     try {
-      const nowMs = Date.now();
-      const { dol } = buildDolAttemptGrant({
-        assignment,
-        scope: { type: 'students', studentIds: chosen.map((student) => student.id), classId: activeClass?.classId || null },
-        teacherId: user?.id || null,
-        now: nowMs,
+      const { duplicate, promise } = studentControlsGateRef.current.run(requestKey, async () => {
+        const { calls, unplaced } = planStudentDolGrant({
+          assignmentId: assignment.id,
+          students: chosen,
+          fallbackClassId: activeClass?.classId || null,
+        });
+        const outcome = await runStudentControlsCalls({ call: setStudentAssignmentControls, calls });
+        return { ...outcome, unplaced };
       });
-      await updateDoc(doc(db, 'assignments', assignment.id), { dol, updatedAt: new Date(nowMs).toISOString() });
-      toastSuccess('Extra DOL attempt granted', chosen.length === 1 ? `${names} has one more attempt on each DOL question.` : `${chosen.length} students have one more attempt on each DOL question.`);
+      if (duplicate) return;
+      const { students: granted, failures, unplaced } = await promise;
+      const nameOf = (studentId) => formatStudentName(chosen.find((student) => student.id === studentId) || { id: studentId });
+      if (granted.length) {
+        const only = granted.length === 1 ? granted[0] : null;
+        toastSuccess('Extra DOL attempt granted', only
+          ? `${nameOf(only.studentId)} now has ${only.dolExtraAttempts} extra ${only.dolExtraAttempts === 1 ? 'attempt' : 'attempts'} of their own on each DOL question.`
+          : `${granted.length} students have one more attempt on each DOL question.`);
+      }
+      if (failures.length || unplaced.length) {
+        const refused = failures.flatMap((failure) => failure.studentIds.map((studentId) => `${nameOf(studentId)} — ${failure.message}`));
+        const noClass = unplaced.map((studentId) => `${nameOf(studentId)} — not in a class`);
+        toastError('Some DOL attempts were not granted', [...refused, ...noClass].slice(0, 6).join(' · '));
+      }
     } catch (error) {
       console.error(error);
       toastError('Could not grant DOL attempt', error.message);
@@ -8182,7 +8373,7 @@ function App() {
     setDolControlBusyKey(busyKey);
     try {
       const { dol } = build();
-      await updateDoc(doc(db, 'assignments', assignment.id), { dol, updatedAt: new Date().toISOString() });
+      await updateDoc(doc(db, 'assignments', assignment.id), { ...classDolFieldPatch(assignment.dol, dol, { deleteValue: deleteField() }), updatedAt: new Date().toISOString() });
       toastSuccess(success[0], success[1]);
     } catch (error) {
       console.error(error);
@@ -9108,7 +9299,13 @@ function App() {
         instructionDate: editingAssignmentDates.dolInstructionDate || localDateKey(Date.now()),
       };
     }
-    await updateDoc(doc(db, 'assignments', assignmentId), patch);
+    // `dol` as the fields this edit changed (enabled, its day), never the
+    // whole map from this tab's copy, which would carry students' grants.
+    const { dol: editedDol, ...patchWithoutDol } = patch;
+    await updateDoc(doc(db, 'assignments', assignmentId), {
+      ...patchWithoutDol,
+      ...(editedDol ? classDolFieldPatch(assignment?.dol, editedDol, { deleteValue: deleteField() }) : {}),
+    });
 
     const nextAssignment = {
       ...assignment,
@@ -10800,7 +10997,12 @@ function App() {
     </div>
   );
 
-  if (!user) {
+  // The screen belongs to the account signed in NOW. When auth has moved on —
+  // signed out in another tab, the next student signing in on a shared
+  // Chromebook, another account signed in over this one — not one more frame
+  // of the previous account's screens renders while its state is torn down.
+  const userIsSignedInAccount = Boolean(user && auth.status === 'ready' && auth.session?.uid && auth.session.uid === user.uid);
+  if (!userIsSignedInAccount) {
     if (auth.status === 'signedOut' || auth.status === 'linking') return <LoginScreen launchAssignment={launchAssignment} />;
     if (sessionHydrationError) {
       return (
@@ -11043,6 +11245,7 @@ function App() {
 
         <AssignmentHub
           open={Boolean(assignmentHubTarget)}
+          onClassChange={reportHubClass}
           assignment={assignmentHubTarget ? assignments.find((entry) => entry.id === assignmentHubTarget.assignmentId) || null : null}
           initialClassId={assignmentHubTarget?.classId || null}
           classes={classes}
@@ -11628,6 +11831,7 @@ function App() {
 
             {teacherTab === 'home' && (
               <TeacherHome
+                onLiveClassChange={reportLiveClass}
                 allStudents={allStudents}
                 studentIdentityIndex={teacherStudentIdentityIndex}
                 assignments={assignments}
@@ -11679,6 +11883,7 @@ function App() {
 
             {teacherTab === 'attendanceHistory' && (
               <AttendanceHistoryPanel
+                onClassChange={reportAttendanceClass}
                 db={db}
                 classes={classes}
                 allStudents={allStudents}
@@ -11931,7 +12136,7 @@ function App() {
                     {gradeExplanation && <div style={{ marginTop: 4, fontSize: 11, color: 'var(--mm-text-muted)', lineHeight: 1.4, maxWidth: 280 }}>{gradeExplanation}</div>}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.warmup.attempted ? `${sectionGrades.warmup.score}%` : '—'}{recoveredMark('warmup')}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.classwork.attempted ? `${sectionGrades.classwork.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.practice?.excused ? <span title="The student used a Practice Pass: Practice is excused — not scored and not required." style={{ color: 'var(--mm-accent-text)' }}>Excused (Pass)</span> : sectionGrades.practice.attempted ? `${sectionGrades.practice.score}%` : '—'}</td><td style={{ fontSize: '12px', fontWeight: 800 }}>{sectionGrades.dol.attempted ? `${sectionGrades.dol.score}%` : '—'}{recoveredMark('dol')}</td><td style={{ fontSize: '12px' }}>{modified ? `Modified: ${(usage.modifications || []).join(', ')}` : (usage.accommodations || []).length ? `Accommodated: ${usage.accommodations.join(', ')}` : 'Standard'}</td><td style={{ fontSize: '12px', lineHeight: 1.45 }}>{activity.totalTimeSeconds ? <>Total {formatTime(activity.totalTimeSeconds)}<br />On time {formatTime(activity.onTimeSeconds || 0)} · Late {formatTime(activity.lateSeconds || 0)}</> : 'Time not recorded'}<br />Last on-time: {formatTimeStamp(activity.lastActiveBeforeDue)}<br />Last late: {formatTimeStamp(activity.lastActiveLate)}</td><td><button onClick={() => setGradebookFilter((current) => ({ ...current, student }))} style={{ padding: '8px 12px', border: 0, borderRadius: '6px', background: '#1a73e8', color: '#fff', fontWeight: 'bold' }}>Details</button></td></tr>; })}</tbody></table></div>
                 )}
 
-                {gradebookFilter.student && selectedAssignment && (() => { const student = allStudents.find((entry) => entry.id === gradebookFilter.student.id) || gradebookFilter.student; const studentGrades = projectedAssignmentTrackerFor({ student, assignment: selectedAssignment }) || {}; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const drillRequired = studentRequiredQuestions({ assignment: selectedAssignment, profile: student.profile || null, tracker: student.gradesByAssignment?.[selectedAssignment.id] || null }); const drillOmitted = new Set(drillRequired.omitted); const displayedAssignmentScore = assignmentOverride ? assignmentOverride.score : Object.keys(studentGrades).length ? calculateGrade(studentGrades, selectedAssignment, { supportProfile: student.profile || null }) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? 'var(--mm-accent-soft)' : 'var(--mm-primary-soft)', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: 'var(--mm-text-muted)', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{displayedAssignmentScore === null ? '—' : `${displayedAssignmentScore}%`}</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>{activity.totalTimeSeconds ? `Total engagement ${formatTime(activity.totalTimeSeconds)} · Late engagement ${formatTime(activity.lateSeconds || 0)}` : 'Engagement time not recorded (see the support evidence report for server-timed minutes)'}</div><AssignmentGradeOverrideControls student={student} assignment={selectedAssignment} onChanged={() => setGradebookFilter((current) => ({ ...current, student: null }))} /><SectionRecoveryAuditTrail student={student} assignment={selectedAssignment} />{selectedAssignment?.dol?.enabled && (() => { const recovery = summarizeStudentRecovery({ assignment: selectedAssignment, classId: student.classId || activeClass?.classId || null, studentId: student.id }); const busy = dolAttemptGrantBusyKey === `${selectedAssignment.id}:students:${student.id}`; return <div data-dol-student-recovery={student.id} style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'var(--mm-text)' }}><span>Teacher-granted DOL attempts: <strong>{recovery.extraAttempts}</strong>{recovery.studentExtraAttempts ? ` (${recovery.studentExtraAttempts} for this student)` : ''}</span><button type="button" disabled={busy} onClick={() => handleGrantDOLAttemptForStudents(selectedAssignment, [student])} style={{ padding: '6px 10px', border: '1px solid #1a73e8', borderRadius: 6, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: busy ? 'wait' : 'pointer' }}>{busy ? 'Granting…' : 'Grant +1 DOL attempt'}</button></div>; })()}{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid var(--mm-border)' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: 'var(--mm-text-strong)' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Support evidence report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: '14px' }}>{drillRequired.workload?.status === 'applied' && <div data-reduced-workload-summary style={{ gridColumn: '1 / -1', padding: '9px 11px', borderRadius: 8, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 12.5, fontWeight: 700 }}>Fewer items, same rigor: {describeWorkloadSummary(drillRequired.workload)}</div>}{getStoredAssignmentQuestions(selectedAssignment).map((question, index) => { if (!questionIsIncluded(question)) return null; if (drillOmitted.has(index)) return <article key={index} data-not-required-question={index} style={{ padding: '16px', borderRadius: '9px', background: 'var(--mm-surface)', border: '1px dashed var(--mm-border)', textAlign: 'left', color: 'var(--mm-text-muted)' }}><strong>Question {index + 1} · {question.type}</strong><div style={{ margin: '8px 0', fontSize: '15px', fontWeight: 800 }}>Not required for this student</div><div style={{ fontSize: '12px' }}>Fewer items, same rigor — not counted in the score.</div></article>; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? 'var(--mm-success-bg)' : record.status === 'expired' && credit < 50 ? 'var(--mm-error-bg)' : credit >= 50 ? 'var(--mm-warning-soft)' : 'var(--mm-surface-control)', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type} · Grade ×{normalizeQuestionWeight(question)}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.teacherGradeOverrideDisplay?.active ? (credit >= 100 ? 'Teacher assigned · Correct ✓' : `Teacher assigned · ${credit}%`) : record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? 'var(--mm-success-text)' : 'var(--mm-error-text)' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid var(--mm-border-strong)', borderRadius: '6px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>View Student Work</button>{studentGrades[index] && <button type="button" onClick={() => setResponseInspectorTarget({ studentId: student.id, assignmentId: selectedAssignment.id, questionIndex: index })} style={{ marginTop: '8px', marginLeft: '8px', padding: '8px 11px', border: '1px solid #1a73e8', borderRadius: '6px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>Inspect Response / Override Grade</button>}</article>; })}</div></div>; })()}
+                {gradebookFilter.student && selectedAssignment && (() => { const student = allStudents.find((entry) => entry.id === gradebookFilter.student.id) || gradebookFilter.student; const studentGrades = projectedAssignmentTrackerFor({ student, assignment: selectedAssignment }) || {}; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const drillRequired = studentRequiredQuestions({ assignment: selectedAssignment, profile: student.profile || null, tracker: student.gradesByAssignment?.[selectedAssignment.id] || null }); const drillOmitted = new Set(drillRequired.omitted); const displayedAssignmentScore = assignmentOverride ? assignmentOverride.score : Object.keys(studentGrades).length ? calculateGrade(studentGrades, selectedAssignment, { supportProfile: student.profile || null }) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <div><div style={{ display: 'flex', justifyContent: 'space-between', gap: '15px', flexWrap: 'wrap', alignItems: 'center', padding: '16px', marginBottom: '18px', background: usage.modified ? 'var(--mm-accent-soft)' : 'var(--mm-primary-soft)', borderRadius: '10px' }}><div><h3 style={{ margin: 0 }}>{formatStudentName(student)} · {selectedAssignment.title}</h3><div style={{ marginTop: 6 }}><StudentPerformanceBadge profile={teacherLearningProfiles[student.id]} size="small" studentName={formatStudentName(student)} /></div><div style={{ marginTop: 3, color: 'var(--mm-text-muted)', fontSize: 12 }}>Student ID {student.id}</div><div style={{ marginTop: '5px' }}>Score: <strong>{displayedAssignmentScore === null ? '—' : `${displayedAssignmentScore}%`}</strong> {usage.modified && <span style={{ marginLeft: '7px', padding: '3px 7px', borderRadius: '999px', background: '#6f2da8', color: '#fff', fontWeight: 900 }}>MOD</span>}</div><div style={{ marginTop: '5px', fontSize: '13px' }}>{activity.totalTimeSeconds ? `Total engagement ${formatTime(activity.totalTimeSeconds)} · Late engagement ${formatTime(activity.lateSeconds || 0)}` : 'Engagement time not recorded (see the support evidence report for server-timed minutes)'}</div><AssignmentGradeOverrideControls student={student} assignment={selectedAssignment} onChanged={() => setGradebookFilter((current) => ({ ...current, student: null }))} /><SectionRecoveryAuditTrail student={student} assignment={selectedAssignment} />{selectedAssignment?.dol?.enabled && <StudentDolRecoveryRow db={db} assignment={selectedAssignment} student={student} classId={student.classId || activeClass?.classId || null} viewer={{ email: user.email, isRootAdmin: user.isRootAdmin === true }} busy={dolAttemptGrantBusyKey === `${selectedAssignment.id}:students:${student.id}`} onGrant={() => handleGrantDOLAttemptForStudents(selectedAssignment, [student])} />}{(() => { const delivered = describeDeliveredRigor(classEvidenceByStudentId[student.id] || [], selectedAssignment.id); if (!delivered) return null; return <div style={{ marginTop: 8, padding: '9px 11px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid var(--mm-border)' }}><div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>What this student was given</div><div style={{ marginTop: 3, fontSize: 12.5, color: 'var(--mm-text-strong)' }}>{delivered.summary}</div>{delivered.reasons.map((reason) => <div key={reason} style={{ marginTop: 4, fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>{reason}</div>)}</div>; })()}</div><button onClick={() => openIEPReport(student)} style={{ padding: '10px 15px', border: '1px solid #6f2da8', borderRadius: '7px', background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>Support evidence report</button></div><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: '14px' }}>{drillRequired.workload?.status === 'applied' && <div data-reduced-workload-summary style={{ gridColumn: '1 / -1', padding: '9px 11px', borderRadius: 8, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 12.5, fontWeight: 700 }}>Fewer items, same rigor: {describeWorkloadSummary(drillRequired.workload)}</div>}{getStoredAssignmentQuestions(selectedAssignment).map((question, index) => { if (!questionIsIncluded(question)) return null; if (drillOmitted.has(index)) return <article key={index} data-not-required-question={index} style={{ padding: '16px', borderRadius: '9px', background: 'var(--mm-surface)', border: '1px dashed var(--mm-border)', textAlign: 'left', color: 'var(--mm-text-muted)' }}><strong>Question {index + 1} · {question.type}</strong><div style={{ margin: '8px 0', fontSize: '15px', fontWeight: 800 }}>Not required for this student</div><div style={{ fontSize: '12px' }}>Fewer items, same rigor — not counted in the score.</div></article>; const record = normalizeQuestionRecord(studentGrades[index]); const credit = Math.round(getQuestionCredit(record) * 100); return <article key={index} style={{ padding: '16px', borderRadius: '9px', background: record.status === 'correct' ? 'var(--mm-success-bg)' : record.status === 'expired' && credit < 50 ? 'var(--mm-error-bg)' : credit >= 50 ? 'var(--mm-warning-soft)' : 'var(--mm-surface-control)', border: '1px solid rgba(0,0,0,.12)', textAlign: 'left' }}><strong>Question {index + 1} · {question.type} · Grade ×{normalizeQuestionWeight(question)}</strong><div style={{ margin: '8px 0', fontSize: '20px', fontWeight: 900 }}>{record.teacherGradeOverrideDisplay?.active ? (credit >= 100 ? 'Teacher assigned · Correct ✓' : `Teacher assigned · ${credit}%`) : record.status === 'correct' ? 'Correct ✓' : record.status === 'expired' ? credit >= 50 ? `Almost · ${credit}%` : `Incorrect · ${credit}%` : `${credit}% credit`}</div><div style={{ fontSize: '12px' }}>Attempts: {record.totalAttempts} · Time: {formatTime(record.timeSpent || 0)}</div>{record.partGrades?.length > 0 && <div style={{ marginTop: '10px' }}>{record.partGrades.map((part) => <div key={part.id} style={{ fontSize: '12px', color: part.isCorrect ? 'var(--mm-success-text)' : 'var(--mm-error-text)' }}>{part.isCorrect ? '✓' : '●'} {part.label}</div>)}</div>}<button type="button" onClick={() => openTeacherScratchpad(student.id, selectedAssignment.id, index)} style={{ marginTop: '12px', padding: '8px 11px', border: '1px solid var(--mm-border-strong)', borderRadius: '6px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>View Student Work</button>{studentGrades[index] && <button type="button" onClick={() => setResponseInspectorTarget({ studentId: student.id, assignmentId: selectedAssignment.id, questionIndex: index })} style={{ marginTop: '8px', marginLeft: '8px', padding: '8px 11px', border: '1px solid #1a73e8', borderRadius: '6px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>Inspect Response / Override Grade</button>}</article>; })}</div></div>; })()}
 
                 {/*
                   Settings and the separate weekly Path grade stay one click
@@ -11979,6 +12184,7 @@ function App() {
 
             {teacherTab === 'gradeTransfer' && (
               <GradeTransferCenter
+                onClassScopeChange={reportExportClasses}
                 classes={classes}
                 assignments={assignments}
                 students={allStudents}

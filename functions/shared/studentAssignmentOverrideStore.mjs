@@ -376,7 +376,18 @@ export const stripAssignment = async ({ db, assignmentId, dryRun = false, migrat
     if (!assignment) return { stripped: false, alreadyClean: false, missing: true };
     if (sharedAssignmentIsClean(assignment)) return { stripped: false, alreadyClean: true };
     const absorbed = sharedAssignmentFullyAbsorbed({ assignment, privateById });
-    return { stripped: false, alreadyClean: false, wouldStrip: true, pendingAbsorption: absorbed.pending.length };
+    // What the real strip would archive (one verbatim archive per assignment,
+    // unless that exact content was archived before) — read, never written.
+    const { archiveId } = buildAssignmentOverrideArchive({ assignmentId: aid, assignment, migrationRunId });
+    const archiveExists = (await db.collection(ASSIGNMENT_OVERRIDE_ARCHIVES_COLLECTION).doc(archiveId).get()).exists;
+    return {
+      stripped: false,
+      alreadyClean: false,
+      wouldStrip: true,
+      pendingAbsorption: absorbed.pending.length,
+      archiveId,
+      archiveWouldBeWritten: !archiveExists,
+    };
   }
   return db.runTransaction(async (transaction) => {
     const { assignment, privateById } = await read((ref) => transaction.get(ref));
@@ -428,24 +439,96 @@ export const restoreAssignment = async ({ db, assignmentId, dryRun = false } = {
 
 /* ------------------------------------------------------------- the migration */
 
+/*
+ * Every count a page reports (and a pass adds up). For the strip:
+ *   recordsConfirmedPrivate     students whose private record already says
+ *                               exactly what the shared copy says;
+ *   studentsAwaitingAbsorption  students the shared copy still holds that
+ *                               private storage does not say exactly — a real
+ *                               strip copies them in first (a dry run only
+ *                               counts them);
+ *   assignmentsAwaitingAbsorption  assignments with any such student (dry
+ *                               run), or that changed under a real strip and
+ *                               must be run again;
+ *   archivesToWrite / archivesWritten  verbatim archives the strip would write
+ *                               / wrote.
+ */
+export const MIGRATION_COUNTERS = Object.freeze([
+  'assignmentsScanned',
+  'assignmentsWithSharedStudentData',
+  'sharedStudentEntries',
+  'recordsCreated',
+  'recordsUpdated',
+  'recordsUnchanged',
+  'recordsConfirmedPrivate',
+  'auditCopiesCreated',
+  'extensionDetailsMoved',
+  'derivedFieldsIgnored',
+  'assignmentsStripped',
+  'assignmentsAlreadyClean',
+  'assignmentsAwaitingAbsorption',
+  'studentsAwaitingAbsorption',
+  'archivesToWrite',
+  'archivesWritten',
+  'assignmentsRestored',
+  'sharedWritesRestored',
+]);
+
 const emptyTotals = () => ({
-  assignmentsScanned: 0,
-  assignmentsWithSharedStudentData: 0,
-  sharedStudentEntries: 0,
-  recordsCreated: 0,
-  recordsUpdated: 0,
-  recordsUnchanged: 0,
-  auditCopiesCreated: 0,
-  extensionDetailsMoved: 0,
-  derivedFieldsIgnored: 0,
-  assignmentsStripped: 0,
-  assignmentsAlreadyClean: 0,
-  assignmentsAwaitingAbsorption: 0,
-  archivesWritten: 0,
-  assignmentsRestored: 0,
-  sharedWritesRestored: 0,
+  ...Object.fromEntries(MIGRATION_COUNTERS.map((key) => [key, 0])),
   failures: [],
 });
+
+/*
+ * ONE PASS, ACROSS PAGES — WHAT THE RETIREMENT GATE COUNTS.
+ *
+ * Each callable call is one bounded page, so "a full backfill finished with
+ * zero failures" is a statement about a sequence of pages, and only the server
+ * may make it. A page with no `startAfter` starts a pass; a page whose
+ * `startAfter` is the pass's own `nextCursor` continues it; the page that
+ * reaches the end completes it. Its counts and failures are the sums over
+ * every page of the pass. A page that starts anywhere else belongs to no pass,
+ * and an unfinished pass never counts as complete. Canary runs (an id prefix)
+ * never form a pass.
+ */
+const PASS_FAILURE_LIMIT = 50;
+
+export const advanceMigrationPass = ({ previous = null, report, nowMs, passId = null } = {}) => {
+  if (!report || typeof report !== 'object') return null;
+  const startAfter = clean(report.startAfter);
+  const continues = Boolean(startAfter)
+    && previous && typeof previous === 'object'
+    && (previous.completedAtMs === null || previous.completedAtMs === undefined)
+    && clean(previous.nextCursor) === startAfter;
+  if (startAfter && !continues) return null;
+  const base = continues ? previous : {
+    passId: clean(passId) || `pass-${nowMs}`,
+    startedAtMs: nowMs,
+    pages: 0,
+    failureCount: 0,
+    failures: [],
+    ...Object.fromEntries(MIGRATION_COUNTERS.map((key) => [key, 0])),
+  };
+  const failures = Array.isArray(report.failures) ? report.failures : [];
+  const next = {
+    ...base,
+    pages: (Number(base.pages) || 0) + 1,
+    nextCursor: report.nextCursor ?? null,
+    completedAtMs: report.done === true ? nowMs : null,
+    failureCount: (Number(base.failureCount) || 0) + failures.length,
+    failures: [...(Array.isArray(base.failures) ? base.failures : []), ...failures].slice(0, PASS_FAILURE_LIMIT),
+  };
+  MIGRATION_COUNTERS.forEach((key) => { next[key] = (Number(base[key]) || 0) + (Number(report[key]) || 0); });
+  return next;
+};
+
+/** The pass a page belonged to, as the report carries it. */
+const passSummary = (pass) => (pass ? {
+  passId: pass.passId,
+  pages: pass.pages,
+  completed: pass.completedAtMs !== null && pass.completedAtMs !== undefined,
+  failureCount: pass.failureCount,
+} : null);
 
 /**
  * One bounded pass of the staged migration (see docs/architecture/
@@ -473,6 +556,7 @@ export const runOverrideMigration = async ({
   // A canary run: only assignments whose id starts with this (the operator's
   // first run, and the emulator tests, which share one database).
   assignmentIdPrefix = null,
+  nowMs = Date.now(),
 } = {}) => {
   if (!MIGRATION_MODES.includes(mode)) fail('invalid-argument', `Unknown migration mode. Use one of: ${MIGRATION_MODES.join(', ')}.`);
   const storageMode = storageModeFrom(await flagRef(db).get());
@@ -509,6 +593,7 @@ export const runOverrideMigration = async ({
           totals.recordsCreated += counts.created || 0;
           totals.recordsUpdated += counts.updated || 0;
           totals.recordsUnchanged += counts.unchanged || 0;
+          totals.recordsConfirmedPrivate += counts.unchanged || 0;
           totals.auditCopiesCreated += counts.auditCopies || 0;
           totals.extensionDetailsMoved += counts.extensionDetailsMoved || 0;
           totals.derivedFieldsIgnored += counts.derivedFieldsIgnored || 0;
@@ -521,8 +606,15 @@ export const runOverrideMigration = async ({
         if (outcome.stripped) totals.assignmentsStripped += 1;
         if (outcome.archiveCreated) totals.archivesWritten += 1;
         if (outcome.wouldStrip) totals.assignmentsStripped += 1;
+        if (outcome.archiveWouldBeWritten) totals.archivesToWrite += 1;
+        if (outcome.pendingAbsorption) {
+          // Dry run: the real strip copies these into private records first.
+          totals.assignmentsAwaitingAbsorption += 1;
+          totals.studentsAwaitingAbsorption += outcome.pendingAbsorption;
+        }
         if (outcome.notAbsorbed) {
           totals.assignmentsAwaitingAbsorption += 1;
+          totals.studentsAwaitingAbsorption += outcome.notAbsorbed.length;
           totals.failures.push({ assignmentId: doc.id, reason: `changed while stripping (${outcome.notAbsorbed.length} students) — run again` });
         }
       }
@@ -549,20 +641,46 @@ export const runOverrideMigration = async ({
     sharedRetired: storageMode.sharedRetired,
     ...totals,
   };
-  // The cursor is kept server-side too, so an interrupted run resumes from it.
-  await progressRef(db).set({
-    [prefix ? `${mode}Canary` : mode]: {
-      [dryRun ? 'lastDryRun' : 'lastRun']: {
-        ...report,
-        failures: report.failures.slice(0, 50),
-        actorEmail: actor?.email || null,
-        at: FieldValue.serverTimestamp(),
-      },
-      // Only a full (unprefixed) real run moves the resume cursor.
-      ...(dryRun || prefix ? {} : { cursor: nextCursor, done: report.done && report.failures.length === 0 }),
-    },
-  }, { merge: true });
-  return report;
+  // The cursor is kept server-side too, so an interrupted run resumes from it,
+  // and every full (unprefixed) page advances its pass (advanceMigrationPass),
+  // in one transaction with what it read — the retirement gate counts passes.
+  const key = prefix ? `${mode}Canary` : mode;
+  const pass = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(progressRef(db));
+    const current = snapshot.exists ? snapshot.data() || {} : {};
+    const modeState = { ...(current[key] && typeof current[key] === 'object' ? current[key] : {}) };
+    modeState[dryRun ? 'lastDryRun' : 'lastRun'] = {
+      ...report,
+      failures: report.failures.slice(0, 50),
+      actorEmail: actor?.email || null,
+      at: FieldValue.serverTimestamp(),
+    };
+    // Only a full real run moves the resume cursor.
+    if (!prefix && !dryRun) {
+      modeState.cursor = nextCursor;
+      modeState.done = report.done && report.failures.length === 0;
+      modeState.lastRealRunAtMs = nowMs;
+    }
+    // A full run's passes are what the retirement gate reads. A canary run
+    // keeps its own, per prefix (canaryPasses), which the gate never reads —
+    // so a rehearsal on a few assignments can be checked the same way.
+    const canaryPasses = { ...(current.canaryPasses && typeof current.canaryPasses === 'object' ? current.canaryPasses : {}) };
+    const canaryMode = { ...(canaryPasses[mode] && typeof canaryPasses[mode] === 'object' ? canaryPasses[mode] : {}) };
+    const passState = prefix ? { ...(canaryMode[prefix] && typeof canaryMode[prefix] === 'object' ? canaryMode[prefix] : {}) } : modeState;
+    const passKey = dryRun ? 'dryRunPass' : 'pass';
+    const advanced = advanceMigrationPass({ previous: passState[passKey] || null, report, nowMs, passId: migrationRunId });
+    if (advanced) {
+      passState[passKey] = advanced;
+      if (advanced.completedAtMs !== null) passState[dryRun ? 'lastCompletedDryRunPass' : 'lastCompletedPass'] = advanced;
+    }
+    const next = { ...current, [key]: modeState };
+    if (prefix) next.canaryPasses = { ...canaryPasses, [mode]: { ...canaryMode, [prefix]: passState } };
+    // The whole document, from what this transaction read: nested pass maps
+    // are replaced, never merged key by key with an older pass.
+    transaction.set(progressRef(db), next);
+    return advanced;
+  });
+  return { ...report, pass: passSummary(pass) };
 };
 
 /** Where an interrupted run left off, and how the last runs went. */

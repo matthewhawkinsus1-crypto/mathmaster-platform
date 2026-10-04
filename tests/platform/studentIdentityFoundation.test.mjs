@@ -7,7 +7,8 @@ const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), '
 
 test('authenticated student render paths use the identity shell with the student record', () => {
   const app = read('src/App.jsx');
-  const shell = region(app, 'const renderStudentIdentityShell =', 'if (!user)', 'authenticated student shell');
+  // Ends where the "this screen belongs to the signed-in account" guard begins.
+  const shell = region(app, 'const renderStudentIdentityShell =', 'const userIsSignedInAccount', 'authenticated student shell');
   assert.match(app, /import StudentIdentityBar(?:, \{[^}]+\})? from ['"].\/components\/student\/StudentIdentityBar\.jsx['"]/);
   assert.match(shell, /data-authenticated-student-shell=/);
   assert.match(shell, /<StudentIdentityBar[\s\S]*student=\{preview \? null : \{ \.\.\.studentRecord, \.\.\.user \}\}/);

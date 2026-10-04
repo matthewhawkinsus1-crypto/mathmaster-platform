@@ -87,9 +87,18 @@ export default function AttendanceHistoryPanel({
   onKeepExtension = null,
   onApplyShorterExtension = null,
   initialClassId = null,
+  // (classId | null) => void. The class this panel shows, so its students'
+  // own extensions are read for it (platform/teacher/teacherClassControls.js).
+  onClassChange = null,
 }) {
   const activeClasses = classes.filter((entry) => entry?.status !== 'archived' && entry?.classId);
   const [classId, setClassId] = useState(initialClassId || activeClasses[0]?.classId || '');
+  useEffect(() => {
+    if (typeof onClassChange === 'function') onClassChange(classId || null);
+  }, [classId, onClassChange]);
+  useEffect(() => () => {
+    if (typeof onClassChange === 'function') onClassChange(null);
+  }, [onClassChange]);
   const [dateKey, setDateKey] = useState(localDateKeyOf(nowValue) || '');
   const [expandedStudentId, setExpandedStudentId] = useState(null);
   const [reasonByStudentId, setReasonByStudentId] = useState({});

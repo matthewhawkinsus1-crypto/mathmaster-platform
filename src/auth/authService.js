@@ -23,7 +23,7 @@ import {
   nextClassroomSessionExpiry,
 } from './classroomSession.js';
 import { clearAccountTabStorage } from './accountTabStorage.js';
-import { combineOverrideMigrationReports } from '../../functions/shared/studentAssignmentOverrides.mjs';
+import { runStudentControlsMigrationPass } from '../platform/admin/studentControlsMigration.js';
 
 const REMEMBER_DEVICE_KEY = 'mathmaster.rememberDevice';
 const LAST_ROLE_KEY = 'mathmaster.lastRole';
@@ -290,33 +290,53 @@ export const teacherAdmin = {
     callable('setAssignmentReadScope')(typeof studentListScoped === 'boolean' ? { studentListScoped } : {})
       .then((result) => result.data || {}),
   /**
-   * Where students' private assignment controls stand: the storage switch
-   * (whether the shared copy is still kept in step) and the migration's
-   * progress. Read-only — this release's screen never flips the switch.
+   * Where students' private assignment controls stand: the storage switch,
+   * the migration's progress and passes, the client cutover record, and the
+   * retirement gate as the server evaluates it now
+   * (functions/shared/overrideRetirementGate.mjs).
    */
   readAssignmentOverrideStorage: () =>
-    callable('setAssignmentOverrideStorage')({}).then((result) => result.data || {}),
+    callable('setAssignmentOverrideStorage')({ action: 'status' }).then((result) => result.data || {}),
   /**
-   * One whole backfill pass — copy every student's extension, excusal,
-   * reopen and DOL attempts from the shared assignments into private records
-   * (functions/shared/studentAssignmentOverrideStore.mjs). Page after page
-   * until done; dry run unless dryRun is false. A real run resumes where an
+   * Record that the client release reading private records is live. The
+   * server reads the live build itself; where it cannot, `attestHostingDeployed`
+   * is the administrator's explicit, audited statement that it is deployed.
+   * `clientBuild` / `servedBuild` are what this browser runs and sees served —
+   * kept as evidence, never trusted for the gate.
+   */
+  confirmOverrideClientCutover: ({ attestHostingDeployed = false, clientBuild = null, servedBuild = null } = {}) =>
+    callable('setAssignmentOverrideStorage')({ action: 'confirmClientCutover', attestHostingDeployed: attestHostingDeployed === true, clientBuild, servedBuild })
+      .then((result) => result.data || {}),
+  /** Retire the shared copy — refused by the server unless every gate passes. */
+  retireSharedStudentControls: ({ confirmation = '', attestFullSchoolDay = false } = {}) =>
+    callable('setAssignmentOverrideStorage')({ action: 'retire', confirmation, attestFullSchoolDay: attestFullSchoolDay === true })
+      .then((result) => result.data || {}),
+  /** The rollback: keep the shared copy in step again. Never gated. */
+  mirrorSharedStudentControls: () =>
+    callable('setAssignmentOverrideStorage')({ action: 'mirror' }).then((result) => result.data || {}),
+  /**
+   * One whole pass of the staged migration (studentAssignmentOverrideStore.mjs)
+   * — `backfill`, `strip` or `restore` — page after page until done, as one
+   * report. A dry run unless `dryRun` is false; a real strip or restore also
+   * needs the typed `confirm` the server asks for. A real run resumes where an
    * interrupted one stopped. `onPage` receives the running report.
    */
-  backfillStudentAssignmentOverrides: async ({ dryRun = true, onPage = null } = {}) => {
-    const progress = dryRun ? null : (await callable('setAssignmentOverrideStorage')({})).data?.migration?.backfill;
-    const resumeFrom = progress && progress.done === false && progress.cursor ? progress.cursor : null;
-    const pages = [];
-    let startAfter = resumeFrom;
-    do {
-      // eslint-disable-next-line no-await-in-loop
-      const page = (await callable('migrateStudentAssignmentOverrides')({ mode: 'backfill', dryRun, ...(startAfter ? { startAfter } : {}) })).data || {};
-      pages.push(page);
-      startAfter = page.nextCursor || null;
-      if (typeof onPage === 'function') onPage(combineOverrideMigrationReports(pages));
-    } while (startAfter);
-    return { ...combineOverrideMigrationReports(pages), resumedFrom: resumeFrom };
-  },
+  runStudentControlsMigration: ({ mode = 'backfill', dryRun = true, confirm = '', onPage = null } = {}) => runStudentControlsMigrationPass({
+    mode,
+    dryRun,
+    confirm,
+    onPage,
+    migrate: (request) => callable('migrateStudentAssignmentOverrides')(request).then((result) => result.data || {}),
+    readProgress: () => callable('setAssignmentOverrideStorage')({ action: 'status' }).then((result) => result.data?.migration || {}),
+  }),
+  /** The Stage 2 copy (the backfill), as before: one whole pass. */
+  backfillStudentAssignmentOverrides: ({ dryRun = true, onPage = null } = {}) => runStudentControlsMigrationPass({
+    mode: 'backfill',
+    dryRun,
+    onPage,
+    migrate: (request) => callable('migrateStudentAssignmentOverrides')(request).then((result) => result.data || {}),
+    readProgress: () => callable('setAssignmentOverrideStorage')({ action: 'status' }).then((result) => result.data?.migration || {}),
+  }),
   /** Put a student in a class, move them, or take them out (classId: null). */
   setStudentClass: ({ studentId, classId }) =>
     callable('setStudentClass')({ studentId, classId: classId || '' }).then((result) => result.data || {}),

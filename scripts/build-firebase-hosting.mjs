@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { ASSIGNMENT_RUNTIME_REPAIR_VERSION } from '../src/platform/assignments/assignmentRuntimeRepair.js';
+import { cutoverManifestFields } from '../functions/shared/overrideRetirementGate.mjs';
 
 const viteBin = resolve('node_modules/vite/bin/vite.js');
 
@@ -57,6 +58,11 @@ if (result.status === 0) {
     builtAt,
     executionMode: env.VITE_MATHMASTER_EXECUTION_MODE,
     runtimeRepairVersion: ASSIGNMENT_RUNTIME_REPAIR_VERSION,
+    // This client reads each student's assignment controls from their private
+    // record (studentAssignmentOverrides). The server reads this manifest
+    // before it lets the shared copy be retired
+    // (functions/shared/overrideRetirementGate.mjs).
+    ...cutoverManifestFields(),
   }, null, 2) + '\n', 'utf8');
   console.log(`Wrote Firebase build manifest: ${manifestPath}`);
 }

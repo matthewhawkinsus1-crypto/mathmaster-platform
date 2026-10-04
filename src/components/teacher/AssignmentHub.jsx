@@ -120,6 +120,10 @@ export default function AssignmentHub({
   // The signed-in teacher: the one-click support records are filed in their
   // name. Without it the Supports layer is not shown.
   teacherEmail = '',
+  // (classId | null) => void. The class this drawer shows, so its students'
+  // own controls (individual deadlines) are read for it
+  // (platform/teacher/teacherClassControls.js).
+  onClassChange = null,
 }) {
   const closeRef = useRef(null);
   const panelRef = useRef(null);
@@ -143,6 +147,10 @@ export default function AssignmentHub({
     setLiveKey(null);
     setGradeKey(null);
   }, [open, assignment?.id, initialClassId, assignedClassKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (typeof onClassChange === 'function') onClassChange(open ? classId : null);
+  }, [open, classId, onClassChange]);
 
   // Focus moves to the drawer when it OPENS (or shows another assignment) —
   // not on every parent render, which during class is about once a second and
