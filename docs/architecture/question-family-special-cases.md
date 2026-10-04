@@ -74,7 +74,7 @@ within ±12, constants within ±60:
 | Case | Construction |
 | --- | --- |
 | one | Two equations through a chosen point (x₀, y₀): integers, or with `solutionForm: "fraction"` a point with halves, thirds or quarters that still gives whole-number equations. Checked: det ≠ 0 and the intersection is exactly that point. |
-| none | The second equation is k × the first on the left (k ∈ ±2, ±3, ±4 — never a sign flip) with a constant that is not k × the first: parallel, distinct lines. |
+| none | The second equation is k × the first on the left (k ∈ ±2, ±3, ±4 — never ±1, which would only repeat or negate the first equation's left side) with a constant that is not k × the first: parallel, distinct lines. |
 | infinite | The second equation is k × the whole first: one line written two ways. |
 
 ## Mixed slots are balanced

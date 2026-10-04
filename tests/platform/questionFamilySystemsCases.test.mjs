@@ -94,7 +94,7 @@ test('no solution: genuinely parallel, distinct lines', () => {
     const k = math.divide(second.a, first.a);
     assert.ok(math.equal(second.b, math.multiply(k, first.b)), 'parallel');
     assert.ok(!math.equal(second.c, math.multiply(k, first.c)), 'distinct');
-    assert.ok(!math.equal(math.abs(k), 1), `the second equation is scaled (${k}), not a sign flip of the first`);
+    assert.ok(!math.equal(math.abs(k), 1), `the second equation is scaled (${k}), not the first repeated or merely negated`);
     if (!math.equal(first.b, 0)) {
       const slope = (row) => math.divide(math.unaryMinus(row.a), row.b);
       const intercept = (row) => math.divide(row.c, row.b);
