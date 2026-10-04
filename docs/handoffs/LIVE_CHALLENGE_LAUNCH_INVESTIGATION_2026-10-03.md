@@ -1,5 +1,10 @@
 # Live Challenge launch investigation — 2026-10-03
 
+> **Follow-up:** the launch path is now certified against the real server and
+> real listeners at 5–64 students, in real browsers, and over repeated
+> matches — see `LIVE_CHALLENGE_LAUNCH_CERTIFICATION_2026-10-04.md`. The
+> deterministic simulation below remains as a unit-level check.
+
 ## Finding
 
 The reported split launch could not be reproduced from the implementation or
