@@ -162,7 +162,7 @@ test('mixed slots give a class every case, in exactly the promised shares', () =
     const storageIndex = SLOTS.findIndex((slot) => slot.questionId === questionId);
     const { deliveries } = certify(storageIndex);
     assert.deepEqual(distribution(deliveries, ({ instance }) => instance.params.case), expected.cases, questionId);
-    // Every run of m consecutive seats (m = number of strata) covers each stratum once.
+    // Counting from the first seat, every block of m seats (m = number of strata) covers each stratum once.
     const bySeat = deliveries
       .map(({ result }) => ({ seat: result.delivery.seat, stratum: `${result.instance.params.case}·${result.instance.params.shape || ''}` }))
       .sort((left, right) => left.seat - right.seat);
@@ -171,7 +171,7 @@ test('mixed slots give a class every case, in exactly the promised shares', () =
       const strata = new Set(bySeat.slice(block, block + m).map((entry) => entry.stratum));
       assert.equal(strata.size, m, `${questionId}: seats ${block}–${block + m - 1} cover every stratum`);
     }
-    // Balanced on the case first: every run of three seats has one of each.
+    // Balanced on the case first: seats 1–3, 4–6, … (from the first seat) are one of each case.
     for (let run = 0; run + 3 <= bySeat.length; run += 3) {
       const cases = new Set(bySeat.slice(run, run + 3).map((entry) => entry.stratum.split('·')[0]));
       assert.equal(cases.size, 3, `${questionId}: seats ${run}–${run + 2} are one of each case`);

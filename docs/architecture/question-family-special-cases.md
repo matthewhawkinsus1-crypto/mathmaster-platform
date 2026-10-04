@@ -81,9 +81,11 @@ within ±12, constants within ±60:
 
 `solutionCase: "mixed"` stratifies the instance list by (case × shape), and the
 engine interleaves the strata **balanced on the case first**
-(`strata.balance: "case"`): every run of three seats covers each case once, so a
-class of 30 gets exactly 10 of each — with or without distribution mixed in. A
-student's later variants do not keep landing on one case. A mixed equation slot
+(`strata.balance: "case"`): counting from the first seat, seats 1–3, 4–6, 7–9, …
+each take one of each case, so a class of 30 gets exactly 10 of each — with or
+without distribution mixed in. (Those aligned groups are the guarantee; three
+adjacent seats that straddle two groups may repeat a case.) A student's later
+variants do not keep landing on one case. A mixed equation slot
 opens Step Algebra's relation workspace for every case and a mixed system shows
 the same prompt for every case, so the workspace never tells a student which
 case they drew.

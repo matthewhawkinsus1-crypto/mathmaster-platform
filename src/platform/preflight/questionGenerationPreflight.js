@@ -432,8 +432,14 @@ export const auditAssignmentQuestionGeneration = (assignment = {}, questions = [
     const cases = solutionCasesOf(audit.capacity);
     if (cases.length > 1) {
       const shares = cases.map((entry) => audit.capacity.strata.filter((stratum) => stratum.stratum?.case === entry).length);
-      const split = shares.every((share) => share === shares[0]) ? 'in equal shares' : `in the proportion ${shares.join(' : ')}`;
-      notes.push(`${where} mixes ${cases.map((entry) => CASE_WORDS[entry] || entry).join(', ')} ${split} as students are seated (every run of ${audit.capacity.strata.length} seats covers each case), and the workspace does not tell a student which case they drew.`);
+      const equal = shares.every((share) => share === shares[0]);
+      const split = equal ? 'in equal shares' : `in the proportion ${shares.join(' : ')}`;
+      // The groups the engine guarantees, counted from the first seat: one
+      // round of cases when it balances on the case (questionFamilyEngine
+      // blockOrder), else one whole block of strata. Any other run of
+      // adjacent seats is not guaranteed to cover every case.
+      const group = equal && audit.family.strata?.balance === 'case' ? cases.length : audit.capacity.strata.length;
+      notes.push(`${where} mixes ${cases.map((entry) => CASE_WORDS[entry] || entry).join(', ')} ${split} as students are seated (counting from the first seat, each group of ${group} seats covers every case), and the workspace does not tell a student which case they drew.`);
     }
     slots.push({
       questionIndex: flatIndex,

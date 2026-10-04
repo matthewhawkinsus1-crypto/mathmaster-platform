@@ -11,8 +11,9 @@ the reduced-complexity support changes. "Solution cases" and "coefficient forms"
 family declares about itself (— for a version that declares nothing).
 
 Capacity is measured the way Pre-Flight measures it (a budget of 2,048 candidates per list; "about" marks
-an estimate). A mixed slot interleaves its cases so every run of seats covers each case once;
-its capacity is that balanced part. "Class of 30" is the default setting against a class of
+an estimate). A mixed slot takes its cases in turn as students are seated (counting from the
+first seat, seats 1–3, 4–6, … each get one of each case); its capacity is that balanced part.
+"Class of 30" is the default setting against a class of
 30 seated students.
 
 ## Summary

@@ -86,9 +86,11 @@ test('Pre-Flight accepts valid special-case slots and reports what each one deli
   assert.deepEqual(twoStep.concepts, { distribute: false, solutionForm: 'fraction', coefficientForm: 'integer' });
   assert.deepEqual([sysInfinite.familyId, sysInfinite.tool, sysInfinite.solutionCases], ['systems.algebraic2x2', 'systemsWorkspace', ['infinite']]);
   assert.deepEqual(sysMixed.solutionCases, ['one', 'none', 'infinite']);
-  // A mixed slot says how it shares the cases out.
-  assert.ok(generation.notes.some((note) => /Question 2 \(DOL Q2\) mixes one solution, no solution, infinitely many solutions in equal shares/.test(note)), generation.notes.join('\n'));
-  assert.ok(generation.notes.some((note) => /Question 5 \(DOL Q5\) mixes one solution, no solution, infinitely many solutions in equal shares/.test(note)));
+  // A mixed slot says how it shares the cases out — in groups of three seats
+  // from the first, even where each case has more than one shape (Q2: six
+  // strata, balanced on the case).
+  assert.ok(generation.notes.some((note) => /Question 2 \(DOL Q2\) mixes one solution, no solution, infinitely many solutions in equal shares as students are seated \(counting from the first seat, each group of 3 seats covers every case\)/.test(note)), generation.notes.join('\n'));
+  assert.ok(generation.notes.some((note) => /Question 5 \(DOL Q5\) mixes one solution, no solution, infinitely many solutions in equal shares as students are seated \(counting from the first seat, each group of 3 seats covers every case\)/.test(note)));
   // And the generated answer key of every sampled version grades as correct
   // through the workspace's own grader against the shown equation.
   VALID_DOL.forEach((question) => assert.deepEqual(validateQuestionSemantics(question, { label: question.questionId }).errors, []));
