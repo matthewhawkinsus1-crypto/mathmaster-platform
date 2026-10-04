@@ -52,6 +52,7 @@ import { fileURLToPath } from 'node:url';
 import { narrativeViolations } from '../../../src/platform/caseReview/narrativeGuard.js';
 import { PRINT_SECTIONS, TEACHER_AUTHORED_LABEL } from '../../../src/platform/caseReview/caseReviewExport.js';
 import { watchUnimplementedCallables } from './journeyChecks.mjs';
+import { newSchoolContext } from './schoolClock.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -610,7 +611,7 @@ const journeys = {
 for (const viewport of VIEWPORTS) {
   for (const [name, run] of Object.entries(journeys)) {
     if (ONLY && !ONLY.includes(name)) continue;
-    const context = await browser.newContext({ viewport, acceptDownloads: true });
+    const context = await newSchoolContext(browser, { viewport, acceptDownloads: true });
     const page = await context.newPage();
     const pageErrors = [];
     page.on('pageerror', (error) => pageErrors.push(String(error)));

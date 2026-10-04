@@ -41,9 +41,19 @@ cores pinned busy (the load under which #415 saw 3 of 9 fail).
 
 ## 2. Class-scale certification (emulator, CI)
 
-`tests/integration/liveChallengeLaunchCertification.test.mjs`, in
-`npm run test:challenge-finish` (so in CI's full-platform suite), using the
-#422 transaction-retry layer and nothing new.
+`tests/integration/liveChallengeLaunch/liveChallengeLaunchCertification.test.mjs`,
+in `npm run test:live-challenge-launch:emulator` (its own step and emulator in
+CI's full-platform suite), using the #422 transaction-retry layer and nothing
+new. It first ran inside `npm run test:challenge-finish`. There its emulator was
+shared with the parallel integration suites, and on `main` their load failed it
+twice in two different places, so it now has an emulator to itself.
+
+**Launch-batch budget.** A device sends one launch-only diagnostic request, or
+three if the scenario disrupts it. A device that first heard round 1 only once
+it was running (a slow link under load) reports its first countdown from a
+later round. That is a new milestone, so it may send one more batch. The
+budget reads this from the device's own diagnostic row, so a redundant request
+still fails it.
 
 **What is real.** Every callable, under each student's own identity. Every
 listener: each device loads the production `liveChallengeService.js` with its
@@ -194,7 +204,7 @@ deadline, reopen, `src/App.jsx` or PR #423 file was changed.
 ## Running it
 
 ```
-npm run test:challenge-finish                                   # includes the certification
-LAUNCH_CERT_SIZES=64 LAUNCH_CERT_REPORT=/tmp/r.json npm run test:challenge-finish
+npm run test:live-challenge-launch:emulator                     # the certification, on its own emulator
+LAUNCH_CERT_SIZES=64 LAUNCH_CERT_REPORT=/tmp/r.json npm run test:live-challenge-launch:emulator
 SHELL_QA_SCENARIOS=reconnect,launch node tests/browser/liveChallengeShellQa.mjs
 ```

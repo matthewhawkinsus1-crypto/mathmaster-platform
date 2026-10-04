@@ -1,7 +1,9 @@
 // LIVE CHALLENGE LAUNCH CERTIFICATION: whole classes launching, against the
 // real server and real Firestore listeners. Run through
-// `npm run test:challenge-finish` (the emulator, with the #422 transaction
-// retry loaded for every integration suite and every farm worker).
+// `npm run test:live-challenge-launch:emulator` (the emulator, with the #422
+// transaction retry loaded for every integration suite and every farm worker).
+// It has that emulator to itself: its budgets and waits are measured against a
+// class, so the other integration suites never share its emulator.
 //
 // THE INVARIANT. A student who is authorized and connected derives the game
 // from the durable room — status, round, question, startsAt, endsAt — at their
@@ -11,13 +13,13 @@
 // WHAT IS REAL. Every callable (functions/index.js, each student under their
 // own identity). Every listener: each simulated device loads the production
 // client service with its own Firebase app and Firestore connection to the
-// emulator (support/clientFirebase.mjs), so a device's snapshot stream, cache,
+// emulator (../support/clientFirebase.mjs), so a device's snapshot stream, cache,
 // offline switch and reconnect are the SDK's own. Every decision a device
 // makes from what it hears goes through the pure modules the student screen
 // uses. What is mirrored from LiveChallengeStudent.jsx (when it joins,
 // calibrates, batches launch milestones, retries a locked answer) is listed in
-// support/liveChallengeSimStudent.mjs. Devices run in worker threads
-// (support/deviceFarm.mjs), several per worker, as a class runs on many
+// ../support/liveChallengeSimStudent.mjs. Devices run in worker threads
+// (../support/deviceFarm.mjs), several per worker, as a class runs on many
 // Chromebooks.
 //
 // WHAT IT DOES NOT PROVE. Real-network latency, a school's content filter, or
@@ -39,9 +41,9 @@ import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const require = createRequire(import.meta.url);
-assert.ok(process.env.FIRESTORE_EMULATOR_HOST, 'Run through npm run test:challenge-finish.');
+assert.ok(process.env.FIRESTORE_EMULATOR_HOST, 'Run through npm run test:live-challenge-launch:emulator.');
 
 const functionsIndex = require(path.join(repo, 'functions/index.js'));
 const admin = require(path.join(repo, 'functions/node_modules/firebase-admin'));
@@ -50,7 +52,7 @@ const challenge = await import(path.join(repo, 'functions/shared/liveChallenge.m
 const { LAUNCH_EVENTS, MAX_LAUNCH_EVENTS } = await import(path.join(repo, 'functions/shared/liveChallengeLaunchDiagnostics.mjs'));
 const { leaderboardOptionsFor } = await import(path.join(repo, 'functions/shared/liveChallengeScoring.mjs'));
 const { CHALLENGE_STAGE } = await import(path.join(repo, 'src/platform/liveChallenge/challengeShellModel.js'));
-const { createDeviceFarm } = await import('./support/deviceFarm.mjs');
+const { createDeviceFarm } = await import('../support/deviceFarm.mjs');
 const db = admin.firestore();
 
 const SIZES = (process.env.LAUNCH_CERT_SIZES || '5,15,25,35,45,64').split(',').map(Number).filter((size) => size >= 5);
@@ -393,12 +395,21 @@ for (const size of SIZES) {
       assert.equal(milestonesFor(rows, keyOf(lateListener)).running_received?.roundIndex, 0, `${label}: ...and that it first heard the room running in round 1`);
       assert.ok(milestonesFor(rows, keyOf(offlineAtZero)).connection_lost && milestonesFor(rows, keyOf(offlineAtZero)).connection_restored, `${label}: the offline student's evidence shows the loss and the return`);
       const disrupted = new Set([offlineAtZero, backgrounded, refreshesAfterRunning, lateListener]);
+      // A device that heard round 1 only once it was already running (a slow
+      // link under a class's load, as the late listener does on purpose) first
+      // hears a countdown in a later round. That milestone is new, so it rides
+      // one more small batch, unless a heartbeat carried it first. Its own
+      // evidence says so: the countdown it reported is not round 1's.
+      const firstCountdownRound = (view) => milestonesFor(rows, keyOf(view.studentId)).countdown_received?.roundIndex;
+      const heardALaterCountdown = new Set([...views.values()]
+        .filter((view) => !disrupted.has(view.studentId) && Number.isInteger(firstCountdownRound(view)) && firstCountdownRound(view) > 0)
+        .map((view) => view.studentId));
       for (const view of views.values()) {
-        const budget = disrupted.has(view.studentId) ? 3 : 1;
-        assert.ok(view.stats.launchOnlyRequests <= budget, `${label}: ${view.studentId} sent ${view.stats.launchOnlyRequests} launch-only diagnostic requests across ${ROUNDS} rounds (budget ${budget})`);
+        const budget = disrupted.has(view.studentId) ? 3 : heardALaterCountdown.has(view.studentId) ? 2 : 1;
+        assert.ok(view.stats.launchOnlyRequests <= budget, `${label}: ${view.studentId} sent ${view.stats.launchOnlyRequests} launch-only diagnostic requests across ${ROUNDS} rounds (budget ${budget}; first countdown it reported: ${firstCountdownRound(view) ?? 'none'})`);
       }
       const launchOnly = sum(views, (view) => view.stats.launchOnlyRequests);
-      assert.ok(launchOnly <= size + 2 * disrupted.size, `${label}: ${launchOnly} launch-only requests for ${size} students`);
+      assert.ok(launchOnly <= size + 2 * disrupted.size + heardALaterCountdown.size, `${label}: ${launchOnly} launch-only requests for ${size} students`);
       const ordinary = [...views.values()].filter((view) => !disrupted.has(view.studentId) && !joinsDuringCountdown.includes(view.studentId));
 
       report.sizes[size] = {
@@ -406,6 +417,7 @@ for (const size of SIZES) {
         rounds: ROUNDS,
         workers: farm.workers,
         launchOnlyDiagnosticRequests: launchOnly,
+        devicesThatFirstHeardALaterCountdown: heardALaterCountdown.size,
         presenceHeartbeats: sum(views, (view) => view.stats.heartbeatRequests),
         diagnosticWritesTotal: sum(views, (view) => view.stats.diagnosticWrites),
         maxDiagnosticRowBytes: maxBytes,

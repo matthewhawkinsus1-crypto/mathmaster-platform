@@ -36,6 +36,7 @@ import { fileURLToPath } from 'node:url';
 import { inflateRawSync } from 'node:zlib';
 
 import { watchUnimplementedCallables } from './journeyChecks.mjs';
+import { newSchoolContext } from './schoolClock.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -340,7 +341,7 @@ async function exportFrom(page, trigger, onReview = null) {
 
 for (const viewport of VIEWPORTS) {
   for (const [name, run] of Object.entries(journeys).filter(([key]) => !ONLY || ONLY.includes(key))) {
-    const context = await browser.newContext({ viewport, acceptDownloads: true });
+    const context = await newSchoolContext(browser, { viewport, acceptDownloads: true });
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
