@@ -5719,7 +5719,7 @@ exports.migrateStudentAssignmentOverrides = onCall({ timeoutSeconds: 540 }, asyn
   const gate = await overrideRetirementGate();
   const dryRun = request.data?.dryRun !== false;
   const mode = String(request.data?.mode || "backfill");
-  const prefix = String(request.data?.assignmentIdPrefix || "").trim();
+  const prefix = String(request.data?.assignmentIdPrefix || "").slice(0, 160).trim();
   // The destructive steps are deliberate actions of their own: a typed
   // confirmation, never just `dryRun: false` (a strip removes the shared copy;
   // a restore writes it back).
@@ -5729,11 +5729,13 @@ exports.migrateStudentAssignmentOverrides = onCall({ timeoutSeconds: 540 }, asyn
   if (!dryRun && mode === "restore" && String(request.data?.confirm || "") !== gate.RESTORE_CONFIRMATION) {
     throw new HttpsError("invalid-argument", `Type "${gate.RESTORE_CONFIRMATION}" to write the shared copies back.`);
   }
-  // A full strip only after a full dry run of it — finished, with no
-  // failures, since the shared copy was retired.
-  if (!dryRun && mode === "strip" && !prefix) {
+  // A strip only after a dry run of the same scope — run to the end, with no
+  // failures, since the shared copy was retired (a canary's own dry run for a
+  // canary strip; the full dry run for the full strip).
+  if (!dryRun && mode === "strip") {
     const progress = await store.readOverrideMigrationProgress({ db: getFirestore() });
-    const dry = progress?.strip?.lastCompletedDryRunPass || null;
+    const passes = prefix ? progress?.canaryPasses?.strip?.[prefix] : progress?.strip;
+    const dry = passes?.lastCompletedDryRunPass || null;
     const retiredAtMs = Number(progress?.retirement?.retiredAtMs) || 0;
     if (!dry || Number(dry.failureCount) > 0 || (Number(dry.completedAtMs) || 0) < retiredAtMs) {
       throw new HttpsError("failed-precondition", "Run the strip's dry run to the end first — after retiring the shared copy, with no failures.");
@@ -5747,7 +5749,7 @@ exports.migrateStudentAssignmentOverrides = onCall({ timeoutSeconds: 540 }, asyn
       startAfter: request.data?.startAfter || null,
       maxAssignments: request.data?.maxAssignments,
       migrationRunId: String(request.data?.migrationRunId || "").slice(0, 80) || null,
-      assignmentIdPrefix: String(request.data?.assignmentIdPrefix || "").slice(0, 160) || null,
+      assignmentIdPrefix: prefix || null,
       actor,
     });
     if (!dryRun) {
@@ -5962,12 +5964,22 @@ exports.setAssignmentOverrideStorage = onCall(async (request) => {
   if (action === "mirror") {
     // The rollback: never gated. Writers mirror again from their next change;
     // `restore` writes the shared copy back for previous-release clients.
+    // Rolling back a retirement also sets its cutover record aside: retiring
+    // again starts over — the release recorded as live again, on fresh
+    // evidence, and live one more full school day.
     await db.runTransaction(async (transaction) => {
-      const progressSnap = await transaction.get(progressRef);
+      const [flagSnap, progressSnap] = await Promise.all([transaction.get(flagRef), transaction.get(progressRef)]);
+      const wasRetired = flagSnap.exists && flagSnap.data()?.[overrides.SHARED_RETIRED_FIELD] === true;
       const current = progressSnap.exists ? progressSnap.data() || {} : {};
       transaction.set(flagRef, { [overrides.SHARED_RETIRED_FIELD]: false, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-      if (current.retirement && typeof current.retirement === "object") {
-        transaction.set(progressRef, { ...current, retirement: { ...current.retirement, mirroredAgainAtMs: nowMs } });
+      if (wasRetired) {
+        const next = { ...current };
+        if (current.retirement && typeof current.retirement === "object") next.retirement = { ...current.retirement, mirroredAgainAtMs: nowMs };
+        if (current.cutover && typeof current.cutover === "object") {
+          next.previousCutover = { ...current.cutover, supersededAtMs: nowMs };
+          next.cutover = null;
+        }
+        transaction.set(progressRef, next);
       }
     });
     await writeAdminAudit(db, actor, "student_assignment_overrides_shared_mirrored", overrides.OVERRIDE_STORAGE_FLAG, { sharedRetired: false });

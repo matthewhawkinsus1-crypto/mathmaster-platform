@@ -313,7 +313,8 @@ export default function StudentControlsMigrationCard() {
         <h4 style={{ margin: 0, color: 'var(--mm-text-strong)' }}>Rollback: keep the shared copy in step again, and restore</h4>
         <p style={{ ...muted, margin: '6px 0 10px' }}>
           Turning retirement off makes every writer mirror again. Restore then writes each student&apos;s private record back onto the
-          shared assignments, so an older screen reads the same controls. Private records stay the authority.
+          shared assignments, so an older screen reads the same controls. Private records stay the authority. Retiring again
+          afterwards starts over: record the release as live again, then wait one more full school day.
         </p>
         {retired && (
           <div style={{ display: 'flex', gap: 9, flexWrap: 'wrap', alignItems: 'center' }}>

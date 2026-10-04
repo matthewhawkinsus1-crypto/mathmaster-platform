@@ -266,6 +266,8 @@ test('the switch: retiring is gated and re-checked in its transaction; rolling b
   assert.match(retire, /transaction\.set\(flagRef, \{\s*\[overrides\.SHARED_RETIRED_FIELD\]: true,\s*updatedAt: FieldValue\.serverTimestamp\(\),\s*\}, \{ merge: true \}\)/);
   const mirror = region(callable, 'if (action === "mirror") {', 'throw new HttpsError("invalid-argument", "Unknown action', 'mirror');
   assert.doesNotMatch(mirror, /retirementRefusal|evaluateRetirementReadiness|canRetire/, 'the rollback is never gated');
+  // Rolling a retirement back sets its cutover aside: retiring again starts over.
+  assert.match(mirror, /if \(wasRetired\) \{[\s\S]*next\.previousCutover = \{ \.\.\.current\.cutover, supersededAtMs: nowMs \};\s*next\.cutover = null;/);
   assert.doesNotMatch(callable, /updatedBy:/, 'the flag is readable by every signed-in client: no actor on it');
   const cutover = region(callable, 'if (action === "confirmClientCutover") {', 'if (action === "retire") {', 'confirmClientCutover');
   assert.match(cutover, /evidence\.state === "notDeployed"/);
@@ -273,12 +275,15 @@ test('the switch: retiring is gated and re-checked in its transaction; rolling b
   assert.doesNotMatch(cutover, /confirmedAtMs: (data|request)\./, 'never a time a browser sends');
 });
 
-test('23. the strip and the restore are separate, typed actions; a full strip needs its finished dry run', () => {
+test('23. the strip and the restore are separate, typed actions; a strip needs its own finished dry run', () => {
   const index = executableSource(read('functions/index.js'));
   const migrate = region(index, 'exports.migrateStudentAssignmentOverrides = onCall(', 'try {', 'migrateStudentAssignmentOverrides');
   assert.match(migrate, /!dryRun && mode === "strip" && String\(request\.data\?\.confirm \|\| ""\) !== gate\.STRIP_CONFIRMATION/);
   assert.match(migrate, /!dryRun && mode === "restore" && String\(request\.data\?\.confirm \|\| ""\) !== gate\.RESTORE_CONFIRMATION/);
-  assert.match(migrate, /progress\?\.strip\?\.lastCompletedDryRunPass[\s\S]*Number\(dry\.failureCount\) > 0[\s\S]*< retiredAtMs/);
+  // The dry run of the same scope: a canary's own for a canary strip, the full
+  // one for the full strip (both run against Firestore in
+  // tests/integration/studentAssignmentOverrides.test.mjs).
+  assert.match(migrate, /if \(!dryRun && mode === "strip"\) \{[\s\S]*const passes = prefix \? progress\?\.canaryPasses\?\.strip\?\.\[prefix\] : progress\?\.strip;\s*const dry = passes\?\.lastCompletedDryRunPass[\s\S]*Number\(dry\.failureCount\) > 0[\s\S]*< retiredAtMs/);
   // The card: the dry run and the strip are different buttons, and the strip
   // needs the finished dry run and the typed phrase.
   const card = read('src/components/admin/StudentControlsMigrationCard.jsx');

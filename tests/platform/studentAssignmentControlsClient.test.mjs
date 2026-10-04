@@ -177,10 +177,13 @@ test('10. a legacy shared lesson is reduced to this student\'s view the moment i
   const failClosed = studentScopedAssignment('A1', legacy, null);
   assert.equal(failClosed.studentOverrides, undefined);
   assert.equal(failClosed.dol.attemptGrantsByStudentId, undefined);
-  // Class-wide controls survive: the class grant, the class-scoped log, the dates.
+  // Class-wide controls survive — the class grant, the class-scoped log, the
+  // dates — without the name of the teacher who acted.
   const view = studentScopedAssignment('A1', legacy, NO_CONTROLS);
-  assert.deepEqual(view.dol.attemptGrantsByClassId, legacy.dol.attemptGrantsByClassId);
+  const { changedBy: _actor, ...classGrant } = legacy.dol.attemptGrantsByClassId[CLASS_ID];
+  assert.deepEqual(view.dol.attemptGrantsByClassId, { [CLASS_ID]: classGrant });
   assert.equal(view.dol.recoveryAudit.length, 1);
+  assert.equal(view.dol.recoveryAudit[0].action, legacy.dol.recoveryAudit.find((entry) => entry.scope?.type === 'class').action);
   assert.equal(view.lateDueAt, legacy.lateDueAt);
 });
 
@@ -207,17 +210,42 @@ test('the student\'s own grant carries no granting-teacher metadata, even from a
   const grant = projected.dol.attemptGrantsByStudentId[LEGACY_V6_DOL_OBJECT];
   assert.deepEqual(grant, { extraAttempts: 2, changedAt: '2026-09-16T15:05:00.000Z' });
   assert.deepEqual(projected.studentOverrides[LEGACY_V6_DOL_OBJECT].dolAttemptGrant, grant);
-  // Nothing student-scoped names a teacher. (The CLASS's own grant and the
-  // class-scoped recovery-log entries are class-wide data every classmate
-  // shares — #432 keeps them on the lesson, untouched; they say nothing about
-  // any one student.)
-  const studentScoped = {
-    studentOverrides: projected.studentOverrides,
-    attemptGrantsByStudentId: projected.dol.attemptGrantsByStudentId,
-    studentAudit: (projected.dol.recoveryAudit || []).filter((entry) => entry?.scope?.type === 'students'),
+  // Nothing on the student's device names a teacher: not their own grant, not
+  // the class's grant, not the class-scoped recovery log — and no
+  // student-scoped log entry at all.
+  assert.equal(JSON.stringify(projected).includes('uid-t'), false, 'no teacher id anywhere in the student\'s copy');
+  assert.deepEqual((projected.dol.recoveryAudit || []).filter((entry) => entry?.scope?.type === 'students'), []);
+  ['changedBy', 'openedBy', 'unlockedBy', 'closedBy', 'teacherId'].forEach((key) => {
+    assert.equal(JSON.stringify(projected.dol).includes(`"${key}"`), false, `no ${key} in the student's dol`);
+  });
+  // …while every class-wide fact the student's screens read is intact.
+  assert.equal(projected.dol.attemptGrantsByClassId[CLASS_ID].extraAttempts, legacy.dol.attemptGrantsByClassId[CLASS_ID].extraAttempts);
+  assert.equal(
+    resolveTeacherGrantedExtraAttempts({ assignment: projected, activityRole: 'dol', classId: CLASS_ID, studentId: LEGACY_V6_DOL_OBJECT }),
+    resolveTeacherGrantedExtraAttempts({ assignment: legacy, activityRole: 'dol', classId: CLASS_ID, studentId: LEGACY_V6_DOL_OBJECT }),
+  );
+  // The teacher's own copy keeps who acted (the projection is the student's only).
+  assert.equal(JSON.stringify(legacy.dol).includes('uid-t'), true);
+});
+
+test('class-wide DOL windows reach the student with their dates and without the teacher who opened, unlocked or closed them', () => {
+  const lesson = {
+    id: 'A9', title: 'Windows', assignedClassIds: [CLASS_ID],
+    dol: {
+      enabled: true,
+      recoveryByClassId: { [CLASS_ID]: { dateKey: '2026-10-05', openedAt: '2026-10-05T15:00:00.000Z', closesAt: '2026-10-05T15:10:00.000Z', openedBy: 'uid-t', reason: 'teacher-recovery' } },
+      earlyUnlocksByClassId: { [CLASS_ID]: { dateKey: '2026-10-06', unlockedAt: '2026-10-06T14:00:00.000Z', unlockedBy: 'uid-t' } },
+      closedByClassId: { [CLASS_ID]: { dateKey: '2026-10-07', closedAt: '2026-10-07T15:00:00.000Z', closedBy: 'uid-t', reason: 'teacher-close' } },
+      recoveryAudit: [{ id: 'reopenWindow:class:x', action: 'reopenWindow', section: 'dol', scope: { type: 'class', classId: CLASS_ID }, previous: null, next: { dateKey: '2026-10-05', openedBy: 'uid-t' }, teacherId: 'uid-t', at: '2026-10-05T15:00:00.000Z' }],
+    },
   };
-  assert.equal(JSON.stringify(studentScoped).includes('uid-t'), false, 'no teacher id on anything about this student');
-  assert.deepEqual(studentScoped.studentAudit, []);
+  const [projected] = projectStudentAssignments({ assignments: [studentScopedAssignment('A9', lesson, NO_CONTROLS)], studentId: NO_CONTROLS });
+  assert.equal(JSON.stringify(projected).includes('uid-t'), false);
+  assert.deepEqual(projected.dol.recoveryByClassId[CLASS_ID], { dateKey: '2026-10-05', openedAt: '2026-10-05T15:00:00.000Z', closesAt: '2026-10-05T15:10:00.000Z', reason: 'teacher-recovery' });
+  assert.deepEqual(projected.dol.earlyUnlocksByClassId[CLASS_ID], { dateKey: '2026-10-06', unlockedAt: '2026-10-06T14:00:00.000Z' });
+  assert.deepEqual(projected.dol.closedByClassId[CLASS_ID], { dateKey: '2026-10-07', closedAt: '2026-10-07T15:00:00.000Z', reason: 'teacher-close' });
+  assert.deepEqual(projected.dol.recoveryAudit.map((entry) => [entry.action, entry.next.dateKey, entry.at]), [['reopenWindow', '2026-10-05', '2026-10-05T15:00:00.000Z']]);
+  assert.equal(lesson.dol.recoveryByClassId[CLASS_ID].openedBy, 'uid-t', 'the document as Firestore sent it is not mutated');
 });
 
 /* --------------------------- 1–4. the student's own controls, merged */

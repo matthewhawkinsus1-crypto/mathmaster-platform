@@ -27,9 +27,9 @@
 // shared copy still kept in step for previous-release clients ("mirror",
 // Stages 1-3) and after it is retired and stripped ("retired", Stage 4).
 //
-// The listener figures are the design's, stated per device and independent of
-// class size; the client listeners themselves arrive with the client release
-// (docs/architecture/student-assignment-overrides.md).
+// This script measures the SERVER. What each device's listeners receive — the
+// real client modules, as 30/60 student devices and a teacher, under the real
+// rules — is measured by scripts/certify-student-controls-client-cost.mjs.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -52,6 +52,11 @@ const { db, fns, runClassroomSync, studentRequest, teacherRequest } = harness;
 const { ROOT_ADMIN_EMAIL } = require('./shared/rolePolicyIdentity.cjs');
 const { rosterLinkDocumentId } = require('./lib/publication.js');
 const { buildDolAttemptGrant } = await import(pathToFileURL(path.join(repo, 'src/platform/assessment/assessmentRecovery.js')).href);
+// The measured class and lessons are this checkout's, whichever functions run.
+const { DAY, bytes, costLesson, legacyControls, withControls } = await import(pathToFileURL(path.join(here, 'lib/studentControlsCostFixtures.mjs')).href);
+// Typed by the operator for a real strip (functions/shared/overrideRetirementGate.mjs);
+// a checkout from before the gate ignores it.
+const STRIP_CONFIRMATION = 'STRIP SHARED COPIES';
 
 const commit = (() => {
   try { return execFileSync('git', ['-C', repo, 'rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { return 'unknown'; }
@@ -106,78 +111,11 @@ const measure = async (label, run) => {
   };
 };
 
-/* --- a realistic class and lesson ----------------------------------------- */
+/* --- a realistic class and lesson (scripts/lib/studentControlsCostFixtures.mjs) */
 
-const DAY = 86_400_000;
 const NOW = Date.now();
 const TEACHER = 'cost.teacher@desotoisd.org';
-const bytes = (value) => Buffer.byteLength(JSON.stringify(value ?? null), 'utf8');
-const pad = (text, size) => (text + ' ').repeat(Math.ceil(size / (text.length + 1))).slice(0, size);
-
-// 28 questions across Warm-Up, Classwork, Practice and a DOL, each with the
-// prompt, worked solution and hints a real lesson carries (~1.5 KB each).
-const lesson = (id, classId, { closed }) => {
-  const roles = [['warmup', 3], ['classwork', 12], ['practice', 10], ['dol', 3]];
-  let index = 0;
-  const sections = roles.map(([role, size]) => ({
-    id: `${id}-${role}`,
-    role,
-    title: role,
-    questions: Array.from({ length: size }, () => {
-      const questionIndex = index;
-      index += 1;
-      return {
-        questionId: `${id}-q${questionIndex}`, id: `${id}-q${questionIndex}`, type: 'literal', activityRole: role,
-        prompt: pad(`Solve for y in question ${questionIndex}.`, 320), solveFor: 'y', acceptedAnswers: [`${questionIndex}`],
-        solution: pad('Isolate the variable, then check by substitution.', 700),
-        hints: [pad('Start from the inverse operation.', 160), pad('Undo addition before multiplication.', 160)],
-      };
-    }),
-  }));
-  return {
-    title: `Lesson ${id}`,
-    assignedClassIds: [classId],
-    schemaVersion: 5,
-    releaseAt: new Date(NOW - (closed ? 3 : 1) * DAY).toISOString(),
-    dueAt: new Date(NOW + (closed ? -2 : 1) * DAY).toISOString(),
-    lateDueAt: new Date(NOW + (closed ? -1 : 2) * DAY).toISOString(),
-    sections,
-    sectionAccess: { classwork: { defaultState: 'open', overridesByClassId: {} } },
-    dol: { enabled: true, minutesBeforeEnd: 10 },
-  };
-};
-
-/**
- * Every per-student control shape the platform has stored on a shared lesson,
- * spread over the class: 25% with an attendance extension, 10% excused, 5%
- * reopened, 10% with extra DOL attempts (and the recovery log naming them).
- * `everyone` gives every student an extension and an attempt grant.
- */
-const legacyControls = (studentIds, { everyone = false } = {}) => {
-  const share = (fraction) => studentIds.slice(0, everyone ? studentIds.length : Math.ceil(studentIds.length * fraction));
-  const studentOverrides = {};
-  share(0.25).forEach((id, n) => {
-    studentOverrides[id] = { lateDueAt: new Date(NOW + 2 * DAY + n * 60_000).toISOString(), extension: { dateKey: '2026-10-06', grantedAt: NOW - DAY } };
-  });
-  (everyone ? [] : studentIds.slice(-Math.ceil(studentIds.length * 0.1))).forEach((id) => { studentOverrides[id] = { ...studentOverrides[id], excused: true }; });
-  (everyone ? [] : studentIds.slice(-Math.ceil(studentIds.length * 0.15), -Math.ceil(studentIds.length * 0.1))).forEach((id) => { studentOverrides[id] = { ...studentOverrides[id], reopened: true }; });
-  const granted = everyone ? studentIds : studentIds.slice(Math.ceil(studentIds.length * 0.3), Math.ceil(studentIds.length * 0.4));
-  const attemptGrantsByStudentId = Object.fromEntries(granted.map((id) => [id, { extraAttempts: 1, changedAt: new Date(NOW - DAY).toISOString(), changedBy: 'uid-teacher', reason: 'teacher-dol-recovery' }]));
-  const recoveryAudit = granted.length ? [{
-    id: `grantAttempts:students:${granted.join('+')}:${new Date(NOW - DAY).toISOString()}`,
-    action: 'grantAttempts', section: 'dol', scope: { type: 'students', studentIds: granted, classId: null },
-    previous: { extraAttemptsByStudent: Object.fromEntries(granted.map((id) => [id, 0])) },
-    next: { extraAttemptsByStudent: Object.fromEntries(granted.map((id) => [id, 1])) },
-    teacherId: 'uid-teacher', at: new Date(NOW - DAY).toISOString(),
-  }] : [];
-  return { studentOverrides, attemptGrantsByStudentId, recoveryAudit };
-};
-
-const withControls = (doc, controls) => ({
-  ...doc,
-  studentOverrides: controls.studentOverrides,
-  dol: { ...doc.dol, attemptGrantsByStudentId: controls.attemptGrantsByStudentId, recoveryAudit: controls.recoveryAudit },
-});
+const lesson = (id, classId, { closed }) => costLesson(id, classId, { closed, now: NOW });
 
 const rootRequest = (data) => ({
   auth: { uid: 'cost-root', token: { role: 'teacher', admin: true, rootAdmin: true, email: ROOT_ADMIN_EMAIL, email_verified: true } },
@@ -221,7 +159,7 @@ const scenario = async (classSize, mode) => {
     // eslint-disable-next-line no-await-in-loop
     await batch.commit();
   }
-  const controls = legacyControls(studentIds);
+  const controls = legacyControls(studentIds, { now: NOW });
   await db.collection('assignments').doc(closed).set(withControls(lesson(closed, classId, { closed: true }), controls));
   await db.collection('assignments').doc(open).set(withControls(lesson(open, classId, { closed: false }), controls));
 
@@ -229,8 +167,11 @@ const scenario = async (classSize, mode) => {
   if (privateStorage) {
     migration.backfill = await measure('backfill (two lessons, the whole class)', () => fns.migrateStudentAssignmentOverrides.run(rootRequest({ mode: 'backfill', dryRun: false, assignmentIdPrefix: p })));
     if (mode === 'retired') {
+      // The switch itself is measured nowhere here: the retirement gate is the
+      // operator's (rehearse-student-assignment-overrides-migration.mjs).
       await setStorageFlag(true);
-      migration.strip = await measure('strip (two lessons)', () => fns.migrateStudentAssignmentOverrides.run(rootRequest({ mode: 'strip', dryRun: false, assignmentIdPrefix: p })));
+      migration.stripDryRun = await measure('strip dry run (two lessons)', () => fns.migrateStudentAssignmentOverrides.run(rootRequest({ mode: 'strip', assignmentIdPrefix: p })));
+      migration.strip = await measure('strip (two lessons)', () => fns.migrateStudentAssignmentOverrides.run(rootRequest({ mode: 'strip', dryRun: false, confirm: STRIP_CONFIRMATION, assignmentIdPrefix: p })));
     }
   }
 

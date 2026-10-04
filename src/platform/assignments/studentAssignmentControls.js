@@ -5,6 +5,7 @@ import {
   studentAssignmentView,
 } from '../../../functions/shared/studentAssignmentOverrides.mjs';
 import { withStudentSupportDates } from '../../../functions/shared/supportDeadline.mjs';
+import { studentFacingDol } from './studentAssignmentScope.js';
 
 /*
  * A STUDENT'S OWN ASSIGNMENT CONTROLS, ON THEIR OWN DEVICE.
@@ -147,15 +148,16 @@ export const privateOverrideFor = (controls, assignmentId) => {
 
 /**
  * Every lesson the device holds, as THIS student experiences it. Run on lessons
- * that are already peer-free (studentAssignmentScope.js); the view is applied
- * again here so a caller can never skip the strip.
+ * that are already peer-free (studentAssignmentScope.js); the view — and the
+ * removal of staff names from class-wide DOL data — is applied again here so a
+ * caller can never skip either.
  */
 export const projectStudentAssignments = ({ assignments = [], studentId = null, profile = null, controls = EMPTY_STUDENT_CONTROLS } = {}) => {
   const owner = clean(studentId);
   if (!owner) return [];
   const own = controlsForStudent(controls, owner);
   return (assignments || []).filter((assignment) => assignment?.id).map((assignment) => withStudentSupportDates(
-    studentAssignmentView(assignment, { studentId: owner, privateOverride: privateOverrideFor(own, assignment.id) }),
+    studentFacingDol(studentAssignmentView(assignment, { studentId: owner, privateOverride: privateOverrideFor(own, assignment.id) })),
     owner,
     profile,
   ));

@@ -112,12 +112,13 @@ test('ingestion, the finalizer and every recovery callable pass the student\'s p
 
 test('the student client injects its own dates wherever assignments are loaded, and imports what it calls', () => {
   // ONE projection for a student's lessons (src/platform/assignments/
-  // studentAssignmentControls.js): their own view of the shared lesson, then
-  // their individualized dates, in memory.
+  // studentAssignmentControls.js): their own view of the shared lesson (with
+  // no staff names on its class-wide DOL data), then their individualized
+  // dates, in memory.
   const projection = readFileSync(new URL('../../src/platform/assignments/studentAssignmentControls.js', import.meta.url), 'utf8');
   assert.match(projection, /import \{ withStudentSupportDates \} from '\.\.\/\.\.\/\.\.\/functions\/shared\/supportDeadline\.mjs';/);
   const project = region(projection, 'export const projectStudentAssignments =', '\n};', 'projectStudentAssignments');
-  assert.match(project, /withStudentSupportDates\(\s*studentAssignmentView\(assignment, \{ studentId: owner, privateOverride: privateOverrideFor\(own, assignment\.id\) \}\),\s*owner,\s*profile,\s*\)/);
+  assert.match(project, /withStudentSupportDates\(\s*studentFacingDol\(studentAssignmentView\(assignment, \{ studentId: owner, privateOverride: privateOverrideFor\(own, assignment\.id\) \}\)\),\s*owner,\s*profile,\s*\)/);
   // App imports it, and every path that puts a student's lessons into state
   // goes through it: the live class listener and the prior-work fetch
   // (publishStudentAssignments), sign-in hydration, and a changed control or

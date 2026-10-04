@@ -70,14 +70,41 @@ export const mergeStudentAssignments = (classAssignments = [], priorWorkAssignme
   return [...merged.values()].sort(byDueDate);
 };
 
+/*
+ * WHO ACTED STAYS WITH STAFF. A class's DOL attempt grant, its recovery,
+ * early-unlock and close windows, and its class-scoped recovery-log entries
+ * are class-wide — every student in the class needs their counts and dates —
+ * but each also names the teacher who acted (`changedBy`, `openedBy`,
+ * `unlockedBy`, `closedBy`, `teacherId`: a staff uid). The student's copy
+ * keeps the class-wide facts and drops the names. The teacher's own copy, the
+ * stored document and the staff-only history
+ * (grades/{sid}/assignmentOverrideEvents) keep them.
+ */
+const STAFF_ACTOR_KEYS = new Set(['changedBy', 'openedBy', 'unlockedBy', 'closedBy', 'teacherId']);
+
+const withoutStaffActors = (value) => {
+  if (Array.isArray(value)) return value.map(withoutStaffActors);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value)
+    .filter(([key]) => !STAFF_ACTOR_KEYS.has(key))
+    .map(([key, item]) => [key, withoutStaffActors(item)]));
+};
+
+/** A lesson's `dol` as a student's device keeps it: every class-wide fact, nobody's name. */
+export const studentFacingDol = (assignment) => (
+  assignment && typeof assignment === 'object' && assignment.dol && typeof assignment.dol === 'object' && !Array.isArray(assignment.dol)
+    ? { ...assignment, dol: withoutStaffActors(assignment.dol) }
+    : assignment
+);
+
 /**
  * One shared assignment as `studentId` may hold it: their own shared entry
- * (if any) and no classmate's. The only door from a Firestore snapshot into
- * the student's app.
+ * (if any), no classmate's, and no staff member's name. The only door from a
+ * Firestore snapshot into the student's app.
  */
 export const studentScopedAssignment = (id, data, studentId) => ({
   id,
-  ...studentAssignmentView(data && typeof data === 'object' ? data : {}, { studentId: cleanId(studentId) || null }),
+  ...studentFacingDol(studentAssignmentView(data && typeof data === 'object' ? data : {}, { studentId: cleanId(studentId) || null })),
 });
 
 const snapshotToStudentAssignment = (snapshot, studentId) => studentScopedAssignment(snapshot.id, snapshot.data(), studentId);
