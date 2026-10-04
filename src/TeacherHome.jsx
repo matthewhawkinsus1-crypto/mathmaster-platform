@@ -329,12 +329,12 @@ export default function TeacherHome({ allStudents = [], studentIdentityIndex = n
         <summary>Submission recovery <span className="tw-small tw-muted" style={{ fontWeight: 600 }}>restore a student&apos;s saved work for any active class</span></summary>
         <div className="tw-disclosure__body">
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
-          <label style={{ display: 'grid', gap: 6, fontSize: 12, fontWeight: 900, color: '#5f6368' }}>
+          <label style={{ display: 'grid', gap: 6, fontSize: 12, fontWeight: 900, color: 'var(--mm-text-muted)' }}>
             Class
             <select
               value={recoveryClassId}
               onChange={(event) => selectRecoveryClass(event.target.value)}
-              style={{ minHeight: 40, minWidth: 220, padding: '6px 8px', borderRadius: 8, border: '1px solid #dadce0', fontWeight: 700 }}
+              style={{ minHeight: 40, minWidth: 220, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--mm-border)', fontWeight: 700 }}
             >
               <option value="">Select a class…</option>
               {recoveryClassOptions.map((entry) => (
@@ -342,13 +342,13 @@ export default function TeacherHome({ allStudents = [], studentIdentityIndex = n
               ))}
             </select>
           </label>
-          <label style={{ display: 'grid', gap: 6, fontSize: 12, fontWeight: 900, color: '#5f6368' }}>
+          <label style={{ display: 'grid', gap: 6, fontSize: 12, fontWeight: 900, color: 'var(--mm-text-muted)' }}>
             Assignment
             <select
               value={recoveryAssignmentId}
               disabled={!recoveryClassId}
               onChange={(event) => setRecoveryAssignmentId(event.target.value)}
-              style={{ minHeight: 40, minWidth: 260, padding: '6px 8px', borderRadius: 8, border: '1px solid #dadce0', fontWeight: 700 }}
+              style={{ minHeight: 40, minWidth: 260, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--mm-border)', fontWeight: 700 }}
             >
               <option value="">Select an assignment…</option>
               {recoveryAssignments.map((assignment) => (

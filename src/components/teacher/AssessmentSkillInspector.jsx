@@ -64,16 +64,16 @@ export default function AssessmentSkillInspector({
   const crosswalk = useMemo(() => (skillId ? getSkillCrosswalk(skillId) : null), [skillId]);
 
   if (!skillId || !options) {
-    return <p style={{ color: '#5f6368', fontSize: 13, margin: 0 }}>Choose a skill to see its assessment connections.</p>;
+    return <p style={{ color: 'var(--mm-text-muted)', fontSize: 13, margin: 0 }}>Choose a skill to see its assessment connections.</p>;
   }
 
   return (
     <div>
       <p style={{ margin: '0 0 4px', fontWeight: 800, fontSize: 13 }}>Core skill</p>
-      <p style={{ margin: '0 0 14px', color: '#3c4043', fontSize: 13, lineHeight: 1.5 }}>
+      <p style={{ margin: '0 0 14px', color: 'var(--mm-text)', fontSize: 13, lineHeight: 1.5 }}>
         {describeSkill(skillId).label}
         <br />
-        <span style={{ color: '#5f6368', fontSize: 12 }}>
+        <span style={{ color: 'var(--mm-text-muted)', fontSize: 12 }}>
           Core mastery: {options.coreMastery == null ? 'no evidence yet' : `${Math.round(options.coreMastery * 100)}%`}
           {' · '}
           Core path status: {options.coreStatus || 'unknown'}
@@ -93,14 +93,14 @@ export default function AssessmentSkillInspector({
           const references = alignment ? getAssessmentStandardReferences(skillId, framework) : [];
 
           return (
-            <div key={framework} style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid #dadce0', background: alignment ? '#fff' : '#f8f9fa' }}>
+            <div key={framework} style={{ padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-border)', background: alignment ? 'var(--mm-surface)' : 'var(--mm-surface-sunken)' }}>
               <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
                 <strong style={{ fontSize: 14 }}>{FRAMEWORK_LABELS[framework]}</strong>
                 <span style={{ fontSize: 10, fontWeight: 900, padding: '1px 8px', borderRadius: 999, color, border: `1px solid ${color}33`, background: `${color}14` }}>
                   {STATUS_TEXT[pathway?.status] || 'Not available'}
                 </span>
               </div>
-              <div style={{ color: '#5f6368', fontSize: 12, marginTop: 4, lineHeight: 1.5 }}>
+              <div style={{ color: 'var(--mm-text-muted)', fontSize: 12, marginTop: 4, lineHeight: 1.5 }}>
                 {alignment ? (
                   <>
                     Crosswalk: Yes{alignment.domainTitle ? ` (${alignment.domainTitle})` : ''}
@@ -130,7 +130,7 @@ export default function AssessmentSkillInspector({
 
               {alignment && references.length > 0 && (
                 <div style={{ marginTop: 9 }}>
-                  <div style={{ marginBottom: 6, color: '#3c4043', fontSize: 11.5, fontWeight: 850 }}>
+                  <div style={{ marginBottom: 6, color: 'var(--mm-text)', fontSize: 11.5, fontWeight: 850 }}>
                     Official assessment reference{references.length === 1 ? '' : 's'} shown to students
                   </div>
                   <CcmrReferenceList references={references} compact={false} />
@@ -144,7 +144,7 @@ export default function AssessmentSkillInspector({
                       key={level.id}
                       type="button"
                       onClick={() => onSimulate({ skillId, framework, proficiency: level.value })}
-                      style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, fontSize: 11, cursor: 'pointer', minHeight: 32 }}
+                      style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 11, cursor: 'pointer', minHeight: 32 }}
                     >
                       {level.label}
                     </button>
@@ -153,7 +153,7 @@ export default function AssessmentSkillInspector({
               )}
 
               {pathway?.reasonCodes?.length ? (
-                <p style={{ margin: '6px 0 0', color: '#80868b', fontSize: 11, fontFamily: 'monospace', wordBreak: 'break-word' }}>
+                <p style={{ margin: '6px 0 0', color: 'var(--mm-text-subtle)', fontSize: 11, fontFamily: 'monospace', wordBreak: 'break-word' }}>
                   {pathway.reasonCodes.join(', ')}
                 </p>
               ) : null}
@@ -163,7 +163,7 @@ export default function AssessmentSkillInspector({
       </div>
 
       {crosswalk && !Object.keys(crosswalk.frameworks).length && (
-        <p style={{ margin: '12px 0 0', color: '#7a4f00', fontSize: 12, lineHeight: 1.55, padding: '9px 11px', background: '#fef7e0', borderRadius: 8 }}>
+        <p style={{ margin: '12px 0 0', color: 'var(--mm-warning-text)', fontSize: 12, lineHeight: 1.55, padding: '9px 11px', background: 'var(--mm-warning-bg)', borderRadius: 8 }}>
           This skill has no assessment crosswalk at all. That is a content-authoring gap, not a
           student problem — it appears in the CCMR coverage audit.
         </p>

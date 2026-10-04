@@ -466,7 +466,7 @@ export function ChallengeRound({
       )}
       <div style={{ visibility: roundStarted ? 'visible' : 'hidden' }}>
       {secureQuestion ? (
-        <section style={{ background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', borderRadius: 14, border: '1px solid #d8dde6', overflow: 'hidden' }}>
+        <section style={{ background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', borderRadius: 14, border: '1px solid var(--mm-border)', overflow: 'hidden' }}>
           <QuestionEngine
             key={question?.questionInstanceId}
             question={secureQuestion}
@@ -518,7 +518,7 @@ export function ChallengeRound({
       {expired && !answerRecorded && <div aria-live="polite" style={{ padding: 15, borderRadius: 11, background: 'rgba(255,255,255,.08)', color: '#eef1f6', border: '1px solid rgba(255,255,255,.16)', fontWeight: 900 }}>{liveShell ? 'Time is up! The results are coming.' : 'Time is up. Wait for your teacher to start the next round.'}</div>}
       {liveShell && result && !expired && <div aria-live="polite" data-mm-finished-early="1" style={{ padding: 12, borderRadius: 9, background: '#17365f', color: '#dbeafe', fontWeight: 900 }}>Round complete for you — waiting for the others. The results show when the round ends.</div>}
       {result && (
-        <section aria-live="polite" style={{ padding: 16, borderRadius: 12, background: result.isCorrect ? '#e6f4ea' : '#fff4ce', color: result.isCorrect ? '#137333' : '#7a4f00', textAlign: 'left' }}>
+        <section aria-live="polite" style={{ padding: 16, borderRadius: 12, background: result.isCorrect ? 'var(--mm-success-bg)' : 'var(--mm-warning-soft)', color: result.isCorrect ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', textAlign: 'left' }}>
           <div style={{ fontSize: 22, fontWeight: 1000 }}>{result.isCorrect ? 'Correct!' : `${Number(result.scorePercent) || 0}% credit`}</div>
           {result.comebackBonus > 0 && (
             <div style={{ marginTop: 4, fontSize: 15, fontWeight: 900 }}>

@@ -9,16 +9,16 @@ import { describeWeeklyGradeForStudent } from '../../platform/path/weeklyPathGoa
 // a student never sees two different stories about whether their week is done.
 
 const PURPOSE_TONE = {
-  [PURPOSE.CURRENT_LEARNING]: { bg: '#eef3fb', fg: '#174ea6', border: '#c9daf8' },
-  [PURPOSE.RESPONSIVE_REVIEW]: { bg: '#f5f3ff', fg: '#5b21b6', border: '#ded1f7' },
-  [PURPOSE.FOUNDATION_BRIDGE]: { bg: '#fff8ed', fg: '#9a3412', border: '#f6ddc4' },
-  [PURPOSE.RETENTION]: { bg: '#f0fdf6', fg: '#12633a', border: '#c3e8d1' },
-  [PURPOSE.TRANSFER]: { bg: '#f7f2fd', fg: '#5b21b6', border: '#ddcff3' },
-  [PURPOSE.EXTENSION]: { bg: '#eefaf1', fg: '#12633a', border: '#c3e8d1' },
+  [PURPOSE.CURRENT_LEARNING]: { bg: 'var(--mm-primary-subtle)', fg: 'var(--mm-primary-text)', border: 'var(--mm-tint-border)' },
+  [PURPOSE.RESPONSIVE_REVIEW]: { bg: 'var(--mm-primary-subtle)', fg: 'var(--mm-accent-text)', border: 'var(--mm-accent-border)' },
+  [PURPOSE.FOUNDATION_BRIDGE]: { bg: 'var(--mm-warning-subtle)', fg: 'var(--mm-warning-text)', border: 'var(--mm-warning-border-soft)' },
+  [PURPOSE.RETENTION]: { bg: 'var(--mm-success-subtle)', fg: 'var(--mm-success-text)', border: 'var(--mm-success-border)' },
+  [PURPOSE.TRANSFER]: { bg: 'var(--mm-accent-subtle)', fg: 'var(--mm-accent-text)', border: 'var(--mm-accent-border)' },
+  [PURPOSE.EXTENSION]: { bg: 'var(--mm-success-subtle)', fg: 'var(--mm-success-text)', border: 'var(--mm-success-border)' },
 };
 
-const CARD = { border: '1px solid #e3e6eb', borderRadius: 16, background: 'var(--mm-surface)', padding: 18 };
-const MUTED = { color: '#5f6368', fontSize: 13, lineHeight: 1.6 };
+const CARD = { border: '1px solid var(--mm-border-soft)', borderRadius: 16, background: 'var(--mm-surface)', padding: 18 };
+const MUTED = { color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.6 };
 
 const weeklyPurposeLabel = (session = {}) => {
   if (session.purpose !== PURPOSE.TRANSFER) return session.purposeLabel || 'Path practice';
@@ -45,10 +45,10 @@ export function WeeklyProgressBar({ required, completed, compact = false }) {
   return (
     <div style={{ display: 'grid', gap: 5, minWidth: compact ? 150 : 210 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
-        <strong style={{ color: complete ? '#12633a' : '#174ea6', fontSize: compact ? 12.5 : 13.5 }}>
+        <strong style={{ color: complete ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', fontSize: compact ? 12.5 : 13.5 }}>
           {done} of {total} done
         </strong>
-        <span style={{ color: complete ? '#12633a' : '#5f6368', fontSize: 12, fontWeight: 800 }}>{percent}%</span>
+        <span style={{ color: complete ? 'var(--mm-success-text)' : 'var(--mm-text-muted)', fontSize: 12, fontWeight: 800 }}>{percent}%</span>
       </div>
       <div
         role="progressbar"
@@ -59,7 +59,7 @@ export function WeeklyProgressBar({ required, completed, compact = false }) {
         style={{
           height: compact ? 9 : 11,
           borderRadius: 999,
-          background: '#e8eaed',
+          background: 'var(--mm-surface-control-strong)',
           overflow: 'hidden',
         }}
       >
@@ -102,22 +102,22 @@ export function WeeklyGradeCard({ summary, compact = false }) {
         gap: 3,
         padding: compact ? '8px 11px' : '10px 13px',
         borderRadius: 12,
-        border: `1px solid ${good ? '#a8dab5' : '#c9daf8'}`,
-        background: good ? '#f0fbf3' : '#f8fbff',
+        border: `1px solid ${good ? 'var(--mm-success-border)' : 'var(--mm-tint-border)'}`,
+        background: good ? 'var(--mm-success-subtle)' : 'var(--mm-surface-tint)',
         minWidth: compact ? 150 : 190,
       }}
     >
-      <span style={{ fontSize: 11, fontWeight: 950, letterSpacing: '.06em', textTransform: 'uppercase', color: good ? '#12633a' : '#174ea6' }}>
+      <span style={{ fontSize: 11, fontWeight: 950, letterSpacing: '.06em', textTransform: 'uppercase', color: good ? 'var(--mm-success-text)' : 'var(--mm-primary-text)' }}>
         {summary.label}
       </span>
-      <strong style={{ fontSize: compact ? 20 : 24, lineHeight: 1.1, color: good ? '#12633a' : '#202124' }}>
+      <strong style={{ fontSize: compact ? 20 : 24, lineHeight: 1.1, color: good ? 'var(--mm-success-text)' : 'var(--mm-text-strong)' }}>
         {summary.score}
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#5f6368' }}> / {summary.outOf}</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-text-muted)' }}> / {summary.outOf}</span>
       </strong>
       {summary.nextStep && (
-        <span style={{ fontSize: 12.5, lineHeight: 1.45, color: '#3c4043', fontWeight: 600 }}>{summary.nextStep}</span>
+        <span style={{ fontSize: 12.5, lineHeight: 1.45, color: 'var(--mm-text)', fontWeight: 600 }}>{summary.nextStep}</span>
       )}
-      <span style={{ fontSize: 11.5, lineHeight: 1.4, color: '#5f6368' }}>{summary.teacherNote}</span>
+      <span style={{ fontSize: 11.5, lineHeight: 1.4, color: 'var(--mm-text-muted)' }}>{summary.teacherNote}</span>
     </div>
   );
 }
@@ -152,8 +152,8 @@ function SlotChoice({ session, onChoose, disabled }) {
         aria-expanded={open}
         style={{
           appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
-          border: '1px solid #c9daf8', borderRadius: 9, background: '#f8fbff',
-          color: '#174ea6', fontWeight: 800, fontSize: 12.5, padding: '8px 11px',
+          border: '1px solid var(--mm-tint-border)', borderRadius: 9, background: 'var(--mm-surface-tint)',
+          color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 12.5, padding: '8px 11px',
           minHeight: 44, cursor: 'pointer', width: '100%', textAlign: 'left',
         }}
       >
@@ -175,19 +175,19 @@ function SlotChoice({ session, onChoose, disabled }) {
                   style={{
                     appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
                     display: 'block', width: '100%', textAlign: 'left',
-                    border: active ? '2px solid #174ea6' : '1px solid #e3e6eb',
-                    borderRadius: 10, background: active ? '#f8fbff' : '#fff',
+                    border: active ? '2px solid #174ea6' : '1px solid var(--mm-border-soft)',
+                    borderRadius: 10, background: active ? 'var(--mm-surface-tint)' : 'var(--mm-surface)',
                     padding: '10px 12px', minHeight: 44, cursor: disabled ? 'default' : 'pointer',
                   }}
                 >
                   <span style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                     <strong style={{ fontSize: 14, color: 'var(--mm-text-strong)' }}>{option.studentLabel}</strong>
                     {option.recommended && (
-                      <span style={{ fontSize: 10.5, fontWeight: 900, color: '#174ea6', background: '#eef3fb', border: '1px solid #c9daf8', borderRadius: 999, padding: '2px 7px' }}>
+                      <span style={{ fontSize: 10.5, fontWeight: 900, color: 'var(--mm-primary-text)', background: 'var(--mm-primary-subtle)', border: '1px solid var(--mm-tint-border)', borderRadius: 999, padding: '2px 7px' }}>
                         RECOMMENDED
                       </span>
                     )}
-                    {active && <span style={{ fontSize: 11, fontWeight: 900, color: '#12633a' }}>✓ chosen</span>}
+                    {active && <span style={{ fontSize: 11, fontWeight: 900, color: 'var(--mm-success-text)' }}>✓ chosen</span>}
                   </span>
                   <span style={{ ...MUTED, display: 'block', marginTop: 3, fontSize: 12.5 }}>{option.swapReason}</span>
                 </button>
@@ -210,8 +210,8 @@ function SessionCard({ session, done, onStart, onChoose, disabled, total }) {
         padding: 15,
         display: 'grid',
         gap: 9,
-        border: done ? '2px solid #b7dfc3' : CARD.border,
-        background: done ? '#f0fdf6' : '#fff',
+        border: done ? '2px solid var(--mm-success-border)' : CARD.border,
+        background: done ? 'var(--mm-success-subtle)' : 'var(--mm-surface)',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', gap: 7, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -222,12 +222,12 @@ function SessionCard({ session, done, onStart, onChoose, disabled, total }) {
             }}>
               {weeklyPurposeLabel(session)}
             </span>
-            <span style={{ color: '#5f6368', fontSize: 11.5, fontWeight: 800 }}>
+            <span style={{ color: 'var(--mm-text-muted)', fontSize: 11.5, fontWeight: 800 }}>
               Weekly session {session.slot} of {total}
             </span>
           </div>
           {done && (
-            <span style={{ padding: '4px 9px', borderRadius: 999, background: '#d7f2df', color: '#12633a', fontSize: 12, fontWeight: 950 }}>
+            <span style={{ padding: '4px 9px', borderRadius: 999, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: 12, fontWeight: 950 }}>
               Completed ✓
             </span>
           )}
@@ -237,14 +237,14 @@ function SessionCard({ session, done, onStart, onChoose, disabled, total }) {
           {session.studentLabel || session.teksCode}
         </div>
 
-        <div style={{ fontSize: 11.5, fontWeight: 800, color: choice.chose ? '#12633a' : '#5f6368' }}>
+        <div style={{ fontSize: 11.5, fontWeight: 800, color: choice.chose ? 'var(--mm-success-text)' : 'var(--mm-text-muted)' }}>
           {choice.chose ? `You chose this instead of ${choice.recommendedLabel}` : 'Recommended for you'}
         </div>
 
         <div style={MUTED}>{session.studentExplanation}</div>
 
         {done ? (
-          <div style={{ color: '#12633a', fontSize: 12.5, fontWeight: 800 }}>
+          <div style={{ color: 'var(--mm-success-text)', fontSize: 12.5, fontWeight: 800 }}>
             This session counted toward your weekly target.
           </div>
         ) : (
@@ -312,12 +312,12 @@ export default function WeeklyPathGoalPanel({
     return (
       <section style={{
         ...CARD,
-        border: complete ? '2px solid #8fd2a2' : '2px solid #c9daf8',
-        background: complete ? '#effbf2' : '#f8fbff',
+        border: complete ? '2px solid #8fd2a2' : '2px solid var(--mm-tint-border)',
+        background: complete ? 'var(--mm-success-subtle)' : 'var(--mm-surface-tint)',
         display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'center', flexWrap: 'wrap',
       }}>
         <div>
-          <div style={{ fontSize: 11, fontWeight: 950, letterSpacing: '.07em', textTransform: 'uppercase', color: complete ? '#12633a' : '#174ea6' }}>
+          <div style={{ fontSize: 11, fontWeight: 950, letterSpacing: '.07em', textTransform: 'uppercase', color: complete ? 'var(--mm-success-text)' : 'var(--mm-primary-text)' }}>
             {complete ? 'Weekly target complete' : 'Your weekly target'}
           </div>
           <strong style={{ display: 'block', marginTop: 4, fontSize: 17, color: 'var(--mm-text-strong)' }}>
@@ -341,16 +341,16 @@ export default function WeeklyPathGoalPanel({
         ...CARD,
         display: 'grid',
         gap: 11,
-        border: complete ? '3px solid #58a96b' : '2px solid #c9daf8',
-        background: complete ? 'linear-gradient(135deg, #e6f4ea 0%, #fff8d8 100%)' : '#fff',
+        border: complete ? '3px solid #58a96b' : '2px solid var(--mm-tint-border)',
+        background: complete ? 'linear-gradient(135deg, var(--mm-success-bg) 0%, var(--mm-warning-bg) 100%)' : 'var(--mm-surface)',
         boxShadow: complete ? '0 10px 30px rgba(19,115,51,.14)' : 'none',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 950, textTransform: 'uppercase', letterSpacing: '.08em', color: complete ? '#12633a' : '#174ea6' }}>
+            <div style={{ fontSize: 11, fontWeight: 950, textTransform: 'uppercase', letterSpacing: '.08em', color: complete ? 'var(--mm-success-text)' : 'var(--mm-primary-text)' }}>
               {complete ? '🎉 Goal hit' : 'This week'}
             </div>
-            <h2 style={{ margin: '3px 0 0', fontSize: complete ? 24 : 19, color: complete ? '#12633a' : '#202124' }}>
+            <h2 style={{ margin: '3px 0 0', fontSize: complete ? 24 : 19, color: complete ? 'var(--mm-success-text)' : 'var(--mm-text-strong)' }}>
               {complete ? 'Weekly target complete!' : 'Your Weekly Math Path'}
             </h2>
             {!complete && (
@@ -366,7 +366,7 @@ export default function WeeklyPathGoalPanel({
           </div>
         </div>
 
-        <div style={{ ...MUTED, fontSize: complete ? 15 : 14, color: complete ? '#245c33' : MUTED.color, fontWeight: complete ? 700 : 400 }}>
+        <div style={{ ...MUTED, fontSize: complete ? 15 : 14, color: complete ? 'var(--mm-success-text)' : MUTED.color, fontWeight: complete ? 700 : 400 }}>
           {complete
             ? `You completed all ${required} of ${required} Path sessions this week. Anything else you do now is extra practice.`
             : `${completed} of ${required} weekly sessions done — ${remaining} to go. Practising anything else on your Path is always open; these are the ones that count toward the week.`}
@@ -377,15 +377,15 @@ export default function WeeklyPathGoalPanel({
           </div>
         )}
         {progress?.overdue && (
-          <div style={{ ...MUTED, fontSize: 12.5, color: '#854d0e' }}>
+          <div style={{ ...MUTED, fontSize: 12.5, color: 'var(--mm-warning-text)' }}>
             This week&apos;s goal is past its due date. You can still finish it — the practice still counts toward what you know.
           </div>
         )}
       </header>
 
       {next && (
-        <div style={{ ...CARD, background: '#f8fbff', borderColor: '#c9daf8' }}>
-          <div style={{ fontSize: 10.5, fontWeight: 950, letterSpacing: '.08em', textTransform: 'uppercase', color: '#174ea6' }}>
+        <div style={{ ...CARD, background: 'var(--mm-surface-tint)', borderColor: 'var(--mm-tint-border)' }}>
+          <div style={{ fontSize: 10.5, fontWeight: 950, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>
             Do this next · weekly session {next.slot} of {required}
           </div>
           <div style={{ marginTop: 7 }}>

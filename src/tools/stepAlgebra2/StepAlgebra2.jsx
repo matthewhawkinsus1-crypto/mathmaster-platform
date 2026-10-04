@@ -16,8 +16,8 @@ import RewriteLinearForm from './RewriteLinearForm';
 import LinearIntercepts from './LinearIntercepts';
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
-const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: '#174ea6', border: '1px solid #9bb8e8' };
-const controlStyle = { padding: '11px 12px', border: '1px solid #cdd6e4', borderRadius: 9, fontSize: 15, minHeight: 44, width: '100%' };
+const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)' };
+const controlStyle = { padding: '11px 12px', border: '1px solid var(--mm-tint-border)', borderRadius: 9, fontSize: 15, minHeight: 44, width: '100%' };
 
 const OPERATIONS = {
   add: { label: 'Add', preposition: 'to' },
@@ -154,7 +154,7 @@ function BalanceSolver({ questionData = {}, onAction }) {
   const goalChip = (done, label) => (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 11px', borderRadius: 999,
-      background: done ? '#e6f4ea' : '#f1f3f4', color: done ? '#137333' : '#5f6b7a', fontWeight: 800, fontSize: 12,
+      background: done ? 'var(--mm-success-bg)' : 'var(--mm-surface-control)', color: done ? 'var(--mm-success-text)' : 'var(--mm-text-muted)', fontWeight: 800, fontSize: 12,
     }}>
       {done ? '✓' : '○'} {label}
     </span>
@@ -184,18 +184,18 @@ function BalanceSolver({ questionData = {}, onAction }) {
             {goalChip(coefficientCleared, 'x has a coefficient of 1')}
           </div>
 
-          <div data-math-state={formatEquation(state)} style={{ fontSize: 30, fontWeight: 800, textAlign: 'center', padding: '20px 12px', background: 'var(--mm-surface)', border: `2px solid ${solved ? '#a8dab5' : '#d9e2f1'}`, borderRadius: 12, color: 'var(--mm-text-strong)' }}>
+          <div data-math-state={formatEquation(state)} style={{ fontSize: 30, fontWeight: 800, textAlign: 'center', padding: '20px 12px', background: 'var(--mm-surface)', border: `2px solid ${solved ? 'var(--mm-success-border)' : 'var(--mm-tint-border)'}`, borderRadius: 12, color: 'var(--mm-text-strong)' }}>
             {formatEquation(state)}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 16 }}>
-            <label style={{ fontSize: 13, fontWeight: 700, color: '#3c4756' }}>
+            <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}>
               Operation
               <select value={operation} onChange={(event) => { setOperation(event.target.value); setInputError(''); }} style={controlStyle}>
                 {Object.entries(OPERATIONS).map(([value, spec]) => <option key={value} value={value}>{spec.label}</option>)}
               </select>
             </label>
-            <label style={{ fontSize: 13, fontWeight: 700, color: '#3c4756' }}>
+            <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}>
               Number
               <input
                 type="number"
@@ -209,7 +209,7 @@ function BalanceSolver({ questionData = {}, onAction }) {
             </label>
           </div>
 
-          <div aria-live="polite" style={{ minHeight: 46, marginTop: 10, padding: '10px 12px', borderRadius: 9, background: inputError || blockReason ? '#fce8e6' : operandIsUsable ? '#f4f8ff' : '#f8f9fa', color: inputError || blockReason ? '#c5221f' : '#3c4756', fontSize: 14 }}>
+          <div aria-live="polite" style={{ minHeight: 46, marginTop: 10, padding: '10px 12px', borderRadius: 9, background: inputError || blockReason ? 'var(--mm-error-bg)' : operandIsUsable ? 'var(--mm-surface-tint)' : 'var(--mm-surface-sunken)', color: inputError || blockReason ? 'var(--mm-danger)' : 'var(--mm-text)', fontSize: 14 }}>
             {inputError || blockReason
               ? (inputError || blockReason)
               : operandIsUsable
@@ -229,7 +229,7 @@ function BalanceSolver({ questionData = {}, onAction }) {
           {feedback ? (
             <div style={{ marginTop: 14 }}>
               <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
-              <p style={{ margin: '9px 0 0', color: '#3c4756', lineHeight: 1.55 }}>{feedbackMessage()}</p>
+              <p style={{ margin: '9px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{feedbackMessage()}</p>
             </div>
           ) : null}
         </Panel>
@@ -238,14 +238,14 @@ function BalanceSolver({ questionData = {}, onAction }) {
           {history.length ? (
             <ol style={{ margin: 0, paddingLeft: 20 }}>
               {history.map((step, index) => (
-                <li key={index} style={{ padding: '9px 0', borderBottom: index === history.length - 1 ? 'none' : '1px solid #edf1f6' }}>
+                <li key={index} style={{ padding: '9px 0', borderBottom: index === history.length - 1 ? 'none' : '1px solid var(--mm-tint-border)' }}>
                   <strong>{describeOperation(step.operation, step.operand)}</strong>
-                  <div style={{ color: '#5f6b7a', fontSize: 13, marginTop: 3 }}>{formatEquation(step.before)} → {formatEquation(step.after)}</div>
+                  <div style={{ color: 'var(--mm-text-muted)', fontSize: 13, marginTop: 3 }}>{formatEquation(step.before)} → {formatEquation(step.after)}</div>
                 </li>
               ))}
             </ol>
           ) : (
-            <p style={{ color: '#5f6b7a', margin: 0 }}>
+            <p style={{ color: 'var(--mm-text-muted)', margin: 0 }}>
               Each move you make is recorded here, so you can see your reasoning and undo a step without starting over.
             </p>
           )}

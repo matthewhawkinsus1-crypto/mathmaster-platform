@@ -22,8 +22,8 @@ export default function BuildFreshnessNotice() {
         position: 'fixed', left: 12, right: 12, bottom: 12, zIndex: 2147483000,
         display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10,
         maxWidth: 720, margin: '0 auto', padding: '10px 14px', borderRadius: 12,
-        background: retired ? '#fce8e6' : '#e8f0fe', color: 'var(--mm-text-strong)',
-        border: `1px solid ${retired ? '#f28b82' : '#aecbfa'}`,
+        background: retired ? 'var(--mm-error-bg)' : 'var(--mm-primary-soft)', color: 'var(--mm-text-strong)',
+        border: `1px solid ${retired ? 'var(--mm-error-border-soft)' : 'var(--mm-primary-border)'}`,
         boxShadow: '0 8px 24px rgba(32,33,36,0.18)', fontSize: 14, lineHeight: 1.4,
       }}
     >
@@ -48,7 +48,7 @@ export default function BuildFreshnessNotice() {
         type="button"
         aria-label="Dismiss update notice"
         onClick={() => setDismissedStatus(`${freshness.status}:${freshness.liveSha || ''}`)}
-        style={{ minHeight: 40, padding: '8px 12px', border: '1px solid #c4c7c5', borderRadius: 8, background: 'var(--mm-surface)', color: '#3c4043', cursor: 'pointer' }}
+        style={{ minHeight: 40, padding: '8px 12px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-text)', cursor: 'pointer' }}
       >
         Later
       </button>

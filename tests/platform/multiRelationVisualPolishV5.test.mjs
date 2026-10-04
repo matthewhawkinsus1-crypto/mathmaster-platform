@@ -36,7 +36,8 @@ test('Other operation buttons inherit the matched semantic theme colors', () => 
   const src = multiRelationSource();
 
   assert.match(src, /background: 'var\(--mm-surface\)'/);
-  assert.match(src, /color: '#174ea6'/);
+  // The primary TEXT token: #174ea6 in light, a readable light blue in dark.
+  assert.match(src, /color: 'var\(--mm-primary-text\)'/);
   assert.doesNotMatch(src, /colorScheme: 'light'/);
 });
 

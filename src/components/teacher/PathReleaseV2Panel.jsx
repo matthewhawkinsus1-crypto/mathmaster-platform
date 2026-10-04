@@ -22,7 +22,7 @@ import {
 // the same button before and they are not the same fact.
 
 const card = {
-  border: '1px solid #d8dde6', borderRadius: 12, padding: '20px 22px',
+  border: '1px solid var(--mm-border)', borderRadius: 12, padding: '20px 22px',
   marginBottom: 20, textAlign: 'left', background: 'var(--mm-surface)',
 };
 const primary = {
@@ -30,18 +30,18 @@ const primary = {
   background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer',
 };
 const quiet = {
-  minHeight: 38, padding: '0 13px', border: '1px solid #c7cdd6', borderRadius: 8,
-  background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 700, cursor: 'pointer',
+  minHeight: 38, padding: '0 13px', border: '1px solid var(--mm-border)', borderRadius: 8,
+  background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 700, cursor: 'pointer',
 };
 
 const STATUS_STYLE = {
-  current: { background: '#e6f4ea', color: '#137333', border: '#a8dab5' },
-  'activation-required': { background: '#fef7e0', color: '#7a4f00', border: '#f0d9a0' },
-  running: { background: '#e8f0fe', color: '#174ea6', border: '#c5d5ef' },
-  interrupted: { background: '#fef7e0', color: '#7a4f00', border: '#f0d9a0' },
-  failed: { background: '#fce8e6', color: '#a50e0e', border: '#f2b8b5' },
-  'no-artifact': { background: '#f1f3f4', color: '#3c4043', border: '#d8dde6' },
-  'deployment-mismatch': { background: '#fce8e6', color: '#a50e0e', border: '#f2b8b5' },
+  current: { background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', border: 'var(--mm-success-border)' },
+  'activation-required': { background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', border: 'var(--mm-warning-border-soft)' },
+  running: { background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', border: 'var(--mm-tint-border)' },
+  interrupted: { background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', border: 'var(--mm-warning-border-soft)' },
+  failed: { background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', border: 'var(--mm-error-border-soft)' },
+  'no-artifact': { background: 'var(--mm-surface-control)', color: 'var(--mm-text)', border: 'var(--mm-border)' },
+  'deployment-mismatch': { background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', border: 'var(--mm-error-border-soft)' },
 };
 
 const PHASE_ORDER = ['created', 'validating', 'staging', 'activating', 'coverage', 'verifying', 'complete'];
@@ -99,7 +99,7 @@ export default function PathReleaseV2Panel() {
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div>
           <h3 style={{ margin: 0 }}>Course Path release</h3>
-          <p style={{ margin: '6px 0 0', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 760 }}>
+          <p style={{ margin: '6px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55, maxWidth: 760 }}>
             Grade 6, Grade 7, Grade 8, Algebra I and Algebra II built-in content is published as one certified
             release. It was compiled, Firestore-certified and proved issuable by the production issuer before it
             was deployed, so publishing compares it with production and writes only what actually changed.
@@ -115,19 +115,19 @@ export default function PathReleaseV2Panel() {
       </p>
 
       <dl style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '4px 14px', margin: '10px 0 0', fontSize: 13 }}>
-        <dt style={{ color: '#5f6368' }}>Deployed (certified)</dt>
+        <dt style={{ color: 'var(--mm-text-muted)' }}>Deployed (certified)</dt>
         <dd style={{ margin: 0 }}>
           <code>{status?.deployed?.releaseId || DEPLOYED_COURSE_PATH_RELEASE.releaseId || '—'}</code>
           {' · '}hash <code>{shortHash(status?.deployed?.contentHash || DEPLOYED_COURSE_PATH_RELEASE.contentHash)}</code>
           {' · '}{status?.deployed?.questionCount ?? DEPLOYED_COURSE_PATH_RELEASE.questionCount} questions
         </dd>
-        <dt style={{ color: '#5f6368' }}>Active in production</dt>
+        <dt style={{ color: 'var(--mm-text-muted)' }}>Active in production</dt>
         <dd style={{ margin: 0 }}>
           <code>{status?.activeReleaseId || 'none'}</code>
           {status?.active?.status ? ` · ${status.active.status}` : ''}
           {' · '}hash <code>{shortHash(status?.active?.contentHash)}</code>
         </dd>
-        <dt style={{ color: '#5f6368' }}>This browser bundle</dt>
+        <dt style={{ color: 'var(--mm-text-muted)' }}>This browser bundle</dt>
         <dd style={{ margin: 0 }}>
           <code>{DEPLOYED_COURSE_PATH_RELEASE.releaseId || '—'}</code>
           {' · '}built {DEPLOYED_COURSE_PATH_RELEASE.builtAt || 'unknown'}
@@ -135,14 +135,14 @@ export default function PathReleaseV2Panel() {
       </dl>
 
       {status?.status === 'deployment-mismatch' && status.mismatch ? (
-        <div role="alert" style={{ marginTop: 14, padding: '12px 14px', borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid #f2b8b5' }}>
-          <strong style={{ color: '#a50e0e' }}>Hosting and path-admin were deployed from different builds.</strong>
+        <div role="alert" style={{ marginTop: 14, padding: '12px 14px', borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid var(--mm-error-border-soft)' }}>
+          <strong style={{ color: 'var(--mm-error-text)' }}>Hosting and path-admin were deployed from different builds.</strong>
           <ul style={{ margin: '8px 0 0', paddingLeft: 20, fontSize: 13, lineHeight: 1.6 }}>
             <li>This page was built for <code>{status.mismatch.browserReleaseId || 'no release'}</code>.</li>
             <li>The server has <code>{status.mismatch.serverReleaseId || 'no release'}</code>.</li>
             <li>Differs: {status.mismatch.differs.join(', ')}.</li>
           </ul>
-          <p style={{ margin: '8px 0 0', fontSize: 13, color: '#5f6368' }}>
+          <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--mm-text-muted)' }}>
             Deploy Hosting and the path-admin codebase from the same build, then reload this page.
           </p>
         </div>
@@ -157,7 +157,7 @@ export default function PathReleaseV2Panel() {
             return (
               <li key={phase} style={{
                 fontSize: 13, fontWeight: isCurrent ? 900 : 600,
-                color: isCurrent ? '#174ea6' : reached ? '#137333' : '#80868b',
+                color: isCurrent ? 'var(--mm-primary-text)' : reached ? 'var(--mm-success-text)' : 'var(--mm-text-subtle)',
               }}>
                 {reached ? '●' : '○'} {RELEASE_PHASE_MESSAGES[phase]}
                 {staging
@@ -170,7 +170,7 @@ export default function PathReleaseV2Panel() {
       ) : null}
 
       {status?.job?.counts ? (
-        <p style={{ margin: '12px 0 0', fontSize: 13, color: '#3c4043' }}>
+        <p style={{ margin: '12px 0 0', fontSize: 13, color: 'var(--mm-text)' }}>
           Change plan: {describeReleaseCounts(status.job.counts)}
         </p>
       ) : null}
@@ -192,22 +192,22 @@ export default function PathReleaseV2Panel() {
       </div>
 
       {status?.status === 'current' ? (
-        <p style={{ margin: '12px 0 0', fontSize: 13, color: '#137333', fontWeight: 700 }}>
+        <p style={{ margin: '12px 0 0', fontSize: 13, color: 'var(--mm-success-text)', fontWeight: 700 }}>
           Production is current. Republishing this release would write no question documents.
         </p>
       ) : null}
 
       {result?.ok && result.status === 'already-active' ? (
-        <p style={{ margin: '12px 0 0', fontSize: 13, color: '#137333', fontWeight: 700 }}>
+        <p style={{ margin: '12px 0 0', fontSize: 13, color: 'var(--mm-success-text)', fontWeight: 700 }}>
           Production is already serving this certified release.
         </p>
       ) : null}
 
       {result?.ok && result.status === 'complete' ? (
-        <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid #a8dab5' }}>
-          <strong style={{ color: '#137333' }}>Release complete.</strong>
+        <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid var(--mm-success-border)' }}>
+          <strong style={{ color: 'var(--mm-success-text)' }}>Release complete.</strong>
           <p style={{ margin: '6px 0 0', fontSize: 13 }}>{describeReleaseCounts(result.counts)}</p>
-          <p style={{ margin: '4px 0 0', fontSize: 13, color: '#5f6368' }}>
+          <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--mm-text-muted)' }}>
             Coverage rebuilt for {result.coverage?.courses?.join(', ') || 'no courses'}
             {result.coverage?.skipped?.length ? ` · unchanged: ${result.coverage.skipped.join(', ')}` : ''}
             {typeof result.coverage?.issuerRuns === 'number' ? ` · issuer runs: ${result.coverage.issuerRuns}` : ''}
@@ -216,10 +216,10 @@ export default function PathReleaseV2Panel() {
       ) : null}
 
       {diagnostic ? (
-        <div role="alert" style={{ marginTop: 12, padding: '12px 14px', borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid #f2b8b5' }}>
-          <strong style={{ color: '#a50e0e' }}>{diagnostic.headline}</strong>
-          {diagnostic.where ? <p style={{ margin: '6px 0 0', fontSize: 13, color: '#3c4043' }}>{diagnostic.where}</p> : null}
-          {diagnostic.code ? <p style={{ margin: '4px 0 0', fontSize: 12, color: '#5f6368' }}><code>{diagnostic.code}</code></p> : null}
+        <div role="alert" style={{ marginTop: 12, padding: '12px 14px', borderRadius: 9, background: 'var(--mm-surface)', border: '1px solid var(--mm-error-border-soft)' }}>
+          <strong style={{ color: 'var(--mm-error-text)' }}>{diagnostic.headline}</strong>
+          {diagnostic.where ? <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--mm-text)' }}>{diagnostic.where}</p> : null}
+          {diagnostic.code ? <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--mm-text-muted)' }}><code>{diagnostic.code}</code></p> : null}
           {diagnostic.nextAction ? (
             <p style={{ margin: '8px 0 0', fontSize: 13 }}>
               <strong>{diagnostic.recoverable ? 'Recoverable.' : 'Not recoverable without a rebuild.'}</strong>{' '}
@@ -230,7 +230,7 @@ export default function PathReleaseV2Panel() {
       ) : null}
 
       {error ? (
-        <p role="alert" style={{ margin: '12px 0 0', fontSize: 13, color: '#a50e0e', fontWeight: 700 }}>{error}</p>
+        <p role="alert" style={{ margin: '12px 0 0', fontSize: 13, color: 'var(--mm-error-text)', fontWeight: 700 }}>{error}</p>
       ) : null}
     </section>
   );

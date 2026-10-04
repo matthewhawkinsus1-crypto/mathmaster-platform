@@ -98,10 +98,10 @@ export default function QuietDisclosure({
           // The Chromebook touch minimum, same as every other student control.
           minHeight: 44,
           padding: '6px 12px 6px 10px',
-          border: `1px solid ${strong ? '#9bb8e8' : '#dde5f0'}`,
+          border: `1px solid ${strong ? 'var(--mm-primary-border)' : 'var(--mm-tint-border)'}`,
           borderRadius: 999,
-          background: strong ? '#f4f8ff' : '#fff',
-          color: '#174ea6',
+          background: strong ? 'var(--mm-surface-tint)' : 'var(--mm-surface)',
+          color: 'var(--mm-primary-text)',
           font: 'inherit',
           fontSize: 13,
           fontWeight: 800,

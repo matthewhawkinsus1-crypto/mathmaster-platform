@@ -106,9 +106,9 @@ const touchButton = {
   minHeight: 44,
   padding: '8px 14px',
   borderRadius: 10,
-  border: '1px solid #b8c7de',
-  background: 'var(--mm-surface, #fff)',
-  color: '#172033',
+  border: '1px solid var(--mm-primary-border)',
+  background: 'var(--mm-surface)',
+  color: 'var(--mm-text-strong)',
   fontWeight: 700,
   cursor: 'pointer',
   fontSize: 14,
@@ -127,7 +127,7 @@ const quietButton = {
   ...touchButton,
   background: 'transparent',
   border: '1px solid transparent',
-  color: '#174ea6',
+  color: 'var(--mm-primary-text)',
   padding: '8px 10px',
 };
 
@@ -136,7 +136,7 @@ const cellInput = {
   boxSizing: 'border-box',
   minHeight: 44,
   padding: '8px 10px',
-  border: '1px solid #b8c7de',
+  border: '1px solid var(--mm-primary-border)',
   borderRadius: 8,
   fontSize: 17,
   textAlign: 'center',
@@ -148,14 +148,14 @@ const selectStyle = {
   boxSizing: 'border-box',
   minHeight: 44,
   padding: '8px 10px',
-  border: '1px solid #b8c7de',
+  border: '1px solid var(--mm-primary-border)',
   borderRadius: 8,
   fontSize: 15,
   background: 'var(--mm-surface)',
 };
 
-const muted = { fontSize: 13, color: '#5f6b7a', margin: 0, lineHeight: 1.45 };
-const errorText = { margin: 0, fontSize: 14, color: '#b3261e', fontWeight: 600, lineHeight: 1.4 };
+const muted = { fontSize: 13, color: 'var(--mm-text-muted)', margin: 0, lineHeight: 1.45 };
+const errorText = { margin: 0, fontSize: 14, color: 'var(--mm-error-text)', fontWeight: 600, lineHeight: 1.4 };
 
 const correctBadge = {
   display: 'inline-flex',
@@ -164,8 +164,8 @@ const correctBadge = {
   borderRadius: 999,
   fontSize: 12,
   fontWeight: 800,
-  background: '#e6f4ea',
-  color: '#137333',
+  background: 'var(--mm-success-bg)',
+  color: 'var(--mm-success-text)',
   whiteSpace: 'nowrap',
 };
 
@@ -317,10 +317,10 @@ function BoardPanel({ title, open = true, onToggle = null, toggleLabel = '', chi
   return (
     <section
       className="mathmaster-tool-panel"
-      style={{ border: '1px solid #dde5f0', borderRadius: 14, padding: 14, background: '#fbfdff', textAlign: 'left', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}
+      style={{ border: '1px solid var(--mm-tint-border)', borderRadius: 14, padding: 14, background: 'var(--mm-surface)', textAlign: 'left', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-        <h3 style={{ margin: 0, fontSize: 16, color: '#24324a' }}>{title}</h3>
+        <h3 style={{ margin: 0, fontSize: 16, color: 'var(--mm-text)' }}>{title}</h3>
         {onToggle ? <CollapseToggle open={open} onToggle={onToggle} label={toggleLabel || title} /> : null}
       </div>
       {children}
@@ -358,7 +358,7 @@ function BoardCard({ cardId, title, hint, verdict, canCheck, onCheck, checkLabel
       data-lmr-card={cardId}
       {...undoneProps(undone)}
       style={{
-        border: `1px solid ${verdict?.isCorrect ? '#9fd3ad' : '#dbe3ef'}`,
+        border: `1px solid ${verdict?.isCorrect ? 'var(--mm-success-border)' : 'var(--mm-tint-border)'}`,
         borderRadius: 12,
         padding: 12,
         background: 'var(--mm-surface)',
@@ -372,7 +372,7 @@ function BoardCard({ cardId, title, hint, verdict, canCheck, onCheck, checkLabel
       {/* The title keeps a readable width; the badge and buttons wrap under it
           in a narrow column instead of squeezing it to one word per line. */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px 8px', flexWrap: 'wrap' }}>
-        <strong style={{ fontSize: 15, color: '#172033', flex: '1 1 170px', minWidth: 0 }}>{title}</strong>
+        <strong style={{ fontSize: 15, color: 'var(--mm-text-strong)', flex: '1 1 170px', minWidth: 0 }}>{title}</strong>
         <span style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, flexWrap: 'wrap' }}>
           {verdict?.isCorrect ? <span style={correctBadge}>✓ Correct</span> : null}
           {headerActions}
@@ -408,13 +408,13 @@ function GivenRepresentation({ description, graphBounds }) {
   const headingId = useId();
   let body = null;
   if (description.kind === 'equation') {
-    body = <MathDisplay value={description.latex} style={{ fontSize: 26, color: '#10223f' }} ariaLabel={`Given equation ${description.latex}`} />;
+    body = <MathDisplay value={description.latex} style={{ fontSize: 26, color: 'var(--mm-text-strong)' }} ariaLabel={`Given equation ${description.latex}`} />;
   } else if (description.kind === 'points') {
     body = (
-      <p style={{ margin: 0, fontSize: 22, color: '#10223f', display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
+      <p style={{ margin: 0, fontSize: 22, color: 'var(--mm-text-strong)', display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
         {description.points.map((point, index) => (
           <React.Fragment key={point.latex}>
-            {index > 0 ? <span style={{ fontSize: 16, color: '#3c4a60' }}>and</span> : null}
+            {index > 0 ? <span style={{ fontSize: 16, color: 'var(--mm-text)' }}>and</span> : null}
             <MathDisplay value={point.latex} inline ariaLabel={`Given point ${point.latex}`} />
           </React.Fragment>
         ))}
@@ -428,16 +428,16 @@ function GivenRepresentation({ description, graphBounds }) {
       >
         <thead>
           <tr>
-            <th scope="col" style={{ padding: '6px 12px', borderBottom: '2px solid #1a4fb4', color: '#1a4fb4', fontStyle: 'italic', fontFamily: 'serif', fontSize: 20 }}>x</th>
-            <th scope="col" style={{ padding: '6px 12px', borderBottom: '2px solid #1a4fb4', borderLeft: '2px solid #1a4fb4', color: '#1a4fb4', fontStyle: 'italic', fontFamily: 'serif', fontSize: 20 }}>y</th>
+            <th scope="col" style={{ padding: '6px 12px', borderBottom: '2px solid #1a4fb4', color: 'var(--mm-primary-text)', fontStyle: 'italic', fontFamily: 'serif', fontSize: 20 }}>x</th>
+            <th scope="col" style={{ padding: '6px 12px', borderBottom: '2px solid #1a4fb4', borderLeft: '2px solid #1a4fb4', color: 'var(--mm-primary-text)', fontStyle: 'italic', fontFamily: 'serif', fontSize: 20 }}>y</th>
           </tr>
         </thead>
         <tbody>
           {description.rows.map((row, index) => (
             // eslint-disable-next-line react/no-array-index-key -- authored rows can repeat a value; order is the identity
             <tr key={index}>
-              <td style={{ padding: '6px 12px', textAlign: 'center', borderBottom: '1px solid #dbe3ef' }}><MathDisplay value={row.xLatex} inline /></td>
-              <td style={{ padding: '6px 12px', textAlign: 'center', borderBottom: '1px solid #dbe3ef', borderLeft: '2px solid #1a4fb4' }}><MathDisplay value={row.yLatex} inline /></td>
+              <td style={{ padding: '6px 12px', textAlign: 'center', borderBottom: '1px solid var(--mm-tint-border)' }}><MathDisplay value={row.xLatex} inline /></td>
+              <td style={{ padding: '6px 12px', textAlign: 'center', borderBottom: '1px solid var(--mm-tint-border)', borderLeft: '2px solid #1a4fb4' }}><MathDisplay value={row.yLatex} inline /></td>
             </tr>
           ))}
         </tbody>
@@ -467,7 +467,7 @@ function GivenRepresentation({ description, graphBounds }) {
     );
   } else if (description.kind === 'scenario') {
     body = (
-      <MathText as="p" style={{ margin: 0, fontSize: 17, lineHeight: 1.6, color: '#10223f', maxWidth: '68ch' }}>
+      <MathText as="p" style={{ margin: 0, fontSize: 17, lineHeight: 1.6, color: 'var(--mm-text-strong)', maxWidth: '68ch' }}>
         {description.text}
       </MathText>
     );
@@ -478,8 +478,8 @@ function GivenRepresentation({ description, graphBounds }) {
       data-lmr-given={description.sourceKind}
       style={{
         padding: '14px 16px',
-        background: '#f1f6ff',
-        border: '2px solid #a9c4f5',
+        background: 'var(--mm-primary-subtle)',
+        border: '2px solid var(--mm-primary-border)',
         borderRadius: 14,
         display: 'flex',
         flexDirection: 'column',
@@ -488,8 +488,8 @@ function GivenRepresentation({ description, graphBounds }) {
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <span style={givenBadge}>GIVEN</span>
-        <h3 id={headingId} style={{ margin: 0, fontSize: 16, color: '#10223f' }}>{description.label}</h3>
-        <span style={{ fontSize: 13, color: '#3c4a60' }}>You start with this. You do not need to rebuild it.</span>
+        <h3 id={headingId} style={{ margin: 0, fontSize: 16, color: 'var(--mm-text-strong)' }}>{description.label}</h3>
+        <span style={{ fontSize: 13, color: 'var(--mm-text)' }}>You start with this. You do not need to rebuild it.</span>
       </div>
       {body}
     </section>
@@ -552,7 +552,7 @@ function GraphDialog({ graph, open, onClose, children, returnFocusRef }) {
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-          <h3 id={titleId} style={{ margin: 0, fontSize: 18, color: '#10223f' }}>{graph.title}</h3>
+          <h3 id={titleId} style={{ margin: 0, fontSize: 18, color: 'var(--mm-text-strong)' }}>{graph.title}</h3>
           <button ref={closeRef} type="button" onClick={onClose} style={touchButton} aria-label={`Close enlarged ${graph.title}`}>
             ✕ Close
           </button>
@@ -1409,8 +1409,8 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
       <table data-lmr-field="tableRows" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <thead>
           <tr>
-            <th scope="col" style={{ padding: '4px 6px', fontStyle: 'italic', fontFamily: 'serif', fontSize: 19, color: '#24324a' }}>x</th>
-            <th scope="col" style={{ padding: '4px 6px', fontStyle: 'italic', fontFamily: 'serif', fontSize: 19, color: '#24324a' }}>y</th>
+            <th scope="col" style={{ padding: '4px 6px', fontStyle: 'italic', fontFamily: 'serif', fontSize: 19, color: 'var(--mm-text)' }}>x</th>
+            <th scope="col" style={{ padding: '4px 6px', fontStyle: 'italic', fontFamily: 'serif', fontSize: 19, color: 'var(--mm-text)' }}>y</th>
             <th scope="col" style={{ width: 48 }}><span className="mm-sr-only">Remove row</span></th>
           </tr>
         </thead>
@@ -1449,7 +1449,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                       clearFeedback();
                       setTableRows((prev) => (Array.isArray(prev) && prev.length > 1 ? prev.filter((_, i) => i !== index) : prev));
                     }}
-                    style={{ ...touchButton, minWidth: 44, padding: '4px 8px', color: '#b3261e' }}
+                    style={{ ...touchButton, minWidth: 44, padding: '4px 8px', color: 'var(--mm-error-text)' }}
                     aria-label={`Remove row ${index + 1}`}
                   >
                     ✕
@@ -1515,7 +1515,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
           </>
         )}
       >
-        {graph.key === 'graph3' ? <p style={{ ...muted, color: '#3c4a60' }}>{graph3Guide}</p> : null}
+        {graph.key === 'graph3' ? <p style={{ ...muted, color: 'var(--mm-text)' }}>{graph3Guide}</p> : null}
         {open ? (
           <>
             <div style={{ width: '100%', maxWidth: 440, margin: '0 auto' }}>
@@ -1541,11 +1541,11 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
     return (
       <label key={field} data-lmr-field={field} style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
         <span style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <strong style={{ fontSize: 14, color: '#172033' }}>{label}</strong>
+          <strong style={{ fontSize: 14, color: 'var(--mm-text-strong)' }}>{label}</strong>
           {contextVerdict ? (
             result
               ? <span style={correctBadge}>✓ Correct</span>
-              : <span style={{ ...correctBadge, background: '#fce8e6', color: '#b3261e' }}>Take another look</span>
+              : <span style={{ ...correctBadge, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' }}>Take another look</span>
           ) : null}
         </span>
         {choices?.length ? (
@@ -1677,14 +1677,14 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
             gap: '6px 14px',
             padding: '8px 12px',
             borderRadius: 10,
-            background: '#f6f8fb',
-            border: '1px solid #e1e7f0',
+            background: 'var(--mm-surface-sunken)',
+            border: '1px solid var(--mm-tint-border)',
           }}
         >
-          <span style={{ fontSize: 14, color: '#172033' }}>
+          <span style={{ fontSize: 14, color: 'var(--mm-text-strong)' }}>
             <strong>Work in any order.</strong> {processMode ? 'Each fact you establish opens more of the board.' : 'Nothing is locked.'}
           </span>
-          <span style={{ fontSize: 13, color: '#3c4a60' }}>
+          <span style={{ fontSize: 13, color: 'var(--mm-text)' }}>
             {canCheck ? 'Checked correct: ' : 'Filled in: '}
             <strong>{partsDone} of {partsTotal}</strong>
             <span aria-hidden="true"> · </span>
@@ -1790,10 +1790,10 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
               {showComparison ? (
                 <div
                   data-lmr-comparison="true"
-                  style={{ padding: 14, border: '2px solid #34a853', borderRadius: 12, background: '#f4fbf6', display: 'flex', flexDirection: 'column', gap: 8 }}
+                  style={{ padding: 14, border: '2px solid #34a853', borderRadius: 12, background: 'var(--mm-success-subtle)', display: 'flex', flexDirection: 'column', gap: 8 }}
                 >
-                  <strong style={{ fontSize: 16, color: '#0d652d' }}>Three methods, one line</strong>
-                  <p style={{ ...muted, color: '#24324a' }}>
+                  <strong style={{ fontSize: 16, color: 'var(--mm-success-text)' }}>Three methods, one line</strong>
+                  <p style={{ ...muted, color: 'var(--mm-text)' }}>
                     Your intercepts, your slope-intercept points and your point-slope points all sit on the same line.
                   </p>
                   <div style={{ width: '100%', maxWidth: 440, margin: '0 auto' }}>
@@ -1826,8 +1826,8 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
           data-lmr-submit="true"
           style={{
             padding: 16,
-            background: '#f6f8fb',
-            border: '1px solid #dbe3ef',
+            background: 'var(--mm-surface-sunken)',
+            border: '1px solid var(--mm-tint-border)',
             borderRadius: 12,
             display: 'flex',
             flexDirection: 'column',
@@ -1836,7 +1836,7 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
             <div style={{ minWidth: 0, flex: '1 1 260px' }}>
-              <strong style={{ fontSize: 16, color: '#10223f' }}>Submit your board</strong>
+              <strong style={{ fontSize: 16, color: 'var(--mm-text-strong)' }}>Submit your board</strong>
               <p style={muted}>
                 {canCheck
                   ? 'Submitting checks every part together, including whether they all describe the same line.'
@@ -1854,8 +1854,8 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
           </div>
 
           {confirmSubmit && emptyParts.length ? (
-            <div role="alert" style={{ padding: '10px 12px', borderRadius: 10, background: '#fff8e1', border: '1px solid #f2d27a', display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <p style={{ margin: 0, fontSize: 14, color: '#5c4400', fontWeight: 600 }}>
+            <div role="alert" style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--mm-warning-bg)', border: '1px solid var(--mm-warning-border-soft)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p style={{ margin: 0, fontSize: 14, color: 'var(--mm-warning-text)', fontWeight: 600 }}>
                 {emptyParts.length === 1 ? 'One part is still empty' : `${emptyParts.length} parts are still empty`}: {emptyParts.join(', ')}.
               </p>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -1871,9 +1871,9 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
               style={{
                 padding: '12px 14px',
                 borderRadius: 10,
-                background: feedback.isCorrect ? '#e6f4ea' : '#fdecea',
-                border: `1px solid ${feedback.isCorrect ? '#9fd3ad' : '#f3b3ab'}`,
-                color: feedback.isCorrect ? '#0d652d' : '#7a1a13',
+                background: feedback.isCorrect ? 'var(--mm-success-bg)' : 'var(--mm-error-bg)',
+                border: `1px solid ${feedback.isCorrect ? 'var(--mm-success-border)' : 'var(--mm-error-border-soft)'}`,
+                color: feedback.isCorrect ? 'var(--mm-success-text)' : 'var(--mm-error-text)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 6,
@@ -1914,10 +1914,10 @@ export default function LinearMultipleRepresentationsBoard({ questionData = {}, 
                 {renderPlane(graph, 640, { showPlotHelp: false })}
               </div>
               <div style={{ flex: '1 1 240px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ background: '#f6f8fb', padding: '8px 12px', borderRadius: 10, fontSize: 14, color: '#24324a', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <div style={{ background: 'var(--mm-surface-sunken)', padding: '8px 12px', borderRadius: 10, fontSize: 14, color: 'var(--mm-text)', display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <span><strong>Your task:</strong> {graph.task}</span>
                   {graph.key === 'graph3' ? <span>{graph3Guide}</span> : null}
-                  <span style={{ fontSize: 12, color: '#5f6b7a' }}>
+                  <span style={{ fontSize: 12, color: 'var(--mm-text-muted)' }}>
                     Tap or press to place a point; drag a point to move it. Points land on {describeSnapStep(snapFor(graph.key))}.
                   </span>
                 </div>

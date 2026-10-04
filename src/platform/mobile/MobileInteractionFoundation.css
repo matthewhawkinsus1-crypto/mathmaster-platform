@@ -54,7 +54,7 @@
   max-height: min(70dvh, 560px);
   overflow-y: auto;
   overscroll-behavior: contain;
-  border: 1px solid #dadce0;
+  border: 1px solid var(--mm-border);
   border-radius: 16px;
   background: var(--mm-surface);
   box-shadow: 0 18px 60px rgba(32, 33, 36, 0.30);
@@ -66,7 +66,7 @@
   z-index: 15000;
   overflow-y: auto;
   overscroll-behavior: contain;
-  border: 1px solid #dadce0;
+  border: 1px solid var(--mm-border);
   border-radius: 12px;
   background: var(--mm-surface);
   box-shadow: 0 12px 34px rgba(32, 33, 36, 0.24);

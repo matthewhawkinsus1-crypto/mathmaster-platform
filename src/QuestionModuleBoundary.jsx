@@ -115,18 +115,18 @@ export default class QuestionModuleBoundary extends Component {
         role="alert"
         style={{
           padding: '22px 24px', margin: '0 auto', maxWidth: '640px', textAlign: 'left',
-          borderRadius: '12px', background: 'var(--mm-warning-soft, #fef7e0)',
+          borderRadius: '12px', background: 'var(--mm-warning-soft, var(--mm-warning-bg))',
           border: '1px solid var(--mm-warning, #f9ab00)',
         }}
       >
-        <h3 style={{ margin: 0, color: 'var(--mm-warning-text, #7a4f00)' }}>This question could not be displayed</h3>
-        <p style={{ margin: '10px 0 0', lineHeight: 1.55, color: 'var(--mm-ink, #202124)' }}>
+        <h3 style={{ margin: 0, color: 'var(--mm-warning-text)' }}>This question could not be displayed</h3>
+        <p style={{ margin: '10px 0 0', lineHeight: 1.55, color: 'var(--mm-ink, var(--mm-text-strong))' }}>
           Something in how this question was set up stopped it from loading. Nothing you did caused this and your
           grade is not affected. Skip to the next question and let your teacher know.
         </p>
         {typeof this.props.onRecover === 'function' ? (
           <>
-            <p style={{ margin: '10px 0 0', lineHeight: 1.55, color: 'var(--mm-ink, #202124)' }}>
+            <p style={{ margin: '10px 0 0', lineHeight: 1.55, color: 'var(--mm-ink, var(--mm-text-strong))' }}>
               If you had started this question, your saved work may be what could not be opened. You can start this
               question fresh and keep going. Your recorded attempts and grade do not change, and a copy of the saved
               work is kept for your teacher.
@@ -140,7 +140,7 @@ export default class QuestionModuleBoundary extends Component {
             </button>
           </>
         ) : null}
-        <p style={{ margin: '12px 0 0', fontSize: '12px', color: 'var(--mm-ink-muted, #5f6368)' }}>
+        <p style={{ margin: '12px 0 0', fontSize: '12px', color: 'var(--mm-ink-muted, var(--mm-text-muted))' }}>
           Details for your teacher: {this.props.questionType || 'unknown type'} &mdash; {String(this.state.error?.message || this.state.error)}
         </p>
       </div>

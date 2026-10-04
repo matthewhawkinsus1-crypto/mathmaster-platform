@@ -132,7 +132,7 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
       // graph well below the width available on a school Chromebook.
       width: workspaceWidth,
       margin: '0 auto',
-      border: '1px solid #d9e2f1',
+      border: '1px solid var(--mm-tint-border)',
       borderRadius: 18,
       background: 'var(--mm-surface)',
       boxShadow: '0 16px 44px rgba(15, 23, 42, 0.08)',
@@ -161,10 +161,10 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
           fold goes to the far end. Opened, App.css gives it the whole row via
           its `data-open` attribute, so the text reads at full width instead of
           being squeezed into whatever the summary left over. */}
-      <header className="mathmaster-tool-shell-header" style={{ padding: '9px 16px', borderBottom: '1px solid #e5e7eb', background: 'linear-gradient(135deg,#f8fbff,#eef4ff)' }}>
+      <header className="mathmaster-tool-shell-header" style={{ padding: '9px 16px', borderBottom: '1px solid var(--mm-border-soft)', background: 'linear-gradient(135deg,var(--mm-surface-tint),var(--mm-primary-subtle))' }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#172033' }}>{title}</h2>
-          {badge ? <span className="mathmaster-tool-shell-badge" style={{ borderRadius: 999, background: '#e8f0fe', color: '#174ea6', padding: '5px 10px', fontWeight: 800, fontSize: 11 }}>{badge}</span> : null}
+          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--mm-text-strong)' }}>{title}</h2>
+          {badge ? <span className="mathmaster-tool-shell-badge" style={{ borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', padding: '5px 10px', fontWeight: 800, fontSize: 11 }}>{badge}</span> : null}
           {subtitle ? (
             // `display: contents` keeps the fold itself the header's flex item.
             // Merged into the TaskCard's "How to do this", it is hidden by
@@ -181,9 +181,9 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
                 plus this fold wrapped onto three lines — 101px of naming a tool
                 the student is already looking at. */}
             {badge ? (
-              <p className="mathmaster-tool-shell-badge-echo" style={{ margin: '0 0 6px', color: '#174ea6', fontWeight: 800, fontSize: 13 }}>{badge}</p>
+              <p className="mathmaster-tool-shell-badge-echo" style={{ margin: '0 0 6px', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 13 }}>{badge}</p>
             ) : null}
-            <p style={{ margin: 0, color: '#5f6b7a', lineHeight: 1.45, fontSize: 14 }}>{subtitle}</p>
+            <p style={{ margin: 0, color: 'var(--mm-text-muted)', lineHeight: 1.45, fontSize: 14 }}>{subtitle}</p>
             </QuietDisclosure>
             </div>
           ) : null}
@@ -191,7 +191,7 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
       </header>
       {/* One set of plotting directions per tool, however many planes it has. */}
       <div className="mathmaster-tool-shell-body" style={{ padding: 24 }}><ToolShellContext.Provider value={shellContext}><PlotHelpScope>{children}</PlotHelpScope></ToolShellContext.Provider></div>
-      {footer ? <footer style={{ padding: '14px 24px', borderTop: '1px solid #e5e7eb', background: '#fafafa', color: '#5f6b7a', fontSize: 13 }}>{footer}</footer> : null}
+      {footer ? <footer style={{ padding: '14px 24px', borderTop: '1px solid var(--mm-border-soft)', background: 'var(--mm-surface-sunken)', color: 'var(--mm-text-muted)', fontSize: 13 }}>{footer}</footer> : null}
     </section>
   );
 }
@@ -229,8 +229,8 @@ export const ToolSplit = ({ children }) => (
  */
 export const Panel = ({ title, children, collapsible = false, defaultOpen = true }) => {
   const body = (
-    <div className="mathmaster-tool-panel" style={{ border: '1px solid #dde5f0', borderRadius: 14, padding: 16, background: '#fbfdff' }}>
-      {title ? <h3 style={{ margin: '0 0 12px', fontSize: 16, color: '#24324a' }}>{title}</h3> : null}
+    <div className="mathmaster-tool-panel" style={{ border: '1px solid var(--mm-tint-border)', borderRadius: 14, padding: 16, background: 'var(--mm-surface)' }}>
+      {title ? <h3 style={{ margin: '0 0 12px', fontSize: 16, color: 'var(--mm-text)' }}>{title}</h3> : null}
       {children}
     </div>
   );
@@ -279,8 +279,8 @@ const outcomeStyle = (tone) => ({
   margin: '8px 0 0',
   padding: '8px 12px',
   borderRadius: 10,
-  background: tone === 'correct' ? '#e6f4ea' : '#fce8e6',
-  color: tone === 'correct' ? '#137333' : '#c5221f',
+  background: tone === 'correct' ? 'var(--mm-success-bg)' : 'var(--mm-error-bg)',
+  color: tone === 'correct' ? 'var(--mm-success-text)' : 'var(--mm-danger)',
   fontSize: 14,
   fontWeight: 800,
   lineHeight: 1.45,
@@ -374,7 +374,7 @@ export const ResultPill = ({ ok, children, stageCheck = false }) => {
         ref={pillRef}
         className="mathmaster-result-pill"
         data-verdict-shape={radius === VERDICT_CARD_RADIUS ? 'card' : 'pill'}
-        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: radius, padding: '7px 11px', fontWeight: 800, background: ok ? '#e6f4ea' : '#fce8e6', color: ok ? '#137333' : '#c5221f' }}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: radius, padding: '7px 11px', fontWeight: 800, background: ok ? 'var(--mm-success-bg)' : 'var(--mm-error-bg)', color: ok ? 'var(--mm-success-text)' : 'var(--mm-danger)' }}
       >
         {ok ? '✓' : '•'} {children}
       </span>
@@ -414,13 +414,13 @@ export const TaskCard = ({ task, steps = [], note = null, question = null, steps
 
   return (
     <div className="mathmaster-tool-task-card" style={{
-      border: '1px solid #9bb8e8', borderLeft: '6px solid #1a73e8', borderRadius: 12,
-      background: '#f4f8ff', padding: '10px 12px', marginBottom: 12,
+      border: '1px solid var(--mm-primary-border)', borderLeft: '6px solid #1a73e8', borderRadius: 12,
+      background: 'var(--mm-surface-tint)', padding: '10px 12px', marginBottom: 12,
     }}>
       {authoredPrompt ? (
         <div className="mathmaster-tool-task-prompt">
-          <div className="mathmaster-tool-task-eyebrow" style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#174ea6' }}>{promptDiffers ? 'Problem' : 'Your task'}</div>
-          <MathText as="p" style={{ margin: '6px 0 0', fontSize: 17, fontWeight: 700, color: '#172033', lineHeight: 1.4 }}>{authoredPrompt}</MathText>
+          <div className="mathmaster-tool-task-eyebrow" style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>{promptDiffers ? 'Problem' : 'Your task'}</div>
+          <MathText as="p" style={{ margin: '6px 0 0', fontSize: 17, fontWeight: 700, color: 'var(--mm-text-strong)', lineHeight: 1.4 }}>{authoredPrompt}</MathText>
         </div>
       ) : null}
       {hasSupport ? (
@@ -434,22 +434,22 @@ export const TaskCard = ({ task, steps = [], note = null, question = null, steps
             <div className="mathmaster-tool-task-about">
               {/* The header drops the badge on a phone; it is kept here. */}
               {shell?.badge ? (
-                <p className="mathmaster-tool-shell-badge-echo" style={{ margin: '0 0 6px', color: '#174ea6', fontWeight: 800, fontSize: 13 }}>{shell.badge}</p>
+                <p className="mathmaster-tool-shell-badge-echo" style={{ margin: '0 0 6px', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 13 }}>{shell.badge}</p>
               ) : null}
-              <p style={{ margin: 0, color: '#5f6b7a', lineHeight: 1.45, fontSize: 14 }}>{description}</p>
+              <p style={{ margin: 0, color: 'var(--mm-text-muted)', lineHeight: 1.45, fontSize: 14 }}>{description}</p>
             </div>
           ) : null}
           {showsDirections ? (
             <div className="mathmaster-tool-task-directions" style={description ? { marginTop: 10 } : undefined}>
-              <MathText as="p" style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#172033', lineHeight: 1.45 }}>{taskText}</MathText>
+              <MathText as="p" style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--mm-text-strong)', lineHeight: 1.45 }}>{taskText}</MathText>
             </div>
           ) : null}
           {steps.length ? (
-            <ol style={{ margin: showsDirections || description ? '10px 0 0' : 0, paddingLeft: 20, color: '#3c4756', lineHeight: 1.6 }}>
+            <ol style={{ margin: showsDirections || description ? '10px 0 0' : 0, paddingLeft: 20, color: 'var(--mm-text)', lineHeight: 1.6 }}>
               {steps.map((step, index) => <li key={index}><MathText>{step}</MathText></li>)}
             </ol>
           ) : null}
-          {note ? <MathText as="p" style={{ margin: '10px 0 0', fontSize: 13, color: '#5f6b7a' }}>{note}</MathText> : null}
+          {note ? <MathText as="p" style={{ margin: '10px 0 0', fontSize: 13, color: 'var(--mm-text-muted)' }}>{note}</MathText> : null}
         </QuietDisclosure>
       ) : null}
     </div>
@@ -489,9 +489,9 @@ export const HintPanel = ({ hints = [], onHintUsed }) => {
   const used = revealed > 0;
 
   return (
-    <div style={{ marginTop: 16, ...(used ? { border: '1px solid #f0d9a8', borderRadius: 12, background: '#fffaf0', padding: '12px 15px' } : null) }}>
+    <div style={{ marginTop: 16, ...(used ? { border: '1px solid var(--mm-warning-border-soft)', borderRadius: 12, background: 'var(--mm-warning-subtle)', padding: '12px 15px' } : null) }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        {used && <strong style={{ color: '#7a4f01', fontSize: 14 }}>Hints</strong>}
+        {used && <strong style={{ color: 'var(--mm-warning-text)', fontSize: 14 }}>Hints</strong>}
         <button
           type="button"
           onClick={revealNext}
@@ -499,16 +499,16 @@ export const HintPanel = ({ hints = [], onHintUsed }) => {
           title="Using a hint is recorded for your teacher."
           style={{
             minHeight: 44, padding: '7px 13px', borderRadius: 999, border: '1px solid #e0a800',
-            background: revealed >= hints.length ? '#f1f1f1' : '#fffaf0', color: '#7a4f01',
+            background: revealed >= hints.length ? 'var(--mm-surface-control)' : 'var(--mm-warning-subtle)', color: 'var(--mm-warning-text)',
             fontWeight: 800, fontSize: 13, cursor: revealed >= hints.length ? 'default' : 'pointer',
           }}
         >
           {revealed === 0 ? 'Stuck? Show a hint' : revealed >= hints.length ? 'All hints shown' : `Show hint ${revealed + 1} of ${hints.length}`}
         </button>
-        {!used && <span style={{ fontSize: 12, color: '#7a6027' }}>Recorded for your teacher</span>}
+        {!used && <span style={{ fontSize: 12, color: 'var(--mm-warning-text)' }}>Recorded for your teacher</span>}
       </div>
       {used ? (
-        <ol style={{ margin: '10px 0 0', paddingLeft: 20, color: '#5f4400', lineHeight: 1.6 }}>
+        <ol style={{ margin: '10px 0 0', paddingLeft: 20, color: 'var(--mm-warning-text)', lineHeight: 1.6 }}>
           {hints.slice(0, revealed).map((hint, index) => <li key={index} style={{ marginBottom: 4 }}><MathText>{hint}</MathText></li>)}
         </ol>
       ) : null}

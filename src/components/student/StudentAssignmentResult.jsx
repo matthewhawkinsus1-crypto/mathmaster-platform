@@ -42,9 +42,9 @@ const actionStyle = (primary) => ({
   appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
   minHeight: MIN_TOUCH_TARGET_PX, padding: '12px 18px', borderRadius: 10,
   fontWeight: 900, fontSize: 15, cursor: 'pointer', flex: '1 1 180px',
-  border: primary ? 0 : '2px solid #c9ced6',
-  background: primary ? '#174ea6' : '#fff',
-  color: primary ? '#fff' : '#3c4043',
+  border: primary ? 0 : '2px solid var(--mm-border)',
+  background: primary ? '#174ea6' : 'var(--mm-surface)',
+  color: primary ? '#fff' : 'var(--mm-text)',
 });
 
 export default function StudentAssignmentResult({
@@ -78,10 +78,10 @@ export default function StudentAssignmentResult({
   const onBackToOrigin = cameFromGrades ? onViewAllGrades : onViewAllAssignments;
   if (!entry) {
     return (
-      <main style={{ minHeight: '100vh', background: '#f0f2f5', padding: '28px 16px', fontFamily: '"Segoe UI", sans-serif' }}>
-        <section style={{ maxWidth: 680, margin: '0 auto', padding: 22, borderRadius: 14, background: 'var(--mm-surface)', border: '1px solid #d8dde6', textAlign: 'left' }}>
+      <main style={{ minHeight: '100vh', background: 'var(--mm-surface-control)', padding: '28px 16px', fontFamily: '"Segoe UI", sans-serif' }}>
+        <section style={{ maxWidth: 680, margin: '0 auto', padding: 22, borderRadius: 14, background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', textAlign: 'left' }}>
           <h1 style={{ marginTop: 0, fontSize: 21, color: 'var(--mm-text-strong)' }}>That assignment is not available</h1>
-          <p style={{ color: '#5f6368', lineHeight: 1.55 }}>
+          <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>
             This assignment is not assigned to your MathMaster class, or it has been removed. Your other grades are still here.
           </p>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
@@ -115,7 +115,7 @@ export default function StudentAssignmentResult({
     <main
       className={`${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`}
       style={{
-        minHeight: '100vh', background: supportPresentation.highContrast ? '#fff' : '#f0f2f5',
+        minHeight: '100vh', background: supportPresentation.highContrast ? 'var(--mm-surface)' : 'var(--mm-surface-control)',
         padding: '20px 14px 48px', fontFamily: '"Segoe UI", sans-serif',
         fontSize: supportPresentation.largeText ? '120%' : undefined,
       }}
@@ -124,7 +124,7 @@ export default function StudentAssignmentResult({
         aria-label="Assignment result"
         style={{
           maxWidth: 760, margin: '0 auto', padding: '20px 18px', borderRadius: 14,
-          background: 'var(--mm-surface)', border: '1px solid #d8dde6', textAlign: 'left', minWidth: 0,
+          background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', textAlign: 'left', minWidth: 0,
         }}
       >
         {/*
@@ -138,32 +138,32 @@ export default function StudentAssignmentResult({
           style={{
             appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
             minHeight: MIN_TOUCH_TARGET_PX, padding: '10px 14px', marginBottom: 12,
-            borderRadius: 10, border: '2px solid #c9ced6', background: 'var(--mm-surface)',
-            color: '#3c4043', fontWeight: 900, fontSize: 14, cursor: 'pointer',
+            borderRadius: 10, border: '2px solid var(--mm-border)', background: 'var(--mm-surface)',
+            color: 'var(--mm-text)', fontWeight: 900, fontSize: 14, cursor: 'pointer',
           }}
         >
           {backLabel}
         </button>
 
-        <div style={{ fontSize: 12, fontWeight: 950, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>
+        <div style={{ fontSize: 12, fontWeight: 950, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
           {entry.frozen ? 'Recorded MathMaster result' : 'MathMaster result so far'}
           {sectionLabel ? ` · ${sectionLabel}` : ''}
         </div>
         <h1 style={{ margin: '8px 0 4px', fontSize: 'clamp(20px, 6vw, 26px)', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
           {entry.title}
         </h1>
-        <div style={{ fontSize: 13, color: '#5f6368' }}>{statusLine}</div>
+        <div style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>{statusLine}</div>
 
-        <div style={{ marginTop: 16, padding: '16px 16px 14px', borderRadius: 12, background: '#e8f0fe' }}>
-          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.05em', textTransform: 'uppercase', color: '#174ea6' }}>
+        <div style={{ marginTop: 16, padding: '16px 16px 14px', borderRadius: 12, background: 'var(--mm-primary-soft)' }}>
+          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--mm-primary-text)' }}>
             {entry.frozen ? 'Your grade · frozen' : 'Your grade'}
           </div>
-          <div style={{ marginTop: 4, fontSize: 'clamp(28px, 9vw, 40px)', fontWeight: 1000, lineHeight: 1.05, color: '#174ea6', overflowWrap: 'anywhere' }}>
+          <div style={{ marginTop: 4, fontSize: 'clamp(28px, 9vw, 40px)', fontWeight: 1000, lineHeight: 1.05, color: 'var(--mm-primary-text)', overflowWrap: 'anywhere' }}>
             {gradeHeadline}
           </div>
-          <div style={{ marginTop: 4, fontSize: 13, fontWeight: 800, color: '#174ea6' }}>{entry.statusLabel}</div>
+          <div style={{ marginTop: 4, fontSize: 13, fontWeight: 800, color: 'var(--mm-primary-text)' }}>{entry.statusLabel}</div>
           {entry.exclusionText && (
-            <p style={{ margin: '8px 0 0', fontSize: 12, lineHeight: 1.5, color: '#3c4043' }}>{entry.exclusionText}</p>
+            <p style={{ margin: '8px 0 0', fontSize: 12, lineHeight: 1.5, color: 'var(--mm-text)' }}>{entry.exclusionText}</p>
           )}
         </div>
 
@@ -174,13 +174,13 @@ export default function StudentAssignmentResult({
         {/* Feedback/release state, said plainly, because "no number yet" and
             "you scored nothing" are opposite messages. */}
         {entry.feedbackHeld && (
-          <p style={{ margin: '14px 0 0', padding: '12px 14px', borderRadius: 10, background: '#fff8df', border: '1px solid #f9ab00', fontSize: 13, lineHeight: 1.55, color: '#5f4400' }}>
+          <p style={{ margin: '14px 0 0', padding: '12px 14px', borderRadius: 10, background: 'var(--mm-warning-bg)', border: '1px solid #f9ab00', fontSize: 13, lineHeight: 1.55, color: 'var(--mm-warning-text)' }}>
             Your teacher is holding feedback on this assignment. Your work is recorded — the grade appears here as soon as it is released, and it is not counted as a zero in the meantime.
           </p>
         )}
 
         {receipt.present && receipt.grade !== null && (
-          <p style={{ margin: '14px 0 0', padding: '12px 14px', borderRadius: 10, background: '#f8f9fa', border: '1px solid #e4e7ec', fontSize: 13, lineHeight: 1.55, color: '#3c4043' }}>
+          <p style={{ margin: '14px 0 0', padding: '12px 14px', borderRadius: 10, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border-soft)', fontSize: 13, lineHeight: 1.55, color: 'var(--mm-text)' }}>
             {receipt.studentVisible ? 'Google Classroom shows' : 'Classroom teacher draft'}: {receipt.grade}% · {receipt.label}
             {!receipt.isFinal && !receipt.matchesMathMaster && (
               <> Your MathMaster grade has changed; Classroom updates at the next checkpoint.</>
@@ -189,7 +189,7 @@ export default function StudentAssignmentResult({
         )}
 
         {entry.frozen && (
-          <p style={{ margin: '14px 0 0', fontSize: 13, lineHeight: 1.55, color: '#5f6368' }}>
+          <p style={{ margin: '14px 0 0', fontSize: 13, lineHeight: 1.55, color: 'var(--mm-text-muted)' }}>
             This assignment is past its final deadline, so the grade above can no longer change. Opening it again gives you every question with full solutions — your recorded answers are not replayed, and the scores above are the record. Nothing you do there changes this grade, your evidence, your mastery, or your Google Classroom score.
           </p>
         )}

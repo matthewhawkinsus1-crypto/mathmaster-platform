@@ -20,7 +20,13 @@ const teacher = {
   email: TEACHER_EMAIL,
   displayName: 'Sample Teacher',
   photoURL: null,
-  getIdTokenResult: async () => ({ claims: { role: 'teacher', email: TEACHER_EMAIL } }),
+  // `?rootAdmin=1`: the same teacher with the root administrator's claims
+  // (AuthProvider reads rootAdmin && admin), so the Teacher View /
+  // Administration workspace renders — the dark-mode certification audits it.
+  getIdTokenResult: async () => ({ claims: {
+    role: 'teacher', email: TEACHER_EMAIL,
+    ...(new URLSearchParams(window.location.search).get('rootAdmin') === '1' ? { rootAdmin: true, admin: true } : {}),
+  } }),
   getIdToken: async () => 'harness-token',
 };
 const params = new URLSearchParams(window.location.search);

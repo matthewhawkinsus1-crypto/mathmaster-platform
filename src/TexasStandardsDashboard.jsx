@@ -71,9 +71,9 @@ const CourseTabs = ({ selectedCourseId, onSelect }) => (
         type="button"
         onClick={() => onSelect(course.id)}
         style={{
-          border: selectedCourseId === course.id ? '2px solid #1a73e8' : '1px solid #bdc7d6',
-          background: selectedCourseId === course.id ? '#e8f0fe' : '#fff',
-          color: selectedCourseId === course.id ? '#174ea6' : '#3c4043',
+          border: selectedCourseId === course.id ? '2px solid #1a73e8' : '1px solid var(--mm-border)',
+          background: selectedCourseId === course.id ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+          color: selectedCourseId === course.id ? 'var(--mm-primary-text)' : 'var(--mm-text)',
           borderRadius: '999px',
           padding: '7px 12px',
           fontWeight: 900,
@@ -103,9 +103,9 @@ const getCourseProfile = (profile, courseId) => {
 const PathwayCard = ({ standard, label, emphasis = false, onSelect }) => {
   if (!standard) {
     return (
-      <div style={{ minHeight: '118px', padding: '12px', border: '1px dashed #c5ccd5', borderRadius: '10px', background: '#fafbfc' }}>
-        <strong style={{ color: '#5f6368' }}>{label}</strong>
-        <div style={{ marginTop: '12px', color: '#80868b', fontSize: '12px' }}>No linked TEKS loaded.</div>
+      <div style={{ minHeight: '118px', padding: '12px', border: '1px dashed var(--mm-border)', borderRadius: '10px', background: 'var(--mm-surface-sunken)' }}>
+        <strong style={{ color: 'var(--mm-text-muted)' }}>{label}</strong>
+        <div style={{ marginTop: '12px', color: 'var(--mm-text-subtle)', fontSize: '12px' }}>No linked TEKS loaded.</div>
       </div>
     );
   }
@@ -113,14 +113,14 @@ const PathwayCard = ({ standard, label, emphasis = false, onSelect }) => {
     <button
       type="button"
       onClick={() => onSelect?.(standard)}
-      style={{ minHeight: '118px', width: '100%', textAlign: 'left', padding: '12px', border: emphasis ? '2px solid #1a73e8' : '1px solid #d9e2ef', borderRadius: '10px', background: emphasis ? '#f3f7ff' : '#fff', cursor: onSelect ? 'pointer' : 'default' }}
+      style={{ minHeight: '118px', width: '100%', textAlign: 'left', padding: '12px', border: emphasis ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', borderRadius: '10px', background: emphasis ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', cursor: onSelect ? 'pointer' : 'default' }}
     >
-      <div style={{ color: '#5f6368', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}>{label}</div>
+      <div style={{ color: 'var(--mm-text-muted)', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase' }}>{label}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginTop: '6px', flexWrap: 'wrap' }}>
-        <strong style={{ color: '#174ea6' }}>{standard.code}</strong>
-        <span style={{ color: '#5f6368', fontSize: '11px' }}>{standard.course}</span>
+        <strong style={{ color: 'var(--mm-primary-text)' }}>{standard.code}</strong>
+        <span style={{ color: 'var(--mm-text-muted)', fontSize: '11px' }}>{standard.course}</span>
       </div>
-      <div style={{ marginTop: '7px', fontSize: '11px', color: '#3c4043', lineHeight: 1.35 }}>{standard.description}</div>
+      <div style={{ marginTop: '7px', fontSize: '11px', color: 'var(--mm-text)', lineHeight: 1.35 }}>{standard.description}</div>
     </button>
   );
 };
@@ -290,11 +290,11 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
   ];
 
   return (
-    <div style={{ padding: '18px', border: '1px solid #e1e5ea', borderRadius: '12px', background: 'var(--mm-surface)' }}>
+    <div style={{ padding: '18px', border: '1px solid var(--mm-border-soft)', borderRadius: '12px', background: 'var(--mm-surface)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div>
           <h2 style={{ margin: 0 }}>Texas Math TEKS & Mastery</h2>
-          <p style={{ margin: '5px 0 0', color: '#5f6368', fontSize: '12px', maxWidth: '720px' }}>
+          <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: '12px', maxWidth: '720px' }}>
             Course-aware TEKS evidence, DOK, instructional difficulty, vertical prerequisite support, and estimated instructional performance. Estimates are not official STAAR scores.
           </p>
         </div>
@@ -306,10 +306,10 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
         </div>
       </div>
 
-      <div style={{ marginTop: '15px', padding: '12px', borderRadius: '10px', background: '#f8f9fa', border: '1px solid #e1e5ea' }}>
-        <div style={{ color: '#5f6368', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', marginBottom: '7px' }}>Active Texas course registry</div>
+      <div style={{ marginTop: '15px', padding: '12px', borderRadius: '10px', background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border-soft)' }}>
+        <div style={{ color: 'var(--mm-text-muted)', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', marginBottom: '7px' }}>Active Texas course registry</div>
         <CourseTabs selectedCourseId={selectedCourseId} onSelect={handleCourseSelect} />
-        <div style={{ marginTop: '7px', color: '#5f6368', fontSize: '11px' }}>
+        <div style={{ marginTop: '7px', color: 'var(--mm-text-muted)', fontSize: '11px' }}>
           {selectedCourse?.label}: {selectedRegistry.length} TEKS expectations loaded
           {selectedCourseId === 'algebra1' ? ' · current STAAR readiness/supporting metadata available' : ' · course TEKS tracked without inventing Algebra I STAAR readiness/supporting labels'}
         </div>
@@ -317,7 +317,7 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
 
       <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', margin: '14px 0 10px' }}>
         {viewButtons.map(([key, label]) => (
-          <button key={key} type="button" onClick={() => setView(key)} style={{ fontWeight: 900, borderColor: view === key ? '#1a73e8' : '#bdc7d6', background: view === key ? '#e8f0fe' : '#fff', color: view === key ? '#174ea6' : '#3c4043' }}>{label}</button>
+          <button key={key} type="button" onClick={() => setView(key)} style={{ fontWeight: 900, borderColor: view === key ? '#1a73e8' : 'var(--mm-border)', background: view === key ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', color: view === key ? 'var(--mm-primary-text)' : 'var(--mm-text)' }}>{label}</button>
         ))}
         <select value={classId} onChange={(event) => setClassId(event.target.value)} style={{ marginLeft: 'auto' }}>
           <option value="All">All classes</option>
@@ -325,7 +325,7 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
         </select>
       </div>
 
-      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '12px', color: '#5f6368', fontSize: '12px' }}>
+      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '12px', color: 'var(--mm-text-muted)', fontSize: '12px' }}>
         <span><strong style={{ color: 'var(--mm-text-strong)' }}>{students.length}</strong> students</span>
         <span><strong style={{ color: 'var(--mm-text-strong)' }}>{courseItemAnalytics.length}</strong> {selectedCourse?.label} question records</span>
         <span><strong style={{ color: 'var(--mm-text-strong)' }}>{coverage}%</strong> TEKS + DOK metadata coverage</span>
@@ -335,16 +335,16 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
           </label>
         )}
         {(view === 'registry' || view === 'pathway') && (
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search TEKS…" style={{ minWidth: '220px', padding: '7px 9px', borderRadius: '7px', border: '1px solid #bdc7d6' }} />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search TEKS…" style={{ minWidth: '220px', padding: '7px 9px', borderRadius: '7px', border: '1px solid var(--mm-border)' }} />
         )}
       </div>
 
       {view === 'matrix' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(280px, 370px)', gap: '14px', alignItems: 'start' }}>
-          <div style={{ overflowX: 'auto', border: '1px solid #e1e5ea', borderRadius: '10px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(min(100%, 280px), 370px)', gap: '14px', alignItems: 'start' }}>
+          <div style={{ overflowX: 'auto', border: '1px solid var(--mm-border-soft)', borderRadius: '10px' }}>
             <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: `${650 + visibleCodes.length * 90}px`, fontSize: '12px' }}>
               <thead>
-                <tr style={{ background: '#f8f9fa' }}>
+                <tr style={{ background: 'var(--mm-surface-sunken)' }}>
                   <th style={{ textAlign: 'left', padding: '10px' }}>Student</th>
                   <th style={{ padding: '10px' }}>{selectedCourse?.label} estimate</th>
                   <th style={{ padding: '10px' }}>Confidence</th>
@@ -357,14 +357,14 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
                   const profile = profileMap[student.id];
                   const courseProfile = getCourseProfile(profile, selectedCourseId);
                   return (
-                    <tr key={student.id} onClick={() => setSelectedStudentId(student.id)} style={{ cursor: 'pointer', background: selectedStudent?.id === student.id ? '#f3f7ff' : '#fff', borderTop: '1px solid #eceff3' }}>
-                      <td style={{ padding: '10px', fontWeight: 800 }}>{formatStudentName(student)}<div style={{ color: '#5f6368', fontWeight: 400 }}>{studentIdLabel(student)} · {student.classPeriod || 'Unassigned'}</div></td>
+                    <tr key={student.id} onClick={() => setSelectedStudentId(student.id)} style={{ cursor: 'pointer', background: selectedStudent?.id === student.id ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', borderTop: '1px solid var(--mm-border-soft)' }}>
+                      <td style={{ padding: '10px', fontWeight: 800 }}>{formatStudentName(student)}<div style={{ color: 'var(--mm-text-muted)', fontWeight: 400 }}>{studentIdLabel(student)} · {student.classPeriod || 'Unassigned'}</div></td>
                       <td style={{ padding: '10px', textAlign: 'center' }}><PerformanceBadge performance={courseProfile?.overall?.performance} /></td>
                       <td style={{ padding: '10px', textAlign: 'center' }}>{courseProfile?.overall?.confidence || 'Low'}</td>
                       <td style={{ padding: '10px', textAlign: 'center', fontWeight: 900 }}>{courseProfile?.overall?.recommendedGeneratorBand || 3}</td>
                       {visibleCodes.map((code) => (
                         <td key={code} style={{ padding: '10px', textAlign: 'center' }}>
-                          {courseProfile?.teks?.[code] ? <><div style={{ fontWeight: 900 }}>{pct(courseProfile.teks[code].score)}</div><div style={{ color: '#5f6368', fontSize: '10px' }}>{courseProfile.teks[code].performance?.shortLabel}</div></> : '—'}
+                          {courseProfile?.teks?.[code] ? <><div style={{ fontWeight: 900 }}>{pct(courseProfile.teks[code].score)}</div><div style={{ color: 'var(--mm-text-muted)', fontSize: '10px' }}>{courseProfile.teks[code].performance?.shortLabel}</div></> : '—'}
                         </td>
                       ))}
                     </tr>
@@ -374,11 +374,11 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
             </table>
           </div>
 
-          <aside style={{ padding: '14px', border: '1px solid #d9e2ef', borderRadius: '10px', background: '#fbfcff' }}>
+          <aside style={{ padding: '14px', border: '1px solid var(--mm-tint-border)', borderRadius: '10px', background: 'var(--mm-surface)' }}>
             {selectedStudent ? (
               <>
                 <h3 style={{ margin: 0 }}>{formatStudentName(selectedStudent)}</h3>
-                <div style={{ color: '#5f6368', fontSize: '12px', margin: '4px 0 10px' }}>{studentIdLabel(selectedStudent)} · {selectedStudent.classPeriod || 'Unassigned'} · {selectedCourse?.label}</div>
+                <div style={{ color: 'var(--mm-text-muted)', fontSize: '12px', margin: '4px 0 10px' }}>{studentIdLabel(selectedStudent)} · {selectedStudent.classPeriod || 'Unassigned'} · {selectedCourse?.label}</div>
                 <PerformanceBadge performance={selectedCourseProfile?.overall?.performance} />
                 <div style={{ marginTop: '11px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '7px', fontSize: '12px' }}>
                   <div><strong>{pct(selectedCourseProfile?.overall?.score)}</strong><br />weighted score</div>
@@ -389,16 +389,16 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
                 <h4 style={{ marginBottom: '7px' }}>{selectedCourse?.label} TEKS evidence</h4>
                 <div style={{ display: 'grid', gap: '7px', maxHeight: '335px', overflowY: 'auto' }}>
                   {Object.values(selectedCourseProfile?.teks || {}).sort((a, b) => a.code.localeCompare(b.code)).map((summary) => (
-                    <div key={summary.code} style={{ padding: '8px', borderRadius: '7px', background: 'var(--mm-surface)', border: '1px solid #e1e5ea' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}><strong>{summary.code} · {pct(summary.score)}</strong><span style={{ textTransform: 'capitalize', color: '#5f6368' }}>{summary.classification}</span></div>
-                      <div style={{ fontSize: '11px', color: '#5f6368', marginTop: '3px' }}>{summary.itemCount} grade-level · DOK max {summary.maxDok || '—'} · {summary.confidence} confidence</div>
-                      {summary.modifiedEvidence?.itemCount > 0 && <div style={{ fontSize: '11px', color: '#7b1fa2', marginTop: '3px' }}>{summary.modifiedEvidence.itemCount} modified evidence item(s) tracked separately</div>}
+                    <div key={summary.code} style={{ padding: '8px', borderRadius: '7px', background: 'var(--mm-surface)', border: '1px solid var(--mm-border-soft)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}><strong>{summary.code} · {pct(summary.score)}</strong><span style={{ textTransform: 'capitalize', color: 'var(--mm-text-muted)' }}>{summary.classification}</span></div>
+                      <div style={{ fontSize: '11px', color: 'var(--mm-text-muted)', marginTop: '3px' }}>{summary.itemCount} grade-level · DOK max {summary.maxDok || '—'} · {summary.confidence} confidence</div>
+                      {summary.modifiedEvidence?.itemCount > 0 && <div style={{ fontSize: '11px', color: 'var(--mm-accent-text)', marginTop: '3px' }}>{summary.modifiedEvidence.itemCount} modified evidence item(s) tracked separately</div>}
                     </div>
                   ))}
-                  {!Object.keys(selectedCourseProfile?.teks || {}).length && <div style={{ color: '#5f6368', fontSize: '12px' }}>No {selectedCourse?.label} evidence yet. Insufficient evidence never triggers automatic below-grade-level placement.</div>}
+                  {!Object.keys(selectedCourseProfile?.teks || {}).length && <div style={{ color: 'var(--mm-text-muted)', fontSize: '12px' }}>No {selectedCourse?.label} evidence yet. Insufficient evidence never triggers automatic below-grade-level placement.</div>}
                 </div>
               </>
-            ) : <p style={{ color: '#5f6368' }}>No student evidence yet.</p>}
+            ) : <p style={{ color: 'var(--mm-text-muted)' }}>No student evidence yet.</p>}
           </aside>
         </div>
       )}
@@ -421,12 +421,12 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
       )}
 
       {view === 'items' && (
-        <div style={{ overflowX: 'auto', border: '1px solid #e1e5ea', borderRadius: '10px' }}>
+        <div style={{ overflowX: 'auto', border: '1px solid var(--mm-border-soft)', borderRadius: '10px' }}>
           <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: '1080px', fontSize: '12px' }}>
-            <thead><tr style={{ background: '#f8f9fa' }}>{['Course', 'Assignment / question', 'TEKS', 'DOK', 'Intended', 'Purpose', 'Responses', '1st attempt', 'Eventual', 'Avg attempts', 'Observed'].map((header) => <th key={header} style={{ padding: '10px', textAlign: 'left' }}>{header}</th>)}</tr></thead>
+            <thead><tr style={{ background: 'var(--mm-surface-sunken)' }}>{['Course', 'Assignment / question', 'TEKS', 'DOK', 'Intended', 'Purpose', 'Responses', '1st attempt', 'Eventual', 'Avg attempts', 'Observed'].map((header) => <th key={header} style={{ padding: '10px', textAlign: 'left' }}>{header}</th>)}</tr></thead>
             <tbody>
               {courseItemAnalytics.map((row) => (
-                <tr key={`${row.assignmentId}-${row.questionIndex}`} style={{ borderTop: '1px solid #eceff3' }}>
+                <tr key={`${row.assignmentId}-${row.questionIndex}`} style={{ borderTop: '1px solid var(--mm-border-soft)' }}>
                   <td style={{ padding: '10px' }}>{row.primaryCourse || selectedCourse?.label}</td>
                   <td style={{ padding: '10px' }}><strong>{row.assignmentTitle}</strong><br />Q{row.questionNumber} · {row.type}</td>
                   <td style={{ padding: '10px' }}>{row.primaryTeks.join(', ') || 'Unassigned'}</td>
@@ -440,7 +440,7 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
                   <td style={{ padding: '10px' }}>{row.observedDifficultyLabel}</td>
                 </tr>
               ))}
-              {!courseItemAnalytics.length && <tr><td colSpan={11} style={{ padding: '18px', color: '#5f6368' }}>No {selectedCourse?.label} item evidence yet.</td></tr>}
+              {!courseItemAnalytics.length && <tr><td colSpan={11} style={{ padding: '18px', color: 'var(--mm-text-muted)' }}>No {selectedCourse?.label} item evidence yet.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -449,14 +449,14 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
       {view === 'registry' && (
         <div style={{ display: 'grid', gap: '8px' }}>
           {filteredRegistry.map((standard) => (
-            <article key={standard.code} style={{ padding: '11px 13px', borderRadius: '9px', border: '1px solid #e1e5ea', background: 'var(--mm-surface)' }}>
+            <article key={standard.code} style={{ padding: '11px 13px', borderRadius: '9px', border: '1px solid var(--mm-border-soft)', background: 'var(--mm-surface)' }}>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <strong style={{ color: '#174ea6' }}>{standard.code}</strong>
+                <strong style={{ color: 'var(--mm-primary-text)' }}>{standard.code}</strong>
                 <StandardBadge standard={standard} />
-                <span style={{ color: '#5f6368', fontSize: '11px' }}>{standard.course}</span>
-                {standard.reportingCategory && <span style={{ color: '#5f6368', fontSize: '11px' }}>RC {standard.reportingCategory}: {ALGEBRA_I_REPORTING_CATEGORIES[standard.reportingCategory]}</span>}
+                <span style={{ color: 'var(--mm-text-muted)', fontSize: '11px' }}>{standard.course}</span>
+                {standard.reportingCategory && <span style={{ color: 'var(--mm-text-muted)', fontSize: '11px' }}>RC {standard.reportingCategory}: {ALGEBRA_I_REPORTING_CATEGORIES[standard.reportingCategory]}</span>}
               </div>
-              <p style={{ margin: '6px 0 0', color: '#3c4043', fontSize: '12px' }}>{standard.description}</p>
+              <p style={{ margin: '6px 0 0', color: 'var(--mm-text)', fontSize: '12px' }}>{standard.description}</p>
             </article>
           ))}
         </div>
@@ -464,8 +464,8 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
 
       {view === 'pathway' && (
         <div style={{ display: 'grid', gap: '14px' }}>
-          <section style={{ padding: '13px', border: '1px solid #e1e5ea', borderRadius: '10px', background: '#f8f9fa' }}>
-            <div style={{ fontWeight: 900, marginBottom: '3px' }}>Texas mathematics course / grade navigator</div><div style={{ color: '#5f6368', fontSize: '11px', marginBottom: '9px' }}>Navigation order is not a prerequisite chain. Course prerequisites are shown on each card.</div>
+          <section style={{ padding: '13px', border: '1px solid var(--mm-border-soft)', borderRadius: '10px', background: 'var(--mm-surface-sunken)' }}>
+            <div style={{ fontWeight: 900, marginBottom: '3px' }}>Texas mathematics course / grade navigator</div><div style={{ color: 'var(--mm-text-muted)', fontSize: '11px', marginBottom: '9px' }}>Navigation order is not a prerequisite chain. Course prerequisites are shown on each card.</div>
             <div style={{ display: 'flex', gap: '7px', alignItems: 'stretch', overflowX: 'auto', paddingBottom: '4px' }}>
               {[...TEXAS_MATH_COURSES].sort((a, b) => a.order - b.order).map((course, index, ordered) => (
                 <div key={course.id} style={{ display: 'flex', alignItems: 'center', flex: '0 0 auto' }}>
@@ -473,23 +473,23 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
                     type="button"
                     disabled={!getTexasStandardsForCourse(course.id).length}
                     onClick={() => handleCourseSelect(course.id)}
-                    style={{ minWidth: '112px', padding: '10px', borderRadius: '9px', border: selectedCourseId === course.id ? '2px solid #1a73e8' : '1px solid #cfd7e2', background: selectedCourseId === course.id ? '#e8f0fe' : '#fff', color: course.registryStatus === 'active' ? '#202124' : '#80868b', cursor: course.registryStatus === 'active' ? 'pointer' : 'default' }}
+                    style={{ minWidth: '112px', padding: '10px', borderRadius: '9px', border: selectedCourseId === course.id ? '2px solid #1a73e8' : '1px solid var(--mm-border)', background: selectedCourseId === course.id ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', color: course.registryStatus === 'active' ? 'var(--mm-text-strong)' : 'var(--mm-text-subtle)', cursor: course.registryStatus === 'active' ? 'pointer' : 'default' }}
                   >
                     <strong>{course.label}</strong>
-                    <div style={{ fontSize: '10px', marginTop: '4px', color: course.registryStatus === 'active' ? '#137333' : '#80868b' }}>{course.registryStatus === 'active' ? 'TEKS loaded' : 'planned registry'}</div>
-                    {getTexasCoursePrerequisites(course.id).length > 0 && <div style={{ fontSize: '9px', marginTop: '4px', color: '#5f6368' }}>Prereq: {getTexasCoursePrerequisites(course.id).map((item) => item.shortLabel).join(', ')}</div>}
+                    <div style={{ fontSize: '10px', marginTop: '4px', color: course.registryStatus === 'active' ? 'var(--mm-success-text)' : 'var(--mm-text-subtle)' }}>{course.registryStatus === 'active' ? 'TEKS loaded' : 'planned registry'}</div>
+                    {getTexasCoursePrerequisites(course.id).length > 0 && <div style={{ fontSize: '9px', marginTop: '4px', color: 'var(--mm-text-muted)' }}>Prereq: {getTexasCoursePrerequisites(course.id).map((item) => item.shortLabel).join(', ')}</div>}
                   </button>
-                  {index < ordered.length - 1 && <span style={{ padding: '0 5px', color: '#9aa0a6', fontWeight: 900 }}>→</span>}
+                  {index < ordered.length - 1 && <span style={{ padding: '0 5px', color: 'var(--mm-text-subtle)', fontWeight: 900 }}>→</span>}
                 </div>
               ))}
             </div>
           </section>
 
-          <section style={{ padding: '13px', border: '1px solid #d9e2ef', borderRadius: '10px', background: 'var(--mm-surface)' }}>
+          <section style={{ padding: '13px', border: '1px solid var(--mm-tint-border)', borderRadius: '10px', background: 'var(--mm-surface)' }}>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'end' }}>
               <div>
                 <div style={{ fontWeight: 900 }}>Trace a TEKS vertically</div>
-                <div style={{ color: '#5f6368', fontSize: '11px', marginTop: '3px' }}>Prior TEKS are support targets. They never replace the current-course TEKS being taught.</div>
+                <div style={{ color: 'var(--mm-text-muted)', fontSize: '11px', marginTop: '3px' }}>Prior TEKS are support targets. They never replace the current-course TEKS being taught.</div>
               </div>
               <select value={pathwayStandard?.code || ''} onChange={(event) => setSelectedPathwayCode(event.target.value)} style={{ minWidth: '320px', maxWidth: '100%' }}>
                 {selectedRegistry.filter((standard) => !search.trim() || `${standard.code} ${standard.description}`.toLowerCase().includes(search.trim().toLowerCase())).map((standard) => <option key={standard.code} value={standard.code}>{standard.code} — {standard.description}</option>)}
@@ -499,22 +499,22 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
 
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1fr)', gap: '11px' }}>
             <section>
-              <div style={{ fontWeight: 900, marginBottom: '7px', color: '#5f6368' }}>PRIOR-COURSE SUPPORT</div>
+              <div style={{ fontWeight: 900, marginBottom: '7px', color: 'var(--mm-text-muted)' }}>PRIOR-COURSE SUPPORT</div>
               <div style={{ display: 'grid', gap: '8px' }}>
                 {pathway.prior.length ? pathway.prior.map((standard) => <PathwayCard key={standard.code} standard={standard} label="Prerequisite support" onSelect={handlePathwayStandardSelect} />) : <PathwayCard label="Prerequisite support" />}
               </div>
             </section>
 
             <section>
-              <div style={{ fontWeight: 900, marginBottom: '7px', color: '#174ea6' }}>CURRENT INSTRUCTIONAL TARGET</div>
+              <div style={{ fontWeight: 900, marginBottom: '7px', color: 'var(--mm-primary-text)' }}>CURRENT INSTRUCTIONAL TARGET</div>
               <PathwayCard standard={pathway.current || pathwayStandard} label="Keep this TEKS as the grade-level/course target" emphasis />
-              <div style={{ marginTop: '9px', padding: '10px', borderRadius: '8px', background: '#e6f4ea', color: '#137333', fontSize: '11px' }}>
+              <div style={{ marginTop: '9px', padding: '10px', borderRadius: '8px', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: '11px' }}>
                 Auto-differentiation may change generator band or recommend prerequisite practice, but MathMaster preserves this current TEKS as the evidence target unless the teacher explicitly changes it.
               </div>
             </section>
 
             <section>
-              <div style={{ fontWeight: 900, marginBottom: '7px', color: '#5f6368' }}>NEXT CONNECTED TEKS</div>
+              <div style={{ fontWeight: 900, marginBottom: '7px', color: 'var(--mm-text-muted)' }}>NEXT CONNECTED TEKS</div>
               <div style={{ display: 'grid', gap: '8px' }}>
                 {pathway.next.length ? pathway.next.map((standard) => <PathwayCard key={standard.code} standard={standard} label="Next connection" onSelect={handlePathwayStandardSelect} />) : <PathwayCard label="Next connection" />}
               </div>
@@ -522,30 +522,30 @@ export default function TexasStandardsDashboard({ allStudents = [], assignments 
           </div>
 
           {priorPath.length > 1 && (
-            <section style={{ padding: '12px', border: '1px solid #d9e2ef', borderRadius: '10px', background: 'var(--mm-surface)' }}>
+            <section style={{ padding: '12px', border: '1px solid var(--mm-tint-border)', borderRadius: '10px', background: 'var(--mm-surface)' }}>
               <div style={{ fontWeight: 900, marginBottom: '5px' }}>Multi-level prerequisite support ladder</div>
-              <div style={{ color: '#5f6368', fontSize: '11px', marginBottom: '10px' }}>
+              <div style={{ color: 'var(--mm-text-muted)', fontSize: '11px', marginBottom: '10px' }}>
                 Level 1 is the first support recommendation. Lower levels are a diagnostic roadmap only; MathMaster does not automatically skip a student down multiple grades without evidence from the intervening prerequisite level.
               </div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch', overflowX: 'auto', paddingBottom: '4px' }}>
                 {priorPath.map((level, index) => (
                   <div key={`${level.depth}-${level.courseId}`} style={{ display: 'flex', alignItems: 'center', flex: '0 0 auto' }}>
-                    <div style={{ minWidth: '205px', maxWidth: '280px', padding: '10px', borderRadius: '9px', border: index === 0 ? '2px solid #1a73e8' : '1px solid #cfd7e2', background: index === 0 ? '#f3f7ff' : '#fafbfc' }}>
-                      <div style={{ fontSize: '10px', fontWeight: 900, color: index === 0 ? '#174ea6' : '#5f6368' }}>
+                    <div style={{ minWidth: '205px', maxWidth: '280px', padding: '10px', borderRadius: '9px', border: index === 0 ? '2px solid #1a73e8' : '1px solid var(--mm-border)', background: index === 0 ? 'var(--mm-primary-subtle)' : 'var(--mm-surface-sunken)' }}>
+                      <div style={{ fontSize: '10px', fontWeight: 900, color: index === 0 ? 'var(--mm-primary-text)' : 'var(--mm-text-muted)' }}>
                         {index === 0 ? 'CURRENT TARGET' : `SUPPORT DEPTH ${level.depth}`} · {getTexasCourse(level.courseId)?.label || level.courseId}
                       </div>
-                      <div style={{ marginTop: '6px', fontSize: '11px', color: '#3c4043', lineHeight: 1.45 }}>
+                      <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--mm-text)', lineHeight: 1.45 }}>
                         {level.standards.map((standard) => standard.code).join(', ')}
                       </div>
                     </div>
-                    {index < priorPath.length - 1 && <span style={{ padding: '0 5px', color: '#9aa0a6', fontWeight: 900 }}>→</span>}
+                    {index < priorPath.length - 1 && <span style={{ padding: '0 5px', color: 'var(--mm-text-subtle)', fontWeight: 900 }}>→</span>}
                   </div>
                 ))}
               </div>
             </section>
           )}
 
-          <section style={{ padding: '12px', border: '1px solid #e1e5ea', borderRadius: '10px', background: '#fbfcff', fontSize: '12px', color: '#3c4043' }}>
+          <section style={{ padding: '12px', border: '1px solid var(--mm-border-soft)', borderRadius: '10px', background: 'var(--mm-surface)', fontSize: '12px', color: 'var(--mm-text)' }}>
             <strong>How MathMaster moves between levels:</strong> insufficient evidence stays at the current course and Band 3; Did Not Meet/Approaches evidence can trigger the immediate prior-course TEKS recommendation; MathMaster only moves deeper when evidence shows that prerequisite level is also weak; successful prerequisite work is stored as support evidence and never masquerades as mastery of the current-course TEKS.
           </section>
         </div>

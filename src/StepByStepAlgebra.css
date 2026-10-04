@@ -40,7 +40,7 @@
 
 .algebra-rail-tile.is-selected {
   background: #1a73e8;
-  border: 2px solid #9fc3ff;
+  border: 2px solid var(--mm-primary-border);
   box-shadow: 0 0 0 2px rgba(26,115,232,.18);
 }
 
@@ -59,7 +59,7 @@
   min-height: 286px;
   padding: 16px 18px 28px;
   border-radius: 18px;
-  border: 2px solid #a8c1e6;
+  border: 2px solid var(--mm-primary-border);
   background: var(--mm-surface);
   box-shadow: 0 10px 24px rgba(31,73,125,.11);
   overflow: visible;
@@ -100,7 +100,7 @@
   font-size: 11px;
   font-weight: 800;
   letter-spacing: .06em;
-  color: #6b7280;
+  color: var(--mm-text-muted);
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -144,13 +144,13 @@
   justify-content: center;
   font-size: 50px;
   font-weight: 800;
-  color: #174ea6;
+  color: var(--mm-primary-text);
   transition: color 160ms ease, transform 160ms ease;
   z-index: 2;
 }
 
 .algebra-balance-equals.is-unbalanced {
-  color: #b06000;
+  color: var(--mm-warning-text);
   transform: scale(1.05);
 }
 
@@ -163,8 +163,8 @@
   max-width: 80%;
   padding: 4px 10px;
   border-radius: 999px;
-  background: #fff7e0;
-  color: #8a5a00;
+  background: var(--mm-warning-bg);
+  color: var(--mm-warning-text);
   border: 1px solid #f7c76a;
   font-size: 11px;
   font-weight: 800;
@@ -219,8 +219,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 14px;
-  background: rgba(255, 255, 255, .97);
-  color: #172033;
+  background: var(--mm-surface-frosted);
+  color: var(--mm-text-strong);
   font-size: 30px;
   line-height: 1.2;
   pointer-events: none;
@@ -268,7 +268,7 @@
   position: absolute;
   border-radius: 999px;
   background: currentColor;
-  color: #1a73e8;
+  color: var(--mm-primary);
   opacity: .7;
   pointer-events: none;
 }
@@ -303,16 +303,16 @@
   gap: 6px;
   padding: 2px 10px;
   border-radius: 999px;
-  background: #fef7e0;
+  background: var(--mm-warning-bg);
   border: 1px solid rgba(227,116,0,.35);
-  color: #8a4b00;
+  color: var(--mm-warning-text);
   font-size: 13px;
   font-weight: 800;
   white-space: nowrap;
   pointer-events: none;
 }
 
-.algebra-placement-marker-check { color: #137333; }
+.algebra-placement-marker-check { color: var(--mm-success-text); }
 
 .algebra-cancellation-cue {
   margin-top: 6px;
@@ -320,7 +320,7 @@
   max-width: 360px;
   font-size: 11px;
   line-height: 1.35;
-  color: #7a4f00;
+  color: var(--mm-warning-text);
   font-weight: 800;
   text-align: center;
 }
@@ -329,8 +329,8 @@
   margin-top: 8px;
   padding: 8px 10px;
   border-radius: 8px;
-  background: #fef7e0;
-  color: #7a4f00;
+  background: var(--mm-warning-bg);
+  color: var(--mm-warning-text);
   font-size: 12px;
   font-weight: 800;
   text-align: center;
@@ -340,11 +340,11 @@
   width: min(100%, 820px);
   margin: 10px auto 4px;
   padding: 9px 11px;
-  border: 1px solid #bfd2ef;
+  border: 1px solid var(--mm-primary-border);
   border-radius: 14px;
-  background: #f8fbff;
+  background: var(--mm-surface-tint);
   display: grid;
-  grid-template-columns: 46px minmax(220px, 1fr) auto auto;
+  grid-template-columns: 46px minmax(min(100%, 220px), 1fr) auto auto;
   gap: 9px;
   align-items: center;
   box-shadow: 0 4px 12px rgba(31,73,125,.07);
@@ -365,10 +365,10 @@
 .algebra-composer-input-label {
   min-width: 0;
   display: grid;
-  grid-template-columns: auto minmax(150px, 1fr);
+  grid-template-columns: auto minmax(min(100%, 150px), 1fr);
   align-items: center;
   gap: 9px;
-  color: #3c4043;
+  color: var(--mm-text);
   font-size: 13px;
   font-weight: 800;
 }
@@ -388,15 +388,15 @@
 }
 
 .algebra-pickup-button {
-  border: 1px solid #8ab4f8;
+  border: 1px solid var(--mm-primary-border);
   background: var(--mm-surface);
-  color: #174ea6;
+  color: var(--mm-primary-text);
   cursor: grab;
   touch-action: none;
 }
 
 .algebra-pickup-button:active:not(:disabled) { cursor: grabbing; }
-.algebra-pickup-button:disabled { color: #9aa0a6; border-color: #dadce0; cursor: not-allowed; }
+.algebra-pickup-button:disabled { color: var(--mm-text-subtle); border-color: var(--mm-border); cursor: not-allowed; }
 
 .algebra-auto-apply-button {
   border: 0;
@@ -406,9 +406,9 @@
 }
 
 .algebra-composer-cancel {
-  border: 1px solid #dadce0;
+  border: 1px solid var(--mm-border);
   background: var(--mm-surface);
-  color: #5f6368;
+  color: var(--mm-text-muted);
   cursor: pointer;
 }
 
@@ -420,14 +420,14 @@
 }
 
 .algebra-placement-progress {
-  color: #5f6368;
+  color: var(--mm-text-muted);
   font-weight: 700;
   padding-left: 2px;
 }
 
 .algebra-accommodation-note {
-  color: #174ea6;
-  background: #e8f0fe;
+  color: var(--mm-primary-text);
+  background: var(--mm-primary-soft);
   padding: 6px 9px;
   border-radius: 8px;
 }
@@ -435,7 +435,7 @@
 .algebra-operation-idle-hint {
   width: min(100%, 720px);
   margin: 9px auto 0;
-  color: #5f6368;
+  color: var(--mm-text-muted);
   text-align: center;
   font-size: 12px;
   font-weight: 700;
@@ -506,9 +506,9 @@
     width: min(100%, 520px);
     margin: 0 auto 8px;
     padding: 6px;
-    border: 1px solid #c5d5ef;
+    border: 1px solid var(--mm-tint-border);
     border-radius: 13px;
-    background: #f8fbff;
+    background: var(--mm-surface-tint);
   }
 
   /* !important: App.css pins every rail tile to 44x44 on small screens with
@@ -522,8 +522,8 @@
     place-items: center;
     gap: 1px;
     background: var(--mm-surface);
-    color: #174ea6;
-    border-color: #c5d5ef;
+    color: var(--mm-primary-text);
+    border-color: var(--mm-tint-border);
     touch-action: manipulation;
   }
 
@@ -535,7 +535,7 @@
   .algebra-mobile-operation-palette .algebra-rail-tile small {
     max-width: 100%;
     overflow: hidden;
-    color: #5f6368;
+    color: var(--mm-text-muted);
     font-size: 9px;
     line-height: 1.05;
     /* Two short lines rather than "Multiply…". */
@@ -622,8 +622,8 @@
 
   .algebra-pickup-button.is-tap-placement-button[aria-pressed="true"] {
     border-color: #188038;
-    background: #e6f4ea;
-    color: #137333;
+    background: var(--mm-success-bg);
+    color: var(--mm-success-text);
     box-shadow: 0 0 0 2px rgba(24,128,56,.12);
   }
 
@@ -670,18 +670,18 @@
 .algebra-reset-work {
   min-height: 38px;
   padding: 7px 12px;
-  border: 1px solid #c5d5ef;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 999px;
   background: var(--mm-surface);
-  color: #174ea6;
+  color: var(--mm-primary-text);
   font-weight: 800;
   cursor: pointer;
 }
 
 .algebra-reset-work:hover,
 .algebra-reset-work:focus-visible {
-  background: #f1f6ff;
-  border-color: #8ab4f8;
+  background: var(--mm-primary-subtle);
+  border-color: var(--mm-primary-border);
 }
 
 .algebra-finish-cancellations {
@@ -690,8 +690,8 @@
   padding: 8px 12px;
   border: 1px solid #188038;
   border-radius: 9px;
-  background: #e6f4ea;
-  color: #137333;
+  background: var(--mm-success-bg);
+  color: var(--mm-success-text);
   font-weight: 800;
   cursor: pointer;
 }
@@ -700,14 +700,14 @@
   width: 100%;
   margin: 16px 0;
   padding: 15px;
-  border: 1px solid #d9e2f1;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 12px;
   background: var(--mm-surface);
 }
 
 .algebra-simplification-note {
   margin: 6px 0 0;
-  color: #6b7280;
+  color: var(--mm-text-muted);
   font-size: 11px;
   line-height: 1.3;
 }
@@ -743,12 +743,12 @@
 
 .algebra-optional-simplification h3 {
   margin: 0 0 6px;
-  color: #174ea6;
+  color: var(--mm-primary-text);
 }
 
 .algebra-optional-simplification > p {
   margin: 0 0 12px;
-  color: #5f6368;
+  color: var(--mm-text-muted);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -762,9 +762,9 @@
 .algebra-simplification-card {
   min-width: 0;
   padding: 12px;
-  border: 1px solid #c5d5ef;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 10px;
-  background: #f8fbff;
+  background: var(--mm-surface-tint);
 }
 
 .algebra-simplification-card > strong {
@@ -790,9 +790,9 @@
 }
 
 .algebra-keep-written {
-  border: 1px solid #8ab4f8;
+  border: 1px solid var(--mm-primary-border);
   background: var(--mm-surface);
-  color: #174ea6;
+  color: var(--mm-primary-text);
 }
 
 .algebra-check-simplification {
@@ -834,9 +834,9 @@
 .algebra-like-terms-tool {
   margin: 0 0 10px;
   padding: 12px 14px;
-  border: 1px solid #b8c8e3;
+  border: 1px solid var(--mm-primary-border);
   border-radius: 12px;
-  background: #f8fbff;
+  background: var(--mm-surface-tint);
 }
 
 .algebra-like-terms-header {
@@ -848,13 +848,13 @@
 
 .algebra-like-terms-header strong {
   display: block;
-  color: #174ea6;
+  color: var(--mm-primary-text);
   font-size: 15px;
 }
 
 .algebra-like-terms-header > div > div {
   margin-top: 3px;
-  color: #5f6368;
+  color: var(--mm-text-muted);
   font-size: 12px;
   line-height: 1.4;
 }
@@ -863,10 +863,10 @@
   width: 34px;
   height: 34px;
   flex: 0 0 34px;
-  border: 1px solid #c5d5ef;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 999px;
   background: var(--mm-surface);
-  color: #5f6368;
+  color: var(--mm-text-muted);
   font-size: 20px;
   font-weight: 800;
   cursor: pointer;
@@ -884,10 +884,10 @@
 .algebra-like-terms-answer button {
   min-height: 40px;
   padding: 7px 13px;
-  border: 1px solid #9bb8e8;
+  border: 1px solid var(--mm-primary-border);
   border-radius: 10px;
   background: var(--mm-surface);
-  color: #174ea6;
+  color: var(--mm-primary-text);
   font-weight: 800;
   cursor: pointer;
 }
@@ -898,7 +898,7 @@
   align-items: center;
   gap: 10px;
   margin-top: 12px;
-  color: #465267;
+  color: var(--mm-text-muted);
   font-weight: 800;
 }
 
@@ -909,7 +909,7 @@
   align-items: center;
   justify-content: center;
   padding: 12px;
-  border: 2px dashed #b8cdf0;
+  border: 2px dashed var(--mm-primary-border);
   border-radius: 12px;
   background: var(--mm-surface);
   font-size: 30px;
@@ -918,7 +918,7 @@
 
 .algebra-like-terms-instruction {
   margin: 9px 0 0;
-  color: #5f6368;
+  color: var(--mm-text-muted);
   font-size: 12px;
   line-height: 1.4;
 }
@@ -930,7 +930,7 @@
 }
 
 .algebra-like-terms-feedback.is-error {
-  color: #a02020;
+  color: var(--mm-error-text);
 }
 
 .algebra-like-terms-answer {
@@ -1013,15 +1013,15 @@
 
 .algebra-inline-factor-token {
   border: 1.5px solid #7ea2dc;
-  background: rgba(255,255,255,.96);
-  color: #174ea6;
+  background: var(--mm-surface-frosted);
+  color: var(--mm-primary-text);
   font-weight: 900;
   cursor: grab;
 }
 
 .algebra-inline-factor-token.is-armed {
   border-color: #174ea6;
-  background: #e8f0fe;
+  background: var(--mm-primary-soft);
   box-shadow: 0 0 0 .11em rgba(26,115,232,.16);
   transform: translateY(-1px);
 }
@@ -1037,7 +1037,7 @@
 
 .algebra-inline-distribution-target.is-placed {
   border: 1.5px solid #34a853;
-  background: #e6f4ea;
+  background: var(--mm-success-bg);
 }
 
 .algebra-inline-distribution-target:disabled,
@@ -1063,8 +1063,8 @@
   gap: 2px;
   padding: 2px 5px;
   border-radius: 999px;
-  background: #e6f4ea;
-  color: #137333;
+  background: var(--mm-success-bg);
+  color: var(--mm-success-text);
   font-size: 11px;
   font-weight: 900;
   white-space: nowrap;
@@ -1089,11 +1089,11 @@
 .algebra-inline-mode-feedback {
   font-size: 12px;
   font-weight: 800;
-  color: #5f6368;
+  color: var(--mm-text-muted);
 }
 
 .algebra-inline-mode-feedback {
-  color: #8a5a00;
+  color: var(--mm-warning-text);
 }
 
 .algebra-inline-commit,
@@ -1112,9 +1112,9 @@
 }
 
 .algebra-inline-clear {
-  border: 1px solid #b8c8e3;
+  border: 1px solid var(--mm-primary-border);
   background: var(--mm-surface);
-  color: #5f6368;
+  color: var(--mm-text-muted);
 }
 
 @media (max-width: 720px) {
@@ -1152,7 +1152,7 @@
   align-items: center;
   gap: .06em;
   padding: .05em .16em;
-  border: 1.5px dashed #9bb8e8;
+  border: 1.5px dashed var(--mm-primary-border);
   border-radius: .32em;
   background: rgba(247,250,255,.9);
 }
@@ -1165,7 +1165,7 @@
 .algebra-structure-times {
   margin: 0 .08em;
   font-size: .72em;
-  color: #5f6368;
+  color: var(--mm-text-muted);
 }
 
 .algebra-structure-token {
@@ -1176,7 +1176,7 @@
   min-height: 1.45em;
   min-width: 1.1em;
   padding: .04em .14em;
-  border: 1.5px solid #9bb8e8;
+  border: 1.5px solid var(--mm-primary-border);
   border-radius: .26em;
   background: var(--mm-surface);
   color: inherit;
@@ -1193,7 +1193,7 @@
 
 .algebra-structure-token.is-chosen {
   border-color: #174ea6;
-  background: #e8f0fe;
+  background: var(--mm-primary-soft);
   box-shadow: 0 0 0 .1em rgba(26,115,232,.18);
 }
 
@@ -1204,7 +1204,7 @@
 }
 
 .algebra-structure-token.is-sign {
-  color: #5f6368;
+  color: var(--mm-text-muted);
 }
 
 .algebra-structure-token.is-pulled {
@@ -1266,8 +1266,8 @@
   flex-wrap: wrap;
   padding: 4px 10px;
   border-radius: 10px;
-  border: 1px solid #c7d7f4;
-  background: #f7faff;
+  border: 1px solid var(--mm-tint-border);
+  background: var(--mm-surface-tint);
 }
 
 .algebra-structure-chip {
@@ -1278,7 +1278,7 @@
   border-radius: 999px;
   border: 1.5px solid #174ea6;
   background: var(--mm-surface);
-  color: #174ea6;
+  color: var(--mm-primary-text);
   font-weight: 800;
   cursor: grab;
 }
@@ -1287,7 +1287,7 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  color: #5f6368;
+  color: var(--mm-text-muted);
   font-weight: 800;
 }
 
@@ -1321,7 +1321,7 @@
 
 .algebra-structure-equals {
   font-weight: 800;
-  color: #3c4043;
+  color: var(--mm-text);
 }
 
 .algebra-structure-quotients > .algebra-inline-commit {
@@ -1331,7 +1331,7 @@
 .algebra-structure-paren {
   font-size: 26px;
   line-height: 1;
-  color: #3c4043;
+  color: var(--mm-text);
 }
 
 .algebra-structure-controls .algebra-inline-commit:disabled {
@@ -1342,8 +1342,8 @@
 
 .algebra-structure-controls .algebra-inline-clear[aria-pressed="true"] {
   border: 2px solid #174ea6;
-  background: #e8f0fe;
-  color: #174ea6;
+  background: var(--mm-primary-soft);
+  color: var(--mm-primary-text);
 }
 
 /* The side a structure tool is writing out as tokens borrows the width. This
@@ -1423,13 +1423,13 @@
 }
 
 .algebra-embedded-heading strong {
-  color: #172033;
+  color: var(--mm-text-strong);
   font-size: 16px;
   font-weight: 800;
 }
 
 .algebra-embedded-heading span {
-  color: #137333;
+  color: var(--mm-success-text);
   font-size: 13px;
   font-weight: 700;
 }

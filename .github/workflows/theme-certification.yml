@@ -7,11 +7,16 @@ on:
     branches: [main]
     paths:
       - "src/**"
+      - "index.html"
       - "scripts/audit-theme-colors.mjs"
       - "scripts/theme-color-baseline.json"
+      - "scripts/theme-token-baseline.json"
       - "tests/browser/darkModeCertification.mjs"
+      - "tests/browser/themeAudit.mjs"
       - "tests/browser/workViewCertification*"
+      - "tests/browser/teacherWorkflow/**"
       - "tests/platform/themeArchitecture.test.mjs"
+      - "tests/platform/darkModeArchitecture.test.mjs"
       - "package.json"
       - ".github/workflows/theme-certification.yml"
   workflow_dispatch:
@@ -32,11 +37,11 @@ jobs:
       - name: Reject new hard-coded surface and text colors
         run: npm run audit:theme-colors
       - name: Test semantic theme architecture
-        run: node --test tests/platform/themeArchitecture.test.mjs tests/platform/nativeFormControlVisibility.test.mjs
+        run: node --test tests/platform/themeArchitecture.test.mjs tests/platform/darkModeArchitecture.test.mjs tests/platform/nativeFormControlVisibility.test.mjs
 
   browser-readability:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -49,8 +54,23 @@ jobs:
           npx vite --host 127.0.0.1 --port 5199 --strictPort >/tmp/theme-vite.log 2>&1 &
           for i in {1..60}; do curl -fsS http://127.0.0.1:5199/tests/browser/workViewCertification.html >/dev/null && exit 0; sleep 1; done
           cat /tmp/theme-vite.log; exit 1
+      # The real app in memory (firebase/* faked, synthetic school): the
+      # teacher and student surfaces Part 2 of the certification audits.
+      - name: Start the in-memory app harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/teacher-harness.log; exit 1
       - name: Certify light and dark readability
         env:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
+          TEACHER_HARNESS_ORIGIN: "http://127.0.0.1:5188"
         run: npm run certify:dark-mode
+      - name: Keep the certification screenshots and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dark-mode-certification
+          path: tests/browser/artifacts/darkMode
+          retention-days: 14

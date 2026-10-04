@@ -25,26 +25,26 @@ import { formatDateTime } from '../../assignmentLifecycle';
  */
 
 const TONE = {
-  [GRADE_STATUS.GRADED]: { bg: '#e6f4ea', color: '#12633a' },
-  [GRADE_STATUS.COMPLETED]: { bg: '#e6f4ea', color: '#12633a' },
-  [GRADE_STATUS.IN_PROGRESS]: { bg: '#e8f0fe', color: '#174ea6' },
-  [GRADE_STATUS.PENDING_GRADE]: { bg: '#e8f0fe', color: '#174ea6' },
-  [GRADE_STATUS.LATE]: { bg: '#fff4ce', color: '#7a4f00' },
-  [GRADE_STATUS.MISSING]: { bg: '#fce8e6', color: '#a50e0e' },
-  [GRADE_STATUS.PRACTICE_ONLY]: { bg: '#f5f3ff', color: '#5b21b6' },
-  [GRADE_STATUS.EXCUSED]: { bg: '#f1f3f4', color: '#3c4043' },
-  [GRADE_STATUS.REOPENED]: { bg: '#fff4ce', color: '#7a4f00' },
-  [GRADE_STATUS.LOCKED]: { bg: '#f1f3f4', color: '#3c4043' },
-  [GRADE_STATUS.NOT_STARTED]: { bg: '#f1f3f4', color: '#3c4043' },
+  [GRADE_STATUS.GRADED]: { bg: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' },
+  [GRADE_STATUS.COMPLETED]: { bg: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' },
+  [GRADE_STATUS.IN_PROGRESS]: { bg: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' },
+  [GRADE_STATUS.PENDING_GRADE]: { bg: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' },
+  [GRADE_STATUS.LATE]: { bg: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' },
+  [GRADE_STATUS.MISSING]: { bg: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' },
+  [GRADE_STATUS.PRACTICE_ONLY]: { bg: 'var(--mm-primary-subtle)', color: 'var(--mm-accent-text)' },
+  [GRADE_STATUS.EXCUSED]: { bg: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
+  [GRADE_STATUS.REOPENED]: { bg: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' },
+  [GRADE_STATUS.LOCKED]: { bg: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
+  [GRADE_STATUS.NOT_STARTED]: { bg: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
 };
 
 const actionButton = (primary) => ({
   appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
   minHeight: MIN_TOUCH_TARGET_PX, padding: '10px 16px', borderRadius: 10,
   fontWeight: 900, fontSize: 14, cursor: 'pointer', flex: '1 1 auto',
-  border: primary ? 0 : '2px solid #c9ced6',
-  background: primary ? '#174ea6' : '#fff',
-  color: primary ? '#fff' : '#3c4043',
+  border: primary ? 0 : '2px solid var(--mm-border)',
+  background: primary ? '#174ea6' : 'var(--mm-surface)',
+  color: primary ? '#fff' : 'var(--mm-text)',
 });
 
 /**
@@ -59,19 +59,19 @@ function PeriodSummary({ courseLabel, periodLabel, summary, hidden, onToggleHidd
     <section
       aria-label="Current marking period grade"
       style={{
-        background: 'var(--mm-surface)', borderRadius: 14, border: '1px solid #d8dde6',
+        background: 'var(--mm-surface)', borderRadius: 14, border: '1px solid var(--mm-border)',
         padding: '18px 18px 16px', marginBottom: 18, textAlign: 'left',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368', overflowWrap: 'anywhere' }}>
+          <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)', overflowWrap: 'anywhere' }}>
             {[courseLabel, periodLabel].filter(Boolean).join(' — ') || 'MathMaster'}
           </div>
-          <div style={{ marginTop: 6, fontSize: 'clamp(30px, 9vw, 44px)', fontWeight: 1000, lineHeight: 1.05, color: '#174ea6' }}>
+          <div style={{ marginTop: 6, fontSize: 'clamp(30px, 9vw, 44px)', fontWeight: 1000, lineHeight: 1.05, color: 'var(--mm-primary-text)' }}>
             {hidden ? '•••' : summary.score === null ? 'No graded work yet' : `${summary.score}%`}
           </div>
-          <div style={{ marginTop: 4, fontSize: 13, color: '#5f6368' }}>Current MathMaster grade</div>
+          <div style={{ marginTop: 4, fontSize: 13, color: 'var(--mm-text-muted)' }}>Current MathMaster grade</div>
         </div>
         <button
           type="button"
@@ -80,8 +80,8 @@ function PeriodSummary({ courseLabel, periodLabel, summary, hidden, onToggleHidd
           style={{
             appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
             minHeight: MIN_TOUCH_TARGET_PX, minWidth: MIN_TOUCH_TARGET_PX,
-            padding: '8px 12px', borderRadius: 10, border: '2px solid #c9ced6',
-            background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 900, cursor: 'pointer',
+            padding: '8px 12px', borderRadius: 10, border: '2px solid var(--mm-border)',
+            background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 900, cursor: 'pointer',
           }}
         >
           {hidden ? '👁 Show grade' : '🙈 Hide grade'}
@@ -91,12 +91,12 @@ function PeriodSummary({ courseLabel, periodLabel, summary, hidden, onToggleHidd
       <ul
         style={{
           listStyle: 'none', margin: '14px 0 0', padding: 0, display: 'flex',
-          flexWrap: 'wrap', gap: 8, fontSize: 13, fontWeight: 800, color: '#3c4043',
+          flexWrap: 'wrap', gap: 8, fontSize: 13, fontWeight: 800, color: 'var(--mm-text)',
         }}
       >
-        <li style={{ padding: '6px 10px', borderRadius: 999, background: '#e6f4ea', color: '#12633a' }}>{summary.graded} graded</li>
-        <li style={{ padding: '6px 10px', borderRadius: 999, background: '#fce8e6', color: '#a50e0e' }}>{summary.missing} missing</li>
-        <li style={{ padding: '6px 10px', borderRadius: 999, background: '#e8f0fe', color: '#174ea6' }}>{summary.pending} pending</li>
+        <li style={{ padding: '6px 10px', borderRadius: 999, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' }}>{summary.graded} graded</li>
+        <li style={{ padding: '6px 10px', borderRadius: 999, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' }}>{summary.missing} missing</li>
+        <li style={{ padding: '6px 10px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' }}>{summary.pending} pending</li>
       </ul>
     </section>
   );
@@ -108,14 +108,14 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice }) {
   return (
     <article
       style={{
-        background: 'var(--mm-surface)', borderRadius: 12, border: '1px solid #d8dde6',
+        background: 'var(--mm-surface)', borderRadius: 12, border: '1px solid var(--mm-border)',
         padding: 16, marginBottom: 12, textAlign: 'left', minWidth: 0,
       }}
     >
       <div style={{ display: 'flex', gap: 12, justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 200px', minWidth: 0 }}>
           <h3 style={{ margin: 0, fontSize: 16, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{entry.title}</h3>
-          <div style={{ marginTop: 4, fontSize: 12, color: '#5f6368' }}>
+          <div style={{ marginTop: 4, fontSize: 12, color: 'var(--mm-text-muted)' }}>
             Due {formatDateTime(entry.dueAt)}
             {entry.frozen ? ` · Closed ${formatDateTime(entry.lateDueAt)}` : ''}
           </div>
@@ -136,7 +136,7 @@ function GradeRow({ entry, hidden, onOpenResult, onPractice }) {
       </div>
 
       {entry.exclusionText && (
-        <p style={{ margin: '10px 0 0', fontSize: 12, lineHeight: 1.5, color: '#5f6368' }}>{entry.exclusionText}</p>
+        <p style={{ margin: '10px 0 0', fontSize: 12, lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>{entry.exclusionText}</p>
       )}
 
       <GradeSectionBreakdown sections={entry.sections} hidden={hidden} compact />
@@ -176,11 +176,11 @@ function PeriodGroup({ group, hidden, onOpenResult, onPractice }) {
           background: 'transparent', cursor: 'pointer', textAlign: 'left',
         }}
       >
-        <span aria-hidden="true" style={{ color: '#174ea6', fontSize: 13, transform: open ? 'rotate(90deg)' : 'none' }}>▶</span>
+        <span aria-hidden="true" style={{ color: 'var(--mm-primary-text)', fontSize: 13, transform: open ? 'rotate(90deg)' : 'none' }}>▶</span>
         <span style={{ fontWeight: 900, fontSize: 15, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
           {group.period.label}
         </span>
-        <span style={{ fontSize: 13, fontWeight: 800, color: '#5f6368' }}>
+        <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--mm-text-muted)' }}>
           {hidden ? '••' : group.summary.score === null ? 'No grade yet' : `${group.summary.score}%`}
           {' · '}
           {group.entries.length} assignment{group.entries.length === 1 ? '' : 's'}
@@ -191,7 +191,7 @@ function PeriodGroup({ group, hidden, onOpenResult, onPractice }) {
           enrolled, which is the whole reason this is not assignment.archived.
         */}
         {group.period.archived && (
-          <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 11, fontWeight: 900, background: '#f1f3f4', color: '#5f6368' }}>CLOSED</span>
+          <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 11, fontWeight: 900, background: 'var(--mm-surface-control)', color: 'var(--mm-text-muted)' }}>CLOSED</span>
         )}
       </button>
       {open && (
@@ -232,7 +232,7 @@ export default function StudentGradeCenter({
       className={`${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`}
       style={{
         fontFamily: '"Segoe UI", sans-serif',
-        background: supportPresentation.highContrast ? '#fff' : '#f0f2f5',
+        background: supportPresentation.highContrast ? 'var(--mm-surface)' : 'var(--mm-surface-control)',
         minHeight: '100vh', padding: '20px 14px 48px',
         fontSize: supportPresentation.largeText ? '120%' : undefined,
       }}
@@ -252,13 +252,13 @@ export default function StudentGradeCenter({
             style={{
               appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
               minHeight: MIN_TOUCH_TARGET_PX, padding: '10px 15px', borderRadius: 10,
-              border: '2px solid #c9ced6', background: 'var(--mm-surface)', color: '#3c4043',
+              border: '2px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text)',
               fontWeight: 900, cursor: 'pointer',
             }}
           >
             ← Home
           </button>
-          <h1 style={{ margin: 0, fontSize: 'clamp(20px, 6vw, 26px)', color: '#174ea6' }}>My Grades</h1>
+          <h1 style={{ margin: 0, fontSize: 'clamp(20px, 6vw, 26px)', color: 'var(--mm-primary-text)' }}>My Grades</h1>
         </header>
 
         <PeriodSummary
@@ -275,7 +275,7 @@ export default function StudentGradeCenter({
 
         {pastPeriodGroups.length > 0 && (
           <>
-            <h2 style={{ margin: '22px 0 6px', fontSize: 15, color: '#3c4043' }}>Past Marking Periods</h2>
+            <h2 style={{ margin: '22px 0 6px', fontSize: 15, color: 'var(--mm-text)' }}>Past Marking Periods</h2>
             {pastPeriodGroups.map((group) => (
               <PeriodGroup
                 key={group.period.id}

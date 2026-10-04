@@ -132,10 +132,10 @@ export default function EmbeddedInequalityRewrite({
   }, [expectedConstraint, onChange, source, value]);
 
   return (
-    <div style={{ padding: 10, border: '1px solid #b8cdf0', borderRadius: 10, background: '#f8fbff' }}>
+    <div style={{ padding: 10, border: '1px solid var(--mm-primary-border)', borderRadius: 10, background: 'var(--mm-surface-tint)' }}>
       <div style={{ marginBottom: 8 }}>
         <strong>Rewrite for graphing · balanced-operation solver</strong>
-        <div style={{ marginTop: 4, color: '#5f6368', fontSize: 12.5 }}>
+        <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 12.5 }}>
           Use the same solver as absolute-value inequalities. Place every operation on both sides; graphing unlocks when y is isolated in an equivalent slope-intercept inequality.
         </div>
       </div>

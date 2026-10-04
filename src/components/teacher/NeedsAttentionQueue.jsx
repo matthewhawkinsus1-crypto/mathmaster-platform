@@ -37,15 +37,15 @@ const studentAlertLabel = (studentName, studentId) => (
  */
 
 const KIND_STYLE = {
-  [ALERT_KIND.ACADEMIC]: { background: '#e8f0fe', color: '#174ea6', rail: '#1a73e8' },
-  [ALERT_KIND.COMPLETION]: { background: '#f1f3f4', color: '#3c4043', rail: '#9aa0a6' },
-  [ALERT_KIND.SYSTEM]: { background: '#fff4ce', color: '#6b4c00', rail: '#f9ab00' },
+  [ALERT_KIND.ACADEMIC]: { background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', rail: '#1a73e8' },
+  [ALERT_KIND.COMPLETION]: { background: 'var(--mm-surface-control)', color: 'var(--mm-text)', rail: '#9aa0a6' },
+  [ALERT_KIND.SYSTEM]: { background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', rail: '#f9ab00' },
 };
 
 const URGENCY_STYLE = {
-  [URGENCY.NOW]: { background: '#fce8e6', color: '#a50e0e' },
-  [URGENCY.TODAY]: { background: '#fef7e0', color: '#7a5300' },
-  [URGENCY.THIS_WEEK]: { background: '#f1f3f4', color: '#5f6368' },
+  [URGENCY.NOW]: { background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' },
+  [URGENCY.TODAY]: { background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' },
+  [URGENCY.THIS_WEEK]: { background: 'var(--mm-surface-control)', color: 'var(--mm-text-muted)' },
 };
 
 const chip = (style) => ({
@@ -60,10 +60,10 @@ const chip = (style) => ({
 
 const filterButton = (active) => ({
   padding: '6px 11px',
-  border: active ? '1px solid #1a73e8' : '1px solid #dadce0',
+  border: active ? '1px solid #1a73e8' : '1px solid var(--mm-border)',
   borderRadius: 999,
-  background: active ? '#e8f0fe' : '#fff',
-  color: active ? '#174ea6' : '#3c4043',
+  background: active ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+  color: active ? 'var(--mm-primary-text)' : 'var(--mm-text)',
   fontWeight: 800,
   fontSize: 12.5,
   cursor: 'pointer',
@@ -103,11 +103,11 @@ export default function NeedsAttentionQueue({
 
   if (!queue.length) {
     return (
-      <section style={{ padding: '16px 18px', border: '1px solid #d8dde6', borderRadius: 10, background: 'var(--mm-surface)', marginBottom: 22 }}>
+      <section style={{ padding: '16px 18px', border: '1px solid var(--mm-border)', borderRadius: 10, background: 'var(--mm-surface)', marginBottom: 22 }}>
         <h2 style={{ margin: 0, fontSize: 17 }}>
           {academicCoverage ? 'Nothing needs your attention right now' : 'Live classroom ready'}
         </h2>
-        <p style={{ margin: '6px 0 0', color: '#5f6368', fontSize: 13.5 }}>
+        <p style={{ margin: '6px 0 0', color: 'var(--mm-text-muted)', fontSize: 13.5 }}>
           {academicCoverage
             ? <>No prerequisite gaps, reasoning gaps, slipping retention{completionCoverage ? ' or overdue path work' : ''} above the reporting threshold. This panel stays quiet on purpose — a queue that always has something in it stops meaning anything.</>
             : <>Home is using the lightweight live roster so it does not keep every student&apos;s historical grade record in memory. Open Students, Weekly Path, Grades, TEKS &amp; Mastery, Analytics, or Exams when you need full academic-history analysis.</>}
@@ -146,10 +146,10 @@ export default function NeedsAttentionQueue({
   };
 
   return (
-    <section style={{ border: '1px solid #d8dde6', borderRadius: 10, background: 'var(--mm-surface)', marginBottom: 22, overflow: 'hidden' }}>
-      <header style={{ padding: '15px 18px 12px', borderBottom: '1px solid #eef0f2' }}>
+    <section style={{ border: '1px solid var(--mm-border)', borderRadius: 10, background: 'var(--mm-surface)', marginBottom: 22, overflow: 'hidden' }}>
+      <header style={{ padding: '15px 18px 12px', borderBottom: '1px solid var(--mm-border-soft)' }}>
         {(!completionCoverage || !academicCoverage) && (
-          <p style={{ margin: '0 0 10px', padding: '8px 10px', borderRadius: 8, background: '#f1f3f4', color: '#3c4043', fontSize: 12.5 }}>
+          <p style={{ margin: '0 0 10px', padding: '8px 10px', borderRadius: 8, background: 'var(--mm-surface-control)', color: 'var(--mm-text)', fontSize: 12.5 }}>
             {!academicCoverage
               ? 'Home is showing live/system information from the lightweight roster. Full academic-history findings load only on detail screens.'
               : 'Showing academic and system items only. Choose a class above to include this week\'s learning-path completion.'}
@@ -157,7 +157,7 @@ export default function NeedsAttentionQueue({
         )}
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
           <h2 style={{ margin: 0, fontSize: 17 }}>Needs your attention</h2>
-          <span style={{ color: '#5f6368', fontSize: 13 }}>
+          <span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>
             {summary.total} item{summary.total === 1 ? '' : 's'}
             {summary.byUrgency[URGENCY.NOW] ? ` · ${summary.byUrgency[URGENCY.NOW]} right now` : ''}
           </span>
@@ -184,13 +184,13 @@ export default function NeedsAttentionQueue({
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Student or standard"
             aria-label="Filter alerts by student or standard"
-            style={{ marginLeft: 'auto', padding: '7px 11px', border: '1px solid #c7cdd6', borderRadius: 8, minWidth: 200 }}
+            style={{ marginLeft: 'auto', padding: '7px 11px', border: '1px solid var(--mm-border)', borderRadius: 8, minWidth: 200 }}
           />
         </div>
       </header>
 
       {!filtered.length && (
-        <p style={{ margin: 0, padding: '18px', color: '#5f6368', fontSize: 13.5 }}>
+        <p style={{ margin: 0, padding: '18px', color: 'var(--mm-text-muted)', fontSize: 13.5 }}>
           Nothing matches those filters. {summary.total} item{summary.total === 1 ? '' : 's'} in the full queue.
         </p>
       )}
@@ -200,7 +200,7 @@ export default function NeedsAttentionQueue({
           const kindStyle = KIND_STYLE[alert.kind] || KIND_STYLE[ALERT_KIND.SYSTEM];
           const action = primaryFor(alert);
           return (
-            <li key={alert.id} style={{ display: 'flex', gap: 13, padding: '14px 18px', borderTop: '1px solid #eef0f2' }}>
+            <li key={alert.id} style={{ display: 'flex', gap: 13, padding: '14px 18px', borderTop: '1px solid var(--mm-border-soft)' }}>
               <span aria-hidden="true" style={{ flex: '0 0 3px', borderRadius: 3, background: kindStyle.rail }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', alignItems: 'center', marginBottom: 4 }}>
@@ -214,7 +214,7 @@ export default function NeedsAttentionQueue({
                     <button
                       type="button"
                       onClick={() => onOpenStudent?.(alert.studentId)}
-                      style={{ border: 0, background: 'transparent', padding: 0, color: '#174ea6', fontWeight: 900, cursor: 'pointer', fontSize: 13.5 }}
+                      style={{ border: 0, background: 'transparent', padding: 0, color: 'var(--mm-primary-text)', fontWeight: 900, cursor: 'pointer', fontSize: 13.5 }}
                     >
                       {studentAlertLabel(alert.studentName, alert.studentId)}
                     </button>
@@ -225,11 +225,11 @@ export default function NeedsAttentionQueue({
                   The reason, in words. "AI recommended" tells a teacher nothing
                   they can act on and nothing they can disagree with.
                 */}
-                <p style={{ margin: '4px 0 0', color: '#4d5b58', fontSize: 13, lineHeight: 1.5 }}>{alert.detail}</p>
+                <p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5 }}>{alert.detail}</p>
 
                 {alert.students?.length > 0 && (
                   <details open={openList === alert.id} onToggle={(event) => setOpenList(event.currentTarget.open ? alert.id : null)} style={{ marginTop: 7 }}>
-                    <summary style={{ cursor: 'pointer', color: '#174ea6', fontWeight: 800, fontSize: 12.5 }}>
+                    <summary style={{ cursor: 'pointer', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 12.5 }}>
                       Who is in this ({alert.students.length})
                     </summary>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
@@ -238,7 +238,7 @@ export default function NeedsAttentionQueue({
                           key={entry.studentId}
                           type="button"
                           onClick={() => onOpenStudent?.(entry.studentId)}
-                          style={{ padding: '5px 9px', border: '1px solid #dadce0', borderRadius: 7, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
+                          style={{ padding: '5px 9px', border: '1px solid var(--mm-border)', borderRadius: 7, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
                         >
                           {studentAlertLabel(entry.studentName, entry.studentId)}
                         </button>
@@ -252,7 +252,7 @@ export default function NeedsAttentionQueue({
                 <button
                   type="button"
                   onClick={action.run}
-                  style={{ alignSelf: 'center', padding: '8px 12px', border: '1px solid #1a73e8', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 900, fontSize: 12.5, whiteSpace: 'nowrap', cursor: 'pointer' }}
+                  style={{ alignSelf: 'center', padding: '8px 12px', border: '1px solid #1a73e8', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 900, fontSize: 12.5, whiteSpace: 'nowrap', cursor: 'pointer' }}
                 >
                   {action.label}
                 </button>
@@ -266,7 +266,7 @@ export default function NeedsAttentionQueue({
         <button
           type="button"
           onClick={() => setExpanded((current) => !current)}
-          style={{ display: 'block', width: '100%', padding: '11px', border: 0, borderTop: '1px solid #eef0f2', background: '#f8f9fa', color: '#174ea6', fontWeight: 900, cursor: 'pointer' }}
+          style={{ display: 'block', width: '100%', padding: '11px', border: 0, borderTop: '1px solid var(--mm-border-soft)', background: 'var(--mm-surface-sunken)', color: 'var(--mm-primary-text)', fontWeight: 900, cursor: 'pointer' }}
         >
           {expanded ? 'Show fewer' : `Show all ${filtered.length}`}
         </button>

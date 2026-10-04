@@ -16,11 +16,11 @@ import { formatDateTime } from '../../assignmentLifecycle';
 // the failure mode this whole system is built to prevent.
 
 const TONE = {
-  now: { bg: '#eef3fb', border: '#c9daf8', accent: '#174ea6', eyebrow: 'Do this next' },
-  late: { bg: '#fff8ed', border: '#f6ddc4', accent: '#9a3412', eyebrow: 'Worth catching up' },
-  today: { bg: '#eef3fb', border: '#c9daf8', accent: '#174ea6', eyebrow: 'Due today' },
-  thisWeek: { bg: '#f5f3ff', border: '#ded1f7', accent: '#5b21b6', eyebrow: 'This week' },
-  none: { bg: '#f0fdf6', border: '#c3e8d1', accent: '#12633a', eyebrow: 'All clear' },
+  now: { bg: 'var(--mm-primary-subtle)', border: 'var(--mm-tint-border)', accent: 'var(--mm-primary-text)', fill: '#174ea6', eyebrow: 'Do this next' },
+  late: { bg: 'var(--mm-warning-subtle)', border: 'var(--mm-warning-border-soft)', accent: 'var(--mm-warning-text)', fill: '#9a3412', eyebrow: 'Worth catching up' },
+  today: { bg: 'var(--mm-primary-subtle)', border: 'var(--mm-tint-border)', accent: 'var(--mm-primary-text)', fill: '#174ea6', eyebrow: 'Due today' },
+  thisWeek: { bg: 'var(--mm-primary-subtle)', border: 'var(--mm-accent-border)', accent: 'var(--mm-accent-text)', fill: '#5b21b6', eyebrow: 'This week' },
+  none: { bg: 'var(--mm-success-subtle)', border: 'var(--mm-success-border)', accent: 'var(--mm-success-text)', fill: '#12633a', eyebrow: 'All clear' },
 };
 
 export default function WhatShouldIDoNow({
@@ -70,7 +70,7 @@ export default function WhatShouldIDoNow({
           : nextAction.headline}
       </h2>
 
-      <p style={{ margin: '7px 0 0', color: '#3c4043', fontSize: 15, lineHeight: 1.6 }}>
+      <p style={{ margin: '7px 0 0', color: 'var(--mm-text)', fontSize: 15, lineHeight: 1.6 }}>
         {nextAction.detail}
       </p>
 
@@ -78,7 +78,7 @@ export default function WhatShouldIDoNow({
           lifecycle — never the assignment's class date, which is a day early
           for a student with an individualized due date. */}
       {nextAction.assignment && nextAction.dueAt && (
-        <div style={{ marginTop: 6, color: '#5f6368', fontSize: 13, fontWeight: 800 }}>
+        <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 13, fontWeight: 800 }}>
           Due {formatDateTime(nextAction.dueAt)}
         </div>
       )}
@@ -90,7 +90,9 @@ export default function WhatShouldIDoNow({
           style={{
             appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
             marginTop: 16, padding: '13px 22px', borderRadius: 11, border: 0,
-            background: tone.accent, color: '#fff', fontSize: 15.5, fontWeight: 900,
+            // `fill` stays saturated in both themes so the white label keeps its
+            // contrast; `accent` (text) turns light in dark mode.
+            background: tone.fill, color: '#fff', fontSize: 15.5, fontWeight: 900,
             cursor: 'pointer',
             // Chromebook and phone: a target a thumb can hit without aiming.
             minHeight: 48, width: '100%', maxWidth: 340,

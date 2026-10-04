@@ -26,11 +26,11 @@ import { formatStudentName } from '../../platform/studentName.js';
  */
 
 const TONE = {
-  [GROUP.INTENSIVE]: { background: '#fce8e6', accent: '#a50e0e' },
-  [GROUP.TARGETED]: { background: '#fff4ce', accent: '#7a5300' },
-  [GROUP.CORE]: { background: '#e6f4ea', accent: '#137333' },
-  [GROUP.EXTENSION]: { background: '#e8f0fe', accent: '#174ea6' },
-  [GROUP.BASELINE]: { background: '#f1f3f4', accent: '#5f6368' },
+  [GROUP.INTENSIVE]: { background: 'var(--mm-error-bg)', accent: 'var(--mm-error-text)' },
+  [GROUP.TARGETED]: { background: 'var(--mm-warning-soft)', accent: 'var(--mm-warning-text)' },
+  [GROUP.CORE]: { background: 'var(--mm-success-bg)', accent: 'var(--mm-success-text)' },
+  [GROUP.EXTENSION]: { background: 'var(--mm-primary-soft)', accent: 'var(--mm-primary-text)' },
+  [GROUP.BASELINE]: { background: 'var(--mm-surface-control)', accent: 'var(--mm-text-muted)' },
 };
 
 export const TeacherAnalyticsDashboard = ({
@@ -66,13 +66,13 @@ export const TeacherAnalyticsDashboard = ({
       <DistrictAnalyticsView analytics={analytics} title="Class analytics & readiness" />
 
       <h2 style={{ marginTop: 30, marginBottom: 4 }}>Suggested instructional groups</h2>
-      <p style={{ color: '#5f6368', marginTop: 0, maxWidth: '70ch' }}>
+      <p style={{ color: 'var(--mm-text-muted)', marginTop: 0, maxWidth: '70ch' }}>
         Recomputed from current evidence every time this screen opens. Nothing here is stored on a student,
         so no group follows anyone into next week or next year. Every placement shows the reason behind it —
         change the instruction and the groups change with it.
       </p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 14 }}>
         {groups.map(({ group, label, purpose, students: members }) => {
           const tone = TONE[group] || TONE[GROUP.BASELINE];
           return (
@@ -81,11 +81,11 @@ export const TeacherAnalyticsDashboard = ({
                 <strong style={{ color: tone.accent }}>{label}</strong>
                 <span style={{ fontWeight: 900, color: tone.accent }}>{members.length}</span>
               </div>
-              <p style={{ margin: '6px 0 12px', fontSize: 12.5, color: '#3c4043', lineHeight: 1.45 }}>{purpose}</p>
+              <p style={{ margin: '6px 0 12px', fontSize: 12.5, color: 'var(--mm-text)', lineHeight: 1.45 }}>{purpose}</p>
 
               <div style={{ display: 'grid', gap: 7 }}>
                 {members.map((member) => (
-                  <div key={member.studentId} style={{ background: 'rgba(255,255,255,.78)', padding: '9px 10px', borderRadius: 8 }}>
+                  <div key={member.studentId} style={{ background: 'var(--mm-surface-glass)', padding: '9px 10px', borderRadius: 8 }}>
                     <StudentNameLink
                       studentId={member.studentId}
                       studentName={member.studentName}
@@ -93,11 +93,11 @@ export const TeacherAnalyticsDashboard = ({
                       onOpen={onOpenStudent}
                       style={{ fontSize: 13.5 }}
                     />
-                    <div style={{ marginTop: 3, fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>{member.reason}</div>
+                    <div style={{ marginTop: 3, fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>{member.reason}</div>
                   </div>
                 ))}
                 {!members.length && (
-                  <span style={{ color: '#5f6368', fontSize: 12 }}>No students in this group right now.</span>
+                  <span style={{ color: 'var(--mm-text-muted)', fontSize: 12 }}>No students in this group right now.</span>
                 )}
               </div>
             </section>

@@ -51,9 +51,9 @@ export default function RepresentationAudit({ questions = [], warnings = [] }) {
 
   const tone = noVisuals ? 'alert' : mostlyText || warnings.length ? 'warn' : 'ok';
   const palette = {
-    ok: { bg: '#e6f4ea', border: '#9bd2aa', text: '#137333' },
-    warn: { bg: '#fff8e6', border: '#f0c761', text: '#7a4f01' },
-    alert: { bg: '#fce8e6', border: '#f1a5a0', text: '#a50e0e' },
+    ok: { bg: 'var(--mm-success-bg)', border: 'var(--mm-success-border)', text: 'var(--mm-success-text)' },
+    warn: { bg: 'var(--mm-warning-bg)', border: '#f0c761', text: 'var(--mm-warning-text)' },
+    alert: { bg: 'var(--mm-error-bg)', border: 'var(--mm-error-border-soft)', text: 'var(--mm-error-text)' },
   }[tone];
 
   return (
@@ -64,7 +64,7 @@ export default function RepresentationAudit({ questions = [], warnings = [] }) {
 
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: rows.length ? 10 : 0 }}>
         {rows.map(([representation, count]) => (
-          <span key={representation} style={{ fontSize: 13, color: '#3c4756' }}>
+          <span key={representation} style={{ fontSize: 13, color: 'var(--mm-text)' }}>
             <strong>{count}</strong> {LABELS[representation] || representation}
           </span>
         ))}
@@ -90,7 +90,7 @@ export default function RepresentationAudit({ questions = [], warnings = [] }) {
           <summary style={{ cursor: 'pointer', fontSize: 13, fontWeight: 700, color: palette.text }}>
             {warnings.length} authoring note{warnings.length === 1 ? '' : 's'}
           </summary>
-          <ul style={{ margin: '8px 0 0', paddingLeft: 20, fontSize: 13, color: '#3c4756', lineHeight: 1.6 }}>
+          <ul style={{ margin: '8px 0 0', paddingLeft: 20, fontSize: 13, color: 'var(--mm-text)', lineHeight: 1.6 }}>
             {warnings.map((warning, index) => <li key={index}>{warning}</li>)}
           </ul>
         </details>

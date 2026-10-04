@@ -23,10 +23,10 @@ const setSetting = httpsCallable(functions, 'setWeeklyPathClassroomSync');
 const runNow = httpsCallable(functions, 'runWeeklyPathClassroomSyncNow');
 
 const CARD = {
-  border: '1px solid #dadce0', borderRadius: 12, padding: '16px 18px',
+  border: '1px solid var(--mm-border)', borderRadius: 12, padding: '16px 18px',
   marginTop: 14, background: 'var(--mm-surface)',
 };
-const MUTED = { color: '#5f6368', fontSize: 13, lineHeight: 1.55 };
+const MUTED = { color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55 };
 
 // The server returns machine reasons so they can be logged and counted; a
 // teacher needs the sentence version.
@@ -134,7 +134,7 @@ export default function WeeklyPathAutoPublish({ classId = null, weekKey = null, 
           disabled={busy || !weekKey}
           style={{
             minHeight: 44, padding: '10px 16px', borderRadius: 9,
-            border: '1px solid #9bb8e8', background: 'var(--mm-surface)', color: '#174ea6',
+            border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)',
             fontWeight: 900, fontSize: 14, cursor: busy || !weekKey ? 'default' : 'pointer',
           }}
         >
@@ -149,13 +149,13 @@ export default function WeeklyPathAutoPublish({ classId = null, weekKey = null, 
       )}
 
       {error && (
-        <div role="alert" style={{ marginTop: 11, padding: '10px 12px', borderRadius: 8, background: '#fce8e6', color: '#a50e0e', fontSize: 13 }}>
+        <div role="alert" style={{ marginTop: 11, padding: '10px 12px', borderRadius: 8, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', fontSize: 13 }}>
           {error}
         </div>
       )}
 
       {preview && (
-        <div style={{ marginTop: 13, border: '1px solid #e8eaed', borderRadius: 9, padding: '11px 13px' }}>
+        <div style={{ marginTop: 13, border: '1px solid var(--mm-border-soft)', borderRadius: 9, padding: '11px 13px' }}>
           <strong style={{ fontSize: 13.5 }}>
             {preview.ok === false
               ? `Nothing would publish: ${describe(preview.reason)}.`

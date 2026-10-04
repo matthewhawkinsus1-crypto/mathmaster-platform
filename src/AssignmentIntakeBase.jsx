@@ -17,7 +17,7 @@ import {
 } from './services/assignmentAiService.js';
 
 const card = {
-  border: '1px solid #d9e2f1',
+  border: '1px solid var(--mm-tint-border)',
   borderRadius: 14,
   background: 'var(--mm-surface)',
   padding: '20px 22px',
@@ -32,13 +32,13 @@ const primaryButton = {
 
 const secondaryButton = {
   ...primaryButton,
-  background: 'var(--mm-surface)', color: '#174ea6', border: '1px solid #9bb8e8',
+  background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)',
 };
 
 const fieldLabel = {
   display: 'grid',
   gap: 6,
-  color: '#334155',
+  color: 'var(--mm-text)',
   fontWeight: 800,
   fontSize: 13,
 };
@@ -47,11 +47,11 @@ const inputStyle = {
   minHeight: 44,
   width: '100%',
   boxSizing: 'border-box',
-  border: '1px solid #b8c8df',
+  border: '1px solid var(--mm-primary-border)',
   borderRadius: 9,
   padding: '9px 11px',
   background: 'var(--mm-surface)',
-  color: '#172033',
+  color: 'var(--mm-text-strong)',
   fontSize: 14,
 };
 
@@ -305,46 +305,46 @@ export default function AssignmentIntake({
         aria-label="Assignment creator steps"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))',
+          gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%, 170px),1fr))',
           gap: 8,
           padding: 10,
-          border: '1px solid #d9e2f1',
+          border: '1px solid var(--mm-tint-border)',
           borderRadius: 14,
-          background: '#f8fafc',
+          background: 'var(--mm-surface-sunken)',
         }}
       >
         {CREATOR_STEPS.map((step) => (
           <div key={step.number} style={{ display: 'flex', gap: 9, alignItems: 'flex-start', padding: '8px 9px' }}>
             <span style={{
               display: 'grid', placeItems: 'center', width: 26, height: 26, borderRadius: 999,
-              background: '#e8f0fe', color: '#174ea6', fontWeight: 900, fontSize: 12, flexShrink: 0,
+              background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 900, fontSize: 12, flexShrink: 0,
             }}>{step.number}</span>
             <span style={{ minWidth: 0 }}>
-              <strong style={{ display: 'block', color: '#172033', fontSize: 13 }}>{step.label}</strong>
-              <span style={{ display: 'block', color: '#64748b', fontSize: 11.5, lineHeight: 1.35 }}>{step.detail}</span>
+              <strong style={{ display: 'block', color: 'var(--mm-text-strong)', fontSize: 13 }}>{step.label}</strong>
+              <span style={{ display: 'block', color: 'var(--mm-text-subtle)', fontSize: 11.5, lineHeight: 1.35 }}>{step.detail}</span>
             </span>
           </div>
         ))}
       </nav>
-      <div style={{ ...card, background: 'linear-gradient(135deg,#f8fbff,#eef4ff)', borderColor: '#9bb8e8' }}>
+      <div style={{ ...card, background: 'linear-gradient(135deg,var(--mm-surface-tint),var(--mm-primary-subtle))', borderColor: 'var(--mm-primary-border)' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
           {stepBadge(1)}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
-              <h3 style={{ margin: 0, fontSize: 19, color: '#172033' }}>1. Lesson and purpose</h3>
+              <h3 style={{ margin: 0, fontSize: 19, color: 'var(--mm-text-strong)' }}>1. Lesson and purpose</h3>
               <span style={{
-                border: '1px solid #9bb8e8', borderRadius: 999, padding: '4px 9px',
-                color: '#174ea6', background: 'var(--mm-surface)', fontSize: 11, fontWeight: 900,
+                border: '1px solid var(--mm-primary-border)', borderRadius: 999, padding: '4px 9px',
+                color: 'var(--mm-primary-text)', background: 'var(--mm-surface)', fontSize: 11, fontWeight: 900,
               }}>NO CODE REQUIRED</span>
             </div>
-            <p style={{ margin: '0 0 16px', color: '#5f6b7a', lineHeight: 1.55, fontSize: 14 }}>
+            <p style={{ margin: '0 0 16px', color: 'var(--mm-text-muted)', lineHeight: 1.55, fontSize: 14 }}>
               Choose the instructional structure here. MathMaster turns these choices into one complete AI build request,
               including the current standards, interaction rules, CCMR fidelity requirements, and printable-output rules.
             </p>
 
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit,minmax(210px,1fr))',
+              gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%, 210px),1fr))',
               gap: 12,
               marginBottom: 14,
             }}>
@@ -412,10 +412,10 @@ export default function AssignmentIntake({
             </label>
 
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontWeight: 900, color: '#172033', fontSize: 14, marginBottom: 8 }}>2. Sections, student versions, and rigor</div>
+              <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)', fontSize: 14, marginBottom: 8 }}>2. Sections, student versions, and rigor</div>
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))',
+                gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%, 230px),1fr))',
                 gap: 10,
                 alignItems: 'end',
                 marginBottom: 10,
@@ -434,27 +434,27 @@ export default function AssignmentIntake({
                 </label>
                 <div style={{
                   minHeight: 44, boxSizing: 'border-box', padding: '9px 11px',
-                  border: '1px solid #d9e2f1', borderRadius: 9, background: '#f8fafc',
-                  color: '#5f6b7a', fontSize: 12.5, lineHeight: 1.45,
+                  border: '1px solid var(--mm-tint-border)', borderRadius: 9, background: 'var(--mm-surface-sunken)',
+                  color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.45,
                 }}>
                   {CREATOR_RIGOR_PRESETS[creatorPlan.rigorPreset]?.summary}
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(215px,1fr))', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%, 215px),1fr))', gap: 10 }}>
                 {SECTION_ORDER.map((role) => {
                   const section = creatorPlan.sections[role];
                   return (
                     <div
                       key={role}
                       style={{
-                        border: section.enabled ? '1px solid #9bb8e8' : '1px solid #d9e2f1',
+                        border: section.enabled ? '1px solid var(--mm-primary-border)' : '1px solid var(--mm-tint-border)',
                         borderRadius: 11,
                         padding: 12,
-                        background: section.enabled ? '#fff' : '#f8fafc',
+                        background: section.enabled ? 'var(--mm-surface)' : 'var(--mm-surface-sunken)',
                         opacity: section.enabled ? 1 : 0.72,
                       }}
                     >
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 900, color: '#172033', marginBottom: 10 }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 900, color: 'var(--mm-text-strong)', marginBottom: 10 }}>
                         <input
                           type="checkbox"
                           checked={section.enabled}
@@ -493,28 +493,28 @@ export default function AssignmentIntake({
                   );
                 })}
               </div>
-              <p style={{ margin: '8px 0 0', color: '#64748b', fontSize: 12, lineHeight: 1.5 }}>
+              <p style={{ margin: '8px 0 0', color: 'var(--mm-text-subtle)', fontSize: 12, lineHeight: 1.5 }}>
                 Same problem is best when the class needs one common example. Same task, different numbers discourages copying without changing rigor.
                 Adaptive may adjust difficulty/reasoning only inside the assigned standard and role-based limits.
               </p>
             </div>
 
-            <div style={{ fontWeight: 900, color: '#172033', fontSize: 14, margin: '2px 0 8px' }}>
+            <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)', fontSize: 14, margin: '2px 0 8px' }}>
               3. Supports, Honors, and outputs
             </div>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))',
+              gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%, 240px),1fr))',
               gap: 12,
               marginBottom: 14,
             }}>
-              <div style={{ border: '1px solid #d9e2f1', borderRadius: 11, padding: 12 }}>
-                <div style={{ fontWeight: 900, color: '#172033', marginBottom: 5 }}>Assignment outputs</div>
-                <div style={{ color: '#64748b', fontSize: 12, lineHeight: 1.45, marginBottom: 10 }}>
+              <div style={{ border: '1px solid var(--mm-tint-border)', borderRadius: 11, padding: 12 }}>
+                <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)', marginBottom: 5 }}>Assignment outputs</div>
+                <div style={{ color: 'var(--mm-text-subtle)', fontSize: 12, lineHeight: 1.45, marginBottom: 10 }}>
                   Optional — PDFs are off by default so a digital assignment can be saved to the Library immediately.
                   Turn on only the copies you want; any PDF can also be enabled later from Assignment Setup.
                 </div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#334155', fontSize: 13, marginBottom: 8 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--mm-text)', fontSize: 13, marginBottom: 8 }}>
                   <input
                     type="checkbox"
                     checked={creatorPlan.outputs.studentWorksheetPdf}
@@ -522,7 +522,7 @@ export default function AssignmentIntake({
                   />
                   Printable student worksheet PDF
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#334155', fontSize: 13, marginBottom: 8 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--mm-text)', fontSize: 13, marginBottom: 8 }}>
                   <input
                     type="checkbox"
                     checked={creatorPlan.outputs.teacherWorksheetPdf}
@@ -530,7 +530,7 @@ export default function AssignmentIntake({
                   />
                   Teacher copy PDF with answers/available solutions
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#334155', fontSize: 13, marginBottom: 8 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--mm-text)', fontSize: 13, marginBottom: 8 }}>
                   <input
                     type="checkbox"
                     checked={creatorPlan.outputs.answerKeyPdf}
@@ -538,7 +538,7 @@ export default function AssignmentIntake({
                   />
                   Compact answer-key PDF
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#334155', fontSize: 13 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--mm-text)', fontSize: 13 }}>
                   <input
                     type="checkbox"
                     checked={creatorPlan.outputs.lessonNotesPdf}
@@ -548,18 +548,18 @@ export default function AssignmentIntake({
                 </label>
               </div>
 
-              <div style={{ border: '1px solid #c8d8ef', borderRadius: 11, padding: 12, background: '#f7faff' }}>
-                <div style={{ fontWeight: 900, color: '#174ea6', marginBottom: 5 }}>Student support plans · automatic</div>
-                <div style={{ color: '#526274', fontSize: 13, lineHeight: 1.5 }}>
+              <div style={{ border: '1px solid var(--mm-tint-border)', borderRadius: 11, padding: 12, background: 'var(--mm-surface-tint)' }}>
+                <div style={{ fontWeight: 900, color: 'var(--mm-primary-text)', marginBottom: 5 }}>Student support plans · automatic</div>
+                <div style={{ color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5 }}>
                   MathMaster applies each student&apos;s authorized IEP/504/EB access supports at delivery.
                   Accommodations are not stored in this assignment and do not change the assessed standard.
                   Modified curriculum is handled through its separate reporting path.
                 </div>
               </div>
 
-              <div style={{ border: '1px solid #c9ddc8', borderRadius: 11, padding: 12, background: '#f7fbf6' }}>
-                <div style={{ fontWeight: 900, color: '#245b2a', marginBottom: 5 }}>Honors + CCMR</div>
-                <div style={{ color: '#48624b', fontSize: 13, lineHeight: 1.5 }}>
+              <div style={{ border: '1px solid var(--mm-border)', borderRadius: 11, padding: 12, background: 'var(--mm-surface-sunken)' }}>
+                <div style={{ fontWeight: 900, color: 'var(--mm-success-text)', marginBottom: 5 }}>Honors + CCMR</div>
+                <div style={{ color: 'var(--mm-text)', fontSize: 13, lineHeight: 1.5 }}>
                   No Honors checkbox is needed here. Honors is inherited from the destination class in Preflight.
                   Honors-ready Practice keeps course TEKS, adds depth/transfer, and preserves the recent authentic CCMR target of about 15%.
                 </div>
@@ -567,7 +567,7 @@ export default function AssignmentIntake({
             </div>
 
             <label style={{ ...fieldLabel, marginBottom: 14 }}>
-              Additional directions <span style={{ color: '#64748b', fontWeight: 600 }}>(optional)</span>
+              Additional directions <span style={{ color: 'var(--mm-text-subtle)', fontWeight: 600 }}>(optional)</span>
               <textarea
                 value={creatorPlan.teacherNotes}
                 onChange={(event) => setPlanField('teacherNotes', event.target.value)}
@@ -595,7 +595,7 @@ export default function AssignmentIntake({
                 📋 Copy Complete AI Build Request
               </button>
               <details>
-                <summary style={{ cursor: 'pointer', color: '#174ea6', fontWeight: 800, fontSize: 13 }}>
+                <summary style={{ cursor: 'pointer', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 13 }}>
                   Advanced
                 </summary>
                 <button type="button" onClick={handleCopyContract} style={{ ...secondaryButton, marginTop: 8, minHeight: 38, fontSize: 13 }}>
@@ -611,8 +611,8 @@ export default function AssignmentIntake({
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
           {stepBadge(4)}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <h3 style={{ margin: '0 0 4px', fontSize: 18, color: '#172033' }}>4. Review the AI result in MathMaster</h3>
-            <p style={{ margin: '0 0 14px', color: '#5f6b7a', lineHeight: 1.55, fontSize: 14 }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 18, color: 'var(--mm-text-strong)' }}>4. Review the AI result in MathMaster</h3>
+            <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', lineHeight: 1.55, fontSize: 14 }}>
               “Build Assignment in MathMaster” sends your plan through the protected server AI when it is configured.
               You can also paste or upload a finished assignment from ChatGPT, Claude, or Gemini.
               Either route goes through the same MathMaster checks for standards, grading, mobile inputs, supports, adaptive rigor, CCMR fidelity, and PDF renderability before Assignment Review.
@@ -626,9 +626,9 @@ export default function AssignmentIntake({
               onDrop={(event) => { event.preventDefault(); setDropActive(false); handleFile(event.dataTransfer?.files?.[0]); }}
               style={{
                 padding: '22px 18px',
-                border: `2px dashed ${dropActive ? '#1a73e8' : '#c5d5ef'}`,
+                border: `2px dashed ${dropActive ? '#1a73e8' : 'var(--mm-tint-border)'}`,
                 borderRadius: 12,
-                background: dropActive ? '#e8f0fe' : '#f8fbff',
+                background: dropActive ? 'var(--mm-primary-soft)' : 'var(--mm-surface-tint)',
                 transition: 'background 120ms ease, border-color 120ms ease',
                 display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center',
               }}
@@ -646,7 +646,7 @@ export default function AssignmentIntake({
                 onChange={(event) => { handleFile(event.target.files?.[0]); event.target.value = ''; }}
                 style={{ display: 'none' }}
               />
-              <span style={{ color: '#5f6b7a', fontSize: 13 }}>or drag a .json file here</span>
+              <span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>or drag a .json file here</span>
             </div>
           </div>
         </div>
@@ -655,16 +655,16 @@ export default function AssignmentIntake({
       {failure && (
         <div
           style={failure.salvaged
-            ? { ...card, borderColor: '#f0c36d', background: '#fffdf5' }
-            : { ...card, borderColor: '#f1a5a0', background: '#fff8f7' }}
+            ? { ...card, borderColor: '#f0c36d', background: 'var(--mm-warning-subtle)' }
+            : { ...card, borderColor: 'var(--mm-error-border-soft)', background: 'var(--mm-error-subtle)' }}
           role="alert"
         >
-          <h3 style={{ margin: '0 0 6px', fontSize: 16, color: failure.salvaged ? '#7a4f01' : '#a50e0e' }}>
+          <h3 style={{ margin: '0 0 6px', fontSize: 16, color: failure.salvaged ? 'var(--mm-warning-text)' : 'var(--mm-error-text)' }}>
             {failure.salvaged
               ? `Saved for repair${failure.sourceName ? ` — ${failure.sourceName}` : ''}`
               : `This assignment needs attention${failure.sourceName ? ` — ${failure.sourceName}` : ''}`}
           </h3>
-          <p style={{ margin: '0 0 10px', color: '#5f6b7a', fontSize: 13, lineHeight: 1.55 }}>
+          <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55 }}>
             {failure.salvaged
               ? 'Nothing was discarded. This assignment was saved to Incomplete Assignments and its Repair Center is open below. These questions are what still block publication; the rest of the assignment is already fine.'
               : failure.compilerDefect
@@ -673,15 +673,15 @@ export default function AssignmentIntake({
                   ? 'MathMaster owns renderer plumbing. The remaining issue should be a genuine mathematical/content omission or a malformed assignment field.'
                   : 'This file uses an older unsupported assignment format. Recreate the assignment with the creator above.'}
           </p>
-          <ul style={{ margin: '0 0 14px', paddingLeft: 20, color: '#3c4756', lineHeight: 1.6, fontSize: 13 }}>
+          <ul style={{ margin: '0 0 14px', paddingLeft: 20, color: 'var(--mm-text)', lineHeight: 1.6, fontSize: 13 }}>
             {failure.errors.map((error, index) => <li key={index}>{error}</li>)}
           </ul>
           {failure.warnings.length > 0 && (
             <details style={{ marginBottom: 14 }}>
-              <summary style={{ cursor: 'pointer', fontWeight: 700, color: '#7a4f01', fontSize: 13 }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 700, color: 'var(--mm-warning-text)', fontSize: 13 }}>
                 {failure.warnings.length} warning{failure.warnings.length === 1 ? '' : 's'}
               </summary>
-              <ul style={{ margin: '8px 0 0', paddingLeft: 20, color: '#5f6b7a', fontSize: 13, lineHeight: 1.6 }}>
+              <ul style={{ margin: '8px 0 0', paddingLeft: 20, color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.6 }}>
                 {failure.warnings.map((warning, index) => <li key={index}>{warning}</li>)}
               </ul>
             </details>

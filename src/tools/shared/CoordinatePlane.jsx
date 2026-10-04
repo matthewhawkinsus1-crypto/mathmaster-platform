@@ -30,10 +30,10 @@ const buildMinorTicks = (min, max, step) => {
 const ZOOM_BUTTON = {
   minWidth: 44,
   minHeight: 44,
-  border: '1px solid #c5d5ef',
+  border: '1px solid var(--mm-tint-border)',
   borderRadius: 8,
   background: 'var(--mm-surface)',
-  color: '#174ea6',
+  color: 'var(--mm-primary-text)',
   fontWeight: 800,
   fontSize: 16,
   cursor: 'pointer',
@@ -465,7 +465,7 @@ export default function CoordinatePlane({
           // lives with the other rules for this class, where the cascade can
           // reach it.
           width: '100%', height: 'auto', maxWidth: '100%',
-          border: '1px solid #d9e2f1', borderRadius: 12, background: 'var(--mm-surface)',
+          border: '1px solid var(--mm-tint-border)', borderRadius: 12, background: 'var(--mm-surface)',
           cursor: interactive ? 'crosshair' : 'default',
           // Vertical page scroll and browser pinch-zoom are native gestures.
           // A deliberate tap/short drag can still plot; a scrolling gesture is
@@ -479,12 +479,12 @@ export default function CoordinatePlane({
             <rect x={pad} y={pad} width={innerW} height={innerH} />
           </clipPath>
         </defs>
-        <rect x={pad} y={pad} width={innerW} height={innerH} fill="#fff" />
+        <rect x={pad} y={pad} width={innerW} height={innerH} style={{ fill: 'var(--mm-graph-bg)' }} />
 
-        {xMinor.map((x) => <line key={`mx${x}`} x1={sx(x)} x2={sx(x)} y1={pad} y2={height - pad} stroke="#eef3f9" strokeWidth="1" />)}
-        {yMinor.map((y) => <line key={`my${y}`} x1={pad} x2={width - pad} y1={sy(y)} y2={sy(y)} stroke="#eef3f9" strokeWidth="1" />)}
-        {xTicks.map((x) => <line key={`gx${x}`} x1={sx(x)} x2={sx(x)} y1={pad} y2={height - pad} stroke="#d5dfec" strokeWidth="1" />)}
-        {yTicks.map((y) => <line key={`gy${y}`} x1={pad} x2={width - pad} y1={sy(y)} y2={sy(y)} stroke="#d5dfec" strokeWidth="1" />)}
+        {xMinor.map((x) => <line key={`mx${x}`} x1={sx(x)} x2={sx(x)} y1={pad} y2={height - pad} style={{ stroke: 'var(--mm-graph-grid-minor)' }} strokeWidth="1" />)}
+        {yMinor.map((y) => <line key={`my${y}`} x1={pad} x2={width - pad} y1={sy(y)} y2={sy(y)} style={{ stroke: 'var(--mm-graph-grid-minor)' }} strokeWidth="1" />)}
+        {xTicks.map((x) => <line key={`gx${x}`} x1={sx(x)} x2={sx(x)} y1={pad} y2={height - pad} style={{ stroke: 'var(--mm-graph-grid)' }} strokeWidth="1" />)}
+        {yTicks.map((y) => <line key={`gy${y}`} x1={pad} x2={width - pad} y1={sy(y)} y2={sy(y)} style={{ stroke: 'var(--mm-graph-grid)' }} strokeWidth="1" />)}
 
         <g clipPath={plotClip}>
         {regions.map((region, index) => {
@@ -507,23 +507,23 @@ export default function CoordinatePlane({
         })}
         </g>
 
-        {xMin <= 0 && xMax >= 0 ? <line x1={sx(0)} x2={sx(0)} y1={pad} y2={height - pad} stroke="#5f6b7a" strokeWidth="2" /> : null}
-        {yMin <= 0 && yMax >= 0 ? <line x1={pad} x2={width - pad} y1={sy(0)} y2={sy(0)} stroke="#5f6b7a" strokeWidth="2" /> : null}
+        {xMin <= 0 && xMax >= 0 ? <line x1={sx(0)} x2={sx(0)} y1={pad} y2={height - pad} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="2" /> : null}
+        {yMin <= 0 && yMax >= 0 ? <line x1={pad} x2={width - pad} y1={sy(0)} y2={sy(0)} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="2" /> : null}
 
-        <text x={width - pad + 6} y={axisY + 4} fontSize="13" fontWeight="700" fill="#5f6b7a">x</text>
-        <text x={axisX - 4} y={pad - 10} fontSize="13" fontWeight="700" fill="#5f6b7a" textAnchor="middle">y</text>
-        {originVisible ? <text x={sx(0) - 9} y={sy(0) + 15} fontSize="10" fill="#8a93a1">0</text> : null}
+        <text x={width - pad + 6} y={axisY + 4} fontSize="13" fontWeight="700" style={{ fill: 'var(--mm-graph-label)' }}>x</text>
+        <text x={axisX - 4} y={pad - 10} fontSize="13" fontWeight="700" style={{ fill: 'var(--mm-graph-label)' }} textAnchor="middle">y</text>
+        {originVisible ? <text x={sx(0) - 9} y={sy(0) + 15} fontSize="10" style={{ fill: 'var(--mm-graph-axis)' }}>0</text> : null}
 
         {xTicks.filter((x) => x !== 0).map((x) => (
           <g key={`tx${x}`}>
-            <line x1={sx(x)} x2={sx(x)} y1={axisY - 4} y2={axisY + 4} stroke="#5f6b7a" strokeWidth="1.5" />
-            <text x={sx(x)} y={axisY + 17} textAnchor="middle" fontSize="11" fill="#5f6b7a">{tidy(x)}</text>
+            <line x1={sx(x)} x2={sx(x)} y1={axisY - 4} y2={axisY + 4} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="1.5" />
+            <text x={sx(x)} y={axisY + 17} textAnchor="middle" fontSize="11" style={{ fill: 'var(--mm-graph-label)' }}>{tidy(x)}</text>
           </g>
         ))}
         {yTicks.filter((y) => y !== 0).map((y) => (
           <g key={`ty${y}`}>
-            <line x1={axisX - 4} x2={axisX + 4} y1={sy(y)} y2={sy(y)} stroke="#5f6b7a" strokeWidth="1.5" />
-            <text x={axisX - 9} y={sy(y) + 4} textAnchor="end" fontSize="11" fill="#5f6b7a">{tidy(y)}</text>
+            <line x1={axisX - 4} x2={axisX + 4} y1={sy(y)} y2={sy(y)} style={{ stroke: 'var(--mm-graph-axis)' }} strokeWidth="1.5" />
+            <text x={axisX - 9} y={sy(y) + 4} textAnchor="end" fontSize="11" style={{ fill: 'var(--mm-graph-label)' }}>{tidy(y)}</text>
           </g>
         ))}
 
@@ -667,7 +667,7 @@ export default function CoordinatePlane({
             Reset view
           </button>
           {view ? (
-            <span aria-live="polite" style={{ fontSize: 12, color: '#5f6b7a' }}>
+            <span aria-live="polite" style={{ fontSize: 12, color: 'var(--mm-text-muted)' }}>
               Showing x {tidy(xMin)} to {tidy(xMax)}, y {tidy(yMin)} to {tidy(yMax)}
             </span>
           ) : null}
@@ -682,7 +682,7 @@ export default function CoordinatePlane({
               stays folded once put away. A screen reader already has the
               keyboard instructions in the plane's accessible name. */}
           {showPlotHelpHere ? (
-            <div className="mathmaster-plot-help" style={{ margin: '6px 0 0', fontSize: 12, color: '#5f6b7a', textAlign: 'left' }}>
+            <div className="mathmaster-plot-help" style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--mm-text-muted)', textAlign: 'left' }}>
               <p style={{ margin: 0 }}>
                 Press the grid and slide to aim{minorStep === 1 ? ' at a whole-number point' : ''} — the point lands where you
                 let go{canMovePoints ? '; drag a point to move it' : ''}.

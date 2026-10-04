@@ -56,10 +56,12 @@ import { classMeetsToday, buildReturnCheckInEvent, resolveReturnCheckIns } from 
 // module-level constants.
 const SCHOOL_NON_INSTRUCTIONAL_KEYS = buildNonInstructionalSet(schoolYearNonInstructionalRanges());
 
+// `chip` is the tile's status TEXT color (headline and flag pills), so it is a
+// themed status token; the saturated border reads on both themes.
 const SEVERITY_STYLE = {
-  [LIVE_SEVERITY.ALERT]: { border: '#d93025', background: '#fff5f4', chip: '#d93025' },
-  [LIVE_SEVERITY.WATCH]: { border: '#f9ab00', background: '#fffbf0', chip: '#a56800' },
-  [LIVE_SEVERITY.OK]: { border: '#dfe3e7', background: 'var(--mm-surface)', chip: '#188038' },
+  [LIVE_SEVERITY.ALERT]: { border: '#d93025', background: 'var(--mm-error-subtle)', chip: 'var(--mm-danger)' },
+  [LIVE_SEVERITY.WATCH]: { border: '#f9ab00', background: 'var(--mm-warning-subtle)', chip: 'var(--mm-warning-text)' },
+  [LIVE_SEVERITY.OK]: { border: 'var(--mm-border)', background: 'var(--mm-surface)', chip: 'var(--mm-success)' },
 };
 
 const FLAG_LABEL = {
@@ -83,15 +85,15 @@ const STATE_COLOR = {
   [QUESTION_STATE_CHARS.UNTOUCHED]: '#dadce0',
   // Not this student's work (reduced-item-count accommodation): a faint
   // placeholder that keeps positions aligned with the class's questions.
-  [QUESTION_STATE_CHARS.NOT_REQUIRED]: 'var(--mm-divider, #eef0f2)',
+  [QUESTION_STATE_CHARS.NOT_REQUIRED]: 'var(--mm-divider, var(--mm-surface-control))',
 };
 
 const WALKTHROUGH_STYLE = {
-  [WALKTHROUGH_STATUS.NEEDS_CHECK]: { border: '#d93025', background: '#fff5f4', color: '#b3261e', label: 'Needs Check' },
-  [WALKTHROUGH_STATUS.ON_QUESTION]: { border: '#1a73e8', background: '#eef4ff', color: '#174ea6', label: 'On This Question' },
-  [WALKTHROUGH_STATUS.AHEAD]: { border: '#188038', background: '#e6f4ea', color: '#137333', label: 'Ahead' },
-  [WALKTHROUGH_STATUS.DONE]: { border: '#188038', background: '#e6f4ea', color: '#137333', label: 'Completed' },
-  [WALKTHROUGH_STATUS.ELSEWHERE]: { border: '#9aa0a6', background: '#f8f9fa', color: '#5f6368', label: 'Elsewhere' },
+  [WALKTHROUGH_STATUS.NEEDS_CHECK]: { border: '#d93025', background: 'var(--mm-error-subtle)', color: 'var(--mm-error-text)', label: 'Needs Check' },
+  [WALKTHROUGH_STATUS.ON_QUESTION]: { border: '#1a73e8', background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)', label: 'On This Question' },
+  [WALKTHROUGH_STATUS.AHEAD]: { border: '#188038', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', label: 'Ahead' },
+  [WALKTHROUGH_STATUS.DONE]: { border: '#188038', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', label: 'Completed' },
+  [WALKTHROUGH_STATUS.ELSEWHERE]: { border: 'var(--mm-border-strong)', background: 'var(--mm-surface-sunken)', color: 'var(--mm-text-muted)', label: 'Elsewhere' },
 };
 
 const ATTENDANCE_LABEL = {
@@ -128,8 +130,8 @@ function ProgressStrip({ questionStates, questionIndex, conceal = false }) {
   );
 }
 
-const smallButtonStyle = { padding: '5px 8px', borderRadius: 7, border: '1px solid #9aa0a6', background: 'var(--mm-surface)', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' };
-const controlStyle = { padding: '8px 10px', borderRadius: 8, border: '1px solid #dadce0', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontSize: 14 };
+const smallButtonStyle = { padding: '5px 8px', borderRadius: 7, border: '1px solid var(--mm-border-strong)', background: 'var(--mm-surface)', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' };
+const controlStyle = { padding: '8px 10px', borderRadius: 8, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontSize: 14 };
 
 // Compact, teacher-only Class Points control shown on a student tile. The
 // balance shown is always the authoritative account projection handed down
@@ -144,12 +146,12 @@ function ClassPointsMiniControl({ balance, unavailable, onAward }) {
     >
       <span
         title={unavailable ? 'Class Points balance is unavailable right now' : `${balance} Class Points`}
-        style={{ fontSize: 11.5, fontWeight: 900, color: '#7a4f00', background: '#fff4ce', border: '1px solid #f3d675', borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap' }}
+        style={{ fontSize: 11.5, fontWeight: 900, color: 'var(--mm-warning-text)', background: 'var(--mm-warning-soft)', border: '1px solid var(--mm-warning-border-soft)', borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap' }}
       >
         ⭐ {unavailable ? '—' : balance} pts
       </span>
       {onAward && (
-        <button type="button" onClick={onAward} style={{ ...smallButtonStyle, padding: '3px 7px', borderColor: '#7a4f00', background: 'var(--mm-surface)', color: '#7a4f00' }}>+ Points</button>
+        <button type="button" onClick={onAward} style={{ ...smallButtonStyle, padding: '3px 7px', borderColor: '#7a4f00', background: 'var(--mm-surface)', color: 'var(--mm-warning-text)' }}>+ Points</button>
       )}
     </div>
   );
@@ -200,7 +202,7 @@ function StudentTile({
           an id. The room view may be projected to the class, so it never
           shows a student id — only "Name unavailable". */}
       {row.nameMissing && showStudentId && row.idLabel && (
-        <div data-student-id-label="true" style={{ fontSize: 11, color: '#5f6368' }}>{row.idLabel}</div>
+        <div data-student-id-label="true" style={{ fontSize: 11, color: 'var(--mm-text-muted)' }}>{row.idLabel}</div>
       )}
 
       <div style={{ marginTop: 5 }}>
@@ -217,12 +219,12 @@ function StudentTile({
 
       {live?.assignmentId ? (
         <>
-          <div style={{ fontSize: 12, color: '#5f6368', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 12, color: 'var(--mm-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             <span aria-hidden="true" style={{ marginRight: 6 }}>{glyph}</span>
             {String(live.activityRole || 'activity').toUpperCase()} Q{Number(live.sectionQuestionIndex ?? live.questionIndex ?? 0) + 1} · {live.questionLabel || live.assignmentTitle || 'Working'}
           </div>
           <ProgressStrip questionStates={live.questionStates} questionIndex={live.questionIndex} conceal={roomMode} />
-          <div style={{ fontSize: 11, color: '#80868b', marginTop: 6 }}>
+          <div style={{ fontSize: 11, color: 'var(--mm-text-subtle)', marginTop: 6 }}>
             {/* A support is the teacher's to see, never the room's: projected
                 tiles count every class question and never say "fewer items". */}
             {row.counts.answered} of {roomMode
@@ -235,17 +237,17 @@ function StudentTile({
           </div>
         </>
       ) : (
-        <div style={{ fontSize: 12, color: '#5f6368' }}>No assignment open</div>
+        <div style={{ fontSize: 12, color: 'var(--mm-text-muted)' }}>No assignment open</div>
       )}
 
       {suggestion && (
-        <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()} style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,.72)' }}>
+        <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()} style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'var(--mm-surface-glass)' }}>
           <div style={{ fontWeight: 800, fontSize: roomMode ? 15 : 12.5, color: 'var(--mm-text-strong)', lineHeight: 1.35 }}>{suggestion.headline}</div>
           {!roomMode && (
             <>
-              <div style={{ marginTop: 3, fontSize: 11.5, color: '#5f6368', lineHeight: 1.45 }}>{suggestion.why}</div>
+              <div style={{ marginTop: 3, fontSize: 11.5, color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>{suggestion.why}</div>
               {onSupportAction && (
-                <button type="button" onClick={() => onSupportAction(SUPPORT_EVENT_KIND.TEACHER_INTERVENTION, SUPPORT_EVENT_STAGE.ACTION_TAKEN, null, { coachingSuggestion: suggestion })} style={{ marginTop: 6, padding: '5px 8px', borderRadius: 7, border: '1px solid #188038', background: '#e6f4ea', color: '#137333', fontWeight: 900, fontSize: 11.5, cursor: 'pointer' }}>
+                <button type="button" onClick={() => onSupportAction(SUPPORT_EVENT_KIND.TEACHER_INTERVENTION, SUPPORT_EVENT_STAGE.ACTION_TAKEN, null, { coachingSuggestion: suggestion })} style={{ marginTop: 6, padding: '5px 8px', borderRadius: 7, border: '1px solid #188038', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontWeight: 900, fontSize: 11.5, cursor: 'pointer' }}>
                   Use this move
                 </button>
               )}
@@ -261,7 +263,7 @@ function StudentTile({
               {FLAG_LABEL[flag] || flag}
             </span>
           ))}
-          {integritySignal && <span style={{ fontSize: 11, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: '#fff4ce', border: '1px solid #d9a400', color: '#6b4c00' }}>Integrity review</span>}
+          {integritySignal && <span style={{ fontSize: 11, fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: 'var(--mm-warning-soft)', border: '1px solid #d9a400', color: 'var(--mm-warning-text)' }}>Integrity review</span>}
         </div>
       )}
 
@@ -269,26 +271,26 @@ function StudentTile({
         <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()} style={{ marginTop: 9, paddingTop: 8, borderTop: '1px solid rgba(95,99,104,.18)', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           <button type="button" onClick={() => onSupportAction(SUPPORT_EVENT_KIND.WATCH_PRACTICE, SUPPORT_EVENT_STAGE.ACTION_TAKEN)} style={smallButtonStyle}>Watch Practice</button>
           {onRecommendPath && live?.currentTeksCode && (
-            <button type="button" disabled={pathInterventionBusy} onClick={() => onRecommendPath(live.currentTeksCode)} title="Put this TEKS at the front of this student's personal My Math Path recommendations for 48 hours. Normal prerequisites still apply." style={{ ...smallButtonStyle, borderColor: '#188038', background: pathInterventionBusy ? '#eef0f2' : '#e6f4ea', color: '#137333', cursor: pathInterventionBusy ? 'wait' : 'pointer' }}>
+            <button type="button" disabled={pathInterventionBusy} onClick={() => onRecommendPath(live.currentTeksCode)} title="Put this TEKS at the front of this student's personal My Math Path recommendations for 48 hours. Normal prerequisites still apply." style={{ ...smallButtonStyle, borderColor: '#188038', background: pathInterventionBusy ? 'var(--mm-surface-control)' : 'var(--mm-success-bg)', color: 'var(--mm-success-text)', cursor: pathInterventionBusy ? 'wait' : 'pointer' }}>
               {pathInterventionBusy ? 'Updating Path…' : `Recommend ${live.currentTeksCode} in Path`}
             </button>
           )}
-          {onAdjustPath && <button type="button" onClick={onAdjustPath} style={{ ...smallButtonStyle, borderColor: '#1a73e8', background: '#eef4ff', color: '#174ea6' }}>Adjust Path</button>}
+          {onAdjustPath && <button type="button" onClick={onAdjustPath} style={{ ...smallButtonStyle, borderColor: '#1a73e8', background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' }}>Adjust Path</button>}
           <button type="button" onClick={() => onSupportAction(SUPPORT_EVENT_KIND.SMALL_GROUP, SUPPORT_EVENT_STAGE.TEACHER_CONFIRMED)} style={smallButtonStyle}>Small-group candidate</button>
           {(row.flags.includes(LIVE_FLAGS.IDLE) || row.flags.includes(LIVE_FLAGS.BEHIND_PACE)) && (
-            <button type="button" onClick={() => onSupportAction(SUPPORT_EVENT_KIND.OFF_TASK_CONCERN, SUPPORT_EVENT_STAGE.TEACHER_CONFIRMED)} style={{ ...smallButtonStyle, borderColor: '#b06000', background: '#fff8df', color: '#6a4900' }}>Confirm off-task</button>
+            <button type="button" onClick={() => onSupportAction(SUPPORT_EVENT_KIND.OFF_TASK_CONCERN, SUPPORT_EVENT_STAGE.TEACHER_CONFIRMED)} style={{ ...smallButtonStyle, borderColor: '#b06000', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>Confirm off-task</button>
           )}
           <button type="button" onClick={() => onSupportAction(SUPPORT_EVENT_KIND.PARENT_FOLLOW_UP, SUPPORT_EVENT_STAGE.TEACHER_CONFIRMED)} style={smallButtonStyle}>Parent follow-up</button>
           {integritySignal && (
             <>
-              <button type="button" onClick={() => onSupportAction(SUPPORT_EVENT_KIND.INTEGRITY_REVIEW, SUPPORT_EVENT_STAGE.TEACHER_CONFIRMED, integritySignal)} style={{ ...smallButtonStyle, borderColor: '#d9a400', background: '#fff4ce', color: '#6b4c00' }}>Log integrity review</button>
+              <button type="button" onClick={() => onSupportAction(SUPPORT_EVENT_KIND.INTEGRITY_REVIEW, SUPPORT_EVENT_STAGE.TEACHER_CONFIRMED, integritySignal)} style={{ ...smallButtonStyle, borderColor: '#d9a400', background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' }}>Log integrity review</button>
               <button type="button" onClick={() => onSupportAction(SUPPORT_EVENT_KIND.SIGNAL_DISMISSED, SUPPORT_EVENT_STAGE.DISMISSED, integritySignal)} style={smallButtonStyle}>Dismiss pattern</button>
             </>
           )}
         </div>
       )}
       {onSpotlight && live?.assignmentId && (
-        <button type="button" onClick={(event) => { event.stopPropagation(); onSpotlight(row); }} style={{ ...smallButtonStyle, marginTop: 8, borderColor: '#681da8', background: '#f8f0fc', color: '#681da8' }}>Ask to Present</button>
+        <button type="button" onClick={(event) => { event.stopPropagation(); onSpotlight(row); }} style={{ ...smallButtonStyle, marginTop: 8, borderColor: '#681da8', background: 'var(--mm-accent-subtle)', color: 'var(--mm-accent-text)' }}>Ask to Present</button>
       )}
     </div>
   );
@@ -313,10 +315,10 @@ function WalkthroughCard({ row, onChecked, onOpenStudent, classPoints = null }) 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <strong style={{ color: 'var(--mm-text-strong)' }}>
           {row.name}
-          {row.nameMissing && row.idLabel && <span data-student-id-label="true" style={{ marginLeft: 6, fontSize: 11, fontWeight: 600, color: '#5f6368' }}>{row.idLabel}</span>}
+          {row.nameMissing && row.idLabel && <span data-student-id-label="true" style={{ marginLeft: 6, fontSize: 11, fontWeight: 600, color: 'var(--mm-text-muted)' }}>{row.idLabel}</span>}
         </strong>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          {attendanceMark === LIVE_ATTENDANCE_MARK.LATE && <span style={{ fontSize: 10.5, fontWeight: 900, color: '#7a4f00', background: '#fff4ce', borderRadius: 999, padding: '2px 6px' }}>Late arrival</span>}
+          {attendanceMark === LIVE_ATTENDANCE_MARK.LATE && <span style={{ fontSize: 10.5, fontWeight: 900, color: 'var(--mm-warning-text)', background: 'var(--mm-warning-soft)', borderRadius: 999, padding: '2px 6px' }}>Late arrival</span>}
           <span style={{ fontSize: 11, fontWeight: 900, color: style.color }}>{style.label}</span>
         </div>
       </div>
@@ -329,7 +331,7 @@ function WalkthroughCard({ row, onChecked, onOpenStudent, classPoints = null }) 
       )}
       <div style={{ fontSize: 12.5, fontWeight: 800, color: style.color }}>{row.reason}</div>
       {row.live?.assignmentId && (
-        <div style={{ fontSize: 11.5, color: '#5f6368' }}>
+        <div style={{ fontSize: 11.5, color: 'var(--mm-text-muted)' }}>
           {String(row.live.activityRole || 'activity').toUpperCase()} Q{Number(row.live.sectionQuestionIndex ?? 0) + 1}
           {row.live.currentAttempts > 0 && ` · ${row.live.currentAttempts} attempt${row.live.currentAttempts === 1 ? '' : 's'}`}
           {' · '}{({
@@ -345,7 +347,7 @@ function WalkthroughCard({ row, onChecked, onOpenStudent, classPoints = null }) 
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {onOpenStudent && <button type="button" onClick={() => onOpenStudent(row.id)} style={smallButtonStyle}>View work</button>}
         {row.status === WALKTHROUGH_STATUS.NEEDS_CHECK && !row.checked && (
-          <button type="button" onClick={() => onChecked(row.id)} style={{ ...smallButtonStyle, borderColor: '#188038', background: '#e6f4ea', color: '#137333' }}>Checked</button>
+          <button type="button" onClick={() => onChecked(row.id)} style={{ ...smallButtonStyle, borderColor: '#188038', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' }}>Checked</button>
         )}
       </div>
     </div>
@@ -371,7 +373,7 @@ function LiveTeachingPanel({
 
   if (!activeClassId) {
     return (
-      <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '1px dashed #c9ced6', color: '#5f6368', fontSize: 12.5 }}>
+      <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '1px dashed var(--mm-border)', color: 'var(--mm-text-muted)', fontSize: 12.5 }}>
         Choose an active class above to teach a lesson live.
       </div>
     );
@@ -379,25 +381,25 @@ function LiveTeachingPanel({
 
   if (liveTeachingActive) {
     return (
-      <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '2px solid #188038', background: '#e6f4ea', display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '2px solid #188038', background: 'var(--mm-success-bg)', display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <div style={{ fontWeight: 900, color: '#137333' }}>Teaching: {teachingAssignmentTitle || 'Untitled'}</div>
-          <div style={{ marginTop: 2, fontSize: 12.5, color: '#1c4a2e' }}>Teacher exemplar: {classworkPositionLabel}</div>
+          <div style={{ fontWeight: 900, color: 'var(--mm-success-text)' }}>Teaching: {teachingAssignmentTitle || 'Untitled'}</div>
+          <div style={{ marginTop: 2, fontSize: 12.5, color: 'var(--mm-success-text)' }}>Teacher exemplar: {classworkPositionLabel}</div>
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <button type="button" onClick={onResume} style={{ ...smallButtonStyle, borderColor: '#188038', background: 'var(--mm-surface)', color: '#137333' }}>Resume Teaching</button>
+          <button type="button" onClick={onResume} style={{ ...smallButtonStyle, borderColor: '#188038', background: 'var(--mm-surface)', color: 'var(--mm-success-text)' }}>Resume Teaching</button>
           <button type="button" onClick={() => onTeach(liveTeachingAssignmentId, { forceRestart: true })} style={smallButtonStyle}>Restart Fresh</button>
-          <button type="button" onClick={onEndTeaching} style={{ ...smallButtonStyle, borderColor: '#d93025', background: 'var(--mm-surface)', color: '#b3261e' }}>End Teaching</button>
+          <button type="button" onClick={onEndTeaching} style={{ ...smallButtonStyle, borderColor: '#d93025', background: 'var(--mm-surface)', color: 'var(--mm-error-text)' }}>End Teaching</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '1px solid #c5d5ef', background: '#f8fbff', display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
-      <div style={{ fontWeight: 900, color: '#174ea6' }}>Live Teaching</div>
+    <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface-tint)', display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ fontWeight: 900, color: 'var(--mm-primary-text)' }}>Live Teaching</div>
       {teachableAssignments.length === 0 ? (
-        <span style={{ fontSize: 12.5, color: '#5f6368' }}>No lessons are assigned to this class yet.</span>
+        <span style={{ fontSize: 12.5, color: 'var(--mm-text-muted)' }}>No lessons are assigned to this class yet.</span>
       ) : (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <select value={choiceId} onChange={(event) => setChoiceId(event.target.value)} style={controlStyle} aria-label="Lesson to teach">
@@ -408,7 +410,7 @@ function LiveTeachingPanel({
             type="button"
             disabled={!choiceId}
             onClick={() => onTeach(choiceId)}
-            style={{ ...smallButtonStyle, borderColor: '#1a73e8', background: choiceId ? '#e8f0fe' : '#f1f3f4', color: '#174ea6', cursor: choiceId ? 'pointer' : 'not-allowed' }}
+            style={{ ...smallButtonStyle, borderColor: '#1a73e8', background: choiceId ? 'var(--mm-primary-soft)' : 'var(--mm-surface-control)', color: 'var(--mm-primary-text)', cursor: choiceId ? 'pointer' : 'not-allowed' }}
           >
             Teach This Lesson
           </button>
@@ -429,22 +431,22 @@ function AttendancePanel({ roster, attendanceByStudentId, onMark, busyStudentId 
     }))
     .sort((a, b) => Number(!a.name) - Number(!b.name) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
   return (
-    <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '1px solid #c9ced6', background: '#f8f9fa' }}>
+    <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '1px solid var(--mm-border)', background: 'var(--mm-surface-sunken)' }}>
       <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)' }}>Today&apos;s Live Attendance</div>
-      <div style={{ marginTop: 3, marginBottom: 10, fontSize: 12, color: '#5f6368' }}>
+      <div style={{ marginTop: 3, marginBottom: 10, fontSize: 12, color: 'var(--mm-text-muted)' }}>
         Absent students are removed from live monitoring for today only. Mark Present or Late if a student arrives; their saved assignment work is never changed.
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 7 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 7 }}>
         {sorted.map(({ student, id, name: resolvedName }) => {
           const name = resolvedName || STUDENT_NAME_UNAVAILABLE;
           const mark = normalizeLiveAttendance(attendanceByStudentId[id]).mark || LIVE_ATTENDANCE_MARK.PRESENT;
           const busy = busyStudentId === id;
           return (
-            <div key={id} style={{ background: 'var(--mm-surface)', border: '1px solid #e0e3e7', borderRadius: 9, padding: '8px 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+            <div key={id} style={{ background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: 9, padding: '8px 9px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
               <div>
                 <strong style={{ fontSize: 12.5 }}>{name}</strong>
-                {id && <div style={{ marginTop: 1, fontSize: 10, color: '#80868b' }}>ID {id}</div>}
-                <div style={{ fontSize: 10.5, color: attendanceIsAbsent(mark) ? '#b3261e' : mark === LIVE_ATTENDANCE_MARK.LATE ? '#7a4f00' : '#137333', fontWeight: 900 }}>{ATTENDANCE_LABEL[mark] || 'Present'}</div>
+                {id && <div style={{ marginTop: 1, fontSize: 10, color: 'var(--mm-text-subtle)' }}>ID {id}</div>}
+                <div style={{ fontSize: 10.5, color: attendanceIsAbsent(mark) ? 'var(--mm-error-text)' : mark === LIVE_ATTENDANCE_MARK.LATE ? 'var(--mm-warning-text)' : 'var(--mm-success-text)', fontWeight: 900 }}>{ATTENDANCE_LABEL[mark] || 'Present'}</div>
               </div>
               <div style={{ display: 'flex', gap: 4 }}>
                 {[
@@ -458,7 +460,7 @@ function AttendancePanel({ roster, attendanceByStudentId, onMark, busyStudentId 
                     disabled={busy}
                     onClick={() => onMark(student, value)}
                     aria-pressed={mark === value || (value === LIVE_ATTENDANCE_MARK.ABSENT && attendanceIsAbsent(mark))}
-                    style={{ ...smallButtonStyle, padding: '4px 6px', background: mark === value || (value === LIVE_ATTENDANCE_MARK.ABSENT && attendanceIsAbsent(mark)) ? '#e8f0fe' : '#fff', borderColor: mark === value || (value === LIVE_ATTENDANCE_MARK.ABSENT && attendanceIsAbsent(mark)) ? '#1a73e8' : '#dadce0', opacity: busy ? 0.55 : 1 }}
+                    style={{ ...smallButtonStyle, padding: '4px 6px', background: mark === value || (value === LIVE_ATTENDANCE_MARK.ABSENT && attendanceIsAbsent(mark)) ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', borderColor: mark === value || (value === LIVE_ATTENDANCE_MARK.ABSENT && attendanceIsAbsent(mark)) ? '#1a73e8' : 'var(--mm-border)', opacity: busy ? 0.55 : 1 }}
                   >
                     {label}
                   </button>
@@ -480,10 +482,10 @@ function ReturnCheckInPanel({ candidates, onCheckIn, onCheckInAll, onOpenStudent
   if (!open.length) return null;
 
   return (
-    <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '2px solid #1a73e8', background: '#eef6ff' }}>
+    <div style={{ margin: '-4px 0 14px', padding: '12px 14px', borderRadius: 12, border: '2px solid #1a73e8', background: 'var(--mm-primary-subtle)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-        <div style={{ fontWeight: 900, color: '#174ea6' }}>Welcome back · {open.length} returning today</div>
-        {open.length > 1 && <button type="button" onClick={onCheckInAll} style={{ ...smallButtonStyle, borderColor: '#1a73e8', background: 'var(--mm-surface)', color: '#174ea6' }}>Check in all</button>}
+        <div style={{ fontWeight: 900, color: 'var(--mm-primary-text)' }}>Welcome back · {open.length} returning today</div>
+        {open.length > 1 && <button type="button" onClick={onCheckInAll} style={{ ...smallButtonStyle, borderColor: '#1a73e8', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)' }}>Check in all</button>}
       </div>
       <div style={{ display: 'grid', gap: 8 }}>
         {open.map((candidate) => {
@@ -495,10 +497,10 @@ function ReturnCheckInPanel({ candidates, onCheckIn, onCheckInAll, onOpenStudent
             : null;
           const busy = busyKey === candidate.key;
           return (
-            <div key={candidate.key} style={{ background: 'var(--mm-surface)', border: '1px solid #c5d5ef', borderRadius: 9, padding: '9px 11px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <div key={candidate.key} style={{ background: 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)', borderRadius: 9, padding: '9px 11px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               <div>
                 <strong style={{ fontSize: 13 }}>{showStudentId ? candidate.studentLabel : candidate.studentName || STUDENT_NAME_UNAVAILABLE} is back today</strong>
-                <div style={{ fontSize: 11.5, color: '#5f6368', marginTop: 2 }}>
+                <div style={{ fontSize: 11.5, color: 'var(--mm-text-muted)', marginTop: 2 }}>
                   {candidate.meetingsMissed > 1 ? `Back after ${candidate.meetingsMissed} missed class meetings` : 'Absent last class'}
                   {' · '}Missed: {missedLabel}
                   {candidate.missedWork.length > 0 && ` · ${candidate.missedWork.length} assignment${candidate.missedWork.length === 1 ? '' : 's'} affected`}
@@ -512,7 +514,7 @@ function ReturnCheckInPanel({ candidates, onCheckIn, onCheckInAll, onOpenStudent
                 {onOpenStudent && extensionLabel && (
                   <button type="button" onClick={() => onOpenStudent(candidate.studentId)} style={smallButtonStyle}>Review Extension</button>
                 )}
-                <button type="button" disabled={busy} onClick={() => onCheckIn(candidate)} style={{ ...smallButtonStyle, borderColor: '#188038', background: '#e6f4ea', color: '#137333', opacity: busy ? 0.6 : 1 }}>
+                <button type="button" disabled={busy} onClick={() => onCheckIn(candidate)} style={{ ...smallButtonStyle, borderColor: '#188038', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', opacity: busy ? 0.6 : 1 }}>
                   {busy ? 'Checking in…' : 'Check In'}
                 </button>
               </div>
@@ -1005,14 +1007,14 @@ export default function LiveClassMonitor({
   return (
     <section style={{ marginBottom: 28 }}>
       {activeSpotlight?.status === SPOTLIGHT_STATUS.ACCEPTED && <StudentSpotlightView request={activeSpotlight} frame={spotlightFrame} onStop={stopSpotlight} />}
-      {activeSpotlight?.status === SPOTLIGHT_STATUS.REQUESTED && <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 9, background: '#f8f0fc', color: '#4a126b' }}>Waiting for {activeSpotlight.studentLabel || 'the student'} to choose <strong>Present Now</strong>. No work is visible.</div>}
-      {spotlightMessage && <div role="status" style={{ marginBottom: 10, fontSize: 12, color: '#5f6368' }}>{spotlightMessage}</div>}
+      {activeSpotlight?.status === SPOTLIGHT_STATUS.REQUESTED && <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 9, background: 'var(--mm-accent-subtle)', color: 'var(--mm-text)' }}>Waiting for {activeSpotlight.studentLabel || 'the student'} to choose <strong>Present Now</strong>. No work is visible.</div>}
+      {spotlightMessage && <div role="status" style={{ marginBottom: 10, fontSize: 12, color: 'var(--mm-text-muted)' }}>{spotlightMessage}</div>}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 12 }}>
         <h2 style={{ margin: 0, fontSize: 20, color: 'var(--mm-text-strong)' }}>Live Class</h2>
-        <span style={{ fontSize: 13, color: '#5f6368' }}>
+        <span style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>
           {counts.online} of {counts.total} present students working
           {absentCount > 0 && <span> · {absentCount} absent</span>}
-          {counts.needsAttention > 0 && <strong style={{ color: '#d93025' }}> · {counts.needsAttention} need a look</strong>}
+          {counts.needsAttention > 0 && <strong style={{ color: 'var(--mm-danger)' }}> · {counts.needsAttention} need a look</strong>}
           {classStats.meanAccuracy !== null && ` · class average ${classStats.meanAccuracy}%`}
         </span>
       </div>
@@ -1023,7 +1025,7 @@ export default function LiveClassMonitor({
           ['walkthrough', `Walkthrough${walkthrough.counts.needsCheck ? ` · ${walkthrough.counts.needsCheck}` : ''}`],
           ['attention', `Attention${counts.needsAttention ? ` · ${counts.needsAttention}` : ''}`],
         ].map(([id, label]) => (
-          <button key={id} type="button" role="tab" aria-selected={mode === id} onClick={() => switchMode(id)} style={{ ...controlStyle, cursor: 'pointer', fontWeight: 900, background: mode === id ? '#e8f0fe' : '#fff', borderColor: mode === id ? '#1a73e8' : '#dadce0', color: mode === id ? '#174ea6' : '#3c4043' }}>{label}</button>
+          <button key={id} type="button" role="tab" aria-selected={mode === id} onClick={() => switchMode(id)} style={{ ...controlStyle, cursor: 'pointer', fontWeight: 900, background: mode === id ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', borderColor: mode === id ? '#1a73e8' : 'var(--mm-border)', color: mode === id ? 'var(--mm-primary-text)' : 'var(--mm-text)' }}>{label}</button>
         ))}
       </div>
 
@@ -1061,12 +1063,12 @@ export default function LiveClassMonitor({
           {(activeClassId ? assignments.filter((assignment) => assignmentIsForStudent(assignment, { classId: activeClassId }) || String(assignment.id) === String(displayAssignmentId)) : assignments)
             .map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.title || 'Untitled'}</option>)}
         </select>
-        {mode === 'room' && <button type="button" onClick={() => setRoomMode((current) => !current)} aria-pressed={roomMode} style={{ ...controlStyle, cursor: 'pointer', fontWeight: 700, background: roomMode ? '#e8f0fe' : '#fff', borderColor: roomMode ? '#1a73e8' : '#dadce0', color: roomMode ? '#174ea6' : '#202124' }}>Large room tiles</button>}
-        <button type="button" onClick={() => setShowAttendance((current) => !current)} aria-expanded={showAttendance} style={{ ...controlStyle, cursor: 'pointer', fontWeight: 800, background: showAttendance ? '#fff4ce' : '#fff', borderColor: showAttendance ? '#d9a400' : '#dadce0', color: showAttendance ? '#6b4c00' : '#202124' }}>
+        {mode === 'room' && <button type="button" onClick={() => setRoomMode((current) => !current)} aria-pressed={roomMode} style={{ ...controlStyle, cursor: 'pointer', fontWeight: 700, background: roomMode ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', borderColor: roomMode ? '#1a73e8' : 'var(--mm-border)', color: roomMode ? 'var(--mm-primary-text)' : 'var(--mm-text-strong)' }}>Large room tiles</button>}
+        <button type="button" onClick={() => setShowAttendance((current) => !current)} aria-expanded={showAttendance} style={{ ...controlStyle, cursor: 'pointer', fontWeight: 800, background: showAttendance ? 'var(--mm-warning-soft)' : 'var(--mm-surface)', borderColor: showAttendance ? '#d9a400' : 'var(--mm-border)', color: showAttendance ? 'var(--mm-warning-text)' : 'var(--mm-text-strong)' }}>
           Attendance{absentCount > 0 ? ` · ${absentCount} absent` : ''}
         </button>
         {activeClassId && (
-          <button type="button" onClick={() => setShowClassPoints((current) => !current)} aria-expanded={showClassPoints} style={{ ...controlStyle, cursor: 'pointer', fontWeight: 800, background: showClassPoints ? '#fff4ce' : '#fff', borderColor: showClassPoints ? '#d9a400' : '#dadce0', color: showClassPoints ? '#6b4c00' : '#202124' }}>
+          <button type="button" onClick={() => setShowClassPoints((current) => !current)} aria-expanded={showClassPoints} style={{ ...controlStyle, cursor: 'pointer', fontWeight: 800, background: showClassPoints ? 'var(--mm-warning-soft)' : 'var(--mm-surface)', borderColor: showClassPoints ? '#d9a400' : 'var(--mm-border)', color: showClassPoints ? 'var(--mm-warning-text)' : 'var(--mm-text-strong)' }}>
             ⭐ Class Points
           </button>
         )}
@@ -1095,65 +1097,65 @@ export default function LiveClassMonitor({
       )}
 
       {activeSectionTimers.length > 0 && (
-        <div aria-label="Active class timers" style={{ margin: '-2px 0 14px', padding: '10px 12px', borderRadius: 10, border: '1px solid #d8dde6', background: '#f8faff', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <strong style={{ fontSize: 12, color: '#3c4043', marginRight: 2 }}>ACTIVE TIMERS</strong>
+        <div aria-label="Active class timers" style={{ margin: '-2px 0 14px', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-surface-tint)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <strong style={{ fontSize: 12, color: 'var(--mm-text)', marginRight: 2 }}>ACTIVE TIMERS</strong>
           {activeSectionTimers.map(({ kind, assignment, endsAt }) => {
             const isDol = kind === 'DOL';
-            return <span key={`${assignment.id}:${kind}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 9px', borderRadius: 999, background: isDol ? '#f3e8fd' : '#fff4ce', color: isDol ? '#681da8' : '#7a4f00', fontSize: 12, fontWeight: 900, border: `1px solid ${isDol ? '#caa8f2' : '#f9c74f'}` }} title={assignment.title || kind}>{kind} · <DOLCountdown endsAt={endsAt} /></span>;
+            return <span key={`${assignment.id}:${kind}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 9px', borderRadius: 999, background: isDol ? 'var(--mm-accent-soft)' : 'var(--mm-warning-soft)', color: isDol ? 'var(--mm-accent-text)' : 'var(--mm-warning-text)', fontSize: 12, fontWeight: 900, border: `1px solid ${isDol ? 'var(--mm-accent-border)' : '#f9c74f'}` }} title={assignment.title || kind}>{kind} · <DOLCountdown endsAt={endsAt} /></span>;
           })}
         </div>
       )}
 
       {mode === 'walkthrough' ? (
         !selectedAssignment ? (
-          <div style={{ padding: 20, border: '1px dashed #dadce0', borderRadius: 12, color: '#5f6368' }}>Choose the classwork assignment you are walking through.</div>
+          <div style={{ padding: 20, border: '1px dashed var(--mm-border)', borderRadius: 12, color: 'var(--mm-text-muted)' }}>Choose the classwork assignment you are walking through.</div>
         ) : selectedClasswork.questions.length === 0 ? (
-          <div style={{ padding: 20, border: '1px dashed #dadce0', borderRadius: 12, color: '#5f6368' }}>This assignment has no Classwork questions to walk through.</div>
+          <div style={{ padding: 20, border: '1px dashed var(--mm-border)', borderRadius: 12, color: 'var(--mm-text-muted)' }}>This assignment has no Classwork questions to walk through.</div>
         ) : liveTeachingActiveForClass && !liveTeachingPaceReady ? (
-          <div style={{ padding: 20, border: '1px dashed #c5d5ef', borderRadius: 12, background: '#f8fbff', color: '#3c4043' }}>
-            <strong style={{ color: '#174ea6' }}>Classwork pace has not started yet.</strong>
+          <div style={{ padding: 20, border: '1px dashed var(--mm-tint-border)', borderRadius: 12, background: 'var(--mm-surface-tint)', color: 'var(--mm-text)' }}>
+            <strong style={{ color: 'var(--mm-primary-text)' }}>Classwork pace has not started yet.</strong>
             <div style={{ marginTop: 5, fontSize: 13 }}>
               The teacher exemplar is currently in {String(liveTeachingSession?.activityRole || 'another section').replace(/^./, (letter) => letter.toUpperCase())}. Pace monitoring will begin when the teacher enters the first Classwork question.
             </div>
           </div>
         ) : (
           <div style={{ display: 'grid', gap: 12 }}>
-            <div style={{ border: '1px solid #c5d5ef', background: '#f8fbff', borderRadius: 14, padding: '12px 14px', display: 'grid', gap: 10 }}>
+            <div style={{ border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface-tint)', borderRadius: 14, padding: '12px 14px', display: 'grid', gap: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                 <div>
-                  <strong style={{ color: '#174ea6' }}>Teacher is on Classwork Q{effectiveTeacherQuestionIndex + 1} of {selectedClasswork.questions.length}</strong>
-                  <div style={{ marginTop: 4, maxWidth: 760, color: '#3c4043', fontSize: 13, lineHeight: 1.45 }}>{String(currentQuestion?.prompt || currentQuestion?.question || 'Current classwork question').slice(0, 220)}</div>
+                  <strong style={{ color: 'var(--mm-primary-text)' }}>Teacher is on Classwork Q{effectiveTeacherQuestionIndex + 1} of {selectedClasswork.questions.length}</strong>
+                  <div style={{ marginTop: 4, maxWidth: 760, color: 'var(--mm-text)', fontSize: 13, lineHeight: 1.45 }}>{String(currentQuestion?.prompt || currentQuestion?.question || 'Current classwork question').slice(0, 220)}</div>
                 </div>
                 {liveTeachingActiveForClass ? (
-                  <span style={{ fontSize: 11.5, fontWeight: 800, color: '#137333', background: '#e6f4ea', padding: '5px 9px', borderRadius: 999 }}>Following the live teaching exemplar</span>
+                  <span style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--mm-success-text)', background: 'var(--mm-success-bg)', padding: '5px 9px', borderRadius: 999 }}>Following the live teaching exemplar</span>
                 ) : (
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button type="button" disabled={teacherQuestionIndex === 0} onClick={() => setTeacherQuestionIndex((value) => Math.max(0, value - 1))} style={smallButtonStyle}>← Previous</button>
-                    <button type="button" disabled={teacherQuestionIndex >= selectedClasswork.questions.length - 1} onClick={() => setTeacherQuestionIndex((value) => Math.min(selectedClasswork.questions.length - 1, value + 1))} style={{ ...smallButtonStyle, borderColor: '#1a73e8', background: '#e8f0fe', color: '#174ea6' }}>Next →</button>
+                    <button type="button" disabled={teacherQuestionIndex >= selectedClasswork.questions.length - 1} onClick={() => setTeacherQuestionIndex((value) => Math.min(selectedClasswork.questions.length - 1, value + 1))} style={{ ...smallButtonStyle, borderColor: '#1a73e8', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' }}>Next →</button>
                   </div>
                 )}
               </div>
               <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', fontSize: 12, fontWeight: 800 }}>
                 <span>{walkthrough.counts.present} present students monitored</span>
-                <span style={{ color: '#b3261e' }}>· {walkthrough.counts.needsCheck} need check</span>
-                <span style={{ color: '#174ea6' }}>· {walkthrough.counts.onQuestion} here</span>
-                <span style={{ color: '#137333' }}>· {walkthrough.counts.aheadDone} ahead/done</span>
-                {walkthrough.counts.helpRequests > 0 && <span style={{ color: '#681da8' }}>· {walkthrough.counts.helpRequests} asked for help</span>}
+                <span style={{ color: 'var(--mm-error-text)' }}>· {walkthrough.counts.needsCheck} need check</span>
+                <span style={{ color: 'var(--mm-primary-text)' }}>· {walkthrough.counts.onQuestion} here</span>
+                <span style={{ color: 'var(--mm-success-text)' }}>· {walkthrough.counts.aheadDone} ahead/done</span>
+                {walkthrough.counts.helpRequests > 0 && <span style={{ color: 'var(--mm-accent-text)' }}>· {walkthrough.counts.helpRequests} asked for help</span>}
               </div>
             </div>
 
             {walkthrough.visitNext && (
-              <div style={{ padding: '12px 14px', borderRadius: 12, border: '2px solid #d93025', background: '#fff5f4', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between', flexWrap: 'wrap' }}>
-                <div><strong style={{ color: '#b3261e' }}>Visit Next → {walkthrough.visitNext.name}</strong>{walkthrough.visitNext.nameMissing && walkthrough.visitNext.idLabel && <span data-student-id-label="true" style={{ marginLeft: 6, fontSize: 11, color: '#5f6368' }}>{walkthrough.visitNext.idLabel}</span>}<div style={{ marginTop: 3, fontSize: 12, color: '#5f6368' }}>{walkthrough.visitNext.reason}</div></div>
+              <div style={{ padding: '12px 14px', borderRadius: 12, border: '2px solid #d93025', background: 'var(--mm-error-subtle)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                <div><strong style={{ color: 'var(--mm-error-text)' }}>Visit Next → {walkthrough.visitNext.name}</strong>{walkthrough.visitNext.nameMissing && walkthrough.visitNext.idLabel && <span data-student-id-label="true" style={{ marginLeft: 6, fontSize: 11, color: 'var(--mm-text-muted)' }}>{walkthrough.visitNext.idLabel}</span>}<div style={{ marginTop: 3, fontSize: 12, color: 'var(--mm-text-muted)' }}>{walkthrough.visitNext.reason}</div></div>
                 <div style={{ display: 'flex', gap: 6 }}>
                   {onOpenStudent && <button type="button" onClick={() => onOpenStudent(walkthrough.visitNext.id)} style={smallButtonStyle}>View work</button>}
-                  <button type="button" onClick={() => setCheckedStudentIds((ids) => ids.includes(walkthrough.visitNext.id) ? ids : [...ids, walkthrough.visitNext.id])} style={{ ...smallButtonStyle, borderColor: '#188038', background: '#e6f4ea', color: '#137333' }}>Checked</button>
+                  <button type="button" onClick={() => setCheckedStudentIds((ids) => ids.includes(walkthrough.visitNext.id) ? ids : [...ids, walkthrough.visitNext.id])} style={{ ...smallButtonStyle, borderColor: '#188038', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' }}>Checked</button>
                 </div>
               </div>
             )}
 
             {bottleneck && (
-              <div style={{ padding: '9px 12px', borderRadius: 10, background: '#fff4ce', border: '1px solid #f9c74f', color: '#6a4900', fontSize: 12.5 }}>
+              <div style={{ padding: '9px 12px', borderRadius: 10, background: 'var(--mm-warning-soft)', border: '1px solid #f9c74f', color: 'var(--mm-warning-text)', fontSize: 12.5 }}>
                 <strong>Possible class bottleneck:</strong> {bottleneck.count} students are currently on Classwork Q{bottleneck.questionIndex + 1}. Consider a quick whole-class clarification or small group.
               </div>
             )}
@@ -1164,21 +1166,21 @@ export default function LiveClassMonitor({
                 ['onQuestion', `On This Question (${walkthrough.onQuestion.length})`],
                 ['aheadDone', `Ahead / Done (${walkthrough.aheadDone.length})`],
                 ['all', `All (${walkthrough.all.length})`],
-              ].map(([id, label]) => <button key={id} type="button" onClick={() => setWalkthroughFilter(id)} style={{ ...smallButtonStyle, background: walkthroughFilter === id ? '#e8f0fe' : '#fff', borderColor: walkthroughFilter === id ? '#1a73e8' : '#dadce0', color: walkthroughFilter === id ? '#174ea6' : '#3c4043' }}>{label}</button>)}
+              ].map(([id, label]) => <button key={id} type="button" onClick={() => setWalkthroughFilter(id)} style={{ ...smallButtonStyle, background: walkthroughFilter === id ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', borderColor: walkthroughFilter === id ? '#1a73e8' : 'var(--mm-border)', color: walkthroughFilter === id ? 'var(--mm-primary-text)' : 'var(--mm-text)' }}>{label}</button>)}
               {checkedStudentIds.length > 0 && <button type="button" onClick={() => setCheckedStudentIds([])} style={{ ...smallButtonStyle, marginLeft: 'auto' }}>Reset checks ({checkedStudentIds.length})</button>}
             </div>
 
             {walkRows.length === 0 ? (
-              <div style={{ padding: 18, border: '1px dashed #dadce0', borderRadius: 12, color: '#5f6368' }}>Nobody is in this group right now.</div>
+              <div style={{ padding: 18, border: '1px dashed var(--mm-border)', borderRadius: 12, color: 'var(--mm-text-muted)' }}>Nobody is in this group right now.</div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 250px), 1fr))', gap: 10 }}>
                 {walkRows.map((row) => <WalkthroughCard key={row.id} row={row} onChecked={(studentId) => setCheckedStudentIds((ids) => ids.includes(studentId) ? ids : [...ids, studentId])} onOpenStudent={onOpenStudent} classPoints={classPointsForRow(row)} />)}
               </div>
             )}
           </div>
         )
       ) : visibleRows.length === 0 ? (
-        <div style={{ padding: 20, border: '1px dashed #dadce0', borderRadius: 12, color: '#5f6368', fontSize: 14 }}>
+        <div style={{ padding: 20, border: '1px dashed var(--mm-border)', borderRadius: 12, color: 'var(--mm-text-muted)', fontSize: 14 }}>
           {rows.length === 0 ? (absentCount === roster.length && roster.length ? 'All students in this class are marked absent for today.' : 'No present students in this period have an assignment open yet.') : 'Nobody needs attention right now.'}
         </div>
       ) : (

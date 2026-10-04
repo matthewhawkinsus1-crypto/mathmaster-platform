@@ -252,7 +252,7 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph', enlarg
         margin: '24px auto',
         width: 'min(100%, 680px)',
         background: 'var(--mm-surface)',
-        border: '1px solid #dfe3e7',
+        border: '1px solid var(--mm-border)',
         borderRadius: '12px',
         padding: '12px',
         boxShadow: '0 2px 8px rgba(60,64,67,0.08)',

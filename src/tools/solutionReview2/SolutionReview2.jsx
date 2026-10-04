@@ -68,31 +68,31 @@ export default function SolutionReview2({ questionData = {}, attemptRecord = {},
         <Panel title="What you submitted">
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 12px', borderRadius: 999, fontWeight: 800,
-            background: record.isCorrect ? '#e6f4ea' : '#fef7e0',
-            color: record.isCorrect ? '#137333' : '#7a4f01',
+            background: record.isCorrect ? 'var(--mm-success-bg)' : 'var(--mm-warning-bg)',
+            color: record.isCorrect ? 'var(--mm-success-text)' : 'var(--mm-warning-text)',
           }}>
             {record.isCorrect ? '✓ Correct' : '↻ Worth another look'}
           </div>
 
           <dl style={{ margin: '14px 0 0', display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 14px', alignItems: 'baseline' }}>
             {record.attemptNumber != null ? <>
-              <dt style={{ color: '#5f6b7a', fontSize: 13 }}>Attempt</dt>
+              <dt style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>Attempt</dt>
               <dd style={{ margin: 0, fontWeight: 700 }}>{record.attemptNumber}</dd>
             </> : null}
             {scoreText ? <>
-              <dt style={{ color: '#5f6b7a', fontSize: 13 }}>Credit earned</dt>
+              <dt style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>Credit earned</dt>
               <dd style={{ margin: 0, fontWeight: 700 }}>{scoreText}</dd>
             </> : null}
             {responseEntries.map((entry) => (
               <React.Fragment key={entry.label}>
-                <dt style={{ color: '#5f6b7a', fontSize: 13 }}>{entry.label}</dt>
+                <dt style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>{entry.label}</dt>
                 <dd style={{ margin: 0, fontWeight: 700 }}>{entry.value}</dd>
               </React.Fragment>
             ))}
           </dl>
 
           {!responseEntries.length ? (
-            <p style={{ color: '#5f6b7a', marginBottom: 0, marginTop: 14 }}>No response was recorded for this attempt.</p>
+            <p style={{ color: 'var(--mm-text-muted)', marginBottom: 0, marginTop: 14 }}>No response was recorded for this attempt.</p>
           ) : null}
         </Panel>
 
@@ -102,8 +102,8 @@ export default function SolutionReview2({ questionData = {}, attemptRecord = {},
           </ol>
           {misconceptions.length ? (
             <>
-              <h4 style={{ margin: '16px 0 6px', fontSize: 14, color: '#7a4f01' }}>Common traps on this one</h4>
-              <ul style={{ lineHeight: 1.7, paddingLeft: 20, margin: 0, color: '#3c4756' }}>
+              <h4 style={{ margin: '16px 0 6px', fontSize: 14, color: 'var(--mm-warning-text)' }}>Common traps on this one</h4>
+              <ul style={{ lineHeight: 1.7, paddingLeft: 20, margin: 0, color: 'var(--mm-text)' }}>
                 {misconceptions.map((item, index) => <li key={index}>{item}</li>)}
               </ul>
             </>

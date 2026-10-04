@@ -20,6 +20,11 @@ const root = path.resolve(here, '../../..');
 
 export default defineConfig({
   root,
+  // Its own dependency cache: this harness aliases firebase/*, and when it
+  // shares node_modules/.vite with a plain `vite` server started beside it
+  // (the theme certification runs both), each optimizer run can invalidate
+  // the other server's deps and reload its pages mid-test.
+  cacheDir: path.join(root, 'node_modules/.vite-teacher-harness'),
   plugins: [react()],
   resolve: {
     alias: [

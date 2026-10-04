@@ -370,9 +370,9 @@ export const CalculatorPanel = ({
           minHeight:44,
           padding:'9px 14px',
           borderRadius:999,
-          border:'1px solid #d7a5a1',
-          background:'#fce8e6',
-          color:'#8c1d18',
+          border:'1px solid var(--mm-error-border-soft)',
+          background:'var(--mm-error-bg)',
+          color:'var(--mm-error-text)',
           fontWeight:800,
           cursor:'not-allowed',
           boxShadow:'none',
@@ -406,9 +406,9 @@ export const CalculatorPanel = ({
             minHeight:44,
             padding:'9px 14px',
             borderRadius:999,
-            border:'1px solid #c5d5ef',
-            background:'#fff',
-            color:'#174ea6',
+            border:'1px solid var(--mm-tint-border)',
+            background:'var(--mm-surface)',
+            color:'var(--mm-primary-text)',
             fontWeight:800,
             cursor:'pointer',
             boxShadow:'none',
@@ -431,7 +431,7 @@ export const CalculatorPanel = ({
             background: 'var(--mm-surface)',
             borderRadius: '12px',
             boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
-            border: '1px solid #dadce0',
+            border: '1px solid var(--mm-border)',
             padding: '16px',
             boxSizing: 'border-box',
             zIndex: 9001,
@@ -446,12 +446,12 @@ export const CalculatorPanel = ({
             style={{ display: 'flex', justifyContent: 'space-between', margin: '-6px -4px 12px', padding: '6px 4px', alignItems: 'center', cursor: 'grab', touchAction: 'none', userSelect: 'none' }}
             title="Drag calculator"
           >
-            <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#3c4043' }}>↕ {getCalculatorDrawerLabel(policy.mode)} CALCULATOR</span>
+            <span style={{ fontWeight: 'bold', fontSize: '13px', color: 'var(--mm-text)' }}>↕ {getCalculatorDrawerLabel(policy.mode)} CALCULATOR</span>
             <button type="button" aria-label="Close calculator" onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', minWidth: 34, minHeight: 34 }}>✕</button>
           </div>
           {!estimateUnlocked ? (
             <form onSubmit={handleEstimateSubmit} style={{ textAlign: 'left', fontSize: '13px' }}>
-              <p style={{ margin: '0 0 8px', color: '#5f6368' }}><strong>Calculator literacy:</strong> Estimate first, then unlock the calculator.</p>
+              <p style={{ margin: '0 0 8px', color: 'var(--mm-text-muted)' }}><strong>Calculator literacy:</strong> Estimate first, then unlock the calculator.</p>
               <input type="number" step="any" aria-label="Estimate" value={estimate} onChange={(event) => setEstimate(event.target.value)} style={{ width: '100%', padding: '8px', marginBottom: '8px', boxSizing: 'border-box' }} />
               <button type="submit" style={{ width: '100%', padding: '8px', background: '#137333', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Unlock Calculator</button>
             </form>
@@ -463,9 +463,9 @@ export const CalculatorPanel = ({
                 aria-label="Calculator expression"
                 math-virtual-keyboard-policy="manual"
                 inputmode="none"
-                style={{ display: 'block', width: '100%', minHeight: '58px', boxSizing: 'border-box', background: '#f1f3f4', padding: '10px 12px', borderRadius: '6px', border: '1px solid #dadce0', textAlign: 'right', fontSize: '24px', marginBottom: '12px' }}
+                style={{ display: 'block', width: '100%', minHeight: '58px', boxSizing: 'border-box', background: 'var(--mm-surface-control)', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--mm-border)', textAlign: 'right', fontSize: '24px', marginBottom: '12px' }}
               />
-              {policy.mode === 'graphing' && <p style={{ margin: '-3px 0 10px', color: '#5f6368', fontSize: '11px' }}>Graphs are drawn in the question itself. Use this calculator for the arithmetic.</p>}
+              {policy.mode === 'graphing' && <p style={{ margin: '-3px 0 10px', color: 'var(--mm-text-muted)', fontSize: '11px' }}>Graphs are drawn in the question itself. Use this calculator for the arithmetic.</p>}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                 {buttons.map((button) => (
                   <button
@@ -478,9 +478,9 @@ export const CalculatorPanel = ({
                       fontSize: button.label.length > 3 ? '12px' : '15px',
                       fontWeight: 'bold',
                       borderRadius: '6px',
-                      border: '1px solid #dadce0',
-                      background: button.action === 'equals' ? '#1a73e8' : button.action === 'clear' ? '#fce8e6' : '#fff',
-                      color: button.action === 'equals' ? '#fff' : button.action === 'clear' ? '#c5221f' : '#202124',
+                      border: '1px solid var(--mm-border)',
+                      background: button.action === 'equals' ? '#1a73e8' : button.action === 'clear' ? 'var(--mm-error-bg)' : 'var(--mm-surface)',
+                      color: button.action === 'equals' ? '#fff' : button.action === 'clear' ? 'var(--mm-danger)' : 'var(--mm-text-strong)',
                       cursor: 'pointer',
                     }}
                   >

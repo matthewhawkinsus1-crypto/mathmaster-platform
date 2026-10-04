@@ -38,7 +38,7 @@ export default function FractionGrader({ question, onStateChange, onUndoStateCha
       <h2 style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>Fractions</h2>
       {display.prompt && <QuestionPrompt>{display.prompt}</QuestionPrompt>}
       {display.expressionLatex && (
-        <div style={{ margin: '34px auto', fontSize: '30px', fontWeight: 'bold', color: '#1a73e8', width: 'fit-content', maxWidth: '100%' }}>
+        <div style={{ margin: '34px auto', fontSize: '30px', fontWeight: 'bold', color: 'var(--mm-primary)', width: 'fit-content', maxWidth: '100%' }}>
           <MathDisplay value={display.expressionLatex} format="latex" ariaLabel="Fraction expression" />
         </div>
       )}
@@ -46,7 +46,7 @@ export default function FractionGrader({ question, onStateChange, onUndoStateCha
       <div style={{ display: 'flex', justifyContent: 'center' }}>
         <MathInput value={answer} onChange={setAnswer} onUndoStateChange={onUndoStateChange} inputStatus={lastPart ? (lastPart.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
       </div>
-      <p style={{ fontSize: '13px', color: '#80868b', marginTop: '15px' }}><em>Type / to create a stacked fraction, or open the focused math tools.</em></p>
+      <p style={{ fontSize: '13px', color: 'var(--mm-text-subtle)', marginTop: '15px' }}><em>Type / to create a stacked fraction, or open the focused math tools.</em></p>
     </div>
   );
 }

@@ -47,10 +47,10 @@ const CONTROL = {
   // 360px phone has no other way to see the graph properly.
   minHeight: 44,
   padding: '0 12px',
-  border: '1px solid #c5d5ef',
+  border: '1px solid var(--mm-tint-border)',
   borderRadius: 8,
   background: 'var(--mm-surface)',
-  color: '#174ea6',
+  color: 'var(--mm-primary-text)',
   fontWeight: 800,
   fontSize: 13,
   cursor: 'pointer',
@@ -461,7 +461,7 @@ export default function EnlargeableFigure({
           maxHeight: '100%',
           overflow: 'auto',
           padding: 14,
-          border: '1px solid #dfe3e7',
+          border: '1px solid var(--mm-border)',
           borderRadius: 14,
           background: 'var(--mm-surface)',
           boxSizing: 'border-box',
@@ -563,13 +563,13 @@ export default function EnlargeableFigure({
               style={{
                 minWidth: 0,
                 paddingRight: 4,
-                color: '#3c4756',
+                color: 'var(--mm-text)',
                 fontSize: 12.5,
                 fontWeight: 700,
                 lineHeight: 1.35,
               }}
             >
-              <span style={{ color: '#174ea6', fontWeight: 900 }}>Your task: </span>
+              <span style={{ color: 'var(--mm-primary-text)', fontWeight: 900 }}>Your task: </span>
               {typeof task === 'string' ? <MathText>{task}</MathText> : task}
             </div>
           ) : null}

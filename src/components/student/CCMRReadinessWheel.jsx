@@ -96,7 +96,8 @@ export const CCMRReadinessWheel = ({
                   d={arcPath(center, center, inner, isActive ? outer + 6 : outer, start, end)}
                   fill={entry.color}
                   opacity={entry.selectable ? (isActive ? 1 : 0.9) : 0.45}
-                  stroke="#fff"
+                  // Segment gaps are cut in the card's own color.
+                  style={{ stroke: 'var(--mm-surface)' }}
                   strokeWidth="2"
                 />
               </g>
@@ -104,11 +105,11 @@ export const CCMRReadinessWheel = ({
           })}
           {/* The hub is decoration. Without this it sits over the middle of
               every segment's hit area and swallows clicks aimed at the ring. */}
-          <circle cx={center} cy={center} r={inner - 4} fill="#fff" pointerEvents="none" />
-          <text x={center} y={center - 6} textAnchor="middle" pointerEvents="none" style={{ fontSize: 14, fontWeight: 900, fill: '#202124' }}>
+          <circle cx={center} cy={center} r={inner - 4} style={{ fill: 'var(--mm-surface)' }} pointerEvents="none" />
+          <text x={center} y={center - 6} textAnchor="middle" pointerEvents="none" style={{ fontSize: 14, fontWeight: 900, fill: 'var(--mm-text-strong)' }}>
             {active ? '' : title}
           </text>
-          <text x={center} y={center + 14} textAnchor="middle" pointerEvents="none" style={{ fontSize: 11, fill: '#5f6368' }}>
+          <text x={center} y={center + 14} textAnchor="middle" pointerEvents="none" style={{ fontSize: 11, fill: 'var(--mm-text-muted)' }}>
             {active ? '' : 'Choose a part of the test'}
           </text>
         </svg>
@@ -121,8 +122,8 @@ export const CCMRReadinessWheel = ({
               {active.label}
             </p>
             <h4 style={{ margin: '0 0 6px', fontSize: 17, color: 'var(--mm-text-strong)' }}>{active.title}</h4>
-            <p style={{ margin: '0 0 8px', fontSize: 13, color: '#5f6368', lineHeight: 1.55 }}>{explainDomain(active)}</p>
-            <p style={{ margin: 0, fontSize: 12, color: '#3c4043' }}>
+            <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>{explainDomain(active)}</p>
+            <p style={{ margin: 0, fontSize: 12, color: 'var(--mm-text)' }}>
               {active.skillCount} skill{active.skillCount === 1 ? '' : 's'} matched
               {' · '}
               {/* Never a percentage the student did not earn. */}
@@ -134,7 +135,7 @@ export const CCMRReadinessWheel = ({
         ) : (
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6 }}>
             {domains.map((entry) => (
-              <li key={entry.domainId} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#3c4043' }}>
+              <li key={entry.domainId} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--mm-text)' }}>
                 <span aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 3, background: entry.color, opacity: entry.selectable ? 1 : 0.45, flexShrink: 0 }} />
                 <span style={{ minWidth: 0 }}>
                   <strong>{entry.title}</strong> — {entry.label}

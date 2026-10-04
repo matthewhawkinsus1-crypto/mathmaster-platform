@@ -18,7 +18,7 @@ import {
 } from '../../platform/teacher/studentSupportSignals.js';
 
 const cardStyle = {
-  border: '1px solid #d8dde6',
+  border: '1px solid var(--mm-border)',
   borderRadius: 10,
   background: 'var(--mm-surface)',
   padding: '12px 13px',
@@ -27,7 +27,7 @@ const cardStyle = {
 const actionButton = {
   minHeight: 34,
   padding: '6px 9px',
-  border: '1px solid #c9ced6',
+  border: '1px solid var(--mm-border)',
   borderRadius: 7,
   background: 'var(--mm-surface)',
   fontWeight: 800,
@@ -271,21 +271,21 @@ export default function StudentSupportDashboard({
     <section style={{ marginBottom: 26 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
         <h2 style={{ margin: 0, fontSize: 18 }}>Student Support & Intervention</h2>
-        <span style={{ color: '#5f6368', fontSize: 12.5 }}>
+        <span style={{ color: 'var(--mm-text-muted)', fontSize: 12.5 }}>
           System signals stay separate from teacher-confirmed concerns and actions.
         </span>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(245px, 1fr))', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 245px), 1fr))', gap: 10 }}>
         <div style={cardStyle}>
           <div style={{ fontWeight: 900 }}>Watch Practice</div>
-          <div style={{ color: '#5f6368', fontSize: 11.5, margin: '3px 0 8px' }}>Short list for students worth watching live during independent work.</div>
+          <div style={{ color: 'var(--mm-text-muted)', fontSize: 11.5, margin: '3px 0 8px' }}>Short list for students worth watching live during independent work.</div>
           {watchList.length ? watchList.map((entry) => (
-            <div key={entry.studentId} style={{ borderTop: '1px solid #eef0f2', padding: '8px 0' }}>
+            <div key={entry.studentId} style={{ borderTop: '1px solid var(--mm-border-soft)', padding: '8px 0' }}>
               <button type="button" onClick={() => onOpenStudent?.(entry.studentId)} style={{ border: 0, padding: 0, background: 'transparent', fontWeight: 900, cursor: 'pointer', textAlign: 'left' }}>
                 {labelFor(entry.studentId, entry.studentName)}
               </button>
-              <div style={{ fontSize: 11.5, color: '#5f6368', marginTop: 2 }}>{entry.reasons.join(' · ')}</div>
+              <div style={{ fontSize: 11.5, color: 'var(--mm-text-muted)', marginTop: 2 }}>{entry.reasons.join(' · ')}</div>
               <div style={{ display: 'flex', gap: 5, marginTop: 6, flexWrap: 'wrap' }}>
                 <button type="button" style={actionButton} onClick={() => record({
                   kind: SUPPORT_EVENT_KIND.TEACHER_INTERVENTION,
@@ -307,32 +307,32 @@ export default function StudentSupportDashboard({
                 })}>Observed — okay</button>
               </div>
             </div>
-          )) : <div style={{ color: '#80868b', fontSize: 12 }}>No watch list right now.</div>}
+          )) : <div style={{ color: 'var(--mm-text-subtle)', fontSize: 12 }}>No watch list right now.</div>}
         </div>
 
         <div style={cardStyle}>
           <div style={{ fontWeight: 900 }}>Suggested Small Groups</div>
-          <div style={{ color: '#5f6368', fontSize: 11.5, margin: '3px 0 8px' }}>Built from established academic patterns, never from off-task behavior.</div>
+          <div style={{ color: 'var(--mm-text-muted)', fontSize: 11.5, margin: '3px 0 8px' }}>Built from established academic patterns, never from off-task behavior.</div>
           {groups.length ? groups.map((group) => (
-            <div key={group.key} style={{ borderTop: '1px solid #eef0f2', padding: '8px 0' }}>
+            <div key={group.key} style={{ borderTop: '1px solid var(--mm-border-soft)', padding: '8px 0' }}>
               <div style={{ fontWeight: 800 }}>{group.label}</div>
-              <div style={{ fontSize: 11.5, color: '#5f6368', marginTop: 2 }}>{group.students.length} students</div>
-              <div style={{ fontSize: 11.5, color: '#3c4043', marginTop: 3 }}>
+              <div style={{ fontSize: 11.5, color: 'var(--mm-text-muted)', marginTop: 2 }}>{group.students.length} students</div>
+              <div style={{ fontSize: 11.5, color: 'var(--mm-text)', marginTop: 3 }}>
                 {group.students.slice(0, 5).map((student) => labelFor(student.studentId, student.studentName)).join(', ')}
                 {group.students.length > 5 ? ` +${group.students.length - 5} more` : ''}
               </div>
               <button type="button" style={{ ...actionButton, marginTop: 6 }} onClick={() => saveGroup(group)}>Save group</button>
             </div>
-          )) : <div style={{ color: '#80868b', fontSize: 12 }}>No repeated academic pattern is large enough for a suggested group.</div>}
+          )) : <div style={{ color: 'var(--mm-text-subtle)', fontSize: 12 }}>No repeated academic pattern is large enough for a suggested group.</div>}
         </div>
 
         <div style={cardStyle}>
           <div style={{ fontWeight: 900 }}>Parent Follow-Up</div>
-          <div style={{ color: '#5f6368', fontSize: 11.5, margin: '3px 0 8px' }}>Requires repeated teacher-confirmed productivity concerns; platform telemetry alone can never place a student here.</div>
+          <div style={{ color: 'var(--mm-text-muted)', fontSize: 11.5, margin: '3px 0 8px' }}>Requires repeated teacher-confirmed productivity concerns; platform telemetry alone can never place a student here.</div>
           {parents.length ? parents.map((entry) => (
-            <div key={entry.studentId} style={{ borderTop: '1px solid #eef0f2', padding: '8px 0' }}>
+            <div key={entry.studentId} style={{ borderTop: '1px solid var(--mm-border-soft)', padding: '8px 0' }}>
               <button type="button" onClick={() => onOpenStudent?.(entry.studentId)} style={{ border: 0, padding: 0, background: 'transparent', fontWeight: 900, cursor: 'pointer', textAlign: 'left' }}>{labelFor(entry.studentId, entry.studentName)}</button>
-              <div style={{ fontSize: 11.5, color: '#5f6368', marginTop: 2 }}>
+              <div style={{ fontSize: 11.5, color: 'var(--mm-text-muted)', marginTop: 2 }}>
                 {entry.confirmedProductivityDays.length} confirmed day{entry.confirmedProductivityDays.length === 1 ? '' : 's'}
                 {entry.completionSignals.length ? ` · ${entry.completionSignals.length} completion signal${entry.completionSignals.length === 1 ? '' : 's'}` : ''}
               </div>
@@ -348,17 +348,17 @@ export default function StudentSupportDashboard({
                 },
               })}>Mark contacted</button>
             </div>
-          )) : <div style={{ color: '#80868b', fontSize: 12 }}>No student currently meets the repeated-evidence threshold.</div>}
+          )) : <div style={{ color: 'var(--mm-text-subtle)', fontSize: 12 }}>No student currently meets the repeated-evidence threshold.</div>}
         </div>
 
         <div style={cardStyle}>
           <div style={{ fontWeight: 900 }}>Integrity Review</div>
-          <div style={{ color: '#5f6368', fontSize: 11.5, margin: '3px 0 8px' }}>Unusual response patterns only. MathMaster never labels a student as cheating.</div>
+          <div style={{ color: 'var(--mm-text-muted)', fontSize: 11.5, margin: '3px 0 8px' }}>Unusual response patterns only. MathMaster never labels a student as cheating.</div>
           {integrity.length ? integrity.map((entry) => (
-            <div key={entry.key} style={{ borderTop: '1px solid #eef0f2', padding: '8px 0' }}>
+            <div key={entry.key} style={{ borderTop: '1px solid var(--mm-border-soft)', padding: '8px 0' }}>
               <button type="button" onClick={() => onOpenStudent?.(entry.studentId)} style={{ border: 0, padding: 0, background: 'transparent', fontWeight: 900, cursor: 'pointer', textAlign: 'left' }}>{labelFor(entry.studentId, entry.studentName)}</button>
-              <div style={{ fontSize: 10.5, color: '#80868b', marginTop: 2 }}>{entry.sourceLabel}{entry.assignmentTitle ? ` · ${entry.assignmentTitle}` : ''}</div>
-              <div style={{ fontSize: 11.5, color: '#6b4c00', marginTop: 3 }}>{entry.signal.reasons.join(' · ')}</div>
+              <div style={{ fontSize: 10.5, color: 'var(--mm-text-subtle)', marginTop: 2 }}>{entry.sourceLabel}{entry.assignmentTitle ? ` · ${entry.assignmentTitle}` : ''}</div>
+              <div style={{ fontSize: 11.5, color: 'var(--mm-warning-text)', marginTop: 3 }}>{entry.signal.reasons.join(' · ')}</div>
               <div style={{ display: 'flex', gap: 5, marginTop: 6, flexWrap: 'wrap' }}>
                 <button type="button" style={actionButton} onClick={() => record({
                   kind: SUPPORT_EVENT_KIND.INTEGRITY_REVIEW,
@@ -385,23 +385,23 @@ export default function StudentSupportDashboard({
                 })}>Dismiss</button>
               </div>
             </div>
-          )) : <div style={{ color: '#80868b', fontSize: 12 }}>No unusual response pattern meets the review threshold.</div>}
+          )) : <div style={{ color: 'var(--mm-text-subtle)', fontSize: 12 }}>No unusual response pattern meets the review threshold.</div>}
         </div>
 
         <div style={cardStyle}>
           <div style={{ fontWeight: 900 }}>Productivity Review</div>
-          <div style={{ color: '#5f6368', fontSize: 11.5, margin: '3px 0 8px' }}>
+          <div style={{ color: 'var(--mm-text-muted)', fontSize: 11.5, margin: '3px 0 8px' }}>
             Archived session telemetry can suggest a look, but only a teacher can confirm an off-task concern.
           </div>
           {productivityReviews.length ? productivityReviews.map(({ summary, signal }) => {
             const elapsed = Math.max(0, (Number(summary.endedAt || 0) - Number(summary.startedAt || 0)) / 60000);
             const active = Math.max(0, Number(summary.activeSeconds || 0) / 60);
             return (
-              <div key={summary.id} style={{ borderTop: '1px solid #eef0f2', padding: '8px 0' }}>
+              <div key={summary.id} style={{ borderTop: '1px solid var(--mm-border-soft)', padding: '8px 0' }}>
                 <button type="button" onClick={() => onOpenStudent?.(summary.studentId)} style={{ border: 0, padding: 0, background: 'transparent', fontWeight: 900, cursor: 'pointer', textAlign: 'left' }}>
                   {labelFor(summary.studentId, summary.studentName)}
                 </button>
-                <div style={{ fontSize: 11.5, color: '#5f6368', marginTop: 2 }}>
+                <div style={{ fontSize: 11.5, color: 'var(--mm-text-muted)', marginTop: 2 }}>
                   {summary.assignmentTitle || 'Assignment'} · {Math.round(active)} active min of {Math.round(elapsed)} elapsed · {summary.answered || 0} answered
                   {Number(summary.focusLossCount) > 0 ? ` · ${summary.focusLossCount} focus loss${Number(summary.focusLossCount) === 1 ? '' : 'es'}` : ''}
                 </div>
@@ -431,24 +431,24 @@ export default function StudentSupportDashboard({
                 </div>
               </div>
             );
-          }) : <div style={{ color: '#80868b', fontSize: 12 }}>No recent session meets the productivity-review threshold.</div>}
+          }) : <div style={{ color: 'var(--mm-text-subtle)', fontSize: 12 }}>No recent session meets the productivity-review threshold.</div>}
         </div>
       </div>
 
-      <details style={{ marginTop: 10, border: '1px solid #d8dde6', borderRadius: 10, background: 'var(--mm-surface)', padding: '10px 12px' }}>
+      <details style={{ marginTop: 10, border: '1px solid var(--mm-border)', borderRadius: 10, background: 'var(--mm-surface)', padding: '10px 12px' }}>
         <summary style={{ cursor: 'pointer', fontWeight: 900 }}>Add teacher note / intervention</summary>
-        <div style={{ marginTop: 9, display: 'grid', gap: 8 }}>
-          <div style={{ fontSize: 11.5, color: '#5f6368' }}>
+        <div style={{ marginTop: 9, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 8 }}>
+          <div style={{ fontSize: 11.5, color: 'var(--mm-text-muted)' }}>
             Optional. Use this for something you actually observed or did; MathMaster never writes the teacher note for you.
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1fr) minmax(180px, 1fr)', gap: 8 }}>
-            <select value={noteStudentId} onChange={(event) => setNoteStudentId(event.target.value)} style={{ minHeight: 38, padding: '7px 8px', border: '1px solid #c9ced6', borderRadius: 7, background: 'var(--mm-surface)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8 }}>
+            <select value={noteStudentId} onChange={(event) => setNoteStudentId(event.target.value)} style={{ minHeight: 38, padding: '7px 8px', border: '1px solid var(--mm-border)', borderRadius: 7, background: 'var(--mm-surface)' }}>
               <option value="">Choose student…</option>
               {notePickerStudents.map(({ student, label }) => (
                 <option key={student.id} value={student.id}>{label}</option>
               ))}
             </select>
-            <select value={noteKind} onChange={(event) => setNoteKind(event.target.value)} style={{ minHeight: 38, padding: '7px 8px', border: '1px solid #c9ced6', borderRadius: 7, background: 'var(--mm-surface)' }}>
+            <select value={noteKind} onChange={(event) => setNoteKind(event.target.value)} style={{ minHeight: 38, padding: '7px 8px', border: '1px solid var(--mm-border)', borderRadius: 7, background: 'var(--mm-surface)' }}>
               <option value={SUPPORT_EVENT_KIND.TEACHER_INTERVENTION}>Teacher check-in / intervention</option>
               <option value={SUPPORT_EVENT_KIND.OFF_TASK_CONCERN}>Productivity / off-task concern</option>
               <option value={SUPPORT_EVENT_KIND.WATCH_PRACTICE}>Watch Practice</option>
@@ -461,10 +461,10 @@ export default function StudentSupportDashboard({
             onChange={(event) => setNoteText(event.target.value)}
             maxLength={1200}
             placeholder="What did you observe or do?"
-            style={{ width: '100%', minHeight: 72, resize: 'vertical', padding: 9, border: '1px solid #c9ced6', borderRadius: 7, boxSizing: 'border-box', font: 'inherit' }}
+            style={{ width: '100%', minHeight: 72, resize: 'vertical', padding: 9, border: '1px solid var(--mm-border)', borderRadius: 7, boxSizing: 'border-box', font: 'inherit' }}
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 10.5, color: '#80868b' }}>{noteText.length}/1200</span>
+            <span style={{ fontSize: 10.5, color: 'var(--mm-text-subtle)' }}>{noteText.length}/1200</span>
             <button type="button" disabled={noteSaving || !noteStudentId || !noteText.trim()} onClick={saveTeacherNote} style={{ ...actionButton, minHeight: 38, opacity: noteSaving || !noteStudentId || !noteText.trim() ? 0.55 : 1 }}>
               {noteSaving ? 'Saving…' : 'Save teacher note'}
             </button>
@@ -472,21 +472,21 @@ export default function StudentSupportDashboard({
         </div>
       </details>
 
-      <details style={{ marginTop: 10, border: '1px solid #d8dde6', borderRadius: 10, background: 'var(--mm-surface)', padding: '10px 12px' }}>
+      <details style={{ marginTop: 10, border: '1px solid var(--mm-border)', borderRadius: 10, background: 'var(--mm-surface)', padding: '10px 12px' }}>
         <summary style={{ cursor: 'pointer', fontWeight: 900 }}>Recent support history ({recent.length})</summary>
         <div style={{ marginTop: 8, display: 'grid', gap: 7 }}>
           {recent.length ? recent.map((event) => (
-            <div key={event.id} style={{ padding: '8px 9px', borderRadius: 8, background: '#f8f9fa' }}>
+            <div key={event.id} style={{ padding: '8px 9px', borderRadius: 8, background: 'var(--mm-surface-sunken)' }}>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
                 <strong>{labelFor(event.studentId, event.studentName)}</strong>
-                <span style={{ fontSize: 11, color: '#80868b' }}>{fmt(event.createdAt)}</span>
+                <span style={{ fontSize: 11, color: 'var(--mm-text-subtle)' }}>{fmt(event.createdAt)}</span>
               </div>
               <div style={{ marginTop: 2, fontSize: 11.5 }}>
                 <strong>{SUPPORT_EVENT_LABEL[event.kind] || event.kind}</strong> · {SUPPORT_STAGE_LABEL[event.stage] || event.stage}
               </div>
-              {event.summary && <div style={{ marginTop: 2, fontSize: 11.5, color: '#5f6368' }}>{event.summary}</div>}
+              {event.summary && <div style={{ marginTop: 2, fontSize: 11.5, color: 'var(--mm-text-muted)' }}>{event.summary}</div>}
             </div>
-          )) : <div style={{ color: '#80868b', fontSize: 12 }}>No stored support events for this class yet.</div>}
+          )) : <div style={{ color: 'var(--mm-text-subtle)', fontSize: 12 }}>No stored support events for this class yet.</div>}
         </div>
       </details>
     </section>

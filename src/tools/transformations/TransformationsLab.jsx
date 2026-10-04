@@ -19,7 +19,7 @@ import {
   transformedSourcePoints,
 } from './transformationsMath';
 
-const inputStyle = { width: '100%', padding: 9, marginTop: 5, border: '1px solid #cdd6e4', borderRadius: 8 };
+const inputStyle = { width: '100%', padding: 9, marginTop: 5, border: '1px solid var(--mm-tint-border)', borderRadius: 8 };
 const buttonStyle = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 
 const MODE_TASKS = {'match': 'Change a, b, h and k until your graph sits exactly on the dashed target.', 'identify': 'Read the graph and recover the values of a, b, h and k that produced it.', 'pointMap': 'Send a point from the parent function through the transformation and give where it lands.', 'plotTransform': 'Transform the entire source graph by moving each defining point to its new location.', 'describe': 'Describe every change this graph makes to its parent function.', 'anchor': 'Find the coordinates of the transformed defining feature.'};
@@ -45,7 +45,7 @@ const pointCoordinates = (point) => (
 const TransformationBridge = () => (
   <>
     <p style={{ marginTop: 0 }}><strong>Model:</strong> y = a · f(b(x − h)) + k</p>
-    <div style={{ padding: '10px 12px', borderRadius: 10, background: '#eef4ff', border: '1px solid #aecbfa', color: '#174ea6', fontWeight: 900, marginBottom: 12 }}>
+    <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--mm-primary-subtle)', border: '1px solid var(--mm-primary-border)', color: 'var(--mm-primary-text)', fontWeight: 900, marginBottom: 12 }}>
       X&apos;s lie; Y&apos;s tell the truth.
     </div>
     <ul style={{ lineHeight: 1.8, paddingLeft: 20 }}>
@@ -55,7 +55,7 @@ const TransformationBridge = () => (
       <li><strong>k</strong> shifts vertically exactly as written.</li>
       <li>A parent point (x, y) maps to <strong>(x/b + h, ay + k)</strong>.</li>
     </ul>
-    <p style={{ color: '#5f6b7a', marginBottom: 0 }}>This same bridge works for linear, quadratic, absolute value, cubic, root, exponential, logarithmic, and reciprocal families.</p>
+    <p style={{ color: 'var(--mm-text-muted)', marginBottom: 0 }}>This same bridge works for linear, quadratic, absolute value, cubic, root, exponential, logarithmic, and reciprocal families.</p>
   </>
 );
 
@@ -218,7 +218,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
     if (mode === 'describe') return 'At least one description is off. Use “x\'s lie, y\'s tell the truth”: a acts directly on y; b acts oppositely/reciprocally on x; h and k give the translations.';
     return 'Compare one parameter at a time. Change only a, then b, then h, then k, and watch what each one changes.';
   };
-  const feedbackBlock = feedback ? <div style={{ marginTop: 14 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{ margin: '9px 0 0', color: '#3c4756', lineHeight: 1.55 }}>{feedbackMessage()}</p></div> : null;
+  const feedbackBlock = feedback ? <div style={{ marginTop: 14 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{ margin: '9px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{feedbackMessage()}</p></div> : null;
   const resetFeedback = () => clearFeedback();
 
   /*
@@ -292,7 +292,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
           <p style={{ marginTop: 0 }}>Adjust <strong>{parameterKeys.join(', ')}</strong> until your solid blue graph lands exactly on the dashed red target.</p>
           {parameterFields(parameterValues, parameterSetters, parameterKeys)}
           <div style={{ marginTop: 14 }}>{graph([x => evaluateTransformedFunction(studentSpec, x), x => evaluateTransformedFunction(targetSpec, x)])}</div>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8, fontSize: 13, color: '#3c4756' }}>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginTop: 8, fontSize: 13, color: 'var(--mm-text)' }}>
             <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 5 }} aria-hidden="true"><line x1="0" y1="4" x2="26" y2="4" stroke="#1a73e8" strokeWidth="3" /></svg><strong>Your graph</strong> — solid blue</span>
             <span><svg width="26" height="8" style={{ verticalAlign: 'middle', marginRight: 5 }} aria-hidden="true"><line x1="0" y1="4" x2="26" y2="4" stroke="#d93025" strokeWidth="3" strokeDasharray="8 5" /></svg><strong>Target</strong> — dashed red</span>
           </div>
@@ -354,15 +354,15 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
               reached. Clear is not undo — it discards the whole construction in
               one press — so it stays. */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
-            <button type="button" onClick={clearPlottedPoints} disabled={!plottedPoints.length} style={{ ...buttonStyle, background: 'var(--mm-surface)', color: '#5f6368', border: '1px solid #dadce0' }}>Clear</button>
+            <button type="button" onClick={clearPlottedPoints} disabled={!plottedPoints.length} style={{ ...buttonStyle, background: 'var(--mm-surface)', color: 'var(--mm-text-muted)', border: '1px solid var(--mm-border)' }}>Clear</button>
             <button data-mm-enter-action="submit" type="button" onClick={check} disabled={plotTransformIncomplete} style={{ ...buttonStyle, opacity: plotTransformIncomplete ? 0.55 : 1 }}>Check graph</button>
           </div>
-          <p style={{ marginBottom: 0, color: '#5f6b7a', fontSize: 13 }}>{plottedPoints.length} of {expectedTransformedPoints.length} defining points plotted.</p>
+          <p style={{ marginBottom: 0, color: 'var(--mm-text-muted)', fontSize: 13 }}>{plottedPoints.length} of {expectedTransformedPoints.length} defining points plotted.</p>
         </> : null}
 
         {mode === 'describe' ? <>
           {graph([x => evaluateTransformedFunction(investigationSpec, x)])}
-          <p style={{ color: '#5f6b7a' }}>Describe what changed from the parent function.</p>
+          <p style={{ color: 'var(--mm-text-muted)' }}>Describe what changed from the parent function.</p>
           <label style={{ display: 'block', marginTop: 10 }}>Reflection across the x-axis?<select value={reflection} onChange={(event) => setReflection(event.target.value)} style={inputStyle}><option value="">Choose…</option><option value="yes">Yes</option><option value="no">No</option></select></label>
           <label style={{ display: 'block', marginTop: 10 }}>Vertical scale<select value={scaleKind} onChange={(event) => setScaleKind(event.target.value)} style={inputStyle}><option value="">Choose…</option><option value="stretch">Stretch</option><option value="compression">Compression</option><option value="unchanged">Unchanged</option></select></label>
           <label style={{ display: 'block', marginTop: 10 }}>Vertical scale factor |a|<input type="number" step="0.1" min="0" value={scaleFactor} onChange={(event) => setScaleFactor(event.target.value)} style={inputStyle} placeholder="factor" /></label>

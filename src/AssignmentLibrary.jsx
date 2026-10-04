@@ -108,16 +108,16 @@ export default function AssignmentLibrary(props) {
         style={{
           marginBottom: 14,
           padding: '14px 16px',
-          border: '2px solid #aecbfa',
+          border: '2px solid var(--mm-primary-border)',
           borderRadius: 12,
-          background: '#f8fbff',
+          background: 'var(--mm-surface-tint)',
           textAlign: 'left',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <div>
-            <strong style={{ color: '#174ea6', fontSize: 16 }}>Library Repair Center</strong>
-            <div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>
+            <strong style={{ color: 'var(--mm-primary-text)', fontSize: 16 }}>Library Repair Center</strong>
+            <div style={{ marginTop: 3, color: 'var(--mm-text-muted)', fontSize: 12 }}>
               Choose any saved Library lesson. MathMaster opens its protected assignment view so teacher flags, AI repair uploads, and any existing student history use the same safe repair rules.
             </div>
           </div>
@@ -126,7 +126,7 @@ export default function AssignmentLibrary(props) {
               value={effectiveRepairId}
               onChange={(event) => { setSelectedRepairId(event.target.value); setMessage(''); }}
               aria-label="Choose Library assignment for Repair Center"
-              style={{ minWidth: 240, maxWidth: 'min(460px, 70vw)', minHeight: 42, padding: '7px 9px', border: '1px solid #bdc7d6', borderRadius: 8, background: 'var(--mm-surface)' }}
+              style={{ minWidth: 240, maxWidth: 'min(460px, 70vw)', minHeight: 42, padding: '7px 9px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)' }}
             >
               {repairChoices.length === 0 && <option value="">No V5 Library assignments</option>}
               {repairChoices.map((assignment) => (
@@ -145,7 +145,7 @@ export default function AssignmentLibrary(props) {
             </button>
           </div>
         </div>
-        {message && <div role="status" style={{ marginTop: 9, color: '#3c4043', fontSize: 12 }}>{message}</div>}
+        {message && <div role="status" style={{ marginTop: 9, color: 'var(--mm-text)', fontSize: 12 }}>{message}</div>}
       </section>
 
       <AssignmentLibraryBase {...props} />

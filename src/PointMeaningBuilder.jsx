@@ -20,7 +20,7 @@ const inputStyle = (border) => ({
   border: `2px solid ${border}`,
   background: 'var(--mm-surface)',
   color: 'var(--mm-text-strong)',
-  WebkitTextFillColor: '#202124',
+  WebkitTextFillColor: 'var(--mm-text-strong)',
   caretColor: '#202124',
   font: 'inherit',
 });
@@ -28,7 +28,7 @@ const inputStyle = (border) => ({
 const cardStyle = {
   padding: '13px',
   borderRadius: '11px',
-  border: '1px solid #d7e0eb',
+  border: '1px solid var(--mm-tint-border)',
   background: 'var(--mm-surface)',
 };
 
@@ -61,9 +61,9 @@ export default function PointMeaningBuilder({
   if (config.responseMode === 'open') {
     return (
       <section style={{ marginTop: '12px' }}>
-        <div style={{ padding: '15px', borderRadius: '11px', background: '#f8fbff', border: '1px solid #cbd9ec' }}>
+        <div style={{ padding: '15px', borderRadius: '11px', background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}>
           <strong>Interpret {targetLabel} in this situation.</strong>
-          <div style={{ marginTop: '5px', color: '#5f6368' }}>Explain what both coordinates mean using the quantities and units from the scenario.</div>
+          <div style={{ marginTop: '5px', color: 'var(--mm-text-muted)' }}>Explain what both coordinates mean using the quantities and units from the scenario.</div>
         </div>
         {showGraph && graphWithResponse && <GraphDisplay graph={graphWithResponse} title="Point interpretation graph" />}
         <textarea
@@ -79,25 +79,25 @@ export default function PointMeaningBuilder({
 
   return (
     <section style={{ marginTop: '12px' }}>
-      <div style={{ padding: '15px', borderRadius: '11px', background: '#f8fbff', border: '1px solid #cbd9ec', lineHeight: 1.55 }}>
+      <div style={{ padding: '15px', borderRadius: '11px', background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)', lineHeight: 1.55 }}>
         <strong>The highlighted point represents {config.target.kind === 'startingPoint' ? 'the beginning of this situation' : 'a meaningful point in this situation'}.</strong>
-        <div style={{ marginTop: '4px', color: '#5f6368' }}>Build a statement that explains what each coordinate means. Your entries are reflected on the graph as you work.</div>
+        <div style={{ marginTop: '4px', color: 'var(--mm-text-muted)' }}>Build a statement that explains what each coordinate means. Your entries are reflected on the graph as you work.</div>
       </div>
 
       {showGraph && graphWithResponse && <GraphDisplay graph={graphWithResponse} title="Point interpretation graph" />}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: '14px', alignItems: 'stretch' }}>
         <div style={cardStyle}>
-          <div style={{ fontWeight: 900, color: '#174ea6', marginBottom: '10px' }}>X-coordinate meaning</div>
+          <div style={{ fontWeight: 900, color: 'var(--mm-primary-text)', marginBottom: '10px' }}>X-coordinate meaning</div>
           {config.responseMode === 'builder' ? (
-            <label style={{ display: 'block', fontWeight: 800, color: '#3c4043' }}>Quantity
+            <label style={{ display: 'block', fontWeight: 800, color: 'var(--mm-text)' }}>Quantity
               <select
                 value={values.xQuantityId}
                 disabled={disabled}
                 onChange={(event) => setField('xQuantityId', event.target.value)}
                 style={{ ...inputStyle(borderFor(feedback, `${prefix}-x-quantity`)), marginTop: '6px' }}
               >
-                <option value="" style={{ color: '#5f6368', background: 'var(--mm-surface)' }}>Choose the quantity</option>
+                <option value="" style={{ color: 'var(--mm-text-muted)', background: 'var(--mm-surface)' }}>Choose the quantity</option>
                 {choices.map((choice) => <option key={`x-${choice.id}`} value={choice.id} style={{ color: 'var(--mm-text-strong)', background: 'var(--mm-surface)' }}>{choice.label}</option>)}
               </select>
             </label>
@@ -105,7 +105,7 @@ export default function PointMeaningBuilder({
             <div style={{ fontWeight: 800, marginBottom: '12px' }}>{config.x.name}</div>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: '8px', marginTop: '11px' }}>
-            <label style={{ fontWeight: 800, color: '#3c4043' }}>Value
+            <label style={{ fontWeight: 800, color: 'var(--mm-text)' }}>Value
               <input
                 type="number"
                 step="any"
@@ -116,7 +116,7 @@ export default function PointMeaningBuilder({
                 style={{ ...inputStyle(borderFor(feedback, `${prefix}-x-value`)), marginTop: '6px' }}
               />
             </label>
-            <label style={{ fontWeight: 800, color: '#3c4043' }}>Unit
+            <label style={{ fontWeight: 800, color: 'var(--mm-text)' }}>Unit
               <input
                 value={values.xUnit}
                 placeholder="Type the unit"
@@ -129,16 +129,16 @@ export default function PointMeaningBuilder({
         </div>
 
         <div style={cardStyle}>
-          <div style={{ fontWeight: 900, color: '#9334e6', marginBottom: '10px' }}>Y-coordinate meaning</div>
+          <div style={{ fontWeight: 900, color: 'var(--mm-accent-text)', marginBottom: '10px' }}>Y-coordinate meaning</div>
           {config.responseMode === 'builder' ? (
-            <label style={{ display: 'block', fontWeight: 800, color: '#3c4043' }}>Quantity
+            <label style={{ display: 'block', fontWeight: 800, color: 'var(--mm-text)' }}>Quantity
               <select
                 value={values.yQuantityId}
                 disabled={disabled}
                 onChange={(event) => setField('yQuantityId', event.target.value)}
                 style={{ ...inputStyle(borderFor(feedback, `${prefix}-y-quantity`)), marginTop: '6px' }}
               >
-                <option value="" style={{ color: '#5f6368', background: 'var(--mm-surface)' }}>Choose the quantity</option>
+                <option value="" style={{ color: 'var(--mm-text-muted)', background: 'var(--mm-surface)' }}>Choose the quantity</option>
                 {choices.map((choice) => <option key={`y-${choice.id}`} value={choice.id} style={{ color: 'var(--mm-text-strong)', background: 'var(--mm-surface)' }}>{choice.label}</option>)}
               </select>
             </label>
@@ -146,7 +146,7 @@ export default function PointMeaningBuilder({
             <div style={{ fontWeight: 800, marginBottom: '12px' }}>{config.y.name}</div>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: '8px', marginTop: '11px' }}>
-            <label style={{ fontWeight: 800, color: '#3c4043' }}>Value
+            <label style={{ fontWeight: 800, color: 'var(--mm-text)' }}>Value
               <input
                 type="number"
                 step="any"
@@ -157,7 +157,7 @@ export default function PointMeaningBuilder({
                 style={{ ...inputStyle(borderFor(feedback, `${prefix}-y-value`)), marginTop: '6px' }}
               />
             </label>
-            <label style={{ fontWeight: 800, color: '#3c4043' }}>Unit
+            <label style={{ fontWeight: 800, color: 'var(--mm-text)' }}>Unit
               <input
                 value={values.yUnit}
                 placeholder="Type the unit"
@@ -170,8 +170,8 @@ export default function PointMeaningBuilder({
         </div>
       </div>
 
-      <div style={{ marginTop: '14px', padding: '15px 17px', borderRadius: '11px', background: naturalMeaning ? '#eef7ff' : '#f8f9fa', border: `1px solid ${naturalMeaning ? '#9fc5ef' : '#d8dde6'}` }}>
-        <div style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '.05em', color: '#5f6368' }}>Your interpretation</div>
+      <div style={{ marginTop: '14px', padding: '15px 17px', borderRadius: '11px', background: naturalMeaning ? 'var(--mm-primary-subtle)' : 'var(--mm-surface-sunken)', border: `1px solid ${naturalMeaning ? 'var(--mm-primary-border)' : 'var(--mm-border)'}` }}>
+        <div style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--mm-text-muted)' }}>Your interpretation</div>
         <div style={{ marginTop: '7px', fontSize: '17px', lineHeight: 1.55, fontWeight: 700 }}>
           {naturalMeaning || 'Complete the coordinate meaning above to build your statement.'}
         </div>

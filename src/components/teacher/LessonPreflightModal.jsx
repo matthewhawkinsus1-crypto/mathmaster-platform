@@ -87,7 +87,7 @@ const inputStyle = {
   fontSize: 16,
   minHeight: 44,
   padding: '10px',
-  border: '1px solid #c9ced6',
+  border: '1px solid var(--mm-border)',
   borderRadius: 7,
   boxSizing: 'border-box',
   background: 'var(--mm-surface)',
@@ -98,7 +98,7 @@ const inputStyle = {
 // inside a 44px label.
 const checkboxStyle = { width: 20, height: 20, flexShrink: 0 };
 
-const fieldsetStyle = { marginTop: 18, padding: 15, border: '1px solid #d8dde6', borderRadius: 10 };
+const fieldsetStyle = { marginTop: 18, padding: 15, border: '1px solid var(--mm-border)', borderRadius: 10 };
 const legendStyle = { fontWeight: 900 };
 const labelStyle = { fontWeight: 800, display: 'block' };
 
@@ -163,7 +163,7 @@ const humanRole = (role) => ({
 const StepBlockers = ({ blockers }) => {
   if (!blockers.length) return null;
   return (
-    <div role="alert" style={{ padding: 13, marginBottom: 16, background: '#fce8e6', color: '#a50e0e', border: '1px solid #f1a5a0', borderRadius: 9 }}>
+    <div role="alert" style={{ padding: 13, marginBottom: 16, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', border: '1px solid var(--mm-error-border-soft)', borderRadius: 9 }}>
       <strong>{blockers.length === 1 ? 'One thing to fix here' : `${blockers.length} things to fix here`}</strong>
       <ul style={{ margin: '8px 0 0', paddingLeft: 20, lineHeight: 1.55 }}>
         {blockers.map((entry, index) => <li key={`${index}-${entry.message}`}>{entry.message}</li>)}
@@ -938,10 +938,10 @@ export const LessonPreflightModal = ({
       <RepresentationAudit questions={previewQuestions} warnings={authoringWarnings} />
       <SectionBalanceRigorAudit assignmentV5={effectiveAssignmentV5} />
 
-      <div style={{ padding: '12px 14px', marginBottom: 16, background: '#e8f0fe', color: '#174ea6', border: '1px solid #aecbfa', borderRadius: 9, fontSize: 13, lineHeight: 1.5 }}>
+      <div style={{ padding: '12px 14px', marginBottom: 16, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)', borderRadius: 9, fontSize: 13, lineHeight: 1.5 }}>
         <strong>AI-prepared Classroom and notes package.</strong> MathMaster carries the AI-written topic, post text, grade-passback settings, and two-page student-notes plan into the saved lesson. The teacher still chooses classes and dates here before anything is published.
         {(publishingIntent.classroomPackage || publishingIntent.lessonResources?.notesPdf) && (
-          <div style={{ marginTop: 9, padding: '9px 10px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid #c5d5ef', color: '#3c4043' }}>
+          <div style={{ marginTop: 9, padding: '9px 10px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)', color: 'var(--mm-text)' }}>
             <div><strong>Classroom topic:</strong> {publishingIntent.classroomPackage?.topic?.name || 'MathMaster will infer this from the folder.'}</div>
             <div><strong>Assignment post:</strong> {publishingIntent.classroomPackage?.assignmentPost?.title || draft.title || 'Prepared from the lesson title'}</div>
             {publishingIntent.lessonResources?.notesPdf?.enabled && <div><strong>Student notes PDF:</strong> {publishingIntent.lessonResources.notesPdf.title || 'Student Notes'} · {Number(publishingIntent.lessonResources.notesPdf.targetPages) === 1 ? 1 : 2} page target · {(publishingIntent.lessonResources.notesPdf.sections || []).length} authored section{(publishingIntent.lessonResources.notesPdf.sections || []).length === 1 ? '' : 's'}</div>}
@@ -949,7 +949,7 @@ export const LessonPreflightModal = ({
           </div>
         )}
         {notesNeedAuthoring && (
-          <div style={{ marginTop: 10, padding: '10px 11px', borderRadius: 8, background: '#fff4ce', border: '1px solid #f0d489', color: '#7a4f00' }}>
+          <div style={{ marginTop: 10, padding: '10px 11px', borderRadius: 8, background: 'var(--mm-warning-soft)', border: '1px solid var(--mm-warning-border-soft)', color: 'var(--mm-warning-text)' }}>
             <strong>Student notes are required, but this saved lesson has no authored note content.</strong>
             <div style={{ marginTop: 5, lineHeight: 1.5 }}>
               MathMaster will not post a blank handout. Finish the two-page notes package here. All repair paths below are publishing-only: assignment questions are protected from the notes import.
@@ -959,17 +959,17 @@ export const LessonPreflightModal = ({
                 type="button"
                 disabled={publishingAiBusy}
                 onClick={buildMissingPublishingPackageWithAi}
-                style={{ minHeight: 42, padding: '8px 13px', border: '1px solid #b78103', borderRadius: 8, background: 'var(--mm-surface)', color: '#7a4f00', fontWeight: 900, cursor: publishingAiBusy ? 'wait' : 'pointer' }}
+                style={{ minHeight: 42, padding: '8px 13px', border: '1px solid #b78103', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-warning-text)', fontWeight: 900, cursor: publishingAiBusy ? 'wait' : 'pointer' }}
               >
                 {publishingAiBusy ? 'Building notes…' : 'Build notes with MathMaster AI'}
               </button>
-              <button type="button" disabled={publishingAiBusy} onClick={copyPublishingRepairRequest} style={{ minHeight: 42, padding: '8px 13px', border: '1px solid #b78103', borderRadius: 8, background: 'var(--mm-surface)', color: '#7a4f00', fontWeight: 900 }}>
+              <button type="button" disabled={publishingAiBusy} onClick={copyPublishingRepairRequest} style={{ minHeight: 42, padding: '8px 13px', border: '1px solid #b78103', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-warning-text)', fontWeight: 900 }}>
                 Copy notes request
               </button>
-              <button type="button" disabled={publishingAiBusy} onClick={pastePublishingRepairResult} style={{ minHeight: 42, padding: '8px 13px', border: '1px solid #b78103', borderRadius: 8, background: 'var(--mm-surface)', color: '#7a4f00', fontWeight: 900 }}>
+              <button type="button" disabled={publishingAiBusy} onClick={pastePublishingRepairResult} style={{ minHeight: 42, padding: '8px 13px', border: '1px solid #b78103', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-warning-text)', fontWeight: 900 }}>
                 Paste AI notes result
               </button>
-              <button type="button" disabled={publishingAiBusy} onClick={() => notesRepairFileRef.current?.click()} style={{ minHeight: 42, padding: '8px 13px', border: '1px solid #b78103', borderRadius: 8, background: 'var(--mm-surface)', color: '#7a4f00', fontWeight: 900 }}>
+              <button type="button" disabled={publishingAiBusy} onClick={() => notesRepairFileRef.current?.click()} style={{ minHeight: 42, padding: '8px 13px', border: '1px solid #b78103', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-warning-text)', fontWeight: 900 }}>
                 Upload notes JSON
               </button>
               <input
@@ -983,13 +983,13 @@ export const LessonPreflightModal = ({
           </div>
         )}
         {publishingAiMessage && (
-          <div role="status" style={{ marginTop: 9, padding: '9px 10px', borderRadius: 8, background: notesNeedAuthoring ? '#fff4ce' : '#e6f4ea', color: notesNeedAuthoring ? '#7a4f00' : '#137333', fontSize: 12.5 }}>
+          <div role="status" style={{ marginTop: 9, padding: '9px 10px', borderRadius: 8, background: notesNeedAuthoring ? 'var(--mm-warning-soft)' : 'var(--mm-success-bg)', color: notesNeedAuthoring ? 'var(--mm-warning-text)' : 'var(--mm-success-text)', fontSize: 12.5 }}>
             {publishingAiMessage}
           </div>
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 14 }}>
         <label style={labelStyle}>Assignment title<input value={draft.title} onChange={(event) => setField('title', event.target.value)} style={inputStyle} /></label>
         <label style={labelStyle}>Library folder<input value={draft.folder || ''} onChange={(event) => setField('folder', event.target.value)} placeholder="Algebra I/Module 1/Topic 1" style={inputStyle} /></label>
         <label style={labelStyle}>Regular due date<input type="datetime-local" value={draft.dueAt || ''} onChange={(event) => setField('dueAt', event.target.value)} style={inputStyle} /></label>
@@ -1008,10 +1008,10 @@ export const LessonPreflightModal = ({
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 11 }}>
           <button type="button" onClick={() => setSelectedClassIds(activeClassChoices.map((entry) => entry.classId))} disabled={!activeClassChoices.length} style={{ minHeight: 44, padding: '7px 13px' }}>Select all</button>
           <button type="button" onClick={() => setSelectedClassIds([])} style={{ minHeight: 44, padding: '7px 13px' }}>Clear</button>
-          <span style={{ alignSelf: 'center', color: '#5f6368', fontSize: 12 }}>{(draft.assignedClassIds || []).length} selected</span>
+          <span style={{ alignSelf: 'center', color: 'var(--mm-text-muted)', fontSize: 12 }}>{(draft.assignedClassIds || []).length} selected</span>
         </div>
         {!activeClassChoices.length && (
-          <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 8, background: '#fff4ce', color: '#7a4f00', fontSize: 12 }}>
+          <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 8, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 12 }}>
             No active MathMaster classes are available. Save this assignment to the Library, then create or restore a class before assigning it.
           </div>
         )}
@@ -1019,46 +1019,46 @@ export const LessonPreflightModal = ({
           {activeClassChoices.map((classRecord) => {
             const selected = (draft.assignedClassIds || []).includes(classRecord.classId);
             return (
-              <label key={classRecord.classId || classRecord.period} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 14px', background: selected ? '#e8f0fe' : '#fff', border: '1px solid #c5d5ef', borderRadius: 999, fontWeight: 800, cursor: 'pointer' }}>
+              <label key={classRecord.classId || classRecord.period} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 14px', background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)', borderRadius: 999, fontWeight: 800, cursor: 'pointer' }}>
                 <input type="checkbox" style={checkboxStyle} checked={selected} onChange={() => toggleClassChoice(classRecord)} />
                 {classRecord.name || classRecord.period}{classRecord.name && classRecord.name !== classRecord.period ? ` · ${classRecord.period}` : ''}
               </label>
             );
           })}
         </div>
-        <div style={{ marginTop: 9, color: '#5f6368', fontSize: 12 }}>Assignments are targeted by MathMaster class ID. Period is derived from the selected class only for bell-schedule timing.</div>
+        <div style={{ marginTop: 9, color: 'var(--mm-text-muted)', fontSize: 12 }}>Assignments are targeted by MathMaster class ID. Period is derived from the selected class only for bell-schedule timing.</div>
       </fieldset>
 
-      <fieldset style={{ ...fieldsetStyle, border: `1px solid ${honorsSelected ? '#c7a9ea' : '#d8dde6'}`, background: honorsSelected ? '#fcf9ff' : '#fff' }}>
+      <fieldset style={{ ...fieldsetStyle, border: `1px solid ${honorsSelected ? 'var(--mm-accent-border)' : 'var(--mm-border)'}`, background: honorsSelected ? 'var(--mm-accent-subtle)' : 'var(--mm-surface)' }}>
         <legend style={legendStyle}>Course rigor destinations</legend>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-          <span style={{ padding: '4px 9px', borderRadius: 999, background: '#f1f3f4', fontSize: 11, fontWeight: 900 }}>STANDARD: {rigorDestinations.standard.join(', ') || 'none'}</span>
-          <span style={{ padding: '4px 9px', borderRadius: 999, background: '#efe4ff', color: '#6f2da8', fontSize: 11, fontWeight: 900 }}>HONORS: {rigorDestinations.honors.join(', ') || 'none'}</span>
+          <span style={{ padding: '4px 9px', borderRadius: 999, background: 'var(--mm-surface-control)', fontSize: 11, fontWeight: 900 }}>STANDARD: {rigorDestinations.standard.join(', ') || 'none'}</span>
+          <span style={{ padding: '4px 9px', borderRadius: 999, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontSize: 11, fontWeight: 900 }}>HONORS: {rigorDestinations.honors.join(', ') || 'none'}</span>
         </div>
-        <p style={{ color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>{honorsSelected ? 'Honors periods are validated from the saved class designation. When Standard and Honors destinations are selected together, MathMaster creates destination variants from this one source assignment.' : 'No selected class is designated Honors. Standard validation applies.'}</p>
-        {honorsSelected && honorsReport.isNarrowCheckpoint && <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: '#e8f0fe', color: '#174ea6', fontSize: 12, lineHeight: 1.5 }}><strong>Narrow Honors checkpoint.</strong> Warm-Ups and DOLs with three or fewer items may stay focused on the current TEKS. Depth, prerequisite repair, and CCMR are balanced across the recent Honors sequence instead of forced into every short check.</div>}
-        {honorsSelected && !honorsReport.isNarrowCheckpoint && <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(190px, 1fr))', gap: 7 }}>{[
+        <p style={{ color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>{honorsSelected ? 'Honors periods are validated from the saved class designation. When Standard and Honors destinations are selected together, MathMaster creates destination variants from this one source assignment.' : 'No selected class is designated Honors. Standard validation applies.'}</p>
+        {honorsSelected && honorsReport.isNarrowCheckpoint && <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 12, lineHeight: 1.5 }}><strong>Narrow Honors checkpoint.</strong> Warm-Ups and DOLs with three or fewer items may stay focused on the current TEKS. Depth, prerequisite repair, and CCMR are balanced across the recent Honors sequence instead of forced into every short check.</div>}
+        {honorsSelected && !honorsReport.isNarrowCheckpoint && <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: 7 }}>{[
           ['coreTeks', 'Core TEKS'], ['higherOrderReasoning', 'Higher-order reasoning'], ['multipleRepresentations', 'Multiple representations'], ['justification', 'Explanation / justification'], ['modelingApplication', 'Modeling / application'], ['ccmrEnrichment', 'Authentic CCMR Practice'],
         ].map(([key, label]) => {
           const present = honorsReport.checks[key];
           const queuedAtPublish = key === 'ccmrEnrichment' && !present;
           return (
-            <div key={key} style={{ padding: '8px 10px', borderRadius: 8, background: present ? '#e6f4ea' : queuedAtPublish ? '#e8f0fe' : '#fff4ce', color: present ? '#137333' : queuedAtPublish ? '#174ea6' : '#7a4f00', fontWeight: 800, fontSize: 12 }}>
+            <div key={key} style={{ padding: '8px 10px', borderRadius: 8, background: present ? 'var(--mm-success-bg)' : queuedAtPublish ? 'var(--mm-primary-soft)' : 'var(--mm-warning-soft)', color: present ? 'var(--mm-success-text)' : queuedAtPublish ? 'var(--mm-primary-text)' : 'var(--mm-warning-text)', fontWeight: 800, fontSize: 12 }}>
               {present ? '✓' : queuedAtPublish ? '↻' : '!'} {queuedAtPublish ? 'Audited CCMR at publish' : label}
             </div>
           );
         })}</div>}
         {honorsSelected && !honorsReport.isNarrowCheckpoint && !honorsReport.checks.ccmrEnrichment && (
-          <div style={{ marginTop: 11, padding: '11px 13px', borderRadius: 9, background: '#fff4ce', border: '1px solid #f0d489', color: '#7a4f00', fontSize: 12.5, lineHeight: 1.55 }}>
+          <div style={{ marginTop: 11, padding: '11px 13px', borderRadius: 9, background: 'var(--mm-warning-soft)', border: '1px solid var(--mm-warning-border-soft)', color: 'var(--mm-warning-text)', fontSize: 12.5, lineHeight: 1.55 }}>
             <strong>Audited CCMR Practice will be sourced at publish.</strong> Because an Honors destination is selected, MathMaster will replace matching Practice work with an audited CCMR Fidelity V2.1 family on the same lesson TEKS. Standard destinations keep the regular course Practice. Exam-looking wording by itself never counts as authentic CCMR.
           </div>
         )}
         {honorsSelected && !honorsReport.isNarrowCheckpoint && !honorsReport.isHonorsReady && honorsReport.missing.some((key) => key !== 'ccmrEnrichment') && (
           <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
             {honorsReport.checks.coreTeks && (
-              <div style={{ padding: '10px 11px', borderRadius: 9, background: '#f6f8ff', border: '1px solid #c7d5ef' }}>
-                <strong style={{ color: '#174ea6' }}>Fastest option — no AI required</strong>
-                <div style={{ marginTop: 4, color: '#4b5563', fontSize: 12.5, lineHeight: 1.5 }}>
+              <div style={{ padding: '10px 11px', borderRadius: 9, background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}>
+                <strong style={{ color: 'var(--mm-primary-text)' }}>Fastest option — no AI required</strong>
+                <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.5 }}>
                   {localHonorsRecipe.status === 'ready'
                     ? describeHonorsRecipeForTeacher(localHonorsRecipe)
                     : localHonorsRecipe.teacherMessage}
@@ -1067,7 +1067,7 @@ export const LessonPreflightModal = ({
                   type="button"
                   disabled={!allowQuestionRepair || honorsAiBusy || localHonorsRecipe.status !== 'ready'}
                   onClick={addLocalHonorsDepth}
-                  style={{ marginTop: 8, minHeight: 44, padding: '8px 13px', border: '1px solid #6f2da8', borderRadius: 8, background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 900, cursor: !allowQuestionRepair || honorsAiBusy || localHonorsRecipe.status !== 'ready' ? 'not-allowed' : 'pointer' }}
+                  style={{ marginTop: 8, minHeight: 44, padding: '8px 13px', border: '1px solid #6f2da8', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900, cursor: !allowQuestionRepair || honorsAiBusy || localHonorsRecipe.status !== 'ready' ? 'not-allowed' : 'pointer' }}
                 >
                   Add built-in Honors extension (no AI)
                 </button>
@@ -1084,13 +1084,13 @@ export const LessonPreflightModal = ({
               >
                 {honorsAiBusy ? '✨ Repairing Honors depth…' : '✨ Build Honors Depth with MathMaster AI'}
               </button>
-              <button type="button" onClick={copyHonorsDepthRepairRequest} disabled={honorsAiBusy || !allowQuestionRepair} style={{ minHeight: 44, padding: '9px 13px', border: '1px solid #c7a9ea', borderRadius: 8, background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 900 }}>
+              <button type="button" onClick={copyHonorsDepthRepairRequest} disabled={honorsAiBusy || !allowQuestionRepair} style={{ minHeight: 44, padding: '9px 13px', border: '1px solid var(--mm-accent-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>
                 Copy outside-AI repair request
               </button>
-              <button type="button" onClick={pasteHonorsDepthResult} disabled={honorsAiBusy || !allowQuestionRepair} style={{ minHeight: 44, padding: '9px 13px', border: '1px solid #c7a9ea', borderRadius: 8, background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 900 }}>
+              <button type="button" onClick={pasteHonorsDepthResult} disabled={honorsAiBusy || !allowQuestionRepair} style={{ minHeight: 44, padding: '9px 13px', border: '1px solid var(--mm-accent-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>
                 Paste AI Honors result
               </button>
-              <button type="button" onClick={() => honorsRepairFileRef.current?.click()} disabled={honorsAiBusy || !allowQuestionRepair} style={{ minHeight: 44, padding: '9px 13px', border: '1px solid #c7a9ea', borderRadius: 8, background: 'var(--mm-surface)', color: '#6f2da8', fontWeight: 900 }}>
+              <button type="button" onClick={() => honorsRepairFileRef.current?.click()} disabled={honorsAiBusy || !allowQuestionRepair} style={{ minHeight: 44, padding: '9px 13px', border: '1px solid var(--mm-accent-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>
                 Upload Honors JSON
               </button>
               <input
@@ -1101,18 +1101,18 @@ export const LessonPreflightModal = ({
                 style={{ display: 'none' }}
               />
             </div>
-            <div style={{ color: '#5f6368', fontSize: 11.5, lineHeight: 1.45 }}>
+            <div style={{ color: 'var(--mm-text-muted)', fontSize: 11.5, lineHeight: 1.45 }}>
               Outside-AI imports go through the same MathMaster safety gate as the embedded AI. Existing questions cannot be silently rewritten, removed, or reordered just to make the Honors check turn green.
             </div>
           </div>
         )}
         {honorsAiMessage && (
-          <div role="status" style={{ marginTop: 10, padding: 10, borderRadius: 8, background: '#f5effc', border: '1px solid #d8c2ef', color: '#5b2788', fontSize: 12.5, lineHeight: 1.5 }}>
+          <div role="status" style={{ marginTop: 10, padding: 10, borderRadius: 8, background: 'var(--mm-accent-soft)', border: '1px solid var(--mm-accent-border)', color: 'var(--mm-accent-text)', fontSize: 12.5, lineHeight: 1.5 }}>
             {honorsAiMessage}
           </div>
         )}
-        {honorsEnrichmentQuestion && <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: '#e6f4ea', color: '#137333', fontSize: 12 }}><strong>MathMaster depth extension prepared.</strong> It adds self-graded Honors depth for the Honors destination, but it does not substitute for an authentic CCMR-style Practice item.</div>}
-        {honorsSelected && honorsReport.isHonorsReady && !honorsReport.isNarrowCheckpoint && !honorsEnrichmentQuestion && <div style={{ marginTop: 10, color: '#137333', fontWeight: 800, fontSize: 12 }}>✓ Source assignment already satisfies the Honors contract; MathMaster will not rewrite it.</div>}
+        {honorsEnrichmentQuestion && <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: 12 }}><strong>MathMaster depth extension prepared.</strong> It adds self-graded Honors depth for the Honors destination, but it does not substitute for an authentic CCMR-style Practice item.</div>}
+        {honorsSelected && honorsReport.isHonorsReady && !honorsReport.isNarrowCheckpoint && !honorsEnrichmentQuestion && <div style={{ marginTop: 10, color: 'var(--mm-success-text)', fontWeight: 800, fontSize: 12 }}>✓ Source assignment already satisfies the Honors contract; MathMaster will not rewrite it.</div>}
       </fieldset>
     </section>
   );
@@ -1121,13 +1121,13 @@ export const LessonPreflightModal = ({
     <section aria-label="Delivery">
       {isNarrow && <StepBlockers blockers={blockersForStep(readiness, 'delivery')} />}
 
-      <div style={{ padding: '13px 15px', marginBottom: 14, border: '1px solid #c5d5ef', borderRadius: 10, background: '#f8fbff' }}>
-        <strong style={{ color: '#174ea6' }}>Activity sections control student behavior</strong>
-        <p style={{ margin: '6px 0 8px', color: '#3c4043', lineHeight: 1.5 }}>
+      <div style={{ padding: '13px 15px', marginBottom: 14, border: '1px solid var(--mm-tint-border)', borderRadius: 10, background: 'var(--mm-surface-tint)' }}>
+        <strong style={{ color: 'var(--mm-primary-text)' }}>Activity sections control student behavior</strong>
+        <p style={{ margin: '6px 0 8px', color: 'var(--mm-text)', lineHeight: 1.5 }}>
           Warm-Up, Classwork, Practice, DOL, Quiz, and Test behavior comes from the sections already built into the assignment. You no longer need to choose a second Classwork/Practice designation here.
         </p>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-          {activityRoles.map((role) => <span key={role} style={{ padding: '5px 9px', borderRadius: 999, background: '#e8f0fe', color: '#174ea6', fontSize: 11, fontWeight: 900 }}>{humanRole(role)}</span>)}
+          {activityRoles.map((role) => <span key={role} style={{ padding: '5px 9px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: 11, fontWeight: 900 }}>{humanRole(role)}</span>)}
         </div>
       </div>
 
@@ -1137,10 +1137,10 @@ export const LessonPreflightModal = ({
           style={{
             padding: '12px 15px',
             marginBottom: 14,
-            border: `1px solid ${classworkPacing.isWithinBudget ? '#b7d7c0' : '#f1a5a0'}`,
+            border: `1px solid ${classworkPacing.isWithinBudget ? 'var(--mm-success-border)' : 'var(--mm-error-border-soft)'}`,
             borderRadius: 10,
-            background: classworkPacing.isWithinBudget ? '#f4fbf6' : '#fce8e6',
-            color: classworkPacing.isWithinBudget ? '#1e5e31' : '#a50e0e',
+            background: classworkPacing.isWithinBudget ? 'var(--mm-success-subtle)' : 'var(--mm-error-bg)',
+            color: classworkPacing.isWithinBudget ? 'var(--mm-success-text)' : 'var(--mm-error-text)',
           }}
         >
           <strong>Classwork planned time: {formatPlannedTime(classworkPacing.totalSeconds)} / 20:00</strong>
@@ -1156,14 +1156,14 @@ export const LessonPreflightModal = ({
 
       <fieldset style={fieldsetStyle}>
         <legend style={legendStyle}>Question versions by section</legend>
-        <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
+        <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>
           Choose independently for each assignment section. <strong>Same questions</strong> gives everyone the
           identical version. <strong>Different versions</strong> keeps the task, the depth and the complexity
           identical and changes only the numbers. <strong>Pitched to the student</strong> keeps the standard you
           assigned and lets MathMaster move complexity and depth by one step, using what each student has
           actually shown.
         </p>
-        <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 12 }}>
           {activityRoles.map((role) => {
             // Assessment sections are offered the first two options only.
             // Levelling a DOL or a quiz per student makes its grades
@@ -1179,7 +1179,7 @@ export const LessonPreflightModal = ({
                   {!isAssessment && <option value="adaptive">Pitched to the student</option>}
                 </select>
                 {isAssessment && (
-                  <span style={{ display: 'block', marginTop: 4, color: '#5f6368', fontSize: 11, lineHeight: 1.45 }}>
+                  <span style={{ display: 'block', marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 11, lineHeight: 1.45 }}>
                     Assessment sections keep one rigor for everyone, so the results stay comparable.
                   </span>
                 )}
@@ -1206,11 +1206,11 @@ export const LessonPreflightModal = ({
 
       <fieldset style={fieldsetStyle}>
         <legend style={legendStyle}>Printable and shareable outputs</legend>
-        <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
+        <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>
           PDFs are optional and can be enabled or disabled at any time. Enabling one immediately adds its
           representation and page-fit safety checks; leaving PDFs off never blocks the digital Library copy.
         </p>
-        <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 10 }}>
           {[
             ['studentWorksheetPdf', 'Student worksheet PDF', 'Printable assignment without answers.'],
             ['teacherWorksheetPdf', 'Teacher copy PDF', 'Answers and available worked solutions.'],
@@ -1219,7 +1219,7 @@ export const LessonPreflightModal = ({
           ].map(([key, label, description]) => (
             <label key={key} style={{
               display: 'flex', gap: 10, alignItems: 'flex-start', minHeight: 58,
-              padding: 10, border: '1px solid #d8dde6', borderRadius: 8, background: '#fbfdff',
+              padding: 10, border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)',
             }}>
               <input
                 type="checkbox"
@@ -1229,12 +1229,12 @@ export const LessonPreflightModal = ({
               />
               <span>
                 <strong style={{ display: 'block', color: 'var(--mm-text-strong)' }}>{label}</strong>
-                <span style={{ display: 'block', marginTop: 2, color: '#5f6368', fontSize: 11.5, lineHeight: 1.4 }}>{description}</span>
+                <span style={{ display: 'block', marginTop: 2, color: 'var(--mm-text-muted)', fontSize: 11.5, lineHeight: 1.4 }}>{description}</span>
               </span>
             </label>
           ))}
         </div>
-        <div style={{ marginTop: 10, padding: '9px 11px', borderRadius: 8, background: '#f7faff', color: '#526274', fontSize: 12, lineHeight: 1.5 }}>
+        <div style={{ marginTop: 10, padding: '9px 11px', borderRadius: 8, background: 'var(--mm-surface-tint)', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>
           Student IEP/504/EB access supports remain automatic and server-resolved. Changing an output does not change the assessed standard.
         </div>
       </fieldset>
@@ -1242,10 +1242,10 @@ export const LessonPreflightModal = ({
       {activityRoles.some((role) => ['classwork', 'practice'].includes(role)) && (
         <fieldset style={fieldsetStyle}>
           <legend style={legendStyle}>Guided Notes by section</legend>
-          <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
+          <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>
             Guided Notes should teach the mathematics, not narrate the interface. Automatic uses authored notes when present and otherwise builds tool/workflow-aware guidance. Authored only hides the panel unless the assignment includes meaningful notes. Off removes the panel entirely.
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(230px, 1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))', gap: 12 }}>
             {activityRoles.filter((role) => ['classwork', 'practice'].includes(role)).map((role) => (
               <label key={role} style={labelStyle}>
                 {humanRole(role)} Guided Notes
@@ -1257,7 +1257,7 @@ export const LessonPreflightModal = ({
               </label>
             ))}
           </div>
-          <p style={{ margin: '10px 0 0', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
+          <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>
             Recommended default: Classwork = Automatic; Practice = Off. Generic filler such as “Read the question” is suppressed even in Automatic mode.
           </p>
         </fieldset>
@@ -1266,10 +1266,10 @@ export const LessonPreflightModal = ({
       {activityRoles.some((role) => ['classwork', 'practice'].includes(role)) && (
         <fieldset style={fieldsetStyle}>
           <legend style={legendStyle}>Teacher section access controls</legend>
-          <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
+          <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>
             Classwork and Practice can open automatically, or start locked until you release that section from the Live Class Hub. Either way, you can later open, close, or reopen the section for one class period without affecting your other classes.
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(230px, 1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))', gap: 12 }}>
             {activityRoles.filter((role) => ['classwork', 'practice'].includes(role)).map((role) => (
               <label key={role} style={labelStyle}>
                 {humanRole(role)} initial access
@@ -1280,7 +1280,7 @@ export const LessonPreflightModal = ({
               </label>
             ))}
           </div>
-          <p style={{ margin: '10px 0 0', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
+          <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>
             These controls affect new graded responses only. After the final cutoff, the assignment enters ungraded Practice Mode and all sections become available for review/practice.
           </p>
         </fieldset>
@@ -1292,17 +1292,17 @@ export const LessonPreflightModal = ({
           <>
             <label style={{ ...labelStyle, minHeight: 44, display: 'flex', alignItems: 'center', gap: 8 }}><input type="checkbox" style={checkboxStyle} checked={draft.warmupEnabled !== false} onChange={(event) => setField('warmupEnabled', event.target.checked)} /> Use the class-period Warm-Up window for the authored Warm-Up section</label>
             {draft.warmupEnabled !== false && (
-              <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12, marginTop: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: 12, marginTop: 10 }}>
                 <label style={labelStyle}>Warm-Up instructional date<input type="date" value={resolvedWarmupInstructionDate} onChange={(event) => setField('warmupInstructionDate', event.target.value)} style={inputStyle} /></label>
                 <label style={labelStyle}>Open before class (minutes)<input type="number" min="0" max="30" value={draft.warmupMinutesBeforeStart ?? 7} onChange={(event) => setField('warmupMinutesBeforeStart', event.target.value)} style={inputStyle} /></label>
               </div>
             )}
-            {draft.warmupEnabled !== false && <p style={{ margin: '10px 0 0', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>The Warm-Up opens {draft.warmupMinutesBeforeStart ?? 7} minutes before that class begins, only on its instructional date. You can close it early from the Live Class Hub; students keep their saved work but the section becomes read-only.</p>}
+            {draft.warmupEnabled !== false && <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>The Warm-Up opens {draft.warmupMinutesBeforeStart ?? 7} minutes before that class begins, only on its instructional date. You can close it early from the Live Class Hub; students keep their saved work but the section becomes read-only.</p>}
             {draft.warmupEnabled !== false && draft.assignedClassPeriods.length > 0 && (
-              <details style={{ marginTop: 12, padding: '10px 12px', border: '1px solid #d8dde6', borderRadius: 8, background: 'var(--mm-surface)' }}>
+              <details style={{ marginTop: 12, padding: '10px 12px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)' }}>
                 <summary style={{ cursor: 'pointer', fontWeight: 900 }}>Different Warm-Up date for a specific class (optional)</summary>
-                <p style={{ color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>Useful for A-Day/B-Day sections that receive this same bundled lesson on different dates. Leaving a class unchanged uses the default Warm-Up date above.</p>
-                <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+                <p style={{ color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>Useful for A-Day/B-Day sections that receive this same bundled lesson on different dates. Leaving a class unchanged uses the default Warm-Up date above.</p>
+                <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10 }}>
                   {draft.assignedClassPeriods.map((period) => (
                     <label key={period} style={labelStyle}>{period}<input type="date" value={draft.warmupInstructionDatesByClassPeriod?.[period] || resolvedWarmupInstructionDate} onChange={(event) => setWarmupClassDate(period, event.target.value)} style={inputStyle} /></label>
                   ))}
@@ -1311,7 +1311,7 @@ export const LessonPreflightModal = ({
             )}
           </>
         ) : (
-          <p style={{ margin: 0, color: '#5f6368', lineHeight: 1.5 }}>This assignment has no Warm-Up section, so no class-start Warm-Up window will be created.</p>
+          <p style={{ margin: 0, color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>This assignment has no Warm-Up section, so no class-start Warm-Up window will be created.</p>
         )}
       </fieldset>
 
@@ -1321,18 +1321,18 @@ export const LessonPreflightModal = ({
           <>
             <label style={{ ...labelStyle, minHeight: 44, display: 'flex', alignItems: 'center', gap: 8 }}><input type="checkbox" style={checkboxStyle} checked={draft.dolEnabled === true} onChange={(event) => setField('dolEnabled', event.target.checked)} /> Use the class-period DOL window for the authored DOL section</label>
             {draft.dolEnabled && (
-              <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12, marginTop: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: 12, marginTop: 10 }}>
                 <label style={labelStyle}>DOL instructional date<input type="date" value={resolvedDOLInstructionDate} onChange={(event) => setField('dolInstructionDate', event.target.value)} style={inputStyle} /></label>
                 <label style={labelStyle}>DOL working time (minutes)<input type="number" min="1" max="20" value={draft.dolMinutesBeforeEnd || 10} onChange={(event) => setField('dolMinutesBeforeEnd', event.target.value)} style={inputStyle} /></label>
                 <label style={labelStyle}>Close before the bell (minutes)<input type="number" min="0" max="15" value={draft.dolCloseMinutesBeforeEnd ?? 5} onChange={(event) => setField('dolCloseMinutesBeforeEnd', event.target.value)} style={inputStyle} /></label>
               </div>
             )}
-            {draft.dolEnabled && <p style={{ margin: '10px 0 0', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>The DOL opens {dolOpensMinutesBeforeEnd} minutes before the bell, gives students {dolWorkMinutes} minutes to work, and closes {dolCloseMinutesBeforeEnd} minutes before class ends so technology can be returned. If you unlock it early from the live class controls, the same {dolWorkMinutes}-minute timer starts then but still cannot run into the final {dolCloseMinutesBeforeEnd}-minute pack-up window.</p>}
+            {draft.dolEnabled && <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>The DOL opens {dolOpensMinutesBeforeEnd} minutes before the bell, gives students {dolWorkMinutes} minutes to work, and closes {dolCloseMinutesBeforeEnd} minutes before class ends so technology can be returned. If you unlock it early from the live class controls, the same {dolWorkMinutes}-minute timer starts then but still cannot run into the final {dolCloseMinutesBeforeEnd}-minute pack-up window.</p>}
             {draft.dolEnabled && draft.assignedClassPeriods.length > 0 && (
-              <details style={{ marginTop: 12, padding: '10px 12px', border: '1px solid #d8dde6', borderRadius: 8, background: 'var(--mm-surface)' }}>
+              <details style={{ marginTop: 12, padding: '10px 12px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)' }}>
                 <summary style={{ cursor: 'pointer', fontWeight: 900 }}>Different DOL date for a specific class (optional)</summary>
-                <p style={{ color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>Use this when A-Day and B-Day sections receive the same bundled lesson on different calendar dates. Leaving a class unchanged uses the default DOL date above.</p>
-                <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+                <p style={{ color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>Use this when A-Day and B-Day sections receive the same bundled lesson on different calendar dates. Leaving a class unchanged uses the default DOL date above.</p>
+                <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10 }}>
                   {draft.assignedClassPeriods.map((period) => (
                     <label key={period} style={labelStyle}>{period}<input type="date" value={draft.dolInstructionDatesByClassPeriod?.[period] || resolvedDOLInstructionDate} onChange={(event) => setDOLClassDate(period, event.target.value)} style={inputStyle} /></label>
                   ))}
@@ -1341,17 +1341,17 @@ export const LessonPreflightModal = ({
             )}
           </>
         ) : (
-          <p style={{ margin: 0, color: '#5f6368', lineHeight: 1.5 }}>This assignment has no DOL section, so no timed DOL window will be created.</p>
+          <p style={{ margin: 0, color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>This assignment has no DOL section, so no timed DOL window will be created.</p>
         )}
       </fieldset>
 
       <fieldset style={fieldsetStyle}>
         <legend style={legendStyle}>Google Classroom posts</legend>
-        <p style={{ margin: '0 0 12px', color: '#3c4043', fontSize: 13, lineHeight: 1.5 }}>
+        <p style={{ margin: '0 0 12px', color: 'var(--mm-text)', fontSize: 13, lineHeight: 1.5 }}>
           Each assignment section gets its own Google Classroom post and grade column. Titles start with the section name, followed by the assignment name, so student gradebooks stay easy to scan.
         </p>
         <label style={labelStyle}>Separate Practice due date (optional)<input type="datetime-local" value={draft.homeworkDueAt || ''} onChange={(event) => setField('homeworkDueAt', event.target.value)} style={inputStyle} /></label>
-        <div style={{ marginTop: 8, color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>{publicationPlan.summary}</div>
+        <div style={{ marginTop: 8, color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>{publicationPlan.summary}</div>
       </fieldset>
 
       <details style={{ ...fieldsetStyle, padding: 0 }}>
@@ -1360,13 +1360,13 @@ export const LessonPreflightModal = ({
         </summary>
         <div style={{ padding: '0 15px 15px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           {posts.map((post) => (
-            <article key={post.postId} style={{ border: '1px solid #dadce0', borderRadius: 9, padding: 14, background: 'var(--mm-surface)' }}>
+            <article key={post.postId} style={{ border: '1px solid var(--mm-border)', borderRadius: 9, padding: 14, background: 'var(--mm-surface)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 8 }}>
                 <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#1a73e8', color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0 }}>📋</div>
-                <div style={{ minWidth: 0 }}><strong>{post.title}</strong><div style={{ fontSize: 12, color: '#5f6368' }}>Due {post.dueDate || 'not set'} · {post.maxPoints} pts · {post.gradingMode}</div></div>
+                <div style={{ minWidth: 0 }}><strong>{post.title}</strong><div style={{ fontSize: 12, color: 'var(--mm-text-muted)' }}>Due {post.dueDate || 'not set'} · {post.maxPoints} pts · {post.gradingMode}</div></div>
               </div>
-              <p style={{ color: '#3c4043', margin: '8px 0 10px', lineHeight: 1.5 }}>{post.description}</p>
-              <div style={{ fontSize: 12, padding: '9px 11px', background: '#f8f9fa', borderRadius: 7 }}><strong>Sections:</strong> {post.activities.map((activity) => `${activity.title} (${activity.role})`).join(' + ')}</div>
+              <p style={{ color: 'var(--mm-text)', margin: '8px 0 10px', lineHeight: 1.5 }}>{post.description}</p>
+              <div style={{ fontSize: 12, padding: '9px 11px', background: 'var(--mm-surface-sunken)', borderRadius: 7 }}><strong>Sections:</strong> {post.activities.map((activity) => `${activity.title} (${activity.role})`).join(' + ')}</div>
             </article>
           ))}
         </div>
@@ -1381,8 +1381,8 @@ export const LessonPreflightModal = ({
         {activities.map((activity, index) => <option key={activity.id || activity.sectionId} value={index}>{activity.title} ({activity.role.toUpperCase()})</option>)}
       </select>
       {currentPolicy && (
-        <div style={{ background: 'var(--mm-surface)', padding: 10, borderRadius: 6, border: '1px solid #e0e0e0', marginBottom: 14, fontSize: 12, lineHeight: 1.55 }}>
-          <strong style={{ color: '#1a73e8' }}>Enforced section policy</strong>
+        <div style={{ background: 'var(--mm-surface)', padding: 10, borderRadius: 6, border: '1px solid var(--mm-border)', marginBottom: 14, fontSize: 12, lineHeight: 1.55 }}>
+          <strong style={{ color: 'var(--mm-primary)' }}>Enforced section policy</strong>
           <div>Attempts: {currentPolicy.attempts}</div>
           <div>Feedback: <code>{currentPolicy.feedback}</code></div>
           <div>Hints: {currentPolicy.hintsAllowed ? 'Allowed' : 'Disabled'}</div>
@@ -1401,9 +1401,9 @@ export const LessonPreflightModal = ({
         <section aria-label="Test Cycle student preview" style={{ display: 'grid', gap: 9, marginBottom: 16 }}>
           <strong>Test Cycle phases</strong>
           {testCyclePreview.phases.map((phase) => (
-            <div key={phase.id} data-preview-test-cycle-phase={phase.id} data-phase-status={phase.status} style={{ padding: 10, border: '1px solid #e0e0e0', borderRadius: 8 }}>
+            <div key={phase.id} data-preview-test-cycle-phase={phase.id} data-phase-status={phase.status} style={{ padding: 10, border: '1px solid var(--mm-border)', borderRadius: 8 }}>
               <strong>{phase.label}</strong> — {phase.status === 'notRequired' ? 'Not required' : phase.status[0].toUpperCase() + phase.status.slice(1)}
-              {phase.reason && <div style={{ color: '#5f6368', marginTop: 4 }}>{phase.reason}</div>}
+              {phase.reason && <div style={{ color: 'var(--mm-text-muted)', marginTop: 4 }}>{phase.reason}</div>}
             </div>
           ))}
           {testCyclePreview.state.stage === 'test' && testCyclePreview.state.canEnter && <div role="status">Test unlocked — your Review is complete. Start Test</div>}
@@ -1418,12 +1418,12 @@ export const LessonPreflightModal = ({
       {currentActivity?.isModelingLab && <InteractiveModelingLabPlayer rawLabSpec={currentActivity.labDefinition} executionScope="teacherPreview" />}
       {currentQuestion && (
         <>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14, borderBottom: '1px solid #eee', paddingBottom: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14, borderBottom: '1px solid var(--mm-border-soft)', paddingBottom: 10 }}>
             <div style={{ textAlign: 'left' }}>
-              <span style={{ fontSize: 11, background: '#e8f0fe', color: '#1a73e8', padding: '3px 8px', borderRadius: 12, fontWeight: 800 }}>{currentActivity.role.toUpperCase()} MODE</span>
+              <span style={{ fontSize: 11, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', padding: '3px 8px', borderRadius: 12, fontWeight: 800 }}>{currentActivity.role.toUpperCase()} MODE</span>
               <h3 style={{ margin: '4px 0 0', fontSize: 17 }}>{currentActivity.title}</h3>
             </div>
-            <div style={{ fontSize: 12, color: '#5f6368' }}>Question {demoQuestionIndex + 1} of {questions.length}</div>
+            <div style={{ fontSize: 12, color: 'var(--mm-text-muted)' }}>Question {demoQuestionIndex + 1} of {questions.length}</div>
           </div>
           <MathMasterToolWrapper
             key={`${currentActivity.id || currentActivity.sectionId}-${currentQuestion.questionId || demoQuestionIndex}-${demoCalculator}-${demoTranslation}`}
@@ -1494,9 +1494,9 @@ export const LessonPreflightModal = ({
       )}
 
       {preflightModel.toolContract?.findings?.length > 0 && (
-        <div data-tool-contract-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid #aecbfa', borderRadius: 10, background: '#f8fbff' }}>
-          <strong style={{ color: '#174ea6' }}>Question and tool check</strong>
-          <p style={{ margin: '5px 0 9px', color: '#5f6368', fontSize: 12.5, lineHeight: 1.5 }}>
+        <div data-tool-contract-panel="true" style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-primary-border)', borderRadius: 10, background: 'var(--mm-surface-tint)' }}>
+          <strong style={{ color: 'var(--mm-primary-text)' }}>Question and tool check</strong>
+          <p style={{ margin: '5px 0 9px', color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.5 }}>
             MathMaster checked that each question opens a tool that can do what it asks. A safe repair keeps the same mathematics and only moves it to the workspace students already see.
           </p>
           <ul style={{ margin: '0 0 10px', paddingLeft: 18, fontSize: 13, lineHeight: 1.5, color: 'var(--mm-text-strong)' }}>
@@ -1514,7 +1514,7 @@ export const LessonPreflightModal = ({
             </button>
           )}
           <details style={{ marginTop: 10 }}>
-            <summary style={{ cursor: 'pointer', fontSize: 12, color: '#5f6368' }}>Developer details</summary>
+            <summary style={{ cursor: 'pointer', fontSize: 12, color: 'var(--mm-text-muted)' }}>Developer details</summary>
             <pre style={{ margin: '8px 0 0', padding: 10, borderRadius: 8, background: '#202124', color: '#e8eaed', fontSize: 11.5, whiteSpace: 'pre-wrap' }}>
               {JSON.stringify(preflightModel.toolContract.findings.map(({ questionId, questionNumber, rule, severity, expected, actual, recommendedRepair }) => ({
                 questionId, questionNumber, rule, severity, expected, actual,
@@ -1526,26 +1526,26 @@ export const LessonPreflightModal = ({
       )}
 
       {questionRepairIssues.length > 0 && (
-        <div style={{ marginBottom: 18, padding: 14, border: '1px solid #f1a5a0', borderRadius: 10, background: '#fff8f7' }}>
-          <strong style={{ color: '#a50e0e' }}>Questions MathMaster can target directly</strong>
-          <p style={{ margin: '5px 0 11px', color: '#5f6368', fontSize: 12.5, lineHeight: 1.5 }}>
+        <div style={{ marginBottom: 18, padding: 14, border: '1px solid var(--mm-error-border-soft)', borderRadius: 10, background: 'var(--mm-error-subtle)' }}>
+          <strong style={{ color: 'var(--mm-error-text)' }}>Questions MathMaster can target directly</strong>
+          <p style={{ margin: '5px 0 11px', color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.5 }}>
             Each button builds a repair request for only that question. Other assignment blockers stay untouched.
           </p>
           {!allowQuestionRepair && (
-            <div style={{ margin: '0 0 11px', padding: '9px 10px', borderRadius: 8, background: '#fef7e0', border: '1px solid #f0d489', color: '#7a4f00', fontSize: 12.5, lineHeight: 1.5 }}>
+            <div style={{ margin: '0 0 11px', padding: '9px 10px', borderRadius: 8, background: 'var(--mm-warning-bg)', border: '1px solid var(--mm-warning-border-soft)', color: 'var(--mm-warning-text)', fontSize: 12.5, lineHeight: 1.5 }}>
               Student records already exist, so question content is locked to preserve historical evidence. Duplicate the assignment to repair or rewrite its questions.
             </div>
           )}
           <div style={{ display: 'grid', gap: 9 }}>
             {questionRepairIssues.map((issue) => (
-              <div key={issue.questionIndex} style={{ padding: 11, border: '1px solid #ead1ce', borderRadius: 8, background: 'var(--mm-surface)' }}>
+              <div key={issue.questionIndex} style={{ padding: 11, border: '1px solid var(--mm-error-border-soft)', borderRadius: 8, background: 'var(--mm-surface)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
                   <div style={{ flex: '1 1 420px', minWidth: 0 }}>
                     <strong>Question {issue.questionNumber}</strong>
-                    <div style={{ marginTop: 4, color: '#3c4043', fontSize: 12.5, lineHeight: 1.45 }}>
+                    <div style={{ marginTop: 4, color: 'var(--mm-text)', fontSize: 12.5, lineHeight: 1.45 }}>
                       {String(issue.question?.prompt || issue.question?.scenario || issue.question?.title || '').replace(/\s+/g, ' ').slice(0, 180) || 'Question content'}
                     </div>
-                    <ul style={{ margin: '7px 0 0', paddingLeft: 18, color: '#a50e0e', fontSize: 12, lineHeight: 1.45 }}>
+                    <ul style={{ margin: '7px 0 0', paddingLeft: 18, color: 'var(--mm-error-text)', fontSize: 12, lineHeight: 1.45 }}>
                       {issue.errors.map((message) => <li key={message}>{message}</li>)}
                     </ul>
                   </div>
@@ -1554,20 +1554,20 @@ export const LessonPreflightModal = ({
                     onClick={() => beginQuestionRepair(issue.questionIndex)}
                     disabled={!allowQuestionRepair}
                     title={!allowQuestionRepair ? 'Duplicate the assignment before rewriting question content because student records already exist.' : 'Repair this question with MathMaster AI, or build a request for an outside AI.'}
-                    style={{ minHeight: 40, padding: '8px 12px', border: '1px solid #1a73e8', borderRadius: 7, background: 'var(--mm-surface)', color: allowQuestionRepair ? '#174ea6' : '#9aa0a6', fontWeight: 800, cursor: allowQuestionRepair ? 'pointer' : 'not-allowed' }}
+                    style={{ minHeight: 40, padding: '8px 12px', border: '1px solid #1a73e8', borderRadius: 7, background: 'var(--mm-surface)', color: allowQuestionRepair ? 'var(--mm-primary-text)' : 'var(--mm-text-subtle)', fontWeight: 800, cursor: allowQuestionRepair ? 'pointer' : 'not-allowed' }}
                   >
                     Repair with AI
                   </button>
                 </div>
                 {repairTargetIndex === issue.questionIndex && (
-                  <div style={{ marginTop: 11, paddingTop: 11, borderTop: '1px solid #eee' }}>
+                  <div style={{ marginTop: 11, paddingTop: 11, borderTop: '1px solid var(--mm-border-soft)' }}>
                     <label style={{ display: 'block', fontWeight: 800, fontSize: 12.5 }}>
-                      Anything else you want the AI to know? <span style={{ fontWeight: 500, color: '#5f6368' }}>(optional)</span>
+                      Anything else you want the AI to know? <span style={{ fontWeight: 500, color: 'var(--mm-text-muted)' }}>(optional)</span>
                       <textarea
                         value={repairInstruction}
                         onChange={(event) => setRepairInstruction(event.target.value)}
                         placeholder="Example: Keep the graph and same TEKS. The issue is only that an equivalent answer is being rejected."
-                        style={{ display: 'block', width: '100%', minHeight: 82, boxSizing: 'border-box', marginTop: 6, padding: 10, border: '1px solid #bdc7d6', borderRadius: 7, fontFamily: 'inherit', fontSize: 14 }}
+                        style={{ display: 'block', width: '100%', minHeight: 82, boxSizing: 'border-box', marginTop: 6, padding: 10, border: '1px solid var(--mm-border)', borderRadius: 7, fontFamily: 'inherit', fontSize: 14 }}
                       />
                     </label>
                     <div style={{ display: 'flex', gap: 8, marginTop: 9, flexWrap: 'wrap' }}>
@@ -1580,7 +1580,7 @@ export const LessonPreflightModal = ({
                       <button type="button" onClick={pasteQuestionRepairReplacement} disabled={repairBusy} style={{ minHeight: 40, padding: '8px 12px', border: 0, borderRadius: 7, background: '#188038', color: '#fff', fontWeight: 800 }}>
                         {repairBusy ? 'Checking…' : 'Paste AI Replacement'}
                       </button>
-                      <button type="button" onClick={() => { setRepairTargetIndex(null); setRepairInstruction(''); setRepairMessage(''); }} disabled={repairBusy} style={{ minHeight: 40, padding: '8px 12px', border: '1px solid #cbd1da', borderRadius: 7, background: 'var(--mm-surface)', fontWeight: 800 }}>
+                      <button type="button" onClick={() => { setRepairTargetIndex(null); setRepairInstruction(''); setRepairMessage(''); }} disabled={repairBusy} style={{ minHeight: 40, padding: '8px 12px', border: '1px solid var(--mm-border)', borderRadius: 7, background: 'var(--mm-surface)', fontWeight: 800 }}>
                         Cancel
                       </button>
                     </div>
@@ -1593,16 +1593,16 @@ export const LessonPreflightModal = ({
       )}
 
       {repairMessage && (
-        <div role="status" style={{ marginBottom: 14, padding: '10px 12px', border: '1px solid #c6d8f1', borderRadius: 8, background: '#f8fbff', color: '#3c4043', fontSize: 12.5, lineHeight: 1.45 }}>
+        <div role="status" style={{ marginBottom: 14, padding: '10px 12px', border: '1px solid var(--mm-tint-border)', borderRadius: 8, background: 'var(--mm-surface-tint)', color: 'var(--mm-text)', fontSize: 12.5, lineHeight: 1.45 }}>
           {repairMessage}
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, marginBottom: 18 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 10, marginBottom: 18 }}>
         {activities.map((activity) => (
-          <div key={activity.id || activity.sectionId} style={{ padding: 11, border: '1px solid #d9e2f1', borderRadius: 8, background: '#fbfdff' }}>
+          <div key={activity.id || activity.sectionId} style={{ padding: 11, border: '1px solid var(--mm-tint-border)', borderRadius: 8, background: 'var(--mm-surface)' }}>
             <strong>{humanRole(activity.role)}</strong>
-            <div style={{ fontSize: 12, color: '#5f6368', lineHeight: 1.5 }}>
+            <div style={{ fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
               {activity.isModelingLab ? `DOK ${activity.labDefinition?.dokLevel || 3} modeling lab` : `${activity.questions.length} question${activity.questions.length === 1 ? '' : 's'}`} · {activity.policy.attemptsAllowed} attempt{activity.policy.attemptsAllowed === 1 ? '' : 's'} · {activity.policy.feedbackMode}
             </div>
           </div>
@@ -1614,10 +1614,10 @@ export const LessonPreflightModal = ({
           this for free by putting it behind a tab; every section is on the page
           at once now, so the gate has to be explicit. */}
       {testCyclePreview && serverCyclePreflight && (
-        <section aria-label="Authoritative Test Cycle preflight" style={{ ...fieldsetStyle, background: serverCyclePreflight.blocked ? '#fff8f7' : '#f0f8f1' }}>
+        <section aria-label="Authoritative Test Cycle preflight" style={{ ...fieldsetStyle, background: serverCyclePreflight.blocked ? 'var(--mm-error-subtle)' : 'var(--mm-success-subtle)' }}>
           <strong>{serverCyclePreflight.loading ? 'Resolving secure Test…' : serverCyclePreflight.blocked ? 'Test Cycle cannot be published' : 'Test Cycle server preflight passed'}</strong>
           {(serverCyclePreflight.checks || []).map((check) => <div key={check.id}>{check.passed ? '✓' : '✗'} {check.label}</div>)}
-          {(serverCyclePreflight.errors || []).map((error) => <div key={error} role="alert" style={{ color: '#a50e0e' }}>{error}</div>)}
+          {(serverCyclePreflight.errors || []).map((error) => <div key={error} role="alert" style={{ color: 'var(--mm-error-text)' }}>{error}</div>)}
         </section>
       )}
       <fieldset style={{ ...fieldsetStyle, marginTop: 0, padding: 0 }}>
@@ -1626,7 +1626,7 @@ export const LessonPreflightModal = ({
           type="button"
           onClick={() => setPreviewOpen((current) => !current)}
           aria-expanded={previewOpen}
-          style={{ width: '100%', minHeight: 48, padding: '12px 15px', border: 0, borderBottom: previewOpen ? '1px solid #e0e0e0' : 0, background: '#f8f9fa', fontWeight: 800, textAlign: 'left', cursor: 'pointer', fontSize: 15 }}
+          style={{ width: '100%', minHeight: 48, padding: '12px 15px', border: 0, borderBottom: previewOpen ? '1px solid var(--mm-border)' : 0, background: 'var(--mm-surface-sunken)', fontWeight: 800, textAlign: 'left', cursor: 'pointer', fontSize: 15 }}
         >
           {previewOpen ? '▾' : '▸'} {previewOpen ? 'Hide the student preview' : 'Open the student preview'}
         </button>
@@ -1639,23 +1639,23 @@ export const LessonPreflightModal = ({
               type="button"
               onClick={() => setShowDemoControls((current) => !current)}
               aria-expanded={showDemoControls}
-              style={{ width: '100%', minHeight: 44, padding: '11px 14px', border: 0, borderBottom: '1px solid #e0e0e0', background: '#f8f9fa', fontWeight: 800, textAlign: 'left', cursor: 'pointer' }}
+              style={{ width: '100%', minHeight: 44, padding: '11px 14px', border: 0, borderBottom: '1px solid var(--mm-border)', background: 'var(--mm-surface-sunken)', fontWeight: 800, textAlign: 'left', cursor: 'pointer' }}
             >
               {showDemoControls ? '▾' : '▸'} Preview controls
             </button>
-            {showDemoControls && <div style={{ padding: 14, background: '#f8f9fa', borderBottom: '1px solid #e0e0e0' }}>{demoControls}</div>}
+            {showDemoControls && <div style={{ padding: 14, background: 'var(--mm-surface-sunken)', borderBottom: '1px solid var(--mm-border)' }}>{demoControls}</div>}
             <div style={{ padding: 14, background: 'var(--mm-surface)' }}>{studentPreview}</div>
           </>
         ) : (
           <div style={{ display: 'flex', minHeight: 0 }}>
-            <aside style={{ width: 'min(280px, 34vw)', minWidth: 210, borderRight: '1px solid #e0e0e0', padding: 14, background: '#f8f9fa', textAlign: 'left' }}>{demoControls}</aside>
+            <aside style={{ width: 'min(280px, 34vw)', minWidth: 210, borderRight: '1px solid var(--mm-border)', padding: 14, background: 'var(--mm-surface-sunken)', textAlign: 'left' }}>{demoControls}</aside>
             <main style={{ flex: 1, padding: 16, background: 'var(--mm-surface)', minWidth: 0 }}>{studentPreview}</main>
           </div>
         ))}
       </fieldset>
 
       {!isNarrow && readiness.total > 0 && (
-        <div role="alert" style={{ padding: 14, marginTop: 18, background: '#fce8e6', color: '#a50e0e', border: '1px solid #f1a5a0', borderRadius: 8 }}>
+        <div role="alert" style={{ padding: 14, marginTop: 18, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', border: '1px solid var(--mm-error-border-soft)', borderRadius: 8 }}>
           <strong>Fix before creating:</strong>
           <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>{readiness.all.map((entry, index) => <li key={`${index}-${entry.message}`}>{entry.message}</li>)}</ul>
         </div>
@@ -1697,7 +1697,7 @@ export const LessonPreflightModal = ({
         {/* The step rail doubles as the blocker summary: a step with an unresolved
             problem carries its count, so a disabled Create button always has a
             visible reason one tap away. */}
-        <nav aria-label="Review steps" style={{ display: 'flex', borderBottom: '1px solid #ccc', background: '#f8f9fa' }}>
+        <nav aria-label="Review steps" style={{ display: 'flex', borderBottom: '1px solid var(--mm-border)', background: 'var(--mm-surface-sunken)' }}>
           {PREFLIGHT_STEPS.map((step, index) => {
             const problems = readiness.countByStep[step.id] || 0;
             const isActive = isNarrow ? activeStep === step.id : false;
@@ -1714,11 +1714,11 @@ export const LessonPreflightModal = ({
                   padding: '8px 6px',
                   border: 'none',
                   borderBottom: isActive ? '3px solid #1a73e8' : '3px solid transparent',
-                  background: isActive ? '#fff' : 'transparent',
+                  background: isActive ? 'var(--mm-surface)' : 'transparent',
                   cursor: 'pointer',
                   fontWeight: 800,
                   fontSize: 13,
-                  color: isActive ? '#1a73e8' : '#3c4043',
+                  color: isActive ? 'var(--mm-primary)' : 'var(--mm-text)',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
                 }}
               >
@@ -1730,7 +1730,7 @@ export const LessonPreflightModal = ({
                     </span>
                   )}
                 </span>
-                {!isNarrow && <span style={{ fontSize: 11, fontWeight: 500, color: '#5f6368' }}>{step.hint}</span>}
+                {!isNarrow && <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--mm-text-muted)' }}>{step.hint}</span>}
               </button>
             );
           })}
@@ -1740,7 +1740,7 @@ export const LessonPreflightModal = ({
           {stepsToRender.map((stepId, index) => (
             <div key={stepId} id={`preflight-step-${stepId}`} style={{ marginTop: !isNarrow && index > 0 ? 30 : 0, scrollMarginTop: 8 }}>
               {!isNarrow && (
-                <h4 style={{ margin: '0 0 12px', paddingBottom: 6, borderBottom: '2px solid #e8f0fe', color: '#174ea6' }}>
+                <h4 style={{ margin: '0 0 12px', paddingBottom: 6, borderBottom: '2px solid var(--mm-tint-border)', color: 'var(--mm-primary-text)' }}>
                   {index + 1}. {PREFLIGHT_STEPS[index]?.label}
                 </h4>
               )}
@@ -1749,8 +1749,8 @@ export const LessonPreflightModal = ({
           ))}
         </div>
 
-        <footer style={{ padding: isNarrow ? '10px 14px calc(10px + env(safe-area-inset-bottom))' : '13px 18px', borderTop: '1px solid #ccc', background: '#f8f9fa', display: 'flex', flexDirection: isNarrow ? 'column' : 'row', justifyContent: 'space-between', alignItems: isNarrow ? 'stretch' : 'center', gap: 10 }}>
-          <span style={{ fontSize: 12, color: readiness.total === 0 ? '#5f6368' : '#a50e0e', textAlign: isNarrow ? 'center' : 'left' }}>
+        <footer style={{ padding: isNarrow ? '10px 14px calc(10px + env(safe-area-inset-bottom))' : '13px 18px', borderTop: '1px solid var(--mm-border)', background: 'var(--mm-surface-sunken)', display: 'flex', flexDirection: isNarrow ? 'column' : 'row', justifyContent: 'space-between', alignItems: isNarrow ? 'stretch' : 'center', gap: 10 }}>
+          <span style={{ fontSize: 12, color: readiness.total === 0 ? 'var(--mm-text-muted)' : 'var(--mm-error-text)', textAlign: isNarrow ? 'center' : 'left' }}>
             {readiness.total === 0
               ? (isUpdateMode ? 'Ready to save. These reviewed choices will update this assignment.' : 'Ready to create. These reviewed choices are what MathMaster will publish.')
               : `${readiness.total} thing${readiness.total === 1 ? '' : 's'} still to fix${readiness.firstBlockedStep && readiness.firstBlockedStep !== activeStep ? ` — see step ${stepIndex(readiness.firstBlockedStep) + 1}` : ''}.`}
@@ -1814,14 +1814,14 @@ export const LessonPreflightModal = ({
 
           {/* Why the button says what it says. Without this a teacher who
               forgot to tick a class reads "Save to Library" as a bug. */}
-          <div style={{ marginTop: 8, color: '#5f6368', fontSize: 12, lineHeight: 1.5, textAlign: isNarrow ? 'center' : 'right' }}>
+          <div style={{ marginTop: 8, color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5, textAlign: isNarrow ? 'center' : 'right' }}>
             {isUpdateMode
               ? 'Updates this assignment after the same MathMaster checks used when it was created. It does not create a second copy.'
               : action.hint}
           </div>
 
           {isNarrow && !canCreate && !busy && readiness.firstBlockedStep && readiness.firstBlockedStep !== activeStep && (
-            <button type="button" onClick={() => goToStep(readiness.firstBlockedStep)} style={{ minHeight: 44, padding: '8px 14px', border: '1px solid #f1a5a0', borderRadius: 8, background: '#fce8e6', color: '#a50e0e', fontWeight: 800 }}>
+            <button type="button" onClick={() => goToStep(readiness.firstBlockedStep)} style={{ minHeight: 44, padding: '8px 14px', border: '1px solid var(--mm-error-border-soft)', borderRadius: 8, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', fontWeight: 800 }}>
               Take me to what needs fixing
             </button>
           )}

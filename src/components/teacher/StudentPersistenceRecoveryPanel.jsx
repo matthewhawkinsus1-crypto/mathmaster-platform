@@ -28,9 +28,9 @@ import { STUDENT_NAME_UNAVAILABLE, resolveRosterStudentName, studentIdLabel } fr
  * is a dry run until a teacher commits it.
  */
 
-const CARD = { border: '1px solid #dadce0', borderRadius: 12, padding: 16, background: 'var(--mm-surface)' };
+const CARD = { border: '1px solid var(--mm-border)', borderRadius: 12, padding: 16, background: 'var(--mm-surface)' };
 const BUTTON = { minHeight: 40, padding: '8px 14px', border: 0, borderRadius: 8, fontWeight: 800, cursor: 'pointer' };
-const CELL = { padding: '8px 10px', borderBottom: '1px solid #f1f3f4', fontSize: 13, textAlign: 'left' };
+const CELL = { padding: '8px 10px', borderBottom: '1px solid var(--mm-border-soft)', fontSize: 13, textAlign: 'left' };
 
 const clock = (value) => (Number(value) ? new Date(Number(value)).toLocaleString(undefined, {
   month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
@@ -256,7 +256,7 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
       <header style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'baseline', justifyContent: 'space-between' }}>
         <div>
           <h3 style={{ margin: 0, fontSize: 16, fontWeight: 900 }}>Submission recovery</h3>
-          <p style={{ margin: '4px 0 0', fontSize: 12, color: '#5f6368' }}>
+          <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--mm-text-muted)' }}>
             {assignmentTitle || 'This assignment'}
             {className ? ` · ${className}` : ''}
             {' · '}
@@ -269,16 +269,16 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
       </header>
 
       {!ready && (
-        <p style={{ marginTop: 12, fontSize: 13, color: '#5f6368' }}>
+        <p style={{ marginTop: 12, fontSize: 13, color: 'var(--mm-text-muted)' }}>
           Choose an assignment and a class to review its submission records.
         </p>
       )}
-      {error && <p role="alert" style={{ marginTop: 12, fontSize: 13, color: '#b3261e' }}>{error}</p>}
-      {notice && <p role="status" style={{ marginTop: 12, fontSize: 13, color: '#137333' }}>{notice}</p>}
+      {error && <p role="alert" style={{ marginTop: 12, fontSize: 13, color: 'var(--mm-error-text)' }}>{error}</p>}
+      {notice && <p role="status" style={{ marginTop: 12, fontSize: 13, color: 'var(--mm-success-text)' }}>{notice}</p>}
 
       {report && (
         <>
-          <div role="status" style={{ ...CARD, marginTop: 12, background: '#f8fafd', fontSize: 13 }}>
+          <div role="status" style={{ ...CARD, marginTop: 12, background: 'var(--mm-surface-sunken)', fontSize: 13 }}>
             <strong>Persistence health:</strong>{' '}
             ingestion {report.persistenceHealth?.ingestionService || 'unknown'} · device reporting {report.persistenceHealth?.deviceReportingService || 'unknown'} ·{' '}
             {report.persistenceHealth?.queuedGradeBearing || 0} grade-bearing item(s) queued
@@ -300,12 +300,12 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
             <div>
-              <button type="button" style={{ ...BUTTON, background: '#e8f0fe', color: '#1967d2' }} disabled={Boolean(busy)} onClick={sweepCheckpoints}>
+              <button type="button" style={{ ...BUTTON, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' }} disabled={Boolean(busy)} onClick={sweepCheckpoints}>
                 {busy === 'sweep' ? 'Finalizing…' : 'Finalize outstanding checkpoints'}
               </button>
-              <div style={{ maxWidth: 480, marginTop: 4, fontSize: 11, color: '#5f6368' }}>Checks server-held responses that may be safely finalized under the original assignment deadline and grading rules.</div>
+              <div style={{ maxWidth: 480, marginTop: 4, fontSize: 11, color: 'var(--mm-text-muted)' }}>Checks server-held responses that may be safely finalized under the original assignment deadline and grading rules.</div>
             </div>
-            <button type="button" style={{ ...BUTTON, background: '#e8f0fe', color: '#1967d2' }} disabled={Boolean(busy)} onClick={previewDrafts}>
+            <button type="button" style={{ ...BUTTON, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' }} disabled={Boolean(busy)} onClick={previewDrafts}>
               {busy === 'preview' ? 'Checking…' : 'Preview draft recovery'}
             </button>
             {proposals?.proposalCount > 0 && (
@@ -316,7 +316,7 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
           </div>
 
           {commitSummary && (
-            <div role="status" style={{ marginTop: 14, padding: 12, borderRadius: 8, background: '#e6f4ea', fontSize: 13 }}>
+            <div role="status" style={{ marginTop: 14, padding: 12, borderRadius: 8, background: 'var(--mm-success-bg)', fontSize: 13 }}>
               <strong>Recovery result:</strong> Accepted {commitSummary.accepted} · Duplicate {commitSummary.duplicate} · Superseded {commitSummary.superseded} · Needs review {commitSummary['needs-review']} · Failed/retryable {commitSummary.retryable}
             </div>
           )}
@@ -325,7 +325,7 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
             <div style={{ overflowX: 'auto', marginTop: 14 }}>
               <h4 style={{ margin: '0 0 8px' }}>{proposals.proposalCount > 0 ? 'Draft responses proposed for recovery' : 'Responses that were not recovered'}</h4>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1100 }}>
-                <thead><tr>{['Student', 'Student ID', 'Question', 'Question ID', 'Section / role', 'Draft saved', 'Academic time recorded', 'Why eligible', 'Current canonical status', 'Proposed result', 'Outcome'].map((heading) => <th key={heading} style={{ ...CELL, fontWeight: 900, borderBottom: '2px solid #dadce0' }}>{heading}</th>)}</tr></thead>
+                <thead><tr>{['Student', 'Student ID', 'Question', 'Question ID', 'Section / role', 'Draft saved', 'Academic time recorded', 'Why eligible', 'Current canonical status', 'Proposed result', 'Outcome'].map((heading) => <th key={heading} style={{ ...CELL, fontWeight: 900, borderBottom: '2px solid var(--mm-border)' }}>{heading}</th>)}</tr></thead>
                 <tbody>{proposals.proposals.map((proposal) => (
                   <tr key={proposal.actionId}>
                     <td style={CELL}>{nameOf(proposal)}</td><td style={CELL}>{proposal.studentId}</td>
@@ -337,7 +337,7 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
                   </tr>
                 ))}</tbody>
               </table>
-              <p style={{ fontSize: 12, color: '#5f6368' }}>Nothing in this preview writes a grade. Answers and answer keys are not shown.</p>
+              <p style={{ fontSize: 12, color: 'var(--mm-text-muted)' }}>Nothing in this preview writes a grade. Answers and answer keys are not shown.</p>
             </div>
           )}
 
@@ -346,17 +346,17 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
               <thead>
                 <tr>
                   {['Student', 'Attempted', 'Worked', 'Unaccounted', 'Checkpoints', 'Draft saved', 'On devices', 'Recovered', 'Blocked by', 'Resolution'].map((heading) => (
-                    <th key={heading} style={{ ...CELL, fontWeight: 900, borderBottom: '2px solid #dadce0' }}>{heading}</th>
+                    <th key={heading} style={{ ...CELL, fontWeight: 900, borderBottom: '2px solid var(--mm-border)' }}>{heading}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {report.students.map((student) => (
-                  <tr key={student.studentId} style={student.persistencePending ? { background: '#fef7e0' } : undefined}>
+                  <tr key={student.studentId} style={student.persistencePending ? { background: 'var(--mm-warning-bg)' } : undefined}>
                     <td style={CELL}>
                       {nameOf(student)}
                       {nameOf(student) === STUDENT_NAME_UNAVAILABLE && student.studentId ? (
-                        <><br /><span style={{ fontSize: 11, color: '#5f6368' }}>{studentIdLabel(String(student.studentId))}</span></>
+                        <><br /><span style={{ fontSize: 11, color: 'var(--mm-text-muted)' }}>{studentIdLabel(String(student.studentId))}</span></>
                       ) : null}
                       {/* Name the DISCREPANCY, not just the state. A teacher
                           deciding whether work is unrecoverable needs to see
@@ -388,7 +388,7 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
                       {resolvableHold(student) ? (
                         <button
                           type="button"
-                          style={{ ...BUTTON, background: '#fce8e6', color: '#b3261e', minHeight: 32, padding: '6px 10px', fontSize: 12 }}
+                          style={{ ...BUTTON, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', minHeight: 32, padding: '6px 10px', fontSize: 12 }}
                           disabled={Boolean(busy)}
                           onClick={() => { setResolutionTarget(student); setResolutionReason(''); }}
                         >
@@ -399,13 +399,13 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
                           the discrepancy is still shown above, and this says
                           who accepted it and when. */}
                       {student.persistenceResolution && !student.persistenceResolution.supersededByNewEvidence ? (
-                        <span style={{ fontSize: 11, color: '#5f6368' }}>
+                        <span style={{ fontSize: 11, color: 'var(--mm-text-muted)' }}>
                           Resolved by {student.persistenceResolution.resolvedByEmail || 'a teacher of record'}
                           {' · '}{clock(student.persistenceResolution.resolvedAt)}
                         </span>
                       ) : null}
                       {student.persistenceResolution?.supersededByNewEvidence ? (
-                        <span style={{ fontSize: 11, color: '#b3261e' }}>
+                        <span style={{ fontSize: 11, color: 'var(--mm-error-text)' }}>
                           Earlier resolution no longer applies — new evidence appeared.
                         </span>
                       ) : null}
@@ -421,7 +421,7 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
               reported" is not "nothing queued". Saying so is the difference
               between a report a teacher can trust and one that quietly
               understates the incident. */}
-          <p style={{ marginTop: 10, fontSize: 12, color: '#5f6368' }}>
+          <p style={{ marginTop: 10, fontSize: 12, color: 'var(--mm-text-muted)' }}>
             A Chromebook can only report work stored on that device after the student signs back in using the same browser profile.
             <strong> Do not clear browser data on affected student Chromebooks until recovery is complete.</strong>
             <strong> not reported</strong> means no device has said anything yet — never that nothing is waiting.
@@ -444,7 +444,7 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
               <dt>Students affected</dt><dd style={{ margin: 0, fontWeight: 800 }}>{affectedStudents}</dd>
             </dl>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
-              <button type="button" style={{ ...BUTTON, background: '#f1f3f4' }} onClick={() => setConfirmationOpen(false)}>Cancel</button>
+              <button type="button" style={{ ...BUTTON, background: 'var(--mm-surface-control)' }} onClick={() => setConfirmationOpen(false)}>Cancel</button>
               <button type="button" style={{ ...BUTTON, background: '#137333', color: '#fff' }} disabled={Boolean(busy)} onClick={commitDrafts}>Recover responses</button>
             </div>
           </div>
@@ -480,15 +480,15 @@ export default function StudentPersistenceRecoveryPanel({ assignmentId, classId,
               rows={3}
               value={resolutionReason}
               onChange={(event) => setResolutionReason(event.target.value.slice(0, 500))}
-              style={{ width: '100%', marginTop: 6, padding: 8, borderRadius: 8, border: '1px solid #dadce0', fontSize: 13 }}
+              style={{ width: '100%', marginTop: 6, padding: 8, borderRadius: 8, border: '1px solid var(--mm-border)', fontSize: 13 }}
               placeholder="e.g. Chromebook was reimaged by IT on the 16th; the queued responses are gone."
             />
-            <p style={{ fontSize: 12, color: '#5f6368' }}>
+            <p style={{ fontSize: 12, color: 'var(--mm-text-muted)' }}>
               Recorded with your name and the time. If concrete recoverable evidence appears later — a Chromebook
               reconnects and reports queued work — the hold becomes active again.
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 14 }}>
-              <button type="button" style={{ ...BUTTON, background: '#f1f3f4' }} onClick={() => { setResolutionTarget(null); setResolutionReason(''); }}>Cancel</button>
+              <button type="button" style={{ ...BUTTON, background: 'var(--mm-surface-control)' }} onClick={() => { setResolutionTarget(null); setResolutionReason(''); }}>Cancel</button>
               <button
                 type="button"
                 style={{ ...BUTTON, background: '#b3261e', color: '#fff' }}

@@ -41,13 +41,13 @@ export default function GraphLine({ question, onStateChange, onUndoStateChange, 
     <div>
       <h2 style={{ color: 'var(--mm-text-strong)', marginTop: 0 }}>Graphing Lines</h2>
       <QuestionPrompt>{prompt || 'Identify the slope $m$ and the y-intercept $b$.'}</QuestionPrompt>
-      {showEquation && <div style={{ fontSize: '27px', fontWeight: 'bold', margin: '26px auto', color: '#1a73e8', background: '#f8f9fa', padding: '18px 24px', borderRadius: '10px', width: 'fit-content', maxWidth: '100%', boxSizing: 'border-box' }}><MathDisplay value={displayedEquation} format={equationLatex ? 'latex' : 'ascii-math'} ariaLabel={`Equation ${generatedEquation}`} /></div>}
+      {showEquation && <div style={{ fontSize: '27px', fontWeight: 'bold', margin: '26px auto', color: 'var(--mm-primary)', background: 'var(--mm-surface-sunken)', padding: '18px 24px', borderRadius: '10px', width: 'fit-content', maxWidth: '100%', boxSizing: 'border-box' }}><MathDisplay value={displayedEquation} format={equationLatex ? 'latex' : 'ascii-math'} ariaLabel={`Equation ${generatedEquation}`} /></div>}
       <QuestionVisual question={question} includeGraph={false} />
       {graph && <GraphDisplay graph={graph} title="Graphing question" />}
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '30px' }}>
         {[['slope', 'Slope', 'm', slope], ['intercept', 'Y-Intercept', 'b', intercept]].map(([id, label, symbol, value]) => {
           const partGrade = grade(id);
-          return <div key={id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}><label style={{ fontWeight: 'bold', marginBottom: '8px', color: '#5f6368' }}>{label} (<MathDisplay value={symbol} inline />)</label><input type="number" value={value} onChange={(event) => history.setValue((current) => ({ ...current, [id]: event.target.value }))} style={{ textAlign: 'center', fontSize: '18px', padding: '10px', border: `2px solid ${partGrade ? (partGrade.isCorrect ? '#188038' : '#d93025') : '#dadce0'}`, borderRadius: '6px', width: '80px', outline: 'none', background: partGrade && !partGrade.isCorrect ? '#fff8f7' : '#fff' }} /></div>;
+          return <div key={id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}><label style={{ fontWeight: 'bold', marginBottom: '8px', color: 'var(--mm-text-muted)' }}>{label} (<MathDisplay value={symbol} inline />)</label><input type="number" value={value} onChange={(event) => history.setValue((current) => ({ ...current, [id]: event.target.value }))} style={{ textAlign: 'center', fontSize: '18px', padding: '10px', border: `2px solid ${partGrade ? (partGrade.isCorrect ? '#188038' : '#d93025') : 'var(--mm-border)'}`, borderRadius: '6px', width: '80px', outline: 'none', background: partGrade && !partGrade.isCorrect ? 'var(--mm-error-subtle)' : 'var(--mm-surface)' }} /></div>;
         })}
       </div>
     </div>

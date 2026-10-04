@@ -37,8 +37,8 @@ const primaryButton = {
 const secondaryButton = {
   ...primaryButton,
   background: 'var(--mm-surface)',
-  color: '#174ea6',
-  border: '1px solid #9bb8e8',
+  color: 'var(--mm-primary-text)',
+  border: '1px solid var(--mm-primary-border)',
 };
 
 const tidyNumber = (value) => Number(Number(value).toFixed(10));
@@ -521,9 +521,9 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               gap: 10,
               padding: 10,
               marginBottom: 10,
-              border: '1px solid #d9e2f1',
+              border: '1px solid var(--mm-tint-border)',
               borderRadius: 12,
-              background: '#f8fbff',
+              background: 'var(--mm-surface-tint)',
                         }}
           >
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -545,7 +545,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                 ○ Open
               </button>
 
-              <span style={{ color: '#5f6b7a', fontSize: 12 }}>
+              <span style={{ color: 'var(--mm-text-muted)', fontSize: 12 }}>
                 Next endpoint
               </span>
             </div>
@@ -579,7 +579,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
                   minHeight: 40,
                   padding: '7px 10px',
                   boxSizing: 'border-box',
-                  border: `2px solid ${endpointError ? '#d93025' : '#8ab4f8'}`,
+                  border: `2px solid ${endpointError ? '#d93025' : 'var(--mm-primary-border)'}`,
                   borderRadius: 8,
                   background: 'var(--mm-surface)',
                   color: 'var(--mm-text-strong)',
@@ -596,7 +596,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               </button>
             </div>
 
-            <div style={{ color: endpointError ? '#b3261e' : '#5f6b7a', fontSize: 11.5 }}>
+            <div style={{ color: endpointError ? 'var(--mm-error-text)' : 'var(--mm-text-muted)', fontSize: 11.5 }}>
               {endpointError || `Click/drag snap: ${snapLabel}. Exact entry is not limited to visible tick marks.`}
             </div>
           </div>
@@ -612,7 +612,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
             style={{
               width: '100%',
               height: 'auto',
-              border: '1px solid #d9e2f1',
+              border: '1px solid var(--mm-tint-border)',
               borderRadius: 12,
               background: 'var(--mm-surface)',
               cursor: dragging ? 'grabbing' : 'crosshair',
@@ -830,7 +830,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
             </button>
           </div>
 
-          <p aria-live="polite" style={{ marginTop: 9, fontSize: 12.5, color: '#5f6b7a', lineHeight: 1.4 }}>
+          <p aria-live="polite" style={{ marginTop: 9, fontSize: 12.5, color: 'var(--mm-text-muted)', lineHeight: 1.4 }}>
             {pending != null
               ? `${pending.closed ? 'Closed' : 'Open'} endpoint at ${rationalLabel(pending.value)}. Place a second endpoint or choose a ray.`
               : drawn.length
@@ -843,7 +843,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
 
         <Panel title={responsePanelTitle}>
           {asksInterval && (
-            <div style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#3c4756', marginBottom: 12 }}>
+            <div style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--mm-text)', marginBottom: 12 }}>
               <div style={{ marginBottom: 6 }}>Interval notation</div>
               <MathInput
                 value={notation}
@@ -860,7 +860,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
           )}
 
           {asksInequality && (
-            <div style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#3c4756', marginBottom: 12 }}>
+            <div style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--mm-text)', marginBottom: 12 }}>
               <div style={{ marginBottom: 6 }}>Inequality</div>
               <MathInput
                 value={inequality}
@@ -885,7 +885,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               <ResultPill ok={feedback.isCorrect}>
                 {feedback.isCorrect ? 'Correct' : 'Not yet'}
               </ResultPill>
-              <p style={{ margin: '9px 0 0', color: '#3c4756', lineHeight: 1.55 }}>
+              <p style={{ margin: '9px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>
                 {message()}
               </p>
             </div>

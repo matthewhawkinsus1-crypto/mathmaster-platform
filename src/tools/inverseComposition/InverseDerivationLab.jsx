@@ -17,7 +17,7 @@ const inputStyle = {
   width: '100%',
   boxSizing: 'border-box',
   padding: '9px 10px',
-  border: '1px solid #cfd8e6',
+  border: '1px solid var(--mm-tint-border)',
   borderRadius: 8,
   background: 'var(--mm-surface)',
 };
@@ -147,30 +147,30 @@ export default function InverseDerivationLab({ questionData = {}, onAction }) {
 
       <ToolGrid min={360}>
         <Panel title="1 · Start with the function">
-          <div style={{ padding: 14, borderRadius: 10, background: '#eef4ff', fontWeight: 900, fontSize: 20 }}>
+          <div style={{ padding: 14, borderRadius: 10, background: 'var(--mm-primary-subtle)', fontWeight: 900, fontSize: 20 }}>
             {functionLabel(f, 'f')}
           </div>
-          <p style={{ color: '#5f6b7a', lineHeight: 1.55 }}>
+          <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>
             The first required inverse step is to exchange the input and output variables. That creates the inverse relation you will solve for y.
           </p>
           <button
             type="button"
             onClick={swapVariables}
             disabled={swapped}
-            style={{ ...buttonStyle, background: swapped ? '#dfe3e7' : '#1a73e8', color: swapped ? '#667085' : '#fff' }}
+            style={{ ...buttonStyle, background: swapped ? 'var(--mm-surface-control-strong)' : '#1a73e8', color: swapped ? 'var(--mm-text-muted)' : '#fff' }}
           >
             {swapped ? '✓ x and y swapped' : 'Swap x and y'}
           </button>
         </Panel>
 
         <Panel title="2 · Balanced algebra workspace">
-          <div style={{ padding: 16, borderRadius: 10, background: '#f8fbff', border: '1px solid #dce8f8', textAlign: 'center' }}>
-            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '.06em', color: '#667085', fontWeight: 800 }}>Current equation</div>
+          <div style={{ padding: 16, borderRadius: 10, background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)', textAlign: 'center' }}>
+            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--mm-text-muted)', fontWeight: 800 }}>Current equation</div>
             <div style={{ marginTop: 7, fontSize: 25, fontWeight: 900 }}>{currentRelation}</div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 14 }}>
-            <label style={{ fontSize: 13, fontWeight: 800, color: '#465267' }}>
+            <label style={{ fontSize: 13, fontWeight: 800, color: 'var(--mm-text-muted)' }}>
               Operation on both sides
               <select value={operation} onChange={(event) => setOperation(event.target.value)} disabled={!swapped || solved} style={{ ...inputStyle, marginTop: 5 }}>
                 <option value="add">Add</option>
@@ -179,7 +179,7 @@ export default function InverseDerivationLab({ questionData = {}, onAction }) {
                 <option value="divide">Divide by</option>
               </select>
             </label>
-            <label style={{ fontSize: 13, fontWeight: 800, color: '#465267' }}>
+            <label style={{ fontSize: 13, fontWeight: 800, color: 'var(--mm-text-muted)' }}>
               Number
               <input
                 type="number"
@@ -193,31 +193,31 @@ export default function InverseDerivationLab({ questionData = {}, onAction }) {
           </div>
 
           {preview ? (
-            <div style={{ marginTop: 12, padding: 11, borderRadius: 9, background: typeof preview === 'string' && preview.includes('=') ? '#eef7ee' : '#fff4e5', color: '#3c4756' }}>
+            <div style={{ marginTop: 12, padding: 11, borderRadius: 9, background: typeof preview === 'string' && preview.includes('=') ? 'var(--mm-success-bg)' : 'var(--mm-warning-bg)', color: 'var(--mm-text)' }}>
               <strong>Preview:</strong> {preview}
             </div>
           ) : null}
-          {operationError ? <div style={{ marginTop: 12, padding: 11, borderRadius: 9, background: '#fce8e6', color: '#8a1c13' }}>{operationError}</div> : null}
+          {operationError ? <div style={{ marginTop: 12, padding: 11, borderRadius: 9, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' }}>{operationError}</div> : null}
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
             <button
               type="button"
               onClick={applyOperation}
               disabled={!swapped || solved || operand === ''}
-              style={{ ...buttonStyle, background: !swapped || solved || operand === '' ? '#dfe3e7' : '#1a73e8', color: !swapped || solved || operand === '' ? '#667085' : '#fff' }}
+              style={{ ...buttonStyle, background: !swapped || solved || operand === '' ? 'var(--mm-surface-control)' : '#1a73e8', color: !swapped || solved || operand === '' ? 'var(--mm-text-muted)' : '#fff' }}
             >
               Apply to both sides
             </button>
-            <button type="button" onClick={undo} disabled={!derivation.history?.length} style={{ ...buttonStyle, background: '#eef1f5', color: '#344054' }}>Undo</button>
-            <button type="button" onClick={startOver} style={{ ...buttonStyle, background: '#eef1f5', color: '#344054' }}>Start over</button>
+            <button type="button" onClick={undo} disabled={!derivation.history?.length} style={{ ...buttonStyle, background: 'var(--mm-primary-subtle)', color: 'var(--mm-text)' }}>Undo</button>
+            <button type="button" onClick={startOver} style={{ ...buttonStyle, background: 'var(--mm-primary-subtle)', color: 'var(--mm-text)' }}>Start over</button>
           </div>
         </Panel>
 
         <Panel title="3 · Step history">
           <div style={{ display: 'grid', gap: 8 }}>
             {history.map((step, index) => (
-              <div key={`${index}-${formatInverseDerivationRelation(step)}`} style={{ display: 'grid', gridTemplateColumns: '34px 1fr', gap: 8, alignItems: 'center', padding: 10, borderRadius: 9, background: index === history.length - 1 ? '#eef4ff' : '#f8f9fa' }}>
-                <div style={{ width: 28, height: 28, borderRadius: 14, display: 'grid', placeItems: 'center', background: 'var(--mm-surface)', border: '1px solid #d0d5dd', fontWeight: 900 }}>{index + 1}</div>
+              <div key={`${index}-${formatInverseDerivationRelation(step)}`} style={{ display: 'grid', gridTemplateColumns: '34px 1fr', gap: 8, alignItems: 'center', padding: 10, borderRadius: 9, background: index === history.length - 1 ? 'var(--mm-primary-subtle)' : 'var(--mm-surface-sunken)' }}>
+                <div style={{ width: 28, height: 28, borderRadius: 14, display: 'grid', placeItems: 'center', background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', fontWeight: 900 }}>{index + 1}</div>
                 <div style={{ fontWeight: index === history.length - 1 ? 900 : 700 }}>{formatInverseDerivationRelation(step)}</div>
               </div>
             ))}
@@ -228,22 +228,22 @@ export default function InverseDerivationLab({ questionData = {}, onAction }) {
           {solved ? (
             <>
               <ResultPill stageCheck ok>y isolated</ResultPill>
-              <div style={{ marginTop: 12, padding: 15, borderRadius: 10, background: '#e9f7ef', fontSize: 22, fontWeight: 900 }}>
+              <div style={{ marginTop: 12, padding: 15, borderRadius: 10, background: 'var(--mm-success-bg)', fontSize: 22, fontWeight: 900 }}>
                 f⁻¹(x) = {inverseExpression(derivation)}
               </div>
-              <div style={{ marginTop: 12, padding: 12, borderRadius: 9, background: '#fff8e6', lineHeight: 1.5 }}>
+              <div style={{ marginTop: 12, padding: 12, borderRadius: 9, background: 'var(--mm-warning-bg)', lineHeight: 1.5 }}>
                 <strong>Domain/range connection:</strong> the domain of f becomes the range of f⁻¹, and the range of f becomes the domain of f⁻¹. Graphically, the two functions reflect across y = x.
               </div>
             </>
           ) : (
-            <p style={{ marginTop: 0, color: '#5f6b7a', lineHeight: 1.55 }}>Keep the equation balanced until y is alone with coefficient 1. The inverse statement will appear when isolation is mathematically complete.</p>
+            <p style={{ marginTop: 0, color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>Keep the equation balanced until y is alone with coefficient 1. The inverse statement will appear when isolation is mathematically complete.</p>
           )}
 
           <button data-mm-enter-action="submit" type="button" onClick={check} style={{ ...buttonStyle, marginTop: 14, background: '#1a73e8', color: '#fff' }}>Check derivation</button>
           {feedback ? (
             <div style={{ marginTop: 12 }}>
               <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Complete' : 'Keep going'}</ResultPill>
-              <p style={{ color: '#3c4756', lineHeight: 1.5 }}>
+              <p style={{ color: 'var(--mm-text)', lineHeight: 1.5 }}>
                 {feedback.isCorrect
                   ? 'Your swap and balanced algebra correctly isolate y, so the inverse is complete.'
                   : swapped

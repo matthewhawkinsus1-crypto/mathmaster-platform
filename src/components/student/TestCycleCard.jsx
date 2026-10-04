@@ -27,7 +27,7 @@ import { TEST_CYCLE_STAGE, stageIsSecure } from '../../platform/assessment/testC
 
 const shell = {
   background: 'var(--mm-surface)',
-  border: '1px solid #dadce0',
+  border: '1px solid var(--mm-border)',
   borderRadius: 14,
   padding: 'clamp(16px, 4vw, 24px)',
   display: 'grid',
@@ -35,16 +35,16 @@ const shell = {
 };
 
 const STAGE_TONE = {
-  [TEST_CYCLE_STAGE.REVIEW]: { background: '#e8f0fe', color: '#1a4fa0' },
-  [TEST_CYCLE_STAGE.TEST]: { background: '#fce8e6', color: '#b3261e' },
-  [TEST_CYCLE_STAGE.AWAITING_RELEASE]: { background: '#f1f3f4', color: '#3c4043' },
-  [TEST_CYCLE_STAGE.PASSED]: { background: '#e6f4ea', color: '#0d652d' },
-  [TEST_CYCLE_STAGE.CORRECTIONS]: { background: '#fef7e0', color: '#7a4f00' },
-  [TEST_CYCLE_STAGE.RETEST_READY]: { background: '#f1f3f4', color: '#3c4043' },
-  [TEST_CYCLE_STAGE.RETEST]: { background: '#fce8e6', color: '#b3261e' },
-  [TEST_CYCLE_STAGE.RETEST_SUBMITTED]: { background: '#f1f3f4', color: '#3c4043' },
-  [TEST_CYCLE_STAGE.COMPLETE]: { background: '#e6f4ea', color: '#0d652d' },
-  [TEST_CYCLE_STAGE.RETEST_CLOSED]: { background: '#f1f3f4', color: '#3c4043' },
+  [TEST_CYCLE_STAGE.REVIEW]: { background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' },
+  [TEST_CYCLE_STAGE.TEST]: { background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' },
+  [TEST_CYCLE_STAGE.AWAITING_RELEASE]: { background: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
+  [TEST_CYCLE_STAGE.PASSED]: { background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' },
+  [TEST_CYCLE_STAGE.CORRECTIONS]: { background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' },
+  [TEST_CYCLE_STAGE.RETEST_READY]: { background: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
+  [TEST_CYCLE_STAGE.RETEST]: { background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' },
+  [TEST_CYCLE_STAGE.RETEST_SUBMITTED]: { background: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
+  [TEST_CYCLE_STAGE.COMPLETE]: { background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' },
+  [TEST_CYCLE_STAGE.RETEST_CLOSED]: { background: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
 };
 
 const PHASE_STATUS_LABEL = {
@@ -73,11 +73,11 @@ export const TestCycleCard = ({ assignmentId, studentProfile = null, onOpenRevie
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading && !card) return <section style={shell}><p style={{ color: '#5f6368', margin: 0 }}>Loading your assessment…</p></section>;
+  if (loading && !card) return <section style={shell}><p style={{ color: 'var(--mm-text-muted)', margin: 0 }}>Loading your assessment…</p></section>;
   if (error && !card) {
     return (
       <section style={shell}>
-        <p role="alert" style={{ color: '#b3261e', margin: 0 }}>{error}</p>
+        <p role="alert" style={{ color: 'var(--mm-error-text)', margin: 0 }}>{error}</p>
         <button type="button" onClick={load} style={{ justifySelf: 'start', minHeight: 44, padding: '9px 15px', borderRadius: 8, border: '1px solid #5f6368', background: 'var(--mm-surface)', cursor: 'pointer' }}>Try again</button>
       </section>
     );
@@ -123,7 +123,7 @@ export const TestCycleCard = ({ assignmentId, studentProfile = null, onOpenRevie
     );
   }
 
-  const tone = STAGE_TONE[card.stage] || { background: '#f1f3f4', color: '#3c4043' };
+  const tone = STAGE_TONE[card.stage] || { background: 'var(--mm-surface-control)', color: 'var(--mm-text)' };
   // The two stages whose action is "open the released secure review".
   const isReviewAction = [TEST_CYCLE_STAGE.PASSED, TEST_CYCLE_STAGE.COMPLETE].includes(card.stage);
   const enter = () => {
@@ -138,11 +138,11 @@ export const TestCycleCard = ({ assignmentId, studentProfile = null, onOpenRevie
     <section style={shell} data-test-cycle-stage={card.stage}>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <span style={{ ...tone, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', padding: '5px 10px', borderRadius: 999 }}>{card.statusLabel}</span>
-        {card.secure && <span style={{ fontSize: 11, fontWeight: 800, color: '#b3261e' }}>Secure · monitored</span>}
-        {card.hintsAllowed && <span style={{ fontSize: 11, fontWeight: 800, color: '#0d652d' }}>Help allowed</span>}
+        {card.secure && <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--mm-error-text)' }}>Secure · monitored</span>}
+        {card.hintsAllowed && <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--mm-success-text)' }}>Help allowed</span>}
       </div>
       <h2 style={{ margin: 0, fontSize: 'clamp(18px, 4vw, 23px)' }}>{card.title}</h2>
-      <p style={{ margin: 0, color: '#3c4043', lineHeight: 1.55 }}>{card.detail}</p>
+      <p style={{ margin: 0, color: 'var(--mm-text)', lineHeight: 1.55 }}>{card.detail}</p>
 
       {/* Always show the whole cycle. The server supplies status-only phase
           metadata; secure questions are fetched only after the secure runtime
@@ -150,19 +150,19 @@ export const TestCycleCard = ({ assignmentId, studentProfile = null, onOpenRevie
       {Array.isArray(card.phases) && (
         <ol aria-label="Test Cycle phases" style={{ listStyle: 'none', display: 'grid', gap: 8, padding: 0, margin: 0 }}>
           {card.phases.map((phase) => (
-            <li key={phase.id} data-test-cycle-phase={phase.id} data-phase-status={phase.status} style={{ padding: '10px 12px', border: '1px solid #e3e6ea', borderRadius: 9, background: '#f8f9fa' }}>
+            <li key={phase.id} data-test-cycle-phase={phase.id} data-phase-status={phase.status} style={{ padding: '10px 12px', border: '1px solid var(--mm-border-soft)', borderRadius: 9, background: 'var(--mm-surface-sunken)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
                 <strong>{phase.label}{phase.secure ? ' · Secure' : ''}</strong>
-                <span style={{ fontWeight: 800, color: phase.status === 'ready' ? '#0d652d' : '#5f6368' }}>{PHASE_STATUS_LABEL[phase.status] || phase.status}</span>
+                <span style={{ fontWeight: 800, color: phase.status === 'ready' ? 'var(--mm-success-text)' : 'var(--mm-text-muted)' }}>{PHASE_STATUS_LABEL[phase.status] || phase.status}</span>
               </div>
-              {phase.reason && <p style={{ margin: '5px 0 0', color: '#5f6368', fontSize: 13 }}>{phase.reason}</p>}
+              {phase.reason && <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 13 }}>{phase.reason}</p>}
             </li>
           ))}
         </ol>
       )}
 
       {card.stage === TEST_CYCLE_STAGE.TEST && card.canEnter && (
-        <p role="status" aria-live="polite" style={{ margin: 0, padding: '10px 12px', borderRadius: 9, background: '#e6f4ea', color: '#0d652d', fontWeight: 800 }}>
+        <p role="status" aria-live="polite" style={{ margin: 0, padding: '10px 12px', borderRadius: 9, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontWeight: 800 }}>
           Test unlocked — your Review is complete.
         </p>
       )}
@@ -170,10 +170,10 @@ export const TestCycleCard = ({ assignmentId, studentProfile = null, onOpenRevie
       {/* The grade breakdown, from the one canonical record. When no retest
           happened this is deliberately just the test score. */}
       {card.grade?.rows?.length > 0 && (
-        <dl style={{ display: 'grid', gap: 6, margin: 0, padding: '12px 14px', background: '#f8f9fa', borderRadius: 10 }}>
+        <dl style={{ display: 'grid', gap: 6, margin: 0, padding: '12px 14px', background: 'var(--mm-surface-sunken)', borderRadius: 10 }}>
           {card.grade.rows.map((row) => (
             <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-              <dt style={{ color: '#5f6368', fontSize: 13 }}>{row.label}</dt>
+              <dt style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>{row.label}</dt>
               <dd style={{ margin: 0, fontWeight: row.key === 'recordedGrade' ? 900 : 600, fontSize: 13 }}>{row.value}</dd>
             </div>
           ))}
@@ -190,7 +190,7 @@ export const TestCycleCard = ({ assignmentId, studentProfile = null, onOpenRevie
           {card.actionLabel}
         </button>
         {onExit && (
-          <button type="button" onClick={onExit} style={{ minHeight: 48, padding: '10px 16px', borderRadius: 9, border: '1px solid #5f6368', background: 'var(--mm-surface)', color: '#3c4043', cursor: 'pointer' }}>
+          <button type="button" onClick={onExit} style={{ minHeight: 48, padding: '10px 16px', borderRadius: 9, border: '1px solid #5f6368', background: 'var(--mm-surface)', color: 'var(--mm-text)', cursor: 'pointer' }}>
             Back
           </button>
         )}

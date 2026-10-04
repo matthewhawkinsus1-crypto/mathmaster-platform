@@ -22,7 +22,7 @@ import {
 } from './constraintFunctionMath';
 import { UNANSWERED } from '../shared/judgmentChoices.js';
 
-const inputStyle = { width: '100%', minHeight: 42, boxSizing: 'border-box', padding: 9, border: '1px solid #c9d6e8', borderRadius: 8, fontSize: 15, background: 'var(--mm-surface)' };
+const inputStyle = { width: '100%', minHeight: 42, boxSizing: 'border-box', padding: 9, border: '1px solid var(--mm-tint-border)', borderRadius: 8, fontSize: 15, background: 'var(--mm-surface)' };
 const primary = { minHeight: 46, padding: '10px 17px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' };
 const FAMILY_LABELS = { linear: 'Linear', quadratic: 'Quadratic', exponential: 'Exponential', absolute: 'Absolute value', verticalLine: 'Vertical line (not a function)' };
 
@@ -35,7 +35,7 @@ const DEFAULT_HINTS = [
 ];
 
 const numericField = (label, value, setter, step = 1) => (
-  <label style={{ display: 'block', fontSize: 13, fontWeight: 800, color: '#3c4756' }}>{label}<input type="number" step={step} value={value} onChange={(event) => setter(Number(event.target.value))} style={inputStyle} /></label>
+  <label style={{ display: 'block', fontSize: 13, fontWeight: 800, color: 'var(--mm-text)' }}>{label}<input type="number" step={step} value={value} onChange={(event) => setter(Number(event.target.value))} style={inputStyle} /></label>
 );
 
 export default function ConstraintFunctionBuilder({ questionData = {}, onAction }) {
@@ -171,14 +171,14 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
             ariaLabel="Graph of the relation you are constructing"
             enlargeable={false}
           />
-          <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: '#f4f8ff', color: '#174ea6', fontWeight: 900, overflowWrap: 'anywhere' }}>{builderEquation(model)}</div>
-          {model.domainMode === 'discrete' && <div style={{ marginTop: 7, fontSize: 12, color: '#5f6b7a' }}>Discrete integer domain shown from {Math.min(model.domainMin, model.domainMax)} through {Math.max(model.domainMin, model.domainMax)}.</div>}
-          {model.domainMode === UNANSWERED && model.family !== 'verticalLine' && <div style={{ marginTop: 7, fontSize: 12, color: '#5f6b7a' }}>Choose a graph type to draw your relation.</div>}
+          <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: 'var(--mm-surface-tint)', color: 'var(--mm-primary-text)', fontWeight: 900, overflowWrap: 'anywhere' }}>{builderEquation(model)}</div>
+          {model.domainMode === 'discrete' && <div style={{ marginTop: 7, fontSize: 12, color: 'var(--mm-text-muted)' }}>Discrete integer domain shown from {Math.min(model.domainMin, model.domainMax)} through {Math.max(model.domainMin, model.domainMax)}.</div>}
+          {model.domainMode === UNANSWERED && model.family !== 'verticalLine' && <div style={{ marginTop: 7, fontSize: 12, color: 'var(--mm-text-muted)' }}>Choose a graph type to draw your relation.</div>}
         </Panel>
 
         <Panel title="Build the relation">
-          <label style={{ display: 'block', marginBottom: 11, fontSize: 13, fontWeight: 800, color: '#3c4756' }}>Family<select value={model.family} onChange={(event) => set({ family: event.target.value })} style={inputStyle}>{allowedFamilies.map((family) => <option value={family} key={family}>{FAMILY_LABELS[family]}</option>)}</select></label>
-          <label style={{ display: 'block', marginBottom: 11, fontSize: 13, fontWeight: 800, color: '#3c4756' }}>Graph type<select value={model.domainMode} onChange={(event) => set({ domainMode: event.target.value })} style={inputStyle}>{asksGraphType || model.domainMode === UNANSWERED ? <option value={UNANSWERED}>Choose…</option> : null}<option value="continuous">Continuous</option><option value="discrete">Discrete</option></select></label>
+          <label style={{ display: 'block', marginBottom: 11, fontSize: 13, fontWeight: 800, color: 'var(--mm-text)' }}>Family<select value={model.family} onChange={(event) => set({ family: event.target.value })} style={inputStyle}>{allowedFamilies.map((family) => <option value={family} key={family}>{FAMILY_LABELS[family]}</option>)}</select></label>
+          <label style={{ display: 'block', marginBottom: 11, fontSize: 13, fontWeight: 800, color: 'var(--mm-text)' }}>Graph type<select value={model.domainMode} onChange={(event) => set({ domainMode: event.target.value })} style={inputStyle}>{asksGraphType || model.domainMode === UNANSWERED ? <option value={UNANSWERED}>Choose…</option> : null}<option value="continuous">Continuous</option><option value="discrete">Discrete</option></select></label>
 
           {model.family === 'linear' && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>{numericField('Slope m', model.a, (a) => set({ a }), 0.5)}{numericField('y-intercept b', model.k, (k) => set({ k }), 0.5)}</div>}
           {['quadratic', 'absolute'].includes(model.family) && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>{numericField('a', model.a, (a) => set({ a }), 0.5)}{numericField('h', model.h, (h) => set({ h }), 0.5)}{numericField('k', model.k, (k) => set({ k }), 0.5)}</div>}
@@ -189,10 +189,10 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
           <div style={{ marginTop: 15 }}>
             <strong style={{ display: 'block', marginBottom: 8 }}>Constraint checklist</strong>
             <div style={{ display: 'grid', gap: 7 }}>
-              {checklist.map((item) => <div key={item.id} data-constraint-satisfied={item.satisfied === null ? 'withheld' : String(item.satisfied)} style={{ padding: '8px 10px', borderRadius: 8, background: item.satisfied ? '#e6f4ea' : '#f8f9fa', color: item.satisfied ? '#137333' : '#5f6368', border: `1px solid ${item.satisfied ? '#a8dab5' : '#d9e2f1'}`, fontWeight: 800 }}>{item.mark} {item.label}</div>)}
+              {checklist.map((item) => <div key={item.id} data-constraint-satisfied={item.satisfied === null ? 'withheld' : String(item.satisfied)} style={{ padding: '8px 10px', borderRadius: 8, background: item.satisfied ? 'var(--mm-success-bg)' : 'var(--mm-surface-sunken)', color: item.satisfied ? 'var(--mm-success-text)' : 'var(--mm-text-muted)', border: `1px solid ${item.satisfied ? 'var(--mm-success-border)' : 'var(--mm-tint-border)'}`, fontWeight: 800 }}>{item.mark} {item.label}</div>)}
             </div>
             {checklist.length > 0 && checklist[0].satisfied === null ? (
-              <div style={{ marginTop: 7, fontSize: 12, color: '#5f6368' }}>Your model must satisfy every characteristic above. It is checked when you submit.</div>
+              <div style={{ marginTop: 7, fontSize: 12, color: 'var(--mm-text-muted)' }}>Your model must satisfy every characteristic above. It is checked when you submit.</div>
             ) : null}
           </div>
 
@@ -212,7 +212,7 @@ export default function ConstraintFunctionBuilder({ questionData = {}, onAction 
             Submit this model
           </button>
           {!hasEdited && (
-            <div style={{ marginTop: 8, fontSize: 12, color: '#5f6368', textAlign: 'center' }}>
+            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--mm-text-muted)', textAlign: 'center' }}>
               Make at least one mathematical choice or parameter change before submitting.
             </div>
           )}

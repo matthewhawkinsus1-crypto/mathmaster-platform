@@ -16,12 +16,12 @@ import React, { useState } from 'react';
 // "0 items" under each looks like a system with nothing to offer.
 
 const TONE = {
-  inProgress: { accent: '#174ea6', chip: '#eef3fb' },
-  pastDue: { accent: '#9a3412', chip: '#fff8ed' },
-  doNow: { accent: '#174ea6', chip: '#eef3fb' },
-  comingUp: { accent: '#5f6368', chip: '#f1f3f4' },
-  practice: { accent: '#5b21b6', chip: '#f5f3ff' },
-  completed: { accent: '#12633a', chip: '#f0fdf6' },
+  inProgress: { accent: 'var(--mm-primary-text)', chip: 'var(--mm-primary-subtle)' },
+  pastDue: { accent: 'var(--mm-warning-text)', chip: 'var(--mm-warning-subtle)' },
+  doNow: { accent: 'var(--mm-primary-text)', chip: 'var(--mm-primary-subtle)' },
+  comingUp: { accent: 'var(--mm-text-muted)', chip: 'var(--mm-surface-control)' },
+  practice: { accent: 'var(--mm-accent-text)', chip: 'var(--mm-primary-subtle)' },
+  completed: { accent: 'var(--mm-success-text)', chip: 'var(--mm-success-subtle)' },
 };
 
 export default function AssignmentGroup({
@@ -76,7 +76,7 @@ export default function AssignmentGroup({
       </button>
 
       {hint && open && (
-        <p style={{ margin: '0 0 10px 23px', color: '#5f6368', fontSize: 12.5, lineHeight: 1.5 }}>
+        <p style={{ margin: '0 0 10px 23px', color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.5 }}>
           {hint}
         </p>
       )}

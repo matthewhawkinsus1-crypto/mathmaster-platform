@@ -5,8 +5,8 @@ import useMobileInteractionMode from './platform/mobile/useMobileInteractionMode
 const targetStyle = (status, active) => ({
   minHeight: '54px',
   borderRadius: '10px',
-  border: `2px dashed ${status === 'correct' ? '#188038' : status === 'incorrect' ? '#d93025' : active ? '#1a73e8' : '#aebbcf'}`,
-  background: status === 'incorrect' ? '#fff8f7' : active ? '#e8f0fe' : '#fff',
+  border: `2px dashed ${status === 'correct' ? '#188038' : status === 'incorrect' ? '#d93025' : active ? '#1a73e8' : 'var(--mm-primary-border)'}`,
+  background: status === 'incorrect' ? 'var(--mm-error-subtle)' : active ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
   padding: '9px 12px',
   display: 'flex',
   flexDirection: 'column',
@@ -17,8 +17,8 @@ const targetStyle = (status, active) => ({
 });
 
 const chipStyle = (selected) => ({
-  border: `2px solid ${selected ? '#1a73e8' : '#bdc7d6'}`,
-  background: selected ? '#e8f0fe' : '#fff',
+  border: `2px solid ${selected ? '#1a73e8' : 'var(--mm-border)'}`,
+  background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
   color: 'var(--mm-text-strong)',
   borderRadius: '999px',
   padding: '8px 12px',
@@ -91,8 +91,8 @@ export default function GraphAxisEditor({
         }}
         style={{ ...targetStyle(statusFor(definition.partId), active), width: '100%', textAlign: 'left' }}
       >
-        <span style={{ fontSize: '12px', color: '#5f6368', fontWeight: 800 }}>{definition.label}</span>
-        <span style={{ fontSize: '15px', color: values[field] ? '#174ea6' : '#7b8797', fontWeight: 800 }}>
+        <span style={{ fontSize: '12px', color: 'var(--mm-text-muted)', fontWeight: 800 }}>{definition.label}</span>
+        <span style={{ fontSize: '15px', color: values[field] ? 'var(--mm-primary-text)' : 'var(--mm-text-subtle)', fontWeight: 800 }}>
           {values[field] || (mobileInteraction.isMobile ? `Tap here for ${definition.kind}` : `Drop ${definition.kind} here`)}
         </span>
       </button>
@@ -123,9 +123,9 @@ export default function GraphAxisEditor({
         </div>
       </div>
 
-      <div style={{ marginTop: '14px', padding: '14px', borderRadius: '12px', background: '#f8fbff', border: '1px solid #d5e1ef' }}>
-        <div style={{ fontWeight: 900, color: '#174ea6', marginBottom: '8px' }}>{mobileInteraction.isMobile ? 'Tap labels and units into place' : 'Drag labels and units to the graph'}</div>
-        <div style={{ color: '#5f6368', fontSize: '13px', marginBottom: '10px' }}>
+      <div style={{ marginTop: '14px', padding: '14px', borderRadius: '12px', background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}>
+        <div style={{ fontWeight: 900, color: 'var(--mm-primary-text)', marginBottom: '8px' }}>{mobileInteraction.isMobile ? 'Tap labels and units into place' : 'Drag labels and units to the graph'}</div>
+        <div style={{ color: 'var(--mm-text-muted)', fontSize: '13px', marginBottom: '10px' }}>
           {mobileInteraction.isMobile ? 'Tap a card, then tap the matching axis box.' : 'Drag a card to the matching axis box. You can also click a card and then click the destination.'}
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>

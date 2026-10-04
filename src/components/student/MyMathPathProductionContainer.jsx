@@ -426,19 +426,19 @@ export const MyMathPathProductionContainer = ({
 
   if (loading) {
     return (
-      <div style={{ padding: 60, textAlign: 'center', color: '#174ea6' }}>
+      <div style={{ padding: 60, textAlign: 'center', color: 'var(--mm-primary-text)' }}>
         <p style={{ margin: 0 }}>Loading your personalized path…</p>
         {/* A stalled load is not a state a student should have to escape with
             the browser's Back button. */}
         {slowLoad && (
           <div style={{ marginTop: 18 }}>
-            <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: 14, lineHeight: 1.6 }}>
+            <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: 14, lineHeight: 1.6 }}>
               This is taking longer than it should. Your work is safe — you can wait, or go back and try a different skill.
             </p>
             {onReturnToDashboard && <button
           type="button"
           onClick={onReturnToDashboard}
-          style={{ minHeight: 44, padding: '11px 18px', border: '1px solid #c5d5ef', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, cursor: 'pointer' }}
+          style={{ minHeight: 44, padding: '11px 18px', border: '1px solid var(--mm-tint-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer' }}
         >
           Back to My Math Path
         </button>}
@@ -450,13 +450,13 @@ export const MyMathPathProductionContainer = ({
 
   if (configurationError) {
     return (
-      <section role="alert" style={{ maxWidth: 620, margin: '40px auto', padding: 24, borderRadius: 12, background: '#fff4ce', border: '1px solid #f0d489', color: '#7a4f00', textAlign: 'left' }}>
-        <h1 style={{ margin: '0 0 8px', fontSize: 20, color: '#7a4f00' }}>My Math Path is not available right now</h1>
+      <section role="alert" style={{ maxWidth: 620, margin: '40px auto', padding: 24, borderRadius: 12, background: 'var(--mm-warning-soft)', border: '1px solid var(--mm-warning-border-soft)', color: 'var(--mm-warning-text)', textAlign: 'left' }}>
+        <h1 style={{ margin: '0 0 8px', fontSize: 20, color: 'var(--mm-warning-text)' }}>My Math Path is not available right now</h1>
         <p style={{ margin: '0 0 12px', lineHeight: 1.6 }}>
           This is a setup problem on the site, not a problem with your work. Nothing you have done has been lost.
           Please tell your teacher.
         </p>
-        <p style={{ margin: '0 0 14px', fontSize: 13, color: '#5f6368', lineHeight: 1.6 }}>{configurationError}</p>
+        <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--mm-text-muted)', lineHeight: 1.6 }}>{configurationError}</p>
         {/* THE TRAP THIS ENDS. Both error screens used to offer Retry and
             nothing else. A configuration problem does not fix itself between
             two clicks, so the student pressed Retry, saw the same message, and
@@ -470,13 +470,13 @@ export const MyMathPathProductionContainer = ({
           {onReturnToDashboard && <button
           type="button"
           onClick={onReturnToDashboard}
-          style={{ minHeight: 44, padding: '11px 18px', border: '1px solid #c5d5ef', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, cursor: 'pointer' }}
+          style={{ minHeight: 44, padding: '11px 18px', border: '1px solid var(--mm-tint-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer' }}
         >
           Back to My Math Path
         </button>}
         </div>
         {retryCount >= 2 && (
-          <p style={{ margin: '12px 0 0', fontSize: 13, color: '#7a4f00', lineHeight: 1.6 }}>
+          <p style={{ margin: '12px 0 0', fontSize: 13, color: 'var(--mm-warning-text)', lineHeight: 1.6 }}>
             Trying again has not helped, so this needs your teacher rather than another click. Everything else on your path is still open.
           </p>
         )}
@@ -496,22 +496,22 @@ export const MyMathPathProductionContainer = ({
           margin: '40px auto',
           padding: 24,
           borderRadius: 14,
-          background: completedSessionError ? '#e6f4ea' : '#fff4ce',
-          border: completedSessionError ? '2px solid #81c995' : '2px solid #f0d489',
-          color: completedSessionError ? '#137333' : '#7a4f00',
+          background: completedSessionError ? 'var(--mm-success-bg)' : 'var(--mm-warning-soft)',
+          border: completedSessionError ? '2px solid #81c995' : '2px solid var(--mm-warning-border-soft)',
+          color: completedSessionError ? 'var(--mm-success-text)' : 'var(--mm-warning-text)',
           textAlign: 'left',
         }}
       >
         <h1 style={{ margin: '0 0 8px', fontSize: 21, color: 'inherit' }}>
           {completedSessionError ? 'This Path pass is already complete' : 'Next level is temporarily unavailable'}
         </h1>
-        <p style={{ margin: '0 0 10px', lineHeight: 1.65, color: '#3c4043' }}>
+        <p style={{ margin: '0 0 10px', lineHeight: 1.65, color: 'var(--mm-text)' }}>
           {completedSessionError
             ? 'Your completed pass is saved. Return to My Math Path to see its completion badge and choose the next level or another open skill.'
             : 'Your earlier Path pass is still complete. MathMaster could not prepare a usable question for the next level, so it stopped instead of giving you broken or duplicate work.'}
         </p>
         {!completedSessionError && (
-          <p style={{ margin: '0 0 14px', fontSize: 13, lineHeight: 1.6, color: '#7a4f00' }}>
+          <p style={{ margin: '0 0 14px', fontSize: 13, lineHeight: 1.6, color: 'var(--mm-warning-text)' }}>
             Your teacher can repair the affected question family in Path content coverage. This does not erase the level you already completed.
           </p>
         )}
@@ -522,7 +522,7 @@ export const MyMathPathProductionContainer = ({
             </button>
           )}
           {onReturnToDashboard && (
-            <button type="button" onClick={onReturnToDashboard} style={{ minHeight: 44, padding: '10px 16px', border: '1px solid #9aa0a6', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 850, cursor: 'pointer' }}>
+            <button type="button" onClick={onReturnToDashboard} style={{ minHeight: 44, padding: '10px 16px', border: '1px solid var(--mm-border-strong)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 850, cursor: 'pointer' }}>
               Back to My Math Path
             </button>
           )}
@@ -533,10 +533,10 @@ export const MyMathPathProductionContainer = ({
 
   if (error) {
     return (
-      <div role="alert" style={{ maxWidth: 560, margin: '40px auto', padding: 22, borderRadius: 10, background: '#fce8e6', color: '#a50e0e', textAlign: 'left' }}>
+      <div role="alert" style={{ maxWidth: 560, margin: '40px auto', padding: 22, borderRadius: 10, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', textAlign: 'left' }}>
         <strong style={{ display: 'block', marginBottom: 6 }}>This skill could not start</strong>
         <p style={{ margin: '0 0 10px', lineHeight: 1.6 }}>{error}</p>
-        <p style={{ margin: '0 0 14px', fontSize: 13, color: '#7a4f00', lineHeight: 1.6 }}>
+        <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--mm-warning-text)', lineHeight: 1.6 }}>
           Nothing you have done has been lost, and the rest of your path is still open.
         </p>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -546,7 +546,7 @@ export const MyMathPathProductionContainer = ({
           {onReturnToDashboard && <button
           type="button"
           onClick={onReturnToDashboard}
-          style={{ minHeight: 44, padding: '11px 18px', border: '1px solid #c5d5ef', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, cursor: 'pointer' }}
+          style={{ minHeight: 44, padding: '11px 18px', border: '1px solid var(--mm-tint-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer' }}
         >
           Back to My Math Path
         </button>}
@@ -581,14 +581,14 @@ export const MyMathPathProductionContainer = ({
     return (
       <section style={{
         maxWidth: 650, margin: '36px auto', padding: weeklyTargetReached ? 38 : 30,
-        border: weeklyTargetReached ? '4px solid #58a96b' : '1px solid #dadce0',
+        border: weeklyTargetReached ? '4px solid #58a96b' : '1px solid var(--mm-border)',
         borderRadius: 16,
-        background: weeklyTargetReached ? 'linear-gradient(135deg, #e6f4ea 0%, #fff4ce 100%)' : '#fff',
+        background: weeklyTargetReached ? 'linear-gradient(135deg, var(--mm-success-bg) 0%, var(--mm-warning-soft) 100%)' : 'var(--mm-surface)',
         textAlign: 'center',
         boxShadow: weeklyTargetReached ? '0 16px 46px rgba(19,115,51,.20)' : 'none',
       }}>
         {weeklyTargetReached && <div aria-hidden="true" style={{ fontSize: 54, lineHeight: 1, marginBottom: 8 }}>🎉</div>}
-        <h1 style={{ color: weeklyTargetReached ? '#12633a' : '#202124', fontSize: weeklyTargetReached ? 30 : undefined, marginBottom: weeklyTargetReached ? 8 : undefined }}>
+        <h1 style={{ color: weeklyTargetReached ? 'var(--mm-success-text)' : 'var(--mm-text-strong)', fontSize: weeklyTargetReached ? 30 : undefined, marginBottom: weeklyTargetReached ? 8 : undefined }}>
           {weeklyTargetReached
             ? 'Weekly target reached!'
             : paused
@@ -604,7 +604,7 @@ export const MyMathPathProductionContainer = ({
                     : 'Session complete'}
         </h1>
         {weeklyTargetReached && (
-          <div style={{ margin: '0 auto 16px', maxWidth: 520, color: '#245c33', fontSize: 16, fontWeight: 800, lineHeight: 1.55 }}>
+          <div style={{ margin: '0 auto 16px', maxWidth: 520, color: 'var(--mm-success-text)', fontSize: 16, fontWeight: 800, lineHeight: 1.55 }}>
             {weeklyGoalRequired
               ? `You completed all ${weeklyGoalRequired} of ${weeklyGoalRequired} weekly Path sessions.`
               : 'You completed every assigned weekly Path session.'}
@@ -612,17 +612,17 @@ export const MyMathPathProductionContainer = ({
           </div>
         )}
         {courseChallengeIntent && !paused && (
-          <div style={{ margin: '0 auto 16px', maxWidth: 540, padding: '12px 14px', borderRadius: 10, background: '#f3ecfd', color: '#5b21b6', lineHeight: 1.55 }}>
+          <div style={{ margin: '0 auto 16px', maxWidth: 540, padding: '12px 14px', borderRadius: 10, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', lineHeight: 1.55 }}>
             <strong style={{ display: 'block', marginBottom: 3 }}>Ahead-of-class Challenge complete</strong>
             This session adds mastery evidence, but it does not advance the numbered Foundation → Deeper practice → Mastery challenge pass loop for this skill.
           </div>
         )}
         {coursePassLevel && !paused && (
           <div style={{ margin: '0 auto 16px', maxWidth: 540 }}>
-            <div style={{ display: 'inline-block', padding: '6px 11px', borderRadius: 999, background: '#e6f4ea', color: '#137333', fontSize: 12, fontWeight: 950, letterSpacing: '.04em', textTransform: 'uppercase' }}>
+            <div style={{ display: 'inline-block', padding: '6px 11px', borderRadius: 999, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: 12, fontWeight: 950, letterSpacing: '.04em', textTransform: 'uppercase' }}>
               ✓ Path Pass {coursePassLevel} complete · {coursePassName}
             </div>
-            <p style={{ margin: '10px 0 0', color: '#3c4043', fontSize: 14, lineHeight: 1.6 }}>
+            <p style={{ margin: '10px 0 0', color: 'var(--mm-text)', fontSize: 14, lineHeight: 1.6 }}>
               {nextCourseLevel
                 ? `This pass is recorded on your Path card. Your next visit is Level ${nextCourseLevel} · ${coursePathLevelName(nextCourseLevel)}, with more demanding work.`
                 : 'This advanced pass is recorded on your Path card. If the mastery evidence is not complete yet, you can continue advanced practice without losing any completed passes.'}
@@ -630,11 +630,11 @@ export const MyMathPathProductionContainer = ({
           </div>
         )}
         {directAssessment && !paused && (
-          <div style={{ display: 'inline-block', margin: '0 0 10px', padding: '5px 10px', borderRadius: 999, background: challengeTier >= 2 ? '#f3ecfd' : '#e8f0fe', color: challengeTier >= 2 ? '#5b21b6' : '#174ea6', fontSize: 12, fontWeight: 900 }}>
+          <div style={{ display: 'inline-block', margin: '0 0 10px', padding: '5px 10px', borderRadius: 999, background: challengeTier >= 2 ? 'var(--mm-accent-soft)' : 'var(--mm-primary-soft)', color: challengeTier >= 2 ? 'var(--mm-accent-text)' : 'var(--mm-primary-text)', fontSize: 12, fontWeight: 900 }}>
             {FRAMEWORK_LABELS[session.assessmentFramework] || session.assessmentFramework} · {challenge.shortLabel}
           </div>
         )}
-        <p style={{ color: '#5f6368', lineHeight: 1.6 }}>
+        <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.6 }}>
           {paused
             ? (session.teacherMessage || 'Your progress is saved. Check in with your teacher before continuing this skill.')
             : coursePassLevel
@@ -642,13 +642,13 @@ export const MyMathPathProductionContainer = ({
               : `You worked through ${session.summary?.completedQuestions || session.pathState?.counters?.questionsThisSession || 0} questions.`}
         </p>
         {!paused && (
-          <div style={{ margin: '18px 0', padding: 13, borderRadius: 8, background: '#e6f4ea', color: '#137333', lineHeight: 1.6 }}>
+          <div style={{ margin: '18px 0', padding: 13, borderRadius: 8, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', lineHeight: 1.6 }}>
             <strong>{session.summary?.correctQuestions || 0}</strong> right first time or after a retry ·{' '}
             <strong>{session.summary?.independentSuccesses || 0}</strong> of those on your own
           </div>
         )}
         {directAssessment && !paused && (
-          <div style={{ margin: '0 0 18px', padding: 13, borderRadius: 9, background: challengePassed ? '#f3ecfd' : '#fef7e0', color: challengePassed ? '#5b21b6' : '#7a4f00', lineHeight: 1.55, textAlign: 'left' }}>
+          <div style={{ margin: '0 0 18px', padding: 13, borderRadius: 9, background: challengePassed ? 'var(--mm-accent-soft)' : 'var(--mm-warning-bg)', color: challengePassed ? 'var(--mm-accent-text)' : 'var(--mm-warning-text)', lineHeight: 1.55, textAlign: 'left' }}>
             <strong style={{ display: 'block', marginBottom: 3 }}>
               {challengePassed
                 ? challengeTier === 1
@@ -675,7 +675,7 @@ export const MyMathPathProductionContainer = ({
   return (
     <>
       {submissionError && (
-        <div role="alert" style={{ maxWidth: 880, margin: '14px auto 0', padding: '11px 13px', borderRadius: 9, background: '#fff4ce', color: '#7a4f00', lineHeight: 1.55 }}>
+        <div role="alert" style={{ maxWidth: 880, margin: '14px auto 0', padding: '11px 13px', borderRadius: 9, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', lineHeight: 1.55 }}>
           {submissionError}
         </div>
       )}

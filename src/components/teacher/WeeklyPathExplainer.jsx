@@ -21,12 +21,12 @@ import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 // whether to override the engine needs to see what it declined and why, not
 // just what it chose.
 
-const panel = { border: '1px solid #dadce0', borderRadius: 12, background: 'var(--mm-surface)', padding: 16, marginBottom: 14 };
-const heading = { margin: '0 0 4px', fontSize: 15, fontWeight: 900, color: '#174ea6' };
-const note = { color: '#5f6368', fontSize: 13, lineHeight: 1.55, margin: '0 0 12px' };
+const panel = { border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)', padding: 16, marginBottom: 14 };
+const heading = { margin: '0 0 4px', fontSize: 15, fontWeight: 900, color: 'var(--mm-primary-text)' };
+const note = { color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55, margin: '0 0 12px' };
 const mono = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12 };
 const step = {
-  padding: '3px 9px', borderRadius: 999, background: '#eef3fb', color: '#174ea6',
+  padding: '3px 9px', borderRadius: 999, background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)',
   fontSize: 10.5, fontWeight: 950, letterSpacing: '.06em', textTransform: 'uppercase',
 };
 
@@ -51,12 +51,12 @@ function ScoreTerms({ terms }) {
   return (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
       {positive.map(([name, value]) => (
-        <span key={name} style={{ ...mono, padding: '2px 7px', borderRadius: 6, background: '#eefaf1', color: '#12633a' }}>
+        <span key={name} style={{ ...mono, padding: '2px 7px', borderRadius: 6, background: 'var(--mm-success-subtle)', color: 'var(--mm-success-text)' }}>
           +{Number(value).toFixed(2)} {readable(name)}
         </span>
       ))}
       {negative.map(([name, value]) => (
-        <span key={name} style={{ ...mono, padding: '2px 7px', borderRadius: 6, background: '#fdecec', color: '#9f1239' }}>
+        <span key={name} style={{ ...mono, padding: '2px 7px', borderRadius: 6, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' }}>
           {Number(value).toFixed(2)} {readable(name)}
         </span>
       ))}
@@ -139,7 +139,7 @@ export default function WeeklyPathExplainer({
             The engine keeps recommending; it just will not classify the student yet.
           </div>
         ) : (
-          <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', ...note, margin: 0 }}>
+          <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', ...note, margin: 0 }}>
             <div><strong>Stable band</strong><div>{profile.difficultyProfile?.stableBand ?? '—'}</div></div>
             <div><strong>DOK 1 / 2 / 3</strong><div>{['1', '2', '3'].map((level) => {
               const entry = profile.dokProfile?.[level];
@@ -168,7 +168,7 @@ export default function WeeklyPathExplainer({
         />
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
           {plan.requestedMix.map((purpose, index) => (
-            <span key={`${purpose}-${index}`} style={{ ...step, background: '#f5f3ff', color: '#5b21b6' }}>
+            <span key={`${purpose}-${index}`} style={{ ...step, background: 'var(--mm-primary-subtle)', color: 'var(--mm-accent-text)' }}>
               {readable(purpose)}
             </span>
           ))}
@@ -195,7 +195,7 @@ export default function WeeklyPathExplainer({
                   {session.studentLabel}
                 </span>
               </div>
-              <div style={{ ...mono, color: '#5f6368', marginTop: 3 }}>
+              <div style={{ ...mono, color: 'var(--mm-text-muted)', marginTop: 3 }}>
                 purpose={session.purpose} · dok={session.dok} · band={session.difficultyBand}
                 {' '}· lifecycle={session.lifecycle} · score={session.score}
                 {session.adjustedScore != null && session.adjustedScore !== session.score
@@ -248,23 +248,23 @@ export default function WeeklyPathExplainer({
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
             <thead>
-              <tr style={{ background: '#f8f9fa' }}>
+              <tr style={{ background: 'var(--mm-surface-sunken)' }}>
                 {['TEKS', 'Engine status', 'Lifecycle', 'Purpose', 'DOK', 'Band', 'Score', 'Eligible'].map((head) => (
-                  <th key={head} style={{ textAlign: 'left', padding: 7, fontSize: 10.5, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>{head}</th>
+                  <th key={head} style={{ textAlign: 'left', padding: 7, fontSize: 10.5, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>{head}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {considered.map((entry) => (
-                <tr key={entry.skillId} style={{ borderTop: '1px solid #eef0f2' }}>
+                <tr key={entry.skillId} style={{ borderTop: '1px solid var(--mm-border-soft)' }}>
                   <td style={{ padding: 7, fontWeight: 800 }}>{entry.teksCode}</td>
-                  <td style={{ padding: 7, color: '#5f6368' }}>{entry.engineStatus}</td>
-                  <td style={{ padding: 7, color: '#5f6368' }}>{readable(entry.lifecycle)}</td>
+                  <td style={{ padding: 7, color: 'var(--mm-text-muted)' }}>{entry.engineStatus}</td>
+                  <td style={{ padding: 7, color: 'var(--mm-text-muted)' }}>{readable(entry.lifecycle)}</td>
                   <td style={{ padding: 7 }}>{entry.purposeLabel}</td>
                   <td style={{ padding: 7 }}>{entry.dok}</td>
                   <td style={{ padding: 7 }}>{entry.difficultyBand}</td>
                   <td style={{ padding: 7, ...mono }}>{entry.score}</td>
-                  <td style={{ padding: 7, color: entry.eligibility.eligible ? '#12633a' : '#9a3412' }}>
+                  <td style={{ padding: 7, color: entry.eligibility.eligible ? 'var(--mm-success-text)' : 'var(--mm-warning-text)' }}>
                     {entry.eligibility.eligible ? 'yes' : readable(entry.eligibility.reason)}
                   </td>
                 </tr>
@@ -278,8 +278,8 @@ export default function WeeklyPathExplainer({
             onClick={() => setShowAllConsidered((current) => !current)}
             style={{
               appearance: 'none', fontFamily: 'inherit', marginTop: 10, minHeight: 40,
-              padding: '8px 14px', borderRadius: 8, border: '1px solid #c5d5ef',
-              background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, cursor: 'pointer', fontSize: 13,
+              padding: '8px 14px', borderRadius: 8, border: '1px solid var(--mm-tint-border)',
+              background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer', fontSize: 13,
             }}
           >
             {showAllConsidered ? 'Show the top 10 only' : `Show all ${plan.considered.length}`}

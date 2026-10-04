@@ -93,7 +93,7 @@ export default class AppErrorBoundary extends Component {
           placeItems: 'center',
           padding: 16,
           boxSizing: 'border-box',
-          background: 'var(--mm-page-bg, #f5f7fb)',
+          background: 'var(--mm-page-bg, var(--mm-surface-sunken))',
           fontFamily: 'system-ui, sans-serif',
         }}
       >

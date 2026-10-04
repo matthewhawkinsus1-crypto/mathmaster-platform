@@ -52,11 +52,11 @@ import {
 } from './algebraicSystemsEngine.js';
 import { checkSubstitutedStatement, emptyStatementWork, substitutedStatementSides } from './degenerateSubstitution.js';
 
-const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '11px 12px', border: '1px solid #cfd8e6', borderRadius: 9, background: 'var(--mm-surface)', fontSize: 15, minHeight: 44 };
+const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '11px 12px', border: '1px solid var(--mm-tint-border)', borderRadius: 9, background: 'var(--mm-surface)', fontSize: 15, minHeight: 44 };
 const actionStyle = { marginTop: 16, padding: '11px 18px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer', minHeight: 44 };
-const Field = ({ label, children }) => <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#465267' }}>{label}<div style={{ marginTop: 5 }}>{children}</div></label>;
+const Field = ({ label, children }) => <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--mm-text-muted)' }}>{label}<div style={{ marginTop: 5 }}>{children}</div></label>;
 
-const secondaryButtonStyle = { ...actionStyle, marginTop: 0, padding: '9px 14px', fontSize: 13, background: '#eef4ff', color: '#174ea6' };
+const secondaryButtonStyle = { ...actionStyle, marginTop: 0, padding: '9px 14px', fontSize: 13, background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' };
 const smallActionStyle = { ...actionStyle, marginTop: 8, padding: '9px 14px', fontSize: 13 };
 
 const classroomEquationLatex = (equationText) => {
@@ -1536,7 +1536,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
     <>
           {config.method === 'studentChoice' && !method ? (
             <div>
-              <p style={{ margin: '0 0 10px', color: '#3c4756' }}>Choose the method you will use to solve this system.</p>
+              <p style={{ margin: '0 0 10px', color: 'var(--mm-text)' }}>Choose the method you will use to solve this system.</p>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button type="button" onClick={() => setMethod('substitution')} style={secondaryButtonStyle}>Substitution</button>
                 <button type="button" onClick={() => setMethod('elimination')} style={secondaryButtonStyle}>Elimination</button>
@@ -1558,11 +1558,11 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
             <div style={{ display: 'grid', gap: 14, marginTop: effectiveMethod ? 12 : 0 }}>
               {!selectionMade ? (
                 <div>
-                  <p style={{ margin: '0 0 8px', color: '#3c4756' }}>Which equation and variable will you isolate first?</p>
+                  <p style={{ margin: '0 0 8px', color: 'var(--mm-text)' }}>Which equation and variable will you isolate first?</p>
                   <div style={{ display: 'grid', gap: 8 }}>
                     {equations.map((eq, eqIndex) => (
                       <div key={eqIndex} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <span style={{ fontSize: 13, color: '#5f6b7a', minWidth: 74 }}>{equationName(eqIndex)}:</span>
+                        <span style={{ fontSize: 13, color: 'var(--mm-text-muted)', minWidth: 74 }}>{equationName(eqIndex)}:</span>
                         {variables.map((v) => (
                           <button key={v} type="button" onClick={() => chooseSelection(eqIndex, v)} style={secondaryButtonStyle} aria-label={`Isolate ${v} in ${equationName(eqIndex)}`}>Isolate {v}</button>
                         ))}
@@ -1577,7 +1577,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                 </div>
               ) : !isolationDone ? (
                 <div>
-                  <p style={{ margin: '0 0 6px', color: '#3c4756' }}>
+                  <p style={{ margin: '0 0 6px', color: 'var(--mm-text)' }}>
                     Isolating <strong>{selection.variable}</strong> in {equationName(selection.equationIndex)}.
                   </p>
                   <button type="button" onClick={resetFromSelection} style={{ ...secondaryButtonStyle, fontSize: 12 }}>Choose a different equation/variable</button>
@@ -1604,10 +1604,10 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                 <div className="mathmaster-systems-substitution-stage">
                   {!substitutionTokenReady ? (
                     <div style={{ display: 'grid', gap: 10 }}>
-                      <div style={{ padding: '12px 14px', border: '1px solid #dbe3ef', borderRadius: 10, background: '#f8fbff' }}>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: '#174ea6', marginBottom: 6 }}>Isolated expression ready</div>
+                      <div style={{ padding: '12px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: 10, background: 'var(--mm-surface-tint)' }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--mm-primary-text)', marginBottom: 6 }}>Isolated expression ready</div>
                         <MathDisplay value={`${selection.variable} = ${isolatedExpr}`} format="ascii-math" />
-                        <p style={{ margin: '8px 0 0', color: '#3c4756', lineHeight: 1.5 }}>
+                        <p style={{ margin: '8px 0 0', color: 'var(--mm-text)', lineHeight: 1.5 }}>
                           This form is already mathematically valid. You can substitute it as it is, or simplify the expression first.
                           Simplifying is optional and does not change your credit.
                         </p>
@@ -1619,7 +1619,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                           <button type="button" onClick={startOptionalIsolationSimplification} style={secondaryButtonStyle}>Simplify first (optional)</button>
                         </div>
                       ) : (
-                        <div style={{ display: 'grid', gap: 8, padding: '12px 14px', border: '1px solid #dbe3ef', borderRadius: 10, background: 'var(--mm-surface)' }}>
+                        <div style={{ display: 'grid', gap: 8, padding: '12px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: 10, background: 'var(--mm-surface)' }}>
                           <Field label="Write an equivalent, simpler expression">
                             <MathInput
                               onSubmit={checkAndUseIsolationSimplification}
@@ -1693,7 +1693,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
             <div className="mathmaster-systems-elimination-stage">
               {!selection.variable ? (
                 <div>
-                  <p style={{ margin: '0 0 8px', color: '#3c4756' }}>Which variable will you eliminate?</p>
+                  <p style={{ margin: '0 0 8px', color: 'var(--mm-text)' }}>Which variable will you eliminate?</p>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {variables.map((v) => (
                       <button key={v} type="button" onClick={() => chooseSelection(null, v)} style={secondaryButtonStyle}>Eliminate {v}</button>
@@ -1787,7 +1787,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
           ) : null}
 
           {isDegenerate && !subsystem ? (
-            <div style={{ marginTop: 14, padding: 10, border: '1px solid #dbe3ef', borderRadius: 8, background: 'var(--mm-surface)' }}>
+            <div style={{ marginTop: 14, padding: 10, border: '1px solid var(--mm-tint-border)', borderRadius: 8, background: 'var(--mm-surface)' }}>
               <p style={{ margin: '0 0 8px', fontWeight: 700 }}>This reduces to a statement with no variable. Interpret it before moving on.</p>
               <MathDisplay value={formatLinearEquation(reduceCoefficients, variables)} format="ascii-math" />
               <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
@@ -1813,7 +1813,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                   </select>
                 </Field>
                 {specialCaseReport.line?.kind === 'verdict' ? (
-                  <p style={{ margin: 0, color: specialCaseCorrect ? '#137333' : '#a02020', fontSize: 13 }}>
+                  <p style={{ margin: 0, color: specialCaseCorrect ? 'var(--mm-success-text)' : 'var(--mm-error-text)', fontSize: 13 }}>
                     {specialCaseCorrect
                       ? 'Correct interpretation.'
                       : (specialCase.isTrueAnswer === 'true') !== degenerateTruth.isTrue
@@ -1822,7 +1822,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
                   </p>
                 ) : specialCaseReport.line?.kind === 'recorded' ? (
                   // A DOL, quiz or test: the same line for every answer.
-                  <p role="status" data-interpretation-recorded="true" style={{ margin: 0, color: '#174ea6', fontSize: 13 }}>
+                  <p role="status" data-interpretation-recorded="true" style={{ margin: 0, color: 'var(--mm-primary-text)', fontSize: 13 }}>
                     Your interpretation is recorded. It is graded when you submit.
                   </p>
                 ) : null}
@@ -2057,14 +2057,14 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
         <Panel title="Both original equations">
           <div style={{ display: 'grid', gap: 8 }}>
             {equations.map((eq, index) => (
-              <div key={index} style={{ padding: '8px 10px', border: '1px solid #dbe3ef', borderRadius: 8, background: 'var(--mm-surface)' }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: '#5f6b7a' }}>Equation {index + 1}</span>
+              <div key={index} style={{ padding: '8px 10px', border: '1px solid var(--mm-tint-border)', borderRadius: 8, background: 'var(--mm-surface)' }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--mm-text-muted)' }}>Equation {index + 1}</span>
                 <MathDisplay value={eq} format="ascii-math" />
               </div>
             ))}
           </div>
           {solution && solutionExpressions ? (
-            <div style={{ marginTop: 12, padding: 10, borderRadius: 8, background: '#f0fbf4' }}>
+            <div style={{ marginTop: 12, padding: 10, borderRadius: 8, background: 'var(--mm-success-subtle)' }}>
               <strong>Ordered-pair solution:</strong>{' '}
               <MathDisplay
                 value={`(${solutionExpressions[variables[0]]}, ${solutionExpressions[variables[1]]})`}
@@ -2074,7 +2074,7 @@ export default function AlgebraicSystemMode({ questionData = {}, onAction, draft
             </div>
           ) : null}
           {isDegenerate && !subsystem ? (
-            <div style={{ marginTop: 12, padding: 10, borderRadius: 8, background: specialCaseReport.showsCorrect ? '#f0fbf4' : '#f3f4f6' }}>
+            <div style={{ marginTop: 12, padding: 10, borderRadius: 8, background: specialCaseReport.showsCorrect ? 'var(--mm-success-subtle)' : 'var(--mm-surface-control)' }}>
               <strong>Reduced statement:</strong> <MathDisplay value={formatLinearEquation(reduceCoefficients, variables)} format="ascii-math" inline />
             </div>
           ) : null}

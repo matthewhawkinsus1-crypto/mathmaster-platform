@@ -40,7 +40,7 @@ export default function StudentNameLink({
   const idLabel = name === STUDENT_NAME_UNAVAILABLE ? studentIdLabel(studentId) : '';
   const label = idLabel ? `${name} · ${idLabel}` : name;
   const idNote = idLabel && showMissingId
-    ? <span style={{ color: '#5f6368', fontWeight: 400, fontSize: '0.85em' }}>{idLabel}</span>
+    ? <span style={{ color: 'var(--mm-text-muted)', fontWeight: 400, fontSize: '0.85em' }}>{idLabel}</span>
     : null;
 
   if (!onOpen) {
@@ -63,7 +63,7 @@ export default function StudentNameLink({
           border: 0,
           background: 'transparent',
           padding: 0,
-          color: '#174ea6',
+          color: 'var(--mm-primary-text)',
           fontWeight: 800,
           fontSize: 'inherit',
           fontFamily: 'inherit',

@@ -5,9 +5,9 @@ import {
   normalizeChallengeQuestionPackage,
 } from '../../platform/liveChallenge/challengeQuestionImport.js';
 
-const box = { border: '1px solid #d8dde6', borderRadius: 12, padding: 16, background: 'var(--mm-surface)' };
-const input = { width: '100%', boxSizing: 'border-box', padding: 10, border: '1px solid #b7bec8', borderRadius: 8, marginTop: 6 };
-const button = { minHeight: 42, padding: '9px 14px', borderRadius: 8, border: '1px solid #9bb8e8', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 850, cursor: 'pointer' };
+const box = { border: '1px solid var(--mm-border)', borderRadius: 12, padding: 16, background: 'var(--mm-surface)' };
+const input = { width: '100%', boxSizing: 'border-box', padding: 10, border: '1px solid var(--mm-border)', borderRadius: 8, marginTop: 6 };
+const button = { minHeight: 42, padding: '9px 14px', borderRadius: 8, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 850, cursor: 'pointer' };
 
 const progressLabel = (progress) => {
   if (!progress) return '';
@@ -24,7 +24,7 @@ function ImportResult({ result }) {
   const rejected = Array.isArray(result.rejected) ? result.rejected.length : 0;
   const byReason = result.rejectionSummary?.byReason || {};
   return (
-    <div aria-live="polite" style={{ marginTop: 12, padding: 12, borderRadius: 9, background: result.imported ? '#e6f4ea' : '#fff4ce', color: result.imported ? '#137333' : '#7a4f00' }}>
+    <div aria-live="polite" style={{ marginTop: 12, padding: 12, borderRadius: 9, background: result.imported ? 'var(--mm-success-bg)' : 'var(--mm-warning-soft)', color: result.imported ? 'var(--mm-success-text)' : 'var(--mm-warning-text)' }}>
       <strong>{result.imported ? 'Question library updated.' : 'Nothing was imported.'}</strong>
       <div style={{ marginTop: 4 }}>{count} supplied · {accepted} accepted · {rejected} rejected.</div>
       {Object.keys(byReason).length > 0 && (
@@ -100,7 +100,7 @@ export default function ChallengeQuestionLibrary({ assignments = [], onImported 
   return (
     <details style={{ ...box, marginTop: 14 }}>
       <summary style={{ cursor: 'pointer', fontWeight: 900, fontSize: 16 }}>Question Library</summary>
-      <p style={{ color: '#5f6368', lineHeight: 1.55, marginBottom: 12 }}>
+      <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.55, marginBottom: 12 }}>
         Add questions here without leaving Live Challenge. This uses the same secure My Math Path bank and the same server validator as normal Path imports—there is not a second answer bank to maintain.
       </p>
 
@@ -109,7 +109,7 @@ export default function ChallengeQuestionLibrary({ assignments = [], onImported 
           and uploading more typed-answer questions does not fix that. The one
           field that decides it is `pathToolId`, so it is named here rather
           than left to be discovered. */}
-      <p style={{ color: '#3c4043', lineHeight: 1.55, marginBottom: 12, fontSize: 13 }}>
+      <p style={{ color: 'var(--mm-text)', lineHeight: 1.55, marginBottom: 12, fontSize: 13 }}>
         Most of the secure bank is typed or chosen answers, so <strong>Interactive tools only</strong> draws from a
         small pool. Give a question a <code>pathToolId</code> — <code>stepAlgebra</code>, <code>graphing2</code>,{' '}
         <code>systemsWorkspace</code>, <code>intervalNumberLine</code>, <code>relationMapping</code>,{' '}
@@ -119,9 +119,9 @@ export default function ChallengeQuestionLibrary({ assignments = [], onImported 
       </p>
 
       <div role="tablist" aria-label="Question library import method" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button type="button" role="tab" aria-selected={tab === 'upload'} onClick={() => setTab('upload')} style={{ ...button, background: tab === 'upload' ? '#e8f0fe' : '#fff' }}>Upload JSON</button>
-        <button type="button" role="tab" aria-selected={tab === 'assignment'} onClick={() => setTab('assignment')} style={{ ...button, background: tab === 'assignment' ? '#e8f0fe' : '#fff' }}>Import from assignment</button>
-        <button type="button" role="tab" aria-selected={tab === 'paste'} onClick={() => setTab('paste')} style={{ ...button, background: tab === 'paste' ? '#e8f0fe' : '#fff' }}>Paste / create JSON</button>
+        <button type="button" role="tab" aria-selected={tab === 'upload'} onClick={() => setTab('upload')} style={{ ...button, background: tab === 'upload' ? 'var(--mm-primary-soft)' : 'var(--mm-surface)' }}>Upload JSON</button>
+        <button type="button" role="tab" aria-selected={tab === 'assignment'} onClick={() => setTab('assignment')} style={{ ...button, background: tab === 'assignment' ? 'var(--mm-primary-soft)' : 'var(--mm-surface)' }}>Import from assignment</button>
+        <button type="button" role="tab" aria-selected={tab === 'paste'} onClick={() => setTab('paste')} style={{ ...button, background: tab === 'paste' ? 'var(--mm-primary-soft)' : 'var(--mm-surface)' }}>Paste / create JSON</button>
       </div>
 
       {tab === 'upload' && (
@@ -129,7 +129,7 @@ export default function ChallengeQuestionLibrary({ assignments = [], onImported 
           <label style={{ fontWeight: 800 }}>Upload JSON
             <input type="file" accept="application/json,.json" disabled={busy} onChange={(event) => readUpload(event.target.files?.[0])} style={{ ...input, background: 'var(--mm-surface)' }} />
           </label>
-          <div style={{ marginTop: 6, color: '#5f6368', fontSize: 13 }}>A raw array or an object containing documents, items, or questions is accepted.</div>
+          <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 13 }}>A raw array or an object containing documents, items, or questions is accepted.</div>
         </div>
       )}
 
@@ -144,7 +144,7 @@ export default function ChallengeQuestionLibrary({ assignments = [], onImported 
             </select>
           </label>
           <button type="button" disabled={busy || !assignmentId} onClick={importAssignment} style={{ ...button, marginTop: 10, opacity: busy || !assignmentId ? .55 : 1 }}>Import assignment questions</button>
-          <div style={{ marginTop: 6, color: '#5f6368', fontSize: 13 }}>The server will accept only questions that satisfy the secure Path/Live Challenge contract. Unsupported assignment-only shapes are reported, not silently rewritten.</div>
+          <div style={{ marginTop: 6, color: 'var(--mm-text-muted)', fontSize: 13 }}>The server will accept only questions that satisfy the secure Path/Live Challenge contract. Unsupported assignment-only shapes are reported, not silently rewritten.</div>
         </div>
       )}
 
@@ -157,8 +157,8 @@ export default function ChallengeQuestionLibrary({ assignments = [], onImported 
         </div>
       )}
 
-      {busy && <div role="status" style={{ marginTop: 12, color: '#174ea6', fontWeight: 800 }}>{progressLabel(progress) || 'Preparing secure import…'}</div>}
-      {error && <div role="alert" style={{ marginTop: 12, padding: 12, borderRadius: 9, background: '#fce8e6', color: '#a50e0e' }}>{error}</div>}
+      {busy && <div role="status" style={{ marginTop: 12, color: 'var(--mm-primary-text)', fontWeight: 800 }}>{progressLabel(progress) || 'Preparing secure import…'}</div>}
+      {error && <div role="alert" style={{ marginTop: 12, padding: 12, borderRadius: 9, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' }}>{error}</div>}
       <ImportResult result={result} />
     </details>
   );

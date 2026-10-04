@@ -20,9 +20,9 @@ import {
  */
 
 const CONFIDENCE_TONE = {
-  [CONFIDENCE.NONE]: { bg: '#f8f9fa', fg: '#80868b', border: '#e8eaed' },
-  [CONFIDENCE.THIN]: { bg: '#fffaf0', fg: '#8a5a00', border: '#f0e0b4' },
-  [CONFIDENCE.ADEQUATE]: { bg: '#fff', fg: '#202124', border: '#d8dde6' },
+  [CONFIDENCE.NONE]: { bg: 'var(--mm-surface-sunken)', fg: 'var(--mm-text-subtle)', border: 'var(--mm-border-soft)' },
+  [CONFIDENCE.THIN]: { bg: 'var(--mm-warning-subtle)', fg: 'var(--mm-warning-text)', border: 'var(--mm-warning-border-soft)' },
+  [CONFIDENCE.ADEQUATE]: { bg: 'var(--mm-surface)', fg: 'var(--mm-text-strong)', border: 'var(--mm-border)' },
 };
 
 const accuracyColor = (accuracy, confidence) => {
@@ -36,10 +36,10 @@ function Cell({ label, sublabel, cell }) {
   const tone = CONFIDENCE_TONE[cell.confidence];
   return (
     <div style={{ padding: '13px 14px', border: `1px solid ${tone.border}`, borderRadius: 10, background: tone.bg, minWidth: 0 }}>
-      <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>
+      <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
         {label}
       </div>
-      <div style={{ fontSize: 11.5, color: '#80868b', marginTop: 1 }}>{sublabel}</div>
+      <div style={{ fontSize: 11.5, color: 'var(--mm-text-subtle)', marginTop: 1 }}>{sublabel}</div>
       <div style={{ marginTop: 8, fontSize: 24, fontWeight: 900, color: accuracyColor(cell.accuracy, cell.confidence), fontVariantNumeric: 'tabular-nums' }}>
         {cell.accuracy == null ? '—' : `${Math.round(cell.accuracy * 100)}%`}
       </div>
@@ -92,25 +92,25 @@ export default function CognitiveDemandView({
   return (
     <section style={{ marginBottom: 26 }}>
       <h3 style={{ margin: '0 0 4px' }}>Cognitive demand and complexity</h3>
-      <p style={{ margin: '0 0 16px', color: '#5f6368', fontSize: 13.5, maxWidth: '70ch', lineHeight: 1.5 }}>
+      <p style={{ margin: '0 0 16px', color: 'var(--mm-text-muted)', fontSize: 13.5, maxWidth: '70ch', lineHeight: 1.5 }}>
         Two independent measures of {className}. <strong>Complexity</strong> is how much machinery a question has;
         <strong> demand</strong> is what kind of thinking it asks for. A class failing at band 4 needs something
         completely different from a class failing at DOK 3, so these are never combined into one number.
       </p>
 
-      <div style={{ marginBottom: 8, fontSize: 11, fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase', color: '#5f6368' }}>
+      <div style={{ marginBottom: 8, fontSize: 11, fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
         Cognitive demand
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 11, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: 11, marginBottom: 20 }}>
         {demand.map((cell) => (
           <Cell key={cell.key} label={`DOK ${cell.dok}`} sublabel={DOK_SUBLABEL[cell.dok]} cell={cell} />
         ))}
       </div>
 
-      <div style={{ marginBottom: 8, fontSize: 11, fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase', color: '#5f6368' }}>
+      <div style={{ marginBottom: 8, fontSize: 11, fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
         Structural complexity
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 11, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: 11, marginBottom: 20 }}>
         {difficulty.map((cell) => (
           <Cell key={cell.key} label={`Band ${cell.band}`} sublabel={BAND_SUBLABEL[cell.band]} cell={cell} />
         ))}
@@ -123,7 +123,7 @@ export default function CognitiveDemandView({
             return (
               <div key={finding.kind} style={{ padding: '12px 14px', border: `1px solid ${tone.border}`, borderLeft: `3px solid ${tone.fg}`, borderRadius: 9, background: tone.bg }}>
                 <div style={{ fontWeight: 800, fontSize: 14 }}>{finding.headline}</div>
-                <p style={{ margin: '4px 0 0', color: '#4d5b58', fontSize: 13, lineHeight: 1.5, maxWidth: '70ch' }}>
+                <p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5, maxWidth: '70ch' }}>
                   {finding.detail}
                 </p>
               </div>

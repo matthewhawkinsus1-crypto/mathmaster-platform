@@ -45,19 +45,19 @@ export const TestCycleGradeBreakdown = ({ entry, hidden = false, compact = false
       aria-label="Test Cycle grade detail"
       style={{
         display: 'grid', gap: 6, margin: compact ? '10px 0 0' : '14px 0 0',
-        padding: '11px 13px', background: '#f8f9fa', borderRadius: 10, border: '1px solid #e3e6ea',
+        padding: '11px 13px', background: 'var(--mm-surface-sunken)', borderRadius: 10, border: '1px solid var(--mm-border-soft)',
       }}
     >
       {breakdown.rows.map((row) => (
         <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-          <dt style={{ color: '#5f6368', fontSize: 12 }}>{row.label}</dt>
+          <dt style={{ color: 'var(--mm-text-muted)', fontSize: 12 }}>{row.label}</dt>
           <dd style={{ margin: 0, fontSize: 12, fontWeight: row.key === 'recordedGrade' ? 900 : 700, color: 'var(--mm-text-strong)' }}>
             {hidden ? '••' : row.value}
           </dd>
         </div>
       ))}
       {!hidden && breakdown.retestCapApplied && (
-        <p style={{ margin: '4px 0 0', fontSize: 11, lineHeight: 1.5, color: '#5f6368' }}>
+        <p style={{ margin: '4px 0 0', fontSize: 11, lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>
           Your raw retest score is kept exactly as you earned it. District policy is that the highest
           grade a retest can record is {breakdown.maxRecordedGrade}%.
         </p>

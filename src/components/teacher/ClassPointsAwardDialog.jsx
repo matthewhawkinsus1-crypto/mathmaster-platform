@@ -32,11 +32,11 @@ const dialogStyle = {
 const bodyStyle = { padding: '18px 20px', display: 'grid', gap: 14 };
 const amountButtonStyle = (selected) => ({
   padding: '8px 0', minWidth: 44, borderRadius: 9, fontWeight: 900, fontSize: 14, cursor: 'pointer',
-  border: selected ? '2px solid #1a73e8' : '1px solid #d8dde6',
-  background: selected ? '#e8f0fe' : '#fff', color: selected ? '#174ea6' : '#202124',
+  border: selected ? '2px solid #1a73e8' : '1px solid var(--mm-border)',
+  background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', color: selected ? 'var(--mm-primary-text)' : 'var(--mm-text-strong)',
 });
-const fieldLabelStyle = { fontWeight: 800, fontSize: 12, color: '#5f6368', textTransform: 'uppercase', letterSpacing: '.04em' };
-const selectStyle = { padding: '9px 10px', borderRadius: 8, border: '1px solid #d8dde6', fontSize: 14, width: '100%' };
+const fieldLabelStyle = { fontWeight: 800, fontSize: 12, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' };
+const selectStyle = { padding: '9px 10px', borderRadius: 8, border: '1px solid var(--mm-border)', fontSize: 14, width: '100%' };
 
 export default function ClassPointsAwardDialog({ student, classId, teacherEmail, onClose, onAwarded = null }) {
   const [amount, setAmount] = useState(QUICK_AWARD_AMOUNTS[0]);
@@ -121,11 +121,11 @@ export default function ClassPointsAwardDialog({ student, classId, teacherEmail,
       style={overlayStyle}
     >
       <section role="dialog" aria-modal="true" aria-labelledby="class-points-award-title" style={dialogStyle}>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid #e8eaed' }}>
-          <div style={{ color: '#7a4f00', fontWeight: 900, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em' }}>Class Points</div>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--mm-border-soft)' }}>
+          <div style={{ color: 'var(--mm-warning-text)', fontWeight: 900, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em' }}>Class Points</div>
           <h2 id="class-points-award-title" style={{ margin: '4px 0 0', fontSize: 18, color: 'var(--mm-text-strong)' }}>Award {studentName || 'this student'}</h2>
           {!studentName && (
-            <div style={{ marginTop: 2, fontSize: 12, color: '#5f6368' }}>
+            <div style={{ marginTop: 2, fontSize: 12, color: 'var(--mm-text-muted)' }}>
               {STUDENT_NAME_UNAVAILABLE}{studentIdLine ? ` · ${studentIdLine}` : ''}
             </div>
           )}
@@ -133,7 +133,7 @@ export default function ClassPointsAwardDialog({ student, classId, teacherEmail,
 
         {result ? (
           <div style={bodyStyle}>
-            <div style={{ padding: '12px 14px', borderRadius: 10, background: '#e6f4ea', color: '#137333', fontWeight: 800 }}>
+            <div style={{ padding: '12px 14px', borderRadius: 10, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontWeight: 800 }}>
               ⭐ Awarded +{result.amount} pts to {studentName || 'this student'} for {result.reasonLabel}.
             </div>
             <button type="button" onClick={onClose} style={{ padding: '10px 14px', borderRadius: 9, border: '1px solid #188038', background: '#188038', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Done</button>
@@ -158,7 +158,7 @@ export default function ClassPointsAwardDialog({ student, classId, teacherEmail,
                   onChange={(event) => chooseCustomAmount(event.target.value)}
                   style={{ ...selectStyle, width: 84, ...(usingCustomAmount ? { border: '2px solid #1a73e8' } : {}) }}
                 />
-                <span style={{ fontSize: 11.5, color: '#80868b' }}>up to {MAX_AWARD_AMOUNT}</span>
+                <span style={{ fontSize: 11.5, color: 'var(--mm-text-subtle)' }}>up to {MAX_AWARD_AMOUNT}</span>
               </div>
             </div>
 
@@ -188,7 +188,7 @@ export default function ClassPointsAwardDialog({ student, classId, teacherEmail,
               )}
             </div>
 
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13.5, color: '#3c4043', cursor: 'pointer' }}>
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13.5, color: 'var(--mm-text)', cursor: 'pointer' }}>
               <input
                 type="checkbox"
                 checked={announce}
@@ -202,11 +202,11 @@ export default function ClassPointsAwardDialog({ student, classId, teacherEmail,
             </label>
 
             {error && (
-              <div role="alert" style={{ padding: '9px 11px', borderRadius: 8, background: '#fce8e6', color: '#b3261e', fontSize: 13, fontWeight: 700 }}>{error}</div>
+              <div role="alert" style={{ padding: '9px 11px', borderRadius: 8, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', fontSize: 13, fontWeight: 700 }}>{error}</div>
             )}
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button type="button" disabled={submitting} onClick={onClose} style={{ padding: '9px 13px', borderRadius: 8, border: '1px solid #d8dde6', background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 800, cursor: submitting ? 'wait' : 'pointer' }}>Cancel</button>
+              <button type="button" disabled={submitting} onClick={onClose} style={{ padding: '9px 13px', borderRadius: 8, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, cursor: submitting ? 'wait' : 'pointer' }}>Cancel</button>
               <button
                 type="button"
                 disabled={submitting}
@@ -216,7 +216,7 @@ export default function ClassPointsAwardDialog({ student, classId, teacherEmail,
                 {submitting ? (error ? 'Retrying…' : 'Awarding…') : error ? 'Retry' : `Award${Number.isFinite(effectiveAmount) && effectiveAmount > 0 ? ` +${effectiveAmount}` : ''}`}
               </button>
             </div>
-            <div style={{ fontSize: 11, color: '#9aa0a6' }}>Signed in as {teacherEmail || 'your teacher account'}</div>
+            <div style={{ fontSize: 11, color: 'var(--mm-text-subtle)' }}>Signed in as {teacherEmail || 'your teacher account'}</div>
           </div>
         )}
       </section>

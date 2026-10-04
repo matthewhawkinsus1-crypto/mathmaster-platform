@@ -10,8 +10,8 @@ import openSortBoardGrader from '../../../functions/shared/serverGrading/tools/o
 import { openSortProgress, openSortSettings } from './openSortMath';
 import { readGraphPointCoordinates } from '../../graphPointUtils.js';
 
-const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid #c9d6e8', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
-const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid #c9d6e8', borderRadius: 8, fontSize: 15 };
+const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
+const input = { width: '100%', boxSizing: 'border-box', minHeight: 42, padding: 9, border: '1px solid var(--mm-tint-border)', borderRadius: 8, fontSize: 15 };
 
 const functionFor = (spec) => (x) => evaluateFunctionSpec(spec || {}, x);
 const pointPair = (point) => readGraphPointCoordinates(point) || [Number.NaN, Number.NaN];
@@ -71,7 +71,7 @@ const SortItemPreview = ({ item }) => {
       </div>
     );
   }
-  return item?.text ? <div style={{ marginTop: 7, color: '#3c4756', lineHeight: 1.45 }}>{item.text}</div> : null;
+  return item?.text ? <div style={{ marginTop: 7, color: 'var(--mm-text)', lineHeight: 1.45 }}>{item.text}</div> : null;
 };
 
 const emptyGroups = (count) => Array.from({ length: count }, (_, index) => ({ id: `group-${index + 1}`, name: '', rationale: '', itemIds: [] }));
@@ -191,9 +191,9 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
       {controlled ? (
         <>
           <Panel title={`Cards to classify (${unassigned.length} remaining)`}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: 12 }}>
               {unassigned.map((item) => (
-                <div key={item.id} style={{ border: '1px solid #c9d6e8', borderRadius: 12, padding: 10, background: 'var(--mm-surface)' }}>
+                <div key={item.id} style={{ border: '1px solid var(--mm-tint-border)', borderRadius: 12, padding: 10, background: 'var(--mm-surface)' }}>
                   <strong style={{ display: 'block', marginBottom: 6 }}>{item.label || item.id}</strong>
                   <SortItemPreview item={item} />
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(118px, 1fr))', gap: 8, marginTop: 10 }}>
@@ -202,7 +202,7 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
                         key={category.id}
                         type="button"
                         onClick={() => placeItem(item.id, category.id)}
-                        style={{ ...button, minHeight: 48, background: '#eef4ff', color: '#174ea6' }}
+                        style={{ ...button, minHeight: 48, background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' }}
                       >
                         {category.label}
                       </button>
@@ -210,11 +210,11 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
                   </div>
                 </div>
               ))}
-              {!unassigned.length && <p style={{ color: '#137333', fontWeight: 800 }}>✓ Every card has been classified.</p>}
+              {!unassigned.length && <p style={{ color: 'var(--mm-success-text)', fontWeight: 800 }}>✓ Every card has been classified.</p>}
             </div>
           </Panel>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12, marginTop: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: 12, marginTop: 12 }}>
             {groups.map((group) => (
               <Panel key={group.id} title={group.name}>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', minHeight: 52 }}>
@@ -226,29 +226,29 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
                         key={id}
                         onClick={() => returnItem(id)}
                         title="Tap to move this card again"
-                        style={{ ...button, minHeight: 40, background: '#eef4ff', color: '#174ea6' }}
+                        style={{ ...button, minHeight: 40, background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' }}
                       >
                         {item?.label || id} ↩
                       </button>
                     );
                   })}
-                  {!group.itemIds.length && <span style={{ color: '#80868b', alignSelf: 'center' }}>No cards here yet.</span>}
+                  {!group.itemIds.length && <span style={{ color: 'var(--mm-text-subtle)', alignSelf: 'center' }}>No cards here yet.</span>}
                 </div>
               </Panel>
             ))}
           </div>
         </>
       ) : (
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(240px, 0.85fr) minmax(0, 1.65fr)', gap: 18 }} className="mathmaster-open-sort-layout">
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(min(100%, 240px), 0.85fr) minmax(0, 1.65fr)', gap: 18 }} className="mathmaster-open-sort-layout">
         <Panel title={`Cards to sort (${unassigned.length} remaining)`}>
           <div style={{ display: 'grid', gap: 10 }}>
             {unassigned.map((item) => (
-              <button key={item.id} type="button" onClick={() => setSelectedId(String(item.id))} aria-pressed={selectedId === String(item.id)} style={{ ...button, textAlign: 'left', border: selectedId === String(item.id) ? '3px solid #1a73e8' : '1px solid #c9d6e8', background: selectedId === String(item.id) ? '#eef4ff' : '#fff' }}>
+              <button key={item.id} type="button" onClick={() => setSelectedId(String(item.id))} aria-pressed={selectedId === String(item.id)} style={{ ...button, textAlign: 'left', border: selectedId === String(item.id) ? '3px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: selectedId === String(item.id) ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)' }}>
                 <strong>{item.label || item.id}</strong>
                 <SortItemPreview item={item} />
               </button>
             ))}
-            {!unassigned.length && <p style={{ color: '#137333', fontWeight: 800 }}>✓ Every card has been placed.</p>}
+            {!unassigned.length && <p style={{ color: 'var(--mm-success-text)', fontWeight: 800 }}>✓ Every card has been placed.</p>}
           </div>
         </Panel>
 
@@ -257,21 +257,21 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
             <Panel key={group.id} title={`Group ${groupIndex + 1}${group.name ? ` · ${group.name}` : ''}`}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
                 <input value={group.name} onChange={(event) => updateGroup(group.id, { name: event.target.value })} placeholder="Name this group" style={{ ...input, flex: '1 1 190px' }} />
-                <button type="button" disabled={!selectedId} onClick={() => moveSelected(group.id)} style={{ ...button, background: selectedId ? '#1a73e8' : '#f1f3f4', color: selectedId ? '#fff' : '#80868b', border: 0 }}>{selectedId ? 'Place selected card here' : 'Select a card first'}</button>
-                {groups.length > minGroups && <button type="button" onClick={() => removeGroup(group.id)} style={{ ...button, color: '#a50e0e' }}>Remove group</button>}
+                <button type="button" disabled={!selectedId} onClick={() => moveSelected(group.id)} style={{ ...button, background: selectedId ? '#1a73e8' : 'var(--mm-surface-control)', color: selectedId ? '#fff' : 'var(--mm-text-subtle)', border: 0 }}>{selectedId ? 'Place selected card here' : 'Select a card first'}</button>
+                {groups.length > minGroups && <button type="button" onClick={() => removeGroup(group.id)} style={{ ...button, color: 'var(--mm-error-text)' }}>Remove group</button>}
               </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', minHeight: 52, padding: 9, borderRadius: 9, border: '1px dashed #9bb8e8', background: 'var(--mm-surface)' }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', minHeight: 52, padding: 9, borderRadius: 9, border: '1px dashed var(--mm-primary-border)', background: 'var(--mm-surface)' }}>
                 {group.itemIds.map((id) => {
                   const item = itemById(id);
-                  return <button type="button" key={id} onClick={() => returnItem(id)} title="Tap to move this card again" style={{ ...button, minHeight: 36, padding: '6px 9px', background: '#eef4ff', color: '#174ea6' }}>{item?.label || id} ↩</button>;
+                  return <button type="button" key={id} onClick={() => returnItem(id)} title="Tap to move this card again" style={{ ...button, minHeight: 36, padding: '6px 9px', background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' }}>{item?.label || id} ↩</button>;
                 })}
-                {!group.itemIds.length && <span style={{ color: '#80868b', alignSelf: 'center' }}>No cards in this group yet.</span>}
+                {!group.itemIds.length && <span style={{ color: 'var(--mm-text-subtle)', alignSelf: 'center' }}>No cards in this group yet.</span>}
               </div>
               {requireRationale && (
-                <label style={{ display: 'block', marginTop: 10, fontWeight: 800, color: '#3c4756' }}>
+                <label style={{ display: 'block', marginTop: 10, fontWeight: 800, color: 'var(--mm-text)' }}>
                   Why do these belong together?
                   <textarea value={group.rationale} onChange={(event) => updateGroup(group.id, { rationale: event.target.value })} placeholder="Describe the graph characteristic you used." rows={2} style={{ ...input, minHeight: 72, resize: 'vertical' }} />
-                  <span style={{ display: 'block', marginTop: 4, fontSize: 11, color: '#5f6b7a' }}>{Math.min(group.rationale.trim().length, rationaleMinLength)}/{rationaleMinLength} characters needed before checking</span>
+                  <span style={{ display: 'block', marginTop: 4, fontSize: 11, color: 'var(--mm-text-muted)' }}>{Math.min(group.rationale.trim().length, rationaleMinLength)}/{rationaleMinLength} characters needed before checking</span>
                 </label>
               )}
             </Panel>
@@ -282,11 +282,11 @@ export default function OpenSortBoard({ questionData = {}, onAction }) {
       )}
 
       <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <button type="button" onClick={check} disabled={!ready} style={{ ...button, background: ready ? '#1a73e8' : '#dadce0', color: ready ? '#fff' : '#5f6368', border: 0, minHeight: 46 }}>Check my sort</button>
-        {!ready && <span style={{ color: '#5f6b7a', fontSize: 13 }}>{unassigned.length ? `Place ${unassigned.length} remaining card${unassigned.length === 1 ? '' : 's'}.` : usedGroups.length < minGroups ? `Use at least ${minGroups} groups.` : !namesComplete ? 'Give each used group a short mathematical name.' : !rationaleComplete ? 'Finish the explanation for each used group.' : 'Finish the sort.'}</span>}
+        <button type="button" onClick={check} disabled={!ready} style={{ ...button, background: ready ? '#1a73e8' : '#dadce0', color: ready ? '#fff' : 'var(--mm-text-muted)', border: 0, minHeight: 46 }}>Check my sort</button>
+        {!ready && <span style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>{unassigned.length ? `Place ${unassigned.length} remaining card${unassigned.length === 1 ? '' : 's'}.` : usedGroups.length < minGroups ? `Use at least ${minGroups} groups.` : !namesComplete ? 'Give each used group a short mathematical name.' : !rationaleComplete ? 'Finish the explanation for each used group.' : 'Finish the sort.'}</span>}
         {feedback && <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? (controlled ? 'Correct classification' : 'Valid mathematical sort') : (controlled ? 'Some cards need to move' : 'Revise the grouping')}</ResultPill>}
       </div>
-      {feedback && !feedback.isCorrect && <p style={{ color: '#5f6b7a', lineHeight: 1.55 }}>{controlled ? 'At least one card is in the wrong category. Recheck the defining feature of each fixed category, move any card you want to change, and try again.' : 'Your cards do not yet form one of the valid mathematical partitions for this set. Look for a characteristic that is true for every card inside a group and meaningfully separates it from the other groups.'}</p>}
+      {feedback && !feedback.isCorrect && <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>{controlled ? 'At least one card is in the wrong category. Recheck the defining feature of each fixed category, move any card you want to change, and try again.' : 'Your cards do not yet form one of the valid mathematical partitions for this set. Look for a characteristic that is true for every card inside a group and meaningfully separates it from the other groups.'}</p>}
       <HintPanel hints={questionData.hints || (controlled ? [
         'Use the category definitions as tests. A card should satisfy exactly one of them.',
         'If a graph rises from left to right, that is positive association; if it falls, that is negative association.',

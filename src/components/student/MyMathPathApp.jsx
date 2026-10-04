@@ -468,13 +468,13 @@ export const MyMathPathExperience = ({
     onReload?.();
   };
 
-  if (loading && !Object.keys(masteryData.masteryProfilesByTEKS).length) return <div style={{ padding: '60px', textAlign: 'center', color: '#174ea6' }}>Loading My Math Path…</div>;
+  if (loading && !Object.keys(masteryData.masteryProfilesByTEKS).length) return <div style={{ padding: '60px', textAlign: 'center', color: 'var(--mm-primary-text)' }}>Loading My Math Path…</div>;
 
   return (
-    <div style={{ minHeight: '100%', background: '#f8f9fa' }}>
+    <div style={{ minHeight: '100%', background: 'var(--mm-surface-sunken)' }}>
       {activeTab !== 'session' && (
-        <header style={{ minHeight: '60px', padding: '0 20px', borderBottom: '1px solid #dadce0', background: 'var(--mm-surface)', display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}><span aria-hidden="true">📐</span><strong>{readOnly ? `${studentName || 'Student'} · My Math Path` : 'My Math Path'}</strong>{readOnly && <span style={{ padding: '3px 7px', borderRadius: 999, background: '#fef7e0', color: '#7a4f00', fontSize: 10, fontWeight: 900 }}>TEACHER · READ ONLY</span>}</div>
+        <header style={{ minHeight: '60px', padding: '0 20px', borderBottom: '1px solid var(--mm-border)', background: 'var(--mm-surface)', display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}><span aria-hidden="true">📐</span><strong>{readOnly ? `${studentName || 'Student'} · My Math Path` : 'My Math Path'}</strong>{readOnly && <span style={{ padding: '3px 7px', borderRadius: 999, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 10, fontWeight: 900 }}>TEACHER · READ ONLY</span>}</div>
           {/*
             TWO LEVELS, AND THEY ARE DIFFERENT KINDS OF THING.
             The global row moves between MathMaster's five destinations; the tab
@@ -496,20 +496,20 @@ export const MyMathPathExperience = ({
               />
             )}
             <nav aria-label="My Math Path navigation" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-              {visibleTabs.map(([tab, label]) => <button key={tab} type="button" onClick={() => setActiveTab(tab)} style={{ minHeight: 44, padding: '12px 8px 10px', border: 0, borderBottom: `3px solid ${activeTab === tab ? '#1a73e8' : 'transparent'}`, background: 'transparent', color: activeTab === tab ? '#174ea6' : '#5f6368', fontWeight: 900, cursor: 'pointer' }}>{label}</button>)}
-              {onExit && <button type="button" onClick={onExit} style={{ marginLeft: '6px', minHeight: 44, padding: '8px 11px', border: '1px solid #bdc1c6', borderRadius: '7px', background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 800, cursor: 'pointer' }}>{readOnly ? 'Back to student' : 'Home'}</button>}
+              {visibleTabs.map(([tab, label]) => <button key={tab} type="button" onClick={() => setActiveTab(tab)} style={{ minHeight: 44, padding: '12px 8px 10px', border: 0, borderBottom: `3px solid ${activeTab === tab ? '#1a73e8' : 'transparent'}`, background: 'transparent', color: activeTab === tab ? 'var(--mm-primary-text)' : 'var(--mm-text-muted)', fontWeight: 900, cursor: 'pointer' }}>{label}</button>)}
+              {onExit && <button type="button" onClick={onExit} style={{ marginLeft: '6px', minHeight: 44, padding: '8px 11px', border: '1px solid var(--mm-border)', borderRadius: '7px', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, cursor: 'pointer' }}>{readOnly ? 'Back to student' : 'Home'}</button>}
             </nav>
           </div>
         </header>
       )}
 
-      {error && <div role="alert" style={{ maxWidth: '940px', margin: '16px auto', padding: '12px 14px', borderRadius: '8px', background: '#fce8e6', color: '#a50e0e' }}>{error}</div>}
+      {error && <div role="alert" style={{ maxWidth: '940px', margin: '16px auto', padding: '12px 14px', borderRadius: '8px', background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' }}>{error}</div>}
       {/* A standard with no practice content says so plainly instead of opening
           a session that dies on the first question. */}
       {coverageNotice && (
-        <div role="status" style={{ maxWidth: '940px', margin: '16px auto', padding: '12px 14px', borderRadius: '8px', background: '#fef7e0', color: '#7a4f00', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div role="status" style={{ maxWidth: '940px', margin: '16px auto', padding: '12px 14px', borderRadius: '8px', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <span>{coverageNotice}</span>
-          <button type="button" onClick={() => setCoverageNotice(null)} style={{ minHeight: 34, padding: '0 12px', border: '1px solid #d9b64a', borderRadius: 7, background: 'var(--mm-surface)', color: '#7a4f00', fontWeight: 800, cursor: 'pointer' }}>Dismiss</button>
+          <button type="button" onClick={() => setCoverageNotice(null)} style={{ minHeight: 34, padding: '0 12px', border: '1px solid #d9b64a', borderRadius: 7, background: 'var(--mm-surface)', color: 'var(--mm-warning-text)', fontWeight: 800, cursor: 'pointer' }}>Dismiss</button>
         </div>
       )}
       {activeTab === 'path' && (

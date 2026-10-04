@@ -55,7 +55,7 @@
   position: relative;
   height: 6px;
   border-radius: 999px;
-  background: #e7ebf1;
+  background: var(--mm-primary-soft);
   overflow: hidden;
 }
 
@@ -84,7 +84,7 @@
      current step still wins the eye. */
   border: 1px solid var(--wf-edge);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--wf-tint) 45%, #fff);
+  background: color-mix(in srgb, var(--wf-tint) 45%, var(--mm-surface));
   color: var(--wf-accent-dark);
   padding: 8px 13px;
   font: inherit;
@@ -114,27 +114,27 @@
  * new answer. */
 .workflow-focus__step--draft:not(.workflow-focus__step--active),
 .workflow-focus__step--reviewed:not(.workflow-focus__step--active) {
-  border-color: #b9c7dc;
-  background: #f8fafc;
-  color: #465468;
+  border-color: var(--mm-primary-border);
+  background: var(--mm-surface-sunken);
+  color: var(--mm-text-muted);
 }
 
 .workflow-focus__step--correct {
   border-color: #5aa278;
-  background: #e6f4ea;
-  color: #17643a;
+  background: var(--mm-success-bg);
+  color: var(--mm-success-text);
 }
 
 .workflow-focus__step--incorrect {
   border-color: #d93025;
-  background: #fce8e6;
-  color: #8c1d18;
+  background: var(--mm-error-bg);
+  color: var(--mm-error-text);
 }
 
 .workflow-focus__step--changed {
   border-color: #e09b00;
-  background: #fff4ce;
-  color: #6b5200;
+  background: var(--mm-warning-soft);
+  color: var(--mm-warning-text);
 }
 
 /* A small acknowledgement when a grading state changes. */
@@ -154,10 +154,10 @@
   font-weight: 950;
 }
 
-.workflow-focus__step-icon--correct { color: #188038; }
-.workflow-focus__step-icon--incorrect { color: #d93025; }
-.workflow-focus__step-icon--changed { color: #b06000; }
-.workflow-focus__step-icon--draft { color: #6b7788; }
+.workflow-focus__step-icon--correct { color: var(--mm-success); }
+.workflow-focus__step-icon--incorrect { color: var(--mm-danger); }
+.workflow-focus__step-icon--changed { color: var(--mm-warning-text); }
+.workflow-focus__step-icon--draft { color: var(--mm-text-subtle); }
 
 /* A step not yet reachable keeps its family tint rather than washing out to
    grey. Greying it made the whole route grey — you can only ever reach the next
@@ -172,7 +172,7 @@
 
 .workflow-focus__locked-answer {
   margin: 0;
-  border: 1px solid #dadce0;
+  border: 1px solid var(--mm-border);
   border-radius: 10px;
   background: var(--mm-surface);
   padding: 12px 14px;
@@ -183,10 +183,10 @@
 .workflow-focus__locked-note {
   margin: 0 0 12px;
   border-radius: 8px;
-  background: #f1f3f4;
-  border-left: 3px solid #9aa0a6;
+  background: var(--mm-surface-control);
+  border-left: 3px solid var(--mm-border-strong);
   padding: 8px 11px;
-  color: #444746;
+  color: var(--mm-text);
   font-size: 13px;
 }
 
@@ -201,9 +201,9 @@
   gap: 10px;
   border: 2px solid #d93025;
   border-radius: 12px;
-  background: #fff8f7;
+  background: var(--mm-error-subtle);
   padding: 12px 14px;
-  color: #7f1d18;
+  color: var(--mm-error-text);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -223,7 +223,7 @@
   border: 1px solid #d93025;
   border-radius: 999px;
   background: var(--mm-surface);
-  color: #a1261d;
+  color: var(--mm-error-text);
   padding: 6px 10px;
   font: inherit;
   font-weight: 850;
@@ -232,7 +232,7 @@
 
 .workflow-focus__review-link:hover,
 .workflow-focus__review-link:focus-visible {
-  background: #fce8e6;
+  background: var(--mm-error-bg);
   outline: 2px solid rgba(217, 48, 37, .18);
   outline-offset: 1px;
 }
@@ -243,11 +243,11 @@
 .workflow-focus__restored-notice {
   display: grid;
   gap: 10px;
-  border: 1px solid #c5d5ef;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 12px;
-  background: #f8fbff;
+  background: var(--mm-surface-tint);
   padding: 12px 14px;
-  color: #174ea6;
+  color: var(--mm-primary-text);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -261,7 +261,7 @@
   border: 1px solid #1a73e8;
   border-radius: 999px;
   background: var(--mm-surface);
-  color: #174ea6;
+  color: var(--mm-primary-text);
   padding: 6px 12px;
   font: inherit;
   font-weight: 850;
@@ -270,21 +270,21 @@
 
 .workflow-focus__restored-link:hover,
 .workflow-focus__restored-link:focus-visible {
-  background: #e8f0fe;
+  background: var(--mm-primary-soft);
   outline: 2px solid rgba(26, 115, 232, .2);
   outline-offset: 1px;
 }
 
 .workflow-focus__summary {
-  border: 1px solid #d6e0ee;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 12px;
-  background: #f8fbff;
+  background: var(--mm-surface-tint);
   padding: 12px 14px;
 }
 
 .workflow-focus__summary-title {
   margin: 0 0 8px;
-  color: #465468;
+  color: var(--mm-text-muted);
   font-size: 11px;
   font-weight: 900;
   letter-spacing: .08em;
@@ -303,17 +303,17 @@
   gap: 6px;
   min-height: 34px;
   max-width: 100%;
-  border: 1px solid #d8e0ea;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 9px;
   background: var(--mm-surface);
   padding: 6px 9px;
-  color: #3c4043;
+  color: var(--mm-text);
   font-size: 12px;
   line-height: 1.35;
 }
 
 .workflow-focus__summary-item strong {
-  color: #174ea6;
+  color: var(--mm-primary-text);
 }
 
 .workflow-focus__summary-link {
@@ -325,7 +325,7 @@
 .workflow-focus__summary-link:hover:not(:disabled),
 .workflow-focus__summary-link:focus-visible {
   border-color: #1a73e8;
-  background: #eef5ff;
+  background: var(--mm-primary-subtle);
   outline: none;
 }
 
@@ -341,8 +341,8 @@
      edge rather than as a flat white rectangle, and the work itself still sits
      on white where the student is reading and typing. */
   background:
-    linear-gradient(180deg, var(--wf-tint) 0, #fff 190px),
-    #fff;
+    linear-gradient(180deg, var(--wf-tint) 0, var(--mm-surface) 190px),
+    var(--mm-surface);
   padding: 18px;
   box-shadow: 0 2px 8px rgba(31, 55, 90, .05), 0 1px 0 rgba(255, 255, 255, .9) inset;
   transition: border-color .3s ease, background .3s ease;
@@ -364,8 +364,8 @@
 .workflow-focus__workspace--incorrect {
   border: 2px solid #d93025;
   background:
-    linear-gradient(180deg, #fce8e6 0, #fff 190px),
-    #fff;
+    linear-gradient(180deg, var(--mm-error-bg) 0, var(--mm-surface) 190px),
+    var(--mm-surface);
   box-shadow: 0 2px 10px rgba(217, 48, 37, .12);
 }
 
@@ -376,8 +376,8 @@
 .workflow-focus__workspace--changed {
   border: 2px solid #e09b00;
   background:
-    linear-gradient(180deg, #fff4ce 0, #fff 190px),
-    #fff;
+    linear-gradient(180deg, var(--mm-warning-soft) 0, var(--mm-surface) 190px),
+    var(--mm-surface);
 }
 
 .workflow-focus__workspace--changed::before {
@@ -406,20 +406,20 @@
 
 .workflow-focus__review-status--correct {
   border: 1px solid #81b995;
-  background: #e6f4ea;
-  color: #17643a;
+  background: var(--mm-success-bg);
+  color: var(--mm-success-text);
 }
 
 .workflow-focus__review-status--incorrect {
   border: 1px solid #d93025;
-  background: #fce8e6;
-  color: #8c1d18;
+  background: var(--mm-error-bg);
+  color: var(--mm-error-text);
 }
 
 .workflow-focus__review-status--changed {
   border: 1px solid #e09b00;
-  background: #fff4ce;
-  color: #6b5200;
+  background: var(--mm-warning-soft);
+  color: var(--mm-warning-text);
 }
 
 .workflow-focus__family {
@@ -445,7 +445,7 @@
 
 .workflow-focus__workspace-body--with-graph {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, .9fr);
+  grid-template-columns: minmax(0, 1fr) minmax(min(100%, 320px), .9fr);
   gap: 18px;
   align-items: start;
 }
@@ -466,21 +466,21 @@
   min-width: 0;
   position: sticky;
   top: 12px;
-  border: 1px solid #c5d5ef;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 12px;
-  background: #f8fbff;
+  background: var(--mm-surface-tint);
   padding: 12px;
 }
 
 .workflow-focus__graph-reference-title {
-  color: #174ea6;
+  color: var(--mm-primary-text);
   font-size: 13px;
   font-weight: 900;
 }
 
 .workflow-focus__graph-reference p {
   margin: 5px 0 0;
-  color: #5f6368;
+  color: var(--mm-text-muted);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -513,7 +513,7 @@
 }
 
 .workflow-focus__counter {
-  color: #5f6368;
+  color: var(--mm-text-muted);
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
@@ -543,10 +543,10 @@
 
 .workflow-focus__nav-button {
   min-height: 40px;
-  border: 1px solid #b9c7dc;
+  border: 1px solid var(--mm-primary-border);
   border-radius: 9px;
   background: var(--mm-surface);
-  color: #174ea6;
+  color: var(--mm-primary-text);
   padding: 8px 13px;
   font: inherit;
   font-weight: 800;
@@ -567,7 +567,7 @@
 
 .workflow-focus__progress-text {
   margin: 0;
-  color: #5f6368;
+  color: var(--mm-text-muted);
   font-size: 12px;
 }
 

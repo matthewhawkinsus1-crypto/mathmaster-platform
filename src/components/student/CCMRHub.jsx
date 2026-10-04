@@ -8,6 +8,7 @@ import { matchesAssessmentReferenceSearch, referenceLabel } from '../../platform
 import CcmrReferenceList from '../common/CcmrReferenceList.jsx';
 import CCMRReadinessWheel from './CCMRReadinessWheel.jsx';
 import { resolveAssessmentPracticeStage } from '../../platform/ccmr/assessmentFidelity.js';
+import { toneTextColor } from '../../theme/themeColorRoles.js';
 
 // 9F — College, Career & Military Readiness.
 //
@@ -22,14 +23,14 @@ import { resolveAssessmentPracticeStage } from '../../platform/ccmr/assessmentFi
 // Unpractised is never rendered as weak, and never as 0%.
 
 const STATUS_STYLE = {
-  [READINESS.TRANSFER_GAP]: { label: 'Know the math, not the format', border: '#a50e0e', background: '#fce8e6', chip: '#a50e0e' },
-  [READINESS.STRENGTHEN]: { label: 'Strengthen', border: '#f9ab00', background: '#fef7e0', chip: '#7a4f00' },
-  [READINESS.NOT_PRACTICED]: { label: 'Not practised yet', border: '#1a73e8', background: '#e8f0fe', chip: '#174ea6' },
-  [READINESS.READY]: { label: 'Ready', border: '#dadce0', background: 'var(--mm-surface)', chip: '#3c4043' },
-  [READINESS.STRONG]: { label: 'Strong', border: '#137333', background: '#e6f4ea', chip: '#137333' },
-  [READINESS.CHALLENGE_READY]: { label: 'Challenge ready', border: '#7e57c2', background: '#f3ecfd', chip: '#5b21b6' },
-  [READINESS.MAINTENANCE]: { label: 'Challenge complete', border: '#137333', background: '#e6f4ea', chip: '#137333' },
-  [READINESS.NOT_AVAILABLE]: { label: 'Not available', border: '#bdc1c6', background: '#f8f9fa', chip: '#5f6368' },
+  [READINESS.TRANSFER_GAP]: { label: 'Know the math, not the format', border: '#a50e0e', background: 'var(--mm-error-bg)', chip: '#a50e0e' },
+  [READINESS.STRENGTHEN]: { label: 'Strengthen', border: '#f9ab00', background: 'var(--mm-warning-bg)', chip: '#7a4f00' },
+  [READINESS.NOT_PRACTICED]: { label: 'Not practised yet', border: '#1a73e8', background: 'var(--mm-primary-soft)', chip: '#174ea6' },
+  [READINESS.READY]: { label: 'Ready', border: 'var(--mm-border)', background: 'var(--mm-surface)', chip: '#3c4043' },
+  [READINESS.STRONG]: { label: 'Strong', border: '#137333', background: 'var(--mm-success-bg)', chip: '#137333' },
+  [READINESS.CHALLENGE_READY]: { label: 'Challenge ready', border: '#7e57c2', background: 'var(--mm-accent-soft)', chip: '#5b21b6' },
+  [READINESS.MAINTENANCE]: { label: 'Challenge complete', border: '#137333', background: 'var(--mm-success-bg)', chip: '#137333' },
+  [READINESS.NOT_AVAILABLE]: { label: 'Not available', border: 'var(--mm-border)', background: 'var(--mm-surface-sunken)', chip: '#5f6368' },
 };
 
 const BUCKET_TITLES = [
@@ -54,35 +55,35 @@ function SkillRow({ item, onPractise, showFramework = false, readOnly = false })
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
         <div style={{ minWidth: 0, flex: '1 1 260px' }}>
-          <span style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4, color: style.chip }}>
+          <span style={{ fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4, color: toneTextColor(style.chip) }}>
             {showFramework ? `${FRAMEWORK_LABELS[item.framework]} · ${style.label}` : style.label}
           </span>
           <span style={{ display: 'block', fontWeight: 800, color: 'var(--mm-text-strong)', fontSize: 15, margin: '3px 0' }}>{item.label}</span>
-          <span style={{ display: 'block', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
+          <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.5 }}>
             {explainAssessmentRecommendation(item)}
           </span>
           {primary && (
-            <span style={{ display: 'block', color: '#5b21b6', fontSize: 11.5, lineHeight: 1.45, marginTop: 6, fontWeight: 850 }}>
+            <span style={{ display: 'block', color: 'var(--mm-accent-text)', fontSize: 11.5, lineHeight: 1.45, marginTop: 6, fontWeight: 850 }}>
               {referenceLabel(primary)}
             </span>
           )}
-          <span style={{ display: 'block', color: '#3c4043', fontSize: 11, marginTop: 5, fontWeight: 700 }}>
+          <span style={{ display: 'block', color: 'var(--mm-text)', fontSize: 11, marginTop: 5, fontWeight: 700 }}>
             Course: {item.coreMastery == null ? 'no evidence yet' : `${Math.round(item.coreMastery * 100)}%`}
             {' · '}
             {item.assessmentProficiency == null || item.evidenceBasis !== 'direct'
               ? 'this format: not practised yet'
               : `this format: ${Math.round(item.assessmentProficiency * 100)}%${item.provisional ? ' (early)' : ''}`}
           </span>
-          <span style={{ display: 'block', color: item.status === READINESS.MAINTENANCE ? '#137333' : '#5b21b6', fontSize: 11.5, marginTop: 5, fontWeight: 900 }}>
+          <span style={{ display: 'block', color: item.status === READINESS.MAINTENANCE ? 'var(--mm-success-text)' : 'var(--mm-accent-text)', fontSize: 11.5, marginTop: 5, fontWeight: 900 }}>
             {stage.label} · {stage.actionLabel}
           </span>
         </div>
         {item.status === READINESS.NOT_AVAILABLE ? (
-          <span style={{ minHeight: 38, display: 'inline-flex', alignItems: 'center', padding: '8px 12px', borderRadius: 8, background: '#f1f3f4', color: '#5f6368', fontWeight: 850, fontSize: 12 }}>
+          <span style={{ minHeight: 38, display: 'inline-flex', alignItems: 'center', padding: '8px 12px', borderRadius: 8, background: 'var(--mm-surface-control)', color: 'var(--mm-text-muted)', fontWeight: 850, fontSize: 12 }}>
             Not available
           </span>
         ) : readOnly ? (
-          <span style={{ minHeight: 38, display: 'inline-flex', alignItems: 'center', padding: '8px 12px', borderRadius: 8, background: '#f1f3f4', color: '#5f6368', fontWeight: 850, fontSize: 12 }}>
+          <span style={{ minHeight: 38, display: 'inline-flex', alignItems: 'center', padding: '8px 12px', borderRadius: 8, background: 'var(--mm-surface-control)', color: 'var(--mm-text-muted)', fontWeight: 850, fontSize: 12 }}>
             Student can practise this
           </span>
         ) : (
@@ -93,7 +94,7 @@ function SkillRow({ item, onPractise, showFramework = false, readOnly = false })
       </div>
       {item.references?.length > 0 && (
         <div style={{ marginTop: 8 }}>
-          <button type="button" onClick={() => setShowReference((value) => !value)} style={{ padding: 0, border: 0, background: 'transparent', color: '#174ea6', fontSize: 11.5, fontWeight: 850, cursor: 'pointer' }}>
+          <button type="button" onClick={() => setShowReference((value) => !value)} style={{ padding: 0, border: 0, background: 'transparent', color: 'var(--mm-primary-text)', fontSize: 11.5, fontWeight: 850, cursor: 'pointer' }}>
             {showReference ? 'Hide official standard connection' : 'Dig deeper into the standard connection'}
           </button>
           {showReference && <div style={{ marginTop: 8 }}><CcmrReferenceList references={item.references} /></div>}
@@ -111,12 +112,12 @@ function PathwayCard({ framework, summary, active, onSelect }) {
       onClick={() => onSelect(framework)}
       style={{
         textAlign: 'left', padding: '14px 16px', borderRadius: 12, minHeight: 96,
-        border: `2px solid ${active ? '#1a73e8' : '#dadce0'}`,
-        background: active ? '#e8f0fe' : '#fff', cursor: 'pointer',
+        border: `2px solid ${active ? '#1a73e8' : 'var(--mm-border)'}`,
+        background: active ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', cursor: 'pointer',
       }}
     >
       <span style={{ display: 'block', fontWeight: 900, fontSize: 16, color: 'var(--mm-text-strong)' }}>{profile?.displayName || FRAMEWORK_LABELS[framework]}</span>
-      <span style={{ display: 'block', color: '#5f6368', fontSize: 12, marginTop: 4, lineHeight: 1.5 }}>
+      <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 12, marginTop: 4, lineHeight: 1.5 }}>
         {summary.readySkills} skill{summary.readySkills === 1 ? '' : 's'} ready
         {' · '}
         {summary.practisedSkills} practised
@@ -124,7 +125,7 @@ function PathwayCard({ framework, summary, active, onSelect }) {
         {summary.maintainedSkills ? ` · ${summary.maintainedSkills} challenge complete` : ''}
       </span>
       {summary.transferGaps > 0 && (
-        <span style={{ display: 'inline-block', marginTop: 6, fontSize: 10, fontWeight: 900, padding: '2px 8px', borderRadius: 999, color: '#a50e0e', background: '#fce8e6' }}>
+        <span style={{ display: 'inline-block', marginTop: 6, fontSize: 10, fontWeight: 900, padding: '2px 8px', borderRadius: 999, color: 'var(--mm-error-text)', background: 'var(--mm-error-bg)' }}>
           {summary.transferGaps} to transfer
         </span>
       )}
@@ -199,9 +200,9 @@ export default function CCMRHub({
 
   if (!pathOptions) {
     return (
-      <section style={{ padding: 16, border: '1px solid #dadce0', borderRadius: 12, background: 'var(--mm-surface)', textAlign: 'left' }}>
-        <h2 style={{ margin: '0 0 8px', fontSize: 18, color: '#174ea6' }}>College, Career &amp; Military Readiness</h2>
-        <p style={{ margin: 0, color: '#5f6368', lineHeight: 1.6 }}>
+      <section style={{ padding: 16, border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)', textAlign: 'left' }}>
+        <h2 style={{ margin: '0 0 8px', fontSize: 18, color: 'var(--mm-primary-text)' }}>College, Career &amp; Military Readiness</h2>
+        <p style={{ margin: 0, color: 'var(--mm-text-muted)', lineHeight: 1.6 }}>
           MathMaster is still resolving your course path, so there is nothing to recommend here yet.
         </p>
       </section>
@@ -210,17 +211,17 @@ export default function CCMRHub({
 
   return (
     <section style={{ textAlign: 'left' }}>
-      <h2 style={{ margin: '0 0 4px', fontSize: 20, color: '#174ea6' }}>College, Career &amp; Military Readiness</h2>
-      <p style={{ margin: '0 0 16px', color: '#5f6368', fontSize: 13, lineHeight: 1.6 }}>
+      <h2 style={{ margin: '0 0 4px', fontSize: 20, color: 'var(--mm-primary-text)' }}>College, Career &amp; Military Readiness</h2>
+      <p style={{ margin: '0 0 16px', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.6 }}>
         The same mathematics you are already learning, in the formats these assessments use.
         Your course path is still your main path — this is here when you want it.
       </p>
 
-      <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 12, background: '#f8f9fa', border: '1px solid #dadce0' }}>
-        <p style={{ margin: '0 0 8px', fontWeight: 800, fontSize: 13, color: '#3c4043' }}>I&apos;m preparing for:</p>
+      <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 12, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border)' }}>
+        <p style={{ margin: '0 0 8px', fontWeight: 800, fontSize: 13, color: 'var(--mm-text)' }}>I&apos;m preparing for:</p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {ASSESSMENT_FRAMEWORKS.map((id) => (
-            <label key={id} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 11px', borderRadius: 999, border: '1px solid #c9ced6', background: 'var(--mm-surface)', fontSize: 13, fontWeight: 700, cursor: 'pointer', minHeight: 40 }}>
+            <label key={id} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 11px', borderRadius: 999, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', fontSize: 13, fontWeight: 700, cursor: 'pointer', minHeight: 40 }}>
               <input
                 type="checkbox"
                 checked={goals.includes(id)}
@@ -232,47 +233,47 @@ export default function CCMRHub({
             </label>
           ))}
         </div>
-        <p style={{ margin: '8px 0 0', color: '#5f6368', fontSize: 12 }}>
+        <p style={{ margin: '8px 0 0', color: 'var(--mm-text-muted)', fontSize: 12 }}>
           {readOnly
             ? 'Teacher read-only view: these are the student’s current CCMR goals. Goals cannot be changed here.'
             : 'Choosing one moves it up your list. It never locks the others away.'}
         </p>
       </div>
 
-      <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 12, background: 'var(--mm-surface)', border: '1px solid #dadce0' }}>
-        <label htmlFor="ccmr-standard-search" style={{ display: 'block', marginBottom: 6, fontWeight: 850, fontSize: 13, color: '#3c4043' }}>Find practice by CCMR standard or skill</label>
+      <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 12, background: 'var(--mm-surface)', border: '1px solid var(--mm-border)' }}>
+        <label htmlFor="ccmr-standard-search" style={{ display: 'block', marginBottom: 6, fontWeight: 850, fontSize: 13, color: 'var(--mm-text)' }}>Find practice by CCMR standard or skill</label>
         <input
           id="ccmr-standard-search"
           type="search"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Try ACT F 502, recursive sequence, SAT nonlinear functions, TSIA2 Algebraic Reasoning, or ASVAB MK"
-          style={{ width: '100%', minHeight: 42, padding: '9px 11px', border: '1px solid #c9ced6', borderRadius: 9, font: 'inherit' }}
+          style={{ width: '100%', minHeight: 42, padding: '9px 11px', border: '1px solid var(--mm-border)', borderRadius: 9, font: 'inherit' }}
         />
-        <p style={{ margin: '7px 0 0', color: '#5f6368', fontSize: 11.5, lineHeight: 1.5 }}>
+        <p style={{ margin: '7px 0 0', color: 'var(--mm-text-muted)', fontSize: 11.5, lineHeight: 1.5 }}>
           Search uses the official identifier each assessment actually publishes. ACT has numbered CCRS standards; Digital SAT and TSIA2 use official skill names; ASVAB uses AR/MK subtest codes.
         </p>
       </div>
 
       {search.trim() && (
-        <section style={{ marginBottom: 18, padding: 14, borderRadius: 12, background: '#f8fbff', border: '1px solid #d9e2f1' }}>
+        <section style={{ marginBottom: 18, padding: 14, borderRadius: 12, background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'baseline', flexWrap: 'wrap', marginBottom: 10 }}>
-            <strong style={{ color: '#174ea6' }}>Practice matches</strong>
-            <span style={{ color: '#5f6368', fontSize: 12 }}>{searchResults.length} matching course skill{searchResults.length === 1 ? '' : 's'}</span>
+            <strong style={{ color: 'var(--mm-primary-text)' }}>Practice matches</strong>
+            <span style={{ color: 'var(--mm-text-muted)', fontSize: 12 }}>{searchResults.length} matching course skill{searchResults.length === 1 ? '' : 's'}</span>
           </div>
           {searchResults.length
             ? searchResults.map((item) => <SkillRow key={`search:${item.framework}:${item.skillId}`} item={item} onPractise={onPractise} showFramework readOnly={readOnly} />)
-            : <p style={{ margin: 0, color: '#5f6368', fontSize: 13, lineHeight: 1.6 }}>No course skill matches that standard or skill. Try a broader term or another assessment identifier.</p>}
+            : <p style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.6 }}>No course skill matches that standard or skill. Try a broader term or another assessment identifier.</p>}
         </section>
       )}
 
       {!offered.length ? (
-        <p style={{ padding: 16, borderRadius: 12, background: 'var(--mm-surface)', border: '1px solid #dadce0', color: '#5f6368', lineHeight: 1.6, margin: 0 }}>
+        <p style={{ padding: 16, borderRadius: 12, background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', color: 'var(--mm-text-muted)', lineHeight: 1.6, margin: 0 }}>
           None of the skills you are ready for are matched to these assessments yet. This will fill in
           as your class moves through the year.
         </p>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 10, marginBottom: 18 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: 10, marginBottom: 18 }}>
           {offered.map((id) => (
             <PathwayCard
               key={id}
@@ -286,24 +287,24 @@ export default function CCMRHub({
       )}
 
       {active && (
-        <div style={{ border: '1px solid #dadce0', borderRadius: 12, background: 'var(--mm-surface)', padding: 16 }}>
+        <div style={{ border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)', padding: 16 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontSize: 17, color: '#174ea6' }}>{active.profile?.displayName} Math</h3>
+            <h3 style={{ margin: 0, fontSize: 17, color: 'var(--mm-primary-text)' }}>{active.profile?.displayName} Math</h3>
             {/* §17 — never trapped in one pathway. */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {offered.filter((id) => id !== framework).map((id) => (
-                <button key={id} type="button" onClick={() => { setFramework(id); setDomainId(null); }} style={{ padding: '6px 11px', borderRadius: 8, border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: 36 }}>
+                <button key={id} type="button" onClick={() => { setFramework(id); setDomainId(null); }} style={{ padding: '6px 11px', borderRadius: 8, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: 36 }}>
                   Switch to {FRAMEWORK_LABELS[id]}
                 </button>
               ))}
-              <button type="button" onClick={() => onReturnToCourse?.()} style={{ padding: '6px 11px', borderRadius: 8, border: '1px solid #c9ced6', background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: 36 }}>
+              <button type="button" onClick={() => onReturnToCourse?.()} style={{ padding: '6px 11px', borderRadius: 8, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: 36 }}>
                 Back to course path
               </button>
             </div>
           </div>
 
           {active.profile && (
-            <p style={{ margin: '0 0 14px', color: '#5f6368', fontSize: 12, lineHeight: 1.55 }}>
+            <p style={{ margin: '0 0 14px', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.55 }}>
               {active.profile.totalQuestions} questions
               {active.profile.secondsPerQuestion ? ` · about ${active.profile.secondsPerQuestion}s each` : ' · untimed'}
               {' · '}
@@ -325,10 +326,10 @@ export default function CCMRHub({
 
           {domainId && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-              <span style={{ fontSize: 12, color: '#3c4043', fontWeight: 800 }}>
+              <span style={{ fontSize: 12, color: 'var(--mm-text)', fontWeight: 800 }}>
                 Showing {activeDomainTitle} only
               </span>
-              <button type="button" onClick={() => setDomainId(null)} style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid #c9ced6', background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: 34 }}>
+              <button type="button" onClick={() => setDomainId(null)} style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, fontSize: 12, cursor: 'pointer', minHeight: 34 }}>
                 Show every part of the test
               </button>
             </div>
@@ -340,7 +341,7 @@ export default function CCMRHub({
               : active[bucket];
             return items.length ? (
               <div key={bucket} style={{ marginBottom: 14 }}>
-                <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4, color: '#5f6368' }}>{title}</p>
+                <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--mm-text-muted)' }}>{title}</p>
                 {items.map((item) => (
                   <SkillRow key={item.skillId} item={item} onPractise={onPractise} readOnly={readOnly} />
                 ))}
@@ -349,7 +350,7 @@ export default function CCMRHub({
           })}
 
           {domainId && !BUCKET_TITLES.some(([bucket]) => active[bucket].some((item) => item.domainId === domainId)) && (
-            <p style={{ margin: 0, color: '#5f6368', fontSize: 13, lineHeight: 1.6 }}>
+            <p style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.6 }}>
               Nothing in {activeDomainTitle} is matched to your skills yet. It will fill in as your class moves
               through the year.
             </p>

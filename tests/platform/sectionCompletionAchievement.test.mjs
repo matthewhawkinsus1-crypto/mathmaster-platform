@@ -17,7 +17,8 @@ test('completed section tabs communicate completion without color alone', () => 
   assert.match(app, /section\.allCorrect \? 'Complete'/);
   assert.match(css, /\.mathmaster-section-tab\.is-complete/);
   assert.match(css, /border: 3px solid #c58a00/);
-  assert.match(css, /background: #fff4ce/);
+  // The warm achievement container, as its themed token.
+  assert.match(css, /background: var\(--mm-warning-soft\)/);
 });
 
 test('finishing a section shows a milestone card and next available section action', () => {

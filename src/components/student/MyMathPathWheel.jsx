@@ -71,22 +71,22 @@ export const MyMathPathWheel = ({
           const passColor = passCount >= 3 ? '#5b21b6' : '#137333';
           return (
             <g key={entry.code} role="button" tabIndex="0" aria-label={`${studentLabelForTeks(entry.code)}: ${status}${passCount ? ` · Path Pass ${Math.min(passCount, 3)} complete` : ''}`} onClick={() => onSelectTEKS?.(entry.code)} onFocus={() => setFocusedTeks(entry.code)} onBlur={() => setFocusedTeks(null)} onMouseEnter={() => setFocusedTeks(entry.code)} onMouseLeave={() => setFocusedTeks(null)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelectTEKS?.(entry.code); } }} style={{ cursor: 'pointer' }}>
-              <path d={describeArc(center, center, innerRadius, active ? outerRadius + 5 : outerRadius, startAngle, endAngle)} fill={MASTERY_STATUS_COLORS[status] || MASTERY_STATUS_COLORS['Not Enough Evidence']} opacity={active ? 1 : 0.9} stroke={passCount ? passColor : '#fff'} strokeWidth={passCount ? 3 : 2} />
-              {passCount > 0 && <circle cx={passBadge.x} cy={passBadge.y} r="4.5" fill={passColor} stroke="#fff" strokeWidth="1.5" />}
-              {retentionConcern && <circle cx={badge.x} cy={badge.y} r="5" fill="#d93025" stroke="#fff" strokeWidth="2" />}
+              <path d={describeArc(center, center, innerRadius, active ? outerRadius + 5 : outerRadius, startAngle, endAngle)} fill={MASTERY_STATUS_COLORS[status] || MASTERY_STATUS_COLORS['Not Enough Evidence']} opacity={active ? 1 : 0.9} style={{ stroke: passCount ? passColor : 'var(--mm-surface)' }} strokeWidth={passCount ? 3 : 2} />
+              {passCount > 0 && <circle cx={passBadge.x} cy={passBadge.y} r="4.5" fill={passColor} style={{ stroke: 'var(--mm-surface)' }} strokeWidth="1.5" />}
+              {retentionConcern && <circle cx={badge.x} cy={badge.y} r="5" fill="#d93025" style={{ stroke: 'var(--mm-surface)' }} strokeWidth="2" />}
             </g>
           );
         })}
-        <circle cx={center} cy={center} r={innerRadius - 4} fill="#fff" />
+        <circle cx={center} cy={center} r={innerRadius - 4} style={{ fill: 'var(--mm-surface)' }} />
         {/* The name of the mathematics, not its catalogue number. The code is
             still the wheel's internal key and still what `onSelectTEKS` hands
             back — it is simply not what a student is asked to read. */}
-        <text x={center} y={center - 6} textAnchor="middle" style={{ fontSize: '13px', fontWeight: 800, fill: '#202124' }}>
+        <text x={center} y={center - 6} textAnchor="middle" style={{ fontSize: '13px', fontWeight: 800, fill: 'var(--mm-text-strong)' }}>
           {focusedLabel}
         </text>
-        <text x={center} y={center + 15} textAnchor="middle" style={{ fontSize: '12px', fill: '#5f6368' }}>{focusedTeks ? (activeProfile?.mastery?.status || 'Not practised yet') : 'Choose a skill'}</text>
+        <text x={center} y={center + 15} textAnchor="middle" style={{ fontSize: '12px', fill: 'var(--mm-text-muted)' }}>{focusedTeks ? (activeProfile?.mastery?.status || 'Not practised yet') : 'Choose a skill'}</text>
         {focusedTeks && activePass?.passesCompleted > 0 && (
-          <text x={center} y={center + 32} textAnchor="middle" style={{ fontSize: '10.5px', fontWeight: 800, fill: activePass.passesCompleted >= 3 ? '#5b21b6' : '#137333' }}>
+          <text x={center} y={center + 32} textAnchor="middle" style={{ fontSize: '10.5px', fontWeight: 800, fill: activePass.passesCompleted >= 3 ? 'var(--mm-accent-text)' : 'var(--mm-success-text)' }}>
             Path Pass {Math.min(activePass.passesCompleted, 3)} complete
           </text>
         )}

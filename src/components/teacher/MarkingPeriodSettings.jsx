@@ -29,7 +29,7 @@ import { MIN_TOUCH_TARGET_PX } from '../../platform/mobile/mobileInteractionFoun
 const DEFAULT_TARGET = '__default_current_period__';
 
 const card = {
-  background: 'var(--mm-surface)', border: '1px solid #d8dde6', borderRadius: 12,
+  background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: 12,
   padding: 16, marginBottom: 16, textAlign: 'left',
 };
 
@@ -37,16 +37,16 @@ const button = (primary) => ({
   appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
   minHeight: MIN_TOUCH_TARGET_PX, padding: '9px 14px', borderRadius: 9,
   fontWeight: 900, fontSize: 14, cursor: 'pointer',
-  border: primary ? 0 : '2px solid #c9ced6',
-  background: primary ? '#174ea6' : '#fff',
-  color: primary ? '#fff' : '#3c4043',
+  border: primary ? 0 : '2px solid var(--mm-border)',
+  background: primary ? '#174ea6' : 'var(--mm-surface)',
+  color: primary ? '#fff' : 'var(--mm-text)',
 });
 
 const inputStyle = {
   minHeight: MIN_TOUCH_TARGET_PX,
   padding: '8px 12px',
   borderRadius: 9,
-  border: '1px solid #c9ced6',
+  border: '1px solid var(--mm-border)',
   fontSize: 14,
   background: 'var(--mm-surface)',
   color: 'var(--mm-text-strong)',
@@ -178,14 +178,14 @@ export default function MarkingPeriodSettings({
     <section aria-label="Marking periods">
       <div style={card}>
         <h3 style={{ margin: '0 0 4px', fontSize: 16, color: 'var(--mm-text-strong)' }}>Marking periods</h3>
-        <p style={{ margin: '0 0 14px', fontSize: 13, lineHeight: 1.55, color: '#5f6368' }}>
+        <p style={{ margin: '0 0 14px', fontSize: 13, lineHeight: 1.55, color: 'var(--mm-text-muted)' }}>
           Marking periods group grades for students. Closing a period stops new work being filed into it
           and collapses it on the student Grade Center — it never hides a grade, and it is separate from
           archiving an assignment.
         </p>
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <label htmlFor="marking-period-name" style={{ fontSize: 13, fontWeight: 800, color: '#3c4043' }}>New period</label>
+          <label htmlFor="marking-period-name" style={{ fontSize: 13, fontWeight: 800, color: 'var(--mm-text)' }}>New period</label>
           <input
             id="marking-period-name"
             value={newLabel}
@@ -202,7 +202,7 @@ export default function MarkingPeriodSettings({
       <div style={card}>
         <h3 style={{ margin: '0 0 10px', fontSize: 15, color: 'var(--mm-text-strong)' }}>Existing periods</h3>
         {!periods.length && (
-          <p style={{ margin: 0, fontSize: 13, color: '#5f6368' }}>
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--mm-text-muted)' }}>
             No marking periods yet. Every assignment currently shows to students under “Current Marking Period”,
             which keeps existing grades exactly where they were.
           </p>
@@ -214,16 +214,16 @@ export default function MarkingPeriodSettings({
               key={period.id}
               style={{
                 display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center',
-                justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid #eceff3',
+                justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid var(--mm-border-soft)',
               }}
             >
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontWeight: 900, fontSize: 14, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
                   {period.label}
-                  {isCurrent && <span style={{ marginLeft: 8, padding: '3px 8px', borderRadius: 999, fontSize: 11, background: '#e6f4ea', color: '#12633a' }}>CURRENT</span>}
-                  {period.archived && <span style={{ marginLeft: 8, padding: '3px 8px', borderRadius: 999, fontSize: 11, background: '#f1f3f4', color: '#5f6368' }}>CLOSED</span>}
+                  {isCurrent && <span style={{ marginLeft: 8, padding: '3px 8px', borderRadius: 999, fontSize: 11, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' }}>CURRENT</span>}
+                  {period.archived && <span style={{ marginLeft: 8, padding: '3px 8px', borderRadius: 999, fontSize: 11, background: 'var(--mm-surface-control)', color: 'var(--mm-text-muted)' }}>CLOSED</span>}
                 </div>
-                <div style={{ fontSize: 12, color: '#5f6368' }}>
+                <div style={{ fontSize: 12, color: 'var(--mm-text-muted)' }}>
                   {countFor(period.id, { explicitOnly: true })} assignment(s) placed here
                 </div>
               </div>
@@ -254,17 +254,17 @@ export default function MarkingPeriodSettings({
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <div>
             <h3 style={{ margin: '0 0 4px', fontSize: 15, color: 'var(--mm-text-strong)' }}>File assignments into a marking period</h3>
-            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: '#5f6368' }}>
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: 'var(--mm-text-muted)' }}>
               Choose assignments right here{classLabel ? ` for ${classLabel}` : ''}. The list starts with work that still
               uses the default current period so you can clean up older assignments quickly.
             </p>
           </div>
-          <div style={{ padding: '6px 10px', borderRadius: 999, background: fallbackCount ? '#fef7e0' : '#e6f4ea', color: fallbackCount ? '#7a4d00' : '#12633a', fontSize: 12, fontWeight: 900 }}>
+          <div style={{ padding: '6px 10px', borderRadius: 999, background: fallbackCount ? 'var(--mm-warning-bg)' : 'var(--mm-success-bg)', color: fallbackCount ? 'var(--mm-warning-text)' : 'var(--mm-success-text)', fontSize: 12, fontWeight: 900 }}>
             {fallbackCount} using default current period
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1fr) minmax(180px, 240px)', gap: 8, marginTop: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 8, marginTop: 14 }}>
           <input
             type="search"
             aria-label="Search assignments to file"
@@ -290,7 +290,7 @@ export default function MarkingPeriodSettings({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 12, marginBottom: 8 }}>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 800, color: '#3c4043', cursor: visibleAssignmentIds.length ? 'pointer' : 'default' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13, fontWeight: 800, color: 'var(--mm-text)', cursor: visibleAssignmentIds.length ? 'pointer' : 'default' }}>
             <input
               type="checkbox"
               checked={allVisibleSelected}
@@ -299,22 +299,22 @@ export default function MarkingPeriodSettings({
             />
             Select all {visibleAssignmentIds.length} shown
           </label>
-          <span style={{ fontSize: 12, color: '#5f6368' }}>{selectedCount} selected</span>
+          <span style={{ fontSize: 12, color: 'var(--mm-text-muted)' }}>{selectedCount} selected</span>
           {selectedCount > 0 && (
             <button
               type="button"
               onClick={() => setSelectedIds(new Set())}
               disabled={busy}
-              style={{ border: 0, background: 'transparent', color: '#174ea6', fontWeight: 800, cursor: 'pointer', padding: 4 }}
+              style={{ border: 0, background: 'transparent', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: 'pointer', padding: 4 }}
             >
               Clear selection
             </button>
           )}
         </div>
 
-        <div style={{ border: '1px solid #e1e5eb', borderRadius: 10, overflow: 'hidden' }}>
+        <div style={{ border: '1px solid var(--mm-border-soft)', borderRadius: 10, overflow: 'hidden' }}>
           {!visibleAssignments.length ? (
-            <div style={{ padding: 18, textAlign: 'center', color: '#5f6368', fontSize: 13 }}>
+            <div style={{ padding: 18, textAlign: 'center', color: 'var(--mm-text-muted)', fontSize: 13 }}>
               {assignments.length
                 ? 'No assignments match this search and filter.'
                 : 'No assignments are available for the selected class.'}
@@ -335,9 +335,9 @@ export default function MarkingPeriodSettings({
                       gap: 10,
                       alignItems: 'center',
                       padding: '11px 12px',
-                      borderTop: index ? '1px solid #eceff3' : 0,
+                      borderTop: index ? '1px solid var(--mm-border-soft)' : 0,
                       cursor: busy ? 'default' : 'pointer',
-                      background: selectedIds.has(assignment.id) ? '#f3f7ff' : '#fff',
+                      background: selectedIds.has(assignment.id) ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)',
                     }}
                   >
                     <input
@@ -350,13 +350,13 @@ export default function MarkingPeriodSettings({
                       <span style={{ display: 'block', fontSize: 13, fontWeight: 900, color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
                         {assignment.title || 'Untitled assignment'}
                       </span>
-                      <span style={{ display: 'block', marginTop: 2, fontSize: 11, color: '#5f6368' }}>
+                      <span style={{ display: 'block', marginTop: 2, fontSize: 11, color: 'var(--mm-text-muted)' }}>
                         {formatAssignmentDate(assignment)}
                         {assignment.folder ? ` · ${assignment.folder}` : ''}
                         {assignment.archived ? ' · Archived assignment' : ''}
                       </span>
                     </span>
-                    <span style={{ justifySelf: 'end', textAlign: 'right', fontSize: 11, fontWeight: 800, color: resolved.isFallback ? '#7a4d00' : '#5f6368' }}>
+                    <span style={{ justifySelf: 'end', textAlign: 'right', fontSize: 11, fontWeight: 800, color: resolved.isFallback ? 'var(--mm-warning-text)' : 'var(--mm-text-muted)' }}>
                       {placement}
                     </span>
                   </label>
@@ -366,8 +366,8 @@ export default function MarkingPeriodSettings({
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 12, paddingTop: 12, borderTop: '1px solid #eceff3' }}>
-          <label htmlFor="marking-period-target" style={{ fontSize: 13, fontWeight: 900, color: '#3c4043' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--mm-border-soft)' }}>
+          <label htmlFor="marking-period-target" style={{ fontSize: 13, fontWeight: 900, color: 'var(--mm-text)' }}>
             Move selected to
           </label>
           <select

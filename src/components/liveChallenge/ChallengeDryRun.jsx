@@ -29,7 +29,7 @@ const dryRunButton = {
   minHeight: 44,
   padding: '9px 14px',
   borderRadius: 8,
-  border: '1px solid #b7bec8',
+  border: '1px solid var(--mm-border)',
   background: 'var(--mm-surface)',
   fontWeight: 900,
   cursor: 'pointer',
@@ -39,7 +39,7 @@ const panel = {
   padding: 18,
   borderRadius: 14,
   background: 'var(--mm-surface)',
-  border: '1px solid #d8dde6',
+  border: '1px solid var(--mm-border)',
   textAlign: 'left',
 };
 
@@ -134,7 +134,7 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
     return (
       <section style={panel}>
         <h3 style={{ marginTop: 0 }}>Dry run</h3>
-        <p role="alert" style={{ color: '#a50e0e' }}>{error}</p>
+        <p role="alert" style={{ color: 'var(--mm-error-text)' }}>{error}</p>
         <button type="button" onClick={close} style={dryRunButton}>Back</button>
       </section>
     );
@@ -173,16 +173,16 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
   const advance = () => { setRoundIndex((current) => current + 1); setRoundStartedAt(Date.now()); };
 
   const controls = (
-    <section style={{ ...panel, background: '#fef7e0', border: '2px solid #f9ab00' }}>
+    <section style={{ ...panel, background: 'var(--mm-warning-bg)', border: '2px solid #f9ab00' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         <div>
           <strong style={{ display: 'block', fontSize: 17 }}>Dry run — no students are in this</strong>
           {dryRun.challengeMode === 'solverRace' && (
-            <span style={{ display: 'block', color: '#174ea6', fontWeight: 800 }}>
+            <span style={{ display: 'block', color: 'var(--mm-primary-text)', fontWeight: 800 }}>
               Round {roundIndex + 1} of {dryRun.rounds.length} · {round?.question?.tool?.challengeFamily || 'Solver Race'} · {round?.question?.tool?.difficultyBand || ''}
             </span>
           )}
-          <span style={{ color: '#5f4400' }}>
+          <span style={{ color: 'var(--mm-warning-text)' }}>
             Nothing here is invited, scored or recorded. Swap any round you would not want a class to see.
           </span>
         </div>
@@ -214,16 +214,16 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
             onClick={() => setView(id)}
             style={{
               ...dryRunButton,
-              background: view === id ? '#174ea6' : '#fff',
-              color: view === id ? '#fff' : '#3c4043',
-              border: view === id ? 0 : '1px solid #b7bec8',
+              background: view === id ? '#174ea6' : 'var(--mm-surface)',
+              color: view === id ? '#fff' : 'var(--mm-text)',
+              border: view === id ? 0 : '1px solid var(--mm-border)',
             }}
           >
             {label}
           </button>
         ))}
       </div>
-      {error && <p role="alert" style={{ color: '#a50e0e', marginBottom: 0 }}>{error}</p>}
+      {error && <p role="alert" style={{ color: 'var(--mm-error-text)', marginBottom: 0 }}>{error}</p>}
     </section>
   );
 
@@ -256,7 +256,7 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
         />
         <section style={panel}>
           <h3 style={{ marginTop: 0 }}>Leaderboard</h3>
-          <p style={{ margin: '0 0 10px', color: '#7a4f00', fontWeight: 700 }}>
+          <p style={{ margin: '0 0 10px', color: 'var(--mm-warning-text)', fontWeight: 700 }}>
             These five are made up, so you can see the shape of a full board. Nobody has joined a dry run.
           </p>
           <Leaderboard rows={SAMPLE_PLAYERS} />
@@ -265,9 +265,9 @@ export default function ChallengeDryRun({ courseId, standardCode, questionStyle 
           <button type="button" onClick={advance} disabled={isLast} style={{ ...dryRunButton, border: 0, background: '#1a73e8', color: '#fff', opacity: isLast ? 0.5 : 1 }}>
             {isLast ? 'Finish & Show Final Standings' : 'Next Round'}
           </button>
-          <button type="button" onClick={close} style={{ ...dryRunButton, color: '#a50e0e' }}>End Challenge Early</button>
+          <button type="button" onClick={close} style={{ ...dryRunButton, color: 'var(--mm-error-text)' }}>End Challenge Early</button>
         </div>
-        <p style={{ margin: 0, color: '#5f6368', fontSize: 13 }}>
+        <p style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 13 }}>
           {paceMode
             ? 'In a real Pace Race, Next Round stays locked until everyone submits or the closing threshold starts and its countdown finishes. Here it is always available, because there is nobody to wait for.'
             : 'In a real Timed Race, Next Round stays locked until everyone who joined has answered or the timer reaches zero. Here it is always available, because there is nobody to wait for.'}

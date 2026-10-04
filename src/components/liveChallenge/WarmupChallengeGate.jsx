@@ -53,9 +53,9 @@ export default function WarmupChallengeGate({
           width: 'min(620px, 100%)',
           padding: '28px 30px',
           borderRadius: 18,
-          background: '#e8f0fe',
+          background: 'var(--mm-primary-soft)',
           border: '3px solid #1a73e8',
-          color: '#174ea6',
+          color: 'var(--mm-primary-text)',
           textAlign: 'left',
           boxShadow: '0 24px 80px rgba(0,0,0,.35)',
         }}>
