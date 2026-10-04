@@ -230,7 +230,7 @@ test('14. student-build inequality: the wrong side shaded, clear of the boundary
 });
 
 test('15. correct work emits no code — on every Phase 2 classifier', () => {
-  const correct = MISCONCEPTION_FIXTURES_PHASE2.filter((entry) => / correct$/.test(entry.name));
+  const correct = MISCONCEPTION_FIXTURES_PHASE2.filter((entry) => entry.name.endsWith(' correct'));
   assert.ok(correct.length >= 7, 'one correct-work fixture per Phase 2 classifier family');
   correct.forEach((entry) => {
     const grading = gradeFixture(entry);
@@ -685,7 +685,7 @@ test('25. #436 families are dispatched by version: no v1 classifier reads a v2 i
     assert.equal(classifyMisconceptions({ question, response, grading, familyValues: instance.values }).evidence, null);
   });
   // The declared classifiers name each family by version.
-  assert.ok(MISCONCEPTION_CLASSIFIERS.every((entry) => !/@2$/.test(entry.id) || !entry.id.startsWith('family:linear')), 'no v2 equation classifier is declared');
+  assert.ok(MISCONCEPTION_CLASSIFIERS.every((entry) => !entry.id.endsWith('@2') || !entry.id.startsWith('family:linear')), 'no v2 equation classifier is declared');
 });
 
 test('26. a wrong special-case reading (No Solution, All Real Numbers, infinite / no-solution systems) invents no code', () => {

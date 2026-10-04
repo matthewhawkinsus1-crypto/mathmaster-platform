@@ -327,7 +327,7 @@ const studentBuildInequalities = (question, work) => {
     task, build, modelingEntries, modelingSent, rewriteRows, workingConstraints, statuses,
   } = studentBuildInequalityState(question, work);
   const {
-    buildConfig, hasBuildSteps, modeling, expectedConstraints, constraintCount,
+    buildConfig, hasBuildSteps, modeling, expectedConstraints,
     askClassification, askVertices, boundaryProbeEnabled, teacherTestPoint,
     testPointReasoningEnabled, allowStudentTestPoint,
   } = task;
