@@ -34,7 +34,7 @@ export const HONORS_COVERAGE_STATUS = Object.freeze({
   NOT_APPROPRIATE: 'NOT APPROPRIATE',
 });
 
-const { BLOCKED, NOT_APPROPRIATE } = HONORS_COVERAGE_STATUS;
+const { BLOCKED, CAPABLE, NOT_APPROPRIATE } = HONORS_COVERAGE_STATUS;
 
 const ALGEBRA_I_ONLY = (concept) => ({
   status: NOT_APPROPRIATE,
@@ -50,19 +50,17 @@ const ALGEBRA_I_ONLY = (concept) => ({
 export const HONORS_FAMILY_AUDIT = Object.freeze({
   'linear.twoStepEquation': Object.freeze({
     algebra1: Object.freeze({
-      status: BLOCKED,
-      reason: 'The family draws a·x + b = c with an integer solution and nothing else. Its only levers are wider number ranges, and the deeper equation work an Honors extension needs (variable terms that cancel, rational coefficients, a coefficient found from a stated solution) is refused or absent in both linear equation families.',
-      missingCapability: 'linear.multiStepEquation: a `solutionCase` knob (one | none | infinite | mixed) — its rule a = c → no_solution refuses these instances today — with an answer key for "No solution" / "All real numbers" that gradeStepAlgebraFinalAnswer can mark (the Step Algebra workspace grader already recognises both outcomes). Or linear.twoStepEquation: `coefficientForm: "fraction"` (rational a and b with an integer solution) or a reverse mode that asks for the coefficient giving a stated solution.',
-      teacherReason: 'MathMaster\'s equation generators only make equations with one whole-number solution, so they cannot yet ask the no-solution, infinitely-many-solutions or rational-coefficient cases an Honors extension needs.',
+      status: CAPABLE,
+      reason: 'Version 2 (pinned with "version": 2) adds the distributive case a(x + b) = c (`distribute`), exact rational coefficients (`coefficientForm: "fraction"`) and exact fraction answers (`solutionForm: "fraction"`), keyed exactly and marked by the shared Step Algebra grader in the browser and on the server. a·x + b = c always has one solution, so an Honors task that needs no-solution or identity equations anchors here and targets linear.multiStepEquation v2. No vetted recipe has been written yet.',
+      teacherReason: 'MathMaster can now generate the distributive and fraction-coefficient equations an Honors extension on this skill needs, but no vetted built-in Honors recipe has been written for it yet, so none is added.',
     }),
     algebra2: Object.freeze(ALGEBRA_I_ONLY('Solving a two-step linear equation')),
   }),
   'linear.multiStepEquation': Object.freeze({
     algebra1: Object.freeze({
-      status: BLOCKED,
-      reason: 'Every instance has exactly one integer solution: the rule a = c → no_solution refuses each equation whose variable terms cancel, so the family cannot ask students to distinguish one, no and infinitely many solutions. Its remaining knobs only widen number ranges.',
-      missingCapability: 'A `solutionCase` knob (one | none | infinite | mixed) with a special-outcome answer key that gradeStepAlgebraFinalAnswer accepts ("No solution" / "All real numbers"; the workspace grader already marks both), and optionally `distribute: true` (a(x + b) on one side, the distributive-property case of A.5A).',
-      teacherReason: 'MathMaster\'s equation generator only makes equations with exactly one whole-number solution, so it cannot yet ask the no-solution and infinitely-many-solutions cases an Honors extension needs.',
+      status: CAPABLE,
+      reason: 'Version 2 (pinned with "version": 2) generates `solutionCase` one | none | infinite | mixed — equations whose variable terms cancel to a false statement or an identity, each verified exactly from the displayed equation — with `distribute` and exact fraction coefficients and answers. The answer key states "No solution" / "All real numbers", and the shared Step Algebra grader marks it identically in the browser and on the server. No vetted recipe has been written yet.',
+      teacherReason: 'MathMaster can now generate the no-solution and infinitely-many-solutions equations an Honors extension on this skill needs, but no vetted built-in Honors recipe has been written for it yet, so none is added.',
     }),
     algebra2: Object.freeze(ALGEBRA_I_ONLY('Solving a linear equation with the variable on both sides')),
   }),
@@ -80,10 +78,9 @@ export const HONORS_FAMILY_AUDIT = Object.freeze({
   }),
   'systems.elimination': Object.freeze({
     algebra1: Object.freeze({
-      status: BLOCKED,
-      reason: 'Every instance is a one-solution system with an integer intersection (det = 0 is refused as coincident), answered as a single ordered pair. requireMatchingCoefficient is already false by default, so the only lever left is larger numbers.',
-      missingCapability: 'A Question Family for systemsWorkspace mode "algebraic" 2×2 systems with a `solutionCase` knob (one | none | infinite | mixed). The workspace and its server grader (systemsWorkspace/algebraic: elimination, substitution and special-case outcomes) already exist; only the generator is missing. Optionally `solutionForm: "fraction"` for non-integer intersections.',
-      teacherReason: 'MathMaster\'s systems generator only makes systems with exactly one whole-number solution, answered as one ordered pair, so it cannot yet ask the no-solution and infinitely-many-solutions cases an Honors extension needs.',
+      status: CAPABLE,
+      reason: 'This family still makes one-solution systems answered as one ordered pair, but systems.algebraic2x2 v1 now generates 2×2 systems with `solutionCase` one | none | infinite | mixed (and exact fractional intersections) in the Systems Workspace\'s algebraic mode, whose shared server grader marks elimination, substitution and the special-case readings. A recipe anchored on this family can target it; none has been written yet.',
+      teacherReason: 'MathMaster can now generate the no-solution and infinitely-many-solutions systems an Honors extension on this skill needs, but no vetted built-in Honors recipe has been written for it yet, so none is added.',
     }),
     algebra2: Object.freeze({
       status: BLOCKED,
@@ -94,16 +91,28 @@ export const HONORS_FAMILY_AUDIT = Object.freeze({
   }),
   'systems.substitution': Object.freeze({
     algebra1: Object.freeze({
-      status: BLOCKED,
-      reason: 'Every instance is a one-solution system with an integer intersection (det = 0 is refused as coincident), answered as a single ordered pair; its knobs only widen ranges.',
-      missingCapability: 'The same systemsWorkspace "algebraic" 2×2 family with a `solutionCase` knob (one | none | infinite | mixed) described for systems.elimination; substitution is one of that workspace\'s graded methods.',
-      teacherReason: 'MathMaster\'s systems generator only makes systems with exactly one whole-number solution, answered as one ordered pair, so it cannot yet ask the no-solution and infinitely-many-solutions cases an Honors extension needs.',
+      status: CAPABLE,
+      reason: 'This family still makes one-solution systems answered as one ordered pair, but systems.algebraic2x2 v1 (pinnable to `method: "substitution"`) now generates 2×2 systems with `solutionCase` one | none | infinite | mixed in the Systems Workspace\'s algebraic mode, where substitution — isolating, substituting, solving and reading 0 = c — is marked by the shared server grader. A recipe anchored on this family can target it; none has been written yet.',
+      teacherReason: 'MathMaster can now generate the no-solution and infinitely-many-solutions systems an Honors extension on this skill needs, but no vetted built-in Honors recipe has been written for it yet, so none is added.',
     }),
     algebra2: Object.freeze({
       status: BLOCKED,
       reason: 'Algebra II substitution is used on linear-quadratic systems (A2.3C–D), which no registered family generates.',
       missingCapability: 'A Question Family for systemsWorkspace mode "linearQuadratic" (the mode and its server grader exist), with a knob for the number of intersections (0, 1 or 2).',
       teacherReason: 'MathMaster has no generator for linear-quadratic systems yet, so it cannot build a no-AI Algebra II Honors extension for systems by substitution.',
+    }),
+  }),
+  'systems.algebraic2x2': Object.freeze({
+    algebra1: Object.freeze({
+      status: CAPABLE,
+      reason: 'Generates 2×2 systems with `solutionCase` one | none | infinite | mixed — parallel distinct lines, equivalent equations written differently, or an intersection (integer or, with `solutionForm: "fraction"`, exact halves, thirds and quarters) — each classified exactly from the displayed system, answered in the Systems Workspace\'s algebraic mode by substitution or elimination and marked by its shared server grader. No vetted recipe has been written yet.',
+      teacherReason: 'MathMaster can generate the no-solution and infinitely-many-solutions systems an Honors extension on this skill needs, but no vetted built-in Honors recipe has been written for it yet, so none is added.',
+    }),
+    algebra2: Object.freeze({
+      status: BLOCKED,
+      reason: 'Algebra II systems (A2.3A–B) are systems of three linear equations in three variables; two-variable systems, even with no or infinitely many solutions, are Algebra I depth (A.5C).',
+      missingCapability: 'A Question Family that generates 3×3 systems for systemsWorkspace (mode "algebraic" 3×3, "matrix3" or "spatial"). Those modes and their server graders exist, and MathMaster\'s Algebra II Honors 3×3 lessons already use them as hand-authored questions.',
+      teacherReason: 'MathMaster has no generator for three-variable systems yet, so it cannot build a no-AI Algebra II Honors extension for systems.',
     }),
   }),
   'quadratics.identifyVertex': Object.freeze({

@@ -125,6 +125,9 @@ test('the committed report is generated from the live registry and audit, never 
   const parsed = JSON.parse(read(COVERAGE_JSON_PATH));
   assert.deepEqual(parsed.registry, HONORS_RECIPE_REGISTRY.map((recipe) => `${recipe.id}@${recipe.version}`));
   // The headline counts a teacher (or a reviewer) reads.
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 11 \| 4 \| 0 \| 6 \| 1 \|/);
-  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 11 \| 0 \| 0 \| 5 \| 6 \|/);
+  // Algebra I: the equation special cases (linear.multiStepEquation v2,
+  // linear.twoStepEquation v2) and systems.algebraic2x2 made five families
+  // CAPABLE; no recipe exists for them yet.
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra I \| 12 \| 4 \| 5 \| 2 \| 1 \|/);
+  assert.match(read(COVERAGE_MARKDOWN_PATH), /\| Algebra II \| 12 \| 0 \| 0 \| 6 \| 6 \|/);
 });
