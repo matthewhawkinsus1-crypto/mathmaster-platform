@@ -13,6 +13,7 @@
 import { getPlatformQuestionFamily } from '../../../functions/shared/questionFamilyRegistry.mjs';
 import { resolveFamilyConstraints } from '../../../functions/shared/questionFamilyContract.mjs';
 import { gradeServerResponse, gradeToolWork } from '../../../functions/shared/serverGrading/serverResponseGrading.mjs';
+import { MISCONCEPTION_FIXTURES_PHASE2 } from './misconceptionFixturesPhase2.mjs';
 
 /** A built family instance for chosen parameters, exactly as the engine builds one. */
 export const familyInstance = (familyId, params, { tool = 'multiAnswer', constraints = {} } = {}) => {
@@ -180,6 +181,9 @@ export const MISCONCEPTION_FIXTURES = Object.freeze([
   toolCase('relationship model: correct', 'relationshipModel', MODEL, { independentId: 'time', dependentId: 'volume' }, []),
   toolCase('relationship model: exchanged', 'relationshipModel', MODEL, { independentId: 'volume', dependentId: 'time' }, ['independent-dependent-swapped']),
   toolCase('relationship model: a third quantity is not named', 'relationshipModel', MODEL, { independentId: 'volume', dependentId: 'rate' }, []),
+  // --- Phase 2: table workbench, composition, relation mapping, constructed
+  // graphs, data modeling, student-build inequalities, representations board.
+  ...MISCONCEPTION_FIXTURES_PHASE2,
 ]);
 
 /*

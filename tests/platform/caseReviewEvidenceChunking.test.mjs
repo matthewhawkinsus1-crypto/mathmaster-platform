@@ -54,7 +54,7 @@ test('a request is refused above the limit the chunking was sized for, counting 
   assert.equal(repeated.request.assignmentIds.length, max);
 });
 
-test('the callable runs both `in` queries per chunk, never over the whole request', () => {
+test('the callable runs every `in` query per chunk, never over the whole request', () => {
   const callable = region(
     executableSource(readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8')),
     'exports.loadStudentCaseEvidence',
@@ -62,7 +62,9 @@ test('the callable runs both `in` queries per chunk, never over the whole reques
     'loadStudentCaseEvidence',
   );
   const inQueries = [...callable.matchAll(/\.where\(\s*"([^"]+)"\s*,\s*"in"\s*,\s*(\w+)\s*\)/g)];
-  assert.deepEqual(inQueries.map(([, field]) => field).sort(), ['assignmentId', 'source.assignmentId']);
+  // Attempt events and Recovery misconception evidence are both read by
+  // source.assignmentId; receipts by assignmentId.
+  assert.deepEqual(inQueries.map(([, field]) => field).sort(), ['assignmentId', 'source.assignmentId', 'source.assignmentId']);
   for (const [, field, values] of inQueries) {
     assert.notEqual(values, 'assignmentIds', `${field} must be queried per chunk, not with every id at once`);
   }

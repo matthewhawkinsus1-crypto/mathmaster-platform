@@ -33,7 +33,7 @@ const MUTANTS = [
   // The ambiguity rule — the heart of "no false diagnosis".
   { name: 'a blocker match no longer blocks', find: 'if (codes.size !== 1 || codes.has(null)) return null;\n  return [...codes][0];', replace: 'if (codes.size < 1) return null;\n  return [...codes].filter(Boolean)[0] || null;' },
   { name: 'two whole-response patterns no longer cancel', find: "if (codes.size !== 1 || codes.has(null)) return null;\n  return held[0];", replace: 'if (!held.length) return null;\n  return held[0];' },
-  { name: 'a strategy whose value is the answer counts', find: 'filter((candidate) => finite(candidate.value) && !near(candidate.value, correct) && near(value, candidate.value))', replace: 'filter((candidate) => finite(candidate.value) && near(value, candidate.value))' },
+  { name: 'a strategy whose value is the answer counts', find: 'filter((candidate) => finite(candidate.value) && !close(candidate.value, correct) && close(value, candidate.value))', replace: 'filter((candidate) => finite(candidate.value) && close(value, candidate.value))' },
   // Only wrong parts may carry a code.
   { name: 'a correct part counts as wrong', find: "part.isComplete === true && part.isCorrect !== true ? part : null", replace: 'part.isComplete === true ? part : null' },
   // Formulas: each strategy's value.
@@ -54,6 +54,41 @@ const MUTANTS = [
   { name: 'number line: the complement read as a reversed ray', find: "sameEndpoint(want.min, got.max) && want.minClosed === got.maxClosed", replace: 'sameEndpoint(want.min, got.max)' },
   { name: 'number line: inclusion never compared', find: "return inclusionDiffers ? 'endpoint-inclusion-error' : null;", replace: 'return null;' },
   { name: 'relationship model: only the independent choice checked', find: 'values.independentId === dependent && values.dependentId === independent', replace: 'values.independentId === dependent' },
+  // --- Phase 2 -----------------------------------------------------------------------
+  // Table workbench.
+  { name: 'table: the student\'s own Δx and Δy no longer checked', find: 'const ownDifferences = (close(dx, truth.dx) && close(dy, truth.dy)) || (close(dx, -truth.dx) && close(dy, -truth.dy));', replace: 'const ownDifferences = true;' },
+  { name: 'table: click order (both differences negated) refused', find: ' || (close(dx, -truth.dx) && close(dy, -truth.dy));', replace: ';' },
+  { name: 'table: a second wrong rate no longer blocks', find: 'if (inverted > 0 && !otherWrongRate)', replace: 'if (inverted > 0)' },
+  { name: 'table: inverted rate computed as Δy/Δx', find: 'if (close(rate, truth.dx / truth.dy)) inverted += 1;', replace: 'if (close(rate, truth.dy / truth.dx)) inverted += 1;' },
+  { name: 'table: the sign error working back no longer blocks', find: '...rows.map((row) => row.y + fit.m * row.x),', replace: '' },
+  { name: 'table: "subtracted x instead of m·x" no longer blocks', find: '...rows.map((row) => row.y - row.x),', replace: '' },
+  { name: 'table: the starting value named with a wrong slope', find: "if (fit && finite(fit.m) && finite(fit.b) && parts.get('slope')?.isCorrect === true", replace: 'if (fit && finite(fit.m) && finite(fit.b)' },
+  { name: 'table: an earlier reading counts as a later one', find: 'rows.some((row) => row.x > 0 && close(row.y, typedB))', replace: 'rows.some((row) => row.x !== 0 && close(row.y, typedB))' },
+  // Composition lab.
+  { name: 'composition: one exchanged box is enough', find: "if (!close(typedFog, gof) || !close(typedGof, fog)) return [];", replace: "if (!close(typedFog, gof) && !close(typedGof, fog)) return [];" },
+  { name: 'composition: other strategies no longer block', find: 'if (others.some((value) => close(value, typedFog) || close(value, typedGof))) return [];', replace: '' },
+  { name: 'composition: near-equal compositions read', find: 'Math.abs(fog - gof) <= 2 * COMPOSITION_TOLERANCE) return [];', replace: 'Math.abs(fog - gof) <= 0) return [];' },
+  // Relation mapping.
+  { name: 'relation: only the domain box checked', find: 'return sameSet(typedDomain, range) && sameSet(typedRange, domain)', replace: 'return sameSet(typedDomain, range)' },
+  { name: 'relation: a non-number token silently dropped', find: 'return numbers.every((number) => Number.isFinite(number)) ? numbers : null;', replace: 'return numbers.filter((number) => Number.isFinite(number));' },
+  // Constructed graphs.
+  { name: 'graph: the anchor no longer required', find: 'if (!anchors.some(({ point }) => Array.isArray(point) && onStudentLine(point.map(Number)))) return [];', replace: '' },
+  { name: 'graph: a third point off the line ignored', find: 'if (!distinct.every(onStudentLine)) return [];', replace: '' },
+  { name: 'graph: the −1/m blocker removed', find: "    { code: 'slope-sign-reversed', value: -m },\n    { code: null, value: ratio(-1, m) },", replace: "    { code: 'slope-sign-reversed', value: -m }," },
+  // Data modeling.
+  { name: 'data: a borderline association read', find: 'if (opposite && Math.abs(r) >= 0.2 &&', replace: 'if (opposite &&' },
+  { name: 'data: a pre-selected direction read as chosen', find: "if (ownChoices && work.direction === opposite) {", replace: "if (work.direction === opposite) {" },
+  { name: 'data: a correct chosen direction no longer contradicts a flipped r', find: ' && !(ownChoices && work.direction === key.direction)) {', replace: ') {' },
+  { name: 'data: causation named where the key supports it', find: " && question?.causationSupported !== true && wrongPart(parts, 'association')", replace: " && wrongPart(parts, 'association')" },
+  // Student-build inequalities.
+  { name: 'build: style judged on a wrong boundary', find: 'if (!wrongPart(parts, id) || !status.rewriteVerified || !status.boundaryCorrect) return;', replace: 'if (!wrongPart(parts, id) || !status.rewriteVerified) return;' },
+  { name: 'build: a shading point on the boundary read as a side', find: 'distanceToBoundaryLine(constraint, point[0], point[1]) > SHADE_CLEARANCE', replace: 'distanceToBoundaryLine(constraint, point[0], point[1]) > 0' },
+  // Representations board.
+  { name: 'representations: the reading-line blocker removed', find: '...(story ? [-values.readAmount / values.readTime, values.readAmount / values.readTime] : []),', replace: '' },
+  { name: 'representations: the −d/n blocker removed', find: '      const blockers = [\n        -d / n,', replace: '      const blockers = [' },
+  { name: 'representations: the later reading named with a wrong rate', find: "if (story && yWrong && parts.get('slope')?.isCorrect === true) {", replace: 'if (story && yWrong) {' },
+  { name: 'representations: a reading equal to another story number named', find: ' && !others.some((value) => near(value, values.readAmount))', replace: '' },
+  { name: 'representations: only the independent choice checked', find: "      && validateContextField(work.contextDependent, context.independentQuantity).valid) {", replace: ') {' },
   // The gate in front of everything.
   { name: 'correct work is classified', find: "if (!grading || grading.graded !== true || grading.isCorrect === true) return NONE;", replace: "if (!grading || grading.graded !== true) return NONE;" },
 ];

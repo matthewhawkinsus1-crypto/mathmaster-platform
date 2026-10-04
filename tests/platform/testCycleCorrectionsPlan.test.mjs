@@ -9,6 +9,7 @@ import {
   correctionPlanProgress,
   correctionsAreDue,
 } from '../../functions/shared/testCycleCorrections.mjs';
+import { buildMisconceptionEvidence, getMisconceptionCode } from '../../functions/shared/misconceptionCodes.mjs';
 import {
   applyRetestReleased,
   applyTestReleased,
@@ -33,10 +34,15 @@ const BLUEPRINT = {
   ],
 };
 
-// Missed both A.5A items (one with a recorded error pattern), missed one A.7C,
-// got both A.9B right. 3 correct of 6 -> 50%, which is below the 70 pass mark.
+// Missed both A.5A items (one with a server-recorded error pattern), missed one
+// A.7C, got both A.9B right. 3 correct of 6 -> 50%, below the 70 pass mark.
+// The evidence is the canonical provenance block a server classifier writes.
+const SERVER_EVIDENCE = buildMisconceptionEvidence({
+  classifierId: 'family:linear.twoStepEquation@1',
+  findings: [{ code: 'inverse-operation-sign', parts: ['solution'] }],
+});
 const RESPONSES = [
-  { targetId: 't1', slotId: 't1#1', familyId: 'f1', questionInstanceId: 'i1', score: 0, isCorrect: false, misconceptionCode: 'distributes-sign-once' },
+  { targetId: 't1', slotId: 't1#1', familyId: 'f1', questionInstanceId: 'i1', score: 0, isCorrect: false, misconceptionEvidence: SERVER_EVIDENCE },
   { targetId: 't1', slotId: 't1#2', familyId: 'f2', questionInstanceId: 'i2', score: 0, isCorrect: false },
   { targetId: 't2', slotId: 't2#1', familyId: 'g1', questionInstanceId: 'i3', score: 1, isCorrect: true },
   { targetId: 't2', slotId: 't2#2', familyId: 'g2', questionInstanceId: 'i4', score: 0, isCorrect: false },
@@ -95,11 +101,15 @@ test('each correction maps back to the actual failed Test evidence', () => {
   assert.deepEqual(t2.evidence.map((item) => item.questionInstanceId), ['i4'], 'only the missed item, not the correct one');
 });
 
-test('a misconception is named only when the evidence carried one', () => {
+test('a misconception is named only when the evidence carried a trusted, canonical one', () => {
   const built = plan();
   const t1 = built.targets.find((target) => target.targetId === 't1');
   assert.equal(t1.diagnosis, CORRECTION_DIAGNOSIS.MISCONCEPTION);
-  assert.equal(t1.misconception, 'distributes-sign-once');
+  assert.equal(t1.misconception, 'inverse-operation-sign');
+  // One teacher-facing meaning: the registry's own.
+  assert.equal(t1.misconceptionLabel, getMisconceptionCode('inverse-operation-sign').label);
+  assert.equal(t1.misconceptionSource, 'canonical-registry');
+  assert.ok(t1.diagnosisDetail.includes(getMisconceptionCode('inverse-operation-sign').teacherMeaning));
 
   const t2 = built.targets.find((target) => target.targetId === 't2');
   assert.equal(t2.diagnosis, CORRECTION_DIAGNOSIS.STANDARD, 'no error pattern was recorded, so none is invented');

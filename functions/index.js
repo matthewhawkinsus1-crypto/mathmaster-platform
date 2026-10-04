@@ -1270,11 +1270,17 @@ async function sectionRecoveryService() {
     // The context builder (shared with the student app) and the grading
     // actions (server-only: they load every shared tool grader) are two
     // modules so the browser never downloads the graders it does not run.
-    const [service, actions] = await Promise.all([
+    const [service, actions, misconceptionSites] = await Promise.all([
       import("./shared/sectionRecoveryService.mjs"),
       import("./shared/sectionRecoveryActions.mjs"),
+      import("./shared/misconceptionEvidenceSites.mjs"),
     ]);
-    sectionRecoveryServiceModule = { ...service, ...actions };
+    sectionRecoveryServiceModule = {
+      ...service,
+      ...actions,
+      recoveryMisconceptionEvidenceRecords: misconceptionSites.recoveryMisconceptionEvidenceRecords,
+      MISCONCEPTION_EVIDENCE_COLLECTION: misconceptionSites.MISCONCEPTION_EVIDENCE_COLLECTION,
+    };
   }
   return sectionRecoveryServiceModule;
 }
@@ -1385,11 +1391,12 @@ exports.advanceSectionRecovery = onCall(async (request) => {
         sectionModeFor: (role) => serverSectionVariantMode(assignment, role),
         nowValue: Date.now(),
       });
+      const actedAt = Date.now();
       const outcome = service.runSectionRecoveryAction({
         context,
         action,
         payload: request.data?.payload && typeof request.data.payload === "object" ? request.data.payload : {},
-        at: Date.now(),
+        at: actedAt,
       });
       if (outcome.changed) {
         transaction.update(
@@ -1397,6 +1404,22 @@ exports.advanceSectionRecovery = onCall(async (request) => {
           new FieldPath("sectionRecoveryByAssignment", assignmentId, section),
           outcome.record,
         );
+      }
+      // Misconception evidence from items the server legitimately graded —
+      // a side effect, written apart from attempt events (so it never moves
+      // mastery, Path or a Recovery score) under a key fixed by the item, so
+      // a retried transaction writes the same document.
+      if (outcome.changed && Array.isArray(outcome.misconceptionEvidence) && outcome.misconceptionEvidence.length) {
+        service.recoveryMisconceptionEvidenceRecords({
+          entries: outcome.misconceptionEvidence,
+          studentId,
+          assignmentId,
+          section,
+          occurredAt: actedAt,
+        }).forEach((evidenceRecord) => transaction.set(
+          gradeRef.collection(service.MISCONCEPTION_EVIDENCE_COLLECTION).doc(evidenceRecord.eventKey),
+          evidenceRecord,
+        ));
       }
       return {
         action,
@@ -2003,7 +2026,7 @@ exports.loadStudentCaseEvidence = onCall(async (request) => {
   const draftRefs = assignmentIds.map((assignmentId) => db
     .collection(WORKSPACE_DRAFT_COLLECTION)
     .doc(workspaceDraftDocumentId({ studentId, assignmentId })));
-  const [eventSnapshots, receiptSnapshots, draftSnapshots, auditSnapshot] = await Promise.all([
+  const [eventSnapshots, receiptSnapshots, draftSnapshots, auditSnapshot, misconceptionSnapshots] = await Promise.all([
     // By assignment (single-field indexes only), so My Math Path and Live
     // Challenge events never crowd out the assignments asked about.
     Promise.all(chunks.map((ids) => gradeRef.collection("evidenceEvents")
@@ -2018,6 +2041,11 @@ exports.loadStudentCaseEvidence = onCall(async (request) => {
     // Only the Practice Mode fields: a draft's saved work is never read here.
     db.getAll(...draftRefs, { fieldMask: ["practice", "practiceUpdatedAt", "updatedAt"] }),
     gradeRef.collection("gradeOverrideAudits").limit(limits.maxAudits).get(),
+    // Recovery and Recovery Practice misconception evidence (server-only).
+    Promise.all(chunks.map((ids) => gradeRef.collection("misconceptionEvidence")
+      .where("source.assignmentId", "in", ids)
+      .limit(Math.ceil(limits.maxMisconceptionRecords / chunks.length))
+      .get())),
   ]);
 
   const drafts = {};
@@ -2030,6 +2058,7 @@ exports.loadStudentCaseEvidence = onCall(async (request) => {
     receipts: receiptSnapshots.flatMap((snapshot) => snapshot.docs.map((entry) => entry.data() || {})),
     drafts,
     audits: auditSnapshot.docs.map((entry) => entry.data() || {}),
+    misconceptionRecords: misconceptionSnapshots.flatMap((snapshot) => snapshot.docs.map((entry) => ({ id: entry.id, data: entry.data() || {} }))),
     nowMs: Date.now(),
   });
   response.truncated.events = eventSnapshots.some((snapshot) => snapshot.size >= Math.ceil(limits.maxEvents / chunks.length));

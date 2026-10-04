@@ -48,7 +48,23 @@ import { isToolResponse, readToolWork } from './serverGrading/toolResponseContra
 import { lineFeatureKey } from './serverGrading/tools/graphing.mjs';
 import { normalizeIntervals, parseIntervalNotation } from './toolMath/intervalNumberLine/intervalMath.mjs';
 import { readRelationshipModelWork } from './toolMath/scenario/scenarioWork.mjs';
-import { studentBuildInequalityEnabled } from './toolMath/systemsWorkspace/inequalityBuilderAdapter.mjs';
+import { distanceToBoundaryLine, studentBuildInequalityEnabled } from './toolMath/systemsWorkspace/inequalityBuilderAdapter.mjs';
+import { studentBuildInequalityState } from './serverGrading/tools/systemsWorkspace/graphical.mjs';
+import { parseNumericAnswer as parseToolNumber, correlation } from './toolMath/shared/toolMath.mjs';
+import { fitTableLine, intervalTruth, normalizeRows, tableClassification } from './toolMath/linearTableWorkbench/linearTableWorkbenchMath.mjs';
+import {
+  composeValue, evaluateSpecWithDomain, inverseLabFunctions, inverseLabInitialX, inverseLabInputLocked,
+} from './toolMath/inverseComposition/inverseCompositionMath.mjs';
+import { relationPairsOf, sameSet, uniqueSorted } from './serverGrading/tools/relationMapping.mjs';
+import { graphingModeOf, graphingTargetLine } from './toolMath/graphing2/graphingMath.mjs';
+import { formAwareAnchorsForMode } from './toolMath/graphing2/constructionPolicy.mjs';
+import { correlationDescriptor } from './toolMath/dataModeling/dataModelingMath.mjs';
+import { dataModelingPoints } from './toolMath/dataModeling/dataModelingPlan.mjs';
+import { choicesAreOwn } from './toolMath/shared/judgmentChoices.mjs';
+import {
+  parseNumericOrFraction, parseOrderedPair as parseBoardPair, validateContextField,
+} from './toolMath/representationBridge/linearMultipleRepresentationsMath.mjs';
+import { isProcessModeQuestion } from './toolMath/representationBridge/lmrProcessModel.mjs';
 
 const EPSILON = 1e-9;
 const text = (value) => String(value ?? '');
@@ -79,10 +95,10 @@ const pairIn = (part) => (part ? parseOrderedPair(text(part.response)) : null);
  * or null when the value matches nothing, matches the correct answer, matches
  * a blocker, or matches two strategies.
  */
-const uniqueNumericMatch = (value, correct, candidates) => {
+const uniqueNumericMatch = (value, correct, candidates, close = near) => {
   if (!finite(value)) return null;
   // A strategy whose value IS the answer is not a wrong strategy here.
-  const matched = candidates.filter((candidate) => finite(candidate.value) && !near(candidate.value, correct) && near(value, candidate.value));
+  const matched = candidates.filter((candidate) => finite(candidate.value) && !close(candidate.value, correct) && close(value, candidate.value));
   const codes = new Set(matched.map((candidate) => candidate.code));
   if (codes.size !== 1 || codes.has(null)) return null;
   return [...codes][0];
@@ -97,6 +113,15 @@ const uniquePattern = (patterns) => {
 };
 
 const finding = (code, parts) => ({ code, parts });
+
+/*
+ * Values a student typed or plotted, compared at a stated tolerance — used
+ * where the grader itself compares at one (a table interval at 1e-6, a lab
+ * box at 0.02) or where coordinates are stored to six decimals (a snapped
+ * plotted point). `within(t)` is symmetric and never true for a non-number.
+ */
+const within = (tolerance) => (a, b) => finite(a) && finite(b) && Math.abs(a - b) <= tolerance * Math.max(1, Math.abs(a), Math.abs(b));
+const absWithin = (tolerance) => (a, b) => finite(a) && finite(b) && Math.abs(a - b) <= tolerance;
 
 /* ---------------------------------------------------------------------------
  * QUESTION FAMILY CLASSIFIERS — keyed by family id and version, because they
@@ -252,6 +277,85 @@ const FAMILY_CLASSIFIERS = {
     const opposites = near(-low, high);
     return !opposites && sameSet(-low, -high) ? [finding('zeros-sign-reversed', ['smallerZero', 'largerZero'])] : [];
   },
+
+  /*
+   * THE LINEAR REPRESENTATIONS BOARD (representationBridge /
+   * linearMultipleRepresentations), Worksheet mode. The line is the family's
+   * own: slope n/d, y-intercept (0, b), x-intercept (zero, 0); a reading
+   * story also has its later reading (readTime, readAmount). The board's own
+   * parsers read each box (LaTeX included), and the part verdicts are the
+   * server's. Process Mode keeps its facts in a log with its own checks and
+   * is not read here.
+   */
+  'linear.multipleRepresentations@1': ({ question, response, grading, values }) => {
+    if (text(question?.type) !== 'representationBridge' || isProcessModeQuestion(question)) return [];
+    const work = toolWork(response);
+    if (!work) return [];
+    const parts = partsById(grading);
+    const { n, d, b, zero } = values;
+    if (![n, d, b, zero].every(finite) || n === 0 || d === 0) return [];
+    const slope = n / d;
+    const story = finite(values.readAmount) && finite(values.readTime) && finite(values.rate) && finite(values.per);
+    const findings = [];
+
+    // Slope: Δx/Δy, or the opposite. A reading story's other rate readings
+    // (the stated rate without its period, the line through the origin and
+    // the reading) and a non-story's rise without its run are recognized and
+    // never named.
+    if (wrongPart(parts, 'slope')) {
+      // −d/n ties with −m when |m| = 1. A reading story's line through the
+      // origin and its reading (−readAmount/readTime) can equal d/n (2 lost
+      // every 3 minutes, 18 left at minute 12: both −3/2). The family's
+      // rules already keep the stated rate without its period (−rate) and a
+      // non-story's rise without its run (n) off d/n and −m.
+      const blockers = [
+        -d / n,
+        ...(story ? [-values.readAmount / values.readTime, values.readAmount / values.readTime] : []),
+      ];
+      const code = uniqueNumericMatch(parseNumericOrFraction(work.featureSlope)?.number, slope, [
+        { code: 'slope-run-over-rise', value: d / n },
+        { code: 'slope-sign-reversed', value: -slope },
+        ...blockers.map((value) => ({ code: null, value })),
+      ]);
+      if (code) findings.push(finding(code, ['slope']));
+    }
+
+    // The later reading as the start: the rate is right (the slope part is
+    // graded correct), and the y-intercept is exactly (0, readAmount) — a
+    // number the story states once, that no other story number equals.
+    const xWrong = wrongPart(parts, 'xIntercept');
+    const yWrong = wrongPart(parts, 'yIntercept');
+    if (story && yWrong && parts.get('slope')?.isCorrect === true) {
+      const Y = parseBoardPair(work.featureYIntercept);
+      const others = [values.rate, -values.rate, values.per, zero, values.readTime, values.remaining, -b, slope, d / n];
+      if (Y && near(Y[0], 0) && near(Y[1], values.readAmount) && !others.some((value) => near(value, values.readAmount))) {
+        findings.push(finding('initial-value-from-later-reading', ['yIntercept']));
+      }
+    }
+
+    // The two intercepts exchanged, or each written (y, x).
+    if (xWrong && yWrong) {
+      const X = parseBoardPair(work.featureXIntercept);
+      const Y = parseBoardPair(work.featureYIntercept);
+      if (X && Y) {
+        const matched = uniquePattern([
+          { code: 'intercepts-swapped', holds: (nearPair(X, 0, b) || nearPair(X, b, 0)) && (nearPair(Y, zero, 0) || nearPair(Y, 0, zero)) },
+          { code: 'ordered-pair-reversed', holds: nearPair(X, 0, zero) && nearPair(Y, b, 0) },
+        ]);
+        if (matched) findings.push(finding(matched.code, ['xIntercept', 'yIntercept']));
+      }
+    }
+
+    // The two quantities exchanged, read against the slot's own context.
+    const context = question?.source?.context || question?.context || {};
+    if (wrongPart(parts, 'contextIndependent') && wrongPart(parts, 'contextDependent')
+      && context.independentQuantity != null && context.dependentQuantity != null
+      && validateContextField(work.contextIndependent, context.dependentQuantity).valid
+      && validateContextField(work.contextDependent, context.independentQuantity).valid) {
+      findings.push(finding('independent-dependent-swapped', ['contextIndependent', 'contextDependent']));
+    }
+    return findings;
+  },
 };
 
 /*
@@ -334,8 +438,8 @@ const TOOL_CLASSIFIERS = {
   },
 
   // Legacy inequality construction: per boundary, its points, style and shading.
-  'systemsWorkspace/inequalities': ({ question, grading }) => {
-    if (studentBuildInequalityEnabled(question)) return [];
+  'systemsWorkspace/inequalities': ({ question, response, grading }) => {
+    if (studentBuildInequalityEnabled(question)) return studentBuildInequalityFindings({ question, response, grading });
     const parts = partsById(grading);
     const findings = [];
     const styleParts = [];
@@ -389,6 +493,322 @@ const TOOL_CLASSIFIERS = {
       ? [finding('independent-dependent-swapped', ['independent', 'dependent'])]
       : [];
   },
+
+  // --- Phase 2 ------------------------------------------------------------------
+  'linearTableWorkbench/constantRate': (input) => classifyTableWorkbench(input),
+  'linearTableWorkbench/repairValue': (input) => classifyTableWorkbench(input),
+  'linearTableWorkbench/deriveEquation': (input) => classifyTableWorkbench(input),
+  'inverseCompositionLab/full': (input) => classifyCompositionOrder(input),
+  'inverseCompositionLab/composition': (input) => classifyCompositionOrder(input),
+  'relationMapping/default': (input) => classifyDomainRangeSwap(input),
+  'graphing2/slopeIntercept': (input) => classifyConstructedSlope(input),
+  'graphing2/pointSlope': (input) => classifyConstructedSlope(input),
+  'graphing2/factoredLinear': (input) => classifyConstructedSlope(input),
+  'graphing2/standardForm': (input) => classifyConstructedSlope(input),
+  'dataModelingLab/full': (input) => classifyCorrelation(input),
+  'dataModelingLab/unrecognized': (input) => classifyCorrelation(input),
+  'dataModelingLab/association': (input) => classifyCorrelation(input),
+  'dataModelingLab/correlation': (input) => classifyCorrelation(input),
+};
+
+/* ---------------------------------------------------------------------------
+ * PHASE 2 TOOL CLASSIFIERS. Each reads the work with the helpers its grader
+ * reads it with, recomputes the truth from the authoritative question, and
+ * names a strategy only where the structured work pins it down. Each one's
+ * evidence, blockers, ties, exclusivity and coexistence are tabled in
+ * docs/architecture/MISCONCEPTION_EVIDENCE.md.
+ * ------------------------------------------------------------------------- */
+
+// A table row index, as the workbench grader reads one.
+const rowIndexOf = (value) => {
+  if (typeof value === 'number') return Number.isInteger(value) && value >= 0 ? value : null;
+  if (typeof value === 'string' && /^(0|[1-9]\d*)$/.test(value)) return Number(value);
+  return null;
+};
+const typedNumber = (value) => (typeof value === 'string' || typeof value === 'number' ? parseToolNumber(String(value)) : null);
+
+/*
+ * LINEAR TABLE WORKBENCH.
+ *
+ *   Rate inverted (slope-run-over-rise), per recorded interval: the student's
+ *   own Δx and Δy are right (in increasing-x order, or both negated for the
+ *   order the rows were clicked), and the rate typed is exactly Δx/Δy where
+ *   |Δx| ≠ |Δy|. Boxes typed into each other (Δy in the Δx box) are not this.
+ *   An interval with right Δx and Δy and a DIFFERENT wrong rate is a second
+ *   strategy in the same work: no code.
+ *
+ *   Derive the equation: the slope box, as the line-features slope (1/m, −m;
+ *   −1/m a blocker); and the later reading as the starting value — the slope
+ *   is graded right, the b box is graded wrong, the equation box is not graded
+ *   right, and b equals the y of exactly one row with x > 0. Blockers: the
+ *   sign error working back to x = 0 (y_j + m·x_j for any row), "subtracted x
+ *   instead of m·x" (y_j − x_j), −b and m.
+ */
+const classifyTableWorkbench = ({ question, response, grading }) => {
+  const work = toolWork(response);
+  if (!work) return [];
+  const parts = partsById(grading);
+  const rows = normalizeRows(question?.rows);
+  const close = absWithin(1e-6);
+  const findings = [];
+
+  const intervalRateParts = [];
+  if (wrongPart(parts, 'evidenceAccuracy')) {
+    let inverted = 0;
+    let otherWrongRate = false;
+    list(work.intervals).forEach((raw) => {
+      const entry = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+      const i = rowIndexOf(entry.i);
+      const j = rowIndexOf(entry.j);
+      const truth = i === null || j === null ? null : intervalTruth(rows[i], rows[j]);
+      if (!truth) return;
+      const [dx, dy, rate] = [typedNumber(entry.dx), typedNumber(entry.dy), typedNumber(entry.rate)];
+      if (![dx, dy, rate].every(finite)) return;
+      const ownDifferences = (close(dx, truth.dx) && close(dy, truth.dy)) || (close(dx, -truth.dx) && close(dy, -truth.dy));
+      if (!ownDifferences || close(rate, truth.rate)) return;
+      // Δx/Δy is never the rate here: equal to it only when |Δx| = |Δy|, and
+      // then a rate equal to the truth has already returned above.
+      if (close(rate, truth.dx / truth.dy)) inverted += 1;
+      else otherWrongRate = true;
+    });
+    if (inverted > 0 && !otherWrongRate) intervalRateParts.push('evidenceAccuracy');
+  }
+
+  const mode = text(grading?.mode);
+  const fit = mode === 'deriveEquation' && rows.length >= 2 && tableClassification(rows) === 'linear' ? fitTableLine(rows) : null;
+  const slopeClose = absWithin(1e-4);
+  let slopeCode = null;
+  if (fit && finite(fit.m) && finite(fit.b) && wrongPart(parts, 'slope')) {
+    slopeCode = uniqueNumericMatch(typedNumber(work.m), fit.m, [
+      { code: 'slope-run-over-rise', value: ratio(1, fit.m) },
+      { code: 'slope-sign-reversed', value: fit.m === 0 ? null : -fit.m },
+      { code: null, value: ratio(-1, fit.m) },
+    ], slopeClose);
+  }
+  const runOverRiseParts = [...intervalRateParts, ...(slopeCode === 'slope-run-over-rise' ? ['slope'] : [])];
+  if (runOverRiseParts.length) findings.push(finding('slope-run-over-rise', runOverRiseParts));
+  if (slopeCode === 'slope-sign-reversed') findings.push(finding('slope-sign-reversed', ['slope']));
+
+  if (fit && finite(fit.m) && finite(fit.b) && parts.get('slope')?.isCorrect === true
+    && wrongPart(parts, 'intercept') && parts.get('equation')?.isCorrect !== true) {
+    // A linear table with m ≠ 0 holds each y once, so a matching row is the
+    // one reading the value came from; with m = 0 every row holds b, which
+    // the wrong intercept part rules out.
+    const typedB = typedNumber(work.b);
+    const blockers = [
+      -fit.b,
+      fit.m,
+      ...rows.map((row) => row.y + fit.m * row.x),
+      ...rows.map((row) => row.y - row.x),
+    ];
+    if (rows.some((row) => row.x > 0 && close(row.y, typedB)) && !blockers.some((value) => close(value, typedB))) {
+      findings.push(finding('initial-value-from-later-reading', ['intercept']));
+    }
+  }
+  return findings;
+};
+
+/*
+ * INVERSE / COMPOSITION LAB — composition order exchanged. The lab's two boxes
+ * name their order ((f ∘ g)(x) and (g ∘ f)(x)), so the order the student used
+ * for each is read from its value: both boxes graded wrong, each holding the
+ * OTHER composition at the server's x (the grader's 0.02 tolerance), the two
+ * compositions more than twice that apart, and neither value also another
+ * modeled strategy. One box exchanged and the other right is the same value
+ * twice — no code.
+ */
+const COMPOSITION_TOLERANCE = 0.02;
+const classifyCompositionOrder = ({ question, response, grading }) => {
+  const parts = partsById(grading);
+  if (!wrongPart(parts, 'fog') || !wrongPart(parts, 'gof')) return [];
+  const work = toolWork(response);
+  if (!work) return [];
+  const { f, g } = inverseLabFunctions(question || {});
+  const x = inverseLabInputLocked(question || {})
+    ? Number(inverseLabInitialX(question || {}))
+    : (typeof work.x === 'string' || typeof work.x === 'number' ? Number(work.x) : Number.NaN);
+  const fog = composeValue(f, g, x);
+  const gof = composeValue(g, f, x);
+  if (!finite(fog) || !finite(gof) || Math.abs(fog - gof) <= 2 * COMPOSITION_TOLERANCE) return [];
+  const close = absWithin(COMPOSITION_TOLERANCE);
+  const typedFog = typedNumber(work.fogAnswer);
+  const typedGof = typedNumber(work.gofAnswer);
+  if (!close(typedFog, gof) || !close(typedGof, fog)) return [];
+  const fx = evaluateSpecWithDomain(f, x);
+  const gx = evaluateSpecWithDomain(g, x);
+  const others = [fx * gx, fx + gx, composeValue(f, f, x), composeValue(g, g, x), fx, gx].filter(finite);
+  if (others.some((value) => close(value, typedFog) || close(value, typedGof))) return [];
+  return [finding('composition-order-reversed', ['fog', 'gof'])];
+};
+
+/*
+ * RELATION MAPPING — domain and range exchanged. Every token of each typed
+ * list must be a number (one enclosing { } or [ ] allowed), so a formatting
+ * slip is never read as a reversal; the typed domain is exactly the range set
+ * and the typed range exactly the domain set; the two sets differ.
+ */
+const strictNumberList = (value) => {
+  if (typeof value !== 'string') return null;
+  const inner = value.trim().replace(/^\{(.*)\}$/s, '$1').replace(/^\[(.*)\]$/s, '$1');
+  const tokens = inner.split(/[,;]/).map((token) => token.trim().replace(/−/g, '-'));
+  if (!tokens.length || tokens.some((token) => token === '')) return null;
+  const numbers = tokens.map(Number);
+  return numbers.every((number) => Number.isFinite(number)) ? numbers : null;
+};
+const classifyDomainRangeSwap = ({ question, response, grading }) => {
+  const parts = partsById(grading);
+  if (!wrongPart(parts, 'domain') || !wrongPart(parts, 'range')) return [];
+  const work = toolWork(response);
+  if (!work) return [];
+  const pairs = relationPairsOf(question?.pairs);
+  if (!pairs.length) return [];
+  const domain = uniqueSorted(pairs.map(([x]) => x));
+  const range = uniqueSorted(pairs.map(([, y]) => y));
+  // When the domain IS the range, an exchanged answer is the right answer,
+  // and both parts graded wrong already rules it out.
+  const typedDomain = strictNumberList(work.domainText);
+  const typedRange = strictNumberList(work.rangeText);
+  if (!typedDomain || !typedRange) return [];
+  return sameSet(typedDomain, range) && sameSet(typedRange, domain)
+    ? [finding('domain-range-swapped', ['domain', 'range'])]
+    : [];
+};
+
+/*
+ * GRAPHING2 — the slope of a constructed line. Only the plotted points are
+ * stored, so the student's slope is read from them, and only when the
+ * construction leaves one explanation: every plotted point is on one
+ * non-vertical line, that line passes EXACTLY through the point the
+ * question's form gives (the y-intercept of y = mx + b, the given point of
+ * point-slope, the x-intercept of a(x − c), an intercept of Ax + By = C), and
+ * its slope is exactly 1/m or −m (−1/m and any tie a blocker). A line that
+ * misses the anchor has two errors in it (where it starts and how it climbs):
+ * no code. The target slope comes from the authored fields, never from the
+ * eight-place rounding the grader's line carries.
+ */
+const authoredGraphSlope = (question, mode) => {
+  if (mode === 'slopeIntercept') return Number(question?.line?.m ?? graphingTargetLine(question)?.m);
+  if (mode === 'pointSlope') return Number(question?.slope);
+  if (mode === 'factoredLinear') return Number(question?.factored?.a);
+  if (mode === 'standardForm') {
+    const A = Number(question?.standard?.A);
+    const B = Number(question?.standard?.B);
+    return B === 0 ? Number.NaN : -A / B;
+  }
+  return Number.NaN;
+};
+const classifyConstructedSlope = ({ question, response }) => {
+  const work = toolWork(response);
+  if (!work || !Array.isArray(work.points)) return [];
+  const points = work.points.filter((point) => Array.isArray(point) && point.length === 2 && point.every((value) => typeof value === 'number' && Number.isFinite(value)));
+  if (points.length !== work.points.length) return [];
+  const distinct = points.filter((point, index) => points.findIndex((other) => Math.abs(other[0] - point[0]) < 1e-9 && Math.abs(other[1] - point[1]) < 1e-9) === index);
+  if (distinct.length < 2) return [];
+  const mode = graphingModeOf(question || {});
+  const target = graphingTargetLine(question || {});
+  const m = authoredGraphSlope(question || {}, mode);
+  if (!target || target.kind !== 'slopeIntercept' || !finite(m) || m === 0) return [];
+  const [first, second] = distinct;
+  if (Math.abs(second[0] - first[0]) < 1e-9) return [];
+  const slope = (second[1] - first[1]) / (second[0] - first[0]);
+  const close = within(1e-6);
+  const onStudentLine = ([x, y]) => close(y, first[1] + slope * (x - first[0]));
+  if (!distinct.every(onStudentLine)) return [];
+  const anchors = formAwareAnchorsForMode(mode, question || {}, target).anchors || [];
+  if (!anchors.some(({ point }) => Array.isArray(point) && onStudentLine(point.map(Number)))) return [];
+  const code = uniqueNumericMatch(slope, m, [
+    { code: 'slope-run-over-rise', value: ratio(1, m) },
+    { code: 'slope-sign-reversed', value: -m },
+    { code: null, value: ratio(-1, m) },
+  ], close);
+  return code ? [finding(code, ['line'])] : [];
+};
+
+/*
+ * DATA MODELING LAB — the direction of the association, and a causation claim.
+ *
+ *   Direction reversed: r from the authoritative points (as the grader
+ *   computes it) has |r| ≥ 0.2, so the direction is not borderline; the
+ *   student chose the opposite direction in a graded part that is wrong, or
+ *   typed r with the opposite sign (within the grader's tolerance of −r).
+ *   The chosen direction counts only when the work says its choices are the
+ *   student's own (older work could hold a pre-selected "positive"), and a
+ *   correct chosen direction beside a sign-flipped r is a contradiction: no
+ *   code.
+ *
+ *   Causation: the structured causation choice is exactly "causation", the
+ *   question does not mark causation as supported, and the association part
+ *   is wrong. A selection, never text. Coexists with the direction code.
+ */
+const classifyCorrelation = ({ question, response, grading }) => {
+  const work = toolWork(response);
+  if (!work) return [];
+  const parts = partsById(grading);
+  const r = correlation(dataModelingPoints(question || {}));
+  if (!finite(r)) return [];
+  const key = correlationDescriptor(r);
+  const opposite = { positive: 'negative', negative: 'positive' }[key.direction];
+  const ownChoices = choicesAreOwn(work);
+  const findings = [];
+  if (opposite && Math.abs(r) >= 0.2 && !(ownChoices && work.direction === key.direction)) {
+    const reversed = [];
+    if (ownChoices && work.direction === opposite) {
+      ['association', 'correlationInterpretation'].forEach((id) => { if (wrongPart(parts, id)) reversed.push(id); });
+    }
+    if (wrongPart(parts, 'correlation')) {
+      const typedR = typedNumber(work.r);
+      const tolerance = Number(question?.correlationTolerance ?? 0.03);
+      if (finite(typedR) && Math.abs(typedR + r) <= tolerance) reversed.push('correlation');
+    }
+    if (reversed.length) findings.push(finding('correlation-direction-reversed', reversed));
+  }
+  if (ownChoices && work.causation === 'causation' && question?.causationSupported !== true && wrongPart(parts, 'association')) {
+    findings.push(finding('correlation-treated-as-causation', ['association']));
+  }
+  return findings;
+};
+
+/*
+ * SYSTEMS WORKSPACE, STUDENT-BUILD INEQUALITIES. One graded part per
+ * constraint folds rewrite, boundary, style and shading together, so each
+ * step's status is recomputed by the grader's own state function. A style or
+ * shading code is named on a constraint graded wrong whose rewrite (if asked)
+ * verified and whose boundary is right:
+ *
+ *   boundary style — a style was chosen, and it is the other one;
+ *   shaded side    — the shading point is on the other side of the boundary,
+ *                    and clear of it (> 0.25), so the student's own line and
+ *                    the authoritative one agree which side it is on.
+ *
+ * Modeling questions are graded against the student's own model and are not
+ * read here. A wrong boundary line (equation or construction) is not named:
+ * from the stored line alone a wrong slope, a wrong intercept and a rewrite
+ * slip cannot be told apart.
+ */
+const SHADE_CLEARANCE = 0.25;
+const studentBuildInequalityFindings = ({ question, response, grading }) => {
+  if (question?.modeling) return [];
+  const work = toolWork(response);
+  if (!work) return [];
+  const parts = partsById(grading);
+  const { task, build, workingConstraints, statuses } = studentBuildInequalityState(question, work);
+  const { buildConfig } = task;
+  const styleParts = [];
+  const shadeParts = [];
+  statuses.forEach((status, index) => {
+    const id = `constraint-${index + 1}`;
+    if (!wrongPart(parts, id) || !status.rewriteVerified || !status.boundaryCorrect) return;
+    const row = build[index];
+    const constraint = workingConstraints[index];
+    // (A constraint with no style chosen is incomplete, so never reaches here.)
+    if (buildConfig.lineStyle && !status.styleCorrect) styleParts.push(id);
+    const point = row?.shadePoint;
+    if (buildConfig.shading && point && !status.shadeCorrect && distanceToBoundaryLine(constraint, point[0], point[1]) > SHADE_CLEARANCE) shadeParts.push(id);
+  });
+  return [
+    ...(styleParts.length ? [finding('inequality-boundary-style', styleParts)] : []),
+    ...(shadeParts.length ? [finding('inequality-shaded-wrong-side', shadeParts)] : []),
+  ];
 };
 
 const sameEndpoint = (a, b) => a === b || near(a, b);

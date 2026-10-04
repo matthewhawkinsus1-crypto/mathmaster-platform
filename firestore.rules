@@ -774,6 +774,17 @@ service cloud.firestore {
         allow read: if rootAdmin() || ownsStudent(studentId) || authorizedTeacher();
         allow create, update, delete: if false;
       }
+
+      // Misconception evidence from Section Recovery and Recovery Practice
+      // items (functions/shared/misconceptionEvidenceSites.mjs). Teacher
+      // evidence, never a grade: written only by the advanceSectionRecovery
+      // callable (Admin SDK) and read only by the case review callable
+      // (loadStudentCaseEvidence), which authorizes the teacher. No browser
+      // reads or writes it — a forged record could otherwise become evidence,
+      // and a student's own codes are not shown to students.
+      match /misconceptionEvidence/{recordId} {
+        allow read, write: if false;
+      }
     }
 
     // Persistent teacher support / intervention history. This is deliberately

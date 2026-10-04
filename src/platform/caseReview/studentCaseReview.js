@@ -320,7 +320,15 @@ export const buildStudentCaseReview = ({
     questions: allQuestions,
     assignmentRows: entries.map((entry) => ({ assignmentId: entry.assignmentId, title: entry.title, condition: entry.condition, isAssessment: entry.isTestCycle || ['quiz', 'test'].includes(entry.typeKey), score: entry.score, status: entry.status })),
   });
-  const errorPatterns = analyzeErrorPatterns({ questions: allQuestions });
+  const caseAssignmentIds = new Set(entries.map((entry) => entry.assignmentId));
+  const errorPatterns = analyzeErrorPatterns({
+    questions: allQuestions,
+    // Recovery and Recovery Practice items graded by the server, for the
+    // assignments in this case (loadStudentCaseEvidence → misconceptionEvidence).
+    recoveryEvidence: evidenceLoaded
+      ? list(caseEvidence.misconceptionEvidence).filter((record) => caseAssignmentIds.has(record?.source?.assignmentId))
+      : [],
+  });
   const completionRows = entries.map((entry) => entry.completion);
   const completionSummary = summarizeCompletion(completionRows);
 

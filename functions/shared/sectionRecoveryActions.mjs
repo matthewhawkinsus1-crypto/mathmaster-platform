@@ -41,6 +41,8 @@ import {
   sanitizeReportedClassification,
 } from './sectionRecoveryEvidence.mjs';
 import { reproduceFamilyQuestionFromPin } from './questionFamilyInstance.mjs';
+import { getPlatformQuestionFamily } from './questionFamilyRegistry.mjs';
+import { gradedResponseMisconceptionEvidence, MISCONCEPTION_EVIDENCE_KINDS } from './misconceptionEvidenceSites.mjs';
 import { ALLOCATION_BASIS, allocationIndexFor, normalizeDeliveryPin } from './questionGenerationIdentity.mjs';
 import { deliveredQuestionForGrading, runtimeRepairedQuestion } from './serverGrading/deliveredQuestion.mjs';
 import { gradeFamilyInstanceResponse, serverResponseGradingSupport } from './serverGrading/serverResponseGrading.mjs';
@@ -68,6 +70,46 @@ const reproduceDeliveredFamilyQuestion = ({ question, assignmentId, storageIndex
 };
 
 const refuse = (code, message) => { throw new RecoveryTransitionError(code, message); };
+
+/*
+ * MISCONCEPTION EVIDENCE FROM A RECOVERY OR PRACTICE ITEM — A SIDE EFFECT.
+ *
+ * Read only from an item the server rebuilt from its own pin and graded:
+ * never from a platform-unavailable, needs-review, unanswered or held item,
+ * never from a forfeit, never from a teacher's repair. The descriptor goes
+ * beside the action's outcome (`misconceptionEvidence`); the record, its
+ * results, its score and its hold are exactly what they would be without it.
+ * The callable stores it apart from attempt events
+ * (misconceptionEvidenceSites.mjs explains why).
+ *
+ * Parameters for a family classifier come from the instance the server
+ * reproduced — and, as in ingestion, only for a registered platform family.
+ */
+const platformInstanceValues = (reproduced) => (
+  getPlatformQuestionFamily(reproduced?.family?.id, reproduced?.family?.version) === reproduced?.family
+    ? reproduced?.instance?.values || null
+    : null
+);
+const itemMisconceptionEvidence = ({ context, kind, itemId, storageIndex, pin, reproduced, response, grading }) => {
+  const evidence = gradedResponseMisconceptionEvidence({
+    question: reproduced.question,
+    response,
+    grading,
+    familyValues: platformInstanceValues(reproduced),
+    // Tests only: a context may carry a classifier to prove the grade is the
+    // same with classification off or throwing.
+    ...(context.classifyMisconceptions ? { classify: context.classifyMisconceptions } : {}),
+  });
+  return evidence ? {
+    kind,
+    itemId,
+    storageIndex,
+    opportunity: Number(context.record?.plan?.opportunity ?? context.record?.opportunitiesUsed) || 1,
+    fingerprint: pin?.fingerprint || reproduced.question?.familyInstance?.fingerprint || null,
+    question: reproduced.question,
+    misconceptionEvidence: evidence,
+  } : null;
+};
 
 const expectedPracticeSlotPrefix = (context) => `${context.assignmentId}|recoveryPractice:${context.section}:o`;
 
@@ -111,7 +153,7 @@ const practicePinIsOwn = (pin, context) => {
  *      tell a platform bug from a tampered payload there. The device saying
  *      it could not show a question the server CAN rebuild is the same.
  */
-const gradeRecoveryItem = ({ context, item, response, reported }) => {
+const gradeRecoveryItem = ({ context, item, response, reported, onGraded = null }) => {
   const question = context.questionsByIndex[item.storageIndex] || null;
   const weight = recoveryQuestionWeight(question);
   const unavailable = (classification, reason) => ({
@@ -169,6 +211,8 @@ const gradeRecoveryItem = ({ context, item, response, reported }) => {
       : review(RECOVERY_GRADING_FAILURE.RESPONSE_UNREADABLE, String(grading.reason || 'ungradable').slice(0, 120));
   }
   const isCorrect = grading?.isCorrect === true;
+  // A legitimately graded answer: the only place evidence may come from.
+  onGraded?.({ reproduced, grading });
   return {
     itemId: item.itemId,
     status: isCorrect ? RECOVERY_ITEM_STATUS.CORRECT : RECOVERY_ITEM_STATUS.INCORRECT,
@@ -233,6 +277,17 @@ export const runSectionRecoveryAction = ({ context, action, payload = {}, at = D
       ? { graded: true, isCorrect: false }
       : gradeFamilyInstanceResponse({ question: reproduced.question, response: payload.response });
     if (!grading.graded) refuse('practice-response-ungradable', grading.reason || 'The answer could not be read.');
+    // A forfeit is no answer: nothing to read a strategy from.
+    const practiceEvidence = payload.forfeit === true ? null : itemMisconceptionEvidence({
+      context,
+      kind: MISCONCEPTION_EVIDENCE_KINDS.RECOVERY_PRACTICE,
+      itemId: Number.isInteger(Number(payload.practiceIndex)) ? `p${Number(payload.practiceIndex)}` : pin.fingerprint,
+      storageIndex: slot.storageIndex,
+      pin,
+      reproduced,
+      response: payload.response,
+      grading,
+    });
     const applied = applyRecoveryPracticeAttempt({
       record: context.record,
       section,
@@ -264,6 +319,7 @@ export const runSectionRecoveryAction = ({ context, action, payload = {}, at = D
         mastery: applied.mastery,
         unlocked: nextRecord.status === 'unlocked',
       },
+      misconceptionEvidence: practiceEvidence ? [practiceEvidence] : [],
     };
   }
 
@@ -324,15 +380,30 @@ export const runSectionRecoveryAction = ({ context, action, payload = {}, at = D
     const active = activeRecoveryPlanItems(context.record);
     const reported = reportedUnavailableItems(payload, new Set(active.map((item) => item.itemId)));
     const prior = context.record.results || {};
+    const misconceptionEvidence = [];
     const results = active.map((item) => {
       // Graded before a teacher replaced another question: kept as it was —
-      // never asked again, never re-marked.
+      // never asked again, never re-marked (and never classified again).
       if (isGradedItemStatus(prior[item.itemId]?.status)) return { itemId: item.itemId, carried: true };
+      const response = responses[item.itemId] || null;
       return gradeRecoveryItem({
         context,
         item,
-        response: responses[item.itemId] || null,
+        response,
         reported: reported[item.itemId] || null,
+        onGraded: ({ reproduced, grading }) => {
+          const entry = itemMisconceptionEvidence({
+            context,
+            kind: MISCONCEPTION_EVIDENCE_KINDS.SECTION_RECOVERY,
+            itemId: item.itemId,
+            storageIndex: item.storageIndex,
+            pin: item.pin,
+            reproduced,
+            response,
+            grading,
+          });
+          if (entry) misconceptionEvidence.push(entry);
+        },
       });
     });
     const applied = applyRecoveryCompletion({
@@ -369,6 +440,7 @@ export const runSectionRecoveryAction = ({ context, action, payload = {}, at = D
           type: applied.record.type,
           reason: applied.gradeState.reason,
         },
+      misconceptionEvidence,
     };
   }
 
