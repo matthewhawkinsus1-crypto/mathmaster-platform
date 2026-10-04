@@ -90,6 +90,22 @@ export async function createDeviceFarm({ workers = Math.max(2, Math.min(4, os.av
     async invocations() {
       return Object.assign({}, ...(await everyWorker('invocations', {})));
     },
+    /** Each worker's event loop since its last sample: how busy the harness itself was. */
+    async load() {
+      return everyWorker('load', {});
+    },
+    /** Every device's standings/answer trace (devices with `trace` in their profile). */
+    async traces(studentIds = null) {
+      return (await everyWorker('traces', { studentIds })).flat();
+    },
+    /** What each worker's copy of the server read and wrote since `sinceMs`. */
+    async accounting(sinceMs = 0) {
+      const parts = await everyWorker('accounting', { sinceMs });
+      return { events: parts.flatMap((part) => part.events), calls: parts.flatMap((part) => part.calls), commits: parts.flatMap((part) => part.commits) };
+    },
+    async resetAccounting() {
+      await everyWorker('resetAccounting', {});
+    },
     /** Close devices (all of them by default): their listeners, timers and connections. */
     async shutdown(studentIds = null) {
       await everyWorker('shutdown', { studentIds });

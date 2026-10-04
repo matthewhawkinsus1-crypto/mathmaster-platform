@@ -40,9 +40,34 @@ const counted = (name, watch) => (...args) => {
     return typeof stop === 'function' ? stop() : undefined;
   };
 };
+// STANDINGS DELIVERIES, for the standings profile (liveChallengeShellQa.mjs
+// `standings`): one entry per callback — when, which listener, how many
+// documents changed, and what it carried that a latency can be measured from
+// (the rows whose round changed, or a snapshot's source read time).
+window.__mmStandingsLog = [];
+const millisOf = (value) => value?.toMillis?.() ?? 0;
+const logStandings = (entry) => {
+  window.__mmStandingsLog.push(entry);
+  if (window.__mmStandingsLog.length > 20000) window.__mmStandingsLog.splice(0, 10000);
+};
+const rowSignature = (row) => `${millisOf(row.updatedAt)}:${millisOf(row.provisionalAt)}:${millisOf(row.rushActiveAt)}`;
+const loggedPlayers = (roomId, onValue, ...rest) => {
+  const seen = new Map();
+  return service.watchLiveChallengePlayers(roomId, (rows) => {
+    const changed = rows.filter((row) => {
+      const signature = rowSignature(row);
+      if (seen.get(row.playerKey) === signature) return false;
+      seen.set(row.playerKey, signature);
+      return true;
+    });
+    logStandings([performance.now(), Date.now(), 'players', changed.length, changed.map((row) => [row.playerKey, Number(row.answeredRound)])]);
+    return onValue?.(rows);
+  }, ...rest);
+};
+
 export const watchLiveChallengeInvite = counted('invite', service.watchLiveChallengeInvite);
 export const watchLiveChallengeRoom = counted('room', service.watchLiveChallengeRoom);
-export const watchLiveChallengePlayers = counted('players', service.watchLiveChallengePlayers);
+export const watchLiveChallengePlayers = counted('players', loggedPlayers);
 export const watchLiveChallengeDiagnostics = counted('diagnostics', service.watchLiveChallengeDiagnostics);
 export const watchTeacherActiveChallenge = counted('teacherActive', service.watchTeacherActiveChallenge);
 export const watchLiveChallengeRound = counted('round', service.watchLiveChallengeRound);
