@@ -25,9 +25,9 @@ export default function ClassroomSectionGradeSelector({
                 alignItems: 'center',
                 gap: 6,
                 padding: '7px 10px',
-                border: selected ? '2px solid #2563eb' : '1px solid #cbd5e1',
+                border: selected ? '2px solid #2563eb' : '1px solid var(--mm-tint-border)',
                 borderRadius: 8,
-                background: selected ? '#eff6ff' : '#fff',
+                background: selected ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)',
                 cursor: 'pointer',
               }}
             >
@@ -41,7 +41,7 @@ export default function ClassroomSectionGradeSelector({
           );
         })}
       </div>
-      <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.4 }}>
+      <div style={{ fontSize: 12, color: 'var(--mm-text-subtle)', lineHeight: 1.4 }}>
         Whole assignment creates one overall Classroom grade. Choose individual sections to create separate
         grade slots. Only sections with included questions appear.
       </div>

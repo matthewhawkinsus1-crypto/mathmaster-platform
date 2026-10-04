@@ -62,7 +62,7 @@ const button = {
   minHeight: 44,
   padding: '9px 14px',
   borderRadius: 8,
-  border: '1px solid #b7bec8',
+  border: '1px solid var(--mm-border)',
   background: 'var(--mm-surface)',
   fontWeight: 800,
   cursor: 'pointer',
@@ -262,8 +262,8 @@ export default function GraphFeatureSelectStage({ stage, sourceGraph, value, onC
             aria-pressed={none}
             style={{
               ...button,
-              background: none ? '#174ea6' : '#fff',
-              color: none ? '#fff' : '#3c4043',
+              background: none ? '#174ea6' : 'var(--mm-surface)',
+              color: none ? '#fff' : 'var(--mm-text)',
               border: none ? 0 : button.border,
             }}
           >
@@ -272,7 +272,7 @@ export default function GraphFeatureSelectStage({ stage, sourceGraph, value, onC
         ) : null}
       </div>
 
-      <p style={{ margin: '8px 0 0', fontSize: 13, color: '#5f6b7a' }} aria-live="polite">
+      <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--mm-text-muted)' }} aria-live="polite">
         {none
           ? noneButtonLabel(stage)
           : `${selections.length} of ${selectionCount} marked.`}

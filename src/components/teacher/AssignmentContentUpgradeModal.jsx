@@ -153,7 +153,7 @@ export default function AssignmentContentUpgradeModal({
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
           <div>
             <h2 style={{ margin: 0 }}>Upgrade to Content V{targetAssignment.contentLineage?.version || '?'}</h2>
-            <p style={{ margin: '7px 0 0', color: '#5f6368' }}>{assignment.title}</p>
+            <p style={{ margin: '7px 0 0', color: 'var(--mm-text-muted)' }}>{assignment.title}</p>
           </div>
           <button type="button" disabled={committing} onClick={onClose}>
             {success ? 'Done' : 'Close'}
@@ -163,7 +163,7 @@ export default function AssignmentContentUpgradeModal({
         {loading && <p>Checking the live assignment and student records…</p>}
 
         {!preview && error && (
-          <div role="alert" style={{ marginTop: 16, padding: 12, background: '#fce8e6', color: '#b3261e', borderRadius: 8 }}>
+          <div role="alert" style={{ marginTop: 16, padding: 12, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', borderRadius: 8 }}>
             <strong>Preview failed.</strong> {error.message}
             {error.errorCode && <div style={{ marginTop: 5, fontSize: 12 }}>Error code: {error.errorCode}</div>}
             {error.detail && <div style={{ marginTop: 3, fontSize: 12 }}>Reason: {error.detail}</div>}
@@ -172,34 +172,34 @@ export default function AssignmentContentUpgradeModal({
 
         {preview && !preview.alreadyCurrent && (
           <>
-            <div style={{ marginTop: 18, padding: 14, background: '#f8f9fa', borderRadius: 10 }}>
+            <div style={{ marginTop: 18, padding: 14, background: 'var(--mm-surface-sunken)', borderRadius: 10 }}>
               <strong>Content V{preview.fromVersion} → Content V{preview.toVersion}</strong>
               <div style={{ marginTop: 6 }}>
                 {preview.affectedStudentCount} student record{preview.affectedStudentCount === 1 ? '' : 's'} already exist for this assigned copy.
               </div>
               <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {Object.entries(preview.counts || {}).map(([key, count]) => (
-                  <span key={key} style={{ padding: '4px 8px', borderRadius: 999, background: '#e8f0fe', fontSize: 12, fontWeight: 800 }}>
+                  <span key={key} style={{ padding: '4px 8px', borderRadius: 999, background: 'var(--mm-primary-soft)', fontSize: 12, fontWeight: 800 }}>
                     {LABELS[key] || key}: {count}
                   </span>
                 ))}
               </div>
             </div>
 
-            <p style={{ color: '#3c4043', lineHeight: 1.5 }}>
+            <p style={{ color: 'var(--mm-text)', lineHeight: 1.5 }}>
               MathMaster will keep this assignment’s existing link, classes, due dates, attempts, and Classroom posts. More-forgiving grading may raise previously saved credit, but this upgrade cannot lower earned credit.
             </p>
 
             <div style={{ display: 'grid', gap: 10 }}>
               {(preview.changes || []).filter((change) => change.classification !== 'unchanged').map((change) => (
-                <article key={change.questionId} style={{ border: '1px solid #dadce0', borderRadius: 9, padding: 12 }}>
+                <article key={change.questionId} style={{ border: '1px solid var(--mm-border)', borderRadius: 9, padding: 12 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                     <strong>{change.questionId}</strong>
                     <span>{LABELS[change.classification] || change.classification}</span>
                   </div>
                   {change.beforePrompt && <p style={{ marginBottom: 4 }}><strong>Before:</strong> {change.beforePrompt}</p>}
                   {change.afterPrompt && <p style={{ marginTop: 4 }}><strong>V{preview.toVersion}:</strong> {change.afterPrompt}</p>}
-                  {change.reason && <p style={{ color: '#5f6368' }}>{change.reason}</p>}
+                  {change.reason && <p style={{ color: 'var(--mm-text-muted)' }}>{change.reason}</p>}
                   {change.classification === 'fundamental' && (
                     <label style={{ display: 'block', fontWeight: 800 }}>
                       How should this flawed historical question be handled?
@@ -230,18 +230,18 @@ export default function AssignmentContentUpgradeModal({
             bottom: -24,
             margin: '20px -24px -24px',
             padding: '14px 24px',
-            borderTop: '1px solid #dadce0',
+            borderTop: '1px solid var(--mm-border)',
             background: 'var(--mm-surface)',
             boxShadow: '0 -6px 18px rgba(60,64,67,.08)',
           }}
         >
           {success && (
-            <div role="status" style={{ marginBottom: 10, padding: 12, background: '#e6f4ea', color: '#137333', borderRadius: 8 }}>
+            <div role="status" style={{ marginBottom: 10, padding: 12, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', borderRadius: 8 }}>
               <strong>Upgrade complete.</strong> {success}
             </div>
           )}
           {preview && error && (
-            <div role="alert" style={{ marginBottom: 10, padding: 12, background: '#fce8e6', color: '#b3261e', borderRadius: 8 }}>
+            <div role="alert" style={{ marginBottom: 10, padding: 12, background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', borderRadius: 8 }}>
               <strong>{success ? 'Refresh warning.' : 'Upgrade failed.'}</strong> {error.message}
               {error.errorCode && <div style={{ marginTop: 5, fontSize: 12 }}>Error code: {error.errorCode}</div>}
               {error.detail && <div style={{ marginTop: 3, fontSize: 12 }}>Reason: {error.detail}</div>}
@@ -267,7 +267,7 @@ export default function AssignmentContentUpgradeModal({
                     onClick={commit}
                     style={{
                       background: ready ? '#188038' : '#dadce0',
-                      color: ready ? '#fff' : '#5f6368',
+                      color: ready ? '#fff' : 'var(--mm-text-muted)',
                       border: 0,
                       borderRadius: 8,
                       padding: '10px 16px',

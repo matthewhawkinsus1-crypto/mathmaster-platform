@@ -1,7 +1,7 @@
 .mathmaster-threeplane-layout {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(220px, .5fr) minmax(0, 1fr);
+  grid-template-columns: minmax(min(100%, 220px), .5fr) minmax(0, 1fr);
   gap: 18px;
   align-items: start;
 }
@@ -35,7 +35,7 @@
   margin: 8px 0 0;
   font-size: 12px;
   font-weight: 700;
-  color: #5f6368;
+  color: var(--mm-text-muted);
 }
 
 .mathmaster-threeplane-legend-swatch {
@@ -55,14 +55,14 @@
 .mathmaster-threeplane-choice-field legend {
   margin-bottom: 8px;
   padding: 0;
-  color: #1f2a3c;
+  color: var(--mm-text-strong);
   font-size: 15px;
   font-weight: 800;
 }
 
 .mathmaster-threeplane-choices {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
   gap: 8px;
 }
 
@@ -72,10 +72,10 @@
   gap: 10px;
   min-height: 48px;
   padding: 11px 12px;
-  border: 1.5px solid #c9d6ea;
+  border: 1.5px solid var(--mm-tint-border);
   border-radius: 10px;
-  background: #fff;
-  color: #1f2a3c;
+  background: var(--mm-surface);
+  color: var(--mm-text-strong);
   font-size: 15px;
   font-weight: 600;
   line-height: 1.35;
@@ -92,8 +92,8 @@
 
 .mathmaster-threeplane-choice.is-selected {
   border-color: #1a57c9;
-  background: #eaf1fe;
-  color: #0f3a8c;
+  background: var(--mm-primary-soft);
+  color: var(--mm-primary-text);
 }
 
 .mathmaster-threeplane-choice-mark {
@@ -104,17 +104,17 @@
   border: 2px solid #8fa6c9;
   border-radius: 50%;
   box-sizing: border-box;
-  background: #fff;
+  background: var(--mm-surface);
 }
 
 .mathmaster-threeplane-choice.is-selected .mathmaster-threeplane-choice-mark {
   border-color: #1a57c9;
-  background: radial-gradient(circle, #1a57c9 0 45%, #fff 50%);
+  background: radial-gradient(circle, #1a57c9 0 45%, var(--mm-surface) 50%);
 }
 
 .mathmaster-threeplane-feedback {
   margin: 8px 0 0;
-  color: #7a2e0e;
+  color: var(--mm-warning-text);
   font-size: 14px;
   font-weight: 600;
   line-height: 1.45;
@@ -134,7 +134,7 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  color: #5f6368;
+  color: var(--mm-text-muted);
   font-size: 12px;
   font-weight: 700;
   text-align: center;
@@ -149,7 +149,7 @@
 }
 
 .mathmaster-threeplane-motion-cue.is-idle {
-  color: #174ea6;
+  color: var(--mm-primary-text);
 }
 
 .mathmaster-threeplane-motion-cue.is-idle .mathmaster-threeplane-motion-dot {

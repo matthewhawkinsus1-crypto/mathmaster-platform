@@ -19,8 +19,8 @@ const shell = {
   margin: '0 0 16px',
   padding: '12px 14px',
   borderRadius: 10,
-  border: '1px solid #dfe3e8',
-  background: '#fbfcfe',
+  border: '1px solid var(--mm-border)',
+  background: 'var(--mm-surface)',
 };
 
 const titleStyle = {
@@ -29,12 +29,12 @@ const titleStyle = {
   fontWeight: 900,
   letterSpacing: '.05em',
   textTransform: 'uppercase',
-  color: '#5f6368',
+  color: 'var(--mm-text-muted)',
 };
 
 const cellStyle = {
   padding: '7px 12px',
-  border: '1px solid #dfe3e8',
+  border: '1px solid var(--mm-border)',
   fontSize: 15,
   color: 'var(--mm-text-strong)',
   textAlign: 'center',
@@ -50,7 +50,7 @@ function StimulusTable({ table }) {
           <thead>
             <tr>
               {table.headers.map((header, index) => (
-                <th key={`h-${index}`} scope="col" style={{ ...cellStyle, background: '#eef3fb', fontWeight: 900 }}>
+                <th key={`h-${index}`} scope="col" style={{ ...cellStyle, background: 'var(--mm-primary-subtle)', fontWeight: 900 }}>
                   <MathText>{header}</MathText>
                 </th>
               ))}
@@ -169,7 +169,7 @@ function StimulusGraph({ graph }) {
         ))}
       </CoordinatePlane>
       {sourceLines.length > 1 && (
-        <div style={{ display:'flex', gap:14, flexWrap:'wrap', justifyContent:'center', marginTop:8, fontSize:12, color:'#5f6368' }}>
+        <div style={{ display:'flex', gap:14, flexWrap:'wrap', justifyContent:'center', marginTop:8, fontSize:12, color:'var(--mm-text-muted)' }}>
           {sourceLines.map((line, index) => (
             <span key={`legend-${index}`}>
               <strong>{line.label || `Line ${index + 1}`}</strong>
@@ -203,7 +203,7 @@ function WorkedSteps({ steps }) {
     <ol style={{ margin: 0, paddingLeft: 22, display: 'grid', gap: 6 }}>
       {steps.map((step) => (
         <li key={step.id} style={{ fontSize: 15, color: 'var(--mm-text-strong)', lineHeight: 1.6 }}>
-          <span style={{ color: '#5f6368', fontWeight: 700, marginRight: 8 }}>{step.label}</span>
+          <span style={{ color: 'var(--mm-text-muted)', fontWeight: 700, marginRight: 8 }}>{step.label}</span>
           <MathText>{step.work}</MathText>
         </li>
       ))}
@@ -261,7 +261,7 @@ export const PathQuestionStimulus = ({ stimulus }) => {
       <ExpressionList expressions={stimulus.expressions} />
       <LabelledItems items={stimulus.items} />
       {stimulus.note && (
-        <p style={{ margin: '10px 0 0', fontSize: 13, color: '#5f6368', lineHeight: 1.55 }}>
+        <p style={{ margin: '10px 0 0', fontSize: 13, color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>
           <MathText>{stimulus.note}</MathText>
         </p>
       )}

@@ -7,6 +7,7 @@ import { STATUS } from '../../platform/path/recommendationEngine.js';
 import PracticeAsMenu from './PracticeAsMenu.jsx';
 import { describeCoursePathPass } from '../../platform/path/pathPassPresentation.js';
 import StandardBadge from '../common/StandardBadge.jsx';
+import { toneTextColor } from '../../theme/themeColorRoles.js';
 
 export const SkillDetailCardModal = ({
   teksCode,
@@ -32,7 +33,7 @@ export const SkillDetailCardModal = ({
   const mastery = masteryProfile?.mastery || { estimate: null, status: 'Not Enough Evidence', confidence: 'Low' };
   const signals = masteryProfile?.signals || { retention: 'stable', breadth: 'developing' };
   const dimensions = masteryProfile?.dimensions || { eligibleGradeLevelEvents: 0, dokRepresented: [], familiesRepresented: [] };
-  const statusColor = MASTERY_STATUS_COLORS[mastery.status] || '#5f6368';
+  const statusColor = MASTERY_STATUS_COLORS[mastery.status] || 'var(--mm-text-muted)';
   const pass = describeCoursePathPass(pathPassProgress || {}, { mastered: String(mastery.status || '').toLowerCase() === 'mastered' });
 
   return (
@@ -46,7 +47,7 @@ export const SkillDetailCardModal = ({
           </div>
           <button type="button" onClick={onClose} aria-label="Close skill details" style={{ border: 0, background: 'transparent', fontSize: '20px', cursor: 'pointer' }}>✕</button>
         </div>
-        {signals.retention === 'concern' && <div style={{ marginTop: '16px', padding: '11px 13px', borderRadius: '7px', background: '#fce8e6', color: '#a50e0e' }}><strong>Retention check recommended.</strong> Recent evidence suggests this skill should be verified again.</div>}
+        {signals.retention === 'concern' && <div style={{ marginTop: '16px', padding: '11px 13px', borderRadius: '7px', background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' }}><strong>Retention check recommended.</strong> Recent evidence suggests this skill should be verified again.</div>}
         <div
           role="status"
           style={{
@@ -55,7 +56,7 @@ export const SkillDetailCardModal = ({
             borderRadius: '9px',
             border: `2px solid ${pass.tone}`,
             background: pass.background,
-            color: pass.tone,
+            color: toneTextColor(pass.tone),
           }}
         >
           <div style={{ fontSize: '11px', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '.045em' }}>
@@ -65,16 +66,16 @@ export const SkillDetailCardModal = ({
             {pass.nextLabel}
           </div>
           {pass.hasCompletedPass && String(mastery.status || '').toLowerCase() !== 'mastered' && (
-            <div style={{ marginTop: '4px', color: '#3c4043', fontSize: '11.5px', lineHeight: 1.45 }}>
+            <div style={{ marginTop: '4px', color: 'var(--mm-text)', fontSize: '11.5px', lineHeight: 1.45 }}>
               This Path pass is complete. Mastery is a stronger claim and can require broader or higher-level evidence.
             </div>
           )}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '18px' }}>
-          <div style={{ padding: '13px', borderRadius: '8px', background: '#f8f9fa' }}><div style={{ fontSize: '11px', color: '#5f6368' }}>Mastery estimate</div><div style={{ fontSize: '21px', fontWeight: 900, color: statusColor }}>{mastery.estimate == null ? '—' : `${mastery.estimate}%`}</div><div style={{ fontSize: '11px', color: '#5f6368' }}>{mastery.status}</div></div>
-          <div style={{ padding: '13px', borderRadius: '8px', background: '#f8f9fa' }}><div style={{ fontSize: '11px', color: '#5f6368' }}>Observed accuracy</div><div style={{ fontSize: '21px', fontWeight: 900 }}>{mastery.observedPerformance == null ? '—' : `${mastery.observedPerformance}%`}</div><div style={{ fontSize: '11px', color: '#5f6368' }}>{dimensions.eligibleGradeLevelEvents || 0} evidence event(s)</div></div>
+          <div style={{ padding: '13px', borderRadius: '8px', background: 'var(--mm-surface-sunken)' }}><div style={{ fontSize: '11px', color: 'var(--mm-text-muted)' }}>Mastery estimate</div><div style={{ fontSize: '21px', fontWeight: 900, color: statusColor }}>{mastery.estimate == null ? '—' : `${mastery.estimate}%`}</div><div style={{ fontSize: '11px', color: 'var(--mm-text-muted)' }}>{mastery.status}</div></div>
+          <div style={{ padding: '13px', borderRadius: '8px', background: 'var(--mm-surface-sunken)' }}><div style={{ fontSize: '11px', color: 'var(--mm-text-muted)' }}>Observed accuracy</div><div style={{ fontSize: '21px', fontWeight: 900 }}>{mastery.observedPerformance == null ? '—' : `${mastery.observedPerformance}%`}</div><div style={{ fontSize: '11px', color: 'var(--mm-text-muted)' }}>{dimensions.eligibleGradeLevelEvents || 0} evidence event(s)</div></div>
         </div>
-        <div style={{ margin: '18px 0', color: '#3c4043', fontSize: '13px', lineHeight: 1.7 }}>
+        <div style={{ margin: '18px 0', color: 'var(--mm-text)', fontSize: '13px', lineHeight: 1.7 }}>
           {/* DOK levels and family counts describe how the platform indexes a
               question, not what the student has shown. What a student can act
               on is the RANGE of the evidence and how independent it was. */}
@@ -88,7 +89,7 @@ export const SkillDetailCardModal = ({
           <div><strong>Confidence:</strong> {mastery.confidence || 'Low'}</div>
         </div>
         {blocked ? (
-          <div style={{ padding: '13px 15px', borderRadius: '8px', background: blocked === STATUS.FUTURE ? '#f6f9fe' : '#fef7e0', border: `1px ${blocked === STATUS.FUTURE ? 'dashed #a8c7fa' : 'solid #f0d78c'}`, color: blocked === STATUS.FUTURE ? '#174ea6' : '#7a4f00', fontSize: '13px', lineHeight: 1.6 }}>
+          <div style={{ padding: '13px 15px', borderRadius: '8px', background: blocked === STATUS.FUTURE ? 'var(--mm-surface-tint)' : 'var(--mm-warning-bg)', border: `1px ${blocked === STATUS.FUTURE ? 'dashed var(--mm-primary-border)' : 'solid var(--mm-warning-border-soft)'}`, color: blocked === STATUS.FUTURE ? 'var(--mm-primary-text)' : 'var(--mm-warning-text)', fontSize: '13px', lineHeight: 1.6 }}>
             {blocked === STATUS.FUTURE
               ? 'Your class reaches this later in the course, so it is not open yet. Nothing is wrong — have a look at your path for what is open now.'
               : 'This one builds on an earlier skill. Your path shows which skill to strengthen first, and starting there is what opens this.'}

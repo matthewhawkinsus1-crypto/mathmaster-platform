@@ -24,18 +24,18 @@ import {
 // Algebra II Honors period must not be shown one course's skill graph for both,
 // so the course is resolved from the selected class rather than fixed here.
 
-const panel = { border: '1px solid #dadce0', borderRadius: 12, background: 'var(--mm-surface)', padding: 16, marginBottom: 16 };
-const heading = { margin: '0 0 4px', fontSize: 15, fontWeight: 900, color: '#174ea6' };
-const note = { color: '#5f6368', fontSize: 13, lineHeight: 1.55, margin: '0 0 14px' };
+const panel = { border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)', padding: 16, marginBottom: 16 };
+const heading = { margin: '0 0 4px', fontSize: 15, fontWeight: 900, color: 'var(--mm-primary-text)' };
+const note = { color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55, margin: '0 0 14px' };
 const control = {
-  minHeight: 44, fontSize: 15, padding: '9px 10px', border: '1px solid #c9ced6',
+  minHeight: 44, fontSize: 15, padding: '9px 10px', border: '1px solid var(--mm-border)',
   borderRadius: 8, boxSizing: 'border-box', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)',
 };
 const chipButton = (active) => ({
   minHeight: 40, padding: '7px 12px', borderRadius: 999, cursor: 'pointer',
-  border: `1px solid ${active ? '#1a73e8' : '#c5d5ef'}`,
-  background: active ? '#e8f0fe' : '#fff',
-  color: active ? '#174ea6' : '#3c4043', fontWeight: 800, fontSize: 13,
+  border: `1px solid ${active ? '#1a73e8' : 'var(--mm-tint-border)'}`,
+  background: active ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+  color: active ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: 800, fontSize: 13,
 });
 
 const ACTION_LABEL = {
@@ -47,14 +47,14 @@ const ACTION_LABEL = {
 
 const STATUS_STYLE = {
   required: { background: '#4a148c', color: '#fff' },
-  remediation: { background: '#fce8e6', color: '#a50e0e' },
-  priority: { background: '#fef7e0', color: '#7a4f00' },
-  recommended: { background: '#e6f4ea', color: '#137333' },
-  available: { background: '#f1f3f4', color: '#3c4043' },
-  extension: { background: '#e8f0fe', color: '#174ea6' },
-  future: { background: '#f8f9fa', color: '#80868b' },
-  locked: { background: '#f1f3f4', color: '#80868b' },
-  mastered: { background: '#e6f4ea', color: '#137333' },
+  remediation: { background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)' },
+  priority: { background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' },
+  recommended: { background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' },
+  available: { background: 'var(--mm-surface-control)', color: 'var(--mm-text)' },
+  extension: { background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' },
+  future: { background: 'var(--mm-surface-sunken)', color: 'var(--mm-text-subtle)' },
+  locked: { background: 'var(--mm-surface-control)', color: 'var(--mm-text-subtle)' },
+  mastered: { background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' },
 };
 
 const PREVIEW_ORDER = ['required', 'remediation', 'priority', 'recommended', 'available', 'extension', 'future', 'locked'];
@@ -197,7 +197,7 @@ export default function PacingControls({
           MathMaster runs this class autonomously by default. Use these controls only when you want to override
           where the class sits in the course. Pacing affects timing; prerequisites and mastery still decide readiness.
         </p>
-        <div style={{ padding: '10px 12px', borderRadius: 8, background: storedPacing ? '#eef4ff' : '#e6f4ea', color: storedPacing ? '#174ea6' : '#137333', fontSize: 13, lineHeight: 1.5, marginBottom: 14 }}>
+        <div style={{ padding: '10px 12px', borderRadius: 8, background: storedPacing ? 'var(--mm-primary-subtle)' : 'var(--mm-success-bg)', color: storedPacing ? 'var(--mm-primary-text)' : 'var(--mm-success-text)', fontSize: 13, lineHeight: 1.5, marginBottom: 14 }}>
           <strong>{storedPacing ? 'Manual pacing override is active.' : 'Automatic pacing is active.'}</strong>{' '}
           {storedPacing
             ? 'Students still route autonomously from mastery and prerequisites; this class position only changes the timing window.'
@@ -207,19 +207,19 @@ export default function PacingControls({
               const next = { ...pacingByClass };
               delete next[classId];
               onSavePacing?.(next);
-            }} style={{ marginLeft: 10, minHeight: 34, padding: '5px 10px', border: '1px solid #aecbfa', borderRadius: 7, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, cursor: busy ? 'wait' : 'pointer' }}>
+            }} style={{ marginLeft: 10, minHeight: 34, padding: '5px 10px', border: '1px solid var(--mm-primary-border)', borderRadius: 7, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, cursor: busy ? 'wait' : 'pointer' }}>
               Return to automatic
             </button>
           )}
         </div>
         {isProvisional ? (
-          <div style={{ padding: '10px 12px', borderRadius: 8, background: '#fef7e0', color: '#7a4f00', fontSize: 13, lineHeight: 1.5, marginBottom: 14 }}>
+          <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: 13, lineHeight: 1.5, marginBottom: 14 }}>
             <strong>Provisional pacing.</strong> No district scope-and-sequence is loaded for this
             course, so windows are spread evenly as a placeholder. Positions you set here are real;
             the skill-to-window map underneath is not.
           </div>
         ) : (
-          <div style={{ padding: '10px 12px', borderRadius: 8, background: '#e6f4ea', color: '#137333', fontSize: 13, lineHeight: 1.5, marginBottom: 14 }}>
+          <div style={{ padding: '10px 12px', borderRadius: 8, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: 13, lineHeight: 1.5, marginBottom: 14 }}>
             <strong>2026-27 district calendar is active.</strong>
             {calendarToday?.current?.length
               ? ` Today your classes are on ${calendarToday.current.filter((w) => w.curriculumType === 'module' || w.curriculumType === 'review').map((w) => w.title).join(', ') || 'scheduled work'}.`
@@ -230,13 +230,13 @@ export default function PacingControls({
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: 14 }}>
           <label style={{ fontWeight: 800 }}>{classes.length ? 'Class (set above)' : 'Class period'}
             <select
               value={classId}
               onChange={(event) => setSelectedClassKey(event.target.value)}
               disabled={classes.length > 0}
-              style={{ ...control, width: '100%', marginTop: 6, background: classes.length ? '#f1f3f4' : undefined }}
+              style={{ ...control, width: '100%', marginTop: 6, background: classes.length ? 'var(--mm-surface-control)' : undefined }}
             >
               {classOptions.map((entry) => (
                 <option key={entry.key} value={entry.key}>
@@ -244,7 +244,7 @@ export default function PacingControls({
                 </option>
               ))}
             </select>
-            <span style={{ display: 'block', marginTop: 6, fontSize: 12, fontWeight: 700, color: '#5f6368' }}>
+            <span style={{ display: 'block', marginTop: 6, fontSize: 12, fontWeight: 700, color: 'var(--mm-text-muted)' }}>
               {classProfile?.courseLabel
                 ? `Pacing, skills and preview below are ${classProfile.courseLabel}.`
                 : 'No course set for this class, so Algebra I is assumed.'}
@@ -309,7 +309,7 @@ export default function PacingControls({
           placeholder="Filter skills…"
           style={{ ...control, width: '100%', marginBottom: 12 }}
         />
-        <div style={{ maxHeight: 420, overflowY: 'auto', border: '1px solid #eceff3', borderRadius: 8 }}>
+        <div style={{ maxHeight: 420, overflowY: 'auto', border: '1px solid var(--mm-border-soft)', borderRadius: 8 }}>
           {filteredSkills.map((skill) => {
             const active = overrideBySkill[skill.skillId];
             const described = describeSkill(skill.skillId);
@@ -317,14 +317,14 @@ export default function PacingControls({
               <div
                 key={skill.skillId}
                 style={{
-                  padding: '11px 12px', borderBottom: '1px solid #eceff3',
-                  background: active ? '#f7f9ff' : '#fff',
+                  padding: '11px 12px', borderBottom: '1px solid var(--mm-border-soft)',
+                  background: active ? 'var(--mm-surface-tint)' : 'var(--mm-surface)',
                   display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'space-between',
                 }}
               >
                 <div style={{ minWidth: 220, flex: 1 }}>
                   <strong style={{ fontSize: 13 }}>{described.shortLabel}</strong>
-                  <div style={{ fontSize: 12, color: '#5f6368', lineHeight: 1.45 }}>{skill.title}</div>
+                  <div style={{ fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>{skill.title}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {OVERRIDE_ACTIONS.map((action) => (
@@ -342,7 +342,7 @@ export default function PacingControls({
             );
           })}
           {filteredSkills.length === 0 && (
-            <div style={{ padding: 16, color: '#5f6368', fontSize: 13 }}>No skills match that filter.</div>
+            <div style={{ padding: 16, color: 'var(--mm-text-muted)', fontSize: 13 }}>No skills match that filter.</div>
           )}
         </div>
       </div>
@@ -365,7 +365,7 @@ export default function PacingControls({
 
         {previewOpen && (
           <div style={{ marginTop: 14, display: 'grid', gap: 12 }}>
-            <div style={{ fontSize: 13, color: '#5f6368' }}>
+            <div style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>
               Confidence: <strong>{preview.confidence.level}</strong> — {preview.confidence.message}
             </div>
             {PREVIEW_ORDER.map((key) => {
@@ -381,10 +381,10 @@ export default function PacingControls({
                     {rows.slice(0, 6).map((row) => (
                       <li key={row.skillId}>
                         <strong>{describeSkill(row.skillId).shortLabel}</strong> — {explainForStudent(row)}
-                        <span style={{ color: '#80868b' }}> (score {row.score.toFixed(2)}{row.pacingIsProvisional ? ', provisional pacing' : ''})</span>
+                        <span style={{ color: 'var(--mm-text-subtle)' }}> (score {row.score.toFixed(2)}{row.pacingIsProvisional ? ', provisional pacing' : ''})</span>
                       </li>
                     ))}
-                    {rows.length > 6 && <li style={{ color: '#80868b' }}>…and {rows.length - 6} more</li>}
+                    {rows.length > 6 && <li style={{ color: 'var(--mm-text-subtle)' }}>…and {rows.length - 6} more</li>}
                   </ul>
                 </div>
               );

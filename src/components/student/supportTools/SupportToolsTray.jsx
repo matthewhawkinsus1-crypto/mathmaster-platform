@@ -21,11 +21,11 @@ import { speakAloud, speechAvailable, stopSpeaking } from '../../../platform/lan
  */
 
 const BUTTON = {
-  minHeight: 40, padding: '7px 12px', borderRadius: 999, border: '1px solid #c5d5ef',
-  background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 800, fontSize: 13, cursor: 'pointer',
+  minHeight: 40, padding: '7px 12px', borderRadius: 999, border: '1px solid var(--mm-tint-border)',
+  background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 13, cursor: 'pointer',
 };
 const PANEL = {
-  marginTop: 8, padding: '10px 12px', borderRadius: 10, border: '1px solid #d8dde6', background: 'var(--mm-surface)',
+  marginTop: 8, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)',
   textAlign: 'left', maxHeight: 'min(40vh, 320px)', overflowY: 'auto', overscrollBehavior: 'contain', fontSize: 14, lineHeight: 1.5,
 };
 const ICON = {
@@ -46,21 +46,21 @@ function TranslatePanel({ tool }) {
     // offers the original beside it.
     return (
       <div data-support-panel="translate">
-        <div style={{ fontSize: 12, fontWeight: 800, color: '#5f6368' }}>English</div>
+        <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--mm-text-muted)' }}>English</div>
         <MathText as="div">{translation.original}</MathText>
       </div>
     );
   }
   return (
     <div data-support-panel="translate" lang={translation.language}>
-      <div style={{ fontSize: 12, fontWeight: 800, color: '#5f6368' }}>
+      <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--mm-text-muted)' }}>
         {languageName(translation.language)}{tool.coverage === 'partial' ? ' · some sentences are in English' : ''}
       </div>
       <div style={{ display: 'grid', gap: 4, marginTop: 4 }}>
         {(translation.sentences || []).filter((sentence) => !sentence.mathOnly || translation.sentences.length === 1).map((sentence, index) => (
           <div key={index} data-translated={sentence.translated ? 'true' : 'false'}>
             <MathText>{sentence.text}</MathText>
-            {!sentence.translated && !sentence.mathOnly && <span style={{ marginLeft: 6, fontSize: 11, color: '#5f6368' }}>(English)</span>}
+            {!sentence.translated && !sentence.mathOnly && <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--mm-text-muted)' }}>(English)</span>}
           </div>
         ))}
       </div>
@@ -89,12 +89,12 @@ function VocabularyPanel({ tool, language, onFailed }) {
         <div key={entry.term}>
           <dt style={{ fontWeight: 900 }}>
             {entry.term}
-            {spanish && <span lang="es" style={{ fontWeight: 700, color: '#5f6368' }}> · {entry.es.term}</span>}
+            {spanish && <span lang="es" style={{ fontWeight: 700, color: 'var(--mm-text-muted)' }}> · {entry.es.term}</span>}
           </dt>
           <dd style={{ margin: '2px 0 0' }}>
             <div>{entry.definition}</div>
-            {spanish && <div lang="es" style={{ color: '#3c4043' }}>{entry.es.definition}</div>}
-            {entry.example && <div style={{ fontSize: 12.5, color: '#5f6368' }}>Example: <MathText>{entry.example}</MathText></div>}
+            {spanish && <div lang="es" style={{ color: 'var(--mm-text)' }}>{entry.es.definition}</div>}
+            {entry.example && <div style={{ fontSize: 12.5, color: 'var(--mm-text-muted)' }}>Example: <MathText>{entry.example}</MathText></div>}
           </dd>
         </div>
       ))}
@@ -109,7 +109,7 @@ function SayItPanel({ tool, language }) {
       {(tool.frames || []).map((frame) => (
         <li key={frame.en}>
           <div>{frame.en}</div>
-          {spanish && frame.es && <div lang="es" style={{ color: '#5f6368' }}>{frame.es}</div>}
+          {spanish && frame.es && <div lang="es" style={{ color: 'var(--mm-text-muted)' }}>{frame.es}</div>}
         </li>
       ))}
     </ul>
@@ -119,7 +119,7 @@ function SayItPanel({ tool, language }) {
 function StepsBox({ tool, open, onToggle }) {
   const steps = tool.chunks?.steps || [];
   return (
-    <div data-support-steps style={{ marginTop: 8, padding: '8px 12px', borderRadius: 10, border: '1px solid #c5d5ef', background: 'var(--mm-info-bg, #eef4ff)', textAlign: 'left', fontSize: 14, lineHeight: 1.5 }}>
+    <div data-support-steps style={{ marginTop: 8, padding: '8px 12px', borderRadius: 10, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-info-bg, var(--mm-primary-subtle))', textAlign: 'left', fontSize: 14, lineHeight: 1.5 }}>
       <button type="button" onClick={onToggle} aria-expanded={open} style={{ ...BUTTON, minHeight: 32, padding: '3px 10px', fontSize: 12.5 }}>
         {open ? 'Hide steps ▴' : `${tool.label} ▾`}
       </button>
@@ -240,7 +240,7 @@ export default function SupportToolsTray({
     <div className={`mathmaster-support-tray${className ? ` ${className}` : ''}`} data-student-support-tray={surface} role="group" aria-label="Support tools">
       {buttons.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-          <span style={{ fontSize: 12, fontWeight: 900, color: '#5f6368', textTransform: 'uppercase', letterSpacing: '.04em' }}>Support tools</span>
+          <span style={{ fontSize: 12, fontWeight: 900, color: 'var(--mm-text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Support tools</span>
           {buttons.map((tool) => (
             <button
               key={tool.tool}
@@ -248,14 +248,14 @@ export default function SupportToolsTray({
               data-support-tool={tool.tool}
               aria-expanded={tool.tool === SUPPORT_TOOL.READ_ALOUD ? undefined : openTool === tool.tool}
               onClick={() => press(tool)}
-              style={{ ...BUTTON, background: openTool === tool.tool ? '#e8f0fe' : BUTTON.background }}
+              style={{ ...BUTTON, background: openTool === tool.tool ? 'var(--mm-primary-soft)' : BUTTON.background }}
             >
               <span aria-hidden="true">{ICON[tool.tool]}</span> {tool.label}
             </button>
           ))}
         </div>
       )}
-      {speechFailed && <div role="status" style={{ marginTop: 6, fontSize: 12, color: '#7a4f00', fontWeight: 700 }}>Read aloud is not working in this browser. Your teacher can see this.</div>}
+      {speechFailed && <div role="status" style={{ marginTop: 6, fontSize: 12, color: 'var(--mm-warning-text)', fontWeight: 700 }}>Read aloud is not working in this browser. Your teacher can see this.</div>}
       {open && (
         <div role="region" aria-label={open.label} style={PANEL}>
           {open.tool === SUPPORT_TOOL.TRANSLATE && <TranslatePanel tool={open} />}

@@ -47,6 +47,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { watchUnimplementedCallables } from './journeyChecks.mjs';
+import { newSchoolContext } from './schoolClock.mjs';
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
 
@@ -361,7 +362,7 @@ const journeys = {
     const recordsAfterReload = under(await db(page), `grades/${STUDENT}/supportEvidence/`).filter(([, value]) => value.supportId === 'reduced-item-count-same-rigor');
     expect('S2', recordsAfterReload.length === 1, `a relaunch does not duplicate the record (${recordsAfterReload.length})`);
     // …and on another device (a fresh browser profile, nothing stored locally).
-    const other = await context.browser().newContext({ viewport: page.viewportSize() });
+    const other = await newSchoolContext(context.browser(), { viewport: page.viewportSize() });
     const otherPage = await other.newPage();
     await openReduced(otherPage, true);
     const elsewhere = await shownQuestions(otherPage);
@@ -473,7 +474,7 @@ const journeys = {
 for (const viewport of VIEWPORTS) {
   for (const [name, run] of Object.entries(journeys)) {
     if (ONLY && !ONLY.includes(name)) continue;
-    const context = await browser.newContext({ viewport, acceptDownloads: true });
+    const context = await newSchoolContext(browser, { viewport, acceptDownloads: true });
     const page = await context.newPage();
     const pageErrors = [];
     page.on('pageerror', (error) => pageErrors.push(String(error)));

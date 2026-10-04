@@ -97,12 +97,17 @@ const app = readFileSync(new URL('../../src/App.jsx', import.meta.url), 'utf8');
 test('ingestion, the finalizer and every recovery callable pass the student\'s pinned profile', () => {
   const ingestion = region(server, 'const finalCloseAtMs = assignment ? assignmentFinalCloseAt(', ';', 'ingestion final close');
   assert.match(ingestion, /assignmentFinalCloseAt\(assignment, null, studentId, gradeData\?\.profile/);
+  // …and the student's private controls, read in the same transaction
+  // (studentAssignmentOverrides.mjs), so an individual extension counts too.
+  assert.match(ingestion, /\{ privateOverride \}\)/);
   const recoveryCalls = executableSource(server).split('resolveCloseAt: (entry) => resolveAuthoritativeClose({').slice(1)
     .map((chunk) => chunk.slice(0, chunk.indexOf('}).closesAtMs')));
   assert.equal(recoveryCalls.length, 3);
   recoveryCalls.forEach((call) => assert.match(call, /studentProfile: gradeData\?\.profile/));
+  recoveryCalls.forEach((call) => assert.match(call, /privateOverride,/));
   const finalizerClose = region(finalizer, 'const close = resolveAuthoritativeClose({', '});', 'finalizer close');
   assert.match(finalizerClose, /studentProfile: gradeDocument\?\.profile/);
+  assert.match(finalizerClose, /privateOverride,/);
 });
 
 test('the student client injects its own dates wherever assignments are loaded, and imports what it calls', () => {

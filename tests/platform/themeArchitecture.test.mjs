@@ -21,8 +21,12 @@ test('form controls and MathLive consume the matched semantic input pair', () =>
 });
 
 test('both palettes define readable graph, status, and control contracts', () => {
+  // The palettes live in theme/tokens.css (one light block, one dark block),
+  // imported by index.css; darkModeArchitecture.test.mjs checks every token.
+  const tokens = readFileSync(new URL('../../src/theme/tokens.css', import.meta.url), 'utf8');
+  assert.match(css, /@import '\.\/theme\/tokens\.css';/);
   for (const token of ['input-bg', 'input-text', 'success-bg', 'success-text', 'error-bg', 'error-text', 'graph-bg', 'graph-axis', 'graph-label']) {
-    assert.ok(css.match(new RegExp(`--mm-${token}:`, 'g'))?.length >= 2, `missing two-theme token --mm-${token}`);
+    assert.ok(tokens.match(new RegExp(`--mm-${token}:`, 'g'))?.length >= 2, `missing two-theme token --mm-${token}`);
   }
 });
 

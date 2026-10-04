@@ -5,6 +5,7 @@ import {
   describeCoursePathPass,
   summarizeCoursePathPasses,
 } from '../../platform/path/pathPassPresentation.js';
+import { toneTextColor } from '../../theme/themeColorRoles.js';
 
 // The student's actual learning path.
 //
@@ -18,13 +19,13 @@ import {
 // something is coming on a date the class actually reaches.
 
 const section = {
-  border: '1px solid #dadce0', borderRadius: 14, background: 'var(--mm-surface)',
+  border: '1px solid var(--mm-border)', borderRadius: 14, background: 'var(--mm-surface)',
   padding: '16px 16px 18px', marginBottom: 14, textAlign: 'left',
 };
 
 const sectionHeading = {
   margin: '0 0 4px', fontSize: 11, fontWeight: 900, letterSpacing: '0.08em',
-  textTransform: 'uppercase', color: '#5f6368',
+  textTransform: 'uppercase', color: 'var(--mm-text-muted)',
 };
 
 const nodeRow = { display: 'flex', flexWrap: 'wrap', gap: 12 };
@@ -37,9 +38,9 @@ const nodeRow = { display: 'flex', flexWrap: 'wrap', gap: 12 };
 const cardStyle = (tone, selectable, blockedBy = null) => ({
   flex: '1 1 220px', minWidth: 0, padding: '13px 14px', borderRadius: 12,
   border: selectable ? `2px solid ${tone}`
-    : blockedBy === 'pacing' ? '2px dashed #a8c7fa'
-      : '2px solid #e0e3e8',
-  background: selectable ? '#fff' : blockedBy === 'pacing' ? '#f6f9fe' : '#f8f9fa',
+    : blockedBy === 'pacing' ? '2px dashed var(--mm-primary-border)'
+      : '2px solid var(--mm-border-soft)',
+  background: selectable ? 'var(--mm-surface)' : blockedBy === 'pacing' ? 'var(--mm-surface-tint)' : 'var(--mm-surface-sunken)',
   textAlign: 'left', cursor: selectable ? 'pointer' : 'default',
   color: 'var(--mm-text-strong)', font: 'inherit',
 });
@@ -65,14 +66,14 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
       opacity: disabled && node.selectable ? 0.58 : 1,
       ...(pass.hasCompletedPass ? {
         borderWidth: 3,
-        background: '#fbfff8',
+        background: 'var(--mm-success-subtle)',
         boxShadow: '0 6px 18px rgba(19,115,51,0.12)',
       } : {}),
     }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
         <span aria-hidden="true" style={{ fontSize: 15 }}>{node.symbol}</span>
         <strong style={{ fontSize: 16 }}>{node.title}</strong>
-        <span style={{ fontSize: 11, fontWeight: 800, color: node.tone, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        <span style={{ fontSize: 11, fontWeight: 800, color: toneTextColor(node.tone), textTransform: 'uppercase', letterSpacing: '0.04em' }}>
           {node.statusLabel}
         </span>
       </div>
@@ -86,7 +87,7 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
             border: `2px solid ${pass.tone}`,
             borderRadius: 10,
             background: pass.background,
-            color: pass.tone,
+            color: toneTextColor(pass.tone),
           }}
         >
           <div style={{ fontSize: 12, fontWeight: 950, letterSpacing: '.045em', textTransform: 'uppercase' }}>
@@ -96,7 +97,7 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
             {pass.nextLabel}
           </div>
           {node.status !== 'mastered' && (
-            <div style={{ marginTop: 4, color: '#3c4043', fontSize: 11.5, lineHeight: 1.45 }}>
+            <div style={{ marginTop: 4, color: 'var(--mm-text)', fontSize: 11.5, lineHeight: 1.45 }}>
               This Path pass is complete. Mastery is tracked separately and can require broader or higher-level evidence.
             </div>
           )}
@@ -104,26 +105,26 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
       )}
 
       {!pass.hasCompletedPass && node.selectable && !disabled && (
-        <div style={{ margin: '4px 0 9px', color: '#174ea6', fontSize: 11.5, fontWeight: 850 }}>
+        <div style={{ margin: '4px 0 9px', color: 'var(--mm-primary-text)', fontSize: 11.5, fontWeight: 850 }}>
           {pass.levelLabel}
         </div>
       )}
       {node.description && (
-        <p style={{ margin: '0 0 8px', fontSize: 13, color: '#3c4043', lineHeight: 1.5 }}>{node.description}</p>
+        <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--mm-text)', lineHeight: 1.5 }}>{node.description}</p>
       )}
-      <p style={{ margin: '0 0 10px', fontSize: 12, color: '#5f6368', lineHeight: 1.5 }}>{node.reason}</p>
+      <p style={{ margin: '0 0 10px', fontSize: 12, color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>{node.reason}</p>
 
       {/* A calendar restriction is a date, so show the date. "Not in your
           learning window yet" with no number is indistinguishable from a
           verdict. */}
       {node.blockedBy === 'pacing' && node.calendarDaysUntilStart > 0 && (
-        <p style={{ margin: '-4px 0 10px', fontSize: 12, color: '#1967d2', fontWeight: 700 }}>
+        <p style={{ margin: '-4px 0 10px', fontSize: 12, color: 'var(--mm-primary)', fontWeight: 700 }}>
           Your class reaches this in about {node.calendarDaysUntilStart} {node.calendarDaysUntilStart === 1 ? 'day' : 'days'}.
           {' '}Nothing is wrong — this one is simply later in the course.
         </p>
       )}
       {node.blockedBy === 'pacing' && !node.calendarDaysUntilStart && (
-        <p style={{ margin: '-4px 0 10px', fontSize: 12, color: '#1967d2', fontWeight: 700 }}>
+        <p style={{ margin: '-4px 0 10px', fontSize: 12, color: 'var(--mm-primary)', fontWeight: 700 }}>
           Your class reaches this later in the course. Nothing is wrong — this one is simply not open yet.
         </p>
       )}
@@ -133,12 +134,12 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
           <button
             type="button"
             onClick={() => setShowWhy((current) => !current)}
-            style={{ padding: 0, border: 0, background: 'transparent', color: '#174ea6', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}
+            style={{ padding: 0, border: 0, background: 'transparent', color: 'var(--mm-primary-text)', fontWeight: 800, fontSize: 12, cursor: 'pointer' }}
           >
             {showWhy ? 'Hide' : whyLabel(node.blockedBy)}
           </button>
           {showWhy && (
-            <p style={{ margin: '6px 0 0', fontSize: 12, color: '#3c4043', lineHeight: 1.55 }}>{node.lockedExplanation}</p>
+            <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--mm-text)', lineHeight: 1.55 }}>{node.lockedExplanation}</p>
           )}
         </div>
       )}
@@ -153,14 +154,14 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
         >
           <span aria-hidden="true">{node.strengthen.symbol}</span>{' '}
           <strong>{node.strengthen.title}</strong>{' '}
-          <span style={{ fontSize: 11, fontWeight: 800, color: node.strengthen.tone, textTransform: 'uppercase' }}>
+          <span style={{ fontSize: 11, fontWeight: 800, color: toneTextColor(node.strengthen.tone), textTransform: 'uppercase' }}>
             {node.strengthen.statusLabel}
           </span>
         </button>
       )}
 
       {disabled && node.selectable && (
-        <div style={{ marginTop: 2, padding: '8px 10px', borderRadius: 8, background: '#f1f3f4', color: '#5f6368', fontSize: 12, fontWeight: 800 }}>
+        <div style={{ marginTop: 2, padding: '8px 10px', borderRadius: 8, background: 'var(--mm-surface-control)', color: 'var(--mm-text-muted)', fontSize: 12, fontWeight: 800 }}>
           Finish your weekly target first
         </div>
       )}
@@ -198,7 +199,7 @@ function PathSection({ title, note, nodes, onChoose, practiceAs, disabled = fals
   return (
     <section style={section}>
       <h3 style={sectionHeading}>{title}</h3>
-      {note && <p style={{ margin: '0 0 12px', fontSize: 12, color: '#5f6368' }}>{note}</p>}
+      {note && <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--mm-text-muted)' }}>{note}</p>}
       <div style={nodeRow}>
         {nodes.map((node) => (
           <PathNode
@@ -263,7 +264,7 @@ export const StudentLearningPath = ({
     return (
       <section style={{ ...section, maxWidth: 940, margin: '24px auto' }}>
         <h3 style={sectionHeading}>Your path</h3>
-        <p style={{ margin: 0, color: '#5f6368', fontSize: 14, lineHeight: 1.6 }}>
+        <p style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 14, lineHeight: 1.6 }}>
           MathMaster is still resolving your course and learning path. If this remains here, your class assignment needs
           to be checked by your teacher or administrator.
         </p>
@@ -275,7 +276,7 @@ export const StudentLearningPath = ({
     return (
       <section style={{ ...section, maxWidth: 940, margin: '24px auto' }}>
         <h3 style={sectionHeading}>Your path</h3>
-        <p style={{ margin: 0, color: '#5f6368', fontSize: 14, lineHeight: 1.6 }}>
+        <p style={{ margin: 0, color: 'var(--mm-text-muted)', fontSize: 14, lineHeight: 1.6 }}>
           Nothing is open on your path just yet. Try a practice session from your mastery overview to build some
           evidence.
         </p>
@@ -294,7 +295,7 @@ export const StudentLearningPath = ({
     <div style={{ maxWidth: 940, margin: '0 auto', padding: '20px 16px 40px' }}>
       <header style={{ textAlign: 'left', marginBottom: 14 }}>
         <h2 style={{ margin: 0, fontSize: 24, color: 'var(--mm-text-strong)' }}>Your path</h2>
-        <p style={{ margin: '4px 0 0', color: '#5f6368', fontSize: 13, lineHeight: 1.55 }}>
+        <p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55 }}>
           <strong>{map.masteredCount} of {map.totalSkills}</strong> skills mastered.
           {passSummary.totalCompletedPasses > 0 && (
             <> · <strong>{passSummary.totalCompletedPasses}</strong> Path {passSummary.totalCompletedPasses === 1 ? 'pass' : 'passes'} completed across <strong>{passSummary.completedSkillCount}</strong> {passSummary.completedSkillCount === 1 ? 'skill' : 'skills'}.</>
@@ -310,7 +311,7 @@ export const StudentLearningPath = ({
         there is a weekly target worth naming alongside it.
       */}
       {freeChoiceMessage && (
-        <div role="status" style={{ margin: '0 0 16px', padding: '12px 14px', borderRadius: 11, background: '#f8fbff', border: '1px solid #c9daf8', color: '#174ea6', fontSize: 13.5, fontWeight: 750, lineHeight: 1.55 }}>
+        <div role="status" style={{ margin: '0 0 16px', padding: '12px 14px', borderRadius: 11, background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)', color: 'var(--mm-primary-text)', fontSize: 13.5, fontWeight: 750, lineHeight: 1.55 }}>
           {freeChoiceMessage}
         </div>
       )}

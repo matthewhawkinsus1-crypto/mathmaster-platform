@@ -23,18 +23,18 @@ const asNumber = (value) => {
 /** The GIVEN (or the student's own equation) a reading works from, compactly. */
 export function SourceReminder({ description, ownEquationLatex = null, factsEquationLatex = null }) {
   if (ownEquationLatex) {
-    return <p style={{ ...muted, color: '#24324a' }}>Your equation: <Latex value={ownEquationLatex} /></p>;
+    return <p style={{ ...muted, color: 'var(--mm-text)' }}>Your equation: <Latex value={ownEquationLatex} /></p>;
   }
   if (factsEquationLatex) {
-    return <p style={{ ...muted, color: '#24324a' }}>With your slope and y-intercept: <Latex value={factsEquationLatex} /></p>;
+    return <p style={{ ...muted, color: 'var(--mm-text)' }}>With your slope and y-intercept: <Latex value={factsEquationLatex} /></p>;
   }
   if (!description) return null;
   if (description.kind === 'equation') {
-    return <p style={{ ...muted, color: '#24324a' }}>GIVEN: <MathDisplay value={description.latex} inline /></p>;
+    return <p style={{ ...muted, color: 'var(--mm-text)' }}>GIVEN: <MathDisplay value={description.latex} inline /></p>;
   }
   if (description.kind === 'scenario') {
     return (
-      <MathText as="p" style={{ ...muted, color: '#24324a', maxWidth: '68ch' }}>
+      <MathText as="p" style={{ ...muted, color: 'var(--mm-text)', maxWidth: '68ch' }}>
         {description.text}
       </MathText>
     );
@@ -110,11 +110,11 @@ export function SolveForBMethod({ process, ev, setEv, fieldStatus, disabled }) {
   ];
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <p style={{ ...muted, color: '#24324a' }}>Choose a point you know, then substitute it and your slope into <Latex value="y = mx + b" />.</p>
+      <p style={{ ...muted, color: 'var(--mm-text)' }}>Choose a point you know, then substitute it and your slope into <Latex value="y = mx + b" />.</p>
       <ChoiceChips label="Point to use" name="point" options={choices} value={ev?.pt || null} disabled={disabled} onChange={(value) => setEv((current) => ({ ...current, pt: value }))} />
       {chosen ? (
         <>
-          <p style={{ ...muted, color: '#24324a' }}>
+          <p style={{ ...muted, color: 'var(--mm-text)' }}>
             <Latex value="y_1 = m \cdot x_1 + b" /> with your point <Latex value={pointLatex(chosen.point)} />
             {slope ? <> and your slope <Latex value={factDisplay(slope)} /></> : null}
           </p>
@@ -134,7 +134,7 @@ export function SolveForBMethod({ process, ev, setEv, fieldStatus, disabled }) {
 function FormulaSlots({ ev, setEv, fieldStatus, disabled }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <p style={{ ...muted, color: '#24324a' }}>
+      <p style={{ ...muted, color: 'var(--mm-text)' }}>
         <Latex value="m = \dfrac{y_2 - y_1}{x_2 - x_1}" />
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(150px, 100%), 1fr))', gap: 8 }}>
@@ -163,7 +163,7 @@ export function TwoPointFormulaMethod({ option, env, process, ev, setEv, fieldSt
   });
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <p style={{ ...muted, color: '#24324a' }}>Choose point 1, then point 2.</p>
+      <p style={{ ...muted, color: 'var(--mm-text)' }}>Choose point 1, then point 2.</p>
       <div role="group" aria-label="Points for the slope formula" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {choices.map((choice) => {
           const role = choice.value === ev?.p1 ? '1' : choice.value === ev?.p2 ? '2' : null;
@@ -175,7 +175,7 @@ export function TwoPointFormulaMethod({ option, env, process, ev, setEv, fieldSt
               data-process-point={choice.value}
               disabled={disabled}
               onClick={() => choose(choice.value)}
-              style={{ ...touchButton, border: role ? '2px solid #174ea6' : touchButton.border, background: role ? '#e8f0fe' : touchButton.background }}
+              style={{ ...touchButton, border: role ? '2px solid #174ea6' : touchButton.border, background: role ? 'var(--mm-primary-soft)' : touchButton.background }}
             >
               {role ? <strong style={{ marginRight: 6 }}>{`Point ${role}`}</strong> : null}
               {choice.label}
@@ -185,7 +185,7 @@ export function TwoPointFormulaMethod({ option, env, process, ev, setEv, fieldSt
       </div>
       {first && second ? (
         <>
-          <p style={{ ...muted, color: '#24324a' }}>
+          <p style={{ ...muted, color: 'var(--mm-text)' }}>
             Point 1 <Latex value={pointLatex(first.point)} /> · Point 2 <Latex value={pointLatex(second.point)} />
           </p>
           <FormulaSlots ev={ev} setEv={setEv} fieldStatus={fieldStatus} disabled={disabled} />
@@ -204,8 +204,8 @@ function GivenTableChooser({ description, selected = [], onChoose, disabled, cap
       <caption id={captionId} style={{ ...muted, textAlign: 'left', captionSide: 'top', paddingBottom: 6 }}>{captionText}</caption>
       <thead>
         <tr>
-          <th scope="col" style={{ padding: '4px 8px', fontStyle: 'italic', fontFamily: 'serif', color: '#1a4fb4' }}>x</th>
-          <th scope="col" style={{ padding: '4px 8px', fontStyle: 'italic', fontFamily: 'serif', color: '#1a4fb4' }}>y</th>
+          <th scope="col" style={{ padding: '4px 8px', fontStyle: 'italic', fontFamily: 'serif', color: 'var(--mm-primary-text)' }}>x</th>
+          <th scope="col" style={{ padding: '4px 8px', fontStyle: 'italic', fontFamily: 'serif', color: 'var(--mm-primary-text)' }}>y</th>
           <th scope="col"><span className="mm-sr-only">Choose</span></th>
         </tr>
       </thead>
@@ -214,10 +214,10 @@ function GivenTableChooser({ description, selected = [], onChoose, disabled, cap
           const position = selected.indexOf(index);
           return (
             // eslint-disable-next-line react/no-array-index-key -- authored rows are positional
-            <tr key={index} style={{ background: position >= 0 ? '#e8f0fe' : undefined }}>
-              <td style={{ padding: '4px 8px', textAlign: 'center', borderBottom: '1px solid #dbe3ef' }}><MathDisplay value={row.xLatex} inline /></td>
-              <td style={{ padding: '4px 8px', textAlign: 'center', borderBottom: '1px solid #dbe3ef' }}><MathDisplay value={row.yLatex} inline /></td>
-              <td style={{ padding: 4, textAlign: 'center', borderBottom: '1px solid #dbe3ef' }}>
+            <tr key={index} style={{ background: position >= 0 ? 'var(--mm-primary-soft)' : undefined }}>
+              <td style={{ padding: '4px 8px', textAlign: 'center', borderBottom: '1px solid var(--mm-tint-border)' }}><MathDisplay value={row.xLatex} inline /></td>
+              <td style={{ padding: '4px 8px', textAlign: 'center', borderBottom: '1px solid var(--mm-tint-border)' }}><MathDisplay value={row.yLatex} inline /></td>
+              <td style={{ padding: 4, textAlign: 'center', borderBottom: '1px solid var(--mm-tint-border)' }}>
                 <button
                   type="button"
                   aria-pressed={position >= 0}
@@ -287,7 +287,7 @@ export function ExtendTableMethod({ target, description, ev, setEv, fieldStatus,
   const status = fieldStatus('rows');
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <p style={{ ...muted, color: '#24324a' }}>
+      <p style={{ ...muted, color: 'var(--mm-text)' }}>
         {target === 'xIntercept'
           ? 'Continue the table\'s pattern — the same change in y for each equal change in x — until y = 0.'
           : 'Continue the table\'s pattern — the same change in y for each equal change in x — until x = 0.'}
@@ -295,16 +295,16 @@ export function ExtendTableMethod({ target, description, ev, setEv, fieldStatus,
       <table style={{ borderCollapse: 'collapse', width: '100%', maxWidth: 360, fontSize: 17 }}>
         <thead>
           <tr>
-            <th scope="col" style={{ padding: '4px 8px', fontStyle: 'italic', fontFamily: 'serif', color: '#1a4fb4' }}>x</th>
-            <th scope="col" style={{ padding: '4px 8px', fontStyle: 'italic', fontFamily: 'serif', color: '#1a4fb4' }}>y</th>
+            <th scope="col" style={{ padding: '4px 8px', fontStyle: 'italic', fontFamily: 'serif', color: 'var(--mm-primary-text)' }}>x</th>
+            <th scope="col" style={{ padding: '4px 8px', fontStyle: 'italic', fontFamily: 'serif', color: 'var(--mm-primary-text)' }}>y</th>
           </tr>
         </thead>
         <tbody>
           {(description?.rows || []).map((row, index) => (
             // eslint-disable-next-line react/no-array-index-key -- authored rows are positional
-            <tr key={`given-${index}`} style={{ color: '#5f6b7a' }}>
-              <td style={{ padding: '4px 8px', textAlign: 'center', borderBottom: '1px solid #e6ecf5' }}><MathDisplay value={row.xLatex} inline /></td>
-              <td style={{ padding: '4px 8px', textAlign: 'center', borderBottom: '1px solid #e6ecf5' }}><MathDisplay value={row.yLatex} inline /></td>
+            <tr key={`given-${index}`} style={{ color: 'var(--mm-text-muted)' }}>
+              <td style={{ padding: '4px 8px', textAlign: 'center', borderBottom: '1px solid var(--mm-tint-border)' }}><MathDisplay value={row.xLatex} inline /></td>
+              <td style={{ padding: '4px 8px', textAlign: 'center', borderBottom: '1px solid var(--mm-tint-border)' }}><MathDisplay value={row.yLatex} inline /></td>
             </tr>
           ))}
           {rows.map((row, index) => (
@@ -324,7 +324,7 @@ export function ExtendTableMethod({ target, description, ev, setEv, fieldStatus,
                     onChange={(event) => setRow(index, field, event.target.value)}
                     style={{
                       width: '100%', boxSizing: 'border-box', minHeight: 44, padding: '8px 10px', fontSize: 17, textAlign: 'center',
-                      border: `1px solid ${status === 'incorrect' ? '#d93025' : status === 'correct' ? '#34a853' : '#b8c7de'}`, borderRadius: 8, background: 'var(--mm-surface)',
+                      border: `1px solid ${status === 'incorrect' ? '#d93025' : status === 'correct' ? '#34a853' : 'var(--mm-primary-border)'}`, borderRadius: 8, background: 'var(--mm-surface)',
                     }}
                   />
                 </td>
@@ -405,7 +405,7 @@ export function GraphMethod({ option, target, description, bounds, snapStep, ev,
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <p style={{ ...muted, color: '#24324a' }}>{GRAPH_TASKS[option.strategy]?.(target)}</p>
+      <p style={{ ...muted, color: 'var(--mm-text)' }}>{GRAPH_TASKS[option.strategy]?.(target)}</p>
       <div
         data-process-plane={option.strategy}
         data-bounds={[bounds.xMin, bounds.xMax, bounds.yMin, bounds.yMax].join(',')}

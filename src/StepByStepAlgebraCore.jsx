@@ -2377,7 +2377,7 @@ export default function StepByStepAlgebra({
           onPointerMove={extendStroke}
           onPointerUp={() => finishStroke(side, cancellationModel)}
           onPointerCancel={() => setStroke(null)}
-          style={{ position: 'relative', width: 'min(96%, 520px)', maxWidth: '100%', minHeight: '132px', margin: '12px auto 4px', padding: '24px 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '14px', background: cancellationHintsEnabled ? '#fffdf6' : '#fff', outline: cancellationHintsEnabled ? '2px solid rgba(249,171,0,.32)' : 'none', touchAction: 'none', cursor: cancelAnimating ? 'wait' : 'crosshair', userSelect: 'none', overflowX: 'hidden', overflowY: 'hidden', fontSize: 'inherit' }}
+          style={{ position: 'relative', width: 'min(96%, 520px)', maxWidth: '100%', minHeight: '132px', margin: '12px auto 4px', padding: '24px 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '14px', background: cancellationHintsEnabled ? 'var(--mm-warning-subtle)' : 'var(--mm-surface)', outline: cancellationHintsEnabled ? '2px solid rgba(249,171,0,.32)' : 'none', touchAction: 'none', cursor: cancelAnimating ? 'wait' : 'crosshair', userSelect: 'none', overflowX: 'hidden', overflowY: 'hidden', fontSize: 'inherit' }}
           aria-label="Cancellation workspace. Draw through matching factors directly in this equation."
         >
           {renderCancellationInk(side)}
@@ -2545,14 +2545,14 @@ export default function StepByStepAlgebra({
   if (!equation) {
     return (
       <section style={{ maxWidth: '760px', margin: '0 auto', padding: '26px', textAlign: 'left' }}>
-        <div style={{ padding: '22px 24px', borderRadius: '12px', background: 'var(--mm-warning-soft, #fef7e0)', border: '1px solid var(--mm-warning, #f9ab00)' }}>
-          <h3 style={{ margin: 0, color: 'var(--mm-warning-text, #7a4f00)' }}>This question could not be loaded</h3>
-          <p style={{ margin: '10px 0 0', color: 'var(--mm-ink, #202124)', lineHeight: 1.55 }}>
+        <div style={{ padding: '22px 24px', borderRadius: '12px', background: 'var(--mm-warning-soft, var(--mm-warning-bg))', border: '1px solid var(--mm-warning, #f9ab00)' }}>
+          <h3 style={{ margin: 0, color: 'var(--mm-warning-text)' }}>This question could not be loaded</h3>
+          <p style={{ margin: '10px 0 0', color: 'var(--mm-ink, var(--mm-text-strong))', lineHeight: 1.55 }}>
             Its equation is missing or written in a form the step-by-step solver cannot read, so there is nothing here for you to solve.
             Nothing you did caused this and your grade is not affected. Let your teacher know so they can fix the question.
           </p>
           {parseError && (
-            <p style={{ margin: '12px 0 0', fontSize: '12px', color: 'var(--mm-ink-muted, #5f6368)' }}>
+            <p style={{ margin: '12px 0 0', fontSize: '12px', color: 'var(--mm-ink-muted, var(--mm-text-muted))' }}>
               Details for your teacher: {parseError}
             </p>
           )}
@@ -2575,14 +2575,14 @@ export default function StepByStepAlgebra({
           </div>
         ) : (
           <>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '999px', background: supportPolicy.level >= 4 ? '#e8f0fe' : '#f3e8fd', color: supportPolicy.level >= 4 ? '#174ea6' : '#681da8', fontWeight: 'bold' }}>{`Support ${supportPolicy.level} · ${supportPolicy.label}`}</div>
-            <div style={{ padding: '8px 12px', borderRadius: '999px', background: '#e6f4ea', color: '#137333', fontWeight: 'bold' }}>{objectiveLabel}</div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '999px', background: supportPolicy.level >= 4 ? 'var(--mm-primary-soft)' : 'var(--mm-accent-soft)', color: supportPolicy.level >= 4 ? 'var(--mm-primary-text)' : 'var(--mm-accent-text)', fontWeight: 'bold' }}>{`Support ${supportPolicy.level} · ${supportPolicy.label}`}</div>
+            <div style={{ padding: '8px 12px', borderRadius: '999px', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontWeight: 'bold' }}>{objectiveLabel}</div>
           </>
         )}
         {stepCreditPercent > 0 && (
           <div
             title="Credit earned from valid algebra steps so far. Finishing the problem correctly earns full credit."
-            style={{ padding: '8px 12px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6', fontWeight: 900 }}
+            style={{ padding: '8px 12px', borderRadius: '999px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 900 }}
           >
             Step credit {stepCreditPercent}%
           </div>
@@ -2599,9 +2599,9 @@ export default function StepByStepAlgebra({
               minHeight: 40,
               padding: '8px 14px',
               borderRadius: 999,
-              border: rewriteOpen ? '2px solid #174ea6' : '1px solid #b8c8e3',
-              background: rewriteOpen ? '#e8f0fe' : '#fff',
-              color: '#174ea6',
+              border: rewriteOpen ? '2px solid #174ea6' : '1px solid var(--mm-primary-border)',
+              background: rewriteOpen ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+              color: 'var(--mm-primary-text)',
               fontWeight: 800,
               cursor: disabled || savingStep || cancelAnimating ? 'not-allowed' : 'pointer',
             }}
@@ -2620,9 +2620,9 @@ export default function StepByStepAlgebra({
                 minHeight: 40,
                 padding: '8px 14px',
                 borderRadius: 999,
-                border: likeTermsOpen ? '2px solid #174ea6' : '1px solid #b8c8e3',
-                background: likeTermsOpen ? '#e8f0fe' : '#fff',
-                color: '#174ea6',
+                border: likeTermsOpen ? '2px solid #174ea6' : '1px solid var(--mm-primary-border)',
+                background: likeTermsOpen ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+                color: 'var(--mm-primary-text)',
                 fontWeight: 800,
                 cursor: disabled || savingStep || cancelAnimating ? 'not-allowed' : 'pointer',
               }}
@@ -2642,9 +2642,9 @@ export default function StepByStepAlgebra({
                 minHeight: 40,
                 padding: '8px 14px',
                 borderRadius: 999,
-                border: distributionState ? '2px solid #174ea6' : '1px solid #b8c8e3',
-                background: distributionState ? '#e8f0fe' : '#fff',
-                color: '#174ea6',
+                border: distributionState ? '2px solid #174ea6' : '1px solid var(--mm-primary-border)',
+                background: distributionState ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+                color: 'var(--mm-primary-text)',
                 fontWeight: 800,
                 cursor: disabled || savingStep || cancelAnimating ? 'not-allowed' : 'pointer',
               }}
@@ -2667,9 +2667,9 @@ export default function StepByStepAlgebra({
                   minHeight: 40,
                   padding: '8px 14px',
                   borderRadius: 999,
-                  border: structureTool?.kind === kind ? '2px solid #174ea6' : '1px solid #b8c8e3',
-                  background: structureTool?.kind === kind ? '#e8f0fe' : '#fff',
-                  color: '#174ea6',
+                  border: structureTool?.kind === kind ? '2px solid #174ea6' : '1px solid var(--mm-primary-border)',
+                  background: structureTool?.kind === kind ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+                  color: 'var(--mm-primary-text)',
                   fontWeight: 800,
                   cursor: disabled || savingStep || cancelAnimating ? 'not-allowed' : 'pointer',
                 }}
@@ -2677,7 +2677,7 @@ export default function StepByStepAlgebra({
                 {STRUCTURE_TOOL_LABELS[kind]}
               </button>
             ))}
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontSize: '12px', fontWeight: 'bold', color: '#5f6368' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontSize: '12px', fontWeight: 'bold', color: 'var(--mm-text-muted)' }}>
             <input type="checkbox" checked={cancellationHintsEnabled} onChange={(event) => setCancellationHintsEnabled(event.target.checked)} style={{ width: '15px', height: '15px' }} />
             Cancellation hints
           </label>
@@ -2690,10 +2690,10 @@ export default function StepByStepAlgebra({
           className="algebra-distribution-tool"
           style={{
             margin: '0 0 8px', padding: '12px 14px', borderRadius: 10,
-            border: '1px solid #b8c8e3', background: '#f7faff',
+            border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface-tint)',
           }}
         >
-          <p style={{ margin: '0 0 10px', fontWeight: 700, color: '#172033' }}>
+          <p style={{ margin: '0 0 10px', fontWeight: 700, color: 'var(--mm-text-strong)' }}>
             Distribute to {distributionState.placedIndices.length} of {distributionState.terms.length} terms.
             {' '}Pick up the factor, then select each term it multiplies.
           </p>
@@ -2711,14 +2711,14 @@ export default function StepByStepAlgebra({
               aria-label={`Pick up the factor ${distributionState.factorText}`}
               style={{
                 minWidth: 52, minHeight: 44, padding: '6px 12px', borderRadius: 10,
-                border: distributionState.armed ? '3px solid #174ea6' : '2px solid #9bb8e8',
-                background: distributionState.armed ? '#e8f0fe' : '#fff', color: '#174ea6',
+                border: distributionState.armed ? '3px solid #174ea6' : '2px solid var(--mm-primary-border)',
+                background: distributionState.armed ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', color: 'var(--mm-primary-text)',
                 fontWeight: 900, fontSize: 22, cursor: 'grab',
               }}
             >
               <MathDisplay value={distributionState.factorLatex} format="latex" inline />
             </button>
-            <span aria-hidden="true" style={{ color: '#5f6368' }}>&rarr;</span>
+            <span aria-hidden="true" style={{ color: 'var(--mm-text-muted)' }}>&rarr;</span>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {distributionState.terms.map((term, index) => {
                 const placed = distributionState.placedIndices.includes(index);
@@ -2739,9 +2739,9 @@ export default function StepByStepAlgebra({
                     aria-label={placed ? `Factor already applied to ${term.text}` : `Apply the factor to ${term.text}`}
                     style={{
                       minWidth: 44, minHeight: 44, padding: '6px 12px', borderRadius: 10, fontSize: 22, fontWeight: 800,
-                      border: placed ? '2px solid #137333' : distributionState.armed ? '2px dashed #7698cf' : '1px solid #d9e2f1',
-                      background: placed ? '#e6f4ea' : distributionState.armed ? '#f7faff' : '#fff',
-                      color: placed ? '#137333' : '#172033',
+                      border: placed ? '2px solid #137333' : distributionState.armed ? '2px dashed #7698cf' : '1px solid var(--mm-tint-border)',
+                      background: placed ? 'var(--mm-success-bg)' : distributionState.armed ? 'var(--mm-surface-tint)' : 'var(--mm-surface)',
+                      color: placed ? 'var(--mm-success-text)' : 'var(--mm-text-strong)',
                       cursor: disabled || placed || !distributionState.armed ? 'default' : 'pointer',
                     }}
                   >
@@ -2771,7 +2771,7 @@ export default function StepByStepAlgebra({
             >
               Commit distribution
             </button>
-            <button type="button" onClick={cancelDistribution} disabled={disabled} style={{ minHeight: 40, padding: '8px 16px', borderRadius: 999, border: '1px solid #b8c8e3', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 700 }}>
+            <button type="button" onClick={cancelDistribution} disabled={disabled} style={{ minHeight: 40, padding: '8px 16px', borderRadius: 999, border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 700 }}>
               Cancel
             </button>
           </div>
@@ -2850,13 +2850,13 @@ export default function StepByStepAlgebra({
             margin: '0 0 8px',
             padding: '7px 9px',
             borderRadius: 10,
-            border: '1px solid #b8c8e3',
-            background: '#f8fbff',
+            border: '1px solid var(--mm-primary-border)',
+            background: 'var(--mm-surface-tint)',
             boxShadow: '0 2px 8px rgba(23,78,166,.06)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-            <strong style={{ color: '#174ea6', fontSize: 13, whiteSpace: 'nowrap', marginRight: 1 }}>
+            <strong style={{ color: 'var(--mm-primary-text)', fontSize: 13, whiteSpace: 'nowrap', marginRight: 1 }}>
               Rewrite
             </strong>
 
@@ -2880,9 +2880,9 @@ export default function StepByStepAlgebra({
                     minHeight: 32,
                     padding: '4px 9px',
                     borderRadius: 999,
-                    border: rewriteScope === value ? '2px solid #174ea6' : '1px solid #c7d7f4',
-                    background: rewriteScope === value ? '#e8f0fe' : '#fff',
-                    color: rewriteScope === value ? '#174ea6' : '#3c4043',
+                    border: rewriteScope === value ? '2px solid #174ea6' : '1px solid var(--mm-tint-border)',
+                    background: rewriteScope === value ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+                    color: rewriteScope === value ? 'var(--mm-primary-text)' : 'var(--mm-text)',
                     fontSize: 12,
                     fontWeight: 800,
                     cursor: 'pointer',
@@ -2900,8 +2900,8 @@ export default function StepByStepAlgebra({
                 minWidth: 220,
                 display: 'grid',
                 gridTemplateColumns: rewriteScope === 'both'
-                  ? 'repeat(2, minmax(180px, 1fr))'
-                  : 'minmax(220px, 520px)',
+                  ? 'repeat(2, minmax(min(100%, 180px), 1fr))'
+                  : 'minmax(min(100%, 220px), 520px)',
                 gap: 7,
                 alignItems: 'center',
               }}
@@ -2922,7 +2922,7 @@ export default function StepByStepAlgebra({
                     <span
                       aria-hidden="true"
                       title={side === 'left' ? 'Left side' : 'Right side'}
-                      style={{ fontSize: 11, fontWeight: 900, color: '#5f6368', textAlign: 'center' }}
+                      style={{ fontSize: 11, fontWeight: 900, color: 'var(--mm-text-muted)', textAlign: 'center' }}
                     >
                       {side === 'left' ? 'L' : 'R'}
                     </span>
@@ -2975,9 +2975,9 @@ export default function StepByStepAlgebra({
                 height: 32,
                 padding: 0,
                 borderRadius: 999,
-                border: '1px solid #c5d5ef',
+                border: '1px solid var(--mm-tint-border)',
                 background: 'var(--mm-surface)',
-                color: '#5f6368',
+                color: 'var(--mm-text-muted)',
                 fontSize: 18,
                 lineHeight: 1,
                 fontWeight: 800,
@@ -2988,19 +2988,19 @@ export default function StepByStepAlgebra({
             </button>
           </div>
 
-          <div style={{ marginTop: 4, paddingLeft: 2, color: '#6b7280', fontSize: 11, lineHeight: 1.25 }}>
+          <div style={{ marginTop: 4, paddingLeft: 2, color: 'var(--mm-text-muted)', fontSize: 11, lineHeight: 1.25 }}>
             Enter your own equivalent expression. MathMaster checks it; it does not generate it.
           </div>
         </div>
       )}
       {Array.isArray(question.algebraPrompts) && question.algebraPrompts.length > 0 && (
-        <div style={{ marginBottom: '16px', padding: '15px', borderRadius: '12px', border: '1px solid #d9e2f1', background: 'var(--mm-surface)' }}>
-          <h3 style={{ margin: '0 0 6px', color: '#174ea6' }}>Algebraic micro-questions</h3>
-          <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: '13px' }}>These responses accept algebraic expressions, including equivalent distributed or factored forms.</p>
+        <div style={{ marginBottom: '16px', padding: '15px', borderRadius: '12px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)' }}>
+          <h3 style={{ margin: '0 0 6px', color: 'var(--mm-primary-text)' }}>Algebraic micro-questions</h3>
+          <p style={{ margin: '0 0 12px', color: 'var(--mm-text-muted)', fontSize: '13px' }}>These responses accept algebraic expressions, including equivalent distributed or factored forms.</p>
           <div style={{ display: 'grid', gap: '12px' }}>
             {question.algebraPrompts.map((prompt, index) => {
               const id = String(prompt.id || `algebra-prompt-${index + 1}`);
-              return <div key={id} style={{ padding: '12px', borderRadius: '10px', background: '#f8fbff', border: '1px solid #c5d5ef' }}><strong style={{ display: 'block', marginBottom: '8px' }}>{prompt.prompt || prompt.label || `Simplify expression ${index + 1}`}</strong>{prompt.expression && <div style={{ marginBottom: '8px', fontSize: '22px' }}><MathDisplay value={prompt.expression} /></div>}<MathInput value={promptAnswers[id] || ''} onChange={(value) => setPromptAnswers((current) => ({ ...current, [id]: value }))} placeholder="Algebraic expression" /></div>;
+              return <div key={id} style={{ padding: '12px', borderRadius: '10px', background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}><strong style={{ display: 'block', marginBottom: '8px' }}>{prompt.prompt || prompt.label || `Simplify expression ${index + 1}`}</strong>{prompt.expression && <div style={{ marginBottom: '8px', fontSize: '22px' }}><MathDisplay value={prompt.expression} /></div>}<MathInput value={promptAnswers[id] || ''} onChange={(value) => setPromptAnswers((current) => ({ ...current, [id]: value }))} placeholder="Algebraic expression" /></div>;
             })}
           </div>
         </div>
@@ -3268,7 +3268,7 @@ export default function StepByStepAlgebra({
         // is not zero. Solving A = bh for h is not the same statement as
         // A = bh, and a student rearranging formulas should see the condition
         // rather than absorb the idea that it never matters.
-        <p style={{ margin: '10px 2px 0', fontSize: 13, color: '#7a4f00', fontWeight: 700 }}>
+        <p style={{ margin: '10px 2px 0', fontSize: 13, color: 'var(--mm-warning-text)', fontWeight: 700 }}>
           This step assumes {pendingMove.assumption}.
         </p>
       )}
@@ -3382,9 +3382,9 @@ export default function StepByStepAlgebra({
           </p>
         </div>
       )}
-      {hintsAllowed && question.showHint !== false && suggestedMove && !solved && <details onToggle={(event) => { if (event.currentTarget.open) onHintUsed?.(); }} style={{ marginTop: '14px', color: '#5f6368' }}><summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Need a strategic hint?</summary><p style={{ margin: '8px 0 0' }}>Look for a move that cancels a term: {describeOperation(suggestedMove.operation, suggestedMove.operand)}.</p></details>}
-      {message && <div role="status" style={{ marginTop: '16px', padding: '13px 15px', borderRadius: '10px', background: message.tone === 'success' ? '#e6f4ea' : message.tone === 'growth' ? '#fef7e0' : '#fce8e6', color: message.tone === 'success' ? '#137333' : message.tone === 'growth' ? '#8a5a00' : '#c5221f', fontWeight: 'bold' }}>{message.text}</div>}
-      {!embedded && <p style={{ color: '#5f6368', fontSize: '13px', marginTop: '12px' }}>
+      {hintsAllowed && question.showHint !== false && suggestedMove && !solved && <details onToggle={(event) => { if (event.currentTarget.open) onHintUsed?.(); }} style={{ marginTop: '14px', color: 'var(--mm-text-muted)' }}><summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Need a strategic hint?</summary><p style={{ margin: '8px 0 0' }}>Look for a move that cancels a term: {describeOperation(suggestedMove.operation, suggestedMove.operand)}.</p></details>}
+      {message && <div role="status" style={{ marginTop: '16px', padding: '13px 15px', borderRadius: '10px', background: message.tone === 'success' ? 'var(--mm-success-bg)' : message.tone === 'growth' ? 'var(--mm-warning-bg)' : 'var(--mm-error-bg)', color: message.tone === 'success' ? 'var(--mm-success-text)' : message.tone === 'growth' ? 'var(--mm-warning-text)' : 'var(--mm-danger)', fontWeight: 'bold' }}>{message.text}</div>}
+      {!embedded && <p style={{ color: 'var(--mm-text-muted)', fontSize: '13px', marginTop: '12px' }}>
         {/* The level's own sentence promises "Hints are available on request";
             where the activity withholds hints that is no longer true. */}
         {hintsAllowed ? supportPolicy.description : supportPolicy.description.replace(/\s*Hints are available on request\./, '')}
@@ -3394,7 +3394,7 @@ export default function StepByStepAlgebra({
       </p>}
 
       {heldToken && (
-        <div aria-hidden="true" style={{ position: 'fixed', left: heldToken.x, top: heldToken.y, transform: 'translate(-50%, -50%)', zIndex: 40, pointerEvents: 'none', fontFamily: 'ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace', fontWeight: 800, fontSize: '22px', color: '#174ea6', background: '#e8f0fe', borderRadius: '12px', padding: '6px 12px', boxShadow: '0 12px 26px rgba(26,115,232,0.3)', whiteSpace: 'nowrap' }}><OperationChip token={heldToken.label} latex={heldToken.latex} /></div>
+        <div aria-hidden="true" style={{ position: 'fixed', left: heldToken.x, top: heldToken.y, transform: 'translate(-50%, -50%)', zIndex: 40, pointerEvents: 'none', fontFamily: 'ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace', fontWeight: 800, fontSize: '22px', color: 'var(--mm-primary-text)', background: 'var(--mm-primary-soft)', borderRadius: '12px', padding: '6px 12px', boxShadow: '0 12px 26px rgba(26,115,232,0.3)', whiteSpace: 'nowrap' }}><OperationChip token={heldToken.label} latex={heldToken.latex} /></div>
       )}
     </section>
   );

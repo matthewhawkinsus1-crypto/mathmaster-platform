@@ -46,11 +46,11 @@ export default function SystemGrader({ question, onStateChange, onUndoStateChang
         instruction: { text: prompt || 'Solve both equations as one system.' },
       }}>
       {showEquations && equationsLatex.length > 0 && (
-        <div style={{ display: 'grid', gap: '10px', margin: '24px auto', padding: '18px 24px', width: 'fit-content', maxWidth: '100%', background: '#f8f9fa', borderRadius: '10px', color: '#1a73e8', fontSize: '26px', fontWeight: 'bold' }}>
+        <div style={{ display: 'grid', gap: '10px', margin: '24px auto', padding: '18px 24px', width: 'fit-content', maxWidth: '100%', background: 'var(--mm-surface-sunken)', borderRadius: '10px', color: 'var(--mm-primary)', fontSize: '26px', fontWeight: 'bold' }}>
           {equationsLatex.map((equation, index) => (
             <div key={`${equation}-${index}`} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span aria-hidden="true" style={{ width: '28px', height: '4px', borderRadius: '999px', background: index === 0 ? '#1a73e8' : '#9334e6', flex: '0 0 auto' }} />
-              <MathDisplay value={equation} format="ascii-math" style={{ color: index === 0 ? '#1a73e8' : '#9334e6' }} />
+              <MathDisplay value={equation} format="ascii-math" style={{ color: index === 0 ? 'var(--mm-primary)' : 'var(--mm-accent-text)' }} />
             </div>
           ))}
         </div>

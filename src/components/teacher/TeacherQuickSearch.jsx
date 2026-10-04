@@ -18,10 +18,10 @@ import {
  */
 
 const KIND_TONE = {
-  [RESULT_KIND.STUDENT]: { bg: '#eef3fb', fg: '#174ea6' },
-  [RESULT_KIND.CLASS]: { bg: '#eefaf1', fg: '#12633a' },
-  [RESULT_KIND.ASSIGNMENT]: { bg: '#f3e8fd', fg: '#6f2da8' },
-  [RESULT_KIND.STANDARD]: { bg: '#fdf6e3', fg: '#854d0e' },
+  [RESULT_KIND.STUDENT]: { bg: 'var(--mm-primary-subtle)', fg: 'var(--mm-primary-text)' },
+  [RESULT_KIND.CLASS]: { bg: 'var(--mm-success-subtle)', fg: 'var(--mm-success-text)' },
+  [RESULT_KIND.ASSIGNMENT]: { bg: 'var(--mm-accent-soft)', fg: 'var(--mm-accent-text)' },
+  [RESULT_KIND.STANDARD]: { bg: 'var(--mm-warning-bg)', fg: 'var(--mm-warning-text)' },
 };
 
 export default function TeacherQuickSearch({
@@ -107,19 +107,19 @@ export default function TeacherQuickSearch({
           placeholder="Student, class, assignment or TEKS code"
           aria-label="Search"
           style={{
-            width: '100%', padding: '17px 20px', border: 0, borderBottom: '1px solid #eef0f2',
+            width: '100%', padding: '17px 20px', border: 0, borderBottom: '1px solid var(--mm-border-soft)',
             fontSize: 17, outline: 'none', boxSizing: 'border-box',
           }}
         />
 
         {query.trim().length >= 2 && !results.length && (
-          <p style={{ margin: 0, padding: '18px 20px', color: '#5f6368', fontSize: 13.5 }}>
+          <p style={{ margin: 0, padding: '18px 20px', color: 'var(--mm-text-muted)', fontSize: 13.5 }}>
             Nothing matches that. Try a surname, a class name, or a TEKS code such as A.5C.
           </p>
         )}
 
         {query.trim().length < 2 && (
-          <p style={{ margin: 0, padding: '16px 20px', color: '#5f6368', fontSize: 13 }}>
+          <p style={{ margin: 0, padding: '16px 20px', color: 'var(--mm-text-muted)', fontSize: 13 }}>
             Type at least two characters. A full student ID or TEKS code goes straight to the top.
           </p>
         )}
@@ -138,7 +138,7 @@ export default function TeacherQuickSearch({
                   onClick={() => choose(result)}
                   style={{
                     display: 'flex', width: '100%', gap: 12, alignItems: 'center', textAlign: 'left',
-                    padding: '11px 20px', border: 0, background: active ? '#f1f5fb' : '#fff', cursor: 'pointer',
+                    padding: '11px 20px', border: 0, background: active ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', cursor: 'pointer',
                   }}
                 >
                   <span style={{ padding: '2px 8px', borderRadius: 999, background: tone.bg, color: tone.fg, fontSize: 10.5, fontWeight: 900, whiteSpace: 'nowrap' }}>
@@ -147,12 +147,12 @@ export default function TeacherQuickSearch({
                   <span style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ display: 'block', fontWeight: 800, color: 'var(--mm-text-strong)' }}>{result.title}</span>
                     {result.subtitle && (
-                      <span style={{ display: 'block', color: '#5f6368', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {result.subtitle}
                       </span>
                     )}
                   </span>
-                  {active && <span style={{ color: '#9aa0a6', fontSize: 11, fontWeight: 800 }}>ENTER</span>}
+                  {active && <span style={{ color: 'var(--mm-text-subtle)', fontSize: 11, fontWeight: 800 }}>ENTER</span>}
                 </button>
               </li>
             );

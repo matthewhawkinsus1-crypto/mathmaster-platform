@@ -11,7 +11,7 @@ import expressionMeaningGrader, {
   expressionMeaningWork,
 } from '../../../functions/shared/serverGrading/tools/expressionMeaning.mjs';
 
-const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid #c9d6e8', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
+const button = { minHeight: 42, padding: '9px 13px', borderRadius: 9, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
 
 const DIMENSION_LABEL = { unit: 'Unit', contextMeaning: 'Contextual meaning', mathRole: 'Mathematical role' };
 
@@ -119,20 +119,20 @@ export default function ExpressionMeaning({ questionData = {}, onAction }) {
                 const given = assignments[expr.id] || {};
                 const isActive = activeExpression?.id === expr.id;
                 return (
-                  <tr key={expr.id} style={{ background: isActive ? '#eef4ff' : 'transparent' }}>
+                  <tr key={expr.id} style={{ background: isActive ? 'var(--mm-primary-subtle)' : 'transparent' }}>
                     <td style={{ padding: 8 }}>
                       <button
                         type="button"
                         onClick={() => setActiveId(expr.id)}
                         aria-pressed={isActive}
                         aria-label={`Edit the meaning of ${expr.expression}`}
-                        style={{ ...button, border: isActive ? '3px solid #1a73e8' : '1px solid #c9d6e8', minHeight: 40 }}
+                        style={{ ...button, border: isActive ? '3px solid #1a73e8' : '1px solid var(--mm-tint-border)', minHeight: 40 }}
                       >
                         {expr.expression}
                       </button>
                     </td>
                     {EXPRESSION_MEANING_DIMENSIONS.map((dimension) => (
-                      <td key={dimension} style={{ padding: 8, color: given[dimension] ? '#172033' : '#9aa5b1' }}>
+                      <td key={dimension} style={{ padding: 8, color: given[dimension] ? 'var(--mm-text-strong)' : 'var(--mm-text-subtle)' }}>
                         {given[dimension] || '—'}
                       </td>
                     ))}
@@ -161,7 +161,7 @@ export default function ExpressionMeaning({ questionData = {}, onAction }) {
                         type="button"
                         onClick={() => assign(activeExpression.id, dimension, option)}
                         aria-pressed={selected}
-                        style={{ ...button, minHeight: 44, background: selected ? '#1a73e8' : '#fff', color: selected ? '#fff' : '#172033' }}
+                        style={{ ...button, minHeight: 44, background: selected ? '#1a73e8' : 'var(--mm-surface)', color: selected ? '#fff' : 'var(--mm-text-strong)' }}
                       >
                         {option}
                       </button>
@@ -181,14 +181,14 @@ export default function ExpressionMeaning({ questionData = {}, onAction }) {
           type="button"
           onClick={check}
           disabled={!allComplete}
-          style={{ ...button, background: allComplete ? '#1a73e8' : '#dadce0', color: allComplete ? '#fff' : '#5f6368', border: 0 }}
+          style={{ ...button, background: allComplete ? '#1a73e8' : '#dadce0', color: allComplete ? '#fff' : 'var(--mm-text-muted)', border: 0 }}
         >
           Submit meaning map
         </button>
         {feedback ? <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Every connection is correct' : 'Some connections need another look'}</ResultPill> : null}
       </div>
       {feedback && !feedback.isCorrect && wrongParts.length ? (
-        <ul style={{ color: '#5f6b7a', lineHeight: 1.55 }}>
+        <ul style={{ color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>
           {wrongParts.map((part) => (
             <li key={part.id}>
               <strong>{part.label}</strong>: reconsider its {Object.entries(part.dimensions || {}).filter(([, ok]) => !ok).map(([dimension]) => DIMENSION_LABEL[dimension]).join(', ')}.

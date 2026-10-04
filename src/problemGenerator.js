@@ -25,6 +25,17 @@ import {
 } from '../functions/shared/questionGenerationIdentity.mjs';
 import { canGenerateDistinctVariants } from '../functions/shared/questionVariability.mjs';
 import {
+  QUESTION_RESOLUTION_FAILURE,
+  classifyFamilyFailure,
+  classifyPinRefusal,
+  familyPinKind,
+  familyResolutionDiagnostics,
+  isAuthoritativePinKind,
+  questionResolutionError,
+  rebuildFamilyQuestionFromPin,
+  resolutionFailureForError,
+} from './platform/generation/familyPinReplay.js';
+import {
   FRACTION_QUESTION_SHAPES,
   fractionQuestionShape,
   fractionSumAnswerKey,
@@ -607,6 +618,9 @@ const buildPlatformQuestionError = (question, error) => {
     .replace(/\.$/, '')
     .trim() || 'question_generation_failed';
   const questionId = question?.questionId || question?.id || null;
+  // What kind of failure, what the screen may offer (retry, reload, or a
+  // teacher), and a scrubbed record of which slot (familyPinReplay.js).
+  const { classification, recovery, diagnostics } = resolutionFailureForError(error, question);
 
   return {
     ...(questionId ? { id: questionId, questionId } : { id: 'platform-question-error' }),
@@ -616,6 +630,9 @@ const buildPlatformQuestionError = (question, error) => {
     platformError: {
       sourceType: question?.type || null,
       reason,
+      classification,
+      recovery,
+      diagnostics,
     },
     ...(question?.standard ? { standard: question.standard } : {}),
     ...(question?.teks ? { teks: question.teks } : {}),
@@ -665,6 +682,19 @@ const fallbackFamilyAllocation = (keyParts, variant) => {
   return { basis: ALLOCATION_BASIS.PROVISIONAL, seat, variant, stride: GENERATION_STRIDE, index: seat + variant * GENERATION_STRIDE };
 };
 
+/*
+ * AN AUTHORITATIVE PIN IS NEVER SWAPPED.
+ *
+ * `familyContext.pinSource` says where the pin came from (familyDelivery.js):
+ * the question record's canonical pin and a Recovery pin (`requirePin`) are
+ * authoritative — graded history refers to them — while a device pin, written
+ * before anything reached the server, is not. An authoritative pin that will
+ * not replay is rebuilt only when the rebuild proves it is the same instance
+ * (rebuildFamilyQuestionFromPin); otherwise the slot fails closed as a
+ * classified question-level error. Before this, the player fell back to a
+ * fresh allocation, reported it as what was shown, and the next submission
+ * overwrote the canonical pin with it.
+ */
 const generateFamilyBackedQuestion = (question, generationKey, studentProfile, familyContext) => {
   const context = familyContext && typeof familyContext === 'object' ? familyContext : {};
   const keyParts = parseFamilyGenerationKey(generationKey);
@@ -673,22 +703,52 @@ const generateFamilyBackedQuestion = (question, generationKey, studentProfile, f
   const variant = Number.isInteger(context.variant) ? context.variant : keyParts.variant;
   const support = studentHasSupport(studentProfile, 'reduce-complexity') ? 'reduce-complexity' : null;
 
+  const pinKind = familyPinKind(context);
+  const authoritative = isAuthoritativePinKind(pinKind);
+  const diagnosticContext = { assignmentId, storageIndex, variant };
+  const failClosed = (classification, detail, pin = context.pin) => {
+    throw questionResolutionError({
+      message: 'Could not reproduce this question.',
+      generationReason: 'pin-replay-failed',
+      classification,
+      diagnostics: familyResolutionDiagnostics({ question, context: diagnosticContext, pin, pinKind, classification, detail }),
+    });
+  };
+
+  // The question record carries a pin this build cannot read (truncated, or a
+  // legacy shape). It still says the student was shown SOMETHING specific.
+  if (authoritative && context.pinUnreadable === true) failClosed(QUESTION_RESOLUTION_FAILURE.PIN_MALFORMED, 'pin-unreadable', null);
+  // The pin replays but names an instance this student was never allocated,
+  // or another slot's: the server refuses to grade against it, so it is
+  // never shown as this student's question either.
+  if (authoritative && context.pinRefusal) failClosed(classifyPinRefusal(context.pinRefusal), context.pinRefusal);
+
   let result = null;
+  let devicePinNotice = context.devicePinRefused
+    ? familyResolutionDiagnostics({ question, context: diagnosticContext, pin: null, pinKind: 'device', classification: classifyPinRefusal(context.devicePinRefused), detail: context.devicePinRefused })
+    : null;
   const pin = normalizeDeliveryPin(context.pin);
+  if (context.requirePin === true && (!pin || pin.variant !== variant)) {
+    failClosed(QUESTION_RESOLUTION_FAILURE.PIN_MALFORMED, pin ? 'pin-variant-mismatch' : 'pin-invalid');
+  }
   // A pin is the authority for the variant it was written for: it reproduces
   // what the student actually saw even if seats or profiles moved since.
   if (pin && pin.variant === variant) {
     const replay = reproduceFamilyQuestionFromPin({ question, assignmentId, storageIndex, pin });
-    if (!replay.error) result = replay;
-  }
-  // A Recovery item is graded by the server against exactly its pin. Showing
-  // any other instance in its place would grade the student on a question
-  // they never saw, so a pin that will not replay is an error, not a cue to
-  // generate something else.
-  if (!result && context.requirePin === true) {
-    const error = new Error('Could not reproduce this question.');
-    error.generationReason = 'pin-replay-failed';
-    throw error;
+    if (!replay.error && context.pinWalkRefused === true) {
+      // It replays, but its `resolvedIndex` points somewhere this student's
+      // allocation never walks to: an instance dealt to someone else.
+      if (authoritative) failClosed(QUESTION_RESOLUTION_FAILURE.PIN_NOT_ALLOCATED, 'pin-index-not-allocated');
+      devicePinNotice = familyResolutionDiagnostics({ question, context: diagnosticContext, pin, pinKind, classification: QUESTION_RESOLUTION_FAILURE.PIN_NOT_ALLOCATED, detail: 'pin-index-not-allocated' });
+    } else if (!replay.error) {
+      result = replay;
+    } else if (authoritative) {
+      result = rebuildFamilyQuestionFromPin({ question, assignmentId, storageIndex, pin });
+      if (!result) failClosed(classifyFamilyFailure({ question, pin, error: replay.error, issues: replay.issues }), replay.issues?.[0] || replay.error);
+    } else {
+      const classification = classifyFamilyFailure({ question, pin, error: replay.error, issues: replay.issues });
+      devicePinNotice = familyResolutionDiagnostics({ question, context: diagnosticContext, pin, pinKind, classification, detail: replay.issues?.[0] || replay.error });
+    }
   }
   if (!result) {
     const allocation = context.allocation
@@ -704,14 +764,24 @@ const generateFamilyBackedQuestion = (question, generationKey, studentProfile, f
     });
   }
   if (result.error) {
-    const error = new Error(`Could not generate assignment question: ${result.error}`);
-    error.generationReason = result.error;
-    throw error;
+    const classification = classifyFamilyFailure({ question, error: result.error, issues: result.issues });
+    throw questionResolutionError({
+      message: `Could not generate assignment question: ${result.error}`,
+      generationReason: result.error,
+      classification,
+      diagnostics: familyResolutionDiagnostics({ question, context: diagnosticContext, pin: null, pinKind, classification, detail: result.error }),
+    });
   }
   // Accommodations and presentation supports still apply to the built
   // question; the family has already narrowed its numbers for a modification.
   const supported = applyStudentSupportToQuestion(result.question, studentProfile).question;
-  return { ...supported, familyDelivery: result.delivery };
+  return {
+    ...supported,
+    familyDelivery: result.delivery,
+    // A device pin that could not be used: the fresh allocation above is now
+    // what is shown, and support can see why the earlier one was dropped.
+    ...(devicePinNotice ? { familyPinNotice: devicePinNotice } : {}),
+  };
 };
 
 export const generateQuestion = (question, generationKey, studentProfile = null, adaptation = null, familyContext = null) => {

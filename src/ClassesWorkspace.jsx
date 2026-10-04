@@ -51,7 +51,7 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
     return (
       <div style={{ textAlign: 'left' }}>
         <h2 style={{ marginTop: 0 }}>Classes</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: '14px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 190px), 1fr))', gap: '14px' }}>
           {classOptions.map((classRecord) => {
             const period = classRecord.period;
             const periodStudents = studentsInClass({ students: allStudents, classes, classId: classRecord.classId || null, classPeriod: period });
@@ -62,11 +62,11 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
                 type="button"
                 key={classRecord.key}
                 onClick={() => chooseClass(classRecord.key)}
-                style={{ textAlign: 'left', padding: '18px', borderRadius: '12px', border: '1px solid #dadce0', background: 'var(--mm-surface)', cursor: 'pointer' }}
+                style={{ textAlign: 'left', padding: '18px', borderRadius: '12px', border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', cursor: 'pointer' }}
               >
-                <div style={{ fontWeight: 900, fontSize: '16px', color: 'var(--mm-text-strong)' }}>{classRecord.name || period}</div><div style={{ marginTop: 2, color: '#5f6368', fontSize: 12 }}>{period}</div>
-                <div style={{ marginTop: '8px', color: '#5f6368', fontSize: '13px' }}>{periodStudents.length} student{periodStudents.length === 1 ? '' : 's'}</div>
-                <div style={{ marginTop: '3px', color: '#5f6368', fontSize: '13px' }}>{openCount} active assignment{openCount === 1 ? '' : 's'}</div>
+                <div style={{ fontWeight: 900, fontSize: '16px', color: 'var(--mm-text-strong)' }}>{classRecord.name || period}</div><div style={{ marginTop: 2, color: 'var(--mm-text-muted)', fontSize: 12 }}>{period}</div>
+                <div style={{ marginTop: '8px', color: 'var(--mm-text-muted)', fontSize: '13px' }}>{periodStudents.length} student{periodStudents.length === 1 ? '' : 's'}</div>
+                <div style={{ marginTop: '3px', color: 'var(--mm-text-muted)', fontSize: '13px' }}>{openCount} active assignment{openCount === 1 ? '' : 's'}</div>
               </button>
             );
           })}
@@ -116,8 +116,8 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
     <div style={{ textAlign: 'left' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '18px' }}>
         <div>
-          <button type="button" onClick={() => chooseClass(null)} style={{ border: 'none', background: 'transparent', color: '#1a73e8', fontWeight: 'bold', cursor: 'pointer', padding: 0, marginBottom: '6px' }}>&larr; All Classes</button>
-          <h2 style={{ margin: 0 }}>{selectedClass.name || selectedPeriod}</h2><div style={{ marginTop: 3, color: '#5f6368', fontSize: 12 }}>{selectedPeriod}</div>
+          <button type="button" onClick={() => chooseClass(null)} style={{ border: 'none', background: 'transparent', color: 'var(--mm-primary)', fontWeight: 'bold', cursor: 'pointer', padding: 0, marginBottom: '6px' }}>&larr; All Classes</button>
+          <h2 style={{ margin: 0 }}>{selectedClass.name || selectedPeriod}</h2><div style={{ marginTop: 3, color: 'var(--mm-text-muted)', fontSize: 12 }}>{selectedPeriod}</div>
         </div>
         <div className="tw-row">
           {onOpenLive && <button type="button" className="tw-btn" onClick={() => onOpenLive(classContext)}>Live view</button>}
@@ -155,39 +155,39 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
           rigorLoading={rigorLoading}
         />
       ) : (
-        <section style={{ border: '1px solid #d8dde6', borderRadius: 11, background: '#f8f9fa', marginBottom: 20, padding: '14px 16px' }}>
+        <section style={{ border: '1px solid var(--mm-border)', borderRadius: 11, background: 'var(--mm-surface-sunken)', marginBottom: 20, padding: '14px 16px' }}>
           <strong>Live class mode</strong>
-          <p style={{ margin: '5px 0 0', color: '#5f6368', fontSize: 13, lineHeight: 1.5 }}>
+          <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5 }}>
             This screen stays lightweight during class and does not keep every student&apos;s historical grade record in memory.
             Live presence and class controls are current. Open the full Gradebook for academic-history analysis.
           </p>
         </section>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '22px' }}>
-        <div style={{ padding: '14px', borderRadius: '10px', background: '#e8f0fe', color: '#174ea6' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: '12px', marginBottom: '22px' }}>
+        <div style={{ padding: '14px', borderRadius: '10px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' }}>
           <div style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>Students</div>
           <div style={{ fontSize: '22px', fontWeight: 900 }}>{periodStudents.length}</div>
         </div>
-        <div style={{ padding: '14px', borderRadius: '10px', background: '#e6f4ea', color: '#137333' }}>
+        <div style={{ padding: '14px', borderRadius: '10px', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' }}>
           <div style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>Students active now</div>
           <div style={{ fontSize: '22px', fontWeight: 900 }}>{activeStudentCount}</div>
         </div>
-        <div style={{ padding: '14px', borderRadius: '10px', background: '#fff4ce', color: '#7a4f00' }}>
+        <div style={{ padding: '14px', borderRadius: '10px', background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' }}>
           <div style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>Warm-Ups today</div>
           <div style={{ fontSize: '22px', fontWeight: 900 }}>{classLessons.counts.warmupsToday}</div>
         </div>
-        <div style={{ padding: '14px', borderRadius: '10px', background: '#f3e8fd', color: '#681da8' }}>
+        <div style={{ padding: '14px', borderRadius: '10px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)' }}>
           <div style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>DOL today</div>
           <div style={{ fontSize: '22px', fontWeight: 900 }}>{classLessons.counts.dolsToday}</div>
         </div>
-        <div style={{ padding: '14px', borderRadius: '10px', background: '#fef7e0', color: '#7a4f01' }}>
+        <div style={{ padding: '14px', borderRadius: '10px', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>
           <div style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>Inclusion supports</div>
           <div style={{ fontSize: '22px', fontWeight: 900 }}>{inclusionCount}</div>
         </div>
       </div>
 
-      <div style={{ padding: '14px 16px', borderRadius: '10px', border: '1px solid #e0e3e7', marginBottom: '22px', color: '#3c4043', fontSize: '13px' }}>
+      <div style={{ padding: '14px 16px', borderRadius: '10px', border: '1px solid var(--mm-border)', marginBottom: '22px', color: 'var(--mm-text)', fontSize: '13px' }}>
         <strong>Today&apos;s schedule: </strong>
         {scheduleWindow ? `${formatClock(scheduleWindow.start)} – ${formatClock(scheduleWindow.end)}${scheduleWindow.modified ? ' (modified today)' : ''}` : 'No schedule set for today.'}
       </div>
@@ -212,7 +212,7 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
         export, never in the way.
       */}
       <h3 style={{ margin: '0 0 10px' }}>Assignments</h3>
-      {assignmentGroups.length === 0 ? <p style={{ color: '#80868b', fontSize: '13px', marginBottom: 22 }}>Nothing is assigned to {selectedClass.name || selectedPeriod} yet.</p> : (
+      {assignmentGroups.length === 0 ? <p style={{ color: 'var(--mm-text-subtle)', fontSize: '13px', marginBottom: 22 }}>Nothing is assigned to {selectedClass.name || selectedPeriod} yet.</p> : (
         <div className="tw-stack" style={{ gap: 10, marginBottom: 22 }}>
           {assignmentGroups.map((group) => {
             const rows = (
@@ -225,7 +225,7 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
                         {onOpenAssignment
                           ? <button type="button" className="tw-link" onClick={() => onOpenAssignment(assignment.id, selectedClass.classId || null)}>{assignment.title}</button>
                           : <strong>{assignment.title}</strong>}
-                        <div style={{ fontSize: '12px', color: '#5f6368' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--mm-text-muted)' }}>
                           {lifecycle.isScheduled
                             ? `Opens ${formatDateTime(assignment.releaseAt)}`
                             : lifecycle.isClosed
@@ -236,7 +236,7 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
                         </div>
                       </div>
                       {!lifecycle.isScheduled && (
-                        <div style={{ fontSize: '12px', color: '#5f6368' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--mm-text-muted)' }}>
                           {academicDataLoaded
                             ? `${startedCount(assignment)}/${periodStudents.length} started`
                             : lifecycle.isOpen ? `${activeOnAssignmentCount(assignment)}/${periodStudents.length} active now` : ''}
@@ -263,22 +263,22 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
       )}
 
       <h3 style={{ margin: '0 0 10px' }}>Roster</h3>
-      {periodStudents.length === 0 ? <p style={{ color: '#80868b', fontSize: '13px' }}>No students are assigned to {selectedPeriod} yet.</p> : (
+      {periodStudents.length === 0 ? <p style={{ color: 'var(--mm-text-subtle)', fontSize: '13px' }}>No students are assigned to {selectedPeriod} yet.</p> : (
         <div style={{ display: 'grid', gap: '8px' }}>
           {periodStudents.map((student) => {
             const presence = presenceById?.[student.id];
             const active = studentIsActive(student);
             return (
-              <div key={student.id} style={{ padding: '10px 14px', borderRadius: '8px', border: `1px solid ${active ? '#81c995' : '#e8eaed'}`, background: active ? '#f6fff8' : '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <div key={student.id} style={{ padding: '10px 14px', borderRadius: '8px', border: `1px solid ${active ? '#81c995' : 'var(--mm-border-soft)'}`, background: active ? 'var(--mm-success-subtle)' : 'var(--mm-surface)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 'bold' }}>{formatStudentName(student)}</span><span style={{ color: '#5f6368', fontSize: 12 }}>ID {student.id}</span>
-                    <span style={{ fontSize: '11px', fontWeight: 900, padding: '3px 7px', borderRadius: '999px', background: active ? '#e6f4ea' : '#f1f3f4', color: active ? '#137333' : '#5f6368' }}>{active ? 'ACTIVE' : 'NOT ACTIVE'}</span>
-                    {student.profile?.inclusionStatus && <span style={{ fontSize: '11px', fontWeight: 900, padding: '3px 7px', borderRadius: '999px', background: '#efe4ff', color: '#6f2da8' }}>INCLUSION</span>}
+                    <span style={{ fontWeight: 'bold' }}>{formatStudentName(student)}</span><span style={{ color: 'var(--mm-text-muted)', fontSize: 12 }}>ID {student.id}</span>
+                    <span style={{ fontSize: '11px', fontWeight: 900, padding: '3px 7px', borderRadius: '999px', background: active ? 'var(--mm-success-bg)' : 'var(--mm-surface-control)', color: active ? 'var(--mm-success-text)' : 'var(--mm-text-muted)' }}>{active ? 'ACTIVE' : 'NOT ACTIVE'}</span>
+                    {student.profile?.inclusionStatus && <span style={{ fontSize: '11px', fontWeight: 900, padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)' }}>INCLUSION</span>}
                   </div>
-                  {active && <div style={{ marginTop: 4, fontSize: 12, color: '#5f6368' }}>{presence.assignmentTitle || 'Assignment'} · {String(presence.activityRole || 'activity').toUpperCase()} · Q{Number(presence.sectionQuestionIndex ?? presence.questionIndex ?? 0) + 1}</div>}
+                  {active && <div style={{ marginTop: 4, fontSize: 12, color: 'var(--mm-text-muted)' }}>{presence.assignmentTitle || 'Assignment'} · {String(presence.activityRole || 'activity').toUpperCase()} · Q{Number(presence.sectionQuestionIndex ?? presence.questionIndex ?? 0) + 1}</div>}
                 </div>
-                <button type="button" onClick={() => onViewGradebook(selectedClass.classId || selectedPeriod, student)} style={{ padding: '7px 12px', border: '1px solid #1a73e8', borderRadius: '7px', background: 'var(--mm-surface)', color: '#1a73e8', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>View Grades</button>
+                <button type="button" onClick={() => onViewGradebook(selectedClass.classId || selectedPeriod, student)} style={{ padding: '7px 12px', border: '1px solid #1a73e8', borderRadius: '7px', background: 'var(--mm-surface)', color: 'var(--mm-primary)', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>View Grades</button>
               </div>
             );
           })}

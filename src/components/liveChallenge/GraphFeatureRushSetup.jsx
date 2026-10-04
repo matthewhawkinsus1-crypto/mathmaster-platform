@@ -34,14 +34,14 @@ const chip = (active) => ({
   minHeight: 40,
   padding: '7px 12px',
   borderRadius: 999,
-  border: `2px solid ${active ? '#1a73e8' : '#c6ccd5'}`,
-  background: active ? '#e8f0fe' : 'var(--mm-surface)',
-  color: active ? '#174ea6' : 'var(--mm-text)',
+  border: `2px solid ${active ? '#1a73e8' : 'var(--mm-border)'}`,
+  background: active ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+  color: active ? 'var(--mm-primary-text)' : 'var(--mm-text)',
   fontWeight: 800,
   cursor: 'pointer',
 });
 
-const field = { display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid #b7bec8' };
+const field = { display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid var(--mm-border)' };
 const hint = { display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: 'var(--mm-text-muted)' };
 
 export default function GraphFeatureRushSetup({ setup, onChange, classSize = 0, onPractice = null }) {
@@ -88,7 +88,7 @@ export default function GraphFeatureRushSetup({ setup, onChange, classSize = 0, 
         <span style={hint}>Prompts vary the wording — "zeros", "roots", "x-intercepts" — and never say how many there are. Some graphs have none: students answer with "Does Not Exist".</span>
       </fieldset>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: 14 }}>
         <label style={{ fontWeight: 800 }}>Difficulty
           <select value={setup.difficulty} onChange={(event) => update({ difficulty: event.target.value })} style={field}>
             {RUSH_DIFFICULTY_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
@@ -141,7 +141,7 @@ export default function GraphFeatureRushSetup({ setup, onChange, classSize = 0, 
 
       {typeof onPractice === 'function' && (
         <div>
-          <button type="button" disabled={Boolean(problem)} onClick={onPractice} style={{ border: '1px solid #b7bec8', borderRadius: 9, padding: '10px 15px', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontWeight: 900, cursor: problem ? 'not-allowed' : 'pointer', opacity: problem ? 0.55 : 1 }}>
+          <button type="button" disabled={Boolean(problem)} onClick={onPractice} style={{ border: '1px solid var(--mm-border)', borderRadius: 9, padding: '10px 15px', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)', fontWeight: 900, cursor: problem ? 'not-allowed' : 'pointer', opacity: problem ? 0.55 : 1 }}>
             Try it yourself first
           </button>
           <span style={hint}>Play a practice round with these settings. Nothing is recorded and no students are invited.</span>

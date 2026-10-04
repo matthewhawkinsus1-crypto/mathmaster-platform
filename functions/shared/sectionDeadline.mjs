@@ -14,6 +14,7 @@
 import { parseInstant, zonedDateKey } from './instructionalCalendar.mjs';
 import { resolvePeriodWindow } from './classSchedule.mjs';
 import { withStudentSupportDates } from './supportDeadline.mjs';
+import { resolveStudentDeadlines, resolveStudentOverride } from './studentAssignmentOverrides.mjs';
 
 /** The school's wall clock. Warm-Up and DOL windows are defined in it. */
 export const SCHOOL_TIME_ZONE = 'America/Chicago';
@@ -67,35 +68,30 @@ export const resolveDolInstructionDateKey = ({ assignment, classId = null, class
 
 /**
  * The assignment's own final grading cutoff: the late window when there is
- * one, extended by a per-student attendance extension when `studentId` names
- * one (`assignment.studentOverrides[studentId].lateDueAt`), and by the
- * student's individualized extra-time deadline when `studentProfile` (the
- * student's pinned `grades/{id}.profile`) carries one — see
- * supportDeadline.mjs. The latest of them wins; none can shorten another.
+ * one, extended by the student's individual extension (their private
+ * override — studentAssignmentOverrides.mjs — merged with any copy still on
+ * the shared document), and by the student's individualized extra-time
+ * deadline when `studentProfile` (the student's pinned `grades/{id}.profile`)
+ * carries one — see supportDeadline.mjs. The latest of them wins; none can
+ * shorten another.
  *
- * MIRRORS src/assignmentLifecycle.js's `getAssignmentDate(assignment, 'late',
- * studentId)` EXACTLY — same fallback order, same field names. Cloud
- * Functions deploy only `functions/` (see AGENTS.md), so this cannot import
- * that client module; it is re-derived here instead, on purpose, so both
- * sides can only ever answer "when does this student's credit eligibility
- * actually end" the same way. If that resolver's fallback chain changes,
- * change it here too.
+ * `privateOverride` is the student's record from
+ * `studentAssignmentOverrides`, read by the CALLER with its own authority
+ * (inside the same transaction as the assignment, for ingestion and the
+ * finalizer). Leave it undefined only where private storage was not read;
+ * the shared document is then the whole answer, as before the migration.
+ *
+ * The precedence itself is resolveStudentDeadlines — the one definition the
+ * browser's lifecycle (src/assignmentLifecycle.js getAssignmentDate) also
+ * reads, so "when does this student's credit eligibility actually end" has
+ * one answer on both sides.
  */
-export const assignmentFinalCloseAt = (assignment, timeZone = null, studentId = null, studentProfile = null) => {
-  const effective = studentId && studentProfile
+export const assignmentFinalCloseAt = (assignment, timeZone = null, studentId = null, studentProfile = null, { privateOverride = undefined } = {}) => {
+  const withSupport = studentId && studentProfile
     ? withStudentSupportDates(assignment, studentId, studentProfile)
     : assignment;
-  const override = studentId ? effective?.studentOverrides?.[studentId] : null;
-  const candidates = [
-    parseInstant(
-      assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate,
-      { endOfDay: true, timeZone },
-    ),
-    parseInstant(override?.lateDueAt || override?.dueAt, { endOfDay: true, timeZone }),
-    // An ISO instant written by withStudentSupportDates, never a date key.
-    parseInstant(override?.supportFinalAt, { timeZone }),
-  ].filter((value) => value !== null);
-  return candidates.length ? Math.max(...candidates) : null;
+  const override = studentId ? resolveStudentOverride({ assignment: withSupport, studentId, privateOverride }) : null;
+  return resolveStudentDeadlines({ assignment, override, timeZone }).finalCloseAtMs;
 };
 
 /**
@@ -399,9 +395,13 @@ export const resolveAuthoritativeClose = ({
   // The student's pinned grades/{id}.profile. Only the assignment's own final
   // cutoff can move for extra time; Warm-Up / DOL class windows cannot.
   studentProfile = null,
+  // The student's private override record (studentAssignmentOverrides),
+  // read by the caller with its own authority. Same rule as extra time: it
+  // moves only the assignment's own final cutoff.
+  privateOverride = undefined,
 } = {}) => {
   const role = String(activityRole || '').trim().toLowerCase();
-  const finalCloseAtMs = assignmentFinalCloseAt(assignment, timeZone, studentId, studentProfile);
+  const finalCloseAtMs = assignmentFinalCloseAt(assignment, timeZone, studentId, studentProfile, { privateOverride });
   const todayKey = zonedDateKey(nowValue, timeZone);
 
   if (role === 'warmup' || role === 'dol') {

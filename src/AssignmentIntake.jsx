@@ -11,9 +11,9 @@ import {
 } from './platform/preflight/incompleteAssignmentDraftStore.js';
 
 const card = {
-  border: '1px solid #f1c27d',
+  border: '1px solid var(--mm-warning-border-soft)',
   borderRadius: 12,
-  background: '#fff8e1',
+  background: 'var(--mm-warning-bg)',
   padding: 16,
   textAlign: 'left',
 };
@@ -22,9 +22,9 @@ const button = {
   minHeight: 36,
   padding: '7px 12px',
   borderRadius: 8,
-  border: '1px solid #b7c7de',
+  border: '1px solid var(--mm-primary-border)',
   background: 'var(--mm-surface)',
-  color: '#174ea6',
+  color: 'var(--mm-primary-text)',
   fontWeight: 900,
   cursor: 'pointer',
 };
@@ -184,22 +184,22 @@ export default function AssignmentIntake(props) {
       <section style={card} aria-label="Incomplete Assignments">
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <div>
-            <h3 style={{ margin: 0, color: '#7a4f00', fontSize: 18 }}>Incomplete Assignments</h3>
-            <p style={{ margin: '5px 0 0', color: '#5f6368', fontSize: 13, lineHeight: 1.45 }}>
+            <h3 style={{ margin: 0, color: 'var(--mm-warning-text)', fontSize: 18 }}>Incomplete Assignments</h3>
+            <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.45 }}>
               Parseable assignments with blocking question issues are saved here automatically instead of being discarded. They stay out of the normal Library until repaired and reviewed.
             </p>
           </div>
           {!loadingDrafts && draftSummary.count > 0 && (
-            <span style={{ padding: '5px 9px', borderRadius: 999, background: 'var(--mm-surface)', color: '#7a4f00', fontSize: 12, fontWeight: 900 }}>
+            <span style={{ padding: '5px 9px', borderRadius: 999, background: 'var(--mm-surface)', color: 'var(--mm-warning-text)', fontSize: 12, fontWeight: 900 }}>
               {draftSummary.count} draft{draftSummary.count === 1 ? '' : 's'} · {draftSummary.blockers} blocker{draftSummary.blockers === 1 ? '' : 's'}
             </span>
           )}
         </div>
 
         {loadingDrafts ? (
-          <p style={{ margin: '12px 0 0', color: '#5f6368' }}>Loading incomplete assignments…</p>
+          <p style={{ margin: '12px 0 0', color: 'var(--mm-text-muted)' }}>Loading incomplete assignments…</p>
         ) : drafts.length === 0 ? (
-          <p style={{ margin: '12px 0 0', color: '#5f6368' }}>No incomplete assignments are waiting for repair.</p>
+          <p style={{ margin: '12px 0 0', color: 'var(--mm-text-muted)' }}>No incomplete assignments are waiting for repair.</p>
         ) : (
           <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
             {drafts.map((draft) => {
@@ -208,27 +208,27 @@ export default function AssignmentIntake(props) {
               const blockingCount = Number(draft.authoringReview?.blockingCount || 0);
               const questionCount = Number(draft.authoringReview?.questionCount || 0);
               return (
-                <article key={draft.id} style={{ padding: 12, borderRadius: 9, border: '1px solid #e3c892', background: 'var(--mm-surface)' }}>
+                <article key={draft.id} style={{ padding: 12, borderRadius: 9, border: '1px solid var(--mm-warning-border-soft)', background: 'var(--mm-surface)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                     <div>
                       <strong style={{ color: 'var(--mm-text-strong)' }}>{draft.title || 'Incomplete Assignment'}</strong>
-                      <div style={{ marginTop: 4, color: '#5f6368', fontSize: 12 }}>
+                      <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 12 }}>
                         {questionCount} question{questionCount === 1 ? '' : 's'} · {blockingCount} blocking issue{blockingCount === 1 ? '' : 's'} · revision {Number(draft.assignmentRevision) || 1} · saved {String(draft.updatedAt || draft.createdAt || '').replace('T', ' ').replace('Z', '')}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <button type="button" disabled={busy} onClick={() => setRepairDraftId(repairOpen ? null : draft.id)} style={{ ...button, borderColor: '#1a73e8', background: repairOpen ? '#e8f0fe' : '#fff', opacity: busy ? 0.6 : 1 }}>
+                      <button type="button" disabled={busy} onClick={() => setRepairDraftId(repairOpen ? null : draft.id)} style={{ ...button, borderColor: '#1a73e8', background: repairOpen ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', opacity: busy ? 0.6 : 1 }}>
                         {repairOpen ? 'Close Repair Center' : 'Open Repair Center'}
                       </button>
                       <button type="button" disabled={busy} onClick={() => openDraftForReview(draft)} style={{ ...button, opacity: busy ? 0.6 : 1 }}>
                         {busy ? 'Opening…' : 'Open Student Preview / Review'}
                       </button>
                       {blockingCount === 0 && draft.authoringState !== 'ready' && draft.authoringState !== 'published' && (
-                        <button type="button" disabled={busy} onClick={() => completeFinalReview(draft)} style={{ ...button, borderColor: '#1e8e3e', color: '#1e8e3e', opacity: busy ? 0.6 : 1 }}>
+                        <button type="button" disabled={busy} onClick={() => completeFinalReview(draft)} style={{ ...button, borderColor: '#1e8e3e', color: 'var(--mm-success)', opacity: busy ? 0.6 : 1 }}>
                           Complete final review
                         </button>
                       )}
-                      <button type="button" disabled={busy} onClick={() => removeDraft(draft)} style={{ ...button, color: '#a50e0e', borderColor: '#f1b6b2', opacity: busy ? 0.6 : 1 }}>
+                      <button type="button" disabled={busy} onClick={() => removeDraft(draft)} style={{ ...button, color: 'var(--mm-error-text)', borderColor: 'var(--mm-error-border-soft)', opacity: busy ? 0.6 : 1 }}>
                         Delete Draft
                       </button>
                     </div>

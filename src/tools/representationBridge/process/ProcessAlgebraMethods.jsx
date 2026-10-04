@@ -117,7 +117,7 @@ const goalChip = (done, label) => (
     key={label}
     style={{
       display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 11px', borderRadius: 999,
-      background: done ? '#e6f4ea' : '#f1f3f4', color: done ? '#137333' : '#5f6b7a', fontWeight: 800, fontSize: 12,
+      background: done ? 'var(--mm-success-bg)' : 'var(--mm-surface-control)', color: done ? 'var(--mm-success-text)' : 'var(--mm-text-muted)', fontWeight: 800, fontSize: 12,
     }}
   >
     {done ? '✓' : '○'} {label}
@@ -143,7 +143,7 @@ export function SolveForYMethod({ env, description, draftKeyBase, live, onLive, 
   const noYOnRight = leftIsolated && gap !== 'variableOnBothSides';
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
-      <p style={{ ...muted, color: '#24324a' }}>
+      <p style={{ ...muted, color: 'var(--mm-text)' }}>
         Solve <Latex value={description?.latex || questionEquationLatex(question)} /> for <Latex value="y" /> until it reads <Latex value="y = mx + b" />.
         Then you can read the slope and y-intercept from your own equation.
       </p>
@@ -203,9 +203,9 @@ export function SubstituteZeroMethod({ env, option, target, facts, ev, setEv, fi
   const pointLabel = target === 'xIntercept' ? 'The x-intercept' : 'The y-intercept';
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
-      {sourceLine ? <p style={{ ...muted, color: '#24324a' }}>{sourceLine}</p> : null}
+      {sourceLine ? <p style={{ ...muted, color: 'var(--mm-text)' }}>{sourceLine}</p> : null}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: '#24324a' }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--mm-text)' }}>
           {target === 'xIntercept' ? 'At the x-intercept, which variable is 0?' : 'At the y-intercept, which variable is 0?'}
         </span>
         <ChoiceChips
@@ -223,7 +223,7 @@ export function SubstituteZeroMethod({ env, option, target, facts, ev, setEv, fi
       {redirect ? <ProcessMessage>{redirect}</ProcessMessage> : null}
       {question && !redirect ? (
         <>
-          <p style={{ ...muted, color: '#24324a' }}>
+          <p style={{ ...muted, color: 'var(--mm-text)' }}>
             Substituted: <Latex value={lmrSubstitutionLatex(env, option.source, zero, facts) || questionEquationLatex(question)} /> — now solve for <Latex value={question.solveFor} />.
           </p>
           <EmbeddedSolver
@@ -236,7 +236,7 @@ export function SubstituteZeroMethod({ env, option, target, facts, ev, setEv, fi
           />
           {current?.solved ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <p style={{ ...muted, color: '#24324a' }}>
+              <p style={{ ...muted, color: 'var(--mm-text)' }}>
                 Solved: <Latex value={current.solvedLatex} />. Now write {pointLabel.toLowerCase()} as an ordered pair.
               </p>
               <ProcessField

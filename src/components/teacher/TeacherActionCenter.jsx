@@ -11,7 +11,7 @@ const kindLabels = {
   [TEACHER_ACTION_KIND.GRADE_UPLOAD]: 'Grade export / upload',
   [TEACHER_ACTION_KIND.RETEST_RECOVERY]: 'Retest / recovery',
 };
-const button = { padding: '7px 10px', border: '1px solid #bdc1c6', borderRadius: 7, background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
+const button = { padding: '7px 10px', border: '1px solid var(--mm-border)', borderRadius: 7, background: 'var(--mm-surface)', fontWeight: 800, cursor: 'pointer' };
 const displayActionDate = (value) => {
   if (!value) return '—';
   const raw = String(value);
@@ -46,13 +46,13 @@ export default function TeacherActionCenter({ students = [], classes = [], assig
     const name = resolveRosterStudentName({ studentId: item.studentId, index: identityIndex, historicalName: item.studentName });
     return <>
       <strong>{name}</strong>
-      {name === STUDENT_NAME_UNAVAILABLE && <div style={{ color: '#5f6368', fontSize: 11 }}>{studentIdLabel(String(item.studentId))}</div>}
+      {name === STUDENT_NAME_UNAVAILABLE && <div style={{ color: 'var(--mm-text-muted)', fontSize: 11 }}>{studentIdLabel(String(item.studentId))}</div>}
     </>;
   };
 
   return <section aria-labelledby="teacher-action-heading" style={{ padding: 22 }}>
     <h2 id="teacher-action-heading" style={{ margin: 0 }}>Action Center</h2>
-    <p style={{ color: '#5f6368' }}>What needs attention across your classes. Each row links back to its authoritative workflow.</p>
+    <p style={{ color: 'var(--mm-text-muted)' }}>What needs attention across your classes. Each row links back to its authoritative workflow.</p>
     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
       <label>Class <select value={classId} onChange={(event) => setClassId(event.target.value)}><option value="">All classes</option>{classes.map((record) => <option key={record.classId || record.id} value={record.classId || record.id}>{record.name || record.period || record.classId}</option>)}</select></label>
       <label>Action type <select value={kind} onChange={(event) => setKind(event.target.value)}><option value="">All action types</option>{Object.entries(kindLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
@@ -60,11 +60,11 @@ export default function TeacherActionCenter({ students = [], classes = [], assig
     </div>
     {!visible.length ? <p>No {status} actions match these filters.</p> : <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}>
       <thead><tr><th>Student</th><th>Class / period</th><th>Reason</th><th>Date / due</th><th>Status</th><th>Authoritative workflow</th></tr></thead>
-      <tbody>{visible.map((item) => <tr key={item.id} style={{ borderTop: '1px solid #dadce0' }}>
+      <tbody>{visible.map((item) => <tr key={item.id} style={{ borderTop: '1px solid var(--mm-border)' }}>
         <td style={{ padding: 10 }}>{studentCell(item)}</td><td>{item.classLabel || '—'}</td>
-        <td><strong>{item.title}</strong><div style={{ color: '#5f6368', fontSize: 12 }}>{item.summary}</div>{item.context?.map((entry) => <div key={entry} style={{ fontSize: 12, color: '#b06000' }}>{entry}</div>)}</td>
+        <td><strong>{item.title}</strong><div style={{ color: 'var(--mm-text-muted)', fontSize: 12 }}>{item.summary}</div>{item.context?.map((entry) => <div key={entry} style={{ fontSize: 12, color: 'var(--mm-warning-text)' }}>{entry}</div>)}</td>
         <td>{displayActionDate(item.dueAt || item.createdAt)}</td><td>{item.status}</td>
-        <td style={{ padding: 8 }}><button type="button" style={button} onClick={() => onOpenWorkflow?.(item)}>{item.kind === TEACHER_ACTION_KIND.GRADE_UPLOAD ? 'Open Grade Transfer' : item.kind === TEACHER_ACTION_KIND.RETURN_FROM_ABSENCE || item.kind === TEACHER_ACTION_KIND.EXTENSION_RECONCILIATION ? 'Open Attendance' : item.kind === TEACHER_ACTION_KIND.RETEST_RECOVERY ? 'Open retest workflow' : 'Open Parent Contacts'}</button>{item.availableActions.includes('resolveReturnCheckIn') && <button type="button" style={{ ...button, marginLeft: 6, background: '#e6f4ea' }} onClick={() => onResolveReturnCheckIn?.(returnCheckIns.find((candidate) => candidate.key === item.sourceId))}>Resolve check-in</button>}</td>
+        <td style={{ padding: 8 }}><button type="button" style={button} onClick={() => onOpenWorkflow?.(item)}>{item.kind === TEACHER_ACTION_KIND.GRADE_UPLOAD ? 'Open Grade Transfer' : item.kind === TEACHER_ACTION_KIND.RETURN_FROM_ABSENCE || item.kind === TEACHER_ACTION_KIND.EXTENSION_RECONCILIATION ? 'Open Attendance' : item.kind === TEACHER_ACTION_KIND.RETEST_RECOVERY ? 'Open retest workflow' : 'Open Parent Contacts'}</button>{item.availableActions.includes('resolveReturnCheckIn') && <button type="button" style={{ ...button, marginLeft: 6, background: 'var(--mm-success-bg)' }} onClick={() => onResolveReturnCheckIn?.(returnCheckIns.find((candidate) => candidate.key === item.sourceId))}>Resolve check-in</button>}</td>
       </tr>)}</tbody>
     </table></div>}
   </section>;

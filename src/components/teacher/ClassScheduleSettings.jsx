@@ -19,7 +19,7 @@ const inputStyle = {
   minHeight: 40,
   fontSize: 16,
   padding: '6px 8px',
-  border: '1px solid #c7ccd1',
+  border: '1px solid var(--mm-border)',
   borderRadius: 7,
   background: 'var(--mm-surface)',
 };
@@ -30,7 +30,7 @@ const PeriodTable = ({ periods, classPeriods, onChange }) => (
   <div style={{ overflowX: 'auto' }}>
     <table style={{ width: '100%', minWidth: 560, borderCollapse: 'collapse' }}>
       <thead>
-        <tr style={{ background: '#f8f9fa' }}>
+        <tr style={{ background: 'var(--mm-surface-sunken)' }}>
           <th style={{ padding: 11, textAlign: 'left' }}>Period</th>
           <th>Meets</th>
           <th>Start</th>
@@ -41,7 +41,7 @@ const PeriodTable = ({ periods, classPeriods, onChange }) => (
         {classPeriods.map((period) => {
           const item = periods?.[period] || {};
           return (
-            <tr key={period} style={{ borderBottom: '1px solid #e8eaed' }}>
+            <tr key={period} style={{ borderBottom: '1px solid var(--mm-border-soft)' }}>
               <td style={{ padding: 11, fontWeight: 800 }}>{period}</td>
               <td style={{ textAlign: 'center' }}>
                 <input
@@ -139,20 +139,20 @@ export default function ClassScheduleSettings({
   const fixedWeekday = [1, 2, 3, 4].includes(today.getDay());
 
   return (
-    <section style={{ marginTop: 22, border: '1px solid #d9e2f1', borderRadius: 12, background: 'var(--mm-surface)', overflow: 'hidden' }}>
-      <div style={{ padding: '17px 18px', background: '#f8fbff', borderBottom: '1px solid #d9e2f1' }}>
+    <section style={{ marginTop: 22, border: '1px solid var(--mm-tint-border)', borderRadius: 12, background: 'var(--mm-surface)', overflow: 'hidden' }}>
+      <div style={{ padding: '17px 18px', background: 'var(--mm-surface-tint)', borderBottom: '1px solid var(--mm-tint-border)' }}>
         <h3 style={{ margin: 0, color: 'var(--mm-text-strong)' }}>A/B Bell Schedule</h3>
-        <p style={{ margin: '6px 0 0', color: '#5f6368', lineHeight: 1.5 }}>
+        <p style={{ margin: '6px 0 0', color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>
           Monday and Wednesday resolve to A Day. Tuesday and Thursday resolve to B Day. Friday is left for you to choose because it alternates.
         </p>
       </div>
 
       <div style={{ padding: 18 }}>
-        <section style={{ padding: 15, borderRadius: 10, background: todayState.dayType ? '#e8f0fe' : '#fff4ce', border: `1px solid ${todayState.dayType ? '#aecbfa' : '#f9ab00'}` }}>
-          <strong style={{ display: 'block', color: todayState.dayType ? '#174ea6' : '#7a4f00' }}>
+        <section style={{ padding: 15, borderRadius: 10, background: todayState.dayType ? 'var(--mm-primary-soft)' : 'var(--mm-warning-soft)', border: `1px solid ${todayState.dayType ? 'var(--mm-primary-border)' : '#f9ab00'}` }}>
+          <strong style={{ display: 'block', color: todayState.dayType ? 'var(--mm-primary-text)' : 'var(--mm-warning-text)' }}>
             {dayName}: {todayState.dayType ? `${todayState.dayType} Day` : 'A/B day needs to be selected'}
           </strong>
-          <p style={{ margin: '6px 0 10px', color: '#3c4043', fontSize: 13 }}>
+          <p style={{ margin: '6px 0 10px', color: 'var(--mm-text)', fontSize: 13 }}>
             {todayState.source === 'override'
               ? 'This date has a manual A/B override.'
               : fixedWeekday
@@ -167,16 +167,16 @@ export default function ClassScheduleSettings({
                 onClick={() => setTodayDayType(dayType)}
                 style={{
                   ...buttonBase,
-                  border: todayState.dayType === dayType ? '2px solid #174ea6' : '1px solid #9bb8e8',
-                  background: todayState.dayType === dayType ? '#174ea6' : '#fff',
-                  color: todayState.dayType === dayType ? '#fff' : '#174ea6',
+                  border: todayState.dayType === dayType ? '2px solid #174ea6' : '1px solid var(--mm-primary-border)',
+                  background: todayState.dayType === dayType ? '#174ea6' : 'var(--mm-surface)',
+                  color: todayState.dayType === dayType ? '#fff' : 'var(--mm-primary-text)',
                 }}
               >
                 Use {dayType} Day Today
               </button>
             ))}
             {todayState.source === 'override' && (
-              <button type="button" onClick={() => setTodayDayType(null)} style={{ ...buttonBase, border: '1px solid #c7ccd1', background: 'var(--mm-surface)', color: '#3c4043' }}>
+              <button type="button" onClick={() => setTodayDayType(null)} style={{ ...buttonBase, border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', color: 'var(--mm-text)' }}>
                 Clear Today Override
               </button>
             )}
@@ -187,7 +187,7 @@ export default function ClassScheduleSettings({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
             <div>
               <strong>Edit normal bell times</strong>
-              <div style={{ color: '#5f6368', fontSize: 12, marginTop: 3 }}>Only mark periods that actually meet on that day.</div>
+              <div style={{ color: 'var(--mm-text-muted)', fontSize: 12, marginTop: 3 }}>Only mark periods that actually meet on that day.</div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               {['A', 'B'].map((dayType) => (
@@ -198,9 +198,9 @@ export default function ClassScheduleSettings({
                   style={{
                     ...buttonBase,
                     minWidth: 86,
-                    border: editingDayType === dayType ? '2px solid #174ea6' : '1px solid #c7ccd1',
-                    background: editingDayType === dayType ? '#e8f0fe' : '#fff',
-                    color: '#174ea6',
+                    border: editingDayType === dayType ? '2px solid #174ea6' : '1px solid var(--mm-border)',
+                    background: editingDayType === dayType ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+                    color: 'var(--mm-primary-text)',
                   }}
                 >
                   {dayType} Day
@@ -211,18 +211,18 @@ export default function ClassScheduleSettings({
           <PeriodTable periods={dayPeriods} classPeriods={classPeriods} onChange={updateDayPeriod} />
         </section>
 
-        <details style={{ marginTop: 20, border: '1px solid #ead08d', borderRadius: 10, background: '#fffdf6' }}>
-          <summary style={{ padding: 14, cursor: 'pointer', fontWeight: 900, color: '#6b5200' }}>Special bell schedule for today (optional)</summary>
+        <details style={{ marginTop: 20, border: '1px solid var(--mm-warning-border-soft)', borderRadius: 10, background: 'var(--mm-warning-subtle)' }}>
+          <summary style={{ padding: 14, cursor: 'pointer', fontWeight: 900, color: 'var(--mm-warning-text)' }}>Special bell schedule for today (optional)</summary>
           <div style={{ padding: '0 14px 14px' }}>
-            <p style={{ color: '#5f6368', lineHeight: 1.5, fontSize: 13 }}>
+            <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.5, fontSize: 13 }}>
               Use this only for an assembly, testing day, early release, or another one-day bell-time change. It overrides the selected A/B schedule for {todayKey} only.
             </p>
             {!todayOverride ? (
-              <button type="button" onClick={createTodayModifiedSchedule} style={{ ...buttonBase, border: '1px solid #f9ab00', background: '#fff4ce', color: '#5f4400' }}>Create Today&apos;s Special Times</button>
+              <button type="button" onClick={createTodayModifiedSchedule} style={{ ...buttonBase, border: '1px solid #f9ab00', background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' }}>Create Today&apos;s Special Times</button>
             ) : (
               <>
                 <PeriodTable periods={todayOverride} classPeriods={classPeriods} onChange={updateTodayPeriod} />
-                <button type="button" onClick={removeTodayModifiedSchedule} style={{ ...buttonBase, marginTop: 12, border: '1px solid #d93025', background: 'var(--mm-surface)', color: '#d93025' }}>Remove Today&apos;s Special Times</button>
+                <button type="button" onClick={removeTodayModifiedSchedule} style={{ ...buttonBase, marginTop: 12, border: '1px solid #d93025', background: 'var(--mm-surface)', color: 'var(--mm-danger)' }}>Remove Today&apos;s Special Times</button>
               </>
             )}
           </div>

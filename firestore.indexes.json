@@ -387,6 +387,22 @@
         { "fieldPath": "studentIds", "arrayConfig": "CONTAINS" },
         { "fieldPath": "finalizedAtMs", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "studentAssignmentOverrides",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "authorizedTeacherEmails", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "classId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "studentAssignmentOverrides",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "authorizedTeacherEmails", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "assignmentId", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

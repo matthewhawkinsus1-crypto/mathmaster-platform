@@ -154,7 +154,7 @@ function RoundProgress({ currentRound, roundCount, accent }) {
               minWidth: 4,
               borderRadius: 999,
               alignSelf: 'center',
-              background: complete ? `linear-gradient(90deg, ${accent}, #b8c8ff)` : active ? '#fff' : 'rgba(255,255,255,.14)',
+              background: complete ? `linear-gradient(90deg, ${accent}, var(--mm-primary-soft))` : active ? 'var(--mm-surface)' : 'rgba(255,255,255,.14)',
               boxShadow: active ? `0 0 18px ${accent}` : 'none',
               opacity: complete ? 0.82 : 1,
               transition: 'height 160ms ease, background 160ms ease',
@@ -330,7 +330,7 @@ function LobbyView({ room, leaderboard, joinedCount, busy, onStart }) {
   const dense = names.length > 24;
   const lines = rewardSummaryLines(room?.rewardSummary);
   return (
-    <div className="mm-arena-lobby-grid" style={{ height: '100%', minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(320px,1.15fr)', gap: 'clamp(12px, 1.6vw, 22px)' }}>
+    <div className="mm-arena-lobby-grid" style={{ height: '100%', minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(min(100%, 320px),1.15fr)', gap: 'clamp(12px, 1.6vw, 22px)' }}>
       <section style={{ ...glassPanel, padding: 'clamp(18px, 3vw, 44px)', display: 'grid', alignContent: 'center', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
         <div className="mm-arena-orb mm-arena-orb-a" />
         <div className="mm-arena-orb mm-arena-orb-b" />
@@ -395,7 +395,7 @@ function RunningView({ room, clock, clockOffsetMs, leaderboard, presentation, jo
   const promptSize = prompt.length > 220 ? 'clamp(20px, 3vh, 30px)' : prompt.length > 120 ? 'clamp(24px, 3.8vh, 38px)' : 'clamp(28px, 5vh, 48px)';
   const answeredShare = joinedCount > 0 ? Math.min(100, Math.round((answeredCount / joinedCount) * 100)) : 0;
   return (
-    <div className="mm-arena-running-grid" style={{ height: '100%', minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1.45fr) minmax(320px,.85fr)', gap: 'clamp(12px, 1.6vw, 20px)' }}>
+    <div className="mm-arena-running-grid" style={{ height: '100%', minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1.45fr) minmax(min(100%, 320px),.85fr)', gap: 'clamp(12px, 1.6vw, 20px)' }}>
       <section style={{ ...glassPanel, padding: 'clamp(16px, 2.4vw, 32px)', display: 'grid', gridTemplateRows: 'auto minmax(0,1fr) auto', gap: 'clamp(10px, 1.6vh, 18px)', overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
           <ArenaBadge accent={accent}>{clock.isReplay ? `FINAL ROUND ${clock.replayNumber}` : `Round ${clock.roundNumber} / ${clock.roundCount}`}</ArenaBadge>
@@ -417,7 +417,7 @@ function RunningView({ room, clock, clockOffsetMs, leaderboard, presentation, jo
             <span>Locked in</span><span data-mm-locked-in={answeredCount}>{answeredCount} / {joinedCount}</span>
           </div>
           <div style={{ height: 12, marginTop: 7, background: 'rgba(255,255,255,.08)', borderRadius: 999, overflow: 'hidden' }}>
-            <div style={{ width: `${answeredShare}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${accent}, #b8c8ff)`, transition: 'width 200ms ease' }} />
+            <div style={{ width: `${answeredShare}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${accent}, var(--mm-primary-soft))`, transition: 'width 200ms ease' }} />
           </div>
           <div style={{ marginTop: 8, color: 'rgba(236,241,255,.6)', fontSize: 'clamp(12px, 1.1vw, 15px)', fontWeight: 800 }}>
             {locked ? 'Collecting the last answers — results next.' : 'Scores update as answers lock.'}
@@ -448,7 +448,7 @@ function RushRunningView({ room, clock, clockOffsetMs, players, joinedCount, row
   const graphs = rushRaceRows(players, roundIndex).reduce((sum, row) => sum + row.completed, 0);
   const features = (room?.graphFeatureRush?.config?.features || []).map((id) => getGraphFeature(id)?.shortLabel || id);
   return (
-    <div className="mm-arena-running-grid" style={{ height: '100%', minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1.2fr) minmax(320px,1fr)', gap: 'clamp(12px, 1.6vw, 20px)' }}>
+    <div className="mm-arena-running-grid" style={{ height: '100%', minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(0,1.2fr) minmax(min(100%, 320px),1fr)', gap: 'clamp(12px, 1.6vw, 20px)' }}>
       <section style={{ ...glassPanel, padding: 'clamp(16px, 2.4vw, 32px)', display: 'grid', gridTemplateRows: 'auto minmax(0,1fr) auto', gap: 14, overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
           <ArenaBadge accent="#5ee7ff">{`Round ${clock.roundNumber} / ${clock.roundCount}`}</ArenaBadge>

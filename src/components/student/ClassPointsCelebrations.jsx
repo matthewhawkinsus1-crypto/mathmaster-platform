@@ -7,9 +7,9 @@ export default function ClassPointsCelebrations({ announcements = [], nowValue =
   const visibleAnnouncements = activeClassPointAnnouncements(announcements, nowValue);
   if (!visibleAnnouncements.length) return null;
   return (
-    <section aria-labelledby="class-celebrations-heading" style={{ marginBottom: 18, padding: '18px 22px', borderRadius: 14, background: '#fff8df', border: '1px solid #f6c344', textAlign: 'left' }}>
-      <h2 id="class-celebrations-heading" style={{ margin: '0 0 9px', color: '#5f4400', fontSize: 18 }}>Class celebrations</h2>
-      <ul style={{ margin: 0, paddingLeft: 21, color: '#5f4400', display: 'grid', gap: 6 }}>
+    <section aria-labelledby="class-celebrations-heading" style={{ marginBottom: 18, padding: '18px 22px', borderRadius: 14, background: 'var(--mm-warning-bg)', border: '1px solid #f6c344', textAlign: 'left' }}>
+      <h2 id="class-celebrations-heading" style={{ margin: '0 0 9px', color: 'var(--mm-warning-text)', fontSize: 18 }}>Class celebrations</h2>
+      <ul style={{ margin: 0, paddingLeft: 21, color: 'var(--mm-warning-text)', display: 'grid', gap: 6 }}>
         {visibleAnnouncements.map((announcement, index) => (
           <li key={`${index}-${announcement.publicStudentLabel}-${announcement.createdAt || ''}`}><strong>{announcement.publicStudentLabel}</strong> earned +{Math.abs(Number(announcement.amount) || 0)} — {announcement.reasonLabel}</li>
         ))}

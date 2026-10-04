@@ -18,10 +18,10 @@ entry. Nothing a teacher does in these controls rewrites a past attempt.
 | Reopen after the cutoff (fresh window, default = the DOL's own duration, or a chosen close time) | class | `dol.recoveryByClassId[classId]` | `resolveDolWindow` (browser) and `dolTeacherRecoveryActiveAt` (server grading) — `functions/shared/sectionDeadline.mjs` |
 | Unlock early / restart inside the normal window | class | `dol.earlyUnlocksByClassId[classId]` | same |
 | +N attempts on every DOL question | class | `dol.attemptGrantsByClassId[classId]` | `resolveTeacherGrantedExtraAttempts` — browser, `submissionIngestion`, `responseCheckpointFinalizer` |
-| +N attempts on every DOL question | **selected students** (new) | `dol.attemptGrantsByStudentId[studentId]` | same resolver; the student's grant **adds** to the class grant, total capped at 20 |
-| Per-student deadline extension (attendance) | student | `assignment.studentOverrides[studentId].lateDueAt` (server-written) | `assignmentFinalCloseAt` |
+| +N attempts on every DOL question | **selected students** | the student's private record, `studentAssignmentOverrides/{len:studentId:assignmentId}.dolExtraAttempts` (mirrored on `dol.attemptGrantsByStudentId[studentId]` until the shared copy is retired — [student-assignment-overrides.md](student-assignment-overrides.md)) | same resolver; the student's grant **adds** to the class grant, total capped at 20 |
+| Per-student deadline extension (attendance) | student | the student's private record, `.lateDueAt` (server-written; mirrored on `studentOverrides[studentId]` until retired) | `assignmentFinalCloseAt` |
 
-Every action appends to `dol.recoveryAudit` (newest last, capped at 500):
+Every action appends to `dol.recoveryAudit` (newest last, capped at 500). A grant to selected students made through `setStudentAssignmentControls` is recorded in each student's own staff-only history (`grades/{studentId}/assignmentOverrideEvents`) instead, so the shared lesson names no student. Until the teacher screens switch to that callable, the browser still appends a students-scope entry here; it is copied into each student's history and removed from the lesson when the shared copy is retired ([student-assignment-overrides.md](student-assignment-overrides.md)):
 
 ```
 { id, action, section: 'dol', scope: { type: 'class' | 'students', classId, studentIds },

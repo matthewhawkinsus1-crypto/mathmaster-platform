@@ -23,6 +23,7 @@ import { attendanceHistoryMarkIsAbsent, effectiveAttendanceForStudentDay } from 
 import { SUPPORT_EVENT_KIND, SUPPORT_EVENT_STAGE } from '../teacher/studentSupportSignals.js';
 import { assignmentIsForStudent, getDOLInstructionDateKey, getWarmupInstructionDateKey } from '../../assignmentLifecycle.js';
 import { acceptStudentName, formatStudentLabel, formatStudentName } from '../studentName.js';
+import { resolveStudentOverride } from '../../../functions/shared/studentAssignmentOverrides.mjs';
 
 const list = (value) => (Array.isArray(value) ? value : []);
 const clean = (value) => String(value ?? '').trim();
@@ -121,7 +122,7 @@ export const resolveReturnCheckIns = ({
     const extensions = missedWork
       .map((entry) => {
         const assignment = list(assignments).find((candidate) => candidate.id === entry.assignmentId);
-        const extension = assignment?.studentOverrides?.[studentId]?.extension || null;
+        const extension = resolveStudentOverride({ assignment, studentId })?.extension || null;
         return extension ? { assignmentId: entry.assignmentId, title: entry.title, dateKey: extension.dateKey } : null;
       })
       .filter(Boolean);

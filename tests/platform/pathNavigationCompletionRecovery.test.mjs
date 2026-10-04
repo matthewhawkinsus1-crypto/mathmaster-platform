@@ -72,7 +72,9 @@ test('active work, completion, and unavailable-next-level states all expose a sa
   const player = readFileSync('src/components/student/PathSessionPlayer.jsx', 'utf8');
   const container = readFileSync('src/components/student/MyMathPathProductionContainer.jsx', 'utf8');
 
-  assert.match(player, /onClick=\{onExit\}[\s\S]{0,320}Back to My Math Path/);
+  // The exit and its label stay together; the window allows for token-named
+  // colors (var(--mm-…)), which are longer than the hex they replaced.
+  assert.match(player, /onClick=\{onExit\}[\s\S]{0,480}Back to My Math Path/);
   assert.match(container, /const sessionOver = session\?\.status === 'completed'/);
   assert.match(container, /Level \$\{coursePassLevel\} complete/);
   assert.match(container, /Path Pass \{coursePassLevel\} complete/);

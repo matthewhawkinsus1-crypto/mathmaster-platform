@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import QuestionStandardsEditor from './QuestionStandardsEditor';
 import { getQuestionMetadataSummary } from './questionMetadata.js';
 import { useToast } from './ui/Toast';
@@ -16,6 +16,16 @@ import {
   planHonorsExtensionSwap,
   withAppendedQuestionSections,
 } from './platform/rigor/honorsExtensionSwap.js';
+import {
+  describeQuestionSupersession,
+  detachSupersessionLinksTo,
+  findSupersessionConflicts,
+  keepSupersessionLink,
+  planQuestionInclusion,
+  resolveQuestionLineages,
+  supersessionCardSummary,
+  withoutSupersessionLink,
+} from './platform/assignments/questionSupersession.js';
 import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
 import { analyzeResponseEntryRepair } from './platform/assignment/liveQuestionCorrection.js';
 import { parseSafeLiveRepairPack, prepareSafeLiveRepairPack } from './platform/assignment/liveRepairPack.js';
@@ -46,6 +56,15 @@ const ensureQuestionIds = (questions = []) => questions.map((question, index) =>
 const promptSummary = (question) => String(
   question.prompt || question.scenario || question.title || question.mathDisplay?.value || 'No prompt supplied',
 ).replace(/\s+/g, ' ').trim();
+
+// The colours of a supersession notice, from the theme's semantic tokens so
+// it reads in dark mode too.
+const SUPERSESSION_TONES = Object.freeze({
+  error: { background: 'var(--mm-error-bg)', border: 'var(--mm-error-border)', text: 'var(--mm-error-text)' },
+  warning: { background: 'var(--mm-warning-bg)', border: 'var(--mm-warning-border)', text: 'var(--mm-warning-text)' },
+  info: { background: 'var(--mm-info-bg)', border: 'var(--mm-info-border)', text: 'var(--mm-info-text)' },
+  muted: { background: 'var(--mm-surface-muted)', border: 'var(--mm-border)', text: 'var(--mm-text-muted)' },
+});
 
 export default function AssignmentQuestionEditor({ assignment, hasLiveProtection, onSave, onClose }) {
   const { confirm: confirmAction, toastSuccess } = useToast();
@@ -78,6 +97,12 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
   const repairPackInputRef = useRef(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  // A refused Include, shown on the card where the teacher pressed it.
+  const [inclusionNotice, setInclusionNotice] = useState(null);
+  const inclusionAlertRef = useRef(null);
+  const cardRefs = useRef(new Map());
+  // Which questions are versions of one another (supersession links), once per edit.
+  const lineages = useMemo(() => resolveQuestionLineages(questions), [questions]);
   const includedCount = useMemo(() => questions.filter((question) => question.teacherExcluded !== true).length, [questions]);
   const totalGradeWeight = useMemo(
     () => questions
@@ -177,8 +202,40 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
     }));
   };
 
+  // Exclude always retires. Include belongs to the supersession guard: while
+  // another version of this question is active (its replacement, or the
+  // version it replaced), including it would give students both, so the guard
+  // refuses, the reason appears on this card, and nothing changes.
   const toggleExcluded = (index) => {
-    setQuestions((current) => current.map((question, questionIndex) => questionIndex === index ? { ...question, teacherExcluded: question.teacherExcluded !== true } : question));
+    const question = questions[index];
+    if (!question) return;
+    if (question.teacherExcluded !== true) {
+      setInclusionNotice(null);
+      setQuestions((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, teacherExcluded: true } : item)));
+      return;
+    }
+    const plan = planQuestionInclusion({ questions, index });
+    if (plan.status !== 'ready') {
+      setInclusionNotice({ questionId: question.questionId, message: plan.teacherMessage });
+      return;
+    }
+    setInclusionNotice(null);
+    setQuestions(plan.questions);
+  };
+
+  // A refused Include is explained in full where it was pressed: on a phone
+  // the explanation would otherwise start under the dialog's footer.
+  useEffect(() => {
+    if (inclusionNotice) inclusionAlertRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+  }, [inclusionNotice]);
+
+  // Bring another card into view (the active version of a replaced question,
+  // or the question a replacement replaced) and move focus to it.
+  const showQuestion = (index) => {
+    const card = cardRefs.current.get(index);
+    if (!card) return;
+    card.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    card.focus?.({ preventScroll: true });
   };
 
   const removeQuestion = async (index) => {
@@ -200,12 +257,18 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
       tone: 'danger',
     });
     if (!proceed) return;
-    setQuestions((current) => current.filter((_, itemIndex) => itemIndex !== index));
+    // No student history, so nothing needs the removed id kept: a question
+    // that replaced it becomes an ordinary question, never a link to nothing.
+    setQuestions((current) => detachSupersessionLinksTo(
+      current.filter((_, itemIndex) => itemIndex !== index),
+      question?.questionId,
+    ));
   };
 
   const duplicateQuestion = (index) => {
+    // A copy is a new question: it never claims to replace what its source replaced.
     const duplicate = {
-      ...cloneQuestion(questions[index]),
+      ...withoutSupersessionLink(cloneQuestion(questions[index])),
       questionId: newQuestionId(),
       teacherExcluded: false,
     };
@@ -274,9 +337,10 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
   // whichever one produced the replacement.
   const acceptRepairReplacement = async (replacement) => {
     const existing = questions[repairIndex];
-    // A repair changes content, never the grade value (questionValue.mjs).
+    // A repair changes content, never the grade value (questionValue.mjs), and
+    // never which question this one replaces: the link is the existing one.
     const nextQuestion = {
-      ...carryQuestionValue(existing, replacement),
+      ...keepSupersessionLink(existing, carryQuestionValue(existing, replacement)),
       questionId: existing.questionId || replacement.questionId || newQuestionId(),
       teacherExcluded: existing.teacherExcluded === true,
     };
@@ -400,6 +464,11 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
         currentQuestions: questions,
         historicalQuestions: originalQuestions,
       });
+      // This import saves directly, so it holds the same line as Save does.
+      const supersessionConflicts = findSupersessionConflicts(prepared.questions);
+      if (supersessionConflicts.length) {
+        throw new Error(supersessionConflicts.map((conflict) => conflict.message).join('\n'));
+      }
       const candidateV5 = storedAssignmentToV5(candidateSource, {
         titleOverride: title.trim() || assignment.title,
         questions: prepared.questions,
@@ -507,6 +576,17 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
       setError('At least one included question is required.');
       return;
     }
+    // Two active versions of one question would both be given to students,
+    // however they came to be active (a record written before the Include
+    // guard, or edited outside the editor). Saving waits until one is excluded.
+    const supersessionConflicts = findSupersessionConflicts(questions);
+    if (supersessionConflicts.length) {
+      setError(supersessionConflicts.map((conflict) => conflict.message).join('\n'));
+      // Save sits in the footer; take the teacher to the first conflicting
+      // card, which explains itself, rather than leave Save looking broken.
+      showQuestion(supersessionConflicts[0].activeIndexes[0]);
+      return;
+    }
 
     const changedWeights = questions.filter((question) => {
       const historical = originalQuestionById.get(question.questionId);
@@ -535,13 +615,13 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
   return (
     <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 15000, background: 'rgba(32,33,36,.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '18px' }}>
       <section role="dialog" aria-modal="true" aria-label="Edit assignment questions" style={{ width: 'min(1080px, 97vw)', maxHeight: '94vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--mm-surface)', borderRadius: '16px', boxShadow: '0 28px 80px rgba(0,0,0,.4)' }}>
-        <header style={{ padding: '20px 24px', borderBottom: '1px solid #e1e5ea', display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center' }}>
-          <div><h2 style={{ margin: 0 }}>Assignment Question Editor</h2><p style={{ margin: '5px 0 0', color: '#5f6368' }}>{hasLiveProtection ? 'This assignment is live or has student history. Existing question IDs and indexes are protected. Safe live response-entry repairs are allowed; real rewrites are still blocked.' : 'No student records exist. Questions may be removed and reordered permanently.'}</p></div>
-          <button type="button" onClick={onClose} style={{ padding: '9px 13px', borderRadius: '8px', border: '1px solid #cbd1da', background: 'var(--mm-surface)', fontWeight: 800 }}>Close</button>
+        <header style={{ padding: '20px 24px', borderBottom: '1px solid var(--mm-border-soft)', display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center' }}>
+          <div><h2 style={{ margin: 0 }}>Assignment Question Editor</h2><p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)' }}>{hasLiveProtection ? 'This assignment is live or has student history. Existing question IDs and indexes are protected. Safe live response-entry repairs are allowed; real rewrites are still blocked.' : 'No student records exist. Questions may be removed and reordered permanently.'}</p></div>
+          <button type="button" onClick={onClose} style={{ padding: '9px 13px', borderRadius: '8px', border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', fontWeight: 800 }}>Close</button>
         </header>
         <div style={{ padding: '20px 24px', overflowY: 'auto' }}>
           <label style={{ display: 'block', fontWeight: 800, marginBottom: '18px' }}>Assignment title
-            <input value={title} onChange={(event) => setTitle(event.target.value)} style={{ display: 'block', width: '100%', boxSizing: 'border-box', padding: '11px', marginTop: '7px', border: '1px solid #bdc7d6', borderRadius: '8px', fontSize: '17px' }} />
+            <input value={title} onChange={(event) => setTitle(event.target.value)} style={{ display: 'block', width: '100%', boxSizing: 'border-box', padding: '11px', marginTop: '7px', border: '1px solid var(--mm-border)', borderRadius: '8px', fontSize: '17px' }} />
           </label>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '12px', alignItems: 'center' }}>
             <strong>{includedCount} included · {questions.length - includedCount} excluded · {questions.length} stored · {Number(totalGradeWeight.toFixed(2))} total grade-weight units</strong>
@@ -550,7 +630,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                 type="button"
                 onClick={copyAiWeightReview}
                 disabled={weightReviewBusy || saving}
-                style={{ padding: '8px 12px', border: '1px solid #8ab4f8', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 900 }}
+                style={{ padding: '8px 12px', border: '1px solid var(--mm-primary-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 900 }}
                 title="Copy a protected whole-assignment review prompt for ChatGPT, Claude, Gemini, or another AI."
               >
                 Copy AI Weight Review
@@ -570,7 +650,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                     type="button"
                     onClick={copySafeRepairPackRequest}
                     disabled={repairBusy || saving}
-                    style={{ padding: '8px 12px', border: '1px solid #81c995', borderRadius: 8, background: 'var(--mm-surface)', color: '#137333', fontWeight: 900 }}
+                    style={{ padding: '8px 12px', border: '1px solid #81c995', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-success-text)', fontWeight: 900 }}
                     title="Copy the exact MathMaster Safe Live Repair Pack contract plus the protected live questions for an AI."
                   >
                     Copy Safe Repair Pack Prompt
@@ -593,7 +673,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                   </button>
                 </>
               )}
-              <span style={{ color: '#5f6368', fontSize: '13px' }}>Duplicated questions are added safely. Reordering is disabled after student activity begins.</span>
+              <span style={{ color: 'var(--mm-text-muted)', fontSize: '13px' }}>Duplicated questions are added safely. Reordering is disabled after student activity begins.</span>
             </div>
           </div>
           <div style={{ display: 'grid', gap: '12px' }}>
@@ -601,33 +681,45 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
               const excluded = question.teacherExcluded === true;
               const metadataSummary = getQuestionMetadataSummary(question);
               const honorsAction = excluded ? null : honorsExtensionActionFor({ question, questions, assignmentCourseId });
+              // Is this question one version of another (a replacement, or a
+              // retired original)? Which version is active, and may it be included?
+              const supersession = describeQuestionSupersession(questions, index, lineages);
+              const supersessionSummary = supersessionCardSummary(supersession);
+              const supersessionTone = SUPERSESSION_TONES[supersessionSummary?.tone] || SUPERSESSION_TONES.muted;
+              const includeBlocked = excluded && supersession.includeBlocked;
               return (
-                <article key={question.questionId || index} style={{ padding: '15px', borderRadius: '11px', border: `2px solid ${excluded ? '#c7cbd1' : '#c6d8f1'}`, background: excluded ? '#f1f3f4' : '#fbfcff', opacity: excluded ? 0.78 : 1 }}>
+                <article
+                  key={question.questionId || index}
+                  ref={(node) => { if (node) cardRefs.current.set(index, node); else cardRefs.current.delete(index); }}
+                  tabIndex={-1}
+                  data-question-card={index + 1}
+                  style={{ padding: '15px', borderRadius: '11px', border: `2px solid ${excluded ? 'var(--mm-border)' : 'var(--mm-tint-border)'}`, background: excluded ? 'var(--mm-surface-control)' : 'var(--mm-surface)', opacity: excluded ? 0.78 : 1 }}
+                >
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
                     <div style={{ flex: '1 1 430px' }}>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}><strong style={{ fontSize: '16px' }}>Question {index + 1}</strong><span style={{ padding: '3px 7px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6', fontSize: '11px', fontWeight: 900 }}>{question.type}</span>{excluded && <span style={{ padding: '3px 7px', borderRadius: '999px', background: '#5f6368', color: '#fff', fontSize: '11px', fontWeight: 900 }}>EXCLUDED</span>}</div>
-                      <p style={{ margin: '8px 0 0', color: '#3c4043', lineHeight: 1.45 }}>{promptSummary(question).slice(0, 240)}</p>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}><strong style={{ fontSize: '16px' }}>Question {index + 1}</strong><span style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: '11px', fontWeight: 900 }}>{question.type}</span>{excluded && <span style={{ padding: '3px 7px', borderRadius: '999px', background: '#5f6368', color: '#fff', fontSize: '11px', fontWeight: 900 }}>EXCLUDED</span>}{supersessionSummary?.badge && <span data-supersession-badge style={{ padding: '3px 7px', borderRadius: '999px', background: supersessionTone.background, color: supersessionTone.text, border: `1px solid ${supersessionTone.border}`, fontSize: '11px', fontWeight: 900 }}>{supersessionSummary.badge}</span>}</div>
+                      <p style={{ margin: '8px 0 0', color: 'var(--mm-text)', lineHeight: 1.45 }}>{promptSummary(question).slice(0, 240)}</p>
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '9px' }}>
-                        {metadataSummary.primary.map((code) => <span key={code} style={{ padding: '3px 7px', borderRadius: '999px', background: '#e6f4ea', color: '#137333', fontSize: '10px', fontWeight: 900 }}>TEKS {code}</span>)}
-                        {metadataSummary.dok && <span style={{ padding: '3px 7px', borderRadius: '999px', background: '#fff3e0', color: '#8a4f00', fontSize: '10px', fontWeight: 900 }}>DOK {metadataSummary.dok}</span>}
-                        <span style={{ padding: '3px 7px', borderRadius: '999px', background: '#f3e8fd', color: '#7b1fa2', fontSize: '10px', fontWeight: 900 }}>{metadataSummary.difficultyLabel}</span>
-                        <span title={describeQuestionValue(question).sentence} data-question-value-source={describeQuestionValue(question).source || 'legacy'} style={{ padding: '3px 7px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6', fontSize: '10px', fontWeight: 900 }}>
+                        {metadataSummary.primary.map((code) => <span key={code} style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: '10px', fontWeight: 900 }}>TEKS {code}</span>)}
+                        {metadataSummary.dok && <span style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: '10px', fontWeight: 900 }}>DOK {metadataSummary.dok}</span>}
+                        <span style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontSize: '10px', fontWeight: 900 }}>{metadataSummary.difficultyLabel}</span>
+                        <span title={describeQuestionValue(question).sentence} data-question-value-source={describeQuestionValue(question).source || 'legacy'} style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontSize: '10px', fontWeight: 900 }}>
                           GRADE ×{normalizeQuestionWeight(question)}
                           {excluded || totalGradeWeight <= 0 ? '' : ` · ${((normalizeQuestionWeight(question) / totalGradeWeight) * 100).toFixed(1)}%`}
                         </span>
                         {weightReviewReasons[String(question.questionId)] && (
                           <span
                             title={weightReviewReasons[String(question.questionId)]}
-                            style={{ padding: '3px 7px', borderRadius: '999px', background: '#fef7e0', color: '#7a4f00', fontSize: '10px', fontWeight: 900 }}
+                            style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', fontSize: '10px', fontWeight: 900 }}
                           >
                             AI rationale
                           </span>
                         )}
-                        {metadataSummary.issues.length > 0 && <span title={metadataSummary.issues.join(' · ')} style={{ padding: '3px 7px', borderRadius: '999px', background: '#fce8e6', color: '#a50e0e', fontSize: '10px', fontWeight: 900 }}>Metadata incomplete</span>}
+                        {metadataSummary.issues.length > 0 && <span title={metadataSummary.issues.join(' · ')} style={{ padding: '3px 7px', borderRadius: '999px', background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', fontSize: '10px', fontWeight: 900 }}>Metadata incomplete</span>}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 7px', border: '1px solid #cbd1da', borderRadius: 7, background: 'var(--mm-surface)', fontSize: 11, fontWeight: 900, color: '#3c4043' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 7px', border: '1px solid var(--mm-border)', borderRadius: 7, background: 'var(--mm-surface)', fontSize: 11, fontWeight: 900, color: 'var(--mm-text)' }}>
                         Grade weight
                         <input
                           aria-label={`Grade weight for Question ${index + 1}`}
@@ -637,7 +729,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                           step="0.25"
                           value={normalizeQuestionWeight(question)}
                           onChange={(event) => setQuestionWeight(index, event.target.value)}
-                          style={{ width: 58, padding: '4px 5px', border: '1px solid #bdc7d6', borderRadius: 5 }}
+                          style={{ width: 58, padding: '4px 5px', border: '1px solid var(--mm-border)', borderRadius: 5 }}
                         />
                       </label>
                       {suggestedQuestionWeight(question) !== normalizeQuestionWeight(question) && (
@@ -645,7 +737,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                           type="button"
                           onClick={() => setQuestionWeight(index, suggestedQuestionWeight(question), { suggested: true })}
                           title="Use MathMaster's workload-based suggestion. You can still change it."
-                          style={{ color: '#174ea6' }}
+                          style={{ color: 'var(--mm-primary-text)' }}
                         >
                           Suggest ×{suggestedQuestionWeight(question)}
                         </button>
@@ -660,14 +752,43 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                           ? 'Safe live repair: only response-entry mechanics may change; prior student credit and attempts are protected.'
                           : 'Describe the problem in plain English and use AI to return a checked replacement.'}
                       >{hasLiveProtection && originalQuestionById.has(question.questionId) ? 'Safe Live Repair' : 'Repair / Rewrite with AI'}</button>
-                      <button type="button" onClick={() => { setRepairIndex(null); setMetadataEditingIndex(metadataEditingIndex === index ? null : index); setError(''); }} style={{ color: '#174ea6' }}>Standards & Difficulty</button>
-                      <button type="button" onClick={() => toggleExcluded(index)} style={{ color: excluded ? '#137333' : '#8a5a00' }}>{excluded ? 'Include' : 'Exclude'}</button>
-                      <button type="button" onClick={() => removeQuestion(index)} style={{ color: '#d93025' }}>{hasLiveProtection ? 'Throw Out Safely' : 'Remove'}</button>
+                      <button type="button" onClick={() => { setRepairIndex(null); setMetadataEditingIndex(metadataEditingIndex === index ? null : index); setError(''); }} style={{ color: 'var(--mm-primary-text)' }}>Standards & Difficulty</button>
+                      <button
+                        type="button"
+                        onClick={() => toggleExcluded(index)}
+                        aria-disabled={includeBlocked ? 'true' : undefined}
+                        aria-describedby={includeBlocked ? `supersession-note-${index}` : undefined}
+                        style={{ minHeight: 44, padding: '0 12px', color: includeBlocked ? 'var(--mm-text-muted)' : excluded ? 'var(--mm-success-text)' : 'var(--mm-warning-text)', cursor: includeBlocked ? 'not-allowed' : 'pointer' }}
+                      >{excluded ? 'Include' : 'Exclude'}</button>
+                      <button type="button" onClick={() => removeQuestion(index)} style={{ color: 'var(--mm-danger)' }}>{hasLiveProtection ? 'Throw Out Safely' : 'Remove'}</button>
                     </div>
                   </div>
+                  {supersession.isVersioned && supersessionSummary && (
+                    <div
+                      id={`supersession-note-${index}`}
+                      data-supersession-notice={supersessionSummary.tone}
+                      style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: supersessionTone.background, border: `1px solid ${supersessionTone.border}`, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}
+                    >
+                      <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+                        <p style={{ margin: 0, color: supersessionTone.text, fontSize: 13, lineHeight: 1.45, overflowWrap: 'anywhere' }}>{supersessionSummary.text}</p>
+                        {inclusionNotice?.questionId === question.questionId && includeBlocked && (
+                          <p ref={inclusionAlertRef} role="alert" style={{ margin: '8px 0 0', color: supersessionTone.text, fontSize: 13, lineHeight: 1.45, fontWeight: 800, overflowWrap: 'anywhere' }}>{inclusionNotice.message}</p>
+                        )}
+                      </div>
+                      {supersessionSummary.showQuestion && (
+                        <button
+                          type="button"
+                          onClick={() => showQuestion(supersessionSummary.showQuestion.index)}
+                          style={{ minHeight: 44, padding: '8px 14px', borderRadius: 8, border: `1px solid ${supersessionTone.border}`, background: 'var(--mm-surface)', color: supersessionTone.text, fontWeight: 900, cursor: 'pointer' }}
+                        >
+                          Show Question {supersessionSummary.showQuestion.index + 1}
+                        </button>
+                      )}
+                    </div>
+                  )}
                   {honorsAction && honorsAction.kind && (
-                    <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: '#f5effc', border: '1px solid #d8c2ef', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-                      <p style={{ flex: '1 1 240px', margin: 0, color: '#5b2788', fontSize: 13, lineHeight: 1.45 }}>
+                    <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: 'var(--mm-accent-soft)', border: '1px solid var(--mm-accent-border)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <p style={{ flex: '1 1 240px', margin: 0, color: 'var(--mm-accent-text)', fontSize: 13, lineHeight: 1.45 }}>
                         <strong>{honorsAction.legacy ? 'Legacy Honors extension. ' : 'MathMaster Honors extension. '}</strong>
                         {honorsAction.explanation}
                       </p>
@@ -684,10 +805,10 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                     </div>
                   )}
                   {repairIndex === index && (
-                    <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #d9dfe7' }}>
-                      <div style={{ padding: '12px 13px', borderRadius: '9px', background: '#f8fbff', border: '1px solid #c6d8f1' }}>
-                        <strong style={{ color: '#174ea6' }}>{hasLiveProtection && originalQuestionById.has(question.questionId) ? 'Safe live response-entry repair' : 'Repair or rewrite this question with AI'}</strong>
-                        <p style={{ margin: '6px 0 10px', color: '#5f6368', fontSize: '13px', lineHeight: 1.5 }}>
+                    <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid var(--mm-border)' }}>
+                      <div style={{ padding: '12px 13px', borderRadius: '9px', background: 'var(--mm-surface-tint)', border: '1px solid var(--mm-tint-border)' }}>
+                        <strong style={{ color: 'var(--mm-primary-text)' }}>{hasLiveProtection && originalQuestionById.has(question.questionId) ? 'Safe live response-entry repair' : 'Repair or rewrite this question with AI'}</strong>
+                        <p style={{ margin: '6px 0 10px', color: 'var(--mm-text-muted)', fontSize: '13px', lineHeight: 1.5 }}>
                           {hasLiveProtection && originalQuestionById.has(question.questionId)
                             ? 'Students already have history on this question. MathMaster will accept only a conversion of flawed plain-language response fields to finite choices while keeping the exact task and IDs unchanged. On save, previously submitted affected fields are credited and an exhausted student gets one repair retry if another part is still wrong.'
                             : 'Describe the issue in normal language. MathMaster copies the full question and repair rules for the AI, then checks the replacement before accepting it here.'}
@@ -698,7 +819,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                             value={repairInstruction}
                             onChange={(event) => setRepairInstruction(event.target.value)}
                             placeholder="Example: This mathematically equivalent answer is being marked wrong. Keep the same TEKS and difficulty, but repair the grading so equivalent forms are accepted."
-                            style={{ display: 'block', width: '100%', minHeight: '105px', marginTop: 7, padding: 11, boxSizing: 'border-box', borderRadius: 8, border: '1px solid #aeb8c6', fontFamily: 'inherit', fontSize: 15, lineHeight: 1.45 }}
+                            style={{ display: 'block', width: '100%', minHeight: '105px', marginTop: 7, padding: 11, boxSizing: 'border-box', borderRadius: 8, border: '1px solid var(--mm-border-strong)', fontFamily: 'inherit', fontSize: 15, lineHeight: 1.45 }}
                           />
                         </label>
                         <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
@@ -711,7 +832,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                           <button type="button" onClick={pasteAiReplacement} disabled={repairBusy} style={{ padding: '9px 13px', border: 0, borderRadius: 7, background: '#188038', color: '#fff', fontWeight: 800 }}>
                             {repairBusy ? 'Checking…' : 'Paste AI Replacement'}
                           </button>
-                          <button type="button" onClick={() => { setRepairIndex(null); setRepairInstruction(''); setError(''); }} disabled={repairBusy} style={{ padding: '9px 13px', border: '1px solid #cbd1da', borderRadius: 7, background: 'var(--mm-surface)', fontWeight: 800 }}>
+                          <button type="button" onClick={() => { setRepairIndex(null); setRepairInstruction(''); setError(''); }} disabled={repairBusy} style={{ padding: '9px 13px', border: '1px solid var(--mm-border)', borderRadius: 7, background: 'var(--mm-surface)', fontWeight: 800 }}>
                             Cancel
                           </button>
                         </div>
@@ -729,9 +850,9 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
               );
             })}
           </div>
-          {error && <div style={{ marginTop: '15px', padding: '12px', borderRadius: '8px', background: '#fce8e6', color: '#a50e0e', fontWeight: 800 }}>{error}</div>}
+          {error && <div style={{ marginTop: '15px', padding: '12px', borderRadius: '8px', background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', fontWeight: 800 }}>{error}</div>}
         </div>
-        <footer style={{ padding: '16px 24px', borderTop: '1px solid #e1e5ea', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}><button type="button" onClick={onClose} style={{ padding: '10px 16px', border: '1px solid #cbd1da', borderRadius: '8px', background: 'var(--mm-surface)', fontWeight: 800 }}>Cancel</button><button type="button" onClick={save} disabled={saving} style={{ padding: '10px 18px', border: 0, borderRadius: '8px', background: saving ? '#9aa0a6' : '#1a73e8', color: '#fff', fontWeight: 900 }}>{saving ? 'Saving…' : 'Save Assignment Questions'}</button></footer>
+        <footer style={{ padding: '16px 24px', borderTop: '1px solid var(--mm-border-soft)', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}><button type="button" onClick={onClose} style={{ padding: '10px 16px', border: '1px solid var(--mm-border)', borderRadius: '8px', background: 'var(--mm-surface)', fontWeight: 800 }}>Cancel</button><button type="button" onClick={save} disabled={saving} style={{ padding: '10px 18px', border: 0, borderRadius: '8px', background: saving ? '#9aa0a6' : '#1a73e8', color: '#fff', fontWeight: 900 }}>{saving ? 'Saving…' : 'Save Assignment Questions'}</button></footer>
       </section>
     </div>
   );

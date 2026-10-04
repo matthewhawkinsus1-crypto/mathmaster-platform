@@ -51,6 +51,7 @@ import { ToolDraftScopeProvider, forgetToolDrafts, stampToolDraftSubmission } fr
 import InteractiveModelingLabPlayer from './components/labs/InteractiveModelingLabPlayer.jsx';
 import { useToast } from './ui/Toast';
 import QuestionModuleBoundary from './QuestionModuleBoundary';
+import QuestionResolutionBoundary, { QuestionResolutionFailure, recordQuestionResolutionDiagnostic } from './QuestionResolutionBoundary';
 import StandardBadge from './components/common/StandardBadge.jsx';
 import { questionAssessmentFramework } from './platform/student/questionAlignmentInfo.js';
 import { normalizeQuestionStandards } from './questionMetadata';
@@ -151,7 +152,7 @@ const useDeepStableValue = (value) => {
 // True only when the browser actually spoke.
 const speakText = (text, language = 'en') => Boolean(text) && speakAloud(text, { language });
 
-export default function QuestionEngine({
+function QuestionEngineBody({
   question,
   onGrade,
   onStepGrade,
@@ -220,6 +221,9 @@ export default function QuestionEngine({
   // Which language Support tools to offer, when the caller already knows
   // (supportToolsEntitlement.js toolsEntitlementFromPath on My Math Path).
   supportEntitlement = null,
+  // Supplied by the QuestionEngine wrapper: prepare this question again from
+  // scratch (a remount). Offered only for a failure a retry can clear.
+  onResolutionRetry = null,
 }) {
   useRenderPerformance('QuestionEngine', String(question?.toolId || question?.type || 'question'));
   const resolvedActivityPolicy = activityPolicy || getEffectiveActivityPolicy(activityRole);
@@ -259,6 +263,19 @@ export default function QuestionEngine({
     // Reported once per distinct delivery, not once per render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [familyDeliverySignature]);
+  // A device pin that could not be used (familyPinReplay.js): the question on
+  // screen is a fresh allocation, and support can see which pin was dropped.
+  const familyPinNotice = processedQuestion?.familyPinNotice || null;
+  useEffect(() => {
+    if (!familyPinNotice) return;
+    recordQuestionResolutionDiagnostic({
+      kind: 'family-pin-superseded',
+      context: { assignmentId, questionId: familyPinNotice.questionId, familyId: familyPinNotice.familyId, familyVersion: familyPinNotice.familyVersion, activityRole, executionScope },
+      failure: { classification: familyPinNotice.classification, recovery: 'fresh-allocation', diagnostics: familyPinNotice },
+    });
+    // Once per distinct notice.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [familyPinNotice?.classification, familyPinNotice?.pinFingerprint, familyDeliverySignature]);
   // Which algebra workspace this question opens — decided once, by the same
   // React-free resolver the capability certification tests call.
   const algebraWorkspaceRoute = useMemo(
@@ -1509,7 +1526,7 @@ export default function QuestionEngine({
           return (
             <div>
               <LiteralGrader {...commonModuleProps} />
-              <p style={{ margin: '12px auto 0', maxWidth: 680, color: '#7a4f00', fontSize: 13, lineHeight: 1.55 }}>
+              <p style={{ margin: '12px auto 0', maxWidth: 680, color: 'var(--mm-warning-text)', fontSize: 13, lineHeight: 1.55 }}>
                 This question asked to be solved on the balance workspace, but {literalWorkspace.reason}, so it is
                 shown as a written answer instead.
               </p>
@@ -1548,31 +1565,50 @@ export default function QuestionEngine({
       case 'contextInterpretation':
         return <ContextInterpretation {...commonModuleProps} />;
       case 'platformQuestionError':
-        return (
-          <div role="alert" style={{ padding: '22px 24px', margin: '0 auto', maxWidth: '640px', borderRadius: '12px', background: '#fef7e0', border: '1px solid #f9ab00', textAlign: 'left' }}>
-            <h3 style={{ margin: 0, color: '#7a4f00' }}>This question is temporarily unavailable</h3>
-            <p style={{ margin: '10px 0 0', lineHeight: 1.55 }}>
-              MathMaster could not prepare this question correctly. You can continue with the rest of the assignment; this item will not trap you on this screen.
-            </p>
-          </div>
-        );
+        return resolutionFailurePanel;
       default:
         // Batch A-D interactive tools never reach this switch: they resolve
         // through the shared registry above, so a new tool becomes
         // student-usable by registering it rather than by editing this switch.
         return (
-          <div style={{ padding: '22px 24px', margin: '0 auto', maxWidth: '640px', borderRadius: '12px', background: 'var(--mm-warning-soft, #fef7e0)', border: '1px solid var(--mm-warning, #f9ab00)', textAlign: 'left' }}>
-            <h3 style={{ margin: 0, color: 'var(--mm-warning-text, #7a4f00)' }}>This question could not be displayed</h3>
+          <div style={{ padding: '22px 24px', margin: '0 auto', maxWidth: '640px', borderRadius: '12px', background: 'var(--mm-warning-soft, var(--mm-warning-bg))', border: '1px solid var(--mm-warning, #f9ab00)', textAlign: 'left' }}>
+            <h3 style={{ margin: 0, color: 'var(--mm-warning-text)' }}>This question could not be displayed</h3>
             <p style={{ margin: '10px 0 0', lineHeight: 1.55 }}>
               It uses a question type this version of MathMaster does not know how to show. Nothing you did caused this and your grade is not affected — let your teacher know.
             </p>
-            <p style={{ margin: '10px 0 0', fontSize: '12px', color: 'var(--mm-ink-muted, #5f6368)' }}>
+            <p style={{ margin: '10px 0 0', fontSize: '12px', color: 'var(--mm-ink-muted, var(--mm-text-muted))' }}>
               Details for your teacher: unsupported question type &ldquo;{String(processedQuestion.type)}&rdquo;.
             </p>
           </div>
         );
     }
   };
+
+  /*
+   * A QUESTION THAT COULD NOT BE PREPARED — most importantly a Question
+   * Family pin that will not replay, which is never swapped for another
+   * instance (src/platform/generation/familyPinReplay.js). Rendered OUTSIDE
+   * the locked fieldset below: an already-answered or closed question is
+   * still a question the student must be able to move on from. No Submit is
+   * offered (shouldShowSubmit), so no attempt or grade can follow.
+   */
+  const resolutionFailurePanel = processedQuestion?.type === 'platformQuestionError' ? (
+    <QuestionResolutionFailure
+      failure={processedQuestion.platformError}
+      context={{
+        assignmentId,
+        questionId: processedQuestion.questionId ?? question?.questionId ?? question?.id ?? null,
+        familyId: processedQuestion.platformError?.diagnostics?.familyId ?? null,
+        familyVersion: processedQuestion.platformError?.diagnostics?.familyVersion ?? null,
+        activityRole,
+      }}
+      executionScope={executionScope}
+      onRetry={onResolutionRetry}
+      onNextQuestion={onNextQuestion}
+      nextQuestionLabel={nextQuestionLabel}
+      hasRecordedWork={(Number(record.totalAttempts) || 0) > 0 || ['correct', 'expired'].includes(record.status)}
+    />
+  ) : null;
 
   const submitDisabled = !answerState.isComplete || submitting || locked || scaffoldRequired || contextScaffoldRequired || pausedByAnotherTab;
   const shouldShowSubmit = !missingToolDefinition && processedQuestion?.type !== 'modelingLab' && processedQuestion?.type !== 'platformQuestionError' && (processedQuestion?.type !== 'stepAlgebra' || answerState.isComplete);
@@ -1689,7 +1725,7 @@ export default function QuestionEngine({
           phone whose bar also carries Submit / Next can show the icons alone
           and keep ONE row (MathToolMobileLayout.css). The word stays in the
           accessible name. */}
-      {!scratchpadOpen ? <UniversalUndoButton className="mm-button-neutral mathmaster-work-bar-tool" controller={undoController} disabled={locked} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: undoController?.canUndo && !locked ? 'pointer' : 'not-allowed', opacity: undoController?.canUndo && !locked ? 1 : 0.45 }} /> : null}
+      {!scratchpadOpen ? <UniversalUndoButton className="mm-button-neutral mathmaster-work-bar-tool" controller={undoController} disabled={locked} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: undoController?.canUndo && !locked ? 'pointer' : 'not-allowed', opacity: undoController?.canUndo && !locked ? 1 : 0.45 }} /> : null}
       {!scratchpadOpen ? (
         <button
           className="mm-button-neutral mathmaster-work-bar-tool"
@@ -1698,13 +1734,13 @@ export default function QuestionEngine({
           disabled={workspaceActions.reset.disabled}
           title={workspaceActions.reset.title}
           aria-label={resettingQuestion ? 'Resetting…' : 'Reset Question'}
-          style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: workspaceActions.reset.disabled ? 'not-allowed' : 'pointer', opacity: workspaceActions.reset.disabled ? 0.45 : 1 }}
+          style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: workspaceActions.reset.disabled ? 'not-allowed' : 'pointer', opacity: workspaceActions.reset.disabled ? 0.45 : 1 }}
         >
           {/* "Question" drops on a phone so the work bar fits one row. */}
           {resettingQuestion ? 'Resetting…' : <><span aria-hidden="true">↺</span><span className="mathmaster-action-label"> Reset<span className="mathmaster-action-label-long"> Question</span></span></>}
         </button>
       ) : null}
-      <button className="mm-button-neutral mathmaster-work-bar-tool" type="button" onClick={openScratchpad} disabled={scratchpadLoading} aria-label={scratchpadLoading ? 'Opening scratchpad…' : 'Scratchpad'} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}>
+      <button className="mm-button-neutral mathmaster-work-bar-tool" type="button" onClick={openScratchpad} disabled={scratchpadLoading} aria-label={scratchpadLoading ? 'Opening scratchpad…' : 'Scratchpad'} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: 'pointer' }}>
         {scratchpadLoading ? 'Opening…' : <><span aria-hidden="true">✎</span><span className="mathmaster-action-label"> Scratchpad</span></>}
       </button>
       <button
@@ -1719,9 +1755,9 @@ export default function QuestionEngine({
           minHeight: '44px',
           padding: '9px 14px',
           borderRadius: '999px',
-          border: calculatorPolicy?.available ? '1px solid #c5d5ef' : '1px solid #d7a5a1',
-          background: calculatorPolicy?.available && calculatorOpen ? '#eef4ff' : calculatorPolicy?.available ? '#fff' : '#fce8e6',
-          color: calculatorPolicy?.available ? '#174ea6' : '#8c1d18',
+          border: calculatorPolicy?.available ? '1px solid var(--mm-tint-border)' : '1px solid var(--mm-error-border-soft)',
+          background: calculatorPolicy?.available && calculatorOpen ? 'var(--mm-primary-subtle)' : calculatorPolicy?.available ? 'var(--mm-surface)' : 'var(--mm-error-bg)',
+          color: calculatorPolicy?.available ? 'var(--mm-primary-text)' : 'var(--mm-error-text)',
           fontWeight: 'bold',
           cursor: 'pointer',
           opacity: calculatorPolicy?.available ? 1 : 0.9,
@@ -1732,7 +1768,7 @@ export default function QuestionEngine({
           : <><CalculatorIcon unavailable /><span className="mathmaster-action-label"> Calculator</span></>}
       </button>
       {readAloudOffered && (
-        <button type="button" className="mathmaster-work-bar-tool" aria-label="Read aloud" onClick={() => { if (speakText(referenceSpeechText, readAloudLanguage)) reportSupportEvidence('text-to-speech', 'used'); }} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}><span aria-hidden="true">🔊</span><span className="mathmaster-action-label"> Read</span></button>
+        <button type="button" className="mathmaster-work-bar-tool" aria-label="Read aloud" onClick={() => { if (speakText(referenceSpeechText, readAloudLanguage)) reportSupportEvidence('text-to-speech', 'used'); }} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', cursor: 'pointer' }}><span aria-hidden="true">🔊</span><span className="mathmaster-action-label"> Read</span></button>
       )}
     </>
   );
@@ -1751,9 +1787,9 @@ export default function QuestionEngine({
           role="status"
           className="mathmaster-question-attempt-strip"
           style={{
-            border: `1px solid ${assignmentLocked && !terminalFeedbackHidden && record.status !== 'correct' && !isExpired ? '#9aa0a6' : terminalFeedbackHidden ? '#c9d6e8' : (record.status === 'attempted' || (record.status === 'expired' && !isExpired)) ? '#f9ab00' : isExpired ? '#e0b4b0' : record.status === 'correct' ? '#a8dab5' : '#d9e2f1'}`,
-            background: terminalFeedbackHidden ? '#f4f7fb' : (record.status === 'attempted' || (record.status === 'expired' && !isExpired)) ? '#fef7e0' : isExpired ? '#fce8e6' : record.status === 'correct' ? '#e6f4ea' : '#f8fbff',
-            color: '#3c4043',
+            border: `1px solid ${assignmentLocked && !terminalFeedbackHidden && record.status !== 'correct' && !isExpired ? 'var(--mm-border-strong)' : terminalFeedbackHidden ? 'var(--mm-tint-border)' : (record.status === 'attempted' || (record.status === 'expired' && !isExpired)) ? '#f9ab00' : isExpired ? 'var(--mm-error-border-soft)' : record.status === 'correct' ? 'var(--mm-success-border)' : 'var(--mm-tint-border)'}`,
+            background: terminalFeedbackHidden ? 'var(--mm-surface-tint)' : (record.status === 'attempted' || (record.status === 'expired' && !isExpired)) ? 'var(--mm-warning-bg)' : isExpired ? 'var(--mm-error-bg)' : record.status === 'correct' ? 'var(--mm-success-bg)' : 'var(--mm-surface-tint)',
+            color: 'var(--mm-text)',
           }}
         >
           <strong>
@@ -1782,15 +1818,15 @@ export default function QuestionEngine({
       {/* One quiet line in the student's words. It was a full-weight banner in
           grading vocabulary ("records the daily DOL grade during the active
           class window"), louder than the task it sat under. */}
-      {dolMode && <div style={{ margin: '0 auto 12px', maxWidth: '860px', padding: '7px 12px', borderRadius: '10px', background: '#f3e8fd', color: '#681da8', fontSize: '14px', fontWeight: 800 }}>DOL exit ticket · this question counts toward today&apos;s DOL grade.</div>}
+      {dolMode && <div style={{ margin: '0 auto 12px', maxWidth: '860px', padding: '7px 12px', borderRadius: '10px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontSize: '14px', fontWeight: 800 }}>DOL exit ticket · this question counts toward today&apos;s DOL grade.</div>}
       {questionGradeWeight !== 1 && (
-        <div style={{ margin: '0 auto 12px', maxWidth: '860px', padding: '9px 13px', borderRadius: '10px', background: '#e8f0fe', color: '#174ea6', fontWeight: 900 }}>
+        <div style={{ margin: '0 auto 12px', maxWidth: '860px', padding: '9px 13px', borderRadius: '10px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 900 }}>
           Grade weight ×{questionGradeWeight} · this question contributes {questionGradeWeight} times a standard-weight question to the assignment grade.
         </div>
       )}
 
       {formulaAnchor && supportPresentation.inclusion && (
-        <aside style={{ position: 'sticky', top: '8px', zIndex: 4, margin: '0 0 12px auto', width: 'fit-content', maxWidth: '100%', padding: '10px 14px', borderRadius: '10px', background: '#fff4ce', border: '1px solid #f9ab00', color: '#5f4400', boxShadow: '0 4px 12px rgba(95,68,0,0.12)' }}>
+        <aside style={{ position: 'sticky', top: '8px', zIndex: 4, margin: '0 0 12px auto', width: 'fit-content', maxWidth: '100%', padding: '10px 14px', borderRadius: '10px', background: 'var(--mm-warning-soft)', border: '1px solid #f9ab00', color: 'var(--mm-warning-text)', boxShadow: '0 4px 12px rgba(95,68,0,0.12)' }}>
           <strong style={{ display: 'block', fontSize: '12px', marginBottom: '4px' }}>Formula anchor</strong>
           <MathDisplay value={formulaAnchor} format="latex" />
         </aside>
@@ -1806,8 +1842,8 @@ export default function QuestionEngine({
         />
       )}
       {contextScaffoldEnabled && !referenceInfo && (contextScaffoldComplete || locked) && (
-        <aside style={{ maxWidth: '860px', margin: '0 auto 18px', padding: '12px 15px', border: '1px solid #c5d5ef', borderRadius: '10px', background: '#f8fbff', textAlign: 'left', color: '#3c4043' }}>
-          <strong style={{ color: '#174ea6' }}>Context:</strong> {processedQuestion.context.scenario}
+        <aside style={{ maxWidth: '860px', margin: '0 auto 18px', padding: '12px 15px', border: '1px solid var(--mm-tint-border)', borderRadius: '10px', background: 'var(--mm-surface-tint)', textAlign: 'left', color: 'var(--mm-text)' }}>
+          <strong style={{ color: 'var(--mm-primary-text)' }}>Context:</strong> {processedQuestion.context.scenario}
         </aside>
       )}
 
@@ -1933,7 +1969,7 @@ export default function QuestionEngine({
           <div
             role="status"
             data-active-work-paused="true"
-            style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, margin: '0 auto 12px', maxWidth: 860, padding: '12px 16px', borderRadius: 12, border: '1px solid var(--mm-info-border, #aecbfa)', background: 'var(--mm-info-bg, #e8f0fe)', color: 'var(--mm-text-strong, #1f2937)' }}
+            style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, margin: '0 auto 12px', maxWidth: 860, padding: '12px 16px', borderRadius: 12, border: '1px solid var(--mm-info-border, var(--mm-primary-border))', background: 'var(--mm-info-bg, var(--mm-primary-soft))', color: 'var(--mm-text-strong)' }}
           >
             <span style={{ flex: '1 1 260px', lineHeight: 1.5 }}>
               <strong>This question is open in another tab.</strong> It is paused here so your work stays in one place.
@@ -1953,6 +1989,7 @@ export default function QuestionEngine({
             </button>
           </div>
         ) : null}
+        {resolutionFailurePanel || (
         <fieldset disabled={locked || scaffoldRequired || contextScaffoldRequired || submitting || pausedByAnotherTab} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           {/* `inert` must be a boolean: React 19 reads inert="" as false, which
               left a completed answer's math field focused and editable (and
@@ -1977,18 +2014,19 @@ export default function QuestionEngine({
             </QuestionModuleBoundary>
           </div>
         </fieldset>
+        )}
 
         {scaffoldRequired && (
           <div role="dialog" aria-modal="true" aria-label="Productive struggle scaffold" style={{ position: 'absolute', inset: 0, zIndex: 35, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', background: 'rgba(232,240,254,0.78)' }}>
             <div style={{ width: 'min(560px, 94%)', padding: '24px', borderRadius: '16px', background: 'var(--mm-surface)', border: '3px solid #1a73e8', boxShadow: '0 20px 55px rgba(26,115,232,0.25)', textAlign: 'left' }}>
-              <div style={{ fontSize: '12px', fontWeight: 900, color: '#174ea6', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Let&apos;s back up</div>
+              <div style={{ fontSize: '12px', fontWeight: 900, color: 'var(--mm-primary-text)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Let&apos;s back up</div>
               <h2 style={{ margin: '8px 0 16px', color: 'var(--mm-text-strong)' }}>{scaffold.prompt}</h2>
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                 {(scaffold.options || []).map((option) => (
-                  <button key={option} type="button" onClick={() => { if (String(option) === String(scaffold.correct)) { setScaffoldComplete(true); setScaffoldMessage(''); } else setScaffoldMessage('Try the other choice. This support step does not use an attempt.'); }} style={{ padding: '11px 18px', borderRadius: '9px', border: '1px solid #aecbfa', background: '#e8f0fe', color: '#174ea6', fontWeight: 900, cursor: 'pointer' }}>{option}</button>
+                  <button key={option} type="button" onClick={() => { if (String(option) === String(scaffold.correct)) { setScaffoldComplete(true); setScaffoldMessage(''); } else setScaffoldMessage('Try the other choice. This support step does not use an attempt.'); }} style={{ padding: '11px 18px', borderRadius: '9px', border: '1px solid var(--mm-primary-border)', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', fontWeight: 900, cursor: 'pointer' }}>{option}</button>
                 ))}
               </div>
-              {scaffoldMessage && <p style={{ margin: '14px 0 0', color: '#b3261e', fontWeight: 'bold' }}>{scaffoldMessage}</p>}
+              {scaffoldMessage && <p style={{ margin: '14px 0 0', color: 'var(--mm-error-text)', fontWeight: 'bold' }}>{scaffoldMessage}</p>}
             </div>
           </div>
         )}
@@ -2016,7 +2054,7 @@ export default function QuestionEngine({
               borderRadius: '999px',
               border: `2px solid ${expiredAlmost ? '#f9ab00' : '#d93025'}`,
               background: expiredAlmost ? 'rgba(255,248,225,0.96)' : 'rgba(252,232,230,0.96)',
-              color: expiredAlmost ? '#6b5200' : '#8c1d18',
+              color: expiredAlmost ? 'var(--mm-warning-text)' : 'var(--mm-error-text)',
               fontWeight: 900,
               boxShadow: '0 3px 10px rgba(0,0,0,0.12)',
             }}
@@ -2059,13 +2097,13 @@ export default function QuestionEngine({
       />
 
       {sameIncorrectResponse && !isMultipart && !locked && (
-        <p style={{ marginTop: '10px', color: '#5f6368', fontWeight: 'bold' }}>You may submit the same response again. No answer change is required.</p>
+        <p style={{ marginTop: '10px', color: 'var(--mm-text-muted)', fontWeight: 'bold' }}>You may submit the same response again. No answer change is required.</p>
       )}
 
       {/* A question the server cannot grade is not quietly marked wrong: the
           student is told it was not submitted, which is what happened. */}
       {feedback?.blocked && (
-        <div role="alert" style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', background: '#fef7e0', border: '1px solid #f9ab00', color: '#7a4f00', fontSize: '15px', fontWeight: 'bold' }}>
+        <div role="alert" style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', background: 'var(--mm-warning-bg)', border: '1px solid #f9ab00', color: 'var(--mm-warning-text)', fontSize: '15px', fontWeight: 'bold' }}>
           {feedback.message}
         </div>
       )}
@@ -2077,7 +2115,7 @@ export default function QuestionEngine({
           A registry tool that showed its own verdict shows this outcome beside
           it instead (`outcomeInTool`, PQ-022): one place, one announcement. */}
       {feedback && !feedback.blocked && showOutcomeFeedback && !outcomeInTool && (
-        <div role="status" style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', backgroundColor: feedback.isCorrect ? '#e6f4ea' : '#fce8e6', color: feedback.isCorrect ? '#137333' : '#c5221f', fontSize: '16px', fontWeight: 'bold' }}>
+        <div role="status" style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', backgroundColor: feedback.isCorrect ? 'var(--mm-success-bg)' : 'var(--mm-error-bg)', color: feedback.isCorrect ? 'var(--mm-success-text)' : 'var(--mm-danger)', fontSize: '16px', fontWeight: 'bold' }}>
           {attemptOutcomeText}
           {!feedback.isCorrect && isComposed && workflowSubmissionReview?.parts?.some((part) => part?.graded !== false && !part?.isCorrect) && (
             <div style={{ marginTop: '9px', paddingTop: '9px', borderTop: '1px solid rgba(197,34,31,0.24)' }}>
@@ -2108,7 +2146,7 @@ export default function QuestionEngine({
                 <span>Continue to {continueSectionLabel || 'next section'}</span>
                 <span aria-hidden="true">→</span>
               </button>
-              <small style={{ display: 'block', marginTop: 6, color: '#5f6368', fontWeight: 750, textAlign: 'center' }}>{ENTER_TO_CONTINUE_HINT}</small>
+              <small style={{ display: 'block', marginTop: 6, color: 'var(--mm-text-muted)', fontWeight: 750, textAlign: 'center' }}>{ENTER_TO_CONTINUE_HINT}</small>
             </div>
           ) : (
             <div className="mathmaster-section-completion-done">All currently available sections are complete.</div>
@@ -2150,23 +2188,23 @@ export default function QuestionEngine({
               )}
               <span style={{ display: 'block', marginTop: '5px', fontSize: '12px', fontWeight: 800, opacity: 0.9 }}>{ENTER_TO_CONTINUE_HINT}</span>
             </span>
-            <span aria-hidden="true" style={{ width: '44px', height: '44px', flex: '0 0 44px', display: 'grid', placeItems: 'center', borderRadius: '999px', background: 'var(--mm-surface)', color: '#174ea6', fontSize: '30px', lineHeight: 1, fontWeight: 950 }}>→</span>
+            <span aria-hidden="true" style={{ width: '44px', height: '44px', flex: '0 0 44px', display: 'grid', placeItems: 'center', borderRadius: '999px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontSize: '30px', lineHeight: 1, fontWeight: 950 }}>→</span>
           </button>
         </div>
       )}
 
       {terminalFeedbackHidden && (
-        <div role="status" style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', background: '#eef4ff', color: '#174ea6', border: '1px solid #aecbfa', fontSize: '15px', fontWeight: 'bold' }}>
+        <div role="status" style={{ margin: '25px auto 0', padding: '15px', maxWidth: '700px', borderRadius: '8px', background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)', fontSize: '15px', fontWeight: 'bold' }}>
           {heldFeedbackMessage}
         </div>
       )}
 
       {assignmentLocked && !isCorrect && !isExpired && !lockReasonInAttemptStrip && (
-        <div style={{ margin: '25px auto 0', padding: '18px', maxWidth: '700px', borderRadius: '10px', border: '2px solid #5f6368', background: '#f1f3f4', color: '#3c4043' }}><strong>{assignmentLockedMessage || 'This assignment is permanently closed.'}</strong>{!assignmentLockedMessage && ' The saved response is available for review, but no changes or submissions are allowed.'}</div>
+        <div style={{ margin: '25px auto 0', padding: '18px', maxWidth: '700px', borderRadius: '10px', border: '2px solid #5f6368', background: 'var(--mm-surface-control)', color: 'var(--mm-text)' }}><strong>{assignmentLockedMessage || 'This assignment is permanently closed.'}</strong>{!assignmentLockedMessage && ' The saved response is available for review, but no changes or submissions are allowed.'}</div>
       )}
 
       {isExpired && showOutcomeFeedback && (
-        <div style={{ margin: '25px auto 0', padding: '18px', maxWidth: '700px', borderRadius: '10px', border: `2px solid ${expiredAlmost ? '#f9ab00' : '#d93025'}`, background: expiredAlmost ? '#fff8e1' : '#fce8e6', color: expiredAlmost ? '#6b5200' : '#5f2120', position: 'relative', zIndex: 45 }}>
+        <div style={{ margin: '25px auto 0', padding: '18px', maxWidth: '700px', borderRadius: '10px', border: `2px solid ${expiredAlmost ? '#f9ab00' : '#d93025'}`, background: expiredAlmost ? 'var(--mm-warning-bg)' : 'var(--mm-error-bg)', color: expiredAlmost ? 'var(--mm-warning-text)' : 'var(--mm-error-text)', position: 'relative', zIndex: 45 }}>
           <strong>This response is closed after {resolvedMaximumAttempts} {resolvedMaximumAttempts === 1 ? 'attempt' : 'attempts'}.</strong>
           {missingToolDefinition
             ? <ToolSolutionReview question={processedQuestion} />
@@ -2186,9 +2224,9 @@ export default function QuestionEngine({
         <div role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setUnchangedConfirmOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 12000, background: 'rgba(32,33,36,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div role="dialog" aria-modal="true" style={{ width: 'min(520px, 94vw)', padding: '24px', borderRadius: '14px', background: 'var(--mm-surface)', boxShadow: '0 24px 70px rgba(0,0,0,0.35)', textAlign: 'left' }}>
             <h2 style={{ marginTop: 0, color: 'var(--mm-text-strong)' }}>Your values have not changed</h2>
-            <p style={{ color: '#5f6368', lineHeight: 1.55 }}>This multipart response is identical to the previous submission. You may still use another attempt with the same values. Continue submitting?</p>
+            <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.55 }}>This multipart response is identical to the previous submission. You may still use another attempt with the same values. Continue submitting?</p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-              <button type="button" onClick={() => setUnchangedConfirmOpen(false)} style={{ padding: '10px 15px', borderRadius: '8px', border: '1px solid #dadce0', background: 'var(--mm-surface)', fontWeight: 'bold' }}>Go Back</button>
+              <button type="button" onClick={() => setUnchangedConfirmOpen(false)} style={{ padding: '10px 15px', borderRadius: '8px', border: '1px solid var(--mm-border)', background: 'var(--mm-surface)', fontWeight: 'bold' }}>Go Back</button>
               <button type="button" onClick={performSubmit} style={{ padding: '10px 15px', borderRadius: '8px', border: 'none', background: '#1a73e8', color: '#fff', fontWeight: 'bold' }}>Submit Unchanged Values</button>
             </div>
           </div>
@@ -2199,5 +2237,52 @@ export default function QuestionEngine({
     </div>
     </WorkViewUndoProvider>
     </QuestionLifecycleProvider>
+  );
+}
+
+/*
+ * THE QUESTION-LEVEL BOUNDARY AROUND EVERYTHING THE ENGINE PREPARES.
+ *
+ * The body above resolves the question before any module renders: runtime
+ * repair, the Question Family instance (replayed from its delivery pin), the
+ * word-problem layer, and every memo derived from them. A throw there used to
+ * escape to AppErrorBoundary and take down the whole assignment.
+ * QuestionResolutionBoundary contains it to this question; navigation, the
+ * neighbouring questions and the grade display all live outside it. "Try
+ * again" remounts the body, which prepares the question from scratch —
+ * always safe, because preparing a question writes nothing.
+ */
+export default function QuestionEngine(props) {
+  const [resolutionAttempt, setResolutionAttempt] = useState(0);
+  const retry = useCallback(() => setResolutionAttempt((value) => value + 1), []);
+  const { question, generationKey, assignmentId, activityRole, executionScope, onNextQuestion, nextQuestionLabel, questionRecord } = props;
+  const record = questionRecord && typeof questionRecord === 'object' ? questionRecord : {};
+  let family = null;
+  try {
+    family = question?.questionFamily && typeof question.questionFamily === 'object' ? question.questionFamily : null;
+  } catch {
+    family = null;
+  }
+  const questionId = (() => {
+    try { return question?.questionId ?? question?.id ?? null; } catch { return null; }
+  })();
+  return (
+    <QuestionResolutionBoundary
+      resetKey={`${generationKey ?? ''}|${questionId ?? ''}|${resolutionAttempt}`}
+      context={{
+        assignmentId: assignmentId ?? null,
+        questionId,
+        familyId: (() => { try { return family?.id || family?.familyId || (family ? 'assignment-template' : null); } catch { return null; } })(),
+        familyVersion: (() => { try { return Number.isInteger(Number(family?.version)) ? Number(family.version) : null; } catch { return null; } })(),
+        activityRole: activityRole ?? 'practice',
+      }}
+      executionScope={executionScope ?? 'student'}
+      onRetry={retry}
+      onNextQuestion={onNextQuestion}
+      nextQuestionLabel={nextQuestionLabel}
+      hasRecordedWork={(Number(record.totalAttempts) || 0) > 0}
+    >
+      <QuestionEngineBody key={resolutionAttempt} {...props} onResolutionRetry={retry} />
+    </QuestionResolutionBoundary>
   );
 }

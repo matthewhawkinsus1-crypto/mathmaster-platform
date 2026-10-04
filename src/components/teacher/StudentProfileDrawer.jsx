@@ -51,7 +51,7 @@ const PANEL = {
 
 const fact = (label, value) => (
   <div key={label}>
-    <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5f6368' }}>{label}</div>
+    <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>{label}</div>
     <div style={{ marginTop: 2, fontWeight: 700 }}>{value}</div>
   </div>
 );
@@ -130,11 +130,11 @@ export default function StudentProfileDrawer({
       onClick={(event) => { if (event.target === event.currentTarget) onClose?.(); }}
     >
       <aside ref={panelRef} style={PANEL} role="dialog" aria-modal="true" aria-label={`Learning profile for ${studentName}`} data-student-profile-drawer={studentId || ''}>
-        <header style={{ padding: '18px 22px 14px', borderBottom: '1px solid #eef0f2' }}>
+        <header style={{ padding: '18px 22px 14px', borderBottom: '1px solid var(--mm-border-soft)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, alignItems: 'flex-start' }}>
             <div style={{ minWidth: 0 }}>
               <h2 style={{ margin: 0, fontSize: 20 }}>{studentName}</h2>
-              <div style={{ marginTop: 5, color: '#5f6368', fontSize: 13 }}>
+              <div style={{ marginTop: 5, color: 'var(--mm-text-muted)', fontSize: 13 }}>
                 {classRecord?.name || courseContext?.classPeriod || 'No class'} · {courseLabel(course)} · {courseLevelLabel(level)}
                 {studentId ? ` · ID ${studentId}` : ''}
               </div>
@@ -144,7 +144,7 @@ export default function StudentProfileDrawer({
               ref={closeRef}
               onClick={() => onClose?.()}
               aria-label="Close student profile"
-              style={{ padding: '7px 12px', border: '1px solid #dadce0', borderRadius: 8, background: 'var(--mm-surface)', fontWeight: 900, cursor: 'pointer' }}
+              style={{ padding: '7px 12px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)', fontWeight: 900, cursor: 'pointer' }}
             >
               Close
             </button>
@@ -155,14 +155,14 @@ export default function StudentProfileDrawer({
           </div>
 
           {courseContext?.source === 'periodFallback' && (
-            <p style={{ margin: '12px 0 0', padding: '8px 10px', borderRadius: 8, background: '#fff4ce', color: '#6b4c00', fontSize: 12.5 }}>
+            <p style={{ margin: '12px 0 0', padding: '8px 10px', borderRadius: 8, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 12.5 }}>
               This student has no class record, so their course was inferred from their class period. Give them a class in Administration and this becomes authoritative.
             </p>
           )}
         </header>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '18px 22px 26px' }}>
-          <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14, marginBottom: 20 }}>
+          <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 14, marginBottom: 20 }}>
             {fact('Adaptive posture', posture.label)}
             {fact('Skills with evidence', profile?.skillsWithEvidence ?? 0)}
             {fact('Classifying evidence', profile?.baseline?.events ?? 0)}
@@ -228,9 +228,9 @@ export default function StudentProfileDrawer({
 
           <StudentLearningProfileView studentName={studentName} profile={profile} plan={plan} />
 
-          <section style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #eef0f2' }}>
+          <section style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid var(--mm-border-soft)' }}>
             <h3 style={{ margin: '0 0 5px', fontSize: 16 }}>Support & intervention history</h3>
-            <p style={{ margin: '0 0 10px', color: '#5f6368', fontSize: 12.5 }}>
+            <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', fontSize: 12.5 }}>
               System signals, teacher confirmations, dismissals and actions remain separate in this append-only history.
             </p>
             {supportEvents.length ? (
@@ -239,28 +239,28 @@ export default function StudentProfileDrawer({
                   const date = new Date(event.createdAt || '');
                   const when = Number.isNaN(date.getTime()) ? '' : date.toLocaleString();
                   return (
-                    <div key={event.id} style={{ padding: '9px 10px', borderRadius: 8, background: '#f8f9fa', border: '1px solid #eef0f2' }}>
+                    <div key={event.id} style={{ padding: '9px 10px', borderRadius: 8, background: 'var(--mm-surface-sunken)', border: '1px solid var(--mm-border-soft)' }}>
                       <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
                         <strong style={{ fontSize: 12.5 }}>{SUPPORT_EVENT_LABEL[event.kind] || event.kind}</strong>
-                        <span style={{ fontSize: 11, color: '#80868b' }}>{when}</span>
+                        <span style={{ fontSize: 11, color: 'var(--mm-text-subtle)' }}>{when}</span>
                       </div>
-                      <div style={{ marginTop: 2, fontSize: 11.5, color: '#5f6368' }}>
+                      <div style={{ marginTop: 2, fontSize: 11.5, color: 'var(--mm-text-muted)' }}>
                         {SUPPORT_STAGE_LABEL[event.stage] || event.stage}{event.source ? ` · ${event.source}` : ''}
                       </div>
-                      {event.summary && <div style={{ marginTop: 4, fontSize: 12, color: '#3c4043', lineHeight: 1.4 }}>{event.summary}</div>}
-                      {event.note && <div style={{ marginTop: 4, fontSize: 12, color: '#3c4043', lineHeight: 1.4 }}><strong>Teacher note:</strong> {event.note}</div>}
+                      {event.summary && <div style={{ marginTop: 4, fontSize: 12, color: 'var(--mm-text)', lineHeight: 1.4 }}>{event.summary}</div>}
+                      {event.note && <div style={{ marginTop: 4, fontSize: 12, color: 'var(--mm-text)', lineHeight: 1.4 }}><strong>Teacher note:</strong> {event.note}</div>}
                     </div>
                   );
                 })}
               </div>
             ) : (
-              <div style={{ color: '#80868b', fontSize: 12.5 }}>No stored support/intervention events for this student yet.</div>
+              <div style={{ color: 'var(--mm-text-subtle)', fontSize: 12.5 }}>No stored support/intervention events for this student yet.</div>
             )}
           </section>
 
-          <section style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #eef0f2' }}>
+          <section style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid var(--mm-border-soft)' }}>
             <h3 style={{ margin: '0 0 5px', fontSize: 16 }}>Recent class-session summaries</h3>
-            <p style={{ margin: '0 0 10px', color: '#5f6368', fontSize: 12.5 }}>
+            <p style={{ margin: '0 0 10px', color: 'var(--mm-text-muted)', fontSize: 12.5 }}>
               Objective platform counts only. These summaries are supporting context, not behavior or integrity findings unless a teacher separately confirms a concern above.
             </p>
             {sessionSummaries.length ? (
@@ -271,12 +271,12 @@ export default function StudentProfileDrawer({
                   const elapsedMinutes = Math.max(0, Math.round(((Number(summary.endedAt) || 0) - (Number(summary.startedAt) || 0)) / 60000));
                   const activeMinutes = Math.max(0, Math.round((Number(summary.activeSeconds) || 0) / 60));
                   return (
-                    <div key={summary.id} style={{ padding: '9px 10px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid #eef0f2' }}>
+                    <div key={summary.id} style={{ padding: '9px 10px', borderRadius: 8, background: 'var(--mm-surface)', border: '1px solid var(--mm-border-soft)' }}>
                       <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
                         <strong style={{ fontSize: 12.5 }}>{summary.assignmentTitle || 'Assignment session'}</strong>
-                        <span style={{ fontSize: 11, color: '#80868b' }}>{when}</span>
+                        <span style={{ fontSize: 11, color: 'var(--mm-text-subtle)' }}>{when}</span>
                       </div>
-                      <div style={{ marginTop: 3, fontSize: 11.5, color: '#5f6368', lineHeight: 1.45 }}>
+                      <div style={{ marginTop: 3, fontSize: 11.5, color: 'var(--mm-text-muted)', lineHeight: 1.45 }}>
                         {activeMinutes} active min of {elapsedMinutes} elapsed · {Number(summary.answered) || 0} answered
                         {summary.accuracy != null ? ` · ${summary.accuracy}% correct` : ''}
                         {Number(summary.focusLossCount) > 0 ? ` · ${summary.focusLossCount} focus-loss event${Number(summary.focusLossCount) === 1 ? '' : 's'}` : ''}
@@ -286,12 +286,12 @@ export default function StudentProfileDrawer({
                 })}
               </div>
             ) : (
-              <div style={{ color: '#80868b', fontSize: 12.5 }}>No archived class-session summaries yet.</div>
+              <div style={{ color: 'var(--mm-text-subtle)', fontSize: 12.5 }}>No archived class-session summaries yet.</div>
             )}
           </section>
         </div>
 
-        <footer style={{ display: 'flex', gap: 9, padding: '13px 22px', borderTop: '1px solid #eef0f2', background: '#f8f9fa', flexWrap: 'wrap' }}>
+        <footer style={{ display: 'flex', gap: 9, padding: '13px 22px', borderTop: '1px solid var(--mm-border-soft)', background: 'var(--mm-surface-sunken)', flexWrap: 'wrap' }}>
           {/*
             Ways OUT of the drawer, not actions taken inside it. Opening an alert
             or a name must never change a student's plan by itself.
@@ -300,7 +300,7 @@ export default function StudentProfileDrawer({
             <button
               type="button"
               onClick={() => onOpenFullRecord(studentId)}
-              style={{ padding: '9px 13px', border: '1px solid #1a73e8', borderRadius: 8, background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 900, cursor: 'pointer' }}
+              style={{ padding: '9px 13px', border: '1px solid #1a73e8', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 900, cursor: 'pointer' }}
             >
               Open full student record
             </button>
@@ -309,12 +309,12 @@ export default function StudentProfileDrawer({
             <button
               type="button"
               onClick={() => onOpenGradebook(studentId)}
-              style={{ padding: '9px 13px', border: '1px solid #dadce0', borderRadius: 8, background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 900, cursor: 'pointer' }}
+              style={{ padding: '9px 13px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 900, cursor: 'pointer' }}
             >
               Open grades
             </button>
           )}
-          <span style={{ marginLeft: 'auto', alignSelf: 'center', color: '#5f6368', fontSize: 12 }}>
+          <span style={{ marginLeft: 'auto', alignSelf: 'center', color: 'var(--mm-text-muted)', fontSize: 12 }}>
             Recording support evidence never changes this student&apos;s plan.
           </span>
         </footer>

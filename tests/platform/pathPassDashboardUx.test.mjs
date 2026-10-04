@@ -37,7 +37,9 @@ test('skills wheel keeps pass completion visible independently of mastery status
   assert.match(wheel, /normalizeCoursePathPassProgress/);
   assert.match(wheel, /passProgress:/);
   assert.match(wheel, /Path Pass \$\{Math\.min\(passCount, 3\)\} complete/);
-  assert.match(wheel, /stroke=\{passCount \? passColor : '#fff'\}/);
+  // A pass outlines its segment in the pass color; otherwise the gap is cut in
+  // the card's own surface color (a token, so it is not a white seam in dark mode).
+  assert.match(wheel, /stroke: passCount \? passColor : 'var\(--mm-surface\)'/);
   assert.match(dashboard, /completed Path pass/);
   assert.match(dashboard, /Mastery-challenge pass/);
 });
@@ -73,7 +75,8 @@ test('skill modal uses the canonical Path pass presentation instead of a generic
 test('active course sessions translate rigor into student-facing Path levels', () => {
   assert.match(player, /coursePathLevelName/);
   assert.match(player, /MY MATH PATH · Level \{coursePassLevel\} · \{coursePathLevelName\(coursePassLevel\)\}/);
-  assert.match(player, /coursePassLevel >= 3 \? '#f3ecfd'/);
+  // Level 3+ takes the purple accent container (a themed token since Dark Mode 2.0).
+  assert.match(player, /coursePassLevel >= 3 \? 'var\(--mm-accent-soft\)'/);
 
   // Internal adaptive metadata remains teacher/engine information. Students see
   // Foundation / Deeper practice / Mastery challenge instead.

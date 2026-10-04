@@ -31,17 +31,17 @@ const panelStyle = {
   gap: 8,
   marginBottom: 8,
   padding: '8px 10px',
-  border: '1px solid #b8c8e3',
+  border: '1px solid var(--mm-primary-border)',
   borderRadius: 10,
-  background: '#f8fbff',
+  background: 'var(--mm-surface-tint)',
 };
 const chip = (active = false, done = false) => ({
   minHeight: 38,
   padding: '5px 10px',
   borderRadius: 9,
-  border: active ? '2px solid #174ea6' : done ? '1px solid #81c995' : '1px solid #b8c8e3',
-  background: active ? '#e8f0fe' : done ? '#e6f4ea' : '#fff',
-  color: '#174ea6',
+  border: active ? '2px solid #174ea6' : done ? '1px solid #81c995' : '1px solid var(--mm-primary-border)',
+  background: active ? 'var(--mm-primary-soft)' : done ? 'var(--mm-success-bg)' : 'var(--mm-surface)',
+  color: 'var(--mm-primary-text)',
   fontWeight: 800,
   cursor: 'pointer',
 });
@@ -65,7 +65,7 @@ export function RelationDistributionPanel({ state, branchIndex = 0, onCommit, on
   return (
     <div className="relation-distribution-panel" data-relation-structure="distribute" style={panelStyle}>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 7 }}>
-        <strong style={{ color: '#174ea6', fontSize: 13 }}>Distribute</strong>
+        <strong style={{ color: 'var(--mm-primary-text)', fontSize: 13 }}>Distribute</strong>
         {candidates.length > 1 && candidates.map((entry) => (
           <button key={entry.expressionIndex} type="button" onClick={() => setExpressionIndex(entry.expressionIndex)} style={chip(entry.expressionIndex === candidate.expressionIndex)}>
             {regionLabel(branch, entry.expressionIndex)}
@@ -87,7 +87,7 @@ export function RelationDistributionPanel({ state, branchIndex = 0, onCommit, on
         >
           <MathDisplay value={distribution.factorLatex} format="latex" inline />
         </button>
-        <span aria-hidden="true" style={{ color: '#5f6368' }}>→</span>
+        <span aria-hidden="true" style={{ color: 'var(--mm-text-muted)' }}>→</span>
         {distribution.terms.map((term, index) => {
           const placed = distribution.placedIndices.includes(index);
           return (
@@ -128,7 +128,7 @@ export function RelationDistributionPanel({ state, branchIndex = 0, onCommit, on
         >
           Commit distribution
         </button>
-        <span style={{ color: '#6b7280', fontSize: 11 }}>
+        <span style={{ color: 'var(--mm-text-muted)', fontSize: 11 }}>
           Pick up the multiplier, then place it on every term inside the parentheses. The products stay unsimplified until you rewrite them.
         </span>
       </div>
@@ -161,7 +161,7 @@ export function RelationLikeTermsPanel({ state, branchIndex = 0, onCommit, onClo
   return (
     <div className="relation-like-terms-panel" data-relation-structure="combine" style={panelStyle}>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 7 }}>
-        <strong style={{ color: '#174ea6', fontSize: 13 }}>Combine like terms</strong>
+        <strong style={{ color: 'var(--mm-primary-text)', fontSize: 13 }}>Combine like terms</strong>
         {candidates.length > 1 && candidates.map((entry) => (
           <button key={entry.expressionIndex} type="button" onClick={() => setExpressionIndex(entry.expressionIndex)} style={chip(entry.expressionIndex === candidate.expressionIndex)}>
             {regionLabel(branch, entry.expressionIndex)}
@@ -210,7 +210,7 @@ export function RelationLikeTermsPanel({ state, branchIndex = 0, onCommit, onClo
           Check
         </button>
       </div>
-      {reason && <div role="status" style={{ color: '#a50e0e', fontSize: 12.5 }}>{reason}</div>}
+      {reason && <div role="status" style={{ color: 'var(--mm-error-text)', fontSize: 12.5 }}>{reason}</div>}
     </div>
   );
 }

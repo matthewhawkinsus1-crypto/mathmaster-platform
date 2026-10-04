@@ -1,30 +1,8 @@
+/* Every color token lives in theme/tokens.css (light, dark, print). */
+@import './theme/tokens.css';
+
 :root {
-  /* MathMaster semantic theme contract. Components consume meaning rather than
-     guessing whether a literal is readable against the active surface. */
-  --mm-page-bg: #ffffff;
-  --mm-surface: #ffffff;
-  --mm-surface-raised: #ffffff;
-  --mm-surface-muted: #f4f7fb;
-  --mm-text: #3f4652;
-  --mm-text-strong: #202124;
-  --mm-text-muted: #5f6368;
-  --mm-border: #d7dde7;
-  --mm-divider: #e5e7eb;
-  --mm-primary: #174ea6;
-  --mm-on-primary: #ffffff;
-  --mm-focus: #1a73e8;
-  --mm-input-bg: #ffffff;
-  --mm-input-text: #202124;
-  --mm-input-placeholder: #6b7280;
-  --mm-disabled-text: #5f6368;
-  --mm-success-bg: #e6f4ea; --mm-success-text: #137333; --mm-success-border: #81c995;
-  --mm-warning-bg: #fff8df; --mm-warning-text: #8a4b00; --mm-warning-border: #f4b400;
-  --mm-error-bg: #fce8e6; --mm-error-text: #a50e0e; --mm-error-border: #d93025;
-  --mm-info-bg: #e8f0fe; --mm-info-text: #174ea6; --mm-info-border: #8ab4f8;
-  /* Modified instructional condition (MOD) — the gradebook's long-standing purple. */
-  --mm-mod-bg: #efe4ff; --mm-mod-text: #5b2391; --mm-mod-border: #b79ad9;
-  --mm-graph-bg: #ffffff; --mm-graph-axis: #5f6368; --mm-graph-grid: #dfe3e7;
-  --mm-graph-grid-minor: #f0f2f4; --mm-graph-label: #3c4043; --mm-graph-highlight: #f9ab00;
+  /* Vite-starter names some older styles still read; they follow the tokens. */
   --text: var(--mm-text);
   --text-h: var(--mm-text-strong);
   --bg: var(--mm-page-bg);
@@ -43,7 +21,6 @@
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
-  color-scheme: light dark;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -56,46 +33,16 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    color-scheme: dark;
-    --mm-page-bg: #111318; --mm-surface: #1b1e25; --mm-surface-raised: #242832; --mm-surface-muted: #171a21;
-    --mm-text: #d7dce5; --mm-text-strong: #f7f9fc; --mm-text-muted: #b4bdca;
-    --mm-border: #4b5361; --mm-divider: #343a46; --mm-primary: #8ab4f8; --mm-on-primary: #101318; --mm-focus: #a8c7fa;
-    --mm-input-bg: #242832; --mm-input-text: #f7f9fc; --mm-input-placeholder: #b4bdca; --mm-disabled-text: #aeb6c2;
-    --mm-success-bg: #123522; --mm-success-text: #a8dab5; --mm-success-border: #5bb974;
-    --mm-warning-bg: #3b2e0b; --mm-warning-text: #fdd663; --mm-warning-border: #e8a900;
-    --mm-error-bg: #461c1c; --mm-error-text: #ffb4ab; --mm-error-border: #ff7b72;
-    --mm-info-bg: #172b4d; --mm-info-text: #aecbfa; --mm-info-border: #669df6;
-    --mm-mod-bg: #2e1d45; --mm-mod-text: #dcc4ff; --mm-mod-border: #a47be0;
-    --mm-graph-bg: #171a20; --mm-graph-axis: #d3d9e3; --mm-graph-grid: #4a5260; --mm-graph-grid-minor: #303640; --mm-graph-label: #f1f4f9; --mm-graph-highlight: #fdd663;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
 :root[data-theme='dark'] {
-  color-scheme: dark;
-  --mm-page-bg: #111318; --mm-surface: #1b1e25; --mm-surface-raised: #242832; --mm-surface-muted: #171a21;
-  --mm-text: #d7dce5; --mm-text-strong: #f7f9fc; --mm-text-muted: #b4bdca;
-  --mm-border: #4b5361; --mm-divider: #343a46; --mm-primary: #8ab4f8; --mm-on-primary: #101318; --mm-focus: #a8c7fa;
-  --mm-input-bg: #242832; --mm-input-text: #f7f9fc; --mm-input-placeholder: #b4bdca; --mm-disabled-text: #aeb6c2;
-  --mm-success-bg: #123522; --mm-success-text: #a8dab5; --mm-success-border: #5bb974;
-  --mm-warning-bg: #3b2e0b; --mm-warning-text: #fdd663; --mm-warning-border: #e8a900;
-  --mm-error-bg: #461c1c; --mm-error-text: #ffb4ab; --mm-error-border: #ff7b72;
-  --mm-info-bg: #172b4d; --mm-info-text: #aecbfa; --mm-info-border: #669df6;
-  --mm-mod-bg: #2e1d45; --mm-mod-text: #dcc4ff; --mm-mod-border: #a47be0;
-  --mm-graph-bg: #171a20; --mm-graph-axis: #d3d9e3; --mm-graph-grid: #4a5260; --mm-graph-grid-minor: #303640; --mm-graph-label: #f1f4f9; --mm-graph-highlight: #fdd663;
+  --code-bg: #1f2028;
+  --accent: #c084fc;
+  --accent-bg: rgba(192, 132, 252, 0.15);
+  --accent-border: rgba(192, 132, 252, 0.5);
+  --social-bg: rgba(47, 48, 58, 0.5);
+  --shadow:
+    rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
 }
+
 
 html {
   width: 100%;
@@ -193,6 +140,12 @@ code {
   opacity: 1;
 }
 
+/* A select is as wide as its longest option; on a phone that pushed forms past
+   the right edge (html/body clip the overflow, so the control was cut off). */
+#root select {
+  max-width: 100%;
+}
+
 #root select option,
 #root select optgroup {
   color: var(--mm-input-text);
@@ -245,7 +198,7 @@ math-field:focus-within {
 
 /* Shared surface primitives used by assignment shells, dialogs and tools. */
 .mathmaster-theme-certification-fixtures {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 10px;
   margin: 12px; padding: 12px; border: 1px solid var(--mm-border); border-radius: 10px;
   background: var(--mm-surface); color: var(--mm-text);
 }
@@ -254,7 +207,7 @@ math-field:focus-within {
 .mathmaster-theme-certification-fixtures :is(th, td) { border: 1px solid var(--mm-border); padding: 6px; }
 .mm-feedback-success { padding: 8px; border: 1px solid var(--mm-success-border); background: var(--mm-success-bg); color: var(--mm-success-text); }
 .mm-feedback-error { padding: 8px; border: 1px solid var(--mm-error-border); background: var(--mm-error-bg); color: var(--mm-error-text); }
-.question-prompt-heading button { color: var(--mm-primary) !important; }
+.question-prompt-heading button { color: var(--mm-primary-text) !important; }
 
 /* Opt-in compatibility primitive for neutral legacy actions. Stateful,
    selected, primary, destructive, and game controls must retain their own
@@ -339,7 +292,7 @@ math-field:focus-within {
   border: 2px solid #f4b400;
   border-left: 8px solid #f29900;
   border-radius: 13px;
-  background: #fff8df;
+  background: var(--mm-warning-bg);
   color: var(--mm-text-strong);
   text-align: left;
   box-shadow: 0 5px 16px rgba(153, 92, 0, 0.10);
@@ -348,7 +301,7 @@ math-field:focus-within {
 .mathmaster-question-task-context {
   margin-top: 10px;
   padding-top: 9px;
-  border-top: 1px solid #d7e3f7;
+  border-top: 1px solid var(--mm-tint-border);
 }
 
 .mathmaster-question-task-context .mathmaster-reference-info-card {
@@ -363,11 +316,11 @@ math-field:focus-within {
 
 .mathmaster-question-task-context .mathmaster-reference-info-kicker {
   margin-bottom: 4px;
-  color: #174ea6;
+  color: var(--mm-primary-text);
 }
 
 .mathmaster-question-task-context .mathmaster-reference-info-title {
-  color: #174ea6;
+  color: var(--mm-primary-text);
 }
 
 .mathmaster-question-task-context .mathmaster-reference-info-statements {
@@ -383,7 +336,7 @@ math-field:focus-within {
 
 .mathmaster-reference-info-kicker {
   margin-bottom: 7px;
-  color: #8a4b00;
+  color: var(--mm-warning-text);
   font-size: 11px;
   font-weight: 950;
   letter-spacing: 0.09em;
@@ -392,7 +345,7 @@ math-field:focus-within {
 
 .mathmaster-reference-info-title {
   margin-bottom: 7px;
-  color: #5f3700;
+  color: var(--mm-warning-text);
   font-size: 14px;
   font-weight: 900;
 }
@@ -417,7 +370,7 @@ math-field:focus-within {
 .mathmaster-reference-statement-label {
   display: inline-block;
   margin-right: 7px;
-  color: #8a4b00;
+  color: var(--mm-warning-text);
   font-size: 12px;
   font-weight: 900;
   text-transform: uppercase;

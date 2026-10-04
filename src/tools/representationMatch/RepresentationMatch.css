@@ -40,7 +40,7 @@
   grid-template-columns: repeat(2, minmax(44px, max-content));
   column-gap: 0;
   font-size: 18px;
-  border: 1px solid #c9d6ea;
+  border: 1px solid var(--mm-tint-border);
   border-radius: 6px;
   width: max-content;
   max-width: 100%;
@@ -50,16 +50,16 @@
 .mathmaster-line-card-table > * {
   padding: 3px 12px;
   text-align: center;
-  border-top: 1px solid #e3eaf5;
+  border-top: 1px solid var(--mm-tint-border);
 }
 
 .mathmaster-line-card-table > :nth-child(odd) {
-  border-right: 1px solid #c9d6ea;
+  border-right: 1px solid var(--mm-tint-border);
 }
 
 .mathmaster-line-card-table-head {
   border-top: 0 !important;
-  background: #f1f5fb;
+  background: var(--mm-primary-subtle);
   font-family: serif;
   font-style: italic;
   font-weight: 700;

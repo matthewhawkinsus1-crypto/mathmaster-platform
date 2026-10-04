@@ -14,13 +14,13 @@ import { diagnoseGaps } from '../../platform/profile/studentLearningProfile.js';
 // plan, which is what makes this view and the student's own screen agree.
 
 const CARD = {
-  border: '1px solid #e3e6eb', borderRadius: 14, background: 'var(--mm-surface)', padding: 16,
+  border: '1px solid var(--mm-border-soft)', borderRadius: 14, background: 'var(--mm-surface)', padding: 16,
 };
 const LABEL = {
-  fontSize: 10.5, fontWeight: 950, letterSpacing: '.08em', textTransform: 'uppercase', color: '#5f6368',
+  fontSize: 10.5, fontWeight: 950, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--mm-text-muted)',
 };
 const VALUE = { fontSize: 15, fontWeight: 800, color: 'var(--mm-text-strong)', marginTop: 3 };
-const MUTED = { color: '#5f6368', fontSize: 12.5, lineHeight: 1.6 };
+const MUTED = { color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.6 };
 
 const pct = (value) => (value == null ? '—' : `${Math.round(Number(value) * 100)}%`);
 
@@ -51,7 +51,7 @@ function DokTable({ dokProfile }) {
       <thead>
         <tr>
           {['Depth of Knowledge', 'Accuracy', 'Attempts', ''].map((head) => (
-            <th key={head} style={{ ...LABEL, textAlign: head === 'Depth of Knowledge' ? 'left' : 'right', padding: '6px 8px', borderBottom: '1px solid #eceff3' }}>{head}</th>
+            <th key={head} style={{ ...LABEL, textAlign: head === 'Depth of Knowledge' ? 'left' : 'right', padding: '6px 8px', borderBottom: '1px solid var(--mm-border-soft)' }}>{head}</th>
           ))}
         </tr>
       </thead>
@@ -80,7 +80,7 @@ function DokTable({ dokProfile }) {
 
 function SessionRow({ session }) {
   return (
-    <li style={{ padding: '11px 0', borderTop: '1px solid #f1f3f6', listStyle: 'none' }}>
+    <li style={{ padding: '11px 0', borderTop: '1px solid var(--mm-border-soft)', listStyle: 'none' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
         <div style={{ fontWeight: 900, color: 'var(--mm-text-strong)', fontSize: 14 }}>
           {session.teksCode}
@@ -135,12 +135,12 @@ export default function StudentLearningProfileView({
           </div>
         </div>
         {onClose && (
-          <button type="button" onClick={onClose} aria-label="Close learning profile" style={{ appearance: 'none', border: 0, background: 'transparent', fontSize: 20, cursor: 'pointer', color: '#5f6368', fontFamily: 'inherit' }}>✕</button>
+          <button type="button" onClick={onClose} aria-label="Close learning profile" style={{ appearance: 'none', border: 0, background: 'transparent', fontSize: 20, cursor: 'pointer', color: 'var(--mm-text-muted)', fontFamily: 'inherit' }}>✕</button>
         )}
       </header>
 
       {!established && (
-        <div style={{ ...CARD, background: '#f8fafc' }}>
+        <div style={{ ...CARD, background: 'var(--mm-surface-sunken)' }}>
           <div style={LABEL}>Still establishing a baseline</div>
           <p style={{ ...MUTED, marginTop: 6 }}>
             {profile.baseline.events} of {profile.baseline.requirement.events} usable pieces of evidence,
@@ -153,7 +153,7 @@ export default function StudentLearningProfileView({
         </div>
       )}
 
-      <div style={{ ...CARD, display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
+      <div style={{ ...CARD, display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))' }}>
         <Stat
           label="Course mastery"
           // courseMastery is a 0-1 fraction, like every other ratio on the

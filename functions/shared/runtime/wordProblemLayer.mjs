@@ -1,12 +1,21 @@
-const normalizeQuantity = (quantity = {}, index) => ({
-  id: String(quantity.id || `quantity-${index + 1}`),
-  name: String(quantity.name || quantity.label || `Quantity ${index + 1}`),
-  symbol: String(quantity.symbol || 'x'),
-  unit: String(quantity.unit || ''),
-  isGiven: quantity.isGiven === true,
-  givenValue: quantity.value ?? quantity.givenValue ?? null,
-  isUnknown: quantity.isUnknown === true,
-});
+// A hand-edited or partially imported question can hold a null (or a bare
+// string) in its quantity list. Reading `null.id` threw while QuestionEngine
+// prepared the question — above every question-level boundary, so it took the
+// whole assignment down — and in deliveredQuestionForGrading on the server.
+// Such an entry keeps its position (later ids stay `quantity-N`) and its
+// defaults.
+const normalizeQuantity = (raw, index) => {
+  const quantity = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  return {
+    id: String(quantity.id || `quantity-${index + 1}`),
+    name: String(quantity.name || quantity.label || `Quantity ${index + 1}`),
+    symbol: String(quantity.symbol || 'x'),
+    unit: String(quantity.unit || ''),
+    isGiven: quantity.isGiven === true,
+    givenValue: quantity.value ?? quantity.givenValue ?? null,
+    isUnknown: quantity.isUnknown === true,
+  };
+};
 
 export const normalizeContextualQuestion = (questionSpec = {}) => {
   if (!questionSpec?.context || typeof questionSpec.context !== 'object' || Array.isArray(questionSpec.context)) return questionSpec;

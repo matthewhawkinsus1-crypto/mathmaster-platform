@@ -37,6 +37,10 @@ export const authorizeAttendanceExtensionActor = ({
   studentRecord = null,
   assignment = null,
   requestedClassId,
+  // What is being changed, for the refusal messages. The rule is the same for
+  // every per-student assignment control (studentAssignmentOverrides.mjs):
+  // only this class's teacher of record (or the root administrator) may.
+  actionLabel = 'an attendance extension',
 } = {}) => {
   if (!classRecord) {
     return { authorized: false, reason: 'not-found', message: 'That class was not found.' };
@@ -53,7 +57,7 @@ export const authorizeAttendanceExtensionActor = ({
       return {
         authorized: false,
         reason: 'failed-precondition',
-        message: 'That class is archived. An attendance extension cannot be granted for it.',
+        message: `That class is archived. ${actionLabel.charAt(0).toUpperCase()}${actionLabel.slice(1)} cannot be granted for it.`,
       };
     }
 
@@ -71,7 +75,7 @@ export const authorizeAttendanceExtensionActor = ({
       return {
         authorized: false,
         reason: 'failed-precondition',
-        message: "This class's roster authorization is out of sync. An administrator must resave the class before an extension can be granted.",
+        message: `This class's roster authorization is out of sync. An administrator must resave the class before ${actionLabel} can be granted.`,
       };
     }
 
@@ -79,7 +83,7 @@ export const authorizeAttendanceExtensionActor = ({
       return {
         authorized: false,
         reason: 'permission-denied',
-        message: "Only this class's teacher of record may grant an attendance extension for it.",
+        message: `Only this class's teacher of record may grant ${actionLabel} for it.`,
       };
     }
   }

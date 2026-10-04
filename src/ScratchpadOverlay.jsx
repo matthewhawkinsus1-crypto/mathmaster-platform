@@ -412,7 +412,7 @@ export default function ScratchpadOverlay({
         position: 'fixed',
         inset: 0,
         zIndex: 30000,
-        background: '#f4f6f8',
+        background: 'var(--mm-surface-sunken)',
         display: 'grid',
         gridTemplateRows: 'auto minmax(0, 1fr) auto',
         animation: 'scratchpadSlideUp 220ms ease-out',
@@ -426,13 +426,13 @@ export default function ScratchpadOverlay({
           gap: '12px',
           padding: '12px 18px',
           background: 'var(--mm-surface)',
-          borderBottom: '1px solid #dfe3e7',
+          borderBottom: '1px solid var(--mm-border)',
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
         }}
       >
         <div>
           <strong style={{ fontSize: '18px', color: 'var(--mm-text-strong)' }}>Student Scratchpad</strong>
-          <div style={{ fontSize: '12px', color: '#5f6368', marginTop: '2px' }}>
+          <div style={{ fontSize: '12px', color: 'var(--mm-text-muted)', marginTop: '2px' }}>
             {readOnly
               ? 'This saved scratchpad is read-only because the question is locked.'
               : dirty
@@ -446,11 +446,11 @@ export default function ScratchpadOverlay({
             onClick={() => goToPage(pageIndex - 1)}
             disabled={pageIndex === 0 || saving}
             aria-label="Previous page"
-            style={{ minHeight: 44, minWidth: 44, border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', fontWeight: 'bold', opacity: pageIndex === 0 ? 0.45 : 1 }}
+            style={{ minHeight: 44, minWidth: 44, border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: 'var(--mm-surface)', fontWeight: 'bold', opacity: pageIndex === 0 ? 0.45 : 1 }}
           >
             ‹
           </button>
-          <span aria-live="polite" style={{ fontSize: '13px', fontWeight: 800, color: '#3c4043', minWidth: '86px', textAlign: 'center' }}>
+          <span aria-live="polite" style={{ fontSize: '13px', fontWeight: 800, color: 'var(--mm-text)', minWidth: '86px', textAlign: 'center' }}>
             Page {pageIndex + 1} of {pageCount}
           </span>
           <button
@@ -458,7 +458,7 @@ export default function ScratchpadOverlay({
             onClick={() => goToPage(pageIndex + 1)}
             disabled={pageIndex >= pageCount - 1 || saving}
             aria-label="Next page"
-            style={{ minHeight: 44, minWidth: 44, border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', fontWeight: 'bold', opacity: pageIndex >= pageCount - 1 ? 0.45 : 1 }}
+            style={{ minHeight: 44, minWidth: 44, border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: 'var(--mm-surface)', fontWeight: 'bold', opacity: pageIndex >= pageCount - 1 ? 0.45 : 1 }}
           >
             ›
           </button>
@@ -468,7 +468,7 @@ export default function ScratchpadOverlay({
               onClick={addPage}
               disabled={saving || !canAddScratchpadPage(pageImages)}
               title={canAddScratchpadPage(pageImages) ? 'Keep this page and start a new one' : `A scratchpad holds up to ${MAX_SCRATCHPAD_PAGES} pages`}
-              style={{ minHeight: 44, padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold', opacity: canAddScratchpadPage(pageImages) ? 1 : 0.45 }}
+              style={{ minHeight: 44, padding: '9px 14px', border: '1px solid var(--mm-tint-border)', borderRadius: '8px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold', opacity: canAddScratchpadPage(pageImages) ? 1 : 0.45 }}
             >
               + Add page
             </button>
@@ -477,7 +477,7 @@ export default function ScratchpadOverlay({
             type="button"
             onClick={requestClose}
             disabled={saving}
-            style={{ minHeight: 44, border: '1px solid #c5d5ef', borderRadius: '8px', padding: '9px 14px', background: 'var(--mm-surface)', fontWeight: 'bold' }}
+            style={{ minHeight: 44, border: '1px solid var(--mm-tint-border)', borderRadius: '8px', padding: '9px 14px', background: 'var(--mm-surface)', fontWeight: 'bold' }}
           >
             Close
           </button>
@@ -494,20 +494,26 @@ export default function ScratchpadOverlay({
             maxWidth: 'min(520px, calc(100% - 52px))',
             padding: '10px 13px',
             borderRadius: '10px',
-            background: 'rgba(255,255,255,0.86)',
+            // Sits on the paper canvas: a solid themed card, so its themed text
+            // never lands on white paper through a translucent layer.
+            background: 'var(--mm-surface-raised)',
             border: '1px solid rgba(26,115,232,0.28)',
             backdropFilter: 'blur(4px)',
             pointerEvents: 'none',
-            color: '#3c4043',
+            color: 'var(--mm-text)',
             fontSize: '13px',
           }}
         >
-          <strong style={{ color: '#174ea6' }}>Current question</strong>
-          <QuestionPrompt variant="plain" style={{ margin: '4px 0 0', fontSize: '13px', lineHeight: 1.45, color: '#3c4043', textAlign: 'left' }}>
+          <strong style={{ color: 'var(--mm-primary-text)' }}>Current question</strong>
+          <QuestionPrompt variant="plain" style={{ margin: '4px 0 0', fontSize: '13px', lineHeight: 1.45, color: 'var(--mm-text)', textAlign: 'left' }}>
             {compactQuestion}
           </QuestionPrompt>
         </div>
+        {/* Paper, in both themes: strokes are dark ink (and are saved as an
+            image), so a themed dark canvas made the default pen invisible in
+            dark mode. The one intentional light surface on this screen. */}
         <canvas
+          data-mm-intentional-light="scratchpad paper: dark ink strokes, saved as an image"
           ref={canvasRef}
           onPointerDown={startStroke}
           onPointerMove={extendStroke}
@@ -520,7 +526,7 @@ export default function ScratchpadOverlay({
             height: '100%',
             minHeight: 0,
             borderRadius: '14px',
-            background: 'var(--mm-surface)',
+            background: '#ffffff',
             boxShadow: '0 10px 30px rgba(60,64,67,0.16)',
             touchAction: readOnly ? 'auto' : 'none',
             cursor: readOnly ? 'default' : tool === 'eraser' ? 'cell' : 'crosshair',
@@ -537,13 +543,13 @@ export default function ScratchpadOverlay({
           flexWrap: 'wrap',
           padding: '12px 16px',
           background: 'var(--mm-surface)',
-          borderTop: '1px solid #dfe3e7',
+          borderTop: '1px solid var(--mm-border)',
         }}
       >
         {readOnly ? (
-          <strong style={{ color: '#5f6368' }}>Read-only saved student work</strong>
+          <strong style={{ color: 'var(--mm-text-muted)' }}>Read-only saved student work</strong>
         ) : <>
-        <button type="button" onClick={() => setTool('pen')} aria-pressed={tool === 'pen'} style={{ padding: '9px 13px', borderRadius: '8px', border: tool === 'pen' ? '2px solid #1a73e8' : '1px solid #c5d5ef', background: tool === 'pen' ? '#e8f0fe' : '#fff', fontWeight: 'bold' }}>✎ Pen</button>
+        <button type="button" onClick={() => setTool('pen')} aria-pressed={tool === 'pen'} style={{ padding: '9px 13px', borderRadius: '8px', border: tool === 'pen' ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: tool === 'pen' ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', fontWeight: 'bold' }}>✎ Pen</button>
         {COLORS.map((item) => (
           <button
             type="button"
@@ -555,19 +561,19 @@ export default function ScratchpadOverlay({
               width: '38px',
               height: '38px',
               borderRadius: '50%',
-              border: color === item.value && tool === 'pen' ? '4px solid #f9ab00' : '3px solid #fff',
+              border: color === item.value && tool === 'pen' ? '4px solid #f9ab00' : '3px solid var(--mm-border-soft)',
               outline: `1px solid ${item.value}`,
               background: item.value,
             }}
           />
         ))}
-        <button type="button" onClick={() => setTool('eraser')} aria-pressed={tool === 'eraser'} style={{ padding: '9px 13px', borderRadius: '8px', border: tool === 'eraser' ? '2px solid #1a73e8' : '1px solid #c5d5ef', background: tool === 'eraser' ? '#e8f0fe' : '#fff', fontWeight: 'bold' }}>▱ Eraser</button>
-        <UniversalUndoButton controller={scratchpadUndoController} disabled={readOnly} style={{ padding: '9px 13px', borderRadius: '8px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', fontWeight: 'bold' }} />
-        <button type="button" onClick={clearAll} style={{ padding: '9px 13px', borderRadius: '8px', border: '1px solid #e0b4b0', background: 'var(--mm-surface)', color: '#a50e0e', fontWeight: 'bold' }}>Clear All</button>
-        <button type="button" onClick={() => save({ close: false })} disabled={saving} style={{ minHeight: 44, padding: '10px 16px', borderRadius: '8px', border: '1px solid #9bb8e8', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}>{saving ? 'Saving…' : 'Save'}</button>
+        <button type="button" onClick={() => setTool('eraser')} aria-pressed={tool === 'eraser'} style={{ padding: '9px 13px', borderRadius: '8px', border: tool === 'eraser' ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', background: tool === 'eraser' ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', fontWeight: 'bold' }}>▱ Eraser</button>
+        <UniversalUndoButton controller={scratchpadUndoController} disabled={readOnly} style={{ padding: '9px 13px', borderRadius: '8px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', fontWeight: 'bold' }} />
+        <button type="button" onClick={clearAll} style={{ padding: '9px 13px', borderRadius: '8px', border: '1px solid var(--mm-error-border-soft)', background: 'var(--mm-surface)', color: 'var(--mm-error-text)', fontWeight: 'bold' }}>Clear All</button>
+        <button type="button" onClick={() => save({ close: false })} disabled={saving} style={{ minHeight: 44, padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--mm-primary-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>{saving ? 'Saving…' : 'Save'}</button>
         <button type="button" onClick={() => save({ close: true })} disabled={saving} style={{ minHeight: 44, padding: '10px 18px', borderRadius: '8px', border: 'none', background: saving ? '#dadce0' : '#188038', color: '#fff', fontWeight: 'bold' }}>{saving ? 'Saving…' : 'Save & Close'}</button>
         </>}
-        {message && <span role="status" style={{ width: '100%', textAlign: 'center', color: message.includes('could not') || message.includes('too detailed') ? '#c5221f' : '#137333', fontWeight: 'bold', fontSize: '13px' }}>{message}</span>}
+        {message && <span role="status" style={{ width: '100%', textAlign: 'center', color: message.includes('could not') || message.includes('too detailed') ? 'var(--mm-danger)' : 'var(--mm-success-text)', fontWeight: 'bold', fontSize: '13px' }}>{message}</span>}
       </footer>
 
       {confirmingClose && (
@@ -579,7 +585,7 @@ export default function ScratchpadOverlay({
         >
           <div style={{ width: 'min(460px, 100%)', padding: '22px 24px', borderRadius: '16px', background: 'var(--mm-surface)', boxShadow: '0 20px 60px rgba(15,23,42,0.35)', textAlign: 'left' }}>
             <h2 style={{ margin: '0 0 8px', fontSize: '18px', color: 'var(--mm-text-strong)' }}>Save your work first?</h2>
-            <p style={{ margin: '0 0 18px', color: '#3c4043', lineHeight: 1.5 }}>
+            <p style={{ margin: '0 0 18px', color: 'var(--mm-text)', lineHeight: 1.5 }}>
               {pageCount === 1
                 ? 'You have drawn on this scratchpad since it was last saved. Closing without saving deletes it.'
                 : `You have ${pageCount} pages, with changes since the last save. Closing without saving deletes them.`}
@@ -588,10 +594,10 @@ export default function ScratchpadOverlay({
               <button type="button" onClick={() => save({ close: true })} disabled={saving} style={{ minHeight: 44, padding: '10px 18px', borderRadius: '8px', border: 'none', background: '#188038', color: '#fff', fontWeight: 'bold' }}>
                 {saving ? 'Saving…' : 'Save and close'}
               </button>
-              <button type="button" onClick={() => setConfirmingClose(false)} disabled={saving} style={{ minHeight: 44, padding: '10px 16px', borderRadius: '8px', border: '1px solid #c5d5ef', background: 'var(--mm-surface)', color: '#174ea6', fontWeight: 'bold' }}>
+              <button type="button" onClick={() => setConfirmingClose(false)} disabled={saving} style={{ minHeight: 44, padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontWeight: 'bold' }}>
                 Keep working
               </button>
-              <button type="button" onClick={() => { setConfirmingClose(false); onClose?.(); }} disabled={saving} style={{ minHeight: 44, padding: '10px 16px', borderRadius: '8px', border: '1px solid #e0b4b0', background: 'var(--mm-surface)', color: '#a50e0e', fontWeight: 'bold' }}>
+              <button type="button" onClick={() => { setConfirmingClose(false); onClose?.(); }} disabled={saving} style={{ minHeight: 44, padding: '10px 16px', borderRadius: '8px', border: '1px solid var(--mm-error-border-soft)', background: 'var(--mm-surface)', color: 'var(--mm-error-text)', fontWeight: 'bold' }}>
                 Discard
               </button>
             </div>

@@ -23,6 +23,7 @@ import {
   nextClassroomSessionExpiry,
 } from './classroomSession.js';
 import { clearAccountTabStorage } from './accountTabStorage.js';
+import { combineOverrideMigrationReports } from '../../functions/shared/studentAssignmentOverrides.mjs';
 
 const REMEMBER_DEVICE_KEY = 'mathmaster.rememberDevice';
 const LAST_ROLE_KEY = 'mathmaster.lastRole';
@@ -288,6 +289,34 @@ export const teacherAdmin = {
   setAssignmentReadScope: (studentListScoped) =>
     callable('setAssignmentReadScope')(typeof studentListScoped === 'boolean' ? { studentListScoped } : {})
       .then((result) => result.data || {}),
+  /**
+   * Where students' private assignment controls stand: the storage switch
+   * (whether the shared copy is still kept in step) and the migration's
+   * progress. Read-only — this release's screen never flips the switch.
+   */
+  readAssignmentOverrideStorage: () =>
+    callable('setAssignmentOverrideStorage')({}).then((result) => result.data || {}),
+  /**
+   * One whole backfill pass — copy every student's extension, excusal,
+   * reopen and DOL attempts from the shared assignments into private records
+   * (functions/shared/studentAssignmentOverrideStore.mjs). Page after page
+   * until done; dry run unless dryRun is false. A real run resumes where an
+   * interrupted one stopped. `onPage` receives the running report.
+   */
+  backfillStudentAssignmentOverrides: async ({ dryRun = true, onPage = null } = {}) => {
+    const progress = dryRun ? null : (await callable('setAssignmentOverrideStorage')({})).data?.migration?.backfill;
+    const resumeFrom = progress && progress.done === false && progress.cursor ? progress.cursor : null;
+    const pages = [];
+    let startAfter = resumeFrom;
+    do {
+      // eslint-disable-next-line no-await-in-loop
+      const page = (await callable('migrateStudentAssignmentOverrides')({ mode: 'backfill', dryRun, ...(startAfter ? { startAfter } : {}) })).data || {};
+      pages.push(page);
+      startAfter = page.nextCursor || null;
+      if (typeof onPage === 'function') onPage(combineOverrideMigrationReports(pages));
+    } while (startAfter);
+    return { ...combineOverrideMigrationReports(pages), resumedFrom: resumeFrom };
+  },
   /** Put a student in a class, move them, or take them out (classId: null). */
   setStudentClass: ({ studentId, classId }) =>
     callable('setStudentClass')({ studentId, classId: classId || '' }).then((result) => result.data || {}),

@@ -29,7 +29,7 @@ import { exactNumberText } from './algebraicSystemsEngine.js';
 // The elimination screens' button styles, defined once: EliminationReductionMode
 // uses these too instead of keeping its own copy.
 export const eliminationActionStyle = { marginTop: 16, padding: '11px 18px', border: 0, borderRadius: 9, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer', minHeight: 44 };
-export const eliminationSecondaryButtonStyle = { ...eliminationActionStyle, marginTop: 0, padding: '9px 14px', fontSize: 13, background: '#eef4ff', color: '#174ea6' };
+export const eliminationSecondaryButtonStyle = { ...eliminationActionStyle, marginTop: 0, padding: '9px 14px', fontSize: 13, background: 'var(--mm-primary-subtle)', color: 'var(--mm-primary-text)' };
 export const eliminationSmallActionStyle = { ...eliminationActionStyle, marginTop: 8, padding: '9px 14px', fontSize: 13 };
 
 const MINUS = '−';

@@ -117,8 +117,8 @@ export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onTo
         width: collapsed ? '64px' : '212px',
         flex: `0 0 ${collapsed ? '64px' : '212px'}`,
         transition: 'width 0.16s ease, flex-basis 0.16s ease',
-        background: '#f8f9fa',
-        borderRight: '1px solid #e8eaed',
+        background: 'var(--mm-surface-sunken)',
+        borderRight: '1px solid var(--mm-border-soft)',
         borderRadius: '12px 0 0 12px',
         display: 'flex',
         flexDirection: 'column',
@@ -136,10 +136,10 @@ export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onTo
           alignSelf: collapsed ? 'center' : 'flex-end',
           width: '32px',
           height: '32px',
-          border: '1px solid #dadce0',
+          border: '1px solid var(--mm-border)',
           borderRadius: '8px',
           background: 'var(--mm-surface)',
-          color: '#5f6368',
+          color: 'var(--mm-text-muted)',
           cursor: 'pointer',
           marginBottom: '10px',
           fontWeight: 'bold',
@@ -152,7 +152,7 @@ export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onTo
         <div key={group.id} className="mm-nav-group" style={{ marginBottom: '10px' }}>
           {collapsed ? (
             // A hairline keeps the grouping legible once labels are hidden.
-            groupIndex > 0 && <div aria-hidden="true" style={{ height: '1px', background: '#e1e3e6', margin: '8px 6px' }} />
+            groupIndex > 0 && <div aria-hidden="true" style={{ height: '1px', background: 'var(--mm-surface-control-strong)', margin: '8px 6px' }} />
           ) : (
             <div
               style={{
@@ -161,7 +161,9 @@ export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onTo
                 fontWeight: 900,
                 letterSpacing: '0.09em',
                 textTransform: 'uppercase',
-                color: '#80868b',
+                // Muted, not subtle: 10px labels need 4.5:1 on the rail (subtle
+                // was 3.5:1 in light mode).
+                color: 'var(--mm-text-muted)',
               }}
             >
               {group.label}
@@ -189,8 +191,9 @@ export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onTo
                   marginBottom: '2px',
                   border: 'none',
                   borderRadius: '9px',
-                  background: active ? '#e8f0fe' : 'transparent',
-                  color: active ? '#1a73e8' : '#3c4043',
+                  background: active ? 'var(--mm-primary-soft)' : 'transparent',
+                  // Selected: primary TEXT on the soft container (7:1 in light, 8:1 in dark).
+                  color: active ? 'var(--mm-primary-text)' : 'var(--mm-text)',
                   cursor: 'pointer',
                   fontWeight: active ? 800 : 600,
                   fontSize: '14px',
@@ -207,7 +210,7 @@ export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onTo
                     height: '26px',
                     flex: '0 0 26px',
                     borderRadius: '999px',
-                    background: active ? '#1a73e8' : '#e1e3e6',
+                    background: active ? '#1a73e8' : 'var(--mm-surface-control-strong)',
                     fontSize: '13px',
                     lineHeight: 1,
                   }}
@@ -232,7 +235,7 @@ export default function TeacherSidebar({ activeTab, onSelectTab, collapsed, onTo
         data-mathmaster-build={buildStamp.shortSha}
         title={buildStamp.detail}
         style={{
-          marginTop: 'auto', paddingTop: 12, fontSize: 10, color: '#9aa0a6',
+          marginTop: 'auto', paddingTop: 12, fontSize: 10, color: 'var(--mm-text-subtle)',
           textAlign: collapsed ? 'center' : 'left', overflowWrap: 'anywhere',
         }}
       >

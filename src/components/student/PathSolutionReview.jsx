@@ -16,9 +16,9 @@ import MathText from '../common/MathText.jsx';
 const card = {
   marginTop: 18,
   padding: '16px 18px',
-  border: '1px solid #cfe0f7',
+  border: '1px solid var(--mm-tint-border)',
   borderRadius: 12,
-  background: '#f6faff',
+  background: 'var(--mm-surface-tint)',
   textAlign: 'left',
 };
 
@@ -28,7 +28,7 @@ const heading = {
   fontWeight: 900,
   letterSpacing: '.06em',
   textTransform: 'uppercase',
-  color: '#174ea6',
+  color: 'var(--mm-primary-text)',
 };
 
 export const PathSolutionReview = ({ review, wasCorrect = false }) => {
@@ -50,7 +50,7 @@ export const PathSolutionReview = ({ review, wasCorrect = false }) => {
       {review.reasoning?.length > 0 && (
         <ol style={{ margin: '0 0 10px', paddingLeft: 20, display: 'grid', gap: 7 }}>
           {review.reasoning.map((line, index) => (
-            <li key={`r-${index}`} style={{ fontSize: 15, color: '#3c4043', lineHeight: 1.6 }}>
+            <li key={`r-${index}`} style={{ fontSize: 15, color: 'var(--mm-text)', lineHeight: 1.6 }}>
               <MathText>{line}</MathText>
             </li>
           ))}
@@ -58,19 +58,19 @@ export const PathSolutionReview = ({ review, wasCorrect = false }) => {
       )}
 
       {review.answerSummary && (
-        <p style={{ margin: '0 0 10px', padding: '9px 12px', borderRadius: 8, background: '#e6f4ea', color: '#137333', fontSize: 15, lineHeight: 1.5 }}>
+        <p style={{ margin: '0 0 10px', padding: '9px 12px', borderRadius: 8, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontSize: 15, lineHeight: 1.5 }}>
           <MathText>{review.answerSummary}</MathText>
         </p>
       )}
 
       {review.commonError && (
-        <p style={{ margin: '0 0 10px', fontSize: 14, color: '#7a4f00', lineHeight: 1.6 }}>
+        <p style={{ margin: '0 0 10px', fontSize: 14, color: 'var(--mm-warning-text)', lineHeight: 1.6 }}>
           <strong>Watch out: </strong><MathText>{review.commonError}</MathText>
         </p>
       )}
 
       {review.connection && (
-        <p style={{ margin: 0, fontSize: 14, color: '#5f6368', lineHeight: 1.6 }}>
+        <p style={{ margin: 0, fontSize: 14, color: 'var(--mm-text-muted)', lineHeight: 1.6 }}>
           <MathText>{review.connection}</MathText>
         </p>
       )}

@@ -69,7 +69,7 @@ function FolderRow({
           padding: '6px 8px',
           marginLeft: `${depth * 16}px`,
           borderRadius: '7px',
-          background: isDragOver ? '#e6f4ea' : active ? '#e8f0fe' : 'transparent',
+          background: isDragOver ? 'var(--mm-success-bg)' : active ? 'var(--mm-primary-soft)' : 'transparent',
           border: isDragOver ? '2px dashed #188038' : '2px solid transparent',
         }}
       >
@@ -77,7 +77,7 @@ function FolderRow({
           type="button"
           onClick={() => children.length && onToggleExpanded(path)}
           aria-label={children.length ? `${expanded ? 'Collapse' : 'Expand'} ${getFolderLabel(path)}` : undefined}
-          style={{ width: 22, border: 0, background: 'transparent', color: '#5f6368', cursor: children.length ? 'pointer' : 'default', padding: 0 }}
+          style={{ width: 22, border: 0, background: 'transparent', color: 'var(--mm-text-muted)', cursor: children.length ? 'pointer' : 'default', padding: 0 }}
         >
           {children.length ? (expanded ? '⌄' : '›') : '·'}
         </button>
@@ -92,18 +92,18 @@ function FolderRow({
             cursor: 'pointer',
             padding: 0,
             fontWeight: active ? 800 : 600,
-            color: active ? '#1a73e8' : '#3c4043',
+            color: active ? 'var(--mm-primary)' : 'var(--mm-text)',
             fontSize: '13px',
           }}
         >
           {getFolderLabel(path)}
         </button>
         <div style={{ position: 'relative' }}>
-          <button type="button" onClick={() => setMenuOpen((value) => !value)} aria-label={`Folder actions for ${getFolderLabel(path)}`} title="Folder actions" style={{ fontSize: '16px', width: 28, height: 28, border: '1px solid #dadce0', borderRadius: '6px', background: 'var(--mm-surface)', color: '#5f6368', cursor: 'pointer' }}>⋯</button>
-          {menuOpen && <div style={{ position: 'absolute', right: 0, top: 31, zIndex: 20, minWidth: 130, padding: 5, border: '1px solid #d8dde6', borderRadius: 8, background: 'var(--mm-surface)', boxShadow: '0 8px 22px rgba(0,0,0,.14)' }}>
+          <button type="button" onClick={() => setMenuOpen((value) => !value)} aria-label={`Folder actions for ${getFolderLabel(path)}`} title="Folder actions" style={{ fontSize: '16px', width: 28, height: 28, border: '1px solid var(--mm-border)', borderRadius: '6px', background: 'var(--mm-surface)', color: 'var(--mm-text-muted)', cursor: 'pointer' }}>⋯</button>
+          {menuOpen && <div style={{ position: 'absolute', right: 0, top: 31, zIndex: 20, minWidth: 130, padding: 5, border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)', boxShadow: '0 8px 22px rgba(0,0,0,.14)' }}>
             <button type="button" onClick={() => { setMenuOpen(false); onOpenDialog({ mode: 'create', parentPath: path, input: `${path}/` }); }} style={{ display: 'block', width: '100%', padding: 7, border: 0, background: 'var(--mm-surface)', textAlign: 'left' }}>New subfolder</button>
             <button type="button" onClick={() => { setMenuOpen(false); onOpenDialog({ mode: 'rename', path, input: path }); }} style={{ display: 'block', width: '100%', padding: 7, border: 0, background: 'var(--mm-surface)', textAlign: 'left' }}>Rename</button>
-            <button type="button" onClick={() => { setMenuOpen(false); onOpenDialog({ mode: 'delete', path }); }} style={{ display: 'block', width: '100%', padding: 7, border: 0, background: 'var(--mm-surface)', color: '#c5221f', textAlign: 'left' }}>Delete</button>
+            <button type="button" onClick={() => { setMenuOpen(false); onOpenDialog({ mode: 'delete', path }); }} style={{ display: 'block', width: '100%', padding: 7, border: 0, background: 'var(--mm-surface)', color: 'var(--mm-danger)', textAlign: 'left' }}>Delete</button>
           </div>}
         </div>
       </div>
@@ -273,9 +273,9 @@ export default function AssignmentLibrary({
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
           placeholder="Search title or folder"
-          style={{ flex: '1 1 220px', padding: '9px 12px', border: '1px solid #c9ced6', borderRadius: '8px' }}
+          style={{ flex: '1 1 220px', padding: '9px 12px', border: '1px solid var(--mm-border)', borderRadius: '8px' }}
         />
-        <select value={sortMode} onChange={(event) => setSortMode(event.target.value)} aria-label="Sort library assignments" style={{ padding: '8px 10px', border: '1px solid #dadce0', borderRadius: 8, background: 'var(--mm-surface)' }}><option value="title">Sort: Title</option><option value="due">Sort: Due date</option><option value="status">Sort: Status</option></select>
+        <select value={sortMode} onChange={(event) => setSortMode(event.target.value)} aria-label="Sort library assignments" style={{ padding: '8px 10px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)' }}><option value="title">Sort: Title</option><option value="due">Sort: Due date</option><option value="status">Sort: Status</option></select>
         {SMART_VIEWS.map((view) => (
           <button
             type="button"
@@ -284,9 +284,9 @@ export default function AssignmentLibrary({
             style={{
               padding: '7px 12px',
               borderRadius: '999px',
-              border: smartView === view.id ? '1px solid #1a73e8' : '1px solid #dadce0',
-              background: smartView === view.id ? '#e8f0fe' : '#fff',
-              color: smartView === view.id ? '#1a73e8' : '#5f6368',
+              border: smartView === view.id ? '1px solid #1a73e8' : '1px solid var(--mm-border)',
+              background: smartView === view.id ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+              color: smartView === view.id ? 'var(--mm-primary)' : 'var(--mm-text-muted)',
               fontWeight: 'bold',
               fontSize: '12px',
               cursor: 'pointer',
@@ -298,16 +298,16 @@ export default function AssignmentLibrary({
       </div>
 
       <div style={{ display: 'flex', gap: '18px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        {folderPaneCollapsed ? <button type="button" onClick={toggleFolderPane} aria-label="Expand folders" title="Expand folders" style={{ flex: '0 0 44px', width: 44, minHeight: 170, border: '1px solid #e0e3e7', borderRadius: 10, background: '#f8f9fa', color: '#174ea6', fontWeight: 900, cursor: 'pointer', writingMode: 'vertical-rl' }}>› Folders</button> : <div style={{ flex: '0 0 260px', minWidth: '220px', border: '1px solid #e0e3e7', borderRadius: '10px', padding: '12px', background: '#f8f9fa' }}>
+        {folderPaneCollapsed ? <button type="button" onClick={toggleFolderPane} aria-label="Expand folders" title="Expand folders" style={{ flex: '0 0 44px', width: 44, minHeight: 170, border: '1px solid var(--mm-border)', borderRadius: 10, background: 'var(--mm-surface-sunken)', color: 'var(--mm-primary-text)', fontWeight: 900, cursor: 'pointer', writingMode: 'vertical-rl' }}>› Folders</button> : <div style={{ flex: '0 0 260px', minWidth: '220px', border: '1px solid var(--mm-border)', borderRadius: '10px', padding: '12px', background: 'var(--mm-surface-sunken)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            <strong style={{ fontSize: '13px', color: '#5f6368', textTransform: 'uppercase' }}>Folders</strong>
-            <div style={{ display: 'flex', gap: 5 }}><button type="button" onClick={() => setFolderDialog({ mode: 'create', input: '' })} style={{ fontSize: '11px', padding: '3px 8px', border: '1px solid #1a73e8', borderRadius: '6px', background: 'var(--mm-surface)', color: '#1a73e8', fontWeight: 'bold', cursor: 'pointer' }}>+ New</button><button type="button" onClick={toggleFolderPane} title="Collapse folders" aria-label="Collapse folders" style={{ width: 28, border: '1px solid #dadce0', borderRadius: 6, background: 'var(--mm-surface)', color: '#5f6368' }}>‹</button></div>
+            <strong style={{ fontSize: '13px', color: 'var(--mm-text-muted)', textTransform: 'uppercase' }}>Folders</strong>
+            <div style={{ display: 'flex', gap: 5 }}><button type="button" onClick={() => setFolderDialog({ mode: 'create', input: '' })} style={{ fontSize: '11px', padding: '3px 8px', border: '1px solid #1a73e8', borderRadius: '6px', background: 'var(--mm-surface)', color: 'var(--mm-primary)', fontWeight: 'bold', cursor: 'pointer' }}>+ New</button><button type="button" onClick={toggleFolderPane} title="Collapse folders" aria-label="Collapse folders" style={{ width: 28, border: '1px solid var(--mm-border)', borderRadius: 6, background: 'var(--mm-surface)', color: 'var(--mm-text-muted)' }}>‹</button></div>
           </div>
 
           <button
             type="button"
             onClick={() => setSelectedFolder('')}
-            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', marginBottom: '2px', border: 'none', borderRadius: '7px', background: selectedFolder === '' ? '#e8f0fe' : 'transparent', color: selectedFolder === '' ? '#1a73e8' : '#3c4043', fontWeight: selectedFolder === '' ? 800 : 600, fontSize: '13px', cursor: 'pointer' }}
+            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', marginBottom: '2px', border: 'none', borderRadius: '7px', background: selectedFolder === '' ? 'var(--mm-primary-soft)' : 'transparent', color: selectedFolder === '' ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: selectedFolder === '' ? 800 : 600, fontSize: '13px', cursor: 'pointer' }}
           >
             All ({visibleForSmartView.length})
           </button>
@@ -317,12 +317,12 @@ export default function AssignmentLibrary({
             onDragOver={(event) => { event.preventDefault(); setDragOverFolder(UNCATEGORIZED); }}
             onDragLeave={() => setDragOverFolder(null)}
             onDrop={(event) => { event.preventDefault(); handleDropOnFolder(''); }}
-            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', marginBottom: '8px', border: dragOverFolder === UNCATEGORIZED ? '2px dashed #188038' : '2px solid transparent', borderRadius: '7px', background: dragOverFolder === UNCATEGORIZED ? '#e6f4ea' : selectedFolder === UNCATEGORIZED ? '#e8f0fe' : 'transparent', color: selectedFolder === UNCATEGORIZED ? '#1a73e8' : '#3c4043', fontWeight: selectedFolder === UNCATEGORIZED ? 800 : 600, fontSize: '13px', cursor: 'pointer' }}
+            style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', marginBottom: '8px', border: dragOverFolder === UNCATEGORIZED ? '2px dashed #188038' : '2px solid transparent', borderRadius: '7px', background: dragOverFolder === UNCATEGORIZED ? 'var(--mm-success-bg)' : selectedFolder === UNCATEGORIZED ? 'var(--mm-primary-soft)' : 'transparent', color: selectedFolder === UNCATEGORIZED ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: selectedFolder === UNCATEGORIZED ? 800 : 600, fontSize: '13px', cursor: 'pointer' }}
           >
             Uncategorized ({uncategorizedCount})
           </button>
 
-          {topLevelFolders.length === 0 && <p style={{ fontSize: '12px', color: '#80868b', margin: '4px 0' }}>No folders yet. Create one to start organizing assignments.</p>}
+          {topLevelFolders.length === 0 && <p style={{ fontSize: '12px', color: 'var(--mm-text-subtle)', margin: '4px 0' }}>No folders yet. Create one to start organizing assignments.</p>}
           {topLevelFolders.map((path) => (
             <FolderRow
               key={path}
@@ -342,7 +342,7 @@ export default function AssignmentLibrary({
         </div>}
 
         <div style={{ flex: '1 1 320px', minWidth: '260px' }}>
-          {filteredAssignments.length === 0 && <p style={{ color: '#80868b' }}>No assignments match this filter.</p>}
+          {filteredAssignments.length === 0 && <p style={{ color: 'var(--mm-text-subtle)' }}>No assignments match this filter.</p>}
           {filteredAssignments.map((assignment) => {
             const lifecycle = getAssignmentLifecycle(assignment, nowValue);
             const lineage = normalizeContentLineage(assignment);
@@ -366,30 +366,30 @@ export default function AssignmentLibrary({
                   padding: '10px 12px',
                   marginBottom: '8px',
                   borderRadius: '8px',
-                  border: '1px solid #e0e3e7',
-                  background: draggedAssignmentId === assignment.id ? '#f1f3f4' : '#fff',
+                  border: '1px solid var(--mm-border)',
+                  background: draggedAssignmentId === assignment.id ? 'var(--mm-surface-control)' : 'var(--mm-surface)',
                   cursor: 'grab',
                 }}
               >
                 <div style={{ flex: '1 1 auto', minWidth: 0 }}>
                   <div style={{ fontWeight: 'bold' }}>{assignment.title}</div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
-                    <span style={{ fontSize: 11, fontWeight: 800, padding: '2px 6px', borderRadius: 999, background: '#e8f0fe', color: '#174ea6' }}>
+                    <span style={{ fontSize: 11, fontWeight: 800, padding: '2px 6px', borderRadius: 999, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' }}>
                       {contentVersionLabel(assignment)}
                     </span>
-                    {lineage.familyId && <span style={{ fontSize: 10, fontWeight: 900, padding: '2px 6px', borderRadius: 999, background: lineage.releaseStatus === 'superseded' ? '#f1f3f4' : '#e6f4ea', color: lineage.releaseStatus === 'superseded' ? '#5f6368' : '#137333' }}>
+                    {lineage.familyId && <span style={{ fontSize: 10, fontWeight: 900, padding: '2px 6px', borderRadius: 999, background: lineage.releaseStatus === 'superseded' ? 'var(--mm-surface-control)' : 'var(--mm-success-bg)', color: lineage.releaseStatus === 'superseded' ? 'var(--mm-text-muted)' : 'var(--mm-success-text)' }}>
                       {lineage.releaseStatus === 'superseded' ? 'SUPERSEDED' : 'CURRENT'}
                     </span>}
                     {hasVersionHistory && <button
                       type="button"
                       onClick={(event) => { event.stopPropagation(); toggleVersionFamily(lineage.familyId); }}
                       onMouseDown={(event) => event.stopPropagation()}
-                      style={{ border: 0, background: 'transparent', color: '#174ea6', fontSize: 11, fontWeight: 800, cursor: 'pointer', padding: 0 }}
+                      style={{ border: 0, background: 'transparent', color: 'var(--mm-primary-text)', fontSize: 11, fontWeight: 800, cursor: 'pointer', padding: 0 }}
                     >
                       {versionHistoryOpen ? 'Hide Version History' : 'Version History'}
                     </button>}
                   </div>
-                  <div style={{ fontSize: '12px', color: '#5f6368', marginTop: 3 }}>
+                  <div style={{ fontSize: '12px', color: 'var(--mm-text-muted)', marginTop: 3 }}>
                     {normalizeFolderPath(assignment.folder) || 'Uncategorized'} &middot; {assignment.archived ? 'archived' : lifecycle.status}
                   </div>
                 </div>
@@ -428,7 +428,7 @@ export default function AssignmentLibrary({
             {folderDialog.mode === 'delete' ? (
               <>
                 <h3 style={{ marginTop: 0 }}>Delete &ldquo;{getFolderLabel(folderDialog.path)}&rdquo;?</h3>
-                <p style={{ color: '#5f6368', fontSize: '13px' }}>
+                <p style={{ color: 'var(--mm-text-muted)', fontSize: '13px' }}>
                   Assignments inside this folder become Uncategorized. Subfolders are removed too. This does not delete any assignment.
                 </p>
               </>
@@ -443,15 +443,15 @@ export default function AssignmentLibrary({
                     value={folderDialog.input}
                     onChange={(event) => setFolderDialog((current) => ({ ...current, input: event.target.value }))}
                     placeholder="Algebra I/Module 1/Topic 1"
-                    style={{ display: 'block', width: '100%', marginTop: '6px', padding: '10px', border: '1px solid #c9ced6', borderRadius: '7px', boxSizing: 'border-box' }}
+                    style={{ display: 'block', width: '100%', marginTop: '6px', padding: '10px', border: '1px solid var(--mm-border)', borderRadius: '7px', boxSizing: 'border-box' }}
                   />
                 </label>
-                <p style={{ fontSize: '11px', color: '#80868b', margin: '4px 0 0' }}>Use &ldquo;/&rdquo; to nest a subfolder, e.g. Algebra I/Module 1.</p>
+                <p style={{ fontSize: '11px', color: 'var(--mm-text-subtle)', margin: '4px 0 0' }}>Use &ldquo;/&rdquo; to nest a subfolder, e.g. Algebra I/Module 1.</p>
               </>
             )}
-            {dialogError && <p style={{ color: '#c5221f', fontWeight: 'bold', fontSize: '13px' }}>{dialogError}</p>}
+            {dialogError && <p style={{ color: 'var(--mm-danger)', fontWeight: 'bold', fontSize: '13px' }}>{dialogError}</p>}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '18px' }}>
-              <button type="button" onClick={closeDialog} style={{ padding: '9px 14px', border: '1px solid #dadce0', borderRadius: '8px', background: 'var(--mm-surface)', color: '#5f6368', fontWeight: 'bold', cursor: 'pointer' }}>Cancel</button>
+              <button type="button" onClick={closeDialog} style={{ padding: '9px 14px', border: '1px solid var(--mm-border)', borderRadius: '8px', background: 'var(--mm-surface)', color: 'var(--mm-text-muted)', fontWeight: 'bold', cursor: 'pointer' }}>Cancel</button>
               <button
                 type="button"
                 onClick={submitDialog}

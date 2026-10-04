@@ -1,0 +1,206 @@
+/*
+ * MATHMASTER SEMANTIC COLOR TOKENS — THE ONE SOURCE.
+ *
+ * Before Dark Mode 2.0 these lived in two files that disagreed: index.css held
+ * a light + dark palette, and ui/uiKit.css redefined a dozen of the same names
+ * (light only) and, loading later, silently won in light mode. Its tokens with
+ * no dark value (--mm-primary-soft, --mm-surface-sunken, the *-soft tints)
+ * stayed light in dark mode, which is part of why the teacher shell rendered
+ * white islands. Every color token is now defined here, once per theme.
+ *
+ * THE LIGHT VALUES ARE THE ONES MATHMASTER ALREADY SHOWED. Each is the legacy
+ * literal the codebase hard-coded for that role (#f8f9fa for an inset/sunken
+ * panel, #e8f0fe for "selected", #5f6368 for muted text, ...). Replacing a
+ * literal with its token therefore leaves light mode as it was.
+ *
+ * THE DARK VALUES ARE DESIGNED, NOT INVERTED. Principles (sources in the PR):
+ *
+ *   - Layered dark neutrals, never pure black (Material 3 tonal surfaces; Apple
+ *     HIG base vs. elevated backgrounds). Deeper = further back:
+ *         page/app chrome  #111318   (M3 surface ~tone 6)
+ *         sunken / inset   #15181e   nav rail, class bar, wells inside cards
+ *         surface / card   #1b1e25   (~tone 11)
+ *         control fill     #262a33   chips, segmented tracks, secondary buttons
+ *         raised           #242832   menus, popovers, dialogs, sheets — the
+ *                                    "elevated" layer is LIGHTER, as in iOS
+ *     Hierarchy comes from tone and from quiet borders, not from white boxes.
+ *   - Text: primary #f3f5f9 (>= 15:1 on cards), secondary #d7dce5, muted
+ *     #b4bdca (>= 7:1), subtle #9aa3b1 (>= 5.5:1). Everything used for reading
+ *     clears WCAG 2.2 1.4.3 (4.5:1) on every surface tone above.
+ *   - Accents are desaturated, lighter tones for TEXT on dark (M3 tone 80:
+ *     #8ab4f8 / #a8c7fa), and tinted dark containers for selected and status
+ *     surfaces (M3 *Container roles), with light on-container text.
+ *   - Saturated fills (a #1a73e8 primary button with white text, a #d93025
+ *     alert badge) are not tokens here: they read correctly on both themes.
+ *   - Control boundaries (inputs, selects) use --mm-control-border, >= 3:1
+ *     against the surfaces they sit on (WCAG 1.4.11). Card outlines and
+ *     dividers are deliberately quieter: decoration, not identification.
+ *
+ * Dark mode is keyed to [data-theme='dark'] on <html>, which the inline script
+ * in index.html sets before first paint and theme/mathMasterTheme.js keeps in
+ * sync with the system preference. Print always uses the light palette.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* ----- Surfaces, back to front ----- */
+  --mm-page-bg: #ffffff;
+  --mm-surface-sunken: #f8f9fa;
+  --mm-surface-muted: #f4f7fb;
+  --mm-surface: #ffffff;
+  --mm-surface-raised: #ffffff;
+  --mm-surface-control: #f1f3f4;
+  --mm-surface-control-strong: #e1e3e6; /* a control fill that must show on a sunken rail */
+  --mm-surface-hover: #f1f3f4;
+  --mm-surface-tint: #f8fbff;
+  /* Translucent surfaces: a sticky bar content scrolls under (frosted), and a
+     panel that lifts text off a tinted tile (glass). */
+  --mm-surface-frosted: rgba(255, 255, 255, 0.97);
+  --mm-surface-glass: rgba(255, 255, 255, 0.8);
+  /* The fade under the student's sticky task card (App.css). */
+  --mm-sticky-fade-strong: rgba(240, 242, 245, 0.98);
+  --mm-sticky-fade: rgba(240, 242, 245, 0.94);
+  --mm-sticky-fade-clear: rgba(240, 242, 245, 0);
+  --mm-scrim: rgba(32, 33, 36, 0.45);
+
+  /* ----- Text ----- */
+  --mm-text-strong: #202124;
+  --mm-text: #3c4043;
+  --mm-text-muted: #5f6368;
+  --mm-text-subtle: #65696e; /* #80868b was 3.7:1 on white; this is >= 4.9:1 on every light surface and tint */
+  --mm-disabled-text: #5f6368;
+
+  /* ----- Lines ----- */
+  --mm-border-soft: #e8eaed;
+  --mm-border: #dadce0;
+  --mm-border-strong: #9aa0a6;
+  --mm-control-border: #dadce0;
+  --mm-divider: #e5e7eb;
+
+  /* ----- Primary / selection ----- */
+  --mm-primary: #1a73e8;
+  --mm-primary-text: #174ea6;
+  --mm-on-primary: #ffffff;
+  --mm-primary-soft: #e8f0fe;
+  --mm-primary-subtle: #eef4ff;
+  --mm-primary-border: #aecbfa;
+  --mm-tint-border: #d9e2f1;
+  --mm-focus: #1a73e8;
+
+  /* ----- Form controls ----- */
+  --mm-input-bg: #ffffff;
+  --mm-input-text: #202124;
+  --mm-input-placeholder: #6b7280;
+
+  /* ----- Status: container (bg), faint wash (subtle), text, border ----- */
+  --mm-success: #188038;
+  --mm-success-bg: #e6f4ea; --mm-success-subtle: #f4fbf5; --mm-success-text: #137333; --mm-success-border: #81c995;
+  --mm-warning: #f9ab00;
+  --mm-warning-bg: #fef7e0; --mm-warning-soft: #fff4ce; --mm-warning-subtle: #fffaf0; --mm-warning-text: #7a4f00;
+  --mm-warning-border: #f4b400; --mm-warning-border-soft: #f0d489;
+  --mm-danger: #d93025;
+  --mm-error-bg: #fce8e6; --mm-error-subtle: #fff8f7; --mm-error-text: #a50e0e;
+  --mm-error-border: #d93025; --mm-error-border-soft: #f1a5a0;
+  --mm-info-bg: #e8f0fe; --mm-info-text: #174ea6; --mm-info-border: #8ab4f8;
+  --mm-accent: #6f2da8;
+  --mm-accent-soft: #f3e8fd; --mm-accent-subtle: #faf5ff; --mm-accent-text: #681da8; --mm-accent-border: #caa8f2;
+  /* Modified instructional condition (MOD) — the gradebook's long-standing purple. */
+  --mm-mod-bg: #efe4ff; --mm-mod-text: #5b2391; --mm-mod-border: #b79ad9;
+
+  /* ----- Graphs ----- */
+  --mm-graph-bg: #ffffff; --mm-graph-axis: #5f6368; --mm-graph-grid: #dfe3e7;
+  --mm-graph-grid-minor: #f0f2f4; --mm-graph-label: #3c4043; --mm-graph-highlight: #f9ab00;
+
+  /* ----- Depth ----- */
+  --mm-shadow-sm: 0 1px 2px rgba(60, 64, 67, 0.16);
+  --mm-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  --mm-shadow-lg: 0 24px 70px rgba(0, 0, 0, 0.3);
+
+  /* ----- Names kept for existing callers (aliases, not new colors) ----- */
+  --mm-ink: var(--mm-text-strong);
+  --mm-ink-muted: var(--mm-text-muted);
+  --mm-ink-subtle: var(--mm-text-subtle);
+  --mm-primary-dark: var(--mm-primary-text);
+  --mm-link: var(--mm-primary);
+  --mm-success-soft: var(--mm-success-bg);
+  --mm-danger-text: var(--mm-error-text);
+  --mm-danger-soft: var(--mm-error-bg);
+  --mm-accent-text-strong: var(--mm-accent-text);
+
+  /* ----- Shape (theme-independent) ----- */
+  --mm-radius-sm: 7px;
+  --mm-radius: 10px;
+  --mm-radius-lg: 16px;
+  /* The smallest comfortable tap target. Everything interactive meets this. */
+  --mm-tap: 44px;
+}
+
+@media screen {
+  :root[data-theme='dark'] {
+    color-scheme: dark;
+
+    --mm-page-bg: #111318;
+    --mm-surface-sunken: #15181e;
+    --mm-surface-muted: #171a21;
+    --mm-surface: #1b1e25;
+    --mm-surface-raised: #242832;
+    --mm-surface-control: #262a33;
+    --mm-surface-control-strong: #303643;
+    --mm-surface-hover: #2c313b;
+    --mm-surface-tint: #182030;
+    --mm-surface-frosted: rgba(27, 30, 37, 0.96);
+    --mm-surface-glass: rgba(17, 19, 24, 0.55);
+    --mm-sticky-fade-strong: rgba(17, 19, 24, 0.98);
+    --mm-sticky-fade: rgba(17, 19, 24, 0.94);
+    --mm-sticky-fade-clear: rgba(17, 19, 24, 0);
+    --mm-scrim: rgba(0, 0, 0, 0.6);
+
+    --mm-text-strong: #f3f5f9;
+    --mm-text: #d7dce5;
+    --mm-text-muted: #b4bdca;
+    --mm-text-subtle: #9aa3b1;
+    --mm-disabled-text: #9aa3b1;
+
+    --mm-border-soft: #2b3039;
+    --mm-border: #3a404c;
+    --mm-border-strong: #6f7889;
+    --mm-control-border: #788194;
+    --mm-divider: #2b3039;
+
+    --mm-primary: #8ab4f8;
+    --mm-primary-text: #a8c7fa;
+    --mm-on-primary: #0b1d36;
+    --mm-primary-soft: #1c3354;
+    --mm-primary-subtle: #172338;
+    --mm-primary-border: #4a6ea8;
+    --mm-tint-border: #2e3a50;
+    --mm-focus: #a8c7fa;
+
+    --mm-input-bg: #242832;
+    --mm-input-text: #f3f5f9;
+    --mm-input-placeholder: #a7b0bd;
+
+    --mm-success: #5bb974;
+    --mm-success-bg: #12301f; --mm-success-subtle: #15221b; --mm-success-text: #a8dab5; --mm-success-border: #3f8a57;
+    --mm-warning: #fbbc04;
+    --mm-warning-bg: #33290f; --mm-warning-soft: #3b2e0b; --mm-warning-subtle: #221d12; --mm-warning-text: #fdd663;
+    --mm-warning-border: #c99700; --mm-warning-border-soft: #6b5414;
+    --mm-danger: #f28b82;
+    --mm-error-bg: #3d1d1c; --mm-error-subtle: #251a1b; --mm-error-text: #ffb4ab;
+    --mm-error-border: #f28b82; --mm-error-border-soft: #7a3330;
+    --mm-info-bg: #172b4d; --mm-info-text: #aecbfa; --mm-info-border: #4a6ea8;
+    --mm-accent: #c58af9;
+    --mm-accent-soft: #2c1d42; --mm-accent-subtle: #1f1a2b; --mm-accent-text: #dcc4ff; --mm-accent-border: #6a4a9a;
+    --mm-mod-bg: #2e1d45; --mm-mod-text: #dcc4ff; --mm-mod-border: #a47be0;
+
+    --mm-graph-bg: #171a20; --mm-graph-axis: #d3d9e3; --mm-graph-grid: #4a5260;
+    --mm-graph-grid-minor: #303640; --mm-graph-label: #f1f4f9; --mm-graph-highlight: #fdd663;
+
+    /* Light-mode shadows vanish on dark; depth there comes from the lighter
+       raised tone, so shadows only need to separate edges. */
+    --mm-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --mm-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    --mm-shadow-lg: 0 24px 70px rgba(0, 0, 0, 0.65);
+  }
+}

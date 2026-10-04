@@ -21,8 +21,8 @@ import { givenRelationInstruction } from './relationMappingCopy.js';
 import { FUNCTION_CHOICES } from '../../../functions/shared/relationFunctionChoice.mjs';
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
-const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: '#174ea6', border: '1px solid #9bb8e8' };
-const inputStyle = { width: '100%', padding: '11px 12px', border: '1px solid #cdd6e4', borderRadius: 9, fontSize: 16, minHeight: 44, boxSizing: 'border-box' };
+const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)' };
+const inputStyle = { width: '100%', padding: '11px 12px', border: '1px solid var(--mm-tint-border)', borderRadius: 9, fontSize: 16, minHeight: 44, boxSizing: 'border-box' };
 
 const WIDTH = 420;
 const ROW = 46;
@@ -84,7 +84,7 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
         onMouseLeave={() => setHoverPoint(null)}
         role="application"
         aria-label="Coordinate plane for plotting the relation"
-        style={{ width: '100%', maxWidth: 520, display: 'block', margin: '0 auto', background: 'var(--mm-surface)', border: '1px solid #d9e2f1', borderRadius: 12, cursor: 'crosshair' }}
+        style={{ width: '100%', maxWidth: 520, display: 'block', margin: '0 auto', background: 'var(--mm-surface)', border: '1px solid var(--mm-tint-border)', borderRadius: 12, cursor: 'crosshair' }}
       >
         {xTicks.map((x) => <line key={`gx${x}`} x1={xToPx(x)} x2={xToPx(x)} y1={PLOT_PAD} y2={PLOT_SIZE - PLOT_PAD} stroke="#e5e9f0" strokeWidth="1" />)}
         {yTicks.map((y) => <line key={`gy${y}`} x1={PLOT_PAD} x2={PLOT_SIZE - PLOT_PAD} y1={yToPx(y)} y2={yToPx(y)} stroke="#e5e9f0" strokeWidth="1" />)}
@@ -107,7 +107,7 @@ function RelationCoordinatePlot({ bounds, points, onTogglePoint, snapStep = 1 })
         <text x={PLOT_SIZE - PLOT_PAD + 12} y={yMin <= 0 && yMax >= 0 ? yToPx(0) + 4 : PLOT_SIZE - PLOT_PAD + 18} fontSize="13" fontWeight="700" fill="#3c4756">x</text>
         <text x={xMin <= 0 && xMax >= 0 ? xToPx(0) + 8 : PLOT_PAD - 4} y={PLOT_PAD - 12} fontSize="13" fontWeight="700" fill="#3c4756">y</text>
       </svg>
-      <p aria-live="polite" style={{ margin: '8px 0 0', minHeight: 20, textAlign: 'center', color: '#5f6b7a', fontSize: 12 }}>
+      <p aria-live="polite" style={{ margin: '8px 0 0', minHeight: 20, textAlign: 'center', color: 'var(--mm-text-muted)', fontSize: 12 }}>
         {hoverPoint ? `Cursor: (${hoverPoint[0]}, ${hoverPoint[1]}) — click to plot this point.` : 'Move the pointer over the grid to see the exact coordinate before you click.'}
       </p>
     </div>
@@ -257,7 +257,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
     return (
       <ToolShell title="Build the Mapping Diagram" subtitle="Represent a relation as a mapping between two sets." badge="Relations">
         <Panel title="Nothing to map">
-          <p style={{ margin: 0, color: '#5f6b7a' }}>This question has no ordered pairs to map. Let your teacher know.</p>
+          <p style={{ margin: 0, color: 'var(--mm-text-muted)' }}>This question has no ordered pairs to map. Let your teacher know.</p>
         </Panel>
       </ToolShell>
     );
@@ -281,10 +281,10 @@ export default function RelationMapping({ questionData = {}, onAction }) {
 
       {questionData.showGivenRelation !== false ? (
         <Panel title="Given relation">
-          <p style={{ margin: '0 0 8px', color: '#5f6b7a' }}>{givenRelationInstruction(ask)}</p>
+          <p style={{ margin: '0 0 8px', color: 'var(--mm-text-muted)' }}>{givenRelationInstruction(ask)}</p>
           <div aria-label="Given ordered pairs" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {pairs.map(([x, y]) => (
-              <span key={`${x}|${y}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '7px 10px', borderRadius: 999, border: '1px solid #cdd6e4', background: '#f8fbff', fontWeight: 700 }}>
+              <span key={`${x}|${y}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '7px 10px', borderRadius: 999, border: '1px solid var(--mm-tint-border)', background: 'var(--mm-surface-tint)', fontWeight: 700 }}>
                 <MathDisplay value={`(${x}, ${y})`} format="ascii-math" inline ariaLabel={`Ordered pair ${x}, ${y}`} />
               </span>
             ))}
@@ -300,13 +300,13 @@ export default function RelationMapping({ questionData = {}, onAction }) {
             onTogglePoint={togglePlottedPoint}
             snapStep={questionData.plotSnapStep || 1}
           />
-          <p style={{ margin: '10px 0 8px', fontSize: 13, color: '#5f6b7a' }}>
+          <p style={{ margin: '10px 0 8px', fontSize: 13, color: 'var(--mm-text-muted)' }}>
             Move across the coordinate plane to see x- and y-guides. Click the intersection to plot or remove a point.
           </p>
           {allowTypedPlot ? (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'end' }}>
-              <label style={{ fontSize: 13, fontWeight: 700, color: '#3c4756' }}>x-coordinate<input inputMode="decimal" value={plotX} onChange={(event) => setPlotX(event.target.value)} style={inputStyle} /></label>
-              <label style={{ fontSize: 13, fontWeight: 700, color: '#3c4756' }}>y-coordinate<input inputMode="decimal" value={plotY} onChange={(event) => setPlotY(event.target.value)} style={inputStyle} /></label>
+              <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}>x-coordinate<input inputMode="decimal" value={plotX} onChange={(event) => setPlotX(event.target.value)} style={inputStyle} /></label>
+              <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-text)' }}>y-coordinate<input inputMode="decimal" value={plotY} onChange={(event) => setPlotY(event.target.value)} style={inputStyle} /></label>
               <button type="button" onClick={addTypedPoint} style={primaryButton}>Plot point</button>
             </div>
           ) : null}
@@ -334,7 +334,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
       }}>
       <ToolSplit>
         <Panel title="Mapping diagram">
-          <svg viewBox={`0 0 ${WIDTH} ${height}`} role="application" aria-label="Mapping diagram" style={{ width: '100%', height: 'auto', border: '1px solid #d9e2f1', borderRadius: 12, background: 'var(--mm-surface)' }}>
+          <svg viewBox={`0 0 ${WIDTH} ${height}`} role="application" aria-label="Mapping diagram" style={{ width: '100%', height: 'auto', border: '1px solid var(--mm-tint-border)', borderRadius: 12, background: 'var(--mm-surface)' }}>
             <text x={LEFT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" fill="#5f6b7a">{questionData.domainLabel || 'Domain (x)'}</text>
             <text x={RIGHT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" fill="#5f6b7a">{questionData.rangeLabel || 'Range (y)'}</text>
 
@@ -395,7 +395,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
             ))}
           </svg>
 
-          <p aria-live="polite" style={{ marginTop: 10, fontSize: 13, color: '#5f6b7a' }}>
+          <p aria-live="polite" style={{ marginTop: 10, fontSize: 13, color: 'var(--mm-text-muted)' }}>
             {selectedDomain != null
               ? `${selectedDomain} selected — now click the value it maps to.`
               : `${arrows.length} arrow${arrows.length === 1 ? '' : 's'} drawn.`}
@@ -407,20 +407,20 @@ export default function RelationMapping({ questionData = {}, onAction }) {
 
         <Panel title="Describe the relation">
           {ask.includes('domain') && (
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#3c4756', marginBottom: 12 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--mm-text)', marginBottom: 12 }}>
               Domain (list the values, separated by commas)
               <input value={domainAnswer} onChange={(event) => { setDomainAnswer(event.target.value); clearFeedback(); }} placeholder="e.g. -4, -2, 1, 3" style={inputStyle} />
             </label>
           )}
           {ask.includes('range') && (
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#3c4756', marginBottom: 12 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--mm-text)', marginBottom: 12 }}>
               Range (list the values, separated by commas)
               <input value={rangeAnswer} onChange={(event) => { setRangeAnswer(event.target.value); clearFeedback(); }} placeholder="e.g. -3, -1, 2, 3" style={inputStyle} />
             </label>
           )}
           {ask.includes('isFunction') && (
             <fieldset style={{ border: 0, padding: 0, margin: '0 0 14px' }}>
-              <legend style={{ fontSize: 13, fontWeight: 700, color: '#3c4756', marginBottom: 8 }}>
+              <legend style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-text)', marginBottom: 8 }}>
                 Is this relation a function?
               </legend>
               <div style={{ display: 'grid', gap: 8 }}>
@@ -437,8 +437,8 @@ export default function RelationMapping({ questionData = {}, onAction }) {
                         ...secondaryButton,
                         width: '100%',
                         textAlign: 'left',
-                        border: `2px solid ${selected ? '#1a73e8' : '#cdd6e4'}`,
-                        background: selected ? '#e8f0fe' : '#fff',
+                        border: `2px solid ${selected ? '#1a73e8' : 'var(--mm-tint-border)'}`,
+                        background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
                         color: 'var(--mm-text-strong)',
                       }}
                     >
@@ -455,7 +455,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
             const current = String(fieldAnswers[field.id] ?? '');
             return (
               <fieldset key={field.id} style={{ border: 0, padding: 0, margin: '0 0 14px' }}>
-                <legend style={{ fontSize: 13, fontWeight: 700, color: '#3c4756', marginBottom: 8 }}>
+                <legend style={{ fontSize: 13, fontWeight: 700, color: 'var(--mm-text)', marginBottom: 8 }}>
                   {field.label || field.id}
                 </legend>
                 {options.length ? (
@@ -474,8 +474,8 @@ export default function RelationMapping({ questionData = {}, onAction }) {
                             ...secondaryButton,
                             width: '100%',
                             textAlign: 'left',
-                            border: `2px solid ${selected ? '#1a73e8' : '#cdd6e4'}`,
-                            background: selected ? '#e8f0fe' : '#fff',
+                            border: `2px solid ${selected ? '#1a73e8' : 'var(--mm-tint-border)'}`,
+                            background: selected ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
                             color: 'var(--mm-text-strong)',
                           }}
                         >
@@ -500,7 +500,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
           {feedback ? (
             <div style={{ marginTop: 14 }}>
               <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
-              <p style={{ margin: '9px 0 0', color: '#3c4756', lineHeight: 1.55 }}>{message()}</p>
+              <p style={{ margin: '9px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{message()}</p>
             </div>
           ) : null}
 

@@ -199,7 +199,9 @@ test('calculator 2.0 stays inside Work View and publishes the discovery workflow
   assert.match(css, /min-height:44px/);
   assert.match(css, /\.regression-add-regression[\s\S]*content:attr\(data-tooltip\)/);
   assert.match(css, /\.regression-add-menu[\s\S]*position:absolute/);
-  assert.match(css, /grid-template-columns:minmax\(300px, \.85fr\) minmax\(380px, 1\.4fr\)/);
+  // Same two-column split; each minimum is capped at the container width so the
+  // columns can never force a phone to scroll sideways.
+  assert.match(css, /grid-template-columns:minmax\(min\(100%, 300px\), \.85fr\) minmax\(min\(100%, 380px\), 1\.4fr\)/);
   assert.match(css, /max-width: 700px[\s\S]*flex-direction:column/);
 });
 

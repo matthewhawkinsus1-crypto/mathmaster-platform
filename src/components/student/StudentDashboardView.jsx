@@ -97,12 +97,12 @@ export default function StudentDashboardView({
     const receiptLabel = receipt.label;
     const classroomGrade = receipt.grade;
     const classroomIsCurrent = receipt.matchesMathMaster;
-    const statusStyle = lifecycle.isPracticeOnly ? { border: '#5f6368', bg: '#f1f3f4', color: '#3c4043', label: 'Practice only' } : lifecycle.isLate ? { border: '#f9ab00', bg: '#fff4ce', color: '#7a4f00', label: 'Late' } : lifecycle.isScheduled ? { border: '#9aa0a6', bg: '#f1f3f4', color: '#3c4043', label: 'Scheduled' } : { border: '#d8dde6', bg: '#e6f4ea', color: '#137333', label: 'On time' };
+    const statusStyle = lifecycle.isPracticeOnly ? { border: '#5f6368', bg: 'var(--mm-surface-control)', color: 'var(--mm-text)', label: 'Practice only' } : lifecycle.isLate ? { border: '#f9ab00', bg: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', label: 'Late' } : lifecycle.isScheduled ? { border: 'var(--mm-border-strong)', bg: 'var(--mm-surface-control)', color: 'var(--mm-text)', label: 'Scheduled' } : { border: 'var(--mm-border)', bg: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', label: 'On time' };
     return (
       <article key={assignment.id} style={{ background: 'var(--mm-surface)', padding: '21px 26px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap', border: `2px solid ${statusStyle.border}` }}>
         <div style={{ textAlign: 'left', flex: '1 1 470px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}><h3 style={{ margin: 0, color: 'var(--mm-text-strong)' }}>{assignment.title}</h3><span style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', padding: '4px 8px', borderRadius: '999px', background: statusStyle.bg, color: statusStyle.color }}>{statusStyle.label}</span><span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6' }}>{assignment.assignmentType === 'notesClasswork' ? 'NOTES / CLASSWORK' : 'PRACTICE'}</span>{Object.keys(assignment.sectionVariantModes || {}).length > 0 ? <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#f3e8fd', color: '#681da8' }}>SECTION-SPECIFIC VERSIONS</span> : assignment.variantMode === 'shared' && <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: '#e6f4ea', color: '#137333' }}>SAME CLASS VERSION</span>}</div>
-          <div style={{ color: '#5f6368', fontSize: '13px', lineHeight: 1.55 }}>{(() => { const dates = studentDueDateLines(assignment, lifecycle); return <>{dates.dueLabel}: {dates.dueText} · {dates.finalLabel}: {dates.finalText}</>; })()}{lifecycle.isLate && <><br /><strong style={{ color: '#7a4f00' }}>Late work remains open for {formatRemainingTime(lifecycle.millisecondsRemaining)}.</strong></>}{!access.open && <><br /><strong style={{ color: '#a50e0e' }}>Complete the prerequisite notes/classwork first. It opens automatically at {formatDateTime(assignment.releaseAt)} if not completed.</strong></>}{assignment.assignmentType === 'notesClasswork' && <><br />Engaged: {formatTime(activity.totalTimeSeconds || 0)} · Daily grade: {classwork?.score === 100 ? '100 — prerequisite met' : 'In progress'}</>}{dol.enabled && dol.status === 'waiting' && <><br />DOL opens during the final {assignment.dol?.minutesBeforeEnd || 10} minutes of class.</>}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}><h3 style={{ margin: 0, color: 'var(--mm-text-strong)' }}>{assignment.title}</h3><span style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', padding: '4px 8px', borderRadius: '999px', background: statusStyle.bg, color: statusStyle.color }}>{statusStyle.label}</span><span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' }}>{assignment.assignmentType === 'notesClasswork' ? 'NOTES / CLASSWORK' : 'PRACTICE'}</span>{Object.keys(assignment.sectionVariantModes || {}).length > 0 ? <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)' }}>SECTION-SPECIFIC VERSIONS</span> : assignment.variantMode === 'shared' && <span style={{ fontSize: '11px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' }}>SAME CLASS VERSION</span>}</div>
+          <div style={{ color: 'var(--mm-text-muted)', fontSize: '13px', lineHeight: 1.55 }}>{(() => { const dates = studentDueDateLines(assignment, lifecycle); return <>{dates.dueLabel}: {dates.dueText} · {dates.finalLabel}: {dates.finalText}</>; })()}{lifecycle.isLate && <><br /><strong style={{ color: 'var(--mm-warning-text)' }}>Late work remains open for {formatRemainingTime(lifecycle.millisecondsRemaining)}.</strong></>}{!access.open && <><br /><strong style={{ color: 'var(--mm-error-text)' }}>Complete the prerequisite notes/classwork first. It opens automatically at {formatDateTime(assignment.releaseAt)} if not completed.</strong></>}{assignment.assignmentType === 'notesClasswork' && <><br />Engaged: {formatTime(activity.totalTimeSeconds || 0)} · Daily grade: {classwork?.score === 100 ? '100 — prerequisite met' : 'In progress'}</>}{dol.enabled && dol.status === 'waiting' && <><br />DOL opens during the final {assignment.dol?.minutesBeforeEnd || 10} minutes of class.</>}</div>
           {questionsTotal > 0 && assignment.assignmentType !== 'notesClasswork' && (
             <div style={{ marginTop: '12px', maxWidth: '340px' }}>
               <ProgressBar
@@ -116,25 +116,25 @@ export default function StudentDashboardView({
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {questionsAttempted > 0 && (
             <div style={{ textAlign: 'right', marginRight: '6px', minWidth: 175 }}>
-              <div style={{ fontSize: '11px', color: '#5f6368', textTransform: 'uppercase', fontWeight: 'bold' }}>
+              <div style={{ fontSize: '11px', color: 'var(--mm-text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>
                 {feedbackHeld && !lifecycle.isPracticeOnly
                   ? 'Grade status'
                   : lifecycle.isPracticeOnly
                     ? 'Frozen grade'
                     : 'Current grade · if stopped now'}
               </div>
-              <div style={{ fontSize: '19px', fontWeight: 900, color: feedbackHeld && !lifecycle.isPracticeOnly ? '#174ea6' : recordedGrade >= 70 ? '#188038' : '#202124' }}>
+              <div style={{ fontSize: '19px', fontWeight: 900, color: feedbackHeld && !lifecycle.isPracticeOnly ? 'var(--mm-primary-text)' : recordedGrade >= 70 ? 'var(--mm-success)' : 'var(--mm-text-strong)' }}>
                 {feedbackHeld && !lifecycle.isPracticeOnly ? 'Awaiting teacher release' : `${recordedGrade}%`}
               </div>
               {!feedbackHeld && classroomReceipt && classroomGrade != null && (
-                <div style={{ marginTop: 5, fontSize: 11, lineHeight: 1.35, color: receiptFinal ? '#137333' : '#174ea6', fontWeight: 800 }}>
+                <div style={{ marginTop: 5, fontSize: 11, lineHeight: 1.35, color: receiptFinal ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', fontWeight: 800 }}>
                   {receiptStudentVisible ? 'Google Classroom shows' : 'Classroom teacher draft'}: {classroomGrade}% · {receiptLabel}
                   {!receiptFinal && !classroomIsCurrent ? <><br />Your MathMaster grade has changed; Classroom updates at the next checkpoint.</> : null}
                   {!receiptStudentVisible ? <><br />This checkpoint is visible to your teacher; your live grade is the MathMaster grade above.</> : null}
                 </div>
               )}
               {!feedbackHeld && !classroomReceipt && !lifecycle.isPracticeOnly && (
-                <div style={{ marginTop: 5, fontSize: 11, lineHeight: 1.35, color: '#5f6368' }}>
+                <div style={{ marginTop: 5, fontSize: 11, lineHeight: 1.35, color: 'var(--mm-text-muted)' }}>
                   Classroom progress grades begin after meaningful work is underway.
                 </div>
               )}
@@ -144,7 +144,7 @@ export default function StudentDashboardView({
             type="button"
             disabled={disabled || !onExportAssignmentPdf || exportingAssignmentId === assignment.id}
             onClick={() => exportPdf(assignment.id)}
-            style={{ padding: '10px 16px', background: 'var(--mm-surface)', color: disabled ? '#9aa0a6' : '#174ea6', border: `2px solid ${disabled ? '#dadce0' : '#aecbfa'}`, borderRadius: '8px', cursor: disabled ? 'not-allowed' : 'pointer', fontWeight: 900 }}
+            style={{ padding: '10px 16px', background: 'var(--mm-surface)', color: disabled ? 'var(--mm-text-subtle)' : 'var(--mm-primary-text)', border: `2px solid ${disabled ? 'var(--mm-border)' : 'var(--mm-primary-border)'}`, borderRadius: '8px', cursor: disabled ? 'not-allowed' : 'pointer', fontWeight: 900 }}
           >
             {exportingAssignmentId === assignment.id ? 'Preparing PDF…' : 'Export PDF'}
           </button>
@@ -155,10 +155,10 @@ export default function StudentDashboardView({
   };
 
   return (
-    <div className={`${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`} style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: supportPresentation.highContrast ? '#fff' : '#f0f2f5', minHeight: '100vh', padding: '34px 20px', fontSize: supportPresentation.largeText ? '120%' : undefined }}>
+    <div className={`${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`} style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: supportPresentation.highContrast ? 'var(--mm-surface)' : 'var(--mm-surface-control)', minHeight: '100vh', padding: '34px 20px', fontSize: supportPresentation.largeText ? '120%' : undefined }}>
       <div style={{ maxWidth: '920px', margin: '0 auto' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--mm-surface)', padding: '20px 30px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: '24px', gap: '20px', flexWrap: 'wrap' }}>
-          <div style={{ textAlign: 'left' }}><h1 style={{ margin: 0, color: '#1a73e8', fontSize: '25px' }}>Welcome, {formatStudentName(student, { lastFirst: false, neutralLabel: STUDENT_SELF_NEUTRAL_LABEL })}</h1><p style={{ margin: '4px 0 0', color: '#5f6368' }}>{student.classPeriod}{student.inclusionStatus ? ' · Inclusion supports active' : ''}</p></div>
+          <div style={{ textAlign: 'left' }}><h1 style={{ margin: 0, color: 'var(--mm-primary)', fontSize: '25px' }}>Welcome, {formatStudentName(student, { lastFirst: false, neutralLabel: STUDENT_SELF_NEUTRAL_LABEL })}</h1><p style={{ margin: '4px 0 0', color: 'var(--mm-text-muted)' }}>{student.classPeriod}{student.inclusionStatus ? ' · Inclusion supports active' : ''}</p></div>
           {/*
             One navigation, shared with Assignments, Grades and My Math Path.
             These were four independently written buttons, which is how My Math
@@ -178,7 +178,7 @@ export default function StudentDashboardView({
         {classPoints && <ClassPointsCelebrations announcements={classPoints.announcements} />}
 
         {liveChallengeInvite && ['invited', 'joined', 'running'].includes(liveChallengeInvite.status) && (
-          <section style={{ marginBottom: '18px', padding: '20px 24px', borderRadius: '16px', background: '#e8f0fe', border: '3px solid #1a73e8', color: '#174ea6', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
+          <section style={{ marginBottom: '18px', padding: '20px 24px', borderRadius: '16px', background: 'var(--mm-primary-soft)', border: '3px solid #1a73e8', color: 'var(--mm-primary-text)', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
             <div><div style={{ fontSize: '13px', fontWeight: 1000, textTransform: 'uppercase' }}>⚡ Live Challenge</div><h2 style={{ margin: '4px 0' }}>{liveChallengeInvite.title || 'Class Live Challenge'}</h2><p style={{ margin: 0 }}>{liveChallengeInvite.status === 'running' ? 'The challenge is running now.' : 'Your teacher opened the lobby. Join now so you are ready when Round 1 starts.'}{liveChallengeInvite.alias ? ` You will play as ${liveChallengeInvite.alias}.` : ''}</p></div>
             <button type="button" onClick={() => onOpenLiveChallenge?.()} style={{ padding: '13px 20px', border: 0, borderRadius: '10px', background: '#174ea6', color: '#fff', fontWeight: 900, fontSize: '16px' }}>{liveChallengeInvite.status === 'running' ? 'Join Challenge Now' : 'Enter Challenge Lobby'}</button>
           </section>
@@ -194,7 +194,7 @@ export default function StudentDashboardView({
         )}
 
         {(activeWarmups || []).map(({ assignment, state, questionIndices = [] }) => (
-          <section key={`warmup-${assignment.id}`} style={{ marginBottom: '18px', padding: '22px 25px', borderRadius: '16px', background: '#fff8df', border: '3px solid #f9ab00', color: '#5f4400', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
+          <section key={`warmup-${assignment.id}`} style={{ marginBottom: '18px', padding: '22px 25px', borderRadius: '16px', background: 'var(--mm-warning-bg)', border: '3px solid #f9ab00', color: 'var(--mm-warning-text)', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
             <div>
               <div style={{ fontSize: '13px', fontWeight: 900, textTransform: 'uppercase' }}>🔥 Warm-Up active now</div>
               <h2 style={{ margin: '4px 0' }}>{assignment.title} · Warm-Up</h2>
@@ -216,10 +216,10 @@ export default function StudentDashboardView({
         ))}
 
         {activeDols.map(({ assignment, state }) => (
-          <section key={assignment.id} style={{ marginBottom: '18px', padding: '22px 25px', borderRadius: '16px', background: '#f3e8fd', border: '3px solid #9334e6', color: '#4a126b', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
+          <section key={assignment.id} style={{ marginBottom: '18px', padding: '22px 25px', borderRadius: '16px', background: 'var(--mm-accent-soft)', border: '3px solid #9334e6', color: 'var(--mm-text)', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
             <div><div style={{ fontSize: '13px', fontWeight: 900, textTransform: 'uppercase' }}>DOL available now</div><h2 style={{ margin: '4px 0' }}>{assignment.title} · DOL section</h2><p style={{ margin: 0 }}>Complete all {(state.questionIndices || [state.questionIndex]).length} DOL question{(state.questionIndices || [state.questionIndex]).length === 1 ? '' : 's'} before the timer reaches zero.</p>{!supportPresentation.hideCountdowns && <div style={{ marginTop: '8px', fontSize: '22px', fontWeight: 1000 }}><DOLCountdown endsAt={state.endsAt} /> remaining</div>}</div>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <button type="button" disabled={!onExportAssignmentPdf || exportingAssignmentId === assignment.id} onClick={() => exportPdf(assignment.id)} style={{ padding: '12px 16px', border: '2px solid #9334e6', borderRadius: '10px', background: 'var(--mm-surface)', color: '#681da8', fontWeight: 900 }}>{exportingAssignmentId === assignment.id ? 'Preparing PDF…' : 'Export PDF'}</button>
+              <button type="button" disabled={!onExportAssignmentPdf || exportingAssignmentId === assignment.id} onClick={() => exportPdf(assignment.id)} style={{ padding: '12px 16px', border: '2px solid #9334e6', borderRadius: '10px', background: 'var(--mm-surface)', color: 'var(--mm-accent-text)', fontWeight: 900 }}>{exportingAssignmentId === assignment.id ? 'Preparing PDF…' : 'Export PDF'}</button>
               <button onClick={() => onStartAssignment(assignment.id, (state.questionIndices || [state.questionIndex])[0])} style={{ padding: '13px 20px', border: 0, borderRadius: '10px', background: '#681da8', color: '#fff', fontWeight: 900, fontSize: '16px' }}>Start DOL Now</button>
             </div>
           </section>
@@ -229,7 +229,7 @@ export default function StudentDashboardView({
           <section aria-label="Resume assignment" style={{ marginBottom: '28px', padding: '28px 30px', borderRadius: '18px', background: 'linear-gradient(135deg, #174ea6 0%, #1a73e8 62%, #4f8fe8 100%)', color: '#fff', boxShadow: '0 16px 38px rgba(26,115,232,0.28)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '24px', flexWrap: 'wrap', textAlign: 'left' }}>
             <div style={{ flex: '1 1 450px' }}>
               <div style={{ fontSize: '13px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', opacity: 0.82, marginBottom: '7px' }}>Resume Action</div>
-              <h2 style={{ margin: 0, fontSize: 'clamp(25px, 4vw, 38px)', lineHeight: 1.12 }}>Resume {resumeAssignment.title}</h2>
+              <h2 style={{ margin: 0, fontSize: 'clamp(25px, 4vw, 38px)', lineHeight: 1.12, color: 'inherit' }}>Resume {resumeAssignment.title}</h2>
               <p style={{ margin: '10px 0 0', fontSize: '17px', lineHeight: 1.5, opacity: 0.94 }}>Continue at Question {resumeQuestionIndex + 1}. Your typed responses, plotted points, graph sketch, endpoint symbols, multipart analysis, and algebra work are restored from this browser.</p>
               {resumeQuestionsAttempted > 0 && (
                 <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 9, background: 'rgba(255,255,255,0.14)', fontSize: 13, fontWeight: 900 }}>
@@ -245,7 +245,7 @@ export default function StudentDashboardView({
             </div>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
               <button type="button" disabled={!onExportAssignmentPdf || exportingAssignmentId === resumeAssignment.id} onClick={() => exportPdf(resumeAssignment.id)} style={{ padding: '13px 18px', border: '2px solid rgba(255,255,255,0.76)', borderRadius: '12px', background: 'transparent', color: '#fff', fontSize: '15px', fontWeight: 900, cursor: 'pointer' }}>{exportingAssignmentId === resumeAssignment.id ? 'Preparing PDF…' : 'Export PDF'}</button>
-              <button type="button" onClick={() => onStartAssignment(resumeAssignment.id, resumeQuestionIndex)} style={{ padding: '15px 24px', border: 'none', borderRadius: '12px', background: 'var(--mm-surface)', color: '#174ea6', fontSize: '17px', fontWeight: 900, cursor: 'pointer', boxShadow: '0 6px 18px rgba(0,0,0,0.18)' }}>{resumeLifecycle.isClosed ? 'Review Question' : 'Resume Question'} {resumeQuestionIndex + 1} →</button>
+              <button type="button" onClick={() => onStartAssignment(resumeAssignment.id, resumeQuestionIndex)} style={{ padding: '15px 24px', border: 'none', borderRadius: '12px', background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', fontSize: '17px', fontWeight: 900, cursor: 'pointer', boxShadow: '0 6px 18px rgba(0,0,0,0.18)' }}>{resumeLifecycle.isClosed ? 'Review Question' : 'Resume Question'} {resumeQuestionIndex + 1} →</button>
             </div>
           </section>
         )}

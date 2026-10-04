@@ -16,7 +16,7 @@ import {
   transformedExponentialValue,
 } from './exponentialLogMath';
 
-const inputStyle = { width: '100%', padding: 9, border: '1px solid #cfd8e6', borderRadius: 8, boxSizing: 'border-box' };
+const inputStyle = { width: '100%', padding: 9, border: '1px solid var(--mm-tint-border)', borderRadius: 8, boxSizing: 'border-box' };
 const actionStyle = { marginTop: 14, padding: '10px 16px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 800, cursor: 'pointer' };
 const displayNumber = (value) => Number.isFinite(Number(value)) ? round(value, 4) : 'undefined';
 
@@ -49,7 +49,7 @@ function InversePairGraph({ spec, sampleX = 1 }) {
         { x: pointPair.logarithm[0], y: pointPair.logarithm[1], label: 'on f⁻¹', fill: '#d93025' },
       ]}
     />
-    <p style={{ color: '#5f6b7a', marginBottom: 0 }}>Blue f and red f⁻¹ reflect across y = x. The horizontal asymptote y = k becomes the inverse’s vertical asymptote x = k.</p>
+    <p style={{ color: 'var(--mm-text-muted)', marginBottom: 0 }}>Blue f and red f⁻¹ reflect across y = x. The horizontal asymptote y = k becomes the inverse’s vertical asymptote x = k.</p>
   </Panel>;
 }
 
@@ -82,7 +82,7 @@ function EquivalentForms({ questionData, feedback, submit, onAction }) {
       <InversePairGraph spec={simpleSpec} sampleX={values.exponent} />
       <Panel title="One relationship, two statements">
         <p style={{ fontSize: 21, fontWeight: 900 }}>{values.base}<sup>{values.exponent}</sup> = {displayNumber(values.value)}</p>
-        <p style={{ color: '#5f6b7a' }}>A logarithm answers the inverse question: “what exponent on this base produces the value?”</p>
+        <p style={{ color: 'var(--mm-text-muted)' }}>A logarithm answers the inverse question: “what exponent on this base produces the value?”</p>
         <label>log<sub>{values.base}</sub>({displayNumber(values.value)}) =<input value={logAnswer} onChange={(event) => setLogAnswer(event.target.value)} style={inputStyle} /></label>
         <label style={{ display: 'block', marginTop: 10 }}>{values.base}<sup>{values.exponent}</sup> =<input value={expAnswer} onChange={(event) => setExpAnswer(event.target.value)} style={inputStyle} /></label>
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check inverse forms</button>
@@ -114,7 +114,7 @@ function SolveExponential({ questionData, feedback, submit, onAction }) {
       <Panel title="Equation bridge">
         <p style={{ fontSize: 22, fontWeight: 900 }}>{equation.base}<sup>{exponentText}</sup> = {equation.rhs}</p>
         <p style={{ fontSize: 18 }}>log<sub>{equation.base}</sub>({equation.rhs}) = {exponentText}</p>
-        <p style={{ color: '#5f6b7a' }}>The logarithm converts the exponential statement into an equation for the exponent.</p>
+        <p style={{ color: 'var(--mm-text-muted)' }}>The logarithm converts the exponential statement into an equation for the exponent.</p>
       </Panel>
       <Panel title="Solve and verify">
         <label>Exponent value log<sub>{equation.base}</sub>({equation.rhs})<input value={exponentAnswer} onChange={(event) => setExponentAnswer(event.target.value)} style={inputStyle} /></label>
@@ -148,7 +148,7 @@ function SolveLogarithmic({ questionData, feedback, submit, onAction }) {
       <Panel title="Equation bridge">
         <p style={{ fontSize: 21, fontWeight: 900 }}>log<sub>{equation.base}</sub>({argumentText}) = {equation.result}</p>
         <p style={{ fontSize: 18 }}>{equation.base}<sup>{equation.result}</sup> = {argumentText}</p>
-        <p style={{ color: '#5f6b7a' }}>The logarithm’s argument must stay positive. The exponential rewrite makes that required value explicit.</p>
+        <p style={{ color: 'var(--mm-text-muted)' }}>The logarithm’s argument must stay positive. The exponential rewrite makes that required value explicit.</p>
       </Panel>
       <Panel title="Solve and check the domain">
         <label>Required argument value {equation.base}<sup>{equation.result}</sup><input value={argumentAnswer} onChange={(event) => setArgumentAnswer(event.target.value)} style={inputStyle} /></label>

@@ -50,8 +50,8 @@ export default function TeacherAssignmentPdfDialog({
         aria-labelledby="teacher-assignment-pdf-title"
         style={{ width: '100%', maxWidth: 620, background: 'var(--mm-surface)', borderRadius: 16, boxShadow: '0 24px 70px rgba(0,0,0,.28)', overflow: 'hidden', textAlign: 'left' }}
       >
-        <div style={{ padding: '22px 24px', borderBottom: '1px solid #e8eaed' }}>
-          <div style={{ color: '#174ea6', fontWeight: 900, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em' }}>Print Assignment</div>
+        <div style={{ padding: '22px 24px', borderBottom: '1px solid var(--mm-border-soft)' }}>
+          <div style={{ color: 'var(--mm-primary-text)', fontWeight: 900, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em' }}>Print Assignment</div>
           <h2 id="teacher-assignment-pdf-title" style={{ margin: '5px 0 0', color: 'var(--mm-text-strong)' }}>{assignment?.title || 'Assignment'}</h2>
         </div>
 
@@ -65,8 +65,8 @@ export default function TeacherAssignmentPdfDialog({
                   key={mode.id}
                   style={{
                     display: 'flex', gap: 10, alignItems: 'flex-start', padding: '11px 12px',
-                    border: selected ? '2px solid #1a73e8' : '1px solid #d8dde6',
-                    borderRadius: 10, background: selected ? '#f1f7ff' : '#fff', cursor: busy ? 'wait' : 'pointer',
+                    border: selected ? '2px solid #1a73e8' : '1px solid var(--mm-border)',
+                    borderRadius: 10, background: selected ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', cursor: busy ? 'wait' : 'pointer',
                   }}
                 >
                   <input
@@ -80,20 +80,20 @@ export default function TeacherAssignmentPdfDialog({
                   />
                   <span>
                     <strong style={{ color: 'var(--mm-text-strong)' }}>{mode.title}</strong>
-                    <span style={{ display: 'block', marginTop: 2, color: '#5f6368', fontSize: 12.5, lineHeight: 1.45 }}>{mode.note}</span>
+                    <span style={{ display: 'block', marginTop: 2, color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.45 }}>{mode.note}</span>
                   </span>
                 </label>
               );
             })}
           </div>
 
-          <label style={{ display: 'block', marginTop: 18, fontWeight: 800, color: '#3c4043' }}>
+          <label style={{ display: 'block', marginTop: 18, fontWeight: 800, color: 'var(--mm-text)' }}>
             {requiresStudent ? 'Exact student version' : 'Student name/version (optional)'}
             <select
               value={selectedStudentId}
               onChange={(event) => setSelectedStudentId(event.target.value)}
               disabled={busy}
-              style={{ display: 'block', width: '100%', marginTop: 7, minHeight: 44, padding: '9px 11px', border: '1px solid #bdc7d6', borderRadius: 8, background: 'var(--mm-surface)', fontSize: 15 }}
+              style={{ display: 'block', width: '100%', marginTop: 7, minHeight: 44, padding: '9px 11px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)', fontSize: 15 }}
             >
               {!requiresStudent && <option value="">Shared version / blank student fields</option>}
               {sortedStudents.map((student) => (
@@ -104,15 +104,15 @@ export default function TeacherAssignmentPdfDialog({
             </select>
           </label>
 
-          <div style={{ marginTop: 15, padding: '11px 13px', borderRadius: 9, background: requiresStudent ? '#fff8e1' : '#f8f9fa', color: '#5f6368', fontSize: 12.5, lineHeight: 1.5 }}>
+          <div style={{ marginTop: 15, padding: '11px 13px', borderRadius: 9, background: requiresStudent ? 'var(--mm-warning-bg)' : 'var(--mm-surface-sunken)', color: 'var(--mm-text-muted)', fontSize: 12.5, lineHeight: 1.5 }}>
             {requiresStudent
               ? 'This assignment contains personalized or adaptive sections. Select a student so the printed questions and the teacher answer/key data are generated from that exact MathMaster version.'
               : 'This assignment is shared. You may print a blank shared version or attach a student name; the mathematical questions stay the same.'}
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '17px 24px', borderTop: '1px solid #e8eaed', background: '#f8f9fa' }}>
-          <button type="button" onClick={() => onCancel?.()} disabled={busy} style={{ padding: '10px 16px', border: '1px solid #bdc7d6', borderRadius: 8, background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 800, cursor: busy ? 'wait' : 'pointer' }}>Cancel</button>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '17px 24px', borderTop: '1px solid var(--mm-border-soft)', background: 'var(--mm-surface-sunken)' }}>
+          <button type="button" onClick={() => onCancel?.()} disabled={busy} style={{ padding: '10px 16px', border: '1px solid var(--mm-border)', borderRadius: 8, background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 800, cursor: busy ? 'wait' : 'pointer' }}>Cancel</button>
           <button
             type="button"
             onClick={() => onExport?.(selectedStudent, outputMode)}

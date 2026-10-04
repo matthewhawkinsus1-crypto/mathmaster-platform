@@ -75,17 +75,17 @@ export default function AxisSetupStage({
           style={{
             padding: '12px 14px',
             borderRadius: 10,
-            background: '#f8fbff',
-            border: '1px solid #d5e1ef',
+            background: 'var(--mm-surface-tint)',
+            border: '1px solid var(--mm-tint-border)',
           }}
         >
-          <h5 style={{ margin: '0 0 10px', color: '#174ea6', fontSize: 14 }}>
+          <h5 style={{ margin: '0 0 10px', color: 'var(--mm-primary-text)', fontSize: 14 }}>
             Choose a reasonable scale
           </h5>
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
               gap: 12,
             }}
           >
@@ -102,7 +102,7 @@ export default function AxisSetupStage({
                   width: '100%',
                   marginTop: 6,
                   padding: 10,
-                  border: '1px solid #bdc7d6',
+                  border: '1px solid var(--mm-border)',
                   borderRadius: 8,
                   boxSizing: 'border-box',
                   fontSize: 16,
@@ -123,7 +123,7 @@ export default function AxisSetupStage({
                   width: '100%',
                   marginTop: 6,
                   padding: 10,
-                  border: '1px solid #bdc7d6',
+                  border: '1px solid var(--mm-border)',
                   borderRadius: 8,
                   boxSizing: 'border-box',
                   fontSize: 16,
@@ -131,7 +131,7 @@ export default function AxisSetupStage({
               />
             </label>
           </div>
-          <p style={{ margin: '9px 0 0', color: '#5f6368', fontSize: 12 }}>
+          <p style={{ margin: '9px 0 0', color: 'var(--mm-text-muted)', fontSize: 12 }}>
             Your count-by values appear directly on the graph.
           </p>
         </section>

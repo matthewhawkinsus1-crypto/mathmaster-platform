@@ -24,6 +24,7 @@ import {
   resolveWarmupInstructionDateKey,
 } from '../functions/shared/sectionDeadline.mjs';
 import { parseInstant, zonedDateKey } from '../functions/shared/instructionalCalendar.mjs';
+import { resolveStudentDeadlines, resolveStudentOverride } from '../functions/shared/studentAssignmentOverrides.mjs';
 import { evaluateClassworkCompletionRule } from '../functions/shared/assignmentProjections.mjs';
 import { WORKLOAD_STATUS, resolveStudentWorkload } from '../functions/shared/reducedWorkload.mjs';
 
@@ -136,61 +137,47 @@ const parseLocalDateTime = (value, endOfDay = false) => {
 /*
  * A STUDENT-SPECIFIC EXTENSION IS READ HERE, NOT IN A SECOND DEADLINE SYSTEM.
  *
- * `assignment.studentOverrides[studentId]` already carries the per-student
- * `excused`/`reopened` flags the Grade Center reads (see
- * studentGradeCenterModel.js). An absence-driven extension
- * (src/platform/attendance/extensionReconciliation.js) is stored the same
- * way, under `.dueAt` / `.lateDueAt`, so every caller of
- * `getAssignmentLifecycle` — Grade Center, Live Classroom, and any future
- * Grade Transfer withholding check — sees the same resolved deadline for that
- * student without a parallel due-date store to drift out of sync.
+ * One student's controls on one assignment — an individual final cutoff
+ * (attendance extension), excused/reopened, extra DOL attempts — are resolved
+ * by functions/shared/studentAssignmentOverrides.mjs, the same module the
+ * server's ingestion, deadline finalizer and Recovery read. They live in the
+ * student's private record (`studentAssignmentOverrides`); a student's device
+ * receives only its own, and its in-memory view of each assignment
+ * (studentAssignmentView) carries it under `studentOverrides[studentId]`, where
+ * the individualized extra-time dates are also injected
+ * (withStudentSupportDates). `privateOverride` is that private record when the
+ * caller holds it separately; without it the in-memory view (or, for a document that
+ * predates the migration, its shared copy) is read. So every caller of
+ * `getAssignmentLifecycle` — Grade Center, Live Classroom, Grade Transfer —
+ * sees the same resolved deadline for that student.
  */
-const studentOverrideDates = (assignment, studentId) => {
-  const id = String(studentId || '').trim();
-  if (!id) return null;
-  const overrides = assignment?.studentOverrides;
-  const entry = overrides && typeof overrides === 'object' ? overrides[id] : null;
-  return entry && typeof entry === 'object' ? entry : null;
-};
+const toDate = (ms) => (Number.isFinite(ms) ? new Date(ms) : null);
 
-const latestDate = (...dates) => dates
-  .filter((date) => date instanceof Date && !Number.isNaN(date.getTime()))
-  .reduce((latest, date) => (!latest || date.getTime() > latest.getTime() ? date : latest), null);
+const studentDeadlinesFor = (assignment, studentId, privateOverride) => resolveStudentDeadlines({
+  assignment,
+  override: studentId ? resolveStudentOverride({ assignment, studentId, privateOverride }) : null,
+});
 
-export const getAssignmentDate = (assignment, field, studentId = null) => {
+export const getAssignmentDate = (assignment, field, studentId = null, { privateOverride = undefined } = {}) => {
   if (!assignment) return null;
-  const override = studentId ? studentOverrideDates(assignment, studentId) : null;
-  if (field === 'due') {
-    // An attendance override grants additional credit opportunity; it does
-    // not move the class pacing checkpoint that distinguishes on-time from
-    // late work. An individualized extra-time due date DOES — that is the
-    // accommodation — and it only ever exists later than the class due
-    // (functions/shared/supportDeadline.mjs, injected by
-    // withStudentSupportDates; never stored on the assignment).
-    return latestDate(
-      parseLocalDateTime(assignment.dueAt || assignment.dueDate, true),
-      parseLocalDateTime(override?.supportDueAt, false),
-    );
-  }
-  if (field === 'late') {
-    return latestDate(
-      parseLocalDateTime(
-        assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate,
-        true,
-      ),
-      parseLocalDateTime(override?.lateDueAt || override?.dueAt, true),
-      parseLocalDateTime(override?.supportFinalAt, false),
-    );
-  }
   if (field === 'release') return parseLocalDateTime(assignment.releaseAt || assignment.releaseDate, false);
+  const deadlines = studentDeadlinesFor(assignment, studentId, privateOverride);
+  // An attendance extension grants additional credit opportunity; it does not
+  // move the class pacing checkpoint that distinguishes on-time from late
+  // work. An individualized extra-time due date DOES — that is the
+  // accommodation — and it only ever exists later than the class due
+  // (functions/shared/supportDeadline.mjs, injected by withStudentSupportDates;
+  // never stored anywhere). The precedence is resolveStudentDeadlines'.
+  if (field === 'due') return toDate(deadlines.dueAtMs);
+  if (field === 'late') return toDate(deadlines.finalCloseAtMs);
   return null;
 };
 
-export const getAssignmentLifecycle = (assignment, nowValue = Date.now(), { studentId = null } = {}) => {
+export const getAssignmentLifecycle = (assignment, nowValue = Date.now(), { studentId = null, privateOverride = undefined } = {}) => {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
   const releaseAt = getAssignmentDate(assignment, 'release', studentId);
-  const dueAt = getAssignmentDate(assignment, 'due', studentId);
-  const lateDueAt = getAssignmentDate(assignment, 'late', studentId);
+  const dueAt = getAssignmentDate(assignment, 'due', studentId, { privateOverride });
+  const lateDueAt = getAssignmentDate(assignment, 'late', studentId, { privateOverride });
   let status = 'onTime';
   if (releaseAt && now < releaseAt) status = 'scheduled';
   else if (lateDueAt && now > lateDueAt) status = 'closed';
@@ -340,11 +327,11 @@ const SECTION_ACCESS_STATES = new Set(['open', 'closed']);
 // Practice Mode. At that point teacher section locks no longer hide content —
 // students may revisit everything, but none of it writes grades/evidence.
 export const getSectionAccessState = ({
-  assignment, activityRole, classId = null, classPeriod: _classPeriod, nowValue = Date.now(), studentId = null,
+  assignment, activityRole, classId = null, classPeriod: _classPeriod, nowValue = Date.now(), studentId = null, privateOverride = undefined,
 }) => {
   const role = String(activityRole || '').trim().toLowerCase();
   const exists = projectCurrentAssignmentContent(assignment).entries.some((entry) => entry.logicalRole === role);
-  const lifecycle = getAssignmentLifecycle(assignment, nowValue, { studentId });
+  const lifecycle = getAssignmentLifecycle(assignment, nowValue, { studentId, privateOverride });
 
   if (!MANUALLY_CONTROLLABLE_SECTION_ROLES.includes(role) || !exists) {
     return { role, enabled: false, status: 'unavailable', isOpen: true, defaultState: 'open', override: null, lifecycle };
@@ -705,11 +692,11 @@ export const normalizeAssignmentActivity = (activity) => ({
 });
 
 export const recordAssignmentActivity = ({
-  activity, assignment, seconds = 0, nowValue = Date.now(), studentId = null,
+  activity, assignment, seconds = 0, nowValue = Date.now(), studentId = null, privateOverride = undefined,
 }) => {
   const current = normalizeAssignmentActivity(activity);
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
-  const lifecycle = getAssignmentLifecycle(assignment, now, { studentId });
+  const lifecycle = getAssignmentLifecycle(assignment, now, { studentId, privateOverride });
   const delta = Math.max(0, Math.floor(Number(seconds) || 0));
   const next = {
     ...current,

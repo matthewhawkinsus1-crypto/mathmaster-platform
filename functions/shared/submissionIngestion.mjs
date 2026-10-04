@@ -523,6 +523,10 @@ export const buildIngestedAttempt = ({
   // from clients built before step work existed have drained, the platform
   // retires the legacy step path below. Off unless the setting says so.
   requireStepWork = false,
+  // The student's private override record (studentAssignmentOverrides.mjs),
+  // read by the caller inside the same transaction: their own DOL attempt
+  // grant. The envelope is never consulted for it.
+  privateOverride = undefined,
 } = {}) => {
   const envelope = withAuthoritativeActivityRole({ envelope: claimedEnvelope, question });
   const canonical = stripNonCanonicalInspectionFields(normalizeQuestionRecord(canonicalRecord));
@@ -535,6 +539,7 @@ export const buildIngestedAttempt = ({
     activityRole: envelope.activityRole,
     classId: gradeDocument?.classId || null,
     studentId: envelope?.studentId || null,
+    privateOverride,
   });
   // The question the student was shown: the stored question with the same
   // runtime repair QuestionEngine applies, and — for a question-family slot —

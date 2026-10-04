@@ -97,6 +97,10 @@ export const ADMIN_ONLY_OPERATIONS = Object.freeze([
   // Student privacy on shared assignments (shared/assignmentPrivacy.mjs).
   'migrateAssignmentPrivacy',
   'setAssignmentReadScope',
+  // A student's private assignment controls (studentAssignmentOverrides.mjs):
+  // the staged migration and the storage switch.
+  'migrateStudentAssignmentOverrides',
+  'setAssignmentOverrideStorage',
   'seedPathQuestionBank',
   'initializeStarterPathQuestionBank',
   'refreshBuiltInCoursePathBank',

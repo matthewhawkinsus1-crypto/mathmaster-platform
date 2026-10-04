@@ -21,6 +21,11 @@ name: Student and Teacher Journeys
 #                          resume, submit; malformed drafts; a second board;
 #                          throttled nightly) and, on QuestionEngine alone,
 #                          tests/browser/warmupReopenDraft.mjs
+#   family pin containment tests/browser/familyPinContainment.mjs
+#                          (a Question Family pin that will not replay is one
+#                          question's failure: never a substitute question,
+#                          never an app crash; student, teacher preview,
+#                          Recovery; throttled nightly)
 #   student UX platform    tests/browser/studentUxPlatform.mjs
 #   representations board  tests/browser/linearMultipleRepresentations.mjs
 #   process mode           tests/browser/lmrProcessMode.mjs
@@ -42,6 +47,7 @@ on:
       - "tests/browser/linearMultipleRepresentations*"
       - "tests/browser/lmrProcess*"
       - "tests/browser/warmupReopenDraft*"
+      - "tests/browser/familyPinContainment*"
       - "package.json"
       - "package-lock.json"
       - ".github/workflows/student-teacher-journeys.yml"
@@ -152,3 +158,15 @@ jobs:
         run: |
           node tests/browser/warmupReopenDraft.mjs
           node tests/browser/warmupReopenDraft.mjs --family
+      - name: Question Family pin containment (student, preview, Recovery)
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/familyPinContainment.mjs
+      - name: Question Family pin containment, throttled Chromebook (nightly and on demand)
+        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/familyPinContainment.mjs --slow

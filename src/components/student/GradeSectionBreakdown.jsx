@@ -48,18 +48,18 @@ export default function GradeSectionBreakdown({ sections = {}, hidden = false, c
           <li
             key={key}
             style={{
-              padding: '8px 10px', borderRadius: 10, background: excused ? '#f3e8fd' : '#f8f9fa',
-              border: excused ? '1px solid #d6b8f5' : '1px solid #e4e7ec', minWidth: 0,
+              padding: '8px 10px', borderRadius: 10, background: excused ? 'var(--mm-accent-soft)' : 'var(--mm-surface-sunken)',
+              border: excused ? '1px solid var(--mm-accent-border)' : '1px solid var(--mm-border-soft)', minWidth: 0,
             }}
           >
-            <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.04em', textTransform: 'uppercase', color: '#5f6368' }}>
+            <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>
               {SECTION_LABEL[key]}
             </div>
-            <div style={{ marginTop: 2, fontSize: excused || noEvidence || hidden ? 13 : 18, fontWeight: 900, color: excused ? '#6a1b9a' : noEvidence ? '#5f6368' : '#202124', overflowWrap: 'anywhere' }}>
+            <div style={{ marginTop: 2, fontSize: excused || noEvidence || hidden ? 13 : 18, fontWeight: 900, color: excused ? 'var(--mm-accent-text)' : noEvidence ? 'var(--mm-text-muted)' : 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>
               {hidden ? '••' : excused ? '✓ Excused (Practice Pass)' : noEvidence ? 'Not attempted' : `${split.score}%`}
             </div>
             {!hidden && !noEvidence && !excused && Number(split.unanswered) > 0 && (
-              <div style={{ marginTop: 2, fontSize: 11, color: '#5f6368' }}>
+              <div style={{ marginTop: 2, fontSize: 11, color: 'var(--mm-text-muted)' }}>
                 {split.attempted} of {split.total} answered
               </div>
             )}

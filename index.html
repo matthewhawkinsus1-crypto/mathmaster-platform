@@ -4,17 +4,49 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Native controls and scrollbars follow the active MathMaster theme
+         (theme/tokens.css sets color-scheme per [data-theme]). -->
+    <meta name="color-scheme" content="light dark" />
+    <!-- Browser/PWA chrome color; kept in step with the theme by
+         theme/mathMasterTheme.js (THEME_CHROME_COLOR). -->
+    <meta name="theme-color" content="#ffffff" />
+    <script>
+      // Resolve the theme BEFORE first paint so a dark-mode device never
+      // flashes the light boot screen. Same rule as resolveMathMasterTheme().
+      (() => {
+        try {
+          const root = document.documentElement;
+          const preference = root.dataset.themePreference || 'system';
+          const dark = preference === 'dark'
+            || (preference !== 'light' && Boolean(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches));
+          root.dataset.theme = dark ? 'dark' : 'light';
+          root.style.colorScheme = dark ? 'dark' : 'light';
+          const meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', dark ? '#111318' : '#ffffff');
+        } catch { /* theme/mathMasterTheme.js applies it once the app loads */ }
+      })();
+    </script>
+    <style>
+      /* Boot screen only — the app's styles have not loaded yet. */
+      html { background: #ffffff; }
+      html[data-theme='dark'] { background: #111318; }
+      .mm-boot { min-height: 100vh; display: grid; place-items: center; padding: 24px; box-sizing: border-box; font-family: system-ui, sans-serif; text-align: center; color: #174ea6; background: #f5f7fb; }
+      .mm-boot-detail { margin-top: 8px; color: #5f6368; font-size: 14px; }
+      .mm-boot-recovery { max-width: 620px; padding: 24px; border: 1px solid #f28b82; border-radius: 12px; background: #ffffff; color: #202124; }
+      .mm-boot-recovery h1 { margin: 0 0 10px; font-size: 24px; color: #b3261e; }
+      html[data-theme='dark'] .mm-boot { color: #a8c7fa; background: #111318; }
+      html[data-theme='dark'] .mm-boot-detail { color: #b4bdca; }
+      html[data-theme='dark'] .mm-boot-recovery { background: #1b1e25; color: #f3f5f9; border-color: #7a3330; }
+      html[data-theme='dark'] .mm-boot-recovery h1 { color: #ffb4ab; }
+    </style>
     <title>Vite + React</title>
   </head>
   <body>
     <div id="root">
-      <main
-        id="mathmaster-boot-fallback"
-        style="min-height:100vh;display:grid;place-items:center;padding:24px;box-sizing:border-box;font-family:system-ui,sans-serif;color:#174ea6;background:#f5f7fb;text-align:center"
-      >
+      <main id="mathmaster-boot-fallback" class="mm-boot">
         <section>
           <strong style="font-size:20px">Opening MathMaster…</strong>
-          <div style="margin-top:8px;color:#5f6368;font-size:14px">Loading the current platform build.</div>
+          <div class="mm-boot-detail">Loading the current platform build.</div>
         </section>
       </main>
     </div>
@@ -24,8 +56,8 @@
           const fallback = document.getElementById('mathmaster-boot-fallback');
           if (!fallback) return;
           fallback.innerHTML =
-            '<section style="max-width:620px;padding:24px;border:1px solid #f28b82;border-radius:12px;background:#fff;color:#202124">' +
-            '<h1 style="margin:0 0 10px;font-size:24px;color:#b3261e">MathMaster did not finish loading</h1>' +
+            '<section class="mm-boot-recovery">' +
+            '<h1>MathMaster did not finish loading</h1>' +
             '<p style="margin:0 0 12px;line-height:1.45">' + detail + '</p>' +
             '<button id="mathmaster-boot-reload" type="button" style="padding:10px 16px;border:0;border-radius:8px;background:#174ea6;color:#fff;font-weight:800;cursor:pointer">Reload current build</button>' +
             '</section>';

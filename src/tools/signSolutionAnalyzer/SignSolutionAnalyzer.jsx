@@ -80,21 +80,21 @@ function SignChart({ questionData, feedback, submit, mode, onAction }) {
       <Panel title="Critical points and intervals">
         <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:12}}>
           {analysis.criticalPoints.map((point) => (
-            <span key={point.value} style={{padding:'8px 10px',borderRadius:999,background:point.isExcluded?'#fce8e6':'#eef4ff',color:point.isExcluded?'#b42318':'#174ea6',fontWeight:800}}>
+            <span key={point.value} style={{padding:'8px 10px',borderRadius:999,background:point.isExcluded?'var(--mm-error-bg)':'var(--mm-primary-subtle)',color:point.isExcluded?'var(--mm-error-text)':'var(--mm-primary-text)',fontWeight:800}}>
               {point.value} · {point.isExcluded ? 'undefined here' : point.isZero ? 'expression = 0' : 'critical'}
             </span>
           ))}
         </div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:8}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(min(100%, 150px),1fr))',gap:8}}>
           {analysis.intervals.map((interval, index) => {
             const label = `(${Number.isFinite(interval.left)?interval.left:'−∞'}, ${Number.isFinite(interval.right)?interval.right:'∞'})`;
             const isSelected = selected.includes(index);
             return (
-              <button type="button" key={label} onClick={() => toggle(index)} aria-pressed={isSelected} style={{padding:14,borderRadius:10,border:isSelected?'2px solid #1a73e8':'1px solid #d9e2f1',background:isSelected?'#eef4ff':'#fff',cursor:'pointer',minHeight:44,textAlign:'left'}}>
+              <button type="button" key={label} onClick={() => toggle(index)} aria-pressed={isSelected} style={{padding:14,borderRadius:10,border:isSelected?'2px solid #1a73e8':'1px solid var(--mm-tint-border)',background:isSelected?'var(--mm-primary-subtle)':'var(--mm-surface)',cursor:'pointer',minHeight:44,textAlign:'left'}}>
                 <div style={{fontWeight:800}}>{label}</div>
                 {/* The tested sign of each interval is the work the student is
                     being asked to do, so it is a teacher-bench readout only. */}
-                <div style={{marginTop:6,fontSize:13,color:revealAnswers ? (interval.sign>0?'#137333':'#c5221f') : '#5f6b7a'}}>
+                <div style={{marginTop:6,fontSize:13,color:revealAnswers ? (interval.sign>0?'var(--mm-success-text)':'var(--mm-danger)') : 'var(--mm-text-muted)'}}>
                   {revealAnswers ? `test sign ${interval.sign>0?'+':'−'}` : isSelected ? 'selected' : 'tap to select'}
                 </div>
               </button>
@@ -104,7 +104,7 @@ function SignChart({ questionData, feedback, submit, mode, onAction }) {
       </Panel>
 
       <Panel title="Your solution set">
-        <div style={{padding:14,border:'1px solid #d9e2f1',borderRadius:10,background:'#fff',fontSize:18,fontWeight:800,minHeight:52}}>
+        <div style={{padding:14,border:'1px solid var(--mm-tint-border)',borderRadius:10,background:'var(--mm-surface)',fontSize:18,fontWeight:800,minHeight:52}}>
           {selected.length
             ? selected.slice().sort((a, b) => a - b).map((index) => {
                 const interval = analysis.intervals[index];
@@ -113,12 +113,12 @@ function SignChart({ questionData, feedback, submit, mode, onAction }) {
             : 'Select intervals to build your answer.'}
         </div>
         {revealAnswers ? (
-          <p style={{fontSize:12,color:'#667085',marginTop:8}}>
+          <p style={{fontSize:12,color:'var(--mm-text-muted)',marginTop:8}}>
             Teacher preview — correct solution: {expectedPieces.length ? expectedPieces.map(formatSolutionPiece).join(' ∪ ') : '∅'}
           </p>
         ) : null}
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check selected intervals</button>
-        {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'#3c4756',lineHeight:1.55}}>{message()}</p></div> : null}
+        {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'var(--mm-text)',lineHeight:1.55}}>{message()}</p></div> : null}
         <HintPanel
           hints={[
             'The critical points split the number line into intervals. Inside one interval the expression cannot change sign.',
@@ -176,9 +176,9 @@ function RadicalCheck({ questionData, feedback, submit, onAction }) {
           const result = evaluateRadicalEquationCandidate(spec, candidate);
           const isSelected = selected.includes(candidate);
           return (
-            <button type="button" key={candidate} onClick={() => toggle(candidate)} aria-pressed={isSelected} style={{display:'block',width:'100%',padding:13,margin:'8px 0',borderRadius:10,border:isSelected?'2px solid #1a73e8':'1px solid #d9e2f1',background:isSelected?'#eef4ff':'#fff',textAlign:'left',cursor:'pointer',minHeight:44}}>
+            <button type="button" key={candidate} onClick={() => toggle(candidate)} aria-pressed={isSelected} style={{display:'block',width:'100%',padding:13,margin:'8px 0',borderRadius:10,border:isSelected?'2px solid #1a73e8':'1px solid var(--mm-tint-border)',background:isSelected?'var(--mm-primary-subtle)':'var(--mm-surface)',textAlign:'left',cursor:'pointer',minHeight:44}}>
               <strong>x = {candidate}</strong>
-              <span style={{float:'right',color:'#667085',fontSize:13}}>
+              <span style={{float:'right',color:'var(--mm-text-muted)',fontSize:13}}>
                 {revealAnswers
                   ? (result?.valid ? 'genuine solution' : result?.reason === 'outsideDomain' ? 'outside the domain' : 'extraneous')
                   : isSelected ? 'kept as a solution' : 'substitute to verify'}
@@ -194,7 +194,7 @@ function RadicalCheck({ questionData, feedback, submit, onAction }) {
           <li>Reject any value that squaring introduced.</li>
         </ol>
         <button data-mm-enter-action="submit" type="button" onClick={check} style={actionStyle}>Check candidates</button>
-        {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'#3c4756',lineHeight:1.55}}>{message()}</p></div> : null}
+        {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'var(--mm-text)',lineHeight:1.55}}>{message()}</p></div> : null}
         <HintPanel
           hints={[
             'Squaring both sides of an equation can create solutions the original never had. That is why every candidate must be checked.',

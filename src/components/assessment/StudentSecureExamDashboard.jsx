@@ -54,13 +54,13 @@ export const StudentSecureExamDashboard = ({ studentProfile, onExit, onOpenCours
   );
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f0f2f5', padding: '32px 18px', boxSizing: 'border-box' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--mm-surface-control)', padding: '32px 18px', boxSizing: 'border-box' }}>
       <main style={{ maxWidth: 820, margin: '0 auto' }}>
         <header style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div><h1 style={{ marginBottom: 4 }}>Tests &amp; Exams</h1><p style={{ color: '#5f6368', marginTop: 0 }}>Your secure course tests and your college &amp; career simulations</p></div>
+          <div><h1 style={{ marginBottom: 4 }}>Tests &amp; Exams</h1><p style={{ color: 'var(--mm-text-muted)', marginTop: 0 }}>Your secure course tests and your college &amp; career simulations</p></div>
           <button type="button" onClick={onExit}>Back to dashboard</button>
         </header>
-        {error && <p role="alert" style={{ color: '#b3261e' }}>{error}</p>}
+        {error && <p role="alert" style={{ color: 'var(--mm-error-text)' }}>{error}</p>}
         {loading ? <p>Loading…</p> : (
           <div style={{ display: 'grid', gap: 26 }}>
             {[
@@ -70,18 +70,18 @@ export const StudentSecureExamDashboard = ({ studentProfile, onExit, onOpenCours
               <section key={group.id} aria-labelledby={`exam-group-${group.id}`} style={{ display: 'grid', gap: 12 }}>
                 <div>
                   <h2 id={`exam-group-${group.id}`} style={{ margin: 0, fontSize: 18 }}>{group.title}</h2>
-                  <p style={{ margin: '3px 0 0', color: '#5f6368', fontSize: 13 }}>{group.hint}</p>
+                  <p style={{ margin: '3px 0 0', color: 'var(--mm-text-muted)', fontSize: 13 }}>{group.hint}</p>
                 </div>
-                {!group.rows.length && <div style={{ padding: 18, background: 'var(--mm-surface)', borderRadius: 12, color: '#5f6368' }}>Nothing here yet.</div>}
+                {!group.rows.length && <div style={{ padding: 18, background: 'var(--mm-surface)', borderRadius: 12, color: 'var(--mm-text-muted)' }}>Nothing here yet.</div>}
                 {group.rows.map((session) => {
                   const done = terminalStatuses.has(session.status);
               const canReview = done && session.feedbackReleased === true;
               return (
-                <article key={session.examSessionId} style={{ background: 'var(--mm-surface)', border: '1px solid #dadce0', borderRadius: 12, padding: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 15, flexWrap: 'wrap' }}>
+                <article key={session.examSessionId} style={{ background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: 12, padding: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 15, flexWrap: 'wrap' }}>
                   <div>
                     <strong style={{ fontSize: 18 }}>{session.title}</strong>
-                    <div style={{ marginTop: 5, color: '#5f6368', fontSize: 13 }}>{session.requiredQuestions} questions · {session.timeLimitSeconds == null ? 'Untimed' : `${Math.round(session.timeLimitSeconds / 60)} minutes`} · Status: {session.status}</div>
-                    {done && !session.feedbackReleased && <div style={{ marginTop: 5, color: '#7a4f00', fontSize: 12 }}>Your teacher has not released correctness feedback yet.</div>}
+                    <div style={{ marginTop: 5, color: 'var(--mm-text-muted)', fontSize: 13 }}>{session.requiredQuestions} questions · {session.timeLimitSeconds == null ? 'Untimed' : `${Math.round(session.timeLimitSeconds / 60)} minutes`} · Status: {session.status}</div>
+                    {done && !session.feedbackReleased && <div style={{ marginTop: 5, color: 'var(--mm-warning-text)', fontSize: 12 }}>Your teacher has not released correctness feedback yet.</div>}
                   </div>
                   {/*
                     A COURSE TEST IS NEVER STARTED FROM THIS LIST.

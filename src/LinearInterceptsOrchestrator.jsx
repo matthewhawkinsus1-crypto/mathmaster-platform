@@ -285,7 +285,7 @@ export default function LinearInterceptsOrchestrator({
   // its call conditional on the question's coefficients.
   if (!standardUsable) {
     return (
-      <p style={{ color: '#a50e0e' }}>
+      <p style={{ color: 'var(--mm-error-text)' }}>
         This intercept question requires a two-variable linear equation with nonzero x- and y-coefficients.
       </p>
     );
@@ -370,12 +370,12 @@ export default function LinearInterceptsOrchestrator({
     : activeRedirect || message;
 
   const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
-  const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: '#174ea6', border: '1px solid #9bb8e8' };
+  const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)' };
 
   const content = bothInterceptsFound ? (revealCorrectness ? (
     // The stage below would still read "now write the y-intercept" over a
     // Check button, while the only thing left to do is submit.
-    <div role="status" style={{ padding: 14, borderRadius: 10, background: '#e6f4ea', color: '#137333', lineHeight: 1.5 }}>
+    <div role="status" style={{ padding: 14, borderRadius: 10, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', lineHeight: 1.5 }}>
       <strong>Both intercepts found.</strong>
       <div style={{ marginTop: 4 }}>x-intercept {work.x.point} · y-intercept {work.y.point}</div>
       {!disabled ? <div style={{ marginTop: 4, fontWeight: 800 }}>Submit your answer to finish this question.</div> : null}
@@ -383,7 +383,7 @@ export default function LinearInterceptsOrchestrator({
   ) : (
     // A DOL, quiz or test: the same neutral summary for right and wrong
     // points, and either one can still be changed before Submit.
-    <div role="status" data-intercepts-recorded="true" style={{ padding: 14, borderRadius: 10, background: '#e8f0fe', color: '#174ea6', lineHeight: 1.5 }}>
+    <div role="status" data-intercepts-recorded="true" style={{ padding: 14, borderRadius: 10, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', lineHeight: 1.5 }}>
       <strong>Both intercepts recorded.</strong>
       <div style={{ marginTop: 4 }}>x-intercept {work.x.point} · y-intercept {work.y.point}</div>
       {!disabled ? (
@@ -413,7 +413,7 @@ export default function LinearInterceptsOrchestrator({
             style={{
               ...secondaryButton,
               border: stage.conceptualZeroChoice === variable ? '2px solid #174ea6' : secondaryButton.border,
-              background: stage.conceptualZeroChoice === variable ? '#e8f0fe' : '#fff',
+              background: stage.conceptualZeroChoice === variable ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
             }}
           >
             {variable} = 0
@@ -435,14 +435,14 @@ export default function LinearInterceptsOrchestrator({
           aria-label="Pick up zero for substitution"
           style={{
             width: 52, height: 52, borderRadius: 14,
-            border: zeroArmed ? '3px solid #174ea6' : '2px solid #9bb8e8',
-            background: zeroArmed ? '#e8f0fe' : '#fff', color: '#174ea6',
+            border: zeroArmed ? '3px solid #174ea6' : '2px solid var(--mm-primary-border)',
+            background: zeroArmed ? 'var(--mm-primary-soft)' : 'var(--mm-surface)', color: 'var(--mm-primary-text)',
             fontSize: 26, fontWeight: 950, cursor: 'grab',
           }}
         >
           0
         </button>
-        <span style={{ color: '#5f6b7a', lineHeight: 1.45, flex: '1 1 220px' }}>
+        <span style={{ color: 'var(--mm-text-muted)', lineHeight: 1.45, flex: '1 1 220px' }}>
           Drag the 0 onto x or y. On a touch screen or keyboard, tap/select the 0, then tap/select the variable.
         </span>
       </div>
@@ -456,13 +456,13 @@ export default function LinearInterceptsOrchestrator({
       />
 
       {stage.placedZeroVariable && (
-        <div style={{ marginTop: 10, padding: 10, borderRadius: 9, background: '#f7faff', color: '#3c4756' }}>
+        <div style={{ marginTop: 10, padding: 10, borderRadius: 9, background: 'var(--mm-surface-tint)', color: 'var(--mm-text)' }}>
           Your substitution: <strong>{formatSubstitutionEquation(standard, stage.placedZeroVariable)}</strong>
         </div>
       )}
 
       {statusMessage && (
-        <div role="status" aria-live="polite" style={{ marginTop: 10, padding: 10, borderRadius: 9, background: mismatch ? '#fff4e5' : '#f7faff', color: mismatch ? '#7a4b00' : '#3c4756', lineHeight: 1.5 }}>
+        <div role="status" aria-live="polite" style={{ marginTop: 10, padding: 10, borderRadius: 9, background: mismatch ? 'var(--mm-warning-bg)' : 'var(--mm-surface-tint)', color: mismatch ? 'var(--mm-warning-text)' : 'var(--mm-text)', lineHeight: 1.5 }}>
           {statusMessage}
         </div>
       )}
@@ -478,7 +478,7 @@ export default function LinearInterceptsOrchestrator({
     </div>
   ) : (
     <div>
-      <div style={{ padding: 11, borderRadius: 9, background: '#f7faff', color: '#3c4756', marginBottom: 10 }}>
+      <div style={{ padding: 11, borderRadius: 9, background: 'var(--mm-surface-tint)', color: 'var(--mm-text)', marginBottom: 10 }}>
         <strong>Substitution:</strong> {formatSubstitutionEquation(standard, stage.placedZeroVariable)}
       </div>
 
@@ -500,7 +500,7 @@ export default function LinearInterceptsOrchestrator({
         />
       ) : (
         <>
-          <div style={{ marginTop: 4, padding: 12, borderRadius: 10, background: '#e6f4ea', color: '#137333', fontWeight: 800 }}>
+          <div style={{ marginTop: 4, padding: 12, borderRadius: 10, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontWeight: 800 }}>
             <MathDisplay value={stage.solvedEquationLatex} format="latex" /> — now write the {stageLabel(kind)} as an ordered pair.
           </div>
           <div style={{ marginTop: 14 }}>
@@ -516,7 +516,7 @@ export default function LinearInterceptsOrchestrator({
             />
           </div>
           {statusMessage && (
-            <div role="status" aria-live="polite" style={{ marginTop: 10, padding: 10, borderRadius: 9, background: '#fff4e5', color: '#7a4b00', lineHeight: 1.5 }}>
+            <div role="status" aria-live="polite" style={{ marginTop: 10, padding: 10, borderRadius: 9, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', lineHeight: 1.5 }}>
               {statusMessage}
             </div>
           )}
@@ -550,10 +550,10 @@ export default function LinearInterceptsOrchestrator({
           // A green ✓ only where it means "right" (practice); on a DOL, quiz or
           // test a finished intercept is marked recorded, in a neutral colour.
           const doneLook = revealCorrectness
-            ? { background: '#e6f4ea', color: '#137333', mark: '✓', suffix: '' }
-            : { background: '#e8f0fe', color: '#174ea6', mark: '•', suffix: ' recorded' };
+            ? { background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', mark: '✓', suffix: '' }
+            : { background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)', mark: '•', suffix: ' recorded' };
           return (
-            <span key={chipKind} data-intercept-chip={chipKind} style={{ padding: '6px 10px', borderRadius: 999, background: done ? doneLook.background : kind === chipKind ? '#e8f0fe' : '#f1f3f4', color: done ? doneLook.color : '#3c4756', fontWeight: 850 }}>
+            <span key={chipKind} data-intercept-chip={chipKind} style={{ padding: '6px 10px', borderRadius: 999, background: done ? doneLook.background : kind === chipKind ? 'var(--mm-primary-soft)' : 'var(--mm-surface-control)', color: done ? doneLook.color : 'var(--mm-text)', fontWeight: 850 }}>
               {done ? doneLook.mark : kind === chipKind ? '→' : '○'} {chipKind}-intercept{done ? doneLook.suffix : ''}
             </span>
           );

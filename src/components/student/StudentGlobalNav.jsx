@@ -48,6 +48,18 @@ const TONE = Object.freeze({
   [STUDENT_DESTINATION.SECURE_EXAMS]: '#3c4043',
 });
 
+// The CURRENT destination is drawn as text on the surface, so it needs the
+// themed text color of the same hue — the saturated TONE above (a fill behind
+// white text) is too dark to read on a dark surface.
+const ACTIVE_TEXT = Object.freeze({
+  [STUDENT_DESTINATION.HOME]: 'var(--mm-primary-text)',
+  [STUDENT_DESTINATION.ASSIGNMENTS]: 'var(--mm-primary)',
+  [STUDENT_DESTINATION.GRADES]: 'var(--mm-success-text)',
+  [STUDENT_DESTINATION.REWARDS]: 'var(--mm-accent-text)',
+  [STUDENT_DESTINATION.MATH_PATH]: 'var(--mm-accent-text)',
+  [STUDENT_DESTINATION.SECURE_EXAMS]: 'var(--mm-text)',
+});
+
 export default function StudentGlobalNav({
   current = null,
   onNavigate = null,
@@ -86,8 +98,8 @@ export default function StudentGlobalNav({
               padding: dense ? '9px 12px' : '10px 15px',
               borderRadius: 9,
               border: active ? `2px solid ${tone}` : '2px solid transparent',
-              background: active ? '#fff' : tone,
-              color: active ? tone : '#fff',
+              background: active ? 'var(--mm-surface)' : tone,
+              color: active ? ACTIVE_TEXT[destination] : '#fff',
               fontWeight: 900, fontSize: dense ? 13 : 14,
               cursor: active ? 'default' : 'pointer',
               overflowWrap: 'anywhere',
@@ -104,8 +116,8 @@ export default function StudentGlobalNav({
           style={{
             appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
             minHeight: MIN_TOUCH_TARGET_PX, padding: dense ? '9px 12px' : '10px 15px',
-            borderRadius: 9, border: '2px solid #dadce0', background: '#f1f3f4',
-            color: '#5f6368', fontWeight: 800, fontSize: dense ? 13 : 14, cursor: 'pointer',
+            borderRadius: 9, border: '2px solid var(--mm-border)', background: 'var(--mm-surface-control)',
+            color: 'var(--mm-text-muted)', fontWeight: 800, fontSize: dense ? 13 : 14, cursor: 'pointer',
           }}
         >
           Log Out

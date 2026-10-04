@@ -22,12 +22,12 @@ import StudentNameLink from '../common/StudentNameLink.jsx';
  */
 
 const STATE_TONE = {
-  [CCMR_STATE.TRANSFERS]: { bg: '#eefaf1', fg: '#12633a', border: '#c3e8d1' },
-  [CCMR_STATE.COURSE_ONLY]: { bg: '#fdf6e3', fg: '#854d0e', border: '#f0e0b4' },
-  [CCMR_STATE.TRANSFER_AHEAD]: { bg: '#eef3fb', fg: '#174ea6', border: '#c9daf8' },
-  [CCMR_STATE.BOTH_LOW]: { bg: '#fdf1ec', fg: '#9a3412', border: '#f6d4c4' },
-  [CCMR_STATE.PROVISIONAL]: { bg: '#f8f9fa', fg: '#5f6368', border: '#e8eaed' },
-  [CCMR_STATE.NO_EVIDENCE]: { bg: '#f8f9fa', fg: '#80868b', border: '#e8eaed' },
+  [CCMR_STATE.TRANSFERS]: { bg: 'var(--mm-success-subtle)', fg: 'var(--mm-success-text)', border: 'var(--mm-success-border)' },
+  [CCMR_STATE.COURSE_ONLY]: { bg: 'var(--mm-warning-bg)', fg: 'var(--mm-warning-text)', border: 'var(--mm-warning-border-soft)' },
+  [CCMR_STATE.TRANSFER_AHEAD]: { bg: 'var(--mm-primary-subtle)', fg: 'var(--mm-primary-text)', border: 'var(--mm-tint-border)' },
+  [CCMR_STATE.BOTH_LOW]: { bg: 'var(--mm-warning-subtle)', fg: 'var(--mm-warning-text)', border: 'var(--mm-warning-border-soft)' },
+  [CCMR_STATE.PROVISIONAL]: { bg: 'var(--mm-surface-sunken)', fg: 'var(--mm-text-muted)', border: 'var(--mm-border-soft)' },
+  [CCMR_STATE.NO_EVIDENCE]: { bg: 'var(--mm-surface-sunken)', fg: 'var(--mm-text-subtle)', border: 'var(--mm-border-soft)' },
 };
 
 const FRAMEWORKS = [
@@ -57,18 +57,18 @@ export default function CcmrDashboard({
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 6 }}>
         <div>
           <h3 style={{ margin: 0 }}>Course knowledge and transfer</h3>
-          <p style={{ margin: '5px 0 0', color: '#5f6368', fontSize: 13.5, maxWidth: '68ch', lineHeight: 1.5 }}>
+          <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 13.5, maxWidth: '68ch', lineHeight: 1.5 }}>
             The left number is what a student can do when the question is asked the way this course asks it.
             The right is what they can do when the same mathematics turns up in exam phrasing. They are shown
             apart because the students where they disagree are the ones a single readiness score would hide.
           </p>
         </div>
-        <label style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 800, color: '#5f6368' }}>
+        <label style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 800, color: 'var(--mm-text-muted)' }}>
           Exam context
           <select
             value={framework}
             onChange={(event) => setFramework(event.target.value)}
-            style={{ display: 'block', marginTop: 5, padding: '8px 10px', border: '1px solid #c7cdd6', borderRadius: 8, minWidth: 180 }}
+            style={{ display: 'block', marginTop: 5, padding: '8px 10px', border: '1px solid var(--mm-border)', borderRadius: 8, minWidth: 180 }}
           >
             {FRAMEWORKS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select>
@@ -82,7 +82,7 @@ export default function CcmrDashboard({
             return (
               <div key={finding.state} style={{ padding: '12px 14px', borderRadius: 9, background: tone.bg, border: `1px solid ${tone.border}`, borderLeft: `3px solid ${tone.fg}` }}>
                 <div style={{ fontWeight: 800, fontSize: 14 }}>{finding.headline}</div>
-                <p style={{ margin: '4px 0 8px', color: '#4d5b58', fontSize: 13, lineHeight: 1.5, maxWidth: '70ch' }}>{finding.detail}</p>
+                <p style={{ margin: '4px 0 8px', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5, maxWidth: '70ch' }}>{finding.detail}</p>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {finding.students.map((row) => (
                     <StudentNameLink
@@ -91,7 +91,7 @@ export default function CcmrDashboard({
                       studentName={row.studentName}
                       profile={profilesByStudentId[row.studentId]}
                       onOpen={onOpenStudent}
-                      style={{ fontSize: 12.5, padding: '4px 8px', border: '1px solid #dadce0', borderRadius: 7, background: 'var(--mm-surface)' }}
+                      style={{ fontSize: 12.5, padding: '4px 8px', border: '1px solid var(--mm-border)', borderRadius: 7, background: 'var(--mm-surface)' }}
                     />
                   ))}
                 </div>
@@ -101,10 +101,10 @@ export default function CcmrDashboard({
         </div>
       )}
 
-      <div style={{ overflowX: 'auto', border: '1px solid #d8dde6', borderRadius: 10 }}>
+      <div style={{ overflowX: 'auto', border: '1px solid var(--mm-border)', borderRadius: 10 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
-            <tr style={{ background: '#f8f9fa', textAlign: 'left' }}>
+            <tr style={{ background: 'var(--mm-surface-sunken)', textAlign: 'left' }}>
               <th style={{ padding: 11 }}>Student</th>
               <th style={{ padding: 11 }}>Enrolled</th>
               <th style={{ padding: 11, textAlign: 'right' }}>Course mastery</th>
@@ -117,7 +117,7 @@ export default function CcmrDashboard({
             {view.rows.map((row) => {
               const tone = STATE_TONE[row.state];
               return (
-                <tr key={row.studentId} style={{ borderTop: '1px solid #eef0f2' }}>
+                <tr key={row.studentId} style={{ borderTop: '1px solid var(--mm-border-soft)' }}>
                   <td style={{ padding: 11 }}>
                     <StudentNameLink
                       studentId={row.studentId}
@@ -130,7 +130,7 @@ export default function CcmrDashboard({
                     Shown so a counsellor can see the roster they are looking at.
                     It is never an input to anything above.
                   */}
-                  <td style={{ padding: 11, color: '#5f6368' }}>
+                  <td style={{ padding: 11, color: 'var(--mm-text-muted)' }}>
                     {row.courseLevel === 'honors' ? 'Honors' : 'Standard'}
                   </td>
                   <td style={{ padding: 11, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>
@@ -139,7 +139,7 @@ export default function CcmrDashboard({
                   <td style={{ padding: 11, textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>
                     {pctOrDash(row.transfer)}
                   </td>
-                  <td style={{ padding: 11, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#5f6368' }}>
+                  <td style={{ padding: 11, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: 'var(--mm-text-muted)' }}>
                     {row.transferAttempts || '—'}
                   </td>
                   <td style={{ padding: 11 }}>
@@ -155,7 +155,7 @@ export default function CcmrDashboard({
       </div>
 
       {!view.rows.length && (
-        <p style={{ color: '#5f6368', marginTop: 14 }}>No students in this class yet.</p>
+        <p style={{ color: 'var(--mm-text-muted)', marginTop: 14 }}>No students in this class yet.</p>
       )}
     </section>
   );

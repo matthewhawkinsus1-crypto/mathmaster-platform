@@ -236,6 +236,66 @@ const secureAssignmentMode = (assignment = {}) => (
   String(assignment?.assessmentPolicy?.mode || "") === "testCycle"
 );
 
+/*
+ * ONE STUDENT'S PRIVATE CONTROLS ON ONE ASSIGNMENT.
+ *
+ * Their individual final cutoff, excusal, reopen and DOL attempt grant live in
+ * `studentAssignmentOverrides/{len:sid:aid}` (shared/studentAssignmentOverrides.mjs),
+ * not on the shared assignment every classmate receives. Every server path
+ * that decides a student's deadline or attempt budget reads it HERE, by the
+ * id derived from the authenticated student and the assignment it already
+ * holds — inside the same transaction as the assignment where there is one —
+ * and passes it to the shared resolvers. Nothing a browser sends can stand in
+ * for it.
+ */
+let studentOverridesModule = null;
+async function studentOverrides() {
+  if (!studentOverridesModule) studentOverridesModule = await import("./shared/studentAssignmentOverrides.mjs");
+  return studentOverridesModule;
+}
+
+/** The record's reference, or null when either id is missing (nothing to read). */
+async function studentOverrideRef(db, studentId, assignmentId) {
+  const overrides = await studentOverrides();
+  const id = overrides.studentAssignmentOverrideId(studentId, assignmentId);
+  return id ? db.collection(overrides.STUDENT_ASSIGNMENT_OVERRIDES_COLLECTION).doc(id) : null;
+}
+
+/** The stored record, or null: `null` tells the resolvers private storage WAS read. */
+const privateOverrideFrom = (snapshot) => (snapshot?.exists ? snapshot.data() || null : null);
+
+/** The storage switch (platformFlags/assignmentOverrideStorage), read fresh each time. */
+async function overrideStorageMode(db, transaction = null) {
+  const overrides = await studentOverrides();
+  const ref = db.collection("platformFlags").doc(overrides.OVERRIDE_STORAGE_FLAG);
+  const snapshot = transaction ? await transaction.get(ref) : await ref.get();
+  return overrides.resolveOverrideStorageMode(snapshot.exists ? snapshot.data() : null);
+}
+
+/**
+ * Apply the shared-copy writes a planner returned ({op, path, value}) as ONE
+ * dotted-path update on the assignment — never a whole-document rewrite, so a
+ * concurrent teacher edit to anything else on it is untouched.
+ */
+function applySharedCopyWrites(transaction, assignmentRef, writes = []) {
+  if (!writes.length) return 0;
+  const fieldsAndValues = [];
+  writes.forEach(({ op, path, value }) => {
+    const fieldPath = new FieldPath(...path);
+    if (op === "delete") fieldsAndValues.push(fieldPath, FieldValue.delete());
+    else if (op === "arrayRemove") fieldsAndValues.push(fieldPath, FieldValue.arrayRemove(value));
+    else fieldsAndValues.push(fieldPath, value);
+  });
+  transaction.update(assignmentRef, ...fieldsAndValues);
+  return writes.length;
+}
+
+/** Where a student's override history lives: grades/{sid}/assignmentOverrideEvents/{eventId}. */
+async function studentOverrideEventRef(db, studentId, eventId) {
+  const overrides = await studentOverrides();
+  return db.collection("grades").doc(String(studentId)).collection(overrides.ASSIGNMENT_OVERRIDE_EVENTS_COLLECTION).doc(String(eventId));
+}
+
 /**
  * The class period is schedule metadata, and the Warm-Up/DOL windows are
  * defined against it. Read it from the authoritative class record, falling
@@ -315,10 +375,15 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
     const checkpoint = { ...checkpointSnapshot.data(), documentId: checkpointSnapshot.id };
     const gradeRef = db.collection("grades").doc(String(checkpoint.studentId || studentId));
     const assignmentRef = db.collection("assignments").doc(String(checkpoint.assignmentId || "missing"));
-    const [assignmentSnapshot, gradeSnapshot] = await Promise.all([
+    // The student's own deadline and DOL attempt grant: read with the
+    // server's authority, keyed by the checkpoint's (rules-pinned) owner.
+    const overrideRef = await studentOverrideRef(db, String(checkpoint.studentId || studentId), checkpoint.assignmentId);
+    const [assignmentSnapshot, gradeSnapshot, overrideSnapshot] = await Promise.all([
       transaction.get(assignmentRef),
       transaction.get(gradeRef),
+      overrideRef ? transaction.get(overrideRef) : Promise.resolve(null),
     ]);
+    const privateOverride = privateOverrideFrom(overrideSnapshot);
 
     const retire = (status, reason, extra = {}) => {
       transaction.update(ref, {
@@ -353,6 +418,7 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
       schedule,
       classPeriod,
       isSecureAssignment: secureAssignmentMode(assignment),
+      privateOverride,
       now,
     });
 
@@ -404,6 +470,7 @@ async function finalizeOneResponseCheckpoint({ db, ref, schedule, classPeriodCac
     const finalization = buildCheckpointFinalization({
       checkpoint, assignment, question, decision,
       gradeDocument: gradeData, classworkIndices, dolIndices,
+      privateOverride,
       // `now` is the scheduler's clock, not the academic time. The academic
       // time is derived from the server-trusted acknowledgement and the
       // authoritative close, so a Friday deadline finalized on Monday is still
@@ -697,14 +764,19 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
   const checkpointRef = envelope.checkpointDocumentId
     ? db.collection(CHECKPOINT_COLLECTION).doc(envelope.checkpointDocumentId)
     : null;
+  // The AUTHENTICATED student's own controls on this assignment — the id comes
+  // from the caller's token (`studentId`), never from the envelope.
+  const overrideRef = await studentOverrideRef(db, studentId, envelope.assignmentId);
 
   return db.runTransaction(async (transaction) => {
-    const [assignmentSnapshot, gradeSnapshot, receiptSnapshot, checkpointSnapshot] = await Promise.all([
+    const [assignmentSnapshot, gradeSnapshot, receiptSnapshot, checkpointSnapshot, overrideSnapshot] = await Promise.all([
       transaction.get(assignmentRef),
       transaction.get(gradeRef),
       transaction.get(receiptRef),
       checkpointRef ? transaction.get(checkpointRef) : Promise.resolve(null),
+      overrideRef ? transaction.get(overrideRef) : Promise.resolve(null),
     ]);
+    const privateOverride = privateOverrideFrom(overrideSnapshot);
 
     /*
      * A receipt already written for this action id is the whole idempotency
@@ -752,14 +824,15 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
       ?? gradeData?.gradesByAssignment?.[envelope.assignmentId]?.[envelope.questionIndex]
       ?? null;
 
-    // A per-student attendance extension (assignment.studentOverrides
-    // [studentId].lateDueAt) is the same authoritative final cutoff the
-    // client and the checkpoint finalizer both read — ingestion must not be
-    // the one path that ignores it.
+    // A per-student extension (the student's private override, read above
+    // with the server's authority and merged with any copy still on the
+    // shared document) is the same authoritative final cutoff the client and
+    // the checkpoint finalizer both read — ingestion must not be the one path
+    // that ignores it. Nothing in the envelope can name a later one.
     // The individualized extra-time deadline is derived from the student's
     // pinned profile (functions/shared/supportDeadline.mjs) — same answer the
     // student's dashboard and the checkpoint finalizer give.
-    const finalCloseAtMs = assignment ? assignmentFinalCloseAt(assignment, null, studentId, gradeData?.profile || null) : null;
+    const finalCloseAtMs = assignment ? assignmentFinalCloseAt(assignment, null, studentId, gradeData?.profile || null, { privateOverride }) : null;
     const decision = ingestion.decideSubmissionIngestion({
       envelope,
       assignmentExists: assignmentSnapshot.exists,
@@ -915,6 +988,7 @@ async function ingestOneSubmission({ db, studentId, envelope, now, serverGrading
       dolIndices,
       modelingLabMarker,
       requireStepWork: serverGradingSettings.requireStepWork === true,
+      privateOverride,
       // `now` is when the SERVER heard about this, which is the receipt's
       // business. The academic time is resolved from the capture, bounded by
       // the assignment's release and by this moment.
@@ -1232,6 +1306,7 @@ exports.advanceSectionRecovery = onCall(async (request) => {
   const db = getFirestore();
   const gradeRef = db.collection("grades").doc(studentId);
   const assignmentRef = db.collection("assignments").doc(assignmentId);
+  const overrideRef = await studentOverrideRef(db, studentId, assignmentId);
 
   // Reads that do not need to be transactional: the schedule, the class
   // period and, when the decision needs it, that day's attendance.
@@ -1265,9 +1340,10 @@ exports.advanceSectionRecovery = onCall(async (request) => {
 
   try {
     return await db.runTransaction(async (transaction) => {
-      const [assignmentSnapshot, gradeSnapshot] = await Promise.all([
+      const [assignmentSnapshot, gradeSnapshot, overrideSnapshot] = await Promise.all([
         transaction.get(assignmentRef),
         transaction.get(gradeRef),
+        overrideRef ? transaction.get(overrideRef) : Promise.resolve(null),
       ]);
       if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment is no longer available.");
       if (!gradeSnapshot.exists) throw new HttpsError("failed-precondition", "Your class record is not ready yet.");
@@ -1303,6 +1379,9 @@ exports.advanceSectionRecovery = onCall(async (request) => {
         supportEvents,
         challengeCredit: gradeData.warmupChallengeByAssignment?.[assignmentId] || null,
         studentProfile: gradeData.profile || null,
+        // The Recovery end date is the student's own final cutoff, their
+        // private extension included — read above, never from the request.
+        privateOverride: privateOverrideFrom(overrideSnapshot),
         sectionModeFor: (role) => serverSectionVariantMode(assignment, role),
         nowValue: Date.now(),
       });
@@ -2735,18 +2814,23 @@ exports.applyStudentAttendanceExtension = onCall(async (request) => {
   }
 
   const privacy = await import("./shared/assignmentPrivacy.mjs");
+  const overrides = await studentOverrides();
   const { zonedDateKey } = await import("./shared/instructionalCalendar.mjs");
   const { SCHOOL_TIME_ZONE } = await import("./shared/sectionDeadline.mjs");
+  const overrideRef = await studentOverrideRef(db, studentId, assignmentId);
 
   return db.runTransaction(async (transaction) => {
-    const [gradeSnap, classSnap, assignmentSnap] = await Promise.all([
+    const [gradeSnap, classSnap, assignmentSnap, overrideSnap, storageMode] = await Promise.all([
       transaction.get(gradeRef),
       transaction.get(classRef),
       transaction.get(assignmentRef),
+      transaction.get(overrideRef),
+      overrideStorageMode(db, transaction),
     ]);
     const studentRecord = gradeSnap.exists ? gradeSnap.data() : null;
     const classRecord = classSnap.exists ? { classId: classSnap.id, ...classSnap.data() } : null;
     const assignment = assignmentSnap.exists ? { id: assignmentSnap.id, ...assignmentSnap.data() } : null;
+    const existingPrivate = privateOverrideFrom(overrideSnap);
 
     const { authorizeAttendanceExtensionActor, validateProposedFinalCutoff } =
       await import("./shared/attendanceExtensionAuthorization.mjs");
@@ -2758,7 +2842,10 @@ exports.applyStudentAttendanceExtension = onCall(async (request) => {
     // Read fresh, inside this transaction — never trust a snapshot the
     // caller's browser might have held onto while another change landed.
     const { assignmentFinalCloseAt } = await import("./shared/sectionDeadline.mjs");
-    const currentEffectiveCutoffMs = assignmentFinalCloseAt(assignment, null, studentId);
+    // What is on file for this student is their private record merged with any
+    // copy still on the shared document — the same answer every deadline
+    // reader gives — so "never shorten" compares against the real cutoff.
+    const currentEffectiveCutoffMs = assignmentFinalCloseAt(assignment, null, studentId, null, { privateOverride: existingPrivate });
     const validity = validateProposedFinalCutoff({ proposedLateDueAtMs, currentEffectiveCutoffMs });
     // `allowShorten` bypasses only the expected monotonicity precondition.
     // It can never turn NaN, infinity, or another malformed cutoff into a
@@ -2769,14 +2856,17 @@ exports.applyStudentAttendanceExtension = onCall(async (request) => {
     const lateDueAtIso = new Date(proposedLateDueAtMs).toISOString();
     const grantedAtMs = Date.now();
     /*
-     * THE SHARED DOCUMENT GETS THE DEADLINE; THE STUDENT'S RECORD GETS THE WHY.
+     * THE STUDENT'S RECORD GETS THE DEADLINE; THE STAFF HISTORY GETS THE WHY.
      *
-     * `assignments/{id}` is read by every student, so it carries only what a
-     * deadline reader needs: `lateDueAt` and a stub with the cutoff's date key
-     * (what attendance reconciliation compares) and the grant time. The
-     * absences, meeting counts and granting teacher go into an immutable
-     * private record under the student (shared/assignmentPrivacy.mjs), one per
-     * grant, so a later grant no longer erases the earlier one either.
+     * The cutoff and the stub attendance reconciliation compares (the
+     * cutoff's date key and grant time) go into the student's private
+     * override — studentAssignmentOverrides.mjs — readable by them, their
+     * teacher and the root administrator only. While previous-release clients
+     * may still read the shared assignment (the storage switch is off), the
+     * same two values are mirrored onto it exactly as before; once it is
+     * retired, this student's shared copy is deleted instead. The absences,
+     * meeting counts and granting teacher stay in the immutable private grant
+     * record under the student (shared/assignmentPrivacy.mjs), one per grant.
      *
      * The stub's date key must never be empty — reconciliation treats a
      * missing one as "nothing granted yet" and would grant again — so a
@@ -2784,11 +2874,26 @@ exports.applyStudentAttendanceExtension = onCall(async (request) => {
      */
     const details = privacy.sanitizeExtensionDetails(extension);
     const dateKey = details.dateKey || zonedDateKey(proposedLateDueAtMs, SCHOOL_TIME_ZONE);
-    transaction.update(
-      assignmentRef,
-      new FieldPath("studentOverrides", studentId, "lateDueAt"), lateDueAtIso,
-      new FieldPath("studentOverrides", studentId, "extension"), privacy.sharedExtensionStub({ dateKey, grantedAt: grantedAtMs }),
-    );
+    const plan = overrides.planStudentOverrideChange({
+      assignmentId,
+      assignment,
+      studentId,
+      existingPrivate,
+      change: {
+        kind: overrides.OVERRIDE_CHANGE.ATTENDANCE_EXTENSION,
+        lateDueAt: lateDueAtIso,
+        dateKey,
+        grantedAtMs,
+        reason: reviewedShortening ? "attendance-correction-shortened" : "attendance-extension",
+      },
+      authorization: overrides.overrideAuthorizationContext({ existing: existingPrivate, studentId, classRecord, student: studentRecord }),
+      actor: { email: teacherEmail, uid: request.auth?.uid || null, role: isRootAdmin ? "rootAdmin" : "teacher" },
+      nowMs: grantedAtMs,
+      storageMode,
+    });
+    transaction.set(overrideRef, { ...plan.record, updatedAt: FieldValue.serverTimestamp() });
+    transaction.set(await studentOverrideEventRef(db, studentId, plan.eventId), { ...plan.event, at: FieldValue.serverTimestamp() });
+    applySharedCopyWrites(transaction, assignmentRef, plan.sharedWrites);
     transaction.set(gradeRef.collection(privacy.ATTENDANCE_EXTENSION_GRANTS_COLLECTION).doc(), {
       ...privacy.buildExtensionGrantRecord({
         studentId,
@@ -2851,27 +2956,37 @@ function progressCheckpointStage(progress, { late = false } = {}) {
   return `${late ? "late-progress" : "progress"}-${checkpoint}`;
 }
 
-// The per-student final cutoff, MIRRORING src/assignmentLifecycle.js's
-// getAssignmentDate(assignment, 'late', studentId) and functions/shared/
-// sectionDeadline.mjs's assignmentFinalCloseAt exactly (same fallback order,
-// same field names). Classroom grade passback must never call a student
-// "final" earlier than the deadline the student's own dashboard and the
-// server's own submission finalizer already honor for them — see
-// assignment.studentOverrides[studentId].lateDueAt, written by an
-// attendance-driven extension (src/platform/attendance/
-// extensionReconciliation.js) and never earlier than the class's own cutoff.
-function studentLateDueAt(assignment, studentId) {
-  const override = studentId ? assignment?.studentOverrides?.[studentId] : null;
+// The per-student final cutoff for Classroom passback. Classroom must never
+// call a student "final" earlier than the deadline the student's own dashboard
+// and the server's own submission finalizer already honor for them.
+// `studentFinalCutoff` is that student's individual cutoff as the one override
+// resolver answers it — their private record (studentAssignmentOverrides.mjs)
+// merged with any copy still on the shared document — resolved by the caller
+// (resolvedStudentFinalCutoff below). The class cutoff is never shortened by it.
+function studentLateDueAt(assignment, studentFinalCutoff = null) {
   const classFinal = toDate(
     assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate
   );
-  const studentFinal = toDate(override?.lateDueAt || override?.dueAt);
+  const studentFinal = toDate(studentFinalCutoff);
   if (!classFinal) return studentFinal;
   if (!studentFinal) return classFinal;
   return studentFinal.getTime() > classFinal.getTime() ? studentFinal : classFinal;
 }
 
-function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowValue = Date.now(), studentId = null }) {
+/** One student's individual final cutoff on one assignment, read with the server's authority. */
+async function resolvedStudentFinalCutoff(db, assignmentId, assignment, studentId) {
+  if (!studentId) return null;
+  const overrides = await studentOverrides();
+  const ref = await studentOverrideRef(db, studentId, assignmentId);
+  const snapshot = ref ? await ref.get() : null;
+  return overrides.resolveStudentOverride({
+    assignment,
+    studentId,
+    privateOverride: privateOverrideFrom(snapshot),
+  })?.lateDueAt ?? null;
+}
+
+function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowValue = Date.now(), studentFinalCutoff = null }) {
   const reason = releaseSignalReason(releaseSignal);
   if (reason === "final-deadline") return "final-deadline";
   if (reason === "due-checkpoint") return "due-checkpoint";
@@ -2879,7 +2994,7 @@ function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowVa
 
   const now = Number(nowValue) || Date.now();
   const dueAt = toDate(assignment?.dueAt || assignment?.dueDate);
-  const lateDueAt = studentLateDueAt(assignment, studentId);
+  const lateDueAt = studentLateDueAt(assignment, studentFinalCutoff);
 
   if (progress.complete) return "final-complete";
   if (lateDueAt && now >= lateDueAt.getTime()) return "final-deadline";
@@ -3069,6 +3184,8 @@ const CLASS_COLLECTION = "classes";
 const AUTHORIZED_CHILD_COLLECTIONS = Object.freeze([
   { path: (studentId) => `grades/${studentId}/evidenceEvents`, label: "evidenceEvents" },
   { path: (studentId) => `grades/${studentId}/scratchpads`, label: "scratchpads" },
+  // The history of a student's assignment controls (studentAssignmentOverrides.mjs).
+  { path: (studentId) => `grades/${studentId}/assignmentOverrideEvents`, label: "assignmentOverrideEvents" },
 ]);
 
 /** The class a student is in right now, or null. */
@@ -3124,7 +3241,7 @@ async function reauthorizeStudentRecords(db, studentId, classRecord) {
   // Support/intervention history and archived live-session summaries are
   // top-level collections keyed by event/session, so reauthorization queries by
   // studentId. The historical origin stays frozen; only the access list moves.
-  for (const collectionName of ["studentSupportEvents", "studentSessionSummaries", "parentContactLogs"]) {
+  for (const collectionName of ["studentSupportEvents", "studentSessionSummaries", "parentContactLogs", "studentAssignmentOverrides"]) {
     // eslint-disable-next-line no-await-in-loop
     const snapshot = await db.collection(collectionName).where("studentId", "==", studentId).get();
     // eslint-disable-next-line no-await-in-loop
@@ -5531,6 +5648,164 @@ exports.setAssignmentReadScope = onCall(async (request) => {
   return { studentListScoped, changed: true };
 });
 
+/* =========================================================================
+ * A STUDENT'S PRIVATE ASSIGNMENT CONTROLS (PR #415 I-4).
+ *
+ * Deadline, excusal, reopen and DOL attempt grants live in
+ * `studentAssignmentOverrides` (shared/studentAssignmentOverrides.mjs), not on
+ * the shared assignment every classmate receives. The callables below are the
+ * only writers besides `applyStudentAttendanceExtension`; firestore.rules lets
+ * no client write a record. See docs/architecture/
+ * student-assignment-overrides.md for the stages and the deployment order.
+ * ========================================================================= */
+let studentOverrideStoreModule = null;
+async function studentOverrideStore() {
+  if (!studentOverrideStoreModule) studentOverrideStoreModule = await import("./shared/studentAssignmentOverrideStore.mjs");
+  return studentOverrideStoreModule;
+}
+
+const STUDENT_CONTROLS_HTTPS_CODES = new Set([
+  "invalid-argument", "permission-denied", "failed-precondition", "not-found", "unauthenticated",
+]);
+
+function translateStudentControlsError(error) {
+  if (error?.name === "StudentControlsError") {
+    const code = STUDENT_CONTROLS_HTTPS_CODES.has(error.code) ? error.code : "failed-precondition";
+    return new HttpsError(code, error.message, error.detail || undefined);
+  }
+  if (error instanceof HttpsError) return error;
+  logger.error("Student assignment controls failed", { message: String(error?.message || error) });
+  return new HttpsError("internal", "That change could not be saved. Nothing was changed; try again.");
+}
+
+/**
+ * A class's teacher of record (or the root administrator) grants extra DOL
+ * attempts to, excuses, or reopens selected students on one assignment.
+ * `{ assignmentId, classId, studentIds: [...], change: { kind: 'dolAttempts',
+ * increment } | { kind: 'excused'|'reopened', value: boolean } }`.
+ * Each student must currently belong to that class and the assignment must be
+ * assigned to it; otherwise nothing is written.
+ */
+exports.setStudentAssignmentControls = onCall(async (request) => {
+  const uid = await requireTeacher(request);
+  const email = callerEmail(request);
+  if (!email) throw new HttpsError("permission-denied", "Sign in with a verified school email to change a student's controls.");
+  const store = await studentOverrideStore();
+  try {
+    return await store.applyStudentControlsChange({
+      db: getFirestore(),
+      actor: { uid, email },
+      isRootAdmin: authLib.isRootAdminEmail(email),
+      assignmentId: request.data?.assignmentId,
+      classId: request.data?.classId,
+      studentIds: Array.isArray(request.data?.studentIds) ? request.data.studentIds : [],
+      change: request.data?.change && typeof request.data.change === "object" ? request.data.change : {},
+    });
+  } catch (error) {
+    throw translateStudentControlsError(error);
+  }
+});
+
+/**
+ * Root-admin action: one bounded pass of the staged migration — `backfill`
+ * (copy shared per-student controls into private storage), `strip` (remove them
+ * from the shared documents; refused until the shared copy is retired) or
+ * `restore` (the rollback of a strip). Dry run by default; pass the returned
+ * `nextCursor` as `startAfter` until `done`. Idempotent and safe to interrupt.
+ */
+exports.migrateStudentAssignmentOverrides = onCall({ timeoutSeconds: 540 }, async (request) => {
+  const actor = await requireRootAdmin(request);
+  const store = await studentOverrideStore();
+  const dryRun = request.data?.dryRun !== false;
+  const mode = String(request.data?.mode || "backfill");
+  try {
+    const report = await store.runOverrideMigration({
+      db: getFirestore(),
+      mode,
+      dryRun,
+      startAfter: request.data?.startAfter || null,
+      maxAssignments: request.data?.maxAssignments,
+      migrationRunId: String(request.data?.migrationRunId || "").slice(0, 80) || null,
+      assignmentIdPrefix: String(request.data?.assignmentIdPrefix || "").slice(0, 160) || null,
+      actor,
+    });
+    if (!dryRun) {
+      await writeAdminAudit(getFirestore(), actor, `student_assignment_overrides_${mode}`, "assignments", {
+        ...report,
+        failures: report.failures.slice(0, 20),
+      });
+    }
+    return report;
+  } catch (error) {
+    throw translateStudentControlsError(error);
+  }
+});
+
+/**
+ * Root-admin action: the storage switch (platformFlags/assignmentOverrideStorage).
+ * `sharedRetired: true` once the release that reads private storage has been
+ * live for a school day; `false` is the rollback. Called without a boolean it
+ * reports the current value and where the migration stands.
+ */
+exports.setAssignmentOverrideStorage = onCall(async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+  const overrides = await studentOverrides();
+  const store = await studentOverrideStore();
+  const ref = db.collection("platformFlags").doc(overrides.OVERRIDE_STORAGE_FLAG);
+  if (typeof request.data?.sharedRetired !== "boolean") {
+    const snapshot = await ref.get();
+    return {
+      ...overrides.resolveOverrideStorageMode(snapshot.exists ? snapshot.data() : null),
+      changed: false,
+      migration: await store.readOverrideMigrationProgress({ db }),
+    };
+  }
+  const sharedRetired = request.data.sharedRetired;
+  await ref.set({
+    [overrides.SHARED_RETIRED_FIELD]: sharedRetired,
+    updatedAt: FieldValue.serverTimestamp(),
+    updatedBy: actor.uid,
+  }, { merge: true });
+  await writeAdminAudit(
+    db,
+    actor,
+    sharedRetired ? "student_assignment_overrides_shared_retired" : "student_assignment_overrides_shared_mirrored",
+    overrides.OVERRIDE_STORAGE_FLAG,
+    { sharedRetired },
+  );
+  return { ...overrides.resolveOverrideStorageMode({ sharedRetired }), changed: true };
+});
+
+/**
+ * THE ABSORBER. A client from the previous release (or a stale tab) can still
+ * write per-student data onto a shared assignment — a teacher's whole-`dol`
+ * DOL action carries `attemptGrantsByStudentId`. Whatever it wrote is moved
+ * into private storage within seconds (the merge keeps the larger grant, so a
+ * stale write can never take one away), and once the shared copy is retired it
+ * is removed again. Idempotent: it re-reads everything in its own transactions.
+ */
+exports.absorbSharedStudentControls = onDocumentWritten(
+  "assignments/{assignmentId}",
+  async (event) => {
+    const before = event.data?.before?.exists ? event.data.before.data() : null;
+    const after = event.data?.after?.exists ? event.data.after.data() : null;
+    const store = await studentOverrideStore();
+    const outcome = await store.absorbSharedStudentControls({
+      db: getFirestore(),
+      assignmentId: event.params.assignmentId,
+      before,
+      after,
+    });
+    if (!outcome.skipped) {
+      logger.info("Absorbed per-student controls from a shared assignment", {
+        assignmentId: event.params.assignmentId,
+        ...outcome,
+      });
+    }
+  },
+);
+
 /**
  * Root-admin action: put a student in a class, move them, or take them out.
  *
@@ -5738,13 +6013,15 @@ async function recursiveDeleteDocument(db, ref, deleted, label) {
  */
 async function removeStudentFromAssignmentDocuments(db, studentId, receipt, deleted) {
   const { planStudentRemovalFromAssignment } = await import("./shared/assignmentPrivacy.mjs");
-  const snapshot = await db.collection("assignments").select("studentOverrides", "dol").get();
+  const snapshot = await db.collection("assignments")
+    .select("studentOverrides", "dol", "excusedStudentIds", "reopenedStudentIds").get();
   let updated = 0;
   for (const assignmentDoc of snapshot.docs) {
     const plan = planStudentRemovalFromAssignment({ assignment: assignmentDoc.data() || {}, studentId, receipt });
-    if (!plan.deletePaths.length && !plan.recoveryAudit) continue;
+    if (!plan.deletePaths.length && !plan.recoveryAudit && !plan.arrayRemovals.length) continue;
     const fieldsAndValues = [];
     plan.deletePaths.forEach((segments) => fieldsAndValues.push(new FieldPath(...segments), FieldValue.delete()));
+    plan.arrayRemovals.forEach((field) => fieldsAndValues.push(new FieldPath(field), FieldValue.arrayRemove(studentId)));
     if (plan.recoveryAudit) fieldsAndValues.push(new FieldPath("dol", "recoveryAudit"), plan.recoveryAudit);
     // Sequential for the same reason as recursiveDeleteQuery below.
     // eslint-disable-next-line no-await-in-loop
@@ -5752,6 +6029,18 @@ async function removeStudentFromAssignmentDocuments(db, studentId, receipt, dele
     updated += 1;
   }
   if (updated) deleted.assignmentStudentEntries = Number(deleted.assignmentStudentEntries || 0) + updated;
+
+  // The verbatim archives a strip kept (several students per document, root
+  // admin only) lose this student's part too; the rest of each archive stays.
+  const overrides = await studentOverrides();
+  const archives = await db.collection(overrides.ASSIGNMENT_OVERRIDE_ARCHIVES_COLLECTION)
+    .where("studentIds", "array-contains", studentId).get();
+  for (const archiveDoc of archives.docs) {
+    const scrubbed = overrides.scrubStudentFromArchive(archiveDoc.data() || {}, studentId, `deleted-student:${receipt}`);
+    // eslint-disable-next-line no-await-in-loop
+    await archiveDoc.ref.set(scrubbed);
+  }
+  if (archives.size) deleted.assignmentOverrideArchiveEntries = Number(deleted.assignmentOverrideArchiveEntries || 0) + archives.size;
   return updated;
 }
 
@@ -6262,6 +6551,16 @@ exports.permanentlyDeleteStudent = onCall(async (request) => {
     }
   }
 
+  // Preserve accountability without retaining the deleted student's ID in the
+  // audit collection. The short irreversible digest is only a deletion receipt.
+  const receipt = crypto.createHash("sha256").update(studentKey).digest("hex").slice(0, 16);
+  // The student's entries on shared assignments go FIRST. The absorber trigger
+  // copies whatever a shared assignment still names into private storage
+  // (studentAssignmentOverrides.mjs); removing the entries before the private
+  // records and the roster row means any absorber run either committed before
+  // this (and what it wrote is deleted below) or no longer finds the student.
+  await removeStudentFromAssignmentDocuments(db, studentId, receipt, deleted);
+
   // Parent deletion is recursive: scratchpads and immutable evidence events
   // disappear with the grade/roster document.
   await recursiveDeleteDocument(db, rosterRef, deleted, "gradesWithSubcollections");
@@ -6299,10 +6598,6 @@ exports.permanentlyDeleteStudent = onCall(async (request) => {
     );
   }
 
-  // Preserve accountability without retaining the deleted student's ID in the
-  // audit collection. The short irreversible digest is only a deletion receipt.
-  const receipt = crypto.createHash("sha256").update(studentKey).digest("hex").slice(0, 16);
-  await removeStudentFromAssignmentDocuments(db, studentId, receipt, deleted);
   await writeAdminAudit(db, actor, "student_permanently_deleted", `deleted-student:${receipt}`, {
     deletedAuthUsers,
     deletedRecords: deleted,
@@ -8990,6 +9285,11 @@ exports.syncGradeToClassroom = onDocumentWritten(
           minimumProgressQuestions: 1,
         };
       }
+      // The student's own individual cutoff, from their private record.
+      const studentFinalCutoff = isTestCycleAssignment
+        ? null
+        // eslint-disable-next-line no-await-in-loop
+        : await resolvedStudentFinalCutoff(db, assignmentId, assignment, event.params.studentId);
       const stage = isTestCycleAssignment
         ? (testCycleProjection?.recordedGradeSource === "retest" ? "testcycle-retest" : "testcycle-test")
         : resolveClassroomGradeStage({
@@ -8997,7 +9297,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
           progress,
           releaseSignal,
           nowValue: Date.now(),
-          studentId: event.params.studentId,
+          studentFinalCutoff,
         });
       if (!stage) continue;
 
@@ -18442,12 +18742,16 @@ async function countRecoverableWorkspaceDrafts({
   const recovery = await workspaceDraftRecovery();
   const { resolveAuthoritativeClose } = await import("./shared/sectionDeadline.mjs");
   const classId = String(gradeData?.classId || "").trim() || null;
-  const [scheduleSnapshot, classSnapshot] = await Promise.all([
+  const overrideRef = await studentOverrideRef(db, studentId, assignmentId);
+  const [scheduleSnapshot, classSnapshot, overrideSnapshot] = await Promise.all([
     db.collection("settings").doc("classSchedule").get(),
     classId ? db.collection(CLASS_COLLECTION).doc(classId).get() : Promise.resolve(null),
+    overrideRef ? overrideRef.get() : Promise.resolve(null),
   ]);
   const schedule = scheduleSnapshot.exists ? scheduleSnapshot.data() : null;
   const classPeriod = String(classSnapshot?.data()?.period || "") || null;
+  // The student's own extension still counts toward when their draft was due.
+  const privateOverride = privateOverrideFrom(overrideSnapshot);
   const questions = runtimeQuestionsFromAssignment(assignment) || [];
   const tracker = gradeData?.gradesByAssignment?.[assignmentId] || {};
   const assessment = recovery.assessWorkspaceDraftDocument({
@@ -18465,6 +18769,7 @@ async function countRecoverableWorkspaceDrafts({
       nowValue: draftSavedAtMs || Date.now(),
       studentId,
       studentProfile: gradeData?.profile || null,
+      privateOverride,
     }).closesAtMs,
   });
   return Number(assessment?.recoverable?.length) || 0;
@@ -19141,7 +19446,8 @@ async function buildStudentRecoveryRow({
     if (at && (!latestCanonicalAttemptAt || at > latestCanonicalAttemptAt)) latestCanonicalAttemptAt = at;
   });
 
-  const [checkpointSnapshot, receiptSnapshot, deviceDocuments, sessionSnapshot, resolutionSnapshot] = await Promise.all([
+  const overrideRef = await studentOverrideRef(db, studentId, assignmentId);
+  const [checkpointSnapshot, receiptSnapshot, deviceDocuments, sessionSnapshot, resolutionSnapshot, overrideSnapshot] = await Promise.all([
     db.collection(CHECKPOINT_COLLECTION)
       .where("studentId", "==", studentId).where("assignmentId", "==", assignmentId)
       .limit(CHECKPOINT_BATCH_LIMIT).get(),
@@ -19156,7 +19462,9 @@ async function buildStudentRecoveryRow({
       .limit(50).get(),
     db.collection(PERSISTENCE_RESOLUTION_COLLECTION)
       .doc(persistenceResolutionDocumentId({ studentId, assignmentId })).get(),
+    overrideRef ? overrideRef.get() : Promise.resolve(null),
   ]);
+  const privateOverride = privateOverrideFrom(overrideSnapshot);
   const persistenceResolution = resolutionSnapshot.exists ? resolutionSnapshot.data() : null;
 
   const checkpointsByStatus = {};
@@ -19193,6 +19501,7 @@ async function buildStudentRecoveryRow({
         nowValue: draftDocument.updatedAtMs || Date.now(),
         studentId,
         studentProfile: gradeData?.profile || null,
+        privateOverride,
       }).closesAtMs,
     })
     : null;
@@ -19520,6 +19829,10 @@ exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (req
     if (String(gradeData.classId || "") !== classId) continue;
     const tracker = gradeData?.gradesByAssignment?.[assignmentId] || {};
     const savedAtMs = millisOf(draft.updatedAt);
+    // eslint-disable-next-line no-await-in-loop
+    const overrideRef = await studentOverrideRef(db, studentId, assignmentId);
+    // eslint-disable-next-line no-await-in-loop
+    const privateOverride = privateOverrideFrom(overrideRef ? await overrideRef.get() : null);
 
     const assessment = recovery.assessWorkspaceDraftDocument({
       document: draft,
@@ -19535,6 +19848,7 @@ exports.applyWorkspaceDraftRecovery = onCall({ timeoutSeconds: 540 }, async (req
         nowValue: savedAtMs || Date.now(),
         studentId,
         studentProfile: gradeData?.profile || null,
+        privateOverride,
       }).closesAtMs,
     });
 

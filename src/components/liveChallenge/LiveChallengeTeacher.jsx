@@ -58,10 +58,10 @@ import {
   watchTeacherActiveChallenge,
 } from '../../platform/liveChallenge/liveChallengeService.js';
 
-const panel = { background: 'var(--mm-surface)', border: '1px solid #d8dde6', borderRadius: 14, padding: 20, textAlign: 'left' };
+const panel = { background: 'var(--mm-surface)', border: '1px solid var(--mm-border)', borderRadius: 14, padding: 20, textAlign: 'left' };
 const primary = { border: 0, borderRadius: 9, padding: '11px 16px', background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' };
-const secondary = { border: '1px solid #b7bec8', borderRadius: 9, padding: '10px 15px', background: 'var(--mm-surface)', color: '#3c4043', fontWeight: 900, cursor: 'pointer' };
-const field = { display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid #b7bec8' };
+const secondary = { border: '1px solid var(--mm-border)', borderRadius: 9, padding: '10px 15px', background: 'var(--mm-surface)', color: 'var(--mm-text)', fontWeight: 900, cursor: 'pointer' };
+const field = { display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 6, padding: 10, borderRadius: 8, border: '1px solid var(--mm-border)' };
 
 const courseLabel = (courseId) => courseId === 'algebra2' ? 'Algebra II' : 'Algebra I';
 
@@ -105,12 +105,12 @@ function ChallengeReport({ report }) {
     <section style={panel}>
       <h3 style={{ marginTop: 0 }}>After the game</h3>
       {report.weakestStandard && (
-        <div style={{ padding: '12px 14px', borderRadius: 10, background: '#fff4ce', border: '1px solid #f9ab00', marginBottom: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: '#7a4f00' }}>Hardest for this class</div>
-          <strong style={{ display: 'block', marginTop: 4, fontSize: 17, color: '#3c2f00' }}>{report.weakestStandard.standard} — {pct(report.weakestStandard.accuracyPercent)} correct</strong>
+        <div style={{ padding: '12px 14px', borderRadius: 10, background: 'var(--mm-warning-soft)', border: '1px solid #f9ab00', marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--mm-warning-text)' }}>Hardest for this class</div>
+          <strong style={{ display: 'block', marginTop: 4, fontSize: 17, color: 'var(--mm-text-strong)' }}>{report.weakestStandard.standard} — {pct(report.weakestStandard.accuracyPercent)} correct</strong>
         </div>
       )}
-      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 14, color: '#3c4043', marginBottom: 14 }}>
+      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 14, color: 'var(--mm-text)', marginBottom: 14 }}>
         <span><strong>{report.playedCount}</strong> of {report.eligibleCount} played</span>
         <span>Class accuracy <strong>{pct(report.classAccuracyPercent)}</strong></span>
         <span>
@@ -123,10 +123,10 @@ function ChallengeReport({ report }) {
       </div>
       {report.standards?.length > 0 && (
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 900, color: '#5f6368', marginBottom: 6 }}>By standard, hardest first</div>
+          <div style={{ fontSize: 12, fontWeight: 900, color: 'var(--mm-text-muted)', marginBottom: 6 }}>By standard, hardest first</div>
           {report.standards.map((entry) => (
-            <div key={entry.standard} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid #eef0f2', fontSize: 14 }}>
-              <span>{entry.standard}</span><span style={{ color: '#5f6368' }}>{entry.correct}/{entry.answered} correct · {pct(entry.accuracyPercent)}</span>
+            <div key={entry.standard} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--mm-border-soft)', fontSize: 14 }}>
+              <span>{entry.standard}</span><span style={{ color: 'var(--mm-text-muted)' }}>{entry.correct}/{entry.answered} correct · {pct(entry.accuracyPercent)}</span>
             </div>
           ))}
         </div>
@@ -143,13 +143,13 @@ function ChallengeReport({ report }) {
             link.click();
             link.remove();
             URL.revokeObjectURL(url);
-          }} style={{ ...secondary, color: '#174ea6', borderColor: '#9bb8e8' }}>Save this round set</button>
-          <span style={{ display: 'block', marginTop: 5, fontSize: 12, color: '#5f6368' }}>{roundSet.roundCount} questions. Run the same set with another period — no student names or scores are in the file.</span>
+          }} style={{ ...secondary, color: 'var(--mm-primary-text)', borderColor: 'var(--mm-primary-border)' }}>Save this round set</button>
+          <span style={{ display: 'block', marginTop: 5, fontSize: 12, color: 'var(--mm-text-muted)' }}>{roundSet.roundCount} questions. Run the same set with another period — no student names or scores are in the file.</span>
         </div>
       )}
       {report.graphFeatureRush && <RushReport report={report} />}
       {report.neverJoined?.length > 0 && (
-        <div style={{ padding: '10px 13px', borderRadius: 9, background: '#f1f3f4', fontSize: 13.5, color: '#3c4043' }}>
+        <div style={{ padding: '10px 13px', borderRadius: 9, background: 'var(--mm-surface-control)', fontSize: 13.5, color: 'var(--mm-text)' }}>
           <strong>Did not join:</strong> {report.neverJoined.length} student{report.neverJoined.length === 1 ? '' : 's'}. A student can be absent, on paper, or have lost their connection — this is a roster fact, not a finding.
         </div>
       )}
@@ -203,10 +203,10 @@ export function ChallengeLiveStatus({ room, clockOffsetMs = 0, answeredCount = 0
     <section data-mm-live-status={clock.stage} style={{ ...panel, border: '2px solid #1a73e8' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 18, flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 320px', minWidth: 0 }}>
-          <div style={{ color: '#174ea6', fontSize: 12, fontWeight: 1000, textTransform: 'uppercase' }}>{clock.isReplay ? `Second Chance round ${clock.replayNumber}` : `Round ${(room.currentRound || 0) + 1} of ${room.roundCount}`} · {room.currentQuestion?.teksCode || 'Mixed review'}</div>
+          <div style={{ color: 'var(--mm-primary-text)', fontSize: 12, fontWeight: 1000, textTransform: 'uppercase' }}>{clock.isReplay ? `Second Chance round ${clock.replayNumber}` : `Round ${(room.currentRound || 0) + 1} of ${room.roundCount}`} · {room.currentQuestion?.teksCode || 'Mixed review'}</div>
           <MathText as="div" style={{ marginTop: 8, whiteSpace: 'pre-wrap', fontSize: 20, lineHeight: 1.45, fontWeight: 700 }}>{room.currentQuestion?.prompt}</MathText>
         </div>
-        <div style={{ minWidth: 150, textAlign: 'center', padding: 12, borderRadius: 12, background: low || locked ? '#fce8e6' : '#e8f0fe', color: low || locked ? '#a50e0e' : '#174ea6' }}>
+        <div style={{ minWidth: 150, textAlign: 'center', padding: 12, borderRadius: 12, background: low || locked ? 'var(--mm-error-bg)' : 'var(--mm-primary-soft)', color: low || locked ? 'var(--mm-error-text)' : 'var(--mm-primary-text)' }}>
           <div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>{timerLabel}</div>
           <div style={{ fontSize: 38, fontWeight: 1000 }}>
             {counting ? clock.countdownStep : <ChallengeClockText room={room} clockOffsetMs={clockOffsetMs} />}
@@ -214,7 +214,7 @@ export function ChallengeLiveStatus({ room, clockOffsetMs = 0, answeredCount = 0
           {room?.timingMode === 'pace' && !paceOpen && !counting && <div style={{ marginTop: 4, fontSize: 12, fontWeight: 900 }}>Closing countdown</div>}
         </div>
       </div>
-      <div style={{ marginTop: 14, fontWeight: 800, color: '#5f6368' }}>{answeredCount} of {joinedCount} joined students answered</div>
+      <div style={{ marginTop: 14, fontWeight: 800, color: 'var(--mm-text-muted)' }}>{answeredCount} of {joinedCount} joined students answered</div>
     </section>
   );
 }
@@ -226,7 +226,7 @@ export function ChallengeProjector(props) {
 function ScoringCompetitionCard({ roundSeconds, speedInfluencePercent }) {
   const preview = useMemo(() => buildChallengeScoringPreview({ roundSeconds, speedInfluencePercent }), [roundSeconds, speedInfluencePercent]);
   return (
-    <section style={{ marginTop: 16, padding: 15, borderRadius: 12, background: '#e8f0fe', border: '1px solid #aecbfa', color: '#174ea6' }}>
+    <section style={{ marginTop: 16, padding: 15, borderRadius: 12, background: 'var(--mm-primary-soft)', border: '1px solid var(--mm-primary-border)', color: 'var(--mm-primary-text)' }}>
       <h3 style={{ margin: '0 0 8px' }}>Scoring &amp; Competition</h3>
       <div style={{ fontWeight: 800 }}>Correctness: up to 1,000 · Speed: up to {preview.maxSpeedBonus} ({preview.speedInfluencePercent}%) · Streak: up to 100 · Comeback after a miss: +150</div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
@@ -249,9 +249,9 @@ function AudioMixer({ mix, onMixChange, onEnable, audioReady }) {
         <strong>Game Audio</strong>
         {slider('music', 'Music')}{slider('announcer', 'Announcer')}{slider('effects', 'Effects')}
         <button type="button" onClick={() => onMixChange({ muted: !mix?.muted })} style={secondary}>{mix?.muted ? 'Unmute All' : 'Mute All'}</button>
-        <button type="button" onClick={onEnable} style={{ ...secondary, color: '#174ea6' }}>{audioReady ? 'Audio Ready' : 'Enable Audio'}</button>
+        <button type="button" onClick={onEnable} style={{ ...secondary, color: 'var(--mm-primary-text)' }}>{audioReady ? 'Audio Ready' : 'Enable Audio'}</button>
       </div>
-      <p style={{ margin: '8px 0 0', fontSize: 12, color: '#5f6368' }}>Sound plays only from this screen, never from students&apos; devices, and nothing depends on it.</p>
+      <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--mm-text-muted)' }}>Sound plays only from this screen, never from students&apos; devices, and nothing depends on it.</p>
     </section>
   );
 }
@@ -886,7 +886,7 @@ export default function LiveChallengeTeacher({
         <div style={{ display: 'grid', gap: 18 }}>
           <div>
             <h2 style={{ margin: 0 }}>Live Challenge dry run</h2>
-            <p style={{ color: '#5f6368', maxWidth: 820, lineHeight: 1.55 }}>{courseLabel(courseId)} · {standardCode === 'mixed' ? 'Mixed review' : standardCode} · {questionStyle === 'tools' ? 'Interactive tools only' : questionStyle === 'noTools' ? 'Typed and chosen answers only' : 'Any question'} · {roundCount} rounds · {timingMode === 'pace' ? 'Pace Race · unlimited solving time' : `${roundSeconds}s each`}.</p>
+            <p style={{ color: 'var(--mm-text-muted)', maxWidth: 820, lineHeight: 1.55 }}>{courseLabel(courseId)} · {standardCode === 'mixed' ? 'Mixed review' : standardCode} · {questionStyle === 'tools' ? 'Interactive tools only' : questionStyle === 'noTools' ? 'Typed and chosen answers only' : 'Any question'} · {roundCount} rounds · {timingMode === 'pace' ? 'Pace Race · unlimited solving time' : `${roundSeconds}s each`}.</p>
           </div>
           <ScoringCompetitionCard roundSeconds={roundSeconds} speedInfluencePercent={speedInfluencePercent} />
           <ChallengeDryRun
@@ -911,14 +911,14 @@ export default function LiveChallengeTeacher({
       <div style={{ display: 'grid', gap: 18 }}>
         <div>
           <h2 style={{ margin: 0 }}>Live Challenge</h2>
-          <p style={{ color: '#5f6368', maxWidth: 850, lineHeight: 1.55 }}>Launch a fast class competition using the same secure question bank and interactive graders as My Math Path. Correctness remains the main source of points; you choose how much speed matters and what names students see.</p>
+          <p style={{ color: 'var(--mm-text-muted)', maxWidth: 850, lineHeight: 1.55 }}>Launch a fast class competition using the same secure question bank and interactive graders as My Math Path. Correctness remains the main source of points; you choose how much speed matters and what names students see.</p>
         </div>
         <section style={panel}>
           <h3 style={{ marginTop: 0 }}>Create a challenge</h3>
           {classOptions.length === 0 ? (
-            <p style={{ color: '#a50e0e' }}>No students are currently assigned to an active Algebra I or Algebra II class, so there is nobody to invite yet.</p>
+            <p style={{ color: 'var(--mm-error-text)' }}>No students are currently assigned to an active Algebra I or Algebra II class, so there is nobody to invite yet.</p>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: 14 }}>
               <label style={{ fontWeight: 800 }}>Class
                 <select value={classId} onChange={(event) => setClassId(event.target.value)} style={field}>
                   {classOptions.map((entry) => <option key={entry.classId} value={entry.classId}>{entry.name || entry.period || entry.classId}{entry.period ? ` · ${entry.period}` : ''}</option>)}
@@ -935,7 +935,7 @@ export default function LiveChallengeTeacher({
                     and accuracy, while the competition score stays a game
                     result. Without this sentence the setting looks like it
                     might put a leaderboard position into the gradebook. */}
-                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 13, color: '#5f6368' }}>
+                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 13, color: 'var(--mm-text-muted)' }}>
                   Students who open that assignment during its Warm-Up window are put straight into the
                   game — no invite to spot and no code to type. Their participation and accuracy are
                   recorded on the assignment; the challenge score is not.
@@ -948,17 +948,17 @@ export default function LiveChallengeTeacher({
                     <option value="teacherChoice">Teacher Choice — decide that day</option>
                     <option value="standard">Standard — use assignment questions</option>
                   </select>
-                  <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: '#5f6368' }}>Teacher Choice is saved immediately and holds students on a waiting screen until you create the challenge or release the standard Warm-Up.</span>
+                  <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: 'var(--mm-text-muted)' }}>Teacher Choice is saved immediately and holds students on a waiting screen until you create the challenge or release the standard Warm-Up.</span>
                 </label>
               )}
-              <label style={{ fontWeight: 800 }}>Course<input value={courseLabel(courseId)} readOnly style={{ ...field, background: '#f8f9fa', color: '#3c4043' }} /></label>
+              <label style={{ fontWeight: 800 }}>Course<input value={courseLabel(courseId)} readOnly style={{ ...field, background: 'var(--mm-surface-sunken)', color: 'var(--mm-text)' }} /></label>
               <label style={{ fontWeight: 800 }}>Game type
                 <select value={challengeMode} onChange={(event) => setChallengeMode(event.target.value)} style={field}>
                   <option value="standard">Standard Challenge</option>
                   <option value="solverRace">Solver Race</option>
                   <option value={RUSH_MODE_ID}>Graph Feature Rush</option>
                 </select>
-                {rushMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: '#5f6368' }}>Every student gets their own graphs and races the clock to tap intercepts, vertices, maximums and minimums.</span>}
+                {rushMode && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: 'var(--mm-text-muted)' }}>Every student gets their own graphs and races the clock to tap intercepts, vertices, maximums and minimums.</span>}
               </label>
               {challengeMode === 'solverRace' && <label style={{ fontWeight: 800 }}>Race focus
                 <select value={solverRaceFocus} onChange={(event) => setSolverRaceFocus(event.target.value)} style={field}>
@@ -969,7 +969,7 @@ export default function LiveChallengeTeacher({
                   <option value="absoluteValueEquation">Absolute Value Equations</option>
                   <option value="absoluteValueInequality">Absolute Value Inequalities</option>
                 </select>
-                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: '#5f6368' }}>Linear Equations → Literal Equations → Linear Inequalities → Absolute Value Equations → Absolute Value Inequalities.</span>
+                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: 'var(--mm-text-muted)' }}>Linear Equations → Literal Equations → Linear Inequalities → Absolute Value Equations → Absolute Value Inequalities.</span>
               </label>}
               {challengeMode === 'solverRace' && <label style={{ fontWeight: 800 }}>Difficulty
                 <select value={solverRaceDifficulty} onChange={(event) => setSolverRaceDifficulty(event.target.value)} style={field}>
@@ -996,7 +996,7 @@ export default function LiveChallengeTeacher({
                 </select>
               </label>}
               {rushMode && (
-                <Suspense fallback={<p style={{ gridColumn: '1 / -1', color: '#5f6368' }}>Loading Graph Feature Rush settings…</p>}>
+                <Suspense fallback={<p style={{ gridColumn: '1 / -1', color: 'var(--mm-text-muted)' }}>Loading Graph Feature Rush settings…</p>}>
                   <GraphFeatureRushSetup setup={rushSetup} onChange={setRushSetup} classSize={allStudents.filter((student) => student?.classId === classId).length} onPractice={() => { setMessage(''); setDryRunOpen(true); }} />
                 </Suspense>
               )}
@@ -1012,7 +1012,7 @@ export default function LiveChallengeTeacher({
                 >
                   {[20, 30, 45, 60, 90].map((seconds) => <option key={seconds} value={seconds}>{seconds} seconds</option>)}
                 </select>
-                {timingMode === 'pace' && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: '#5f6368' }}>Disabled in Pace Race. Students have unlimited solving time until the closing threshold starts the separate closing countdown.</span>}
+                {timingMode === 'pace' && <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: 'var(--mm-text-muted)' }}>Disabled in Pace Race. Students have unlimited solving time until the closing threshold starts the separate closing countdown.</span>}
               </label>
               <label style={{ fontWeight: 800 }}>Race clock
                 <select value={timingMode} onChange={(event) => setTimingMode(event.target.value)} style={field}>
@@ -1023,13 +1023,13 @@ export default function LiveChallengeTeacher({
                 <select value={roundClosingThreshold ?? 'off'} onChange={(event) => changeClosingThreshold(event.target.value)} style={field}>
                   <option value="off">Off</option>{[60, 70, 80, 90, 100].map((value) => <option key={value} value={value}>{value}%</option>)}
                 </select>
-                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: '#5f6368' }}>When this percentage of joined students has submitted, the round enters its closing phase.</span>
+                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: 'var(--mm-text-muted)' }}>When this percentage of joined students has submitted, the round enters its closing phase.</span>
               </label>
               <label style={{ fontWeight: 800 }}>Second Chance
                 <select value={secondChanceMode} onChange={(event) => setSecondChanceMode(event.target.value)} style={field}>
                   <option value="off">Off</option><option value="automatic">Automatic</option>
                 </select>
-                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: '#5f6368' }}>Automatic may add up to 3 replay Final Rounds based on the questions the class misses most.</span>
+                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: 'var(--mm-text-muted)' }}>Automatic may add up to 3 replay Final Rounds based on the questions the class misses most.</span>
               </label>
               </>}
               <label style={{ fontWeight: 800 }}>Player display
@@ -1039,7 +1039,7 @@ export default function LiveChallengeTeacher({
                   <option value="firstName">First Name</option>
                   <option value="fullName">Full Name</option>
                 </select>
-                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: '#5f6368' }}>Only the selected display name is sent to the public leaderboard.</span>
+                <span style={{ display: 'block', marginTop: 6, fontWeight: 500, fontSize: 12, color: 'var(--mm-text-muted)' }}>Only the selected display name is sent to the public leaderboard.</span>
               </label>
               {!rushMode && <label style={{ fontWeight: 800 }}>Speed influence
                 <select value={speedPreset(speedInfluencePercent)} onChange={(event) => {
@@ -1070,14 +1070,14 @@ export default function LiveChallengeTeacher({
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
                 <button type="button" disabled={!classId || busy === 'create' || (warmupAssignmentId && warmupDeliveryMode === 'standard')} onClick={create} style={{ ...primary, opacity: !classId || busy === 'create' || (warmupAssignmentId && warmupDeliveryMode === 'standard') ? .55 : 1 }}>{busy === 'create' ? 'Building secure rounds…' : 'Create Lobby'}</button>
                 <button type="button" onClick={() => { setMessage(''); setDryRunOpen(true); }} style={secondary}>Try it yourself first</button>
-                {warmupAssignmentId && (warmupDeliveryMode === 'teacherChoice' || warmupDeliveryMode === 'standard') && <button type="button" disabled={busy === 'standardWarmup'} onClick={useStandardWarmup} style={{ ...secondary, color: '#137333' }}>{busy === 'standardWarmup' ? 'Releasing Warm-Up…' : 'Use Standard Warm-Up'}</button>}
+                {warmupAssignmentId && (warmupDeliveryMode === 'teacherChoice' || warmupDeliveryMode === 'standard') && <button type="button" disabled={busy === 'standardWarmup'} onClick={useStandardWarmup} style={{ ...secondary, color: 'var(--mm-success-text)' }}>{busy === 'standardWarmup' ? 'Releasing Warm-Up…' : 'Use Standard Warm-Up'}</button>}
               </div>
-              <p style={{ margin: '8px 0 0', color: '#5f6368', fontSize: 13, lineHeight: 1.5 }}>A dry run uses the real bank, timer and grader without inviting students or writing game results. Creating a Teacher Choice lobby is the class decision to use the challenge.</p>
+              <p style={{ margin: '8px 0 0', color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.5 }}>A dry run uses the real bank, timer and grader without inviting students or writing game results. Creating a Teacher Choice lobby is the class decision to use the challenge.</p>
             </>
           )}
         </section>
         <AudioMixer director={audioDirectorRef.current} mix={audioMix} onMixChange={updateAudioMix} onEnable={enableAudio} audioReady={audioReady} />
-        {message && <div role="alert" style={{ padding: 12, borderRadius: 9, background: '#fff4ce', color: '#7a4f00' }}>{message}</div>}
+        {message && <div role="alert" style={{ padding: 12, borderRadius: 9, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' }}>{message}</div>}
       </div>
     );
   }
@@ -1140,17 +1140,17 @@ export default function LiveChallengeTeacher({
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           {!cancelled && <button type="button" onClick={() => setProjector(true)} style={primary}>Projector View</button>}
-          {lobby && <button type="button" disabled={controlBusy} onClick={() => (joinedCount > 0 ? setConfirming('cancel') : control('cancel', cancelLiveChallenge))} style={{ ...secondary, color: '#a50e0e', opacity: controlBusy ? 0.55 : 1 }}>Cancel Session</button>}
-          {(roundOpen || stage === CHALLENGE_STAGE.ROUND_RESULTS) && <button type="button" disabled={controlBusy} onClick={() => setConfirming('finish')} style={{ ...secondary, color: '#a50e0e', opacity: controlBusy ? 0.55 : 1 }}>{busy === 'finish' ? 'Ending…' : 'End Game'}</button>}
+          {lobby && <button type="button" disabled={controlBusy} onClick={() => (joinedCount > 0 ? setConfirming('cancel') : control('cancel', cancelLiveChallenge))} style={{ ...secondary, color: 'var(--mm-error-text)', opacity: controlBusy ? 0.55 : 1 }}>Cancel Session</button>}
+          {(roundOpen || stage === CHALLENGE_STAGE.ROUND_RESULTS) && <button type="button" disabled={controlBusy} onClick={() => setConfirming('finish')} style={{ ...secondary, color: 'var(--mm-error-text)', opacity: controlBusy ? 0.55 : 1 }}>{busy === 'finish' ? 'Ending…' : 'End Game'}</button>}
         </div>
       </header>
       {recoveredNotice && <div role="status" style={{ padding: 12, borderRadius: 9, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', border: '1px solid var(--mm-info-border)', fontWeight: 800 }}>{recoveredNotice}</div>}
-      {message && <div role="alert" style={{ padding: 12, borderRadius: 9, background: '#fff4ce', color: '#7a4f00' }}>{message}</div>}
+      {message && <div role="alert" style={{ padding: 12, borderRadius: 9, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)' }}>{message}</div>}
 
       {lobby && (
         <>
-          <section style={{ ...panel, background: '#e8f0fe', borderColor: '#aecbfa', display: 'grid', gap: 14 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, color: '#174ea6' }}>
+          <section style={{ ...panel, background: 'var(--mm-primary-soft)', borderColor: 'var(--mm-primary-border)', display: 'grid', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 12, color: 'var(--mm-primary-text)' }}>
               <div><div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>Joined</div><div style={{ fontSize: 34, fontWeight: 1000 }}>{joinedCount} / {room.eligibleCount || 0}</div></div>
               <div><div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>Rounds</div><div style={{ fontSize: 34, fontWeight: 1000 }}>{room.roundCount}</div></div>
               {/* A classic round's time is fitted to its question (a one-step
@@ -1159,13 +1159,13 @@ export default function LiveChallengeTeacher({
               <div><div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>{room.timingMode === 'pace' ? 'Timing' : 'Per round'}</div><div style={{ fontSize: 34, fontWeight: 1000 }}>{room.timingMode === 'pace' ? 'Pace' : `${questionSetRoom ? '' : '~'}${room.roundSeconds}s`}</div>{room.timingMode !== 'pace' && !questionSetRoom && <div style={{ fontSize: 12, fontWeight: 700 }}>fitted to each question</div>}</div>
               <div><div style={{ fontSize: 12, fontWeight: 900, textTransform: 'uppercase' }}>Scoring</div><div style={{ fontSize: 22, fontWeight: 1000, marginTop: 6 }}>{presentation.placementPoints ? 'Grand Prix' : presentation.strategyId === 'correctCount' ? 'Correct Count' : 'Points'}</div></div>
             </div>
-            <div style={{ color: '#174ea6', lineHeight: 1.5 }}>
+            <div style={{ color: 'var(--mm-primary-text)', lineHeight: 1.5 }}>
               <strong>How students join:</strong> students in {room.className || room.classPeriod || 'this class'} see a Live Challenge card on their MathMaster dashboard — no code to type.{room.assignmentId ? ' Students who open the linked assignment during its Warm-Up are taken straight in.' : ''}
             </div>
             {rushRoom
-              ? <div style={{ color: '#3c4043', fontWeight: 800 }}>Graph Feature Rush · {rushSettingsLine(room)}</div>
-              : <div style={{ color: '#3c4043', fontWeight: 800 }}>{room.timingMode === 'pace' ? 'Pace Race' : 'Timed Race'} · Closing {room.roundClosingThreshold == null ? 'Off' : `at ${room.roundClosingThreshold}%`} · Second Chance {room.secondChanceMode === 'off' ? 'Off' : 'Automatic'}{room.solverRaceDifficulty === 'ramp' ? ' · Ramp difficulty' : ''}</div>}
-            {rewardLines.length > 0 && <div style={{ color: '#3c4043' }}><strong>Rewards:</strong> {rewardLines.join(' · ')}</div>}
+              ? <div style={{ color: 'var(--mm-text)', fontWeight: 800 }}>Graph Feature Rush · {rushSettingsLine(room)}</div>
+              : <div style={{ color: 'var(--mm-text)', fontWeight: 800 }}>{room.timingMode === 'pace' ? 'Pace Race' : 'Timed Race'} · Closing {room.roundClosingThreshold == null ? 'Off' : `at ${room.roundClosingThreshold}%`} · Second Chance {room.secondChanceMode === 'off' ? 'Off' : 'Automatic'}{room.solverRaceDifficulty === 'ramp' ? ' · Ramp difficulty' : ''}</div>}
+            {rewardLines.length > 0 && <div style={{ color: 'var(--mm-text)' }}><strong>Rewards:</strong> {rewardLines.join(' · ')}</div>}
             <HostControlBar action={primaryAction} busy={busy} controlBusy={controlBusy} onPrimary={runPrimaryAction} />
           </section>
           <NotJoinedLine roster={roster} />
@@ -1215,12 +1215,12 @@ export default function LiveChallengeTeacher({
 
       {finished && (
         <>
-          <section style={{ ...panel, background: '#e6f4ea', borderColor: '#9bd2aa', display: 'grid', gap: 12 }}>
+          <section style={{ ...panel, background: 'var(--mm-success-bg)', borderColor: 'var(--mm-success-border)', display: 'grid', gap: 12 }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: 26, color: '#137333' }}>Challenge complete</h2>
-              <p style={{ margin: '6px 0 0', color: '#1e4620' }}>Competition points are game results only. Warm-Up academic credit uses participation and mathematical accuracy.</p>
+              <h2 style={{ margin: 0, fontSize: 26, color: 'var(--mm-success-text)' }}>Challenge complete</h2>
+              <p style={{ margin: '6px 0 0', color: 'var(--mm-success-text)' }}>Competition points are game results only. Warm-Up academic credit uses participation and mathematical accuracy.</p>
             </div>
-            {rewardLines.length > 0 && <div style={{ color: '#1e4620' }}><strong>Rewards from this game:</strong> {rewardLines.join(' · ')}. Each student&apos;s screen shows what reached their wallet.</div>}
+            {rewardLines.length > 0 && <div style={{ color: 'var(--mm-success-text)' }}><strong>Rewards from this game:</strong> {rewardLines.join(' · ')}. Each student&apos;s screen shows what reached their wallet.</div>}
             <HostControlBar
               action={primaryAction}
               busy={busy}
@@ -1228,7 +1228,7 @@ export default function LiveChallengeTeacher({
               onPrimary={runPrimaryAction}
               secondary={[{ key: 'newChallenge', label: 'New Challenge', onClick: newChallenge }]}
             />
-            <div style={{ color: '#3c4043', fontSize: 13 }}>Play Again runs {replaySummary(room)}{room.assignmentId ? ' as a standalone game (the Warm-Up keeps this game’s result)' : ''}, with this device&apos;s Rewards choice.</div>
+            <div style={{ color: 'var(--mm-text)', fontSize: 13 }}>Play Again runs {replaySummary(room)}{room.assignmentId ? ' as a standalone game (the Warm-Up keeps this game’s result)' : ''}, with this device&apos;s Rewards choice.</div>
           </section>
           <section style={panel}>
             <h3 style={{ marginTop: 0 }}>Final {standingTitle.toLowerCase()}</h3>
@@ -1251,7 +1251,7 @@ export default function LiveChallengeTeacher({
       {cancelled && (
         <section style={{ ...panel, display: 'grid', gap: 12 }}>
           <h3 style={{ margin: 0 }}>Challenge cancelled</h3>
-          <p style={{ margin: 0, color: '#5f6368' }}>Nothing from this game is recorded, and nobody is rewarded.</p>
+          <p style={{ margin: 0, color: 'var(--mm-text-muted)' }}>Nothing from this game is recorded, and nobody is rewarded.</p>
           <HostControlBar action={primaryAction} busy={busy} controlBusy={controlBusy} onPrimary={runPrimaryAction} secondary={[{ key: 'sameAgain', label: 'Same Settings Again', onClick: playAgain }]} />
         </section>
       )}

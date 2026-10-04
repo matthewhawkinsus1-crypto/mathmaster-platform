@@ -4,6 +4,7 @@ import { supportShortLabel } from '../../../functions/shared/supportCatalog.mjs'
 import { resolveEffectiveSupportPlan } from '../../../functions/shared/supportProfileModel.mjs';
 import { parseInstant } from '../../../functions/shared/instructionalCalendar.mjs';
 import { describeDueDateExtension, resolveStudentSupportDeadline } from '../../../functions/shared/supportDeadline.mjs';
+import { resolveStudentOverride } from '../../../functions/shared/studentAssignmentOverrides.mjs';
 import { PROVENANCE_LABEL } from '../../../functions/shared/supportEvidenceModel.mjs';
 import { buildAssignmentEvidenceRow } from '../../platform/supportEvidence/evidenceAggregation.js';
 import {
@@ -65,7 +66,7 @@ export default function AssignmentSupportLayer({
   const individualDeadlines = useMemo(() => roster
     .map((student) => {
       const support = resolveStudentSupportDeadline({ assignment, profile: student.profile });
-      const attendanceFinal = parseInstant(assignment?.studentOverrides?.[student.id]?.lateDueAt || assignment?.studentOverrides?.[student.id]?.dueAt, { endOfDay: true });
+      const attendanceFinal = parseInstant(resolveStudentOverride({ assignment, studentId: student.id })?.lateDueAt, { endOfDay: true });
       if (!support && attendanceFinal === null) return null;
       return {
         id: student.id,

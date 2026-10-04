@@ -17,7 +17,7 @@ export default function BuildStamp({ align = 'center', style = null }) {
       data-mathmaster-build={stamp.shortSha}
       title={stamp.detail}
       style={{
-        margin: '26px 0 0', fontSize: 11, color: '#9aa0a6',
+        margin: '26px 0 0', fontSize: 11, color: 'var(--mm-text-subtle)',
         textAlign: align, letterSpacing: '.03em', ...style,
       }}
     >

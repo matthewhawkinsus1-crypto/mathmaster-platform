@@ -40,7 +40,7 @@ const slopeStepForHint = (value) => {
 };
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
-const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: '#174ea6', border: '1px solid #9bb8e8' };
+const secondaryButton = { ...primaryButton, background: 'var(--mm-surface)', color: 'var(--mm-primary-text)', border: '1px solid var(--mm-primary-border)' };
 
 const MODE_LABELS = {
   slopeIntercept: 'Slope-intercept form',
@@ -358,8 +358,8 @@ export default function Graphing2({ questionData = {}, onAction }) {
         <Panel title="Construct the line">
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, padding: '8px 12px',
-            borderRadius: 999, background: points.length >= requiredPointCount ? '#e6f4ea' : '#e8f0fe',
-            color: points.length >= requiredPointCount ? '#137333' : '#174ea6', fontWeight: 800, fontSize: 13,
+            borderRadius: 999, background: points.length >= requiredPointCount ? 'var(--mm-success-bg)' : 'var(--mm-primary-soft)',
+            color: points.length >= requiredPointCount ? 'var(--mm-success-text)' : 'var(--mm-primary-text)', fontWeight: 800, fontSize: 13,
           }}>
             <span>{points.length >= requiredPointCount ? '✓' : `${points.length}/${requiredPointCount}`}</span>
             <span>{nextInstruction(points.length, requiredPointCount)}</span>
@@ -383,7 +383,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
             {verticalStudentLine}
           </CoordinatePlane>
           {givenPoints.length ? (
-            <p style={{ color: '#5f6b7a', fontSize: 13, marginBottom: 0 }}>
+            <p style={{ color: 'var(--mm-text-muted)', fontSize: 13, marginBottom: 0 }}>
               <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 999, background: '#8a3ffc', marginRight: 6 }} />
               Purple points are given to you. Blue points are yours.
             </p>
@@ -392,9 +392,9 @@ export default function Graphing2({ questionData = {}, onAction }) {
 
         <Panel title="Your construction">
           <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 14px', alignItems: 'baseline' }}>
-            <dt style={{ color: '#5f6b7a', fontSize: 13 }}>Points plotted</dt>
+            <dt style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>Points plotted</dt>
             <dd style={{ margin: 0, fontWeight: 700 }}>{points.length ? points.map(formatPoint).join(' and ') : 'None yet'}</dd>
-            <dt style={{ color: '#5f6b7a', fontSize: 13 }}>Your line</dt>
+            <dt style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>Your line</dt>
             <dd style={{ margin: 0, fontWeight: 700 }}>{studentLine ? formatLine(studentLine) : 'Plot two different points'}</dd>
           </dl>
 
@@ -415,7 +415,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
           {feedback ? (
             <div style={{ marginTop: 14 }}>
               <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
-              <p style={{ margin: '9px 0 0', color: '#3c4756', lineHeight: 1.55 }}>{feedbackMessage()}</p>
+              <p style={{ margin: '9px 0 0', color: 'var(--mm-text)', lineHeight: 1.55 }}>{feedbackMessage()}</p>
             </div>
           ) : null}
 

@@ -720,6 +720,16 @@ service cloud.firestore {
         allow create, update, delete: if false;
       }
 
+      // The history of a student's assignment controls: one immutable entry
+      // per change (who, before, after), the verbatim shared-copy data each
+      // migration step moved, and the student's share of the DOL recovery
+      // audit. Staff only — it names who granted what — and written only by
+      // the Admin SDK (studentAssignmentOverrides.mjs).
+      match /assignmentOverrideEvents/{eventId} {
+        allow read: if rootAdmin() || teachesPresenceStudent(studentId) || authorizedTeacher();
+        allow create, update, delete: if false;
+      }
+
       // Server-timed active-engagement minutes, one ledger per assignment per
       // UTC day. Written only by the student's own client, only ever growing.
       match /engagementMinutes/{ledgerId} {
@@ -1217,16 +1227,92 @@ service cloud.firestore {
         ]);
     }
 
+    /*
+     * ONCE THE SHARED COPY IS RETIRED, NO CLIENT PUTS PER-STUDENT DATA BACK.
+     *
+     * A student's controls (deadline, excusal, reopen, DOL attempts) live in
+     * `studentAssignmentOverrides` (below; functions/shared/
+     * studentAssignmentOverrides.mjs). Until `platformFlags/
+     * assignmentOverrideStorage.sharedRetired` is set, the server mirrors them
+     * onto the shared assignment for the previous release's clients, and a
+     * teacher tab from that release may still write a per-student DOL grant
+     * the old way (the absorber trigger moves it into private storage).
+     * Once it is set — after the new client has been live for a school day —
+     * a client write may not add or change any per-student field: a stale
+     * tab rewriting the whole `dol` map from an old snapshot would otherwise
+     * publish every classmate's grant again. `studentOverrides` itself was
+     * already server-only and still is.
+     */
+    function sharedStudentControlsRetired() {
+      let flag = /databases/$(database)/documents/platformFlags/assignmentOverrideStorage;
+      return exists(flag) && get(flag).data.get('sharedRetired', false) == true;
+    }
+
+    // Same-typed empty defaults: comparing a list or map with null is an
+    // evaluation error in the rules language, not `false`. An empty list or
+    // map carries no student's data, so it counts as absent.
+    function perStudentSharedFieldsUnchanged() {
+      return request.resource.data.get('excusedStudentIds', []) == resource.data.get('excusedStudentIds', [])
+        && request.resource.data.get('reopenedStudentIds', []) == resource.data.get('reopenedStudentIds', [])
+        && request.resource.data.get('dol', {}).get('attemptGrantsByStudentId', {})
+          == resource.data.get('dol', {}).get('attemptGrantsByStudentId', {});
+    }
+
+    function perStudentSharedFieldsAbsent() {
+      return request.resource.data.get('excusedStudentIds', []).size() == 0
+        && request.resource.data.get('reopenedStudentIds', []).size() == 0
+        && request.resource.data.get('dol', {}).get('attemptGrantsByStudentId', {}).size() == 0;
+    }
+
     match /assignments/{assignmentId} {
       allow get: if signedIn();
       allow list: if teacher()
         || studentListsOwnClassAssignments()
         || (signedIn() && !studentAssignmentListScoped());
       allow create: if teacher()
-        && !request.resource.data.keys().hasAny(['studentOverrides']);
+        && !request.resource.data.keys().hasAny(['studentOverrides'])
+        && (!sharedStudentControlsRetired() || perStudentSharedFieldsAbsent());
       allow delete: if teacher();
       allow update: if teacher()
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['studentOverrides']);
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['studentOverrides'])
+        && (!sharedStudentControlsRetired() || perStudentSharedFieldsUnchanged());
+    }
+
+    /*
+     * ONE STUDENT'S CONTROLS ON ONE ASSIGNMENT (functions/shared/
+     * studentAssignmentOverrides.mjs): their individual final cutoff, the
+     * extension stub attendance reconciliation compares, excused/reopened, and
+     * their DOL attempt grant. Keyed `{len}:{studentId}:{assignmentId}`.
+     *
+     * The student reads their own (the query the client makes is
+     * `where('studentId', '==', <their id>)`), their teacher reads through the
+     * record's own `authorizedTeacherEmails` (one bounded query for a whole
+     * roster, never a get() per student — authorizationContext.mjs), and the
+     * root administrator reads all. A classmate can neither read one nor list
+     * them: every list must prove one of those three from its constraints.
+     *
+     * Nobody writes one from a browser — not the student, not a teacher, not
+     * the root administrator. They change only through callables that check
+     * the caller is the class's teacher of record (Admin SDK), so a student
+     * cannot give themselves a later deadline, a reopen or an attempt, and a
+     * teacher cannot touch another class's student.
+     */
+    match /studentAssignmentOverrides/{overrideId} {
+      allow read: if rootAdmin() || ownsStudent(resource.data.studentId) || authorizedTeacher();
+      allow create, update, delete: if false;
+    }
+
+    // Verbatim copies of per-student data removed from a shared assignment
+    // (several students per document), and the resumable migration state.
+    // Root administrator only; written only by the Admin SDK.
+    match /assignmentOverrideArchives/{archiveId} {
+      allow read: if rootAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /platformMigrations/{migrationId} {
+      allow read: if rootAdmin();
+      allow create, update, delete: if false;
     }
 
     /*

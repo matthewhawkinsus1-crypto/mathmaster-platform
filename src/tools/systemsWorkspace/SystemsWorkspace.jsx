@@ -64,11 +64,11 @@ const DEFAULT_INEQUALITY_GRAPH = SYSTEMS_WORKSPACE_DEFAULTS.inequalityGraph;
 // the server runs as the authority — through gradeToolCheck, and its feedback
 // reads the parts that grader returned. No verdict is computed in this file.
 const partCorrect = (feedback, id) => (feedback?.metadata?.parts || []).some((item) => item.id === id && item.isCorrect === true);
-const inputStyle = { width:'100%', boxSizing:'border-box', padding:'11px 12px', border:'1px solid #cfd8e6', borderRadius:9, background:'#fff', fontSize:15, minHeight:44 };
+const inputStyle = { width:'100%', boxSizing:'border-box', padding:'11px 12px', border:'1px solid var(--mm-tint-border)', borderRadius:9, background:'var(--mm-surface)', fontSize:15, minHeight:44 };
 const actionStyle = { marginTop:16, padding:'11px 18px', border:0, borderRadius:9, background:'#1a73e8', color:'#fff', fontWeight:800, cursor:'pointer', minHeight:44 };
 const INEQUALITY_COLORS = ['#1a73e8', '#d93025', '#188038', '#9334e6', '#b06000'];
 
-const Field = ({ label, children }) => <label style={{ display:'block', fontSize:13, fontWeight:700, color:'#465267' }}>{label}<div style={{marginTop:5}}>{children}</div></label>;
+const Field = ({ label, children }) => <label style={{ display:'block', fontSize:13, fontWeight:700, color:'var(--mm-text-muted)' }}>{label}<div style={{marginTop:5}}>{children}</div></label>;
 const formatLine = (line) => `y = ${line.m}x ${Number(line.b)>=0?'+':'−'} ${Math.abs(Number(line.b))}`;
 const displayRelation = (relation) => String(relation || '>=').replace('<=', '≤').replace('>=', '≥');
 const formatLinearTerm = (coefficient, variable, first = false) => {
@@ -103,7 +103,7 @@ const formatInequality = (ineq = {}) => {
 // Naming the curves beats "the blue one". Ordinary equation lines are both
 // solid; dashed strokes are reserved for strict inequality boundaries.
 const Legend = ({ items }) => (
-  <div style={{ display:'flex', gap:16, flexWrap:'wrap', marginTop:10, fontSize:13, color:'#3c4756' }}>
+  <div style={{ display:'flex', gap:16, flexWrap:'wrap', marginTop:10, fontSize:13, color:'var(--mm-text)' }}>
     {items.map((item) => (
       <span key={item.label}>
         <svg width="26" height="8" style={{ verticalAlign:'middle', marginRight:5 }} aria-hidden="true">
@@ -175,8 +175,8 @@ function LinearMode({ questionData, onAction }) {
       <Field label="How many solutions does this system have?"><select value={classification} onChange={(e)=>setClassification(e.target.value)} style={inputStyle}><option value={UNANSWERED}>Choose…</option><option value="one">Exactly one solution</option><option value="none">No solution</option><option value="infinite">Infinitely many solutions</option></select></Field>
       {classification === 'one' ? <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:12}}><Field label="x"><input type="number" inputMode="decimal" value={x} onChange={(e)=>setX(e.target.value)} style={inputStyle}/></Field><Field label="y"><input type="number" inputMode="decimal" value={y} onChange={(e)=>setY(e.target.value)} style={inputStyle}/></Field></div> : null}
       <button data-mm-enter-action="submit" type="button" onClick={check} disabled={!classified} style={{...actionStyle,opacity:classified?1:0.5}}>Check system</button>
-      {!classified ? <p style={{margin:'8px 0 0',color:'#5f6368',fontSize:13}}>Choose how many solutions the system has first.</p> : null}
-      {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'#3c4756',lineHeight:1.55}}>{message()}</p></div> : null}
+      {!classified ? <p style={{margin:'8px 0 0',color:'var(--mm-text-muted)',fontSize:13}}>Choose how many solutions the system has first.</p> : null}
+      {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'var(--mm-text)',lineHeight:1.55}}>{message()}</p></div> : null}
       <HintPanel
         hints={[
           'The solution of a system is the point that makes both equations true at once — on a graph, that is where the lines cross.',
@@ -357,7 +357,7 @@ function ClassicInequalityMode({ questionData, onAction }) {
       <div style={{display:'grid',gap:6,marginTop:12}}>
         {inequalities.map((ineq,index)=><div key={index}><strong>{index+1}.</strong> {formatInequality(ineq)}</div>)}
       </div>
-      <p style={{fontSize:13,color:'#5f6b7a'}}>
+      <p style={{fontSize:13,color:'var(--mm-text-muted)'}}>
         {requiresConstruction
           ? 'Your graph above is built from the two boundary points, boundary style, and shading direction you enter. No correct region is drawn for you.'
           : 'The green shaded overlap is the feasible region: every point inside it satisfies every inequality at once.'}
@@ -370,7 +370,7 @@ function ClassicInequalityMode({ questionData, onAction }) {
           {inequalities.map((ineq, index) => {
             const entry = construction[index] || {};
             return (
-              <div key={index} style={{padding:12,border:'1px solid #dbe3ef',borderRadius:10,background:'#f8fbff'}}>
+              <div key={index} style={{padding:12,border:'1px solid var(--mm-tint-border)',borderRadius:10,background:'var(--mm-surface-tint)'}}>
                 <strong style={{display:'block',marginBottom:9}}>Inequality {index + 1}: {formatInequality(ineq)}</strong>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(2, minmax(0, 1fr))',gap:9}}>
                   <Field label="Boundary point 1: x"><input type="number" inputMode="decimal" value={entry.x1} onChange={(e)=>updateConstruction(index,'x1',e.target.value)} style={inputStyle}/></Field>
@@ -420,11 +420,11 @@ function ClassicInequalityMode({ questionData, onAction }) {
       ) : null}
 
       <button type="button" onClick={check} disabled={!choicesMade} style={{...actionStyle,opacity:choicesMade?1:0.5}}>{requiresConstruction ? 'Check inequality graph' : 'Check feasible region'}</button>
-      {!choicesMade ? <p style={{margin:'8px 0 0',color:'#5f6368',fontSize:13}}>{[
+      {!choicesMade ? <p style={{margin:'8px 0 0',color:'var(--mm-text-muted)',fontSize:13}}>{[
         constructionChoicesMade ? null : 'Choose a boundary style and a side to shade for every inequality.',
         testChoiceMade ? null : 'Decide whether the purple point is in the feasible region.',
       ].filter(Boolean).join(' ')}</p> : null}
-      {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'#3c4756',lineHeight:1.55}}>{message()}</p></div> : null}
+      {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'var(--mm-text)',lineHeight:1.55}}>{message()}</p></div> : null}
       <HintPanel
         hints={requiresConstruction ? [
           'Replace the inequality symbol with = to get the boundary line. Choose any two x-values and calculate the matching y-values.',
@@ -531,14 +531,14 @@ function ConstructionMethodFields({ entry, onChange }) {
   if (entry.method === 'horizontal') {
     return <Field label="y ="><input type="number" inputMode="decimal" value={entry.constant} onChange={(e)=>onChange('constant', e.target.value)} style={inputStyle}/></Field>;
   }
-  return <p style={{ margin:0, fontSize:13, color:'#5f6b7a' }}>Choose how you want to build this boundary.</p>;
+  return <p style={{ margin:0, fontSize:13, color:'var(--mm-text-muted)' }}>Choose how you want to build this boundary.</p>;
 }
 
 function TestPointReasoning({ title, point, count, response, setResponse, onBoundaryIndex, askBoundaryProbe = true, inequalityLabels, feedback, onCheck }) {
   if (!point) return null;
   const [x, y] = point;
   return (
-    <div style={{ padding:12, border:'1px solid #dbe3ef', borderRadius:10, background:'#f8fbff', marginTop:12 }}>
+    <div style={{ padding:12, border:'1px solid var(--mm-tint-border)', borderRadius:10, background:'var(--mm-surface-tint)', marginTop:12 }}>
       <strong style={{ display:'block', marginBottom:6 }}>{title}: ({round(x,3)}, {round(y,3)})</strong>
       <div style={{ display:'grid', gap:8 }}>
         {Array.from({ length: count }).map((_, index) => (
@@ -581,7 +581,7 @@ function TestPointReasoning({ title, point, count, response, setResponse, onBoun
         ) : null}
       </div>
       <button type="button" onClick={onCheck} style={{ ...actionStyle, marginTop:12 }}>Check this point</button>
-      {feedback ? <p style={{ margin:'9px 0 0', color:'#3c4756', lineHeight:1.5 }}>{feedback}</p> : null}
+      {feedback ? <p style={{ margin:'9px 0 0', color:'var(--mm-text)', lineHeight:1.5 }}>{feedback}</p> : null}
     </div>
   );
 }
@@ -926,12 +926,12 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
       <ToolSplit>
         <Panel title={modeling && !modelingSent ? 'Define your constraints' : 'Your graph'}>
           {modeling && !modelingSent ? (
-            <p style={{ margin:'0 0 12px', fontSize:13, color:'#5f6b7a' }}>
+            <p style={{ margin:'0 0 12px', fontSize:13, color:'var(--mm-text-muted)' }}>
               Using {variables.map((v)=>`${v.symbol} = ${v.label}`).join(' and ')}, write each constraint below. Send them to the workspace once every constraint has valid variable coefficients, a relation, and a constant.
             </p>
           ) : (
             <>
-              {armLabel() ? <p style={{ margin:'0 0 8px', fontSize:13, fontWeight:700, color:'#174ea6' }}>{armLabel()}</p> : null}
+              {armLabel() ? <p style={{ margin:'0 0 8px', fontSize:13, fontWeight:700, color:'var(--mm-primary-text)' }}>{armLabel()}</p> : null}
               <CoordinatePlane
                 xMin={bounds.xMin ?? -6} xMax={bounds.xMax ?? 8} yMin={bounds.yMin ?? -4} yMax={bounds.yMax ?? 10}
                 onPlot={handlePlot}
@@ -977,7 +977,7 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
                   </g>
                 )}
               </CoordinatePlane>
-              <p style={{ fontSize:13, color:'#5f6b7a' }}>
+              <p style={{ fontSize:13, color:'var(--mm-text-muted)' }}>
                 {buildConfig.boundary && buildConfig.lineStyle && buildConfig.shading
                   ? 'Nothing here is drawn for you — every line, style, and shaded side is the one you built.'
                   : 'Only the construction steps this question asks you to complete are student-built; provided features are shown so you can focus on the assigned reasoning.'}
@@ -990,7 +990,7 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
           {modeling && !modelingSent ? (
             <div style={{ display:'grid', gap:14 }}>
               {modelingEntries.map((entry, index) => (
-                <div key={index} style={{ padding:12, border:'1px solid #dbe3ef', borderRadius:10, background:'#f8fbff' }}>
+                <div key={index} style={{ padding:12, border:'1px solid var(--mm-tint-border)', borderRadius:10, background:'var(--mm-surface-tint)' }}>
                   <strong style={{ display:'block', marginBottom:9 }}>Constraint {index + 1}: {formatModelingConstraint(entry, variables)}</strong>
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(4, minmax(0,1fr))', gap:9 }}>
                     <Field label={`Coefficient of ${variables[0].symbol}`}><input type="number" inputMode="decimal" value={entry.coeffA} onChange={(e)=>updateModelingEntry(index,'coeffA',e.target.value)} style={inputStyle}/></Field>
@@ -1024,12 +1024,12 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
                 </div>
               ) : null}
               {build.map((entry, index) => (
-                <div key={index} style={{ padding:12, border: activeIndex === index ? '2px solid #1a73e8' : '1px solid #dbe3ef', borderRadius:10, background:'#f8fbff' }}>
+                <div key={index} style={{ padding:12, border: activeIndex === index ? '2px solid #1a73e8' : '1px solid var(--mm-tint-border)', borderRadius:10, background:'var(--mm-surface-tint)' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, marginBottom:9 }}>
                     <button type="button" aria-expanded={activeIndex === index} onClick={()=>setActiveIndex((current)=>current === index ? null : index)} style={{ background:'none', border:'none', padding:0, cursor:'pointer', textAlign:'left' }}>
                       <strong>{activeIndex === index ? '▾' : '▸'} Constraint {index + 1}: {inequalityLabel(index)}</strong>
                     </button>
-                    <label style={{ fontSize:12, color:'#5f6b7a', display:'flex', alignItems:'center', gap:5 }}>
+                    <label style={{ fontSize:12, color:'var(--mm-text-muted)', display:'flex', alignItems:'center', gap:5 }}>
                       <input type="checkbox" checked={entry.visible !== false} onChange={(e)=>updateBuildEntry(index, { visible:e.target.checked })} /> Show
                     </label>
                   </div>
@@ -1071,7 +1071,7 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
                           </div>
                         ) : null}
                         <button type="button" onClick={()=>updateBuildEntry(index, { boundaryAttempts: entry.boundaryAttempts + 1 })} style={{ ...actionStyle, padding:'8px 14px', fontSize:13 }}>Check boundary</button>
-                        {boundaryMessage(index) ? <p style={{ margin:'6px 0 0', fontSize:13, color:'#3c4756' }}>{boundaryMessage(index)}</p> : null}
+                        {boundaryMessage(index) ? <p style={{ margin:'6px 0 0', fontSize:13, color:'var(--mm-text)' }}>{boundaryMessage(index)}</p> : null}
                       </div>
                       ) : null}
 
@@ -1079,32 +1079,32 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
                       <div>
                         <Field label="Is this boundary solid or dashed?">
                           <div style={{ display:'flex', gap:8 }}>
-                            <button type="button" onClick={()=>updateBuildEntry(index, { style:'solid' })} style={{ ...actionStyle, marginTop:0, background: entry.style==='solid' ? '#174ea6' : '#eef4ff', color: entry.style==='solid' ? '#fff' : '#174ea6' }}>Solid</button>
-                            <button type="button" onClick={()=>updateBuildEntry(index, { style:'dashed' })} style={{ ...actionStyle, marginTop:0, background: entry.style==='dashed' ? '#174ea6' : '#eef4ff', color: entry.style==='dashed' ? '#fff' : '#174ea6' }}>Dashed</button>
+                            <button type="button" onClick={()=>updateBuildEntry(index, { style:'solid' })} style={{ ...actionStyle, marginTop:0, background: entry.style==='solid' ? '#174ea6' : 'var(--mm-primary-subtle)', color: entry.style==='solid' ? '#fff' : 'var(--mm-primary-text)' }}>Solid</button>
+                            <button type="button" onClick={()=>updateBuildEntry(index, { style:'dashed' })} style={{ ...actionStyle, marginTop:0, background: entry.style==='dashed' ? '#174ea6' : 'var(--mm-primary-subtle)', color: entry.style==='dashed' ? '#fff' : 'var(--mm-primary-text)' }}>Dashed</button>
                           </div>
                         </Field>
                         <button type="button" onClick={()=>updateBuildEntry(index, { styleAttempts: entry.styleAttempts + 1 })} style={{ ...actionStyle, padding:'8px 14px', fontSize:13 }}>Check line style</button>
-                        {styleMessage(index) ? <p style={{ margin:'6px 0 0', fontSize:13, color:'#3c4756' }}>{styleMessage(index)}</p> : null}
+                        {styleMessage(index) ? <p style={{ margin:'6px 0 0', fontSize:13, color:'var(--mm-text)' }}>{styleMessage(index)}</p> : null}
                       </div>
                       ) : null}
 
                       {buildConfig.shading ? (
                       <div>
                         <button type="button" onClick={()=>setArmed({ type:'shade', index })} style={{ ...actionStyle, marginTop:0 }}>Tap the side of the graph to shade</button>
-                        {entry.shadePoint ? <p style={{ margin:'6px 0 0', fontSize:12, color:'#5f6b7a' }}>Shaded through ({round(entry.shadePoint[0],2)}, {round(entry.shadePoint[1],2)}).</p> : null}
+                        {entry.shadePoint ? <p style={{ margin:'6px 0 0', fontSize:12, color:'var(--mm-text-muted)' }}>Shaded through ({round(entry.shadePoint[0],2)}, {round(entry.shadePoint[1],2)}).</p> : null}
                         <button type="button" onClick={()=>updateBuildEntry(index, { shadeAttempts: entry.shadeAttempts + 1 })} style={{ ...actionStyle, padding:'8px 14px', fontSize:13 }}>Check shading</button>
-                        {shadeMessage(index) ? <p style={{ margin:'6px 0 0', fontSize:13, color:'#3c4756' }}>{shadeMessage(index)}</p> : null}
+                        {shadeMessage(index) ? <p style={{ margin:'6px 0 0', fontSize:13, color:'var(--mm-text)' }}>{shadeMessage(index)}</p> : null}
                       </div>
                       ) : null}
-                      </> : <p style={{ margin:0, color:'#5f6b7a' }}>Graph construction unlocks after your rewrite is verified.</p>}
+                      </> : <p style={{ margin:0, color:'var(--mm-text-muted)' }}>Graph construction unlocks after your rewrite is verified.</p>}
                     </div>
                   ) : null}
                 </div>
               ))}
 
-              <div data-combine-ready={allConstraintsComplete ? 'true' : 'false'} style={{ padding:12, border:'1px solid #dbe3ef', borderRadius:10, background: allConstraintsComplete && buildGate.verdictsShown ? '#f0fbf4' : '#f3f4f6' }}>
+              <div data-combine-ready={allConstraintsComplete ? 'true' : 'false'} style={{ padding:12, border:'1px solid var(--mm-tint-border)', borderRadius:10, background: allConstraintsComplete && buildGate.verdictsShown ? 'var(--mm-success-subtle)' : 'var(--mm-surface-control)' }}>
                 <strong>Combined solution</strong>
-                <p style={{ margin:'6px 0 10px', fontSize:13, color:'#5f6b7a' }}>
+                <p style={{ margin:'6px 0 10px', fontSize:13, color:'var(--mm-text-muted)' }}>
                   {buildGate.verdictsShown
                     ? (allConstraintsComplete ? 'Every constraint checks out. Combine them to see your overlap region.' : 'Locked until every constraint above is correct.')
                     // Opens on finished work, right or wrong: the lock would be the verdict.
@@ -1114,7 +1114,7 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
               </div>
 
               {combined && askClassification ? (
-                <div style={{ padding:12, border:'1px solid #dbe3ef', borderRadius:10, background:'#f8fbff' }}>
+                <div style={{ padding:12, border:'1px solid var(--mm-tint-border)', borderRadius:10, background:'var(--mm-surface-tint)' }}>
                   <Field label="How would you classify the combined solution region?">
                     <select value={regionClassification} onChange={(e)=>setRegionClassification(e.target.value)} style={inputStyle}>
                       <option value="">Choose…</option>
@@ -1126,12 +1126,12 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
                   <button type="button" onClick={()=>setRegionClassificationAttempts((n)=>n+1)} style={{ ...actionStyle, padding:'8px 14px', fontSize:13 }}>Check classification</button>
                   {!buildGate.verdictsShown ? (
                     regionClassificationAttempts > 0 ? (
-                      <p role="status" style={{ margin:'6px 0 0', fontSize:13, color:'#174ea6' }}>
+                      <p role="status" style={{ margin:'6px 0 0', fontSize:13, color:'var(--mm-primary-text)' }}>
                         {completionLine(buildGate.reasoningReport({ pressed: true, complete: Boolean(regionClassification) }), REASONING_COMPLETION_TEXT)}
                       </p>
                     ) : null
                   ) : regionClassificationAttempts > 0 && regionClassification ? (
-                    <p style={{ margin:'6px 0 0', fontSize:13, color:'#3c4756' }}>
+                    <p style={{ margin:'6px 0 0', fontSize:13, color:'var(--mm-text)' }}>
                       {regionClassification === workingClassification
                         ? 'Correct classification.'
                         : staged(regionClassificationAttempts,
@@ -1174,7 +1174,7 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
               ) : null}
 
               {combined && askVertices ? (
-                <div style={{ padding:12, border:'1px solid #dbe3ef', borderRadius:10, background:'#f8fbff' }}>
+                <div style={{ padding:12, border:'1px solid var(--mm-tint-border)', borderRadius:10, background:'var(--mm-surface-tint)' }}>
                   <strong style={{ display:'block', marginBottom:6 }}>Vertices</strong>
                   <button type="button" onClick={()=>setArmed({ type:'vertex' })} style={actionStyle}>Tap a boundary intersection</button>
                   {vertices.map((vertex, index) => (
@@ -1190,7 +1190,7 @@ function StudentBuildInequalityMode({ questionData, onAction, draftKey = null })
                       <button type="button" onClick={()=>checkVertex(index)} style={{ ...actionStyle, padding:'8px 14px', fontSize:13 }}>Check vertex</button>
                     </div>
                   ))}
-                  {vertexFeedback ? <p style={{ margin:'9px 0 0', fontSize:13, color:'#3c4756' }}>{vertexFeedback}</p> : null}
+                  {vertexFeedback ? <p style={{ margin:'9px 0 0', fontSize:13, color:'var(--mm-text)' }}>{vertexFeedback}</p> : null}
                 </div>
               ) : null}
 
@@ -1262,7 +1262,7 @@ function LinearQuadraticMode({ questionData, onAction }) {
       {Number(count) >= 1 ? <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:12}}><Field label="x₁"><input type="number" inputMode="decimal" step="0.1" value={values.x1} onChange={update('x1')} style={inputStyle}/></Field><Field label="y₁"><input type="number" inputMode="decimal" step="0.1" value={values.y1} onChange={update('y1')} style={inputStyle}/></Field></div> : null}
       {Number(count) >= 2 ? <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:10}}><Field label="x₂"><input type="number" inputMode="decimal" step="0.1" value={values.x2} onChange={update('x2')} style={inputStyle}/></Field><Field label="y₂"><input type="number" inputMode="decimal" step="0.1" value={values.y2} onChange={update('y2')} style={inputStyle}/></Field></div> : null}
       <button data-mm-enter-action="submit" type="button" onClick={check} disabled={count === ''} style={{ ...actionStyle, opacity: count === '' ? 0.5 : 1 }}>Check intersections</button>
-      {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'#3c4756',lineHeight:1.55}}>{message()}</p></div> : null}
+      {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'var(--mm-text)',lineHeight:1.55}}>{message()}</p></div> : null}
       <HintPanel
         hints={[
           'An intersection is a point that lies on both graphs at once.',
@@ -1349,7 +1349,7 @@ function MatrixMode({ questionData, onAction }) {
             style={{
               padding:12,
               textAlign:'center',
-              background:colIndex === row.length-1 ? '#fff5e6' : '#eef4ff',
+              background:colIndex === row.length-1 ? 'var(--mm-warning-bg)' : 'var(--mm-primary-subtle)',
               borderRadius:8,
             }}
           >
@@ -1357,7 +1357,7 @@ function MatrixMode({ questionData, onAction }) {
           </div>
         )))}
       </div>
-      <div style={{textAlign:'center',color:'#5f6b7a'}}>
+      <div style={{textAlign:'center',color:'var(--mm-text-muted)'}}>
         Each row is one equation. The shaded final column is the augmented constant column.
       </div>
 
@@ -1369,7 +1369,7 @@ function MatrixMode({ questionData, onAction }) {
         >
           Use matrix technology · Compute RREF
         </button>
-        <p style={{fontSize:13,color:'#5f6b7a',lineHeight:1.5}}>
+        <p style={{fontSize:13,color:'var(--mm-text-muted)',lineHeight:1.5}}>
           This performs the matrix row-reduction command, like an RREF feature on matrix-capable technology. You still have to interpret the result.
         </p>
         {showRref ? <div style={{marginTop:16}}>
@@ -1378,14 +1378,14 @@ function MatrixMode({ questionData, onAction }) {
             {(solution.rref || []).flatMap((row,rowIndex)=>row.map((value,colIndex)=>(
               <div
                 key={`rref-${rowIndex}-${colIndex}`}
-                style={{padding:10,textAlign:'center',background:colIndex===3?'#fff5e6':'#eef8f0',borderRadius:8}}
+                style={{padding:10,textAlign:'center',background:colIndex===3?'var(--mm-warning-bg)':'var(--mm-success-subtle)',borderRadius:8}}
               >
                 {round(value,4)}
               </div>
             )))}
           </div>
         </div> : null}
-      </> : <div style={{marginTop:18,padding:12,borderRadius:10,background:'#f8fbff',color:'#3c4756'}}>
+      </> : <div style={{marginTop:18,padding:12,borderRadius:10,background:'var(--mm-surface-tint)',color:'var(--mm-text)'}}>
         {revealAnswers
           ? <><strong>Determinant:</strong> {round(solution.determinant,2)}. A nonzero determinant guarantees exactly one solution.</>
           : <><strong>Determinant:</strong> compute a₁₁a₂₂ − a₁₂a₂₁ yourself. A nonzero determinant guarantees exactly one solution.</>}
@@ -1414,8 +1414,8 @@ function MatrixMode({ questionData, onAction }) {
       >
         {isMatrix3 && !technologyUsed ? 'Use RREF technology first' : 'Check matrix solution'}
       </button>
-      {!classified && !(isMatrix3 && !technologyUsed) ? <p style={{margin:'8px 0 0',color:'#5f6368',fontSize:13}}>Choose how many solutions the system has first.</p> : null}
-      {feedback?<div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'#3c4756',lineHeight:1.55}}>{message()}</p></div>:null}
+      {!classified && !(isMatrix3 && !technologyUsed) ? <p style={{margin:'8px 0 0',color:'var(--mm-text-muted)',fontSize:13}}>Choose how many solutions the system has first.</p> : null}
+      {feedback?<div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'var(--mm-text)',lineHeight:1.55}}>{message()}</p></div>:null}
       <HintPanel
         hints={isMatrix3 ? [
           'Enter the augmented matrix into matrix-capable technology and run RREF.',

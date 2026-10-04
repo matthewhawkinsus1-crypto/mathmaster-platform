@@ -574,7 +574,7 @@ export default function MathInput({
           padding: compact ? '8px 10px' : '12px 14px',
           borderRadius: '8px',
           border: `2px solid ${borderColor}`,
-          background: inputStatus === 'incorrect' ? '#fff8f7' : inputStatus === 'correct' ? '#f4fbf5' : '#fff',
+          background: inputStatus === 'incorrect' ? 'var(--mm-error-subtle)' : inputStatus === 'correct' ? 'var(--mm-success-subtle)' : 'var(--mm-surface)',
           boxSizing: 'border-box',
           boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)',
         }}
@@ -604,10 +604,10 @@ export default function MathInput({
             minWidth: 44,
             minHeight: 44,
             padding: '0 8px',
-            border: '1px solid #c5d5ef',
+            border: '1px solid var(--mm-tint-border)',
             borderRadius: 8,
-            background: toolsVisible ? '#e8f0fe' : 'var(--mm-surface)',
-            color: '#174ea6',
+            background: toolsVisible ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+            color: 'var(--mm-primary-text)',
             fontWeight: 800,
             fontSize: 15,
             fontFamily: 'serif',
@@ -633,12 +633,12 @@ export default function MathInput({
             gap: '8px',
             marginTop: '10px',
             padding: '10px',
-            border: '2px solid #8ab4f8',
+            border: '2px solid var(--mm-primary-border)',
             borderRadius: '10px',
-            background: '#eef4ff',
+            background: 'var(--mm-primary-subtle)',
           }}
         >
-          <div style={{ gridColumn: '1 / -1', color: '#174ea6', fontSize: '12px', fontWeight: 900, textAlign: 'left' }}>Needed for this answer</div>
+          <div style={{ gridColumn: '1 / -1', color: 'var(--mm-primary-text)', fontSize: '12px', fontWeight: 900, textAlign: 'left' }}>Needed for this answer</div>
           {requiredTools.map((tool) => (
             <button
               type="button"
@@ -651,10 +651,10 @@ export default function MathInput({
                 minHeight: '48px',
                 minWidth: 0,
                 maxWidth: '100%',
-                border: '2px solid #8ab4f8',
+                border: '2px solid var(--mm-primary-border)',
                 borderRadius: '8px',
                 background: 'var(--mm-surface)',
-                color: '#174ea6',
+                color: 'var(--mm-primary-text)',
                 fontSize: '21px',
                 fontWeight: 900,
                 cursor: 'pointer',
@@ -667,7 +667,7 @@ export default function MathInput({
       )}
 
       {isMobile && unservedRequiredSymbols.length > 0 && (
-        <div role="status" style={{ marginTop: '8px', padding: '8px 10px', borderRadius: '8px', background: '#fff4ce', color: '#7a4f00', fontSize: '12px', fontWeight: 700 }}>
+        <div role="status" style={{ marginTop: '8px', padding: '8px 10px', borderRadius: '8px', background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: '12px', fontWeight: 700 }}>
           Additional symbol needed: {unservedRequiredSymbols.join(', ')}. Your device keyboard remains available.
         </div>
       )}
@@ -687,9 +687,9 @@ export default function MathInput({
             gap: '8px',
             marginTop: '10px',
             padding: '10px',
-            border: '1px solid #d9e2f1',
+            border: '1px solid var(--mm-tint-border)',
             borderRadius: '10px',
-            background: '#f8fbff',
+            background: 'var(--mm-surface-tint)',
           }}
         >
           {tools.map((tool) => (
@@ -706,7 +706,7 @@ export default function MathInput({
                 minWidth: 0,
                 maxWidth: '100%',
                 overflow: 'hidden',
-                border: '1px solid #b8c8df',
+                border: '1px solid var(--mm-primary-border)',
                 borderRadius: '7px',
                 background: 'var(--mm-surface)',
                 color: 'var(--mm-text-strong)',
@@ -715,9 +715,9 @@ export default function MathInput({
                 cursor: 'pointer',
                 ...(isMobile && tool.action === 'deleteBackward' ? {
                   gridColumn: '-2 / -1',
-                  background: '#e8f0fe',
-                  borderColor: '#8ab4f8',
-                  color: '#174ea6',
+                  background: 'var(--mm-primary-soft)',
+                  borderColor: 'var(--mm-primary-border)',
+                  color: 'var(--mm-primary-text)',
                 } : {}),
               }}
             >

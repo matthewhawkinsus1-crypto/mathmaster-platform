@@ -94,6 +94,10 @@ export const resolveOriginalOpportunity = ({
   // Warm-Up/DOL class window — and it moves it here exactly as it does for the
   // deadline finalizer.
   studentProfile = null,
+  // The student's private override (studentAssignmentOverrides), read by the
+  // caller with its own authority: their individual extension moves the
+  // Recovery end date exactly as it moves every other final cutoff.
+  privateOverride = undefined,
 } = {}) => {
   const now = Number(nowValue instanceof Date ? nowValue.getTime() : nowValue);
   // The instructional day travels with EVERY answer, closed ones included:
@@ -107,7 +111,7 @@ export const resolveOriginalOpportunity = ({
   // included — the same cutoff after which no work earns credit. Every answer
   // carries it, so the panel can say "open until" and the server can refuse
   // anything after it. No final date means no end date.
-  const finalCloseAtMs = assignmentFinalCloseAt(assignment, timeZone, studentId, studentProfile);
+  const finalCloseAtMs = assignmentFinalCloseAt(assignment, timeZone, studentId, studentProfile, { privateOverride });
   const recoveryWindow = {
     instructionDateKey,
     recoveryEndsAtMs: finalCloseAtMs,
@@ -137,6 +141,7 @@ export const resolveOriginalOpportunity = ({
     timeZone,
     studentId,
     studentProfile,
+    privateOverride,
   });
   if (close.closesAtMs !== null && close.closesAtMs !== undefined && now >= close.closesAtMs) {
     return { status: ORIGINAL_OPPORTUNITY.CLOSED, reason: close.reason, closedAtMs: close.closesAtMs, ...recoveryWindow };

@@ -20,18 +20,18 @@ import { formatStudentName } from '../../platform/studentName.js';
 // engine's job, and a teacher who wants to override one student does it with a
 // pin, which the engine honours by seating it before it chooses anything.
 
-const panel = { border: '1px solid #dadce0', borderRadius: 12, background: 'var(--mm-surface)', padding: 16, marginBottom: 16 };
-const heading = { margin: '0 0 4px', fontSize: 15, fontWeight: 900, color: '#174ea6' };
-const note = { color: '#5f6368', fontSize: 13, lineHeight: 1.55, margin: '0 0 14px' };
+const panel = { border: '1px solid var(--mm-border)', borderRadius: 12, background: 'var(--mm-surface)', padding: 16, marginBottom: 16 };
+const heading = { margin: '0 0 4px', fontSize: 15, fontWeight: 900, color: 'var(--mm-primary-text)' };
+const note = { color: 'var(--mm-text-muted)', fontSize: 13, lineHeight: 1.55, margin: '0 0 14px' };
 const control = {
-  minHeight: 44, fontSize: 15, padding: '9px 10px', border: '1px solid #c9ced6',
+  minHeight: 44, fontSize: 15, padding: '9px 10px', border: '1px solid var(--mm-border)',
   borderRadius: 8, boxSizing: 'border-box', background: 'var(--mm-surface)', color: 'var(--mm-text-strong)',
 };
 const chipButton = (active) => ({
   minHeight: 40, padding: '7px 12px', borderRadius: 999, cursor: 'pointer',
-  border: `1px solid ${active ? '#1a73e8' : '#c5d5ef'}`,
-  background: active ? '#e8f0fe' : '#fff',
-  color: active ? '#174ea6' : '#3c4043', fontWeight: 800, fontSize: 13,
+  border: `1px solid ${active ? '#1a73e8' : 'var(--mm-tint-border)'}`,
+  background: active ? 'var(--mm-primary-soft)' : 'var(--mm-surface)',
+  color: active ? 'var(--mm-primary-text)' : 'var(--mm-text)', fontWeight: 800, fontSize: 13,
   fontFamily: 'inherit', appearance: 'none',
 });
 
@@ -54,9 +54,9 @@ const CCMR_LABEL = {
 function Field({ label, hint, children }) {
   return (
     <label style={{ display: 'grid', gap: 5 }}>
-      <span style={{ fontSize: 12.5, fontWeight: 800, color: '#3c4043' }}>{label}</span>
+      <span style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--mm-text)' }}>{label}</span>
       {children}
-      {hint && <span style={{ fontSize: 11.5, color: '#5f6368', lineHeight: 1.5 }}>{hint}</span>}
+      {hint && <span style={{ fontSize: 11.5, color: 'var(--mm-text-muted)', lineHeight: 1.5 }}>{hint}</span>}
     </label>
   );
 }
@@ -133,7 +133,7 @@ export default function WeeklyPathControls({
           this screen reads it.
         */}
 
-        <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))' }}>
+        <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))' }}>
           <Field
             label="Sessions per week"
             hint="A commitment about the student's time. It is not a number of standards — a standard is never used up."
@@ -214,7 +214,7 @@ export default function WeeklyPathControls({
         </div>
 
         <div style={{ marginTop: 16, display: 'grid', gap: 10 }}>
-          <label style={{ display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 13.5, color: '#3c4043' }}>
+          <label style={{ display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 13.5, color: 'var(--mm-text)' }}>
             <input
               type="checkbox"
               checked={config.interventionMode}
@@ -223,7 +223,7 @@ export default function WeeklyPathControls({
             />
             <span>
               <strong>Intervention mode</strong>
-              <span style={{ display: 'block', color: '#5f6368', fontSize: 12, lineHeight: 1.55 }}>
+              <span style={{ display: 'block', color: 'var(--mm-text-muted)', fontSize: 12, lineHeight: 1.55 }}>
                 {/* Normally at most half a week may be below-course work. This
                     is the deliberate, teacher-owned exception — and it is a
                     checkbox rather than something the engine decides, because
@@ -236,7 +236,7 @@ export default function WeeklyPathControls({
           </label>
         </div>
 
-        {saving && <div style={{ marginTop: 12, fontSize: 12.5, color: '#5f6368' }}>Saving…</div>}
+        {saving && <div style={{ marginTop: 12, fontSize: 12.5, color: 'var(--mm-text-muted)' }}>Saving…</div>}
       </section>
 
       <section style={panel}>
@@ -247,9 +247,9 @@ export default function WeeklyPathControls({
           and still need help — collapsing the two into one number hides both facts. The weekly
           grade is 80% completion and 20% quality by default; mastery remains separate.
         </p>
-        {progressLoading && <div style={{ margin: '-4px 0 10px', fontSize: 12, color: '#5f6368' }}>Loading completed Path sessions…</div>}
+        {progressLoading && <div style={{ margin: '-4px 0 10px', fontSize: 12, color: 'var(--mm-text-muted)' }}>Loading completed Path sessions…</div>}
         {progressTruncated && (
-          <div style={{ margin: '-4px 0 10px', padding: '9px 11px', borderRadius: 8, background: '#fff4ce', color: '#6b4c00', fontSize: 12, fontWeight: 700 }}>
+          <div style={{ margin: '-4px 0 10px', padding: '9px 11px', borderRadius: 8, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 12, fontWeight: 700 }}>
             This week&apos;s Path activity was too large to read in full, so the completion counts and grades below may be low. Do not publish these grades until this is resolved.
           </div>
         )}
@@ -260,7 +260,7 @@ export default function WeeklyPathControls({
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
               <thead>
-                <tr style={{ background: '#f8f9fa' }}>
+                <tr style={{ background: 'var(--mm-surface-sunken)' }}>
                   <th style={{ textAlign: 'left', padding: 10 }}>Student</th>
                   <th style={{ textAlign: 'right', padding: 10 }}>Goal</th>
                   <th style={{ textAlign: 'right', padding: 10 }}>Complete</th>
@@ -271,7 +271,7 @@ export default function WeeklyPathControls({
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={row.studentId} style={{ borderTop: '1px solid #eef0f2' }}>
+                  <tr key={row.studentId} style={{ borderTop: '1px solid var(--mm-border-soft)' }}>
                     <td style={{ padding: 10, fontWeight: 800 }}>
                       <StudentNameLink
                         studentId={row.studentId}
@@ -282,7 +282,7 @@ export default function WeeklyPathControls({
                       />
                     </td>
                     <td style={{ padding: 10, textAlign: 'right' }}>{row.goal}</td>
-                    <td style={{ padding: 10, textAlign: 'right', fontWeight: 900, color: row.overdue ? '#9a3412' : '#202124' }}>
+                    <td style={{ padding: 10, textAlign: 'right', fontWeight: 900, color: row.overdue ? 'var(--mm-warning-text)' : 'var(--mm-text-strong)' }}>
                       {row.complete}
                     </td>
                     <td style={{ padding: 10 }}>
@@ -294,10 +294,10 @@ export default function WeeklyPathControls({
                         onClick={onOpenStudent ? () => onOpenStudent(row.studentId) : null}
                       />
                     </td>
-                    <td style={{ padding: 10, textAlign: 'right', fontWeight: 900, color: row.passing ? '#137333' : row.complete ? '#3c4043' : '#7a4f00' }}>
+                    <td style={{ padding: 10, textAlign: 'right', fontWeight: 900, color: row.passing ? 'var(--mm-success-text)' : row.complete ? 'var(--mm-text)' : 'var(--mm-warning-text)' }}>
                       {progressLoading ? '…' : `${Math.round(row.grade)}%`}
                     </td>
-                    <td style={{ padding: 10, color: row.overdue ? '#9a3412' : '#3c4043' }}>
+                    <td style={{ padding: 10, color: row.overdue ? 'var(--mm-warning-text)' : 'var(--mm-text)' }}>
                       {row.overdue ? 'Needs Follow-Up' : row.engagement}
                     </td>
                   </tr>

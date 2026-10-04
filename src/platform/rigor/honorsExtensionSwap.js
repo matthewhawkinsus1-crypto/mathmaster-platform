@@ -72,6 +72,8 @@ const reasonPhrase = (selection) => {
       return 'its course setting and its TEKS disagree';
     case HONORS_RECIPE_UNAVAILABLE.COURSE_NOT_SUPPORTED:
       return 'the vetted recipe for its concept is written for a different course';
+    case HONORS_RECIPE_UNAVAILABLE.AMBIGUOUS:
+      return 'more than one vetted recipe claims its concept and none is marked as the one to use';
     default:
       return 'MathMaster could not confirm its course';
   }
