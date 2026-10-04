@@ -118,8 +118,9 @@ export const GATE_LABELS = Object.freeze({
  * administrator's attestation; the server's own floor is the first weekday.
  */
 export const firstFullDistrictSchoolDay = (confirmedAtMs, { ranges = schoolYearNonInstructionalRanges() } = {}) => (
-  Number.isFinite(Number(confirmedAtMs))
-    ? firstFullSchoolDayAfter(Number(confirmedAtMs), { nonInstructionalDateKeys: [...buildNonInstructionalSet(ranges)] })
+  // Nothing recorded (null, '', 0) is no moment at all — never the epoch.
+  typeof confirmedAtMs === 'number' && Number.isFinite(confirmedAtMs) && confirmedAtMs > 0
+    ? firstFullSchoolDayAfter(confirmedAtMs, { nonInstructionalDateKeys: [...buildNonInstructionalSet(ranges)] })
     : null
 );
 

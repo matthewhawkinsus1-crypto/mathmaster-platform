@@ -128,6 +128,17 @@ const stats = {
   callables: new Map(),
   callableBytes: new Map(),
 };
+// Every write the APP made through the client API (setDoc, updateDoc,
+// addDoc, deleteDoc, a batch, a transaction) — never the fake callables'
+// own writes, which stand for the server. What the browser authors.
+const CLIENT_WRITE_LIMIT = 500;
+const clientWrites = [];
+const recordClientWrite = (op, path, payload = null) => {
+  if (clientWrites.length >= CLIENT_WRITE_LIMIT) clientWrites.shift();
+  let json = null;
+  try { json = payload === null ? null : JSON.stringify(serialize(payload)); } catch { json = '[unserializable]'; }
+  clientWrites.push({ op, path, payload: json });
+};
 const bump = (map, key, by = 1) => map.set(key, (map.get(key) || 0) + by);
 const targetPath = (target) => (target?.type === 'query' ? target.collectionPath : target?.path) || '';
 const notifyEveryWrite = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('notify') === 'every-write';
@@ -300,6 +311,26 @@ const draftNetwork = async (path) => {
   if (!draftsOnline) throw new Error('Failed to get document because the client is offline. (harness)');
 };
 
+/*
+ * A STUDENT'S PRIVATE CONTROLS ARRIVE LATE, OR WITH SOMEONE ELSE'S.
+ *
+ * For the private-controls journeys (privateControlsJourneys.mjs):
+ *   ?controlsLatencyMs=<ms>    every snapshot of a `studentAssignmentOverrides`
+ *                              listener arrives this late (school Wi-Fi);
+ *   ?leakForeignControls=<id>  a STUDENT's first snapshot of their own
+ *                              controls also carries that student's records,
+ *                              marked as from the cache — what a device-level
+ *                              cache shared between accounts could hand over.
+ *                              Real Firestore never returns a document its
+ *                              query does not match; this checks the app
+ *                              would drop one anyway.
+ */
+const CONTROLS_PATH = 'studentAssignmentOverrides';
+const controlsLatencyMs = Math.max(0, Number(harnessParams.get('controlsLatencyMs')) || 0);
+const leakForeignControls = harnessParams.get('leakForeignControls') || null;
+const isStudentControlsQuery = (target) => target?.type === 'query' && target.collectionPath === CONTROLS_PATH
+  && (target.constraints || []).some((entry) => entry.kind === 'where' && entry.field === 'studentId' && entry.op === '==');
+
 export const getDoc = async (ref) => { await draftNetwork(ref.path); bump(stats.reads, ref.path); return docSnapshot(ref.path); };
 export const getDocs = async (target) => {
   const result = runQuery(target);
@@ -311,6 +342,8 @@ export const getDocs = async (target) => {
 export const onSnapshot = (target, ...rest) => {
   const handlers = rest.filter((entry) => typeof entry === 'function');
   const [onNext, onError] = handlers.length ? handlers : [rest[1]?.next, rest[1]?.error];
+  const latency = targetPath(target) === CONTROLS_PATH ? controlsLatencyMs : 0;
+  const leak = leakForeignControls && isStudentControlsQuery(target) ? leakForeignControls : null;
   const listener = {
     // What this listener last delivered: null until its first snapshot, which
     // is always delivered (an empty result included).
@@ -318,6 +351,10 @@ export const onSnapshot = (target, ...rest) => {
     delivered: new Map(),
     path: targetPath(target),
     emit: () => {
+      if (latency) setTimeout(() => listener.emitNow(), latency);
+      else listener.emitNow();
+    },
+    emitNow: () => {
       // An unsubscribed listener hears nothing more, not even its first snapshot.
       if (!listeners.has(listener)) return;
       try {
@@ -336,6 +373,11 @@ export const onSnapshot = (target, ...rest) => {
         const changes = first ? null : changesBetween(listener.delivered, paths);
         listener.delivered = new Map(paths.map((path) => [path, versionOf(path)]));
         bump(stats.docsDelivered, listener.path, paths.length);
+        if (first && leak) {
+          const foreign = childrenOf(CONTROLS_PATH).filter((path) => store.get(path)?.studentId === leak && !paths.includes(path));
+          onNext?.({ ...querySnapshot([...paths, ...foreign]), metadata: { fromCache: true } });
+          return;
+        }
         onNext?.(querySnapshot(paths, changes));
       } catch (error) { onError?.(error); }
     },
@@ -390,17 +432,25 @@ const writeUpdate = (ref, args) => {
   put(ref.path, next);
 };
 
-export const setDoc = async (ref, data, options) => { writeSet(ref, data, options); notify(); };
-export const updateDoc = async (ref, ...args) => { writeUpdate(ref, args); notify(); };
-export const addDoc = async (collectionRef, data) => { const ref = doc(collectionRef); writeSet(ref, data); notify(); return ref; };
-export const deleteDoc = async (ref) => { remove(ref.path); notify(); };
+// An update's payload as the field paths it names (dotted string keys or
+// FieldPaths), for the client write log.
+const updatePayload = (args) => (args[0] instanceof FieldPath || typeof args[0] === 'string'
+  ? Object.fromEntries(Array.from({ length: Math.ceil(args.length / 2) }, (_, index) => [
+    args[index * 2] instanceof FieldPath ? args[index * 2].segments.join('.') : String(args[index * 2]), args[index * 2 + 1],
+  ]))
+  : args[0] || {});
+
+export const setDoc = async (ref, data, options) => { recordClientWrite('set', ref.path, data); writeSet(ref, data, options); notify(); };
+export const updateDoc = async (ref, ...args) => { recordClientWrite('update', ref.path, updatePayload(args)); writeUpdate(ref, args); notify(); };
+export const addDoc = async (collectionRef, data) => { const ref = doc(collectionRef); recordClientWrite('add', ref.path, data); writeSet(ref, data); notify(); return ref; };
+export const deleteDoc = async (ref) => { recordClientWrite('delete', ref.path); remove(ref.path); notify(); };
 
 export const writeBatch = () => {
   const ops = [];
   return {
-    set: (ref, data, options) => { ops.push(() => writeSet(ref, data, options)); },
-    update: (ref, ...args) => { ops.push(() => writeUpdate(ref, args)); },
-    delete: (ref) => { ops.push(() => remove(ref.path)); },
+    set: (ref, data, options) => { ops.push(() => { recordClientWrite('set', ref.path, data); writeSet(ref, data, options); }); },
+    update: (ref, ...args) => { ops.push(() => { recordClientWrite('update', ref.path, updatePayload(args)); writeUpdate(ref, args); }); },
+    delete: (ref) => { ops.push(() => { recordClientWrite('delete', ref.path); remove(ref.path); }); },
     commit: async () => { ops.forEach((op) => op()); notify(); },
   };
 };
@@ -408,9 +458,9 @@ export const writeBatch = () => {
 export const runTransaction = async (_db, fn) => {
   const tx = {
     get: async (ref) => { await draftNetwork(ref.path); bump(stats.reads, ref.path); return docSnapshot(ref.path); },
-    set: (ref, data, options) => { writeSet(ref, data, options); return tx; },
-    update: (ref, ...args) => { writeUpdate(ref, args); return tx; },
-    delete: (ref) => { remove(ref.path); return tx; },
+    set: (ref, data, options) => { recordClientWrite('set', ref.path, data); writeSet(ref, data, options); return tx; },
+    update: (ref, ...args) => { recordClientWrite('update', ref.path, updatePayload(args)); writeUpdate(ref, args); return tx; },
+    delete: (ref) => { recordClientWrite('delete', ref.path); remove(ref.path); return tx; },
   };
   const result = await fn(tx);
   notify();
@@ -441,9 +491,10 @@ export const harnessStore = {
       docsDeliveredByPath: Object.fromEntries(stats.docsDelivered),
       callables: Object.fromEntries(stats.callables),
       callableBytes: Object.fromEntries(stats.callableBytes),
+      clientWrites: clientWrites.map((entry) => ({ ...entry })),
     };
   },
-  resetStats: () => { Object.values(stats).forEach((map) => map.clear()); },
+  resetStats: () => { Object.values(stats).forEach((map) => map.clear()); clientWrites.length = 0; },
   // One document as stored, and back: how the draft journeys carry what one
   // "device" (browser context) saved to the server into another device's
   // already-open page, Timestamps intact.

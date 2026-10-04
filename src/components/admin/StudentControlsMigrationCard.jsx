@@ -246,7 +246,7 @@ export default function StudentControlsMigrationCard() {
           <p style={{ ...muted, margin: 0 }}>Retired {dateTime(migration.retirement?.retiredAtMs)}{migration.retirement?.retiredByEmail ? ` by ${migration.retirement.retiredByEmail}` : ''}. Shared writers are locked and the mirror is stopped.</p>
         ) : stage.stage !== OVERRIDE_MIGRATION_STAGE.READY_TO_RETIRE ? (
           <p data-retire-unavailable style={{ ...muted, margin: 0 }}>
-            Retiring is not available yet: {stage.blocking.length ? stage.blocking.map((gate) => GATE_LABELS[gate.id]?.toLowerCase()).join('; ') : 'checking the conditions'}.
+            Retiring is not available yet. Still needed: {stage.blocking.length ? stage.blocking.map((gate) => GATE_LABELS[gate.id]?.toLowerCase()).join('; ') : 'checking the conditions'}.
             Older screens read only the shared copy, and retiring stops keeping it in step.
           </p>
         ) : (

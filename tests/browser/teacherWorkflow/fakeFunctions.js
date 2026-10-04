@@ -12,8 +12,33 @@
  * is recorded in `window.__mmHarness.unimplementedCalls`, which every journey
  * reports as a finding. Give the harness a fake when a journey needs one.
  */
-import { deleteField, harnessStore, recordHarnessCallable, Timestamp } from './fakeFirestore.js';
+import { arrayRemove, deleteField, harnessStore, recordHarnessCallable, Timestamp } from './fakeFirestore.js';
 import { TEACHER_EMAIL } from './fixture.js';
+import {
+  ASSIGNMENT_OVERRIDE_ARCHIVES_COLLECTION,
+  OVERRIDE_CHANGE,
+  OVERRIDE_MIGRATION_ID,
+  OVERRIDE_STORAGE_FLAG,
+  PLATFORM_MIGRATIONS_COLLECTION,
+  STUDENT_ASSIGNMENT_OVERRIDES_COLLECTION,
+  buildAssignmentOverrideArchive,
+  legacyStudentIds,
+  overrideAuthorizationContext,
+  planSharedAssignmentStrip,
+  planSharedCopyWrites,
+  planStudentAbsorption,
+  planStudentOverrideChange,
+  resolveOverrideStorageMode,
+  resolveStudentOverride,
+  studentAssignmentOverrideId,
+} from '../../../functions/shared/studentAssignmentOverrides.mjs';
+import {
+  RESTORE_CONFIRMATION,
+  STRIP_CONFIRMATION,
+  evaluateRetirementReadiness,
+  hostingCutoverEvidence,
+  retirementRefusal,
+} from '../../../functions/shared/overrideRetirementGate.mjs';
 import {
   authorizeCaseEvidenceCaller, buildCaseEvidenceResponse, validateCaseEvidenceRequest,
 } from '../../../functions/shared/caseReviewEvidence.mjs';
@@ -28,8 +53,11 @@ const iso = (value) => (value instanceof Timestamp ? value.toDate().toISOString(
 const harness = (typeof window !== 'undefined' && (window.__mmHarness = window.__mmHarness || {})) || {};
 const lower = (value) => String(value ?? '').trim().toLowerCase();
 const rejection = (code, message) => Object.assign(new Error(`${code}: ${message}`), { code: `functions/${code}` });
-// The signed-in student, as fakeAuth.js signs one in (`?as=student&studentId=`).
+// The signed-in student, as fakeAuth.js signs one in (`?as=student&studentId=`,
+// or the next account on a shared device, __mmHarnessAuth.signInStudent).
 const signedInStudentId = () => {
+  const auth = typeof window !== 'undefined' ? window.__mmHarnessAuth : null;
+  if (auth) return auth.currentStudentId();
   const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
   return params.get('as') === 'student' ? (params.get('studentId') || '910002') : null;
 };
@@ -95,8 +123,237 @@ const rosterPaths = () => harnessStore.paths('grades/').filter((path) => path.sp
 const collectionDocs = (name) => harnessStore.paths(`${name}/`).filter((path) => path.split('/').length === 2)
   .map((path) => ({ id: path.split('/')[1], data: harnessStore.get(path) || {} }));
 
+/*
+ * STUDENTS' PRIVATE ASSIGNMENT CONTROLS (privateControlsJourneys.mjs), on the
+ * server's own pure planners (functions/shared/studentAssignmentOverrides.mjs)
+ * and retirement gate (overrideRetirementGate.mjs): the same records, history
+ * entries, shared-copy writes and refusals the callables in functions/index.js
+ * produce — which tests/integration/studentAssignmentOverrides.test.mjs runs
+ * against Firestore. `?controlsCallMs=<ms>` makes each change take that long,
+ * so a second click can land while the first is on its way.
+ */
+const controlsCallMs = Math.max(0, Number(new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('controlsCallMs')) || 0);
+const FLAG_PATH = `platformFlags/${OVERRIDE_STORAGE_FLAG}`;
+const PROGRESS_PATH = `${PLATFORM_MIGRATIONS_COLLECTION}/${OVERRIDE_MIGRATION_ID}`;
+const recordPath = (studentId, assignmentId) => `${STUDENT_ASSIGNMENT_OVERRIDES_COLLECTION}/${studentAssignmentOverrideId(studentId, assignmentId)}`;
+const storageMode = () => resolveOverrideStorageMode(harnessStore.get(FLAG_PATH) || null);
+const requireRootAdmin = () => {
+  if (harness.rootAdmin !== true) throw rejection('permission-denied', 'Only the root administrator can do this.');
+};
+// The server's shared-copy write plan, applied the way its transaction applies it.
+const applySharedWrites = (assignmentId, writes = []) => {
+  if (!writes.length) return 0;
+  const patch = {};
+  writes.forEach((write) => {
+    const key = write.path.join('.');
+    if (write.op === 'delete') patch[key] = deleteField();
+    else if (write.op === 'arrayRemove') patch[key] = arrayRemove(write.value);
+    else patch[key] = write.value;
+  });
+  harnessStore.update(`assignments/${assignmentId}`, patch);
+  return writes.length;
+};
+const authorizationFor = (studentId, existing = null) => {
+  const student = harnessStore.get(`grades/${studentId}`) || {};
+  const classRecord = student.classId ? { classId: student.classId, ...harnessStore.get(`classes/${student.classId}`) } : null;
+  return overrideAuthorizationContext({ existing, studentId, classRecord, student });
+};
+const MIGRATION_COUNTERS = [
+  'assignmentsScanned', 'assignmentsWithSharedStudentData', 'sharedStudentEntries', 'recordsCreated', 'recordsUpdated',
+  'recordsUnchanged', 'recordsConfirmedPrivate', 'auditCopiesCreated', 'assignmentsStripped', 'assignmentsAlreadyClean',
+  'assignmentsAwaitingAbsorption', 'studentsAwaitingAbsorption', 'archivesToWrite', 'archivesWritten',
+  'assignmentsRestored', 'sharedWritesRestored',
+];
+
 const handlers = {
   resolveSignedInRole: () => ({ role: 'teacher' }),
+  setStudentAssignmentControls: async ({ assignmentId, classId, studentIds = [], change = {} } = {}) => {
+    if (controlsCallMs) await new Promise((resolve) => { setTimeout(resolve, controlsCallMs); });
+    const cls = harness.rootAdmin === true ? String(classId || '').trim() : requireClassTeacher(classId);
+    const aid = String(assignmentId || '').trim();
+    const assignment = harnessStore.get(`assignments/${aid}`);
+    if (!assignment) throw rejection('not-found', 'That assignment was not found.');
+    const ids = [...new Set((studentIds || []).map((id) => String(id).trim()).filter(Boolean))];
+    if (!ids.length) throw rejection('invalid-argument', 'Choose at least one student.');
+    if (ids.length > 60) throw rejection('invalid-argument', 'At most 60 students can be changed at once.');
+    if (![OVERRIDE_CHANGE.DOL_ATTEMPTS, OVERRIDE_CHANGE.EXCUSED, OVERRIDE_CHANGE.REOPENED].includes(change.kind)) {
+      throw rejection('invalid-argument', 'Unknown change. Attendance extensions use applyStudentAttendanceExtension.');
+    }
+    if (!(assignment.assignedClassIds || []).includes(cls)) throw rejection('failed-precondition', 'That assignment is not assigned to this class.');
+    ids.forEach((id) => {
+      if ((harnessStore.get(`grades/${id}`) || {}).classId !== cls) throw rejection('failed-precondition', 'This student does not currently belong to that class.');
+    });
+    const mode = storageMode();
+    // All-or-nothing: every student planned before anything is written.
+    const plans = ids.map((id) => {
+      const existing = harnessStore.get(recordPath(id, aid)) || null;
+      return {
+        id,
+        plan: planStudentOverrideChange({
+          assignmentId: aid,
+          assignment: { id: aid, ...assignment },
+          studentId: id,
+          existingPrivate: existing,
+          change: { kind: change.kind, value: change.value, increment: change.increment, reason: change.reason },
+          authorization: authorizationFor(id, existing),
+          actor: { email: TEACHER_EMAIL, uid: 'harness-teacher-uid', role: harness.rootAdmin === true ? 'rootAdmin' : 'teacher' },
+          nowMs: Date.now(),
+          storageMode: mode,
+        }),
+      };
+    });
+    plans.forEach(({ id, plan }) => {
+      harnessStore.set(recordPath(id, aid), { ...plan.record, updatedAt: Timestamp.now() });
+      harnessStore.set(`grades/${id}/assignmentOverrideEvents/${plan.eventId}`, { ...plan.event, at: Timestamp.now() });
+    });
+    applySharedWrites(aid, plans.flatMap(({ plan }) => plan.sharedWrites));
+    return {
+      assignmentId: aid,
+      classId: cls,
+      kind: change.kind,
+      sharedRetired: mode.sharedRetired,
+      students: plans.map(({ id, plan }) => ({
+        studentId: id, changed: plan.changed, revision: plan.revision,
+        excused: plan.after.excused, reopened: plan.after.reopened, dolExtraAttempts: plan.after.dolExtraAttempts,
+      })),
+    };
+  },
+  // The storage switch and its cutover record. The harness cannot read a live
+  // build, so the deployment is always "unverified" and needs the attestation.
+  setAssignmentOverrideStorage: (data = {}) => {
+    requireRootAdmin();
+    const action = typeof data.action === 'string' && data.action
+      ? data.action
+      : typeof data.sharedRetired === 'boolean' ? (data.sharedRetired ? 'retire' : 'mirror') : 'status';
+    const nowMs = Date.now();
+    const hosting = { checked: false, reason: 'harness' };
+    const read = () => ({ storage: harnessStore.get(FLAG_PATH) || null, migration: harnessStore.get(PROGRESS_PATH) || {} });
+    const report = (changed) => {
+      const { storage, migration } = read();
+      return { ...resolveOverrideStorageMode(storage), changed, migration, readiness: evaluateRetirementReadiness({ storage, migration, hosting, nowMs }) };
+    };
+    if (action === 'status') return report(false);
+    if (action === 'confirmClientCutover') {
+      if (data.attestHostingDeployed !== true) throw rejection('invalid-argument', 'MathMaster could not read the live build (harness). Confirm that this release\'s Hosting is deployed and live for everyone.');
+      const { storage, migration } = read();
+      if (storage?.sharedRetired === true) throw rejection('failed-precondition', 'The shared copy is already retired.');
+      harnessStore.set(PROGRESS_PATH, {
+        ...migration,
+        cutover: {
+          confirmedAtMs: nowMs, confirmedByEmail: TEACHER_EMAIL, hosting: hostingCutoverEvidence(hosting),
+          hostingVerified: false, hostingAttested: true, clientBuild: data.clientBuild || null,
+          previousConfirmedAtMs: Number(migration.cutover?.confirmedAtMs) || null,
+        },
+      });
+      return report(true);
+    }
+    if (action === 'retire') {
+      const { storage, migration } = read();
+      if (storage?.sharedRetired === true) return report(false);
+      const readiness = evaluateRetirementReadiness({ storage, migration, hosting, nowMs });
+      const refusal = retirementRefusal({ readiness, confirmation: data.confirmation, attestFullSchoolDay: data.attestFullSchoolDay === true });
+      if (refusal) throw Object.assign(rejection(refusal.code, refusal.message), { details: { gates: readiness.gates.map(({ id, ok, detail }) => ({ id, ok, detail })) } });
+      harnessStore.set(FLAG_PATH, { sharedRetired: true });
+      harnessStore.set(PROGRESS_PATH, {
+        ...migration,
+        retirement: { retiredAtMs: nowMs, retiredByEmail: TEACHER_EMAIL, attestedFullSchoolDay: true, cutoverConfirmedAtMs: readiness.confirmedAtMs, mirroredAgainAtMs: null },
+      });
+      return report(true);
+    }
+    if (action === 'mirror') {
+      const { storage, migration } = read();
+      harnessStore.set(FLAG_PATH, { sharedRetired: false });
+      if (storage?.sharedRetired === true) {
+        harnessStore.set(PROGRESS_PATH, {
+          ...migration,
+          ...(migration.retirement ? { retirement: { ...migration.retirement, mirroredAgainAtMs: nowMs } } : {}),
+          ...(migration.cutover ? { previousCutover: { ...migration.cutover, supersededAtMs: nowMs }, cutover: null } : {}),
+        });
+      }
+      return report(true);
+    }
+    throw rejection('invalid-argument', 'Unknown action. Use status, confirmClientCutover, retire or mirror.');
+  },
+  // One whole pass in one page (the harness school is small), with the
+  // server's preconditions and its pass record.
+  migrateStudentAssignmentOverrides: ({ mode = 'backfill', dryRun, confirm = '' } = {}) => {
+    requireRootAdmin();
+    const dry = dryRun !== false;
+    if (!['backfill', 'strip', 'restore'].includes(mode)) throw rejection('invalid-argument', 'Unknown migration mode.');
+    if (!dry && mode === 'strip' && confirm !== STRIP_CONFIRMATION) throw rejection('invalid-argument', `Type "${STRIP_CONFIRMATION}" to strip the shared copies. Run the dry run first.`);
+    if (!dry && mode === 'restore' && confirm !== RESTORE_CONFIRMATION) throw rejection('invalid-argument', `Type "${RESTORE_CONFIRMATION}" to write the shared copies back.`);
+    const progress = harnessStore.get(PROGRESS_PATH) || {};
+    if (!dry && mode === 'strip') {
+      const dryPass = progress.strip?.lastCompletedDryRunPass || null;
+      if (!dryPass || Number(dryPass.failureCount) > 0 || (Number(dryPass.completedAtMs) || 0) < (Number(progress.retirement?.retiredAtMs) || 0)) {
+        throw rejection('failed-precondition', 'Run the strip\'s dry run to the end first — after retiring the shared copy, with no failures.');
+      }
+    }
+    const { sharedRetired } = storageMode();
+    if (!dry && mode === 'strip' && !sharedRetired) throw rejection('failed-precondition', 'Turn on "shared copy retired" first.');
+    if (!dry && mode === 'restore' && sharedRetired) throw rejection('failed-precondition', 'Turn "shared copy retired" off first.');
+    const totals = { ...Object.fromEntries(MIGRATION_COUNTERS.map((key) => [key, 0])), failures: [] };
+    harnessStore.paths('assignments/').filter((path) => path.split('/').length === 2).sort().forEach((path) => {
+      const aid = path.split('/')[1];
+      const assignment = { id: aid, ...harnessStore.get(path) };
+      const ids = legacyStudentIds(assignment);
+      totals.assignmentsScanned += 1;
+      if (ids.length) {
+        totals.assignmentsWithSharedStudentData += 1;
+        totals.sharedStudentEntries += ids.length;
+      }
+      if (mode === 'backfill' || mode === 'strip') {
+        let pending = 0;
+        ids.forEach((id) => {
+          const existing = harnessStore.get(recordPath(id, aid)) || null;
+          const plan = planStudentAbsorption({ assignmentId: aid, assignment, studentId: id, existingPrivate: existing, authorization: authorizationFor(id, existing) });
+          if (plan.action === 'unchanged') { totals.recordsUnchanged += 1; totals.recordsConfirmedPrivate += 1; return; }
+          if (plan.action !== 'create' && plan.action !== 'update') return;
+          pending += 1;
+          totals[plan.action === 'create' ? 'recordsCreated' : 'recordsUpdated'] += 1;
+          if (dry) return;
+          harnessStore.set(recordPath(id, aid), { ...plan.record, updatedAt: Timestamp.now() });
+          harnessStore.set(`grades/${id}/assignmentOverrideEvents/${plan.eventId}`, { ...plan.event, at: Timestamp.now() });
+        });
+        if (mode === 'strip') {
+          if (dry && pending) { totals.assignmentsAwaitingAbsorption += 1; totals.studentsAwaitingAbsorption += pending; }
+          const writes = planSharedAssignmentStrip(assignment);
+          if (!writes.length) totals.assignmentsAlreadyClean += 1;
+          else {
+            totals.assignmentsStripped += 1;
+            const { archiveId, archive } = buildAssignmentOverrideArchive({ assignmentId: aid, assignment });
+            const archived = Boolean(harnessStore.get(`${ASSIGNMENT_OVERRIDE_ARCHIVES_COLLECTION}/${archiveId}`));
+            if (dry) totals.archivesToWrite += archived ? 0 : 1;
+            else {
+              if (!archived) { harnessStore.set(`${ASSIGNMENT_OVERRIDE_ARCHIVES_COLLECTION}/${archiveId}`, archive); totals.archivesWritten += 1; }
+              applySharedWrites(aid, writes);
+            }
+          }
+        }
+      }
+      if (mode === 'restore') {
+        const writes = harnessStore.paths(`${STUDENT_ASSIGNMENT_OVERRIDES_COLLECTION}/`)
+          .map((recordAt) => harnessStore.get(recordAt))
+          .filter((record) => record?.assignmentId === aid)
+          .flatMap((record) => planSharedCopyWrites({
+            assignment, studentId: record.studentId,
+            override: resolveStudentOverride({ assignment, studentId: record.studentId, privateOverride: record }),
+            storageMode: resolveOverrideStorageMode(null),
+          }));
+        if (writes.length) { totals.assignmentsRestored += 1; totals.sharedWritesRestored += writes.length; }
+        if (!dry) applySharedWrites(aid, writes);
+      }
+    });
+    const nowMs = Date.now();
+    const pass = { passId: `pass-${nowMs}`, startedAtMs: nowMs, completedAtMs: nowMs, pages: 1, nextCursor: null, failureCount: 0, failures: [], ...Object.fromEntries(MIGRATION_COUNTERS.map((key) => [key, totals[key]])) };
+    const modeState = { ...progress[mode], [dry ? 'dryRunPass' : 'pass']: pass, [dry ? 'lastCompletedDryRunPass' : 'lastCompletedPass']: pass };
+    if (!dry) Object.assign(modeState, { cursor: null, done: true, lastRealRunAtMs: nowMs });
+    harnessStore.set(PROGRESS_PATH, { ...harnessStore.get(PROGRESS_PATH), [mode]: modeState });
+    return {
+      mode, dryRun: dry, startAfter: null, nextCursor: null, done: true, sharedRetired, ...totals,
+      pass: { passId: pass.passId, pages: 1, completed: true, failureCount: 0 },
+    };
+  },
   // listClassJoinCodes (functions/index.js) as deployed: the ACTIVE codes in
   // classJoinCodes, each only for a class the caller is teacher of record of;
   // a code with no class only for a root admin. Sign-in Access loads it with

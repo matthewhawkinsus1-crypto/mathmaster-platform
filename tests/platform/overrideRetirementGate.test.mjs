@@ -150,6 +150,8 @@ test('one full school day: the first whole weekday after going live, in the scho
   assert.equal(new Date(afterDst.endMs).toISOString(), '2026-11-03T06:00:00.000Z');
   // The admin screen's hint knows the district calendar: fall break is 12–16 October.
   assert.equal(firstFullDistrictSchoolDay(at('2026-10-09T15:00:00.000Z')).dateKey, '2026-10-19');
+  // …and with nothing recorded it names no day (never one counted from 1970).
+  [null, undefined, '', 0, '1791000000000', Number.NaN].forEach((value) => assert.equal(firstFullDistrictSchoolDay(value), null, String(value)));
 });
 
 /* --------------------------------------------------------- the passes */

@@ -73,8 +73,13 @@ test('the hooks are keyed by the account and cannot return another account\'s co
   assert.match(student, /return \(\) => \{\s*active = false;\s*unsubscribe\(\);\s*\};/);
   assert.match(student, /return controlsForStudent\(controls, owner\);/, 'owner-checked on every render');
   const teacher = executableSource(read('src/platform/teacher/useTeacherClassControls.js'));
-  assert.match(teacher, /\}, \[db, scopeKey\]\);/);
-  assert.match(teacher, /return controlsForScope\(controls, scopeKey\);/);
+  assert.match(teacher, /\}, \[db, listenKey\]\);/, 'one listener for the settled scope');
+  assert.match(teacher, /return viewerOf\(scopeKey\) === viewerOf\(listenKey\) \? controlsForScope\(controls, listenKey\) : EMPTY_TEACHER_CONTROLS;/,
+    'never another viewer\'s controls, even before the listener follows');
+  // A scope that went away or belongs to another viewer applies at once; only
+  // a same-viewer class change waits to settle (one switch, one listener).
+  assert.match(teacher, /if \(!scopeKey \|\| !listenKey \|\| viewerOf\(scopeKey\) !== viewerOf\(listenKey\)\) \{\s*setListenKey\(scopeKey\);\s*return undefined;\s*\}/);
+  assert.match(teacher, /const timer = setTimeout\(\(\) => setListenKey\(scopeKey\), TEACHER_SCOPE_SETTLE_MS\);\s*return \(\) => clearTimeout\(timer\);/);
   assert.match(teacher, /previousScope\.email === scope\.email/, 'records are carried over only for the same viewer');
 });
 

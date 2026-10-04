@@ -20,6 +20,17 @@ import {
   buildServiceLogEntry, buildStaffEvidenceEvent, buildStudentEvidenceEvent, engagementDocId, epochMinuteOf, utcDayOf,
 } from '../../../functions/shared/supportEvidenceModel.mjs';
 import { WORKSPACE_DRAFT_SCHEMA_VERSION, workspaceDraftDocumentId } from '../../../functions/shared/workspaceDraftSchema.mjs';
+import {
+  OVERRIDE_MIGRATION_ID,
+  OVERRIDE_STORAGE_FLAG,
+  PLATFORM_MIGRATIONS_COLLECTION,
+  STUDENT_ASSIGNMENT_OVERRIDES_COLLECTION,
+  buildOverrideEvent,
+  buildStudentOverrideRecord,
+  overrideAuthorizationContext,
+  overrideEventId,
+  studentAssignmentOverrideId,
+} from '../../../functions/shared/studentAssignmentOverrides.mjs';
 import { LMR_BRIDGE_QUESTION, LMR_WARMUP_QUESTIONS } from './lmrWarmupFixture.js';
 
 export const TEACHER_EMAIL = 'teacher@harness.example';
@@ -313,7 +324,87 @@ export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, param
   // Opt-in (`&reduced=1`) so every other journey sees the school unchanged.
   if (params?.get?.('reduced') === '1') addReducedWorkloadScenario({ fixture, now, Timestamp, classRecord: byId['c-alg1-p5'] });
   if (params?.get?.('eb') === '1') addLanguageSupportScenario({ fixture, now, Timestamp, classRecord: byId['c-alg1-p5'] });
+  const controls = params?.get?.('controls');
+  if (controls === 'mirror' || controls === 'retired') addPrivateControlsScenario({ fixture, now, mode: controls, classRecord: byId['c-alg2-p3'] });
   return fixture;
+};
+
+/*
+ * STUDENTS' PRIVATE ASSIGNMENT CONTROLS (privateControlsJourneys.mjs) — synthetic.
+ *
+ * `?controls=mirror`: the private records exist and the shared lessons still
+ * mirror every student's controls, as during Stages 1-3 (a previous-release
+ * screen reads them there). `?controls=retired`: Stage 4 — retired and
+ * stripped; the private records alone carry the controls.
+ *
+ *   910001  an attendance extension on last week's lesson, which is closed
+ *           for the class: open again for them alone, to nine days out (the
+ *           dashboard says "Your last day to turn in"); and a reopen of
+ *           today's lesson
+ *   910003  two extra DOL attempts of their own on today's lesson (and the
+ *           recovery-log entry naming them, mirror only)
+ *   910006  excused from today's lesson
+ *   910004  nothing: the next student on the shared Chromebook
+ *
+ * The private records are built with the server's own record builder, and
+ * each has its staff-only history entry.
+ */
+export const PRIVATE_CONTROLS = Object.freeze({ extended: '910001', granted: '910003', excused: '910006', plain: '910004' });
+const addPrivateControlsScenario = ({ fixture, now, mode, classRecord }) => {
+  const at = new Date(now - DAY).toISOString();
+  const extendedTo = endOfDay(now + 9 * DAY);
+  const extension = { dateKey: dateKey(now + 9 * DAY), grantedAt: now - DAY };
+  const grant = { extraAttempts: 2, changedAt: at, changedBy: 'harness-teacher-uid', reason: 'teacher-dol-recovery' };
+  const controls = [
+    [PRIVATE_CONTROLS.extended, 'a-lastweek', { lateDueAt: extendedTo, extension }],
+    [PRIVATE_CONTROLS.extended, 'a-today', { reopened: true }],
+    [PRIVATE_CONTROLS.granted, 'a-today', { dolExtraAttempts: 2, dolAttemptGrant: grant }],
+    [PRIVATE_CONTROLS.excused, 'a-today', { excused: true }],
+  ];
+  controls.forEach(([studentId, assignmentId, override]) => {
+    const authorization = overrideAuthorizationContext({
+      studentId,
+      classRecord: { classId: classRecord.classId, teacherOfRecord: TEACHER_EMAIL },
+      student: { classId: classRecord.classId, assignedTeacherEmail: TEACHER_EMAIL },
+    });
+    fixture[`${STUDENT_ASSIGNMENT_OVERRIDES_COLLECTION}/${studentAssignmentOverrideId(studentId, assignmentId)}`] = buildStudentOverrideRecord({
+      studentId, assignmentId, override, authorization, revision: 1, source: 'harness', updatedBy: 'teacher',
+    });
+    fixture[`grades/${studentId}/assignmentOverrideEvents/${overrideEventId(assignmentId, 1)}`] = {
+      ...buildOverrideEvent({
+        kind: override.dolExtraAttempts ? 'dolAttempts' : override.extension ? 'attendanceExtension' : override.excused ? 'excused' : 'reopened',
+        studentId, assignmentId, authorization, before: null, after: override, revision: 1,
+        actorEmail: TEACHER_EMAIL, actorUid: 'harness-teacher-uid', actorRole: 'teacher', source: 'callable',
+      }),
+      at,
+    };
+  });
+  fixture[`platformFlags/${OVERRIDE_STORAGE_FLAG}`] = { sharedRetired: mode === 'retired' };
+  fixture[`${PLATFORM_MIGRATIONS_COLLECTION}/${OVERRIDE_MIGRATION_ID}`] = {};
+  if (mode === 'retired') return;
+  // The mirror: each student's controls on the shared lessons, in the forms
+  // previous releases wrote them.
+  const today = fixture['assignments/a-today'];
+  fixture['assignments/a-today'] = {
+    ...today,
+    studentOverrides: { [PRIVATE_CONTROLS.excused]: { excused: true } },
+    excusedStudentIds: [PRIVATE_CONTROLS.excused],
+    reopenedStudentIds: [PRIVATE_CONTROLS.extended],
+    dol: {
+      ...today.dol,
+      attemptGrantsByStudentId: { [PRIVATE_CONTROLS.granted]: grant },
+      recoveryAudit: [{
+        id: `grantAttempts:students:${PRIVATE_CONTROLS.granted}:${at}`, action: 'grantAttempts', section: 'dol',
+        scope: { type: 'students', studentIds: [PRIVATE_CONTROLS.granted], classId: classRecord.classId },
+        previous: { extraAttemptsByStudent: { [PRIVATE_CONTROLS.granted]: 0 } }, next: { extraAttemptsByStudent: { [PRIVATE_CONTROLS.granted]: 2 } },
+        teacherId: 'harness-teacher-uid', reason: 'teacher-dol-recovery', at,
+      }],
+    },
+  };
+  fixture['assignments/a-lastweek'] = {
+    ...fixture['assignments/a-lastweek'],
+    studentOverrides: { [PRIVATE_CONTROLS.extended]: { lateDueAt: extendedTo, extension } },
+  };
 };
 
 /*
