@@ -833,11 +833,15 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
  * the chip row keeps scrolling sideways in the width that is left. Step
  * Algebra's toolbar only where it IS the question (the path below): Linear
  * Intercepts and Rewrite Linear Form embed the same toolbar deeper, under a
- * tool header that already has the room.
+ * tool header that already has the room. The relation workspace's toolbar
+ * (an equation that may have no solution or every solution, an inequality,
+ * an absolute value) starts in the same place: at 390px the button sat on
+ * "Combine like terms".
  */
 .mathmaster-work-view-surface[data-enlarged="false"] .workflow-focus__rail,
 .mathmaster-work-view-surface[data-enlarged="false"] .workflow-focus__navigator,
-.mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > fieldset > div > .mathmaster-work-view-nested-surface > section > .algebra-toolbar {
+.mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > fieldset > div > .mathmaster-work-view-nested-surface > section > .algebra-toolbar,
+.mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > fieldset > div > .mathmaster-work-view-nested-surface > section > .algebra-relation-toolbar {
   margin-right: var(--mm-work-view-opener-space, 176px);
 }
 
@@ -852,7 +856,8 @@ html[data-work-view-open="true"] .mathmaster-question-container .mathmaster-desk
     text-align: left;
   }
 
-  .mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > fieldset > div > .mathmaster-work-view-nested-surface > section > .algebra-toolbar {
+  .mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > fieldset > div > .mathmaster-work-view-nested-surface > section > .algebra-toolbar,
+  .mathmaster-work-view-surface[data-enlarged="false"] > .mathmaster-question-tool-workspace > fieldset > div > .mathmaster-work-view-nested-surface > section > .algebra-relation-toolbar {
     margin-right: 0;
     margin-top: var(--mm-work-view-opener-bottom, 52px);
   }
