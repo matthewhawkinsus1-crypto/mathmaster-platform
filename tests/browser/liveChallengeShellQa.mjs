@@ -1094,7 +1094,9 @@ await run('reconnect', async (S) => {
 await run('launch', async (S) => {
   const ids = studentsOf('launch');
   const teacher = await openTeacher('chromebook');
-  const roomId = await createClassic(teacher, { classKey: 'launch', rounds: 5, seconds: 30 });
+  // Long rounds: a screen whose choices are disabled mid-round is then a
+  // finding about the screen, never about the clock running out.
+  const roomId = await createClassic(teacher, { classKey: 'launch', rounds: 5, seconds: 90 });
   const [normalId, slowId, frozenId, offlineId, countdownId, lateId] = ids;
   const bots = ids.slice(6);
   const normal = await openStudent(normalId, 'chromebook');
@@ -1125,58 +1127,83 @@ await run('launch', async (S) => {
   const freezer = await frozen.context.newCDPSession(frozen.page);
   let countdown = null;
   let late = null;
-  await Promise.all([
-    openStudent(countdownId, 'chromebook').then((handle) => { countdown = handle; }),
-    at(startsAtMs - 1_500, () => freezer.send('Page.setWebLifecycleState', { state: 'frozen' })),
-    at(startsAtMs + 2_000, () => freezer.send('Page.setWebLifecycleState', { state: 'active' })),
-    at(startsAtMs - 400, () => offline.context.setOffline(true)),
-    at(startsAtMs + 2_500, () => offline.context.setOffline(false)),
-    at(startsAtMs + 1_500, () => openStudent(lateId, 'chromebook').then((handle) => { late = handle; })),
-    ...bots.map((id, index) => at(startsAtMs + 200 + (index % 10) * 150, () => botAnswer(roomId, id, { correct: index % 4 !== 0, humanElapsedMs: 1_000 + index * 40 }))),
-  ]);
-  const screens = [normal, slow, frozen, offline, countdown, late];
-  for (const student of screens) {
-    check(S, await waitForStudentStage(student, 'roundActive', 20_000), `${student.studentId} never reached round 1 (stage ${await attr(student, '[data-mm-student-stage]', 'data-mm-student-stage')})`);
-  }
-  await shot(late, 'L01-late-listener-in-round');
-  // Each one answers, and its answer is in before anything else happens.
-  for (const [index, student] of screens.entries()) {
-    await answerInBrowser(student, roomId, { correct: index % 2 === 0 });
-    try { await submissionSettled(student, { timeoutMs: 20_000 }); } catch (error) { finding(S, error.message); }
-  }
-  check(S, await waitForRoom(roomId, (room) => room.roundState === 'closed', 25_000), 'the round did not close once all 40 answered');
-  for (const student of screens) check(S, await waitForStudentStage(student, 'roundResults', 20_000), `${student.studentId} did not reach the results`);
+  try {
+    await Promise.all([
+      openStudent(countdownId, 'chromebook').then((handle) => { countdown = handle; }),
+      at(startsAtMs - 1_500, () => freezer.send('Page.setWebLifecycleState', { state: 'frozen' })),
+      at(startsAtMs + 2_000, () => freezer.send('Page.setWebLifecycleState', { state: 'active' })),
+      at(startsAtMs - 400, () => offline.context.setOffline(true)),
+      at(startsAtMs + 2_500, () => offline.context.setOffline(false)),
+      at(startsAtMs + 1_500, () => openStudent(lateId, 'chromebook').then((handle) => { late = handle; })),
+      ...bots.map((id, index) => at(startsAtMs + 200 + (index % 10) * 150, () => botAnswer(roomId, id, { correct: index % 4 !== 0, humanElapsedMs: 1_000 + index * 40 }))),
+    ]);
+    const screens = [normal, slow, frozen, offline, countdown, late];
+    const roles = { [normalId]: 'diagnostics blocked', [slowId]: '6x CPU', [frozenId]: 'frozen through zero', [offlineId]: 'offline at zero', [countdownId]: 'opened during the countdown', [lateId]: 'opened after the start' };
+    // What a screen shows, for a finding: the stage, the round's own clock and
+    // countdown overlay, and whether its choices can be tapped.
+    const screenState = (student) => student.page.evaluate(() => ({
+      stage: document.querySelector('[data-mm-student-stage]')?.getAttribute('data-mm-student-stage') || null,
+      timer: [...document.querySelectorAll('[aria-label]')].map((node) => node.getAttribute('aria-label')).find((label) => /seconds/.test(label)) || null,
+      overlay: document.querySelector('[data-mm-round-countdown]')?.getAttribute('data-mm-round-countdown') || null,
+      choices: [...document.querySelectorAll('[data-mm-game] [role="radio"]')].map((node) => (node.disabled ? 'disabled' : 'enabled')),
+      calibrations: (window.__mmBridgeCalls || []).filter((call) => call.name === 'calibrateLiveChallengeClock').map((call) => (call.ok ? 'ok' : call.error || 'pending')).slice(-6),
+      text: document.body.innerText.replace(/\s+/g, ' ').slice(0, 300),
+    })).catch((error) => ({ error: String(error) }));
+    for (const student of screens) {
+      check(S, await waitForStudentStage(student, 'roundActive', 20_000), `${student.studentId} (${roles[student.studentId]}) never reached round 1: ${JSON.stringify(await screenState(student))}`);
+    }
+    await shot(late, 'L01-late-listener-in-round');
+    note(S, 'round 1 length (s)', (ms(r0.endsAt || r0.roundEndsAt) - startsAtMs) / 1000);
+    // They all answer at once, as a class does, and each answer is in before
+    // anything else happens. A screen on the round whose choices cannot be
+    // tapped is a finding, never waited out.
+    await Promise.all(screens.map(async (student, index) => {
+      try {
+        await answerInBrowser(student, roomId, { correct: index % 2 === 0 });
+      } catch (error) {
+        await shot(student, `L-fail-${student.studentId}`);
+        finding(S, `${student.studentId} (${roles[student.studentId]}) could not answer on the round: ${String(error?.message || error).split('\n')[0]} — ${JSON.stringify(await screenState(student))}`);
+        return;
+      }
+      try { await submissionSettled(student, { timeoutMs: 20_000 }); } catch (error) { finding(S, error.message); }
+    }));
+    check(S, await waitForRoom(roomId, (room) => room.roundState === 'closed', 25_000), 'the round did not close once all 40 answered');
+    for (const student of screens) check(S, await waitForStudentStage(student, 'roundResults', 20_000), `${student.studentId} did not reach the results`);
 
-  // What each screen reported, and what it cost.
-  const keyOf = async (studentId) => (await privatePlayer(roomId, studentId)).playerKey;
-  const diagnosticsOf = async (studentId) => (await roomRef(roomId).collection('diagnostics').doc(await keyOf(studentId)).get()).data() || {};
-  for (const student of [slow, frozen, offline, countdown, late]) {
-    const milestones = (await diagnosticsOf(student.studentId)).launchMilestones || {};
-    for (const event of ['listener_attached', 'running_received', 'game_mounted']) check(S, milestones[event], `${student.studentId} did not report ${event}`);
-  }
-  const lateMilestones = (await diagnosticsOf(lateId)).launchMilestones || {};
-  check(S, !lateMilestones.countdown_received, 'the late listener reported a countdown it never saw');
-  const offlineMilestones = (await diagnosticsOf(offlineId)).launchMilestones || {};
-  check(S, offlineMilestones.connection_lost && offlineMilestones.connection_restored, 'the student offline at zero did not report the loss and the return');
-  check(S, blockedLaunchReports >= 1, 'the blocked screen never tried to send a launch batch, so nothing was proven');
-  const launchOnly = (studentId) => bridgeCalls.filter((call) => call.name === 'calibrateLiveChallengeClock' && call.identity?.studentId === studentId && call.data?.launchReport && !call.data?.quality).length;
-  const telemetry = Object.fromEntries(screens.map((student) => [student.studentId, launchOnly(student.studentId)]));
-  note(S, 'launch-only diagnostic requests that reached the server, per screen', telemetry);
-  note(S, 'launch-only diagnostic batches blocked on the normal screen', blockedLaunchReports);
-  check(S, telemetry[slowId] <= 1 && telemetry[countdownId] <= 1, `an ordinary screen sent more than one launch-only diagnostic request: ${JSON.stringify(telemetry)}`);
-  check(S, Object.values(telemetry).every((count) => count <= 3), `a disrupted screen sent more than three: ${JSON.stringify(telemetry)}`);
-  const players = await publicPlayers(roomId);
-  check(S, players.length === 40 && new Set(players.map((row) => row.id)).size === 40, `${players.length} public players for a class of 40`);
-  check(S, players.every((row) => row.answeredRound === 0 && row.roundsAnswered === 1), 'not every player has exactly one answer for round 1');
+    // What each screen reported, and what it cost.
+    const keyOf = async (studentId) => (await privatePlayer(roomId, studentId)).playerKey;
+    const diagnosticsOf = async (studentId) => (await roomRef(roomId).collection('diagnostics').doc(await keyOf(studentId)).get()).data() || {};
+    for (const student of [slow, frozen, offline, countdown, late]) {
+      const milestones = (await diagnosticsOf(student.studentId)).launchMilestones || {};
+      for (const event of ['listener_attached', 'running_received', 'game_mounted']) check(S, milestones[event], `${student.studentId} did not report ${event}`);
+    }
+    const lateMilestones = (await diagnosticsOf(lateId)).launchMilestones || {};
+    check(S, !lateMilestones.countdown_received, 'the late listener reported a countdown it never saw');
+    const offlineMilestones = (await diagnosticsOf(offlineId)).launchMilestones || {};
+    check(S, offlineMilestones.connection_lost && offlineMilestones.connection_restored, 'the student offline at zero did not report the loss and the return');
+    check(S, blockedLaunchReports >= 1, 'the blocked screen never tried to send a launch batch, so nothing was proven');
+    const launchOnly = (studentId) => bridgeCalls.filter((call) => call.name === 'calibrateLiveChallengeClock' && call.identity?.studentId === studentId && call.data?.launchReport && !call.data?.quality).length;
+    const telemetry = Object.fromEntries(screens.map((student) => [student.studentId, launchOnly(student.studentId)]));
+    note(S, 'launch-only diagnostic requests that reached the server, per screen', telemetry);
+    note(S, 'launch-only diagnostic batches blocked on the normal screen', blockedLaunchReports);
+    check(S, telemetry[slowId] <= 1 && telemetry[countdownId] <= 1, `an ordinary screen sent more than one launch-only diagnostic request: ${JSON.stringify(telemetry)}`);
+    check(S, Object.values(telemetry).every((count) => count <= 3), `a disrupted screen sent more than three: ${JSON.stringify(telemetry)}`);
+    const players = await publicPlayers(roomId);
+    check(S, players.length === 40 && new Set(players.map((row) => row.id)).size === 40, `${players.length} public players for a class of 40`);
+    check(S, players.every((row) => row.answeredRound === 0 && row.roundsAnswered === 1), 'not every player has exactly one answer for round 1');
 
-  await teacher.page.getByRole('button', { name: 'End Game' }).click();
-  await confirmDialog(teacher, 'End Game');
-  await waitForRoom(roomId, (room) => room.status === 'finished', 30_000);
-  for (const student of screens) check(S, await waitForStudentStage(student, 'completed', 20_000), `${student.studentId} did not reach the finished game`);
-  await slowCpu.detach().catch(() => {});
-  await freezer.detach().catch(() => {});
-  consoleErrors(S, [teacher, ...screens]);
-  await closeAll(teacher, ...screens);
+    await teacher.page.getByRole('button', { name: 'End Game' }).click();
+    await confirmDialog(teacher, 'End Game');
+    await waitForRoom(roomId, (room) => room.status === 'finished', 30_000);
+    for (const student of screens) check(S, await waitForStudentStage(student, 'completed', 20_000), `${student.studentId} did not reach the finished game`);
+    consoleErrors(S, [teacher, ...screens]);
+  } finally {
+    // Whatever happened above, none of these pages (one CPU-throttled) may
+    // keep running into the next scenario.
+    await slowCpu.detach().catch(() => {});
+    await freezer.detach().catch(() => {});
+    await closeAll(teacher, normal, slow, frozen, offline, countdown, late);
+  }
 });
 
 // E — A CLASS OF 32 ON A 1366×768 PROJECTOR, ZOOMED; PHONES AND TABLETS; REDUCED MOTION.
