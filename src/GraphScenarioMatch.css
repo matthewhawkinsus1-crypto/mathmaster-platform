@@ -172,7 +172,7 @@
   z-index: 1;
   border-left: 1px dashed var(--mm-tint-border);
   border-right: 1px dashed var(--mm-tint-border);
-  background: linear-gradient(180deg, rgba(232,240,254,.46), rgba(255,255,255,.2));
+  background: linear-gradient(180deg, var(--mm-primary-subtle), var(--mm-surface));
 }
 
 .graph-scenario-connector-layer {

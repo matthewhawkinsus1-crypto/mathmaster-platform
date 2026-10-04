@@ -1095,7 +1095,7 @@
   gap: 6px;
   padding: 10px 12px;
   border-color: var(--mm-success-border);
-  background: linear-gradient(180deg, rgba(230, 244, 234, .45), var(--mm-surface) 70%);
+  background: linear-gradient(180deg, var(--mm-success-subtle), var(--mm-surface) 70%);
 }
 
 .mathmaster-elim-round-header {
