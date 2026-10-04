@@ -33,6 +33,7 @@ import {
   planGrantTransition,
 } from './rewardGrants.mjs';
 import { normalizeQuestionRecord } from './attemptPolicy.mjs';
+import { STUDENT_ASSIGNMENT_OVERRIDES_COLLECTION, studentAssignmentOverrideId } from './studentAssignmentOverrides.mjs';
 import { explainStudentChallengeRewards } from './rewardDiagnostics.mjs';
 
 /*
@@ -153,9 +154,16 @@ export async function redeemPracticePass(db, {
 
   const gradeRef = db.collection('grades').doc(student);
   const assignmentRef = db.collection('assignments').doc(assignmentKey);
+  // The student's own controls on this assignment (an extension keeps it
+  // credit-eligible), read here with the server's authority — never taken
+  // from the request.
+  const overrideRef = db.collection(STUDENT_ASSIGNMENT_OVERRIDES_COLLECTION)
+    .doc(studentAssignmentOverrideId(student, assignmentKey));
 
   return db.runTransaction(async (transaction) => {
-    const [gradeSnap, assignmentSnap] = await Promise.all([transaction.get(gradeRef), transaction.get(assignmentRef)]);
+    const [gradeSnap, assignmentSnap, overrideSnap] = await Promise.all([
+      transaction.get(gradeRef), transaction.get(assignmentRef), transaction.get(overrideRef),
+    ]);
     if (!gradeSnap.exists) fail('not-found', 'Your student record was not found.');
     const gradeData = gradeSnap.data() || {};
     const classId = cleanText(gradeData.classId, 120);
@@ -238,6 +246,7 @@ export async function redeemPracticePass(db, {
       balance: account.balance,
       nowValue: nowMs,
       studentId: student,
+      privateOverride: overrideSnap.exists ? overrideSnap.data() : null,
       paymentMethod: payWith,
     });
     if (!decision.eligible) fail('failed-precondition', decision.message, { reason: decision.code });

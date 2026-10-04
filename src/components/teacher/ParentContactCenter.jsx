@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { studentNameForStorage } from '../../../functions/shared/studentIdentity.mjs';
+import { overrideEntryFor, resolveStudentOverride } from '../../../functions/shared/studentAssignmentOverrides.mjs';
 import {
   STUDENT_NAME_UNAVAILABLE, compareStudentsByName, formatStudentLabel, resolveRosterStudentName, studentIdentityIndexFor,
 } from '../../platform/studentName.js';
@@ -64,7 +65,10 @@ export default function ParentContactCenter({ students = [], classes = [], assig
     const mine = (rows) => rows.filter((entry) => String(entry.studentId) === studentId);
     const brief = buildStudentProgressBrief({
       student, gradeEntries, attendance: mine(supportEvents).filter((event) => /Attendance/i.test(event.kind)),
-      extensions: assignments.flatMap((assignment) => assignment.studentOverrides?.[studentId]?.extension ? [{ assignment: assignment.title, ...assignment.studentOverrides[studentId] }] : []),
+      extensions: assignments.flatMap((assignment) => {
+        const controls = overrideEntryFor(resolveStudentOverride({ assignment, studentId }));
+        return controls?.extension ? [{ assignment: assignment.title, ...controls }] : [];
+      }),
       overrideActions: Object.values(gradeMap).filter((entry) => entry?.teacherOverride || entry?.academicIntegrityAction), supportHistory: mine(supportEvents), contacts: mine(contacts),
       masteryEvidence: Object.values(masteryProfilesByStudentId[studentId]?.profiles || {}).slice(0, 12), returnCheckIns,
       sessionSummaries: mine(sessionSummaries),

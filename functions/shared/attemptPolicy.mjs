@@ -1,3 +1,5 @@
+import { resolveStudentDolExtraAttempts } from './studentAssignmentOverrides.mjs';
+
 export const MAX_ATTEMPTS_PER_QUESTION = 3;
 const MAX_STORED_STEP_GRADES = 80;
 
@@ -56,18 +58,15 @@ export const isChoiceOnlyQuestion = (question = {}) => {
   return fields.length > 0 && fields.every(isRenderedAssignmentChoiceField);
 };
 
-const grantedAttempts = (grant) => {
-  const value = grant && typeof grant === 'object' ? grant.extraAttempts : grant;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 0;
-};
-
 /**
  * Extra DOL attempts a teacher granted: the class grant plus this student's own
  * (an absent student, a device that failed mid-DOL). Both are explicit teacher
- * decisions recorded on the assignment, so they add; the total stays bounded.
- * The browser, submission ingestion and the checkpoint finalizer all call this
- * with the same arguments, so a student never sees an attempt the server
+ * decisions, so they add; the total stays bounded. The class grant lives on
+ * the assignment; the student's own lives in their private override
+ * (studentAssignmentOverrides.mjs), which the caller reads with its own
+ * authority and passes as `privateOverride` — never a number a browser sent.
+ * The browser, submission ingestion and the checkpoint finalizer all resolve
+ * it through that one module, so a student never sees an attempt the server
  * would refuse.
  */
 export const resolveTeacherGrantedExtraAttempts = ({
@@ -75,11 +74,10 @@ export const resolveTeacherGrantedExtraAttempts = ({
   activityRole = null,
   classId = null,
   studentId = null,
+  privateOverride = undefined,
 } = {}) => {
   if (String(activityRole || '').trim().toLowerCase() !== 'dol') return 0;
-  const classGrant = classId ? grantedAttempts(assignment?.dol?.attemptGrantsByClassId?.[classId]) : 0;
-  const studentGrant = studentId ? grantedAttempts(assignment?.dol?.attemptGrantsByStudentId?.[studentId]) : 0;
-  return Math.max(0, Math.min(20, classGrant + studentGrant));
+  return resolveStudentDolExtraAttempts({ assignment, classId, studentId, privateOverride }).total;
 };
 
 export const resolveQuestionMaximumAttempts = ({

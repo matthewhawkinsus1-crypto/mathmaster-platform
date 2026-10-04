@@ -207,6 +207,10 @@ export const decideCheckpointFinalization = ({
   schedule = null,
   classPeriod = null,
   isSecureAssignment = false,
+  // The student's private override record (studentAssignmentOverrides),
+  // read by the scheduler in the same transaction as the assignment. Never a
+  // checkpoint field: a checkpoint is written by the student's browser.
+  privateOverride = undefined,
   now = Date.now(),
   timeZone = SCHOOL_TIME_ZONE,
 } = {}) => {
@@ -233,11 +237,13 @@ export const decideCheckpointFinalization = ({
     classPeriod: classPeriod ?? checkpoint.finalizationContext?.classPeriod ?? null,
     nowValue: now,
     timeZone,
-    // Same authoritative student-specific final cutoff the client already
-    // reads (assignmentLifecycle.js) and Attendance History already writes
-    // (assignment.studentOverrides[studentId].lateDueAt) — a checkpoint
-    // captured within an authorized extension finalizes for credit here too.
+    // Same authoritative student-specific final cutoff the client reads
+    // (assignmentLifecycle.js) and the extension callable writes (the
+    // student's private override, merged with any copy still on the shared
+    // document) — a checkpoint captured within an authorized extension
+    // finalizes for credit here too.
     studentId: text(checkpoint.studentId),
+    privateOverride,
     // …and the individualized extra-time deadline, derived from the student's
     // pinned profile on the grade document already in hand.
     studentProfile: gradeDocument?.profile || null,
@@ -358,6 +364,9 @@ export const buildCheckpointFinalization = ({
   occurredAt = null,
   runAt = Date.now(),
   timeZone = SCHOOL_TIME_ZONE,
+  // The student's private override record, from the same transaction (see
+  // decideCheckpointFinalization): their own DOL attempt grant.
+  privateOverride = undefined,
 } = {}) => {
   const activityPolicy = getEffectiveActivityPolicy(decision.activityRole);
   const academicAt = occurredAt === null || occurredAt === undefined
@@ -388,6 +397,7 @@ export const buildCheckpointFinalization = ({
         activityRole: decision.activityRole,
         classId: gradeDocument?.classId || null,
         studentId: text(checkpoint.studentId) || null,
+        privateOverride,
       }),
     }),
     // `lastAttemptAt` is the deadline this response was submitted at, not the

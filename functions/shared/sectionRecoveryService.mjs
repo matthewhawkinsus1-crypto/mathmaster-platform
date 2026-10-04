@@ -118,12 +118,15 @@ export const buildSectionRecoveryContext = ({
   supportEvents = null,
   challengeCredit = null,
   studentProfile = null,
+  // The student's private override record, read by the caller with its own
+  // authority (studentAssignmentOverrides.mjs). Undefined where it was not read.
+  privateOverride = undefined,
   sectionModeFor = () => 'personalized',
   nowValue = Date.now(),
 } = {}) => {
   const policy = normalizeRecoveryPolicy(assignment || {});
   const normalizedRecord = normalizeRecoveryRecord(record, section);
-  const opportunity = resolveOriginalOpportunity({ assignment, section, schedule, classId, classPeriod, studentId, nowValue, studentProfile });
+  const opportunity = resolveOriginalOpportunity({ assignment, section, schedule, classId, classPeriod, studentId, nowValue, studentProfile, privateOverride });
   const readiness = assessSectionRecoveryReadiness({ assignmentId: assignment?.id || '', section, entries: sectionEntries });
   const warmupDelivery = section === 'warmup'
     ? resolveWarmupDelivery({ assignment, hasAuthoredWarmup: list(sectionEntries).length > 0, challengeCredit })

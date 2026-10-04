@@ -169,7 +169,9 @@ export const buildNarrativeFacts = (model) => {
       add(`deadline.attendance.${entry.assignmentId}`, 'deadlines', 'attendanceExtension', { title: entry.title, date: fmtDate(entry.attendanceExtension.finalAtMs) }, CASE_PROVENANCE.DIRECT,
         [caseSource({
           label: 'Attendance extension',
-          path: entry.attendanceExtension.source === 'grant-history' ? 'grades/{student}/attendanceExtensionGrants' : 'assignments/{id}.studentOverrides',
+          // Without the grant history, the date comes from the student's own
+          // assignment controls (functions/shared/studentAssignmentOverrides.mjs).
+          path: entry.attendanceExtension.source === 'grant-history' ? 'grades/{student}/attendanceExtensionGrants' : 'studentAssignmentOverrides/{student}:{assignment}',
           ids: [entry.assignmentId],
         })]);
     }
