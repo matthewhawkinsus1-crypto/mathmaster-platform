@@ -19,6 +19,7 @@ import InteractiveModelingLabPlayer from '../labs/InteractiveModelingLabPlayer.j
 import { inspectHonorsRigor } from '../../platform/rigor/courseRigor.js';
 import {
   buildDeterministicHonorsExtension,
+  describeHonorsRecipeForTeacher,
   certifyHonorsExtensionQuestion,
   selectHonorsExtensionRecipe,
   withHonorsExtension,
@@ -1059,7 +1060,7 @@ export const LessonPreflightModal = ({
                 <strong style={{ color: '#174ea6' }}>Fastest option — no AI required</strong>
                 <div style={{ marginTop: 4, color: '#4b5563', fontSize: 12.5, lineHeight: 1.5 }}>
                   {localHonorsRecipe.status === 'ready'
-                    ? `MathMaster has a vetted Honors extension for this lesson's concept: ${localHonorsRecipe.recipe.title.charAt(0).toLowerCase()}${localHonorsRecipe.recipe.title.slice(1)}. It uses the lesson's own self-graded tool at higher DOK and harder mathematics, and does not change the existing questions.`
+                    ? describeHonorsRecipeForTeacher(localHonorsRecipe)
                     : localHonorsRecipe.teacherMessage}
                 </div>
                 <button

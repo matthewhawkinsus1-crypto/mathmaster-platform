@@ -33,10 +33,13 @@
  * Pure and deterministic: no AI, no clock, no randomness, no Firestore.
  */
 import { allocateQuestionValue } from '../../../functions/shared/questionValue.mjs';
+import { resolveFamilyConstraints } from '../../../functions/shared/questionFamilyContract.mjs';
+import { getPlatformQuestionFamily } from '../../../functions/shared/questionFamilyRegistry.mjs';
 import { validateAssignmentQuestions } from '../../assignmentBlueprint.js';
 import { validateQuestionSemantics } from '../contract/semanticValidation.js';
 import { auditQuestionToolContract } from '../contract/questionToolContract.js';
 import { validateAlignments } from '../contract/alignments.js';
+import { honorsUnavailableReason } from './honorsRecipeBacklog.js';
 
 export const HONORS_EXTENSION_CONTRACT_VERSION = 2;
 export const DETERMINISTIC_HONORS_SOURCE = 'deterministic-policy';
@@ -50,6 +53,7 @@ export const HONORS_RECIPE_UNAVAILABLE = Object.freeze({
   COURSE_NOT_SUPPORTED: 'course-not-supported',
   COURSE_CONFLICT: 'course-conflict',
   STORIES_EXHAUSTED: 'stories-exhausted',
+  AMBIGUOUS: 'recipe-selection-ambiguous',
 });
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -117,6 +121,12 @@ const CONCEPT_ALIASES = Object.freeze([
     matches: (question) => clean(question?.toolId || question?.type) === 'representationBridge'
       && clean(question?.mode) === 'linearMultipleRepresentations',
   }),
+  // The linear card sort, authored by hand rather than drawn from the family.
+  Object.freeze({
+    familyId: 'linear.representationSort',
+    matches: (question) => clean(question?.toolId || question?.type) === 'representationMatch'
+      && clean(question?.mode) === 'linearConnections',
+  }),
 ]);
 
 const familyIdOf = (question = {}) => {
@@ -180,10 +190,31 @@ const recipeProblem = (id, message) => {
   throw new Error(`Honors recipe ${id || '(unnamed)'}: ${message}`);
 };
 
+// Fields that grade by length or by a person. An Honors extension is marked by
+// its tool's own grader; a recipe that carries any of these is refused.
+const NON_TOOL_GRADING_FIELDS = Object.freeze([
+  'minimumScenarioCharacters', 'minimumExplanationCharacters', 'minimumCharacters', 'minimumWords',
+  'rubric', 'manualScoring', 'teacherScored', 'requiresTeacherScoring',
+]);
+
 /**
  * Validate and freeze a recipe. A recipe that cannot prove what it extends,
  * whom it serves, what builds and grades it, how it is harder, and that it is
  * self-graded never enters the registry.
+ *
+ * Proven at definition time, against the live Question Family registry:
+ *   - every anchor is a registered family, and the lesson baseline the recipe
+ *     claims is not below what that family itself declares (no recipe can make
+ *     its increase look larger by understating the lesson);
+ *   - the target is a registered family VERSION whose tools include the
+ *     target tool, and every constraint is one that family accepts as written
+ *     (a misspelled or out-of-range knob would silently fall back to a
+ *     default and build a different, easier task);
+ *   - the Honors DOK and band exceed both the lesson baseline and the target
+ *     family's own declared difficulty;
+ *   - no field that grades by length or needs a teacher to score;
+ *   - `delivery` declares what certification must then demonstrate:
+ *     serverGraded (always), perStudentVersions and recoveryReady.
  */
 export const defineHonorsRecipe = (spec = {}) => {
   const id = clean(spec.id);
@@ -205,7 +236,51 @@ export const defineHonorsRecipe = (spec = {}) => {
   if (!Array.isArray(spec.stories) || !spec.stories.length || spec.stories.some((story) => !clean(story?.id))) {
     recipeProblem(id, 'at least one story with an id is required.');
   }
+  if (new Set(spec.stories.map((story) => clean(story.id))).size !== spec.stories.length) recipeProblem(id, 'story ids must be different.');
   if (!clean(spec.question?.prompt)) recipeProblem(id, 'a student prompt is required.');
+
+  familyIds.forEach((familyId) => {
+    const anchorFamily = getPlatformQuestionFamily(familyId);
+    if (!anchorFamily) recipeProblem(id, `its anchor "${familyId}" is not a registered Question Family.`);
+    if (Number(rigor.baseline.dok) < anchorFamily.difficulty.dok || Number(rigor.baseline.difficultyBand) < anchorFamily.difficulty.band) {
+      recipeProblem(id, `its lesson baseline (DOK ${rigor.baseline.dok}, band ${rigor.baseline.difficultyBand}) is below what ${familyId} itself declares (DOK ${anchorFamily.difficulty.dok}, band ${anchorFamily.difficulty.band}).`);
+    }
+  });
+  const targetFamily = getPlatformQuestionFamily(target.familyId, target.familyVersion);
+  if (!targetFamily || targetFamily.version !== target.familyVersion) {
+    recipeProblem(id, `its target ${target.familyId} v${target.familyVersion} is not a registered Question Family version.`);
+  }
+  if (!targetFamily.tools[clean(target.toolId)]) recipeProblem(id, `${targetFamily.id} cannot fill the ${target.toolId} tool.`);
+  const constraintIssues = resolveFamilyConstraints(targetFamily, isObject(target.constraints) ? target.constraints : {}).issues;
+  if (constraintIssues.length) {
+    recipeProblem(id, `${targetFamily.id} does not accept its constraints as written (${constraintIssues.map((issue) => `${issue.constraint}: ${issue.code}`).join('; ')}).`);
+  }
+  if (Number(rigor.dok) < targetFamily.difficulty.dok || Number(rigor.difficultyBand) < targetFamily.difficulty.band) {
+    recipeProblem(id, `its Honors rigor is below what ${targetFamily.id} itself declares.`);
+  }
+  const graders = [spec.question, ...spec.stories].flatMap((part) => NON_TOOL_GRADING_FIELDS.filter((field) => isObject(part) && field in part));
+  if (graders.length) recipeProblem(id, `it carries ${[...new Set(graders)].join(', ')}, which is not how an Honors extension is graded.`);
+  // The TEKS a recipe's question claims must be TEKS of a course it is written
+  // for: an "Algebra II" recipe carrying Algebra I standards is the leak the
+  // course checks exist to stop.
+  const claimedCourses = [spec.question.standard, ...(Array.isArray(spec.question.alignments) ? spec.question.alignments.map((entry) => entry?.code) : [])]
+    .map(courseOfTeksCode).filter(Boolean);
+  if (!claimedCourses.length) recipeProblem(id, 'its question must be aligned to at least one Algebra I or Algebra II TEKS.');
+  if (claimedCourses.some((course) => !courses.includes(course))) {
+    recipeProblem(id, `its TEKS alignments belong to ${[...new Set(claimedCourses)].map((course) => HONORS_COURSE_LABELS[course]).join(' and ')}, but it is written for ${courses.map((course) => HONORS_COURSE_LABELS[course]).join(' and ')}.`);
+  }
+  if (spec.question.requiredCards !== undefined
+    && (!Array.isArray(spec.question.requiredCards) || !spec.question.requiredCards.length || spec.question.requiredCards.some((card) => !clean(card)))) {
+    recipeProblem(id, '`question.requiredCards`, when present, lists at least one card.');
+  }
+  const delivery = spec.delivery || {};
+  if (delivery.serverGraded !== true) recipeProblem(id, '`delivery.serverGraded` must be true: the server marks every version.');
+  if (typeof delivery.perStudentVersions !== 'boolean' || typeof delivery.recoveryReady !== 'boolean') {
+    recipeProblem(id, '`delivery` must declare perStudentVersions and recoveryReady.');
+  }
+  if (spec.selection !== undefined && !Number.isInteger(spec.selection?.priority)) {
+    recipeProblem(id, '`selection.priority`, when present, is an integer.');
+  }
   return deepFreeze({
     ...clone(spec),
     id,
@@ -393,6 +468,9 @@ const LINEAR_MR_RATE_FROM_READING = defineHonorsRecipe({
     ],
   },
   selfGraded: true,
+  // Declared here, demonstrated by certification (honorsRecipeCertification.test.mjs):
+  // one generated version per student, marked by the server, Recovery-ready.
+  delivery: { perStudentVersions: true, serverGraded: true, recoveryReady: true },
   question: {
     prompt: 'Honors extension. Read the situation. Decide what x and y stand for, then build every representation of this relationship, in any order you like. Reason from the situation to interpret the slope and both intercepts, and choose the domain on which the model makes sense.',
     standard: 'A.2C',
@@ -435,14 +513,611 @@ const LINEAR_MR_RATE_FROM_READING = defineHonorsRecipe({
   ],
 });
 
+/* ---------------------------------------------------------------------------
+ * The reading-story board, extended to the other linear concepts.
+ *
+ * MathMaster's certified Algebra I lesson already asks for every
+ * representation from a standard-form equation with a fractional slope, in
+ * Process Mode, as ordinary DOK 2 Classwork. A board with no situation is
+ * therefore NOT an Honors task, whatever its numbers. What the certified Honors
+ * recipe above adds is reasoning from a situation: a rate stated per several
+ * units, a starting amount that must be RECOVERED from one later reading, and
+ * meanings chosen against real errors. The recipes below give the slope,
+ * intercept and representation-sort lessons that same depth, each focused on
+ * its own concept (requiredCards and the meanings graded), each with its own
+ * stories so an Honors class does not meet the same situation in every linear
+ * lesson. Same family, same constraints, same grader as the certified recipe.
+ *
+ * Every story states only {{rate}}, {{per}}, {{readTime}} and {{readAmount}}.
+ * {{start}} and {{end}} (the intercepts) and {{remaining}} appear only inside
+ * answer choices. The family keeps start, end, reading time, reading amount
+ * and time remaining five different numbers, and the unit rate, the stated
+ * rate and the inverted rate three different numbers, so every wrong choice
+ * stays wrong on every version.
+ * ------------------------------------------------------------------------- */
+
+const READING_STORY_CONSTRAINTS = Object.freeze({
+  given: 'scenario',
+  scenarioStart: 'fromReading',
+  slope: 'fraction',
+  rateRange: [2, 7],
+  denominatorRange: [2, 4],
+  startRange: [12, 48],
+  durationRange: [6, 30],
+});
+
+const readingStoryTarget = () => ({
+  familyId: 'linear.multipleRepresentations',
+  familyVersion: 1,
+  toolId: 'representationBridge',
+  mode: 'linearMultipleRepresentations',
+  constraints: clone(READING_STORY_CONSTRAINTS),
+});
+
+const READING_STORY_DOMAIN = Object.freeze({
+  min: 0,
+  max: '{{end}}',
+  value: '0 ≤ x ≤ {{end}}',
+  choices: ['0 ≤ x ≤ {{end}}', '0 ≤ x ≤ {{start}}', '{{readTime}} ≤ x ≤ {{end}}', 'x ≥ 0'],
+});
+
+/**
+ * linear.slopeFromPoints → the rate of change hidden in a situation.
+ *
+ * The lesson (DOK 1, band 2) hands the student two points and asks for the
+ * slope. Here no slope and no starting amount is given: the rate is stated
+ * per several units ("5 meters every 2 minutes"), so the slope is a negative
+ * fraction the student must form; the student names two points the situation
+ * guarantees (the slope between them must be that rate), recovers the
+ * starting amount from the rate and one later reading, and interprets the
+ * slope against the stated rate, the inverted rate and the wrong direction.
+ */
+const SLOPE_RATE_OF_CHANGE = defineHonorsRecipe({
+  id: 'honors.linear.slopeFromPoints.rateOfChange',
+  version: 1,
+  title: 'Find a fractional rate of change and the starting value it implies, from a situation',
+  anchor: { familyIds: ['linear.slopeFromPoints'] },
+  supportedCourses: ['algebra1'],
+  target: readingStoryTarget(),
+  rigor: {
+    dok: 3,
+    difficultyBand: 4,
+    baseline: { dok: 1, difficultyBand: 2 },
+    increases: [
+      'the rate of change is stated per several units, so the slope is a negative, genuinely fractional unit rate the student must form — not a quotient of two given points',
+      'no points are handed over: the student names two points the situation guarantees, and the slope between them must equal the rate',
+      'the starting value is never stated: it is recovered from the rate and one later reading (reverse reasoning)',
+      'the slope is interpreted in context against the stated rate, the inverted rate and the wrong direction of change',
+      'the y-intercept is interpreted in context against the later reading mistaken for the start',
+      'the same rate kept consistent across slope-intercept form, a table and a graph',
+    ],
+  },
+  selfGraded: true,
+  delivery: { perStudentVersions: true, serverGraded: true, recoveryReady: true },
+  question: {
+    prompt: 'Honors extension. Read the situation and decide what x and y stand for. Use the situation to find the rate of change and the starting value, name two points on the line, and build each representation below. Reason from the situation to interpret the slope and the y-intercept.',
+    standard: 'A.3A',
+    alignments: [
+      { framework: 'teks', code: 'A.3A', role: 'primary' },
+      { framework: 'teks', code: 'A.3B', role: 'secondary' },
+      { framework: 'teks', code: 'A.2C', role: 'secondary' },
+      { framework: 'teks', code: 'A.3C', role: 'secondary' },
+    ],
+    studentActions: ['connectLinearRepresentations'],
+    feedbackTiming: 'guided',
+    requiredCards: ['slope', 'yIntercept', 'twoPoints', 'slopeIntercept', 'table', 'graphSlopeIntercept'],
+    tags: ['honors', 'honors-extension', 'rate-of-change', 'slope', 'modeling', 'reasoning'],
+  },
+  stories: [
+    {
+      id: 'balloon',
+      source: {
+        kind: 'scenario',
+        prompt: 'A hot-air balloon descends at a constant rate of {{rate}} meters every {{per}} minutes. {{readTime}} minutes after it starts descending, the balloon is {{readAmount}} meters above the ground. It keeps descending at the same rate until it lands.',
+      },
+      context: {
+        independentQuantity: {
+          value: 'time since the balloon started descending (minutes)',
+          choices: ['time since the balloon started descending (minutes)', 'height of the balloon above the ground (meters)', 'meters descended every {{per}} minutes'],
+        },
+        dependentQuantity: {
+          value: 'height of the balloon above the ground (meters)',
+          choices: ['time since the balloon started descending (minutes)', 'height of the balloon above the ground (meters)', 'meters descended every {{per}} minutes'],
+        },
+        slopeMeaning: {
+          value: 'The balloon descends {{unitRate}} meters each minute.',
+          choices: [
+            'The balloon descends {{unitRate}} meters each minute.',
+            'The balloon descends {{rate}} meters each minute.',
+            'The balloon descends {{inverseRate}} meters each minute.',
+            'The balloon rises {{unitRate}} meters each minute.',
+          ],
+        },
+        yInterceptMeaning: {
+          value: 'The balloon was {{start}} meters above the ground when it started descending.',
+          choices: [
+            'The balloon was {{start}} meters above the ground when it started descending.',
+            'The balloon was {{readAmount}} meters above the ground when it started descending.',
+            'The balloon lands {{start}} minutes after it starts descending.',
+            'The balloon descends {{start}} meters every {{per}} minutes.',
+          ],
+        },
+      },
+    },
+    {
+      id: 'hourglass',
+      source: {
+        kind: 'scenario',
+        prompt: 'Sand falls from the top chamber of an hourglass at a constant rate of {{rate}} grams every {{per}} seconds. {{readTime}} seconds after the hourglass is turned over, the top chamber holds {{readAmount}} grams of sand. Sand keeps falling at the same rate until the top chamber is empty.',
+      },
+      context: {
+        independentQuantity: {
+          value: 'time since the hourglass was turned over (seconds)',
+          choices: ['time since the hourglass was turned over (seconds)', 'sand in the top chamber (grams)', 'grams of sand that fall every {{per}} seconds'],
+        },
+        dependentQuantity: {
+          value: 'sand in the top chamber (grams)',
+          choices: ['time since the hourglass was turned over (seconds)', 'sand in the top chamber (grams)', 'grams of sand that fall every {{per}} seconds'],
+        },
+        slopeMeaning: {
+          value: 'The top chamber loses {{unitRate}} grams of sand each second.',
+          choices: [
+            'The top chamber loses {{unitRate}} grams of sand each second.',
+            'The top chamber loses {{rate}} grams of sand each second.',
+            'The top chamber loses {{inverseRate}} grams of sand each second.',
+            'The top chamber gains {{unitRate}} grams of sand each second.',
+          ],
+        },
+        yInterceptMeaning: {
+          value: 'The top chamber held {{start}} grams of sand when the hourglass was turned over.',
+          choices: [
+            'The top chamber held {{start}} grams of sand when the hourglass was turned over.',
+            'The top chamber held {{readAmount}} grams of sand when the hourglass was turned over.',
+            'The top chamber is empty {{start}} seconds after the hourglass is turned over.',
+            'The top chamber loses {{start}} grams of sand every {{per}} seconds.',
+          ],
+        },
+      },
+    },
+    {
+      id: 'snowDepth',
+      source: {
+        kind: 'scenario',
+        prompt: 'Once a thaw begins, the snow on a field melts at a constant rate of {{rate}} inches every {{per}} days. {{readTime}} days after the thaw begins, the snow is {{readAmount}} inches deep. It keeps melting at the same rate until it is gone.',
+      },
+      context: {
+        independentQuantity: {
+          value: 'time since the thaw began (days)',
+          choices: ['time since the thaw began (days)', 'depth of the snow (inches)', 'inches of snow that melt every {{per}} days'],
+        },
+        dependentQuantity: {
+          value: 'depth of the snow (inches)',
+          choices: ['time since the thaw began (days)', 'depth of the snow (inches)', 'inches of snow that melt every {{per}} days'],
+        },
+        slopeMeaning: {
+          value: 'The snow gets {{unitRate}} inches shallower each day.',
+          choices: [
+            'The snow gets {{unitRate}} inches shallower each day.',
+            'The snow gets {{rate}} inches shallower each day.',
+            'The snow gets {{inverseRate}} inches shallower each day.',
+            'The snow gets {{unitRate}} inches deeper each day.',
+          ],
+        },
+        yInterceptMeaning: {
+          value: 'The snow was {{start}} inches deep when the thaw began.',
+          choices: [
+            'The snow was {{start}} inches deep when the thaw began.',
+            'The snow was {{readAmount}} inches deep when the thaw began.',
+            'The snow is gone {{start}} days after the thaw begins.',
+            'The snow gets {{start}} inches shallower every {{per}} days.',
+          ],
+        },
+      },
+    },
+  ],
+});
+
+/**
+ * functions.identifyIntercepts → intercepts recovered and interpreted in context.
+ *
+ * The lesson (DOK 1, band 2) reads both intercepts off Ax + By = C. Here
+ * neither intercept is stated: the y-intercept is the starting amount,
+ * recovered from a fractional rate and one later reading; the x-intercept
+ * (when it runs out) follows from it. Both are interpreted against real
+ * errors (the reading taken for the start, time measured from the reading,
+ * start and end swapped), they bound the domain, and the student writes the
+ * line in standard form and graphs it through the intercepts they derived.
+ */
+const INTERCEPTS_IN_CONTEXT = defineHonorsRecipe({
+  id: 'honors.functions.identifyIntercepts.interceptsInContext',
+  version: 1,
+  title: 'Recover both intercepts of a situation and interpret them',
+  anchor: { familyIds: ['functions.identifyIntercepts'] },
+  supportedCourses: ['algebra1'],
+  target: readingStoryTarget(),
+  rigor: {
+    dok: 3,
+    difficultyBand: 4,
+    baseline: { dok: 1, difficultyBand: 2 },
+    increases: [
+      'neither intercept is stated: the y-intercept (the starting amount) is recovered from a negative, fractional rate and one later reading',
+      'the x-intercept (when it runs out) follows from the recovered start, not from the story',
+      'both intercepts interpreted in context against real errors: the reading taken for the start, time measured from the reading, start and end swapped',
+      'the domain the intercepts bound, against domains that never end or start at the reading',
+      'the line written in standard form from intercepts the student derived, and graphed through them',
+    ],
+  },
+  selfGraded: true,
+  delivery: { perStudentVersions: true, serverGraded: true, recoveryReady: true },
+  question: {
+    prompt: 'Honors extension. Read the situation and decide what x and y stand for. Find both intercepts of this relationship, write it in standard form and in slope-intercept form, and graph it through its intercepts. Reason from the situation to interpret both intercepts, and choose the domain on which the model makes sense.',
+    standard: 'A.3C',
+    alignments: [
+      { framework: 'teks', code: 'A.3C', role: 'primary' },
+      { framework: 'teks', code: 'A.2A', role: 'secondary' },
+      { framework: 'teks', code: 'A.2B', role: 'secondary' },
+      { framework: 'teks', code: 'A.2C', role: 'secondary' },
+    ],
+    studentActions: ['connectLinearRepresentations'],
+    feedbackTiming: 'guided',
+    requiredCards: ['xIntercept', 'yIntercept', 'slope', 'standardForm', 'slopeIntercept', 'graphIntercepts'],
+    tags: ['honors', 'honors-extension', 'intercepts', 'modeling', 'reasoning'],
+  },
+  stories: [
+    {
+      id: 'elevator',
+      source: {
+        kind: 'scenario',
+        prompt: 'An elevator moves down from the top of a building at a constant speed of {{rate}} meters every {{per}} seconds. {{readTime}} seconds after it starts moving down, it is {{readAmount}} meters above the ground floor. It keeps moving down at the same speed until it reaches the ground floor.',
+      },
+      context: {
+        independentQuantity: {
+          value: 'time since the elevator started moving down (seconds)',
+          choices: ['time since the elevator started moving down (seconds)', 'height of the elevator above the ground floor (meters)', 'meters traveled every {{per}} seconds'],
+        },
+        dependentQuantity: {
+          value: 'height of the elevator above the ground floor (meters)',
+          choices: ['time since the elevator started moving down (seconds)', 'height of the elevator above the ground floor (meters)', 'meters traveled every {{per}} seconds'],
+        },
+        yInterceptMeaning: {
+          value: 'The elevator was {{start}} meters above the ground floor when it started moving down.',
+          choices: [
+            'The elevator was {{start}} meters above the ground floor when it started moving down.',
+            'The elevator was {{readAmount}} meters above the ground floor when it started moving down.',
+            'The elevator reaches the ground floor {{start}} seconds after it starts moving down.',
+            'The elevator moves down {{start}} meters every {{per}} seconds.',
+          ],
+        },
+        xInterceptMeaning: {
+          value: 'The elevator reaches the ground floor {{end}} seconds after it started moving down.',
+          choices: [
+            'The elevator reaches the ground floor {{end}} seconds after it started moving down.',
+            'The elevator reaches the ground floor {{remaining}} seconds after it started moving down.',
+            'The elevator was {{end}} meters above the ground floor when it started moving down.',
+            'The elevator moves down {{end}} meters each second.',
+          ],
+        },
+        domain: READING_STORY_DOMAIN,
+      },
+    },
+    {
+      id: 'cooler',
+      source: {
+        kind: 'scenario',
+        prompt: 'The ice in a cooler melts at a constant rate of {{rate}} pounds every {{per}} hours. {{readTime}} hours after the cooler is packed, it holds {{readAmount}} pounds of ice. The ice keeps melting at the same rate until it has all melted.',
+      },
+      context: {
+        independentQuantity: {
+          value: 'time since the cooler was packed (hours)',
+          choices: ['time since the cooler was packed (hours)', 'ice in the cooler (pounds)', 'pounds of ice that melt every {{per}} hours'],
+        },
+        dependentQuantity: {
+          value: 'ice in the cooler (pounds)',
+          choices: ['time since the cooler was packed (hours)', 'ice in the cooler (pounds)', 'pounds of ice that melt every {{per}} hours'],
+        },
+        yInterceptMeaning: {
+          value: 'The cooler held {{start}} pounds of ice when it was packed.',
+          choices: [
+            'The cooler held {{start}} pounds of ice when it was packed.',
+            'The cooler held {{readAmount}} pounds of ice when it was packed.',
+            'The ice has all melted {{start}} hours after the cooler is packed.',
+            'The ice melts {{start}} pounds every {{per}} hours.',
+          ],
+        },
+        xInterceptMeaning: {
+          value: 'The ice has all melted {{end}} hours after the cooler was packed.',
+          choices: [
+            'The ice has all melted {{end}} hours after the cooler was packed.',
+            'The ice has all melted {{remaining}} hours after the cooler was packed.',
+            'The cooler held {{end}} pounds of ice when it was packed.',
+            'The ice melts {{end}} pounds each hour.',
+          ],
+        },
+        domain: READING_STORY_DOMAIN,
+      },
+    },
+    {
+      id: 'boatFuel',
+      source: {
+        kind: 'scenario',
+        prompt: 'A fishing boat burns fuel at a constant rate of {{rate}} gallons every {{per}} hours. {{readTime}} hours after it leaves the dock, its tank holds {{readAmount}} gallons. It keeps burning fuel at the same rate until the tank is empty.',
+      },
+      context: {
+        independentQuantity: {
+          value: 'time since the boat left the dock (hours)',
+          choices: ['time since the boat left the dock (hours)', 'fuel in the tank (gallons)', 'gallons burned every {{per}} hours'],
+        },
+        dependentQuantity: {
+          value: 'fuel in the tank (gallons)',
+          choices: ['time since the boat left the dock (hours)', 'fuel in the tank (gallons)', 'gallons burned every {{per}} hours'],
+        },
+        yInterceptMeaning: {
+          value: 'The tank held {{start}} gallons when the boat left the dock.',
+          choices: [
+            'The tank held {{start}} gallons when the boat left the dock.',
+            'The tank held {{readAmount}} gallons when the boat left the dock.',
+            'The tank is empty {{start}} hours after the boat leaves the dock.',
+            'The boat burns {{start}} gallons every {{per}} hours.',
+          ],
+        },
+        xInterceptMeaning: {
+          value: 'The tank is empty {{end}} hours after the boat left the dock.',
+          choices: [
+            'The tank is empty {{end}} hours after the boat left the dock.',
+            'The tank is empty {{remaining}} hours after the boat left the dock.',
+            'The tank held {{end}} gallons when the boat left the dock.',
+            'The boat burns {{end}} gallons each hour.',
+          ],
+        },
+        domain: READING_STORY_DOMAIN,
+      },
+    },
+  ],
+});
+
+/**
+ * linear.representationSort → build every representation instead of sorting them.
+ *
+ * The lesson (DOK 2, band 1) asks which given cards describe the same line.
+ * Here there are no cards to sort: from one situation, with a fractional rate
+ * and a starting amount that must be recovered from a later reading, the
+ * student constructs every card themselves — three equation forms, both
+ * intercepts, two points, a table and three graphs — and chooses all six
+ * meanings against real errors.
+ */
+const SORT_BUILD_FROM_READING = defineHonorsRecipe({
+  id: 'honors.linear.representationSort.buildFromReading',
+  version: 1,
+  title: 'Construct every representation of a situation instead of sorting given ones',
+  anchor: { familyIds: ['linear.representationSort'] },
+  supportedCourses: ['algebra1'],
+  target: readingStoryTarget(),
+  rigor: {
+    dok: 3,
+    difficultyBand: 4,
+    baseline: { dok: 2, difficultyBand: 1 },
+    increases: [
+      'recognition becomes construction: no card is given, every representation is built from the situation',
+      'a negative, genuinely fractional rate stated per several units',
+      'the starting amount (y-intercept) recovered from one later reading, and the x-intercept from it',
+      'independent and dependent quantities, both intercepts and the slope interpreted against common errors',
+      'the domain on which the model makes sense, against domains that never end or start at the reading',
+      'every representation kept consistent: three equation forms, intercepts, two points, a table and three graphs',
+    ],
+  },
+  selfGraded: true,
+  delivery: { perStudentVersions: true, serverGraded: true, recoveryReady: true },
+  question: {
+    prompt: 'Honors extension. There are no cards to sort this time. Read the situation, decide what x and y stand for, and build every representation of this relationship yourself, in any order you like. Reason from the situation to interpret the slope and both intercepts, and choose the domain on which the model makes sense.',
+    standard: 'A.2B',
+    alignments: [
+      { framework: 'teks', code: 'A.2B', role: 'primary' },
+      { framework: 'teks', code: 'A.2C', role: 'secondary' },
+      { framework: 'teks', code: 'A.3B', role: 'secondary' },
+      { framework: 'teks', code: 'A.3C', role: 'secondary' },
+      { framework: 'teks', code: 'A.2A', role: 'secondary' },
+    ],
+    studentActions: ['connectLinearRepresentations'],
+    feedbackTiming: 'guided',
+    tags: ['honors', 'honors-extension', 'multiple-representations', 'modeling', 'reasoning'],
+  },
+  stories: [
+    {
+      id: 'generator',
+      source: {
+        kind: 'scenario',
+        prompt: 'A generator burns fuel at a constant rate of {{rate}} liters every {{per}} hours. {{readTime}} hours after it is switched on, its tank holds {{readAmount}} liters. It keeps running at the same rate until the tank is empty.',
+      },
+      context: {
+        independentQuantity: {
+          value: 'time since the generator was switched on (hours)',
+          choices: ['time since the generator was switched on (hours)', 'fuel in the generator\'s tank (liters)', 'liters burned every {{per}} hours'],
+        },
+        dependentQuantity: {
+          value: 'fuel in the generator\'s tank (liters)',
+          choices: ['time since the generator was switched on (hours)', 'fuel in the generator\'s tank (liters)', 'liters burned every {{per}} hours'],
+        },
+        slopeMeaning: {
+          value: 'The generator burns {{unitRate}} liters of fuel each hour.',
+          choices: [
+            'The generator burns {{unitRate}} liters of fuel each hour.',
+            'The generator burns {{rate}} liters of fuel each hour.',
+            'The generator burns {{inverseRate}} liters of fuel each hour.',
+            'The generator\'s tank gains {{unitRate}} liters of fuel each hour.',
+          ],
+        },
+        yInterceptMeaning: {
+          value: 'The tank held {{start}} liters when the generator was switched on.',
+          choices: [
+            'The tank held {{start}} liters when the generator was switched on.',
+            'The tank held {{readAmount}} liters when the generator was switched on.',
+            'The tank is empty {{start}} hours after the generator is switched on.',
+            'The generator burns {{start}} liters every {{per}} hours.',
+          ],
+        },
+        xInterceptMeaning: {
+          value: 'The tank is empty {{end}} hours after the generator was switched on.',
+          choices: [
+            'The tank is empty {{end}} hours after the generator was switched on.',
+            'The tank is empty {{remaining}} hours after the generator was switched on.',
+            'The tank held {{end}} liters when the generator was switched on.',
+            'The generator burns {{end}} liters of fuel each hour.',
+          ],
+        },
+        domain: READING_STORY_DOMAIN,
+      },
+    },
+    {
+      id: 'floodStage',
+      source: {
+        kind: 'scenario',
+        prompt: 'After a storm, a river falls at a constant rate of {{rate}} inches every {{per}} hours. {{readTime}} hours after it starts to fall, the river is {{readAmount}} inches above flood stage. It keeps falling at the same rate until it is back at flood stage.',
+      },
+      context: {
+        independentQuantity: {
+          value: 'time since the river started to fall (hours)',
+          choices: ['time since the river started to fall (hours)', 'height of the river above flood stage (inches)', 'inches the river falls every {{per}} hours'],
+        },
+        dependentQuantity: {
+          value: 'height of the river above flood stage (inches)',
+          choices: ['time since the river started to fall (hours)', 'height of the river above flood stage (inches)', 'inches the river falls every {{per}} hours'],
+        },
+        slopeMeaning: {
+          value: 'The river falls {{unitRate}} inches each hour.',
+          choices: [
+            'The river falls {{unitRate}} inches each hour.',
+            'The river falls {{rate}} inches each hour.',
+            'The river falls {{inverseRate}} inches each hour.',
+            'The river rises {{unitRate}} inches each hour.',
+          ],
+        },
+        yInterceptMeaning: {
+          value: 'The river was {{start}} inches above flood stage when it started to fall.',
+          choices: [
+            'The river was {{start}} inches above flood stage when it started to fall.',
+            'The river was {{readAmount}} inches above flood stage when it started to fall.',
+            'The river is back at flood stage {{start}} hours after it starts to fall.',
+            'The river falls {{start}} inches every {{per}} hours.',
+          ],
+        },
+        xInterceptMeaning: {
+          value: 'The river is back at flood stage {{end}} hours after it started to fall.',
+          choices: [
+            'The river is back at flood stage {{end}} hours after it started to fall.',
+            'The river is back at flood stage {{remaining}} hours after it started to fall.',
+            'The river was {{end}} inches above flood stage when it started to fall.',
+            'The river falls {{end}} inches each hour.',
+          ],
+        },
+        domain: READING_STORY_DOMAIN,
+      },
+    },
+    {
+      id: 'printerFilament',
+      source: {
+        kind: 'scenario',
+        prompt: 'A 3D printer uses filament at a constant rate of {{rate}} meters every {{per}} hours. {{readTime}} hours after a print starts, the spool holds {{readAmount}} meters of filament. The printer keeps using filament at the same rate until the spool is empty.',
+      },
+      context: {
+        independentQuantity: {
+          value: 'time since the print started (hours)',
+          choices: ['time since the print started (hours)', 'filament left on the spool (meters)', 'meters of filament used every {{per}} hours'],
+        },
+        dependentQuantity: {
+          value: 'filament left on the spool (meters)',
+          choices: ['time since the print started (hours)', 'filament left on the spool (meters)', 'meters of filament used every {{per}} hours'],
+        },
+        slopeMeaning: {
+          value: 'The spool loses {{unitRate}} meters of filament each hour.',
+          choices: [
+            'The spool loses {{unitRate}} meters of filament each hour.',
+            'The spool loses {{rate}} meters of filament each hour.',
+            'The spool loses {{inverseRate}} meters of filament each hour.',
+            'The spool gains {{unitRate}} meters of filament each hour.',
+          ],
+        },
+        yInterceptMeaning: {
+          value: 'The spool held {{start}} meters of filament when the print started.',
+          choices: [
+            'The spool held {{start}} meters of filament when the print started.',
+            'The spool held {{readAmount}} meters of filament when the print started.',
+            'The spool is empty {{start}} hours after the print starts.',
+            'The spool loses {{start}} meters of filament every {{per}} hours.',
+          ],
+        },
+        xInterceptMeaning: {
+          value: 'The spool is empty {{end}} hours after the print started.',
+          choices: [
+            'The spool is empty {{end}} hours after the print started.',
+            'The spool is empty {{remaining}} hours after the print started.',
+            'The spool held {{end}} meters of filament when the print started.',
+            'The spool loses {{end}} meters of filament each hour.',
+          ],
+        },
+        domain: READING_STORY_DOMAIN,
+      },
+    },
+  ],
+});
+
+/* ---------------------------------------------------------------------------
+ * The registry, and the rule that keeps selection deterministic.
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Every (anchor family, course) that more than one recipe claims. A claim
+ * shared by several recipes is `resolved` only when each declares a distinct
+ * `selection.priority` (the higher wins); otherwise which recipe a lesson got
+ * would depend on registry order.
+ */
+export const findCompetingHonorsRecipes = (registry = []) => {
+  const claims = new Map();
+  (Array.isArray(registry) ? registry : []).forEach((recipe) => {
+    recipe.anchor.familyIds.forEach((familyId) => recipe.supportedCourses.forEach((courseId) => {
+      const key = `${familyId}|${courseId}`;
+      if (!claims.has(key)) claims.set(key, { familyId, courseId, recipes: [] });
+      claims.get(key).recipes.push(recipe);
+    }));
+  });
+  return [...claims.values()]
+    .filter((claim) => claim.recipes.length > 1)
+    .map(({ familyId, courseId, recipes }) => {
+      const priorities = recipes.map((recipe) => recipe.selection?.priority);
+      return {
+        familyId,
+        courseId,
+        recipeIds: recipes.map((recipe) => recipe.id).sort(),
+        resolved: priorities.every(Number.isInteger) && new Set(priorities).size === priorities.length,
+      };
+    });
+};
+
+/** A registry MathMaster may select from: unique ids, unique stories, no unresolved competition. */
+export const assertDeterministicHonorsRegistry = (registry = []) => {
+  const ids = registry.map((recipe) => recipe.id);
+  const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
+  if (duplicates.length) throw new Error(`Honors recipe ids must be unique: ${[...new Set(duplicates)].join(', ')}.`);
+  const unresolved = findCompetingHonorsRecipes(registry).filter((claim) => !claim.resolved);
+  if (unresolved.length) {
+    throw new Error(`Honors recipes compete for the same anchor and course without a selection rule: ${unresolved
+      .map((claim) => `${claim.familyId} (${claim.courseId}): ${claim.recipeIds.join(', ')}`).join('; ')}. Give each a distinct selection.priority, or narrow its anchor.`);
+  }
+  return registry;
+};
+
 /**
  * Every vetted recipe. Adding one: write it with defineHonorsRecipe, add it
- * here, and add its anchor family to the certification in
- * tests/platform/honorsExtensionRecipes.test.mjs.
+ * here, and certify it in tests/platform/honorsRecipeCertification.test.mjs
+ * (the certification walks this registry, so a new recipe is certified the
+ * moment it is listed). The deterministic-Honors coverage report
+ * (honorsRecipeCoverage.js) reads READY from this list.
  */
-export const HONORS_RECIPE_REGISTRY = Object.freeze([
+export const HONORS_RECIPE_REGISTRY = assertDeterministicHonorsRegistry(Object.freeze([
   LINEAR_MR_RATE_FROM_READING,
-]);
+  SLOPE_RATE_OF_CHANGE,
+  INTERCEPTS_IN_CONTEXT,
+  SORT_BUILD_FROM_READING,
+]));
 
 /* ---------------------------------------------------------------------------
  * Selection.
@@ -482,11 +1157,18 @@ export const selectHonorsExtensionRecipe = ({
     );
   }
   const anchorFamilyId = anchor.familyId;
+  // Only for wording: the audit (honorsRecipeBacklog.js) says in plain words
+  // why this concept has no extension in this course.
+  const reasonFor = (courseId) => {
+    const reason = honorsUnavailableReason(anchorFamilyId, courseId);
+    return reason ? ` ${reason}` : '';
+  };
+  const wordingCourse = strictCourseId(assignmentCourseId) || (anchor.teksCourses.length === 1 ? anchor.teksCourses[0] : null);
   const forFamily = (Array.isArray(registry) ? registry : []).filter((recipe) => anchorFamilyId && recipe.anchor.familyIds.includes(anchorFamilyId));
   if (!forFamily.length) {
     return unavailable(
       HONORS_RECIPE_UNAVAILABLE.NO_VETTED_RECIPE,
-      `A vetted no-AI Honors extension is not yet available for this concept (${conceptLabel(anchor)}). ${LEFT_UNCHANGED} Use the MathMaster AI or outside-AI Honors repair instead.`,
+      `A vetted no-AI Honors extension is not yet available for this concept (${conceptLabel(anchor)}).${reasonFor(wordingCourse)} ${LEFT_UNCHANGED} Use the MathMaster AI or outside-AI Honors repair instead.`,
       { anchor, anchorFamilyId },
     );
   }
@@ -515,12 +1197,25 @@ export const selectHonorsExtensionRecipe = ({
       { anchor, anchorFamilyId },
     );
   }
-  const recipe = forFamily.find((candidate) => candidate.supportedCourses.includes(courseId));
+  // Never registry order: one recipe per (anchor, course), or competitors that
+  // each declare a distinct selection.priority. Anything else changes nothing.
+  const forCourse = forFamily.filter((candidate) => candidate.supportedCourses.includes(courseId));
+  const competing = findCompetingHonorsRecipes(forCourse).find((claim) => claim.familyId === anchorFamilyId && claim.courseId === courseId);
+  if (competing && !competing.resolved) {
+    return unavailable(
+      HONORS_RECIPE_UNAVAILABLE.AMBIGUOUS,
+      `More than one vetted no-AI Honors extension claims ${conceptLabel(anchor)} for ${courseLabel(courseId)}, and none is marked as the one to use, so MathMaster chose neither. ${LEFT_UNCHANGED}`,
+      { anchor, anchorFamilyId, courseId },
+    );
+  }
+  const [recipe] = [...forCourse].sort((left, right) => (
+    (right.selection?.priority ?? 0) - (left.selection?.priority ?? 0) || left.id.localeCompare(right.id)
+  ));
   if (!recipe) {
     const written = [...new Set(forFamily.flatMap((candidate) => candidate.supportedCourses))].map(courseLabel).join(' or ');
     return unavailable(
       HONORS_RECIPE_UNAVAILABLE.COURSE_NOT_SUPPORTED,
-      `The vetted no-AI Honors extension for ${conceptLabel(anchor)} is written for ${written}, and this is a ${courseLabel(courseId)} assignment, so a vetted no-AI Honors extension is not yet available for it. ${LEFT_UNCHANGED}`,
+      `The vetted no-AI Honors extension for ${conceptLabel(anchor)} is written for ${written}, and this is an ${courseLabel(courseId)} assignment, so a vetted no-AI Honors extension is not yet available for it.${reasonFor(courseId)} ${LEFT_UNCHANGED}`,
       { anchor, anchorFamilyId, courseId },
     );
   }
@@ -555,9 +1250,11 @@ const buildRecipeQuestion = ({ recipe, story, anchor, courseId, questionId = nul
     difficultyBand: rigor.difficultyBand,
     feedbackTiming: authored.feedbackTiming,
     tags: clone(authored.tags),
+    // A board focused on one concept asks for the cards that concept needs.
+    ...(Array.isArray(authored.requiredCards) ? { requiredCards: clone(authored.requiredCards) } : {}),
     questionFamily: { id: target.familyId, version: target.familyVersion, constraints: clone(target.constraints) },
-    source: clone(story.source),
-    context: clone(story.context),
+    ...(story.source ? { source: clone(story.source) } : {}),
+    ...(story.context ? { context: clone(story.context) } : {}),
     honorsEnrichment: {
       generatedBy: 'MathMaster',
       source: DETERMINISTIC_HONORS_SOURCE,
@@ -610,7 +1307,7 @@ export const buildDeterministicHonorsExtension = ({
   const notes = [];
   const destination = strictCourseId(destinationCourseId);
   if (destination && destination !== courseId) {
-    notes.push(`The Honors class is set to ${courseLabel(destination)}, but this is a ${courseLabel(courseId)} assignment. The extension stays ${courseLabel(courseId)}; check the class's course setting.`);
+    notes.push(`The Honors class is set to ${courseLabel(destination)}, but this is an ${courseLabel(courseId)} assignment. The extension stays ${courseLabel(courseId)}; check the class's course setting.`);
   }
   return {
     status: HONORS_RECIPE_STATUS.READY,
@@ -623,6 +1320,29 @@ export const buildDeterministicHonorsExtension = ({
     notes,
     question: buildRecipeQuestion({ recipe, story, anchor, courseId, questionId }),
   };
+};
+
+// What a teacher calls each tool a recipe can build on.
+const TOOL_NAMES = Object.freeze({
+  'representationBridge/linearMultipleRepresentations': 'the Multiple Representations board',
+});
+
+/**
+ * The sentence Pre-Flight shows before the teacher adds an extension: which
+ * task, on which tool (the lesson's own, or another self-graded MathMaster
+ * tool — never left implied), at what DOK against the lesson's, and that the
+ * lesson's questions are untouched. `selection` is a READY result of
+ * selectHonorsExtensionRecipe.
+ */
+export const describeHonorsRecipeForTeacher = (selection = {}) => {
+  const { recipe, anchorFamilyId } = selection || {};
+  if (!recipe) return '';
+  const tool = TOOL_NAMES[`${recipe.target.toolId}/${recipe.target.mode || ''}`] || `MathMaster's ${recipe.target.toolId} tool`;
+  const where = recipe.anchor.familyIds.includes(recipe.target.familyId) && recipe.target.familyId === anchorFamilyId
+    ? `the lesson's own tool, ${tool}`
+    : `${tool}, the MathMaster tool this lesson builds toward`;
+  const title = `${recipe.title.charAt(0).toLowerCase()}${recipe.title.slice(1)}`;
+  return `MathMaster has a vetted Honors extension for this lesson's concept: ${title}. It is one self-graded question on ${where}, with ${recipe.delivery.perStudentVersions ? 'a different version for every student' : 'the same version for every student'}, at DOK ${recipe.rigor.dok} where the lesson works at DOK ${recipe.rigor.baseline.dok}, and it does not change the existing questions.`;
 };
 
 /* ---------------------------------------------------------------------------
