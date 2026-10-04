@@ -21,7 +21,11 @@
 //     record says so, no grade replaces the original, and neither Classroom
 //     trigger sends anything — each leaves a `recovery-held` audit row;
 //   * only this student's teacher of record can resolve the hold, the
-//     resolution is audited, and the passback resumes with it.
+//     resolution is audited, and the passback resumes with it;
+//   * a replacement question keeps the Recovery held (Classroom waits) until
+//     the student answers it;
+//   * a Recovery completed under the old rule — a platform failure scored as
+//     0 — is re-scored by the teacher, its stored results untouched.
 
 import test, { after, before } from 'node:test';
 import assert from 'node:assert/strict';
@@ -56,6 +60,7 @@ const HELD_STUDENT = STUDENTS[1];
 const ALL_FAILED_STUDENT = STUDENTS[2];
 const REPAIR_STUDENT = STUDENTS[3];
 const OVERRIDE_STUDENT = STUDENTS[4];
+const LEGACY_STUDENT = STUDENTS[5];
 
 const twoStep = (questionId, questionWeight) => ({ questionId, type: 'stepAlgebra', prompt: 'Solve for x.', questionWeight, questionFamily: { id: 'linear.twoStepEquation' } });
 const zeros = (questionId, questionWeight) => ({ questionId, type: 'multiAnswer', prompt: 'Find the zeros.', questionWeight, questionFamily: { id: 'functions.identifyZeros' } });
@@ -67,6 +72,7 @@ const ASSIGNMENTS = {
   allFailed: { id: `${P}all-failed`, dol: [twoStep('d1', 4), zeros('d2', 3), twoStep('d3', 3)] },
   repair: { id: `${P}repair`, dol: [twoStep('d1', 4), zeros('d2', 3), intercepts('d3', 3)] },
   override: { id: `${P}override`, dol: [twoStep('d1', 4), zeros('d2', 3), intercepts('d3', 3)] },
+  legacy: { id: `${P}legacy`, dol: [twoStep('d1', 4), zeros('d2', 3), twoStep('d3', 3)] },
 };
 
 const assignmentDoc = ({ id, dol }) => {
@@ -317,12 +323,28 @@ test('teacher repair: a replacement question is a NEW question; the student answ
   assert.equal(submitted.held, true);
   const held = await recordOf(studentId, 'repair');
 
+  const heldData = await gradeDoc(studentId);
   const issued = await fns.resolveHeldSectionRecovery.run(teacherRequest({
     studentId, assignmentId: ASSIGNMENTS.repair.id, section: 'dol', action: 'issueReplacement', note: 'The question was re-tuned after she started.',
   }, TEACHER));
-  assert.equal(issued.status, 'inProgress');
+  // Still held while the student answers: nothing is settled yet, and code
+  // that predates replacements reads it as finished.
+  assert.equal(issued.status, 'held');
   assert.deepEqual(issued.replacements, [{ from: 'r3', to: 'r3-replacement-1' }]);
   const repaired = await recordOf(studentId, 'repair');
+  assert.equal(repaired.status, 'held');
+  assert.equal(repaired.hold.resolution.action, 'issueReplacement');
+  // One replacement at a time.
+  const twice = await refusal(fns.resolveHeldSectionRecovery.run(teacherRequest({
+    studentId, assignmentId: ASSIGNMENTS.repair.id, section: 'dol', action: 'issueReplacement',
+  }, TEACHER)));
+  assert.equal(twice?.code, 'failed-precondition');
+  // Classroom still waits: the resolution's release signal wakes both
+  // triggers, and both record the hold instead of sending a grade.
+  resetClassroomCalls();
+  await runClassroomSync(studentId, heldData);
+  await runSectionSync(studentId, heldData);
+  assert.equal(patchGradeCalls().filter((call) => String(call.courseWorkId || '').startsWith(`${P}repair-`)).length, 0, 'nothing is sent while the replacement waits');
   const old = repaired.plan.items.find((item) => item.itemId === 'r3');
   assert.equal(JSON.stringify(old.pin), JSON.stringify(held.plan.items[2].pin), 'the historical pin is byte-identical');
   assert.equal(old.supersededBy, 'r3-replacement-1');
@@ -344,6 +366,7 @@ test('teacher repair: a replacement question is a NEW question; the student answ
   const currentQuestion = getStoredAssignmentQuestions({ id: ASSIGNMENTS.repair.id, ...current })[replacement.storageIndex];
   const fresh = reproduceFamilyQuestionFromPin({ question: currentQuestion, assignmentId: ASSIGNMENTS.repair.id, storageIndex: replacement.storageIndex, pin: replacement.pin });
   assert.equal(fresh.error ?? null, null, 'the replacement replays from its own pin');
+  const awaitingData = await gradeDoc(studentId);
   const done = await recovery(studentId, 'repair', 'submit', {
     responses: { 'r3-replacement-1': correctResponse(fresh), r1: { kind: 'opaque', type: 'stepAlgebra', value: 'x=99999', fields: [] } },
   });
@@ -353,6 +376,64 @@ test('teacher repair: a replacement question is a NEW question; the student answ
   assert.equal(JSON.stringify(final.results.r1), JSON.stringify(held.results.r1), 'r1 is never re-marked');
   assert.equal(final.results.r3.status, 'platform-unavailable', 'r3 stays what it was');
   assert.equal(final.results['r3-replacement-1'].isCorrect, true);
+  assert.equal(final.status, 'completed');
+  assert.equal(final.hold, null);
+  assert.equal(final.holdHistory.at(-1).resolution.action, 'issueReplacement', 'the hold and the decision stay in the history');
+  assert.equal(final.holdHistory.at(-1).evidence.reason, 'skill-without-evidence');
+
+  // Settled: the passback resumes with the recorded score.
+  resetClassroomCalls();
+  await runClassroomSync(studentId, awaitingData);
+  assert.equal(patchGradeCalls().find((call) => call.courseWorkId === `${P}repair-whole-cw`)?.grade, 90);
+});
+
+test('a Recovery completed under the old rule — a platform failure scored as 0 — is re-scored by the teacher; its results are never rewritten, and Classroom gets the correction', async () => {
+  const studentId = LEGACY_STUDENT;
+  const started = await practiceAndStart(studentId, 'legacy');
+  // Exactly what main's SUBMIT stored when Q3 no longer reproduced: Q3 as a
+  // wrong answer with its weight counted — 7 of 10, 70%.
+  const answeredAt = new Date(NOW - DAY).toISOString();
+  const legacy = {
+    ...started,
+    status: 'completed',
+    rawScore: 70,
+    results: {
+      r1: { isCorrect: true, credit: 1, weight: 4, graded: true, reason: null, answeredAt },
+      r2: { isCorrect: true, credit: 1, weight: 3, graded: true, reason: null, answeredAt },
+      r3: { isCorrect: false, credit: 0, weight: 3, graded: false, reason: 'question-unavailable', answeredAt },
+    },
+    originalScoreAtCompletion: 30,
+    recordedScoreAtCompletion: 70,
+    completedAt: answeredAt,
+  };
+  await db.collection('grades').doc(studentId).set({ sectionRecoveryByAssignment: { [ASSIGNMENTS.legacy.id]: { dol: legacy } } }, { merge: true });
+  const before = await gradeDoc(studentId);
+
+  const outsider = await refusal(fns.resolveHeldSectionRecovery.run(teacherRequest({ studentId, assignmentId: ASSIGNMENTS.legacy.id, section: 'dol', action: 'finalizeGraded' }, OTHER_TEACHER)));
+  assert.equal(outsider?.code, 'permission-denied');
+  const keep = await refusal(fns.resolveHeldSectionRecovery.run(teacherRequest({ studentId, assignmentId: ASSIGNMENTS.legacy.id, section: 'dol', action: 'keepOriginal' }, TEACHER)));
+  assert.equal(keep?.code, 'failed-precondition', 'a completed Recovery can only be corrected, not reopened');
+
+  const corrected = await fns.resolveHeldSectionRecovery.run(teacherRequest({
+    studentId, assignmentId: ASSIGNMENTS.legacy.id, section: 'dol', action: 'finalizeGraded', note: 'Scored before MathMaster stopped counting it.',
+  }, TEACHER));
+  assert.equal(corrected.status, 'completed');
+  assert.equal(corrected.rawScore, 100);
+  assert.equal(corrected.recordedScore, 90);
+  const record = await recordOf(studentId, 'legacy');
+  assert.deepEqual(record.results, legacy.results, 'the stored results are exactly as main wrote them');
+  assert.deepEqual(record.plan, before.sectionRecoveryByAssignment[ASSIGNMENTS.legacy.id].dol.plan, 'and so is the plan');
+  assert.equal(record.legacyCorrection.rawScoreBefore, 70);
+  assert.equal(record.legacyCorrection.actor.email, TEACHER);
+  const audits = (await db.collection('grades').doc(studentId).collection('gradeOverrideAudits').get()).docs.map((doc) => doc.data());
+  assert.ok(audits.some((row) => row.kind === 'legacyCorrection' && row.action === 'finalizeGraded' && row.recordedScoreAfter === 90), 'the correction is audited');
+  // Once.
+  const again = await refusal(fns.resolveHeldSectionRecovery.run(teacherRequest({ studentId, assignmentId: ASSIGNMENTS.legacy.id, section: 'dol', action: 'finalizeGraded' }, TEACHER)));
+  assert.equal(again?.code, 'failed-precondition');
+
+  resetClassroomCalls();
+  await runClassroomSync(studentId, before);
+  assert.equal(patchGradeCalls().find((call) => call.courseWorkId === `${P}legacy-whole-cw`)?.grade, 90, 'Classroom gets the corrected grade');
 });
 
 test('an assignment-level teacher override still decides the whole grade while a Recovery is held — the DOL column keeps waiting', async () => {

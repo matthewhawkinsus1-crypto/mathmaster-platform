@@ -12,16 +12,23 @@
  * Recovery, so the gradebook stays exactly as uncluttered as it was.
  */
 
-import { normalizeRecoveryRecord } from '../../../functions/shared/sectionRecoveryRecord.mjs';
+import { itemStatusOf, normalizeRecoveryRecord, recoveryEvidenceItem } from '../../../functions/shared/sectionRecoveryRecord.mjs';
 import { RECOVERY_TYPE } from '../../../functions/shared/recoveryPolicy.mjs';
 import {
   RECOVERY_HOLD_REASON,
   RECOVERY_ITEM_STATUS,
   isGradedItemStatus,
+  isLegacyUnavailableResult,
   itemSkillKey,
   itemWeight,
+  recoveryAwaitsReplacementAnswer,
+  scoreRecoveryEvidence,
 } from '../../../functions/shared/sectionRecoveryEvidence.mjs';
-import { heldRecoveryActionsFor } from '../../../functions/shared/sectionRecoveryResolution.mjs';
+import {
+  heldRecoveryActionsFor,
+  legacyUnavailableItemIds,
+  recoveryNeedsLegacyCorrection,
+} from '../../../functions/shared/sectionRecoveryResolution.mjs';
 import { listPlatformQuestionFamilies } from '../../../functions/shared/questionFamilyRegistry.mjs';
 import { projectCurrentAssignmentContent } from '../assignments/currentContentProjection.js';
 import { projectTeacherOverridesForDisplay } from '../grading/canonicalGradeProjection.js';
@@ -109,16 +116,25 @@ const auditItems = ({ record, assignment, section }) => {
   const excluded = new Set(record.evidence?.excludedItemIds || []);
   return (record.plan?.items || []).map((item, index) => {
     const result = record.results?.[item.itemId] || null;
-    const status = result?.status || null;
+    // A result written before results carried a status reads as it always
+    // meant (sectionRecoveryRecord.mjs itemStatusOf) — including the old
+    // 'question-unavailable' zero, which was a platform failure.
+    const status = result ? itemStatusOf(result) : null;
+    const legacyZero = isLegacyUnavailableResult(result);
+    const legacyCounted = legacyZero && !record.legacyCorrection;
     return {
       itemId: item.itemId,
       position: index + 1,
       questionLabel: sectionQuestionLabel(assignment, section, item.storageIndex),
       status: status || 'notSubmitted',
-      statusLabel: status ? ITEM_STATUS_LABEL[status] || status : 'Not submitted yet',
+      statusLabel: legacyCounted
+        ? 'MathMaster could not reproduce this question — scored as 0 under the rule in place when this Recovery was submitted'
+        : legacyZero
+          ? 'MathMaster could not reproduce this question — left out of the score (corrected)'
+          : status ? ITEM_STATUS_LABEL[status] || status : 'Not submitted yet',
       classification: result?.classification || null,
       classificationLabel: result?.classification ? RECOVERY_FAILURE_LABEL[result.classification] || 'MathMaster could not grade this question.' : null,
-      countsTowardScore: result ? result.countsTowardScore !== false && isGradedItemStatus(status) : false,
+      countsTowardScore: legacyCounted || (result ? result.countsTowardScore !== false && isGradedItemStatus(status) : false),
       excluded: excluded.has(item.itemId),
       supersededBy: item.supersededBy || null,
       replaces: item.replaces || null,
@@ -135,13 +151,23 @@ const evidenceSummaryOf = (record, items) => {
   const plannedWeight = round(active.reduce((sum, item) => sum + weightOf(item), 0));
   const gradedWeight = round(graded.reduce((sum, item) => sum + weightOf(item), 0));
   const planItems = (record.plan?.items || []).filter((item) => !item.supersededBy);
-  const coveredSkills = new Set(planItems.filter((item) => isGradedItemStatus(record.results?.[item.itemId]?.status)).map(itemSkillKey));
+  const coveredSkills = new Set(planItems.filter((item) => record.results?.[item.itemId] && isGradedItemStatus(itemStatusOf(record.results[item.itemId]))).map(itemSkillKey));
   const missing = [...new Set(planItems.map(itemSkillKey))].filter((skill) => !coveredSkills.has(skill));
   return `MathMaster graded ${graded.length} of ${plural(active.length, 'question')} (${gradedWeight} of ${plannedWeight} points of weight).`
     + (missing.length ? ` No graded question for: ${missing.map(skillLabel).join('; ')}.` : '');
 };
 
-const recommendedActionFor = ({ record, items, actions }) => {
+const recommendedActionFor = ({ record, items, actions, awaitingStudent = false, windowEnded = false }) => {
+  if (awaitingStudent) {
+    const graded = items.filter((item) => !item.supersededBy && isGradedItemStatus(item.status)).length;
+    const decide = [
+      ...(actions.includes('finalizeGraded') ? [`finalize from the ${plural(graded, 'question')} MathMaster could grade`] : []),
+      'keep the original score',
+    ].join(', or ');
+    return windowEnded
+      ? `The final submission date passed before the student answered the replacement question. To release it, ${decide}. Until then no Recovery score counts, and Classroom and Grade Transfer wait.`
+      : `The student can answer the replacement question until their final submission date. You can also ${decide} now. Until then no Recovery score counts, and Classroom and Grade Transfer wait.`;
+  }
   const failing = items.filter((item) => !item.supersededBy && (item.status === RECOVERY_ITEM_STATUS.PLATFORM_UNAVAILABLE || item.status === RECOVERY_ITEM_STATUS.NEEDS_REVIEW));
   const contentProblem = failing.filter((item) => CONTENT_FAILURES.has(item.classification));
   const graded = items.filter((item) => !item.supersededBy && isGradedItemStatus(item.status)).length;
@@ -157,15 +183,31 @@ const recommendedActionFor = ({ record, items, actions }) => {
   return `${lead}${options.length ? `${options.join(', ')}, or ${last}` : last}. Until then no Recovery score counts, and Classroom and Grade Transfer wait.`;
 };
 
+export const LEGACY_CORRECTION_LABEL = 'Re-score without the questions MathMaster could not reproduce';
+
+/** What a Recovery scored under the old rule counted, and what it would be without the zeros. */
+const legacyNoticeOf = (record, legacyZeros) => {
+  const zeros = new Set(legacyZeros);
+  const evidence = (record.plan?.items || [])
+    .filter((item) => !item.supersededBy && !zeros.has(item.itemId))
+    .map((item) => recoveryEvidenceItem(item, record.results?.[item.itemId]));
+  const { rawScore } = scoreRecoveryEvidence(evidence);
+  return `MathMaster could not reproduce ${plural(zeros.size, 'question')} in this Recovery, and the rule in place when it was submitted scored ${zeros.size === 1 ? 'it' : 'them'} as 0`
+    + ` — a platform failure counted as a wrong answer. Recovery ${percent(record.rawScore)} as recorded`
+    + (rawScore === null ? '; nothing else in it was graded.' : `; ${percent(rawScore)} over the questions MathMaster graded.`);
+};
+
 const resolutionLabelOf = (resolution, formatWhenValue) => {
   if (!resolution?.action) return null;
   const by = resolution.actor?.email || 'a teacher';
   const when = formatWhenValue(resolution.at);
-  const what = {
-    finalizeGraded: 'Finalized from the graded questions',
-    keepOriginal: 'Closed keeping the original score',
-    issueReplacement: 'Replacement question issued',
-  }[resolution.action] || resolution.action;
+  const what = (resolution.rawScoreBefore !== undefined
+    ? 'Re-scored without the questions MathMaster could not reproduce'
+    : {
+      finalizeGraded: 'Finalized from the graded questions',
+      keepOriginal: 'Closed keeping the original score',
+      issueReplacement: 'Replacement question issued',
+    }[resolution.action]) || resolution.action;
   return `${what} by ${by}${when ? ` (${when})` : ''}${resolution.note ? ` — "${resolution.note}"` : ''}.`;
 };
 
@@ -213,9 +255,15 @@ export const buildTeacherRecoveryAudit = ({ student = null, assignment = null, n
     const evidence = record.masteryEvidence;
     const practiced = record.practice.items.length;
     const held = record.status === 'held';
+    // Held while the student answers the replacement questions a teacher
+    // issued; past their final submission date it waits for the teacher.
+    const awaitingStudent = recoveryAwaitsReplacementAnswer(record);
+    // Completed before this policy with a platform failure scored as 0.
+    const legacyZeros = record.status === 'completed' ? legacyUnavailableItemIds(record) : [];
+    const legacyUncorrected = recoveryNeedsLegacyCorrection(record, section);
     const items = record.plan ? auditItems({ record, assignment, section }) : [];
-    const actions = held ? heldRecoveryActionsFor(record, section) : [];
-    const resolution = record.hold?.resolution || (record.holdHistory || []).at(-1)?.resolution || null;
+    const actions = heldRecoveryActionsFor(record, section);
+    const resolution = record.hold?.resolution || (record.holdHistory || []).at(-1)?.resolution || record.legacyCorrection || null;
     const hasUngraded = items.some((item) => item.status === RECOVERY_ITEM_STATUS.PLATFORM_UNAVAILABLE || item.status === RECOVERY_ITEM_STATUS.NEEDS_REVIEW);
     return {
       section,
@@ -223,7 +271,14 @@ export const buildTeacherRecoveryAudit = ({ student = null, assignment = null, n
       status: record.status === 'inProgress' && windowEnded ? 'closed' : record.status,
       statusLabel: record.status === 'inProgress' && windowEnded
         ? 'Closed — not submitted by the final submission date (original stands)'
-        : STATUS_LABEL[record.status] || record.status,
+        : awaitingStudent
+          ? windowEnded
+            ? 'Held for review — the student did not answer the replacement question by their final submission date'
+            : 'Held — replacement question issued, waiting for the student\'s answer'
+          : legacyUncorrected
+            ? 'Completed — scored before MathMaster stopped counting questions it could not grade'
+            : STATUS_LABEL[record.status] || record.status,
+      awaitingStudent,
       typeLabel: record.type === RECOVERY_TYPE.EXCUSED_MAKE_UP ? 'Excused make-up (full credit available)' : record.type ? `Recovery (counts up to ${record.cap ?? '—'}%)` : null,
       original: original.attempted ? percent(original.score) : 'Missing',
       recovery: record.status === 'completed' && record.rawScore !== null && record.rawScore !== undefined ? percent(record.rawScore) : '—',
@@ -236,10 +291,17 @@ export const buildTeacherRecoveryAudit = ({ student = null, assignment = null, n
       reason: state?.reason || null,
       held,
       heldReason: held ? HOLD_REASON_LABEL[record.hold?.reason] || 'MathMaster could not grade this Recovery.' : null,
+      legacyNotice: legacyUncorrected ? legacyNoticeOf(record, legacyZeros) : null,
       items,
       evidenceSummary: hasUngraded ? evidenceSummaryOf(record, items) : null,
-      recommendedAction: held ? recommendedActionFor({ record, items, actions }) : null,
+      recommendedAction: legacyUncorrected
+        ? (actions.length
+          ? 'To correct it, re-score it without the questions MathMaster could not reproduce. The change is recorded with your name and sent on to Classroom and Grade Transfer.'
+          : 'MathMaster graded none of its other questions, so there is nothing to re-score from; the original score is what counts.')
+        : held ? recommendedActionFor({ record, items, actions, awaitingStudent, windowEnded }) : null,
       actions,
+      // The words for an action on this row, where they differ from a hold's.
+      actionLabels: legacyUncorrected ? { finalizeGraded: LEGACY_CORRECTION_LABEL } : {},
       resolution: resolutionLabelOf(resolution, formatWhen),
       evidence: evidence?.met
         ? `Unlocked after Practice mastery: ${evidence.correct} of the last ${evidence.windowSize} correct (${evidence.percent}%).`

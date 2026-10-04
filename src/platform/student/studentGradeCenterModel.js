@@ -19,6 +19,7 @@ import {
 } from './gradingPeriods.js';
 import { resolveStudentOverride } from '../../../functions/shared/studentAssignmentOverrides.mjs';
 import { heldSectionRecoveries } from '../../../functions/shared/sectionRecoveryProjection.mjs';
+import { assignmentGradeOverrideFor } from '../grading/canonicalGradeProjection.js';
 
 /*
  * THE STUDENT GRADE CENTER, AS A MODEL.
@@ -322,6 +323,10 @@ export const buildStudentGradeCenter = ({
    * in the period average, exactly like a grade a teacher is holding.
    */
   sectionRecoveryByAssignment = {},
+  // The student's teacher overrides: an assignment-level one decides the whole
+  // grade, so a held Recovery does not make that assignment Pending Grade
+  // (as for Classroom and Grade Transfer — canonicalGradeProjection.js).
+  teacherGradeOverridesByAssignment = {},
   providers = {},
 } = {}) => {
   const {
@@ -345,7 +350,8 @@ export const buildStudentGradeCenter = ({
     const excused = assignmentIsExcusedForStudent(assignment, studentId);
     const reopened = assignmentIsReopenedForStudent(assignment, studentId);
     const feedbackHeld = !lifecycle.isPracticeOnly && assignmentHasHeldTeacherFeedback(assignment) === true;
-    const recoveryHeld = Object.keys(heldSectionRecoveries(sectionRecoveryByAssignment?.[assignment.id])).length > 0;
+    const recoveryHeld = Object.keys(heldSectionRecoveries(sectionRecoveryByAssignment?.[assignment.id])).length > 0
+      && !assignmentGradeOverrideFor({ teacherGradeOverridesByAssignment }, assignment.id);
     const access = prerequisiteAccess
       ? prerequisiteAccess({ assignment, classworkGradesByAssignment, nowValue })
       : { open: true, reason: null };

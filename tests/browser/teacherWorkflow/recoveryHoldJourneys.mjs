@@ -6,7 +6,7 @@
 //   (TEACHER_HARNESS_ORIGIN=<origin> if not http://127.0.0.1:5188;
 //    PLAYWRIGHT_MODULE=<path to playwright/index.mjs> and CHROMIUM_PATH=<chrome>
 //    when the defaults are not installed; VIEWPORTS=1366x768,768x1024,390x844
-//    — Chromebook, iPad, phone; ONLY=S1,S2,T1,T2 to run some journeys.)
+//    — Chromebook, iPad, phone; ONLY=S1,S2,T1,T2,T3 to run some journeys.)
 //
 // Same harness as journeys.mjs: the real App.jsx with `firebase/*` replaced by
 // in-memory fakes and a synthetic school. `&recovery=p0` adds
@@ -35,8 +35,12 @@
 //       Held mark becomes the ordinary Recovery mark.
 //   T2  the teacher issues a replacement question instead. Imani opens her
 //       Recovery: Q1 and Q2 are kept and never asked again, only the new
-//       question is open; she answers it and finishes at 90. Q3's pin, result
-//       and history stay in the record.
+//       question is open; she answers it and finishes at 90. Until she does
+//       the Recovery stays held (Pending Grade, the Held mark). Q3's pin,
+//       result and history stay in the record.
+//   T3  a Recovery completed under the old rule (Q3 scored as 0, 70%): the
+//       teacher sees what happened and re-scores it — 100%, recorded 90 —
+//       with the stored results untouched.
 //
 // At every viewport nothing scrolls sideways; on a touch screen the controls
 // this change added are at least 44 px. `--slow` adds 4× CPU throttling and a
@@ -54,6 +58,7 @@ import { newSchoolContext } from './schoolClock.mjs';
 import {
   EXCLUDED_STUDENT_ID,
   HELD_STUDENT_ID,
+  LEGACY_STUDENT_ID,
   RECOVERY_ASSIGNMENT_ID,
   RECOVERY_ASSIGNMENT_TITLE,
   RECOVERY_SHARED_ASSIGNMENT_ID,
@@ -232,7 +237,7 @@ const studentCopy = async (where, locator) => {
 /* ------------------------------------------------------------- teacher */
 
 const sidebar = (page, name) => page.locator('nav, aside').getByRole('button', { name: new RegExp(`${name}$`) }).first().click();
-const openTeacherGradebook = async (page) => {
+const openTeacherGradebook = async (page, assignmentId = RECOVERY_ASSIGNMENT_ID) => {
   await sidebar(page, 'Grades');
   await page.waitForTimeout(700 * SLOW_FACTOR);
   const chooser = page.locator('section[aria-labelledby="gradebook-choose-class"]');
@@ -242,7 +247,7 @@ const openTeacherGradebook = async (page) => {
   }
   const picker = page.locator('select[aria-label="Gradebook assignment"]');
   await picker.waitFor({ timeout: 30000 * SLOW_FACTOR });
-  await picker.selectOption(RECOVERY_ASSIGNMENT_ID);
+  await picker.selectOption(assignmentId);
   await page.waitForTimeout(700 * SLOW_FACTOR);
 };
 const studentRow = (page, studentId) => page.locator('tbody tr').filter({ hasText: `ID ${studentId}` }).first();
@@ -452,13 +457,21 @@ const journeys = {
     await audit.locator('[data-held-recovery-action="issueReplacement"]').click();
     const confirmGroup = audit.getByRole('group', { name: 'Issue a replacement question' });
     await confirmGroup.waitFor({ timeout: 10000 * SLOW_FACTOR });
-    expect(where, /The student answers only the new questions; their other answers are kept\./.test(squash(await confirmGroup.innerText())), 'the confirmation says the student answers only the new question');
+    expect(where, /The student answers only the new questions until their final submission date; their other answers are kept\./.test(squash(await confirmGroup.innerText())), 'the confirmation says the student answers only the new question');
     await audit.locator('[data-held-recovery-confirm="issueReplacement"]').click();
-    await audit.locator('[data-recovery-audit-section="dol"][data-recovery-audit-status="inProgress"]').waitFor({ timeout: 30000 * SLOW_FACTOR });
+    // Still held while the student answers: the grade and Classroom wait.
+    await audit.locator('[data-recovery-audit-section="dol"][data-recovery-audit-status="held"][data-recovery-awaiting="student"]').waitFor({ timeout: 30000 * SLOW_FACTOR });
     const issued = await teacherCopy(`${where} issued`, audit.locator('[data-recovery-audit-section="dol"]'), { pins: pinsOf(before) });
     expect(where, /Replaced by a new question/.test(issued) && /— replacement/.test(issued), `the old question is marked replaced and the new one listed (${issued.slice(0, 260)})`);
+    expect(where, /replacement question issued, waiting for the student's answer/.test(issued), `the status says it waits for the student (${issued.slice(0, 200)})`);
+    const offered = await audit.locator('[data-held-recovery-action]').evaluateAll((nodes) => nodes.map((node) => node.dataset.heldRecoveryAction));
+    expect(where, offered.join() === 'finalizeGraded,keepOriginal', `while it waits the teacher may still finalize or keep the original — not issue another (${offered.join()})`);
+    await teacher.page.getByRole('button', { name: 'Back to class list' }).click();
+    await studentRow(teacher.page, HELD_STUDENT_ID).waitFor({ timeout: 20000 * SLOW_FACTOR });
+    expect(where, await studentRow(teacher.page, HELD_STUDENT_ID).locator('[data-held-recovery-section="dol"]').count() === 1, 'the gradebook keeps the Held mark until the student answers');
     const issuedDb = await harnessDb(teacher.page);
     const reissued = recoveryRecord(issuedDb, HELD_STUDENT_ID, RECOVERY_ASSIGNMENT_ID);
+    expect(where, reissued.status === 'held' && reissued.hold?.resolution?.action === 'issueReplacement', `stored: still held, with the replacement decision (${reissued.status})`);
     const replacement = reissued.plan.items.find((item) => item.replaces === q3.itemId);
     expect(where, replacement && replacement.itemId !== q3.itemId && replacement.pin?.fingerprint !== q3.pin.fingerprint, 'the replacement is a new item with a new identity');
     expect(where, replacement?.issueReason === 'pin-fingerprint-mismatch', `and records why it was issued (${replacement?.issueReason})`);
@@ -470,6 +483,10 @@ const journeys = {
 
     const student = await openDevice({ viewport, query: `recovery=p0&as=student&studentId=${HELD_STUDENT_ID}`, context: teacher.context });
     const { page } = student;
+    await openStudentGrades(page);
+    const pendingRow = gradeRow(page, RECOVERY_ASSIGNMENT_TITLE);
+    await pendingRow.waitFor({ timeout: 20000 * SLOW_FACTOR });
+    expect(where, /pending grade/i.test(squash(await pendingRow.innerText())), 'Grades still says Pending Grade while the replacement waits');
     const card = await openResult(page, RECOVERY_ASSIGNMENT_TITLE);
     expect(where, await card.getAttribute('data-recovery-state') === 'inProgress', 'the student\'s Recovery is open again');
     const cardText = await studentCopy(`${where} student panel`, card);
@@ -514,6 +531,52 @@ const journeys = {
     const done = await teacherCopy(`${where} teacher after`, audit.locator('[data-recovery-audit-section="dol"]'), { pins: pinsOf(after) });
     expect(where, /Recovery\s*100%/.test(done) && /Final\s*90%/.test(done), `the teacher sees Recovery 100%, Final 90% (${done.slice(0, 200)})`);
     await closeDevice(`${where} teacher after`, again);
+  },
+
+  // A Recovery completed under the old rule — Q3 scored as 0 — is visible to
+  // the teacher, who re-scores it; its stored results are not touched.
+  async T3(viewport) {
+    const where = `T3 ${viewport.width}x${viewport.height}`;
+    const device = await openDevice({ viewport, query: TEACHER_QUERY });
+    const { page } = device;
+    const before = recoveryRecord(await harnessDb(page), LEGACY_STUDENT_ID, RECOVERY_SHARED_ASSIGNMENT_ID);
+    await openTeacherGradebook(page, RECOVERY_SHARED_ASSIGNMENT_ID);
+    const row = studentRow(page, LEGACY_STUDENT_ID);
+    await row.waitFor({ timeout: 20000 * SLOW_FACTOR });
+    const cellBefore = squash(await row.locator('td').nth(5).innerText());
+    expect(where, cellBefore.startsWith('70%'), `the DOL column shows what the old rule recorded (${cellBefore})`);
+    const audit = await openStudentDetail(page, LEGACY_STUDENT_ID);
+    const notice = squash(await audit.locator('[data-recovery-legacy-notice="dol"]').innerText());
+    expect(where, /could not reproduce 1 question/.test(notice) && /scored it as 0/.test(notice) && /Recovery 70% as recorded; 100% over the questions MathMaster graded/.test(notice), `the teacher is told what the old rule did (${notice})`);
+    const items = await audit.locator('[data-recovery-items="dol"] li').evaluateAll((nodes) => nodes.map((node) => ({ status: node.dataset.recoveryItemStatus, text: node.innerText.replace(/\s+/g, ' ').trim() })));
+    expect(where, items.map((item) => item.status).join() === 'correct,correct,platform-unavailable', `each question as it always meant (${items.map((item) => item.status).join()})`);
+    expect(where, /scored as 0 under the rule in place/.test(items[2]?.text || ''), `Q3 says it was scored as 0 (${items[2]?.text})`);
+    await teacherCopy(where, audit.locator('[data-recovery-audit-section="dol"]'), { pins: pinsOf(before) });
+    const button = audit.locator('[data-held-recovery-action="finalizeGraded"]');
+    expect(where, squash(await button.innerText()) === 'Re-score without the questions MathMaster could not reproduce', 'the correction is named for what it does');
+    await touchTargets(where, page, '[data-held-recovery-action]');
+    await noSidewaysScroll(`${where} details`, page);
+    await shot(page, 't3-legacy-details');
+    await button.click();
+    const confirmGroup = audit.getByRole('group', { name: 'Re-score without the questions MathMaster could not reproduce' });
+    await confirmGroup.waitFor({ timeout: 10000 * SLOW_FACTOR });
+    expect(where, /answers and results are not changed/.test(squash(await confirmGroup.innerText())), 'the confirmation says nothing the student did is rewritten');
+    await audit.locator('[data-held-recovery-confirm="finalizeGraded"]').click();
+    await audit.locator('[data-recovery-resolution="dol"]').waitFor({ timeout: 30000 * SLOW_FACTOR });
+    expect(where, await audit.locator('[data-recovery-legacy-notice="dol"]').count() === 0, 'once corrected, the notice is gone');
+    const corrected = await teacherCopy(`${where} corrected`, audit.locator('[data-recovery-audit-section="dol"]'), { pins: pinsOf(before) });
+    expect(where, /Recovery\s*100%/.test(corrected) && /Final\s*90%/.test(corrected), `re-scored: Recovery 100%, Final 90% (${corrected.slice(0, 200)})`);
+    expect(where, /Re-scored without the questions MathMaster could not reproduce by/.test(squash(await audit.locator('[data-recovery-resolution="dol"]').innerText())), 'the correction names who and when');
+    await shot(page, 't3-legacy-corrected');
+    await page.getByRole('button', { name: 'Back to class list' }).click();
+    await studentRow(page, LEGACY_STUDENT_ID).waitFor({ timeout: 20000 * SLOW_FACTOR });
+    const cellAfter = squash(await studentRow(page, LEGACY_STUDENT_ID).locator('td').nth(5).innerText());
+    expect(where, cellAfter.startsWith('90%'), `the DOL column shows the corrected 90% (${cellAfter})`);
+    const db = await harnessDb(page);
+    const after = recoveryRecord(db, LEGACY_STUDENT_ID, RECOVERY_SHARED_ASSIGNMENT_ID);
+    expect(where, JSON.stringify(after.results) === JSON.stringify(before.results), 'the stored results are exactly as the old rule wrote them');
+    expect(where, after.rawScore === 100 && after.legacyCorrection?.rawScoreBefore === 70, `stored: 100, corrected from 70 (${after.rawScore})`);
+    await closeDevice(where, device);
   },
 };
 

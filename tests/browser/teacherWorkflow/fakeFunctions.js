@@ -25,7 +25,7 @@ import {
 } from '../../../functions/shared/studentIdentity.mjs';
 import { runSectionRecoveryAction } from '../../../functions/shared/sectionRecoveryActions.mjs';
 import {
-  HELD_RECOVERY_ACTION, applyHeldRecoveryResolution, heldRecoveryItemIds, isHeldRecoveryAction,
+  HELD_RECOVERY_ACTION, applyHeldRecoveryResolution, heldRecoveryActionsFor, heldRecoveryItemIds, isHeldRecoveryAction,
 } from '../../../functions/shared/sectionRecoveryResolution.mjs';
 import { buildRecoveryReplacementItems } from '../../../functions/shared/sectionRecoveryPlan.mjs';
 import { recoveryContextFor } from './recoveryFixture.js';
@@ -156,7 +156,9 @@ const handlers = {
     requireClassTeacher(grade.classId);
     if (!isHeldRecoveryAction(action)) throw rejection('invalid-argument', 'Choose how to resolve this Recovery.');
     const context = harnessRecoveryContext({ studentId, assignmentId, section });
-    if (context.record?.status !== 'held') throw rejection('failed-precondition', 'This Recovery is not waiting for a teacher.');
+    const allowed = heldRecoveryActionsFor(context.record, section);
+    if (!allowed.length) throw rejection('failed-precondition', 'This Recovery is not waiting for a teacher.');
+    if (!allowed.includes(action)) throw rejection('failed-precondition', 'That is not available for this Recovery.');
     let replacements = null;
     if (action === HELD_RECOVERY_ACTION.ISSUE_REPLACEMENT) {
       const built = buildRecoveryReplacementItems({

@@ -272,6 +272,14 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
         setNotice('That question was already answered. Here is a fresh one.');
         return { blocked: true, message: 'That question was already answered.' };
       }
+      // The item is no longer this Recovery's as dealt (seating moved a
+      // provisional seat, or the question changed): retrying cannot help, so
+      // move on to the next item the record deals.
+      if (code === 'practice-pin-invalid') {
+        setOutcome({ isCorrect: null, unlocked: false });
+        setNotice('That question is no longer available. Here is a fresh one.');
+        return { blocked: true, message: 'That question is no longer available.' };
+      }
       if (code === 'practice-response-ungradable') {
         return { blocked: true, message: 'MathMaster could not read that answer. Check it and press Submit again.' };
       }
@@ -306,7 +314,7 @@ function PracticeRunner({ assignment, entry, studentId, studentProfile, onExit, 
       });
       recordOutcome(result);
     } catch (error) {
-      if (recoveryErrorCode(error) === 'practice-item-repeated') setOutcome({ isCorrect: null, unlocked: false });
+      if (['practice-item-repeated', 'practice-pin-invalid'].includes(recoveryErrorCode(error))) setOutcome({ isCorrect: null, unlocked: false });
       else setNotice('That could not be saved right now. Try again in a moment.');
     } finally {
       setForfeiting(false);
@@ -406,13 +414,16 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
   const keyArgs = { studentId, assignmentId: assignment.id, section: entry.section, opportunity: plan?.opportunity || 1 };
   const responsesKey = storageKeyFor({ kind: 'responses', ...keyArgs });
   const stepsKey = storageKeyFor({ kind: 'steps', ...keyArgs });
+  const unavailableKey = storageKeyFor({ kind: 'unavailable', ...keyArgs });
   const [responses, setResponses] = useState(() => readSaved(responsesKey));
   const [stepRecords, setStepRecords] = useState(() => readSaved(stepsKey));
   const [position, setPosition] = useState(() => Math.max(0, items.findIndex((item) => !submittedIds.has(item.itemId))));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   // itemId -> classification, for each question this device could not show.
-  const [unavailable, setUnavailable] = useState({});
+  // Kept on the device like the answers, so leaving and coming back still
+  // reports it (and the Submit warning never calls it incorrect).
+  const [unavailable, setUnavailable] = useState(() => readSaved(unavailableKey));
   const renderedRef = useRef({});
   const policy = useMemo(() => assessmentPolicy(entry.section), [entry.section]);
 
@@ -427,15 +438,21 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
   const markUnavailable = useCallback((failure) => {
     if (!currentItemId) return;
     const classification = String(failure?.classification || 'unclassified');
-    setUnavailable((previous) => (previous[currentItemId] === classification ? previous : { ...previous, [currentItemId]: classification }));
-  }, [currentItemId]);
+    setUnavailable((previous) => {
+      if (previous[currentItemId] === classification) return previous;
+      const next = { ...previous, [currentItemId]: classification };
+      writeSaved(unavailableKey, next);
+      return next;
+    });
+  }, [currentItemId, unavailableKey]);
   const markShown = useCallback((itemId) => {
     setUnavailable((previous) => {
       if (!previous[itemId]) return previous;
       const { [itemId]: _shown, ...rest } = previous;
+      writeSaved(unavailableKey, rest);
       return rest;
     });
-  }, []);
+  }, [unavailableKey]);
 
   const handleGrade = useCallback(async (unusedLocalVerdict, unusedDetails, parts, unusedSupportUsage, responseKey, attemptMetadata = {}) => {
     if (!current) return null;
@@ -503,13 +520,16 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
       if (result?.record) onRecord(entry.section, result.record);
       clearSaved(responsesKey);
       clearSaved(stepsKey);
+      clearSaved(unavailableKey);
     } catch (submitError) {
       const code = recoveryErrorCode(submitError);
       setError(code === 'recovery-not-in-progress'
         ? 'This Recovery was already submitted.'
         : code === 'recovery-window-ended'
           ? 'The final submission date has passed, so this Recovery can no longer be submitted. Your original score stands.'
-          : 'Your Recovery could not be submitted right now. Your answers are saved here — try again.');
+          : code === 'recovery-held'
+            ? 'Your final submission date has passed, so your teacher will finish your Recovery. The answers you already submitted are kept.'
+            : 'Your Recovery could not be submitted right now. Your answers are saved here — try again.');
     } finally {
       setSubmitting(false);
     }
@@ -642,7 +662,10 @@ function AssessmentRunner({ assignment, entry, studentId, studentProfile, onExit
           section={entry.section}
           studentId={studentId}
           studentProfile={studentProfile}
-          draftNamespace={`recovery~${entry.section}~o${plan?.opportunity || 1}`}
+          // A replacement question takes the replaced one's place (same
+          // storage index, same position), so it gets its own draft: the old
+          // question's saved answer must never pre-fill a different question.
+          draftNamespace={`recovery~${entry.section}~o${plan?.opportunity || 1}${current.replaces ? `~${current.itemId}` : ''}`}
           draftIndex={position}
           activityRole={entry.section}
           activityPolicy={policy}

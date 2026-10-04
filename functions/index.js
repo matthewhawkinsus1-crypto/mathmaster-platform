@@ -1493,8 +1493,21 @@ exports.resolveHeldSectionRecovery = onCall(async (request) => {
         throw new HttpsError("permission-denied", "This assignment is not assigned to the student's current class.");
       }
       const stored = gradeData.sectionRecoveryByAssignment?.[assignmentId]?.[section] || null;
-      if (stored?.status !== "held") {
+      // The one gate (sectionRecoveryResolution.mjs heldRecoveryActionsFor): a
+      // held Recovery, or one completed under the old rule with a platform
+      // failure scored as 0; and only the resolutions that record allows.
+      const allowed = resolution.heldRecoveryActionsFor(stored, section);
+      if (!allowed.length) {
         throw new HttpsError("failed-precondition", "This Recovery is not waiting for a teacher.");
+      }
+      if (!allowed.includes(action)) {
+        throw new HttpsError(
+          "failed-precondition",
+          action === resolution.HELD_RECOVERY_ACTION.ISSUE_REPLACEMENT
+            ? "A replacement question is already waiting for this student, or there is nothing left to replace."
+            : "That is not available for this Recovery.",
+          { code: "recovery-resolution-unavailable" },
+        );
       }
 
       // The same inputs advanceSectionRecovery decides with: the student's own
@@ -1585,6 +1598,9 @@ exports.resolveHeldSectionRecovery = onCall(async (request) => {
         note: note || null,
         actor,
         at: nowIso,
+        // A correction of a Recovery completed under the old rule, or the
+        // resolution of a hold.
+        kind: resolution.recoveryNeedsLegacyCorrection(stored, section) ? "legacyCorrection" : "heldResolution",
         holdReason: stored.hold?.reason || null,
         heldItemIds: Array.isArray(stored.hold?.itemIds) ? stored.hold.itemIds.slice(0, 20) : [],
         statusAfter: applied.record.status,
@@ -9555,6 +9571,10 @@ exports.syncGradeToClassroom = onDocumentWritten(
       if (recoveryHold.held) {
         for (const publicationDoc of publications) {
           const publication = publicationDoc.data() || {};
+          // Only the columns this trigger sends to (the loop below skips the
+          // rest): a split section's column is the section trigger's, and it
+          // records its own hold for its own section only.
+          if (publication.gradePassbackEnabled === false || !String(publication.courseId || "")) continue;
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
             assignmentId,

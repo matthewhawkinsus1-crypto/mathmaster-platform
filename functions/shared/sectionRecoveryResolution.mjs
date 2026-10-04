@@ -23,26 +23,43 @@
  *                      the student's own seat, never a question they have
  *                      seen). The old item stays in the plan, its pin
  *                      byte-identical, marked `supersededBy`; its result is
- *                      never rewritten. The Recovery is in progress again and
- *                      the student answers ONLY the new questions — the ones
- *                      already graded are carried, never asked or re-marked.
+ *                      never rewritten. The Recovery STAYS HELD — grade and
+ *                      passback paused, and code that predates replacements
+ *                      leaves it alone — while the student answers ONLY the
+ *                      new questions until their final submission date (the
+ *                      ones already graded are carried, never asked or
+ *                      re-marked). Past that date, or at any time, the
+ *                      teacher may still finalize or keep the original.
+ *
+ * A Recovery COMPLETED before this policy, with a question it could not
+ * reproduce scored as 0 (sectionRecoveryEvidence.mjs
+ * isLegacyUnavailableResult — the P0 itself), may be corrected the same way:
+ * finalizeGraded re-scores it over the questions MathMaster graded. Its stored
+ * results are not touched; only the score derived from them changes.
  *
  * Every resolution is appended to the record's history as a teacher action
- * (who, when, what, the note) and stays on the record's hold; the callable
- * also writes a gradeOverrideAudits row.
+ * (who, when, what, the note) and stays on the record (its hold, or the hold
+ * history once settled); the callable also writes a gradeOverrideAudits row.
  *
  * Pure: no Firestore, no clock (`at` is passed in).
  */
 import { RECOVERY_TYPE } from './recoveryPolicy.mjs';
 import { RECOVERY_HISTORY_EVENT, appendRecoveryHistory, buildSectionRecoveryGradeState } from './sectionRecoveryGrade.mjs';
 import {
+  HOLD_HISTORY_LIMIT,
   RECOVERY_RECORD_STATUS,
   RecoveryTransitionError,
   activeRecoveryPlanItems,
+  archivedRecoveryHold,
   normalizeRecoveryRecord,
   recoveryEvidenceItem,
 } from './sectionRecoveryRecord.mjs';
-import { isGradedItemStatus, scoreRecoveryEvidence } from './sectionRecoveryEvidence.mjs';
+import {
+  isGradedItemStatus,
+  isLegacyUnavailableResult,
+  recoveryAwaitsReplacementAnswer,
+  scoreRecoveryEvidence,
+} from './sectionRecoveryEvidence.mjs';
 import { normalizeDeliveryPin } from './questionGenerationIdentity.mjs';
 
 export const HELD_RECOVERY_ACTION = Object.freeze({
@@ -68,16 +85,48 @@ export const heldRecoveryItemIds = (record) => activeRecoveryPlanItems(record)
   .filter((item) => !isGradedItemStatus(record?.results?.[item.itemId]?.status))
   .map((item) => item.itemId);
 
-const evidenceItemsOf = (record) => activeRecoveryPlanItems(record)
-  .map((item) => recoveryEvidenceItem(item, record.results?.[item.itemId]));
+/** Replacement questions issued and not answered yet: no evidence either way. */
+export const pendingReplacementItemIds = (record) => activeRecoveryPlanItems(record)
+  .filter((item) => item.replaces && !record?.results?.[item.itemId])
+  .map((item) => item.itemId);
 
-/** The resolutions this record allows, in the order a teacher should consider them. */
+/** Items of a COMPLETED record scored before this policy with a 0 it did not earn. */
+export const legacyUnavailableItemIds = (record) => activeRecoveryPlanItems(record)
+  .filter((item) => isLegacyUnavailableResult(record?.results?.[item.itemId]))
+  .map((item) => item.itemId);
+
+/** A completed Recovery the old rule scored with a platform failure as 0, not yet corrected. */
+export const recoveryNeedsLegacyCorrection = (rawRecord, section = null) => {
+  const record = normalizeRecoveryRecord(rawRecord, section);
+  return record?.status === RECOVERY_RECORD_STATUS.COMPLETED
+    && !record.legacyCorrection
+    && legacyUnavailableItemIds(record).length > 0;
+};
+
+// The evidence a teacher's finalization is computed from: every active
+// question except a replacement the student has not answered.
+const evidenceItemsOf = (record) => {
+  const pending = new Set(pendingReplacementItemIds(record));
+  return activeRecoveryPlanItems(record)
+    .filter((item) => !pending.has(item.itemId))
+    .map((item) => recoveryEvidenceItem(item, record.results?.[item.itemId]));
+};
+
+/**
+ * The resolutions this record allows, in the order a teacher should consider
+ * them — the one gate every resolution passes (the callable asks before it
+ * builds anything).
+ */
 export const heldRecoveryActionsFor = (rawRecord, section = null) => {
   const record = normalizeRecoveryRecord(rawRecord, section);
-  if (record?.status !== RECOVERY_RECORD_STATUS.HELD) return [];
+  if (!record) return [];
   const anyGraded = evidenceItemsOf(record).some((item) => isGradedItemStatus(item.status));
+  if (recoveryNeedsLegacyCorrection(record)) return anyGraded ? [HELD_RECOVERY_ACTION.FINALIZE_GRADED] : [];
+  if (record.status !== RECOVERY_RECORD_STATUS.HELD) return [];
+  // A replacement already waits for the student: finalize or keep, not another.
+  const awaitingStudent = recoveryAwaitsReplacementAnswer(record);
   return [
-    ...(heldRecoveryItemIds(record).length ? [HELD_RECOVERY_ACTION.ISSUE_REPLACEMENT] : []),
+    ...(!awaitingStudent && heldRecoveryItemIds(record).length ? [HELD_RECOVERY_ACTION.ISSUE_REPLACEMENT] : []),
     ...(anyGraded ? [HELD_RECOVERY_ACTION.FINALIZE_GRADED] : []),
     HELD_RECOVERY_ACTION.KEEP_ORIGINAL,
   ];
@@ -92,10 +141,11 @@ const actorOf = (actor) => ({
 const who = (actor) => (actor.email ? `Teacher ${actor.email}` : 'A teacher');
 
 /**
- * Apply one resolution to a HELD record.
+ * Apply one resolution to a HELD record (or correct a COMPLETED one the old
+ * rule scored with a platform failure as 0).
  *
  * Returns { record, gradeState } — gradeState is null when no section grade
- * changes (a replacement: the Recovery is in progress again).
+ * changes (a replacement: the Recovery stays held for the student's answer).
  * Throws RecoveryTransitionError for anything not allowed.
  */
 export const applyHeldRecoveryResolution = ({
@@ -111,10 +161,21 @@ export const applyHeldRecoveryResolution = ({
   at = Date.now(),
 } = {}) => {
   const record = normalizeRecoveryRecord(rawRecord, section);
-  if (!record || record.status !== RECOVERY_RECORD_STATUS.HELD) {
+  const legacyCorrection = recoveryNeedsLegacyCorrection(record);
+  if (!record || (record.status !== RECOVERY_RECORD_STATUS.HELD && !legacyCorrection)) {
     refuse('recovery-not-held', 'This Recovery is not waiting for a teacher.');
   }
   if (!isHeldRecoveryAction(action)) refuse('recovery-resolution-unknown', 'Choose how to resolve this Recovery.');
+  if (!heldRecoveryActionsFor(record).includes(action)) {
+    refuse('recovery-resolution-unavailable', action === HELD_RECOVERY_ACTION.ISSUE_REPLACEMENT && recoveryAwaitsReplacementAnswer(record)
+      ? 'A replacement question is already waiting for the student.'
+      : 'That is not available for this Recovery.');
+  }
+  // A replacement the student has not answered is settled by this decision:
+  // its hold goes to the history, with the evidence it was decided on.
+  const settledHold = recoveryAwaitsReplacementAnswer(record)
+    ? { holdHistory: [...list(record.holdHistory), archivedRecoveryHold(record)].slice(-HOLD_HISTORY_LIMIT) }
+    : {};
   const teacher = actorOf(actor);
   const cleanNote = clean(note).slice(0, 500) || null;
   const resolution = { action, actor: teacher, at: iso(at), note: cleanNote };
@@ -137,14 +198,44 @@ export const applyHeldRecoveryResolution = ({
       refuse('recovery-nothing-graded', 'MathMaster could not grade any question in this Recovery, so there is nothing to finalize from. Issue a replacement question or keep the original score.');
     }
     const graded = items.filter((item) => isGradedItemStatus(item.status)).length;
-    const excludedItemIds = items.filter((item) => !isGradedItemStatus(item.status)).map((item) => item.itemId);
+    const pending = pendingReplacementItemIds(record);
+    const excludedItemIds = [...items.filter((item) => !isGradedItemStatus(item.status)).map((item) => item.itemId), ...pending];
     const state = gradeStateFor(rawScore);
+    if (legacyCorrection) {
+      // Completed under the old rule: the stored results stay exactly as they
+      // are; only the score derived from them is corrected, and the score it
+      // replaces is kept on the record.
+      return {
+        record: {
+          ...record,
+          rawScore,
+          evidence: { ...record.evidence, excludedItemIds, finalizedBy: 'teacher' },
+          legacyCorrection: {
+            ...resolution,
+            rawScoreBefore: record.rawScore ?? null,
+            recordedScoreBefore: record.recordedScoreAtCompletion ?? null,
+            excludedItemIds,
+          },
+          recordedScoreAtCompletion: state.recordedScore,
+          history: appendRecoveryHistory(record.history, {
+            at: iso(at),
+            event: RECOVERY_HISTORY_EVENT.TEACHER_OVERRIDE,
+            detail: `${who(teacher)} corrected this Recovery: ${plural(excludedItemIds.length, 'question')} MathMaster could not reproduce `
+              + `${excludedItemIds.length === 1 ? 'was' : 'were'} scored as 0 when it was submitted, and ${excludedItemIds.length === 1 ? 'is' : 'are'} now left out of the score `
+              + `(${record.rawScore ?? '—'}% → ${rawScore}%). ${state.reason}${noteText}`,
+            recordedScore: state.recordedScore,
+          }),
+        },
+        gradeState: state,
+      };
+    }
     return {
       record: {
         ...record,
         status: RECOVERY_RECORD_STATUS.COMPLETED,
         rawScore,
         evidence: { ...record.evidence, excludedItemIds, finalizedBy: 'teacher' },
+        ...settledHold,
         hold: { ...record.hold, resolution },
         originalScoreAtCompletion: original,
         originalAttemptedAtCompletion: originalAttempted !== false,
@@ -154,7 +245,7 @@ export const applyHeldRecoveryResolution = ({
           at: iso(at),
           event: RECOVERY_HISTORY_EVENT.TEACHER_OVERRIDE,
           detail: `${who(teacher)} finalized this Recovery from the ${plural(graded, 'question')} MathMaster could grade; `
-            + `${plural(excludedItemIds.length, 'question')} it could not grade ${excludedItemIds.length === 1 ? 'was' : 'were'} left out of the score. ${state.reason}${noteText}`,
+            + `${plural(excludedItemIds.length, 'question')} ${pending.length ? 'not graded' : 'it could not grade'} ${excludedItemIds.length === 1 ? 'was' : 'were'} left out of the score. ${state.reason}${noteText}`,
           recordedScore: state.recordedScore,
         }),
       },
@@ -169,6 +260,7 @@ export const applyHeldRecoveryResolution = ({
         ...record,
         status: RECOVERY_RECORD_STATUS.COMPLETED,
         rawScore: null,
+        ...settledHold,
         hold: { ...record.hold, resolution },
         originalScoreAtCompletion: original,
         originalAttemptedAtCompletion: originalAttempted !== false,
@@ -209,21 +301,22 @@ export const applyHeldRecoveryResolution = ({
     issuedAt: clean(item.issuedAt) || iso(at),
     issueReason: clean(item.issueReason).slice(0, 80) || null,
   }));
-  const resolved = {
-    ...record.hold,
-    resolution: { ...resolution, replacements: added.map((item) => ({ from: item.replaces, to: item.itemId })) },
-  };
   return {
     record: {
       ...record,
-      status: RECOVERY_RECORD_STATUS.IN_PROGRESS,
+      // Still HELD: the grade and Classroom passback wait for the student's
+      // answer, and code that predates replacements reads it as finished
+      // (sectionRecoveryEvidence.mjs recoveryAwaitsReplacementAnswer).
+      status: RECOVERY_RECORD_STATUS.HELD,
       plan: { ...record.plan, items: [...list(record.plan?.items).map(supersede), ...added] },
-      hold: null,
-      holdHistory: [...list(record.holdHistory), resolved].slice(-10),
+      hold: {
+        ...record.hold,
+        resolution: { ...resolution, replacements: added.map((item) => ({ from: item.replaces, to: item.itemId })) },
+      },
       history: appendRecoveryHistory(record.history, {
         at: iso(at),
         event: RECOVERY_HISTORY_EVENT.TEACHER_OVERRIDE,
-        detail: `${who(teacher)} issued ${plural(added.length, 'replacement question')} for ${added.map((item) => item.replaces).join(', ')} because MathMaster could not grade ${added.length === 1 ? 'it' : 'them'}. The questions already graded are kept and not asked again.${noteText}`,
+        detail: `${who(teacher)} issued ${plural(added.length, 'replacement question')} for ${added.map((item) => item.replaces).join(', ')} because MathMaster could not grade ${added.length === 1 ? 'it' : 'them'}. The questions already graded are kept and not asked again; the student may answer until their final submission date.${noteText}`,
       }),
     },
     gradeState: null,

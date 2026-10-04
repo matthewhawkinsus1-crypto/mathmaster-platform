@@ -233,6 +233,7 @@ const scenario = ({ questions = Q3_SHARES_Q1_SKILL(), breakQ3 = null, answer = c
 };
 
 const resultOf = (outcome, itemId) => outcome.record.results[itemId];
+const normalizedPlan = (record) => recordModule.normalizeRecoveryRecord(record, 'dol').plan;
 
 /* ===========================================================================
  * 1-3. Valid items behave exactly as before.
@@ -662,6 +663,36 @@ test('17. another student\'s Recovery Practice pin is refused', () => {
   assert.equal(own.response.isCorrect, true);
 });
 
+test('17b. a Practice item dealt before a classmate was seated is still the student\'s own — and a forged index is not', () => {
+  const assignment = buildAssignment(Q3_SHARES_Q1_SKILL());
+  const before = contextFor({ assignment, studentId: STUDENT });
+  const item = nextRecoveryPracticeItem(before);
+  assert.equal(item.pin.stride, ROSTER.length, 'fixture: dealt with the 12-seat stride');
+  // The teacher's app seats a new student: the class now has 13 seats.
+  const grown = structuredClone(assignment);
+  const additions = planSeatAdditions({ assignment: grown, classId: CLASS, studentIds: [...ROSTER, 'student-new'] });
+  grown.generationSeats.byClassId[CLASS] = { ...grown.generationSeats.byClassId[CLASS], ...additions };
+  const after = contextFor({ assignment: grown, studentId: STUDENT });
+  assert.equal(after.seatInfo.classSize, ROSTER.length + 1, 'fixture: the stride grew');
+  // On the first version of this fix the in-flight item was refused forever.
+  const outcome = runSectionRecoveryAction({
+    context: after,
+    action: RECOVERY_ACTION.PRACTICE,
+    payload: { pin: item.pin, practiceIndex: item.practiceIndex, response: correctResponse(reproduce(grown, item)) },
+    at: NOW,
+  });
+  assert.equal(outcome.response.isCorrect, true);
+  // The student's own seat and a valid instance, but an index that is not that
+  // seat's allocation: a pin that does not describe a delivery it could have
+  // been (the instance is replayed from resolvedIndex, so only the ownership
+  // check sees this).
+  const forged = { ...item.pin, index: item.pin.index + 1 };
+  assert.throws(
+    () => runSectionRecoveryAction({ context: after, action: RECOVERY_ACTION.PRACTICE, payload: { pin: forged, practiceIndex: item.practiceIndex, response: correctResponse(reproduce(grown, item)) }, at: NOW }),
+    (error) => error.code === 'practice-pin-invalid',
+  );
+});
+
 /* ===========================================================================
  * 18-21. A held Recovery does not escape.
  * ======================================================================== */
@@ -718,6 +749,10 @@ test('19. a held Recovery holds Classroom passback — and waking on it is what 
   // The answer gates the branch that records the hold and skips the write.
   assert.match(holdBlock, /^recoveryPassbackHold\(\{[^;]*\}\);\s*if \(recoveryHold\.held\) \{[\s\S]*?status: "recovery-held"[\s\S]*?isFinal: false[\s\S]*?studentVisible: false[\s\S]*?returnedToStudent: false[\s\S]*?\n\s*continue;/);
   assert.ok(holdAt < sync.indexOf('classroomLib().getClassroomClient'), 'decided before any Classroom client is created');
+  // Its hold rows go only to the columns it sends to: a split section's
+  // column is the section trigger's, which records a hold for its own section
+  // only — a Warm-Up column never reads "held" because the DOL is.
+  assert.match(holdBlock, /if \(recoveryHold\.held\) \{\s*for \(const publicationDoc of publications\) \{\s*const publication = publicationDoc\.data\(\) \|\| \{\};\s*if \(publication\.gradePassbackEnabled === false \|\| !String\(publication\.courseId \|\| ""\)\) continue;/);
   const section = executableSource(readFileSync(new URL('../../functions/classroomSectionEntry.js', import.meta.url), 'utf8'));
   const sectionSync = region(section, 'const syncSectionGradeToClassroom = onDocumentWritten(', '\n);\n', 'section passback');
   const sectionHoldAt = sectionSync.search(/recoveryPassbackHold\(\{/);
@@ -857,6 +892,20 @@ test('22. the student never sees a platform failure called incorrect — held an
   assert.match(failurePanel, /technicalMessage=\{technicalDetails \|\| teacherView \? technicalMessage : ''\}/, 'no technical fold for the student');
   assert.match(failurePanel, /offerReport=\{technicalDetails \|\| teacherView\}/, 'no copyable report for the student');
   assert.match(region(boundary, 'render() {', '\n  }\n', 'boundary render'), /technicalDetails=\{this\.props\.technicalDetails !== false\}/);
+
+  // A replacement question takes the replaced one's place (same storage
+  // index, same position): its draft is its own, so the old question's saved
+  // answer can never pre-fill a different question.
+  const assessment = region(runner, 'function AssessmentRunner(', 'export default function SectionRecoveryRunner(', 'assessment runner');
+  assert.match(assessment, /draftNamespace=\{`recovery~\$\{entry\.section\}~o\$\{plan\?\.opportunity \|\| 1\}\$\{current\.replaces \? `~\$\{current\.itemId\}` : ''\}`\}/);
+  // What this device could not show is kept with the answers until Submit,
+  // so leaving and coming back still reports it.
+  assert.match(assessment, /useState\(\(\) => readSaved\(unavailableKey\)\)/);
+  assert.match(region(assessment, 'const markUnavailable = useCallback(', '}, [currentItemId, unavailableKey]);', 'mark unavailable'), /writeSaved\(unavailableKey, next\)/);
+  assert.match(region(assessment, 'const submitAll = async () => {', '\n  };', 'submit handler'), /clearSaved\(unavailableKey\);/);
+  // A Practice item refused as not this Recovery's is replaced, not retried.
+  const practice = region(runner, 'function PracticeRunner(', 'function AssessmentRunner(', 'practice runner');
+  assert.match(practice, /if \(code === 'practice-pin-invalid'\) \{\s*setOutcome\(\{ isCorrect: null, unlocked: false \}\);/);
 });
 
 test('23. the teacher sees what failed, why, whether the Recovery is held, and what to do next — and nothing secret', () => {
@@ -901,6 +950,20 @@ test('the student Grade Center reads a held Recovery as Pending Grade — never 
   assert.equal(entry.exclusionReason, 'recoveryHeld');
   assert.match(entry.exclusionText, /Recovery/);
   assert.equal(entry.recoveryHeld, true);
+  // An assignment-level teacher override already decided the whole grade (as
+  // for Classroom and Grade Transfer): not pending on the Recovery.
+  const overridden = findGradeCenterEntry(buildStudentGradeCenter({
+    assignments: [assignment],
+    classId: CLASS,
+    classPeriod: '1',
+    studentId: STUDENT,
+    nowValue: NOW,
+    tracker: { [assignment.id]: ORIGINAL },
+    sectionRecoveryByAssignment: { [assignment.id]: { dol: record } },
+    teacherGradeOverridesByAssignment: { [assignment.id]: { __assignment: { active: true, score: 55 } } },
+  }), assignment.id);
+  assert.equal(overridden.recoveryHeld, false);
+  assert.notEqual(overridden.status, 'pendingGrade');
 });
 
 /* ===========================================================================
@@ -935,7 +998,19 @@ test('a teacher-issued replacement is a new question with a new identity; the ol
     record, section: 'dol', action: HELD_RECOVERY_ACTION.ISSUE_REPLACEMENT, actor: { email: 'teacher@desotoisd.org' },
     replacements: built.items, originalScore: 30, at: NOW + 60_000,
   });
-  assert.equal(repaired.record.status, 'inProgress');
+  // Still HELD while the student answers: the grade, Classroom and Grade
+  // Transfer stay paused, and code that predates replacements (main's
+  // eligibility reads a used opportunity with an unknown status as finished)
+  // can never re-mark the graded answers or score r3 as 0.
+  assert.equal(repaired.record.status, 'held');
+  assert.notEqual(repaired.record.status, 'inProgress', 'never stored as in progress: main\'s SUBMIT would re-grade it');
+  assert.ok(repaired.record.opportunitiesUsed >= 1);
+  assert.equal(repaired.record.hold.resolution.action, 'issueReplacement');
+  assert.deepEqual(repaired.record.hold.resolution.replacements, [{ from: 'r3', to: replacement.itemId }]);
+  assert.deepEqual(Object.keys(projectionModule.heldSectionRecoveries({ dol: repaired.record })), ['dol'], 'nothing downstream treats it as settled');
+  const reopened = contextFor({ assignment, record: repaired.record });
+  assert.equal(reopened.eligibility.state, RECOVERY_STATE.IN_PROGRESS, 'the student may answer the new question');
+  assert.equal(reopened.eligibility.reason, 'recovery-replacement-issued');
   const oldItem = repaired.record.plan.items.find((item) => item.itemId === 'r3');
   assert.equal(JSON.stringify(oldItem.pin), JSON.stringify(record.plan.items[2].pin), 'the historical pin is byte-identical');
   assert.equal(oldItem.supersededBy, replacement.itemId);
@@ -953,6 +1028,115 @@ test('a teacher-issued replacement is a new question with a new identity; the ol
   assert.equal(resubmitted.record.plan.items.find((item) => item.itemId === 'r3').supersededBy, replacement.itemId);
   assert.equal(resubmitted.record.results[replacement.itemId].isCorrect, true);
   assert.equal(resubmitted.record.evidence.plannedCount, 3, 'r1, r2 and the replacement — the replaced r3 is outside the score');
+  // The settled hold is history, with the evidence it was decided on.
+  assert.equal(resubmitted.record.hold, null);
+  assert.equal(resubmitted.record.holdHistory.length, 1);
+  assert.equal(resubmitted.record.holdHistory[0].resolution.action, 'issueReplacement');
+  assert.equal(resubmitted.record.holdHistory[0].evidence.reason, 'skill-without-evidence');
+  assert.deepEqual(resubmitted.record.holdHistory[0].evidence.unavailableItemIds, ['r3']);
+});
+
+test('a replacement left unanswered at the final submission date waits for the teacher — never closed with its graded answers thrown away', async () => {
+  const { buildRecoveryReplacementItems } = await import('../../functions/shared/sectionRecoveryPlan.mjs');
+  const { applyHeldRecoveryResolution, heldRecoveryActionsFor, HELD_RECOVERY_ACTION } = await resolutionModule();
+  const { assignment, record } = heldFixture();
+  const context = contextFor({ assignment, record });
+  const built = buildRecoveryReplacementItems({
+    assignmentId: assignment.id, section: 'dol', record, itemIds: ['r3'],
+    questionsByIndex: context.questionsByIndex, seatInfo: context.seatInfo, seenFingerprints: context.seenFingerprints,
+  });
+  const repaired = applyHeldRecoveryResolution({
+    record, section: 'dol', action: HELD_RECOVERY_ACTION.ISSUE_REPLACEMENT, actor: { email: 'teacher@desotoisd.org' },
+    replacements: built.items, originalScore: 30, at: NOW + 60_000,
+  });
+  const [replacement] = built.items;
+  // One replacement at a time: while it waits, the teacher may finalize or keep.
+  assert.deepEqual(heldRecoveryActionsFor(repaired.record, 'dol'), ['finalizeGraded', 'keepOriginal']);
+  assert.throws(
+    () => applyHeldRecoveryResolution({ record: repaired.record, section: 'dol', action: HELD_RECOVERY_ACTION.ISSUE_REPLACEMENT, replacements: built.items, at: NOW + 70_000 }),
+    (error) => error.code === 'recovery-resolution-unavailable',
+  );
+
+  // The date passes with the replacement unanswered.
+  const late = Date.parse('2026-10-11T12:00:00Z');
+  const after = contextFor({ assignment, record: repaired.record, nowValue: late });
+  assert.equal(after.eligibility.state, RECOVERY_STATE.HELD, 'waiting for the teacher again — not closed, not in progress');
+  assert.equal(after.eligibility.reason, 'recovery-replacement-unanswered');
+  assert.throws(
+    () => runSectionRecoveryAction({ context: after, action: RECOVERY_ACTION.SUBMIT, payload: { responses: {} }, at: late }),
+    (error) => error.code === 'recovery-held',
+  );
+
+  // The teacher can still release it from what MathMaster graded.
+  const finalized = applyHeldRecoveryResolution({
+    record: repaired.record, section: 'dol', action: HELD_RECOVERY_ACTION.FINALIZE_GRADED, actor: { email: 'teacher@desotoisd.org' },
+    originalScore: 30, at: late,
+  });
+  assert.equal(finalized.record.status, 'completed');
+  assert.equal(finalized.record.rawScore, 100, 'r1 and r2: the unanswered replacement is neither a 0 nor credit');
+  assert.deepEqual(finalized.record.evidence.excludedItemIds, [replacement.itemId]);
+  assert.equal(finalized.gradeState.recordedScore, 90);
+  assert.equal(finalized.record.holdHistory.at(-1).resolution.action, 'issueReplacement', 'the replacement decision stays in the history');
+  assert.equal(finalized.record.hold.resolution.action, 'finalizeGraded');
+  assert.equal(JSON.stringify(finalized.record.results), JSON.stringify(record.results), 'no result is rewritten');
+});
+
+test('a Recovery completed under the old rule — a platform failure scored as 0 — is shown to the teacher and can be re-scored; its results are never rewritten', async () => {
+  const { applyHeldRecoveryResolution, heldRecoveryActionsFor, recoveryNeedsLegacyCorrection, HELD_RECOVERY_ACTION } = await resolutionModule();
+  const { broken, started } = scenario({ questions: Q3_SHARES_Q1_SKILL() });
+  // Exactly what main's applyRecoveryCompletion stored for this case.
+  const answeredAt = new Date(NOW + 5_000).toISOString();
+  const legacy = {
+    ...started,
+    status: 'completed',
+    rawScore: 70,
+    results: {
+      r1: { isCorrect: true, credit: 1, weight: 4, graded: true, reason: null, answeredAt },
+      r2: { isCorrect: true, credit: 1, weight: 3, graded: true, reason: null, answeredAt },
+      r3: { isCorrect: false, credit: 0, weight: 3, graded: false, reason: 'question-unavailable', answeredAt },
+    },
+    originalScoreAtCompletion: 30,
+    recordedScoreAtCompletion: 70,
+    completedAt: answeredAt,
+  };
+  assert.equal(recoveryNeedsLegacyCorrection(legacy, 'dol'), true);
+  assert.deepEqual(heldRecoveryActionsFor(legacy, 'dol'), ['finalizeGraded']);
+  const student = {
+    id: STUDENT, classId: CLASS, gradesByAssignment: { [broken.id]: ORIGINAL },
+    sectionRecoveryByAssignment: { [broken.id]: { dol: legacy } }, teacherGradeOverridesByAssignment: {},
+  };
+  const [row] = teacherAuditModule.buildTeacherRecoveryAudit({ student, assignment: broken, nowValue: NOW });
+  assert.match(row.legacyNotice, /could not reproduce 1 question/);
+  assert.match(row.legacyNotice, /Recovery 70% as recorded; 100% over the questions MathMaster graded/);
+  assert.deepEqual(row.items.map((item) => item.status), ['correct', 'correct', 'platform-unavailable'], 'read as they always meant — never "not submitted"');
+  assert.match(row.items[2].statusLabel, /scored as 0 under the rule in place/);
+  assert.equal(row.items[2].countsTowardScore, true, 'it did count: the teacher is told the truth');
+  assert.deepEqual(row.actions, ['finalizeGraded']);
+  assert.equal(row.actionLabels.finalizeGraded, teacherAuditModule.LEGACY_CORRECTION_LABEL);
+
+  const corrected = applyHeldRecoveryResolution({
+    record: legacy, section: 'dol', action: HELD_RECOVERY_ACTION.FINALIZE_GRADED, actor: { email: 'teacher@desotoisd.org' },
+    note: 'Q3 was re-tuned after the Recovery started.', originalScore: 30, at: NOW + 90_000,
+  });
+  assert.equal(corrected.record.status, 'completed');
+  assert.equal(corrected.record.rawScore, 100);
+  assert.equal(corrected.gradeState.recordedScore, 90);
+  assert.deepEqual(corrected.record.evidence.excludedItemIds, ['r3']);
+  assert.equal(corrected.record.legacyCorrection.rawScoreBefore, 70);
+  assert.equal(corrected.record.legacyCorrection.recordedScoreBefore, 70);
+  assert.equal(JSON.stringify(corrected.record.results), JSON.stringify(legacy.results), 'the stored results are exactly as main wrote them');
+  assert.equal(JSON.stringify(corrected.record.plan), JSON.stringify(normalizedPlan(legacy)), 'and so is the plan');
+  assert.equal(recoveryNeedsLegacyCorrection(corrected.record, 'dol'), false, 'corrected once');
+  assert.deepEqual(heldRecoveryActionsFor(corrected.record, 'dol'), []);
+  const projected = projectSectionRecoveryForAssignment({ tracker: ORIGINAL, assignment: broken, recoveryByAssignment: { [broken.id]: { dol: corrected.record } } });
+  assert.equal(projected.states.dol.recordedScore, 90, 'every grade surface reads the corrected score');
+  const [after] = teacherAuditModule.buildTeacherRecoveryAudit({
+    student: { ...student, sectionRecoveryByAssignment: { [broken.id]: { dol: corrected.record } } }, assignment: broken, nowValue: NOW,
+  });
+  assert.equal(after.legacyNotice, null);
+  assert.match(after.resolution, /Re-scored without the questions MathMaster could not reproduce by teacher@desotoisd\.org/);
+  // An ordinary completed Recovery offers nothing.
+  assert.deepEqual(heldRecoveryActionsFor({ ...legacy, results: { ...legacy.results, r3: { ...legacy.results.r3, graded: true, reason: null } } }, 'dol'), []);
 });
 
 test('a replacement cannot be issued from a question that still cannot produce one — the teacher is told to fix the question first', async () => {

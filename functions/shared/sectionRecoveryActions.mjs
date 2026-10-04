@@ -41,7 +41,7 @@ import {
   sanitizeReportedClassification,
 } from './sectionRecoveryEvidence.mjs';
 import { reproduceFamilyQuestionFromPin } from './questionFamilyInstance.mjs';
-import { normalizeDeliveryPin, resolveGenerationAllocation } from './questionGenerationIdentity.mjs';
+import { ALLOCATION_BASIS, allocationIndexFor, normalizeDeliveryPin } from './questionGenerationIdentity.mjs';
 import { deliveredQuestionForGrading, runtimeRepairedQuestion } from './serverGrading/deliveredQuestion.mjs';
 import { gradeFamilyInstanceResponse, serverResponseGradingSupport } from './serverGrading/serverResponseGrading.mjs';
 import {
@@ -78,12 +78,21 @@ const expectedPracticeSlotPrefix = (context) => `${context.assignmentId}|recover
  * so a classmate's pin used to pass every check: it replayed (it is a real
  * question), it was graded, and it counted toward THIS student's mastery. A
  * Practice item is allocated from the student's own seat
- * (sectionRecoveryPlan.mjs buildRecoveryPracticeItem), so the pin must carry
- * exactly the allocation this student's seat produces for its variant.
+ * (sectionRecoveryPlan.mjs buildRecoveryPracticeItem), so — as
+ * deliveryPinAllocationProblem decides for an ordinary delivery — the pin's
+ * seat must be one this student holds, and its index must be that seat's
+ * allocation for the pin's OWN variant and stride. Not the stride the class
+ * has now: it grows with every student seated, and an item dealt before that
+ * is still this student's. A provisional seat (not yet seated by the
+ * teacher's app) can only be checked against the student's provisional seat
+ * today; if seating moved it, the runner deals the next item.
  */
 const practicePinIsOwn = (pin, context) => {
-  const own = resolveGenerationAllocation({ seatInfo: context.seatInfo, variant: pin.variant });
-  return pin.seat === own.seat && pin.basis === own.basis && pin.stride === own.stride && pin.index === own.index;
+  const own = context.seatInfo || {};
+  const seatIsOwn = pin.basis === ALLOCATION_BASIS.SEATED
+    ? (Array.isArray(context.heldSeats) ? context.heldSeats : []).includes(pin.seat)
+    : pin.basis === ALLOCATION_BASIS.PROVISIONAL && own.basis === ALLOCATION_BASIS.PROVISIONAL && pin.seat === own.seat;
+  return seatIsOwn && pin.index === allocationIndexFor({ seat: pin.seat, variant: pin.variant, stride: pin.stride });
 };
 
 /*
@@ -303,6 +312,11 @@ export const runSectionRecoveryAction = ({ context, action, payload = {}, at = D
   }
 
   if (action === RECOVERY_ACTION.SUBMIT) {
+    // A replacement question still unanswered at the final submission date:
+    // the Recovery waits for the teacher, the graded answers kept.
+    if (eligibility.state === RECOVERY_STATE.HELD) {
+      refuse('recovery-held', 'Your Recovery is being held for review by your teacher. Your answers are saved.');
+    }
     if (eligibility.state !== RECOVERY_STATE.IN_PROGRESS || !context.record?.plan) {
       refuse('recovery-not-in-progress', 'There is no Recovery in progress to submit.');
     }

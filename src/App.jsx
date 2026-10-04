@@ -1342,14 +1342,16 @@ function App() {
       classroomSyncStatusByAssignment,
       practicePassRedemptionsByAssignment: studentClassPoints.redemptionsByAssignment,
       supportProfile: user.profile || null,
-      // A held Practice-based Recovery makes its assignment Pending Grade.
+      // A held Practice-based Recovery makes its assignment Pending Grade —
+      // unless an assignment-level teacher override already decided it.
       sectionRecoveryByAssignment,
+      teacherGradeOverridesByAssignment,
       providers: { assignmentHasHeldTeacherFeedback, prerequisiteAccess },
     });
   }, [
     user, assignments, now, gradeDisplayTracker, testCycleGrades, classworkGradesByAssignment,
     gradingPeriodSettings, classroomSyncStatusByAssignment, studentClassPoints.redemptionsByAssignment,
-    sectionRecoveryByAssignment,
+    sectionRecoveryByAssignment, teacherGradeOverridesByAssignment,
   ]);
 
   /*

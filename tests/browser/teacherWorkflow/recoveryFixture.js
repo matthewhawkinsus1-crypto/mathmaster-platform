@@ -18,6 +18,9 @@
  *   910973  COMPLETED, Q3 left out: on a second lesson whose Q3 shares Q1's
  *           skill, so the two graded questions were enough — 100%, recorded
  *           at the 90 cap over a 30 original.
+ *   910974  COMPLETED UNDER THE OLD RULE on the second lesson: Q3 scored as 0
+ *           with its weight counted (70%), exactly as main stored it — the
+ *           record a teacher can now see and re-score.
  *
  * All invented. Nothing here reaches a Firebase project.
  */
@@ -42,6 +45,7 @@ export const RECOVERY_SHARED_ASSIGNMENT_TITLE = 'Two-Step Equations — DOL Reco
 export const HELD_STUDENT_ID = '910971';
 export const SUBMITTING_STUDENT_ID = '910972';
 export const EXCLUDED_STUDENT_ID = '910973';
+export const LEGACY_STUDENT_ID = '910974';
 
 const DAY = 86_400_000;
 const dateKey = (ms) => {
@@ -188,6 +192,7 @@ export const addRecoveryHoldScenario = ({ fixture, now, teacherEmail }) => {
     studentRow(HELD_STUDENT_ID, 'Imani', 'Sample'),
     studentRow(SUBMITTING_STUDENT_ID, 'Jonah', 'Example'),
     studentRow(EXCLUDED_STUDENT_ID, 'Kira', 'Placeholder'),
+    studentRow(LEGACY_STUDENT_ID, 'Rosa', 'Mockup'),
   ].map((row) => ({ ...row, assignedTeacherEmail: teacherEmail }));
   const classmates = Object.entries(fixture)
     .filter(([path, data]) => path.startsWith('grades/') && path.split('/').length === 2 && data?.classId === RECOVERY_CLASS_ID)
@@ -221,12 +226,13 @@ export const addRecoveryHoldScenario = ({ fixture, now, teacherEmail }) => {
 
   const tracker = ORIGINAL_TRACKER(now);
   const gradeFor = (row) => ({ ...row, gradesByAssignment: { [RECOVERY_ASSIGNMENT_ID]: tracker, [RECOVERY_SHARED_ASSIGNMENT_ID]: tracker } });
-  const [held, submitting, excluded] = people.map(gradeFor);
+  const [held, submitting, excluded, legacyRow] = people.map(gradeFor);
 
   // Every plan is dealt from the content as it was BEFORE the edit…
   const heldPlan = startedRecord({ assignment: distinct, gradeData: held, studentId: held.id, now });
   const submittingPlan = startedRecord({ assignment: distinct, gradeData: submitting, studentId: submitting.id, now });
   const excludedPlan = startedRecord({ assignment: shared, gradeData: excluded, studentId: excluded.id, now });
+  const legacyPlan = startedRecord({ assignment: shared, gradeData: legacyRow, studentId: legacyRow.id, now });
   // …then the teacher re-tunes Q3, and what is stored is the edited lesson.
   const distinctNow = retuneQ3(distinct, { id: 'functions.identifyIntercepts', constraints: { interceptRange: [-6, 6] } });
   const sharedNow = retuneQ3(shared, { id: 'linear.twoStepEquation', constraints: { solutionRange: [30, 40] } });
@@ -234,11 +240,30 @@ export const addRecoveryHoldScenario = ({ fixture, now, teacherEmail }) => {
   held.sectionRecoveryByAssignment = { [RECOVERY_ASSIGNMENT_ID]: { dol: submitted({ assignment: distinctNow, gradeData: held, studentId: held.id, record: heldPlan, now }) } };
   submitting.sectionRecoveryByAssignment = { [RECOVERY_ASSIGNMENT_ID]: { dol: submittingPlan } };
   excluded.sectionRecoveryByAssignment = { [RECOVERY_SHARED_ASSIGNMENT_ID]: { dol: submitted({ assignment: sharedNow, gradeData: excluded, studentId: excluded.id, record: excludedPlan, now }) } };
+  // What main's SUBMIT stored for the same case before this policy.
+  const answeredAt = new Date(now - 60 * 60_000).toISOString();
+  legacyRow.sectionRecoveryByAssignment = {
+    [RECOVERY_SHARED_ASSIGNMENT_ID]: {
+      dol: {
+        ...legacyPlan,
+        status: 'completed',
+        rawScore: 70,
+        results: {
+          r1: { isCorrect: true, credit: 1, weight: 4, graded: true, reason: null, answeredAt },
+          r2: { isCorrect: true, credit: 1, weight: 3, graded: true, reason: null, answeredAt },
+          r3: { isCorrect: false, credit: 0, weight: 3, graded: false, reason: 'question-unavailable', answeredAt },
+        },
+        originalScoreAtCompletion: 30,
+        recordedScoreAtCompletion: 70,
+        completedAt: answeredAt,
+      },
+    },
+  };
 
   const { id: _distinctId, ...distinctDoc } = distinctNow;
   const { id: _sharedId, ...sharedDoc } = sharedNow;
   fixture[`assignments/${RECOVERY_ASSIGNMENT_ID}`] = distinctDoc;
   fixture[`assignments/${RECOVERY_SHARED_ASSIGNMENT_ID}`] = sharedDoc;
-  [held, submitting, excluded].forEach(({ id, ...data }) => { fixture[`grades/${id}`] = data; });
+  [held, submitting, excluded, legacyRow].forEach(({ id, ...data }) => { fixture[`grades/${id}`] = data; });
   return fixture;
 };

@@ -9,7 +9,8 @@
  *
  *   practicing -> unlocked -> inProgress -> completed
  *                                       \-> held -> (a teacher) -> completed
- *                                                              \-> inProgress (a replacement question)
+ *                                                              \-> held, awaiting the student's answer
+ *                                                                  to a replacement question -> completed | held
  *
  * HELD is a submitted Recovery MathMaster could not grade well enough to
  * score (sectionRecoveryEvidence.mjs): the student's work is kept, no
@@ -43,9 +44,11 @@ import {
   RECOVERY_ITEM_STATUS,
   evaluateRecoveryEvidence,
   isGradedItemStatus,
+  isLegacyUnavailableResult,
   isRecoveryItemStatus,
   itemWeight,
   keptResponse,
+  recoveryAwaitsReplacementAnswer,
   scoreRecoveryEvidence,
 } from './sectionRecoveryEvidence.mjs';
 
@@ -167,7 +170,7 @@ export const normalizeRecoveryRecord = (raw, section = null) => {
     // ordinary record keeps exactly the shape it always had.
     ...(raw.hold !== undefined ? { hold: isObject(raw.hold) ? raw.hold : null } : {}),
     ...(raw.evidence !== undefined ? { evidence: isObject(raw.evidence) ? raw.evidence : null } : {}),
-    ...(raw.holdHistory !== undefined ? { holdHistory: list(raw.holdHistory).filter(isObject).slice(-10) } : {}),
+    ...(raw.holdHistory !== undefined ? { holdHistory: list(raw.holdHistory).filter(isObject).slice(-HOLD_HISTORY_LIMIT) } : {}),
   };
 };
 
@@ -359,12 +362,10 @@ export const applyRecoveryStart = ({
  * marker for an unreproducible question — graded:false with
  * reason 'question-unavailable' — is the platform failure it always meant.
  */
-const LEGACY_UNAVAILABLE_REASON = 'question-unavailable';
-
-const itemStatusOf = (entry) => {
+export const itemStatusOf = (entry) => {
   if (!entry) return RECOVERY_ITEM_STATUS.UNANSWERED;
   if (isRecoveryItemStatus(entry.status)) return entry.status;
-  if (entry.graded === false && entry.reason === LEGACY_UNAVAILABLE_REASON) return RECOVERY_ITEM_STATUS.PLATFORM_UNAVAILABLE;
+  if (isLegacyUnavailableResult(entry)) return RECOVERY_ITEM_STATUS.PLATFORM_UNAVAILABLE;
   const credit = Number(entry.credit ?? (entry.isCorrect ? 1 : 0)) || 0;
   return entry.isCorrect === true || credit >= 1 ? RECOVERY_ITEM_STATUS.CORRECT : RECOVERY_ITEM_STATUS.INCORRECT;
 };
@@ -424,6 +425,15 @@ const compactEvidence = (evidence) => ({
 
 const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
 
+/** How many settled holds a record keeps (each needs a teacher and a resubmission). */
+export const HOLD_HISTORY_LIMIT = 10;
+
+/** A hold as it is archived: with the evidence it was decided on. */
+export const archivedRecoveryHold = (record) => ({
+  ...record?.hold,
+  ...(record?.evidence ? { evidence: record.evidence } : {}),
+});
+
 const HOLD_DETAIL = Object.freeze({
   [RECOVERY_HOLD_REASON.NEEDS_REVIEW]: 'MathMaster has work it could not grade, so a teacher must review it',
   [RECOVERY_HOLD_REASON.NO_GRADED_ITEMS]: 'MathMaster could not grade any question',
@@ -456,9 +466,16 @@ export const applyRecoveryCompletion = ({
   at = Date.now(),
 } = {}) => {
   const record = normalizeRecoveryRecord(rawRecord, section);
-  if (!record || record.status !== RECOVERY_RECORD_STATUS.IN_PROGRESS) {
+  // In progress, or held while the student answers the replacement questions
+  // a teacher issued (sectionRecoveryEvidence.mjs recoveryAwaitsReplacementAnswer).
+  if (!record || (record.status !== RECOVERY_RECORD_STATUS.IN_PROGRESS && !recoveryAwaitsReplacementAnswer(record))) {
     refuse('recovery-not-in-progress', 'There is no Recovery in progress to submit.');
   }
+  // The hold this submission settles stays on the record, with the evidence
+  // it was decided on: history, never overwritten.
+  const settledHold = record.hold
+    ? { holdHistory: [...list(record.holdHistory), archivedRecoveryHold(record)].slice(-HOLD_HISTORY_LIMIT) }
+    : {};
   const byItem = new Map(list(results).map((entry) => [clean(entry?.itemId), entry]));
   // A replaced question's result stays exactly as it was: history.
   const stored = { ...record.results };
@@ -494,8 +511,7 @@ export const applyRecoveryCompletion = ({
         results: stored,
         rawScore: null,
         evidence: compactEvidence(evidence),
-        // A hold resolved by a replacement question is history, not overwritten.
-        ...(record.hold ? { holdHistory: [...list(record.holdHistory), record.hold].slice(-10) } : {}),
+        ...settledHold,
         hold: {
           reason: evidence.reason,
           heldAt: iso(at),
@@ -539,6 +555,7 @@ export const applyRecoveryCompletion = ({
       // an ordinary one keeps exactly the shape it always had.
       ...(allGraded && !record.evidence ? {} : { evidence: compactEvidence(evidence) }),
       ...(Object.keys(keptResponses).length ? { keptResponses } : {}),
+      ...(record.hold ? { ...settledHold, hold: null } : {}),
       originalScoreAtCompletion: Number.isFinite(Number(originalScore)) ? Number(originalScore) : null,
       originalAttemptedAtCompletion: originalAttempted !== false,
       recordedScoreAtCompletion: state.recordedScore,

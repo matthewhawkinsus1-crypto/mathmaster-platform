@@ -18,7 +18,8 @@
  *                 could record
  *   locked        offered; Practice mastery not yet shown
  *   unlocked      mastery shown; the student may start
- *   inProgress    started, not submitted
+ *   inProgress    started, not submitted — or held with replacement
+ *                 questions a teacher issued, until the end date
  *   completed     the one automatic opportunity has been used
  *   held          submitted, but MathMaster could not grade enough of it to
  *                 score it (sectionRecoveryEvidence.mjs). No Recovery score
@@ -204,8 +205,17 @@ export const evaluateSectionRecoveryEligibility = ({
   // A finished Recovery is reported whatever else changed.
   if (record?.status === 'completed') return result(RECOVERY_STATE.COMPLETED, 'recovery-completed', base);
   // So is a held one — before the end date is consulted: it was submitted in
-  // time, and a teacher may resolve it after the date has passed.
-  if (record?.status === 'held') return result(RECOVERY_STATE.HELD, 'recovery-held', base);
+  // time, and a teacher may resolve it after the date has passed. One whose
+  // teacher issued replacement questions stays held (its grade and passback
+  // stay paused) but is the student's to answer until their final submission
+  // date; past it, it waits for the teacher again, its graded answers kept.
+  // (The same test as sectionRecoveryEvidence.mjs
+  // recoveryAwaitsReplacementAnswer, inline so this module stays a leaf.)
+  if (record?.status === 'held') {
+    const awaitsStudent = record?.hold?.resolution?.action === 'issueReplacement';
+    if (awaitsStudent && !opportunity?.recoveryWindowEnded) return result(RECOVERY_STATE.IN_PROGRESS, 'recovery-replacement-issued', base);
+    return result(RECOVERY_STATE.HELD, awaitsStudent ? 'recovery-replacement-unanswered' : 'recovery-held', base);
+  }
   // The final submission date is the Recovery end date. One started and not
   // submitted is closed (the original stands); one never started simply
   // stops being offered.

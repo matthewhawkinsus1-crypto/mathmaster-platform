@@ -214,7 +214,7 @@ the same functions.
 | `sectionRecoveryPlan.mjs` | Practice items and the Recovery assessment as **pins**, on recovery-specific slot keys, excluding every fingerprint the student has seen. |
 | `sectionRecoveryRecord.mjs` | The record and its transitions. History is append-only. |
 | `sectionRecoveryEvidence.mjs` | What a Recovery question's result can be, the sufficient-evidence rule and the denominator rule for a question MathMaster could not grade (below). |
-| `sectionRecoveryResolution.mjs` | A teacher's resolution of a held Recovery: a replacement question, finalize from the graded questions, or keep the original. |
+| `sectionRecoveryResolution.mjs` | A teacher's resolution of a held Recovery (a replacement question, finalize from the graded questions, or keep the original), and the correction of one completed under the old rule. |
 | `sectionRecoveryService.mjs` | Context building and actions (`status`, `practice`, `unlock`, `start`, `submit`). |
 | `sectionRecoveryGrade.mjs` | `final = max(original, min(recovery, cap))`. An excused make-up has cap 100. The cap is frozen on the record at start. |
 | `sectionRecoveryProjection.mjs` | Folds a completed Recovery into the **existing** grade calculation. |
@@ -245,7 +245,10 @@ Policy defaults:
    panel: Locked or Unlocked, with Practice Mastery as a percentage.
 3. Each Practice answer goes to the `advanceSectionRecovery` callable. The
    server rebuilds the instance from its pin and marks it. Mastery unlocks
-   Recovery in the same write.
+   Recovery in the same write. The pin must be the student's own: its seat
+   one they hold, its index that seat's allocation for the pin's own variant
+   and stride (the stride grows as classmates are seated, so an item dealt
+   earlier stays valid). A classmate's pin is refused.
 4. Start makes the server build and pin the fresh plan: one instance per DOL
    question, or 2–3 instances for a Warm-Up. The same family, constraints and
    tool are used, and the student has seen none of them.
@@ -326,7 +329,11 @@ values or the answer key (`resolveHeldSectionRecovery`, audited in
   from the assignment as it is now, from the student's own seat, excluding
   every instance they have seen. The old item keeps its pin, result and
   answer and is marked `supersededBy`; the student answers only the new
-  question, and the graded answers are never asked again. Refused while the
+  question, and the graded answers are never asked again. The Recovery stays
+  **held** while the student answers (Pending Grade, Classroom waiting), and
+  reads as in progress for the student until their final submission date;
+  past it, it waits for the teacher again — finalize or keep the original —
+  with nothing thrown away. One replacement at a time. Refused while the
   question still cannot produce an instance (fix it first) or after the
   student's final submission date.
 * **Finalize from the graded questions.** Scored over the graded questions
@@ -336,8 +343,23 @@ values or the answer key (`resolveHeldSectionRecovery`, audited in
 
 Nothing about the original attempt changes on any of these paths: question
 ids, delivery pins, attempt history, the original answers and earlier grading
-stay exactly as they were. An assignment-level teacher override still decides
-the whole grade while a section's Recovery is held.
+stay exactly as they were. Each settled hold moves to `holdHistory` with the
+evidence it was decided on. An assignment-level teacher override still
+decides the whole grade while a section's Recovery is held.
+
+**Recoveries completed before this policy.** The old rule stored an
+unreproducible question as `{ graded: false, reason: 'question-unavailable',
+credit: 0 }` and counted its weight. Such a record is read as what it was —
+a platform failure scored as 0 — and the teacher's student detail says so,
+with what the Recovery would be without the zero. The teacher may re-score it
+over the questions MathMaster graded (the same callable, audited as a
+`legacyCorrection`). Its stored results and plan are not touched; only the
+score derived from them changes, once. Nothing is re-scored automatically.
+
+**Why a replacement keeps the record held.** Code that predates replacements
+(a rollback) reads a held record as finished, so it can never re-mark the
+graded answers or score the replaced question 0; and the grade, Classroom
+and Grade Transfer stay paused until the Recovery is really settled.
 
 **Data and security.**
 

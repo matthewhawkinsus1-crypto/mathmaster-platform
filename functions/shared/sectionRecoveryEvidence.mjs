@@ -183,6 +183,37 @@ export const RECOVERY_HOLD_REASON = Object.freeze({
   TOO_FEW_QUESTIONS: 'too-few-questions',
 });
 
+/*
+ * A HELD RECOVERY WAITING FOR THE STUDENT.
+ *
+ * When the teacher issues replacement questions the Recovery STAYS HELD: its
+ * grade, its Classroom passback and its Grade Transfer row stay paused until
+ * it is settled, and code that predates replacements (a rollback) reads a
+ * held record as finished and leaves it alone — it can never re-mark the
+ * graded answers or score the replaced question 0. The student may answer the
+ * new questions until their final submission date
+ * (sectionRecoveryEligibility.mjs derives "in progress" for them, with the
+ * same test inline); past it, the teacher finalizes or keeps the original.
+ */
+export const REPLACEMENT_RESOLUTION_ACTION = 'issueReplacement';
+export const recoveryAwaitsReplacementAnswer = (record) => record?.status === 'held'
+  && record?.hold?.resolution?.action === REPLACEMENT_RESOLUTION_ACTION;
+
+/*
+ * A RESULT WRITTEN BEFORE THIS POLICY: THE P0 ITSELF.
+ *
+ * Before results carried a `status`, SUBMIT marked a question it could not
+ * reproduce { isCorrect: false, credit: 0, graded: false, reason:
+ * 'question-unavailable' } and counted its weight — a platform failure scored
+ * as a wrong answer. Such a result is the platform failure it always meant;
+ * the record it sits on was scored with it as 0.
+ */
+export const LEGACY_UNAVAILABLE_REASON = 'question-unavailable';
+export const isLegacyUnavailableResult = (result) => Boolean(result)
+  && !isRecoveryItemStatus(result.status)
+  && result.graded === false
+  && result.reason === LEGACY_UNAVAILABLE_REASON;
+
 /** (d) The graded questions must carry at least this share of the planned weight. */
 export const MINIMUM_GRADED_WEIGHT_SHARE = 0.5;
 /** (e) The policy never plans a Warm-Up Recovery of fewer questions (recoveryPolicy.mjs). */
