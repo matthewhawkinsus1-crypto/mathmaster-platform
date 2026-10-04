@@ -147,7 +147,8 @@ export async function auditTheme(page, { theme, root = 'body', limit = 25 } = {}
       const ownText = [...el.childNodes].some((node) => node.nodeType === 3 && node.textContent.trim());
       const isField = el.matches('input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):not([type=hidden]), select, textarea');
       if ((ownText || isField) && !el.closest('[aria-hidden="true"]') && !el.matches(':disabled') && !el.closest('button:disabled, [aria-disabled="true"]')) {
-        const fg = parse(style.color);
+        // SVG text is painted with `fill`, not `color`.
+        const fg = parse(el instanceof SVGElement ? style.fill : style.color);
         if (fg && fg.alpha > 0.4) {
           const bg = surfaceOf(el);
           const size = Number.parseFloat(style.fontSize);

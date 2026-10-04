@@ -192,3 +192,22 @@ test('the teacher shell — the reported screen — is built from tokens, not li
     assert.deepEqual(lightLiterals, [], `${file} still hard-codes light-palette colors`);
   }
 });
+
+test('SVG text drawn on themed surfaces is filled with text tokens, not light-palette literals', () => {
+  // The progress wheels' hubs follow the card surface; their labels used to be
+  // fill '#202124' / '#5f6368' and vanished on the dark hub (PR #431 review).
+  const offenders = [];
+  const walk = (dir) => readdirSync(dir, { withFileTypes: true }).forEach((entry) => {
+    const file = path.join(dir, entry.name);
+    if (entry.isDirectory()) return walk(file);
+    if (!entry.name.endsWith('.jsx')) return;
+    for (const m of read(file).matchAll(/<text\b[^>]*style=\{\{([^}]*)\}\}/g)) {
+      for (const hex of m[1].matchAll(/fill:[^,}]*?(#[0-9a-fA-F]{3,6})\b/g)) {
+        if (classifyThemeColor(hex[1], COLOR_ROLE.TEXT)) offenders.push(`${file}: ${hex[1]}`);
+      }
+    }
+  });
+  walk('src');
+  assert.deepEqual(offenders, []);
+});
+

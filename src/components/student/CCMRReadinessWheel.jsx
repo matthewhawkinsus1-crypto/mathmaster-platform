@@ -106,10 +106,10 @@ export const CCMRReadinessWheel = ({
           {/* The hub is decoration. Without this it sits over the middle of
               every segment's hit area and swallows clicks aimed at the ring. */}
           <circle cx={center} cy={center} r={inner - 4} style={{ fill: 'var(--mm-surface)' }} pointerEvents="none" />
-          <text x={center} y={center - 6} textAnchor="middle" pointerEvents="none" style={{ fontSize: 14, fontWeight: 900, fill: '#202124' }}>
+          <text x={center} y={center - 6} textAnchor="middle" pointerEvents="none" style={{ fontSize: 14, fontWeight: 900, fill: 'var(--mm-text-strong)' }}>
             {active ? '' : title}
           </text>
-          <text x={center} y={center + 14} textAnchor="middle" pointerEvents="none" style={{ fontSize: 11, fill: '#5f6368' }}>
+          <text x={center} y={center + 14} textAnchor="middle" pointerEvents="none" style={{ fontSize: 11, fill: 'var(--mm-text-muted)' }}>
             {active ? '' : 'Choose a part of the test'}
           </text>
         </svg>

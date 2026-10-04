@@ -81,12 +81,12 @@ export const MyMathPathWheel = ({
         {/* The name of the mathematics, not its catalogue number. The code is
             still the wheel's internal key and still what `onSelectTEKS` hands
             back — it is simply not what a student is asked to read. */}
-        <text x={center} y={center - 6} textAnchor="middle" style={{ fontSize: '13px', fontWeight: 800, fill: '#202124' }}>
+        <text x={center} y={center - 6} textAnchor="middle" style={{ fontSize: '13px', fontWeight: 800, fill: 'var(--mm-text-strong)' }}>
           {focusedLabel}
         </text>
-        <text x={center} y={center + 15} textAnchor="middle" style={{ fontSize: '12px', fill: '#5f6368' }}>{focusedTeks ? (activeProfile?.mastery?.status || 'Not practised yet') : 'Choose a skill'}</text>
+        <text x={center} y={center + 15} textAnchor="middle" style={{ fontSize: '12px', fill: 'var(--mm-text-muted)' }}>{focusedTeks ? (activeProfile?.mastery?.status || 'Not practised yet') : 'Choose a skill'}</text>
         {focusedTeks && activePass?.passesCompleted > 0 && (
-          <text x={center} y={center + 32} textAnchor="middle" style={{ fontSize: '10.5px', fontWeight: 800, fill: activePass.passesCompleted >= 3 ? '#5b21b6' : '#137333' }}>
+          <text x={center} y={center + 32} textAnchor="middle" style={{ fontSize: '10.5px', fontWeight: 800, fill: activePass.passesCompleted >= 3 ? 'var(--mm-accent-text)' : 'var(--mm-success-text)' }}>
             Path Pass {Math.min(activePass.passesCompleted, 3)} complete
           </text>
         )}
