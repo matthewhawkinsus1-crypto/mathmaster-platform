@@ -70,6 +70,10 @@ if (!ONLY || ONLY === 'workview') {
       const context = await browser.newContext({ viewport: { width, height }, colorScheme: theme });
       const page = await context.newPage();
       await page.goto(`${origin}/tests/browser/workViewCertification.html`, { waitUntil: 'networkidle' });
+      // A cold Vite start optimizes dependencies and may reload the page after
+      // "networkidle"; wait until the harness has really booted before driving
+      // it (CI: "window.__mmStage4 is not a function" two seconds in).
+      await page.waitForFunction(() => typeof window.__mmStage4 === 'function', null, { timeout: 90_000 });
       await page.evaluate((value) => { document.documentElement.dataset.theme = value; document.documentElement.style.colorScheme = value; }, theme);
       for (const tool of tools) {
         await page.evaluate((id) => window.__mmStage4(id), tool);
