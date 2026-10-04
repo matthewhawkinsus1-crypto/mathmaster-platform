@@ -36,7 +36,7 @@ import {
 // which this module must not import — the student app imports this file.
 import { serverResponseGradingSupport } from './serverGrading/gradingSupport.mjs';
 import { getPlatformQuestionFamily } from './questionFamilyRegistry.mjs';
-import { deliveredQuestionForGrading } from './serverGrading/deliveredQuestion.mjs';
+import { deliveredQuestionForGrading, runtimeRepairedQuestion } from './serverGrading/deliveredQuestion.mjs';
 import { gradeStepAlgebraFinalAnswer } from './serverGrading/stepAlgebraFinalAnswer.mjs';
 
 export const FAMILY_DELIVERY_VERIFICATION = Object.freeze({
@@ -256,10 +256,12 @@ export const resolveServerGradingQuestion = ({
   classId = null,
 } = {}) => {
   if (!question || typeof question !== 'object') return { familyBacked: false, question: null, pin: null, reason: 'question-index-not-found' };
-  const delivered = deliveredQuestionForGrading(question);
+  // In QuestionEngine's order: the family is resolved from the repaired
+  // template, and only the instance it yields is normalized
+  // (deliveredQuestion.mjs runtimeRepairedQuestion).
   const family = resolveFamilyQuestionForGrading({
     assignment,
-    question: delivered,
+    question: runtimeRepairedQuestion(question),
     questionIndex,
     variantIndex,
     canonicalRecord,
@@ -267,7 +269,7 @@ export const resolveServerGradingQuestion = ({
     studentId,
     classId,
   });
-  if (!family.familyBacked) return { ...family, question: delivered };
+  if (!family.familyBacked) return { ...family, question: deliveredQuestionForGrading(question) };
   if (!family.question) return family;
   return { ...family, question: deliveredQuestionForGrading(family.question) };
 };

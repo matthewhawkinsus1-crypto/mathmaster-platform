@@ -39,9 +39,12 @@ export const isChoiceOnlyQuestion = (question = {}) => {
   const type = String(question?.type || question?.toolId || '').trim().toLowerCase();
   const pathQuestionType = String(question?.questionType || '').trim().toLowerCase();
   const fields = [
-    ...(Array.isArray(question.answerFields) ? question.answerFields : []),
-    ...(Array.isArray(question.responseFields) ? question.responseFields : []),
-    ...(Array.isArray(question.responses) ? question.responses.filter((field) => field && typeof field === 'object' && !Array.isArray(field)) : []),
+    // `question?.`: a default parameter does not cover null, and the Recovery
+    // runner asks about a question that is not there yet (no practice item,
+    // an empty plan) while rendering — a throw here replaced the whole app.
+    ...(Array.isArray(question?.answerFields) ? question.answerFields : []),
+    ...(Array.isArray(question?.responseFields) ? question.responseFields : []),
+    ...(Array.isArray(question?.responses) ? question.responses.filter((field) => field && typeof field === 'object' && !Array.isArray(field)) : []),
   ];
 
   // My Math Path's generic secure field payload is questionType:"response".

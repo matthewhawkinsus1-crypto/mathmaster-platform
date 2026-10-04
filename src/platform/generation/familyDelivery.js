@@ -22,8 +22,13 @@
 
 import { normalizeQuestionRecord } from '../../attemptPolicy.js';
 import { familySlotKey, isFamilyBackedQuestion } from '../../../functions/shared/questionFamilyInstance.mjs';
+import { deliveryPinAllocationProblem } from '../../../functions/shared/questionFamilyGrading.mjs';
 import {
+  ALLOCATION_BASIS,
+  allocationIndexFor,
+  learnerToken,
   normalizeDeliveryPin,
+  readGenerationSeats,
   resolveGenerationAllocation,
   resolveLearnerSeat,
 } from '../../../functions/shared/questionGenerationIdentity.mjs';
@@ -69,10 +74,57 @@ export const writeLocalDeliveryPin = ({ studentId, delivery, store = storage() }
   }
 };
 
+/*
+ * WOULD THE SERVER GRADE AGAINST THIS PIN?
+ *
+ * The same check ingestion runs (deliveryPinAllocationProblem): the pin is for
+ * this slot, names a seat this student holds, an index the allocation formula
+ * produces, and a walk that lands on its fingerprint. A pin that fails it is
+ * one the server would refuse — a classmate's pin, another slot's — so
+ * showing it would only collect work that can never be credited.
+ *
+ * One judgement is left to the server: a seated pin whose learner token this
+ * copy of the assignment does not list at all. That is a seat map not loaded
+ * yet (or a snapshot older than the seat), not evidence of another student.
+ */
+const pinRefusalFor = ({ assignment, question, storageIndex, pin, studentId }) => {
+  if (!pin || !studentId) return { refusal: null, walkRefused: false };
+  let refusal = null;
+  try {
+    refusal = deliveryPinAllocationProblem({ assignment, question, questionIndex: storageIndex, pin, studentId });
+  } catch {
+    // App.jsx builds this context while rendering, outside any question
+    // boundary. A check that cannot run passes no judgement; the generator
+    // (inside the boundary) still replays the pin and fails closed itself.
+    return { refusal: null, walkRefused: false };
+  }
+  if (refusal === 'pin-seat-unverifiable') return { refusal: null, walkRefused: false };
+  if (refusal === 'pin-seat-not-held' && pin.basis === ALLOCATION_BASIS.SEATED) {
+    const token = learnerToken(assignment?.id, studentId);
+    const listed = Object.values(readGenerationSeats(assignment).byClassId).some((seats) => Object.hasOwn(seats, token));
+    if (!listed) return { refusal: null, walkRefused: false };
+  }
+  // The allocation is right but walking it does not land on the pinned
+  // fingerprint. Whether that is a stale family (the replay fails and is
+  // classified there) or a steered `resolvedIndex` (the replay succeeds on an
+  // instance this student was never dealt) is the generator's call.
+  if (refusal === 'pin-index-not-allocated' && pin.index === allocationIndexFor(pin)) return { refusal: null, walkRefused: true };
+  return { refusal, walkRefused: false };
+};
+
 /**
  * Everything the generator needs to resolve this student's instance of a
  * family-backed slot, or null for a slot that is not family-backed (which then
  * generates exactly as it always did).
+ *
+ * `pinSource` tells the generator how much the pin is worth: a `canonical`
+ * pin is authoritative (graded history refers to it) and is never swapped for
+ * another instance; a `device` pin may yield to a fresh allocation. A
+ * canonical pin this build cannot read sets `pinUnreadable`, and one the
+ * server would refuse sets `pinRefusal` (`pinWalkRefused` when only the walk
+ * to its fingerprint fails); a refused device pin is dropped and named in
+ * `devicePinRefused` (src/platform/generation/familyPinReplay.js).
+ * Nothing here writes: the record and the device pin are read, never changed.
  */
 export const buildStudentFamilyContext = ({
   assignment = null,
@@ -88,11 +140,21 @@ export const buildStudentFamilyContext = ({
   if (!assignment?.id || !isFamilyBackedQuestion(question)) return null;
   const variant = normalizeQuestionRecord(record).variantIndex;
   const slotKey = familySlotKey({ assignmentId: assignment.id, question, storageIndex });
-  const canonicalPin = preview ? null : normalizeDeliveryPin(record?.familyDelivery);
+  const rawCanonical = preview ? null : record?.familyDelivery;
+  const canonicalPin = normalizeDeliveryPin(rawCanonical);
+  // A replacement clears the pin to null; anything else that does not parse
+  // is a stored pin this build cannot read.
+  const pinUnreadable = !preview && rawCanonical !== null && rawCanonical !== undefined && !canonicalPin;
   const localPin = preview || !studentId ? null : readLocalDeliveryPin({ studentId, slotKey, variant, store });
-  const pin = canonicalPin?.variant === variant
+  const canonicalApplies = canonicalPin?.variant === variant;
+  const verify = (pin) => pinRefusalFor({ assignment, question, storageIndex, pin, studentId });
+  const deviceCandidate = !canonicalApplies && !pinUnreadable && localPin?.variant === variant ? localPin : null;
+  const verdict = canonicalApplies ? verify(canonicalPin) : deviceCandidate ? verify(deviceCandidate) : { refusal: null, walkRefused: false };
+  const pinRefusal = canonicalApplies ? verdict.refusal : null;
+  const devicePinRefused = deviceCandidate ? verdict.refusal : null;
+  const pin = canonicalApplies
     ? canonicalPin
-    : localPin?.variant === variant ? localPin : null;
+    : deviceCandidate && !devicePinRefused ? deviceCandidate : null;
   const seatInfo = preview || !studentId ? null : resolveLearnerSeat({ assignment, studentId, classId });
   return {
     assignmentId: assignment.id,
@@ -101,6 +163,10 @@ export const buildStudentFamilyContext = ({
     variant,
     allocation: resolveGenerationAllocation({ sectionMode, seatInfo, variant, preview }),
     pin,
-    pinSource: pin === canonicalPin && pin ? 'canonical' : pin ? 'device' : null,
+    pinSource: canonicalApplies || pinUnreadable ? 'canonical' : pin ? 'device' : null,
+    pinUnreadable,
+    pinRefusal,
+    pinWalkRefused: Boolean(pin) && verdict.walkRefused,
+    devicePinRefused,
   };
 };

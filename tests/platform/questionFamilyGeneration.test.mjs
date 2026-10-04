@@ -356,9 +356,19 @@ test('a Recovery item that cannot replay its pin is an error, never a substitute
   const strict = generateQuestion(slot, 'asg-unique|recovery|4|variant:0', null, null, { assignmentId: assignment.id, storageIndex: 4, variant: 0, pin: broken, requirePin: true });
   assert.equal(strict.type, 'platformQuestionError');
   assert.equal(strict.platformError.reason, 'pin-replay-failed');
-  // The ordinary player keeps its old behaviour: a stale pin falls back to the allocation.
-  const lenient = generateQuestion(slot, 'asg-unique|student-04|4|variant:0', null, null, { assignmentId: assignment.id, storageIndex: 4, variant: 0, pin: broken });
+  // A DEVICE pin (written before anything reached the server, so nothing was
+  // graded against it) may still yield to the allocation.
+  const lenient = generateQuestion(slot, 'asg-unique|student-04|4|variant:0', null, null, { assignmentId: assignment.id, storageIndex: 4, variant: 0, pin: broken, pinSource: 'device' });
   assert.notEqual(lenient.type, 'platformQuestionError');
+  // The question record's CANONICAL pin may not: graded history refers to it,
+  // and swapping it moved the student's attempts onto a different question
+  // (questionFamilyPinContainment.test.mjs). A pin with no stated source is
+  // treated as canonical.
+  for (const pinSource of ['canonical', undefined]) {
+    const canonical = generateQuestion(slot, 'asg-unique|student-04|4|variant:0', null, null, { assignmentId: assignment.id, storageIndex: 4, variant: 0, pin: broken, pinSource });
+    assert.equal(canonical.type, 'platformQuestionError', `pinSource ${pinSource}`);
+    assert.equal(canonical.platformError.reason, 'pin-replay-failed');
+  }
 });
 
 test('a family reference that cannot resolve is reported as broken, never served as a static question', () => {
