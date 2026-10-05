@@ -475,3 +475,174 @@ test('a session locked for proctor review reads as in progress, never as "Start 
   await fns.proctorExamAction.run(teacherRequest({ examSessionId, action: 'unlock' }));
   assert.equal((await readSession(examSessionId)).status, 'in_progress');
 });
+
+/* ======================================================================== */
+/* 7. Teacher lifecycle callables: release, policy, preview, archive/delete. */
+/* ======================================================================== */
+
+const RELEASE_ASSIGNMENT = ASSIGNMENTS.untimed;
+
+test('class-wide release records every submitted Test once, and a second release changes nothing', async () => {
+  // The sitter has been mid-Test since scenario 1; finish it honestly.
+  const record = await readRecord(RELEASE_ASSIGNMENT, STUDENTS.sitter);
+  const examSessionId = record.test.examSessionId;
+  for (;;) {
+    // eslint-disable-next-line no-await-in-loop
+    const outcome = await refusal(fns.issueSecureExamQuestion.run(studentRequest(STUDENTS.sitter, { examSessionId })));
+    if (outcome) break;
+    // eslint-disable-next-line no-await-in-loop
+    const issued = await fns.issueSecureExamQuestion.run(studentRequest(STUDENTS.sitter, { examSessionId }));
+    // eslint-disable-next-line no-await-in-loop
+    const result = await fns.submitSecureExamResponse.run(studentRequest(STUDENTS.sitter, {
+      examSessionId,
+      questionInstanceId: issued.questionInstance.questionInstanceId,
+      responsePayload: { responses: { answer: certAnswerFromPrompt(issued.questionInstance.prompt) } },
+      submissionId: `${PREFIX}sitter-${issued.questionInstance.questionInstanceId}`,
+    }));
+    if (result.needsNextQuestion === false) break;
+  }
+  assert.equal((await readRecord(RELEASE_ASSIGNMENT, STUDENTS.sitter)).test.state, 'submitted');
+
+  const student = await refusal(fns.releaseTestCycleResults.run(studentRequest(STUDENTS.sitter, { assignmentId: RELEASE_ASSIGNMENT })));
+  assert.ok(student, 'a student cannot release results');
+  const other = await refusal(fns.releaseTestCycleResults.run(teacherRequest({ assignmentId: RELEASE_ASSIGNMENT }, OTHER_TEACHER_EMAIL)));
+  assert.ok(other, 'another teacher cannot release this class\'s results');
+
+  const first = await fns.releaseTestCycleResults.run(teacherRequest({ assignmentId: RELEASE_ASSIGNMENT, stage: 'test' }));
+  assert.ok(first.releasedStudentIds.includes(STUDENTS.sitter));
+  const released = await readRecord(RELEASE_ASSIGNMENT, STUDENTS.sitter);
+  assert.equal(released.test.state, 'released');
+  assert.equal(released.recordedGrade, 100);
+  const historyLength = released.history.length;
+
+  const second = await fns.releaseTestCycleResults.run(teacherRequest({ assignmentId: RELEASE_ASSIGNMENT, stage: 'test' }));
+  assert.equal(second.released, 0, 'nothing submitted is left to release');
+  assert.equal((await readRecord(RELEASE_ASSIGNMENT, STUDENTS.sitter)).history.length, historyLength);
+});
+
+test('the teacher results list names every audience student, including those who have not started', async () => {
+  const list = await fns.listTeacherTestCycleRecords.run(teacherRequest({ assignmentId: RELEASE_ASSIGNMENT }));
+  const ids = list.rows.map((row) => row.studentId);
+  assert.ok(ids.includes(STUDENTS.sitter));
+  assert.ok(!ids.includes(STUDENTS.outsider), 'a student outside the audience is not on this list');
+  const sitter = list.rows.find((row) => row.studentId === STUDENTS.sitter);
+  assert.equal(sitter.bucket, 'passed');
+  assert.equal(sitter.review.complete, true);
+  assert.equal(list.policy.maxRecordedGrade, 70);
+  assert.match(list.policy.summary, /never lowers/);
+  assert.equal(list.delivery.timed, false, 'an untimed Test is reported as untimed');
+});
+
+test('the retest policy changes only through the callable, and locks once results it would contradict are released', async () => {
+  const student = await refusal(fns.updateTestCyclePolicy.run(studentRequest(STUDENTS.sitter, {
+    assignmentId: ASSIGNMENTS.scheduled, policy: { maxRecordedGrade: 100 },
+  })));
+  assert.ok(student, 'a student cannot change a grade cap');
+  const other = await refusal(fns.updateTestCyclePolicy.run(teacherRequest({
+    assignmentId: ASSIGNMENTS.scheduled, policy: { maxRecordedGrade: 100 },
+  }, OTHER_TEACHER_EMAIL)));
+  assert.ok(other, 'another teacher cannot change this class\'s grade cap');
+  const invalid = await refusal(fns.updateTestCyclePolicy.run(teacherRequest({
+    assignmentId: ASSIGNMENTS.scheduled, policy: { maxRecordedGrade: 140 },
+  })));
+  assert.ok(invalid, 'a cap above 100 is refused');
+
+  // Nothing has been released on the scheduled cycle: both edits are allowed.
+  const changed = await fns.updateTestCyclePolicy.run(teacherRequest({
+    assignmentId: ASSIGNMENTS.scheduled,
+    policy: { maxRecordedGrade: 75, gradeReplacement: 'averageIfHigherCapped' },
+  }));
+  assert.equal(changed.changed, true);
+  const stored = (await db.collection('assignments').doc(ASSIGNMENTS.scheduled).get()).data();
+  assert.equal(stored.assessmentPolicy.retest.maxRecordedGrade, 75);
+  assert.equal(stored.assessmentPolicy.retest.gradeReplacement, 'averageIfHigherCapped');
+  // Untouched authored fields survive.
+  assert.equal(stored.assessmentPolicy.retest.questionCount, CERT_TOTAL_QUESTIONS);
+  assert.equal(stored.assessmentPolicyHistory.length, 1);
+
+  // On the untimed cycle a Test result IS released: the passing score is locked.
+  const locked = await refusal(fns.updateTestCyclePolicy.run(teacherRequest({
+    assignmentId: RELEASE_ASSIGNMENT, policy: { passingScore: 60 },
+  })));
+  assert.ok(locked);
+  assert.match(locked.message, /released/i);
+});
+
+test('a teacher previews real secure items without creating any session, record or grade', async () => {
+  const before = await db.collection('examSessions').where('courseTest.assignmentId', '==', ASSIGNMENTS.scheduled).get();
+  const preview = await fns.previewTestCycleSecureItems.run(teacherRequest({ assignmentId: ASSIGNMENTS.scheduled }));
+  assert.equal(preview.writes, 'none');
+  assert.equal(preview.items.length, CERT_TOTAL_QUESTIONS);
+  for (const item of preview.items) {
+    const keys = Object.keys(item.questionInstance || {});
+    for (const secret of ['privateGrading', 'generatorParameters', 'expected', 'answerKey', 'seedKey']) {
+      assert.ok(!keys.includes(secret), `a preview item must not carry ${secret}`);
+    }
+  }
+  const after = await db.collection('examSessions').where('courseTest.assignmentId', '==', ASSIGNMENTS.scheduled).get();
+  assert.equal(after.size, before.size, 'preview creates no secure session');
+
+  const item = preview.items[0];
+  const right = await fns.gradeTestCyclePreviewItem.run(teacherRequest({
+    previewItemId: item.previewItemId,
+    responsePayload: { responses: { answer: certAnswerFromPrompt(item.questionInstance.prompt) } },
+  }));
+  assert.equal(right.isCorrect, true, 'the preview is graded by the real secure grader');
+
+  const studentPreview = await refusal(fns.previewTestCycleSecureItems.run(studentRequest(STUDENTS.sitter, { assignmentId: ASSIGNMENTS.scheduled })));
+  assert.ok(studentPreview, 'a student cannot preview secure items');
+  const otherPreview = await refusal(fns.gradeTestCyclePreviewItem.run(teacherRequest({
+    previewItemId: item.previewItemId, responsePayload: { responses: { answer: '1' } },
+  }, OTHER_TEACHER_EMAIL)));
+  assert.ok(otherPreview, 'another teacher cannot use this teacher\'s preview as an oracle');
+});
+
+test('delete is refused once students have work, and Archive is offered; an untouched assignment can be deleted', async () => {
+  const evidence = await fns.getAssignmentEvidenceSummary.run(teacherRequest({ assignmentId: RELEASE_ASSIGNMENT }));
+  assert.ok(evidence.studentsWithWork > 0);
+  assert.equal(evidence.canDelete, false);
+  const refused = await refusal(fns.manageAssignmentLifecycle.run(teacherRequest({
+    assignmentId: RELEASE_ASSIGNMENT, action: 'delete', confirmTitle: `Lifecycle ${RELEASE_ASSIGNMENT}`,
+  })));
+  assert.ok(refused);
+  assert.match(refused.message, /Archive it instead/);
+  assert.equal((await db.collection('assignments').doc(RELEASE_ASSIGNMENT).get()).exists, true);
+
+  // Archive works with evidence present, and is reversible.
+  await fns.manageAssignmentLifecycle.run(teacherRequest({ assignmentId: RELEASE_ASSIGNMENT, action: 'archive' }));
+  assert.equal((await db.collection('assignments').doc(RELEASE_ASSIGNMENT).get()).data().archived, true);
+  await fns.manageAssignmentLifecycle.run(teacherRequest({ assignmentId: RELEASE_ASSIGNMENT, action: 'unarchive' }));
+  assert.equal((await db.collection('assignments').doc(RELEASE_ASSIGNMENT).get()).data().archived, false);
+
+  // A brand-new, untouched assignment can be deleted — but only with its title.
+  const freshId = `${PREFIX}fresh`;
+  await db.collection('assignments').doc(freshId).set(assignmentDoc(freshId));
+  await assign(freshId);
+  const wrongTitle = await refusal(fns.manageAssignmentLifecycle.run(teacherRequest({ assignmentId: freshId, action: 'delete', confirmTitle: 'nope' })));
+  assert.ok(wrongTitle);
+  const studentDelete = await refusal(fns.manageAssignmentLifecycle.run(studentRequest(STUDENTS.sitter, { assignmentId: freshId, action: 'delete', confirmTitle: `Lifecycle ${freshId}` })));
+  assert.ok(studentDelete);
+  const deleted = await fns.manageAssignmentLifecycle.run(teacherRequest({ assignmentId: freshId, action: 'delete', confirmTitle: `Lifecycle ${freshId}` }));
+  assert.equal(deleted.deleted, true);
+  assert.equal((await db.collection('assignments').doc(freshId).get()).exists, false);
+  const orphanSessions = await db.collection('examSessions').where('courseTest.assignmentId', '==', freshId).get();
+  assert.equal(orphanSessions.size, 0, 'untouched secure sessions go with it, not orphaned');
+  const orphanRecord = await db.collection('testCycleRecords').doc(`${freshId}__${STUDENTS.sitter}`).get();
+  assert.equal(orphanRecord.exists, false, 'its untouched records go with it');
+  const projection = (await db.collection('grades').doc(STUDENTS.sitter).get()).data()?.testCycleGrades?.[freshId];
+  assert.equal(projection, undefined, 'no grade document keeps a projection for a deleted assignment');
+  await db.collection('assignmentDeletionLog').doc(freshId).delete();
+});
+
+test('pausing a Test Cycle closes it to students on the server and says so on the card', async () => {
+  await fns.manageAssignmentLifecycle.run(teacherRequest({ assignmentId: ASSIGNMENTS.manifest, action: 'unpublish' }));
+  const card = await cardFor(STUDENTS.failer, ASSIGNMENTS.manifest);
+  assert.equal(card.canEnter, false);
+  assert.equal(card.availability.reason, 'unpublished');
+  const correction = await refusal(fns.issueTestCycleCorrectionQuestion.run(studentRequest(STUDENTS.failer, {
+    assignmentId: ASSIGNMENTS.manifest, correctionId: 'anything',
+  })));
+  assert.ok(correction, 'a paused assessment issues nothing');
+  await fns.manageAssignmentLifecycle.run(teacherRequest({ assignmentId: ASSIGNMENTS.manifest, action: 'publish' }));
+  assert.equal((await cardFor(STUDENTS.failer, ASSIGNMENTS.manifest)).availability.reason, 'open');
+});

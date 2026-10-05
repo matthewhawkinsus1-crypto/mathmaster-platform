@@ -21699,11 +21699,15 @@ exports.gradeTestCyclePreviewItem = onCall(async (request) => {
  *                         student has worked on it, delete is refused with the
  *                         evidence named and Archive offered instead.
  */
+// Grade-document maps whose presence means a student did something (or a
+// teacher recorded something) on this assignment. `testCycleGrades` is NOT one
+// of them: opening secure sessions writes a score-less projection for every
+// student, so its presence proves nothing. Test Cycle work is judged from the
+// records and sessions themselves, below.
 const ASSIGNMENT_EVIDENCE_GRADE_MAPS = Object.freeze([
   "gradesByAssignment",
   "dolGradesByAssignment",
   "classworkGradesByAssignment",
-  "testCycleGrades",
   "teacherGradeOverridesByAssignment",
   "sectionRecoveryByAssignment",
   "warmupChallengeByAssignment",
@@ -21759,6 +21763,7 @@ async function assignmentEvidenceSummary(db, assignmentId, assignment) {
     canDelete: studentsWithWork.size === 0,
     unstartedSessionIds: sessions.docs.filter((doc) => String(doc.data()?.status || "") === "not_started").map((doc) => doc.id),
     recordIds: records.docs.map((doc) => doc.id),
+    recordStudentIds: records.docs.map((doc) => String(doc.data()?.studentId || "")).filter(Boolean),
   };
 }
 
@@ -21768,7 +21773,7 @@ exports.getAssignmentEvidenceSummary = onCall(async (request) => {
   if (!snapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
   await assertTeacherMayManageAssignmentLifecycle(request, snapshot);
   const summary = await assignmentEvidenceSummary(db, snapshot.id, snapshot.data() || {});
-  const { unstartedSessionIds: _unstarted, recordIds: _records, ...publicSummary } = summary;
+  const { unstartedSessionIds: _unstarted, recordIds: _records, recordStudentIds: _recordStudents, ...publicSummary } = summary;
   return { success: true, assignmentId: snapshot.id, ...publicSummary };
 });
 
@@ -21834,6 +21839,14 @@ exports.manageAssignmentLifecycle = onCall(async (request) => {
   // assignment and any untouched secure scaffolding opened for it.
   const batch = db.batch();
   summary.unstartedSessionIds.forEach((id) => batch.delete(db.collection("examSessions").doc(id)));
+  // The score-less projections opening sessions wrote go with the records, so
+  // no student's grade document keeps an entry for an assignment that is gone.
+  const projectionHolders = summary.recordStudentIds.length
+    ? await db.getAll(...summary.recordStudentIds.map((id) => db.collection("grades").doc(id)))
+    : [];
+  projectionHolders
+    .filter((gradeSnapshot) => gradeSnapshot.exists && gradeSnapshot.data()?.testCycleGrades?.[ref.id] !== undefined)
+    .forEach((gradeSnapshot) => batch.update(gradeSnapshot.ref, new FieldPath("testCycleGrades", ref.id), FieldValue.delete()));
   summary.recordIds.forEach((id) => {
     batch.delete(db.collection(TEST_CYCLE_RECORDS).doc(id));
     batch.delete(db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(id));
