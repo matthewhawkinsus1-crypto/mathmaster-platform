@@ -1264,6 +1264,36 @@ service cloud.firestore {
         && request.resource.data.get('dol', {}).get('attemptGrantsByStudentId', {}).size() == 0;
     }
 
+    /*
+     * THE ASSESSMENT CONTRACT AND THE LIFECYCLE CHANGE THROUGH THE SERVER ONLY.
+     *
+     * `assessmentPolicy` decides who owes corrections and the highest grade a
+     * retest can record; `testBlueprint` / `secureTestReference` decide what the
+     * secure Test asks; `archived` / `unpublished` close an assessment to every
+     * student. All of them are set when an assignment is CREATED, and after
+     * that change only through `updateTestCyclePolicy` and
+     * `manageAssignmentLifecycle` — which check the caller is the teacher of
+     * record, refuse a policy change that would contradict results already
+     * released, and keep an audit row. A blanket `teacher()` update could
+     * otherwise let any teacher raise another class's retest cap, swap its
+     * blueprint, or archive its Test mid-period. A client save that DROPS one
+     * of these fields is refused too: dropping `assessmentPolicy` is exactly
+     * how a Test Cycle silently became an ordinary lesson.
+     *
+     * DELETING an assignment can erase student evidence, so it goes through
+     * `manageAssignmentLifecycle` as well, which refuses once any student has
+     * worked on it and offers Archive. Only the root administrator keeps a
+     * direct client delete, for repair.
+     */
+    function serverOwnedAssignmentFields() {
+      return [
+        'assessmentPolicy', 'testBlueprint', 'secureTestReference', 'assessmentPolicyHistory',
+        'archived', 'archivedAt', 'archivedBy',
+        'unpublished', 'unpublishedAt', 'unpublishedBy',
+        'lifecycleHistory',
+      ];
+    }
+
     match /assignments/{assignmentId} {
       allow get: if signedIn();
       allow list: if teacher()
@@ -1272,9 +1302,10 @@ service cloud.firestore {
       allow create: if teacher()
         && !request.resource.data.keys().hasAny(['studentOverrides'])
         && (!sharedStudentControlsRetired() || perStudentSharedFieldsAbsent());
-      allow delete: if teacher();
+      allow delete: if rootAdmin();
       allow update: if teacher()
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['studentOverrides'])
+        && (rootAdmin() || !request.resource.data.diff(resource.data).affectedKeys().hasAny(serverOwnedAssignmentFields()))
         && (!sharedStudentControlsRetired() || perStudentSharedFieldsUnchanged());
     }
 
@@ -1762,6 +1793,10 @@ service cloud.firestore {
     match /secureTestManifests/{docId} { allow read, write: if false; }
     match /testCycleRetestPlans/{docId} { allow read, write: if false; }
     match /examSubmissions/{docId} { allow read, write: if false; }
+    // Who deleted which assignment, written by manageAssignmentLifecycle after
+    // it has proved no student evidence existed. An audit trail is only worth
+    // something if no client can write or erase it.
+    match /assignmentDeletionLog/{docId} { allow read, write: if false; }
     match /examIntegrityEvents/{docId} { allow read, write: if false; }
 
     match /{document=**} {

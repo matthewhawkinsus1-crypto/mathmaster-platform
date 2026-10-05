@@ -153,7 +153,11 @@ test('a superseded session cannot be released over the replacement attempt', () 
     'async function syncTestCycleSessionState',
     'release',
   );
-  assert.match(release, /currentSessionId && currentSessionId !== session\.examSessionId\) return null;/);
+  // Exact match: an EMPTIED stage (a reset clears its session id) is not a
+  // wildcard. The old `currentSessionId && ...` form let the superseded session
+  // through precisely when the stage had just been emptied.
+  assert.match(release, /String\(currentSessionId \|\| ""\) !== String\(session\.examSessionId \|\| ""\)\) return \{ value: \{ superseded: true \} \};/);
+  assert.doesNotMatch(executableSource(release), /currentSessionId && currentSessionId !==/);
 
   // So does the state mirror, so a superseded session cannot move the card.
   const sync = region(
@@ -162,7 +166,8 @@ test('a superseded session cannot be released over the replacement attempt', () 
     'async function issueCourseTestQuestion(',
     'sync',
   );
-  assert.match(sync, /current\.examSessionId && current\.examSessionId !== session\.examSessionId\) return;/);
+  assert.match(sync, /String\(current\.examSessionId \|\| ""\) !== String\(session\.examSessionId \|\| ""\)\) return null;/);
+  assert.doesNotMatch(executableSource(sync), /current\.examSessionId && current\.examSessionId !==/);
 });
 
 test('batch assignment cannot reach outside the assignment audience', () => {

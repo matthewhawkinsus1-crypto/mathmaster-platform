@@ -150,7 +150,12 @@ test('the browser never writes a recorded Test Cycle grade', () => {
 });
 
 test('the grade projection is written only by the secure release path', () => {
+  // One writer: the record and its projection are set together, inside the
+  // transaction every record change goes through.
+  const writer = region(functionsIndex, 'function writeTestCycleRecord(', 'async function mutateTestCycleRecord(', 'writeTestCycleRecord');
+  assert.match(writer, /new FieldPath\("testCycleGrades", normalized\.assignmentId\)/);
+  assert.match(writer, /recordGradeState\(normalized, policy\)/);
+  assert.match(writer, /transaction\.update\(/);
   const persist = region(functionsIndex, 'async function persistTestCycleRecord(', 'async function readTestCycleRecord', 'persistTestCycleRecord');
-  assert.match(persist, /new FieldPath\("testCycleGrades", normalized\.assignmentId\)/);
-  assert.match(persist, /recordGradeState\(normalized, policy\)/);
+  assert.match(persist, /mutateTestCycleRecord\(db, \{/);
 });

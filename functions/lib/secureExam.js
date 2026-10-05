@@ -62,14 +62,99 @@ function nextDomainId(session = {}) {
   })[0] || null;
 }
 
+/*
+ * AN UNTIMED EXAM HAS NO DEADLINE. NOT A DEADLINE OF ZERO.
+ *
+ * `timeLimitSeconds` is stored as `null` for every untimed session: a course
+ * Test whose blueprint names no time limit, and TSIA2. `Number(null)` is 0 and
+ * `Number.isFinite(0)` is true, so this used to read "no limit" as "a limit of
+ * zero seconds" — every untimed session expired at the instant it started and
+ * the first question was refused with deadline-exceeded. The same trap applied
+ * to a session with no `startedAt`, whose deadline came out as the Unix epoch.
+ *
+ * Only a positive, finite number of seconds is a time limit. Anything else —
+ * null, missing, 0, a string — means the exam is untimed, and nothing may turn
+ * an expected-duration note into an enforced timer by accident.
+ */
+function timeLimitSecondsOf(session) {
+  const raw = session?.timeLimitSeconds;
+  if (raw === null || raw === undefined || raw === '' || typeof raw === 'boolean') return null;
+  const seconds = Number(raw);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+}
+
 function deadlineFor(session, _now = Date.now()) {
-  if (!Number.isFinite(Number(session?.startedAt)) || !Number.isFinite(Number(session?.timeLimitSeconds))) return null;
-  return Number(session.startedAt) + (Number(session.timeLimitSeconds) + Number(session.addedTimeSeconds || 0)) * 1000;
+  const limit = timeLimitSecondsOf(session);
+  const startedAt = Number(session?.startedAt);
+  if (limit === null || session?.startedAt === null || session?.startedAt === undefined) return null;
+  if (!Number.isFinite(startedAt) || startedAt <= 0) return null;
+  const added = Math.max(0, Number(session.addedTimeSeconds) || 0);
+  return startedAt + (limit + added) * 1000;
 }
 
 function isExpired(session, now = Date.now()) {
   const deadline = deadlineFor(session, now);
   return deadline != null && now >= deadline;
+}
+
+const list = (value) => (Array.isArray(value) ? value : []);
+const clean = (value) => String(value ?? '').trim();
+
+/**
+ * The score a secure session actually earned, as a percent of the plan.
+ *
+ * Deliberately divided by the PLANNED question count, not by the number the
+ * student answered. A student who walks out after two of twenty questions has
+ * not earned 100%; the unanswered eighteen are worth zero, which is ordinary
+ * MathMaster assessment semantics and matches how the Test Cycle blueprint
+ * weights a test.
+ */
+function secureSessionScorePercent(session = {}) {
+  const responses = Object.values(session.responses && typeof session.responses === 'object' ? session.responses : {});
+  const planned = Math.max(
+    Number(session.requiredQuestions || 0),
+    list(session.issuancePlan?.entries).length,
+    responses.length,
+  );
+  if (!planned) return null;
+  const earned = responses.reduce((sum, response) => sum + (Number(response?.grading?.score) || 0), 0);
+  return Math.round((earned / planned) * 100);
+}
+
+/** Weighted alternative used when a blueprint gives targets different weights. */
+function weightedSessionScorePercent(session = {}) {
+  const plan = session.issuancePlan || {};
+  const entries = list(plan.entries);
+  if (!entries.length) return secureSessionScorePercent(session);
+  const byInstance = new Map();
+  Object.values(session.responses && typeof session.responses === 'object' ? session.responses : {})
+    .forEach((response) => byInstance.set(clean(response?.questionInstanceId), response));
+  let earned = 0;
+  let possible = 0;
+  entries.forEach((entry) => {
+    const weight = Number(entry.weight) > 0 ? Number(entry.weight) : 1;
+    possible += weight;
+    const response = byInstance.get(clean(entry.questionInstanceId));
+    earned += weight * (Number(response?.grading?.score) || 0);
+  });
+  return possible > 0 ? Math.round((earned / possible) * 100) : null;
+}
+
+
+/*
+ * ONE SCORE PER SESSION.
+ *
+ * A simulation's review has always reported the mean over the items the
+ * student answered, which is that product's published semantics. A course
+ * Test's score is the Test Cycle grade: weighted by blueprint slot and divided
+ * by the PLANNED items, so an early submit cannot turn 2 correct answers into
+ * "100%" on the review screen while the recorded grade says 8%.
+ */
+function sessionScorePercent(session = {}) {
+  if (isCourseTestSession(session)) return weightedSessionScorePercent(session);
+  const responseValues = Object.values(session.responses && typeof session.responses === 'object' ? session.responses : {});
+  if (!responseValues.length) return 0;
+  return Math.round(responseValues.reduce((sum, item) => sum + Number(item?.grading?.score || 0), 0) / responseValues.length * 100);
 }
 
 function publicSession(session = {}, { teacher = false } = {}) {
@@ -88,11 +173,15 @@ function publicSession(session = {}, { teacher = false } = {}) {
       ...(teacher ? { correctQuestions: Number(summary?.correctQuestions || 0) } : {}),
     },
     expiresAt: deadlineFor(session),
+    // Said outright so no screen has to infer "untimed" from a null, which is
+    // exactly the inference that went wrong in `deadlineFor`.
+    timed: timeLimitSecondsOf(session) !== null,
+    timeLimitSeconds: timeLimitSecondsOf(session),
     hasOpenQuestion: Boolean(currentQuestion),
     answeredQuestions: responseValues.length,
     ...(teacher ? {
-      scorePercent: safe.feedbackReleased && responseValues.length
-        ? Math.round(responseValues.reduce((sum, item) => sum + Number(item?.grading?.score || 0), 0) / responseValues.length * 100)
+      scorePercent: safe.feedbackReleased && (responseValues.length || isCourseTestSession(session))
+        ? sessionScorePercent(session)
         : null,
     } : {}),
   };
@@ -150,12 +239,14 @@ function publicReview(session = {}) {
   return {
     session: publicSession(session),
     answeredQuestions: items.length,
+    plannedQuestions: Math.max(Number(session.requiredQuestions || 0), items.length),
     correctQuestions,
-    scorePercent: items.length
-      ? Math.round(items.reduce((sum, item) => sum + Number(item.grading.score || 0), 0) / items.length * 100)
-      : 0,
+    scorePercent: sessionScorePercent(session) ?? 0,
+    // A course Test counts unanswered items as zero; a simulation reports the
+    // mean of what was answered. The screen says which, so neither surprises.
+    scoreBasis: isCourseTestSession(session) ? 'plannedWeighted' : 'answered',
     items,
   };
 }
 
-module.exports = { COURSE_TEST_EXAM_TYPE, EXAM_POLICIES, LOCKED_STATES, TERMINAL_STATES, deadlineFor, isCourseTestSession, isExpired, nextDomainId, policyFor, publicQuestion, publicReview, publicSession, supportsExamType };
+module.exports = { COURSE_TEST_EXAM_TYPE, EXAM_POLICIES, LOCKED_STATES, TERMINAL_STATES, deadlineFor, isCourseTestSession, isExpired, nextDomainId, policyFor, publicQuestion, publicReview, publicSession, secureSessionScorePercent, sessionScorePercent, supportsExamType, timeLimitSecondsOf, weightedSessionScorePercent };

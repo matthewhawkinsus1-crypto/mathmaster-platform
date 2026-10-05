@@ -36,8 +36,11 @@
  */
 
 import {
+  DEFAULT_GRADE_REPLACEMENT,
   DEFAULT_MAX_RECORDED_RETEST_GRADE,
   DEFAULT_PASSING_SCORE,
+  GRADE_REPLACEMENT,
+  GRADE_REPLACEMENT_RULES,
   clampPercent,
   normalizeTestCyclePolicy,
 } from './testCyclePolicy.mjs';
@@ -70,16 +73,48 @@ export const cappedRetestContribution = (rawRetestGrade, maxRecordedGrade = DEFA
   return Math.min(raw, clampPercent(maxRecordedGrade, DEFAULT_MAX_RECORDED_RETEST_GRADE));
 };
 
+const resolveReplacement = (value) => (
+  GRADE_REPLACEMENT_RULES.includes(String(value || '')) ? String(value) : DEFAULT_GRADE_REPLACEMENT
+);
+
+/**
+ * What the retest is allowed to contribute under the configured rule.
+ *
+ * For the default rule this is exactly `cappedRetestContribution`. For the
+ * averaging rule it is the capped average of the original and the retest —
+ * computed from the ORIGINAL Test only, never from a previously recorded value,
+ * so the rule cannot compound across repeated releases.
+ */
+export const retestContribution = ({
+  originalTestGrade = null,
+  rawRetestGrade = null,
+  maxRecordedGrade = DEFAULT_MAX_RECORDED_RETEST_GRADE,
+  gradeReplacement = DEFAULT_GRADE_REPLACEMENT,
+} = {}) => {
+  const raw = optionalPercent(rawRetestGrade);
+  if (raw === null) return null;
+  const original = optionalPercent(originalTestGrade);
+  if (resolveReplacement(gradeReplacement) === GRADE_REPLACEMENT.AVERAGE_IF_HIGHER_CAPPED && original !== null) {
+    return cappedRetestContribution(Math.round((original + raw) / 2), maxRecordedGrade);
+  }
+  return cappedRetestContribution(raw, maxRecordedGrade);
+};
+
 /**
  * The canonical rule. Everything above is commentary on this function.
+ *
+ * Whatever replacement rule is configured, the last line is the same max():
+ * the retest's contribution is compared with the original Test, and the higher
+ * is recorded. That is the never-lower guarantee, and it is not configurable.
  */
 export const recordedTestCycleGrade = ({
   originalTestGrade = null,
   rawRetestGrade = null,
   maxRecordedGrade = DEFAULT_MAX_RECORDED_RETEST_GRADE,
+  gradeReplacement = DEFAULT_GRADE_REPLACEMENT,
 } = {}) => {
   const original = optionalPercent(originalTestGrade);
-  const contribution = cappedRetestContribution(rawRetestGrade, maxRecordedGrade);
+  const contribution = retestContribution({ originalTestGrade, rawRetestGrade, maxRecordedGrade, gradeReplacement });
   if (original === null && contribution === null) return null;
   if (original === null) return contribution;
   if (contribution === null) return original;
@@ -100,14 +135,18 @@ export const buildTestCycleGradeState = ({
     ? resolved.retest.maxRecordedGrade
     : DEFAULT_MAX_RECORDED_RETEST_GRADE;
   const passingScore = resolved ? resolved.passingScore : DEFAULT_PASSING_SCORE;
+  const gradeReplacement = resolved ? resolved.retest.gradeReplacement : DEFAULT_GRADE_REPLACEMENT;
 
   const original = optionalPercent(originalTestGrade);
   const raw = optionalPercent(rawRetestGrade);
-  const contribution = cappedRetestContribution(raw, maxRecordedGrade);
+  const contribution = retestContribution({
+    originalTestGrade: original, rawRetestGrade: raw, maxRecordedGrade, gradeReplacement,
+  });
   const recordedGrade = recordedTestCycleGrade({
     originalTestGrade: original,
     rawRetestGrade: raw,
     maxRecordedGrade,
+    gradeReplacement,
   });
 
   let source = GRADE_SOURCE.NONE;
@@ -117,7 +156,9 @@ export const buildTestCycleGradeState = ({
       : GRADE_SOURCE.ORIGINAL_TEST;
   }
 
-  const capApplied = raw !== null && raw > maxRecordedGrade;
+  const averaged = gradeReplacement === GRADE_REPLACEMENT.AVERAGE_IF_HIGHER_CAPPED && raw !== null && original !== null;
+  const uncappedContribution = raw === null ? null : (averaged ? Math.round((original + raw) / 2) : raw);
+  const capApplied = uncappedContribution !== null && uncappedContribution > maxRecordedGrade;
 
   return {
     originalTestGrade: original,
@@ -125,6 +166,7 @@ export const buildTestCycleGradeState = ({
     retestCappedContribution: contribution,
     maxRecordedGrade,
     passingScore,
+    gradeReplacement,
     recordedGrade,
     recordedGradeSource: source,
     // True only when the cap actually changed what the retest could contribute.
@@ -132,13 +174,24 @@ export const buildTestCycleGradeState = ({
     // True when a retest happened and could not improve the recorded grade.
     retestDidNotImprove: contribution !== null && original !== null && contribution <= original,
     passed: recordedGrade !== null && recordedGrade >= passingScore,
-    reason: buildGradeReason({ original, raw, recordedGrade, maxRecordedGrade, source, capApplied }),
+    reason: buildGradeReason({ original, raw, recordedGrade, maxRecordedGrade, source, capApplied, averaged, uncappedContribution }),
   };
 };
 
-const buildGradeReason = ({ original, raw, recordedGrade, maxRecordedGrade, source, capApplied }) => {
+const buildGradeReason = ({ original, raw, recordedGrade, maxRecordedGrade, source, capApplied, averaged = false, uncappedContribution = null }) => {
   if (recordedGrade === null) return 'No secure Test score has been released yet.';
   if (raw === null) return `Recorded from the original Test (${original}%).`;
+  if (averaged) {
+    const average = `the average of the Test (${original}%) and the retest (${raw}%) is ${uncappedContribution}%`;
+    if (source === GRADE_SOURCE.ORIGINAL_TEST) {
+      return capApplied
+        ? `Retest averaging: ${average}, capped at ${maxRecordedGrade}%, which did not beat the original Test. Original Test kept.`
+        : `Retest averaging: ${average}, which did not beat the original Test. Original Test kept.`;
+    }
+    return capApplied
+      ? `Retest averaging: ${average}, recorded at the ${maxRecordedGrade}% retest cap.`
+      : `Retest averaging: ${average}, which replaced the original Test.`;
+  }
   if (source === GRADE_SOURCE.ORIGINAL_TEST) {
     return capApplied
       ? `Retest raw ${raw}% capped at ${maxRecordedGrade}%, which did not beat the original Test (${original}%). Original Test kept.`
@@ -147,6 +200,47 @@ const buildGradeReason = ({ original, raw, recordedGrade, maxRecordedGrade, sour
   return capApplied
     ? `Retest raw ${raw}% recorded at the ${maxRecordedGrade}% retest cap.`
     : `Retest ${raw}% replaced the original Test (${original}%).`;
+};
+
+/*
+ * THE RULE IN WORDS, FOR THE PEOPLE IT APPLIES TO.
+ *
+ * A teacher choosing a policy needs to see what it will do to a real student
+ * before choosing it, and a student needs one sentence, not a formula. Both are
+ * generated from the normalized policy by the same rule that records the grade,
+ * so the explanation cannot describe a different rule than the one applied.
+ *
+ * The worked example is the district's own: a 54 on the Test and an 86 on the
+ * retest. It is computed, not written, so it is always the configured result.
+ */
+export const describeTestCycleGradePolicy = (policy = null, { example = { test: 54, retest: 86 } } = {}) => {
+  const resolved = normalizeTestCyclePolicy(policy || { mode: 'testCycle' });
+  const cap = resolved.retest.maxRecordedGrade;
+  const passing = resolved.passingScore;
+  const averaging = resolved.retest.gradeReplacement === GRADE_REPLACEMENT.AVERAGE_IF_HIGHER_CAPPED;
+  const exampleState = buildTestCycleGradeState({
+    originalTestGrade: example.test, rawRetestGrade: example.retest, policy: resolved,
+  });
+  const ruleLabel = averaging ? 'Average, if higher (capped)' : 'Replace, if higher (capped)';
+  const capPhrase = cap >= 100 ? 'with no cap' : `up to ${cap}%`;
+  return {
+    passingScore: passing,
+    maxRecordedGrade: cap,
+    gradeReplacement: resolved.retest.gradeReplacement,
+    ruleLabel,
+    teacherSummary: averaging
+      ? `Students below ${passing}% can retest. The retest is averaged with the original Test, and the average counts ${capPhrase} only if it is higher than the original. A retest never lowers a grade.`
+      : `Students below ${passing}% can retest. The retest replaces the original Test ${capPhrase}, only if it is higher. A retest never lowers a grade.`,
+    studentSummary: averaging
+      ? `If you retest, your retest is averaged with your test. The average can raise your grade ${capPhrase}. It can never lower it.`
+      : `If you retest, your retest can raise your grade ${capPhrase}. It can never lower it.`,
+    example: {
+      originalTestGrade: example.test,
+      rawRetestGrade: example.retest,
+      recordedGrade: exampleState.recordedGrade,
+      sentence: `Test ${example.test}% → retest ${example.retest}% → recorded ${exampleState.recordedGrade}%.`,
+    },
+  };
 };
 
 export const GRADE_HISTORY_REASON = Object.freeze({

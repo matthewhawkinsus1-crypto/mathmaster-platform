@@ -310,7 +310,12 @@ test('a teacher assigns a whole class in one action, not one session at a time',
   assert.match(assign, /for \(const \[studentId, studentData\] of eligible\)/);
   // Each student gets their own plan and their own session.
   assert.match(assign, /buildSecureIssuancePlan/);
-  assert.match(assign, /createCourseTestSession/);
+  // Built and written INSIDE the record's transaction, so a double click reuses
+  // the first session instead of minting a second Test for the same student.
+  assert.match(assign, /mutateTestCycleRecord\(db, \{/);
+  assert.match(assign, /if \(record\.test\.examSessionId\) return \{ value: \{ reused: true \} \};/);
+  assert.match(assign, /buildCourseTestSession\(db, \{/);
+  assert.match(assign, /transaction\.set\(ref, session\)/);
   // And the whole batch is refused if preflight is blocked.
   assert.match(assign, /if \(preflight\.blocked\)/);
 });

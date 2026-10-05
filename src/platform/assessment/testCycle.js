@@ -17,6 +17,9 @@ export {
   DEFAULT_MAX_RECORDED_RETEST_GRADE,
   DEFAULT_TARGETED_WEAK_SHARE,
   DEFAULT_ANCHOR_SHARE,
+  DEFAULT_GRADE_REPLACEMENT,
+  GRADE_REPLACEMENT,
+  GRADE_REPLACEMENT_RULES,
   TEACHER_CONTROL_ACTIONS,
   applyTeacherControlAction,
   declaresTestCycle,
@@ -33,7 +36,9 @@ export {
   appendTestCycleGradeHistory,
   buildTestCycleGradeState,
   cappedRetestContribution,
+  describeTestCycleGradePolicy,
   recordedTestCycleGrade,
+  retestContribution,
   testCycleClassroomPassback,
 } from '../../../functions/shared/testCycleGrade.mjs';
 
@@ -102,3 +107,11 @@ export {
   inspectTestCycleContract,
   preflightTestCycle,
 } from '../../../functions/shared/testCyclePreflight.mjs';
+
+export {
+  ASSESSMENT_AVAILABILITY,
+  assessmentAvailabilityMessage,
+  assignmentIsArchived,
+  assignmentIsUnpublished,
+  resolveAssessmentAvailability,
+} from '../../../functions/shared/assessmentAvailability.mjs';

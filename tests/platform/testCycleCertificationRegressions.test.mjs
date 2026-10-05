@@ -7,7 +7,7 @@ import {
 } from '../../functions/shared/testCycleBlueprint.mjs';
 import { buildSecureIssuancePlan } from '../../functions/shared/testCycleIssuance.mjs';
 import { TEST_CYCLE_STAGE, resolveTestCycleStage } from '../../functions/shared/testCycleStages.mjs';
-import { region } from './helpers/sourceContract.mjs';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
 
@@ -142,8 +142,11 @@ test('an emptied secure stage is not a wildcard', () => {
     '/** Teacher action: open secure Test sessions',
     'courseTestSessionIsCurrent',
   );
-  assert.match(guard, /String\(currentSessionId \|\| ""\) === String\(session\.examSessionId \|\| ""\)/);
-  assert.doesNotMatch(guard, /!currentSessionId \|\|/, 'an empty stage must not readmit anything');
+  // The rule lives in `recordStageSessionIsCurrent`, shared with callers that
+  // already hold the record: a current session must EXIST and match exactly.
+  assert.match(guard, /return recordStageSessionIsCurrent\(shared, record, session\);/);
+  assert.match(guard, /Boolean\(currentSessionId\) && String\(currentSessionId\) === String\(session\?\.examSessionId \|\| ""\)/);
+  assert.doesNotMatch(executableSource(guard), /!currentSessionId \|\|/, 'an empty stage must not readmit anything');
 
   const entry = region(
     functionsIndex,
