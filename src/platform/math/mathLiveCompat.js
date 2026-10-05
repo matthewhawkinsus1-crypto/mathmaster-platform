@@ -21,6 +21,14 @@
  *   CSS parts        `virtual-keyboard-toggle`, `menu-toggle`, hidden in
  *                    src/index.css. CSS cannot import this file, so the names
  *                    are listed for the compatibility test to hold both to.
+ *   deferred focus   MathLive focuses a field's sink from a 60 ms timer after
+ *                    the field's onFocus, by calling the sink element's own
+ *                    `focus` method — which is where guardStaleMathFieldFocus
+ *                    (mathFieldFocusHandoff.js) refuses a stale one.
+ *   host blur        the field listens for `blur` on its host and blurs its
+ *                    model there (settleMathFieldBlur). During those 60 ms
+ *                    the model ignores a real blur, so a field whose late
+ *                    focus was refused still thinks it is focused until told.
  *
  * Two alarms, neither visible to a student:
  *
@@ -103,3 +111,16 @@ export const reportMathLiveCompatProblem = (mathField, { log = console } = {}) =
 
 /** Test hook: forget what has been reported. */
 export const resetMathLiveCompatReports = () => reported.clear();
+
+/**
+ * Tell a field that focus is no longer in it, when MathLive's model still
+ * says it is (see "host blur" above). Dispatches the `blur` MathLive's own
+ * host listener handles; DOM focus is not touched, so the element the
+ * student is in keeps it — nothing flickers. Returns whether it told it.
+ */
+export const settleMathFieldBlur = (mathField) => {
+  if (!mathFieldHasFocus(mathField) || typeof mathField?.dispatchEvent !== 'function') return false;
+  const BlurEvent = typeof FocusEvent === 'function' ? FocusEvent : Event;
+  mathField.dispatchEvent(new BlurEvent('blur', { bubbles: false, composed: false }));
+  return true;
+};

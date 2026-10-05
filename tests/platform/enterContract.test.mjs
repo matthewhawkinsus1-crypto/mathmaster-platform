@@ -187,7 +187,10 @@ test('QuestionEngine counts the boxes and treats a DOL or one-try item as delibe
   // "6⏎" typed quickly: every box is filled but the render has not caught up.
   // Enter is decided a few frames later from fresh state, not dropped.
   assert.match(capture, /const decideWhenCurrent = \(\) => \{\s*const fresh = enterFreshRef\.current;/);
-  assert.match(capture, /if \(multipart \|\| deliberate\) focusForEnter\(submitButtonRef\.current\);\s*else fresh\.handleSubmit\(\);/);
+  assert.match(capture, /if \(multipart \|\| deliberate\) \{\s*if \(focusAuthority\.isLive\(enterTicket\)\) focusForEnter\(submitButtonRef\.current\);\s*\} else fresh\.handleSubmit\(\);/);
+  // Moving to Submit frames later is a deferred focus: a press or key after
+  // this Enter (the student went on) cancels it. The ticket is taken at Enter.
+  assert.match(capture, /const enterTicket = focusAuthority\.ticket\(\{ since: 'now' \}\);/);
   assert.match(engine, /enterFreshRef\.current = \{ isComplete: answerState\.isComplete, submitDisabled: !answerState\.isComplete \|\| submitting \|\| locked \|\| scaffoldRequired \|\| contextScaffoldRequired, handleSubmit \};/, 'the same gates as the Submit button');
   assert.match(engine, /<button ref=\{submitButtonRef\}/);
   const input = executableSource(read('src/MathInput.jsx'));

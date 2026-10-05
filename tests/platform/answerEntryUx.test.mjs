@@ -115,12 +115,15 @@ test('App records the cursor before a restore remount, for that question only, a
   assert.match(app, /draftRestore=\{draftRestoreFocus\?\.questionIndex === currentQuestionIndex \? draftRestoreFocus : null\}/);
   assert.match(app, /currentQuestionIndexRef\.current = currentQuestionIndex;\s*setDraftRestoreFocus\(null\);\s*\}, \[currentQuestionIndex, activeAssignmentId\]\);/);
   // The restore branch comes first, focuses only through restoreAnswerFocus,
-  // and returns before the opening's autofocus can run.
-  const effect = engine.slice(engine.indexOf('const draftRestoreRef = useRef(draftRestore);'), engine.indexOf('focusFirstAnswerControl(questionEngineRef.current)'));
-  assert.match(effect, /if \(restore\) \{[\s\S]*restoreAnswerFocus\(questionEngineRef\.current, restore\.position\);[\s\S]*return \(\) => window\.cancelAnimationFrame\(frame\);\s*\}\s*if \(!answerAutoFocusAllowed \|\| missingToolDefinition\) return undefined;/);
+  // and returns before the opening's autofocus can run. It is a deferred
+  // focus, so it goes through the question's authority (a student press after
+  // the remount cancels it; deferredFocusAuthority.test.mjs).
+  const effect = engine.slice(engine.indexOf('const draftRestoreRef = useRef(draftRestore);'), engine.indexOf('// Two-step keyboard flow'));
+  assert.match(effect, /if \(restore\) \{[\s\S]*?return focusAuthority\.request\(\(\) => \{[\s\S]*?restoreAnswerFocus\(questionEngineRef\.current, restore\.position\);\s*\}\);\s*\}\s*if \(!answerAutoFocusAllowed \|\| missingToolDefinition\) return undefined;/);
   assert.doesNotMatch(effect.slice(0, effect.indexOf('if (!answerAutoFocusAllowed')), /focusFirstAnswerControl/);
   // Spent inside the frame, so StrictMode's second mount still finds it.
-  assert.match(effect, /requestAnimationFrame\(\(\) => \{\s*draftRestoreRef\.current = null;/);
+  assert.match(effect, /focusAuthority\.request\(\(\) => \{\s*draftRestoreRef\.current = null;/);
+  assert.doesNotMatch(effect, /window\.requestAnimationFrame/, 'no deferred focus here bypasses the authority');
 });
 
 test('shared student runtimes use the answer-entry behavior', () => {
@@ -137,7 +140,7 @@ test('shared student runtimes use the answer-entry behavior', () => {
   const shell = readFileSync(new URL('../../src/tools/shared/ToolShell.jsx', import.meta.url), 'utf8');
   const pathPlayer = readFileSync(new URL('../../src/components/student/PathSessionPlayer.jsx', import.meta.url), 'utf8');
 
-  assert.match(engine, /focusFirstAnswerControl\(questionEngineRef\.current\)/);
+  assert.match(engine, /const root = questionEngineRef\.current;[\s\S]{0,120}focusFirstAnswerControl\(root\)/);
   // The question runtime routes Enter through the explicit contract
   // (tests/platform/enterContract.test.mjs pins its rules).
   assert.match(engine, /resolveQuestionEnterIntent\(\{/);
@@ -197,9 +200,10 @@ test('the runtime asks that question before it focuses anything', () => {
   assert.match(decision, /narrowViewport: isMobileQuestionViewport\(\)/);
   assert.match(decision, /touchPrimary: isTouchPrimaryPointer\(\)/);
   // The engine's own focus waits for that decision…
-  assert.match(engine, /if \(!answerAutoFocusAllowed \|\| missingToolDefinition\) return undefined;\s*const frame = window\.requestAnimationFrame\(\(\) => \{\s*focusFirstAnswerControl\(questionEngineRef\.current\)/);
-  // …and hands it to registry tools rather than letting them decide alone.
-  assert.match(engine, /<AnswerFocusPolicyProvider allowed=\{answerAutoFocusAllowed\}>[\s\S]*<Tool questionData=\{presentationQuestion\}/);
+  assert.match(engine, /if \(!answerAutoFocusAllowed \|\| missingToolDefinition\) return undefined;\s*const opening = [^;]+;\s*return focusAuthority\.request\(\(\) => \{[\s\S]{0,200}focusFirstAnswerControl\(root\)/);
+  // …and hands it to registry tools rather than letting them decide alone —
+  // except on a restore mount, which puts the cursor back itself or nowhere.
+  assert.match(engine, /<AnswerFocusPolicyProvider allowed=\{answerAutoFocusAllowed && !draftRestore\}>[\s\S]*<Tool questionData=\{presentationQuestion\}/);
   // One definition of "is this a phone", shared with the layout that opens the
   // keypad — two that could drift would mean a runtime unaware of what the
   // layout just did.
@@ -220,6 +224,10 @@ test('a registry tool focuses only when its host allows it AND it has exactly on
   assert.match(effect, /if \(!focusAllowed\) return undefined;/);
   assert.match(effect, /countAnswerControls\(shellRef\.current\) === 1\) focusFirstAnswerControl\(shellRef\.current\)/);
   assert.match(shell, /policy\s*\?\s*policy\.allowed/, 'a hosted tool obeys the host');
+  // A frame later, through the hosting question's authority (or its own on
+  // the tools bench): a press in between cancels it.
+  assert.match(effect, /const focusAuthority = useHostedDeferredFocusAuthority\(\);/);
+  assert.match(effect, /return focusAuthority\.request\(\(\) => \{\s*if \(countAnswerControls/);
 });
 
 test('"the" answer box exists only when there is one', () => {

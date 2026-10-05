@@ -37,7 +37,10 @@ test('a tool puts the cursor in its first answer control on open', () => {
   // Without this a student on a Chromebook lands on a page and has to hunt for
   // where to type before the round clock has even settled.
   assert.match(shell, /focusFirstAnswerControl\(shellRef\.current\)/);
-  assert.match(shell, /requestAnimationFrame/);
+  // On the next frame, once the fields exist — through the deferred-focus
+  // authority, which waits a frame (and drops it if the student acted first).
+  assert.match(shell, /focusAuthority\.request\(/);
+  assert.match(readFileSync(new URL('platform/interaction/deferredFocusAuthority.js', root), 'utf8'), /windowObject\.requestAnimationFrame\(/);
 });
 
 test('every tool renders through the shared shell, so none of this is optional', () => {

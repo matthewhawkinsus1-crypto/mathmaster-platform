@@ -63,8 +63,8 @@ import {
   resolveQuestionMaximumAttempts,
 } from './attemptPolicy';
 import { stableStringify } from './utils/idUtils';
-import { ENTER_TO_CONTINUE_HINT, countAnswerControls, focusFirstAnswerControl, focusForEnter, isTouchPrimaryPointer, nextEmptyAnswerField, resolveQuestionEnterIntent, restoreAnswerFocus, shouldAdvanceOnEnter, shouldFocusAnswerOnOpen } from './platform/interaction/answerEntryUx.js';
-import { AnswerFocusPolicyProvider } from './platform/interaction/answerFocusPolicy.js';
+import { ENTER_TO_CONTINUE_HINT, answerFocusPosition, countAnswerControls, focusFirstAnswerControl, focusForEnter, isTouchPrimaryPointer, nextEmptyAnswerField, resolveQuestionEnterIntent, restoreAnswerFocus, shouldAdvanceOnEnter, shouldFocusAnswerOnOpen } from './platform/interaction/answerEntryUx.js';
+import { AnswerFocusPolicyProvider, DeferredFocusProvider, useDeferredFocusAuthority } from './platform/interaction/answerFocusPolicy.js';
 import { normalizeQuestionWeight } from './platform/grading/questionWeights.js';
 import { resolveTaskContextPresentation } from './platform/workflow/taskContextPresentation.js';
 import { WorkViewCapabilityProvider } from './platform/workView/workViewCapabilities.js';
@@ -417,6 +417,11 @@ function QuestionEngineBody({
   const previousSectionCompleteRef = useRef(Boolean(sectionComplete));
   const [sectionCompletionCelebrating, setSectionCompletionCelebrating] = useState(false);
   const questionEngineRef = useRef(null);
+  // This mount's say over every focus that lands a frame or more after it was
+  // asked for — its own, its tools', MathLive's. A press, tap or key from the
+  // student after the mount (or after the request) cancels them; so does the
+  // question going away. See deferredFocusAuthority.js.
+  const focusAuthority = useDeferredFocusAuthority();
   const checkpointTimerRef = useRef(null);
   const checkpointWrittenRef = useRef(false);
   const checkpointPendingRef = useRef({ eligible: false, state: null });
@@ -731,23 +736,34 @@ function QuestionEngineBody({
   // student had it, or nowhere — never in the first box, where a keystroke
   // already on its way would land over the restored answer. Read once, and
   // spent inside the frame (StrictMode runs this effect twice on mount).
+  //
+  // Both focuses are requests to the authority, made for this mount: once the
+  // student presses, taps or keys anything after the mount, neither may move
+  // the cursor any more (the click that beat the restore is where they want
+  // to be). A later run of this effect — the scaffold finished, the question
+  // unlocked — is a consequence of what just happened, so only an interaction
+  // after IT cancels it, and it never pulls the cursor out of a box the
+  // student is already in.
   const draftRestoreRef = useRef(draftRestore);
+  const openingFocusSpentRef = useRef(false);
   useEffect(() => {
     const restore = draftRestoreRef.current;
     if (restore) {
       if (missingToolDefinition) return undefined;
-      const frame = window.requestAnimationFrame(() => {
+      return focusAuthority.request(() => {
         draftRestoreRef.current = null;
+        openingFocusSpentRef.current = true;
         restoreAnswerFocus(questionEngineRef.current, restore.position);
       });
-      return () => window.cancelAnimationFrame(frame);
     }
     if (!answerAutoFocusAllowed || missingToolDefinition) return undefined;
-    const frame = window.requestAnimationFrame(() => {
-      focusFirstAnswerControl(questionEngineRef.current);
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [processedQuestion, record.variantIndex, answerAutoFocusAllowed, missingToolDefinition]);
+    const opening = !openingFocusSpentRef.current;
+    return focusAuthority.request(() => {
+      const root = questionEngineRef.current;
+      if (!opening && answerFocusPosition(root)) return;
+      if (focusFirstAnswerControl(root)) openingFocusSpentRef.current = true;
+    }, { since: opening ? 'generation' : 'now' });
+  }, [processedQuestion, record.variantIndex, answerAutoFocusAllowed, missingToolDefinition, focusAuthority]);
 
   // Two-step keyboard flow: Enter submits a complete single-line answer; after
   // the platform confirms it is correct, the NEXT Enter advances. Keeping the
@@ -1440,7 +1456,9 @@ function QuestionEngineBody({
               `canonicalSavedAt` is what stops a stale draft outranking a newer
               submitted answer — see `toolDraftIsSuperseded`. */}
           <ToolDraftScopeProvider draftKey={draftKey} canonicalSavedAt={canonicalAnswerSavedAt}>
-            <AnswerFocusPolicyProvider allowed={answerAutoFocusAllowed}>
+            {/* A restore mount puts the cursor back itself (above), or nowhere:
+                a tool must not focus its one box instead. */}
+            <AnswerFocusPolicyProvider allowed={answerAutoFocusAllowed && !draftRestore}>
               <Suspense fallback={<p role="status">Opening Work View…</p>}>
                 <WorkViewReadySignal span={workViewSpan} />
                 <Tool questionData={presentationQuestion} onAction={handleMissingToolAction} draftKey={draftKey} />
@@ -1870,6 +1888,7 @@ function QuestionEngineBody({
   );
 
   return (
+    <DeferredFocusProvider authority={focusAuthority}>
     <QuestionLifecycleProvider terminal={locked}>
     <WorkViewUndoProvider register={setUndoController} baseController={baseUndoController} resetKey={`${processedQuestion?.questionId ?? processedQuestion?.id ?? processedQuestion?.prompt ?? 'question'}|${questionResetVersion}`}>
     <div
@@ -1921,6 +1940,9 @@ function QuestionEngineBody({
           // question looking incomplete and Enter did nothing). Decide once the
           // answer state has caught up — a few frames — from fresh state.
           const deadline = performance.now() + 400;
+          // Moving to Submit a few frames from now is a deferred focus like any
+          // other: a press or key after this Enter means the student went on.
+          const enterTicket = focusAuthority.ticket({ since: 'now' });
           const decideWhenCurrent = () => {
             const fresh = enterFreshRef.current;
             if (!fresh?.isComplete) {
@@ -1928,8 +1950,9 @@ function QuestionEngineBody({
               return;
             }
             if (fresh.submitDisabled) return;
-            if (multipart || deliberate) focusForEnter(submitButtonRef.current);
-            else fresh.handleSubmit();
+            if (multipart || deliberate) {
+              if (focusAuthority.isLive(enterTicket)) focusForEnter(submitButtonRef.current);
+            } else fresh.handleSubmit();
           };
           window.requestAnimationFrame(decideWhenCurrent);
           return;
@@ -2256,6 +2279,7 @@ function QuestionEngineBody({
     </div>
     </WorkViewUndoProvider>
     </QuestionLifecycleProvider>
+    </DeferredFocusProvider>
   );
 }
 
