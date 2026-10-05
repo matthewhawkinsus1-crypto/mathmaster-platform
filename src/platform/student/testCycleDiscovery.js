@@ -48,12 +48,38 @@ export const TEST_CYCLE_DISCOVERY = Object.freeze({
 
 const clean = (value) => String(value ?? '').trim();
 
-/** Review progress from the tracker, the way the server counts it. */
-export const reviewProgressFromTracker = ({ questions = [], tracker = null } = {}) => {
-  const indices = (Array.isArray(questions) ? questions : []).reduce((found, question, index) => {
+/**
+ * Review progress from the tracker, the way the server counts it
+ * (functions/lib/testCycle.js `reviewProgress`).
+ *
+ * Ordinarily Review is done when every item is answered, right or wrong. A
+ * policy with `review.minimumMastery` (the district DOL) also needs that
+ * weighted mastery, from the server-derived exact credit
+ * (`bestRawPartialCredit`), never the rounded display score.
+ */
+export const reviewProgressFromTracker = ({ questions = [], tracker = null, minimumMastery = null } = {}) => {
+  const list = Array.isArray(questions) ? questions : [];
+  const indices = list.reduce((found, question, index) => {
     if (question?.teacherExcluded !== true && clean(question?.activityRole).toLowerCase() === 'review') found.push(index);
     return found;
   }, []);
+  if (minimumMastery !== null && minimumMastery !== undefined) {
+    let possible = 0;
+    let earned = 0;
+    indices.forEach((index) => {
+      const weight = Number(list[index]?.questionWeight) > 0 ? Number(list[index].questionWeight) : 1;
+      possible += weight;
+      earned += weight * (Math.max(0, Math.min(100, Number(tracker?.[index]?.bestRawPartialCredit) || 0)) / 100);
+    });
+    const mastery = possible > 0 ? (earned / possible) * 100 : 0;
+    const threshold = Number.isFinite(Number(minimumMastery)) ? Math.max(0, Math.min(100, Number(minimumMastery))) : 80;
+    const attempted = indices.filter((index) => Number(tracker?.[index]?.totalAttempts || tracker?.[index]?.attemptCount || 0) > 0
+      || ['correct', 'attempted', 'expired'].includes(tracker?.[index]?.status)).length;
+    return {
+      total: indices.length, attempted, mastery, minimumMastery: threshold,
+      complete: indices.length > 0 && attempted === indices.length && mastery >= threshold,
+    };
+  }
   const attempted = indices.filter((index) => {
     const record = normalizeQuestionRecord(tracker?.[index]);
     if (record.status !== 'unattempted') return true;
@@ -62,6 +88,13 @@ export const reviewProgressFromTracker = ({ questions = [], tracker = null } = {
   }).length;
   return { total: indices.length, attempted, complete: indices.length > 0 && attempted === indices.length };
 };
+
+/** The one sentence that says what unlocks the secure session. */
+export const reviewRequirementText = (review = {}, noun = 'test') => (
+  review?.minimumMastery !== undefined && review?.minimumMastery !== null
+    ? `Answer every Review question and earn at least ${review.minimumMastery}% to unlock your ${noun} (now ${Math.floor(Number(review.mastery) || 0)}%).`
+    : `Answer every Review question to unlock your ${noun}.`
+);
 
 const percent = (value) => (value === null || value === undefined || value === '' ? null : Number(value));
 
@@ -75,7 +108,11 @@ export const describeTestCycleForStudent = ({
   if (!isTestCycleAssignment(assignment)) return null;
   const policy = normalizeTestCyclePolicy(assignment.assessmentPolicy);
   const availability = resolveAssessmentAvailability({ assignment, now: nowValue });
-  const review = reviewProgressFromTracker({ questions, tracker });
+  const review = reviewProgressFromTracker({ questions, tracker, minimumMastery: policy?.review?.minimumMastery ?? null });
+  // An external-original cycle (the district DOL) has one secure session, and
+  // it is the RETEST of a score the teacher entered from another system.
+  const external = Boolean(policy?.externalAssessment);
+  const noun = external ? 'Retest' : 'Test';
   const view = projection && typeof projection === 'object' ? projection : null;
   const stage = clean(view?.stage);
   const testState = clean(view?.testState) || 'none';
@@ -111,6 +148,13 @@ export const describeTestCycleForStudent = ({
     });
   }
 
+  if (external && (!view || (stage === 'retestClosed' && recorded === null))) {
+    return result(TEST_CYCLE_DISCOVERY.PAUSED, {
+      label: stage === 'retestClosed' ? 'Retest unavailable' : 'Retest not open',
+      detail: 'Your teacher opens a retest after entering your original score, when it is below passing.',
+      tone: 'locked', started: false, actionLabel: 'View',
+    });
+  }
   if (['passed', 'complete', 'retestClosed'].includes(stage)) {
     return result(TEST_CYCLE_DISCOVERY.COMPLETE, {
       label: recorded === null ? 'Complete' : `Complete · ${recorded}%`,
@@ -150,13 +194,13 @@ export const describeTestCycleForStudent = ({
     return result(TEST_CYCLE_DISCOVERY.AWAITING_RESULTS, {
       // Deliberately says nothing about corrections or a retest: a student who
       // has not been given a score has not been told they failed.
-      label: 'Test submitted', detail: 'Your score appears when your teacher releases results.',
+      label: `${noun} submitted`, detail: 'Your score appears when your teacher releases results.',
       tone: 'pending', done: true, waitingOnTeacher: true, actionLabel: 'View',
     });
   }
   if (testState === 'inProgress') {
     return result(TEST_CYCLE_DISCOVERY.TEST_IN_PROGRESS, {
-      label: 'Test in progress', detail: 'Your answers are saved. Resume your test.', tone: 'inProgress', actionRequired: true, actionLabel: 'Resume Test',
+      label: `${noun} in progress`, detail: `Your answers are saved. Resume your ${noun.toLowerCase()}.`, tone: 'inProgress', actionRequired: true, actionLabel: `Resume ${noun}`,
     });
   }
   if (reviewDone) {
@@ -165,15 +209,15 @@ export const describeTestCycleForStudent = ({
     // waiting on the teacher, which is a different thing to tell a student.
     return view && testState === 'assigned'
       ? result(TEST_CYCLE_DISCOVERY.TEST_READY, {
-        label: 'Test ready', detail: 'Your Review is complete. Your secure test is unlocked.', tone: 'inProgress', actionRequired: true, actionLabel: 'Start Test',
+        label: `${noun} ready`, detail: `Your Review is complete. Your secure ${noun.toLowerCase()} is unlocked.`, tone: 'inProgress', actionRequired: true, actionLabel: `Start ${noun}`,
       })
       : result(TEST_CYCLE_DISCOVERY.TEST_PENDING, {
-        label: 'Review complete', detail: 'Your teacher has not opened the secure test yet.', tone: 'pending', waitingOnTeacher: true, actionLabel: 'View',
+        label: 'Review complete', detail: `Your teacher has not opened the secure ${noun.toLowerCase()} yet.`, tone: 'pending', waitingOnTeacher: true, actionLabel: 'View',
       });
   }
   return result(TEST_CYCLE_DISCOVERY.REVIEW, {
     label: review.total ? `Review · ${review.attempted} of ${review.total}` : 'Review',
-    detail: 'Answer every Review question to unlock your test.',
+    detail: reviewRequirementText(review, noun.toLowerCase()),
     tone: review.attempted > 0 ? 'inProgress' : 'notStarted',
     started: review.attempted > 0,
     actionRequired: true,

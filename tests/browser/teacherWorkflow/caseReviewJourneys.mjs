@@ -26,7 +26,9 @@
 //   C3  official gradebook: a synthetic CSV, one student kept, compared, a
 //       match confirmed, saved (only that student's rows), contribution
 //       reconstructed from the file's own weights
-//   C4  the one server-classified misconception code is named, there and only there;
+//   C4  the server-classified misconception code is named, there and only there —
+//       recurring across an assignment question and a Recovery item, with its
+//       narrative fact; a client-forged Recovery record counts for nothing;
 //       narrative facts with provenance and sources, no forbidden conclusion;
 //       what needs attention, and a drill from it
 //   C5  print (12 sections, teacher-authored next steps, only the case review
@@ -420,16 +422,18 @@ const journeys = {
     const review = await openCaseReview(page);
     await build(page, review, { period: 'all' });
 
-    // The one server-classified misconception code in the records — on
-    // yesterday's Classwork Q2, stored with provenance on its attempt event —
-    // is named, there and nowhere else. The code a client wrote on the
-    // question record's part is not.
+    // The server-classified misconception code in the records — on
+    // yesterday's Classwork Q2, stored with provenance on its attempt event,
+    // and on a Section Recovery item last week, stored in the server-only
+    // Recovery evidence — is named, and is RECURRING across the two. The code
+    // a client wrote on the question record's part, and the Recovery record a
+    // client forged, are not counted.
     await tab(page, review, 'Questions & attempts');
     const overview = await text(panel(review, 'questions'));
-    expect('C4', /1 isolated misconception identified by MathMaster's server-side classifiers in this selection\./.test(overview)
-      && /Isolated misconception: Solution satisfies only one equation \(1 question\)/.test(overview)
+    expect('C4', /1 recurring misconception identified by MathMaster's server-side classifiers in this selection\./.test(overview)
+      && /Recurring misconception: Solution satisfies only one equation \(2 questions, 2 assignments, including 1 Recovery question\)/.test(overview)
       && !/Ordered pair written as/.test(overview),
-      `a server-classified code is reported with its registry label (${overview.match(/Error patterns.{0,200}/)?.[0]})`);
+      `a server-classified code is reported with its registry label, a Recovery item counted once and a forged one not at all (${overview.match(/Error patterns.{0,240}/)?.[0]})`);
     await panel(review, 'questions').getByRole('button', { name: 'Systems of Equations — Lesson 2: Substitution' }).first().click();
     const lesson = review.locator('[data-case-assignment-detail="a-yesterday"]');
     await lesson.waitFor({ timeout: 10000 });
@@ -449,6 +453,8 @@ const journeys = {
       expect('C4', violations.length === 0, `no forbidden conclusion: "${sentence}" (${violations.map((entry) => entry.id).join(', ')})`);
     });
     expect('C4', !texts.some((sentence) => /structured error-pattern records/.test(sentence)), 'with a stored code, the "no error-pattern records" fact is not offered');
+    expect('C4', texts.includes('MathMaster identified a recurring error pattern on 2 server-graded questions across 2 assignments: solution satisfies only one equation.'),
+      'the recurring pattern is offered as one narrative fact, describing the work');
     const withSources = panel(review, 'facts').locator('[data-fact-key] details').first();
     await withSources.locator('summary').click();
     expect('C4', /grades\/\{student\}|Assignment instances|Question records/.test(await text(withSources)), 'a fact opens to the records it came from');

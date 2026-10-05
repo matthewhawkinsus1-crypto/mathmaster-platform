@@ -230,6 +230,19 @@ only a root admin may delete an assignment document directly.
   `previewTestCycleSecureItems` / `gradeTestCyclePreviewItem`. Preview writes
   nothing: no session, record, grade or draft (the emulator suite asserts it).
 
+## External originals and mastery-gated Review
+
+A policy with `externalAssessment` (the district DOL) has no MathMaster Test:
+the teacher enters each student's original score from another system when
+opening sessions, only scores below passing open a session, and that one
+secure session — the record's `test` — is the RETEST (no corrections). A
+policy with `review.minimumMastery` gates the secure session on weighted
+Review mastery from exact server credit, not on answering. The lifecycle
+surfaces follow both: the card, the student list (`testCycleDiscovery.js`),
+the teacher rows, the preview scenarios and the policy locks (cap and rule
+lock once that retest is released; the passing score once sessions open)
+speak of a retest and of the mastery bar where they apply.
+
 ## Callables added by the lifecycle work
 
 | Callable | Who | What |

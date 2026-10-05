@@ -297,13 +297,16 @@ function normalizeResponseFields(fields = [], question = {}) {
 // the ordered pairs they are classifying, the worked steps in an error-analysis
 // item. Allowlisted field by field and coerced to primitives, so an authoring
 // key nobody anticipated cannot ride along.
-function sanitizeStimulus(stimulus) {
+function sanitizeStimulus(stimulus, depth = 0) {
   if (!stimulus || typeof stimulus !== 'object') return null;
   const clean = {
     kind: String(stimulus.kind || 'expressions'),
     title: stimulus.title ? String(stimulus.title).slice(0, 140) : null,
-    note: stimulus.note ? String(stimulus.note).slice(0, 300) : null,
+    note: stimulus.note ? String(stimulus.note).slice(0, 600) : null,
   };
+  if (depth < 2 && Array.isArray(stimulus.panels)) {
+    clean.panels = stimulus.panels.slice(0, 8).map((panel) => sanitizeStimulus(panel, depth + 1)).filter(Boolean);
+  }
   if (stimulus.graph && typeof stimulus.graph === 'object') {
     const graph = stimulus.graph;
     const finiteNumber = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
@@ -323,6 +326,11 @@ function sanitizeStimulus(stimulus) {
       yMin: finiteNumber(graph.yMin, -6),
       yMax: finiteNumber(graph.yMax, 6),
       ariaLabel: graph.ariaLabel ? String(graph.ariaLabel).slice(0, 160) : null,
+      xAxisLabel: graph.xAxisLabel ? String(graph.xAxisLabel).slice(0, 100) : null,
+      yAxisLabel: graph.yAxisLabel ? String(graph.yAxisLabel).slice(0, 100) : null,
+      xTickStep: Number(graph.xTickStep) > 0 ? Number(graph.xTickStep) : null,
+      yTickStep: Number(graph.yTickStep) > 0 ? Number(graph.yTickStep) : null,
+      readCoordinates: graph.readCoordinates === true,
       points: (Array.isArray(graph.points) ? graph.points : []).slice(0, 24)
         .map(visiblePoint).filter(Boolean),
       lines: (Array.isArray(graph.lines) ? graph.lines : []).slice(0, 4)
@@ -340,7 +348,7 @@ function sanitizeStimulus(stimulus) {
       curves: (Array.isArray(graph.curves) ? graph.curves : []).slice(0, 4)
         .map((curve, index) => ({
           label: String(curve?.label || `Curve ${index + 1}`).slice(0, 60),
-          points: (Array.isArray(curve?.points) ? curve.points : []).slice(0, 32)
+          points: (Array.isArray(curve?.points) ? curve.points : []).slice(0, 129)
             .map(visiblePoint).filter(Boolean),
         }))
         .filter((curve) => curve.points.length >= 2),
@@ -451,6 +459,8 @@ function buildSanitizedQuestion(question, { questionInstanceId, attemptsAllowed,
     difficultyBand: Number(question.difficultyBand) || 3,
     dok: Number(question.dok) || 1,
     calculatorPolicy: String(question.calculatorPolicy || 'inherit'),
+    ...(Array.isArray(question.permittedTools) && question.permittedTools.includes('linearRegression')
+      ? { permittedTools: ['linearRegression'] } : {}),
     assessedConstruct: question.assessedConstruct || null,
     // Assessment context is instructional metadata, not answer data. Carry it
     // per issued question so CCMR practice can distinguish a real exam-format
@@ -536,6 +546,8 @@ function privateGradingDefinition(question) {
     );
     return {
       id,
+      weight: Number(field?.weight) > 0 ? Math.min(20, Number(field.weight)) : 1,
+      partialCredit: field?.partialCredit === 'matchedElements' ? 'matchedElements' : null,
       expected: remap(field?.expected ?? field?.answer),
       accepted: [
         ...(Array.isArray(field?.accepted) ? field.accepted : []),
@@ -674,9 +686,19 @@ async function gradeResponse(grading, responsePayload = {}) {
     : {};
   const fields = Array.isArray(grading?.fields) ? grading.fields : [];
   if (!fields.length) return { isCorrect: false, score: 0, fieldResults: [] };
-  const fieldResults = await Promise.all(fields.map(async (field) => ({ id: field.id, isCorrect: await valuesEquivalent(responses[field.id], field) })));
-  const correctCount = fieldResults.filter((field) => field.isCorrect).length;
-  return { isCorrect: correctCount === fields.length, score: correctCount / fields.length, fieldResults };
+  const fieldResults = await Promise.all(fields.map(async (field) => {
+    const isCorrect = await valuesEquivalent(responses[field.id], field);
+    let credit = isCorrect ? 1 : 0;
+    if (field.equivalence === 'numericSet' && field.partialCredit === 'matchedElements') {
+      const { numericSetCredit } = await import('../shared/numericSetCredit.mjs');
+      credit = numericSetCredit(responses[field.id], field.expected, field.numericTolerance);
+    }
+    return { id: field.id, isCorrect, credit, weight: Number(field.weight) > 0 ? Number(field.weight) : 1 };
+  }));
+  const possible = fieldResults.reduce((sum, field) => sum + field.weight, 0);
+  return { isCorrect: fieldResults.every((field) => field.isCorrect),
+    score: fieldResults.reduce((sum, field) => sum + field.credit * field.weight, 0) / possible,
+    fieldResults: fieldResults.map(({ id, isCorrect }) => ({ id, isCorrect })) };
 }
 
 function mathematicalIndependence(supportUsage = {}) {

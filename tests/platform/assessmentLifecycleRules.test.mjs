@@ -38,7 +38,7 @@ import {
 import { TEST_CYCLE_CONTRACT_EDIT, planTestCycleContractEdit } from '../../src/platform/assessment/testCycleContractEdit.js';
 import { testCycleContractFields } from '../../src/platform/contract/storedAssignmentV5.js';
 import { describeTeacherRow, teacherActionsForRow } from '../../src/platform/teacher/testCycleTeacherRows.js';
-import { TEST_CYCLE_PREVIEW_SCENARIOS, buildTestCyclePreviewCard } from '../../src/platform/teacher/testCyclePreviewModel.js';
+import { TEST_CYCLE_PREVIEW_SCENARIOS, buildTestCyclePreviewCard, previewScenariosFor } from '../../src/platform/teacher/testCyclePreviewModel.js';
 import { COURSE_TEST_EXAM_TYPE, getExamPolicy, resolveExamCalculatorPolicy } from '../../src/platform/policies/examPolicyResolver.js';
 
 const require = createRequire(import.meta.url);
@@ -343,4 +343,63 @@ test('a locked Test needs the teacher: it is named as locked and unlocking is of
   const unlocked = { ...row, bucket: 'testing', attention: null };
   assert.match(describeTeacherRow(unlocked).testText, /In progress 4\/25/);
   assert.ok(!teacherActionsForRow(unlocked).some((action) => action.kind === 'unlock'));
+});
+
+/* ---- Merged with the district DOL work: mastery-gated Review, external originals ---- */
+
+const DISTRICT_POLICY = { mode: 'testCycle', externalAssessment: { source: 'Eduphoria' }, review: { minimumMastery: 80 }, corrections: { requiredForRetest: false } };
+const reviewItems = (count) => Array.from({ length: count }, (_, index) => ({ questionId: `r${index}`, activityRole: 'review', questionWeight: 1 }));
+
+test('a mastery-gated Review is not done when every item is answered but mastery is below the bar — exactly as the server counts it', () => {
+  const questions = reviewItems(4);
+  const tracker = Object.fromEntries(questions.map((_, index) => [index, { status: 'attempted', totalAttempts: 1, bestPartialCredit: 80, bestRawPartialCredit: 75 }]));
+  const short = reviewProgressFromTracker({ questions, tracker, minimumMastery: 80 });
+  assert.equal(short.attempted, 4);
+  assert.equal(short.complete, false, '75% is below the 80% bar, whatever the rounded display says');
+  tracker[0].bestRawPartialCredit = 100;
+  tracker[1].bestRawPartialCredit = 100;
+  assert.equal(reviewProgressFromTracker({ questions, tracker, minimumMastery: 80 }).complete, true);
+  // Without a bar, answering is enough — right or wrong.
+  const answeredOnly = Object.fromEntries(questions.map((_, index) => [index, { status: 'attempted', totalAttempts: 1 }]));
+  assert.equal(reviewProgressFromTracker({ questions, tracker: answeredOnly }).complete, true);
+
+  const described = describeTestCycleForStudent({
+    assignment: { id: 'dol', assessmentPolicy: { mode: 'testCycle', review: { minimumMastery: 80 } }, sections: [] },
+    projection: null, questions, tracker: Object.fromEntries(questions.map((_, index) => [index, { status: 'attempted', totalAttempts: 1, bestRawPartialCredit: 50 }])),
+  });
+  assert.equal(described.key, 'review');
+  assert.match(described.detail, /at least 80%/);
+  assert.doesNotMatch(described.detail, /do not have to be correct/);
+});
+
+test('an external-original cycle reads as a retest everywhere: student list, teacher rows and preview', () => {
+  const assignment = { id: 'dol', assessmentPolicy: DISTRICT_POLICY, sections: [] };
+  // No session yet (no original entered): not "Review", not "Complete".
+  const notOpen = describeTestCycleForStudent({ assignment, projection: null, questions: reviewItems(2), tracker: {} });
+  assert.equal(notOpen.label, 'Retest not open');
+  const ready = describeTestCycleForStudent({ assignment, projection: { stage: 'test', testState: 'assigned', reviewComplete: true }, questions: reviewItems(2), tracker: {} });
+  assert.equal(ready.label, 'Retest ready');
+  assert.equal(ready.actionLabel, 'Start Retest');
+
+  const row = {
+    studentId: 'S1', stage: 'test', bucket: 'readyForTest', originalTestGrade: 52,
+    review: { attempted: 2, total: 2, complete: true }, test: { examSessionId: 'e1', state: 'assigned' }, retest: {}, corrections: {}, teacherControls: {},
+  };
+  const described = describeTeacherRow(row, { external: true });
+  assert.equal(described.bucketLabel, 'Ready for retest');
+  assert.equal(described.correctionsText, 'Not used');
+  const actions = teacherActionsForRow(row, { external: true });
+  assert.ok(!actions.some((action) => /corrections/i.test(action.action || '')), 'no corrections actions: the server refuses them');
+  const reset = actions.find((action) => action.action === 'resetSecureSession');
+  assert.equal(reset.stage, 'test');
+  assert.equal(reset.label, 'Reset Retest session');
+  // Mastery shows on the teacher's Review column too.
+  assert.equal(describeTeacherRow({ ...row, review: { attempted: 7, total: 7, complete: false, mastery: 74.6, minimumMastery: 80 } }).reviewText, '7/7 · 74% of 80%');
+
+  const scenarios = previewScenariosFor(assignment).map((scenario) => scenario.id);
+  assert.ok(!scenarios.includes('corrections') && !scenarios.includes('passed'), 'stages that do not exist are not previewed');
+  const preview = buildTestCyclePreviewCard({ assignment, scenario: 'testReady', now: NOW });
+  assert.equal(preview.actionLabel, 'Start Retest');
+  assert.equal(preview.policy.external, true);
+  assert.deepEqual(preview.phases.map((phase) => phase.label), ['Review', 'Retest']);
 });

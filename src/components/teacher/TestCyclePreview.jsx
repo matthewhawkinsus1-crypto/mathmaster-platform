@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import TestCycleCard from '../student/TestCycleCard.jsx';
 import ExamPrepHeader from '../assessment/ExamPrepHeader.jsx';
 import SecureExamQuestionPlayer from '../assessment/SecureExamQuestionPlayer.jsx';
-import { TEST_CYCLE_PREVIEW_SCENARIOS, buildTestCyclePreviewCard } from '../../platform/teacher/testCyclePreviewModel.js';
+import { buildTestCyclePreviewCard, previewScenariosFor } from '../../platform/teacher/testCyclePreviewModel.js';
 import { gradeTestCyclePreviewItem, previewTestCycleSecureItems } from '../../services/testCycleService.js';
 
 /*
@@ -189,7 +189,7 @@ export const TestCyclePreview = ({ assignment, onClose, onPreviewReview = null }
       </div>
       <div style={{ padding: 16, display: 'grid', gap: 12, maxWidth: 1400, margin: '0 auto' }}>
         <div role="group" aria-label="Stage to preview" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {TEST_CYCLE_PREVIEW_SCENARIOS.map((entry) => (
+          {previewScenariosFor(assignment).map((entry) => (
             <button key={entry.id} type="button" aria-pressed={scenario === entry.id} onClick={() => { setScenario(entry.id); setView('card'); }} style={chip(scenario === entry.id)}>{entry.label}</button>
           ))}
         </div>

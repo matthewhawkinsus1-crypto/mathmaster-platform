@@ -293,7 +293,7 @@ export const SecureExamContainer = ({
       expiresAt={session.expiresAt}
       onTimeExpired={() => finish('timeExpired')}
     />
-    <div aria-hidden="true" style={{ position: 'fixed', inset: 0, pointerEvents: 'none', display: 'grid', placeItems: 'center', opacity: .025, fontSize: 'clamp(36px,10vw,100px)', fontWeight: 900, transform: 'rotate(-20deg)' }}>MATHMASTER SECURE</div>
+    {session.watermarkEnabled !== false && <div aria-hidden="true" style={{ position: 'fixed', inset: 0, pointerEvents: 'none', display: 'grid', placeItems: 'center', opacity: .025, fontSize: 'clamp(36px,10vw,100px)', fontWeight: 900, transform: 'rotate(-20deg)' }}>MATHMASTER SECURE</div>}
     {error && <div role="alert" style={{ maxWidth: 820, margin: '14px auto 0', padding: '10px 14px', color: 'var(--mm-error-text)', background: 'var(--mm-error-bg)', borderRadius: 8 }}>{error}</div>}
     <SecureExamQuestionPlayer key={question?.questionInstanceId || 'waiting'} examType={session.examType || examType} sessionCalculatorMode={session.calculatorMode || null} question={question} initialResponsePayload={question?._draftResponse} studentSupportProfile={courseTest || session.accommodationsConfirmed ? studentSupportProfile : null} accommodationConfirmed={courseTest || session.accommodationsConfirmed === true} busy={busy} onSubmit={submitResponse} onDraftChange={autosaveDraft} />
     {question && saveState !== 'idle' && (

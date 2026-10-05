@@ -31,6 +31,33 @@
 
 import { normalizeTestBlueprint } from './testCycleBlueprint.mjs';
 import { clampPercent, normalizeTestCyclePolicy } from './testCyclePolicy.mjs';
+import { getMisconceptionCode, trustedMisconceptionFindings } from './misconceptionCodes.mjs';
+
+/*
+ * TEST CYCLE ERROR PATTERNS SPEAK THE CANONICAL REGISTRY.
+ *
+ * A Test Cycle response used to be read for a free-text `misconceptionCode` or
+ * `errorPattern` (functions/lib/testCycle.js responsesForProfile), and any
+ * string there became a named diagnosis. Nothing ever wrote one — and nothing
+ * could prove one. A named error pattern is now ONLY a finding with server
+ * provenance that passes the registry's trust gate
+ * (misconceptionCodes.mjs trustedMisconceptionFindings): the same codes, the
+ * same versions and the same teacher meaning as everywhere else in MathMaster.
+ *
+ *   new response evidence   `misconceptionEvidence` (the provenance block a
+ *                           server classifier builds) → canonical code
+ *   a legacy free string    unverifiable: never a diagnosis; the target is
+ *                           the missed standard, exactly as with no label
+ *   a future registry code  unknown to this build: dropped, never guessed
+ *   a stored plan           unchanged: its `diagnosisDetail` was written when
+ *                           it was built and is shown as written
+ */
+export const TEST_CYCLE_MISCONCEPTION_SOURCE = 'canonical-registry';
+
+/** The canonical codes one Test Cycle response proves, through the trust gate. */
+export const testCycleResponseMisconceptionCodes = (response) => trustedMisconceptionFindings({
+  misconceptionEvidence: response?.misconceptionEvidence ?? response?.grading?.misconceptionEvidence ?? null,
+}).map((finding) => finding.code);
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const clean = (value) => String(value ?? '').trim();
@@ -101,9 +128,9 @@ export const buildPerformanceProfile = ({ blueprint = null, responses = [] } = {
         representation: clean(response.representation) || entry.representation,
         submittedAt: Number(response.submittedAt) || null,
       });
-      // Only real, carried metadata. Nothing is derived from a wrong answer.
-      const misconception = clean(response.misconceptionCode || response.errorPattern);
-      if (misconception) entry.misconceptions.push(misconception);
+      // Only server-proved, canonical findings. Nothing is derived from a
+      // wrong answer, and a free-text label is not evidence.
+      entry.misconceptions.push(...testCycleResponseMisconceptionCodes(response));
     }
   });
 
@@ -189,9 +216,12 @@ export const buildCorrectionPlan = ({
 
   const limit = Math.max(1, Math.min(20, Math.round(Number(maxTargets) || 8)));
   const targets = built.weakestFirst.slice(0, limit).map((target, index) => {
-    const misconception = resolved.corrections.strategy === 'performanceTargeted'
-      ? target.misconceptions[0] || null
+    // A registry code this build knows, or nothing (a code from a newer
+    // registry degrades to the standard diagnosis).
+    const misconceptionEntry = resolved.corrections.strategy === 'performanceTargeted'
+      ? list(target.misconceptions).map((code) => getMisconceptionCode(code)).find(Boolean) || null
       : null;
+    const misconception = misconceptionEntry?.id || null;
     const forbiddenInstanceIds = [...target.seenInstanceIds];
     const parallelFamilyIds = target.familyIds.filter((familyId) => !target.seenFamilyIds.includes(familyId));
     return {
@@ -208,8 +238,14 @@ export const buildCorrectionPlan = ({
       // A named misconception only when the evidence carried one.
       diagnosis: misconception ? CORRECTION_DIAGNOSIS.MISCONCEPTION : CORRECTION_DIAGNOSIS.STANDARD,
       misconception,
-      diagnosisDetail: misconception
-        ? `Observed error pattern "${misconception}" on this standard.`
+      // One teacher-facing meaning: the registry's own label and meaning.
+      ...(misconceptionEntry ? {
+        misconceptionLabel: misconceptionEntry.label,
+        misconceptionCodeVersion: misconceptionEntry.version,
+        misconceptionSource: TEST_CYCLE_MISCONCEPTION_SOURCE,
+      } : {}),
+      diagnosisDetail: misconceptionEntry
+        ? `MathMaster identified "${misconceptionEntry.label}" on this standard in server-graded Test work. ${misconceptionEntry.teacherMeaning}`
         : `Targeting the missed standard ${target.alignmentKey || target.label}; no specific error pattern was recorded.`,
       // The teacher-visible mapping back to real failed Test evidence.
       evidence: target.missedEvidence.map((item) => ({ ...item })),

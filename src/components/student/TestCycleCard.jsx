@@ -224,6 +224,8 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
   const enabled = card.canEnter && !(isReviewAction && !card.reviewExamSessionId);
   const availability = card.availability || null;
   const review = card.reviewProgress || null;
+  // An external-original cycle's one secure session is the retest.
+  const noun = card.policy?.external ? 'Retest' : 'Test';
 
   return (
     <section style={shell} data-test-cycle-stage={card.stage} data-availability={availability?.reason || 'open'}>
@@ -243,7 +245,10 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
 
       {card.stage === TEST_CYCLE_STAGE.REVIEW && review && review.total > 0 && (
         <p style={factStyle}>
-          Review: {review.attempted} of {review.total} questions answered. Answer every Review question to unlock your Test — they do not have to be correct.
+          Review: {review.attempted} of {review.total} questions answered.{' '}
+          {review.minimumMastery !== undefined && review.minimumMastery !== null
+            ? `Answer every Review question and earn at least ${review.minimumMastery}% to unlock your ${noun} (now ${Math.floor(Number(review.mastery) || 0)}%).`
+            : `Answer every Review question to unlock your ${noun} — they do not have to be correct.`}
         </p>
       )}
 
@@ -287,7 +292,7 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
       <div style={{ display: 'grid', gap: 4 }}>
         {card.delivery && (
           <p style={factStyle}>
-            {card.delivery.timed ? `Test is timed: ${card.delivery.timeLimitMinutes} minutes once you start.` : 'Test is not timed.'}
+            {card.delivery.timed ? `${noun} is timed: ${card.delivery.timeLimitMinutes} minutes once you start.` : `${noun} is not timed.`}
             {card.delivery.questionCount ? ` ${card.delivery.questionCount} questions, one attempt each.` : ''}
           </p>
         )}

@@ -21,7 +21,7 @@
  * Those are listed as recorded results — what was marked, not why — and only
  * where the part has a real name (not "Part 1").
  */
-import { getMisconceptionCode, misconceptionLabel } from '../../../functions/shared/misconceptionCodes.mjs';
+import { getMisconceptionCode, misconceptionLabel, trustedMisconceptionFindings } from '../../../functions/shared/misconceptionCodes.mjs';
 import { QUESTION_OUTCOME, isRequiredQuestion } from './attemptAnalysis.js';
 
 export const ERROR_PATTERN_NOT_DETERMINABLE = 'Error pattern not determinable from stored evidence.';
@@ -40,7 +40,8 @@ export const describeMisconceptionEntry = (entry) => {
   const where = entry.questions === 1
     ? (entry.attempts > 1 ? `1 question, on ${entry.attempts} attempts` : '1 question')
     : `${plural(entry.questions, 'question')}, ${plural(entry.assignmentIds.length, 'assignment')}`;
-  return `${kind}: ${entry.label} (${where})`;
+  const recovery = entry.recoveryQuestions > 0 ? `, including ${plural(entry.recoveryQuestions, 'Recovery question')}` : '';
+  return `${kind}: ${entry.label} (${where}${recovery})`;
 };
 
 const list = (value) => (Array.isArray(value) ? value : []);
@@ -73,22 +74,52 @@ export const errorPatternForQuestion = (row) => {
   return { determinable: false, codes: [], statement: ERROR_PATTERN_NOT_DETERMINABLE };
 };
 
-/** Across a set of question rows: structured codes, and named parts marked not correct. */
-export const analyzeErrorPatterns = ({ questions = [] } = {}) => {
+/**
+ * Across a set of question rows: structured codes, and named parts marked not
+ * correct.
+ *
+ * `recoveryEvidence` — the case evidence's `misconceptionEvidence` records
+ * (Section Recovery and Recovery Practice items the server graded; see
+ * functions/shared/misconceptionEvidenceSites.mjs). Each is its own question
+ * — a fresh instance the student answered — so it counts toward recurring
+ * like any other question, read through the same trust gate. It is never an
+ * attempt on the original question and carries no score.
+ */
+export const analyzeErrorPatterns = ({ questions = [], recoveryEvidence = [] } = {}) => {
   // Scored work only; a question the student's accommodation omitted is
   // neither scored nor unscored — it is not their work.
   const rows = list(questions).filter((row) => isRequiredQuestion(row) && !UNSCORED.has(row.outcome));
   const notCorrect = rows.filter((row) => row.finalResult !== 'correct');
   const byCode = new Map();
+  const newEntry = (code, label) => ({
+    code, label, meaning: getMisconceptionCode(code).teacherMeaning, questions: 0, attempts: 0, recoveryQuestions: 0, assignmentIds: new Set(), questionRefs: [],
+  });
+  const recoverySeen = new Set();
+  list(recoveryEvidence).forEach((record) => {
+    // A record is one graded Recovery or Practice item; the same item twice
+    // (a re-read) is one question.
+    const key = clean(record?.eventKey);
+    if (!key || recoverySeen.has(key)) return;
+    recoverySeen.add(key);
+    trustedMisconceptionFindings(record?.performance).forEach(({ code }) => {
+      const label = misconceptionLabel(code);
+      if (!label) return;
+      const entry = byCode.get(code) || newEntry(code, label);
+      entry.questions += 1;
+      entry.attempts += 1;
+      entry.recoveryQuestions += 1;
+      entry.assignmentIds.add(clean(record?.source?.assignmentId));
+      entry.questionRefs.push({ assignmentId: clean(record?.source?.assignmentId), kind: clean(record?.source?.kind), section: record?.source?.section || null, itemId: record?.source?.itemId || null, attempts: 1 });
+      byCode.set(code, entry);
+    });
+  });
   rows.forEach((row) => {
     const findings = list(row.misconceptionFindings);
     list(row.misconceptionCodes).forEach((code) => {
       const label = misconceptionLabel(code);
       // A code this build's registry does not know degrades to nothing.
       if (!label) return;
-      const entry = byCode.get(code) || {
-        code, label, meaning: getMisconceptionCode(code).teacherMeaning, questions: 0, attempts: 0, assignmentIds: new Set(), questionRefs: [],
-      };
+      const entry = byCode.get(code) || newEntry(code, label);
       const attempts = new Set(findings.filter((finding) => finding.code === code).map((finding) => finding.attemptNumber)).size || 1;
       entry.questions += 1;
       entry.attempts += attempts;

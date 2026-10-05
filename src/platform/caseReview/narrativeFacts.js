@@ -52,6 +52,9 @@ export const TEMPLATES = Object.freeze({
   sisSnapshot: 'The imported gradebook snapshot ({fileName}) lists {items} {itemWord} for the student; {agree} match MathMaster\'s grades.',
   sisOfficialAverage: 'The official average shown in the imported gradebook snapshot is {average}.',
   errorPatternNotDeterminable: 'MathMaster does not contain structured error-pattern records for this student\'s answers, so no error pattern can be stated from stored evidence.',
+  // The observed work, never the student: {label} is the registry's own name
+  // for the pattern ("Domain and range exchanged").
+  recurringErrorPattern: 'MathMaster identified a recurring error pattern on {questions} server-graded {questionWord} across {assignments} {assignmentWord}: {label}.',
 });
 
 const plural = (count, one, many) => (Number(count) === 1 ? one : many);
@@ -151,6 +154,20 @@ export const buildNarrativeFacts = (model) => {
   if (model?.errorPatterns && !model.errorPatterns.determinable && (attempts.scored > 0 || modifiedAttempts.scored > 0)) {
     add('attempts.error-pattern', 'attempts', 'errorPatternNotDeterminable', {}, CASE_PROVENANCE.NOT_RECORDED, []);
   }
+  // A recurring pattern only: what a server classifier proved on two or more
+  // questions (errorPatterns.js reads it through the registry's trust gate).
+  // An isolated code stays in the error-pattern list, not in a narrative.
+  list(model?.errorPatterns?.codes).filter((entry) => entry.recurrence === 'recurring').slice(0, 4).forEach((entry) => {
+    add(`attempts.error-pattern.${entry.code}`, 'attempts', 'recurringErrorPattern', {
+      questions: entry.questions,
+      questionWord: plural(entry.questions, 'question', 'questions'),
+      assignments: entry.assignmentIds.length,
+      assignmentWord: plural(entry.assignmentIds.length, 'assignment', 'assignments'),
+      label: entry.label.charAt(0).toLowerCase() + entry.label.slice(1),
+    }, CASE_PROVENANCE.DIRECT, [
+      caseSource({ label: 'Server misconception evidence', path: 'grades/{student}/evidenceEvents · misconceptionEvidence', detail: 'Codes a server classifier recorded from graded work, with their provenance.' }),
+    ]);
+  });
 
   // Deadlines: a count for the period, and the date itself where the work was
   // late, incomplete or missing — where a narrative is likely to need it.

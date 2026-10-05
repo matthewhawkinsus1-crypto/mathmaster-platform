@@ -5,6 +5,7 @@ import { requiredAnswerToolForSymbol, resolveRequiredAnswerSymbols } from './pla
 import { buildMobileMathTools } from './platform/interaction/mobileKeypadPolicy.js';
 import { scheduleHorizontalViewportStabilization } from './platform/mobile/mobileFocusViewport.js';
 import { bindMathFieldFocusHandoff, focusMathFieldWithoutScroll } from './platform/interaction/mathFieldFocusHandoff.js';
+import { useDeferredFocusHost } from './platform/interaction/answerFocusPolicy.js';
 import { typedFractionCommandStep, typedFractionKeyStep, typedFractionValueStep } from './platform/math/typedFractionEntry.js';
 
 const BASIC_KEYS = [
@@ -447,9 +448,15 @@ export default function MathInput({
   // Some tools intentionally move the student's attention into a math field
   // immediately after they choose an action. A numeric signal avoids making
   // every MathInput autofocus on mount: only an explicit increment focuses it.
+  //
+  // Inside a question the focus waits for the next frame through the
+  // question's deferred-focus authority: the action that raised the signal
+  // already happened, so only a press or key AFTER it cancels the focus (the
+  // student clicked somewhere else first), as does the question going away.
+  const deferredFocusHost = useDeferredFocusHost();
   useEffect(() => {
     if (!focusSignal || !mfRef.current) return undefined;
-    const frame = window.requestAnimationFrame(() => {
+    const focusField = () => {
       const mathField = mfRef.current;
       // MathfieldElement.focus() ignores preventScroll; the sink does not.
       if (!focusMathFieldWithoutScroll(mathField)) mathField?.focus?.({ preventScroll: true });
@@ -459,9 +466,11 @@ export default function MathInput({
       // alone; the field's scroll-margin keeps it clear of the bar. Phones keep
       // their own viewport stabilisation.
       if (!isMobile) mathField?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
-    });
+    };
+    if (deferredFocusHost) return deferredFocusHost.request(focusField, { since: 'now', channel: 'field' });
+    const frame = window.requestAnimationFrame(focusField);
     return () => window.cancelAnimationFrame(frame);
-  }, [focusSignal, isMobile]);
+  }, [focusSignal, isMobile, deferredFocusHost]);
 
   useEffect(() => {
     if (!collapseSignal) return;

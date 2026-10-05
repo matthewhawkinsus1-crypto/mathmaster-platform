@@ -1270,11 +1270,17 @@ async function sectionRecoveryService() {
     // The context builder (shared with the student app) and the grading
     // actions (server-only: they load every shared tool grader) are two
     // modules so the browser never downloads the graders it does not run.
-    const [service, actions] = await Promise.all([
+    const [service, actions, misconceptionSites] = await Promise.all([
       import("./shared/sectionRecoveryService.mjs"),
       import("./shared/sectionRecoveryActions.mjs"),
+      import("./shared/misconceptionEvidenceSites.mjs"),
     ]);
-    sectionRecoveryServiceModule = { ...service, ...actions };
+    sectionRecoveryServiceModule = {
+      ...service,
+      ...actions,
+      recoveryMisconceptionEvidenceRecords: misconceptionSites.recoveryMisconceptionEvidenceRecords,
+      MISCONCEPTION_EVIDENCE_COLLECTION: misconceptionSites.MISCONCEPTION_EVIDENCE_COLLECTION,
+    };
   }
   return sectionRecoveryServiceModule;
 }
@@ -1385,11 +1391,12 @@ exports.advanceSectionRecovery = onCall(async (request) => {
         sectionModeFor: (role) => serverSectionVariantMode(assignment, role),
         nowValue: Date.now(),
       });
+      const actedAt = Date.now();
       const outcome = service.runSectionRecoveryAction({
         context,
         action,
         payload: request.data?.payload && typeof request.data.payload === "object" ? request.data.payload : {},
-        at: Date.now(),
+        at: actedAt,
       });
       if (outcome.changed) {
         transaction.update(
@@ -1397,6 +1404,22 @@ exports.advanceSectionRecovery = onCall(async (request) => {
           new FieldPath("sectionRecoveryByAssignment", assignmentId, section),
           outcome.record,
         );
+      }
+      // Misconception evidence from items the server legitimately graded —
+      // a side effect, written apart from attempt events (so it never moves
+      // mastery, Path or a Recovery score) under a key fixed by the item, so
+      // a retried transaction writes the same document.
+      if (outcome.changed && Array.isArray(outcome.misconceptionEvidence) && outcome.misconceptionEvidence.length) {
+        service.recoveryMisconceptionEvidenceRecords({
+          entries: outcome.misconceptionEvidence,
+          studentId,
+          assignmentId,
+          section,
+          occurredAt: actedAt,
+        }).forEach((evidenceRecord) => transaction.set(
+          gradeRef.collection(service.MISCONCEPTION_EVIDENCE_COLLECTION).doc(evidenceRecord.eventKey),
+          evidenceRecord,
+        ));
       }
       return {
         action,
@@ -2003,7 +2026,7 @@ exports.loadStudentCaseEvidence = onCall(async (request) => {
   const draftRefs = assignmentIds.map((assignmentId) => db
     .collection(WORKSPACE_DRAFT_COLLECTION)
     .doc(workspaceDraftDocumentId({ studentId, assignmentId })));
-  const [eventSnapshots, receiptSnapshots, draftSnapshots, auditSnapshot] = await Promise.all([
+  const [eventSnapshots, receiptSnapshots, draftSnapshots, auditSnapshot, misconceptionSnapshots] = await Promise.all([
     // By assignment (single-field indexes only), so My Math Path and Live
     // Challenge events never crowd out the assignments asked about.
     Promise.all(chunks.map((ids) => gradeRef.collection("evidenceEvents")
@@ -2018,6 +2041,11 @@ exports.loadStudentCaseEvidence = onCall(async (request) => {
     // Only the Practice Mode fields: a draft's saved work is never read here.
     db.getAll(...draftRefs, { fieldMask: ["practice", "practiceUpdatedAt", "updatedAt"] }),
     gradeRef.collection("gradeOverrideAudits").limit(limits.maxAudits).get(),
+    // Recovery and Recovery Practice misconception evidence (server-only).
+    Promise.all(chunks.map((ids) => gradeRef.collection("misconceptionEvidence")
+      .where("source.assignmentId", "in", ids)
+      .limit(Math.ceil(limits.maxMisconceptionRecords / chunks.length))
+      .get())),
   ]);
 
   const drafts = {};
@@ -2030,6 +2058,7 @@ exports.loadStudentCaseEvidence = onCall(async (request) => {
     receipts: receiptSnapshots.flatMap((snapshot) => snapshot.docs.map((entry) => entry.data() || {})),
     drafts,
     audits: auditSnapshot.docs.map((entry) => entry.data() || {}),
+    misconceptionRecords: misconceptionSnapshots.flatMap((snapshot) => snapshot.docs.map((entry) => ({ id: entry.id, data: entry.data() || {} }))),
     nowMs: Date.now(),
   });
   response.truncated.events = eventSnapshots.some((snapshot) => snapshot.size >= Math.ceil(limits.maxEvents / chunks.length));
@@ -15666,6 +15695,8 @@ exports.issueSecureExamQuestion = onCall(async (request) => {
 });
 
 function sanitizeSecureExamDraft(responsePayload, supportUsage) {
+  const { sanitizeSecureExamToolDraft } = require("./lib/secureExamToolDraft");
+  const toolState = sanitizeSecureExamToolDraft(responsePayload?.toolState);
   const source = responsePayload?.responses && typeof responsePayload.responses === "object" && !Array.isArray(responsePayload.responses) ? responsePayload.responses : {};
   const responses = {};
   Object.entries(source).slice(0, 20).forEach(([key, value]) => {
@@ -15675,7 +15706,7 @@ function sanitizeSecureExamDraft(responsePayload, supportUsage) {
   if (JSON.stringify(responses).length > 10000) throw new HttpsError("invalid-argument", "Secure exam draft is too large.");
   const sourceSupport = supportUsage && typeof supportUsage === "object" ? supportUsage : {};
   return {
-    responsePayload: { responses },
+    responsePayload: { responses, ...(toolState ? { toolState } : {}) },
     supportUsage: {
       accommodations: Array.isArray(sourceSupport.accommodations) ? sourceSupport.accommodations.map(String).slice(0, 20) : [],
       modifications: Array.isArray(sourceSupport.modifications) ? sourceSupport.modifications.map(String).slice(0, 20) : [],
@@ -16185,7 +16216,9 @@ async function resolveBlueprintFamilies(db, familyIds) {
   const missing = ids.filter((id) => !found.has(id));
   if (missing.length) {
     const bundled = new Map();
-    [...loadBuiltInStarterPathSeed(), ...loadBuiltInCoursePathSeed()].forEach((item) => {
+    [...loadBuiltInStarterPathSeed(), ...loadBuiltInCoursePathSeed(),
+      ...require("./seeds/secureAssessments/algebra1_district_dol2.json").documents,
+    ].forEach((item) => {
       const id = String(item?.id || "").trim();
       if (id && !bundled.has(id)) bundled.set(id, item);
     });
@@ -16381,6 +16414,7 @@ function buildCourseTestSession(db, {
     responses: {},
     usedQuestionIds: [],
     currentQuestion: null,
+    watermarkEnabled: !assignment?.assessmentPolicy?.externalAssessment,
     courseTest: {
       assignmentId,
       cycleStage,
@@ -16651,7 +16685,41 @@ exports.assignTestCycleSessions = onCall(async (request) => {
 
   const created = [];
   const reused = [];
+  const skipped = [];
+  const originalScores = new Map();
+  if (policy.externalAssessment) {
+    // Validate the whole requested score batch before creating any sessions.
+    const supplied = request.data?.originalScores;
+    if (!supplied || typeof supplied !== "object" || Array.isArray(supplied)) {
+      throw new HttpsError("invalid-argument", "Enter the original district scores before opening retest sessions.");
+    }
+    for (const [studentId] of eligible) {
+      if (!Object.prototype.hasOwnProperty.call(supplied, studentId)) continue;
+      try {
+        originalScores.set(studentId, shared.external.validateExternalOriginalScore(supplied[studentId]));
+      } catch (error) {
+        throw new HttpsError("invalid-argument", `${studentId}: ${error.message}`);
+      }
+    }
+  }
   for (const [studentId, studentData] of eligible) {
+    // An external-original retest opens only for a student whose original
+    // district score was entered and is below passing. A student who already
+    // has a session keeps it (reused) whatever this batch supplied; the
+    // transaction below re-checks that, so this read is only for the skip.
+    if (policy.externalAssessment) {
+      // eslint-disable-next-line no-await-in-loop
+      const existing = await readTestCycleRecord(db, assignmentId, studentId, shared);
+      if (existing.test.examSessionId) {
+        reused.push(studentId);
+        continue;
+      }
+      const originalScore = originalScores.get(studentId);
+      if (originalScore === undefined || originalScore >= policy.passingScore) {
+        skipped.push({ studentId, reason: originalScore === undefined ? "missingOriginalScore" : "originalAlreadyPassing" });
+        continue;
+      }
+    }
     const plan = shared.issuance.buildSecureIssuancePlan({
       blueprint,
       families,
@@ -16691,6 +16759,12 @@ exports.assignTestCycleSessions = onCall(async (request) => {
           record: {
             ...record,
             classId: session.classId,
+            ...(policy.externalAssessment ? { externalAssessment: {
+              originalScore: originalScores.get(studentId),
+              source: policy.externalAssessment.source,
+              recordedBy: teacherUid,
+              recordedAt: Date.now(),
+            } } : {}),
             blueprintId: blueprint.blueprintId,
             blueprintVersion: blueprint.version,
             review: { ...record.review, required: policy.review.required },
@@ -16716,6 +16790,7 @@ exports.assignTestCycleSessions = onCall(async (request) => {
     assignmentId,
     createdSessions: created.length,
     reusedSessions: reused.length,
+    skippedStudents: skipped,
     students: created,
     preflight: { errors: preflight.errors, warnings: preflight.warnings, checks: preflight.checks },
   };
@@ -16855,12 +16930,20 @@ exports.getStudentTestCycle = onCall(async (request) => {
     // to understand the card without asking anyone.
     availability: { open: availability.open, reason: availability.reason, opensAt: availability.opensAt },
     dueAt: assignment?.dueAt || assignment?.dueDate || null,
-    reviewProgress: { attempted: reviewProgress.attempted, total: reviewProgress.total, complete: reviewProgress.complete },
+    reviewProgress: {
+      attempted: reviewProgress.attempted,
+      total: reviewProgress.total,
+      complete: reviewProgress.complete,
+      // A mastery-gated Review (review.minimumMastery) says how far along the
+      // student is against the bar, not just how many items they answered.
+      ...(reviewProgress.minimumMastery !== undefined ? { mastery: reviewProgress.mastery, minimumMastery: reviewProgress.minimumMastery } : {}),
+    },
     policy: {
       passingScore: policy.passingScore,
       maxRecordedGrade: policy.retest.maxRecordedGrade,
       gradeReplacement: policy.retest.gradeReplacement,
       summary: state.policySummary,
+      external: Boolean(policy.externalAssessment),
     },
     delivery: testCycleDeliveryFacts(blueprint),
   };
@@ -17130,6 +17213,7 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
  * teacher waiver) racing each other still leave exactly one Retest.
  */
 async function ensureRetestSession(db, { assignmentId, assignment, policy, blueprint, shared, studentId, teacherUid }) {
+  if (policy.externalAssessment) return null;
   const record = await readTestCycleRecord(db, assignmentId, studentId, shared);
   if (record.retest.examSessionId) return null;
   if (record.test.state !== shared.record.SESSION_STATE.RELEASED) return null;
@@ -17225,6 +17309,10 @@ exports.teacherTestCycleAction = onCall(async (request) => {
   const { teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
   const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId);
   const action = String(request.data?.action || "").trim();
+  if (policy.externalAssessment && (["requireCorrections", "waiveCorrections"].includes(action)
+    || (action === "resetSecureSession" && request.data?.stage === "retest"))) {
+    throw new HttpsError("invalid-argument", "This external-original assessment uses Review and one secure Retest session.");
+  }
   if (!shared.policy.TEACHER_CONTROL_ACTIONS.includes(action)) {
     throw new HttpsError("invalid-argument", "Choose a supported Test Cycle teacher action.");
   }
@@ -17483,7 +17571,12 @@ exports.listTeacherTestCycleRecords = onCall(async (request) => {
       statusLabel: state?.statusLabel || null,
       bucket: attention ? TEACHER_ROW_BUCKET.NEEDS_ATTENTION : teacherRowBucket(stages, state, record, reviewProgress),
       attention,
-      review: { attempted: reviewProgress.attempted, total: reviewProgress.total, complete: reviewProgress.complete || record.review.complete === true },
+      review: {
+        attempted: reviewProgress.attempted,
+        total: reviewProgress.total,
+        complete: reviewProgress.complete || record.review.complete === true,
+        ...(reviewProgress.minimumMastery !== undefined ? { mastery: reviewProgress.mastery, minimumMastery: reviewProgress.minimumMastery } : {}),
+      },
       test: {
         state: record.test.state,
         examSessionId: record.test.examSessionId,
@@ -17532,10 +17625,13 @@ exports.listTeacherTestCycleRecords = onCall(async (request) => {
       gradeReplacement: policy.retest.gradeReplacement,
       reviewRequired: policy.review.required,
       correctionsRequiredForRetest: policy.corrections.requiredForRetest,
+      external: Boolean(policy.externalAssessment),
+      externalSource: policy.externalAssessment?.source || null,
+      reviewMinimumMastery: policy.review.minimumMastery ?? null,
       ruleLabel: describedPolicy.ruleLabel,
       summary: describedPolicy.teacherSummary,
       example: describedPolicy.example,
-      locks: testCyclePolicyLocks(shared, [...recordsByStudent.values()]),
+      locks: testCyclePolicyLocks(shared, [...recordsByStudent.values()], { external: Boolean(policy.externalAssessment) }),
     },
     delivery: testCycleDeliveryFacts(blueprint),
     availability: shared.availability.resolveAssessmentAvailability({ assignment, now: Date.now() }),
@@ -17557,11 +17653,25 @@ exports.listTeacherTestCycleRecords = onCall(async (request) => {
  * those moments and say why, rather than accepting a change that the records
  * and Classroom would then disagree about.
  */
-function testCyclePolicyLocks(shared, records) {
+function testCyclePolicyLocks(shared, records, { external = false } = {}) {
   const normalized = (Array.isArray(records) ? records : []).map((record) => shared.record.normalizeTestCycleRecord(record));
   const testReleased = normalized.some((record) => record.test.state === shared.record.SESSION_STATE.RELEASED);
-  const retestReleased = normalized.some((record) => record.retest.state === shared.record.SESSION_STATE.RELEASED);
+  // In an external-original cycle the one secure session IS the retest, and
+  // who may retest was decided against the passing score when it opened.
+  const retestReleased = external
+    ? testReleased
+    : normalized.some((record) => record.retest.state === shared.record.SESSION_STATE.RELEASED);
   const sessionsOpened = normalized.some((record) => Boolean(record.test.examSessionId));
+  if (external && sessionsOpened) {
+    return {
+      passingScore: "Retest sessions are open; eligibility was decided against this passing score.",
+      correctionsRequiredForRetest: "This external-original assessment has no corrections stage.",
+      maxRecordedGrade: retestReleased ? "A retest result has been released; changing the cap would move recorded grades." : null,
+      gradeReplacement: retestReleased ? "A retest result has been released; changing the rule would move recorded grades." : null,
+      reviewRequired: "Retest sessions are open; use Waive Review for individual students instead.",
+      testBlueprint: "Retest sessions are open; their questions were planned from this blueprint.",
+    };
+  }
   return {
     passingScore: testReleased ? "A Test result has been released; students have already been told whether they passed." : null,
     correctionsRequiredForRetest: testReleased ? "A Test result has been released; corrections plans already exist." : null,
@@ -17638,7 +17748,9 @@ async function applyTestCycleFeedbackRelease(db, session) {
   const { blueprint } = await resolveSecureTestBlueprint(db, assignment, shared);
 
   const studentId = String(session.studentId || "");
-  const rawScore = testCycleLib.weightedSessionScorePercent(session);
+  // An external-original retest is compared with a district cut score, where
+  // 69.99 is not 70: keep its precision.
+  const rawScore = testCycleLib.weightedSessionScorePercent(session, { preservePrecision: Boolean(policy.externalAssessment) });
   const isRetest = String(courseTest.cycleStage) === shared.issuance.CYCLE_STAGE.RETEST;
   const answeredQuestions = Object.keys(session.responses || {}).length;
   const totalQuestions = Number(session.requiredQuestions || 0);
@@ -17664,7 +17776,11 @@ async function applyTestCycleFeedbackRelease(db, session) {
     },
   });
   if (released.value?.superseded) return null;
-  if (isRetest) return { recordId: released.record.recordId, recordedGrade: released.record.recordedGrade ?? null };
+  // A retest has no corrections after it; neither does an external-original
+  // cycle, whose one secure session IS the retest.
+  if (isRetest || policy.externalAssessment) {
+    return { recordId: released.record.recordId, recordedGrade: released.record.recordedGrade ?? null };
+  }
 
   // A failed Test builds this student's corrections automatically, from their
   // own evidence, at the moment the score becomes real to them.
@@ -21486,7 +21602,7 @@ exports.updateTestCyclePolicy = onCall(async (request) => {
   const requested = request.data?.policy && typeof request.data.policy === "object" ? request.data.policy : {};
 
   const records = await db.collection(TEST_CYCLE_RECORDS).where("assignmentId", "==", assignmentId).limit(400).get();
-  const locks = testCyclePolicyLocks(shared, records.docs.map((doc) => doc.data()));
+  const locks = testCyclePolicyLocks(shared, records.docs.map((doc) => doc.data()), { external: Boolean(policy?.externalAssessment) });
 
   const number = (value) => (value === null || value === undefined || value === "" ? null : Number(value));
   const changes = {};

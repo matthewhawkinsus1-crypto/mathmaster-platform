@@ -5,6 +5,8 @@ import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
 import './MultiAnswerGrader.css';
 import GraphDisplay from './GraphDisplay';
+import PathQuestionStimulus from './components/student/PathQuestionStimulus.jsx';
+import LinearRegressionPanel from './components/assessment/LinearRegressionPanel.jsx';
 import { answerCandidatesForField, looksLikeFiniteSetNotation } from './answerUtils';
 import { gradeMultiAnswerResponse } from '../functions/shared/ordinaryResponseGrading.mjs';
 import { resolveLabelFormat } from './labelFormat';
@@ -147,6 +149,8 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
       >
       <div className="mathmaster-multipart-body">
       <QuestionVisual question={question} />
+      <PathQuestionStimulus stimulus={question.stimulus} />
+      {question.permittedTools?.includes('linearRegression') && <LinearRegressionPanel />}
       {candidateGraphs.length > 0 && (
         <div
           aria-label="Candidate graphs"

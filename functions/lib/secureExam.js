@@ -109,7 +109,9 @@ const clean = (value) => String(value ?? '').trim();
  * MathMaster assessment semantics and matches how the Test Cycle blueprint
  * weights a test.
  */
-function secureSessionScorePercent(session = {}) {
+// `preservePrecision` keeps the unrounded percentage: an external-assessment
+// retest compares it with a district cut score, where 69.99 is not 70.
+function secureSessionScorePercent(session = {}, { preservePrecision = false } = {}) {
   const responses = Object.values(session.responses && typeof session.responses === 'object' ? session.responses : {});
   const planned = Math.max(
     Number(session.requiredQuestions || 0),
@@ -118,14 +120,15 @@ function secureSessionScorePercent(session = {}) {
   );
   if (!planned) return null;
   const earned = responses.reduce((sum, response) => sum + (Number(response?.grading?.score) || 0), 0);
-  return Math.round((earned / planned) * 100);
+  const score = (earned / planned) * 100;
+  return preservePrecision ? score : Math.round(score);
 }
 
 /** Weighted alternative used when a blueprint gives targets different weights. */
-function weightedSessionScorePercent(session = {}) {
+function weightedSessionScorePercent(session = {}, { preservePrecision = false } = {}) {
   const plan = session.issuancePlan || {};
   const entries = list(plan.entries);
-  if (!entries.length) return secureSessionScorePercent(session);
+  if (!entries.length) return secureSessionScorePercent(session, { preservePrecision });
   const byInstance = new Map();
   Object.values(session.responses && typeof session.responses === 'object' ? session.responses : {})
     .forEach((response) => byInstance.set(clean(response?.questionInstanceId), response));
@@ -137,7 +140,8 @@ function weightedSessionScorePercent(session = {}) {
     const response = byInstance.get(clean(entry.questionInstanceId));
     earned += weight * (Number(response?.grading?.score) || 0);
   });
-  return possible > 0 ? Math.round((earned / possible) * 100) : null;
+  const score = possible > 0 ? (earned / possible) * 100 : null;
+  return score === null || preservePrecision ? score : Math.round(score);
 }
 
 

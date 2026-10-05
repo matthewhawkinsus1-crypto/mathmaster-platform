@@ -15,6 +15,7 @@ import { readFileSync } from 'node:fs';
 import {
   bindMathFieldFocusHandoff,
   focusMathFieldWithoutScroll,
+  guardStaleMathFieldFocus,
   mathFieldKeyboardSink,
 } from '../../src/platform/interaction/mathFieldFocusHandoff.js';
 import { executableSource } from './helpers/sourceContract.mjs';
@@ -181,3 +182,138 @@ test('every math field the student types into is bound, and bound first', () => 
   const calculator = executableSource(readFileSync('src/components/CalculatorPanel.jsx', 'utf8'));
   assert.match(calculator, /bindMathFieldFocusHandoff\(mathFieldRef\.current\)/);
 });
+
+/*
+ * MATHLIVE'S OWN LATE FOCUS (part 3 of the hand-off).
+ *
+ * Anything that focuses a field — the cursor a cross-device restore puts back
+ * included — makes MathLive focus that field's sink AGAIN 60 ms later, and for
+ * those 60 ms its model ignores a blur. A student who clicked box B in that
+ * window had focus pulled back to box A, B blurred in MathLive's model, and
+ * their keys typed into A over the restored answer (PR #435 `directions`).
+ */
+// A page that reports presses and focus arriving, as a browser does, to the
+// capture listeners the guard installs.
+const makeTrackingDocument = () => {
+  const doc = makeDocument();
+  doc.listeners = [];
+  doc.body = { tagName: 'BODY' };
+  doc.addEventListener = (type, handler) => doc.listeners.push({ type, handler });
+  doc.dispatch = (type, target, extra = {}) => doc.listeners
+    .filter((entry) => entry.type === type)
+    .forEach((entry) => entry.handler({ type, isTrusted: true, target, composedPath: () => [target], ...extra }));
+  return doc;
+};
+// A field whose shadow content knows its host, and whose host can be focused
+// by code (MathfieldElement.focus()).
+const makeHostedField = (doc, name) => {
+  const field = makeField(doc, name);
+  field.inner = { name: `${name}-glyph`, getRootNode: () => ({ host: field }) };
+  field.sink.getRootNode = () => ({ host: field });
+  field.getRootNode = () => doc;
+  field.contains = (node) => node === field;
+  field.hostFocusCalls = 0;
+  field.focus = function focus() { this.hostFocusCalls += 1; };
+  field.dispatchEvent = function dispatchEvent(event) { this.dispatched.push(event.type); return true; };
+  return field;
+};
+const flushMicrotasks = () => new Promise((resolve) => { setImmediate(resolve); });
+
+test('MathLive\'s late focus of the box the student left is refused, and its model is told', async () => {
+  const doc = makeTrackingDocument();
+  const restored = makeHostedField(doc, 'restored');
+  const chosen = makeHostedField(doc, 'chosen');
+  bindMathFieldFocusHandoff(restored, { documentObject: doc });
+  bindMathFieldFocusHandoff(chosen, { documentObject: doc });
+
+  // The restore puts the cursor back in A (MathMaster's own focus: allowed),
+  // and MathLive marks A focused — and queues its own focus of A for later.
+  assert.equal(focusMathFieldWithoutScroll(restored), true);
+  assert.equal(doc.activeElement, restored);
+  restored.mathLiveFocused = true;
+  doc.dispatch('focusin', restored.sink);
+
+  // The student presses B. MathLive marks B focused but cannot blur A (mid
+  // transition); the hand-off gives B's sink DOM focus in the same event.
+  doc.dispatch('pointerdown', chosen.inner);
+  chosen.mathLiveFocused = true;
+  fire(chosen, 'pointerdown', {}, { capture: false });
+  assert.equal(doc.activeElement, chosen, 'precondition: the click put the cursor in B');
+  doc.dispatch('focusin', chosen.sink);
+
+  // MathLive's timer for A fires.
+  const callsBefore = restored.sink.focusCalls.length;
+  restored.sink.focus({ preventScroll: true });
+  assert.equal(doc.activeElement, chosen, 'the cursor stays in the box the student chose');
+  assert.equal(restored.sink.focusCalls.length, callsBefore, 'refused before it reached the element — nothing to undo, nothing blurred');
+  await flushMicrotasks();
+  assert.ok(restored.dispatched.includes('blur'), 'MathLive is told A is no longer focused (its model ignored the real blur)');
+  assert.ok(!chosen.dispatched.includes('blur'), 'B, which has focus, is never blurred');
+});
+
+test('the same holds when the student tabs away, or a screen reader or Work View moves focus', async () => {
+  const doc = makeTrackingDocument();
+  const restored = makeHostedField(doc, 'restored');
+  bindMathFieldFocusHandoff(restored, { documentObject: doc });
+  focusMathFieldWithoutScroll(restored);
+  restored.mathLiveFocused = true;
+  doc.dispatch('focusin', restored.sink);
+  const elsewhere = { name: 'Work View close' };
+  doc.activeElement = elsewhere;
+  doc.dispatch('focusin', elsewhere, { isTrusted: false });
+  restored.sink.focus({ preventScroll: true });
+  assert.equal(doc.activeElement, elsewhere);
+});
+
+test('a field the student is still in, or went back to, is refocused by MathLive as usual', () => {
+  const doc = makeTrackingDocument();
+  const field = makeHostedField(doc, 'x');
+  const other = makeHostedField(doc, 'y');
+  bindMathFieldFocusHandoff(field, { documentObject: doc });
+  bindMathFieldFocusHandoff(other, { documentObject: doc });
+
+  // Nothing pressed yet: MathLive focusing a field for the first time.
+  field.sink.focus();
+  assert.equal(doc.activeElement, field);
+
+  // Focus already on this sink: the late call changes nothing and is allowed.
+  doc.dispatch('focusin', field.sink);
+  field.sink.focus();
+  assert.equal(doc.activeElement, field);
+
+  // The student is in Y, then presses X again: X's own late focus is theirs.
+  doc.activeElement = other;
+  doc.dispatch('pointerdown', field.inner);
+  field.sink.focus();
+  assert.equal(doc.activeElement, field);
+});
+
+test('code that focuses a field itself (a keypad key, Undo) means that field', () => {
+  const doc = makeTrackingDocument();
+  const field = makeHostedField(doc, 'x');
+  bindMathFieldFocusHandoff(field, { documentObject: doc });
+  const button = { name: 'keypad 7' };
+  doc.activeElement = button;
+  doc.dispatch('pointerdown', button);
+  field.focus();
+  assert.equal(field.hostFocusCalls, 1, 'the element\'s own focus still runs');
+  field.sink.focus();
+  assert.equal(doc.activeElement, field, 'MathLive\'s focus that follows is not stale');
+});
+
+test('the guard is installed once and removed with the binding', () => {
+  const doc = makeTrackingDocument();
+  const field = makeHostedField(doc, 'x');
+  const ownSinkFocus = field.sink.focus;
+  const ownHostFocus = field.focus;
+  const unbind = bindMathFieldFocusHandoff(field, { documentObject: doc });
+  assert.notEqual(field.sink.focus, ownSinkFocus);
+  const guarded = field.sink.focus;
+  assert.equal(typeof guardStaleMathFieldFocus(field, { documentObject: doc }), 'function');
+  assert.equal(field.sink.focus, guarded, 'idempotent: one guard per sink');
+  unbind();
+  assert.equal(field.sink.focus, ownSinkFocus);
+  assert.equal(field.focus, ownHostFocus);
+  assert.equal(guardStaleMathFieldFocus({}, { documentObject: doc }), null, 'no sink yet: nothing to guard');
+});
+

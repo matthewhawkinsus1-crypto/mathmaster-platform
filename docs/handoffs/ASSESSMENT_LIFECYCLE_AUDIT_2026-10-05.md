@@ -189,6 +189,18 @@ handlers against the Firestore emulator, under each page's identity. Final run:
 
 Also run: `npm run test:test-cycle-device` (12 device/stage combinations pass).
 
+## Merged with the district DOL work
+
+`main` gained external-original cycles and mastery-gated Review while this
+branch was open. The merge keeps both: the transactional assign path skips a
+student with no or a passing original score (after the "already has a
+session" check, as before), records the original on the record, and release
+keeps unrounded precision and builds no corrections for an external cycle.
+The score helpers live in one place (`secureExam.js`) with the new
+`preservePrecision` option. The card, student list, teacher rows, preview and
+policy locks were made external- and mastery-aware (tests in
+`assessmentLifecycleRules.test.mjs`).
+
 ## Remaining risks and deferred work
 
 - **The blueprint is readable by students.** A cycle that embeds

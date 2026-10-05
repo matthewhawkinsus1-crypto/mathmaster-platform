@@ -320,10 +320,29 @@ export const restoreAnswerFocus = (root, position) => {
 /** Put the cursor in the first real answer-entry control in a question/workspace. */
 export const focusFirstAnswerControl = (root) => focusAnswerControlAt(root, 0);
 
+/*
+ * A DEFERRED FOCUS LANDS ONLY WHERE A STUDENT COULD HAVE PUT IT.
+ *
+ * The box is looked up when the focus runs, a frame or more after it was
+ * asked for, and by then the question may have locked (correct, closed, a
+ * submission in flight), or Work View may have opened over it. A locked
+ * question keeps its boxes in the page, inside a disabled fieldset and an
+ * inert wrapper — counted, so the position still matches, but not a place to
+ * put a cursor. Nor is a box behind an open modal dialog.
+ */
+export const answerControlAcceptsFocus = (target, documentObject = typeof document !== 'undefined' ? document : null) => {
+  if (!target || target.isConnected === false) return false;
+  if (target.disabled === true || target.readOnly === true) return false;
+  if (target.closest?.('fieldset:disabled, [inert], [aria-disabled="true"]')) return false;
+  const modals = documentObject?.querySelectorAll ? [...documentObject.querySelectorAll('[aria-modal="true"]')] : [];
+  return modals.every((modal) => modal === target || modal.contains?.(target));
+};
+
 /** Put the cursor in the answer-entry control at `index` (see focusFirstAnswerControl). */
 function focusAnswerControlAt(root, index) {
   const target = visibleAnswerControls(root)[index];
   if (!target) return false;
+  if (!answerControlAcceptsFocus(target)) return false;
   // A math field's own focus() ignores preventScroll and scrolled the page to
   // the field — past the prompt of a long question the student had not read.
   if (String(target.tagName || '').toLowerCase() === 'math-field' && focusMathFieldWithoutScroll(target)) return true;
@@ -336,6 +355,7 @@ function focusAnswerControlAt(root, index) {
 }
 
 export default {
+  answerControlAcceptsFocus,
   countAnswerControls,
   focusForEnter,
   nextEmptyAnswerField,

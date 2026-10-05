@@ -60,6 +60,7 @@ const formatCoordinate = (point) => { const [x, y] = pointXY(point); return `(${
 export default function CoordinatePlane({
   xMin: domainXMin = -10, xMax: domainXMax = 10, yMin: domainYMin = -10, yMax: domainYMax = 10,
   width = 560, height = 380,
+  xTickStep = null, yTickStep = null,
   points = [], lines = [], functions = [], polylines = [], regions = [], verticalLines = [], horizontalLines = [],
   onPlot = null,
   // Given, an existing point can be picked up and moved instead of only being
@@ -189,8 +190,8 @@ export default function CoordinatePlane({
 
   const sx = (x) => pad + ((Number(x) - xMin) / (xMax - xMin)) * innerW;
   const sy = (y) => height - pad - ((Number(y) - yMin) / (yMax - yMin)) * innerH;
-  const xStep = niceStep(xMax - xMin);
-  const yStep = niceStep(yMax - yMin);
+  const xStep = Number(xTickStep) > 0 ? Number(xTickStep) : niceStep(xMax - xMin);
+  const yStep = Number(yTickStep) > 0 ? Number(yTickStep) : niceStep(yMax - yMin);
   const xTicks = majorTicks(xMin, xMax, xStep);
   const yTicks = majorTicks(yMin, yMax, yStep);
 

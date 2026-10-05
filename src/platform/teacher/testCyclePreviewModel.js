@@ -38,6 +38,27 @@ export const TEST_CYCLE_PREVIEW_SCENARIOS = Object.freeze([
   { id: 'paused', label: 'Paused' },
 ]);
 
+/*
+ * An external-original cycle (the district DOL) has Review and one secure
+ * session, which is the retest of a score entered from another system. Its
+ * preview offers only the stages that exist there, in its words.
+ */
+const EXTERNAL_SCENARIO_LABEL = Object.freeze({
+  review: 'Review (Retest locked)',
+  testReady: 'Retest unlocked',
+  testInProgress: 'Retest in progress',
+  awaitingRelease: 'Retest submitted',
+  complete: 'Retest graded',
+});
+
+export const previewScenariosFor = (assignment = {}) => {
+  const policy = normalizeTestCyclePolicy(assignment?.assessmentPolicy || { mode: 'testCycle' });
+  if (!policy?.externalAssessment) return TEST_CYCLE_PREVIEW_SCENARIOS;
+  return TEST_CYCLE_PREVIEW_SCENARIOS
+    .filter((scenario) => EXTERNAL_SCENARIO_LABEL[scenario.id] || ['scheduled', 'paused'].includes(scenario.id))
+    .map((scenario) => ({ ...scenario, label: EXTERNAL_SCENARIO_LABEL[scenario.id] || scenario.label }));
+};
+
 const reviewQuestionCount = (assignment) => getStoredAssignmentQuestions(assignment)
   .filter((question) => question?.teacherExcluded !== true && String(question?.activityRole || '').toLowerCase() === 'review')
   .length;
@@ -63,12 +84,18 @@ export const buildTestCyclePreviewCard = ({ assignment = {}, scenario = 'review'
   const passing = Math.min(100, policy.passingScore + 15);
   const retestRaw = described.example.rawRetestGrade;
   const reviewTotal = reviewQuestionCount(assignment);
-  const reviewDone = { attempted: reviewTotal, total: reviewTotal, complete: reviewTotal > 0 };
+  const external = Boolean(policy.externalAssessment);
+  // A mastery-gated Review reports its mastery against the bar, as the server does.
+  const minimumMastery = policy.review.minimumMastery;
+  const mastery = (value) => (minimumMastery === undefined ? {} : { mastery: value, minimumMastery });
+  const reviewDone = { attempted: reviewTotal, total: reviewTotal, complete: reviewTotal > 0, ...mastery(100) };
+  // The external original the teacher entered, below passing (that is what opens a retest).
+  const externalOriginal = external ? { externalAssessment: { originalScore: failing, source: policy.externalAssessment.source } } : {};
   const released = (rawScore) => ({ examSessionId: 'preview-test', state: 'released', rawScore, releasedAt: now });
 
   const scenarios = {
-    review: { record: {}, reviewProgress: { attempted: Math.min(1, reviewTotal), total: reviewTotal, complete: false } },
-    testReady: { record: { test: { examSessionId: 'preview-test', state: 'assigned' } }, reviewProgress: reviewDone },
+    review: { record: {}, reviewProgress: { attempted: Math.min(1, reviewTotal), total: reviewTotal, complete: false, ...mastery(40) } },
+    testReady: { record: { review: { complete: true }, test: { examSessionId: 'preview-test', state: 'assigned' } }, reviewProgress: reviewDone },
     testInProgress: { record: { review: { complete: true }, test: { examSessionId: 'preview-test', state: 'inProgress', answeredQuestions: 3, totalQuestions: 10 } }, reviewProgress: reviewDone },
     awaitingRelease: { record: { review: { complete: true }, test: { examSessionId: 'preview-test', state: 'submitted' } }, reviewProgress: reviewDone },
     passed: { record: { review: { complete: true }, test: released(passing) }, reviewProgress: reviewDone },
@@ -80,7 +107,7 @@ export const buildTestCyclePreviewCard = ({ assignment = {}, scenario = 'review'
       record: { review: { complete: true }, test: released(failing), corrections: { required: true, planId: 'preview-plan', total: 3, completedTargets: 3, complete: true }, retest: { examSessionId: 'preview-retest', state: 'assigned' } },
       reviewProgress: reviewDone,
     },
-    complete: {
+    complete: external ? { record: { review: { complete: true }, test: released(retestRaw) }, reviewProgress: reviewDone } : {
       record: {
         review: { complete: true },
         test: released(failing),
@@ -89,8 +116,8 @@ export const buildTestCyclePreviewCard = ({ assignment = {}, scenario = 'review'
       },
       reviewProgress: reviewDone,
     },
-    scheduled: { record: {}, reviewProgress: { attempted: 0, total: reviewTotal, complete: false }, assignmentOverride: { releaseAt: new Date(now + 24 * 60 * 60 * 1000).toISOString() } },
-    paused: { record: { test: { examSessionId: 'preview-test', state: 'assigned' } }, reviewProgress: reviewDone, assignmentOverride: { unpublished: true } },
+    scheduled: { record: {}, reviewProgress: { attempted: 0, total: reviewTotal, complete: false, ...mastery(0) }, assignmentOverride: { releaseAt: new Date(now + 24 * 60 * 60 * 1000).toISOString() } },
+    paused: { record: { review: { complete: true }, test: { examSessionId: 'preview-test', state: 'assigned' } }, reviewProgress: reviewDone, assignmentOverride: { unpublished: true } },
   };
   const chosen = scenarios[scenario] || scenarios.review;
   const effectiveAssignment = { ...assignment, ...(chosen.assignmentOverride || {}) };
@@ -102,7 +129,7 @@ export const buildTestCyclePreviewCard = ({ assignment = {}, scenario = 'review'
     delete effectiveAssignment.releaseAt;
     delete effectiveAssignment.releaseDate;
   }
-  const record = { assignmentId: assignment.id || 'preview', studentId: 'preview-student', ...chosen.record };
+  const record = { assignmentId: assignment.id || 'preview', studentId: 'preview-student', ...externalOriginal, ...chosen.record };
   const availability = resolveAssessmentAvailability({ assignment: effectiveAssignment, now });
   const state = applyAssessmentAvailability(
     resolveTestCycleStage({ policy, record, reviewProgress: chosen.reviewProgress }),
@@ -143,6 +170,7 @@ export const buildTestCyclePreviewCard = ({ assignment = {}, scenario = 'review'
       maxRecordedGrade: policy.retest.maxRecordedGrade,
       gradeReplacement: policy.retest.gradeReplacement,
       summary: described.studentSummary,
+      external,
     },
     delivery: testCycleDeliveryFacts(blueprint),
   };

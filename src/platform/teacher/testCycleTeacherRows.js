@@ -37,16 +37,35 @@ export const TEACHER_BUCKET_ORDER = Object.freeze([
 
 const progress = (done, total) => (Number(total) > 0 ? `${Number(done) || 0}/${Number(total)}` : '—');
 
-export const describeTeacherRow = (row = {}) => {
+/*
+ * An EXTERNAL-ORIGINAL cycle (the district DOL) has no MathMaster Test: the
+ * original score comes from another system, and the one secure session — the
+ * record's `test` — is the retest. The same rows read in those words.
+ */
+const EXTERNAL_BUCKET_LABEL = Object.freeze({
+  readyForTest: 'Ready for retest',
+  testing: 'Retesting now',
+  awaitingRelease: 'Retest submitted — release needed',
+  passed: 'Complete',
+  retestClosed: 'Retest closed',
+  needsAttention: 'Needs attention — retest locked',
+});
+
+export const describeTeacherRow = (row = {}, { external = false } = {}) => {
   const review = row.review || {};
   const test = row.test || {};
   const retest = row.retest || {};
   const corrections = row.corrections || {};
   const controls = row.teacherControls || {};
 
+  const masteryGated = review.minimumMastery !== undefined && review.minimumMastery !== null;
   const reviewText = controls.reviewWaived
     ? 'Waived'
-    : review.complete ? 'Done' : progress(review.attempted, review.total);
+    : review.complete
+      ? 'Done'
+      : masteryGated
+        ? `${progress(review.attempted, review.total)} · ${Math.floor(Number(review.mastery) || 0)}% of ${review.minimumMastery}%`
+        : progress(review.attempted, review.total);
 
   const attention = row.attention || null;
   const lockedText = attention
@@ -76,6 +95,18 @@ export const describeTeacherRow = (row = {}) => {
     ? 'Closed'
     : sessionText(retest, { opened: 'Ready' }, 'retest');
 
+  if (external) {
+    return {
+      bucketLabel: EXTERNAL_BUCKET_LABEL[row.bucket] || TEACHER_BUCKET_LABEL[row.bucket] || row.statusLabel || '—',
+      reviewText,
+      testText: row.originalTestGrade === null || row.originalTestGrade === undefined ? 'Not entered' : 'Entered',
+      correctionsText: 'Not used',
+      retestText: controls.retestDisabled && test.state !== 'released'
+        ? 'Closed'
+        : sessionText(test, { opened: 'Ready' }, 'test'),
+      needsRelease: test.state === 'submitted',
+    };
+  }
   return {
     bucketLabel: TEACHER_BUCKET_LABEL[row.bucket] || row.statusLabel || '—',
     reviewText,
@@ -86,12 +117,46 @@ export const describeTeacherRow = (row = {}) => {
   };
 };
 
+/* The external-original actions: Review, then the one secure retest session. */
+const externalActionsForRow = (row, actions) => {
+  const test = row.test || {};
+  const controls = row.teacherControls || {};
+  if (test.state === 'submitted') {
+    actions.push({ key: 'release', label: 'Release retest result', kind: 'release', stage: 'test' });
+  }
+  if (!controls.reviewWaived && row.stage === 'review') {
+    actions.push({ key: 'waiveReview', action: 'waiveReview', label: 'Waive Review', detail: 'Lets this student start the retest without finishing Review.' });
+  }
+  if (controls.reviewWaived && !['inProgress', 'submitted', 'released'].includes(test.state)) {
+    actions.push({ key: 'requireReview', action: 'requireReview', label: 'Require Review', detail: 'Review must be finished again before the retest.' });
+  }
+  if (!controls.retestDisabled && test.state !== 'released') {
+    actions.push({ key: 'disableRetest', action: 'disableRetest', label: 'Close retest', detail: 'This student can no longer retest; the original score stands.', confirm: true });
+  }
+  if (controls.retestDisabled && test.state !== 'released') {
+    actions.push({ key: 'unlockRetest', action: 'unlockRetest', label: 'Reopen retest', detail: 'This student can take the retest again.' });
+  }
+  if (test.examSessionId) {
+    actions.push({
+      key: 'resetTest',
+      action: 'resetSecureSession',
+      stage: 'test',
+      label: 'Reset Retest session',
+      detail: test.state === 'released'
+        ? 'Discards the released retest score and issues a new retest with different questions.'
+        : 'Issues a new retest with different questions.',
+      confirm: true,
+    });
+  }
+  return actions;
+};
+
 /*
  * The actions that apply to this student now. Each names its consequence so
  * the menu can say it before the teacher commits; `confirm` marks the ones
  * that throw work away or change a grade path, which the panel asks about.
  */
-export const teacherActionsForRow = (row = {}) => {
+export const teacherActionsForRow = (row = {}, { external = false } = {}) => {
   const test = row.test || {};
   const retest = row.retest || {};
   const controls = row.teacherControls || {};
@@ -106,10 +171,11 @@ export const teacherActionsForRow = (row = {}) => {
       key: 'unlock',
       kind: 'unlock',
       examSessionId: row.attention.examSessionId,
-      label: row.attention.stage === 'retest' ? 'Unlock the locked retest' : 'Unlock the locked Test',
+      label: row.attention.stage === 'retest' || external ? 'Unlock the locked retest' : 'Unlock the locked Test',
       detail: 'The student continues where they stopped, with the answers already recorded.',
     });
   }
+  if (external) return externalActionsForRow(row, actions);
   if (test.state === 'submitted' || retest.state === 'submitted') {
     actions.push({ key: 'release', label: test.state === 'submitted' ? 'Release Test result' : 'Release retest result', kind: 'release', stage: test.state === 'submitted' ? 'test' : 'retest' });
   }

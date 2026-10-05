@@ -21,7 +21,7 @@ const { assignmentGradeProgress } = require("./classroomGradeRuntime");
 let sharedModules = null;
 async function shared() {
   if (!sharedModules) {
-    const [policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight, availability] = await Promise.all([
+    const [policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight, availability, external] = await Promise.all([
       import("../shared/testCyclePolicy.mjs"),
       import("../shared/testCycleGrade.mjs"),
       import("../shared/testCycleRecord.mjs"),
@@ -32,8 +32,9 @@ async function shared() {
       import("../shared/testCycleRetest.mjs"),
       import("../shared/testCyclePreflight.mjs"),
       import("../shared/assessmentAvailability.mjs"),
+      import("../shared/externalAssessment.mjs"),
     ]);
-    sharedModules = { policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight, availability };
+    sharedModules = { policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight, availability, external };
   }
   return sharedModules;
 }
@@ -75,6 +76,11 @@ function responsesForProfile(session = {}) {
       // but it IS missing evidence, so it counts as unmastered with score 0.
       score: Number(response?.grading?.score) || 0,
       isCorrect: Boolean(response?.grading?.isCorrect),
+      // The canonical provenance block, if a server classifier wrote one; the
+      // corrections planner reads it only through the registry's trust gate
+      // (testCycleCorrections.mjs). The legacy free-text fields are kept for
+      // the record but are never a diagnosis.
+      misconceptionEvidence: response?.grading?.misconceptionEvidence || null,
       misconceptionCode: clean(response?.grading?.misconceptionCode || response?.misconceptionCode) || null,
       errorPattern: clean(response?.grading?.errorPattern || response?.errorPattern) || null,
       submittedAt: Number(response?.submittedAt) || null,
@@ -170,6 +176,26 @@ function reviewProgress(assignment = {}, tracker = {}) {
   const indices = roleQuestionIndices(assignment, "review");
   const questions = runtimeQuestionsFromAssignment(assignment);
   const progress = assignmentGradeProgress(tracker, indices, questions);
+  const threshold = assignment.assessmentPolicy?.review?.minimumMastery;
+  if (threshold !== undefined && threshold !== null) {
+    let possible = 0;
+    let earned = 0;
+    indices.forEach((index) => {
+      const weight = Number(questions[index]?.questionWeight) > 0 ? Number(questions[index].questionWeight) : 1;
+      possible += weight;
+      const record = tracker[index];
+      // Exact mastery is server-derived from the graded response. A rounded
+      // display score cannot substitute for missing exact evidence.
+      const credit = Math.max(0, Math.min(100, Number(record?.bestRawPartialCredit) || 0)) / 100;
+      earned += weight * credit;
+    });
+    const mastery = possible > 0 ? earned / possible * 100 : 0;
+    const minimumMastery = Number.isFinite(Number(threshold)) ? Math.max(0, Math.min(100, Number(threshold))) : 80;
+    const attempted = indices.filter((index) => Number(tracker[index]?.totalAttempts || tracker[index]?.attemptCount || 0) > 0
+      || ['correct', 'attempted', 'expired'].includes(tracker[index]?.status)).length;
+    return { total: progress.total, attempted, mastery, minimumMastery,
+      complete: progress.total > 0 && attempted === progress.total && mastery >= minimumMastery };
+  }
   return {
     total: progress.total,
     attempted: progress.attempted,

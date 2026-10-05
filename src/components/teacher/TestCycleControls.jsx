@@ -11,7 +11,7 @@ import {
 import { proctorExamAction } from '../../services/secureExamService.js';
 import { GRADE_REPLACEMENT } from '../../platform/assessment/testCycle.js';
 import { TEACHER_BUCKET_LABEL, TEACHER_BUCKET_ORDER, describeTeacherRow, teacherActionsForRow } from '../../platform/teacher/testCycleTeacherRows.js';
-import { STUDENT_NAME_UNAVAILABLE, formatStudentLabel, resolveRosterStudentName } from '../../platform/studentName.js';
+import { STUDENT_NAME_UNAVAILABLE, formatStudentLabel, resolveRosterStudentName, studentIdOf } from '../../platform/studentName.js';
 
 /*
  * THE TEACHER'S VIEW OF A TEST CYCLE — ONE PLACE FOR ITS WHOLE LIFE.
@@ -60,7 +60,7 @@ const button = (tone, enabled = true) => ({
   background: !enabled ? 'var(--mm-surface-control-strong)' : tone === 'primary' ? 'var(--mm-primary)' : 'var(--mm-surface)',
   color: !enabled ? 'var(--mm-disabled-text)' : tone === 'primary' ? 'var(--mm-on-primary)' : 'var(--mm-text)',
 });
-const percent = (value) => (value === null || value === undefined ? '—' : `${value}%`);
+const percent = (value) => (value === null || value === undefined ? '—' : `${Number(Number(value).toFixed(2))}%`);
 
 const AVAILABILITY_PILL = {
   open: { label: 'Open to students', bg: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' },
@@ -139,6 +139,11 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
   // The class bar's class only when it IS one of this cycle's classes; the
   // server refuses any other, and "for this class" must mean this cycle's.
   const targetClassId = classId && audienceClassIds.includes(classId) ? classId : null;
+  const [originalScores, setOriginalScores] = useState({});
+  const external = Boolean(assignment?.assessmentPolicy?.externalAssessment);
+  const scoreSource = assignment?.assessmentPolicy?.externalAssessment?.source || 'District';
+  // An external-original cycle's one secure session is the retest.
+  const noun = external ? 'Retest' : 'Test';
 
   const load = useCallback(async () => {
     if (!assignmentId) return;
@@ -224,9 +229,41 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
       {open && (
         <>
           <p style={{ color: 'var(--mm-text-muted)', lineHeight: 1.5, margin: '10px 0 0' }}>
-            Review → secure Test → Corrections → secure Retest, as one assignment and one Google Classroom
-            grade item. Scores stay hidden from students until you release them.
+            {external
+              ? `Original test in ${scoreSource} → Review → secure Retest. Enter original scores below ${policy?.passingScore ?? 70}% to open retesting. `
+              : 'Review → secure Test → Corrections → secure Retest, as one assignment and one Google Classroom grade item. '}
+            Scores stay hidden from students until you release them.
           </p>
+
+          {/* An external-original cycle starts from scores entered here. A
+              student without one (or with a passing one) gets no session. */}
+          {external && (
+            <fieldset style={{ margin: '12px 0', border: '1px solid var(--mm-border)', borderRadius: 8, textAlign: 'left' }}>
+              <legend style={{ fontWeight: 800 }}>Original {scoreSource} scores (%)</legend>
+              <p style={{ fontSize: 13, margin: '0 0 8px' }}>Blank scores stay unassigned. Scores of {policy?.passingScore ?? 70} or higher are not eligible. An original score is kept once its session is opened.</p>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {students.map((student) => {
+                  const id = studentIdOf(student);
+                  if (!id) return null;
+                  const existing = rows.find((row) => row.studentId === id && row.test?.examSessionId);
+                  const label = rosterStudentLabel(id, students);
+                  return (
+                    <label key={id} style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>{label}</span>
+                      <input
+                        type="number" min="0" max="100" step="any"
+                        disabled={busy || Boolean(existing)}
+                        aria-label={`Original score for ${label}`}
+                        value={existing ? existing.originalTestGrade ?? '' : originalScores[id] ?? ''}
+                        onChange={(event) => setOriginalScores((current) => ({ ...current, [id]: event.target.value }))}
+                        style={{ minHeight: 40, width: 100, boxSizing: 'border-box' }}
+                      />
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+          )}
 
           {/* The rule, with numbers, before any table that depends on it. */}
           {policy && (
@@ -236,9 +273,9 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
               {policy.example && <span style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>Example: {policy.example.sentence}</span>}
               {delivery && (
                 <span style={{ fontSize: 13, color: 'var(--mm-text-muted)' }}>
-                  {delivery.timed ? `Timed: ${delivery.timeLimitMinutes} minutes, enforced by the server.` : 'Not timed. No clock runs during the Test.'}
+                  {delivery.timed ? `Timed: ${delivery.timeLimitMinutes} minutes, enforced by the server.` : `Not timed. No clock runs during the ${noun}.`}
                   {delivery.questionCount ? ` ${delivery.questionCount} secure questions per student, randomized from approved families.` : ''}
-                  {` Review ${policy.reviewRequired ? 'must be finished before the Test' : 'is optional'}.`}
+                  {` Review ${policy.reviewRequired ? `must be finished before the ${noun}` : 'is optional'}${policy.reviewMinimumMastery !== null && policy.reviewMinimumMastery !== undefined ? `, with at least ${policy.reviewMinimumMastery}% mastery` : ''}.`}
                 </span>
               )}
               {!editingPolicy && <button type="button" onClick={() => setEditingPolicy(true)} style={{ ...button(), justifySelf: 'start' }}>Change retest policy</button>}
@@ -287,13 +324,17 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
               disabled={busy || blocked}
               style={{ ...button('primary', !(busy || blocked)), minHeight: 44 }}
               onClick={() => run(
-                () => assignTestCycleSessions({ assignmentId, classId: targetClassId }),
-                (result) => `Secure Test sessions: ${result?.createdSessions || 0} opened, ${result?.reusedSessions || 0} already open.`,
+                () => assignTestCycleSessions({
+                  assignmentId,
+                  classId: targetClassId,
+                  ...(external ? { originalScores: Object.fromEntries(Object.entries(originalScores).filter(([, value]) => String(value).trim() !== '')) } : {}),
+                }),
+                (result) => `Secure ${noun} sessions: ${result?.createdSessions || 0} opened, ${result?.reusedSessions || 0} already open.${external ? ` ${(result?.skippedStudents || []).length} skipped for a missing or passing original score.` : ''}`,
               )}
             >
               {busy ? 'Working…' : targetClassId || audienceClassIds.length <= 1
-                ? (sessionsOpened ? 'Open sessions for students who joined since' : 'Open secure Test sessions for this class')
-                : (sessionsOpened ? 'Open sessions for students who joined since' : 'Open secure Test sessions for all assigned classes')}
+                ? (sessionsOpened ? 'Open sessions for students who joined since' : `Open secure ${noun} sessions for this class`)
+                : (sessionsOpened ? 'Open sessions for students who joined since' : `Open secure ${noun} sessions for all assigned classes`)}
             </button>
             {readyToRelease.test > 0 && (
               <button
@@ -301,14 +342,16 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
                 disabled={busy}
                 style={{ ...button('primary', !busy), minHeight: 44 }}
                 onClick={() => setPendingConfirm({
-                  title: `Release ${readyToRelease.test} Test result${readyToRelease.test === 1 ? '' : 's'}?`,
-                  body: 'Students will see their score and question review. Students below passing will get corrections, and their retest path opens. A released score cannot be hidden again.',
-                  confirmLabel: 'Release Test results',
+                  title: `Release ${readyToRelease.test} ${noun} result${readyToRelease.test === 1 ? '' : 's'}?`,
+                  body: external
+                    ? 'Recorded grades update under the retest policy above: the higher of the original and the capped retest. A released score cannot be hidden again.'
+                    : 'Students will see their score and question review. Students below passing will get corrections, and their retest path opens. A released score cannot be hidden again.',
+                  confirmLabel: `Release ${noun} results`,
                   work: () => releaseTestCycleResults({ assignmentId, stage: 'test' }),
-                  done: (result) => `Released ${result?.released || 0} Test result${result?.released === 1 ? '' : 's'}.`,
+                  done: (result) => `Released ${result?.released || 0} ${noun} result${result?.released === 1 ? '' : 's'}.`,
                 })}
               >
-                Release {readyToRelease.test} Test result{readyToRelease.test === 1 ? '' : 's'}
+                Release {readyToRelease.test} {noun} result{readyToRelease.test === 1 ? '' : 's'}
               </button>
             )}
             {readyToRelease.retest > 0 && (
@@ -358,7 +401,7 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
               <button type="button" aria-pressed={bucketFilter === 'all'} onClick={() => setBucketFilter('all')} style={{ ...button(bucketFilter === 'all' ? 'primary' : null), minHeight: 34, fontSize: 12 }}>All · {rows.length}</button>
               {TEACHER_BUCKET_ORDER.filter((bucket) => summary[bucket] > 0).map((bucket) => (
                 <button key={bucket} type="button" aria-pressed={bucketFilter === bucket} onClick={() => setBucketFilter(bucket)} style={{ ...button(bucketFilter === bucket ? 'primary' : null), minHeight: 34, fontSize: 12 }}>
-                  {TEACHER_BUCKET_LABEL[bucket]} · {summary[bucket]}
+                  {(external ? describeTeacherRow({ bucket }, { external }).bucketLabel : TEACHER_BUCKET_LABEL[bucket])} · {summary[bucket]}
                 </button>
               ))}
             </div>
@@ -368,15 +411,15 @@ export const TestCycleControls = ({ assignment, classId = null, students = [], o
             <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 900 }}>
               <thead>
                 <tr>
-                  {['Student', 'Where they are', 'Review', 'Test', 'Corrections', 'Retest', 'Original Test', 'Retest raw', 'Retest capped', 'Recorded', 'Actions'].map((heading) => (
+                  {['Student', 'Where they are', 'Review', external ? 'Original' : 'Test', 'Corrections', 'Retest', external ? `Original (${scoreSource})` : 'Original Test', 'Retest raw', 'Retest capped', 'Recorded', 'Actions'].map((heading) => (
                     <th key={heading} scope="col" style={{ ...cell, ...(heading === 'Student' ? stickyCell : null), fontSize: 11, textTransform: 'uppercase', color: 'var(--mm-text-muted)' }}>{heading}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {sortedRows.map((row) => {
-                  const described = describeTeacherRow(row);
-                  const actions = teacherActionsForRow(row);
+                  const described = describeTeacherRow(row, { external });
+                  const actions = teacherActionsForRow(row, { external });
                   return (
                     <tr key={row.studentId} data-teacher-bucket={row.bucket}>
                       <th scope="row" style={{ ...cell, ...stickyCell, fontWeight: 800 }}>{rosterStudentLabel(row.studentId, students, row.studentName)}</th>

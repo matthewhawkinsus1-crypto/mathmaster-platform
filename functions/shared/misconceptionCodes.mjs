@@ -196,6 +196,60 @@ export const MISCONCEPTION_REGISTRY = Object.freeze([
     teacherMeaning: 'The quantity that depends on the other was chosen as the independent one, and the reverse.',
     evidenceRequired: 'Relationship model: the quantity chosen as independent is the authoritative dependent quantity and the quantity chosen as dependent is the authoritative independent one.',
   }),
+  // --- Phase 2: rates, tables, functions and data -------------------------------------
+  //
+  // Added to registry v1, not a v2: each is a NEW id, so a reader built before
+  // it drops the finding (getMisconceptionCode is null) and shows "not
+  // determinable" — the same fail-closed behaviour a version bump would buy,
+  // without changing the meaning of a single code or classifier version that
+  // was already persisted. (docs/architecture/MISCONCEPTION_EVIDENCE.md,
+  // "Registry and versioning".)
+  code({
+    id: 'initial-value-from-later-reading',
+    concept: 'initial-value',
+    domain: 'linear',
+    label: 'A later reading used as the starting value',
+    teacherMeaning: 'The rate was found correctly, but the starting value (the value at x = 0) was given as a reading taken later — a value from the table or story at a later x, rather than the value worked back to x = 0.',
+    evidenceRequired: 'Table workbench (derive the equation) or a reading-story representation board: the slope part is graded correct; the starting-value part is graded wrong and equals exactly one later reading (x ≠ 0) the student was shown; the reading is unique; and the value matches no other modeled error (sign error working back to x = 0, the slope itself, the negated start, a stated rate or time).',
+    teks: ['A.2C'],
+  }),
+  code({
+    id: 'composition-order-reversed',
+    concept: 'function-composition',
+    domain: 'functions',
+    label: 'Composition order exchanged',
+    teacherMeaning: 'f(g(x)) was evaluated as g(f(x)), and g(f(x)) as f(g(x)) — the inner and outer functions were applied in the opposite order.',
+    evidenceRequired: 'Inverse / Composition Lab: both composition boxes are graded wrong; the (f ∘ g)(x) box holds g(f(x)) and the (g ∘ f)(x) box holds f(g(x)) at the server\'s own x; the two compositions differ by more than twice the grading tolerance; and neither value matches another modeled strategy (f(x)·g(x), f(x) + g(x), f(f(x)), g(g(x)), f(x), g(x)).',
+    teks: ['A2.2D'],
+  }),
+  code({
+    id: 'domain-range-swapped',
+    concept: 'domain-range',
+    domain: 'functions',
+    label: 'Domain and range exchanged',
+    teacherMeaning: 'The set of inputs was given as the range and the set of outputs as the domain.',
+    evidenceRequired: 'Relation mapping: both the domain and the range parts are graded wrong; every token of each typed list is a number; the typed domain is exactly the relation\'s range set and the typed range exactly its domain set; and the two sets differ.',
+    teks: ['A.2A'],
+  }),
+  code({
+    id: 'correlation-direction-reversed',
+    concept: 'correlation',
+    domain: 'data',
+    label: 'Correlation direction reversed',
+    teacherMeaning: 'The data have a clear positive (or negative) association and the direction was given as the opposite one.',
+    evidenceRequired: 'Data modeling lab: r computed by the server from the authoritative points has |r| ≥ 0.2 (at least a weak association, so the direction is not borderline); the part holding the direction is graded wrong; and the chosen direction (or the typed r) is the opposite of the server\'s.',
+    teks: ['A.4A'],
+  }),
+  code({
+    id: 'correlation-treated-as-causation',
+    concept: 'correlation-causation',
+    domain: 'data',
+    label: 'Association stated as causation',
+    teacherMeaning: 'The student selected "causation" for data the question\'s key treats as showing an association only.',
+    evidenceRequired: 'Data modeling lab: the structured causation selection is exactly "causation"; the question does not mark causation as supported; and the association part is graded wrong. Only that selection is read — never written text.',
+    exclusivity: MISCONCEPTION_EXCLUSIVITY_COEXISTS,
+    teks: ['A.4B'],
+  }),
   // --- Absolute value -----------------------------------------------------------------
   code({
     id: 'absolute-value-negated-solution',
@@ -259,9 +313,24 @@ export const MISCONCEPTION_CLASSIFIERS = Object.freeze([
   classifier('family:quadratics.identifyVertex@1', 1, ['vertex-x-sign-reversed', 'ordered-pair-reversed']),
   classifier('family:functions.identifyZeros@1', 1, ['zeros-sign-reversed']),
   classifier('tool:graphing/lineFeatures', 1, ['slope-run-over-rise', 'slope-sign-reversed', 'slope-intercept-swapped']),
-  classifier('tool:systemsWorkspace/inequalities', 1, ['inequality-boundary-style', 'inequality-shaded-wrong-side']),
+  // v2: also reads the student-build path (per-step status recomputed with
+  // the grader's own adapter). Its codes keep their meaning; a v1 finding is
+  // still accepted (a version at or below the declared one is known).
+  classifier('tool:systemsWorkspace/inequalities', 2, ['inequality-boundary-style', 'inequality-shaded-wrong-side']),
   classifier('tool:intervalNumberLine/numberLine', 1, ['endpoint-inclusion-error', 'inequality-direction-reversed']),
   classifier('tool:relationshipModel/standalone', 1, ['independent-dependent-swapped']),
+  // --- Phase 2 (additive under registry v1) ---
+  classifier('family:linear.multipleRepresentations@1', 1, ['slope-run-over-rise', 'slope-sign-reversed', 'initial-value-from-later-reading', 'intercepts-swapped', 'ordered-pair-reversed', 'independent-dependent-swapped']),
+  classifier('tool:linearTableWorkbench/constantRate', 1, ['slope-run-over-rise']),
+  classifier('tool:linearTableWorkbench/repairValue', 1, ['slope-run-over-rise']),
+  classifier('tool:linearTableWorkbench/deriveEquation', 1, ['slope-run-over-rise', 'slope-sign-reversed', 'initial-value-from-later-reading']),
+  classifier('tool:inverseCompositionLab/full', 1, ['composition-order-reversed']),
+  classifier('tool:inverseCompositionLab/composition', 1, ['composition-order-reversed']),
+  classifier('tool:relationMapping/default', 1, ['domain-range-swapped']),
+  ...['slopeIntercept', 'pointSlope', 'factoredLinear', 'standardForm'].map((mode) => classifier(`tool:graphing2/${mode}`, 1, ['slope-run-over-rise', 'slope-sign-reversed'])),
+  ...['full', 'unrecognized', 'association'].map((mode) => classifier(`tool:dataModelingLab/${mode}`, 1, ['correlation-direction-reversed', 'correlation-treated-as-causation'])),
+  // The correlation view asks for r and its reading; it shows no causation choice.
+  classifier('tool:dataModelingLab/correlation', 1, ['correlation-direction-reversed']),
 ]);
 const CLASSIFIER_BY_ID = new Map(MISCONCEPTION_CLASSIFIERS.map((entry) => [entry.id, entry]));
 

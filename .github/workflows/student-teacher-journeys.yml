@@ -21,6 +21,12 @@ name: Student and Teacher Journeys
 #   cross-device drafts    tests/browser/teacherWorkflow/draftCrossDeviceJourneys.mjs
 #                          (a fresh, slow or offline Chromebook gets the work
 #                          and never overwrites it; the newest edit wins)
+#   restored-draft focus   tests/browser/teacherWorkflow/restoredDraftFocusRaceJourneys.mjs
+#                          (its own job: once the student clicks, taps or keys
+#                          after a cross-device restore, no late focus — the
+#                          restore's frame, MathLive's 60 ms timer — moves the
+#                          cursor; held deterministically, then raced many
+#                          times; Chromebook, iPad, phone; 50x/20x nightly)
 #   Warm-Up reopen         tests/browser/teacherWorkflow/warmupReopenJourneys.mjs
 #                          (lmr-wu-1: partial work, timer close, teacher reopen,
 #                          resume, submit; malformed drafts; a second board;
@@ -162,6 +168,38 @@ jobs:
           # Desktop, Chromebook, iPad and phone (the last two as touch devices).
           VIEWPORTS: "1440x900,1366x768,820x1180,390x844"
         run: node tests/browser/teacherWorkflow/privateControlsJourneys.mjs
+
+  # Its own runner: every journey runs on a Chromebook, an iPad and a phone,
+  # and the nightly run races the restore 50 times at normal speed and 20
+  # times throttled.
+  restored-draft-focus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false playwright@1.55.0
+      - run: npx playwright install --with-deps chromium
+      - name: Start the teacher harness
+        run: |
+          npx vite --config tests/browser/teacherWorkflow/vite.config.mjs >/tmp/teacher-harness.log 2>&1 &
+          for i in {1..120}; do curl -fsS http://127.0.0.1:5188/tests/browser/teacherWorkflow/index.html >/dev/null && exit 0; sleep 1; done
+          cat /tmp/teacher-harness.log; exit 1
+      - name: A restored draft's late focus never beats the student (Chromebook, iPad, phone)
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/teacherWorkflow/restoredDraftFocusRaceJourneys.mjs
+      - name: The race 50 times at normal speed, 20 throttled (nightly and on demand)
+        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          ONLY: repeat
+          DEVICES: chromebook
+          REPEAT: "50"
+          THROTTLED_REPEAT: "20"
+        run: node tests/browser/teacherWorkflow/restoredDraftFocusRaceJourneys.mjs
 
   student:
     runs-on: ubuntu-latest

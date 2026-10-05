@@ -66,9 +66,9 @@ export const submitTestCycleCorrectionResponse = async ({
 };
 
 /** Teacher: open secure Test sessions for a class in one action. */
-export const assignTestCycleSessions = async ({ assignmentId, classId = null, studentIds = [] }) => {
+export const assignTestCycleSessions = async ({ assignmentId, classId = null, studentIds = [], originalScores = null }) => {
   if (isSandbox()) return { success: true, assignmentId, createdSessions: 0, reusedSessions: 0, students: [] };
-  return call('assignTestCycleSessions', { assignmentId, classId, studentIds });
+  return call('assignTestCycleSessions', { assignmentId, classId, studentIds, ...(originalScores ? { originalScores } : {}) });
 };
 
 export const preflightTestCycleAssignment = async ({ assignmentId }) => {
