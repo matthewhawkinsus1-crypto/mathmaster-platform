@@ -227,8 +227,6 @@ const KNOWN_GRADES_DOCUMENT_ACCESS = {
     loadClassGradeRecords: 1,
     // Repair-from-Library writes corrected grades.
     handleRepairAssignmentFromLibrary: 1,
-    // Permanent assignment deletion cleans up every grades document.
-    deleteAssignmentPermanently: 1,
   },
   'src/platform/supportEvidence/supportEvidenceStore.js': {
     // Writes the support profile projection.

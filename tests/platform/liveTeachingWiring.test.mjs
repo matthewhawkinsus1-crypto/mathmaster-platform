@@ -22,7 +22,9 @@ test('teaching a lesson reuses the existing student-preview runtime, not a secon
   const body = app.slice(start, end);
 
   // Reuses the exact preview entry point instead of building a parallel one.
-  assert.match(body, /startTeacherPreview\(assignmentId\)/);
+  // (with the lesson runtime asked for explicitly, since "View as Student"
+  // on a Test Cycle now opens the Test Cycle preview instead).
+  assert.match(body, /startTeacherPreview\(assignmentId, \{ lessonRuntime: true \}\)/);
   // Creates the Live Teaching session record, separate from the runtime.
   assert.match(body, /setLiveTeachingSession\(startLiveTeachingSession\(/);
 });

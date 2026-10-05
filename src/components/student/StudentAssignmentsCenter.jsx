@@ -46,8 +46,8 @@ const control = (primary) => ({
   minHeight: MIN_TOUCH_TARGET_PX, padding: '10px 16px', borderRadius: 10,
   fontWeight: 900, fontSize: 14, cursor: 'pointer', flex: '1 1 auto',
   border: primary ? 0 : '2px solid var(--mm-border)',
-  background: primary ? '#1a73e8' : 'var(--mm-surface)',
-  color: primary ? '#fff' : 'var(--mm-text)',
+  background: primary ? 'var(--mm-primary)' : 'var(--mm-surface)',
+  color: primary ? 'var(--mm-on-primary)' : 'var(--mm-text)',
 });
 
 function AssignmentRow({ row, onContinue, onOpenResult, onPractice }) {
@@ -68,6 +68,11 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice }) {
           {row.isTestCycle && (
             <div style={{ marginTop: 4, fontSize: 11, fontWeight: 900, letterSpacing: .3, textTransform: 'uppercase', color: 'var(--mm-accent-text)' }}>
               Test Cycle · Review → Test → Corrections → Retest
+            </div>
+          )}
+          {row.testCycleDetail && (
+            <div data-test-cycle-discovery={row.testCycleKey} style={{ marginTop: 4, fontSize: 13, color: 'var(--mm-text)', lineHeight: 1.45 }}>
+              {row.testCycleDetail}
             </div>
           )}
           <div style={{ marginTop: 4, fontSize: 12, color: 'var(--mm-text-muted)', overflowWrap: 'anywhere' }}>
@@ -94,7 +99,7 @@ function AssignmentRow({ row, onContinue, onOpenResult, onPractice }) {
         </div>
       </div>
 
-      {row.questionsTotal > 0 && (
+      {row.questionsTotal > 0 && !row.isTestCycle && (
         <div style={{ marginTop: 12 }}>
           <ProgressBar
             value={row.questionsDone}

@@ -8,7 +8,7 @@ import { resolveExamCalculatorPolicy } from '../../platform/policies/examPolicyR
 
 const isNumericProfile = (profile) => ['number', 'numeric', 'decimal'].includes(String(profile || '').toLowerCase());
 
-export const SecureExamQuestionPlayer = ({ examType, question, initialResponsePayload = null, studentSupportProfile, accommodationConfirmed = false, busy = false, onSubmit, onDraftChange }) => {
+export const SecureExamQuestionPlayer = ({ examType, sessionCalculatorMode = null, question, initialResponsePayload = null, studentSupportProfile, accommodationConfirmed = false, busy = false, onSubmit, onDraftChange }) => {
   const [responses, setResponses] = useState(() => initialResponsePayload?.responses || {});
   const [calculatorUsed, setCalculatorUsed] = useState(false);
   const [regressionState, setRegressionState] = useState(() => {
@@ -19,11 +19,13 @@ export const SecureExamQuestionPlayer = ({ examType, question, initialResponsePa
   const choices = Array.isArray(question?.choices) ? question.choices : [];
   const calculatorPolicy = useMemo(() => resolveExamCalculatorPolicy({
     examType,
-    questionSpec: question || {},
+    // A course test's blueprint names a session-wide calculator setting; it
+    // travels on the session, not on each item.
+    questionSpec: { ...(question || {}), sessionCalculatorMode },
     studentSupportProfile,
     accommodationConfirmed,
     isComputationSkill: question?.assessedConstruct === 'computation',
-  }), [examType, question, studentSupportProfile, accommodationConfirmed]);
+  }), [examType, question, sessionCalculatorMode, studentSupportProfile, accommodationConfirmed]);
   const complete = fields.every((field) => String(responses[field.id] ?? '').trim());
 
   const submit = async (event) => {
@@ -32,6 +34,10 @@ export const SecureExamQuestionPlayer = ({ examType, question, initialResponsePa
     await onSubmit?.({ responses, toolState: { linearRegression: regressionState } }, { calculatorUsed, accommodations: studentSupportProfile?.accommodations || [], modifications: studentSupportProfile?.modifications || [] });
   };
   const updateResponse = (id, value) => {
+    // While an answer is being recorded the item is already gone: a keystroke
+    // here would autosave a draft onto the submitted item and show "Answer
+    // saved" over the next question, which then appears empty.
+    if (busy) return;
     setResponses((current) => {
       const next = { ...current, [id]: value };
       onDraftChange?.({ responses: next, toolState: { linearRegression: regressionState } }, { calculatorUsed, accommodations: studentSupportProfile?.accommodations || [], modifications: studentSupportProfile?.modifications || [] });
@@ -51,6 +57,7 @@ export const SecureExamQuestionPlayer = ({ examType, question, initialResponsePa
         <PathQuestionStimulus stimulus={question.stimulus} />
         {question.permittedTools?.includes('linearRegression') && <LinearRegressionPanel value={regressionState} onUsed={() => setCalculatorUsed(true)} onChange={(next) => {
           setRegressionState(next);
+          if (busy) return; // the item is being recorded; see updateResponse
           onDraftChange?.({ responses, toolState: { linearRegression: next } }, { calculatorUsed: true, accommodations: studentSupportProfile?.accommodations || [], modifications: studentSupportProfile?.modifications || [] });
         }} />}
         <form onSubmit={submit}>
@@ -65,8 +72,8 @@ export const SecureExamQuestionPlayer = ({ examType, question, initialResponsePa
                 {fieldChoices.length ? fieldChoices.map((choice) => {
                   const selected = responses[field.id] === choice.id;
                   return (
-                    <label key={choice.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 13px', marginBottom: 8, border: selected ? '2px solid #1a73e8' : '1px solid var(--mm-border)', borderRadius: 9, cursor: 'pointer', background: selected ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', boxShadow: selected ? '0 0 0 1px rgba(26,115,232,.08)' : 'none' }}>
-                      <input type="radio" name={field.id} value={choice.id} checked={selected} onChange={(event) => updateResponse(field.id, event.target.value)} style={{ marginTop: 3 }} />
+                    <label key={choice.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 13px', marginBottom: 8, border: selected ? '2px solid var(--mm-primary)' : '1px solid var(--mm-border)', borderRadius: 9, cursor: 'pointer', background: selected ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', boxShadow: selected ? '0 0 0 1px rgba(26,115,232,.08)' : 'none' }}>
+                      <input type="radio" name={field.id} value={choice.id} checked={selected} disabled={busy} onChange={(event) => updateResponse(field.id, event.target.value)} style={{ marginTop: 3 }} />
                       <MathText style={{ lineHeight: 1.5 }}>{choice.label}</MathText>
                     </label>
                   );
@@ -80,6 +87,7 @@ export const SecureExamQuestionPlayer = ({ examType, question, initialResponsePa
                     type="text"
                     inputMode={isNumericProfile(field.inputProfile) ? 'decimal' : undefined}
                     value={responses[field.id] ?? ''}
+                    readOnly={busy}
                     onChange={(event) => updateResponse(field.id, event.target.value)}
                     aria-label={field.label || `Response ${fieldIndex + 1}`}
                     style={{ width: '100%', minHeight: 48, padding: '10px 12px', border: '2px solid var(--mm-border)', borderRadius: 8, boxSizing: 'border-box', fontSize: 17 }}
@@ -88,7 +96,10 @@ export const SecureExamQuestionPlayer = ({ examType, question, initialResponsePa
               </fieldset>
             ); })}
           </div>
-          <button type="submit" disabled={!complete || busy} style={{ width: '100%', minHeight: 48, marginTop: 22, border: 0, borderRadius: 9, background: !complete || busy ? '#dadce0' : '#1a73e8', color: '#fff', fontWeight: 900, cursor: !complete || busy ? 'not-allowed' : 'pointer' }}>{busy ? 'Recording securely…' : 'Record answer & continue'}</button>
+          {/* Disabled is a token pair, not white on light grey: that read at
+              about 1.4:1 in both themes, so "why can't I continue?" had no
+              visible answer. */}
+          <button type="submit" disabled={!complete || busy} style={{ width: '100%', minHeight: 48, marginTop: 22, border: 0, borderRadius: 9, background: !complete || busy ? 'var(--mm-surface-control-strong)' : 'var(--mm-primary)', color: !complete || busy ? 'var(--mm-disabled-text)' : 'var(--mm-on-primary)', fontWeight: 900, cursor: !complete || busy ? 'not-allowed' : 'pointer' }}>{busy ? 'Recording securely…' : complete ? 'Record answer & continue' : 'Answer to continue'}</button>
         </form>
       </section>
       <CalculatorPanel policy={calculatorPolicy} onCalculatorOpened={() => setCalculatorUsed(true)} />

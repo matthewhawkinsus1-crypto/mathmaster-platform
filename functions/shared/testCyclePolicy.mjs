@@ -37,6 +37,31 @@ export const DEFAULT_TARGETED_WEAK_SHARE = 0.7;
 export const DEFAULT_ANCHOR_SHARE = 0.3;
 
 export const CORRECTION_STRATEGIES = Object.freeze(['performanceTargeted', 'standardTargeted']);
+
+/*
+ * HOW A RETEST REPLACES THE ORIGINAL TEST GRADE. CONFIGURABLE, NEVER LOWERING.
+ *
+ *   replaceIfHigherCapped   (district default) the retest counts, up to the
+ *                           cap, only when it beats the original Test.
+ *                             recorded = max(test, min(retest, cap))
+ *   averageIfHigherCapped   the original and the retest are averaged; the
+ *                           average counts, up to the cap, only when it beats
+ *                           the original Test.
+ *                             recorded = max(test, min(round((test+retest)/2), cap))
+ *
+ * Both keep the guarantee every other part of the platform is built on — a
+ * retest can raise a recorded grade and can never lower it — so Google
+ * Classroom's single grade item, which refuses to be lowered, never has to
+ * disagree with MathMaster. A "retest always replaces, even downward" rule is
+ * deliberately not offered: it would contradict that guarantee, and a teacher
+ * choosing it from a dropdown is not the place to find that out.
+ */
+export const GRADE_REPLACEMENT = Object.freeze({
+  REPLACE_IF_HIGHER_CAPPED: 'replaceIfHigherCapped',
+  AVERAGE_IF_HIGHER_CAPPED: 'averageIfHigherCapped',
+});
+export const GRADE_REPLACEMENT_RULES = Object.freeze(Object.values(GRADE_REPLACEMENT));
+export const DEFAULT_GRADE_REPLACEMENT = GRADE_REPLACEMENT.REPLACE_IF_HIGHER_CAPPED;
 export const RETEST_STRATEGIES = Object.freeze(['performanceTargetedParallel', 'anchorOnly']);
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -149,6 +174,9 @@ export const normalizeTestCyclePolicy = (policy) => {
         ? clean(retest.strategy)
         : 'performanceTargetedParallel',
       maxRecordedGrade: clampPercent(retest.maxRecordedGrade, DEFAULT_MAX_RECORDED_RETEST_GRADE),
+      gradeReplacement: GRADE_REPLACEMENT_RULES.includes(clean(retest.gradeReplacement))
+        ? clean(retest.gradeReplacement)
+        : DEFAULT_GRADE_REPLACEMENT,
       targetedWeakShare,
       anchorShare: 1 - targetedWeakShare,
       // A retest is shorter than or equal to the Test unless the teacher says

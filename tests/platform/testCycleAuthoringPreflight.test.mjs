@@ -16,6 +16,7 @@ import {
 } from '../../src/platform/contract/assignmentSchemaV5.js';
 import { ACTIVITY_POLICIES, ACTIVITY_ROLES } from '../../src/platform/policies/activityPolicies.js';
 import { assertCapability, componentSource, region } from './helpers/sourceContract.mjs';
+import { teacherActionsForRow } from '../../src/platform/teacher/testCycleTeacherRows.js';
 
 const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
 const controls = componentSource('src/components/teacher/TestCycleControls.jsx');
@@ -310,7 +311,12 @@ test('a teacher assigns a whole class in one action, not one session at a time',
   assert.match(assign, /for \(const \[studentId, studentData\] of eligible\)/);
   // Each student gets their own plan and their own session.
   assert.match(assign, /buildSecureIssuancePlan/);
-  assert.match(assign, /createCourseTestSession/);
+  // Built and written INSIDE the record's transaction, so a double click reuses
+  // the first session instead of minting a second Test for the same student.
+  assert.match(assign, /mutateTestCycleRecord\(db, \{/);
+  assert.match(assign, /if \(record\.test\.examSessionId\) return \{ value: \{ reused: true \} \};/);
+  assert.match(assign, /buildCourseTestSession\(db, \{/);
+  assert.match(assign, /transaction\.set\(ref, session\)/);
   // And the whole batch is refused if preflight is blocked.
   assert.match(assign, /if \(preflight\.blocked\)/);
 });
@@ -321,10 +327,19 @@ test('the teacher screen offers the class-wide action and the override controls'
     [/assignTestCycleSessions/],
     'the teacher must be able to open secure sessions for the class.',
   );
-  assertCapability(controls, [/Open secure Test sessions for this class/], 'the class-wide action must be offered.');
+  assertCapability(controls, [/Open secure Test sessions for this class/, /Open secure \$\{noun\} sessions for this class/], 'the class-wide action must be offered.');
+  // Every override is still offered — each in the state where it applies,
+  // instead of eight buttons on every row whatever the student's stage.
+  const offered = new Set([
+    { stage: 'corrections', test: { state: 'released', examSessionId: 't' }, retest: { state: 'none' }, teacherControls: { requireCorrections: true } },
+    { stage: 'retestReady', test: { state: 'released', examSessionId: 't' }, retest: { state: 'none' }, teacherControls: { correctionsWaived: true } },
+    { stage: 'passed', test: { state: 'released', examSessionId: 't' }, retest: { state: 'none' }, teacherControls: {} },
+    { stage: 'retest', test: { state: 'released', examSessionId: 't' }, retest: { state: 'inProgress', examSessionId: 'r' }, teacherControls: {} },
+  ].flatMap((row) => teacherActionsForRow(row).map((item) => item.action).filter(Boolean)));
   for (const action of ['waiveCorrections', 'unlockRetest', 'disableRetest', 'requireCorrections', 'resetSecureSession']) {
-    assert.match(controls, new RegExp(`'${action}'`), `${action} must be an offered teacher control`);
+    assert.ok(offered.has(action), `${action} must be an offered teacher control`);
   }
+  assertCapability(controls, [/teacherActionsForRow\(row\)/, /teacherActionsForRow\(row, \{ external \}\)/], 'the panel must offer the row-appropriate controls.');
   // Preflight is shown before the assign button, not after a failed attempt.
   assert.match(controls, /Cannot be assigned securely yet/);
 });

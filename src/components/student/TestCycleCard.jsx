@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import SecureExamContainer from '../assessment/SecureExamContainer.jsx';
 import SecureExamReview from '../assessment/SecureExamReview.jsx';
 import TestCycleCorrections from './TestCycleCorrections.jsx';
 import { getStudentTestCycle } from '../../services/testCycleService.js';
 import { TEST_CYCLE_STAGE, stageIsSecure } from '../../platform/assessment/testCycle.js';
+import { formatDateTime } from '../../assignmentLifecycle.js';
+import { markTestCycleSeen } from '../../platform/student/testCycleDiscovery.js';
 
 /*
  * ONE CARD. ONE STAGE. ONE GRADE.
@@ -23,6 +25,16 @@ import { TEST_CYCLE_STAGE, stageIsSecure } from '../../platform/assessment/testC
  *   corrections   TestCycleCorrections, which is deliberately not secure
  *
  * There is no fourth runtime, and no stage-specific fork inside the secure one.
+ *
+ * WHAT A STUDENT IS TOLD, WITHOUT ASKING. Why the next thing is locked and what
+ * unlocks it (per phase), whether the Test is timed, what a retest can do to a
+ * grade, when the assessment is due or opens, and how far along Review and
+ * Corrections are. None of it is a score the teacher has not released.
+ *
+ * IT FOLLOWS THE SERVER. `refreshKey` changes when the student's grade document
+ * changes — Review progress landing, a teacher releasing results, a retest
+ * opening — and the card asks the server again, so a student never has to
+ * reload to find their Test unlocked.
  */
 
 const shell = {
@@ -32,6 +44,7 @@ const shell = {
   padding: 'clamp(16px, 4vw, 24px)',
   display: 'grid',
   gap: 12,
+  color: 'var(--mm-text)',
 };
 
 const STAGE_TONE = {
@@ -50,35 +63,105 @@ const STAGE_TONE = {
 const PHASE_STATUS_LABEL = {
   available: 'Available', locked: 'Locked', ready: 'Ready', inProgress: 'In progress',
   completed: 'Complete', pending: 'Pending', required: 'Required', notRequired: 'Not required',
-  unavailable: 'Unavailable',
+  unavailable: 'Unavailable', closed: 'Closed',
 };
 
-export const TestCycleCard = ({ assignmentId, studentProfile = null, onOpenReview = null, onExit = null }) => {
-  const [card, setCard] = useState(null);
+const PHASE_STATUS_COLOR = {
+  ready: 'var(--mm-success-text)',
+  inProgress: 'var(--mm-primary-text)',
+  available: 'var(--mm-primary-text)',
+  required: 'var(--mm-warning-text)',
+  completed: 'var(--mm-success-text)',
+};
+
+const actionButtonStyle = ({ enabled, secure }) => ({
+  minHeight: 48,
+  padding: '10px 20px',
+  border: 0,
+  borderRadius: 9,
+  fontWeight: 900,
+  cursor: enabled ? 'pointer' : 'not-allowed',
+  // Disabled is a readable token pair in both themes. It used to be white text
+  // on #dadce0, which a student read as a blank grey bar.
+  background: enabled ? (secure ? 'var(--mm-danger)' : 'var(--mm-primary)') : 'var(--mm-surface-control-strong)',
+  color: enabled ? 'var(--mm-on-primary)' : 'var(--mm-disabled-text)',
+});
+
+const quietButtonStyle = {
+  minHeight: 48,
+  padding: '10px 16px',
+  borderRadius: 9,
+  border: '1px solid var(--mm-border-strong)',
+  background: 'var(--mm-surface)',
+  color: 'var(--mm-text)',
+  fontWeight: 800,
+  cursor: 'pointer',
+};
+
+const factStyle = { margin: 0, fontSize: 13, color: 'var(--mm-text-muted)', lineHeight: 1.5 };
+
+export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile = null, onOpenReview = null, onExit = null, refreshKey = null, previewCard = null, onPreviewEnter = null }) => {
+  /*
+   * PREVIEW MODE. A teacher previewing a stage hands the card a locally built
+   * payload in exactly the shape the server returns. The card then makes NO
+   * call at all — no student callable, no session, no record — and its action
+   * button goes to the preview's own handler instead of a secure runtime.
+   */
+  const previewing = Boolean(previewCard);
+  const [card, setCard] = useState(previewCard);
   const [mode, setMode] = useState('card');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const modeRef = useRef(mode);
+  useEffect(() => { modeRef.current = mode; }, [mode]);
 
+  // The server writes a release in steps (score, then the corrections plan), so
+  // two loads can be in flight at once. Only the newest one may set the card:
+  // an older answer landing last would put "Corrections being prepared" back.
+  const loadSeqRef = useRef(0);
   const load = useCallback(async () => {
+    if (previewing) { setLoading(false); return; }
+    loadSeqRef.current += 1;
+    const seq = loadSeqRef.current;
     setLoading(true);
     try {
-      setCard(await getStudentTestCycle({ assignmentId }));
+      const next = await getStudentTestCycle({ assignmentId });
+      if (seq !== loadSeqRef.current) return;
+      setCard(next);
       setError('');
+      // Opening the card is seeing it: the list's "New" marker for this cycle
+      // clears until its stage changes again.
+      if (studentId) markTestCycleSeen(studentId, assignmentId);
     } catch (loadError) {
+      if (seq !== loadSeqRef.current) return;
       setError(loadError.message || 'This assessment could not be opened.');
     } finally {
-      setLoading(false);
+      if (seq === loadSeqRef.current) setLoading(false);
     }
-  }, [assignmentId]);
+  }, [assignmentId, studentId, previewing]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (previewCard) setCard(previewCard); }, [previewCard]);
 
-  if (loading && !card) return <section style={shell}><p style={{ color: 'var(--mm-text-muted)', margin: 0 }}>Loading your assessment…</p></section>;
+  // The server's answer can change while the card is open. Ask again when the
+  // student's own grade document says something moved, and when they come back
+  // to the tab — but never underneath an open secure exam or corrections set.
+  useEffect(() => {
+    if (refreshKey === null || refreshKey === undefined) return;
+    if (modeRef.current === 'card') load();
+  }, [refreshKey, load]);
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible' && modeRef.current === 'card') load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [load]);
+
+  if (loading && !card) return <section style={shell}><p role="status" style={{ color: 'var(--mm-text-muted)', margin: 0 }}>Loading your assessment…</p></section>;
   if (error && !card) {
     return (
       <section style={shell}>
         <p role="alert" style={{ color: 'var(--mm-error-text)', margin: 0 }}>{error}</p>
-        <button type="button" onClick={load} style={{ justifySelf: 'start', minHeight: 44, padding: '9px 15px', borderRadius: 8, border: '1px solid #5f6368', background: 'var(--mm-surface)', cursor: 'pointer' }}>Try again</button>
+        <button type="button" onClick={load} style={{ ...quietButtonStyle, justifySelf: 'start', minHeight: 44 }}>Try again</button>
       </section>
     );
   }
@@ -93,6 +176,10 @@ export const TestCycleCard = ({ assignmentId, studentProfile = null, onOpenRevie
         examSessionId={card.examSessionId}
         examType="courseTest"
         studentSupportProfile={studentProfile}
+        title={card.stage === TEST_CYCLE_STAGE.RETEST ? `${card.title} — Retest` : card.title}
+        startLabel={card.actionLabel}
+        delivery={card.delivery || null}
+        exitLabel="Back to my assessment"
         onFinished={() => {}}
         onExitAfterFinished={() => { setMode('card'); load(); }}
       />
@@ -117,7 +204,7 @@ export const TestCycleCard = ({ assignmentId, studentProfile = null, onOpenRevie
         assignmentId={assignmentId}
         corrections={card.corrections}
         onProgress={load}
-        onComplete={load}
+        onComplete={() => { setMode('card'); load(); }}
         onExit={() => { setMode('card'); load(); }}
       />
     );
@@ -127,22 +214,43 @@ export const TestCycleCard = ({ assignmentId, studentProfile = null, onOpenRevie
   // The two stages whose action is "open the released secure review".
   const isReviewAction = [TEST_CYCLE_STAGE.PASSED, TEST_CYCLE_STAGE.COMPLETE].includes(card.stage);
   const enter = () => {
+    if (previewing) return onPreviewEnter?.(card.stage);
     if (card.stage === TEST_CYCLE_STAGE.REVIEW) return onOpenReview?.(assignmentId);
     if (stageIsSecure(card.stage)) return setMode('secure');
     if (card.stage === TEST_CYCLE_STAGE.CORRECTIONS) return setMode('corrections');
     if (card.reviewExamSessionId) return setMode('review');
     return onExit?.();
   };
+  const enabled = card.canEnter && !(isReviewAction && !card.reviewExamSessionId);
+  const availability = card.availability || null;
+  const review = card.reviewProgress || null;
+  // An external-original cycle's one secure session is the retest.
+  const noun = card.policy?.external ? 'Retest' : 'Test';
 
   return (
-    <section style={shell} data-test-cycle-stage={card.stage}>
+    <section style={shell} data-test-cycle-stage={card.stage} data-availability={availability?.reason || 'open'}>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <span style={{ ...tone, fontSize: 11, fontWeight: 900, textTransform: 'uppercase', padding: '5px 10px', borderRadius: 999 }}>{card.statusLabel}</span>
         {card.secure && <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--mm-error-text)' }}>Secure · monitored</span>}
         {card.hintsAllowed && <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--mm-success-text)' }}>Help allowed</span>}
       </div>
-      <h2 style={{ margin: 0, fontSize: 'clamp(18px, 4vw, 23px)' }}>{card.title}</h2>
+      <h2 style={{ margin: 0, fontSize: 'clamp(18px, 4vw, 23px)', color: 'var(--mm-text-strong)', overflowWrap: 'anywhere' }}>{card.title}</h2>
       <p style={{ margin: 0, color: 'var(--mm-text)', lineHeight: 1.55 }}>{card.detail}</p>
+
+      {availability?.reason === 'scheduled' && availability.opensAt && (
+        <p role="status" style={{ margin: 0, padding: '10px 12px', borderRadius: 9, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontWeight: 800 }}>
+          Opens {formatDateTime(new Date(availability.opensAt).toISOString())}.
+        </p>
+      )}
+
+      {card.stage === TEST_CYCLE_STAGE.REVIEW && review && review.total > 0 && (
+        <p style={factStyle}>
+          Review: {review.attempted} of {review.total} questions answered.{' '}
+          {review.minimumMastery !== undefined && review.minimumMastery !== null
+            ? `Answer every Review question and earn at least ${review.minimumMastery}% to unlock your ${noun} (now ${Math.floor(Number(review.mastery) || 0)}%).`
+            : `Answer every Review question to unlock your ${noun} — they do not have to be correct.`}
+        </p>
+      )}
 
       {/* Always show the whole cycle. The server supplies status-only phase
           metadata; secure questions are fetched only after the secure runtime
@@ -151,9 +259,9 @@ export const TestCycleCard = ({ assignmentId, studentProfile = null, onOpenRevie
         <ol aria-label="Test Cycle phases" style={{ listStyle: 'none', display: 'grid', gap: 8, padding: 0, margin: 0 }}>
           {card.phases.map((phase) => (
             <li key={phase.id} data-test-cycle-phase={phase.id} data-phase-status={phase.status} style={{ padding: '10px 12px', border: '1px solid var(--mm-border-soft)', borderRadius: 9, background: 'var(--mm-surface-sunken)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                <strong>{phase.label}{phase.secure ? ' · Secure' : ''}</strong>
-                <span style={{ fontWeight: 800, color: phase.status === 'ready' ? 'var(--mm-success-text)' : 'var(--mm-text-muted)' }}>{PHASE_STATUS_LABEL[phase.status] || phase.status}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                <strong style={{ color: 'var(--mm-text-strong)' }}>{phase.label}{phase.secure ? ' · Secure' : ''}</strong>
+                <span style={{ fontWeight: 800, color: PHASE_STATUS_COLOR[phase.status] || 'var(--mm-text-muted)' }}>{PHASE_STATUS_LABEL[phase.status] || phase.status}</span>
               </div>
               {phase.reason && <p style={{ margin: '5px 0 0', color: 'var(--mm-text-muted)', fontSize: 13 }}>{phase.reason}</p>}
             </li>
@@ -161,7 +269,7 @@ export const TestCycleCard = ({ assignmentId, studentProfile = null, onOpenRevie
         </ol>
       )}
 
-      {card.stage === TEST_CYCLE_STAGE.TEST && card.canEnter && (
+      {card.stage === TEST_CYCLE_STAGE.TEST && card.canEnter && card.actionLabel === 'Start Test' && (
         <p role="status" aria-live="polite" style={{ margin: 0, padding: '10px 12px', borderRadius: 9, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)', fontWeight: 800 }}>
           Test unlocked — your Review is complete.
         </p>
@@ -174,23 +282,36 @@ export const TestCycleCard = ({ assignmentId, studentProfile = null, onOpenRevie
           {card.grade.rows.map((row) => (
             <div key={row.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
               <dt style={{ color: 'var(--mm-text-muted)', fontSize: 13 }}>{row.label}</dt>
-              <dd style={{ margin: 0, fontWeight: row.key === 'recordedGrade' ? 900 : 600, fontSize: 13 }}>{row.value}</dd>
+              <dd style={{ margin: 0, fontWeight: row.key === 'recordedGrade' ? 900 : 600, fontSize: 13, color: 'var(--mm-text-strong)' }}>{row.value}</dd>
             </div>
           ))}
         </dl>
       )}
+
+      {/* The facts a student would otherwise have to ask about. */}
+      <div style={{ display: 'grid', gap: 4 }}>
+        {card.delivery && (
+          <p style={factStyle}>
+            {card.delivery.timed ? `${noun} is timed: ${card.delivery.timeLimitMinutes} minutes once you start.` : `${noun} is not timed.`}
+            {card.delivery.questionCount ? ` ${card.delivery.questionCount} questions, one attempt each.` : ''}
+          </p>
+        )}
+        {/* Once the cycle is finished the breakdown above already shows the rule that was applied. */}
+        {card.policy?.summary && card.stage !== 'complete' && <p style={factStyle}>{card.policy.summary}</p>}
+        {card.dueAt && <p style={factStyle}>Due {formatDateTime(card.dueAt)}.</p>}
+      </div>
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <button
           type="button"
           disabled={!card.canEnter || (isReviewAction && !card.reviewExamSessionId)}
           onClick={enter}
-          style={{ minHeight: 48, padding: '10px 20px', border: 0, borderRadius: 9, background: card.canEnter ? (card.secure ? '#b3261e' : '#1a73e8') : '#dadce0', color: '#fff', fontWeight: 900, cursor: card.canEnter ? 'pointer' : 'not-allowed' }}
+          style={actionButtonStyle({ enabled, secure: card.secure })}
         >
           {card.actionLabel}
         </button>
         {onExit && (
-          <button type="button" onClick={onExit} style={{ minHeight: 48, padding: '10px 16px', borderRadius: 9, border: '1px solid #5f6368', background: 'var(--mm-surface)', color: 'var(--mm-text)', cursor: 'pointer' }}>
+          <button type="button" onClick={onExit} style={quietButtonStyle}>
             Back
           </button>
         )}

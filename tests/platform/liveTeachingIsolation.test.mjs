@@ -25,7 +25,7 @@ test('teachAssignmentLive and resumeLiveTeaching both enter through activeView =
   // startTeacherPreview is what actually flips activeView to teacherPreview
   // (asserted by teacherPreviewFreshStart.test.mjs, and here directly).
   const teach = region(app, 'const teachAssignmentLive = ', 'const resumeLiveTeaching = ', 'teachAssignmentLive');
-  assert.match(teach, /startTeacherPreview\(assignmentId\);/);
+  assert.match(teach, /startTeacherPreview\(assignmentId, \{ lessonRuntime: true \}\);/);
   const startTeacherPreviewBody = region(app, 'const startTeacherPreview = ', 'const teachAssignmentLive = ', 'startTeacherPreview');
   assert.match(startTeacherPreviewBody, /setActiveView\('teacherPreview'\);/);
 

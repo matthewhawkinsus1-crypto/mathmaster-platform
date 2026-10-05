@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { buildStudentGradeCenter } from '../../src/platform/student/studentGradeCenterModel.js';
 import { buildStudentAssignmentsCenter } from '../../src/platform/student/studentAssignmentsCenterModel.js';
 import { buildTestCycleGradeState } from '../../functions/shared/testCycleGrade.mjs';
-import { assertCapability, componentSource, region } from './helpers/sourceContract.mjs';
+import { assertCapability, componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 
 const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
 const gradeCenter = componentSource('src/components/student/StudentGradeCenter.jsx');
@@ -150,7 +150,21 @@ test('the browser never writes a recorded Test Cycle grade', () => {
 });
 
 test('the grade projection is written only by the secure release path', () => {
-  const persist = region(functionsIndex, 'async function persistTestCycleRecord(', 'async function readTestCycleRecord', 'persistTestCycleRecord');
-  assert.match(persist, /new FieldPath\("testCycleGrades", normalized\.assignmentId\)/);
-  assert.match(persist, /recordGradeState\(normalized, policy\)/);
+  // One writer: the record and its projection are set together, inside the
+  // transaction every record change goes through.
+  const writer = region(functionsIndex, 'function writeTestCycleRecord(', 'async function mutateTestCycleRecord(', 'writeTestCycleRecord');
+  assert.match(writer, /new FieldPath\("testCycleGrades", normalized\.assignmentId\)/);
+  assert.match(writer, /recordGradeState\(normalized, policy\)/);
+  assert.match(writer, /transaction\.update\(/);
+  // …and nothing else in the server writes a record: every other writer goes
+  // through mutateTestCycleRecord, which calls writeTestCycleRecord.
+  const server = executableSource(functionsIndex);
+  const recordWrites = [
+    // transaction / batch writes: `.set(db.collection(TEST_CYCLE_RECORDS)…`
+    ...server.matchAll(/\.(?:set|update)\(\s*db\.collection\(TEST_CYCLE_RECORDS\)/g),
+    // direct writes: `db.collection(TEST_CYCLE_RECORDS).doc(id).set(…`
+    ...server.matchAll(/collection\(TEST_CYCLE_RECORDS\)\.doc\([^;]*?\)\.(?:set|update)\(/g),
+  ];
+  assert.equal(recordWrites.length, 1, 'exactly one place writes a Test Cycle record');
+  assert.match(writer, /transaction\.set\(db\.collection\(TEST_CYCLE_RECORDS\)/);
 });

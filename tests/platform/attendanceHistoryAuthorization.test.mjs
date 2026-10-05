@@ -42,7 +42,10 @@ test('the assignments collection stays teacher-only for write, so a student cann
   const match = rules.match(/match \/assignments\/\{assignmentId\} \{([\s\S]*?)\n {4}\}/);
   assert.ok(match);
   assert.match(match[1], /allow create: if teacher\(\)[\s\S]*?request\.resource\.data\.keys\(\)\.hasAny\(\['studentOverrides'\]\)/);
-  assert.match(match[1], /allow delete: if teacher\(\);/);
+  // Deleting is narrower still: only the evidence-checked
+  // manageAssignmentLifecycle callable (Admin SDK) deletes for a teacher; a
+  // client delete is the root administrator's alone. No student can delete.
+  assert.match(match[1], /allow delete: if rootAdmin\(\);/);
   assert.match(match[1], /allow update: if teacher\(\)/);
   // studentOverrides (the per-student extension field) is carved out of both
   // assignment creation and the teacher's own update rule — see attendanceHistoryScopedQuery/

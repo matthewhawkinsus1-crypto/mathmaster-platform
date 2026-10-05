@@ -36,7 +36,9 @@
  */
 
 import { normalizeTeacherControls, normalizeTestCyclePolicy } from './testCyclePolicy.mjs';
+import { describeTestCycleGradePolicy } from './testCycleGrade.mjs';
 import { SESSION_STATE, normalizeTestCycleRecord, recordGradeState } from './testCycleRecord.mjs';
+import { ASSESSMENT_AVAILABILITY } from './assessmentAvailability.mjs';
 
 export const TEST_CYCLE_STAGE = Object.freeze({
   REVIEW: 'review',
@@ -88,6 +90,10 @@ export const resolveTestCycleStage = ({
     testExamSessionId: normalized.test.examSessionId,
     retestExamSessionId: normalized.retest.examSessionId,
     correctionPlanId: normalized.corrections.planId,
+    // The score policy in one sentence a student can read. Shown on the card
+    // from the start, so "what can a retest do for me?" never needs asking.
+    policySummary: describeTestCycleGradePolicy(resolved).studentSummary,
+    passingScore: resolved.passingScore,
   };
 
   // The first MathMaster secure session is the retest of this external original.
@@ -210,20 +216,9 @@ export const resolveTestCycleStage = ({
     };
   }
 
-  if (normalized.retest.state === SESSION_STATE.SUBMITTED) {
-    return {
-      ...base,
-      stage: TEST_CYCLE_STAGE.RETEST_SUBMITTED,
-      secure: false,
-      hintsAllowed: false,
-      canEnter: false,
-      actionLabel: 'Submitted',
-      statusLabel: 'Retest submitted',
-      detail: 'Your retest is submitted. Your final recorded grade appears once your teacher releases retest results.',
-    };
-  }
-
-  // A teacher closing the retest is an explicit decision and outranks the gate.
+  // A teacher closing the retest is an explicit decision and outranks the gate
+  // — and a retest the student submitted after (or while) it was closed. Only
+  // a RELEASED retest, which is itself a later teacher decision, outranks it.
   if (controls.retestDisabled) {
     return {
       ...base,
@@ -235,6 +230,19 @@ export const resolveTestCycleStage = ({
       statusLabel: 'Retest closed',
       detail: `Your teacher has closed retesting for this assessment. Recorded grade ${grade.recordedGrade}%.`,
       complete: true,
+    };
+  }
+
+  if (normalized.retest.state === SESSION_STATE.SUBMITTED) {
+    return {
+      ...base,
+      stage: TEST_CYCLE_STAGE.RETEST_SUBMITTED,
+      secure: false,
+      hintsAllowed: false,
+      canEnter: false,
+      actionLabel: 'Submitted',
+      statusLabel: 'Retest submitted',
+      detail: 'Your retest is submitted. Your final recorded grade appears once your teacher releases retest results.',
     };
   }
 
@@ -253,9 +261,15 @@ export const resolveTestCycleStage = ({
       secure: false,
       hintsAllowed: true,
       canEnter: Boolean(normalized.corrections.planId),
-      actionLabel: normalized.corrections.completedTargets > 0 ? 'Continue Corrections' : 'Start Corrections',
+      actionLabel: !normalized.corrections.planId
+        ? 'Corrections being prepared'
+        : normalized.corrections.completedTargets > 0 ? 'Continue Corrections' : 'Start Corrections',
       statusLabel: 'Corrections',
-      detail: `Your test was ${grade.originalTestGrade}%. Work through your corrections to unlock a retest. Corrections do not change your recorded grade.`,
+      // Why they are here (the score against passing), what to do, and what it
+      // will and will not change — the three questions a student actually has.
+      detail: normalized.corrections.planId
+        ? `Your test was ${grade.originalTestGrade}% (passing is ${resolved.passingScore}%). Finish your corrections to unlock a retest. Corrections do not change your recorded grade.`
+        : `Your test was ${grade.originalTestGrade}% (passing is ${resolved.passingScore}%). Your corrections are being prepared and will appear here.`,
       correctionsProgress: {
         total: normalized.corrections.total,
         complete: normalized.corrections.completedTargets,
@@ -322,27 +336,110 @@ export const buildTestCyclePhaseStatus = ({ state = null, record = null } = {}) 
         reason: current === TEST_CYCLE_STAGE.REVIEW ? state.detail : !state?.canEnter && !finished ? state.detail : null },
     ];
   }
+  const controls = normalizeTeacherControls(normalized.teacherControls);
   const reviewComplete = normalized.review.complete === true || current !== TEST_CYCLE_STAGE.REVIEW;
   const testComplete = [SESSION_STATE.SUBMITTED, SESSION_STATE.RELEASED].includes(normalized.test.state);
+  const testInProgress = normalized.test.state === SESSION_STATE.IN_PROGRESS;
   const correctionsKnown = normalized.test.state === SESSION_STATE.RELEASED;
   const correctionsRequired = normalized.corrections.required === true;
-  const correctionsComplete = normalized.corrections.complete === true || normalized.corrections.waived === true;
+  const correctionsComplete = normalized.corrections.complete === true || normalized.corrections.waived === true || controls.correctionsWaived;
   const retestStarted = normalized.retest.state !== SESSION_STATE.NONE;
   const retestComplete = normalized.retest.state === SESSION_STATE.RELEASED;
+  const retestSubmitted = normalized.retest.state === SESSION_STATE.SUBMITTED;
+  const passed = current === TEST_CYCLE_STAGE.PASSED;
+  const correctionsTotal = normalized.corrections.total;
+  const correctionsDone = normalized.corrections.completedTargets;
+
+  // Every phase that is not available says why, in words a student can act on,
+  // and none of them reveals a score before the teacher has released it.
+  const testStatus = testComplete
+    ? 'completed'
+    : current === TEST_CYCLE_STAGE.TEST
+      ? (state?.canEnter ? (testInProgress ? 'inProgress' : 'ready') : 'locked')
+      : 'locked';
+  const testReason = testComplete
+    ? (normalized.test.state === SESSION_STATE.SUBMITTED ? 'Submitted. Your score appears when your teacher releases results.' : null)
+    : !reviewComplete
+      ? 'Complete Review to unlock Test.'
+      : !state?.canEnter ? (state?.availabilityMessage || 'Your teacher is preparing the secure Test.') : null;
+
+  let correctionsStatus = 'pending';
+  let correctionsReason = 'Decided after your teacher releases your Test score.';
+  if (correctionsKnown) {
+    if (passed || !correctionsRequired) {
+      correctionsStatus = 'notRequired';
+      correctionsReason = passed ? null : 'Not required for you.';
+    } else if (correctionsComplete) {
+      correctionsStatus = 'completed';
+      correctionsReason = null;
+    } else {
+      correctionsStatus = 'required';
+      correctionsReason = correctionsTotal > 0
+        ? `${correctionsDone} of ${correctionsTotal} skills corrected. Finish them to unlock your retest.`
+        : 'Your corrections are being prepared.';
+    }
+  }
+
+  let retestStatus;
+  let retestReason = null;
+  if (retestComplete) {
+    retestStatus = 'completed';
+  } else if (controls.retestDisabled && correctionsKnown && !passed) {
+    retestStatus = 'closed';
+    retestReason = 'Your teacher has closed retesting for this assessment.';
+  } else if (retestSubmitted) {
+    retestStatus = 'completed';
+    retestReason = 'Submitted. Your final grade appears when your teacher releases retest results.';
+  } else if (current === TEST_CYCLE_STAGE.RETEST && state?.canEnter) {
+    retestStatus = normalized.retest.state === SESSION_STATE.IN_PROGRESS ? 'inProgress' : 'ready';
+  } else if (retestStarted) {
+    retestStatus = 'locked';
+    retestReason = state?.availabilityMessage || null;
+  } else if (correctionsKnown && (passed || !correctionsRequired) && current !== TEST_CYCLE_STAGE.RETEST_READY) {
+    retestStatus = 'notRequired';
+  } else {
+    retestStatus = 'pending';
+    retestReason = correctionsKnown
+      ? (correctionsRequired && !correctionsComplete ? 'Unlocks when your corrections are complete.' : 'Your retest is being prepared.')
+      : null;
+  }
+
   return [
     { id: 'review', label: 'Review', status: reviewComplete ? 'completed' : (current === TEST_CYCLE_STAGE.REVIEW ? 'available' : 'locked') },
-    {
-      id: 'test', label: 'Test', secure: true,
-      status: testComplete ? 'completed' : current === TEST_CYCLE_STAGE.TEST ? (state?.canEnter ? 'ready' : 'locked') : 'locked',
-      reason: !reviewComplete ? 'Complete Review to unlock Test.' : (!state?.canEnter && !testComplete ? 'Your teacher is preparing the secure Test.' : null),
-    },
-    {
-      id: 'corrections', label: 'Corrections',
-      status: !correctionsKnown ? 'pending' : !correctionsRequired ? 'notRequired' : correctionsComplete ? 'completed' : 'required',
-    },
-    {
-      id: 'retest', label: 'Retest', secure: true,
-      status: retestComplete ? 'completed' : current === TEST_CYCLE_STAGE.RETEST && state?.canEnter ? 'ready' : retestStarted ? 'locked' : (correctionsKnown && !correctionsRequired ? 'notRequired' : 'pending'),
-    },
+    { id: 'test', label: 'Test', secure: true, status: testStatus, reason: testReason },
+    { id: 'corrections', label: 'Corrections', status: correctionsStatus, reason: correctionsReason },
+    { id: 'retest', label: 'Retest', secure: true, status: retestStatus, reason: retestReason },
   ];
+};
+
+/*
+ * THE ASSIGNMENT-LEVEL GATE, LAID OVER THE ONE STAGE.
+ *
+ * `resolveAssessmentAvailability` answers "is this assessment open to students
+ * at all?"; the stage machine answers "which part has this student earned?".
+ * A closed assessment keeps its stage — a student whose Test is submitted is
+ * still "submitted" after the teacher archives it — but nothing secure or
+ * instructional can be ENTERED. Reviewing results already released stays
+ * possible: it is a read of the student's own released work, not an attempt.
+ */
+const REVIEW_ONLY_STAGES = Object.freeze([TEST_CYCLE_STAGE.PASSED, TEST_CYCLE_STAGE.COMPLETE]);
+
+export const applyAssessmentAvailability = (state, availability = null) => {
+  if (!state || !availability || availability.open !== false) {
+    return state ? { ...state, availability: availability || null } : state;
+  }
+  const reviewOnly = REVIEW_ONLY_STAGES.includes(state.stage);
+  const label = availability.reason === ASSESSMENT_AVAILABILITY.SCHEDULED
+    ? 'Opens later'
+    : availability.reason === ASSESSMENT_AVAILABILITY.UNPUBLISHED
+      ? 'Paused by teacher'
+      : availability.reason === ASSESSMENT_AVAILABILITY.ARCHIVED ? 'Archived' : 'Unavailable';
+  return {
+    ...state,
+    availability,
+    availabilityMessage: availability.message,
+    canEnter: reviewOnly ? state.canEnter : false,
+    actionLabel: reviewOnly ? state.actionLabel : label,
+    detail: reviewOnly ? state.detail : availability.message,
+  };
 };

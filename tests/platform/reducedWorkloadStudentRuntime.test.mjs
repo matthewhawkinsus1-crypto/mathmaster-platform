@@ -143,7 +143,7 @@ test('App asks one closure, which reads only a real student\'s own profile', () 
 });
 
 test('every student-runtime site reads the closure', () => {
-  const start = executableSource(region(app, 'const startAssignment = (assignmentId, requestedQuestionIndex = 0, options = {}) => {', 'const startTeacherPreview = (assignmentId) => {', 'startAssignment'));
+  const start = executableSource(region(app, 'const startAssignment = (assignmentId, requestedQuestionIndex = 0, options = {}) => {', 'const startTeacherPreview = (', 'startAssignment'));
   assert.match(start, /new Set\(studentRequiredFor\(assignmentData, \{ hasPracticePass \}\)\.indices\)/);
   assert.match(start, /\.filter\(\(index\) => !studentRequired \|\| studentRequired\.has\(index\)\)/);
 
@@ -174,6 +174,6 @@ test('Home, Grades and Recovery receive the student\'s own profile; Teacher Prev
   assert.equal((code.match(/supportProfile: user\.profile \|\| null,/g) || []).length, 2, 'dashboard and Grade Center');
   const display = executableSource(region(app, 'const gradeDisplayTracker = useMemo(', '\n  );', 'grade display'));
   assert.match(display, /user\?\.role === 'student' \? user\.profile \|\| null : null,/);
-  const preview = executableSource(region(app, 'const startTeacherPreview = (assignmentId) => {', 'const resumeLiveTeaching = () => {', 'teacher preview'));
+  const preview = executableSource(region(app, 'const startTeacherPreview = (', 'const resumeLiveTeaching = () => {', 'teacher preview'));
   assert.doesNotMatch(preview, /studentRequiredFor|supportProfile/);
 });

@@ -21,7 +21,7 @@ const { assignmentGradeProgress } = require("./classroomGradeRuntime");
 let sharedModules = null;
 async function shared() {
   if (!sharedModules) {
-    const [policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight, external] = await Promise.all([
+    const [policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight, availability, external] = await Promise.all([
       import("../shared/testCyclePolicy.mjs"),
       import("../shared/testCycleGrade.mjs"),
       import("../shared/testCycleRecord.mjs"),
@@ -31,9 +31,10 @@ async function shared() {
       import("../shared/testCycleCorrections.mjs"),
       import("../shared/testCycleRetest.mjs"),
       import("../shared/testCyclePreflight.mjs"),
+      import("../shared/assessmentAvailability.mjs"),
       import("../shared/externalAssessment.mjs"),
     ]);
-    sharedModules = { policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight, external };
+    sharedModules = { policy, grade, record, stages, blueprint, issuance, corrections, retest, preflight, availability, external };
   }
   return sharedModules;
 }
@@ -88,47 +89,14 @@ function responsesForProfile(session = {}) {
   });
 }
 
-/**
- * The score a secure session actually earned, as a percent of the plan.
- *
- * Deliberately divided by the PLANNED question count, not by the number the
- * student answered. A student who walks out after two of twenty questions has
- * not earned 100%; the unanswered eighteen are worth zero, which is ordinary
- * MathMaster assessment semantics and matches how the Test Cycle blueprint
- * weights a test.
+/*
+ * The score a secure course-test session earned lives in secureExam.js, beside
+ * `publicReview`, so the student's released review, the proctor monitor and the
+ * recorded Test Cycle grade cannot compute three different numbers for one
+ * session. Re-exported here because the Test Cycle release path reads it from
+ * this module.
  */
-function secureSessionScorePercent(session = {}, { preservePrecision = false } = {}) {
-  const responses = Object.values(session.responses && typeof session.responses === "object" ? session.responses : {});
-  const planned = Math.max(
-    Number(session.requiredQuestions || 0),
-    list(session.issuancePlan?.entries).length,
-    responses.length,
-  );
-  if (!planned) return null;
-  const earned = responses.reduce((sum, response) => sum + (Number(response?.grading?.score) || 0), 0);
-  const score = (earned / planned) * 100;
-  return preservePrecision ? score : Math.round(score);
-}
-
-/** Weighted alternative used when a blueprint gives targets different weights. */
-function weightedSessionScorePercent(session = {}, { preservePrecision = false } = {}) {
-  const plan = session.issuancePlan || {};
-  const entries = list(plan.entries);
-  if (!entries.length) return secureSessionScorePercent(session, { preservePrecision });
-  const byInstance = new Map();
-  Object.values(session.responses && typeof session.responses === "object" ? session.responses : {})
-    .forEach((response) => byInstance.set(clean(response?.questionInstanceId), response));
-  let earned = 0;
-  let possible = 0;
-  entries.forEach((entry) => {
-    const weight = Number(entry.weight) > 0 ? Number(entry.weight) : 1;
-    possible += weight;
-    const response = byInstance.get(clean(entry.questionInstanceId));
-    earned += weight * (Number(response?.grading?.score) || 0);
-  });
-  const score = possible > 0 ? (earned / possible) * 100 : null;
-  return score === null || preservePrecision ? score : Math.round(score);
-}
+const { secureSessionScorePercent, weightedSessionScorePercent } = require("./secureExam");
 
 /**
  * The teacher-visible view of a stored plan.

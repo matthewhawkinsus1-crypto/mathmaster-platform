@@ -54,14 +54,32 @@ and it never resolves or loads secure questions.
 ## The rule everything else serves
 
 ```
-recordedGrade = max(originalTestGrade, min(rawRetestGrade, 70))
+recordedGrade = max(originalTestGrade, retestContribution)
+
+replaceIfHigherCapped (default):  retestContribution = min(rawRetest, cap)
+averageIfHigherCapped:            retestContribution = min(round((original + rawRetest) / 2), cap)
 ```
+
+`cap` is `assessmentPolicy.retest.maxRecordedGrade` (70 by default) and the
+rule is `assessmentPolicy.retest.gradeReplacement`. The district example —
+original 54, raw retest 86, cap 70 — records 70 under the default rule and
+`round((54 + 86) / 2) = 70` under averaging. Whatever the rule, the outer `max`
+stays: there is deliberately no "always replace" option, and an unknown rule
+normalizes to the default, so no configuration can lower a grade.
 
 It lives in exactly one place — `functions/shared/testCycleGrade.mjs` — and the
 browser imports that same module through `src/platform/assessment/testCycle.js`.
 The cap is applied to the RETEST CONTRIBUTION and then compared, not applied to
 the comparison: `min(max(75, 92), 70)` would take five points off a student who
-had already passed.
+had already passed. `describeTestCycleGradePolicy(policy)` turns the stored
+policy into the sentence teachers and students see, with the worked example, so
+the explanation can never drift from the rule.
+
+A teacher changes the passing score, cap, rule, and whether Review and
+Corrections are required through `updateTestCyclePolicy`. A setting LOCKS once
+it has been used: the passing score once any Test result is released, the cap
+and rule once any retest result is released. Every change is appended to
+`assessmentPolicyHistory`.
 
 The raw retest score is never destroyed. The record keeps the original Test
 score, the raw retest score, the capped contribution, the recorded grade, and an
@@ -80,7 +98,12 @@ audit row per release.
 | Corrections from failed evidence | `functions/shared/testCycleCorrections.mjs` |
 | Retest 70/30 targeting | `functions/shared/testCycleRetest.mjs` |
 | Publication preflight | `functions/shared/testCyclePreflight.mjs` |
+| Open / scheduled / paused / archived | `functions/shared/assessmentAvailability.mjs` |
 | CommonJS bridge + evidence join | `functions/lib/testCycle.js` |
+| Student list labels ("Review required", "Retest unlocked"…) | `src/platform/student/testCycleDiscovery.js` |
+| Teacher row states and the actions that apply now | `src/platform/teacher/testCycleTeacherRows.js` |
+| Teacher preview of every student stage | `src/platform/teacher/testCyclePreviewModel.js` |
+| What an edit does to a saved cycle's contract | `src/platform/assessment/testCycleContractEdit.js` |
 
 Everything under `functions/shared/` is pure: no Firestore, no network, no
 clock. That is what lets the browser and Cloud Functions share it and what makes
@@ -93,8 +116,19 @@ The Test and the Retest are ordinary `examSessions` documents with
 `issueSecureExamQuestion`, `saveSecureExamDraft`, `submitSecureExamResponse`,
 `recordSecureExamIntegrityEvent`, `finalizeSecureExam` and `proctorExamAction`
 as the SAT, ACT, TSIA2 and ASVAB simulations, and render in the same
-`SecureExamContainer` with the same integrity logger, timer, autosave and
-proctor lock.
+`SecureExamContainer` with the same integrity logger, autosave and proctor
+lock.
+
+A course Test is UNTIMED unless its blueprint sets a positive
+`timeLimitSeconds`. `deadlineFor` used to read a missing limit as zero, so an
+untimed Test expired the instant it started and every answer was refused;
+`timeLimitSecondsOf` now treats null, missing, zero, booleans and junk as
+untimed, and the browser shows only the server's `expiresAt` — it never invents
+a deadline, and an expected duration is never a timer. Answers are autosaved to
+the server and mirrored to the device (`mm-secure-draft:*`, cleared on submit)
+so going offline or reloading loses nothing; the screen says whether the answer
+is saved, offline, or not saved yet, and Submit asks first, naming unanswered
+questions.
 
 `courseTest` is deliberately NOT in `EXAM_POLICIES`. Those four entries are
 published exam specifications with fixed question counts and timings; a course
@@ -127,7 +161,8 @@ evidence. A misconception is named only when the evidence carried one;
 otherwise the correction targets the missed standard rather than inventing a
 diagnosis.
 
-Corrections are instructional and non-secure — hints, three attempts, immediate
+Corrections are instructional and non-secure — hints, three attempts per
+question (enforced by the server: `CORRECTION_ATTEMPTS_PER_QUESTION`), immediate
 feedback — and cannot move a recorded grade. `TestCycleCorrections.jsx` imports
 nothing from the secure runtime, and the grade rule has no correction input.
 
@@ -160,12 +195,93 @@ threshold and only an authenticated teacher can unlock it. The architecture
 stays compatible with a managed-Chromebook kiosk deployment later, but nothing
 in the product claims the browser is OS-locked.
 
+## Availability and the assignment lifecycle
+
+`resolveAssessmentAvailability({ assignment, now })` decides whether a cycle is
+open: `archived`, `unpublished` (paused by the teacher), and a future
+`releaseAt` close it; a due date does not (late work is a teacher decision, not
+a lock). The server checks it before issuing a secure question, assigning
+sessions, issuing a correction, or opening a retest. The card overlays it with
+`applyAssessmentAvailability`, so a student keeps their stage, sees "Opens
+later" / "Paused by your teacher" / "Archived", and can still read results that
+were already released.
+
+`manageAssignmentLifecycle` is the only way to archive, unarchive, pause,
+resume, or delete. Delete is offered only when `getAssignmentEvidenceSummary`
+finds no evidence (no started session, no submission, no released grade); it
+then removes unstarted sessions, records, plans and the `testCycleGrades`
+projections, and writes `assignmentDeletionLog`. Anything with evidence is
+archived instead. The rules pin these fields and the cycle's contract
+(`assessmentPolicy`, `testBlueprint`, `secureTestReference`) to the server, and
+only a root admin may delete an assignment document directly.
+
+## What a teacher sees
+
+- **Results, release & retests** (`TestCycleControls`, from the assignment
+  card, the Hub, and Secure Exams): every student in the audience with where
+  they are — Review, Test, Corrections, Retest — the original, raw retest,
+  capped and recorded grades with the reason, one "Release N results" action,
+  and only the overrides that apply to that student now. A Test locked for
+  proctor review is read from the live session and listed first as "Needs
+  attention", with Unlock on the row.
+- **Preview** (`TestCyclePreview`): every student stage built from the
+  assignment's real policy and blueprint through the same shared modules, at
+  phone, iPad and Chromebook widths, plus real secure items drawn and graded by
+  `previewTestCycleSecureItems` / `gradeTestCyclePreviewItem`. Preview writes
+  nothing: no session, record, grade or draft (the emulator suite asserts it).
+
+## External originals and mastery-gated Review
+
+A policy with `externalAssessment` (the district DOL) has no MathMaster Test:
+the teacher enters each student's original score from another system when
+opening sessions, only scores below passing open a session, and that one
+secure session — the record's `test` — is the RETEST (no corrections). A
+policy with `review.minimumMastery` gates the secure session on weighted
+Review mastery from exact server credit, not on answering. The lifecycle
+surfaces follow both: the card, the student list (`testCycleDiscovery.js`),
+the teacher rows, the preview scenarios and the policy locks (cap and rule
+lock once that retest is released; the passing score once sessions open)
+speak of a retest and of the mastery bar where they apply.
+
+## Callables added by the lifecycle work
+
+| Callable | Who | What |
+| --- | --- | --- |
+| `releaseTestCycleResults` | teacher of record | Release every submitted Test or retest (or listed students); idempotent |
+| `updateTestCyclePolicy` | teacher of record | Passing score, cap, rule, Review/Corrections required; locks once used |
+| `previewTestCycleSecureItems` | teacher | Draw real secure items for preview; writes nothing |
+| `gradeTestCyclePreviewItem` | teacher | Grade a preview item; writes nothing |
+| `getAssignmentEvidenceSummary` | teacher | Whether deletion is safe, and why not |
+| `manageAssignmentLifecycle` | teacher | archive / unarchive / unpublish / publish / delete |
+| `attachTestCycleContract` | teacher of record | Attach or replace the contract before any session exists |
+
+## Testing
+
+- `tests/platform/assessmentLifecycleRules.test.mjs` — the pure rules.
+- `tests/integration/testCycleLifecycleSecurity.test.mjs` — the real handlers
+  against the emulator, adversarially: skipping Review, finalizing an unopened
+  Test, replaying markers, students calling teacher callables, archived and
+  scheduled cycles, policy locks, preview writing nothing, delete vs archive.
+- `node tests/browser/testCycleLifecycleQa.mjs` — a QA tool, not a CI gate:
+  real components in Chromium against the real handlers, as a teacher and as
+  students, through Review → Test → release → Corrections → Retest → capped
+  grade, plus the preview and layout/contrast audits at phone, iPad and
+  Chromebook widths in light and dark.
+
 ## Deploy
 
-Functions changed, Firestore rules changed (three new server-only collections),
-Hosting changed:
+Functions changed, Firestore rules changed, Hosting changed. Use the release
+script, which deploys functions, then rules, then Hosting through the resilient
+wrapper (see `AGENTS.md`):
 
 ```
 npm run build && npm run build:firebase
-firebase deploy --only hosting,firestore:rules,functions
+node scripts/release-firebase.mjs            # the plan
+node scripts/release-firebase.mjs --execute
 ```
+
+Order matters for the lifecycle work: the new rules refuse the direct
+`archived` toggle and teacher deletes that the previous Hosting build made, so
+the new functions must be live before the rules. Between the rules step and the
+Hosting step, a teacher on an old tab who archives or deletes gets a permission
+error; reloading picks up the new build.

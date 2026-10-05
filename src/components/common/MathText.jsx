@@ -1,7 +1,7 @@
 import React from 'react';
 import MathDisplay from '../../MathDisplay.jsx';
 import {
-  isMathSegment, normalizePlainMathTypography, splitMathSegments, splitProseFractionRuns, unwrapMathSegment,
+  isMathSegment, mathTextFromChildren, normalizePlainMathTypography, splitMathSegments, splitProseFractionRuns, unwrapMathSegment,
 } from './mathSegments.js';
 
 // Prose with mathematics in it, rendered as mathematics.
@@ -17,7 +17,7 @@ import {
 // so the two can never disagree about where the mathematics is.
 
 export const MathText = ({ children, style = {}, as: Tag = 'span' }) => {
-  const text = String(children ?? '');
+  const text = mathTextFromChildren(children);
   if (!text) return null;
   const segments = splitMathSegments(text);
   return (

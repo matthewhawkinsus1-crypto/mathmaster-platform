@@ -38,9 +38,9 @@ test('secure issuance reads a stored plan and calls no model', () => {
 test('the plan is written with the session, before a student can start it', () => {
   const create = region(
     functionsIndex,
-    'async function createCourseTestSession(',
+    'function buildCourseTestSession(',
     'exports.assignTestCycleSessions',
-    'createCourseTestSession',
+    'buildCourseTestSession',
   );
   assert.match(create, /status: "not_started"/);
   assert.match(create, /issuancePlan: plan/);
@@ -99,7 +99,13 @@ test('a waived or ungated corrections requirement still opens the retest at rele
   assert.match(release, /const correctionsGate = Boolean\(plan\)/);
   assert.match(release, /controls\.correctionsWaived/);
   assert.match(release, /controls\.retestUnlocked/);
-  assert.match(release, /if \(plan && !correctionsGate && !controls\.retestDisabled\)/);
+  // The retest opens whenever the gate is open (no plan targets, waived,
+  // unlocked, or not required) and the teacher has not closed retesting.
+  assert.match(release, /if \(withCorrections\.value\?\.plan && gateOpen && !latest\.teacherControls\.retestDisabled\)/);
+  // A plan with nothing to correct does not gate the retest — it used to, and
+  // left the student in an empty Corrections stage forever.
+  assert.match(release, /&& hasTargets\n/);
+  assert.match(release, /complete: !hasTargets,/);
   assert.match(release, /required: correctionsGate/);
 });
 

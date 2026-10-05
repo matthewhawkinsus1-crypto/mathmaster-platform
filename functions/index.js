@@ -15854,6 +15854,18 @@ exports.issueSecureExamQuestion = onCall(async (request) => {
   const snapshot = await sessionRef.get();
   const session = assertStudentExamSession(snapshot, studentId);
   assertExamInProgress(session);
+  /*
+   * THE GATE IS RE-CHECKED ON EVERY ISSUE, NOT ONLY AT START.
+   *
+   * Start is the only call a screen makes once, so it used to be the only call
+   * that asked the Test Cycle whether this student may be here. Everything that
+   * changes after that — a teacher closing the retest, resetting the session,
+   * archiving or pausing the assessment — went unnoticed by a tab that was
+   * already open: it kept issuing secure questions. The open item is still
+   * returned below for an unchanged session, so a teacher action never strands
+   * an answer half-typed; it stops the NEXT question.
+   */
+  if (secureExam.isCourseTestSession(session)) await assertCourseTestEntryAllowed(db, session, studentId);
   if (session.currentQuestion) {
     return { questionInstance: secureExamPublicQuestion(session.currentQuestion), draftResponse: session.currentQuestion.draftResponse || null, session: secureExam.publicSession(session) };
   }
@@ -15977,8 +15989,14 @@ exports.submitSecureExamResponse = onCall(async (request) => {
   const markerRef = db.collection("examSubmissions").doc(mathPath.opaqueId("examsub", examSessionId, submissionId));
   const result = await db.runTransaction(async (transaction) => {
     const [sessionSnapshot, marker] = await Promise.all([transaction.get(sessionRef), transaction.get(markerRef)]);
-    if (marker.exists) return marker.data()?.result;
+    // The idempotency marker answers a retry from the SAME student. Anyone else
+    // presenting the same submission id is refused exactly as if the session
+    // were not theirs — which it is not — rather than handed its summary.
     const session = assertStudentExamSession(sessionSnapshot, studentId);
+    if (marker.exists) {
+      if (String(marker.data()?.studentId || "") !== studentId) throw new HttpsError("not-found", "That secure exam session is not available.");
+      return marker.data()?.result;
+    }
     assertExamInProgress(session);
     const current = session.currentQuestion;
     if (!current || current.questionInstanceId !== questionInstanceId) throw new HttpsError("failed-precondition", "That question is no longer active.");
@@ -16035,10 +16053,12 @@ exports.submitSecureExamResponse = onCall(async (request) => {
     return publicResult;
   });
   // A finished course Test moves the student's card from "Test" to "submitted"
-  // without exposing a score, which is the whole point of teacher release.
-  if (result?.needsNextQuestion === false) {
-    const finishedSnapshot = await sessionRef.get();
-    if (finishedSnapshot.exists) await syncTestCycleSessionState(db, finishedSnapshot.data());
+  // without exposing a score, which is the whole point of teacher release. An
+  // unfinished one still updates the answered count, so the teacher's results
+  // table can say "in progress, 12 of 25" rather than only "in progress".
+  const afterSnapshot = await sessionRef.get();
+  if (afterSnapshot.exists && secureExam.isCourseTestSession(afterSnapshot.data())) {
+    await syncTestCycleSessionState(db, afterSnapshot.data());
   }
   return result;
 });
@@ -16110,10 +16130,32 @@ exports.finalizeSecureExam = onCall(async (request) => {
   const reason = request.data?.reason === "timeExpired" ? "timeExpired" : "studentSubmit";
   const db = getFirestore();
   const ref = db.collection("examSessions").doc(examSessionId);
+  // A course-test session a teacher reset is not the student's to finish: its
+  // replacement is. Finishing it anyway would mark the stage submitted with no
+  // current session behind it.
+  const finalizeSnapshot = await ref.get();
+  const finalizeSession = assertStudentExamSession(finalizeSnapshot, studentId);
+  if (secureExam.isCourseTestSession(finalizeSession)
+    && !secureExam.TERMINAL_STATES.has(finalizeSession.status)
+    && !(await courseTestSessionIsCurrent(db, finalizeSession))) {
+    throw new HttpsError("failed-precondition", "This secure session was replaced by your teacher. Reopen the assessment from Assignments.");
+  }
   const next = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const session = assertStudentExamSession(snapshot, studentId);
     if (secureExam.TERMINAL_STATES.has(session.status)) return session;
+    /*
+     * AN EXAM THAT WAS NEVER STARTED HAS NOTHING TO SUBMIT.
+     *
+     * Start is where the Test Cycle gate is enforced (Review complete, stage
+     * open, session current, assessment available). Finalize used to accept a
+     * `not_started` session outright, so a student could skip Review by
+     * "submitting" their unopened Test from the console: the empty Test landed
+     * as submitted, the record was stamped past Review, and once released the
+     * student was in Corrections and on to a Retest without ever doing the
+     * Review the Test was gated on.
+     */
+    if (session.status === "not_started") throw new HttpsError("failed-precondition", "Start the exam before submitting it.");
     if (reason === "timeExpired" && !secureExam.isExpired(session)) throw new HttpsError("failed-precondition", "The server-side exam deadline has not been reached.");
     if (reason !== "timeExpired" && secureExam.LOCKED_STATES.has(session.status)) throw new HttpsError("failed-precondition", "A locked exam must be resolved by the proctor.");
     const now = Date.now();
@@ -16138,11 +16180,34 @@ exports.listProctorExamSessions = onCall(async (request) => {
   // class. Simulation scope is unchanged: widening or narrowing it is existing
   // behaviour this change has no business touching.
   const ownedClassIds = await teacherOwnedClassIds(db, request);
-  const sessions = snapshot.docs
+  const byId = new Map();
+  snapshot.docs
     .map((docSnapshot) => docSnapshot.data())
     .filter((session) => !secureExam.isCourseTestSession(session)
       || ownedClassIds === null
-      || ownedClassIds.has(String(session.classId || "")));
+      || ownedClassIds.has(String(session.classId || "")))
+    .forEach((session) => byId.set(String(session.examSessionId || ""), session));
+  /*
+   * A TEACHER'S OWN COURSE TESTS ARE FETCHED BY THEIR OWN CLASSES.
+   *
+   * The 200-document limit above is applied to the WHOLE collection before the
+   * class filter, so in a school with more than 200 sessions a teacher could
+   * open the monitor and find their own students' Tests simply absent. Their
+   * classes' course-test sessions are therefore queried directly.
+   */
+  if (ownedClassIds !== null && (!examType || examType === secureExam.COURSE_TEST_EXAM_TYPE)) {
+    const owned = [...ownedClassIds];
+    for (let index = 0; index < owned.length; index += 30) {
+      // eslint-disable-next-line no-await-in-loop
+      const classSnapshot = await db.collection("examSessions")
+        .where("classId", "in", owned.slice(index, index + 30))
+        .where("examType", "==", secureExam.COURSE_TEST_EXAM_TYPE)
+        .limit(300)
+        .get();
+      classSnapshot.docs.forEach((docSnapshot) => byId.set(docSnapshot.id, docSnapshot.data()));
+    }
+  }
+  const sessions = [...byId.values()];
   return { sessions: sessions.map((session) => secureExam.publicSession(session, { teacher: true })) };
 });
 
@@ -16161,6 +16226,35 @@ function releasedExamEvidence(session, response) {
     supportUsage,
     supportTelemetry: mathPath.supportTelemetry(supportUsage),
   };
+}
+
+/*
+ * RELEASING ONE SESSION'S FEEDBACK, INSIDE THE CALLER'S TRANSACTION.
+ *
+ * Shared by the proctor monitor's per-session button and the Test Cycle's
+ * class-wide "release results", so there is one definition of what a release
+ * does: the session becomes reviewable, and (the first time only) its released
+ * evidence feeds mastery. Releasing twice keeps the first release time and adds
+ * no second set of evidence events.
+ */
+function releaseSessionFeedbackInTransaction(transaction, db, { ref, session, examSessionId, teacherUid, now }) {
+  if (!secureExam.TERMINAL_STATES.has(session.status)) throw new HttpsError("failed-precondition", "Submit the exam before releasing feedback.");
+  if (!session.feedbackReleased) {
+    Object.values(session.responses || {}).forEach((response) => {
+      const eventKey = mathPath.opaqueId("evexam", examSessionId, response.questionInstanceId);
+      const eventRef = db.collection("grades").doc(session.studentId).collection("evidenceEvents").doc(eventKey);
+      transaction.set(eventRef, { ...releasedExamEvidence(session, response), eventKey });
+    });
+  }
+  const updated = {
+    ...session,
+    feedbackReleased: true,
+    feedbackReleasedAt: session.feedbackReleased ? (session.feedbackReleasedAt || now) : now,
+    feedbackReleasedBy: session.feedbackReleased ? (session.feedbackReleasedBy || teacherUid) : teacherUid,
+    updatedAt: now,
+  };
+  transaction.set(ref, updated);
+  return updated;
 }
 
 /** Authenticated proctor controls replace the insecure client-side PIN draft. */
@@ -16195,20 +16289,28 @@ exports.proctorExamAction = onCall(async (request) => {
     if (!snapshot.exists) throw new HttpsError("not-found", "Exam session not found.");
     const session = snapshot.data();
     const now = Date.now();
-    if (action === "releaseFeedback") {
-      if (!secureExam.TERMINAL_STATES.has(session.status)) throw new HttpsError("failed-precondition", "Submit the exam before releasing feedback.");
-      if (!session.feedbackReleased) {
-        Object.values(session.responses || {}).forEach((response) => {
-          const eventKey = mathPath.opaqueId("evexam", examSessionId, response.questionInstanceId);
-          const eventRef = db.collection("grades").doc(session.studentId).collection("evidenceEvents").doc(eventKey);
-          transaction.set(eventRef, { ...releasedExamEvidence(session, response), eventKey });
-        });
-      }
-      const updated = { ...session, feedbackReleased: true, feedbackReleasedAt: now, feedbackReleasedBy: teacherUid, updatedAt: now };
-      transaction.set(ref, updated);
-      return updated;
-    }
+    if (action === "releaseFeedback") return releaseSessionFeedbackInTransaction(transaction, db, { ref, session, examSessionId, teacherUid, now });
     if (secureExam.TERMINAL_STATES.has(session.status)) throw new HttpsError("failed-precondition", "This submitted exam cannot be changed except to release feedback.");
+    /*
+     * UNLOCK RESUMES A LOCKED EXAM. IT IS NOT A START BUTTON.
+     *
+     * Unlock used to set `in_progress` from ANY non-terminal status, including
+     * `not_started`. That started a student's exam without `startedAt` (so a
+     * timed exam had no deadline) and without passing through
+     * `startSecureExamSession` — the one place the Test Cycle's Review gate is
+     * enforced. Lock is likewise only meaningful for an exam in progress; a
+     * not-started session that was "locked" and then unlocked was the same hole
+     * by two clicks.
+     */
+    if (action === "unlock" && !secureExam.LOCKED_STATES.has(session.status)) {
+      throw new HttpsError("failed-precondition", "Only a locked exam can be unlocked. A student starts their own exam.");
+    }
+    if (action === "lock" && session.status !== "in_progress") {
+      throw new HttpsError("failed-precondition", "Only an exam in progress can be paused.");
+    }
+    if (action === "extendTime" && secureExam.timeLimitSecondsOf(session) === null) {
+      throw new HttpsError("failed-precondition", "This exam is untimed; there is no time limit to extend.");
+    }
     let updated = { ...session, updatedAt: now, lastProctorActionBy: teacherUid };
     if (action === "unlock") updated = { ...updated, status: "in_progress", lockReason: null, unlockedAt: now };
     if (action === "lock") updated = { ...updated, status: "locked_proctor", lockReason: "Locked by proctor.", lockedAt: now };
@@ -16402,7 +16504,10 @@ async function runTestCyclePreflight(db, { assignment, policy, blueprint, shared
 }
 
 /** The canonical recorded grade, projected onto the student's grade document. */
-function testCycleGradeProjection(record, gradeState, stage) {
+function testCycleGradeProjection(record, gradeState, stage, previous = null) {
+  const now = Date.now();
+  const resolvedStage = stage || null;
+  const previousStage = previous && typeof previous === "object" ? previous.stage || null : null;
   return {
     recordedGrade: gradeState.recordedGrade,
     originalTestGrade: gradeState.originalTestGrade,
@@ -16410,24 +16515,39 @@ function testCycleGradeProjection(record, gradeState, stage) {
     retestCappedContribution: gradeState.retestCappedContribution,
     maxRecordedGrade: gradeState.maxRecordedGrade,
     passingScore: gradeState.passingScore,
+    gradeReplacement: gradeState.gradeReplacement || null,
     recordedGradeSource: gradeState.recordedGradeSource,
     retestCapApplied: gradeState.retestCapApplied,
     reason: gradeState.reason,
-    stage: stage || null,
+    stage: resolvedStage,
+    // When the stage last CHANGED, not when the record was last written. A
+    // student's assignment list reads this to say "new" once — Test unlocked,
+    // results released, retest open — without a notification system.
+    stageChangedAt: previousStage === resolvedStage ? (Number(previous?.stageChangedAt) || now) : now,
+    // Question-free progress the student's own assignment list shows without a
+    // callable: whether Review has been passed, and how many corrections are
+    // done. Neither is a score, and neither exists before release reveals it.
+    reviewComplete: record.review?.complete === true,
+    // Session states, not scores: "has my Test been opened / am I mid-Test /
+    // is it submitted" is what lets a list say "Test ready" or "Resume Test".
+    testState: record.test?.state || "none",
+    retestState: record.retest?.state || "none",
+    correctionsTotal: Number(record.corrections?.total || 0),
+    correctionsCompleted: Number(record.corrections?.completedTargets || 0),
     blueprintId: record.blueprintId || null,
-    updatedAt: Date.now(),
+    updatedAt: now,
   };
 }
 
 /**
- * Write the record and its grade projection together.
+ * Write the record and its grade projection inside one transaction.
  *
  * The projection on `grades/{studentId}.testCycleGrades[assignmentId]` is what
  * the Classroom passback trigger watches. It is a PROJECTION: every reader
  * recomputes the grade from the record before showing it, so a stale projection
  * can move a Classroom grade late but can never invent a different number.
  */
-async function persistTestCycleRecord(db, record, { shared, policy, stage = null }) {
+function writeTestCycleRecord(transaction, db, { record, gradeSnapshot, shared, policy, stage = null }) {
   const normalized = shared.record.normalizeTestCycleRecord(record);
   const gradeState = shared.record.recordGradeState(normalized, policy);
   const resolvedStage = stage || shared.stages.resolveTestCycleStage({ policy, record: normalized })?.stage || null;
@@ -16437,16 +16557,51 @@ async function persistTestCycleRecord(db, record, { shared, policy, stage = null
     stage: resolvedStage,
     updatedAt: Date.now(),
   };
-  await db.collection(TEST_CYCLE_RECORDS).doc(normalized.recordId).set(document);
-  const gradeRef = db.collection("grades").doc(normalized.studentId);
-  const gradeSnapshot = await gradeRef.get();
-  if (gradeSnapshot.exists) {
-    await gradeRef.update(
+  transaction.set(db.collection(TEST_CYCLE_RECORDS).doc(normalized.recordId), document);
+  if (gradeSnapshot?.exists) {
+    const previous = gradeSnapshot.data()?.testCycleGrades?.[normalized.assignmentId] || null;
+    transaction.update(
+      gradeSnapshot.ref,
       new FieldPath("testCycleGrades", normalized.assignmentId),
-      testCycleGradeProjection(document, gradeState, resolvedStage),
+      testCycleGradeProjection(document, gradeState, resolvedStage, previous),
     );
   }
   return { record: document, gradeState, stage: resolvedStage };
+}
+
+/*
+ * EVERY CHANGE TO A TEST CYCLE RECORD IS READ-MODIFY-WRITE IN ONE TRANSACTION.
+ *
+ * The record is touched by four independent actors: the student's own session
+ * (start, submit, finalize), the teacher (release, waive, unlock, reset), the
+ * corrections callable, and the retest opener. Each used to read the record,
+ * change its part, and write the WHOLE record back — so two of them landing in
+ * the same second silently undid one another: a teacher's "waive corrections"
+ * could be overwritten by the student's correction answer that arrived a moment
+ * later, or a release could resurrect a session state the student had just
+ * left. `mutate` receives the current record and the open transaction; it must
+ * finish every `transaction.get` before its first write, and it returns the
+ * next record (or nothing, to write nothing).
+ */
+async function mutateTestCycleRecord(db, { assignmentId, studentId, shared, policy, mutate }) {
+  const recordRef = db.collection(TEST_CYCLE_RECORDS).doc(testCycleRecordKey(assignmentId, studentId));
+  const gradeRef = db.collection("grades").doc(String(studentId || ""));
+  return db.runTransaction(async (transaction) => {
+    const [recordSnapshot, gradeSnapshot] = await Promise.all([transaction.get(recordRef), transaction.get(gradeRef)]);
+    const current = shared.record.normalizeTestCycleRecord(
+      recordSnapshot.exists ? recordSnapshot.data() : { assignmentId, studentId },
+    );
+    const outcome = await mutate(current, { transaction, exists: recordSnapshot.exists, gradeSnapshot });
+    if (!outcome?.record) return { changed: false, record: current, value: outcome?.value ?? null };
+    const written = writeTestCycleRecord(transaction, db, {
+      record: { ...outcome.record, assignmentId, studentId },
+      gradeSnapshot,
+      shared,
+      policy,
+      stage: outcome.stage || null,
+    });
+    return { changed: true, ...written, value: outcome.value ?? null };
+  });
 }
 
 async function readTestCycleRecord(db, assignmentId, studentId, shared) {
@@ -16457,13 +16612,17 @@ async function readTestCycleRecord(db, assignmentId, studentId, shared) {
 }
 
 /**
- * Create one student's secure course-test session from a stored issuance plan.
+ * Build one student's secure course-test session from a stored issuance plan.
  *
  * The plan is computed and written with the session, before the student can
  * start it. That ordering is the whole no-live-AI guarantee: by the time the
  * exam is enterable, every question it will ask is already decided.
+ *
+ * Built, not written: the caller writes it inside the same transaction that
+ * points the student's record at it, so two concurrent "open sessions" clicks
+ * cannot leave a student with two Tests.
  */
-async function createCourseTestSession(db, {
+function buildCourseTestSession(db, {
   assignmentId,
   assignment,
   studentId,
@@ -16485,7 +16644,9 @@ async function createCourseTestSession(db, {
     title: String(title || blueprint.title || assignment?.title || "Course Test").slice(0, 160),
     status: "not_started",
     requiredQuestions: plan.totalQuestions,
-    timeLimitSeconds: blueprint.timeLimitSeconds,
+    // Only an explicit, positive blueprint time limit times a Test. `null` is
+    // untimed; see `deadlineFor`.
+    timeLimitSeconds: secureExam.timeLimitSecondsOf({ timeLimitSeconds: blueprint.timeLimitSeconds }),
     addedTimeSeconds: 0,
     calculatorMode: blueprint.calculatorMode,
     accommodationsConfirmed: false,
@@ -16511,8 +16672,22 @@ async function createCourseTestSession(db, {
     createdAt: now,
     updatedAt: now,
   };
-  await ref.set(session);
-  return session;
+  return { ref, session };
+}
+
+/**
+ * The assignment-level gate: archived, paused or not yet open.
+ *
+ * Applied wherever a student would START something — the secure Test or
+ * Retest, the next secure question, a correction question — and laid over the
+ * card so the student is told the same thing the server enforces.
+ */
+async function assertTestCycleAssessmentOpen(shared, assignment) {
+  const availability = shared.availability.resolveAssessmentAvailability({ assignment, now: Date.now() });
+  if (!availability.open) {
+    throw new HttpsError("failed-precondition", availability.message, { availability: availability.reason });
+  }
+  return availability;
 }
 
 /**
@@ -16527,11 +16702,14 @@ async function createCourseTestSession(db, {
  * surface.
  *
  * The stage machine is the authority, so the gate is enforced HERE, on the
- * server, in the one call every entry path must make. A screen that forgets to
- * check now fails closed instead of leaking an exam.
+ * server, in the calls every entry path must make: start, and every issue. A
+ * screen that forgets to check now fails closed instead of leaking an exam.
  *
  * It also pins the session to the record's CURRENT session for that stage: a
  * session superseded by a teacher reset is not enterable, whatever its status.
+ * And it refuses an assessment the teacher has archived or paused, or that has
+ * not reached its release time — the assignment-level gate the stage machine
+ * deliberately does not know about.
  */
 async function assertCourseTestEntryAllowed(db, session, studentId) {
   const courseTest = session?.courseTest;
@@ -16570,6 +16748,8 @@ async function assertCourseTestEntryAllowed(db, session, studentId) {
   // container shows "Exam recorded", rather than an error the student cannot
   // act on.
   if (secureExam.TERMINAL_STATES.has(session.status)) return;
+
+  await assertTestCycleAssessmentOpen(shared, assignment);
 
   const tracker = gradeSnapshot.data()?.gradesByAssignment?.[courseTest.assignmentId] || {};
   const state = shared.stages.resolveTestCycleStage({
@@ -16639,9 +16819,36 @@ async function courseTestSessionIsCurrent(db, session) {
   if (!courseTest?.assignmentId) return true;
   const shared = await testCycleLib.shared();
   const record = await readTestCycleRecord(db, courseTest.assignmentId, String(session.studentId || ""), shared);
-  const isRetest = String(courseTest.cycleStage) === shared.issuance.CYCLE_STAGE.RETEST;
+  return recordStageSessionIsCurrent(shared, record, session);
+}
+
+/** The same exact-match rule, against a record the caller already holds. */
+function recordStageSessionIsCurrent(shared, record, session) {
+  const isRetest = String(session?.courseTest?.cycleStage) === shared.issuance.CYCLE_STAGE.RETEST;
   const currentSessionId = isRetest ? record.retest.examSessionId : record.test.examSessionId;
-  return String(currentSessionId || "") === String(session.examSessionId || "");
+  return Boolean(currentSessionId) && String(currentSessionId) === String(session?.examSessionId || "");
+}
+
+/**
+ * Is `studentId` someone this assignment is actually for?
+ *
+ * A record already existing is proof enough (named-student assignment); so is
+ * the student's rostered class being in the assignment's audience. A bare id a
+ * teacher typed is neither, and a teacher action must not mint a record — which
+ * is itself what grants access — for a student the assignment was never given.
+ */
+async function assertStudentInTestCycleAudience(db, { assignment, assignmentId, studentId }) {
+  const id = String(studentId || "").trim();
+  if (!id || id.length > 180) throw new HttpsError("invalid-argument", "A valid studentId is required.");
+  const [recordSnapshot, gradeSnapshot] = await Promise.all([
+    db.collection(TEST_CYCLE_RECORDS).doc(testCycleRecordKey(assignmentId, id)).get(),
+    db.collection("grades").doc(id).get(),
+  ]);
+  if (recordSnapshot.exists) return { studentId: id, gradeData: gradeSnapshot.data() || {} };
+  if (gradeSnapshot.exists && studentMatchesAssignmentAudience({ assignment, classId: gradeSnapshot.data()?.classId || null })) {
+    return { studentId: id, gradeData: gradeSnapshot.data() || {} };
+  }
+  throw new HttpsError("permission-denied", "That student is not assigned this Test Cycle.");
 }
 
 /** Teacher action: open secure Test sessions for a whole class at once. */
@@ -16651,6 +16858,14 @@ exports.assignTestCycleSessions = onCall(async (request) => {
   if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
   const { teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
   const { assignmentId, assignment, policy, blueprint, secureReferenceResolved, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId, { allowInvalid: true });
+
+  // Sessions can be opened ahead of a scheduled release (the release time still
+  // gates entry), but not for an assessment the teacher has archived or paused:
+  // that is a contradiction a teacher should be told about, not one to act on.
+  const availability = shared.availability.resolveAssessmentAvailability({ assignment, now: Date.now() });
+  if (!availability.open && availability.reason !== shared.availability.ASSESSMENT_AVAILABILITY.SCHEDULED) {
+    throw new HttpsError("failed-precondition", "This assessment is archived or paused. Restore it before opening secure sessions.");
+  }
 
   /*
    * THE AUDIENCE IS THE ASSIGNMENT'S, NOT THE CALLER'S.
@@ -16730,16 +16945,22 @@ exports.assignTestCycleSessions = onCall(async (request) => {
     }
   }
   for (const [studentId, studentData] of eligible) {
-    // eslint-disable-next-line no-await-in-loop
-    const record = await readTestCycleRecord(db, assignmentId, studentId, shared);
-    if (record.test.examSessionId) {
-      reused.push(studentId);
-      continue;
-    }
-    const originalScore = originalScores.get(studentId);
-    if (policy.externalAssessment && (originalScore === undefined || originalScore >= policy.passingScore)) {
-      skipped.push({ studentId, reason: originalScore === undefined ? "missingOriginalScore" : "originalAlreadyPassing" });
-      continue;
+    // An external-original retest opens only for a student whose original
+    // district score was entered and is below passing. A student who already
+    // has a session keeps it (reused) whatever this batch supplied; the
+    // transaction below re-checks that, so this read is only for the skip.
+    if (policy.externalAssessment) {
+      // eslint-disable-next-line no-await-in-loop
+      const existing = await readTestCycleRecord(db, assignmentId, studentId, shared);
+      if (existing.test.examSessionId) {
+        reused.push(studentId);
+        continue;
+      }
+      const originalScore = originalScores.get(studentId);
+      if (originalScore === undefined || originalScore >= policy.passingScore) {
+        skipped.push({ studentId, reason: originalScore === undefined ? "missingOriginalScore" : "originalAlreadyPassing" });
+        continue;
+      }
     }
     const plan = shared.issuance.buildSecureIssuancePlan({
       blueprint,
@@ -16752,41 +16973,58 @@ exports.assignTestCycleSessions = onCall(async (request) => {
     if (shared.issuance.planRequiresLiveGeneration(plan)) {
       throw new HttpsError("failed-precondition", `The secure Test plan for ${studentId} could not be completed from approved families.`);
     }
+    // The record is re-read INSIDE the transaction that creates the session,
+    // so a second click (or a second teacher tab) reuses the session the first
+    // one created instead of minting a parallel Test for the same student.
     // eslint-disable-next-line no-await-in-loop
-    const session = await createCourseTestSession(db, {
-      assignmentId,
-      assignment,
-      studentId,
-      studentData,
-      blueprint,
-      plan,
-      cycleStage: shared.issuance.CYCLE_STAGE.TEST,
-      teacherUid,
-      title: assignment?.title,
-    });
-    // eslint-disable-next-line no-await-in-loop
-    await persistTestCycleRecord(db, {
-      ...record,
+    const outcome = await mutateTestCycleRecord(db, {
       assignmentId,
       studentId,
-      classId: session.classId,
-      ...(policy.externalAssessment ? { externalAssessment: {
-        originalScore, source: policy.externalAssessment.source, recordedBy: teacherUid, recordedAt: Date.now(),
-      } } : {}),
-      blueprintId: blueprint.blueprintId,
-      blueprintVersion: blueprint.version,
-      review: { ...record.review, required: policy.review.required },
-      test: {
-        examSessionId: session.examSessionId,
-        planId: plan.planId,
-        blueprintId: plan.blueprintId,
-        blueprintVersion: plan.blueprintVersion,
-        attempt: plan.attempt,
-        state: shared.record.SESSION_STATE.ASSIGNED,
-        totalQuestions: plan.totalQuestions,
+      shared,
+      policy,
+      mutate: (record, { transaction }) => {
+        if (record.test.examSessionId) return { value: { reused: true } };
+        const { ref, session } = buildCourseTestSession(db, {
+          assignmentId,
+          assignment,
+          studentId,
+          studentData,
+          blueprint,
+          plan,
+          cycleStage: shared.issuance.CYCLE_STAGE.TEST,
+          teacherUid,
+          title: assignment?.title,
+        });
+        transaction.set(ref, session);
+        return {
+          value: { reused: false, examSessionId: session.examSessionId },
+          record: {
+            ...record,
+            classId: session.classId,
+            ...(policy.externalAssessment ? { externalAssessment: {
+              originalScore: originalScores.get(studentId),
+              source: policy.externalAssessment.source,
+              recordedBy: teacherUid,
+              recordedAt: Date.now(),
+            } } : {}),
+            blueprintId: blueprint.blueprintId,
+            blueprintVersion: blueprint.version,
+            review: { ...record.review, required: policy.review.required },
+            test: {
+              examSessionId: session.examSessionId,
+              planId: plan.planId,
+              blueprintId: plan.blueprintId,
+              blueprintVersion: plan.blueprintVersion,
+              attempt: plan.attempt,
+              state: shared.record.SESSION_STATE.ASSIGNED,
+              totalQuestions: plan.totalQuestions,
+            },
+          },
+        };
       },
-    }, { shared, policy });
-    created.push({ studentId, examSessionId: session.examSessionId });
+    });
+    if (outcome.value?.reused) reused.push(studentId);
+    else created.push({ studentId, examSessionId: outcome.value?.examSessionId || null });
   }
 
   return {
@@ -16800,10 +17038,18 @@ exports.assignTestCycleSessions = onCall(async (request) => {
   };
 });
 
-/** Teacher preflight, callable on its own so authoring can block publication. */
+/**
+ * Teacher preflight, callable on its own so authoring can block publication.
+ *
+ * Scoped to the teacher of record: preflight reports the blueprint's families,
+ * standards and coverage, which is exactly what a secure Test keeps out of
+ * students' hands and is not another teacher's business either.
+ */
 exports.preflightTestCycleAssignment = onCall(async (request) => {
   const db = getFirestore();
-  await requireTeacher(request);
+  const assignmentSnapshot = await db.collection("assignments").doc(String(request.data?.assignmentId || "").trim()).get();
+  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+  await assertTeacherMayManageAssignment(request, assignmentSnapshot);
   const { assignment, policy, blueprint, secureReferenceResolved, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId, { allowInvalid: true });
   const { result } = await runTestCyclePreflight(db, { assignment, policy, blueprint, shared, secureReferenceResolved });
   return { success: true, preflight: result };
@@ -16835,6 +17081,26 @@ exports.preflightTestCycleCandidate = onCall(async (request) => {
 });
 
 /**
+ * What the student is told about timing and tools before they start.
+ *
+ * Read from the blueprint, never assumed: a Test with no explicit time limit is
+ * UNTIMED, and the card says so in as many words, so a student is never left
+ * guessing whether a clock is running.
+ */
+function testCycleDeliveryFacts(blueprint) {
+  const seconds = secureExam.timeLimitSecondsOf({ timeLimitSeconds: blueprint?.timeLimitSeconds });
+  const calculatorMode = String(blueprint?.calculatorMode || "questionSpecific");
+  return {
+    timed: seconds !== null,
+    timeLimitMinutes: seconds === null ? null : Math.round(seconds / 60),
+    calculatorMode,
+    questionCount: Array.isArray(blueprint?.targets)
+      ? blueprint.targets.reduce((sum, target) => sum + Math.max(0, Number(target?.questionCount) || 0), 0)
+      : null,
+  };
+}
+
+/**
  * The student's single card.
  *
  * Returns ONE stage. Corrections detail is included only when the student is
@@ -16861,14 +17127,18 @@ exports.getStudentTestCycle = onCall(async (request) => {
     recordSnapshot.exists ? recordSnapshot.data() : { assignmentId, studentId },
   );
   const tracker = gradeSnapshot.data()?.gradesByAssignment?.[assignmentId] || {};
-  const state = shared.stages.resolveTestCycleStage({
-    policy,
-    record,
-    reviewProgress: testCycleLib.reviewProgress(assignment, tracker),
-  });
+  const reviewProgress = testCycleLib.reviewProgress(assignment, tracker);
+  // The stage, then the assignment-level gate laid over it: an archived or
+  // not-yet-open assessment keeps its stage but cannot be entered, and the card
+  // says why in the words the server would refuse with.
+  const availability = shared.availability.resolveAssessmentAvailability({ assignment, now: Date.now() });
+  const state = shared.stages.applyAssessmentAvailability(
+    shared.stages.resolveTestCycleStage({ policy, record, reviewProgress }),
+    availability,
+  );
 
   let corrections = null;
-  if (state.stage === shared.stages.TEST_CYCLE_STAGE.CORRECTIONS) {
+  if (state.stage === shared.stages.TEST_CYCLE_STAGE.CORRECTIONS && availability.open) {
     const planSnapshot = await db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(record.recordId).get();
     const plan = planSnapshot.exists ? planSnapshot.data()?.plan : null;
     corrections = plan ? studentVisibleCorrectionPlan(plan) : null;
@@ -16898,6 +17168,26 @@ exports.getStudentTestCycle = onCall(async (request) => {
         : null,
     grade: shared.record.testCycleGradeBreakdown(record, policy),
     corrections,
+    // Everything below is question-free and score-free: what a student needs
+    // to understand the card without asking anyone.
+    availability: { open: availability.open, reason: availability.reason, opensAt: availability.opensAt },
+    dueAt: assignment?.dueAt || assignment?.dueDate || null,
+    reviewProgress: {
+      attempted: reviewProgress.attempted,
+      total: reviewProgress.total,
+      complete: reviewProgress.complete,
+      // A mastery-gated Review (review.minimumMastery) says how far along the
+      // student is against the bar, not just how many items they answered.
+      ...(reviewProgress.minimumMastery !== undefined ? { mastery: reviewProgress.mastery, minimumMastery: reviewProgress.minimumMastery } : {}),
+    },
+    policy: {
+      passingScore: policy.passingScore,
+      maxRecordedGrade: policy.retest.maxRecordedGrade,
+      gradeReplacement: policy.retest.gradeReplacement,
+      summary: state.policySummary,
+      external: Boolean(policy.externalAssessment),
+    },
+    delivery: testCycleDeliveryFacts(blueprint),
   };
 });
 
@@ -16931,6 +17221,8 @@ function studentVisibleCorrectionPlan(plan) {
   };
 }
 
+const CORRECTION_ATTEMPTS_PER_QUESTION = 3;
+
 /**
  * Issue one CORRECTION question.
  *
@@ -16947,7 +17239,8 @@ exports.issueTestCycleCorrectionQuestion = onCall(async (request) => {
   const correctionId = String(request.data?.correctionId || "").trim();
   if (!correctionId) throw new HttpsError("invalid-argument", "A correctionId is required.");
   const db = getFirestore();
-  const { assignmentId, policy } = await loadTestCycleAssignment(db, request.data?.assignmentId);
+  const { assignmentId, assignment, policy, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId);
+  await assertTestCycleAssessmentOpen(shared, assignment);
   const recordId = testCycleRecordKey(assignmentId, studentId);
   const planRef = db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(recordId);
   const planSnapshot = await planRef.get();
@@ -16964,6 +17257,7 @@ exports.issueTestCycleCorrectionQuestion = onCall(async (request) => {
       success: true,
       questionInstance: mathPath.buildSanitizedQuestion(open, open),
       attemptsAllowed: open.attemptsAllowed,
+      attemptsUsed: Number(open.attemptsUsed || 0),
       hintsAllowed: true,
       secure: false,
     };
@@ -17004,7 +17298,7 @@ exports.issueTestCycleCorrectionQuestion = onCall(async (request) => {
       questionInstanceId,
       correctionId,
       // Instruction, not assessment. Three attempts and full support.
-      attemptsAllowed: 3,
+      attemptsAllowed: CORRECTION_ATTEMPTS_PER_QUESTION,
       attemptsUsed: 0,
       privateGrading: issuePlan.privateGrading,
       ...issuePlan.toolPayload,
@@ -17013,17 +17307,25 @@ exports.issueTestCycleCorrectionQuestion = onCall(async (request) => {
   }
   if (!issued) throw new HttpsError("failed-precondition", "No parallel practice item could be generated for this correction.");
 
-  await planRef.set({
-    ...stored,
-    activeQuestions: { ...stored.activeQuestions, [correctionId]: issued },
-    issuedCounts: { ...stored.issuedCounts, [correctionId]: Number(stored.issuedCounts?.[correctionId] || 0) + 1 },
-    updatedAt: Date.now(),
+  // Two tabs asking at once converge on ONE open question per correction.
+  const active = await db.runTransaction(async (transaction) => {
+    const fresh = (await transaction.get(planRef)).data() || {};
+    const existing = fresh.activeQuestions?.[correctionId];
+    if (existing) return existing;
+    transaction.set(planRef, {
+      ...fresh,
+      activeQuestions: { ...(fresh.activeQuestions || {}), [correctionId]: issued },
+      issuedCounts: { ...(fresh.issuedCounts || {}), [correctionId]: Number(fresh.issuedCounts?.[correctionId] || 0) + 1 },
+      updatedAt: Date.now(),
+    });
+    return issued;
   });
 
   return {
     success: true,
-    questionInstance: mathPath.buildSanitizedQuestion(issued, issued),
-    attemptsAllowed: 3,
+    questionInstance: mathPath.buildSanitizedQuestion(active, active),
+    attemptsAllowed: CORRECTION_ATTEMPTS_PER_QUESTION,
+    attemptsUsed: Number(active.attemptsUsed || 0),
     hintsAllowed: true,
     secure: false,
     passingScore: policy.passingScore,
@@ -17037,6 +17339,12 @@ exports.issueTestCycleCorrectionQuestion = onCall(async (request) => {
  * target only on a correct response, and the only grade-adjacent thing it can
  * do at the end of the plan is unlock a secure retest the student then has to
  * actually take.
+ *
+ * THREE ATTEMPTS MEANS THREE ATTEMPTS. The open question used to be discarded
+ * after the first response, right or wrong, while the screen promised three
+ * tries — so "Try again" met "That correction question is no longer active."
+ * A wrong answer now keeps the question open until it is answered correctly or
+ * its attempts are used, and only then is a fresh parallel item issued.
  */
 exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
   const { studentId } = requireStudent(request);
@@ -17047,44 +17355,69 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
   const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId);
   const recordId = testCycleRecordKey(assignmentId, studentId);
   const planRef = db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(recordId);
-  const planSnapshot = await planRef.get();
-  if (!planSnapshot.exists) throw new HttpsError("not-found", "You have no corrections for this assessment.");
-  const stored = planSnapshot.data() || {};
-  if (String(stored.studentId || "") !== studentId) throw new HttpsError("not-found", "You have no corrections for this assessment.");
-  const open = stored.activeQuestions?.[correctionId];
-  if (!open || open.questionInstanceId !== questionInstanceId) {
+  const preview = (await planRef.get()).data() || null;
+  if (!preview) throw new HttpsError("not-found", "You have no corrections for this assessment.");
+  if (String(preview.studentId || "") !== studentId) throw new HttpsError("not-found", "You have no corrections for this assessment.");
+  const openForGrading = preview.activeQuestions?.[correctionId];
+  if (!openForGrading || openForGrading.questionInstanceId !== questionInstanceId) {
     throw new HttpsError("failed-precondition", "That correction question is no longer active.");
   }
-
-  const grading = await mathPath.gradeResponse(open.privateGrading, request.data?.responsePayload || {});
+  // Graded once, outside the transaction; the transaction below re-checks that
+  // this exact question is still open before it records anything, so a double
+  // click or a second tab cannot credit the same answer twice.
+  const grading = await mathPath.gradeResponse(openForGrading.privateGrading, request.data?.responsePayload || {});
   const now = Date.now();
-  const nextPlan = grading.isCorrect
-    ? shared.corrections.applyCorrectionEvidence(stored.plan, { correctionId, isCorrect: true, at: now })
-    : stored.plan;
-  const activeQuestions = { ...stored.activeQuestions };
-  delete activeQuestions[correctionId];
-  const progress = shared.corrections.correctionPlanProgress(nextPlan);
 
-  await planRef.set({
-    ...stored,
-    plan: nextPlan,
-    activeQuestions,
-    updatedAt: now,
+  const applied = await db.runTransaction(async (transaction) => {
+    const stored = (await transaction.get(planRef)).data() || {};
+    const open = stored.activeQuestions?.[correctionId];
+    if (!open || open.questionInstanceId !== questionInstanceId) {
+      throw new HttpsError("failed-precondition", "That correction question is no longer active.");
+    }
+    const attemptsUsed = Number(open.attemptsUsed || 0) + 1;
+    const attemptsAllowed = Number(open.attemptsAllowed || CORRECTION_ATTEMPTS_PER_QUESTION);
+    const nextPlan = grading.isCorrect
+      ? shared.corrections.applyCorrectionEvidence(stored.plan, { correctionId, isCorrect: true, at: now })
+      : stored.plan;
+    const questionClosed = grading.isCorrect === true || attemptsUsed >= attemptsAllowed;
+    const activeQuestions = { ...(stored.activeQuestions || {}) };
+    if (questionClosed) delete activeQuestions[correctionId];
+    else activeQuestions[correctionId] = { ...open, attemptsUsed };
+    transaction.set(planRef, { ...stored, plan: nextPlan, activeQuestions, updatedAt: now });
+    return {
+      nextPlan,
+      questionClosed,
+      attemptsUsed,
+      attemptsRemaining: questionClosed ? 0 : Math.max(0, attemptsAllowed - attemptsUsed),
+    };
   });
+  const progress = shared.corrections.correctionPlanProgress(applied.nextPlan);
 
-  const record = await readTestCycleRecord(db, assignmentId, studentId, shared);
-  const updated = {
-    ...record,
-    corrections: {
-      ...record.corrections,
-      planId: nextPlan.planId,
-      total: progress.total,
-      completedTargets: progress.complete,
-      complete: progress.allComplete,
-      completedAt: progress.allComplete ? now : record.corrections.completedAt,
+  const persisted = await mutateTestCycleRecord(db, {
+    assignmentId,
+    studentId,
+    shared,
+    policy,
+    mutate: async (record, { transaction }) => {
+      // Re-read the plan inside the record's transaction: two correction
+      // answers landing together must leave the record counting both.
+      const latest = (await transaction.get(planRef)).data()?.plan || applied.nextPlan;
+      const latestProgress = shared.corrections.correctionPlanProgress(latest);
+      return {
+        record: {
+          ...record,
+          corrections: {
+            ...record.corrections,
+            planId: latest.planId,
+            total: latestProgress.total,
+            completedTargets: latestProgress.complete,
+            complete: latestProgress.allComplete,
+            completedAt: latestProgress.allComplete ? (record.corrections.completedAt || now) : record.corrections.completedAt,
+          },
+        },
+      };
     },
-  };
-  const persisted = await persistTestCycleRecord(db, updated, { shared, policy });
+  });
 
   // Corrections complete is the ordinary gate. Opening the retest here is what
   // makes it automatic — no teacher has to notice and no student has to ask.
@@ -17099,6 +17432,9 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
     success: true,
     isCorrect: grading.isCorrect === true,
     score: grading.score,
+    attemptsUsed: applied.attemptsUsed,
+    attemptsRemaining: applied.attemptsRemaining,
+    questionClosed: applied.questionClosed,
     correctionsComplete: progress.allComplete,
     progress,
     retestOpened: Boolean(retest),
@@ -17112,6 +17448,11 @@ exports.submitTestCycleCorrectionResponse = onCall(async (request) => {
  * before the session becomes enterable: the performance profile from the
  * released Test, the ~70/30 retest blueprint, and the deterministic issuance
  * plan with the original families and instances passed in as things to avoid.
+ *
+ * The session, the stored retest plan and the record's pointer to them are
+ * written in ONE transaction that re-checks the record first, so the three
+ * paths that can open a retest (corrections finished, release with no gate, a
+ * teacher waiver) racing each other still leave exactly one Retest.
  */
 async function ensureRetestSession(db, { assignmentId, assignment, policy, blueprint, shared, studentId, teacherUid }) {
   if (policy.externalAssessment) return null;
@@ -17147,42 +17488,59 @@ async function ensureRetestSession(db, { assignmentId, assignment, policy, bluep
   if (shared.issuance.planRequiresLiveGeneration(plan)) return null;
 
   const studentSnapshot = await db.collection("grades").doc(studentId).get();
-  const session = await createCourseTestSession(db, {
-    assignmentId,
-    assignment,
-    studentId,
-    studentData: studentSnapshot.data() || {},
-    blueprint: generated.blueprint,
-    plan,
-    cycleStage: shared.issuance.CYCLE_STAGE.RETEST,
-    teacherUid,
-    title: `${assignment?.title || blueprint.title} — Retest`,
-  });
-
-  await db.collection(TEST_CYCLE_RETEST_PLANS).doc(record.recordId).set({
-    recordId: record.recordId,
+  const outcome = await mutateTestCycleRecord(db, {
     assignmentId,
     studentId,
-    blueprint: generated.blueprint,
-    audit: generated.audit,
-    plan,
-    createdAt: Date.now(),
-  });
-
-  await persistTestCycleRecord(db, {
-    ...record,
-    retest: {
-      ...record.retest,
-      examSessionId: session.examSessionId,
-      planId: plan.planId,
-      blueprintId: plan.blueprintId,
-      blueprintVersion: plan.blueprintVersion,
-      state: shared.record.SESSION_STATE.ASSIGNED,
-      totalQuestions: plan.totalQuestions,
+    shared,
+    policy,
+    mutate: (current, { transaction }) => {
+      // Another path opened it, or the teacher closed it, while this one was
+      // building the plan. Either way there is nothing to open.
+      if (current.retest.examSessionId
+        || current.test.state !== shared.record.SESSION_STATE.RELEASED
+        || current.teacherControls.retestDisabled
+        || Number(current.retest.attempt || 1) !== Number(plan.attempt || 1)) {
+        return { value: null };
+      }
+      const { ref, session } = buildCourseTestSession(db, {
+        assignmentId,
+        assignment,
+        studentId,
+        studentData: studentSnapshot.data() || {},
+        blueprint: generated.blueprint,
+        plan,
+        cycleStage: shared.issuance.CYCLE_STAGE.RETEST,
+        teacherUid,
+        title: `${assignment?.title || blueprint.title} — Retest`,
+      });
+      transaction.set(ref, session);
+      transaction.set(db.collection(TEST_CYCLE_RETEST_PLANS).doc(current.recordId), {
+        recordId: current.recordId,
+        assignmentId,
+        studentId,
+        blueprint: generated.blueprint,
+        audit: generated.audit,
+        plan,
+        createdAt: Date.now(),
+      });
+      return {
+        value: { examSessionId: session.examSessionId, audit: generated.audit },
+        record: {
+          ...current,
+          retest: {
+            ...current.retest,
+            examSessionId: session.examSessionId,
+            planId: plan.planId,
+            blueprintId: plan.blueprintId,
+            blueprintVersion: plan.blueprintVersion,
+            state: shared.record.SESSION_STATE.ASSIGNED,
+            totalQuestions: plan.totalQuestions,
+          },
+        },
+      };
     },
-  }, { shared, policy });
-
-  return { examSessionId: session.examSessionId, audit: generated.audit };
+  });
+  return outcome.value || null;
 }
 
 /** Teacher overrides. Each one is an explicit decision, recorded as such. */
@@ -17192,92 +17550,107 @@ exports.teacherTestCycleAction = onCall(async (request) => {
   if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
   const { teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
   const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId);
-  const studentId = String(request.data?.studentId || "").trim();
   const action = String(request.data?.action || "").trim();
   if (policy.externalAssessment && (["requireCorrections", "waiveCorrections"].includes(action)
     || (action === "resetSecureSession" && request.data?.stage === "retest"))) {
     throw new HttpsError("invalid-argument", "This external-original assessment uses Review and one secure Retest session.");
   }
-  if (!studentId) throw new HttpsError("invalid-argument", "A studentId is required.");
   if (!shared.policy.TEACHER_CONTROL_ACTIONS.includes(action)) {
     throw new HttpsError("invalid-argument", "Choose a supported Test Cycle teacher action.");
   }
+  // The student has to be one this assignment is FOR. A record is what grants
+  // access, so an action must not create one for a typed-in id.
+  const { studentId, gradeData } = await assertStudentInTestCycleAudience(db, {
+    assignment, assignmentId, studentId: request.data?.studentId,
+  });
+  const resetStage = String(request.data?.stage || "test").trim() === "retest" ? "retest" : "test";
+  const families = action === "resetSecureSession" && resetStage === "test"
+    ? await resolveBlueprintFamilies(db, blueprintFamilyIds(blueprint))
+    : [];
 
-  const record = await readTestCycleRecord(db, assignmentId, studentId, shared);
-  const controls = shared.policy.applyTeacherControlAction(record.teacherControls, action);
-  let next = { ...record, teacherControls: controls };
+  const persisted = await mutateTestCycleRecord(db, {
+    assignmentId,
+    studentId,
+    shared,
+    policy,
+    mutate: (record, { transaction }) => {
+      const controls = shared.policy.applyTeacherControlAction(record.teacherControls, action);
+      let next = { ...record, teacherControls: controls };
 
-  if (action === "resetSecureSession") {
-    const stage = String(request.data?.stage || "test").trim() === "retest" ? "retest" : "test";
-    const current = stage === "retest" ? record.retest : record.test;
+      if (action === "resetSecureSession") {
+        const stage = resetStage;
+        const current = stage === "retest" ? record.retest : record.test;
 
-    /*
-     * A reset must not un-prove the Review the student already passed.
-     *
-     * The replacement Test goes back to `assigned`, which is the same shape a
-     * student who has never passed Review is in. Records written since the
-     * entry path started stamping `review.complete` carry the answer already;
-     * one written before it does not, and would silently revert to "Review" in
-     * the gradebook. The outgoing session's own state is the proof, so it is
-     * carried across here rather than lost with the session it belonged to.
-     */
-    if (record.review.complete !== true
-      && current.state !== shared.record.SESSION_STATE.NONE
-      && current.state !== shared.record.SESSION_STATE.ASSIGNED) {
-      next = { ...next, review: { ...next.review, complete: true, completedAt: next.review.completedAt || Date.now() } };
-    }
+        /*
+         * A reset must not un-prove the Review the student already passed.
+         *
+         * The replacement Test goes back to `assigned`, which is the same shape a
+         * student who has never passed Review is in. Records written since the
+         * entry path started stamping `review.complete` carry the answer already;
+         * one written before it does not, and would silently revert to "Review" in
+         * the gradebook. The outgoing session's own state is the proof, so it is
+         * carried across here rather than lost with the session it belonged to.
+         */
+        if (record.review.complete !== true
+          && current.state !== shared.record.SESSION_STATE.NONE
+          && current.state !== shared.record.SESSION_STATE.ASSIGNED) {
+          next = { ...next, review: { ...next.review, complete: true, completedAt: next.review.completedAt || Date.now() } };
+        }
 
-    if (current.examSessionId) {
-      // The old session is closed, not deleted: the evidence a student produced
-      // stays readable, and the new attempt draws a genuinely different plan
-      // because `attempt` is part of the plan seed.
-      await db.collection("examSessions").doc(current.examSessionId).set(
-        { status: "force_submitted", resetByTeacher: teacherUid, resetAt: Date.now(), updatedAt: Date.now() },
-        { merge: true },
-      );
-    }
-    const attempt = Number(current.attempt || 1) + 1;
-    if (stage === "test") {
-      const families = await resolveBlueprintFamilies(db, blueprintFamilyIds(blueprint));
-      const plan = shared.issuance.buildSecureIssuancePlan({
-        blueprint, families, studentId, assignmentId, stage: shared.issuance.CYCLE_STAGE.TEST, attempt,
-      });
-      const studentSnapshot = await db.collection("grades").doc(studentId).get();
-      const session = await createCourseTestSession(db, {
-        assignmentId, assignment, studentId, studentData: studentSnapshot.data() || {},
-        blueprint, plan, cycleStage: shared.issuance.CYCLE_STAGE.TEST, teacherUid, title: assignment?.title,
-      });
-      next = {
-        ...next,
-        test: {
-          ...next.test,
-          examSessionId: session.examSessionId,
-          planId: plan.planId,
-          attempt,
-          state: shared.record.SESSION_STATE.ASSIGNED,
-          rawScore: null,
-          releasedAt: null,
-          totalQuestions: plan.totalQuestions,
-        },
-      };
-    } else {
-      next = { ...next, retest: { ...next.retest, examSessionId: null, planId: null, attempt, state: shared.record.SESSION_STATE.NONE, rawScore: null, releasedAt: null } };
-    }
-    // A reset can clear an already-released score, so it belongs in the audit
-    // trail beside the releases. Classroom is unaffected: a null recorded grade
-    // is skipped by the passback trigger, so the posted grade simply stands.
-    next = {
-      ...next,
-      history: shared.grade.appendTestCycleGradeHistory(next.history, {
-        at: Date.now(),
-        reason: shared.grade.GRADE_HISTORY_REASON.TEACHER_OVERRIDE,
-        recordedGrade: shared.record.recordGradeState(next, policy).recordedGrade,
-        detail: `Teacher reset the secure ${stage} session (attempt ${attempt}).`,
-      }),
-    };
-  }
-
-  const persisted = await persistTestCycleRecord(db, next, { shared, policy });
+        if (current.examSessionId) {
+          // The old session is closed, not deleted: the evidence a student produced
+          // stays readable, and the new attempt draws a genuinely different plan
+          // because `attempt` is part of the plan seed.
+          transaction.set(
+            db.collection("examSessions").doc(current.examSessionId),
+            { status: "force_submitted", resetByTeacher: teacherUid, resetAt: Date.now(), updatedAt: Date.now() },
+            { merge: true },
+          );
+        }
+        const attempt = Number(current.attempt || 1) + 1;
+        if (stage === "test") {
+          const plan = shared.issuance.buildSecureIssuancePlan({
+            blueprint, families, studentId, assignmentId, stage: shared.issuance.CYCLE_STAGE.TEST, attempt,
+          });
+          const { ref, session } = buildCourseTestSession(db, {
+            assignmentId, assignment, studentId, studentData: gradeData,
+            blueprint, plan, cycleStage: shared.issuance.CYCLE_STAGE.TEST, teacherUid, title: assignment?.title,
+          });
+          transaction.set(ref, session);
+          next = {
+            ...next,
+            test: {
+              ...next.test,
+              examSessionId: session.examSessionId,
+              planId: plan.planId,
+              attempt,
+              state: shared.record.SESSION_STATE.ASSIGNED,
+              rawScore: null,
+              releasedAt: null,
+              submittedAt: null,
+              answeredQuestions: 0,
+              totalQuestions: plan.totalQuestions,
+            },
+          };
+        } else {
+          next = { ...next, retest: { ...next.retest, examSessionId: null, planId: null, attempt, state: shared.record.SESSION_STATE.NONE, rawScore: null, releasedAt: null, submittedAt: null, answeredQuestions: 0 } };
+        }
+        // A reset can clear an already-released score, so it belongs in the audit
+        // trail beside the releases. Classroom is unaffected: a null recorded grade
+        // is skipped by the passback trigger, so the posted grade simply stands.
+        next = {
+          ...next,
+          history: shared.grade.appendTestCycleGradeHistory(next.history, {
+            at: Date.now(),
+            reason: shared.grade.GRADE_HISTORY_REASON.TEACHER_OVERRIDE,
+            recordedGrade: shared.record.recordGradeState(next, policy).recordedGrade,
+            detail: `Teacher reset the secure ${stage} session (attempt ${attempt}).`,
+          }),
+        };
+      }
+      return { record: next };
+    },
+  });
 
   /*
    * These controls all have to leave the student somewhere they can go.
@@ -17288,8 +17661,7 @@ exports.teacherTestCycleAction = onCall(async (request) => {
    * "retest pending" with nothing behind it — the same trap waiving used to be.
    * Resetting the TEST already mints its replacement inline above.
    */
-  const resetRetest = action === "resetSecureSession"
-    && String(request.data?.stage || "test").trim() === "retest";
+  const resetRetest = action === "resetSecureSession" && resetStage === "retest";
   let retest = null;
   if (["waiveCorrections", "unlockRetest"].includes(action) || resetRetest) {
     retest = await ensureRetestSession(db, { assignmentId, assignment, policy, blueprint, shared, studentId, teacherUid });
@@ -17305,36 +17677,252 @@ exports.teacherTestCycleAction = onCall(async (request) => {
   };
 });
 
+/*
+ * ONE ROW PER STUDENT, AND A STUDENT WHO HAS NOT STARTED IS STILL A ROW.
+ *
+ * The teacher's results view used to list only students who already had a
+ * record — i.e. only after "open sessions" — so "who hasn't started Review?"
+ * had no answer, and a student who joined the class later was simply absent.
+ * Rows now come from the assignment's audience AND from existing records, and
+ * each carries the student's Review progress read from the same tracker the
+ * server gates the Test on, so the stage a teacher sees is the stage the
+ * student is actually in (not "Review" for everyone who has not started).
+ */
+const TEACHER_ROW_BUCKET = Object.freeze({
+  NOT_STARTED: "notStarted",
+  IN_REVIEW: "inReview",
+  READY_FOR_TEST: "readyForTest",
+  TESTING: "testing",
+  AWAITING_RELEASE: "awaitingRelease",
+  PASSED: "passed",
+  IN_CORRECTIONS: "inCorrections",
+  RETEST_OPEN: "retestOpen",
+  RETEST_AWAITING_RELEASE: "retestAwaitingRelease",
+  COMPLETE: "complete",
+  RETEST_CLOSED: "retestClosed",
+  NEEDS_ATTENTION: "needsAttention",
+});
+
+/*
+ * A TEST LOCKED FOR REVIEW IS A STUDENT WAITING ON THEIR TEACHER.
+ *
+ * A lock pauses a Test; it does not end it, so the record keeps saying "in
+ * progress" (see `syncTestCycleSessionState`). On the results table that read
+ * as "Testing now", and the only place a teacher could learn the student was
+ * stuck was the separate proctor monitor. The live session decides.
+ */
+function testCycleRowAttention(record, lockedSessions) {
+  for (const stage of ["retest", "test"]) {
+    const examSessionId = String(record[stage]?.examSessionId || "");
+    const session = examSessionId ? lockedSessions.get(examSessionId) : null;
+    if (session) {
+      return {
+        kind: "locked",
+        stage,
+        examSessionId,
+        lockedBy: session.status === "locked_proctor" ? "teacher" : "integrity",
+        violationCount: Number(session.violationCount || 0),
+      };
+    }
+  }
+  return null;
+}
+
+function teacherRowBucket(stages, state, record, reviewProgress) {
+  const stage = state?.stage;
+  if (stage === stages.REVIEW) {
+    return Number(reviewProgress?.attempted || 0) > 0 ? TEACHER_ROW_BUCKET.IN_REVIEW : TEACHER_ROW_BUCKET.NOT_STARTED;
+  }
+  if (stage === stages.TEST) {
+    return record.test.state === "inProgress" ? TEACHER_ROW_BUCKET.TESTING : TEACHER_ROW_BUCKET.READY_FOR_TEST;
+  }
+  if (stage === stages.AWAITING_RELEASE) return TEACHER_ROW_BUCKET.AWAITING_RELEASE;
+  if (stage === stages.PASSED) return TEACHER_ROW_BUCKET.PASSED;
+  if (stage === stages.CORRECTIONS) return TEACHER_ROW_BUCKET.IN_CORRECTIONS;
+  if (stage === stages.RETEST || stage === stages.RETEST_READY) return TEACHER_ROW_BUCKET.RETEST_OPEN;
+  if (stage === stages.RETEST_SUBMITTED) return TEACHER_ROW_BUCKET.RETEST_AWAITING_RELEASE;
+  if (stage === stages.COMPLETE) return TEACHER_ROW_BUCKET.COMPLETE;
+  if (stage === stages.RETEST_CLOSED) return TEACHER_ROW_BUCKET.RETEST_CLOSED;
+  return TEACHER_ROW_BUCKET.NOT_STARTED;
+}
+
 /** Teacher gradebook: the canonical record for every student on this cycle. */
 exports.listTeacherTestCycleRecords = onCall(async (request) => {
   const db = getFirestore();
   const assignmentSnapshot = await db.collection("assignments").doc(String(request.data?.assignmentId || "").trim()).get();
   if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
   await assertTeacherMayManageAssignment(request, assignmentSnapshot);
-  const { assignmentId, policy, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId);
+  const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId, { allowInvalid: true });
+  const identity = await studentIdentity();
 
-  const snapshot = await db.collection(TEST_CYCLE_RECORDS).where("assignmentId", "==", assignmentId).limit(300).get();
-  const rows = snapshot.docs.map((doc) => {
-    const record = shared.record.normalizeTestCycleRecord(doc.data());
+  const snapshot = await db.collection(TEST_CYCLE_RECORDS).where("assignmentId", "==", assignmentId).limit(400).get();
+  const recordsByStudent = new Map(snapshot.docs.map((doc) => [String(doc.data()?.studentId || ""), doc.data()]));
+
+  // The audience: every active student in the assignment's classes.
+  const gradeDataByStudent = new Map();
+  for (const classId of assignmentAudience(assignment).classIds) {
+    // eslint-disable-next-line no-await-in-loop
+    const classSnapshot = await db.collection("grades").where("classId", "==", classId).get();
+    classSnapshot.docs.forEach((doc) => {
+      if (doc.id !== "test_connection" && doc.data()?.status !== "inactive") gradeDataByStudent.set(doc.id, doc.data() || {});
+    });
+  }
+  // Record holders outside the current audience (moved class, named student)
+  // keep their row: their evidence still exists.
+  const missing = [...recordsByStudent.keys()].filter((studentId) => studentId && !gradeDataByStudent.has(studentId));
+  for (let index = 0; index < missing.length; index += 100) {
+    // eslint-disable-next-line no-await-in-loop
+    const snapshots = await db.getAll(...missing.slice(index, index + 100).map((id) => db.collection("grades").doc(id)));
+    snapshots.forEach((gradeSnapshot) => gradeDataByStudent.set(gradeSnapshot.id, gradeSnapshot.exists ? gradeSnapshot.data() || {} : {}));
+  }
+
+  // Only the sessions of students mid-Test can be locked; read exactly those.
+  const liveSessionIds = [];
+  recordsByStudent.forEach((raw) => {
+    const live = shared.record.normalizeTestCycleRecord(raw);
+    ["test", "retest"].forEach((stage) => {
+      if (live[stage].state === shared.record.SESSION_STATE.IN_PROGRESS && live[stage].examSessionId) {
+        liveSessionIds.push(String(live[stage].examSessionId));
+      }
+    });
+  });
+  const lockedSessions = new Map();
+  for (let index = 0; index < liveSessionIds.length; index += 100) {
+    const refs = liveSessionIds.slice(index, index + 100).map((id) => db.collection("examSessions").doc(id));
+    // eslint-disable-next-line no-await-in-loop
+    const docs = await db.getAll(...refs);
+    docs.forEach((doc) => {
+      const session = doc.exists ? doc.data() || {} : {};
+      if (secureExam.LOCKED_STATES.has(session.status)) lockedSessions.set(doc.id, session);
+    });
+  }
+
+  const stages = shared.stages.TEST_CYCLE_STAGE;
+  const rows = [...gradeDataByStudent.entries()].map(([studentId, gradeData]) => {
+    const record = shared.record.normalizeTestCycleRecord(recordsByStudent.get(studentId) || { assignmentId, studentId });
     const grade = shared.record.recordGradeState(record, policy);
-    const state = shared.stages.resolveTestCycleStage({ policy, record });
+    const reviewProgress = testCycleLib.reviewProgress(assignment, gradeData?.gradesByAssignment?.[assignmentId] || {});
+    const state = shared.stages.resolveTestCycleStage({ policy, record, reviewProgress });
+    const attention = testCycleRowAttention(record, lockedSessions);
     return {
-      studentId: record.studentId,
+      studentId,
+      studentName: identity.studentNameForStorage(studentIdentityRecord(identity, studentId, gradeData)) || null,
+      classId: record.classId || gradeData?.classId || null,
+      hasRecord: recordsByStudent.has(studentId),
       stage: state?.stage || null,
       statusLabel: state?.statusLabel || null,
+      bucket: attention ? TEACHER_ROW_BUCKET.NEEDS_ATTENTION : teacherRowBucket(stages, state, record, reviewProgress),
+      attention,
+      review: {
+        attempted: reviewProgress.attempted,
+        total: reviewProgress.total,
+        complete: reviewProgress.complete || record.review.complete === true,
+        ...(reviewProgress.minimumMastery !== undefined ? { mastery: reviewProgress.mastery, minimumMastery: reviewProgress.minimumMastery } : {}),
+      },
+      test: {
+        state: record.test.state,
+        examSessionId: record.test.examSessionId,
+        answeredQuestions: record.test.answeredQuestions,
+        totalQuestions: record.test.totalQuestions,
+        submittedAt: record.test.submittedAt,
+        releasedAt: record.test.releasedAt,
+        attempt: record.test.attempt,
+      },
+      retest: {
+        state: record.retest.state,
+        examSessionId: record.retest.examSessionId,
+        answeredQuestions: record.retest.answeredQuestions,
+        totalQuestions: record.retest.totalQuestions,
+        submittedAt: record.retest.submittedAt,
+        releasedAt: record.retest.releasedAt,
+        attempt: record.retest.attempt,
+      },
       originalTestGrade: grade.originalTestGrade,
       rawRetestGrade: grade.rawRetestGrade,
       retestCappedContribution: grade.retestCappedContribution,
       maxRecordedGrade: grade.maxRecordedGrade,
       recordedGrade: grade.recordedGrade,
       recordedGradeSource: grade.recordedGradeSource,
+      gradeReason: grade.reason,
       corrections: record.corrections,
       teacherControls: record.teacherControls,
       history: record.history,
     };
   });
-  return { success: true, assignmentId, rows };
+
+  const summary = Object.fromEntries(Object.values(TEACHER_ROW_BUCKET).map((bucket) => [bucket, 0]));
+  rows.forEach((row) => { summary[row.bucket] = (summary[row.bucket] || 0) + 1; });
+  const describedPolicy = shared.grade.describeTestCycleGradePolicy(policy);
+  return {
+    success: true,
+    assignmentId,
+    rows,
+    summary,
+    // What a teacher needs to read the table: the rule, in words and numbers,
+    // and whether the Test is timed. Both come from the same normalized policy
+    // and blueprint the server enforces.
+    policy: {
+      passingScore: policy.passingScore,
+      maxRecordedGrade: policy.retest.maxRecordedGrade,
+      gradeReplacement: policy.retest.gradeReplacement,
+      reviewRequired: policy.review.required,
+      correctionsRequiredForRetest: policy.corrections.requiredForRetest,
+      external: Boolean(policy.externalAssessment),
+      externalSource: policy.externalAssessment?.source || null,
+      reviewMinimumMastery: policy.review.minimumMastery ?? null,
+      ruleLabel: describedPolicy.ruleLabel,
+      summary: describedPolicy.teacherSummary,
+      example: describedPolicy.example,
+      locks: testCyclePolicyLocks(shared, [...recordsByStudent.values()], { external: Boolean(policy.externalAssessment) }),
+    },
+    delivery: testCycleDeliveryFacts(blueprint),
+    availability: shared.availability.resolveAssessmentAvailability({ assignment, now: Date.now() }),
+    readyToRelease: {
+      test: rows.filter((row) => row.test.state === "submitted").length,
+      retest: rows.filter((row) => row.retest.state === "submitted").length,
+    },
+  };
 });
+
+/*
+ * WHICH POLICY FIELDS CAN STILL CHANGE.
+ *
+ * The passing score decides who owes corrections; once any Test result is
+ * released, changing it would silently re-sort students who have already been
+ * told where they stand. The cap and the replacement rule decide recorded
+ * grades; once any retest is released, changing them would move grades already
+ * posted to Google Classroom (which never lowers one). Both lock at exactly
+ * those moments and say why, rather than accepting a change that the records
+ * and Classroom would then disagree about.
+ */
+function testCyclePolicyLocks(shared, records, { external = false } = {}) {
+  const normalized = (Array.isArray(records) ? records : []).map((record) => shared.record.normalizeTestCycleRecord(record));
+  const testReleased = normalized.some((record) => record.test.state === shared.record.SESSION_STATE.RELEASED);
+  // In an external-original cycle the one secure session IS the retest, and
+  // who may retest was decided against the passing score when it opened.
+  const retestReleased = external
+    ? testReleased
+    : normalized.some((record) => record.retest.state === shared.record.SESSION_STATE.RELEASED);
+  const sessionsOpened = normalized.some((record) => Boolean(record.test.examSessionId));
+  if (external && sessionsOpened) {
+    return {
+      passingScore: "Retest sessions are open; eligibility was decided against this passing score.",
+      correctionsRequiredForRetest: "This external-original assessment has no corrections stage.",
+      maxRecordedGrade: retestReleased ? "A retest result has been released; changing the cap would move recorded grades." : null,
+      gradeReplacement: retestReleased ? "A retest result has been released; changing the rule would move recorded grades." : null,
+      reviewRequired: "Retest sessions are open; use Waive Review for individual students instead.",
+      testBlueprint: "Retest sessions are open; their questions were planned from this blueprint.",
+    };
+  }
+  return {
+    passingScore: testReleased ? "A Test result has been released; students have already been told whether they passed." : null,
+    correctionsRequiredForRetest: testReleased ? "A Test result has been released; corrections plans already exist." : null,
+    maxRecordedGrade: retestReleased ? "A retest result has been released; changing the cap would move recorded grades." : null,
+    gradeReplacement: retestReleased ? "A retest result has been released; changing the rule would move recorded grades." : null,
+    reviewRequired: sessionsOpened ? "Secure Test sessions are open; use Waive Review for individual students instead." : null,
+    testBlueprint: sessionsOpened ? "Secure Test sessions are open; their questions were planned from this blueprint." : null,
+  };
+}
 
 /** Teacher inspection of a generated correction or retest plan. */
 exports.getTeacherTestCyclePlans = onCall(async (request) => {
@@ -17376,6 +17964,14 @@ exports.getTeacherTestCyclePlans = onCall(async (request) => {
  * Called from `proctorExamAction` after the shared release path has done its
  * ordinary work, so a course test releases exactly like a simulation does and
  * then, additionally, records the assessment grade and builds the corrections.
+ *
+ * IDEMPOTENT. A second release of the same session — a double click, two tabs,
+ * the class-wide "release all" meeting a session already released one by one —
+ * used to rebuild the correction plan from scratch and reset the record's
+ * corrections progress to zero, sending a student who had finished half their
+ * corrections back to the start (and one who had finished them back from the
+ * Retest). The score is recorded once per session, and an existing correction
+ * plan for this session is never overwritten.
  */
 async function applyTestCycleFeedbackRelease(db, session) {
   const courseTest = session?.courseTest;
@@ -17386,72 +17982,104 @@ async function applyTestCycleFeedbackRelease(db, session) {
   const assignment = assignmentSnapshot.data() || {};
   const policy = shared.policy.normalizeTestCyclePolicy(assignment.assessmentPolicy);
   if (!policy) return null;
-  const blueprint = shared.blueprint.normalizeTestBlueprint(assignment.testBlueprint);
+  // The blueprint wherever it lives. A secure-reference cycle keeps it in the
+  // server-only manifest and has NO `testBlueprint` on the assignment; reading
+  // the assignment field alone built an empty profile, a zero-target correction
+  // plan marked "required", and a student stuck in Corrections with nothing to
+  // do and no Retest ever opening.
+  const { blueprint } = await resolveSecureTestBlueprint(db, assignment, shared);
 
   const studentId = String(session.studentId || "");
+  // An external-original retest is compared with a district cut score, where
+  // 69.99 is not 70: keep its precision.
   const rawScore = testCycleLib.weightedSessionScorePercent(session, { preservePrecision: Boolean(policy.externalAssessment) });
-  const record = await readTestCycleRecord(db, courseTest.assignmentId, studentId, shared);
   const isRetest = String(courseTest.cycleStage) === shared.issuance.CYCLE_STAGE.RETEST;
-  // Superseded by a teacher reset. The caller already refuses this, and so does
-  // this helper: a stale score reaching the record is not recoverable by the
-  // student, so it is worth refusing twice.
-  const currentSessionId = isRetest ? record.retest.examSessionId : record.test.examSessionId;
-  if (currentSessionId && currentSessionId !== session.examSessionId) return null;
+  const answeredQuestions = Object.keys(session.responses || {}).length;
+  const totalQuestions = Number(session.requiredQuestions || 0);
 
-  const updated = isRetest
-    ? shared.record.applyRetestReleased(record, {
-      rawScore,
-      answeredQuestions: Object.keys(session.responses || {}).length,
-      totalQuestions: Number(session.requiredQuestions || 0),
-      policy,
-    })
-    : shared.record.applyTestReleased(record, {
-      rawScore,
-      answeredQuestions: Object.keys(session.responses || {}).length,
-      totalQuestions: Number(session.requiredQuestions || 0),
-      policy,
-    });
-
-  const persisted = await persistTestCycleRecord(db, updated, { shared, policy });
+  const released = await mutateTestCycleRecord(db, {
+    assignmentId: courseTest.assignmentId,
+    studentId,
+    shared,
+    policy,
+    mutate: (record) => {
+      // Superseded by a teacher reset. The caller already refuses this, and so
+      // does this helper: a stale score reaching the record is not recoverable
+      // by the student, so it is worth refusing twice. The match is exact — an
+      // emptied stage is not a wildcard (see `courseTestSessionIsCurrent`).
+      const current = isRetest ? record.retest : record.test;
+      const currentSessionId = current.examSessionId;
+      if (String(currentSessionId || "") !== String(session.examSessionId || "")) return { value: { superseded: true } };
+      if (current.state === shared.record.SESSION_STATE.RELEASED) return { value: { alreadyReleased: true } };
+      const updated = isRetest
+        ? shared.record.applyRetestReleased(record, { rawScore, answeredQuestions, totalQuestions, policy })
+        : shared.record.applyTestReleased(record, { rawScore, answeredQuestions, totalQuestions, policy });
+      return { record: updated, value: { released: true } };
+    },
+  });
+  if (released.value?.superseded) return null;
+  // A retest has no corrections after it; neither does an external-original
+  // cycle, whose one secure session IS the retest.
+  if (isRetest || policy.externalAssessment) {
+    return { recordId: released.record.recordId, recordedGrade: released.record.recordedGrade ?? null };
+  }
 
   // A failed Test builds this student's corrections automatically, from their
   // own evidence, at the moment the score becomes real to them.
-  if (!isRetest && !policy.externalAssessment) {
-    const profile = shared.corrections.buildPerformanceProfile({
-      blueprint,
-      responses: testCycleLib.responsesForProfile(session),
-    });
-    const plan = shared.corrections.buildCorrectionPlan({
-      blueprint,
-      profile,
-      policy,
-      releasedTestGrade: rawScore,
-      assignmentId: courseTest.assignmentId,
-      studentId,
-      examSessionId: session.examSessionId,
-    });
-    /*
-     * IS THE CORRECTIONS GATE ACTUALLY CLOSED FOR THIS STUDENT?
-     *
-     * The plan is built for anyone who failed, because a teacher should be able
-     * to see what this student needs even when they have waived the
-     * requirement. Whether it GATES the retest is a separate question, and it
-     * is the one that decides whether a retest has to be opened right now.
-     *
-     * Getting this wrong in the permissive direction is the expensive one: a
-     * student whose corrections were waived would sit at "retest pending"
-     * forever, because nothing else in the system would ever open the session.
-     */
-    const controls = persisted.record.teacherControls;
-    const correctionsGate = Boolean(plan)
-      && policy.corrections.requiredForRetest
-      && controls.requireCorrections
-      && !controls.correctionsWaived
-      && !controls.retestUnlocked;
+  const profile = shared.corrections.buildPerformanceProfile({
+    blueprint,
+    responses: testCycleLib.responsesForProfile(session),
+  });
+  const plan = shared.corrections.buildCorrectionPlan({
+    blueprint,
+    profile,
+    policy,
+    releasedTestGrade: rawScore,
+    assignmentId: courseTest.assignmentId,
+    studentId,
+    examSessionId: session.examSessionId,
+  });
+  const planRef = db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(testCycleRecordKey(courseTest.assignmentId, studentId));
 
-    if (plan) {
-      await db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(persisted.record.recordId).set({
-        recordId: persisted.record.recordId,
+  const withCorrections = await mutateTestCycleRecord(db, {
+    assignmentId: courseTest.assignmentId,
+    studentId,
+    shared,
+    policy,
+    mutate: async (record, { transaction }) => {
+      const existingPlan = await transaction.get(planRef);
+      if (!plan) return { value: { plan: null } };
+      // This session's plan already exists: the release is a repeat. Keep the
+      // student's progress exactly where it is.
+      if (existingPlan.exists && String(existingPlan.data()?.plan?.sourceExamSessionId || "") === String(session.examSessionId || "")) {
+        return { value: { plan: existingPlan.data().plan, repeat: true } };
+      }
+      /*
+       * IS THE CORRECTIONS GATE ACTUALLY CLOSED FOR THIS STUDENT?
+       *
+       * The plan is built for anyone who failed, because a teacher should be able
+       * to see what this student needs even when they have waived the
+       * requirement. Whether it GATES the retest is a separate question, and it
+       * is the one that decides whether a retest has to be opened right now.
+       *
+       * Getting this wrong in the permissive direction is the expensive one: a
+       * student whose corrections were waived would sit at "retest pending"
+       * forever, because nothing else in the system would ever open the session.
+       *
+       * A plan with NO targets (the evidence named no specific weak target) has
+       * nothing to correct, so it is complete the moment it exists and gates
+       * nothing: the student goes straight on to the Retest.
+       */
+      const controls = record.teacherControls;
+      const hasTargets = Array.isArray(plan.targets) && plan.targets.length > 0;
+      const correctionsGate = Boolean(plan)
+        && hasTargets
+        && policy.corrections.requiredForRetest
+        && controls.requireCorrections
+        && !controls.correctionsWaived
+        && !controls.retestUnlocked;
+      transaction.set(planRef, {
+        recordId: record.recordId,
         assignmentId: courseTest.assignmentId,
         studentId,
         plan,
@@ -17460,27 +18088,35 @@ async function applyTestCycleFeedbackRelease(db, session) {
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
-      await persistTestCycleRecord(db, {
-        ...persisted.record,
-        corrections: {
-          ...persisted.record.corrections,
-          planId: plan.planId,
-          required: correctionsGate,
-          total: plan.targets.length,
-          completedTargets: 0,
-          complete: false,
+      return {
+        value: { plan, correctionsGate },
+        record: {
+          ...record,
+          corrections: {
+            ...record.corrections,
+            planId: plan.planId,
+            required: correctionsGate,
+            total: plan.targets.length,
+            completedTargets: 0,
+            complete: !hasTargets,
+            completedAt: !hasTargets ? Date.now() : null,
+          },
         },
-      }, { shared, policy });
-    }
+      };
+    },
+  });
 
-    if (plan && !correctionsGate && !controls.retestDisabled) {
-      await ensureRetestSession(db, {
-        assignmentId: courseTest.assignmentId, assignment, policy, blueprint, shared, studentId, teacherUid: null,
-      });
-    }
+  const latest = withCorrections.record;
+  const gateOpen = Boolean(withCorrections.value?.plan)
+    && !(latest.corrections.required && !latest.corrections.complete
+      && !latest.teacherControls.correctionsWaived && !latest.teacherControls.retestUnlocked);
+  if (withCorrections.value?.plan && gateOpen && !latest.teacherControls.retestDisabled) {
+    await ensureRetestSession(db, {
+      assignmentId: courseTest.assignmentId, assignment, policy, blueprint, shared, studentId, teacherUid: null,
+    });
   }
 
-  return { recordId: persisted.record.recordId, recordedGrade: persisted.gradeState.recordedGrade };
+  return { recordId: latest.recordId, recordedGrade: latest.recordedGrade ?? null };
 }
 
 /**
@@ -17503,51 +18139,73 @@ async function syncTestCycleSessionState(db, session) {
   if (!policy) return;
 
   const studentId = String(session.studentId || "");
-  const record = await readTestCycleRecord(db, courseTest.assignmentId, studentId, shared);
   const isRetest = String(courseTest.cycleStage) === shared.issuance.CYCLE_STAGE.RETEST;
-  const current = isRetest ? record.retest : record.test;
-  if (current.examSessionId && current.examSessionId !== session.examSessionId) return;
-  if (current.state === shared.record.SESSION_STATE.RELEASED) return;
-
+  /*
+   * A LOCKED EXAM IS AN EXAM IN PROGRESS.
+   *
+   * A proctor lock (or an integrity lock) pauses a session the student is in
+   * the middle of. It used to map back to ASSIGNED, so the card and the
+   * teacher's table said "Start Test" for a student mid-exam, and — because
+   * ASSIGNED is also the "never passed Review" shape — read like they had not
+   * passed the gate at all.
+   */
   const state = secureExam.TERMINAL_STATES.has(session.status)
     ? shared.record.SESSION_STATE.SUBMITTED
-    : session.status === "in_progress"
+    : session.status === "in_progress" || secureExam.LOCKED_STATES.has(session.status)
       ? shared.record.SESSION_STATE.IN_PROGRESS
       : shared.record.SESSION_STATE.ASSIGNED;
-  if (state === current.state) return;
 
-  const stageRecord = {
-    ...current,
-    state,
-    answeredQuestions: Object.keys(session.responses || {}).length,
-    submittedAt: secureExam.TERMINAL_STATES.has(session.status) ? Number(session.submittedAt) || Date.now() : current.submittedAt,
-  };
+  await mutateTestCycleRecord(db, {
+    assignmentId: courseTest.assignmentId,
+    studentId,
+    shared,
+    policy,
+    mutate: (record) => {
+      const current = isRetest ? record.retest : record.test;
+      // Exact match: an emptied stage (a reset) is not a wildcard, and a
+      // superseded session cannot move the card.
+      if (String(current.examSessionId || "") !== String(session.examSessionId || "")) return null;
+      if (current.state === shared.record.SESSION_STATE.RELEASED) return null;
+      const answeredQuestions = Object.keys(session.responses || {}).length;
+      if (state === current.state && answeredQuestions === current.answeredQuestions) return null;
 
-  /*
-   * PASSING THE REVIEW GATE IS RECORDED WHEN IT HAPPENS, NOT INFERRED FOREVER.
-   *
-   * Review completion lives in the assignment tracker, which only the student's
-   * own card carries. The stage resolver can infer "past Review" from a Test
-   * that has moved off `assigned` — but a teacher reset puts the Test BACK to
-   * `assigned`, and then the inference goes false and the gradebook says
-   * "Review" again for a student who has finished the cycle.
-   *
-   * So the fact is persisted at the only moment it is proven: the student has
-   * just come through `assertCourseTestEntryAllowed`, which enforces the gate,
-   * and their session is advancing off `assigned`. A reset replaces sessions,
-   * never this flag, so the answer survives it. Either stage proves it — the
-   * Retest sits behind the Test, which sits behind Review.
-   */
-  const passedReviewGate = state !== shared.record.SESSION_STATE.ASSIGNED;
-  const review = passedReviewGate && record.review.complete !== true
-    ? { ...record.review, complete: true, completedAt: record.review.completedAt || Date.now() }
-    : record.review;
+      const stageRecord = {
+        ...current,
+        state,
+        answeredQuestions,
+        submittedAt: secureExam.TERMINAL_STATES.has(session.status) ? Number(session.submittedAt) || Date.now() : current.submittedAt,
+      };
 
-  await persistTestCycleRecord(db, {
-    ...record,
-    review,
-    ...(isRetest ? { retest: stageRecord } : { test: stageRecord }),
-  }, { shared, policy });
+      /*
+       * PASSING THE REVIEW GATE IS RECORDED WHEN IT HAPPENS, NOT INFERRED FOREVER.
+       *
+       * Review completion lives in the assignment tracker, which only the student's
+       * own card carries. The stage resolver can infer "past Review" from a Test
+       * that has moved off `assigned` — but a teacher reset puts the Test BACK to
+       * `assigned`, and then the inference goes false and the gradebook says
+       * "Review" again for a student who has finished the cycle.
+       *
+       * So the fact is persisted at the only moment it is proven: the student has
+       * come through `assertCourseTestEntryAllowed`, which enforces the gate, and
+       * STARTED the session (`startedAt` is set only by that path). A session
+       * that never started — force-submitted by a teacher for an absent student,
+       * say — proves nothing about Review and stamps nothing.
+       */
+      const passedReviewGate = state !== shared.record.SESSION_STATE.ASSIGNED
+        && Number(session.startedAt) > 0;
+      const review = passedReviewGate && record.review.complete !== true
+        ? { ...record.review, complete: true, completedAt: record.review.completedAt || Date.now() }
+        : record.review;
+
+      return {
+        record: {
+          ...record,
+          review,
+          ...(isRetest ? { retest: stageRecord } : { test: stageRecord }),
+        },
+      };
+    },
+  });
 }
 
 /**
@@ -21116,4 +21774,561 @@ exports.retryLiveChallengeAchievementJobs = onSchedule({
       });
     }
   }
+});
+
+// --- Assessment lifecycle management -----------------------------------------
+//
+// What a teacher does with an assessment AFTER it exists: release its results,
+// change its retest policy, see it exactly as a student will, pause it, archive
+// it, or delete it. Every one of these changes what students can do or what
+// grades say, so each is a server decision with the teacher of record's
+// authority — not a client write any signed-in teacher could make.
+
+/** Release every submitted, current secure session of one stage in one action. */
+exports.releaseTestCycleResults = onCall(async (request) => {
+  const db = getFirestore();
+  const assignmentSnapshot = await db.collection("assignments").doc(String(request.data?.assignmentId || "").trim()).get();
+  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+  const { teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
+  const { assignmentId, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId, { allowInvalid: true });
+  const stage = String(request.data?.stage || "test").trim() === "retest" ? "retest" : "test";
+  const onlyStudentIds = new Set((Array.isArray(request.data?.studentIds) ? request.data.studentIds : [])
+    .map((value) => String(value || "").trim()).filter(Boolean));
+
+  const records = await db.collection(TEST_CYCLE_RECORDS).where("assignmentId", "==", assignmentId).limit(400).get();
+  const candidates = records.docs
+    .map((doc) => shared.record.normalizeTestCycleRecord(doc.data()))
+    .filter((record) => !onlyStudentIds.size || onlyStudentIds.has(record.studentId))
+    .filter((record) => record[stage].state === shared.record.SESSION_STATE.SUBMITTED && record[stage].examSessionId);
+
+  const released = [];
+  const skipped = [];
+  for (const record of candidates) {
+    const examSessionId = record[stage].examSessionId;
+    const ref = db.collection("examSessions").doc(examSessionId);
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const next = await db.runTransaction(async (transaction) => {
+        const snapshot = await transaction.get(ref);
+        if (!snapshot.exists) throw new HttpsError("not-found", "Exam session not found.");
+        return releaseSessionFeedbackInTransaction(transaction, db, {
+          ref, session: snapshot.data(), examSessionId, teacherUid, now: Date.now(),
+        });
+      });
+      // eslint-disable-next-line no-await-in-loop
+      await applyTestCycleFeedbackRelease(db, next);
+      released.push(record.studentId);
+    } catch (error) {
+      skipped.push({ studentId: record.studentId, reason: error?.message || String(error) });
+    }
+  }
+  return { success: true, assignmentId, stage, released: released.length, releasedStudentIds: released, skipped };
+});
+
+/*
+ * THE TEACHER'S RETEST POLICY, CHANGED THROUGH ONE DOOR.
+ *
+ * `assessmentPolicy` decides who must do corrections and what a retest can do
+ * to a recorded grade. It is pinned against client writes in firestore.rules,
+ * so this callable is the only way it changes after creation: teacher of record
+ * only, validated, normalized, refused once the change would contradict
+ * results already released (see `testCyclePolicyLocks`), and audited.
+ */
+exports.updateTestCyclePolicy = onCall(async (request) => {
+  const db = getFirestore();
+  const ref = db.collection("assignments").doc(String(request.data?.assignmentId || "").trim());
+  const assignmentSnapshot = await ref.get();
+  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+  const { teacherUid, teacherEmail } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
+  const { assignmentId, assignment, policy, shared } = await loadTestCycleAssignment(db, ref.id, { allowInvalid: true });
+  const requested = request.data?.policy && typeof request.data.policy === "object" ? request.data.policy : {};
+
+  const records = await db.collection(TEST_CYCLE_RECORDS).where("assignmentId", "==", assignmentId).limit(400).get();
+  const locks = testCyclePolicyLocks(shared, records.docs.map((doc) => doc.data()), { external: Boolean(policy?.externalAssessment) });
+
+  const number = (value) => (value === null || value === undefined || value === "" ? null : Number(value));
+  const changes = {};
+  const refuse = (field, reason) => { throw new HttpsError("failed-precondition", reason, { field }); };
+  if (requested.passingScore !== undefined) {
+    const value = number(requested.passingScore);
+    if (!Number.isFinite(value) || value < 1 || value > 100) throw new HttpsError("invalid-argument", "Passing score must be between 1 and 100.");
+    if (Math.round(value) !== policy.passingScore) {
+      if (locks.passingScore) refuse("passingScore", locks.passingScore);
+      changes.passingScore = Math.round(value);
+    }
+  }
+  if (requested.maxRecordedGrade !== undefined) {
+    const value = number(requested.maxRecordedGrade);
+    if (!Number.isFinite(value) || value < 0 || value > 100) throw new HttpsError("invalid-argument", "The retest cap must be between 0 and 100.");
+    if (Math.round(value) !== policy.retest.maxRecordedGrade) {
+      if (locks.maxRecordedGrade) refuse("maxRecordedGrade", locks.maxRecordedGrade);
+      changes.maxRecordedGrade = Math.round(value);
+    }
+  }
+  if (requested.gradeReplacement !== undefined) {
+    const value = String(requested.gradeReplacement || "").trim();
+    if (!shared.policy.GRADE_REPLACEMENT_RULES.includes(value)) throw new HttpsError("invalid-argument", "Choose a supported retest grade rule.");
+    if (value !== policy.retest.gradeReplacement) {
+      if (locks.gradeReplacement) refuse("gradeReplacement", locks.gradeReplacement);
+      changes.gradeReplacement = value;
+    }
+  }
+  if (requested.reviewRequired !== undefined) {
+    const value = requested.reviewRequired === true;
+    if (value !== policy.review.required) {
+      if (locks.reviewRequired) refuse("reviewRequired", locks.reviewRequired);
+      changes.reviewRequired = value;
+    }
+  }
+  if (requested.correctionsRequiredForRetest !== undefined) {
+    const value = requested.correctionsRequiredForRetest === true;
+    if (value !== policy.corrections.requiredForRetest) {
+      if (locks.correctionsRequiredForRetest) refuse("correctionsRequiredForRetest", locks.correctionsRequiredForRetest);
+      changes.correctionsRequiredForRetest = value;
+    }
+  }
+  if (!Object.keys(changes).length) {
+    return { success: true, assignmentId, changed: false, policy: shared.grade.describeTestCycleGradePolicy(policy) };
+  }
+
+  // Written from the STORED policy so fields this screen does not edit (retest
+  // shares, strategies, question count) survive exactly as authored.
+  const stored = assignment.assessmentPolicy && typeof assignment.assessmentPolicy === "object" ? assignment.assessmentPolicy : { mode: "testCycle" };
+  const nextPolicy = {
+    ...stored,
+    mode: "testCycle",
+    ...(changes.passingScore !== undefined ? { passingScore: changes.passingScore } : {}),
+    review: { ...(stored.review || {}), ...(changes.reviewRequired !== undefined ? { required: changes.reviewRequired } : {}) },
+    corrections: {
+      ...(stored.corrections || {}),
+      ...(changes.correctionsRequiredForRetest !== undefined ? { requiredForRetest: changes.correctionsRequiredForRetest } : {}),
+    },
+    retest: {
+      ...(stored.retest || {}),
+      ...(changes.maxRecordedGrade !== undefined ? { maxRecordedGrade: changes.maxRecordedGrade } : {}),
+      ...(changes.gradeReplacement !== undefined ? { gradeReplacement: changes.gradeReplacement } : {}),
+    },
+  };
+  const normalized = shared.policy.normalizeTestCyclePolicy(nextPolicy);
+  const now = Date.now();
+  await ref.update({
+    assessmentPolicy: nextPolicy,
+    assessmentPolicyHistory: FieldValue.arrayUnion({
+      at: now,
+      by: teacherEmail || teacherUid,
+      changes,
+    }),
+    updatedAt: new Date(now).toISOString(),
+  });
+  return {
+    success: true,
+    assignmentId,
+    changed: true,
+    changes,
+    policy: shared.grade.describeTestCycleGradePolicy(normalized),
+  };
+});
+
+/*
+ * SEE THE SECURE TEST EXACTLY AS A STUDENT WILL — WITHOUT A STUDENT.
+ *
+ * A teacher previews real items: a fresh issuance plan from the real blueprint
+ * and approved families, for a synthetic preview student, instantiated and
+ * sanitized by the same functions a student's Test goes through. Nothing is
+ * written. There is no session, no record, no attempt, no grade, and nothing a
+ * real student will ever be issued: the preview student's id is part of every
+ * seed, so a preview draw cannot reproduce anybody's Test.
+ *
+ * Grading a preview answer is stateless: the opaque `previewItemId` names the
+ * family and the preview seed, and the server regenerates the item to grade
+ * it. Only families this assignment's blueprint names can be graded, so the
+ * callable is not a general answer oracle for the question bank.
+ */
+const TEST_CYCLE_PREVIEW_MAX_ITEMS = 60;
+
+function encodePreviewItem(value) {
+  return Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
+}
+function decodePreviewItem(text) {
+  try {
+    const value = JSON.parse(Buffer.from(String(text || ""), "base64url").toString("utf8"));
+    return value && typeof value === "object" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+exports.previewTestCycleSecureItems = onCall(async (request) => {
+  const db = getFirestore();
+  const assignmentSnapshot = await db.collection("assignments").doc(String(request.data?.assignmentId || "").trim()).get();
+  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+  const { teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
+  const { assignmentId, assignment, policy, blueprint, shared } = await loadTestCycleAssignment(db, request.data?.assignmentId, { allowInvalid: true });
+  if (!blueprint.targets.length) throw new HttpsError("failed-precondition", "This Test Cycle has no secure Test blueprint to preview.");
+
+  const families = await resolveBlueprintFamilies(db, blueprintFamilyIds(blueprint));
+  // A new draw each time the teacher asks, so "show me another version" works.
+  const draw = Math.max(1, Math.round(Number(request.data?.draw) || 1));
+  const plan = shared.issuance.buildSecureIssuancePlan({
+    blueprint,
+    families,
+    studentId: `preview:${teacherUid}`,
+    assignmentId,
+    stage: shared.issuance.CYCLE_STAGE.TEST,
+    attempt: draw,
+  });
+  const familiesById = new Map(families.map((family) => [String(family.id), family]));
+  const items = [];
+  for (const entry of plan.entries.slice(0, TEST_CYCLE_PREVIEW_MAX_ITEMS)) {
+    const family = familiesById.get(String(entry.familyId));
+    if (!family) {
+      items.push({ ordinal: entry.ordinal, error: "This slot's approved family is not available." });
+      continue;
+    }
+    // eslint-disable-next-line no-await-in-loop
+    const instantiated = await mathPath.instantiateQuestion(family, entry.seedKey, {
+      preferredDok: entry.dok,
+      preferredDifficultyBand: entry.difficultyBand,
+    });
+    if (!instantiated.question) {
+      items.push({ ordinal: entry.ordinal, error: "This item could not be generated." });
+      continue;
+    }
+    // eslint-disable-next-line no-await-in-loop
+    const issuePlan = await mathPath.buildIssuePlan(instantiated.question);
+    const questionInstanceId = `preview-${entry.ordinal}`;
+    const issued = {
+      ...instantiated.question,
+      questionInstanceId,
+      attemptsAllowed: 1,
+      attemptsUsed: 0,
+      ...(issuePlan.toolPayload || {}),
+    };
+    items.push({
+      ordinal: entry.ordinal,
+      // What a STUDENT receives: the same sanitizer as `issueSecureExamQuestion`.
+      questionInstance: secureExamPublicQuestion(issued),
+      gradable: issuePlan.issuable === true,
+      // What only the TEACHER sees: which blueprint slot this fills.
+      slot: {
+        targetId: entry.targetId,
+        alignmentKey: entry.alignmentKey,
+        dok: entry.dok,
+        difficultyBand: entry.difficultyBand,
+        representation: entry.representation,
+        anchor: entry.anchor === true,
+        weight: entry.weight,
+        familyId: entry.familyId,
+      },
+      previewItemId: encodePreviewItem({ a: assignmentId, f: entry.familyId, s: entry.seedKey, d: entry.dok, b: entry.difficultyBand }),
+    });
+  }
+  return {
+    success: true,
+    assignmentId,
+    title: blueprint.title || assignment?.title || "Test",
+    draw,
+    totalQuestions: plan.totalQuestions,
+    shown: items.length,
+    unfilledSlots: plan.unfilledSlots.length,
+    delivery: testCycleDeliveryFacts(blueprint),
+    policy: {
+      passingScore: policy.passingScore,
+      maxRecordedGrade: policy.retest.maxRecordedGrade,
+      summary: shared.grade.describeTestCycleGradePolicy(policy).studentSummary,
+    },
+    items,
+    // Stated, so a screen cannot imply otherwise.
+    writes: "none",
+  };
+});
+
+exports.gradeTestCyclePreviewItem = onCall(async (request) => {
+  const db = getFirestore();
+  const decoded = decodePreviewItem(request.data?.previewItemId);
+  if (!decoded?.a || !decoded?.f || !decoded?.s) throw new HttpsError("invalid-argument", "That preview item is not valid.");
+  const assignmentSnapshot = await db.collection("assignments").doc(String(decoded.a)).get();
+  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+  const { teacherUid } = await assertTeacherMayManageAssignment(request, assignmentSnapshot);
+  const { blueprint } = await loadTestCycleAssignment(db, assignmentSnapshot.id, { allowInvalid: true });
+  if (!blueprintFamilyIds(blueprint).includes(String(decoded.f))) {
+    throw new HttpsError("permission-denied", "That family is not part of this Test's blueprint.");
+  }
+  // Only a preview seed can be regraded: it names the preview student.
+  if (!String(decoded.s).includes(`preview:${teacherUid}`)) {
+    throw new HttpsError("permission-denied", "Only your own preview items can be checked.");
+  }
+  const [family] = await resolveBlueprintFamilies(db, [decoded.f]);
+  if (!family) throw new HttpsError("failed-precondition", "That family is no longer available.");
+  const instantiated = await mathPath.instantiateQuestion(family, decoded.s, {
+    preferredDok: decoded.d,
+    preferredDifficultyBand: decoded.b,
+  });
+  if (!instantiated.question) throw new HttpsError("failed-precondition", "That preview item could not be regenerated.");
+  const issuePlan = await mathPath.buildIssuePlan(instantiated.question);
+  if (!issuePlan.issuable) throw new HttpsError("failed-precondition", "That item cannot be graded securely.");
+  const grading = await mathPath.gradeResponse(issuePlan.privateGrading, request.data?.responsePayload || {});
+  return { success: true, isCorrect: grading.isCorrect === true, score: Number(grading.score) || 0, writes: "none" };
+});
+
+/*
+ * ARCHIVE, PAUSE, OR DELETE — AND WHICH ONE IS SAFE.
+ *
+ * Deleting used to run in the teacher's browser: read every grade document,
+ * delete the assignment, then strip the assignment's entries from each student.
+ * For an ordinary teacher the first read was refused by the rules, so delete
+ * simply failed; for the administrator it succeeded and erased student
+ * evidence, while leaving Test Cycle records, secure sessions and recorded
+ * grades orphaned. Neither is acceptable for an assessment.
+ *
+ * Now:
+ *   archive / unarchive   always allowed. Hidden from students and from the
+ *                         teacher's active lists; every record, response and
+ *                         grade is kept, and it can be restored.
+ *   unpublish / publish   "pause": hidden from students and closed to new
+ *                         work, kept in the teacher's lists. Reversible.
+ *   delete                only while NO student evidence exists. Once a
+ *                         student has worked on it, delete is refused with the
+ *                         evidence named and Archive offered instead.
+ */
+// Grade-document maps whose presence means a student did something (or a
+// teacher recorded something) on this assignment. `testCycleGrades` is NOT one
+// of them: opening secure sessions writes a score-less projection for every
+// student, so its presence proves nothing. Test Cycle work is judged from the
+// records and sessions themselves, below.
+const ASSIGNMENT_EVIDENCE_GRADE_MAPS = Object.freeze([
+  "gradesByAssignment",
+  "dolGradesByAssignment",
+  "classworkGradesByAssignment",
+  "teacherGradeOverridesByAssignment",
+  "sectionRecoveryByAssignment",
+  "warmupChallengeByAssignment",
+]);
+
+async function assertTeacherMayManageAssignmentLifecycle(request, assignmentSnapshot) {
+  const assignment = assignmentSnapshot.data() || {};
+  // A library item has no class, so there is no teacher of record to ask. It is
+  // a shared template with no students; any teacher could already edit it, and
+  // the evidence check below still applies.
+  if (!assignmentAudience(assignment).classIds.length) {
+    const teacherUid = await requireTeacher(request);
+    return { teacherUid, teacherEmail: callerEmail(request) };
+  }
+  return assertTeacherMayManageAssignment(request, assignmentSnapshot);
+}
+
+async function assignmentEvidenceSummary(db, assignmentId, assignment) {
+  const studentsWithWork = new Set();
+  for (const classId of assignmentAudience(assignment).classIds) {
+    // eslint-disable-next-line no-await-in-loop
+    const snapshot = await db.collection("grades").where("classId", "==", classId).get();
+    snapshot.docs.forEach((doc) => {
+      const data = doc.data() || {};
+      const hasWork = ASSIGNMENT_EVIDENCE_GRADE_MAPS.some((field) => {
+        const entry = data?.[field]?.[assignmentId];
+        return entry !== undefined && entry !== null && (typeof entry !== "object" || Object.keys(entry).length > 0);
+      });
+      if (hasWork) studentsWithWork.add(doc.id);
+    });
+  }
+  const [records, sessions, publications] = await Promise.all([
+    db.collection(TEST_CYCLE_RECORDS).where("assignmentId", "==", assignmentId).limit(400).get(),
+    db.collection("examSessions").where("courseTest.assignmentId", "==", assignmentId).limit(400).get(),
+    db.collection("classroomLinks").where("assignmentId", "==", assignmentId).limit(50).get(),
+  ]);
+  const startedSessions = sessions.docs.filter((doc) => String(doc.data()?.status || "") !== "not_started");
+  startedSessions.forEach((doc) => studentsWithWork.add(String(doc.data()?.studentId || "")));
+  records.docs.forEach((doc) => {
+    const record = doc.data() || {};
+    if (record.review?.complete === true || record.test?.state && !["none", "assigned"].includes(record.test.state)) {
+      studentsWithWork.add(String(record.studentId || ""));
+    }
+  });
+  studentsWithWork.delete("");
+  const classroomPublications = publications.docs.filter((doc) => String(doc.data()?.status || "") !== "deleted").length;
+  return {
+    studentsWithWork: studentsWithWork.size,
+    testCycleRecords: records.size,
+    secureSessions: sessions.size,
+    startedSecureSessions: startedSessions.length,
+    classroomPublications,
+    canDelete: studentsWithWork.size === 0,
+    unstartedSessionIds: sessions.docs.filter((doc) => String(doc.data()?.status || "") === "not_started").map((doc) => doc.id),
+    recordIds: records.docs.map((doc) => doc.id),
+    recordStudentIds: records.docs.map((doc) => String(doc.data()?.studentId || "")).filter(Boolean),
+  };
+}
+
+exports.getAssignmentEvidenceSummary = onCall(async (request) => {
+  const db = getFirestore();
+  const snapshot = await db.collection("assignments").doc(String(request.data?.assignmentId || "").trim()).get();
+  if (!snapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+  await assertTeacherMayManageAssignmentLifecycle(request, snapshot);
+  const summary = await assignmentEvidenceSummary(db, snapshot.id, snapshot.data() || {});
+  const { unstartedSessionIds: _unstarted, recordIds: _records, recordStudentIds: _recordStudents, ...publicSummary } = summary;
+  return { success: true, assignmentId: snapshot.id, ...publicSummary };
+});
+
+exports.manageAssignmentLifecycle = onCall(async (request) => {
+  const db = getFirestore();
+  const ref = db.collection("assignments").doc(String(request.data?.assignmentId || "").trim());
+  const snapshot = await ref.get();
+  if (!snapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+  const { teacherUid, teacherEmail } = await assertTeacherMayManageAssignmentLifecycle(request, snapshot);
+  const assignment = snapshot.data() || {};
+  const action = String(request.data?.action || "").trim();
+  const actor = teacherEmail || teacherUid;
+  const now = Date.now();
+  const stamp = new Date(now).toISOString();
+  const audit = (event) => FieldValue.arrayUnion({ at: now, by: actor, event });
+
+  if (action === "archive" || action === "unarchive") {
+    const archived = action === "archive";
+    await ref.update({
+      archived,
+      archivedAt: archived ? stamp : null,
+      archivedBy: archived ? actor : null,
+      lifecycleHistory: audit(action),
+      updatedAt: stamp,
+    });
+    return { success: true, assignmentId: ref.id, action, archived };
+  }
+  if (action === "unpublish" || action === "publish") {
+    const unpublished = action === "unpublish";
+    await ref.update({
+      unpublished,
+      unpublishedAt: unpublished ? stamp : null,
+      unpublishedBy: unpublished ? actor : null,
+      lifecycleHistory: audit(action),
+      updatedAt: stamp,
+    });
+    return { success: true, assignmentId: ref.id, action, unpublished };
+  }
+  if (action !== "delete") throw new HttpsError("invalid-argument", "Choose archive, unarchive, unpublish, publish or delete.");
+
+  // Deleting is irreversible, so the title is typed back as confirmation and
+  // checked here, not only in the dialog.
+  const confirmTitle = String(request.data?.confirmTitle || "").trim();
+  if (confirmTitle !== String(assignment.title || "").trim()) {
+    throw new HttpsError("failed-precondition", "Type the assignment's exact title to confirm deletion.");
+  }
+  const summary = await assignmentEvidenceSummary(db, ref.id, assignment);
+  if (!summary.canDelete) {
+    throw new HttpsError(
+      "failed-precondition",
+      `${summary.studentsWithWork} student${summary.studentsWithWork === 1 ? " has" : "s have"} work on this assignment. Archive it instead: archiving hides it from students and keeps their work and grades.`,
+      { evidence: { studentsWithWork: summary.studentsWithWork } },
+    );
+  }
+  if (summary.classroomPublications > 0 && request.data?.acknowledgeClassroom !== true) {
+    throw new HttpsError(
+      "failed-precondition",
+      "This assignment is posted to Google Classroom. Deleting it here does not remove the Classroom post; confirm that you understand.",
+      { evidence: { classroomPublications: summary.classroomPublications } },
+    );
+  }
+  // No student has worked on it, so the only things to remove are the
+  // assignment and any untouched secure scaffolding opened for it.
+  const batch = db.batch();
+  summary.unstartedSessionIds.forEach((id) => batch.delete(db.collection("examSessions").doc(id)));
+  // The score-less projections opening sessions wrote go with the records, so
+  // no student's grade document keeps an entry for an assignment that is gone.
+  const projectionHolders = summary.recordStudentIds.length
+    ? await db.getAll(...summary.recordStudentIds.map((id) => db.collection("grades").doc(id)))
+    : [];
+  projectionHolders
+    .filter((gradeSnapshot) => gradeSnapshot.exists && gradeSnapshot.data()?.testCycleGrades?.[ref.id] !== undefined)
+    .forEach((gradeSnapshot) => batch.update(gradeSnapshot.ref, new FieldPath("testCycleGrades", ref.id), FieldValue.delete()));
+  summary.recordIds.forEach((id) => {
+    batch.delete(db.collection(TEST_CYCLE_RECORDS).doc(id));
+    batch.delete(db.collection(TEST_CYCLE_CORRECTION_PLANS).doc(id));
+    batch.delete(db.collection(TEST_CYCLE_RETEST_PLANS).doc(id));
+  });
+  batch.delete(ref);
+  await batch.commit();
+  await db.collection("assignmentDeletionLog").doc(ref.id).set({
+    assignmentId: ref.id,
+    title: String(assignment.title || "").slice(0, 200),
+    deletedAt: now,
+    deletedBy: actor,
+    removedSecureSessions: summary.unstartedSessionIds.length,
+    removedTestCycleRecords: summary.recordIds.length,
+  });
+  return { success: true, assignmentId: ref.id, action, deleted: true };
+});
+
+/*
+ * ATTACH (OR REPLACE) A TEST CYCLE'S CONTRACT — BEFORE ANY STUDENT HAS A TEST.
+ *
+ * Until this change the browser's create and edit paths saved a Test Cycle's
+ * sections but silently dropped `assessmentPolicy`, `testBlueprint` and
+ * `secureTestReference`, so an assessment authored in the app arrived as a
+ * Review with nothing behind it ("This assessment is not available yet"). The
+ * create path now carries them; this is how an assignment saved by the older
+ * build gets them back, and how a teacher replaces a blueprint while that is
+ * still safe.
+ *
+ * Teacher of record only. Validated by the same Test Cycle preflight that
+ * gates session creation (a blocked preflight is refused), and refused once
+ * any secure Test session exists: those sessions' questions were planned from
+ * the blueprint in force, and swapping it underneath them would make two
+ * students' "equivalent" Tests different tests. Policy-only changes after that
+ * point go through `updateTestCyclePolicy`, which has its own locks.
+ */
+exports.attachTestCycleContract = onCall(async (request) => {
+  const db = getFirestore();
+  const ref = db.collection("assignments").doc(String(request.data?.assignmentId || "").trim());
+  const snapshot = await ref.get();
+  if (!snapshot.exists) throw new HttpsError("not-found", "That assignment was not found.");
+  const { teacherUid, teacherEmail } = await assertTeacherMayManageAssignmentLifecycle(request, snapshot);
+  const shared = await testCycleLib.shared();
+  const assignment = snapshot.data() || {};
+  const isObjectValue = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+  const requestedPolicy = request.data?.assessmentPolicy;
+  const policy = shared.policy.normalizeTestCyclePolicy(requestedPolicy);
+  if (!policy) throw new HttpsError("invalid-argument", 'A Test Cycle contract needs assessmentPolicy.mode "testCycle".');
+  const requestedBlueprint = isObjectValue(request.data?.testBlueprint) ? request.data.testBlueprint : null;
+  const requestedReference = isObjectValue(request.data?.secureTestReference) ? request.data.secureTestReference : null;
+  const blueprint = shared.blueprint.normalizeTestBlueprint(requestedBlueprint);
+  if (!blueprint.targets.length && !requestedReference) {
+    throw new HttpsError("invalid-argument", "A Test Cycle contract needs a secure Test blueprint or a secure test reference.");
+  }
+
+  const sessions = await db.collection("examSessions").where("courseTest.assignmentId", "==", ref.id).limit(1).get();
+  if (!sessions.empty) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Secure Test sessions already exist for this assessment. Change its retest policy from Test Cycle results, or duplicate it to use a different blueprint.",
+    );
+  }
+
+  const candidate = {
+    ...assignment,
+    assessmentPolicy: requestedPolicy,
+    ...(blueprint.targets.length ? { testBlueprint: requestedBlueprint } : {}),
+    ...(requestedReference ? { secureTestReference: requestedReference } : {}),
+  };
+  if (!blueprint.targets.length) delete candidate.testBlueprint;
+  const resolution = await resolveSecureTestBlueprint(db, candidate, shared);
+  const { result } = await runTestCyclePreflight(db, {
+    assignment: candidate,
+    policy,
+    blueprint: resolution.blueprint,
+    shared,
+    secureReferenceResolved: resolution.secureReferenceResolved,
+  });
+  if (result.blocked) {
+    throw new HttpsError("failed-precondition", `This Test Cycle cannot be saved: ${result.errors[0]}`, { preflight: result });
+  }
+
+  const now = Date.now();
+  await ref.update({
+    assessmentPolicy: requestedPolicy,
+    testBlueprint: blueprint.targets.length ? requestedBlueprint : FieldValue.delete(),
+    secureTestReference: requestedReference || FieldValue.delete(),
+    assessmentPolicyHistory: FieldValue.arrayUnion({ at: now, by: teacherEmail || teacherUid, changes: { contract: "attached" } }),
+    updatedAt: new Date(now).toISOString(),
+  });
+  return { success: true, assignmentId: ref.id, attached: true, preflight: { warnings: result.warnings, checks: result.checks } };
 });

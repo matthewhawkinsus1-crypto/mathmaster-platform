@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { assertCapability, componentSource, executableSource, region } from './helpers/sourceContract.mjs';
+import { teacherActionsForRow } from '../../src/platform/teacher/testCycleTeacherRows.js';
 
 const functionsIndex = readFileSync(new URL('../../functions/index.js', import.meta.url), 'utf8');
 const dashboard = componentSource('src/components/assessment/StudentSecureExamDashboard.jsx');
@@ -153,7 +154,11 @@ test('a superseded session cannot be released over the replacement attempt', () 
     'async function syncTestCycleSessionState',
     'release',
   );
-  assert.match(release, /currentSessionId && currentSessionId !== session\.examSessionId\) return null;/);
+  // Exact match: an EMPTIED stage (a reset clears its session id) is not a
+  // wildcard. The old `currentSessionId && ...` form let the superseded session
+  // through precisely when the stage had just been emptied.
+  assert.match(release, /String\(currentSessionId \|\| ""\) !== String\(session\.examSessionId \|\| ""\)\) return \{ value: \{ superseded: true \} \};/);
+  assert.doesNotMatch(executableSource(release), /currentSessionId && currentSessionId !==/);
 
   // So does the state mirror, so a superseded session cannot move the card.
   const sync = region(
@@ -162,7 +167,8 @@ test('a superseded session cannot be released over the replacement attempt', () 
     'async function issueCourseTestQuestion(',
     'sync',
   );
-  assert.match(sync, /current\.examSessionId && current\.examSessionId !== session\.examSessionId\) return;/);
+  assert.match(sync, /String\(current\.examSessionId \|\| ""\) !== String\(session\.examSessionId \|\| ""\)\) return null;/);
+  assert.doesNotMatch(executableSource(sync), /current\.examSessionId && current\.examSessionId !==/);
 });
 
 test('batch assignment cannot reach outside the assignment audience', () => {
@@ -203,10 +209,24 @@ test('a completed cycle opens the released secure review it advertises', () => {
 test('reset names the session it is throwing away', () => {
   // One "Reset session" control had to pick a default stage, and the default
   // was the Test — so resetting a student's Retest force-submitted the Test and
-  // cleared its released score instead.
-  assert.match(controls, /Reset Test session/);
-  assert.match(controls, /Reset Retest session/);
-  assert.match(controls, /teacherTestCycleAction\(\{ assignmentId, studentId: row\.studentId, action, stage \}\)/);
+  // cleared its released score instead. Each reset now carries its own stage,
+  // decided by the row projection and sent as-is.
+  const row = {
+    stage: 'retest',
+    test: { state: 'released', examSessionId: 'test-1' },
+    retest: { state: 'inProgress', examSessionId: 'retest-1' },
+    teacherControls: {},
+    corrections: { required: true, complete: true },
+  };
+  const resets = teacherActionsForRow(row).filter((item) => item.action === 'resetSecureSession');
+  assert.deepEqual(resets.map((item) => [item.stage, item.label]), [
+    ['test', 'Reset Test session'],
+    ['retest', 'Reset Retest session'],
+  ]);
+  // Both throw work away, so both are confirmed before they are sent.
+  assert.ok(resets.every((item) => item.confirm === true));
+  // And the panel sends the item's own action and stage, never a default.
+  assert.match(controls, /teacherTestCycleAction\(\{ assignmentId, studentId: row\.studentId, action: item\.action, stage: item\.stage \|\| 'test' \}\)/);
   assert.doesNotMatch(executableSource(controls), /'resetSecureSession', 'Reset session'/);
 });
 

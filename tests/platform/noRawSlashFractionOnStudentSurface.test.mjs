@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { splitProseFractionRuns } from '../../src/components/common/mathSegments.js';
+import { mathTextFromChildren, splitProseFractionRuns } from '../../src/components/common/mathSegments.js';
 
 // Issue #297 part C: a mathematical fraction authored as plain prose (never
 // wrapped in $…$) must still render stacked on every student-facing math
@@ -84,4 +84,16 @@ test('lesson-notes PDF (teacher equations) stacks a plain-typed fraction instead
 test('mutation guard: a naive detector that stacked ANY slash would wrongly convert miles/hour', () => {
   const naiveTransform = (text) => text.replace(/(\w+)\/(\w+)/, '\\frac{$1}{$2}');
   assert.match(naiveTransform('60 miles/hour'), /\\frac/);
+});
+
+test('MathText reads children built in pieces the way React shows them, with no stray comma', () => {
+  // `{field.label}{field.unit ? ` (${field.unit})` : ''}` — the secure exam's
+  // field legend — arrives as an array. String(['Sum', '']) is "Sum,".
+  assert.equal(mathTextFromChildren(['Sum', '']), 'Sum');
+  assert.equal(mathTextFromChildren(['Distance', ' (m)']), 'Distance (m)');
+  assert.equal(mathTextFromChildren(['Area ', 3, false, null, undefined, [' of $x^2$']]), 'Area 3 of $x^2$');
+  assert.equal(mathTextFromChildren('Slope'), 'Slope');
+  assert.equal(mathTextFromChildren(7), '7');
+  assert.equal(mathTextFromChildren(null), '');
+  assert.equal(mathTextFromChildren(false), '');
 });

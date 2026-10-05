@@ -16,7 +16,7 @@ import {
   assertFails,
   assertSucceeds,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, query, where, serverTimestamp, runTransaction } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteField, collection, getDocs, deleteDoc, query, where, serverTimestamp, runTransaction } from 'firebase/firestore';
 
 const testEnv = await initializeTestEnvironment({
   projectId: 'mathmaster-rules-test',
@@ -289,7 +289,57 @@ await check('teacher can still update an assignment normally when studentOverrid
   { title: 'Unit 1, revised' },
   { merge: true },
 )));
-await check('teacher deletes assignments', assertSucceeds(deleteDoc(doc(teacher, 'assignments/A2'))));
+// Deleting can erase student evidence, so it goes through the
+// manageAssignmentLifecycle callable (teacher of record, refused once any
+// student has worked on it). A client delete is the root administrator's only.
+await check('teacher CANNOT delete an assignment directly (the evidence-checked callable does it)', assertFails(deleteDoc(doc(teacher, 'assignments/A2'))));
+await check('root admin can still delete an assignment directly for repair', assertSucceeds(deleteDoc(doc(rootAdmin, 'assignments/A2'))));
+// The Test Cycle contract and the lifecycle flags are set at creation and then
+// changed only by updateTestCyclePolicy / manageAssignmentLifecycle.
+await check('teacher creates a Test Cycle with its policy and blueprint', assertSucceeds(setDoc(
+  doc(teacher, 'assignments/A-cycle'),
+  {
+    title: 'Unit 3 Test Cycle',
+    assessmentPolicy: { mode: 'testCycle', retest: { maxRecordedGrade: 70 } },
+    testBlueprint: { blueprintId: 'bp', targets: [] },
+  },
+)));
+await check('teacher CANNOT raise a Test Cycle retest cap with a client write', assertFails(setDoc(
+  doc(teacher, 'assignments/A-cycle'),
+  { assessmentPolicy: { mode: 'testCycle', retest: { maxRecordedGrade: 100 } } },
+  { merge: true },
+)));
+await check('teacher CANNOT drop a Test Cycle policy with a client write', assertFails(updateDoc(
+  doc(teacher, 'assignments/A-cycle'),
+  { assessmentPolicy: deleteField() },
+)));
+await check('teacher CANNOT swap a Test Cycle blueprint with a client write', assertFails(setDoc(
+  doc(teacher, 'assignments/A-cycle'),
+  { testBlueprint: { blueprintId: 'other', targets: [] } },
+  { merge: true },
+)));
+await check('teacher CANNOT archive or pause an assignment with a client write', assertFails(setDoc(
+  doc(teacher, 'assignments/A-cycle'),
+  { archived: true },
+  { merge: true },
+)));
+await check('teacher CANNOT unpublish an assignment with a client write', assertFails(setDoc(
+  doc(teacher, 'assignments/A-cycle'),
+  { unpublished: true },
+  { merge: true },
+)));
+await check('teacher still edits an ordinary field on a Test Cycle', assertSucceeds(setDoc(
+  doc(teacher, 'assignments/A-cycle'),
+  { title: 'Unit 3 Test Cycle (renamed)', dueAt: '2026-11-01T23:59:00.000Z' },
+  { merge: true },
+)));
+await check('student CANNOT change a Test Cycle policy', assertFails(setDoc(
+  doc(student, 'assignments/A-cycle'),
+  { assessmentPolicy: { mode: 'testCycle', retest: { maxRecordedGrade: 100 } } },
+  { merge: true },
+)));
+await check('nobody reads or writes the assignment deletion log from a client', assertFails(getDoc(doc(rootAdmin, 'assignmentDeletionLog/A2'))));
+await check('teacher CANNOT forge an assignment deletion log entry', assertFails(setDoc(doc(teacher, 'assignmentDeletionLog/A2'), { deletedBy: 'someone' })));
 await check('teacher reads live presence only for own roster', assertSucceeds(getDoc(doc(teacher, 'presence/S1042'))));
 await check('teacher CANNOT read another teacher live presence', assertFails(getDoc(doc(teacher, 'presence/S2000'))));
 await check('teacher CANNOT forge student live presence', assertFails(setDoc(doc(teacher, 'presence/S1042'), { assignmentId: 'forged' }, { merge: true })));
