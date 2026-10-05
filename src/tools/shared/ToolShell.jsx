@@ -9,7 +9,7 @@ import {
   resolveToolEnterAction,
   shouldFocusAnswerOnOpen,
 } from '../../platform/interaction/answerEntryUx.js';
-import { useAnswerFocusPolicy } from '../../platform/interaction/answerFocusPolicy.js';
+import { useAnswerFocusPolicy, useHostedDeferredFocusAuthority } from '../../platform/interaction/answerFocusPolicy.js';
 import { isMobileQuestionViewport } from '../../components/student/MobileViewportContainer.jsx';
 import QuietDisclosure from '../../components/common/QuietDisclosure.jsx';
 import { useRenderPerformance } from '../../platform/performance/useRenderPerformance.js';
@@ -88,6 +88,9 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
   const shellRef = useRef(null);
   const focusPolicy = useAnswerFocusPolicy();
   const focusAllowed = focusOnOpen && mayFocusOnOpen(focusPolicy);
+  // The hosting question's (or, on the tools bench, the shell's own): a press
+  // or key from the student after the question opened cancels this focus.
+  const focusAuthority = useHostedDeferredFocusAuthority();
   const [taskCards, setTaskCards] = useState(0);
   const registerTaskCard = useCallback(() => {
     setTaskCards((count) => count + 1);
@@ -101,10 +104,9 @@ export default function ToolShell({ title, subtitle, badge, children, footer, sh
 
   useEffect(() => {
     if (!focusAllowed) return undefined;
-    const frame = window.requestAnimationFrame(() => {
+    return focusAuthority.request(() => {
       if (countAnswerControls(shellRef.current) === 1) focusFirstAnswerControl(shellRef.current);
-    });
-    return () => window.cancelAnimationFrame(frame);
+    }, { channel: 'tool' });
     // On open only: a tool that re-renders must not pull the cursor back.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

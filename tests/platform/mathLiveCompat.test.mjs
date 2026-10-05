@@ -20,6 +20,7 @@ import {
   mathFieldKeyboardSink,
   reportMathLiveCompatProblem,
   resetMathLiveCompatReports,
+  settleMathFieldBlur,
 } from '../../src/platform/math/mathLiveCompat.js';
 import { executableSource } from './helpers/sourceContract.mjs';
 
@@ -48,6 +49,29 @@ test('the installed MathLive still builds the shadow DOM the focus hand-off depe
   MATHLIVE_HIDDEN_CSS_PARTS.forEach((part) => {
     assert.match(bundle, new RegExp(`part=${part}\\b`), `${UPGRADE} (::part(${part}) is gone)`);
   });
+});
+
+test('MathLive still focuses a field late, through the sink element\'s own focus, and blurs its model from a host blur', () => {
+  // guardStaleMathFieldFocus refuses a stale late focus by wrapping the sink's
+  // `focus`; settleMathFieldBlur relies on the host blur listener. If either
+  // path changed, the restored-draft focus race (PR #435) could come back.
+  const bundle = read('node_modules/mathlive/mathlive.mjs');
+  const onFocus = bundle.slice(bundle.indexOf('  onFocus(options) {'), bundle.indexOf('  onBlur(options) {'));
+  assert.ok(onFocus.length > 0, `${UPGRADE} (onFocus is gone)`);
+  assert.match(onFocus, /setTimeout\(\(\) => \{[\s\S]*this\.keyboardDelegate\.focus\(\);[\s\S]*\}, 60\);/, `${UPGRADE} (the late focus moved)`);
+  assert.match(bundle, /focus: \(\) => \{\s*if \(!focusInProgress && typeof keyboardSink\.focus === "function"\) \{\s*focusInProgress = true;\s*keyboardSink\.focus\(\{ preventScroll: true \}\);/, `${UPGRADE} (the delegate no longer calls the sink's focus)`);
+  assert.match(bundle, /host\.addEventListener\("blur", this, true\);/, `${UPGRADE} (the host blur listener is gone)`);
+  assert.match(bundle, /if \(evt\.type !== "blur"\) return;[\s\S]{0,600}this\._mathfield\) == null \? void 0 : _e\.onBlur\(\{ dispatchEvents: false \}\)/, `${UPGRADE} (a host blur no longer blurs the model)`);
+});
+
+test('a field whose model still thinks it is focused is told otherwise, with no DOM focus change', () => {
+  const sent = [];
+  const stale = { hasFocus: () => true, dispatchEvent: (event) => { sent.push(event.type); return true; } };
+  assert.equal(settleMathFieldBlur(stale), true);
+  assert.deepEqual(sent, ['blur']);
+  const settled = { hasFocus: () => false, dispatchEvent: () => { throw new Error('must not dispatch'); } };
+  assert.equal(settleMathFieldBlur(settled), false);
+  assert.equal(settleMathFieldBlur(null), false);
 });
 
 test('src/index.css hides exactly the MathLive parts the adapter lists', () => {
