@@ -294,14 +294,16 @@ const pointResponse = (value, count) => {
   };
 };
 
-const studentBuildInequalities = (question, work) => {
+/**
+ * THE STUDENT-BUILD WORK AS THE GRADER READS IT: the task, each row, the
+ * working constraints and each constraint's per-step status. The grader below
+ * is built on exactly this, and the misconception classifier
+ * (misconceptionClassifiers.mjs) reads the same object, so the two cannot
+ * disagree about which step of which constraint was right. Pure.
+ */
+export const studentBuildInequalityState = (question, work) => {
   const task = studentBuildInequalityTask(question);
-  const {
-    buildConfig, hasBuildSteps, modeling, expectedConstraints, constraintCount, bounds,
-    askClassification, askVertices, boundaryProbeEnabled, teacherTestPoint,
-    testPointReasoningEnabled, allowStudentTestPoint,
-  } = task;
-
+  const { buildConfig, modeling, expectedConstraints, constraintCount, bounds } = task;
   const build = rowsOf(work.build, constraintCount).map(buildRow);
   const modelingEntries = modeling ? rowsOf(work.modelingEntries, constraintCount).map(modelingRow) : [];
   const modelingSent = work.modelingSent === true;
@@ -310,9 +312,6 @@ const studentBuildInequalities = (question, work) => {
     ? expectedConstraints.map((expected, index) => verifiedRewrite(rewriteRows[index]?.graphingForm, expected))
     : [];
   const workingConstraints = studentBuildWorkingConstraints({ task, modelingEntries, modelingSent, rewriteConstraints });
-  const workingClassification = classifyFeasibleRegion(workingConstraints);
-  const workingVertices = feasibleRegionVertices(workingConstraints);
-
   const statuses = Array.from({ length: constraintCount }, (_, index) => studentBuildConstraintStatus({
     buildConfig,
     entry: build[index],
@@ -320,6 +319,20 @@ const studentBuildInequalities = (question, work) => {
     bounds,
     rewriteVerified: Boolean(rewriteConstraints[index]),
   }));
+  return { task, build, modelingEntries, modelingSent, rewriteRows, rewriteConstraints, workingConstraints, statuses };
+};
+
+const studentBuildInequalities = (question, work) => {
+  const {
+    task, build, modelingEntries, modelingSent, rewriteRows, workingConstraints, statuses,
+  } = studentBuildInequalityState(question, work);
+  const {
+    buildConfig, hasBuildSteps, modeling, expectedConstraints,
+    askClassification, askVertices, boundaryProbeEnabled, teacherTestPoint,
+    testPointReasoningEnabled, allowStudentTestPoint,
+  } = task;
+  const workingClassification = classifyFeasibleRegion(workingConstraints);
+  const workingVertices = feasibleRegionVertices(workingConstraints);
   const outcomesWithheld = work.outcomesWithheld === true;
   const stepChecked = (attempts) => outcomesWithheld || attempts > 0;
   const constraintComplete = (index) => {

@@ -74,6 +74,11 @@ function responsesForProfile(session = {}) {
       // but it IS missing evidence, so it counts as unmastered with score 0.
       score: Number(response?.grading?.score) || 0,
       isCorrect: Boolean(response?.grading?.isCorrect),
+      // The canonical provenance block, if a server classifier wrote one; the
+      // corrections planner reads it only through the registry's trust gate
+      // (testCycleCorrections.mjs). The legacy free-text fields are kept for
+      // the record but are never a diagnosis.
+      misconceptionEvidence: response?.grading?.misconceptionEvidence || null,
       misconceptionCode: clean(response?.grading?.misconceptionCode || response?.misconceptionCode) || null,
       errorPattern: clean(response?.grading?.errorPattern || response?.errorPattern) || null,
       submittedAt: Number(response?.submittedAt) || null,

@@ -23,7 +23,10 @@ const adapterSource = componentSource('functions/shared/toolMath/systemsWorkspac
 // and check the behaviour directly where it can be run.
 const adapterExecutable = executableSource(adapterSource);
 const graderSource = executableSource(componentSource('functions/shared/serverGrading/tools/systemsWorkspace/graphical.mjs'));
-const studentBuildGrader = region(graderSource, 'const studentBuildInequalities = (question, work) => {', 'const inequalities = (question, work)', 'student-build grader');
+// The student-build grader and the state function it is built on (the task,
+// rows, working constraints and per-step status the misconception classifier
+// reads too): one region, so the shared-task assertions bind to what grades.
+const studentBuildGrader = region(graderSource, 'export const studentBuildInequalityState = (question, work) => {', 'const inequalities = (question, work)', 'student-build grader');
 const sw = (fields) => ({ type: 'systemsWorkspace', mode: 'inequalities', ...fields });
 const builtLine = (x1, y1, x2, y2, extra = {}) => ({
   method: 'points', x1, y1, x2, y2, slope: '', intercept: '', constant: '', point1Plotted: true, point2Plotted: true,
@@ -233,6 +236,7 @@ test('constraint modeling reuses the same graphing/checking machinery instead of
   assert.match(mode, /const task = useMemo\(\(\) => studentBuildInequalityTask\(questionData\), \[questionData\]\);/);
   assert.match(mode, /\{[^}]*\bexpectedConstraints\b[^}]*\} = task;/);
   assert.match(studentBuildGrader, /const task = studentBuildInequalityTask\(question\);/);
+  assert.match(studentBuildGrader, /const studentBuildInequalities = \(question, work\) => \{\s*const \{[^}]*\} = studentBuildInequalityState\(question, work\);/, 'the grader grades the shared state');
   const modeled = studentBuildInequalityTask(sw({ modeling: { expectedConstraints: [{ A: 2, B: 3, C: -12, relation: '<=' }] }, inequalities: [{ m: 9, b: 9, relation: '>' }] }));
   assert.deepEqual(modeled.expectedConstraints, [{ A: 2, B: 3, C: -12, relation: '<=' }], 'a modeling question is graded against its model, never its display inequalities');
   const plain = studentBuildInequalityTask(sw({ studentBuild: true, inequalities: [{ m: 2, b: 1, relation: '<' }] }));

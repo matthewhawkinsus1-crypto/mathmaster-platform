@@ -34,6 +34,7 @@ import { normalizeDeliveryPin } from './questionGenerationIdentity.mjs';
 import { getEffectiveActivityPolicy } from './activityPolicies.mjs';
 import { normalizeQuestionRecord, recordQuestionAttempt, resolveQuestionMaximumAttempts, resolveTeacherGrantedExtraAttempts } from './attemptPolicy.mjs';
 import { buildAttemptEvidenceEvent } from './attemptEvidenceEvent.mjs';
+import { gradedResponseMisconceptionEvidence } from './misconceptionEvidenceSites.mjs';
 import {
   classworkGradeProjection,
   dolSectionProjection,
@@ -184,7 +185,9 @@ export const verifyCheckpointAuthorization = ({
     canonicalRecord: canonical,
     gradingQuestion: resolved.question,
     family: resolved.familyBacked
-      ? { pin: resolved.pin, verification: resolved.verification || null }
+      // The instance's server-reproduced parameters ride along for the
+      // misconception classifiers only (never read by grading).
+      ? { pin: resolved.pin, verification: resolved.verification || null, instanceValues: resolved.instanceValues || null }
       : null,
   };
 };
@@ -367,6 +370,8 @@ export const buildCheckpointFinalization = ({
   // The student's private override record, from the same transaction (see
   // decideCheckpointFinalization): their own DOL attempt grant.
   privateOverride = undefined,
+  // Injectable for the grade-independence tests only; production never sets it.
+  classify = undefined,
 } = {}) => {
   const activityPolicy = getEffectiveActivityPolicy(decision.activityRole);
   const academicAt = occurredAt === null || occurredAt === undefined
@@ -438,6 +443,20 @@ export const buildCheckpointFinalization = ({
     ...(decision.grading?.graderVersion ? { graderVersion: decision.grading.graderVersion } : {}),
   });
 
+  // MISCONCEPTION EVIDENCE, exactly as a manual Submit records it: the
+  // response here IS the student's graded answer (decideCheckpointFinalization
+  // only finalizes complete, server-graded work — an incomplete, unsupported
+  // or unprovable close writes no attempt and reaches no classifier). Beside
+  // the grade, never in it: nothing above reads it. One attempt, one event —
+  // the key is the attempt's, and a submitted attempt retires its checkpoint.
+  const misconceptionEvidence = gradedResponseMisconceptionEvidence({
+    question: gradedQuestion,
+    response: checkpoint?.response || null,
+    grading: decision.grading,
+    familyValues: decision.family?.instanceValues || null,
+    classify,
+  });
+
   const evidenceEvent = gradedQuestion?.type === 'modelingLab' ? null : buildAttemptEvidenceEvent({
     studentId: text(checkpoint.studentId),
     assignment,
@@ -448,6 +467,7 @@ export const buildCheckpointFinalization = ({
     attemptResult: outcome.result,
     supportUsage: record.supportUsage || {},
     occurredAt: academicAt,
+    misconceptionEvidence,
   });
 
   /*

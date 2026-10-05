@@ -11,6 +11,9 @@
 //                                          the assignment had closed
 //   studentWorkspaceDrafts/{sid}__{aid}    Practice Mode question records
 //   grades/{sid}/gradeOverrideAudits       teacher grade changes
+//   grades/{sid}/misconceptionEvidence     misconception evidence from
+//                                          Recovery and Recovery Practice
+//                                          items (codes only, no score)
 //
 // The callable `loadStudentCaseEvidence` (functions/index.js) reads them with
 // the Admin SDK after this module has validated the request and authorized
@@ -31,7 +34,11 @@ export const CASE_EVIDENCE_LIMITS = Object.freeze({
   maxReceiptsPerChunk: 500,
   maxAudits: 500,
   assignmentChunk: 30,
+  maxMisconceptionRecords: 1000,
 });
+
+/** The kinds of misconception-only record (misconceptionEvidenceSites.mjs) a case may show. */
+const MISCONCEPTION_RECORD_KINDS = new Set(['sectionRecovery', 'recoveryPractice']);
 
 const DAY_MS = 86400000;
 const clean = (value) => String(value ?? '').trim();
@@ -130,6 +137,48 @@ export const projectAttemptEvent = (event = {}, id = '') => {
   };
 };
 
+/**
+ * A Recovery or Recovery Practice misconception record, as the case review
+ * needs it: the trusted findings (through the same gate as an attempt event,
+ * kept in the stored shape so the browser re-applies it), where the work was,
+ * and when. No score — these records carry none — and no response.
+ */
+export const projectMisconceptionEvidenceRecord = (record = {}, id = '') => {
+  const source = record?.source || {};
+  const kind = clean(source.kind);
+  if (!MISCONCEPTION_RECORD_KINDS.has(kind)) return null;
+  const performance = record?.performance || {};
+  const findings = trustedMisconceptionFindings(performance);
+  if (!findings.length) return null;
+  const snapshot = record?.questionSnapshot || {};
+  return {
+    eventKey: clean(record.eventKey || id),
+    occurredAt: millisOf(record.occurredAt),
+    source: {
+      kind,
+      assignmentId: clean(source.assignmentId),
+      section: clean(source.section) || null,
+      itemId: clean(source.itemId) || null,
+      storageIndex: Number.isInteger(Number(source.storageIndex)) ? Number(source.storageIndex) : null,
+    },
+    questionSnapshot: {
+      questionId: clean(snapshot.questionId) || null,
+      familyId: clean(snapshot.familyId) || null,
+      hasFamilyInstance: Boolean(snapshot.instanceFingerprint),
+    },
+    performance: {
+      misconceptionCodes: findings.map((finding) => finding.code),
+      misconceptionEvidence: {
+        registryVersion: performance.misconceptionEvidence.registryVersion,
+        source: performance.misconceptionEvidence.source,
+        classifier: findings[0].classifier,
+        classifierVersion: findings[0].classifierVersion,
+        findings: findings.map(({ code, codeVersion, parts }) => ({ code, codeVersion, parts })),
+      },
+    },
+  };
+};
+
 /** Receipts summarized per assignment: counts by disposition and reason, and times. */
 export const summarizeReceipts = (receipts = [], { assignmentIds = [] } = {}) => {
   const wanted = new Set(list(assignmentIds).map(clean));
@@ -213,20 +262,25 @@ export const projectOverrideAudit = (audit = {}) => ({
 
 /** The callable's response, assembled from what the Admin SDK read. */
 export const buildCaseEvidenceResponse = ({
-  request, events = [], receipts = [], drafts = {}, audits = [], nowMs = Date.now(),
+  request, events = [], receipts = [], drafts = {}, audits = [], misconceptionRecords = [], nowMs = Date.now(),
 } = {}) => {
   const wanted = new Set(list(request?.assignmentIds));
   const studentId = clean(request?.studentId);
+  // Read from this student's own subcollection; a record that names a
+  // different student is never projected into this case (a classmate's
+  // evidence stays theirs).
+  const ownedByStudent = (entry) => {
+    const owner = clean((entry?.data || entry)?.studentId);
+    return !owner || !studentId || owner === studentId;
+  };
   const projected = list(events)
-    // The events are read from this student's own subcollection; an event that
-    // names a different student is never projected into this case (a
-    // classmate's evidence stays theirs).
-    .filter((entry) => {
-      const owner = clean((entry?.data || entry)?.studentId);
-      return !owner || !studentId || owner === studentId;
-    })
+    .filter(ownedByStudent)
     .map((entry) => projectAttemptEvent(entry?.data || entry, entry?.id))
     .filter((event) => event && wanted.has(event.source.assignmentId));
+  const misconceptionEvidence = list(misconceptionRecords)
+    .filter(ownedByStudent)
+    .map((entry) => projectMisconceptionEvidenceRecord(entry?.data || entry, entry?.id))
+    .filter((record) => record && wanted.has(record.source.assignmentId));
   const practice = {};
   Object.entries(drafts || {}).forEach(([assignmentId, draft]) => {
     if (!wanted.has(assignmentId)) return;
@@ -246,9 +300,11 @@ export const buildCaseEvidenceResponse = ({
     receipts: summarizeReceipts(receipts, { assignmentIds: request?.assignmentIds }),
     practice,
     overrideAudits,
+    misconceptionEvidence,
     truncated: {
       events: list(events).length >= CASE_EVIDENCE_LIMITS.maxEvents,
       audits: list(audits).length >= CASE_EVIDENCE_LIMITS.maxAudits,
+      misconceptionEvidence: list(misconceptionRecords).length >= CASE_EVIDENCE_LIMITS.maxMisconceptionRecords,
     },
     generatedAtMs: nowMs,
   };
