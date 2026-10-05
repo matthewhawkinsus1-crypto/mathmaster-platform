@@ -3,6 +3,7 @@ import CalculatorPanel from '../CalculatorPanel.jsx';
 import MathText from '../common/MathText.jsx';
 import MathDisplay from '../../MathDisplay.jsx';
 import PathQuestionStimulus from '../student/PathQuestionStimulus.jsx';
+import LinearRegressionPanel from './LinearRegressionPanel.jsx';
 import { resolveExamCalculatorPolicy } from '../../platform/policies/examPolicyResolver.js';
 
 const isNumericProfile = (profile) => ['number', 'numeric', 'decimal'].includes(String(profile || '').toLowerCase());
@@ -10,6 +11,10 @@ const isNumericProfile = (profile) => ['number', 'numeric', 'decimal'].includes(
 export const SecureExamQuestionPlayer = ({ examType, question, initialResponsePayload = null, studentSupportProfile, accommodationConfirmed = false, busy = false, onSubmit, onDraftChange }) => {
   const [responses, setResponses] = useState(() => initialResponsePayload?.responses || {});
   const [calculatorUsed, setCalculatorUsed] = useState(false);
+  const [regressionState, setRegressionState] = useState(() => {
+    const saved = initialResponsePayload?.toolState?.linearRegression;
+    return saved ? { ...saved, rows: saved.rows.map(row => Array.isArray(row) ? row : row.cells) } : null;
+  });
   const fields = question?.responseFields?.length ? question.responseFields : [{ id: 'answer', label: 'Answer', inputProfile: 'text' }];
   const choices = Array.isArray(question?.choices) ? question.choices : [];
   const calculatorPolicy = useMemo(() => resolveExamCalculatorPolicy({
@@ -24,12 +29,12 @@ export const SecureExamQuestionPlayer = ({ examType, question, initialResponsePa
   const submit = async (event) => {
     event.preventDefault();
     if (!complete || busy) return;
-    await onSubmit?.({ responses }, { calculatorUsed, accommodations: studentSupportProfile?.accommodations || [], modifications: studentSupportProfile?.modifications || [] });
+    await onSubmit?.({ responses, toolState: { linearRegression: regressionState } }, { calculatorUsed, accommodations: studentSupportProfile?.accommodations || [], modifications: studentSupportProfile?.modifications || [] });
   };
   const updateResponse = (id, value) => {
     setResponses((current) => {
       const next = { ...current, [id]: value };
-      onDraftChange?.({ responses: next }, { calculatorUsed, accommodations: studentSupportProfile?.accommodations || [], modifications: studentSupportProfile?.modifications || [] });
+      onDraftChange?.({ responses: next, toolState: { linearRegression: regressionState } }, { calculatorUsed, accommodations: studentSupportProfile?.accommodations || [], modifications: studentSupportProfile?.modifications || [] });
       return next;
     });
   };
@@ -44,14 +49,20 @@ export const SecureExamQuestionPlayer = ({ examType, question, initialResponsePa
         <MathText as="h1" style={{ color: 'var(--mm-text-strong)', fontSize: 'clamp(20px, 4vw, 27px)', lineHeight: 1.45, margin: '10px 0 24px', fontWeight: 760 }}>{question.prompt}</MathText>
         {question.formulaLatex && <div style={{ background: 'var(--mm-surface-sunken)', padding: 12, borderRadius: 8, marginBottom: 18, overflowX: 'auto' }}><MathDisplay value={question.formulaLatex} /></div>}
         <PathQuestionStimulus stimulus={question.stimulus} />
+        {question.permittedTools?.includes('linearRegression') && <LinearRegressionPanel value={regressionState} onUsed={() => setCalculatorUsed(true)} onChange={(next) => {
+          setRegressionState(next);
+          onDraftChange?.({ responses, toolState: { linearRegression: next } }, { calculatorUsed: true, accommodations: studentSupportProfile?.accommodations || [], modifications: studentSupportProfile?.modifications || [] });
+        }} />}
         <form onSubmit={submit}>
           <div style={{ display: 'grid', gap: 15 }}>
-            {fields.map((field, fieldIndex) => (
+            {fields.map((field, fieldIndex) => {
+              const fieldChoices = field.choices?.length ? field.choices : fields.length === 1 ? choices : [];
+              return (
               <fieldset key={field.id} style={{ border: 0, padding: 0, margin: 0 }}>
                 <legend style={{ fontSize: 13, fontWeight: 900, color: 'var(--mm-text)', marginBottom: 7 }}>
                   <MathText>{field.label || `Response ${fieldIndex + 1}`}{field.unit ? ` (${field.unit})` : ''}</MathText>
                 </legend>
-                {choices.length && fields.length === 1 ? choices.map((choice) => {
+                {fieldChoices.length ? fieldChoices.map((choice) => {
                   const selected = responses[field.id] === choice.id;
                   return (
                     <label key={choice.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 13px', marginBottom: 8, border: selected ? '2px solid #1a73e8' : '1px solid var(--mm-border)', borderRadius: 9, cursor: 'pointer', background: selected ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', boxShadow: selected ? '0 0 0 1px rgba(26,115,232,.08)' : 'none' }}>
@@ -75,7 +86,7 @@ export const SecureExamQuestionPlayer = ({ examType, question, initialResponsePa
                   />
                 )}
               </fieldset>
-            ))}
+            ); })}
           </div>
           <button type="submit" disabled={!complete || busy} style={{ width: '100%', minHeight: 48, marginTop: 22, border: 0, borderRadius: 9, background: !complete || busy ? '#dadce0' : '#1a73e8', color: '#fff', fontWeight: 900, cursor: !complete || busy ? 'not-allowed' : 'pointer' }}>{busy ? 'Recording securely…' : 'Record answer & continue'}</button>
         </form>

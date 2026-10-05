@@ -415,6 +415,7 @@ export const recordQuestionAttempt = ({
   supportUsage = null,
   responseKey = '',
   partialCreditPercent = null,
+  rawPartialCreditPercent = null,
   maximumAttempts = MAX_ATTEMPTS_PER_QUESTION,
   // The academic occurrence time. Omitted by an ordinary caller; supplied by
   // every recovery path, which knows when the work actually happened.
@@ -504,6 +505,9 @@ export const recordQuestionAttempt = ({
     partGrades: compactParts,
     partialCredit,
     bestPartialCredit: Math.max(current.bestPartialCredit, partialCredit),
+    ...(rawPartialCreditPercent !== null && Number.isFinite(Number(rawPartialCreditPercent))
+      ? { bestRawPartialCredit: Math.max(Number(current.bestRawPartialCredit) || 0,
+        isCorrect ? 100 : Math.max(0, Math.min(100, Number(rawPartialCreditPercent)))) } : {}),
     supportUsage: supportUsage ? {
       modified: Boolean(supportUsage.modified),
       accommodations: Array.isArray(supportUsage.accommodations) ? supportUsage.accommodations.slice(0, 20) : [],
@@ -555,6 +559,7 @@ export const requestReplacementQuestion = (record, options = {}) => {
     lastResponseKey: '',
     partialCredit: 0,
     bestPartialCredit: options.clearBest === true ? 0 : current.bestPartialCredit,
+    ...(current.bestRawPartialCredit !== undefined ? { bestRawPartialCredit: options.clearBest === true ? 0 : current.bestRawPartialCredit } : {}),
     totalAttempts: options.clearHistory === true ? 0 : current.totalAttempts,
     stepGrades: options.clearHistory === true ? [] : current.stepGrades,
     algebraState: null,

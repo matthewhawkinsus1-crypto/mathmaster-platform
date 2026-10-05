@@ -134,9 +134,10 @@ const shuffleChoices = (choices, seedKey) => {
  * Does this question carry an assignment-local template the adapter can use?
  */
 export const hasLocalFamilyTemplate = (question) => Boolean(
-  isObject(question?.generator)
+  (question?.questionFamily?.scope === 'assignment' && Array.isArray(question?.variants) && question.variants.length >= 2)
+  || (isObject(question?.generator)
   && isObject(question.generator.parameters)
-  && Object.keys(question.generator.parameters).length > 0,
+  && Object.keys(question.generator.parameters).length > 0),
 );
 
 /**
@@ -147,6 +148,9 @@ export const hasLocalFamilyTemplate = (question) => Boolean(
  * means the same thing in Pre-Flight that it means on the Path.
  */
 export const templateStructuralIssues = (question) => {
+  if (Array.isArray(question?.variants) && question.variants.length >= 2) {
+    return question.variants.every(isObject) ? [] : ['invalid_variant_document'];
+  }
   if (!hasLocalFamilyTemplate(question)) return ['not_a_template'];
   const generator = question.generator;
   const names = Object.keys(generator.parameters);
@@ -194,6 +198,26 @@ export const buildTemplateFamily = (question, { slotKey = '' } = {}) => {
     const error = new Error(`Assignment template cannot generate questions: ${issues.join('; ')}`);
     error.templateIssues = issues;
     throw error;
+  }
+  if (Array.isArray(question.variants) && question.variants.length >= 2) {
+    const document = documentOf(question);
+    const variants = question.variants.map((variant) => ({ ...document, ...documentOf(variant) }));
+    const contentHash = hash64Hex(stableStringify(variants));
+    const id = `local:${clean(slotKey).replace(/[^A-Za-z0-9_.:-]/g, '_').slice(0, 120) || contentHash}`;
+    const tool = clean(question.type) || 'multiAnswer';
+    const resolve = (values) => variants[values.variant];
+    return defineQuestionFamily({
+      id, scope: FAMILY_SCOPE.ASSIGNMENT, version: 1,
+      title: clean(question.title) || 'Parallel review task',
+      skill: { objective: clean(question.prompt) || 'District review', alignments: (question.alignments || []).map((a) => clean(a?.code || a)) },
+      difficulty: { band: Number(question.difficultyBand) || 3, dok: Number(question.dok) || 2 },
+      constraints: {}, parameters: () => ({ variant: intDomain(0, variants.length - 1) }), derive: () => ({}), rules: () => [],
+      fingerprint: (values) => `${id}:${hash64Hex(stableStringify(mathematicalContent(resolve(values))))}`,
+      answer: (values) => ({ kind: 'fields', value: Object.fromEntries((resolve(values).answerFields || []).map((field) => [field.id, field.answer])), parameters: { variant: values.variant } }),
+      tools: { [tool]: (values) => resolve(values) }, defaultTool: tool,
+      recovery: { eligible: question.questionFamily?.recoveryEligible !== false },
+      source: Object.freeze({ kind: 'template', contentHash, slotKey: clean(slotKey) }),
+    });
   }
   const generator = question.generator;
   const parameterNames = Object.keys(generator.parameters).sort();
