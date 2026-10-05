@@ -131,19 +131,22 @@ export default function EmbeddedInequalityRewrite({
     });
   }, [expectedConstraint, onChange, source, value]);
 
+  // The step around it (StudentBuildInequalityMode) is the card and carries
+  // the heading; this is the instruction and the solver, with no second box.
+  // It used to open with "Rewrite for graphing · balanced-operation solver /
+  // Use the same solver as absolute-value inequalities…" — the platform's own
+  // vocabulary, read by a student on a systems question.
   return (
-    <div style={{ padding: 10, border: '1px solid var(--mm-primary-border)', borderRadius: 10, background: 'var(--mm-surface-tint)' }}>
-      <div style={{ marginBottom: 8 }}>
-        <strong>Rewrite for graphing · balanced-operation solver</strong>
-        <div style={{ marginTop: 4, color: 'var(--mm-text-muted)', fontSize: 12.5 }}>
-          Use the same solver as absolute-value inequalities. Place every operation on both sides; graphing unlocks when y is isolated in an equivalent slope-intercept inequality.
-        </div>
-      </div>
+    <div className="mm-ineq-rewrite">
+      <p className="mm-ineq-instruction" style={{ marginBottom: 8 }}>
+        Get y alone on the left side. Place every operation on both sides; the boundary step opens when y is isolated.
+      </p>
       <MultiRelationAlgebraCore
         question={solverQuestion}
         questionRecord={null}
         draftKey={draftKey}
         denseWorkspace
+        otherOperationsOpenByDefault={false}
         onStateChange={handleStateChange}
         onStepGrade={null}
         onUndoStateChange={null}

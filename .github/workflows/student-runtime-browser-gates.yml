@@ -33,6 +33,11 @@ name: Student Runtime Browser Gates
 #   assessmentLeakGates nothing before Submit says whether work is right on a
 #                       DOL, quiz or test (systems, inequalities, intercepts,
 #                       relation solver, constraint builder); practice unchanged
+#   systemsWorkspaceStudio  the systems-of-inequalities workspace one step at a
+#                       time: every step still the student's to do and check,
+#                       a wrong one held, a right one moving on, the graph on
+#                       screen for every tap (Chromebook and phone), reload,
+#                       keyboard plotting, the rewrite, Work View, contrast
 #   clickMapLetterbox   number line, relation plot and story sketch place a tap
 #                       where it lands on a letterboxed plane (PQ-034)
 #   unansweredChoices   a judgment a tool asks for (how many solutions, direction,
@@ -76,6 +81,8 @@ on:
       - "tests/browser/mathFontsProduction.mjs"
       - "tests/browser/toolAttemptOutcome*"
       - "tests/browser/assessmentLeakGates*"
+      - "tests/browser/systemsWorkspaceStudio*"
+      - "tests/browser/relationWorkspaceDriver.mjs"
       - "tests/browser/clickMapLetterbox*"
       - "tests/browser/stagedQuestion*"
       - "tests/browser/unansweredChoiceGates*"
@@ -181,6 +188,12 @@ jobs:
           PLAYWRIGHT_MODULE: playwright
           AUDIT_ORIGIN: "http://127.0.0.1:5199"
         run: node tests/browser/assessmentLeakGates.mjs
+      - name: The inequality workspace takes a student through every step without hunting
+        if: always()
+        env:
+          PLAYWRIGHT_MODULE: playwright
+          AUDIT_ORIGIN: "http://127.0.0.1:5199"
+        run: node tests/browser/systemsWorkspaceStudio.mjs
       - name: Taps land where they are made on a letterboxed plane
         if: always()
         env:

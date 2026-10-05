@@ -578,6 +578,14 @@ export default function MultiRelationAlgebra({
   disabled = false,
   draftKey = null,
   denseWorkspace = false,
+  // Whether "Other operations" (square root, absolute value, completing the
+  // square, the no-solution / all-reals conclusions) starts open. It does for
+  // the absolute-value lessons this solver was built for; a host whose
+  // relation only ever needs + − × ÷ (the Systems Workspace rewrite to
+  // y = mx + b) starts it closed, so the tools stay one press away without
+  // taking a third of the panel. Never a hint either way: the same tools are
+  // offered.
+  otherOperationsOpenByDefault = true,
   // Classroom LaTeX of every committed relation, for the Work View history.
   // Kept off the grading payload on purpose: `relation-work` still sends the
   // raw mathematics graders and checkpoints already read.
@@ -625,7 +633,7 @@ export default function MultiRelationAlgebra({
   // engine uses (RelationStructureTools.jsx). One open at a time.
   const [structurePanel, setStructurePanel] = useState(null);
 
-  const [otherOpen, setOtherOpen] = useState(true);
+  const [otherOpen, setOtherOpen] = useState(otherOperationsOpenByDefault);
 
   const [completeSquareOpen, setCompleteSquareOpen] = useState(false);
   const [completeSquareValue, setCompleteSquareValue] = useState('');
@@ -673,7 +681,7 @@ export default function MultiRelationAlgebra({
     setRewriteOpen(false);
     setStructurePanel(null);
     setRewriteValue('');
-    setOtherOpen(true);
+    setOtherOpen(otherOperationsOpenByDefault);
     setCompleteSquareOpen(false);
     setCompleteSquareValue('');
     setCancellationSelection({});
@@ -1604,7 +1612,7 @@ export default function MultiRelationAlgebra({
     setPlacementByKey({});
     setRewriteOpen(false);
     setRewriteValue('');
-    setOtherOpen(true);
+    setOtherOpen(otherOperationsOpenByDefault);
     setCompleteSquareOpen(false);
     setCompleteSquareValue('');
     setCancellationSelection({});

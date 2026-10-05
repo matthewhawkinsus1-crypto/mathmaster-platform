@@ -49,12 +49,22 @@ test('axis numbers, points and handles are never clipped away', () => {
 test('a tool that draws its own curves is handed the clip', () => {
   assert.match(plane, /children\(\{ sx, sy, pad, innerW, innerH, width, height, plotClip \}\)/);
   assert.match(read('src/components/student/PathQuestionStimulus.jsx'), /\(\{ sx, sy, plotClip \}\) => curves\.map\([\s\S]*?clipPath=\{plotClip\}/);
-  assert.match(read('src/tools/systemsWorkspace/SystemsWorkspace.jsx'), /\(\{ sx, sy, plotClip \}\) => \(\s*<g clipPath=\{plotClip\}>/);
+  // The student-build inequality graph hands it to the layers it draws (its
+  // shading, the overlap and the boundaries) — and they draw inside it.
+  assert.match(read('src/tools/systemsWorkspace/StudentBuildInequalityMode.jsx'), /\(\{ sx, sy, plotClip \}\) => \(\s*<InequalityGraphLayers\b[^>]*?\bplotClip=\{plotClip\}/);
+  const layers = read('src/tools/systemsWorkspace/InequalityBuildPanels.jsx');
+  const graphLayers = layers.slice(layers.indexOf('export function InequalityGraphLayers('));
+  assert.match(graphLayers, /return \(\s*<>\s*<g clipPath=\{plotClip\}>[\s\S]*?polygon[\s\S]*?<line key=\{`line\$\{index\}`\}[\s\S]*?<\/g>/, 'shading, overlap and boundaries are clipped');
 });
 
 test('plotting directions: one line, keyboard help on keyboard focus, once per tool', () => {
-  const help = plane.slice(plane.indexOf('showPlotHelpHere ? ('), plane.indexOf(') : null}\n        </>'));
+  const help = plane.slice(plane.indexOf('<div className="mathmaster-plot-help"'), plane.indexOf(') : null}\n        </>'));
   assert.match(help, /Press the grid and slide to aim/);
+  // A tool whose current step says beside the plane what a tap does asks for
+  // 'keyboard' only: no standing gesture line, the keyboard sentence on focus.
+  assert.match(plane, /\{showPlotHelpHere && \(showPlotHelp !== 'keyboard' \|\| keyboardHelpVisible\) \? \(\s*<div className="mathmaster-plot-help"/);
+  assert.match(help, /\{showPlotHelp === 'keyboard' \? null : \(\s*<p[^>]*>\s*Press the grid and slide to aim/);
+  assert.match(read('src/tools/systemsWorkspace/StudentBuildInequalityMode.jsx'), /<CoordinatePlane[\s\S]*?showPlotHelp="keyboard"/);
   // Not a folded row (a third 44px fold under Sequence Explorer's plane failed
   // the tool-open audit): the keyboard sentence shows while the plane has
   // keyboard focus, which is when a sighted keyboard user needs it.

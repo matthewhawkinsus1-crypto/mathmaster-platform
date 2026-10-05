@@ -24,7 +24,8 @@
 //   systems-2x2        a 2×2 that eliminates to 0 = −2: true/false, solutions,
 //                      classification
 //   inequality-build   student-built inequalities: Check boundary / line style /
-//                      shading, the step chips, the overlap lock, the region check,
+//                      shading, which step each Check opens, the progress marks,
+//                      the overlap lock, the region check,
 //                      and the boundary questions under the student's own test
 //                      point (which must follow the student's own lines, not the
 //                      true ones, once a wrong line can reach the overlap)
@@ -273,57 +274,82 @@ const systems2x2 = async () => {
 
 /* ------------------------------------------------------- inequality-build */
 
-const BUILD_VERDICT = /Correct boundary\.|Correct line style\.|Correct shading\.|Check whether points on the boundary|Check whether the points you used|Use a test point or compare|Every constraint checks out|Locked until every constraint above is correct|Correct classification\.|Look at whether the shaded overlap/;
+const BUILD_VERDICT = /Correct boundary\.|Correct line style\.|Correct shading\.|Check whether points on the boundary|Check whether the points you used|Use a test point or compare|Every constraint checks out|Locked until every constraint above is correct|Correct classification\.|Look at whether the shaded overlap|Correct —|misjudged|Re-examine|Not quite/;
 // The graph's own mapping (CoordinatePlane: 560×380 viewBox, 42 padding) for
 // this fixture's −6..8 × −4..10 window.
+const GRAPH = 'svg[aria-label^="Student-constructed graph of the inequality system"]';
 const tapGraph = async (page, x, y) => {
-  const at = await page.evaluate(([gx, gy]) => {
-    const svg = document.querySelector('svg[aria-label^="Student-constructed graph of the inequality system"]');
-    // A control far down the panel may have scrolled the graph out of view.
+  // A control far down the panel may have scrolled the graph out of view; the
+  // sticky chrome above it settles before the tap is aimed.
+  const scrolled = await page.evaluate((selector) => {
+    const svg = document.querySelector(selector);
+    const rect = svg.getBoundingClientRect();
+    if (rect.top >= 0 && rect.bottom <= window.innerHeight) return false;
     svg.scrollIntoView({ block: 'center' });
+    return true;
+  }, GRAPH);
+  if (scrolled) await settle(page, 400);
+  const at = await page.evaluate(([gx, gy, selector]) => {
+    const svg = document.querySelector(selector);
     const point = svg.createSVGPoint();
     point.x = 42 + ((gx + 6) / 14) * (560 - 84);
     point.y = 380 - 42 - ((gy + 4) / 14) * (380 - 84);
     const screen = point.matrixTransform(svg.getScreenCTM());
     return [screen.x, screen.y];
-  }, [x, y]);
+  }, [x, y, GRAPH]);
   await page.mouse.move(at[0], at[1]);
   await page.mouse.down();
   await page.mouse.up();
   await settle(page, 300);
 };
-// Found by its text: the "Solid" button sits first inside the label "Is this
-// boundary solid or dashed?", which therefore names it.
-const styleButton = (page, style) => page.locator('button:visible').filter({ hasText: new RegExp(`^${style}$`) }).first();
-const buildConstraint = async (page, { method, field, value, style, shadeAt }) => {
-  await page.getByLabel('How will you build this boundary?').selectOption(method);
+// One step at a time (inequalityBuildFlow.js): a Check that completes a step
+// opens the next one by itself, and a tap on the graph does what the open step
+// needs — so there is no "shade" button to arm and no header to find.
+const cursor = (page) => page.locator('[data-cursor]').first().getAttribute('data-cursor');
+const choose = async (page, value) => {
+  await page.locator(`button[data-choice="${value}"]:visible`).first().click();
+  await settle(page, 150);
+};
+const buildBoundary = async (page, { method, field, value }) => {
+  await page.getByLabel('Build it with').selectOption(method);
   await page.getByRole('spinbutton', { name: field }).fill(value);
   await button(page, 'Check boundary').click();
-  await styleButton(page, style).click();
+  await settle(page, 300);
+};
+const checkStyle = async (page, style) => {
+  await choose(page, style);
   await button(page, 'Check line style').click();
-  await button(page, 'Tap the side of the graph to shade').click();
+  await settle(page, 300);
+};
+const checkShading = async (page, shadeAt) => {
   await tapGraph(page, ...shadeAt);
   await button(page, 'Check shading').click();
   await settle(page, 300);
 };
-// x ≥ 1 is SOLID; `firstStyle` 'Dashed' is the wrong answer, and so is any
-// `firstBoundary` but 1. Returns what constraint 1's panel said before it
-// collapsed for constraint 2.
-const buildSystem = async (page, firstStyle, firstBoundary = '1') => {
-  await buildConstraint(page, { method: 'vertical', field: 'x =', value: firstBoundary, style: firstStyle, shadeAt: [5, 0] });
-  const firstPanel = await bodyText(page);
-  await page.getByRole('button', { name: /Constraint 2: y < 3/ }).click();
-  await settle(page, 300);
-  await buildConstraint(page, { method: 'horizontal', field: 'y =', value: '3', style: 'Dashed', shadeAt: [0, -2] });
-  return firstPanel;
+// Each constraint's progress as the student sees it, one segment per step:
+// done (outcomes shown: checked and right), recorded (withheld: finished),
+// current, or open.
+const progress = async (page) => page.$$eval('[data-constraint-index]', (cards) => cards.map((card) => (
+  [...card.querySelectorAll('.mm-ineq-progress > span')].map((segment) => segment.dataset.state || 'open').join(' ')
+)));
+// Where outcomes are withheld no Check is a verdict, so the same steps open in
+// the same order for right and wrong work. Returns the text after every Check
+// and where each one left the student.
+const buildSystemWithheld = async (page, firstStyle, firstBoundary = '1') => {
+  const transcript = [];
+  const cursors = [];
+  const record = async () => { transcript.push(await bodyText(page)); cursors.push(await cursor(page)); };
+  await buildBoundary(page, { method: 'vertical', field: 'x =', value: firstBoundary }); await record();
+  await checkStyle(page, firstStyle); await record();
+  await checkShading(page, [5, 0]); await record();
+  await buildBoundary(page, { method: 'horizontal', field: 'y =', value: '3' }); await record();
+  await checkStyle(page, 'dashed'); await record();
+  await checkShading(page, [0, -2]); await record();
+  return { transcript: transcript.join('\n'), cursors };
 };
-// Each constraint's step chips, read as the student reads them ("Boundary ✓",
-// "Line style …", "Region done").
-const chips = async (page) => (await bodyText(page)).match(/(Boundary|Line style|Region) (✓|…|done)/g) || [];
-const combineAndClassify = async (page) => {
-  await button(page, 'Find overlap / Combine regions').click();
-  await settle(page, 300);
-  await page.getByLabel('How would you classify the combined solution region?').selectOption('unbounded');
+const WITHHELD_PATH = ['c0:lineStyle', 'c0:shading', 'c1:boundary', 'c1:lineStyle', 'c1:shading', 'combine'];
+const classifyRegion = async (page, value = 'unbounded') => {
+  await choose(page, value);
   await button(page, 'Check classification').click();
   await settle(page, 300);
 };
@@ -331,32 +357,47 @@ const combineAndClassify = async (page) => {
 const inequalityBuild = async () => {
   await scenario('practice inequality-build', async () => {
     const page = await open('practice', 'inequality-build');
-    const firstPanel = await buildSystem(page, 'Dashed');
-    check(/Correct boundary\./.test(firstPanel) && /Check whether points on the boundary are included\./.test(firstPanel), 'practice inequality-build: each step is still judged — a right boundary confirmed, a wrong line style called out');
-    const text = await bodyText(page);
-    const marks = await chips(page);
-    check(marks.join('|') === 'Boundary ✓|Line style …|Region ✓|Boundary ✓|Line style ✓|Region ✓', 'practice inequality-build: the chips still tick only the steps that are right', marks.join(' | '));
-    check(/Locked until every constraint above is correct\./.test(text) && await button(page, 'Find overlap / Combine regions').isDisabled(), 'practice inequality-build: the overlap still waits for every constraint to be right');
-    await page.getByRole('button', { name: /Constraint 1: x ≥ 1/ }).click();
+    await buildBoundary(page, { method: 'vertical', field: 'x =', value: '1' });
+    const boundaryRow = page.locator('[data-constraint-index="0"] [data-build-step="boundary"]');
+    check(await cursor(page) === 'c0:lineStyle' && await boundaryRow.getAttribute('data-step-state') === 'done' && (await boundaryRow.innerText()).startsWith('✓'),
+      'practice inequality-build: a right boundary is confirmed with a ✓ and the next step opens');
+    await checkStyle(page, 'dashed');
+    check(/Check whether points on the boundary are included\./.test(await bodyText(page)) && await cursor(page) === 'c0:lineStyle',
+      'practice inequality-build: a wrong line style is still called out, and the student stays on it');
+    check(!(await hasButton(page, 'Check shading')), 'practice inequality-build: the shading waits for the right style');
+    // Constraint 2, from its header, built right.
+    await page.locator('[data-constraint-index="1"] .mm-ineq-card-header').click();
     await settle(page, 300);
-    await styleButton(page, 'Solid').click();
-    await button(page, 'Check line style').click();
-    await settle(page, 300);
-    check(/Correct line style\./.test(await bodyText(page)) && !(await button(page, 'Find overlap / Combine regions').isDisabled()), 'practice inequality-build: the right style is confirmed and opens the overlap');
+    await buildBoundary(page, { method: 'horizontal', field: 'y =', value: '3' });
+    await checkStyle(page, 'dashed');
+    await checkShading(page, [0, -2]);
+    const marks = await progress(page);
+    check(marks.join(' | ') === 'done current open | done done done', 'practice inequality-build: progress ticks only the steps that are right, and the student is sent back to the one that is not', marks.join(' | '));
+    check(/Locked until every constraint above is correct\./.test(await bodyText(page)) && !(await hasButton(page, 'Find overlap / Combine regions')),
+      'practice inequality-build: the overlap still waits for every constraint to be right');
+    await checkStyle(page, 'solid');
+    check(await cursor(page) === 'c0:shading', 'practice inequality-build: the right style is confirmed and the shading opens');
+    await checkShading(page, [5, 0]);
+    check(await cursor(page) === 'combine' && /Every constraint checks out\./.test(await bodyText(page)) && !(await button(page, 'Find overlap / Combine regions').isDisabled()),
+      'practice inequality-build: every constraint right opens the overlap');
   });
   for (const role of ['dol', 'test']) {
     await scenario(`${role} inequality-build wrong`, async () => {
       const page = await open(role, 'inequality-build');
-      const firstPanel = await buildSystem(page, 'Dashed');
-      const text = await bodyText(page);
-      check(!BUILD_VERDICT.test(firstPanel) && !BUILD_VERDICT.test(text), `${role} inequality-build: no check says whether a step is right`, firstMatch(`${firstPanel}\n${text}`, BUILD_VERDICT));
-      check(/Line style recorded\. It is graded when you submit\./.test(firstPanel), `${role} inequality-build: the wrong style is recorded like any other`);
-      const marks = await chips(page);
-      check(marks.length === 6 && marks.every((mark) => mark.endsWith('done')), `${role} inequality-build: every finished step reads "done" — none ticks ✓ for being right`, marks.join(' | '));
+      // x ≥ 1 is SOLID: constraint 1's style is wrong.
+      const { transcript, cursors } = await buildSystemWithheld(page, 'dashed');
+      check(!BUILD_VERDICT.test(transcript), `${role} inequality-build: no check says whether a step is right`, firstMatch(transcript, BUILD_VERDICT));
+      check(cursors.join(' ') === WITHHELD_PATH.join(' '), `${role} inequality-build: every Check moves on — the wrong style like any other`, cursors.join(' '));
+      const marks = await progress(page);
+      check(marks.join(' | ') === 'recorded recorded recorded | recorded recorded recorded', `${role} inequality-build: every finished step reads "recorded" — none ticks ✓ for being right`, marks.join(' | '));
+      check(!(await bodyText(page)).includes('✓'), `${role} inequality-build: no ✓ anywhere`);
       check(!(await button(page, 'Find overlap / Combine regions').isDisabled()), `${role} inequality-build: the overlap opens on finished work`);
-      await combineAndClassify(page);
+      await button(page, 'Find overlap / Combine regions').click();
+      await settle(page, 300);
+      await classifyRegion(page);
       const after = await bodyText(page);
-      check(!BUILD_VERDICT.test(after) && /Recorded\. It is graded when you submit\./.test(after), `${role} inequality-build: the region check records the answer only`, firstMatch(after, BUILD_VERDICT));
+      check(!BUILD_VERDICT.test(after) && await page.locator('[data-phase="classify"]').getAttribute('data-state') === 'done' && /●\s*Classify the region/.test(after),
+        `${role} inequality-build: the region check records the answer only`, firstMatch(after, BUILD_VERDICT));
       if (role !== 'dol') return;
       await button(page, 'Check my work').click();
       await settle(page, 800);
@@ -367,9 +408,25 @@ const inequalityBuild = async () => {
   }
   await scenario('dol inequality-build right', async () => {
     const page = await open('dol', 'inequality-build');
-    const firstPanel = await buildSystem(page, 'Solid');
-    check(!BUILD_VERDICT.test(firstPanel) && /Line style recorded\./.test(firstPanel), 'dol inequality-build: right work gets the same recorded lines');
-    await combineAndClassify(page);
+    // Where outcomes are withheld a step is done once it is finished; it still
+    // stays on screen until the student presses its Check.
+    await page.getByLabel('Build it with').selectOption('vertical');
+    await page.getByRole('spinbutton', { name: 'x =' }).fill('1');
+    await settle(page, 300);
+    check(await cursor(page) === 'c0:boundary', 'dol inequality-build: a finished step stays open until its Check is pressed');
+    await button(page, 'Check boundary').click();
+    await settle(page, 300);
+    const transcript = [await bodyText(page)];
+    const cursors = [await cursor(page)];
+    await checkStyle(page, 'solid'); transcript.push(await bodyText(page)); cursors.push(await cursor(page));
+    await checkShading(page, [5, 0]); transcript.push(await bodyText(page)); cursors.push(await cursor(page));
+    await buildBoundary(page, { method: 'horizontal', field: 'y =', value: '3' }); cursors.push(await cursor(page));
+    await checkStyle(page, 'dashed'); cursors.push(await cursor(page));
+    await checkShading(page, [0, -2]); transcript.push(await bodyText(page)); cursors.push(await cursor(page));
+    check(!BUILD_VERDICT.test(transcript.join('\n')) && cursors.join(' ') === WITHHELD_PATH.join(' '), 'dol inequality-build: right work takes the same path with the same recorded lines', cursors.join(' '));
+    await button(page, 'Find overlap / Combine regions').click();
+    await settle(page, 300);
+    await classifyRegion(page);
     await button(page, 'Check my work').click();
     await settle(page, 800);
     const grade = await lastGrade(page);
@@ -381,22 +438,23 @@ const inequalityBuild = async () => {
   // along a line you built tells you whether the line is right.
   const PROBE = /Does this point lie exactly on one of the boundary lines\?/;
   const placeOwnPoint = async (page, x, y) => {
-    await button(page, 'Pick your own test point').click();
     await tapGraph(page, x, y);
-    await settle(page, 300);
     // The point really landed there, so what follows is about this point.
     await page.getByText(`Your point: (${x}, ${y})`).waitFor();
   };
-  const answerPoint = async (page, labels) => {
-    for (const [label, value] of labels) await page.getByLabel(label).selectOption(value);
+  const answerPoint = async (page, answers) => {
+    for (const [legend, value] of answers) {
+      await page.getByRole('group', { name: legend }).locator(`button[data-choice="${value}"]`).click();
+    }
     await button(page, 'Check this point').click();
     await settle(page, 300);
   };
   await scenario('practice inequality-probe', async () => {
     const page = await open('practice', 'inequality-probe');
-    await buildSystem(page, 'Solid');
+    await buildSystemWithheld(page, 'solid');
     await button(page, 'Find overlap / Combine regions').click();
     await settle(page, 300);
+    check(await cursor(page) === 'studentPoint', 'practice inequality-probe: combining opens the test point, ready for a tap');
     await placeOwnPoint(page, 1, 0);
     check(PROBE.test(await bodyText(page)), 'practice inequality-probe: a point on a boundary still gets the boundary questions');
     await placeOwnPoint(page, 2, 0);
@@ -406,7 +464,7 @@ const inequalityBuild = async () => {
     await scenario(`${role} inequality-probe`, async () => {
       const page = await open(role, 'inequality-probe');
       // The student's first boundary is x = 2; the true one is x = 1.
-      await buildSystem(page, 'Solid', '2');
+      await buildSystemWithheld(page, 'solid', '2');
       await button(page, 'Find overlap / Combine regions').click();
       await settle(page, 300);
       await placeOwnPoint(page, 1, 0);
@@ -414,10 +472,10 @@ const inequalityBuild = async () => {
       await placeOwnPoint(page, 2, 0);
       check(PROBE.test(await bodyText(page)), `${role} inequality-probe: a point on the student's own line gets them`);
       await answerPoint(page, [[/Does the point satisfy inequality 1\?/, 'yes'], [/Does the point satisfy inequality 2\?/, 'yes'], ['Is the point a solution to the entire system?', 'yes']]);
-      check(/Not finished yet — answer every part above\./.test(await bodyText(page)), `${role} inequality-probe: the check asks for the boundary answers on screen`);
+      check(/Not finished yet — answer every part above\./.test(await bodyText(page)) && await cursor(page) === 'studentPoint', `${role} inequality-probe: the check asks for the boundary answers on screen`);
       await answerPoint(page, [['Does this point lie exactly on one of the boundary lines?', 'yes'], ['Since it is on that boundary, is it included in the solution region?', 'yes']]);
       const text = await bodyText(page);
-      check(/Recorded\. It is graded when you submit\./.test(text) && !/Correct —|misjudged|Re-examine|Not quite/.test(text), `${role} inequality-probe: then records the point without judging it`);
+      check(!BUILD_VERDICT.test(text) && await page.locator('[data-phase="studentPoint"]').getAttribute('data-state') === 'done', `${role} inequality-probe: then records the point without judging it`, firstMatch(text, BUILD_VERDICT));
     });
   }
 };

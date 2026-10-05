@@ -1,11 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { componentSource, executableSource, region } from './helpers/sourceContract.mjs';
+import { assertCapability, componentSource, executableSource, region } from './helpers/sourceContract.mjs';
 import { parseNumericAnswer } from '../../src/tools/shared/toolMath.js';
 import { resolveInequalityBuildGate } from '../../src/tools/systemsWorkspace/inequalityBuildPolicy.js';
 import {
+  NO_CURSOR,
+  buildFlowPlan,
+  cursorForConstraint,
+  graphTapAction,
+  resolveBuildFlow,
+  stepPosition,
+} from '../../src/tools/systemsWorkspace/inequalityBuildFlow.js';
+import { formatInequality } from '../../src/tools/systemsWorkspace/inequalityFormat.js';
+import {
   explicitBooleanAnswerMatches,
   modelingEntryCorrect,
+  studentBoundaryLineFromEntry,
   studentBuildConstraintStatus,
   studentBuildInequalityEnabled,
   studentBuildInequalityTask,
@@ -15,6 +25,13 @@ import systemsWorkspaceGrader from '../../functions/shared/serverGrading/tools/s
 
 const source = componentSource('src/tools/systemsWorkspace/SystemsWorkspace.jsx');
 const executable = executableSource(source);
+// The student-build mode is its own file now: StudentBuildInequalityMode.jsx
+// keeps its state, its checks and its work; InequalityBuildPanels.jsx is what
+// its steps look like; inequalityBuildFlow.js decides which step is open and
+// what a tap on the graph means. SystemsWorkspace.jsx only routes to it.
+const modeSource = componentSource('src/tools/systemsWorkspace/StudentBuildInequalityMode.jsx');
+const mode = executableSource(modeSource);
+const panels = executableSource(componentSource('src/tools/systemsWorkspace/InequalityBuildPanels.jsx'));
 const adapterSource = componentSource('functions/shared/toolMath/systemsWorkspace/inequalityBuilderAdapter.mjs');
 // The student-build task, its step rule and the helpers below moved out of
 // SystemsWorkspace.jsx into the shared adapter, and the final check into the
@@ -60,24 +77,39 @@ test('student-build inequality mode is opt-in and does not disturb the existing 
 });
 
 test('every boundary type the task requires has its own construction method', () => {
-  const methods = region(executable, 'const CONSTRUCTION_METHODS', 'const emptyBuildEntry', 'CONSTRUCTION_METHODS');
-  assert.match(methods, /Two points/);
-  assert.match(methods, /Slope/);
-  assert.match(methods, /Vertical line/);
-  assert.match(methods, /Horizontal line/);
+  const methods = region(panels, 'export const CONSTRUCTION_METHODS', 'export const CLASSIFICATION_OPTIONS', 'CONSTRUCTION_METHODS');
+  for (const [id, label] of [['points', /Two points/], ['slopeIntercept', /Slope/], ['vertical', /Vertical line/], ['horizontal', /Horizontal line/]]) {
+    assert.match(methods, new RegExp(`id: '${id}'`), `${id} is offered`);
+    assert.match(methods, label);
+  }
+  // And each one builds a boundary from the student's own work.
+  const plotted = { point1Plotted: true, point2Plotted: true };
+  assert.ok(studentBoundaryLineFromEntry({ method: 'points', x1: 0, y1: 1, x2: 2, y2: 3, ...plotted }));
+  assert.ok(studentBoundaryLineFromEntry({ method: 'slopeIntercept', slope: '1', intercept: '1', x1: 0, y1: 1, x2: 1, y2: 2, ...plotted }));
+  assert.ok(studentBoundaryLineFromEntry({ method: 'vertical', constant: '1' }));
+  assert.ok(studentBoundaryLineFromEntry({ method: 'horizontal', constant: '3' }));
 });
 
 test('the graph is click/tap driven through the shared touch-hardened CoordinatePlane', () => {
-  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
-  assert.match(mode, /<CoordinatePlane[\s\S]*?onPlot=\{handlePlot\}/, 'the shared graph stays interactive after any individual constraint unlocks.');
-  const plot = region(mode, 'const handlePlot = (point)', 'const boundaryMessage', 'handlePlot');
-  assert.match(plot, /armed\.type === 'boundaryPoint'.*rewriteVerified\(armed\.index\)/s, 'only the armed constraint’s own rewrite may gate its graph action.');
+  // A tap does whatever the open step needs (inequalityBuildFlow.test.mjs has
+  // every case); the plane listens whenever that is something.
+  assert.match(mode, /const tapAction = graphTapAction\(\{ cursor, build, plan, rewriteVerified \}\);/, 'what a tap means comes from the open step, gated by its own rewrite');
+  assert.match(mode, /const graphInteractive = tapAction\.kind !== 'none';/);
+  assert.match(mode, /<CoordinatePlane[\s\S]*?onPlot=\{graphInteractive \? handlePlot : null\}/, 'the shared graph is interactive whenever the step has something to place');
+  const plot = region(mode, 'const handlePlot = (point) => {', 'const removeBoundaryPoint', 'handlePlot');
+  assert.match(plot, /tapAction\.kind === 'boundaryPoint'[\s\S]*?if \(!rewriteVerified\(index\)\) return;/s, 'only the open constraint’s own rewrite may gate its graph action.');
+  const flowPlan = buildFlowPlan(studentBuildInequalityTask(sw({ studentBuild: { rewrite: true, boundary: true }, sourceConstraints: ['y - x >= 1', 'y <= 4'], expectedConstraints: [{ A: -1, B: 1, C: -1, relation: '>=' }, { A: 0, B: 1, C: -4, relation: '<=' }] })));
+  const tap = (cursor) => graphTapAction({ cursor, build: [{}, {}], plan: flowPlan, rewriteVerified: (index) => index === 1 });
+  assert.equal(tap('c0:boundary').kind, 'none', 'constraint 1 is not rewritten yet');
+  assert.equal(tap('c1:boundary').kind, 'boundaryPoint', 'constraint 2 is, and does not wait for constraint 1');
 });
 
 test('solid/dashed and shading feedback stays neutral on the first miss, per the platform feedback philosophy', () => {
-  assert.match(executable, /Check whether the points you used satisfy the boundary equation\./);
-  assert.match(executable, /Check whether points on the boundary are included\./);
-  assert.match(executable, /Use a test point or compare the inequality to its boundary\./);
+  // `staged(attempts, first, later)`: the first argument is what a first miss says.
+  assert.match(region(mode, 'const boundaryMessage = (index) => {', '\n  };', 'boundaryMessage'), /staged\(entry\.boundaryAttempts,\s*'Check whether the points you used satisfy the boundary equation\.'/);
+  assert.match(region(mode, 'const styleMessage = (index) => {', '\n  };', 'styleMessage'), /staged\(entry\.styleAttempts,\s*'Check whether points on the boundary are included\.'/);
+  assert.match(region(mode, 'const shadeMessage = (index) => {', '\n  };', 'shadeMessage'), /staged\(entry\.shadeAttempts,\s*'Use a test point or compare the inequality to its boundary\.'/);
+  assert.match(mode, /const staged = \(attempts, first, later\) => \(attempts <= 1 \? first : later\);/);
 });
 
 // The decisions below live in resolveInequalityBuildGate (inequalityBuildPolicy.js)
@@ -103,10 +135,10 @@ test('progress checkmarks and Combine remain locked until the student explicitly
   assert.equal(unchecked.stepDone(0, 'lineStyle'), false, 'the line style was never checked');
   assert.equal(unchecked.allConstraintsDone, false);
   assert.equal(practiceGate().allConstraintsDone, true);
-  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
-  assert.match(mode, /const boundaryVerified = \(index\) => buildGate\.stepDone\(index, 'boundary'\);/);
-  assert.match(mode, /const styleVerified = \(index\) => buildGate\.stepDone\(index, 'lineStyle'\);/);
-  assert.match(mode, /const shadeVerified = \(index\) => buildGate\.stepDone\(index, 'shading'\);/);
+  // A step's mark, its constraint's progress and the order the steps open in
+  // all come from the flow, which is handed the gate's stepDone and nothing else.
+  assert.match(region(mode, 'const flowContext = {', '\n  };', 'flowContext'),
+    /stepDone: \(index, step\) => \(step === 'rewrite' \? rewriteVerified\(index\) : buildGate\.stepDone\(index, step\)\),/);
   // Whether a step is RIGHT is the shared step rule (the one the grader marks
   // with), which the screen hands the gate as stepCorrect.
   assert.match(mode, /const constraintStatus = Array\.from\(\{ length: constraintCount \}, \(_, index\) => studentBuildConstraintStatus\(/);
@@ -152,19 +184,31 @@ test('progress checkmarks and Combine remain locked until the student explicitly
   }
   assert.match(mode, /const rewriteVerified = .*verifiedConstraint/);
   assert.match(mode, /const allConstraintsComplete = buildGate\.allConstraintsDone;/);
-  assert.match(mode, /Boundary \{buildConfig\.boundary \? stepChip\(boundaryVerified\(index\)\)\.mark/);
+  // Where outcomes are shown a done step is a ✓; where they are withheld a ●
+  // that says only "recorded".
+  assert.match(mode, /const doneMark = buildGate\.verdictsShown \? '✓' : '●';/);
+  const flowPlan = buildFlowPlan(studentBuildInequalityTask(sw({ studentBuild: { boundary: true, lineStyle: true, shading: true }, inequalities: [{ m: 1, b: 1, relation: '>=' }] })));
+  const flowFor = (gateOverrides) => {
+    const gate = practiceGate(gateOverrides);
+    return resolveBuildFlow({ plan: flowPlan, stepDone: gate.stepDone, combined: false, reasoningDone: () => false, cursor: null });
+  };
+  const uncheckedFlow = flowFor({ build: [{ boundaryAttempts: 1, styleAttempts: 0, shadeAttempts: 1 }] });
+  assert.equal(uncheckedFlow.positionState('c0:boundary'), 'done');
+  assert.equal(uncheckedFlow.cursor, 'c0:lineStyle', 'the unchecked step is the one still open');
+  assert.equal(uncheckedFlow.positionState('combine'), 'locked');
+  assert.equal(flowFor({}).positionState('combine'), 'current');
 });
 
 test('the combined region is locked until every constraint is individually correct, and never renders early', () => {
   assert.equal(practiceGate({ stepCorrect: (index, step) => step !== 'shading' }).allConstraintsDone, false, 'one wrong step keeps the overlap locked');
   assert.equal(practiceGate({ constraintCount: 0, build: [] }).allConstraintsDone, false, 'no constraints, no overlap');
-  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
   assert.match(mode, /disabled=\{!allConstraintsComplete\}/, 'Find overlap / Combine regions must be disabled until every constraint checks out.');
-  assert.match(mode, /combined\s*&&\s*studentPolygon\.length\s*>=\s*3/, 'the combined polygon must only render after the student explicitly combines, never before.');
+  assert.match(mode, /const studentPolygon = combined && studentBoundaries\.every\(Boolean\) \?/, 'the overlap is computed only after the student explicitly combines');
+  const layers = region(panels, 'export function InequalityGraphLayers(', '\n}\n', 'InequalityGraphLayers');
+  assert.match(layers, /combined\s*&&\s*studentPolygon\.length\s*>=\s*3/, 'the combined polygon must only render after the student explicitly combines, never before.');
 });
 
 test('blank yes/no answers cannot earn accidental credit and requested vertex work requires full vertex coverage', () => {
-  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
   assert.match(adapterExecutable, /export const explicitBooleanAnswerMatches/);
   assert.equal(explicitBooleanAnswerMatches('', false), false, 'a blank answer never matches, even a "no"');
   assert.equal(explicitBooleanAnswerMatches('no', false), true);
@@ -183,23 +227,36 @@ test('blank yes/no answers cannot earn accidental credit and requested vertex wo
 });
 
 test('the test-point tool reasons per inequality, overall, and about boundary inclusion specifically', () => {
-  assert.match(executable, /Does the point satisfy inequality/);
-  assert.match(executable, /Is the point a solution to the entire system\?/);
-  assert.match(executable, /Does this point lie exactly on one of the boundary lines\?/);
-  assert.match(executable, /is it included in the solution region\?/);
+  const questions = region(panels, 'export function TestPointQuestions(', 'export function VertexList(', 'TestPointQuestions');
+  assert.match(questions, /Does the point satisfy inequality/);
+  assert.match(questions, /Is the point a solution to the entire system\?/);
+  assert.match(questions, /Does this point lie exactly on one of the boundary lines\?/);
+  assert.match(questions, /is it included in the solution region\?/);
+  assert.match(questions, /\{showBoundaryProbe \? \(/, 'the boundary questions appear only for a point on a boundary');
+  // Both the teacher's point and the student's own point ask them.
+  assert.equal((mode.match(/<TestPointQuestions\b/g) || []).length, 2);
+  assert.match(mode, /showBoundaryProbe=\{boundaryProbeEnabled && onBoundaryIndex\(\[teacherTestPoint\.x, teacherTestPoint\.y\]\) >= 0\}/);
+  assert.match(mode, /showBoundaryProbe=\{boundaryProbeEnabled && studentProbeIndex\(studentTestPoint\) >= 0\}/);
 });
 
 test('region classification supports bounded, unbounded, AND no solution as a legitimate completion path', () => {
-  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
-  assert.match(mode, /<option value="bounded">/);
-  assert.match(mode, /<option value="unbounded">/);
-  assert.match(mode, /<option value="empty">No solution<\/option>/);
+  const options = region(panels, 'export const CLASSIFICATION_OPTIONS', 'export const LINE_STYLE_OPTIONS', 'CLASSIFICATION_OPTIONS');
+  assert.match(options, /value: 'bounded'/);
+  assert.match(options, /value: 'unbounded'/);
+  assert.match(options, /value: 'empty', label: 'No solution'/);
+  assert.match(mode, /<ChoiceGroup[\s\S]*?options=\{CLASSIFICATION_OPTIONS\}[\s\S]*?onChange=\{setRegionClassification\}/);
+  // "No solution" is a right answer when the constraints never overlap.
+  const disjoint = sw({ studentBuild: { shading: true }, askClassification: true, inequalities: [{ m: 0, b: 4, relation: '>=' }, { m: 0, b: 1, relation: '<=' }] });
+  const part = (classification) => systemsWorkspaceGrader.grade(disjoint, { build: [{}, {}], regionClassification: classification, vertices: [] })
+    .parts.find((entry) => entry.id === 'region-classification');
+  assert.equal(part('empty').isCorrect, true);
+  assert.equal(part('bounded').isCorrect, false);
 });
 
 test('vertex mode distinguishes a geometric intersection from an included solution point', () => {
-  assert.match(executable, /vertexIncludedExpected/);
-  assert.match(executable, /Is this vertex included in the solution set\?/);
-  assert.match(executable, /excluded even though the lines still cross/);
+  assert.match(mode, /vertexIncludedExpected/);
+  assert.match(region(panels, 'export function VertexList(', 'export function ModelingFields(', 'VertexList'), /Is this vertex included in the solution set\?/);
+  assert.match(mode, /excluded even though the lines still cross/);
 });
 
 test('the final check reports concept-level diagnostics, not just an overall right/wrong', () => {
@@ -207,7 +264,7 @@ test('the final check reports concept-level diagnostics, not just an overall rig
   // a part per concept — each constraint, the model, the region, the test
   // point (each inequality, the system, boundary inclusion) and the vertices —
   // which the attempt records as its part grades.
-  const finalCheck = region(executable, 'const finalCheck = ()', 'const graphPoints', 'finalCheck');
+  const finalCheck = region(mode, 'const finalCheck = () => {', '\n  };', 'finalCheck');
   assert.match(finalCheck, /const result = gradeToolCheck\(systemsWorkspaceGrader, questionData, work\);/);
   assert.match(finalCheck, /submit\(\{ isCorrect: result\.isCorrect, score: result\.score \}, work, \{ mode: 'inequalities-studentBuild', parts: result\.parts \}\);/);
   const question = sw({ studentBuild: true, reasoning: { vertices: true }, inequalities: [{ m: 1, b: 1, relation: '>=' }, { m: -0.5, b: 6, relation: '<=' }], testPoint: { x: 0, y: 1 } });
@@ -218,13 +275,13 @@ test('the final check reports concept-level diagnostics, not just an overall rig
 });
 
 test('hint usage in the new mode is still reported the same way as every other tool', () => {
-  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
   assert.match(mode, /onHintUsed=\{\(\) => onAction\?\.\('HINT_USED'\)\}/);
 });
 
 test('constraint modeling reuses the same graphing/checking machinery instead of a second engine', () => {
-  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
-  assert.match(mode, /Send constraints to Systems Workspace/);
+  // The model is sent by the student, and only then graphed.
+  assert.match(region(mode, 'const sendModel = () => {', '\n  };', 'sendModel'), /setModelingSent\(true\);/);
+  assert.match(mode, /onClick=\{sendModel\} disabled=\{!modelingEntriesReady\}/);
   assert.match(studentBuildGrader, /modelingEntryCorrect\(row, expected\)/);
   // The modeling ground truth feeds the SAME boundary/style/shade grading and
   // the SAME feasibleRegionPolygon/classifyFeasibleRegion calls the
@@ -244,16 +301,20 @@ test('constraint modeling reuses the same graphing/checking machinery instead of
 });
 
 test('all new answer-bearing state is draft-backed, and the registry names every new transient UI field', () => {
-  ['modelingEntries', 'modelingSent', 'rewriteEntries', 'activeIndex', 'build', 'combined', 'regionClassification', 'teacherPointResponse',
-    'studentTestPoint', 'studentPointResponse', 'vertices'].forEach((key) => {
-    assert.match(executable, new RegExp(`usePersistentToolState\\('${key}'`), `${key} must be usePersistentToolState-backed so Work View close/reopen and question navigation cannot erase it.`);
+  // The open step and the answer each reasoning Check was about are kept too,
+  // so a reload or a reopened Work View lands on the same step with the same
+  // lines under it.
+  ['modelingEntries', 'modelingSent', 'rewriteEntries', 'activeStep', 'build', 'combined', 'regionClassification', 'regionClassificationAttempts',
+    'teacherPointResponse', 'studentTestPoint', 'studentPointResponse', 'vertices', 'reasoningChecks'].forEach((key) => {
+    assert.match(mode, new RegExp(`usePersistentToolState\\('${key}'`), `${key} must be usePersistentToolState-backed so Work View close/reopen and question navigation cannot erase it.`);
   });
   const registryEntry = region(persistenceSource, 'systemsWorkspace: entry(', 'parabolaGeometryLab: entry(', 'systemsWorkspace persistence entry');
-  ['armed', 'teacherPointFeedback', 'studentPointFeedback', 'vertexFeedback'].forEach((key) => {
-    // Named as a key of the entry: a bare /armed/ also matched `armedToken:` and
-    // the words "currently armed token", so dropping `armed:` itself stayed green.
-    assert.match(registryEntry, new RegExp(`\\b${key}:`), `${key} is a new raw useState in SystemsWorkspace.jsx and must be named in the persistence contract.`);
+  assert.match(registryEntry, /'systemsWorkspace\/StudentBuildInequalityMode\.jsx'/, 'the mode\'s own file is read by the persistence gate');
+  ['tapNotice', 'plotNotice'].forEach((key) => {
+    // Named as a key of the entry, not merely mentioned in a reason.
+    assert.match(registryEntry, new RegExp(`\\b${key}:`), `${key} is a raw useState in the inequality modes and must be named in the persistence contract.`);
   });
+  assert.deepEqual([...mode.matchAll(/const \[(\w+), set\w*\] = useState\(/g)].map((match) => match[1]), ['tapNotice'], 'nothing a student answers with is in useState');
 });
 
 test('slope-intercept construction requires two student points and never manufactures the slope movement', () => {
@@ -264,25 +325,36 @@ test('slope-intercept construction requires two student points and never manufac
   assert.match(builder, /Math\.abs\(x1\).*Math\.abs\(y1 - b\)/s);
   assert.doesNotMatch(builder, /\[0,\s*b\].*\[1,\s*m\s*\+\s*b\]/s);
   assert.match(builder, /!entry\.point1Plotted \|\| !entry\.point2Plotted/);
-  const fields = region(executable, 'function ConstructionMethodFields', 'function TestPointReasoning', 'ConstructionMethodFields');
-  assert.match(fields, /<output/);
-  assert.doesNotMatch(fields, /onChange\(('[xy][12]')/);
-  const slopeField = fields.match(/<Field label="Slope \(m\)">([\s\S]*?)<\/Field>/)?.[1] || '';
+  // Plotted coordinates exist only where the student tapped: they are shown
+  // (as chips), never typed.
+  const fields = region(panels, 'export function BoundaryStepFields(', 'export function ConstraintCard(', 'BoundaryStepFields');
+  assert.match(fields, /<BoundaryPointChips\b/);
+  assert.doesNotMatch(fields, /onPatch\(\{\s*[xy][12]\s*:/, 'no box edits a plotted coordinate');
+  assert.doesNotMatch(region(panels, 'export function BoundaryPointChips(', 'export function BoundaryStepFields(', 'BoundaryPointChips'), /<input/);
+  const slopeField = fields.match(/Slope \(m\)(<input[^>]*>)/)?.[1] || '';
   assert.match(slopeField, /type="text"/);
   assert.match(slopeField, /placeholder="e\.g\. -2\/3"/);
   assert.equal(parseNumericAnswer('-2/3'), -2 / 3, 'the slope field accepts the canonical numeric parser\'s rise/run form');
 });
 
 test('constraint cards are accessible accordions that allow none open without discarding progress', () => {
-  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
-  assert.match(mode, /aria-expanded=\{activeIndex === index\}/);
-  assert.match(mode, /current === index \? null : index/);
-  assert.match(mode, /Boundary \{buildConfig\.boundary/);
-  assert.match(mode, /<strong>Combined solution<\/strong>/);
+  const card = region(panels, 'export function ConstraintCard(', 'export function StepRow(', 'ConstraintCard');
+  assert.match(card, /<button type="button" className="mm-ineq-card-header" aria-expanded=\{expanded\}/);
+  assert.match(mode, /expanded=\{expanded\}/);
+  assert.match(mode, /const expanded = flow\.activeIndex === index;/);
+  assert.match(mode, /onToggle=\{\(\) => moveCursor\(cursorForConstraint\(flowContext, index\)\)\}/);
+  // Pressing the open constraint closes it; what was done stays done.
+  const flowPlan = buildFlowPlan(studentBuildInequalityTask(sw({ studentBuild: { boundary: true, lineStyle: true }, inequalities: [{ m: 1, b: 1, relation: '>=' }, { m: 0, b: 4, relation: '<=' }] })));
+  const context = { plan: flowPlan, stepDone: (index, step) => index === 0 && step === 'boundary', combined: false, reasoningDone: () => false, cursor: 'c0:lineStyle' };
+  const next = cursorForConstraint(context, 0);
+  assert.equal(next, NO_CURSOR);
+  const closed = resolveBuildFlow({ ...context, cursor: next });
+  assert.equal(closed.activeIndex, null, 'none open');
+  assert.equal(closed.positionState(stepPosition(0, 'boundary')), 'done', 'progress kept');
+  assert.equal(cursorForConstraint({ ...context, cursor: next }, 0), 'c0:lineStyle', 'reopening lands on the step still to do');
 });
 
 test('rewrite is embedded, persistent, and gates graph construction while canonical answers stay separate', () => {
-  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
   // Source (shown) and expected (graded) constraints stay separate in the
   // shared task the workspace and the grader both read.
   const taskSource = region(adapterExecutable, 'export const studentBuildInequalityTask', 'export const studentBuildWorkingConstraints', 'studentBuildInequalityTask');
@@ -291,9 +363,16 @@ test('rewrite is embedded, persistent, and gates graph construction while canoni
   const separate = studentBuildInequalityTask(sw({ studentBuild: { rewrite: true }, sourceConstraints: ['2x + y >= 4'], expectedConstraints: [{ A: 2, B: 1, C: -4, relation: '>=' }] }));
   assert.deepEqual(separate.sourceConstraints, ['2x + y >= 4']);
   assert.deepEqual({ ...separate.expectedConstraints[0] }, { A: 2, B: 1, C: -4, relation: '>=' });
-  assert.match(mode, /rewriteVerified/);
-  assert.match(mode, /Graph construction unlocks after your rewrite is verified/);
   assert.match(mode, /<EmbeddedInequalityRewrite/);
+  // The boundary step of a constraint opens only once its rewrite is verified.
+  const flowPlan = buildFlowPlan(separate);
+  assert.deepEqual(flowPlan.constraintSteps, ['rewrite']);
+  const withBoundary = buildFlowPlan(studentBuildInequalityTask(sw({ studentBuild: { rewrite: true, boundary: true }, sourceConstraints: ['2x + y >= 4'], expectedConstraints: [{ A: 2, B: 1, C: -4, relation: '>=' }] })));
+  const flowFor = (verified) => resolveBuildFlow({ plan: withBoundary, stepDone: (index, step) => (step === 'rewrite' ? verified : false), combined: false, reasoningDone: () => false, cursor: null });
+  assert.equal(flowFor(false).positionState('c0:boundary'), 'locked', 'graph construction waits for the rewrite');
+  assert.equal(flowFor(false).cursor, 'c0:rewrite');
+  assert.equal(flowFor(true).cursor, 'c0:boundary');
+  assertCapability(rewriteSource, [/boundary step opens when y is isolated/, /unlocks after your rewrite is verified/], 'the rewrite says what finishing it opens');
 });
 
 test('rewrite phase reuses the mature relation solver instead of maintaining a second mini-solver', () => {
@@ -308,7 +387,6 @@ test('rewrite phase reuses the mature relation solver instead of maintaining a s
 });
 
 test('the embedded relation solver keeps the absolute-value solver interaction contract and persistent draft identity', () => {
-  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
   assert.match(mode, /draftKey=\{draftKey \? `\$\{draftKey\}:systems-rewrite:\$\{index\}` : null\}/);
   assert.match(rewriteSource, /Place every operation on both sides/);
   assert.match(rewriteSource, /value\?\.committedText/);
@@ -327,15 +405,17 @@ test('rewrite completion only unlocks graphing after an equivalent y-on-the-left
 });
 
 test('completed rewrites display a clean slope-intercept inequality instead of the solver\'s unsimplified intermediate text', () => {
-  assert.match(source, /import \{ formatSlopeInterceptInequality \} from '.\/linearInequalityEngine\.js'/);
-  assert.match(executable, /if \(buildConfig\.rewrite && rewriteEntries\[index\]\?\.verifiedConstraint\)/);
-  assert.match(executable, /return formatSlopeInterceptInequality\(rewriteEntries\[index\]\.verifiedConstraint\)/);
+  assert.match(modeSource, /import \{ formatSlopeInterceptInequality \} from '.\/linearInequalityEngine\.js'/);
+  assert.match(mode, /if \(buildConfig\.rewrite && rewriteEntries\[index\]\?\.verifiedConstraint\)/);
+  assert.match(mode, /return formatSlopeInterceptInequality\(rewriteEntries\[index\]\.verifiedConstraint\)/);
   assert.doesNotMatch(
-    region(executable, 'const inequalityLabel = (index) =>', 'const updateBuildEntry', 'inequalityLabel'),
+    region(mode, 'const inequalityLabel = (index) =>', 'const updateBuildEntry', 'inequalityLabel'),
     /verifiedText/,
     'student algebra history may persist internally, but the completed graphing card must not expose the unsimplified terminal solver expression',
   );
-  assert.match(source, /import \{ formatSlopeInterceptInequality \} from '.\/linearInequalityEngine\.js'/);
+  // The finished rewrite step's one-line summary is the same clean form.
+  assert.match(region(mode, 'const stepSummary = (index, step) => {', '\n  };', 'stepSummary'),
+    /if \(step === 'rewrite'\) return rewriteEntries\[index\]\?\.verifiedConstraint \? formatSlopeInterceptInequality\(rewriteEntries\[index\]\.verifiedConstraint\) : '';/);
 });
 
 test('rewrite-only work requires verified rewrite evidence and shows it in collapsed progress', () => {
@@ -346,7 +426,6 @@ test('rewrite-only work requires verified rewrite evidence and shows it in colla
     const gate = practiceGate({ showImmediateFeedback, rewriteVerified: () => false });
     assert.equal(gate.constraintDone(0), false, `${showImmediateFeedback}`);
   }
-  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
   const gate = region(mode, 'const buildGate = resolveInequalityBuildGate({', '});', 'build gate');
   assert.match(gate, /\n\s*rewriteVerified,/);
   // The step rule (shared with the grader) requires a verified rewrite first,
@@ -362,11 +441,11 @@ test('rewrite-only work requires verified rewrite evidence and shows it in colla
     assert.equal(systemsWorkspaceGrader.grade(rewriteOnly, { build: [{}], rewrite: [{ relation: '2x + y >= 4', graphingForm: null }], ...policy }).isCorrect, false, `no verified rewrite, no credit ${label}`);
     assert.equal(systemsWorkspaceGrader.grade(rewriteOnly, { build: [{}], ...policy }).isCorrect, false, `missing rewrite evidence earns nothing ${label}`);
   }
-  assert.match(mode, /Rewrite \{buildConfig\.rewrite \? stepChip\(rewriteVerified\(index\)\)\.mark : 'provided'\}/);
+  // Collapsed, the rewrite step is done exactly when it is verified.
+  assert.match(region(mode, 'const flowContext = {', '\n  };', 'flowContext'), /step === 'rewrite' \? rewriteVerified\(index\)/);
 });
 
 test('the student-build workspace is wired into Work View with undo, point editing, and a primary check action', () => {
-  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
   assert.match(mode, /<EnlargeableFigure[\s\S]*?capabilities=\{\{/);
   assert.match(mode, /undo:\s*undoHistory\.capability/);
   assert.match(mode, /pointEditing:\s*\{/);
@@ -374,11 +453,16 @@ test('the student-build workspace is wired into Work View with undo, point editi
 });
 
 test('student-facing inequality labels support legacy slope-intercept, vertical/horizontal, and canonical standard form', () => {
-  assert.match(executable, /const displayRelation/);
-  assert.match(executable, /ineq\.orientation === 'vertical'/);
-  assert.match(executable, /ineq\.orientation === 'horizontal'/);
-  assert.match(executable, /\[ineq\.A, ineq\.B, ineq\.C\]/);
-  assert.match(executable, /formatLinearTerm/);
+  // One formatter for every inequality mode (systemsWorkspaceFormat.test.mjs
+  // has the cases).
+  assert.equal(formatInequality({ m: 1, b: 1, relation: '>=' }), 'y ≥ x + 1');
+  assert.equal(formatInequality({ orientation: 'vertical', x: 1, relation: '>=' }), 'x ≥ 1');
+  assert.equal(formatInequality({ orientation: 'horizontal', y: 3, relation: '<' }), 'y < 3');
+  assert.equal(formatInequality({ A: 2, B: 1, C: -4, relation: '>=' }), '2x + y ≥ 4');
+  for (const [path, text] of [['SystemsWorkspace.jsx', source], ['StudentBuildInequalityMode.jsx', modeSource]]) {
+    assert.match(text, /import \{[^}]*\bformatInequality\b[^}]*\} from '\.\/inequalityFormat\.js'/, `${path} writes labels with the shared formatter`);
+  }
+  assert.doesNotMatch(executable, /const (displayRelation|formatLinearTerm|formatInequality) =/, 'no second formatter to drift');
 });
 
 test('authored questions can express vertical and horizontal boundaries, which the old {m, b} shape could not', () => {
@@ -395,22 +479,21 @@ test('authoring schema keeps legacy systems at two inequalities while allowing o
 });
 
 test('canonical studentBuild and reasoning flags are honored independently instead of forcing every construction step on', () => {
-  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
   assert.match(adapterExecutable, /const buildConfig = inequalityConfig\.studentBuild;/);
   assert.match(mode, /\{[^}]*\bbuildConfig\b[^}]*\} = task;/);
-  assert.match(mode, /buildConfig\.boundary \? \(/);
-  assert.match(mode, /buildConfig\.lineStyle \? \(/);
-  assert.match(mode, /buildConfig\.shading \? \(/);
+  // The steps on screen are the enabled ones, from the same task.
+  assert.match(mode, /const plan = useMemo\(\(\) => buildFlowPlan\(task\), \[task\]\);/);
+  assert.match(mode, /plan\.constraintSteps\.map\(\(step\) => \{/);
   assert.match(adapterExecutable, /reasoningConfig\.testPoint/);
   assert.match(mode, /boundaryProbeEnabled/);
   const styleOnly = studentBuildInequalityTask(sw({ studentBuild: { lineStyle: true }, reasoning: { boundaryProbe: true }, testPoint: { x: 0, y: 0 } }));
   assert.deepEqual(styleOnly.buildConfig, { rewrite: false, boundary: false, lineStyle: true, shading: false });
   assert.equal(styleOnly.boundaryProbeEnabled, true);
   assert.equal(styleOnly.askClassification, false, 'classification is not forced on');
+  assert.deepEqual(buildFlowPlan(styleOnly).constraintSteps, ['lineStyle'], 'only the asked step is shown');
 });
 
 test('contextual modeling graphs and reasons from the student-authored canonical constraints while grading the model as an unordered set', () => {
-  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
   assert.match(adapterExecutable, /export const modelingEntryToCanonical/);
   assert.match(mode, /const workingConstraints = useMemo\(\(\) => studentBuildWorkingConstraints\(\{\s*task,\s*modelingEntries,\s*modelingSent,/);
   assert.match(adapterExecutable, /if \(task\.modeling && modelingSent && modeledConstraints\.every\(Boolean\)\) return modeledConstraints;/);
@@ -433,7 +516,6 @@ test('contextual modeling graphs and reasons from the student-authored canonical
 });
 
 test('disabled reasoning/build capabilities do not create hidden required answers or false mastery evidence', () => {
-  const mode = region(executable, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
   assert.match(mode, /!boundaryProbeEnabled \|\| boundaryIndex < 0/);
   // A step the question does not ask for is provided, never a hidden answer.
   assert.match(adapterExecutable, /const boundaryCorrect = !buildConfig\.boundary \|\|/);
@@ -452,9 +534,9 @@ test('context modeling accepts mathematically equivalent scaled inequalities and
   assert.equal(modelingEntryCorrect({ coeffA: '2', coeffB: '2', relation: '<=', constant: '20' }, expected), true, 'a positive multiple');
   assert.equal(modelingEntryCorrect({ coeffA: '-1', coeffB: '-1', relation: '>=', constant: '-10' }, expected), true, 'a negative multiple flips the relation');
   assert.equal(modelingEntryCorrect({ coeffA: '-1', coeffB: '-1', relation: '<=', constant: '-10' }, expected), false);
-  assert.match(executable, /const modelingEntriesReady/);
-  assert.match(executable, /Edit constraints/);
-  assert.match(executable, /reopenModeling/);
+  assert.match(mode, /const modelingEntriesReady/);
+  assert.match(mode, /onClick=\{reopenModeling\}>Edit constraints</);
+  assert.match(region(mode, 'const reopenModeling = () => {', '\n  };', 'reopenModeling'), /setModelingSent\(false\);/);
 });
 
 test('the boundary adapter delegates math to the canonical PR #293 engine instead of maintaining a duplicate engine', () => {

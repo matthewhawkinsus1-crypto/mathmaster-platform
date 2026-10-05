@@ -47,6 +47,13 @@ const ATTEMPT_FIELD = Object.freeze({ boundary: 'boundaryAttempts', lineStyle: '
  * @param rewriteVerified(i)     the constraint's rewrite is finished (or not asked)
  * @param stepCorrect(i, step)   that step's work, as it stands, is right
  * @param stepFinished(i, step)  that step's work is all there — never compared with the answer
+ * @param stepCheckedAsItStands(i, step)
+ *                               the step's work is still the work its last Check
+ *                               was about (inequalityBuildFlow.js). A step edited
+ *                               after its Check is not checked again until the
+ *                               student presses Check, and its old line goes:
+ *                               otherwise dragging a point after one Check turned
+ *                               the tick on and off live.
  */
 export const resolveInequalityBuildGate = ({
   showImmediateFeedback = true,
@@ -56,11 +63,13 @@ export const resolveInequalityBuildGate = ({
   rewriteVerified = () => true,
   stepCorrect = () => false,
   stepFinished = () => false,
+  stepCheckedAsItStands = () => true,
 } = {}) => {
   const verdictsShown = showImmediateFeedback !== false;
   const entries = Array.isArray(build) ? build : [];
   const enabled = (step) => Boolean(buildConfig?.[step]);
-  const checked = (index, step) => Number(entries[index]?.[ATTEMPT_FIELD[step]]) > 0;
+  const checked = (index, step) => Number(entries[index]?.[ATTEMPT_FIELD[step]]) > 0
+    && Boolean(stepCheckedAsItStands(index, step));
   const indices = Array.from({ length: Math.max(0, Number(constraintCount) || 0) }, (_, index) => index);
 
   // Whether a step counts as done: checked and right where outcomes are

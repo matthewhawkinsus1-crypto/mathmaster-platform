@@ -55,11 +55,11 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
   // Every field a student can actually answer with in the student-build
   // inequality mode (boundary construction, style, shading, classification,
   // test-point reasoning, vertices, modeling constraints) is
-  // `usePersistentToolState`-backed. What is listed below is only which
-  // graph tap currently means, plus the
-  // last-check feedback strings for the reasoning panels — none of it is
-  // mathematics, all of it is regenerated the moment a student re-opens the
-  // card or re-runs a check.
+  // `usePersistentToolState`-backed, and so is the step that is open and the
+  // answer each reasoning Check was about — so a reload lands on the same step
+  // with the same lines under it. What a graph tap means is derived from the
+  // open step (inequalityBuildFlow.js), not kept. Listed below is only the
+  // line saying why the last tap did nothing.
   // 3×3 substitution (#341): the whole reduction round — source choice,
   // isolation, token, every target's substitution and standard form, the
   // back-substitution and the verification — is ONE draft-backed, versioned
@@ -71,11 +71,9 @@ export const TOOL_STATE_PERSISTENCE = Object.freeze({
   // (`elimination`) read back through `repairEliminationState`; the three-plane
   // model keeps plane visibility, the reveal and the interpretation draft-backed.
   // They were missing from this audit until #361.
-  systemsWorkspace: entry(['systemsWorkspace/SystemsWorkspace.jsx', 'systemsWorkspace/AlgebraicSystemMode.jsx', 'systemsWorkspace/SubstitutionReductionMode.jsx', 'systemsWorkspace/EliminationReductionMode.jsx', 'systemsWorkspace/Algebraic3SystemMode.jsx', 'systemsWorkspace/ThreePlaneWorkspace.jsx'], {
-    armed: 'What the next graph tap will place (a boundary point, a shaded side, a vertex, or a test point). Selection, not an answer.',
-    teacherPointFeedback: 'The message under the teacher test-point reasoning panel, regenerated from the response already stored in teacherPointResponse.',
-    studentPointFeedback: 'The message under the student test-point reasoning panel, regenerated from the response already stored in studentPointResponse.',
-    vertexFeedback: 'The message under the vertex panel, regenerated from the vertex answers already stored in vertices.',
+  systemsWorkspace: entry(['systemsWorkspace/SystemsWorkspace.jsx', 'systemsWorkspace/StudentBuildInequalityMode.jsx', 'systemsWorkspace/InequalityBuildPanels.jsx', 'systemsWorkspace/InequalityControls.jsx', 'systemsWorkspace/AlgebraicSystemMode.jsx', 'systemsWorkspace/SubstitutionReductionMode.jsx', 'systemsWorkspace/EliminationReductionMode.jsx', 'systemsWorkspace/Algebraic3SystemMode.jsx', 'systemsWorkspace/ThreePlaneWorkspace.jsx'], {
+    tapNotice: 'Why the last tap on the student-build graph did nothing (both boundary points already placed, a shade tap on the line). Cleared by the next tap or step; never mathematics.',
+    plotNotice: 'The same line for the classic inequality graph: every boundary point is already entered, so a tap had nowhere to go. Cleared by the next edit; never mathematics.',
     slotAttempt: 'Transient pick-up/drop feedback for substitution, back-substitution, multiplier placement, equation combination, and verification. It records the currently armed token or last rejected destination, while every committed mathematical choice remains in the draft-backed systems fields.',
     scaleEditors: 'Which elimination equation has its optional scale-factor editor open. Presentation-only; the actual multiplier value and all mathematical work remain in draft-backed systems fields.',
     dragOverVariable: 'Which variable token is physically under the pointer during a drag. Hover-only presentation state that clears on drag leave/drop and never represents a mathematical choice.',

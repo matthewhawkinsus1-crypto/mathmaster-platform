@@ -240,8 +240,10 @@ test('a model family is not chosen for the student, and neither is a modelling i
   const lab = executableSource(read('src/tools/dataModeling/DataModelingLab.jsx'));
   assert.match(lab, /checked=\{modelChoice===entry\.id\}/, 'the model-family radios read modelChoice');
   assert.equal(declaredDefault(lab, 'modelChoice'), 'UNANSWERED');
-  const systems = executableSource(read('src/tools/systemsWorkspace/SystemsWorkspace.jsx'));
-  assert.match(region(systems, 'const emptyModelingEntry', ';'), /relation: UNANSWERED/);
+  // The student-build inequality mode's modelling rows (its own file).
+  const studentBuild = executableSource(read('src/tools/systemsWorkspace/StudentBuildInequalityMode.jsx'));
+  assert.match(region(studentBuild, 'const emptyModelingEntry', ';'), /relation: UNANSWERED/);
+  assert.match(studentBuild, /usePersistentToolState\('modelingEntries', \(\) => \(\s*modeling \? Array\.from\(\{ length: constraintCount \}, emptyModelingEntry\)/, 'every row starts from it');
 });
 
 test('no tool reads a blank yes / no answer as "no"', () => {
@@ -258,7 +260,7 @@ test('the systems workspace sends no classification-less response, as its grader
   const systems = executableSource(read('src/tools/systemsWorkspace/SystemsWorkspace.jsx'));
   const linear = region(systems, 'function LinearMode', 'function InequalityMode', 'LinearMode');
   const matrix = region(systems, 'function MatrixMode', 'export default function SystemsWorkspace', 'MatrixMode');
-  const classic = region(systems, 'function ClassicInequalityMode', 'function StudentBuildInequalityMode', 'ClassicInequalityMode');
+  const classic = region(systems, 'function ClassicInequalityMode', 'function LinearQuadraticMode', 'ClassicInequalityMode');
   for (const [label, mode] of [['linear', linear], ['matrix', matrix]]) {
     assert.match(region(mode, 'const check = () => {', 'gradeToolCheck(', `${label} check`), /if \(!classified\b/, `${label}: Check returns before an unclassified response is sent`);
     assert.match(mode, /usePersistentToolState\('classification', UNANSWERED\)/, `${label}: the classification opens unanswered`);
