@@ -305,10 +305,11 @@ import { teksCodeFromSkillId } from './platform/path/skillGraph.js';
 import { buildStudentPathOptions } from './platform/path/studentPathOptions.js';
 import { fetchStudentEvidenceEvents } from './platform/history/evidencePersistence.js';
 import { COMPARABILITY, describeDeliveredRigor, explainGrade, rigorComparability, splitGrade, splitGradesBySection } from './platform/teacher/gradeEvidence.js';
-import { assignmentGradeOverrideFor, projectedAssignmentTrackerFor, projectTeacherOverridesForDisplay } from './platform/grading/canonicalGradeProjection.js';
+import { assignmentGradeOverrideFor, canonicalPresentedAssignmentGrade, projectedAssignmentTrackerFor, projectTeacherOverridesForDisplay } from './platform/grading/canonicalGradeProjection.js';
 import { projectSectionRecoveriesForDisplay } from './platform/grading/sectionRecoveryGrades.js';
 import { classroomLaunchTarget, parseClassroomLaunchSearch } from './platform/classroom/classroomLaunchRoute.js';
 import { buildStudentDashboardModel, resolveNextAction } from './studentDashboardModel.js';
+import { buildTestCycleCardRefreshKey } from './platform/student/testCycleDiscovery.js';
 import {
   readStudentRouteState,
   studentRouteKey,
@@ -341,6 +342,7 @@ import StudentAssignmentsCenter from './components/student/StudentAssignmentsCen
 import { isTestCycleAssignment } from './platform/assessment/testCycle.js';
 import { attachTestCycleContract, preflightTestCycleCandidate, updateTestCyclePolicy } from './services/testCycleService.js';
 import { isSecureExamActive, useSecureExamActive } from './platform/assessment/secureExamPresence.js';
+import { getAssignmentEvidenceSummary, manageAssignmentLifecycle } from './services/assessmentLifecycleService.js';
 import { TEST_CYCLE_CONTRACT_EDIT, planTestCycleContractEdit } from './platform/assessment/testCycleContractEdit.js';
 import { STUDENT_DESTINATION } from './components/student/StudentGlobalNav.jsx';
 import StudentAssignmentResult from './components/student/StudentAssignmentResult.jsx';
@@ -520,6 +522,7 @@ const LiveChallengeStudent = lazy(() => import('./components/liveChallenge/LiveC
 // exam player, the calculator and all of MathLive with it — about 1 MB that a
 // static import put in front of every sign-in.
 const TestCycleCard = lazy(() => import('./components/student/TestCycleCard.jsx'));
+const TestCyclePreview = lazy(() => import('./components/teacher/TestCyclePreview.jsx'));
 // The Recovery runner mounts QuestionEngine, and with it MathLive (~780 KB):
 // a student who opens a Recovery fetches it then, not every student at sign-in.
 const SectionRecoveryRunner = lazy(() => import('./components/student/SectionRecoveryRunner.jsx'));
@@ -1158,12 +1161,10 @@ function App() {
 
   const testCycleCardRefreshKey = useMemo(() => {
     if (!activeTestCycleAssignmentId) return null;
-    const projection = testCycleGrades?.[activeTestCycleAssignmentId] || {};
-    const reviewRecords = tracker?.[activeTestCycleAssignmentId] || {};
-    const reviewState = Object.keys(reviewRecords).sort()
-      .map((index) => `${index}:${reviewRecords[index]?.status || ''}:${Number(reviewRecords[index]?.attempts || 0)}`)
-      .join(',');
-    return [projection.stage || '', projection.stageChangedAt || '', projection.recordedGrade ?? '', projection.correctionsCompleted ?? '', reviewState].join('|');
+    return buildTestCycleCardRefreshKey({
+      projection: testCycleGrades?.[activeTestCycleAssignmentId],
+      reviewRecords: tracker?.[activeTestCycleAssignmentId],
+    });
   }, [activeTestCycleAssignmentId, testCycleGrades, tracker]);
   // Marking-period metadata, shared by the student Grade Center and the teacher
   // control surface. Student-safe by construction: ids, labels, order, and
@@ -1770,6 +1771,15 @@ function App() {
   const [exportJsonCopied, setExportJsonCopied] = useState(false);
 
   const [deleteDialog, setDeleteDialog] = useState(null);
+  // What the server found before the teacher confirms a delete: null while
+  // loading, then { studentsWithWork, canDelete, classroomPublications, ... }
+  // or { error }. Delete is offered only when no student has worked on it.
+  const [deleteEvidence, setDeleteEvidence] = useState(null);
+  const [deleteClassroomAcknowledged, setDeleteClassroomAcknowledged] = useState(false);
+  // The Test Cycle a teacher is previewing as a student (an overlay), and the
+  // one the Tests tab should open first when reached from an assignment card.
+  const [testCyclePreviewAssignment, setTestCyclePreviewAssignment] = useState(null);
+  const [focusedTestCycleAssignmentId, setFocusedTestCycleAssignmentId] = useState(null);
   const [deleteStep, setDeleteStep] = useState(1);
   const [deleteTitleConfirmation, setDeleteTitleConfirmation] = useState('');
   const [deleteAcknowledged, setDeleteAcknowledged] = useState(false);
@@ -5704,10 +5714,17 @@ function App() {
     }
   };
 
-  const startTeacherPreview = (assignmentId) => {
+  const startTeacherPreview = (assignmentId, { lessonRuntime = false } = {}) => {
     const assignmentData = assignments.find(
       (assignment) => assignment.id === assignmentId,
     );
+    // A Test Cycle is not a lesson. "View as Student" opens the student's own
+    // card at every stage and the real secure Test items; the lesson runtime is
+    // used only when that preview asks for it, to play the Review.
+    if (!lessonRuntime && isTestCycleAssignment(assignmentData)) {
+      setTestCyclePreviewAssignment(assignmentData);
+      return;
+    }
     const assignmentQuestions = getStoredAssignmentQuestions(assignmentData);
     if (!assignmentQuestions.length) return;
 
@@ -5755,7 +5772,9 @@ function App() {
     const startFresh = () => {
       // Reuse the exact isolated student-preview runtime. This happens locally;
       // a slow/failed Firestore lookup must never block a teacher from teaching.
-      startTeacherPreview(assignmentId);
+      // Live Teaching walks the lesson runtime, a Test Cycle's Review included;
+      // the Test Cycle student preview is a different screen.
+      startTeacherPreview(assignmentId, { lessonRuntime: true });
       setLiveTeachingSession(startLiveTeachingSession({
         classId,
         assignmentId,
@@ -8931,9 +8950,51 @@ function App() {
     }
   };
 
+  /*
+   * ARCHIVE AND PAUSE GO THROUGH THE SERVER, AND SAY WHAT THEY DO.
+   *
+   * Both used to be a silent client toggle the server never read, so an
+   * "archived" Test was still open to students. They are now audited server
+   * actions (manageAssignmentLifecycle) that the Test Cycle and secure exam
+   * callables enforce, and each says, before it happens, what students will
+   * and will not lose.
+   */
   const handleToggleArchiveAssignment = async (assignment) => {
-    await updateDoc(doc(db, 'assignments', assignment.id), { archived: !assignment.archived });
-    await fetchAssignments();
+    const archiving = !assignment.archived;
+    const proceed = await confirmAction({
+      title: `${archiving ? 'Archive' : 'Unarchive'} “${assignment.title}”?`,
+      message: archiving
+        ? 'Students will no longer see it or be able to open it, including any secure Test or Retest. Their work and recorded grades are kept, and you can unarchive it at any time from the Archived view.'
+        : 'It returns to your active lists and becomes available to students again according to its dates.',
+      confirmLabel: archiving ? 'Archive' : 'Unarchive',
+    });
+    if (!proceed) return;
+    try {
+      await manageAssignmentLifecycle({ assignmentId: assignment.id, action: archiving ? 'archive' : 'unarchive' });
+      await fetchAssignments();
+      toastSuccess(archiving ? 'Archived' : 'Unarchived', `“${assignment.title}”`);
+    } catch (error) {
+      toastError(`Could not ${archiving ? 'archive' : 'unarchive'} the assignment`, error.message);
+    }
+  };
+
+  const handleTogglePauseAssignment = async (assignment) => {
+    const pausing = !assignment.unpublished;
+    const proceed = await confirmAction({
+      title: `${pausing ? 'Pause' : 'Resume'} “${assignment.title}” for students?`,
+      message: pausing
+        ? 'Students will not see it or be able to open it — including starting or continuing a secure Test — until you resume it. Nothing they have done is lost, and it stays in your lists marked Paused.'
+        : 'Students will see it again and can continue where they left off.',
+      confirmLabel: pausing ? 'Pause for students' : 'Resume for students',
+    });
+    if (!proceed) return;
+    try {
+      await manageAssignmentLifecycle({ assignmentId: assignment.id, action: pausing ? 'unpublish' : 'publish' });
+      await fetchAssignments();
+      toastSuccess(pausing ? 'Paused for students' : 'Visible to students again', `“${assignment.title}”`);
+    } catch (error) {
+      toastError(`Could not ${pausing ? 'pause' : 'resume'} the assignment`, error.message);
+    }
   };
 
   const toggleAssignmentSelected = (assignmentId) => {
@@ -8988,11 +9049,25 @@ function App() {
       confirmLabel: verb,
     });
     if (!proceed) return;
-    await applyBulkAssignmentPatch(
-      selectedAssignmentIds,
-      { archived: shouldArchive },
-      (done) => `${shouldArchive ? 'Archived' : 'Unarchived'} ${done} assignment${done === 1 ? '' : 's'}`,
-    );
+    // One audited server action per assignment (archive is enforced on the
+    // server now, so it cannot be a client batch write).
+    setBulkBusy(true);
+    const ids = Array.from(selectedAssignmentIds || []);
+    const failures = [];
+    for (const assignmentId of ids) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await manageAssignmentLifecycle({ assignmentId, action: shouldArchive ? 'archive' : 'unarchive' });
+      } catch (error) {
+        failures.push(`${assignments.find((item) => item.id === assignmentId)?.title || assignmentId}: ${error.message}`);
+      }
+    }
+    await fetchAssignments();
+    clearAssignmentSelection();
+    setBulkBusy(false);
+    if (failures.length) toastError(`${failures.length} could not be ${shouldArchive ? 'archived' : 'unarchived'}`, failures.slice(0, 3).join(' · '));
+    const done = ids.length - failures.length;
+    if (done) toastSuccess(`${shouldArchive ? 'Archived' : 'Unarchived'} ${done} assignment${done === 1 ? '' : 's'}`);
   };
 
   const handleBulkMoveToFolder = async (rawFolder) => {
@@ -9457,7 +9532,14 @@ function App() {
     setDeleteStep(1);
     setDeleteTitleConfirmation('');
     setDeleteAcknowledged(false);
+    setDeleteClassroomAcknowledged(false);
     setDeleteError('');
+    setDeleteEvidence(null);
+    // Asked of the server, which can see every student's work; the teacher's
+    // own roster snapshot cannot, and guessing low here is how evidence goes.
+    getAssignmentEvidenceSummary({ assignmentId: assignment.id })
+      .then((summary) => setDeleteEvidence(summary))
+      .catch((error) => setDeleteEvidence({ error: error.message || 'Could not check this assignment for student work.' }));
   };
 
   const closeDeleteDialog = () => {
@@ -9469,61 +9551,30 @@ function App() {
     setDeleteError('');
   };
 
+  /*
+   * DELETE IS A SERVER DECISION.
+   *
+   * This used to read every grade document in the school from the teacher's
+   * browser (which the rules refuse for an ordinary teacher, so delete simply
+   * failed) and, for the administrator, delete the assignment and strip each
+   * student's work for it — evidence and grades included, with Test Cycle
+   * records and secure sessions left orphaned. The server now refuses a delete
+   * once any student has worked on the assignment, and offers Archive, which
+   * hides it and keeps everything.
+   */
   const deleteAssignmentPermanently = async () => {
     if (!deleteDialog || !deleteAcknowledged) return;
-
     setIsDeleting(true);
     setDeleteError('');
-
     try {
-      const gradeSnapshot = await getDocs(collection(db, 'grades'));
-      const gradeDocs = gradeSnapshot.docs.filter(
-        (gradeDoc) => gradeDoc.id !== 'test_connection',
-      );
-      const questionCount = Array.isArray(deleteDialog.questions)
-        ? deleteDialog.questions.length
-        : 0;
-
-      // Remove the assignment first so students lose access immediately.
-      await deleteDoc(doc(db, 'assignments', deleteDialog.id));
-
-      // Then remove linked grade records and every per-question scratchpad.
-      // Work is chunked to remain safely below the per-batch write ceiling.
-      const operations = [];
-      gradeDocs.forEach((gradeDoc) => {
-        const studentData = gradeDoc.data() || {};
-        const linkedUpdate = {};
-        ['gradesByAssignment', 'assignmentActivity', 'dolGradesByAssignment', 'classworkGradesByAssignment', 'supportUsageByAssignment'].forEach((field) => {
-          if (studentData?.[field]?.[deleteDialog.id] !== undefined) linkedUpdate[`${field}.${deleteDialog.id}`] = deleteField();
-        });
-        if (Object.keys(linkedUpdate).length) {
-          operations.push({ kind: 'update', ref: gradeDoc.ref, data: linkedUpdate });
-        }
-        for (let index = 0; index < questionCount; index += 1) {
-          operations.push({
-            kind: 'delete',
-            ref: doc(
-              db,
-              'grades',
-              gradeDoc.id,
-              'scratchpads',
-              getScratchpadDocumentId(deleteDialog.id, index),
-            ),
-          });
-        }
+      await manageAssignmentLifecycle({
+        assignmentId: deleteDialog.id,
+        action: 'delete',
+        confirmTitle: deleteTitleConfirmation.trim(),
+        acknowledgeClassroom: deleteClassroomAcknowledged,
       });
-
-      const chunkSize = 400;
-      for (let startIndex = 0; startIndex < operations.length; startIndex += chunkSize) {
-        const batch = writeBatch(db);
-        operations.slice(startIndex, startIndex + chunkSize).forEach((operation) => {
-          if (operation.kind === 'update') batch.update(operation.ref, operation.data);
-          else batch.delete(operation.ref);
-        });
-        await batch.commit();
-      }
-
-      await Promise.all([fetchAssignments(), fetchTeacherRosterSummaries()]);
+      await fetchAssignments();
+      toastSuccess('Assignment deleted', `“${deleteDialog.title}” was deleted. No student had worked on it.`);
       setDeleteDialog(null);
       setDeleteStep(1);
       setDeleteTitleConfirmation('');
@@ -9531,9 +9582,22 @@ function App() {
       setDeleteError('');
     } catch (error) {
       console.error(error);
-      setDeleteError(
-        `The assignment could not be fully deleted. ${error.message}`,
-      );
+      setDeleteError(error.message || 'The assignment could not be deleted.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const archiveFromDeleteDialog = async () => {
+    if (!deleteDialog) return;
+    setIsDeleting(true);
+    try {
+      await manageAssignmentLifecycle({ assignmentId: deleteDialog.id, action: 'archive' });
+      await fetchAssignments();
+      toastSuccess('Assignment archived', `“${deleteDialog.title}” is hidden from students. Their work and grades are kept, and you can unarchive it from the Archived view.`);
+      setDeleteDialog(null);
+    } catch (error) {
+      setDeleteError(error.message || 'The assignment could not be archived.');
     } finally {
       setIsDeleting(false);
     }
@@ -9744,9 +9808,11 @@ function App() {
   const renderDeleteAssignmentDialog = () => {
     if (!deleteDialog) return null;
 
-    const impactedStudentCount = teacherStudentDataMode === 'full'
-      ? allStudents.filter((student) => student.gradesByAssignment?.[deleteDialog.id] !== undefined).length
-      : null;
+    const evidenceLoading = deleteEvidence === null;
+    const evidenceError = deleteEvidence?.error || '';
+    const studentsWithWork = Number(deleteEvidence?.studentsWithWork || 0);
+    const canDelete = deleteEvidence?.canDelete === true;
+    const classroomPosts = Number(deleteEvidence?.classroomPublications || 0);
     const titleMatches =
       deleteTitleConfirmation.trim() === deleteDialog.title.trim();
 
@@ -9801,28 +9867,36 @@ function App() {
 
           <div style={{ padding: '28px' }}>
             {deleteStep === 1 && (
-              <div>
-                <div
-                  style={{
-                    background: 'var(--mm-error-bg)',
-                    color: 'var(--mm-error-text)',
-                    border: '1px solid var(--mm-error-border-soft)',
-                    borderRadius: '10px',
-                    padding: '16px',
-                    marginBottom: '20px',
-                    lineHeight: 1.5,
-                  }}
-                >
-                  <strong>This cannot be undone.</strong> Students will immediately
-                  lose access to the assignment. Their saved answers, time, progress,
-                  and recorded grade for this assignment will also be permanently
-                  removed.
-                </div>
-                <p style={{ color: 'var(--mm-text)', lineHeight: 1.55 }}>
-                  {impactedStudentCount === null
-                    ? 'Linked student records will be verified during deletion without loading the entire grade history into this screen.'
-                    : <>Student records currently affected: <strong>{impactedStudentCount}</strong></>}
-                </p>
+              <div data-delete-evidence={evidenceLoading ? 'loading' : canDelete ? 'none' : 'present'}>
+                {evidenceLoading && (
+                  <p role="status" style={{ color: 'var(--mm-text)', lineHeight: 1.55 }}>Checking whether any student has worked on this assignment…</p>
+                )}
+                {evidenceError && (
+                  <p role="alert" style={{ color: 'var(--mm-error-text)', lineHeight: 1.55 }}>{evidenceError}</p>
+                )}
+                {!evidenceLoading && !evidenceError && !canDelete && (
+                  <div style={{ background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)', border: '1px solid var(--mm-warning-border)', borderRadius: '10px', padding: '16px', lineHeight: 1.55 }}>
+                    <strong>{studentsWithWork} student{studentsWithWork === 1 ? ' has' : 's have'} work on this assignment.</strong>{' '}
+                    Deleting it would erase their answers, evidence and grades, so MathMaster will not delete it.
+                    <br />
+                    <strong>Archive it instead:</strong> it disappears for students and from your active lists, every
+                    record and grade is kept, and you can unarchive it at any time.
+                  </div>
+                )}
+                {!evidenceLoading && !evidenceError && canDelete && (
+                  <>
+                    <div style={{ background: 'var(--mm-error-bg)', color: 'var(--mm-error-text)', border: '1px solid var(--mm-error-border-soft)', borderRadius: '10px', padding: '16px', marginBottom: '14px', lineHeight: 1.5 }}>
+                      <strong>This cannot be undone.</strong> No student has worked on this assignment, so it can be
+                      deleted. Any secure Test sessions opened for it (none started) are removed with it.
+                    </div>
+                    {classroomPosts > 0 && (
+                      <label style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', color: 'var(--mm-text)', lineHeight: 1.5 }}>
+                        <input type="checkbox" checked={deleteClassroomAcknowledged} onChange={(event) => setDeleteClassroomAcknowledged(event.target.checked)} style={{ marginTop: '4px' }} />
+                        <span>It is posted to Google Classroom. Deleting it here does not remove the Classroom post; I will remove that in Classroom.</span>
+                      </label>
+                    )}
+                  </>
+                )}
               </div>
             )}
 
@@ -9879,11 +9953,7 @@ function App() {
                     Final confirmation
                   </div>
                   <div style={{ color: 'var(--mm-text)', lineHeight: 1.5 }}>
-                    {impactedStudentCount === null
-                      ? 'You are permanently deleting this assignment and every linked student record for it.'
-                      : <>You are permanently deleting this assignment and its linked data
-                        for {impactedStudentCount} student record
-                        {impactedStudentCount === 1 ? '' : 's'}.</>}
+                    You are permanently deleting this assignment. No student has worked on it.
                   </div>
                 </div>
                 <label
@@ -9905,8 +9975,7 @@ function App() {
                     style={{ marginTop: '4px', width: '18px', height: '18px' }}
                   />
                   <span>
-                    I understand that students will lose access and that the assignment,
-                    answers, progress, time records, and grade data cannot be recovered.
+                    I understand that this assignment cannot be recovered after it is deleted.
                   </span>
                 </label>
               </div>
@@ -9953,19 +10022,27 @@ function App() {
               {deleteStep === 1 ? 'Cancel' : 'Back'}
             </button>
 
-            {deleteStep < 3 ? (
+            {deleteStep === 1 && !evidenceLoading && !evidenceError && !canDelete ? (
+              <button
+                onClick={archiveFromDeleteDialog}
+                disabled={isDeleting}
+                style={{ padding: '10px 18px', background: 'var(--mm-primary)', color: 'var(--mm-on-primary)', border: 'none', borderRadius: '8px', cursor: isDeleting ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}
+              >
+                {isDeleting ? 'Archiving…' : 'Archive instead'}
+              </button>
+            ) : deleteStep < 3 ? (
               <button
                 onClick={() => setDeleteStep((step) => step + 1)}
-                disabled={deleteStep === 2 && !titleMatches}
+                disabled={(deleteStep === 1 && (!canDelete || (classroomPosts > 0 && !deleteClassroomAcknowledged))) || (deleteStep === 2 && !titleMatches)}
                 style={{
                   padding: '10px 18px',
                   background:
-                    deleteStep === 2 && !titleMatches ? '#dadce0' : '#d93025',
-                  color: '#fff',
+                    (deleteStep === 1 && (!canDelete || (classroomPosts > 0 && !deleteClassroomAcknowledged))) || (deleteStep === 2 && !titleMatches) ? 'var(--mm-surface-control-strong)' : 'var(--mm-danger)',
+                  color: (deleteStep === 1 && (!canDelete || (classroomPosts > 0 && !deleteClassroomAcknowledged))) || (deleteStep === 2 && !titleMatches) ? 'var(--mm-disabled-text)' : 'var(--mm-on-primary)',
                   border: 'none',
                   borderRadius: '8px',
                   cursor:
-                    deleteStep === 2 && !titleMatches
+                    (deleteStep === 1 && (!canDelete || (classroomPosts > 0 && !deleteClassroomAcknowledged))) || (deleteStep === 2 && !titleMatches)
                       ? 'not-allowed'
                       : 'pointer',
                   fontWeight: 'bold',
@@ -9980,8 +10057,8 @@ function App() {
                 style={{
                   padding: '10px 18px',
                   background:
-                    !deleteAcknowledged || isDeleting ? '#dadce0' : '#d93025',
-                  color: '#fff',
+                    !deleteAcknowledged || isDeleting ? 'var(--mm-surface-control-strong)' : 'var(--mm-danger)',
+                  color: !deleteAcknowledged || isDeleting ? 'var(--mm-disabled-text)' : 'var(--mm-on-primary)',
                   border: 'none',
                   borderRadius: '8px',
                   cursor:
@@ -11252,6 +11329,20 @@ function App() {
     return (
       <div style={{ fontFamily: '"Segoe UI", sans-serif', backgroundColor: 'var(--mm-surface-sunken)', minHeight: '100vh', padding: '20px' }}>
         {renderDeleteAssignmentDialog()}
+        {testCyclePreviewAssignment && (
+          <Suspense fallback={<p role="status" style={{ position: 'fixed', top: 12, left: 12, zIndex: 11000 }}>Opening the student preview…</p>}>
+            <TestCyclePreview
+              assignment={testCyclePreviewAssignment}
+              onClose={() => setTestCyclePreviewAssignment(null)}
+              // Review is ordinary content: play it in the existing in-memory
+              // teacher preview, which writes nothing either.
+              onPreviewReview={(assignment) => {
+                setTestCyclePreviewAssignment(null);
+                startTeacherPreview(assignment.id, { lessonRuntime: true });
+              }}
+            />
+          </Suspense>
+        )}
         {renderExportJsonDialog()}
         {renderTeacherScratchpadDialog()}
         {teacherWorksheetDialog && (() => {
@@ -11391,6 +11482,7 @@ function App() {
           onOpenStudent={(studentId) => { setProfileDrawerStudentId(studentId); }}
           onOpenClass={(classContext) => { setAssignmentHubTarget(null); handleGoToClassFromHome(classContext); }}
           onPreview={(assignment) => { setAssignmentHubTarget(null); startTeacherPreview(assignment.id); }}
+          onOpenTestCycleResults={(assignment) => { setAssignmentHubTarget(null); setFocusedTestCycleAssignmentId(assignment.id); setTeacherTab('exams'); }}
           onPrint={(assignment) => { setAssignmentHubTarget(null); beginTeacherWorksheetExport(assignment); }}
           onEditDates={(assignment) => { setAssignmentHubTarget(null); setTeacherTab('assignments'); beginEditAssignmentDates(assignment); }}
           onEditSetup={(assignment) => { setAssignmentHubTarget(null); beginEditAssignmentSetup(assignment); }}
@@ -11780,6 +11872,8 @@ function App() {
                             <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: 'var(--mm-primary-soft)', color: 'var(--mm-primary-text)' }}>{assignmentType === 'notesClasswork' ? 'NOTES / CLASSWORK' : assignmentType.toUpperCase()}</span>
                             {hasSectionVersions ? <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)' }}>SECTION VERSIONS</span> : assignmentVariantMode === 'shared' && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: 'var(--mm-success-bg)', color: 'var(--mm-success-text)' }}>SHARED VERSION</span>}
                             {assignment.archived && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: 'var(--mm-surface-control)', color: 'var(--mm-text-muted)' }}>ARCHIVED</span>}
+                            {assignment.unpublished && !assignment.archived && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>PAUSED · HIDDEN FROM STUDENTS</span>}
+                            {isTestCycleAssignment(assignment) && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)' }}>TEST CYCLE</span>}
                             {/* A library item has no audience and no due date. Saying so
                                 plainly is the whole point of allowing it to exist. */}
                             {isLibraryAssignment(assignment) && <span style={{ padding: '4px 8px', borderRadius: '999px', fontSize: '11px', fontWeight: 900, background: 'var(--mm-warning-bg)', color: 'var(--mm-warning-text)' }}>NOT ASSIGNED</span>}
@@ -11796,6 +11890,11 @@ function App() {
                               { key: 'grades', label: 'Grades', onClick: () => openGradebookFor((assignment.assignedClassIds || []).includes(activeClass.classId) ? activeClass.classId : assignment.assignedClassIds[0], assignment.id) },
                               { key: 'export-grades', label: 'Export grades', onClick: () => openGradeExport({ classIds: (assignment.assignedClassIds || []).includes(activeClass.classId) ? [activeClass.classId] : [], assignmentId: assignment.id }) },
                             ] : []),
+                            ...(isTestCycleAssignment(assignment) ? [{
+                              key: 'test-cycle-results',
+                              label: 'Test results, release & retests',
+                              onClick: () => { setFocusedTestCycleAssignmentId(assignment.id); setTeacherTab('exams'); },
+                            }] : []),
                             { key: 'preview', label: 'View as Student', onClick: () => startTeacherPreview(assignment.id) },
                             { key: 'edit-questions', label: 'Edit Questions', onClick: () => openQuestionEditor(assignment) },
                             { key: 'edit-setup', label: 'Review / Edit Setup', onClick: () => beginEditAssignmentSetup(assignment) },
@@ -11826,6 +11925,11 @@ function App() {
                             }] : []),
                             { key: 'move-folder', label: 'Move to Folder', onClick: () => { setMovingFolderAssignmentId(assignment.id); setMovingFolderValue(assignment.folder || ''); } },
                             { key: 'duplicate', label: 'Duplicate', onClick: () => handleDuplicateAssignment(assignment) },
+                            ...(!isLibraryAssignment(assignment) && !assignment.archived ? [{
+                              key: 'pause',
+                              label: assignment.unpublished ? 'Resume for students' : 'Pause (hide from students)',
+                              onClick: () => handleTogglePauseAssignment(assignment),
+                            }] : []),
                             { key: 'archive', label: assignment.archived ? 'Unarchive' : 'Archive', onClick: () => handleToggleArchiveAssignment(assignment) },
                             { key: 'delete', label: 'Delete', tone: 'danger', onClick: () => openDeleteDialog(assignment) },
                           ]}
@@ -12230,7 +12334,7 @@ function App() {
                 )}
 
                 {selectedGradebookPeriod && selectedAssignment && !gradebookFilter.student && (
-                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: 'var(--mm-surface-sunken)' }}><th style={{ padding: '12px' }}>Student</th><th>Overall</th><th>Warm-Up</th><th>Classwork</th><th>Practice</th><th>DOL</th><th>Instructional condition</th><th>Activity</th><th></th></tr></thead><tbody>{gradebookVisibleStudents.map((student) => { const grades = projectedAssignmentTrackerFor({ student, assignment: selectedAssignment }) || undefined; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const practicePassRedeemed = gradebookHasPracticePass(student, selectedAssignment); const supportProfile = student.profile || null; const score = assignmentOverride ? assignmentOverride.score : grades ? calculateGrade(grades, selectedAssignment, { practicePassRedeemed, supportProfile }) : null; const sectionGrades = splitGradesBySection({ tracker: grades, assignment: selectedAssignment, practicePassRedeemed, supportProfile }); const recoveredSections = completedRecoverySections(student, selectedAssignment.id); const heldSections = heldRecoverySections(student, selectedAssignment.id); const challengeWarmup = warmupChallengeCounts(student, selectedAssignment.id); const recoveredMark = (section) => (<>{section === 'warmup' && challengeWarmup ? <span data-warmup-challenge-mark="true" title="The Warm-Up grade is this student's Live Challenge result. Open Details for the rounds." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>LC</span> : null}{recoveredSections.has(section) ? <span data-recovered-section={section} title="Includes a completed Practice-based Recovery. Open Details for Original, Recovery and Final." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>R</span> : null}{heldSections.has(section) ? <span data-held-recovery-section={section} title="A Practice-based Recovery is held for you: MathMaster could not grade one or more of its questions. The original shows until you resolve it in Details; Classroom and Grade Transfer wait." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 10, fontWeight: 900 }}>Held</span> : null}</>); const gradeSplit = splitGrade({ tracker: grades, assignment: selectedAssignment, practicePassRedeemed, supportProfile }); const gradeExplanation = grades ? explainGrade(gradeSplit) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <tr key={student.id} style={{ borderBottom: '1px solid var(--mm-border-soft)' }}><td style={{ padding: '12px' }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} showMissingId={false} profile={teacherLearningProfiles[student.id]} onOpen={setProfileDrawerStudentId} showBadge /><div style={{ marginTop: 3, color: 'var(--mm-text-muted)', fontSize: 11 }}>ID {student.id}</div></td><td><strong style={{ color: modified ? 'var(--mm-accent-text)' : score >= 70 ? 'var(--mm-success)' : 'var(--mm-text-strong)' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontWeight: 900, fontSize: '11px' }}>MOD</span>}
+                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}><thead><tr style={{ background: 'var(--mm-surface-sunken)' }}><th style={{ padding: '12px' }}>Student</th><th>Overall</th><th>Warm-Up</th><th>Classwork</th><th>Practice</th><th>DOL</th><th>Instructional condition</th><th>Activity</th><th></th></tr></thead><tbody>{gradebookVisibleStudents.map((student) => { const grades = projectedAssignmentTrackerFor({ student, assignment: selectedAssignment }) || undefined; const assignmentOverride = assignmentGradeOverrideFor(student, selectedAssignment.id); const practicePassRedeemed = gradebookHasPracticePass(student, selectedAssignment); const supportProfile = student.profile || null; const testCycleRow = isTestCycleAssignment(selectedAssignment); /* A Test Cycle's grade is its RECORDED grade (released Test, capped retest), not its Review tracker. */ const score = testCycleRow ? canonicalPresentedAssignmentGrade({ student, assignment: selectedAssignment }) : assignmentOverride ? assignmentOverride.score : grades ? calculateGrade(grades, selectedAssignment, { practicePassRedeemed, supportProfile }) : null; const sectionGrades = splitGradesBySection({ tracker: grades, assignment: selectedAssignment, practicePassRedeemed, supportProfile }); const recoveredSections = completedRecoverySections(student, selectedAssignment.id); const heldSections = heldRecoverySections(student, selectedAssignment.id); const challengeWarmup = warmupChallengeCounts(student, selectedAssignment.id); const recoveredMark = (section) => (<>{section === 'warmup' && challengeWarmup ? <span data-warmup-challenge-mark="true" title="The Warm-Up grade is this student's Live Challenge result. Open Details for the rounds." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>LC</span> : null}{recoveredSections.has(section) ? <span data-recovered-section={section} title="Includes a completed Practice-based Recovery. Open Details for Original, Recovery and Final." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-info-bg)', color: 'var(--mm-info-text)', fontSize: 10, fontWeight: 900 }}>R</span> : null}{heldSections.has(section) ? <span data-held-recovery-section={section} title="A Practice-based Recovery is held for you: MathMaster could not grade one or more of its questions. The original shows until you resolve it in Details; Classroom and Grade Transfer wait." style={{ marginLeft: 4, padding: '1px 5px', borderRadius: 999, background: 'var(--mm-warning-soft)', color: 'var(--mm-warning-text)', fontSize: 10, fontWeight: 900 }}>Held</span> : null}</>); const gradeSplit = splitGrade({ tracker: grades, assignment: selectedAssignment, practicePassRedeemed, supportProfile }); const gradeExplanation = grades ? explainGrade(gradeSplit) : null; const usage = student.supportUsageByAssignment?.[selectedAssignment.id] || {}; const modified = Boolean(usage.modified || usage.modifications?.length); const activity = student.assignmentActivity?.[selectedAssignment.id] || {}; return <tr key={student.id} style={{ borderBottom: '1px solid var(--mm-border-soft)' }}><td style={{ padding: '12px' }}><StudentNameLink studentId={student.id} studentName={formatStudentName(student)} showMissingId={false} profile={teacherLearningProfiles[student.id]} onOpen={setProfileDrawerStudentId} showBadge /><div style={{ marginTop: 3, color: 'var(--mm-text-muted)', fontSize: 11 }}>ID {student.id}</div></td><td><strong style={{ color: modified ? 'var(--mm-accent-text)' : score >= 70 ? 'var(--mm-success)' : 'var(--mm-text-strong)' }}>{score === null ? '—' : `${score}%`}</strong>{modified && <span title={`Accommodations: ${(usage.accommodations || []).join(', ') || 'none'}; Modifications: ${(usage.modifications || []).join(', ') || 'none'}`} style={{ marginLeft: '7px', padding: '3px 6px', borderRadius: '999px', background: 'var(--mm-accent-soft)', color: 'var(--mm-accent-text)', fontWeight: 900, fontSize: '11px' }}>MOD</span>}
                     {/*
                       COMPLETION AND PERFORMANCE, VISUALLY APART.
                       The grade above is unchanged. These two lines are what a
@@ -12357,6 +12461,8 @@ function App() {
                 // The teacher's own Test Cycles, administered beside the
                 // simulations they already run on this same secure runtime.
                 testCycleAssignments={assignments.filter(isTestCycleAssignment)}
+                focusedTestCycleAssignmentId={focusedTestCycleAssignmentId}
+                onPreviewTestCycle={(assignment) => setTestCyclePreviewAssignment(assignment)}
               />
             )}
 

@@ -203,3 +203,53 @@ export const testCycleHasUnseenChange = (studentId, assignmentId, stageChangedAt
     return Number(stageChangedAt) > seen;
   } catch { return false; }
 };
+
+/*
+ * WHEN AN OPEN CARD MUST ASK THE SERVER AGAIN.
+ *
+ * The card is a callable result; the live grade document is what tells it
+ * something changed. Every projection field the card's state depends on is in
+ * this key, because the server writes in steps: a release records the score
+ * first and attaches the corrections plan second. With only the stage in the
+ * key, the second write changed nothing the card watched, and a student sat at
+ * "Corrections being prepared" until they reloaded. The same happens for a
+ * retest session that is opened after the stage already says Retest.
+ */
+export const buildTestCycleCardRefreshKey = ({ projection = null, reviewRecords = null } = {}) => {
+  const value = projection && typeof projection === 'object' ? projection : {};
+  const review = reviewRecords && typeof reviewRecords === 'object' ? reviewRecords : {};
+  const reviewState = Object.keys(review).sort()
+    .map((index) => `${index}:${review[index]?.status || ''}:${Number(review[index]?.attempts || review[index]?.totalAttempts || 0)}`)
+    .join(',');
+  return [
+    value.stage || '',
+    value.stageChangedAt || '',
+    value.recordedGrade ?? '',
+    value.reviewComplete === true ? 'r' : '',
+    value.testState || '',
+    value.retestState || '',
+    value.correctionsTotal ?? '',
+    value.correctionsCompleted ?? '',
+    reviewState,
+  ].join('|');
+};
+
+/*
+ * WHY THIS CORRECTION, IN A STUDENT'S WORDS.
+ *
+ * The plan's `diagnosisDetail` is written for the teacher ("Targeting the
+ * missed standard texas:A.3C; no specific error pattern was recorded"). A
+ * student needs what happened and what to do, without standard codes. A named
+ * error pattern is mentioned only when the evidence recorded one — never
+ * invented — exactly as the plan decides.
+ */
+export const describeCorrectionTargetForStudent = (target = {}) => {
+  const missed = Math.max(0, Math.round(Number(target?.missed) || 0));
+  const what = missed > 0
+    ? `You missed ${missed} Test question${missed === 1 ? '' : 's'} on this skill.`
+    : 'This skill needs another look before your Retest.';
+  const why = target?.diagnosis === 'misconception'
+    ? ' Your answers showed a specific mistake pattern, and these questions practise exactly that.'
+    : '';
+  return `${what}${why} Practise it here on new questions — never the Test questions themselves.`;
+};

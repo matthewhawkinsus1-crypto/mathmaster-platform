@@ -29,6 +29,10 @@ export const SecureExamQuestionPlayer = ({ examType, sessionCalculatorMode = nul
     await onSubmit?.({ responses }, { calculatorUsed, accommodations: studentSupportProfile?.accommodations || [], modifications: studentSupportProfile?.modifications || [] });
   };
   const updateResponse = (id, value) => {
+    // While an answer is being recorded the item is already gone: a keystroke
+    // here would autosave a draft onto the submitted item and show "Answer
+    // saved" over the next question, which then appears empty.
+    if (busy) return;
     setResponses((current) => {
       const next = { ...current, [id]: value };
       onDraftChange?.({ responses: next }, { calculatorUsed, accommodations: studentSupportProfile?.accommodations || [], modifications: studentSupportProfile?.modifications || [] });
@@ -57,7 +61,7 @@ export const SecureExamQuestionPlayer = ({ examType, sessionCalculatorMode = nul
                   const selected = responses[field.id] === choice.id;
                   return (
                     <label key={choice.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '12px 13px', marginBottom: 8, border: selected ? '2px solid var(--mm-primary)' : '1px solid var(--mm-border)', borderRadius: 9, cursor: 'pointer', background: selected ? 'var(--mm-primary-subtle)' : 'var(--mm-surface)', boxShadow: selected ? '0 0 0 1px rgba(26,115,232,.08)' : 'none' }}>
-                      <input type="radio" name={field.id} value={choice.id} checked={selected} onChange={(event) => updateResponse(field.id, event.target.value)} style={{ marginTop: 3 }} />
+                      <input type="radio" name={field.id} value={choice.id} checked={selected} disabled={busy} onChange={(event) => updateResponse(field.id, event.target.value)} style={{ marginTop: 3 }} />
                       <MathText style={{ lineHeight: 1.5 }}>{choice.label}</MathText>
                     </label>
                   );
@@ -71,6 +75,7 @@ export const SecureExamQuestionPlayer = ({ examType, sessionCalculatorMode = nul
                     type="text"
                     inputMode={isNumericProfile(field.inputProfile) ? 'decimal' : undefined}
                     value={responses[field.id] ?? ''}
+                    readOnly={busy}
                     onChange={(event) => updateResponse(field.id, event.target.value)}
                     aria-label={field.label || `Response ${fieldIndex + 1}`}
                     style={{ width: '100%', minHeight: 48, padding: '10px 12px', border: '2px solid var(--mm-border)', borderRadius: 8, boxSizing: 'border-box', fontSize: 17 }}

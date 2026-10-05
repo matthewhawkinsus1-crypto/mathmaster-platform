@@ -114,6 +114,7 @@ const STUDENTS = {
   archivedStudent: 'ADVLC_ARCHIVED',
   scheduledStudent: 'ADVLC_SCHEDULED',
   outsider: 'ADVLC_OUTSIDER',        // another class entirely
+  bulkFailer: 'ADVLC_BULKFAIL',      // fails, released by the class-wide button
 };
 const ALL_STUDENTS = Object.values(STUDENTS);
 
@@ -472,8 +473,20 @@ test('a session locked for proctor review reads as in progress, never as "Start 
   assert.equal(locked.test.state, 'inProgress');
   const card = await cardFor(STUDENTS.sitter, ASSIGNMENTS.untimed);
   assert.notEqual(card.actionLabel, 'Start Test');
+
+  // The teacher's results table says the student is waiting on them.
+  const rowOf = async () => (await fns.listTeacherTestCycleRecords.run(teacherRequest({ assignmentId: ASSIGNMENTS.untimed })))
+    .rows.find((row) => row.studentId === STUDENTS.sitter);
+  const lockedRow = await rowOf();
+  assert.equal(lockedRow.bucket, 'needsAttention', 'a locked Test is not "Testing now"');
+  assert.equal(lockedRow.attention.examSessionId, examSessionId);
+  assert.equal(lockedRow.attention.lockedBy, 'teacher');
+
   await fns.proctorExamAction.run(teacherRequest({ examSessionId, action: 'unlock' }));
   assert.equal((await readSession(examSessionId)).status, 'in_progress');
+  const unlockedRow = await rowOf();
+  assert.equal(unlockedRow.bucket, 'testing');
+  assert.equal(unlockedRow.attention, null);
 });
 
 /* ======================================================================== */
@@ -645,4 +658,29 @@ test('pausing a Test Cycle closes it to students on the server and says so on th
   assert.ok(correction, 'a paused assessment issues nothing');
   await fns.manageAssignmentLifecycle.run(teacherRequest({ assignmentId: ASSIGNMENTS.manifest, action: 'publish' }));
   assert.equal((await cardFor(STUDENTS.failer, ASSIGNMENTS.manifest)).availability.reason, 'open');
+});
+
+test('a class-wide release of a FAILED Test builds that student\'s Corrections, exactly like a single release', async () => {
+  // The browser QA found this: "Release N Test results" recorded the score but
+  // left the student at "Corrections being prepared" with nothing to do.
+  await completeReview(STUDENTS.bulkFailer, RELEASE_ASSIGNMENT);
+  await assign(RELEASE_ASSIGNMENT);
+  const record = await readRecord(RELEASE_ASSIGNMENT, STUDENTS.bulkFailer);
+  await sit({ studentId: STUDENTS.bulkFailer, examSessionId: record.test.examSessionId, correctCount: 8, total: CERT_TOTAL_QUESTIONS });
+  await fns.finalizeSecureExam.run(studentRequest(STUDENTS.bulkFailer, { examSessionId: record.test.examSessionId })).catch(() => null);
+
+  const result = await fns.releaseTestCycleResults.run(teacherRequest({ assignmentId: RELEASE_ASSIGNMENT, stage: 'test' }));
+  assert.deepEqual(result.skipped, [], 'nothing submitted is skipped');
+  assert.ok(result.releasedStudentIds.includes(STUDENTS.bulkFailer));
+
+  const released = await readRecord(RELEASE_ASSIGNMENT, STUDENTS.bulkFailer);
+  assert.equal(released.test.state, 'released');
+  assert.equal(released.test.rawScore, 32);
+  assert.ok(released.corrections.planId, 'the plan exists and the record points at it');
+  assert.ok(released.corrections.total > 0);
+
+  const card = await cardFor(STUDENTS.bulkFailer, RELEASE_ASSIGNMENT);
+  assert.equal(card.stage, 'corrections');
+  assert.equal(card.canEnter, true, 'the student can start Corrections');
+  assert.ok(card.corrections?.targets?.length > 0, 'and has something to correct');
 });

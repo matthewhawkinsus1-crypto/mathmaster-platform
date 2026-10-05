@@ -56,6 +56,7 @@ export {
   SECURE_STAGES,
   INSTRUCTIONAL_STAGES,
   TEST_CYCLE_STAGE,
+  applyAssessmentAvailability,
   buildTestCyclePhaseStatus,
   resolveTestCycleStage,
   stageIsSecure,

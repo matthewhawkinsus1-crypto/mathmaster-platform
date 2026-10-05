@@ -22,7 +22,10 @@ test('teacher gradebook exposes Overall, Warm-Up, Classwork, Practice, and DOL a
   // every section is over the student's own items (reduced-item-count
   // accommodation, from the student's profile).
   assert.match(source, /splitGradesBySection\(\{\s*tracker:\s*grades,\s*assignment:\s*selectedAssignment(,\s*practicePassRedeemed)?(,\s*supportProfile)?\s*\}\)/);
-  assert.match(source, /const supportProfile = student\.profile \|\| null; const score = assignmentOverride/);
+  // Overall: a Test Cycle reads its RECORDED grade (canonical projection, which
+  // itself honours an assignment override first); every other assignment keeps
+  // override-then-tracker.
+  assert.match(source, /const supportProfile = student\.profile \|\| null;[^\n]*?const score = testCycleRow \? canonicalPresentedAssignmentGrade\(\{ student, assignment: selectedAssignment \}\) : assignmentOverride \? assignmentOverride\.score : grades \? calculateGrade/);
 });
 
 test('student workspace shows the active section score instead of only the whole-assignment score', () => {

@@ -100,30 +100,48 @@ const quietButtonStyle = {
 
 const factStyle = { margin: 0, fontSize: 13, color: 'var(--mm-text-muted)', lineHeight: 1.5 };
 
-export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile = null, onOpenReview = null, onExit = null, refreshKey = null }) => {
-  const [card, setCard] = useState(null);
+export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile = null, onOpenReview = null, onExit = null, refreshKey = null, previewCard = null, onPreviewEnter = null }) => {
+  /*
+   * PREVIEW MODE. A teacher previewing a stage hands the card a locally built
+   * payload in exactly the shape the server returns. The card then makes NO
+   * call at all — no student callable, no session, no record — and its action
+   * button goes to the preview's own handler instead of a secure runtime.
+   */
+  const previewing = Boolean(previewCard);
+  const [card, setCard] = useState(previewCard);
   const [mode, setMode] = useState('card');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const modeRef = useRef(mode);
   useEffect(() => { modeRef.current = mode; }, [mode]);
 
+  // The server writes a release in steps (score, then the corrections plan), so
+  // two loads can be in flight at once. Only the newest one may set the card:
+  // an older answer landing last would put "Corrections being prepared" back.
+  const loadSeqRef = useRef(0);
   const load = useCallback(async () => {
+    if (previewing) { setLoading(false); return; }
+    loadSeqRef.current += 1;
+    const seq = loadSeqRef.current;
     setLoading(true);
     try {
-      setCard(await getStudentTestCycle({ assignmentId }));
+      const next = await getStudentTestCycle({ assignmentId });
+      if (seq !== loadSeqRef.current) return;
+      setCard(next);
       setError('');
       // Opening the card is seeing it: the list's "New" marker for this cycle
       // clears until its stage changes again.
       if (studentId) markTestCycleSeen(studentId, assignmentId);
     } catch (loadError) {
+      if (seq !== loadSeqRef.current) return;
       setError(loadError.message || 'This assessment could not be opened.');
     } finally {
-      setLoading(false);
+      if (seq === loadSeqRef.current) setLoading(false);
     }
-  }, [assignmentId, studentId]);
+  }, [assignmentId, studentId, previewing]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (previewCard) setCard(previewCard); }, [previewCard]);
 
   // The server's answer can change while the card is open. Ask again when the
   // student's own grade document says something moved, and when they come back
@@ -196,6 +214,7 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
   // The two stages whose action is "open the released secure review".
   const isReviewAction = [TEST_CYCLE_STAGE.PASSED, TEST_CYCLE_STAGE.COMPLETE].includes(card.stage);
   const enter = () => {
+    if (previewing) return onPreviewEnter?.(card.stage);
     if (card.stage === TEST_CYCLE_STAGE.REVIEW) return onOpenReview?.(assignmentId);
     if (stageIsSecure(card.stage)) return setMode('secure');
     if (card.stage === TEST_CYCLE_STAGE.CORRECTIONS) return setMode('corrections');
@@ -272,7 +291,8 @@ export const TestCycleCard = ({ assignmentId, studentId = null, studentProfile =
             {card.delivery.questionCount ? ` ${card.delivery.questionCount} questions, one attempt each.` : ''}
           </p>
         )}
-        {card.policy?.summary && <p style={factStyle}>{card.policy.summary}</p>}
+        {/* Once the cycle is finished the breakdown above already shows the rule that was applied. */}
+        {card.policy?.summary && card.stage !== 'complete' && <p style={factStyle}>{card.policy.summary}</p>}
         {card.dueAt && <p style={factStyle}>Due {formatDateTime(card.dueAt)}.</p>}
       </div>
 

@@ -14,6 +14,18 @@ import { stackDivisions } from '../../../functions/shared/stackDivisions.mjs';
 // display delimiters ($$...$$, \(...\), \[...\]) remain unambiguous.
 
 /** Legacy source retained for callers that import it directly. */
+// The text of React children the way React would show it. JSX that builds a
+// label in pieces — `{label}{unit ? ` (${unit})` : ''}` — hands MathText an
+// ARRAY, and String(['Sum', '']) is "Sum,": every unit-less secure-exam field
+// label carried a stray comma. Booleans, null and undefined render nothing.
+export const mathTextFromChildren = (children) => {
+  if (!Array.isArray(children)) return children === null || children === undefined || typeof children === 'boolean' ? '' : String(children);
+  return children.flat(Infinity)
+    .filter((child) => child !== null && child !== undefined && typeof child !== 'boolean')
+    .map(String)
+    .join('');
+};
+
 export const MATH_SEGMENT_SOURCE = [
   '\\$\\$[\\s\\S]+?\\$\\$',
   '\\\\\\[[\\s\\S]+?\\\\\\]',

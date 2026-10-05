@@ -14,13 +14,13 @@ const source = fs.readFileSync('src/App.jsx', 'utf8');
 const startAssignmentBody = executableSource(region(
   source,
   'const startAssignment = (assignmentId, requestedQuestionIndex = 0, options = {}) => {',
-  'const startTeacherPreview = (assignmentId) => {',
+  'const startTeacherPreview = (',
   'startAssignment',
 ));
 
 const teacherPreviewEntryBody = executableSource(region(
   source,
-  'const startTeacherPreview = (assignmentId) => {',
+  'const startTeacherPreview = (',
   'const resumeLiveTeaching = () => {',
   'startTeacherPreview + teachAssignmentLive',
 ));

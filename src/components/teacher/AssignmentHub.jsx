@@ -9,6 +9,7 @@ import { classGradeProgress, classLiveProgress, PASSING_DISPLAY_THRESHOLD } from
 import { AssignmentLessonRows } from './ClassLessonControls.jsx';
 import AssignmentSupportLayer from './AssignmentSupportLayer.jsx';
 import { useClassPracticePasses } from '../../platform/rewards/useClassPracticePasses.js';
+import { isTestCycleAssignment } from '../../platform/assessment/testCycle.js';
 import './teacherWorkspace.css';
 
 /*
@@ -112,6 +113,7 @@ export default function AssignmentHub({
   onOpenExport = null,
   onOpenStudent = null,
   onPreview = null,
+  onOpenTestCycleResults = null,
   onPrint = null,
   onEditDates = null,
   onEditSetup = null,
@@ -280,6 +282,9 @@ export default function AssignmentHub({
             {onOpenGrades && classContext && <button type="button" className="tw-btn tw-btn--primary" onClick={() => onOpenGrades(classContext.classId, assignment.id)}>Grades{assignedClasses.length > 1 ? ` · ${classLabel}` : ''}</button>}
             {onOpenLive && classContext && <button type="button" className="tw-btn" onClick={() => onOpenLive(classContext, assignment.id)}>Live view</button>}
             {onOpenExport && assignedClasses.length > 0 && <button type="button" className="tw-btn" onClick={() => onOpenExport({ classIds: classContext ? [classContext.classId] : [], assignmentId: assignment.id })}>Export grades</button>}
+            {/* A Test Cycle's grades live in its results: release, corrections,
+                retests and the recorded grade. One click from the assignment. */}
+            {onOpenTestCycleResults && isTestCycleAssignment(assignment) && <button type="button" className="tw-btn tw-btn--primary" onClick={() => onOpenTestCycleResults(assignment)}>Test results &amp; release</button>}
             {onPreview && <button type="button" className="tw-btn" onClick={() => onPreview(assignment)}>View as student</button>}
             {/* In the flow, not a floating popover: a popover anchored to a
                 button that wraps to the left edge was cut off on tablets. */}

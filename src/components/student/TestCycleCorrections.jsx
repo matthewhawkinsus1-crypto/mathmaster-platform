@@ -6,6 +6,7 @@ import {
   issueTestCycleCorrectionQuestion,
   submitTestCycleCorrectionResponse,
 } from '../../services/testCycleService.js';
+import { describeCorrectionTargetForStudent } from '../../platform/student/testCycleDiscovery.js';
 
 /*
  * CORRECTIONS ARE TEACHING. THIS SCREEN IS NOT A SECURE EXAM.
@@ -122,11 +123,11 @@ export const TestCycleCorrections = ({ assignmentId, corrections, onProgress, on
           Corrections · {doneCount} of {targets.length} complete
         </div>
         <h1 style={{ margin: '8px 0 6px', fontSize: 'clamp(19px, 4vw, 25px)' }}>{activeTarget.label}</h1>
-        {/* Why this student is here, in the words of the evidence. When no
-            error pattern was recorded the text says the standard was missed,
-            because inventing a misconception would send them to remediate
-            something nobody observed. */}
-        <p style={{ margin: 0, color: 'var(--mm-text)', lineHeight: 1.55 }}>{activeTarget.diagnosisDetail}</p>
+        {/* Why this student is here, from the evidence, in a student's words
+            (the plan's diagnosisDetail is the teacher's version, with standard
+            codes). A mistake pattern is mentioned only when one was recorded:
+            inventing one would send them to remediate something nobody observed. */}
+        <p style={{ margin: 0, color: 'var(--mm-text)', lineHeight: 1.55 }}>{describeCorrectionTargetForStudent(activeTarget)}</p>
         <p style={{ margin: '10px 0 0', color: 'var(--mm-text-muted)', fontSize: 13 }}>
           Show this skill correctly {activeTarget.requiredCorrectResponses} time
           {activeTarget.requiredCorrectResponses === 1 ? '' : 's'} to finish this correction

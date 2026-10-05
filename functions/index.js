@@ -16329,18 +16329,6 @@ async function mutateTestCycleRecord(db, { assignmentId, studentId, shared, poli
   });
 }
 
-/** Whole-record write, kept for callers that genuinely replace a record. */
-async function persistTestCycleRecord(db, record, { shared, policy, stage = null }) {
-  const normalized = shared.record.normalizeTestCycleRecord(record);
-  return mutateTestCycleRecord(db, {
-    assignmentId: normalized.assignmentId,
-    studentId: normalized.studentId,
-    shared,
-    policy,
-    mutate: () => ({ record: normalized, stage }),
-  });
-}
-
 async function readTestCycleRecord(db, assignmentId, studentId, shared) {
   const snapshot = await db.collection(TEST_CYCLE_RECORDS).doc(testCycleRecordKey(assignmentId, studentId)).get();
   return shared.record.normalizeTestCycleRecord(
@@ -16409,13 +16397,6 @@ function buildCourseTestSession(db, {
     updatedAt: now,
   };
   return { ref, session };
-}
-
-/** Build and write a session outside any transaction (kept for direct callers). */
-async function createCourseTestSession(db, options) {
-  const { ref, session } = buildCourseTestSession(db, options);
-  await ref.set(session);
-  return session;
 }
 
 /**
@@ -17389,7 +17370,33 @@ const TEACHER_ROW_BUCKET = Object.freeze({
   RETEST_AWAITING_RELEASE: "retestAwaitingRelease",
   COMPLETE: "complete",
   RETEST_CLOSED: "retestClosed",
+  NEEDS_ATTENTION: "needsAttention",
 });
+
+/*
+ * A TEST LOCKED FOR REVIEW IS A STUDENT WAITING ON THEIR TEACHER.
+ *
+ * A lock pauses a Test; it does not end it, so the record keeps saying "in
+ * progress" (see `syncTestCycleSessionState`). On the results table that read
+ * as "Testing now", and the only place a teacher could learn the student was
+ * stuck was the separate proctor monitor. The live session decides.
+ */
+function testCycleRowAttention(record, lockedSessions) {
+  for (const stage of ["retest", "test"]) {
+    const examSessionId = String(record[stage]?.examSessionId || "");
+    const session = examSessionId ? lockedSessions.get(examSessionId) : null;
+    if (session) {
+      return {
+        kind: "locked",
+        stage,
+        examSessionId,
+        lockedBy: session.status === "locked_proctor" ? "teacher" : "integrity",
+        violationCount: Number(session.violationCount || 0),
+      };
+    }
+  }
+  return null;
+}
 
 function teacherRowBucket(stages, state, record, reviewProgress) {
   const stage = state?.stage;
@@ -17439,12 +17446,34 @@ exports.listTeacherTestCycleRecords = onCall(async (request) => {
     snapshots.forEach((gradeSnapshot) => gradeDataByStudent.set(gradeSnapshot.id, gradeSnapshot.exists ? gradeSnapshot.data() || {} : {}));
   }
 
+  // Only the sessions of students mid-Test can be locked; read exactly those.
+  const liveSessionIds = [];
+  recordsByStudent.forEach((raw) => {
+    const live = shared.record.normalizeTestCycleRecord(raw);
+    ["test", "retest"].forEach((stage) => {
+      if (live[stage].state === shared.record.SESSION_STATE.IN_PROGRESS && live[stage].examSessionId) {
+        liveSessionIds.push(String(live[stage].examSessionId));
+      }
+    });
+  });
+  const lockedSessions = new Map();
+  for (let index = 0; index < liveSessionIds.length; index += 100) {
+    const refs = liveSessionIds.slice(index, index + 100).map((id) => db.collection("examSessions").doc(id));
+    // eslint-disable-next-line no-await-in-loop
+    const docs = await db.getAll(...refs);
+    docs.forEach((doc) => {
+      const session = doc.exists ? doc.data() || {} : {};
+      if (secureExam.LOCKED_STATES.has(session.status)) lockedSessions.set(doc.id, session);
+    });
+  }
+
   const stages = shared.stages.TEST_CYCLE_STAGE;
   const rows = [...gradeDataByStudent.entries()].map(([studentId, gradeData]) => {
     const record = shared.record.normalizeTestCycleRecord(recordsByStudent.get(studentId) || { assignmentId, studentId });
     const grade = shared.record.recordGradeState(record, policy);
     const reviewProgress = testCycleLib.reviewProgress(assignment, gradeData?.gradesByAssignment?.[assignmentId] || {});
     const state = shared.stages.resolveTestCycleStage({ policy, record, reviewProgress });
+    const attention = testCycleRowAttention(record, lockedSessions);
     return {
       studentId,
       studentName: identity.studentNameForStorage(studentIdentityRecord(identity, studentId, gradeData)) || null,
@@ -17452,7 +17481,8 @@ exports.listTeacherTestCycleRecords = onCall(async (request) => {
       hasRecord: recordsByStudent.has(studentId),
       stage: state?.stage || null,
       statusLabel: state?.statusLabel || null,
-      bucket: teacherRowBucket(stages, state, record, reviewProgress),
+      bucket: attention ? TEACHER_ROW_BUCKET.NEEDS_ATTENTION : teacherRowBucket(stages, state, record, reviewProgress),
+      attention,
       review: { attempted: reviewProgress.attempted, total: reviewProgress.total, complete: reviewProgress.complete || record.review.complete === true },
       test: {
         state: record.test.state,
