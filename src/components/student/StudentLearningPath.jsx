@@ -118,7 +118,7 @@ function PathNode({ node, onChoose, practiceAs, disabled = false, passProgress =
           learning window yet" with no number is indistinguishable from a
           verdict. */}
       {node.blockedBy === 'pacing' && node.calendarDaysUntilStart > 0 && (
-        <p style={{ margin: '-4px 0 10px', fontSize: 12, color: 'var(--mm-primary)', fontWeight: 700 }}>
+        <p style={{ margin: '-4px 0 10px', fontSize: 12, color: 'var(--mm-primary-text)', fontWeight: 700 }}>
           Your class reaches this in about {node.calendarDaysUntilStart} {node.calendarDaysUntilStart === 1 ? 'day' : 'days'}.
           {' '}Nothing is wrong — this one is simply later in the course.
         </p>
