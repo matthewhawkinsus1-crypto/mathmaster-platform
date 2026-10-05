@@ -84,6 +84,7 @@ const coordinatePlaneConsumers = [
   'src/tools/polynomialWorkshop/PolynomialWorkshop.jsx',
   'src/tools/representationMatch/RepresentationMatch.jsx',
   'src/tools/sequenceExplorer/SequenceExplorer.jsx',
+  'src/tools/systemsWorkspace/StudentBuildInequalityMode.jsx',
   'src/tools/systemsWorkspace/SystemsWorkspace.jsx',
   'src/tools/transformations/TransformationsLab.jsx',
 ];

@@ -88,6 +88,60 @@ const lmrLessonSections = (id) => {
   ];
 };
 
+// `?questions=systems`: the same lesson shape, every question a Systems
+// Workspace graphing task a student builds — the student-build inequality
+// workflow (with and without the rewrite step), My Math Path's construct form
+// and a linear system — for the Systems Workspace screenshots and journeys
+// (tests/browser/systemsWorkspaceStudio.mjs). The DOL withholds outcomes.
+const systemsLessonSections = (id) => {
+  const inequalities = (questionId, activityRole, fields) => ({ questionId, activityRole, type: 'systemsWorkspace', mode: 'inequalities', standards: SYSTEMS, ...fields });
+  const build = { boundary: true, lineStyle: true, shading: true };
+  return [
+    { id: `${id}-wu`, role: 'warmup', title: 'Warm-Up', questions: [inequalities(`${id}-w1`, 'warmup', {
+      prompt: 'Graph the system x ≥ 1 and y < 3.',
+      inequalities: [{ orientation: 'vertical', x: 1, relation: '>=' }, { orientation: 'horizontal', y: 3, relation: '<' }],
+      studentBuild: build,
+      graph: { xMin: -6, xMax: 8, yMin: -4, yMax: 10 },
+    })] },
+    { id: `${id}-cw`, role: 'classwork', title: 'Classwork', questions: [
+      inequalities(`${id}-c1`, 'classwork', {
+        prompt: 'Rewrite each inequality, then graph the system.',
+        sourceConstraints: ['x - y >= -1', '3x - y <= 4'],
+        expectedConstraints: [{ A: 1, B: -1, C: 1, relation: '>=' }, { A: 3, B: -1, C: -4, relation: '<=' }],
+        studentBuild: { rewrite: true, ...build },
+        reasoning: { boundaryProbe: true },
+        testPoint: { x: 0, y: 0 },
+        askClassification: true,
+        graph: { xMin: -5, xMax: 5, yMin: -6, yMax: 6 },
+      }),
+      inequalities(`${id}-c2`, 'classwork', {
+        prompt: 'Graph the system y ≥ x + 1 and y < −0.5x + 6. Then classify the solution region.',
+        inequalities: [{ m: 1, b: 1, relation: '>=' }, { m: -0.5, b: 6, relation: '<' }],
+        studentBuild: build,
+        reasoning: { classifyRegion: true },
+        graph: { xMin: -6, xMax: 8, yMin: -4, yMax: 10 },
+      }),
+    ] },
+    { id: `${id}-pr`, role: 'practice', title: 'Practice', questions: [
+      inequalities(`${id}-p1`, 'practice', {
+        prompt: 'Solve the system by constructing both inequality graphs and shading ONLY their overlap: $y\\ge 2x-3$ and $y\\le -x+6$.',
+        interaction: 'construct',
+        ask: ['construction'],
+        inequalities: [{ m: 2, b: -3, relation: '>=' }, { m: -1, b: 6, relation: '<=' }],
+        graph: { xMin: -6, xMax: 6, yMin: -10, yMax: 12 },
+      }),
+      { questionId: `${id}-p2`, activityRole: 'practice', type: 'systemsWorkspace', mode: 'linear', standards: SYSTEMS, prompt: 'Solve the system y = 2x − 1 and y = −x + 5 by graphing.', system: { m1: 2, b1: -1, m2: -1, b2: 5 } },
+    ] },
+    { id: `${id}-dol`, role: 'dol', title: 'DOL', questions: [inequalities(`${id}-d1`, 'dol', {
+      prompt: 'Graph the system y ≥ x + 1 and y < −0.5x + 6. Then classify the solution region.',
+      inequalities: [{ m: 1, b: 1, relation: '>=' }, { m: -0.5, b: 6, relation: '<' }],
+      studentBuild: build,
+      reasoning: { classifyRegion: true },
+      graph: { xMin: -6, xMax: 8, yMin: -4, yMax: 10 },
+    })] },
+  ];
+};
+
 const lessonSections = (id) => ([
   { id: `${id}-wu`, role: 'warmup', title: 'Warm-Up', questions: [{ questionId: `${id}-w1`, activityRole: 'warmup', type: 'freeResponse', prompt: 'Solve 2x + 3 = 11.', expected: '4', standards: ONE_VARIABLE }] },
   { id: `${id}-cw`, role: 'classwork', title: 'Classwork', questions: [
@@ -136,7 +190,10 @@ export const IDENTITY_NAME_TO_ADD = Object.freeze({ firstName: 'Ellery', lastNam
 
 export const buildTeacherWorkflowFixture = ({ now = Date.now(), Timestamp, params = null } = {}) => {
   const questionSet = params?.get?.('questions');
-  const sectionsFor = questionSet === 'real' ? realLessonSections : questionSet === 'lmr' ? lmrLessonSections : lessonSections;
+  const sectionsFor = questionSet === 'real' ? realLessonSections
+    : questionSet === 'lmr' ? lmrLessonSections
+      : questionSet === 'systems' ? systemsLessonSections
+        : lessonSections;
   // `?p3StartMin=<n>`: Period 3 began n minutes ago (default 40). Under 10, the
   // Warm-Up is still inside its default ten-minute window.
   const p3StartMin = Number(params?.get?.('p3StartMin'));

@@ -522,6 +522,14 @@
   outline-offset: 2px;
 }
 
+/* Tapping a plane focuses it (so the arrow keys work next), and Chrome then
+   draws its default black ring around the whole graph for a MOUSE focus —
+   a frame that reads as "selected" after every plotted point. Keyboard focus
+   keeps the ring above. */
+.mathmaster-responsive-canvas:focus:not(:focus-visible) {
+  outline: none;
+}
+
 /* The task card already shows the equation in the normal student view.
    Repeat it only inside the enlarged graph dialog, where the task card is no
    longer visible. */

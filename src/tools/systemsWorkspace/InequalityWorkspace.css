@@ -1,0 +1,844 @@
+/*
+ * SYSTEMS OF INEQUALITIES: THE GRAPH STAYS WHERE THE WORK IS.
+ *
+ * The inequality modes used the generic tool split: the graph at the top of the
+ * left column, the controls growing down the right. Measured on the student
+ * build workflow (one two-constraint system), the graph was half off screen for
+ * half of the taps that needed it on a 1366×768 Chromebook, 0% visible while the
+ * student classified the region they had just combined, and on an 820×1180
+ * iPad held upright every tap meant scrolling ~2,000px up to the graph and back
+ * down again — 26,000px of scrolling for one problem.
+ *
+ * So the graph is a STAGE that pins where the student can always see it:
+ *
+ *   laptop, Chromebook, tablet on its side   two columns; the stage sticks
+ *                                            under the assignment's own sticky
+ *                                            stack (identity bar, navigator,
+ *                                            task card — App.css publishes their
+ *                                            measured heights) while the steps
+ *                                            scroll beside it
+ *   tablet upright (≤ 900px)                 one column; the stage pins at the
+ *                                            top and the steps scroll under it
+ *   phone upright                            the same, inside the question's
+ *                                            own scroller, the plane capped so
+ *                                            the current step keeps room
+ *   phone on its side                        two columns again: width is the
+ *                                            spare axis there
+ *   Work View                                the enlarged surface scrolls by
+ *                                            itself; the stage pins to its top
+ *
+ * The stage is a grid item rather than a column wrapper: a sticky element only
+ * moves within its parent, and as the grid's own child it has the whole height
+ * of the steps to stick across, in one column and in two.
+ *
+ * Every colour is a theme token (dark mode); constraint colours are saturated
+ * fills that read on both themes.
+ */
+
+.mm-ineq-layout {
+  /* Where the stage pins: below the assignment's sticky stack. The variables
+     are only published where that stack exists (App.css, ≥769px); elsewhere
+     the stage pins to the top of whatever scrolls. */
+  --mm-ineq-stage-top: calc(var(--mm-sticky-task-top, 0px) + var(--mm-sticky-task-height, 0px) + 8px);
+  --mm-ineq-stage-bottom: calc(var(--mm-action-bar-height, 0px) + 12px);
+  /* The stage's own padding and its zoom row, so the plane is sized to leave
+     them on screen too. */
+  --mm-ineq-stage-chrome: 84px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(min(100%, 320px), 1fr);
+  gap: 16px;
+  align-items: start;
+  text-align: left;
+  /* The page's root size is 18px; the workspace reads at the size of the
+     rest of the tool panels. */
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+/* The plane draws its own frame; the stage only gives it a surface to pin on
+   (content scrolls underneath it in one column). */
+.mm-ineq-graph-stage {
+  position: sticky;
+  top: var(--mm-ineq-stage-top);
+  z-index: 3;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0 0 4px;
+  border-radius: 12px;
+  background: var(--mm-surface);
+}
+
+/* Never taller than the room under the sticky stack, so the whole plane and its
+   zoom row are on screen while it is pinned. The floor keeps a usable target
+   on a short window, where scrolling is the better failure. */
+.mm-ineq-graph-stage .mathmaster-responsive-canvas {
+  max-height: max(220px, calc(100dvh - var(--mm-ineq-stage-top) - var(--mm-ineq-stage-bottom) - var(--mm-ineq-stage-chrome)));
+}
+
+/* Measured too short to pin (InequalityControls.jsx): the graph scrolls with
+   the work instead of covering it. */
+.mm-ineq-layout[data-pin='false'] .mm-ineq-graph-stage {
+  position: relative;
+  top: auto;
+  box-shadow: none;
+}
+
+.mm-ineq-side {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  /* The step column is as narrow as 260px on a phone held sideways: its
+     cards size themselves to it, not to the screen. */
+  container-type: inline-size;
+}
+
+@container (max-width: 340px) {
+  .mm-ineq-card-header {
+    gap: 8px;
+    padding: 6px 8px;
+  }
+
+  /* The segments carry the progress; the words stay for screen readers. */
+  .mm-ineq-card-status-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .mm-ineq-math {
+    font-size: 15px;
+  }
+
+  .mm-ineq-step-body {
+    padding: 10px;
+  }
+}
+
+/* A rewrite is algebra, not graphing: while one is open the solver gets the
+   wider column, and the plane comes back to full size when the boundary step
+   opens. */
+@media (min-width: 901px) and (min-height: 501px) {
+  .mm-ineq-layout[data-focus='steps'] {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.25fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .mm-ineq-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  /* Pinned over the steps scrolling beneath it, so it needs an edge: a
+     shadow, since the plane already draws its own frame. */
+  .mm-ineq-graph-stage {
+    padding: 6px 6px 2px;
+    box-shadow: 0 6px 14px rgba(32, 33, 36, 0.16);
+  }
+
+  /* Upright, the plane shares the screen with the step being worked on: it
+     takes at most 40% of the height (an iPad at 820×1180 keeps ~300px of step
+     under the stage, after the assignment's own sticky stack). */
+  .mm-ineq-graph-stage .mathmaster-responsive-canvas {
+    max-height: max(200px, min(40dvh, calc(100dvh - var(--mm-ineq-stage-top) - var(--mm-ineq-stage-bottom) - 300px)));
+  }
+
+  /* A control brought into view (focus, Enter to the next box, a step that
+     opens) lands below the pinned stage, not under it. The page's own
+     scroll-padding already clears the assignment's sticky stack above. */
+  .mm-ineq-layout[data-pin='true'] .mm-ineq-side :is(button, input, select, textarea, [tabindex]) {
+    scroll-margin-top: calc(var(--mm-ineq-stage-height, 0px) + 12px);
+  }
+}
+
+/* A phone scrolls the question inside its own container (MathToolMobileLayout),
+   with the task and the action bar outside it: the stage pins flush to the top
+   of that scroller, and nothing is published above it. */
+@media (max-width: 768px), (orientation: landscape) and (max-height: 500px) {
+  .mm-ineq-layout {
+    --mm-ineq-stage-top: 0px;
+    --mm-ineq-stage-bottom: 0px;
+  }
+
+  .mm-ineq-graph-stage {
+    padding: 6px;
+    border-radius: 12px;
+  }
+}
+
+@media (max-width: 768px) and (orientation: portrait) {
+  .mm-ineq-graph-stage .mathmaster-responsive-canvas {
+    max-height: 32dvh;
+  }
+}
+
+/* A phone on its side has width to spare and no height: graph and steps side by
+   side, the plane as tall as the short screen allows. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .mm-ineq-layout {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .mm-ineq-graph-stage {
+    box-shadow: none;
+  }
+
+  .mm-ineq-graph-stage .mathmaster-responsive-canvas {
+    max-height: max(160px, calc(100dvh - 150px));
+  }
+}
+
+/* Work View scrolls its surface itself, with the task in its header and
+   nothing pinned over the work. */
+.mathmaster-enlarged-figure .mm-ineq-layout {
+  --mm-ineq-stage-top: 0px;
+  --mm-ineq-stage-bottom: 0px;
+}
+
+.mathmaster-enlarged-figure .mm-ineq-graph-stage .mathmaster-responsive-canvas {
+  max-height: max(220px, calc(var(--mm-work-view-height, 100dvh) - 170px));
+}
+
+@media (max-width: 900px) {
+  .mathmaster-enlarged-figure .mm-ineq-graph-stage .mathmaster-responsive-canvas {
+    max-height: 34dvh;
+  }
+}
+
+/* ------------------------------------------------------------- the steps */
+
+.mm-ineq-card {
+  border: 1px solid var(--mm-tint-border);
+  border-radius: 12px;
+  background: var(--mm-surface);
+  color: var(--mm-text);
+}
+
+.mm-ineq-card[data-active='true'] {
+  border-color: var(--mm-primary-border);
+  box-shadow: inset 0 0 0 1px var(--mm-primary-border);
+}
+
+.mm-ineq-card[data-state='locked'] {
+  background: var(--mm-surface-sunken);
+}
+
+.mm-ineq-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--mm-text-strong);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mm-ineq-card-header:disabled {
+  cursor: default;
+}
+
+.mm-ineq-card-header:focus-visible,
+.mm-ineq-link:focus-visible,
+.mm-ineq-choice:focus-visible,
+.mm-ineq-action:focus-visible,
+.mm-ineq-submit:focus-visible,
+.mm-ineq-chip-remove:focus-visible {
+  outline: 3px solid var(--mm-focus);
+  outline-offset: 2px;
+}
+
+.mm-ineq-swatch {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+}
+
+.mm-ineq-card-title {
+  flex: 1 1 auto;
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.mm-ineq-card-name {
+  color: var(--mm-text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.mm-ineq-math {
+  color: var(--mm-text-strong);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.mm-ineq-card-status {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--mm-text-muted);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.mm-ineq-card-status[data-tone='done'] {
+  color: var(--mm-success-text);
+}
+
+.mm-ineq-card-status[data-tone='recorded'] {
+  color: var(--mm-primary-text);
+}
+
+/* The progress of a constraint, one segment per step. */
+.mm-ineq-progress {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.mm-ineq-progress > span {
+  width: 10px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--mm-border);
+}
+
+.mm-ineq-progress > span[data-state='done'] {
+  background: var(--mm-success);
+}
+
+.mm-ineq-progress > span[data-state='recorded'] {
+  background: var(--mm-primary);
+}
+
+.mm-ineq-progress > span[data-state='current'] {
+  background: var(--mm-primary-border);
+}
+
+.mm-ineq-steps {
+  margin: 0;
+  padding: 0 12px 12px;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.mm-ineq-step-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  color: var(--mm-text);
+  font-size: 14px;
+}
+
+.mm-ineq-step-row[data-step-state='locked'] {
+  color: var(--mm-text-subtle);
+}
+
+.mm-ineq-step-mark {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1.5px solid var(--mm-border-strong);
+  color: var(--mm-text-muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+/* Only a done step's mark carries a tone: a ✓ where outcomes are shown, a
+   neutral ● where they are withheld (never green there). */
+.mm-ineq-step-mark[data-tone='verdict'] {
+  border-color: var(--mm-success);
+  background: var(--mm-success-bg);
+  color: var(--mm-success-text);
+}
+
+.mm-ineq-step-mark[data-tone='recorded'] {
+  border-color: var(--mm-primary-border);
+  background: var(--mm-primary-soft);
+  color: var(--mm-primary-text);
+}
+
+.mm-ineq-step-name {
+  flex: none;
+  font-weight: 800;
+}
+
+.mm-ineq-step-summary {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--mm-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* The step being worked on. */
+.mm-ineq-step-body {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--mm-primary-border);
+  border-radius: 10px;
+  background: var(--mm-surface-tint);
+  color: var(--mm-text);
+}
+
+.mm-ineq-step-heading {
+  margin: 0;
+  color: var(--mm-text-strong);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.mm-ineq-step-heading:focus {
+  outline: none;
+}
+
+.mm-ineq-step-count {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--mm-primary-text);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mm-ineq-instruction {
+  margin: 0;
+  color: var(--mm-text);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.mm-ineq-note {
+  margin: 0;
+  color: var(--mm-text-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.mm-ineq-feedback {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--mm-surface);
+  border: 1px solid var(--mm-border);
+  color: var(--mm-text-strong);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.mm-ineq-feedback[data-tone='correct'] {
+  border-color: var(--mm-success-border);
+  background: var(--mm-success-bg);
+  color: var(--mm-success-text);
+}
+
+.mm-ineq-feedback[data-tone='revise'] {
+  border-color: var(--mm-warning-border-soft);
+  background: var(--mm-warning-subtle);
+  color: var(--mm-warning-text);
+}
+
+.mm-ineq-feedback[data-tone='recorded'] {
+  border-color: var(--mm-primary-border);
+  background: var(--mm-primary-subtle);
+  color: var(--mm-primary-text);
+}
+
+/* --------------------------------------------------------------- controls */
+
+.mm-ineq-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.mm-ineq-action {
+  min-height: 44px;
+  padding: 9px 16px;
+  border: 1px solid var(--mm-primary);
+  border-radius: 10px;
+  background: var(--mm-primary);
+  color: var(--mm-on-primary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mm-ineq-action[data-variant='secondary'] {
+  border-color: var(--mm-primary-border);
+  background: var(--mm-surface);
+  color: var(--mm-primary-text);
+}
+
+.mm-ineq-action:disabled {
+  border-color: var(--mm-border);
+  background: var(--mm-surface-control);
+  color: var(--mm-disabled-text);
+  cursor: not-allowed;
+}
+
+.mm-ineq-link {
+  min-height: 36px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--mm-primary-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.mm-ineq-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.mm-ineq-choices > legend {
+  margin-bottom: 6px;
+  padding: 0;
+  color: var(--mm-text-strong);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.mm-ineq-choice {
+  min-height: 44px;
+  padding: 8px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--mm-control-border);
+  border-radius: 10px;
+  background: var(--mm-surface);
+  color: var(--mm-text-strong);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mm-ineq-choice[aria-pressed='true'] {
+  border-color: var(--mm-primary);
+  background: var(--mm-primary-soft);
+  color: var(--mm-primary-text);
+  box-shadow: inset 0 0 0 1px var(--mm-primary);
+}
+
+.mm-ineq-choice svg {
+  flex: none;
+}
+
+/* One yes/no question per row: the question, then its two answers. */
+.mm-ineq-question {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.mm-ineq-question > legend {
+  float: left;
+  padding: 0;
+  color: var(--mm-text-strong);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.mm-ineq-question .mm-ineq-choices {
+  flex-wrap: nowrap;
+}
+
+@media (max-width: 480px) {
+  .mm-ineq-question {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.mm-ineq-field-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.mm-ineq-field {
+  display: grid;
+  gap: 4px;
+  color: var(--mm-text-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mm-ineq-input {
+  box-sizing: border-box;
+  min-height: 44px;
+  width: 7.5em;
+  padding: 9px 10px;
+  border: 1px solid var(--mm-control-border);
+  border-radius: 9px;
+  background: var(--mm-input-bg);
+  color: var(--mm-input-text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.mm-ineq-input[data-size='narrow'] {
+  width: 5em;
+}
+
+.mm-ineq-select {
+  box-sizing: border-box;
+  justify-self: start;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--mm-control-border);
+  border-radius: 9px;
+  background: var(--mm-input-bg);
+  color: var(--mm-input-text);
+  font: inherit;
+  font-size: 14px;
+}
+
+/* A boundary point the student plotted, or the slot waiting for one. */
+.mm-ineq-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mm-ineq-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 2px 4px 2px 10px;
+  border: 1px solid var(--mm-control-border);
+  border-radius: 999px;
+  background: var(--mm-surface);
+  color: var(--mm-text-strong);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.mm-ineq-chip[data-empty='true'] {
+  padding-right: 12px;
+  border-style: dashed;
+  color: var(--mm-text-muted);
+  font-weight: 600;
+}
+
+.mm-ineq-chip[data-next='true'] {
+  border-color: var(--mm-primary);
+  color: var(--mm-primary-text);
+}
+
+.mm-ineq-chip-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.mm-ineq-chip-remove {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--mm-text-muted);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mm-ineq-chip-remove:hover {
+  background: var(--mm-surface-hover);
+  color: var(--mm-text-strong);
+}
+
+/* "Check my work": the one action that records an attempt. Quiet until every
+   step the question asks is done, then the strongest thing on the panel. */
+.mm-ineq-submit {
+  width: 100%;
+  min-height: 48px;
+  padding: 11px 18px;
+  border: 1px solid var(--mm-primary-border);
+  border-radius: 12px;
+  background: var(--mm-surface);
+  color: var(--mm-primary-text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mm-ineq-submit[data-ready='true'] {
+  border-color: var(--mm-primary);
+  background: var(--mm-primary);
+  color: var(--mm-on-primary);
+}
+
+.mm-ineq-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The eye button that hides a constraint's line and shading. */
+.mm-ineq-visibility {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: -6px -6px -6px 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--mm-text-muted);
+  cursor: pointer;
+}
+
+.mm-ineq-visibility[aria-pressed='false'] {
+  color: var(--mm-text-subtle);
+}
+
+.mm-ineq-visibility:hover {
+  background: var(--mm-surface-hover);
+}
+
+.mm-ineq-visibility:focus-visible {
+  outline: 3px solid var(--mm-focus);
+  outline-offset: -3px;
+}
+
+/* A one-row card: a constraint the question gives, a step not open. */
+.mm-ineq-card-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 4px 0 12px;
+  font-size: 14px;
+}
+
+.mm-ineq-card-row .mm-ineq-card-title {
+  gap: 0;
+}
+
+.mm-ineq-modeling-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--mm-text-strong);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.mm-ineq-vertex {
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--mm-border);
+  border-radius: 10px;
+  background: var(--mm-surface);
+}
+
+.mm-ineq-vertex-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--mm-text-strong);
+  font-weight: 800;
+}
+
+/* One boundary point on one line: its name, then x and y. */
+.mm-ineq-point-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.mm-ineq-point-row[data-next='true'] .mm-ineq-input {
+  border-color: var(--mm-primary);
+}
+
+.mm-ineq-point-name {
+  min-width: 4.2em;
+  color: var(--mm-text-strong);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.mm-ineq-inline-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--mm-text-muted);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.mm-ineq-modeling-row .mm-ineq-input {
+  width: 4.2em;
+}
+
+.mm-ineq-modeling-row .mm-ineq-select {
+  min-width: 0;
+  width: auto;
+}

@@ -134,6 +134,11 @@ export default function CoordinatePlane({
   // shows several planes side by side (three graphs of one line) says it once
   // above them instead of five lines under every plane. The screen-reader
   // readout of the cursor is separate and always stays.
+  //
+  // 'keyboard': only the keyboard sentence, and only while the plane has
+  // keyboard focus. For a tool whose current step already says, beside the
+  // plane, what a tap does — a standing gesture line under the plane would say
+  // it twice, for the whole question.
   showPlotHelp = true,
   // A read-only plane whose points the student must READ (a GIVEN graph)
   // draws the same snap-step minor grid a plotting plane does. Without it,
@@ -682,12 +687,14 @@ export default function CoordinatePlane({
               needs is one sentence; keyboard and zoom detail folds away, and
               stays folded once put away. A screen reader already has the
               keyboard instructions in the plane's accessible name. */}
-          {showPlotHelpHere ? (
+          {showPlotHelpHere && (showPlotHelp !== 'keyboard' || keyboardHelpVisible) ? (
             <div className="mathmaster-plot-help" style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--mm-text-muted)', textAlign: 'left' }}>
-              <p style={{ margin: 0 }}>
-                Press the grid and slide to aim{minorStep === 1 ? ' at a whole-number point' : ''} — the point lands where you
-                let go{canMovePoints ? '; drag a point to move it' : ''}.
-              </p>
+              {showPlotHelp === 'keyboard' ? null : (
+                <p style={{ margin: 0 }}>
+                  Press the grid and slide to aim{minorStep === 1 ? ' at a whole-number point' : ''} — the point lands where you
+                  let go{canMovePoints ? '; drag a point to move it' : ''}.
+                </p>
+              )}
               {/* The keyboard sentence appears when the plane has KEYBOARD
                   focus — when the student who needs it is using it — instead of
                   sitting under every plane or in one more folded row (a fold

@@ -88,6 +88,20 @@ const startsUnanswered = async (page, name, index = 0) => {
   check(state.value === '' && state.text === 'Choose…', `${fixture}: "${name}"${index ? ` #${index + 1}` : ''} opens on Choose…`, JSON.stringify(state));
 };
 
+// A two- or three-way judgment offered as one-tap buttons (the inequality
+// modes): a group named by its question, its choices pressed or not.
+const group = (page, name, index = 0) => page.getByRole('group', { name, exact: true }).nth(index);
+const pressedChoices = (page, name, index = 0) => group(page, name, index).locator('button[aria-pressed="true"]')
+  .evaluateAll((buttons) => buttons.map((choice) => choice.textContent.trim()));
+const startsUnpressed = async (page, name, index = 0) => {
+  const pressed = await pressedChoices(page, name, index);
+  check(pressed.length === 0, `${fixture}: "${name}"${index ? ` #${index + 1}` : ''} opens with nothing chosen`, JSON.stringify(pressed));
+};
+const pick = async (page, name, label, index = 0) => {
+  await group(page, name, index).getByRole('button', { name: label, exact: true }).click();
+  await settle(page, 120);
+};
+
 /** A tool that grades an unanswered choice as wrong: blank earns nothing, the right choice is credited. */
 const blankThenRight = async (page, { checkLabel, answer }) => {
   const before = (await grades(page)).length;
@@ -216,14 +230,14 @@ const FIXTURES = {
   async 'inequality-analyze'() {
     const name = 'Is the purple point (5, 1) in the feasible region?';
     const { page } = await open('inequality-analyze');
-    await startsUnanswered(page, name);
+    await startsUnpressed(page, name);
     await fill(page, 'spinbutton', 'Your own feasible x', 0);
     await fill(page, 'spinbutton', 'Your own feasible y', 2);
     // The marked point is outside the region, so "no" is right — and a blank
     // used to be read as "no".
     check(await button(page, 'Check feasible region').isDisabled(), `${fixture}: a blank test-point answer is not sent (and not read as "no")`);
     check((await grades(page)).length === 0, `${fixture}: nothing was sent`);
-    await choose(page, name, 'No');
+    await pick(page, name, 'No');
     await press(page, 'Check feasible region');
     check((await lastGrade(page))?.isCorrect === true, `${fixture}: answered "No", graded right`, brief(await lastGrade(page)));
     await page.close();
@@ -232,8 +246,8 @@ const FIXTURES = {
   async 'inequality-construct'() {
     const { page } = await open('inequality-construct');
     for (const index of [0, 1]) {
-      await startsUnanswered(page, 'Boundary style', index);
-      await startsUnanswered(page, 'Shade', index);
+      await startsUnpressed(page, 'Boundary style', index);
+      await startsUnpressed(page, 'Shade', index);
     }
     const points = [[0, 0, 1, 1], [0, 4, 1, 3]];
     for (const [index, [x1, y1, x2, y2]] of points.entries()) {
@@ -242,11 +256,11 @@ const FIXTURES = {
       await fill(page, 'spinbutton', 'Boundary point 2: x', x2, index);
       await fill(page, 'spinbutton', 'Boundary point 2: y', y2, index);
     }
-    await choose(page, 'Boundary style', 'Solid', 0);
-    await choose(page, 'Shade', 'Above the boundary', 0);
+    await pick(page, 'Boundary style', 'Solid', 0);
+    await pick(page, 'Shade', 'Above the boundary', 0);
     check(await button(page, 'Check inequality graph').isDisabled(), `${fixture}: one boundary's style and shading still unanswered: not sent`);
-    await choose(page, 'Boundary style', 'Dashed', 1);
-    await choose(page, 'Shade', 'Below the boundary', 1);
+    await pick(page, 'Boundary style', 'Dashed', 1);
+    await pick(page, 'Shade', 'Below the boundary', 1);
     await press(page, 'Check inequality graph');
     check((await lastGrade(page))?.isCorrect === true, `${fixture}: every choice made right, graded right`, brief(await lastGrade(page)));
     await page.close();
@@ -254,13 +268,13 @@ const FIXTURES = {
 
   async 'inequality-modeling'() {
     const { page } = await open('inequality-modeling');
-    await startsUnanswered(page, 'Relation');
-    await fill(page, 'spinbutton', 'Coefficient of x', 1);
-    await fill(page, 'spinbutton', 'Coefficient of y', 1);
-    await fill(page, 'spinbutton', 'Constant', 10);
-    check(await button(page, 'Send constraints to Systems Workspace').isDisabled(), `${fixture}: a constraint with no relation chosen is not a constraint yet`);
-    await choose(page, 'Relation', '≤');
-    check(!(await button(page, 'Send constraints to Systems Workspace').isDisabled()), `${fixture}: with the relation chosen it can be sent`);
+    await startsUnanswered(page, 'Constraint 1: relation');
+    await fill(page, 'spinbutton', 'Constraint 1: coefficient of x', 1);
+    await fill(page, 'spinbutton', 'Constraint 1: coefficient of y', 1);
+    await fill(page, 'spinbutton', 'Constraint 1: constant', 10);
+    check(await button(page, 'Graph these constraints').isDisabled(), `${fixture}: a constraint with no relation chosen is not a constraint yet`);
+    await choose(page, 'Constraint 1: relation', '≤');
+    check(!(await button(page, 'Graph these constraints').isDisabled()), `${fixture}: with the relation chosen it can be sent`);
     await page.close();
   },
 

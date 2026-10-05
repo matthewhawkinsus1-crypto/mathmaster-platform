@@ -63,6 +63,8 @@ import { executableSource, region } from '../platform/helpers/sourceContract.mjs
 
 const read = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 const workspace = executableSource(read('src/tools/systemsWorkspace/SystemsWorkspace.jsx'));
+// The student-build inequality mode is its own file; SystemsWorkspace.jsx routes to it.
+const studentBuild = executableSource(read('src/tools/systemsWorkspace/StudentBuildInequalityMode.jsx'));
 const threePlanes = executableSource(read('src/tools/systemsWorkspace/ThreePlaneWorkspace.jsx'));
 const rewriteSource = executableSource(read('src/tools/systemsWorkspace/EmbeddedInequalityRewrite.jsx'));
 
@@ -1265,28 +1267,35 @@ test('correct work graded against an altered key fails, in every mode', () => {
 // THE COMPONENTS ASK THE SHARED GRADER — AND ONLY IT.
 // ===========================================================================
 test('every Check handler marks through gradeToolCheck with the shared grader and reports the same work', () => {
-  assert.match(workspace, /import systemsWorkspaceGrader from '\.\.\/\.\.\/\.\.\/functions\/shared\/serverGrading\/tools\/systemsWorkspace\.mjs';/);
-  assert.match(workspace, /import \{ gradeToolCheck \} from '\.\.\/shared\/sharedToolGrading\.js';/);
-  assert.match(workspace, /import useReportToolWork from '\.\.\/shared\/useReportToolWork\.js';/);
+  for (const source of [workspace, studentBuild]) {
+    assert.match(source, /import systemsWorkspaceGrader from '\.\.\/\.\.\/\.\.\/functions\/shared\/serverGrading\/tools\/systemsWorkspace\.mjs';/);
+    assert.match(source, /import \{ gradeToolCheck \} from '\.\.\/shared\/sharedToolGrading\.js';/);
+    assert.match(source, /import useReportToolWork from '\.\.\/shared\/useReportToolWork\.js';/);
+  }
   const modes = [
     ['function LinearMode(', 'function InequalityMode(', 'linear', /const work = \{ x, y, classification \};/],
     [null, null, 'inequalities', /const work = \{\s*construction:construction\.map\(\(entry\) => \(\{\s*points: \[\s*\{ x:parseNumericAnswer\(entry\.x1\), y:parseNumericAnswer\(entry\.y1\) \},\s*\{ x:parseNumericAnswer\(entry\.x2\), y:parseNumericAnswer\(entry\.y2\) \},\s*\],\s*boundaryStyle:entry\.boundaryStyle,\s*shade:entry\.shade,\s*\}\)\),\s*\.\.\.\(ask\.includes\('testPoint'\) \? \{ testChoice \} : \{\}\),\s*\.\.\.\(ask\.includes\('candidate'\) \? \{ candidate:\{ x:parseNumericAnswer\(x\), y:parseNumericAnswer\(y\) \} \} : \{\}\),\s*\};/],
-    ['function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'inequalities-studentBuild', /modelingEntries, modelingSent: Boolean\(modelingSent\)[\s\S]*?rewrite: rewriteEntries\.map[\s\S]*?graphingForm: entry\?\.graphingForm !== undefined \? entry\.graphingForm : \(entry\?\.verifiedConstraint \|\| null\)[\s\S]*?build,\s*regionClassification,\s*\.\.\.\(teacherPointApplicable \? \{ teacherPointResponse \} : \{\}\),\s*\.\.\.\(studentPointApplicable \? \{ studentTestPoint, studentPointResponse \} : \{\}\),\s*vertices,/],
+    ['export default function StudentBuildInequalityMode(', null, 'inequalities-studentBuild', /modelingEntries, modelingSent: Boolean\(modelingSent\)[\s\S]*?rewrite: rewriteEntries\.map[\s\S]*?graphingForm: entry\?\.graphingForm !== undefined \? entry\.graphingForm : \(entry\?\.verifiedConstraint \|\| null\)[\s\S]*?build,\s*regionClassification,\s*\.\.\.\(teacherPointApplicable \? \{ teacherPointResponse \} : \{\}\),\s*\.\.\.\(studentPointApplicable \? \{ studentTestPoint, studentPointResponse \} : \{\}\),\s*vertices,/],
     ['function LinearQuadraticMode(', 'function MatrixMode(', 'linearQuadratic', /const work = \{ count:parseNumericAnswer\(count\), points:studentPoints \};/],
     ['function MatrixMode(', 'const MODE_TASKS', "mode:isMatrix3?'matrix3':'matrix'", /const work = \{classification,x,y,\.\.\.\(isMatrix3\?\{z,technologyUsed\}: \{\}\)\};/],
   ];
   for (const [from, to, mode, workShape] of modes) {
     const body = mode === 'inequalities'
-      ? region(region(workspace, 'function InequalityMode(', 'const CONSTRUCTION_METHODS', 'InequalityMode'), 'const updateConstruction', 'const shownPolygon', 'InequalityMode check')
-      : region(workspace, from, to, mode);
+      ? region(region(workspace, 'function ClassicInequalityMode(', 'function LinearQuadraticMode(', 'ClassicInequalityMode'), 'const updateConstruction', 'const shownPolygon', 'ClassicInequalityMode check')
+      : mode === 'inequalities-studentBuild'
+        ? studentBuild.slice(studentBuild.indexOf(from))
+        : region(workspace, from, to, mode);
+    assert.ok(body.length > 0, `${mode}: found`);
     assert.match(body, workShape, `${mode}: the work the grader reads is the work the screen holds`);
     assert.match(body, /useReportToolWork\(work\);/, `${mode}: live work is reported for deadlines`);
     assert.match(body, /const result = gradeToolCheck\(systemsWorkspaceGrader, questionData, work\);\s*submit\(\{ isCorrect: result\.isCorrect, score: result\.score \}, work, \{ mode:\s*['"a-zA-Z:?-]+[^}]*parts: result\.parts \}\);/, `${mode}: Check submits the shared verdict`);
     assert.ok(body.includes(mode), mode);
   }
   // Nothing in the workspace marks a typed answer itself any more.
-  assert.doesNotMatch(workspace, /matchesNumericAnswer|samePointSet|satisfiesLinearInequality\(|\bchecks:\s*\{|expected:\s*(solution|intersections)/);
-  assert.doesNotMatch(workspace, /parts\.filter\(Boolean\)\.length/);
+  for (const source of [workspace, studentBuild]) {
+    assert.doesNotMatch(source, /matchesNumericAnswer|samePointSet|satisfiesLinearInequality\(|\bchecks:\s*\{|expected:\s*(solution|intersections)/);
+    assert.doesNotMatch(source, /parts\.filter\(Boolean\)\.length/);
+  }
 
   const spatialCheck = region(threePlanes, 'const answerSurface', 'const revealLabel', 'ThreePlaneWorkspace check');
   assert.match(spatialCheck, /responses: answerFields[\s\S]*?\.map\(\(field\) => \(\{ id: field\.id, value: responses\?\.\[field\.id\] \?\? '' \}\)\)/);
@@ -1298,7 +1307,7 @@ test('every Check handler marks through gradeToolCheck with the shared grader an
 
 test('feedback messages read the shared grader\'s parts', () => {
   assert.match(region(workspace, 'function LinearMode(', 'function InequalityMode(', 'LinearMode'), /if \(!partCorrect\(feedback, 'classification'\)\)/);
-  const inequality = region(workspace, 'function InequalityMode(', 'const CONSTRUCTION_METHODS', 'InequalityMode');
+  const inequality = region(workspace, 'function ClassicInequalityMode(', 'function LinearQuadraticMode(', 'ClassicInequalityMode');
   assert.match(inequality, /const testCorrect = partCorrect\(feedback, 'test-point'\);\s*const candidateFeasible = partCorrect\(feedback, 'candidate-point'\);/);
   assert.match(region(workspace, 'function LinearQuadraticMode(', 'function MatrixMode(', 'LinearQuadraticMode'), /if \(!partCorrect\(feedback, 'count'\)\)/);
   const matrix = region(workspace, 'function MatrixMode(', 'const MODE_TASKS', 'MatrixMode');

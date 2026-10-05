@@ -210,8 +210,8 @@ const SCRIPTS = {
 
   // (5, 1) is not in the region; (0, 2) is.
   systemsWorkspaceInequalities: async (page) => {
-    await page.getByRole('combobox', { name: 'Is the purple point (5, 1) in the feasible region?' })
-      .selectOption({ label: 'No' });
+    await page.getByRole('group', { name: 'Is the purple point (5, 1) in the feasible region?' })
+      .getByRole('button', { name: 'No', exact: true }).click();
     await page.getByRole('spinbutton', { name: 'Your own feasible x', exact: true }).fill('0');
     await page.getByRole('spinbutton', { name: 'Your own feasible y', exact: true }).fill('2');
     await btn(page, 'Check feasible region').click();
@@ -228,8 +228,9 @@ const SCRIPTS = {
       for (const [name, value] of [['Boundary point 1: x', x1], ['Boundary point 1: y', y1], ['Boundary point 2: x', x2], ['Boundary point 2: y', y2]]) {
         await page.getByRole('spinbutton', { name, exact: true }).nth(index).fill(String(value));
       }
-      await page.getByRole('combobox', { name: 'Boundary style', exact: true }).nth(index).selectOption({ label: style });
-      await page.getByRole('combobox', { name: 'Shade', exact: true }).nth(index).selectOption({ label: shade });
+      // One-tap choices, one group per inequality.
+      await page.getByRole('group', { name: 'Boundary style', exact: true }).nth(index).getByRole('button', { name: style, exact: true }).click();
+      await page.getByRole('group', { name: 'Shade', exact: true }).nth(index).getByRole('button', { name: shade, exact: true }).click();
     }
     await btn(page, 'Check inequality graph').click();
   },

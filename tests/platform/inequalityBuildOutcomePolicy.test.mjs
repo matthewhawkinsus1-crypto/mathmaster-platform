@@ -149,34 +149,41 @@ test('the completion lines carry no verdict word', () => {
 });
 
 // ---------------------------------------------------------------- the screen is held to the gate
-const source = executableSource(componentSource('src/tools/systemsWorkspace/SystemsWorkspace.jsx'));
-const mode = region(source, 'function StudentBuildInequalityMode(', 'function LinearQuadraticMode(', 'StudentBuildInequalityMode');
+// The student-build mode's logic is StudentBuildInequalityMode.jsx; what its
+// steps look like is InequalityBuildPanels.jsx; which step is open is
+// inequalityBuildFlow.js, handed the gate's stepDone and nothing else.
+const modeSource = componentSource('src/tools/systemsWorkspace/StudentBuildInequalityMode.jsx');
+const mode = executableSource(modeSource);
+const panels = executableSource(componentSource('src/tools/systemsWorkspace/InequalityBuildPanels.jsx'));
 
 test('the student-build screen feeds the gate the runtime policy and the work as it stands', () => {
-  assert.match(source, /import \{ useRevealAnswers, useToolRuntimeContext \} from '\.\.\/shared\/ToolRuntimeContext';/);
+  assert.match(mode, /import \{[^}]*\buseToolRuntimeContext\b[^}]*\} from '\.\.\/shared\/ToolRuntimeContext';/);
   assert.match(mode, /\n\s*const \{ showImmediateFeedback \} = useToolRuntimeContext\(\);/);
   const gate = region(mode, 'const buildGate = resolveInequalityBuildGate({', '});', 'build gate');
   for (const field of ['showImmediateFeedback', 'buildConfig', 'build', 'constraintCount', 'rewriteVerified', 'stepCorrect', 'stepFinished']) {
     assert.match(gate, new RegExp(`\\n\\s*${field},`), field);
   }
+  // A Check belongs to the work it was about (inequalityBuildFlow.test.mjs).
+  assert.match(gate, /\n\s*stepCheckedAsItStands: \(index, step\) => stepCheckedAsItStands\(build\[index\], step\),/);
   // '\n  };' — the body's own `|| {};` must not end the region early.
   const finished = region(mode, 'const stepFinished = (index, step) => {', '\n  };', 'step completion');
   assert.match(finished, /if \(step === 'boundary'\) return Boolean\(studentLines\[index\]\);/, 'the boundary step is finished once a line is drawn');
   assert.doesNotMatch(finished, /Correct\(|workingConstraints|expected/, 'completion never consults the answer');
 });
 
-test('every chip, the overlap lock and each step line come from the gate, and the grade from the shared grader told the policy', () => {
-  assert.match(mode, /const boundaryVerified = \(index\) => buildGate\.stepDone\(index, 'boundary'\);/);
-  assert.match(mode, /const styleVerified = \(index\) => buildGate\.stepDone\(index, 'lineStyle'\);/);
-  assert.match(mode, /const shadeVerified = \(index\) => buildGate\.stepDone\(index, 'shading'\);/);
+test('every mark, the step order, the overlap lock and each step line come from the gate, and the grade from the shared grader told the policy', () => {
+  // The flow decides which steps are done, open and locked from the gate alone.
+  assert.match(region(mode, 'const flowContext = {', '\n  };', 'flowContext'),
+    /stepDone: \(index, step\) => \(step === 'rewrite' \? rewriteVerified\(index\) : buildGate\.stepDone\(index, step\)\),/);
   assert.match(mode, /const allConstraintsComplete = buildGate\.allConstraintsDone;/);
   assert.match(mode, /disabled=\{!allConstraintsComplete\}/);
-  for (const step of ['boundary', 'lineStyle', 'shading']) {
-    assert.match(mode, new RegExp(`data-build-chip="${step}" style=\\{\\{ color: stepChip\\(\\w+Verified\\(index\\)\\)\\.color \\}\\}`), `${step} chip`);
-  }
-  const chip = region(mode, 'const stepChip = (done) =>', 'const completionLine', 'step chip');
-  assert.match(chip, /buildGate\.verdictsShown\s*\?\s*\{ color: done \? '#137333'[^}]*mark: done \? '✓'/);
-  assert.match(chip, /:\s*\{ color: done \? '#174ea6'[^}]*mark: done \? 'done'/);
+  // A done step is a ✓ only where outcomes are shown; where they are withheld,
+  // a neutral ● and "Recorded" — the same for right and wrong work.
+  assert.match(mode, /const doneMark = buildGate\.verdictsShown \? '✓' : '●';/);
+  assert.match(mode, /const doneTone = buildGate\.verdictsShown \? 'verdict' : 'recorded';/);
+  assert.match(mode, /buildGate\.verdictsShown \? '✓ Done' : '● Recorded'/);
+  assert.match(mode, /const segmentState = \(state\) => \(state === 'done' \? \(buildGate\.verdictsShown \? 'done' : 'recorded'\)/);
+  assert.match(region(panels, 'export function StepRow(', 'export function PhaseCard(', 'StepRow'), /data-tone=\{state === 'done' \? doneTone : undefined\}/);
   for (const [name, step, verdict] of [['boundaryMessage', 'boundary', 'Correct boundary.'], ['styleMessage', 'lineStyle', 'Correct line style.'], ['shadeMessage', 'shading', 'Correct shading.']]) {
     const message = region(mode, `const ${name} = (index) => {`, '\n  };', name);
     const withheld = message.indexOf(`if (!buildGate.verdictsShown) return completionLine(buildGate.stepReport(index, '${step}')`);
@@ -191,18 +198,35 @@ test('every chip, the overlap lock and each step line come from the gate, and th
     /const result = gradeToolCheck\(systemsWorkspaceGrader, questionData, work\);\s*submit\(\{ isCorrect: result\.isCorrect, score: result\.score \}, work,/);
 });
 
+test('where outcomes are withheld, whether a Check moves the student on never depends on whether the work is right', () => {
+  // A step that opened only on right work would be the verdict the line withholds.
+  assert.match(region(mode, 'const checkStep = (index, step) => {', '\n  };', 'checkStep'),
+    /const doneNow = buildGate\.verdictsShown \? stepCorrect\(index, step\) : stepFinished\(index, step\);/);
+  const reasoning = region(mode, 'const checkReasoning = (phase) => {', '\n  };', 'checkReasoning');
+  assert.match(reasoning, /phase === 'classify'\s*\?\s*\(!buildGate\.verdictsShown \? \{ done: Boolean\(regionClassification\) \}/);
+  // Test points and vertices move on with their own reports, which answer
+  // "finished?" where outcomes are withheld (next test).
+  assert.match(reasoning, /phase === 'teacherPoint' \? pointReport\(/);
+  assert.match(reasoning, /: \{ done: vertices\.length > 0 && vertices\.map\(vertexReport\)\.every\(\(item\) => item\.done\) \};/);
+  // The step on screen does not move on by itself as the work is finished
+  // (where outcomes are withheld a step is done once finished).
+  assert.match(region(mode, 'const updateBuildEntry = (index, patch) => {', '\n  };', 'updateBuildEntry'), /if \(activeStep == null\) setActiveStep\(cursor\);/);
+});
+
 test('the reasoning checks and the vertex magnet ask the gate before judging anything', () => {
-  const point = region(mode, 'const checkPointResponse = (point, response, setFeedbackText, probeIndex = onBoundaryIndex(point)) => {', 'const vertexIncludedExpected', 'test point check');
+  const point = region(mode, 'const pointReport = (point, response, probeIndex = onBoundaryIndex(point)) => {', 'const vertexIncludedExpected', 'test point report');
   const withheld = point.indexOf('if (!buildGate.verdictsShown) {');
   assert.ok(withheld > -1 && withheld < point.indexOf('const expectedMembership = membership(point);'), 'no membership is computed before the withheld return');
   assert.ok(point.indexOf("'Correct — every part of your reasoning") > withheld);
-  const vertex = region(mode, 'const checkVertex = (index) => {', 'const finalCheck', 'vertex check');
+  const vertex = region(mode, 'const vertexReport = (vertex) => {', 'const classificationReport', 'vertex report');
   const vertexWithheld = vertex.indexOf('if (!buildGate.verdictsShown) {');
   assert.ok(vertexWithheld > -1 && vertexWithheld < vertex.indexOf('vertexIncludedExpected(vertex)'), 'not even whether the tap is a true corner');
   assert.match(mode, /\[\.\.\.\(buildGate\.snapToExpectedVertices \? workingVertices : \[\]\), \.\.\.feasibleRegionVertices\(studentBoundaries\.filter\(Boolean\)\)\]/);
-  const classification = region(mode, '{!buildGate.verdictsShown ? (', "'Correct classification.'", 'region classification line');
+  const classification = region(mode, 'const classificationReport = () => {', "'Correct classification.'", 'region classification line');
+  const classificationWithheld = classification.indexOf('if (!buildGate.verdictsShown) {');
+  assert.ok(classificationWithheld > -1 && classificationWithheld < classification.indexOf('workingClassification'), 'the classification is not compared before the withheld return');
   assert.match(classification, /buildGate\.reasoningReport\(\{ pressed: true, complete: Boolean\(regionClassification\) \}\)/);
-  const combine = region(mode, '<strong>Combined solution</strong>', 'Find overlap / Combine regions', 'combine block');
+  const combine = region(mode, "phaseCard('combine'", 'Find overlap / Combine regions', 'combine block');
   assert.match(combine, /buildGate\.verdictsShown\s*\?\s*\(allConstraintsComplete \? 'Every constraint checks out\./);
   assert.match(combine, /'Finish every constraint above first\.'/);
 });
@@ -216,12 +240,12 @@ test("the boundary questions under the student's own point follow the student's 
   assert.match(own, /effectiveLines\.findIndex\(/, "measured against the lines the student built");
   assert.doesNotMatch(own, /workingConstraints|expected/, 'never against the answer');
   assert.match(mode, /const studentProbeIndex = \(point\) => \(buildGate\.probeFromOwnLines \? ownBoundaryIndex\(point\) : onBoundaryIndex\(point\)\);/);
-  const card = region(mode, 'title="Your point"', '/>', 'student point card');
-  assert.match(card, /onBoundaryIndex=\{studentTestPoint \? studentProbeIndex\(studentTestPoint\) : -1\}/, 'shown for the same boundary...');
-  assert.match(card, /checkPointResponse\(studentTestPoint, studentPointResponse, setStudentPointFeedback, studentProbeIndex\(studentTestPoint\)\)/, '...that the check expects answered');
-  const point = region(mode, 'const checkPointResponse = (point, response, setFeedbackText, probeIndex = onBoundaryIndex(point)) => {', 'const expectedMembership', 'test point check');
+  assert.match(mode, /showBoundaryProbe=\{boundaryProbeEnabled && studentProbeIndex\(studentTestPoint\) >= 0\}/, 'shown for the same boundary...');
+  assert.match(mode, /const studentReport = studentPointChecked \? pointReport\(studentTestPoint, studentPointResponse, studentProbeIndex\(studentTestPoint\)\) : null;/, '...that the report expects answered');
+  assert.match(region(mode, 'const checkReasoning = (phase) => {', '\n  };', 'checkReasoning'), /pointReport\(studentTestPoint, studentPointResponse, studentProbeIndex\(studentTestPoint\)\)/);
+  const point = region(mode, 'const pointReport = (point, response, probeIndex = onBoundaryIndex(point)) => {', 'const expectedMembership', 'test point report');
   assert.match(point, /!boundaryProbeEnabled \|\| probeIndex < 0 \|\|/, 'completion asks for the boundary answers exactly when they were on screen');
   // A teacher's point is the question's own content, probed and graded against the truth.
-  const teacher = region(mode, 'title="Teacher point"', '/>', 'teacher point card');
-  assert.match(teacher, /onBoundaryIndex=\{onBoundaryIndex\(\[teacherTestPoint\.x, teacherTestPoint\.y\]\)\}/);
+  assert.match(mode, /showBoundaryProbe=\{boundaryProbeEnabled && onBoundaryIndex\(\[teacherTestPoint\.x, teacherTestPoint\.y\]\) >= 0\}/);
+  assert.match(mode, /const teacherReport = teacherPointChecked \? pointReport\(\[teacherTestPoint\.x, teacherTestPoint\.y\], teacherPointResponse\) : null;/);
 });

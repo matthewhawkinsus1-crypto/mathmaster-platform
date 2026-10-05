@@ -265,12 +265,25 @@ test('advanced workspace always exposes Other operations and reuses IntervalNumb
 
 test('advanced solver opens Other operations by default on load and reset', () => {
   const src = multiRelationSource();
-  assert.match(src, /const \[otherOpen, setOtherOpen\] = useState\(true\)/);
-  assert.match(src, /setRewriteValue\(''\);\s*setOtherOpen\(true\);\s*setCompleteSquareOpen\(false\);/);
+  // Open unless the host says otherwise, on load and on every reset alike.
+  assert.match(src, /\n\s*otherOperationsOpenByDefault = true,/);
+  assert.match(src, /const \[otherOpen, setOtherOpen\] = useState\(otherOperationsOpenByDefault\)/);
+  assert.match(src, /setRewriteValue\(''\);\s*setOtherOpen\(otherOperationsOpenByDefault\);\s*setCompleteSquareOpen\(false\);/);
   const resetStart = src.indexOf('const reset = () =>');
   const resetEnd = src.indexOf('const active =', resetStart);
   assert.ok(resetStart >= 0 && resetEnd > resetStart);
-  assert.match(src.slice(resetStart, resetEnd), /setOtherOpen\(true\)/);
+  assert.match(src.slice(resetStart, resetEnd), /setOtherOpen\(otherOperationsOpenByDefault\)/);
+  assert.doesNotMatch(src, /setOtherOpen\(true\)/, 'no reset reopens it behind the host\'s back');
+  // The one host that starts it closed: the Systems Workspace rewrite to
+  // y = mx + b, which only ever needs + − × ÷. The absolute-value lessons the
+  // solver was built for keep it open.
+  const root = new URL('../../src/', import.meta.url);
+  const sources = (dir) => fs.readdirSync(new URL(dir, root), { withFileTypes: true }).flatMap((entry) => (
+    entry.isDirectory() ? sources(`${dir}${entry.name}/`) : /\.(jsx|js)$/.test(entry.name) ? [`${dir}${entry.name}`] : []
+  ));
+  const hosts = sources('').filter((file) => fs.readFileSync(new URL(file, root), 'utf8').includes('otherOperationsOpenByDefault='));
+  assert.deepEqual(hosts, ['tools/systemsWorkspace/EmbeddedInequalityRewrite.jsx']);
+  assert.match(fs.readFileSync(new URL('tools/systemsWorkspace/EmbeddedInequalityRewrite.jsx', root), 'utf8'), /otherOperationsOpenByDefault=\{false\}/);
 });
 
 

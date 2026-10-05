@@ -30,6 +30,8 @@ import {
   investigationFeatures,
 } from '../../src/tools/functionInvestigation2/functionInvestigationMath.js';
 import { evaluateFunctionSpec } from '../../src/tools/shared/toolMath.js';
+import { CONSTRAINT_COLORS, constraintColor } from '../../src/tools/systemsWorkspace/constraintPalette.js';
+import { executableSource, region } from './helpers/sourceContract.mjs';
 
 const require = createRequire(import.meta.url);
 const {
@@ -979,9 +981,19 @@ test('A2.3F securely constructs and solves two- and three-inequality regions', a
   assert.ok(taskTypes.has('application'));
   assert.ok(taskTypes.has('errorAnalysis'));
 
-  const workspaceSource = readFileSync('src/tools/systemsWorkspace/SystemsWorkspace.jsx', 'utf8');
-  assert.match(workspaceSource, /INEQUALITY_COLORS/);
-  assert.match(workspaceSource, /INEQUALITY_COLORS\[index % INEQUALITY_COLORS\.length\]/);
+  // Each constraint of a two- or three-inequality construction is drawn — its
+  // boundary, its plotted points and its legend swatch — in its own colour
+  // from the palette every inequality mode shares, which wraps rather than
+  // running out on a longer system.
+  const workspaceSource = executableSource(readFileSync('src/tools/systemsWorkspace/SystemsWorkspace.jsx', 'utf8'));
+  const classic = region(workspaceSource, 'function ClassicInequalityMode(', 'function LinearQuadraticMode(', 'ClassicInequalityMode');
+  // Coloured before the unfinished lines are filtered out, so constraint 2 is
+  // constraint 2's colour even while constraint 1 has no line yet.
+  const constructed = region(classic, 'const graphLines = requiresConstruction', ': inequalities.map(', 'constructed boundaries');
+  assert.match(constructed, /constructedLines\.map\(\(line, index\) => \(line \? \{[\s\S]*?stroke:constraintColor\(index\),[\s\S]*?\} : null\)\)\.filter\(Boolean\)/, 'each boundary in its constraint\'s colour');
+  assert.match(classic, /fill:constraintColor\(index\)/, 'and the points the student plots for it');
+  assert.equal(new Set([0, 1, 2].map(constraintColor)).size, 3, 'a three-inequality system gets three colours');
+  assert.equal(constraintColor(CONSTRAINT_COLORS.length), constraintColor(0));
 });
 
 test('A2.3G determines possible solutions and requires a feasible candidate across full inequality systems', async () => {
